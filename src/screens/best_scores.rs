@@ -9,21 +9,35 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::Fault;
 use crate::menu::event_flow::StageTable;
 use crate::menu::owner::Menus;
-use crate::menu::owner::Tables;
 use crate::records::stages_store::{Holder, RecordRef, RecordTable};
 use crate::screens::game_screen::GameScreen;
 use crate::screens::game_screen::{Held, HeldText};
 use crate::session::DwordLike;
 use crate::session::PlainDword;
-use crate::system::owner::system;
+use crate::system::owner::{System, system};
 use crate::text::draw_text::Canvas;
 use rc2k_core::screens::best_scores::{Row, Rows};
 
-const PAGE: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .tables
-    .pages
-    .scores_page;
+fn scores_page(menus: &Menus) -> &PlainDword {
+    &menus.tables.pages.scores_page
+}
+
+fn arcade_level(menus: &Menus) -> &dyn DwordLike {
+    &menus.play.arcade.level
+}
+
+fn event_class(menus: &Menus) -> &dyn DwordLike {
+    &menus.screens.event.class
+}
+
+fn event_stage_number(menus: &Menus) -> &dyn DwordLike {
+    &menus.screens.event.stage_number
+}
+
+fn arcade_stage(menus: &Menus) -> &dyn DwordLike {
+    &menus.play.arcade.stage
+}
+
 /// Which typed table a page shows.
 pub enum Source {
     /// The best scores (`saves::best_times::SCORES`): the name, the score, the
@@ -50,7 +64,7 @@ pub struct Table {
     /// The best scores keep the last row's y in `draw_work.scratch_b0`.
     pub keeps_y: bool,
     /// Where the group's number is: a dword, or (None) the page's entry of the group list.
-    pub group_at: Option<&'static dyn DwordLike>,
+    pub group_at: Option<fn(&Menus) -> &dyn DwordLike>,
     /// A fixed group instead.
     pub group_fixed: Option<u32>,
     /// An entry whose highlight field is 1 is drawn in the highlight fonts.
@@ -80,7 +94,7 @@ pub const CLASS_TIMES: Table = Table {
 pub const MARKED_CLASS_TIMES: Table = Table {
     at: Source::LevelScores,
     keeps_y: true,
-    group_at: Some(&crate::menu::owner::MENUS.unchecked().play.arcade.level),
+    group_at: Some(arcade_level),
     group_fixed: None,
     highlight: true,
     sprite_dy: 4,
@@ -102,17 +116,18 @@ pub type ScoresScreen<'a> = GameScreen<
 /// the last one's y (`draw_text` leaves it), the next row 0x19 below; the sprites' palette
 /// the line buffer past its NUL (ebx after the rank's `draw_text`).
 /// Refuses (before anything) no table.
-pub fn draw_scores(tables: &Tables, t: &Table, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_scores(menus: &Menus, t: &Table, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    let tables = &menus.tables;
     // The logic is in `rc2k_core::screens::best_scores::scores`.
     {
         t.at.need("no best scores table")?;
         let group = match (t.group_fixed, t.group_at) {
             (Some(g), _) => g,
-            (None, Some(a)) => a.get(),
+            (None, Some(a)) => a(menus).get(),
             (None, None) => crate::session::read_on_in(
                 &tables.lists,
                 &tables.lists.page_titles_b,
-                PAGE.get() as usize,
+                scores_page(menus).get() as usize,
                 "best scores: a game value",
             )?,
         };
@@ -193,11 +208,10 @@ fn draw_held_rows(t: &Table, ten: &[HeldRow; 10], canvas: &mut dyn Canvas) -> Re
 /// `screens::draw_best_scores_page` (0x46D149): the best scores for pages up to 4, else
 /// the class times.
 pub fn draw_best_scores_page(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let tables = &menus.tables;
-    if (PAGE.get() as i32) <= 4 {
-        draw_scores(tables, &BEST_SCORES, canvas)
+    if (scores_page(menus).get() as i32) <= 4 {
+        draw_scores(menus, &BEST_SCORES, canvas)
     } else {
-        draw_scores(tables, &CLASS_TIMES, canvas)
+        draw_scores(menus, &CLASS_TIMES, canvas)
     }
 }
 
@@ -210,7 +224,7 @@ pub fn best_scores_caption(menus: &Menus) -> Result<(), Refused> {
     let id = crate::session::read_on_in(
         &tables.lists,
         &tables.lists.page_titles_a,
-        PAGE.get() as usize,
+        scores_page(menus).get() as usize,
         "best scores: a game value",
     )?;
     crate::screens::car_caption::put_string(
@@ -237,7 +251,7 @@ pub struct StageTimes {
     /// The stage record's table (the records 0xA4 bytes; +0x38 the stage's name string, +0x3C
     /// its times' number) and the record's number.
     pub records: fn(&Menus) -> Result<RecordTable, BadInput>,
-    pub record: &'static dyn DwordLike,
+    pub record: fn(&Menus) -> &dyn DwordLike,
     /// The times' table (ten for each stage; the record's +0x3C the stage).
     pub table: fn(&Menus) -> &StageTable,
     /// The rally page keeps the sprites' y (+4) in `draw_work.scratch_b0` and the flag's glyph in
@@ -275,18 +289,14 @@ fn rally_table(_: &Menus) -> &'static StageTable {
 /// `screens::draw_stage_times`' (0x48D0F2).
 pub const STAGE_TIMES: StageTimes = StageTimes {
     records: champ_records,
-    record: &crate::menu::owner::MENUS
-        .unchecked()
-        .screens
-        .event
-        .stage_number,
+    record: event_stage_number,
     table: champ_table,
     rally: false,
 };
 /// `screens::draw_rally_stage_times`' (0x48A948).
 pub const RALLY_STAGE_TIMES: StageTimes = StageTimes {
     records: rally_records,
-    record: &crate::menu::owner::MENUS.unchecked().play.arcade.stage,
+    record: arcade_stage,
     table: rally_table,
     rally: true,
 };
@@ -304,7 +314,7 @@ pub fn draw_times_heading(
     {
         let base = (p.records)(menus)?;
         let id = base.title()?;
-        let record = base.row(p.record.get())?;
+        let record = base.row((p.record)(menus).get())?;
         let line = || -> Result<Vec<u8>, Refused> { stage_line_without_nul(0x482, record) };
         rc2k_core::screens::best_scores::heading(&mut ScoresScreen::new(canvas), id, Some(&line))
     }
@@ -338,7 +348,7 @@ pub fn draw_stage_times(
         return Err(BadInput("no times table").into());
     }
     draw_times_heading(menus, p, canvas)?;
-    let group = base.row(p.record.get())?.record()?.event_slot();
+    let group = base.row((p.record)(menus).get())?.record()?.event_slot();
     let keep = if p.rally { Keep::Below4 } else { Keep::Nothing };
     draw_time_rows(table, group as usize, keep, canvas)?;
     Ok(())
@@ -396,23 +406,24 @@ pub fn draw_time_rows(
     drawn
 }
 
-const SECTION: &PlainDword = &crate::menu::owner::MENUS.unchecked().screens.event.section; // section
-const INDEX: &PlainDword = &crate::menu::owner::MENUS.unchecked().screens.event.index; // index
-
 /// `records::find_record` of the record table: the section's record `index`.
-pub fn record_at(index: u32) -> Result<RecordRef, crate::errors::BadInput> {
+pub fn record_at(
+    menus: &Menus,
+    system: &System,
+    index: u32,
+) -> Result<RecordRef, crate::errors::BadInput> {
     crate::records::find_record::find_record_in(
-        system().records.stage_tables.championship(),
+        system.records.stage_tables.championship(),
         index as i32,
-        SECTION.get(),
+        menus.screens.event.section.get(),
     )
 }
 
 /// Whether the record table has the section (the look-up has no end): for the refusals.
-pub fn section_there() -> Result<bool, crate::errors::BadInput> {
+pub fn section_there(menus: &Menus, system: &System) -> Result<bool, crate::errors::BadInput> {
     crate::records::find_record::has_section(
-        system().records.stage_tables.championship(),
-        SECTION.get(),
+        system.records.stage_tables.championship(),
+        menus.screens.event.section.get(),
         0x400,
     )
 }
@@ -422,24 +433,28 @@ pub fn section_there() -> Result<bool, crate::errors::BadInput> {
 /// record's +0x38 string), then record `index`'s stage line (string 0x481 ...) in the line
 /// buffer at (0x2EB, 0x91). Refuses (before anything) a section the
 /// table has not.
-pub fn draw_record_heading(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_record_heading(
+    menus: &Menus,
+    system: &System,
+    canvas: &mut dyn Canvas,
+) -> Result<(), Refused> {
     // The logic is in `rc2k_core::screens::best_scores::heading`.
     {
-        if !section_there()? {
+        if !section_there(menus, system)? {
             return Err(BadInput("a section past the record table").into());
         }
-        let first = record_at(0)?;
+        let first = record_at(menus, system, 0)?;
         let id = if menus.play.champ_view.event_mode.get() == 0x13 {
             crate::session::read_on_in(
                 &menus.tables.lists,
                 &menus.tables.lists.section_titles,
-                SECTION.get() as usize,
+                menus.screens.event.section.get() as usize,
                 "best scores: a game value",
             )?
         } else {
             first.record()?.name()
         };
-        let record = record_at(INDEX.get())?;
+        let record = record_at(menus, system, menus.screens.event.index.get())?;
         let line = || -> Result<Vec<u8>, Refused> { stage_line_without_nul(0x481, record) };
         rc2k_core::screens::best_scores::heading(&mut ScoresScreen::new(canvas), id, Some(&line))
     }
@@ -452,11 +467,12 @@ pub fn draw_record_heading(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(),
 /// leaves it out: `notes/bugs.md`). Refuses (before anything) a section
 /// the table has not, no times table, and what `strings::append_speed` refuses.
 pub fn draw_record_times(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    let system = system();
     let times = &crate::saves::best_times::STAGE_TIMES;
-    let (true, true) = (section_there()?, times.is_taken()) else {
+    let (true, true) = (section_there(menus, system)?, times.is_taken()) else {
         return Err(BadInput("a section past the record table, or no times table").into());
     };
-    let record = record_at(INDEX.get())?;
+    let record = record_at(menus, system, menus.screens.event.index.get())?;
     // The record's fields are read at once (nothing drawn in between writes them).
     let fastest = record.record()?.holder(Holder::Fastest);
     let (top_speed, times_at, nation, car) = (
@@ -470,7 +486,7 @@ pub fn draw_record_times(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), R
         true,
         crate::strings::units::units(),
     )?;
-    draw_record_heading(menus, canvas)?;
+    draw_record_heading(menus, system, canvas)?;
     if !draw_time_rows(times, times_at as usize, Keep::Y, canvas)? {
         return Ok(());
     }
@@ -486,7 +502,7 @@ pub fn draw_record_times(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), R
 /// `screens::draw_event_best_scores`' (0x4A8DBF): group `event.class`, the player's own
 /// (+0x14 1) in the highlight fonts.
 pub const EVENT_BEST_SCORES: Table = Table {
-    group_at: Some(&crate::menu::owner::MENUS.unchecked().screens.event.class),
+    group_at: Some(event_class),
     highlight: true,
     ..BEST_SCORES
 };
@@ -529,5 +545,5 @@ pub fn draw_scores_with_heading(
         event.then(|| menus.screens.event.class.get()),
     );
     rc2k_core::screens::best_scores::heading(&mut screen, id, None)?;
-    draw_scores(&menus.tables, t, screen.canvas)
+    draw_scores(menus, t, screen.canvas)
 }

@@ -26,8 +26,8 @@ fn gates(work: &RaceWork, replay_file: &ReplayFileBlock, car: &Car) -> [u32; 7] 
         car.started_stand_timer.get(),
         replay_file.hold_car_revs.get(),
         u32::from(work.in_credits.is_set()),
-        crate::race::owner::RACE.shared.car.false_start_count.get(),
-        crate::race::owner::RACE.shared.car.all_wheels_off.get(),
+        car.false_start_count.get(),
+        car.all_wheels_off.get(),
     ]
 }
 const ONE_F32: u32 = 0x3F80_0000;

@@ -213,7 +213,12 @@ pub fn draw(race: &Race, renderer: Renderer, window: Window) {
         io.set_display_framebuffer_scale([pw as f32 / w as f32, ph as f32 / h as f32]);
         io.set_delta_time(delta);
         let frame = gui.context.begin_frame();
-        crate::debug::ui::build(race, frame.ui());
+        // The page reads the other owners too; `race` is the one the frame was drawn with.
+        let owners = crate::owners::Owners {
+            race,
+            ..crate::owners::boundary()
+        };
+        crate::debug::ui::build(&owners, frame.ui());
         let pending = frame.render(&gui.consumer);
         if let Err(why) = render(&mut gui.textures, renderer, pending) {
             crate::framework::log(&format!("debug: the UI not drawn: {why}"));

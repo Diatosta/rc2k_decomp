@@ -51,17 +51,18 @@ fn made_place(id: u32) -> Result<MadeText, BadInput> {
 }
 
 /// The text of the made text `id`, up to its NUL (left out).
-pub fn made_text(id: u32) -> Result<Vec<u8>, BadInput> {
-    use crate::install::owner::install;
-    use crate::menu::owner::menus;
-    use crate::screens::text_buffers_store::TEXT_BUFFERS;
-
+pub fn made_text(
+    race: &crate::race::owner::Race,
+    menus: &crate::menu::owner::Menus,
+    install: &crate::install::owner::Install,
+    id: u32,
+) -> Result<Vec<u8>, BadInput> {
     match made_place(id)? {
-        MadeText::Notice(at) => text_in(&menus().panels.notice, at),
-        MadeText::Buffers(at) => text_in(&*TEXT_BUFFERS, at),
-        MadeText::DriveRows(at) => text_in(&install().drive_rows, at),
-        MadeText::Names(at) => text_in(&install().names, at),
-        MadeText::Vars(at) => text_in(&install().vars, at),
+        MadeText::Notice(at) => text_in(&menus.panels.notice, at),
+        MadeText::Buffers(at) => text_in(race.text_buffers(), at),
+        MadeText::DriveRows(at) => text_in(&install.drive_rows, at),
+        MadeText::Names(at) => text_in(&install.names, at),
+        MadeText::Vars(at) => text_in(&install.vars, at),
     }
 }
 
@@ -87,9 +88,12 @@ fn text_in<T: crate::pointers::Cells>(holder: &T, offset: usize) -> Result<Vec<u
 
 /// The text in the driver names' block at byte `slot` (a driver name's slot value), up to its
 /// NUL (left out).
-pub fn driver_name_text(slot: u32) -> Result<Vec<u8>, BadInput> {
+pub fn driver_name_text(
+    strings: &crate::strings::owner::Strings,
+    slot: u32,
+) -> Result<Vec<u8>, BadInput> {
     use crate::settings::read_driver_names::NAMES_SIZE;
-    let names = &crate::strings::owner::strings().drivers.names;
+    let names = &strings.drivers.names;
     let mut text = Vec::new();
     for at in slot as usize..NAMES_SIZE {
         match names.get(at) {
@@ -102,16 +106,16 @@ pub fn driver_name_text(slot: u32) -> Result<Vec<u8>, BadInput> {
 
 /// The offset in `drivers.names` of the name of driver-name id `id` (`POINTER_IDS`), 0 for
 /// none: the pointer slot each id has.
-pub fn driver_name_slot(id: u32) -> Result<u32, BadInput> {
+pub fn driver_name_slot(
+    strings: &crate::strings::owner::Strings,
+    id: u32,
+) -> Result<u32, BadInput> {
     let ids = rc2k_core::strings::table::POINTER_IDS;
     if !ids.contains(&id) {
         return Err(BadInput("a driver name's id off the names"));
     }
     let slot = (id - ids.start()) as usize;
-    Ok(crate::strings::owner::strings()
-        .drivers
-        .names
-        .get_u32(4 * slot))
+    Ok(strings.drivers.names.get_u32(4 * slot))
 }
 
 /// Where `strings::compile_lexicon` puts the table, and its room (`g_lexicon` in IDA, 0x4E07F8 .. the keyboard file at 0x4F07C8).
@@ -199,8 +203,10 @@ mod tests {
                 "{id:#X}"
             );
         }
-        assert!(made_text(0x1040).is_err());
-        assert!(made_text(0x1FFF).is_err());
+        let o = crate::owners::boundary();
+        let (race, menus, install) = (o.race, o.menus, o.install);
+        assert!(made_text(race, menus, install, 0x1040).is_err());
+        assert!(made_text(race, menus, install, 0x1FFF).is_err());
     }
 
     #[test]

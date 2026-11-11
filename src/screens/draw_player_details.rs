@@ -28,22 +28,10 @@ use crate::errors::{BadInput, Refused};
 use crate::input::owner::input;
 use crate::menu::owner::Menus;
 use crate::menu::player::Player;
-use crate::session::PlainDword;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-const NATIONALITIES_RVA: &[PlainDword] = &crate::menu::owner::MENUS
-    .unchecked()
-    .tables
-    .captions
-    .nationalities;
-const VIEWS_RVA: &[PlainDword] = &crate::menu::owner::MENUS.unchecked().tables.captions.views;
-const SECOND_VIEWS_RVA: &[PlainDword] = &crate::menu::owner::MENUS
-    .unchecked()
-    .tables
-    .captions
-    .second_views;
 /// What differs between the players' pages: players 1 and 2 (`screens::draw_player_details`,
 /// 0x4677B5) have the controller's item at 9 and the second view's line; players 3
 /// and 4 (0x467975) have it at 8 and no second view, the lines below moving up one.
@@ -89,15 +77,19 @@ pub fn draw_player_page(
     }
     // The logic is in `rc2k_core::screens::player_details`; the strings looked up (and refused)
     // before anything is drawn, the second view of 5 made 0 then.
-    let nationality_id = string(NATIONALITIES_RVA, player.nationality, NATIONALITIES)?;
-    let view_id = string(VIEWS_RVA, player.view, VIEWS)?;
+    let nationality_id = string(
+        &menus.tables.captions.nationalities,
+        player.nationality,
+        NATIONALITIES,
+    )?;
+    let view_id = string(&menus.tables.captions.views, player.view, VIEWS)?;
     let second_view_id = if layout.second_view {
         let view = if player.second_view == 5 {
             0
         } else {
             player.second_view
         };
-        let id = string(SECOND_VIEWS_RVA, view, SECOND_VIEWS)?;
+        let id = string(&menus.tables.captions.second_views, view, SECOND_VIEWS)?;
         if player.second_view == 5 {
             cell.update(|p| p.second_view = 0);
         }

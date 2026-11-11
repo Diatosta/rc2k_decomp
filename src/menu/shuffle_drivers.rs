@@ -15,51 +15,23 @@ use crate::session::PlainDword;
 const DRIVER_LEN: usize = 0x94;
 
 /// The four classes' first drivers (`g_drivers` + 90, + 140, + 170, + 0) and counts.
-const TABLES: [(usize, &PlainDword); 4] = [
-    (
-        90,
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .screens
-            .state
-            .menus
-            .class_counts[1],
-    ),
-    (
-        140,
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .screens
-            .state
-            .menus
-            .class_counts[2],
-    ),
-    (
-        170,
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .screens
-            .state
-            .menus
-            .class_counts[3],
-    ),
-    (
-        0,
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .screens
-            .state
-            .menus
-            .class_counts[0],
-    ),
-];
+fn tables(menus: &Menus) -> [(usize, &PlainDword); 4] {
+    let counts = &menus.screens.state.menus.class_counts;
+    [
+        (90, &counts[1]),
+        (140, &counts[2]),
+        (170, &counts[3]),
+        (0, &counts[0]),
+    ]
+}
 
 pub fn shuffle_drivers(menus: &Menus) -> Result<(), Refused> {
     use crate::math::random_below::random_below;
-    if TABLES.iter().any(|&(_, c)| c.get() == 0) {
+    let tables = tables(menus);
+    if tables.iter().any(|&(_, c)| c.get() == 0) {
         return Err(BadInput("a driver table count of 0").into());
     }
-    for &(table, count) in &TABLES {
+    for &(table, count) in &tables {
         let first = &menus.cars.drivers.drivers[table];
         let n = count.get();
         for _ in 0..n {

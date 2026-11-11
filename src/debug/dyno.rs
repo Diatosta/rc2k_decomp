@@ -12,7 +12,6 @@ use crate::debug::ui_plot::Plot;
 use crate::math::x87::{mul_div2, sum_times_int_over_minus};
 use crate::physics::drive_torque_share::drive_torque_share;
 use crate::physics::engine_torque::engine_torque;
-use crate::physics::gear_store::GEAR;
 use crate::physics::revs_from_wheels::revs_from_wheels;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
@@ -127,7 +126,7 @@ fn torque(race: &Race) {
     shared.physics_tables.drive_torque.set_bits(
         mul_div2(
             shared.physics_tables.drive_ratio.bits(),
-            GEAR.drive_torque_figure.bits(),
+            race.gear().drive_torque_figure.bits(),
             shared.physics_tables.gear_ratios[(gear + 1) as usize].bits(),
             course.numbers.k10000.bits(),
         )
@@ -177,9 +176,9 @@ fn measure(race: &Race) -> Option<Measured> {
         return None;
     }
     let figure = |f: &crate::session::Float| f.get();
-    let up = figure(&GEAR.shift_up_point);
-    let clutch = figure(&GEAR.shift_down_clutch_point);
-    let down = figure(&GEAR.shift_down_point);
+    let up = figure(&race.gear().shift_up_point);
+    let clutch = figure(&race.gear().shift_down_clutch_point);
+    let down = figure(&race.gear().shift_down_point);
     let air = figure(&shared.physics_tables.air_drag);
     let rolling = figure(&shared.physics_tables.rolling_drag);
     let k = course.numbers.k10000.get();
@@ -313,10 +312,11 @@ pub fn tab(race: &Race, ui: &Ui) {
         )),
         None => ui.text_disabled("Now: neutral, reverse or over the limit"),
     }
-    let samples: Vec<(f32, f32, usize)> = GEAR
+    let samples: Vec<(f32, f32, usize)> = race
+        .gear()
         .test_speeds
         .iter()
-        .zip(&GEAR.test_gears)
+        .zip(&race.gear().test_gears)
         .enumerate()
         .map(|(n, (s, g))| (n as f32, s.get(), (g.get() as usize).min(6)))
         .collect();

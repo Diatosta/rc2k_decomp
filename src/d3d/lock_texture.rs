@@ -27,13 +27,14 @@ pub fn lock_texture(texture: u32) -> Result<CarryZeroFlags, Refused> {
         Lock::Nothing => {}
         Lock::Twice => return Err(fatal(LOCKED_TWICE).into()),
         Lock::Lock => {
-            if crate::platform_3d::lock_surface(surface, &gfx().card.upload.description) != 0 {
+            let gfx = gfx();
+            if crate::platform_3d::lock_surface(surface, &gfx.card.upload.description) != 0 {
                 return Err(fatal(LOCK_FAILED).into());
             }
             // Only a texture in the pool gets here.
             let r = r.expect("lock chose Lock for a texture in the pool");
             r.set_locked(1);
-            crate::d3d::texture_surface_info::texture_surface_info(r)?;
+            crate::d3d::texture_surface_info::texture_surface_info(r, gfx)?;
         }
     }
     let (carry, zero) = compared_with_one(r.map_or(0, RecordCell::locked));

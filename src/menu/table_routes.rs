@@ -90,6 +90,7 @@ use crate::menu::visual_options_loop;
 use crate::menu::visual_preferences_loop;
 use crate::net::settings_loop;
 use crate::net::start_link;
+use crate::owners::Owners;
 use crate::saves::load_savegame;
 use crate::scene::draw_car_object;
 use crate::scene::draw_highlighted_object;
@@ -167,14 +168,14 @@ use crate::text::draw_text::GameCanvas;
 use rc2k_core::menu::tables::{ItemFn, ScreenFn};
 
 /// Runs item function `f` with what the item hands it (`c`).
-pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<(), Refused> {
-    let o = crate::owners::boundary();
+pub fn item_fn(o: Owners<'_>, f: ItemFn, c: &table_calls::ItemCall) -> Result<(), Refused> {
+    let menus = o.menus;
     let race = o.race;
     let sound = o.sound;
     match f {
         ItemFn::StepSetting { setting, up } => step_items::player_setting(menus, setting, up),
         ItemFn::Toggle(setting) => step_items::player_setting(menus, setting, true),
-        ItemFn::Volume { which, up } => option_items::volume(menus, which, up),
+        ItemFn::Volume { which, up } => option_items::volume(o, which, up),
         ItemFn::OptionSwitch(which) => option_items::switch(which),
         ItemFn::StageCounter { which, up } => option_items::stage_counter(which, up),
         ItemFn::ChooseKey(row) => {
@@ -188,10 +189,8 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
         ItemFn::PlayerCarSpecs(n) => {
             player_actions::player_car_specs(menus, u32::from(n), &Entry::new(o))
         }
-        ItemFn::ArcadeLevel(level) => {
-            arcade_levels::arcade_level(menus, &menus.play, u32::from(level))
-        }
-        ItemFn::StartEvent(event, seats) => start_events::start_event_item(menus, event, seats),
+        ItemFn::ArcadeLevel(level) => arcade_levels::arcade_level(o, u32::from(level)),
+        ItemFn::StartEvent(event, seats) => start_events::start_event_item(o, event, seats),
         ItemFn::FlipCodriver => flip_codriver::flip_codriver(menus).map(|_| ()),
         ItemFn::BeginPlayerName => begin_player_name::begin_player_name(menus).map(|_| ()),
         ItemFn::FlipGearing => Ok(flip_gearing::flip_gearing(&menus.screens)?),
@@ -268,8 +267,8 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
         }
         ItemFn::BeginSavegameName => Ok(begin_savegame_name::begin_savegame_name(menus, true)?),
         ItemFn::LoadSavegame => load_savegame::load_savegame(menus),
-        ItemFn::LoadChampionshipTableLoop => load_championship_table_loop::run(),
-        ItemFn::SaveSetupLoop => save_setup_loop::run(),
+        ItemFn::LoadChampionshipTableLoop => load_championship_table_loop::run(o),
+        ItemFn::SaveSetupLoop => save_setup_loop::run(o),
         ItemFn::BeginSetupName => Ok(begin_setup_name::begin_setup_name(menus)?),
         ItemFn::LoadSetupSlot => load_setup_slot::load_setup_slot(menus).map(|_| ()),
         ItemFn::NextSetupPage => {
@@ -285,7 +284,7 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
         ItemFn::NextStagePage => stage_view_steps::step_stage_page(menus, true, sound),
         ItemFn::PreviousScreenMode => previous_screen_mode::run(),
         ItemFn::NextScreenMode => {
-            next_screen_mode(&menus.screens);
+            next_screen_mode(&menus.screens, o.gfx);
             Ok(())
         }
         ItemFn::PreviousTextureSetting => {
@@ -301,7 +300,7 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
         ItemFn::ViewStageDetails => {
             item_actions::view_stage_details(&menus.screens, &Entry::new(o))
         }
-        ItemFn::ApplyScreenMode => apply_screen_mode::apply_screen_mode(&menus.screens),
+        ItemFn::ApplyScreenMode => apply_screen_mode::apply_screen_mode(o),
         ItemFn::TogglePlayer3c => player_actions::toggle_controller_mode(menus),
         ItemFn::ReplayItemC => replay_items::replay_item_c(race),
         ItemFn::ReplayItemB => replay_items::replay_item_b(race),
@@ -325,32 +324,32 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
             player_actions::leave_with_carry();
             Ok(())
         }
-        ItemFn::NextStageLoop => next_stage_loop::run(),
-        ItemFn::StartRallyLoop => start_rally_loop::run(),
-        ItemFn::NetworkRallyLoop => network_rally_loop::run(),
-        ItemFn::ChampionshipNewSimulationLoop => championship_new_simulation_loop::run(),
-        ItemFn::AudioSetupLoop => audio_setup_loop::run(),
-        ItemFn::OptionsLoop => options_loop::run(),
-        ItemFn::PlayerDetailsLoop => player_details_loop::run(),
-        ItemFn::Player1DetailsLoop => player1_details_loop::run(),
-        ItemFn::Player2DetailsLoop => player2_details_loop::run(),
-        ItemFn::Player3DetailsLoop => player3_details_loop::run(),
-        ItemFn::Player4DetailsLoop => player4_details_loop::run(),
-        ItemFn::Player1ControllerLoop => player1_controller_loop::run(),
-        ItemFn::Player1ButtonsLoop => player1_buttons_loop::run(),
-        ItemFn::Player2ControllerLoop => player2_controller_loop::run(),
-        ItemFn::Player2ButtonsLoop => player2_buttons_loop::run(),
-        ItemFn::Player3ControllerLoop => player3_controller_loop::run(),
-        ItemFn::Player3ButtonsLoop => player3_buttons_loop::run(),
-        ItemFn::Player4ControllerLoop => player4_controller_loop::run(),
-        ItemFn::Player4ButtonsLoop => player4_buttons_loop::run(),
-        ItemFn::RedefineKeysPlayer1Loop => redefine_keys_player1_loop::run(),
-        ItemFn::RedefineKeysPlayer2Loop => redefine_keys_player2_loop::run(),
-        ItemFn::RedefineKeysPlayer3Loop => redefine_keys_player3_loop::run(),
-        ItemFn::RedefineKeysPlayer4Loop => redefine_keys_player4_loop::run(),
-        ItemFn::VisualPreferencesLoop => visual_preferences_loop::run(),
-        ItemFn::CarSpecificationLoop => car_specification_loop::run(),
-        ItemFn::SlideshowLoop => slideshow_loop::run(),
+        ItemFn::NextStageLoop => next_stage_loop::run(o),
+        ItemFn::StartRallyLoop => start_rally_loop::run(o),
+        ItemFn::NetworkRallyLoop => network_rally_loop::run(o),
+        ItemFn::ChampionshipNewSimulationLoop => championship_new_simulation_loop::run(o),
+        ItemFn::AudioSetupLoop => audio_setup_loop::run(o),
+        ItemFn::OptionsLoop => options_loop::run(o),
+        ItemFn::PlayerDetailsLoop => player_details_loop::run(o),
+        ItemFn::Player1DetailsLoop => player1_details_loop::run(o),
+        ItemFn::Player2DetailsLoop => player2_details_loop::run(o),
+        ItemFn::Player3DetailsLoop => player3_details_loop::run(o),
+        ItemFn::Player4DetailsLoop => player4_details_loop::run(o),
+        ItemFn::Player1ControllerLoop => player1_controller_loop::run(o),
+        ItemFn::Player1ButtonsLoop => player1_buttons_loop::run(o),
+        ItemFn::Player2ControllerLoop => player2_controller_loop::run(o),
+        ItemFn::Player2ButtonsLoop => player2_buttons_loop::run(o),
+        ItemFn::Player3ControllerLoop => player3_controller_loop::run(o),
+        ItemFn::Player3ButtonsLoop => player3_buttons_loop::run(o),
+        ItemFn::Player4ControllerLoop => player4_controller_loop::run(o),
+        ItemFn::Player4ButtonsLoop => player4_buttons_loop::run(o),
+        ItemFn::RedefineKeysPlayer1Loop => redefine_keys_player1_loop::run(o),
+        ItemFn::RedefineKeysPlayer2Loop => redefine_keys_player2_loop::run(o),
+        ItemFn::RedefineKeysPlayer3Loop => redefine_keys_player3_loop::run(o),
+        ItemFn::RedefineKeysPlayer4Loop => redefine_keys_player4_loop::run(o),
+        ItemFn::VisualPreferencesLoop => visual_preferences_loop::run(o),
+        ItemFn::CarSpecificationLoop => car_specification_loop::run(o),
+        ItemFn::SlideshowLoop => slideshow_loop::run(o),
         ItemFn::PreviousChoiceCar => {
             car_choice::previous_choice_car(menus);
             Ok(())
@@ -359,16 +358,16 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
             car_choice::next_choice_car(menus);
             Ok(())
         }
-        ItemFn::InGameOptionsLoop => in_game_options_loop::run(),
+        ItemFn::InGameOptionsLoop => in_game_options_loop::run(o),
         ItemFn::AskToLeave => {
             ask_to_leave::ask_to_leave();
             Ok(())
         }
-        ItemFn::LoadChampionshipLoop => load_championship_loop::run(),
-        ItemFn::SaveChampionshipLoop => save_championship_loop::run(),
-        ItemFn::VisualOptionsLoop => visual_options_loop::run(),
-        ItemFn::AdvancedAudioLoop => advanced_audio_loop::run(),
-        ItemFn::SimpleSelectPlayersLoop => simple_select_players_loop::run(),
+        ItemFn::LoadChampionshipLoop => load_championship_loop::run(o),
+        ItemFn::SaveChampionshipLoop => save_championship_loop::run(o),
+        ItemFn::VisualOptionsLoop => visual_options_loop::run(o),
+        ItemFn::AdvancedAudioLoop => advanced_audio_loop::run(o),
+        ItemFn::SimpleSelectPlayersLoop => simple_select_players_loop::run(o),
         ItemFn::SwitchStageGroup => switch_stage_group::run(menus),
         ItemFn::NextStageSub => {
             stage_choice::next_stage_sub(&mut || stage_choice::draw_stage_map(menus))
@@ -382,13 +381,13 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
         ItemFn::PreviousStageNumber => {
             stage_choice::previous_stage_number(&mut || stage_choice::draw_stage_map(menus))
         }
-        ItemFn::ArcadeSelectLevelLoop => arcade_select_level_loop::run(),
-        ItemFn::StartArcade => item_actions::start_arcade(menus, &menus.play),
-        ItemFn::TimeTrialSelectPlayersLoop => time_trial_select_players_loop::run(),
-        ItemFn::InformationLoop => information_loop::run(),
-        ItemFn::ViewBestTimesLoop => view_best_times_loop::run(),
-        ItemFn::ViewCoursesLoop => view_courses_loop::run(),
-        ItemFn::ViewBestScoresLoop => view_best_scores_loop::run(),
+        ItemFn::ArcadeSelectLevelLoop => arcade_select_level_loop::run(o),
+        ItemFn::StartArcade => item_actions::start_arcade(o),
+        ItemFn::TimeTrialSelectPlayersLoop => time_trial_select_players_loop::run(o),
+        ItemFn::InformationLoop => information_loop::run(o),
+        ItemFn::ViewBestTimesLoop => view_best_times_loop::run(o),
+        ItemFn::ViewCoursesLoop => view_courses_loop::run(o),
+        ItemFn::ViewBestScoresLoop => view_best_scores_loop::run(o),
         ItemFn::PreviousStageRows => stage_rows::step_rows(menus, false, false),
         ItemFn::NextStageRows => stage_rows::step_rows(menus, false, true),
         ItemFn::PreviousStageRowsOf90 => stage_rows::step_rows(menus, true, false),
@@ -397,8 +396,8 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
         ItemFn::ChampionshipStandings => {
             championship_standings::championship_standings(menus, &Entry::new(o))
         }
-        ItemFn::NewSimulationIfUnlocked => item_actions::new_simulation_if_unlocked(race),
-        ItemFn::NewSimulationLoop => new_simulation_loop::run(),
+        ItemFn::NewSimulationIfUnlocked => item_actions::new_simulation_if_unlocked(o),
+        ItemFn::NewSimulationLoop => new_simulation_loop::run(o),
         ItemFn::NetworkSettingsItem => settings_loop::settings_loop(),
         // (The original leaves eax the mode and the carry set: no caller reads them.)
         ItemFn::JoinNetworkGame => start_link::start_link(2),

@@ -10,6 +10,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_bytes;
 use crate::files::write_file::write_file_from;
+use crate::menu::owner::Menus;
 use crate::service::owner::Service;
 use crate::service::pages::{
     BRAKE_BALANCE, GEAR_RATIO, RIDE_HEIGHT, STEERING_SENSITIVITY, SUSPENSION_STIFFNESS, TYRE,
@@ -21,11 +22,11 @@ use crate::system::packed_local_time::packed_local_time;
 // ---- Rust version ----
 
 /// True if the file was written.
-pub fn write_setup_slot(service: &Service, slot: u32) -> Result<bool, Refused> {
+pub fn write_setup_slot(menus: &Menus, service: &Service, slot: u32) -> Result<bool, Refused> {
     if slot >= SLOT_COUNT {
         return Err(BadInput("slot past the name table").into());
     }
-    let Some(player) = current_player() else {
+    let Some(player) = current_player(menus) else {
         return Err(BadInput("no current player object: the original reads through null").into());
     };
     {
@@ -36,12 +37,12 @@ pub fn write_setup_slot(service: &Service, slot: u32) -> Result<bool, Refused> {
             packed_local_time(),
             &slot_name(slot).read_array::<NAME_LEN>("a setup's name")?,
             [
-                TYRE.change.chosen.get(),
+                TYRE.change.chosen(menus).get(),
                 in_car(BRAKE_BALANCE.in_car),
-                RIDE_HEIGHT.change.chosen.get(),
-                SUSPENSION_STIFFNESS.change.chosen.get(),
+                RIDE_HEIGHT.change.chosen(menus).get(),
+                SUSPENSION_STIFFNESS.change.chosen(menus).get(),
                 in_car(STEERING_SENSITIVITY.in_car),
-                GEAR_RATIO.change.chosen.get(),
+                GEAR_RATIO.change.chosen(menus).get(),
             ],
         );
         file.write_at(0, &bytes, "the setup file")?;

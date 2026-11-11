@@ -28,7 +28,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::service::pages::{GEAR_RATIO, RIDE_HEIGHT, SUSPENSION_STIFFNESS, TYRE};
 use crate::service::reset_tyre_wear::reset_tyre_wear;
-use crate::service::state::{current_player_of, repair_flag_in, set_repair_flag};
+use crate::service::state::{current_player, repair_flag_in, set_repair_flag};
 use crate::session::DwordLike;
 use crate::system::sleep::sleep;
 use crate::system::tick_count::tick_count;
@@ -49,16 +49,18 @@ pub trait Driver {
 }
 
 /// The game's own.
-pub struct GameDriver;
+pub struct GameDriver<'a> {
+    menus: &'a Menus,
+}
 
-impl Driver for GameDriver {
+impl Driver for GameDriver<'_> {
     fn clock(&mut self) -> u32 {
         tick_count()
     }
     /// `screens::run_frame` with the service area's frame (`screens::service_area_frame`).
     fn frame(&mut self) {
         let ran = crate::platform::run_frame_now(|| {
-            crate::screens::service_area_frame::service_area_frame(crate::menu::owner::menus())
+            crate::screens::service_area_frame::service_area_frame(self.menus)
         });
         if let Some(Err(e)) = ran {
             crate::menu::table_calls::refused(
@@ -105,7 +107,7 @@ impl Workshop for Game<'_> {
         timer(&self.menus.screens, t).set(value);
     }
     fn reset_tyre_wear(&mut self) -> Result<(), Refused> {
-        Ok({ reset_tyre_wear() }?)
+        Ok({ reset_tyre_wear(self.menus) }?)
     }
     fn install(&mut self, s: Setting) -> u32 {
         let page = match s {
@@ -114,8 +116,8 @@ impl Workshop for Game<'_> {
             Setting::RideHeight => RIDE_HEIGHT,
             Setting::Stiffness => SUSPENSION_STIFFNESS,
         };
-        let value = page.change.chosen.get();
-        page.change.installed.set(value);
+        let value = page.change.chosen(self.menus).get();
+        page.change.installed(self.menus).set(value);
         value
     }
     fn clock(&mut self) -> u32 {
@@ -138,7 +140,7 @@ fn timer(screens: &Screens, t: Timer) -> &dyn DwordLike {
 }
 
 pub fn apply_repairs(menus: &Menus, driver: &mut dyn Driver) -> Result<(), Refused> {
-    let Some(player) = current_player_of(&menus.screens) else {
+    let Some(player) = current_player(menus) else {
         return Err(BadInput("no current player object: the original writes through null").into());
     };
     // Converted: `rc2k_core::service::workshop::apply_repairs`.
@@ -152,5 +154,5 @@ pub fn apply_repairs(menus: &Menus, driver: &mut dyn Driver) -> Result<(), Refus
 /// For Rust callers: the repairs with the game's clock, frames and sleep. A refusal is the
 /// caller's.
 pub fn apply_repairs_in_game(menus: &Menus) -> Result<(), Refused> {
-    apply_repairs(menus, &mut GameDriver)
+    apply_repairs(menus, &mut GameDriver { menus })
 }

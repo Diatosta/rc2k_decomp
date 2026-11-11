@@ -18,18 +18,17 @@
 //! work half done. Rust callers run its `entry` (`routes.rs`).
 
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
 use crate::saves::default_times::to_the_log;
 use crate::saves::owner::saves;
-use crate::system::owner::system;
+use crate::system::owner::System;
 
 // ---- game data ----
 
 /// The record tables that get made-up records: the championship's and the twelve events'
 /// (IDA 0x739642, 0x7391C2, 0x738D42, 0x7388C2, 0x738442, 0x737FC2, then 0x739AC2 ..
 /// 0x73B142), in the original's order.
-fn record_tables() -> [crate::records::stages_store::RecordTable; 13] {
-    let t = &system().records.stage_tables;
+fn record_tables(system: &System) -> [crate::records::stages_store::RecordTable; 13] {
+    let t = &system.records.stage_tables;
     let mut all = [t.championship(); 13];
     for (n, k) in [5, 4, 3, 2, 1, 0, 6, 7, 8, 9, 10, 11]
         .into_iter()
@@ -44,9 +43,8 @@ fn record_tables() -> [crate::records::stages_store::RecordTable; 13] {
 /// `fit_player_names` as its x. Neither is looked at: the stage only while `DrawWork.scratch_0c` is
 /// 1, which it is only for `default_checkpoint_times`, which does not read it; the x is
 /// where a measuring starts, which a width does not depend on. The stage passed is 0.
-pub fn set_up_front_end(menus: &Menus, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
-    let system = crate::system::owner::system();
-    let gfx = crate::gfx::owner::gfx();
+pub fn set_up_front_end(o: crate::owners::Owners<'_>) -> Result<(), Refused> {
+    let (menus, sound, system, gfx) = (o.menus, o.sound, o.system, o.gfx);
     let saves = saves();
     let best_times = &saves.best_times;
     let stage = 0;
@@ -55,8 +53,8 @@ pub fn set_up_front_end(menus: &Menus, sound: &crate::sound::owner::Sound) -> Re
         default_checkpoint_times, default_class_times, default_stage_times,
         default_stage_times_alt,
     };
-    if crate::install::owner::install().vars.has_clio.get() == 1 {
-        crate::menu::add_clio_car::add_clio_car()?;
+    if o.install.vars.has_clio.get() == 1 {
+        crate::menu::add_clio_car::add_clio_car(menus)?;
     }
     crate::menu::link_player_names::link_player_names(menus)?;
     crate::menu::show_loading_picture::show_loading_picture(menus)?;
@@ -100,7 +98,7 @@ pub fn set_up_front_end(menus: &Menus, sound: &crate::sound::owner::Sound) -> Re
         best_times.loaded.set(1);
     }
     if !menus.screens.loop_flags.options_loaded.is_set() {
-        for table in record_tables() {
+        for table in record_tables(system) {
             crate::records::default_stage_records::default_stage_records(table)?;
         }
     }

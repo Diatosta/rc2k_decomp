@@ -38,5 +38,5 @@ pub fn race_tick(
     ) {
         return Ok(());
     }
-    crate::drive::replay_step::replay_step(race, sound, scene)
+    crate::drive::replay_step::replay_step(race, sound, scene, input)
 }

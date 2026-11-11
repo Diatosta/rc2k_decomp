@@ -23,7 +23,6 @@
 //! over `X` (`math/x87_float.rs`), rounding as the control word says.
 
 use crate::errors::{BadInput, Refused};
-use crate::scene::owner::scene;
 use crate::scene::point_records;
 use crate::scene::project_point::{NEAR, rotate, to_screen};
 use crate::scene::x87_mem::{Base, cells, fild, fistp, fld, fstp};
@@ -130,9 +129,10 @@ struct Object {
 
 fn object(
     race: &crate::race::owner::Race,
+    scene: &crate::scene::owner::Scene,
     cars: &crate::race::car_draw_state::CarDrawState,
 ) -> Result<Object, BadInput> {
-    let objects = &scene().objects;
+    let objects = &scene.objects;
     let number: u32 = cars.object_number.get();
     if number >= OBJECTS {
         return Err(BadInput("an object's number past the tables"));
@@ -156,7 +156,7 @@ fn object(
 /// leaves in the registers its one caller's callers never read (`draw_object`).
 pub fn place_object_points(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
     let race = ctx.race;
-    let object = object(race, &ctx.view.cars)?;
+    let object = object(race, ctx.scene, &ctx.view.cars)?;
     if object.points <= 0 {
         return Ok(());
     }
@@ -230,7 +230,7 @@ pub fn place_object_points_sse(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
 ) -> Result<(), Refused> {
     let race = ctx.race;
-    let object = object(race, &ctx.view.cars)?;
+    let object = object(race, ctx.scene, &ctx.view.cars)?;
     let m: [f32; 16] = std::array::from_fn(|n| ctx.view.matrices.made_object_matrix[n].get());
     let mut number = object.first;
     let mut from = object.table.wrapping_add(object.first.wrapping_mul(12));

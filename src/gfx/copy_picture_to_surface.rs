@@ -14,7 +14,7 @@
 //! name is a reading.
 
 use crate::errors::BadInput;
-use crate::gfx::owner::gfx;
+use crate::gfx::owner::{Pictures, gfx};
 use crate::gfx::picture::{has_picture, with_picture};
 
 // ---- game data ----
@@ -33,6 +33,7 @@ pub trait PictureSurface {
     fn rows(&self) -> u32;
     fn row_dwords(&self) -> u32;
     fn row_gap(&self) -> u32;
+    fn pictures(&self) -> &Pictures;
 }
 
 /// The game's own.
@@ -62,6 +63,9 @@ impl PictureSurface for GameSurface {
     fn row_gap(&self) -> u32 {
         gfx().drawing.draw_surface.row_gap.get()
     }
+    fn pictures(&self) -> &Pictures {
+        &gfx().pictures
+    }
 }
 
 pub fn copy_picture_to_surface(surface: &mut dyn PictureSurface) -> Result<(), BadInput> {
@@ -71,7 +75,7 @@ pub fn copy_picture_to_surface(surface: &mut dyn PictureSurface) -> Result<(), B
     }
     let to = surface.pixels();
     let (rows, row_bytes) = (surface.rows(), surface.row_dwords() as usize * 4);
-    let refused = if !has_picture() || to == 0 {
+    let refused = if !has_picture(surface.pictures()) || to == 0 {
         Some(BadInput("no picture buffer or no surface"))
     } else if rows == 0 {
         Some(BadInput("a surface without rows"))
@@ -88,7 +92,7 @@ pub fn copy_picture_to_surface(surface: &mut dyn PictureSurface) -> Result<(), B
     // The surface's rows: their dwords, then the gap to the next.
     let to = crate::gfx::rows::Rows::new(to, row_bytes as u32 + surface.row_gap(), rows);
     // The picture's rows from its buffer (`gfx::picture`), onto the surface's.
-    let copied = with_picture(|from| -> Result<(), BadInput> {
+    let copied = with_picture(surface.pictures(), |from| -> Result<(), BadInput> {
         for y in 0..rows {
             let at = y as usize * row_bytes;
             let row = from

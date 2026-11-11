@@ -35,7 +35,7 @@ use crate::physics::flow::{
 };
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
-use crate::scene::engine_tables_store::ENGINE_TABLES;
+use crate::scene::engine_tables_store::EngineTables;
 use crate::session::Float;
 
 /// The steer angle's table index (the angle >> 20).
@@ -52,6 +52,7 @@ pub fn drive_grip_forces(
     car: &Car,
     tables: &PhysicsTables,
     numbers: &Numbers,
+    engine_tables: &EngineTables,
     scene: &crate::scene::owner::Scene,
 ) {
     let drawing = &scene.drawing;
@@ -63,10 +64,10 @@ pub fn drive_grip_forces(
     hold_high(&tables.lever_share, &numbers.one);
     car.grip_forces[0].set(0.0);
     if car.front_wheels_off.get() == 0 {
-        steer_sine_force(car, tables, steer_index(car) as usize);
+        steer_sine_force(car, tables, engine_tables, steer_index(car) as usize);
     }
     // The original takes the force a second time over.
-    steer_sine_force(car, tables, steer_index(car) as usize);
+    steer_sine_force(car, tables, engine_tables, steer_index(car) as usize);
     if !c3(&car.local_velocity[2], ZERO) {
         // 0x43CE53: the slip limit, by the drive kind's factor.
         let factor = if kind == 1 {
@@ -109,7 +110,14 @@ pub fn drive_grip_forces(
     if kind == 0 {
         ground_speed_into_scratch(car, scene);
         hold_high(&drawing.scene.scratch, &tables.grip_ramp);
-        lean_force(car, tables, numbers, steer_index(car) as usize, scene);
+        lean_force(
+            car,
+            tables,
+            numbers,
+            engine_tables,
+            steer_index(car) as usize,
+            scene,
+        );
     }
     // 0x43D08E: the engine braking.
     let braking_word = if kind != 0 {
@@ -153,7 +161,14 @@ pub fn drive_grip_forces(
         hold_low(&drawing.scene.scratch, &tables.grip_force_limit);
         negate(&tables.grip_force_limit);
         divide_into_scratch(&drawing.scene.scratch, &tables.grip_force_limit, scene);
-        yaw_force(car, tables, numbers, steer_index(car) as usize, scene);
+        yaw_force(
+            car,
+            tables,
+            numbers,
+            engine_tables,
+            steer_index(car) as usize,
+            scene,
+        );
     }
     // 0x43D2C9: the sum, and the yaw twist on the rear wheels.
     sum_grip_forces(car);
@@ -174,8 +189,8 @@ pub fn drive_grip_forces(
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[grip_forces] = ([bf + e * 4 + 0x623AE4] * [rc + 0x31A184]) / [spec_grip]`
-fn steer_sine_force(car: &Car, tables: &PhysicsTables, e: usize) {
-    let t0 = ENGINE_TABLES.sines[e].ld();
+fn steer_sine_force(car: &Car, tables: &PhysicsTables, engine_tables: &EngineTables, e: usize) {
+    let t0 = engine_tables.sines[e].ld();
     let t1 = car.local_velocity[2].ld();
     let t2 = t0 * t1;
     let t3 = tables.spec_grip.ld();
@@ -262,6 +277,7 @@ fn lean_force(
     car: &Car,
     tables: &PhysicsTables,
     numbers: &Numbers,
+    engine_tables: &EngineTables,
     e: usize,
     scene: &crate::scene::owner::Scene,
 ) {
@@ -270,7 +286,7 @@ fn lean_force(
     let t2 = t0 - t1;
     let t3 = tables.grip_ramp.ld();
     let t4 = t2 / t3;
-    let t5 = ENGINE_TABLES.sines[e].ld();
+    let t5 = engine_tables.sines[e].ld();
     let t6 = t4 * t5;
     let t7 = int(car.handbrake.bits() as i32);
     let t8 = t6 * t7;
@@ -361,11 +377,12 @@ fn yaw_force(
     car: &Car,
     tables: &PhysicsTables,
     numbers: &Numbers,
+    engine_tables: &EngineTables,
     e: usize,
     scene: &crate::scene::owner::Scene,
 ) {
     let drawing = &scene.drawing;
-    let t0 = ENGINE_TABLES.sines[e].ld();
+    let t0 = engine_tables.sines[e].ld();
     let t1 = tables.spec_grip.ld();
     let t2 = t0 / t1;
     let t3 = int(car.throttle.bits() as i32);
@@ -503,7 +520,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
                 plain: |a| {
-                    steer_sine_force(&race().shared.car, &race().shared.physics_tables, a[1]);
+                    steer_sine_force(
+                        &race().shared.car,
+                        &race().shared.physics_tables,
+                        race().engine_tables(),
+                        a[1],
+                    );
                 },
             },
             Block {
@@ -522,7 +544,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
                 plain: |a| {
-                    steer_sine_force(&race().shared.car, &race().shared.physics_tables, a[1]);
+                    steer_sine_force(
+                        &race().shared.car,
+                        &race().shared.physics_tables,
+                        race().engine_tables(),
+                        a[1],
+                    );
                 },
             },
             Block {
@@ -541,7 +568,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
                 plain: |a| {
-                    steer_sine_force(&race().shared.car, &race().shared.physics_tables, a[1]);
+                    steer_sine_force(
+                        &race().shared.car,
+                        &race().shared.physics_tables,
+                        race().engine_tables(),
+                        a[1],
+                    );
                 },
             },
             Block {
@@ -654,6 +686,7 @@ mod asm_reference {
                         &race().shared.car,
                         &race().shared.physics_tables,
                         &race().course.numbers,
+                        race().engine_tables(),
                         a[2],
                         crate::scene::owner::scene(),
                     );
@@ -687,6 +720,7 @@ mod asm_reference {
                         &race().shared.car,
                         &race().shared.physics_tables,
                         &race().course.numbers,
+                        race().engine_tables(),
                         a[2],
                         crate::scene::owner::scene(),
                     );
@@ -720,6 +754,7 @@ mod asm_reference {
                         &race().shared.car,
                         &race().shared.physics_tables,
                         &race().course.numbers,
+                        race().engine_tables(),
                         a[2],
                         crate::scene::owner::scene(),
                     );
@@ -851,6 +886,7 @@ mod asm_reference {
                         &race().shared.car,
                         &race().shared.physics_tables,
                         &race().course.numbers,
+                        race().engine_tables(),
                         a[1],
                         crate::scene::owner::scene(),
                     );
@@ -883,6 +919,7 @@ mod asm_reference {
                         &race().shared.car,
                         &race().shared.physics_tables,
                         &race().course.numbers,
+                        race().engine_tables(),
                         a[1],
                         crate::scene::owner::scene(),
                     );
@@ -915,6 +952,7 @@ mod asm_reference {
                         &race().shared.car,
                         &race().shared.physics_tables,
                         &race().course.numbers,
+                        race().engine_tables(),
                         a[1],
                         crate::scene::owner::scene(),
                     );

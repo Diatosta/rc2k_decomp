@@ -5,11 +5,11 @@
 //! `menu::take_player1_units` and `menu::arcade_event`.
 
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
-use crate::menu::owner::Play;
+use crate::owners::Owners;
 
 /// Arcade level `level` (1 .. 5).
-pub fn arcade_level(menus: &Menus, play: &Play, level: u32) -> Result<(), Refused> {
+pub fn arcade_level(o: Owners<'_>, level: u32) -> Result<(), Refused> {
+    let (menus, play) = (o.menus, &o.menus.play);
     // The logic is in `rc2k_core::menu::arcade::level_open`.
     use rc2k_core::menu::arcade::{CLOSED_SOUND, level_open};
     let open = level_open(play.cheats.cheats.get(), || {
@@ -22,5 +22,5 @@ pub fn arcade_level(menus: &Menus, play: &Play, level: u32) -> Result<(), Refuse
     play.arcade.level.set(level);
     play.arcade.stage.set(0u32);
     crate::menu::take_player1_units::take_player1_units(menus)?;
-    crate::menu::arcade_event::arcade_event(menus)
+    crate::menu::arcade_event::arcade_event(o)
 }

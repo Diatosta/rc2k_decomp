@@ -7,13 +7,8 @@ use crate::session::{read_all, write_all};
 use crate::system::checked_reads::refuse;
 
 /// The current player (`Player`), or None if the index is past the four.
-pub fn current_player() -> Option<crate::menu::standings::PlayerCell<'static>> {
-    current_player_of(&menus().screens)
-}
-
-/// `current_player` for a caller that holds the screens group.
-pub fn current_player_of(screens: &Screens) -> Option<crate::menu::standings::PlayerCell<'_>> {
-    crate::menu::player::player(menus(), screens.event.current_player.get())
+pub fn current_player(menus: &Menus) -> Option<crate::menu::standings::PlayerCell<'_>> {
+    crate::menu::player::player(menus, menus.screens.event.current_player.get())
 }
 
 /// The flag of menu item `item` in the repair flag table (the item not checked against

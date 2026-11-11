@@ -40,7 +40,7 @@ fn car_step(race: &Race) -> Result<(), Refused> {
 }
 
 // Converted: `rc2k_core::drive::race_steps::{check_cars, each_car, block_slot}`.
-pub fn race_cars_step(race: &Race) -> Result<(), Refused> {
+pub fn race_cars_step(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let shared = &race.shared;
     race_steps::check_cars(shared.view.race_cars.get())?;
     crate::drive::choose_shown_cars::choose_shown_cars(race)?;
@@ -50,7 +50,7 @@ pub fn race_cars_step(race: &Race) -> Result<(), Refused> {
         |n| shared.work.current_car.set(n),
         || car_step(race),
     )?;
-    crate::drive::animate_stage::animate_stage(race)?;
+    crate::drive::animate_stage::animate_stage(race, scene)?;
     crate::drive::race_mode_cars::race_mode_cars(race)?;
     Ok(())
 }

@@ -7,7 +7,7 @@
 use crate::errors::Refused;
 use crate::physics::drop_hit_parts::hit_tests;
 use crate::physics::sound_on_bit::sound_on_bit;
-use crate::race::kind_store::KIND_TABLES;
+use crate::race::kind_store::KindTables;
 use crate::race::matrices_store::SceneMatrices;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
@@ -18,9 +18,10 @@ pub fn sound_hit_parts(
     numbers: &Numbers,
     matrices: &SceneMatrices,
     shared: &RaceShared,
+    kind_tables: &KindTables,
 ) -> Result<(), Refused> {
     if !has_hit_sounds(shared.car.car_kind.get(), |kind| {
-        KIND_TABLES.kind_hit_sounds[kind as usize].get()
+        kind_tables.kind_hit_sounds[kind as usize].get()
     }) {
         return Ok(());
     }

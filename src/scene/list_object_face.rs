@@ -31,8 +31,6 @@
 //! and what its parts refuse.
 
 use crate::errors::{BadInput, Refused};
-use crate::race::kind_store::KIND_TABLES;
-use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::scene::face_faces_away::face_faces_away;
 use crate::scene::face_list::FaceList;
 use crate::scene::face_sort_key::face_sort_key;
@@ -68,12 +66,13 @@ impl FaceWorld for GameFace<'_> {
         self.7.objects.tables.object_kind(object)
     }
     fn known_kind(&self, place: usize) -> u32 {
-        KIND_TABLES.known_object_kinds[place].get()
+        self.0.kind_tables().known_object_kinds[place].get()
     }
     fn kind_groups(&self, place: usize) -> [u32; 2] {
         // Groups 6 and 7 of the kind's light record.
         self.1.keep(
-            LIGHT_RECORDS
+            self.0
+                .light_records()
                 .records
                 .get(place)
                 .map(|record| [record.groups[6].get(), record.groups[7].get()])

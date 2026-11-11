@@ -24,7 +24,7 @@ use crate::screens::draw_stage_heading::draw_stage_heading;
 use crate::screens::stage_panel::{
     TITLE_FONT, draw_records_from, draw_stage_body, label, table_dword_at,
 };
-use crate::system::owner::system;
+use crate::system::owner::{System, system};
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -33,8 +33,11 @@ pub const TITLE_X: i32 = 0x2EB;
 pub const TITLE_Y: i32 = 0x77;
 
 /// The record of the event's stage, and its section.
-pub fn event_stage(screens: &Screens) -> Result<(RecordRef, u32), crate::errors::BadInput> {
-    let table = system().records.stage_tables.championship();
+pub fn event_stage(
+    screens: &Screens,
+    system: &System,
+) -> Result<(RecordRef, u32), crate::errors::BadInput> {
+    let table = system.records.stage_tables.championship();
     let section: u32 = screens.event.section.get();
     let index: u32 = screens.event.index.get();
     Ok((find_record_in(table, index as i32, section)?, section))
@@ -42,8 +45,8 @@ pub fn event_stage(screens: &Screens) -> Result<(RecordRef, u32), crate::errors:
 
 /// The title string of the event's section: from a table in mode 0x13, otherwise from the
 /// section's first record.
-pub fn event_title(menus: &Menus) -> Result<u32, crate::errors::BadInput> {
-    let table = system().records.stage_tables.championship();
+pub fn event_title(menus: &Menus, system: &System) -> Result<u32, crate::errors::BadInput> {
+    let table = system.records.stage_tables.championship();
     let section: u32 = menus.screens.event.section.get();
     let first = find_record_in(table, 0, section)?;
     if menus.play.champ_view.event_mode.get() == 0x13 {
@@ -62,8 +65,15 @@ pub fn event_title(menus: &Menus) -> Result<u32, crate::errors::BadInput> {
 pub fn draw_stage_info(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     let screens = &menus.screens;
     let tables = &menus.tables;
-    label(canvas, event_title(menus)?, TITLE_FONT, TITLE_X, TITLE_Y)?;
-    let (record, _) = event_stage(screens)?;
+    let system = system();
+    label(
+        canvas,
+        event_title(menus, system)?,
+        TITLE_FONT,
+        TITLE_X,
+        TITLE_Y,
+    )?;
+    let (record, _) = event_stage(screens, system)?;
     draw_stage_heading(record, canvas)?;
     draw_stage_body(tables, record, false, canvas)?;
     draw_records_from(

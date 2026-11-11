@@ -50,11 +50,11 @@ pub fn show_replay_still(
             .replay_frames
             .step_block
             .set(race.replay.replay_view.replay_block.get());
-        crate::race::step_replay_cars::step_replay_cars(race, input)?;
+        crate::race::step_replay_cars::step_replay_cars(race, input, scene)?;
     }
     if race.replay.replay_view.replay_frame.get() == 0 {
         race.replay.replay_frames.step_first.set(1);
-        crate::race::step_replay_cars::step_replay_cars(race, input)?;
+        crate::race::step_replay_cars::step_replay_cars(race, input, scene)?;
         race.replay.replay_frames.step_first.set(0);
         load_frame(race);
         load_replay_cars::load_replay_cars(race);

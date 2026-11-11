@@ -18,7 +18,6 @@ use crate::errors::Refused;
 use crate::files::handle;
 use crate::race::owner::Race;
 use crate::race::replay_path::replay_path;
-use crate::race::replay_work_store::REPLAY_WORK;
 
 use rc2k_core::race::viewer_flow::{HEADER_LEN, INDEX_LEN};
 
@@ -134,7 +133,7 @@ pub fn open_viewed_replay(race: &Race, slot: u32) -> Result<bool, Refused> {
         .replays
         .header
         .read_at(0x30, CAR_HEADER_LEN, "the replay header's stage")?;
-    put_header_stage(&stage);
+    put_header_stage(race, &stage);
     crate::race::replay_patches::apply_replay_patches(race)?;
     Ok(false)
 }
@@ -142,8 +141,8 @@ pub fn open_viewed_replay(race: &Race, slot: u32) -> Result<bool, Refused> {
 /// The cars' header (`CAR_HEADER_LEN` bytes) into the replay work's fields from `header_stage` on:
 /// the header's settings, the sealed part, the patch switches and the unread rest, a dword each
 /// with no gap, up to the camera wishes.
-fn put_header_stage(header: &[u8]) {
-    let w = &REPLAY_WORK;
+fn put_header_stage(race: &Race, header: &[u8]) {
+    let w = race.replay_work();
     let singles = [
         &w.header_stage,
         &w.header_mode,

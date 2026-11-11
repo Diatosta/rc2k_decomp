@@ -14,6 +14,7 @@ use crate::race::owner_shared::RaceShared;
 pub fn free_rev_clutch(
     course: &Course,
     shared: &RaceShared,
+    figures: &crate::physics::gear_store::GearFigures,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let gear = shared.car.gear.get();
@@ -23,7 +24,7 @@ pub fn free_rev_clutch(
     if !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
-    free_rev(course, shared, scene);
+    free_rev(course, shared, figures, scene);
     wheels_from_revs_at(&GearPlaces::game(&shared.car, &shared.physics_tables))?;
     Ok(())
 }

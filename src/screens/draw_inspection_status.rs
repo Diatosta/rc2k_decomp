@@ -54,7 +54,7 @@ pub fn draw_inspection_status(
     screens: &Screens,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
-    let Some(player) = current_player() else {
+    let Some(player) = current_player(menus) else {
         return Err(BadInput("no current player object: the original reads through null").into());
     };
     let (condition, _) = inspection_status(menus, screens, player)?;

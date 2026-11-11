@@ -11,7 +11,6 @@
 
 use crate::errors::BadInput;
 use crate::logfile::log_int::log_int;
-use crate::scene::owner::scene;
 
 // ---- game data ----
 
@@ -20,8 +19,8 @@ use crate::scene::owner::scene;
 // ---- Rust version ----
 
 /// The four totals. Reads only.
-fn totals() -> Result<[u32; 4], BadInput> {
-    let objects = &scene().objects;
+fn totals(scene: &crate::scene::owner::Scene) -> Result<[u32; 4], BadInput> {
+    let objects = &scene.objects;
     // Converted: `rc2k_core::scene::textures::count_needs`.
     let (totals, _) = crate::scene::textures::with_cells(
         [&objects.tables.system_levels, &objects.tables.video_levels],
@@ -39,7 +38,7 @@ pub fn count_texture_needs(
     log: &mut dyn FnMut(Result<&'static std::ffi::CStr, u32>, bool),
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
-    let totals = totals()?;
+    let totals = totals(scene)?;
     for (cell, total) in scene.textures.places.totals.iter().zip(totals) {
         cell.set(total);
     }

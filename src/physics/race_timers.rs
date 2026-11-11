@@ -16,23 +16,13 @@ use crate::physics::mark_car_started::mark_car_started;
 use crate::physics::start_go_notice::start_go_notice;
 use crate::physics::take_split::take_split;
 use crate::physics::take_split_counted::take_split_counted;
-use crate::race::frame_store::FrameWork;
-use crate::race::groups_store::PanelAndOverlay;
-use crate::race::league_store::League;
-use crate::race::numbers_store::Numbers;
-use crate::race::owner_physics::Physics;
-use crate::race::owner_shared::RaceShared;
+use crate::race::owner::Race;
 
 // Converted: `rc2k_core::physics::splits::{timer_rate, timer_run}`.
-pub fn race_timers(
-    physics: &Physics,
-    numbers: &Numbers,
-    league: &League,
-    frame_work: &FrameWork,
-    panel_and_overlay: &PanelAndOverlay,
-    shared: &RaceShared,
-    sound: &crate::sound::owner::Sound,
-) -> Result<(), Refused> {
+pub fn race_timers(race: &Race, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
+    let (physics, numbers, league) = (&race.physics, &race.course.numbers, &race.course.league);
+    let (frame_work, panel_and_overlay) = (&race.frame.frame_work, &race.frame.panel_and_overlay);
+    let (shared, car_blocks) = (&race.shared, race.car_blocks());
     use rc2k_core::physics::splits::{TimerRun, timer_rate, timer_run};
     shared.physics_tables.weight.set(1.0f32);
     let finished = shared.car.finish_flag.get() != 0;
@@ -58,11 +48,18 @@ pub fn race_timers(
             frame_work,
             panel_and_overlay,
             shared,
+            car_blocks,
             sound,
         )?;
         start_go_notice(frame_work, &shared.work, &shared.car, sound)?;
     } else {
-        take_split(&physics.split_tables, league, panel_and_overlay, shared)?;
+        take_split(
+            &physics.split_tables,
+            league,
+            panel_and_overlay,
+            shared,
+            car_blocks,
+        )?;
     }
     count_stop_timers(&shared.car, numbers);
     mark_car_started(&shared.car);

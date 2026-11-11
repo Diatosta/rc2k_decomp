@@ -25,21 +25,20 @@ use crate::input::key_to_char::has_layout;
 use crate::input::take_key::take_key;
 use crate::menu::handle_yes_no::handle_yes_no;
 use crate::menu::navigation::{Direction, move_highlight};
-use crate::menu::owner::Menus;
-use crate::screens::owner::screens;
-use crate::system::owner::system;
+use crate::owners::Owners;
 use rc2k_core::menu::keys::Pressed;
 
 // ---- game data ----
 
 /// `eax` is the caller's eax, whose bits 8 .. 15 are read on Enter (the screen loops: the
 /// elapsed time).
-pub fn handle_keys(menus: &Menus, eax: u32) -> Result<Pressed, Refused> {
+pub fn handle_keys(o: Owners<'_>, eax: u32) -> Result<Pressed, Refused> {
     // The logic is in `rc2k_core::menu::keys` (`keys_off`, `action`, `enter_skips_name_entry`).
     use rc2k_core::menu::keys::{self, Action, Move};
+    let menus = o.menus;
     let nothing = Pressed::Nothing;
     if keys::keys_off(menus.screens.state.service_ui.box_shown.is_set(), || {
-        screens().controls.learning.get()
+        o.screens.controls.learning.get()
     }) {
         return Ok(nothing);
     }
@@ -65,7 +64,7 @@ pub fn handle_keys(menus: &Menus, eax: u32) -> Result<Pressed, Refused> {
         }
         _ => {}
     }
-    let clock: u32 = system().session.clocks.frame.get();
+    let clock: u32 = o.system.session.clocks.frame.get();
     if action == Action::Enter {
         menus.screens.option_work.set_sound(keys::MenuSound::Enter);
         menus.play.champ_view.last_key_time.set(clock);
@@ -105,6 +104,6 @@ pub fn handle_keys(menus: &Menus, eax: u32) -> Result<Pressed, Refused> {
         }
         _ => return Ok(nothing),
     };
-    move_highlight(menus, direction)?;
+    move_highlight(o, direction)?;
     Ok(nothing)
 }

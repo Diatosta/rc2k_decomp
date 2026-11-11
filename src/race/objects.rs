@@ -194,7 +194,7 @@ pub fn set_object_kinds(race: &Race, scene: &crate::scene::owner::Scene) -> Resu
         for (kind, slot) in CAR_KINDS {
             let car = race.shared.work.car(n as usize)?.car_kind.get();
             let k = match kind {
-                CarKind::Known => crate::scene::known_kind::known_kind(car),
+                CarKind::Known => crate::scene::known_kind::known_kind(race.kind_tables(), car),
                 CarKind::Table11 => car_table(&race.kind_tables().kind_11_table, car),
                 CarKind::Table10 => car_table(&race.kind_tables().kind_10_table, car),
             };

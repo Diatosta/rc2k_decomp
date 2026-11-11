@@ -38,6 +38,7 @@ pub struct SoundInputs<'a> {
     pub frame_work: &'a FrameWork,
     pub matrices: &'a SceneMatrices,
     pub spots: &'a SoundSpotBlock,
+    pub polygon_tables: &'a crate::scene::polygon_store::PolygonTables,
     pub contact: &'a ContactWork,
 }
 
@@ -51,6 +52,7 @@ pub struct GroundInputs<'a> {
     pub contact: &'a ContactWork,
     pub ground: &'a GroundWork,
     pub probe: &'a GroundProbe,
+    pub engine_tables: &'a crate::scene::engine_tables_store::EngineTables,
 }
 
 /// What the camera's ground checks read: the car's camera place, the ground search and
@@ -80,6 +82,9 @@ pub struct CameraInputs<'a> {
     pub view_records: &'a ViewAndRecords,
     pub lights_data: &'a LightsData,
     pub replay_frames: &'a ReplayFrames,
+    pub checkpoints: &'a crate::race::checkpoints_store::Checkpoints,
+    pub kind_tables: &'a crate::race::kind_store::KindTables,
+    pub light_records: &'a crate::race::light_records_store::LightRecords,
     pub ground: CameraGroundInputs<'a>,
 }
 
@@ -114,6 +119,7 @@ pub struct ResetInputs<'a> {
     pub vars: &'a RaceVars,
     pub view: &'a RaceView,
     pub finish: &'a Finish,
+    pub car_blocks: &'a crate::race::blocks_store::CarBlocks,
     pub matrices: &'a SceneMatrices,
     pub ground: GroundInputs<'a>,
 }
@@ -205,6 +211,9 @@ impl<'a> StepInputs<'a> {
             view_records: &self.frame.view_and_records,
             lights_data: &self.course.lights_data,
             replay_frames: self.replay_frames,
+            checkpoints: &self.shared.buffers.checkpoints,
+            kind_tables: &self.replay.viewer_and_kinds.kind_tables,
+            light_records: &self.frame.lights_and_gear.light_records,
             ground: self.camera_ground(),
         }
     }
@@ -227,6 +236,7 @@ impl<'a> StepInputs<'a> {
             frame_work: &self.frame.frame_work,
             matrices: &self.frame.matrices,
             spots: &self.frame.sound_spots,
+            polygon_tables: &self.shared.buffers.polygon_tables,
             contact: &self.physics.contact,
         }
     }
@@ -240,6 +250,7 @@ impl<'a> StepInputs<'a> {
             contact: &self.physics.contact,
             ground: &self.physics.ground,
             probe: &self.physics.ground_probe,
+            engine_tables: &self.shared.buffers.engine_tables,
         }
     }
 
@@ -270,6 +281,7 @@ impl<'a> StepInputs<'a> {
             vars: self.vars,
             view: self.view,
             finish: &self.replay.finish,
+            car_blocks: &self.replay.cars_and_replay.car_blocks,
             matrices: &self.frame.matrices,
             ground: self.ground(),
         }

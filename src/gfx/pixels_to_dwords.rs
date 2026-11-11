@@ -15,7 +15,7 @@ pub fn pixel_count(gfx: &crate::gfx::owner::Gfx) -> Result<usize, BadInput> {
         .width
         .get()
         .wrapping_mul(pictures.picture.height.get());
-    if !has_picture() {
+    if !has_picture(pictures) {
         return Err(BadInput("no picture buffer"));
     }
     if count == 0 || count > i32::MAX as u32 {

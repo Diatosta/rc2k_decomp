@@ -16,58 +16,41 @@ use crate::errors::Refused;
 use crate::gfx::blit_bar::Bar;
 use crate::gfx::blit_bar_marker::blit_bar_marker;
 use crate::menu::owner::Menus;
-use crate::service::state::{blink_on, edit_mode, menu_item, repair_flag};
-use crate::session::DwordLike;
+use crate::service::state::{blink_on, edit_mode, repair_flag};
 use crate::session::PlainDword;
 use crate::text::draw_text::Canvas;
 
 pub use rc2k_core::screens::setup_markers::{BAR_WIDTH, LEFT_X, RIGHT_X};
 
-pub const LOWER_LEFT_CHOSEN: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .state
-    .driver_stats
-    .setups[2]
-    .chosen;
-pub const LOWER_LEFT_INSTALLED: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .state
-    .driver_stats
-    .setups[2]
-    .installed;
-pub const LOWER_RIGHT_CHOSEN: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .state
-    .driver_stats
-    .setups[3]
-    .chosen;
-pub const LOWER_RIGHT_INSTALLED: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .state
-    .driver_stats
-    .setups[3]
-    .installed;
+pub fn lower_left_chosen(menus: &Menus) -> &PlainDword {
+    &menus.screens.state.driver_stats.setups[2].chosen
+}
+pub fn lower_left_installed(menus: &Menus) -> &PlainDword {
+    &menus.screens.state.driver_stats.setups[2].installed
+}
+pub fn lower_right_chosen(menus: &Menus) -> &PlainDword {
+    &menus.screens.state.driver_stats.setups[3].chosen
+}
+pub fn lower_right_installed(menus: &Menus) -> &PlainDword {
+    &menus.screens.state.driver_stats.setups[3].installed
+}
+
+/// A setup value the markers read.
+pub type Setting = fn(&Menus) -> &PlainDword;
 
 /// One of the six functions.
 #[derive(Clone, Copy)]
 pub enum Marker {
     /// Always drawn, at the percentage in a variable (glyph 0x77).
-    Always {
-        x: i32,
-        percent: &'static dyn DwordLike,
-    },
+    Always { x: i32, percent: Setting },
     /// Glyph 0x76 on a lower bar, at the chosen value. While its item is being edited it
     /// blinks. Otherwise it is drawn if the chosen value differs from the installed one, or
     /// if the item's flag in the repair flag table is 1.
     Lower {
         item: u32,
         x: i32,
-        chosen: &'static dyn DwordLike,
-        installed: &'static dyn DwordLike,
+        chosen: Setting,
+        installed: Setting,
     },
     /// Glyph 0x76 on an upper bar, at the percentage in a field of the player in edi.
     /// While its item is being edited it blinks.
@@ -109,10 +92,10 @@ pub fn draw_marker(
     use rc2k_core::screens::setup_markers::{Marker as M, Menu, Plan};
     let menu = Menu {
         edit_mode: edit_mode(menus),
-        item: menu_item(),
+        item: menus.screens.loop_flags.item.get(),
         blink_on: blink_on(menus),
     };
-    let read = |cell: &dyn DwordLike| -> Result<i32, Refused> { Ok(cell.get() as i32) };
+    let read = |cell: Setting| -> Result<i32, Refused> { Ok(cell(menus).get() as i32) };
     let (core, item): (M, u32) = match marker {
         Marker::Always { x, .. } => (M::Always { x }, 0),
         Marker::Lower { item, x, .. } => (M::Lower { item, x }, item),
@@ -126,7 +109,7 @@ pub fn draw_marker(
         }
     };
     let installed = || match marker {
-        Marker::Lower { installed, .. } => installed.get() as i32,
+        Marker::Lower { installed, .. } => installed(menus).get() as i32,
         _ => 0,
     };
     let (plan, _) =

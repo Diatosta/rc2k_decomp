@@ -31,7 +31,7 @@ use crate::text::draw_text::Canvas;
 // g_champRowEnd
 pub fn draw_championship_standings(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let play = &menus.play;
-    if !section_there()? {
+    if !section_there(menus, crate::system::owner::system())? {
         return Err(BadInput("a section past the record table").into());
     }
     let first_row = play.champ_view.first_row.get();

@@ -10,37 +10,37 @@
 
 use crate::errors::Refused;
 use crate::menu::flow_game::Game;
-use crate::menu::owner::Menus;
 use crate::menu::start_event::{Starter, start_event};
+use crate::owners::Owners;
 use rc2k_core::menu::rounds;
 use rc2k_core::menu::starters::{self, Championship, Seats};
 use rc2k_core::menu::tables::EventStart;
 
 /// Begins `event` for the players `seats` stand for.
-pub fn start_event_item(menus: &Menus, event: EventStart, seats: Seats) -> Result<(), Refused> {
+pub fn start_event_item(o: Owners<'_>, event: EventStart, seats: Seats) -> Result<(), Refused> {
     match event {
         EventStart::SingleRally => match seats {
-            Seats::One => Game::new(menus).run(rounds::single_rally),
-            Seats::Split => Game::new(menus).run(rounds::single_rally_split),
-            Seats::Two => Game::new(menus).run(rounds::single_rally_two),
-            Seats::Three => Game::new(menus).run(rounds::single_rally_three),
-            Seats::Four => Game::new(menus).run(rounds::single_rally_four),
+            Seats::One => Game::new(o).run(rounds::single_rally),
+            Seats::Split => Game::new(o).run(rounds::single_rally_split),
+            Seats::Two => Game::new(o).run(rounds::single_rally_two),
+            Seats::Three => Game::new(o).run(rounds::single_rally_three),
+            Seats::Four => Game::new(o).run(rounds::single_rally_four),
         },
         EventStart::TimeTrial => match seats {
-            Seats::One => Game::new(menus).run(rounds::time_trial_one),
-            Seats::Split => Game::new(menus).run(rounds::time_trial_split),
-            Seats::Two => Game::new(menus).run(rounds::time_trial_two),
-            Seats::Three => Game::new(menus).run(rounds::time_trial_three),
-            Seats::Four => Game::new(menus).run(rounds::time_trial_four),
+            Seats::One => Game::new(o).run(rounds::time_trial_one),
+            Seats::Split => Game::new(o).run(rounds::time_trial_split),
+            Seats::Two => Game::new(o).run(rounds::time_trial_two),
+            Seats::Three => Game::new(o).run(rounds::time_trial_three),
+            Seats::Four => Game::new(o).run(rounds::time_trial_four),
         },
-        EventStart::Championship => championship(menus, Championship::First, seats),
-        EventStart::A8 => championship(menus, Championship::A8, seats),
+        EventStart::Championship => championship(o, Championship::First, seats),
+        EventStart::A8 => championship(o, Championship::A8, seats),
     }
 }
 
-fn championship(menus: &Menus, championship: Championship, seats: Seats) -> Result<(), Refused> {
+fn championship(o: Owners<'_>, championship: Championship, seats: Seats) -> Result<(), Refused> {
     start_event(
-        menus,
+        o,
         &Starter {
             kind: starters::Starter {
                 championship,

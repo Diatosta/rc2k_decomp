@@ -25,7 +25,6 @@ use crate::errors::Refused;
 use crate::files::stream::{Stream, with_stream};
 use crate::files::write_stream_block::write_stream_all;
 use crate::files::write_stream_byte::write_stream_byte;
-use crate::gfx::owner::gfx;
 use crate::gfx::shots::Shots;
 
 /// The header's first 0x80 bytes for a surface `width` x `height` (converted:
@@ -67,7 +66,7 @@ pub fn write_screen_pcx(
         if !crate::files::open_stream::open_stream(stream, &path, 1)? {
             return Ok(false);
         }
-        let mut ok = write_stream_all(stream, &header_bytes)? && rows(stream)?;
+        let mut ok = write_stream_all(stream, &header_bytes)? && rows(stream, gfx)?;
         let closed = crate::files::close_stream::close_stream(stream)?;
         ok = ok && closed;
         Ok(ok)
@@ -76,8 +75,7 @@ pub fn write_screen_pcx(
 
 /// The rows; false when a write failed. Converted: `rc2k_core::gfx::pcx::screen_planes` and
 /// `encode_line`; the planes are left in the game's buffer, as the original leaves them.
-fn rows(stream: &mut Stream) -> Result<bool, Refused> {
-    let gfx = gfx();
+fn rows(stream: &mut Stream, gfx: &crate::gfx::owner::Gfx) -> Result<bool, Refused> {
     let rows = crate::gfx::rows::Rows::surface()?;
     // The block's byte count after the header (0x80), as the original's register has it.
     let mut eax: u32 = 0x80;

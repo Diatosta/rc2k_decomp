@@ -8,7 +8,7 @@
 //! mark. Refuses a menu without an end in its first 256 items.
 
 use crate::menu::menus_store::{MenuId, MenuItem};
-use crate::menu::owner::Menus;
+use crate::owners::Owners;
 
 // ---- game data ----
 
@@ -18,9 +18,10 @@ pub use rc2k_core::menu::screen_loop::ActionResult;
 /// the action the screen loop's other registers too, which no action reads; what the
 /// action leaves is nobody's.)
 pub fn run_item_action(
-    menus: &Menus,
+    o: Owners<'_>,
     menu: MenuId,
 ) -> Result<ActionResult, crate::errors::Refused> {
+    let menus = o.menus;
     let screens = &menus.screens;
     let items = menu.items();
     let highlighted: u32 = screens.loop_flags.item.get();
@@ -43,7 +44,7 @@ pub fn run_item_action(
         let item = &items[n as usize];
         let value = item.fixed().action_value;
         screens.draw_work.action_mode.set(value);
-        crate::menu::table_calls::call_action(menus, item.fixed().action, value, menu);
+        crate::menu::table_calls::call_action(o, item.fixed().action, value, menu);
         screens.loop_flags.item.set(item.fixed().id);
     }
     Ok(ActionResult {

@@ -4,9 +4,9 @@
 //! Returns the percentage.
 //! The conditions, the bars and how the screen was confirmed are in `setup_markers.rs`.
 
-use crate::screens::setup_markers::{LEFT_X, LOWER_LEFT_INSTALLED, Marker};
+use crate::screens::setup_markers::{LEFT_X, Marker, lower_left_installed};
 
 pub const MARKER: Marker = Marker::Always {
     x: LEFT_X,
-    percent: LOWER_LEFT_INSTALLED,
+    percent: lower_left_installed,
 };

@@ -17,12 +17,16 @@ pub const AFTER_VARIABLE_TEXT: u32 = 0x8000_0000;
 /// `emit` receives each run of bytes to append. Returns the value the original leaves in its result register.
 pub fn append_string_by_id(id: u32, emit: &mut impl FnMut(&[u8])) -> Result<u32, BadInput> {
     // Converted: `rc2k_core::strings::table::Source`.
+    let o = crate::owners::boundary();
     let fault = crate::menu::event_flow::Fault::default();
-    let source = Source::of(id, || fault.ok(driver_name_slot(id)) != 0);
+    let source = Source::of(id, || fault.ok(driver_name_slot(o.strings, id)) != 0);
     fault.check()?;
     let direct = match source {
-        Source::Made => Some(made_text(id)?),
-        Source::Pointer => Some(driver_name_text(driver_name_slot(id)?)?),
+        Source::Made => Some(made_text(o.race, o.menus, o.install, id)?),
+        Source::Pointer => Some(driver_name_text(
+            o.strings,
+            driver_name_slot(o.strings, id)?,
+        )?),
         Source::Table => None,
     };
     match direct {

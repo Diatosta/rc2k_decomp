@@ -15,7 +15,7 @@ pub fn countdown_beeps(race: &Race) -> Result<(), Refused> {
         race.shared.work.current_car.set(car);
         crate::drive::countdown_beep::countdown_beep(
             race,
-            &crate::race::blocks_store::CAR_BLOCKS.cars[car as usize],
+            &race.car_blocks().cars[car as usize],
             &to.lit,
         )?;
     }

@@ -10,7 +10,7 @@
 
 use crate::errors::BadInput;
 use crate::menu::owner::Menus;
-use crate::service::state::current_player_of;
+use crate::service::state::current_player;
 
 // ---- game data ----
 
@@ -23,7 +23,7 @@ pub fn load_setup_values(menus: &Menus) -> Result<(), BadInput> {
         if screens.state.menus.skip_edit_values.is_set() {
             return Ok(());
         }
-        let Some(player) = current_player_of(screens) else {
+        let Some(player) = current_player(menus) else {
             return Err(BadInput(
                 "no current player object: the original reads through null",
             ));

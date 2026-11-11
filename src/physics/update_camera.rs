@@ -34,11 +34,8 @@ use crate::physics::car_store::Car;
 use crate::physics::flow::{ZERO_BITS as ZERO, hold_high, hold_low, hold_low_bits};
 use crate::physics::step_families::CameraInputs;
 use crate::physics::tables_store::PhysicsTables;
-use crate::race::checkpoints_store::CHECKPOINTS;
 use crate::race::course_store::CourseWork;
 use crate::race::groups_store::ViewAndRecords;
-use crate::race::kind_store::KIND_TABLES;
-use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::numbers_store::Numbers;
 use crate::race::view_vars_store::ViewVars;
 use crate::scene::matrix3::rounded;
@@ -53,9 +50,15 @@ fn fixed_camera(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), crate::errors::BadInput> {
     let (nearest, replay) = if second {
-        (&CHECKPOINTS.nearest_camera_2, &CHECKPOINTS.replay_cameras_2)
+        (
+            &c.checkpoints.nearest_camera_2,
+            &c.checkpoints.replay_cameras_2,
+        )
     } else {
-        (&CHECKPOINTS.nearest_camera_1, &CHECKPOINTS.replay_cameras_1)
+        (
+            &c.checkpoints.nearest_camera_1,
+            &c.checkpoints.replay_cameras_1,
+        )
     };
     // The car's checkpoint is held to the line's count (5144 at most; the tables hold 5146),
     // its nearest camera is a number of the list (0x400 at most; the table holds 0x400).
@@ -125,7 +128,8 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
     let car = c.car.car_kind.get();
     // The car kind's light record (the original does not bound the kind; one past the 34
     // would read on into the gear figures, refused here).
-    let head = LIGHT_RECORDS
+    let head = c
+        .light_records
         .records
         .get(car as usize)
         .ok_or(crate::errors::BadInput(
@@ -137,7 +141,7 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
     x87_4(c.tables, c.numbers, &head);
     ViewVars::record(3).angles[0].set(head[3]);
     ViewVars::record(3).angles[0].set(head[7]);
-    if !camera_view::keeps_light_figure(car, || KIND_TABLES.kind_has_views[car as usize].get()) {
+    if !camera_view::keeps_light_figure(car, || c.kind_tables.kind_has_views[car as usize].get()) {
         ViewVars::record(1).focus[2].set(crate::math::x87::loaded(head[10]).to_bits());
     }
     if c.car.camera_switch_active.get() == 0

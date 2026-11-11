@@ -28,8 +28,15 @@ use crate::text::draw_text::Canvas;
 pub fn draw_service_stage_info(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     let screens = &menus.screens;
     let tables = &menus.tables;
-    label(canvas, event_title(menus)?, TITLE_FONT, TITLE_X, TITLE_Y)?;
-    let (record, _) = event_stage(screens)?;
+    let system = crate::system::owner::system();
+    label(
+        canvas,
+        event_title(menus, system)?,
+        TITLE_FONT,
+        TITLE_X,
+        TITLE_Y,
+    )?;
+    let (record, _) = event_stage(screens, system)?;
     if menus.play.champ_view.event_mode.get() == 2 && menus.screens.event.stage_pages.get() == 0 {
         draw_stage_heading(record, canvas)?;
     }

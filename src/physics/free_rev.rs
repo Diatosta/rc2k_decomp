@@ -14,7 +14,7 @@ use crate::math::x87;
 use crate::math::x87_float::int;
 use crate::physics::car_store::Car;
 use crate::physics::engine_torque::{below, engine_torque};
-use crate::physics::gear_store::GEAR;
+use crate::physics::gear_store::GearFigures;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_course::Course;
@@ -25,15 +25,27 @@ fn run(
     numbers: &Numbers,
     physics_tables: &PhysicsTables,
     car: &Car,
+    gear: &GearFigures,
     scene: &crate::scene::owner::Scene,
 ) {
-    x87_1(numbers, physics_tables, car, scene);
+    x87_1(numbers, physics_tables, car, gear, scene);
 }
 
 /// The exact version, for `physics::free_rev_in_neutral`, `free_rev_clutch` and their callers.
-pub fn free_rev(course: &Course, shared: &RaceShared, scene: &crate::scene::owner::Scene) {
+pub fn free_rev(
+    course: &Course,
+    shared: &RaceShared,
+    gear: &GearFigures,
+    scene: &crate::scene::owner::Scene,
+) {
     engine_torque(course, shared, scene);
-    run(&course.numbers, &shared.physics_tables, &shared.car, scene);
+    run(
+        &course.numbers,
+        &shared.physics_tables,
+        &shared.car,
+        gear,
+        scene,
+    );
     let (e, drag) = (
         shared.car.engine_speed.bits(),
         scene.drawing.scene.scratch.get(),
@@ -68,10 +80,11 @@ fn x87_1(
     numbers: &Numbers,
     physics_tables: &PhysicsTables,
     car: &Car,
+    gear: &GearFigures,
     scene: &crate::scene::owner::Scene,
 ) {
     let t0 = physics_tables.drive_ratio.ld();
-    let t1 = GEAR.drive_torque_figure.ld();
+    let t1 = gear.drive_torque_figure.ld();
     let t2 = t0 * t1;
     let t3 = physics_tables.gear_ratios[1].ld();
     let t4 = t2 / t3;
@@ -133,6 +146,7 @@ mod asm_reference {
                     &race().course.numbers,
                     &race().shared.physics_tables,
                     &race().shared.car,
+                    race().gear(),
                     crate::scene::owner::scene(),
                 );
             },

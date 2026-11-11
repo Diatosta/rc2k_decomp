@@ -12,7 +12,7 @@
 
 use crate::errors::Refused;
 use crate::menu::item_at::item_at;
-use crate::menu::owner::Menus;
+use crate::owners::Owners;
 
 // ---- game data ----
 
@@ -44,7 +44,8 @@ impl Direction {
 
 /// The click is 0x40F059 with sound 1 (`sound::play_menu_sound`); the callback gets
 /// the item (edi in the original, the only register its callbacks read).
-pub fn move_highlight(menus: &Menus, direction: Direction) -> Result<(), Refused> {
+pub fn move_highlight(o: Owners<'_>, direction: Direction) -> Result<(), Refused> {
+    let menus = o.menus;
     let screens = &menus.screens;
     // The logic is in `rc2k_core::menu::navigation` (`turn`, `link`, `walk`), everything worked
     // out before it is written.
@@ -85,7 +86,7 @@ pub fn move_highlight(menus: &Menus, direction: Direction) -> Result<(), Refused
         }
         match to {
             Some(n) => screens.loop_flags.item.set(n),
-            None => crate::menu::table_calls::call_key(menus, item.fixed().on_key[way], item)?,
+            None => crate::menu::table_calls::call_key(o, item.fixed().on_key[way], item)?,
         }
     }
     Ok(())

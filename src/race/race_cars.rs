@@ -576,14 +576,14 @@ pub fn set_up_mode_2_cars(race: &Race) -> Result<(), Refused> {
     for cell in [&lead.pace_placed, &lead.pace_cars[0], &lead.pace_cars[1]] {
         cell.set(0);
     }
-    let behind = cars.wrapping_sub(crate::race::owner::RACE.shared.tables.start_place.get());
+    let behind = cars.wrapping_sub(race.shared.tables.start_place.get());
     race.car_blocks().cars[0].mode2_behind.set(behind);
     text(w(6), false);
     number(behind, false);
     text(w(7), false);
     for car in 0..cars {
         number(
-            crate::race::owner::RACE.shared.tables.arcade_car_kinds[car as usize].get(),
+            race.shared.tables.arcade_car_kinds[car as usize].get(),
             false,
         );
     }

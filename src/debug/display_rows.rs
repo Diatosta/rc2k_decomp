@@ -327,7 +327,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B440,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b440,
                     front_tyre_wear
@@ -342,7 +342,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B444,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b444,
                     rear_tyre_wear
@@ -357,7 +357,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B3E8,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b3e8,
                     tyre_kind
@@ -372,7 +372,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B3F4,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b3f4,
                     wheels_down
@@ -387,7 +387,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B484,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b484,
                     wear_figure
@@ -633,7 +633,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B404,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b404,
                     electrics_fail_chance
@@ -648,7 +648,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B408,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b408,
                     light_fail_chance_0
@@ -663,7 +663,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B40C,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b40c,
                     light_fail_chance_1
@@ -678,7 +678,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B410,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b410,
                     light_fail_chance_2
@@ -693,7 +693,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B414,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b414,
                     light_fail_chance_3
@@ -708,7 +708,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B418,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b418,
                     light_fail_chance_4
@@ -723,7 +723,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B41C,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b41c,
                     light_fail_chance_5
@@ -738,7 +738,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B420,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b420,
                     electrics_recover_chance
@@ -753,7 +753,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B424,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b424,
                     light_recover_chance_0
@@ -768,7 +768,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B428,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b428,
                     light_recover_chance_1
@@ -783,7 +783,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B42C,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b42c,
                     light_recover_chance_2
@@ -798,7 +798,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B430,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b430,
                     light_recover_chance_3
@@ -813,7 +813,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B434,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b434,
                     light_recover_chance_4
@@ -828,7 +828,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B438,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b438,
                     light_recover_chance_5
@@ -884,7 +884,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B3B8,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b3b8,
                     gear_changed
@@ -899,7 +899,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B3BC,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b3bc,
                     gear
@@ -914,7 +914,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B3B0,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b3b0,
                     brake_share
@@ -929,7 +929,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B3C0,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b3c0,
                     engine_over_limit
@@ -944,7 +944,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B3E4,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b3e4,
                     drive_kind
@@ -959,7 +959,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B460,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b460,
                     cooling_capacity
@@ -974,7 +974,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B398,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b398,
                     engine_speed_share
@@ -989,7 +989,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B45C,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b45c,
                     engine_speed_wear_factor
@@ -1004,7 +1004,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B464,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b464,
                     overheat_excess
@@ -1046,7 +1046,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B400,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b400,
                     brake_balance_share
@@ -1066,7 +1066,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B39C,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b39c,
                     speed_share
@@ -1081,7 +1081,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B3A8,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b3a8,
                     drive_a_extrapolated_share
@@ -1096,7 +1096,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B3AC,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b3ac,
                     drive_b_extrapolated_share
@@ -1111,7 +1111,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B3A0,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b3a0,
                     drive_a_slip_share
@@ -1126,7 +1126,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B3A4,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b3a4,
                     drive_b_slip_share
@@ -1141,7 +1141,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B3B4,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b3b4,
                     on_surface_5
@@ -1156,7 +1156,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B3EC,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b3ec,
                     surface
@@ -1171,7 +1171,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B3F0,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b3f0,
                     surface_blend
@@ -1186,7 +1186,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B450,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b450,
                     roughness_wear_base
@@ -1201,7 +1201,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B458,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b458,
                     suspension_roughness_wear
@@ -1216,7 +1216,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B454,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b454,
                     body_roughness_wear
@@ -1231,7 +1231,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B468,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b468,
                     ride_height_body_factor
@@ -1251,7 +1251,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B3F8,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b3f8,
                     ride_height_share
@@ -1266,7 +1266,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B3FC,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b3fc,
                     stiffness_share
@@ -1281,7 +1281,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B448,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b448,
                     stiffness_suspension_factor
@@ -1296,7 +1296,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B44C,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b44c,
                     stiffness_body_factor
@@ -1415,7 +1415,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B4A0,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b4a0,
                     clock
@@ -1430,7 +1430,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B3C4,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b3c4,
                     hit_side
@@ -1445,7 +1445,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B3C8,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b3c8,
                     hit_size
@@ -1458,7 +1458,7 @@ pub static GROUPS: &[Group] = &[
                 "landamt1",
                 Shown::Float,
                 0x75B3CC,
-                indexed_cell!(crate::race::owner::RACE.physics.damage, wheel_loads[0]),
+                indexed_cell!(|o| o.race.physics.damage, wheel_loads[0]),
                 true,
                 (168, 22),
             ),
@@ -1467,7 +1467,7 @@ pub static GROUPS: &[Group] = &[
                 "landamt2",
                 Shown::Float,
                 0x75B3D0,
-                indexed_cell!(crate::race::owner::RACE.physics.damage, wheel_loads[1]),
+                indexed_cell!(|o| o.race.physics.damage, wheel_loads[1]),
                 true,
                 (168, 28),
             ),
@@ -1476,7 +1476,7 @@ pub static GROUPS: &[Group] = &[
                 "landamt3",
                 Shown::Float,
                 0x75B3D4,
-                indexed_cell!(crate::race::owner::RACE.physics.damage, wheel_loads[2]),
+                indexed_cell!(|o| o.race.physics.damage, wheel_loads[2]),
                 true,
                 (168, 34),
             ),
@@ -1485,7 +1485,7 @@ pub static GROUPS: &[Group] = &[
                 "landamt4",
                 Shown::Float,
                 0x75B3D8,
-                indexed_cell!(crate::race::owner::RACE.physics.damage, wheel_loads[3]),
+                indexed_cell!(|o| o.race.physics.damage, wheel_loads[3]),
                 true,
                 (168, 40),
             ),
@@ -1496,7 +1496,7 @@ pub static GROUPS: &[Group] = &[
                 0x75B3DC,
                 store_cell!(
                     crate::physics::store::START,
-                    crate::race::owner::RACE.physics.damage,
+                    |o| o.race.physics.damage,
                     crate::physics::store::DamageModel,
                     0x75b3dc,
                     wheel_load_mean
@@ -2950,7 +2950,7 @@ pub static GROUPS: &[Group] = &[
                 0x75ACE0,
                 store_cell!(
                     crate::race::state_store::START,
-                    crate::race::owner::RACE.shared.state,
+                    |o| o.race.shared.state,
                     crate::race::state_store::RaceState,
                     0x75ace0,
                     settings.race_mode
@@ -2965,7 +2965,7 @@ pub static GROUPS: &[Group] = &[
                 0x514F78,
                 store_cell!(
                     0x512A10,
-                    crate::sound::owner::SOUND.race.sounds,
+                    |o| o.sound.race.sounds,
                     crate::sound::store::RaceSounds,
                     0x514f78,
                     one_player
@@ -2980,7 +2980,7 @@ pub static GROUPS: &[Group] = &[
                 0x63DB94,
                 store_cell!(
                     crate::race::view_store::START,
-                    crate::race::owner::RACE.shared.view,
+                    |o| o.race.shared.view,
                     crate::race::view_store::RaceView,
                     0x63db94,
                     players
@@ -2995,7 +2995,7 @@ pub static GROUPS: &[Group] = &[
                 0x63DB90,
                 store_cell!(
                     crate::race::view_store::START,
-                    crate::race::owner::RACE.shared.view,
+                    |o| o.race.shared.view,
                     crate::race::view_store::RaceView,
                     0x63db90,
                     race_cars
@@ -3010,7 +3010,7 @@ pub static GROUPS: &[Group] = &[
                 0x63DB98,
                 store_cell!(
                     crate::race::view_store::START,
-                    crate::race::owner::RACE.shared.view,
+                    |o| o.race.shared.view,
                     crate::race::view_store::RaceView,
                     0x63db98,
                     views
@@ -3023,7 +3023,7 @@ pub static GROUPS: &[Group] = &[
                 "shaunsc1",
                 Shown::Hex,
                 0x63DBB0,
-                indexed_cell!(crate::race::owner::RACE.shared.view, view_blocks[0]),
+                indexed_cell!(|o| o.race.shared.view, view_blocks[0]),
                 false,
                 (468, 34),
             ),
@@ -3032,7 +3032,7 @@ pub static GROUPS: &[Group] = &[
                 "shaunsc2",
                 Shown::Hex,
                 0x63DBB4,
-                indexed_cell!(crate::race::owner::RACE.shared.view, view_blocks[1]),
+                indexed_cell!(|o| o.race.shared.view, view_blocks[1]),
                 false,
                 (468, 40),
             ),
@@ -3043,7 +3043,7 @@ pub static GROUPS: &[Group] = &[
                 0x6238A4,
                 store_cell!(
                     crate::race::vars_store::START,
-                    crate::race::owner::RACE.shared.vars,
+                    |o| o.race.shared.vars,
                     crate::race::vars_store::RaceVars,
                     0x6238a4,
                     split
@@ -3063,7 +3063,7 @@ pub static GROUPS: &[Group] = &[
                 0x614750,
                 store_cell!(
                     crate::physics::tables_store::START,
-                    crate::race::owner::RACE.shared.physics_tables,
+                    |o| o.race.shared.physics_tables,
                     crate::physics::tables_store::PhysicsTables,
                     0x614750,
                     drive_torque
@@ -3078,7 +3078,7 @@ pub static GROUPS: &[Group] = &[
                 0x613890,
                 store_cell!(
                     crate::physics::tables_store::START,
-                    crate::race::owner::RACE.shared.physics_tables,
+                    |o| o.race.shared.physics_tables,
                     crate::physics::tables_store::PhysicsTables,
                     0x613890,
                     input_steer
@@ -3091,10 +3091,7 @@ pub static GROUPS: &[Group] = &[
                 "joyx",
                 Shown::Whole,
                 0x6138AC,
-                indexed_cell!(
-                    crate::race::owner::RACE.shared.physics_tables,
-                    wear_page_words[0]
-                ),
+                indexed_cell!(|o| o.race.shared.physics_tables, wear_page_words[0]),
                 false,
                 (468, 364),
             ),
@@ -3103,10 +3100,7 @@ pub static GROUPS: &[Group] = &[
                 "joyy",
                 Shown::Whole,
                 0x6138B0,
-                indexed_cell!(
-                    crate::race::owner::RACE.shared.physics_tables,
-                    wear_page_words[1]
-                ),
+                indexed_cell!(|o| o.race.shared.physics_tables, wear_page_words[1]),
                 false,
                 (468, 370),
             ),
@@ -3115,10 +3109,7 @@ pub static GROUPS: &[Group] = &[
                 "joyz",
                 Shown::Whole,
                 0x6138B4,
-                indexed_cell!(
-                    crate::race::owner::RACE.shared.physics_tables,
-                    wear_page_words[2]
-                ),
+                indexed_cell!(|o| o.race.shared.physics_tables, wear_page_words[2]),
                 false,
                 (468, 376),
             ),
@@ -3132,7 +3123,7 @@ pub static GROUPS: &[Group] = &[
                 "susph",
                 Shown::Float,
                 0x614BF4,
-                indexed_cell!(crate::race::owner::RACE.shared.physics_tables, handling[2]),
+                indexed_cell!(|o| o.race.shared.physics_tables, handling[2]),
                 false,
                 (468, 52),
             ),
@@ -3141,7 +3132,7 @@ pub static GROUPS: &[Group] = &[
                 "suspt",
                 Shown::Float,
                 0x614BF8,
-                indexed_cell!(crate::race::owner::RACE.shared.physics_tables, handling[3]),
+                indexed_cell!(|o| o.race.shared.physics_tables, handling[3]),
                 false,
                 (468, 58),
             ),
@@ -3150,7 +3141,7 @@ pub static GROUPS: &[Group] = &[
                 "suspd",
                 Shown::Float,
                 0x614C00,
-                indexed_cell!(crate::race::owner::RACE.shared.physics_tables, handling[5]),
+                indexed_cell!(|o| o.race.shared.physics_tables, handling[5]),
                 false,
                 (468, 64),
             ),
@@ -3159,7 +3150,7 @@ pub static GROUPS: &[Group] = &[
                 "ste k",
                 Shown::Float,
                 0x614C0C,
-                indexed_cell!(crate::race::owner::RACE.shared.physics_tables, handling[8]),
+                indexed_cell!(|o| o.race.shared.physics_tables, handling[8]),
                 false,
                 (468, 70),
             ),
@@ -3168,7 +3159,7 @@ pub static GROUPS: &[Group] = &[
                 "ste j",
                 Shown::Float,
                 0x614C08,
-                indexed_cell!(crate::race::owner::RACE.shared.physics_tables, handling[7]),
+                indexed_cell!(|o| o.race.shared.physics_tables, handling[7]),
                 false,
                 (468, 76),
             ),
@@ -3177,7 +3168,7 @@ pub static GROUPS: &[Group] = &[
                 "bumpf",
                 Shown::Float,
                 0x614C04,
-                indexed_cell!(crate::race::owner::RACE.shared.physics_tables, handling[6]),
+                indexed_cell!(|o| o.race.shared.physics_tables, handling[6]),
                 false,
                 (468, 82),
             ),
@@ -3188,7 +3179,7 @@ pub static GROUPS: &[Group] = &[
                 0x614230,
                 store_cell!(
                     crate::physics::tables_store::START,
-                    crate::race::owner::RACE.shared.physics_tables,
+                    |o| o.race.shared.physics_tables,
                     crate::physics::tables_store::PhysicsTables,
                     0x614230,
                     surface_softness
@@ -3201,7 +3192,7 @@ pub static GROUPS: &[Group] = &[
                 "set cgh",
                 Shown::Float,
                 0x614BFC,
-                indexed_cell!(crate::race::owner::RACE.shared.physics_tables, handling[4]),
+                indexed_cell!(|o| o.race.shared.physics_tables, handling[4]),
                 false,
                 (468, 94),
             ),
@@ -3210,10 +3201,7 @@ pub static GROUPS: &[Group] = &[
                 "usecghx",
                 Shown::Float,
                 0x6141D4,
-                indexed_cell!(
-                    crate::race::owner::RACE.shared.physics_tables,
-                    wheel_spin_push[0]
-                ),
+                indexed_cell!(|o| o.race.shared.physics_tables, wheel_spin_push[0]),
                 false,
                 (468, 100),
             ),
@@ -3222,10 +3210,7 @@ pub static GROUPS: &[Group] = &[
                 "usecghz",
                 Shown::Float,
                 0x6141D8,
-                indexed_cell!(
-                    crate::race::owner::RACE.shared.physics_tables,
-                    wheel_spin_push[1]
-                ),
+                indexed_cell!(|o| o.race.shared.physics_tables, wheel_spin_push[1]),
                 false,
                 (468, 106),
             ),
@@ -3236,7 +3221,7 @@ pub static GROUPS: &[Group] = &[
                 0x614148,
                 store_cell!(
                     crate::physics::tables_store::START,
-                    crate::race::owner::RACE.shared.physics_tables,
+                    |o| o.race.shared.physics_tables,
                     crate::physics::tables_store::PhysicsTables,
                     0x614148,
                     contact_step
@@ -3249,10 +3234,7 @@ pub static GROUPS: &[Group] = &[
                 "acc grip",
                 Shown::Float,
                 0x614BB4,
-                indexed_cell!(
-                    crate::race::owner::RACE.shared.physics_tables,
-                    spec_surface[0]
-                ),
+                indexed_cell!(|o| o.race.shared.physics_tables, spec_surface[0]),
                 false,
                 (468, 118),
             ),
@@ -3261,10 +3243,7 @@ pub static GROUPS: &[Group] = &[
                 "brk grip",
                 Shown::Float,
                 0x614BB8,
-                indexed_cell!(
-                    crate::race::owner::RACE.shared.physics_tables,
-                    spec_surface[1]
-                ),
+                indexed_cell!(|o| o.race.shared.physics_tables, spec_surface[1]),
                 false,
                 (468, 124),
             ),
@@ -3273,10 +3252,7 @@ pub static GROUPS: &[Group] = &[
                 "sidegrip",
                 Shown::Float,
                 0x614BBC,
-                indexed_cell!(
-                    crate::race::owner::RACE.shared.physics_tables,
-                    spec_surface[2]
-                ),
+                indexed_cell!(|o| o.race.shared.physics_tables, spec_surface[2]),
                 false,
                 (468, 130),
             ),
@@ -3287,7 +3263,7 @@ pub static GROUPS: &[Group] = &[
                 0x6D3028,
                 store_cell!(
                     crate::physics::contact_store::START,
-                    crate::race::owner::RACE.physics.contact,
+                    |o| o.race.physics.contact,
                     crate::physics::contact_store::ContactWork,
                     0x6d3028,
                     ground_contact_started
@@ -3302,7 +3278,7 @@ pub static GROUPS: &[Group] = &[
                 0x6D3070,
                 store_cell!(
                     crate::physics::contact_store::START,
-                    crate::race::owner::RACE.physics.contact,
+                    |o| o.race.physics.contact,
                     crate::physics::contact_store::ContactWork,
                     0x6d3070,
                     wheel_share
@@ -3315,10 +3291,7 @@ pub static GROUPS: &[Group] = &[
                 "gripx1",
                 Shown::Float,
                 0x61423C,
-                indexed_cell!(
-                    crate::race::owner::RACE.shared.physics_tables,
-                    drive_limits[0]
-                ),
+                indexed_cell!(|o| o.race.shared.physics_tables, drive_limits[0]),
                 false,
                 (468, 148),
             ),
@@ -3327,10 +3300,7 @@ pub static GROUPS: &[Group] = &[
                 "gripx2",
                 Shown::Float,
                 0x614240,
-                indexed_cell!(
-                    crate::race::owner::RACE.shared.physics_tables,
-                    drive_limits[1]
-                ),
+                indexed_cell!(|o| o.race.shared.physics_tables, drive_limits[1]),
                 false,
                 (468, 154),
             ),
@@ -3339,10 +3309,7 @@ pub static GROUPS: &[Group] = &[
                 "gripx",
                 Shown::Float,
                 0x614244,
-                indexed_cell!(
-                    crate::race::owner::RACE.shared.physics_tables,
-                    drive_limits[2]
-                ),
+                indexed_cell!(|o| o.race.shared.physics_tables, drive_limits[2]),
                 false,
                 (468, 160),
             ),
@@ -3351,10 +3318,7 @@ pub static GROUPS: &[Group] = &[
                 "usegripx",
                 Shown::Float,
                 0x614250,
-                indexed_cell!(
-                    crate::race::owner::RACE.shared.physics_tables,
-                    drive_slip[0]
-                ),
+                indexed_cell!(|o| o.race.shared.physics_tables, drive_slip[0]),
                 false,
                 (468, 166),
             ),
@@ -3365,7 +3329,7 @@ pub static GROUPS: &[Group] = &[
                 0x614264,
                 store_cell!(
                     crate::physics::tables_store::START,
-                    crate::race::owner::RACE.shared.physics_tables,
+                    |o| o.race.shared.physics_tables,
                     crate::physics::tables_store::PhysicsTables,
                     0x614264,
                     slip_limit
@@ -3378,10 +3342,7 @@ pub static GROUPS: &[Group] = &[
                 "wgripzf",
                 Shown::Float,
                 0x614234,
-                indexed_cell!(
-                    crate::race::owner::RACE.shared.physics_tables,
-                    wheel_slips[0]
-                ),
+                indexed_cell!(|o| o.race.shared.physics_tables, wheel_slips[0]),
                 false,
                 (468, 178),
             ),
@@ -3390,10 +3351,7 @@ pub static GROUPS: &[Group] = &[
                 "wgripzb",
                 Shown::Float,
                 0x614238,
-                indexed_cell!(
-                    crate::race::owner::RACE.shared.physics_tables,
-                    wheel_slips[1]
-                ),
+                indexed_cell!(|o| o.race.shared.physics_tables, wheel_slips[1]),
                 false,
                 (468, 184),
             ),
@@ -3402,10 +3360,7 @@ pub static GROUPS: &[Group] = &[
                 "gripzf",
                 Shown::Float,
                 0x614248,
-                indexed_cell!(
-                    crate::race::owner::RACE.shared.physics_tables,
-                    drive_forces[0]
-                ),
+                indexed_cell!(|o| o.race.shared.physics_tables, drive_forces[0]),
                 false,
                 (468, 190),
             ),
@@ -3414,10 +3369,7 @@ pub static GROUPS: &[Group] = &[
                 "gripzb",
                 Shown::Float,
                 0x61424C,
-                indexed_cell!(
-                    crate::race::owner::RACE.shared.physics_tables,
-                    drive_forces[1]
-                ),
+                indexed_cell!(|o| o.race.shared.physics_tables, drive_forces[1]),
                 false,
                 (468, 196),
             ),
@@ -3426,10 +3378,7 @@ pub static GROUPS: &[Group] = &[
                 "ugrpzf",
                 Shown::Float,
                 0x614258,
-                indexed_cell!(
-                    crate::race::owner::RACE.shared.physics_tables,
-                    axle_slips[0]
-                ),
+                indexed_cell!(|o| o.race.shared.physics_tables, axle_slips[0]),
                 false,
                 (468, 202),
             ),
@@ -3438,10 +3387,7 @@ pub static GROUPS: &[Group] = &[
                 "ugrpzb",
                 Shown::Float,
                 0x61425C,
-                indexed_cell!(
-                    crate::race::owner::RACE.shared.physics_tables,
-                    axle_slips[1]
-                ),
+                indexed_cell!(|o| o.race.shared.physics_tables, axle_slips[1]),
                 false,
                 (468, 208),
             ),
@@ -3457,7 +3403,7 @@ pub static GROUPS: &[Group] = &[
                 0x614168,
                 store_cell!(
                     crate::physics::tables_store::START,
-                    crate::race::owner::RACE.shared.physics_tables,
+                    |o| o.race.shared.physics_tables,
                     crate::physics::tables_store::PhysicsTables,
                     0x614168,
                     drive_speed_figure
@@ -3470,10 +3416,7 @@ pub static GROUPS: &[Group] = &[
                 "force fg",
                 Shown::Float,
                 0x6148D0,
-                indexed_cell!(
-                    crate::race::owner::RACE.shared.physics_tables,
-                    forces[11].force[0]
-                ),
+                indexed_cell!(|o| o.race.shared.physics_tables, forces[11].force[0]),
                 false,
                 (468, 220),
             ),
@@ -3482,10 +3425,7 @@ pub static GROUPS: &[Group] = &[
                 "force rg",
                 Shown::Float,
                 0x614910,
-                indexed_cell!(
-                    crate::race::owner::RACE.shared.physics_tables,
-                    forces[13].force[0]
-                ),
+                indexed_cell!(|o| o.race.shared.physics_tables, forces[13].force[0]),
                 false,
                 (468, 226),
             ),
@@ -3494,10 +3434,7 @@ pub static GROUPS: &[Group] = &[
                 "force x",
                 Shown::Float,
                 0x614C2C,
-                indexed_cell!(
-                    crate::race::owner::RACE.shared.physics_tables,
-                    force_sums[0]
-                ),
+                indexed_cell!(|o| o.race.shared.physics_tables, force_sums[0]),
                 false,
                 (468, 232),
             ),
@@ -3506,10 +3443,7 @@ pub static GROUPS: &[Group] = &[
                 "forcexu",
                 Shown::Float,
                 0x614C30,
-                indexed_cell!(
-                    crate::race::owner::RACE.shared.physics_tables,
-                    force_sums[1]
-                ),
+                indexed_cell!(|o| o.race.shared.physics_tables, force_sums[1]),
                 false,
                 (468, 238),
             ),
@@ -3518,10 +3452,7 @@ pub static GROUPS: &[Group] = &[
                 "force z",
                 Shown::Float,
                 0x614C34,
-                indexed_cell!(
-                    crate::race::owner::RACE.shared.physics_tables,
-                    force_sums[2]
-                ),
+                indexed_cell!(|o| o.race.shared.physics_tables, force_sums[2]),
                 false,
                 (468, 244),
             ),
@@ -3530,10 +3461,7 @@ pub static GROUPS: &[Group] = &[
                 "force r",
                 Shown::Float,
                 0x614C38,
-                indexed_cell!(
-                    crate::race::owner::RACE.shared.physics_tables,
-                    force_sums[3]
-                ),
+                indexed_cell!(|o| o.race.shared.physics_tables, force_sums[3]),
                 false,
                 (468, 250),
             ),
@@ -3542,10 +3470,7 @@ pub static GROUPS: &[Group] = &[
                 "force d",
                 Shown::Float,
                 0x614C3C,
-                indexed_cell!(
-                    crate::race::owner::RACE.shared.physics_tables,
-                    force_sums[4]
-                ),
+                indexed_cell!(|o| o.race.shared.physics_tables, force_sums[4]),
                 false,
                 (468, 256),
             ),
@@ -3556,7 +3481,7 @@ pub static GROUPS: &[Group] = &[
                 0x614260,
                 store_cell!(
                     crate::physics::tables_store::START,
-                    crate::race::owner::RACE.shared.physics_tables,
+                    |o| o.race.shared.physics_tables,
                     crate::physics::tables_store::PhysicsTables,
                     0x614260,
                     grip_limit
@@ -3592,10 +3517,7 @@ pub static GROUPS: &[Group] = &[
                 "",
                 Shown::Float,
                 0x614284,
-                indexed_cell!(
-                    crate::race::owner::RACE.shared.physics_tables,
-                    wheel_loads[0]
-                ),
+                indexed_cell!(|o| o.race.shared.physics_tables, wheel_loads[0]),
                 false,
                 (760, 570),
             ),
@@ -3622,10 +3544,7 @@ pub static GROUPS: &[Group] = &[
                 "",
                 Shown::Float,
                 0x614288,
-                indexed_cell!(
-                    crate::race::owner::RACE.shared.physics_tables,
-                    wheel_loads[1]
-                ),
+                indexed_cell!(|o| o.race.shared.physics_tables, wheel_loads[1]),
                 false,
                 (760, 576),
             ),
@@ -3652,10 +3571,7 @@ pub static GROUPS: &[Group] = &[
                 "",
                 Shown::Float,
                 0x61428C,
-                indexed_cell!(
-                    crate::race::owner::RACE.shared.physics_tables,
-                    wheel_loads[2]
-                ),
+                indexed_cell!(|o| o.race.shared.physics_tables, wheel_loads[2]),
                 false,
                 (760, 582),
             ),
@@ -3682,10 +3598,7 @@ pub static GROUPS: &[Group] = &[
                 "",
                 Shown::Float,
                 0x614290,
-                indexed_cell!(
-                    crate::race::owner::RACE.shared.physics_tables,
-                    wheel_loads[3]
-                ),
+                indexed_cell!(|o| o.race.shared.physics_tables, wheel_loads[3]),
                 false,
                 (760, 588),
             ),
@@ -3699,10 +3612,7 @@ pub static GROUPS: &[Group] = &[
                 "0-60",
                 Shown::Float,
                 0x5CB97C,
-                indexed_cell!(
-                    crate::race::owner::RACE.frame.lights_and_gear,
-                    gear.test_marks[0]
-                ),
+                indexed_cell!(|o| o.race.frame.lights_and_gear, gear.test_marks[0]),
                 false,
                 (468, 310),
             ),
@@ -3711,10 +3621,7 @@ pub static GROUPS: &[Group] = &[
                 "-100",
                 Shown::Float,
                 0x5CB980,
-                indexed_cell!(
-                    crate::race::owner::RACE.frame.lights_and_gear,
-                    gear.test_marks[1]
-                ),
+                indexed_cell!(|o| o.race.frame.lights_and_gear, gear.test_marks[1]),
                 false,
                 (468, 316),
             ),
@@ -3723,10 +3630,7 @@ pub static GROUPS: &[Group] = &[
                 "maxs",
                 Shown::Float,
                 0x5CB984,
-                indexed_cell!(
-                    crate::race::owner::RACE.frame.lights_and_gear,
-                    gear.test_marks[2]
-                ),
+                indexed_cell!(|o| o.race.frame.lights_and_gear, gear.test_marks[2]),
                 false,
                 (468, 322),
             ),
@@ -3740,10 +3644,7 @@ pub static GROUPS: &[Group] = &[
                 "amtu",
                 Shown::Whole,
                 0x6D1508,
-                indexed_cell!(
-                    crate::race::owner::race().frame.panel_and_overlay.panel,
-                    texture_changes
-                ),
+                indexed_cell!(|o| o.race.frame.panel_and_overlay.panel, texture_changes),
                 false,
                 (468, 328),
             ),

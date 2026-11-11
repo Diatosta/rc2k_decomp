@@ -90,7 +90,7 @@ pub fn race_init(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
     log(c"RACEINIT : singlecarinit");
     indent_by(race_steps::LOG_INDENT);
     for _ in 0..race_steps::SETTLING_STEPS {
-        { crate::drive::race_cars_step::race_cars_step(race) }?;
+        { crate::drive::race_cars_step::race_cars_step(race, scene) }?;
         race.effects_settings().other_marks_shown.set(1);
         {
             let view = crate::drive::set_listener::ListenerView::before_any_view(race);

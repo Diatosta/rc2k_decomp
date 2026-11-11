@@ -10,8 +10,8 @@
 use crate::errors::Refused;
 use crate::framework::log;
 use crate::menu::menus_store::{MenuId, MenuItem};
-use crate::menu::owner::Menus;
 use crate::menu::table_routes::item_fn;
+use crate::owners::Owners;
 use rc2k_core::fatal::Context;
 use rc2k_core::menu::tables::ItemFn;
 
@@ -19,16 +19,16 @@ use rc2k_core::menu::tables::ItemFn;
 /// tables name as key callbacks only `RaiseControllerSensitivity` reads a register: edi,
 /// which is the item here; the rest get none (`tables_data.rs`' `on_key`
 /// against `item_fn`'s reads).
-pub fn call_key(menus: &Menus, function: ItemFn, item: &MenuItem) -> Result<(), Refused> {
+pub fn call_key(o: Owners<'_>, function: ItemFn, item: &MenuItem) -> Result<(), Refused> {
     match function {
         // edi the item: its +0x2C, the left link.
         ItemFn::RaiseControllerSensitivity => {
             crate::menu::controller_items::raise_controller_sensitivity(
-                menus,
+                o.menus,
                 item.fixed().links[2],
             )
         }
-        f => item_fn(menus, f, &ItemCall::default()),
+        f => item_fn(o, f, &ItemCall::default()),
     }
 }
 
@@ -43,12 +43,12 @@ pub struct ItemCall {
 
 /// A menu item's action (`menu::run_item_action`): the item's function with the value
 /// and the menu. A refusal ends the program here.
-pub fn call_action(menus: &Menus, function: ItemFn, value: u32, menu: MenuId) {
+pub fn call_action(o: Owners<'_>, function: ItemFn, value: u32, menu: MenuId) {
     let given = ItemCall {
         value,
         menu: Some(menu),
     };
-    if let Err(e) = item_fn(menus, function, &given) {
+    if let Err(e) = item_fn(o, function, &given) {
         refused(&format!("{function:?}"), e, &Context::default());
     }
 }

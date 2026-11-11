@@ -10,8 +10,7 @@ pub fn info_dword(offset: usize, system: &crate::system::owner::System) -> u32 {
 }
 
 /// The info's byte at `offset`.
-pub fn info_byte(offset: usize) -> u8 {
-    let system = crate::system::owner::system();
+pub fn info_byte(offset: usize, system: &crate::system::owner::System) -> u8 {
     system.work.files.buffer.get(offset)
 }
 

@@ -18,7 +18,7 @@ pub fn undo_edit(race: &Race) -> Result<(), Refused> {
     };
     shared.replay_file.index_block_count.set(count);
     // As `rc2k_core::race::viewer_flow::copy_tables`, cell by cell.
-    let buffers = &crate::race::viewer_buffers_store::VIEWER_BUFFERS;
+    let buffers = race.viewer_buffers();
     for (k, (to, from)) in shared
         .replay_file
         .block_places

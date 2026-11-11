@@ -56,8 +56,8 @@ macro_rules! car_cell {
                 + core::mem::offset_of!(crate::physics::car_store::Car, $field)
                 == $at
         );
-        fn cell() -> &'static dyn $crate::debug::row_cells::Raw {
-            &crate::race::blocks_store::CAR_BLOCKS.cars[$block].$field
+        fn cell<'a>(o: &$crate::owners::Owners<'a>) -> &'a dyn $crate::debug::row_cells::Raw {
+            &o.race.car_blocks().cars[$block].$field
         }
         cell
     }};
@@ -69,8 +69,8 @@ macro_rules! car_cell {
                 + $i * 4
                 == $at
         );
-        fn cell() -> &'static dyn $crate::debug::row_cells::Raw {
-            &crate::race::blocks_store::CAR_BLOCKS.cars[$block].$field[$i]
+        fn cell<'a>(o: &$crate::owners::Owners<'a>) -> &'a dyn $crate::debug::row_cells::Raw {
+            &o.race.car_blocks().cars[$block].$field[$i]
         }
         cell
     }};
@@ -80,17 +80,17 @@ pub(super) use car_cell;
 /// The cell `$home` (a store of one cell) whose IDA address is `$at`; `$ida` is where the
 /// store's moved range starts.
 macro_rules! store_cell {
-    ($ida:expr, $home:expr, $at:literal) => {{
+    ($ida:expr, |$o:ident| $home:expr, $at:literal) => {{
         const _: () = assert!($ida == $at);
-        fn cell() -> &'static dyn $crate::debug::row_cells::Raw {
+        fn cell<'a>($o: &$crate::owners::Owners<'a>) -> &'a dyn $crate::debug::row_cells::Raw {
             &$home
         }
         cell
     }};
     // A path without indices into a record of type `$ty`: checked at compile time.
-    ($ida:expr, $home:expr, $ty:ty, $at:literal, $($field:tt)+) => {{
+    ($ida:expr, |$o:ident| $home:expr, $ty:ty, $at:literal, $($field:tt)+) => {{
         const _: () = assert!($ida + core::mem::offset_of!($ty, $($field)+) == $at);
-        fn cell() -> &'static dyn $crate::debug::row_cells::Raw {
+        fn cell<'a>($o: &$crate::owners::Owners<'a>) -> &'a dyn $crate::debug::row_cells::Raw {
             &$home.$($field)+
         }
         cell
@@ -101,8 +101,8 @@ pub(super) use store_cell;
 /// The cell at path `$field` (with indices) of the store `$home`: its address is checked
 /// against `$at` by `row_paths::typed_rows_are_where_their_addresses_say`.
 macro_rules! indexed_cell {
-    ($home:expr, $($field:tt)+) => {{
-        fn cell() -> &'static dyn $crate::debug::row_cells::Raw {
+    (|$o:ident| $home:expr, $($field:tt)+) => {{
+        fn cell<'a>($o: &$crate::owners::Owners<'a>) -> &'a dyn $crate::debug::row_cells::Raw {
             &$home.$($field)+
         }
         cell

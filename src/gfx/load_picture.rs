@@ -33,18 +33,19 @@ pub fn load_picture_with(
     system: &crate::system::owner::System,
 ) -> Result<bool, Refused> {
     // Refused before anything is written, if there is no buffer.
-    if !has_picture() {
-        clear_picture()?;
+    let pictures = &gfx.pictures;
+    if !has_picture(pictures) {
+        clear_picture(pictures)?;
     }
     // Converted: `rc2k_core::gfx::picture_size` (`READ`, `screen`, `rescaled`).
-    set_size(sizes::READ);
-    clear_picture()?;
+    set_size(pictures, sizes::READ);
+    clear_picture(pictures)?;
     let read = read_picture_file(path, gfx);
     let screen_width: u32 = system.session.screen.width.get();
-    set_size(sizes::screen(
-        screen_width,
-        system.session.screen.height.get(),
-    ));
+    set_size(
+        pictures,
+        sizes::screen(screen_width, system.session.screen.height.get()),
+    );
     if !read? {
         return Ok(false);
     }

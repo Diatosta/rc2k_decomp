@@ -106,8 +106,9 @@ pub fn draw_results_page(
     page: &Page,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
+    let system = crate::system::owner::system();
     let class = menus.screens.event.class.get();
-    if !section_there()? {
+    if !section_there(menus, system)? {
         return Err(BadInput("a section past the record table").into());
     }
     let rally = page.time == 0x18;
@@ -152,11 +153,11 @@ pub fn draw_results_page(
                         menus.screens.event.section.get(),
                     )?
                 } else {
-                    record_at(0)?.record()?.name()
+                    record_at(menus, system, 0)?.record()?.name()
                 },
             },
             Heading::Record => {
-                crate::screens::best_scores::draw_record_heading(menus, canvas)?;
+                crate::screens::best_scores::draw_record_heading(menus, system, canvas)?;
                 Drawn::Drawn
             }
         };

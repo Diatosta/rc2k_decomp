@@ -19,7 +19,9 @@
 
 use crate::errors::BadInput;
 use crate::menu::owner::Menus;
-use crate::menu::remove_secret_cars::{FIRST, List, SECOND, read_list, write_list};
+use crate::menu::remove_secret_cars::{
+    List, first as first_list, read_list, second as second_list, write_list,
+};
 use rc2k_core::menu::car_lists;
 
 // ---- game data ----
@@ -58,24 +60,24 @@ pub fn apply_cheats(
     // The logic is in `rc2k_core::menu::car_lists::apply_cheats`.
     {
         let cheats: u32 = play.cheats.cheats.get();
-        let list = |l: List| -> Result<car_lists::List, BadInput> {
+        let list = |l: List<'_>| -> Result<car_lists::List, BadInput> {
             Ok(car_lists::List {
                 cars: read_list(l)?,
                 room: l.1,
                 changed: false,
             })
         };
-        let (mut first, mut second) = (list(FIRST)?, list(SECOND)?);
+        let (mut first, mut second) = (list(first_list(menus))?, list(second_list(menus))?);
         let a = car_lists::apply_cheats(cheats, &mut first, &mut second, |bit| {
             CHEATS[bit].1.map_or(0, crate::menu::cars_store::car_handle)
         })?;
         // Nothing has been written or logged up to here.
         play.cheats.cheats.set(a.cheats);
         if first.changed {
-            write_list(FIRST, &first.cars);
+            write_list(first_list(menus), &first.cars);
         }
         if second.changed {
-            write_list(SECOND, &second.cars);
+            write_list(second_list(menus), &second.cars);
         }
         if a.stores {
             race.shared.state.settings.a8_game.set(1u32);

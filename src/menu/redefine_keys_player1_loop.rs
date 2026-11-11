@@ -96,6 +96,6 @@ pub const SCREEN: Screen = Screen {
 };
 
 /// Runs the screen (a refusal is the caller's).
-pub fn run() -> Result<(), crate::errors::Refused> {
-    screen_entry("menu::redefine_keys_player1_loop", &SCREEN)
+pub fn run(o: crate::owners::Owners<'_>) -> Result<(), crate::errors::Refused> {
+    screen_entry(o, "menu::redefine_keys_player1_loop", &SCREEN)
 }

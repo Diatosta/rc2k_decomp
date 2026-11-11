@@ -15,16 +15,14 @@
 //!
 //! The race's freeze as a check box.
 
-use crate::audio::owner::audio;
 use crate::debug::row_cells::Raw;
 use crate::debug::switches::EXTENSIONS;
 use crate::debug::timing::STAGES;
 use crate::debug::wear_page::{SURFACES, value_at};
-use crate::race::owner::{Race, race};
+use crate::owners::Owners;
+use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
 use crate::race::owner_physics::Physics;
-use crate::scene::owner::SCENE;
-use crate::system::owner::system;
 use dear_imgui_rs::{Condition, TableColumnFlags, TableColumnWidth, TableFlags, TreeNodeFlags, Ui};
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
@@ -47,7 +45,7 @@ pub struct Row {
     shown: Shown,
     at: usize,
     /// The figure's cell; none: it is read through its IDA address.
-    cell: Option<fn() -> &'static dyn Raw>,
+    cell: Option<for<'a> fn(&Owners<'a>) -> &'a dyn Raw>,
     bar: bool,
     place: (u32, u32),
 }
@@ -87,7 +85,7 @@ impl Row {
     /// Its cell's game address, when it has one.
     #[cfg(test)]
     pub fn cell_address(&self) -> Option<u32> {
-        self.cell.map(|cell| cell().address())
+        self.cell.map(|cell| cell(&Owners::the()).address())
     }
 
     /// A figure read through its field (`row_cells::car_cell`).
@@ -96,7 +94,7 @@ impl Row {
         label: &'static str,
         shown: Shown,
         at: usize,
-        cell: fn() -> &'static dyn Raw,
+        cell: for<'a> fn(&Owners<'a>) -> &'a dyn Raw,
         bar: bool,
         place: (u32, u32),
     ) -> Self {
@@ -112,9 +110,9 @@ impl Row {
     }
 
     /// The figure's 32 bits, none when they cannot be read.
-    fn value(&self) -> Option<u32> {
+    fn value(&self, o: &Owners<'_>) -> Option<u32> {
         match self.cell {
-            Some(cell) => Some(cell().raw()),
+            Some(cell) => Some(cell(o).raw()),
             None => value_at(self.at),
         }
     }
@@ -259,7 +257,8 @@ fn body(ui: &Ui, f: impl FnOnce()) {
 }
 
 /// The UI's frame.
-pub fn build(race: &Race, ui: &Ui) {
+pub fn build(o: &Owners<'_>, ui: &Ui) {
+    let race = o.race;
     if PROBES.load(Relaxed) {
         draw_probes(race, ui);
     }
@@ -312,54 +311,54 @@ pub fn build(race: &Race, ui: &Ui) {
             if let Some(_bar) = ui.tab_bar("pages") {
                 if let Some(_tab) = ui.tab_item("Display") {
                     body(ui, || {
-                        display(ui, crate::debug::display_rows::GROUPS, &FILTER);
+                        display(ui, o, crate::debug::display_rows::GROUPS, &FILTER);
                     });
                 }
                 if let Some(_tab) = ui.tab_item("Watch list") {
                     body(ui, || {
-                        display(ui, crate::debug::watch_rows::GROUPS, &WATCH_FILTER);
+                        display(ui, o, crate::debug::watch_rows::GROUPS, &WATCH_FILTER);
                     });
                 }
                 if let Some(_tab) = ui.tab_item("Dumps") {
-                    body(ui, || dumps(ui));
+                    body(ui, || dumps(race, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Profiler") {
-                    body(ui, || profiler(race, ui));
+                    body(ui, || profiler(o, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Kstar modes") {
-                    body(ui, || crate::debug::kstar::tab(race, ui));
+                    body(ui, || crate::debug::kstar::tab(o, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Switches") {
-                    body(ui, || crate::debug::switches::tab(race, ui));
+                    body(ui, || crate::debug::switches::tab(o, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Rivals") {
                     body(ui, || rivals(&race.physics, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Effects") {
-                    body(ui, || crate::debug::effects_page::tab(ui));
+                    body(ui, || crate::debug::effects_page::tab(o, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Dyno") {
                     body(ui, || crate::debug::dyno::tab(race, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Players") {
-                    body(ui, || crate::debug::players::tab(ui));
+                    body(ui, || crate::debug::players::tab(o, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Screens") {
-                    body(ui, || screens(ui));
+                    body(ui, || screens(o.saves, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Developers") {
-                    body(ui, || crate::debug::dev_front_end::tab(race, ui));
+                    body(ui, || crate::debug::dev_front_end::tab(o, ui));
                 }
             }
         });
 }
 
 /// The screens no route reaches.
-fn screens(ui: &Ui) {
+fn screens(saves: &crate::saves::owner::Saves, ui: &Ui) {
     ui.text("Section best times (shown at the next menu's frame):");
     for section in 0..6 {
         let label = format!("Section {}", section + 1);
-        if crate::debug::screens::section_has_times(section) {
+        if crate::debug::screens::section_has_times(saves, section) {
             if ui.button(&label) {
                 crate::debug::screens::ask_section_times(section as u32);
             }
@@ -395,7 +394,7 @@ fn wanted_row(row: &Row, wanted: &str) -> bool {
 }
 
 /// A tab of groups, in as many columns as the width holds.
-fn display(ui: &Ui, all: &'static [Group], filter: &std::sync::Mutex<String>) {
+fn display(ui: &Ui, o: &Owners<'_>, all: &'static [Group], filter: &std::sync::Mutex<String>) {
     let wanted = {
         let mut filter = filter
             .lock()
@@ -429,14 +428,14 @@ fn display(ui: &Ui, all: &'static [Group], filter: &std::sync::Mutex<String>) {
         ui.table_next_column();
         for group in column {
             if ui.collapsing_header(group.name, TreeNodeFlags::DEFAULT_OPEN) {
-                group_table(ui, group, &wanted);
+                group_table(ui, o, group, &wanted);
             }
         }
     }
 }
 
 /// A group's figures as a table.
-fn group_table(ui: &Ui, group: &Group, wanted: &str) {
+fn group_table(ui: &Ui, o: &Owners<'_>, group: &Group, wanted: &str) {
     let flags = TableFlags::BORDERS | TableFlags::ROW_BG | TableFlags::RESIZABLE;
     let Some(_table) = ui.begin_table_with_flags(group.name, 4, flags) else {
         return;
@@ -455,7 +454,7 @@ fn group_table(ui: &Ui, group: &Group, wanted: &str) {
     column("Original", 1.2);
     ui.table_headers_row();
     for row in group.rows.iter().filter(|r| wanted_row(r, wanted)) {
-        let value = row.value();
+        let value = row.value(o);
         ui.table_next_row();
         ui.table_next_column();
         ui.text(row.name);
@@ -622,10 +621,11 @@ fn take_readings(t: &mut Timings) {
 }
 
 /// The "Profiler" tab.
-fn profiler(race: &Race, ui: &Ui) {
+fn profiler(o: &Owners<'_>, ui: &Ui) {
+    let race = o.race;
     let course = &race.course;
-    let session = &system().session;
-    let state = &audio().state;
+    let session = &o.system.session;
+    let state = &o.audio.state;
     let shared = &race.shared;
     use crate::debug::timing::Stage;
     let mut t = TIMINGS
@@ -794,9 +794,9 @@ fn profiler(race: &Race, ui: &Ui) {
             (
                 "Game uses",
                 names([
-                    ("MMX", Some(SCENE.draw_switches.use_mmx.get())),
-                    ("3DNow!", Some(SCENE.draw_switches.use_3dnow.get())),
-                    ("SSE", Some(SCENE.draw_switches.use_sse.get())),
+                    ("MMX", Some(o.scene.draw_switches.use_mmx.get())),
+                    ("3DNow!", Some(o.scene.draw_switches.use_3dnow.get())),
+                    ("SSE", Some(o.scene.draw_switches.use_sse.get())),
                 ]),
             ),
             (
@@ -848,7 +848,7 @@ fn parts_graph(ui: &Ui, t: &Timings, total: &[f32], top: f32, height: f32, summa
 }
 
 /// A dump's dword by its number.
-type DumpWord = fn(usize) -> u32;
+type DumpWord = fn(&Race, usize) -> u32;
 
 /// The league tables the watch pages dumped (`debug::draw_league_dump`, 0x427A79: 50 rows of
 /// 8 bytes each, `off_4278DB` ..; `g_leagueRows` was dumped twice).
@@ -856,48 +856,48 @@ const DUMPS: [(&str, &str, DumpWord, usize, usize); 4] = [
     (
         "League: the ten records' names (g_leagueNames)",
         "`race::copy_league_table` fills them; `physics::compare_split_times` reads them.",
-        |n| race().course.league.names[n].get(),
+        |race, n| race.course.league.names[n].get(),
         1,
         10,
     ),
     (
         "League: kept times, sixteen rows of ten (g_leagueRows)",
         "A row a split, a column a record; hundredths of a second.",
-        |n| race().course.league.rows[n].get(),
+        |race, n| race.course.league.rows[n].get(),
         10,
         16,
     ),
     (
         "Car 1's times at the splits (unk_75B02C)",
         "Noted at each split; kept in the player's +0x20C after the race; hundredths of a second.",
-        |n| race().shared.state.results.results[0].data.get_u32(4 * n),
+        |race, n| race.shared.state.results.results[0].data.get_u32(4 * n),
         1,
         16,
     ),
     (
         "Car 2's times at the splits (unk_75B09C)",
         "As car 1's.",
-        |n| race().shared.state.results.results[1].data.get_u32(4 * n),
+        |race, n| race.shared.state.results.results[1].data.get_u32(4 * n),
         1,
         16,
     ),
 ];
 
 /// A row of a dump as text.
-fn dump_row(word: DumpWord, columns: usize, row: usize) -> String {
+fn dump_row(race: &Race, word: DumpWord, columns: usize, row: usize) -> String {
     let figures: Vec<String> = (0..columns)
-        .map(|column| format!("{}", word(row * columns + column) as i32))
+        .map(|column| format!("{}", word(race, row * columns + column) as i32))
         .collect();
     format!("{row:2}: {}", figures.join("  "))
 }
 
 /// The "Dumps" tab: what the developers' page showed as bytes, read.
-fn dumps(ui: &Ui) {
+fn dumps(race: &Race, ui: &Ui) {
     if ui.button("Write the four to the log") {
         for (name, _, word, columns, rows) in DUMPS {
             crate::framework::log(name);
             for row in 0..rows {
-                crate::framework::log(&dump_row(word, columns, row));
+                crate::framework::log(&dump_row(race, word, columns, row));
             }
         }
     }
@@ -907,7 +907,7 @@ fn dumps(ui: &Ui) {
         }
         ui.text_disabled(about);
         for row in 0..rows {
-            ui.text(dump_row(word, columns, row));
+            ui.text(dump_row(race, word, columns, row));
         }
     }
 }

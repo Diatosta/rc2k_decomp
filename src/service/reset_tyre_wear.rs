@@ -6,13 +6,17 @@
 //! a reading. Refuses a missing player.
 
 use crate::errors::BadInput;
+use crate::menu::owner::Menus;
 
 // ---- game data ----
 
 // five dwords
 // ---- Rust version ----
 
-pub fn reset_tyre_wear() -> Result<(), BadInput> {
+pub fn reset_tyre_wear(menus: &Menus) -> Result<(), BadInput> {
     // Converted: `rc2k_core::service::car` (`Player::reset_tyre_wear`).
-    crate::service::repair_parts::with_player(rc2k_core::menu::player::Player::reset_tyre_wear)
+    crate::service::repair_parts::with_player(
+        menus,
+        rc2k_core::menu::player::Player::reset_tyre_wear,
+    )
 }

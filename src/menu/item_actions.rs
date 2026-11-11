@@ -16,8 +16,6 @@
 //!   arcade event run (`menu::arcade_event`).
 
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
-use crate::menu::owner::Play;
 use crate::menu::owner::Screens;
 use crate::menu::owner::Tables;
 use crate::menu::screen_loop::{Entry, run_screen};
@@ -66,13 +64,13 @@ pub fn view_stage_details(screens: &Screens, entry: &Entry) -> Result<(), Refuse
 }
 
 /// `menu::new_simulation_if_unlocked` (it reads no register).
-pub fn new_simulation_if_unlocked(race: &crate::race::owner::Race) -> Result<(), Refused> {
+pub fn new_simulation_if_unlocked(o: crate::owners::Owners<'_>) -> Result<(), Refused> {
     // The logic is in `rc2k_core::menu::stage_screens::simulation_unlocked`.
     use rc2k_core::menu::stage_screens::{REFUSED_SLEEP, REFUSED_SOUND, simulation_unlocked};
-    if simulation_unlocked(race.shared.state.settings.a8_game.get()) {
+    if simulation_unlocked(o.race.shared.state.settings.a8_game.get()) {
         // (An item of the typed tables: it runs with no carried values, as the menus'
         // items do.)
-        crate::menu::new_simulation_loop::run()?;
+        crate::menu::new_simulation_loop::run(o)?;
     } else {
         crate::sound::play_menu_sound::play_menu_sound_in_game(REFUSED_SOUND);
         crate::system::sleep::sleep(REFUSED_SLEEP);
@@ -82,9 +80,10 @@ pub fn new_simulation_if_unlocked(race: &crate::race::owner::Race) -> Result<(),
 
 /// `menu::start_arcade`: the arcade's level and stage 0, the first player's units taken
 /// and the arcade event run.
-pub fn start_arcade(menus: &Menus, play: &Play) -> Result<(), Refused> {
+pub fn start_arcade(o: crate::owners::Owners<'_>) -> Result<(), Refused> {
+    let (menus, play) = (o.menus, &o.menus.play);
     play.arcade.level.set(0);
     play.arcade.stage.set(0);
     crate::menu::take_player1_units::take_player1_units(menus)?;
-    crate::menu::arcade_event::arcade_event(menus)
+    crate::menu::arcade_event::arcade_event(o)
 }

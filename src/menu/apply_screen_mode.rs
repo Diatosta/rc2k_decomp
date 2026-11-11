@@ -11,12 +11,11 @@
 //! (`menu::table_calls`).
 
 use crate::errors::Refused;
-use crate::menu::owner::Screens;
 use crate::menu::screen_items_store::slot;
+use crate::owners::Owners;
 
-pub fn apply_screen_mode(screens: &Screens) -> Result<(), Refused> {
-    let system = crate::system::owner::system();
-    let gfx = crate::gfx::owner::gfx();
+pub fn apply_screen_mode(o: Owners<'_>) -> Result<(), Refused> {
+    let (screens, system, gfx) = (&o.menus.screens, o.system, o.gfx);
     // The logic is in `rc2k_core::menu::steps::applied_mode`.
     use rc2k_core::menu::steps::{BACK_TO_MODE, TRY_CHOSEN_MODE, applied_mode};
     let display = &gfx.display;
@@ -31,8 +30,8 @@ pub fn apply_screen_mode(screens: &Screens) -> Result<(), Refused> {
     } else {
         crate::gfx::screen_mode_choices::screen_mode_choices(display, BACK_TO_MODE != 0)?;
     }
-    crate::race::stage_free::render3d_tidy(crate::race::owner::race())?;
-    crate::race::stage_free::objects_tidy(crate::race::owner::race())?;
+    crate::race::stage_free::render3d_tidy(o.race)?;
+    crate::race::stage_free::objects_tidy(o.race)?;
     // `nullsub_6`.
     crate::race::race_end::release_textures();
     crate::scene::set_up_front_end_scene::set_up_front_end_scene()?;

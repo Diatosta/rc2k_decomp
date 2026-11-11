@@ -115,11 +115,16 @@ pub const SERVICE_NEXT: &PlainDword = &crate::menu::owner::MENUS
     .service_next;
 
 /// The two championships' driver: `a8` for `menu::run_a8_championship`'s differences.
-pub fn run_event(menus: &crate::menu::owner::Menus, a8: bool) -> Result<(), Refused> {
+pub fn run_event(o: crate::owners::Owners<'_>, a8: bool) -> Result<(), Refused> {
     // The logic is in `rc2k_core::menu::championship::run`.
-    Game::new(menus).run(|g| rc2k_core::menu::championship::run(g, a8))
+    Game::new(o).run(|g| rc2k_core::menu::championship::run(g, a8))
 }
 
-pub fn run_championship(menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
-    run_event(menus, false)
+/// The entry for callers outside the menus (`saves::load_savegame`).
+pub fn run_championship(_menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
+    run_championship_in(crate::owners::boundary())
+}
+
+pub fn run_championship_in(o: crate::owners::Owners<'_>) -> Result<(), Refused> {
+    run_event(o, false)
 }

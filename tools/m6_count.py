@@ -39,12 +39,31 @@ def clean(s):
     return re.sub(r'\bfn\s+\w+\(\)', 'fn x()', s)
 
 
+TEST_MOD = re.compile(r'#\[cfg\(test\)\]\s*(?:pub(?:\([^)]*\))?\s+)?mod\s+(\w+)\s*;')
+
+
+def test_only_files():
+    """The files of modules declared only for tests (`#[cfg(test)] mod x;`)."""
+    found = set()
+    for d, _, fs in os.walk('src'):
+        for f in fs:
+            if not f.endswith('.rs'):
+                continue
+            p = os.path.join(d, f)
+            here = d if f == 'mod.rs' or p == 'src/lib.rs' else os.path.join(d, f[:-3])
+            for name in TEST_MOD.findall(open(p, errors='replace').read()):
+                found.add(os.path.join(here, name + '.rs'))
+                found.add(os.path.join(here, name, 'mod.rs'))
+    return found
+
+
 def main():
     table = collections.defaultdict(collections.Counter)
+    skipped = test_only_files()
     for d, _, fs in os.walk('src'):
         for f in fs:
             p = os.path.join(d, f)
-            if not f.endswith('.rs') or p == 'src/owners.rs' or re.search(r'x87_reference|asm_test|asm_reference', p):
+            if not f.endswith('.rs') or p == 'src/owners.rs' or p in skipped or re.search(r'x87_reference|asm_test|asm_reference', p):
                 continue
             parts = os.path.relpath(p, 'src').split(os.sep)
             mod = parts[0][:-3] if len(parts) == 1 else parts[0]

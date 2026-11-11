@@ -8,19 +8,4 @@ use crate::service::setup_values::Change;
 
 // ---- Rust version: `setup_values::toggle_change` with this ----
 
-pub const CHANGE: Change = Change {
-    chosen: &crate::menu::owner::MENUS
-        .unchecked()
-        .screens
-        .state
-        .driver_stats
-        .setups[3]
-        .chosen,
-    installed: &crate::menu::owner::MENUS
-        .unchecked()
-        .screens
-        .state
-        .driver_stats
-        .setups[3]
-        .installed,
-};
+pub const CHANGE: Change = Change { setup: 3 };

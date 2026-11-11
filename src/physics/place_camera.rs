@@ -14,7 +14,6 @@ use crate::physics::camera_store::CameraWork;
 use crate::race::frame_store::FrameWork;
 use crate::race::lights_store::LightsData;
 use crate::race::numbers_store::Numbers;
-use crate::race::owner::race;
 use crate::race::owner_shared::RaceShared;
 use crate::race::view_vars_store::ViewVars;
 use crate::session::Cell32;
@@ -127,7 +126,7 @@ pub fn place_camera(
             &camera.view_turn_y,
             &camera.view_turn_z,
         ];
-        let parts = turns.map(view_turn_part);
+        let parts = turns.map(|turn| view_turn_part(turn, numbers));
         let turned = { crate::scene::rotate_point::rotate_point(&shared.car.crash_matrix, parts) };
         let k = numbers.k65536.bits();
         turned.map(|e| crate::math::x87::ext_to_int(crate::math::x87::ext_times(e, k)))
@@ -152,9 +151,9 @@ pub fn place_camera(
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `ext [o + 0] = int [v + 0] / [k65536]`; the value is `o`'s ten bytes.
-fn view_turn_part(v: &impl Cell32) -> [u8; 10] {
+fn view_turn_part(v: &impl Cell32, numbers: &Numbers) -> [u8; 10] {
     let t0 = int(v.bits() as i32);
-    let t1 = ld(race().course.numbers.k65536.get());
+    let t1 = ld(numbers.k65536.get());
     let t2 = t0 / t1;
     f80(t2)
 }
@@ -187,7 +186,12 @@ mod asm_reference {
             ],
             ulps: 0,
             reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
-            plain: |a| a[2].set_tbyte(0, view_turn_part(&HostCell(a[0]))),
+            plain: |a| {
+                a[2].set_tbyte(
+                    0,
+                    view_turn_part(&HostCell(a[0]), &crate::race::owner::race().course.numbers),
+                );
+            },
         }]
     }
 

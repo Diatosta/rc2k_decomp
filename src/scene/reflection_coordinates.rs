@@ -55,6 +55,7 @@ fn negated_at(a: impl Base, o: impl Base) {
 
 pub fn reflection_coordinates(
     race: &crate::race::owner::Race,
+    scene: &crate::scene::owner::Scene,
     object: &crate::scene::object_place::ObjectPlace,
     m: &crate::scene::view_matrices::ViewMatrices,
 ) -> Result<(), BadInput> {
@@ -66,7 +67,7 @@ pub fn reflection_coordinates(
     let point = table.place(object.reflection_point_number.get().wrapping_neg())?;
     crate::session::write_bits(&m.reflect_vector, normal);
     crate::session::write_first(&m.work_vector, &point.map(negated));
-    normalise_vector(race, &m.work_vector)?;
+    normalise_vector(race, scene, &m.work_vector)?;
     let to_eye: [u32; 3] = crate::session::read_first(&m.work_vector);
     crate::session::write_bits(&m.reflect_normal, to_eye);
     reflect_vector(m, &m.view_back_matrix);
@@ -79,7 +80,7 @@ pub fn reflection_coordinates(
             x87::loaded(mirrored[2]).to_bits(),
         ],
     );
-    normalise_vector(race, &m.work_vector)?;
+    normalise_vector(race, scene, &m.work_vector)?;
     let looks: [u32; 3] = crate::session::read_first(&m.work_vector);
     let half: u32 = race.course.numbers.half.bits();
     let scales = [

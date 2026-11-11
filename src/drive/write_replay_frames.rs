@@ -23,18 +23,16 @@ pub fn write_replay_frames(race: &Race) -> Result<(), Refused> {
             .wrapping_add(0x64),
     );
     replay.replay_view.frames_in_block.set(0x64);
-    crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].set(0);
-    crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[1].set(0);
+    race.viewer_buffers().block[0].set(0);
+    race.viewer_buffers().block[1].set(0);
     if race.replay_work().header_one_player.get() != 1 {
         // the header's byte 5 (the second dword's second byte)
-        let cell = &crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[1];
+        let cell = &race.viewer_buffers().block[1];
         let v = written_view((cell.get() >> 8) as u8 as i8);
         cell.set(cell.get() & !0xFF00 | u32::from(v as u8) << 8);
     }
     { crate::race::replay::write_replay_block(race, replay) }?;
-    crate::race::viewer_buffers_store::VIEWER_BUFFERS
-        .block_used
-        .set(0);
+    race.viewer_buffers().block_used.set(0);
     replay.replay_view.frames_in_block.set(0);
     Ok(())
 }

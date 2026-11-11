@@ -43,7 +43,7 @@ pub fn show_picture_file(
     gfx.pictures.showing.set(1);
     // Converted: `rc2k_core::gfx::picture_size` (`READ`, `screen`, `pages`,
     // `rescaled`).
-    crate::gfx::picture::set_size(sizes::READ);
+    crate::gfx::picture::set_size(&gfx.pictures, sizes::READ);
     // A refused picture is not read, as `read_picture_file`'s callers by address see it.
     let read = match crate::gfx::read_picture_file::read_picture_file(path, gfx) {
         Ok(read) => read,
@@ -54,10 +54,10 @@ pub fn show_picture_file(
         system.session.screen.width.get(),
         system.session.screen.height.get(),
     );
-    crate::gfx::picture::set_size(sizes::screen(width, height));
+    crate::gfx::picture::set_size(&gfx.pictures, sizes::screen(width, height));
     let pages = sizes::pages(gfx.display.mode.mode_flags.get());
     if !read {
-        crate::gfx::clear_picture::clear_picture()?;
+        crate::gfx::clear_picture::clear_picture(&gfx.pictures)?;
     } else {
         let was_showing = gfx.pictures.showing.get();
         gfx.pictures.showing.set(0);

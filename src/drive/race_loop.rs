@@ -17,7 +17,7 @@ use crate::drive::race_parts::{
     input_update, players_all_out, race_frame, race_keys, restart_clock, tyre_change,
 };
 use crate::errors::{BadInput, Refused};
-use crate::net::owner::net;
+use crate::net::owner::Net;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use crate::session::Dword;
@@ -29,21 +29,22 @@ fn view_bit(view: &Dword) -> Result<bool, BadInput> {
 
 /// The network player's car block.
 fn net_player_car(
+    net: &Net,
     shared: &RaceShared,
 ) -> Result<&'static crate::physics::car_store::Car, BadInput> {
     let handle = shared
         .work
         .car_blocks
-        .get(net().vars.player.get() as usize)
+        .get(net.vars.player.get() as usize)
         .ok_or(BadInput("the network player's car"))?;
     crate::race::blocks_store::car_of(handle.get()).ok_or(BadInput("the network player's car"))
 }
 
 /// The quit answer `answer` put into the cars (0x444EB5 ..).
-fn put_answer(race: &Race, answer: u32) -> Result<(), BadInput> {
+fn put_answer(race: &Race, net: &Net, answer: u32) -> Result<(), BadInput> {
     let shared = &race.shared;
-    if net().vars.session.get() != 0 {
-        net_player_car(shared)?.stop_state.set(answer);
+    if net.vars.session.get() != 0 {
+        net_player_car(net, shared)?.stop_state.set(answer);
         return Ok(());
     }
     race.car_blocks().cars[0].stop_state.set(answer);
@@ -65,6 +66,7 @@ pub fn race_loop(
     input: &'static crate::input::owner::Input,
     system: &crate::system::owner::System,
     scene: &crate::scene::owner::Scene,
+    net: &Net,
 ) -> Result<(), Refused> {
     let devices = &input.devices;
     for c in 0..8 {
@@ -140,7 +142,7 @@ pub fn race_loop(
                         race.shared.physics_tables.scene_clock.get()
                     ));
                 }
-                put_answer(race, answer)?;
+                put_answer(race, net, answer)?;
                 return Ok(());
             }
             if race.shared.vars.hold_count.get() == 0 {
@@ -175,8 +177,8 @@ pub fn race_loop(
             continue;
         }
         // 0x444F0F: paused.
-        if net().vars.session.get() != 0 {
-            net_player_car(&race.shared)?.input_keys.set(0);
+        if net.vars.session.get() != 0 {
+            net_player_car(net, &race.shared)?.input_keys.set(0);
         } else {
             { crate::drive::pause_until_key::pause_until_key(race, input, system) }?;
         }

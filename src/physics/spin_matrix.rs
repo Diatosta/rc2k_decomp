@@ -25,6 +25,7 @@ pub fn spin_matrix(
     matrices: &SceneMatrices,
     physics_tables: &PhysicsTables,
     car: &Car,
+    scene: &crate::scene::owner::Scene,
 ) {
     car.spin_length.set_bits(rounded(vector_length(&car.spin)));
     if car.spin_length.bits() != 0 {
@@ -45,9 +46,5 @@ pub fn spin_matrix(
     // `scene::square_matrix` left its last length in `g_scratch` (the ones before are
     // written over by it).
     let length = square_matrix(course, &car.crash_matrix);
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .scratch
-        .set_bits(length);
+    scene.drawing.scene.scratch.set_bits(length);
 }

@@ -18,6 +18,7 @@ pub fn hit_part_checks(
     numbers: &Numbers,
     matrices: &SceneMatrices,
     shared: &RaceShared,
+    kind_tables: &crate::race::kind_store::KindTables,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let left = parts_left(shared.car.parts_present.get());
@@ -26,5 +27,5 @@ pub fn hit_part_checks(
         return Ok(());
     }
     drop_hit_parts(numbers, &shared.work, &shared.car, scene)?;
-    sound_hit_parts(numbers, matrices, shared)
+    sound_hit_parts(numbers, matrices, shared, kind_tables)
 }

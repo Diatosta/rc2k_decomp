@@ -3,10 +3,9 @@ use crate::menu::event_flow::switch_cell;
 use crate::menu::lists_store::CarList;
 use crate::menu::owner::Menus;
 use crate::menu::screen_loop::{Entry, Screen, run_screen};
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::session::DwordLike;
 use crate::session::PlainDword;
-use crate::system::owner::system;
 use rc2k_core::menu::arcade_event::{self as arcade, Step, Var};
 use rc2k_core::menu::leaving::Switch;
 
@@ -14,14 +13,13 @@ use rc2k_core::menu::leaving::Switch;
 /// steps and the car list the car choice was shown.
 struct Game<'a> {
     menus: &'a Menus,
-    owners: crate::owners::Owners<'static>,
+    owners: crate::owners::Owners<'a>,
     cars: Option<CarList>,
     player0: crate::menu::standings::PlayerCell<'a>,
 }
 
 /// The variables that are in the physics block.
-fn cell(v: Var) -> Option<&'static dyn DwordLike> {
-    let race = race();
+fn cell(race: &Race, v: Var) -> Option<&dyn DwordLike> {
     Some(match v {
         Var::RaceStage => &race.shared.state.results.race_stage,
         Var::RaceLevel => &race.shared.state.results.race_level,
@@ -64,7 +62,7 @@ impl arcade::Arcade for Game<'_> {
 
     fn get(&mut self, v: Var) -> u32 {
         let menus = self.menus;
-        match cell(v) {
+        match cell(self.owners.race, v) {
             Some(cell) => cell.get(),
             None => address(menus, v).get(),
         }
@@ -74,7 +72,7 @@ impl arcade::Arcade for Game<'_> {
         let menus = self.menus;
         match v {
             Var::Player0Entry => self.player0.update(|p| p.entry = value),
-            _ => match cell(v) {
+            _ => match cell(self.owners.race, v) {
                 Some(cell) => cell.set(value),
                 None => address(menus, v).set(value),
             },
@@ -82,11 +80,11 @@ impl arcade::Arcade for Game<'_> {
     }
 
     fn flag(&mut self, s: Switch) -> bool {
-        switch_cell(s).is_set()
+        switch_cell(self.owners, s).is_set()
     }
 
     fn set_flag(&mut self, s: Switch, on: bool) {
-        switch_cell(s).set(on);
+        switch_cell(self.owners, s).set(on);
     }
 
     fn step(&mut self, s: Step) -> Result<(), Refused> {
@@ -115,7 +113,9 @@ impl arcade::Arcade for Game<'_> {
             Step::ResultsLoop => self.screen(&m::arcade_results_loop::SCREEN)?,
             Step::KeepStageBest => {
                 // The stage's record in the level's table.
-                let level = system()
+                let level = self
+                    .owners
+                    .system
                     .records
                     .stage_tables
                     .level_table(play.arcade.level.get())?;
@@ -149,11 +149,12 @@ impl Game<'_> {
     }
 }
 
-pub fn arcade_event(menus: &Menus) -> Result<(), Refused> {
+pub fn arcade_event(o: crate::owners::Owners<'_>) -> Result<(), Refused> {
+    let menus = o.menus;
     let player0 = crate::menu::standings::player(menus, 0);
     let mut game = Game {
         menus,
-        owners: crate::owners::boundary(),
+        owners: o,
         cars: None,
         player0,
     };

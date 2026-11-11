@@ -14,56 +14,17 @@ use crate::session::DwordLike;
 use crate::text::draw_text::Canvas;
 
 /// (the setting, its first string).
-const NAMES: [(&dyn DwordLike, u32); 6] = [
-    (
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .screens
-            .option_work
-            .audio_quality,
-        0x54B,
-    ),
-    (
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .screens
-            .option_work
-            .channels,
-        0x554,
-    ),
-    (
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .screens
-            .option_work
-            .ds3d,
-        0x56D,
-    ),
-    (
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .screens
-            .option_work
-            .eax,
-        0x56D,
-    ),
-    (
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .screens
-            .option_work
-            .a3d,
-        0x56D,
-    ),
-    (
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .screens
-            .option_work
-            .dolby,
-        0x56D,
-    ),
-];
+fn names(menus: &Menus) -> [(&dyn DwordLike, u32); 6] {
+    let work = &menus.screens.option_work;
+    [
+        (&work.audio_quality, 0x54B),
+        (&work.channels, 0x554),
+        (&work.ds3d, 0x56D),
+        (&work.eax, 0x56D),
+        (&work.a3d, 0x56D),
+        (&work.dolby, 0x56D),
+    ]
+}
 
 pub fn draw_sound_settings(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // The logic is in `rc2k_core::screens::settings_pages::{sound_items, sound}`.
@@ -78,7 +39,7 @@ pub fn draw_sound_settings(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(),
             disable_item(&menus.screens, item)?;
         }
     }
-    let ids = NAMES.map(|(setting, first)| setting.get().wrapping_add(first));
+    let ids = names(menus).map(|(setting, first)| setting.get().wrapping_add(first));
     rc2k_core::screens::settings_pages::sound(&mut SettingsScreen::new(canvas), ids)?;
     Ok(())
 }

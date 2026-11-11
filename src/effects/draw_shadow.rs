@@ -42,16 +42,14 @@ pub struct Shadow<'a> {
 }
 
 /// `draw_shadow`'s.
-pub const FIRST: Shadow<'static> = Shadow {
-    quad: &crate::effects::owner::EFFECTS.unchecked().kinds.shadow_quad,
-    consts: &CONSTS_2,
-    up: &crate::effects::owner::EFFECTS
-        .unchecked()
-        .kinds
-        .shadow_extra
-        .extra,
-    field: |marks| &marks.engine_speed_scaled_copy,
-};
+pub fn first(effects: &Effects) -> Shadow<'_> {
+    Shadow {
+        quad: &effects.kinds.shadow_quad,
+        consts: &CONSTS_2,
+        up: &effects.kinds.shadow_extra.extra,
+        field: |marks| &marks.engine_speed_scaled_copy,
+    }
+}
 
 /// `effects::draw_overlays`'s.
 pub fn second(effects: &Effects) -> Shadow<'_> {
@@ -86,7 +84,7 @@ pub fn draw_shadow(
     masks: &Masks,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    draw_shadow_with(ctx, masks, &FIRST, true, effects)
+    draw_shadow_with(ctx, masks, &first(effects), true, effects)
 }
 
 impl Shadow<'_> {

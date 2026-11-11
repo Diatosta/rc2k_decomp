@@ -24,13 +24,14 @@ const TABLE_CELLS: usize = 0x400;
 // Converted: `rc2k_core::scene::reflection::{cache_place, cached}`
 pub fn cached_reflection_coordinates(
     race: &crate::race::owner::Race,
+    scene: &crate::scene::owner::Scene,
     object: &crate::scene::object_place::ObjectPlace,
     m: &crate::scene::view_matrices::ViewMatrices,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
     use rc2k_core::scene::reflection::{cache_place, cached};
     if view.face.reflections_kept.get() == 0 {
-        return Ok(reflection_coordinates(race, object, m)?);
+        return Ok(reflection_coordinates(race, scene, object, m)?);
     }
     let asked: [u32; 2] = [
         object.reflection_normal_number.get(),
@@ -44,7 +45,7 @@ pub fn cached_reflection_coordinates(
         crate::session::write_bits(&object.reflection_coordinates, coordinates);
         return Ok(());
     }
-    reflection_coordinates(race, object, m)?;
+    reflection_coordinates(race, scene, object, m)?;
     let coordinates: [u32; 2] = crate::session::read_bits(&object.reflection_coordinates);
     for (table, value) in [asked[0], asked[1], coordinates[0], coordinates[1]]
         .into_iter()

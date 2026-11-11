@@ -10,15 +10,14 @@
 //! (no address).
 
 use crate::errors::{BadInput, Refused};
-use crate::gfx::owner::gfx;
+use crate::gfx::owner::Pictures;
 use crate::memory::owned::Owned;
 
 /// The buffer holds a whole screen: 800 x 600 pixels of four bytes.
 pub const PICTURE_DWORDS: usize = 0x75300;
 
 /// The picture's width, height and row length set (`rc2k_core::gfx::picture_size`).
-pub fn set_size(size: rc2k_core::gfx::picture_size::PictureSize) {
-    let pictures = &gfx().pictures;
+pub fn set_size(pictures: &Pictures, size: rc2k_core::gfx::picture_size::PictureSize) {
     let [width, height, row_bytes] = size.dwords();
     pictures.picture.width.set(width);
     pictures.picture.height.set(height);
@@ -64,13 +63,13 @@ pub fn with_buffer<R>(handle: u32, f: impl FnOnce(&mut [u8]) -> R) -> Result<R, 
 }
 
 /// `f` on the picture buffer's bytes (`PICTURE.buffer`).
-pub fn with_picture<R>(f: impl FnOnce(&mut [u8]) -> R) -> Result<R, BadInput> {
-    with_buffer(gfx().pictures.picture.buffer.get(), f)
+pub fn with_picture<R>(pictures: &Pictures, f: impl FnOnce(&mut [u8]) -> R) -> Result<R, BadInput> {
+    with_buffer(pictures.picture.buffer.get(), f)
 }
 
 /// Whether a picture buffer is set (`PICTURE.buffer` not 0).
-pub fn has_picture() -> bool {
-    gfx().pictures.picture.buffer.is_set()
+pub fn has_picture(pictures: &Pictures) -> bool {
+    pictures.picture.buffer.is_set()
 }
 
 /// `len` bytes of buffer `handle` from byte `at`; refused past its end.
@@ -108,6 +107,7 @@ pub fn put_or_end(buffer: &mut [u8], at: usize, bytes: &[u8]) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::gfx::owner::gfx;
 
     #[test]
     fn a_buffer_is_taken_read_and_given_back() {
@@ -140,7 +140,7 @@ mod tests {
             .picture
             .buffer
             .set(take(Buffer::Main, list, 0x1D_4C00 + 0xC80).unwrap());
-        set_size(rc2k_core::gfx::picture_size::READ);
+        set_size(&gfx().pictures, rc2k_core::gfx::picture_size::READ);
         // A 4 x 2 picture of palette numbers 1 .. 8 (each byte below 0xC0 is itself), the
         // palette after it: number k is (k, 2k, 3k).
         let mut file = vec![0u8; 0x80];
@@ -247,7 +247,7 @@ mod tests {
             .picture
             .buffer
             .set(take(Buffer::Main, list, 0x1D_4C00 + 0xC80).unwrap());
-        set_size(rc2k_core::gfx::picture_size::READ);
+        set_size(&gfx().pictures, rc2k_core::gfx::picture_size::READ);
         let plain = read_png_file(&png(0));
         assert_eq!(pictures.picture.width.get(), 3);
         assert_eq!(

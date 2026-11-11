@@ -16,15 +16,12 @@ use crate::math::x87_float::stf;
 use crate::physics::flow::c0;
 use crate::race::owner::Race;
 use crate::race::owner_replay::Replay;
-use crate::scene::owner::scene;
 
 /// `time` = the clock less the start (`scratch`) over `thousand`.
-fn time(race: &Race) {
-    race.replay
-        .finish
-        .time
-        .set(stf(int(scene().drawing.scene.scratch.get() as i32)
-            / ld(race.course.numbers.thousand.get())));
+fn time(race: &Race, scene: &crate::scene::owner::Scene) {
+    race.replay.finish.time.set(stf(
+        int(scene.drawing.scene.scratch.get() as i32) / ld(race.course.numbers.thousand.get())
+    ));
 }
 
 /// The eased time between the two limits: t less ((t - a) / (b - a))^2 x ((b - a) x half).
@@ -63,7 +60,7 @@ pub fn timing_from(race: &Race, now: u32, scene: &crate::scene::owner::Scene) {
     let replay = &race.replay;
     let since = now.wrapping_sub(replay.finish.start_clock.get());
     scene.drawing.scene.scratch.set(since);
-    time(race);
+    time(race, scene);
     if c0(replay.finish.time.get(), replay.finish.limit_a.get()) {
         replay.finish.eased.set(loaded(&replay.finish.time));
     } else if c0(replay.finish.time.get(), replay.finish.limit_b.get()) {
@@ -142,7 +139,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_time(a[0]) },
-                plain: |_| time(race()),
+                plain: |_| time(race(), crate::scene::owner::scene()),
             },
             Block {
                 name: "finish_timing middle",

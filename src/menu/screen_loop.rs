@@ -56,7 +56,6 @@ use crate::menu::lists_store::CarList;
 use crate::menu::menus_store::MenuId;
 use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
-use crate::menu::owner::menus;
 use crate::menu::run_item_action::run_item_action;
 use crate::menu::run_list::run_list;
 use crate::menu::update_blink::update_blink;
@@ -353,6 +352,8 @@ pub struct Entry<'a> {
     pub sound: &'a Sound,
     pub input: &'a Input,
     pub audio: &'a Audio,
+    /// Every owner, for the flows the screens' items start.
+    pub owners: Owners<'a>,
 }
 
 impl<'a> Entry<'a> {
@@ -389,6 +390,7 @@ impl<'a> Entry<'a> {
             sound: self.sound,
             input: self.input,
             audio: self.audio,
+            owners: self.owners,
         }
     }
     /// Entered with the list of cars the carousel shows.
@@ -403,6 +405,7 @@ impl<'a> Entry<'a> {
             sound: o.sound,
             input: o.input,
             audio: o.audio,
+            owners: o,
         }
     }
 }
@@ -594,7 +597,7 @@ impl Callee {
                 return Ok(!crate::gfx::load_picture::load_picture(path(menus))?);
             }
             Self::ConvertPicture => return Ok(crate::gfx::convert_picture::convert_picture_now()?),
-            Self::SetUpFrontEnd => crate::menu::set_up_front_end::set_up_front_end(menus, sound)?,
+            Self::SetUpFrontEnd => crate::menu::set_up_front_end::set_up_front_end(entry.owners)?,
             Self::SetUpEngine => crate::scene::set_up_engine::set_up_engine()?,
             Self::SetUpFrontEndScene => {
                 crate::scene::set_up_front_end_scene::set_up_front_end_scene()?;
@@ -839,7 +842,7 @@ impl ScreenHost for MenuHost<'_> {
         // The original hands it the time since set-up in eax (the frame's last write there
         // that a screen's steps do not change before it reads it).
         handle_keys(
-            menus,
+            self.entry.owners,
             self.entry.race.shared.physics_tables.scene_clock.get(),
         )
     }
@@ -861,7 +864,7 @@ impl ScreenHost for MenuHost<'_> {
     }
 
     fn run_item_action(&mut self) -> Result<ActionResult, Refused> {
-        run_item_action(self.entry.menus, self.action_menu)
+        run_item_action(self.entry.owners, self.action_menu)
     }
 
     fn clear_left_by_key(&mut self) {
@@ -912,7 +915,7 @@ impl ScreenHost for MenuHost<'_> {
     }
 
     fn confirm_leaving(&mut self) -> Result<(), Refused> {
-        confirm_leaving()?;
+        confirm_leaving(self.entry.owners)?;
         Ok(())
     }
 
@@ -947,22 +950,19 @@ pub fn screen_loop(_screens: &Screens, screen: &Screen, entry: &Entry) -> Result
 
 /// `menu::confirm_leaving` (0x46FA90): the question's screen (`menu::leave_question_loop`),
 /// which reads nothing it is entered with; every register comes back as it was.
-pub fn confirm_leaving() -> Result<u32, Refused> {
+pub fn confirm_leaving(o: Owners<'_>) -> Result<u32, Refused> {
     let mut asked = Ok(());
     let answer = {
         crate::menu::confirm_leaving::confirm_leaving(&mut || {
-            if quitting() {
+            if o.system.session.flags.quitting.is_set() {
                 // The window was closed: leaving is the answer. (The original asked; the
                 // question left at once on the switch with no answer, and the screen asked
                 // again forever, 0x474B43 / 0x47FB9A. Fixed bug.)
-                menus().tables.pages.yes_no_answer.set(1u32);
+                o.menus.tables.pages.yes_no_answer.set(1u32);
                 return;
             }
-            asked = run_screen(
-                &crate::menu::leave_question_loop::SCREEN,
-                &Entry::new(crate::owners::boundary()),
-            )
-            .map(|_| ());
+            asked =
+                run_screen(&crate::menu::leave_question_loop::SCREEN, &Entry::new(o)).map(|_| ());
         })
     };
     asked.map(|()| answer)
@@ -972,12 +972,17 @@ pub fn confirm_leaving() -> Result<u32, Refused> {
 
 /// Runs a screen from the menus' tables, starting with nothing carried in. Rust callers use
 /// `run_screen`.
-pub fn screen_entry(name: &str, screen: &Screen) -> Result<(), Refused> {
-    let screens = &menus().screens;
+pub fn screen_entry(o: Owners<'_>, name: &str, screen: &Screen) -> Result<(), Refused> {
+    let screens = &o.menus.screens;
     log(&format!("{name}: runs"));
-    let exit = screen_loop(screens, screen, &Entry::new(crate::owners::boundary()))?;
+    let exit = screen_loop(screens, screen, &Entry::new(o))?;
     log(&format!("{name}: has left the screen ({exit})"));
     Ok(())
+}
+
+/// `screen_entry` for the callers outside the menus.
+pub fn screen_entry_outside(name: &str, screen: &Screen) -> Result<(), Refused> {
+    screen_entry(crate::owners::boundary(), name, screen)
 }
 
 /// A screen loop run from Rust (the event flows, `confirm_leaving`), entered with what the

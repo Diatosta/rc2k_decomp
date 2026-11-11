@@ -50,7 +50,7 @@ fn motion(
     scene: &crate::scene::owner::Scene,
 ) {
     ph::move_car::move_car(car, physics_tables, &course.numbers, scene);
-    ph::spin_matrix::spin_matrix(course, matrices, physics_tables, car);
+    ph::spin_matrix::spin_matrix(course, matrices, physics_tables, car, scene);
     ph::lever_pushes::lever_pushes(&course.numbers, switches, physics_tables, car, scene);
     crate::race::start_place::invert_car_matrix(course, car);
     ph::update_car_angles::update_car_angles(course, car, scene);
@@ -80,15 +80,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     )?;
     ph::store_motion_length::store_motion_length(&race.shared.car);
     ph::set_handling::set_handling(&race.physics.damage, &race.course.numbers, &race.shared)?;
-    ph::race_timers::race_timers(
-        &race.physics,
-        &race.course.numbers,
-        &race.course.league,
-        &race.frame.frame_work,
-        &race.frame.panel_and_overlay,
-        &race.shared,
-        sound,
-    )?;
+    ph::race_timers::race_timers(race, sound)?;
     for cell in [
         &race.frame.sound_spots.sound_scratch_a,
         &race.frame.sound_spots.sound_scratch_b,
@@ -174,6 +166,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
         &race.shared.car,
         &race.shared.physics_tables,
         &race.course.numbers,
+        race.engine_tables(),
         scene,
     );
     ph::drive_wheels_step::drive_wheels_step(
@@ -184,8 +177,8 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
         scene,
     )?;
     ph::settle_drive_speeds::settle_drive_speeds(&race.course.numbers, &race.shared, scene)?;
-    ph::free_rev_in_neutral::free_rev_in_neutral(&race.course, &race.shared, scene);
-    ph::free_rev_clutch::free_rev_clutch(&race.course, &race.shared, scene)?;
+    ph::free_rev_in_neutral::free_rev_in_neutral(&race.course, &race.shared, race.gear(), scene);
+    ph::free_rev_clutch::free_rev_clutch(&race.course, &race.shared, race.gear(), scene)?;
     // 0x43B7BC: the engine's speed held.
     if race.shared.car.brake.get() == 0 {
         hold_low(
@@ -334,6 +327,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
         &race.course.numbers,
         &race.frame.matrices,
         &race.shared,
+        race.kind_tables(),
         scene,
     )?;
     ph::damage_notices::damage_notices(&race.shared.car, &race.physics.damage)?;

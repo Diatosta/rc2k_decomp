@@ -12,7 +12,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
-use crate::race::replay_work_store::REPLAY_WORK;
+use crate::race::replay_work_store::ReplayWork;
 use rc2k_core::drive::replay_views::{WishStep, wish_step};
 
 /// Byte `k` of the frame's head (the first car block's start, `g_carBlockStore`).
@@ -23,10 +23,10 @@ fn head_byte(race: &Race, k: usize) -> Result<u32, BadInput> {
 /// `replay_camera_wishes`[head byte]`: the table holds 47; a larger byte reads on into the
 /// variables after it, as the original does, and is refused past the replay's work (a
 /// damaged replay file gives any byte).
-fn wish_of(byte: usize) -> Result<u32, BadInput> {
+fn wish_of(replay_work: &ReplayWork, byte: usize) -> Result<u32, BadInput> {
     crate::session::read_on_in(
-        &*REPLAY_WORK,
-        &REPLAY_WORK.replay_camera_wishes,
+        replay_work,
+        &replay_work.replay_camera_wishes,
         byte,
         "the replay camera wishes",
     )
@@ -46,7 +46,7 @@ fn steps(race: &Race) -> Result<(), Refused> {
         .set(race.car_blocks().cars[0].frame_head[1].get());
     for c in 0..2usize {
         let car = &race.car_blocks().cars[c];
-        let wish = wish_of(head_byte(race, c)? as usize)?;
+        let wish = wish_of(race.replay_work(), head_byte(race, c)? as usize)?;
         match wish_step(
             wish,
             replay.replay_view.replay_block.get(),
@@ -106,9 +106,9 @@ mod tests {
 
     #[test]
     fn a_wish_stays_inside_the_replay_work() {
-        assert!(wish_of(46).is_ok());
+        assert!(wish_of(crate::race::owner::race().replay_work(), 46).is_ok());
         // The two dwords after the table are the replay work's own.
-        assert!(wish_of(48).is_ok());
-        assert!(wish_of(255).is_err());
+        assert!(wish_of(crate::race::owner::race().replay_work(), 48).is_ok());
+        assert!(wish_of(crate::race::owner::race().replay_work(), 255).is_err());
     }
 }

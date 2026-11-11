@@ -25,11 +25,7 @@ pub struct Kind {
     /// Which of the item's five sprite numbers the two ends are.
     left_at: usize,
     right_at: usize,
-    width: &'static dyn DwordLike,
-    x: &'static dyn DwordLike,
-    y: &'static dyn DwordLike,
-    left: &'static dyn DwordLike,
-    right: &'static dyn DwordLike,
+    work: fn(&Menus) -> Work<'_>,
     /// `draw_button` only. Right-aligned, it goes wrong in two places: from the second whole
     /// middle piece on it continues in the centred branch's loop, which draws rightwards and
     /// ends with a second right end; and when the width is a multiple of 32 it falls through
@@ -43,37 +39,44 @@ pub struct Kind {
     bad_align: FatalError,
 }
 
+/// The work variables one button function uses.
+pub struct Work<'a> {
+    width: &'a dyn DwordLike,
+    x: &'a dyn DwordLike,
+    y: &'a dyn DwordLike,
+    left: &'a dyn DwordLike,
+    right: &'a dyn DwordLike,
+}
+
+fn plain_work(menus: &Menus) -> Work<'_> {
+    let w = &menus.screens.draw_work;
+    Work {
+        width: &w.seconds,
+        x: &w.scratch_b0,
+        y: &w.scratch_b4,
+        left: &w.glyph,
+        right: &w.scratch_c4,
+    }
+}
+
+fn alt_work(menus: &Menus) -> Work<'_> {
+    let w = &menus.screens.draw_work;
+    Work {
+        width: &w.figure,
+        x: &w.hhmm,
+        y: &w.scratch_f4,
+        left: &w.scratch_00,
+        right: &w.scratch_04,
+    }
+}
+
 const BAD_ALIGN: &str = "Invalid Active Vbutt Align Tag";
 
 /// `screens::draw_button` (0x4688A1).
 pub const PLAIN: Kind = Kind {
     left_at: 0,
     right_at: 1,
-    width: &crate::menu::owner::MENUS
-        .unchecked()
-        .screens
-        .draw_work
-        .seconds,
-    x: &crate::menu::owner::MENUS
-        .unchecked()
-        .screens
-        .draw_work
-        .scratch_b0,
-    y: &crate::menu::owner::MENUS
-        .unchecked()
-        .screens
-        .draw_work
-        .scratch_b4,
-    left: &crate::menu::owner::MENUS
-        .unchecked()
-        .screens
-        .draw_work
-        .glyph,
-    right: &crate::menu::owner::MENUS
-        .unchecked()
-        .screens
-        .draw_work
-        .scratch_c4,
+    work: plain_work,
     slips: true,
     borrows: false,
     bad_align: FatalError {
@@ -98,27 +101,7 @@ pub const HIGHLIGHTED: Kind = Kind {
 pub const ALT: Kind = Kind {
     left_at: 0,
     right_at: 1,
-    width: &crate::menu::owner::MENUS
-        .unchecked()
-        .screens
-        .draw_work
-        .figure,
-    x: &crate::menu::owner::MENUS.unchecked().screens.draw_work.hhmm,
-    y: &crate::menu::owner::MENUS
-        .unchecked()
-        .screens
-        .draw_work
-        .scratch_f4,
-    left: &crate::menu::owner::MENUS
-        .unchecked()
-        .screens
-        .draw_work
-        .scratch_00,
-    right: &crate::menu::owner::MENUS
-        .unchecked()
-        .screens
-        .draw_work
-        .scratch_04,
+    work: alt_work,
     slips: false,
     borrows: true,
     bad_align: FatalError {
@@ -155,17 +138,19 @@ pub fn draw_button(
         list[kind.right_at].get(),
         list[4].get(),
     ];
-    kind.width.set(width);
-    kind.x.set(x as u32);
-    kind.y.set(y as u32);
-    kind.left.set(sprites[0]);
-    kind.right.set(sprites[1]);
+    let work = (kind.work)(menus);
+    work.width.set(width);
+    work.x.set(x as u32);
+    work.y.set(y as u32);
+    work.left.set(sprites[0]);
+    work.right.set(sprites[1]);
     menus.screens.draw_work.middle.set(sprites[2]);
     // The logic is in `rc2k_core::screens::buttons::draw`; the pieces blitted from the sprite table.
     use rc2k_core::screens::buttons::{Borrowed, Error};
+    let plain = plain_work(menus);
     let borrowed = Borrowed {
-        y: PLAIN.y.get() as i32,
-        x: PLAIN.x.get() as i32,
+        y: plain.y.get() as i32,
+        x: plain.x.get() as i32,
     };
     let core = rc2k_core::screens::buttons::Kind {
         slips: kind.slips,
@@ -181,7 +166,7 @@ pub fn draw_button(
         borrowed,
         &mut |glyph, x, y| canvas.blit_glyph(BlitCall::sprite(glyph, x, y)),
     );
-    kind.x.set(end as u32);
+    work.x.set(end as u32);
     match drawn {
         Ok(()) => Ok(()),
         Err(Error::NoLength) => Err(BAR_HAS_NO_LENGTH.into()),

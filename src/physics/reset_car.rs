@@ -24,6 +24,7 @@ const NOWHERE_TEXT: &std::ffi::CStr = c"cant reset car anywhere - waiting a seco
 fn blocked(
     vars: &RaceVars,
     physics_tables: &PhysicsTables,
+    car_blocks: &crate::race::blocks_store::CarBlocks,
     scene: &crate::scene::owner::Scene,
 ) -> bool {
     physics_tables.reset_candidate.set(
@@ -39,7 +40,7 @@ fn blocked(
         crate::physics::reset_point_blocked::reset_point_blocked(
             physics_tables,
             vars,
-            &crate::race::blocks_store::CAR_BLOCKS.cars[n],
+            &car_blocks.cars[n],
         )
     })
 }
@@ -53,7 +54,7 @@ pub fn reset_car(c: &ResetInputs<'_>, scene: &crate::scene::owner::Scene) -> Res
         let mut free = false;
         for offset in reset_offsets() {
             c.tables.reset_offset.set(offset);
-            if !blocked(c.vars, c.tables, scene) {
+            if !blocked(c.vars, c.tables, c.car_blocks, scene) {
                 free = true;
                 break;
             }

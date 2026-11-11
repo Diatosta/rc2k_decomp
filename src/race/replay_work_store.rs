@@ -4,6 +4,7 @@
 //! switches and the co-driver's door kept in the header, and the replay cameras' wishes and last
 //! draw frames. `#[repr(C)]` with the image's layout, over the race block's bytes. Names are readings unless IDA's.
 
+#[cfg(test)]
 use crate::race::owner::race;
 use crate::session::Dword;
 
@@ -59,19 +60,6 @@ pub struct ReplayWork {
     /// +0xb14 (0x719FD0): `dword_719FD0` / `dword_719FD4`: the frame of the last camera draw for cars 0 and 1; cleared at stage load (`drive::replay_cameras`, `race::loadlevel`).
     pub camera_last_frame: [Dword; 2],
 }
-
-/// The piece: a field of `CARS_AND_REPLAY` since 2026-10-29 (it left the race
-/// block with its group, phase 13).
-pub struct InGroup;
-
-impl core::ops::Deref for InGroup {
-    type Target = ReplayWork;
-    fn deref(&self) -> &ReplayWork {
-        &race().replay.cars_and_replay.replay_work
-    }
-}
-
-pub static REPLAY_WORK: InGroup = InGroup;
 
 /// IDA 0x7194BC, the first byte of the piece.
 pub const START: usize = 0x7194BC;

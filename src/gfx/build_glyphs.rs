@@ -273,8 +273,10 @@ fn read_alpha_sheet(
         }
         vars.alpha_loaded.set(1u32);
         let half = 4 * HALF_PICTURE_DWORDS;
-        with_picture(|b| (b.len() >= 2 * half).then(|| b.copy_within(..half, half)))?
-            .ok_or(BadInput("a picture buffer shorter than two halves"))?;
+        with_picture(pictures, |b| {
+            (b.len() >= 2 * half).then(|| b.copy_within(..half, half))
+        })?
+        .ok_or(BadInput("a picture buffer shorter than two halves"))?;
     }
     pictures.decoder.number.set(number.wrapping_add(1));
     Ok(())

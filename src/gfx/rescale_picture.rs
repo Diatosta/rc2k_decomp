@@ -97,7 +97,7 @@ pub fn rescale_picture(rescaler: &Rescaler, gfx: &crate::gfx::owner::Gfx) -> Res
     if from_width == 0 || from_height == 0 || width == 0 || height == 0 {
         return Err(BadInput("a picture without width or height to rescale").into());
     }
-    if from_height > ROW_TABLE_ROOM || from == 0 || !has_picture() {
+    if from_height > ROW_TABLE_ROOM || from == 0 || !has_picture(pictures) {
         return Err(BadInput("a decoded picture the rescaler cannot take").into());
     }
     // The original calls a failed allocation fatal error 0x80A01112, but the allocator
@@ -120,7 +120,7 @@ pub fn rescale_picture(rescaler: &Rescaler, gfx: &crate::gfx::owner::Gfx) -> Res
             .wrapping_add(gap as usize);
     }
     // The picture's pixels made in its buffer, four bytes apart, three of each written.
-    let work = with_picture(|to| {
+    let work = with_picture(pictures, |to| {
         let mut out = 0usize;
         rc2k_core::gfx::picture::rescale(
             &rc2k_core::gfx::picture::Sizes {

@@ -18,7 +18,6 @@ use crate::saves::owner::saves;
 use crate::saves::read_savegame_slot::read_savegame_slot;
 use crate::screens::draw_empty_savegame::draw_empty_savegame;
 use crate::screens::draw_savegame_details::draw_savegame_details;
-use crate::service::state::menu_item;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -31,7 +30,11 @@ pub fn draw_savegame_preview(menus: &Menus, canvas: &mut dyn Canvas) -> Result<b
     // are converted in their own functions.
     use rc2k_core::screens::savegame_preview::{NO_SLOT, Preview, preview};
     let page = menus.tables.pages.save_page.get();
-    match preview(menu_item(), page, savegame_preview.shown_slot.get()) {
+    match preview(
+        menus.screens.loop_flags.item.get(),
+        page,
+        savegame_preview.shown_slot.get(),
+    ) {
         Preview::NoSlot => {
             savegame_preview.nothing_to_show.set(1u32);
             savegame_preview.shown_slot.set(NO_SLOT);

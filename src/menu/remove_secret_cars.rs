@@ -18,44 +18,24 @@ use rc2k_core::menu::car_lists;
 // ---- game data ----
 
 /// A list of dwords ended by -1: its cells and how many dwords it has room for.
-pub type List = (&'static [PlainDword], usize);
-/// MenuLists.cars_second[0]: the cars of one kind of event (0x28 entries are kept in `var\ral.dat`).
-pub const FIRST: List = (
-    &crate::menu::owner::MENUS
-        .unchecked()
-        .tables
-        .lists
-        .cars_second,
-    0x28,
-);
-/// MenuLists.a8_championship_cars[0]: the next variable is 0xB4 bytes on.
-pub const SECOND: List = (
-    &crate::menu::owner::MENUS
-        .unchecked()
-        .tables
-        .lists
-        .a8_championship_cars,
-    0x2D,
-);
-/// MenuLists.secret_cars[0]: the secret cars.
-const SECRET: List = (
-    &crate::menu::owner::MENUS
-        .unchecked()
-        .tables
-        .lists
-        .secret_cars,
-    0x0C,
-);
-/// MenuLists.cars_scratch[0]: where a list is copied to and back from.
-const SCRATCH: List = (
-    &crate::menu::owner::MENUS
-        .unchecked()
-        .tables
-        .lists
-        .cars_scratch,
-    0x32,
-);
-/// The list's entries before its -1.
+pub type List<'a> = (&'a [PlainDword], usize);
+
+pub fn first(menus: &Menus) -> List<'_> {
+    (&menus.tables.lists.cars_second, 0x28)
+}
+
+pub fn second(menus: &Menus) -> List<'_> {
+    (&menus.tables.lists.a8_championship_cars, 0x2D)
+}
+
+fn secret(menus: &Menus) -> List<'_> {
+    (&menus.tables.lists.secret_cars, 0x0C)
+}
+
+fn scratch(menus: &Menus) -> List<'_> {
+    (&menus.tables.lists.cars_scratch, 0x32)
+}
+
 pub fn read_list(list: List) -> Result<Vec<u32>, BadInput> {
     Ok(car_lists::entries(list.1, |n| list.0[n].get())?)
 }
@@ -71,20 +51,21 @@ pub fn write_list(list: List, entries: &[u32]) {
 pub fn remove_secret_cars(menus: &Menus) -> Result<(), BadInput> {
     // The logic is in `rc2k_core::menu::car_lists` (`entries`, `without_secret`).
     {
-        let secret = read_list(SECRET)?;
+        let secret = read_list(secret(menus))?;
         // Each list read and checked in turn, as the original goes.
+        let scratch = scratch(menus);
         let mut kept = Vec::new();
-        for list in [FIRST, SECOND] {
+        for list in [first(menus), second(menus)] {
             kept.extend(car_lists::without_secret(
                 &[read_list(list)?],
                 &secret,
-                SCRATCH.1,
+                scratch.1,
             )?);
         }
-        for (list, cars) in [FIRST, SECOND].into_iter().zip(&kept) {
+        for (list, cars) in [first(menus), second(menus)].into_iter().zip(&kept) {
             // The scratch list gets no end mark.
             for (n, &car) in cars.iter().enumerate() {
-                SCRATCH.0[n].set(car);
+                scratch.0[n].set(car);
             }
             write_list(list, cars);
             menus.play.cheats.cheats.set(0u32);

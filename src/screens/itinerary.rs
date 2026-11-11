@@ -28,11 +28,12 @@ const INVALID_STAGE: FatalError = FatalError {
 pub fn draw_itinerary(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // The logic is in `rc2k_core::screens::itinerary`.
     use rc2k_core::screens::itinerary::Row;
+    let system = crate::system::owner::system();
     {
-        if !section_there()? {
+        if !section_there(menus, system)? {
             return Err(crate::errors::BadInput("a section past the record table").into());
         }
-        let first = record_at(0)?;
+        let first = record_at(menus, system, 0)?;
         let heading = if menus.play.champ_view.event_mode.get() == 0x13 {
             crate::session::read_on_in(
                 &menus.tables.lists,
@@ -43,7 +44,7 @@ pub fn draw_itinerary(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refu
         } else {
             first.record()?.name()
         };
-        let base = record_at(1)?;
+        let base = record_at(menus, system, 1)?;
         let record = move |n: u32| base.offset(n.wrapping_sub(1));
         let row = |n: u32| -> Result<Row, Refused> {
             let r = record(n)?;

@@ -27,7 +27,7 @@ pub struct Game<'a> {
     /// The menus' owner.
     menus: &'a Menus,
     /// The game's owners, for the screens the flows enter.
-    owners: crate::owners::Owners<'static>,
+    owners: crate::owners::Owners<'a>,
     /// The record `Call::FindRecord` found (the original's edi), read through `Var::Record`.
     record: Option<RecordRef>,
     /// The car list the next car choice shows (`Game::hand_cars`, `Call::CheatCarList`).
@@ -37,10 +37,10 @@ pub struct Game<'a> {
 }
 
 impl<'a> Game<'a> {
-    pub fn new(menus: &'a Menus) -> Self {
+    pub fn new(o: crate::owners::Owners<'a>) -> Self {
         Self {
-            menus,
-            owners: crate::owners::boundary(),
+            menus: o.menus,
+            owners: o,
             record: None,
             cars: None,
             fault: Fault::default(),
@@ -168,11 +168,11 @@ impl flow::Game for Game<'_> {
     }
 
     fn flag(&mut self, s: Switch) -> bool {
-        switch_cell(s).is_set()
+        switch_cell(self.owners, s).is_set()
     }
 
     fn set_flag(&mut self, s: Switch, on: bool) {
-        switch_cell(s).set(on);
+        switch_cell(self.owners, s).set(on);
     }
 
     fn run(&mut self, c: flow::Call) -> Result<(), Refused> {
@@ -195,8 +195,8 @@ impl flow::Game for Game<'_> {
             C::ClearEventState => m::clear_event_state::clear_event_state(menus)?,
             C::ReadyPlayers => m::ready_players::ready_players(menus)?,
             C::ResetSingleEvent => m::reset_single_event::reset_single_event(menus)?,
-            C::ChampionshipWelcome => m::championship_welcome::championship_welcome(menus)?,
-            C::A8Welcome => m::a8_welcome::a8_welcome(menus)?,
+            C::ChampionshipWelcome => m::championship_welcome::championship_welcome(self.owners)?,
+            C::A8Welcome => m::a8_welcome::a8_welcome(self.owners)?,
             C::FindRecord { section, index } => {
                 use crate::records::find_record::{find_record_in, has_section};
                 let table = system().records.stage_tables.championship();
@@ -325,7 +325,7 @@ impl flow::Game for Game<'_> {
             }
             C::ConfirmLeaving => {
                 // The answer is read through `Var::Answer`.
-                crate::menu::screen_loop::confirm_leaving()?;
+                crate::menu::screen_loop::confirm_leaving(self.owners)?;
             }
         }
         Ok(())

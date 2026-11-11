@@ -5,11 +5,11 @@
 //! nothing was drawn.
 //! The conditions, the bars and how the screen was confirmed are in `setup_markers.rs`.
 
-use crate::screens::setup_markers::{LEFT_X, LOWER_LEFT_CHOSEN, LOWER_LEFT_INSTALLED, Marker};
+use crate::screens::setup_markers::{LEFT_X, Marker, lower_left_chosen, lower_left_installed};
 
 pub const MARKER: Marker = Marker::Lower {
     item: 0x12,
     x: LEFT_X,
-    chosen: LOWER_LEFT_CHOSEN,
-    installed: LOWER_LEFT_INSTALLED,
+    chosen: lower_left_chosen,
+    installed: lower_left_installed,
 };

@@ -21,11 +21,11 @@ pub fn read_texture_picture(
     let pictures = &gfx.pictures;
     let buffer = pictures.picture.buffer.get();
     // Converted: `rc2k_core::gfx::picture_size` (`TEXTURE`, `TEXTURE_FILLED`).
-    if !crate::gfx::picture::has_picture() {
+    if !crate::gfx::picture::has_picture(pictures) {
         return Err(BadInput("no picture buffer").into());
     }
-    crate::gfx::picture::set_size(sizes::TEXTURE);
-    crate::gfx::picture::with_picture(|b| {
+    crate::gfx::picture::set_size(pictures, sizes::TEXTURE);
+    crate::gfx::picture::with_picture(pictures, |b| {
         b.get_mut(..sizes::TEXTURE_FILLED * 4).map(|p| p.fill(0xFF))
     })?
     .ok_or(BadInput("a picture buffer shorter than a texture"))?;

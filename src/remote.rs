@@ -22,14 +22,11 @@
 //! (`shots_loading`, `shot_frame_drawn`), and the random numbers start from one state, so the
 //! picture is the same from run to run (the picture check, `scratchpad/shots.sh`).
 
-use crate::audio::owner::audio;
 use crate::effects::owner::effects;
 use crate::ffi::sdl_input;
-use crate::gfx::owner::gfx;
-use crate::menu::owner::menus;
-use crate::race::owner::race;
+use crate::owners::Owners;
+use crate::race::owner::{Race, race};
 use crate::race::owner_course::Course;
-use crate::system::owner::system;
 use sdl3_sys::everything::*;
 use std::io::Write;
 use std::path::PathBuf;
@@ -152,8 +149,7 @@ pub fn note_open(path: &[u8]) {
 
 /// The car `state` reports: the viewed car's block in a race. With several cars the work car
 /// holds whichever was stepped last between frames.
-fn driven_car(course: &Course) -> &'_ crate::physics::car_store::Car {
-    let race = race();
+fn driven_car<'a>(race: &'a Race, course: &Course) -> &'a crate::physics::car_store::Car {
     let viewed = crate::race::blocks_store::car_of(race.shared.view.view_blocks[0].get());
     match viewed {
         Some(car) if course.numbers.in_race.is_set() => car,
@@ -161,24 +157,24 @@ fn driven_car(course: &Course) -> &'_ crate::physics::car_store::Car {
     }
 }
 
-fn state(course: &Course) -> String {
-    let race = race();
-    use crate::race::checkpoints_store::{CHECKPOINTS, map_x, map_y};
-    let screens = &menus().screens;
+fn state(o: &Owners<'_>, course: &Course) -> String {
+    let race = o.race;
+    use crate::race::checkpoints_store::{map_x, map_y};
+    let screens = &o.menus.screens;
     #[allow(non_snake_case)]
-    let CAR = driven_car(course);
+    let CAR = driven_car(race, course);
     let at = CAR.checkpoint.get() as usize;
     // The stage line ahead, for `tools/remote.py pilot`.
-    let ahead = (at + LOOK_AHEAD).min(CHECKPOINTS.map_x.len() - 1);
-    let near = (at + LOOK_NEAR).min(CHECKPOINTS.map_x.len() - 1);
+    let ahead = (at + LOOK_AHEAD).min(race.checkpoints().map_x.len() - 1);
+    let near = (at + LOOK_NEAR).min(race.checkpoints().map_x.len() - 1);
     format!(
         "frames={} screen_frames={} race={} menu={:?} item={} focused={} speed={:.0} time={} splits={} finished={} stuck={} checkpoints={} checkpoint={} map={},{} target={},{} near={},{} channels={} mix={} heading={} gear={} box={} driver={} controls={},{},{},{},{},{} matrix={} cars={} shown={}",
-        gfx().drawing.draw_surface.frames.get(),
-        screen_frames(),
+        o.gfx.drawing.draw_surface.frames.get(),
+        screen_frames(o),
         u32::from(course.numbers.in_race.is_set()),
         screens.loop_flags.menu.get().ok(),
         screens.loop_flags.item.get(),
-        system().session.flags.window_focused.get(),
+        o.system.session.flags.window_focused.get(),
         CAR.speed.get(),
         CAR.stage_time.get(),
         CAR.splits_passed.get(),
@@ -192,7 +188,7 @@ fn state(course: &Course) -> String {
         map_y(ahead).get() as i32,
         map_x(near).get() as i32,
         map_y(near).get() as i32,
-        audio().state.channels_used.get(),
+        o.audio.state.channels_used.get(),
         crate::platform_sound::LAST_PEAK.swap(0, std::sync::atomic::Ordering::Relaxed),
         CAR.car_heading.get() as i32,
         CAR.gear.get() as i32,
@@ -211,7 +207,7 @@ fn state(course: &Course) -> String {
             .join(","),
         // The players' cars and the car the car choice shows, for the menus' checks.
         (0..crate::menu::player::PLAYERS)
-            .filter_map(|p| crate::menu::player::player(menus(), p))
+            .filter_map(|p| crate::menu::player::player(o.menus, p))
             .map(|p| p.get().car_number.to_string())
             .collect::<Vec<_>>()
             .join(","),
@@ -278,8 +274,8 @@ const LOOK_AHEAD: usize = 12;
 /// And its near target, for a slow car in a sharp turn.
 const LOOK_NEAR: usize = 4;
 
-fn run(line: &str) {
-    let course = &race().course;
+fn run(o: &Owners<'_>, line: &str) {
+    let course = &o.race.course;
     let words: Vec<&str> = line.split_whitespace().collect();
     let [id, command, rest @ ..] = &words[..] else {
         return;
@@ -289,7 +285,7 @@ fn run(line: &str) {
     let answer = match (*command, rest) {
         // The arcade's countdown, so a test can reach a level's end whatever the pilot's pace.
         ("time", [n]) => n.parse().ok().map(|n: u32| {
-            driven_car(course).time_left.set(n);
+            driven_car(o.race, course).time_left.set(n);
             "ok".to_string()
         }),
         ("key", [name, tail @ ..]) => scancode(name).map(|code| {
@@ -315,7 +311,7 @@ fn run(line: &str) {
             pending().shot = Some(((*id).to_string(), (*name).to_string()));
             return;
         }
-        ("state", []) => Some(state(course)),
+        ("state", []) => Some(state(o, course)),
         // The game's own computer driver at the player's car's wheel (`tools/remote.py pilot`).
         ("drive", [switch @ ("on" | "off")]) => {
             AUTODRIVE.store(*switch == "on", std::sync::atomic::Ordering::Relaxed);
@@ -340,15 +336,15 @@ static SCREEN: std::sync::Mutex<(Option<crate::menu::menus_store::MenuId>, u32, 
     std::sync::Mutex::new((None, 0, 0));
 
 /// The screen's identity: its menu (none outside the menus) and the race flag.
-fn screen_now(course: &Course) -> (Option<crate::menu::menus_store::MenuId>, u32) {
-    let menu = menus().screens.loop_flags.menu.get().ok();
+fn screen_now(o: &Owners<'_>, course: &Course) -> (Option<crate::menu::menus_store::MenuId>, u32) {
+    let menu = o.menus.screens.loop_flags.menu.get().ok();
     (menu, u32::from(course.numbers.in_race.is_set()))
 }
 
 /// A change of screen noted at its first frame.
-fn note_screen(course: &Course) {
-    let (menu, race) = screen_now(course);
-    let frames = gfx().drawing.draw_surface.frames.get();
+fn note_screen(o: &Owners<'_>, course: &Course) {
+    let (menu, race) = screen_now(o, course);
+    let frames = o.gfx.drawing.draw_surface.frames.get();
     let mut s = SCREEN
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -359,19 +355,20 @@ fn note_screen(course: &Course) {
 
 /// The frames drawn since the screen (menu or race) changed: a test presses keys once its
 /// screen has drawn a few, not by waiting a fixed time.
-fn screen_frames() -> u32 {
+fn screen_frames(o: &Owners<'_>) -> u32 {
     let s = SCREEN
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    gfx().drawing.draw_surface.frames.get().wrapping_sub(s.2)
+    o.gfx.drawing.draw_surface.frames.get().wrapping_sub(s.2)
 }
 
 /// At each pump: the releases due, then the commands waiting.
 pub fn poll(course: &Course) {
     let Some(folder) = folder() else { return };
-    note_screen(course);
+    let o = &crate::owners::boundary();
+    note_screen(o, course);
     let now = Instant::now();
-    note_slow_frame(course, now);
+    note_slow_frame(o, course, now);
     pending().releases.retain(|(when, release)| {
         if *when > now {
             return true;
@@ -385,14 +382,14 @@ pub fn poll(course: &Course) {
     let path = folder.join("cmd");
     if let Ok(text) = std::fs::read_to_string(&path) {
         let _ = std::fs::remove_file(&path);
-        text.lines().for_each(run);
+        text.lines().for_each(|line| run(o, line));
     }
 }
 
 /// With `RC2K_SLOW_FRAMES=<ms>`, a log line for each pump in a race that comes more than
 /// that many milliseconds after the one before, with the driven car's checkpoint: where on
 /// the stage the frame rate drops (the five-second lines smooth the drops away).
-fn note_slow_frame(course: &Course, now: Instant) {
+fn note_slow_frame(o: &Owners<'_>, course: &Course, now: Instant) {
     static LIMIT: OnceLock<Option<u128>> = OnceLock::new();
     static LAST: Mutex<Option<Instant>> = Mutex::new(None);
     let Some(limit) = *LIMIT.get_or_init(|| {
@@ -409,11 +406,11 @@ fn note_slow_frame(course: &Course, now: Instant) {
     let Some(before) = before else { return };
     let ms = now.duration_since(before).as_millis();
     if ms > limit && course.numbers.in_race.is_set() {
-        let car = driven_car(course);
+        let car = driven_car(o.race, course);
         crate::framework::log(&format!(
             "remote: slow frame {ms} ms at checkpoint {} (frame {})",
             car.checkpoint.get(),
-            gfx().drawing.draw_surface.frames.get()
+            o.gfx.drawing.draw_surface.frames.get()
         ));
     }
 }
@@ -448,18 +445,19 @@ pub fn shots_on() -> bool {
 /// that depends on the timing (the effects' generator builds the snow's tables at load).
 /// The viewer then plays at once (`shots_on`): no frame waits for a key.
 pub fn shots_loading() {
-    use crate::race::viewer_screen_store::VIEWER_PANEL;
     if !shots_on() {
         return;
     }
-    VIEWER_PANEL.pictures_started.set_bits(1u32);
-    VIEWER_PANEL.picture_clock.set(0x10000);
+    let race = race();
+    let panel = race.viewer_panel();
+    panel.pictures_started.set_bits(1u32);
+    panel.picture_clock.set(0x10000);
     reseed();
     // The scene's clock as the menus left it (their time on screen) is the snow's first
     // step's start: the held clock's from here.
-    race().shared.physics_tables.scene_clock.set(0x10000u32);
+    race.shared.physics_tables.scene_clock.set(0x10000u32);
     // The frame rate's text measures the host: not drawn.
-    race().frame.counter.show.set(0);
+    race.frame.counter.show.set(0);
 }
 
 /// With `RC2K_HELD_RACE` (a check: two runs of a driven race the same tick for tick,
@@ -507,8 +505,8 @@ fn reseed() {
 /// A race frame drawn (`drive::race_frame`): the held clock 10 ms on, unless the game is
 /// recording pictures itself (`race::replay_screenshot` moves it then).
 pub fn shot_frame_drawn() {
-    use crate::race::viewer_screen_store::VIEWER_PANEL;
-    if held_race() && race().course.numbers.in_race.is_set() {
+    let race = race();
+    if held_race() && race.course.numbers.in_race.is_set() {
         use std::sync::atomic::Ordering::Relaxed;
         let held = HELD_CLOCK.load(Relaxed);
         let next = if held == 0 {
@@ -521,10 +519,11 @@ pub fn shot_frame_drawn() {
     if !shots_on() {
         return;
     }
-    if VIEWER_PANEL.pictures_started.bits() == 1 && VIEWER_PANEL.replay_recording.bits() != 1 {
-        VIEWER_PANEL
+    let panel = race.viewer_panel();
+    if panel.pictures_started.bits() == 1 && panel.replay_recording.bits() != 1 {
+        panel
             .picture_clock
-            .set(VIEWER_PANEL.picture_clock.bits().wrapping_add(10));
+            .set(panel.picture_clock.bits().wrapping_add(10));
     }
 }
 

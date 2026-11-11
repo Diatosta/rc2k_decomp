@@ -11,7 +11,8 @@
 //! end of the file, `cfg(test)` only).
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::race::effects_settings_store::EFFECTS_SETTINGS;
+use crate::menu::owner::Menus;
+use crate::race::owner::Race;
 use crate::race::state_store::{RaceCar, RaceResult};
 use crate::session::DwordLike;
 use crate::session::PlainDword;
@@ -21,120 +22,117 @@ use crate::system::owner::system;
 use rc2k_core::menu::player::{Player, TAKES_PART};
 
 /// A player's or a track's record: a game address.
-type Record = crate::menu::standings::PlayerCell<'static>;
+type Record<'a> = crate::menu::standings::PlayerCell<'a>;
 
 // g_trakPakHeader (0x734BC6, `records::stages_store`): +0x34 the entries, 0x40 apart. An
 // entry (at `edi`) holds its track number at +0x34; the list ends at a dword -1 where the
 // next entry would start.
 /// g_players (0x75647C): the players' records, 4 bytes each.
-/// ChampView.summary: whether the standings summary is taken (1, `saves::best_times::SUMMARY`),
-/// copied to `RACE_INFO`.
+// The front end's words the race reads and writes (`Menus`):
+// - ChampView.summary: whether the standings summary is taken (1, `saves::best_times::SUMMARY`),
+//   copied to `RaceState.settings.rivals`.
+// - Event.sparks_mode, copied to `after_loading_copy` after the loading picture.
+// - ScreenFlow.kept: kept over the race (`RaceState.settings.kept`).
+// - Event.player_count: the number of players.
+// - Event.event_kind: the event mode (5, 4, 0xF, 0xA: the events' one-car races).
+// - Event.current_player: the current player's number.
+// - Arcade.scene_let_go: the run's start argument (1: no loading picture after).
+// The race's (`RaceState.settings`, `RaceState.results`):
+// - settings.rivals: a copy of the summary word (the summary's block id, as the race reads
+//   it: `race::copy_league_table`, `physics::fill_rival_table`).
+// - settings.stage: the stage chosen; settings.run_kind: the run's kind argument.
+// - settings.no_replay: 1 when the race is not an event's and has more than one player.
+// - settings.race_mode: 1, or 2 in the events' one-car modes.
+// - settings.kept: a copy of ScreenFlow.kept, put back after the race.
+// - results.results[0].result / results.results[1].result: the current / the first car's
+//   result (-1 none, -2 left).
+// - settings.cars[0].view: the second set's word that mode 2 takes from the record's
+//   `second_view`.
+#[cfg(test)]
 const SUMMARY: &PlainDword = &crate::menu::owner::MENUS
     .unchecked()
     .play
     .champ_view
     .summary;
-/// Event.sparks_mode, copied to `after_loading_copy` after the loading picture.
+#[cfg(test)]
 const AFTER_LOADING: &PlainDword = &crate::menu::owner::MENUS
     .unchecked()
     .screens
     .event
     .sparks_mode;
-/// ScreenFlow.kept: kept over the race (`RACE_KEPT`).
-const KEPT: &PlainDword = &crate::menu::owner::MENUS.unchecked().screens.flow.kept;
-/// Event.player_count: the number of players.
+#[cfg(test)]
 const PLAYER_COUNT: &PlainDword = &crate::menu::owner::MENUS
     .unchecked()
     .screens
     .event
     .player_count;
-/// Event.event_kind: the event mode (5, 4, 0xF, 0xA: the events' one-car races).
+#[cfg(test)]
 const EVENT_MODE: &PlainDword = &crate::menu::owner::MENUS
     .unchecked()
     .screens
     .event
     .event_kind;
-/// Event.current_player: the current player's number.
+#[cfg(test)]
 const CURRENT: &PlainDword = &crate::menu::owner::MENUS
     .unchecked()
     .screens
     .event
     .current_player;
-/// Arcade.scene_let_go: the run's start argument (1: no loading picture after).
+#[cfg(test)]
 const SWITCH: &PlainDword = &crate::menu::owner::MENUS
     .unchecked()
     .play
     .arcade
     .scene_let_go;
-/// RaceState.settings.rivals: a copy of `SUMMARY` (the summary's block id, as the race reads it:
-/// `race::copy_league_table`, `physics::fill_rival_table`).
+#[cfg(test)]
 const RACE_INFO: &Dword = &crate::race::owner::RACE.shared.state.settings.rivals;
-/// RaceState.settings.stage: the stage chosen.
+#[cfg(test)]
 const STAGE: &Dword = &crate::race::owner::RACE.shared.state.settings.stage;
-/// RaceState.settings.run_kind: the run's kind argument.
-const RACE_KIND: &Dword = &crate::race::owner::RACE.shared.state.settings.run_kind;
-/// RaceState.settings.no_replay: 1 when the race is not an event's and has more than one player.
-const NO_REPLAY: &Dword = &crate::race::owner::RACE.shared.state.settings.no_replay;
-/// RaceState.settings.race_mode: 1, or 2 in the events' one-car modes.
-const RACE_MODE: &Dword = &crate::race::owner::RACE.shared.state.settings.race_mode;
-/// RaceState.settings.kept: a copy of `KEPT`, put back after the race.
+#[cfg(test)]
 const RACE_KEPT: &Dword = &crate::race::owner::RACE.shared.state.settings.kept;
-/// RaceState.results.results[0].result / RaceState.results.results[1].result: the current / the first car's result (-1 none, -2 left).
+#[cfg(test)]
 const RESULT: &Dword = &crate::race::owner::RACE.shared.state.results.results[0].result;
+#[cfg(test)]
 const RESULT_2: &Dword = &crate::race::owner::RACE.shared.state.results.results[1].result;
 /// One player's side of the race variables: the car's settings and the results it
-/// leaves. `FIRST_SIDE` is player 1's, `CURRENT_SIDE` the current player's.
-struct Side {
-    car: &'static RaceCar,
+/// leaves. `first_side` is player 1's, `current_side` the current player's.
+struct Side<'a> {
+    car: &'a RaceCar,
     /// RaceState.settings.car_kind_current / RaceState.settings.car_kind_first: the record's `car_number` (+8).
-    car_kind: &'static dyn DwordLike,
+    car_kind: &'a dyn DwordLike,
     /// The record's `service_spent`.
-    service_spent: &'static dyn DwordLike,
+    service_spent: &'a dyn DwordLike,
     /// The record's `state_flags`.
-    flags: &'static dyn DwordLike,
+    flags: &'a dyn DwordLike,
     /// RaceState.results.hud_bits_current (the current's): the record's `hud_bits`.
-    hud_bits: &'static dyn DwordLike,
+    hud_bits: &'a dyn DwordLike,
     /// The car's result, and the 0x20 bytes of its `impact_marks`.
-    result: &'static RaceResult,
+    result: &'a RaceResult,
 }
-const FIRST_SIDE: Side = Side {
-    car: &crate::race::owner::RACE.shared.state.settings.cars[1],
-    car_kind: &crate::race::owner::RACE
-        .shared
-        .state
-        .settings
-        .car_kind_first,
-    service_spent: &crate::race::owner::RACE
-        .shared
-        .state
-        .results
-        .service_spent_first,
-    flags: &crate::race::owner::RACE.shared.state.results.flags_first,
-    hud_bits: &crate::race::owner::RACE.shared.state.results.hud_bits_first,
-    result: &crate::race::owner::RACE.shared.state.results.results[1],
-};
-const CURRENT_SIDE: Side = Side {
-    car: &crate::race::owner::RACE.shared.state.settings.cars[0],
-    car_kind: &crate::race::owner::RACE
-        .shared
-        .state
-        .settings
-        .car_kind_current,
-    service_spent: &crate::race::owner::RACE
-        .shared
-        .state
-        .results
-        .service_spent_current,
-    flags: &crate::race::owner::RACE.shared.state.results.flags_current,
-    hud_bits: &crate::race::owner::RACE
-        .shared
-        .state
-        .results
-        .hud_bits_current,
-    result: &crate::race::owner::RACE.shared.state.results.results[0],
-};
-/// RaceState.settings.cars[0].view: the second set's word that mode 2 takes from the record's `second_view`.
-const MODE_WORD: &Dword = &crate::race::owner::RACE.shared.state.settings.cars[0].view;
+/// Player 1's side.
+fn first_side(race: &Race) -> Side<'_> {
+    let (settings, results) = (&race.shared.state.settings, &race.shared.state.results);
+    Side {
+        car: &settings.cars[1],
+        car_kind: &settings.car_kind_first,
+        service_spent: &results.service_spent_first,
+        flags: &results.flags_first,
+        hud_bits: &results.hud_bits_first,
+        result: &results.results[1],
+    }
+}
+/// The current player's side.
+fn current_side(race: &Race) -> Side<'_> {
+    let (settings, results) = (&race.shared.state.settings, &race.shared.state.results);
+    Side {
+        car: &settings.cars[0],
+        car_kind: &settings.car_kind_current,
+        service_spent: &results.service_spent_current,
+        flags: &results.flags_current,
+        hud_bits: &results.hud_bits_current,
+        result: &results.results[0],
+    }
+}
 
 #[cfg(test)]
 const BLOCK_FIRST: &[Dword; 8] =
@@ -172,48 +170,16 @@ const UNKNOWN_TRACK: FatalError = FatalError {
 };
 
 /// Five settings words copied to the race variables (from, to).
-const SETTINGS_TO_RACE: [(&PlainDword, &Dword); 5] = [
-    (
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .screens
-            .option_work
-            .lens_flare,
-        &crate::race::owner::RACE.shared.state.settings.lens_flare,
-    ),
-    (
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .screens
-            .option_work
-            .reflections,
-        &crate::race::owner::RACE.shared.state.settings.reflections,
-    ),
-    (
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .screens
-            .option_work
-            .car_shadows,
-        &crate::race::owner::RACE.shared.state.settings.car_shadows,
-    ),
-    (
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .screens
-            .option_work
-            .car_detail,
-        &crate::race::owner::RACE.shared.state.settings.car_detail,
-    ),
-    (
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .screens
-            .option_work
-            .headlights,
-        &crate::race::owner::RACE.shared.state.settings.headlights,
-    ),
-];
+fn settings_to_race<'a>(menus: &'a Menus, race: &'a Race) -> [(&'a PlainDword, &'a Dword); 5] {
+    let (from, to) = (&menus.screens.option_work, &race.shared.state.settings);
+    [
+        (&from.lens_flare, &to.lens_flare),
+        (&from.reflections, &to.reflections),
+        (&from.car_shadows, &to.car_shadows),
+        (&from.car_detail, &to.car_detail),
+        (&from.headlights, &to.headlights),
+    ]
+}
 
 #[cfg(test)]
 fn set_field(rec: Record, off: u32, v: u32) -> Result<(), BadInput> {
@@ -222,9 +188,8 @@ fn set_field(rec: Record, off: u32, v: u32) -> Result<(), BadInput> {
 }
 
 /// `g_players`[n].
-pub fn player(n: u32) -> Result<Record, BadInput> {
-    crate::menu::player::player(crate::menu::owner::menus(), n)
-        .ok_or(BadInput("a player past the four"))
+pub fn player(menus: &Menus, n: u32) -> Result<Record<'_>, BadInput> {
+    crate::menu::player::player(menus, n).ok_or(BadInput("a player past the four"))
 }
 
 /// A record's controller settings into a car's: the controller, gearing, sensitivity, axes,
@@ -373,14 +338,20 @@ fn guarded(
     kind: u32,
     step: &mut dyn FnMut(Call) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    player(1)?;
-    player(CURRENT.get())?;
-    single_rally(start, kind, step)
+    let o = crate::owners::boundary();
+    player(o.menus, 1)?;
+    player(o.menus, o.menus.screens.event.current_player.get())?;
+    single_rally(o, start, kind, step)
 }
 
 /// The last calls of the original (from 0x897 of the table): the kept word back, the tune.
-fn finish(step: &mut dyn FnMut(Call) -> Result<(), Refused>) -> Result<(), Refused> {
-    KEPT.set(RACE_KEPT.get());
+fn finish(
+    menus: &Menus,
+    race: &Race,
+    step: &mut dyn FnMut(Call) -> Result<(), Refused>,
+) -> Result<(), Refused> {
+    let kept = &menus.screens.flow.kept;
+    kept.set(race.shared.state.settings.kept.get());
     step(Call::PlayTune3)
 }
 
@@ -388,26 +359,37 @@ fn finish(step: &mut dyn FnMut(Call) -> Result<(), Refused>) -> Result<(), Refus
 /// (the HUD, the keys, the set-up, ...), without their damage and wear.
 #[cfg(debug_ui)]
 pub fn player_settings_in() -> Result<(), Refused> {
+    let o = crate::owners::boundary();
+    let (menus, race) = (o.menus, o.race);
+    let results = &race.shared.state.results.results;
+    let (first_side, current_side) = (first_side(race), current_side(race));
     // As `single_rally`'s start: the last race's outcome, else the car starts out of it.
-    RESULT.set(0);
-    RESULT_2.set(0);
-    let first = player(1)?.get();
-    take_controls(&first, FIRST_SIDE.car);
-    take_keys(&first, &FIRST_SIDE.car.keys);
-    let current = player(CURRENT.get())?.get();
-    take_player(&current, &CURRENT_SIDE, false);
-    take_keys(&current, &CURRENT_SIDE.car.keys);
+    results[0].result.set(0);
+    results[1].result.set(0);
+    let first = player(menus, 1)?.get();
+    take_controls(&first, first_side.car);
+    take_keys(&first, &first_side.car.keys);
+    let current = player(menus, menus.screens.event.current_player.get())?.get();
+    take_player(&current, &current_side, false);
+    take_keys(&current, &current_side.car.keys);
     Ok(())
 }
 
 /// The original's body; `step(call)` does the call `call`.
 fn single_rally(
+    o: crate::owners::Owners<'_>,
     start: u32,
     kind: u32,
     step: &mut dyn FnMut(Call) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    let o = crate::owners::boundary();
-    let (shared, system) = (&o.race.shared, o.system);
+    let (race, menus, system) = (o.race, o.menus, o.system);
+    let (settings, results) = (
+        &race.shared.state.settings,
+        &race.shared.state.results.results,
+    );
+    let (event, current) = (&menus.screens.event, &menus.screens.event.current_player);
+    let switch = &menus.play.arcade.scene_let_go;
+    let (first_side, current_side) = (first_side(race), current_side(race));
     // Closed on a menu whose item leads here (a window's close, MENU + START): the screen is
     // left as if chosen, with no stage yet. Not the original's, whose close stopped nothing.
     if system.session.flags.quitting.is_set() {
@@ -416,20 +398,22 @@ fn single_rally(
     if kind == 3 {
         step(Call::CopyRallyTimes)?;
     }
-    RACE_INFO.set(SUMMARY.get());
-    SWITCH.set(start);
-    RACE_KIND.set(kind);
-    RESULT.set(0);
-    RESULT_2.set(0);
-    RACE_KEPT.set(0);
-    RACE_MODE.set(1);
+    settings.rivals.set(menus.play.champ_view.summary.get());
+    switch.set(start);
+    settings.run_kind.set(kind);
+    results[0].result.set(0);
+    results[1].result.set(0);
+    settings.kept.set(0);
+    settings.race_mode.set(1);
     step(Call::StopMusic)?;
     step(Call::SetRaceScreenMode)?;
     step(Call::ShowLoadingPicture)?;
-    EFFECTS_SETTINGS.after_loading_copy.set(AFTER_LOADING.get());
+    race.effects_settings()
+        .after_loading_copy
+        .set(event.sparks_mode.get());
 
     // The stage's entry in the track list: the tracks, then the pack's closing -1.
-    let stage = STAGE.get();
+    let stage = settings.stage.get();
     let pack = &system.records.stage_tables.trak_pak;
     let mut at = 0;
     let entry = loop {
@@ -450,55 +434,55 @@ fn single_rally(
         }
     };
     // The entry's +0x1C (temperature) and +0x20 (wind) into the race variables.
-    shared.state.settings.track_1c.set(entry.temperature.get());
-    shared.state.settings.track_20.set(entry.wind.get());
-    for &(from, to) in &SETTINGS_TO_RACE {
+    settings.track_1c.set(entry.temperature.get());
+    settings.track_20.set(entry.wind.get());
+    for (from, to) in settings_to_race(menus, race) {
         to.set(from.get());
     }
-    let first = player(1)?.get();
-    take_controls(&first, FIRST_SIDE.car);
-    take_keys(&first, &FIRST_SIDE.car.keys);
+    let first = player(menus, 1)?.get();
+    take_controls(&first, first_side.car);
+    take_keys(&first, &first_side.car.keys);
 
-    let one_car = matches!(EVENT_MODE.get(), 5 | 4 | 0xF | 0xA);
+    let one_car = matches!(event.event_kind.get(), 5 | 4 | 0xF | 0xA);
     if one_car {
-        RACE_KEPT.set(KEPT.get());
-        RACE_MODE.set(2);
+        settings.kept.set(menus.screens.flow.kept.get());
+        settings.race_mode.set(2);
         if first.entry != TAKES_PART {
-            RESULT_2.set(u32::MAX);
+            results[1].result.set(u32::MAX);
         }
-        take_player(&first, &FIRST_SIDE, true);
-        take_block(&first, FIRST_SIDE.result);
-        FIRST_SIDE.car.view.set(first.second_view);
-        CURRENT.set(0);
-    } else if player(CURRENT.get())?.get().entry != TAKES_PART {
+        take_player(&first, &first_side, true);
+        take_block(&first, first_side.result);
+        first_side.car.view.set(first.second_view);
+        current.set(0);
+    } else if player(menus, current.get())?.get().entry != TAKES_PART {
         // The current player's record is not in use: no race.
-        RESULT.set(u32::MAX);
-        return finish(step);
+        results[0].result.set(u32::MAX);
+        return finish(menus, race, step);
     }
 
     // The current player's record (player 0 after an event's one-car race).
-    let rec = player(CURRENT.get())?.get();
+    let rec = player(menus, current.get())?.get();
     if rec.entry != TAKES_PART {
-        RESULT.set(u32::MAX);
+        results[0].result.set(u32::MAX);
     }
-    take_player(&rec, &CURRENT_SIDE, true);
-    take_block(&rec, CURRENT_SIDE.result);
-    if RACE_MODE.get() == 2 {
-        MODE_WORD.set(rec.second_view);
+    take_player(&rec, &current_side, true);
+    take_block(&rec, current_side.result);
+    if settings.race_mode.get() == 2 {
+        settings.cars[0].view.set(rec.second_view);
     }
-    take_keys(&rec, &CURRENT_SIDE.car.keys);
+    take_keys(&rec, &current_side.car.keys);
 
     // The race.
-    NO_REPLAY.set(0);
-    if !one_car && PLAYER_COUNT.get() != 1 {
-        NO_REPLAY.set(1);
+    settings.no_replay.set(0);
+    if !one_car && event.player_count.get() != 1 {
+        settings.no_replay.set(1);
     }
     step(Call::SetUpRaceSoundObjects)?;
     step(Call::SetUpRaceSounds)?;
     step(Call::RaceFromMenu)?;
     step(Call::StopMusic)?;
     step(Call::SetMenuScreenMode)?;
-    if SWITCH.get() != 1 {
+    if switch.get() != 1 {
         step(Call::ShowLoadingPicture)?;
     }
     step(Call::ClearRaceSoundObjects)?;
@@ -506,24 +490,24 @@ fn single_rally(
 
     // The outcome back into the records.
     if one_car {
-        player(1)?.update(|p| {
-            give_player(p, &FIRST_SIDE);
-            give_outcome(p, FIRST_SIDE.result);
+        player(menus, 1)?.update(|p| {
+            give_player(p, &first_side);
+            give_outcome(p, first_side.result);
         });
-        CURRENT.set(0);
+        current.set(0);
     }
-    player(CURRENT.get())?.update(|p| {
-        give_player(p, &CURRENT_SIDE);
-        give_outcome(p, CURRENT_SIDE.result);
+    player(menus, current.get())?.update(|p| {
+        give_player(p, &current_side);
+        give_outcome(p, current_side.result);
     });
 
-    if SWITCH.get() != 1 {
+    if switch.get() != 1 {
         step(Call::SetUpEngine)?;
         step(Call::SetUpFrontEndScene)?;
         step(Call::SetUpEngine)?;
     }
     step(Call::TakeKey)?;
-    finish(step)
+    finish(menus, race, step)
 }
 
 /// The calls into the rest of the game that the race makes, in the order they are numbered
@@ -565,7 +549,7 @@ pub fn step(call: Call) -> Result<(), Refused> {
     let o = crate::owners::boundary();
     let (sound, race) = (o.sound, o.race);
     match call {
-        Call::CopyRallyTimes => crate::race::rally::copy_rally_times()?,
+        Call::CopyRallyTimes => crate::race::rally::copy_rally_times(o.system, o.menus)?,
         Call::StopMusic => crate::sound::stop_music::stop_music(),
         Call::SetRaceScreenMode => crate::race::race_shell::set_race_screen_mode(),
         Call::ShowLoadingPicture => {
@@ -577,7 +561,7 @@ pub fn step(call: Call) -> Result<(), Refused> {
             sound,
         )?,
         Call::SetUpRaceSounds => crate::sound::set_up_race_sounds::set_up_race_sounds(sound)?,
-        Call::RaceFromMenu => crate::race::race_end::race_from_menu(race)?,
+        Call::RaceFromMenu => crate::race::race_end::race_from_menu(o)?,
         Call::SetMenuScreenMode => {
             crate::platform::set_menu_mode_now();
         }

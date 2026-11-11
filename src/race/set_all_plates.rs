@@ -46,6 +46,7 @@ pub fn set_all_plates(race: &Race, scene: &crate::scene::owner::Scene) -> Result
     let mut at = CAR_PICTURE_KINDS;
     for car in 0..cars {
         let first = crate::scene::known_kind_picture::known_kind_picture(
+            race.kind_tables(),
             shared.vars.race_car_kinds[car as usize].get(), // g_raceCarKinds
         );
         for picture in car_pictures(first) {

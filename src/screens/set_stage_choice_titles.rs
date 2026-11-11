@@ -15,7 +15,6 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
 use crate::menu::owner::Tables;
 use crate::screens::draw_stage_records::selection;
-use crate::screens::draw_time_trial_stage_info::GROUP_TITLES;
 use crate::screens::stage_panel::{build_second_heading, table_dword_at};
 use rc2k_core::menu::items::{ITEM_LEN, MENU_HEAD_LEN};
 
@@ -38,7 +37,11 @@ pub fn set_stage_choice_titles(menus: &Menus) -> Result<(), Refused> {
         return Err(BadInput("the menu's first dword is no pointer").into());
     };
     build_second_heading(s.record)?;
-    let group_title = table_dword_at(&menus.play.results, GROUP_TITLES, s.group)?;
+    let group_title = table_dword_at(
+        &menus.play.results,
+        &menus.play.results.group_titles,
+        s.group,
+    )?;
     tables.menus.select_stage.id().items()[0]
         .string
         .set(group_title);

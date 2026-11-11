@@ -16,7 +16,12 @@
 use crate::errors::Refused;
 use crate::menu::run_championship::run_event;
 
-pub fn run_a8_championship(menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
+/// The entry for callers outside the menus (`saves::load_savegame`).
+pub fn run_a8_championship(_menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
+    run_a8_championship_in(crate::owners::boundary())
+}
+
+pub fn run_a8_championship_in(o: crate::owners::Owners<'_>) -> Result<(), Refused> {
     // The logic is in `rc2k_core::menu::championship::run` (`a8`).
-    run_event(menus, true)
+    run_event(o, true)
 }

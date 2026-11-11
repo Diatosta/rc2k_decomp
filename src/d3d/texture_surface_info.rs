@@ -9,11 +9,10 @@
 //!
 //! Caller: `d3d::lock_texture`.
 
-use crate::gfx::owner::gfx;
+use crate::gfx::owner::Gfx;
 use crate::gfx::texture_upload::RecordCell;
 
-pub fn texture_surface_info(record: &RecordCell) -> Result<(), crate::errors::BadInput> {
-    let gfx = gfx();
+pub fn texture_surface_info(record: &RecordCell, gfx: &Gfx) -> Result<(), crate::errors::BadInput> {
     // Converted: `rc2k_core::d3d::textures::surface_info`.
     let description = &gfx.card.upload.description;
     let kind = record.format();

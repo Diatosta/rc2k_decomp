@@ -129,7 +129,7 @@ pub fn draw_object_face(
             object
                 .reflection_point_number
                 .set(fw(vertex).wrapping_neg());
-            cached_reflection_coordinates(race, object, &ctx.view.matrices, ctx.view)?;
+            cached_reflection_coordinates(race, ctx.scene, object, &ctx.view.matrices, ctx.view)?;
             let coordinates: [u32; 2] = crate::session::read_bits(&object.reflection_coordinates);
             entry.u2.set(coordinates[0]);
             entry.v2.set(coordinates[1]);

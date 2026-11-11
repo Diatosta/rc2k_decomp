@@ -27,7 +27,7 @@ use crate::service::pages::{
     TYRE,
 };
 use crate::service::read_setup_slot::{SLOT_COUNT, read_setup_slot};
-use crate::service::state::{ITEM_COUNT, current_player_of, marks_ended, repair_flag_in};
+use crate::service::state::{ITEM_COUNT, current_player, marks_ended, repair_flag_in};
 
 // ---- game data ----
 
@@ -48,7 +48,7 @@ pub fn highlighted_slot(menus: &Menus) -> u32 {
 pub fn load_setup_slot(menus: &Menus) -> Result<(), Refused> {
     let (screens, tables) = (&menus.screens, &menus.tables);
     let slot = highlighted_slot(menus);
-    let Some(player) = current_player_of(screens) else {
+    let Some(player) = current_player(menus) else {
         return Err(BadInput("no current player object: the original writes through null").into());
     };
     if slot >= SLOT_COUNT {
@@ -70,15 +70,15 @@ pub fn load_setup_slot(menus: &Menus) -> Result<(), Refused> {
     let in_car = |field: rc2k_core::menu::player::SetupField, v: u32| {
         player.update(|q| *field.of(q) = v);
     };
-    TYRE.change.chosen.set(v.tyre);
+    TYRE.change.chosen(menus).set(v.tyre);
     in_car(BRAKE_BALANCE.in_car, v.brake_balance);
-    RIDE_HEIGHT.change.chosen.set(v.ride_height);
+    RIDE_HEIGHT.change.chosen(menus).set(v.ride_height);
     SUSPENSION_STIFFNESS
         .change
-        .chosen
+        .chosen(menus)
         .set(v.suspension_stiffness);
     in_car(STEERING_SENSITIVITY.in_car, v.steering_sensitivity);
-    GEAR_RATIO.change.chosen.set(v.gear_ratio);
+    GEAR_RATIO.change.chosen(menus).set(v.gear_ratio);
 
     // The original clears both tables again here, this time checking each entry for the
     // end mark before writing it. With the end marks in place that is the same thing.
@@ -93,7 +93,7 @@ pub fn load_setup_slot(menus: &Menus) -> Result<(), Refused> {
             EditPage::RideHeight => (RIDE_HEIGHT, edit_ride_height),
             _ => (SUSPENSION_STIFFNESS, edit_suspension_stiffness),
         };
-        if change.change.chosen.get() != change.change.installed.get() {
+        if change.change.chosen(menus).get() != change.change.installed(menus).get() {
             screens.loop_flags.item.set(change.item);
             edit(true)?;
         }

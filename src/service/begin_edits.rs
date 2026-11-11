@@ -10,20 +10,17 @@
 
 use crate::errors::Refused;
 use crate::menu::owner::menus;
+use crate::service::setup_values::setup_item;
 use crate::service::state::{flagged_item, repair_flag_in};
-use crate::session::DwordLike;
 
 /// One page's own variables.
 #[derive(Clone, Copy)]
 pub struct Edit {
     /// The page number written to `MenuState.service_ui.box_page`.
     pub page: u32,
-    /// The item's service time (`MenuState.driver_stats.repair_times[12]` ..).
-    pub time: &'static dyn DwordLike,
-    /// The chosen value, copied ...
-    pub chosen: &'static dyn DwordLike,
-    /// ... to the value at the edit's start.
-    pub start: &'static dyn DwordLike,
+    /// The setup item (0 .. 3): its service time is `MenuState.driver_stats.repair_times[12 + setup]`,
+    /// its chosen value is copied to the value at the edit's start.
+    pub setup: usize,
 }
 
 /// The Rust version (see the header).
@@ -36,10 +33,11 @@ pub fn begin_edit(e: Edit) -> Result<(), Refused> {
     if rc2k_core::service::repairs::may_edit(
         repair_flag_in(&menus.tables, item),
         screens.state.driver_stats.repair_time.get() as i32,
-        e.time.get() as i32,
+        screens.state.driver_stats.repair_times[12 + e.setup].get() as i32,
         screens.event.service_minutes.get() as i32,
     ) {
-        e.start.set(e.chosen.get());
+        let item = &setup_item(menus, e.setup);
+        item.start.set(item.chosen.get());
         screens
             .state
             .service_ui
@@ -51,95 +49,7 @@ pub fn begin_edit(e: Edit) -> Result<(), Refused> {
     Ok(())
 }
 
-pub const GEAR_RATIO: Edit = Edit {
-    page: 1,
-    time: &crate::menu::owner::MENUS
-        .unchecked()
-        .screens
-        .state
-        .driver_stats
-        .repair_times[12],
-    chosen: &crate::menu::owner::MENUS
-        .unchecked()
-        .screens
-        .state
-        .driver_stats
-        .setups[0]
-        .chosen,
-    start: &crate::menu::owner::MENUS
-        .unchecked()
-        .screens
-        .state
-        .driver_stats
-        .setups[0]
-        .start,
-};
-pub const TYRE: Edit = Edit {
-    page: 2,
-    time: &crate::menu::owner::MENUS
-        .unchecked()
-        .screens
-        .state
-        .driver_stats
-        .repair_times[13],
-    chosen: &crate::menu::owner::MENUS
-        .unchecked()
-        .screens
-        .state
-        .driver_stats
-        .setups[1]
-        .chosen,
-    start: &crate::menu::owner::MENUS
-        .unchecked()
-        .screens
-        .state
-        .driver_stats
-        .setups[1]
-        .start,
-};
-pub const RIDE_HEIGHT: Edit = Edit {
-    page: 5,
-    time: &crate::menu::owner::MENUS
-        .unchecked()
-        .screens
-        .state
-        .driver_stats
-        .repair_times[14],
-    chosen: &crate::menu::owner::MENUS
-        .unchecked()
-        .screens
-        .state
-        .driver_stats
-        .setups[2]
-        .chosen,
-    start: &crate::menu::owner::MENUS
-        .unchecked()
-        .screens
-        .state
-        .driver_stats
-        .setups[2]
-        .start,
-};
-pub const SUSPENSION_STIFFNESS: Edit = Edit {
-    page: 6,
-    time: &crate::menu::owner::MENUS
-        .unchecked()
-        .screens
-        .state
-        .driver_stats
-        .repair_times[15],
-    chosen: &crate::menu::owner::MENUS
-        .unchecked()
-        .screens
-        .state
-        .driver_stats
-        .setups[3]
-        .chosen,
-    start: &crate::menu::owner::MENUS
-        .unchecked()
-        .screens
-        .state
-        .driver_stats
-        .setups[3]
-        .start,
-};
+pub const GEAR_RATIO: Edit = Edit { page: 1, setup: 0 };
+pub const TYRE: Edit = Edit { page: 2, setup: 1 };
+pub const RIDE_HEIGHT: Edit = Edit { page: 5, setup: 2 };
+pub const SUSPENSION_STIFFNESS: Edit = Edit { page: 6, setup: 3 };

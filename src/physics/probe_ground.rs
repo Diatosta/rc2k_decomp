@@ -134,7 +134,7 @@ fn probe_points(
         let trap = crate::physics::cells::Trap::new();
         let noise = |i: u32| {
             trap.keep(
-                crate::scene::engine_tables_store::ENGINE_TABLES
+                c.engine_tables
                     .noise_bytes
                     .read_at(i as usize, 1, "the ground noise table")
                     .map(|b| u32::from(b[0])),

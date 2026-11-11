@@ -6,9 +6,10 @@
 
 use crate::errors::BadInput;
 use crate::menu::owner::Menus;
+use crate::owners::Owners;
 use crate::records::stages_store::RecordRef;
 use crate::session::FlagLike;
-use crate::session::{PlainDword, PlainFlag};
+use crate::session::PlainDword;
 use crate::system::owner::system;
 use rc2k_core::menu::leaving::Switch;
 
@@ -88,57 +89,23 @@ pub const MODE: &PlainDword = &crate::menu::owner::MENUS
     .play
     .champ_view
     .event_mode; // g_eventMode: 2, 3, 0x13
-pub const LEFT_BY_KEY: &PlainFlag = &crate::menu::owner::MENUS
-    .unchecked()
-    .tables
-    .captions
-    .left_by_key; // the car choice was left
-pub const EVENT_LEFT: &PlainFlag = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .loop_flags
-    .event_left;
-pub const LEAVE_SCREEN: &PlainFlag = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .loop_flags
-    .leave_screen;
-pub const LEFT_WITH_CARRY: &PlainFlag = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .loop_flags
-    .left_with_carry;
-pub const ASK_LEAVE: &PlainFlag = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .loop_flags
-    .ask_leave;
-pub const EVENT_OVER: &PlainFlag = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .event
-    .event_over; // 1 when an event is over
 
 /// The variable of a leaving switch.
-pub fn switch_cell(s: Switch) -> &'static dyn FlagLike {
+pub fn switch_cell<'a>(o: Owners<'a>, s: Switch) -> &'a dyn FlagLike {
+    let screens = &o.menus.screens;
     match s {
-        Switch::EventLeft => EVENT_LEFT,
-        Switch::LeaveScreen => LEAVE_SCREEN,
-        Switch::LeftWithCarry => LEFT_WITH_CARRY,
-        Switch::AskLeave => ASK_LEAVE,
-        Switch::EventOver => EVENT_OVER,
-        Switch::LeftByKey => LEFT_BY_KEY,
-        Switch::EscapePressed => ESCAPE_PRESSED,
-        Switch::Entered => &crate::menu::owner::menus().screens.event.any_time_qualified,
-        Switch::Quitting => &system().session.flags.quitting,
-        Switch::RallyDone => &crate::menu::owner::menus().screens.state.menus.rally_done,
+        Switch::EventLeft => &screens.loop_flags.event_left,
+        Switch::LeaveScreen => &screens.loop_flags.leave_screen,
+        Switch::LeftWithCarry => &screens.loop_flags.left_with_carry,
+        Switch::AskLeave => &screens.loop_flags.ask_leave,
+        Switch::EventOver => &screens.event.event_over,
+        Switch::LeftByKey => &o.menus.tables.captions.left_by_key,
+        Switch::EscapePressed => &screens.draw_work.escape_pressed,
+        Switch::Entered => &screens.event.any_time_qualified,
+        Switch::Quitting => &o.system.session.flags.quitting,
+        Switch::RallyDone => &screens.state.menus.rally_done,
     }
 }
-pub const ESCAPE_PRESSED: &PlainFlag = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .draw_work
-    .escape_pressed;
 pub const CONTINUING: &PlainDword = &crate::menu::owner::MENUS
     .unchecked()
     .screens

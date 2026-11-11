@@ -127,7 +127,8 @@ pub fn set_up_front_end_scene() -> Result<(), Refused> {
         scene.objects.tables.slot_kinds[slot].set(0x262 + slot as u32);
     }
     for place in 0..0x22usize {
-        scene.objects.tables.slot_kinds[0x2D + place].set(known_kind(place as u32));
+        scene.objects.tables.slot_kinds[0x2D + place]
+            .set(known_kind(race.kind_tables(), place as u32));
     }
     crate::scene::load_front_end_objects_logged::load_front_end_objects_logged(race, scene)?;
     reset_texture_places(scene);
@@ -137,7 +138,7 @@ pub fn set_up_front_end_scene() -> Result<(), Refused> {
         scene.textures.places.kind_pictures[0x258 + k].set(picture);
     }
     for place in picture_places() {
-        let mut picture = known_kind_picture(place);
+        let mut picture = known_kind_picture(race.kind_tables(), place);
         for k in 0..8 {
             scene.textures.places.kind_pictures[0x2BC + place as usize * 8 + k].set(picture);
             picture = picture.wrapping_add(1);

@@ -12,7 +12,6 @@ use crate::errors::Refused;
 use crate::gfx::owner::gfx;
 use crate::math::x87;
 use crate::physics::car_store::Car;
-use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use crate::race::state_store::RaceCar;
@@ -38,35 +37,49 @@ pub enum StepOperand {
     CarBits(usize, fn(&Car) -> &Float),
     /// A dword of an overlay store on the race block (`var!`: `RACE_VARS.stage_number`).
     Var(fn() -> &'static dyn DwordLike),
+    /// A dword of the race's (`var!(@race shared.vars.direction)`).
+    RaceVar(fn(&Race) -> &dyn DwordLike),
 }
 #[cfg(test)]
 use StepOperand::{Bits, Cell};
-use StepOperand::{CarBits, CarCell, Var};
+use StepOperand::{CarBits, CarCell, RaceVar, Var};
 
 impl StepOperand {
     /// Its dword (a float's bits).
     pub fn get(self) -> u32 {
+        self.get_in(crate::race::owner::race())
+    }
+
+    /// Its dword set (a float's bits).
+    pub fn set(self, v: u32) {
+        self.set_in(crate::race::owner::race(), v);
+    }
+
+    /// Its dword (a float's bits), the car blocks and race variables `race`'s.
+    pub fn get_in(self, race: &Race) -> u32 {
         match self {
             #[cfg(test)]
             Cell(cell) => cell.get(),
             #[cfg(test)]
             Bits(cell) => cell.bits(),
-            CarCell(n, f) => f(&CAR_BLOCKS.cars[n]).get(),
-            CarBits(n, f) => f(&CAR_BLOCKS.cars[n]).bits(),
+            CarCell(n, f) => f(&race.car_blocks().cars[n]).get(),
+            CarBits(n, f) => f(&race.car_blocks().cars[n]).bits(),
             Var(f) => f().get(),
+            RaceVar(f) => f(race).get(),
         }
     }
 
-    /// Its dword set (a float's bits).
-    pub fn set(self, v: u32) {
+    /// Its dword set (a float's bits), the car blocks and race variables `race`'s.
+    pub fn set_in(self, race: &Race, v: u32) {
         match self {
             #[cfg(test)]
             Cell(cell) => cell.set(v),
             #[cfg(test)]
             Bits(cell) => cell.set_bits(v),
-            CarCell(n, f) => f(&CAR_BLOCKS.cars[n]).set(v),
-            CarBits(n, f) => f(&CAR_BLOCKS.cars[n]).set_bits(v),
+            CarCell(n, f) => f(&race.car_blocks().cars[n]).set(v),
+            CarBits(n, f) => f(&race.car_blocks().cars[n]).set_bits(v),
             Var(f) => f().set(v),
+            RaceVar(f) => f(race).set(v),
         }
     }
 }
@@ -97,8 +110,16 @@ macro_rules! car_bits {
 }
 
 /// `var!(STATIC.field)`: a dword of an overlay store as a `StepOperand` (a `fn` item, as `car!`);
-/// `var!(@gfx field ..)` one of the graphics owner's.
+/// `var!(@gfx field ..)` one of the graphics owner's, `var!(@race field ..)` one of the race's.
 macro_rules! var {
+    (@race $($f:tt)+) => {
+        $crate::race::settings_copy::StepOperand::RaceVar({
+            fn f(race: &$crate::race::owner::Race) -> &dyn $crate::session::DwordLike {
+                &race.$($f)+
+            }
+            f
+        })
+    };
     (@gfx $($f:tt)+) => {
         $crate::race::settings_copy::StepOperand::Var({
             fn f() -> &'static dyn $crate::session::DwordLike {

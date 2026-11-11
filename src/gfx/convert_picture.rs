@@ -51,7 +51,7 @@ pub fn convert_picture(
 ) -> Result<CarryLeft, BadInput> {
     let pictures = &gfx.pictures;
     let (width, height): (u32, u32) = (pictures.picture.width.get(), pictures.picture.height.get());
-    if !has_picture() {
+    if !has_picture(pictures) {
         return Err(BadInput("no picture buffer"));
     }
     if converter == 0 && (width == 0 || height == 0) {
@@ -68,7 +68,9 @@ pub fn convert_picture(
         if pixels == 0 {
             return Err(BadInput("a picture without a width or a height"));
         }
-        with_picture(|b| components_to_4444_in_place(b, pixels as usize))??;
+        with_picture(pictures, |b| {
+            components_to_4444_in_place(b, pixels as usize)
+        })??;
         if screen_bits != 16 {
             return Ok(screen_bits < 16);
         }
@@ -80,7 +82,9 @@ pub fn convert_picture(
                 "a converter in the table that is not an MMX or 3DNow one",
             ));
         };
-        with_picture(|b| crate::gfx::mmx_converters::convert_in_place(converters, b, pixels, c))??;
+        with_picture(pictures, |b| {
+            crate::gfx::mmx_converters::convert_in_place(converters, b, pixels, c)
+        })??;
         if screen_bits != 16 {
             return Ok(screen_bits < 16);
         }
@@ -88,7 +92,7 @@ pub fn convert_picture(
         // Converted: `rc2k_core::gfx::pixels::convert_in_place`.
         let format: PixelFormat = crate::gfx::pixel_format::surface_format()?;
         let pixels = width as usize * height as usize;
-        let converted = with_picture(|buffer| -> Result<_, BadInput> {
+        let converted = with_picture(pictures, |buffer| -> Result<_, BadInput> {
             let bytes = buffer
                 .get_mut(..pixels * 4)
                 .ok_or(BadInput("a picture shorter than its pixels"))?;
@@ -128,7 +132,7 @@ pub fn convert_picture_now() -> Result<CarryLeft, BadInput> {
     let o = crate::owners::boundary();
     let (gfx, system) = (o.gfx, o.system);
     let pixel = &gfx.pixel;
-    if !has_picture() {
+    if !has_picture(&gfx.pictures) {
         return Err(BadInput("no picture buffer"));
     }
     convert_picture(

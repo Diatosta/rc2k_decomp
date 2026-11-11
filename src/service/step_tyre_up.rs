@@ -8,15 +8,7 @@ use crate::service::setup_values::{Stepper, Target};
 // ---- Rust version: `setup_values::step` with this ----
 
 pub const STEPPER: Stepper = Stepper {
-    target: Target::Global(
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .screens
-            .state
-            .driver_stats
-            .setups[1]
-            .chosen,
-    ),
+    target: Target::Chosen(1),
     max: 5,
     up: true,
 };

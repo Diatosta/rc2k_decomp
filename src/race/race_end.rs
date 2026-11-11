@@ -2,7 +2,7 @@
 //! "LOADLEVEL_TIDY"), and the replay header's record
 //! (`race::record_replay_header`). Here their steps.
 
-use crate::effects::owner::effects;
+use crate::effects::owner::Effects;
 use crate::errors::Refused;
 use crate::race::owner::Race;
 use rc2k_core::audio::commands::Command;
@@ -236,7 +236,7 @@ impl Tidy {
 /// round it: the mud, the point records, the marks' tidy (the log off), the fonts, the map, the
 /// textures, the course's two memories, the objects (then `g_inRace` 0, `view_scale`
 /// `kept_scale`); "finis".
-pub fn tidy_stage(race: &Race) -> Result<(), Refused> {
+pub fn tidy_stage(race: &Race, effects: &Effects) -> Result<(), Refused> {
     use crate::race::stage_free::{
         COURSE, COURSE_2, FONTS, MUD, OBJECT_POINTS, POINT_RECORDS, free,
     };
@@ -248,7 +248,7 @@ pub fn tidy_stage(race: &Race) -> Result<(), Refused> {
     let enabled = crate::logfile::write_line::state::ENABLED
         .atomic()
         .swap(0, std::sync::atomic::Ordering::Relaxed);
-    crate::effects::tidy_marks::tidy_marks(effects())?;
+    crate::effects::tidy_marks::tidy_marks(effects)?;
     crate::logfile::write_line::state::ENABLED.set(enabled);
     s.indent(-3);
     s.step(STAGE_WORDS[3], || free(race, &FONTS))?;
@@ -279,8 +279,8 @@ pub fn tidy_stage(race: &Race) -> Result<(), Refused> {
 /// empty indent), then each step with its word: the controls, the game mode, `tidy_stage`, the
 /// sounds (then `view_on` and the second view's flag 1); "finis", a rule, a line break.
 pub fn tidy_everything(race: &Race) -> Result<(), Refused> {
-    let input = crate::input::owner::input();
-    let sound = crate::sound::owner::sound();
+    let o = crate::owners::boundary();
+    let (input, sound) = (o.input, o.sound);
     let shared = &race.shared;
     let s = Tidy;
     s.newline();
@@ -293,7 +293,7 @@ pub fn tidy_everything(race: &Race) -> Result<(), Refused> {
         Ok(())
     })?;
     s.step(EVERYTHING_WORDS[3], || Ok(()))?;
-    s.step(EVERYTHING_WORDS[4], || tidy_stage(race))?;
+    s.step(EVERYTHING_WORDS[4], || tidy_stage(race, o.effects))?;
     s.log(EVERYTHING_WORDS[5]);
     s.indent(3);
     reset_race_sounds(&SoundVars::game(), sound)?;
@@ -314,7 +314,8 @@ pub fn tidy_everything(race: &Race) -> Result<(), Refused> {
 /// the next race flag 1, the start states, the stage loaded, the replay's header and file,
 /// `after_credits` 0, the race run (`drive::play_race`), the replay closed, everything tidied, the
 /// settings out. `indent` is `g_logIndent`'s address.
-pub fn run_race(race: &Race) -> Result<(), Refused> {
+pub fn run_race(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    let race = o.race;
     race.physics.split_tables.arcade_kind.set(1);
     crate::logfile::write_line::state::INDENT.set(0);
     if race.shared.state.results.race_stage.get() == 0
@@ -335,7 +336,7 @@ pub fn run_race(race: &Race) -> Result<(), Refused> {
     record_replay_header(race);
     crate::race::replay::open_replay(race)?;
     race.shared.view.after_credits.set(0u32);
-    crate::drive::play_race::play_race(race, crate::owners::boundary())?;
+    crate::drive::play_race::play_race(race, o)?;
     crate::race::replay::close_replay(race)?;
     tidy_everything(race)?;
     crate::race::settings_copy::copy_settings_out(race)?;
@@ -353,16 +354,16 @@ pub fn release_textures() {
 }
 
 /// `race::start_race` (0x4278B7): `mask_kind` 0, `race::run_race`.
-pub fn start_race(race: &Race) -> Result<(), Refused> {
-    race.shared.switches.mask_kind.set(0u32);
-    run_race(race)
+pub fn start_race(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    o.race.shared.switches.mask_kind.set(0u32);
+    run_race(o)
 }
 
 /// `race::race_from_menu` (0x485570): `race::render3d_tidy`, `race::objects_tidy`, `nullsub_6`,
 /// `race::release_textures`, `race::start_race`.
-pub fn race_from_menu(race: &Race) -> Result<(), Refused> {
-    crate::race::stage_free::render3d_tidy(race)?;
-    crate::race::stage_free::objects_tidy(race)?;
+pub fn race_from_menu(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    crate::race::stage_free::render3d_tidy(o.race)?;
+    crate::race::stage_free::objects_tidy(o.race)?;
     release_textures();
-    start_race(race)
+    start_race(o)
 }

@@ -8,14 +8,14 @@
 
 use crate::errors::Refused;
 use crate::math::next_random::next_random;
-use crate::race::owner_shared::RaceShared;
+use crate::race::owner::Race;
 use crate::race::settings_copy::StepOperand;
 use crate::race::settings_copy::{car, car_bits, var};
 
 /// The stores after the two draws, in order (the place, the value).
 pub const WRITES: [(StepOperand, u32); 74] = [
-    (var!(crate::race::owner::RACE.shared.vars.direction), 0),
-    (var!(crate::race::owner::RACE.shared.vars.run_kind), 3),
+    (var!(@race shared.vars.direction), 0),
+    (var!(@race shared.vars.run_kind), 3),
     (car!(0, start_slot_value), 1),
     (car!(0, camera_view), 8),
     (car!(0, gear_ratio_setting), 2),
@@ -23,37 +23,19 @@ pub const WRITES: [(StepOperand, u32); 74] = [
     (car!(0, ride_height), 0x80),
     (car!(0, brake_balance), 0x80),
     (car!(0, steering_sensitivity), 0x80),
-    (var!(crate::race::owner::RACE.shared.vars.car_tyres[0]), 3),
-    (var!(crate::race::owner::RACE.shared.vars.car_colours[0]), 1),
-    (var!(crate::race::owner::RACE.shared.vars.mip_setting), 0),
-    (var!(crate::race::owner::RACE.shared.view.race_cars), 1),
-    (var!(crate::race::owner::RACE.shared.view.players), 1),
-    (
-        var!(crate::race::owner::RACE.shared.vars.settings_words[0]),
-        1,
-    ),
-    (
-        var!(crate::race::owner::RACE.shared.vars.settings_words[1]),
-        1,
-    ),
-    (
-        var!(crate::race::owner::RACE.shared.vars.settings_words[2]),
-        1,
-    ),
-    (
-        var!(crate::race::owner::RACE.shared.vars.settings_words[3]),
-        0,
-    ),
-    (
-        var!(crate::race::owner::RACE.shared.vars.settings_words[4]),
-        1,
-    ),
-    (
-        var!(crate::race::owner::RACE.shared.switches.view_marks_on),
-        1,
-    ),
-    (var!(crate::race::owner::RACE.shared.vars.race_level), 0),
-    (var!(crate::race::owner::RACE.shared.vars.race_stage), 0),
+    (var!(@race shared.vars.car_tyres[0]), 3),
+    (var!(@race shared.vars.car_colours[0]), 1),
+    (var!(@race shared.vars.mip_setting), 0),
+    (var!(@race shared.view.race_cars), 1),
+    (var!(@race shared.view.players), 1),
+    (var!(@race shared.vars.settings_words[0]), 1),
+    (var!(@race shared.vars.settings_words[1]), 1),
+    (var!(@race shared.vars.settings_words[2]), 1),
+    (var!(@race shared.vars.settings_words[3]), 0),
+    (var!(@race shared.vars.settings_words[4]), 1),
+    (var!(@race shared.switches.view_marks_on), 1),
+    (var!(@race shared.vars.race_level), 0),
+    (var!(@race shared.vars.race_stage), 0),
     (car_bits!(0, engine_damage), 0),
     (car_bits!(0, exhaust_damage), 0),
     (car_bits!(0, electrics_damage), 0),
@@ -113,7 +95,8 @@ fn drawn_index(n: u32) -> u32 {
     rc2k_core::race::credits::drawn_place(next_random(), n)
 }
 
-pub fn set_up_credits_race(shared: &RaceShared) -> Result<(), Refused> {
+pub fn set_up_credits_race(race: &Race) -> Result<(), Refused> {
+    let shared = &race.shared;
     // Converted: `rc2k_core::race::credits::drawn_place`.
     use rc2k_core::race::credits::{RACE_KINDS, RACE_STAGES};
     let stage = drawn_index(RACE_STAGES);
@@ -124,7 +107,7 @@ pub fn set_up_credits_race(shared: &RaceShared) -> Result<(), Refused> {
     let kind = drawn_index(RACE_KINDS);
     shared.vars.race_car_kinds[0].set(shared.work.credit_car_kinds[kind as usize].get()); // g_raceCarKinds
     for (at, v) in WRITES {
-        at.set(v);
+        at.set_in(race, v);
     }
     Ok(())
 }

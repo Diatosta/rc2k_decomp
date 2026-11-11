@@ -20,7 +20,6 @@ use crate::menu::owner::Menus;
 use crate::menu::owner::Play;
 use crate::race::owner::race;
 use crate::screens::draw_stage_records::selection;
-use crate::screens::draw_time_trial_stage_info::GROUP_TITLES;
 use crate::screens::stage_panel::{
     build_second_heading, draw_records_for_group, draw_stage_body, menu_item_id, table_dword_at,
 };
@@ -32,7 +31,7 @@ pub fn menu_titles(menus: &Menus, play: &Play) -> Result<Option<(u32, u32)>, Bad
         return Ok(None);
     };
     Ok(Some((
-        table_dword_at(&play.results, GROUP_TITLES, sel.group)?,
+        table_dword_at(&play.results, &play.results.group_titles, sel.group)?,
         sel.table.title()?,
     )))
 }

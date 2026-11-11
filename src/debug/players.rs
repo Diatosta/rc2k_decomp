@@ -4,10 +4,8 @@
 //! are both the first block (a slip: `notes/bugs.md`; here every car). The button
 //! writes the same to the log.
 
-use crate::menu::owner::menus;
+use crate::owners::Owners;
 use crate::physics::car_store::Car;
-use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::owner::race;
 use crate::session::Dword;
 use dear_imgui_rs::{TableFlags, Ui};
 
@@ -84,17 +82,17 @@ fn figure(word: u32) -> String {
     format!("{}", word as i32)
 }
 
-fn player_figure(player: usize, offset: usize) -> String {
-    figure(menus().play.players.players[player].get().word(offset))
+fn player_figure(o: &Owners<'_>, player: usize, offset: usize) -> String {
+    figure(o.menus.play.players.players[player].get().word(offset))
 }
 
-fn car_figure(car: usize, field: CarField) -> String {
-    figure(field(&CAR_BLOCKS.cars[car]).get())
+fn car_figure(o: &Owners<'_>, car: usize, field: CarField) -> String {
+    figure(field(&o.race.car_blocks().cars[car]).get())
 }
 
 /// The player's name, to its NUL.
-fn name(player: usize) -> String {
-    let record = menus().play.players.players[player].get();
+fn name(o: &Owners<'_>, player: usize) -> String {
+    let record = o.menus.play.players.players[player].get();
     let bytes: Vec<u8> = record
         .name_copy
         .iter()
@@ -105,23 +103,23 @@ fn name(player: usize) -> String {
 }
 
 /// Both dumps to the log.
-fn write_log() {
+fn write_log(o: &Owners<'_>) {
     use crate::framework::log;
     for player in 0..4 {
         log(&format!("DATA DUMP OF PLAYER {}", player + 1));
         for (label, offset) in PLAYER_ROWS {
-            log(&format!("{label}: {}", player_figure(player, offset)));
+            log(&format!("{label}: {}", player_figure(o, player, offset)));
         }
-        log(&format!("NameStore: {}", name(player)));
+        log(&format!("NameStore: {}", name(o, player)));
     }
     log(&format!(
         "shaungmode: {}",
-        figure(race().shared.vars.run_kind.get())
+        figure(o.race.shared.vars.run_kind.get())
     ));
     for car in 0..10 {
         log(&format!("car {}", car + 1));
         for (label, field) in CAR_ROWS {
-            log(&format!("{label}: {}", car_figure(car, field)));
+            log(&format!("{label}: {}", car_figure(o, car, field)));
         }
     }
 }
@@ -157,14 +155,14 @@ fn table(
 }
 
 /// The tab.
-pub fn tab(ui: &Ui) {
+pub fn tab(o: &Owners<'_>, ui: &Ui) {
     if ui.button("Write both dumps to the log") {
-        write_log();
+        write_log(o);
     }
     ui.same_line();
     ui.text(format!(
         "shaungmode (run kind): {}",
-        figure(race().shared.vars.run_kind.get())
+        figure(o.race.shared.vars.run_kind.get())
     ));
     if ui.collapsing_header(
         "Cars (the race dump)",
@@ -178,7 +176,7 @@ pub fn tab(ui: &Ui) {
             &mut CAR_ROWS.iter().map(|&(label, field)| {
                 (
                     label.to_owned(),
-                    (0..10).map(|c| car_figure(c, field)).collect(),
+                    (0..10).map(|c| car_figure(o, c, field)).collect(),
                 )
             }),
         );
@@ -192,14 +190,13 @@ pub fn tab(ui: &Ui) {
             "players",
             4,
             "player",
-            &mut std::iter::once(("NameStore".to_owned(), (0..4).map(name).collect())).chain(
-                PLAYER_ROWS.iter().map(|&(label, offset)| {
+            &mut std::iter::once(("NameStore".to_owned(), (0..4).map(|p| name(o, p)).collect()))
+                .chain(PLAYER_ROWS.iter().map(|&(label, offset)| {
                     (
                         label.to_owned(),
-                        (0..4).map(|p| player_figure(p, offset)).collect(),
+                        (0..4).map(|p| player_figure(o, p, offset)).collect(),
                     )
-                }),
-            ),
+                })),
         );
     }
 }

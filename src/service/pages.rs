@@ -18,7 +18,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::input::take_key::take_key;
-use crate::menu::owner::{Menus, Play};
+use crate::menu::owner::Menus;
 use crate::service::setup_values::{Change, Stepper, step};
 use crate::service::state::{
     chosen_repairs_time, current_player, flagged_item, has_repair_time, leave_edit_mode,
@@ -32,7 +32,6 @@ use crate::service::{
     step_tyre_down, step_tyre_up, toggle_gear_ratio_change, toggle_ride_height_change,
     toggle_suspension_stiffness_change, toggle_tyre_change,
 };
-use crate::session::DwordLike;
 use crate::system::owner::system;
 use rc2k_core::menu::player::SetupField;
 
@@ -53,8 +52,6 @@ pub struct ChangePage {
     pub down: Stepper,
     pub up: Stepper,
     pub change: Change,
-    /// The chosen value as it was when the edit started.
-    pub entry: &'static dyn DwordLike,
     /// The car's value, for the pages that compare with it.
     pub in_car: Option<SetupField>,
     /// The page's menu item (the one to highlight).
@@ -75,13 +72,6 @@ pub const GEAR_RATIO: ChangePage = ChangePage {
     down: step_gear_ratio_down::STEPPER,
     up: step_gear_ratio_up::STEPPER,
     change: toggle_gear_ratio_change::CHANGE,
-    entry: &crate::menu::owner::MENUS
-        .unchecked()
-        .screens
-        .state
-        .driver_stats
-        .setups[0]
-        .start,
     in_car: None,
     item: 0xE,
 };
@@ -89,13 +79,6 @@ pub const TYRE: ChangePage = ChangePage {
     down: step_tyre_down::STEPPER,
     up: step_tyre_up::STEPPER,
     change: toggle_tyre_change::CHANGE,
-    entry: &crate::menu::owner::MENUS
-        .unchecked()
-        .screens
-        .state
-        .driver_stats
-        .setups[1]
-        .start,
     in_car: None,
     item: 0xF,
 };
@@ -103,13 +86,6 @@ pub const RIDE_HEIGHT: ChangePage = ChangePage {
     down: step_ride_height_down::STEPPER,
     up: step_ride_height_up::STEPPER,
     change: toggle_ride_height_change::CHANGE,
-    entry: &crate::menu::owner::MENUS
-        .unchecked()
-        .screens
-        .state
-        .driver_stats
-        .setups[2]
-        .start,
     in_car: Some(SetupField::RideHeight),
     item: 0x12,
 };
@@ -117,25 +93,18 @@ pub const SUSPENSION_STIFFNESS: ChangePage = ChangePage {
     down: step_suspension_stiffness_down::STEPPER,
     up: step_suspension_stiffness_up::STEPPER,
     change: toggle_suspension_stiffness_change::CHANGE,
-    entry: &crate::menu::owner::MENUS
-        .unchecked()
-        .screens
-        .state
-        .driver_stats
-        .setups[3]
-        .start,
     in_car: Some(SetupField::Stiffness),
     item: 0x13,
 };
 
-fn player() -> Result<crate::menu::standings::PlayerCell<'static>, BadInput> {
-    current_player().ok_or(BadInput(
+fn player(menus: &Menus) -> Result<crate::menu::standings::PlayerCell<'_>, BadInput> {
+    current_player(menus).ok_or(BadInput(
         "no current player object: the original reads through null",
     ))
 }
 
 /// The key, with the clock noted and the value stepped if it was an arrow. 0 = no key.
-fn key_and_step(play: &Play, down: Stepper, up: Stepper) -> Result<u8, Refused> {
+fn key_and_step(menus: &Menus, down: Stepper, up: Stepper) -> Result<u8, Refused> {
     // Converted: `rc2k_core::service::setups::page_key`.
     use rc2k_core::service::setups::{PageKey, page_key};
     let key = take_key();
@@ -143,15 +112,17 @@ fn key_and_step(play: &Play, down: Stepper, up: Stepper) -> Result<u8, Refused> 
     if action == PageKey::None {
         return Ok(0);
     }
-    play.champ_view
+    menus
+        .play
+        .champ_view
         .last_key_time
         .set(system().session.clocks.frame.get());
     match action {
         PageKey::Down => {
-            step(down)?;
+            step(menus, down)?;
         }
         PageKey::Up => {
-            step(up)?;
+            step(menus, up)?;
         }
         _ => {}
     }
@@ -160,8 +131,8 @@ fn key_and_step(play: &Play, down: Stepper, up: Stepper) -> Result<u8, Refused> 
 
 pub fn simple_page(menus: &Menus, page: SimplePage) -> Result<(), Refused> {
     // Nothing may be written before it is known that nothing will be refused.
-    player()?;
-    if { key_and_step(&menus.play, page.down, page.up) }? == KEY_CONFIRM {
+    player(menus)?;
+    if { key_and_step(menus, page.down, page.up) }? == KEY_CONFIRM {
         leave_edit_mode(&menus.screens);
     }
     Ok(())
@@ -182,11 +153,11 @@ pub fn change_page(menus: &Menus, page: ChangePage, confirm: bool) -> Result<(),
         return Err(BadInput("the second flag table has lost its end mark").into());
     }
     let installed_in_car = match page.in_car {
-        Some(field) => Some((player()?, field)),
+        Some(field) => Some((player(menus)?, field)),
         None => None,
     };
 
-    if !confirm && key_and_step(&menus.play, page.down, page.up)? != KEY_CONFIRM {
+    if !confirm && key_and_step(menus, page.down, page.up)? != KEY_CONFIRM {
         return update_repair_total(menus);
     }
 
@@ -194,9 +165,9 @@ pub fn change_page(menus: &Menus, page: ChangePage, confirm: bool) -> Result<(),
     use crate::service::state::{flags, marks, store_flags, store_marks, time_of};
     let (mut f, mut m) = (flags(tables), marks(tables));
     let v = rc2k_core::service::repairs::Value {
-        chosen: page.change.chosen.get(),
-        installed: page.change.installed.get(),
-        entry: page.entry.get(),
+        chosen: page.change.chosen(menus).get(),
+        installed: page.change.installed(menus).get(),
+        entry: page.change.start(menus).get(),
         in_car: installed_in_car.map(|(p, field)| field.get(p.get())),
     };
     let c = rc2k_core::service::repairs::confirm_change(
@@ -210,7 +181,7 @@ pub fn change_page(menus: &Menus, page: ChangePage, confirm: bool) -> Result<(),
     .map_err(|e| BadInput(e.0))?;
     store_flags(tables, &f);
     store_marks(tables, &m);
-    page.change.chosen.set(c.chosen);
+    page.change.chosen(menus).set(c.chosen);
     if let Some(status) = c.status {
         screens.state.service_ui.status.set(status);
     }

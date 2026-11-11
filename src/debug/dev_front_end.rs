@@ -8,8 +8,8 @@
 //! developer's `e:\rally5\bin` file the game does not ship.
 
 use crate::errors::Refused;
+use crate::owners::Owners;
 use crate::race::owner::Race;
-use crate::race::owner::race;
 use crate::session::Dword;
 use core::sync::atomic::{AtomicU32, Ordering::Relaxed};
 
@@ -65,7 +65,6 @@ const REPLAY: u32 = 4;
 /// `dev_front_end::set_up_race` (0x446994): the race's variables from the settings.
 fn set_up_race(race: &Race) -> Result<(), Refused> {
     let shared = &race.shared;
-    use crate::race::blocks_store::CAR_BLOCKS;
     let s = &SETTINGS;
     let car = s.car.load(Relaxed);
     let gears = s.gears.load(Relaxed);
@@ -74,10 +73,10 @@ fn set_up_race(race: &Race) -> Result<(), Refused> {
     shared.vars.race_car_kinds[1].set((car + 1) % 0x17);
     // The two blocks' start slots. The set-up figures and tyres stay the player's
     // (`copy_settings_in`; the original set defaults here).
-    for (block, slot) in CAR_BLOCKS.cars[..2].iter().zip([1, 2]) {
+    for (block, slot) in race.car_blocks().cars[..2].iter().zip([1, 2]) {
         block.start_slot_value.set(slot);
     }
-    for block in &CAR_BLOCKS.cars[..2] {
+    for block in &race.car_blocks().cars[..2] {
         block.camera_view.set(4);
     }
     shared.vars.car_colours[0].set(gears);
@@ -91,7 +90,7 @@ fn set_up_race(race: &Race) -> Result<(), Refused> {
     shared.vars.race_stage.set(s.stage.load(Relaxed));
     // What a race's start had left of the last, in both blocks: the damage and wear gauges
     // (the neutral gear's wear too, which the network race's clearing leaves).
-    for block in &CAR_BLOCKS.cars[..2] {
+    for block in &race.car_blocks().cars[..2] {
         crate::net::clear_car_state::clear_car_state(block)?;
         block.gear_wear[1].set_bits(0);
     }
@@ -150,8 +149,9 @@ fn round_a_race(race: &Race, f: impl FnOnce() -> Result<(), Refused>) -> Result<
 }
 
 /// `dev_front_end::test_course` (0x44306B) and `dev_front_end::run_race` (0x443F96).
-fn test_course(race: &Race) -> Result<(), Refused> {
+fn test_course(o: Owners<'static>) -> Result<(), Refused> {
     use crate::race::{race_end, race_shell, replay, stage_loading};
+    let race = o.race;
     round_a_race(race, || {
         race.course.numbers.replay_mode.set(1);
         race.shared.tables.noise_seed.set(0x1234_5678);
@@ -172,14 +172,15 @@ fn test_course(race: &Race) -> Result<(), Refused> {
         race_end::record_replay_header(race);
         replay::open_replay(race)?;
         race.shared.view.after_credits.set(0);
-        crate::drive::play_race::play_race(race, crate::owners::boundary())?;
+        crate::drive::play_race::play_race(race, o)?;
         replay::close_replay(race)?;
         race_end::tidy_everything(race)
     })
 }
 
 /// The finish sequence (0x442FEF), for the course's index (0 .. 5) and the car.
-fn finish_sequence(race: &Race) -> Result<(), Refused> {
+fn finish_sequence(o: Owners<'static>) -> Result<(), Refused> {
+    let race = o.race;
     round_a_race(race, || {
         let s = &SETTINGS;
         let car = s.car.load(Relaxed);
@@ -199,8 +200,8 @@ fn finish_sequence(race: &Race) -> Result<(), Refused> {
 }
 
 /// The credits' race (0x443104), without its fonts (the menus' are up).
-fn credits(race: &Race) -> Result<(), Refused> {
-    let sound = crate::sound::owner::sound();
+fn credits(o: Owners<'static>) -> Result<(), Refused> {
+    let (race, sound) = (o.race, o.sound);
     round_a_race(race, || {
         crate::race::sound_tables::silence_race_sounds(sound)?;
         crate::race::credits_race::credits_race(race)
@@ -208,7 +209,8 @@ fn credits(race: &Race) -> Result<(), Refused> {
 }
 
 /// The last race's replay (0x4430C0); nothing happens without one.
-fn last_replay(race: &Race) -> Result<(), Refused> {
+fn last_replay(o: Owners<'static>) -> Result<(), Refused> {
+    let race = o.race;
     let shared = &race.shared;
     let course = &race.course;
     round_a_race(race, || {
@@ -224,14 +226,14 @@ fn last_replay(race: &Race) -> Result<(), Refused> {
 
 /// A menu's frame: runs what was asked for; true if something ran.
 pub fn serve() -> Result<bool, Refused> {
-    let run: fn(&Race) -> Result<(), Refused> = match WANTED.swap(0, Relaxed) {
+    let run: fn(Owners<'static>) -> Result<(), Refused> = match WANTED.swap(0, Relaxed) {
         TEST => test_course,
         FINISH => finish_sequence,
         CREDITS => credits,
         REPLAY => last_replay,
         _ => return Ok(false),
     };
-    run(race())?;
+    run(crate::owners::boundary())?;
     Ok(true)
 }
 
@@ -259,8 +261,8 @@ mod tab {
     }
 
     /// The tab.
-    pub fn tab(race: &Race, ui: &Ui) {
-        let scene = crate::scene::owner::scene();
+    pub fn tab(o: &Owners<'_>, ui: &Ui) {
+        let (race, scene) = (o.race, o.scene);
         let s = &SETTINGS;
         number(ui, "Course", &s.course, 99);
         let course = s.course.load(Relaxed) as usize;

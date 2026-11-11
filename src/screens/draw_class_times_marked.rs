@@ -12,6 +12,5 @@ use crate::screens::best_scores::*;
 use crate::text::draw_text::Canvas;
 
 pub fn draw(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let tables = &menus.tables;
-    draw_scores(tables, &MARKED_CLASS_TIMES, canvas)
+    draw_scores(menus, &MARKED_CLASS_TIMES, canvas)
 }

@@ -9,38 +9,24 @@
 //! Refuses a list without its end within its room.
 
 use crate::errors::BadInput;
-use crate::menu::remove_secret_cars::{FIRST, List, read_list};
+use crate::menu::owner::Menus;
+use crate::menu::remove_secret_cars::{List, first, read_list};
 use rc2k_core::menu::car_lists::place_if_missing;
 
 // ---- game data ----
 
 /// The three lists, in the original's order, with the room each has before the next
 /// variable.
-const LISTS: [List; 3] = [
-    (
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .tables
-            .lists
-            .cars_first,
-        0x22,
-    ),
-    FIRST,
-    (
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .tables
-            .lists
-            .cars_with_clio,
-        0x3E,
-    ),
-];
-
-pub fn add_clio_car() -> Result<(), BadInput> {
+pub fn add_clio_car(menus: &Menus) -> Result<(), BadInput> {
+    let lists: [List<'_>; 3] = [
+        (&menus.tables.lists.cars_first, 0x22),
+        first(menus),
+        (&menus.tables.lists.cars_with_clio, 0x3E),
+    ];
     let clio = crate::menu::cars_store::car_handle(33);
     let mut ends = Vec::new();
     // The logic is in `rc2k_core::menu::car_lists::place_if_missing`.
-    for list in LISTS {
+    for list in lists {
         if let Some(n) = place_if_missing(&read_list(list)?, clio) {
             ends.push(&list.0[n]);
         }

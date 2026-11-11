@@ -62,10 +62,12 @@ pub fn rally_times_places(
 /// the sixteen "CTs", "GB_Shaun", the name, the sixteen again, rules). Refuses, before anything, a
 /// null pointer on the way (the original reads through it) and a stage past its table. The logs
 /// read only their text or number.
-pub fn copy_rally_times() -> Result<(), Refused> {
+pub fn copy_rally_times(
+    system: &crate::system::owner::System,
+    menus: &crate::menu::owner::Menus,
+) -> Result<(), Refused> {
     use crate::logfile::{log_int::log_int, write_line::log_text};
-    let o = crate::owners::boundary();
-    let Some((table, stage)) = rally_times_places(o.system, o.menus)? else {
+    let Some((table, stage)) = rally_times_places(system, menus)? else {
         return Err(BadInput("a null pointer to the rally's times").into());
     };
     // The ten as their bytes, as `race_time` reads a record.

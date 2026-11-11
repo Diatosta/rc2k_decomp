@@ -59,11 +59,7 @@ pub fn car_collisions(
             });
             set_place(&c.matrices.placed_matrix, place);
             // `scene::set_place` left the z in `g_scratch`.
-            crate::scene::owner::scene()
-                .drawing
-                .scene
-                .scratch
-                .set_bits(place[2]);
+            scene.drawing.scene.scratch.set_bits(place[2]);
             multiply_matrices(
                 &car_now.crash_matrix,
                 &c.matrices.placed_matrix,

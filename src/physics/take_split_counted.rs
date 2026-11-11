@@ -29,6 +29,7 @@ pub fn take_split_counted(
     frame_work: &FrameWork,
     panel_and_overlay: &PanelAndOverlay,
     shared: &RaceShared,
+    car_blocks: &crate::race::blocks_store::CarBlocks,
     sound: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {
     let physics_store = physics;
@@ -43,7 +44,13 @@ pub fn take_split_counted(
     }
     { keep_split_time(&shared.car, &physics.split_tables) }?;
     { flag_current_car_listed(frame_work, &shared.work, sound) }?;
-    split_by_mode(&physics.split_tables, league, panel_and_overlay, shared)?;
+    split_by_mode(
+        &physics.split_tables,
+        league,
+        panel_and_overlay,
+        shared,
+        car_blocks,
+    )?;
     put_split_time(
         &shared.car,
         shared.car.splits_recorded.get() as usize,

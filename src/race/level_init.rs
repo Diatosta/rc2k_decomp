@@ -274,7 +274,7 @@ pub fn init_checkpoints(race: &Race) -> Result<(), Refused> {
             return Ok(());
         }
         let end = shared.vars.last_checkpoint.get();
-        let table = &crate::race::checkpoints_store::CHECKPOINTS.checkpoint_faces;
+        let table = &race.checkpoints().checkpoint_faces;
         let trap = Trap::new();
         let listed = rc2k_core::race::checkpoints::listed_checkpoints(end, |n| {
             let face = trap.keep_read(crate::session::read_on_in(

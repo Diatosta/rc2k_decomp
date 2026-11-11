@@ -30,6 +30,7 @@ use crate::audio::owner::AUDIO_OWNER;
 use crate::errors::Refused;
 use crate::gfx::owner::gfx;
 use crate::menu::owner::MENUS;
+use crate::owners::Owners;
 use crate::race::settings_copy::{StepOperand, var};
 use crate::sound::owner::SOUND;
 use rc2k_core::menu::tables::{OptionSwitch, StageCounter, VolumeKind};
@@ -177,15 +178,9 @@ fn volume_item(var: StepOperand, up: bool, then: Then) -> Item {
 /// `ItemFn::Volume { which, up }`: the volume `which` one step up or down on the sound
 /// pages (the first four on the sound page, the owner's names: general, race music, race
 /// effects, menu effects; the others on the volume page).
-pub fn volume(
-    menus: &crate::menu::owner::Menus,
-    which: VolumeKind,
-    up: bool,
-) -> Result<(), Refused> {
-    use crate::menu::option_steps::{
-        MUSIC_LEVEL_RVA, SOUNDS_A_RVA, SOUNDS_B_RVA, SPEECH_LEVEL_RVA, Then as StepThen, Volume,
-        volume_step,
-    };
+pub fn volume(o: Owners<'_>, which: VolumeKind, up: bool) -> Result<(), Refused> {
+    use crate::menu::option_steps::{Then as StepThen, Volume, volume_step};
+    let work = &o.menus.screens.option_work;
     let item = match which {
         VolumeKind::Master => {
             volume_item(var!(AUDIO_OWNER.levels.master_volume_shown), up, Then::Send)
@@ -208,9 +203,9 @@ pub fn volume(
         // The volumes the page's own steps handle (`menu::option_steps::volume_step`).
         VolumeKind::Music => {
             volume_step(
-                &menus.screens,
+                o,
                 Volume {
-                    value: MUSIC_LEVEL_RVA,
+                    value: &work.music_level,
                     up,
                     then: StepThen::Music,
                 },
@@ -219,9 +214,9 @@ pub fn volume(
         }
         VolumeKind::Speech => {
             volume_step(
-                &menus.screens,
+                o,
                 Volume {
-                    value: SPEECH_LEVEL_RVA,
+                    value: &work.speech_level,
                     up,
                     then: StepThen::Speech,
                 },
@@ -232,9 +227,9 @@ pub fn volume(
             // Heard with one sound going down, another going up.
             let sound = if up { 0x20 } else { 0x10 };
             volume_step(
-                &menus.screens,
+                o,
                 Volume {
-                    value: SOUNDS_A_RVA,
+                    value: &o.audio.levels.sounds_a,
                     up,
                     then: StepThen::Sound(sound),
                 },
@@ -243,9 +238,9 @@ pub fn volume(
         }
         VolumeKind::MenuSoundsB => {
             volume_step(
-                &menus.screens,
+                o,
                 Volume {
-                    value: SOUNDS_B_RVA,
+                    value: &o.audio.levels.sounds_b,
                     up,
                     then: StepThen::Sound(0x40),
                 },

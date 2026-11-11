@@ -174,7 +174,7 @@ pub fn draw_marks_overlays(
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     let gfx = crate::gfx::owner::gfx();
-    shadow_refuses(&crate::effects::draw_shadow::FIRST, effects)?;
+    shadow_refuses(&crate::effects::draw_shadow::first(effects), effects)?;
     // Neither reads a register, and the race reads none they leave (only DF, ST).
     {
         crate::effects::draw_overlays::draw_overlays(

@@ -21,9 +21,10 @@
 
 use crate::audio::names_store::SampleNames;
 use crate::errors::Refused;
-use crate::gfx::owner::gfx;
+use crate::gfx::owner::Gfx;
 use crate::menu::owner::Screens;
 use crate::menu::owner::Tables;
+use crate::owners::Owners;
 use crate::session::{DwordLike, PlainDword};
 
 // ---- the volume steps ----
@@ -37,37 +38,21 @@ pub enum Then {
 }
 
 #[derive(Clone, Copy)]
-pub struct Volume {
-    pub value: &'static dyn DwordLike,
+pub struct Volume<'a> {
+    pub value: &'a dyn DwordLike,
     pub up: bool,
     pub then: Then,
 }
 
-pub const MUSIC_LEVEL_RVA: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .option_work
-    .music_level;
-pub const SPEECH_LEVEL_RVA: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .option_work
-    .speech_level;
-pub const SOUNDS_A_RVA: &crate::session::Dword = &crate::audio::owner::AUDIO_OWNER.levels.sounds_a;
-pub const SOUNDS_B_RVA: &crate::session::Dword = &crate::audio::owner::AUDIO_OWNER.levels.sounds_b;
 /// One volume step.
-pub fn volume_step(screens: &Screens, v: Volume) {
-    let audio = crate::audio::owner::audio();
+pub fn volume_step(o: Owners<'_>, v: Volume<'_>) {
+    let (screens, audio) = (&o.menus.screens, o.audio);
     // The logic is in `rc2k_core::menu::steps::volume`.
     let value = rc2k_core::menu::steps::volume(v.value.get() as i32, v.up);
     v.value.set(value as u32);
     match v.then {
         Then::Music => {
-            crate::sound::owner::sound()
-                .menu
-                .options
-                .music_volume
-                .set(value as u32);
+            o.sound.menu.options.music_volume.set(value as u32);
             crate::sound::set_music_volume::set_music_volume(value as u32, audio);
         }
         Then::Speech => crate::sound::start_stream::start_stream(
@@ -84,8 +69,8 @@ pub fn volume_step(screens: &Screens, v: Volume) {
 // ---- the plain steps (no calls) ----
 
 /// `menu::next_screen_mode`: the next screen mode chosen, the changed flag flipped.
-pub fn next_screen_mode(screens: &Screens) {
-    let display = &gfx().display;
+pub fn next_screen_mode(screens: &Screens, gfx: &Gfx) {
+    let display = &gfx.display;
     // The logic is in `rc2k_core::menu::steps::next_mode`.
     let mode = rc2k_core::menu::steps::next_mode(
         display.choices.resolution.get(),

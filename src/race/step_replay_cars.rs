@@ -12,7 +12,11 @@
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-pub fn step_replay_cars(race: &Race, input: &crate::input::owner::Input) -> Result<(), Refused> {
+pub fn step_replay_cars(
+    race: &Race,
+    input: &crate::input::owner::Input,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let shared = &race.shared;
     use crate::drive::*;
     // Converted: `rc2k_core::race::viewer_flow::{check_replay_cars, car_block, car_runs,
@@ -44,7 +48,7 @@ pub fn step_replay_cars(race: &Race, input: &crate::input::owner::Input) -> Resu
                     RunStep::Steering => steer_inputs::steer_inputs(race),
                     RunStep::Pedals => pedal_inputs::pedal_inputs(race),
                     RunStep::ResetKey => {
-                        reset_request::reset_request(race, crate::scene::owner::scene())?;
+                        reset_request::reset_request(race, scene)?;
                     }
                     RunStep::Physics => crate::physics::car_physics_step::car_physics_step(race)?,
                 }

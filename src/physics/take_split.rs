@@ -21,6 +21,7 @@ pub fn take_split(
     league: &League,
     panel_and_overlay: &PanelAndOverlay,
     shared: &RaceShared,
+    car_blocks: &crate::race::blocks_store::CarBlocks,
 ) -> Result<(), Refused> {
     if shared.car.finish_flag.get() != 0 {
         return Ok(());
@@ -31,7 +32,7 @@ pub fn take_split(
     )? {
         return Ok(());
     }
-    split_by_mode(split_tables, league, panel_and_overlay, shared)?;
+    split_by_mode(split_tables, league, panel_and_overlay, shared, car_blocks)?;
     put_split_time(
         &shared.car,
         shared.car.splits_recorded.get() as usize,

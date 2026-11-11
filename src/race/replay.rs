@@ -7,10 +7,11 @@
 //! `files::handle`'s.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::owner::Menus;
+#[cfg(test)]
 use crate::menu::owner::menus;
 use crate::race::owner::Race;
 use crate::race::owner_replay::Replay;
-use crate::race::replay_work_store::REPLAY_WORK;
 use crate::session::{Bytes, Dword};
 
 /// The race record's seal key (the replay header's checksum, `race::seal_replay_header`;
@@ -88,20 +89,21 @@ mod block_tests {
 /// options copied (`copy_header_settings`), a checksum (from dword 1: add, `rol` 5) into dword 0 and
 /// `dword_4F66F9`; then its 32 blocks of 8 chained through `race::seal_block` with the key
 /// "halfmoon" (the game's key put back after).
-pub fn seal_replay_header(replay: &Replay) -> Result<(), Refused> {
+pub fn seal_replay_header(race: &Race, menus: &Menus) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::replay::{seal_checksum, chained, SEAL_KEY}`.
     use rc2k_core::race::replay::{SEAL_KEY, SEAL_VERSION, chained, seal_checksum};
     // The sealed header is the file's bytes: the version byte and the name sit inside its
     // dwords.
-    let sealed = &REPLAY_WORK.sealed_header;
+    let replay = &race.replay;
+    let sealed = &race.replay_work().sealed_header;
     put_header(sealed, 0x719B58 - 0x719B54, &[SEAL_VERSION])?;
-    let name: [u8; 0x20] = menus().play.names.player_names.read()[..0x20]
+    let name: [u8; 0x20] = menus.play.names.player_names.read()[..0x20]
         .try_into()
         .expect("0x20 bytes");
     let printable = crate::strings::copy_printable::printable(&name, 0x20)?;
     put_header(sealed, 0x719B61 - 0x719B54, &printable)?;
-    copy_header_settings(sealed)?;
-    let sealed_dwords = &REPLAY_WORK.sealed_header;
+    copy_header_settings_of(race, menus, sealed)?;
+    let sealed_dwords = &race.replay_work().sealed_header;
     let dwords: Vec<u32> = (1..0x40).map(|n| sealed_dwords[n].get()).collect();
     let sum = seal_checksum(&dwords);
     sealed_dwords[0].set(sum);
@@ -148,7 +150,17 @@ fn put_header(sealed: &[Dword; 64], at: usize, bytes: &[u8]) -> Result<(), BadIn
 /// The settings the sealed header copies, in the original's order: the low `size` bytes of
 /// each setting go to `at` (an offset from the header's first byte, 0x138 and more past the
 /// end of its 0x100 bytes are the first dword of `unknown_7d0`: the original's slip).
+#[cfg(test)]
 fn copy_header_settings(sealed: &[Dword; 64]) -> Result<(), BadInput> {
+    copy_header_settings_of(crate::race::owner::race(), menus(), sealed)
+}
+
+/// `copy_header_settings` from the race's and the front end's variables.
+fn copy_header_settings_of(
+    race: &Race,
+    menus: &Menus,
+    sealed: &[Dword; 64],
+) -> Result<(), BadInput> {
     use crate::race::state_store::{RaceCar, RaceSettings, RaceState};
     use core::mem::offset_of;
     // The cells of the race's settings as the front end keeps them, by IDA's address.
@@ -172,7 +184,7 @@ fn copy_header_settings(sealed: &[Dword; 64]) -> Result<(), BadInput> {
         assert!(CARS + offset_of!(RaceCar, view) == setting(0x75AE24));
         assert!(CARS + offset_of!(RaceCar, gearing) == setting(0x75AE2C));
     };
-    let shared = &crate::race::owner::race().shared;
+    let shared = &race.shared;
     let settings = &shared.state.settings;
     let car = &settings.cars[0];
     let patches = &shared.work.patch_settings;
@@ -202,7 +214,7 @@ fn copy_header_settings(sealed: &[Dword; 64]) -> Result<(), BadInput> {
         (1, 0x719C8C, car.race_number.get()),
         (1, 0x719B8B, car.view.get()),
         (4, 0x719B5D, shared.replay_file.season_code.get()),
-        (4, 0x719B82, menus().play.cheats.cheats.get()),
+        (4, 0x719B82, menus.play.cheats.cheats.get()),
         (1, 0x719B94, car.gearing.get()),
         (1, 0x719B95, car.gear_ratio.get()),
         (1, 0x719B96, car.tyre.get()),
@@ -230,7 +242,7 @@ fn copy_header_settings(sealed: &[Dword; 64]) -> Result<(), BadInput> {
             put_header(sealed, to - 0x719B54, bytes)?;
         } else {
             // 0x719C8C: the viewer's first car number, past the header.
-            let door = &REPLAY_WORK.unknown_7d0[0];
+            let door = &race.replay_work().unknown_7d0[0];
             door.set(door.get() & !0xFF | u32::from(bytes[0]));
         }
     }
@@ -415,7 +427,7 @@ pub fn open_replay(race: &Race) -> Result<(), Refused> {
     for (k, &w) in HEADER_NAME.iter().enumerate() {
         header.set_u32(0x10 + 4 * k, w);
     }
-    let w = &REPLAY_WORK;
+    let w = race.replay_work();
     w.header_one_player
         .set(o.sound.race.sounds.one_player.get());
     w.header_codriver_sex_0
@@ -430,11 +442,11 @@ pub fn open_replay(race: &Race) -> Result<(), Refused> {
     {
         to.set(from.get());
     }
-    seal_replay_header(replay)?;
+    seal_replay_header(race, o.menus)?;
     // The car header (0x400 bytes from the stage setting on through the sealed part, the
     // patch switches and the door: all the dwords of the stretch) copied into the file's
     // header at +0x30.
-    let w = &REPLAY_WORK;
+    let w = race.replay_work();
     let stage: Vec<u8> = [
         &w.header_stage,
         &w.header_mode,
@@ -610,8 +622,8 @@ mod header_tests {
         );
         let locale = &crate::strings::owner::strings().language.locale;
         let header = &shared.replays.header;
-        let sealed = &REPLAY_WORK.sealed_header;
-        let door = &REPLAY_WORK.unknown_7d0[0];
+        let sealed = &crate::race::owner::race().replay_work().sealed_header;
+        let door = &crate::race::owner::race().replay_work().unknown_7d0[0];
         let kept_cells: Vec<u32> = cells.iter().map(|c| c.get()).collect();
         let kept_locale = locale.get(8);
         let kept_header: Vec<u8> = (0..16).map(|i| header.get(i)).collect();

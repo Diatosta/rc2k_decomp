@@ -5,10 +5,8 @@
 //! are the game's own variables: the race's settings copy (`race::settings_copy`) and a
 //! stage's load may put them back.
 
-use crate::race::owner::Race;
-use crate::scene::owner::SCENE;
+use crate::owners::Owners;
 use crate::session::Dword;
-use crate::system::owner::system;
 use dear_imgui_rs::Ui;
 use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
 
@@ -27,9 +25,9 @@ fn tick(ui: &Ui, key: u32, name: &str, cell: &Dword, about: &str) {
 }
 
 /// The tab.
-pub fn tab(race: &Race, ui: &Ui) {
-    let session = &system().session;
-    let shared = &race.shared;
+pub fn tab(o: &Owners<'_>, ui: &Ui) {
+    let session = &o.system.session;
+    let shared = &o.race.shared;
     let words = &shared.vars.settings_words;
     ui.text_disabled("Numbered by the keypad key each had");
     tick(
@@ -41,7 +39,7 @@ pub fn tab(race: &Race, ui: &Ui) {
     );
     ui.text_disabled("2: dword_6218E0: nothing reads it");
     // Key 3: the switch masked with what the processor has.
-    let use_ = &SCENE.draw_switches;
+    let use_ = &o.scene.draw_switches;
     let mut on = EXTENSIONS.load(Relaxed) != 0;
     if ui.checkbox("3: Processor's extensions", &mut on) {
         let v = u32::from(on);

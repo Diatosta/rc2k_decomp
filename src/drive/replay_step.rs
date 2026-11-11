@@ -19,8 +19,12 @@ use crate::race::owner::Race;
 use rc2k_core::drive::race_steps;
 
 /// One car's step (inside `pusha` / `popa`: nothing it leaves in the registers goes out).
-fn car_step(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    crate::drive::car_input_words::car_input_words(race, crate::input::owner::input())?;
+fn car_step(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    input: &crate::input::owner::Input,
+) -> Result<(), Refused> {
+    crate::drive::car_input_words::car_input_words(race, input)?;
     crate::drive::record_inputs_if::record_inputs_if(race)?;
     crate::drive::play_inputs_if::play_inputs_if(race)?;
     let slot = race_steps::block_slot(race.shared.work.current_car.get());
@@ -60,6 +64,7 @@ pub fn replay_step(
     race: &Race,
     sound: &crate::sound::owner::Sound,
     scene: &crate::scene::owner::Scene,
+    input: &crate::input::owner::Input,
 ) -> Result<(), Refused> {
     let shared = &race.shared;
     race_steps::check_cars(shared.view.race_cars.get())?;
@@ -79,10 +84,10 @@ pub fn replay_step(
         || shared.work.current_car.get(),
         || shared.view.race_cars.get(),
         |n| shared.work.current_car.set(n),
-        || car_step(race, scene),
+        || car_step(race, scene, input),
     )?;
     crate::drive::replay_check::note(race)?;
-    crate::drive::animate_stage::animate_stage(race)?;
+    crate::drive::animate_stage::animate_stage(race, scene)?;
     crate::drive::race_mode_cars::race_mode_cars(race)?;
     crate::drive::duel_sound_levels::duel_sound_levels(race, sound);
     crate::drive::countdown_beeps::countdown_beeps(race)?;

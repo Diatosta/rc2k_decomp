@@ -23,16 +23,9 @@ use crate::screens::stage_panel::{
     TITLE_FONT, build_second_heading, draw_records_for_group, draw_stage_body, label,
     table_dword_at,
 };
-use crate::session::PlainDword;
 use crate::text::draw_text::{Canvas, draw_text_at};
 
 // ---- game data ----
-
-pub const GROUP_TITLES: &[PlainDword] = &crate::menu::owner::MENUS
-    .unchecked()
-    .play
-    .results
-    .group_titles; // `results.group_titles`[group]: title string ids
 
 const TITLE_X: i32 = 0x2EB;
 const GROUP_TITLE_Y: i32 = 0x77;
@@ -49,7 +42,11 @@ pub fn draw_time_trial_stage_info(menus: &Menus, canvas: &mut dyn Canvas) -> Res
     };
     label(
         canvas,
-        table_dword_at(&menus.play.results, GROUP_TITLES, sel.group)?,
+        table_dword_at(
+            &menus.play.results,
+            &menus.play.results.group_titles,
+            sel.group,
+        )?,
         TITLE_FONT,
         TITLE_X,
         GROUP_TITLE_Y,

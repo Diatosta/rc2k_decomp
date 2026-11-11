@@ -232,7 +232,7 @@ fn paste(race: &Race) -> Result<(), Refused> {
     // (The original's `std; rep movsd` from the last dword, `index_frame_count` and
     // `Buffers.viewer.block[2563]` + count * 8, down: a move that may overlap.)
     use crate::race::viewer::{move_cells, move_cells_back};
-    let v = &crate::race::viewer_buffers_store::VIEWER_BUFFERS;
+    let v = race.viewer_buffers();
     let (at, clip_dwords) = (2 * block as usize, 2 * clip as usize);
     let tables = [
         (
