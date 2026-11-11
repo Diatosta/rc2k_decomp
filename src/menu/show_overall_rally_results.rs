@@ -12,7 +12,7 @@ use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::*;
 use rc2k_core::menu::results_pages::{Page, held_figure};
 // g_eventMode
-pub fn show_overall_rally_results(menus: &Menus) -> Result<(), Refused> {
+pub fn show_overall_rally_results(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
     let play = &menus.play;
     let found = crate::menu::first_player_a::first_player_a(ANY_GROUP)?;
     // The logic is in `rc2k_core::menu::results_pages::held_figure`.
@@ -20,9 +20,6 @@ pub fn show_overall_rally_results(menus: &Menus) -> Result<(), Refused> {
     menus.play.champ_view.count.set(count);
     crate::menu::first_page_stage::first_page_stage(play);
     crate::menu::stage_range_caption::stage_range_caption(play)?;
-    run_screen(
-        &crate::menu::overall_rally_results_loop::SCREEN,
-        &Entry::new(crate::owners::boundary()),
-    )?;
+    run_screen(&crate::menu::overall_rally_results_loop::SCREEN, entry)?;
     Ok(())
 }

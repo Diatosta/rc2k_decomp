@@ -68,12 +68,14 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
         &race.course,
         &race.shared.physics_tables,
         &race.shared.car,
+        race.gear(),
         scene,
     )?;
     ph::make_gear_ratios::make_gear_ratios(
         &race.shared.car,
         &race.shared.physics_tables,
         &race.course.numbers,
+        race.gear(),
         scene,
     )?;
     ph::store_motion_length::store_motion_length(&race.shared.car);
@@ -151,8 +153,8 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
         scene,
     );
     ph::set_downforce::set_downforce(&race.shared.car, &race.shared.physics_tables);
-    ph::gearbox_step::gearbox_step(&race.course.numbers, &race.shared, scene)?;
-    { ph::drive_force::drive_force(&race.course, &race.shared, scene) }?;
+    ph::gearbox_step::gearbox_step(&race.course.numbers, &race.shared, race.gear(), scene)?;
+    { ph::drive_force::drive_force(&race.course, &race.shared, race.gear(), scene) }?;
     // 0x43B737: the side speed held within the limit.
     race.shared
         .car
@@ -202,6 +204,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
         &race.course.numbers,
     );
     ph::wheel_springs::wheel_springs(
+        race.car_blocks(),
         &race.physics.contact,
         &race.course.numbers,
         &race.shared,
@@ -318,7 +321,12 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     ph::track_checkpoints::track_checkpoints(&inputs.checkpoints(), scene, sound)?;
     ph::pace_notes_step::pace_notes_step(&inputs.checkpoints(), scene, sound)?;
     ph::count_down_notice::count_down_notice(&race.shared.car);
-    ph::accumulate_mud::accumulate_mud(&race.shared.car, &race.shared.vars, scene);
+    ph::accumulate_mud::accumulate_mud(
+        &race.shared.car,
+        &race.shared.vars,
+        race.kind_tables(),
+        scene,
+    );
     x87_1(race);
     ph::store_motion_length::store_motion_length(&race.shared.car);
     ph::damage_step::damage_step(&race.shared.car, &race.physics.damage, &race.shared.work);

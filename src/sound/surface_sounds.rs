@@ -23,7 +23,7 @@ use crate::math::x87_float::{ld, stf, to_int};
 use crate::scene::x87_mem::{Base, fld, mov};
 use crate::sound::sets_store::SoundRequest;
 use crate::sound::store::{SoundObject, WHEEL_SURFACES};
-use crate::system::owner::system;
+use crate::system::owner::System;
 use rc2k_core::sound::surfaces;
 
 /// The surface of the wheel picked (of object `so`), its set and `sound::surface_sound`
@@ -33,8 +33,8 @@ fn one(
     request: &SoundRequest,
     second: usize,
     sound: &crate::sound::owner::Sound,
+    system: &System,
 ) -> Result<(), Refused> {
-    let system = system();
     // Converted: `rc2k_core::sound::surfaces` (`wheel`, `quieter`, `set_pair`).
     let (first, _) = surfaces::wheel(
         sound.race.surface.get().across.bits(),
@@ -65,11 +65,12 @@ pub fn surface_sounds(
     so: &crate::sound::store::SoundObject,
     request: &SoundRequest,
     sound: &crate::sound::owner::Sound,
+    system: &System,
 ) -> Result<(), Refused> {
     x87_3(so, sound.race.surface.get());
-    one(so, request, 0, sound)?;
+    one(so, request, 0, sound, system)?;
     x87_4(so, sound.race.surface.get());
-    one(so, request, 1, sound)
+    one(so, request, 1, sound, system)
 }
 
 // ---- the arithmetic that was x87 assembly ----

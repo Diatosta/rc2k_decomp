@@ -20,9 +20,9 @@ pub fn computer_name() -> Option<Vec<u8>> {
     name.push(0);
     Some(name)
 }
-pub fn check_developer_machine() {
+pub fn check_developer_machine(strings: &crate::strings::owner::Strings) {
     DEVELOPER.set(0);
-    let text = &crate::strings::owner::strings().text.buffer.text;
+    let text = &strings.text.buffer.text;
     if let Some(name) = computer_name() {
         text.write_at(0, &name, "the computer's name")
             .unwrap_or_else(|e| crate::fatal::raise::end("system::computer_name", e));

@@ -17,7 +17,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use crate::scene::matrix3::{extended, rounded_value};
@@ -51,7 +50,8 @@ pub fn start_car_on_line(
         .start_slot_value
         .set(car_number(&race.shared, start as usize)?);
     race.shared.car.driver_kind.set(start_places::STARTED_MODE);
-    let checkpoint = start_places::start_checkpoint(CAR_BLOCKS.cars[0].checkpoint.get(), distance);
+    let checkpoint =
+        start_places::start_checkpoint(race.car_blocks().cars[0].checkpoint.get(), distance);
     for cell in [
         &race.shared.car.checkpoint,
         &race.shared.car.reset_checkpoint,

@@ -25,20 +25,15 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::name_lists::NAME_LEN;
-use crate::net::owner::net;
-use crate::race::owner::race;
-use crate::service::owner::service;
+use crate::owners::Owners;
 use crate::session::Dword;
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::copy_printable::printable_from;
-use crate::system::owner::Start;
 
 // ---- game data ----
 
 // Converted: `rc2k_core::system::game_data` (the choices, the default names, the drawn
 // driver's name).
-use crate::menu::owner::menus;
-use crate::saves::owner::saves;
 use rc2k_core::system::game_data::{
     ALL_CARS_CHEATS, DRIVER_NAME_IDS, MACHINE_NAME_ID, PLAYER_NAME_IDS, REPLAY_NAME_ID,
     SAVEGAME_NAME_ID, SETUP_NAME_ID, SLOTS, TYRE_CHANGE_RECORD, USER_NAME_ROOM, all_secret_cars,
@@ -106,10 +101,11 @@ fn number_empty_names(names: &impl crate::session::ByteBuffer, id: u32) -> Resul
     Ok(())
 }
 
-pub fn load_game_data(start: &Start, outside: Outside) -> Result<(), Refused> {
-    let race = race();
-    let net = net();
-    let play = &menus().play;
+pub fn load_game_data(o: Owners<'static>, outside: Outside) -> Result<(), Refused> {
+    let start = &o.system.start;
+    let race = o.race;
+    let net = o.net;
+    let play = &o.menus.play;
     outside(Call::LoadOptions)?;
     outside(Call::LoadBestTimes)?;
     outside(Call::ReadSettings)?;
@@ -199,7 +195,7 @@ pub fn load_game_data(start: &Start, outside: Outside) -> Result<(), Refused> {
     for slot in 0..SLOTS {
         outside(Call::ReadSavegameSlot(slot))?;
     }
-    number_empty_names(&saves().save_games.names, SAVEGAME_NAME_ID)?;
+    number_empty_names(&o.saves.save_games.names, SAVEGAME_NAME_ID)?;
     for slot in 0..SLOTS {
         outside(Call::ReadReplaySlot(slot))?;
     }
@@ -207,30 +203,28 @@ pub fn load_game_data(start: &Start, outside: Outside) -> Result<(), Refused> {
     for slot in 0..SLOTS {
         outside(Call::ReadSetupSlot(slot))?;
     }
-    number_empty_names(&service().set_ups.names, SETUP_NAME_ID)?;
+    number_empty_names(&o.service.set_ups.names, SETUP_NAME_ID)?;
     Ok(())
 }
 
 /// The calls the loading makes, done by the game's Rust functions.
-fn in_game(call: Call) -> Result<u32, Refused> {
-    let race = crate::race::owner::race();
-    let menus = menus();
+fn in_game(o: Owners<'static>, call: Call) -> Result<u32, Refused> {
+    let race = o.race;
+    let menus = o.menus;
     match call {
         Call::LoadOptions => {
             crate::saves::load_options::load_game_options(menus)?;
         }
         Call::LoadBestTimes => {
-            crate::saves::load_best_times::load_game_best_times(crate::saves::owner::saves())?;
+            crate::saves::load_best_times::load_game_best_times(o.saves)?;
         }
-        Call::ReadSettings => crate::settings::read_settings::read_settings()?,
+        Call::ReadSettings => crate::settings::read_settings::read_settings(o)?,
         Call::ReadSku => {
-            crate::install::read_sku::read_sku(
-                crate::install::owner::install(),
-                &crate::install::owner::install().sku.path.text(),
-            )?;
+            crate::install::read_sku::read_sku(o.install, &o.install.sku.path.text())?;
         }
         Call::ReadDriverNames => crate::settings::read_driver_names::read_driver_names(
             menus,
+            o.strings,
             crate::settings::read_driver_names::path(),
         )?,
         Call::ApplyPatches => crate::physics::apply_patches::apply_patches(
@@ -258,7 +252,7 @@ fn in_game(call: Call) -> Result<u32, Refused> {
         }
         Call::ComputerName => {
             if let Some(name) = crate::system::check_developer_machine::computer_name() {
-                net()
+                o.net
                     .setup()
                     .machine_name
                     .write_at(0, &name, "the computer's name")?;
@@ -272,15 +266,15 @@ fn in_game(call: Call) -> Result<u32, Refused> {
             crate::saves::read_replay_slot::read_replay_slot(slot, race)?;
         }
         Call::ReadSetupSlot(slot) => {
-            crate::service::read_setup_slot::read_setup_slot(service(), slot)?;
+            crate::service::read_setup_slot::read_setup_slot(o.service, slot)?;
         }
     }
     Ok(0)
 }
 
 /// Loads with the game's own calls.
-pub fn load_in_game(system: &crate::system::owner::System) -> Result<(), Refused> {
-    load_game_data(&system.start, &mut in_game)
+pub fn load_in_game(o: Owners<'static>) -> Result<(), Refused> {
+    load_game_data(o, &mut |call| in_game(o, call))
 }
 
 /// How many times the game was run (IDA 0x518BB0 .. 0x518BB4, the image's layout).

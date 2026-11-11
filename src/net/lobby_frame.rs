@@ -15,10 +15,11 @@
 //! `screens::run_frame` for `net::lobby_loop`.
 
 use crate::errors::{BadInput, Refused};
-use crate::gfx::owner::gfx;
+use crate::gfx::owner::Gfx;
+use crate::install::owner::Install;
 use crate::net::lobby::{FONT, blit, copy_picture, lock_surface, push_id, store_text};
-use crate::net::owner::net;
-use crate::strings::owner::strings;
+use crate::net::owner::Net;
+use crate::strings::owner::Strings;
 use crate::text::draw_text::GameCanvas;
 use rc2k_core::net::players::{self, READY};
 use rc2k_core::net::screens;
@@ -41,9 +42,13 @@ fn time_text(time: u32, gaps: bool, first: u32) -> Vec<u8> {
 
 /// Called through
 /// `screens::run_frame` by `net::lobby_loop`.
-pub fn lobby_frame() -> Result<(), Refused> {
-    let net = net();
-    let text = &strings().text;
+pub fn lobby_frame(
+    net: &'static Net,
+    install: &Install,
+    strings: &Strings,
+    gfx: &Gfx,
+) -> Result<(), Refused> {
+    let text = &strings.text;
     let vars = &net.vars;
     // Converted: `rc2k_core::net::screens` (`shown_time`, `flag_sprite`, `car_sprite`,
     // `NO_TIME`, `lobby_buttons`), the ready bit and no time of `rc2k_core::net::players`.
@@ -152,7 +157,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
     }?;
     crate::net::unlock_received::unlock_received(&net.vars);
     y = y.wrapping_add(CHAT_FONT.object().line_height.get().wrapping_mul(8));
-    crate::net::chat_input_line::chat_input_line(&net.edit().chat_input.text(), 3, y)?;
+    crate::net::chat_input_line::chat_input_line(net, &net.edit().chat_input.text(), 3, y)?;
     let mut x = 0x310;
     let mut item = 0;
     for (n, (id, shown)) in
@@ -161,7 +166,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
             .enumerate()
     {
         if shown {
-            x = crate::net::lobby_button::lobby_button(net, id, item, x, 0x223)?;
+            x = crate::net::lobby_button::lobby_button(net, install, id, item, x, 0x223)?;
         }
         if n != 3 {
             item += 1;
@@ -173,7 +178,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
             line_y,
             0x320,
             7,
-            crate::gfx::rect::Palette::Held(gfx().fonts.font_block.palettes.get()),
+            crate::gfx::rect::Palette::Held(gfx.fonts.font_block.palettes.get()),
         );
     }
     crate::platform::unlock_surface();

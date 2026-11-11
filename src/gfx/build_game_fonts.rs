@@ -78,6 +78,7 @@ pub fn build_game_fonts(
     pixels_b: &crate::session::PlainDword,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
+    strings: &crate::strings::owner::Strings,
 ) -> Result<(), Refused> {
     let list = &gfx.fonts.game_fonts_memory.memory;
     let bytes = gfx
@@ -89,7 +90,7 @@ pub fn build_game_fonts(
         .wrapping_mul(system.session.screen.bytes.get());
     crate::memory::owned::count_on(list, bytes)?;
     rewind_list(list)?;
-    begin_glyph_tables(vars, gfx, system)?;
+    begin_glyph_tables(vars, gfx, system, strings)?;
     gfx.pictures
         .decoder
         .builder_flags
@@ -104,7 +105,7 @@ pub fn build_game_fonts(
     let palette_b = crate::gfx::build_fonts::palette_place(list)?;
     gfx.fonts.font_block.game_fonts[3].update(|f| f.palette = palette_b);
     begin_glyph_table(vars, list)?;
-    build_glyphs(vars, &crate::gfx::texts::FNT22, list, gfx)?;
+    build_glyphs(vars, &crate::gfx::texts::FNT22, list, gfx, strings)?;
     let table = vars.table.get();
     gfx.fonts.font_block.game_fonts[0].update(|f| f.glyph_table = table);
     if vars.table_size.get() == 0 {
@@ -112,7 +113,7 @@ pub fn build_game_fonts(
     }
     alpha_palette(gfx);
     palette_to_pixels(gfx.fonts.font_block.game_fonts[0].get().palette, gfx)?;
-    end_glyph_tables()?;
+    end_glyph_tables(strings)?;
 
     let (glyphs, palette_a): (u32, u32) = (
         gfx.fonts.font_block.game_fonts[0].get().glyph_table,
@@ -162,6 +163,7 @@ pub fn build_game_fonts_in_game(
         &gfx.fonts.font_block.game_fonts[3].palette,
         gfx,
         system,
+        crate::strings::owner::strings(),
     )
 }
 

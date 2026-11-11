@@ -9,6 +9,7 @@
 use crate::errors::Refused;
 use crate::net::lobby::{lock_surface, run_frame};
 use crate::net::owner::Net;
+use crate::race::viewer_screen_store::ViewerPanelBlock;
 
 pub const STATUS_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::STAGE_TITLE;
 
@@ -23,7 +24,7 @@ pub fn status(id: u32) -> Result<(), Refused> {
     crate::system::sleep::sleep(1000);
     Ok(())
 }
-pub fn connecting(net: &Net, connection: u32) -> Result<bool, Refused> {
+pub fn connecting(net: &Net, panel: &ViewerPanelBlock, connection: u32) -> Result<bool, Refused> {
     status(0x14F)?;
-    crate::net::init_connection::init_connection(net, connection)
+    crate::net::init_connection::init_connection(net, panel, connection)
 }

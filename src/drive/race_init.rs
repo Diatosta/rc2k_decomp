@@ -20,7 +20,6 @@
 
 use crate::effects::owner::effects;
 use crate::errors::{FatalError, Refused};
-use crate::race::effects_settings_store::EFFECTS_SETTINGS;
 use crate::race::owner::Race;
 use rc2k_core::drive::race_steps;
 
@@ -92,12 +91,12 @@ pub fn race_init(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
     indent_by(race_steps::LOG_INDENT);
     for _ in 0..race_steps::SETTLING_STEPS {
         { crate::drive::race_cars_step::race_cars_step(race) }?;
-        EFFECTS_SETTINGS.other_marks_shown.set(1);
+        race.effects_settings().other_marks_shown.set(1);
         {
             let view = crate::drive::set_listener::ListenerView::before_any_view(race);
             crate::drive::share_all_cars::share_all_cars(race, scene, view)
         }?;
-        EFFECTS_SETTINGS.other_marks_shown.set(0);
+        race.effects_settings().other_marks_shown.set(0);
         crate::effects::frame_marks::frame_marks(race, effects())?;
         // No view of the race drawn yet (`EffectsView::before_any_view`).
         let view = crate::effects::run_frame::EffectsView::before_any_view(race);

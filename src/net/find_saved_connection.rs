@@ -5,15 +5,15 @@
 //! Callers: `net::start_link`, `net::settings_done`.
 
 use crate::errors::Refused;
-use crate::net::owner::net;
+use crate::net::owner::Net;
 use crate::net::tables::with_connection;
 use rc2k_core::net::lists;
-pub fn find_saved_connection() -> Result<Option<u32>, Refused> {
-    let vars = &net().vars;
+pub fn find_saved_connection(net: &Net) -> Result<Option<u32>, Refused> {
+    let vars = &net.vars;
     // Converted: `rc2k_core::net::lists::find_listed`.
-    let saved = net().address().saved_connection.read();
+    let saved = net.address().saved_connection.read();
     lists::find_listed(vars.connections.get(), |n| -> Result<bool, Refused> {
         // `system::same_guid`: the four dwords alike.
-        with_connection(n, |c| c.provider == saved)
+        with_connection(vars, n, |c| c.provider == saved)
     })
 }

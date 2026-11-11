@@ -12,18 +12,18 @@
 
 use crate::errors::Refused;
 use crate::pointers::Store;
-use crate::race::viewer_screen_store::VIEWER_PANEL;
 
 pub fn replay_screenshot() -> Result<(), Refused> {
-    let gfx = crate::gfx::owner::gfx();
-    if VIEWER_PANEL.replay_recording.get() != 1 {
+    let o = crate::owners::boundary();
+    let (gfx, panel) = (o.gfx, o.race.viewer_panel());
+    if panel.replay_recording.get() != 1 {
         return Ok(());
     }
-    if VIEWER_PANEL.pictures_started.get() != 1 {
-        VIEWER_PANEL.pictures_started.set(1u32);
-        VIEWER_PANEL.picture_clock.set(crate::os::ticks());
+    if panel.pictures_started.get() != 1 {
+        panel.pictures_started.set(1u32);
+        panel.picture_clock.set(crate::os::ticks());
     }
-    let name = &VIEWER_PANEL.picture_name;
+    let name = &panel.picture_name;
     // Converted: `rc2k_core::race::viewer::count_up` (the name's six digits from +4).
     // The name is a text: its digits are bytes inside it.
     let mut digits = [0u8; 6];
@@ -37,11 +37,8 @@ pub fn replay_screenshot() -> Result<(), Refused> {
         crate::gfx::write_screen_pcx::write_screen_pcx(&gfx.shots, Some(&name), gfx)?;
         crate::platform::unlock_surface();
     }
-    VIEWER_PANEL.picture_clock.set(
-        VIEWER_PANEL
-            .picture_clock
-            .get()
-            .wrapping_add(VIEWER_PANEL.picture_time()),
-    );
+    panel
+        .picture_clock
+        .set(panel.picture_clock.get().wrapping_add(panel.picture_time()));
     Ok(())
 }

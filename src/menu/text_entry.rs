@@ -21,10 +21,9 @@ pub fn backup() -> crate::place::BytePlace {
 }
 
 /// The entry's state, as the game holds it.
-pub fn entry() -> Entry {
-    let menus = menus();
+pub fn entry(menus: &Menus) -> Entry {
     Entry {
-        length: length(),
+        length: menus.screens.loop_flags.text_length.get() as i32,
         entering: menus.screens.option_work.typing.is_set(),
         backup: std::array::from_fn(|i| menus.play.names.text_backup.get(i)),
     }
@@ -41,7 +40,7 @@ pub fn put_entry(menus: &Menus, e: &Entry) {
 
 /// The entry's state changed by `f` (read, changed, written back whole).
 pub fn with_entry<R>(menus: &Menus, f: impl FnOnce(&mut Entry) -> R) -> R {
-    let mut e = entry();
+    let mut e = entry(menus);
     let r = f(&mut e);
     put_entry(menus, &e);
     r

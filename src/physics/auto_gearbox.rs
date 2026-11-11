@@ -24,7 +24,7 @@
 use crate::errors::Refused;
 use crate::math::x87::{mul_div_status, mul_status};
 use crate::physics::car_store::Car;
-use crate::physics::gear_store::GEAR;
+use crate::physics::gear_store::GearFigures;
 use crate::physics::gearbox::*;
 use crate::physics::manual_gearbox::reverse;
 use crate::physics::pick_start_gear::pick_start_gear;
@@ -62,6 +62,7 @@ fn down(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> Result<Shift, R
 fn tests(
     car: &Car,
     tables: &PhysicsTables,
+    gear_figures: &GearFigures,
     scene: &crate::scene::owner::Scene,
 ) -> Result<Shift, Refused> {
     let drawing = &scene.drawing;
@@ -75,7 +76,12 @@ fn tests(
         gear,
         || car.all_wheels_off.get() != 0,
         || car.brake.get() != 0,
-        || !below(drawing.scene.scratch.get(), GEAR.shift_up_point.bits()),
+        || {
+            !below(
+                drawing.scene.scratch.get(),
+                gear_figures.shift_up_point.bits(),
+            )
+        },
         || {
             !below(
                 car.local_velocity[2].bits(),
@@ -92,16 +98,16 @@ fn tests(
                 drawing.scene.scratch.get(),
                 rb,
                 rl,
-                &GEAR.shift_ratio_figure,
+                &gear_figures.shift_ratio_figure,
             ) & 0x100
                 == 0
             {
                 return Ok(false);
             }
             let point = if shifts::down_point_clutch(car.brake.get()) {
-                GEAR.shift_down_clutch_point.bits()
+                gear_figures.shift_down_clutch_point.bits()
             } else {
-                GEAR.shift_down_point.bits()
+                gear_figures.shift_down_point.bits()
             };
             Ok(below(drawing.scene.scratch.get(), point))
         },
@@ -120,6 +126,7 @@ pub fn auto_gearbox(
     car: &Car,
     tables: &PhysicsTables,
     numbers: &Numbers,
+    gear_figures: &GearFigures,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     car.gear_changed.set(0);
@@ -157,7 +164,7 @@ pub fn auto_gearbox(
         if car.gear_change_blocked.get() != 0 {
             return Ok(());
         }
-        tests(car, tables, scene)?
+        tests(car, tables, gear_figures, scene)?
     };
     loop {
         to = match to {
@@ -168,7 +175,7 @@ pub fn auto_gearbox(
                 Shift::Done
             }
             Shift::Start => {
-                pick_start_gear(car, tables, numbers)?;
+                pick_start_gear(car, tables, numbers, gear_figures)?;
                 Shift::Done
             }
             Shift::Reverse => {

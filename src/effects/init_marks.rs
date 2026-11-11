@@ -37,7 +37,7 @@ pub fn init_marks(
     let paths = &effects.paths;
     {
         // Every read through `g_marksSettings` is a field of the race's record.
-        let marks = &*crate::race::effects_settings_store::EFFECTS_SETTINGS;
+        let marks = race.effects_settings();
         if marks.mark_car_file_number.get() >= KINDS {
             return Err(BadInput("a marks kind of 0x22 or more").into());
         }
@@ -50,8 +50,8 @@ pub fn init_marks(
         setup::seed_noise(weather, effects);
         setup::make_noise_curve(weather, effects)?;
         blocks::allocate_places(effects)?;
-        kind_values::set_kind_values(&kind_values::FIRST, effects)?;
-        kind_values::set_kind_values(&kind_values::SECOND, effects)?;
+        kind_values::set_kind_values(&kind_values::first(effects), effects)?;
+        kind_values::set_kind_values(&kind_values::second(effects), effects)?;
         load_mask_pictures::load_mask_pictures(masks, scene, gfx, effects)?;
         setup::clear_slots(effects);
         set_up_surface::set_up_surface(ring, masks, scene, gfx, effects)?;

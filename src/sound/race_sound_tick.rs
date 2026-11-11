@@ -10,16 +10,14 @@
 //! skips their frames (held for the owner: notes/open_items_full.md).
 
 use crate::errors::Refused;
-use crate::race::owner::race;
 use crate::race::owner_frame::Frame;
 
 // g_sceneClock, ClockTicks.sound_tick_last the last tick, ClockTicks.sound_ticks the ticks counted.
 
 /// Plays the race sounds once the sound clock says a tick is due.
 pub fn race_sound_tick(frame: &Frame) -> Result<(), Refused> {
-    let input = crate::input::owner::input();
-    let sound = crate::sound::owner::sound();
-    let race = race();
+    let o = crate::owners::boundary();
+    let race = o.race;
     // Converted: `rc2k_core::sound::turn::tick_due`.
     if !rc2k_core::sound::turn::tick_due(
         race.shared.physics_tables.scene_clock.get(),
@@ -31,7 +29,7 @@ pub fn race_sound_tick(frame: &Frame) -> Result<(), Refused> {
         .clock_ticks
         .sound_tick_last
         .set(race.shared.physics_tables.scene_clock.get());
-    crate::sound::race_turn_if::race_turn_if(sound, input)?;
+    crate::sound::race_turn_if::race_turn_if(o.sound, o.input, o.audio, o.system, race)?;
     frame
         .clock_ticks
         .sound_ticks

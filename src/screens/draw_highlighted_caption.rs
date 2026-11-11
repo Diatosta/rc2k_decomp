@@ -17,7 +17,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
-use crate::system::owner::system;
 use crate::text::draw_string_by_id::string_text;
 use crate::text::draw_text::Canvas;
 
@@ -47,11 +46,14 @@ pub fn draw_highlighted_caption(
     if caption.len() > CAPTION_LEN {
         return Err(BadInput("a caption longer than its place").into());
     }
-    crate::screens::text_buffers_store::TEXT_BUFFERS
+    let o = crate::owners::boundary();
+    o.race
+        .text_buffers()
         .caption
         .write_at(0, &caption, "the caption")?;
     // The logic is in `rc2k_core::screens::highlighted_caption`.
-    let since_key = system()
+    let since_key = o
+        .system
         .session
         .clocks
         .frame

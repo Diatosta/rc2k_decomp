@@ -32,14 +32,11 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::read_first_match::read_first_match;
-use crate::gfx::owner::gfx;
 use crate::input::layouts::layouts;
-use crate::menu::owner::menus;
 use crate::session::Bytes;
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::owner::{Strings, Text, strings};
 use crate::strings::same_text::set_case_table;
-use crate::system::owner::system;
 use rc2k_core::strings::case::CaseTable;
 use rc2k_core::strings::language::Locale;
 
@@ -133,8 +130,8 @@ fn correct_lexicon() -> Result<(), BadInput> {
 
 /// `compile` stands for `strings::compile_lexicon`.
 pub fn load_language(compile: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused> {
-    let strings = strings();
-    let install = crate::install::owner::install();
+    let o = crate::owners::boundary();
+    let (strings, install) = (o.strings, o.install);
     compile()?;
     layouts().use_built_in();
 
@@ -151,7 +148,7 @@ pub fn load_language(compile: &mut dyn FnMut() -> Result<(), Refused>) -> Result
     let units = file.units as u32;
     crate::strings::units::set_units(units);
     // Each car's copy of the units, at its +0x178.
-    for player in &menus().play.players.players {
+    for player in &o.menus.play.players.players {
         player.update(|p| p.metric_units = units);
     }
 
@@ -173,7 +170,7 @@ pub fn load_language(compile: &mut dyn FnMut() -> Result<(), Refused>) -> Result
     make_case_tables(strings)?;
 
     // 0x403462: the NEC keyboard's head (its layout mode) and layout.
-    if system().session.machine.keyboard_type.get() == 2 {
+    if o.system.session.machine.keyboard_type.get() == 2 {
         layouts().use_nec();
         install.run.first_drive.set(0x61u32);
     }
@@ -187,7 +184,7 @@ pub fn load_language(compile: &mut dyn FnMut() -> Result<(), Refused>) -> Result
         ));
     }
     if kind == 7 {
-        gfx().fonts.glyph_tables.units.set(0x2EEu32);
+        o.gfx.fonts.glyph_tables.units.set(0x2EEu32);
     }
 
     correct_lexicon()?;

@@ -15,9 +15,7 @@
 use crate::math::x87;
 use crate::math::x87::compare_full;
 use crate::math::x87_float as bh;
-use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
-use crate::race::owner_shared::RaceShared;
 use crate::scene::owner::scene;
 use crate::session::Cell32;
 
@@ -62,10 +60,11 @@ pub fn blend_at(race: &Race, v: &[&dyn Cell32]) -> u32 {
     n
 }
 
-fn game(shared: &RaceShared) -> Vec<&dyn Cell32> {
+fn game(race: &Race) -> Vec<&dyn Cell32> {
+    let shared = &race.shared;
     vec![
         &shared.car.checkpoint,
-        &CAR_BLOCKS.cars[0].checkpoint,
+        &race.car_blocks().cars[0].checkpoint,
         &scene().drawing.scene.scratch,
         &shared.car.start_blend_share,
         &shared.car.start_share,
@@ -76,5 +75,5 @@ fn game(shared: &RaceShared) -> Vec<&dyn Cell32> {
 
 /// (the exact one, for `drive::read_car_controls`).
 pub fn start_blend(race: &Race) -> u32 {
-    blend_at(race, &game(&race.shared))
+    blend_at(race, &game(race))
 }

@@ -10,8 +10,8 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::{list_key, other_key, run_frame};
-use crate::net::store::NetVars;
-use crate::system::owner::system;
+use crate::net::owner::Net;
+use crate::system::owner::System;
 use rc2k_core::net::screens::{self, ListKey};
 
 /// A list's up (0x66) or down (0x6B) on a list of `count` items: the highlight and the top
@@ -36,16 +36,17 @@ pub fn list_move(install: &'static crate::install::owner::Install, key: u8, coun
 }
 pub fn choose_connection(
     install: &'static crate::install::owner::Install,
-    vars: &NetVars,
+    net: &Net,
+    system: &System,
 ) -> Result<u32, Refused> {
-    let system = system();
+    let vars = &net.vars;
     let now = system.session.clocks.key_ticks.get();
     install.pages.move_clock.set(now);
     install.pages.key_clock.set(now);
     install.pages.choice_before.set(0);
     install.pages.choice.set(0);
     loop {
-        run_frame(crate::net::connections_frame::connections_frame)?;
+        run_frame(|| crate::net::connections_frame::connections_frame(net, install))?;
         install
             .pages
             .frame_clock

@@ -15,40 +15,32 @@
 //! `race::choose_save_slot`.
 
 use crate::errors::Refused;
-use crate::race::blocks_store::CAR_BLOCKS;
+use crate::owners::Owners;
 use crate::race::owner::Race;
-use crate::race::owner_shared::RaceShared;
-use crate::race::replay_work_store::REPLAY_WORK;
 use crate::session::Dword;
 
 const DOOR_TEXT: &std::ffi::CStr = c"doornr="; // "doornr="
 /// (to, from): the header's settings.
-fn settings(shared: &RaceShared) -> [(&Dword, &'static Dword); 5] {
+fn settings(race: &Race) -> [(&Dword, &Dword); 5] {
+    let shared = &race.shared;
+    let work = race.replay_work();
     [
-        (&shared.state.settings.run_kind, &REPLAY_WORK.header_mode),
-        (
-            &shared.state.settings.car_kind_current,
-            &REPLAY_WORK.header_kind_0,
-        ),
-        (
-            &shared.state.settings.car_kind_first,
-            &REPLAY_WORK.header_kind_1,
-        ),
+        (&shared.state.settings.run_kind, &work.header_mode),
+        (&shared.state.settings.car_kind_current, &work.header_kind_0),
+        (&shared.state.settings.car_kind_first, &work.header_kind_1),
         (
             &shared.state.settings.cars[0].codriver_sex,
-            &REPLAY_WORK.header_codriver_sex_0,
+            &work.header_codriver_sex_0,
         ),
         (
             &shared.state.settings.cars[1].codriver_sex,
-            &REPLAY_WORK.header_codriver_sex_1,
+            &work.header_codriver_sex_1,
         ),
     ]
 }
 
-pub fn viewer_load_stage(race: &Race) -> Result<(), Refused> {
-    let gfx = crate::gfx::owner::gfx();
-    let sound = crate::sound::owner::sound();
-    let scene = crate::scene::owner::scene();
+pub fn viewer_load_stage(race: &Race, o: Owners<'_>) -> Result<(), Refused> {
+    let (gfx, sound, scene) = (o.gfx, o.sound, o.scene);
     let shared = &race.shared;
     use crate::race::{race_end, race_shell, sound_tables, stage_free, stage_loading};
     #[cfg(feature = "remote")]
@@ -60,8 +52,8 @@ pub fn viewer_load_stage(race: &Race) -> Result<(), Refused> {
         race_end::release_textures();
         race_shell::set_race_screen_mode();
 
-        crate::menu::show_loading_picture::show_loading_picture(crate::menu::owner::menus())?;
-        for (to, from) in settings(shared) {
+        crate::menu::show_loading_picture::show_loading_picture(o.menus)?;
+        for (to, from) in settings(race) {
             to.set(from.get());
         }
         // g_onePlayer (the sound module's) takes the header's setting too.
@@ -69,7 +61,7 @@ pub fn viewer_load_stage(race: &Race) -> Result<(), Refused> {
             .race
             .sounds
             .one_player
-            .set(REPLAY_WORK.header_one_player.get());
+            .set(race.replay_work().header_one_player.get());
         shared.state.settings.cars[0].controller.set(0);
         shared.state.settings.cars[1].controller.set(0);
         shared
@@ -78,9 +70,9 @@ pub fn viewer_load_stage(race: &Race) -> Result<(), Refused> {
             .race_mode
             .set(sound.race.sounds.one_player.get());
         // byte_719C8C: the low byte of the first dword of `unknown_7d0`.
-        let door = REPLAY_WORK.unknown_7d0[0].get() & 0xFF;
+        let door = race.replay_work().unknown_7d0[0].get() & 0xFF;
         shared.state.settings.cars[0].race_number.set(door);
-        CAR_BLOCKS.cars[0].start_slot_value.set(door);
+        race.car_blocks().cars[0].start_slot_value.set(door);
         crate::logfile::log_write::log_nul(&DOOR_TEXT, false, 1);
         crate::logfile::log_int::log_int(door as i32, true, 1);
 
@@ -90,10 +82,10 @@ pub fn viewer_load_stage(race: &Race) -> Result<(), Refused> {
             { crate::gfx::build_fonts::build_fonts(gfx) }?;
             shared.replay_file.viewer_fonts_built.set(1);
         }
-        crate::race::read_replay_header::read_replay_header(shared);
+        crate::race::read_replay_header::read_replay_header(race);
         { stage_loading::load_stage(race) }?;
         race_end::reset_race_sounds(&race_end::SoundVars::game(), sound)?;
-        crate::race::viewer_palettes::viewer_palettes(shared, scene)?;
+        crate::race::viewer_palettes::viewer_palettes(shared, scene, gfx)?;
         shared.replay_file.viewer_stage_loaded.set(1);
     }
     crate::input::take_key::take_key();

@@ -33,8 +33,7 @@ fn format_number(system: &crate::system::owner::System) -> u32 {
 }
 
 /// The converter the game has for the surface's format, or 0.
-fn converter(converters: &Converters) -> u32 {
-    let system = crate::system::owner::system();
+fn converter(converters: &Converters, system: &crate::system::owner::System) -> u32 {
     converters.table[format_number(system) as usize].get()
 }
 
@@ -126,8 +125,8 @@ pub fn convert_picture(
 
 /// With the screen's bits and the surface format's converter as they stand.
 pub fn convert_picture_now() -> Result<CarryLeft, BadInput> {
-    let system = crate::system::owner::system();
-    let gfx = crate::gfx::owner::gfx();
+    let o = crate::owners::boundary();
+    let (gfx, system) = (o.gfx, o.system);
     let pixel = &gfx.pixel;
     if !has_picture() {
         return Err(BadInput("no picture buffer"));
@@ -136,7 +135,7 @@ pub fn convert_picture_now() -> Result<CarryLeft, BadInput> {
         &pixel.formats,
         &pixel.converters,
         system.session.screen.bits.get(),
-        converter(&pixel.converters),
+        converter(&pixel.converters, system),
         gfx,
         system,
     )

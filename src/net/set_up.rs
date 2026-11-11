@@ -25,9 +25,10 @@ const NO_MUTEX: FatalError = FatalError {
     message: "",
 };
 pub fn set_up() -> Result<(), Refused> {
-    let vars = &net().vars;
-    if notice_kind() == 2 && net().setup().most_players.get() as i32 > 4 {
-        net().setup().most_players.set(4);
+    let net = net();
+    let vars = &net.vars;
+    if notice_kind() == 2 && net.setup().most_players.get() as i32 > 4 {
+        net.setup().most_players.set(4);
     }
     let event = create_event(0, 0);
     if handle_flags(event).0 {

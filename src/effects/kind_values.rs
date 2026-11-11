@@ -4,6 +4,7 @@
 //! of 0x22 three-float entries.
 
 use crate::effects::kind_store::{CONSTS_1, CONSTS_2, KindConsts, QuadWork, TABLES_1, TABLES_2};
+use crate::effects::owner::Effects;
 #[cfg(test)]
 use crate::effects::owner::effects;
 use crate::errors::{BadInput, Refused};
@@ -15,86 +16,70 @@ pub const KINDS: u32 = 0x22;
 
 /// One set's variables, in the order the code uses them (the typed statics of
 /// `effects::kind_store`).
-pub struct KindSet {
+pub struct KindSet<'a> {
     /// Tables of 0x22 three-float entries: `to`, `from`, `copied`.
-    pub triples: [&'static [[f32; 3]; KINDS as usize]; 3],
+    pub triples: [&'a [[f32; 3]; KINDS as usize]; 3],
     /// Tables of 0x22 floats: `size`, `divisor`, `low`, `high`, `start`, `middle`, `end`,
     /// `spread`, `extra`.
-    pub values: [&'static [f32; KINDS as usize]; 9],
+    pub values: [&'a [f32; KINDS as usize]; 9],
     /// The table of 0x22 dwords: `count`.
-    pub count: &'static [u32; KINDS as usize],
+    pub count: &'a [u32; KINDS as usize],
     /// The constants.
-    pub consts: &'static KindConsts,
+    pub consts: &'a KindConsts,
     /// The quad the values are put in.
-    pub quad: &'static QuadWork,
+    pub quad: &'a QuadWork,
     /// Out: `extra`.
-    pub extra: &'static PlainFloat,
+    pub extra: &'a PlainFloat,
     /// `divisor` copied here too (the first set only).
-    pub divisor_copy: Option<&'static PlainDword>,
+    pub divisor_copy: Option<&'a PlainDword>,
 }
 
-pub const FIRST: KindSet = KindSet {
-    triples: [&TABLES_1.to, &TABLES_1.from, &TABLES_1.copied],
-    values: [
-        &TABLES_1.size,
-        &TABLES_1.divisor,
-        &TABLES_1.low,
-        &TABLES_1.high,
-        &TABLES_1.start,
-        &TABLES_1.middle,
-        &TABLES_1.end,
-        &TABLES_1.spread,
-        &TABLES_1.extra,
-    ],
-    count: &TABLES_1.count,
-    consts: &CONSTS_1,
-    quad: &crate::effects::owner::EFFECTS
-        .unchecked()
-        .kinds
-        .overlay_quad,
-    extra: &crate::effects::owner::EFFECTS
-        .unchecked()
-        .kinds
-        .overlay_extras
-        .extra,
-    divisor_copy: Some(
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .kinds
-            .overlay_extras
-            .divisor_copy,
-    ),
-};
+pub fn first(effects: &Effects) -> KindSet<'_> {
+    KindSet {
+        triples: [&TABLES_1.to, &TABLES_1.from, &TABLES_1.copied],
+        values: [
+            &TABLES_1.size,
+            &TABLES_1.divisor,
+            &TABLES_1.low,
+            &TABLES_1.high,
+            &TABLES_1.start,
+            &TABLES_1.middle,
+            &TABLES_1.end,
+            &TABLES_1.spread,
+            &TABLES_1.extra,
+        ],
+        count: &TABLES_1.count,
+        consts: &CONSTS_1,
+        quad: &effects.kinds.overlay_quad,
+        extra: &effects.kinds.overlay_extras.extra,
+        divisor_copy: Some(&effects.kinds.overlay_extras.divisor_copy),
+    }
+}
 
-pub const SECOND: KindSet = KindSet {
-    triples: [&TABLES_2.to, &TABLES_2.from, &TABLES_2.copied],
-    values: [
-        &TABLES_2.size,
-        &TABLES_2.divisor,
-        &TABLES_2.low,
-        &TABLES_2.high,
-        &TABLES_2.start,
-        &TABLES_2.middle,
-        &TABLES_2.end,
-        &TABLES_2.spread,
-        &TABLES_2.extra,
-    ],
-    count: &TABLES_2.count,
-    consts: &CONSTS_2,
-    quad: &crate::effects::owner::EFFECTS.unchecked().kinds.shadow_quad,
-    extra: &crate::effects::owner::EFFECTS
-        .unchecked()
-        .kinds
-        .shadow_extra
-        .extra,
-    divisor_copy: None,
-};
+pub fn second(effects: &Effects) -> KindSet<'_> {
+    KindSet {
+        triples: [&TABLES_2.to, &TABLES_2.from, &TABLES_2.copied],
+        values: [
+            &TABLES_2.size,
+            &TABLES_2.divisor,
+            &TABLES_2.low,
+            &TABLES_2.high,
+            &TABLES_2.start,
+            &TABLES_2.middle,
+            &TABLES_2.end,
+            &TABLES_2.spread,
+            &TABLES_2.extra,
+        ],
+        count: &TABLES_2.count,
+        consts: &CONSTS_2,
+        quad: &effects.kinds.shadow_quad,
+        extra: &effects.kinds.shadow_extra.extra,
+        divisor_copy: None,
+    }
+}
 
 /// The kind's values of one set. Refuses a kind past the tables (0x22).
-pub fn set_kind_values(
-    k: &KindSet,
-    effects: &crate::effects::owner::Effects,
-) -> Result<(), Refused> {
+pub fn set_kind_values(k: &KindSet<'_>, effects: &Effects) -> Result<(), Refused> {
     let kind: u32 = effects.kinds.marks_kind.kind.get();
     if kind >= KINDS {
         return Err(BadInput("the marks' kind is past the tables (0x22)").into());

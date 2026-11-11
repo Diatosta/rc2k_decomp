@@ -6,7 +6,8 @@
 //! Takes `item`, `text`, `width`, `font`.
 //! Callers: `net::begin_setting_edit`, `net::begin_chat`.
 
-use crate::net::owner::net;
+use crate::install::owner::Install;
+use crate::net::owner::Net;
 
 /// The texts an edit works on (`crate::net::owner::net().edit().edit_text`, where the original keeps the address): the
 /// settings' machine name, host address and players' count (written into the installer's
@@ -21,18 +22,18 @@ pub enum EditedText {
 
 impl EditedText {
     /// The text's buffer.
-    pub fn text(self, install: &crate::install::owner::Install) -> &dyn crate::pointers::Store {
+    pub fn text<'a>(self, net: &'a Net, install: &'a Install) -> &'a dyn crate::pointers::Store {
         match self {
-            EditedText::MachineName => &net().setup().machine_name,
-            EditedText::HostAddress => &net().setup().host_address,
+            EditedText::MachineName => &net.setup().machine_name,
+            EditedText::HostAddress => &net.setup().host_address,
             EditedText::MostPlayers => &install.paths.path_a,
-            EditedText::ChatInput => &net().edit().chat_input,
+            EditedText::ChatInput => &net.edit().chat_input,
         }
     }
 
     /// The text `crate::net::owner::net().edit().edit_text` names (refused when none is).
-    pub fn edited() -> Result<Self, crate::errors::BadInput> {
-        Ok(match net().edit().edit_text.get() {
+    pub fn edited(net: &Net) -> Result<Self, crate::errors::BadInput> {
+        Ok(match net.edit().edit_text.get() {
             1 => EditedText::MachineName,
             2 => EditedText::HostAddress,
             3 => EditedText::MostPlayers,
@@ -42,18 +43,19 @@ impl EditedText {
     }
 }
 pub fn begin_edit(
+    net: &Net,
+    install: &Install,
     item: u32,
     text: EditedText,
     width: u32,
     font: crate::gfx::typefaces::FontId,
 ) -> Result<(), crate::errors::Refused> {
-    let install = crate::install::owner::install();
-    net().edit().edited.set(item);
-    net().edit().edit_text.set(text as u32);
-    net().edit().edit_width.set(width);
-    net().edit().edit_font.set(font);
+    net.edit().edited.set(item);
+    net.edit().edit_text.set(text as u32);
+    net.edit().edit_width.set(width);
+    net.edit().edit_font.set(font);
     Ok(crate::pointers::copy_between(
-        text.text(install),
+        text.text(net, install),
         0,
         &install.paths.script_path,
         0,

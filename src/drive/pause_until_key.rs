@@ -14,7 +14,6 @@ use crate::drive::race_parts::{
     input_update, race_frame, race_keys, stop_race_sounds, take_key, wake_car_sounds,
 };
 use crate::errors::Refused;
-use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use rc2k_core::drive::race_ticks;
 
@@ -39,9 +38,9 @@ pub fn pause_until_key(
     stop_race_sounds()?;
     shared.vars.scene_switch.set(1);
     for c in 0..2 {
-        CAR_BLOCKS.cars[c as usize].notice_id.set(0xCB);
-        CAR_BLOCKS.cars[c as usize].notice_time_b.set(0);
-        CAR_BLOCKS.cars[c as usize].notice_time.set(u32::MAX);
+        race.car_blocks().cars[c as usize].notice_id.set(0xCB);
+        race.car_blocks().cars[c as usize].notice_time_b.set(0);
+        race.car_blocks().cars[c as usize].notice_time.set(u32::MAX);
     }
     shared.vars.pause_wait.set(0x1E);
     // From 0x4453EE (the wait held) or 0x445401 (a turn).
@@ -71,13 +70,13 @@ pub fn pause_until_key(
         }
     }
     for c in 0..2 {
-        CAR_BLOCKS.cars[c as usize].notice_shown.set(0);
-        CAR_BLOCKS.cars[c as usize].notice_id.set(0);
-        CAR_BLOCKS.cars[c as usize].notice_last.set(0);
+        race.car_blocks().cars[c as usize].notice_shown.set(0);
+        race.car_blocks().cars[c as usize].notice_id.set(0);
+        race.car_blocks().cars[c as usize].notice_last.set(0);
     }
     shared.vars.scene_switch.set(0);
     wake_car_sounds(race)?;
     take_key();
-    CAR_BLOCKS.cars[0].input_keys.set(0);
+    race.car_blocks().cars[0].input_keys.set(0);
     Ok(())
 }

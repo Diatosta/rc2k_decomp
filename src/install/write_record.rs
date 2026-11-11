@@ -8,12 +8,14 @@
 
 use crate::errors::Refused;
 use crate::install::installer::media_mode;
-use crate::strings::owner::strings;
 
 /// The record written; whether the write worked (the original passes `write_file`'s carry
 /// on, and `install_files` reads it).
-pub fn write_record(install: &'static crate::install::owner::Install) -> Result<bool, Refused> {
-    let start = crate::place::BytePlace::from(&strings().text.buffer.text);
+pub fn write_record(
+    install: &'static crate::install::owner::Install,
+    strings: &'static crate::strings::owner::Strings,
+) -> Result<bool, Refused> {
+    let start = crate::place::BytePlace::from(&strings.text.buffer.text);
     // Converted: `rc2k_core::install::config::record_text` (the header and keys as its
     // constants).
     let locale = (crate::files::state::directory_byte(1) != 0)

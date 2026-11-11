@@ -7,15 +7,15 @@
 //! See `net/mod.rs` and `net::send_inputs` (the shared body). One caller, `net::send_turn`
 //! (step 2 of 32).
 use crate::errors::Refused;
-use crate::net::owner::net;
+use crate::net::owner::Net;
 use crate::net::send_inputs::{Message, send_fields};
+use crate::race::owner::Race;
 
 pub const POSITION: Message = Message {
     text: c"send p", // "send p"
     kind: rc2k_core::net::race::Kind::Position,
 };
-pub fn send_position() -> Result<(), Refused> {
-    let net = net();
+pub fn send_position(race: &Race, net: &Net) -> Result<(), Refused> {
     // Converted: `rc2k_core::net::race::Kind::pack` (in `send_fields`).
-    send_fields(net, &POSITION)
+    send_fields(race, net, &POSITION)
 }

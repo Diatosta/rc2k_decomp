@@ -20,8 +20,8 @@ pub fn read_pcx(path: &[u8], gfx: &crate::gfx::owner::Gfx) -> Result<bool, BadIn
     // Converted: `rc2k_core::gfx::pcx::kind`.
     use rc2k_core::gfx::pcx::{Kind, kind};
     match kind(&gfx.pictures.pcx.header.read()) {
-        Some(Kind::Palette) => read_pcx_8bit(path),
-        Some(Kind::Planes) => read_pcx_24bit(path),
+        Some(Kind::Palette) => read_pcx_8bit(path, gfx),
+        Some(Kind::Planes) => read_pcx_24bit(path, gfx),
         None => Ok(false),
     }
 }

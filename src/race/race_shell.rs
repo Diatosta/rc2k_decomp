@@ -1,7 +1,6 @@
 //! The race's shell (`race::single_rally_race`, `single_rally`'s race, and `race::run_race`): what runs round a stage's loading and its run. Here its small leaves.
 use crate::net::owner::net;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::kind_store::KIND_TABLES;
 use crate::race::owner::Race;
 use crate::race::owner_physics::Physics;
 use crate::race::owner_shared::RaceShared;
@@ -73,8 +72,8 @@ pub fn seal_stage_time(race: &Race) -> Result<(), BadInput> {
     {
         let key = replay.seal_key.get();
         let sealed = rc2k_core::race::seal::seal_time(
-            CAR_BLOCKS.cars[0].stop_state.get(),
-            || CAR_BLOCKS.cars[0].stage_time.get(),
+            race.car_blocks().cars[0].stop_state.get(),
+            || race.car_blocks().cars[0].stage_time.get(),
             key,
         );
         race.shared.replay_file.index_seal.set(sealed);
@@ -126,8 +125,8 @@ fn start_value(physics: &Physics, kind: u32) -> u32 {
 }
 
 /// Whether a kind is one with its flag (`kind_has_views`) set (below 0x22).
-fn flagged(kind: u32) -> bool {
-    kind < 0x22 && KIND_TABLES.kind_has_views[kind as usize].get() != 0 // ViewerAndKinds.kind_tables.kind_has_views[0]: 0x22
+fn flagged(race: &Race, kind: u32) -> bool {
+    kind < 0x22 && race.kind_tables().kind_has_views[kind as usize].get() != 0 // ViewerAndKinds.kind_tables.kind_has_views[0]: 0x22
 }
 
 /// A block's camera view (+0x684) of 2 or 3 made 4.
@@ -169,7 +168,7 @@ pub fn set_start_states(race: &Race) -> Result<(), Refused> {
         if one {
             shared.vars.split.set(0u32);
             let block = shared.work.car(chosen as usize)?;
-            if !flagged(block.car_kind.get()) {
+            if !flagged(race, block.car_kind.get()) {
                 settle_state(&block.camera_view);
             }
             return Ok(());
@@ -177,10 +176,10 @@ pub fn set_start_states(race: &Race) -> Result<(), Refused> {
         let two = shared.view.players.get() == 2;
         let held = rc2k_core::race::cars::held_split(two, shared.vars.split.get() as i32);
         shared.vars.split.set(held as u32);
-        let kind_0: u32 = CAR_BLOCKS.cars[0].car_kind.get();
-        if !flagged(kind_0) || shared.view.players.get() >= 2 {
-            settle_state(&CAR_BLOCKS.cars[0].camera_view);
-            settle_state(&CAR_BLOCKS.cars[1].camera_view);
+        let kind_0: u32 = race.car_blocks().cars[0].car_kind.get();
+        if !flagged(race, kind_0) || shared.view.players.get() >= 2 {
+            settle_state(&race.car_blocks().cars[0].camera_view);
+            settle_state(&race.car_blocks().cars[1].camera_view);
         }
     }
     Ok(())
@@ -202,36 +201,36 @@ pub fn store_results_by_mode(race: &Race) {
                 .state
                 .results
                 .figure_ffc
-                .set(CAR_BLOCKS.cars[0].time_left.get());
-            let v = CAR_BLOCKS.cars[0].mode2_place.get();
+                .set(race.car_blocks().cars[0].time_left.get());
+            let v = race.car_blocks().cars[0].mode2_place.get();
             shared.state.results.figure_000.set(v);
             shared.tables.start_place.set(v);
             shared.state.results.results[0]
                 .time
-                .set(CAR_BLOCKS.cars[0].stage_time.get());
+                .set(race.car_blocks().cars[0].stage_time.get());
         }
         0 => {
             shared.state.results.results[0]
                 .time
-                .set(CAR_BLOCKS.cars[0].stage_time.get());
+                .set(race.car_blocks().cars[0].stage_time.get());
             shared.state.results.results[1]
                 .time
-                .set(CAR_BLOCKS.cars[1].stage_time.get());
+                .set(race.car_blocks().cars[1].stage_time.get());
             let total = physics.split_tables.stage_car_total.get();
             shared.state.results.results[0]
                 .word
-                .set(margin(total, CAR_BLOCKS.cars[0].stage_time.get()));
+                .set(margin(total, race.car_blocks().cars[0].stage_time.get()));
             shared.state.results.results[1]
                 .word
-                .set(margin(total, CAR_BLOCKS.cars[1].stage_time.get()));
+                .set(margin(total, race.car_blocks().cars[1].stage_time.get()));
         }
         1 | 3 => {
             shared.state.results.results[0]
                 .time
-                .set(CAR_BLOCKS.cars[0].stage_time.get());
+                .set(race.car_blocks().cars[0].stage_time.get());
             shared.state.results.results[1]
                 .time
-                .set(CAR_BLOCKS.cars[1].stage_time.get());
+                .set(race.car_blocks().cars[1].stage_time.get());
         }
         _ => {}
     }

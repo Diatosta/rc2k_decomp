@@ -11,6 +11,7 @@
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
+use crate::menu::screen_loop::Entry;
 use crate::menu::standings::*;
 use crate::menu::standings_steps::number_standings;
 use rc2k_core::menu::class_pages;
@@ -22,7 +23,7 @@ fn first_class(screens: &Screens) -> u32 {
     class_pages::first_stage_class(screens.state.menus.class_mode.get())
 }
 
-pub fn class_stage_results_pass(menus: &Menus) -> Result<(), Refused> {
+pub fn class_stage_results_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
     let screens = &menus.screens;
     crate::menu::sort_standings_by_time::sort_standings_by_time(menus)?;
     let first = first_class(screens);
@@ -41,7 +42,7 @@ pub fn class_stage_results_pass(menus: &Menus) -> Result<(), Refused> {
         menus.screens.loop_flags.left_with_carry.set(true);
         let numbered = number_standings(menus, Which::A, class)?;
         menus.screens.event.count_a.set(numbered.last_number);
-        crate::menu::show_class_stage_results::show_class_stage_results(menus, class)?;
+        crate::menu::show_class_stage_results::show_class_stage_results(menus, class, entry)?;
         if menus.tables.pages.yes_no_answer.get() == 1 {
             break;
         }

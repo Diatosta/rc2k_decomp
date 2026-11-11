@@ -21,7 +21,7 @@
 //! registers, no calls by place). DirectPlay's methods from Rust (`net::dplay`).
 
 use crate::net::store::NetVars;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 
 pub mod add_address_element;
 pub mod add_chat_line;
@@ -133,9 +133,9 @@ pub mod types;
 pub mod unlock_received;
 
 /// Logs as the send functions do: "send x", the player, the step (`log_int_l1_nl`).
-pub fn log_send(vars: &NetVars, text: &std::ffi::CStr) {
+pub fn log_send(race: &Race, vars: &NetVars, text: &std::ffi::CStr) {
     use crate::logfile::log_int::log_int;
     crate::logfile::log_write::log_nul(&text, false, 1);
     log_int(vars.player.get() as i32, false, 1);
-    log_int(race().shared.view.local_car.get() as i32, true, 1);
+    log_int(race.shared.view.local_car.get() as i32, true, 1);
 }

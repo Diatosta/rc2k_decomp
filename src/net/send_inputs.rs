@@ -10,10 +10,9 @@
 use crate::errors::{BadInput, Refused};
 use crate::net::log_send;
 use crate::net::owner::Net;
-use crate::net::owner::net;
 use crate::net::send_message::send_message;
 use crate::physics::car_store::Car;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::session::Cell32;
 use rc2k_core::net::race::Limit::{Free, Gauge, Gear, Large, Pedal};
 use rc2k_core::net::race::{Kind, Limit};
@@ -110,11 +109,11 @@ const EXTRA_FIELDS: [Field; 9] = [
 ];
 
 /// The shared body: the car block `g_car`, the message built at `RaceWork::net_message`.
-pub fn send_fields(net: &Net, m: &Message) -> Result<(), Refused> {
-    let shared = &race().shared;
+pub fn send_fields(race: &Race, net: &Net, m: &Message) -> Result<(), Refused> {
+    let shared = &race.shared;
     let car = &shared.car;
     let message = &shared.work.net_message;
-    log_send(&net.vars, m.text);
+    log_send(race, &net.vars, m.text);
     // The tag, then the kind's fields' bits.
     let mut dwords = vec![m.kind.tag()];
     dwords.extend(fields(m.kind).iter().map(|(field, _)| field(car).bits()));
@@ -127,15 +126,15 @@ pub fn send_fields(net: &Net, m: &Message) -> Result<(), Refused> {
     let bytes: Vec<u8> = dwords.iter().flat_map(|v| v.to_le_bytes()).collect();
     send_message(net, &bytes)
 }
-pub fn send_inputs() -> Result<(), Refused> {
-    let net = net();
-    send_fields(net, &INPUTS)
+pub fn send_inputs(race: &Race, net: &Net) -> Result<(), Refused> {
+    send_fields(race, net, &INPUTS)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::pointers::GamePtr;
+    use crate::race::owner::race;
 
     /// Each field sits where the core's table had its offset in the car's block.
     #[test]

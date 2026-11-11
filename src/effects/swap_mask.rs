@@ -60,7 +60,7 @@ pub fn swap_mask(
         return Err(BadInput("a mask pixel past its block").into());
     };
     for (row, col, pixel) in pixels {
-        put_pixel(pixel, col, row + masks::TEXTURE_ROW_AT)?;
+        put_pixel(pixel, col, row + masks::TEXTURE_ROW_AT, gfx)?;
     }
     lock(scene.textures.kinds.kind_first_textures[202].get(), false)?;
     crate::scene::forget_slot_texture::forget_slot_texture(

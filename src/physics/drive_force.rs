@@ -10,7 +10,7 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87::{mul_div2, sum_times_int_over_minus};
 use crate::physics::drive_torque_share::drive_torque_share;
 use crate::physics::engine_torque_or_cut::engine_torque_or_cut;
-use crate::physics::gear_store::GEAR;
+use crate::physics::gear_store::GearFigures;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
 
@@ -18,6 +18,7 @@ use crate::race::owner_shared::RaceShared;
 pub fn drive_force(
     course: &Course,
     shared: &RaceShared,
+    gear_figures: &GearFigures,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let gear = shared.car.gear.get();
@@ -37,7 +38,7 @@ pub fn drive_force(
     shared.physics_tables.drive_torque.set_bits(
         mul_div2(
             &shared.physics_tables.drive_ratio,
-            &GEAR.drive_torque_figure,
+            &gear_figures.drive_torque_figure,
             &shared.physics_tables.gear_ratios[(gear as i32 + 1) as usize],
             &course.numbers.k10000,
         )

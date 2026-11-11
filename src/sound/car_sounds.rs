@@ -12,20 +12,25 @@
 use crate::errors::{BadInput, Refused};
 
 /// Car `n`'s sounds for the turn.
-pub fn car_sounds(n: u32, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
+pub fn car_sounds(
+    n: u32,
+    sound: &crate::sound::owner::Sound,
+    race: &crate::race::owner::Race,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     if n > 7 {
         return Err(BadInput("a car's sound object past 7").into());
     }
     let so = crate::sound::store::SoundObject::number(n)?;
     let request = crate::sound::turn_parts::request();
-    let kind = crate::sound::car_engine_state::car_engine_state(so, sound)?;
+    let kind = crate::sound::car_engine_state::car_engine_state(so, sound, race, system)?;
     request.pitch_factor.set(so.pitch_factor.get());
     request.volume_factor.set(so.volume_factor.get());
     use crate::sound::*;
     revs_sound::revs_sound(so, kind, request, sound)?;
     throttle_sound::throttle_sound(so, kind, request, sound)?;
     speed_sound::speed_sound(so, kind, request, sound)?;
-    surface_sounds::surface_sounds(so, request, sound)?;
+    surface_sounds::surface_sounds(so, request, sound, system)?;
     car_slot_sounds::car_slot_sounds(so, request)?;
     car_hit_sound::car_hit_sound(so, request)?;
     car_cue_sound::car_cue_sound(so, request)?;

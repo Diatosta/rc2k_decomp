@@ -20,9 +20,7 @@
 //! `div` faults).
 
 use crate::errors::{BadInput, Refused};
-use crate::gfx::owner::gfx;
 use crate::install::installer::{copy_picture, draw_text, lock, show, unlock};
-use crate::strings::owner::strings;
 
 const FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEADING_23;
 
@@ -38,9 +36,12 @@ fn bar_width(install: &'static crate::install::owner::Install) -> Result<u32, Re
 }
 
 /// The progress frame: its carry (the last lock's or show's).
-pub fn progress_frame(install: &'static crate::install::owner::Install) -> Result<bool, Refused> {
-    let strings = strings();
-    let drawing = &gfx().drawing;
+pub fn progress_frame(
+    install: &'static crate::install::owner::Install,
+    strings: &crate::strings::owner::Strings,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<bool, Refused> {
+    let drawing = &gfx.drawing;
     let width = bar_width(install)?;
     let mut carry = false;
     for _ in 0..2 {

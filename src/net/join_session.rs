@@ -14,23 +14,23 @@ use crate::net::host_session::{OPEN_JOIN, finish, open};
 use crate::net::lobby::{log_bytes, log_int_nl};
 use crate::net::owner::Net;
 use crate::net::store::put_bytes;
-use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
+use crate::race::viewer_screen_store::{ViewerPanelBlock, texts};
 
 /// The code at 0x418D77 as the receiving thread calls it when it is posted.
 pub fn posted_open_join() -> u32 {
     open(OPEN_JOIN, b"")
 }
 
-fn join_group() -> Result<bool, Refused> {
-    Ok(crate::net::join_group::join_group())
+fn join_group(vars: &crate::net::store::NetVars) -> Result<bool, Refused> {
+    Ok(crate::net::join_group::join_group(vars))
 }
-pub fn join_session(net: &Net, number: u32) -> Result<bool, Refused> {
-    log_bytes(&VIEWER_PANEL.text(texts::NET_JOIN_SESSION), false, 2);
+pub fn join_session(net: &Net, panel: &ViewerPanelBlock, number: u32) -> Result<bool, Refused> {
+    log_bytes(&panel.text(texts::NET_JOIN_SESSION), false, 2);
     log_int_nl(number, 1);
     if net.vars.dplay.get() == 0 {
         return Ok(false);
     }
-    let s = crate::net::tables::with_session(number, |s| *s)?;
+    let s = crate::net::tables::with_session(&net.vars, number, |s| *s)?;
     net.joined()
         .joined
         .write_at(0, &s.instance, "the joined session")?;
@@ -44,5 +44,11 @@ pub fn join_session(net: &Net, number: u32) -> Result<bool, Refused> {
     net.vars.session_desc.clear();
     net.vars.session_desc.size.set(0x50);
     put_bytes(&net.vars.session_desc.instance, &net.joined().joined.read());
-    finish(net, posted_open_join, join_group, texts::NET_JOIN_COMPLETE)
+    finish(
+        net,
+        panel,
+        posted_open_join,
+        join_group,
+        texts::NET_JOIN_COMPLETE,
+    )
 }

@@ -7,36 +7,49 @@
 //! before anything.
 
 use crate::errors::Refused;
-use crate::gfx::owner::gfx;
+use crate::gfx::owner::{Gfx, gfx};
 use crate::menu::disable_item::disable_item;
 use crate::menu::enable_item::enable_item;
 use crate::menu::owner::Menus;
 use crate::text::draw_text::Canvas;
 
 /// (the setting, its first string, its row) for the names; row 1 is the screen mode.
-type Name = (fn(&Menus) -> u32, u32, i32);
+type Name = (fn(&Menus, &Gfx) -> u32, u32, i32);
 
 const NAMES: [Name; 8] = [
-    (|_| gfx().display.choices.card.get(), 0x38F, 0),
-    (|_| gfx().display.choices.buffering.get(), 0x391, 2),
-    (|_| gfx().display.choices.mipmapping.get(), 0x56D, 3),
-    (|menus| menus.screens.option_work.lens_flare.get(), 0x56D, 4),
+    (|_, gfx| gfx.display.choices.card.get(), 0x38F, 0),
+    (|_, gfx| gfx.display.choices.buffering.get(), 0x391, 2),
+    (|_, gfx| gfx.display.choices.mipmapping.get(), 0x56D, 3),
     (
-        |menus| menus.screens.option_work.reflections.get(),
+        |menus, _| menus.screens.option_work.lens_flare.get(),
+        0x56D,
+        4,
+    ),
+    (
+        |menus, _| menus.screens.option_work.reflections.get(),
         0x56D,
         5,
     ),
     (
-        |menus| menus.screens.option_work.car_shadows.get(),
+        |menus, _| menus.screens.option_work.car_shadows.get(),
         0x396,
         6,
     ),
-    (|menus| menus.screens.option_work.car_detail.get(), 0x393, 7),
-    (|menus| menus.screens.option_work.headlights.get(), 0x394, 8),
+    (
+        |menus, _| menus.screens.option_work.car_detail.get(),
+        0x393,
+        7,
+    ),
+    (
+        |menus, _| menus.screens.option_work.headlights.get(),
+        0x394,
+        8,
+    ),
 ];
 
 pub fn draw_graphics_settings(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let display = &gfx().display;
+    let gfx = gfx();
+    let display = &gfx.display;
     // The logic is in `rc2k_core::screens::settings_pages::{graphics_item, graphics}`.
     use crate::screens::game_screen::SettingsScreen;
     {
@@ -50,7 +63,7 @@ pub fn draw_graphics_settings(menus: &Menus, canvas: &mut dyn Canvas) -> Result<
         }
         let place = display.choices.resolution.get();
         let v = |i: usize| display.choices.list.dword(place, i, "a screen mode");
-        let ids = NAMES.map(|(setting, first, _)| setting(menus).wrapping_add(first));
+        let ids = NAMES.map(|(setting, first, _)| setting(menus, gfx).wrapping_add(first));
         rc2k_core::screens::settings_pages::graphics(
             &mut SettingsScreen::new(canvas),
             ids,

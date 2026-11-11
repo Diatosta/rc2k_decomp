@@ -36,13 +36,13 @@ pub fn session_found(desc: Option<&Desc>, flags: u32) -> Result<u32, Refused> {
         return Ok(0);
     };
     vars.sessions.set(count + 1);
-    let mut name = with_session(count, |s| s.name)?;
+    let mut name = with_session(vars, count, |s| s.name)?;
     copy_printable_into(d.name.as_bytes(), &mut name, 0x40)?;
     let mut user = [0u8; 16];
     for (k, v) in d.user.iter().enumerate() {
         user[4 * k..4 * k + 4].copy_from_slice(&v.to_le_bytes());
     }
-    with_session(count, |s| {
+    with_session(vars, count, |s| {
         s.name = name;
         s.instance = d.instance;
         s.max_players = d.max_players;

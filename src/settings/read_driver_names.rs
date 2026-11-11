@@ -15,7 +15,6 @@ use crate::errors::BadInput;
 use crate::menu::owner::Menus;
 use crate::settings::read_text::read_text;
 use crate::strings::format_u32::format_u32;
-use crate::strings::owner::strings;
 
 // ---- game data ----
 
@@ -34,7 +33,7 @@ pub const NAMES_SIZE: usize = NAMES_LEN + POOL_ROOM;
 /// in `NAMES` (the original kept its address), 0 for none. Bounded to `NAMES`.
 #[cfg(test)]
 pub fn name_at(slot: u32) -> crate::pointers::GamePtr {
-    crate::pointers::GamePtr::to(&strings().drivers.names).offset(slot)
+    crate::pointers::GamePtr::to(&crate::strings::owner::strings().drivers.names).offset(slot)
 }
 
 /// The path of `var\name.cfg` (without its NUL).
@@ -42,8 +41,11 @@ pub fn path() -> &'static [u8] {
     &PATH[..PATH.len() - 1]
 }
 
-pub fn read_driver_names(menus: &Menus, path: &[u8]) -> Result<(), BadInput> {
-    let strings = strings();
+pub fn read_driver_names(
+    menus: &Menus,
+    strings: &crate::strings::owner::Strings,
+    path: &[u8],
+) -> Result<(), BadInput> {
     let cars = &menus.cars;
     // Converted: `rc2k_core::files::settings::driver_names`; the pool's room checked before
     // anything is written. The key the original makes in place (`aName000`) is left as

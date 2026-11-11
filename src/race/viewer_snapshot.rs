@@ -11,8 +11,7 @@ use crate::errors::Refused;
 use crate::race::find_snapshot_number::DIGITS_AT;
 use crate::race::owner_replay::Replay;
 
-pub fn viewer_snapshot(replay: &Replay) -> Result<(), Refused> {
-    let gfx = crate::gfx::owner::gfx();
+pub fn viewer_snapshot(replay: &Replay, gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::viewer::next_snapshot`.
     let what = "the snapshot's digits";
     let digits: [u8; 3] = replay

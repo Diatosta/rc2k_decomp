@@ -12,10 +12,7 @@
 //! until it meets the count), and a list that holds a block (`free_list`'s refusal; no block
 //! is put on a list any more).
 
-use crate::effects::mask_store::Masks;
 use crate::effects::owner::Effects;
-use crate::effects::owner::effects;
-use crate::effects::ring_store::Ring;
 use crate::errors::{BadInput, Refused};
 use crate::memory::MemoryList;
 use crate::memory::free_list::free_list;
@@ -24,8 +21,8 @@ use crate::pointers::{Store, load_value};
 // The cars' loop starts from the settings' +0x29C (car 0).
 const MOST_CARS: i32 = 8;
 /// The six lists, in the order freed.
-fn lists<'a>(ring: &'a Ring, masks: &'a Masks) -> [&'a dyn Store; 6] {
-    let blocks = &effects().blocks;
+fn lists(effects: &Effects) -> [&dyn Store; 6] {
+    let (ring, masks, blocks) = (&effects.ring, &effects.masks, &effects.blocks);
     [
         &ring.pool.list,      // g_marksRingList
         &ring.work.list,      // RingWork.list
@@ -45,10 +42,10 @@ fn car_lists(effects: &Effects) -> Result<Vec<&dyn Store>, BadInput> {
 }
 
 /// Whether any list it frees holds blocks, the cars' first.
-fn any_holds_blocks(effects: &Effects, ring: &Ring, masks: &Masks) -> Result<bool, Refused> {
+fn any_holds_blocks(effects: &Effects) -> Result<bool, Refused> {
     Ok(crate::effects::try_any(car_lists(effects)?.iter(), |&l| {
         Ok(load_value::<MemoryList>(l, 0)?.head != 0)
-    })? || crate::effects::try_any(lists(ring, masks).iter(), |&l| {
+    })? || crate::effects::try_any(lists(effects).iter(), |&l| {
         Ok(load_value::<MemoryList>(l, 0)?.head != 0)
     })?)
 }
@@ -60,7 +57,7 @@ pub fn tidy_marks(effects: &Effects) -> Result<(), Refused> {
     if !(0..=MOST_CARS).contains(&count) {
         return Err(BadInput("a cars' count below 0 or above 8").into());
     }
-    if any_holds_blocks(effects, ring, masks)? {
+    if any_holds_blocks(effects)? {
         return Err(BadInput("a memory list holding a block").into());
     }
     for n in 0..count as u32 {
@@ -71,7 +68,7 @@ pub fn tidy_marks(effects: &Effects) -> Result<(), Refused> {
         }
         car.point_block.set(paths.morph_work.taken.get());
     }
-    for list in lists(ring, masks) {
+    for list in lists(effects) {
         free_list(list)?;
     }
     // The particles and the masks went with their lists.

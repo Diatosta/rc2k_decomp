@@ -11,6 +11,7 @@
 //! (`element_table`, which held pointers to the data) is not written.
 
 use crate::net::dp_objects::Element;
+use crate::net::owner::Net;
 use crate::session::Bytes;
 use std::sync::Mutex;
 
@@ -18,14 +19,10 @@ use std::sync::Mutex;
 static ELEMENTS: Mutex<Vec<Element>> = Mutex::new(Vec::new());
 
 /// The element of type `data_type` with `data`.
-pub fn add_address_element(data_type: &Bytes<16>, data: &[u8]) {
-    crate::net::owner::net().address().elements.set(
-        crate::net::owner::net()
-            .address()
-            .elements
-            .get()
-            .wrapping_add(1),
-    );
+pub fn add_address_element(net: &Net, data_type: &Bytes<16>, data: &[u8]) {
+    net.address()
+        .elements
+        .set(net.address().elements.get().wrapping_add(1));
     ELEMENTS
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -33,8 +30,8 @@ pub fn add_address_element(data_type: &Bytes<16>, data: &[u8]) {
 }
 
 /// No elements (the count 0).
-pub fn clear() {
-    crate::net::owner::net().address().elements.set(0);
+pub fn clear(net: &Net) {
+    net.address().elements.set(0);
     ELEMENTS
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)

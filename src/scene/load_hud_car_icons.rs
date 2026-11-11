@@ -17,8 +17,6 @@
 //! room) and a car without its block.
 
 use crate::errors::Refused;
-use crate::net::owner::net;
-use crate::race::blocks_store::CAR_BLOCKS;
 use crate::scene::car_icon_number::car_icon_number;
 use crate::scene::file_numbers_store::texts;
 use crate::scene::upload_car_icon::{CarIcon, upload_car_icon};
@@ -38,9 +36,11 @@ const NAMES: [usize; 4] = [
 // Converted: `rc2k_core::scene::car_icons`
 pub fn load_hud_car_icons(
     scene: &crate::scene::owner::Scene,
-    shared: &crate::race::owner_shared::RaceShared,
+    race: &crate::race::owner::Race,
+    net: &crate::net::owner::Net,
 ) -> Result<(), Refused> {
-    let vars = &net().vars;
+    let shared = &race.shared;
+    let vars = &net.vars;
     use rc2k_core::scene::car_icons;
     let texture: u32 = scene.textures.kinds.kind_first_textures[193].get();
     if texture == u32::MAX {
@@ -54,11 +54,11 @@ pub fn load_hud_car_icons(
             .car_kind
             .get()
     } else {
-        CAR_BLOCKS.cars[0].car_kind.get()
+        race.car_blocks().cars[0].car_kind.get()
     };
     let numbers = [
-        car_icon_number(player),
-        car_icon_number(CAR_BLOCKS.cars[1].car_kind.get()),
+        car_icon_number(race, player),
+        car_icon_number(race, race.car_blocks().cars[1].car_kind.get()),
     ];
     car_icons::check_numbers(numbers)?;
     for (number, target_y) in numbers.into_iter().zip(car_icons::ROWS) {

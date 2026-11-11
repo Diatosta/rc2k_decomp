@@ -25,12 +25,14 @@ pub fn test_drive(
         course,
         &shared.physics_tables,
         &shared.car,
+        &GEAR,
         scene,
     )?;
     crate::physics::make_gear_ratios::make_gear_ratios(
         &shared.car,
         &shared.physics_tables,
         &course.numbers,
+        &GEAR,
         scene,
     )?;
     // The figures kept round the run: the drive speeds, the car's speed, the gear, the

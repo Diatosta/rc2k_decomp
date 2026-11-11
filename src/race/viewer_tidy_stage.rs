@@ -11,11 +11,10 @@
 //! `race::choose_save_slot`.
 
 use crate::errors::Refused;
+use crate::owners::Owners;
 use crate::race::owner::Race;
 
-use crate::gfx::owner::gfx;
-
-pub fn viewer_tidy_stage(race: &Race) -> Result<(), Refused> {
+pub fn viewer_tidy_stage(race: &Race, o: Owners<'_>) -> Result<(), Refused> {
     let shared = &race.shared;
     // Converted: `rc2k_core::race::viewer_flow::{tidies, TIDY_FIRST, frees_fonts,
     // TIDY_AFTER}` (the fonts' switch read after the first steps, as the original).
@@ -23,21 +22,24 @@ pub fn viewer_tidy_stage(race: &Race) -> Result<(), Refused> {
     if tidies(shared.replay_file.viewer_stage_loaded.get()) {
         shared.replay_file.viewer_stage_loaded.set(0);
         for step in TIDY_FIRST {
-            run(race, step)?;
+            run(race, o, step)?;
         }
         if frees_fonts(shared.replay_file.viewer_fonts_built.get()) {
-            run(race, TidyStep::FreeFonts)?;
+            run(race, o, TidyStep::FreeFonts)?;
         }
         for step in TIDY_AFTER {
-            run(race, step)?;
+            run(race, o, step)?;
         }
     }
-    run(race, TidyStep::TakeKey)
+    run(race, o, TidyStep::TakeKey)
 }
 
-fn run(race: &Race, step: rc2k_core::race::viewer_flow::TidyStep) -> Result<(), Refused> {
-    let sound = crate::sound::owner::sound();
-    let fonts = &gfx().fonts;
+fn run(
+    race: &Race,
+    o: Owners<'_>,
+    step: rc2k_core::race::viewer_flow::TidyStep,
+) -> Result<(), Refused> {
+    let fonts = &o.gfx.fonts;
     use crate::race::{race_end, sound_tables};
     use rc2k_core::race::viewer_flow::TidyStep;
     match step {
@@ -46,9 +48,9 @@ fn run(race: &Race, step: rc2k_core::race::viewer_flow::TidyStep) -> Result<(), 
             crate::platform::set_menu_mode_now();
         }
         TidyStep::LoadingPicture => {
-            crate::menu::show_loading_picture::show_loading_picture(crate::menu::owner::menus())?;
+            crate::menu::show_loading_picture::show_loading_picture(o.menus)?;
         }
-        TidyStep::ClearRaceSounds => sound_tables::clear_race_sound_objects(sound)?,
+        TidyStep::ClearRaceSounds => sound_tables::clear_race_sound_objects(o.sound)?,
         TidyStep::SoundSettings => crate::sound::apply_settings::apply_settings()?,
         TidyStep::FreeFonts => crate::gfx::free_fonts::free_fonts(
             &fonts.glyph_tables.memory,

@@ -16,7 +16,7 @@ use crate::net::owner::Net;
 use crate::net::owner::net;
 use crate::net::store::NetVars;
 use crate::net::store::put_bytes;
-use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
+use crate::race::viewer_screen_store::{ViewerPanelBlock, texts};
 
 const ENUM_FLAGS: u32 = 0x91;
 const CONNECTING: u32 = 0x8877_015E; // DPERR_CONNECTING
@@ -55,9 +55,9 @@ pub fn posted_or_called(net: &Net, code: fn() -> u32) -> u32 {
         code()
     }
 }
-pub fn find_sessions(net: &Net) -> Result<bool, Refused> {
+pub fn find_sessions(net: &Net, panel: &ViewerPanelBlock) -> Result<bool, Refused> {
     let vars = &net.vars;
-    log_bytes(&VIEWER_PANEL.text(texts::NET_FIND_SESSIONS), true, 2);
+    log_bytes(&panel.text(texts::NET_FIND_SESSIONS), true, 2);
     if vars.dplay.get() == 0 {
         return Ok(false);
     }

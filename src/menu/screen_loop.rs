@@ -377,6 +377,20 @@ impl<'a> Entry<'a> {
     pub fn new(o: Owners<'a>) -> Self {
         Entry::with_cars(o, None)
     }
+    /// The same entry, carrying the list of cars the carousel shows.
+    pub fn with_list(&self, cars: Option<CarList>) -> Self {
+        Entry {
+            menus: self.menus,
+            cars,
+            scene: self.scene,
+            front_end: self.front_end,
+            system: self.system,
+            race: self.race,
+            sound: self.sound,
+            input: self.input,
+            audio: self.audio,
+        }
+    }
     /// Entered with the list of cars the carousel shows.
     pub fn with_cars(o: Owners<'a>, cars: Option<CarList>) -> Self {
         Entry {

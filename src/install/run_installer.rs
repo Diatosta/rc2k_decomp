@@ -19,12 +19,12 @@ use crate::install::installer::{
     set_cd, show, sleep, store_text, unlock, wb,
 };
 use crate::place::BytePlace;
-use crate::system::owner::system;
 
 const FONT_BE: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BOX_TEXT;
 
 pub fn run_installer(install: &'static crate::install::owner::Install) -> Result<(), Refused> {
-    let gfx = crate::gfx::owner::gfx();
+    let o = crate::owners::boundary();
+    let (gfx, system) = (o.gfx, o.system);
     use crate::install as i;
     crate::platform_events::keep_running_after_close();
     // The folder page's edit item (0x51DBC8) shows the folder from its third byte
@@ -39,7 +39,7 @@ pub fn run_installer(install: &'static crate::install::owner::Install) -> Result
     crate::files::state::set_directory_byte(0, 0);
     i::read_languages::read_languages(install, &install.names.lang_cfg.text()[..])?;
     { crate::gfx::build_fonts::build_fonts(gfx) }?;
-    i::open_installer::open_installer(install)?;
+    i::open_installer::open_installer(install, gfx)?;
     // From the command line: the install, and on past the pages (`jmp loc_412EDC`).
     let from_command = install.run.from_command.get() == 1;
     if from_command {
@@ -54,7 +54,7 @@ pub fn run_installer(install: &'static crate::install::owner::Install) -> Result
         push_string_by_id(&mut typed, 0xA0);
         typed.push(0);
         store_text(&install.paths.typed, &typed);
-        if system().session.machine.keyboard_type.get() == 2 {
+        if system.session.machine.keyboard_type.get() == 2 {
             install
                 .paths
                 .typed
@@ -71,7 +71,7 @@ pub fn run_installer(install: &'static crate::install::owner::Install) -> Result
             }
         }
         show_folder(install);
-        i::check_installed_version::check_installed_version(install)?;
+        i::check_installed_version::check_installed_version(install, system)?;
         // The version-match branch changes into the installed folder.
         if install.run.same_version.get() == 1 {
             install.pages.main_menu.header.highlight.set(1);
@@ -86,7 +86,7 @@ pub fn run_installer(install: &'static crate::install::owner::Install) -> Result
         } else {
             crate::install::page_records::PageEntry::normal_run()
         };
-        i::run_pages::run_pages(install, crate::strings::owner::strings(), pages)?;
+        i::run_pages::run_pages(install, o.strings, system, gfx, pages)?;
     }
     if install.run.installing.get() == 1 && install.vars.running_from_cd.get() == 1 && lock() {
         copy_picture()?;

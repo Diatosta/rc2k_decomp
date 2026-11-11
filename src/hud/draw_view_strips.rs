@@ -7,10 +7,8 @@
 //! Caller: `hud::overlay_pass` (0x45A92E).
 
 use crate::errors::{BadInput, Refused};
+use crate::hud::draw_view_strip::Overlay;
 use crate::hud::overlay_pass::shown_layout;
-use crate::race::owner::Race;
-use crate::race::view_scratch::ViewScratch;
-use crate::system::owner::System;
 
 /// Whether the strip of the view block `handle` names is shown (see the header).
 fn flashing(handle: u32) -> Result<bool, BadInput> {
@@ -25,29 +23,24 @@ fn flashing(handle: u32) -> Result<bool, BadInput> {
 }
 
 // Converted: `rc2k_core::hud::strips`
-pub fn draw_view_strips(
-    race: &Race,
-    scratch: &ViewScratch,
-    system: &System,
-) -> Result<(), Refused> {
+pub fn draw_view_strips(overlay: &Overlay) -> Result<(), Refused> {
     use crate::hud::draw_view_strip::{draw_view_strip, overlay_tail};
+    let Overlay { race, scratch, .. } = *overlay;
     use rc2k_core::hud::strips::{SECOND_VIEW, TEXTURES};
     {
         if race.shared.replay_file.hold_car_revs.get() == 0 {
             if flashing(race.shared.view.view_blocks[0].get())? {
                 scratch.polygon.polygon_textures[0].set(TEXTURES[0]);
-                draw_view_strip(race, scratch, system, shown_layout(&race.shared))?;
+                draw_view_strip(overlay, shown_layout(&race.shared))?;
             }
             if shown_layout(&race.shared) != 0 && flashing(race.shared.view.view_blocks[1].get())? {
                 scratch.polygon.polygon_textures[0].set(TEXTURES[1]);
                 draw_view_strip(
-                    race,
-                    scratch,
-                    system,
+                    overlay,
                     shown_layout(&race.shared).wrapping_add(SECOND_VIEW),
                 )?;
             }
         }
-        overlay_tail(race, scratch, system)
+        overlay_tail(overlay)
     }
 }

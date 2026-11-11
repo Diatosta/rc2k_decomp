@@ -11,7 +11,6 @@
 
 use crate::errors::Refused;
 use crate::install::installer::set_cd;
-use crate::system::owner::system;
 use rc2k_core::install::version::{self, Scan};
 
 const READ_TARGET: usize = 0x100; // into the scratch
@@ -20,8 +19,8 @@ const SCAN_LEN: u32 = version::CHUNK;
 
 pub fn check_installed_version(
     install: &'static crate::install::owner::Install,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
-    let system = system();
     install.run.same_version.set(0);
     if install.names.status.get() != 1 || install.names.source.get(0) == 0 {
         return Ok(());

@@ -29,8 +29,7 @@ const ROWS: u32 = 0x7E;
 /// `gfx::read_picture_file` at 256 x 128 (the picture's sizes kept round it); refused
 /// when not read (the original then counts 0x1FFFFFFF down and leaves with its stack one
 /// off).
-fn read(path: &dyn crate::session::TextPlace) -> Result<(), Refused> {
-    let gfx = crate::gfx::owner::gfx();
+fn read(path: &dyn crate::session::TextPlace, gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
     path.text("a mask picture's path")?;
     let sizes: [u32; 3] = [
         gfx.pictures.picture.width.get(),
@@ -51,8 +50,12 @@ fn read(path: &dyn crate::session::TextPlace) -> Result<(), Refused> {
 }
 
 /// `gfx::put_surface_pixel` (components, x, y).
-pub fn put_pixel(components: u32, x: u32, y: u32) -> Result<(), Refused> {
-    let gfx = crate::gfx::owner::gfx();
+pub fn put_pixel(
+    components: u32,
+    x: u32,
+    y: u32,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), Refused> {
     crate::gfx::put_surface_pixel::put_surface_pixel(components, x, y, gfx)?;
     Ok(())
 }
@@ -70,12 +73,19 @@ pub fn lock(slot: u32, lock: bool) -> Result<(), Refused> {
 
 /// A mask read, copied to the 0x80000 block (`copy`), the ground read, and the mask `to`
 /// made and drawn at rows 0x80 .. 0xFD.
-fn mask(masks: &Masks, path: usize, to: Mask, copy: &mut [u8], width: u32) -> Result<(), Refused> {
+fn mask(
+    masks: &Masks,
+    path: usize,
+    to: Mask,
+    copy: &mut [u8],
+    width: u32,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), Refused> {
     {
         // A file path (text up to its NUL) at a byte offset in the paths.
-        read(&masks.picture_copy.paths.text_from(path))?;
+        read(&masks.picture_copy.paths.text_from(path), gfx)?;
         copy[..4 * COPIED as usize].copy_from_slice(&crate::gfx::picture::read_bytes(
-            crate::gfx::owner::gfx().pictures.picture.buffer.get(),
+            gfx.pictures.picture.buffer.get(),
             0,
             4 * COPIED as usize,
         )?);
@@ -85,6 +95,7 @@ fn mask(masks: &Masks, path: usize, to: Mask, copy: &mut [u8], width: u32) -> Re
                 .ground_names
                 .names
                 .text_from(masks.ground_names.ground_path.get() as usize),
+            gfx,
         )?;
         for y in 0..ROWS {
             for x in 0..width.max(1) {
@@ -92,7 +103,7 @@ fn mask(masks: &Masks, path: usize, to: Mask, copy: &mut [u8], width: u32) -> Re
                 let mask = u32::from_le_bytes(copy[n..n + 4].try_into().expect("four bytes"));
                 let pixel = (mask << 8) & 0xFF00_0000 | 0xFF_FFFF;
                 to.pixels(masks).with(|p| p[n / 4] = pixel)?;
-                put_pixel(pixel, x, y + 0x80)?;
+                put_pixel(pixel, x, y + 0x80, gfx)?;
             }
         }
     }
@@ -156,8 +167,8 @@ pub fn load_mask_pictures(
         masks.picture_copy.paths.set(d, digits[0]);
         masks.picture_copy.paths.set(d + 1, digits[1]);
     }
-    mask(masks, MASK_PATH_AT, Mask::Plain, &mut copy, width)?;
-    mask(masks, BMASK_PATH_AT, Mask::Bordered, &mut copy, width)?;
+    mask(masks, MASK_PATH_AT, Mask::Plain, &mut copy, width, gfx)?;
+    mask(masks, BMASK_PATH_AT, Mask::Bordered, &mut copy, width, gfx)?;
     lock(scene.textures.kinds.kind_first_textures[202].get(), false)?;
     crate::scene::forget_slot_texture::forget_slot_texture(
         scene.textures.kinds.kind_first_slots[202].get(),

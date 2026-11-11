@@ -14,7 +14,6 @@ use crate::memory::MemoryList;
 use crate::memory::free_list::free_list;
 use crate::memory::take_from_list::take_from_list;
 use crate::session::PlainDword;
-use crate::strings::owner::strings;
 
 /// IDA's address of the glyph tables' variables.
 pub const START: usize = 0x51B980;
@@ -57,8 +56,8 @@ pub fn begin_glyph_tables(
     vars: &SheetVars,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
+    strings: &crate::strings::owner::Strings,
 ) -> Result<(), Refused> {
-    let strings = strings();
     let pictures = &gfx.pictures;
     pictures.picture.width.set(800u32);
     pictures.picture.height.set(600u32);
@@ -97,8 +96,8 @@ pub fn begin_glyph_table(
     Ok(())
 }
 
-pub fn end_glyph_tables() -> Result<(), BadInput> {
-    free_list(&strings().lexicon.memory.memory)
+pub fn end_glyph_tables(strings: &crate::strings::owner::Strings) -> Result<(), BadInput> {
+    free_list(&strings.lexicon.memory.memory)
 }
 
 /// The last sheet's palette as 256 pixels of the builder's layout at `to`; nothing if `to`

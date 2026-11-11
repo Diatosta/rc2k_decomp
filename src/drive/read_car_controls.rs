@@ -129,6 +129,7 @@ pub fn read_car_controls(race: &Race) -> Result<(), Refused> {
         }
         if pressed & VIEW_BIT != 0 {
             next_view_at(
+                race_owner.kind_tables(),
                 &race_owner.shared.car,
                 &race_owner.shared.view.players,
                 &race_owner.shared.car.step_clock,

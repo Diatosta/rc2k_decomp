@@ -9,27 +9,26 @@
 //! scratch ones. Caller: `effects::emit_wheel_particles`' kind 3. Refuses as `emit_bursts`.
 
 use crate::effects::emit_bursts::BurstTuning;
-use crate::effects::emit_bursts::{BurstSet, HALVES, emit_bursts_with};
+use crate::effects::emit_bursts::{BurstSet, emit_bursts_with, halves};
 use crate::effects::owner::Effects;
 use crate::errors::Refused;
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
 use crate::session::{PlainDword, PlainFloat};
 
 /// `emit_bursts_kind_3`'s: `emit_bursts`' with its own factors and randoms.
-pub const SECOND: BurstSet = BurstSet {
-    halves: HALVES,
-    tuning: &crate::effects::owner::EFFECTS
-        .unchecked()
-        .particles
-        .second_tuning,
-};
+fn second(effects: &Effects) -> BurstSet<'_> {
+    BurstSet {
+        halves: halves(effects),
+        tuning: &effects.particles.second_tuning,
+    }
+}
 
 pub fn emit_bursts_kind_3(
     effects: &Effects,
     wheel: &MarkRecord,
     object: &'static CarEffects,
 ) -> Result<(), Refused> {
-    emit_bursts_with(effects, &SECOND, wheel, object)
+    emit_bursts_with(effects, &second(effects), wheel, object)
 }
 
 impl BurstTuning {

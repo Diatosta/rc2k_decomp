@@ -5,7 +5,6 @@
 //! unsigned), turned to floats (/ 65536) into the car's block, two points put in at 4.
 
 use crate::errors::{BadInput, Refused};
-use crate::race::kind_store::KIND_TABLES;
 use crate::race::owner::Race;
 use crate::session::Dword;
 
@@ -196,8 +195,8 @@ pub fn set_object_kinds(race: &Race, scene: &crate::scene::owner::Scene) -> Resu
             let car = race.shared.work.car(n as usize)?.car_kind.get();
             let k = match kind {
                 CarKind::Known => crate::scene::known_kind::known_kind(car),
-                CarKind::Table11 => car_table(&KIND_TABLES.kind_11_table, car),
-                CarKind::Table10 => car_table(&KIND_TABLES.kind_10_table, car),
+                CarKind::Table11 => car_table(&race.kind_tables().kind_11_table, car),
+                CarKind::Table10 => car_table(&race.kind_tables().kind_10_table, car),
             };
             scene.objects.tables.slot_kinds[(slots + slot) as usize].set(k);
         }

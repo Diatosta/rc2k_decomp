@@ -12,7 +12,7 @@ use crate::net::store::NetVars;
 /// the fatal errors 0x80E68021 / 0x80E68022 are not reached).
 pub fn allocate_lists(vars: &NetVars) -> Result<(), Refused> {
     // Converted: `rc2k_core::net::lists::TABLES` (the tables Rust's, `net::tables`).
-    crate::net::tables::take()?;
+    crate::net::tables::take(vars)?;
     vars.connections.set(0);
     vars.sessions.set(0);
     Ok(())

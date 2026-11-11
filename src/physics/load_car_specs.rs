@@ -24,7 +24,7 @@ use crate::math::x87;
 use crate::math::x87_float::int;
 use crate::math::x87_float::to_int;
 use crate::physics::car_store::Car;
-use crate::physics::gear_store::GEAR;
+use crate::physics::gear_store::GearFigures;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::car_specs_store::CarSpec;
 use crate::race::car_specs_store::CarSpecs;
@@ -70,6 +70,7 @@ pub fn load_car_specs(
     course: &Course,
     physics_tables: &PhysicsTables,
     car: &Car,
+    gear_figures: &GearFigures,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let kind = car.car_kind.get();
@@ -77,7 +78,7 @@ pub fn load_car_specs(
     let drive = check_drive(spec.drive_kind.get())?;
     car.drive_kind.set(drive);
     // 0x4214A7 .. 0x421543
-    load_figures_and_shift_points(car, physics_tables, &course.numbers, spec);
+    load_figures_and_shift_points(car, physics_tables, &course.numbers, gear_figures, spec);
     if below(
         car.engine_speed_limit.bits(),
         course.numbers.thousand.bits(),
@@ -85,7 +86,7 @@ pub fn load_car_specs(
         car.engine_speed_limit
             .set(x87::loaded(&course.numbers.thousand));
     }
-    for figure in &GEAR.figures {
+    for figure in &gear_figures.figures {
         if below(figure.bits(), course.numbers.eight.bits()) {
             figure.set(x87::loaded(&course.numbers.eight));
         }
@@ -135,39 +136,40 @@ fn load_figures_and_shift_points(
     car: &Car,
     tables: &PhysicsTables,
     numbers: &Numbers,
+    gear_figures: &GearFigures,
     s: &CarSpec,
 ) {
     let t0 = int(s.figures[0].get() as i32);
-    GEAR.figures[0].st(t0);
+    gear_figures.figures[0].st(t0);
     let t1 = int(s.figures[1].get() as i32);
-    GEAR.figures[1].st(t1);
+    gear_figures.figures[1].st(t1);
     let t2 = int(s.figures[2].get() as i32);
-    GEAR.figures[2].st(t2);
+    gear_figures.figures[2].st(t2);
     let t3 = int(s.figures[3].get() as i32);
-    GEAR.figures[3].st(t3);
+    gear_figures.figures[3].st(t3);
     let t4 = int(s.engine_top.get() as i32);
     car.engine_speed_limit.st(t4);
     let t5 = tables.spec_scale_1b8.ld();
     car.spec_scale_copy.st(t5);
     let t6 = s.shift_points[0].ld();
-    GEAR.shift_up_point.st(t6);
+    gear_figures.shift_up_point.st(t6);
     let t7 = tables.spec_scale_a4.ld();
     let t8 = t6 * t7;
-    GEAR.shift_ratio_figure.st(t8);
+    gear_figures.shift_ratio_figure.st(t8);
     let t9 = s.shift_points[1].ld();
     let t10 = numbers.tenths[0].ld();
     let t11 = t9 + t10;
-    GEAR.shift_down_point.st(t11);
+    gear_figures.shift_down_point.st(t11);
     let t12 = s.shift_points[2].ld();
     let t13 = numbers.tenths[0].ld();
     let t14 = t12 + t13;
-    GEAR.shift_down_clutch_point.st(t14);
+    gear_figures.shift_down_clutch_point.st(t14);
     let t15 = int(s.over_top.get() as i32);
     let t16 = tables.rev_limit_scale.ld();
     let t17 = t15 * t16;
     let t18 = car.engine_speed_limit.ld();
     let t19 = t17 / t18;
-    GEAR.drive_torque_figure.st(t19);
+    gear_figures.drive_torque_figure.st(t19);
     let t20 = car.engine_speed_limit.ld();
     let t21 = tables.rev_top_scale.ld();
     let t22 = t20 * t21;
@@ -342,6 +344,7 @@ mod asm_reference {
                         &race().shared.car,
                         &race().shared.physics_tables,
                         &race().course.numbers,
+                        race().gear(),
                         &spec_at(a[0], 0x64, 0xB0),
                     );
                 },

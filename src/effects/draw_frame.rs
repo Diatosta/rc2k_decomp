@@ -20,32 +20,18 @@ use crate::session::{PlainFloat, read_bits};
 const CORNERS_FROM: u32 = 0x1C_2000;
 const CORNERS_LEN: u32 = 0x8000;
 /// (the time kept, where it goes).
-const TIMES: [(&PlainFloat, &PlainFloat); 2] = [
-    (
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .frame
-            .draw_frame
-            .times[0],
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .setup
-            .frame
-            .quads_share,
-    ),
-    (
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .frame
-            .draw_frame
-            .times[1],
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .setup
-            .frame
-            .empty_share,
-    ),
-];
+fn times(effects: &Effects) -> [(&PlainFloat, &PlainFloat); 2] {
+    [
+        (
+            &effects.frame.draw_frame.times[0],
+            &effects.setup.frame.quads_share,
+        ),
+        (
+            &effects.frame.draw_frame.times[1],
+            &effects.setup.frame.empty_share,
+        ),
+    ]
+}
 
 fn rdtsc() -> u32 {
     crate::arch::rdtsc() as u32
@@ -95,18 +81,19 @@ pub fn draw_frame(
     cars_particles::cars_particles(effects)?;
     view_heading::view_heading(&race.frame, effects);
     view_motion::view_motion(&race.frame, effects)?;
+    let times = times(effects);
     let start = rdtsc();
     begin_quads::begin_quads(effects, scene);
     let frame = effects.setup.frame.frame_cycles.bits() as i32;
     let took = rdtsc().wrapping_sub(start) as i32;
-    TIMES[0]
+    times[0]
         .1
-        .set(x87::int_over_int_times(took, frame, TIMES[0].0));
+        .set(x87::int_over_int_times(took, frame, times[0].0));
     let start = rdtsc();
     let took = rdtsc().wrapping_sub(start) as i32;
-    TIMES[1]
+    times[1]
         .1
-        .set(x87::int_over_int_times(took, frame, TIMES[1].0));
+        .set(x87::int_over_int_times(took, frame, times[1].0));
     crate::scene::depth_test_on::depth_test_on();
     Ok(())
 }

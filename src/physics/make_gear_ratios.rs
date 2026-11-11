@@ -18,7 +18,7 @@ use crate::math::x87;
 use crate::math::x87::{ext_add, gear_step_80, lerp_int_over2};
 use crate::physics::car_store::Car;
 use crate::physics::flow::FloatView;
-use crate::physics::gear_store::GEAR;
+use crate::physics::gear_store::GearFigures;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 use crate::scene::matrix3::{extended, rounded};
@@ -69,14 +69,15 @@ pub fn ratios_at(numbers: &Numbers, v: &[&dyn Cell32]) -> Result<u32, Refused> {
 fn game<'a>(
     car: &'a Car,
     tables: &'a PhysicsTables,
+    gear_figures: &'a GearFigures,
     scene: &'a crate::scene::owner::Scene,
 ) -> Vec<&'a dyn Cell32> {
     vec![
         &tables.gear_count as &dyn Cell32,
-        &GEAR.figures[3],
-        &GEAR.figures[1],
-        &GEAR.figures[2],
-        &GEAR.figures[0],
+        &gear_figures.figures[3],
+        &gear_figures.figures[1],
+        &gear_figures.figures[2],
+        &gear_figures.figures[0],
         &car.gear_ratio_setting,
         &car.engine_speed_limit,
         &tables.gear_ratios[0],
@@ -98,7 +99,8 @@ pub fn make_gear_ratios(
     car: &Car,
     tables: &PhysicsTables,
     numbers: &Numbers,
+    gear_figures: &GearFigures,
     scene: &crate::scene::owner::Scene,
 ) -> Result<u32, Refused> {
-    ratios_at(numbers, &game(car, tables, scene))
+    ratios_at(numbers, &game(car, tables, gear_figures, scene))
 }

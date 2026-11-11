@@ -7,7 +7,6 @@
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
-use crate::race::replay_work_store::REPLAY_WORK;
 use rc2k_core::drive::replay_frames::written_view;
 
 // Converted: `rc2k_core::drive::replay_frames::written_view`.
@@ -26,7 +25,7 @@ pub fn write_replay_frames(race: &Race) -> Result<(), Refused> {
     replay.replay_view.frames_in_block.set(0x64);
     crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].set(0);
     crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[1].set(0);
-    if REPLAY_WORK.header_one_player.get() != 1 {
+    if race.replay_work().header_one_player.get() != 1 {
         // the header's byte 5 (the second dword's second byte)
         let cell = &crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[1];
         let v = written_view((cell.get() >> 8) as u8 as i8);

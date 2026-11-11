@@ -6,13 +6,14 @@
 //! Caller: `net::lobby_loop`.
 
 use crate::errors::Refused;
+use crate::install::owner::Install;
 use crate::net::owner::Net;
 
 /// The key `key` for the chat message being typed; once it ends the
 /// editing, a message typed is sent and the input cleared.
-pub fn chat_key(net: &Net, key: u8) -> Result<(), Refused> {
+pub fn chat_key(net: &Net, install: &Install, key: u8) -> Result<(), Refused> {
     let vars = &net.vars;
-    if !crate::net::edit_key::edit_key(net, key)? {
+    if !crate::net::edit_key::edit_key(net, install, key)? {
         return Ok(());
     }
     if net.edit().chat_input.get(0) != 0 {

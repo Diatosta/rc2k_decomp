@@ -3,7 +3,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::StageTable;
-use crate::menu::owner::menus;
 
 /// " ", "-----", "Count:", "GB_Timed: t:- ", "CTs:-", "-----", "%%%%%", "-----",
 /// "GB_Shaun: ", "CTs:", "-----", "%%%%%", "%%%%%", "%%%%%".
@@ -29,9 +28,11 @@ const WORDS: [&std::ffi::CStr; 14] = [
 /// `Event.stage_number` x 0xA4, its +0x3C the stage in `g_stageBestTimesAlt` when
 /// `Event.stage_group` is 1, else in `ChampView.time_trial_best_times`). None for a null pointer, or a table or
 /// the summary they go to (`saves::best_times::SUMMARY`) not taken.
-pub fn rally_times_places() -> Result<Option<(&'static StageTable, usize)>, BadInput> {
-    let system = crate::system::owner::system();
-    let screens = &menus().screens;
+pub fn rally_times_places(
+    system: &crate::system::owner::System,
+    menus: &crate::menu::owner::Menus,
+) -> Result<Option<(&'static StageTable, usize)>, BadInput> {
+    let screens = &menus.screens;
     {
         let kind = screens.event.stage_group.get();
         let stages = system
@@ -63,7 +64,8 @@ pub fn rally_times_places() -> Result<Option<(&'static StageTable, usize)>, BadI
 /// read only their text or number.
 pub fn copy_rally_times() -> Result<(), Refused> {
     use crate::logfile::{log_int::log_int, write_line::log_text};
-    let Some((table, stage)) = rally_times_places()? else {
+    let o = crate::owners::boundary();
+    let Some((table, stage)) = rally_times_places(o.system, o.menus)? else {
         return Err(BadInput("a null pointer to the rally's times").into());
     };
     // The ten as their bytes, as `race_time` reads a record.

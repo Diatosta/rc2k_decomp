@@ -11,7 +11,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
-use crate::scene::owner::scene;
+use crate::scene::owner::Scene;
 
 // ---- game data ----
 
@@ -28,20 +28,20 @@ fn ends(shared: &RaceShared) -> rc2k_core::scene::loading::BarEnds {
 
 /// The progress, or None where it is left as it is. Converted:
 /// `rc2k_core::scene::loading::BarEnds::progress`.
-fn progress(shared: &RaceShared, done: u32) -> Option<u32> {
-    let textures: u32 = scene().textures.places.totals[3].get();
+fn progress(shared: &RaceShared, scene: &Scene, done: u32) -> Option<u32> {
+    let textures: u32 = scene.textures.places.totals[3].get();
     ends(shared).progress(done, textures)
 }
 
 /// `done` of the system textures are done. The loading bar's function is one of the two the
 /// loading puts there: `race::loading_bar_frame` or the empty function after it.
-pub fn step_loading_bar(race: &Race, done: u32) -> Result<(), Refused> {
+pub fn step_loading_bar(race: &Race, scene: &Scene, done: u32) -> Result<(), Refused> {
     let shared = &race.shared;
     let show: u32 = shared.vars.bar_function.get();
     if show == 0 {
         return Err(BadInput("no function to show the loading with").into());
     }
-    if let Some(progress) = progress(shared, done) {
+    if let Some(progress) = progress(shared, scene, done) {
         shared.vars.bar_share.set(progress);
     }
     if show == BAR {

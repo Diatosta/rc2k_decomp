@@ -29,8 +29,7 @@ use crate::net::lobby::{list_key, other_key, run_frame};
 use crate::net::owner::Net;
 use crate::net::store::NetVars;
 use crate::net::store::PlayerRecord;
-use crate::race::owner::Race;
-use crate::system::owner::system;
+use crate::owners::Owners;
 
 /// The players' states and-ed together (those with bit 0x80 left out), starting from
 /// `bits`, as the original's al: over `count` players (at least one turn: `count` > 0).
@@ -91,14 +90,14 @@ pub fn sync(net: &Net, kind: u8) -> Result<bool, Refused> {
 }
 
 /// An item move: from the highlight by `step` while it lands on an item that is off.
-fn step_item(install: &'static crate::install::owner::Install, vars: &NetVars, step: u32) {
+fn step_item(install: &crate::install::owner::Install, net: &Net, vars: &NetVars, step: u32) {
     loop {
         install
             .pages
             .choice
             .set(install.pages.choice.get().wrapping_add(step));
         let c = install.pages.choice.get();
-        if c == 1 && crate::net::owner::net().setup().car_item.get() != 1 {
+        if c == 1 && net.setup().car_item.get() != 1 {
             continue;
         }
         if c == 2 && vars.stage_item.get() != 1 {
@@ -109,39 +108,35 @@ fn step_item(install: &'static crate::install::owner::Install, vars: &NetVars, s
 }
 
 /// 1 when the race is on, -1 (`u32::MAX`) when the lobby was left.
-pub fn lobby_loop(
-    install: &'static crate::install::owner::Install,
-    race: &Race,
-    net: &Net,
-) -> Result<u32, Refused> {
-    let system = system();
+pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
+    let (install, net, system) = (o.install, o.net, o.system);
     net.vars.players.set(0);
     net.vars.racing.set(0);
-    crate::net::show_background::show_background(&net.vars)?;
+    crate::net::show_background::show_background(o.gfx, &net.vars)?;
     let now = system.session.clocks.key_ticks.get();
     install.pages.move_clock.set(now);
     install.pages.key_clock.set(now);
-    crate::net::owner::net().edit().edited.set(u32::MAX);
+    net.edit().edited.set(u32::MAX);
     install.pages.choice.set(3);
     let tick = crate::system::tick_count::tick_count();
-    crate::net::owner::net().edit().clock_a.set(tick);
+    net.edit().clock_a.set(tick);
     net.vars.sync_clock.set(tick);
     net.vars.sync_first.set(1);
     net.vars.sync.set(net.vars.sync.get().wrapping_add(1));
-    crate::net::owner::net().setup().car_item.set(1);
+    net.setup().car_item.set(1);
     net.vars.stage_item.set(1);
     if net.vars.own.state() & 0x10 == 0 {
         net.vars.stage_item.set(0);
     }
     loop {
-        run_frame(crate::net::lobby_frame::lobby_frame)?;
+        run_frame(|| crate::net::lobby_frame::lobby_frame(net, install, o.strings, o.gfx))?;
         let tick = crate::system::tick_count::tick_count();
         if (tick
-            .wrapping_sub(crate::net::owner::net().edit().clock_a.get())
+            .wrapping_sub(net.edit().clock_a.get())
             .wrapping_sub(1000) as i32)
             >= 0
         {
-            crate::net::owner::net().edit().clock_a.set(tick);
+            net.edit().clock_a.set(tick);
             // The original's `jb` after it is never taken (`list_players_regs` loses
             // the carry, section 16).
             crate::net::list_players::list_players_regs(&net.vars)?;
@@ -152,12 +147,12 @@ pub fn lobby_loop(
             .set(system.session.clocks.key_ticks.get());
         let key = list_key()?;
         let mut moved = false;
-        if crate::net::owner::net().edit().edited.get() != u32::MAX {
-            crate::net::chat_key::chat_key(net, key)?;
+        if net.edit().edited.get() != u32::MAX {
+            crate::net::chat_key::chat_key(net, install, key)?;
         } else {
             let ready = net.vars.own.state() & 1 != 0;
             if !ready && key == 0x69 {
-                step_item(install, &net.vars, u32::MAX);
+                step_item(install, net, &net.vars, u32::MAX);
                 if net.vars.after_race.get() == 1 && (install.pages.choice.get() as i32) < 1 {
                     install.pages.choice.set(1);
                 }
@@ -166,7 +161,7 @@ pub fn lobby_loop(
                 }
                 moved = true;
             } else if !ready && key == 0x68 {
-                step_item(install, &net.vars, 1);
+                step_item(install, net, &net.vars, 1);
                 if (install.pages.choice.get() as i32) > 3 {
                     install.pages.choice.set(3);
                 }
@@ -183,15 +178,15 @@ pub fn lobby_loop(
                     }
                     1 | 2 => {
                         if install.pages.choice.get() == 1 {
-                            crate::net::choose_car::choose_car(&net.vars)?;
+                            crate::net::choose_car::choose_car(o, &net.vars)?;
                         } else {
-                            crate::net::choose_stage::choose_stage(race, &net.vars)?;
+                            crate::net::choose_stage::choose_stage(o, &net.vars)?;
                         }
                         crate::net::list_players::list_players_regs(&net.vars)?;
                         moved = true;
                     }
                     3 => {
-                        crate::net::begin_chat::begin_chat(install)?;
+                        crate::net::begin_chat::begin_chat(net, install)?;
                         moved = true;
                     }
                     _ => {}

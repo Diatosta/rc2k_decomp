@@ -26,7 +26,6 @@ use crate::install::installer::{
     page_action, run_frame, show, unlock,
 };
 use crate::menu::list_handle::ListMenu;
-use crate::system::owner::system;
 
 const NO_CHOICE: BadInput = BadInput("a page whose every item cannot be chosen");
 
@@ -47,9 +46,10 @@ fn tell(
 pub fn run_page(
     install: &'static crate::install::owner::Install,
     strings: &'static crate::strings::owner::Strings,
+    system: &crate::system::owner::System,
+    gfx: &crate::gfx::owner::Gfx,
     list: ListMenu,
 ) -> Result<u32, Refused> {
-    let system = system();
     use crate::install as i;
     install.pages.list_answer.set(1);
     install.pages.list_leave.set(0);
@@ -113,7 +113,7 @@ pub fn run_page(
                 let mut again = 0;
                 loop {
                     let item = list.item(install.pages.choice.get());
-                    let (left, mut took) = i::page_key::page_key(install, key, item, list)?;
+                    let (left, mut took) = i::page_key::page_key(install, gfx, key, item, list)?;
                     key = left;
                     if !took {
                         let keys = list.key_action();

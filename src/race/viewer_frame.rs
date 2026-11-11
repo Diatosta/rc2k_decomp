@@ -13,17 +13,14 @@
 //! `screens::run_frame` (called from `race::replay_viewer`).
 
 use crate::errors::{BadInput, Refused};
+use crate::owners::Owners;
 use crate::race::owner::Race;
-use crate::race::owner::race;
-use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::session::Dword;
 
 /// Whether the frame was lost.
 pub fn viewer_frame() -> Result<bool, Refused> {
-    let system = crate::system::owner::system();
-    let gfx = crate::gfx::owner::gfx();
-    let input = crate::input::owner::input();
-    let race = race();
+    let o = crate::owners::boundary();
+    let (system, gfx, input, race) = (o.system, o.gfx, o.input, o.race);
     let replay = &race.replay;
     if race.shared.replay_file.replay_at_end.is_set() {
         crate::gfx::clear_back_surface::clear_back_surface(gfx, system)?;
@@ -32,16 +29,16 @@ pub fn viewer_frame() -> Result<bool, Refused> {
     crate::platform_3d::begin_layer();
     if !race.shared.replay_file.replay_at_end.is_set() {
         crate::drive::replay_frame_marks::replay_frame_marks(race)?;
-        crate::race::show_replay_still::show_replay_still(race, input, system)?;
+        crate::race::show_replay_still::show_replay_still(race, input, system, o.scene)?;
     }
     if replay.replay_view.snapshot_asked.get() == 1 {
         replay.replay_view.snapshot_asked.set(0);
         // `d3d::end_scene` cannot fail either.
         crate::platform_3d::end_layer();
-        crate::race::viewer_snapshot::viewer_snapshot(replay)?;
+        crate::race::viewer_snapshot::viewer_snapshot(replay, gfx)?;
     } else {
         if race.shared.replay_file.viewer_stopped.is_set() {
-            stopped(race)?;
+            stopped(race, o)?;
         }
         crate::platform_3d::end_layer();
     }
@@ -50,7 +47,8 @@ pub fn viewer_frame() -> Result<bool, Refused> {
 }
 
 /// The list, the bar and the panel (stopped).
-fn stopped(race: &Race) -> Result<(), Refused> {
+fn stopped(race: &Race, o: Owners<'_>) -> Result<(), Refused> {
+    let install = o.install;
     let replay = &race.replay;
     let shared = &race.shared;
     // Converted: `rc2k_core::race::viewer_flow::{LIST_STATES, bar_places, mark_x, place_x}`.
@@ -72,7 +70,7 @@ fn stopped(race: &Race) -> Result<(), Refused> {
             .get(first..)
             .and_then(|rest| rest.first_chunk::<4>())
             .ok_or(BadInput("a viewer item past the 26"))?;
-        crate::race::draw_viewer_item::draw_viewer_item(replay, item, index)?;
+        crate::race::draw_viewer_item::draw_viewer_item(race, install, item, index)?;
     }
     let quad = |uv: &[Dword], rect: &[Dword; 4], colour: u32| {
         // The texture rectangle's first four dwords (the frame's picture holds five).
@@ -81,22 +79,18 @@ fn stopped(race: &Race) -> Result<(), Refused> {
             .ok_or(BadInput("a texture rectangle of fewer than four"))?;
         crate::drive::tyre_quad::tyre_quad_cells(uv, rect, colour)
     };
-    let v = &VIEWER_PANEL;
+    let v = race.viewer_panel();
     quad(&v.frame_picture_rect, &v.bar_frame_rect, 0xFF_FFFF)?;
     let blocks = shared.replay_file.index_block_count.get();
     if blocks != 0 {
         let (w, x) = (
-            VIEWER_PANEL.bar_rect[2].get(),
-            VIEWER_PANEL.bar_rect[0].get(),
+            race.viewer_panel().bar_rect[2].get(),
+            race.viewer_panel().bar_rect[0].get(),
         );
         let [first, second, here] = bar_places(
             (
-                crate::race::viewer_buffers_store::VIEWER_BUFFERS
-                    .mark_in
-                    .get(),
-                crate::race::viewer_buffers_store::VIEWER_BUFFERS
-                    .mark_out
-                    .get(),
+                race.viewer_buffers().mark_in.get(),
+                race.viewer_buffers().mark_out.get(),
             ),
             replay.replay_view.replay_block.get(),
             replay.replay_view.replay_frame.get(),
@@ -104,17 +98,17 @@ fn stopped(race: &Race) -> Result<(), Refused> {
             blocks,
         )?;
         quad(&v.button_body_rect, &v.bar_rect, 0xFF00)?;
-        VIEWER_PANEL.mark_rect[0].set(mark_x(first.0, x));
+        race.viewer_panel().mark_rect[0].set(mark_x(first.0, x));
         quad(&v.mark_picture_rect, &v.mark_rect, 0xFF_FFFF)?;
-        VIEWER_PANEL.mark_rect[0].set(mark_x(second.0, x));
+        race.viewer_panel().mark_rect[0].set(mark_x(second.0, x));
         quad(&v.mark_picture_rect, &v.mark_rect, 0xFF_FFFF)?;
-        VIEWER_PANEL.place_rect[0].set(place_x(here.0, x));
+        race.viewer_panel().place_rect[0].set(place_x(here.0, x));
         quad(&v.place_picture_rect, &v.place_rect, 0xFF_FFFF)?;
         quad(&v.button_picture_rect, &v.button_rect_a, 0xFF_FFFF)?;
         quad(&v.button_picture_rect, &v.button_rect_c, 0xFF_FFFF)?;
         quad(&v.button_body_rect, &v.button_rect_b, 0xFF_FFFF)?;
         quad(&v.button_body_rect, &v.button_rect_d, 0xFF_FFFF)?;
-        crate::race::draw_viewer_panel::draw_viewer_panel(race)?;
+        crate::race::draw_viewer_panel::draw_viewer_panel(race, o.gfx, o.strings)?;
     }
     Ok(())
 }

@@ -10,8 +10,9 @@
 
 use crate::errors::BadInput;
 use crate::errors::Refused;
+use crate::install::owner::Install;
+use crate::race::owner::Race;
 use crate::race::owner_replay::Replay;
-use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::race::viewer_state_store::{ReplayViewBlock, ViewerPicture};
 use crate::session::Dword;
 
@@ -22,44 +23,46 @@ fn camera_byte(replay: &Replay, byte: usize) -> Result<u32, BadInput> {
 }
 
 /// `item` the list item, `index` its number.
-pub fn draw_viewer_item(replay: &Replay, item: &[Dword; 4], index: u32) -> Result<(), Refused> {
+pub fn draw_viewer_item(
+    race: &Race,
+    install: &Install,
+    item: &[Dword; 4],
+    index: u32,
+) -> Result<(), Refused> {
+    let replay = &race.replay;
+    let panel = race.viewer_panel();
     // Its first dword's low bytes: the flags and the switch.
     let byte = |n: u32| (item[0].get() >> (8 * n)) as u8;
     // Converted: `rc2k_core::race::viewer::{switch_byte, centred, item_colour}`.
     use rc2k_core::race::viewer::{centred, item_colour, switch_byte};
     let uv = match ReplayViewBlock::item_picture(index)? {
-        ViewerPicture::Rectangle(ida) => VIEWER_PANEL.rectangle(ida)?,
+        ViewerPicture::Rectangle(ida) => panel.rectangle(ida)?,
         ViewerPicture::Switch(0) => {
             let n = camera_byte(replay, switch_byte(byte(1)) as usize)?;
-            VIEWER_PANEL.switch_picture(0, n)?
+            panel.switch_picture(0, n)?
         }
-        ViewerPicture::Switch(1) => VIEWER_PANEL.switch_picture(1, camera_byte(replay, 5)?)?,
-        ViewerPicture::Switch(_) => VIEWER_PANEL.switch_picture(2, camera_byte(replay, 4)?)?,
+        ViewerPicture::Switch(1) => panel.switch_picture(1, camera_byte(replay, 5)?)?,
+        ViewerPicture::Switch(_) => panel.switch_picture(2, camera_byte(replay, 4)?)?,
     };
     let bytes = ReplayViewBlock::item_place(index)?.read_array::<16>("a viewer item's place")?;
     let place: [u32; 4] =
         std::array::from_fn(|k| u32::from_le_bytes(bytes[4 * k..4 * k + 4].try_into().unwrap()));
     let width = (uv[2] as i32).unsigned_abs();
-    VIEWER_PANEL.item_place[2].set(width); // ViewerAndKinds.viewer_panel.item_place[0]: the quad's place
-    VIEWER_PANEL.item_place[0].set(centred(place[0], place[2], width));
-    VIEWER_PANEL.item_place[1].set(place[1]);
-    VIEWER_PANEL.item_place[3].set(place[3]);
+    panel.item_place[2].set(width); // ViewerAndKinds.viewer_panel.item_place[0]: the quad's place
+    panel.item_place[0].set(centred(place[0], place[2], width));
+    panel.item_place[1].set(place[1]);
+    panel.item_place[3].set(place[3]);
     let colour = item_colour(
         byte(0),
-        index == crate::install::owner::install().pages.choice.get(),
+        index == install.pages.choice.get(),
+        || race.viewer_buffers().camera_edit.get() != 0,
         || {
-            crate::race::viewer_buffers_store::VIEWER_BUFFERS
-                .camera_edit
-                .get()
-                != 0
-        },
-        || {
-            crate::install::owner::install()
+            install
                 .pages
                 .frame_clock
                 .get()
-                .wrapping_sub(crate::install::owner::install().pages.move_clock.get())
+                .wrapping_sub(install.pages.move_clock.get())
         },
     );
-    crate::drive::tyre_quad::tyre_quad(uv, &VIEWER_PANEL.item_place, colour)
+    crate::drive::tyre_quad::tyre_quad(uv, &panel.item_place, colour)
 }

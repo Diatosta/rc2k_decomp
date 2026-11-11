@@ -13,6 +13,7 @@ use crate::race::effects_settings_store::{CarEffects, EffectsSettings};
 use crate::race::owner_course::Course;
 use crate::scene::object_slots_store::ObjectTables;
 use crate::scene::objects::FACES;
+use crate::scene::owner::Scene;
 use crate::session::{Dword, PlainBytes, PlainDword, PlainFloat};
 use rc2k_core::effects::lines as core;
 
@@ -134,9 +135,9 @@ pub fn measure_kind_lines(
 }
 
 /// The game's tables for `core::measured`: the settings' blocks and the objects' faces.
-struct GameBlocks(&'static EffectsSettings, crate::effects::Sticky);
+struct GameBlocks<'a>(&'static EffectsSettings, crate::effects::Sticky, &'a Scene);
 
-impl GameBlocks {
+impl GameBlocks<'_> {
     /// Block `k`; a block past the eighth is refused.
     fn block(&self, k: u32) -> Result<&CarEffects, BadInput> {
         self.0
@@ -146,7 +147,7 @@ impl GameBlocks {
     }
 }
 
-impl core::Blocks for GameBlocks {
+impl core::Blocks for GameBlocks<'_> {
     fn marked(&self, k: u32) -> bool {
         self.1.take(self.block(k).map(|b| b.morph_kept.get())) != 0
     }
@@ -157,28 +158,23 @@ impl core::Blocks for GameBlocks {
         ]
     }
     fn face_count(&self, object: u32) -> u32 {
-        ObjectTables::slot_value(
-            &crate::scene::owner::scene().objects.slots.face_counts,
-            object as usize,
-        )
+        ObjectTables::slot_value(&self.2.objects.slots.face_counts, object as usize)
     }
     fn first_face(&self, object: u32) -> u32 {
-        ObjectTables::slot_value(
-            &crate::scene::owner::scene().objects.slots.first_face,
-            object as usize,
-        )
+        ObjectTables::slot_value(&self.2.objects.slots.first_face, object as usize)
     }
 }
 
 /// The blocks `measure_lines` would measure (`core::measured`): (block's number, its first
 /// faces, its face count).
 fn measured(
+    scene: &Scene,
     effects: &crate::effects::owner::Effects,
     every: bool,
 ) -> Result<Vec<(u32, u32, u32, u32)>, Refused> {
     let marks = effects.settings()?;
     let count = marks.cars_copy.get();
-    let game = GameBlocks(marks, Default::default());
+    let game = GameBlocks(marks, Default::default(), scene);
     let blocks = core::measured(count, every, &game, FACES);
     game.1.done()?;
     let blocks = blocks?;
@@ -202,12 +198,13 @@ fn measured(
 pub fn measure_lines(
     course: &Course,
     paths: &Paths,
+    scene: &Scene,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     {
         let marks = effects.settings()?;
         let every = paths.lines_work.every.get() == 1;
-        let blocks = measured(effects, every)?;
+        let blocks = measured(scene, effects, every)?;
         paths.lines_work.any.set(0u32);
         let count = marks.cars_copy.get() as i32;
         let mut todo = blocks.into_iter().peekable();
@@ -277,12 +274,13 @@ pub fn measure_lines(
 pub fn measure_starting_sums(
     course: &Course,
     paths: &Paths,
+    scene: &Scene,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    measured(effects, true)?;
+    measured(scene, effects, true)?;
     paths.lines_work.every.set(1u32);
     paths.lines_work.shares.set(0u32);
-    measure_lines(course, paths, effects)?;
+    measure_lines(course, paths, scene, effects)?;
     let marks = effects.settings()?;
     let count = marks.cars_copy.get() as i32;
     for k in (0..count.max(0) as u32).rev() {
@@ -370,8 +368,8 @@ pub fn set_up_blocks(
     scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    measured(effects, true)?;
-    measure_starting_sums(course, paths, effects)?;
+    measured(scene, effects, true)?;
+    measure_starting_sums(course, paths, scene, effects)?;
     let marks = effects.settings()?;
     let count = marks.cars_copy.get() as i32;
     for k in (0..count.max(0) as u32).rev() {

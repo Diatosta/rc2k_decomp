@@ -9,28 +9,19 @@
 //! Caller: the race's frame (`race::run_view_marks`). Its calls are in
 //! the order above.
 
+use crate::effects::owner::Effects;
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::race::owner::Race;
 use crate::session::PlainFloat;
 /// Where the share goes (its factor is `FRAME_K.times`): the draw, the ring, the whole.
-const SHARES: [&PlainFloat; 3] = [
-    &crate::effects::owner::EFFECTS
-        .unchecked()
-        .setup
-        .frame
-        .draw_share,
-    &crate::effects::owner::EFFECTS
-        .unchecked()
-        .setup
-        .frame
-        .ring_share,
-    &crate::effects::owner::EFFECTS
-        .unchecked()
-        .setup
-        .frame
-        .whole_share,
-];
+fn shares(effects: &Effects) -> [&PlainFloat; 3] {
+    [
+        &effects.setup.frame.draw_share,
+        &effects.setup.frame.ring_share,
+        &effects.setup.frame.whole_share,
+    ]
+}
 const STATES: [(u32, u32); 6] = [
     (4, 0x15),
     (0, 0x1C),
@@ -45,7 +36,7 @@ fn rdtsc() -> u32 {
 }
 
 fn share(at: usize, start: u32, effects: &crate::effects::owner::Effects) {
-    let to = SHARES[at];
+    let to = shares(effects)[at];
     let took = rdtsc().wrapping_sub(start) as i32;
     to.set(x87::int_over_int_times(
         took,
@@ -124,7 +115,14 @@ pub fn run_frame(race: &Race, view: EffectsView<'_>) -> Result<(), Refused> {
         flare_frame::flare_frame(paths, scene, effects)?;
         set_render_state(1, 3);
         draw_mark_slots::draw_mark_slots(race, paths, scene, effects, view)?;
-        run_particles::run_particles(&race.frame, particles, ring, effects, view)?;
+        run_particles::run_particles(
+            &race.frame,
+            particles,
+            ring,
+            effects,
+            crate::sound::owner::sound(),
+            view,
+        )?;
         share(2, whole, effects);
         stage_record::stage_record(&race.frame)?;
         draw_glow::draw_glow(scene, effects)?;

@@ -5,6 +5,8 @@
 //! (the surface's particle kind); the patched EXE some owners use turns it into a `ret`
 //! (section 16).
 
+use crate::effects::owner::Effects;
+#[cfg(test)]
 use crate::effects::owner::effects;
 use crate::errors::BadInput;
 use crate::errors::Refused;
@@ -85,8 +87,8 @@ pub fn emitting_car(
 }
 
 /// Whether the emitters are on a car whose matrix is set (the emitters' refusal).
-pub fn car_with_matrix() -> Result<bool, Refused> {
-    match crate::race::effects_settings_store::car_or_none(effects().kinds.emitter.car.get()) {
+pub fn car_with_matrix(effects: &Effects) -> Result<bool, Refused> {
+    match crate::race::effects_settings_store::car_or_none(effects.kinds.emitter.car.get()) {
         Some(car) => Ok(car.has_whole()),
         None => Ok(false),
     }
@@ -107,6 +109,7 @@ pub struct Gate {
 /// least 1.5 times that sum (both signed), then kept as its remainder by it; the wheel's
 /// +0x10 or +0x18 not 0.
 pub fn gate(
+    effects: &Effects,
     wheel: &MarkRecord,
     object: &'static CarEffects,
     a: &impl crate::session::Cell32,
@@ -115,7 +118,7 @@ pub fn gate(
 ) -> Result<Gate, Refused> {
     Ok({
         let [k1, k2, k3, k4] = k.each_ref().map(super::super::session::PlainFloat::bits);
-        let rate = x87::rate_to_int(a, b, k1, k2, k3, &effects().setup.floats.one, k4);
+        let rate = x87::rate_to_int(a, b, k1, k2, k3, &effects.setup.floats.one, k4);
         gate_with(wheel, object, rate)?
     })
 }

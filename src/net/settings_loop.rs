@@ -14,23 +14,20 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::{list_key, other_key, run_frame};
-use crate::net::owner::net;
-use crate::system::owner::system;
 pub fn settings_loop() -> Result<(), Refused> {
-    let install = crate::install::owner::install();
-    let net = net();
+    let o = crate::owners::boundary();
+    let (install, net, system) = (o.install, o.net, o.system);
     let vars = &net.vars;
-    let system = system();
     vars.mode.set(0);
-    crate::net::show_background::show_background(&net.vars)?;
-    crate::net::settings_done::settings_done(&net.vars)?;
+    crate::net::show_background::show_background(o.gfx, &net.vars)?;
+    crate::net::settings_done::settings_done(net, system, o.race.viewer_panel())?;
     let now = system.session.clocks.key_ticks.get();
     install.pages.move_clock.set(now);
     install.pages.key_clock.set(now);
     net.edit().edited.set(u32::MAX);
     install.pages.choice.set(0);
     loop {
-        run_frame(crate::net::settings_frame::settings_frame)?;
+        run_frame(|| crate::net::settings_frame::settings_frame(net, install))?;
         install
             .pages
             .frame_clock
@@ -56,10 +53,15 @@ pub fn settings_loop() -> Result<(), Refused> {
                         break;
                     }
                     if install.pages.choice.get() == 0 {
-                        crate::net::settings_link::settings_link(install, &net.vars)?;
+                        crate::net::settings_link::settings_link(
+                            install,
+                            net,
+                            system,
+                            o.race.viewer_panel(),
+                        )?;
                         install.pages.choice.set(0);
                     } else {
-                        crate::net::begin_setting_edit::begin_setting_edit(install)?;
+                        crate::net::begin_setting_edit::begin_setting_edit(net, install)?;
                     }
                     moved = true;
                 }

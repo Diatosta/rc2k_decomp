@@ -10,6 +10,7 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87_float as bh;
 use crate::net::owner::net;
 use crate::physics::car_store::Car;
+#[cfg(test)]
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
@@ -82,7 +83,7 @@ pub fn reset_car_blocks(race: &Race) -> Result<(), BadInput> {
             }
         }
         for n in 0..BLOCK_COUNT as usize {
-            CAR_BLOCKS.cars[n]
+            race.car_blocks().cars[n]
                 .car_kind
                 .set(shared.vars.race_car_kinds[n].get());
         }
@@ -93,26 +94,29 @@ pub fn reset_car_blocks(race: &Race) -> Result<(), BadInput> {
 /// `race::drop_absent_player` (0x436402): unless `run_kind` is 2 or 4, with `players` 2
 /// (two players): the first player whose block's +0xB0 is not 0 (the first, else the second) is
 /// out: +0x25C 0, +0xFA8 1.
-pub fn drop_absent_player(shared: &RaceShared) {
+pub fn drop_absent_player(race: &Race) {
+    let shared = &race.shared;
+    let blocks = race.car_blocks();
     // Converted: `rc2k_core::race::cars::absent_player`.
     {
         let out = rc2k_core::race::cars::absent_player(
             shared.vars.run_kind.get(),
             || shared.view.players.get(),
-            |n| CAR_BLOCKS.cars[n as usize].stop_state.get() != 0,
+            |n| blocks.cars[n as usize].stop_state.get() != 0,
         );
         if let Some(n) = out {
-            CAR_BLOCKS.cars[n as usize].driver_kind.set(0u32);
-            CAR_BLOCKS.cars[n as usize].view_covered.set(1u32);
+            blocks.cars[n as usize].driver_kind.set(0u32);
+            blocks.cars[n as usize].view_covered.set(1u32);
         }
     }
 }
 
 /// `race::set_player_car_kinds` (0x43670F): the two players' blocks' +0x24, +0x2C, +0x38 from
 /// `PLAYER_KINDS`.
-pub fn set_player_car_kinds(shared: &RaceShared) {
+pub fn set_player_car_kinds(race: &Race) {
+    let shared = &race.shared;
     for n in 0..2 {
-        let car = &CAR_BLOCKS.cars[n];
+        let car = &race.car_blocks().cars[n];
         let to = [&car.car_kind, &car.tyre_kind, &car.gearbox_kind];
         for (to, from) in to.into_iter().zip(player_kinds(shared, n)) {
             to.set(from.get());
@@ -131,8 +135,8 @@ fn text_data(shared: &RaceShared) -> crate::pointers::StoreBytes<'_> {
 pub fn set_up_race_cars(race: &Race) -> Result<(), BadInput> {
     reset_car_blocks(race)?;
     {
-        drop_absent_player(&race.shared);
-        set_player_car_kinds(&race.shared);
+        drop_absent_player(race);
+        set_player_car_kinds(race);
     }
     Ok(())
 }
@@ -273,13 +277,13 @@ pub fn set_up_mode_0_cars(race: &Race) -> Result<(), Refused> {
         let all = rc2k_core::race::cars::every_car_set_up(net().vars.session.get() != 0, cars)?;
         reset_car_blocks(race)?;
         if !all {
-            drop_absent_player(&race.shared);
-            set_player_car_kinds(&race.shared);
+            drop_absent_player(race);
+            set_player_car_kinds(race);
             for n in 0..2 {
-                auto_set_up_car(race, &CAR_BLOCKS.cars[n as usize])?;
+                auto_set_up_car(race, &race.car_blocks().cars[n as usize])?;
             }
             for n in 0..2 {
-                CAR_BLOCKS.cars[n]
+                race.car_blocks().cars[n]
                     .steering_sensitivity
                     .set(brake_value(race, n));
             }
@@ -287,7 +291,7 @@ pub fn set_up_mode_0_cars(race: &Race) -> Result<(), Refused> {
             for n in 0..cars {
                 auto_set_up_car(race, race.shared.work.car(n as usize)?)?;
             }
-            set_player_car_kinds(&race.shared);
+            set_player_car_kinds(race);
         }
     }
     Ok(())
@@ -299,8 +303,8 @@ pub fn set_up_mode_1_cars(race: &Race) -> Result<(), BadInput> {
     let shared = &race.shared;
     {
         reset_car_blocks(race)?;
-        drop_absent_player(&race.shared);
-        set_player_car_kinds(&race.shared);
+        drop_absent_player(race);
+        set_player_car_kinds(race);
         for (n, from) in [
             &shared.state.results.service_spent_current,
             &shared.state.results.service_spent_first,
@@ -308,7 +312,7 @@ pub fn set_up_mode_1_cars(race: &Race) -> Result<(), BadInput> {
         .into_iter()
         .enumerate()
         {
-            CAR_BLOCKS.cars[n].stage_time.set(from.get());
+            race.car_blocks().cars[n].stage_time.set(from.get());
         }
     }
     Ok(())
@@ -323,8 +327,8 @@ pub fn set_up_mode_4_cars(race: &Race) -> Result<(), BadInput> {
         shared.view.players.set(1u32);
         shared.view.views.set(1u32);
         reset_car_blocks(race)?;
-        drop_absent_player(&race.shared);
-        set_player_car_kinds(&race.shared);
+        drop_absent_player(race);
+        set_player_car_kinds(race);
     }
     Ok(())
 }
@@ -520,16 +524,16 @@ pub fn set_up_mode_2_cars(race: &Race) -> Result<(), Refused> {
     race.shared.view.players.set(1u32);
     race.shared.view.race_cars.set(4u32);
     reset_car_blocks(race)?;
-    drop_absent_player(&race.shared);
+    drop_absent_player(race);
     for n in 1..4 {
-        CAR_BLOCKS.cars[n as usize]
+        race.car_blocks().cars[n as usize]
             .steering_sensitivity
             .set(0x80u32);
     }
     for n in 1..4 {
-        CAR_BLOCKS.cars[n as usize].driver_kind.set(0u32);
+        race.car_blocks().cars[n as usize].driver_kind.set(0u32);
     }
-    set_player_car_kinds(&race.shared);
+    set_player_car_kinds(race);
     race.shared
         .physics_tables
         .noise_state
@@ -539,9 +543,9 @@ pub fn set_up_mode_2_cars(race: &Race) -> Result<(), Refused> {
     let mut number_next = 1u32;
     for car in 0..cars {
         let kind = loop {
-            let first: u32 = CAR_BLOCKS.cars[0].start_slot_value.get();
+            let first: u32 = race.car_blocks().cars[0].start_slot_value.get();
             let second = (race.shared.view.players.get() != 1)
-                .then(|| CAR_BLOCKS.cars[1].start_slot_value.get());
+                .then(|| race.car_blocks().cars[1].start_slot_value.get());
             number_next = arcade_number(number_next, first, second);
             let (_, kind) = arcade_type_draw(next_noise(&race.shared), car);
             if kind != last_type {
@@ -563,17 +567,17 @@ pub fn set_up_mode_2_cars(race: &Race) -> Result<(), Refused> {
     }
     clear_race_tables(&race.shared);
     for n in 0..4 {
-        auto_set_up_car(race, &CAR_BLOCKS.cars[n as usize])?;
+        auto_set_up_car(race, &race.car_blocks().cars[n as usize])?;
     }
-    CAR_BLOCKS.cars[0]
+    race.car_blocks().cars[0]
         .steering_sensitivity
         .set(brake_value(race, 0));
-    let lead = &CAR_BLOCKS.cars[0];
+    let lead = &race.car_blocks().cars[0];
     for cell in [&lead.pace_placed, &lead.pace_cars[0], &lead.pace_cars[1]] {
         cell.set(0);
     }
     let behind = cars.wrapping_sub(crate::race::owner::RACE.shared.tables.start_place.get());
-    CAR_BLOCKS.cars[0].mode2_behind.set(behind);
+    race.car_blocks().cars[0].mode2_behind.set(behind);
     text(w(6), false);
     number(behind, false);
     text(w(7), false);
@@ -729,7 +733,7 @@ pub fn set_up_arcade_cars(race: &Race) -> Result<(), Refused> {
         shared.view.race_cars.set(4u32);
     }
     for n in 0..8 {
-        CAR_BLOCKS.cars[n]
+        race.car_blocks().cars[n]
             .car_kind
             .set(shared.vars.race_car_kinds[n].get());
     }

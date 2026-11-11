@@ -12,7 +12,11 @@ use crate::menu::screen_loop::{Entry, run_screen};
 use rc2k_core::menu::results_pages::{Page, held_figure};
 
 // g_eventMode
-pub fn show_class_championship_standings(menus: &Menus, class: u32) -> Result<(), Refused> {
+pub fn show_class_championship_standings(
+    menus: &Menus,
+    class: u32,
+    entry: &Entry,
+) -> Result<(), Refused> {
     menus.screens.event.class.set(class);
     let found = crate::menu::first_player_b::first_player_b(class)?;
     // The logic is in `rc2k_core::menu::results_pages::held_figure`.
@@ -22,7 +26,7 @@ pub fn show_class_championship_standings(menus: &Menus, class: u32) -> Result<()
     crate::menu::stage_range_caption::stage_range_caption(&menus.play)?;
     run_screen(
         &crate::menu::class_championship_standings_loop::SCREEN,
-        &Entry::new(crate::owners::boundary()),
+        entry,
     )?;
     Ok(())
 }

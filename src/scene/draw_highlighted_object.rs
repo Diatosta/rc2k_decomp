@@ -17,8 +17,7 @@
 //! parts refuse. The menus and draw lists run its `run` (`menu::table_routes`).
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::{Menus, menus};
-use crate::race::owner::race;
+use crate::menu::owner::Menus;
 use crate::scene::assign_kind_textures::assign_kind_textures;
 use crate::scene::assign_menu_textures::assign_menu_textures;
 use crate::scene::clear_depth_buffer::clear_depth_buffer;
@@ -38,8 +37,8 @@ pub fn draw_highlighted(
     cars: &crate::race::car_draw_state::CarDrawState,
     object_place: &crate::scene::object_place::ObjectPlace,
     draw: &mut dyn FnMut() -> Result<(), Refused>,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let scene = crate::scene::owner::scene();
     let screens = &menus.screens;
     let item = screens.loop_flags.item.get().wrapping_sub(1);
     if item >= ENTRIES {
@@ -72,11 +71,9 @@ pub fn draw_highlighted(
 
 /// The six calls in order.
 pub fn run() -> Result<(), crate::errors::Refused> {
-    let scene = crate::scene::owner::scene();
-    let race = race();
-    let menus = menus();
+    let o = crate::owners::boundary();
+    let (scene, race, menus, system) = (o.scene, o.race, o.menus, o.system);
     let scratch = crate::race::view_scratch::front_end();
-    let system = crate::system::owner::system();
     clear_depth_buffer(scene, system, &scratch.polygon);
     assign_kind_textures(scene)?;
     assign_menu_textures(&menus.tables, scene)?;
@@ -92,5 +89,6 @@ pub fn run() -> Result<(), crate::errors::Refused> {
         &ctx.view.cars,
         &ctx.view.object,
         &mut || draw_menu_object_in_game(&ctx),
+        scene,
     )
 }

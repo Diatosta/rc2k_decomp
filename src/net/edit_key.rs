@@ -13,17 +13,17 @@
 //! Callers: `net::setting_key`, `net::chat_key`.
 
 use crate::errors::Refused;
+use crate::install::owner::Install;
 use crate::net::owner::Net;
 use crate::pointers::{StoreBytes, copy_between, store_value};
 use crate::text::draw_text::GameCanvas;
 use crate::text::measure_text::measure_text_at;
 use rc2k_core::net::editing::{self, EditKey};
-pub fn edit_key(net: &Net, key: u8) -> Result<bool, Refused> {
-    let install = crate::install::owner::install();
+pub fn edit_key(net: &Net, install: &Install, key: u8) -> Result<bool, Refused> {
     // Converted: `rc2k_core::net::editing` (`EditKey`, `last_char`, `takes`,
     // `end_for_char`, `too_wide`).
     if net.edit().edited.get() != editing::NOT_EDITING {
-        let text = crate::net::begin_edit::EditedText::edited()?.text(install);
+        let text = crate::net::begin_edit::EditedText::edited(net)?.text(net, install);
         let words = StoreBytes(text);
         match EditKey::of(key) {
             EditKey::Escape => {

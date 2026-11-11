@@ -41,7 +41,7 @@ pub fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
                 // By address: the list runs past its 0x101 entries, and a face number past
                 // the distances is the original's read.
                 let list = &race.physics.split_tables.checkpoints;
-                let distances = &crate::race::checkpoints_store::CHECKPOINTS.distances;
+                let distances = &race.checkpoints().distances;
                 let distance = |k: u32| {
                     crate::session::read_on_in(
                         &race.shared.buffers,

@@ -9,7 +9,7 @@
 
 use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
-use crate::race::owner_shared::RaceShared;
+use crate::race::owner::Race;
 use crate::session::read_all;
 use rc2k_core::drive::tyre_screen::{layout, wheel_place};
 
@@ -30,12 +30,13 @@ const STATES: [(u32, u32); 11] = [
 /// The mode `mode`, the car `car`.
 // Converted: `rc2k_core::drive::tyre_screen::{layout, wheel_place}`.
 pub fn tyre_screen(
-    shared: &RaceShared,
+    race: &Race,
     mode: u32,
     car: u32,
     input: &crate::input::owner::Input,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
+    let shared = &race.shared;
     if car > 7 {
         return Err(crate::errors::BadInput("a car past 7 (g_inputDevices)").into());
     }
@@ -84,5 +85,5 @@ pub fn tyre_screen(
         device,
         system,
     )?;
-    crate::drive::tyre_screen_parts::tyre_screen_parts(shared)
+    crate::drive::tyre_screen_parts::tyre_screen_parts(race)
 }

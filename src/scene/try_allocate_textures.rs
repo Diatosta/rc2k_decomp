@@ -23,7 +23,7 @@
 use crate::errors::BadInput;
 use crate::logfile::log_int::log_int;
 use crate::race::owner_shared::RaceShared;
-use crate::scene::owner::scene;
+use crate::scene::owner::Scene;
 use crate::scene::texture_needs::TEXTURES;
 use crate::scene::texture_places_store::cell_at;
 use rc2k_core::Invalid;
@@ -47,11 +47,14 @@ pub fn level_size(tables: &crate::scene::object_tables_store::ObjectTables, leve
 }
 
 /// The game's tables.
-struct GameMemory<'a>(&'a RaceShared);
+struct GameMemory<'a> {
+    shared: &'a RaceShared,
+    scene: &'a Scene,
+}
 
 impl rc2k_core::scene::textures::TextureMemory for GameMemory<'_> {
     fn level(&self, video: bool, texture: u32) -> u32 {
-        let objects = &scene().objects;
+        let objects = &self.scene.objects;
         let table = if video {
             &objects.tables.video_levels
         } else {
@@ -60,16 +63,16 @@ impl rc2k_core::scene::textures::TextureMemory for GameMemory<'_> {
         table[texture as usize].get()
     }
     fn size(&self, level: u32) -> u32 {
-        level_size(&scene().objects.tables, level as usize)
+        level_size(&self.scene.objects.tables, level as usize)
     }
     fn mips(&self) -> u32 {
-        self.0.vars.mip_setting.get()
+        self.shared.vars.mip_setting.get()
     }
     fn level_mips(&self, level: u32) -> u32 {
-        scene().objects.tables.level_mips[level as usize].get()
+        self.scene.objects.tables.level_mips[level as usize].get()
     }
     fn forget_kinds(&mut self) {
-        let textures = &scene().textures;
+        let textures = &self.scene.textures;
         for table in [
             &textures.kinds.kind_first_slots,
             &textures.kinds.kind_first_textures,
@@ -80,15 +83,15 @@ impl rc2k_core::scene::textures::TextureMemory for GameMemory<'_> {
         }
     }
     fn set_asked(&mut self, asked: [u32; 2]) {
-        let textures = &scene().textures;
+        let textures = &self.scene.textures;
         textures.kinds.video_memory_asked.set(asked[0]);
         textures.kinds.system_memory_asked.set(asked[1]);
     }
     fn set_first_slot(&mut self, texture: u32, slot: u32) {
-        scene().textures.kinds.kind_first_slots[texture as usize].set(slot);
+        self.scene.textures.kinds.kind_first_slots[texture as usize].set(slot);
     }
     fn set_first_texture(&mut self, texture: u32, first: u32) -> Result<(), Invalid> {
-        let textures = &scene().textures;
+        let textures = &self.scene.textures;
         cell_at(
             &textures.places,
             core::mem::offset_of!(
@@ -108,17 +111,18 @@ impl rc2k_core::scene::textures::TextureMemory for GameMemory<'_> {
 // Converted: `rc2k_core::scene::textures::try_allocate`
 pub fn try_allocate_textures(
     shared: &RaceShared,
+    scene: &Scene,
     call: &mut dyn FnMut(Call) -> Option<u32>,
 ) -> Result<bool, BadInput> {
     Ok(rc2k_core::scene::textures::try_allocate(
-        &mut GameMemory(shared),
+        &mut GameMemory { shared, scene },
         &mut |c| call(c),
     )?)
 }
 
 /// With the game's log and the game's allocation.
-pub fn try_allocate_textures_in_game(shared: &RaceShared) -> Result<bool, BadInput> {
-    try_allocate_textures(shared, &mut |call| {
+pub fn try_allocate_textures_in_game(shared: &RaceShared, scene: &Scene) -> Result<bool, BadInput> {
+    try_allocate_textures(shared, scene, &mut |call| {
         match call {
             Call::Text(text, newline) => crate::logfile::log_write::log_nul(&text, newline, 1),
             Call::Number(number) => log_int(number as i32, false, 1),

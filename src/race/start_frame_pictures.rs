@@ -8,24 +8,25 @@
 //! Caller: `race::viewer_action` (actions 0x25 .. 0x28: 0, 0xA0, 0x50, 0x28).
 
 use crate::errors::Refused;
-use crate::race::viewer_screen_store::VIEWER_PANEL;
+use crate::race::owner::Race;
 
 /// `ms` the time a picture takes, or 0 for the rate's.
-pub fn start_frame_pictures(eax: u32) -> Result<(), Refused> {
+pub fn start_frame_pictures(race: &Race, eax: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::viewer::{picture_rate, picture_time}`.
     use rc2k_core::race::viewer::{picture_rate, picture_time};
-    let rate = picture_rate(VIEWER_PANEL.picture_rate());
-    if VIEWER_PANEL.picture_rate() != rate {
-        VIEWER_PANEL.set_picture_rate(rate);
+    let panel = race.viewer_panel();
+    let rate = picture_rate(panel.picture_rate());
+    if panel.picture_rate() != rate {
+        panel.set_picture_rate(rate);
     }
-    VIEWER_PANEL.set_picture_time(picture_time(eax, rate));
+    panel.set_picture_time(picture_time(eax, rate));
     // The folder made (whether it was is not read).
     crate::files::directories::make_directory(&crate::files::cstring(
-        &VIEWER_PANEL.picture_folder,
+        &panel.picture_folder,
         "the pictures folder",
     )?);
-    VIEWER_PANEL.replay_recording.set(1);
-    VIEWER_PANEL.pictures_started.set(0);
-    VIEWER_PANEL.picture_clock.set(0);
+    panel.replay_recording.set(1);
+    panel.pictures_started.set(0);
+    panel.picture_clock.set(0);
     Ok(())
 }

@@ -8,7 +8,6 @@
 
 use crate::errors::BadInput;
 use crate::pointers::copy_cells;
-use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use rc2k_core::drive::replay_frames::{
     PLAYING, RECORDING, SLOT_SIZE, frame_and_tenth, slot_offset,
@@ -21,7 +20,7 @@ pub fn keep_replay_frame(race: &Race) -> Result<(), BadInput> {
     race.replay.replay_frames.frame.set(0);
     race.replay.replay_frames.tenth.set(0);
     if race.course.numbers.replay_mode.get() != PLAYING {
-        let (frame, tenth) = frame_and_tenth(CAR_BLOCKS.cars[0].step_clock.get());
+        let (frame, tenth) = frame_and_tenth(race.car_blocks().cars[0].step_clock.get());
         race.replay.replay_frames.frame.set(frame);
         race.replay.replay_frames.tenth.set(tenth);
     }
@@ -29,7 +28,7 @@ pub fn keep_replay_frame(race: &Race) -> Result<(), BadInput> {
         let offset = slot_offset(race.replay.replay_frames.frame.get());
         // The first four blocks (`SLOT_SIZE` is four of them).
         copy_cells(
-            (&CAR_BLOCKS.cars, 0),
+            (&race.car_blocks().cars, 0),
             (&race.replay.replay_frames.slots, offset as usize),
             SIZE,
         );

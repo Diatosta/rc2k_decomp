@@ -4,9 +4,9 @@
 //! Caller: `net::start_link`, before each race.
 
 use crate::net::owner::Net;
-pub fn close_if_host(net: &Net) {
+pub fn close_if_host(net: &Net, panel: &crate::race::viewer_screen_store::ViewerPanelBlock) {
     // Converted: `rc2k_core::net::record::is_host`.
     if rc2k_core::net::record::is_host(net.vars.own.state()) {
-        crate::net::disable_new_players::disable_new_players(net);
+        crate::net::disable_new_players::disable_new_players(net, panel);
     }
 }

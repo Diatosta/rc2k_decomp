@@ -20,8 +20,8 @@ const PALETTES: [crate::gfx::typefaces::FontId; 6] = {
 pub fn viewer_palettes(
     shared: &RaceShared,
     scene: &crate::scene::owner::Scene,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), BadInput> {
-    let gfx = crate::gfx::owner::gfx();
     let textures = &scene.textures;
     // The textures and slots kept: (to, from).
     for (to, from) in [

@@ -16,7 +16,7 @@ pub fn backspace_savegame_name(menus: &Menus) -> Result<(), BadInput> {
         return Ok(());
     }
     let name = savegame_name()?;
-    let mut e = text_entry();
+    let mut e = text_entry(menus);
     if let Some(at) = e.backspace(NAME_LEN)? {
         put_entry(menus, &e);
         name.add(at as u32).write(&[0], "a saved game's name")?;

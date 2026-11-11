@@ -14,7 +14,6 @@
 use crate::errors::Refused;
 use crate::net::lobby::{log_bytes, log_int_nl};
 use crate::net::store::NetVars;
-use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use rc2k_core::net::record;
 
@@ -70,13 +69,13 @@ pub fn set_up_race(race: &Race, vars: &NetVars) -> Result<(), Refused> {
     crate::race::race_cars::set_up_arcade_cars(race)?;
     crate::race::race_shell::set_start_states(race)?;
     // Each stored block's gearbox kind and start slot value, from the race's tables.
-    for (car, colours) in CAR_BLOCKS.cars[..8]
+    for (car, colours) in race.car_blocks().cars[..8]
         .iter()
         .zip(&race.shared.vars.car_colours)
     {
         car.gearbox_kind.set(colours.get());
     }
-    for (car, number) in CAR_BLOCKS.cars[..8]
+    for (car, number) in race.car_blocks().cars[..8]
         .iter()
         .zip(&race.shared.vars.start_numbers)
     {

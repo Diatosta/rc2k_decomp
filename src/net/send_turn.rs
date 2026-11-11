@@ -6,11 +6,15 @@
 //! See `net/mod.rs`. One caller, `net::race_step`.
 
 use crate::errors::Refused;
+use crate::net::owner::Net;
 use crate::net::{send_extra, send_inputs, send_position};
 use crate::race::owner::Race;
 use rc2k_core::net::race::SENT;
-pub fn send_turn(race: &Race) -> Result<(), Refused> {
-    let sends: [fn() -> Result<(), Refused>; 3] = [
+/// One of the three messages sent.
+type Send = fn(&Race, &Net) -> Result<(), Refused>;
+
+pub fn send_turn(race: &Race, net: &Net) -> Result<(), Refused> {
+    let sends: [Send; 3] = [
         send_inputs::send_inputs,
         send_position::send_position,
         send_extra::send_extra,
@@ -18,7 +22,7 @@ pub fn send_turn(race: &Race) -> Result<(), Refused> {
     // Converted: `rc2k_core::net::race::Kind::due`.
     for (kind, send) in SENT.into_iter().zip(sends) {
         if kind.due(race.shared.car.step_clock.get()).0 {
-            send()?;
+            send(race, net)?;
         }
     }
     Ok(())

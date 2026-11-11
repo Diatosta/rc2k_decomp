@@ -8,11 +8,13 @@ use crate::errors::Refused;
 pub fn race_turn_if(
     sound: &crate::sound::owner::Sound,
     input: &crate::input::owner::Input,
+    audio: &crate::audio::owner::Audio,
+    system: &crate::system::owner::System,
+    race: &crate::race::owner::Race,
 ) -> Result<bool, Refused> {
-    let audio = crate::audio::owner::audio();
     if sound.race.sounds_on.get().get() == 0 {
         return Ok(false);
     }
-    crate::sound::race_turn::race_turn(sound, input, audio)?;
+    crate::sound::race_turn::race_turn(sound, input, audio, system, race)?;
     Ok(true)
 }

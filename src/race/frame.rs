@@ -3,8 +3,6 @@
 //! its leaves.
 
 use crate::errors::Refused;
-use crate::input::owner::input;
-use crate::menu::owner::menus;
 use crate::net::owner::net;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
@@ -47,9 +45,9 @@ pub fn set_car_counter(car: &Car, value: u32) {
 
 /// `race::set_both_counters` (0x43A987): `set_car_counter` of the first two blocks (by their fixed
 /// addresses), each with the same value.
-pub fn set_both_counters(value: u32) {
+pub fn set_both_counters(race: &Race, value: u32) {
     // Converted: through `set_car_counter` (`rc2k_core::race::cars::Message`).
-    for car in &crate::race::blocks_store::CAR_BLOCKS.cars[..2] {
+    for car in &race.car_blocks().cars[..2] {
         set_car_counter(car, value);
     }
 }
@@ -97,9 +95,9 @@ fn pressed(devices: &crate::input::store::Devices, key: usize) -> bool {
 
 /// `race::race_keys` (0x43A649): the race's view and sound keys (see its header).
 pub fn race_keys(race: &Race) -> Result<(), Refused> {
-    let audio = crate::audio::owner::audio();
-    let devices = &input().devices;
-    let sound = crate::sound::owner::sound();
+    let o = crate::owners::boundary();
+    let (audio, sound) = (o.audio, o.sound);
+    let devices = &o.input.devices;
     let state = &audio.state;
     let shared = &race.shared;
     crate::drive::choose_shown_cars::choose_shown_cars(race)?;
@@ -147,16 +145,16 @@ pub fn race_keys(race: &Race) -> Result<(), Refused> {
             }
             let (split, counter) = split_flip(shared.vars.split.get());
             shared.vars.split.set(split);
-            set_both_counters(counter);
+            set_both_counters(race, counter);
         }
         Some(k @ (Key::VolumeDown | Key::VolumeUp)) => {
             let up = k == Key::VolumeUp;
             let (step, counter) = volume_key(up, second);
-            set_both_counters(counter);
+            set_both_counters(race, counter);
             if second {
                 // The "up" step reads `OptionWork.other_volume`, not the music's volume (see bugs).
                 let from: u32 = if up {
-                    menus().screens.option_work.other_volume.get()
+                    o.menus.screens.option_work.other_volume.get()
                 } else {
                     sound.menu.options.race_music_volume.get()
                 };
@@ -176,7 +174,7 @@ pub fn race_keys(race: &Race) -> Result<(), Refused> {
         }
         Some(Key::Shared) => {
             let counter = flip(shared.view.view_car_or_end(0), SHARED_BIT);
-            set_both_counters(counter);
+            set_both_counters(race, counter);
         }
         None => {}
     }
@@ -195,9 +193,8 @@ pub fn tyre_change(
 ) -> Result<(), Refused> {
     let shared = &race.shared;
     let textures = &scene().textures;
-    use crate::race::blocks_store::CAR_BLOCKS;
     use crate::race::tyre_change_gauge::tyre_change_gauge;
-    let car = &CAR_BLOCKS.cars[0];
+    let car = &race.car_blocks().cars[0];
     shared
         .tyre_change
         .texture

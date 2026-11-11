@@ -4,8 +4,6 @@
 //! clock restarted and the race's starting values; each step logged and indented.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
-use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 
 /// "------", "SHAUNINITEVERYTHING - START", ": loading screen / ..", ": loadlevel_init",
@@ -29,10 +27,8 @@ const WORDS: [&std::ffi::CStr; 9] = [
 /// (`drive::race_init`) and `scene::restart_clock`; the starting values (`STARTS` with the clock,
 /// the blocks' +0xFB4 3 and +0xFB0 8, `LAST_STARTS`); "FINIS", a rule, a line break.
 pub fn load_stage(race: &Race) -> Result<(), Refused> {
-    let system = crate::system::owner::system();
-    let gfx = crate::gfx::owner::gfx();
-    let input = crate::input::owner::input();
-    let scene = crate::scene::owner::scene();
+    let o = crate::owners::boundary();
+    let (system, gfx, input, scene) = (o.system, o.gfx, o.input, o.scene);
     let indent = |by: i32| {
         crate::logfile::write_line::state::INDENT
             .atomic()
@@ -54,7 +50,7 @@ pub fn load_stage(race: &Race) -> Result<(), Refused> {
     {
         // As `menu::show_loading_picture`.
         crate::gfx::show_picture_file::show_picture_file(
-            &menus().tables.texts.loading_pcx,
+            &o.menus.tables.texts.loading_pcx,
             gfx,
             system,
         )?;
@@ -110,10 +106,10 @@ pub fn load_stage(race: &Race) -> Result<(), Refused> {
     race.frame.panel_and_overlay.panel.lights[1]
         .lit
         .set(u32::MAX);
-    for car in &CAR_BLOCKS.cars[..8] {
+    for car in &race.car_blocks().cars[..8] {
         car.light_hold_steps.set(3);
     }
-    for car in &CAR_BLOCKS.cars[..8] {
+    for car in &race.car_blocks().cars[..8] {
         car.value_jump_steps.set(8);
     }
     race.shared.switches.scene_set_up.set(1);

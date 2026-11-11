@@ -26,7 +26,7 @@ use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::scene::angle_between::angle_of;
 use crate::scene::next_noise::next_noise;
-use crate::scene::owner::scene;
+use crate::scene::owner::Scene;
 
 // ---- game data ----
 
@@ -38,15 +38,14 @@ const SEED: u32 = 0x0012_D687;
 
 /// The tangent of an angle (0x2000 a turn here, its low four bits dropped), also kept in
 /// the frame's `tangent_scratch`.
-fn tangent(frame: &crate::race::owner_frame::Frame, angle: u32) -> u32 {
+fn tangent(race: &crate::race::owner::Race, scene: &Scene, angle: u32) -> u32 {
     {
+        let frame = &race.frame;
+        let tables = race.engine_tables();
         let place = (angle >> 4) as usize;
-        scene().drawing.scene.scratch.set(0x8000u32);
+        scene.drawing.scene.scratch.set(0x8000u32);
         let tangent = (bh::to_int(
-            bh::ld(crate::scene::engine_tables_store::ENGINE_TABLES.sines[place].get())
-                / bh::ld(
-                    crate::scene::engine_tables_store::ENGINE_TABLES.sines[place + 0x400].get(),
-                )
+            bh::ld(tables.sines[place].get()) / bh::ld(tables.sines[place + 0x400].get())
                 * bh::int(0x1_0000)
                 * bh::int(0x8000),
         ) as u32)
@@ -57,8 +56,9 @@ fn tangent(frame: &crate::race::owner_frame::Frame, angle: u32) -> u32 {
 }
 
 /// Fills the tables; the register leftovers of the original are read by no caller.
-pub fn fill_engine_tables(race: &crate::race::owner::Race) {
+pub fn fill_engine_tables(race: &crate::race::owner::Race, scene: &Scene) {
     let course = &race.course;
+    let tables = race.engine_tables();
     // The root tables.
     for n in 0..0x100usize {
         let root = bh::stf((bh::int(n as i32 + 0x100) / bh::ld(course.numbers.k256.get())).sqrt());
@@ -69,7 +69,7 @@ pub fn fill_engine_tables(race: &crate::race::owner::Race) {
     }
     // The shuffled words.
     race.shared.physics_tables.noise_state.set(SEED);
-    let word = |n: usize| &crate::scene::engine_tables_store::ENGINE_TABLES.shuffled_words[n];
+    let word = |n: usize| &tables.shuffled_words[n];
     for n in 0..0x1_0000usize {
         word(n).set(n as u16);
     }
@@ -82,7 +82,7 @@ pub fn fill_engine_tables(race: &crate::race::owner::Race) {
     // The noise bytes.
     race.shared.physics_tables.noise_state.set(SEED);
     for n in 0..NOISE_LEN {
-        crate::scene::engine_tables_store::ENGINE_TABLES
+        tables
             .noise_bytes
             .set(n, (next_noise(&race.shared) >> 12) as u8);
     }
@@ -93,7 +93,7 @@ pub fn fill_engine_tables(race: &crate::race::owner::Race) {
     course.lists.face_key_factors[0].set(1.0f32);
     // The sines.
     for n in 0..SINES {
-        crate::scene::engine_tables_store::ENGINE_TABLES.sines[n].set(bh::stf(
+        tables.sines[n].set(bh::stf(
             (bh::int(n as i32).times_pi() / bh::int(0x800)).sin(),
         ));
     }
@@ -102,24 +102,23 @@ pub fn fill_engine_tables(race: &crate::race::owner::Race) {
         let wanted = (n as u32) << 20;
         let (mut angle, mut step) = (0x1000u32, 0x800u32);
         while step != 0 {
-            if wanted < tangent(&race.frame, angle) {
+            if wanted < tangent(race, scene, angle) {
                 angle -= step;
             } else {
                 angle += step;
             }
             step >>= 1;
         }
-        crate::scene::engine_tables_store::ENGINE_TABLES.arctangents[n]
-            .set((angle & 0x1FF0) as u16);
+        tables.arctangents[n].set((angle & 0x1FF0) as u16);
     }
     // The two loops whose results nothing keeps.
     for angle in (0..0x2000).step_by(0x40) {
-        tangent(&race.frame, angle);
+        tangent(race, scene, angle);
     }
     let mut angle = 0;
     for place in 0..0x100u32 {
         angle = angle_of(&race.course, place, 0x100);
     }
     // `scene::angle_between` leaves the last angle in the shared work dword `scratch`.
-    scene().drawing.scene.scratch.set(angle);
+    scene.drawing.scene.scratch.set(angle);
 }

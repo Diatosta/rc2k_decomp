@@ -12,7 +12,6 @@
 
 use crate::effects::emitters::*;
 use crate::effects::owner::Effects;
-use crate::effects::owner::effects;
 use crate::effects::{
     emit_body_contact_particles, emit_bursts, emit_bursts_kind_3, emit_rolling_particles,
     emit_slip_spray, emit_slip_spray_long, emit_wheel_fade_particle,
@@ -22,8 +21,7 @@ use crate::math::x87;
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
 
 /// The chance and the random it would be met by, worked out without writing.
-fn chance(wheel: &MarkRecord) -> Result<(i32, u32), Refused> {
-    let effects = effects();
+fn chance(effects: &Effects, wheel: &MarkRecord) -> Result<(i32, u32), Refused> {
     Ok({
         let chance = x87::mul_to_int(&wheel.chance, &effects.setup.floats.fixed_16_scale);
         let r = effects
@@ -78,8 +76,8 @@ pub fn emit(
                 masks, particles, ring, wheel, object, effects,
             )
         }
-        5 => emit_slip_spray::emit_slip_spray(ring, wheel, object),
-        0xB => emit_slip_spray_long::emit_slip_spray_long(ring, wheel, object),
+        5 => emit_slip_spray::emit_slip_spray(effects, wheel, object),
+        0xB => emit_slip_spray_long::emit_slip_spray_long(effects, wheel, object),
         _ => Ok(()),
     }
 }
@@ -92,7 +90,7 @@ pub fn emit_wheel_particles(
     object: &'static CarEffects,
 ) -> Result<(), Refused> {
     {
-        let (chance, _) = chance(wheel)?;
+        let (chance, _) = chance(effects, wheel)?;
         effects.ring.work.whole.set(chance as u32);
         let r = next_c5(&effects.kinds.emitter.wheel_random);
         if copies(chance, r) {

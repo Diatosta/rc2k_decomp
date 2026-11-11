@@ -17,7 +17,7 @@ use crate::menu::owner::Menus;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::*;
 
-pub fn inspection_pass(menus: &Menus) -> Result<(), Refused> {
+pub fn inspection_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
     let screens = &menus.screens;
     // The logic is in `rc2k_core::menu::passes` (who is looked at, the pauses, `goes_on`).
     use rc2k_core::menu::passes;
@@ -47,10 +47,7 @@ pub fn inspection_pass(menus: &Menus) -> Result<(), Refused> {
         crate::menu::inspection_screen::inspection_screen()?;
         crate::system::sleep::sleep(passes::SCREEN_PAUSE);
         crate::menu::fade_in::fade_in(screens)?;
-        run_screen(
-            &crate::menu::inspection_area_loop::SCREEN,
-            &Entry::new(crate::owners::boundary()),
-        )?;
+        run_screen(&crate::menu::inspection_area_loop::SCREEN, entry)?;
         if menus.tables.pages.yes_no_answer.get() == 1 {
             return Ok(());
         }

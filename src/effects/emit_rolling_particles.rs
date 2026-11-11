@@ -24,6 +24,7 @@ use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
 use crate::effects::jitter_point::jitter_point;
 use crate::effects::mask_store::Masks;
+use crate::effects::owner::Effects;
 use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -32,36 +33,20 @@ use crate::scene::matrix3::{extended, rounded, rounded_value};
 use crate::session::{PlainDword, PlainFloat};
 
 /// The strength's two factors and its least.
-const STRENGTH_K: [&PlainFloat; 3] = [
-    &crate::effects::owner::EFFECTS
-        .unchecked()
-        .setup
-        .floats
-        .three_tenths,
-    &crate::effects::owner::EFFECTS
-        .unchecked()
-        .setup
-        .floats
-        .thirty_second,
-    &crate::effects::owner::EFFECTS
-        .unchecked()
-        .setup
-        .floats
-        .fifth,
-];
+fn strength_k(effects: &Effects) -> [&PlainFloat; 3] {
+    [
+        &effects.setup.floats.three_tenths,
+        &effects.setup.floats.thirty_second,
+        &effects.setup.floats.fifth,
+    ]
+}
 /// The life's factor and base.
-const LIFE_K: [&PlainFloat; 2] = [
-    &crate::effects::owner::EFFECTS
-        .unchecked()
-        .setup
-        .floats
-        .two_thousand,
-    &crate::effects::owner::EFFECTS
-        .unchecked()
-        .setup
-        .floats
-        .hundred,
-];
+fn life_k(effects: &Effects) -> [&PlainFloat; 2] {
+    [
+        &effects.setup.floats.two_thousand,
+        &effects.setup.floats.hundred,
+    ]
+}
 const SIZE: u32 = 0x1_0000;
 const STEP: i32 = 0x18;
 
@@ -73,7 +58,7 @@ struct Pace {
     strength: Option<(u32, bool)>,
 }
 
-fn pace(wheel: &MarkRecord) -> Result<Pace, Refused> {
+fn pace(effects: &Effects, wheel: &MarkRecord) -> Result<Pace, Refused> {
     Ok({
         let grown = x87::abs_sum_to_int_kept(
             &wheel.local_velocity_z,
@@ -87,7 +72,7 @@ fn pace(wheel: &MarkRecord) -> Result<Pace, Refused> {
                 strength: None,
             });
         }
-        let [k1, k2, least] = STRENGTH_K.map(super::super::session::PlainFloat::bits);
+        let [k1, k2, least] = strength_k(effects).map(super::super::session::PlainFloat::bits);
         let (kept, status) = x87::abs_blend_compare(
             &wheel.local_velocity_x,
             k1,
@@ -105,14 +90,18 @@ fn pace(wheel: &MarkRecord) -> Result<Pace, Refused> {
 }
 
 /// Why `emit_particle_1` refuses, if it does, worked out without writing.
-fn refusal(ring: &Ring, wheel: &MarkRecord) -> Result<Option<&'static str>, Refused> {
+fn refusal(
+    effects: &Effects,
+    ring: &Ring,
+    wheel: &MarkRecord,
+) -> Result<Option<&'static str>, Refused> {
     Ok({
-        match pace(wheel)?.strength {
+        match pace(effects, wheel)?.strength {
             Some((_, false)) => {}
             _ => return Ok(None),
         }
         next_entry(ring)?;
-        if !car_with_matrix()? {
+        if !car_with_matrix(effects)? {
             return Ok(Some("a null car object or matrix"));
         }
         None
@@ -126,15 +115,15 @@ pub fn emit_particle_1(
     ring: &Ring,
     wheel: &MarkRecord,
     object: &'static CarEffects,
-    effects: &crate::effects::owner::Effects,
+    effects: &Effects,
 ) -> Result<(), Refused> {
     {
-        if let Some(why) = refusal(ring, wheel)? {
+        if let Some(why) = refusal(effects, ring, wheel)? {
             return Err(BadInput(why).into());
         }
         let flags = wheel.flags.get();
         masks.surface.wheel_flags.set(flags);
-        let p = pace(wheel)?;
+        let p = pace(effects, wheel)?;
         ring.work.whole.set(p.grown.0 as u32);
         wheel.pace.set(p.grown.1.to_bits());
         let Some((kept, under)) = p.strength else {
@@ -152,7 +141,7 @@ pub fn emit_particle_1(
             ring.work.whole.set(one);
         }
         let strength: u32 = ring.work.whole.get();
-        let life = x87::times_plus_to_int(strength, LIFE_K[0], LIFE_K[1]);
+        let life = x87::times_plus_to_int(strength, life_k(effects)[0], life_k(effects)[1]);
         ring.work.life.set(life as u32);
         let fade = x87::mul(strength, &effects.setup.floats.two_fifty_five);
         ring.work.fade.set(fade);
@@ -238,7 +227,7 @@ pub fn emit_rolling_particles(
     ring: &Ring,
     wheel: &MarkRecord,
     object: &'static CarEffects,
-    effects: &crate::effects::owner::Effects,
+    effects: &Effects,
 ) -> Result<(), Refused> {
     if particles.kind1_choice.choice.get() != 0 {
         emit_rolling_particles_rated(particles, ring, wheel, object, effects)

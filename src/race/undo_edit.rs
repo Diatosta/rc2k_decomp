@@ -13,11 +13,7 @@ pub fn undo_edit(race: &Race) -> Result<(), Refused> {
     let shared = &race.shared;
     // Converted: `rc2k_core::race::viewer_flow::{undo_count, copy_tables}`.
     use rc2k_core::race::viewer_flow::undo_count;
-    let Some(count) = undo_count(
-        crate::race::viewer_buffers_store::VIEWER_BUFFERS
-            .undo_blocks
-            .get(),
-    ) else {
+    let Some(count) = undo_count(race.viewer_buffers().undo_blocks.get()) else {
         return Ok(());
     };
     shared.replay_file.index_block_count.set(count);
@@ -35,8 +31,6 @@ pub fn undo_edit(race: &Race) -> Result<(), Refused> {
             .block_cameras
             .set_u32(4 * k, buffers.undo_cameras[k].get());
     }
-    crate::race::viewer_buffers_store::VIEWER_BUFFERS
-        .undo_blocks
-        .set(0);
+    race.viewer_buffers().undo_blocks.set(0);
     crate::race::reset_marks::reset_marks(race)
 }

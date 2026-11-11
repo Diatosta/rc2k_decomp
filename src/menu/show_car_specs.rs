@@ -12,7 +12,7 @@ use crate::menu::lists_store::CarList;
 use crate::menu::owner::Menus;
 use crate::menu::screen_loop::{Entry, run_screen};
 
-pub fn show_car_specs(menus: &Menus) -> Result<(), Refused> {
+pub fn show_car_specs(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
     // The logic is in `rc2k_core::menu::cars::specs_list`.
     use rc2k_core::menu::cars::{SpecsList, specs_list};
     let kind: u32 = menus.screens.event.event_type.get();
@@ -30,23 +30,13 @@ pub fn show_car_specs(menus: &Menus) -> Result<(), Refused> {
     };
     let screen = &crate::menu::car_specs_display_loop::SCREEN;
     if !choice {
-        {
-            run_screen(
-                screen,
-                &Entry::with_cars(crate::owners::boundary(), Some(cars)),
-            )
-        }?;
+        { run_screen(screen, &entry.with_list(Some(cars))) }?;
         return Ok(());
     }
     if let Some(cheat) = crate::menu::cheat_car_list::cheat_car_list(menus) {
         cars = cheat;
     }
-    {
-        run_screen(
-            screen,
-            &Entry::with_cars(crate::owners::boundary(), Some(cars)),
-        )
-    }?;
+    { run_screen(screen, &entry.with_list(Some(cars))) }?;
     if !menus.tables.captions.left_by_key.is_set() {
         crate::menu::take_shown_car::take_shown_car(menus, Some(cars))?;
     }

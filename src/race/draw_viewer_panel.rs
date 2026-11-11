@@ -13,9 +13,7 @@
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
-use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::session::Dword;
-use crate::strings::owner::strings;
 use crate::text::draw_text::GameCanvas;
 const FONT_A: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::PANEL_A;
 const FONT_B: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::PANEL_B;
@@ -23,10 +21,13 @@ const FONT_C: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::PANE
 const FONT_D: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::PANEL_D;
 const FONT_E: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::PANEL_E;
 
-pub fn draw_viewer_panel(race: &Race) -> Result<(), Refused> {
-    let gfx = crate::gfx::owner::gfx();
+pub fn draw_viewer_panel(
+    race: &Race,
+    gfx: &crate::gfx::owner::Gfx,
+    strings: &crate::strings::owner::Strings,
+) -> Result<(), Refused> {
     let replay = &race.replay;
-    let text_stores = &strings().text;
+    let text_stores = &strings.text;
     let shared = &race.shared;
     // Converted: `rc2k_core::race::viewer_flow::{shown_time, replay_length, camera_name,
     // switch_lights}`.
@@ -90,7 +91,7 @@ pub fn draw_viewer_panel(race: &Race) -> Result<(), Refused> {
         let camera = camera_name(crate::race::viewer::camera_byte_at(
             byte.wrapping_add(8 * replay.replay_view.replay_block.get() as usize),
         )?);
-        let id = crate::race::viewer_screen_store::VIEWER_PANEL.camera_name(camera as usize);
+        let id = race.viewer_panel().camera_name(camera as usize);
         let mut out = 0usize;
         crate::strings::append_string_by_id::append_string_by_id(u32::from(id), &mut |bytes| {
             for (k, &b) in bytes.iter().enumerate() {
@@ -126,13 +127,16 @@ pub fn draw_viewer_panel(race: &Race) -> Result<(), Refused> {
     let white = 0x00FF_FFFF;
     let quad = |colour: u32| {
         crate::drive::tyre_quad::tyre_quad_cells(
-            &VIEWER_PANEL.texture_rect,
-            &VIEWER_PANEL.screen_rect,
+            &race.viewer_panel().texture_rect,
+            &race.viewer_panel().screen_rect,
             colour,
         )
     };
     // `texture_rect`: the texture's rectangle; `screen_rect`: the screen's.
-    let (uv, rect) = (&VIEWER_PANEL.texture_rect, &VIEWER_PANEL.screen_rect);
+    let (uv, rect) = (
+        &race.viewer_panel().texture_rect,
+        &race.viewer_panel().screen_rect,
+    );
     let set = |cells: &[Dword; 4], v: [u32; 4]| {
         for (cell, x) in cells.iter().zip(v) {
             cell.set(x);
@@ -143,13 +147,13 @@ pub fn draw_viewer_panel(race: &Race) -> Result<(), Refused> {
     set(rect, [4, 2, 0x64, 0x19]);
     quad(white)?;
     uv[1].set(0x32);
-    VIEWER_PANEL.screen_rect[0].set(0x2B8);
+    race.viewer_panel().screen_rect[0].set(0x2B8);
     quad(white)?;
     set(uv, [0xDC, 0, 0x1A, 0x1A]);
     set(rect, [1, 0x20, 0xD, 0xD]);
     quad(first)?;
     uv[1].set(0x1E);
-    VIEWER_PANEL.screen_rect[0].set(0x191);
+    race.viewer_panel().screen_rect[0].set(0x191);
     quad(second)?;
     set(uv, [0, 0x64, 0x100, 0x1A]);
     set(rect, [0x11, 0x20, 0x80, 0xD]);
@@ -160,7 +164,7 @@ pub fn draw_viewer_panel(race: &Race) -> Result<(), Refused> {
         quad(first)?;
     }
     uv[1].set(0xB2);
-    VIEWER_PANEL.screen_rect[0].set(0x1A1);
+    race.viewer_panel().screen_rect[0].set(0x1A1);
     quad(second)?;
     for _ in 0..2 {
         add(&uv[1], 0x1A);

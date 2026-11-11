@@ -4,21 +4,22 @@
 //!
 //! Callers: `race::viewer_action` (six places), `race::edit_camera_1`, `edit_camera_2`.
 
-use crate::race::owner_shared::RaceShared;
-use crate::race::viewer_buffers_store::VIEWER_BUFFERS;
+use crate::race::owner::Race;
 
-pub fn keep_undo(shared: &RaceShared) {
+pub fn keep_undo(race: &Race) {
+    let shared = &race.shared;
+    let buffers = race.viewer_buffers();
     // As `rc2k_core::race::viewer_flow::copy_tables`, cell by cell.
-    VIEWER_BUFFERS
+    buffers
         .undo_blocks
         .set(shared.replay_file.index_block_count.get());
-    for (k, (to, from)) in VIEWER_BUFFERS
+    for (k, (to, from)) in buffers
         .undo_places
         .iter()
         .zip(&shared.replay_file.block_places)
         .enumerate()
     {
         to.set(from.get());
-        VIEWER_BUFFERS.undo_cameras[k].set(VIEWER_BUFFERS.block_cameras.get_u32(4 * k));
+        buffers.undo_cameras[k].set(buffers.block_cameras.get_u32(4 * k));
     }
 }

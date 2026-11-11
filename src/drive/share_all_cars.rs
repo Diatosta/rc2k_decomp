@@ -13,7 +13,7 @@ use crate::drive::put_back_lead_car_values::put_back_lead_car_values;
 use crate::drive::set_listener::set_listener;
 use crate::drive::share_car_state::share_car_state;
 use crate::errors::{BadInput, Refused};
-use crate::race::effects_settings_store::{CarEffects, EFFECTS_SETTINGS};
+use crate::race::effects_settings_store::CarEffects;
 use crate::race::mud::car_file_number;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
@@ -74,7 +74,7 @@ pub fn share_all_cars(
         .shared
         .work
         .car_record(crate::race::blocks_store::own_car_number())?;
-    EFFECTS_SETTINGS.sound_objects_shown.set(0u32);
+    race.effects_settings().sound_objects_shown.set(0u32);
     let reading = crate::scene::reading::Reading::new();
     let (shown, _) =
         sharing::cars_shown(crate::race::blocks_store::own_car().car_kind.get(), || {
@@ -82,7 +82,7 @@ pub fn share_all_cars(
         });
     reading.finish()?;
     if shown {
-        EFFECTS_SETTINGS.sound_objects_shown.set(1u32);
+        race.effects_settings().sound_objects_shown.set(1u32);
     }
     put_back_lead_car_values(&race.frame);
     Ok(())

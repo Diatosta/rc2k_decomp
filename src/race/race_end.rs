@@ -4,17 +4,12 @@
 
 use crate::effects::owner::effects;
 use crate::errors::Refused;
-use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
-use crate::race::owner_shared::RaceShared;
-use crate::race::replay_work_store::REPLAY_WORK;
 use rc2k_core::audio::commands::Command;
 
 /// Where a header setting lives in the race's variables (its first place).
-pub fn setting_cell(
-    shared: &RaceShared,
-    s: rc2k_core::race::replay::Setting,
-) -> &crate::session::Dword {
+pub fn setting_cell(race: &Race, s: rc2k_core::race::replay::Setting) -> &crate::session::Dword {
+    let shared = &race.shared;
     use rc2k_core::race::replay::Setting::*;
     match s {
         Seed => &shared.tables.noise_seed,
@@ -24,28 +19,29 @@ pub fn setting_cell(
         Mode => &shared.vars.run_kind,
         Players => &shared.view.players,
         Cars => &shared.view.race_cars,
-        Kind(n) => &CAR_BLOCKS.cars[n as usize].car_kind,
-        GameOver(n) => &CAR_BLOCKS.cars[n as usize].stop_state,
+        Kind(n) => &race.car_blocks().cars[n as usize].car_kind,
+        GameOver(n) => &race.car_blocks().cars[n as usize].stop_state,
     }
 }
 
 /// Where a header setting lives in the replay's car header (`header_stage` ..).
-pub fn header_cell(s: rc2k_core::race::replay::Setting) -> &'static crate::session::Dword {
+pub fn header_cell(race: &Race, s: rc2k_core::race::replay::Setting) -> &crate::session::Dword {
+    let work = race.replay_work();
     use rc2k_core::race::replay::Setting::*;
     match s {
-        Stage => &REPLAY_WORK.header_stage,
-        Mode => &REPLAY_WORK.header_mode,
-        Players => &REPLAY_WORK.header_players,
-        Cars => &REPLAY_WORK.header_cars,
-        Kind(0) => &REPLAY_WORK.header_kind_0,
-        Kind(1) => &REPLAY_WORK.header_kind_1,
-        Kind(2) => &REPLAY_WORK.header_kind_2,
-        Kind(3) => &REPLAY_WORK.header_kind_3,
-        StartPlace => &REPLAY_WORK.header_start_place,
-        ArcadeCars => &REPLAY_WORK.header_arcade_cars,
-        Seed => &REPLAY_WORK.header_seed,
-        GameOver(0) => &REPLAY_WORK.header_game_over_0,
-        GameOver(1) => &REPLAY_WORK.header_game_over_1,
+        Stage => &work.header_stage,
+        Mode => &work.header_mode,
+        Players => &work.header_players,
+        Cars => &work.header_cars,
+        Kind(0) => &work.header_kind_0,
+        Kind(1) => &work.header_kind_1,
+        Kind(2) => &work.header_kind_2,
+        Kind(3) => &work.header_kind_3,
+        StartPlace => &work.header_start_place,
+        ArcadeCars => &work.header_arcade_cars,
+        Seed => &work.header_seed,
+        GameOver(0) => &work.header_game_over_0,
+        GameOver(1) => &work.header_game_over_1,
         Kind(_) | GameOver(_) => unreachable!("the header holds four kinds and two flags"),
     }
 }
@@ -72,15 +68,14 @@ const REPLAY_WORDS: [&std::ffi::CStr; 13] = [
 /// absences) into the car header (`header_stage` ..), each logged as "[replayheader.x]"
 /// (`log_write_l1`) and its value (`log_int_l1_nl`). it reads none.
 pub fn record_replay_header(race: &Race) {
-    let shared = &race.shared;
     // Converted: `rc2k_core::race::replay::HEADER_SETTINGS`.
     use rc2k_core::race::replay::HEADER_SETTINGS;
     for s in HEADER_SETTINGS {
-        header_cell(s).set(setting_cell(shared, s).get());
+        header_cell(race, s).set(setting_cell(race, s).get());
     }
     for (n, &s) in HEADER_SETTINGS.iter().enumerate() {
         crate::logfile::log_write::log_nul(&REPLAY_WORDS[n], false, 1);
-        crate::logfile::log_int::log_int(header_cell(s).get() as i32, true, 1);
+        crate::logfile::log_int::log_int(header_cell(race, s).get() as i32, true, 1);
     }
 }
 

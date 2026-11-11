@@ -10,20 +10,19 @@
 //! 2^32 times (refused). Called by `screens::run_frame` for `net::settings_loop`.
 
 use crate::errors::Refused;
+use crate::install::owner::Install;
 use crate::net::draw_centred_item::draw_centred_item;
 use crate::net::draw_number_value::draw_number_value;
 use crate::net::draw_setting_value::draw_setting_value;
 use crate::net::lobby::{PALETTE, blit, copy_picture, lock_surface};
-use crate::net::owner::net;
+use crate::net::owner::Net;
 use crate::net::setting_label::setting_label;
 use crate::text::draw_text::GameCanvas;
 use rc2k_core::net::screens;
 
 /// Called through
 /// `screens::run_frame` by `net::settings_loop`.
-pub fn settings_frame() -> Result<(), Refused> {
-    let install = crate::install::owner::install();
-    let net = net();
+pub fn settings_frame(net: &'static Net, install: &'static Install) -> Result<(), Refused> {
     if !lock_surface() {
         return Ok(());
     }
@@ -44,12 +43,12 @@ pub fn settings_frame() -> Result<(), Refused> {
     .enumerate()
     {
         let item = item as u32;
-        y = setting_label(net, label, item, y)?;
+        y = setting_label(net, install, label, item, y)?;
         y = match value {
-            Value::Number(n) => draw_number_value(install, n, item, y)?,
+            Value::Number(n) => draw_number_value(net, install, n, item, y)?,
             Value::Text(text) => {
                 let text = text.text("a setting's text")?;
-                draw_setting_value(&text, item, y)?
+                draw_setting_value(net, &text, item, y)?
             }
         };
     }
@@ -82,7 +81,7 @@ pub fn settings_frame() -> Result<(), Refused> {
         }
     }
     piece(screens::LEFT_END, screens::END_WIDTH)?;
-    draw_centred_item(install, 0x16F, 4, text_x, 0x21D)?;
+    draw_centred_item(net, install, 0x16F, 4, text_x, 0x21D)?;
     crate::platform::unlock_surface();
     crate::platform::show_frame_now();
     Ok(())

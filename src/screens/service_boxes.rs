@@ -3,7 +3,6 @@
 
 use crate::errors::Refused;
 use crate::menu::owner::Screens;
-use crate::race::owner::race;
 use crate::session::DwordLike;
 
 /// A variable of the game.
@@ -17,8 +16,8 @@ pub fn set(a: &dyn DwordLike, v: u32) {
 
 /// One quad: x .. x + w, y .. y + h, the colour and see-through, then `draw_tinted_quad`.
 pub fn quad(x: u32, y: u32, w: u32, h: u32, colour: u32, see: u32) -> Result<(), Refused> {
-    let scene = crate::scene::owner::scene();
-    let q = &race().shared.vars;
+    let o = crate::owners::boundary();
+    let q = &o.race.shared.vars;
     let scratch = crate::race::view_scratch::front_end();
     scratch.quad.corners[0].set(x);
     scratch.quad.corners[4].set(y);
@@ -27,10 +26,7 @@ pub fn quad(x: u32, y: u32, w: u32, h: u32, colour: u32, see: u32) -> Result<(),
     q.quad_colour[0].set(colour);
     q.quad_colour[1].set(see);
     crate::scene::draw_tinted_quad::draw_tinted_quad(&crate::race::view_scratch::DrawCtx::new(
-        crate::race::owner::race(),
-        scene,
-        crate::system::owner::system(),
-        scratch,
+        o.race, o.scene, o.system, scratch,
     ))
 }
 

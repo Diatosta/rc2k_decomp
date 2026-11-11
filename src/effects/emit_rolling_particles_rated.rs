@@ -65,7 +65,7 @@ fn refusal(
         }
         // The ring full: nothing more is read.
         next_entry(ring)?;
-        if !car_with_matrix()? {
+        if !car_with_matrix(effects)? {
             return Ok(Some("a null car object or matrix"));
         }
         None

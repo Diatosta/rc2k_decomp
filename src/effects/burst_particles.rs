@@ -19,6 +19,7 @@ use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_float as bh;
+use crate::sound::owner::Sound;
 
 const ENTRIES: u32 = 0x100;
 const FULL: u32 = 0xFFF;
@@ -60,6 +61,7 @@ pub fn burst_particles(
     ring: &Ring,
     record: u32,
     effects: &crate::effects::owner::Effects,
+    sound: &Sound,
 ) -> Result<(), Refused> {
     {
         if ring.pool.used.get() != FULL {
@@ -70,7 +72,7 @@ pub fn burst_particles(
                 return Err(BadInput("a null ring entry").into());
             }
         }
-        crate::sound::owner::sound().race.stage.get().random[1].set(1);
+        sound.race.stage.get().random[1].set(1);
         let s = next_seed(effects);
         let r = s & 0xFFFF;
         let m = effects.frame.draw_work.uv_k.bits();

@@ -7,7 +7,6 @@ use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_float as bh;
-use crate::race::checkpoints_store::CHECKPOINTS;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
@@ -131,9 +130,9 @@ const MOST_FACES: u32 = 0x10_0000;
 #[derive(Clone, Copy)]
 pub struct Cameras {
     pub kind: u8,
-    pub list: fn() -> &'static [Dword],
+    pub list: for<'a> fn(&'a Race) -> &'a [Dword],
     pub count: for<'a> fn(&'a RaceShared) -> &'a Dword,
-    pub nearest: fn() -> &'static [Dword],
+    pub nearest: for<'a> fn(&'a Race) -> &'a [Dword],
 }
 
 /// 0x445BB2 ("replaycam1") and 0x445CF1 ("replaycam2").
@@ -141,15 +140,15 @@ pub fn cameras() -> [Cameras; 2] {
     [
         Cameras {
             kind: 0x3C,
-            list: || &CHECKPOINTS.replay_cameras_1,
+            list: |race| &race.checkpoints().replay_cameras_1,
             count: |shared| &shared.vars.replay_camera_counts[0],
-            nearest: || &CHECKPOINTS.nearest_camera_1,
+            nearest: |race| &race.checkpoints().nearest_camera_1,
         },
         Cameras {
             kind: 0x38,
-            list: || &CHECKPOINTS.replay_cameras_2,
+            list: |race| &race.checkpoints().replay_cameras_2,
             count: |shared| &shared.vars.replay_camera_counts[1],
-            nearest: || &CHECKPOINTS.nearest_camera_2,
+            nearest: |race| &race.checkpoints().nearest_camera_2,
         },
     ]
 }
@@ -222,7 +221,7 @@ pub fn sort_checkpoints(race: &Race) -> Result<(), Refused> {
         let mut list = Vec::new();
         for b in 0..n {
             if of_kind(b, shared.vars.line_face_kind.get() as u8)? {
-                write_n(&CHECKPOINTS.checkpoint_faces, list.len() as u32, b)?;
+                write_n(&race.checkpoints().checkpoint_faces, list.len() as u32, b)?;
                 list.push(b);
             }
         }
@@ -246,7 +245,7 @@ pub fn sort_checkpoints(race: &Race) -> Result<(), Refused> {
         );
         trap.finish()?;
         for (k, &f) in list.iter().enumerate() {
-            write_n(&CHECKPOINTS.checkpoint_faces, k as u32, f)?;
+            write_n(&race.checkpoints().checkpoint_faces, k as u32, f)?;
         }
         shared.vars.checkpoint_count.set(c.length);
         shared.vars.line_face_total.set(c.length);
@@ -294,10 +293,10 @@ pub fn checkpoint_angles(race: &Race, scene: &crate::scene::owner::Scene) -> Res
                 scene.drawing.scene.scratch.set(dz as u32);
                 x87::angle_scaled3_to_int(dx, dz, half, scale, scale) as u32
             },
-            || trap.keep_read(read_n(&CHECKPOINTS.angles, 2)),
+            || trap.keep_read(read_n(&race.checkpoints().angles, 2)),
         );
         for (k, angle) in writes {
-            write_n(&CHECKPOINTS.angles, k, angle)?;
+            write_n(&race.checkpoints().angles, k, angle)?;
         }
     }
     trap.finish()?;
@@ -312,10 +311,11 @@ pub fn checkpoint_angles(race: &Race, scene: &crate::scene::owner::Scene) -> Res
 /// `build_best_line`, never reaches (it calls with two line faces or more, and `sort_checkpoints`
 /// makes the checkpoint count the same).
 pub fn checkpoint_distances(
-    course: &Course,
-    shared: &RaceShared,
+    race: &Race,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
+    let (course, shared) = (&race.course, &race.shared);
+    let checkpoints = race.checkpoints();
     let n = count(shared)?;
     if n < 2 {
         return Err(BadInput("fewer than two checkpoints: the original writes at ecx").into());
@@ -356,10 +356,10 @@ pub fn checkpoint_distances(
             length
         });
         for (k, &sum) in sums[..last as usize].iter().enumerate() {
-            write_n(&CHECKPOINTS.distances, k as u32, sum)?;
+            write_n(&checkpoints.distances, k as u32, sum)?;
         }
-        write_n(&CHECKPOINTS.distances, last, sums[last as usize])?;
-        CHECKPOINTS.line_length.set(sums[last as usize]);
+        write_n(&checkpoints.distances, last, sums[last as usize])?;
+        checkpoints.line_length.set(sums[last as usize]);
     }
     trap.finish()?;
     Ok(())
@@ -386,7 +386,7 @@ pub fn replay_cameras(race: &Race, set: &Cameras) -> Result<(), Refused> {
         });
         trap.finish()?;
         for (e, &f) in cameras.iter().enumerate() {
-            write_n((set.list)(), e as u32, f)?;
+            write_n((set.list)(race), e as u32, f)?;
         }
         let m = cameras.len() as u32;
         (set.count)(shared).set(m);
@@ -401,7 +401,7 @@ pub fn replay_cameras(race: &Race, set: &Cameras) -> Result<(), Refused> {
             ];
             crate::session::write_bits(&shared.vars.line_from, from);
             let nearest = rc2k_core::race::best_line::nearest_camera(m, |e| {
-                let q = match point_of(&race.course, trap.keep_read(read_n((set.list)(), e))) {
+                let q = match point_of(&race.course, trap.keep_read(read_n((set.list)(race), e))) {
                     Ok(q) => q,
                     Err(err) => {
                         trap.keep(err);
@@ -426,7 +426,7 @@ pub fn replay_cameras(race: &Race, set: &Cameras) -> Result<(), Refused> {
             });
             trap.finish()?;
             crate::session::write_bits(&shared.vars.line_nearest, [nearest.0, nearest.1]);
-            write_n((set.nearest)(), c, nearest.1)?;
+            write_n((set.nearest)(race), c, nearest.1)?;
         }
     }
     Ok(())
@@ -590,9 +590,9 @@ pub fn map_segment(race: &Race, scene: &crate::scene::owner::Scene) -> Result<()
             let z = x87::int_times_to_int(z as i32, scale);
             scene.drawing.scene.scratch.set(z as u32);
             let [x, _, z, _] = rotate_point_about_y(x, number as i32, z, map_angle);
-            write_n(&CHECKPOINTS.map_x, e, x.wrapping_add(place_a[0]))?;
+            write_n(&race.checkpoints().map_x, e, x.wrapping_add(place_a[0]))?;
             write_n(
-                &CHECKPOINTS.map_y,
+                &race.checkpoints().map_y,
                 e,
                 z.wrapping_add(place_a[1]).wrapping_neg(),
             )?;
@@ -674,7 +674,7 @@ pub fn build_best_line(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
                     1 => checkpoint_angles(race, scene)?,
                     2 => count_checks(&race.course, &race.shared)?,
                     3 => {} // `nullsub_7`
-                    4 => checkpoint_distances(&race.course, &race.shared, scene)?,
+                    4 => checkpoint_distances(race, scene)?,
                     5 => map_checkpoints(race, scene)?,
                     6 => replay_cameras(race, &cameras()[0])?,
                     _ => replay_cameras(race, &cameras()[1])?,

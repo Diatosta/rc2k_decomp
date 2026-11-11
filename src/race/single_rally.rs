@@ -12,11 +12,11 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::race::effects_settings_store::EFFECTS_SETTINGS;
-use crate::race::owner::race;
 use crate::race::state_store::{RaceCar, RaceResult};
 use crate::session::DwordLike;
 use crate::session::PlainDword;
 use crate::session::{Bytes, Dword};
+#[cfg(test)]
 use crate::system::owner::system;
 use rc2k_core::menu::player::{Player, TAKES_PART};
 
@@ -406,8 +406,8 @@ fn single_rally(
     kind: u32,
     step: &mut dyn FnMut(Call) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    let shared = &race().shared;
-    let system = system();
+    let o = crate::owners::boundary();
+    let (shared, system) = (&o.race.shared, o.system);
     // Closed on a menu whose item leads here (a window's close, MENU + START): the screen is
     // left as if chosen, with no stage yet. Not the original's, whose close stopped nothing.
     if system.session.flags.quitting.is_set() {
@@ -562,14 +562,14 @@ pub enum Call {
 
 /// Does one of the race's calls.
 pub fn step(call: Call) -> Result<(), Refused> {
-    let sound = crate::sound::owner::sound();
-    let race = race();
+    let o = crate::owners::boundary();
+    let (sound, race) = (o.sound, o.race);
     match call {
         Call::CopyRallyTimes => crate::race::rally::copy_rally_times()?,
         Call::StopMusic => crate::sound::stop_music::stop_music(),
         Call::SetRaceScreenMode => crate::race::race_shell::set_race_screen_mode(),
         Call::ShowLoadingPicture => {
-            crate::menu::show_loading_picture::show_loading_picture(crate::menu::owner::menus())?;
+            crate::menu::show_loading_picture::show_loading_picture(o.menus)?;
         }
         Call::SetUpRaceSoundObjects => crate::race::sound_tables::set_up_race_sound_objects(
             race,

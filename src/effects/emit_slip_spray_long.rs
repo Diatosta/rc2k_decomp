@@ -9,78 +9,40 @@
 //! Refuses as `emit_slip_spray`.
 
 use crate::effects::emit_slip_spray::{JitterSet, emit_slip_spray_with};
-use crate::effects::ring_store::Ring;
+use crate::effects::owner::Effects;
 use crate::errors::Refused;
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
 use crate::session::{PlainBytes, PlainDword, PlainFloat};
 
 /// Kind 0xB's variables.
-pub const ELEVENTH: JitterSet = JitterSet {
-    kind: 0xB,
-    over_one: true,
-    place_random: &crate::effects::owner::EFFECTS
-        .unchecked()
-        .particles
-        .kind11_set
-        .place_random,
-    motion_k: [
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .particles
-            .kind11_set
-            .motion_x,
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .particles
-            .kind11_set
-            .motion_y,
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .particles
-            .kind11_set
-            .motion_z,
-    ],
-    lift: &crate::effects::owner::EFFECTS
-        .unchecked()
-        .particles
-        .kind11_set
-        .lift,
-    spread: &crate::effects::owner::EFFECTS
-        .unchecked()
-        .particles
-        .kind11_set
-        .spread,
-    roll_k: [
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .particles
-            .kind11_set
-            .roll_k[0],
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .particles
-            .kind11_set
-            .roll_k[1],
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .particles
-            .kind11_set
-            .roll_k[2],
-    ],
-    spin: &crate::effects::owner::EFFECTS
-        .unchecked()
-        .particles
-        .kind11_set
-        .spin,
-    life: 0x7D0,
-};
+pub fn eleventh(effects: &Effects) -> JitterSet<'_> {
+    JitterSet {
+        kind: 0xB,
+        over_one: true,
+        place_random: &effects.particles.kind11_set.place_random,
+        motion_k: [
+            &effects.particles.kind11_set.motion_x,
+            &effects.particles.kind11_set.motion_y,
+            &effects.particles.kind11_set.motion_z,
+        ],
+        lift: &effects.particles.kind11_set.lift,
+        spread: &effects.particles.kind11_set.spread,
+        roll_k: [
+            &effects.particles.kind11_set.roll_k[0],
+            &effects.particles.kind11_set.roll_k[1],
+            &effects.particles.kind11_set.roll_k[2],
+        ],
+        spin: &effects.particles.kind11_set.spin,
+        life: 0x7D0,
+    }
+}
 
 pub fn emit_slip_spray_long(
-    ring: &Ring,
+    effects: &Effects,
     wheel: &MarkRecord,
     object: &'static CarEffects,
 ) -> Result<(), Refused> {
-    emit_slip_spray_with(ring, &ELEVENTH, wheel, object)
+    emit_slip_spray_with(effects, &eleventh(effects), wheel, object)
 }
 
 /// Kind 0xB's emitter variables (`emit_slip_spray::ELEVENTH`), and the constants of code that is in no function (IDA 0x93A262 .. 0x93A312).

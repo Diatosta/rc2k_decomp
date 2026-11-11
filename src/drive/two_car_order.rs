@@ -7,15 +7,14 @@
 //!
 //! Caller: `drive::replay_step`.
 
-use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::owner_shared::RaceShared;
+use crate::race::owner::Race;
 use rc2k_core::drive::places;
 
 // Converted: `rc2k_core::drive::places::two_car_order`.
-pub fn two_car_order(shared: &RaceShared) -> Result<(), crate::errors::BadInput> {
+pub fn two_car_order(race: &Race) -> Result<(), crate::errors::BadInput> {
     // g_carBlockStore: the figures of car block `car`.
     let figure = |car: usize, o: u32| {
-        let block = &CAR_BLOCKS.cars[car];
+        let block = &race.car_blocks().cars[car];
         match o {
             places::FINISHED => block.finish_flag.get(),
             places::CHECKPOINT => block.reset_checkpoint.get(),
@@ -23,14 +22,14 @@ pub fn two_car_order(shared: &RaceShared) -> Result<(), crate::errors::BadInput>
         }
     };
     let order = places::two_car_order(
-        shared.vars.run_kind.get(),
-        shared.view.players.get(),
+        race.shared.vars.run_kind.get(),
+        race.shared.view.players.get(),
         figure,
         0,
     );
     if let Some([x, y]) = order.places {
-        CAR_BLOCKS.cars[0].two_car_place.set(x);
-        CAR_BLOCKS.cars[1].two_car_place.set(y);
+        race.car_blocks().cars[0].two_car_place.set(x);
+        race.car_blocks().cars[1].two_car_place.set(y);
     }
     Ok(())
 }

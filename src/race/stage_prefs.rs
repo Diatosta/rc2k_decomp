@@ -102,7 +102,7 @@ pub fn init_skidmarks(race: &Race) -> Result<(), BadInput> {
     {
         // The skid objects are car blocks 0 and 1.
         for n in 0..2 {
-            reset_skid_slots(&crate::race::blocks_store::CAR_BLOCKS.cars[n]);
+            reset_skid_slots(&race.car_blocks().cars[n]);
         }
         let links = &frame.shadow_skids.skid_links;
         for n in 0..0x400 {
@@ -118,7 +118,7 @@ pub fn init_skidmarks(race: &Race) -> Result<(), BadInput> {
 pub fn copy_lights_data(race: &Race) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::stage_objects::lay_lights`.
     use rc2k_core::race::stage_objects::{LIGHT_RECORD, lay_lights};
-    let records = &crate::race::light_records_store::LIGHT_RECORDS.records;
+    let records = &race.light_records().records;
     let source = race.course.lights_data.lights.read();
     let mut laid = vec![0; LIGHT_RECORDS as usize * LIGHT_RECORD];
     Store::load(records, 0, &mut laid)?;

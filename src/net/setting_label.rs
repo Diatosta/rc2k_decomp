@@ -6,11 +6,18 @@
 //! Caller: `net::settings_frame` (four times).
 
 use crate::errors::Refused;
+use crate::install::owner::Install;
 use crate::net::draw_button::draw_button;
 use crate::net::owner::Net;
 
 /// The label `string` for item `item` at `y`; returns the next y (y + 0x20).
-pub fn setting_label(net: &Net, string: u32, item: u32, y: u32) -> Result<u32, Refused> {
-    draw_button(net, string, 0, 0x190, y, item)?;
+pub fn setting_label(
+    net: &Net,
+    install: &Install,
+    string: u32,
+    item: u32,
+    y: u32,
+) -> Result<u32, Refused> {
+    draw_button(net, install, string, 0, 0x190, y, item)?;
     Ok(y.wrapping_add(0x20))
 }

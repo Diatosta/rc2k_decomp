@@ -16,7 +16,7 @@
 //! `SUMMARY_EVERY` frames compared a count.
 
 use crate::errors::BadInput;
-use crate::race::blocks_store::{CAR_BLOCKS, REPLAY_STATE_DWORDS, REPLAY_STATE_OFFSET};
+use crate::race::blocks_store::{REPLAY_STATE_DWORDS, REPLAY_STATE_OFFSET};
 use crate::race::owner::Race;
 use rc2k_core::drive::replay_frames::{CAR_DWORDS, PLAYING, RECORDING};
 use rc2k_core::drive::replay_frames::{StartPiece, start_layout};
@@ -58,7 +58,7 @@ pub fn note(race: &Race) -> Result<(), BadInput> {
         PLAYING => "playing",
         _ => return Ok(()),
     };
-    let clock = CAR_BLOCKS.cars[0].step_clock.get();
+    let clock = race.car_blocks().cars[0].step_clock.get();
     #[cfg(feature = "remote")]
     if mode == "playing" {
         crate::remote::replay_tick(clock);
@@ -69,7 +69,7 @@ pub fn note(race: &Race) -> Result<(), BadInput> {
     let mut line = format!("replay check: {mode}, clock {clock}:");
     for car in 0..race.shared.view.race_cars.get().min(4) as usize {
         // g_carBlockStore: four blocks of 0xFE0.
-        let block = &CAR_BLOCKS.cars[car];
+        let block = &race.car_blocks().cars[car];
         let mut bytes = vec![0u8; 4 * CAR_DWORDS];
         crate::pointers::Store::load(block, 0, &mut bytes)?;
         let h = hash(
@@ -106,7 +106,7 @@ pub fn compare_frame(race: &Race) -> Result<(), BadInput> {
             REPLAY_STATE_OFFSET + 4 * dword,
         )
     };
-    let clock = CAR_BLOCKS.cars[0].step_clock.get();
+    let clock = race.car_blocks().cars[0].step_clock.get();
     if saved(2)? != clock {
         SKIPPED.fetch_add(1, Relaxed);
         return Ok(());

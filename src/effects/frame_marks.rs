@@ -11,7 +11,6 @@
 //! null settings before anything, and its steps' refusals (all it may write is put back first).
 
 use crate::effects::owner::Effects;
-use crate::effects::owner::effects;
 use crate::effects::run_frame::FRAME_K;
 use crate::effects::{morph_object_points, scale_vectors_by, view_frame};
 use crate::errors::Refused;
@@ -20,8 +19,11 @@ use crate::race::effects_settings_store::EffectsSettings;
 use crate::race::owner::Race;
 use crate::session::PlainDword;
 /// (the settings' field, the copy): +0x50, +0x4C and +0x10.
-fn copies(marks: &EffectsSettings) -> [(&crate::session::Dword, &PlainDword); 3] {
-    let setup = &effects().setup;
+fn copies<'a>(
+    effects: &'a Effects,
+    marks: &'a EffectsSettings,
+) -> [(&'a crate::session::Dword, &'a PlainDword); 3] {
+    let setup = &effects.setup;
     [
         (&marks.listener_near, &setup.kind_floats.fading),
         (&marks.after_loading_copy, &setup.kind_floats.other),
@@ -48,12 +50,17 @@ pub fn frame_marks(race: &Race, effects: &Effects) -> Result<(), Refused> {
             .frame
             .frame_cycles
             .set_bits(now.wrapping_sub(last));
-        for (from, to) in copies(marks) {
+        for (from, to) in copies(effects, marks) {
             to.set(from.get());
         }
         effects.setup.clock.settings_copies[0].set(marks.fresh_marks_flags[1].get());
         scale_vectors_by::scale_vectors_by(effects);
-        morph_object_points::morph_object_points(course, &effects.paths, effects)?;
+        morph_object_points::morph_object_points(
+            course,
+            &effects.paths,
+            crate::scene::owner::scene(),
+            effects,
+        )?;
         view_frame::view_frame(shared, effects)?;
         marks.fresh_marks_flags[1].set(0);
         effects

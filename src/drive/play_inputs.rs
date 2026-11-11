@@ -7,7 +7,6 @@
 use crate::errors::BadInput;
 use crate::pointers::Store;
 use crate::race::owner::Race;
-use crate::race::replay_work_store::REPLAY_WORK;
 use rc2k_core::drive::replay_frames::{on_tape, tape_offset};
 
 // Converted: `rc2k_core::drive::replay_frames::{on_tape, tape_offset}`.
@@ -20,7 +19,9 @@ pub fn play_inputs(race: &Race) -> Result<(), BadInput> {
     }
     let esi = tape_offset(replay.replay_frames.step_frame.get(), car);
     let mut words = [0u8; 8];
-    REPLAY_WORK.replay_tape.load(esi as usize, &mut words)?;
+    race.replay_work()
+        .replay_tape
+        .load(esi as usize, &mut words)?;
     let ebx = u32::from_le_bytes([words[0], words[1], words[2], words[3]]);
     let second = u32::from_le_bytes([words[4], words[5], words[6], words[7]]);
     let [eax, ecx, edx] = crate::drive::unpack_inputs::unpack_inputs(second);

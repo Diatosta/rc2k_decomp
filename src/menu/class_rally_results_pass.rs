@@ -10,6 +10,7 @@
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
+use crate::menu::screen_loop::Entry;
 use crate::menu::standings::*;
 use crate::menu::standings_steps::number_standings;
 use rc2k_core::menu::class_pages;
@@ -20,7 +21,7 @@ fn first_class() -> u32 {
     class_pages::FIRST_RALLY_CLASS
 }
 
-pub fn class_rally_results_pass(menus: &Menus) -> Result<(), Refused> {
+pub fn class_rally_results_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
     crate::menu::sort_standings_by_total::sort_standings_by_total(menus)?;
     let first = first_class();
     // The logic is in `rc2k_core::menu::class_pages` (`classes`, `has_player`).
@@ -38,7 +39,7 @@ pub fn class_rally_results_pass(menus: &Menus) -> Result<(), Refused> {
         menus.screens.loop_flags.left_with_carry.set(true);
         let numbered = number_standings(menus, Which::A, class)?;
         menus.screens.event.count_a.set(numbered.last_number);
-        crate::menu::show_class_rally_results::show_class_rally_results(menus, class)?;
+        crate::menu::show_class_rally_results::show_class_rally_results(menus, class, entry)?;
         if menus.tables.pages.yes_no_answer.get() == 1 {
             break;
         }

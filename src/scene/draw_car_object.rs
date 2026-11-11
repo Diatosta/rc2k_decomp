@@ -15,8 +15,7 @@
 //! run its `run` (`menu::table_routes`).
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::{Menus, Screens, menus};
-use crate::race::owner::race;
+use crate::menu::owner::{Menus, Screens};
 use crate::race::owner_shared::RaceShared;
 use crate::scene::assign_kind_textures::assign_kind_textures;
 use crate::scene::carousel_pictures::update;
@@ -46,7 +45,7 @@ pub fn picked(car: u32, count: u32) -> [u32; 4] {
 }
 
 /// Picks the carousel's four pictures around the car shown.
-pub fn pick_pictures(menus: &Menus) -> Result<(), Refused> {
+pub fn pick_pictures(menus: &Menus, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let screens = &menus.screens;
     if screens.state.carousel.menu.get() != 0xB {
         return Ok(());
@@ -56,7 +55,7 @@ pub fn pick_pictures(menus: &Menus) -> Result<(), Refused> {
         screens.state.carousel.count.get(),
     );
     write_all(&screens.state.carousel_pictures.wanted, entries);
-    update(menus, entries)?;
+    update(menus, scene, entries)?;
     Ok(())
 }
 
@@ -85,17 +84,15 @@ pub fn draw_shown_car(
 
 /// Nothing on a page other than the first, else its six calls in order.
 pub fn run() -> Result<(), crate::errors::Refused> {
-    let scene = crate::scene::owner::scene();
-    let race = race();
-    let menus = menus();
+    let o = crate::owners::boundary();
+    let (scene, race, menus, system) = (o.scene, o.race, o.menus, o.system);
     if menus.screens.event.car_page.get() != 0 {
         return Ok(());
     }
     let scratch = crate::race::view_scratch::front_end();
-    let system = crate::system::owner::system();
     clear_depth_buffer(scene, system, &scratch.polygon);
     assign_kind_textures(scene)?;
-    pick_pictures(menus)?;
+    pick_pictures(menus, scene)?;
     map_texture_places(scene);
     load_slot_textures_in_game(&race.frame, scene)?;
     scene.lights.state.draw_mode.set(0u32);

@@ -7,22 +7,26 @@
 
 use crate::errors::Refused;
 use crate::logfile::log_hex8::log_hex8;
-use crate::scene::owner::scene;
+use crate::scene::owner::Scene;
 
 const RULE: &std::ffi::CStr = c"===========================";
 const LOADED: &std::ffi::CStr = c"Front end objects loaded";
 const RULE_2: &std::ffi::CStr = c"===========================";
 /// (label, value)
-type Total = (&'static std::ffi::CStr, fn() -> u32);
+type Total = (&'static std::ffi::CStr, fn(&Scene) -> u32);
 const TOTALS: [Total; 4] = [
     // "total points", g_objectPointCount
-    (c"total points", || scene().objects.tables.point_count.get()),
-    (c"total pointmem", || {
-        scene().drawing.object_work.point_memory_total.get()
+    (c"total points", |scene| {
+        scene.objects.tables.point_count.get()
     }),
-    (c"total faces", || scene().objects.tables.face_count.get()),
-    (c"total facemem", || {
-        scene().drawing.object_work.face_memory_total.get()
+    (c"total pointmem", |scene| {
+        scene.drawing.object_work.point_memory_total.get()
+    }),
+    (c"total faces", |scene| {
+        scene.objects.tables.face_count.get()
+    }),
+    (c"total facemem", |scene| {
+        scene.drawing.object_work.face_memory_total.get()
     }),
 ];
 
@@ -37,7 +41,7 @@ pub fn load_front_end_objects_logged(
     crate::logfile::log_write::log_nul(text(LOADED), true, 1);
     for (label, value) in TOTALS {
         crate::logfile::log_write::log_nul(text(label), false, 1);
-        log_hex8(value(), true, 1);
+        log_hex8(value(scene), true, 1);
     }
     crate::logfile::log_write::log_nul(text(RULE_2), true, 1);
     Ok(())

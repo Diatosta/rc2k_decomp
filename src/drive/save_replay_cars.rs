@@ -36,7 +36,9 @@ pub fn copy_piece(race: &Race, piece: StartPiece, offset: usize, n: usize, save:
     );
     let len = 4 * n;
     match piece {
-        StartPiece::Car(k) => copy_between((&CAR_BLOCKS.cars[k as usize], 0), state, len, save),
+        StartPiece::Car(k) => {
+            copy_between((&race.car_blocks().cars[k as usize], 0), state, len, save);
+        }
         StartPiece::RaceSlots => copy_between(
             (&shared.work, core::mem::offset_of!(RaceWork, race_slots)),
             state,

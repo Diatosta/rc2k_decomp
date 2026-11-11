@@ -110,195 +110,69 @@ fn box_place(ring: &Ring, e: u32, car: &CarEffects) {
 }
 
 /// The kinds' constants: (the y gain, the three dampings, the size's rate).
-struct Kind {
-    gain: Option<&'static f32>,
-    damp: [&'static f32; 3],
-    pull: Option<&'static f32>,
+struct Kind<'a> {
+    gain: Option<&'a f32>,
+    damp: [&'a f32; 3],
+    pull: Option<&'a f32>,
 }
 
-impl Kind {
+impl<'a> Kind<'a> {
     /// The size's rate (the kinds that pull the size have one; the original would read
     /// address 0 for one that has none: refused).
-    fn pull(&self) -> Result<&'static f32, BadInput> {
+    fn pull(&self) -> Result<&'a f32, BadInput> {
         self.pull
             .ok_or(BadInput("a ring kind that pulls the size without a rate"))
     }
 
     /// The y gain (the kinds that gain have one; as `pull`).
-    fn gain(&self) -> Result<&'static f32, BadInput> {
+    fn gain(&self) -> Result<&'a f32, BadInput> {
         self.gain
             .ok_or(BadInput("a ring kind that gains without a gain"))
     }
 }
 
-static K6: Kind = Kind {
-    gain: None,
-    damp: [
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .ring
-            .kinds
-            .k6_damp[0],
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .ring
-            .kinds
-            .k6_damp[1],
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .ring
-            .kinds
-            .k6_damp[2],
-    ],
-    pull: Some(
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .ring
-            .kinds
-            .k6_pull,
-    ),
-};
-static K15: Kind = Kind {
-    gain: None,
-    damp: [
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .ring
-            .kinds
-            .k15_damp[0],
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .ring
-            .kinds
-            .k15_damp[1],
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .ring
-            .kinds
-            .k15_damp[2],
-    ],
-    pull: Some(
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .ring
-            .kinds
-            .k15_pull,
-    ),
-};
-static K1: Kind = Kind {
-    gain: None,
-    damp: [
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .ring
-            .kinds
-            .k1_damp[0],
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .ring
-            .kinds
-            .k1_damp[1],
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .ring
-            .kinds
-            .k1_damp[2],
-    ],
-    pull: Some(
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .ring
-            .kinds
-            .k1_pull,
-    ),
-};
-static KD: Kind = Kind {
-    gain: Some(
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .ring
-            .kinds
-            .kd_gain,
-    ),
-    damp: [
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .ring
-            .kinds
-            .kd_damp[0],
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .ring
-            .kinds
-            .kd_damp[1],
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .ring
-            .kinds
-            .kd_damp[2],
-    ],
-    pull: Some(
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .ring
-            .kinds
-            .kd_pull,
-    ),
-};
-static K13: Kind = Kind {
-    gain: Some(
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .ring
-            .kinds
-            .k13_gain,
-    ),
-    damp: [
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .ring
-            .kinds
-            .k13_damp[0],
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .ring
-            .kinds
-            .k13_damp[1],
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .ring
-            .kinds
-            .k13_damp[2],
-    ],
-    pull: None,
-};
-static K16: Kind = Kind {
-    gain: Some(
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .ring
-            .kinds
-            .k16_gain,
-    ),
-    damp: [
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .ring
-            .kinds
-            .k16_damp[0],
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .ring
-            .kinds
-            .k16_damp[1],
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .ring
-            .kinds
-            .k16_damp[2],
-    ],
-    pull: None,
-};
+fn k6(rk: &RingKinds) -> Kind<'_> {
+    Kind {
+        gain: None,
+        damp: [&rk.k6_damp[0], &rk.k6_damp[1], &rk.k6_damp[2]],
+        pull: Some(&rk.k6_pull),
+    }
+}
+fn k15(rk: &RingKinds) -> Kind<'_> {
+    Kind {
+        gain: None,
+        damp: [&rk.k15_damp[0], &rk.k15_damp[1], &rk.k15_damp[2]],
+        pull: Some(&rk.k15_pull),
+    }
+}
+fn k1(rk: &RingKinds) -> Kind<'_> {
+    Kind {
+        gain: None,
+        damp: [&rk.k1_damp[0], &rk.k1_damp[1], &rk.k1_damp[2]],
+        pull: Some(&rk.k1_pull),
+    }
+}
+fn kd(rk: &RingKinds) -> Kind<'_> {
+    Kind {
+        gain: Some(&rk.kd_gain),
+        damp: [&rk.kd_damp[0], &rk.kd_damp[1], &rk.kd_damp[2]],
+        pull: Some(&rk.kd_pull),
+    }
+}
+fn k13(rk: &RingKinds) -> Kind<'_> {
+    Kind {
+        gain: Some(&rk.k13_gain),
+        damp: [&rk.k13_damp[0], &rk.k13_damp[1], &rk.k13_damp[2]],
+        pull: None,
+    }
+}
+fn k16(rk: &RingKinds) -> Kind<'_> {
+    Kind {
+        gain: Some(&rk.k16_gain),
+        damp: [&rk.k16_damp[0], &rk.k16_damp[1], &rk.k16_damp[2]],
+        pull: None,
+    }
+}
 
 /// Why it refuses, if it does: the walk's pointers checked, nothing written.
 fn refusal(
@@ -659,7 +533,7 @@ fn fading_kind(
     ring: &Ring,
     e: u32,
     kind: u32,
-    c: &Kind,
+    c: &Kind<'_>,
     effects: &crate::effects::owner::Effects,
     view: crate::effects::run_frame::EffectsView<'_>,
 ) -> Result<bool, Refused> {
@@ -868,12 +742,12 @@ pub fn run_ring(
                     effects,
                     view,
                 )?,
-                6 => fading_kind(masks, ring, e, 6, &K6, effects, view)?,
-                0x15 => fading_kind(masks, ring, e, 0x15, &K15, effects, view)?,
-                1 => fading_kind(masks, ring, e, 1, &K1, effects, view)?,
-                0xD => fading_kind(masks, ring, e, 0xD, &KD, effects, view)?,
-                0x13 => fading_kind(masks, ring, e, 0x13, &K13, effects, view)?,
-                0x16 => fading_kind(masks, ring, e, 0x16, &K16, effects, view)?,
+                6 => fading_kind(masks, ring, e, 6, &k6(&ring.kinds), effects, view)?,
+                0x15 => fading_kind(masks, ring, e, 0x15, &k15(&ring.kinds), effects, view)?,
+                1 => fading_kind(masks, ring, e, 1, &k1(&ring.kinds), effects, view)?,
+                0xD => fading_kind(masks, ring, e, 0xD, &kd(&ring.kinds), effects, view)?,
+                0x13 => fading_kind(masks, ring, e, 0x13, &k13(&ring.kinds), effects, view)?,
+                0x16 => fading_kind(masks, ring, e, 0x16, &k16(&ring.kinds), effects, view)?,
                 0x10 => boxed_kind(masks, ring, e, &ring.kinds.k10_gain, true, effects, view)?,
                 0x11 => boxed_kind(masks, ring, e, &ring.kinds.k11_gain, false, effects, view)?,
                 _ => false,

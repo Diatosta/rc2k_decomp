@@ -7,7 +7,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::memory::owned::Owned;
 use crate::net::lobby::fatal;
-use crate::net::owner::net;
 use crate::net::store::NetVars;
 use crate::net::types::Guid;
 use rc2k_core::net::lists::{
@@ -73,15 +72,13 @@ pub fn list(vars: &NetVars) -> &[crate::session::Dword; 4] {
 }
 
 /// `allocate_lists`: both tables taken, counted as the game's two blocks.
-pub fn take() -> Result<(), Refused> {
-    let vars = &net().vars;
+pub fn take(vars: &NetVars) -> Result<(), Refused> {
     NET_TABLES.take(list(vars), TABLES[0].0, NetTables::new())?;
     crate::memory::owned::count_on(list(vars), TABLES[1].0)
 }
 
 /// `bytes` more counted on the network's list (a block the original takes there).
-pub fn count(bytes: u32) -> Result<(), Refused> {
-    let vars = &net().vars;
+pub fn count(vars: &NetVars, bytes: u32) -> Result<(), Refused> {
     crate::memory::owned::count_on(list(vars), bytes)
 }
 
@@ -98,10 +95,14 @@ fn listed(index: u32, count: u32, codes: [u32; 2]) -> Result<(), Refused> {
 }
 
 /// `f` on connection `index` (`net::connection_entry`'s checks first).
-pub fn with_connection<R>(index: u32, f: impl FnOnce(&mut Connection) -> R) -> Result<R, Refused> {
+pub fn with_connection<R>(
+    vars: &NetVars,
+    index: u32,
+    f: impl FnOnce(&mut Connection) -> R,
+) -> Result<R, Refused> {
     listed(
         index,
-        net().vars.connections.get(),
+        vars.connections.get(),
         [NO_CONNECTION, NO_CONNECTIONS],
     )?;
     NET_TABLES
@@ -110,8 +111,12 @@ pub fn with_connection<R>(index: u32, f: impl FnOnce(&mut Connection) -> R) -> R
 }
 
 /// `f` on session `index` (`net::session_entry`'s checks first).
-pub fn with_session<R>(index: u32, f: impl FnOnce(&mut Session) -> R) -> Result<R, Refused> {
-    listed(index, net().vars.sessions.get(), [NO_SESSION, NO_SESSIONS])?;
+pub fn with_session<R>(
+    vars: &NetVars,
+    index: u32,
+    f: impl FnOnce(&mut Session) -> R,
+) -> Result<R, Refused> {
+    listed(index, vars.sessions.get(), [NO_SESSION, NO_SESSIONS])?;
     NET_TABLES
         .with(|t| t.sessions.get_mut(index as usize).map(f))?
         .ok_or(BadInput("a session past the table").into())
@@ -139,6 +144,7 @@ pub fn name_text(name: &[u8; 0x40]) -> Result<Vec<u8>, BadInput> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::net::owner::net;
 
     #[test]
     fn a_connection_is_found_kept_and_found_again() {
@@ -157,7 +163,7 @@ mod tests {
         let kept_name: Vec<u8> = (0..64).map(|k| net.address().saved_name.get(k)).collect();
         let kept_count = net.vars.connections.get();
         net.vars.memory.iter().for_each(|d| d.set(0));
-        take().unwrap();
+        take(&net.vars).unwrap();
         net.vars.connections.set(0);
         // DirectPlay's arguments: the provider's GUID, the data, the name record (+8 the
         // short name).
@@ -168,17 +174,17 @@ mod tests {
         assert_eq!(found, 1);
         assert_eq!(net.vars.connections.get(), 1);
         let (name, provider, copied) =
-            with_connection(0, |c| (c.name, c.provider, c.data.clone())).unwrap();
+            with_connection(&net.vars, 0, |c| (c.name, c.provider, c.data.clone())).unwrap();
         assert_eq!(provider[..], guid[..]);
         assert_eq!(copied, data);
         assert!(name_text(&name).unwrap().eq_ignore_ascii_case(b"test link"));
-        assert!(with_connection(1, |_| ()).is_err());
-        crate::net::keep_connection::keep_connection(0).unwrap();
+        assert!(with_connection(&net.vars, 1, |_| ()).is_err());
+        crate::net::keep_connection::keep_connection(net, 0).unwrap();
         assert_eq!(
-            crate::net::find_saved_connection::find_saved_connection().unwrap(),
+            crate::net::find_saved_connection::find_saved_connection(net).unwrap(),
             Some(0)
         );
-        crate::net::free_messages::free_messages().unwrap();
+        crate::net::free_messages::free_messages(&net.vars).unwrap();
         assert!(!NET_TABLES.is_taken());
         net.vars
             .memory

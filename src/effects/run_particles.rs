@@ -33,6 +33,8 @@ use crate::effects::emit_slip_spray::SlipSpraySet;
 use crate::effects::emit_slip_spray_long::SlipSprayLongSet;
 use crate::effects::emit_twin_particle_first::{TwinState, TwinTuning};
 use crate::effects::emit_wheel_fade_particle::WheelFadeSet;
+use crate::effects::owner::Effects;
+#[cfg(test)]
 use crate::effects::owner::effects;
 use crate::effects::ring_store::Ring;
 use crate::errors::{BadInput, Refused};
@@ -41,6 +43,7 @@ use crate::math::x87_float as bh;
 use crate::race::owner_frame::Frame;
 use crate::scene::matrix3::extended;
 use crate::session::{PlainBytes, PlainFloat};
+use crate::sound::owner::Sound;
 const TRAIL_COLOURS: i32 = 298;
 const BURST_COLOURS_LEN: i32 = 0x2000;
 const BIGGER: u32 = 0x386A0;
@@ -114,8 +117,9 @@ fn step(
     particles: &Particles,
     ring: &Ring,
     e: u32,
+    effects: &Effects,
+    sound: &Sound,
 ) -> Result<bool, Refused> {
-    let effects = effects();
     use crate::effects::{burst_particles, draw_particle, trail_particles};
     {
         let t: i32 = effects.setup.clock.frame_ticks.get() as i32;
@@ -204,7 +208,7 @@ fn step(
                 );
                 effects.setup.work.fpu_status.set(s as u32);
                 if s != 0x100 {
-                    burst_particles::burst_particles(particles, ring, e, effects)?;
+                    burst_particles::burst_particles(particles, ring, e, effects, sound)?;
                     return Ok(true);
                 }
                 if particle(particles, e, 0x2C)? & 0x8000_0000 == 0 {
@@ -307,6 +311,7 @@ pub fn run_particles(
     particles: &Particles,
     ring: &Ring,
     effects: &crate::effects::owner::Effects,
+    sound: &Sound,
     view: crate::effects::run_frame::EffectsView<'_>,
 ) -> Result<(), Refused> {
     if let Some(why) = refusal(particles, ring, effects)? {
@@ -338,7 +343,7 @@ pub fn run_particles(
                 effects.setup.work.fpu_status.set(s as u32);
                 dies = s == 0x100;
                 if !dies {
-                    dies = step(frame, view.view_matrix, particles, ring, e)?;
+                    dies = step(frame, view.view_matrix, particles, ring, e, effects, sound)?;
                 }
             }
             if dies {
@@ -362,7 +367,7 @@ pub fn run_particles(
         if effects.setup.frame.steps.bits() & 7 != 0 {
             return Ok(());
         }
-        crate::sound::owner::sound().race.stage.get().random[0].set(1);
+        sound.race.stage.get().random[0].set(1);
         let seed = || {
             let s = effects
                 .setup

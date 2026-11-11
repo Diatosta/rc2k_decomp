@@ -25,6 +25,7 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
 use crate::menu::owner::Tables;
+use crate::menu::screen_loop::Entry;
 use rc2k_core::menu::player::Player;
 use rc2k_core::menu::steps;
 
@@ -128,11 +129,11 @@ pub fn leave_with_carry() {
 
 /// `menu::player_N_car_specs`: the car specifications screen with player `n` the current
 /// one.
-pub fn player_car_specs(menus: &Menus, n: u32) -> Result<(), Refused> {
+pub fn player_car_specs(menus: &Menus, n: u32, entry: &Entry) -> Result<(), Refused> {
     let screens = &menus.screens;
     let kept = screens.event.current_player.get();
     screens.event.current_player.set(n);
-    let done = { crate::menu::show_car_specs::show_car_specs(menus) };
+    let done = { crate::menu::show_car_specs::show_car_specs(menus, entry) };
     screens.event.current_player.set(kept);
     done
 }

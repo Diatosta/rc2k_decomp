@@ -12,7 +12,7 @@ use crate::menu::screen_loop::{Entry, run_screen};
 use rc2k_core::menu::results_pages::{Page, held_figure};
 
 // g_eventMode
-pub fn show_class_stage_results(menus: &Menus, class: u32) -> Result<(), Refused> {
+pub fn show_class_stage_results(menus: &Menus, class: u32, entry: &Entry) -> Result<(), Refused> {
     menus.screens.event.class.set(class);
     let found = crate::menu::first_player_a::first_player_a(class)?;
     // The logic is in `rc2k_core::menu::results_pages::held_figure`.
@@ -20,9 +20,6 @@ pub fn show_class_stage_results(menus: &Menus, class: u32) -> Result<(), Refused
     menus.play.champ_view.count.set(count);
     crate::menu::first_page_stage::first_page_stage(&menus.play);
     crate::menu::stage_range_caption::stage_range_caption(&menus.play)?;
-    run_screen(
-        &crate::menu::class_stage_results_loop::SCREEN,
-        &Entry::new(crate::owners::boundary()),
-    )?;
+    run_screen(&crate::menu::class_stage_results_loop::SCREEN, entry)?;
     Ok(())
 }

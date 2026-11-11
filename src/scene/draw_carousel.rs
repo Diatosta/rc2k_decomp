@@ -52,8 +52,14 @@ pub fn draw_carousel_in_game(
 ) -> Result<(), Refused> {
     let race = ctx.race;
     draw_carousel(&menus.screens, lone_row, &mut |e, place| {
-        draw_carousel_entry(&race.shared, ctx.view, menus, e, place, &mut || {
-            draw_menu_object_in_game(ctx)
-        })
+        draw_carousel_entry(
+            &race.shared,
+            ctx.view,
+            menus,
+            ctx.scene,
+            e,
+            place,
+            &mut || draw_menu_object_in_game(ctx),
+        )
     })
 }

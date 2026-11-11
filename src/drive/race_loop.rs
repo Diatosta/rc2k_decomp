@@ -18,7 +18,6 @@ use crate::drive::race_parts::{
 };
 use crate::errors::{BadInput, Refused};
 use crate::net::owner::net;
-use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use crate::session::Dword;
@@ -41,21 +40,22 @@ fn net_player_car(
 }
 
 /// The quit answer `answer` put into the cars (0x444EB5 ..).
-fn put_answer(shared: &RaceShared, answer: u32) -> Result<(), BadInput> {
+fn put_answer(race: &Race, answer: u32) -> Result<(), BadInput> {
+    let shared = &race.shared;
     if net().vars.session.get() != 0 {
         net_player_car(shared)?.stop_state.set(answer);
         return Ok(());
     }
-    CAR_BLOCKS.cars[0].stop_state.set(answer);
-    CAR_BLOCKS.cars[1].stop_state.set(answer);
+    race.car_blocks().cars[0].stop_state.set(answer);
+    race.car_blocks().cars[1].stop_state.set(answer);
     if shared.view.players.get() != 2 {
         return Ok(());
     }
-    if CAR_BLOCKS.cars[0].finish_flag.get() != 0 {
-        CAR_BLOCKS.cars[0].stop_state.set(2);
+    if race.car_blocks().cars[0].finish_flag.get() != 0 {
+        race.car_blocks().cars[0].stop_state.set(2);
     }
-    if CAR_BLOCKS.cars[1].finish_flag.get() != 0 {
-        CAR_BLOCKS.cars[1].stop_state.set(2);
+    if race.car_blocks().cars[1].finish_flag.get() != 0 {
+        race.car_blocks().cars[1].stop_state.set(2);
     }
     Ok(())
 }
@@ -68,7 +68,7 @@ pub fn race_loop(
 ) -> Result<(), Refused> {
     let devices = &input.devices;
     for c in 0..8 {
-        CAR_BLOCKS.cars[c as usize].reset_marker.set(10);
+        race.car_blocks().cars[c as usize].reset_marker.set(10);
     }
     system.session.flags.paused.set(0);
     race.shared.vars.scene_switch.set(0);
@@ -140,7 +140,7 @@ pub fn race_loop(
                         race.shared.physics_tables.scene_clock.get()
                     ));
                 }
-                put_answer(&race.shared, answer)?;
+                put_answer(race, answer)?;
                 return Ok(());
             }
             if race.shared.vars.hold_count.get() == 0 {

@@ -18,11 +18,11 @@ use rc2k_core::install::items::{self, ItemKey, PageKey};
 /// something.
 pub fn page_key(
     install: &'static crate::install::owner::Install,
+    gfx: &crate::gfx::owner::Gfx,
     key: u32,
     item: ListItem,
     list: ListMenu,
 ) -> Result<(u32, bool), Refused> {
-    let gfx = crate::gfx::owner::gfx();
     use crate::install as i;
     // Converted: `rc2k_core::install::items` (`page_key`, `takes_every_key`, `STAYS`,
     // `SCREENSHOT_KEY`).

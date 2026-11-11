@@ -6,8 +6,7 @@
 //! Caller: `drive::tyre_screen`.
 
 use crate::errors::Refused;
-use crate::race::owner_shared::RaceShared;
-use crate::race::viewer_screen_store::VIEWER_PANEL;
+use crate::race::owner::Race;
 use crate::session::Dword;
 use rc2k_core::drive::tyre_screen::fixed_parts;
 
@@ -19,16 +18,17 @@ fn set(cells: &[Dword; 4], v: [u32; 4]) {
 
 /// Its quads (`drive::tyre_quad`).
 // Converted: `rc2k_core::drive::tyre_screen::fixed_parts`.
-pub fn tyre_screen_parts(shared: &RaceShared) -> Result<(), Refused> {
+pub fn tyre_screen_parts(race: &Race) -> Result<(), Refused> {
+    let shared = &race.shared;
     let parts = std::array::from_fn(|k| shared.tyre_change.parts[k].get());
     let wheel = std::array::from_fn(|k| shared.tyre_change.wheel[k].get());
     for (uv, rect) in fixed_parts(parts, wheel, shared.tyre_change.player.get() != 0) {
-        set(&VIEWER_PANEL.texture_rect, uv); // ViewerAndKinds.viewer_panel.texture_rect[0]
-        set(&VIEWER_PANEL.screen_rect, rect); // ViewerAndKinds.viewer_panel.screen_rect[0]
+        set(&race.viewer_panel().texture_rect, uv); // ViewerAndKinds.viewer_panel.texture_rect[0]
+        set(&race.viewer_panel().screen_rect, rect); // ViewerAndKinds.viewer_panel.screen_rect[0]
         {
             crate::drive::tyre_quad::tyre_quad_cells(
-                &VIEWER_PANEL.texture_rect,
-                &VIEWER_PANEL.screen_rect,
+                &race.viewer_panel().texture_rect,
+                &race.viewer_panel().screen_rect,
                 0xFF_FFFF,
             )
         }?;

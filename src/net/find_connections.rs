@@ -13,13 +13,13 @@ use crate::errors::Refused;
 use crate::net::lobby::log_bytes;
 use crate::net::store::NetVars;
 use crate::net::{allocate_lists, create_dplay, open_lobby};
-use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
-pub fn find_connections(vars: &NetVars) -> Result<bool, Refused> {
-    log_bytes(&VIEWER_PANEL.text(texts::NET_FIND_CONNECTIONS), true, 2);
-    if vars.receive_done.get() == 1 || !open_lobby::open_lobby(vars)? {
+use crate::race::viewer_screen_store::{ViewerPanelBlock, texts};
+pub fn find_connections(vars: &NetVars, panel: &ViewerPanelBlock) -> Result<bool, Refused> {
+    log_bytes(&panel.text(texts::NET_FIND_CONNECTIONS), true, 2);
+    if vars.receive_done.get() == 1 || !open_lobby::open_lobby(vars, panel)? {
         return Ok(false);
     }
-    if !create_dplay::create_dplay(vars) {
+    if !create_dplay::create_dplay(vars, panel) {
         return Ok(false);
     }
     allocate_lists::allocate_lists(vars)?;

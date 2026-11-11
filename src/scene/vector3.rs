@@ -64,35 +64,16 @@ fn cosine(a: impl Base, b: impl Base, s: impl Base) {
 /// is unordered); the last compare's C0 .. C2 in the shared FPU status cell.
 /// Returns the angle (a float, loaded).
 pub fn angle_between_vectors(a: &(impl Cells + ?Sized), b: &(impl Cells + ?Sized)) -> [u8; 10] {
-    let mut angle = crate::math::x87::loaded(
-        crate::effects::owner::effects()
-            .setup
-            .work
-            .cosine_start
-            .get(),
-    );
-    let mut step = crate::math::x87::loaded(
-        crate::effects::owner::effects()
-            .setup
-            .work
-            .cosine_step
-            .get(),
-    );
+    let work = &crate::effects::owner::effects().setup.work;
+    let mut angle = crate::math::x87::loaded(work.cosine_start.get());
+    let mut step = crate::math::x87::loaded(work.cosine_step.get());
     normalise(b);
     normalise(a);
     let dot = crate::scene::matrix3::rounded(dot_product3(load(a), load(b)));
-    let half: u32 = crate::effects::owner::effects()
-        .setup
-        .work
-        .cosine_half
-        .get();
+    let half: u32 = work.cosine_half.get();
     for _ in 0..16 {
         let status = cosine_against(angle.to_bits(), dot);
-        crate::effects::owner::effects()
-            .setup
-            .work
-            .fpu_status
-            .set(status);
+        work.fpu_status.set(status);
         match status {
             0x400 => break,
             0x100 => angle = crate::math::x87::sub(angle, step),

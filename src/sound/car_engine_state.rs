@@ -20,10 +20,10 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::from_int;
 use crate::math::x87_float::{X, int, ld, st, stf};
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::sound::sets_store::KindRecord;
 use crate::sound::store::{RaceClock, SoundObject, SurfaceSounds};
-use crate::system::owner::system;
+use crate::system::owner::System;
 use rc2k_core::sound::engine::{Engine, extrapolation, over_256, readings, state};
 
 pub const KIND_COUNT: u32 = 36;
@@ -139,6 +139,8 @@ fn store(o: &crate::sound::store::SoundObject, before: &Engine, now: &Engine) {
 pub fn car_engine_state(
     so: &crate::sound::store::SoundObject,
     sound: &crate::sound::owner::Sound,
+    race: &Race,
+    system: &System,
 ) -> Result<u32, Refused> {
     // Converted: `rc2k_core::sound::engine` (`extrapolation`, `readings`, `state`,
     // `over_256`); the floats are the original's x87 still.
@@ -149,7 +151,7 @@ pub fn car_engine_state(
     let clock = sound.race.clock.get().last.get();
     // The revs extrapolated, worked out first: its `idiv` may trap.
     let change = extrapolation(&object, clock, || {
-        race().shared.replay_file.hold_car_revs.get()
+        race.shared.replay_file.hold_car_revs.get()
     })
     .map_err(BadInput::from)?;
     readings(&mut object, clock, change);
@@ -163,7 +165,7 @@ pub fn car_engine_state(
     let low = state(&mut object, || record.flags.get(), clock);
     store(so, &before, &object);
     if let Some(low) = low {
-        gear_pitch(so, low);
+        gear_pitch(so, low, system);
     }
     distance_and_approach(so, sound.race.clock.get());
     so.volume_factor.set_bits(0);
@@ -195,8 +197,7 @@ fn speed_input(so: &SoundObject, surface: &SurfaceSounds) {
 /// The gear-change cue's pitch from the clock's low four bits `low`: `low / 60 + 0.75`
 /// (the factors as the game's float constants). The original worked in the machine's
 /// scratch dword and left 0.75 there.
-fn gear_pitch(so: &SoundObject, low: u32) {
-    let system = system();
+fn gear_pitch(so: &SoundObject, low: u32, system: &System) {
     system.session.machine.scratch.set(low);
     let bits = gear_pitch_bits(low);
     system.session.machine.scratch.set(GEAR_PITCH_BASE);

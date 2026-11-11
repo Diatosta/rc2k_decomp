@@ -15,13 +15,11 @@
 //! by `fatal::report` and ends it as the original's. Stand-ins, each to be replaced by a
 //! piece of the platform: see `stand_in`.
 
-use crate::audio::owner::audio;
 use crate::errors::Refused;
 use crate::framework::{LOG_PATH, log};
-use crate::gfx::owner::gfx;
 use crate::install::outside::Game as Outside;
+use crate::owners::Owners;
 use crate::saves::owner::saves;
-use crate::system::owner::system;
 use rc2k_core::fatal::Context;
 use std::path::Path;
 use std::sync::atomic::Ordering;
@@ -247,21 +245,21 @@ fn stand_in(what: &str, variable: &crate::session::Dword, value: u32) {
 ///
 /// Once, on the main thread, after the image is built: the start-up functions it calls write
 /// the game's state before any thread of the game's runs.
-fn start() {
+fn start(o: Owners<'static>) {
     let r = Context::default();
-    set_up_fixed_objects();
-    seed_clock_and_random();
-    check_machine(&r);
-    read_settings_and_start_log(&r);
+    set_up_fixed_objects(o);
+    seed_clock_and_random(o);
+    check_machine(o, &r);
+    read_settings_and_start_log(o, &r);
     make_save_folders();
-    read_command_line_and_install_state(&r);
-    load_language_and_game_data(&r);
-    probe_display(&r);
-    start_workers(&r);
-    choose_screen_modes(&r);
-    stand_in_window_state();
-    run_main_loop(&r);
-    shut_down(&r);
+    read_command_line_and_install_state(o, &r);
+    load_language_and_game_data(o, &r);
+    probe_display(o, &r);
+    start_workers(o, &r);
+    choose_screen_modes(o, &r);
+    stand_in_window_state(o);
+    run_main_loop(o, &r);
+    shut_down(o, &r);
 }
 
 /// The objects the image pointed at each other: the players' records, font 56's palette (the
@@ -269,21 +267,21 @@ fn start() {
 /// the rest) and `g_surface.format`
 /// (the image points it at the format record, `session::SCREEN`'s, named by its handle; the
 /// platform sets it again at every lock).
-fn set_up_fixed_objects() {
-    let gfx = gfx();
-    crate::menu::players_store::point_players(crate::menu::owner::menus());
-    gfx.fonts.typefaces.objects[56]
+fn set_up_fixed_objects(o: Owners<'static>) {
+    crate::menu::players_store::point_players(o.menus);
+    o.gfx.fonts.typefaces.objects[56]
         .palette
         .set(crate::gfx::glyph_store::SHEET_PLACE);
-    gfx.drawing
+    o.gfx
+        .drawing
         .draw_surface
         .format
         .set(crate::gfx::pixel_format::SCREEN_FORMAT);
 }
 
 /// The start time, the random generator's seed and the volume serial that stirs it.
-fn seed_clock_and_random() {
-    let system = system();
+fn seed_clock_and_random(o: Owners<'static>) {
+    let system = o.system;
     rust("system::keep_start_time");
     crate::system::keep_start_time::keep_start_time(system);
     rust("math::seed_random");
@@ -297,8 +295,8 @@ fn seed_clock_and_random() {
 }
 
 /// The processor, keyboard and Windows version tests, and the error mode.
-fn check_machine(r: &Context) {
-    let system = system();
+fn check_machine(o: Owners<'static>, r: &Context) {
+    let system = o.system;
     // `system::set_exception_filter` (0x410D4C) sets nothing in the standalone.
     rust("system::test_processor");
     if let Err(e) =
@@ -313,13 +311,13 @@ fn check_machine(r: &Context) {
     // `CoInitialize` (no COM is used on this thread).
     // `memory::open_own_heap` (0x40298A): the game's own heap is not used.
     rust("system::set_error_mode");
-    crate::system::set_error_mode::set_error_mode();
+    crate::system::set_error_mode::set_error_mode(system);
 }
 
 /// `var\ral.cfg`'s settings, the feature switches and the game's log.
-fn read_settings_and_start_log(r: &Context) {
+fn read_settings_and_start_log(o: Owners<'static>, r: &Context) {
     rust("settings::read_settings");
-    if let Err(why) = crate::settings::read_settings::read_settings() {
+    if let Err(why) = crate::settings::read_settings::read_settings(o) {
         finish(&format!("settings::read_settings refused: {}", why.0), 1);
     }
     rust("settings::apply_feature_switches");
@@ -360,8 +358,8 @@ fn make_save_folders() {
 
 /// The FPU check, the command line and what the installation left: the disc check, the
 /// start check, the developer machine, the languages and the install record.
-fn read_command_line_and_install_state(r: &Context) {
-    let system = system();
+fn read_command_line_and_install_state(o: Owners<'static>, r: &Context) {
+    let system = o.system;
     // `system::test_processor` (0x410883, called above) has set it from `cpuid`.
     if system.session.machine.has_fpu.get() != 1 {
         finish("fatal error 0x900010FF, FPU is required", 1);
@@ -371,37 +369,28 @@ fn read_command_line_and_install_state(r: &Context) {
         refused("system::read_command_line", why.into(), r);
     }
     rust("install::check_clio_disc");
-    if let Err(e) = crate::install::check_clio_disc::check_clio_disc(
-        crate::install::owner::install(),
-        &mut Outside,
-    ) {
+    if let Err(e) = crate::install::check_clio_disc::check_clio_disc(o.install, &mut Outside) {
         refused("install::check_clio_disc", e, r);
     }
     rust("install::check_at_start");
-    let no_audio = &audio().state.no_audio;
-    if let Err(e) = crate::install::check_at_start::check_at_start(
-        crate::install::owner::install(),
-        &mut Outside,
-        no_audio,
-    ) {
+    let no_audio = &o.audio.state.no_audio;
+    if let Err(e) =
+        crate::install::check_at_start::check_at_start(o.install, &mut Outside, no_audio)
+    {
         refused("install::check_at_start", e, r);
     }
     rust("system::check_developer_machine");
-    crate::system::check_developer_machine::check_developer_machine();
+    crate::system::check_developer_machine::check_developer_machine(o.strings);
     rust("install::read_languages");
-    if let Err(e) = crate::install::read_languages::read_languages(
-        crate::install::owner::install(),
-        &crate::install::owner::install().names.lang_cfg.text(),
-    )
-    .map_err(Refused::from)
+    if let Err(e) =
+        crate::install::read_languages::read_languages(o.install, &o.install.names.lang_cfg.text())
+            .map_err(Refused::from)
     {
         refused("install::read_languages", e, r);
     }
     rust("install::read_record");
-    if let Err(e) = crate::install::read_record::read_record(
-        &crate::install::owner::install().texts.record_path.text(),
-    )
-    .map_err(Refused::from)
+    if let Err(e) = crate::install::read_record::read_record(&o.install.texts.record_path.text())
+        .map_err(Refused::from)
     {
         refused("install::read_record", e, r);
     }
@@ -409,14 +398,14 @@ fn read_command_line_and_install_state(r: &Context) {
 
 /// The language's texts (`strings::load_language`, 0x40331F), the game's data files, and the
 /// check that no other copy of the game runs.
-fn load_language_and_game_data(r: &Context) {
+fn load_language_and_game_data(o: Owners<'static>, r: &Context) {
     rust("strings::load_language");
     let compile = &mut || crate::strings::compile_lexicon::compile_lexicon();
     if let Err(e) = crate::strings::load_language::load_language(compile) {
         refused("strings::load_language", e, r);
     }
     rust("system::load_game_data");
-    if let Err(e) = crate::system::load_game_data::load_in_game(system()) {
+    if let Err(e) = crate::system::load_game_data::load_in_game(o) {
         refused("system::load_game_data", e, r);
     }
     rust("system::find_running_game");
@@ -427,8 +416,8 @@ fn load_language_and_game_data(r: &Context) {
 
 /// The 3D cards and the display modes the screen can take. `system::open_window` (0x4103DE)
 /// and `gfx::probe_exclusive_mode` (0x404981) are SDL's (`SDL_DOES`).
-fn probe_display(r: &Context) {
-    let gfx = gfx();
+fn probe_display(o: Owners<'static>, r: &Context) {
+    let gfx = o.gfx;
     rust("gfx::find_3d_cards");
     crate::gfx::find_3d_cards::find_3d_cards(&gfx.display);
     rust("gfx::list_primary_modes");
@@ -442,13 +431,13 @@ fn probe_display(r: &Context) {
 }
 
 /// The network's set-up, the game's threads and the audio thread's commands.
-fn start_workers(r: &Context) {
+fn start_workers(o: Owners<'static>, r: &Context) {
     rust("net::set_up");
     if let Err(e) = crate::net::set_up::set_up() {
         refused("net::set_up", e, r);
     }
     rust("system::set_priority_class");
-    crate::system::set_priority_class::set_priority_class(0x80);
+    crate::system::set_priority_class::set_priority_class(o.system, 0x80);
     rust("threading::start_threads");
     if let Err(e) = crate::threading::start_threads::start_threads_in_game() {
         refused("threading::start_threads", e, r);
@@ -462,8 +451,8 @@ fn start_workers(r: &Context) {
 /// The screen modes, the picture buffer and the pixel converters.
 /// `sound::open_cd_audio` (0x40F9DE) is cut out of this build (`pusha; jmp` to its end), so
 /// not called.
-fn choose_screen_modes(r: &Context) {
-    let gfx = gfx();
+fn choose_screen_modes(o: Owners<'static>, r: &Context) {
+    let gfx = o.gfx;
     rust("gfx::choose_screen_modes");
     if let Err(e) = crate::platform::choose_screen_modes(gfx) {
         refused("gfx::choose_screen_modes", e.into(), r);
@@ -479,24 +468,24 @@ fn choose_screen_modes(r: &Context) {
     rust("gfx::fill_thirds_table");
     crate::gfx::fill_thirds_table::fill_thirds_table(gfx);
     rust("gfx::install_converters");
-    crate::gfx::install_converters::install_converters(&gfx.pixel.converters, system());
+    crate::gfx::install_converters::install_converters(&gfx.pixel.converters, o.system);
 }
 
 /// What the window's procedure and the key thread tell the main loop (the films play from `film.rs`).
-fn stand_in_window_state() {
-    let flags = &system().session.flags;
+fn stand_in_window_state(o: Owners<'static>) {
+    let flags = &o.system.session.flags;
     stand_in("the window is the active one", &flags.window_active, 1);
     stand_in(
         "the window has the focus (until SDL says otherwise)",
         &flags.window_focused,
         1,
     );
-    stand_in("the key thread runs", &system().session.clocks.key_ticks, 1);
+    stand_in("the key thread runs", &o.system.session.clocks.key_ticks, 1);
 }
 
-fn run_main_loop(r: &Context) {
+fn run_main_loop(o: Owners<'static>, r: &Context) {
     rust("system::main_loop");
-    if let Err(e) = crate::system::main_loop::main_loop_in_game(crate::owners::Owners::the()) {
+    if let Err(e) = crate::system::main_loop::main_loop_in_game(o) {
         refused("system::main_loop", e, r);
     }
 }
@@ -505,24 +494,23 @@ fn run_main_loop(r: &Context) {
 /// installer's after-exit script, the error mode and the fatal report. `gfx::release_screens`
 /// (0x404CD6), `sound::close_cd_audio` (0x40FA8B) and `system::drain_messages` (0x410509) are
 /// SDL's (`SDL_DOES`).
-fn shut_down(r: &Context) {
+fn shut_down(o: Owners<'static>, r: &Context) {
     rust("net::shut_down");
     if let Err(e) = crate::net::shut_down::shut_down() {
         refused("net::shut_down", e, r);
     }
     rust("gfx::free_picture_buffer");
-    if let Err(why) = crate::gfx::free_picture_buffer::free_picture_buffer(gfx()) {
+    if let Err(why) = crate::gfx::free_picture_buffer::free_picture_buffer(o.gfx) {
         finish(&format!("gfx::free_picture_buffer refused: {}", why.0), 1);
     }
     rust("system::set_priority_class");
-    crate::system::set_priority_class::set_priority_class(0x20);
+    crate::system::set_priority_class::set_priority_class(o.system, 0x20);
     rust("install::run_after_exit");
-    if let Err(e) = crate::install::run_after_exit::run_after_exit(crate::install::owner::install())
-    {
+    if let Err(e) = crate::install::run_after_exit::run_after_exit(o.install) {
         refused("install::run_after_exit", e, r);
     }
     rust("system::restore_error_mode");
-    crate::system::restore_error_mode::restore_error_mode(system());
+    crate::system::restore_error_mode::restore_error_mode(o.system);
     // `memory::free_own_heap` (0x4029DB): the game's own heap is not used.
     // `CoUninitialize` (see `CoInitialize`).
     rust("fatal::show_report_at_exit");
@@ -556,6 +544,6 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
     // The audio thread runs on DirectSound over SDL
     // (`platform_sound`).
     // SAFETY: once, here, on the main thread.
-    start();
+    start(Owners::the());
     finish("start came to its end", 0)
 }

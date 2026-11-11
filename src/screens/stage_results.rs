@@ -6,7 +6,6 @@ use crate::menu::owner::Menus;
 use crate::menu::owner::Play;
 use crate::records::stages_store::{Holder, RecordRef, RecordTable};
 use crate::screens::game_screen::{Held, HeldText};
-use crate::system::owner::system;
 use crate::text::draw_text::Canvas;
 
 /// The stage's record table and record (`off_735512[ChampView.switch_f8][CaptionTables.shown_group]`, + 0xA4 x
@@ -96,7 +95,8 @@ fn ends_within_ten(table: &StageTable, stage: usize) -> Result<bool, BadInput> {
 pub fn draw_stage_results(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let play = &menus.play;
     let menu = menus.screens.loop_flags.menu.get().ok();
-    let stages = &system().records.stage_tables;
+    let o = crate::owners::boundary();
+    let stages = &o.system.records.stage_tables;
     let (base, record) = records(menus, stages)?;
     let table = times_table(play, stages)?;
     let (Some(table), Some(menu)) = (table, menu) else {
@@ -168,10 +168,12 @@ pub fn draw_stage_results(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), 
         },
     )?;
     set_item(3, base.title()?)?;
-    crate::screens::text_buffers_store::TEXT_BUFFERS
+    o.race
+        .text_buffers()
         .stage_result_value
         .set(record.record()?.track());
-    crate::screens::text_buffers_store::TEXT_BUFFERS
+    o.race
+        .text_buffers()
         .stage_heading
         .write_at(0, &stage, "the stage line")?;
     // The logic is in `rc2k_core::screens::stage_results`.

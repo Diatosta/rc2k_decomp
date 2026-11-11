@@ -41,7 +41,7 @@ const DUE: &PlainDword = &crate::menu::owner::MENUS
     .event
     .service_due;
 
-pub fn time_trial_service(menus: &Menus) -> Result<(), Refused> {
+pub fn time_trial_service(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
     let screens = &menus.screens;
     // The logic is in `rc2k_core::menu::passes` (the minutes, the pauses, who is out,
     // `goes_on`).
@@ -60,12 +60,7 @@ pub fn time_trial_service(menus: &Menus) -> Result<(), Refused> {
             screens.state.driver_stats.repair_time.set(0);
             { crate::menu::driver_stats::driver_stats(menus, screens) }?;
             screens.state.menus.service_flag.set(false);
-            {
-                run_screen(
-                    &crate::service::service_area_loop::SCREEN,
-                    &Entry::new(crate::owners::boundary()),
-                )
-            }?;
+            { run_screen(&crate::service::service_area_loop::SCREEN, entry) }?;
             if yes() {
                 break 'all;
             }
@@ -79,12 +74,7 @@ pub fn time_trial_service(menus: &Menus) -> Result<(), Refused> {
             let record = player(menus, serviced);
             if passes::is_out(record.get().entry) {
                 crate::menu::inspection_faults::inspection_faults(menus)?;
-                {
-                    run_screen(
-                        &crate::menu::inspection_area_loop::SCREEN,
-                        &Entry::new(crate::owners::boundary()),
-                    )
-                }?;
+                { run_screen(&crate::menu::inspection_area_loop::SCREEN, entry) }?;
                 if yes() {
                     break 'all;
                 }

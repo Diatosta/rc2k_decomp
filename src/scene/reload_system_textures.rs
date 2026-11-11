@@ -19,8 +19,6 @@
 //! `rc2k_core::scene::pictures`.
 
 use crate::errors::{BadInput, Refused};
-use crate::gfx::owner::gfx;
-use crate::race::owner::race;
 use crate::scene::load_changed_texture_picture::{TEXTURES, load_changed_texture_picture_in_game};
 use crate::scene::load_hud_car_icons::load_hud_car_icons;
 use crate::scene::step_loading_bar::step_loading_bar;
@@ -42,8 +40,9 @@ const TEXTS: [&std::ffi::CStr; 4] = [
 
 // Converted: `rc2k_core::scene::pictures::{kind_picture, read_size}`
 pub fn reload_system_textures(scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let gfx_grading = &gfx().grading;
-    let race = race();
+    let o = crate::owners::boundary();
+    let (gfx, race) = (o.gfx, o.race);
+    let gfx_grading = &gfx.grading;
     let course = &race.course;
     let textures: u32 = scene.textures.places.totals[3].get();
     if textures == 0 || textures > TEXTURES {
@@ -75,13 +74,13 @@ pub fn reload_system_textures(scene: &crate::scene::owner::Scene) -> Result<(), 
         grading.scale.set(scale);
         grading.saturation.set(saturation);
         load_changed_texture_picture_in_game(race, texture, scene)?;
-        step_loading_bar(race, texture)?;
+        step_loading_bar(race, scene, texture)?;
     }
     let grading = &gfx_grading;
     grading.reading.set(0u32);
     grading.scale.set(0x100);
     grading.saturation.set(0x100);
-    load_hud_car_icons(scene, &race.shared)?;
+    load_hud_car_icons(scene, race, o.net)?;
     crate::logfile::log_write::log_nul(&TEXTS[2], true, 1);
     crate::logfile::log_write::log_nul(&TEXTS[3], true, 1);
     Ok(())

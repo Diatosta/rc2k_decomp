@@ -9,7 +9,6 @@
 //! The name goes to `net::dp_objects` as text: the DPNAME is not made.
 
 use crate::errors::Refused;
-use crate::net::owner::net;
 use crate::net::store::NetVars;
 
 /// The player put in the group (`AddPlayerToGroup`): whether it went.
@@ -20,8 +19,7 @@ pub fn join(vars: &NetVars) -> bool {
         vars.player_id.get(),
     ) == 0
 }
-pub fn create_group() -> Result<bool, Refused> {
-    let vars = &net().vars;
+pub fn create_group(vars: &NetVars) -> Result<bool, Refused> {
     let made = crate::net::dp_objects::create_group(vars.dplay.get(), &vars.group_name.read(), &[]);
     if let Ok(id) = made {
         vars.send_to.set(id);

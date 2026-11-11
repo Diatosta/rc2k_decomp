@@ -16,15 +16,11 @@ use crate::text::draw_text::Canvas;
 
 pub fn draw_volume_settings(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let screens = &menus.screens;
-    let levels = &crate::audio::owner::audio().levels;
+    let o = crate::owners::boundary();
+    let levels = &o.audio.levels;
     // The logic is in `rc2k_core::screens::settings_pages::volume`.
 
-    let id = crate::sound::owner::sound()
-        .menu
-        .options
-        .race_music_on
-        .get()
-        .wrapping_add(0x56D);
+    let id = o.sound.menu.options.race_music_on.get().wrapping_add(0x56D);
     // g_masterVolumeShown, then `option_work.music_level` .. `option_work.sounds_b`.
     let volumes: [u32; 8] = [
         levels.master_volume_shown.get(),

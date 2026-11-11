@@ -327,12 +327,13 @@ pub fn screen() -> Option<Target> {
     // The renderers draw on the bytes where they lie.
     let pixels = surface.present_pixels.get();
     crate::gfx::locked_pixels::bytes_of(pixels)?;
+    let screen = &crate::system::owner::system().session.screen;
     Some(Target {
         pixels,
         pitch: surface.present_pitch.get() as usize,
-        width: crate::system::owner::system().session.screen.width.get() as usize,
-        height: crate::system::owner::system().session.screen.height.get() as usize,
-        bits: crate::system::owner::system().session.screen.bits.get(),
+        width: screen.width.get() as usize,
+        height: screen.height.get() as usize,
+        bits: screen.bits.get(),
     })
 }
 

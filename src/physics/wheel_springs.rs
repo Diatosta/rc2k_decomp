@@ -21,7 +21,7 @@ use crate::math::x87;
 use crate::math::x87::{ext_div2, int_80, mul2, neg_rounded, negated, wheel_int};
 use crate::physics::contact_store::ContactWork;
 use crate::physics::flow::ZERO_BITS as ZERO;
-use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::blocks_store::CarBlocks;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
 use crate::scene::matrix3::extended;
@@ -34,6 +34,7 @@ fn below(x: f32, b: f32) -> bool {
 
 /// The exact version, for `physics::car_physics_step`.
 pub fn wheel_springs(
+    car_blocks: &CarBlocks,
     contact: &ContactWork,
     numbers: &Numbers,
     shared: &RaceShared,
@@ -83,7 +84,7 @@ pub fn wheel_springs(
     }
     for k in 0..4 {
         let v = wheel_int([
-            CAR_BLOCKS.cars[0].probe_point_y[6].bits(),
+            car_blocks.cars[0].probe_point_y[6].bits(),
             ph.handling[2].bits(),
             ph.spring_share.bits(),
             c.wheel_squeeze[k].bits(),

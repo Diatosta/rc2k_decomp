@@ -11,14 +11,13 @@
 //! `pick_replay_camera` refuses (everything written put back).
 
 use crate::errors::{BadInput, Refused};
-use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::race::replay_work_store::REPLAY_WORK;
 use rc2k_core::drive::replay_views::{WishStep, wish_step};
 
 /// Byte `k` of the frame's head (the first car block's start, `g_carBlockStore`).
-fn head_byte(k: usize) -> Result<u32, BadInput> {
-    crate::pointers::load_value::<u8>(&CAR_BLOCKS.cars[0].frame_head, k).map(u32::from)
+fn head_byte(race: &Race, k: usize) -> Result<u32, BadInput> {
+    crate::pointers::load_value::<u8>(&race.car_blocks().cars[0].frame_head, k).map(u32::from)
 }
 
 /// `replay_camera_wishes`[head byte]`: the table holds 47; a larger byte reads on into the
@@ -40,25 +39,25 @@ fn steps(race: &Race) -> Result<(), Refused> {
     replay
         .replay_frames
         .camera_word_0
-        .set(CAR_BLOCKS.cars[0].frame_head[0].get());
+        .set(race.car_blocks().cars[0].frame_head[0].get());
     replay
         .replay_frames
         .camera_word_1
-        .set(CAR_BLOCKS.cars[0].frame_head[1].get());
+        .set(race.car_blocks().cars[0].frame_head[1].get());
     for c in 0..2usize {
-        let car = &CAR_BLOCKS.cars[c];
-        let wish = wish_of(head_byte(c)? as usize)?;
+        let car = &race.car_blocks().cars[c];
+        let wish = wish_of(head_byte(race, c)? as usize)?;
         match wish_step(
             wish,
             replay.replay_view.replay_block.get(),
-            REPLAY_WORK.camera_last_frame[c].get(),
+            race.replay_work().camera_last_frame[c].get(),
             || car.camera_view.get(),
         ) {
             WishStep::Draw(_) => {
-                REPLAY_WORK.camera_last_frame[c].set(replay.replay_view.replay_block.get());
+                race.replay_work().camera_last_frame[c].set(replay.replay_view.replay_block.get());
                 // `Draw` comes only for the wishes that draw: the mode is there.
                 if let Some(mode) =
-                    { crate::drive::pick_replay_camera::pick_replay_camera(shared, wish) }?
+                    { crate::drive::pick_replay_camera::pick_replay_camera(race, wish) }?
                 {
                     car.camera_view.set(mode);
                 }
@@ -72,14 +71,14 @@ fn steps(race: &Race) -> Result<(), Refused> {
                 car.camera_view.set(wish);
                 car.camera_switch_active.set(0);
                 car.camera_switch_clock.set(car.step_clock.get());
-                REPLAY_WORK.camera_last_frame[c].set(0);
+                race.replay_work().camera_last_frame[c].set(0);
             }
         }
     }
-    CAR_BLOCKS.cars[0]
+    race.car_blocks().cars[0]
         .option_bits
         .set(shared.view.player_options[0].get());
-    CAR_BLOCKS.cars[1]
+    race.car_blocks().cars[1]
         .option_bits
         .set(shared.view.player_options[1].get());
     // The head's bytes 2 .. 5 into `view_on`, `63DB78`, `63DB84`, `63DB88`.
@@ -92,7 +91,7 @@ fn steps(race: &Race) -> Result<(), Refused> {
     .into_iter()
     .enumerate()
     {
-        to.set(head_byte(2 + k)?);
+        to.set(head_byte(race, 2 + k)?);
     }
     Ok(())
 }

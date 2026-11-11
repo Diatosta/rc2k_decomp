@@ -10,10 +10,11 @@
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
+use crate::menu::screen_loop::Entry;
 use crate::menu::standings::Which;
 use crate::menu::standings_steps::{clear_standings, number_all};
 
-pub fn rally_results(menus: &Menus) -> Result<(), Refused> {
+pub fn rally_results(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
     menus.screens.state.menus.which_title.set(true);
     crate::menu::standings_a_from_all::standings_a_from_all(menus)?;
     // The logic is in `rc2k_core::menu::results_pages::class_pages_only`.
@@ -21,9 +22,9 @@ pub fn rally_results(menus: &Menus) -> Result<(), Refused> {
         crate::menu::sort_standings_by_total::sort_standings_by_total(menus)?;
         clear_standings(Which::A)?;
         number_all(menus, Which::A)?;
-        crate::menu::show_overall_rally_results::show_overall_rally_results(menus)?;
+        crate::menu::show_overall_rally_results::show_overall_rally_results(menus, entry)?;
     } else {
-        crate::menu::class_rally_results_pass::class_rally_results_pass(menus)?;
+        crate::menu::class_rally_results_pass::class_rally_results_pass(menus, entry)?;
     }
     menus.screens.state.menus.which_title.set(false);
     Ok(())

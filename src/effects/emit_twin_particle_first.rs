@@ -20,9 +20,7 @@ use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
 use crate::effects::jitter_point::jitter_point;
-use crate::effects::mask_store::Masks;
-use crate::effects::owner::effects;
-use crate::effects::run_particles::Particles;
+use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::effects_settings_store::CarEffects;
@@ -32,28 +30,27 @@ use crate::session::{PlainBytes, PlainDword, PlainFloat};
 const LEVELS: u32 = 9;
 
 /// One twin's variables.
-pub struct TwinSet {
+pub struct TwinSet<'a> {
     pub kind: u32,
     /// The index of the car's level in its `levels`.
     pub level: usize,
     pub flags: u32,
-    pub tuning: &'static TwinTuning,
+    pub tuning: &'a TwinTuning,
 }
 
 /// `emit_twin_particle_first`'s.
-pub const NINETEENTH: TwinSet = TwinSet {
-    kind: 0x13,
-    level: 0,
-    flags: 0x3E,
-    tuning: &crate::effects::owner::EFFECTS
-        .unchecked()
-        .particles
-        .nineteenth_tuning,
-};
+pub fn nineteenth(effects: &Effects) -> TwinSet<'_> {
+    TwinSet {
+        kind: 0x13,
+        level: 0,
+        flags: 0x3E,
+        tuning: &effects.particles.nineteenth_tuning,
+    }
+}
 
 /// Whether an entry is to be made (the chance and a free entry), worked out without
 /// writing.
-fn makes(ring: &Ring, set: &TwinSet, object: &'static CarEffects) -> Result<bool, Refused> {
+fn makes(ring: &Ring, set: &TwinSet<'_>, object: &'static CarEffects) -> Result<bool, Refused> {
     Ok({
         let level = object.levels[set.level].get() as i32;
         let r = set
@@ -68,15 +65,16 @@ fn makes(ring: &Ring, set: &TwinSet, object: &'static CarEffects) -> Result<bool
 
 /// Why the emitter refuses, if it does, worked out without writing.
 pub fn refusal(
+    effects: &Effects,
     ring: &Ring,
-    set: &TwinSet,
+    set: &TwinSet<'_>,
     object: &'static CarEffects,
 ) -> Result<Option<&'static str>, Refused> {
     Ok({
         if !makes(ring, set, object)? {
             return Ok(None);
         }
-        if !car_with_matrix()? {
+        if !car_with_matrix(effects)? {
             return Ok(Some("a null g_marksCar or matrix"));
         }
         if object.levels[set.level].get() >= LEVELS {
@@ -87,24 +85,20 @@ pub fn refusal(
 }
 
 pub fn emit_twin_particle_first(
-    masks: &Masks,
-    particles: &Particles,
-    ring: &Ring,
+    effects: &Effects,
     object: &'static CarEffects,
 ) -> Result<(), Refused> {
-    emit_twin(masks, particles, ring, &NINETEENTH, object)
+    emit_twin(effects, &nineteenth(effects), object)
 }
 
 /// The shared body, on `set`'s variables.
 pub fn emit_twin(
-    masks: &Masks,
-    particles: &Particles,
-    ring: &Ring,
-    set: &TwinSet,
+    effects: &Effects,
+    set: &TwinSet<'_>,
     object: &'static CarEffects,
 ) -> Result<(), Refused> {
-    let effects = effects();
-    if let Some(why) = refusal(ring, set, object)? {
+    let (masks, particles, ring) = (&effects.masks, &effects.particles, &effects.ring);
+    if let Some(why) = refusal(effects, ring, set, object)? {
         return Err(BadInput(why).into());
     }
     let level = object.levels[set.level].get();

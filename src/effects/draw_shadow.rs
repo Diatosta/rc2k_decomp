@@ -19,6 +19,7 @@
 use crate::effects::cell_x87::CellX87;
 use crate::effects::kind_store::{CONSTS_1, CONSTS_2, KindConsts, QuadWork};
 use crate::effects::mask_store::Masks;
+use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::scene::cross_product3::cross;
@@ -53,19 +54,14 @@ pub const FIRST: Shadow<'static> = Shadow {
 };
 
 /// `effects::draw_overlays`'s.
-pub const SECOND: Shadow<'static> = Shadow {
-    quad: &crate::effects::owner::EFFECTS
-        .unchecked()
-        .kinds
-        .overlay_quad,
-    consts: &CONSTS_1,
-    up: &crate::effects::owner::EFFECTS
-        .unchecked()
-        .kinds
-        .overlay_extras
-        .extra,
-    field: |marks| &marks.engine_speed_copy,
-};
+pub fn second(effects: &Effects) -> Shadow<'_> {
+    Shadow {
+        quad: &effects.kinds.overlay_quad,
+        consts: &CONSTS_1,
+        up: &effects.kinds.overlay_extras.extra,
+        field: |marks| &marks.engine_speed_copy,
+    }
+}
 
 /// Each vertex's texture place: the corner entry's word offsets (u, v).
 const UV_WORDS: [(u32, u32); 4] = [(0xC, 0xE), (8, 0xA), (0, 2), (4, 6)];

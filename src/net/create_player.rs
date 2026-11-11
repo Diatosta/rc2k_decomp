@@ -12,12 +12,12 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::log_bytes;
-use crate::net::owner::net;
-use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
-pub fn create_player() -> Result<bool, Refused> {
-    let vars = &net().vars;
-    log_bytes(&VIEWER_PANEL.text(texts::NET_CREATE_PLAYER), false, 2);
-    let name = net().setup().player_name.read();
+use crate::net::owner::Net;
+use crate::race::viewer_screen_store::{ViewerPanelBlock, texts};
+pub fn create_player(net: &Net, panel: &ViewerPanelBlock) -> Result<bool, Refused> {
+    let vars = &net.vars;
+    log_bytes(&panel.text(texts::NET_CREATE_PLAYER), false, 2);
+    let name = net.setup().player_name.read();
     log_bytes(&name, true, 2);
     let made = crate::net::dp_objects::create_player(
         vars.dplay.get(),

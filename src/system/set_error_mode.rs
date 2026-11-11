@@ -5,15 +5,14 @@
 //! One caller, `start` (0x401035). The Win32 call is made from Rust.
 
 use crate::session::Dword;
-use crate::system::owner::system;
+use crate::system::owner::System;
 
 // ---- game data ----
 
 /// SEM_FAILCRITICALERRORS.
 const FAIL_CRITICAL_ERRORS: u32 = 1;
 
-pub fn set_error_mode() {
-    let system = system();
+pub fn set_error_mode(system: &System) {
     let was = crate::os::set_error_mode(FAIL_CRITICAL_ERRORS);
     system.start.error_mode.mode.set(was);
     system.start.error_mode.changed.set(1);
@@ -44,7 +43,8 @@ impl ErrorMode {
     #[cfg(test)]
     /// Where the byte IDA calls `START` is (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const system().start.error_mode) as usize
+        crate::pointers::game_address(&raw const crate::system::owner::system().start.error_mode)
+            as usize
     }
 }
 

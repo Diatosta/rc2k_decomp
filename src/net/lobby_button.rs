@@ -8,15 +8,23 @@
 //! Caller: `net::lobby_frame` (four times).
 
 use crate::errors::Refused;
+use crate::install::owner::Install;
 use crate::net::draw_button::draw_button;
 use crate::net::owner::Net;
 use rc2k_core::net::screens;
 
 /// The button `string` for item `item` at (`x`, `y`); returns the next
 /// button's x.
-pub fn lobby_button(net: &Net, string: u32, item: u32, x: u32, y: u32) -> Result<u32, Refused> {
+pub fn lobby_button(
+    net: &Net,
+    install: &Install,
+    string: u32,
+    item: u32,
+    x: u32,
+    y: u32,
+) -> Result<u32, Refused> {
     // Converted: `rc2k_core::net::screens` (`lobby_button_flags`, `next_button_x`).
     let flags = screens::lobby_button_flags(net.vars.own.state(), item, net.vars.after_race.get());
-    draw_button(net, string, flags, x, y, item)?;
+    draw_button(net, install, string, flags, x, y, item)?;
     Ok(screens::next_button_x(x, net.button.get().width.get()))
 }

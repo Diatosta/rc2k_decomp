@@ -11,7 +11,6 @@
 //! Callers: `race::replay_viewer` (two).
 
 use crate::race::owner::Race;
-use crate::race::replay_work_store::REPLAY_WORK;
 
 pub fn mark_viewer_items(
     race: &Race,
@@ -25,22 +24,14 @@ pub fn mark_viewer_items(
         last_race: replay.replay_view.last_race_viewed.is_set(),
         block,
         blocks: race.shared.replay_file.index_block_count.get(),
-        mark_in: crate::race::viewer_buffers_store::VIEWER_BUFFERS
-            .mark_in
-            .get(),
-        mark_out: crate::race::viewer_buffers_store::VIEWER_BUFFERS
-            .mark_out
-            .get(),
-        clip_blocks: crate::race::viewer_buffers_store::VIEWER_BUFFERS
-            .clip_blocks
-            .get(),
-        undo_blocks: crate::race::viewer_buffers_store::VIEWER_BUFFERS
-            .undo_blocks
-            .get(),
+        mark_in: race.viewer_buffers().mark_in.get(),
+        mark_out: race.viewer_buffers().mark_out.get(),
+        clip_blocks: race.viewer_buffers().clip_blocks.get(),
+        undo_blocks: race.viewer_buffers().undo_blocks.get(),
         camera: crate::race::viewer::camera_byte_at(
             5usize.wrapping_add(block.wrapping_mul(8) as usize),
         )?,
-        one_player: REPLAY_WORK.header_one_player.get() == 1,
+        one_player: race.replay_work().header_one_player.get() == 1,
     };
     for (item, bit) in rc2k_core::race::viewer::item_marks(&state) {
         let item = list.item(item);

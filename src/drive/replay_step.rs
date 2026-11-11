@@ -15,7 +15,6 @@
 //! variables put back).
 
 use crate::errors::Refused;
-use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use rc2k_core::drive::race_steps;
 
@@ -68,14 +67,14 @@ pub fn replay_step(
     crate::drive::keep_replay_frame::keep_replay_frame(race)?;
     crate::drive::play_replay_frame::play_replay_frame(race)?;
     if race_steps::skids_restart(
-        CAR_BLOCKS.cars[0].step_clock.bits(),
-        CAR_BLOCKS.cars[0].previous_step_clock.bits(),
+        race.car_blocks().cars[0].step_clock.bits(),
+        race.car_blocks().cars[0].previous_step_clock.bits(),
     ) {
         crate::race::stage_prefs::init_skidmarks(race)?;
     }
-    CAR_BLOCKS.cars[0]
+    race.car_blocks().cars[0]
         .previous_step_clock
-        .set(CAR_BLOCKS.cars[0].step_clock.get());
+        .set(race.car_blocks().cars[0].step_clock.get());
     race_steps::each_car(
         || shared.work.current_car.get(),
         || shared.view.race_cars.get(),
@@ -85,9 +84,9 @@ pub fn replay_step(
     crate::drive::replay_check::note(race)?;
     crate::drive::animate_stage::animate_stage(race)?;
     crate::drive::race_mode_cars::race_mode_cars(race)?;
-    crate::drive::duel_sound_levels::duel_sound_levels(sound);
+    crate::drive::duel_sound_levels::duel_sound_levels(race, sound);
     crate::drive::countdown_beeps::countdown_beeps(race)?;
-    crate::drive::two_car_order::two_car_order(&race.shared)?;
+    crate::drive::two_car_order::two_car_order(race)?;
     crate::drive::hold_count_tick::hold_count_tick(&race.shared);
     crate::drive::flush_replay_if::flush_replay_if(race)?;
     crate::drive::replay_clock_tick::replay_clock_tick(&race.replay);

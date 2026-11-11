@@ -28,7 +28,6 @@ use crate::math::x87::compare_full;
 use crate::math::x87_float as bh;
 use crate::physics::car_store::Car;
 use crate::race::effects_settings_store::CarEffects;
-use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::mud::car_file_number;
 use crate::race::owner::Race;
 use crate::session::Dword;
@@ -161,7 +160,7 @@ pub fn share_car_state_at(
         }
     }
     o.tag.set(car.light_colour.get());
-    let light = &LIGHT_RECORDS.records[n as usize];
+    let light = &race.light_records().records[n as usize];
     for (r, l) in LIGHT_MOVES {
         r(o).set_bits(l(light).get());
     }
@@ -259,6 +258,7 @@ mod tests {
     use super::*;
     use crate::race::blocks_store::own_car;
     use crate::race::effects_settings_store::EFFECTS_SETTINGS;
+    use crate::race::light_records_store::LIGHT_RECORDS;
 
     fn rec_off(o: &CarEffects, f: RecordField) -> usize {
         core::ptr::from_ref(f(o)).cast::<u8>().addr() - core::ptr::from_ref(o).addr()

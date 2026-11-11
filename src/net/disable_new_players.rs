@@ -7,14 +7,14 @@
 
 use crate::net::lobby::{log_bytes, log_hex};
 use crate::net::owner::Net;
-use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
+use crate::race::viewer_screen_store::{ViewerPanelBlock, texts};
 
 const CLOSED: u32 = 0x21; // DPSESSION_NEWPLAYERSDISABLED | DPSESSION_JOINDISABLED
-pub fn disable_new_players(net: &Net) {
+pub fn disable_new_players(net: &Net, panel: &ViewerPanelBlock) {
     if net.vars.own.state() & 0x10 == 0 {
         return;
     }
-    log_bytes(&VIEWER_PANEL.text(texts::NET_DISABLE_NEW_PLAYERS), false, 2);
+    log_bytes(&panel.text(texts::NET_DISABLE_NEW_PLAYERS), false, 2);
     if net.vars.dplay.get() == 0 {
         return;
     }

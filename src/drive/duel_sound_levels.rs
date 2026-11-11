@@ -5,21 +5,21 @@
 //!
 //! Caller: `drive::replay_step`.
 
-use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::owner::Race;
 use rc2k_core::drive::replay_views::{RARE_FROM, first_level, rare_draw, second_level};
 
 // Converted: `rc2k_core::drive::replay_views::{first_level, rare_draw, second_level}`.
-pub fn duel_sound_levels(sound: &crate::sound::owner::Sound) {
+pub fn duel_sound_levels(race: &Race, sound: &crate::sound::owner::Sound) {
     let stage = sound.race.stage.get();
     stage
         .loop_volume_a
-        .set(first_level(CAR_BLOCKS.cars[0].surface_noise_a.get()));
+        .set(first_level(race.car_blocks().cars[0].surface_noise_a.get()));
     if stage.loop_volume_a.get() >= RARE_FROM {
         let r = crate::math::next_random::SOUNDS.next();
         if rare_draw(r) {
             stage.timed_arm.set(1);
         }
     }
-    let (level, _) = second_level(CAR_BLOCKS.cars[0].surface_noise_second.get());
+    let (level, _) = second_level(race.car_blocks().cars[0].surface_noise_second.get());
     stage.loop_volume_b.set(level);
 }

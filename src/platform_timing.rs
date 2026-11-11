@@ -3,7 +3,7 @@
 
 use crate::framework::log;
 use crate::platform::SHOWN;
-use crate::system::owner::system;
+use crate::system::owner::System;
 use std::sync::atomic::Ordering;
 
 // ---- where the time goes: the main thread and the rasteriser's sampled every millisecond ----
@@ -178,8 +178,7 @@ fn hot_places() -> String {
 
 /// Every five seconds a line on where the time went: the frames shown, the fans drawn and
 /// the time in the rasteriser, the calls of functions that are not ported (each a fault).
-pub fn report_timing() {
-    let system = system();
+pub fn report_timing(system: &System) {
     use std::sync::Mutex;
     use std::sync::atomic::Ordering::Relaxed;
     use std::time::Instant;

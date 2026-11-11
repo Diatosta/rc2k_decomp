@@ -35,7 +35,7 @@ fn step(
 ) -> Result<(), Refused> {
     shared.car.local_velocity[2].set(crate::math::x87::loaded(&shared.car.drive_speed_a));
     crate::physics::count_down_timers::count_down_timers(&shared.car, &shared.vars);
-    crate::physics::gearbox_step::gearbox_step(&course.numbers, shared, scene)?;
+    crate::physics::gearbox_step::gearbox_step(&course.numbers, shared, &GEAR, scene)?;
     crate::physics::engine_torque::engine_torque(course, shared, scene);
     let gear = shared.car.gear.get();
     if !(-1..=7).contains(&(gear as i32)) {

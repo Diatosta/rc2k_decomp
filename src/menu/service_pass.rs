@@ -21,7 +21,7 @@ use crate::menu::owner::Menus;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::*;
 // service::service_area_loop
-pub fn service_pass(menus: &Menus) -> Result<(), Refused> {
+pub fn service_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
     let screens = &menus.screens;
     // The logic is in `rc2k_core::menu::passes` (who is serviced, the minutes, the money, the
     // pauses, `goes_on`).
@@ -45,8 +45,8 @@ pub fn service_pass(menus: &Menus) -> Result<(), Refused> {
     'all: {
         for (n, &p) in players.iter().enumerate() {
             menus.screens.event.current_player.set(n as u32);
-            let entry = p.get().entry;
-            if !passes::serviced(entry, || menus.screens.event.service_due.get()) {
+            let kind = p.get().entry;
+            if !passes::serviced(kind, || menus.screens.event.service_due.get()) {
                 continue;
             }
             crate::menu::inspection_screen::inspection_screen()?;
@@ -61,10 +61,7 @@ pub fn service_pass(menus: &Menus) -> Result<(), Refused> {
             for _ in 0..passes::DROPPED_KEYS {
                 crate::input::take_key::take_key();
             }
-            run_screen(
-                &crate::service::service_area_loop::SCREEN,
-                &Entry::new(crate::owners::boundary()),
-            )?;
+            run_screen(&crate::service::service_area_loop::SCREEN, entry)?;
             if menus.tables.pages.yes_no_answer.get() == 1 {
                 break 'all;
             }
@@ -72,10 +69,7 @@ pub fn service_pass(menus: &Menus) -> Result<(), Refused> {
             crate::menu::set_player_entry_kind::set_player_entry_kind(menus)?;
             if passes::is_out(p.get().entry) {
                 crate::menu::inspection_faults::inspection_faults(menus)?;
-                run_screen(
-                    &crate::menu::inspection_area_loop::SCREEN,
-                    &Entry::new(crate::owners::boundary()),
-                )?;
+                run_screen(&crate::menu::inspection_area_loop::SCREEN, entry)?;
                 if menus.tables.pages.yes_no_answer.get() == 1 {
                     break 'all;
                 }

@@ -12,21 +12,20 @@
 use crate::errors::Refused;
 use crate::install::read_registry::Registry;
 use crate::install::store::text_of;
-use crate::net::owner::net;
-use crate::strings::owner::strings;
 
 pub fn register_lobby(
     install: &'static crate::install::owner::Install,
     registry: &mut dyn Registry,
+    strings: &crate::strings::owner::Strings,
+    net: &crate::net::owner::Net,
 ) -> Result<(), Refused> {
-    let strings = strings();
     use crate::install::set_lobby_value::set_lobby_value;
     let Ok(key) = registry.create(text_of(&install.lobby_keys.registry_key)) else {
         return Ok(());
     };
     install.run.reg_key.set(key);
     // Converted: `rc2k_core::install::lobby::guid_text`.
-    let guid = rc2k_core::install::lobby::guid_text(&net().vars.app_guid.read());
+    let guid = rc2k_core::install::lobby::guid_text(&net.vars.app_guid.read());
     let mut text = guid.to_vec();
     text.push(0);
     strings

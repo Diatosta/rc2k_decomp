@@ -110,9 +110,9 @@ pub fn open_viewed_replay(race: &Race, slot: u32) -> Result<bool, Refused> {
             return failed();
         }
         crate::race::viewer::move_cells(
-            &crate::race::viewer_buffers_store::VIEWER_BUFFERS.block_cameras,
+            &race.viewer_buffers().block_cameras,
             2 * block as usize,
-            &crate::race::viewer_buffers_store::VIEWER_BUFFERS.block,
+            &race.viewer_buffers().block,
             0,
             CAMERA_DWORDS,
         )?;
@@ -122,15 +122,9 @@ pub fn open_viewed_replay(race: &Race, slot: u32) -> Result<bool, Refused> {
         }
     }
     let (mark_in, mark_out) = opened_marks(shared.replay_file.index_block_count.get());
-    crate::race::viewer_buffers_store::VIEWER_BUFFERS
-        .mark_in
-        .set(mark_in);
-    crate::race::viewer_buffers_store::VIEWER_BUFFERS
-        .mark_out
-        .set(mark_out);
-    crate::race::viewer_buffers_store::VIEWER_BUFFERS
-        .block_used
-        .set(0);
+    race.viewer_buffers().mark_in.set(mark_in);
+    race.viewer_buffers().mark_out.set(mark_out);
+    race.viewer_buffers().block_used.set(0);
     if { crate::drive::read_replay_frame_0::read_replay_frame_0(race, 0) }? {
         return failed();
     }

@@ -29,123 +29,68 @@ use crate::session::{PlainDword, PlainFloat, read_bits, write_bits};
 const LIFE: u32 = 0x7D0;
 
 /// One half's variables.
-pub struct Half {
+pub struct Half<'a> {
     pub kind: u32,
-    pub strength: &'static PlainFloat,
+    pub strength: &'a PlainFloat,
     /// The direction's factors (x, y, z) and whether |s| is scaled by the half constant in y.
-    pub factors: [&'static PlainFloat; 3],
+    pub factors: [&'a PlainFloat; 3],
     pub scaled: bool,
     /// The size's mask and base, the side's factors.
     pub size: (u32, u32),
-    pub sides: [&'static PlainFloat; 3],
+    pub sides: [&'a PlainFloat; 3],
 }
 
 /// One function's variables: its two halves and the typed factors and randoms.
-pub struct BurstSet {
-    pub halves: [Half; 2],
-    pub tuning: &'static BurstTuning,
+pub struct BurstSet<'a> {
+    pub halves: [Half<'a>; 2],
+    pub tuning: &'a BurstTuning,
 }
 
 /// The two halves' variables (`emit_bursts_kind_3`'s are the same but for its tuning).
-pub const HALVES: [Half; 2] = [
-    Half {
-        kind: 0x11,
-        strength: &crate::effects::owner::EFFECTS
-            .unchecked()
-            .ring
-            .work
-            .strength[0],
-        factors: [
-            &crate::effects::owner::EFFECTS
-                .unchecked()
-                .kinds
-                .emitter
-                .side_a[0],
-            &crate::effects::owner::EFFECTS
-                .unchecked()
-                .kinds
-                .emitter
-                .side_a[1],
-            &crate::effects::owner::EFFECTS
-                .unchecked()
-                .kinds
-                .emitter
-                .side_a[2],
-        ],
-        scaled: false,
-        size: (0x7FF, 0x400),
-        sides: [
-            &crate::effects::owner::EFFECTS
-                .unchecked()
-                .kinds
-                .emitter
-                .side_b[0],
-            &crate::effects::owner::EFFECTS
-                .unchecked()
-                .kinds
-                .emitter
-                .side_b[1],
-            &crate::effects::owner::EFFECTS
-                .unchecked()
-                .kinds
-                .emitter
-                .side_b[2],
-        ],
-    },
-    Half {
-        kind: 0x10,
-        strength: &crate::effects::owner::EFFECTS
-            .unchecked()
-            .ring
-            .work
-            .strength[1],
-        factors: [
-            &crate::effects::owner::EFFECTS
-                .unchecked()
-                .kinds
-                .emitter
-                .side_b[0],
-            &crate::effects::owner::EFFECTS
-                .unchecked()
-                .kinds
-                .emitter
-                .side_b[1],
-            &crate::effects::owner::EFFECTS
-                .unchecked()
-                .kinds
-                .emitter
-                .side_b[2],
-        ],
-        scaled: true,
-        size: (0x3FF, 0x600),
-        sides: [
-            &crate::effects::owner::EFFECTS
-                .unchecked()
-                .kinds
-                .emitter
-                .side_a[0],
-            &crate::effects::owner::EFFECTS
-                .unchecked()
-                .kinds
-                .emitter
-                .side_a[1],
-            &crate::effects::owner::EFFECTS
-                .unchecked()
-                .kinds
-                .emitter
-                .side_a[2],
-        ],
-    },
-];
+pub fn halves(effects: &Effects) -> [Half<'_>; 2] {
+    [
+        Half {
+            kind: 0x11,
+            strength: &effects.ring.work.strength[0],
+            factors: [
+                &effects.kinds.emitter.side_a[0],
+                &effects.kinds.emitter.side_a[1],
+                &effects.kinds.emitter.side_a[2],
+            ],
+            scaled: false,
+            size: (0x7FF, 0x400),
+            sides: [
+                &effects.kinds.emitter.side_b[0],
+                &effects.kinds.emitter.side_b[1],
+                &effects.kinds.emitter.side_b[2],
+            ],
+        },
+        Half {
+            kind: 0x10,
+            strength: &effects.ring.work.strength[1],
+            factors: [
+                &effects.kinds.emitter.side_b[0],
+                &effects.kinds.emitter.side_b[1],
+                &effects.kinds.emitter.side_b[2],
+            ],
+            scaled: true,
+            size: (0x3FF, 0x600),
+            sides: [
+                &effects.kinds.emitter.side_a[0],
+                &effects.kinds.emitter.side_a[1],
+                &effects.kinds.emitter.side_a[2],
+            ],
+        },
+    ]
+}
 
 /// `emit_bursts`'.
-pub const FIRST: BurstSet = BurstSet {
-    halves: HALVES,
-    tuning: &crate::effects::owner::EFFECTS
-        .unchecked()
-        .particles
-        .first_tuning,
-};
+pub fn first(effects: &Effects) -> BurstSet<'_> {
+    BurstSet {
+        halves: halves(effects),
+        tuning: &effects.particles.first_tuning,
+    }
+}
 
 impl BurstTuning {
     /// The half's (`n` 0 or 1) rate, count and entry randoms.
@@ -157,7 +102,7 @@ impl BurstTuning {
 /// The half's strength and rate (`n` 0 or 1), from the wheel.
 fn strength(
     effects: &Effects,
-    set: &BurstSet,
+    set: &BurstSet<'_>,
     n: usize,
     wheel: &MarkRecord,
 ) -> Result<(f32, i32), Refused> {
@@ -178,7 +123,7 @@ fn strength(
 }
 
 /// The entries each half would make, worked out without writing.
-fn counts(effects: &Effects, set: &BurstSet, wheel: &MarkRecord) -> Result<[u32; 2], Refused> {
+fn counts(effects: &Effects, set: &BurstSet<'_>, wheel: &MarkRecord) -> Result<[u32; 2], Refused> {
     Ok({
         let flags2 = wheel.flags2.get();
         if flags2 >> 6 == 0 {
@@ -205,7 +150,7 @@ fn counts(effects: &Effects, set: &BurstSet, wheel: &MarkRecord) -> Result<[u32;
 /// Why the function refuses, if it does, worked out without writing.
 pub fn refusal(
     effects: &Effects,
-    set: &BurstSet,
+    set: &BurstSet<'_>,
     wheel: &MarkRecord,
 ) -> Result<Option<&'static str>, Refused> {
     Ok({
@@ -213,7 +158,7 @@ pub fn refusal(
             return Ok(None);
         }
         let [a, b] = counts(effects, set, wheel)?;
-        if a + b > 0 && !car_with_matrix()? {
+        if a + b > 0 && !car_with_matrix(effects)? {
             return Ok(Some("a null object, car or matrix"));
         }
         None
@@ -225,13 +170,13 @@ pub fn emit_bursts(
     wheel: &MarkRecord,
     object: &'static CarEffects,
 ) -> Result<(), Refused> {
-    emit_bursts_with(effects, &FIRST, wheel, object)
+    emit_bursts_with(effects, &first(effects), wheel, object)
 }
 
 /// The shared body, on `set`'s variables.
 pub fn emit_bursts_with(
     effects: &Effects,
-    set: &BurstSet,
+    set: &BurstSet<'_>,
     wheel: &MarkRecord,
     object: &'static CarEffects,
 ) -> Result<(), Refused> {

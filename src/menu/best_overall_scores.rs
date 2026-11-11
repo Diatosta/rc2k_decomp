@@ -8,7 +8,10 @@ use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::*;
 // `event.classes`
 // g_yesNoAnswer
-pub fn best_overall_scores(menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
+pub fn best_overall_scores(
+    menus: &crate::menu::owner::Menus,
+    entry: &Entry,
+) -> Result<(), Refused> {
     let screens = &menus.screens;
     let players = counted_players(menus)?;
     screens.event.any_time_qualified.set(false);
@@ -25,10 +28,7 @@ pub fn best_overall_scores(menus: &crate::menu::owner::Menus) -> Result<(), Refu
         }
     }
     if screens.event.any_time_qualified.is_set() {
-        run_screen(
-            &crate::menu::best_overall_scores_loop::SCREEN,
-            &Entry::new(crate::owners::boundary()),
-        )?;
+        run_screen(&crate::menu::best_overall_scores_loop::SCREEN, entry)?;
     }
     Ok(())
 }

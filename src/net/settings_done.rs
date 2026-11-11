@@ -8,20 +8,26 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::zero;
-use crate::net::owner::net;
-use crate::net::store::NetVars;
-pub fn settings_done(vars: &'static NetVars) -> Result<(), Refused> {
-    let saved = if crate::net::find_connections::find_connections(vars)? {
-        crate::net::find_saved_connection::find_saved_connection()?
+use crate::net::owner::Net;
+use crate::race::viewer_screen_store::ViewerPanelBlock;
+use crate::system::owner::System;
+pub fn settings_done(
+    net: &'static Net,
+    system: &System,
+    panel: &ViewerPanelBlock,
+) -> Result<(), Refused> {
+    let vars = &net.vars;
+    let saved = if crate::net::find_connections::find_connections(vars, panel)? {
+        crate::net::find_saved_connection::find_saved_connection(net)?
     } else {
         None
     };
     match saved {
-        Some(n) => crate::net::keep_connection::keep_connection(n)?,
+        Some(n) => crate::net::keep_connection::keep_connection(net, n)?,
         None => {
-            zero(&net().address().saved_connection, 0x10)?;
-            zero(&net().address().saved_name, 0x40)?;
+            zero(&net.address().saved_connection, 0x10)?;
+            zero(&net.address().saved_name, 0x40)?;
         }
     }
-    crate::net::stop::stop(vars)
+    crate::net::stop::stop(vars, system)
 }

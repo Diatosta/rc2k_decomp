@@ -10,21 +10,26 @@
 use crate::drive::set_camera_view::set_view_at;
 use crate::errors::BadInput;
 use crate::physics::car_store::Car;
-use crate::race::kind_store::KIND_TABLES;
+use crate::race::kind_store::KindTables;
 use crate::race::owner::Race;
 use crate::session::Dword;
 use rc2k_core::drive::camera_views::next_view;
 
 /// On block `car`, the players `players`, the step count `step`.
 // Converted: `rc2k_core::drive::camera_views::next_view`.
-pub fn next_view_at(car: &Car, players: &Dword, step: &Dword) -> Result<(), BadInput> {
+pub fn next_view_at(
+    kinds: &KindTables,
+    car: &Car,
+    players: &Dword,
+    step: &Dword,
+) -> Result<(), BadInput> {
     if car.camera_switch_active.get() != 0 {
         return Ok(());
     }
     let view = next_view(
         car.camera_view.get(),
         || car.car_kind.get(),
-        |car| KIND_TABLES.kind_has_views[car as usize].get() != 0, /* dword_5C5AC0, by car (0x22) */
+        |car| kinds.kind_has_views[car as usize].get() != 0, /* dword_5C5AC0, by car (0x22) */
         || players.get(),
     );
     car.camera_blend_view.set(view);
@@ -34,5 +39,10 @@ pub fn next_view_at(car: &Car, players: &Dword, step: &Dword) -> Result<(), BadI
 /// On the block `car`.
 pub fn next_camera_view(race: &Race, car: &Car) -> Result<(), BadInput> {
     let shared = &race.shared;
-    next_view_at(car, &shared.view.players, &shared.car.step_clock)
+    next_view_at(
+        race.kind_tables(),
+        car,
+        &shared.view.players,
+        &shared.car.step_clock,
+    )
 }

@@ -18,12 +18,8 @@ pub fn reset_marks(race: &Race) -> Result<(), Refused> {
             race.shared.replay_file.index_block_count.get(),
         );
         replay.replay_view.replay_block.set(block);
-        crate::race::viewer_buffers_store::VIEWER_BUFFERS
-            .mark_in
-            .set(mark_in);
-        crate::race::viewer_buffers_store::VIEWER_BUFFERS
-            .mark_out
-            .set(mark_out);
+        race.viewer_buffers().mark_in.set(mark_in);
+        race.viewer_buffers().mark_out.set(mark_out);
         {
             crate::drive::read_replay_frame_0::read_replay_frame_0(
                 race,

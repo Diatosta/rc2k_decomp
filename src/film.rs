@@ -34,8 +34,8 @@
 
 use crate::ffi::ffmpeg::{Decoder, Frame, MP2, MPEG1VIDEO};
 use crate::framework::log;
-use crate::gfx::owner::gfx;
-use crate::system::owner::system;
+use crate::gfx::owner::Gfx;
+use crate::system::owner::System;
 use std::ffi::CStr;
 
 /// IDA's address of the `nofmv` switch.
@@ -336,15 +336,15 @@ fn pack(value: u32, mask: u32) -> u32 {
 }
 
 /// The picture stretched over the locked surface (`g_surface`), a checked row at a time.
-fn blit(p: &Picture) {
+fn blit(p: &Picture, gfx: &Gfx, system: &System) {
     let (rgb, w, h) = (&p.rgb, p.width, p.height);
-    let s = &gfx().drawing.draw_surface;
+    let s = &gfx.drawing.draw_surface;
     let (sw, sh) = (s.width.get() as usize, s.height.get() as usize);
     let bytes = s.bytes_per_pixel.get() as usize;
     let pitch = s.pitch.get();
     let pixels = s.pixels.get();
     // masks: blue, green, red, alpha
-    let mask = |n: u32| system().session.screen.format[1 + n as usize].get();
+    let mask = |n: u32| system.session.screen.format[1 + n as usize].get();
     let (mb, mg, mr) = (mask(0), mask(1), mask(2));
     if pixels == 0 || sw == 0 || sh == 0 || w == 0 || h == 0 || !matches!(bytes, 2 | 4) {
         return;
@@ -459,7 +459,8 @@ fn decoded_sound(audio: &[u8], channels: usize) -> Result<Vec<i16>, String> {
 /// The Rust version (see the header) for the path at `path`: the zero flag it leaves
 /// (true: the film's end, false for a key or a film that does not play).
 pub fn play_film(path: &dyn crate::session::TextPlace) -> bool {
-    let gfx_reports = &gfx().reports;
+    let o = crate::owners::boundary();
+    let gfx_reports = &o.gfx.reports;
     let reports: u32 = gfx_reports.on.get();
     gfx_reports.on.set(0);
     // A key pending before the film is dropped (`input::take_key`).
@@ -493,7 +494,7 @@ pub fn play_film(path: &dyn crate::session::TextPlace) -> bool {
             Err(why) => log(&format!("gfx::play_film: {name} not played: {why}")),
             Ok(mut film) => {
                 log(&format!("gfx::play_film: {name}: {}", film.what));
-                ended = run(&mut film) == 0;
+                ended = run(&mut film, o.gfx, o.system) == 0;
             }
         }
     }
@@ -502,7 +503,7 @@ pub fn play_film(path: &dyn crate::session::TextPlace) -> bool {
 }
 
 /// The frames until the end or a key: the key, or 0 at the end.
-fn run(film: &mut Film) -> u8 {
+fn run(film: &mut Film, gfx: &Gfx, system: &System) -> u8 {
     let sound = film
         .sound
         .as_ref()
@@ -549,7 +550,7 @@ fn run(film: &mut Film) -> u8 {
         crate::platform::pump_messages_now();
         // The window closed: the film ends (the original played on without a window; its
         // pump's carry for `WM_QUIT` is not looked at here). Fixed bug.
-        if system().session.flags.quitting.is_set() {
+        if system.session.flags.quitting.is_set() {
             break;
         }
         // the frame's time, as the stream's Update waits for it
@@ -560,7 +561,7 @@ fn run(film: &mut Film) -> u8 {
         shown += 1;
         // (`gfx::lock_surface` leaves the carry clear for a locked surface, 1.)
         if crate::platform::lock_surface() >= 1 {
-            blit(&next);
+            blit(&next, gfx, system);
             crate::platform::unlock_surface();
         }
         last = Some(next);

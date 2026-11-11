@@ -19,6 +19,7 @@ use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
 use crate::effects::mask_store::Masks;
+use crate::effects::owner::Effects;
 use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -31,89 +32,29 @@ use crate::session::{PlainDword, PlainFloat};
 /// A wheel record's speed figure.
 type Speed = fn(&MarkRecord) -> &crate::session::Float;
 
-const MOTION: [[(&PlainFloat, Speed); 3]; 3] = [
+fn motion_factors(effects: &Effects) -> [[(&PlainFloat, Speed); 3]; 3] {
     [
-        (
-            &crate::effects::owner::EFFECTS
-                .unchecked()
-                .kinds
-                .emitter
-                .side_a[0],
-            |w| &w.local_velocity_x,
-        ),
-        (
-            &crate::effects::owner::EFFECTS
-                .unchecked()
-                .kinds
-                .emitter
-                .side_b[0],
-            |w| &w.local_velocity_z,
-        ),
-        (
-            &crate::effects::owner::EFFECTS
-                .unchecked()
-                .kinds
-                .emitter
-                .side_b[0],
-            |w| &w.driven_speed,
-        ),
-    ],
-    [
-        (
-            &crate::effects::owner::EFFECTS
-                .unchecked()
-                .kinds
-                .emitter
-                .side_a[1],
-            |w| &w.local_velocity_x,
-        ),
-        (
-            &crate::effects::owner::EFFECTS
-                .unchecked()
-                .kinds
-                .emitter
-                .side_b[1],
-            |w| &w.local_velocity_z,
-        ),
-        (
-            &crate::effects::owner::EFFECTS
-                .unchecked()
-                .kinds
-                .emitter
-                .side_b[1],
-            |w| &w.driven_speed,
-        ),
-    ],
-    [
-        (
-            &crate::effects::owner::EFFECTS
-                .unchecked()
-                .kinds
-                .emitter
-                .side_a[2],
-            |w| &w.local_velocity_x,
-        ),
-        (
-            &crate::effects::owner::EFFECTS
-                .unchecked()
-                .kinds
-                .emitter
-                .side_b[2],
-            |w| &w.local_velocity_z,
-        ),
-        (
-            &crate::effects::owner::EFFECTS
-                .unchecked()
-                .kinds
-                .emitter
-                .side_b[2],
-            |w| &w.driven_speed,
-        ),
-    ],
-];
+        [
+            (&effects.kinds.emitter.side_a[0], |w| &w.local_velocity_x),
+            (&effects.kinds.emitter.side_b[0], |w| &w.local_velocity_z),
+            (&effects.kinds.emitter.side_b[0], |w| &w.driven_speed),
+        ],
+        [
+            (&effects.kinds.emitter.side_a[1], |w| &w.local_velocity_x),
+            (&effects.kinds.emitter.side_b[1], |w| &w.local_velocity_z),
+            (&effects.kinds.emitter.side_b[1], |w| &w.driven_speed),
+        ],
+        [
+            (&effects.kinds.emitter.side_a[2], |w| &w.local_velocity_x),
+            (&effects.kinds.emitter.side_b[2], |w| &w.local_velocity_z),
+            (&effects.kinds.emitter.side_b[2], |w| &w.driven_speed),
+        ],
+    ]
+}
 
 /// Why the function refuses, if it does, worked out without writing.
 fn refusal(
+    effects: &Effects,
     particles: &Particles,
     ring: &Ring,
     wheel: &MarkRecord,
@@ -125,6 +66,7 @@ fn refusal(
             return Ok(None);
         }
         if !gate(
+            effects,
             wheel,
             object,
             &wheel.driven_speed,
@@ -136,7 +78,7 @@ fn refusal(
         {
             return Ok(None);
         }
-        if !car_with_matrix()? {
+        if !car_with_matrix(effects)? {
             return Ok(Some("a null car object or matrix"));
         }
         if flags >> 6 > 3 {
@@ -154,10 +96,10 @@ pub fn emit_wheel_fade_particle(
     ring: &Ring,
     wheel: &MarkRecord,
     object: &'static CarEffects,
-    effects: &crate::effects::owner::Effects,
+    effects: &Effects,
 ) -> Result<(), Refused> {
     {
-        if let Some(why) = refusal(particles, ring, wheel, object)? {
+        if let Some(why) = refusal(effects, particles, ring, wheel, object)? {
             return Err(BadInput(why).into());
         }
         let flags = wheel.flags.get();
@@ -166,6 +108,7 @@ pub fn emit_wheel_fade_particle(
             return Ok(());
         }
         let g = gate(
+            effects,
             wheel,
             object,
             &wheel.driven_speed,
@@ -206,11 +149,12 @@ pub fn emit_wheel_fade_particle(
             x87::ext_less(place[1], &particles.kind6_set.lift),
         )?;
         slot.put(|en| &mut en.place[0], rounded_value(place[0]))?;
+        let factors = motion_factors(effects);
         let motion: [f32; 3] = crate::effects::try_from_fn(|a| {
             Ok({
                 x87::three_products(crate::effects::try_from_fn(|n| {
                     Ok({
-                        let (f, s) = MOTION[a][n];
+                        let (f, s) = factors[a][n];
                         [
                             f.bits(),
                             s(wheel).bits(),

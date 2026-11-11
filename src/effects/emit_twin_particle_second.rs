@@ -9,31 +9,26 @@
 
 use crate::effects::emit_twin_particle_first::TwinTuning;
 use crate::effects::emit_twin_particle_first::{TwinSet, emit_twin};
-use crate::effects::mask_store::Masks;
-use crate::effects::ring_store::Ring;
-use crate::effects::run_particles::Particles;
+use crate::effects::owner::Effects;
 use crate::errors::Refused;
 use crate::race::effects_settings_store::CarEffects;
 use crate::session::{PlainDword, PlainFloat};
 
 /// `emit_twin_particle_second`'s variables.
-pub const TWENTY_SECOND: TwinSet = TwinSet {
-    kind: 0x16,
-    level: 1,
-    flags: 0x33,
-    tuning: &crate::effects::owner::EFFECTS
-        .unchecked()
-        .particles
-        .twenty_second_tuning,
-};
+pub fn twenty_second(effects: &Effects) -> TwinSet<'_> {
+    TwinSet {
+        kind: 0x16,
+        level: 1,
+        flags: 0x33,
+        tuning: &effects.particles.twenty_second_tuning,
+    }
+}
 
 pub fn emit_twin_particle_second(
-    masks: &Masks,
-    particles: &Particles,
-    ring: &Ring,
+    effects: &Effects,
     object: &'static CarEffects,
 ) -> Result<(), Refused> {
-    emit_twin(masks, particles, ring, &TWENTY_SECOND, object)
+    emit_twin(effects, &twenty_second(effects), object)
 }
 
 impl TwinTuning {

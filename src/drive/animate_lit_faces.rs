@@ -28,7 +28,6 @@
 //! (what it wrote is put back first).
 
 use crate::errors::{BadInput, Refused};
-use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::owner_physics::Physics;
@@ -118,10 +117,10 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
             }
             let point_number = at(&race.course, f, 4)?;
             let dx = crate::race::scene_points::point_word(&race.course, point_number, 0)?
-                .wrapping_sub(CAR_BLOCKS.cars[0].position[0].get());
+                .wrapping_sub(race.car_blocks().cars[0].position[0].get());
             scene.drawing.scene.scratch.set(dx);
             let dz = crate::race::scene_points::point_word(&race.course, point_number, 2)?
-                .wrapping_sub(CAR_BLOCKS.cars[0].position[2].get());
+                .wrapping_sub(race.car_blocks().cars[0].position[2].get());
             scene.drawing.scene.scratch.set(dz);
             let d = crate::math::x87::int_hypot(dx as i32, dz as i32) as u32;
             race.physics.contact.lit_face_distance.set(d);
@@ -188,7 +187,7 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                     race.course
                         .course
                         .ground_face_last
-                        .set(CAR_BLOCKS.cars[0].probe_point_face[4].get());
+                        .set(race.car_blocks().cars[0].probe_point_face[4].get());
                     crate::physics::find_ground::find_ground(
                         &race.physics.ground_probe,
                         &race.physics.ground,

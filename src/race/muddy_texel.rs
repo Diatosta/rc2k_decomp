@@ -19,10 +19,8 @@ use crate::race::tint_to_mud_colour::tint_to_mud_colour;
 // g_surface.format
 
 /// The place (x, y) of number `n` (its low 16 bits).
-pub fn shuffled_place(n: u32) -> (u32, u32) {
-    let word: u16 = crate::scene::engine_tables_store::ENGINE_TABLES.shuffled_words
-        [(n & 0xFFFF) as usize]
-        .get();
+pub fn shuffled_place(race: &Race, n: u32) -> (u32, u32) {
+    let word: u16 = race.engine_tables().shuffled_words[(n & 0xFFFF) as usize].get();
     rc2k_core::race::mud::shuffled_place(word)
 }
 
@@ -54,7 +52,7 @@ pub fn muddy_texel(race: &Race, number: u32) -> Result<(), Refused> {
     // tint_amount}`.
     use rc2k_core::race::mud::{MUD_TOP, muddy, strength_row, tint_amount};
     let n = texture_and_mud(&race.shared)?;
-    let (x, y) = shuffled_place(number);
+    let (x, y) = shuffled_place(race, number);
     let strength = strength_at(n, x, y)?;
     let texel = { mud_texel(strength_row(y), x, y) }?;
     if !muddy(texel) {

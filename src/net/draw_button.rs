@@ -14,6 +14,7 @@
 //! `net::setting_label`, `net::lobby_button`.
 
 use crate::errors::Refused;
+use crate::install::owner::Install;
 use crate::net::lobby::PALETTE;
 use crate::net::owner::Net;
 use rc2k_core::net::screens::{self, ButtonFont};
@@ -25,7 +26,8 @@ const FONT_DIM: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BU
 /// The font of item `item`'s text: lit when it is the highlighted item and being edited
 /// or in the blink's lit half.
 pub fn item_font(
-    install: &'static crate::install::owner::Install,
+    net: &Net,
+    install: &Install,
     item: u32,
     plain: crate::gfx::typefaces::FontId,
     lit: crate::gfx::typefaces::FontId,
@@ -40,7 +42,7 @@ pub fn item_font(
     if screens::item_lit(
         item,
         install.pages.choice.get(),
-        || crate::net::owner::net().edit().edited.get(),
+        || net.edit().edited.get(),
         blink,
     ) {
         lit
@@ -50,13 +52,13 @@ pub fn item_font(
 }
 pub fn draw_button(
     net: &Net,
+    install: &Install,
     string: u32,
     flags: u32,
     x: u32,
     y: u32,
     item: u32,
 ) -> Result<(), Refused> {
-    let install = crate::install::owner::install();
     use crate::text::draw_text::GameCanvas;
     net.button.get().text.set(string);
     net.button.get().flags.set(flags);
@@ -103,7 +105,7 @@ pub fn draw_button(
     let lit = screens::item_lit(
         item,
         install.pages.choice.get(),
-        || crate::net::owner::net().edit().edited.get(),
+        || net.edit().edited.get(),
         || {
             screens::blink_lit(
                 install.pages.frame_clock.get(),

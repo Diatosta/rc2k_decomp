@@ -9,9 +9,10 @@
 //! Called by `screens::run_frame` for `net::choose_connection`.
 
 use crate::errors::Refused;
+use crate::install::owner::Install;
 use crate::net::connecting::STATUS_FONT;
 use crate::net::lobby::{FONT, copy_picture, draw_string, lock_surface};
-use crate::net::owner::net;
+use crate::net::owner::Net;
 use rc2k_core::net::screens;
 
 const LIT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BUTTON_LIT;
@@ -20,9 +21,10 @@ const LIT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BUTTON_
 /// name (`name`) of an item below the count, the highlighted one blinking. Shared with
 /// `net::sessions_frame`.
 pub fn list_frame(
+    install: &Install,
     title: u32,
     count: &crate::session::Dword,
-    name: fn(u32) -> Result<[u8; 0x40], Refused>,
+    name: impl Fn(u32) -> Result<[u8; 0x40], Refused>,
 ) -> Result<(), Refused> {
     if !lock_surface() {
         return Ok(());
@@ -31,7 +33,7 @@ pub fn list_frame(
     draw_string(title, STATUS_FONT, 0x316, 0x6F)?;
     let mut y: u32 = 0x6F + 0x2C;
     // Converted: `rc2k_core::net::screens` (`LIST_ROWS`, `listed`, `blink_lit`).
-    let pages = &crate::install::owner::install().pages;
+    let pages = &install.pages;
     for row in 0..screens::LIST_ROWS {
         let Some(item) = screens::listed(row, pages.choice_before.get(), count.get()) else {
             continue;
@@ -59,8 +61,11 @@ pub fn list_frame(
     crate::platform::show_frame_now();
     Ok(())
 }
-pub fn connections_frame() -> Result<(), Refused> {
-    list_frame(screens::CONNECTIONS_TITLE, &net().vars.connections, |n| {
-        crate::net::tables::with_connection(n, |c| c.name)
-    })
+pub fn connections_frame(net: &Net, install: &Install) -> Result<(), Refused> {
+    list_frame(
+        install,
+        screens::CONNECTIONS_TITLE,
+        &net.vars.connections,
+        |n| crate::net::tables::with_connection(&net.vars, n, |c| c.name),
+    )
 }

@@ -23,25 +23,23 @@ use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87::{ext_to_int, int_80};
 use crate::math::x87_float as bh;
-use crate::race::effects_settings_store::EFFECTS_SETTINGS;
-use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::mud::car_file_number;
 use crate::race::owner::Race;
-use crate::race::owner_shared::RaceShared;
 use crate::scene::matrix::multiply_matrices;
 use crate::scene::rotate_point::rotate_point;
 use crate::session::{Dword, Float};
 use rc2k_core::drive::listener;
 
 /// The car file's six figures times 65536 over 1000, or the refusal (before anything).
-fn figures(shared: &RaceShared, viewed: u32) -> Result<[i32; 6], Refused> {
+fn figures(race: &Race, viewed: u32) -> Result<[i32; 6], Refused> {
+    let shared = &race.shared;
     listener::check_viewed(viewed, || shared.work.has_car_block(viewed as usize))?;
     let n = car_file_number(crate::race::blocks_store::own_car().car_kind.get());
     rc2k_core::drive::sharing::check_light_record(n)?;
     let mut out = [0i32; 6];
     for (k, o) in out.iter_mut().enumerate() {
         // `g_lightRecords + 0x40` of the car file's record: `axles[5 + k]`.
-        *o = listener::light_figure(LIGHT_RECORDS.records[n as usize].axles[5 + k].get())?;
+        *o = listener::light_figure(race.light_records().records[n as usize].axles[5 + k].get())?;
     }
     Ok(out)
 }
@@ -95,7 +93,7 @@ pub fn set_listener(
     view: ListenerView<'_>,
 ) -> Result<(), Refused> {
     let physics = &race.physics;
-    let f = figures(&race.shared, view.drawn_view)?;
+    let f = figures(race, view.drawn_view)?;
     let car = crate::race::blocks_store::own_car();
     let s = race
         .shared
@@ -103,24 +101,24 @@ pub fn set_listener(
         .block_car(view.drawn_view as usize, "a car's block")?;
     let place: [u32; 3] = crate::session::read_all(&s.position);
     let strength: u32 = s.marks_count.get();
-    EFFECTS_SETTINGS.listener_car_place[2].set(x87::from_int(place[2] as i32));
-    EFFECTS_SETTINGS.listener_car_place[1].set(x87::from_int(place[1] as i32));
-    EFFECTS_SETTINGS.listener_car_place[0].set(x87::from_int(place[0] as i32));
-    EFFECTS_SETTINGS
+    race.effects_settings().listener_car_place[2].set(x87::from_int(place[2] as i32));
+    race.effects_settings().listener_car_place[1].set(x87::from_int(place[1] as i32));
+    race.effects_settings().listener_car_place[0].set(x87::from_int(place[0] as i32));
+    race.effects_settings()
         .listener_near
         .set(u32::from(listener::car_ahead(strength)));
     for k in 0..3 {
-        EFFECTS_SETTINGS.listener_place[k].set(view.view_place[k].get().wrapping_neg());
+        race.effects_settings().listener_place[k].set(view.view_place[k].get().wrapping_neg());
     }
     for (k, o) in listener::TURN_OFFSETS.into_iter().enumerate() {
-        EFFECTS_SETTINGS.listener_turn[k].set(view.view_turn_matrix[o as usize / 4].get());
+        race.effects_settings().listener_turn[k].set(view.view_turn_matrix[o as usize / 4].get());
     }
-    EFFECTS_SETTINGS.listener_figures[0].set(listener::first_figure(
+    race.effects_settings().listener_figures[0].set(listener::first_figure(
         race.shared.vars.settings_words[0].get(),
         || view.sun.view_out.get(),
     ));
-    EFFECTS_SETTINGS.listener_figures[1].set(view.sun.place[0].get());
-    EFFECTS_SETTINGS.listener_figures[2].set(view.sun.place[1].get());
+    race.effects_settings().listener_figures[1].set(view.sun.place[0].get());
+    race.effects_settings().listener_figures[2].set(view.sun.place[1].get());
     let f = listener::listener_points(f, race.shared.physics_tables.ground_drop.get());
     for (k, &v) in f.iter().enumerate() {
         physics.camera.listener_points[k].set(v as u32);
@@ -144,10 +142,10 @@ pub fn set_listener(
     }
     let made = &race.frame.matrices.made_object_matrix;
     for (first, out, negate) in [
-        (0, &EFFECTS_SETTINGS.light_point_a_negated, true),
-        (0, &EFFECTS_SETTINGS.light_point_a, false),
-        (3, &EFFECTS_SETTINGS.light_point_b_negated, true),
-        (3, &EFFECTS_SETTINGS.light_point_b, false),
+        (0, &race.effects_settings().light_point_a_negated, true),
+        (0, &race.effects_settings().light_point_a, false),
+        (3, &race.effects_settings().light_point_b_negated, true),
+        (3, &race.effects_settings().light_point_b, false),
     ] {
         let p = [
             int_80(f[first], negate),
@@ -165,14 +163,14 @@ pub fn set_listener(
         car.surface_noise_b.get(),
     );
     for (cell, v) in [
-        &EFFECTS_SETTINGS.windscreen_drops_rate_factor,
-        &EFFECTS_SETTINGS.rain_drops,
-        &EFFECTS_SETTINGS.windscreen_drops_wanted,
-        &EFFECTS_SETTINGS.windscreen_flakes_rate_factor,
-        &EFFECTS_SETTINGS.snow_flakes,
-        &EFFECTS_SETTINGS.mask_rate_switch,
-        &EFFECTS_SETTINGS.windscreen_wet,
-        &EFFECTS_SETTINGS.mask_number,
+        &race.effects_settings().windscreen_drops_rate_factor,
+        &race.effects_settings().rain_drops,
+        &race.effects_settings().windscreen_drops_wanted,
+        &race.effects_settings().windscreen_flakes_rate_factor,
+        &race.effects_settings().snow_flakes,
+        &race.effects_settings().mask_rate_switch,
+        &race.effects_settings().windscreen_wet,
+        &race.effects_settings().mask_number,
     ]
     .into_iter()
     .zip(switches)
@@ -181,25 +179,25 @@ pub fn set_listener(
     }
     let old = car.gear_change_pending.get();
     if old != 0 {
-        EFFECTS_SETTINGS.spline_gear_changed.set(old);
+        race.effects_settings().spline_gear_changed.set(old);
     }
     car.gear_change_pending.set(0);
-    EFFECTS_SETTINGS
+    race.effects_settings()
         .spline_handbrake
         .set(u32::from(car.handbrake.get() != 0));
-    EFFECTS_SETTINGS.listener_scale.set(bh::stf(
+    race.effects_settings().listener_scale.set(bh::stf(
         bh::int(car.steer_angle_visual.get() as i32) / bh::int(0x2000_0000)
             + bh::ld(scene.lights.state.camera_shake_listener.get()),
     ));
-    EFFECTS_SETTINGS
+    race.effects_settings()
         .engine_speed_copy
         .set(x87::loaded(&car.engine_speed));
-    EFFECTS_SETTINGS
+    race.effects_settings()
         .engine_speed_scaled_copy
         .set(x87::loaded(&car.engine_speed_scaled));
     if physics.split_tables.still.get() != 0 {
-        EFFECTS_SETTINGS.spline_handbrake.set(0);
-        EFFECTS_SETTINGS.spline_gear_changed.set(0);
+        race.effects_settings().spline_handbrake.set(0);
+        race.effects_settings().spline_gear_changed.set(0);
     }
     Ok(())
 }

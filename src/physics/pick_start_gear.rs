@@ -14,7 +14,7 @@ use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87::sub_mul_add;
 use crate::physics::car_store::Car;
-use crate::physics::gear_store::GEAR;
+use crate::physics::gear_store::GearFigures;
 use crate::physics::gearbox::*;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
@@ -27,6 +27,7 @@ pub fn pick_start_gear(
     car: &Car,
     tables: &PhysicsTables,
     numbers: &Numbers,
+    gear_figures: &GearFigures,
 ) -> Result<(), Refused> {
     tables.start_gear_figures[2].set(car.engine_speed.bits());
     revs_speed(car, tables)?;
@@ -39,7 +40,10 @@ pub fn pick_start_gear(
         car.gear.set(gear);
         revs_speed(car, tables)?;
         car.engine_speed.set_bits(over_top(car));
-        Ok(below(car.engine_speed.bits(), GEAR.shift_up_point.bits()))
+        Ok(below(
+            car.engine_speed.bits(),
+            gear_figures.shift_up_point.bits(),
+        ))
     })?;
     let Some(gear) = taken else {
         return Ok(());

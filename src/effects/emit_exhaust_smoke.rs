@@ -18,6 +18,7 @@
 use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
+use crate::effects::owner::Effects;
 use crate::effects::paths::Paths;
 use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
@@ -31,11 +32,15 @@ const LOOK: u32 = 0x3F;
 const LIFE: u32 = 0xFA;
 
 /// Why the emitter refuses, if it does, worked out without writing.
-fn refusal(ring: &Ring, object: &'static CarEffects) -> Result<Option<&'static str>, Refused> {
+fn refusal(
+    effects: &Effects,
+    ring: &Ring,
+    object: &'static CarEffects,
+) -> Result<Option<&'static str>, Refused> {
     Ok({
         // The ring full: nothing more is read.
         next_entry(ring)?;
-        if !car_with_matrix()? {
+        if !car_with_matrix(effects)? {
             return Ok(Some("a null g_marksCar or matrix"));
         }
         if object.model.get() >= MODELS {
@@ -52,7 +57,7 @@ pub fn emit_exhaust_smoke(
     object: &'static CarEffects,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    if let Some(why) = refusal(ring, object)? {
+    if let Some(why) = refusal(effects, ring, object)? {
         return Err(BadInput(why).into());
     }
     if next_entry(ring)?.is_none() {

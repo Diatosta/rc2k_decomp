@@ -100,7 +100,7 @@ pub fn car_number_textures(
         marks.mark(2).set(side);
         marks.mark(3).set(side);
         let name = car_view(car)?.car_kind.get().wrapping_mul(0x30);
-        let n = crate::math::x87::to_int(&CAR_BLOCKS.cars[car].shown_engine_speed);
+        let n = crate::math::x87::to_int(&race.car_blocks().cars[car].shown_engine_speed);
         let (place, _) = letter_place(n);
         let letter = letter_number(number_name_byte(
             &race.shared.work,
@@ -120,7 +120,7 @@ pub fn car_number_textures(
             race.course.numbers.hundred.get(),
         ) {
             for k in 0..0x11u32 {
-                let byte = CAR_BLOCKS.cars[car].part_switches.get(k as usize) as u32;
+                let byte = race.car_blocks().cars[car].part_switches.get(k as usize) as u32;
                 let to = race.frame.frame_work.car_decal_places[k as usize].get() as usize;
                 if to >= crate::scene::car_marks::MARKS {
                     return Err(BadInput("a decal place past the car's marks"));

@@ -14,7 +14,6 @@ use crate::math::x87_float::int;
 use crate::math::x87_float::ld;
 use crate::math::x87_float::stf;
 use crate::physics::flow::c0;
-use crate::race::effects_settings_store::EFFECTS_SETTINGS;
 use crate::race::owner::Race;
 use crate::race::owner_replay::Replay;
 use crate::scene::owner::scene;
@@ -81,7 +80,7 @@ pub fn timing_from(race: &Race, now: u32, scene: &crate::scene::owner::Scene) {
         }
     }
     if late && race.shared.state.results.finished.get() != 0 {
-        EFFECTS_SETTINGS.race_done.set(1);
+        race.effects_settings().race_done.set(1);
     }
 }
 

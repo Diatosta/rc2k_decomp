@@ -20,7 +20,7 @@ use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
 use crate::effects::jitter_point::jitter_point;
-use crate::effects::ring_store::Ring;
+use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
@@ -28,86 +28,48 @@ use crate::scene::matrix3::{extended, rounded};
 use crate::session::{PlainDword, PlainFloat};
 
 /// One emitter's variables (kind 5's and kind 0xB's code is the same but for these).
-pub struct JitterSet {
+pub struct JitterSet<'a> {
     pub kind: u32,
     /// Whether the rounded |speed| must be over 1 (kind 0xB) or the speed not 0 (kind 5).
     pub over_one: bool,
-    pub place_random: &'static PlainDword,
+    pub place_random: &'a PlainDword,
     /// The motion's factors (x, y, z); `lift` the y's.
-    pub motion_k: [&'static PlainFloat; 3],
-    pub lift: &'static PlainFloat,
-    pub spread: &'static PlainFloat,
+    pub motion_k: [&'a PlainFloat; 3],
+    pub lift: &'a PlainFloat,
+    pub spread: &'a PlainFloat,
     /// The third row's factors (z, y, x).
-    pub roll_k: [&'static PlainFloat; 3],
-    pub spin: &'static PlainFloat,
+    pub roll_k: [&'a PlainFloat; 3],
+    pub spin: &'a PlainFloat,
     pub life: u32,
 }
 
 /// Kind 5's variables.
-pub const FIFTH: JitterSet = JitterSet {
-    kind: 5,
-    over_one: false,
-    place_random: &crate::effects::owner::EFFECTS
-        .unchecked()
-        .particles
-        .kind5_set
-        .place_random,
-    motion_k: [
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .particles
-            .kind5_set
-            .motion_x,
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .particles
-            .kind5_set
-            .motion_y,
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .particles
-            .kind5_set
-            .motion_z,
-    ],
-    lift: &crate::effects::owner::EFFECTS
-        .unchecked()
-        .particles
-        .kind5_set
-        .lift,
-    spread: &crate::effects::owner::EFFECTS
-        .unchecked()
-        .particles
-        .kind5_set
-        .spread,
-    roll_k: [
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .particles
-            .kind5_set
-            .roll_k[0],
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .particles
-            .kind5_set
-            .roll_k[1],
-        &crate::effects::owner::EFFECTS
-            .unchecked()
-            .particles
-            .kind5_set
-            .roll_k[2],
-    ],
-    spin: &crate::effects::owner::EFFECTS
-        .unchecked()
-        .particles
-        .kind5_set
-        .spin,
-    life: 0x1388,
-};
+pub fn fifth(effects: &Effects) -> JitterSet<'_> {
+    JitterSet {
+        kind: 5,
+        over_one: false,
+        place_random: &effects.particles.kind5_set.place_random,
+        motion_k: [
+            &effects.particles.kind5_set.motion_x,
+            &effects.particles.kind5_set.motion_y,
+            &effects.particles.kind5_set.motion_z,
+        ],
+        lift: &effects.particles.kind5_set.lift,
+        spread: &effects.particles.kind5_set.spread,
+        roll_k: [
+            &effects.particles.kind5_set.roll_k[0],
+            &effects.particles.kind5_set.roll_k[1],
+            &effects.particles.kind5_set.roll_k[2],
+        ],
+        spin: &effects.particles.kind5_set.spin,
+        life: 0x1388,
+    }
+}
 
 /// Why the emitter refuses, if it does, worked out without writing.
 pub fn refusal(
-    ring: &Ring,
-    set: &JitterSet,
+    effects: &Effects,
+    set: &JitterSet<'_>,
     wheel: &MarkRecord,
 ) -> Result<Option<&'static str>, Refused> {
     Ok({
@@ -115,8 +77,8 @@ pub fn refusal(
             return Ok(None);
         }
         // The ring full: nothing more is read.
-        next_entry(ring)?;
-        if !car_with_matrix()? {
+        next_entry(&effects.ring)?;
+        if !car_with_matrix(effects)? {
             return Ok(Some("a null car object or matrix"));
         }
         None
@@ -124,7 +86,7 @@ pub fn refusal(
 }
 
 /// Whether the wheel's +0x18 passes the set's test.
-fn emits(set: &JitterSet, wheel: &MarkRecord) -> Result<bool, Refused> {
+fn emits(set: &JitterSet<'_>, wheel: &MarkRecord) -> Result<bool, Refused> {
     Ok({
         let speed = wheel.local_velocity_z.bits() & 0x7FFF_FFFF;
         if set.over_one {
@@ -136,24 +98,23 @@ fn emits(set: &JitterSet, wheel: &MarkRecord) -> Result<bool, Refused> {
 }
 
 pub fn emit_slip_spray(
-    ring: &Ring,
+    effects: &Effects,
     wheel: &MarkRecord,
     object: &'static CarEffects,
 ) -> Result<(), Refused> {
-    emit_slip_spray_with(ring, &FIFTH, wheel, object)
+    emit_slip_spray_with(effects, &fifth(effects), wheel, object)
 }
 
 /// The shared body, on `set`'s variables.
 pub fn emit_slip_spray_with(
-    ring: &Ring,
-    set: &JitterSet,
+    effects: &Effects,
+    set: &JitterSet<'_>,
     wheel: &MarkRecord,
     object: &'static CarEffects,
 ) -> Result<(), Refused> {
-    let effects = crate::effects::owner::effects();
-    let kinds = &effects.kinds;
+    let (ring, kinds) = (&effects.ring, &effects.kinds);
     {
-        if let Some(why) = refusal(ring, set, wheel)? {
+        if let Some(why) = refusal(effects, set, wheel)? {
             return Err(BadInput(why).into());
         }
         let strength = x87::loaded(&wheel.local_velocity_z).to_bits() & 0x7FFF_FFFF;

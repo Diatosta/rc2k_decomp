@@ -4,7 +4,6 @@
 //! `SceneDraw.view_size[1]`); `scene::set_view_window`; the light's lowest 0x50, highest 0xFF, level 0xB4
 //! and strength 0xB4, its direction's angles `ObjectWork.light_turns[0]` = 0x6E and `ObjectWork.light_turns[1]` = 0x1E;
 //! `scene::set_view_matrices`. 29 callers (the screen loops' set-up).
-use crate::race::owner::race;
 use crate::race::view_scratch::ViewScratch;
 use crate::scene::set_view_window::set_view_window;
 use crate::scene::view_matrix::set_view_matrices;
@@ -14,8 +13,8 @@ use crate::scene::view_matrix::set_view_matrices;
 // ---- Rust version ----
 
 pub fn prepare_menu_scene(scene: &crate::scene::owner::Scene, scratch: &ViewScratch) {
-    let race = race();
-    let system = crate::system::owner::system();
+    let o = crate::owners::boundary();
+    let (race, system) = (o.race, o.system);
     let frame = &race.frame;
     crate::session::write_bits(&race.frame.view_and_records.view_vars.view_place, [0u32; 3]);
     crate::session::write_first(

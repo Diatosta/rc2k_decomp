@@ -17,17 +17,16 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::{log_bytes, run_frame};
-use crate::net::owner::Net;
-use crate::race::owner::Race;
-use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
+use crate::owners::Owners;
+use crate::race::viewer_screen_store::texts;
 use rc2k_core::net::record;
 
 /// True when the original ends with the carry set (no player but the
 /// host, Escape, or the car not finished: the link ends).
-pub fn lets_rally(race: &Race, net: &Net) -> Result<bool, Refused> {
-    let sound = crate::sound::owner::sound();
+pub fn lets_rally(o: Owners<'static>) -> Result<bool, Refused> {
+    let (race, net, sound) = (o.race, o.net, o.sound);
     use crate::race::sound_tables;
-    log_bytes(&VIEWER_PANEL.text(texts::NET_LETS_RALLY), true, 2);
+    log_bytes(&race.viewer_panel().text(texts::NET_LETS_RALLY), true, 2);
     net.vars.racing.set(1);
     let own = &net.vars.player_block(net.vars.player.get()).record;
     race.shared.state.settings.race_mode.set(1);
@@ -48,7 +47,7 @@ pub fn lets_rally(race: &Race, net: &Net) -> Result<bool, Refused> {
     net.vars.first_host.set(first);
     crate::sound::stop_music::stop_music();
     crate::race::race_shell::set_race_screen_mode();
-    crate::menu::show_loading_picture::show_loading_picture(crate::menu::owner::menus())?;
+    crate::menu::show_loading_picture::show_loading_picture(o.menus)?;
     sound_tables::set_up_race_sound_objects(race, &sound_tables::ObjectVars::game(), sound)?;
     crate::sound::set_up_race_sounds::set_up_race_sounds(sound)?;
     crate::net::set_up_race::set_up_race(race, &net.vars)?;
@@ -67,13 +66,13 @@ pub fn lets_rally(race: &Race, net: &Net) -> Result<bool, Refused> {
         if crate::net::race_wait::race_wait(net)? != 0 {
             crate::gfx::clear_front_surface::clear_front_surface()?;
             crate::net::copy_received::copy_received(&net.vars)?;
-            break crate::net::lets_race::lets_race(race, &net.vars)?;
+            break crate::net::lets_race::lets_race(o, &net.vars)?;
         }
     };
     crate::race::race_end::tidy_everything(race)?;
     crate::sound::stop_music::stop_music();
     crate::platform::set_menu_mode_now();
-    crate::menu::show_loading_picture::show_loading_picture(crate::menu::owner::menus())?;
+    crate::menu::show_loading_picture::show_loading_picture(o.menus)?;
     sound_tables::clear_race_sound_objects(sound)?;
     crate::sound::apply_settings::apply_settings()?;
     crate::scene::set_up_engine::set_up_engine()?;

@@ -16,15 +16,14 @@ use crate::physics::flow::g;
 use crate::pointers::copy_cells;
 use crate::race::blocks_store::REPLAY_STATE_OFFSET;
 use crate::race::owner::Race;
-use crate::race::owner_replay::Replay;
-use crate::race::viewer_buffers_store::VIEWER_BUFFERS;
 
 /// The frame's block copied to the replay's (`drive::load_replay_cars` reads it).
-fn load_frame(replay: &Replay) {
+fn load_frame(race: &Race) {
+    let replay = &race.replay;
     // CarsAndReplay.car_blocks.cars[8].frame_head[0]: car block 8's start (the copy runs on past the block, over the next
     // blocks' tail and the replay's tape).
     copy_cells(
-        (&VIEWER_BUFFERS.block, 0),
+        (&race.viewer_buffers().block, 0),
         (&replay.cars_and_replay, REPLAY_STATE_OFFSET),
         4 * 0xA04,
     );
@@ -34,6 +33,7 @@ pub fn show_replay_still(
     race: &Race,
     input: &crate::input::owner::Input,
     system: &crate::system::owner::System,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     use crate::drive::*;
     if !(1..=8).contains(&race.shared.view.race_cars.get()) {
@@ -41,7 +41,7 @@ pub fn show_replay_still(
     }
     race.physics.split_tables.still.set(1);
     race.frame.frame_work.replay_still_on.set(1);
-    load_frame(&race.replay);
+    load_frame(race);
     load_replay_cars::load_replay_cars(race);
     replay_cameras::replay_cameras(race)?;
     for step in 0..g(&race.replay.replay_view.replay_frame) {
@@ -56,7 +56,7 @@ pub fn show_replay_still(
         race.replay.replay_frames.step_first.set(1);
         crate::race::step_replay_cars::step_replay_cars(race, input)?;
         race.replay.replay_frames.step_first.set(0);
-        load_frame(&race.replay);
+        load_frame(race);
         load_replay_cars::load_replay_cars(race);
     }
     race.shared.work.current_car.set(0);
@@ -66,7 +66,7 @@ pub fn show_replay_still(
             race.replay.replay_frames.step_first.set(1);
             crate::physics::camera_frame::camera_frame(
                 &crate::physics::step_inputs::StepInputs::of(race).camera(),
-                crate::scene::owner::scene(),
+                scene,
             )?;
             race.replay.replay_frames.step_first.set(0);
         }

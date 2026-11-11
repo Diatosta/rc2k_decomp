@@ -14,6 +14,7 @@ use rc2k_core::menu::leaving::Switch;
 /// steps and the car list the car choice was shown.
 struct Game<'a> {
     menus: &'a Menus,
+    owners: crate::owners::Owners<'static>,
     cars: Option<CarList>,
     player0: crate::menu::standings::PlayerCell<'a>,
 }
@@ -89,7 +90,7 @@ impl arcade::Arcade for Game<'_> {
     }
 
     fn step(&mut self, s: Step) -> Result<(), Refused> {
-        let sound = crate::sound::owner::sound();
+        let sound = self.owners.sound;
         let menus = self.menus;
         let play = &menus.play;
         use crate::menu as m;
@@ -128,7 +129,9 @@ impl arcade::Arcade for Game<'_> {
             Step::ClearScoreMarks => a::clear_arcade_score_marks(play)?,
             Step::EnterLevelScore => a::enter_arcade_level_score(menus)?,
             Step::BestScoresLoop => self.screen(&m::arcade_best_scores_loop::SCREEN)?,
-            Step::LevelEnd => m::arcade_level_end::arcade_level_end(menus, sound)?,
+            Step::LevelEnd => {
+                m::arcade_level_end::arcade_level_end(menus, sound, &Entry::new(self.owners))?;
+            }
             Step::NextLevelReview => self.screen(&m::arcade_next_level_review_loop::SCREEN)?,
             Step::RetryReview => self.screen(&m::arcade_retry_review_loop::SCREEN)?,
             Step::StageReview => self.screen(&m::arcade_review_options_loop::SCREEN)?,
@@ -141,12 +144,7 @@ impl arcade::Arcade for Game<'_> {
 impl Game<'_> {
     /// A screen, entered with the car list (the only value a screen reads from its caller).
     fn screen(&self, screen: &Screen) -> Result<(), Refused> {
-        {
-            run_screen(
-                screen,
-                &Entry::with_cars(crate::owners::boundary(), self.cars),
-            )
-        }?;
+        run_screen(screen, &Entry::with_cars(self.owners, self.cars))?;
         Ok(())
     }
 }
@@ -155,6 +153,7 @@ pub fn arcade_event(menus: &Menus) -> Result<(), Refused> {
     let player0 = crate::menu::standings::player(menus, 0);
     let mut game = Game {
         menus,
+        owners: crate::owners::boundary(),
         cars: None,
         player0,
     };

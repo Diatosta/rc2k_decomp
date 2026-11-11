@@ -6,7 +6,11 @@
 
 use crate::errors::Refused;
 use crate::net::owner::Net;
-pub fn joining(net: &Net, session: u32) -> Result<bool, Refused> {
+pub fn joining(
+    net: &Net,
+    panel: &crate::race::viewer_screen_store::ViewerPanelBlock,
+    session: u32,
+) -> Result<bool, Refused> {
     crate::net::connecting::status(0x153)?;
-    crate::net::join_session::join_session(net, session)
+    crate::net::join_session::join_session(net, panel, session)
 }

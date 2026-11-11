@@ -20,7 +20,6 @@
 
 use crate::errors::Refused;
 use crate::sound::sample_settings::OWN;
-use crate::system::owner::system;
 
 /// The one-off sounds: the flag's index in `once` and the sound.
 const ONE_OFFS: [(usize, u32); 3] = [(0, 0x1AB), (1, 0x1AC), (2, 0x1AD)];
@@ -34,6 +33,7 @@ const MINUS_ONE: u32 = 0xBF80_0000;
 pub fn stage_sounds(
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     use crate::sound::turn_parts::play;
     let request = crate::sound::turn_parts::request();
@@ -84,7 +84,7 @@ pub fn stage_sounds(
         // Converted: `rc2k_core::sound::stage::random`.
         let r = rc2k_core::sound::stage::random(n, audio.state.mix_rate_setting.get());
         // The scratch dword holds the last float.
-        system().session.machine.scratch.set(r.ahead.to_bits());
+        system.session.machine.scratch.set(r.ahead.to_bits());
         play(
             sound,
             r.volume,

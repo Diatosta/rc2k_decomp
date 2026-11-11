@@ -36,7 +36,7 @@
 use crate::errors::BadInput;
 use crate::math::x87;
 use crate::scene::objects::{FACES, FILE_ROOM, SLOTS};
-use crate::scene::owner::scene;
+use crate::scene::owner::Scene;
 
 // ---- game data ----
 
@@ -94,8 +94,7 @@ fn numbered(marks: &mut [u32]) {
 }
 
 /// None: a file of no points or no faces (the second with the points' number).
-fn shape() -> Result<Result<Shape, Option<u32>>, BadInput> {
-    let scene = scene();
+fn shape(scene: &Scene) -> Result<Result<Shape, Option<u32>>, BadInput> {
     let points = dword(4)? as usize;
     if points == 0 {
         return Ok(Err(None));
@@ -188,8 +187,11 @@ struct Room {
     face_count: u32,
 }
 
-fn room(course: &crate::race::owner_course::Course, shape: &Shape) -> Result<Room, BadInput> {
-    let scene = scene();
+fn room(
+    course: &crate::race::owner_course::Course,
+    scene: &Scene,
+    shape: &Shape,
+) -> Result<Room, BadInput> {
     let room = Room {
         slot: scene.drawing.object_work.loading_slot.get(),
         points: course.lists.object_points.get(),
@@ -219,7 +221,7 @@ pub fn add_object_shape(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
     let course = &race.course;
-    let shape = match shape()? {
+    let shape = match shape(scene)? {
         Ok(shape) => shape,
         Err(points) => {
             crate::session::write_first(
@@ -232,7 +234,7 @@ pub fn add_object_shape(
             return Ok(());
         }
     };
-    let room = room(course, &shape)?;
+    let room = room(course, scene, &shape)?;
     let slot = room.slot as usize;
     let read = |offset: usize| -> Result<u32, BadInput> {
         Ok(u32::from_le_bytes(

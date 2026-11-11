@@ -17,9 +17,12 @@ use rc2k_core::race::viewer_flow::Play;
 
 /// The shared tail (0x41E231): from block `play.from`, frame `play.frame`, to block
 /// `play.end`. The start read's carry is not looked at.
-pub fn play_tail(race: &Race, play: Play) -> Result<(), Refused> {
-    let input = crate::input::owner::input();
-    let sound = crate::sound::owner::sound();
+pub fn play_tail(
+    race: &Race,
+    input: &crate::input::owner::Input,
+    sound: &crate::sound::owner::Sound,
+    play: Play,
+) -> Result<(), Refused> {
     let replay = &race.replay;
     replay.replay_view.play_end.set(play.end);
     race.shared.replay_file.viewer_stopped.set(false);
@@ -30,27 +33,35 @@ pub fn play_tail(race: &Race, play: Play) -> Result<(), Refused> {
 }
 
 /// `play_marked`.
-pub fn play_marked(race: &Race) -> Result<(), Refused> {
+pub fn play_marked(
+    race: &Race,
+    input: &crate::input::owner::Input,
+    sound: &crate::sound::owner::Sound,
+) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::viewer_flow::marked_play`.
     play_tail(
         race,
+        input,
+        sound,
         rc2k_core::race::viewer_flow::marked_play(
-            crate::race::viewer_buffers_store::VIEWER_BUFFERS
-                .mark_in
-                .get(),
-            crate::race::viewer_buffers_store::VIEWER_BUFFERS
-                .mark_out
-                .get(),
+            race.viewer_buffers().mark_in.get(),
+            race.viewer_buffers().mark_out.get(),
         ),
     )
 }
 
 /// `play_from_here`.
-pub fn play_from_here(race: &Race) -> Result<(), Refused> {
+pub fn play_from_here(
+    race: &Race,
+    input: &crate::input::owner::Input,
+    sound: &crate::sound::owner::Sound,
+) -> Result<(), Refused> {
     let replay = &race.replay;
     // Converted: `rc2k_core::race::viewer_flow::play_from_here`.
     play_tail(
         race,
+        input,
+        sound,
         rc2k_core::race::viewer_flow::play_from_here(
             replay.replay_view.replay_block.get(),
             replay.replay_view.replay_frame.get(),

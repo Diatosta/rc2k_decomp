@@ -185,9 +185,10 @@ fn logged_int(fx: &mut impl Effects, label: &str, value: u32) {
 
 /// Both cars' logged values `[carN.name]`: the three identity words, the 43 gauges, the
 /// eight impact marks; car 2's only when there are two players.
-fn log_cars(shared: &RaceShared, fx: &mut impl Effects) {
+fn log_cars(race: &Race, fx: &mut impl Effects) {
+    let shared = &race.shared;
     for car in 0..2 {
-        let c = &CAR_BLOCKS.cars[car];
+        let c = &race.car_blocks().cars[car];
         let label = |name: &str| format!("[car{}.{name}]", car + 1);
         logged_int(fx, &label("shauncarnum1"), c.car_kind.get());
         fx.text(&label("carpartsleft"), false);
@@ -209,12 +210,13 @@ fn log_cars(shared: &RaceShared, fx: &mut impl Effects) {
 }
 
 /// The arcade positions, logged at the end of both copies.
-fn log_arcade_positions(shared: &RaceShared, fx: &mut impl Effects) {
+fn log_arcade_positions(race: &Race, fx: &mut impl Effects) {
+    let shared = &race.shared;
     logged_int(fx, "[arcadestartposition]", shared.tables.start_place.get());
     logged_int(
         fx,
         "[car1.arcadeposition]",
-        CAR_BLOCKS.cars[0].mode2_place.get(),
+        race.car_blocks().cars[0].mode2_place.get(),
     );
     logged_int(
         fx,
@@ -282,7 +284,7 @@ fn copy_in(race: &Race, fx: &mut impl Effects) -> Result<(), Refused> {
     // 100 or more is 0x100 (full), else the setting x 2.56 (the x87's product, rounded).
     let brake_scale = race.course.numbers.brake_scale.get();
     for car in 0..2 {
-        let c = &CAR_BLOCKS.cars[car];
+        let c = &race.car_blocks().cars[car];
         let s = &settings.cars[car];
         for (field, setting) in SETTING_BRAKES {
             let held = rc2k_core::race::cars::held_brake(setting(s).get() as i32, |v| {
@@ -293,18 +295,18 @@ fn copy_in(race: &Race, fx: &mut impl Effects) -> Result<(), Refused> {
         c.gear_ratio_setting.set(s.gear_ratio.get());
     }
     // The first car's brake balance is turned round: 0x100 less itself.
-    let balance = &CAR_BLOCKS.cars[0].brake_balance;
+    let balance = &race.car_blocks().cars[0].brake_balance;
     balance.set(0x100u32.wrapping_sub(balance.get()));
     for car in 0..2 {
         vars.car_colours[car].set(settings.cars[car].gearing.get());
     }
     for car in 0..2 {
-        CAR_BLOCKS.cars[car]
+        race.car_blocks().cars[car]
             .start_slot_value
             .set(settings.cars[car].race_number.get());
     }
     for car in 0..2 {
-        let c = &CAR_BLOCKS.cars[car];
+        let c = &race.car_blocks().cars[car];
         c.camera_view.set(settings.cars[car].view.get());
         c.camera_blend_view.set(settings.cars[car].view.get());
     }
@@ -324,14 +326,14 @@ fn copy_in(race: &Race, fx: &mut impl Effects) -> Result<(), Refused> {
                 }
             }
         }
-        CAR_BLOCKS.cars[car].option_bits.set(bits);
+        race.car_blocks().cars[car].option_bits.set(bits);
         view.player_options[car].set(bits);
     }
 
     // The gauges: the front end keeps them as whole numbers, the cars as floats (`fild`,
     // `fstp`: the x87's exact conversion, so large numbers round as the original's do).
     for car in 0..2 {
-        let c = &CAR_BLOCKS.cars[car];
+        let c = &race.car_blocks().cars[car];
         for (gauge, setting) in GAUGES {
             gauge(c).set(x87::from_int(setting(&settings.cars[car]).get() as i32));
         }
@@ -340,24 +342,26 @@ fn copy_in(race: &Race, fx: &mut impl Effects) -> Result<(), Refused> {
         }
     }
 
-    CAR_BLOCKS.cars[0]
+    race.car_blocks().cars[0]
         .parts_present
         .set(results.flags_current.get());
-    CAR_BLOCKS.cars[1]
+    race.car_blocks().cars[1]
         .parts_present
         .set(results.flags_first.get());
     shared.tables.start_place.set(results.figure_000.get());
-    CAR_BLOCKS.cars[0].mode2_place.set(results.figure_000.get());
+    race.car_blocks().cars[0]
+        .mode2_place
+        .set(results.figure_000.get());
 
-    log_cars(shared, fx);
+    log_cars(race, fx);
 
     fx.clear_player_absences();
     for car in 0..2 {
-        CAR_BLOCKS.cars[car]
+        race.car_blocks().cars[car]
             .stop_state
             .set(results.results[car].result.get());
     }
-    log_arcade_positions(shared, fx);
+    log_arcade_positions(race, fx);
     fx.copy_league_table(race)?;
     fx.text("COPY GRAHAM TO SHAUN", true);
     fx.text(RULE, true);
@@ -376,14 +380,14 @@ fn copy_out(race: &Race, fx: &mut impl Effects) -> Result<(), Refused> {
     } else {
         results
             .hud_bits_current
-            .set(CAR_BLOCKS.cars[0].option_bits.get());
+            .set(race.car_blocks().cars[0].option_bits.get());
         results
             .hud_bits_first
-            .set(CAR_BLOCKS.cars[1].option_bits.get());
+            .set(race.car_blocks().cars[1].option_bits.get());
         // The gauges back to whole numbers (`fld`, `fistp`: rounded as the x87's control
         // word says, to the nearest by default), the impact marks' bits as they are.
         for car in 0..2 {
-            let c = &CAR_BLOCKS.cars[car];
+            let c = &race.car_blocks().cars[car];
             for (gauge, setting) in GAUGES {
                 setting(&settings.cars[car]).set(x87::to_int(gauge(c)) as u32);
             }
@@ -395,21 +399,21 @@ fn copy_out(race: &Race, fx: &mut impl Effects) -> Result<(), Refused> {
         for car in 0..2 {
             results.results[car]
                 .result
-                .set(CAR_BLOCKS.cars[car].stop_state.get());
+                .set(race.car_blocks().cars[car].stop_state.get());
         }
         for car in 0..2 {
             results.results[car]
                 .secs
-                .set(x87::loaded(&CAR_BLOCKS.cars[car].top_speed));
+                .set(x87::loaded(&race.car_blocks().cars[car].top_speed));
         }
         results
             .flags_current
-            .set(CAR_BLOCKS.cars[0].parts_present.get());
+            .set(race.car_blocks().cars[0].parts_present.get());
         results
             .flags_first
-            .set(CAR_BLOCKS.cars[1].parts_present.get());
-        log_cars(shared, fx);
-        log_arcade_positions(shared, fx);
+            .set(race.car_blocks().cars[1].parts_present.get());
+        log_cars(race, fx);
+        log_arcade_positions(race, fx);
     }
     fx.text("COPY SHAUN TO GRAHAM", true);
     fx.text(RULE, true);

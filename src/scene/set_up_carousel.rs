@@ -34,11 +34,48 @@ const MENUS: u32 = 0x15;
 use crate::menu::owner::{Menus, Tables, menus};
 use rc2k_core::scene::carousel;
 
+/// A dword of the menus' carousel or of its list of textures.
+#[derive(Clone, Copy)]
+pub enum Field {
+    SetUp,
+    /// `carousel_textures[k]`.
+    Texture(usize),
+    /// `carousel.kinds[k]`.
+    Kind(usize),
+    Count,
+    Front,
+    Angle,
+    Direction,
+    Spacing,
+    Y,
+    Z,
+    Forward,
+}
+
+impl Field {
+    pub fn cell(self, menus: &Menus) -> &dyn DwordLike {
+        let carousel = &menus.screens.state.carousel;
+        match self {
+            Field::SetUp => &carousel.set_up,
+            Field::Texture(k) => &menus.tables.lists.carousel_textures[k],
+            Field::Kind(k) => &carousel.kinds[k],
+            Field::Count => &carousel.count,
+            Field::Front => &carousel.front,
+            Field::Angle => &carousel.angle,
+            Field::Direction => &carousel.direction,
+            Field::Spacing => &carousel.spacing,
+            Field::Y => &carousel.y,
+            Field::Z => &carousel.z,
+            Field::Forward => &carousel.forward,
+        }
+    }
+}
+
 /// One step of a carousel's set-up.
 #[derive(Clone, Copy)]
 pub enum Op {
-    /// A dword to one of the physics block's variables.
-    Set(&'static dyn DwordLike, u32),
+    /// A dword of the menus' carousel.
+    Set(Field, u32),
     /// A dword of the race block's, found at run time (those statics do not deref in a `const`).
     Run(fn() -> &'static dyn DwordLike, u32),
     /// The eight textures of the menu set to -1.
@@ -47,69 +84,13 @@ pub enum Op {
 
 /// The cars' carousels' stores after their entries.
 const CARS_TAIL: [Op; 9] = [
-    Op::Set(
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .screens
-            .state
-            .carousel
-            .front,
-        0,
-    ),
-    Op::Set(
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .screens
-            .state
-            .carousel
-            .angle,
-        0,
-    ),
-    Op::Set(
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .screens
-            .state
-            .carousel
-            .direction,
-        0,
-    ),
-    Op::Set(
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .screens
-            .state
-            .carousel
-            .spacing,
-        0x36BC0,
-    ),
-    Op::Set(
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .screens
-            .state
-            .carousel
-            .y,
-        0xFFFF_4000,
-    ),
-    Op::Set(
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .screens
-            .state
-            .carousel
-            .z,
-        0x5F000,
-    ),
-    Op::Set(
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .screens
-            .state
-            .carousel
-            .forward,
-        0x20000,
-    ),
+    Op::Set(Field::Front, 0),
+    Op::Set(Field::Angle, 0),
+    Op::Set(Field::Direction, 0),
+    Op::Set(Field::Spacing, 0x36BC0),
+    Op::Set(Field::Y, 0xFFFF_4000),
+    Op::Set(Field::Z, 0x5F000),
+    Op::Set(Field::Forward, 0x20000),
     Op::Run(
         || &crate::race::view_scratch::front_end().object.angles[0],
         0x10FF,
@@ -126,9 +107,9 @@ const FIXED_KINDS: [u32; 6] = [0x195, 0x199, 0x19F, 0x1A5, 0x1AD, 0x1BD];
 // ---- Rust version ----
 
 /// A store of the tables (never a `Fill`).
-fn run_op(op: Op) {
+fn run_op(menus: &Menus, op: Op) {
     match op {
-        Op::Set(cell, value) => cell.set(value),
+        Op::Set(field, value) => field.cell(menus).set(value),
         Op::Run(cell, value) => cell().set(value),
         Op::Fill => unreachable!("the cars' tail has no fill"),
     }
@@ -210,7 +191,7 @@ fn cars(menus: &Menus, list: CarList, size: u32) -> Result<(), BadInput> {
         menus.cars.table.last_car.set(last);
         crate::race::view_scratch::front_end().object.size.set(size);
         for op in CARS_TAIL {
-            run_op(op);
+            run_op(menus, op);
         }
     }
     Ok(())
@@ -242,7 +223,7 @@ pub fn set_up_carousel(list: Option<CarList>) -> Result<(), Refused> {
                 menus.screens.state.carousel.count.set(6u32);
                 menus.cars.table.last_car.set(5u32);
                 for op in CARS_TAIL {
-                    run_op(op);
+                    run_op(menus, op);
                 }
             }
             0xD => {
@@ -267,7 +248,7 @@ pub fn set_up_carousel(list: Option<CarList>) -> Result<(), Refused> {
                 let ops = PLAIN[menu as usize].ok_or(BadInput("a menu without its list"))?;
                 for op in ops {
                     match *op {
-                        Op::Set(cell, value) => cell.set(value),
+                        Op::Set(field, value) => field.cell(menus).set(value),
                         Op::Run(cell, value) => cell().set(value),
                         Op::Fill => write_all(&menus.tables.lists.carousel_textures, [u32::MAX; 8]),
                     }

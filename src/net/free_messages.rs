@@ -7,9 +7,8 @@
 //! `memory::free_list` refuses.
 
 use crate::errors::Refused;
-use crate::net::owner::net;
-pub fn free_messages() -> Result<(), Refused> {
-    let vars = &net().vars;
+use crate::net::store::NetVars;
+pub fn free_messages(vars: &NetVars) -> Result<(), Refused> {
     { crate::memory::free_list::free_list(&vars.memory) }?;
     crate::net::tables::NET_TABLES.give_back();
     for cell in [

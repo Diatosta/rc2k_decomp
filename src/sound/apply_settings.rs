@@ -17,8 +17,8 @@ pub use rc2k_core::sound::set_up::Step;
 pub fn run_step(
     step: Step,
     sound: &crate::sound::owner::Sound,
+    audio: &crate::audio::owner::Audio,
 ) -> Result<(), crate::errors::Refused> {
-    let audio = crate::audio::owner::audio();
     match step {
         Step::StopMusic => crate::sound::stop_music::stop_music(),
         Step::Send(command) => crate::sound::senders::send(command),
@@ -42,13 +42,10 @@ pub fn apply_settings() -> Result<(), crate::errors::Refused> {
     let steps = menus(
         audio.state.menu_sound_mode.get(),
         SoundList::Menu,
-        crate::audio::owner::audio()
-            .levels
-            .master_volume_shown
-            .get(),
+        audio.levels.master_volume_shown.get(),
     );
     for s in steps {
-        run_step(s, sound)?;
+        run_step(s, sound, audio)?;
     }
     audio.state.sounds_held_back.set(0);
 

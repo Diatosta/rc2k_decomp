@@ -8,7 +8,7 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::*;
 
-pub fn best_class_scores(menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
+pub fn best_class_scores(menus: &crate::menu::owner::Menus, entry: &Entry) -> Result<(), Refused> {
     let players = counted_players(menus)?;
     let classes: u32 = menus.screens.event.classes.get();
     let (true, true) = (
@@ -35,10 +35,7 @@ pub fn best_class_scores(menus: &crate::menu::owner::Menus) -> Result<(), Refuse
         }
         if menus.screens.event.any_time_qualified.is_set() {
             menus.screens.event.class.set(class);
-            run_screen(
-                &crate::menu::best_class_scores_loop::SCREEN,
-                &Entry::new(crate::owners::boundary()),
-            )?;
+            run_screen(&crate::menu::best_class_scores_loop::SCREEN, entry)?;
             if menus.tables.pages.yes_no_answer.get() == 1 {
                 break;
             }

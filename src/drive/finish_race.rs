@@ -85,10 +85,10 @@ pub fn finish_race(race: &Race) -> Result<(), Refused> {
             "the finish stages",
         )?);
     race_owner.shared.vars.race_car_kinds[0].set(race_owner.shared.state.results.finish_kind.get());
-    CAR_BLOCKS.cars[0]
+    race.car_blocks().cars[0]
         .car_kind
         .set(race_owner.shared.vars.race_car_kinds[0].get());
-    CAR_BLOCKS.cars[0]
+    race.car_blocks().cars[0]
         .start_slot_value
         .set(race_owner.shared.state.results.finish_player.get());
     log_line(c"----------------------");
@@ -98,7 +98,7 @@ pub fn finish_race(race: &Race) -> Result<(), Refused> {
     log_text(c"[shauncarnum1]");
     log_number(race_owner.shared.vars.race_car_kinds[0].get());
     log_text(c"[car1.ctd_carnum]");
-    log_number(CAR_BLOCKS.cars[0].start_slot_value.get());
+    log_number(race.car_blocks().cars[0].start_slot_value.get());
     set_up()?;
     crate::race::stage_loading::load_stage(race)?;
     var(finish_routine::BEFORE_RUN).set(0);

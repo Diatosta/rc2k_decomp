@@ -3,9 +3,10 @@
 //!
 //! Caller: `race::viewer_action` (actions 0x25 .. 0x28).
 
-use crate::race::viewer_screen_store::VIEWER_PANEL;
+use crate::race::owner::Race;
 
-pub fn stop_frame_pictures() {
-    VIEWER_PANEL.replay_recording.set(0);
-    VIEWER_PANEL.pictures_started.set(0);
+pub fn stop_frame_pictures(race: &Race) {
+    let panel = race.viewer_panel();
+    panel.replay_recording.set(0);
+    panel.pictures_started.set(0);
 }

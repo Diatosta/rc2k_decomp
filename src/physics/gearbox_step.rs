@@ -23,6 +23,7 @@ use crate::race::owner_shared::RaceShared;
 pub fn gearbox_step(
     numbers: &Numbers,
     shared: &RaceShared,
+    gear_figures: &crate::physics::gear_store::GearFigures,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     use rc2k_core::physics::gearbox::{GearboxTurn, gearbox_turn};
@@ -36,12 +37,24 @@ pub fn gearbox_step(
     );
     match turn {
         GearboxTurn::Idle => {}
-        GearboxTurn::Manual => manual_gearbox(&shared.car, &shared.physics_tables, numbers, scene)?,
+        GearboxTurn::Manual => manual_gearbox(
+            &shared.car,
+            &shared.physics_tables,
+            numbers,
+            gear_figures,
+            scene,
+        )?,
         GearboxTurn::Asked => {
             { take_asked_gear(numbers, shared) }?;
             return Ok(());
         }
-        GearboxTurn::Auto => auto_gearbox(&shared.car, &shared.physics_tables, numbers, scene)?,
+        GearboxTurn::Auto => auto_gearbox(
+            &shared.car,
+            &shared.physics_tables,
+            numbers,
+            gear_figures,
+            scene,
+        )?,
     }
     if shared.car.gear_changed.get() == 1 {
         shared.car.engine_speed.set(x87::mul(

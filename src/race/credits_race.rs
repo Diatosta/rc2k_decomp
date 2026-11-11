@@ -18,7 +18,7 @@ const WORDS: [&std::ffi::CStr; 2] = [c"INIT CREDITS - track", c"car"]; // "INIT 
 
 /// The steps in order.
 pub fn credits_race(race: &Race) -> Result<(), Refused> {
-    let system = crate::system::owner::system();
+    let o = crate::owners::boundary();
     let frame = &race.frame;
     crate::framework::log("race::credits_race: the demonstration starts");
     race.course.numbers.replay_mode.set(0);
@@ -41,10 +41,10 @@ pub fn credits_race(race: &Race) -> Result<(), Refused> {
         0,
         &mut crate::text::draw_text::GameCanvas,
         &mut crate::race::frame_text::credits_tune,
-        system,
+        o.system,
     )?;
     race.shared.view.after_credits.set(0);
-    crate::drive::play_race::play_race(race, crate::owners::boundary())?;
+    crate::drive::play_race::play_race(race, o)?;
     race.shared.work.in_credits.set(false);
     crate::race::race_end::tidy_everything(race)
 }

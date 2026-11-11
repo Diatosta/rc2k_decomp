@@ -26,6 +26,8 @@ pub const SPEECH_CHANNEL: &PlainDword = &crate::menu::owner::MENUS
 pub struct Game<'a> {
     /// The menus' owner.
     menus: &'a Menus,
+    /// The game's owners, for the screens the flows enter.
+    owners: crate::owners::Owners<'static>,
     /// The record `Call::FindRecord` found (the original's edi), read through `Var::Record`.
     record: Option<RecordRef>,
     /// The car list the next car choice shows (`Game::hand_cars`, `Call::CheatCarList`).
@@ -38,6 +40,7 @@ impl<'a> Game<'a> {
     pub fn new(menus: &'a Menus) -> Self {
         Self {
             menus,
+            owners: crate::owners::boundary(),
             record: None,
             cars: None,
             fault: Fault::default(),
@@ -128,12 +131,7 @@ impl Game<'_> {
     /// A screen, entered with the car list handed (the only value a screen reads from its
     /// caller).
     fn screen(&self, screen: &Screen) -> Result<(), Refused> {
-        {
-            run_screen(
-                screen,
-                &Entry::with_cars(crate::owners::boundary(), self.cars),
-            )
-        }?;
+        run_screen(screen, &Entry::with_cars(self.owners, self.cars))?;
         Ok(())
     }
 }
@@ -180,6 +178,7 @@ impl flow::Game for Game<'_> {
     fn run(&mut self, c: flow::Call) -> Result<(), Refused> {
         self.fault.check()?;
         let menus = self.menus;
+        let entry = &Entry::new(self.owners);
         use crate::menu as m;
         use flow::Call as C;
         match c {
@@ -211,13 +210,13 @@ impl flow::Game for Game<'_> {
             C::WelcomeLoop => self.screen(&m::welcome_loop::SCREEN)?,
             C::RallyStagesLoop => self.screen(&m::rally_stages_loop::SCREEN)?,
             C::NextStageLoop => self.screen(&m::next_stage_loop::SCREEN)?,
-            C::ServicePass => m::service_pass::service_pass(menus)?,
+            C::ServicePass => m::service_pass::service_pass(menus, entry)?,
             C::StandingsBFromAll => m::standings_b_from_all::standings_b_from_all(menus)?,
             C::SortBByFigure => m::sort_standings_b_by_figure::sort_standings_b_by_figure(menus)?,
             C::AwardStagePoints => m::award_stage_points::award_stage_points(menus)?,
             C::SortBByPoints => m::sort_standings_b_by_points::sort_standings_b_by_points(menus)?,
             C::ClassChampionshipPass => {
-                m::class_championship_pass::class_championship_pass(menus)?;
+                m::class_championship_pass::class_championship_pass(menus, entry)?;
             }
             C::AwardOverallPoints => {
                 m::award_overall_points::award_overall_points(menus)?;
@@ -228,7 +227,7 @@ impl flow::Game for Game<'_> {
                 m::standings_steps::number_all(menus, Which::B)?;
             }
             C::ShowChampionshipStandings => {
-                m::show_championship_standings::show_championship_standings(menus)?;
+                m::show_championship_standings::show_championship_standings(menus, entry)?;
             }
             C::SectionFinish => m::section_finish::section_finish(self.menus)?,
             C::ChampionshipStandingsReview => {
@@ -237,27 +236,27 @@ impl flow::Game for Game<'_> {
             C::WalkSectionRecords => m::walk_section_records::walk_section_records(menus)?,
             C::StandingsAFromAll => m::standings_a_from_all::standings_a_from_all(menus)?,
             C::ClassRallyResultsPass => {
-                m::class_rally_results_pass::class_rally_results_pass(menus)?;
+                m::class_rally_results_pass::class_rally_results_pass(menus, entry)?;
             }
             C::ClearStandingsA => m::standings_steps::clear_standings(Which::A)?,
             C::NumberAllA => {
                 m::standings_steps::number_all(menus, Which::A)?;
             }
             C::ShowOverallRallyResults => {
-                m::show_overall_rally_results::show_overall_rally_results(menus)?;
+                m::show_overall_rally_results::show_overall_rally_results(menus, entry)?;
             }
             C::RunEventRaces => m::run_event_races::run_event_races(menus)?,
             C::AddPlayerTimes => m::add_player_times::add_player_times(menus)?,
             C::ClassStageResultsPass => {
-                m::class_stage_results_pass::class_stage_results_pass(menus)?;
+                m::class_stage_results_pass::class_stage_results_pass(menus, entry)?;
             }
             C::ShowOverallStageResults => {
-                m::show_overall_stage_results::show_overall_stage_results(menus)?;
+                m::show_overall_stage_results::show_overall_stage_results(menus, entry)?;
             }
             C::KeepRecordBest => m::keep_record_best::keep_record_best(menus)?,
             C::RecordEntriesPass => m::record_entries_pass::record_entries_pass(menus)?,
             C::BestTimesLoop => self.screen(&m::best_times_loop::SCREEN)?,
-            C::InspectionPass => m::inspection_pass::inspection_pass(menus)?,
+            C::InspectionPass => m::inspection_pass::inspection_pass(menus, entry)?,
             C::ChampionshipServiceReview => {
                 self.screen(&m::championship_service_review_loop::SCREEN)?;
             }
@@ -266,8 +265,8 @@ impl flow::Game for Game<'_> {
             }
             C::ChampionshipFinish => m::championship_finish::championship_finish(self.menus)?,
             C::ClearScoreMarks => m::clear_score_marks::clear_score_marks()?,
-            C::BestClassScores => m::best_class_scores::best_class_scores(menus)?,
-            C::BestOverallScores => m::best_overall_scores::best_overall_scores(menus)?,
+            C::BestClassScores => m::best_class_scores::best_class_scores(menus, entry)?,
+            C::BestOverallScores => m::best_overall_scores::best_overall_scores(menus, entry)?,
             C::ChampionshipEndReview => self.screen(&m::championship_end_review_loop::SCREEN)?,
             C::ShowInGameOptions => m::in_game_options_items::show_in_game_options(menus)?,
             C::HideInGameOptions { players } => {
@@ -285,7 +284,7 @@ impl flow::Game for Game<'_> {
             C::TakeShownCar => m::take_shown_car::take_shown_car(menus, self.cars)?,
             C::SelectStageLoop => self.screen(&m::select_stage_loop::SCREEN)?,
             C::TimeTrialSelectStage => self.screen(&m::time_trial_select_stage_loop::SCREEN)?,
-            C::TimeTrialService => m::time_trial_service::time_trial_service(menus)?,
+            C::TimeTrialService => m::time_trial_service::time_trial_service(menus, entry)?,
             C::Race { next, kind } => {
                 crate::race::single_rally_race::single_rally_race(u32::from(next), kind)?;
             }

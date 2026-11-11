@@ -8,17 +8,14 @@
 //! Caller: `net::settings_loop`.
 
 use crate::errors::Refused;
+use crate::install::owner::Install;
 use crate::net::lobby::movsb;
 use crate::net::owner::Net;
 use rc2k_core::net::chat;
 
 /// The key `key` for the setting being edited.
-pub fn setting_key(
-    install: &'static crate::install::owner::Install,
-    net: &'static Net,
-    key: u8,
-) -> Result<(), Refused> {
-    if !crate::net::edit_key::edit_key(net, key)? {
+pub fn setting_key(install: &'static Install, net: &'static Net, key: u8) -> Result<(), Refused> {
+    if !crate::net::edit_key::edit_key(net, install, key)? {
         return Ok(());
     }
     // Converted: `rc2k_core::net::chat` (`NAME`, `MOST_PLAYERS`, `most_players`).

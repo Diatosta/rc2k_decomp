@@ -16,15 +16,14 @@ use crate::math::x87_float::int;
 use crate::math::x87_float::ld;
 use crate::math::x87_float::to_int;
 use crate::physics::flow::c0;
-use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 
 /// The car's lift: `CarsAndReplay.car_blocks.cars[0].position[1]` += `car_lift` x `k65536` (`fiadd`, `fistp`), over the
 /// race block at `rc`.
 fn lift_car(race: &Race) {
-    CAR_BLOCKS.cars[0].position[1].set(to_int(
+    race.car_blocks().cars[0].position[1].set(to_int(
         ld(race.replay.finish.car_lift.get()) * ld(race.course.numbers.k65536.get())
-            + int(CAR_BLOCKS.cars[0].position[1].get() as i32),
+            + int(race.car_blocks().cars[0].position[1].get() as i32),
     ) as u32);
 }
 
@@ -71,7 +70,7 @@ pub fn finish_run(
         if pressed(1) || pressed(0x1C) {
             break;
         }
-        CAR_BLOCKS.cars[0].camera_view.set(6);
+        race.car_blocks().cars[0].camera_view.set(6);
         crate::race::frame_views::load_first_car(&race.shared)?;
         crate::drive::finish_camera::finish_camera(&race.replay);
         crate::physics::camera_frame::camera_frame(

@@ -80,7 +80,7 @@ fn refusal(
 }
 
 pub fn cars_particles(effects: &Effects) -> Result<(), Refused> {
-    let (paths, masks) = (&effects.paths, &effects.masks);
+    let paths = &effects.paths;
     let (particles, ring) = (&effects.particles, &effects.ring);
     let settings: u32 = effects.setup.settings.is_set.get();
     if let Some(why) = refusal(effects, settings)? {
@@ -167,8 +167,8 @@ pub fn cars_particles(effects: &Effects) -> Result<(), Refused> {
             emit_car_particles(effects, car)?;
         }
         emit_exhaust_smoke::emit_exhaust_smoke(paths, particles, ring, car, effects)?;
-        emit_twin_particle_first::emit_twin_particle_first(masks, particles, ring, car)?;
-        emit_twin_particle_second::emit_twin_particle_second(masks, particles, ring, car)?;
+        emit_twin_particle_first::emit_twin_particle_first(effects, car)?;
+        emit_twin_particle_second::emit_twin_particle_second(effects, car)?;
     }
     Ok(())
 }

@@ -4,7 +4,6 @@
 
 use crate::errors::BadInput;
 use crate::menu::owner::Menus;
-use crate::scene::owner::scene;
 use crate::scene::textures::SLOTS;
 use crate::session::{read_all, write_all};
 
@@ -17,8 +16,12 @@ const ENTRIES: u32 = 0x100;
 /// the newly wanted ones (`scene::keep_held_pictures` 0x49036F); and each held
 /// picture's eight textures go to its eight slots (`scene::assign_picture_slots`
 /// 0x4903E3). Nothing is written before a refusal.
-pub fn update(menus: &Menus, entries: [u32; 4]) -> Result<(), BadInput> {
-    let scene_textures = &scene().textures;
+pub fn update(
+    menus: &Menus,
+    scene: &crate::scene::owner::Scene,
+    entries: [u32; 4],
+) -> Result<(), BadInput> {
+    let scene_textures = &scene.textures;
     let Some(table) = menus.screens.state.carousel.list()? else {
         return Err(BadInput("no carousel entries' records"));
     };

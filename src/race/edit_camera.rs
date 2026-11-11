@@ -12,26 +12,23 @@
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
-use crate::race::replay_work_store::REPLAY_WORK;
 
 /// `edit_camera_1` / `_2` (the block shown is left in the original's result; its caller, `viewer_action`,
 /// ignores it).
 pub fn edit_camera(race: &Race, camera: u32) {
     let replay = &race.replay;
     // Converted: `rc2k_core::race::viewer_flow::edits_camera`.
-    crate::race::keep_undo::keep_undo(&race.shared);
+    crate::race::keep_undo::keep_undo(race);
     if rc2k_core::race::viewer_flow::edits_camera(
         replay.replay_view.replay_block.get(),
         race.shared.replay_file.index_block_count.get(),
     ) {
-        crate::race::viewer_buffers_store::VIEWER_BUFFERS
-            .camera_edit
-            .set(camera);
+        race.viewer_buffers().camera_edit.set(camera);
     }
 }
 
-fn name_of(camera: u8) -> u16 {
-    crate::race::viewer_screen_store::VIEWER_PANEL.camera_name(camera as usize)
+fn name_of(race: &Race, camera: u8) -> u16 {
+    race.viewer_panel().camera_name(camera as usize)
 }
 
 /// `next_camera` (`step` 1) and `previous_camera` (-1). What they leave their caller,
@@ -44,21 +41,17 @@ pub fn step_camera(race: &Race, step: i8) -> Result<(), Refused> {
     }
     let at = crate::race::viewer::camera_byte(
         0u32.wrapping_sub(1)
-            .wrapping_add(
-                crate::race::viewer_buffers_store::VIEWER_BUFFERS
-                    .camera_edit
-                    .get(),
-            )
+            .wrapping_add(race.viewer_buffers().camera_edit.get())
             .wrapping_add(block.wrapping_mul(8)),
     );
     let old: u8 = at.read("a replay camera byte")?;
     // Converted: `rc2k_core::race::viewer::{every_camera, step_camera}`.
     use rc2k_core::race::viewer::{camera_skipped, every_camera, step_camera};
     let every = every_camera(
-        REPLAY_WORK.header_one_player.get() == 1,
-        REPLAY_WORK.header_kind_0.get(),
+        race.replay_work().header_one_player.get() == 1,
+        race.replay_work().header_kind_0.get(),
     );
-    let dl = step_camera(old, step > 0, every, |n| camera_skipped(name_of(n)))?;
+    let dl = step_camera(old, step > 0, every, |n| camera_skipped(name_of(race, n)))?;
     at.write(dl, "a replay camera byte")?;
     let spread = crate::race::spread_camera::spread_camera(race, at, old);
     if spread.is_err() {

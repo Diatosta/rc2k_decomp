@@ -21,14 +21,15 @@ pub fn build_menu_sprites(
     sprite_table: &crate::session::PlainDword,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
+    strings: &crate::strings::owner::Strings,
 ) -> Result<(), Refused> {
     let list = &gfx.fonts.glyph_tables.memory;
-    begin_glyph_tables(vars, gfx, system)?;
+    begin_glyph_tables(vars, gfx, system, strings)?;
     gfx.pictures.decoder.builder_flags.set(RUN_LENGTHS);
     begin_glyph_table(vars, list)?;
-    build_glyphs(vars, &crate::gfx::texts::MBUTS, list, gfx)?;
+    build_glyphs(vars, &crate::gfx::texts::MBUTS, list, gfx, strings)?;
     sprite_table.set(vars.table.get());
-    end_glyph_tables()?;
+    end_glyph_tables(strings)?;
     all_direct_colour(vars.table.get())
 }
 
@@ -61,5 +62,6 @@ pub fn build_menu_sprites_in_game(
         &menus().screens.loop_flags.sprite_table,
         gfx,
         system,
+        crate::strings::owner::strings(),
     )
 }

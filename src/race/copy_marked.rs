@@ -8,29 +8,20 @@
 //! outside the tables).
 
 use crate::errors::Refused;
-use crate::race::owner_shared::RaceShared;
+use crate::race::owner::Race;
 use crate::race::viewer::move_cells;
 
 /// The count copied, none when the marks are not in order.
-pub fn copy_marked(shared: &RaceShared) -> Result<Option<u32>, Refused> {
+pub fn copy_marked(race: &Race) -> Result<Option<u32>, Refused> {
+    let shared = &race.shared;
+    let v = race.viewer_buffers();
     // Converted: `rc2k_core::race::viewer::clip`.
-    let first = crate::race::viewer_buffers_store::VIEWER_BUFFERS
-        .mark_in
-        .get();
-    let Some((_, blocks)) = rc2k_core::race::viewer::clip(
-        first,
-        crate::race::viewer_buffers_store::VIEWER_BUFFERS
-            .mark_out
-            .get(),
-    )?
-    else {
+    let first = v.mark_in.get();
+    let Some((_, blocks)) = rc2k_core::race::viewer::clip(first, v.mark_out.get())? else {
         return Ok(None);
     };
-    crate::race::viewer_buffers_store::VIEWER_BUFFERS
-        .clip_blocks
-        .set(blocks);
+    v.clip_blocks.set(blocks);
     let dwords = 2 * blocks as usize;
-    let v = &crate::race::viewer_buffers_store::VIEWER_BUFFERS;
     let first = 2 * first as usize;
     move_cells(
         &v.clip_places,

@@ -16,7 +16,7 @@ pub fn set_up_race_sounds(
     use rc2k_core::sound::set_up::{RACE, race};
     sound.menu.settings_applied.get().done.set(RACE);
     for s in race(audio.state.race_sound_mode.get()) {
-        run_step(s, sound)?;
+        run_step(s, sound, audio)?;
     }
     audio.state.sounds_held_back.set(0);
     Ok(())

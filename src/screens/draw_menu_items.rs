@@ -32,7 +32,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::item_sprites_store::ItemSprite;
 use crate::menu::owner::Menus;
-use crate::system::owner::system;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -82,10 +81,11 @@ pub fn draw_menu_items(
             spaced: i.fixed().spaced == 1,
         })
         .collect();
+    let o = crate::owners::boundary();
     let since_key = if menus.screens.option_work.redefining_key.is_set() {
         0
     } else {
-        system()
+        o.system
             .session
             .clocks
             .frame
@@ -94,7 +94,7 @@ pub fn draw_menu_items(
     };
     let mut screen = MenuScreen::new(canvas);
     screen.menu_items = all;
-    let line = &crate::screens::text_buffers_store::TEXT_BUFFERS.line;
+    let line = &o.race.text_buffers().line;
     rc2k_core::screens::menus::items(
         &mut screen,
         &list,

@@ -20,7 +20,11 @@ use crate::sound::store::SoundObject;
 
 /// Every car's sounds for the turn: the players' each, of the computer's the two nearest
 /// the listener (each keeping its voice).
-pub fn car_sounds_all(sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
+pub fn car_sounds_all(
+    sound: &crate::sound::owner::Sound,
+    race: &crate::race::owner::Race,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     let count = sound.race.sounds.count.get();
     if count == 0 {
         return Ok(());
@@ -37,7 +41,7 @@ pub fn car_sounds_all(sound: &crate::sound::owner::Sound) -> Result<(), Refused>
             continue;
         }
         if o.sound_offset.get() as i32 >= 0 {
-            crate::sound::car_sounds::car_sounds(n, sound)?;
+            crate::sound::car_sounds::car_sounds(n, sound, race, system)?;
             continue;
         }
         x87_1(o, &sound.race.sounds);
@@ -60,7 +64,7 @@ pub fn car_sounds_all(sound: &crate::sound::owner::Sound) -> Result<(), Refused>
         let o = SoundObject::number(n)?;
         let kept = o.sound_offset.get();
         o.sound_offset.set(mark);
-        crate::sound::car_sounds::car_sounds(n, sound)?;
+        crate::sound::car_sounds::car_sounds(n, sound, race, system)?;
         o.sound_offset.set(kept);
     }
     Ok(())

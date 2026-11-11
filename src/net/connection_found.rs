@@ -31,14 +31,14 @@ pub fn connection_found(guid: &[u8; 16], data: &[u8], short: &[u8]) -> Result<u3
     {
         return Ok(1);
     }
-    crate::net::tables::count(data.len() as u32)?;
+    crate::net::tables::count(vars, data.len() as u32)?;
     let Some(count) = lists::connection_listed(vars.connections.get()) else {
         return Ok(0);
     };
     vars.connections.set(count + 1);
-    let mut name = with_connection(count, |c| c.name)?;
+    let mut name = with_connection(vars, count, |c| c.name)?;
     copy_printable_into(short, &mut name, 0x40)?;
-    with_connection(count, |c| {
+    with_connection(vars, count, |c| {
         c.data = data.to_vec();
         c.provider = *guid;
         c.name = name;

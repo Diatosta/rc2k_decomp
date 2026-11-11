@@ -13,17 +13,18 @@ use crate::menu::lists_store::CarList;
 use crate::menu::owner::Menus;
 use crate::menu::screen_loop::{Entry, run_screen};
 
-pub fn arcade_level_end(menus: &Menus, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
-    let race = crate::race::owner::race();
+pub fn arcade_level_end(
+    menus: &Menus,
+    sound: &crate::sound::owner::Sound,
+    entry: &Entry,
+) -> Result<(), Refused> {
+    let race = entry.race;
     let play = &menus.play;
     // The logic is in `rc2k_core::menu::arcade` (`won`, `won_level`, `first_win`).
     use rc2k_core::menu::arcade::{first_win, won, won_level};
     if !won(play.results.positions[0].get()) {
         crate::sound::play_tune_7::play_tune_7();
-        run_screen(
-            &crate::menu::arcade_level_end_results_loop::SCREEN,
-            &Entry::new(crate::owners::boundary()),
-        )?;
+        run_screen(&crate::menu::arcade_level_end_results_loop::SCREEN, entry)?;
         play.arcade.retry.set(1u32);
         return Ok(());
     }
@@ -32,7 +33,7 @@ pub fn arcade_level_end(menus: &Menus, sound: &crate::sound::owner::Sound) -> Re
     crate::menu::arcade_finale::arcade_finale(menus, &menus.play, sound, race)?;
     if first_win(play.arcade.levels_won.get(level as usize)) {
         play.arcade.levels_won.set(level as usize, 1);
-        let shown = Entry::with_cars(crate::owners::boundary(), Some(CarList::Shown));
+        let shown = entry.with_list(Some(CarList::Shown));
         run_screen(&crate::menu::car_specs_display_loop::SCREEN, &shown)?;
         crate::menu::arcade_steps::add_shown_car(menus)?;
         crate::menu::arcade_steps::remove_shown_car(menus, &mut || {

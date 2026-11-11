@@ -21,5 +21,5 @@ pub fn destroy_connection(vars: &NetVars) -> Result<(), Refused> {
         release_dplay::release_dplay(vars);
         release_lobby::release_lobby(vars);
     }
-    free_messages::free_messages()
+    free_messages::free_messages(vars)
 }

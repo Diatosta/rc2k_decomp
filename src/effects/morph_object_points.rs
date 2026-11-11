@@ -22,6 +22,7 @@ use crate::race::effects_settings_store::CarEffects;
 use crate::race::owner_course::Course;
 use crate::scene::object_slots_store::ObjectTables;
 use crate::scene::objects::SLOTS;
+use crate::scene::owner::Scene;
 use crate::session::{PlainBytes, PlainDword};
 
 const MOST_CARS: i32 = 8;
@@ -47,25 +48,19 @@ fn changed(b: &CarEffects) -> bool {
 }
 
 /// A block's objects' first points (in `g_objectPoints`) and their count.
-fn points(course: &Course, b: &CarEffects) -> Result<(u32, u32, i32), Refused> {
+fn points(course: &Course, scene: &Scene, b: &CarEffects) -> Result<(u32, u32, i32), Refused> {
     Ok({
         let base: u32 = course.lists.object_points.get();
         let first = |id: u32| {
             base.wrapping_add(
-                12 * ObjectTables::slot_value(
-                    &crate::scene::owner::scene().objects.slots.first_point,
-                    id as usize,
-                ),
+                12 * ObjectTables::slot_value(&scene.objects.slots.first_point, id as usize),
             )
         };
         let (a, c) = (b.object.get(), b.second_object.get());
         (
             first(a),
             first(c),
-            ObjectTables::slot_value(
-                &crate::scene::owner::scene().objects.slots.point_counts,
-                a as usize,
-            ) as i32,
+            ObjectTables::slot_value(&scene.objects.slots.point_counts, a as usize) as i32,
         )
     })
 }
@@ -75,6 +70,7 @@ fn refusal(
     effects: &crate::effects::owner::Effects,
     course: &Course,
     paths: &Paths,
+    scene: &Scene,
 ) -> Result<Option<&'static str>, Refused> {
     let marks = effects.settings()?;
     Ok({
@@ -93,7 +89,7 @@ fn refusal(
             if b.point_block.get() == 0 {
                 return Ok(Some("a null base point list"));
             }
-            let (a, c, n) = points(course, b)?;
+            let (a, c, n) = points(course, scene, b)?;
             if n < 0 {
                 return Ok(Some("a negative point count: the loop runs on"));
             }
@@ -117,9 +113,10 @@ fn refusal(
 pub fn morph_object_points(
     course: &Course,
     paths: &Paths,
+    scene: &Scene,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    if let Some(why) = refusal(effects, course, paths)? {
+    if let Some(why) = refusal(effects, course, paths, scene)? {
         return Err(BadInput(why).into());
     }
     {
@@ -134,7 +131,7 @@ pub fn morph_object_points(
                 b.kept_factors[k].set_bits(v);
                 paths.morph_work.kept[k].set(v);
             }
-            let (a, c, n) = points(course, b)?;
+            let (a, c, n) = points(course, scene, b)?;
             let points = b.point_block.get();
             for k in 0..n.max(0) as u32 {
                 let (to, from) = (a + 12 * k, c + 12 * k);
@@ -146,7 +143,7 @@ pub fn morph_object_points(
                 }
             }
         }
-        measure_lines(course, paths, effects)?;
+        measure_lines(course, paths, scene, effects)?;
     }
     Ok(())
 }

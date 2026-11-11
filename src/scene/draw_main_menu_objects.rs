@@ -8,8 +8,6 @@
 //! lists. The menus and draw lists run its `run` (`menu::table_routes`); the registers above
 //! are the original's, for reference.
 
-use crate::menu::owner::menus;
-use crate::race::owner::race;
 use crate::scene::assign_kind_textures::assign_kind_textures;
 use crate::scene::assign_menu_textures::assign_menu_textures;
 use crate::scene::choose_carousel_pictures::choose_carousel_pictures;
@@ -23,14 +21,12 @@ use crate::scene::map_texture_places::map_texture_places;
 /// Its seven calls in order. Of what the calls leave in the original's registers one value is
 /// read: the slots-in-use count the textures' loading leaves (the row place of a lone entry).
 pub fn run() -> Result<(), crate::errors::Refused> {
-    let scene = crate::scene::owner::scene();
-    let race = race();
-    let menus = menus();
+    let o = crate::owners::boundary();
+    let (scene, race, menus, system) = (o.scene, o.race, o.menus, o.system);
     let scratch = crate::race::view_scratch::front_end();
-    let system = crate::system::owner::system();
     clear_depth_buffer(scene, system, &scratch.polygon);
     assign_kind_textures(scene)?;
-    choose_carousel_pictures(menus)?;
+    choose_carousel_pictures(menus, scene)?;
     assign_menu_textures(&menus.tables, scene)?;
     map_texture_places(scene);
     let count = load_slot_textures_in_game(&race.frame, scene)?;

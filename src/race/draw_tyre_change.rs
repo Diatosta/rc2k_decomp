@@ -26,7 +26,6 @@ use crate::gfx::owner::gfx;
 use crate::input::types::InputDevice;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
-use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::session::PlainDword;
 use crate::strings::owner::strings;
 
@@ -72,14 +71,15 @@ fn build_text(
 
 /// The rectangle at `texture_rect` filled with colour 0 (`gfx::fill_rect`, palette
 /// `palette`).
-fn fill(shared: &RaceShared, x: u32, y: u32, width: u32, height: u32) -> Result<(), Refused> {
-    for (cell, v) in VIEWER_PANEL.texture_rect.iter().zip([x, y, width, height]) {
+fn fill(race: &Race, x: u32, y: u32, width: u32, height: u32) -> Result<(), Refused> {
+    let panel = race.viewer_panel();
+    for (cell, v) in panel.texture_rect.iter().zip([x, y, width, height]) {
         cell.set(v);
     }
     crate::gfx::rect::fill_rect(
-        crate::gfx::rect::rect_of(&VIEWER_PANEL.texture_rect),
+        crate::gfx::rect::rect_of(&panel.texture_rect),
         0,
-        crate::gfx::rect::Palette::Of(&shared.tyre_change.palette),
+        crate::gfx::rect::Palette::Of(&race.shared.tyre_change.palette),
     )
 }
 
@@ -159,11 +159,11 @@ pub fn draw_tyre_change(
             }
         }
         set_clip(&gfx.drawing.blit.clip.left, 0x80);
-        fill(shared, 0x80, 0x32, 0x80, 0x4B)?;
+        fill(race, 0x80, 0x32, 0x80, 0x4B)?;
         { build_text(strings, 0x12E, Some(shared.tyre_change.record.get())) }?;
         three_times(gfx, strings, 0x84, 0x32)?;
         set_clip(&gfx.drawing.blit.clip.left, 0);
-        fill(shared, 0, 0x99, 0x100, 0x19)?;
+        fill(race, 0, 0x99, 0x100, 0x19)?;
         gfx.fonts.font_block.game_fonts[2].update(|f| f.box_width = 0xF8);
         text(font(gfx), &race.shared.tyre_change.record_name, 4, 0x99)?;
         let x = if shared.tyre_change.player.get() == 0 {
@@ -173,7 +173,7 @@ pub fn draw_tyre_change(
             set_clip(&gfx.drawing.blit.clip.left, 0x80);
             0x80
         };
-        fill(shared, x, 0xB2, 0x80, 0x4B)?;
+        fill(race, x, 0xB2, 0x80, 0x4B)?;
         if device.stage.get() == 1 {
             let time = device.clock.get();
             { build_text(strings, 0x12D, Some(time)) }?;

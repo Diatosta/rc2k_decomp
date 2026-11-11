@@ -8,16 +8,16 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::{FONT, push_id, store_text};
-use crate::net::owner::net;
+use crate::net::owner::Net;
 use crate::text::draw_text::GameCanvas;
 use rc2k_core::net::screens::{self, Value};
 
 /// The text `text` (up to its NUL) for item `item` at `y` (x 0x190),
 /// edited (with the caret), nothing (the "nothing" string) or as it is; the first two are
 /// built in the game's text buffer. Returns the next y (y + 0x1E).
-pub fn draw_setting_value(text: &[u8], item: u32, y: u32) -> Result<u32, Refused> {
+pub fn draw_setting_value(net: &Net, text: &[u8], item: u32, y: u32) -> Result<u32, Refused> {
     // Converted: `rc2k_core::net::screens` (`text_value`, `Value`, `CARET`, `NOTHING`).
-    let value = screens::text_value(item == net().edit().edited.get(), || {
+    let value = screens::text_value(item == net.edit().edited.get(), || {
         text.first().copied().unwrap_or(0)
     });
     let shown = match value {

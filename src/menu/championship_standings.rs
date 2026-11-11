@@ -10,10 +10,11 @@
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
+use crate::menu::screen_loop::Entry;
 use crate::menu::standings::Which;
 use crate::menu::standings_steps::number_all;
 
-pub fn championship_standings(menus: &Menus) -> Result<(), Refused> {
+pub fn championship_standings(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
     use crate::menu::{sort_standings_b_by_figure as fig, sort_standings_b_by_points as pts};
     // The logic is in `rc2k_core::menu::results_pages` (`class_pages_only`, `standings_sorts`).
     use rc2k_core::menu::results_pages::{Sort, class_pages_only, standings_sorts};
@@ -33,9 +34,9 @@ pub fn championship_standings(menus: &Menus) -> Result<(), Refused> {
     }
     menus.screens.state.menus.standings_shown.set(true);
     if a8 {
-        crate::menu::class_championship_pass::class_championship_pass(menus)?;
+        crate::menu::class_championship_pass::class_championship_pass(menus, entry)?;
     } else {
-        crate::menu::show_championship_standings::show_championship_standings(menus)?;
+        crate::menu::show_championship_standings::show_championship_standings(menus, entry)?;
     }
     menus.screens.state.menus.standings_shown.set(false);
     Ok(())

@@ -31,11 +31,10 @@
 //! is in `KEYS` twice (0x1D, then 0x14 never reached; kept, section 16).
 
 use crate::errors::Refused;
-use crate::input::owner::input;
 use crate::menu::list_handle::ListMenu;
+use crate::owners::Owners;
 use crate::race::owner::Race;
 use crate::race::viewer::LAST_RACE;
-use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::race::viewer_state_store::ReplayViewBlock;
 
 /// (key, action) with editing on, in the original's order (0x26 twice: the first wins).
@@ -93,20 +92,20 @@ enum Next {
 }
 
 pub fn replay_viewer(race: &Race, mode: Mode) -> Result<(), Refused> {
-    view(race, mode)?;
+    let o = crate::owners::boundary();
+    view(race, o, mode)?;
     // The end (0x41D436).
     crate::race::close_viewed_replay::close_viewed_replay(race)?;
-    crate::race::viewer_tidy_stage::viewer_tidy_stage(race)?;
+    crate::race::viewer_tidy_stage::viewer_tidy_stage(race, o)?;
     race.shared.replay_file.viewer_stopped.set(false);
     race.shared.replay_file.hold_car_revs.set(0);
     Ok(())
 }
 
 /// Up to the end.
-fn view(race: &Race, mode: Mode) -> Result<(), Refused> {
-    let system = crate::system::owner::system();
-    let install = crate::install::owner::install();
-    let devices = &input().devices;
+fn view(race: &Race, o: Owners<'_>, mode: Mode) -> Result<(), Refused> {
+    let (system, install) = (o.system, o.install);
+    let devices = &o.input.devices;
     let session = &system.session;
     let replay = &race.replay;
     use crate::race::*;
@@ -134,12 +133,10 @@ fn view(race: &Race, mode: Mode) -> Result<(), Refused> {
     if failed {
         return Ok(());
     }
-    crate::race::viewer_buffers_store::VIEWER_BUFFERS
-        .camera_edit
-        .set(0);
+    race.viewer_buffers().camera_edit.set(0);
     replay.replay_view.last_race_viewed.set(slot == LAST_RACE);
     find_snapshot_number::find_snapshot_number(&race.replay)?;
-    viewer_load_stage::viewer_load_stage(race)?;
+    viewer_load_stage::viewer_load_stage(race, o)?;
     let list = ListMenu::of(crate::place::BytePlace::in_store(
         &crate::race::owner::race().replay.replay_view,
         core::mem::offset_of!(ReplayViewBlock, viewer_list),
@@ -158,7 +155,7 @@ fn view(race: &Race, mode: Mode) -> Result<(), Refused> {
     #[cfg(feature = "remote")]
     if crate::remote::shots_on() {
         let chosen = list.item(install.pages.choice.get());
-        action_next(race, u32::from(chosen.viewer_action()))?;
+        action_next(race, o, u32::from(chosen.viewer_action()))?;
     }
     loop {
         // `screens::run_frame` with `race::viewer_frame` (0x41D5FB).
@@ -204,10 +201,10 @@ fn view(race: &Race, mode: Mode) -> Result<(), Refused> {
         let next = if (key as i8) <= 0 {
             Next::Mark
         } else {
-            stopped_key(race, install, list, key)?
+            stopped_key(race, o, list, key)?
         };
         let next = match next {
-            Next::Action(action) => action_next(race, action)?,
+            Next::Action(action) => action_next(race, o, action)?,
             other => other,
         };
         if let Next::Mark = next {
@@ -224,9 +221,9 @@ fn view(race: &Race, mode: Mode) -> Result<(), Refused> {
 }
 
 /// An action done: the items are marked again after one that is an action.
-fn action_next(race: &Race, action: u32) -> Result<Next, Refused> {
+fn action_next(race: &Race, o: Owners<'_>, action: u32) -> Result<Next, Refused> {
     Ok(
-        if crate::race::viewer_action::viewer_action(race, action)? {
+        if crate::race::viewer_action::viewer_action(race, o, action)? {
             Next::Mark
         } else {
             Next::Sound
@@ -235,20 +232,12 @@ fn action_next(race: &Race, action: u32) -> Result<Next, Refused> {
 }
 
 /// A key while stopped (0x41D139 ..): where it leads.
-fn stopped_key(
-    race: &Race,
-    install: &crate::install::owner::Install,
-    list: ListMenu,
-    key: u8,
-) -> Result<Next, Refused> {
+fn stopped_key(race: &Race, o: Owners<'_>, list: ListMenu, key: u8) -> Result<Next, Refused> {
+    let install = o.install;
     if crate::gfx::shots::on() != 0 && key == 0x52 {
         crate::gfx::take_screenshot::take_screenshot()?;
     }
-    if crate::race::viewer_buffers_store::VIEWER_BUFFERS
-        .camera_edit
-        .get()
-        != 0
-    {
+    if race.viewer_buffers().camera_edit.get() != 0 {
         return Ok(match key {
             0x68 => Next::Action(0x1E),
             0x69 => Next::Action(0x1F),
@@ -262,7 +251,7 @@ fn stopped_key(
     }
     if key == 0x1C {
         let chosen = list.item(install.pages.choice.get());
-        if let Next::Mark = action_next(race, u32::from(chosen.viewer_action()))? {
+        if let Next::Mark = action_next(race, o, u32::from(chosen.viewer_action()))? {
             return Ok(Next::Mark);
         }
     }
@@ -272,7 +261,7 @@ fn stopped_key(
     if key == 0x3C {
         return Ok(Next::Action(0x22));
     }
-    if VIEWER_PANEL.developer_keys() == 1
+    if race.viewer_panel().developer_keys() == 1
         && let Some(&(_, action)) = DEVELOPER.iter().find(|&&(k, _)| k == key)
     {
         return Ok(Next::Action(action));

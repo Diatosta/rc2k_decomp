@@ -2,7 +2,7 @@
 //! as `scene::set_up_carousel`'s per-menu functions make them. Made by
 //! `tools/carousel_set_ups/gen.py` from the IDA extraction, typed and compacted by hand: every menu stores the same things in the same order
 //! (`menu_ops`), only the numbers differ, so each is one `menu!` entry.
-use crate::menu::owner::MENUS;
+use crate::scene::set_up_carousel::Field;
 use crate::scene::set_up_carousel::Op::{self, Fill, Run, Set};
 
 /// The stores of one menu, in the order the game makes them: `set_up`, the fill, the
@@ -17,16 +17,12 @@ const fn menu_ops<const N: usize>(
     count: u32,
     [spacing, y, z, forward]: [u32; 4],
 ) -> [Op; N] {
-    let carousel = &MENUS.unchecked().screens.state.carousel;
     let mut ops = [Fill; N];
-    ops[0] = Set(&carousel.set_up, set_up);
+    ops[0] = Set(Field::SetUp, set_up);
     let mut n = 2; // ops[1] is the fill
     let mut k = 0;
     while k < textures.len() {
-        ops[n] = Set(
-            &MENUS.unchecked().tables.lists.carousel_textures[k],
-            textures[k],
-        );
+        ops[n] = Set(Field::Texture(k), textures[k]);
         n += 1;
         k += 1;
     }
@@ -34,18 +30,18 @@ const fn menu_ops<const N: usize>(
     n += 1;
     k = 0;
     while k < kinds.len() {
-        ops[n] = Set(&carousel.kinds[k], kinds[k]);
+        ops[n] = Set(Field::Kind(k), kinds[k]);
         n += 1;
         k += 1;
     }
-    ops[n] = Set(&carousel.count, count);
-    ops[n + 1] = Set(&carousel.front, 0);
-    ops[n + 2] = Set(&carousel.angle, 0);
-    ops[n + 3] = Set(&carousel.direction, 0);
-    ops[n + 4] = Set(&carousel.spacing, spacing);
-    ops[n + 5] = Set(&carousel.y, y);
-    ops[n + 6] = Set(&carousel.z, z);
-    ops[n + 7] = Set(&carousel.forward, forward);
+    ops[n] = Set(Field::Count, count);
+    ops[n + 1] = Set(Field::Front, 0);
+    ops[n + 2] = Set(Field::Angle, 0);
+    ops[n + 3] = Set(Field::Direction, 0);
+    ops[n + 4] = Set(Field::Spacing, spacing);
+    ops[n + 5] = Set(Field::Y, y);
+    ops[n + 6] = Set(Field::Z, z);
+    ops[n + 7] = Set(Field::Forward, forward);
     assert!(n + 8 == N);
     ops
 }

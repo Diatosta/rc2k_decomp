@@ -20,7 +20,6 @@
 use crate::errors::{FatalError, Refused};
 use crate::logfile::log_int::log_int;
 use crate::scene::count_texture_needs::count_texture_needs_in_game;
-use crate::scene::owner::scene;
 use crate::scene::raise_texture_needs::raise_texture_needs;
 use crate::scene::texture_steps::{DONE, FAILED, STEPS};
 use crate::scene::try_allocate_textures::try_allocate_textures_in_game;
@@ -70,10 +69,11 @@ pub enum Call {
 
 /// True when a try succeeded.
 fn run(
+    scene: &crate::scene::owner::Scene,
     steps: &'static [Step],
     call: &mut dyn FnMut(Call) -> Result<bool, Refused>,
 ) -> Result<bool, Refused> {
-    let textures = &scene().textures;
+    let textures = &scene.textures;
     for step in steps {
         match *step {
             Step::Text(text, newline) => {
@@ -108,7 +108,7 @@ fn run(
                 call(Call::CountNeeds)?;
             }
             Step::Unless(flag, inner) => {
-                if textures.places.step_flags[flag].get() == 0 && run(inner, call)? {
+                if textures.places.step_flags[flag].get() == 0 && run(scene, inner, call)? {
                     return Ok(true);
                 }
             }
@@ -130,11 +130,11 @@ pub fn build_texture_catalogue(
     for (n, flag) in textures.places.step_flags.iter().enumerate() {
         flag.set((n == 0) as u32);
     }
-    if run(&STEPS, call)? {
-        run(&DONE, call)?;
+    if run(scene, &STEPS, call)? {
+        run(scene, &DONE, call)?;
         return Ok(());
     }
-    run(&FAILED, call)?;
+    run(scene, &FAILED, call)?;
     Err(NOT_ENOUGH.into())
 }
 
@@ -151,7 +151,7 @@ pub fn build_texture_catalogue_in_game(
                 Call::Raise { level, tag } => {
                     raise_texture_needs(level, tag, scene);
                 }
-                Call::Try => return Ok(try_allocate_textures_in_game(shared)?),
+                Call::Try => return Ok(try_allocate_textures_in_game(shared, scene)?),
                 Call::Release => crate::platform_3d::release_textures(),
                 Call::CountNeeds => {
                     count_texture_needs_in_game(scene)?;

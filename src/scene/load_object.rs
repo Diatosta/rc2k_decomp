@@ -29,13 +29,10 @@
 use crate::errors::{FatalError, Refused};
 use crate::files::read_whole_file::read_whole_file_bytes;
 use crate::files::state::BYTES_READ;
-use crate::race::kind_store::KIND_TABLES;
-use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::scene::add_object_shape::add_object_shape;
 use crate::scene::list_object_textures::list_object_textures;
 use crate::scene::measure_object::measure_object;
 use crate::scene::objects::{FACES, SLOTS};
-use crate::scene::owner::scene;
 use crate::scene::set_object_file_names::set_object_file_names;
 use crate::session::TextPlace;
 
@@ -135,10 +132,10 @@ const NO_FACE_ROOM: FatalError = FatalError {
 
 /// `scene::find_object_kind`: the place of a kind, or of the kind before
 /// it, among the known ones; 0x22 if it is none of them.
-fn find_object_kind(kind: u32) -> u32 {
+fn find_object_kind(race: &crate::race::owner::Race, kind: u32) -> u32 {
     (0..KNOWN_KINDS)
         .find(|&n| {
-            let known: u32 = KIND_TABLES.known_object_kinds[n as usize].get();
+            let known: u32 = race.kind_tables().known_object_kinds[n as usize].get();
             kind == known || kind == known.wrapping_add(1)
         })
         .unwrap_or(KNOWN_KINDS)
@@ -189,15 +186,15 @@ pub fn load_object(
     }
     if slot < 0x50 {
         shape(scene, race, u32::MAX)?;
-        return check(&race.course);
+        return check(race, scene);
     }
     scene.draw_switches.loading_group_mask.set(u32::MAX);
-    let known = find_object_kind(kind);
+    let known = find_object_kind(race, kind);
     race.frame.matrices.known_object.set(known);
     // The kind's light record, from its groups; a kind none of the known ones takes the place
     // after the 34 records, which reads on into the gear figures (`group_at`).
     for part in &PARTS {
-        let group = LIGHT_RECORDS.group_at(known, part.group as u32)?;
+        let group = race.light_records().group_at(known, part.group as u32)?;
         let mut bits = 0;
         if group != u32::MAX {
             bits = 1u32 << (group & 31);
@@ -240,7 +237,7 @@ pub fn load_object(
         0xB => shape(scene, race, u32::MAX)?,
         _ => {}
     }
-    check(&race.course)
+    check(race, scene)
 }
 
 /// One `scene::add_object_shape` with a mask.
@@ -254,8 +251,11 @@ fn shape(
 }
 
 /// The three fatal errors at the end, in the original's order.
-fn check(course: &crate::race::owner_course::Course) -> Result<(), Refused> {
-    let scene = scene();
+fn check(
+    race: &crate::race::owner::Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    let course = &race.course;
     if scene.drawing.object_work.face_cursor.get() > course.lists.face_memory_room.get() {
         return Err(NO_FACE_MEMORY.into());
     }

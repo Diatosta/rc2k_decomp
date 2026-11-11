@@ -30,7 +30,6 @@ use crate::gfx::describe_format::describe_format;
 use crate::gfx::owner::gfx;
 use crate::gfx::set_clip::set_clip;
 use crate::race::owner::Race;
-use crate::race::owner::race;
 use crate::system::owner::system;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
@@ -473,12 +472,13 @@ pub fn screen_pixels() -> u64 {
 /// `gfx::show_frame`: the frame drawn shown (at most some sixty a second); false while
 /// quitting (nothing shown).
 pub fn show_frame_now() -> bool {
-    let drawing = &gfx().drawing;
-    let race = race();
+    let o = crate::owners::boundary();
+    let drawing = &o.gfx.drawing;
+    let race = o.race;
     // The 3D drawing noted so far, before the screen is shown, written or changed.
     crate::platform_3d::flush();
     {
-        if quitting() {
+        if o.system.session.flags.quitting.is_set() {
             return false;
         }
         #[cfg(feature = "remote")]
@@ -526,11 +526,11 @@ pub fn show_frame_now() -> bool {
                     "platform: {shown} frames shown; the last is in rc2k_frame.raw ({} x {}, {} bits); quitting",
                     screen.width, screen.height, screen.bits
                 ));
-                system().session.flags.quitting.set(true);
+                o.system.session.flags.quitting.set(true);
             }
         }
         crate::platform_timing::start_sampler();
-        crate::platform_timing::report_timing();
+        crate::platform_timing::report_timing(o.system);
         // A flip waits for the screen: some sixty frames a second at most. The next frame's
         // gap is counted from the end of this wait (counted from before it, every other
         // frame skipped the wait: about 95 a second with 5 ms of work a frame).

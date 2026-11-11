@@ -22,8 +22,7 @@ use crate::gfx::pcx::{on_stream, read_stream_header};
 use crate::gfx::picture::{put_or_end, with_buffer};
 
 /// The part between the open and the close: whether it worked.
-fn read_rows(stream: &mut Stream) -> Result<bool, BadInput> {
-    let gfx = crate::gfx::owner::gfx();
+fn read_rows(stream: &mut Stream, gfx: &crate::gfx::owner::Gfx) -> Result<bool, BadInput> {
     let pictures = &gfx.pictures;
     if !read_stream_header(stream, gfx)? {
         return Ok(false);
@@ -42,6 +41,6 @@ fn read_rows(stream: &mut Stream) -> Result<bool, BadInput> {
     Ok(true)
 }
 
-pub fn read_pcx_24bit(path: &[u8]) -> Result<bool, BadInput> {
-    on_stream(path, read_rows)
+pub fn read_pcx_24bit(path: &[u8], gfx: &crate::gfx::owner::Gfx) -> Result<bool, BadInput> {
+    on_stream(path, |stream| read_rows(stream, gfx))
 }

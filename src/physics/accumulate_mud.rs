@@ -13,7 +13,7 @@
 use crate::math::x87;
 use crate::physics::car_store::Car;
 use crate::physics::flow::ZERO_BITS as ZERO;
-use crate::race::kind_store::KIND_TABLES;
+use crate::race::kind_store::KindTables;
 use crate::race::vars_store::RaceVars;
 use crate::session::Float;
 use std::cmp::Ordering;
@@ -52,9 +52,14 @@ fn add_mud(
 }
 
 /// The exact version, for `physics::car_physics_step`.
-pub fn accumulate_mud(car: &Car, vars: &RaceVars, scene: &crate::scene::owner::Scene) {
+pub fn accumulate_mud(
+    car: &Car,
+    vars: &RaceVars,
+    kinds: &KindTables,
+    scene: &crate::scene::owner::Scene,
+) {
     let kind = car.car_kind.get();
-    if kind >= 0x22 || KIND_TABLES.kind_gets_mud[kind as usize].get() == 0 {
+    if kind >= 0x22 || kinds.kind_gets_mud[kind as usize].get() == 0 {
         return;
     }
     let still = car.all_wheels_off.get() != 0;

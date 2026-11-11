@@ -32,14 +32,13 @@
 //! of its parts comes with the work half done.
 
 use crate::errors::Refused;
-use crate::race::owner::race;
 use crate::scene::allocate_point_records::allocate_point_records_in_game;
 use crate::scene::clear_slot_kinds::clear_slot_kinds;
 use crate::scene::fill_light_tables::fill_light_tables;
 use crate::scene::fill_scene_light_tables::fill_scene_light_tables;
 use crate::scene::known_kind::known_kind;
 use crate::scene::known_kind_picture::known_kind_picture;
-use crate::scene::owner::scene;
+use crate::scene::owner::Scene;
 use crate::scene::reload_slot_textures::reload_slot_textures;
 use crate::scene::reset_texture_places::reset_texture_places;
 use crate::scene::reset_texture_tables::reset_texture_tables;
@@ -49,13 +48,13 @@ use crate::session::Dword;
 
 // ---- game data ----
 const SHOW_BAR: u32 = 0x4467C7; // `race::loading_bar_frame`
-fn system_levels() -> &'static [Dword; 1024] {
-    &scene().objects.tables.system_levels
+fn system_levels(scene: &Scene) -> &[Dword; 1024] {
+    &scene.objects.tables.system_levels
 }
-fn video_levels() -> &'static [Dword; 1024] {
-    &scene().objects.tables.video_levels
+fn video_levels(scene: &Scene) -> &[Dword; 1024] {
+    &scene.objects.tables.video_levels
 }
-type Levels = fn() -> &'static [Dword; 1024];
+type Levels = for<'a> fn(&'a Scene) -> &'a [Dword; 1024];
 /// The textures needed: how many, the first, the levels' table, the tag.
 const NEEDS: [(usize, usize, Levels, u32); 6] = [
     (0x2A, 0x258, system_levels, 0x63),
@@ -87,17 +86,17 @@ fn colours(course: &crate::race::owner_course::Course, dark_third: u32) {
 }
 
 pub fn set_up_front_end_scene() -> Result<(), Refused> {
-    let race = race();
+    let o = crate::owners::boundary();
+    let (race, scene) = (o.race, o.scene);
     let shared = &race.shared;
     let frame = &race.frame;
     let course = &race.course;
-    let scene = crate::scene::owner::scene();
     crate::session::write_bits(&shared.vars.bar_span, [0u32, 100]);
-    crate::menu::show_loading_picture::show_loading_picture(crate::menu::owner::menus())?;
+    crate::menu::show_loading_picture::show_loading_picture(o.menus)?;
     reset_texture_tables(scene);
     for (count, first, levels, tag) in NEEDS {
         for texture in first..first + count {
-            levels()[texture].set(0);
+            levels(scene)[texture].set(0);
             scene.objects.tables.texture_tags[texture].set(tag);
         }
     }

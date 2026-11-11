@@ -23,8 +23,7 @@ const SIDE: u32 = 0x100;
 const CELLS: u32 = 0x40;
 /// `gfx::read_picture_file` at 256 x 256 (the picture's sizes kept round it): whether it
 /// was read.
-fn read(path: &PlainBytes<21>) -> Result<bool, Refused> {
-    let gfx = crate::gfx::owner::gfx();
+fn read(path: &PlainBytes<21>, gfx: &crate::gfx::owner::Gfx) -> Result<bool, Refused> {
     let sizes: [u32; 3] = [
         gfx.pictures.picture.width.get(),
         gfx.pictures.picture.height.get(),
@@ -64,7 +63,7 @@ pub fn set_up_surface(
     if gfx.drawing.draw_surface.width.get() < SIDE || gfx.drawing.draw_surface.height.get() < SIDE {
         return unlock_refusing("a surface under 256 x 256", scene);
     }
-    if !read(&ring.names.surfmask)? {
+    if !read(&ring.names.surfmask, gfx)? {
         return unlock_refusing("surfmask.pcx was not read", scene);
     }
     mask[..4 * PIXELS as usize].copy_from_slice(&crate::gfx::picture::read_bytes(
@@ -72,7 +71,7 @@ pub fn set_up_surface(
         0,
         4 * PIXELS as usize,
     )?);
-    if !read(&ring.names.surfdata)? {
+    if !read(&ring.names.surfdata, gfx)? {
         return unlock_refusing("surfdata.pcx was not read", scene);
     }
     let picture =
@@ -82,7 +81,7 @@ pub fn set_up_surface(
         let data = u32::from_le_bytes(picture[at..at + 4].try_into().expect("four bytes"));
         let mask = u32::from_le_bytes(mask[at..at + 4].try_into().expect("four bytes"));
         let alpha = ((mask << 8) & 0xFF00_0000) ^ 0xFF00_0000;
-        put_pixel((data & 0xFF_FFFF) | alpha, n & 0xFF, n >> 8)?;
+        put_pixel((data & 0xFF_FFFF) | alpha, n & 0xFF, n >> 8, gfx)?;
     }
     lock(scene.textures.kinds.kind_first_textures[211].get(), false)?;
     crate::scene::forget_slot_texture::forget_slot_texture(

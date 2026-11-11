@@ -175,13 +175,13 @@ pub fn pump() {
                     input.devices.set_key_state(key, 0);
                 }
             }
-            Event::Pad { button, down } => pad_button(course, button, down),
+            Event::Pad { button, down } => pad_button(course, input, button, down),
             Event::Other => {}
         }
     }
     let now = u64::from(crate::os::ticks());
     if let Some(action) = lock_menu_pad().tick(now) {
-        menu_action(action);
+        menu_action(input, action);
     }
 }
 
@@ -195,7 +195,12 @@ fn lock_menu_pad() -> std::sync::MutexGuard<'static, crate::input::menu_pad::Men
 }
 
 /// A gamepad's button, for the menus.
-fn pad_button(course: &Course, button: SDL_GamepadButton, down: bool) {
+fn pad_button(
+    course: &Course,
+    input: &crate::input::owner::Input,
+    button: SDL_GamepadButton,
+    down: bool,
+) {
     use crate::input::menu_pad::PadButton as B;
     // The handheld's way out: it has no window to close.
     #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
@@ -225,13 +230,13 @@ fn pad_button(course: &Course, button: SDL_GamepadButton, down: bool) {
     let in_race = course.numbers.in_race.is_set();
     let now = u64::from(crate::os::ticks());
     if let Some(action) = lock_menu_pad().button(button, down, in_race, now) {
-        menu_action(action);
+        menu_action(input, action);
     }
 }
 
 /// What a menu takes: the key of the action, as the pending key (not the held-key table: the
 /// race's keyboard controls are not the pad's).
-fn menu_action(action: crate::input::menu_pad::MenuAction) {
+fn menu_action(input: &crate::input::owner::Input, action: crate::input::menu_pad::MenuAction) {
     use crate::input::menu_pad::{MenuAction as A, note_answer};
     use crate::input::yes_no_key::{NO, THIRD, YES};
     let scancode = match action {
@@ -253,7 +258,7 @@ fn menu_action(action: crate::input::menu_pad::MenuAction) {
         }
         A::LeaveRace | A::LeaveRaceEnd => {
             let state = if action == A::LeaveRace { 0xFF } else { 0 };
-            input()
+            input
                 .devices
                 .set_key_state(game_key(SDL_SCANCODE_ESCAPE.0), state);
             return;

@@ -5,9 +5,7 @@
 
 use crate::effects::owner::effects;
 use crate::errors::{BadInput, Refused};
-use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
-use crate::race::replay_work_store::REPLAY_WORK;
 use crate::scene::file_numbers_store::texts;
 const BAR: u32 = 0x4467C7; // `race::loading_bar_frame`: the loading bar's 3D frame
 const BAR_DONE: u32 = 0x4467C6; // nullsub_8
@@ -234,7 +232,7 @@ pub fn loadlevel_init(
     level::reset_refresh();
     let flags: u32 = race.course.stage_prefs.refresh_flags_a.get();
     scene.lights.work.marks_mask.set((flags & 2) >> 1);
-    for car in &CAR_BLOCKS.cars[..8] {
+    for car in &race.car_blocks().cars[..8] {
         car.lights_on.set(flags & 1);
     }
     scene
@@ -308,7 +306,7 @@ pub fn loadlevel_init(
         race.shared.switches.marker_object.set(marker);
     }
     // `camera_last_frame` / D4.
-    for cell in &REPLAY_WORK.camera_last_frame {
+    for cell in &race.replay_work().camera_last_frame {
         cell.set(0);
     }
     s.indent(-3);

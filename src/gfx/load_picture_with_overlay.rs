@@ -14,11 +14,10 @@
 //! 32 bits), and what its parts refuse.
 
 use crate::errors::{BadInput, Refused};
-use crate::gfx::load_picture::load_picture;
+use crate::gfx::load_picture::load_picture_with;
 use crate::gfx::picture::{Buffer, take, with_buffer};
 use crate::gfx::read_picture_file::read_picture_file;
 use crate::memory::free_list::free_list;
-use crate::strings::owner::strings;
 
 const MEMORY: u32 = 0x1D4C00 + 0xC80;
 
@@ -27,12 +26,13 @@ pub fn load_picture_with_overlay(
     path: &dyn crate::session::TextPlace,
     overlay_path: &dyn crate::session::TextPlace,
 ) -> Result<bool, Refused> {
-    let gfx = crate::gfx::owner::gfx();
+    let o = crate::owners::boundary();
+    let gfx = o.gfx;
     let pictures = &gfx.pictures;
-    if !load_picture(path)? {
+    if !load_picture_with(path, gfx, o.system)? {
         return Ok(true);
     }
-    let list = &strings().lexicon.memory.memory;
+    let list = &o.strings.lexicon.memory.memory;
     // The overlay's buffer is Rust's (`gfx::picture`), counted on the list as
     // the game's block was, given back with it.
     let free = || -> Result<(), Refused> {

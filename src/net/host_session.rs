@@ -19,7 +19,7 @@ use crate::net::lobby::{log_bytes, log_hex};
 use crate::net::owner::Net;
 use crate::net::owner::net;
 use crate::net::store::put_bytes;
-use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
+use crate::race::viewer_screen_store::{ViewerPanelBlock, texts};
 
 const OPEN_CREATE: u32 = 2; // DPOPEN_CREATE
 pub const OPEN_JOIN: u32 = 1; // DPOPEN_JOIN
@@ -35,8 +35,8 @@ pub fn open(flags: u32, name: &[u8]) -> u32 {
 pub fn posted_open_host() -> u32 {
     open(OPEN_CREATE, &net().setup().machine_name.read())
 }
-pub fn host_session(net: &Net) -> Result<bool, Refused> {
-    log_bytes(&VIEWER_PANEL.text(texts::NET_HOST), false, 2);
+pub fn host_session(net: &Net, panel: &ViewerPanelBlock) -> Result<bool, Refused> {
+    log_bytes(&panel.text(texts::NET_HOST), false, 2);
     log_bytes(&net.setup().machine_name.read(), true, 2);
     if net.vars.dplay.get() == 0 {
         return Ok(false);
@@ -58,6 +58,7 @@ pub fn host_session(net: &Net) -> Result<bool, Refused> {
     put_bytes(&desc.user, &net.setup().session_password.read());
     finish(
         net,
+        panel,
         posted_open_host,
         crate::net::create_group::create_group,
         texts::NET_HOST_COMPLETE,
@@ -69,21 +70,22 @@ pub fn host_session(net: &Net) -> Result<bool, Refused> {
 /// joined) and the text numbered `done` logged. Shared with `net::join_session`. Whether all of it worked.
 pub fn finish(
     net: &Net,
+    panel: &ViewerPanelBlock,
     posted: fn() -> u32,
-    then: fn() -> Result<bool, Refused>,
+    then: fn(&crate::net::store::NetVars) -> Result<bool, Refused>,
     done: usize,
 ) -> Result<bool, Refused> {
     let result = posted_or_called(net, posted);
-    log_bytes(&VIEWER_PANEL.text(texts::NET_OPEN), false, 2);
+    log_bytes(&panel.text(texts::NET_OPEN), false, 2);
     log_hex(result, true);
     crate::system::restore_window::restore_window();
     if result != 0 {
         return Ok(false);
     }
     net.vars.session_open.set(1);
-    if !crate::net::create_player::create_player()? || !then()? {
+    if !crate::net::create_player::create_player(net, panel)? || !then(&net.vars)? {
         return Ok(false);
     }
-    log_bytes(&VIEWER_PANEL.text(done), true, 2);
+    log_bytes(&panel.text(done), true, 2);
     Ok(true)
 }

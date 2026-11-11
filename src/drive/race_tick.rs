@@ -9,7 +9,6 @@
 //! refuse.
 
 use crate::errors::{FatalError, Refused};
-use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 
 // Converted: `rc2k_core::drive::race_ticks::{tick_runs, NO_CAR_FATAL}`.
@@ -19,7 +18,7 @@ pub fn race_tick(
     input: &crate::input::owner::Input,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    if CAR_BLOCKS.cars[0].probe_count.get() == 0 {
+    if race.car_blocks().cars[0].probe_count.get() == 0 {
         return Err(FatalError {
             code: rc2k_core::drive::race_ticks::NO_CAR_FATAL,
             message: "",

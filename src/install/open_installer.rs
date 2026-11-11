@@ -10,7 +10,6 @@
 //! Caller `install::run_installer`.
 
 use crate::errors::Refused;
-use crate::gfx::owner::gfx;
 use crate::install::installer::{components_to_pixels, copy_picture, draw_string, fatal, show};
 
 const FONT_94: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEAD;
@@ -38,8 +37,10 @@ fn read<const N: usize>(
     Ok(())
 }
 
-pub fn open_installer(install: &'static crate::install::owner::Install) -> Result<(), Refused> {
-    let gfx = gfx();
+pub fn open_installer(
+    install: &'static crate::install::owner::Install,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), Refused> {
     // The names' tables are Rust's, counted on the list as the game's blocks
     // were; the scan and cursors count names and bytes from 0.
     use crate::install::name_tables::{FILES, FOLDERS, NameTable};

@@ -69,6 +69,7 @@ use crate::menu::redefine_keys_player4_loop;
 use crate::menu::replay_items;
 use crate::menu::save_championship_loop;
 use crate::menu::save_setup_loop;
+use crate::menu::screen_loop::Entry;
 use crate::menu::simple_select_players_loop;
 use crate::menu::slideshow_loop;
 use crate::menu::stage_choice;
@@ -167,8 +168,9 @@ use rc2k_core::menu::tables::{ItemFn, ScreenFn};
 
 /// Runs item function `f` with what the item hands it (`c`).
 pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<(), Refused> {
-    let race = crate::race::owner::race();
-    let sound = crate::sound::owner::sound();
+    let o = crate::owners::boundary();
+    let race = o.race;
+    let sound = o.sound;
     match f {
         ItemFn::StepSetting { setting, up } => step_items::player_setting(menus, setting, up),
         ItemFn::Toggle(setting) => step_items::player_setting(menus, setting, true),
@@ -183,7 +185,9 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
             learn_bindings::learn_binding(u32::from(button));
             Ok(())
         }
-        ItemFn::PlayerCarSpecs(n) => player_actions::player_car_specs(menus, u32::from(n)),
+        ItemFn::PlayerCarSpecs(n) => {
+            player_actions::player_car_specs(menus, u32::from(n), &Entry::new(o))
+        }
         ItemFn::ArcadeLevel(level) => {
             arcade_levels::arcade_level(menus, &menus.play, u32::from(level))
         }
@@ -294,7 +298,9 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
         }
         ItemFn::NextAudioQuality => next_audio_quality::run(),
         ItemFn::PreviousAudioQuality => previous_audio_quality::run(),
-        ItemFn::ViewStageDetails => item_actions::view_stage_details(&menus.screens),
+        ItemFn::ViewStageDetails => {
+            item_actions::view_stage_details(&menus.screens, &Entry::new(o))
+        }
         ItemFn::ApplyScreenMode => apply_screen_mode::apply_screen_mode(&menus.screens),
         ItemFn::TogglePlayer3c => player_actions::toggle_controller_mode(menus),
         ItemFn::ReplayItemC => replay_items::replay_item_c(race),
@@ -387,8 +393,10 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
         ItemFn::NextStageRows => stage_rows::step_rows(menus, false, true),
         ItemFn::PreviousStageRowsOf90 => stage_rows::step_rows(menus, true, false),
         ItemFn::NextStageRowsOf90 => stage_rows::step_rows(menus, true, true),
-        ItemFn::RallyResults => rally_results::rally_results(menus),
-        ItemFn::ChampionshipStandings => championship_standings::championship_standings(menus),
+        ItemFn::RallyResults => rally_results::rally_results(menus, &Entry::new(o)),
+        ItemFn::ChampionshipStandings => {
+            championship_standings::championship_standings(menus, &Entry::new(o))
+        }
         ItemFn::NewSimulationIfUnlocked => item_actions::new_simulation_if_unlocked(race),
         ItemFn::NewSimulationLoop => new_simulation_loop::run(),
         ItemFn::NetworkSettingsItem => settings_loop::settings_loop(),

@@ -7,8 +7,8 @@
 
 use crate::net::lobby::{co_create, log_bytes};
 use crate::net::store::NetVars;
-use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
-pub fn create_dplay(vars: &NetVars) -> bool {
-    log_bytes(&VIEWER_PANEL.text(texts::NET_CREATE_DPLAY), true, 2);
+use crate::race::viewer_screen_store::{ViewerPanelBlock, texts};
+pub fn create_dplay(vars: &NetVars, panel: &ViewerPanelBlock) -> bool {
+    log_bytes(&panel.text(texts::NET_CREATE_DPLAY), true, 2);
     co_create(&vars.clsid_dplay, &vars.iid_dplay4a, &vars.dplay) == 0
 }

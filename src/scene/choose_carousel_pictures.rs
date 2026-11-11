@@ -13,7 +13,10 @@ use crate::scene::carousel_pictures::update;
 
 // ---- Rust version ----
 
-pub fn choose_carousel_pictures(menus: &Menus) -> Result<(), BadInput> {
+pub fn choose_carousel_pictures(
+    menus: &Menus,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), BadInput> {
     let screens = &menus.screens;
     // Converted: `rc2k_core::scene::carousel::{shows_pictures, visible_entries}`.
     use rc2k_core::scene::carousel::{shows_pictures, visible_entries};
@@ -22,6 +25,7 @@ pub fn choose_carousel_pictures(menus: &Menus) -> Result<(), BadInput> {
     }
     update(
         menus,
+        scene,
         visible_entries(
             screens.state.carousel.front.get(),
             screens.state.carousel.count.get(),

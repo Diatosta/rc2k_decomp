@@ -8,13 +8,14 @@
 
 use crate::errors::Refused;
 use crate::install::page_records::PageEntry;
-use crate::system::owner::system;
 use rc2k_core::install::pages;
 
 /// The pages from the entry `first` on.
 pub fn run_pages(
     install: &'static crate::install::owner::Install,
     strings: &'static crate::strings::owner::Strings,
+    system: &crate::system::owner::System,
+    gfx: &crate::gfx::owner::Gfx,
     first: PageEntry,
 ) -> Result<(), Refused> {
     let mut entry = first;
@@ -26,7 +27,7 @@ pub fn run_pages(
             (prev, entry) = (Some(entry), next);
             continue;
         }
-        let answer = crate::install::run_page::run_page(install, strings, list)?;
+        let answer = crate::install::run_page::run_page(install, strings, system, gfx, list)?;
         // Converted: `rc2k_core::install::pages` (`resets_highlight`, `next_entry_at`).
         if pages::resets_highlight(answer) {
             list.set_highlight(0);
@@ -36,7 +37,7 @@ pub fn run_pages(
             return Ok(());
         };
         entry = next;
-        if system().session.flags.quitting.is_set() {
+        if system.session.flags.quitting.is_set() {
             return Ok(());
         }
     }

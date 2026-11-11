@@ -9,7 +9,6 @@
 //! Caller: `drive::race_tick`. Refuses what its calls refuse.
 
 use crate::errors::Refused;
-use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use rc2k_core::drive::roaming::{roam_distance, roam_turn};
 
@@ -28,8 +27,8 @@ pub fn simple_car_step(
     let keys = race.shared.car.input_keys.get();
     { crate::drive::reset_request::reset_request(race, scene) }?;
     let distance = roam_distance(
-        CAR_BLOCKS.cars[0].throttle.get(),
-        CAR_BLOCKS.cars[0].brake.get(),
+        race.car_blocks().cars[0].throttle.get(),
+        race.car_blocks().cars[0].brake.get(),
         input.devices.keys_now.get(0x1D) != 0, // Devices.keys_now
     );
     let [x, _, z, _] = {
@@ -37,16 +36,18 @@ pub fn simple_car_step(
             0,
             keys as i32,
             distance as i32,
-            CAR_BLOCKS.cars[0].car_heading.get(),
+            race.car_blocks().cars[0].car_heading.get(),
         )
     };
-    CAR_BLOCKS.cars[0].position[0].set(CAR_BLOCKS.cars[0].position[0].get().wrapping_add(x));
-    CAR_BLOCKS.cars[0].position[2].set(CAR_BLOCKS.cars[0].position[2].get().wrapping_add(z));
-    CAR_BLOCKS.cars[0].car_heading.set(
-        CAR_BLOCKS.cars[0]
+    race.car_blocks().cars[0].position[0]
+        .set(race.car_blocks().cars[0].position[0].get().wrapping_add(x));
+    race.car_blocks().cars[0].position[2]
+        .set(race.car_blocks().cars[0].position[2].get().wrapping_add(z));
+    race.car_blocks().cars[0].car_heading.set(
+        race.car_blocks().cars[0]
             .car_heading
             .get()
-            .wrapping_add(roam_turn(CAR_BLOCKS.cars[0].steering.get())),
+            .wrapping_add(roam_turn(race.car_blocks().cars[0].steering.get())),
     );
     {
         crate::physics::wheel_surfaces::wheel_surfaces(
@@ -78,10 +79,10 @@ pub fn simple_car_step(
             .get()
             .wrapping_add(race.shared.physics_tables.ground_drop.get());
         race.course.course.place_y.set(y);
-        CAR_BLOCKS.cars[0].position[1].set(y);
+        race.car_blocks().cars[0].position[1].set(y);
     }
-    CAR_BLOCKS.cars[0].car_pitch.set(0);
-    CAR_BLOCKS.cars[0].car_roll.set(0);
+    race.car_blocks().cars[0].car_pitch.set(0);
+    race.car_blocks().cars[0].car_roll.set(0);
     crate::race::stage_prefs::get_mat_crash(&race.frame.matrices, &race.shared.car);
     Ok(())
 }

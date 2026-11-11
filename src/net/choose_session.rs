@@ -15,22 +15,27 @@ use crate::net::choose_connection::list_move;
 use crate::net::lobby::{list_key, other_key, run_frame};
 use crate::net::owner::Net;
 use crate::net::tables::with_session;
-use crate::system::owner::system;
+use crate::race::viewer_screen_store::ViewerPanelBlock;
+use crate::system::owner::System;
 use rc2k_core::net::screens::{self, ListKey};
 
 /// The sessions listed again (not posted), the highlight kept on the same one; false for
 /// a failed listing.
-fn refresh(install: &'static crate::install::owner::Install, net: &Net) -> Result<bool, Refused> {
+fn refresh(
+    install: &crate::install::owner::Install,
+    net: &Net,
+    panel: &ViewerPanelBlock,
+) -> Result<bool, Refused> {
     let listed = net.vars.sessions.get();
     if listed != 0 {
-        let instance = with_session(install.pages.choice.get(), |s| s.instance)?;
+        let instance = with_session(&net.vars, install.pages.choice.get(), |s| s.instance)?;
         net.joined()
             .joined
             .write_at(0, &instance, "the joined session")?;
     }
     let posting = net.vars.posting.get();
     net.vars.posting.set(0);
-    let found = crate::net::find_sessions::find_sessions(net)?;
+    let found = crate::net::find_sessions::find_sessions(net, panel)?;
     net.vars.posting.set(posting);
     if !found {
         return Ok(false);
@@ -41,7 +46,7 @@ fn refresh(install: &'static crate::install::owner::Install, net: &Net) -> Resul
         loop {
             let joined = net.joined().joined.read();
             // `system::same_guid`: the four dwords alike.
-            if with_session(n, |s| s.instance)? == joined {
+            if with_session(&net.vars, n, |s| s.instance)? == joined {
                 // Converted: `rc2k_core::net::screens` (`keeps_top`, `moved_top`).
                 choice = n;
                 top = if screens::keeps_top(net.vars.sessions.get()) {
@@ -68,8 +73,9 @@ fn refresh(install: &'static crate::install::owner::Install, net: &Net) -> Resul
 pub fn choose_session(
     install: &'static crate::install::owner::Install,
     net: &Net,
+    system: &System,
+    panel: &ViewerPanelBlock,
 ) -> Result<u32, Refused> {
-    let system = system();
     let now = system.session.clocks.key_ticks.get();
     install.pages.move_clock.set(now);
     install.pages.key_clock.set(now);
@@ -79,7 +85,7 @@ pub fn choose_session(
         .clock_a
         .set(crate::system::tick_count::tick_count());
     loop {
-        run_frame(crate::net::sessions_frame::sessions_frame)?;
+        run_frame(|| crate::net::sessions_frame::sessions_frame(net, install))?;
         let tick = crate::system::tick_count::tick_count();
         if (tick
             .wrapping_sub(net.edit().clock_a.get())
@@ -87,7 +93,7 @@ pub fn choose_session(
             >= 0
         {
             net.edit().clock_a.set(tick);
-            if !refresh(install, net)? {
+            if !refresh(install, net, panel)? {
                 install.pages.choice.set(0xFFFF_FFFE);
                 return Ok(install.pages.choice.get());
             }

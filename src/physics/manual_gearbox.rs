@@ -28,7 +28,7 @@ use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87::mul_div_status;
 use crate::physics::car_store::Car;
-use crate::physics::gear_store::GEAR;
+use crate::physics::gear_store::GearFigures;
 use crate::physics::gearbox::*;
 use crate::physics::higher_free_gear::higher_free_gear;
 use crate::physics::lower_free_gear::lower_free_gear;
@@ -102,6 +102,7 @@ pub fn reverse(
 fn start_line(
     car: &Car,
     tables: &PhysicsTables,
+    gear_figures: &GearFigures,
     scene: &crate::scene::owner::Scene,
 ) -> Result<Shift, Refused> {
     let drawing = &scene.drawing;
@@ -119,7 +120,10 @@ fn start_line(
         revs_speed(car, tables)?;
         drawing.scene.scratch.set(over_top(car));
         car.engine_speed.set_bits(kept);
-        if !below(drawing.scene.scratch.get(), GEAR.shift_up_point.bits()) {
+        if !below(
+            drawing.scene.scratch.get(),
+            gear_figures.shift_up_point.bits(),
+        ) {
             return Ok(Shift::Up);
         }
     }
@@ -135,16 +139,16 @@ fn start_line(
         drawing.scene.scratch.get(),
         rb,
         rc,
-        &GEAR.shift_ratio_figure,
+        &gear_figures.shift_ratio_figure,
     ) & 0x100
         == 0
     {
         return Ok(Shift::Done);
     }
     let point = if shifts::down_point_clutch(car.brake.get()) {
-        GEAR.shift_down_clutch_point.bits()
+        gear_figures.shift_down_clutch_point.bits()
     } else {
-        GEAR.shift_down_point.bits()
+        gear_figures.shift_down_point.bits()
     };
     if !below(drawing.scene.scratch.get(), point) {
         return Ok(Shift::Done);
@@ -158,12 +162,13 @@ pub fn manual_gearbox(
     car: &Car,
     tables: &PhysicsTables,
     numbers: &Numbers,
+    gear_figures: &GearFigures,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     car.gear_changed.set(0);
     let mut to = 'first: {
         if car.driver_kind.get() == 2 {
-            break 'first start_line(car, tables, scene)?;
+            break 'first start_line(car, tables, gear_figures, scene)?;
         }
         let gear = car.gear.get();
         if bit(car, gear)? || car.forced_neutral.get() != 0 {
@@ -178,7 +183,7 @@ pub fn manual_gearbox(
             return Ok(());
         }
         if car.gearbox_kind.get() != 0 {
-            break 'first start_line(car, tables, scene)?;
+            break 'first start_line(car, tables, gear_figures, scene)?;
         }
         shifts::manual_keys(tables.input_gear_up.get() != 0, || {
             tables.input_gear_down.get() != 0
@@ -193,7 +198,7 @@ pub fn manual_gearbox(
                 Shift::Done
             }
             Shift::Start => {
-                pick_start_gear(car, tables, numbers)?;
+                pick_start_gear(car, tables, numbers, gear_figures)?;
                 Shift::Done
             }
             Shift::Reverse => {
