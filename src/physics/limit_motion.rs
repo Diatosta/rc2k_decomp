@@ -13,9 +13,9 @@
 //!
 //! Callers: `physics::car_physics_step` (twice), `physics::find_clear_place`.
 
+use crate::effects::cell_x87::CellX87;
 use crate::logfile::log_float::log_float;
 use crate::math::x87_float::compare;
-use crate::math::x87_float::{ld, st};
 use crate::physics::car_store::Car;
 use crate::physics::scale_vector::scale_vector;
 use crate::physics::tables_store::PhysicsTables;
@@ -27,16 +27,16 @@ use std::cmp::Ordering;
 /// The value at `v` held to ±(the limit at `l`), as the original: `fld l; fld v;
 /// fcompp`, the limit negated in place for the second compare and put back.
 fn hold(v: &impl Cell32, l: &impl Cell32) {
-    let limit = ld(l.bits());
-    if compare(ld(v.bits()), limit) & 0x100 == 0 {
-        v.set_bits(st(limit));
+    let limit = l.ld();
+    if compare(v.ld(), limit) & 0x100 == 0 {
+        v.st(limit);
     }
-    l.set_bits(st(-ld(l.bits())));
-    let negated = ld(l.bits());
-    if compare(ld(v.bits()), negated) & 0x100 != 0 {
-        v.set_bits(st(negated));
+    l.st(-l.ld());
+    let negated = l.ld();
+    if compare(v.ld(), negated) & 0x100 != 0 {
+        v.st(negated);
     }
-    l.set_bits(st(-ld(l.bits())));
+    l.st(-l.ld());
 }
 
 /// The exact version, for `physics::car_physics_step` and `physics::find_clear_place`.
@@ -54,7 +54,7 @@ pub fn limit_motion(car: &Car, tables: &PhysicsTables, scene: &crate::scene::own
         crate::logfile::log_write::log_nul(&c"*** INFINITY", false, 1);
         crate::logfile::log_write::log_nul(&c"[car0.newxspd] =", false, 1);
         for k in 0..3usize {
-            log_float(f32::from_bits(car.velocity[k].bits()), 5, k == 2, 1);
+            log_float(car.velocity[k].get(), 5, k == 2, 1);
         }
 
         for k in 0..3usize {

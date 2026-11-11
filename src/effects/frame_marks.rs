@@ -65,9 +65,9 @@ pub fn frame_marks(race: &Race, effects: &Effects) -> Result<(), Refused> {
         let share = x87::int_over_int_times(
             end.wrapping_sub(start) as i32,
             effects.setup.frame.frame_cycles.bits() as i32,
-            FRAME_K.share_k.to_bits(),
+            FRAME_K.share_k,
         );
-        effects.setup.frame.step_share.set_bits(share.to_bits());
+        effects.setup.frame.step_share.set(share);
     }
     Ok(())
 }

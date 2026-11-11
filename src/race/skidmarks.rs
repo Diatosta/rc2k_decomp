@@ -3,6 +3,7 @@
 //! none; +6 the views it shows in, a bit each) with two points each (`skid_points`, 0xC bytes a
 //! point: x, y, z whole numbers); each link and the one before give a quad.
 
+use crate::effects::cell_x87::CellX87;
 use crate::errors::BadInput;
 use crate::errors::Refused;
 #[cfg(all(test, target_arch = "x86"))]
@@ -39,14 +40,14 @@ pub(crate) fn project_record(
 ) {
     use crate::math::x87_float::{ONE, int, ld, st};
     let (x, y, z) = (ld(v[4]), ld(v[5]), ld(v[6]));
-    let reach = ld(window.view_scale.bits());
+    let reach = window.view_scale.ld();
     let scale = if course.stage_prefs.flat_depth.get() != 0 {
         reach / (int(course.course.flat_depth.get() as i32) + ONE)
     } else {
         reach / z
     };
-    v[3] = st(x * scale + ld(window.view_centre[0].bits()));
-    v[7] = st(-(y * scale) + ld(window.view_centre[1].bits()));
+    v[3] = st(x * scale + window.view_centre[0].ld());
+    v[7] = st(-(y * scale) + window.view_centre[1].ld());
 }
 
 /// A skidmark point turned and projected: its vertex record's +0xC .. +0x20.

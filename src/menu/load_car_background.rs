@@ -29,7 +29,7 @@ pub fn shown_car(menus: &Menus) -> Result<u32, Refused> {
 /// car too, as the frame sprite's palette, which the sprite never looks at.)
 pub fn load_car_background(
     menus: &Menus,
-    load: &mut dyn FnMut(crate::pointers::GamePtr) -> Result<bool, Refused>,
+    load: &mut dyn FnMut(crate::place::BytePlace) -> Result<bool, Refused>,
 ) -> Result<(), Refused> {
     // The logic is in `rc2k_core::menu::slides::background_page`.
     let page = rc2k_core::menu::slides::background_page(menus.screens.event.car_page.get())?;

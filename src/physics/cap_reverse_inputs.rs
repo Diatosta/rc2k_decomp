@@ -30,7 +30,7 @@ pub fn cap_reverse_inputs_at(
     }
     let f = |a: &dyn Cell32| f32::from_bits(at(a));
     let zero = f32::from_bits(ZERO);
-    let cap = f32::from_bits(numbers.two.bits());
+    let cap = numbers.two.get();
     let Some(held) = cap_reverse(at(gear), f(speed), zero, [f(values[0]), f(values[1])], cap)
     else {
         return;

@@ -69,6 +69,6 @@ pub fn lever_pushes(
     physics_tables.lever_push_vector[2].set(x87::loaded(&car.probe_point_z[0]).to_bits());
     physics_tables
         .lever_share_left
-        .set_bits(one_less(physics_tables.lever_share_left.bits()).to_bits());
+        .set(one_less(physics_tables.lever_share_left.bits()));
     lever_push(car, physics_tables, numbers, scene);
 }

@@ -25,7 +25,7 @@ pub fn add_mark_slot(what: u32, matrix: u32, effects: &crate::effects::owner::Ef
             .wrapping_add(0x5D);
         blocks.slot_tuning.slot_random.set(random);
         let float =
-            bh::st(bh::int((random & 0xFFFF) as i32) + bh::ld(blocks.slot_tuning.base.bits()));
+            bh::st(bh::int((random & 0xFFFF) as i32) + bh::ld(blocks.slot_tuning.base.get()));
         slot.life.set(TIME);
         slot.point.set(what);
         slot.matrix.set(matrix);

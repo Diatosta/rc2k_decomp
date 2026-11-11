@@ -15,10 +15,10 @@
 //! Caller: `physics::car_physics_step` (0x43B905), every physics step. Refuses (before anything)
 //! what the two calls refuse.
 
+use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87::ext_to_int;
-use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
 use crate::math::x87_float::to_int;
 use crate::physics::car_sound_state::car_sound_state;
@@ -41,25 +41,24 @@ fn run(car: &Car, numbers: &Numbers) {
 /// +0x31A1F8) as a whole number; +0x31A26C the length of the motion (+0x31A170 ..) x
 /// `two_and_a_quarter`, the squares added as the original adds them (z, then x and y).
 fn run_at(car: &Car, numbers: &Numbers) {
-    car.engine_speed_scaled.set_bits(st(
-        ld(car.local_velocity[2].bits()) * ld(numbers.two_and_a_quarter.bits())
-    ));
-    let speed = ld(car.engine_speed_scaled.bits());
+    car.engine_speed_scaled
+        .st(car.local_velocity[2].ld() * numbers.two_and_a_quarter.ld());
+    let speed = car.engine_speed_scaled.ld();
     let flags = car.option_bits.get();
     let scaled = if flags & 0x100 != 0 {
-        speed * ld(numbers.kilometres_in_mile.bits())
+        speed * numbers.kilometres_in_mile.ld()
     } else {
         speed
     };
     car.engine_sound_speed_int.set_bits(to_int(scaled) as u32);
     let (z, x, y) = (
-        ld(car.velocity[2].bits()),
-        ld(car.velocity[0].bits()),
-        ld(car.velocity[1].bits()),
+        car.velocity[2].ld(),
+        car.velocity[0].ld(),
+        car.velocity[1].ld(),
     );
     let sum = z * z + (x * x + y * y);
     car.sound_speed
-        .set_bits(st(sum.sqrt() * ld(numbers.two_and_a_quarter.bits())));
+        .set_bits(st(sum.sqrt() * numbers.two_and_a_quarter.ld()));
 }
 
 // Converted: `rc2k_core::physics::engine::ease_revs` and `x87::hold_low` (the speed figures

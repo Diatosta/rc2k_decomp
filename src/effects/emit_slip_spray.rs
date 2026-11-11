@@ -169,7 +169,7 @@ pub fn emit_slip_spray_with(
             (1, x87::add(strength, &wheel.local_velocity_x))
         };
         kinds.emitter.sign.set(sign as u32);
-        kinds.emitter.strength.set_bits(strength.to_bits());
+        kinds.emitter.strength.set(strength);
         let car = emitting_car(effects)?;
         let m = car.whole()?;
         let r = next_c5(set.place_random);
@@ -207,7 +207,7 @@ pub fn emit_slip_spray_with(
             })
         })?;
         let (moved, last) = jitter_point(
-            [extended(set.spread.bits()), motion[2], motion[1], motion[0]],
+            [extended(set.spread.get()), motion[2], motion[1], motion[0]],
             effects,
         );
         let speed = wheel.local_velocity_z.bits();

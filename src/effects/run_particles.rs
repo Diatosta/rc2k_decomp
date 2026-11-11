@@ -381,7 +381,7 @@ pub fn run_particles(
             x87::int_times3_wave_plus(
                 r as i32,
                 [uv_k, k[0].bits(), k[1].bits()],
-                k[2].bits(),
+                &k[2],
                 add,
                 cosine,
             )
@@ -392,16 +392,16 @@ pub fn run_particles(
         let lift = seed();
         let up = f32::from_bits(bh::st(
             (bh::int(lift as i32) * bh::ld(uv_k)
-                + bh::ld(effects.kinds.particle_tuning.puff_y[0].bits()))
-                * bh::ld(effects.kinds.particle_tuning.puff_y[1].bits())
-                + bh::ld(effects.kinds.particle_tuning.puff_y[2].bits()),
+                + bh::ld(effects.kinds.particle_tuning.puff_y[0].get()))
+                * bh::ld(effects.kinds.particle_tuning.puff_y[1].get())
+                + bh::ld(effects.kinds.particle_tuning.puff_y[2].get()),
         ));
         let mx = x87::sub_mul(view(0x30), x, &effects.kinds.particle_tuning.puff_m[0]);
         let mz = x87::sub_mul(view(0x38), z, &effects.kinds.particle_tuning.puff_m[1]);
         for (n, v) in [x, y, z, mx, up, mz].into_iter().enumerate() {
-            particles.puff_work.puff[n].set_bits(v.to_bits());
+            particles.puff_work.puff[n].set(v);
         }
-        let six = [mz, up, mx, z, y, x].map(|v| extended(v.to_bits()));
+        let six = [mz, up, mx, z, y, x].map(extended);
         crate::effects::add_drift_particle::add_drift_particle(
             frame, particles, ring, 0, six, effects,
         )?;
@@ -724,23 +724,23 @@ impl ParticleTuning {
             burst_life: PlainFloat::new(256.0),
             dust: [
                 PlainFloat::new(-1.2),
-                PlainFloat::from_bits(0xFF800000),
+                PlainFloat::new(f32::NEG_INFINITY),
                 PlainFloat::new(-1000.0),
             ],
-            trail: [PlainFloat::new(-0.1), PlainFloat::from_bits(0xFF800000)],
+            trail: [PlainFloat::new(-0.1), PlainFloat::new(f32::NEG_INFINITY)],
             burst8: [
                 PlainFloat::new(-0.1),
                 PlainFloat::new(0.1),
                 PlainFloat::new(0.1),
                 PlainFloat::new(0.1),
-                PlainFloat::from_bits(0xFF800000),
+                PlainFloat::new(f32::NEG_INFINITY),
             ],
             burst9: [
                 PlainFloat::new(-0.1),
                 PlainFloat::new(0.1),
                 PlainFloat::new(0.1),
                 PlainFloat::new(0.1),
-                PlainFloat::from_bits(0xFF800000),
+                PlainFloat::new(f32::NEG_INFINITY),
             ],
             _gap_93c6bc: PlainBytes::new([0; 12]),
         }

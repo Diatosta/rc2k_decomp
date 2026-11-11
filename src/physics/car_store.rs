@@ -119,7 +119,7 @@ pub struct Car {
     pub engine_speed_limit: Float,
     /// +0x1e0 (0x71A1B8): a copy of the car spec's scale (`spec_scale_1b8`) written by
     /// load_car_specs; no reader.
-    pub spec_scale_copy: Dword,
+    pub spec_scale_copy: Float,
     /// +0x1e4 (0x71A1BC): revs for the sound object.
     pub engine_sound_revs: Dword,
     /// +0x1e8 (0x71A1C0): steps stuck.
@@ -430,7 +430,7 @@ pub struct Car {
     /// +0x908 (0x71A8E0): noise sample 2 scaled.
     pub surface_noise_second: Dword,
     /// +0x90c (0x71A8E4): the car's vertical velocity less the vertical speed kept from the step before (`physics::car_physics_step`); `physics::camera_frame` scales it into the camera's shake. Probable.
-    pub vertical_speed_change: Dword,
+    pub vertical_speed_change: Float,
     /// +0x910 (0x71A8E8): per-wheel whole-number value from the wheel's squeeze.
     pub wheel_spring_force: [Dword; 4],
     /// +0x920 (0x71A8F8): per ground point: surface kind of the first cell (5 wet).
@@ -439,7 +439,7 @@ pub struct Car {
     pub wheel_surface_b: [Dword; 5],
     /// +0x948 (0x71A920): per point: the surface's `wear_factor` figure blended between the two
     /// surfaces by `wheel_surface_blend`.
-    pub point_wear_factor: [Dword; 5],
+    pub point_wear_factor: [Float; 5],
     /// +0x95c (0x71A934): per point: byte +0x18 of the first cell's record.
     pub wheel_cell_a_byte18: [Dword; 5],
     /// +0x970 (0x71A948): same for the second cell.

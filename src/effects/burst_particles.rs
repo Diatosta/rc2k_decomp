@@ -103,7 +103,7 @@ pub fn burst_particles(
             let s = next_seed(effects);
             let a = s.rotate_right(16) & 0xFFF;
             let b = s & 0xFFF;
-            let radius: u32 = ring.pool.burst_radius.bits();
+            let radius = ring.pool.burst_radius.get();
             put(0x34, x87::mul(sine(a), radius).to_bits())?;
             put(
                 0x28,

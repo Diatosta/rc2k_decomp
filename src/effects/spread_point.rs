@@ -36,14 +36,7 @@ pub fn spread_point(
     let d = x87::grown(third as i32, k, d, spread);
     let c = x87::grown(second as i32, k, c, spread);
     let b = x87::grown(first as i32, k, b, spread);
-    (
-        [
-            extended(b.to_bits()),
-            extended(c.to_bits()),
-            extended(d.to_bits()),
-        ],
-        third,
-    )
+    ([extended(b), extended(c), extended(d)], third)
 }
 
 /// The spread point's random (IDA 0x923004 .. 0x923008).

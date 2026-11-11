@@ -126,11 +126,7 @@ fn save(race: &Race, slot: u32) -> Result<bool, Refused> {
             2 * block as usize,
             CAMERA_DWORDS,
         )?;
-        crate::race::checkpoints_store::cell_in(
-            &crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_places,
-            2 * block as usize,
-        )
-        .set(replay.replay_view.file_offset.get());
+        undo_place(2 * block as usize).set(replay.replay_view.file_offset.get());
         let (written, failed) = crate::race::replay::write_replay_chunk(
             &race.shared,
             crate::race::viewer_buffers_store::VIEWER_BUFFERS
@@ -141,11 +137,7 @@ fn save(race: &Race, slot: u32) -> Result<bool, Refused> {
             close();
             return Ok(false);
         }
-        crate::race::checkpoints_store::cell_in(
-            &crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_places,
-            2 * block as usize + 1,
-        )
-        .set(written);
+        undo_place(2 * block as usize + 1).set(written);
         replay
             .replay_view
             .file_offset
@@ -170,4 +162,16 @@ fn save(race: &Race, slot: u32) -> Result<bool, Refused> {
     .1;
     close();
     Ok(done)
+}
+
+/// The undo's block place `n` (`g_undoPlaces`, 0x3840 bytes: a number past it is the undo's
+/// cameras', as the original's).
+fn undo_place(n: usize) -> &'static crate::session::Dword {
+    use crate::race::viewer_buffers_store::{VIEWER_BUFFERS, ViewerBuffers};
+    crate::race::checkpoints_store::cell_in(
+        &VIEWER_BUFFERS.undo_places,
+        &*VIEWER_BUFFERS,
+        core::mem::offset_of!(ViewerBuffers, undo_places),
+        n,
+    )
 }

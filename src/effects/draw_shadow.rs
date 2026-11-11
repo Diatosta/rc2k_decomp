@@ -75,7 +75,7 @@ const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1,
 fn angle(sh: &Shadow, effects: &crate::effects::owner::Effects) -> Result<[u8; 10], Refused> {
     Ok({
         let marks = effects.settings()?;
-        let split: u32 = sh.quad.low.bits();
+        let split = sh.quad.low.get();
         let v = (sh.field)(marks).bits();
         if (split as i32) <= v as i32 {
             x87::less_times_plus_negated_80(v, split, &sh.quad.slope, &sh.quad.middle)
@@ -139,7 +139,7 @@ pub fn draw_shadow_with(
     }
     for n in 0..2 {
         for k in 0..3 {
-            q.frame[n][k].set_bits(q.sides[n][k].bits());
+            q.frame[n][k].set(q.sides[n][k].get());
         }
     }
     let [s0, s1, s2] = [0, 1, 2].map(|n| &q.frame[n]);
@@ -154,7 +154,7 @@ pub fn draw_shadow_with(
     light_turned_x87(sh, &q.matrix, &temps);
     for n in 0..3 {
         for k in 0..3 {
-            q.matrix[n + 3 * k].set_bits(q.frame[n][k].bits());
+            q.matrix[n + 3 * k].set(q.frame[n][k].get());
         }
     }
     second_turned_x87(sh, &q.matrix, &temps);
@@ -173,7 +173,7 @@ pub fn draw_shadow_with(
     }
     let entry = &effects.blocks.corners.corners[corner as usize]; // under 0x100, checked before
     let word = |off: u32| u32::from(entry.words[off as usize / 2].get());
-    let uv_k: u32 = effects.frame.draw_work.uv_k.bits();
+    let uv_k = effects.frame.draw_work.uv_k.get();
     for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
         let vertex = &VERTICES.vertices[n];
         vertex.u.set(x87::int_times(word(u) as i32, uv_k));
@@ -192,13 +192,13 @@ pub fn draw_shadow_with(
         }
     }
     projected_x87(sh);
-    let z_k: u32 = effects.frame.draw_work.z_k.bits();
+    let z_k = effects.frame.draw_work.z_k.get();
     for n in 0..4 {
         let vertex = &VERTICES.vertices[n];
-        vertex.x.set_bits(q.corners[n][0].bits());
-        vertex.y.set_bits(q.corners[n][1].bits());
+        vertex.x.set(q.corners[n][0].get());
+        vertex.y.set(q.corners[n][1].get());
         let depth = x87::sub_mul(&q.corners[n][2], sh.consts.lifts[n], z_k);
-        vertex.z.set_bits(depth.to_bits());
+        vertex.z.set(depth);
     }
     crate::effects::clip_quad::draw_fan();
     Ok(())
@@ -210,9 +210,9 @@ use crate::race::effects_settings_store::EffectsSettings;
 
 /// `light_turned`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places, on either shadow's variables.
 fn light_turned_x87(s: &Shadow, m: &[PlainFloat; 9], t: &[PlainFloat; 2]) {
-    let t0 = bh::ld(s.consts.light[0].to_bits());
-    let t1 = bh::ld(s.consts.light[1].to_bits());
-    let t2 = bh::ld(s.consts.light[2].to_bits());
+    let t0 = bh::ld(s.consts.light[0]);
+    let t1 = bh::ld(s.consts.light[1]);
+    let t2 = bh::ld(s.consts.light[2]);
     let t3 = t2 * ld_cell(&m[0]);
     let t4 = t1 * ld_cell(&m[1]);
     let t5 = t0 * ld_cell(&m[2]);

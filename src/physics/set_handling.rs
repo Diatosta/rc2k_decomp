@@ -100,7 +100,7 @@ pub fn set_handling(
     grade_or_reset(damage, numbers, shared);
     let k256: u32 = numbers.k256.bits();
     let lerp = |(out, n, hi, lo): (&Float, &Dword, &Float, &Float)| {
-        out.set_bits(int_lerp(n.get() as i32, k256, hi.bits(), lo.bits()).to_bits());
+        out.set(int_lerp(n.get() as i32, k256, hi.bits(), lo.bits()));
     };
     for v in before(&shared.car, &shared.physics_tables) {
         lerp(v);

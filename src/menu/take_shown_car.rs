@@ -28,12 +28,7 @@ pub fn take_shown_car(menus: &Menus, list: Option<CarList>) -> Result<(), Refuse
     let shown: u32 = menus.screens.event.shown_car.get();
     // The logic is in `rc2k_core::menu::player::Player::take_car`.
     {
-        let entry = menus
-            .tables
-            .lists
-            .cars(list)
-            .offset(shown.wrapping_mul(4))
-            .read::<u32>("take shown car: a game value")?;
+        let entry = menus.tables.lists.car_entry(list, shown)?;
         // The entry is a description's handle (`cars_store::car_ref`).
         let description = crate::menu::cars_store::description(entry)?.get();
         let (number, class) = (description.car, description.class);

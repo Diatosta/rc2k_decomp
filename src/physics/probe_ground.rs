@@ -27,6 +27,7 @@
 //! `race::face_hide_mask`, `physics::probe_and_keep`. Refuses (before anything: what it wrote is
 //! put back) a count above 0x40 (the lists' room), and what `find_ground` refuses on any point.
 
+use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87::less_plus_less_product_80;
@@ -150,17 +151,15 @@ fn probe_points(
         contact.ground_noise_mix[2].set(n5c);
         scratch.set(n5c);
         let bump = bh::to_int(
-            bh::int(n5c as i32)
-                * bh::ld(car.ground_bump_scale.bits())
-                * bh::ld(c.numbers.k256.bits())
-                / bh::ld(c.numbers.hundred.bits()),
+            bh::int(n5c as i32) * car.ground_bump_scale.ld() * c.numbers.k256.ld()
+                / c.numbers.hundred.ld(),
         );
         scratch.set(bump as u32);
         work.probe_ground_height[i]
             .set(work.probe_ground_height[i].get().wrapping_add(bump as u32));
         work.probe_face_flip[i].set(q.half.get());
-        work.probe_share_u[i].set(q.plane_f.bits());
-        work.probe_share_v[i].set(q.plane_g.bits());
+        work.probe_share_u[i].set(q.plane_f.get());
+        work.probe_share_v[i].set(q.plane_g.get());
         let d = work.probe_y[i]
             .get()
             .wrapping_sub(work.probe_ground_height[i].get());

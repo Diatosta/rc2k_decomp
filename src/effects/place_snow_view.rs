@@ -35,7 +35,7 @@ pub fn place_snow_view(weather: &Weather) -> Result<(), Refused> {
     }
     let z = x87::from_int(snow.point[2].get() as i32);
     for cell in &snow.filled {
-        cell.set_bits(z.to_bits());
+        cell.set(z);
     }
     Ok(())
 }

@@ -9,8 +9,8 @@
 //!
 //! Caller: `physics::update_camera`.
 
+use crate::effects::cell_x87::CellX87;
 use crate::math::x87_float::ld;
-use crate::math::x87_float::st;
 use crate::physics::camera_store::CameraWork;
 use crate::physics::car_store::Car;
 use crate::race::view_vars_store::ViewRecord;
@@ -66,17 +66,17 @@ fn copies(camera: &CameraWork) -> [&'_ dyn Cell32; 11] {
 fn x87_1(camera: &CameraWork, offset: [u32; 3], scene: &crate::scene::owner::Scene) {
     let lights = &scene.lights;
     let t0 = ld(offset[0]);
-    let t1 = ld(lights.state.camera_shake_x.bits());
+    let t1 = lights.state.camera_shake_x.ld();
     let t2 = t0 + t1;
-    camera.view_b_offset[0].set_bits(st(t2));
+    camera.view_b_offset[0].st(t2);
     let t3 = ld(offset[1]);
-    let t4 = ld(lights.state.camera_shake_y.bits());
+    let t4 = lights.state.camera_shake_y.ld();
     let t5 = t3 + t4;
-    camera.view_b_offset[1].set_bits(st(t5));
+    camera.view_b_offset[1].st(t5);
     let t6 = ld(offset[2]);
-    let t7 = ld(lights.state.camera_shake_z.bits());
+    let t7 = lights.state.camera_shake_z.ld();
     let t8 = t6 + t7;
-    camera.view_b_offset[2].set_bits(st(t8));
+    camera.view_b_offset[2].st(t8);
 }
 
 #[cfg(all(test, target_arch = "x86"))]

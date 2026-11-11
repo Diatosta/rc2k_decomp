@@ -14,7 +14,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
 use crate::menu::owner::Tables;
-use crate::pointers::GamePtr;
 use crate::screens::draw_stage_records::selection;
 use crate::screens::draw_time_trial_stage_info::GROUP_TITLES;
 use crate::screens::stage_panel::{build_second_heading, table_dword_at};
@@ -23,9 +22,8 @@ use rc2k_core::menu::items::{ITEM_LEN, MENU_HEAD_LEN};
 /// Where the original puts "item 1"'s string: worked out from the menu's labels' address, as
 /// if it were the menu's (the original's slip, `notes/bugs.md`), it lands in the memory after
 /// them.
-fn item_1_place(menus: &Menus, tables: &Tables) -> Result<Option<GamePtr>, BadInput> {
+fn item_1_place(tables: &Tables) -> Result<Option<usize>, BadInput> {
     crate::menu::menus_store::labels_slot(
-        menus,
         tables.menus.select_stage.id(),
         MENU_HEAD_LEN + ITEM_LEN + 0x14,
     )
@@ -36,7 +34,7 @@ pub fn set_stage_choice_titles(menus: &Menus) -> Result<(), Refused> {
     let s = selection(menus)?.ok_or(BadInput(
         "no stage tables for the choice: the original reads through null",
     ))?;
-    let Some(item_1) = item_1_place(menus, tables)? else {
+    let Some(item_1) = item_1_place(tables)? else {
         return Err(BadInput("the menu's first dword is no pointer").into());
     };
     build_second_heading(s.record)?;
@@ -44,7 +42,7 @@ pub fn set_stage_choice_titles(menus: &Menus) -> Result<(), Refused> {
     tables.menus.select_stage.id().items()[0]
         .string
         .set(group_title);
-    item_1.write(s.table.title()?, "a menu item's string")?;
+    crate::pointers::store_value::<u32>(&tables.menus.labels, item_1, s.table.title()?)?;
 
     Ok(())
 }

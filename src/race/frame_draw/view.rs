@@ -204,10 +204,10 @@ pub fn place_view(
     own.view_angles[1].set(first);
     zero();
     view.vars.view_x.set(place[0].get());
-    view.vars.view_place_f[0].set_bits(from_int(place[0].get() as i32).to_bits());
-    view.vars.view_place_f[1].set_bits(from_int(place[1].get() as i32).to_bits());
+    view.vars.view_place_f[0].set(from_int(place[0].get() as i32));
+    view.vars.view_place_f[1].set(from_int(place[1].get() as i32));
     view.vars.view_z.set(place[2].get());
-    view.vars.view_place_f[2].set_bits(from_int(place[2].get() as i32).to_bits());
+    view.vars.view_place_f[2].set(from_int(place[2].get() as i32));
     Ok(())
 }
 
@@ -367,7 +367,7 @@ fn rolled_angle(race: &Race, car: &crate::physics::car_store::Car) -> u32 {
         car.camera_roll.bits(),
         race.course.numbers.half.bits(),
     );
-    car.camera_roll.set_bits(roll.to_bits());
+    car.camera_roll.set(roll);
     (crate::math::x87::mul3_to_int(
         roll,
         race.course.numbers.k65536.bits(),
@@ -452,9 +452,9 @@ pub fn camera_view(
     for (k, &p) in place.iter().enumerate() {
         own.view_place[k].set(p);
     }
-    view.vars.view_place_f[0].set_bits(from_int(place[0] as i32).to_bits());
-    view.vars.view_place_f[1].set_bits(from_int(place[1] as i32).to_bits());
-    view.vars.view_place_f[2].set_bits(from_int(place[2] as i32).to_bits());
+    view.vars.view_place_f[0].set(from_int(place[0] as i32));
+    view.vars.view_place_f[1].set(from_int(place[1] as i32));
+    view.vars.view_place_f[2].set(from_int(place[2] as i32));
     crate::scene::set_view_window::set_view_window(
         race,
         scene,

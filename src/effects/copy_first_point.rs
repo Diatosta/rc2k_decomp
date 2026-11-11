@@ -8,7 +8,7 @@ use crate::effects::windscreen_drop_vars::WindscreenDrops;
 pub fn copy_first_point(drops: &WindscreenDrops, effects: &crate::effects::owner::Effects) {
     let frame = &effects.frame;
     for (n, to) in drops.tilt.point.iter().enumerate() {
-        to.set_bits(frame.kept_view.vector[n].bits());
+        to.set(frame.kept_view.vector[n].get());
     }
     drops.tilt.length.set(frame.kept_view.length.get());
 }

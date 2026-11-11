@@ -126,7 +126,7 @@ pub fn draw_snow(
                 if effects.setup.kind_floats.fading.get() != 0 {
                     fade(weather, effects);
                     let mut index = snow_light.fade_index.get();
-                    if (snow_light.dot.bits() as i32) < 0 {
+                    if snow_light.dot.get().is_sign_negative() {
                         index = 0;
                     }
                     if index >= FADES {

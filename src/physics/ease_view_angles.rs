@@ -5,6 +5,7 @@
 //!
 //! Caller: `physics::update_camera`.
 
+use crate::effects::cell_x87::CellX87;
 use crate::math::x87_float::ld;
 use crate::math::x87_float::to_int;
 use crate::physics::camera_view::{record, share_done};
@@ -41,9 +42,9 @@ pub fn ease_view_angles(
 /// record's turn rate, passed by value)
 fn x87_1(numbers: &Numbers, tables: &RaceTables, rate: u32, scene: &crate::scene::owner::Scene) {
     let t0 = ld(rate);
-    let t1 = ld(tables.view_share.bits());
+    let t1 = tables.view_share.ld();
     let t2 = t0 * t1;
-    let t3 = ld(numbers.k65536.bits());
+    let t3 = numbers.k65536.ld();
     let t4 = t2 * t3;
     scene.drawing.scene.scratch.set_bits(to_int(t4) as u32);
 }

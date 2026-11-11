@@ -201,7 +201,7 @@ pub fn share_car_state_at(
     o.records[4].under_kind.set(0);
     let zero = x87::loaded(0);
     for cell in &o.morph_floats {
-        cell.set_bits(zero.to_bits());
+        cell.set(zero);
     }
     o.morph_start.set(zero.to_bits());
     if car.contact_found.get() != 0 {

@@ -20,8 +20,7 @@ pub fn find_player_car(menus: &Menus) -> Result<(), Refused> {
     let Some(list) = menus.screens.state.carousel.list()? else {
         return Err(BadInput("no carousel entries").into());
     };
-    let entries = menus.tables.lists.cars(list);
-    let entry = |n: u32| entries.offset(4 * n).read::<u32>("a carousel entry");
+    let entry = |n: u32| menus.tables.lists.car_entry(list, n);
     if entry(0)? == u32::MAX {
         return Err(BadInput("no carousel entries").into());
     }

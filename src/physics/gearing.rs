@@ -7,6 +7,7 @@
 //! reading, not seen in a race). The exact x87 versions (`*_at`) serve the Rust callers in
 //! the gearbox.
 
+use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_float as bh;
@@ -60,11 +61,7 @@ pub fn revs_from_wheels_at(numbers: &Numbers, p: &GearPlaces<'_>) -> Result<(), 
         return Ok(());
     };
     let speed = if p.drive_kind.bits() == 1 {
-        bh::st(
-            (bh::ld(p.drive_speed.bits()) + bh::ld(p.drive_speed_b.bits()))
-                * bh::ld(numbers.half.bits())
-                / bh::ld(ratio),
-        )
+        bh::st((p.drive_speed.ld() + p.drive_speed_b.ld()) * numbers.half.ld() / bh::ld(ratio))
     } else {
         x87::div(p.drive_speed, ratio).to_bits()
     };

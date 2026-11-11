@@ -25,7 +25,7 @@ pub fn view_heading(frame: &Frame, effects: &crate::effects::owner::Effects) {
         &effects_frame.draw_frame.level,
         &effects_frame.draw_frame.other,
     ));
-    if effects_frame.draw_frame.level[0].bits() & 0x8000_0000 == 0 {
+    if !effects_frame.draw_frame.level[0].get().is_sign_negative() {
         heading = x87::two_pi_less(heading).to_bits();
     }
     effects_frame.view_vars.heading.set_bits(heading);

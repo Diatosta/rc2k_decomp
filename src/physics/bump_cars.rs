@@ -17,6 +17,7 @@
 //! Caller: `physics::corner_hits_car` (its tail). Refuses a null block (before anything)
 //! and what `place_sound_e1_other` refuses (what was written put back).
 
+use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::Car;
 use crate::physics::contact_store::ContactWork;
@@ -27,8 +28,6 @@ use crate::session::{Dword, Float};
 
 use crate::math::x87::loaded;
 use crate::math::x87_float::int;
-use crate::math::x87_float::ld;
-use crate::math::x87_float::st;
 use crate::physics::scale_vector::scale_vector;
 use crate::physics::vector_length::vector_length;
 use crate::scene::matrix3::{extended, rounded};
@@ -51,7 +50,7 @@ fn steps(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     for k in 0..3 {
-        c.contact.contact_point[k].set_bits(loaded(&c.contact.corner_turned[k]).to_bits());
+        c.contact.contact_point[k].set(loaded(&c.contact.corner_turned[k]));
     }
     let zero = ZERO;
     let note = [
@@ -112,10 +111,10 @@ pub fn bump_cars(
 /// the work car's speed less `d` (the other car's), on each axis, into the relative speed.
 fn relative_speed(car: &Car, contact: &ContactWork, d: &[Float; 3]) {
     for (k, other) in d.iter().enumerate() {
-        let t0 = ld(car.velocity[k].bits());
-        let t1 = ld(other.bits());
+        let t0 = car.velocity[k].ld();
+        let t1 = other.ld();
         let t2 = t0 - t1;
-        contact.bump_relative_speed[k].set_bits(st(t2));
+        contact.bump_relative_speed[k].st(t2);
     }
 }
 
@@ -125,22 +124,22 @@ fn relative_speed(car: &Car, contact: &ContactWork, d: &[Float; 3]) {
 /// other's (`s`): `a' = a x share_a + b x share_b`, `b' = a x share_b + b x share_a`.
 fn share_out_speeds(car: &Car, contact: &ContactWork, s: &[Float; 3]) {
     for (k, other) in s.iter().enumerate() {
-        let t0 = ld(car.velocity[k].bits());
-        let t1 = ld(contact.bump_share_b.bits());
+        let t0 = car.velocity[k].ld();
+        let t1 = contact.bump_share_b.ld();
         let t2 = t0 * t1;
-        let t3 = ld(other.bits());
-        let t4 = ld(contact.bump_share_a.bits());
+        let t3 = other.ld();
+        let t4 = contact.bump_share_a.ld();
         let t5 = t3 * t4;
         let t6 = t2 + t5;
-        let t7 = ld(car.velocity[k].bits());
-        let t8 = ld(contact.bump_share_a.bits());
+        let t7 = car.velocity[k].ld();
+        let t8 = contact.bump_share_a.ld();
         let t9 = t7 * t8;
-        let t10 = ld(other.bits());
-        let t11 = ld(contact.bump_share_b.bits());
+        let t10 = other.ld();
+        let t11 = contact.bump_share_b.ld();
         let t12 = t10 * t11;
         let t13 = t9 + t12;
-        car.velocity[k].set_bits(st(t13));
-        other.set_bits(st(t6));
+        car.velocity[k].st(t13);
+        other.st(t6);
     }
 }
 
@@ -153,11 +152,11 @@ fn push_apart(car: &Car, contact: &ContactWork, numbers: &Numbers, d: &[Dword; 3
         let t0 = int(car.position[k].bits() as i32);
         let t1 = int(other.bits() as i32);
         let t2 = t0 - t1;
-        let t3 = ld(numbers.k65536.bits());
+        let t3 = numbers.k65536.ld();
         let t4 = t2 / t3;
-        let t5 = ld(contact.bump_push_scale.bits());
+        let t5 = contact.bump_push_scale.ld();
         let t6 = t4 * t5;
-        contact.bump_push[k].set_bits(st(t6));
+        contact.bump_push[k].st(t6);
     }
 }
 
@@ -166,16 +165,16 @@ fn push_apart(car: &Car, contact: &ContactWork, numbers: &Numbers, d: &[Dword; 3
 /// the push added to the work car's speed on each axis, then taken from `d`'s.
 fn add_push(car: &Car, contact: &ContactWork, d: &[Float; 3]) {
     for k in 0..3 {
-        let t0 = ld(car.velocity[k].bits());
-        let t1 = ld(contact.bump_push[k].bits());
+        let t0 = car.velocity[k].ld();
+        let t1 = contact.bump_push[k].ld();
         let t2 = t0 + t1;
-        car.velocity[k].set_bits(st(t2));
+        car.velocity[k].st(t2);
     }
     for (k, other) in d.iter().enumerate() {
-        let t9 = ld(other.bits());
-        let t10 = ld(contact.bump_push[k].bits());
+        let t9 = other.ld();
+        let t10 = contact.bump_push[k].ld();
         let t11 = t9 - t10;
-        other.set_bits(st(t11));
+        other.st(t11);
     }
 }
 

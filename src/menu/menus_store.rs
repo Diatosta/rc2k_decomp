@@ -13,7 +13,7 @@
 
 use crate::gfx::typefaces::FontCell;
 use crate::menu::item_sprites_store::SpriteCell;
-use crate::menu::owner::{Menus, menus};
+use crate::menu::owner::menus;
 use crate::session::PlainDword;
 use rc2k_core::menu::tables::{MENUS, MenuItem as Fixed};
 
@@ -971,20 +971,15 @@ pub const START: usize = 0x747AD8;
 /// The end of the label lists (IDA 0x748280, where the first menu was).
 pub const END: usize = START + 98 * LABEL_LIST_LEN;
 
-/// The place `offset` bytes on from the labels of `menu`, bounded to the label lists;
-/// None for a menu without labels. For the original's slip of writing item 1 of the "menu"
-/// its labels would be (`notes/bugs.md`): the place lands in the labels' memory.
-pub fn labels_slot(
-    menus: &Menus,
-    menu: MenuId,
-    offset: u32,
-) -> Result<Option<crate::pointers::GamePtr>, crate::errors::BadInput> {
+/// The byte `offset` bytes on from the labels of `menu`, as an offset in the label lists
+/// (`MenuTables::labels`, whose bytes the readers and writers are bounded to); None for a menu
+/// without labels. For the original's slip of writing item 1 of the "menu" its labels would be
+/// (`notes/bugs.md`): the place lands in the labels' memory.
+pub fn labels_slot(menu: MenuId, offset: u32) -> Result<Option<usize>, crate::errors::BadInput> {
     let Some(at) = menu.labels_place()? else {
         return Ok(None);
     };
-    Ok(Some(
-        crate::pointers::GamePtr::to(&menus.tables.menus.labels).offset(at.wrapping_add(offset)),
-    ))
+    Ok(Some(at.wrapping_add(offset) as usize))
 }
 
 /// The font of the label whose font field is `at` bytes into the label lists (`screens::

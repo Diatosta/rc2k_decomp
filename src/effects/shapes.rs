@@ -121,8 +121,8 @@ mod squares {
         for n in 0..RADII as usize {
             let r = f(fl.tables.radii[n].bits());
             for (k, [x, y]) in core::circle(r, SIDES as u32, c, d).into_iter().enumerate() {
-                fl.tables.points[n][k][0].set_bits(x.to_bits());
-                fl.tables.points[n][k][1].set_bits(y.to_bits());
+                fl.tables.points[n][k][0].set(x);
+                fl.tables.points[n][k][1].set(y);
             }
         }
     }
@@ -195,11 +195,11 @@ impl<'a> Shapes<'a> {
         write_bits(self.curve, curve.map(f32::to_bits));
         let (c, d): (i32, f32) = (self.step_c.bits() as i32, f(&self.step_d));
         for n in 0..RADII as usize {
-            let r = f32::from_bits(self.radii[n].bits());
+            let r = self.radii[n].get();
             let to = self.circle(n);
             for (k, [x, y]) in core::circle(r, self.sides, c, d).into_iter().enumerate() {
-                to[3 * k].set_bits(x.to_bits());
-                to[3 * k + 1].set_bits(y.to_bits());
+                to[3 * k].set(x);
+                to[3 * k + 1].set(y);
             }
         }
         Ok(())
@@ -259,7 +259,7 @@ fn windscreen_drops_with(
             for (to, by) in scaled(drops).iter() {
                 let v: u32 = to.bits();
                 let v = if plain {
-                    let by: Vec<f32> = by.iter().map(|b| f32::from_bits(b.bits())).collect();
+                    let by: Vec<f32> = by.iter().map(|b| b.get()).collect();
                     rc2k_core::effects::shapes::scaled(f32::from_bits(v), &by).to_bits()
                 } else {
                     match by.as_slice() {

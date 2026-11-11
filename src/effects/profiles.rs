@@ -50,7 +50,7 @@ fn make_tables(paths: &Paths, effects: &crate::effects::owner::Effects) -> Resul
             let t = ida_table(paths, paths.profile_lists.ramps[k].get());
             let step = bh::st(
                 (bh::int(t[1].get() as i32) - bh::int(t[0].get() as i32))
-                    / bh::ld(frame.draw_frame.profile_steps[0].bits()),
+                    / bh::ld(frame.draw_frame.profile_steps[0].get()),
             );
             work(2, step, effects);
             let mut v = x87::from_int(t[0].get() as i32);

@@ -37,7 +37,7 @@ fn run_put(masks: &Masks, at: u32, v: u32) -> Result<(), BadInput> {
 /// The rows the edge pair's loop runs (its check: the row rounded below y1 rounded, the
 /// row counting up by `MaskConstants.ones[2]`), or `None` past `MOST_ROWS`.
 pub fn edge_rows(edge: &[u32; 6], effects: &crate::effects::owner::Effects) -> Option<u32> {
-    let one: u32 = effects.setup.mask_constants.ones[2].bits();
+    let one = effects.setup.mask_constants.ones[2].get();
     let mut row = x87::round_float(edge[0]);
     let end = x87::to_int(edge[1]);
     let mut rows = 0;
@@ -83,7 +83,7 @@ pub fn span_edges(
         let [y0, y1, xa0, xb0, xa1, xb1] = e;
         let ones: [u32; 3] = read_bits(&setup.mask_constants.ones);
         let height = x87::sub(y1, y0);
-        masks.vars.height.set_bits(height.to_bits());
+        masks.vars.height.set(height);
         let slopes = [
             x87::sub_div(xa1, xa0, height),
             x87::sub_div(xb1, xb0, height),
@@ -116,11 +116,11 @@ pub fn span_edges(
             crate::effects::masks::work_put(
                 masks,
                 to + 4,
-                bh::to_int(bh::ld(b.to_bits()) - bh::int(left)) as u32,
+                bh::to_int(bh::ld(b) - bh::int(left)) as u32,
             )?;
             to += 8;
         }
-        masks.vars.row.set_bits(row.to_bits());
+        masks.vars.row.set(row);
         write_bits(&masks.vars.xs, [xa.to_bits(), xb.to_bits()]);
     }
     Ok(to)

@@ -749,7 +749,7 @@ fn pull_toward(
         let car = entry_car(ring, e)?;
         let mut length = [0u8; 10];
         pull_length(ring, e, whole_of(car)?, &mut length);
-        if (ring.work.near.bits() as i32) < 0 {
+        if ring.work.near.get().is_sign_negative() {
             return Ok(());
         }
         pull_facing(ring, car, &length, effects);
@@ -793,7 +793,7 @@ fn boxed_kind(
         let size = entry(ring, e)?.size;
         let f = bh::to_int(
             bh::int(entry(ring, e)?.life as i32)
-                * bh::ld(effects.setup.floats.twentieth.bits())
+                * bh::ld(effects.setup.floats.twentieth.get())
                 * bh::ld(entry(ring, e)?.cell_rate),
         );
         ring.work.whole.set(f as u32);
@@ -1025,7 +1025,7 @@ fn pull_length_x87(
     let t12 = t9 + t11;
     let t13 = t7 + t12;
     let t14 = t13.sqrt();
-    let t15 = t14 - bh::ld(rk.near_less.to_bits());
+    let t15 = t14 - bh::ld(rk.near_less);
     w.near.st(t15);
     *l = bh::f80(t14);
 }
@@ -1078,14 +1078,14 @@ fn pull_strength_x87(
     rk: &RingKinds,
 ) {
     let t0 = ldi_cell(&car.pace);
-    let t1 = t0 * bh::ld(rk.near_scale.to_bits());
+    let t1 = t0 * bh::ld(rk.near_scale);
     let t2 = t1 + f.one.ld();
     let t3 = f.one.ld() / t2;
     let t4 = f.one.ld() - t3;
     w.whole.st(t4);
     let t5 = f.fixed_16_scale.ld();
     let t6 = t5 - ld(ring, e, |en| en.size_factor);
-    let t7 = bh::ld(rk.near_rate.to_bits());
+    let t7 = bh::ld(rk.near_rate);
     let t8 = t7 * w.whole.ld();
     let t9 = t6 * t8;
     let t10 = t9 * crate::math::x87_float::int(c.frame_ticks.get() as i32);

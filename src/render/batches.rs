@@ -847,7 +847,10 @@ mod tests {
             vertices: (0..corners).map(corner).collect(),
             states: std::sync::Arc::new(states),
             texture: Some(TextureNote {
-                pixels: crate::pointers::GamePtr::new(texture),
+                pixels: crate::render::TextureId {
+                    surface: texture,
+                    serial: 0,
+                },
                 len: 4,
                 width: 1,
                 height: 1,
@@ -881,7 +884,7 @@ mod tests {
             commands,
             640,
             480,
-            Some(&|t: &TextureNote| t.pixels == crate::pointers::GamePtr::new(OPAQUE)),
+            Some(&|t: &TextureNote| t.pixels.surface == OPAQUE),
         )
     }
 

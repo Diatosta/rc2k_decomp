@@ -307,14 +307,15 @@ fn blend_wheel_loads(m: &DamageModel) {
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
-    use crate::math::x87_float::{compare, ld};
+    use crate::effects::cell_x87::CellX87;
+    use crate::math::x87_float::compare;
     use crate::race::owner::race;
 
     /// The status word of the engine's speed against its limit times the factor.
     fn over_limit_status(car: &Car, m: &DamageModel) -> u16 {
         compare(
-            ld(car.engine_speed_limit.bits()) * ld(m.engine_limit_factor.bits()),
-            ld(car.engine_speed.bits()),
+            car.engine_speed_limit.ld() * m.engine_limit_factor.ld(),
+            car.engine_speed.ld(),
         )
     }
 

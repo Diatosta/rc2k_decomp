@@ -5,9 +5,8 @@
 //!
 //! Caller: `physics::update_camera`.
 
+use crate::effects::cell_x87::CellX87;
 use crate::math::x87_float::X;
-use crate::math::x87_float::ld;
-use crate::math::x87_float::st;
 use crate::math::x87_float::to_int;
 use crate::physics::camera_view::record;
 use crate::physics::car_store::Car;
@@ -46,10 +45,10 @@ pub fn camera_height_bias(
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[scratch] = [camera_distance] / [camera_bias_limit]`
 fn x87_1(view_records: &ViewAndRecords, scene: &crate::scene::owner::Scene) {
-    let t0 = ld(view_records.view_vars.camera_distance.bits());
-    let t1 = ld(view_records.view_vars.camera_bias_limit.bits());
+    let t0 = view_records.view_vars.camera_distance.ld();
+    let t1 = view_records.view_vars.camera_bias_limit.ld();
     let t2 = t0 / t1;
-    scene.drawing.scene.scratch.set_bits(st(t2));
+    scene.drawing.scene.scratch.st(t2);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -58,9 +57,9 @@ fn x87_1(view_records: &ViewAndRecords, scene: &crate::scene::owner::Scene) {
 fn x87_2(scene: &crate::scene::owner::Scene) {
     let drawing = &scene.drawing;
     let t0 = X(1.0);
-    let t1 = ld(drawing.scene.scratch.bits());
+    let t1 = drawing.scene.scratch.ld();
     let t2 = t0 - t1;
-    drawing.scene.scratch.set_bits(st(t2));
+    drawing.scene.scratch.st(t2);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -68,10 +67,10 @@ fn x87_2(scene: &crate::scene::owner::Scene) {
 /// `int [scratch] = ([scratch] * [k65536]) * [camera_bias_scale]`
 fn x87_3(numbers: &Numbers, view_and_records: &ViewAndRecords, scene: &crate::scene::owner::Scene) {
     let drawing = &scene.drawing;
-    let t0 = ld(drawing.scene.scratch.bits());
-    let t1 = ld(numbers.k65536.bits());
+    let t0 = drawing.scene.scratch.ld();
+    let t1 = numbers.k65536.ld();
     let t2 = t0 * t1;
-    let t3 = ld(view_and_records.view_vars.camera_bias_scale.bits());
+    let t3 = view_and_records.view_vars.camera_bias_scale.ld();
     let t4 = t2 * t3;
     drawing.scene.scratch.set_bits(to_int(t4) as u32);
 }

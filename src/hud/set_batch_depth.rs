@@ -14,9 +14,9 @@ pub fn set_batch_depth(hud: &Hud) {
         let depth = x87::loaded(&hud.block.depth);
         for n in 0..4 {
             let v = &VERTICES.vertices[n];
-            v.rhw.set_bits(rhw.to_bits());
+            v.rhw.set(rhw);
             v.specular.set(0);
-            v.z.set_bits(depth.to_bits());
+            v.z.set(depth);
         }
     }
 }

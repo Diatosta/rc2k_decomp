@@ -13,7 +13,6 @@
 //! without its block).
 
 use crate::errors::{BadInput, Refused};
-use crate::pointers::GamePtr;
 
 /// What `scene::draw_scene_object` would refuse for `object`: in a race (`g_inRace`) a car
 /// (0x50 ..) without its block.
@@ -33,16 +32,11 @@ fn check_object(race: &crate::race::owner::Race, object: u32) -> Result<(), Refu
 /// original's entries lay in the buffers block, read on past the entry).
 #[derive(Clone, Copy)]
 pub enum Description<'a> {
-    At(GamePtr),
+    /// The material record of an object kind (and what follows it in the tables).
+    Material(u32),
     Cells(&'a [crate::session::Dword]),
     /// A matrix's floats, read as the bytes they are.
     Floats(&'a [crate::session::Float]),
-}
-
-impl From<GamePtr> for Description<'_> {
-    fn from(at: GamePtr) -> Self {
-        Description::At(at)
-    }
 }
 
 impl Description<'_> {
@@ -62,7 +56,11 @@ impl Description<'_> {
     /// The description's first `len` bytes.
     pub fn read_bytes(&self, len: usize) -> Result<Vec<u8>, BadInput> {
         match self {
-            Description::At(at) => at.read_bytes(len, "a described object"),
+            Description::Material(kind) => {
+                let mut bytes = vec![0; len];
+                crate::scene::polygon::material_run(*kind, 0, &mut bytes)?;
+                Ok(bytes)
+            }
             Description::Cells(cells) => Self::from_words(
                 cells.iter().map(crate::session::Dword::get),
                 len,
@@ -201,11 +199,13 @@ fn draw_description(
     ctx.view.light.light_kind.set(2u32);
     let object: u32 = ctx.view.cars.object_number.get();
     let kind: u32 = scene.objects.tables.object_kind(object);
-    let record = crate::scene::polygon::materials_ptr().offset(kind.wrapping_mul(0x80));
-    if record.offset(0x1F).read::<u8>("an object's material")? != 0 {
+    if crate::scene::polygon::material_run_byte(kind, 0x1F)? != 0 {
         ctx.view.light.light_kind.set(1u32);
     }
-    crate::scene::draw_scene_object::draw_scene_object_in_game(ctx, Some(record.into()))?;
+    crate::scene::draw_scene_object::draw_scene_object_in_game(
+        ctx,
+        Some(Description::Material(kind)),
+    )?;
     end();
     Ok(())
 }

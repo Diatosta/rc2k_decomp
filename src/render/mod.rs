@@ -24,11 +24,20 @@ use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
 /// Direct3D's render states a command carries.
 pub const STATES: usize = 0x40;
 
-/// A texture's first level as noted: its memory and how it is laid out.
+/// A texture level of the Direct3D layer (`platform_3d`): the number of its surface and a
+/// serial no other level, past or present, has. A level let go and made again under the same
+/// surface number is another id, so what a cache holds under the old one is never taken for it.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct TextureId {
+    pub surface: u32,
+    pub serial: u32,
+}
+
+/// A texture's first level as noted: which it is and how it is laid out.
 #[derive(Clone, Copy)]
 pub struct TextureNote {
-    /// The pixels' place, bounded to their `len` bytes (also the texture's identity).
-    pub pixels: crate::pointers::GamePtr,
+    /// The level, whose `len` bytes `platform_3d::level_bytes` hands out.
+    pub pixels: TextureId,
     pub len: usize,
     pub width: usize,
     pub height: usize,
@@ -163,17 +172,17 @@ pub fn show_on_panel(
 
 // ---- textures' changes ----
 
-/// The textures changed since a GPU last asked, by their memory's address.
+/// The textures changed since a GPU last asked, by their ids.
 #[derive(Default)]
 pub(crate) struct TextureChanges {
     /// Written: what a GPU holds of them is to be brought up again.
-    pub written: HashSet<crate::pointers::GamePtr>,
+    pub written: HashSet<TextureId>,
     /// Gone (their memory given back): what a GPU holds of them is to be let go.
-    pub gone: HashSet<crate::pointers::GamePtr>,
+    pub gone: HashSet<TextureId>,
 }
 
 impl TextureChanges {
-    fn note(&mut self, pixels: crate::pointers::GamePtr, gone: bool) {
+    fn note(&mut self, pixels: TextureId, gone: bool) {
         if gone {
             self.written.remove(&pixels);
             self.gone.insert(pixels);
@@ -194,7 +203,7 @@ pub(crate) fn gpu_started() {
     GPU_STARTED.store(true, Relaxed);
 }
 
-fn note_texture_change(pixels: crate::pointers::GamePtr, gone: bool) {
+fn note_texture_change(pixels: TextureId, gone: bool) {
     if GPU_STARTED.load(Relaxed) {
         CHANGED_TEXTURES
             .lock()
@@ -204,13 +213,13 @@ fn note_texture_change(pixels: crate::pointers::GamePtr, gone: bool) {
     }
 }
 
-/// The texture at `pixels` is being written.
-pub fn texture_written(pixels: crate::pointers::GamePtr) {
+/// The texture `pixels` is being written.
+pub fn texture_written(pixels: TextureId) {
     note_texture_change(pixels, false);
 }
 
-/// The texture at `pixels` is gone: its memory has been given back.
-pub fn texture_gone(pixels: crate::pointers::GamePtr) {
+/// The texture `pixels` is gone: its memory has been given back.
+pub fn texture_gone(pixels: TextureId) {
     note_texture_change(pixels, true);
 }
 
@@ -218,10 +227,22 @@ pub(crate) fn take_changed_textures() -> TextureChanges {
     CHANGED_TEXTURES.lock().unwrap().take().unwrap_or_default()
 }
 
+/// A noted texture's bytes (`note.len` of them). A level that is gone while a fan still names it
+/// ends the program.
+pub(crate) fn noted_bytes<'a>(note: &TextureNote) -> &'a [u8] {
+    // SAFETY: as the rasteriser's read: a noted texture is not written while it is drawn from
+    // (locking it flushes the noted fans first).
+    unsafe { crate::platform_3d::level_bytes(note.pixels) }.unwrap_or_else(|| {
+        crate::fatal::raise::end(
+            "a texture's pixels",
+            crate::errors::BadInput("a noted texture's level is gone"),
+        )
+    })
+}
+
 /// A texture's pixels as bytes of 0xAARRGGBB, its rows without gaps.
 pub(crate) fn texture_as_bgra(note: &TextureNote) -> Vec<u8> {
-    // SAFETY: as the rasteriser's read: a noted texture is not written while it is drawn from.
-    let pixels = unsafe { note.pixels.slice(note.len, "a texture's pixels") };
+    let pixels = noted_bytes(note);
     let mut out = Vec::with_capacity(note.width * note.height * 4);
     for y in 0..note.height {
         for x in 0..note.width {
@@ -329,24 +350,38 @@ pub static GL_SHOW_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::Ato
 
 #[cfg(test)]
 mod tests {
-    use super::TextureChanges;
+    use super::{TextureChanges, TextureId};
 
     #[test]
     fn a_texture_gone_is_not_also_written() {
-        let p = crate::pointers::GamePtr::new;
+        let p = |surface: u32| TextureId { surface, serial: 0 };
         let mut changes = TextureChanges::default();
-        changes.note(p(0x100), false);
-        changes.note(p(0x100), false);
-        changes.note(p(0x200), false);
-        changes.note(p(0x200), true);
-        // Gone, then made again at the same address and written: still to be let go.
-        changes.note(p(0x300), true);
-        changes.note(p(0x300), false);
-        let mut written: Vec<_> = changes.written.iter().map(|t| t.addr()).collect();
-        let mut gone: Vec<_> = changes.gone.iter().map(|t| t.addr()).collect();
+        changes.note(p(1), false);
+        changes.note(p(1), false);
+        changes.note(p(2), false);
+        changes.note(p(2), true);
+        // Gone, then written again under the same id: still to be let go.
+        changes.note(p(3), true);
+        changes.note(p(3), false);
+        let mut written: Vec<_> = changes.written.iter().map(|t| t.surface).collect();
+        let mut gone: Vec<_> = changes.gone.iter().map(|t| t.surface).collect();
         written.sort();
         gone.sort();
-        assert_eq!(written, [0x100]);
-        assert_eq!(gone, [0x200, 0x300]);
+        assert_eq!(written, [1]);
+        assert_eq!(gone, [2, 3]);
+    }
+
+    #[test]
+    fn a_level_made_again_under_a_surface_is_another_id() {
+        let first = crate::platform_3d::test_level(vec![1; 4]);
+        let second = TextureId {
+            serial: first.serial.wrapping_add(1_000_000),
+            ..first
+        };
+        // SAFETY: nothing writes the test level.
+        unsafe {
+            assert_eq!(crate::platform_3d::level_bytes(first), Some(&[1u8; 4][..]));
+            assert_eq!(crate::platform_3d::level_bytes(second), None);
+        }
     }
 }

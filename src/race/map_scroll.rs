@@ -8,7 +8,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::net::owner::net;
 use crate::physics::car_store::Car;
-use crate::race::checkpoints_store::CHECKPOINTS;
 use crate::race::owner::Race;
 
 /// `race::map_tiles` (0x45B663): the map picture's slot `KindTextureTables.kind_first_textures[198]` (+ `g_currentCar` unless
@@ -71,8 +70,8 @@ pub fn scroll_map(
     let [corner_x, corner_y] = &car.map_corner;
     let [map_x, map_y] = &car.map_place;
     let n = car.checkpoint.get();
-    map_x.set(crate::race::checkpoints_store::cell_in(&CHECKPOINTS.map_x, n as usize).get());
-    map_y.set(crate::race::checkpoints_store::cell_in(&CHECKPOINTS.map_y, n as usize).get());
+    map_x.set(crate::race::checkpoints_store::map_x(n as usize).get());
+    map_y.set(crate::race::checkpoints_store::map_y(n as usize).get());
     let face = crate::race::checkpoints_store::face(n as usize).get();
     let point = crate::race::course_places::face_number(&race.course, face)?.point(0);
     let px = crate::race::scene_points::point_word(&race.course, point, 0)?;

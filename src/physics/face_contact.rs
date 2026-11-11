@@ -21,12 +21,11 @@
 //! (but for an unloaded slot's, `contacts::UNSET_KIND`: stage 22 has such a face),
 //! and what its calls refuse.
 
+use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
 use crate::math::x87::compare_80;
 use crate::math::x87::int_hypot;
 use crate::math::x87_float::int;
-use crate::math::x87_float::ld;
-use crate::math::x87_float::st;
 use crate::math::x87_float::to_int;
 use crate::physics::car_store::Car;
 use crate::physics::contact_force::contact_force;
@@ -186,9 +185,9 @@ fn x87_1(contact: &ContactWork, numbers: &Numbers) {
     let t0 = int(contact.object_point_offset[0].bits() as i32);
     let t1 = int(contact.object_point_offset[2].bits() as i32);
     let t2 = t0.atan2(t1);
-    let t3 = ld(numbers.k256.bits());
+    let t3 = numbers.k256.ld();
     let t4 = t2 * t3;
-    let t5 = ld(numbers.one_over_two_pi.bits());
+    let t5 = numbers.one_over_two_pi.ld();
     let t6 = t4 * t5;
     contact.face_angle.set_bits(to_int(t6) as u32);
 }
@@ -200,30 +199,30 @@ fn x87_1(contact: &ContactWork, numbers: &Numbers) {
 /// `[rc + 0x2D3B5C] = int [rc + 0x2D3094] / [k65536]`
 /// `[rc + 0x2D3B60] = int [rc + 0x2D3098] / [k65536]`
 fn x87_2(contact: &ContactWork, car: &Car, numbers: &Numbers) {
-    let t0 = ld(car.velocity[0].bits());
+    let t0 = car.velocity[0].ld();
     let t1 = t0 * t0;
-    let t2 = ld(car.velocity[2].bits());
+    let t2 = car.velocity[2].ld();
     let t3 = t2 * t2;
-    let t4 = ld(car.velocity[1].bits());
+    let t4 = car.velocity[1].ld();
     let t5 = t4 * t4;
     let t6 = t3 + t5;
     let t7 = t1 + t6;
     let t8 = t7.sqrt();
-    let t9 = ld(numbers.k65536.bits());
+    let t9 = numbers.k65536.ld();
     let t10 = t8 * t9;
     contact.face_speed.set_bits(to_int(t10) as u32);
     let t11 = int(contact.contact_point[0].bits() as i32);
-    let t12 = ld(numbers.k65536.bits());
+    let t12 = numbers.k65536.ld();
     let t13 = t11 / t12;
-    contact.object_point_turned[0].set_bits(st(t13));
+    contact.object_point_turned[0].st(t13);
     let t14 = int(contact.contact_point[1].bits() as i32);
-    let t15 = ld(numbers.k65536.bits());
+    let t15 = numbers.k65536.ld();
     let t16 = t14 / t15;
-    contact.object_point_turned[1].set_bits(st(t16));
+    contact.object_point_turned[1].st(t16);
     let t17 = int(contact.contact_point[2].bits() as i32);
-    let t18 = ld(numbers.k65536.bits());
+    let t18 = numbers.k65536.ld();
     let t19 = t17 / t18;
-    contact.object_point_turned[2].set_bits(st(t19));
+    contact.object_point_turned[2].st(t19);
 }
 
 #[cfg(all(test, target_arch = "x86"))]

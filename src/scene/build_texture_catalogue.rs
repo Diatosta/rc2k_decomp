@@ -87,9 +87,13 @@ fn run(
             }
             Step::Count(index) => {
                 let counter = crate::scene::texture_places_store::cell_at(
-                    &textures.places.counters[0],
+                    &textures.places,
+                    core::mem::offset_of!(
+                        crate::scene::texture_places_store::TexturePlaces,
+                        counters
+                    ),
                     index,
-                );
+                )?;
                 counter.set(counter.get().wrapping_add(1));
             }
             Step::Try => {

@@ -5,6 +5,7 @@
 //! (`race::read_stage_car_numbers`: per stage, three-digit numbers into `stage_numbers`). Here the
 //! steps.
 
+use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_float as bh;
 use crate::net::owner::net;
@@ -394,10 +395,7 @@ pub fn set_car_times(race: &Race, scene: &crate::scene::owner::Scene) -> Result<
         use rc2k_core::race::stage::{difficulty, rally_of, timed_kind};
         let kind = timed_kind(race.shared.vars.race_car_kinds[0].get() as i32);
         let factor = crate::math::x87::loaded(&race.shared.tables.kind_time_factors[kind as usize]);
-        race.physics
-            .split_tables
-            .kind_factor
-            .set_bits(factor.to_bits());
+        race.physics.split_tables.kind_factor.set(factor);
         let Some(rally) = rally_of(stage) else {
             return Ok(());
         };
@@ -417,8 +415,7 @@ pub fn set_car_times(race: &Race, scene: &crate::scene::owner::Scene) -> Result<
         scene.drawing.scene.scratch.set(percentage);
         let total: i32 = race.physics.split_tables.stage_car_total.get() as i32;
         let extra = bh::to_int(
-            bh::int(percentage as i32) * bh::int(total)
-                / bh::ld(race.course.numbers.hundred.bits()),
+            bh::int(percentage as i32) * bh::int(total) / race.course.numbers.hundred.ld(),
         );
         race.physics.split_tables.extra_time.set(extra as u32);
         text(w(3), false);

@@ -47,9 +47,9 @@ pub fn drift_offsets(race: &Race, weather: &Weather, effects: &crate::effects::o
             r.drift_halves[2].set((s >> 16) << 8);
         }
         for (n, at) in [0, 2].into_iter().enumerate() {
-            let pace = x87::ease(&r.drift_target[at], &r.drift_pace[at], k.ease[n].to_bits());
-            r.drift_pace[at].set_bits(pace.to_bits());
-            let offset = bh::to_int(bh::int(r.view[at].get() as i32) + bh::ld(pace.to_bits()));
+            let pace = x87::ease(&r.drift_target[at], &r.drift_pace[at], k.ease[n]);
+            r.drift_pace[at].set(pace);
+            let offset = bh::to_int(bh::int(r.view[at].get() as i32) + bh::ld(pace));
             r.view[at].set(offset as u32);
         }
     }

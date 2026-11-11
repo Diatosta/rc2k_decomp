@@ -443,9 +443,13 @@ pub fn draw_race_scene(
         if texture != u32::MAX {
             let slot = scene.textures.kinds.kind_first_slots[220 + k].get();
             crate::scene::texture_places_store::cell_at(
-                &scene.textures.places.slot_wanted[0],
+                &scene.textures.places,
+                core::mem::offset_of!(
+                    crate::scene::texture_places_store::TexturePlaces,
+                    slot_wanted
+                ),
                 slot,
-            )
+            )?
             .set(texture.wrapping_add(scene.textures.kinds.kind_first_textures[220].get()));
         }
     }

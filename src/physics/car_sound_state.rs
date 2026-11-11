@@ -15,10 +15,10 @@
 //! Caller: `physics::engine_sound`. Refuses (before anything) a null sound object, or a
 //! null view block when it is read.
 
+use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::{ext_times, ints_diff_80};
-use crate::math::x87_float::ld;
-use crate::math::x87_float::{X, st};
+use crate::math::x87_float::X;
 use crate::physics::car_store::Car;
 use crate::race::matrices_store::SceneMatrices;
 use crate::race::numbers_store::Numbers;
@@ -109,12 +109,12 @@ pub fn car_sound_state(
 /// `[sound_slip_share] = [slip_speed] / [sound_speed_scale]`
 /// `[sound_level] = 1`
 fn x87_1(shared: &RaceShared) {
-    let t0 = ld(shared.car.slip_speed.bits());
-    let t1 = ld(shared.physics_tables.sound_speed_scale.bits());
+    let t0 = shared.car.slip_speed.ld();
+    let t1 = shared.physics_tables.sound_speed_scale.ld();
     let t2 = t0 / t1;
-    shared.car.sound_slip_share.set_bits(st(t2));
+    shared.car.sound_slip_share.st(t2);
     let t3 = X(1.0);
-    shared.car.sound_level.set_bits(st(t3));
+    shared.car.sound_level.st(t3);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -132,23 +132,23 @@ fn x87_1(shared: &RaceShared) {
 /// `[o + 0x6C] = [sound_speed]`
 /// `[o + 0x80] = [sound_speed]`
 fn x87_2(numbers: &Numbers, car: &Car, o: &crate::sound::store::SoundObject) {
-    let t0 = ld(car.sound_level.bits());
-    o.voices[0].share_b.set_bits(st(t0));
-    o.voices[1].share_b.set_bits(st(t0));
-    o.voices[2].share_b.set_bits(st(t0));
-    o.voices[3].share_b.set_bits(st(t0));
-    let t1 = ld(car.sound_slip_share.bits());
-    let t2 = ld(numbers.k256.bits());
+    let t0 = car.sound_level.ld();
+    o.voices[0].share_b.st(t0);
+    o.voices[1].share_b.st(t0);
+    o.voices[2].share_b.st(t0);
+    o.voices[3].share_b.st(t0);
+    let t1 = car.sound_slip_share.ld();
+    let t2 = numbers.k256.ld();
     let t3 = t1 * t2;
-    o.voices[0].share_c.set_bits(st(t3));
-    o.voices[1].share_c.set_bits(st(t3));
-    o.voices[2].share_c.set_bits(st(t3));
-    o.voices[3].share_c.set_bits(st(t3));
-    let t4 = ld(car.sound_speed.bits());
-    o.voices[0].share_a.set_bits(st(t4));
-    o.voices[1].share_a.set_bits(st(t4));
-    o.voices[2].share_a.set_bits(st(t4));
-    o.voices[3].share_a.set_bits(st(t4));
+    o.voices[0].share_c.st(t3);
+    o.voices[1].share_c.st(t3);
+    o.voices[2].share_c.st(t3);
+    o.voices[3].share_c.st(t3);
+    let t4 = car.sound_speed.ld();
+    o.voices[0].share_a.st(t4);
+    o.voices[1].share_a.st(t4);
+    o.voices[2].share_a.st(t4);
+    o.voices[3].share_a.st(t4);
 }
 
 #[cfg(all(test, target_arch = "x86"))]

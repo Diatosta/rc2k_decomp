@@ -69,7 +69,7 @@ pub fn windscreen_flakes_frame(
     frame_place(drops, m);
     normalise(&drops.hex.place);
     frame_facing(drops, fl);
-    if drops.state.facing.bits() & 0x8000_0000 == 0 {
+    if !drops.state.facing.get().is_sign_negative() {
         return Ok(());
     }
     crate::effects::run_pong::run_pong(frame, pong, fl, scene, effects)?;

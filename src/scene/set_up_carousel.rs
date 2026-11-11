@@ -158,11 +158,7 @@ fn reading<R>(
 }
 
 fn list_entry(tables: &Tables, list: CarList, n: usize) -> Result<u32, BadInput> {
-    tables
-        .lists
-        .cars(list)
-        .offset(4 * n as u32)
-        .read("a list of cars")
+    tables.lists.car_entry(list, n as u32)
 }
 
 /// The checks of a list of cars, before anything is written (see
@@ -263,12 +259,7 @@ pub fn set_up_carousel(list: Option<CarList>) -> Result<(), Refused> {
                 })?;
                 if count == 1 {
                     let first = list_entry(&menus.tables, list, 0)?;
-                    menus
-                        .tables
-                        .lists
-                        .cars(list)
-                        .offset(4)
-                        .write(first, "a list of cars")?;
+                    menus.tables.lists.set_car_entry(list, 1, first)?;
                 }
                 cars(menus, list, 0xC)?;
             }

@@ -5,6 +5,7 @@
 //!
 //! Caller: `physics::drive_wheels_step` (0x43E523).
 
+use crate::effects::cell_x87::CellX87;
 use crate::math::x87;
 use crate::math::x87::abs_compare;
 use crate::math::x87_float as bh;
@@ -35,8 +36,8 @@ pub fn ease_low_speed_forces_at(
     put(
         factor,
         bh::st(
-            (bh::ld(at(speed)).abs() / bh::ld(limit) + bh::ld(tables.low_speed_add.bits()))
-                * bh::ld(tables.low_speed_scale.bits()),
+            (bh::ld(at(speed)).abs() / bh::ld(limit) + tables.low_speed_add.ld())
+                * tables.low_speed_scale.ld(),
         ),
     );
     for f in forces {

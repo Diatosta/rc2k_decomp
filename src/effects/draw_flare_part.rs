@@ -57,7 +57,7 @@ pub fn draw_flare_part(
         }
         let entry = &effects.blocks.corners.corners[corner as usize];
         let word = |off: u32| u32::from(entry.words[off as usize / 2].get());
-        let uv_k: u32 = effects.frame.draw_work.uv_k.bits();
+        let uv_k = effects.frame.draw_work.uv_k.get();
         for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
             let vertex = &VERTICES.vertices[n];
             vertex.u.set(x87::int_times(word(u) as i32, uv_k));
@@ -71,13 +71,13 @@ pub fn draw_flare_part(
         let ratio = x87::int_ratio(along as i32, across as i32);
         let width = x87::from_int(size as i32);
         let height = x87::int_times(size as i32, ratio);
-        effects.frame.draw_work.half[0].set_bits(width.to_bits());
-        effects.frame.draw_work.half[1].set_bits(height.to_bits());
+        effects.frame.draw_work.half[0].set(width);
+        effects.frame.draw_work.half[1].set(height);
         let turn = angle >> 20;
         let sw = x87::mul(width, &effects.frame.draw_work.sides[0]);
         let sh = x87::mul(height, &effects.frame.draw_work.sides[1]);
-        effects.frame.draw_work.sides[0].set_bits(sw.to_bits());
-        effects.frame.draw_work.sides[1].set_bits(sh.to_bits());
+        effects.frame.draw_work.sides[0].set(sw);
+        effects.frame.draw_work.sides[1].set(sh);
         let corners = [
             (x87::sub(0, sw), x87::sub(0, sh)),
             (x87::sub(width, sw), x87::sub(0, sh)),
@@ -90,9 +90,9 @@ pub fn draw_flare_part(
         for (n, (x, y)) in corners.into_iter().enumerate() {
             let vertex = &VERTICES.vertices[n];
             let [tx, ty] = x87::turn_about(x, y, sin, cos, cx, cy);
-            vertex.x.set_bits(tx.to_bits());
-            vertex.y.set_bits(ty.to_bits());
-            vertex.z.set_bits(depth.to_bits());
+            vertex.x.set(tx);
+            vertex.y.set(ty);
+            vertex.z.set(depth);
         }
         effects
             .frame

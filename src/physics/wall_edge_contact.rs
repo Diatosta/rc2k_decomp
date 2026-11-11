@@ -12,11 +12,12 @@
 //! Caller: `physics::wall_contacts`. Refuses a probe point past 0x3F on the edge path (the
 //! tables' room), and what its calls refuse (what was written put back).
 
+use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
 use crate::math::rotate_float_point_about_y::rotate_float_point_about_y;
 use crate::math::x87::mul;
+use crate::math::x87_float::int;
 use crate::math::x87_float::to_int;
-use crate::math::x87_float::{int, ld};
 use crate::physics::contact_force::contact_force;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::flow::{ZERO_BITS as ZERO, copy_cells};
@@ -93,8 +94,7 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
     c.contact.contact_point[0].set_bits(c.contact.probe_turned_x[n].bits());
     c.contact.contact_point[1].set_bits(c.contact.probe_turned_y[n].bits());
     c.contact.contact_point[2].set_bits(c.contact.probe_turned_z[n].bits());
-    c.contact.contact_point[1]
-        .set_bits(mul(&c.contact.contact_point[1], &c.numbers.tenth).to_bits());
+    c.contact.contact_point[1].set(mul(&c.contact.contact_point[1], &c.numbers.tenth));
     c.contact.contact_slide_limit.set_bits(0);
     contact_force(
         c.contact,
@@ -117,9 +117,9 @@ fn x87_1(numbers: &Numbers, d: [u32; 2], scene: &crate::scene::owner::Scene) {
     let t0 = int(d[0] as i32);
     let t1 = int(d[1] as i32);
     let t2 = t0.atan2(t1);
-    let t3 = ld(numbers.one_over_two_pi.bits());
+    let t3 = numbers.one_over_two_pi.ld();
     let t4 = t2 * t3;
-    let t5 = ld(numbers.k65536.bits());
+    let t5 = numbers.k65536.ld();
     let t6 = t4 * t5;
     scene.drawing.scene.scratch.set_bits(to_int(t6) as u32);
 }

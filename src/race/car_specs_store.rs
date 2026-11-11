@@ -23,11 +23,11 @@ pub struct CarSpec {
     /// +0x20: copied to `PhysicsTables.unused_spec_20` (`unused_spec_20`) by `physics::load_car_specs`; nothing reads that copy (IDA: one write at 0x421692, no reader), so the figure is unused.
     pub unused_20: Dword,
     /// +0x24: copied to the physics `grip_scale`, the factor `physics::drive_grip_forces` multiplies the driving grip force by.
-    pub grip_scale: Dword,
+    pub grip_scale: Float,
     /// +0x28: copied to the physics `side_grip_scale`, the factor `physics::drive_grip_forces` multiplies the sideways grip force by.
-    pub side_grip_scale: Dword,
+    pub side_grip_scale: Float,
     /// +0x2C .. +0x34: copied to the physics `spec_surface` 0, 1, 2 (+0x2C, +0x30, +0x34).
-    pub surface: [Dword; 3],
+    pub surface: [Float; 3],
     /// +0x38, +0x3C: two figures times `PhysicsTables.gravity` into `PhysicsTables.spec_drive[0]`, `PhysicsTables.spec_drive[1]`.
     pub weights: [Float; 2],
     /// +0x40: three whole figures x 65536 / `Numbers.thousand` into `PhysicsTables.spec_ints[0]` .. (kinds

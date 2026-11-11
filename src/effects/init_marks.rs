@@ -63,7 +63,7 @@ pub fn init_marks(
         }
         setup::tick_clock(&race.shared, effects)?;
         effects.setup.frame.steps.set_bits(0u32);
-        let less: u32 = effects.setup.floats.one.bits();
+        let less = effects.setup.floats.one.get();
         for (n, side) in [&system.session.screen.width, &system.session.screen.height]
             .into_iter()
             .enumerate()

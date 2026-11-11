@@ -565,10 +565,6 @@ impl GamePtr {
         }
     }
 
-    pub const fn is_null(self) -> bool {
-        self.at == 0
-    }
-
     pub const fn addr(self) -> u32 {
         self.at
     }
@@ -607,22 +603,6 @@ impl GamePtr {
             len: end.saturating_sub(self.at) as usize,
             backing: backing_of(first),
         })
-    }
-
-    /// `len` bytes from the address as a slice, when all of them lie in one region; else the
-    /// program ends naming the address.
-    ///
-    /// # Safety
-    /// Nothing may write the bytes while the slice lives (the game's memory is shared).
-    #[track_caller]
-    pub unsafe fn slice<'a>(self, len: usize, what: &str) -> &'a [u8] {
-        let backing = self
-            .check(len, what)
-            .unwrap_or_else(|e| crate::fatal::raise::end(what, e));
-        note_by_address(self.at, backing, len, false);
-        // SAFETY: the bytes lie in one live region (checked above); unwritten meanwhile
-        // (the caller's promise).
-        unsafe { std::slice::from_raw_parts(place_of(self.at, backing), len) }
     }
 
     /// The `T` at the address (unaligned, as the game's data may be), when all of it lies in
@@ -671,16 +651,6 @@ impl GamePtr {
             return store_at(to.at, into, &bytes);
         }
         raw_copy(self.at, to.at, len);
-        Ok(())
-    }
-
-    /// `len` bytes set to `value` from the address on.
-    #[track_caller]
-    pub fn fill(self, value: u8, len: usize, what: &str) -> Result<(), BadInput> {
-        if let backing @ Backing::Store(..) = self.check(len, what)? {
-            return store_at(self.at, backing, &vec![value; len]);
-        }
-        raw_fill(self.at, value, len);
         Ok(())
     }
 
@@ -1477,6 +1447,7 @@ fn store_at(addr: u32, backing: Backing, from: &[u8]) -> Result<(), BadInput> {
 
 /// Where `addr`'s bytes are in the region `backing` holds (checked by the caller): in its
 /// store's bytes, from the store's first one.
+#[cfg(test)]
 fn place_of(addr: u32, backing: Backing) -> *mut u8 {
     match backing {
         Backing::Store(store, home) => store
@@ -1507,12 +1478,6 @@ fn raw_copy(from: u32, to: u32, len: usize) {
     unsafe { crate::shared_memory::copy(raw_place(from), raw_place(to), len) };
 }
 
-#[cfg(test)]
-fn raw_fill(addr: u32, value: u8, len: usize) {
-    // SAFETY: the run lies in one live region.
-    unsafe { crate::shared_memory::fill(raw_place(addr), value, len) };
-}
-
 #[cfg(not(test))]
 fn raw_load(addr: u32, _: &mut [u8]) {
     raw_place(addr);
@@ -1520,11 +1485,6 @@ fn raw_load(addr: u32, _: &mut [u8]) {
 
 #[cfg(not(test))]
 fn raw_store(addr: u32, _: &[u8]) {
-    raw_place(addr);
-}
-
-#[cfg(not(test))]
-fn raw_fill(addr: u32, _: u8, _: usize) {
     raw_place(addr);
 }
 
@@ -1905,92 +1865,11 @@ pub fn read_or_end<T: Plain>(addr: u32, what: &str) -> T {
         .unwrap_or_else(|e| crate::fatal::raise::end(what, e))
 }
 
-/// The dword cell at the address, for a table the game's code indexes without a bound: outside
-/// its region the program ends naming it.
-#[track_caller]
-pub fn cell_or_end(addr: u32, what: &str) -> &'static crate::session::Dword {
-    watched(addr, 4, what);
-    let backing =
-        inside(addr, 4).unwrap_or_else(|| crate::fatal::raise::end(what, outside(addr, 4, what)));
-    note_by_address(addr, backing, 4, false);
-    let cell = place_of(addr, backing) as *const crate::session::Dword;
-    assert!(
-        cell.is_aligned(),
-        "{what}: {addr:#010x} is not a cell's place"
-    );
-    // SAFETY: the four bytes lie in a live region, aligned for the atomic (checked above);
-    // `Dword` is a cell over a plain integer, so shared references to it may overlap writes.
-    unsafe { &*cell }
-}
-
 /// A checked write, as `read_or_end`.
 #[track_caller]
 pub fn write_or_end<T: Plain>(addr: u32, value: T, what: &str) {
     if let Err(e) = GamePtr::new(addr).write(value, what) {
         crate::fatal::raise::end(what, e)
-    }
-}
-
-/// The last region a run of reads found, kept for the next (a picture read per pixel): a
-/// read inside it costs a compare, one outside looks its region up again. Keep a window for
-/// one pass only: a block can be given back between passes.
-#[derive(Default)]
-pub struct RegionCache(std::cell::Cell<(u32, u32, Backing)>);
-
-impl RegionCache {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    #[track_caller]
-    fn check(&self, addr: u32, len: usize, what: &str) -> Result<Backing, BadInput> {
-        watched(addr, len, what);
-        let end = addr.checked_add(len as u32);
-        let (start, top, backing) = self.0.get();
-        if addr >= start && end.is_some_and(|end| end <= top) {
-            return Ok(backing);
-        }
-        match region_of(addr) {
-            Some((start, top)) if end.is_some_and(|end| end <= top) => {
-                let backing = backing_of(start);
-                self.0.set((start, top, backing));
-                Ok(backing)
-            }
-            _ => Err(outside(addr, len, what)),
-        }
-    }
-
-    /// A checked read; outside its region the program ends (`fatal::raise::end`).
-    pub fn read_or_end<T: Plain>(&self, addr: u32, what: &str) -> T {
-        let mut value = zeroed::<T>();
-        if let Err(e) = self
-            .check(addr, size_of::<T>(), what)
-            .and_then(|backing| load_at(addr, backing, bytes_mut(&mut value)))
-        {
-            crate::fatal::raise::end(what, e)
-        }
-        value
-    }
-
-    /// A checked write, as `read_or_end`.
-    pub fn write_or_end<T: Plain>(&self, addr: u32, value: T, what: &str) {
-        if let Err(e) = self
-            .check(addr, size_of::<T>(), what)
-            .and_then(|backing| store_at(addr, backing, bytes_of(&value)))
-        {
-            crate::fatal::raise::end(what, e)
-        }
-    }
-
-    /// Checked bytes written, as `write_or_end`.
-    #[track_caller]
-    pub fn write_bytes_or_end(&self, addr: u32, bytes: &[u8], what: &str) {
-        if let Err(e) = self
-            .check(addr, bytes.len(), what)
-            .and_then(|backing| store_at(addr, backing, bytes))
-        {
-            crate::fatal::raise::end(what, e)
-        }
     }
 }
 
@@ -2020,13 +1899,70 @@ impl LentBytes {
         self.game
     }
 
-    /// The bytes as a place bounded by them.
-    pub fn ptr(&self) -> GamePtr {
-        GamePtr::new(self.game).limited(self.len as u32)
-    }
-
     pub fn len(&self) -> usize {
         self.len
+    }
+
+    /// `len` bytes from byte `offset`; a read past the bytes' end is refused.
+    pub fn read_at(&self, offset: u32, len: usize, what: &str) -> Result<Vec<u8>, BadInput> {
+        let end = (offset as usize)
+            .checked_add(len)
+            .filter(|&e| e <= self.len);
+        if end.is_none() {
+            log(&format!(
+                "pointers: {what}: {len} bytes at offset {offset:#x}, past the {:#x} bytes",
+                self.len
+            ));
+            return Err(BadInput("past the end of a field"));
+        }
+        let mut bytes = vec![0; len];
+        Store::load(self.block, offset as usize, &mut bytes)?;
+        Ok(bytes)
+    }
+
+    /// `data` written from byte `offset`; a write past the bytes' end is refused.
+    pub fn write_at(&self, offset: u32, data: &[u8], what: &str) -> Result<(), BadInput> {
+        let end = (offset as usize)
+            .checked_add(data.len())
+            .filter(|&e| e <= self.len);
+        if end.is_none() {
+            log(&format!(
+                "pointers: {what}: {} bytes at offset {offset:#x}, past the {:#x} bytes",
+                data.len(),
+                self.len
+            ));
+            return Err(BadInput("past the end of a field"));
+        }
+        Store::store(self.block, offset as usize, data)
+    }
+
+    /// The `T` at byte `offset`; a read past the bytes' end is refused.
+    pub fn read_value<T: Plain>(&self, offset: u32, what: &str) -> Result<T, BadInput> {
+        self.within(offset, size_of::<T>(), what)?;
+        let mut value = zeroed::<T>();
+        Store::load(self.block, offset as usize, bytes_mut(&mut value))?;
+        Ok(value)
+    }
+
+    /// `value` written at byte `offset`; a write past the bytes' end is refused.
+    pub fn write_value<T: Plain>(&self, offset: u32, value: T, what: &str) -> Result<(), BadInput> {
+        self.within(offset, size_of::<T>(), what)?;
+        Store::store(self.block, offset as usize, bytes_of(&value))
+    }
+
+    /// Whether `len` bytes from `offset` lie inside the bytes.
+    fn within(&self, offset: u32, len: usize, what: &str) -> Result<(), BadInput> {
+        if (offset as usize)
+            .checked_add(len)
+            .is_some_and(|e| e <= self.len)
+        {
+            return Ok(());
+        }
+        log(&format!(
+            "pointers: {what}: {len} bytes at offset {offset:#x}, past the {:#x} bytes",
+            self.len
+        ));
+        Err(BadInput("past the end of a field"))
     }
 
     /// A copy of the bytes.
@@ -2044,15 +1980,6 @@ impl LentBytes {
     pub unsafe fn slice(&self) -> &[u8] {
         // SAFETY: the block holds `len` bytes; unwritten meanwhile (the caller's promise).
         unsafe { std::slice::from_raw_parts(self.block.as_ptr(), self.len) }
-    }
-
-    /// The bytes in place, to change.
-    ///
-    /// # Safety
-    /// Nothing else may reach them by address while the slice lives.
-    pub unsafe fn slice_mut(&mut self) -> &mut [u8] {
-        // SAFETY: as `slice`.
-        unsafe { std::slice::from_raw_parts_mut(self.block.as_ptr(), self.len) }
     }
 }
 
@@ -2127,21 +2054,6 @@ mod tests {
     fn moved_stores_are_regions() {
         let font = gfx().fonts.typefaces.objects[0].addr();
         assert!(GamePtr::new(font).read::<[u8; 0x20]>("test").is_ok());
-    }
-
-    #[test]
-    fn a_window_keeps_its_region() {
-        let block = LentBytes::from_vec(vec![5u8; 32]);
-        let start = block.addr();
-        let window = RegionCache::new();
-        assert_eq!(window.read_or_end::<u8>(start, "test"), 5);
-        assert_eq!((window.0.get().0, window.0.get().1), (start, start + 32));
-        window.write_or_end(start + 28, 0x0102_0304u32, "test");
-        assert_eq!(block.to_vec()[28], 4);
-        assert!(
-            window.check(start + 29, 4, "test").is_err(),
-            "runs past the end"
-        );
     }
 
     #[test]

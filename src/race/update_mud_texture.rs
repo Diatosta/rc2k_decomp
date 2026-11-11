@@ -17,8 +17,9 @@
 //! past 3 and no mud, and its callees' refusals (what the counts, the throws and the random
 //! state were put back).
 
+use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
-use crate::math::x87_float::{int, ld, st, to_int};
+use crate::math::x87_float::{int, to_int};
 use crate::physics::flow::c0;
 use crate::race::muddy_texel::texture_and_mud;
 use crate::race::owner::Race;
@@ -29,12 +30,12 @@ use crate::session::{Cell32, Dword, Float};
 
 /// `fld dword [f]; fistp dword [t]`.
 fn round_units(f: &impl Cell32, t: &impl Cell32) {
-    t.set_bits(to_int(ld(f.bits())) as u32);
+    t.set_bits(to_int(f.ld()) as u32);
 }
 
 /// `fld dword [a]; fisub dword [u]; fstp dword [a]`.
 fn subtract_units(a: &impl Cell32, u: &impl Cell32) {
-    a.set_bits(st(ld(a.bits()) - int(u.bits() as i32)));
+    a.st(a.ld() - int(u.bits() as i32));
 }
 
 /// `fld [from]; fistp [to]`, then `fld zero; fld [to]; fcompp` and, with C0, `fld zero;

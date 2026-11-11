@@ -7,8 +7,8 @@
 //! `view_test_floats` (`rc2k_core::physics::camera_view`). What the variables are (the
 //! camera's mode, place, turns, a view's figures) is a reading.
 
+use crate::effects::cell_x87::CellX87;
 use crate::math::x87_float::int;
-use crate::math::x87_float::st;
 use crate::physics::car_store::Car;
 use crate::race::owner_shared::RaceShared;
 use crate::race::view_vars_store::{ViewRecord, ViewVars};
@@ -52,7 +52,7 @@ fn x87_1(shared: &RaceShared, change_time: u32, scene: &crate::scene::owner::Sce
     let t0 = int(scene.drawing.scene.scratch.bits() as i32);
     let t1 = int(change_time as i32);
     let t2 = t0 / t1;
-    shared.tables.view_share.set_bits(st(t2));
+    shared.tables.view_share.st(t2);
 }
 
 #[cfg(all(test, target_arch = "x86"))]

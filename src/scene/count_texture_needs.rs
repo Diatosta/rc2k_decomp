@@ -27,11 +27,7 @@ fn totals() -> Result<[u32; 4], BadInput> {
         [&objects.tables.system_levels, &objects.tables.video_levels],
         |[system, video]| {
             rc2k_core::scene::textures::count_needs(system, video, |level| {
-                crate::scene::texture_places_store::cell_at(
-                    &objects.tables.level_sizes[0],
-                    level as u32,
-                )
-                .get()
+                crate::scene::try_allocate_textures::level_size(&objects.tables, level)
             })
         },
     )?;

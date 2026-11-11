@@ -144,7 +144,7 @@ impl PolygonWork {
             polygon_drawn: Dword::new(0),
             face_sort_key: Dword::new(0),
             clip_kept_mask: Dword::new(0),
-            clip_work: [const { Float::from_bits(0) }; 12],
+            clip_work: [const { Float::new(0.0) }; 12],
             clip_out_words: [const { Dword::new(0) }; 5],
             quad_vertices: [const { Dword::new(0) }; 32],
             smooth: Dword::new(0),

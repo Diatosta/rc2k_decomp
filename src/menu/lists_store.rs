@@ -6,7 +6,6 @@
 use crate::menu::cars_store::car_cell;
 use crate::menu::owner::Menus;
 use crate::menu::owner::Tables;
-use crate::pointers::GamePtr;
 use crate::session::{PlainBytes, PlainDword};
 pub use rc2k_core::menu::car_lists::CarList;
 
@@ -214,7 +213,22 @@ impl MenuLists {
     /// A list of cars, from its first entry to the end of these lists: the original reads
     /// a list on to its end mark, and a list of one shown twice (menu 0xE) is read on past
     /// its field into the next.
-    pub fn cars(&self, list: CarList) -> GamePtr {
+    pub fn car_entry(&self, list: CarList, n: u32) -> Result<u32, crate::errors::BadInput> {
+        crate::pointers::load_value(self, self.car_entry_offset(list, n))
+    }
+
+    /// Entry `n` of a list of cars, written.
+    pub fn set_car_entry(
+        &self,
+        list: CarList,
+        n: u32,
+        value: u32,
+    ) -> Result<(), crate::errors::BadInput> {
+        crate::pointers::store_value(self, self.car_entry_offset(list, n), value)
+    }
+
+    /// Where entry `n` of a list of cars is, in these lists.
+    fn car_entry_offset(&self, list: CarList, n: u32) -> usize {
         use std::mem::offset_of;
         let at = match list {
             CarList::First => offset_of!(MenuLists, cars_first),
@@ -225,7 +239,7 @@ impl MenuLists {
             CarList::Cheat => offset_of!(MenuLists, cheat_cars),
             CarList::Shown => offset_of!(MenuLists, shown_cars),
         };
-        GamePtr::to(self).offset(at as u32)
+        at.wrapping_add((n as usize).wrapping_mul(4))
     }
 }
 

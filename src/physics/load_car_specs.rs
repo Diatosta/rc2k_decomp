@@ -18,11 +18,10 @@
 //! anything) a drive kind past 3 (`rev_limits` holds two floats; kinds 0 ..= 2 are read as the original does, kind 2 into
 //! `camera_drop`).
 
+use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87_float::int;
-use crate::math::x87_float::ld;
-use crate::math::x87_float::st;
 use crate::math::x87_float::to_int;
 use crate::physics::car_store::Car;
 use crate::physics::gear_store::GEAR;
@@ -31,7 +30,6 @@ use crate::race::car_specs_store::CarSpec;
 use crate::race::car_specs_store::CarSpecs;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_course::Course;
-use crate::session::{Cell32, Dword};
 use rc2k_core::physics::car_specs::{OWN_FIGURES_FROM, check_drive, gear_count, record_of};
 use std::cmp::Ordering;
 
@@ -59,16 +57,11 @@ fn words(tables: &PhysicsTables, spec: &CarSpec) {
         .set(spec.ride_height_handling_scale.get());
     tables.gear_count.set(gear_count(spec.gear_count.get()));
     tables.unused_spec_20.set(spec.unused_20.get());
-    let places: [(&dyn Cell32, &Dword); 5] = [
-        (&tables.spec_surface[0], &spec.surface[0]),
-        (&tables.spec_surface[1], &spec.surface[1]),
-        (&tables.grip_scale, &spec.grip_scale),
-        (&tables.side_grip_scale, &spec.side_grip_scale),
-        (&tables.spec_surface[2], &spec.surface[2]),
-    ];
-    for (to, from) in places {
-        to.set_bits(from.get());
-    }
+    tables.spec_surface[0].set(spec.surface[0].get());
+    tables.spec_surface[1].set(spec.surface[1].get());
+    tables.grip_scale.set(spec.grip_scale.get());
+    tables.side_grip_scale.set(spec.side_grip_scale.get());
+    tables.spec_surface[2].set(spec.surface[2].get());
 }
 
 /// The exact version, for `physics::car_physics_step` and `physics::test_drive`.
@@ -145,40 +138,40 @@ fn load_figures_and_shift_points(
     s: &CarSpec,
 ) {
     let t0 = int(s.figures[0].get() as i32);
-    GEAR.figures[0].set_bits(st(t0));
+    GEAR.figures[0].st(t0);
     let t1 = int(s.figures[1].get() as i32);
-    GEAR.figures[1].set_bits(st(t1));
+    GEAR.figures[1].st(t1);
     let t2 = int(s.figures[2].get() as i32);
-    GEAR.figures[2].set_bits(st(t2));
+    GEAR.figures[2].st(t2);
     let t3 = int(s.figures[3].get() as i32);
-    GEAR.figures[3].set_bits(st(t3));
+    GEAR.figures[3].st(t3);
     let t4 = int(s.engine_top.get() as i32);
-    car.engine_speed_limit.set_bits(st(t4));
-    let t5 = ld(tables.spec_scale_1b8.bits());
-    car.spec_scale_copy.set_bits(st(t5));
-    let t6 = ld(s.shift_points[0].bits());
-    GEAR.shift_up_point.set_bits(st(t6));
-    let t7 = ld(tables.spec_scale_a4.bits());
+    car.engine_speed_limit.st(t4);
+    let t5 = tables.spec_scale_1b8.ld();
+    car.spec_scale_copy.st(t5);
+    let t6 = s.shift_points[0].ld();
+    GEAR.shift_up_point.st(t6);
+    let t7 = tables.spec_scale_a4.ld();
     let t8 = t6 * t7;
-    GEAR.shift_ratio_figure.set_bits(st(t8));
-    let t9 = ld(s.shift_points[1].bits());
-    let t10 = ld(numbers.tenths[0].bits());
+    GEAR.shift_ratio_figure.st(t8);
+    let t9 = s.shift_points[1].ld();
+    let t10 = numbers.tenths[0].ld();
     let t11 = t9 + t10;
-    GEAR.shift_down_point.set_bits(st(t11));
-    let t12 = ld(s.shift_points[2].bits());
-    let t13 = ld(numbers.tenths[0].bits());
+    GEAR.shift_down_point.st(t11);
+    let t12 = s.shift_points[2].ld();
+    let t13 = numbers.tenths[0].ld();
     let t14 = t12 + t13;
-    GEAR.shift_down_clutch_point.set_bits(st(t14));
+    GEAR.shift_down_clutch_point.st(t14);
     let t15 = int(s.over_top.get() as i32);
-    let t16 = ld(tables.rev_limit_scale.bits());
+    let t16 = tables.rev_limit_scale.ld();
     let t17 = t15 * t16;
-    let t18 = ld(car.engine_speed_limit.bits());
+    let t18 = car.engine_speed_limit.ld();
     let t19 = t17 / t18;
-    GEAR.drive_torque_figure.set_bits(st(t19));
-    let t20 = ld(car.engine_speed_limit.bits());
-    let t21 = ld(tables.rev_top_scale.bits());
+    GEAR.drive_torque_figure.st(t19);
+    let t20 = car.engine_speed_limit.ld();
+    let t21 = tables.rev_top_scale.ld();
     let t22 = t20 * t21;
-    tables.rev_limit.set_bits(st(t22));
+    tables.rev_limit.st(t22);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -188,21 +181,21 @@ fn load_figures_and_shift_points(
 /// `int [rc + 0x214BC8] = (int [s + 0x48] * [k65536]) / [thousand]`
 fn scale_record_ratios(tables: &PhysicsTables, numbers: &Numbers, s: &CarSpec) {
     let t0 = int(s.whole_figures[0].get() as i32);
-    let t1 = ld(numbers.k65536.bits());
+    let t1 = numbers.k65536.ld();
     let t2 = t0 * t1;
-    let t3 = ld(numbers.thousand.bits());
+    let t3 = numbers.thousand.ld();
     let t4 = t2 / t3;
     tables.spec_ints[0].set_bits(to_int(t4) as u32);
     let t5 = int(s.whole_figures[1].get() as i32);
-    let t6 = ld(numbers.k65536.bits());
+    let t6 = numbers.k65536.ld();
     let t7 = t5 * t6;
-    let t8 = ld(numbers.thousand.bits());
+    let t8 = numbers.thousand.ld();
     let t9 = t7 / t8;
     tables.spec_ints[1].set_bits(to_int(t9) as u32);
     let t10 = int(s.whole_figures[2].get() as i32);
-    let t11 = ld(numbers.k65536.bits());
+    let t11 = numbers.k65536.ld();
     let t12 = t10 * t11;
-    let t13 = ld(numbers.thousand.bits());
+    let t13 = numbers.thousand.ld();
     let t14 = t12 / t13;
     tables.spec_ints[2].set_bits(to_int(t14) as u32);
 }
@@ -214,21 +207,21 @@ fn scale_record_ratios(tables: &PhysicsTables, numbers: &Numbers, s: &CarSpec) {
 /// `int [rc + 0x214BC8] = (int [rc + 0x213F0C] * [k65536]) / [thousand]`
 fn scale_default_ratios(tables: &PhysicsTables, numbers: &Numbers) {
     let t0 = int(tables.spec_default_bc0[0].bits() as i32);
-    let t1 = ld(numbers.k65536.bits());
+    let t1 = numbers.k65536.ld();
     let t2 = t0 * t1;
-    let t3 = ld(numbers.thousand.bits());
+    let t3 = numbers.thousand.ld();
     let t4 = t2 / t3;
     tables.spec_ints[0].set_bits(to_int(t4) as u32);
     let t5 = int(tables.spec_default_bc0[1].bits() as i32);
-    let t6 = ld(numbers.k65536.bits());
+    let t6 = numbers.k65536.ld();
     let t7 = t5 * t6;
-    let t8 = ld(numbers.thousand.bits());
+    let t8 = numbers.thousand.ld();
     let t9 = t7 / t8;
     tables.spec_ints[1].set_bits(to_int(t9) as u32);
     let t10 = int(tables.spec_default_bc0[2].bits() as i32);
-    let t11 = ld(numbers.k65536.bits());
+    let t11 = numbers.k65536.ld();
     let t12 = t10 * t11;
-    let t13 = ld(numbers.thousand.bits());
+    let t13 = numbers.thousand.ld();
     let t14 = t12 / t13;
     tables.spec_ints[2].set_bits(to_int(t14) as u32);
 }
@@ -238,14 +231,14 @@ fn scale_default_ratios(tables: &PhysicsTables, numbers: &Numbers) {
 /// `[spec_drive] = [s + 0x38] * [gravity]`
 /// `[rc + 0x214BB0] = [s + 0x3C] * [gravity]`
 fn scale_record_grips(tables: &PhysicsTables, s: &CarSpec) {
-    let t0 = ld(s.weights[0].bits());
-    let t1 = ld(tables.gravity.bits());
+    let t0 = s.weights[0].ld();
+    let t1 = tables.gravity.ld();
     let t2 = t0 * t1;
-    tables.spec_drive[0].set_bits(st(t2));
-    let t3 = ld(s.weights[1].bits());
-    let t4 = ld(tables.gravity.bits());
+    tables.spec_drive[0].st(t2);
+    let t3 = s.weights[1].ld();
+    let t4 = tables.gravity.ld();
     let t5 = t3 * t4;
-    tables.spec_drive[1].set_bits(st(t5));
+    tables.spec_drive[1].st(t5);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -260,11 +253,11 @@ fn set_rev_limits(tables: &PhysicsTables, numbers: &Numbers, k: usize) {
         &tables.rev_limits[1],
         &tables.camera_drop,
     ][k];
-    let t0 = ld(limit.bits());
-    tables.idle_engine_speed.set_bits(st(t0));
-    let t1 = ld(numbers.hundred.bits());
+    let t0 = limit.ld();
+    tables.idle_engine_speed.st(t0);
+    let t1 = numbers.hundred.ld();
     let t2 = t0 + t1;
-    tables.stall_engine_speed.set_bits(st(t2));
+    tables.stall_engine_speed.st(t2);
 }
 
 #[cfg(all(test, target_arch = "x86"))]

@@ -9,8 +9,8 @@ const _: () = assert!(std::mem::offset_of!(ThreadSlot, thread_id) == 4);
 
 // ---- Rust version ----
 
-/// The current thread's slot, None if it has none.
-pub fn current_slot() -> Result<Option<&'static ThreadSlot>, crate::errors::BadInput> {
+/// The number of the current thread's slot, None if it has none.
+fn current_slot_number() -> Result<Option<usize>, crate::errors::BadInput> {
     // Converted: `rc2k_core::threading::slot_of`.
     let tid = crate::sync::thread_id();
     let failed = std::cell::Cell::new(None);
@@ -27,17 +27,22 @@ pub fn current_slot() -> Result<Option<&'static ThreadSlot>, crate::errors::BadI
     if let Some(e) = failed.take() {
         return Err(e);
     }
-    found
+    Ok(found)
+}
+
+/// The current thread's slot, None if it has none.
+pub fn current_slot() -> Result<Option<&'static ThreadSlot>, crate::errors::BadInput> {
+    current_slot_number()?
         .map(crate::threading::thread_slot::slot_ref)
         .transpose()
 }
 
-/// The current thread's slot's game address, 0 if it has none. For the fatal reporter: a
-/// slot that cannot be read (the slots are a fixed region, so never) is 0 too, as a report
-/// is being made already.
+/// The current thread's slot as one more than its number, 0 if it has none. For the fatal
+/// reporter: a slot that cannot be read (the slots are a fixed set, so never) is 0 too, as a
+/// report is being made already.
 pub fn find_thread_slot() -> u32 {
-    match current_slot() {
-        Ok(Some(slot)) => crate::pointers::game_address(std::ptr::from_ref(slot)),
+    match current_slot_number() {
+        Ok(Some(n)) => n as u32 + 1,
         Ok(None) | Err(_) => 0,
     }
 }

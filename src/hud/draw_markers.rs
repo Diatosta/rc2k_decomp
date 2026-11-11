@@ -23,8 +23,8 @@ const RECT: u32 = 0x5C;
 
 /// An integer over a float constant, kept extended (`quads::int_over`: exact at the game's double
 /// precision).
-pub fn int_over_80(i: u32, k: u32) -> [u8; 10] {
-    from_f64(quads::int_over(i, f32::from_bits(k)))
+pub fn int_over_80(i: u32, k: f32) -> [u8; 10] {
+    from_f64(quads::int_over(i, k))
 }
 
 /// An 80-bit value taken off into a float (stored as a float).
@@ -36,7 +36,7 @@ pub fn taken_off(v: [u8; 10]) -> u32 {
 // Converted: `rc2k_core::hud::quads::{marker_x, int_over}`
 pub fn draw_markers(frame: &Frame, hud: &Hud, pen: Pen, rows: [u32; 2]) -> Result<(), Refused> {
     {
-        let k = hud.block.uv_scale_x.bits();
+        let k = hud.block.uv_scale_x.get();
         for (n, distance) in frame.panel_and_overlay.panel.distance.iter().enumerate() {
             hud.block.quad.colour.set(hud.block.marker_colours[n].get());
             let f = f32::from_bits;

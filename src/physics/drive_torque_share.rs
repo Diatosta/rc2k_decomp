@@ -5,6 +5,7 @@
 //!
 //! Callers: `physics::test_drive_run`, `physics::drive_force`.
 
+use crate::effects::cell_x87::CellX87;
 use crate::math::x87;
 use crate::math::x87::toward_one;
 use crate::math::x87_float as bh;
@@ -28,7 +29,7 @@ pub fn drive_torque_share_at(tables: &PhysicsTables, numbers: &Numbers, v: &[&dy
     v[0].set_bits(n);
     put(
         v[3],
-        bh::st(bh::ld(v[2].bits()).abs() / bh::int(tables.torque_share_c.get() as i32)),
+        bh::st(v[2].ld().abs() / bh::int(tables.torque_share_c.get() as i32)),
     );
     let one = numbers.one.bits();
     let below = !matches!(

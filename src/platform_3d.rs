@@ -27,7 +27,6 @@
 //! The drawing is noted and drawn in tiles over the processor's threads when something is to
 //! see it (see `flush`).
 
-// Not FFI: `LentBytes::slice_mut` (the target's pixels) is a memory primitive.
 #![allow(unsafe_code)]
 
 use crate::d3d::owner::d3d;
@@ -35,8 +34,7 @@ use crate::errors::FatalError;
 use crate::framework::log;
 use crate::gfx::texture_upload::TextureFormat;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
-use crate::render::{Command, STATES, Target, TextureNote};
-use crate::system::find_entry::find_entry;
+use crate::render::{Command, STATES, Target, TextureId, TextureNote};
 use rc2k_core::fatal::Context;
 use std::sync::Mutex;
 
@@ -131,10 +129,22 @@ fn record_at(pool: usize, number: u32) -> &'static crate::gfx::texture_upload::R
 }
 
 struct Level {
+    /// Which level this is, for the noted fans and the GPU's caches.
+    id: TextureId,
     /// The pixels, a region while the level lives (locked, the game's code writes them by
     /// address: `pointers`).
-    pixels: crate::pointers::LentBytes,
+    pixels: std::sync::Arc<crate::pointers::LentBytes>,
     pitch: u32,
+}
+
+impl Level {
+    /// The level made at `surface` of `bytes`, `pitch` bytes a row; its pixels named by the
+    /// surface's handle (`gfx::locked_pixels`).
+    fn new(id: TextureId, surface: usize, pitch: u32, bytes: Vec<u8>) -> Self {
+        let pixels = std::sync::Arc::new(crate::pointers::LentBytes::from_vec(bytes));
+        crate::gfx::locked_pixels::register(crate::gfx::locked_pixels::level(surface), &pixels);
+        Self { id, pixels, pitch }
+    }
 }
 
 /// A surface's number: (pool, texture, level), the pool 0 for system, 1 for video.
@@ -148,6 +158,49 @@ static LEVELS_MEMORY: Mutex<Vec<Option<Level>>> = Mutex::new(Vec::new());
 /// Bumped (under `LEVELS_MEMORY`'s lock) when a level is made or let go: a fan's level as
 /// noted (`Pending.level`) is kept until then.
 static LEVELS_CHANGED: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// The serial of the next level made (`TextureId.serial`).
+static LEVEL_SERIAL: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+/// A level made now at `surface`: an id no level had before.
+fn new_level_id(surface: usize) -> TextureId {
+    TextureId {
+        surface: surface as u32,
+        serial: LEVEL_SERIAL.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
+    }
+}
+
+/// The bytes of level `id`, `None` when it is gone (let go, or its surface made again).
+///
+/// # Safety
+/// Nothing may write the level, nor let it go, while the slice lives: a noted texture is read
+/// only until the noted drawing is flushed, which locking or releasing it does first.
+pub unsafe fn level_bytes<'a>(id: TextureId) -> Option<&'a [u8]> {
+    let memory = LEVELS_MEMORY.lock().unwrap();
+    let level = memory
+        .get(id.surface as usize)?
+        .as_ref()
+        .filter(|l| l.id == id)?;
+    // SAFETY: the caller's promise.
+    let bytes = unsafe { level.pixels.slice() };
+    // SAFETY: the same bytes, lent for as long as the caller keeps its promise.
+    Some(unsafe { std::slice::from_raw_parts(bytes.as_ptr(), bytes.len()) })
+}
+
+/// A level of the tests' own, past the surfaces of the pools: its id.
+#[cfg(test)]
+pub fn test_level(bytes: Vec<u8>) -> TextureId {
+    static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(SURFACES);
+    let surface = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let mut memory = LEVELS_MEMORY.lock().unwrap();
+    if memory.len() <= surface {
+        memory.resize_with(surface + 1, || None);
+    }
+    let id = new_level_id(surface);
+    memory[surface] = Some(Level::new(id, surface, bytes.len() as u32, bytes));
+    levels_changed();
+    id
+}
 
 fn levels_changed() {
     LEVELS_CHANGED.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
@@ -169,7 +222,7 @@ pub fn lock_surface(surface: u32, description: &crate::gfx::upload::SurfaceDesc)
         .unwrap()
         .get(number)
         .and_then(|l| l.as_ref())
-        .map(|l| l.pixels.ptr());
+        .map(|l| l.id);
     if pixels.is_none_or(reads_texture) {
         flush();
     }
@@ -179,7 +232,9 @@ pub fn lock_surface(surface: u32, description: &crate::gfx::upload::SurfaceDesc)
     let mut memory = LEVELS_MEMORY.lock().unwrap();
     match memory.get_mut(number).and_then(|l| l.as_mut()) {
         Some(level) => {
-            description.pixels.set(level.pixels.addr());
+            description
+                .pixels
+                .set(crate::gfx::locked_pixels::level(number));
             description.pitch.set(level.pitch);
             0
         }
@@ -208,7 +263,7 @@ struct Pending {
     into: Option<Target>,
     noted: Vec<Command>,
     /// The memory of each texture the noted fans read.
-    textures: Vec<crate::pointers::GamePtr>,
+    textures: Vec<TextureId>,
     /// The states as the last fan had them, until one changes (`forget_states`).
     states: Option<std::sync::Arc<[u32; STATES]>>,
     /// The last fan's texture level, the lock of the levels spared while it holds.
@@ -221,8 +276,8 @@ struct NotedLevel {
     surface: usize,
     /// `LEVELS_CHANGED` when it was read.
     changes: u64,
-    /// Its pixels' place (bounded to them) and length and its pitch; `None` for no level.
-    level: Option<(crate::pointers::GamePtr, usize, u32)>,
+    /// Its id, its pixels' length and its pitch; `None` for no level.
+    level: Option<(TextureId, usize, u32)>,
 }
 
 /// The noted drawing's way to the backend: nothing noted is left behind.
@@ -261,16 +316,17 @@ thread_local! {
     };
 }
 
-/// Whether a noted fan reads the texture whose memory is at `pixels`.
-fn reads_texture(pixels: crate::pointers::GamePtr) -> bool {
+/// Whether a noted fan reads the texture `pixels`.
+fn reads_texture(pixels: TextureId) -> bool {
     PENDING.with_borrow(|p| p.textures.contains(&pixels))
 }
 
 /// The screen as the game has it now.
 pub fn screen() -> Option<Target> {
     let surface = crate::gfx::owner::draw_surface();
-    let pixels: u32 = surface.present_pixels.get();
-    (pixels != 0).then(|| Target {
+    // The renderers draw on the bytes where they lie.
+    let pixels = crate::gfx::locked_pixels::bytes_of(surface.present_pixels.get())?.addr();
+    Some(Target {
         pixels: pixels as usize,
         pitch: surface.present_pitch.get() as usize,
         width: crate::system::owner::system().session.screen.width.get() as usize,
@@ -430,12 +486,9 @@ fn note_fan(vertices: &[crate::rasteriser::Vertex]) {
     });
 }
 
-/// Surface `surface`'s level (its pixels' address and length, its pitch), as the last fan
+/// Surface `surface`'s level (its id, its pixels' length, its pitch), as the last fan
 /// with it read it while no level has been made or let go since.
-fn level_of(
-    pending: &mut Pending,
-    surface: usize,
-) -> Option<(crate::pointers::GamePtr, usize, u32)> {
+fn level_of(pending: &mut Pending, surface: usize) -> Option<(TextureId, usize, u32)> {
     let changes = LEVELS_CHANGED.load(std::sync::atomic::Ordering::Relaxed);
     if let Some(noted) = pending.level
         && noted.surface == surface
@@ -447,7 +500,7 @@ fn level_of(
     let level = memory
         .get(surface)
         .and_then(|l| l.as_ref())
-        .map(|l| (l.pixels.ptr(), l.pixels.len(), l.pitch));
+        .map(|l| (l.id, l.pixels.len(), l.pitch));
     // Read under the lock: a level made or let go meanwhile has bumped it.
     let changes = LEVELS_CHANGED.load(std::sync::atomic::Ordering::Relaxed);
     pending.level = Some(NotedLevel {
@@ -489,10 +542,10 @@ pub fn copy_screen_to_system_texture(number: u32) {
     let format = format_at(record.format);
     let bytes = format.bytes_per_pixel as usize;
     let masks = format.format.masks;
-    let mut memory = LEVELS_MEMORY.lock().unwrap();
+    let memory = LEVELS_MEMORY.lock().unwrap();
     let Some(level) = memory
-        .get_mut(surface_number(0, number, 0))
-        .and_then(|l| l.as_mut())
+        .get(surface_number(0, number, 0))
+        .and_then(|l| l.as_ref())
     else {
         return;
     };
@@ -507,7 +560,7 @@ pub fn copy_screen_to_system_texture(number: u32) {
         ((c * most + 127) / 255) << shift
     };
     let rows = crate::gfx::rows::Rows::new(
-        screen.pixels as u32,
+        crate::gfx::owner::draw_surface().present_pixels.get(),
         screen.pitch as u32,
         screen.height as u32,
     );
@@ -534,9 +587,13 @@ pub fn copy_screen_to_system_texture(number: u32) {
             };
             let texel = put(blue, masks[0]) | put(green, masks[1]) | put(red, masks[2]) | masks[3];
             let at = y * level.pitch as usize + x * bytes;
-            // SAFETY: this thread draws; the texture's level is not locked while it is copied to.
-            if let Some(to) = unsafe { level.pixels.slice_mut() }.get_mut(at..at + bytes) {
-                to.copy_from_slice(&texel.to_le_bytes()[..bytes.min(4)]);
+            // A texel past the level's end is left out.
+            if at + bytes <= level.pixels.len() {
+                let _ = level.pixels.write_at(
+                    at as u32,
+                    &texel.to_le_bytes()[..bytes.min(4)],
+                    "the texture's texel",
+                );
             }
         }
     }
@@ -614,20 +671,12 @@ fn fatal(code: u32) -> FatalError {
     FatalError { code, message: "" }
 }
 
-/// A size by its number in the card's sizes table.
+/// A size by its number in the card's sizes table (five pairs of a number and the size).
 fn size_of(code: u32) -> Option<u32> {
-    let entry = find_entry(
-        code,
-        crate::pointers::GamePtr::to(&crate::gfx::owner::textures().sizes),
-        5,
-    )
-    .ok()??;
-    Some(
-        entry
-            .offset(4)
-            .read("a texture size")
-            .unwrap_or_else(|e| crate::fatal::raise::end("a texture size", e)),
-    )
+    let sizes = &crate::gfx::owner::textures().sizes;
+    (0..sizes.len() / 2)
+        .find(|&n| sizes[2 * n].get() == code)
+        .map(|n| sizes[2 * n + 1].get())
 }
 
 /// One texture more in a pool: its record made and its levels' memory.
@@ -661,12 +710,20 @@ fn make_texture(
             let surface = surface_number(pool, number, level);
             if level < levels {
                 let (w, h) = ((width >> level).max(1), (height >> level).max(1));
-                memory[surface] = Some(Level {
-                    pixels: crate::pointers::LentBytes::from_vec(vec![0; (w * h * bytes) as usize]),
-                    pitch: w * bytes,
-                });
+                if let Some(old) = &memory[surface] {
+                    crate::render::texture_gone(old.id);
+                }
+                memory[surface] = Some(Level::new(
+                    new_level_id(surface),
+                    surface,
+                    w * bytes,
+                    vec![0; (w * h * bytes) as usize],
+                ));
                 record.surfaces[level as usize] = object(surface);
             } else {
+                if let Some(old) = &memory[surface] {
+                    crate::render::texture_gone(old.id);
+                }
                 memory[surface] = None;
                 record.surfaces[level as usize] = 0;
             }
@@ -783,7 +840,7 @@ fn release_pool(pool: usize, gfx: &crate::gfx::owner::Gfx) {
         for level in 0..LEVELS {
             if let Some(slot) = memory.get_mut(surface_number(pool, number, level)) {
                 if let Some(gone) = slot {
-                    crate::render::texture_gone(gone.pixels.ptr());
+                    crate::render::texture_gone(gone.id);
                 }
                 *slot = None;
             }
@@ -849,11 +906,11 @@ pub fn hold_texture(caller: &str, system: u32, video: u32) {
             None => continue,
         };
         if let Some(Some(target)) = memory.get_mut(to) {
-            crate::render::texture_written(target.pixels.ptr());
+            crate::render::texture_written(target.id);
             let n = pixels.len().min(target.pixels.len());
-            // SAFETY: this thread draws; the target is not locked while it is loaded.
-            let to = unsafe { target.pixels.slice_mut() };
-            to[..n].copy_from_slice(&pixels[..n]);
+            let _ = target
+                .pixels
+                .write_at(0, &pixels[..n], "the video texture's pixels");
         }
     }
 }

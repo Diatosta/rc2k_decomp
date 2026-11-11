@@ -20,7 +20,7 @@ use crate::race::owner_frame::Frame;
 use rc2k_core::hud::disc::SEGMENTS;
 
 /// `fld a; fchs; fmul b; fmul c; fistp`.
-fn negated_times_times_to_int(a: u32, b: u32, c: u32) -> u32 {
+fn negated_times_times_to_int(a: f32, b: f32, c: f32) -> u32 {
     to_int((-ld(a) * ld(b)) * ld(c)) as u32
 }
 
@@ -30,21 +30,20 @@ pub fn draw_disc(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
         use rc2k_core::hud::disc::{disc_triangle, ring_angles};
         // The texture's turn follows the x87's control word: the x87's.
         let t = negated_times_times_to_int(
-            hud.block.disc_turn.bits(),
-            hud.block.disc_turn_a.bits(),
-            hud.block.disc_turn_b.bits(),
+            hud.block.disc_turn.get(),
+            hud.block.disc_turn_a.get(),
+            hud.block.disc_turn_b.get(),
         );
         let table = |cell: &crate::session::Float| x87::loaded(cell);
         for (k, [a, b]) in ring_angles(t).into_iter().enumerate() {
             let n = k + 1;
-            hud.block.ring_sines[n]
-                .set_bits(table(crate::scene::engine_tables_store::sine(a as usize)).to_bits());
+            hud.block.ring_sines[n].set(table(crate::scene::engine_tables_store::sine(a as usize)));
             hud.block.ring_cosines[n]
-                .set_bits(table(crate::scene::engine_tables_store::cosine(a as usize)).to_bits());
+                .set(table(crate::scene::engine_tables_store::cosine(a as usize)));
             hud.block.texture_ring_sines[n]
-                .set_bits(table(crate::scene::engine_tables_store::sine(b as usize)).to_bits());
+                .set(table(crate::scene::engine_tables_store::sine(b as usize)));
             hud.block.texture_ring_cosines[n]
-                .set_bits(table(crate::scene::engine_tables_store::cosine(b as usize)).to_bits());
+                .set(table(crate::scene::engine_tables_store::cosine(b as usize)));
         }
         hud.block.fistp_scratch.set(t);
         for k in 0..SEGMENTS {
@@ -66,7 +65,11 @@ fn x87_1(v: usize, o: usize) {
     use crate::scene::x87_mem::Base;
     o.set_dword(
         0,
-        negated_times_times_to_int(v.dword(0), v.dword(4), v.dword(8)),
+        negated_times_times_to_int(
+            f32::from_bits(v.dword(0)),
+            f32::from_bits(v.dword(4)),
+            f32::from_bits(v.dword(8)),
+        ),
     );
 }
 

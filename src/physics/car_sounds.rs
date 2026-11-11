@@ -81,7 +81,7 @@ pub fn place_plain(
         whole(&car.camera_position),
         offset.map(|o| o.map(|v| v as i32)),
         &std::array::from_fn(|n| f32::from_bits(crate::race::heard_turn::turn(matrices)[n].bits())),
-        f32::from_bits(numbers.one_over_65536.bits()),
+        numbers.one_over_65536.get(),
     );
     for (cell, x) in into.iter().zip(&p) {
         cell.set(*x);

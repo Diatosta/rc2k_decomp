@@ -3,6 +3,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::owner::gfx;
+use crate::physics::car_store::Car;
 use crate::race::effects_settings_store::EFFECTS_SETTINGS;
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
@@ -223,12 +224,13 @@ pub fn copy_mirror_picture(
     if lock_texture(from)?.carry {
         return Ok(());
     }
-    let esi = crate::gfx::surface::address()?;
-    frame.frame_work.view_kept[0].set(esi);
+    // The surfaces' pixels by handle (kept, never read back).
+    let from_pixels = crate::gfx::surface::handle()?;
+    frame.frame_work.view_kept[0].set(from_pixels);
     let ebp = gfx_drawing.draw_surface.pitch.get();
     if !lock_texture(to)?.carry {
-        let edi = crate::gfx::surface::address()?;
-        frame.frame_work.view_kept[1].set(edi);
+        let to_pixels = crate::gfx::surface::handle()?;
+        frame.frame_work.view_kept[1].set(to_pixels);
         let format = gfx_drawing.draw_surface.format.get();
         if format == 0 {
             return Err(BadInput("a surface without its format").into());
@@ -247,12 +249,13 @@ pub fn copy_mirror_picture(
         let mut surfaces = GameSurfaces {
             screen: &screen,
             format,
-            reads: crate::pointers::RegionCache::new(),
-            writes: crate::pointers::RegionCache::new(),
+            from: crate::gfx::locked_pixels::Place::start(from_pixels),
+            to: crate::gfx::locked_pixels::Place::start(to_pixels),
         };
         // What the first pixel's high half is under: the destination's slot, as the lock was
         // given it.
-        copy_picture(&copy, esi, edi, to, &mut surfaces);
+        // The pixels are places in each surface's bytes, from offset 0.
+        copy_picture(&copy, 0, 0, to, &mut surfaces);
         unlock_texture(to)?;
     }
     unlock_texture(from)?;
@@ -263,24 +266,23 @@ pub fn copy_mirror_picture(
 struct GameSurfaces<'a> {
     screen: &'a crate::gfx::pixel_format::PixelFormat,
     format: &'a crate::gfx::pixel_format::PixelFormat,
-    /// The surfaces' pixels checked (the screen's and the textures' buffers are regions),
-    /// a window for the one read and one for the one written.
-    reads: crate::pointers::RegionCache,
-    writes: crate::pointers::RegionCache,
+    /// The pixels read and the pixels written, reached by offset from their start.
+    from: crate::gfx::locked_pixels::Place,
+    to: crate::gfx::locked_pixels::Place,
 }
 
 impl rc2k_core::race::view_steps::Surfaces for GameSurfaces<'_> {
     fn read16(&mut self, at: u32) -> u16 {
-        self.reads.read_or_end(at, "a surface's pixel")
+        self.from.read_or_end_at(at, "a surface's pixel")
     }
     fn read32(&mut self, at: u32) -> u32 {
-        self.reads.read_or_end(at, "a surface's pixel")
+        self.from.read_or_end_at(at, "a surface's pixel")
     }
     fn write16(&mut self, at: u32, v: u16) {
-        self.writes.write_or_end(at, v, "a surface's pixel");
+        self.to.write_or_end_at(at, v, "a surface's pixel");
     }
     fn write32(&mut self, at: u32, v: u32) {
-        self.writes.write_or_end(at, v, "a surface's pixel");
+        self.to.write_or_end_at(at, v, "a surface's pixel");
     }
     fn components(&mut self, pixel: u32) -> u32 {
         crate::gfx::pixel_to_components::pixel_to_components(self.screen, pixel)
@@ -320,12 +322,18 @@ pub fn forget_view_textures(
         return Err(BadInput("a view without its car block").into());
     }
     let trap = Trap::new();
-    let field = |b: u32, o: u32| trap.read::<u32>(b + o, "a view car block's word");
+    let field = |b: u32, word: fn(&Car) -> u32| trap.keep_read(car_at(b).map(word));
     // (the switch, the slot's variable) of each.
     let slot_of = |n: usize| &textures.kinds.kind_first_slots[n];
     let source = |f: Forget| match f {
-        Forget::Changing(v) => (field(blocks[v], 0xADC), slot_of(198 + v)),
-        Forget::Counted(v) => (field(blocks[v], 0x720), slot_of(196 + v)),
+        Forget::Changing(v) => (
+            field(blocks[v], |car| car.map_redrawn.get()),
+            slot_of(198 + v),
+        ),
+        Forget::Counted(v) => (
+            field(blocks[v], |car| car.notice_counter.get()),
+            slot_of(196 + v),
+        ),
         Forget::Extra(n) => (
             [
                 &frame.panel_and_overlay.overlay.forget_flag_0,

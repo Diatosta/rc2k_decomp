@@ -334,7 +334,7 @@ fn move_x87(ring: &Ring, e: u32, c: &MarksClock, y_gain: f32) {
     st(
         ring,
         e,
-        bh::ld(y_gain.to_bits()) * ticks + ld(ring, e, |en| en.motion[1]),
+        bh::ld(y_gain) * ticks + ld(ring, e, |en| en.motion[1]),
         |en| &mut en.motion[1],
     );
 }
@@ -407,7 +407,7 @@ mod old {
         let t37 = t36 * int(c.frame_ticks.get() as i32);
         let t38 = t37 + ld(ring, e, |en| en.place[2]);
         st(ring, e, t38, |en| &mut en.place[2]);
-        let t39 = bh::ld(ribbon_a.to_bits());
+        let t39 = bh::ld(ribbon_a);
         let t40 = t39 * int(c.frame_ticks.get() as i32);
         let t41 = t40 + ld(ring, e, |en| en.motion[1]);
         st(ring, e, t41, |en| &mut en.motion[1]);
@@ -427,7 +427,7 @@ mod old {
         let t7 = t6 * int(c.frame_ticks.get() as i32);
         let t8 = t7 + ld(ring, e, |en| en.place[2]);
         st(ring, e, t8, |en| &mut en.place[2]);
-        let t9 = bh::ld(ribbon_b.to_bits());
+        let t9 = bh::ld(ribbon_b);
         let t10 = t9 * int(c.frame_ticks.get() as i32);
         let t11 = t10 + ld(ring, e, |en| en.motion[1]);
         st(ring, e, t11, |en| &mut en.motion[1]);

@@ -31,8 +31,12 @@ pub fn apply_torque(tables: &PhysicsTables, contact: &ContactWork, rec: &ForceRe
     let step = tables.step_time.bits();
     for k in 0..3 {
         let inertia = tables.inertia[k].bits();
-        work[k]
-            .set_bits(neg_product2_plus(cross[k].bits(), step, inertia, work[k].bits()).to_bits());
+        work[k].set(neg_product2_plus(
+            cross[k].bits(),
+            step,
+            inertia,
+            work[k].bits(),
+        ));
     }
     turn_cells(&car.crash_matrix, work);
     for (s, w) in car.spin.iter().zip(work) {

@@ -61,7 +61,7 @@ pub fn run_snow(
             s.flakes.set(flakes as u32);
         }
         for n in 0..9 {
-            s.view_matrix[n].set_bits(marks.listener_turn[n].bits());
+            s.view_matrix[n].set(marks.listener_turn[n].get());
         }
         for n in 0..3 {
             s.view_place[n].set(marks.listener_place[n].get());
@@ -90,9 +90,9 @@ pub fn run_snow(
             .set_bits(4u32);
         let inverse = x87::reciprocal(&crate::scene::polygon_work::front_end().window.farthest);
         for r in &s.inverses {
-            r.set_bits(inverse.to_bits());
+            r.set(inverse);
         }
-        s.inverse.set_bits(inverse.to_bits());
+        s.inverse.set(inverse);
         let marks = effects.settings()?;
         if marks.other_marks_shown.get() != 0 {
             let ticks = race
@@ -109,7 +109,7 @@ pub fn run_snow(
             .set(race.shared.physics_tables.scene_clock.get());
         for (n, v) in s.matrix_copy.iter().enumerate() {
             for m in 0..4 {
-                s.wide_turn[n][m].set_bits(v.bits());
+                s.wide_turn[n][m].set(v.get());
             }
         }
         let focal: u32 = crate::scene::polygon_work::front_end()

@@ -39,8 +39,8 @@ pub fn pong_ball_hits(pong: &Pong, effects: &crate::effects::owner::Effects) {
         p.difference[0].set(x87::sub(&p.difference[0], &pong.rules.nudge));
     }
     new_way(pong, effects);
-    p.ball_way[0].set_bits(p.difference[0].bits());
-    p.ball_way[1].set_bits(p.difference[1].bits());
+    p.ball_way[0].set(p.difference[0].get());
+    p.ball_way[1].set(p.difference[1].get());
 }
 
 use crate::math::x87_float::ld;

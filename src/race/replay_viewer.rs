@@ -143,7 +143,10 @@ fn view(race: &Race, mode: Mode) -> Result<(), Refused> {
     replay.replay_view.last_race_viewed.set(slot == LAST_RACE);
     find_snapshot_number::find_snapshot_number(&race.replay)?;
     viewer_load_stage::viewer_load_stage(race)?;
-    let list = ListMenu::of(&crate::race::owner::race().replay.replay_view.viewer_list);
+    let list = ListMenu::of(crate::place::BytePlace::in_store(
+        &crate::race::owner::race().replay.replay_view,
+        core::mem::offset_of!(ReplayViewBlock, viewer_list),
+    ));
     race.shared.replay_file.viewer_sound.set(0);
     install.pages.list_answer.set(1);
     install.pages.list_leave.set(0);
@@ -257,7 +260,7 @@ fn stopped_key(
             _ => Next::Sound,
         });
     }
-    if crate::menu::list_step::list_step(key, Some(ReplayViewBlock::key_table()?), list)? {
+    if crate::menu::list_step::list_step(key, Some(ReplayViewBlock::key_table()?.into()), list)? {
         return Ok(Next::Mark);
     }
     if key == 0x1C {
@@ -308,7 +311,7 @@ fn mark(
             loop {
                 if !crate::menu::list_step::list_step(
                     key,
-                    Some(ReplayViewBlock::key_table()?),
+                    Some(ReplayViewBlock::key_table()?.into()),
                     list,
                 )? {
                     break;

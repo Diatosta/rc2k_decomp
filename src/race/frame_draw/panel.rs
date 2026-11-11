@@ -1,7 +1,6 @@
 //! The race panel: the HUD values, the start lights and the sound spots shared with the audio side.
 
 use crate::errors::{BadInput, Refused};
-use crate::race::checkpoints_store::CHECKPOINTS;
 use crate::race::frame_view::car_at as car_view;
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
@@ -286,8 +285,7 @@ pub(super) fn panel_half(race: &Race, car: u32, first: bool) -> Result<(), BadIn
     cells[0].set(whole as u32);
     cells[1].set(car.engine_sound_speed_int.get());
     cells[2].set(car.gear.get());
-    let at =
-        |n: u32| crate::race::checkpoints_store::cell_in(&CHECKPOINTS.distances, n as usize).get();
+    let at = |n: u32| crate::race::checkpoints_store::distance(n as usize).get();
     let from: u32 = race.physics.split_tables.checkpoints[0].get();
     let d = travelled(at(car.checkpoint.get()), at(from));
     let (unit, miles): (u32, u32) = (

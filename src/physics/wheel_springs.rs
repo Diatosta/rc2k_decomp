@@ -49,7 +49,7 @@ pub fn wheel_springs(
         let (force, damping) = (&ph.spring_forces[k], &ph.spring_damping[k]);
         let old = x87::loaded(q);
         drawing.scene.work_dword.set(old.to_bits());
-        c.wheel_squeeze_last[k].set_bits(old.to_bits());
+        c.wheel_squeeze_last[k].set(old);
         let eax = contact.probe_height[k].get().wrapping_neg();
         drawing.scene.scratch.set(eax);
         q.set_bits(
@@ -66,7 +66,11 @@ pub fn wheel_springs(
         if !below(q.bits(), numbers.one.bits()) {
             q.set(x87::loaded(&numbers.one));
         }
-        force.set_bits(negated(mul2(q, &ph.spring_force_scale, &ph.forces[0].force[1])).to_bits());
+        force.set(negated(mul2(
+            q,
+            &ph.spring_force_scale,
+            &ph.forces[0].force[1],
+        )));
         damping.set(x87::sub_mul(
             q.bits(),
             drawing.scene.work_dword.get(),
@@ -75,7 +79,8 @@ pub fn wheel_springs(
         if below(damping.bits(), ZERO) {
             damping.set(x87::mul(damping, &ph.handling[0]));
         }
-        let zero_or_none = f32::from_bits(q.bits())
+        let zero_or_none = q
+            .get()
             .partial_cmp(&f32::from_bits(ZERO))
             .is_none_or(|o| o == Ordering::Equal);
         if !zero_or_none {
@@ -111,17 +116,17 @@ pub fn wheel_springs(
     for k in 0..4 {
         for row in [0, 2] {
             let v = x87::loaded(&ph.forces[6 + k].point[row]);
-            ph.forces[11 + k].point[row].set_bits(v.to_bits());
-            ph.forces[15 + k].point[row].set_bits(v.to_bits());
+            ph.forces[11 + k].point[row].set(v);
+            ph.forces[15 + k].point[row].set(v);
         }
     }
     ph.forces[10].point[1].set_bits(0);
     let n = neg_rounded(extended(ph.wheel_spin_push[0].bits()));
     for k in 0..4 {
-        ph.forces[11 + k].point[1].set_bits(n.to_bits());
+        ph.forces[11 + k].point[1].set(n);
     }
     let n = neg_rounded(extended(ph.wheel_spin_push[1].bits()));
     for k in 0..4 {
-        ph.forces[15 + k].point[1].set_bits(n.to_bits());
+        ph.forces[15 + k].point[1].set(n);
     }
 }

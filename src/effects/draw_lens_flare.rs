@@ -44,26 +44,22 @@ pub fn draw_lens_flare(
     ];
     let dx = x87::sub(marks.listener_figures[1].get(), cx);
     let dy = -x87::sub(marks.listener_figures[2].get(), cy);
-    effects.frame.draw_frame.flare_way[0].set_bits(dx.to_bits());
-    effects.frame.draw_frame.flare_way[1].set_bits(dy.to_bits());
+    effects.frame.draw_frame.flare_way[0].set(dx);
+    effects.frame.draw_frame.flare_way[1].set(dy);
     effects.frame.flare_parts.unit[0].set(x87::loaded(dx));
     effects.frame.flare_parts.unit[1].set(x87::loaded(dy));
     effects.frame.flare_parts.unit[2].set_bits(0);
     crate::scene::vector3::normalise(&effects.frame.flare_parts.unit);
     let length = crate::math::x87::float_hypot(dx, dy);
-    effects
-        .frame
-        .draw_frame
-        .flare_length
-        .set_bits(length.to_bits());
+    effects.frame.draw_frame.flare_length.set(length);
     let alpha = bh::to_int(
-        bh::ld(effects.frame.flare_scales.fade[1].bits())
-            - bh::ld(length.to_bits()) * bh::ld(effects.frame.flare_scales.fade[0].bits()),
+        bh::ld(effects.frame.flare_scales.fade[1].get())
+            - bh::ld(length) * bh::ld(effects.frame.flare_scales.fade[0].get()),
     )
     .max(0);
     let product = u64::from(marks.listener_figures[0].get()) * u64::from(alpha as u32);
     let alpha = (product as u32) >> 8;
-    let size_k: u32 = effects.frame.flare_scales.size_k.bits();
+    let size_k = effects.frame.flare_scales.size_k.get();
     for k in (0..PARTS as usize).rev() {
         let level: u32 = paths.wave_levels.levels[k].get();
         let y = x87::times_plus_80(dy, level, cy, false);

@@ -107,7 +107,7 @@ pub fn scaled(
     y: u32,
 ) -> Result<(), Refused> {
     let at = RectAt::number(rect);
-    let k = hud.block.uv_scale_x.bits();
+    let k = hud.block.uv_scale_x.get();
     hud.block.fistp_scratch.set(0xC0);
     let v = int_over_80(0xC0, k);
     crate::hud::add_scaled_sprite::add_scaled_sprite(frame, hud, pen, x, y, at, [v, v])?;

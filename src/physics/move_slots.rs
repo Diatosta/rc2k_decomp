@@ -14,11 +14,11 @@ pub fn move_slots(c: &SlotInputs<'_>, scene: &crate::scene::owner::Scene) -> Res
     let work = c.work;
     let slots = &work.race_slots;
     let mut n = 0u32;
-    for slot in slots {
+    for (number, slot) in slots.iter().enumerate() {
         if slot.part.get() != 0 {
             n += 1;
             work.slot_count.set(n);
-            move_slot(c, slot, scene)?;
+            move_slot(c, slot, number, scene)?;
         }
     }
     work.slot_count.set(n);

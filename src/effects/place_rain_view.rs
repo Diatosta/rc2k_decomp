@@ -60,7 +60,7 @@ pub fn place_view_with(v: &ViewPlace) -> Result<(), Refused> {
             cell.set(x as u32);
         }
         for (to, from) in v.matrix_copy.iter().zip(v.matrix.iter()) {
-            to.set_bits(from.bits());
+            to.set(from.get());
         }
         set_point(start);
     }

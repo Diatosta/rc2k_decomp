@@ -15,6 +15,6 @@ pub fn view_step(effects: &crate::effects::owner::Effects) {
         k.step[n].set(x87::negated(x87::sub(&k.kept_a.scaled[n], &k.last[n])));
     }
     for n in 0..3 {
-        k.last[n].set_bits(k.kept_a.scaled[n].bits());
+        k.last[n].set(k.kept_a.scaled[n].get());
     }
 }

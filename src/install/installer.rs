@@ -387,7 +387,7 @@ pub fn list_take_key() -> Result<u8, Refused> {
 /// table `table`; whether it moved (the original's zero).
 pub fn list_step(
     key: u32,
-    table: Option<crate::pointers::GamePtr>,
+    table: Option<crate::place::BytePlace>,
     list: ListMenu,
 ) -> Result<bool, crate::errors::BadInput> {
     crate::menu::list_step::list_step(key as u8, table, list)

@@ -19,7 +19,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_float::X;
-use crate::math::x87_float::{ld, st, to_int};
+use crate::math::x87_float::{ld, stf, to_int};
 use crate::scene::x87_mem::{Base, fld, mov};
 use crate::sound::sets_store::SoundRequest;
 use crate::sound::store::{SoundObject, WHEEL_SURFACES};
@@ -79,11 +79,11 @@ pub fn surface_sounds(
 /// `int [t + 0] = 0x3E800000`
 /// `[sf + 0x40] = [sf + 0x40] * [t + 0]`
 fn x87_1(sf: &crate::sound::store::SurfaceSounds, t: impl Base) {
-    let t0 = ld(sf.volume.bits());
+    let t0 = ld(sf.volume.get());
     mov(t, 0, 0x3E800000);
     let t1 = fld(t, 0);
     let t2 = t0 * t1;
-    sf.volume.set_bits(st(t2));
+    sf.volume.set(stf(t2));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -91,11 +91,11 @@ fn x87_1(sf: &crate::sound::store::SurfaceSounds, t: impl Base) {
 /// `int [t + 0] = 0x3DCCCCCD`
 /// `[sf + 0x40] = [sf + 0x40] * [t + 0]`
 fn x87_2(sf: &crate::sound::store::SurfaceSounds, t: impl Base) {
-    let t0 = ld(sf.volume.bits());
+    let t0 = ld(sf.volume.get());
     mov(t, 0, 0x3DCCCCCD);
     let t1 = fld(t, 0);
     let t2 = t0 * t1;
-    sf.volume.set_bits(st(t2));
+    sf.volume.set(stf(t2));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -107,65 +107,65 @@ fn x87_2(sf: &crate::sound::store::SurfaceSounds, t: impl Base) {
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 fn x87_3(bx: &crate::sound::store::SoundObject, sf: &crate::sound::store::SurfaceSounds) {
     let t0 = X(0.0);
-    let t1 = ld(bx.voices[0].share_b.bits());
+    let t1 = ld(bx.voices[0].share_b.get());
     let t2 = t0 - t1;
-    let t3 = ld(bx.voices[1].share_b.bits());
+    let t3 = ld(bx.voices[1].share_b.get());
     let t4 = t2 + t3;
-    let t5 = ld(bx.voices[2].share_b.bits());
+    let t5 = ld(bx.voices[2].share_b.get());
     let t6 = t4 - t5;
-    let t7 = ld(bx.voices[3].share_b.bits());
+    let t7 = ld(bx.voices[3].share_b.get());
     let t8 = t6 + t7;
-    sf.across.set_bits(st(t8));
+    sf.across.set(stf(t8));
     let t9 = X(0.0);
-    let t10 = ld(bx.voices[0].share_b.bits());
+    let t10 = ld(bx.voices[0].share_b.get());
     let t11 = t9 + t10;
-    let t12 = ld(bx.voices[1].share_b.bits());
+    let t12 = ld(bx.voices[1].share_b.get());
     let t13 = t11 + t12;
-    let t14 = ld(bx.voices[2].share_b.bits());
+    let t14 = ld(bx.voices[2].share_b.get());
     let t15 = t13 - t14;
-    let t16 = ld(bx.voices[3].share_b.bits());
+    let t16 = ld(bx.voices[3].share_b.get());
     let t17 = t15 - t16;
-    sf.along.set_bits(st(t17));
-    let t18 = ld(bx.voices[0].share_a.bits());
-    let t19 = ld(bx.voices[1].share_a.bits());
+    sf.along.set(stf(t17));
+    let t18 = ld(bx.voices[0].share_a.get());
+    let t19 = ld(bx.voices[1].share_a.get());
     let t20 = t18 + t19;
-    let t21 = ld(bx.voices[2].share_a.bits());
+    let t21 = ld(bx.voices[2].share_a.get());
     let t22 = t20 + t21;
-    let t23 = ld(bx.voices[3].share_a.bits());
+    let t23 = ld(bx.voices[3].share_a.get());
     let t24 = t22 + t23;
-    let t25 = ld(sf.across_scale.bits());
+    let t25 = ld(sf.across_scale.get());
     let t26 = t24 * t25;
     bx.sum_a.set(to_int(t26) as u32);
-    let t27 = ld(bx.voices[0].share_b.bits());
-    let t28 = ld(bx.voices[1].share_b.bits());
+    let t27 = ld(bx.voices[0].share_b.get());
+    let t28 = ld(bx.voices[1].share_b.get());
     let t29 = t27 + t28;
-    let t30 = ld(bx.voices[2].share_b.bits());
+    let t30 = ld(bx.voices[2].share_b.get());
     let t31 = t29 + t30;
-    let t32 = ld(bx.voices[3].share_b.bits());
+    let t32 = ld(bx.voices[3].share_b.get());
     let t33 = t31 + t32;
-    let t34 = ld(sf.along_scale.bits());
+    let t34 = ld(sf.along_scale.get());
     let t35 = t33 * t34;
     bx.sum_b.set(to_int(t35) as u32);
     let t36 = X(0.0);
-    let t37 = ld(bx.voices[0].share_a.bits());
-    let t38 = ld(bx.voices[0].share_b.bits());
+    let t37 = ld(bx.voices[0].share_a.get());
+    let t38 = ld(bx.voices[0].share_b.get());
     let t39 = t37 * t38;
     let t40 = t36 + t39;
-    let t41 = ld(bx.voices[1].share_a.bits());
-    let t42 = ld(bx.voices[1].share_b.bits());
+    let t41 = ld(bx.voices[1].share_a.get());
+    let t42 = ld(bx.voices[1].share_b.get());
     let t43 = t41 * t42;
     let t44 = t40 + t43;
-    let t45 = ld(bx.voices[2].share_a.bits());
-    let t46 = ld(bx.voices[2].share_b.bits());
+    let t45 = ld(bx.voices[2].share_a.get());
+    let t46 = ld(bx.voices[2].share_b.get());
     let t47 = t45 * t46;
     let t48 = t44 + t47;
-    let t49 = ld(bx.voices[3].share_a.bits());
-    let t50 = ld(bx.voices[3].share_b.bits());
+    let t49 = ld(bx.voices[3].share_a.get());
+    let t50 = ld(bx.voices[3].share_b.get());
     let t51 = t49 * t50;
     let t52 = t48 + t51;
-    let t53 = ld(sf.volume_scale.bits());
+    let t53 = ld(sf.volume_scale.get());
     let t54 = t52 * t53;
-    sf.volume.set_bits(st(t54));
+    sf.volume.set(stf(t54));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -176,45 +176,45 @@ fn x87_3(bx: &crate::sound::store::SoundObject, sf: &crate::sound::store::Surfac
 /// `[sf + 0x40] = ((([bx + 0x50] + [bx + 0x64]) + [bx + 0x78]) + [bx + 0x8C]) * [sf + 4]`
 fn x87_4(bx: &crate::sound::store::SoundObject, sf: &crate::sound::store::SurfaceSounds) {
     let t0 = X(0.0);
-    let t1 = ld(bx.voices[0].share_c.bits());
+    let t1 = ld(bx.voices[0].share_c.get());
     let t2 = t0 - t1;
-    let t3 = ld(bx.voices[1].share_c.bits());
+    let t3 = ld(bx.voices[1].share_c.get());
     let t4 = t2 + t3;
-    let t5 = ld(bx.voices[2].share_c.bits());
+    let t5 = ld(bx.voices[2].share_c.get());
     let t6 = t4 - t5;
-    let t7 = ld(bx.voices[3].share_c.bits());
+    let t7 = ld(bx.voices[3].share_c.get());
     let t8 = t6 + t7;
-    sf.across.set_bits(st(t8));
+    sf.across.set(stf(t8));
     let t9 = X(0.0);
-    let t10 = ld(bx.voices[0].share_c.bits());
+    let t10 = ld(bx.voices[0].share_c.get());
     let t11 = t9 + t10;
-    let t12 = ld(bx.voices[1].share_c.bits());
+    let t12 = ld(bx.voices[1].share_c.get());
     let t13 = t11 + t12;
-    let t14 = ld(bx.voices[2].share_c.bits());
+    let t14 = ld(bx.voices[2].share_c.get());
     let t15 = t13 - t14;
-    let t16 = ld(bx.voices[3].share_c.bits());
+    let t16 = ld(bx.voices[3].share_c.get());
     let t17 = t15 - t16;
-    sf.along.set_bits(st(t17));
-    let t18 = ld(bx.voices[0].share_c.bits());
-    let t19 = ld(bx.voices[1].share_c.bits());
+    sf.along.set(stf(t17));
+    let t18 = ld(bx.voices[0].share_c.get());
+    let t19 = ld(bx.voices[1].share_c.get());
     let t20 = t18 + t19;
-    let t21 = ld(bx.voices[2].share_c.bits());
+    let t21 = ld(bx.voices[2].share_c.get());
     let t22 = t20 + t21;
-    let t23 = ld(bx.voices[3].share_c.bits());
+    let t23 = ld(bx.voices[3].share_c.get());
     let t24 = t22 + t23;
-    let t25 = ld(sf.along_scale.bits());
+    let t25 = ld(sf.along_scale.get());
     let t26 = t24 * t25;
     bx.sum_c.set(to_int(t26) as u32);
-    let t27 = ld(bx.voices[0].share_c.bits());
-    let t28 = ld(bx.voices[1].share_c.bits());
+    let t27 = ld(bx.voices[0].share_c.get());
+    let t28 = ld(bx.voices[1].share_c.get());
     let t29 = t27 + t28;
-    let t30 = ld(bx.voices[2].share_c.bits());
+    let t30 = ld(bx.voices[2].share_c.get());
     let t31 = t29 + t30;
-    let t32 = ld(bx.voices[3].share_c.bits());
+    let t32 = ld(bx.voices[3].share_c.get());
     let t33 = t31 + t32;
-    let t34 = ld(sf.volume_scale.bits());
+    let t34 = ld(sf.volume_scale.get());
     let t35 = t33 * t34;
-    sf.volume.set_bits(st(t35));
+    sf.volume.set(stf(t35));
 }
 
 #[cfg(all(test, target_arch = "x86"))]

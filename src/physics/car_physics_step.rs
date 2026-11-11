@@ -27,10 +27,9 @@
 //! calls refuse; the work car and the physics' variables (`step_regions`) are put back then
 //! (the callees put back their own other writes).
 
+use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::loaded;
-use crate::math::x87_float::ld;
-use crate::math::x87_float::st;
 use crate::physics as ph;
 use crate::physics::car_store::Car;
 use crate::physics::flow::{hold_high, hold_low, negate};
@@ -106,7 +105,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     race.shared
         .physics_tables
         .vertical_speed
-        .set_bits(loaded(&race.shared.car.velocity[1]).to_bits());
+        .set(loaded(&race.shared.car.velocity[1]));
     for cell in [
         &race.shared.physics_tables.clear_place_mark,
         &race.shared.car.contact_flag,
@@ -379,16 +378,16 @@ pub fn car_physics_step(race: &Race) -> Result<(), Refused> {
 /// `[mean_drive_speed] = ([drive_speed_a] + [drive_speed_b]) * [half]`
 /// `[vertical_speed_change] = [rc + 0x31A174] - [vertical_speed]`
 fn x87_1(race: &Race) {
-    let t0 = ld(race.shared.car.drive_speed_a.bits());
-    let t1 = ld(race.shared.car.drive_speed_b.bits());
+    let t0 = race.shared.car.drive_speed_a.ld();
+    let t1 = race.shared.car.drive_speed_b.ld();
     let t2 = t0 + t1;
-    let t3 = ld(race.course.numbers.half.bits());
+    let t3 = race.course.numbers.half.ld();
     let t4 = t2 * t3;
-    race.shared.car.mean_drive_speed.set_bits(st(t4));
-    let t5 = ld(race.shared.car.velocity[1].bits());
-    let t6 = ld(race.shared.physics_tables.vertical_speed.bits());
+    race.shared.car.mean_drive_speed.st(t4);
+    let t5 = race.shared.car.velocity[1].ld();
+    let t6 = race.shared.physics_tables.vertical_speed.ld();
     let t7 = t5 - t6;
-    race.shared.car.vertical_speed_change.set_bits(st(t7));
+    race.shared.car.vertical_speed_change.st(t7);
 }
 
 #[cfg(all(test, target_arch = "x86"))]

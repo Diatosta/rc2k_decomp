@@ -55,9 +55,9 @@ pub struct ContactWork {
     /// +0xb3c (0x6D2914): The found face's half flag per probe point (`physics::probe_ground`, `wheel_surfaces`, `crash_contact`).
     pub probe_face_flip: [Dword; 64],
     /// +0xc3c (0x6D2A14): The point's share in the face's cell, first (`physics::probe_ground`, `wheel_surfaces`).
-    pub probe_share_u: [Dword; 64],
+    pub probe_share_u: [Float; 64],
     /// +0xd3c (0x6D2B14): The point's share in the face's cell, second (`physics::probe_ground`, `wheel_surfaces`).
-    pub probe_share_v: [Dword; 64],
+    pub probe_share_v: [Float; 64],
     /// +0xe3c (0x6D2C14): The probe x list kept before the step (`physics::probe_and_keep`, `crossed_edge_contact`).
     pub saved_probe_x: [Dword; 64],
     /// +0xf3c (0x6D2D14): The probe y list kept (`physics::probe_and_keep`, a reading: copied with the other two).

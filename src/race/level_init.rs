@@ -71,7 +71,7 @@ static COURSE_MEMORY: std::sync::Mutex<Option<CourseMemory>> = std::sync::Mutex:
 /// The course memory by handle: `COURSE_TAG | offset` names the byte at `offset`
 /// of the course memory, 0 none. `g_courseMemory` holds `COURSE_TAG` (offset 0), the
 /// layout's addresses (`lay_out_course`) are `COURSE_TAG` plus the offset the original
-/// adds to the block's start; `course_memory_at` turns one back into a place. No host
+/// adds to the block's start; `course_memory_offset` turns one back into an offset. No host
 /// address is kept.
 pub const COURSE_TAG: u32 = 0xCF00_0000;
 
@@ -92,27 +92,30 @@ fn take_course_memory(
     Ok(COURSE_TAG)
 }
 
-/// The place at handle `at` (`COURSE_TAG | offset`) inside the course memory, bounded by the
-/// memory's bytes; a handle outside it, or no course memory, is refused.
-fn course_memory_at(at: u32) -> Result<crate::pointers::GamePtr, BadInput> {
+/// The course memory's offset of handle `at` (`COURSE_TAG | offset`); one before the memory
+/// is refused.
+fn course_memory_offset(at: u32) -> Result<u32, BadInput> {
+    at.checked_sub(COURSE_TAG)
+        .ok_or(BadInput("a place before the course memory"))
+}
+
+/// `len` bytes of the course memory from handle `at` (`what` names them in a refusal); a
+/// handle outside the memory, or no course memory, is refused.
+pub fn read_course_memory(at: u32, len: usize, what: &str) -> Result<Vec<u8>, BadInput> {
     let guard = COURSE_MEMORY
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     let memory = &guard.as_ref().ok_or(BadInput("no course memory"))?._bytes;
-    let off = at
-        .checked_sub(COURSE_TAG)
-        .ok_or(BadInput("a place before the course memory"))?;
-    Ok(memory.ptr().offset(off))
-}
-
-/// `len` bytes of the course memory from handle `at` (`what` names them in a refusal).
-pub fn read_course_memory(at: u32, len: usize, what: &str) -> Result<Vec<u8>, BadInput> {
-    course_memory_at(at)?.read_bytes(len, what)
+    memory.read_at(course_memory_offset(at)?, len, what)
 }
 
 /// `data` written into the course memory from handle `at`.
 pub fn write_course_memory(at: u32, data: &[u8], what: &str) -> Result<(), BadInput> {
-    course_memory_at(at)?.write_bytes(data, what)
+    let guard = COURSE_MEMORY
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let memory = &guard.as_ref().ok_or(BadInput("no course memory"))?._bytes;
+    memory.write_at(course_memory_offset(at)?, data, what)
 }
 
 /// The course memory given back (the list's `free_list` counts it down).

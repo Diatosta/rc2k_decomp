@@ -19,7 +19,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::from_int;
-use crate::math::x87_float::{X, int, ld, st};
+use crate::math::x87_float::{X, int, ld, st, stf};
 use crate::race::owner::race;
 use crate::sound::sets_store::KindRecord;
 use crate::sound::store::{RaceClock, SoundObject, SurfaceSounds};
@@ -182,14 +182,14 @@ fn revs_input(so: &SoundObject, kind: &KindRecord) {
     let revs = int(so.revs.get() as i32);
     let above_low = revs - ld(kind.revs_low.get());
     so.revs_input
-        .set_bits(st(above_low * ld(kind.revs_scale.get())));
+        .set(stf(above_low * ld(kind.revs_scale.get())));
 }
 
 /// The speed input: `|speed| * surface.speed_scale`.
 fn speed_input(so: &SoundObject, surface: &SurfaceSounds) {
-    let speed = ld(so.speed.bits()).abs();
+    let speed = ld(so.speed.get()).abs();
     so.speed_input
-        .set_bits(st(speed * ld(surface.speed_scale.bits())));
+        .set(stf(speed * ld(surface.speed_scale.get())));
 }
 
 /// The gear-change cue's pitch from the clock's low four bits `low`: `low / 60 + 0.75`
@@ -216,28 +216,27 @@ const GEAR_PITCH_BASE: u32 = 0x3F40_0000;
 /// The distance to the listener (the root of the place's squares) and how fast it
 /// changes (`approach = (old - new distance) * turns a second`).
 fn distance_and_approach(so: &SoundObject, clock: &RaceClock) {
-    let old = ld(so.distance.bits());
-    let [x, y, z] = [0, 1, 2].map(|n| ld(so.place[n].bits()));
+    let old = ld(so.distance.get());
+    let [x, y, z] = [0, 1, 2].map(|n| ld(so.place[n].get()));
     let distance = (x * x + (y * y + z * z)).sqrt();
-    so.distance.set_bits(st(distance));
+    so.distance.set(stf(distance));
     so.approach
-        .set_bits(st((old - distance) * ld(clock.turns_a_second.bits())));
+        .set(stf((old - distance) * ld(clock.turns_a_second.get())));
 }
 
 /// The pitch factor eased toward `(approach + sound speed) * (1 / sound speed)`:
 /// `((target - factor) * blend) + factor`.
 fn ease_pitch_factor(so: &SoundObject, clock: &RaceClock, surface: &SurfaceSounds) {
     let target =
-        (ld(so.approach.bits()) + ld(clock.sound_speed.bits())) * ld(clock.over_sound_speed.bits());
-    let factor = ld(so.pitch_factor.bits());
-    let eased = (target - factor) * ld(surface.pitch_blend.bits()) + factor;
-    so.pitch_factor.set_bits(st(eased));
+        (ld(so.approach.get()) + ld(clock.sound_speed.get())) * ld(clock.over_sound_speed.get());
+    let factor = ld(so.pitch_factor.get());
+    let eased = (target - factor) * ld(surface.pitch_blend.get()) + factor;
+    so.pitch_factor.set(stf(eased));
 }
 
 /// The volume factor for a far car: `1 / distance`.
 fn volume_factor_by_distance(so: &SoundObject) {
-    so.volume_factor
-        .set_bits(st(X(1.0) / ld(so.distance.bits())));
+    so.volume_factor.set(stf(X(1.0) / ld(so.distance.get())));
 }
 
 #[cfg(test)]

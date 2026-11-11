@@ -17,14 +17,26 @@ pub fn entry(n: usize) -> Result<&'static PolygonEntry, BadInput> {
 }
 
 /// The list's cell `n` (the original's list has room for `MOST` numbers, more than the
-/// field: the cell is reached by address).
+/// field: the cells after it are the old list's).
 pub fn list_cell(n: usize) -> &'static Dword {
-    crate::race::checkpoints_store::cell_in(&crate::scene::polygon_store::POLYGON_WORK.list, n)
+    use crate::scene::polygon_store::{POLYGON_WORK, PolygonWork};
+    crate::race::checkpoints_store::cell_in(
+        &POLYGON_WORK.list,
+        &*POLYGON_WORK,
+        core::mem::offset_of!(PolygonWork, list),
+        n,
+    )
 }
 
 /// The list kept before a clip, cell `n` (as `list_cell`).
 pub fn old_list_cell(n: usize) -> &'static Dword {
-    crate::race::checkpoints_store::cell_in(&crate::scene::polygon_store::POLYGON_WORK.old_list, n)
+    use crate::scene::polygon_store::{POLYGON_WORK, PolygonWork};
+    crate::race::checkpoints_store::cell_in(
+        &POLYGON_WORK.old_list,
+        &*POLYGON_WORK,
+        core::mem::offset_of!(PolygonWork, old_list),
+        n,
+    )
 }
 
 /// The first record of the pool the clip makes its records in (`g_polygonNextRecord`
@@ -33,14 +45,36 @@ pub fn pool_start() -> u32 {
     crate::scene::point_records::of_pool(0)
 }
 
-/// The objects' material records (0x80 bytes each), as a pointer to the first bounded by the
-/// polygon work around the records, not the
-/// records alone: `scene::set_object_material` is given kind -1 and reads the record before
-/// the first (the texture infos' tail), as the original does.
-pub fn materials_ptr() -> crate::pointers::GamePtr {
-    use crate::scene::polygon_store::{POLYGON_TABLES, PolygonTables};
-    crate::pointers::GamePtr::to(&*POLYGON_TABLES)
-        .offset(core::mem::offset_of!(PolygonTables, object_materials) as u32)
+/// The `bytes` from byte `offset` of object kind `kind`'s material record (0x80 bytes
+/// each), read with the bound of the polygon tables around the records, not the records
+/// alone: `scene::set_object_material` is given kind -1 and reads the record before the
+/// first (the texture infos' tail), and a read can run on into the next record, as the
+/// original does. A read past the tables is refused.
+pub fn material_run(kind: u32, offset: u32, bytes: &mut [u8]) -> Result<(), BadInput> {
+    use crate::scene::polygon_store::PolygonTables;
+    let at = (core::mem::offset_of!(PolygonTables, object_materials) as u32)
+        .wrapping_add(kind.wrapping_mul(0x80))
+        .wrapping_add(offset);
+    crate::pointers::load_cells(
+        &*crate::scene::polygon_store::POLYGON_TABLES,
+        at as usize,
+        bytes,
+    )
+}
+
+/// The byte at `offset` of object kind `kind`'s material record (as `material_run`).
+pub fn material_run_byte(kind: u32, offset: u32) -> Result<u8, BadInput> {
+    let mut byte = [0u8];
+    material_run(kind, offset, &mut byte)?;
+    Ok(byte[0])
+}
+
+/// The little-endian word at `offset` of object kind `kind`'s material record (as
+/// `material_run`).
+pub fn material_run_word(kind: u32, offset: u32) -> Result<u16, BadInput> {
+    let mut word = [0u8; 2];
+    material_run(kind, offset, &mut word)?;
+    Ok(u16::from_le_bytes(word))
 }
 
 /// The byte `offset` into the polygon tables' field of `len` bytes at `field`; the field's

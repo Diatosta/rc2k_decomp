@@ -1,7 +1,7 @@
 //! The global drawing surface and clip rectangle that the game's blitters read.
 //!
 //! The surface is a `Target`. The screen's and a locked texture's
-//! pixels are still reached by address (`DRAW_SURFACE.pixels`, set by the platform's lock and
+//! pixels are reached by a handle (`gfx::locked_pixels`; `DRAW_SURFACE.pixels`, set by the platform's lock and
 //! `d3d::texture_surface_info`); the picture buffer, the menus' surface after
 //! `gfx::picture_as_surface`, by its number (`ON_PICTURE`, `DRAW_SURFACE.pixels` 0 then).
 
@@ -15,8 +15,8 @@ pub static ON_PICTURE: AtomicU32 = AtomicU32::new(0);
 /// The surface's pixels.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Target {
-    /// The screen or a locked texture, at a game address.
-    Address(u32),
+    /// The screen or a locked texture, by its pixels' handle (`gfx::locked_pixels`).
+    Locked(u32),
     /// A picture buffer (`gfx::picture`), by its number.
     Picture(u32),
 }
@@ -28,19 +28,19 @@ pub fn target() -> Option<Target> {
         gfx().drawing.draw_surface.pixels.get(),
     ) {
         (0, 0) => None,
-        (0, a) => Some(Target::Address(a)),
+        (0, a) => Some(Target::Locked(a)),
         (n, _) => Some(Target::Picture(n)),
     }
 }
 
-/// The surface's address (0 for none), for code that only ever draws on the screen or a
-/// texture: refused while the picture buffer is the surface.
-pub fn address() -> Result<u32, BadInput> {
+/// The surface's pixels' handle (`gfx::locked_pixels`; 0 for none), for code that only ever draws on
+/// the screen or a texture: refused while the picture buffer is the surface.
+pub fn handle() -> Result<u32, BadInput> {
     match target() {
         Some(Target::Picture(_)) => Err(BadInput(
             "the picture buffer as the surface of code that draws on the screen only",
         )),
-        Some(Target::Address(a)) => Ok(a),
+        Some(Target::Locked(a)) => Ok(a),
         None => Ok(0),
     }
 }
@@ -55,7 +55,7 @@ pub fn on_address() {
 pub fn write(target: Target, offset: u32, bytes: &[u8]) -> Result<(), BadInput> {
     let drawing = &gfx().drawing;
     match target {
-        Target::Address(a) => crate::gfx::rows::Rows::new(
+        Target::Locked(a) => crate::gfx::rows::Rows::new(
             a,
             drawing.draw_surface.pitch.get(),
             drawing.draw_surface.height.get(),
@@ -122,7 +122,7 @@ mod target_tests {
         ON_PICTURE.store(n, Relaxed);
         drawing.draw_surface.pixels.set(0);
         assert_eq!(target(), Some(Target::Picture(n)));
-        assert!(address().is_err(), "screen-only code refuses the picture");
+        assert!(handle().is_err(), "screen-only code refuses the picture");
         write(target().unwrap(), 8, &[9, 8, 7]).unwrap();
         assert_eq!(read_bytes(n, 8, 3).unwrap(), [9, 8, 7]);
         on_address();

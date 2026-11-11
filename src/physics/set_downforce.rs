@@ -21,5 +21,5 @@ pub fn set_downforce(car: &Car, tables: &PhysicsTables) {
     );
     tables.downforce.set_bits(load);
     tables.forces[4].force[1].set_bits(negative);
-    tables.forces[4].point[2].set_bits((-1.0f32).to_bits());
+    tables.forces[4].point[2].set(-1.0f32);
 }

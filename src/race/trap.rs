@@ -1,10 +1,9 @@
 //! A refusal carried out of a closure: the core routines of `rc2k_core` ask the game's memory
-//! through closures that cannot fail, and a `GamePtr` read can be refused. The closure reads
+//! through closures that cannot fail, and a checked read can be refused. The closure reads
 //! through a `Trap`; the first refusal is kept (the closure answers 0 meanwhile, and the
 //! caller discards that answer) and `finish` hands it back after the core returns.
 
 use crate::errors::BadInput;
-use crate::pointers::GamePtr;
 use std::cell::Cell;
 
 #[derive(Default)]
@@ -17,27 +16,8 @@ impl Trap {
         Self::default()
     }
 
-    /// The `T` at `at`, or its zero when the read is refused (kept for `finish`).
-    #[track_caller]
-    pub fn read<T: crate::pointers::Plain + Default>(&self, at: u32, what: &str) -> T {
-        self.read_at(GamePtr::new(at), what)
-    }
-
-    /// As `read`, at a pointer made from a store's field.
-    #[track_caller]
-    pub fn read_at<T: crate::pointers::Plain + Default>(&self, at: GamePtr, what: &str) -> T {
-        match at.read::<T>(what) {
-            Ok(v) => v,
-            Err(e) => {
-                if self.refused.get().is_none() {
-                    self.refused.set(Some(e));
-                }
-                T::default()
-            }
-        }
-    }
-
-    /// As `read_at`, at byte `offset` of a store.
+    /// The `T` at byte `offset` of a store, or its zero when the read is refused (kept for
+    /// `finish`).
     #[track_caller]
     pub fn load_at<T: crate::pointers::Plain + Default>(
         &self,
@@ -78,7 +58,8 @@ pub fn car_at(addr: u32) -> Result<&'static crate::physics::car_store::Car, BadI
     match crate::physics::car_store::Car::known(addr) {
         Some(car) => Ok(car),
         #[cfg(test)]
-        None => GamePtr::new(addr).record::<crate::physics::car_store::Car>("a car block"),
+        None => crate::pointers::GamePtr::new(addr)
+            .record::<crate::physics::car_store::Car>("a car block"),
         #[cfg(not(test))]
         None => {
             crate::framework::log(&format!("trap: {addr:#x} is no car block's place"));

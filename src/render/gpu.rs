@@ -77,7 +77,7 @@ pub struct Gpu {
     samplers: [Sampler; 4],
     nearest: Sampler,
     white: Texture,
-    textures: HashMap<crate::pointers::GamePtr, CachedTexture>,
+    textures: HashMap<super::TextureId, CachedTexture>,
     vertices: Buffer,
     vertices_room: u32,
     transfer: Transfer,
@@ -678,14 +678,14 @@ mod comparison {
             bytes.push(data.to_vec());
             notes.push((w, h, pitch, each, masks, len));
         }
-        let lent: Vec<_> = bytes
+        let levels: Vec<_> = bytes
             .iter()
-            .map(|b| crate::pointers::Lent::new(b))
+            .map(|b| crate::platform_3d::test_level(b.clone()))
             .collect();
         let note = |n: usize| {
             let (width, height, pitch, bytes, masks, len) = notes[n];
             TextureNote {
-                pixels: crate::pointers::GamePtr::new(lent[n].addr()).limited(len as u32),
+                pixels: levels[n],
                 len,
                 width,
                 height,

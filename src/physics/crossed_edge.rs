@@ -28,10 +28,10 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
     { crate::physics::restore_saved_car::restore_saved_car(c.car, c.tables, c.contact) }?;
     crate::physics::crossed_edge_contact::steps(c, scene)?;
     if let Some(hit) = rc2k_core::physics::walls::raised_hit(
-        f32::from_bits(contact.contact_speed_length.bits()),
-        f32::from_bits(c.car.contact_depth.bits()),
+        contact.contact_speed_length.get(),
+        c.car.contact_depth.get(),
     ) {
-        c.car.contact_depth.set_bits(hit.to_bits());
+        c.car.contact_depth.set(hit);
     }
     c.car.contact_flag.set(1);
     c.car.wall_hit_timer.set(0x32);

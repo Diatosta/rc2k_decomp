@@ -9,7 +9,7 @@
 //!
 //! Callers: `race::replay_viewer` (two), reading ZF.
 
-use crate::pointers::GamePtr;
+use crate::place::BytePlace;
 use rc2k_core::menu::list_menu::{MOVES, Step, step};
 
 /// `key` (al) moving the highlight of the list menu `list` (edi) by the neighbours table
@@ -17,7 +17,7 @@ use rc2k_core::menu::list_menu::{MOVES, Step, step};
 /// carry and ecx no caller reads).
 pub fn list_step(
     key: u8,
-    table: Option<GamePtr>,
+    table: Option<BytePlace>,
     list: crate::menu::list_handle::ListMenu,
 ) -> Result<bool, crate::errors::BadInput> {
     // The logic is in `rc2k_core::menu::list_menu::step`.
@@ -30,10 +30,11 @@ pub fn list_step(
     let fault = crate::menu::event_flow::Fault::default();
     // Asked only with a table (`step` is told whether there is one).
     let entry_of = |k: usize| match table {
-        Some(table) => fault.read_at::<u8>(
-            table.offset(ecx.wrapping_mul(4)).offset(k as u32),
-            "a neighbours table",
-        ),
+        Some(table) => fault.ok(table
+            .add(ecx.wrapping_mul(4))
+            .add(k as u32)
+            .read(1, "a neighbours table")
+            .map(|bytes| bytes[0])),
         None => 0,
     };
     let with_cl = |cl: u8| ecx & !0xFF | cl as u32;

@@ -354,7 +354,7 @@ pub trait TextureMemory {
     fn set_first_slot(&mut self, texture: u32, slot: u32);
     /// A system texture's first texture (`g_kindFirstTextures`) and the texture at that
     /// number, in that order of the original's: the second first.
-    fn set_first_texture(&mut self, texture: u32, first: u32);
+    fn set_first_texture(&mut self, texture: u32, first: u32) -> Result<(), Invalid>;
 }
 
 /// `try_allocate_textures`: the memory asked for summed for the log (refusing a level
@@ -415,7 +415,7 @@ pub fn try_allocate(
             if video {
                 m.set_first_slot(texture, given);
             } else {
-                m.set_first_texture(texture, given);
+                m.set_first_texture(texture, given)?;
             }
         }
     }
@@ -600,8 +600,9 @@ mod tests {
         fn set_first_slot(&mut self, texture: u32, slot: u32) {
             self.slots.push((texture, slot));
         }
-        fn set_first_texture(&mut self, texture: u32, first: u32) {
+        fn set_first_texture(&mut self, texture: u32, first: u32) -> Result<(), Invalid> {
             self.slots.push((texture | 0x8000, first));
+            Ok(())
         }
     }
 

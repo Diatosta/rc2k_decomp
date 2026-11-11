@@ -30,7 +30,7 @@ pub fn draw_glow(
         let place = [
             x87::add_80(&clipping.glow.place[2], &clipping.glow.offset[0]),
             x87::add_80(&clipping.glow.place[1], &clipping.glow.offset[1]),
-            extended(clipping.glow.place[0].bits()),
+            extended(clipping.glow.place[0].get()),
         ];
         crate::effects::draw_turned_sprite::draw_turned_sprite(
             clipping.glow.angle.get(),

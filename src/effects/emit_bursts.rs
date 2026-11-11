@@ -162,7 +162,7 @@ fn strength(
     wheel: &MarkRecord,
 ) -> Result<(f32, i32), Refused> {
     Ok({
-        let scale: u32 = effects.setup.floats.thirty_two.bits();
+        let scale = effects.setup.floats.thirty_two.get();
         if n == 0 {
             x87::times_kept_abs_to_int(&wheel.local_velocity_x, &set.tuning.strength_k, scale)
         } else {
@@ -247,15 +247,15 @@ pub fn emit_bursts_with(
         }
         for (n, h) in set.halves.iter().enumerate() {
             let (s, rate) = strength(effects, set, n, wheel)?;
-            h.strength.set_bits(s.to_bits());
+            h.strength.set(s);
             ring.work.whole.set(rate as u32);
             let r = next_c5(&set.tuning.randoms(n)[0]);
             if (r.rotate_right(16) & 0xFF) as i32 >= rate {
                 continue;
             }
             let car = emitting_car(effects)?;
-            let k: u32 = effects.setup.floats.burst_direction_k.bits();
-            let s: u32 = h.strength.bits();
+            let k = effects.setup.floats.burst_direction_k.get();
+            let s = h.strength.get();
             let scale = h.scaled.then(|| effects.setup.floats.half.bits());
             let direction = [
                 x87::mul2(h.factors[0], s, k),
@@ -276,7 +276,7 @@ pub fn emit_bursts_with(
                 let (out, _) = crate::effects::spread_point::spread_point(
                     paths,
                     [
-                        extended(effects.setup.floats.half.bits()),
+                        extended(effects.setup.floats.half.get()),
                         extended(d[2]),
                         extended(d[1]),
                         extended(d[0]),
@@ -294,7 +294,7 @@ pub fn emit_bursts_with(
                     |en| &mut en.cell,
                     ((flags2 & 0x3F) << 4) + (r.rotate_right(17) & 3),
                 )?;
-                let tk: u32 = effects.setup.floats.minus_eighth.bits();
+                let tk = effects.setup.floats.minus_eighth.get();
                 slot.put(|en| &mut en.push[2], x87::mul(&car.motion[2], tk).to_bits())?;
                 slot.put(|en| &mut en.push[1], x87::mul(&car.motion[1], tk).to_bits())?;
                 slot.put(|en| &mut en.push[0], x87::mul(&car.motion[0], tk).to_bits())?;

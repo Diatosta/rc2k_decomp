@@ -89,10 +89,10 @@ pub fn trail_particles(
             effects.setup.work.seed.set(s);
             let k1 = effects.frame.draw_work.uv_k.bits();
             let k2 = effects.kinds.particle_tuning.trail_random_k.bits();
-            ring.pool.burst_radius.set_bits(bh::st(
+            ring.pool.burst_radius.set(bh::stf(
                 bh::int((s & 0xFFFF) as i32) * bh::ld(k1) * bh::ld(k2),
             ));
-            let radius: u32 = ring.pool.burst_radius.bits();
+            let radius = ring.pool.burst_radius.get();
             for (place, last, _) in AXES {
                 put(
                     place,
@@ -110,7 +110,7 @@ pub fn trail_particles(
                     bh::st(
                         (bh::ld(particle(particles, p, last)?)
                             - bh::ld(particle(particles, p, place)?))
-                            * bh::ld(effects.kinds.particle_tuning.trail_axes[2 * n].bits())
+                            * bh::ld(effects.kinds.particle_tuning.trail_axes[2 * n].get())
                             + bh::ld(particle(particles, p, motion)?)
                                 * bh::ld(
                                     effects.kinds.particle_tuning.trail_axes[2 * n + 1].bits(),
@@ -120,7 +120,7 @@ pub fn trail_particles(
             }
             let (moved, _) = jitter_point(
                 [
-                    extended(effects.kinds.particle_tuning.trail_spread.bits()),
+                    extended(effects.kinds.particle_tuning.trail_spread.get()),
                     extended(particle(particles, e, 0x34)?),
                     extended(particle(particles, e, 0x2C)?),
                     extended(particle(particles, e, 0x28)?),

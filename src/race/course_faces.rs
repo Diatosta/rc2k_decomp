@@ -3,6 +3,7 @@
 //! +0x3C its two triangles' normals, by the reading of `face_turned_to_view`, +0x20 / +0x21 the
 //! second's flags and object). Here its leaves.
 
+use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
 use crate::race::face_work::FaceWork;
 use crate::race::owner::Race;
@@ -99,7 +100,7 @@ fn turned_to_view(
         let normal = f.normal(triangle);
         let at = crate::race::scene_points::point_number(&race.course, p)?;
         let along = |k: usize, view_at: &Float, normal: u32| -> Result<_, BadInput> {
-            Ok((int(at[k] as i32) - ld(view_at.bits())) * ld(normal))
+            Ok((int(at[k] as i32) - view_at.ld()) * ld(normal))
         };
         let (x, y, z) = (
             along(0, &place[0], normal[0])?,
@@ -543,9 +544,9 @@ fn plain_list(poly: &crate::scene::polygon_work::PolygonWork, count: u32, next: 
     {
         poly.polygon_vertex_count.set(count);
         for k in 0..count {
-            crate::race::checkpoints_store::cell_in(&POLYGON_WORK.list, k as usize).set(k);
+            crate::scene::polygon::list_cell(k as usize).set(k);
         }
-        crate::race::checkpoints_store::cell_in(&POLYGON_WORK.list, count as usize).set(0);
+        crate::scene::polygon::list_cell(count as usize).set(0);
         poly.polygon_next_entry.set(next);
     }
 }
@@ -734,7 +735,7 @@ fn halfway_record(
 ) {
     use crate::math::x87::below_or_unordered;
     use crate::math::x87_float::{ld, st};
-    let half = ld(course.numbers.half.bits());
+    let half = course.numbers.half.ld();
     for k in [4, 5, 6] {
         let (from, to) = (ld(a[k]), ld(b[k]));
         v[k] = st((to - from) * half + from);
@@ -751,7 +752,7 @@ fn halfway_record(
 /// +0x1A the halves of their sums (+0x1B left).
 fn halfway_entry(course: &Course, first: &PolygonEntry, second: &PolygonEntry, to: &PolygonEntry) {
     use crate::math::x87_float::{ld, st};
-    let half = ld(course.numbers.half.bits());
+    let half = course.numbers.half.ld();
     for o in [8, 0xC, 0x10, 0x14] {
         let sum = ld(second.word(o)) + ld(first.word(o));
         to.set_word(o, st(sum * half));
@@ -862,7 +863,7 @@ pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     }
     for list in [[0u32, 3, 5], [1, 4, 3], [2, 5, 4], [3, 4, 5]] {
         for (k, n) in list.iter().enumerate() {
-            crate::race::checkpoints_store::cell_in(&POLYGON_WORK.list, k).set(*n);
+            crate::scene::polygon::list_cell(k).set(*n);
         }
         POLYGON_WORK.list[3].set(list[0]);
         ctx.view.polygon.polygon_vertex_count.set(3u32);

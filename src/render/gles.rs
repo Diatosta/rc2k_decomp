@@ -253,7 +253,7 @@ pub struct Gpu {
     width: i32,
     height: i32,
     depth_is_new: bool,
-    textures: HashMap<crate::pointers::GamePtr, CachedTexture>,
+    textures: HashMap<super::TextureId, CachedTexture>,
 }
 
 pub static GPU: Mutex<Option<Front>> = Mutex::new(None);
@@ -862,7 +862,7 @@ impl Gpu {
     }
 
     /// The textures whose memory is gone let go of.
-    fn forget(&mut self, gone: &[crate::pointers::GamePtr]) {
+    fn forget(&mut self, gone: &[super::TextureId]) {
         for pixels in gone {
             if let Some(texture) = self.textures.remove(pixels) {
                 self.give_back((texture.width, texture.height), texture.layer);
@@ -924,7 +924,7 @@ struct Part {
 
 enum Job {
     /// The textures whose memory is gone, by address.
-    Forget(Vec<crate::pointers::GamePtr>),
+    Forget(Vec<super::TextureId>),
     Draw(Part),
     ShowTarget,
     ShowPicture {
@@ -939,7 +939,7 @@ enum Job {
 pub struct Front {
     jobs: SyncSender<Job>,
     /// The textures up to date on the GPU, with their sizes.
-    known: HashMap<crate::pointers::GamePtr, (usize, usize)>,
+    known: HashMap<super::TextureId, (usize, usize)>,
     size: (i32, i32),
 }
 

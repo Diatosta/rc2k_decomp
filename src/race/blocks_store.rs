@@ -126,16 +126,13 @@ pub fn handle_of(addr: u32) -> u32 {
 
 /// The handle of the block `car`; a car that is none of the blocks ends the program.
 pub fn handle_of_car(car: &Car) -> u32 {
-    let off = core::ptr::from_ref(car)
-        .addr()
-        .wrapping_sub(CAR_BLOCKS.cars.as_ptr().addr());
-    if !off.is_multiple_of(BLOCK_LEN) || off / BLOCK_LEN >= BLOCK_COUNT {
-        crate::fatal::raise::end(
+    match CAR_BLOCKS.cars.iter().position(|c| core::ptr::eq(c, car)) {
+        Some(n) => BLOCK_TAG | n as u32,
+        None => crate::fatal::raise::end(
             "race::blocks_store::handle_of_car",
             crate::errors::BadInput("a car that is none of the blocks"),
-        );
+        ),
     }
-    BLOCK_TAG | (off / BLOCK_LEN) as u32
 }
 
 /// IDA's `g_viewBlocks` (two) and `g_carBlocks` (eight): their places hold handles

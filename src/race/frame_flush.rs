@@ -1,6 +1,7 @@
 //! The race frame's device batches and the view's backdrop under `race::draw_race_scene`: two batches of triangles flushed by the device (0x41ADF5, the platform's
 //! `DrawPrimitive`), and a quad over the view window.
 
+use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
@@ -104,8 +105,8 @@ pub fn flush_batch(frame: &Frame, b: &Batch, textured: bool) -> Result<(), Refus
 
 /// `fild i; fadd/fsub one; fstp`.
 fn int_and_one(course: &Course, i: u32, add: bool) -> u32 {
-    use crate::math::x87_float::{int, ld, st};
-    let one = ld(course.numbers.one.bits());
+    use crate::math::x87_float::{int, st};
+    let one = course.numbers.one.ld();
     let i = int(i as i32);
     st(if add { i + one } else { i - one })
 }

@@ -9,7 +9,7 @@
 
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::math::x87;
-use crate::session::{PlainDword, PlainFloat, read_bits, write_bits};
+use crate::session::{PlainFloat, read_bits, write_bits};
 
 pub fn tilt_shape(drops: &WindscreenDrops) {
     let t = &drops.tilt;
@@ -20,7 +20,7 @@ pub fn tilt_shape(drops: &WindscreenDrops) {
     t.point[1].set(y);
     t.point[2].set(z);
     let (unit, length) = x87::unit_and_length(read_bits(&t.point));
-    t.length.set_bits(length.to_bits());
+    t.length.set(length);
     write_bits(&t.unit, unit.map(f32::to_bits));
 }
 
@@ -35,7 +35,7 @@ pub struct ShapeTilt {
     /// 0x811BCB: `flt_811BCB`: the cosine of the tilt.
     pub cosine: PlainFloat,
     /// 0x811BCF: `dword_811BCF`: the point's length.
-    pub length: PlainDword,
+    pub length: PlainFloat,
     /// 0x811BD3: `unk_811BD3` ..: the point made of length 1.
     pub unit: [PlainFloat; 3],
     /// 0x811BDF: `flt_811BDF` .. `flt_811BE7`: the first kept view point (copied by `effects::copy_first_point`, turned by the tilt, then also set to 0 by `effects::windscreen_drops_drift` and moved by the drift).
@@ -48,7 +48,7 @@ impl ShapeTilt {
             tilt: PlainFloat::new(0.0),
             sine: PlainFloat::new(0.0),
             cosine: PlainFloat::new(0.0),
-            length: PlainDword::new(0x0),
+            length: PlainFloat::new(0.0),
             unit: [
                 PlainFloat::new(0.0),
                 PlainFloat::new(1.0),

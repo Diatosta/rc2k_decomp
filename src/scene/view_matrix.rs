@@ -103,7 +103,7 @@ pub fn cross_product(
 /// image has them, copied back); here a local, so that views drawn beside each other do not
 /// work in each other's rows.
 pub fn square_matrix(course: &Course, at: &(impl Cells + ?Sized)) -> u32 {
-    let squared = [const { Float::from_bits(0) }; 0x10];
+    let squared = [const { Float::new(0.0) }; 0x10];
     let (first, second, third) = (Off(&squared, 0), Off(&squared, 4), Off(&squared, 8));
     unit_vector(course, &Off(at, 8), &third);
     cross_product(&Off(at, 4), &third, &first);

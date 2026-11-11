@@ -50,7 +50,7 @@ impl PictureSurface for GameSurface {
         crate::platform::unlock_surface();
     }
     fn pixels(&self) -> u32 {
-        crate::gfx::surface::address()
+        crate::gfx::surface::handle()
             .unwrap_or_else(|e| crate::fatal::raise::end("gfx::copy_picture_to_surface", e))
     }
     fn rows(&self) -> u32 {

@@ -155,7 +155,7 @@ pub fn emit_particle_1(
         let life = x87::times_plus_to_int(strength, LIFE_K[0], LIFE_K[1]);
         ring.work.life.set(life as u32);
         let fade = x87::mul(strength, &effects.setup.floats.two_fifty_five);
-        ring.work.fade.set_bits(fade.to_bits());
+        ring.work.fade.set(fade);
         if next_entry(ring)?.is_none() {
             return Ok(());
         }
@@ -167,8 +167,8 @@ pub fn emit_particle_1(
         effects.setup.frame.emit_side.set_bits(side as u32);
         let place: [[u8; 10]; 3] = crate::effects::try_from_fn(|k| {
             Ok(x87::plus_int_times_80(
-                wheel.place[k].bits(),
-                effects.kinds.emitter.side_b[k].bits(),
+                &wheel.place[k],
+                &effects.kinds.emitter.side_b[k],
                 side,
             ))
         })?;
@@ -200,7 +200,7 @@ pub fn emit_particle_1(
         })?;
         let (moved, _) = jitter_point(
             [
-                extended(particles.kind1_set.spread.bits()),
+                extended(particles.kind1_set.spread.get()),
                 motion[2],
                 motion[1],
                 motion[0],

@@ -16,7 +16,7 @@ use rc2k_core::physics::motion::stop_timers;
 /// precision).
 // Converted: `rc2k_core::physics::motion::stop_timers`.
 pub fn count_stop_timers_at(numbers: &Numbers, v: &[&dyn Cell32]) {
-    let one = f32::from_bits(numbers.one.bits());
+    let one = numbers.one.get();
     let mut counters = [v[0].bits(), v[1].bits(), v[2].bits()];
     let result = stop_timers(&mut counters, f32::from_bits(v[3].bits()), one);
     for (k, c) in counters.iter().enumerate() {

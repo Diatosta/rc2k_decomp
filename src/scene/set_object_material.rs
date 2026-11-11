@@ -106,9 +106,7 @@ pub fn set_object_material(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
         return Err(BadInput("an object's number past the tables"));
     }
     let kind: u32 = scene.objects.tables.object_kind(object);
-    let material = crate::scene::polygon::materials_ptr()
-        .offset(((kind as usize).wrapping_mul(MATERIAL_LEN)) as u32);
-    let way = material.offset(0x20).read::<u8>("an object's material")? as u32;
+    let way = u32::from(crate::scene::polygon::material_run_byte(kind, 0x20)?);
     let state = state(&race.course, &ctx.view.face);
     if way == 4 && state.is_none() {
         return Err(BadInput("a moving object without its state"));

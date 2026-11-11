@@ -85,8 +85,8 @@ pub(super) fn fill_request(
         request,
     );
     for n in 0..3 {
-        let place = ld(so.place[n].bits());
-        let motion = ld(so.motion[n].bits());
+        let place = ld(so.place[n].get());
+        let motion = ld(so.motion[n].get());
         request.place[n].set_bits(st(match side {
             EnginePlace::Ahead => place + motion,
             EnginePlace::Behind => place - motion,
@@ -112,7 +112,7 @@ pub fn fill_pitch_and_volume(
     let volume = linear(volume_input, &set.volume_scale, &set.volume_low);
     if so.view_flag.get() == 0 {
         // On the road the surface's gain scales the volume, before it is rounded.
-        request.volume.set_bits(st(volume * ld(gain.bits())));
+        request.volume.set_bits(st(volume * ld(gain.get())));
     } else {
         request.volume.set_bits(st(volume));
     }
@@ -120,7 +120,7 @@ pub fn fill_pitch_and_volume(
 
 /// `input * slope + start`, left on the x87 stack unrounded.
 fn linear(input: &Float, slope: &PlainDword, start: &PlainDword) -> X {
-    ld(input.bits()) * ld(slope.get()) + ld(start.get())
+    ld(input.get()) * ld(slope.get()) + ld(start.get())
 }
 
 #[cfg(all(test, target_arch = "x86"))]

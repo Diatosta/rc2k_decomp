@@ -15,7 +15,7 @@
 //! puts back what was written (sounds already sent stay sent).
 
 use crate::errors::{BadInput, Refused};
-use crate::math::x87_float::{ld, st};
+use crate::math::x87_float::{ld, stf};
 use crate::sound::store::SoundObject;
 
 /// Every car's sounds for the turn: the players' each, of the computer's the two nearest
@@ -72,18 +72,18 @@ pub fn car_sounds_all(sound: &crate::sound::owner::Sound) -> Result<(), Refused>
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `nearest_distance = (place[0] * place[0]) + ((place[1] * place[1]) + (place[2] * place[2]))`
 fn x87_1(si: &SoundObject, df: &crate::sound::store::RaceSounds) {
-    let t0 = ld(si.place[0].bits());
-    let t1 = ld(si.place[0].bits());
+    let t0 = ld(si.place[0].get());
+    let t1 = ld(si.place[0].get());
     let t2 = t0 * t1;
-    let t3 = ld(si.place[1].bits());
-    let t4 = ld(si.place[1].bits());
+    let t3 = ld(si.place[1].get());
+    let t4 = ld(si.place[1].get());
     let t5 = t3 * t4;
-    let t6 = ld(si.place[2].bits());
-    let t7 = ld(si.place[2].bits());
+    let t6 = ld(si.place[2].get());
+    let t7 = ld(si.place[2].get());
     let t8 = t6 * t7;
     let t9 = t5 + t8;
     let t10 = t2 + t9;
-    df.nearest_distance.set_bits(st(t10));
+    df.nearest_distance.set(stf(t10));
 }
 
 #[cfg(all(test, target_arch = "x86"))]

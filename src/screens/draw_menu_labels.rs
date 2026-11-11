@@ -32,12 +32,14 @@ pub fn draw_menu_labels(
 ) -> Result<(), Refused> {
     let (Some(labels), Some(first)) = (
         menu.labels_place()?,
-        crate::menu::menus_store::labels_slot(menus, menu, 0)?,
+        crate::menu::menus_store::labels_slot(menu, 0)?,
     ) else {
         return Err(BadInput("a menu without a label list").into());
     };
-    // The dword `at` bytes into the list (bounded to the menus' store).
-    let dword = |at: u32| first.offset(at).read::<u32>("a menu label");
+    // The dword `at` bytes into the list (bounded to the label lists).
+    let dword = |at: u32| {
+        crate::pointers::load_value::<u32>(&menus.tables.menus.labels, first + at as usize)
+    };
     if !has_end(&dword)? {
         return Err(BadInput("a label list without an end").into());
     }

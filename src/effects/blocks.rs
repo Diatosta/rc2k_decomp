@@ -110,7 +110,7 @@ const CORNER_PAIRS: [u32; 4] = [0, 4, 0xC, 8];
 /// |+4 - +0| (sixteen-bit differences; `DrawWork.half[0]`, `DrawWork.half[1]`).
 pub fn scale_corners(effects: &crate::effects::owner::Effects) {
     {
-        let scale: u32 = effects.frame.draw_work.uv_k.bits();
+        let scale = effects.frame.draw_work.uv_k.get();
         for n in (0..CORNERS).rev() {
             let record = &effects.blocks.corners.corners[n as usize];
             let word = |o: u32| record.words[o as usize / 2].get();
@@ -121,9 +121,9 @@ pub fn scale_corners(effects: &crate::effects::owner::Effects) {
                     values[2 * k + h] = v.to_bits();
                     let vertex = &crate::d3d::vertices_store::VERTICES.vertices[k];
                     if h == 0 {
-                        vertex.u.set_bits(v.to_bits());
+                        vertex.u.set(v);
                     } else {
-                        vertex.v.set_bits(v.to_bits());
+                        vertex.v.set(v);
                     }
                 }
             }

@@ -8,10 +8,9 @@
 //! Callers: `physics::car_physics_step`, `drive::finish_run`, `race::show_replay_still`. Refuses
 //! what `update_camera` refuses (everything written put back).
 
+use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
 use crate::math::x87_float::int;
-use crate::math::x87_float::ld;
-use crate::math::x87_float::st;
 use crate::physics::flow::{hold_high, hold_low, negate};
 use crate::physics::step_families::CameraInputs;
 use crate::race::numbers_store::Numbers;
@@ -61,10 +60,10 @@ pub fn camera_frame(
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[camera_shake_y] = [vertical_speed_change] * [camera_frame_scale]`
 fn x87_1(shared: &RaceShared, scene: &crate::scene::owner::Scene) {
-    let t0 = ld(shared.car.vertical_speed_change.bits());
-    let t1 = ld(shared.physics_tables.camera_frame_scale.bits());
+    let t0 = shared.car.vertical_speed_change.ld();
+    let t1 = shared.physics_tables.camera_frame_scale.ld();
     let t2 = t0 * t1;
-    scene.lights.state.camera_shake_y.set_bits(st(t2));
+    scene.lights.state.camera_shake_y.st(t2);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -72,15 +71,15 @@ fn x87_1(shared: &RaceShared, scene: &crate::scene::owner::Scene) {
 /// `[camera_shake_listener] = (((int [scratch] / [k65536]) / [k4096]) * [three]) * [camera_shake_y]`
 fn x87_2(numbers: &Numbers, scene: &crate::scene::owner::Scene) {
     let t0 = int(scene.drawing.scene.scratch.bits() as i32);
-    let t1 = ld(numbers.k65536.bits());
+    let t1 = numbers.k65536.ld();
     let t2 = t0 / t1;
-    let t3 = ld(numbers.k4096.bits());
+    let t3 = numbers.k4096.ld();
     let t4 = t2 / t3;
-    let t5 = ld(numbers.three.bits());
+    let t5 = numbers.three.ld();
     let t6 = t4 * t5;
-    let t7 = ld(scene.lights.state.camera_shake_y.bits());
+    let t7 = scene.lights.state.camera_shake_y.ld();
     let t8 = t6 * t7;
-    scene.lights.state.camera_shake_listener.set_bits(st(t8));
+    scene.lights.state.camera_shake_listener.st(t8);
 }
 
 #[cfg(all(test, target_arch = "x86"))]

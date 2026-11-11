@@ -3,6 +3,7 @@
 //! (0x623640, "numsorted"); then their angles, checks, distances, the map, the replay
 //! cameras and the surface shares. Here the small steps.
 
+use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_float as bh;
@@ -67,9 +68,7 @@ pub fn add_surface_share(race: &Race, surface: u32) {
         course.numbers.hundred.bits(),
     ];
     let count = shared.vars.checkpoint_count.get() as i32;
-    share.set_bits(bh::st(
-        bh::int(weight) / bh::ld(a) * bh::ld(b) / bh::int(count) * bh::ld(c) + bh::ld(share.bits()),
-    ));
+    share.st(bh::int(weight) / bh::ld(a) * bh::ld(b) / bh::int(count) * bh::ld(c) + share.ld());
 }
 
 /// `race::next_map_anchor` (0x445FEE): from checkpoint `from` on, the first whose face has +0x2C
@@ -120,7 +119,7 @@ pub fn count_checks(course: &Course, shared: &RaceShared) -> Result<(), Refused>
     });
     trap.finish()?;
     for (k, &c) in counts.iter().enumerate() {
-        crate::race::checkpoints_store::cell_in(&CHECKPOINTS.check_counts, k).set(c);
+        crate::race::checkpoints_store::check_count(k).set(c);
     }
     Ok(())
 }

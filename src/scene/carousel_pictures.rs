@@ -22,7 +22,6 @@ pub fn update(menus: &Menus, entries: [u32; 4]) -> Result<(), BadInput> {
     let Some(table) = menus.screens.state.carousel.list()? else {
         return Err(BadInput("no carousel entries' records"));
     };
-    let table = menus.tables.lists.cars(table);
     let mut wanted = [0u32; 4];
     let mut record = 0;
     for (n, &entry) in entries.iter().enumerate() {
@@ -30,7 +29,7 @@ pub fn update(menus: &Menus, entries: [u32; 4]) -> Result<(), BadInput> {
             return Err(BadInput("a carousel entry past the records"));
         }
         // The list is a run of record pointers, one dword per entry.
-        record = table.offset(entry * 4).read("a carousel entry's record")?;
+        record = menus.tables.lists.car_entry(table, entry)?;
         if record == 0 {
             return Err(BadInput("a carousel entry without its record"));
         }

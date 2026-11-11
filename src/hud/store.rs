@@ -133,14 +133,14 @@ pub struct Vertex {
 impl Vertex {
     const fn zero() -> Self {
         Self {
-            x: PlainFloat::from_bits(0),
-            y: PlainFloat::from_bits(0),
-            z: PlainFloat::from_bits(0),
-            rhw: PlainFloat::from_bits(0),
+            x: PlainFloat::new(0.0),
+            y: PlainFloat::new(0.0),
+            z: PlainFloat::new(0.0),
+            rhw: PlainFloat::new(0.0),
             colour: PlainDword::new(0),
             specular: PlainDword::new(0),
-            u: PlainFloat::from_bits(0),
-            v: PlainFloat::from_bits(0),
+            u: PlainFloat::new(0.0),
+            v: PlainFloat::new(0.0),
         }
     }
 }

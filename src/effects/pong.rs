@@ -545,7 +545,7 @@ pub fn rules(
         centre: r.centre.each_ref().map(PlainFloat::get),
         nudge: r.nudge.get(),
         way_scale: pair(&r.way_scale),
-        length: f32::from_bits(effects.setup.floats.one.bits()),
+        length: effects.setup.floats.one.get(),
         walls: r.walls.each_ref().map(PlainFloat::get),
         start: r.start.each_ref().map(PlainFloat::bits),
     }

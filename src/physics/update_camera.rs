@@ -23,10 +23,10 @@
 //! original reads past `view_records`), and what the ground checks refuse; everything written
 //! put back.
 
+use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
 use crate::math::x87_float::int;
 use crate::math::x87_float::ld;
-use crate::math::x87_float::st;
 use crate::math::x87_float::to_int;
 use crate::physics::camera_store::CameraWork;
 use crate::physics::camera_view::record;
@@ -287,11 +287,11 @@ fn x87_1(car: &Car, numbers: &Numbers, v: [u32; 3]) {
     let t0 = int(v[0] as i32);
     let t1 = int(v[1] as i32);
     let t2 = t0.atan2(t1);
-    let t3 = ld(numbers.k65536.bits());
+    let t3 = numbers.k65536.ld();
     let t4 = t2 * t3;
-    let t5 = ld(numbers.k4096.bits());
+    let t5 = numbers.k4096.ld();
     let t6 = t4 * t5;
-    let t7 = ld(numbers.one_over_two_pi.bits());
+    let t7 = numbers.one_over_two_pi.ld();
     let t8 = t6 * t7;
     car.camera_heading.set_bits(to_int(t8) as u32);
     let t9 = int(v[2] as i32);
@@ -302,11 +302,11 @@ fn x87_1(car: &Car, numbers: &Numbers, v: [u32; 3]) {
     let t14 = t11 + t13;
     let t15 = t14.sqrt();
     let t16 = t9.atan2(t15);
-    let t17 = ld(numbers.k65536.bits());
+    let t17 = numbers.k65536.ld();
     let t18 = t16 * t17;
-    let t19 = ld(numbers.k4096.bits());
+    let t19 = numbers.k4096.ld();
     let t20 = t18 * t19;
-    let t21 = ld(numbers.one_over_two_pi.bits());
+    let t21 = numbers.one_over_two_pi.ld();
     let t22 = t20 * t21;
     car.camera_pitch.set_bits(to_int(t22) as u32);
 }
@@ -318,17 +318,17 @@ fn x87_1(car: &Car, numbers: &Numbers, v: [u32; 3]) {
 /// `[rc + 0x2062E0] = int [v + 8] / [k65536]`
 fn x87_2(numbers: &Numbers, view_records: &ViewAndRecords, v: [u32; 3]) {
     let t0 = int(v[0] as i32);
-    let t1 = ld(numbers.k65536.bits());
+    let t1 = numbers.k65536.ld();
     let t2 = t0 / t1;
-    view_records.view_vars.camera_vector[0].set_bits(st(t2));
+    view_records.view_vars.camera_vector[0].st(t2);
     let t3 = int(v[1] as i32);
-    let t4 = ld(numbers.k65536.bits());
+    let t4 = numbers.k65536.ld();
     let t5 = t3 / t4;
-    view_records.view_vars.camera_vector[1].set_bits(st(t5));
+    view_records.view_vars.camera_vector[1].st(t5);
     let t6 = int(v[2] as i32);
-    let t7 = ld(numbers.k65536.bits());
+    let t7 = numbers.k65536.ld();
     let t8 = t6 / t7;
-    view_records.view_vars.camera_vector[2].set_bits(st(t8));
+    view_records.view_vars.camera_vector[2].st(t8);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -336,11 +336,11 @@ fn x87_2(numbers: &Numbers, view_records: &ViewAndRecords, v: [u32; 3]) {
 /// `[camera_zoom] = (int [camera_zoom] * [camera_distance]) / [five]`
 fn x87_3(car: &Car, numbers: &Numbers, view_records: &ViewAndRecords) {
     let t0 = int(car.camera_zoom.bits() as i32);
-    let t1 = ld(view_records.view_vars.camera_distance.bits());
+    let t1 = view_records.view_vars.camera_distance.ld();
     let t2 = t0 * t1;
-    let t3 = ld(numbers.five.bits());
+    let t3 = numbers.five.ld();
     let t4 = t2 / t3;
-    car.camera_zoom.set_bits(st(t4));
+    car.camera_zoom.st(t4);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -355,39 +355,39 @@ fn x87_3(car: &Car, numbers: &Numbers, view_records: &ViewAndRecords) {
 /// `[rc + 0x206574] = int [d + 0x20] * [one_over_65536]`
 fn x87_4(tables: &PhysicsTables, numbers: &Numbers, d: &[u32; 11]) {
     let t0 = int(d[0] as i32);
-    let t1 = ld(numbers.one_over_65536.bits());
+    let t1 = numbers.one_over_65536.ld();
     let t2 = t0 * t1;
-    ViewVars::record(2).focus[0].set_bits(st(t2));
+    ViewVars::record(2).focus[0].st(t2);
     let t3 = int(d[1] as i32);
-    let t4 = ld(numbers.one_over_65536.bits());
+    let t4 = numbers.one_over_65536.ld();
     let t5 = t3 * t4;
-    let t6 = ld(tables.camera_drop.bits());
+    let t6 = tables.camera_drop.ld();
     let t7 = t5 - t6;
-    ViewVars::record(2).focus[1].set_bits(st(t7));
+    ViewVars::record(2).focus[1].st(t7);
     let t8 = int(d[2] as i32);
-    let t9 = ld(numbers.one_over_65536.bits());
+    let t9 = numbers.one_over_65536.ld();
     let t10 = t8 * t9;
-    ViewVars::record(2).focus[2].set_bits(st(t10));
+    ViewVars::record(2).focus[2].st(t10);
     let t11 = int(d[4] as i32);
-    let t12 = ld(numbers.one_over_65536.bits());
+    let t12 = numbers.one_over_65536.ld();
     let t13 = t11 * t12;
-    ViewVars::record(3).focus[0].set_bits(st(t13));
+    ViewVars::record(3).focus[0].st(t13);
     let t14 = int(d[5] as i32);
-    let t15 = ld(numbers.one_over_65536.bits());
+    let t15 = numbers.one_over_65536.ld();
     let t16 = t14 * t15;
-    let t17 = ld(tables.camera_drop.bits());
+    let t17 = tables.camera_drop.ld();
     let t18 = t16 - t17;
-    ViewVars::record(3).focus[1].set_bits(st(t18));
+    ViewVars::record(3).focus[1].st(t18);
     let t19 = int(d[6] as i32);
-    let t20 = ld(numbers.one_over_65536.bits());
+    let t20 = numbers.one_over_65536.ld();
     let t21 = t19 * t20;
-    ViewVars::record(3).focus[2].set_bits(st(t21));
+    ViewVars::record(3).focus[2].st(t21);
     let t22 = ld(d[9]);
-    ViewVars::record(1).focus[1].set_bits(st(t22));
+    ViewVars::record(1).focus[1].st(t22);
     let t23 = int(d[8] as i32);
-    let t24 = ld(numbers.one_over_65536.bits());
+    let t24 = numbers.one_over_65536.ld();
     let t25 = t23 * t24;
-    ViewVars::record(1).focus[2].set_bits(st(t25));
+    ViewVars::record(1).focus[2].st(t25);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -399,7 +399,7 @@ fn x87_5(car: &Car) {
     let t2 = t0 - t1;
     let t3 = int(car.camera_switch_length.bits() as i32);
     let t4 = t2 / t3;
-    car.camera_switch_share.set_bits(st(t4));
+    car.camera_switch_share.st(t4);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -411,7 +411,7 @@ fn x87_6(camera: &CameraWork, car: &Car) {
     let t0 = int(camera.view_b_pitch.bits() as i32);
     let t1 = int(camera.view_a_pitch.bits() as i32);
     let t2 = t0 - t1;
-    let t3 = ld(car.camera_switch_share.bits());
+    let t3 = car.camera_switch_share.ld();
     let t4 = t2 * t3;
     let t5 = int(camera.view_a_pitch.bits() as i32);
     let t6 = t4 + t5;
@@ -419,7 +419,7 @@ fn x87_6(camera: &CameraWork, car: &Car) {
     let t7 = int(camera.view_b_heading.bits() as i32);
     let t8 = int(camera.view_a_heading.bits() as i32);
     let t9 = t7 - t8;
-    let t10 = ld(car.camera_switch_share.bits());
+    let t10 = car.camera_switch_share.ld();
     let t11 = t9 * t10;
     let t12 = int(camera.view_a_heading.bits() as i32);
     let t13 = t11 + t12;
@@ -427,7 +427,7 @@ fn x87_6(camera: &CameraWork, car: &Car) {
     let t14 = int(camera.view_b_roll.bits() as i32);
     let t15 = int(camera.view_a_roll.bits() as i32);
     let t16 = t14 - t15;
-    let t17 = ld(car.camera_switch_share.bits());
+    let t17 = car.camera_switch_share.ld();
     let t18 = t16 * t17;
     let t19 = int(camera.view_a_roll.bits() as i32);
     let t20 = t18 + t19;
@@ -438,14 +438,14 @@ fn x87_6(camera: &CameraWork, car: &Car) {
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [t + 0] = ((([x + 0] - [y + 0]) * [camera_switch_share]) + [y + 0]) * [k65536]`
 fn x87_7(car: &Car, numbers: &Numbers, x: &dyn Cell32, y: &dyn Cell32, t: &dyn Cell32) {
-    let t0 = ld(x.bits());
-    let t1 = ld(y.bits());
+    let t0 = x.ld();
+    let t1 = y.ld();
     let t2 = t0 - t1;
-    let t3 = ld(car.camera_switch_share.bits());
+    let t3 = car.camera_switch_share.ld();
     let t4 = t2 * t3;
-    let t5 = ld(y.bits());
+    let t5 = y.ld();
     let t6 = t4 + t5;
-    let t7 = ld(numbers.k65536.bits());
+    let t7 = numbers.k65536.ld();
     let t8 = t6 * t7;
     t.set_bits(to_int(t8) as u32);
 }
@@ -455,7 +455,7 @@ fn x87_7(car: &Car, numbers: &Numbers, x: &dyn Cell32, y: &dyn Cell32, t: &dyn C
 /// `[camera_zoom] = int [view_blend_aux_2]`
 fn x87_8(camera: &CameraWork, car: &Car) {
     let t0 = int(camera.view_blend_aux_2.bits() as i32);
-    car.camera_zoom.set_bits(st(t0));
+    car.camera_zoom.st(t0);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables

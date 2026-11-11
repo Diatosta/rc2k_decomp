@@ -11,8 +11,8 @@
 //!
 //! Callers: `drive::car_controls`, `race::step_replay_cars`, `drive::replay_step`.
 
+use crate::effects::cell_x87::CellX87;
 use crate::math::x87_float::int;
-use crate::math::x87_float::ld;
 use crate::math::x87_float::to_int;
 use crate::physics::flow::c0;
 use crate::race::owner::Race;
@@ -25,7 +25,7 @@ fn scale(
     by: &impl crate::session::Cell32,
     to: &impl crate::session::Cell32,
 ) {
-    to.set_bits(to_int(int(from.bits() as i32) * ld(by.bits())) as u32);
+    to.set_bits(to_int(int(from.bits() as i32) * by.ld()) as u32);
 }
 
 const LEFT: u32 = 0xE000_0000;

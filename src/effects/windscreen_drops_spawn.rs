@@ -37,7 +37,7 @@ pub fn windscreen_drops_spawn(
         let status = setup.work.fpu_status.get() & 0x700;
         setup.work.fpu_status.set(status);
         if status != 0x100 {
-            let v: u32 = drops.state.spawn_rate.bits();
+            let v = drops.state.spawn_rate.get();
             let n = x87::to_int(v).min(MOST);
             for _ in 0..n.max(0) {
                 pick_windscreen_drop(drops, effects)?;

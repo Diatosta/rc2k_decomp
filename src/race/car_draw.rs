@@ -5,8 +5,8 @@
 //! state bits, +0x740 .. +0x8BF six matrices (four parts', the body's, the turn), +0xF04 the
 //! shown parts' mask.
 
+use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
-use crate::pointers::GamePtr;
 use crate::race::car_draw_state::CarDrawState;
 use crate::race::frame_view::car_at as car_view;
 use crate::race::light_records_store::LIGHT_RECORDS;
@@ -15,6 +15,7 @@ use crate::race::owner_course::Course;
 use crate::race::trap::car_at;
 use crate::race::view_vars_store::ViewVars;
 use crate::race::work_store::RaceWork;
+use crate::scene::draw_described_object::Description;
 use crate::scene::matrix::multiply_matrices;
 use crate::scene::view_matrices::ViewMatrices;
 use crate::session::Float;
@@ -405,7 +406,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
     crate::race::frame_draw::start_kept_reflections(ctx.view);
     crate::scene::draw_scene_object::draw_scene_object_in_game(
         ctx,
-        Some(GamePtr::to(&ctx.view.matrices.lit_matrix).into()),
+        Some(Description::Floats(&ctx.view.matrices.lit_matrix)),
     )?;
     crate::race::frame_draw::end_kept_reflections(ctx.view);
     ctx.view.light.light_kind_extra.set(1);
@@ -422,7 +423,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
                 car_part_matrix(&ctx.view.cars, &ctx.view.matrices, matrix);
                 crate::scene::draw_scene_object::draw_scene_object_in_game(
                     ctx,
-                    Some(GamePtr::to(&ctx.view.matrices.lit_matrix).into()),
+                    Some(Description::Floats(&ctx.view.matrices.lit_matrix)),
                 )?;
             }
         }
@@ -436,11 +437,11 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
 /// original's stores to `scratch` are not kept).
 fn nearness(race: &Race, cars: &CarDrawState, mine: &crate::race::view_course::ViewCourse) {
     use crate::math::x87::below_or_unordered;
-    use crate::math::x87_float::{ONE, int, ld, st, to_int};
+    use crate::math::x87_float::{ONE, int, to_int};
     {
         let depth = int(cars.car_depth.get() as i32);
         cars.car_nearness
-            .set_bits(st((depth - int(0xA_0000)) / int(0x14_0000)));
+            .st((depth - int(0xA_0000)) / int(0x14_0000));
         let near: u32 = cars.car_nearness.bits();
         // `fld zero; fld near; fcompp`: near below 0 (or no number) -> 0.
         if below_or_unordered(near, race.course.numbers.zero.bits()) {
@@ -450,7 +451,7 @@ fn nearness(race: &Race, cars: &CarDrawState, mine: &crate::race::view_course::V
         if !below_or_unordered(near, race.course.numbers.one.bits()) {
             cars.car_nearness.set_bits(race.course.numbers.one.bits());
         }
-        let shine = (ONE - ld(cars.car_nearness.bits())) * int(mine.shine.get() as i32);
+        let shine = (ONE - cars.car_nearness.ld()) * int(mine.shine.get() as i32);
         let whole = to_int(shine);
         mine.shine.set(whole as u32);
     }
@@ -459,9 +460,9 @@ fn nearness(race: &Race, cars: &CarDrawState, mine: &crate::race::view_course::V
 /// `race::draw_car`'s size: 0x90 times `car_nearness`, rounded (the original's stores to
 /// `scratch` are not kept).
 fn near_size(cars: &CarDrawState) -> u32 {
-    use crate::math::x87_float::{int, ld, to_int};
+    use crate::math::x87_float::{int, to_int};
     {
-        let size = to_int(int(0x90) * ld(cars.car_nearness.bits()));
+        let size = to_int(int(0x90) * cars.car_nearness.ld());
         size as u32
     }
 }

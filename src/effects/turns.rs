@@ -16,8 +16,8 @@ pub fn set_line_turn(masks: &Masks, line: &[PlainDword; 6], back: bool) {
     } else {
         x87::negated(x87::sub(line[4].get(), line[1].get()))
     };
-    masks.vars.turn[0].set_bits(dx.to_bits());
-    masks.vars.turn[3].set_bits(dy.to_bits());
+    masks.vars.turn[0].set(dx);
+    masks.vars.turn[3].set(dy);
     masks.vars.turn[1].set(x87::negated(dy));
     masks.vars.turn[4].set(x87::loaded(dx));
 }

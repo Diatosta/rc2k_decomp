@@ -52,7 +52,7 @@ pub(crate) struct Screen {
     width: usize,
     height: usize,
     bits: u32,
-    pixels: crate::pointers::LentBytes,
+    pixels: std::sync::Arc<crate::pointers::LentBytes>,
 }
 
 pub(crate) static SCREEN: Mutex<Option<Screen>> = Mutex::new(None);
@@ -234,8 +234,16 @@ fn set_screen_mode(mode: u32, gfx: &crate::gfx::owner::Gfx) -> Result<(), String
         // The texture made above is dropped (destroyed) with `texture`.
         return Err(why);
     }
-    let pixels = crate::pointers::LentBytes::from_vec(vec![0u8; (bytes * width * height) as usize]);
-    gfx.drawing.draw_surface.present_pixels.set(pixels.addr());
+    let pixels = std::sync::Arc::new(crate::pointers::LentBytes::from_vec(vec![
+        0u8;
+        (bytes * width * height)
+            as usize
+    ]));
+    crate::gfx::locked_pixels::register(crate::gfx::locked_pixels::SCREEN, &pixels);
+    gfx.drawing
+        .draw_surface
+        .present_pixels
+        .set(crate::gfx::locked_pixels::SCREEN);
     gfx.drawing.draw_surface.present_pitch.set(bytes * width);
     gfx.drawing.draw_surface.present_gap.set(0u32);
     // "There are surfaces": what the game's own code asks.

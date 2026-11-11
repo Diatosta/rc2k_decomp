@@ -6,9 +6,8 @@
 //!
 //! Caller: `physics::update_camera`.
 
+use crate::effects::cell_x87::CellX87;
 use crate::math::x87_float::X;
-use crate::math::x87_float::ld;
-use crate::math::x87_float::st;
 use crate::math::x87_float::to_int;
 use crate::physics::camera_view::{record, share_done};
 use crate::physics::step_families::CameraInputs;
@@ -38,9 +37,9 @@ pub fn ease_view_blend(
 /// `[view_share] = 1 - [view_share]`
 fn x87_1(shared: &RaceShared) {
     let t0 = X(1.0);
-    let t1 = ld(shared.tables.view_share.bits());
+    let t1 = shared.tables.view_share.ld();
     let t2 = t0 - t1;
-    shared.tables.view_share.set_bits(st(t2));
+    shared.tables.view_share.st(t2);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -48,22 +47,22 @@ fn x87_1(shared: &RaceShared) {
 /// `[camera_zoom] = (([view_shift_b] - [view_shift_a]) * [view_share]) + [view_shift_a]`
 /// `int [camera_offset_z] = -(((([view_shift_d] - [view_shift_c]) * [view_share]) + [view_shift_c]) * [k65536])`
 fn x87_2(c: &CameraInputs<'_>) {
-    let t0 = ld(c.camera.view_shift_b.bits());
-    let t1 = ld(c.camera.view_shift_a.bits());
+    let t0 = c.camera.view_shift_b.ld();
+    let t1 = c.camera.view_shift_a.ld();
     let t2 = t0 - t1;
-    let t3 = ld(c.race_tables.view_share.bits());
+    let t3 = c.race_tables.view_share.ld();
     let t4 = t2 * t3;
-    let t5 = ld(c.camera.view_shift_a.bits());
+    let t5 = c.camera.view_shift_a.ld();
     let t6 = t4 + t5;
-    c.car.camera_zoom.set_bits(st(t6));
-    let t7 = ld(c.camera.view_shift_d.bits());
-    let t8 = ld(c.camera.view_shift_c.bits());
+    c.car.camera_zoom.st(t6);
+    let t7 = c.camera.view_shift_d.ld();
+    let t8 = c.camera.view_shift_c.ld();
     let t9 = t7 - t8;
-    let t10 = ld(c.race_tables.view_share.bits());
+    let t10 = c.race_tables.view_share.ld();
     let t11 = t9 * t10;
-    let t12 = ld(c.camera.view_shift_c.bits());
+    let t12 = c.camera.view_shift_c.ld();
     let t13 = t11 + t12;
-    let t14 = ld(c.numbers.k65536.bits());
+    let t14 = c.numbers.k65536.ld();
     let t15 = t13 * t14;
     let t16 = -t15;
     c.camera.camera_offset_z.set_bits(to_int(t16) as u32);

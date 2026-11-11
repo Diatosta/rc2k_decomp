@@ -75,7 +75,7 @@ pub fn emit_exhaust_smoke(
     slot.put(|en| &mut en.place[1], y)?;
     slot.put(|en| &mut en.ground_y, y_less)?;
     slot.put(|en| &mut en.place[2], z)?;
-    let one: u32 = effects.setup.floats.one.bits();
+    let one = effects.setup.floats.one.get();
     let s = x87::one_less_inverse(&object.engine_speed, &particles.kind13_set.strength_k, one);
     ring.work.whole.set(s.to_bits());
     let motion: [u32; 3] = crate::effects::try_from_fn(|k| {
@@ -110,8 +110,7 @@ pub fn emit_exhaust_smoke(
     slot.put(
         |en| &mut en.alpha_fade,
         bh::st(
-            bh::ld(s.to_bits()) * bh::ld(effects.setup.floats.two_fifty_seven.bits())
-                / bh::int(LIFE as i32),
+            bh::ld(s) * bh::ld(effects.setup.floats.two_fifty_seven.get()) / bh::int(LIFE as i32),
         ),
     )?;
     slot.put(

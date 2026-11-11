@@ -10,9 +10,10 @@
 //! Caller: `physics::car_collisions` (eight corners a car). Refuses what
 //! `restore_saved_car` and `bump_cars` refuse (what was written put back).
 
+use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
 use crate::math::x87::{abs_compare, ext_times};
-use crate::math::x87_float::{from_f80, ld, st};
+use crate::math::x87_float::from_f80;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::step_families::ContactInputs;
 use crate::race::numbers_store::Numbers;
@@ -58,9 +59,9 @@ pub fn corner_hits_car(
 /// `[o + 0] = ext [e + 0] / [k65536]`
 fn x87_1(numbers: &Numbers, e: &[u8; 10], o: &impl Cell32) {
     let t0 = from_f80(*e);
-    let t1 = ld(numbers.k65536.bits());
+    let t1 = numbers.k65536.ld();
     let t2 = t0 / t1;
-    o.set_bits(st(t2));
+    o.st(t2);
 }
 
 #[cfg(all(test, target_arch = "x86"))]

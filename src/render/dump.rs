@@ -29,7 +29,7 @@ pub fn dump_if_asked(noted: &[Command], into: &Target) {
     for v in [into.width as u32, into.height as u32, into.bits] {
         put(&mut out, v);
     }
-    let mut textures: Vec<crate::pointers::GamePtr> = Vec::new();
+    let mut textures: Vec<super::TextureId> = Vec::new();
     for n in noted {
         if let Command::Fan {
             texture: Some(t), ..
@@ -57,12 +57,7 @@ pub fn dump_if_asked(noted: &[Command], into: &Target) {
             put(&mut out, m);
         }
         put(&mut out, t.len as u32);
-        let what = "a noted texture's pixels";
-        out.extend(
-            t.pixels
-                .read_bytes(t.len, what)
-                .unwrap_or_else(|e| crate::fatal::raise::end(what, e)),
-        );
+        out.extend(super::noted_bytes(t));
     }
     put(&mut out, noted.len() as u32);
     for n in noted {
@@ -121,16 +116,16 @@ pub fn hash_if_asked(noted: &[Command]) {
     }
     let mut h = std::collections::hash_map::DefaultHasher::new();
     // A texture by its pixels, not by where they are: that differs from run to run.
-    let mut seen: Vec<(u32, u64)> = Vec::new();
+    let mut seen: Vec<(super::TextureId, u64)> = Vec::new();
     let mut texture_hash = |t: &super::TextureNote| {
-        let at = t.pixels.addr();
+        let at = t.pixels;
         if let Some(&(_, v)) = seen.iter().find(|s| s.0 == at) {
             return v;
         }
         let mut th = std::collections::hash_map::DefaultHasher::new();
-        t.pixels
-            .read_bytes(t.len, "a hashed texture")
-            .ok()
+        // SAFETY: as the drawing's read: the noted texture is not written meanwhile.
+        unsafe { crate::platform_3d::level_bytes(t.pixels) }
+            .map(|b| &b[..t.len.min(b.len())])
             .hash(&mut th);
         let v = th.finish();
         seen.push((at, v));

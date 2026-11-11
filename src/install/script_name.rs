@@ -17,7 +17,7 @@ pub fn script_name(
 ) -> Result<(crate::place::BytePlace, crate::place::BytePlace), Refused> {
     // Converted: `rc2k_core::install::script::script_name` (read whole, then written; a
     // name with no end is refused before anything is written).
-    let words = cursor.game_ptr().bytes("the installer's script")?;
+    let words = cursor.bytes("the installer's script")?;
     let (name, _) = script::script_name(&words)?;
     let mut at = to.into();
     for &c in &name {

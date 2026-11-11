@@ -8,8 +8,9 @@
 //! Caller: `physics::camera_avoid_ground`.
 
 use crate::drive::replay_frames_store::ReplayFrames;
+use crate::effects::cell_x87::CellX87;
+use crate::math::x87_float::int;
 use crate::math::x87_float::to_int;
-use crate::math::x87_float::{int, ld};
 use crate::physics::camera_store::CameraWork;
 use crate::physics::car_store::Car;
 use crate::session::Cell32;
@@ -65,7 +66,7 @@ pub fn ease_view_turn(
 fn x87_1(s: &impl Cell32, scene: &crate::scene::owner::Scene) {
     let drawing = &scene.drawing;
     let t0 = int(drawing.scene.scratch.bits() as i32);
-    let t1 = ld(s.bits());
+    let t1 = s.ld();
     let t2 = t0 * t1;
     drawing.scene.scratch.set_bits(to_int(t2) as u32);
 }

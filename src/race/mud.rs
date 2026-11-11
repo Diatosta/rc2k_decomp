@@ -21,19 +21,12 @@ pub fn car_file_number(car: u32) -> u32 {
 }
 
 /// `gfx::read_pixel` (0x406584): the pixel at of `g_surface`, taken apart by
-/// `gfx::pixel_to_components`. A 16-bit pixel is read into the low half of a register that still holds the
-/// row's address, so the upper half is the row's address's, and that is what the conversion gets.
+/// `gfx::pixel_to_components`. The original reads a 16-bit pixel into the low half of a
+/// register that still holds the row's address, so the conversion is handed the row
+/// address's upper half over the pixel; the conversion looks only at the bits its format's
+/// masks name, which for a 16-bit surface are all in the low half, so the pixel alone is
+/// handed here.
 pub fn read_pixel(x: u32, y: u32) -> Result<u32, BadInput> {
-    let (_, pixel) = raw_pixel(x, y)?;
-    let format = crate::gfx::pixel_format::layout(gfx().drawing.draw_surface.format.get())?;
-    Ok(crate::gfx::pixel_to_components::pixel_to_components(
-        &format, pixel,
-    ))
-}
-
-/// The row's address and the value `read_pixel` hands to the conversion (one place for
-/// both: a second copy of this compiled without the row's upper half).
-pub fn raw_pixel(x: u32, y: u32) -> Result<(u32, u32), BadInput> {
     let drawing = &gfx().drawing;
     let rows = crate::gfx::rows::Rows::new(
         drawing.draw_surface.pixels.get(),
@@ -41,19 +34,20 @@ pub fn raw_pixel(x: u32, y: u32) -> Result<(u32, u32), BadInput> {
         drawing.draw_surface.height.get(),
     );
     let row = rows.at(y, 0)?;
+    // A pixel of the surface's row: bytes of a picture, not a record.
     let pixel = if drawing.draw_surface.bits_per_pixel.get() == 0x10 {
-        // As the original: the register holds the row's address, then the pixel goes into its
-        // low half: the upper half of the result is the row's address's.
-        // A pixel of the surface's row: bytes of a picture, not a record.
-        let word = row
-            .offset(x.wrapping_mul(2))
-            .read::<u16>("the surface's pixel")?;
-        (row.addr() & 0xFFFF_0000) | u32::from(word)
+        u32::from(
+            row.offset(x.wrapping_mul(2))
+                .read::<u16>("the surface's pixel")?,
+        )
     } else {
         row.offset(x.wrapping_mul(4))
             .read::<u32>("the surface's pixel")?
     };
-    Ok((row.addr(), pixel))
+    let format = crate::gfx::pixel_format::layout(drawing.draw_surface.format.get())?;
+    Ok(crate::gfx::pixel_to_components::pixel_to_components(
+        &format, pixel,
+    ))
 }
 
 /// `race::mud_pixel` (0x44A58A): `read_pixel` inside the surface (unsigned), else 0.
@@ -137,48 +131,4 @@ pub fn init_mud(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), R
     load_mud(&race.shared)?;
     clear_mud_state(&race.shared);
     sample_mud_colours(&race.shared, scene)
-}
-
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
-
-    /// The original block: a 16-bit load over a register holding the row's address.
-    pub(super) unsafe fn mov_ax(row: u32, at: u32) -> u32 {
-        let mut eax = row;
-        unsafe {
-            core::arch::asm!(
-                "mov ax, word ptr [{at}]",
-                at = in(reg) at,
-                inout("eax") eax,
-                options(nostack, readonly, preserves_flags),
-            );
-        }
-        eax
-    }
-
-    fn mix(state: &mut u64) -> u32 {
-        *state = state
-            .wrapping_mul(6364136223846793005)
-            .wrapping_add(1442695040888963407);
-        (*state >> 32) as u32
-    }
-
-    #[test]
-    fn mov_ax_matches() {
-        let mut state = 7u64;
-        let buffer = vec![0u8; 4096];
-        let base = crate::pointers::game_address(buffer.as_ptr());
-        let mut buffer = buffer;
-        for b in buffer.iter_mut() {
-            *b = mix(&mut state) as u8;
-        }
-        for _ in 0..5000 {
-            let at = base + mix(&mut state) % 4000;
-            let row = mix(&mut state);
-            let want = unsafe { mov_ax(row, at) };
-            let got = (row & 0xFFFF_0000)
-                | u32::from(unsafe { (crate::pointers::host(at) as *const u16).read_unaligned() });
-            assert_eq!(want, got);
-        }
-    }
 }

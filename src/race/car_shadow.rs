@@ -8,6 +8,7 @@
 //! the angle, +0x10 the distance, +0x14 0), their count `work.point_count`, the hull's
 //! `work.hull_count`, ...
 
+use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::Car;
 use crate::physics::ground_query::{GroundCells, GroundQuery};
@@ -75,11 +76,11 @@ impl ShadowWork {
         Self {
             points: std::array::from_fn(|_| ShadowPoint::new()),
             point_count: Dword::new(0),
-            farthest_length: Float::from_bits(0),
+            farthest_length: Float::new(0.0),
             farthest: Dword::new(0),
-            first_angle: Float::from_bits(0),
-            slant_x: Float::from_bits(0),
-            slant_z: Float::from_bits(0),
+            first_angle: Float::new(0.0),
+            slant_x: Float::new(0.0),
+            slant_z: Float::new(0.0),
             hull_count: Dword::new(0),
             lift: Dword::new(0),
             texture: Dword::new(0),
@@ -706,14 +707,14 @@ fn tbyte_to_float(t: [u8; 10]) -> u32 {
 /// = cos(turn) x cot(sun), `work.slant_z` = sin(turn) x cot(sun)
 /// (the original's store of 0x80 to `g_scratch` is not kept, nothing read it).
 fn sun_slant(work: &ShadowWork, sun: u32, turn: u32) {
-    use crate::math::x87_float::{int, st};
+    use crate::math::x87_float::int;
     let cot = {
         let (sin, cos) = (int(sun as i32) / int(0x80)).times_pi().sin_cos();
         cos / sin
     };
     let (sin, cos) = (int(turn as i32) / int(0x80)).times_pi().sin_cos();
-    work.slant_x.set_bits(st(cos * cot));
-    work.slant_z.set_bits(st(cot * sin));
+    work.slant_x.st(cos * cot);
+    work.slant_z.st(cot * sin);
 }
 
 /// `fld x; fld z; fpatan; fstp`: the angle of the corner at `at` (x at +0, z at +8).
@@ -775,7 +776,7 @@ pub fn shadow_points(race: &Race, work: &ShadowWork, car: &Car, sun: u32) -> Res
         let length = crate::math::x87::float_hypot(x, z);
         at.length.set(length.to_bits());
         if !below_or_unordered(length, work.farthest_length.bits()) {
-            work.farthest_length.set_bits(length.to_bits());
+            work.farthest_length.set(length);
             work.farthest.set(k as u32);
         }
         at.x.set((mul_to_int(x, unit) as u32).wrapping_add(car.position[0].get()));

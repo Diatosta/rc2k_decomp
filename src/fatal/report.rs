@@ -54,7 +54,7 @@ pub struct Outside<'a> {
     pub log: &'a mut dyn FnMut(&[u8]),
     /// Asks the game to quit.
     pub quit: &'a mut dyn FnMut(),
-    /// The current thread's slot, or 0.
+    /// The current thread's slot (one more than its number), or 0.
     pub thread_slot: &'a dyn Fn() -> u32,
 }
 
@@ -81,8 +81,13 @@ pub fn report(context: Option<&Context>, outside: &mut Outside) -> Result<Leave,
         code,
         outside.quit,
         outside.thread_slot,
-        // The slot holds its routine as an IDA address.
-        &|slot| crate::pointers::read_or_end::<u32>(slot, "a thread slot"),
+        // The slot (one more than its number) holds its routine as an IDA address.
+        &|slot| {
+            crate::threading::thread_slot::slot_ref(slot as usize - 1)
+                .unwrap_or_else(|e| crate::fatal::raise::end("fatal::report: a thread slot", e))
+                .routine
+                .get()
+        },
     ))
 }
 

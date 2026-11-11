@@ -734,7 +734,7 @@ mod tests {
             // The handle names the place the image's address is now.
             let home = crate::moved::home_of_rva(ida as usize - crate::framework::IMAGE_BASE);
             if let Ok(place) = link.place() {
-                assert_eq!(Some(place.addr() as usize), home, "{p:#X}");
+                assert_eq!(Some(place.game() as usize), home, "{p:#X}");
             }
         }
     }

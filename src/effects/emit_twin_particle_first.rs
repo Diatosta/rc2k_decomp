@@ -143,10 +143,10 @@ pub fn emit_twin(
             .map(|(a, k)| x87::mul_80(a, k))
             .collect::<Vec<_>>();
     let (moved, _) = jitter_point(
-        [extended(set.tuning.spread.bits()), row[2], row[1], row[0]],
+        [extended(set.tuning.spread.get()), row[2], row[1], row[0]],
         effects,
     );
-    let step: u32 = effects.setup.clock.reciprocal.bits();
+    let step = effects.setup.clock.reciprocal.get();
     for n in 0..3 {
         slot.put(
             |en| &mut en.motion[n],

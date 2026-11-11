@@ -28,9 +28,11 @@ GAME = HOME + '/game'
 # must start alike on every machine).
 INSTALLED = os.path.expanduser(os.environ.get('RC2K_REMOTE_INSTALLED', '~/.local/share/rally-championship'))
 SHOTS = HOME + '/shots'
-DEVICE_GAME = '/mnt/mmc/Roms/APPS/rally'
+# A device over SSH: the handheld by default; RC2K_REMOTE_GAME / RC2K_REMOTE_KEY for another
+# (the Steam Deck: the game started from Steam by its run.sh, which sets RC2K_REMOTE).
+DEVICE_GAME = os.environ.get('RC2K_REMOTE_GAME', '/mnt/mmc/Roms/APPS/rally')
 DEVICE_REMOTE = '/tmp/rc2k_remote'
-KEY = os.path.expanduser('~/.ssh/rg34xxsp')
+KEY = os.path.expanduser(os.environ.get('RC2K_REMOTE_KEY', '~/.ssh/rg34xxsp'))
 
 
 def host():

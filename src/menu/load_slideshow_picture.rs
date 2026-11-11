@@ -42,12 +42,10 @@ pub fn load_slideshow_picture(
     // The logic is in `rc2k_core::menu::slides` (`slideshow_car`, `search`, `pcx`).
     use rc2k_core::menu::slides;
     let car = slides::slideshow_car(shown_car(menus)?)?;
-    let template = crate::files::cstring_at(
-        crate::menu::texts_store::text_at(
-            menus.tables.lists.slideshow_templates[car as usize].get(),
-        )?,
-        "a path template",
-    )?;
+    let template = crate::menu::texts_store::text_at(
+        menus.tables.lists.slideshow_templates[car as usize].get(),
+    )?
+    .text("a path template")?;
     let start: u32 = menus.screens.event.picture.get();
     // Set by the first try (`search` always makes one).
     let mut path: Option<Vec<u8>> = None;

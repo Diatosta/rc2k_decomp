@@ -7,8 +7,9 @@
 //! the low nibble and marks in the high, +1 the next list or the number of choices, +2 the
 //! text, +4 the item's box, +8 the byte or text it edits or the link's action, +0xC the
 //! choices, the edit record or the least value). Every accessor reads or writes inside its
-//! own 0x18 header bytes or 0x10 item bytes (`GamePtr::limited`); a place outside every
-//! allocation ends the program (`install::installer::refuse`). The words that name data
+//! own 0x18 header bytes or 0x10 item bytes; a place outside the bytes it is read from (the
+//! installer's pages, or the record holding the replay viewer's list) ends the program
+//! (`install::installer::refuse`). The words that name data
 //! (boxes, tables, texts, values) are links (`install::page_links::PageLink`), handles the
 //! installer's pages hold in place of addresses and each accessor resolves with bounds; the
 //! words that name code stay as read.
@@ -25,7 +26,7 @@
 use crate::install::installer::refuse;
 use crate::install::installer::{rb, rd, rl, rw, wb, wd};
 use crate::install::page_links::{ListId, PageLink};
-use crate::pointers::GamePtr;
+use crate::place::BytePlace;
 use crate::session::{PlainByte, PlainDword, PlainWord};
 
 /// The header's bytes.
@@ -214,7 +215,59 @@ enum Head {
     Pages(&'static ListHeader, &'static [Item]),
     /// The 0x18 header bytes at a place: the replay viewer's list, or a thing of the
     /// installer's pages that is no list (the page walk looks at what a link names).
-    Bytes(GamePtr),
+    Bytes(Raw),
+}
+
+/// Bytes read as a header or an item: at an offset of the installer's pages, or at a place.
+#[derive(Clone, Copy)]
+enum Raw {
+    /// The byte offset in the installer's pages (wrapping as the original's address sum).
+    Pages(u32),
+    Place(BytePlace),
+}
+
+impl Raw {
+    fn place(self) -> BytePlace {
+        match self {
+            Raw::Pages(offset) => {
+                BytePlace::in_store(&crate::install::owner::install().pages, offset as usize)
+            }
+            Raw::Place(at) => at,
+        }
+    }
+
+    /// `n` bytes on.
+    fn add(self, n: u32) -> Raw {
+        match self {
+            Raw::Pages(offset) => Raw::Pages(offset.wrapping_add(n)),
+            Raw::Place(at) => Raw::Place(at.add(n)),
+        }
+    }
+
+    /// The `len` bytes at `offset` from here, inside a header or an item.
+    fn field(self, offset: u32, len: u32) -> BytePlace {
+        debug_assert!(offset + len <= HEADER);
+        self.add(offset).place()
+    }
+}
+
+impl core::fmt::Debug for Raw {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Raw::Pages(offset) => write!(f, "pages +{offset:#x}"),
+            Raw::Place(at) => write!(f, "{at:?}"),
+        }
+    }
+}
+
+impl PartialEq for Raw {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Raw::Pages(a), Raw::Pages(b)) => a == b,
+            (Raw::Place(a), Raw::Place(b)) => a.same_place(*b),
+            _ => false,
+        }
+    }
 }
 
 /// A list menu.
@@ -278,7 +331,7 @@ impl ListMenu {
     pub fn at(link: PageLink) -> Result<Self, crate::errors::BadInput> {
         match link.list_id() {
             Some(list) => Ok(Self::installer(list)),
-            None => Ok(Self(Head::Bytes(link.in_pages()?))),
+            None => Ok(Self(Head::Bytes(Raw::Pages(link.pages_start()? as u32)))),
         }
     }
 
@@ -290,14 +343,13 @@ impl ListMenu {
 
     /// The list at a place in the game's data (the replay viewer's, which is a run of dwords
     /// and not typed as a list).
-    pub fn of(place: impl Into<crate::place::BytePlace>) -> Self {
-        Self(Head::Bytes(place.into().game_ptr()))
+    pub fn of(place: impl Into<BytePlace>) -> Self {
+        Self(Head::Bytes(Raw::Place(place.into())))
     }
 
     /// A header field's bytes: `len` bytes at `offset`, inside the header.
-    fn head(at: GamePtr, offset: u32, len: u32) -> GamePtr {
-        debug_assert!(offset + len <= HEADER);
-        at.offset(offset).limited(len)
+    fn head(at: Raw, offset: u32, len: u32) -> BytePlace {
+        at.field(offset, len)
     }
 
     /// +0: the flags (bit 4 the page stays on Escape, bits 6 and 7 the page hidden).
@@ -362,7 +414,7 @@ impl ListMenu {
     }
 
     /// +0x10: the neighbours table for `menu::list_step` (None for none).
-    pub fn neighbours(self) -> Option<GamePtr> {
+    pub fn neighbours(self) -> Option<BytePlace> {
         let link = match self.0 {
             Head::Pages(header, _) => PageLink::from_raw(header.neighbours.get()),
             Head::Bytes(at) => rl(Self::head(at, 0x10, 4)),
@@ -386,14 +438,11 @@ impl ListMenu {
             Head::Pages(_, items) if (n as usize) < items.len() => {
                 return ListItem(Spot::Typed(&items[n as usize]));
             }
-            Head::Pages(header, _) => GamePtr::to(&crate::install::owner::install().pages)
-                .offset(pages_offset_of(header) as u32),
+            Head::Pages(header, _) => Raw::Pages(pages_offset_of(header) as u32),
             Head::Bytes(at) => at,
         };
         ListItem(Spot::Bytes(
-            start
-                .offset(HEADER.wrapping_add(ITEM.wrapping_mul(n)))
-                .limited(ITEM),
+            start.add(HEADER.wrapping_add(ITEM.wrapping_mul(n))),
         ))
     }
 
@@ -416,7 +465,7 @@ enum Spot {
     Typed(&'static Item),
     /// An item read past a list's items, or at an offset of the installer's pages that holds
     /// no typed item.
-    Bytes(GamePtr),
+    Bytes(Raw),
 }
 
 /// One item of a list menu (its 0x10 bytes).
@@ -455,7 +504,6 @@ impl ListItem {
                 "an item outside the installer's pages",
             ));
         }
-        let pages = &crate::install::owner::install().pages;
         if offset as usize == core::mem::offset_of!(InstallerPages, title) {
             return Ok(Self::of_title());
         }
@@ -468,9 +516,7 @@ impl ListItem {
             }
         }
         // The bytes of the pages that are no typed item (a table, a record, a list's header).
-        Ok(Self(Spot::Bytes(
-            GamePtr::to(pages).offset(offset).limited(ITEM),
-        )))
+        Ok(Self(Spot::Bytes(Raw::Pages(offset))))
     }
 
     /// The title's item (the pages' `title` record).
@@ -484,9 +530,11 @@ impl ListItem {
         use crate::install::vars::InstallerPages;
         let offset = match self.0 {
             Spot::Typed(item) => pages_offset_of(item) as u32,
-            Spot::Bytes(at) => {
-                let start = GamePtr::to(&crate::install::owner::install().pages).addr();
-                at.addr().wrapping_sub(start)
+            Spot::Bytes(Raw::Pages(offset)) => offset,
+            Spot::Bytes(Raw::Place(_)) => {
+                return Err(crate::errors::BadInput(
+                    "an item outside the installer's pages",
+                ));
             }
         };
         if (offset as usize).saturating_add(ITEM as usize) > size_of::<InstallerPages>() {
@@ -497,9 +545,9 @@ impl ListItem {
         Ok(offset)
     }
 
-    fn field(at: GamePtr, offset: u32, len: u32) -> GamePtr {
+    fn field(at: Raw, offset: u32, len: u32) -> BytePlace {
         debug_assert!(offset + len <= ITEM);
-        at.offset(offset).limited(len)
+        at.field(offset, len)
     }
 
     /// +0: the kind (low nibble) and marks (high bits), whole.
@@ -570,8 +618,8 @@ impl ListItem {
     }
 
     /// +8 as the text the item edits or shows (a link).
-    pub fn text(self) -> crate::place::BytePlace {
-        crate::place::BytePlace::from(self.link_place())
+    pub fn text(self) -> BytePlace {
+        self.link_place()
     }
 
     /// +8 as the byte the item sets (a choice, a value; a link).
@@ -580,7 +628,7 @@ impl ListItem {
     }
 
     /// The place the link at +8 names, in the pages or the folder typed.
-    fn link_place(self) -> GamePtr {
+    fn link_place(self) -> BytePlace {
         self.target_link().place().unwrap_or_else(|e| refuse(e))
     }
 
@@ -630,32 +678,32 @@ impl ListItem {
 
 /// The byte an item sets (its choice or its value).
 #[derive(Clone, Copy, Debug)]
-pub struct ItemByte(GamePtr);
+pub struct ItemByte(BytePlace);
 
 impl ItemByte {
     pub fn get(self) -> u8 {
-        rb(self.0.limited(1))
+        rb(self.0)
     }
 
     pub fn set(self, value: u8) {
-        wb(self.0.limited(1), value);
+        wb(self.0, value);
     }
 }
 
 /// A choice item's table: two bytes a choice, the second (at +1, +3, ...) its marks. Its
 /// length is the item's own count, which the original does not check an index against.
 #[derive(Clone, Copy, Debug)]
-pub struct Choices(GamePtr);
+pub struct Choices(BytePlace);
 
 impl Choices {
     /// Where choice `n`'s marks byte is.
-    fn marks_at(self, n: u32) -> GamePtr {
-        self.0.offset(n.wrapping_mul(2).wrapping_add(1)).limited(1)
+    fn marks_at(self, n: u32) -> BytePlace {
+        self.0.add(n.wrapping_mul(2).wrapping_add(1))
     }
 
     /// Choice `n`'s word: its string, its high bits marks.
     pub fn word(self, n: u32) -> u16 {
-        rw(self.0.offset(n.wrapping_mul(2)).limited(2))
+        rw(self.0.add(n.wrapping_mul(2)))
     }
 
     /// Choice `n`'s byte at +1.
@@ -669,11 +717,11 @@ impl Choices {
 
     /// The table's first `len` bytes (a `len` the item's count gives).
     pub fn bytes(self, len: usize, what: &str) -> Result<Vec<u8>, crate::errors::BadInput> {
-        self.0.read_bytes(len, what)
+        self.0.read(len, what)
     }
 
     pub fn write_bytes(self, bytes: &[u8], what: &str) -> Result<(), crate::errors::BadInput> {
-        self.0.write_bytes(bytes, what)
+        self.0.write(bytes, what)
     }
 }
 

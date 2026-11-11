@@ -34,7 +34,7 @@ pub fn race_timers(
     sound: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {
     use rc2k_core::physics::splits::{TimerRun, timer_rate, timer_run};
-    shared.physics_tables.weight.set_bits(1.0f32.to_bits());
+    shared.physics_tables.weight.set(1.0f32);
     let finished = shared.car.finish_flag.get() != 0;
     let factor = if finished {
         physics.split_tables.timer_factor.bits()
@@ -44,7 +44,7 @@ pub fn race_timers(
     shared
         .physics_tables
         .weight
-        .set_bits(timer_rate(finished, f32::from_bits(factor)).to_bits());
+        .set(timer_rate(finished, f32::from_bits(factor)));
     let run = timer_run(shared.vars.run_kind.bits());
     if run == TimerRun::None {
         return Ok(());

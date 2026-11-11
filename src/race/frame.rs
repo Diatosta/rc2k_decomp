@@ -25,7 +25,11 @@ pub fn players_all_out(race: &Race) -> Result<bool, Refused> {
     use rc2k_core::race::cars::{Players, players_all_out};
     {
         let trap = crate::race::trap::Trap::new();
-        let out = |n: u32| trap.read::<u32>(block(shared, n) + 0xB0, "a car block's out flag") != 0;
+        let out = |n: u32| {
+            trap.keep_read(
+                crate::race::trap::car_at(block(shared, n)).map(|car| car.stop_state.get()),
+            ) != 0
+        };
         let players = if vars.session.get() == 1 {
             Players::Chosen(vars.player.get())
         } else {

@@ -14,6 +14,7 @@
 //! Caller: `physics::car_physics_step`, every physics step. Refuses (before anything) a gear
 //! outside -1 ..= 7 (`revs_from_wheels` would; the gear is not written here).
 
+use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87::{abs_compare, abs_of, neg_rounded};
@@ -21,7 +22,6 @@ use crate::math::x87_float::X;
 use crate::math::x87_float::compare;
 use crate::math::x87_float::int;
 use crate::math::x87_float::ld;
-use crate::math::x87_float::st;
 use crate::physics::car_store::Car;
 use crate::physics::flow::{ZERO_BITS as ZERO, c0, ease_zero, hold_high, hold_low, hold_low_bits};
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at};
@@ -70,7 +70,7 @@ fn settle_slip(car: &Car, tables: &PhysicsTables, numbers: &Numbers, cells: &Sli
     } else {
         s
     };
-    slip.set_bits(signed.to_bits());
+    slip.set(signed);
     apply_slip_to_drive(tables, numbers, drive, slip, f1, f2);
 }
 
@@ -314,12 +314,12 @@ pub fn drive_wheels_step(
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[t + 0] = -(|[v + 0]| - [one])`
 fn one_less_abs(course: &Course, v: &dyn Cell32, t: &dyn Cell32) {
-    let t0 = ld(v.bits());
+    let t0 = v.ld();
     let t1 = t0.abs();
-    let t2 = ld(course.numbers.one.bits());
+    let t2 = course.numbers.one.ld();
     let t3 = t1 - t2;
     let t4 = -t3;
-    t.set_bits(st(t4));
+    t.st(t4);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -337,12 +337,12 @@ fn abs_status(v: [u32; 2]) -> u16 {
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[r + 0] = ([d + 0] - [rc + 0x31A184]) / [spec_wheel]`
 fn slip_ratio(car: &Car, tables: &PhysicsTables, d: &dyn Cell32, r: &dyn Cell32) {
-    let t0 = ld(d.bits());
-    let t1 = ld(car.local_velocity[2].bits());
+    let t0 = d.ld();
+    let t1 = car.local_velocity[2].ld();
     let t2 = t0 - t1;
-    let t3 = ld(tables.spec_wheel.bits());
+    let t3 = tables.spec_wheel.ld();
     let t4 = t2 / t3;
-    r.set_bits(st(t4));
+    r.st(t4);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -358,45 +358,45 @@ fn apply_slip_to_drive(
     f1: &dyn Cell32,
     f2: &dyn Cell32,
 ) {
-    let t0 = ld(d.bits());
-    let t1 = ld(tables.spec_wheel.bits());
-    let t2 = ld(numbers.one.bits());
+    let t0 = d.ld();
+    let t1 = tables.spec_wheel.ld();
+    let t2 = numbers.one.ld();
     let t3 = t1 - t2;
-    let t4 = ld(s.bits());
+    let t4 = s.ld();
     let t5 = t3 * t4;
     let t6 = t0 - t5;
-    d.set_bits(st(t6));
-    let t7 = ld(s.bits());
-    let t8 = ld(tables.step_time.bits());
+    d.st(t6);
+    let t7 = s.ld();
+    let t8 = tables.step_time.ld();
     let t9 = t7 / t8;
-    let t10 = ld(numbers.half.bits());
+    let t10 = numbers.half.ld();
     let t11 = t9 * t10;
-    f1.set_bits(st(t11));
-    f2.set_bits(st(t11));
+    f1.st(t11);
+    f2.st(t11);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[r + 0] = |(([d + 0] - [rc + 0x31A184]) / [spec_wheel])|`
 fn slip_ratio_size(car: &Car, tables: &PhysicsTables, d: &dyn Cell32, r: &dyn Cell32) {
-    let t0 = ld(d.bits());
-    let t1 = ld(car.local_velocity[2].bits());
+    let t0 = d.ld();
+    let t1 = car.local_velocity[2].ld();
     let t2 = t0 - t1;
-    let t3 = ld(tables.spec_wheel.bits());
+    let t3 = tables.spec_wheel.ld();
     let t4 = t2 / t3;
     let t5 = t4.abs();
-    r.set_bits(st(t5));
+    r.st(t5);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x2140B8] = ([rc + 0x2140B4] + [rc + 0x2140B4]) - [one]`
 fn signed_share(tables: &PhysicsTables, numbers: &Numbers) {
-    let t0 = ld(tables.drive_shares[1].bits());
+    let t0 = tables.drive_shares[1].ld();
     let t1 = t0 + t0;
-    let t2 = ld(numbers.one.bits());
+    let t2 = numbers.one.ld();
     let t3 = t1 - t2;
-    tables.drive_shares[2].set_bits(st(t3));
+    tables.drive_shares[2].st(t3);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -405,51 +405,51 @@ fn signed_share(tables: &PhysicsTables, numbers: &Numbers) {
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 fn drive_forces_from_grips(car: &Car, tables: &PhysicsTables, grips: &[Float; 5]) {
-    let t0 = ld(grips[0].bits());
-    let t1 = ld(tables.forces[0].force[1].bits());
+    let t0 = grips[0].ld();
+    let t1 = tables.forces[0].force[1].ld();
     let t2 = t0 * t1;
-    let t3 = ld(grips[1].bits());
-    let t4 = ld(tables.forces[1].force[1].bits());
+    let t3 = grips[1].ld();
+    let t4 = tables.forces[1].force[1].ld();
     let t5 = t3 * t4;
     let t6 = t2 + t5;
     let t7 = -t6;
-    let t8 = ld(tables.step_time.bits());
+    let t8 = tables.step_time.ld();
     let t9 = t7 * t8;
-    let t10 = ld(tables.weight.bits());
+    let t10 = tables.weight.ld();
     let t11 = t9 * t10;
-    let t12 = ld(car.drive_efficiency[0].bits());
+    let t12 = car.drive_efficiency[0].ld();
     let t13 = t11 * t12;
-    tables.drive_forces[0].set_bits(st(t13));
-    let t14 = ld(grips[2].bits());
-    let t15 = ld(tables.forces[2].force[1].bits());
+    tables.drive_forces[0].st(t13);
+    let t14 = grips[2].ld();
+    let t15 = tables.forces[2].force[1].ld();
     let t16 = t14 * t15;
-    let t17 = ld(grips[3].bits());
-    let t18 = ld(tables.forces[3].force[1].bits());
+    let t17 = grips[3].ld();
+    let t18 = tables.forces[3].force[1].ld();
     let t19 = t17 * t18;
     let t20 = t16 + t19;
     let t21 = -t20;
-    let t22 = ld(tables.step_time.bits());
+    let t22 = tables.step_time.ld();
     let t23 = t21 * t22;
-    let t24 = ld(tables.weight.bits());
+    let t24 = tables.weight.ld();
     let t25 = t23 * t24;
-    let t26 = ld(car.drive_efficiency[1].bits());
+    let t26 = car.drive_efficiency[1].ld();
     let t27 = t25 * t26;
-    tables.drive_forces[1].set_bits(st(t27));
-    let t28 = ld(tables.wheel_loads[0].bits());
-    let t29 = ld(tables.wheel_loads[1].bits());
+    tables.drive_forces[1].st(t27);
+    let t28 = tables.wheel_loads[0].ld();
+    let t29 = tables.wheel_loads[1].ld();
     let t30 = t28 + t29;
-    let t31 = ld(tables.wheel_loads[2].bits());
+    let t31 = tables.wheel_loads[2].ld();
     let t32 = t30 + t31;
-    let t33 = ld(tables.wheel_loads[3].bits());
+    let t33 = tables.wheel_loads[3].ld();
     let t34 = t32 + t33;
-    let t35 = ld(tables.forces[0].force[1].bits());
+    let t35 = tables.forces[0].force[1].ld();
     let t36 = t34 * t35;
     let t37 = -t36;
-    let t38 = ld(tables.step_time.bits());
+    let t38 = tables.step_time.ld();
     let t39 = t37 * t38;
-    let t40 = ld(tables.weight.bits());
+    let t40 = tables.weight.ld();
     let t41 = t39 * t40;
-    tables.drive_limits[0].set_bits(st(t41));
+    tables.drive_limits[0].st(t41);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -464,20 +464,20 @@ fn throttle_drive_limit(
 ) {
     let drawing = &scene.drawing;
     let t0 = int(drawing.scene.scratch.bits() as i32);
-    let t1 = ld(numbers.k256.bits());
+    let t1 = numbers.k256.ld();
     let t2 = t0 / t1;
-    let t3 = ld(car.local_velocity[0].bits());
-    let t4 = ld(tables.wheel_load.bits());
+    let t3 = car.local_velocity[0].ld();
+    let t4 = tables.wheel_load.ld();
     let t5 = t3 * t4;
     let t6 = t5.abs();
     let t7 = t2 * t6;
-    let t8 = ld(tables.weight.bits());
+    let t8 = tables.weight.ld();
     let t9 = t7 * t8;
-    tables.drive_limits[1].set_bits(st(t9));
-    let t10 = ld(tables.drive_limits[0].bits());
-    let t11 = ld(tables.drive_speed_scale.bits());
+    tables.drive_limits[1].st(t9);
+    let t10 = tables.drive_limits[0].ld();
+    let t11 = tables.drive_speed_scale.ld();
     let t12 = t10 * t11;
-    drawing.scene.scratch.set_bits(st(t12));
+    drawing.scene.scratch.st(t12);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -485,40 +485,40 @@ fn throttle_drive_limit(
 /// `[drive_speed_a] = ((([drive_torque] * [half]) * [step_time]) * [spec_wheel]) + [drive_speed_a]`
 /// `[drive_speed_b] = ((([drive_torque] * [half]) * [step_time]) * [spec_wheel]) + [drive_speed_b]`
 fn push_both_drive_speeds(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
-    let t0 = ld(tables.drive_torque.bits());
-    let t1 = ld(numbers.half.bits());
+    let t0 = tables.drive_torque.ld();
+    let t1 = numbers.half.ld();
     let t2 = t0 * t1;
-    let t3 = ld(tables.step_time.bits());
+    let t3 = tables.step_time.ld();
     let t4 = t2 * t3;
-    let t5 = ld(tables.spec_wheel.bits());
+    let t5 = tables.spec_wheel.ld();
     let t6 = t4 * t5;
-    let t7 = ld(car.drive_speed_a.bits());
+    let t7 = car.drive_speed_a.ld();
     let t8 = t6 + t7;
-    car.drive_speed_a.set_bits(st(t8));
-    let t9 = ld(tables.drive_torque.bits());
-    let t10 = ld(numbers.half.bits());
+    car.drive_speed_a.st(t8);
+    let t9 = tables.drive_torque.ld();
+    let t10 = numbers.half.ld();
     let t11 = t9 * t10;
-    let t12 = ld(tables.step_time.bits());
+    let t12 = tables.step_time.ld();
     let t13 = t11 * t12;
-    let t14 = ld(tables.spec_wheel.bits());
+    let t14 = tables.spec_wheel.ld();
     let t15 = t13 * t14;
-    let t16 = ld(car.drive_speed_b.bits());
+    let t16 = car.drive_speed_b.ld();
     let t17 = t15 + t16;
-    car.drive_speed_b.set_bits(st(t17));
+    car.drive_speed_b.st(t17);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[drive_speed_a] = (([drive_torque] * [step_time]) * [spec_wheel]) + [drive_speed_a]`
 fn push_drive_speed_a(car: &Car, tables: &PhysicsTables) {
-    let t0 = ld(tables.drive_torque.bits());
-    let t1 = ld(tables.step_time.bits());
+    let t0 = tables.drive_torque.ld();
+    let t1 = tables.step_time.ld();
     let t2 = t0 * t1;
-    let t3 = ld(tables.spec_wheel.bits());
+    let t3 = tables.spec_wheel.ld();
     let t4 = t2 * t3;
-    let t5 = ld(car.drive_speed_a.bits());
+    let t5 = car.drive_speed_a.ld();
     let t6 = t4 + t5;
-    car.drive_speed_a.set_bits(st(t6));
+    car.drive_speed_a.st(t6);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -526,59 +526,59 @@ fn push_drive_speed_a(car: &Car, tables: &PhysicsTables) {
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 fn brake_step_for_a(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
     let t0 = X(1.0);
-    let t1 = ld(tables.handling[1].bits());
+    let t1 = tables.handling[1].ld();
     let t2 = t0 - t1;
-    let t3 = ld(tables.spec_drive[1].bits());
+    let t3 = tables.spec_drive[1].ld();
     let t4 = t2 * t3;
     let t5 = int(car.brake.bits() as i32);
     let t6 = t4 * t5;
-    let t7 = ld(numbers.k256.bits());
+    let t7 = numbers.k256.ld();
     let t8 = t6 / t7;
-    let t9 = ld(tables.step_time.bits());
+    let t9 = tables.step_time.ld();
     let t10 = t8 * t9;
-    let t11 = ld(car.brake_efficiency[0].bits());
+    let t11 = car.brake_efficiency[0].ld();
     let t12 = t10 * t11;
-    let t13 = ld(tables.spec_wheel.bits());
+    let t13 = tables.spec_wheel.ld();
     let t14 = t12 * t13;
-    tables.wheel_speed_step.set_bits(st(t14));
+    tables.wheel_speed_step.st(t14);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 fn brake_step_for_b(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
-    let t0 = ld(tables.handling[1].bits());
-    let t1 = ld(tables.spec_drive[1].bits());
+    let t0 = tables.handling[1].ld();
+    let t1 = tables.spec_drive[1].ld();
     let t2 = t0 * t1;
     let t3 = int(car.brake.bits() as i32);
     let t4 = t2 * t3;
-    let t5 = ld(numbers.k256.bits());
+    let t5 = numbers.k256.ld();
     let t6 = t4 / t5;
-    let t7 = ld(tables.step_time.bits());
+    let t7 = tables.step_time.ld();
     let t8 = t6 * t7;
-    let t9 = ld(car.brake_efficiency[1].bits());
+    let t9 = car.brake_efficiency[1].ld();
     let t10 = t8 * t9;
-    let t11 = ld(tables.spec_wheel.bits());
+    let t11 = tables.spec_wheel.ld();
     let t12 = t10 * t11;
-    tables.wheel_speed_step.set_bits(st(t12));
+    tables.wheel_speed_step.st(t12);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[wheel_speed_step] = (((([spec_drive] * int [handbrake]) / [k256]) * [step_time]) * [spec_wheel]) * [weight]`
 fn handbrake_step_for_b(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
-    let t0 = ld(tables.spec_drive[0].bits());
+    let t0 = tables.spec_drive[0].ld();
     let t1 = int(car.handbrake.bits() as i32);
     let t2 = t0 * t1;
-    let t3 = ld(numbers.k256.bits());
+    let t3 = numbers.k256.ld();
     let t4 = t2 / t3;
-    let t5 = ld(tables.step_time.bits());
+    let t5 = tables.step_time.ld();
     let t6 = t4 * t5;
-    let t7 = ld(tables.spec_wheel.bits());
+    let t7 = tables.spec_wheel.ld();
     let t8 = t6 * t7;
-    let t9 = ld(tables.weight.bits());
+    let t9 = tables.weight.ld();
     let t10 = t8 * t9;
-    tables.wheel_speed_step.set_bits(st(t10));
+    tables.wheel_speed_step.st(t10);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -598,16 +598,16 @@ fn handbrake_stop_status(v: [u32; 3]) -> u16 {
 /// `[rc + 0x214238] = |([drive_speed_b] - [rc + 0x31A184])|`
 /// `[wheel_slips] = |([drive_speed_a] - [rc + 0x31A184])|`
 fn slip_gaps(car: &Car, tables: &PhysicsTables) {
-    let t0 = ld(car.drive_speed_b.bits());
-    let t1 = ld(car.local_velocity[2].bits());
+    let t0 = car.drive_speed_b.ld();
+    let t1 = car.local_velocity[2].ld();
     let t2 = t0 - t1;
     let t3 = t2.abs();
-    tables.wheel_slips[1].set_bits(st(t3));
-    let t4 = ld(car.drive_speed_a.bits());
-    let t5 = ld(car.local_velocity[2].bits());
+    tables.wheel_slips[1].st(t3);
+    let t4 = car.drive_speed_a.ld();
+    let t5 = car.local_velocity[2].ld();
     let t6 = t4 - t5;
     let t7 = t6.abs();
-    tables.wheel_slips[0].set_bits(st(t7));
+    tables.wheel_slips[0].st(t7);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -616,18 +616,18 @@ fn slip_gaps(car: &Car, tables: &PhysicsTables) {
 /// `[drive_forces] = [drive_forces] * [rc + 0x2140B4]`
 /// `[rc + 0x21424C] = [rc + 0x21424C] * [rc + 0x2140B4]`
 fn scale_axle_forces(tables: &PhysicsTables) {
-    let t0 = ld(tables.drive_limits[2].bits());
-    let t1 = ld(tables.drive_shares[0].bits());
+    let t0 = tables.drive_limits[2].ld();
+    let t1 = tables.drive_shares[0].ld();
     let t2 = t0 * t1;
-    tables.drive_limits[2].set_bits(st(t2));
-    let t3 = ld(tables.drive_forces[0].bits());
-    let t4 = ld(tables.drive_shares[1].bits());
+    tables.drive_limits[2].st(t2);
+    let t3 = tables.drive_forces[0].ld();
+    let t4 = tables.drive_shares[1].ld();
     let t5 = t3 * t4;
-    tables.drive_forces[0].set_bits(st(t5));
-    let t6 = ld(tables.drive_forces[1].bits());
-    let t7 = ld(tables.drive_shares[1].bits());
+    tables.drive_forces[0].st(t5);
+    let t6 = tables.drive_forces[1].ld();
+    let t7 = tables.drive_shares[1].ld();
     let t8 = t6 * t7;
-    tables.drive_forces[1].set_bits(st(t8));
+    tables.drive_forces[1].st(t8);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -643,18 +643,18 @@ fn side_slip_forces(
     numbers: &Numbers,
     scene: &crate::scene::owner::Scene,
 ) {
-    let t0 = ld(scene.drawing.scene.scratch.bits());
-    let t1 = ld(car.local_velocity[0].bits());
+    let t0 = scene.drawing.scene.scratch.ld();
+    let t1 = car.local_velocity[0].ld();
     let t2 = t0 - t1;
-    tables.drive_slip[0].set_bits(st(t2));
-    let t3 = ld(tables.step_time.bits());
+    tables.drive_slip[0].st(t2);
+    let t3 = tables.step_time.ld();
     let t4 = t2 / t3;
-    let t5 = ld(numbers.quarter.bits());
+    let t5 = numbers.quarter.ld();
     let t6 = t4 * t5;
-    tables.forces[11].force[0].set_bits(st(t6));
-    tables.forces[12].force[0].set_bits(st(t6));
-    tables.forces[13].force[0].set_bits(st(t6));
-    tables.forces[14].force[0].set_bits(st(t6));
+    tables.forces[11].force[0].st(t6);
+    tables.forces[12].force[0].st(t6);
+    tables.forces[13].force[0].st(t6);
+    tables.forces[14].force[0].st(t6);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -662,32 +662,32 @@ fn side_slip_forces(
 /// `[rc + 0x214254] = ((|[drive_slip]| - [slip_limit]) * [slip_blend]) + [slip_limit]`
 /// `[wheel_spin_push] = |([rc + 0x214254] / [drive_slip])| * [rc + 0x214BFC]`
 fn slip_side_share(tables: &PhysicsTables) {
-    let t0 = ld(tables.drive_slip[0].bits());
+    let t0 = tables.drive_slip[0].ld();
     let t1 = t0.abs();
-    let t2 = ld(tables.slip_limit.bits());
+    let t2 = tables.slip_limit.ld();
     let t3 = t1 - t2;
-    let t4 = ld(tables.slip_blend.bits());
+    let t4 = tables.slip_blend.ld();
     let t5 = t3 * t4;
-    let t6 = ld(tables.slip_limit.bits());
+    let t6 = tables.slip_limit.ld();
     let t7 = t5 + t6;
-    tables.drive_slip[1].set_bits(st(t7));
-    let t8 = ld(tables.drive_slip[1].bits());
-    let t9 = ld(tables.drive_slip[0].bits());
+    tables.drive_slip[1].st(t7);
+    let t8 = tables.drive_slip[1].ld();
+    let t9 = tables.drive_slip[0].ld();
     let t10 = t8 / t9;
     let t11 = t10.abs();
-    let t12 = ld(tables.handling[4].bits());
+    let t12 = tables.handling[4].ld();
     let t13 = t11 * t12;
-    tables.wheel_spin_push[0].set_bits(st(t13));
+    tables.wheel_spin_push[0].st(t13);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x2141D8] = [rc + 0x214BFC] * [slip_share]`
 fn spin_push_b(tables: &PhysicsTables) {
-    let t0 = ld(tables.handling[4].bits());
-    let t1 = ld(tables.slip_share.bits());
+    let t0 = tables.handling[4].ld();
+    let t1 = tables.slip_share.ld();
     let t2 = t0 * t1;
-    tables.wheel_spin_push[1].set_bits(st(t2));
+    tables.wheel_spin_push[1].st(t2);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -695,14 +695,14 @@ fn spin_push_b(tables: &PhysicsTables) {
 /// `[scratch] = sqrt((([local_velocity] * [local_velocity]) + ([rc + 0x31A184] * [rc + 0x31A184])))`
 /// `status [s + 0] = status`
 fn speed_over_ground(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner::Scene) -> u16 {
-    let t0 = ld(car.local_velocity[0].bits());
+    let t0 = car.local_velocity[0].ld();
     let t1 = t0 * t0;
-    let t2 = ld(car.local_velocity[2].bits());
+    let t2 = car.local_velocity[2].ld();
     let t3 = t2 * t2;
     let t4 = t1 + t3;
     let t5 = t4.sqrt();
-    scene.drawing.scene.scratch.set_bits(st(t5));
-    let t6 = ld(tables.wheel_drag[1].bits());
+    scene.drawing.scene.scratch.st(t5);
+    let t6 = tables.wheel_drag[1].ld();
     compare(t5, t6)
 }
 
@@ -712,20 +712,20 @@ fn speed_over_ground(car: &Car, tables: &PhysicsTables, scene: &crate::scene::ow
 /// `[rc + 0x2148B8] = -(([wheel_drag] / [scratch]) * [rc + 0x31A184])`
 fn rolling_drag_forces(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner::Scene) {
     let drawing = &scene.drawing;
-    let t0 = ld(tables.wheel_drag[0].bits());
-    let t1 = ld(drawing.scene.scratch.bits());
+    let t0 = tables.wheel_drag[0].ld();
+    let t1 = drawing.scene.scratch.ld();
     let t2 = t0 / t1;
-    let t3 = ld(car.local_velocity[0].bits());
+    let t3 = car.local_velocity[0].ld();
     let t4 = t2 * t3;
     let t5 = -t4;
-    tables.forces[10].force[0].set_bits(st(t5));
-    let t6 = ld(tables.wheel_drag[0].bits());
-    let t7 = ld(drawing.scene.scratch.bits());
+    tables.forces[10].force[0].st(t5);
+    let t6 = tables.wheel_drag[0].ld();
+    let t7 = drawing.scene.scratch.ld();
     let t8 = t6 / t7;
-    let t9 = ld(car.local_velocity[2].bits());
+    let t9 = car.local_velocity[2].ld();
     let t10 = t8 * t9;
     let t11 = -t10;
-    tables.forces[10].force[2].set_bits(st(t11));
+    tables.forces[10].force[2].st(t11);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -735,30 +735,30 @@ fn rolling_drag_forces(car: &Car, tables: &PhysicsTables, scene: &crate::scene::
 /// `[rc + 0x214910] = ([rc + 0x2149F0] * [half]) + [rc + 0x214910]`
 /// `[rc + 0x214930] = ([rc + 0x2149F0] * [half]) + [rc + 0x214930]`
 fn share_wheel_forces(tables: &PhysicsTables, numbers: &Numbers) {
-    let t0 = ld(tables.forces[19].force[0].bits());
-    let t1 = ld(numbers.half.bits());
+    let t0 = tables.forces[19].force[0].ld();
+    let t1 = numbers.half.ld();
     let t2 = t0 * t1;
-    let t3 = ld(tables.forces[11].force[0].bits());
+    let t3 = tables.forces[11].force[0].ld();
     let t4 = t2 + t3;
-    tables.forces[11].force[0].set_bits(st(t4));
-    let t5 = ld(tables.forces[19].force[0].bits());
-    let t6 = ld(numbers.half.bits());
+    tables.forces[11].force[0].st(t4);
+    let t5 = tables.forces[19].force[0].ld();
+    let t6 = numbers.half.ld();
     let t7 = t5 * t6;
-    let t8 = ld(tables.forces[12].force[0].bits());
+    let t8 = tables.forces[12].force[0].ld();
     let t9 = t7 + t8;
-    tables.forces[12].force[0].set_bits(st(t9));
-    let t10 = ld(tables.forces[20].force[0].bits());
-    let t11 = ld(numbers.half.bits());
+    tables.forces[12].force[0].st(t9);
+    let t10 = tables.forces[20].force[0].ld();
+    let t11 = numbers.half.ld();
     let t12 = t10 * t11;
-    let t13 = ld(tables.forces[13].force[0].bits());
+    let t13 = tables.forces[13].force[0].ld();
     let t14 = t12 + t13;
-    tables.forces[13].force[0].set_bits(st(t14));
-    let t15 = ld(tables.forces[20].force[0].bits());
-    let t16 = ld(numbers.half.bits());
+    tables.forces[13].force[0].st(t14);
+    let t15 = tables.forces[20].force[0].ld();
+    let t16 = numbers.half.ld();
     let t17 = t15 * t16;
-    let t18 = ld(tables.forces[14].force[0].bits());
+    let t18 = tables.forces[14].force[0].ld();
     let t19 = t17 + t18;
-    tables.forces[14].force[0].set_bits(st(t19));
+    tables.forces[14].force[0].st(t19);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -766,25 +766,25 @@ fn share_wheel_forces(tables: &PhysicsTables, numbers: &Numbers) {
 /// `[drive_slip_speed] = [drive_speed_a] - [rc + 0x31A184]`
 /// `[work_float_a] = |([drive_speed_a] - [rc + 0x31A184])| - [wheel_speed_gap]`
 fn slip_figure_a(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner::Scene) {
-    let t0 = ld(car.drive_speed_a.bits());
-    let t1 = ld(car.local_velocity[2].bits());
+    let t0 = car.drive_speed_a.ld();
+    let t1 = car.local_velocity[2].ld();
     let t2 = t0 - t1;
-    car.drive_slip_speed.set_bits(st(t2));
+    car.drive_slip_speed.st(t2);
     let t3 = t2.abs();
-    let t4 = ld(tables.wheel_speed_gap.bits());
+    let t4 = tables.wheel_speed_gap.ld();
     let t5 = t3 - t4;
-    scene.drawing.scene.work_float_a.set_bits(st(t5));
+    scene.drawing.scene.work_float_a.st(t5);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[work_float_b] = |[local_velocity]| - [wheel_speed_margin]`
 fn slip_figure_b(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner::Scene) {
-    let t0 = ld(car.local_velocity[0].bits());
+    let t0 = car.local_velocity[0].ld();
     let t1 = t0.abs();
-    let t2 = ld(tables.wheel_speed_margin.bits());
+    let t2 = tables.wheel_speed_margin.ld();
     let t3 = t1 - t2;
-    scene.drawing.scene.work_float_b.set_bits(st(t3));
+    scene.drawing.scene.work_float_b.st(t3);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -797,40 +797,40 @@ fn slip_figure_b(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner:
 /// `[rc + 0x31AF1C] = sqrt((([work_float_a] * [work_float_a]) + ([work_float_b] * [work_float_b])))`
 fn slip_lengths(car: &Car, scene: &crate::scene::owner::Scene) {
     let drawing = &scene.drawing;
-    let t0 = ld(drawing.scene.work_float_a.bits());
+    let t0 = drawing.scene.work_float_a.ld();
     let t1 = t0 * t0;
-    let t2 = ld(drawing.scene.work_float_b.bits());
+    let t2 = drawing.scene.work_float_b.ld();
     let t3 = t2 * t2;
     let t4 = t1 + t3;
     let t5 = t4.sqrt();
-    car.slip_speed.set_bits(st(t5));
-    let t6 = ld(car.local_velocity[0].bits());
+    car.slip_speed.st(t5);
+    let t6 = car.local_velocity[0].ld();
     let t7 = t6.abs();
-    drawing.scene.work_float_b.set_bits(st(t7));
-    let t8 = ld(car.drive_speed_a.bits());
-    let t9 = ld(car.local_velocity[2].bits());
+    drawing.scene.work_float_b.st(t7);
+    let t8 = car.drive_speed_a.ld();
+    let t9 = car.local_velocity[2].ld();
     let t10 = t8 - t9;
     let t11 = t10.abs();
-    drawing.scene.work_float_a.set_bits(st(t11));
-    let t12 = ld(drawing.scene.work_float_a.bits());
+    drawing.scene.work_float_a.st(t11);
+    let t12 = drawing.scene.work_float_a.ld();
     let t13 = t12 * t12;
-    let t14 = ld(drawing.scene.work_float_b.bits());
+    let t14 = drawing.scene.work_float_b.ld();
     let t15 = t14 * t14;
     let t16 = t13 + t15;
     let t17 = t16.sqrt();
-    car.skid_grip[0].set_bits(st(t17));
-    let t18 = ld(car.drive_speed_b.bits());
-    let t19 = ld(car.local_velocity[2].bits());
+    car.skid_grip[0].st(t17);
+    let t18 = car.drive_speed_b.ld();
+    let t19 = car.local_velocity[2].ld();
     let t20 = t18 - t19;
     let t21 = t20.abs();
-    drawing.scene.work_float_a.set_bits(st(t21));
-    let t22 = ld(drawing.scene.work_float_a.bits());
+    drawing.scene.work_float_a.st(t21);
+    let t22 = drawing.scene.work_float_a.ld();
     let t23 = t22 * t22;
-    let t24 = ld(drawing.scene.work_float_b.bits());
+    let t24 = drawing.scene.work_float_b.ld();
     let t25 = t24 * t24;
     let t26 = t23 + t25;
     let t27 = t26.sqrt();
-    car.skid_grip[1].set_bits(st(t27));
+    car.skid_grip[1].st(t27);
 }
 
 #[cfg(all(test, target_arch = "x86"))]

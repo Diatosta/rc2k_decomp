@@ -39,14 +39,14 @@ const EDGES: [(usize, Axis, Axis, bool); 4] = [
 
 /// Copies a whole vertex, field by field.
 fn copy_vertex(from: &Vertex, to: &Vertex) {
-    to.x.set_bits(from.x.bits());
-    to.y.set_bits(from.y.bits());
-    to.z.set_bits(from.z.bits());
-    to.rhw.set_bits(from.rhw.bits());
+    to.x.set(from.x.get());
+    to.y.set(from.y.get());
+    to.z.set(from.z.get());
+    to.rhw.set(from.rhw.get());
     to.colour.set(from.colour.get());
     to.specular.set(from.specular.get());
-    to.u.set_bits(from.u.bits());
-    to.v.set_bits(from.v.bits());
+    to.u.set(from.u.get());
+    to.v.set(from.v.get());
 }
 
 /// Whether all the quad is outside (the original's CF).
@@ -130,11 +130,11 @@ pub fn clip_quad(effects: &crate::effects::owner::Effects) -> Result<bool, Refus
             let v = x87::clip_lerp3(line, coord(o), coord(s), pairs);
             let w = &work[built];
             coord(w).set_bits(line);
-            other(w).set_bits(v[0].to_bits());
-            w.u.set_bits(v[1].to_bits());
-            w.v.set_bits(v[2].to_bits());
-            w.z.set_bits(o.z.bits());
-            w.rhw.set_bits(o.rhw.bits());
+            other(w).set(v[0]);
+            w.u.set(v[1]);
+            w.v.set(v[2]);
+            w.z.set(o.z.get());
+            w.rhw.set(o.rhw.get());
             w.colour.set(o.colour.get());
             w.specular.set(o.specular.get());
             built += 1;

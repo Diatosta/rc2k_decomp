@@ -24,7 +24,6 @@ pub fn rescale_to_surface(
     gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     let pictures = &gfx.pictures;
-    use crate::pointers::write_or_end;
     let (from_width, from_height): (u32, u32) =
         (pictures.decoder.width.get(), pictures.decoder.height.get());
     let (width, height) = (surface.width.get(), surface.height.get());
@@ -45,8 +44,8 @@ pub fn rescale_to_surface(
     // components variable, the last left there with its fourth byte as it was.
     let format = crate::gfx::pixel_format::layout(surface.format.get())?;
     let words = surface.bits_per_pixel.get() == 0x10;
-    // Where the next pixel goes (a game address).
-    let mut out = surface.pixels.get();
+    // Where the next pixel goes.
+    let mut out = crate::gfx::locked_pixels::Place::start(surface.pixels.get());
     let (width_pixels, gap) = (width, surface.row_gap.get());
     let mut column = 0u32;
     let work = crate::gfx::picture::with_buffer(from, |pixels| {
@@ -70,16 +69,16 @@ pub fn rescale_to_surface(
                 }
                 let pixel = components_to_pixel(&format, rescaler.components.get_u32(0));
                 if words {
-                    write_or_end(out, pixel as u16, "the surface");
-                    out = out.wrapping_add(2);
+                    out.write_or_end(pixel as u16, "the surface");
+                    out.advance(2);
                 } else {
-                    write_or_end(out, pixel, "the surface");
-                    out = out.wrapping_add(4);
+                    out.write_or_end(pixel, "the surface");
+                    out.advance(4);
                 }
                 column += 1;
                 if column == width_pixels {
                     column = 0;
-                    out = out.wrapping_add(gap);
+                    out.advance(gap);
                 }
             },
         )

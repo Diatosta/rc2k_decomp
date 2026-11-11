@@ -135,7 +135,6 @@ pub fn stage_choice_texts(menus: &Menus) -> Result<(), Refused> {
     stage_refuses(stages, a, b)?;
     // Item 1 of the "menu" the head points to (the labels: the slip in `notes/bugs.md`).
     let item_1 = crate::menu::menus_store::labels_slot(
-        menus,
         menus.tables.menus.view_courses.id(),
         4 + 0x5C + 0x14,
     )?
@@ -152,6 +151,6 @@ pub fn stage_choice_texts(menus: &Menus) -> Result<(), Refused> {
         )?,
     )?;
     let (base, record) = stage_record(stages, a, b, menus.screens.event.stage_number.get())?;
-    item_1.write::<u32>(base.title()?, "a menu item")?;
+    crate::pointers::store_value::<u32>(&menus.tables.menus.labels, item_1, base.title()?)?;
     stage_line(0x482, record)
 }

@@ -100,7 +100,7 @@ pub fn edit_key(
             }
             EditKey::Enter => {
                 record.set_flags(record.flags() & !EDITING);
-                let words = text.game_ptr().bytes("an edited text")?;
+                let words = text.bytes("an edited text")?;
                 let (blank, _) = edits::blank(&words)?;
                 if blank {
                     clear(text, most);

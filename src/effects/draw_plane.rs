@@ -119,7 +119,7 @@ pub fn draw_plane(
     plane_place(drops, m);
     normalise(&drops.hex.place);
     plane_facing(drops, fl);
-    if drops.state.facing.bits() & 0x8000_0000 == 0 {
+    if !drops.state.facing.get().is_sign_negative() {
         return Ok(());
     }
     if race.frame.frame_work.lead_kept[7].get() == 0 {
@@ -136,7 +136,7 @@ pub fn draw_plane(
     plane_corners(fl, effects);
     let entry = &effects.blocks.corners.corners[corner as usize];
     let word = |off: u32| u32::from(entry.words[off as usize / 2].get());
-    let uv_k: u32 = effects.frame.draw_work.uv_k.bits();
+    let uv_k = effects.frame.draw_work.uv_k.get();
     for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
         let vertex = &VERTICES.vertices[n];
         vertex.u.set(x87::int_times(word(u) as i32, uv_k));
@@ -166,19 +166,18 @@ pub fn draw_plane(
     for n in 0..4 {
         let c = &effects.kinds.plane_quad.corners[n];
         let vertex = &VERTICES.vertices[n];
-        vertex.x.set_bits(c[0].bits());
-        vertex.y.set_bits(c[1].bits());
-        let depth: u32 = c[2].bits();
-        vertex.z.set_bits(bh::st(
-            (bh::ld(depth) + bh::ld(kind) + bh::ld(PLANE_TUNING.lifts[n].to_bits())) * bh::ld(z_k),
+        vertex.x.set(c[0].get());
+        vertex.y.set(c[1].get());
+        let depth = c[2].get();
+        vertex.z.set(bh::stf(
+            (bh::ld(depth) + bh::ld(kind) + bh::ld(PLANE_TUNING.lifts[n])) * bh::ld(z_k),
         ));
     }
     for n in 0..4 {
-        let depth: u32 = effects.kinds.plane_quad.corners[n][2].bits();
-        VERTICES.vertices[n].rhw.set(x87::reciprocal_times(
-            depth,
-            PLANE_TUNING.rhw_k[n].to_bits(),
-        ));
+        let depth = effects.kinds.plane_quad.corners[n][2].get();
+        VERTICES.vertices[n]
+            .rhw
+            .set(x87::reciprocal_times(depth, PLANE_TUNING.rhw_k[n]));
     }
     crate::effects::clip_quad::draw_fan();
     crate::scene::depth_test_on::depth_test_on();
@@ -197,7 +196,7 @@ fn plane_axes_x87(
     pt: &PlaneTuning,
 ) {
     let t0 = ldi_cell(&m.windscreen_flakes_rate_factor);
-    let t1 = t0 * bh::ld(pt.rate_k.to_bits());
+    let t1 = t0 * bh::ld(pt.rate_k);
     sti.rate.st(t1);
     let t2 = ldi_cell(&m.light_point_b_negated[0]);
     let t3 = ldi_cell(&m.light_point_b_negated[1]);
@@ -223,7 +222,7 @@ fn plane_axes_x87(
     let t17 = t14 + t16;
     let t18 = t12 + t17;
     let t19 = t18.sqrt();
-    let t20 = t19 / bh::ld(pt.shares[0].to_bits());
+    let t20 = t19 / bh::ld(pt.shares[0]);
     sq.lengths[0].st(t20);
 }
 
@@ -247,7 +246,7 @@ fn plane_up_x87(m: &EffectsSettings, sq: &WindscreenFlakeTables, pt: &PlaneTunin
     let t12 = t9 + t11;
     let t13 = t7 + t12;
     let t14 = t13.sqrt();
-    let t15 = t14 / bh::ld(pt.shares[1].to_bits());
+    let t15 = t14 / bh::ld(pt.shares[1]);
     sq.lengths[1].st(t15);
 }
 

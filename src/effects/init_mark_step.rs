@@ -39,7 +39,7 @@ pub fn init_mark_step(
         race::check_cars(count, |n| block(n) != 0)?;
         EFFECTS_SETTINGS
             .cars_copy
-            .set_bits(race.shared.view.race_cars.bits());
+            .set(race.shared.view.race_cars.get());
         // The one object the effects' shapes are made from: the player's car (the original's
         // fixed 0x50 is the first car, not a joined machine's).
         let own = crate::race::blocks_store::own_car_number() as u32;

@@ -270,26 +270,18 @@ const fn initial_object(sound_offset: u32) -> SoundObject {
         new_revs: Dword::new(0),
         revs: Dword::new(0x3E8),
         throttle: Dword::new(0),
-        speed: Float::from_bits(0),
+        speed: Float::new(0.0),
         gear_event: Dword::new(0),
         no_gear: Dword::new(0),
         _gap_28: [Dword::new(0)],
-        place: [
-            Float::from_bits(0),
-            Float::from_bits(0),
-            Float::from_bits(0),
-        ],
-        motion: [
-            Float::from_bits(0),
-            Float::from_bits(0),
-            Float::from_bits(0),
-        ],
+        place: [Float::new(0.0), Float::new(0.0), Float::new(0.0)],
+        motion: [Float::new(0.0), Float::new(0.0), Float::new(0.0)],
         voices: [const {
             EngineVoice {
-                share_a: Float::from_bits(0),
+                share_a: Float::new(0.0),
                 _gap_4: Dword::new(0),
-                share_b: Float::from_bits(0),
-                share_c: Float::from_bits(0),
+                share_b: Float::new(0.0),
+                share_c: Float::new(0.0),
                 surface: Dword::new(0),
             }
         }; 4],
@@ -310,9 +302,9 @@ const fn initial_object(sound_offset: u32) -> SoundObject {
         countdown: Dword::new(0),
         drop_latched: Dword::new(1),
         last_direction: Dword::new(0),
-        revs_input: Float::from_bits(0),
-        throttle_input: Float::from_bits(0),
-        speed_input: Float::from_bits(0),
+        revs_input: Float::new(0.0),
+        throttle_input: Float::new(0.0),
+        speed_input: Float::new(0.0),
         state: Dword::new(0),
         last_state: Dword::new(0),
         _gap_114: [Dword::new(0)],
@@ -322,10 +314,10 @@ const fn initial_object(sound_offset: u32) -> SoundObject {
         turns_up: Dword::new(0),
         direction: Dword::new(0),
         turns_down: Dword::new(0),
-        distance: Float::from_bits(0),
-        approach: Float::from_bits(0),
+        distance: Float::new(0.0),
+        approach: Float::new(0.0),
         pitch_factor: Float::new(1.0),
-        volume_factor: Float::from_bits(0),
+        volume_factor: Float::new(0.0),
         eights_sound: Dword::new(0xFFFFFFFE),
         fours_sound: Dword::new(0xFFFFFFFE),
         slots: [
@@ -396,11 +388,7 @@ const fn initial_object(sound_offset: u32) -> SoundObject {
             rate: Dword::new(0xFFFFFF91),
         },
         gear_pitch: Float::new(1.0),
-        place_b: [
-            Float::from_bits(0),
-            Float::from_bits(0),
-            Float::from_bits(0),
-        ],
+        place_b: [Float::new(0.0), Float::new(0.0), Float::new(0.0)],
         slot_b: SoundSlot {
             sound: Dword::new(0xE3),
             start: Dword::new(0),
@@ -411,18 +399,10 @@ const fn initial_object(sound_offset: u32) -> SoundObject {
         },
         hit_sound: Dword::new(0xFFFFFFFE),
         hit_volume: Dword::new(0),
-        hit_place: [
-            Float::from_bits(0),
-            Float::from_bits(0),
-            Float::from_bits(0),
-        ],
+        hit_place: [Float::new(0.0), Float::new(0.0), Float::new(0.0)],
         cue_sound: Dword::new(0xFFFFFFFE),
         cue_volume: Dword::new(0),
-        cue_place: [
-            Float::from_bits(0),
-            Float::from_bits(0),
-            Float::from_bits(0),
-        ],
+        cue_place: [Float::new(0.0), Float::new(0.0), Float::new(0.0)],
         slot_c: SoundSlot {
             sound: Dword::new(0xE4),
             start: Dword::new(0),
@@ -508,7 +488,7 @@ impl RaceSounds {
             count: Dword::new(1),
             nearest: Dword::new(0),
             next: Dword::new(0),
-            nearest_distance: Float::from_bits(0),
+            nearest_distance: Float::new(0.0),
             mark_car_voices: Dword::new(0),
         }
     }
@@ -555,7 +535,7 @@ impl RaceClock {
         RaceClock {
             started: PlainDword::new(0),
             last: PlainDword::new(0),
-            turns_a_second: PlainFloat::from_bits(0),
+            turns_a_second: PlainFloat::new(0.0),
             step: PlainDword::new(0),
             turns: PlainDword::new(0),
             sound_speed: PlainFloat::new(337.52),
@@ -632,10 +612,10 @@ impl SurfaceSounds {
             revs_gain: PlainFloat::new(0.71428573),
             unused_625: PlainFloat::new(0.625),
             unused_quarter: PlainFloat::new(0.25),
-            across: PlainFloat::from_bits(0),
+            across: PlainFloat::new(0.0),
             _gap_390: PlainDword::new(0),
-            along: PlainFloat::from_bits(0),
-            volume: PlainFloat::from_bits(0),
+            along: PlainFloat::new(0.0),
+            volume: PlainFloat::new(0.0),
         }
     }
 }
@@ -747,7 +727,7 @@ impl StageSounds {
             once: [PlainDword::new(0), PlainDword::new(0), PlainDword::new(0)],
             timed_arm: PlainDword::new(0),
             timed_place: [
-                PlainFloat::from_bits(0),
+                PlainFloat::new(0.0),
                 PlainFloat::new(2.0),
                 PlainFloat::new(1.0),
             ],
@@ -770,9 +750,9 @@ impl StageSounds {
                 SharedSpot {
                     id: PlainDword::new(0),
                     place: [
-                        PlainFloat::from_bits(0),
-                        PlainFloat::from_bits(0),
-                        PlainFloat::from_bits(0),
+                        PlainFloat::new(0.0),
+                        PlainFloat::new(0.0),
+                        PlainFloat::new(0.0),
                     ],
                     kind: PlainDword::new(0),
                 }

@@ -80,7 +80,7 @@ pub fn run_script(
                 if !script::skipped(n, media) {
                     continue;
                 }
-                let words = cursor.game_ptr().bytes("the installer's script")?;
+                let words = cursor.bytes("the installer's script")?;
                 let past = script::skip(&words, 0, &mut guard)?;
                 cursor = cursor.add(past as u32);
             }

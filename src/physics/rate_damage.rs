@@ -20,6 +20,7 @@
 //!
 //! Caller: `physics::rate_current_car` (0x4AB5D0), its only one.
 
+use crate::effects::cell_x87::CellX87;
 use crate::math::x87;
 use crate::math::x87::{compare_full, ext_times, one_less_products, ramp};
 use crate::math::x87_float as bh;
@@ -233,17 +234,18 @@ pub fn rate_damage(car: &Car, damage: &DamageModel) {
     }
     let table_of = |t: &[Float; 4]| [t[0].bits(), t[1].bits(), t[2].bits(), t[3].bits()];
     for (out, x, t) in ramps_a(car, damage) {
-        out.set_bits(ramp(x.bits(), table_of(t), d.gauge_low.bits()).to_bits());
+        out.set(ramp(x.bits(), table_of(t), d.gauge_low.bits()));
     }
     for (out, x) in [
         (&c.drive_efficiency[0], &d.front_tyre_wear),
         (&c.drive_efficiency[1], &d.rear_tyre_wear),
     ] {
-        d.brake_balance_complement
-            .set_bits(ramp(x.bits(), table_of(&d.lerp_tables[5]), d.gauge_low.bits()).to_bits());
-        out.set_bits(bh::st(
-            bh::ld(d.brake_balance_complement.bits()) * bh::ld(k) * bh::ld(k) * bh::ld(out.bits()),
+        d.brake_balance_complement.set(ramp(
+            x.bits(),
+            table_of(&d.lerp_tables[5]),
+            d.gauge_low.bits(),
         ));
+        out.st(d.brake_balance_complement.ld() * bh::ld(k) * bh::ld(k) * out.ld());
     }
     c.steering_efficiency.set_bits(
         ramp(
@@ -256,7 +258,7 @@ pub fn rate_damage(car: &Car, damage: &DamageModel) {
     let efficiency = c.steering_efficiency.bits();
     c.steering_efficiency.set(x87::mul(efficiency, efficiency));
     for (out, x, t) in ramps_c(car, damage) {
-        out.set_bits(ramp(x.bits(), table_of(t), d.gauge_low.bits()).to_bits());
+        out.set(ramp(x.bits(), table_of(t), d.gauge_low.bits()));
     }
     // Chance: the figure times `DamageModel.chance_scale` against the random's low word turned.
     let chance = |figure: &Float, turn: u32| {

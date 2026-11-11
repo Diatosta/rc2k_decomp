@@ -19,7 +19,7 @@ pub fn is_folder_field(
     install: &'static crate::install::owner::Install,
     text: crate::place::BytePlace,
 ) -> bool {
-    text.game_ptr() == crate::pointers::GamePtr::to(&install.paths.typed)
+    text.same_place(crate::place::BytePlace::from(&install.paths.typed))
 }
 
 /// An edit field's most bytes: the folder field's by the system's rules, any other's its

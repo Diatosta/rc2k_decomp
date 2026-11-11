@@ -100,11 +100,7 @@ pub fn draw_mark_slots(
         let x = x87::mul(a, k4[3]);
         let once = rotate_point(
             slot_matrix(&race.frame, s.matrix.get())?,
-            [
-                extended(z.to_bits()),
-                extended(y.to_bits()),
-                extended(x.to_bits()),
-            ],
+            [extended(z), extended(y), extended(x)],
         );
         let twice = rotate_point(view.view_matrix, once);
         let [z, y, x] = twice.map(rounded);
@@ -121,7 +117,7 @@ pub fn draw_mark_slots(
         effects.blocks.slot_tuning.draw_random.set(r);
         let corner = &effects.blocks.corners.corners[((r & 7) + 0x50) as usize];
         let word = |off: u32| u32::from(corner.words[off as usize / 2].get());
-        let uv_k: u32 = effects.frame.draw_work.uv_k.bits();
+        let uv_k = effects.frame.draw_work.uv_k.get();
         for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
             let vertex = &VERTICES.vertices[n];
             vertex.u.set(x87::int_times(word(u) as i32, uv_k));
@@ -158,10 +154,10 @@ pub fn draw_mark_slots(
         let rhw = x87::reciprocal_times(x, &effects.blocks.slot_tuning.rhw_k);
         for (n, (vx, vy)) in corners.into_iter().enumerate() {
             let vertex = &VERTICES.vertices[n];
-            vertex.x.set_bits(vx.to_bits());
-            vertex.y.set_bits(vy.to_bits());
-            vertex.z.set_bits(depth.to_bits());
-            vertex.rhw.set_bits(rhw.to_bits());
+            vertex.x.set(vx);
+            vertex.y.set(vy);
+            vertex.z.set(depth);
+            vertex.rhw.set(rhw);
         }
         crate::effects::clip_quad::draw_fan();
     }

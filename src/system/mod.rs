@@ -2,7 +2,6 @@
 
 pub mod check_developer_machine;
 pub mod checked_reads;
-pub mod find_entry;
 pub mod find_running_game;
 pub mod keep_start_time;
 pub mod load_game_data;

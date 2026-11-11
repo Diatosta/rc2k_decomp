@@ -15,11 +15,10 @@
 //! Caller: `physics::car_physics_step`, every physics step. Refuses a point past 0x3F on the long
 //! path (the tables' room), and what its calls refuse; what was written is put back.
 
+use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
 use crate::math::x87::neg_rounded;
 use crate::math::x87::{loaded, mul};
-use crate::math::x87_float::ld;
-use crate::math::x87_float::st;
 use crate::physics::car_store::Car;
 use crate::physics::contact_force::contact_force;
 use crate::physics::contact_store::ContactWork;
@@ -65,7 +64,7 @@ pub fn take_contact(
     let parts = contacts::normal_offsets(contact.probe_face_flip[n].get());
     for (k, &o) in parts.iter().enumerate() {
         let v = crate::race::course_places::face_field::<u32>(course, face, o)?;
-        contact.contact_normal[k].set_bits(loaded(v).to_bits());
+        contact.contact_normal[k].set(loaded(v));
     }
     copy3(&contact.contact_turn_speed, &car.spin);
     contact.contact_point[0].set_bits(contact.probe_turned_x[n].bits());
@@ -137,7 +136,7 @@ fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<()
     }
     x87_2(c.contact, c.car, c.numbers);
     hold_high(&c.contact.crash_ground_scale, &c.numbers.one);
-    c.car.spin[1].set_bits(mul(&c.contact.crash_ground_scale, &c.car.spin[1]).to_bits());
+    c.car.spin[1].set(mul(&c.contact.crash_ground_scale, &c.car.spin[1]));
     c.car.contact_value.set(c.contact.contact_value.bits());
     Ok(())
 }
@@ -155,34 +154,34 @@ pub fn crash_contact(
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 fn x87_1(contact: &ContactWork, tables: &PhysicsTables, numbers: &Numbers) {
-    let t0 = ld(contact.crash_up_dot.bits());
-    let t1 = ld(numbers.one.bits());
+    let t0 = contact.crash_up_dot.ld();
+    let t1 = numbers.one.ld();
     let t2 = t0 + t1;
-    let t3 = ld(numbers.two.bits());
+    let t3 = numbers.two.ld();
     let t4 = t2 / t3;
-    let t5 = ld(numbers.two.bits());
+    let t5 = numbers.two.ld();
     let t6 = t4 + t5;
-    let t7 = ld(tables.gravity.bits());
+    let t7 = tables.gravity.ld();
     let t8 = t6 * t7;
-    let t9 = ld(tables.step_time.bits());
+    let t9 = tables.step_time.ld();
     let t10 = t8 * t9;
-    let t11 = ld(tables.wheel_loads[4].bits());
+    let t11 = tables.wheel_loads[4].ld();
     let t12 = t10 * t11;
-    let t13 = ld(tables.weight.bits());
+    let t13 = tables.weight.ld();
     let t14 = t12 * t13;
-    contact.contact_slide_limit.set_bits(st(t14));
+    contact.contact_slide_limit.st(t14);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[crash_ground_scale] = ([rc + 0x31A0A0] + [sixty_four]) / [sixty_four]`
 fn x87_2(contact: &ContactWork, car: &Car, numbers: &Numbers) {
-    let t0 = ld(car.crash_matrix[5].bits());
-    let t1 = ld(numbers.sixty_four.bits());
+    let t0 = car.crash_matrix[5].ld();
+    let t1 = numbers.sixty_four.ld();
     let t2 = t0 + t1;
-    let t3 = ld(numbers.sixty_four.bits());
+    let t3 = numbers.sixty_four.ld();
     let t4 = t2 / t3;
-    contact.crash_ground_scale.set_bits(st(t4));
+    contact.crash_ground_scale.st(t4);
 }
 
 #[cfg(all(test, target_arch = "x86"))]

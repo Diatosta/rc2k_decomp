@@ -46,13 +46,60 @@ pub struct TexturePlaces {
     pub unknown_173d4: [Dword; 3],
 }
 
-/// The cell `index` entries on from `first`, by address: for the tables whose index the
-/// game's code does not bound (it reads and writes past them as the image's bytes).
-pub fn cell_at(first: &Dword, index: u32) -> &Dword {
-    let at = first
-        .addr()
-        .wrapping_add(((index as usize).wrapping_mul(4)) as u32);
-    crate::pointers::cell_or_end(at, "a cell past a texture table")
+/// The cell `index` entries on from the table `table_offset` bytes into the places. The
+/// game does not bound these indices (slot and counter numbers from its data): a number past
+/// the table reads on into the next fields of the places in their order, as the original's
+/// by-address read did; past the places it is refused.
+pub fn cell_at(
+    places: &TexturePlaces,
+    table_offset: usize,
+    index: u32,
+) -> Result<&Dword, crate::errors::BadInput> {
+    let at = (index as usize)
+        .checked_mul(4)
+        .and_then(|bytes| table_offset.checked_add(bytes));
+    at.and_then(|at| places.cell(at))
+        .ok_or(crate::errors::BadInput("a cell past the texture places"))
+}
+
+impl TexturePlaces {
+    /// The dword `at` bytes into the places (every field is a run of dwords, in order).
+    fn cell(&self, at: usize) -> Option<&Dword> {
+        use core::mem::offset_of;
+        let fields: [(usize, &[Dword]); 18] = [
+            (offset_of!(Self, texture_of), &self.texture_of),
+            (offset_of!(Self, place_slot), &self.place_slot),
+            (offset_of!(Self, kind_pictures), &self.kind_pictures),
+            (offset_of!(Self, wanted_pictures), &self.wanted_pictures),
+            (offset_of!(Self, loaded_pictures), &self.loaded_pictures),
+            (offset_of!(Self, slot_wanted), &self.slot_wanted),
+            (offset_of!(Self, slot_loaded), &self.slot_loaded),
+            (offset_of!(Self, totals), &self.totals),
+            (
+                offset_of!(Self, kind_slot_bytes),
+                core::slice::from_ref(&self.kind_slot_bytes),
+            ),
+            (offset_of!(Self, counters), &self.counters),
+            (offset_of!(Self, step_flags), &self.step_flags),
+            (offset_of!(Self, car_icon_sheet_x), &self.car_icon_sheet_x),
+            (offset_of!(Self, car_icon_sheet_y), &self.car_icon_sheet_y),
+            (
+                offset_of!(Self, object_texture_records),
+                &self.object_texture_records,
+            ),
+            (offset_of!(Self, face_marks), &self.face_marks),
+            (offset_of!(Self, point_marks), &self.point_marks),
+            (offset_of!(Self, normal_marks), &self.normal_marks),
+            (offset_of!(Self, unknown_173d4), &self.unknown_173d4),
+        ];
+        if !at.is_multiple_of(4) {
+            return None;
+        }
+        fields.into_iter().find_map(|(start, field)| {
+            let inside = at.checked_sub(start)?;
+            field.get(inside / 4)
+        })
+    }
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of

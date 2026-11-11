@@ -43,7 +43,7 @@ pub fn set_wheel_weights(
     );
     let wheels = &tables.forces[..4];
     for w in wheels {
-        w.force[1].set_bits(f.to_bits());
+        w.force[1].set(f);
     }
     for w in wheels {
         turn_by_inverse(car, &w.force);
@@ -58,7 +58,7 @@ pub fn set_wheel_weights(
         &wheels[0].point[2],
         &wheels[1].point[2],
     ] {
-        cell.set_bits(plus.to_bits());
+        cell.set(plus);
     }
     for cell in [
         &wheels[0].point[0],
@@ -66,7 +66,7 @@ pub fn set_wheel_weights(
         &wheels[2].point[2],
         &wheels[3].point[2],
     ] {
-        cell.set_bits(minus.to_bits());
+        cell.set(minus);
     }
     for w in wheels {
         turn_by_inverse(car, &w.point);

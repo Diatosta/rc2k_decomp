@@ -20,7 +20,7 @@ pub fn axis_turn_matrix(course: &Course, out: &(impl Cells + ?Sized)) {
         course.lists.turn_cosine.set_bits(c);
         course.lists.turn_sine.set_bits(s);
         let t = one_less(course.lists.turn_cosine.bits());
-        course.lists.turn_one_less_cosine.set_bits(t.to_bits());
+        course.lists.turn_one_less_cosine.set(t);
         let (x, y, z) = (
             course.lists.spin_axis[0].bits(),
             course.lists.spin_axis[1].bits(),

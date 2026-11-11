@@ -147,8 +147,8 @@ fn project_x87(r: &RainState, k: &RainRules) {
     let t9 = t5 * t1;
     let t10 = t6 * t3;
     let t11 = t7 * t3;
-    let t12 = t1 * bh::ld(k.view_scale[0].to_bits());
-    let t13 = t3 * bh::ld(k.view_scale[1].to_bits());
+    let t12 = t1 * bh::ld(k.view_scale[0]);
+    let t13 = t3 * bh::ld(k.view_scale[1]);
     let t14 = t8 + crate::scene::polygon_work::front_end().window.view_centre[0].ld();
     r.ends[0][0].st(t14);
     let t15 = -t9;
@@ -180,7 +180,7 @@ fn project_x87(r: &RainState, k: &RainRules) {
     let t28 = t27 * t27;
     let t29 = t24 + t28;
     let t30 = t29.sqrt();
-    let t31 = bh::ld(k.half_width.to_bits()) / t30;
+    let t31 = bh::ld(k.half_width) / t30;
     let t32 = t31 * r.edge_a[0].ld();
     let t33 = t32 * r.ends[0][2].ld();
     r.edge_a[0].st(t33);

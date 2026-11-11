@@ -18,7 +18,6 @@ use crate::errors::BadInput;
 use crate::math::x87;
 use crate::scene::point_records::field;
 use crate::scene::project_point::make_scene_record;
-use crate::scene::set_object_material::MATERIAL_LEN;
 
 // ---- game data ----
 const OBJECTS: u32 = 0x100;
@@ -43,14 +42,7 @@ fn words(
             return Ok(None);
         }
         let kind: u32 = scene.objects.tables.object_kind(object);
-        let material = crate::scene::polygon::materials_ptr()
-            .offset(((kind as usize).wrapping_mul(MATERIAL_LEN)) as u32);
-        let word = |at: usize| {
-            material
-                .offset(at as u32)
-                .read::<u16>("an object's material")
-                .map(u32::from)
-        };
+        let word = |at: u32| crate::scene::polygon::material_run_word(kind, at).map(u32::from);
         let (other_kind, distance) = (word(0x1D)?, word(0x22)?);
         let looked_at = (other_kind | distance) != 0 && place != u32::MAX;
         Ok(Some((other_kind, distance, looked_at)))

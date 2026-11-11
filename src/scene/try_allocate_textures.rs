@@ -26,6 +26,7 @@ use crate::race::owner_shared::RaceShared;
 use crate::scene::owner::scene;
 use crate::scene::texture_needs::TEXTURES;
 use crate::scene::texture_places_store::cell_at;
+use rc2k_core::Invalid;
 
 // ---- game data ----
 
@@ -34,6 +35,16 @@ use crate::scene::texture_places_store::cell_at;
 pub use rc2k_core::scene::textures::Call;
 
 // ---- Rust version ----
+
+/// What a texture of `level` takes. The sizes' table goes on into the levels' mip figures and
+/// the switch after them; the callers hold `level` below `LEVELS` (13).
+pub fn level_size(tables: &crate::scene::object_tables_store::ObjectTables, level: usize) -> u32 {
+    match level {
+        0..4 => tables.level_sizes[level].get(),
+        4..12 => tables.level_mips[level - 4].get(),
+        _ => tables.other_levels.get(),
+    }
+}
 
 /// The game's tables.
 struct GameMemory<'a>(&'a RaceShared);
@@ -46,16 +57,16 @@ impl rc2k_core::scene::textures::TextureMemory for GameMemory<'_> {
         } else {
             &objects.tables.system_levels
         };
-        cell_at(&table[0], texture).get()
+        table[texture as usize].get()
     }
     fn size(&self, level: u32) -> u32 {
-        cell_at(&scene().objects.tables.level_sizes[0], level).get()
+        level_size(&scene().objects.tables, level as usize)
     }
     fn mips(&self) -> u32 {
         self.0.vars.mip_setting.get()
     }
     fn level_mips(&self, level: u32) -> u32 {
-        cell_at(&scene().objects.tables.level_mips[0], level).get()
+        scene().objects.tables.level_mips[level as usize].get()
     }
     fn forget_kinds(&mut self) {
         let textures = &scene().textures;
@@ -76,10 +87,20 @@ impl rc2k_core::scene::textures::TextureMemory for GameMemory<'_> {
     fn set_first_slot(&mut self, texture: u32, slot: u32) {
         scene().textures.kinds.kind_first_slots[texture as usize].set(slot);
     }
-    fn set_first_texture(&mut self, texture: u32, first: u32) {
+    fn set_first_texture(&mut self, texture: u32, first: u32) -> Result<(), Invalid> {
         let textures = &scene().textures;
-        cell_at(&textures.places.texture_of[0], first).set(texture);
+        cell_at(
+            &textures.places,
+            core::mem::offset_of!(
+                crate::scene::texture_places_store::TexturePlaces,
+                texture_of
+            ),
+            first,
+        )
+        .map_err(|e| Invalid(e.0))?
+        .set(texture);
         textures.kinds.kind_first_textures[texture as usize].set(first);
+        Ok(())
     }
 }
 

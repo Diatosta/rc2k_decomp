@@ -146,6 +146,25 @@ fn draw(into: &Target, noted: Vec<Command>) {
         };
         let mut tiles = frame.tiles(if noted.len() < FEW { 0 } else { TILE });
         let noted = &noted;
+        // The noted textures' bytes, taken once (a noted texture is not written while it is
+        // drawn from: locking it flushes the noted fans first), by id.
+        let mut notes: Vec<super::TextureNote> = Vec::new();
+        for what in noted.iter() {
+            if let Command::Fan {
+                texture: Some(t), ..
+            } = what
+                && notes.last().is_none_or(|l| l.pixels != t.pixels)
+            {
+                notes.push(*t);
+            }
+        }
+        notes.sort_unstable_by_key(|t| t.pixels);
+        notes.dedup_by_key(|t| t.pixels);
+        let levels: Vec<(super::TextureId, &[u8])> = notes
+            .iter()
+            .map(|t| (t.pixels, super::noted_bytes(t)))
+            .collect();
+        let levels = &levels;
         let draw_tile = move |tile: &mut crate::rasteriser::Tile| {
             let tile_started = std::time::Instant::now();
             let clip = *tile.clip();
@@ -167,9 +186,10 @@ fn draw(into: &Target, noted: Vec<Command>) {
                             continue;
                         }
                         let texture = texture.map(|t| Texture {
-                            // SAFETY: a noted texture is not written while it is drawn
-                            // from: locking it flushes the noted fans first (`lock`).
-                            pixels: unsafe { t.pixels.slice(t.len, "a texture's pixels") },
+                            pixels: levels
+                                .binary_search_by_key(&t.pixels, |l| l.0)
+                                .map(|n| levels[n].1)
+                                .expect("a noted texture's level was taken above"),
                             width: t.width,
                             height: t.height,
                             pitch: t.pitch,

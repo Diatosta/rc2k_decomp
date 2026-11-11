@@ -127,6 +127,35 @@ impl RecordCell {
         crate::session::write_all(&self.0, record.words());
     }
 
+    /// The width, read alone.
+    pub fn width(&self) -> u32 {
+        self.0[1].get()
+    }
+
+    /// The height, read alone.
+    pub fn height(&self) -> u32 {
+        self.0[2].get()
+    }
+
+    /// The pixel kind's description (a handle), read alone.
+    pub fn format(&self) -> u32 {
+        self.0[3].get()
+    }
+
+    /// The first level's surface, read alone.
+    pub fn first_surface(&self) -> u32 {
+        self.0[5].get()
+    }
+
+    /// 1 while the first level's surface is locked, read alone.
+    pub fn locked(&self) -> u32 {
+        self.0[24].get()
+    }
+
+    pub fn set_locked(&self, locked: u32) {
+        self.0[24].set(locked);
+    }
+
     pub fn update(&self, change: impl FnOnce(&mut TextureRecord)) {
         let mut record = self.get();
         change(&mut record);

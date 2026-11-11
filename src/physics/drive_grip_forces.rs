@@ -21,12 +21,12 @@
 //!
 //! Caller: `physics::car_physics_step`, every physics step.
 
+use crate::effects::cell_x87::CellX87;
 use crate::math::x87;
 use crate::math::x87::mul_status;
 use crate::math::x87_float::X;
 use crate::math::x87_float::int;
 use crate::math::x87_float::ld;
-use crate::math::x87_float::st;
 use crate::math::x87_float::to_int;
 use crate::physics::car_store::Car;
 use crate::physics::flow::{
@@ -175,12 +175,12 @@ pub fn drive_grip_forces(
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[grip_forces] = ([bf + e * 4 + 0x623AE4] * [rc + 0x31A184]) / [spec_grip]`
 fn steer_sine_force(car: &Car, tables: &PhysicsTables, e: usize) {
-    let t0 = ld(ENGINE_TABLES.sines[e].bits());
-    let t1 = ld(car.local_velocity[2].bits());
+    let t0 = ENGINE_TABLES.sines[e].ld();
+    let t1 = car.local_velocity[2].ld();
     let t2 = t0 * t1;
-    let t3 = ld(tables.spec_grip.bits());
+    let t3 = tables.spec_grip.ld();
     let t4 = t2 / t3;
-    car.grip_forces[0].set_bits(st(t4));
+    car.grip_forces[0].st(t4);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -195,27 +195,27 @@ fn lever_share_from_timer(
     let t0 = int(car.wall_hit_timer.bits() as i32);
     let t1 = int(scene.drawing.scene.scratch.bits() as i32);
     let t2 = t0 / t1;
-    let t3 = ld(numbers.one.bits());
+    let t3 = numbers.one.ld();
     let t4 = t2 - t3;
     let t5 = -t4;
-    tables.lever_share.set_bits(st(t5));
+    tables.lever_share.st(t5);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[grip_limit] = |(((([rc + 0x2142A8] * [gravity]) * [f + 0]) * [grip_scale]) / [rc + 0x31A184])|`
 fn grip_limit_for(car: &Car, tables: &PhysicsTables, f: &Float) {
-    let t0 = ld(tables.wheel_grips[4].bits());
-    let t1 = ld(tables.gravity.bits());
+    let t0 = tables.wheel_grips[4].ld();
+    let t1 = tables.gravity.ld();
     let t2 = t0 * t1;
-    let t3 = ld(f.bits());
+    let t3 = f.ld();
     let t4 = t2 * t3;
-    let t5 = ld(tables.grip_scale.bits());
+    let t5 = tables.grip_scale.ld();
     let t6 = t4 * t5;
-    let t7 = ld(car.local_velocity[2].bits());
+    let t7 = car.local_velocity[2].ld();
     let t8 = t6 / t7;
     let t9 = t8.abs();
-    tables.grip_limit.set_bits(st(t9));
+    tables.grip_limit.st(t9);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -226,17 +226,17 @@ fn divide_into_scratch(
     o1: &impl crate::session::Cell32,
     scene: &crate::scene::owner::Scene,
 ) {
-    let t0 = ld(o0.bits());
-    let t1 = ld(o1.bits());
+    let t0 = o0.ld();
+    let t1 = o1.ld();
     let t2 = t0 / t1;
-    scene.drawing.scene.scratch.set_bits(st(t2));
+    scene.drawing.scene.scratch.st(t2);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [steering] = [scratch] * int [steering]`
 fn scale_steering(car: &Car, scene: &crate::scene::owner::Scene) {
-    let t0 = ld(scene.drawing.scene.scratch.bits());
+    let t0 = scene.drawing.scene.scratch.ld();
     let t1 = int(car.steering.bits() as i32);
     let t2 = t0 * t1;
     car.steering.set_bits(to_int(t2) as u32);
@@ -246,13 +246,13 @@ fn scale_steering(car: &Car, scene: &crate::scene::owner::Scene) {
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[scratch] = sqrt((([local_velocity] * [local_velocity]) + ([rc + 0x31A184] * [rc + 0x31A184])))`
 fn ground_speed_into_scratch(car: &Car, scene: &crate::scene::owner::Scene) {
-    let t0 = ld(car.local_velocity[0].bits());
+    let t0 = car.local_velocity[0].ld();
     let t1 = t0 * t0;
-    let t2 = ld(car.local_velocity[2].bits());
+    let t2 = car.local_velocity[2].ld();
     let t3 = t2 * t2;
     let t4 = t1 + t3;
     let t5 = t4.sqrt();
-    scene.drawing.scene.scratch.set_bits(st(t5));
+    scene.drawing.scene.scratch.st(t5);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -265,26 +265,26 @@ fn lean_force(
     e: usize,
     scene: &crate::scene::owner::Scene,
 ) {
-    let t0 = ld(tables.grip_ramp.bits());
-    let t1 = ld(scene.drawing.scene.scratch.bits());
+    let t0 = tables.grip_ramp.ld();
+    let t1 = scene.drawing.scene.scratch.ld();
     let t2 = t0 - t1;
-    let t3 = ld(tables.grip_ramp.bits());
+    let t3 = tables.grip_ramp.ld();
     let t4 = t2 / t3;
-    let t5 = ld(ENGINE_TABLES.sines[e].bits());
+    let t5 = ENGINE_TABLES.sines[e].ld();
     let t6 = t4 * t5;
     let t7 = int(car.handbrake.bits() as i32);
     let t8 = t6 * t7;
-    let t9 = ld(numbers.k256.bits());
+    let t9 = numbers.k256.ld();
     let t10 = t8 / t9;
-    let t11 = ld(car.drive_speed_a.bits());
+    let t11 = car.drive_speed_a.ld();
     let t12 = t10 * t11;
-    let t13 = ld(tables.grip_ramp_share.bits());
+    let t13 = tables.grip_ramp_share.ld();
     let t14 = t12 * t13;
     let t15 = int(car.throttle.bits() as i32);
     let t16 = t14 * t15;
-    let t17 = ld(numbers.k256.bits());
+    let t17 = numbers.k256.ld();
     let t18 = t16 / t17;
-    car.grip_forces[3].set_bits(st(t18));
+    car.grip_forces[3].st(t18);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -296,10 +296,10 @@ fn braking_count_geared(
     numbers: &Numbers,
     scene: &crate::scene::owner::Scene,
 ) {
-    let t0 = ld(tables.handling[1].bits());
+    let t0 = tables.handling[1].ld();
     let t1 = int(car.brake.bits() as i32);
     let t2 = t0 * t1;
-    let t3 = ld(numbers.one_and_a_half.bits());
+    let t3 = numbers.one_and_a_half.ld();
     let t4 = t2 * t3;
     scene.drawing.scene.scratch.set_bits(to_int(t4) as u32);
 }
@@ -308,7 +308,7 @@ fn braking_count_geared(
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [scratch] = ([rc + 0x214BF0] * int [brake]) + ([rc + 0x214BF0] * int [brake])`
 fn braking_count_neutral(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner::Scene) {
-    let t0 = ld(tables.handling[1].bits());
+    let t0 = tables.handling[1].ld();
     let t1 = int(car.brake.bits() as i32);
     let t2 = t0 * t1;
     let t3 = t2 + t2;
@@ -320,25 +320,25 @@ fn braking_count_neutral(car: &Car, tables: &PhysicsTables, scene: &crate::scene
 /// `[rc + 0x31A1EC] = (-((int [grip_drive_word] / [k256]) * [side_speed_held]) * [side_force_scale]) * [side_grip_scale]`
 fn engine_braking_force(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
     let t0 = int(tables.grip_drive_word.bits() as i32);
-    let t1 = ld(numbers.k256.bits());
+    let t1 = numbers.k256.ld();
     let t2 = t0 / t1;
-    let t3 = ld(car.side_speed_held.bits());
+    let t3 = car.side_speed_held.ld();
     let t4 = t2 * t3;
     let t5 = -t4;
-    let t6 = ld(tables.side_force_scale.bits());
+    let t6 = tables.side_force_scale.ld();
     let t7 = t5 * t6;
-    let t8 = ld(tables.side_grip_scale.bits());
+    let t8 = tables.side_grip_scale.ld();
     let t9 = t7 * t8;
-    car.grip_forces[1].set_bits(st(t9));
+    car.grip_forces[1].st(t9);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[work_float_a] = |[rc + 0x31A184]|`
 fn abs_speed_into_work(car: &Car, scene: &crate::scene::owner::Scene) {
-    let t0 = ld(car.local_velocity[2].bits());
+    let t0 = car.local_velocity[2].ld();
     let t1 = t0.abs();
-    scene.drawing.scene.work_float_a.set_bits(st(t1));
+    scene.drawing.scene.work_float_a.st(t1);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -346,12 +346,12 @@ fn abs_speed_into_work(car: &Car, scene: &crate::scene::owner::Scene) {
 /// `[work_float_a] = ([grip_slip_limit] - [work_float_a]) / [grip_slip_limit]`
 fn yaw_share_from_limit(tables: &PhysicsTables, scene: &crate::scene::owner::Scene) {
     let drawing = &scene.drawing;
-    let t0 = ld(tables.grip_slip_limit.bits());
-    let t1 = ld(drawing.scene.work_float_a.bits());
+    let t0 = tables.grip_slip_limit.ld();
+    let t1 = drawing.scene.work_float_a.ld();
     let t2 = t0 - t1;
-    let t3 = ld(tables.grip_slip_limit.bits());
+    let t3 = tables.grip_slip_limit.ld();
     let t4 = t2 / t3;
-    drawing.scene.work_float_a.set_bits(st(t4));
+    drawing.scene.work_float_a.st(t4);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -365,34 +365,34 @@ fn yaw_force(
     scene: &crate::scene::owner::Scene,
 ) {
     let drawing = &scene.drawing;
-    let t0 = ld(ENGINE_TABLES.sines[e].bits());
-    let t1 = ld(tables.spec_grip.bits());
+    let t0 = ENGINE_TABLES.sines[e].ld();
+    let t1 = tables.spec_grip.ld();
     let t2 = t0 / t1;
     let t3 = int(car.throttle.bits() as i32);
     let t4 = t2 * t3;
-    let t5 = ld(numbers.k256.bits());
+    let t5 = numbers.k256.ld();
     let t6 = t4 / t5;
-    let t7 = ld(drawing.scene.scratch.bits());
+    let t7 = drawing.scene.scratch.ld();
     let t8 = t6 * t7;
-    let t9 = ld(drawing.scene.work_float_a.bits());
+    let t9 = drawing.scene.work_float_a.ld();
     let t10 = t8 * t9;
-    let t11 = ld(tables.grip_slide_scale.bits());
+    let t11 = tables.grip_slide_scale.ld();
     let t12 = t10 * t11;
-    car.grip_forces[2].set_bits(st(t12));
+    car.grip_forces[2].st(t12);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[grip_force_sum] = (([grip_forces] + [rc + 0x31A1EC]) + [rc + 0x31A1F0]) + [rc + 0x31A1F4]`
 fn sum_grip_forces(car: &Car) {
-    let t0 = ld(car.grip_forces[0].bits());
-    let t1 = ld(car.grip_forces[1].bits());
+    let t0 = car.grip_forces[0].ld();
+    let t1 = car.grip_forces[1].ld();
     let t2 = t0 + t1;
-    let t3 = ld(car.grip_forces[2].bits());
+    let t3 = car.grip_forces[2].ld();
     let t4 = t2 + t3;
-    let t5 = ld(car.grip_forces[3].bits());
+    let t5 = car.grip_forces[3].ld();
     let t6 = t4 + t5;
-    car.grip_force_sum.set_bits(st(t6));
+    car.grip_force_sum.st(t6);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -415,47 +415,47 @@ fn ease_yaw_twist(
     scene: &crate::scene::owner::Scene,
 ) {
     let drawing = &scene.drawing;
-    let t0 = ld(numbers.grip_change.bits());
-    let t1 = ld(car.grip_force_sum.bits());
+    let t0 = numbers.grip_change.ld();
+    let t1 = car.grip_force_sum.ld();
     let t2 = t0 + t1;
-    car.eased_yaw_spin.set_bits(st(t2));
+    car.eased_yaw_spin.st(t2);
     let t3 = ld(o);
-    let t4 = ld(car.eased_yaw_spin.bits());
+    let t4 = car.eased_yaw_spin.ld();
     let t5 = t3 - t4;
     let t6 = -t5;
-    drawing.scene.scratch.set_bits(st(t6));
-    let t7 = ld(drawing.scene.scratch.bits());
-    let t8 = ld(tables.step_time.bits());
+    drawing.scene.scratch.st(t6);
+    let t7 = drawing.scene.scratch.ld();
+    let t8 = tables.step_time.ld();
     let t9 = t7 / t8;
-    let t10 = ld(numbers.half.bits());
+    let t10 = numbers.half.ld();
     let t11 = t9 * t10;
-    let t12 = ld(tables.inertia[1].bits());
+    let t12 = tables.inertia[1].ld();
     let t13 = t11 / t12;
-    tables.forces[19].force[0].set_bits(st(t13));
+    tables.forces[19].force[0].st(t13);
     let t14 = -t13;
-    tables.forces[20].force[0].set_bits(st(t14));
+    tables.forces[20].force[0].st(t14);
     let t15 = X(1.0);
-    tables.forces[19].point[2].set_bits(st(t15));
+    tables.forces[19].point[2].st(t15);
     let t16 = -t15;
-    tables.forces[20].point[2].set_bits(st(t16));
-    let t17 = ld(tables.forces[19].force[0].bits());
-    let t18 = ld(car.probe_point_z[0].bits());
+    tables.forces[20].point[2].st(t16);
+    let t17 = tables.forces[19].force[0].ld();
+    let t18 = car.probe_point_z[0].ld();
     let t19 = t17 / t18;
-    tables.forces[19].force[0].set_bits(st(t19));
-    let t20 = ld(tables.forces[19].point[2].bits());
-    let t21 = ld(car.probe_point_z[0].bits());
+    tables.forces[19].force[0].st(t19);
+    let t20 = tables.forces[19].point[2].ld();
+    let t21 = car.probe_point_z[0].ld();
     let t22 = t20 * t21;
-    tables.forces[19].point[2].set_bits(st(t22));
-    let t23 = ld(tables.forces[20].force[0].bits());
-    let t24 = ld(car.probe_point_z[3].bits());
+    tables.forces[19].point[2].st(t22);
+    let t23 = tables.forces[20].force[0].ld();
+    let t24 = car.probe_point_z[3].ld();
     let t25 = t23 / t24;
     let t26 = -t25;
-    tables.forces[20].force[0].set_bits(st(t26));
-    let t27 = ld(tables.forces[20].point[2].bits());
-    let t28 = ld(car.probe_point_z[3].bits());
+    tables.forces[20].force[0].st(t26);
+    let t27 = tables.forces[20].point[2].ld();
+    let t28 = car.probe_point_z[3].ld();
     let t29 = t27 * t28;
     let t30 = -t29;
-    tables.forces[20].point[2].set_bits(st(t30));
+    tables.forces[20].point[2].st(t30);
 }
 
 #[cfg(all(test, target_arch = "x86"))]

@@ -13,10 +13,9 @@
 //! Caller: `physics::test_drive`. Refuses a gear outside -1 ..= 7 (past `g_gearRatios`) and
 //! what its calls refuse; everything written put back.
 
+use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_float::int;
-use crate::math::x87_float::ld;
-use crate::math::x87_float::st;
 use crate::physics::car_store::Car;
 use crate::physics::flow::c0;
 use crate::physics::gear_store::GEAR;
@@ -116,14 +115,14 @@ pub fn test_drive_run(
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[drive_torque] = (([engine_force] * [drive_torque_figure]) / [r + 0]) / [k10000]`
 fn x87_1(tables: &PhysicsTables, numbers: &Numbers, r: &Float) {
-    let t0 = ld(tables.engine_force.bits());
-    let t1 = ld(GEAR.drive_torque_figure.bits());
+    let t0 = tables.engine_force.ld();
+    let t1 = GEAR.drive_torque_figure.ld();
     let t2 = t0 * t1;
-    let t3 = ld(r.bits());
+    let t3 = r.ld();
     let t4 = t2 / t3;
-    let t5 = ld(numbers.k10000.bits());
+    let t5 = numbers.k10000.ld();
     let t6 = t4 / t5;
-    tables.drive_torque.set_bits(st(t6));
+    tables.drive_torque.st(t6);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -132,24 +131,24 @@ fn x87_1(tables: &PhysicsTables, numbers: &Numbers, r: &Float) {
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 fn x87_2(car: &Car, tables: &PhysicsTables, numbers: &Numbers, scene: &crate::scene::owner::Scene) {
-    let t0 = ld(car.drive_speed_a.bits());
+    let t0 = car.drive_speed_a.ld();
     let t1 = t0 * t0;
-    let t2 = ld(tables.air_drag.bits());
+    let t2 = tables.air_drag.ld();
     let t3 = t1 * t2;
-    let t4 = ld(numbers.k10000.bits());
+    let t4 = numbers.k10000.ld();
     let t5 = t3 / t4;
-    let t6 = ld(tables.rolling_drag.bits());
+    let t6 = tables.rolling_drag.ld();
     let t7 = t5 + t6;
     let t8 = -t7;
-    scene.drawing.scene.scratch.set_bits(st(t8));
-    let t9 = ld(tables.drive_torque.bits());
+    scene.drawing.scene.scratch.st(t8);
+    let t9 = tables.drive_torque.ld();
     let t10 = t8 + t9;
-    let t11 = ld(tables.step_time.bits());
+    let t11 = tables.step_time.ld();
     let t12 = t10 * t11;
-    let t13 = ld(car.drive_speed_a.bits());
+    let t13 = car.drive_speed_a.ld();
     let t14 = t12 + t13;
-    car.drive_speed_a.set_bits(st(t14));
-    car.drive_speed_b.set_bits(st(t14));
+    car.drive_speed_a.st(t14);
+    car.drive_speed_b.st(t14);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -158,18 +157,18 @@ fn x87_2(car: &Car, tables: &PhysicsTables, numbers: &Numbers, scene: &crate::sc
 /// `[test_marks] = int [test_marks] / [hundred]`
 /// `[rc + 0x1CB980] = int [rc + 0x1CB980] / [hundred]`
 fn x87_3(car: &Car, numbers: &Numbers) {
-    let t0 = ld(car.drive_speed_a.bits());
-    let t1 = ld(numbers.two_and_a_quarter.bits());
+    let t0 = car.drive_speed_a.ld();
+    let t1 = numbers.two_and_a_quarter.ld();
     let t2 = t0 * t1;
-    GEAR.test_marks[2].set_bits(st(t2));
+    GEAR.test_marks[2].st(t2);
     let t3 = int(GEAR.test_marks[0].bits() as i32);
-    let t4 = ld(numbers.hundred.bits());
+    let t4 = numbers.hundred.ld();
     let t5 = t3 / t4;
-    GEAR.test_marks[0].set_bits(st(t5));
+    GEAR.test_marks[0].st(t5);
     let t6 = int(GEAR.test_marks[1].bits() as i32);
-    let t7 = ld(numbers.hundred.bits());
+    let t7 = numbers.hundred.ld();
     let t8 = t6 / t7;
-    GEAR.test_marks[1].set_bits(st(t8));
+    GEAR.test_marks[1].st(t8);
 }
 
 #[cfg(all(test, target_arch = "x86"))]

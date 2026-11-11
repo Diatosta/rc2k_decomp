@@ -9,9 +9,9 @@
 //!
 //! Callers: `physics::engine_torque_or_cut`, `physics::test_drive_run`, `physics::free_rev`.
 
+use crate::effects::cell_x87::CellX87;
 use crate::math::x87;
 use crate::math::x87::{lerp_table, trunc_mul_to_int};
-use crate::math::x87_float as bh;
 use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
@@ -54,11 +54,13 @@ pub fn engine_torque(course: &Course, shared: &RaceShared, scene: &crate::scene:
             shared_store.physics_tables.spec_torque[0].get(),
         ));
     }
-    shared_store.physics_tables.engine_torque.set_bits(bh::st(
-        bh::ld(shared_store.car.engine_speed.bits())
-            / bh::ld(shared_store.car.engine_speed_limit.bits())
-            * bh::ld(shared_store.physics_tables.torque_ease.bits()),
-    ));
+    shared_store
+        .physics_tables
+        .engine_torque
+        .st(
+            shared_store.car.engine_speed.ld() / shared_store.car.engine_speed_limit.ld()
+                * shared_store.physics_tables.torque_ease.ld(),
+        );
     shared_store.physics_tables.engine_force.set(x87::mul(
         &shared_store.physics_tables.engine_force,
         &shared_store.car.engine_power_factor,

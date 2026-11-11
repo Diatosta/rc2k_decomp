@@ -67,8 +67,8 @@ pub fn off_line_warnings(
         return Err(BadInput("a checkpoint past 0x1418").into());
     }
     let near = x87_below(
-        f32::from_bits(physics_tables.nearest_checkpoint_distance.bits()) as f64,
-        f32::from_bits(physics_tables.off_line_distance.bits()) as f64,
+        physics_tables.nearest_checkpoint_distance.get() as f64,
+        physics_tables.off_line_distance.get() as f64,
     );
     let mut w = load(car);
     w.count_off(off_line(near, || spread(cp, car.reset_checkpoint.get())));

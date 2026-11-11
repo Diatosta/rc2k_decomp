@@ -51,10 +51,10 @@ fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<()
     );
     { place_sound_e1(&c.sound) }?;
     if let Some(hit) = rc2k_core::physics::walls::raised_hit(
-        f32::from_bits(contact.contact_speed_length.bits()),
-        f32::from_bits(c.car.contact_depth.bits()),
+        contact.contact_speed_length.get(),
+        c.car.contact_depth.get(),
     ) {
-        c.car.contact_depth.set_bits(hit.to_bits());
+        c.car.contact_depth.set(hit);
     }
     copy_cells(&contact.ground_force, &c.tables.contacts[2].force);
     if sign(contact.lowest_depth.get()) {

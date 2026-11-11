@@ -72,7 +72,7 @@ pub fn windscreen_drops_drift(
             let temps = [PlainFloat::new(0.0), PlainFloat::new(0.0)];
             let kept = PlainBytes::new([0u8; 30]);
             drift_turned_x87(drops, &drops.hex.adjugate, &temps, &kept);
-            turn_matrix3(Axis::X, &drops.hex.turn, extended(drops.hex.angle.bits()))?;
+            turn_matrix3(Axis::X, &drops.hex.turn, extended(drops.hex.angle.get()))?;
             drift_back_x87(drops, &drops.hex.turn, &temps, &kept);
         }
         move_kept(drops, m, effects);

@@ -24,11 +24,10 @@
 //! `physics::crossed_edge_contact`, `physics::face_contact`,
 //! `physics::crash_contact`, `physics::ground_contact`.
 
+use crate::effects::cell_x87::CellX87;
 use crate::math::x87::{compare_80, neg_rounded};
 use crate::math::x87_float::compare;
 use crate::math::x87_float::int;
-use crate::math::x87_float::ld;
-use crate::math::x87_float::st;
 use crate::math::x87_float::{X, f80};
 use crate::physics::car_store::Car;
 use crate::physics::contact_store::ContactWork;
@@ -184,7 +183,7 @@ pub fn contact_force(
 /// b[k]` (each stored as made, so `out` may be one of the two).
 fn x87_1(a: &[Float; 3], b: &[Float; 3], out: &[Float; 3]) {
     for k in 0..3 {
-        out[k].set_bits(st(ld(a[k].bits()) + ld(b[k].bits())));
+        out[k].st(a[k].ld() + b[k].ld());
     }
 }
 
@@ -193,12 +192,12 @@ fn x87_1(a: &[Float; 3], b: &[Float; 3], out: &[Float; 3]) {
 /// `[scratch] = (1 - |[rc + 0x2D307C]|) + [hundredth_a]`
 fn x87_2(contact: &ContactWork, numbers: &Numbers, scene: &crate::scene::owner::Scene) {
     let t0 = X(1.0);
-    let t1 = ld(contact.contact_normal[1].bits());
+    let t1 = contact.contact_normal[1].ld();
     let t2 = t1.abs();
     let t3 = t0 - t2;
-    let t4 = ld(numbers.hundredth_a.bits());
+    let t4 = numbers.hundredth_a.ld();
     let t5 = t3 + t4;
-    scene.drawing.scene.scratch.set_bits(st(t5));
+    scene.drawing.scene.scratch.st(t5);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -206,16 +205,16 @@ fn x87_2(contact: &ContactWork, numbers: &Numbers, scene: &crate::scene::owner::
 /// `[contact_share] = [contact_share_numerator] / ([contact_turn_push] + [one])`
 /// `[contact_factor] = [contact_depth] * [contact_share]`
 fn x87_3(contact: &ContactWork, numbers: &Numbers) {
-    let t0 = ld(contact.contact_share_numerator.bits());
-    let t1 = ld(contact.contact_turn_push.bits());
-    let t2 = ld(numbers.one.bits());
+    let t0 = contact.contact_share_numerator.ld();
+    let t1 = contact.contact_turn_push.ld();
+    let t2 = numbers.one.ld();
     let t3 = t1 + t2;
     let t4 = t0 / t3;
-    contact.contact_share.set_bits(st(t4));
-    let t5 = ld(contact.contact_depth.bits());
-    let t6 = ld(contact.contact_share.bits());
+    contact.contact_share.st(t4);
+    let t5 = contact.contact_depth.ld();
+    let t6 = contact.contact_share.ld();
     let t7 = t5 * t6;
-    contact.contact_factor.set_bits(st(t7));
+    contact.contact_factor.st(t7);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -224,25 +223,25 @@ fn x87_3(contact: &ContactWork, numbers: &Numbers) {
 /// `[rc + 0x2D30F4] = [rc + 0x2D30F4] - [rc + 0x2D30E8]`
 /// `[rc + 0x2D30F8] = [rc + 0x2D30F8] - [rc + 0x2D30EC]`
 fn x87_4(contact: &ContactWork) {
-    let t0 = ld(contact.contact_side_speed[0].bits());
-    let t1 = ld(contact.contact_normal_speed[0].bits());
+    let t0 = contact.contact_side_speed[0].ld();
+    let t1 = contact.contact_normal_speed[0].ld();
     let t2 = t0 - t1;
-    contact.contact_side_speed[0].set_bits(st(t2));
-    let t3 = ld(contact.contact_side_speed[1].bits());
-    let t4 = ld(contact.contact_normal_speed[1].bits());
+    contact.contact_side_speed[0].st(t2);
+    let t3 = contact.contact_side_speed[1].ld();
+    let t4 = contact.contact_normal_speed[1].ld();
     let t5 = t3 - t4;
-    contact.contact_side_speed[1].set_bits(st(t5));
-    let t6 = ld(contact.contact_side_speed[2].bits());
-    let t7 = ld(contact.contact_normal_speed[2].bits());
+    contact.contact_side_speed[1].st(t5);
+    let t6 = contact.contact_side_speed[2].ld();
+    let t7 = contact.contact_normal_speed[2].ld();
     let t8 = t6 - t7;
-    contact.contact_side_speed[2].set_bits(st(t8));
+    contact.contact_side_speed[2].st(t8);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `ext [o + 0] = ([contact_normal_factor] * int [contact_step]) / int [contact_steps]`
 fn x87_5(contact: &ContactWork, tables: &PhysicsTables) -> [u8; 10] {
-    let t0 = ld(contact.contact_normal_factor.bits());
+    let t0 = contact.contact_normal_factor.ld();
     let t1 = int(tables.contact_step.bits() as i32);
     let t2 = t0 * t1;
     let t3 = int(tables.contact_steps.bits() as i32);
@@ -255,17 +254,17 @@ fn x87_5(contact: &ContactWork, tables: &PhysicsTables) -> [u8; 10] {
 /// `[scratch] = sqrt((([contact_slide] * [contact_slide]) + (([rc + 0x2D3144] * [rc + 0x2D3144]) + ([rc + 0x2D3148] * [rc + 0x2D3148]))))`
 /// `status [s + 0] = status`
 fn x87_6(contact: &ContactWork, scene: &crate::scene::owner::Scene) -> u16 {
-    let t0 = ld(contact.contact_slide[0].bits());
+    let t0 = contact.contact_slide[0].ld();
     let t1 = t0 * t0;
-    let t2 = ld(contact.contact_slide[1].bits());
+    let t2 = contact.contact_slide[1].ld();
     let t3 = t2 * t2;
-    let t4 = ld(contact.contact_slide[2].bits());
+    let t4 = contact.contact_slide[2].ld();
     let t5 = t4 * t4;
     let t6 = t3 + t5;
     let t7 = t1 + t6;
     let t8 = t7.sqrt();
-    scene.drawing.scene.scratch.set_bits(st(t8));
-    let t9 = ld(contact.contact_slide_limit_held.bits());
+    scene.drawing.scene.scratch.st(t8);
+    let t9 = contact.contact_slide_limit_held.ld();
     compare(t8, t9)
 }
 
@@ -277,19 +276,19 @@ fn x87_6(contact: &ContactWork, scene: &crate::scene::owner::Scene) -> u16 {
 /// `[scratch] = [contact_slide_limit_held] / [scratch]`
 fn x87_7(contact: &ContactWork, scene: &crate::scene::owner::Scene) {
     let drawing = &scene.drawing;
-    let t0 = ld(contact.contact_slide_limit_held.bits());
-    let t1 = ld(drawing.scene.scratch.bits());
+    let t0 = contact.contact_slide_limit_held.ld();
+    let t1 = drawing.scene.scratch.ld();
     let t2 = t0 / t1;
-    let t3 = ld(contact.contact_slide[0].bits());
+    let t3 = contact.contact_slide[0].ld();
     let t4 = t3 * t2;
-    contact.contact_slide[0].set_bits(st(t4));
-    let t5 = ld(contact.contact_slide[1].bits());
+    contact.contact_slide[0].st(t4);
+    let t5 = contact.contact_slide[1].ld();
     let t6 = t5 * t2;
-    contact.contact_slide[1].set_bits(st(t6));
-    let t7 = ld(contact.contact_slide[2].bits());
+    contact.contact_slide[1].st(t6);
+    let t7 = contact.contact_slide[2].ld();
     let t8 = t7 * t2;
-    contact.contact_slide[2].set_bits(st(t8));
-    drawing.scene.scratch.set_bits(st(t2));
+    contact.contact_slide[2].st(t8);
+    drawing.scene.scratch.st(t2);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -298,18 +297,18 @@ fn x87_7(contact: &ContactWork, scene: &crate::scene::owner::Scene) {
 /// `[d + 4] = [rc + 0x2D3154] / [step_time]`
 /// `[d + 8] = [rc + 0x2D3158] / [step_time]`
 fn x87_8(contact: &ContactWork, tables: &PhysicsTables, d: &[Float; 3]) {
-    let t0 = ld(contact.contact_total[0].bits());
-    let t1 = ld(tables.step_time.bits());
+    let t0 = contact.contact_total[0].ld();
+    let t1 = tables.step_time.ld();
     let t2 = t0 / t1;
-    d[0].set_bits(st(t2));
-    let t3 = ld(contact.contact_total[1].bits());
-    let t4 = ld(tables.step_time.bits());
+    d[0].st(t2);
+    let t3 = contact.contact_total[1].ld();
+    let t4 = tables.step_time.ld();
     let t5 = t3 / t4;
-    d[1].set_bits(st(t5));
-    let t6 = ld(contact.contact_total[2].bits());
-    let t7 = ld(tables.step_time.bits());
+    d[1].st(t5);
+    let t6 = contact.contact_total[2].ld();
+    let t7 = tables.step_time.ld();
     let t8 = t6 / t7;
-    d[2].set_bits(st(t8));
+    d[2].st(t8);
 }
 
 #[cfg(all(test, target_arch = "x86"))]

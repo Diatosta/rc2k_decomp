@@ -16,8 +16,8 @@ pub fn drop_to_neutral(car: &Car, tables: &PhysicsTables) {
     if !drops_to_neutral(
         car.contact_flag.get(),
         car.gear.get(),
-        f32::from_bits(car.engine_speed.bits()),
-        f32::from_bits(tables.stall_engine_speed.bits()),
+        car.engine_speed.get(),
+        tables.stall_engine_speed.get(),
         || tables.no_auto_neutral.get(),
     ) {
         return;

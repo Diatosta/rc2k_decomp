@@ -11,7 +11,7 @@ use crate::race::matrices_store::SceneMatrices;
 use crate::session::Float;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-static TURN: [Float; 16] = [const { Float::from_bits(0) }; 16];
+static TURN: [Float; 16] = [const { Float::new(0.0) }; 16];
 
 /// `TURN` holds the first view's turn of this stage.
 static KEPT: AtomicBool = AtomicBool::new(false);

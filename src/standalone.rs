@@ -238,10 +238,7 @@ fn refused(name: &str, e: Refused, r: &Context) {
 }
 
 fn stand_in(what: &str, variable: &crate::session::Dword, value: u32) {
-    log(&format!(
-        "standalone: stand-in: {what} ({:#x} = {value})",
-        variable.addr()
-    ));
+    log(&format!("standalone: stand-in: {what} (= {value})"));
     variable.set(value);
 }
 

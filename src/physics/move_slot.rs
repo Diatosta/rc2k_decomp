@@ -24,13 +24,14 @@
 //!
 //! Caller: `physics::move_slots`.
 
+use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87::{abs_compare, abs_of, mul, mul2_to_int, negated};
 use crate::math::x87_float as bh;
 use crate::physics::axis_turn_matrix::axis_turn_matrix;
 use crate::physics::step_families::SlotInputs;
-use crate::race::work_store::RaceSlot;
+use crate::race::work_store::{RaceSlot, RaceWork};
 use crate::scene::matrix::multiply_matrices;
 use crate::scene::matrix3::rounded;
 use crate::scene::view_matrix::{square_matrix, unit_vector};
@@ -43,10 +44,23 @@ fn copy<A: Cell32, B: Cell32>(from: &[A], to: &[B]) {
     }
 }
 
-/// The slot `s` (the registers it leaves are dropped by its caller's `popa`).
+/// The three dwords the spin's axis is made of: the spin's length and the two after it.
+struct SpinAxis([u32; 3]);
+
+impl crate::math::cells::Cells for SpinAxis {
+    fn bits(&self, n: usize) -> u32 {
+        self.0[n]
+    }
+    fn set_bits(&self, _: usize, _: u32) {
+        unreachable!("the spin axis is only read")
+    }
+}
+
+/// The slot `s`, number `number` of the table (the registers it leaves are dropped by its caller's `popa`).
 pub fn move_slot(
     c: &SlotInputs<'_>,
     s: &RaceSlot,
+    number: usize,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let drawing = &scene.drawing;
@@ -59,9 +73,13 @@ pub fn move_slot(
         )));
     if s.spin_length.bits() != 0 {
         // From the spin's length on: two dwords past the slot, as the original has it (the
-        // next slot's first, or what follows the table), so by address.
-        let past = crate::pointers::GamePtr::to(&s.spin_length).unbounded();
-        unit_vector(c.course, &past, &c.course.lists.spin_axis);
+        // next slot's first two, or what follows the table).
+        let first = core::mem::offset_of!(RaceWork, race_slots)
+            + number * core::mem::size_of::<RaceSlot>()
+            + core::mem::offset_of!(RaceSlot, spin_length);
+        let past = |k: usize| crate::race::checkpoints_store::run_on(c.work, first, k).get();
+        let axis = SpinAxis([s.spin_length.bits(), past(1), past(2)]);
+        unit_vector(c.course, &axis, &c.course.lists.spin_axis);
         c.course.lists.spin_angle.set(x87::mul(&s.spin_length, dt));
         axis_turn_matrix(c.course, &c.course.lists.turn_matrix);
         square_matrix(c.course, &c.course.lists.turn_matrix);
@@ -77,9 +95,7 @@ pub fn move_slot(
         drawing.scene.scratch.set(d);
         s.place[k].set(s.place[k].get().wrapping_add(d));
     }
-    s.motion[1].set_bits(bh::st(
-        -(bh::ld(c.tables.gravity.bits()) * bh::ld(dt)) + bh::ld(s.motion[1].bits()),
-    ));
+    s.motion[1].st(-(c.tables.gravity.ld() * bh::ld(dt)) + s.motion[1].ld());
     c.ground.ground_x.set(s.place[0].get());
     c.ground.ground_z.set(s.place[2].get());
     c.course.course.ground_face_last.set(s.car_word.get());
@@ -101,10 +117,10 @@ pub fn move_slot(
     s.place[1].set(height);
     let half = c.numbers.half.bits();
     s.motion[0].set(x87::mul(&s.motion[0], half));
-    s.motion[1].set_bits(negated(mul(&s.motion[1], half)).to_bits());
+    s.motion[1].set(negated(mul(&s.motion[1], half)));
     s.motion[2].set(x87::mul(&s.motion[2], half));
     for cell in &s.spin {
-        cell.set_bits(negated(mul(cell, half)).to_bits());
+        cell.set(negated(mul(cell, half)));
     }
     if abs_compare(s.motion[1].bits(), c.numbers.one.bits()) & 0x100 != 0 {
         copy(&c.work.part_matrix_flat[..12], &s.matrix);

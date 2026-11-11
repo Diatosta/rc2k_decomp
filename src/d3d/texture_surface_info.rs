@@ -9,20 +9,18 @@
 //!
 //! Caller: `d3d::lock_texture`.
 
-use crate::d3d::texture_lock::field;
 use crate::gfx::owner::gfx;
+use crate::gfx::texture_upload::RecordCell;
 
-pub fn texture_surface_info(
-    record: crate::pointers::GamePtr,
-) -> Result<(), crate::errors::BadInput> {
+pub fn texture_surface_info(record: &RecordCell) -> Result<(), crate::errors::BadInput> {
     let gfx = gfx();
     // Converted: `rc2k_core::d3d::textures::surface_info`.
     let description = &gfx.card.upload.description;
-    let kind = field(record, 0xC);
+    let kind = record.format();
     let f = rc2k_core::d3d::textures::surface_info(
-        field(record, 4),
-        field(record, 8),
-        bytes_per_pixel(kind),
+        record.width(),
+        record.height(),
+        bytes_per_pixel(kind)?,
         crate::gfx::pixel_format::texture_description_format(kind, gfx),
         description.pitch.get(),
         description.pixels.get(),
@@ -50,11 +48,12 @@ pub fn texture_surface_info(
     Ok(())
 }
 
-/// The bytes a pixel of the description a record's kind field names: a handle, else (a kind
-/// read past the table) the dword at +4 of that number as an address.
-fn bytes_per_pixel(kind: u32) -> u32 {
-    match crate::gfx::owner::textures().description(kind) {
-        Some(d) => d.get().bytes_per_pixel,
-        None => crate::d3d::texture_lock::get(kind.wrapping_add(4)),
-    }
+/// The bytes a pixel of the description a record's kind field names.
+fn bytes_per_pixel(kind: u32) -> Result<u32, crate::errors::BadInput> {
+    crate::gfx::owner::textures()
+        .description(kind)
+        .map(|d| d.get().bytes_per_pixel)
+        .ok_or(crate::errors::BadInput(
+            "a texture's kind that names no description",
+        ))
 }

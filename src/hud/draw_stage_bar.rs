@@ -62,8 +62,8 @@ pub fn bars(
         return Ok(());
     }
     hud.block.bar_width.set(sb::WIDTH);
-    hud.block.ends[0].set_bits(0);
-    hud.block.ends[1].set_bits(0);
+    hud.block.ends[0].set(0.0);
+    hud.block.ends[1].set(0.0);
     let total = f32::from_bits(frame.panel_and_overlay.panel.overlay_miles.get());
     for n in 0..count {
         let left = count - n;

@@ -136,7 +136,7 @@ pub fn map_pixel(
         masks.vars.work_pixel[1].set(y.to_bits());
         set_line_turn(masks, line(masks, half.line), true);
         scale_rows3(&masks.vars.turn, effects);
-        let q = turn_pair(masks, [extended(y.to_bits()), extended(px)]);
+        let q = turn_pair(masks, [extended(y), extended(px)]);
         let (qx, qy) = (rounded(q[1]), rounded(q[0]));
         let out = [x87::add_to_int(qx, lx), x87::add_to_int(qy, ly)];
         write_bits(&masks.vars.work_pixel, out.map(|v| v as u32));

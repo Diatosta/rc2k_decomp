@@ -80,10 +80,10 @@ pub fn emit_body_contact_particles(
                 .emitter
                 .motion
                 .each_ref()
-                .map(|r| extended(r.bits()));
+                .map(|r| extended(r.get()));
             let (moved, _) = jitter_point(
                 [
-                    extended(effects.setup.floats.hundred_twenty_eight.bits()),
+                    extended(effects.setup.floats.hundred_twenty_eight.get()),
                     m[2],
                     m[1],
                     m[0],

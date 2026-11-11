@@ -2209,8 +2209,8 @@ pub const SPEECH_END: u32 = 0xFFFF_FFFF;
 /// (`audio::store::name_key`), or `SPEECH_END`.
 pub fn speech_entry(row: u32, place: u32) -> Result<u32, crate::errors::BadInput> {
     let entry = text_at(row)?
-        .offset(place.wrapping_mul(4))
-        .read::<u32>("a speech row")?;
+        .add(place.wrapping_mul(4))
+        .read_dword("a speech row")?;
     // 0: none, as the original's null.
     if entry == SPEECH_END || entry == 0 {
         return Ok(entry);
@@ -2232,14 +2232,17 @@ pub const fn text_key(ida: u32) -> u32 {
 }
 
 /// Where the text of `key` is (`text_key`).
-pub fn text_at(key: u32) -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
+pub fn text_at(key: u32) -> Result<crate::place::BytePlace, crate::errors::BadInput> {
     let at = key as usize;
     if !(LEAD..LEAD + SPEECH_PAD + END - START).contains(&at) {
         return Err(crate::errors::BadInput(
             "a text's handle off the menus' texts",
         ));
     }
-    Ok(crate::pointers::GamePtr::to(&menus().tables.texts).offset(key))
+    Ok(crate::place::BytePlace::in_store(
+        &menus().tables.texts,
+        key as usize,
+    ))
 }
 
 /// IDA 0x734BC6, the end of the piece.

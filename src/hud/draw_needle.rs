@@ -21,8 +21,8 @@ use crate::race::owner_frame::Frame;
 use crate::scene::matrix3::extended;
 
 /// `fld v [; fsub less]; fdiv over; fadd plus; fmul k0; fmul k1; fistp`.
-fn turn_of(v: u32, less: Option<u32>, over: u32, plus: u32, k: [u32; 2]) -> u32 {
-    let a = [v, less.unwrap_or(0), over, plus, k[0], k[1]];
+fn turn_of(v: f32, less: Option<f32>, over: f32, plus: f32, k: [f32; 2]) -> u32 {
+    let a = [v, less.unwrap_or(0.0), over, plus, k[0], k[1]];
     if less.is_some() {
         turn_less(a)
     } else {
@@ -35,19 +35,13 @@ pub fn draw_needle(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     use rc2k_core::hud::disc::{needle_angle, needle_corners, needle_turn};
     use rc2k_core::math::extended::to_f64;
     let kind = hud.block.needle_kind.get() != 0;
-    let value = f32::from_bits(x87::from_int(hud.block.needle_value.get() as i32).to_bits());
+    let value = x87::from_int(hud.block.needle_value.get() as i32);
     let t = needle_turn(value, kind, hud.block.least.get(), |n| {
         hud.block.needle_k[n].get()
     });
-    let tk = [hud.block.uv_scale_y.bits(), hud.block.turn_k.bits()];
+    let tk = [hud.block.uv_scale_y.get(), hud.block.turn_k.get()];
     // The rounding follows the x87's control word: the x87's.
-    let turn = turn_of(
-        t.value.to_bits(),
-        t.less.map(f32::to_bits),
-        t.over.to_bits(),
-        t.plus.to_bits(),
-        tk,
-    );
+    let turn = turn_of(t.value, t.less, t.over, t.plus, tk);
     hud.block.fistp_scratch.set(turn);
     let angle = needle_angle(turn);
     for (n, (x, y)) in needle_corners(
@@ -71,13 +65,13 @@ pub fn draw_needle(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
 
 /// An x87 run of the original, in plain Rust over `X`, on the six floats:
 /// `int = ((((a0 - a1) / a2) + a3) * a4) * a5`
-fn turn_less(a: [u32; 6]) -> u32 {
+fn turn_less(a: [f32; 6]) -> u32 {
     let [v, less, over, plus, k0, k1] = a.map(ld);
     to_int(((((v - less) / over) + plus) * k0) * k1) as u32
 }
 
 /// As `turn_less` without the second: `int = (((a0 / a2) + a3) * a4) * a5`
-fn turn_plain(a: [u32; 6]) -> u32 {
+fn turn_plain(a: [f32; 6]) -> u32 {
     let [v, _, over, plus, k0, k1] = a.map(ld);
     to_int((((v / over) + plus) * k0) * k1) as u32
 }
@@ -86,7 +80,10 @@ fn turn_plain(a: [u32; 6]) -> u32 {
 #[cfg(all(test, target_arch = "x86"))]
 fn x87_1(a: usize, o: usize) {
     use crate::scene::x87_mem::Base;
-    o.set_dword(0, turn_less(std::array::from_fn(|k| a.dword(4 * k))));
+    o.set_dword(
+        0,
+        turn_less(std::array::from_fn(|k| f32::from_bits(a.dword(4 * k)))),
+    );
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -94,9 +91,13 @@ fn x87_2(a: usize, o: usize) {
     use crate::scene::x87_mem::Base;
     o.set_dword(
         0,
-        turn_plain(std::array::from_fn(
-            |k| if k == 1 { 0 } else { a.dword(4 * k) },
-        )),
+        turn_plain(std::array::from_fn(|k| {
+            if k == 1 {
+                0.0
+            } else {
+                f32::from_bits(a.dword(4 * k))
+            }
+        })),
     );
 }
 

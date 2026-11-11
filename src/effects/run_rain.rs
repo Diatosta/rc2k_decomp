@@ -81,7 +81,7 @@ pub fn run_rain(
             r.drops.set(drops as u32);
         }
         for n in 0..9 {
-            r.view_matrix[n].set_bits(marks.listener_turn[n].bits());
+            r.view_matrix[n].set(marks.listener_turn[n].get());
         }
         for n in 0..3 {
             r.view_place[n].set(marks.listener_place[n].get());
@@ -116,7 +116,7 @@ pub fn run_rain(
             box_moved(weather, e);
         }
         for n in 0..3 {
-            r.motion[n].set_bits(r.moves[e][n].bits());
+            r.motion[n].set(r.moves[e][n].get());
         }
         move_length(weather);
         let status = setup.work.fpu_status.get() & 0x700;
@@ -166,16 +166,16 @@ fn box_moved_x87(i: usize, r: &RainState, k: &RainRules) {
     {
         let t0 = bh::int(r.view[0].get() as i32);
         let t1 = t0 - bh::int(r.last_views[i][0].get() as i32);
-        let t2 = t1 * bh::ld(k.move_scale[0].to_bits());
+        let t2 = t1 * bh::ld(k.move_scale[0]);
         r.moves[i][0].st(t2);
         let t3 = bh::int(r.view[1].get() as i32);
         let t4 = t3 + bh::int(r.drift.get() as i32);
         let t5 = t4 - bh::int(r.last_views[i][1].get() as i32);
-        let t6 = t5 * bh::ld(k.move_scale[1].to_bits());
+        let t6 = t5 * bh::ld(k.move_scale[1]);
         r.moves[i][1].st(t6);
         let t7 = bh::int(r.view[2].get() as i32);
         let t8 = t7 - bh::int(r.last_views[i][2].get() as i32);
-        let t9 = t8 * bh::ld(k.move_scale[2].to_bits());
+        let t9 = t8 * bh::ld(k.move_scale[2]);
         r.moves[i][2].st(t9);
     }
 }
@@ -192,22 +192,22 @@ fn move_length_x87(r: &RainState, k: &RainRules) {
     let t7 = t1 + t6;
     let t8 = t7.sqrt();
     r.depth.st(t8);
-    crate::effects::plain::set_status(bh::compare(t8, bh::ld(k.move_limit.to_bits())));
+    crate::effects::plain::set_status(bh::compare(t8, bh::ld(k.move_limit)));
 }
 
 /// `move_held`'s x87 block as plain Rust on the x87 model (13 instructions), same order and memory places.
 fn move_held_x87(r: &RainState, k: &RainRules) {
     {
         let t0 = r.depth.ld();
-        let t1 = bh::ld(k.move_held.to_bits()) / t0;
+        let t1 = bh::ld(k.move_held) / t0;
         let t2 = t1 * r.motion[0].ld();
-        let t3 = t2 * bh::ld(k.move_factors[0].to_bits());
+        let t3 = t2 * bh::ld(k.move_factors[0]);
         r.motion[0].st(t3);
         let t4 = t1 * r.motion[1].ld();
-        let t5 = t4 * bh::ld(k.move_factors[1].to_bits());
+        let t5 = t4 * bh::ld(k.move_factors[1]);
         r.motion[1].st(t5);
         let t6 = t1 * r.motion[2].ld();
-        let t7 = t6 * bh::ld(k.move_factors[2].to_bits());
+        let t7 = t6 * bh::ld(k.move_factors[2]);
         r.motion[2].st(t7);
     }
 }

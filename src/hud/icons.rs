@@ -64,7 +64,7 @@ pub static LAYOUT_2: IconStyle = IconStyle {
 pub fn icons(frame: &Frame, hud: &Hud, pen: Pen, style: &IconStyle) -> Result<(), Refused> {
     hud.block
         .icon_scale
-        .set_bits(hud.block.icon_scales[style.scale].bits());
+        .set(hud.block.icon_scales[style.scale].get());
     for (n, d) in style.draws.iter().enumerate() {
         if n > 0 {
             hud.block

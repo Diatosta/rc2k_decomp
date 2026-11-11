@@ -3,10 +3,10 @@
 //! steps `effects::turn_kept_xz` (0x4C1411) and `effects::turn_kept_zy` (0x4C14D2).
 
 use crate::math::x87;
-use crate::session::{PlainDword, PlainFloat};
+use crate::session::PlainFloat;
 
 /// The kept vectors, in the original's order.
-fn vectors(effects: &crate::effects::owner::Effects) -> [&[PlainDword; 3]; 3] {
+fn vectors(effects: &crate::effects::owner::Effects) -> [&[PlainFloat; 3]; 3] {
     let frame = &effects.frame;
     [
         &frame.kept_view.kept_a.vector,
@@ -21,8 +21,8 @@ fn turn_kept(a: usize, b: usize, sc: &[PlainFloat; 2], effects: &crate::effects:
     let (s, c) = (sc[0].bits(), sc[1].bits());
     for v in vectors(effects) {
         let (nb, na) = x87::turn_yz(v[b].get(), v[a].get(), s, c);
-        v[b].set_bits(nb.to_bits());
-        v[a].set_bits(na.to_bits());
+        v[b].set(nb);
+        v[a].set(na);
     }
 }
 

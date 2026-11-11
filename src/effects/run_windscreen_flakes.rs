@@ -88,7 +88,7 @@ fn run(
             let colour = ((!alpha) << 24) | (view_light & 0xFF_FFFF);
             let values = [
                 less(fl.state.far.bits(), item.place[1].bits()),
-                extended(item.place[0].bits()),
+                extended(item.place[0].get()),
             ];
             crate::effects::draw_windscreen_flake::draw_windscreen_flake(
                 fl, item, colour, values, effects,

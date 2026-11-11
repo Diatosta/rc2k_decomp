@@ -377,7 +377,7 @@ impl RaceState {
                     RaceResult {
                         time: Dword::new(0),
                         word: Dword::new(0),
-                        secs: Float::from_bits(0),
+                        secs: Float::new(0.0),
                         result: Dword::new(0),
                         data: Bytes::new([0xff; 64]),
                         impact_marks: [const { Dword::new(0) }; 8],
@@ -385,7 +385,7 @@ impl RaceState {
                     RaceResult {
                         time: Dword::new(0),
                         word: Dword::new(0),
-                        secs: Float::from_bits(0),
+                        secs: Float::new(0.0),
                         result: Dword::new(0),
                         data: Bytes::new([0xff; 64]),
                         impact_marks: [const { Dword::new(0) }; 8],

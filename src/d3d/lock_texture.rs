@@ -14,6 +14,7 @@ use crate::d3d::texture_lock::*;
 use crate::errors::{BadInput, Refused};
 use crate::framework::CarryZeroFlags;
 use crate::gfx::owner::gfx;
+use crate::gfx::texture_upload::RecordCell;
 
 /// Texture `texture` locked; the flags it leaves
 /// (every register is kept).
@@ -21,18 +22,20 @@ pub fn lock_texture(texture: u32) -> Result<CarryZeroFlags, Refused> {
     use rc2k_core::d3d::textures::{LOCK_FAILED, LOCKED_TWICE, Lock, lock};
     // Converted: `rc2k_core::d3d::textures::lock`.
     let r = record(texture);
-    let surface = if texture < 0x140 { field(r, 0x14) } else { 0 };
-    match lock(texture, surface, || field(r, 0x60)).map_err(BadInput::from)? {
+    let surface = r.map_or(0, RecordCell::first_surface);
+    match lock(texture, surface, || r.map_or(0, RecordCell::locked)).map_err(BadInput::from)? {
         Lock::Nothing => {}
         Lock::Twice => return Err(fatal(LOCKED_TWICE).into()),
         Lock::Lock => {
             if crate::platform_3d::lock_surface(surface, &gfx().card.upload.description) != 0 {
                 return Err(fatal(LOCK_FAILED).into());
             }
-            put_field(r, 0x60, 1);
+            // Only a texture in the pool gets here.
+            let r = r.expect("lock chose Lock for a texture in the pool");
+            r.set_locked(1);
             crate::d3d::texture_surface_info::texture_surface_info(r)?;
         }
     }
-    let (carry, zero) = compared_with_one(field(r, 0x60));
+    let (carry, zero) = compared_with_one(r.map_or(0, RecordCell::locked));
     Ok(CarryZeroFlags { carry, zero })
 }

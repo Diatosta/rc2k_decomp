@@ -125,7 +125,7 @@ pub struct GroundCells {
 impl GroundCells {
     pub fn new() -> Self {
         let d = || Dword::new(0);
-        let f = || Float::from_bits(0);
+        let f = || Float::new(0.0);
         GroundCells {
             x: d(),
             z: d(),

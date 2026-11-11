@@ -19,7 +19,7 @@ use crate::session::PlainFloat;
 const CHEAT: u32 = 0x8000;
 
 fn box_values(place: &[PlainFloat; 2], size: &[PlainFloat; 2]) -> [[u8; 10]; 4] {
-    [&size[1], &size[0], &place[1], &place[0]].map(|f| extended(f.bits()))
+    [&size[1], &size[0], &place[1], &place[0]].map(|f| extended(f.get()))
 }
 
 pub fn run_pong(

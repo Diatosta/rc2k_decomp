@@ -291,7 +291,7 @@ pub fn make_noise_curve(
         .threes
         .map(|three| x87::int_times_plus(three, spread_scale, spread_base));
     for (cell, v) in weather.snow_tables.spreads.iter().zip(spread) {
-        cell.set_bits(v.to_bits());
+        cell.set(v);
     }
     for (cells, table) in weather.snow_tables.remainders.iter().zip(&t.remainders) {
         for (cell, v) in cells.iter().zip(table) {
@@ -313,7 +313,7 @@ pub fn make_noise_curve(
     }
     let first = x87::loaded(&weather.snow_light.quad_first);
     for cell in &weather.snow.quad_a {
-        cell.set_bits(first.to_bits());
+        cell.set(first);
     }
     // The view's centre (`SceneDraw.view_centre[0]`, `SceneDraw.view_centre[1]`).
     let centre = &crate::scene::polygon_work::front_end().window.view_centre;

@@ -92,8 +92,7 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
     c.contact.contact_point[0].set_bits(c.contact.probe_turned_x[k].bits());
     c.contact.contact_point[1].set_bits(c.contact.probe_turned_y[k].bits());
     c.contact.contact_point[2].set_bits(c.contact.probe_turned_z[k].bits());
-    c.contact.contact_point[1]
-        .set_bits(mul(&c.contact.contact_point[1], &c.numbers.tenth).to_bits());
+    c.contact.contact_point[1].set(mul(&c.contact.contact_point[1], &c.numbers.tenth));
     c.contact.contact_slide_limit.set_bits(0);
     contact_force(
         c.contact,

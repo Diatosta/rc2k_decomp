@@ -22,12 +22,7 @@ pub fn shown_description(menus: &Menus) -> Result<u32, Refused> {
     let (Some(table), true) = (table, entry < ENTRIES) else {
         return Err(BadInput("no carousel records, or an entry past them").into());
     };
-    let record = menus
-        .tables
-        .lists
-        .cars(table)
-        .offset(entry * 4)
-        .read::<u32>("a car description handle")?;
+    let record = menus.tables.lists.car_entry(table, entry)?;
     if record == 0 {
         return Err(BadInput("an entry without its record").into());
     }

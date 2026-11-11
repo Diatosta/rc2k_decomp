@@ -9,10 +9,9 @@
 //!
 //! Callers: `physics::free_rev_in_neutral`, `physics::free_rev_clutch`.
 
+use crate::effects::cell_x87::CellX87;
 use crate::math::x87;
 use crate::math::x87_float::int;
-use crate::math::x87_float::ld;
-use crate::math::x87_float::st;
 use crate::physics::car_store::Car;
 use crate::physics::engine_torque::{below, engine_torque};
 use crate::physics::gear_store::GEAR;
@@ -45,13 +44,13 @@ pub fn free_rev(course: &Course, shared: &RaceShared, scene: &crate::scene::owne
     }
     if x < 0.0 {
         let y = x87::add(e, drag);
-        shared.car.engine_speed.set_bits(y.to_bits());
+        shared.car.engine_speed.set(y);
         if !below(y.to_bits(), 0) {
             shared.car.engine_speed.set_bits(0);
         }
     } else {
         let y = x87::sub(e, drag);
-        shared.car.engine_speed.set_bits(y.to_bits());
+        shared.car.engine_speed.set(y);
         if below(y.to_bits(), 0) {
             shared.car.engine_speed.set_bits(0);
         }
@@ -71,32 +70,32 @@ fn x87_1(
     car: &Car,
     scene: &crate::scene::owner::Scene,
 ) {
-    let t0 = ld(physics_tables.drive_ratio.bits());
-    let t1 = ld(GEAR.drive_torque_figure.bits());
+    let t0 = physics_tables.drive_ratio.ld();
+    let t1 = GEAR.drive_torque_figure.ld();
     let t2 = t0 * t1;
-    let t3 = ld(physics_tables.gear_ratios[1].bits());
+    let t3 = physics_tables.gear_ratios[1].ld();
     let t4 = t2 / t3;
-    let t5 = ld(numbers.k10000.bits());
+    let t5 = numbers.k10000.ld();
     let t6 = t4 / t5;
     let t7 = int(car.throttle.bits() as i32);
     let t8 = t6 * t7;
-    let t9 = ld(numbers.k256.bits());
+    let t9 = numbers.k256.ld();
     let t10 = t8 / t9;
-    physics_tables.drive_torque.set_bits(st(t10));
-    let t11 = ld(physics_tables.drive_torque.bits());
-    let t12 = ld(physics_tables.step_time.bits());
+    physics_tables.drive_torque.st(t10);
+    let t11 = physics_tables.drive_torque.ld();
+    let t12 = physics_tables.step_time.ld();
     let t13 = t11 * t12;
-    let t14 = ld(physics_tables.gear_ratios[1].bits());
+    let t14 = physics_tables.gear_ratios[1].ld();
     let t15 = t13 / t14;
-    let t16 = ld(car.engine_speed.bits());
+    let t16 = car.engine_speed.ld();
     let t17 = t15 + t16;
-    car.engine_speed.set_bits(st(t17));
-    let t18 = ld(car.engine_speed.bits());
-    let t19 = ld(physics_tables.free_rev_scale.bits());
+    car.engine_speed.st(t17);
+    let t18 = car.engine_speed.ld();
+    let t19 = physics_tables.free_rev_scale.ld();
     let t20 = t18 * t19;
-    let t21 = ld(physics_tables.free_rev_add.bits());
+    let t21 = physics_tables.free_rev_add.ld();
     let t22 = t20 + t21;
-    scene.drawing.scene.scratch.set_bits(st(t22));
+    scene.drawing.scene.scratch.st(t22);
 }
 
 #[cfg(all(test, target_arch = "x86"))]

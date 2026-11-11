@@ -26,7 +26,7 @@ use crate::errors::BadInput;
 use crate::gfx::typefaces::{self, FontId};
 use crate::install::vars::{InstallerPages, InstallerPaths};
 use crate::menu::list_handle::EditRecord;
-use crate::pointers::GamePtr;
+use crate::place::BytePlace;
 
 const KIND_SHIFT: u32 = 24;
 const NUMBER: u32 = (1 << KIND_SHIFT) - 1;
@@ -234,14 +234,16 @@ impl PageLink {
     /// The place in the installer pages the link names (a table entry, a list, a box, a
     /// handler or the edit record), bounded by the pages (a table or text may run on inside
     /// them as the original's does).
-    pub fn in_pages(self) -> Result<GamePtr, BadInput> {
+    pub fn in_pages(self) -> Result<BytePlace, BadInput> {
         let install = crate::install::owner::install();
-        match self.pages_offset() {
-            Some(offset) => Ok(GamePtr::to(&install.pages).offset(offset as u32)),
-            None => Err(BadInput(
-                "a page link that is no place in the installer's pages",
-            )),
-        }
+        Ok(BytePlace::in_store(&install.pages, self.pages_start()?))
+    }
+
+    /// The byte offset in the pages of the place the link names.
+    pub fn pages_start(self) -> Result<usize, BadInput> {
+        self.pages_offset().ok_or(BadInput(
+            "a page link that is no place in the installer's pages",
+        ))
     }
 
     /// The byte offset in the pages of the box a link names.
@@ -278,11 +280,14 @@ impl PageLink {
 
     /// The place a text or a byte link names: in the pages, or the folder typed (bounded by
     /// the installer's path buffers).
-    pub fn place(self) -> Result<GamePtr, BadInput> {
+    pub fn place(self) -> Result<BytePlace, BadInput> {
         let install = crate::install::owner::install();
         if self.kind() == TYPED_PATH && self.number() < 0x100 {
-            let typed = core::mem::offset_of!(InstallerPaths, typed) as u32;
-            return Ok(GamePtr::to(&install.paths).offset(typed + self.number()));
+            let typed = core::mem::offset_of!(InstallerPaths, typed);
+            return Ok(BytePlace::in_store(
+                &install.paths,
+                typed + self.number() as usize,
+            ));
         }
         self.in_pages()
     }
@@ -329,13 +334,16 @@ mod tests {
         );
         assert!(PageLink::of_ida(PALETTE_IDA).is_blended_palette());
         assert_eq!(
-            Some(GamePtr::to(crate::text::blend_font::BLENDED_PALETTE.get()).addr() as usize),
+            Some(
+                crate::pointers::GamePtr::to(crate::text::blend_font::BLENDED_PALETTE.get()).addr()
+                    as usize
+            ),
             crate::moved::home_of_rva(PALETTE_IDA as usize - crate::framework::IMAGE_BASE)
         );
         let typed = PageLink::of_ida(TYPED_IDA + 2).place().unwrap();
         assert_eq!(
-            typed.addr(),
-            GamePtr::to(&crate::install::owner::install().paths.typed)
+            typed.game(),
+            crate::pointers::GamePtr::to(&crate::install::owner::install().paths.typed)
                 .addr()
                 .wrapping_add(2)
         );

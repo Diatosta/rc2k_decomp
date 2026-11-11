@@ -2,6 +2,7 @@
 //! read them (`fld; fcomp` / `fcompp` and the status word's C0 / C3), the holds and
 //! eases their patterns repeat.
 
+use crate::effects::cell_x87::CellX87;
 use crate::math::x87;
 use crate::math::x87::compare_full;
 use crate::math::x87_float::{compare, ld, st};
@@ -132,8 +133,8 @@ pub fn table_lerp(
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `status [s + 0] = status`
 fn x87_1(t: &[Float; 4], z: u32) -> u16 {
-    let t0 = ld(t[2].bits());
-    let t1 = ld(t[0].bits());
+    let t0 = t[2].ld();
+    let t1 = t[0].ld();
     let t2 = t0 - t1;
     let t3 = ld(z);
     compare(t2, t3)
@@ -144,17 +145,17 @@ fn x87_1(t: &[Float; 4], z: u32) -> u16 {
 /// `[o + 0] = ((([x + 0] - [t + 0]) / ([t + 8] - [t + 0])) * ([t + 0xC] - [t + 4])) + [t + 4]`
 fn x87_2(x: u32, t: &[Float; 4]) -> u32 {
     let t0 = ld(x);
-    let t1 = ld(t[0].bits());
+    let t1 = t[0].ld();
     let t2 = t0 - t1;
-    let t3 = ld(t[2].bits());
-    let t4 = ld(t[0].bits());
+    let t3 = t[2].ld();
+    let t4 = t[0].ld();
     let t5 = t3 - t4;
     let t6 = t2 / t5;
-    let t7 = ld(t[3].bits());
-    let t8 = ld(t[1].bits());
+    let t7 = t[3].ld();
+    let t8 = t[1].ld();
     let t9 = t7 - t8;
     let t10 = t6 * t9;
-    let t11 = ld(t[1].bits());
+    let t11 = t[1].ld();
     let t12 = t10 + t11;
     st(t12)
 }

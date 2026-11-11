@@ -14,11 +14,10 @@
 //!
 //! Callers: `physics::object_hits_car`, `physics::scene_point_hits_car`.
 
+use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
 use crate::math::x87_float::X;
 use crate::math::x87_float::int;
-use crate::math::x87_float::ld;
-use crate::math::x87_float::st;
 use crate::math::x87_float::to_int;
 use crate::physics::car_store::Car;
 use crate::physics::contact_store::ContactWork;
@@ -77,10 +76,10 @@ pub fn point_hits_car(c: &ContactInputs<'_>, point: [u32; 3], face: u32) -> Resu
             .contact_speed_length
             .set_bits(rounded(vector_length(&c.car.velocity)));
         if let Some(hit) = rc2k_core::physics::walls::raised_hit(
-            f32::from_bits(contact.contact_speed_length.bits()),
-            f32::from_bits(c.car.contact_depth.bits()),
+            contact.contact_speed_length.get(),
+            c.car.contact_depth.get(),
         ) {
-            c.car.contact_depth.set_bits(hit.to_bits());
+            c.car.contact_depth.set(hit);
         }
         c.car.contact_flag.set(1);
         c.car.wall_hit_timer.set(0x32);
@@ -97,17 +96,17 @@ pub fn point_hits_car(c: &ContactInputs<'_>, point: [u32; 3], face: u32) -> Resu
 /// `[rc + 0x2D3B80] = int [rc + 0x2D3B54] / [k65536]`
 fn x87_1(contact: &ContactWork, numbers: &Numbers) {
     let t0 = int(contact.object_point_offset[0].bits() as i32);
-    let t1 = ld(numbers.k65536.bits());
+    let t1 = numbers.k65536.ld();
     let t2 = t0 / t1;
-    contact.object_point_scaled[0].set_bits(st(t2));
+    contact.object_point_scaled[0].st(t2);
     let t3 = int(contact.object_point_offset[1].bits() as i32);
-    let t4 = ld(numbers.k65536.bits());
+    let t4 = numbers.k65536.ld();
     let t5 = t3 / t4;
-    contact.object_point_scaled[1].set_bits(st(t5));
+    contact.object_point_scaled[1].st(t5);
     let t6 = int(contact.object_point_offset[2].bits() as i32);
-    let t7 = ld(numbers.k65536.bits());
+    let t7 = numbers.k65536.ld();
     let t8 = t6 / t7;
-    contact.object_point_scaled[2].set_bits(st(t8));
+    contact.object_point_scaled[2].st(t8);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -116,16 +115,16 @@ fn x87_1(contact: &ContactWork, numbers: &Numbers) {
 /// `int [rc + 0x2D3094] = [rc + 0x2D3B5C] * [k65536]`
 /// `int [rc + 0x2D3098] = [rc + 0x2D3B60] * [k65536]`
 fn x87_2(contact: &ContactWork, numbers: &Numbers) {
-    let t0 = ld(contact.object_point_turned[0].bits());
-    let t1 = ld(numbers.k65536.bits());
+    let t0 = contact.object_point_turned[0].ld();
+    let t1 = numbers.k65536.ld();
     let t2 = t0 * t1;
     contact.contact_point[0].set_bits(to_int(t2) as u32);
-    let t3 = ld(contact.object_point_turned[1].bits());
-    let t4 = ld(numbers.k65536.bits());
+    let t3 = contact.object_point_turned[1].ld();
+    let t4 = numbers.k65536.ld();
     let t5 = t3 * t4;
     contact.contact_point[1].set_bits(to_int(t5) as u32);
-    let t6 = ld(contact.object_point_turned[2].bits());
-    let t7 = ld(numbers.k65536.bits());
+    let t6 = contact.object_point_turned[2].ld();
+    let t7 = numbers.k65536.ld();
     let t8 = t6 * t7;
     contact.contact_point[2].set_bits(to_int(t8) as u32);
 }
@@ -137,15 +136,15 @@ fn x87_2(contact: &ContactWork, numbers: &Numbers) {
 /// `[rc + 0x31A204] = int [rc + 0x2D3098] / [k65536]`
 fn x87_3(contact: &ContactWork, numbers: &Numbers, car: &Car) {
     let t0 = int(contact.contact_point[0].bits() as i32);
-    let t1 = ld(numbers.k65536.bits());
+    let t1 = numbers.k65536.ld();
     let t2 = t0 / t1;
-    car.contact_point[0].set_bits(st(t2));
+    car.contact_point[0].st(t2);
     let t3 = X(0.0);
-    car.contact_point[1].set_bits(st(t3));
+    car.contact_point[1].st(t3);
     let t4 = int(contact.contact_point[2].bits() as i32);
-    let t5 = ld(numbers.k65536.bits());
+    let t5 = numbers.k65536.ld();
     let t6 = t4 / t5;
-    car.contact_point[2].set_bits(st(t6));
+    car.contact_point[2].st(t6);
 }
 
 #[cfg(all(test, target_arch = "x86"))]

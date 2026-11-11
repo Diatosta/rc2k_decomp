@@ -32,7 +32,6 @@ fn same_name(a1: impl Into<crate::place::BytePlace>, name: &[u8]) -> bool {
     b.push(0);
     crate::menu::event_flow::refuse_here(
         a1.into()
-            .game_ptr()
             .bytes("a name")
             .and_then(|a| crate::strings::same_text::same_text(&a, &b)),
         "install::list_folder_tree: a name",

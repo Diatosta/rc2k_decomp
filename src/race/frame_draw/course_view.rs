@@ -3,7 +3,6 @@
 use super::*;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_float as bh;
-use crate::race::checkpoints_store::CHECKPOINTS;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::trap::Trap;
@@ -43,12 +42,9 @@ pub fn checkpoint_colours(
     // Converted: `rc2k_core::race::frame::checkpoint_colours`.
     {
         let n: u32 = car.checkpoint.get();
-        let face =
-            crate::race::checkpoints_store::cell_in(&CHECKPOINTS.checkpoint_faces, n as usize)
-                .get();
+        let face = crate::race::checkpoints_store::face(n as usize).get();
         let byte: u8 = face_field(&race.course, face, 0x10)?;
-        let along =
-            crate::race::checkpoints_store::cell_in(&CHECKPOINTS.angles[2..], n as usize).get();
+        let along = crate::race::checkpoints_store::angle(n as usize).get();
         let c = rc2k_core::race::frame::checkpoint_colours(byte, along, car.car_heading.get());
         Ok(c.level)
     }

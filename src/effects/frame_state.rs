@@ -16,7 +16,7 @@ pub struct DrawWork {
     /// 0x8EB89D: `dword_8EB89D`: Not named: 24 bytes (a gap, or unreferenced data).
     pub _gap_8eb89d: PlainBytes<24>,
     /// 0x8EB8B5: `dword_8EB8B5`, `dword_8EB8B9`: half a sprite's size across and along (whole numbers; `effects::scale_corners` leaves a corner's two sides here).
-    pub half: [PlainDword; 2],
+    pub half: [PlainFloat; 2],
     /// 0x8EB8BD: `dword_8EB8BD` .. `dword_8EB8C9`: a sprite's half sides turned (whole numbers at first, floats once worked on).
     pub sprite_half: [PlainDword; 4],
     /// 0x8EB8CD: `flt_8EB8CD`, `flt_8EB8D1`: the two ends' scales of a ribbon piece (`effects::draw_ribbon`).
@@ -50,7 +50,7 @@ impl DrawWork {
         Self {
             profile_work: [const { PlainFloat::new(0.0) }; 11],
             _gap_8eb89d: PlainBytes::new([0; 24]),
-            half: [PlainDword::new(0x0), PlainDword::new(0x0)],
+            half: [PlainFloat::new(0.0), PlainFloat::new(0.0)],
             sprite_half: [
                 PlainDword::new(0x0),
                 PlainDword::new(0x0),

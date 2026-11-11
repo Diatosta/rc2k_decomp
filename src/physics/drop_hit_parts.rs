@@ -31,7 +31,7 @@ pub fn hit_tests(
         tests,
         word,
         |k| timers[k].get(),
-        || f32::from_bits(numbers.hundred.bits()),
+        || numbers.hundred.get(),
         || car.parts_present.get(),
     );
     if let Hit::Act(k) = hit {

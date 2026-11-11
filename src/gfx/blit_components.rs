@@ -14,7 +14,7 @@ use crate::errors::{BadInput, Refused};
 use crate::gfx::formats::Formats;
 
 /// The surface as the function reads it.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct Target {
     pub rows: crate::gfx::rows::Rows,
     pub bytes_per_pixel: u32,

@@ -14,15 +14,17 @@ use crate::audio::owner::audio;
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::read_file::read_file_to_store;
 use crate::gfx::owner::gfx;
+use crate::menu::option_work_store::OptionWork;
 use crate::menu::owner::menus;
 use crate::net::owner::net;
-use crate::pointers::{Cells, GamePtr, Store, load_cells, store_cells};
+use crate::pointers::{Cells, Store, load_cells, store_cells};
 use crate::race::owner::race;
 use crate::saves::owner::saves;
 use crate::saves::rebuild_car_lists::rebuild_car_lists;
 use crate::service::owner::service;
 use crate::settings::TEXT_ROOM;
 use crate::system::owner::system;
+use std::mem::offset_of;
 
 // ---- game data ----
 
@@ -91,8 +93,13 @@ pub enum Piece<'a> {
     /// All of a field of the game's thread (a store of plain cells, which no other thread
     /// may see: not a `Store`).
     Held(&'a dyn Held),
-    /// `len` bytes from a place that does not stop at its field's end.
-    Past { place: GamePtr, len: usize },
+    /// `len` bytes of a field of the game's thread from `offset` (a run over several of its
+    /// fields).
+    HeldPart {
+        field: &'a dyn Held,
+        offset: usize,
+        len: usize,
+    },
 }
 
 impl<'a> Piece<'a> {
@@ -115,15 +122,15 @@ impl<'a> Piece<'a> {
         Self::Field { store, offset, len }
     }
 
-    /// The original's run goes on past the field (`option_work`'s switches and levels): a
-    /// place, not a field.
-    pub fn past(place: GamePtr, len: usize) -> Self {
-        Self::Past { place, len }
+    /// `len` bytes of a field of plain cells from `offset`: a run over several of its fields
+    /// (`option_work`'s switches and levels).
+    pub fn held_part(field: &'a dyn Held, offset: usize, len: usize) -> Self {
+        Self::HeldPart { field, offset, len }
     }
 
     pub fn len(&self) -> usize {
         match *self {
-            Self::Field { len, .. } | Self::Past { len, .. } => len,
+            Self::Field { len, .. } | Self::HeldPart { len, .. } => len,
             Self::Held(field) => field.size(),
         }
     }
@@ -140,7 +147,14 @@ impl<'a> Piece<'a> {
                 field.load(&mut bytes)?;
                 Ok(bytes)
             }
-            Self::Past { place, len } => place.read_bytes(len, "a saved option"),
+            Self::HeldPart { field, offset, len } => {
+                let mut bytes = vec![0; field.size()];
+                field.load(&mut bytes)?;
+                bytes
+                    .get(offset..offset + len)
+                    .map(<[u8]>::to_vec)
+                    .ok_or(BadInput("a saved option past its field"))
+            }
         }
     }
 
@@ -148,7 +162,18 @@ impl<'a> Piece<'a> {
         match *self {
             Self::Field { store, offset, .. } => store.store(offset, bytes),
             Self::Held(field) => field.store(bytes),
-            Self::Past { place, .. } => place.write_bytes(bytes, "an option"),
+            Self::HeldPart { field, offset, len } => {
+                let mut all = vec![0; field.size()];
+                field.load(&mut all)?;
+                all.get_mut(offset..offset + len)
+                    .ok_or(BadInput("an option past its field"))?
+                    .copy_from_slice(
+                        bytes
+                            .get(..len)
+                            .ok_or(BadInput("too few bytes for an option"))?,
+                    );
+                field.store(&all)
+            }
         }
     }
 }
@@ -204,8 +229,8 @@ let menus = menus();
         Piece::whole(&menus.screens.option_work.speech_level),                  // the speech level
         Piece::whole(&audio.levels.sounds_a),                      // the sounds' first level
         Piece::whole(&audio.levels.sounds_b),                      // the sounds' second level
-        Piece::past(GamePtr::to(&menus.screens.option_work.switch_0).unbounded(), 0x2C),      // the options pages' work copies, switch_0 .. headlights
-        Piece::past(GamePtr::to(&menus.screens.option_work.audio_quality).unbounded(), 0x18),    // the audio quality, the 3D switches and the channels
+        Piece::held_part(&menus.screens.option_work, offset_of!(OptionWork, switch_0), 0x2C),      // the options pages' work copies, switch_0 .. headlights
+        Piece::held_part(&menus.screens.option_work, offset_of!(OptionWork, audio_quality), 0x18),    // the audio quality, the 3D switches and the channels
         Piece::whole(&menus.tables.pages.services),                       // the services counted
         Piece::whole(&menus.screens.flow.kept),                          // kept by the event races
         Piece::whole(&race.shared.state.settings.a8_game),               // the race settings' first word
@@ -403,7 +428,17 @@ mod tests {
                     GamePtr::new(crate::pointers::game_address(field.first())),
                     field.size(),
                 ),
-                super::Piece::Past { place, len } => (place, len),
+                super::Piece::HeldPart { field, offset, len } => {
+                    assert!(
+                        offset + len <= field.size(),
+                        "piece {n} ({at:#x}) leaves its field"
+                    );
+                    (
+                        GamePtr::new(crate::pointers::game_address(field.first()))
+                            .offset(offset as u32),
+                        len,
+                    )
+                }
             };
             assert_eq!(size, len);
             // The four audio levels live with the audio now, not in the menus' option work.

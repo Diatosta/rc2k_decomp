@@ -40,6 +40,7 @@ pub mod load_jade;
 pub mod load_picture;
 pub mod load_picture_to_texture;
 pub mod load_picture_with_overlay;
+pub mod locked_pixels;
 pub mod mark_3d_modes;
 pub mod mmx_converters;
 pub mod owner;

@@ -26,8 +26,15 @@ pub fn assign_menu_textures(
         textures.kinds.kind_first_textures[KIND].get(),
     )?;
     for (slot, texture) in wanted {
-        crate::scene::texture_places_store::cell_at(&textures.places.slot_wanted[0], slot)
-            .set(texture);
+        crate::scene::texture_places_store::cell_at(
+            &textures.places,
+            core::mem::offset_of!(
+                crate::scene::texture_places_store::TexturePlaces,
+                slot_wanted
+            ),
+            slot,
+        )?
+        .set(texture);
     }
     Ok(())
 }

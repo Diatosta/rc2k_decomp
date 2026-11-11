@@ -25,7 +25,7 @@ pub fn put_surface_pixel(
     if components != 0 && format == 0 {
         return Err(BadInput("no surface format").into());
     }
-    if crate::gfx::surface::address()? == 0 {
+    if crate::gfx::surface::handle()? == 0 {
         return Err(BadInput("no surface").into());
     }
     let pixel = if components == 0 {

@@ -4,14 +4,14 @@
 
 #[cfg(test)]
 use crate::effects::owner::effects;
-use crate::session::{PlainBytes, PlainDword, PlainFloat};
+use crate::session::{PlainBytes, PlainFloat};
 
 /// A factor, a vector, and the vector scaled by the factor (0x1C bytes).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct VectorSource {
-    pub factor: PlainDword,
-    pub vector: [PlainDword; 3],
+    pub factor: PlainFloat,
+    pub vector: [PlainFloat; 3],
     pub scaled: [PlainFloat; 3],
 }
 
@@ -28,11 +28,11 @@ impl ViewSources {
         Self {
             sources: [
                 VectorSource {
-                    factor: PlainDword::new(0x40A00000),
+                    factor: PlainFloat::new(5.0),
                     vector: [
-                        PlainDword::new(0x0),
-                        PlainDword::new(0xBF800000),
-                        PlainDword::new(0x0),
+                        PlainFloat::new(0.0),
+                        PlainFloat::new(-1.0),
+                        PlainFloat::new(0.0),
                     ],
                     scaled: [
                         PlainFloat::new(0.0),
@@ -41,11 +41,11 @@ impl ViewSources {
                     ],
                 },
                 VectorSource {
-                    factor: PlainDword::new(0x0),
+                    factor: PlainFloat::new(0.0),
                     vector: [
-                        PlainDword::new(0x0),
-                        PlainDword::new(0x0),
-                        PlainDword::new(0xBF800000),
+                        PlainFloat::new(0.0),
+                        PlainFloat::new(0.0),
+                        PlainFloat::new(-1.0),
                     ],
                     scaled: [
                         PlainFloat::new(0.0),
@@ -76,7 +76,7 @@ pub struct KeptView {
     /// 0x76924A: `flt_76924A`: the second angle (x and z).
     pub second_angle: PlainFloat,
     /// 0x76924E: `dword_76924E` (a factor, 16.0 at first), `dword_769252` .. (a vector): kept by `effects::keep_vectors` into `kept_a`.
-    pub pushed: [PlainDword; 4],
+    pub pushed: [PlainFloat; 4],
     /// 0x76925E: Not named: 12 bytes (a gap, or unreferenced data).
     pub _gap_76925e: PlainBytes<12>,
     /// 0x76926A: `dword_76926A` (factor), `dword_76926E` .. (vector), `flt_76927A` .. (scaled); `effects::keep_vectors` fills the first two, `scale_kept_vectors` the third.
@@ -94,7 +94,7 @@ pub struct KeptView {
     /// 0x7692EA: `flt_7692EA` ..: the view's step since the last frame, negated (`effects::view_step`).
     pub step: [PlainFloat; 3],
     /// 0x7692F6: `dword_7692F6`: the length of `vector` (`effects::aim_vector`).
-    pub length: PlainDword,
+    pub length: PlainFloat,
     /// 0x7692FA: `unk_7692FA` ..: `vector` made of length 1.
     pub unit: [PlainFloat; 3],
     /// 0x769306: `dword_769306` ..: the aim: minus `kept_b`'s scaled, less `kept_a`'s scaled, plus `kept_c`'s scaled, plus `step`.
@@ -109,20 +109,20 @@ impl KeptView {
             second_sine_cosine: [PlainFloat::new(0.0), PlainFloat::new(0.0)],
             second_angle: PlainFloat::new(0.0),
             pushed: [
-                PlainDword::new(0x41800000),
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-                PlainDword::new(0x3F800000),
+                PlainFloat::new(16.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(1.0),
             ],
             _gap_76925e: PlainBytes::new([
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F,
             ]),
             kept_a: VectorSource {
-                factor: PlainDword::new(0x0),
+                factor: PlainFloat::new(0.0),
                 vector: [
-                    PlainDword::new(0x0),
-                    PlainDword::new(0x0),
-                    PlainDword::new(0x0),
+                    PlainFloat::new(0.0),
+                    PlainFloat::new(0.0),
+                    PlainFloat::new(0.0),
                 ],
                 scaled: [
                     PlainFloat::new(0.0),
@@ -140,11 +140,11 @@ impl KeptView {
                 PlainFloat::new(0.0),
             ],
             kept_b: VectorSource {
-                factor: PlainDword::new(0x3F800000),
+                factor: PlainFloat::new(1.0),
                 vector: [
-                    PlainDword::new(0x0),
-                    PlainDword::new(0x0),
-                    PlainDword::new(0x0),
+                    PlainFloat::new(0.0),
+                    PlainFloat::new(0.0),
+                    PlainFloat::new(0.0),
                 ],
                 scaled: [
                     PlainFloat::new(0.0),
@@ -153,11 +153,11 @@ impl KeptView {
                 ],
             },
             kept_c: VectorSource {
-                factor: PlainDword::new(0x3F800000),
+                factor: PlainFloat::new(1.0),
                 vector: [
-                    PlainDword::new(0x0),
-                    PlainDword::new(0x0),
-                    PlainDword::new(0x0),
+                    PlainFloat::new(0.0),
+                    PlainFloat::new(0.0),
+                    PlainFloat::new(0.0),
                 ],
                 scaled: [
                     PlainFloat::new(0.0),
@@ -174,7 +174,7 @@ impl KeptView {
                 PlainFloat::new(0.0),
                 PlainFloat::new(0.0),
             ],
-            length: PlainDword::new(0x3F800000),
+            length: PlainFloat::new(1.0),
             unit: [
                 PlainFloat::new(0.0),
                 PlainFloat::new(0.0),

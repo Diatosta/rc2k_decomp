@@ -45,7 +45,7 @@ pub fn draw_particle(
         v.x.set(sq[6 + n]);
         v.y.set(sq[2 + n]);
     }
-    effects_frame.draw_work.half[0].set_bits(sq[0].to_bits());
-    effects_frame.draw_work.half[1].set_bits(sq[0].to_bits());
+    effects_frame.draw_work.half[0].set(sq[0]);
+    effects_frame.draw_work.half[1].set(sq[0]);
     crate::effects::clip_quad::draw_fan();
 }

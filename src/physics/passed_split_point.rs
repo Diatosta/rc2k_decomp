@@ -17,10 +17,9 @@
 //! does. Refuses (before anything) a split past 0x40, a checkpoint past 0x1418, no faces or
 //! points.
 
+use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::math::x87_float::int;
-use crate::math::x87_float::ld;
-use crate::math::x87_float::st;
 use crate::math::x87_float::to_int;
 use crate::physics::car_store::Car;
 use crate::physics::ground_store::GroundWork;
@@ -51,9 +50,9 @@ fn distance(
     let dz = word(2).wrapping_sub(ground.ground_z.get() as i32);
     drawing.scene.scratch.set_bits(dz as u32);
     let second = int(drawing.scene.scratch.bits() as i32);
-    tables.split_point_distance.set_bits(st(
-        (first * first + second * second).sqrt() * ld(numbers.one_over_65536.bits())
-    ));
+    tables
+        .split_point_distance
+        .st((first * first + second * second).sqrt() * numbers.one_over_65536.ld());
 }
 
 /// 0x441770 .. 0x4417AD: the angle from `point` to the car, into `scratch`: the gaps
@@ -73,7 +72,7 @@ fn angle(
     let dz = (ground.ground_z.get() as i32).wrapping_sub(word(2));
     drawing.scene.scratch.set_bits(dz as u32);
     let x = int(drawing.scene.scratch.bits() as i32);
-    let turns = y.atan2_over_pi(x) * ld(numbers.half.bits()) * ld(numbers.k65536.bits());
+    let turns = y.atan2_over_pi(x) * numbers.half.ld() * numbers.k65536.ld();
     drawing.scene.scratch.set_bits(to_int(turns) as u32);
     drawing
         .scene
@@ -119,8 +118,10 @@ pub fn passed_split_point(
     c.physics.ground.ground_z.set(c.car.position[2].get());
     distance(c.tables, c.numbers, &c.physics.ground, pt, scene);
     let within = !matches!(
-        f32::from_bits(c.tables.split_point_distance.bits())
-            .partial_cmp(&f32::from_bits(c.tables.split_distance.bits())),
+        c.tables
+            .split_point_distance
+            .get()
+            .partial_cmp(&c.tables.split_distance.get()),
         Some(Ordering::Greater | Ordering::Equal)
     );
     if !within {

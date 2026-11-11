@@ -47,36 +47,82 @@ impl core::ops::Deref for InBuffers {
 
 pub static CHECKPOINTS: InBuffers = InBuffers;
 
-/// The cell `n` places after `first` (a table's first cell): the original indexes these
-/// tables by a checkpoint number it holds to the count, not to the table's room, and a reading
-/// past a field's end goes on into the next (as in the image).
-pub fn nth(first: &Dword, n: usize) -> &Dword {
-    crate::pointers::cell_or_end(
-        first.addr().wrapping_add((n as u32).wrapping_mul(4)),
-        "a cell past a checkpoint table",
-    )
+/// Cell `n` of the table `table` that is the field at byte `field` of `record`. The
+/// original indexes these tables by a number it holds to a count, not to the table's room,
+/// and a cell past a field's end is the next field's first (as in the image): the cell is
+/// found in `record` by its offset. A cell past the record ends the program.
+#[inline]
+pub fn cell_in<'a, T: crate::pointers::Cells>(
+    table: &'a [Dword],
+    record: &'a T,
+    field: usize,
+    n: usize,
+) -> &'a Dword {
+    table.get(n).unwrap_or_else(|| run_on(record, field, n))
 }
 
-/// Cell `n` of `table`, or past its end as `nth` (by address, into what follows).
-#[inline]
-pub fn cell_in(table: &[Dword], n: usize) -> &Dword {
-    table.get(n).unwrap_or_else(|| nth(&table[0], n))
+/// The dword `n` places on from byte `field` of `record`, across the fields after it.
+pub fn run_on<T: crate::pointers::Cells>(record: &T, field: usize, n: usize) -> &Dword {
+    use crate::pointers::CellRun;
+    let offset = field.wrapping_add(((n as u32).wrapping_mul(4)) as usize);
+    let cell = (offset < core::mem::size_of::<T>())
+        .then(|| record.cell_run(offset))
+        .and_then(|(start, run)| match run {
+            CellRun::Dword(cells) if (offset - start).is_multiple_of(4) => {
+                cells.get((offset - start) / 4)
+            }
+            _ => None,
+        });
+    cell.unwrap_or_else(|| {
+        crate::fatal::raise::end(
+            "a cell past a table",
+            crate::errors::BadInput("a cell past the tables of its record"),
+        )
+    })
+}
+
+/// Cell `n` of the field `$field` of the checkpoint tables (`cell_in`).
+macro_rules! checkpoint_cell {
+    ($field:ident, $skip:expr, $n:expr) => {{
+        use core::mem::offset_of;
+        cell_in(
+            &CHECKPOINTS.$field[$skip..],
+            &*CHECKPOINTS,
+            offset_of!(Checkpoints, $field) + 4 * $skip,
+            $n,
+        )
+    }};
 }
 
 /// Checkpoint `n`'s face cell (`g_checkpointFaces[n]`).
 pub fn face(n: usize) -> &'static Dword {
-    cell_in(&CHECKPOINTS.checkpoint_faces, n)
+    checkpoint_cell!(checkpoint_faces, 0, n)
 }
 
 /// Checkpoint `n`'s angle cell, as the readers index it: `Buffers.checkpoints.angles[2][n]`, 8 bytes into
 /// `g_checkpointAngles`.
 pub fn angle(n: usize) -> &'static Dword {
-    cell_in(&CHECKPOINTS.angles[2..], n)
+    checkpoint_cell!(angles, 2, n)
 }
 
 /// Checkpoint `n`'s distance cell (`g_checkpointDistances[n]`).
 pub fn distance(n: usize) -> &'static Dword {
-    cell_in(&CHECKPOINTS.distances, n)
+    checkpoint_cell!(distances, 0, n)
+}
+
+/// Checkpoint `n`'s map x (`g_mapX[n]`).
+pub fn map_x(n: usize) -> &'static Dword {
+    checkpoint_cell!(map_x, 0, n)
+}
+
+/// Checkpoint `n`'s map y (`g_mapY[n]`).
+pub fn map_y(n: usize) -> &'static Dword {
+    checkpoint_cell!(map_y, 0, n)
+}
+
+/// How many faces checkpoint `n`'s kind has (`g_checkCounts[n]`).
+pub fn check_count(n: usize) -> &'static Dword {
+    checkpoint_cell!(check_counts, 0, n)
 }
 
 /// IDA 0x9E3738, the first byte of the piece.
@@ -98,14 +144,21 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn a_cell_past_a_table_is_the_next_by_address() {
+    fn a_cell_past_a_table_is_the_next_fields_first() {
         let table = &CHECKPOINTS.distances;
-        let past = cell_in(table, table.len());
-        assert!(std::ptr::eq(past, nth(&table[0], table.len())));
         assert!(std::ptr::eq(
-            cell_in(table, 3),
-            std::ptr::from_ref(&table[3])
+            distance(table.len()),
+            &raw const CHECKPOINTS.map_x[0]
         ));
+        assert!(std::ptr::eq(
+            map_x(table.len() + 1),
+            &raw const CHECKPOINTS.map_y[1]
+        ));
+        assert!(std::ptr::eq(
+            check_count(5144),
+            &raw const CHECKPOINTS.angles[0]
+        ));
+        assert!(std::ptr::eq(distance(3), &raw const table[3]));
     }
 
     #[test]

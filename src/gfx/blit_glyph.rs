@@ -188,7 +188,10 @@ pub fn blit_glyph_on_surface(
     let record = glyph_record(&surface, table, glyph)?;
     let mut scratch = read_scratch(gfx);
     let target = surface.target.ok_or(NO_SURFACE)?;
-    let surface_window = crate::pointers::RegionCache::new();
+    let surface_window = match target {
+        Target::Locked(handle) => crate::gfx::locked_pixels::Place::start(handle),
+        Target::Picture(_) => crate::gfx::locked_pixels::Place::start(0),
+    };
     {
         blit_glyph(
             &record,
@@ -199,8 +202,8 @@ pub fn blit_glyph_on_surface(
             &clip(),
             &mut scratch,
             &mut |offset, bytes| match target {
-                Target::Address(a) => {
-                    surface_window.write_bytes_or_end(a.wrapping_add(offset), bytes, "the surface");
+                Target::Locked(_) => {
+                    surface_window.write_bytes_or_end_at(offset, bytes, "the surface");
                 }
                 Target::Picture(n) => {
                     if let Err(e) = crate::gfx::picture::write_bytes(n, offset as usize, bytes) {
