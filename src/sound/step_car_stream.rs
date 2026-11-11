@@ -24,13 +24,13 @@ pub fn step_car_stream(
     let menus = menus();
     // Converted: `rc2k_core::sound::race::stream_step`.
     use rc2k_core::sound::race::{StreamStep, stream_step};
-    let list: u32 = sound.race.car_stream.stream.get();
+    let list: u32 = sound.race.car_stream.get().stream.get();
     let failed = std::cell::Cell::new(None);
     let step = stream_step(
         menus.play.champ_view.event_mode.get(),
-        sound.race.car_stream.on.get(),
+        sound.race.car_stream.get().on.get(),
         playing,
-        sound.race.car_stream.place.get(),
+        sound.race.car_stream.get().place.get(),
         |place| {
             crate::menu::texts_store::speech_entry(list, place).unwrap_or_else(|e| {
                 failed.set(Some(e));
@@ -44,13 +44,13 @@ pub fn step_car_stream(
     let (place, part) = match step {
         StreamStep::Nothing => return Ok(()),
         StreamStep::Ended { place } => {
-            sound.race.car_stream.place.set(place);
-            sound.race.car_stream.on.set(0);
+            sound.race.car_stream.get().place.set(place);
+            sound.race.car_stream.get().on.set(0);
             return Ok(());
         }
         StreamStep::Start { place, part } => (place, part),
     };
-    sound.race.car_stream.place.set(place);
+    sound.race.car_stream.get().place.set(place);
     start(part, menus.screens.option_work.speech_level.get());
     Ok(())
 }

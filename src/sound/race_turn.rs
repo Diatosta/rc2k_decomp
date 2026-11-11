@@ -23,7 +23,7 @@ pub fn race_turn(
         // ended as `start` ends it.
         crate::standalone::leave_on_close();
     }
-    if sound.race.clock.started.get() != 1 {
+    if sound.race.clock.get().started.get() != 1 {
         return Ok(());
     }
     let _step = crate::write_watch::step("sound_turn");

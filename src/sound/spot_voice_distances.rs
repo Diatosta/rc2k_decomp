@@ -21,11 +21,11 @@ pub fn spot_voice_distances(
         if vw(bx, 4)? != 1 {
             continue;
         }
-        x87_1(bx, &sound.race.clock);
+        x87_1(bx, sound.race.clock.get());
         set(bx, 0x4C, 0)?;
         set(bx, 0x48, 0x3F80_0000)?;
         if vw(bx, 0x20)? != 1 {
-            x87_2(bx, &sound.race.clock, &sound.race.surface);
+            x87_2(bx, sound.race.clock.get(), sound.race.surface.get());
         }
         set(bx, 0x4C, 0x3F80_0000)?;
         if vw(bx, 0x40)? as i32 > 0x3F80_0000 {

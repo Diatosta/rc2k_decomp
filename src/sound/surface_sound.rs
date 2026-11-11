@@ -48,7 +48,10 @@ pub fn surface_sound(
     request.sound.set(sound);
     let (_, rate) = sample_settings(sound, OWN, OWN)?;
     request.pitch.set(from_int(rate as i32).to_bits());
-    x87_1(&crate::sound::owner::sound().race.surface, &request.volume);
+    x87_1(
+        crate::sound::owner::sound().race.surface.get(),
+        &request.volume,
+    );
     for (cell, place) in request.place.iter().zip(&o.place) {
         cell.set(place.bits());
     }

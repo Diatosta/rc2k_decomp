@@ -3,7 +3,7 @@
 //! stores. `sound()` is the boundary for the callers that do not take a group yet
 //! (`notes/memory_layer_plan.md`, step 11).
 
-use crate::session::Dword;
+use crate::session::{GameThread, PlainDword};
 use crate::sound::sets_store::{
     CueLists, MenuSounds, RaceSoundSets, SoundKinds, SpotVoices, SurfaceSets,
 };
@@ -14,59 +14,64 @@ use crate::sound::store::{
 
 /// The race's sounds: the objects, the clock, the surface and stage constants, the sets and
 /// kinds, the spot voices and the car stream.
+///
+/// `sounds` (the input thread's force-feedback effects read the objects and the player
+/// counts) and `sets` (the audio thread loads its lists) stay atomic; the rest is the game
+/// thread's.
 pub struct RaceSoundState {
     pub sounds: RaceSounds,
-    pub clock: RaceClock,
-    pub surface: SurfaceSounds,
-    pub stage: StageSounds,
-    pub spot_picks: SpotPicks,
+    pub clock: GameThread<RaceClock>,
+    pub surface: GameThread<SurfaceSounds>,
+    pub stage: GameThread<StageSounds>,
+    pub spot_picks: GameThread<SpotPicks>,
     pub sets: RaceSoundSets,
-    pub cue_lists: CueLists,
-    pub kinds: SoundKinds,
-    pub surface_sets: SurfaceSets,
-    pub spot_voices: SpotVoices,
-    pub car_stream: CarStream,
+    pub cue_lists: GameThread<CueLists>,
+    pub kinds: GameThread<SoundKinds>,
+    pub surface_sets: GameThread<SurfaceSets>,
+    pub spot_voices: GameThread<SpotVoices>,
+    pub car_stream: GameThread<CarStream>,
     /// `g_raceSoundsOn` (0x6218F0): 1 at start; the race's sounds switched.
-    pub sounds_on: Dword,
+    pub sounds_on: GameThread<PlainDword>,
 }
 
 impl RaceSoundState {
     pub const fn new() -> Self {
         RaceSoundState {
             sounds: RaceSounds::new(),
-            clock: RaceClock::new(),
-            surface: SurfaceSounds::new(),
-            stage: StageSounds::new(),
-            spot_picks: SpotPicks::new(),
+            clock: GameThread::new(RaceClock::new()),
+            surface: GameThread::new(SurfaceSounds::new()),
+            stage: GameThread::new(StageSounds::new()),
+            spot_picks: GameThread::new(SpotPicks::new()),
             sets: RaceSoundSets::new(),
-            cue_lists: CueLists::new(),
-            kinds: SoundKinds::new(),
-            surface_sets: SurfaceSets::new(),
-            spot_voices: SpotVoices::new(),
-            car_stream: CarStream::new(),
-            sounds_on: Dword::new(1),
+            cue_lists: GameThread::new(CueLists::new()),
+            kinds: GameThread::new(SoundKinds::new()),
+            surface_sets: GameThread::new(SurfaceSets::new()),
+            spot_voices: GameThread::new(SpotVoices::new()),
+            car_stream: GameThread::new(CarStream::new()),
+            sounds_on: GameThread::new(PlainDword::new(1)),
         }
     }
 }
 
-/// The menus' sounds and the kept sound settings.
+/// The menus' sounds and the kept sound settings. `menu_sounds` (the audio thread loads its
+/// list) and `options` (it reads the tune turn) stay atomic.
 pub struct MenuSoundState {
     pub menu_sounds: MenuSounds,
     /// `g_nextMenuSoundTime` (IDA 0x511B0C): the clock the next menu sound may be heard at.
-    pub next_sound_time: Dword,
+    pub next_sound_time: GameThread<PlainDword>,
     pub options: SoundOptions,
-    pub settings_applied: SettingsApplied,
-    pub cd_audio: CdAudio,
+    pub settings_applied: GameThread<SettingsApplied>,
+    pub cd_audio: GameThread<CdAudio>,
 }
 
 impl MenuSoundState {
     pub const fn new() -> Self {
         MenuSoundState {
             menu_sounds: MenuSounds::new(),
-            next_sound_time: Dword::new(0),
+            next_sound_time: GameThread::new(PlainDword::new(0)),
             options: SoundOptions::new(),
-            settings_applied: SettingsApplied::new(),
-            cd_audio: CdAudio::new(),
+            settings_applied: GameThread::new(SettingsApplied::new()),
+            cd_audio: GameThread::new(CdAudio::new()),
         }
     }
 }

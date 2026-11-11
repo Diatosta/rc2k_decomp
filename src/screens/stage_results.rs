@@ -6,7 +6,6 @@ use crate::menu::owner::Menus;
 use crate::menu::owner::Play;
 use crate::records::stages_store::{Holder, RecordRef, RecordTable};
 use crate::screens::game_screen::{Held, HeldText};
-use crate::session::PlainDword;
 use crate::system::owner::system;
 use crate::text::draw_text::Canvas;
 
@@ -39,17 +38,24 @@ fn times_table<'a>(
         n += 2;
     }
     let p = stages.result_table(n)?;
+    use crate::menu::champ_store::ChampView;
     use crate::saves::best_times as b;
-    let v = &play.champ_view;
+    use core::mem::offset_of;
     let (_, table) = [
-        (&v.stage_best_times, &b::STAGE_TIMES),
-        (&v.course_best_times, &b::COURSE_TIMES),
-        (&v.time_trial_best_times, &b::TIME_TRIAL_TIMES),
-        (&v.stage_best_times_alt, &b::STAGE_TIMES_ALT),
+        (offset_of!(ChampView, stage_best_times), &b::STAGE_TIMES),
+        (offset_of!(ChampView, course_best_times), &b::COURSE_TIMES),
+        (
+            offset_of!(ChampView, time_trial_best_times),
+            &b::TIME_TRIAL_TIMES,
+        ),
+        (
+            offset_of!(ChampView, stage_best_times_alt),
+            &b::STAGE_TIMES_ALT,
+        ),
     ]
     .into_iter()
-    // The entry names one of the variables by its address.
-    .find(|(var, _)| crate::pointers::GamePtr::to::<PlainDword>(var).addr() == p)
+    // The entry names one of the variables by its place in the view.
+    .find(|(at, _)| *at == p)
     .ok_or(BadInput(
         "a times table list entry that names no best times variable",
     ))?;
@@ -184,7 +190,7 @@ pub fn draw_stage_results(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), 
     let held = fastest.record()?.holder(holder);
     let fastest = Fastest {
         nation: held.nation,
-        name: HeldText::Place(fastest.text(holder.name_at())),
+        name: HeldText::Held(fastest.holder_text(holder)?),
         car: held.car,
         speed,
     };

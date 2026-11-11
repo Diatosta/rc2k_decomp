@@ -5,12 +5,12 @@
 use crate::errors::{BadInput, Refused};
 use crate::net::owner::net;
 use crate::race::owner::Race;
-use crate::session::{Dword, Float};
+use crate::session::{Dword, PlainDword, PlainFloat};
 use crate::sound::sets_store::SoundSet;
 
 /// `race::whole_to_float` (0x40D706): the dword at ebx made a float (`fild` / `fstp`) when it looks
 /// like a whole number (its top byte 0 or 0xFF). Leaves eax its top byte's mask (`and 0xFF000000`).
-pub fn whole_to_float(at: &Dword) -> u32 {
+pub fn whole_to_float(at: &PlainDword) -> u32 {
     // Converted: `rc2k_core::race::sound_tables::whole_to_float` (one rounding: the same
     // at every precision, so no exact twin).
     let (top, float) = rc2k_core::race::sound_tables::whole_to_float(at.get());
@@ -27,7 +27,7 @@ fn span_plain(second: u32, first: u32) -> u32 {
 /// `race::sound_span` (0x40D71B), converted: the two dwords `first` and `second` made floats,
 /// `span` (the dword after them) their difference (`fld` / `fsub` / `fstp`).
 // Converted: `rc2k_core::race::sound_tables::span`.
-pub fn sound_span(first: &Dword, second: &Dword, span: &Dword) {
+pub fn sound_span(first: &PlainDword, second: &PlainDword, span: &PlainDword) {
     whole_to_float(first);
     whole_to_float(second);
     span.set(span_plain(second.get(), first.get()));
@@ -46,9 +46,9 @@ pub fn sound_row(row: &SoundSet) {
 #[derive(Clone, Copy)]
 pub struct TableVars {
     /// SurfaceSounds.tables_done: 1 once done.
-    pub done: &'static Dword,
+    pub done: &'static PlainDword,
     /// SoundKinds.sines[0]: 0x40 floats.
-    pub sines: &'static [Float; 64],
+    pub sines: &'static [PlainFloat; 64],
     /// The kinds' records.
     pub kinds: &'static crate::sound::sets_store::SoundKinds,
     /// Machine.scratch: the scratch.
@@ -60,9 +60,9 @@ impl TableVars {
         let system = crate::system::owner::system();
         let sound = crate::sound::owner::sound();
         Self {
-            done: &sound.race.surface.tables_done,
-            sines: &sound.race.kinds.sines,
-            kinds: &sound.race.kinds,
+            done: &sound.race.surface.get().tables_done,
+            sines: &sound.race.kinds.get().sines,
+            kinds: sound.race.kinds.get(),
             scratch: &system.session.machine.scratch,
         }
     }
@@ -107,7 +107,7 @@ pub fn restart_race_sounds(sound: &crate::sound::owner::Sound) -> Result<(), Ref
     wait_for_commands();
     reset_race_sounds(&SoundVars::game(), sound)?;
     crate::sound::let_sounds_play::let_sounds_play();
-    sound.race.clock.started.set(1);
+    sound.race.clock.get().started.set(1);
     Ok(())
 }
 

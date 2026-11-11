@@ -8,7 +8,7 @@
 
 use crate::errors::Refused;
 use crate::math::x87_float::{X, ld, st};
-use crate::session::{Dword, Float};
+use crate::session::{Float, PlainDword, PlainFloat};
 use crate::sound::sets_store::{SoundRequest, SoundSet};
 use crate::sound::store::{SoundObject, SurfaceSounds};
 use rc2k_core::sound::engine::{computers, revs_sound_number, revs_stopped};
@@ -22,9 +22,9 @@ pub fn revs_sound(
 ) -> Result<(), Refused> {
     let object = so.sound_offset.get();
     let set = if computers(object) {
-        sound.race.kinds.computers_set()
+        sound.race.kinds.get().computers_set()
     } else {
-        &sound.race.kinds.record(kind)?.revs
+        &sound.race.kinds.get().record(kind)?.revs
     };
     request
         .sound
@@ -56,7 +56,14 @@ pub fn send_engine_sound(
     if revs_stopped(so.state.get()) {
         return crate::sound::turn_parts::stop(request);
     }
-    fill_request(so, set, volume_input, side, &sound.race.surface, request);
+    fill_request(
+        so,
+        set,
+        volume_input,
+        side,
+        sound.race.surface.get(),
+        request,
+    );
     crate::sound::turn_parts::placed(request)
 }
 
@@ -96,7 +103,7 @@ pub fn fill_pitch_and_volume(
     set: &SoundSet,
     pitch_input: &Float,
     volume_input: &Float,
-    gain: &Float,
+    gain: &PlainFloat,
     request: &SoundRequest,
 ) {
     request
@@ -112,7 +119,7 @@ pub fn fill_pitch_and_volume(
 }
 
 /// `input * slope + start`, left on the x87 stack unrounded.
-fn linear(input: &Float, slope: &Dword, start: &Dword) -> X {
+fn linear(input: &Float, slope: &PlainDword, start: &PlainDword) -> X {
     ld(input.bits()) * ld(slope.get()) + ld(start.get())
 }
 
@@ -170,7 +177,7 @@ mod asm_reference {
                         set,
                         &bx.revs_input,
                         EnginePlace::Ahead,
-                        &crate::sound::owner::sound().race.surface,
+                        crate::sound::owner::sound().race.surface.get(),
                         request,
                     );
                 },

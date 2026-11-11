@@ -70,7 +70,7 @@ pub fn burst_particles(
                 return Err(BadInput("a null ring entry").into());
             }
         }
-        crate::sound::owner::sound().race.stage.random[1].set(1);
+        crate::sound::owner::sound().race.stage.get().random[1].set(1);
         let s = next_seed(effects);
         let r = s & 0xFFFF;
         let m = effects.frame.draw_work.uv_k.bits();

@@ -14,7 +14,7 @@ pub fn set_up_race_sounds(
     let audio = audio();
     // Converted: `rc2k_core::sound::set_up::race`.
     use rc2k_core::sound::set_up::{RACE, race};
-    sound.menu.settings_applied.done.set(RACE);
+    sound.menu.settings_applied.get().done.set(RACE);
     for s in race(audio.state.race_sound_mode.get()) {
         run_step(s, sound)?;
     }

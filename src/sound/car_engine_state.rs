@@ -142,11 +142,11 @@ pub fn car_engine_state(
 ) -> Result<u32, Refused> {
     // Converted: `rc2k_core::sound::engine` (`extrapolation`, `readings`, `state`,
     // `over_256`); the floats are the original's x87 still.
-    let kind = kind_of(so, &sound.race.kinds)?;
-    let record = sound.race.kinds.record(kind)?;
+    let kind = kind_of(so, sound.race.kinds.get())?;
+    let record = sound.race.kinds.get().record(kind)?;
     let before = load(so);
     let mut object = before;
-    let clock = sound.race.clock.last.get();
+    let clock = sound.race.clock.get().last.get();
     // The revs extrapolated, worked out first: its `idiv` may trap.
     let change = extrapolation(&object, clock, || {
         race().shared.replay_file.hold_car_revs.get()
@@ -157,7 +157,7 @@ pub fn car_engine_state(
     revs_input(so, record);
     so.throttle_input
         .set_bits(over_256(from_int(so.throttle.get() as i32).to_bits()));
-    speed_input(so, &sound.race.surface);
+    speed_input(so, sound.race.surface.get());
     let before = load(so);
     let mut object = before;
     let low = state(&mut object, || record.flags.get(), clock);
@@ -165,9 +165,9 @@ pub fn car_engine_state(
     if let Some(low) = low {
         gear_pitch(so, low);
     }
-    distance_and_approach(so, &sound.race.clock);
+    distance_and_approach(so, sound.race.clock.get());
     so.volume_factor.set_bits(0);
-    ease_pitch_factor(so, &sound.race.clock, &sound.race.surface);
+    ease_pitch_factor(so, sound.race.clock.get(), sound.race.surface.get());
     so.volume_factor.set_bits(0x3F80_0000);
     if so.distance.bits() as i32 > 0x3F80_0000 {
         volume_factor_by_distance(so);

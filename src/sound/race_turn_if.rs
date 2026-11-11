@@ -10,7 +10,7 @@ pub fn race_turn_if(
     input: &crate::input::owner::Input,
 ) -> Result<bool, Refused> {
     let audio = crate::audio::owner::audio();
-    if sound.race.sounds_on.get() == 0 {
+    if sound.race.sounds_on.get().get() == 0 {
         return Ok(false);
     }
     crate::sound::race_turn::race_turn(sound, input, audio)?;

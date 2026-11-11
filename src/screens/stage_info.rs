@@ -53,7 +53,7 @@ pub fn draw_stage_best_and_fastest(
         let held = record.record()?.holder(RecordHolder::Fastest);
         let top = Holder {
             nation: held.nation,
-            name: HeldText::Place(record.text(RecordHolder::Fastest.name_at())),
+            name: HeldText::Held(record.holder_text(RecordHolder::Fastest)?),
             car: held.car,
             figure: held.speed,
         };

@@ -28,7 +28,7 @@ pub fn start_race_sounds(sound: &crate::sound::owner::Sound) -> Result<(), Refus
         }
     }
     crate::sound::let_sounds_play::let_sounds_play();
-    sound.race.clock.started.set(1);
+    sound.race.clock.get().started.set(1);
     Ok(())
 }
 

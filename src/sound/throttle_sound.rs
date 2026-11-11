@@ -22,7 +22,7 @@ pub fn throttle_sound(
     if computers(so.sound_offset.get()) {
         return Ok(());
     }
-    let set = &sound.race.kinds.record(kind)?.throttle;
+    let set = &sound.race.kinds.get().record(kind)?.throttle;
     request
         .sound
         .set(so.sound_offset.get().wrapping_add(set.sound.get()));
@@ -95,7 +95,7 @@ mod asm_reference {
                         set,
                         &bx.throttle_input,
                         EnginePlace::Behind,
-                        &crate::sound::owner::sound().race.surface,
+                        crate::sound::owner::sound().race.surface.get(),
                         request,
                     );
                 },

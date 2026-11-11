@@ -17,6 +17,7 @@ pub fn repeat_spot_voices(sound: &crate::sound::owner::Sound) -> Result<(), Refu
     let table_of = sound
         .race
         .spot_picks
+        .get()
         .kind_repeats
         .each_ref()
         .map(|r| Repeats {

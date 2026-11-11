@@ -29,8 +29,9 @@ pub struct InstallVars {
     pub clio_file: PlainBytes<20>,
     /// 0x529DCC: `byte_529DCC`: the installer's script for the Clio (`install::install_clio`).
     pub clio_script: PlainBytes<28>,
-    /// 0x529DE8: the texts of string ids 0x1000 .. 0x103F (`dword_525DE8[id]`, `strings::string_table::ptr_high`): the IDA address of each, a name.
-    pub text_pointers: [PlainDword; 64],
+    /// 0x529DE8: the original's 64 pointers to the texts of string ids 0x1000 .. 0x103F; the texts
+    /// are found by `strings::string_table::made_text`, so the bytes are not kept.
+    pub _gap_529de8: PlainBytes<256>,
     /// 0x529EE8: The credits' first texts (`aUmlaut`, `aCraigGriffiths`).
     pub credits_a: PlainBytes<27>,
     /// 0x529F03: `aRenaultClioSpo`: "renault clio sport V6 (A7)" (`install::check_clio_disc` rewrites it).
@@ -50,7 +51,7 @@ impl InstallVars {
     has_clio: PlainDword::new(0),
     clio_file: PlainBytes::new(with_runs::<20>(&[(0, b"files\\b\\obj0570.ro3")])),
     clio_script: PlainBytes::new(with_runs::<28>(&[(0, b"\x03ral.exe\x03*.txt\x03*.pdf\x04files\x05")])),
-    text_pointers: [PlainDword::new(0x52A263), PlainDword::new(0x52A2B1), PlainDword::new(0x52A2E7), PlainDword::new(0xA8BD54), PlainDword::new(0xA8BE54), PlainDword::new(0xA8BF54), PlainDword::new(0xA8C054), PlainDword::new(0xA8C158), PlainDword::new(0xA8C15C), PlainDword::new(0xA8C160), PlainDword::new(0xA8C164), PlainDword::new(0xA8C168), PlainDword::new(0xA8C16C), PlainDword::new(0xA8C170), PlainDword::new(0xA8C174), PlainDword::new(0xA8C178), PlainDword::new(0xA8C17C), PlainDword::new(0x52A30F), PlainDword::new(0x52A31F), PlainDword::new(0x52A32F), PlainDword::new(0x52A33F), PlainDword::new(0x52A34F), PlainDword::new(0x52A35F), PlainDword::new(0x52A36F), PlainDword::new(0x52A37F), PlainDword::new(0x52A38F), PlainDword::new(0x52A39F), PlainDword::new(0x52A3AF), PlainDword::new(0x52A3BF), PlainDword::new(0x52A3CF), PlainDword::new(0x52A3DF), PlainDword::new(0x52A3EF), PlainDword::new(0x52A3FF), PlainDword::new(0x52A40F), PlainDword::new(0x52A41F), PlainDword::new(0x52A42F), PlainDword::new(0x52A43F), PlainDword::new(0x52A44F), PlainDword::new(0x52A45F), PlainDword::new(0x52A46F), PlainDword::new(0x52A47F), PlainDword::new(0x52A48F), PlainDword::new(0x52A49F), PlainDword::new(0x51BEEE), PlainDword::new(0x51BF6E), PlainDword::new(0x51BFEE), PlainDword::new(0x51C06E), PlainDword::new(0x51C0EE), PlainDword::new(0x51C16E), PlainDword::new(0x51C1EE), PlainDword::new(0x51C26E), PlainDword::new(0x51C2EE), PlainDword::new(0x529EE8), PlainDword::new(0x529EEA), PlainDword::new(0x529EF1), PlainDword::new(0x529EF3), PlainDword::new(0x529F03), PlainDword::new(0x529F25), PlainDword::new(0x52A0B7), PlainDword::new(0x529F1E), PlainDword::new(0x529F46), PlainDword::new(0x52A0E3), PlainDword::new(0x529F51), PlainDword::new(0x52A0F4)],
+    _gap_529de8: PlainBytes::new([0; 256]),
     credits_a: PlainBytes::new(with_runs::<27>(&[(0, b"\xe5\x00umlaut\x00\xa7\x00Craig Griffiths")])),
     clio_car_name: PlainBytes::new(with_runs::<27>(&[(0, b"renault clio sport V6 (A7)")])),
     credits_b: PlainBytes::new(with_runs::<837>(&[(0, b"11.2:1\x00solution F tuned V6\x0aRS 24 valves\x00rear wheel\x00\xb7 Renault Sport developed chassis and\x0a  engine rekindles the spirit of the\x0a  legendary mid-engined Renault 5 turbo\x0a\x0a\xb7 mid-engine layout for optimal weight\x0a  distribution and dynamic performance\x0a\x0a\xb7 the 3 litre V6 24V engine delivers\x0a  over 280bhp in race trim\x0a\x0a\xb7 developed for a one-make racing\x0a  series with a limited production\x0a  run of road-going models\x0a\x0a\x00V6 24 soupapes\x0a\x09de\x02v\x02eloppe par sol\x01ution F\x00traction arri\xe8re\x00\xb7 les ch\xe2ssis et moteur d\xe9velopp\xe9s par\x0a  Renault Sport reprennent l'esprit du\x0a  l\xe9gendaire moteur central de la\x0a  Renault 5 turbo\x0a\x0a\xb7 support moteur central pour une\x0a  parfaite r\xe9partition du poids et des\x0a  performances optimales\x0a\x0a\xb7 le moteur 3 litres, V6 24 soupapes\x0a  produit plus de 280 ch. en course\x0a\x0a\xb7 d\xe9velopp\xe9e pour des courses\x0a  exclusives et en serie limit\xe9e")])),
@@ -169,7 +170,14 @@ mod tests {
     /// The static's bytes (after `lead`) are the image's, its size the range's (with the
     /// tail padding up to the struct's alignment: each range ends at a string's end, so no
     /// read runs on into the next).
-    fn check(p: *const u8, size: usize, lead: usize, start: usize, len: usize) {
+    fn check(
+        p: *const u8,
+        size: usize,
+        lead: usize,
+        start: usize,
+        len: usize,
+        skip: core::ops::Range<usize>,
+    ) {
         let end = lead + len;
         assert!(
             end <= size && size <= end.next_multiple_of(4),
@@ -177,6 +185,9 @@ mod tests {
         );
         let image = crate::moved::image_bytes(start, len);
         for (i, &b) in image.iter().enumerate() {
+            if skip.contains(&(start + i)) {
+                continue;
+            }
             let ours = unsafe { p.add(lead + i).read() };
             assert_eq!(ours, b, "differs first at {:#x}", start + i);
         }
@@ -190,6 +201,8 @@ mod tests {
             1,
             InstallVars::START,
             InstallVars::LEN,
+            // The original's pointers to the made texts (zeros here).
+            0x529DE8..0x529EE8,
         );
         assert_eq!(
             offset_of!(InstallVars, running_from_cd),
@@ -208,7 +221,7 @@ mod tests {
             1 + 0x529DCC - InstallVars::START
         );
         assert_eq!(
-            offset_of!(InstallVars, text_pointers),
+            offset_of!(InstallVars, _gap_529de8),
             1 + 0x529DE8 - InstallVars::START
         );
         assert_eq!(
@@ -229,6 +242,7 @@ mod tests {
             0,
             DriveRows::START,
             DriveRows::LEN,
+            0..0,
         );
         assert_eq!(
             offset_of!(DriveRows, drive_rows),

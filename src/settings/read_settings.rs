@@ -138,7 +138,7 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"nocdaudio",
         0x518104,
-        dword!(crate::sound::owner::sound().menu.cd_audio.no_cd_audio),
+        dword!(crate::sound::owner::sound().menu.cd_audio.get().no_cd_audio),
     ),
     (
         b"nomusic",

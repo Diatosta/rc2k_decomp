@@ -5,9 +5,8 @@
 //! Part of the original lives in a separate chunk at 0x402010.
 
 use crate::errors::BadInput;
-use crate::pointers::GamePtr;
 use crate::strings::expand_entry::expand_entry;
-use crate::strings::string_table::{ptr_high, ptr_low};
+use crate::strings::string_table::{driver_name_slot, made_text};
 use rc2k_core::strings::bytes::Bytes;
 use rc2k_core::strings::table::Source;
 
@@ -15,11 +14,13 @@ use rc2k_core::strings::table::Source;
 pub fn append_string_by_id(id: u32, emit: &mut impl FnMut(&[u8])) -> Result<u32, BadInput> {
     // Converted: `rc2k_core::strings::table::Source`.
     let fault = crate::menu::event_flow::Fault::default();
-    let source = Source::of(id, || fault.ok(ptr_low(id)) != 0);
+    let source = Source::of(id, || fault.ok(driver_name_slot(id)) != 0);
     fault.check()?;
     let direct = match source {
-        Source::Made => Some(GamePtr::new(ptr_high(id)?)),
-        Source::Pointer => Some(crate::settings::read_driver_names::name_at(ptr_low(id)?)),
+        Source::Made => Some(made_text(id)?),
+        Source::Pointer => Some(crate::settings::read_driver_names::name_at(
+            driver_name_slot(id)?,
+        )),
         Source::Table => None,
     };
     match direct {

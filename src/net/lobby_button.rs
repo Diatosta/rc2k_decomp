@@ -18,5 +18,5 @@ pub fn lobby_button(net: &Net, string: u32, item: u32, x: u32, y: u32) -> Result
     // Converted: `rc2k_core::net::screens` (`lobby_button_flags`, `next_button_x`).
     let flags = screens::lobby_button_flags(net.vars.own.state(), item, net.vars.after_race.get());
     draw_button(net, string, flags, x, y, item)?;
-    Ok(screens::next_button_x(x, net.button.width.get()))
+    Ok(screens::next_button_x(x, net.button.get().width.get()))
 }

@@ -25,7 +25,7 @@ pub fn speed_sound(
     if computers(so.sound_offset.get()) {
         return Ok(());
     }
-    let set = &owner.race.kinds.record(kind)?.speed;
+    let set = &owner.race.kinds.get().record(kind)?.speed;
     let sound = so.sound_offset.get().wrapping_add(set.sound.get());
     request.sound.set(sound);
     if speed_stopped(
@@ -41,7 +41,7 @@ pub fn speed_sound(
         set,
         &so.speed_input,
         &so.speed_input,
-        &owner.race.surface.speed_gain,
+        &owner.race.surface.get().speed_gain,
         request,
     );
     for (cell, place) in request.place.iter().zip(&so.place) {
@@ -86,7 +86,7 @@ mod asm_reference {
                     let set = view::<SoundSet>(a[1], 0);
                     bx.view_flag.set(1);
                     let request = view::<SoundRequest>(a[2], 0);
-                    let gain = &&crate::sound::owner::sound().race.surface.speed_gain;
+                    let gain = &&crate::sound::owner::sound().race.surface.get().speed_gain;
                     fill_pitch_and_volume(bx, set, &bx.speed_input, &bx.speed_input, gain, request);
                 },
             },

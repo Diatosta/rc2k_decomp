@@ -14,6 +14,7 @@
 //! lists after it, as the original; past the last, or onto a -1, it is refused.
 
 use crate::errors::BadInput;
+use crate::screens::game_screen::Held;
 use crate::session::{Bytes, Loose};
 use crate::system::owner::system;
 
@@ -1423,8 +1424,8 @@ impl StageTables {
 /// The event table a name of this piece (an IDA address) is the first row of; refused for
 /// a name that starts no table.
 fn event_table_named(tables: &StageTables, name: u32) -> Result<RecordTable, BadInput> {
-    let at = tables.place_of(name, "a stage list's entry off the stage tables")?;
-    match RecordRef::at(at)? {
+    let at = tables.offset_of_name(name, "a stage list's entry off the stage tables")?;
+    match RecordRef::at_offset(at)? {
         RecordRef { table, index: 0 } => Ok(table),
         _ => Err(BadInput("a stage list's entry that starts no table")),
     }
@@ -1474,8 +1475,9 @@ impl StageTables {
     }
 
     /// `off_7354FE[n]`: the variable that holds best-times table `n` (the list's four,
-    /// `menu::champ_store::ChampView`'s), its real address; refused for a place past the four.
-    pub fn result_table(&self, n: u32) -> Result<u32, BadInput> {
+    /// `menu::champ_store::ChampView`'s), as its byte offset in the view; refused for a place
+    /// past the four.
+    pub fn result_table(&self, n: u32) -> Result<usize, BadInput> {
         let entry = self
             .result_tables
             .get(n as usize)
@@ -1488,27 +1490,24 @@ impl StageTables {
                 "a results table's variable off the championship's",
             ));
         }
-        let view = crate::pointers::GamePtr::to(&crate::menu::owner::menus().play.champ_view);
-        Ok(view.addr() + (name - champ::START) as u32)
+        Ok(name - champ::START)
     }
 
     /// Where the name `name` (an address in the game's layout of these tables) is in these
-    /// tables; `what` is the refusal for a name off them. The tables begin 2 bytes into the
-    /// struct (the game's layout is not aligned).
-    fn place_of(&self, name: u32, what: &'static str) -> Result<u32, BadInput> {
+    /// tables, as a byte offset from the struct's start; `what` is the refusal for a name off
+    /// them. The tables begin 2 bytes into the struct (the game's layout is not aligned).
+    fn offset_of_name(&self, name: u32, what: &'static str) -> Result<usize, BadInput> {
         let name = name as usize;
         if !(START..END).contains(&name) {
             return Err(BadInput(what));
         }
-        Ok(crate::pointers::GamePtr::to(self).addr() + 2 + (name - START) as u32)
+        Ok(2 + (name - START))
     }
 
-    /// The text at `off` in `row` of these tables (a record number past a table runs on
-    /// into the next): a pointer bounded by these tables, so a read off them is refused.
-    pub fn record_text<T>(&self, row: &T, off: u32) -> crate::pointers::GamePtr {
-        let within =
-            (std::ptr::from_ref(row) as usize).wrapping_sub(std::ptr::from_ref(self) as usize);
-        crate::pointers::GamePtr::to(self).offset((within as u32).wrapping_add(off))
+    #[cfg(test)]
+    fn place_of(&self, name: u32, what: &'static str) -> Result<u32, BadInput> {
+        let offset = self.offset_of_name(name, what)?;
+        Ok(crate::pointers::GamePtr::to(self).addr() + offset as u32)
     }
 
     /// The championship's records (`g_recordTable`).
@@ -1565,7 +1564,8 @@ impl RecordTable {
         }
     }
 
-    /// Its first row's game address (for the code that still works by address).
+    /// Its first row's game address.
+    #[cfg(test)]
     pub fn addr(self) -> u32 {
         crate::pointers::game_address(self.rows().as_ptr())
     }
@@ -1605,16 +1605,21 @@ impl RecordRef {
             .ok_or(BadInput("a table's end mark read as a record"))
     }
 
-    /// The place of its byte `off` (the fastest's name at +0x54; the bests' writes).
-    pub fn text(self, off: u32) -> crate::pointers::GamePtr {
-        let system = system();
-        match self.table.rows().get(self.index) {
-            Some(row) => system.records.stage_tables.record_text(row, off),
-            None => system
-                .records
-                .stage_tables
-                .record_text(self.table.end(), off),
-        }
+    /// Holder `h`'s name up to its NUL. A name that fills its bytes runs on into the words
+    /// after it, then into the next rows; refused without a NUL before the table's end mark
+    /// (or in more than a `Held` has room for).
+    pub fn holder_text(self, h: Holder) -> Result<Held, BadInput> {
+        let bytes = self.table.bytes();
+        let from = self.index * RECORD_LEN as usize + h.name_at() as usize;
+        let text = bytes
+            .get(from..)
+            .and_then(|rest| {
+                rest.split(|&b| b == 0)
+                    .next()
+                    .filter(|t| t.len() < rest.len())
+            })
+            .ok_or(BadInput("a record holder's name without its end"))?;
+        Held::new(text).ok_or(BadInput("a record holder's name past its room"))
     }
 
     /// Its tag (the end mark's: -1).
@@ -1630,21 +1635,35 @@ impl RecordRef {
         }
     }
 
-    /// The row (or end mark) at game address `at`; refused for an address that is neither.
-    pub fn at(at: u32) -> Result<Self, BadInput> {
-        std::iter::once(RecordTable::Championship)
-            .chain((0..system().records.stage_tables.events.len()).map(RecordTable::Event))
-            .find_map(|table| {
-                let d = at.checked_sub(table.addr())?;
-                let n = d / RECORD_LEN;
-                (d.is_multiple_of(RECORD_LEN) && n as usize <= table.rows().len()).then_some(
-                    RecordRef {
-                        table,
-                        index: n as usize,
-                    },
-                )
+    /// The row (or end mark) at byte `offset` of the stage tables; refused for an offset that
+    /// is neither.
+    fn at_offset(offset: usize) -> Result<Self, BadInput> {
+        use core::mem::offset_of;
+        let mut tables = std::iter::once((
+            RecordTable::Championship,
+            offset_of!(StageTables, championship),
+        ))
+        .chain((0..system().records.stage_tables.events.len()).map(|k| {
+            (
+                RecordTable::Event(k),
+                offset_of!(StageTables, events) + k * size_of::<EventRecords>(),
+            )
+        }));
+        tables
+            .find_map(|(table, first)| {
+                let d = offset.checked_sub(first)?;
+                let n = d / RECORD_LEN as usize;
+                (d.is_multiple_of(RECORD_LEN as usize) && n <= table.rows().len())
+                    .then_some(RecordRef { table, index: n })
             })
             .ok_or(BadInput("an address that is no record of a table"))
+    }
+
+    /// The row (or end mark) at game address `at`.
+    #[cfg(test)]
+    pub fn at(at: u32) -> Result<Self, BadInput> {
+        let start = crate::pointers::game_address(&raw const system().records.stage_tables);
+        Self::at_offset(at.wrapping_sub(start) as usize)
     }
 
     /// The record `n` rows on (wrapping as the original's sum); refused past the table's end
@@ -1740,8 +1759,7 @@ mod tests {
             let name = word(0x7354FE + 4 * n);
             assert_eq!(
                 t.result_table(n as u32),
-                Ok(crate::menu::champ_store::champ_view_addr()
-                    + (name - crate::menu::champ_store::START) as u32)
+                Ok(name - crate::menu::champ_store::START)
             );
         }
         assert!(t.result_table(4).is_err());
@@ -1826,7 +1844,10 @@ mod place_tests {
                     )
                 });
             match (old, tables.result_table(n)) {
-                (Some(Ok(old)), Ok(new)) => assert_eq!(old, new, "result {n}"),
+                (Some(Ok(old)), Ok(new)) => {
+                    let view = crate::menu::champ_store::champ_view_addr();
+                    assert_eq!(old, view + new as u32, "result {n}");
+                }
                 (Some(Err(_)) | None, Err(_)) => {}
                 (old, new) => panic!("result {n}: {old:?} against {new:?}"),
             }

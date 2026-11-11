@@ -37,7 +37,7 @@ pub fn stage_sounds(
 ) -> Result<(), Refused> {
     use crate::sound::turn_parts::play;
     let request = crate::sound::turn_parts::request();
-    let stage = &sound.race.stage;
+    let stage = sound.race.stage.get();
     request.pitch_factor.set(ONE);
     request.volume_factor.set(ONE);
     for (n, sound) in ONE_OFFS {
@@ -47,7 +47,7 @@ pub fn stage_sounds(
         }
     }
     // Converted: `rc2k_core::sound::stage::wait_turn`.
-    let clock = sound.race.clock.last.get();
+    let clock = sound.race.clock.get().last.get();
     let mut wait = rc2k_core::sound::stage::Wait {
         arm: stage.timed_arm.get(),
         delay: stage.timed_delay.get(),

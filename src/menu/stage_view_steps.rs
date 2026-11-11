@@ -91,9 +91,9 @@ pub fn play_stage_speech(menus: &Menus, sound: &crate::sound::owner::Sound) -> R
             return Err(e.into());
         }
         let at = at?;
-        sound.race.car_stream.on.set(1);
-        sound.race.car_stream.stream.set(at);
-        sound.race.car_stream.place.set(0);
+        sound.race.car_stream.get().on.set(1);
+        sound.race.car_stream.get().stream.set(at);
+        sound.race.car_stream.get().place.set(0);
         crate::sound::start_stream::start_stream(
             crate::menu::texts_store::speech_entry(at, 0)?,
             menus.screens.option_work.speech_level.get(),

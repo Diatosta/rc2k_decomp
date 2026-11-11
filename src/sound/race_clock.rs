@@ -23,7 +23,7 @@ fn store(clock: &RaceClock, c: &rc2k_core::sound::clock::RaceClock) {
 
 /// `sound::start_race_clock` (0x40F1E9). Converted: `rc2k_core::sound::clock`.
 pub fn start_race_clock(now: u32, sound: &crate::sound::owner::Sound) {
-    let clock = &sound.race.clock;
+    let clock = sound.race.clock.get();
     let mut c = load(clock);
     c.start(now);
     store(clock, &c);
@@ -33,7 +33,7 @@ pub fn start_race_clock(now: u32, sound: &crate::sound::owner::Sound) {
 /// turn, which then becomes this one. Converted: `rc2k_core::sound::clock`; nothing is
 /// stored when no turn is due.
 pub fn step_race_clock(now: u32, sound: &crate::sound::owner::Sound) -> bool {
-    let clock = &sound.race.clock;
+    let clock = sound.race.clock.get();
     let mut c = load(clock);
     let due = c.step(now);
     if due {

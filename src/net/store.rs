@@ -15,7 +15,7 @@
 //!
 //! The receiving thread shares these: plain loads and stores (`Relaxed`), as the original's.
 
-use crate::session::{Byte, Bytes, Dword, Word, with_runs};
+use crate::session::{Byte, Bytes, Dword, PlainDword, Word, with_runs};
 
 const fn zeros<const N: usize>() -> [Dword; N] {
     [const { Dword::new(0) }; N]
@@ -581,31 +581,31 @@ impl NetVars {
 #[derive(rc2k_derive::Cells)]
 pub struct Button {
     /// 0x5AB490: `dword_5AB490`: `net::draw_button`'s string.
-    pub text: Dword,
+    pub text: PlainDword,
     /// 0x5AB494: `dword_5AB494`: its flags.
-    pub flags: Dword,
+    pub flags: PlainDword,
     /// 0x5AB498: `x`: its x.
-    pub x: Dword,
+    pub x: PlainDword,
     /// 0x5AB49C: `y`: its y.
-    pub y: Dword,
+    pub y: PlainDword,
     /// 0x5AB4A0: `dword_5AB4A0`: its width.
-    pub width: Dword,
+    pub width: PlainDword,
     /// 0x5AB4A4: `dword_5AB4A4`: its frame's tiles.
-    pub tiles: Dword,
+    pub tiles: PlainDword,
     /// 0x5AB4A8: `dword_5AB4A8`: its item.
-    pub item: Dword,
+    pub item: PlainDword,
 }
 
 impl Button {
     pub const fn new() -> Self {
         Button {
-            text: Dword::new(0),
-            flags: Dword::new(0),
-            x: Dword::new(0),
-            y: Dword::new(0),
-            width: Dword::new(0),
-            tiles: Dword::new(0),
-            item: Dword::new(0),
+            text: PlainDword::new(0),
+            flags: PlainDword::new(0),
+            x: PlainDword::new(0),
+            y: PlainDword::new(0),
+            width: PlainDword::new(0),
+            tiles: PlainDword::new(0),
+            item: PlainDword::new(0),
         }
     }
 }
@@ -783,7 +783,7 @@ mod tests {
             0x5AB400 - NetVars::START
         );
         check(
-            (&raw const crate::net::owner::NET_OWNER.button).cast::<u8>(),
+            (&raw const *crate::net::owner::NET_OWNER.button.unchecked()).cast::<u8>(),
             size_of::<Button>(),
             0,
             Button::START,

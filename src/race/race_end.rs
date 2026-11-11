@@ -106,8 +106,9 @@ fn reset_object(o: &crate::sound::store::SoundObject) {
 }
 /// The race sound stage's flags (the run of dwords in the stage block): all set to 0.
 fn clear_stage_flags(sound: &crate::sound::owner::Sound) {
-    let s = &sound.race.stage;
-    for flag in [
+    use crate::session::DwordLike;
+    let s = sound.race.stage.get();
+    let flags: [&dyn DwordLike; 11] = [
         &s.once[0],
         &s.once[1],
         &s.once[2],
@@ -119,7 +120,8 @@ fn clear_stage_flags(sound: &crate::sound::owner::Sound) {
         &s.loop_volume_b,
         &s.random[0],
         &s.random[1],
-    ] {
+    ];
+    for flag in flags {
         flag.set(0);
     }
 }
@@ -154,23 +156,23 @@ pub fn reset_race_sounds(v: &SoundVars, sound: &crate::sound::owner::Sound) -> R
         voice[0].set(0x1888_FFFF);
         voice[5].set(0xFFFF_FFFE);
     }
-    sound.race.stage.shared_count.set(0);
+    sound.race.stage.get().shared_count.set(0);
     crate::audio::store::ENVIRONMENT.set(0x3F80_0000u32);
     command(Command::Room(3));
-    sound.race.clock.started.set(0);
+    sound.race.clock.get().started.set(0);
     Ok(())
 }
 
 /// Where `reset_race_sounds` finds the voices (the game's,
 /// or a test's: the audio thread reads the game's).
 pub struct SoundVars {
-    pub voices: &'static [[crate::session::Dword; 20]; 72],
+    pub voices: &'static [[crate::session::PlainDword; 20]; 72],
 }
 
 impl SoundVars {
     pub fn game() -> Self {
         Self {
-            voices: &crate::sound::owner::sound().race.spot_voices.voices,
+            voices: &crate::sound::owner::sound().race.spot_voices.get().voices,
         }
     }
 }

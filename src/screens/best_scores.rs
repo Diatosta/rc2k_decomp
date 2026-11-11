@@ -477,7 +477,7 @@ pub fn draw_record_times(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), R
     rc2k_core::screens::best_scores::fastest(
         &mut ScoresScreen::new(canvas),
         nation,
-        HeldText::Place(record.text(Holder::Fastest.name_at())),
+        HeldText::Held(record.holder_text(Holder::Fastest)?),
         car,
         &speed,
     )

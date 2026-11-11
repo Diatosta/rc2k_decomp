@@ -60,32 +60,36 @@ pub fn draw_button(
 ) -> Result<(), Refused> {
     let install = crate::install::owner::install();
     use crate::text::draw_text::GameCanvas;
-    net.button.text.set(string);
-    net.button.flags.set(flags);
-    net.button.x.set(x);
-    net.button.y.set(y);
-    net.button.item.set(item);
+    net.button.get().text.set(string);
+    net.button.get().flags.set(flags);
+    net.button.get().x.set(x);
+    net.button.get().y.set(y);
+    net.button.get().item.set(item);
     let measured = crate::text::measure_string_by_id::measure_string_by_id_at(
         string,
         PALETTE,
         x as i32,
         &mut GameCanvas,
     )?;
-    net.button.width.set(measured.width);
+    net.button.get().width.set(measured.width);
     // Converted: `rc2k_core::net::screens` (`button`, `item_lit`, `button_font`).
-    let place = screens::button(net.button.width.get(), net.button.x.get(), flags);
-    net.button.tiles.set(place.tiles);
+    let place = screens::button(
+        net.button.get().width.get(),
+        net.button.get().x.get(),
+        flags,
+    );
+    net.button.get().tiles.set(place.tiles);
     if flags & screens::CENTRED != 0 {
-        net.button.x.set(place.text_x);
+        net.button.get().x.set(place.text_x);
     }
     let blit = |glyph: u32, at: u32| -> Result<(), Refused> {
-        crate::net::lobby::blit(glyph, at, net.button.y.get())
+        crate::net::lobby::blit(glyph, at, net.button.get().y.get())
     };
     let mut left = place.left;
     blit(screens::LEFT_END, left)?;
     left = left.wrapping_add(screens::END_WIDTH);
     let kept = left;
-    let mut tiles = net.button.tiles.get();
+    let mut tiles = net.button.get().tiles.get();
     loop {
         blit(screens::TILE, left)?;
         left = left.wrapping_add(screens::TILE_WIDTH);
@@ -96,7 +100,7 @@ pub fn draw_button(
     }
     blit(
         screens::RIGHT_END,
-        kept.wrapping_add(net.button.width.get()),
+        kept.wrapping_add(net.button.get().width.get()),
     )?;
     let lit = screens::item_lit(
         item,
@@ -115,10 +119,10 @@ pub fn draw_button(
         ButtonFont::Dim => FONT_DIM,
     };
     crate::text::draw_string_by_id::draw_string_by_id_at(
-        net.button.text.get(),
+        net.button.get().text.get(),
         font,
-        net.button.x.get() as i32,
-        net.button.y.get() as i32,
+        net.button.get().x.get() as i32,
+        net.button.get().y.get() as i32,
         &mut GameCanvas,
     )?;
     Ok(())

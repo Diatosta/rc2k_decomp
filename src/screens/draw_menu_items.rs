@@ -30,6 +30,7 @@
 //! One caller, `menu::draw_menu`. Refuses a menu without an end in its first 256 items.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::item_sprites_store::ItemSprite;
 use crate::menu::owner::Menus;
 use crate::system::owner::system;
 use crate::text::draw_text::Canvas;
@@ -74,7 +75,10 @@ pub fn draw_menu_items(
             font: MenuFont::Object(i.font.get()),
             pulse_font: MenuFont::Object(i.highlight_font.get()),
             behind: i.behind.get(),
-            sprite: i.sprites.get().raw(),
+            sprite: match i.sprites.get() {
+                ItemSprite::Sprite(n) => rc2k_core::screens::menus::ItemSprite::Number(n),
+                ItemSprite::List(n) => rc2k_core::screens::menus::ItemSprite::List(n),
+            },
             spaced: i.fixed().spaced == 1,
         })
         .collect();

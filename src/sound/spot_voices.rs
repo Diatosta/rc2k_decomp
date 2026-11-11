@@ -11,7 +11,7 @@
 //! pitch and volume factors.
 
 use crate::errors::BadInput;
-use crate::session::Dword;
+use crate::session::PlainDword;
 use crate::system::owner::system;
 
 pub const VOICE_LEN: u32 = 0x50;
@@ -20,20 +20,20 @@ pub const MOST_SPOTS: u32 = 36;
 pub const MOST_KIND: u32 = 0x15;
 
 /// A voice's twenty dwords.
-pub type VoiceWords = [Dword; 20];
+pub type VoiceWords = [PlainDword; 20];
 
 /// Voice `n` (under `VOICE_COUNT`).
 pub fn voice(n: u32, sound: &crate::sound::owner::Sound) -> &VoiceWords {
-    &sound.race.spot_voices.voices[n as usize]
+    &sound.race.spot_voices.get().voices[n as usize]
 }
 
 /// The address of voice `n` (the pickers' work holds addresses).
 fn voice_address(n: u32, sound: &crate::sound::owner::Sound) -> u32 {
-    crate::session::address_of(&sound.race.spot_voices.voices) + n * VOICE_LEN
+    crate::session::address_of(&sound.race.spot_voices.get().voices) + n * VOICE_LEN
 }
 
 /// The dword at byte `at` of voice `v`.
-fn word(v: &VoiceWords, at: u32) -> Result<&Dword, BadInput> {
+fn word(v: &VoiceWords, at: u32) -> Result<&PlainDword, BadInput> {
     if !at.is_multiple_of(4) {
         return Err(BadInput("a spot voice's dword out of line"));
     }
@@ -43,7 +43,7 @@ fn word(v: &VoiceWords, at: u32) -> Result<&Dword, BadInput> {
 
 /// The dword at byte `at` of voice `v`.
 pub fn vw(v: &VoiceWords, at: u32) -> Result<u32, BadInput> {
-    word(v, at).map(Dword::get)
+    word(v, at).map(PlainDword::get)
 }
 
 /// The dword at byte `at` of voice `v` set to `value`.
@@ -55,8 +55,9 @@ pub fn set(v: &VoiceWords, at: u32, value: u32) -> Result<(), BadInput> {
 pub fn load_voices(
     sound: &crate::sound::owner::Sound,
 ) -> [rc2k_core::sound::spot_voices::Voice; VOICE_COUNT as usize] {
-    let words: [[u32; 20]; VOICE_COUNT as usize] =
-        std::array::from_fn(|n| std::array::from_fn(|k| sound.race.spot_voices.voices[n][k].get()));
+    let words: [[u32; 20]; VOICE_COUNT as usize] = std::array::from_fn(|n| {
+        std::array::from_fn(|k| sound.race.spot_voices.get().voices[n][k].get())
+    });
     words.map(rc2k_core::sound::spot_voices::Voice::from_words)
 }
 
@@ -66,7 +67,7 @@ pub fn store_voices(
     voices: &[rc2k_core::sound::spot_voices::Voice; VOICE_COUNT as usize],
 ) {
     let words = voices.map(|v| v.to_words());
-    for (voice, words) in sound.race.spot_voices.voices.iter().zip(words) {
+    for (voice, words) in sound.race.spot_voices.get().voices.iter().zip(words) {
         for (cell, word) in voice.iter().zip(words) {
             cell.set(word);
         }
@@ -85,7 +86,7 @@ pub fn store_picks(
     picks: &rc2k_core::sound::spot_voices::Picks,
     trail: &rc2k_core::sound::spot_voices::Trail,
 ) {
-    let work = &sound.race.spot_picks;
+    let work = sound.race.spot_picks.get();
     work.pick_playing.set(voice_or_0(picks.playing, sound));
     work.pick_nearest_distance.set(picks.nearest_distance);
     work.pick_nearest.set(voice_or_0(picks.nearest, sound));

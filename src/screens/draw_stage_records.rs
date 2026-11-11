@@ -123,7 +123,7 @@ pub fn draw_records_rows(
         let held = record.record()?.holder(rows.holder);
         let top = Holder {
             nation: held.nation,
-            name: HeldText::Place(record.text(rows.holder.name_at())),
+            name: HeldText::Held(record.holder_text(rows.holder)?),
             car: held.car,
             figure: held.speed,
         };

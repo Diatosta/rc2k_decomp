@@ -38,7 +38,7 @@ pub fn apply_settings() -> Result<(), crate::errors::Refused> {
     // Converted: `rc2k_core::sound::set_up::menus`.
     use rc2k_core::sound::set_up::{MENUS, menus};
 
-    sound.menu.settings_applied.done.set(MENUS);
+    sound.menu.settings_applied.get().done.set(MENUS);
     let steps = menus(
         audio.state.menu_sound_mode.get(),
         SoundList::Menu,

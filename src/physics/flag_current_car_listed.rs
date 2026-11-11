@@ -15,5 +15,5 @@ pub fn flag_current_car_listed(
     work: &RaceWork,
     sound: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {
-    set_flag(frame_work, work, &sound.race.stage.once[0])
+    set_flag(frame_work, work, &sound.race.stage.get().once[0])
 }

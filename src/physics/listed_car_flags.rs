@@ -9,11 +9,11 @@
 use crate::errors::Refused;
 use crate::race::frame_store::FrameWork;
 use crate::race::work_store::RaceWork;
-use crate::session::Dword;
+use crate::session::PlainDword;
 use rc2k_core::physics::listed_cars::listed_entry;
 
 /// Sets `flag` to 1 when the current car is listed (`FRAME_WORK.listed_car_sounds`).
-pub fn set_flag(frame_work: &FrameWork, work: &RaceWork, flag: &Dword) -> Result<(), Refused> {
+pub fn set_flag(frame_work: &FrameWork, work: &RaceWork, flag: &PlainDword) -> Result<(), Refused> {
     let current = work.current_car.get();
     let (_, listed) = listed_entry(current, |car| {
         frame_work.listed_car_sounds[car as usize].get()

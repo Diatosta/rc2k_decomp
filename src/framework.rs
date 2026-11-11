@@ -12,6 +12,7 @@ pub static BASE: AtomicUsize = AtomicUsize::new(0);
 /// The program's log (`rc2k.log`), set by `standalone::run`. Nothing is written before that.
 pub static LOG_PATH: OnceLock<PathBuf> = OnceLock::new();
 
+#[cfg(test)]
 pub const IMAGE_BASE: usize = 0x400000;
 
 /// RVA of an address as IDA shows it (the tests).

@@ -31,7 +31,7 @@ pub fn count_down_start(
         StartCount::Counted { beep, .. } => {
             car.time_left.set(c.countdown);
             if beep {
-                set_flag(frame_work, work, &sound.race.stage.once[1])?;
+                set_flag(frame_work, work, &sound.race.stage.get().once[1])?;
             }
             Ok(())
         }

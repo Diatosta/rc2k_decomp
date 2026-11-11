@@ -99,6 +99,14 @@ pub const CENTRED_BUTTON: u32 = 0xFFFF_FFA6;
 /// item's sprite (+0x20): nothing at all behind it.
 pub const NOTHING_EITHER: u32 = 0xFFFF_FFAA;
 
+/// What an item's +0x20 holds: a sprite number, or for a button one of the menus' lists of
+/// five sprite numbers (the original kept the list's address there).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ItemSprite {
+    Number(u32),
+    List(usize),
+}
+
 /// A menu item (0x5C bytes): the fields the drawing reads.
 #[derive(Clone, Copy, Debug)]
 pub struct Item<F> {
@@ -117,7 +125,7 @@ pub struct Item<F> {
     pub pulse_font: F,
     /// +0x1C, +0x20.
     pub behind: u32,
-    pub sprite: u32,
+    pub sprite: ItemSprite,
     /// +0x58 is 1.
     pub spaced: bool,
 }
@@ -147,8 +155,24 @@ pub trait MenuScreen: Screen<Work = Work> {
         a: Self::Font,
         b: Self::Font,
     ) -> Result<Self::Font, Self::Error>;
+    /// A sprite list drawn where a sprite number is drawn (the original passed the list's
+    /// address as the number).
+    fn list_sprite(&mut self, list: usize, x: i32, y: i32) -> Result<(), Self::Error>;
     /// A font as the registers hold it (its address in the game).
     fn font_value(&self, f: Self::Font) -> u32;
+}
+
+/// The sprite an item's +0x20 names, at (`x`, `y`).
+fn draw_sprite<S: MenuScreen>(
+    s: &mut S,
+    sprite: ItemSprite,
+    x: u32,
+    y: u32,
+) -> Result<(), S::Error> {
+    match sprite {
+        ItemSprite::Number(glyph) => s.sprite(glyph, x as i32, y as i32),
+        ItemSprite::List(list) => s.list_sprite(list, x as i32, y as i32),
+    }
 }
 
 /// The items. `current` is the highlighted item's kind, `since_key` the
@@ -180,15 +204,15 @@ pub fn items<S: MenuScreen>(
                 OWN_BUTTON => s.own_button(n)?,
                 RIGHT_BUTTON => s.text_button(TextButton::Right, n)?,
                 CENTRED_BUTTON => s.text_button(TextButton::Centred, n)?,
-                _ => s.sprite(it.sprite, it.x as i32, it.y as i32)?,
+                _ => draw_sprite(s, it.sprite, it.x, it.y)?,
             }
-        } else if it.sprite != NOTHING_EITHER {
+        } else if it.sprite != ItemSprite::Number(NOTHING_EITHER) {
             match it.behind {
                 NOTHING => {}
                 OWN_BUTTON => s.own_button(n)?,
                 RIGHT_BUTTON => s.text_button(TextButton::HighlightedRight, n)?,
                 CENTRED_BUTTON => s.text_button(TextButton::HighlightedCentred, n)?,
-                _ => s.sprite(it.sprite, it.x as i32, it.y as i32)?,
+                _ => draw_sprite(s, it.sprite, it.x, it.y)?,
             }
         }
         let is_button = matches!(it.behind, OWN_BUTTON | RIGHT_BUTTON | CENTRED_BUTTON);
@@ -323,6 +347,10 @@ mod tests {
             self.0.push(format!("blend {since} {a} {b}"));
             Ok(99)
         }
+        fn list_sprite(&mut self, list: usize, x: i32, y: i32) -> Result<(), Invalid> {
+            self.0.push(format!("list {list} {x:#x} {y:#x}"));
+            Ok(())
+        }
         fn font_value(&self, f: u32) -> u32 {
             f + 1000
         }
@@ -344,10 +372,10 @@ mod tests {
             spaced: false,
         };
         let list = [
-            item(1, 0x40, 0x40),
-            item(2, RIGHT_BUTTON, 0),
-            item(3, 0x41, 0x41),
-            item(4, CENTRED_BUTTON, NOTHING_EITHER),
+            item(1, 0x40, ItemSprite::Number(0x40)),
+            item(2, RIGHT_BUTTON, ItemSprite::Number(0)),
+            item(3, 0x41, ItemSprite::Number(0x41)),
+            item(4, CENTRED_BUTTON, ItemSprite::Number(NOTHING_EITHER)),
         ];
         let mut s = Record::default();
         items(&mut s, &list, 3, 7, &|_| 0).unwrap();

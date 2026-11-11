@@ -165,11 +165,17 @@ pub fn share_sound_spots(race: &Race) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::view::shared_spot_bytes`.
     let n: u32 = frame.sound_spots.sound_spot_count.get();
     let bytes = rc2k_core::race::view::shared_spot_bytes(n)?;
-    crate::sound::owner::sound().race.stage.shared_count.set(n);
+    crate::sound::owner::sound()
+        .race
+        .stage
+        .get()
+        .shared_count
+        .set(n);
     let from = frame.sound_spots.sound_spots.chunks(5);
     for (spot, d) in crate::sound::owner::sound()
         .race
         .stage
+        .get()
         .shared_spots
         .iter()
         .zip(from)

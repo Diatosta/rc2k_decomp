@@ -15,6 +15,7 @@
 
 #![allow(unsafe_code)]
 
+#[cfg(test)]
 use crate::framework::IMAGE_BASE;
 #[cfg(test)]
 use crate::framework::{game_addr, rva};
@@ -554,7 +555,9 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::net::store::Button::START, // Button
         len: crate::net::store::Button::LEN,
-        home: Home::Store(&crate::net::owner::NET_OWNER.button),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            crate::net::owner::NET_OWNER.button.unchecked(),
+        )),
     },
     Moved {
         ida: crate::gfx::typefaces::START, // The fonts (63 font objects)
@@ -753,27 +756,37 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x5124E4, // the race sounds' clock (`sound::store::RaceClock`)
         len: 0x24,
-        home: Home::Store(&crate::sound::owner::SOUND.race.clock),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            crate::sound::owner::SOUND.race.clock.unchecked(),
+        )),
     },
     Moved {
         ida: 0x516358, // the surface sounds' constants (`sound::store::SurfaceSounds`)
         len: 0x44,
-        home: Home::Store(&crate::sound::owner::SOUND.race.surface),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            crate::sound::owner::SOUND.race.surface.unchecked(),
+        )),
     },
     Moved {
         ida: 0x51655C, // the stage sounds (`sound::store::StageSounds`)
         len: 0x364,
-        home: Home::Store(&crate::sound::owner::SOUND.race.stage),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            crate::sound::owner::SOUND.race.stage.unchecked(),
+        )),
     },
     Moved {
         ida: crate::sound::store::SpotPicks::START, // The spot voices' pickers' work and the sound kinds per spot
         len: crate::sound::store::SpotPicks::LEN,
-        home: Home::Store(&crate::sound::owner::SOUND.race.spot_picks),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            crate::sound::owner::SOUND.race.spot_picks.unchecked(),
+        )),
     },
     Moved {
         ida: crate::sound::store::SettingsApplied::START, // Set once the kept sound settings are applied
         len: crate::sound::store::SettingsApplied::LEN,
-        home: Home::Store(&crate::sound::owner::SOUND.menu.settings_applied),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            crate::sound::owner::SOUND.menu.settings_applied.unchecked(),
+        )),
     },
     Moved {
         ida: crate::input::store::ForceFeedback::START, // The force-feedback effects' clock, surface kinds and constants
@@ -788,7 +801,9 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::sound::store::CdAudio::START, // The CD audio's state
         len: crate::sound::store::CdAudio::LEN,
-        home: Home::Store(&crate::sound::owner::SOUND.menu.cd_audio),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            crate::sound::owner::SOUND.menu.cd_audio.unchecked(),
+        )),
     },
     // input: the devices, keyboard and mouse (`input::store`, typed)
     Moved {
@@ -809,17 +824,23 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x511B0C, // g_nextMenuSoundTime
         len: 4,
-        home: Home::Store(&crate::sound::owner::SOUND.menu.next_sound_time),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            crate::sound::owner::SOUND.menu.next_sound_time.unchecked(),
+        )),
     },
     Moved {
         ida: 0x6218F0, // g_raceSoundsOn
         len: 4,
-        home: Home::Store(&crate::sound::owner::SOUND.race.sounds_on),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            crate::sound::owner::SOUND.race.sounds_on.unchecked(),
+        )),
     },
     Moved {
         ida: crate::sound::store::CAR_STREAM_IDA, // the car stream's place, list and switch
         len: 12,
-        home: Home::Store(&crate::sound::owner::SOUND.race.car_stream),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            crate::sound::owner::SOUND.race.car_stream.unchecked(),
+        )),
     },
     // menu: the front end's variables, typed: the savegame preview (`saves::preview_store`),
     // the controller screen (`screens::controls_store`), the pages, car numbers, screen flow, loop
@@ -1062,28 +1083,32 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::sound::sets_store::CueLists::START,
         len: crate::sound::sets_store::CueLists::LEN,
-        home: Home::Store(&crate::race::store::RecordTail::new(
-            &crate::sound::owner::SOUND.race.cue_lists,
+        home: Home::Store(&crate::session::OnGameThread::tail(
+            crate::sound::owner::SOUND.race.cue_lists.unchecked(),
             8,
         )),
     },
     Moved {
         ida: crate::sound::sets_store::SoundKinds::START,
         len: crate::sound::sets_store::SoundKinds::LEN,
-        home: Home::Store(&crate::sound::owner::SOUND.race.kinds),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            crate::sound::owner::SOUND.race.kinds.unchecked(),
+        )),
     },
     Moved {
         ida: crate::sound::sets_store::SurfaceSets::START,
         len: crate::sound::sets_store::SurfaceSets::LEN,
-        home: Home::Store(&crate::race::store::RecordTail::new(
-            &crate::sound::owner::SOUND.race.surface_sets,
+        home: Home::Store(&crate::session::OnGameThread::tail(
+            crate::sound::owner::SOUND.race.surface_sets.unchecked(),
             12,
         )),
     },
     Moved {
         ida: crate::sound::sets_store::SpotVoices::START,
         len: crate::sound::sets_store::SpotVoices::LEN,
-        home: Home::Store(&crate::sound::owner::SOUND.race.spot_voices),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            crate::sound::owner::SOUND.race.spot_voices.unchecked(),
+        )),
     },
     Moved {
         ida: crate::install::vars::InstallerRun::START,
@@ -2668,9 +2693,12 @@ pub fn place(ida: usize) -> usize {
 
 /// Which 4 KiB pages of the image (by RVA) hold a byte of a moved range: `home_of_rva`'s
 /// fast path (most addresses are on no such page).
+#[cfg(test)]
 const PAGES: usize = 0x6C0000 >> 12;
+#[cfg(test)]
 static MOVED_PAGES: [bool; PAGES] = moved_pages();
 
+#[cfg(test)]
 const fn moved_pages() -> [bool; PAGES] {
     let mut pages = [false; PAGES];
     let mut n = 0;
@@ -2783,6 +2811,7 @@ pub fn restore(snap: &[(usize, Vec<u8>)]) {
 
 /// The new home of the byte at `rva` if it has left the image (`framework::game_addr`'s
 /// resolver).
+#[cfg(test)]
 pub fn home_of_rva(rva: usize) -> Option<usize> {
     if !MOVED_PAGES.get(rva >> 12).copied().unwrap_or(false) {
         return None;

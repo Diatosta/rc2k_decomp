@@ -800,6 +800,11 @@ impl rc2k_core::screens::menus::MenuScreen for MenuScreen<'_> {
         blend_font(since_key, 0x100, a.pointer(), b.pointer())?;
         Ok(MenuFont::Blended)
     }
+    fn list_sprite(&mut self, _list: usize, _x: i32, _y: i32) -> Result<(), Refused> {
+        // The list's address as a sprite number is past every sprite table
+        // (`gfx::blit_glyph::glyph_record` refuses it).
+        Err(crate::errors::BadInput("a sprite list drawn as a sprite").into())
+    }
     fn font_value(&self, f: MenuFont) -> u32 {
         match f {
             MenuFont::Object(id) => FontRef::from(id).addr(),

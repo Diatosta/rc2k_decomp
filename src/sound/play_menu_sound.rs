@@ -39,10 +39,11 @@ pub fn play_menu_sound(
     if sound == 0 {
         return;
     }
-    let Some((next, pick)) = menu_sound(sound, now(), owner.menu.next_sound_time.get()) else {
+    let Some((next, pick)) = menu_sound(sound, now(), owner.menu.next_sound_time.get().get())
+    else {
         return;
     };
-    owner.menu.next_sound_time.set(next);
+    owner.menu.next_sound_time.get().set(next);
     let Some((sound, volume)) = pick else {
         return;
     };

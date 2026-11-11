@@ -362,7 +362,7 @@ pub fn run_particles(
         if effects.setup.frame.steps.bits() & 7 != 0 {
             return Ok(());
         }
-        crate::sound::owner::sound().race.stage.random[0].set(1);
+        crate::sound::owner::sound().race.stage.get().random[0].set(1);
         let seed = || {
             let s = effects
                 .setup

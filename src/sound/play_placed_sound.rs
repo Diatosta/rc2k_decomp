@@ -78,7 +78,7 @@ pub fn play_placed_sound(
             request.volume_factor.get(),
         ));
         request.volume.set(volume);
-        let clock = &crate::sound::owner::sound().race.clock;
+        let clock = crate::sound::owner::sound().race.clock.get();
         let (angle, place) = angle_and_place(
             request.place[2].get(),
             request.place[0].get(),

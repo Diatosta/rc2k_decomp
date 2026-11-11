@@ -37,8 +37,8 @@ fn one(
     let system = system();
     // Converted: `rc2k_core::sound::surfaces` (`wheel`, `quieter`, `set_pair`).
     let (first, _) = surfaces::wheel(
-        sound.race.surface.across.bits(),
-        sound.race.surface.along.bits(),
+        sound.race.surface.get().across.bits(),
+        sound.race.surface.get().along.bits(),
     );
     let surface = o.voices[first].surface.get();
     if second == 0 {
@@ -47,13 +47,15 @@ fn one(
     WHEEL_SURFACES[second].set(surface);
     if surfaces::quieter(surface) {
         if second == 0 {
-            x87_1(&sound.race.surface, &system.session.machine.scratch);
+            x87_1(sound.race.surface.get(), &system.session.machine.scratch);
         } else {
-            x87_2(&sound.race.surface, &system.session.machine.scratch);
+            x87_2(sound.race.surface.get(), &system.session.machine.scratch);
         }
     }
-    let pair = surfaces::set_pair(surface, |n| sound.race.stage.surface_sets[n as usize].get())
-        .map_err(BadInput::from)?;
+    let pair = surfaces::set_pair(surface, |n| {
+        sound.race.stage.get().surface_sets[n as usize].get()
+    })
+    .map_err(BadInput::from)?;
     let set = crate::sound::sets_store::SurfaceSets::set(second + 2 * pair as usize)?;
     crate::sound::surface_sound::surface_sound(o, set, request)
 }
@@ -64,9 +66,9 @@ pub fn surface_sounds(
     request: &SoundRequest,
     sound: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {
-    x87_3(so, &sound.race.surface);
+    x87_3(so, sound.race.surface.get());
     one(so, request, 0, sound)?;
-    x87_4(so, &sound.race.surface);
+    x87_4(so, sound.race.surface.get());
     one(so, request, 1, sound)
 }
 
