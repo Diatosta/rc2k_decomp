@@ -42,7 +42,7 @@ pub fn set_view_window(
         scene,
         window,
         vars,
-        race.course.stage_prefs.grid_reach.bits(),
+        race.course.stage_prefs.grid_reach.get(),
     );
 }
 
@@ -64,7 +64,7 @@ pub fn set_view_window_reaching(
     crate::session::write_bits(&window.view_middle, middle);
     let offsets: [u32; 2] = crate::session::read_bits(&window.view_offset);
     // top, bottom, left, right
-    let edges = if race.course.numbers.in_race.bits() == 1 {
+    let edges = if race.course.numbers.in_race.get() == 1 {
         [0, height, 0, width]
     } else {
         [
@@ -78,11 +78,11 @@ pub fn set_view_window_reaching(
     window.view_scale.set_bits(x87::int_float_int_float(
         system.session.screen.width.get() as i32,
         vars.view_scale.bits(),
-        window.view_zoom.bits() as i32,
+        window.view_zoom.get() as i32,
         race.shared.vars.scale_factor.bits(),
     ));
     // `cmp; jns` and `cmp; js`: by the differences' signs.
-    let mut nearer = 100u32.wrapping_sub(race.course.stage_prefs.nearer.bits());
+    let mut nearer = 100u32.wrapping_sub(race.course.stage_prefs.nearer.get());
     if (nearer.wrapping_sub(0x5A) as i32) < 0 {
         nearer = 0x5A;
     }
@@ -127,17 +127,17 @@ pub fn set_view_window_plain(
     let drawing = &scene.drawing;
     use rc2k_core::scene::view_window::{WindowInputs, window_settings};
     let i = WindowInputs {
-        reach: race.course.stage_prefs.grid_reach.bits(),
+        reach: race.course.stage_prefs.grid_reach.get(),
         size: crate::session::read_bits(&window.view_size),
         offsets: crate::session::read_bits(&window.view_offset),
-        in_race: race.course.numbers.in_race.bits() == 1,
+        in_race: race.course.numbers.in_race.get() == 1,
         screen_width: system.session.screen.width.get(),
         scale: (
             vars.view_scale.get(),
-            window.view_zoom.bits(),
+            window.view_zoom.get(),
             race.shared.vars.scale_factor.get(),
         ),
-        nearer: race.course.stage_prefs.nearer.bits(),
+        nearer: race.course.stage_prefs.nearer.get(),
         nearer_factor: race.course.numbers.hundredth_a.get(),
         fade: [drawing.scene.fade_a.get(), drawing.scene.fade_b.get()],
         turn: race.course.numbers.k65536.get(),
@@ -148,12 +148,12 @@ pub fn set_view_window_plain(
     crate::session::write_bits(&window.view_depth, [w.depth, w.depth]);
     crate::session::write_bits(&window.view_middle, w.middle);
     crate::session::write_bits(&window.clip_edges, w.edges);
-    window.view_scale.set_bits(w.scale.to_bits());
-    window.depth_divisor.set_bits(w.divisor.to_bits());
+    window.view_scale.set(w.scale);
+    window.depth_divisor.set(w.divisor);
     window.farthest.set(w.farthest);
     window.one_over_farthest.set(w.reciprocal);
     window.farthest_scaled.set(w.fade_depth as u32);
-    window.clip_farthest.set_bits(w.clip_farthest as u32);
+    window.clip_farthest.set(w.clip_farthest as u32);
     let set = |cells: &[crate::session::Float], v: &[f32]| {
         for (cell, &x) in cells.iter().zip(v) {
             cell.set(x);

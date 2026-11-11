@@ -6,7 +6,7 @@
 //! about.
 //! Which screen it is has not been confirmed, hence the name. Its title string: "(empty)".
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Callee, List, Screen, Step};
+use crate::menu::screen_loop::{Callee, List, MenuSound, Screen, Step};
 
 pub const SCREEN: Screen = Screen {
     lists: &[
@@ -26,11 +26,11 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::Write(|m| &m.screens.event.event_done, 0x0)],
+    before: &[Step::Write(|m| &m.screens.event.event_over, 0x0)],
     background: &[Step::Call(Callee::LoadBackground(|m| {
         &m.tables.texts.arcade_level_end_results_picture
     }))],
-    after: &[Step::Write(|m| &m.screens.option_work.menu_sound, 0x6F)],
+    after: &[Step::Sound(MenuSound::None)],
     ..Screen::new(
         |m| m.tables.menus.arcade_level_end_results.id(),
         |m| &m.screens.items.current[slot::ARCADE_LEVEL_END_RESULTS],

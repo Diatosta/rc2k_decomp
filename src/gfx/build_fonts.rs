@@ -261,7 +261,7 @@ fn hung_value(variable: Source, plus: u32) -> u32 {
 }
 
 pub fn build_fonts(gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
-    if gfx.fonts.font_block.palettes.get() != 0 {
+    if gfx.fonts.font_block.palettes.is_set() {
         return Err(FatalError {
             code: 0x80A4_8020,
             message: "",

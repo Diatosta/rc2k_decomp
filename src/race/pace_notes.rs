@@ -50,7 +50,7 @@ pub fn game_course(shared: &RaceShared) -> Course {
     Course {
         faces: 0,
         window: (0, len),
-        count: shared.vars.checkpoint_count.bits(),
+        count: shared.vars.checkpoint_count.get(),
     }
 }
 
@@ -73,7 +73,7 @@ impl Stage for GameStage {
         crate::race::checkpoints_store::angle(k as usize).get()
     }
     fn slot_offset(&self, slot: u32) -> u32 {
-        race().shared.physics_tables.pace_slot_offsets[slot as usize].bits() // dword_614D14: each slot's byte in the face
+        race().shared.physics_tables.pace_slot_offsets[slot as usize].get() // dword_614D14: each slot's byte in the face
     }
     fn word(&self, tens: u32) -> u8 {
         race().physics.pace.distance_words.get(tens as usize)
@@ -130,7 +130,7 @@ impl Machine {
             *held = None;
         }
         Ok(Self(Notes::new(
-            race.shared.physics_tables.pace_slot.bits(),
+            race.shared.physics_tables.pace_slot.get(),
             tables(physics).read_bytes(IMAGE_LEN, "the pace notes' tables")?,
             course,
             &STAGE,
@@ -140,7 +140,7 @@ impl Machine {
     /// The slot and the tables written back.
     pub fn commit(&self, race: &Race) -> Result<(), BadInput> {
         let physics = &race.physics;
-        race.shared.physics_tables.pace_slot.set_bits(self.slot);
+        race.shared.physics_tables.pace_slot.set(self.slot);
         tables(physics).write_bytes(&self.image, "the pace notes' tables")
     }
 

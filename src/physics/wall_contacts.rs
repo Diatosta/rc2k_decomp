@@ -18,8 +18,8 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::physics::car_store::Car;
 use crate::race::owner::Race;
-use crate::race::owner_shared::RaceShared;
 use rc2k_core::physics::walls;
 
 fn word(face: u32) -> Result<u32, Refused> {
@@ -33,7 +33,13 @@ fn word(face: u32) -> Result<u32, Refused> {
 fn after(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     race.shared.car.contact_flag.set(1);
     race.shared.car.wall_hit_timer.set(0x32);
-    { crate::physics::restore_saved_car::restore_saved_car(race) }?;
+    {
+        crate::physics::restore_saved_car::restore_saved_car(
+            &race.shared.car,
+            &race.shared.physics_tables,
+            &race.physics.contact,
+        )
+    }?;
     crate::physics::feel_ground::feel_ground(race, scene)
 }
 
@@ -94,11 +100,11 @@ pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refu
 }
 
 /// The probe count checked: 0 or past 0x40 refused.
-pub fn check(shared: &RaceShared) -> Result<(), Refused> {
-    Ok(walls::check_probe_count(shared.car.probe_count.get())?)
+pub fn check(car: &Car) -> Result<(), Refused> {
+    Ok(walls::check_probe_count(car.probe_count.get())?)
 }
 
 pub fn wall_contacts(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    check(&race.shared)?;
+    check(&race.shared.car)?;
     steps(race, scene)
 }

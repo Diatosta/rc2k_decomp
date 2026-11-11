@@ -34,7 +34,7 @@ use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
 use crate::math::x87_float::to_int;
 use crate::physics::camera_view::record;
-use crate::physics::flow::{hold_high, hold_low};
+use crate::physics::flow::{ZERO_BITS as ZERO, hold_high, hold_low, hold_low_bits};
 use crate::race::checkpoints_store::CHECKPOINTS;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::light_records_store::LIGHT_RECORDS;
@@ -111,7 +111,7 @@ fn fixed_camera(
         .car
         .camera_zoom
         .set_bits(race_owner.physics.camera.camera_zoom_kept.bits());
-    if record(&race.shared)?.fixed_zoom.get() != 0 {
+    if record(&race.shared.car)?.fixed_zoom.get() != 0 {
         race.shared.car.camera_zoom.set_bits(0x180);
         x87_3(race);
         hold_low(
@@ -201,10 +201,7 @@ pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refu
                 &race.shared.car.camera_switch_share,
                 &race.course.numbers.one,
             );
-            hold_low(
-                &race.shared.car.camera_switch_share,
-                &race.course.numbers.zero,
-            );
+            hold_low_bits(&race.shared.car.camera_switch_share, ZERO);
         }
     }
     let (mode, before) = (

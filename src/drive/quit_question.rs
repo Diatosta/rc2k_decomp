@@ -28,19 +28,19 @@ pub fn quit_question(race: &Race, input: &crate::input::owner::Input) -> Result<
     shared.vars.scene_switch.set(1);
     // eax: the best frame, then each key's answer, then what the frame leaves; it goes
     // into `input::yes_no_key` (the key given, when one is).
-    let (mut eax, _) = race_ticks::best_frame(CAR_BLOCKS.cars[0].step_clock.bits());
+    let (mut eax, _) = race_ticks::best_frame(CAR_BLOCKS.cars[0].step_clock.get());
     if race_ticks::keeps_frame(eax, replay.replay_frames.last_kept.get()) {
         replay.replay_frames.last_kept.set(eax);
     }
     let kind = race_ticks::quit_notice(shared.vars.no_replay.get() != 0);
     for c in 0..8 {
-        CAR_BLOCKS.cars[c as usize].notice_id.set_bits(kind);
+        CAR_BLOCKS.cars[c as usize].notice_id.set(kind);
     }
     for c in 0..8 {
-        CAR_BLOCKS.cars[c as usize].notice_time_b.set_bits(0);
+        CAR_BLOCKS.cars[c as usize].notice_time_b.set(0);
     }
     for c in 0..8 {
-        CAR_BLOCKS.cars[c as usize].notice_time.set_bits(u32::MAX);
+        CAR_BLOCKS.cars[c as usize].notice_time.set(u32::MAX);
     }
     let answer = loop {
         // A gamepad's button answers directly (not the original's): this question has no
@@ -67,7 +67,7 @@ pub fn quit_question(race: &Race, input: &crate::input::owner::Input) -> Result<
     shared.vars.scene_switch.set(0);
     wake_car_sounds(race)?;
     for c in 0..8 {
-        CAR_BLOCKS.cars[c as usize].input_keys.set_bits(0);
+        CAR_BLOCKS.cars[c as usize].input_keys.set(0);
     }
     Ok(answer)
 }

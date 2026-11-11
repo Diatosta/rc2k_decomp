@@ -15,32 +15,32 @@ use crate::scene::view_matrices::ViewMatrices;
 pub fn draw_distance_settings(course: &Course) {
     // Converted: `rc2k_core::race::view::{draw_distance_level, grid_reach}`.
     use rc2k_core::race::view::{draw_distance_level, grid_reach};
-    let level = draw_distance_level(course.stage_prefs.draw_distance_level.bits());
+    let level = draw_distance_level(course.stage_prefs.draw_distance_level.get());
     let level = level as usize;
     course
         .stage_prefs
         .grid_reach
-        .set(grid_reach(course.stage_prefs.reach_by_level[level].bits()));
+        .set(grid_reach(course.stage_prefs.reach_by_level[level].get()));
     course
         .stage_prefs
         .fog_end
-        .set_bits(course.stage_prefs.fog_end_by_level[level].bits());
+        .set(course.stage_prefs.fog_end_by_level[level].get());
     course
         .stage_prefs
         .fog_start
-        .set_bits(course.stage_prefs.fog_start_by_level[level].bits());
+        .set(course.stage_prefs.fog_start_by_level[level].get());
     course
         .stage_prefs
         .fog_low
-        .set_bits(course.stage_prefs.fog_low_by_level[level].bits());
+        .set(course.stage_prefs.fog_low_by_level[level].get());
     course
         .stage_prefs
         .fog_high
-        .set_bits(course.stage_prefs.fog_high_by_level[level].bits());
+        .set(course.stage_prefs.fog_high_by_level[level].get());
     course
         .stage_prefs
         .nearer
-        .set_bits(course.stage_prefs.nearer_by_level[level].bits());
+        .set(course.stage_prefs.nearer_by_level[level].get());
 }
 
 /// `race::sample_noise` (0x44FD38): the 64 x 64 byte map `map` bytes into `g_noiseBytes`
@@ -109,7 +109,7 @@ pub fn fog_table(
         },
     );
     fog.far.set(set.far);
-    fog.length.set_bits(length);
+    fog.length.set(length);
     // The table's bytes (any length up to 0x1000; the rest kept).
     fog.set_levels(&set.table);
     fog.next.set(set.next);
@@ -139,14 +139,14 @@ pub fn set_up_fog(
     );
     // Converted: `rc2k_core::race::view::{fog_colour, device_fog_colour}`.
     let colour = rc2k_core::race::view::fog_colour(
-        course.stage_prefs.fog_colour[0].bits(),
-        course.stage_prefs.fog_colour[1].bits(),
-        course.stage_prefs.fog_colour[2].bits(),
+        course.stage_prefs.fog_colour[0].get(),
+        course.stage_prefs.fog_colour[1].get(),
+        course.stage_prefs.fog_colour[2].get(),
     );
-    fog.colour.set_bits(colour);
+    fog.colour.set(colour);
     fog_table(race, fog, car, &poly.sun, &poly.window)?;
     crate::scene::set_fog_colour::set_fog_colour(
-        rc2k_core::race::view::device_fog_colour(fog.colour.bits()),
+        rc2k_core::race::view::device_fog_colour(fog.colour.get()),
         poly,
     );
     Ok(())
@@ -168,24 +168,24 @@ pub fn place_view(
     use crate::math::x87::from_int;
     let place = &view.vars.view_place;
     let own = &view.state;
-    place[0].set(race.course.course.place_x.bits());
-    place[1].set(race.course.course.place_y.bits());
-    place[2].set(race.course.course.place_z.bits());
-    own.view_place[0].set(race.course.course.place_x.bits());
-    own.view_place[1].set(race.course.course.place_y.bits());
-    own.view_place[2].set(race.course.course.place_z.bits());
+    place[0].set(race.course.course.place_x.get());
+    place[1].set(race.course.course.place_y.get());
+    place[2].set(race.course.course.place_z.get());
+    own.view_place[0].set(race.course.course.place_x.get());
+    own.view_place[1].set(race.course.course.place_y.get());
+    own.view_place[2].set(race.course.course.place_z.get());
     let zero = || {
         for a in [2, 4, 3, 5] {
-            view.vars.view_angles[a].set_bits(0);
-            own.view_angles[a].set_bits(0);
+            view.vars.view_angles[a].set(0);
+            own.view_angles[a].set(0);
         }
     };
     if race.course.stage_prefs.flat_depth.get() != 0 {
         let at = &view.car.camera_position[1];
-        at.set(at.get().wrapping_add(race.course.course.flat_depth.bits()));
-        view.vars.view_angles[0].set_bits(race.course.course.place_heading.get());
+        at.set(at.get().wrapping_add(race.course.course.flat_depth.get()));
+        view.vars.view_angles[0].set(race.course.course.place_heading.get());
         view.vars.view_angles[1].set(0x4000_0000u32);
-        own.view_angles[0].set_bits(race.course.course.place_heading.get());
+        own.view_angles[0].set(race.course.course.place_heading.get());
         own.view_angles[1].set(0x4000_0000u32);
         zero();
         return Ok(());
@@ -201,9 +201,9 @@ pub fn place_view(
     own.view_place[0].set(own.view_place[0].get().wrapping_add(x2));
     own.view_place[1].set(own.view_place[1].get().wrapping_add(z1));
     own.view_place[2].set(own.view_place[2].get().wrapping_add(z2));
-    view.vars.view_angles[0].set_bits(second);
+    view.vars.view_angles[0].set(second);
     view.vars.view_angles[1].set(first);
-    own.view_angles[0].set_bits(second);
+    own.view_angles[0].set(second);
     own.view_angles[1].set(first);
     zero();
     view.vars.view_x.set(place[0].get());
@@ -324,19 +324,19 @@ fn view_own_matrices(
                 &race.course,
                 m,
                 Axis::Y,
-                state.view_angles[angles[0]].bits().wrapping_neg(),
+                state.view_angles[angles[0]].get().wrapping_neg(),
             );
             set_fine_turn(
                 &race.course,
                 m,
                 Axis::X,
-                state.view_angles[angles[1]].bits().wrapping_neg(),
+                state.view_angles[angles[1]].get().wrapping_neg(),
             );
             set_fine_turn(
                 &race.course,
                 m,
                 Axis::Z,
-                state.view_angles[angles[2]].bits().wrapping_neg(),
+                state.view_angles[angles[2]].get().wrapping_neg(),
             );
             multiply_matrices(view_turn, turn_y, turned);
             multiply_matrices(turned, turn_x, lit);
@@ -424,8 +424,8 @@ pub fn camera_view(
             (&view.car.camera_offset_turns[0], 4),
             (&view.car.camera_offset_turns[2], 5),
         ] {
-            view.vars.view_angles[to].set_bits(from.get());
-            own.view_angles[to].set_bits(from.get());
+            view.vars.view_angles[to].set(from.get());
+            own.view_angles[to].set(from.get());
         }
         crate::session::read_bits(&view.car.camera_position)
     } else {
@@ -477,7 +477,7 @@ pub fn draw_sky(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refu
     fetch_view_value(race, &ctx.view.polygon.sun, ctx.view.drawn_view(race))?;
     // Not left from the previous view's last object (the original's slip, fixed:
     // `wiki/Fixed-bugs.md`).
-    ctx.view.light.other_light.set_bits(0);
+    ctx.view.light.other_light.set(0);
     let mode: u32 = scene.lights.state.draw_mode.get();
     if mode == 1 || mode == 2 {
         return Ok(());
@@ -488,14 +488,14 @@ pub fn draw_sky(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refu
         &ctx.view.matrices.object_matrix_slots,
         16,
     );
-    ctx.view.cars.object_number.set_bits(1);
-    ctx.view.light.view_kind.set_bits(4);
-    ctx.view.light.light_lowest.set_bits(0xFF);
-    ctx.view.light.light_highest.set_bits(0xFF);
-    ctx.view.light.light_level.set_bits(0xFF);
-    ctx.view.light.light_turns[0].set_bits(0);
-    ctx.view.light.light_turns[1].set_bits(0);
-    ctx.view.face.no_far_clip.set_bits(1);
+    ctx.view.cars.object_number.set(1);
+    ctx.view.light.view_kind.set(4);
+    ctx.view.light.light_lowest.set(0xFF);
+    ctx.view.light.light_highest.set(0xFF);
+    ctx.view.light.light_level.set(0xFF);
+    ctx.view.light.light_turns[0].set(0);
+    ctx.view.light.light_turns[1].set(0);
+    ctx.view.face.no_far_clip.set(1);
     crate::scene::glow_render_states::glow_render_states();
     ctx.view.light.light_kind.set(0u32);
     // esi as the `rep movsd` of the matrix's copy leaves it: past `g_madeObjectMatrix`.
@@ -505,8 +505,8 @@ pub fn draw_sky(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refu
     )?;
     crate::race::flush_draw_batch::flush_draw_batch(race)?;
     crate::scene::depth_buffer_on::depth_buffer(true);
-    ctx.view.light.view_kind.set_bits(0);
-    ctx.view.face.no_far_clip.set_bits(0);
+    ctx.view.light.view_kind.set(0);
+    ctx.view.face.no_far_clip.set(0);
     place_sun(ctx, system)
 }
 
@@ -528,7 +528,7 @@ fn place_sun(
         .stage_prefs
         .fog_near
         .get()
-        .wrapping_add(race.course.stage_prefs.fog_far.bits())
+        .wrapping_add(race.course.stage_prefs.fog_far.get())
         == 0
     {
         return Ok(());

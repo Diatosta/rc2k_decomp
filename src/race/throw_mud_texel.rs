@@ -21,14 +21,14 @@ pub fn throw_mud_texel(race: &Race) -> Result<(), Refused> {
     let n = texture_and_mud(&race.shared)?;
     // dword_623D80: each texture's count (the texture is 0 .. 3).
     let count_cell = &shared.vars.mud_thrown_counts[n as usize];
-    let count: u32 = count_cell.bits();
+    let count: u32 = count_cell.get();
     if count >= LAST_THROWN {
         return Ok(());
     }
     count_cell.set(count + 1);
     muddy_texel(race, count)?;
-    let (sum, carried) = rc2k_core::race::mud::extra_throw(shared.vars.mud_extra_sum.bits());
-    shared.vars.mud_extra_sum.set_bits(sum);
+    let (sum, carried) = rc2k_core::race::mud::extra_throw(shared.vars.mud_extra_sum.get());
+    shared.vars.mud_extra_sum.set(sum);
     if !carried {
         return Ok(());
     }

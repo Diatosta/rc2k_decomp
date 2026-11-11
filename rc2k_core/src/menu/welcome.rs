@@ -33,8 +33,8 @@ pub fn championship_welcome<G: Game>(e: &mut G) -> Result<(), G::Error> {
         let channel = e.get(Var::SpeechChannel);
         e.run(Call::StartStream { channel })?;
         e.run(Call::WaitForCommands)?;
-        e.set(Var::Leave, 0);
-        e.set(Var::Leave561, 0);
+        e.set(Var::EventLeft, 0);
+        e.set(Var::LeaveScreen, 0);
         e.set(Var::Answer, 0);
         picture(e, Picture::Championship)?;
         e.take_key()?;

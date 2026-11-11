@@ -84,9 +84,9 @@ pub struct DrawWork {
     /// `| Not worked out.`:
     pub dword_755a34: Dword,
     /// `dword_755A38`: What the item's action leaves: 2 = stay on the screen as it is (`menu::screen_loop`).
-    pub action_value: Dword,
+    pub action_mode: Dword,
     /// `dword_755A3C`: The screen was left with Escape.
-    pub escaped: Dword,
+    pub escape_pressed: Dword,
     /// Unreferenced bytes (IDA 0x755A40 .. 0x755A4C).
     pub _gap_755a40: Bytes<12>,
 }
@@ -131,8 +131,8 @@ impl DrawWork {
             marker_end_d: Dword::new(0x0),
             dword_755a30: Dword::new(0x0),
             dword_755a34: Dword::new(0x0),
-            action_value: Dword::new(0x0),
-            escaped: Dword::new(0x0),
+            action_mode: Dword::new(0x0),
+            escape_pressed: Dword::new(0x0),
             _gap_755a40: Bytes::new(with_runs::<12>(&[(0x0, &[0x86, 0x01])])),
         }
     }
@@ -204,7 +204,7 @@ mod tests {
         at(offset_of!(DrawWork, marker_end_d), 0x755A2C);
         at(offset_of!(DrawWork, dword_755a30), 0x755A30);
         at(offset_of!(DrawWork, dword_755a34), 0x755A34);
-        at(offset_of!(DrawWork, action_value), 0x755A38);
-        at(offset_of!(DrawWork, escaped), 0x755A3C);
+        at(offset_of!(DrawWork, action_mode), 0x755A38);
+        at(offset_of!(DrawWork, escape_pressed), 0x755A3C);
     }
 }

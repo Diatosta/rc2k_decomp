@@ -19,7 +19,7 @@ use crate::gfx::owner::gfx;
 /// checks are made.
 pub fn clear_front_surface() -> Result<(), Refused> {
     let system = crate::system::owner::system();
-    if gfx().drawing.surfaces.front.get() != 0 && system.session.screen.height.get() == 0 {
+    if gfx().drawing.surfaces.front.is_set() && system.session.screen.height.get() == 0 {
         return Err(BadInput("a screen height of 0 (2^32 rows)").into());
     }
     Ok(())

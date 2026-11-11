@@ -26,6 +26,7 @@ use crate::errors::Refused;
 use crate::physics::camera_clear_of_ground::camera_clear_of_ground;
 use crate::physics::camera_over_ground::camera_over_ground;
 use crate::physics::camera_view::record;
+use crate::physics::car_store::Car;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
@@ -62,8 +63,8 @@ fn face_checkpoint(course: &Course, shared: &RaceShared, back: u32) -> bool {
 }
 
 /// The five ground faces from 0x71AEC8 the loop below saves.
-fn ground_faces(shared: &RaceShared) -> [&Dword; 5] {
-    let f = &shared.car.camera_ground_faces;
+fn ground_faces(car: &Car) -> [&Dword; 5] {
+    let f = &car.camera_ground_faces;
     [&f[0], &f[1], &f[2], &f[3], &f[4]]
 }
 
@@ -80,7 +81,7 @@ fn turn_back(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refu
             .camera_heading_saved
             .set(race.shared.car.camera_heading.get());
         for k in 0..5 {
-            drawing.scene.camera_saved[k].set(ground_faces(&race.shared)[k].get());
+            drawing.scene.camera_saved[k].set(ground_faces(&race.shared.car)[k].get());
         }
         let mut stepped_back = false;
         if let Some(step) = camera_ground::turn_step(
@@ -104,7 +105,7 @@ fn turn_back(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refu
                 .camera_heading
                 .set(drawing.scene.camera_heading_saved.get());
             for k in 0..5 {
-                ground_faces(&race.shared)[k].set(drawing.scene.camera_saved[k].get());
+                ground_faces(&race.shared.car)[k].set(drawing.scene.camera_saved[k].get());
             }
         }
         let (next, last) = camera_ground::next_turn_step(race.shared.tables.camera_turn_step.get());
@@ -129,7 +130,7 @@ pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refu
         .camera_heading_kept
         .set(race.shared.car.camera_heading.get());
     place(race, scene);
-    if record(&race.shared)?.halve_tilt.get() == 0 {
+    if record(&race.shared.car)?.halve_tilt.get() == 0 {
         return Ok(());
     }
     if !camera_over_ground(race, scene)? {
@@ -170,13 +171,16 @@ pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refu
                 .camera
                 .pitch_floor
                 .set(race.shared.car.camera_pitch.get());
-            crate::physics::ease_pitch_up::ease_pitch_up(race);
+            crate::physics::ease_pitch_up::ease_pitch_up(&race.shared.car, &race.physics.camera);
         } else {
             physics_store
                 .camera
                 .pitch_ceiling
                 .set(race.shared.car.camera_pitch.get());
-            crate::physics::ease_pitch_down::ease_pitch_down(race);
+            crate::physics::ease_pitch_down::ease_pitch_down(
+                &race.shared.car,
+                &race.physics.camera,
+            );
         }
         if physics_store.camera.pitch_step.get() == 0 {
             return Ok(());

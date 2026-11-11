@@ -134,7 +134,7 @@ pub fn note_face_drawn(slot: usize) {
 /// image's first value.
 pub fn last_fourth_corner(shared: &crate::race::owner_shared::RaceShared) -> u32 {
     match LAST_FACE_VIEW.load(Ordering::Relaxed) {
-        usize::MAX => shared.view.corners[3].bits(),
-        slot => crate::race::view_scratch::slot(slot).face.corners[3].bits(),
+        usize::MAX => shared.view.corners[3].get(),
+        slot => crate::race::view_scratch::slot(slot).face.corners[3].get(),
     }
 }

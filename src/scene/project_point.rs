@@ -157,7 +157,7 @@ pub fn record_offset(
     rc2k_core::scene::projection::record_offset(
         point,
         scene.objects.tables.point_count.get(),
-        course.course.scene_point_count.bits(),
+        course.course.scene_point_count.get(),
     )
     .map_err(|e| match e {
         TooHigh::Object => TOO_HIGH_OBJECT,
@@ -181,7 +181,7 @@ pub(crate) fn make_scene_record(
     scene: &crate::scene::owner::Scene,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), BadInput> {
-    let points: u32 = race.course.course.scene_points.bits();
+    let points: u32 = race.course.course.scene_points.get();
     if points == 0 {
         return Err(BadInput("no points"));
     }
@@ -205,13 +205,13 @@ pub(crate) fn make_scene_record(
             view.polygon.window.view_scale.bits(),
             view.polygon.window.view_centre[0].bits(),
             view.polygon.window.view_centre[1].bits(),
-            race.course.course.flat_depth.bits(),
+            race.course.course.flat_depth.get(),
         ];
-        let flat = race.course.stage_prefs.flat_depth.bits() != 0;
+        let flat = race.course.stage_prefs.flat_depth.get() != 0;
         // The depth it stores is a work value nothing reads.
         to_screen(&mut r, &v, flat, &crate::session::Dword::new(0));
     }
-    if scene.lights.state.draw_mode.bits() == 1 {
+    if scene.lights.state.draw_mode.get() == 1 {
         r[6] = x87::sub(r[6], LOWERED_BY.to_bits());
     }
     point_records::set(record, r)?;

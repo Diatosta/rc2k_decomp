@@ -29,8 +29,8 @@ pub fn tyre_quad_cells(uv: &[Dword; 4], rect: &[Dword; 4], colour: u32) -> Resul
 fn quad_of(uv: [u32; 4], rect: [u32; 4], colour: u32) -> Result<(), Refused> {
     let corners = quad_corners(rect);
     for (k, [x, y]) in corners.into_iter().enumerate() {
-        VERTICES.vertices[k].x.set_bits(x.to_bits());
-        VERTICES.vertices[k].y.set_bits(y.to_bits());
+        VERTICES.vertices[k].x.set(x);
+        VERTICES.vertices[k].y.set(y);
     }
     quad_words(colour);
     quad_tail(uv);

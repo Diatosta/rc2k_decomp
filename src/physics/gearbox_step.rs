@@ -34,12 +34,22 @@ pub fn gearbox_step(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
     );
     match turn {
         GearboxTurn::Idle => {}
-        GearboxTurn::Manual => manual_gearbox(race, scene)?,
+        GearboxTurn::Manual => manual_gearbox(
+            &race.shared.car,
+            &race.shared.physics_tables,
+            &race.course.numbers,
+            scene,
+        )?,
         GearboxTurn::Asked => {
             { take_asked_gear(race) }?;
             return Ok(());
         }
-        GearboxTurn::Auto => auto_gearbox(race, scene)?,
+        GearboxTurn::Auto => auto_gearbox(
+            &race.shared.car,
+            &race.shared.physics_tables,
+            &race.course.numbers,
+            scene,
+        )?,
     }
     if race.shared.car.gear_changed.get() == 1 {
         race.shared.car.engine_speed.set_bits(x87::mul(
@@ -47,5 +57,5 @@ pub fn gearbox_step(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
             race.shared.physics_tables.engine_ease.bits(),
         ));
     }
-    wheels(&race.shared)
+    wheels(&race.shared.car, &race.shared.physics_tables)
 }

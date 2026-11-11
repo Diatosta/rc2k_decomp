@@ -7,11 +7,11 @@ use crate::race::owner::Race;
 const DRAWTRI_RVA: &std::ffi::CStr = c"drawtri"; // "drawtri"
 
 pub fn flush_draw_batch(race: &Race) -> Result<(), Refused> {
-    let indices: u32 = race.physics.contact.batch_index_count.bits();
+    let indices: u32 = race.physics.contact.batch_index_count.get();
     if indices != 0 {
         let result = crate::platform_3d::draw_indexed(
             &race.frame.draw_batches.scene_vertices,
-            race.physics.contact.batch_vertex_count.bits(),
+            race.physics.contact.batch_vertex_count.get(),
             &race.frame.draw_batches.scene_indices,
             indices,
         );
@@ -20,7 +20,7 @@ pub fn flush_draw_batch(race: &Race) -> Result<(), Refused> {
             crate::logfile::log_hex8::log_hex8(result, false, 1);
         }
     }
-    race.physics.contact.batch_index_count.set_bits(0u32);
-    race.physics.contact.batch_vertex_count.set_bits(0u32);
+    race.physics.contact.batch_index_count.set(0u32);
+    race.physics.contact.batch_vertex_count.set(0u32);
     Ok(())
 }

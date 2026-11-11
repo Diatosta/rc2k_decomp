@@ -16,27 +16,25 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_run::{ext_add, gear_step_80, lerp_int_over2};
+use crate::physics::car_store::Car;
 use crate::physics::gear_store::GEAR;
-use crate::race::owner::Race;
-use crate::race::owner_course::Course;
+use crate::physics::tables_store::PhysicsTables;
+use crate::race::numbers_store::Numbers;
 use crate::scene::matrix3::{extended, rounded};
 use crate::session::Cell32;
 
 const RATIO: usize = 8; // index of gear 0 in `game()`'s list
 
 /// On the variables' cells `v`: the gear count.
-pub fn ratios_at(course: &Course, v: &[&dyn Cell32]) -> Result<u32, Refused> {
+pub fn ratios_at(numbers: &Numbers, v: &[&dyn Cell32]) -> Result<u32, Refused> {
     let get = |k: usize| v[k].bits();
     let put = |k: usize, x: u32| v[k].set_bits(x);
     let n = get(0);
     if n > 7 {
         return Err(BadInput("a gear count above 7 (past g_gearRatios)").into());
     }
-    let (k, d) = (
-        course.numbers.quarter.bits(),
-        course.numbers.two_and_a_quarter.bits(),
-    );
-    let one: u32 = course.numbers.one.bits();
+    let (k, d) = (numbers.quarter.bits(), numbers.two_and_a_quarter.bits());
+    let one: u32 = numbers.one.bits();
     let i = get(5) as i32;
     put(
         RATIO + n as usize,
@@ -63,30 +61,39 @@ pub fn ratios_at(course: &Course, v: &[&dyn Cell32]) -> Result<u32, Refused> {
     Ok(n)
 }
 
-fn game<'a>(race: &'a Race, scene: &'a crate::scene::owner::Scene) -> Vec<&'a dyn Cell32> {
+fn game<'a>(
+    car: &'a Car,
+    tables: &'a PhysicsTables,
+    scene: &'a crate::scene::owner::Scene,
+) -> Vec<&'a dyn Cell32> {
     vec![
-        &race.shared.physics_tables.gear_count as &dyn Cell32,
+        &tables.gear_count as &dyn Cell32,
         &GEAR.figures[3],
         &GEAR.figures[1],
         &GEAR.figures[2],
         &GEAR.figures[0],
-        &race.shared.car.gear_ratio_setting,
-        &race.shared.car.engine_speed_limit,
-        &race.shared.physics_tables.gear_ratios[0],
-        &race.shared.physics_tables.gear_ratios[1],
-        &race.shared.physics_tables.gear_ratios[2],
-        &race.shared.physics_tables.gear_ratios[3],
-        &race.shared.physics_tables.gear_ratios[4],
-        &race.shared.physics_tables.gear_ratios[5],
-        &race.shared.physics_tables.gear_ratios[6],
-        &race.shared.physics_tables.gear_ratios[7],
-        &race.shared.physics_tables.gear_ratios[8],
+        &car.gear_ratio_setting,
+        &car.engine_speed_limit,
+        &tables.gear_ratios[0],
+        &tables.gear_ratios[1],
+        &tables.gear_ratios[2],
+        &tables.gear_ratios[3],
+        &tables.gear_ratios[4],
+        &tables.gear_ratios[5],
+        &tables.gear_ratios[6],
+        &tables.gear_ratios[7],
+        &tables.gear_ratios[8],
         &scene.drawing.scene.scratch,
-        &race.shared.physics_tables.gear_ratio_step,
+        &tables.gear_ratio_step,
     ]
 }
 
 /// The exact version, for `physics::car_physics_step` and `physics::test_drive`: the gear count.
-pub fn make_gear_ratios(race: &Race, scene: &crate::scene::owner::Scene) -> Result<u32, Refused> {
-    ratios_at(&race.course, &game(race, scene))
+pub fn make_gear_ratios(
+    car: &Car,
+    tables: &PhysicsTables,
+    numbers: &Numbers,
+    scene: &crate::scene::owner::Scene,
+) -> Result<u32, Refused> {
+    ratios_at(numbers, &game(car, tables, scene))
 }

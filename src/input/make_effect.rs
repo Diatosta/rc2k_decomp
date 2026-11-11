@@ -75,7 +75,7 @@ pub fn make_effect(
     n: u32,
 ) -> Result<(), Refused> {
     let e = effect;
-    if e.object.get() != 0 {
+    if e.object.is_set() {
         crate::input::effect_objects::release_effect(e);
     }
     fill_parameters(e);

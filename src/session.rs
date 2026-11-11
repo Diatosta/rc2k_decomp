@@ -35,6 +35,11 @@ impl Dword {
         self.0.store(value, Relaxed);
     }
 
+    /// Whether the cell, used as a flag, is not 0.
+    pub fn is_set(&self) -> bool {
+        self.get() != 0
+    }
+
     /// The atomic itself, for code that wants more than a load and a store.
     pub fn atomic(&self) -> &AtomicU32 {
         &self.0
@@ -111,6 +116,11 @@ pub fn write_prefix(cells: &[Dword], values: &[u32]) {
 pub struct Float(AtomicU32);
 
 impl Float {
+    /// A cell holding `value`.
+    pub const fn new(value: f32) -> Self {
+        Self(AtomicU32::new(value.to_bits()))
+    }
+
     /// From the float's bits (the image's first values are bits).
     pub const fn from_bits(bits: u32) -> Self {
         Self(AtomicU32::new(bits))

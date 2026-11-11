@@ -32,7 +32,7 @@ use crate::math::x87_float::st;
 use crate::math::x87_float::{X, f80};
 use crate::math::x87_run::{compare_80, neg_rounded};
 use crate::physics::dot_product::dot_product;
-use crate::physics::flow::{hold_low, negate, p};
+use crate::physics::flow::{ZERO_BITS as ZERO, hold_low, negate, p};
 use crate::physics::multiply_parts::multiply_parts;
 use crate::physics::scale_vector::scale_vector;
 use crate::physics::tables_store::ForceRecord;
@@ -90,13 +90,13 @@ pub fn contact_force(race: &Race, record: &ForceRecord, scene: &crate::scene::ow
         &race.physics.contact.contact_normal,
         &race.physics.contact.contact_scratch_a,
     );
-    turn_by_inverse(&race.shared, &race.physics.contact.contact_scratch_a);
+    turn_by_inverse(&race.shared.car, &race.physics.contact.contact_scratch_a);
     multiply_parts(
         &race.physics.contact.contact_scratch_a,
         &race.shared.physics_tables.inertia,
         &race.physics.contact.contact_scratch_b,
     );
-    turn_by_car_matrix(&race.shared, &race.physics.contact.contact_scratch_b);
+    turn_by_car_matrix(&race.shared.car, &race.physics.contact.contact_scratch_b);
     cross_product(
         &race.physics.contact.contact_point,
         &race.physics.contact.contact_scratch_b,
@@ -180,12 +180,7 @@ pub fn contact_force(race: &Race, record: &ForceRecord, scene: &crate::scene::ow
     negate(&race.physics.contact.contact_slide[0]);
     negate(&race.physics.contact.contact_slide[1]);
     negate(&race.physics.contact.contact_slide[2]);
-    if compare_80(
-        vector_length(&race.physics.contact.contact_slide),
-        race.course.numbers.zero.bits(),
-    ) & 0x4000
-        != 0
-    {
+    if compare_80(vector_length(&race.physics.contact.contact_slide), ZERO) & 0x4000 != 0 {
         fill3(&race.physics.contact.contact_slide, 0);
     }
     let status = x87_6(&race.physics, scene);
@@ -198,9 +193,9 @@ pub fn contact_force(race: &Race, record: &ForceRecord, scene: &crate::scene::ow
         &race.physics.contact.contact_normal_push,
         &race.physics.contact.contact_total,
     );
-    turn_by_inverse(&race.shared, &race.physics.contact.contact_total);
+    turn_by_inverse(&race.shared.car, &race.physics.contact.contact_total);
     x87_8(race, &record.force);
-    turn_by_inverse(&race.shared, &race.physics.contact.contact_point);
+    turn_by_inverse(&race.shared.car, &race.physics.contact.contact_point);
     for k in 0..3 {
         record.point[k].set_bits(race.physics.contact.contact_point[k].bits());
     }

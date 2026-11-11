@@ -27,11 +27,11 @@ pub fn add_point_lights(
     let race = ctx.race;
     use rc2k_core::scene::lamps::{self, Lamp};
 
-    let lamps: u32 = ctx.view.lamps.lamp_count.bits();
+    let lamps: u32 = ctx.view.lamps.lamp_count.get();
     if lamps == 0 {
         return Ok(());
     }
-    let points: u32 = race.course.course.scene_points.bits();
+    let points: u32 = race.course.course.scene_points.get();
     if lamps > MOST || points == 0 {
         return Err(BadInput("more lamps than the list holds, or no points").into());
     }
@@ -55,14 +55,14 @@ pub fn add_point_lights(
         }
     });
     let at = |point: u32| reading.keep(crate::race::scene_points::point_number(point));
-    let out = lamps::add_point_lights(list, place, at, ctx.view.light.light_colour.bits(), mmx);
+    let out = lamps::add_point_lights(list, place, at, ctx.view.light.light_colour.get(), mmx);
     reading.finish()?;
     for (to, value) in [
         (&ctx.view.light.lamp_tint, out.colour),
         (&ctx.view.light.light_colour, out.light),
     ] {
         if let Some(v) = value {
-            to.set_bits(v);
+            to.set(v);
         }
     }
     Ok(())

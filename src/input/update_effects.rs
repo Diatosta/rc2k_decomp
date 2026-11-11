@@ -63,7 +63,7 @@ pub fn update_effects_with(input: &Input, v: &Vars<'_>) -> Result<(), Refused> {
         devices: v.devices.each_ref().map(crate::session::Dword::get),
         // The view blocks by handle (the core only passes them on).
         views: v.views.each_ref().map(crate::session::Dword::get),
-        one_players_devices: v.two_devices.get() != 0,
+        one_players_devices: v.two_devices.is_set(),
     };
     let loaded = loads(&p, |device| {
         device_of(&input.devices, device).is_some_and(|record| record.effects_on.get() == 1)

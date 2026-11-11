@@ -86,7 +86,13 @@ pub fn point_number(physics: &Physics) -> Result<usize, Refused> {
 // (the x87 steps stay).
 fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     race.shared.car.contact_found.set(0);
-    { lowest_body_point(race) }?;
+    {
+        lowest_body_point(
+            &race.shared.car,
+            &race.course.numbers,
+            &race.physics.contact,
+        )
+    }?;
     let depth = race.physics.contact.lowest_depth.get();
     if !contacts::touches(
         depth,

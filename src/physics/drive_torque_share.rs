@@ -9,8 +9,9 @@
 
 use crate::math::x87;
 use crate::math::x87_run::{abs_fidiv, int_fidiv, one_less_times_plus};
-use crate::race::owner::Race;
-use crate::race::owner_shared::RaceShared;
+use crate::physics::car_store::Car;
+use crate::physics::tables_store::PhysicsTables;
+use crate::race::numbers_store::Numbers;
 use crate::session::Cell32;
 use std::cmp::Ordering;
 
@@ -20,21 +21,18 @@ fn put(a: &dyn Cell32, v: u32) {
 
 /// The core on the variables' cells: eax as the original leaves it (n less the
 /// word, its `sub eax, unk_71A000`).
-pub fn drive_torque_share_at(race: &Race, v: &[&dyn Cell32]) -> u32 {
+pub fn drive_torque_share_at(tables: &PhysicsTables, numbers: &Numbers, v: &[&dyn Cell32]) -> u32 {
     let n = if v[1].bits() == 1 {
-        race.shared.physics_tables.torque_share_a.get()
+        tables.torque_share_a.get()
     } else {
-        race.shared.physics_tables.torque_share_b.get()
+        tables.torque_share_b.get()
     };
     v[0].set_bits(n);
     put(
         v[3],
-        abs_fidiv(
-            v[2].bits(),
-            race.shared.physics_tables.torque_share_c.get() as i32,
-        ),
+        abs_fidiv(v[2].bits(), tables.torque_share_c.get() as i32),
     );
-    let one = race.course.numbers.one.bits();
+    let one = numbers.one.bits();
     let below = !matches!(
         f32::from_bits(v[3].bits()).partial_cmp(&f32::from_bits(one)),
         Some(Ordering::Greater | Ordering::Equal)
@@ -50,22 +48,31 @@ pub fn drive_torque_share_at(race: &Race, v: &[&dyn Cell32]) -> u32 {
     eax
 }
 
-fn game<'a>(shared: &'a RaceShared, scene: &'a crate::scene::owner::Scene) -> Vec<&'a dyn Cell32> {
+fn game<'a>(
+    car: &'a Car,
+    tables: &'a PhysicsTables,
+    scene: &'a crate::scene::owner::Scene,
+) -> Vec<&'a dyn Cell32> {
     let drawing = &scene.drawing;
     vec![
         &drawing.scene.scratch as &dyn Cell32,
-        &shared.car.drive_kind,
-        &shared.car.local_velocity[2],
+        &car.drive_kind,
+        &car.local_velocity[2],
         &drawing.scene.work_float_a,
         &drawing.scene.work_float_b,
-        &shared.car.gear_ratio_setting,
-        &shared.physics_tables.torque_share,
-        &shared.physics_tables.drive_torque,
+        &car.gear_ratio_setting,
+        &tables.torque_share,
+        &tables.drive_torque,
     ]
 }
 
 /// The exact version, for `physics::drive_force` and `physics::test_drive_run`: eax as the original
 /// leaves it.
-pub fn drive_torque_share(race: &Race, scene: &crate::scene::owner::Scene) -> u32 {
-    drive_torque_share_at(race, &game(&race.shared, scene))
+pub fn drive_torque_share(
+    car: &Car,
+    tables: &PhysicsTables,
+    numbers: &Numbers,
+    scene: &crate::scene::owner::Scene,
+) -> u32 {
+    drive_torque_share_at(tables, numbers, &game(car, tables, scene))
 }

@@ -24,7 +24,7 @@
 //! In:  as above
 //! The DirectInput calls (`input::start_effect` the effect's Download and Start,
 //! `input::set_effect_parameters` its SetParameters with eax the flags, `input::stop_effect` its
-//! Stop; each only with an effect at +0x30) are the Rust versions (`effect_objects`). Refuses
+//! Stop; each only with an effect at +0x30) go through `effect_objects`. Refuses
 //! (before anything) for effect 1 a row past the table's 14 and a blend of 0 (the
 //! original's `idiv` traps).
 //!

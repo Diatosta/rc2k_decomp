@@ -13,6 +13,7 @@
 
 use crate::math::x87;
 use crate::math::x87_run::{div_then_mul, lerp_table, trunc_mul_to_int};
+use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::race::owner::Race;
 use std::cmp::Ordering;
 
@@ -35,7 +36,7 @@ pub fn engine_torque(race: &Race, scene: &crate::scene::owner::Scene) {
         shared_store.car.engine_speed_limit.bits(),
     );
     drawing.scene.scratch.set(s);
-    if below(s, course.numbers.one.bits()) && !below(s, course.numbers.zero.bits()) {
+    if below(s, course.numbers.one.bits()) && !below(s, ZERO) {
         let i = trunc_mul_to_int(s, course.numbers.eight.bits()) as u32;
         drawing.scene.work_dword.set(i);
         let k = i as usize;

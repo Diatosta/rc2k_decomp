@@ -79,11 +79,11 @@ fn list(physics: &Physics, k: u32) -> &crate::session::Dword {
 
 /// The refusals, worked out before anything is written.
 fn refusal(race: &Race) -> Option<&'static str> {
-    let count: u32 = race.physics.contact.lit_face_count.bits();
+    let count: u32 = race.physics.contact.lit_face_count.get();
     if count > MOST {
         return Some("more than 0x100 lit faces (past g_litFaces)");
     }
-    let faces: u32 = race.course.course.course_face_count.bits();
+    let faces: u32 = race.course.course.course_face_count.get();
     for k in 0..count {
         if list(&race.physics, k).get() >= faces {
             return Some("a lit face past g_courseFaceCount");
@@ -97,7 +97,7 @@ pub fn animate_at(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(),
     if let Some(why) = refusal(race) {
         return Err(BadInput(why).into());
     }
-    if race.physics.contact.lit_face_count.bits() == 0 {
+    if race.physics.contact.lit_face_count.get() == 0 {
         return Ok(());
     }
 
@@ -117,10 +117,10 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
             }
             let point_number = at(f, 4)?;
             let dx = crate::race::scene_points::point_word(point_number, 0)?
-                .wrapping_sub(CAR_BLOCKS.cars[0].position[0].bits());
+                .wrapping_sub(CAR_BLOCKS.cars[0].position[0].get());
             scene.drawing.scene.scratch.set(dx);
             let dz = crate::race::scene_points::point_word(point_number, 2)?
-                .wrapping_sub(CAR_BLOCKS.cars[0].position[2].bits());
+                .wrapping_sub(CAR_BLOCKS.cars[0].position[2].get());
             scene.drawing.scene.scratch.set(dz);
             let d = crate::math::x87::int_hypot(dx as i32, dz as i32) as u32;
             race.physics.contact.lit_face_distance.set(d);
@@ -169,7 +169,7 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                     race.course
                         .course
                         .ground_face_last
-                        .set(CAR_BLOCKS.cars[0].probe_point_face[4].bits());
+                        .set(CAR_BLOCKS.cars[0].probe_point_face[4].get());
                     crate::physics::find_ground::find_ground(race, scene)?;
                     put(
                         f,
@@ -181,8 +181,8 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                             .wrapping_sub(crate::race::scene_points::point_word(p, 1)?),
                     )?;
                     if race.course.course.ground_slot.get() == u32::MAX {
-                        put(f, 0x30, race.physics.contact.lit_face_saved_30.bits())?;
-                        put(f, 0x38, race.physics.contact.lit_face_saved_38.bits())?;
+                        put(f, 0x30, race.physics.contact.lit_face_saved_30.get())?;
+                        put(f, 0x38, race.physics.contact.lit_face_saved_38.get())?;
                     }
                     bytes.b11 = bytes.b11.wrapping_sub(1);
                     false
@@ -192,12 +192,12 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
         };
         store(f, &bytes)?;
         if leave {
-            let last = race.physics.contact.lit_face_count.bits().wrapping_sub(1);
+            let last = race.physics.contact.lit_face_count.get().wrapping_sub(1);
             list(&race.physics, k).set(list(&race.physics, last).get());
-            race.physics.contact.lit_face_count.set_bits(last);
+            race.physics.contact.lit_face_count.set(last);
         }
         k += 1;
-        if k >= race.physics.contact.lit_face_count.bits() {
+        if k >= race.physics.contact.lit_face_count.get() {
             return Ok(());
         }
     }

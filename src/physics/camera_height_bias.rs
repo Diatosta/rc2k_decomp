@@ -13,7 +13,7 @@ use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
 use crate::math::x87_float::to_int;
 use crate::physics::camera_view::record;
-use crate::physics::flow::{hold_high, hold_low};
+use crate::physics::flow::{ZERO_BITS as ZERO, hold_high, hold_low_bits};
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
 
@@ -23,12 +23,12 @@ pub fn camera_height_bias(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), crate::errors::BadInput> {
     let drawing = &scene.drawing;
-    let esi = record(&race.shared)?;
+    let esi = record(&race.shared.car)?;
     if esi.height_bias.get() == 0 {
         return Ok(());
     }
     x87_1(&race.frame, scene);
-    hold_low(&drawing.scene.scratch, &race.course.numbers.zero);
+    hold_low_bits(&drawing.scene.scratch, ZERO);
     hold_high(&drawing.scene.scratch, &race.course.numbers.one);
     if (esi.height_bias.get() as i32) < 0 {
         x87_2(scene);

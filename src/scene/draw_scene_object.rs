@@ -39,14 +39,14 @@ fn texture_set(
     let shared = &race.shared;
     use rc2k_core::scene::shown::SetError;
     {
-        let object: u32 = cars.object_number.bits();
+        let object: u32 = cars.object_number.get();
         let t = rc2k_core::scene::shown::texture_set(
             object,
-            race.course.numbers.in_race.bits() != 0,
+            race.course.numbers.in_race.get() != 0,
             |object| scene.objects.tables.object_kind(object),
             |car| {
                 let block: u32 = shared.work.car_block(car as usize);
-                (block != 0).then(|| crate::physics::car_store::Car::at(block).car_kind.bits())
+                (block != 0).then(|| crate::physics::car_store::Car::at(block).car_kind.get())
             },
         )
         .map_err(|e| -> Refused {
@@ -71,9 +71,9 @@ pub fn draw_scene_object(
     place: &crate::scene::object_place::ObjectPlace,
 ) -> Result<(), Refused> {
     let (set, object) = texture_set(race, scene, cars)?;
-    place.texture_set.set_bits(set);
+    place.texture_set.set(set);
     let faces: u32 = scene.objects.slots.face_counts[object as usize].get();
-    match rc2k_core::scene::shown::way(faces, scene.lights.state.draw_mode.bits()) {
+    match rc2k_core::scene::shown::way(faces, scene.lights.state.draw_mode.get()) {
         Some(way) => draw(way),
         None => Ok(()),
     }
@@ -95,7 +95,7 @@ pub fn draw_scene_object_in_game(
             Way::Shown => {
                 // Outside a race the faces pick the menus' marks (the original's
                 // `draw_shown_object` set them before every object: `scene::car_marks`).
-                let ctx = &if race.course.numbers.in_race.bits() != 0 {
+                let ctx = &if race.course.numbers.in_race.get() != 0 {
                     *ctx
                 } else {
                     crate::race::view_scratch::DrawCtx {

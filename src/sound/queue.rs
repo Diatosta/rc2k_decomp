@@ -27,7 +27,7 @@ pub fn send_command(command: u32, registers: [u32; 7]) {
     // Converted: `rc2k_core::audio::commands::put` and `record`.
     use rc2k_core::audio::commands::{Put, put, record};
     match put(
-        audio.state.no_audio.get() != 0,
+        audio.state.no_audio.is_set(),
         audio.state.command_count.get(),
         audio.state.command_write.get(),
     ) {
@@ -81,8 +81,8 @@ fn hash_if_asked(command: u32, registers: [u32; 7]) {
 /// 0x409C01: true if commands are still waiting. Without audio the count is cleared.
 pub fn pending() -> bool {
     let audio = audio();
-    if audio.state.no_audio.get() != 0 {
+    if audio.state.no_audio.is_set() {
         audio.state.command_count.set(0);
     }
-    audio.state.command_count.get() != 0
+    audio.state.command_count.is_set()
 }

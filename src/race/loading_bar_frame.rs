@@ -44,7 +44,7 @@ pub fn loading_bar_frame(race: &Race) -> Result<(), Refused> {
         let mut last = LAST_FRAME
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if race.shared.vars.bar_share.bits() < 100
+        if race.shared.vars.bar_share.get() < 100
             && last.is_some_and(|last| begun.duration_since(last) < BAR_FRAME)
         {
             return Ok(());
@@ -70,7 +70,7 @@ fn frame(race: &Race) -> Result<(), Refused> {
     {
         return Ok(());
     }
-    scene.lights.state.scene_state.set_bits(FRAME_MARK);
+    scene.lights.state.scene_state.set(FRAME_MARK);
     if session.flags.quitting.get() == 1 {
         return Ok(());
     }
@@ -80,10 +80,10 @@ fn frame(race: &Race) -> Result<(), Refused> {
             break 'frame false;
         }
         begin_scene::begin_scene();
-        let framed: u32 = shared.switches.editor_mode.bits();
-        shared.switches.editor_mode.set_bits(0u32);
+        let framed: u32 = shared.switches.editor_mode.get();
+        shared.switches.editor_mode.set(0u32);
         choose_view_window::choose_view_window(race, scene, system);
-        shared.switches.editor_mode.set_bits(framed);
+        shared.switches.editor_mode.set(framed);
         crate::race::loading_bar_quad::loading_bar_quad(race, system)?;
         end_scene::end_scene();
         if lock_frame::lock_frame(race).0 < 1 {

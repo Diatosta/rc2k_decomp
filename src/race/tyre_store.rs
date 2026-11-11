@@ -68,10 +68,10 @@ pub struct TyreChange {
 impl TyreChange {
     pub const fn new() -> Self {
         TyreChange {
-            time_base: Float::from_bits(0x43160000),
-            time_scale: Float::from_bits(0x43160000),
-            gauge_unit: Float::from_bits(0x37800000),
-            log_two_ten: Float::from_bits(0x40549a78),
+            time_base: Float::new(150.0),
+            time_scale: Float::new(150.0),
+            gauge_unit: Float::new(1.5258789e-5),
+            log_two_ten: Float::new(std::f32::consts::LOG2_10),
             panel: [
                 Dword::new(0x0),
                 Dword::new(0x0),
@@ -85,10 +85,10 @@ impl TyreChange {
                 Dword::new(0xde),
             ],
             turning_rect: [
-                Float::from_bits(0x42db0000),
-                Float::from_bits(0x42db0000),
-                Float::from_bits(0x41300000),
-                Float::from_bits(0x42da0000),
+                Float::new(109.5),
+                Float::new(109.5),
+                Float::new(11.0),
+                Float::new(109.0),
             ],
             panel_texture: [
                 Dword::new(0x74),
@@ -155,12 +155,12 @@ impl TyreChange {
             device_texture: Dword::new(0x0),
             drawn: Dword::new(0x0),
             player: Dword::new(0x0),
-            turn_sin: Float::from_bits(0x0),
-            turn_cos: Float::from_bits(0x0),
-            half_h_sin: Float::from_bits(0x0),
-            neg_half_h_cos: Float::from_bits(0x0),
-            half_w_cos: Float::from_bits(0x0),
-            half_w_sin: Float::from_bits(0x0),
+            turn_sin: Float::new(0.0),
+            turn_cos: Float::new(0.0),
+            half_h_sin: Float::new(0.0),
+            neg_half_h_cos: Float::new(0.0),
+            half_w_cos: Float::new(0.0),
+            half_w_sin: Float::new(0.0),
             record_name: Bytes::new([0; 32]),
             record: Dword::new(0x5208),
             palette: Bytes::new([0; 4]),

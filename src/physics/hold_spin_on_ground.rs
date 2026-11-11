@@ -9,7 +9,8 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::race::owner::Race;
+use crate::physics::car_store::Car;
+use crate::physics::tables_store::PhysicsTables;
 use crate::session::Cell32;
 use rc2k_core::physics::motion::hold_spin;
 
@@ -30,20 +31,20 @@ pub fn hold_at(v: &[&dyn Cell32]) {
     put(7, flag);
 }
 
-fn game(race: &Race) -> Vec<&dyn Cell32> {
+fn game<'a>(car: &'a Car, tables: &'a PhysicsTables) -> Vec<&'a dyn Cell32> {
     vec![
-        &race.shared.car.wheel_squeeze[0] as &dyn Cell32,
-        &race.shared.car.wheel_squeeze[1],
-        &race.shared.car.wheel_squeeze[2],
-        &race.shared.car.wheel_squeeze[3],
-        &race.shared.physics_tables.ground_spin_limit,
-        &race.shared.car.spin[0],
-        &race.shared.car.spin[2],
-        &race.shared.physics_tables.ground_spin,
+        &car.wheel_squeeze[0] as &dyn Cell32,
+        &car.wheel_squeeze[1],
+        &car.wheel_squeeze[2],
+        &car.wheel_squeeze[3],
+        &tables.ground_spin_limit,
+        &car.spin[0],
+        &car.spin[2],
+        &tables.ground_spin,
     ]
 }
 
 /// Compares and copies of floats only: the same at any precision.
-pub fn hold_spin_on_ground(race: &Race) {
-    hold_at(&game(race));
+pub fn hold_spin_on_ground(car: &Car, tables: &PhysicsTables) {
+    hold_at(&game(car, tables));
 }

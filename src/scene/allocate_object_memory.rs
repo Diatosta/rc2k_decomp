@@ -21,18 +21,18 @@ use rc2k_core::scene::objects::object_rooms as rooms;
 pub fn allocate_object_memory_in_game(
     course: &crate::race::owner_course::Course,
 ) -> Result<(), Refused> {
-    let (points, faces) = rooms(course.numbers.in_race.bits() != 0);
+    let (points, faces) = rooms(course.numbers.in_race.get() != 0);
     let list = &course.lists.object_points_list;
-    course.lists.course_bytes_total.set_bits(
+    course.lists.course_bytes_total.set(
         course
             .lists
             .course_bytes_total
-            .bits()
+            .get()
             .wrapping_add(points + faces),
     );
     crate::scene::object_points::take(course, list, points)?;
     crate::scene::object_faces::take(course, list, faces)?;
-    course.lists.object_points_room.set_bits(points);
-    course.lists.face_memory_room.set_bits(faces);
+    course.lists.object_points_room.set(points);
+    course.lists.face_memory_room.set(faces);
     Ok(())
 }

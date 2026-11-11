@@ -7,7 +7,7 @@
 
 use crate::audio::store::AudioState;
 
-pub fn set_master_volume_in_game(state: &AudioState, volume: u32) {
+pub fn set_master_volume(state: &AudioState, volume: u32) {
     if crate::audio::buffer_settings::a3d(state) {
         return;
     }

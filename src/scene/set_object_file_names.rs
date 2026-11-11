@@ -34,11 +34,11 @@ pub fn set_object_file_names(
     {
         let (ro3, lwo, number) = FOLDERS[folder(folder_kind)];
         let (ro3_number, lwo_number) = ((ro3 + number) as u32, (lwo + number) as u32);
-        scene.file_numbers.object_ro3_number.set_bits(ro3_number);
-        scene.file_numbers.object_ro3_path.set_bits(ro3 as u32);
-        scene.file_numbers.object_lwo_path.set_bits(lwo as u32);
-        scene.file_numbers.object_lwo_number.set_bits(lwo_number);
-        let digits = number_digits(scene.drawing.object_work.loading_kind.bits());
+        scene.file_numbers.object_ro3_number.set(ro3_number);
+        scene.file_numbers.object_ro3_path.set(ro3 as u32);
+        scene.file_numbers.object_lwo_path.set(lwo as u32);
+        scene.file_numbers.object_lwo_number.set(lwo_number);
+        let digits = number_digits(scene.drawing.object_work.loading_kind.get());
         scene
             .file_numbers
             .text_ptr(ro3 + number)

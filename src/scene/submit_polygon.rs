@@ -57,7 +57,7 @@ pub fn submit_polygon(poly: &crate::scene::polygon_work::PolygonWork, outside: &
     let session = &system.session;
     let scene = scene();
     let device_on = scene.objects.tables.d3d_drawing_on.get() != 0;
-    let texture: u32 = poly.polygon_texture.bits();
+    let texture: u32 = poly.polygon_texture.get();
     if texture == NO_TEXTURE {
         if device_on {
             outside.set_texture(NO_TEXTURE);

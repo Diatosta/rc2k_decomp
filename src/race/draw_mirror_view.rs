@@ -43,14 +43,14 @@ pub fn draw_mirror_view(
     // window while its own part may be writing it.
     view.course
         .view_value_kept
-        .set_bits(race.course.stage_prefs.grid_reach.bits().wrapping_mul(0x20));
+        .set(race.course.stage_prefs.grid_reach.get().wrapping_mul(0x20));
     let saved = view.vars.view_scale.bits();
     view.vars
         .view_scale
         .set_bits(race.course.numbers.k256.bits());
     let drawn = (|| {
         crate::race::frame_views::mirror_view_window(race, scene, system, view)?;
-        view.polygon.window.view_depth[1].set_bits(view.course.view_value_kept.bits());
+        view.polygon.window.view_depth[1].set(view.course.view_value_kept.get());
         crate::race::frame_flush::draw_view_backdrop(race, scene, view);
         crate::race::draw_view_scene::draw_view_scene(race, scene, view)
     })();

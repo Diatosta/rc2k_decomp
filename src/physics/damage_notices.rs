@@ -15,40 +15,40 @@
 
 use crate::errors::Refused;
 use crate::math::x87::from_int;
+use crate::physics::car_store::Car;
 use crate::physics::queue_notice::queue_notice;
-use crate::race::owner::Race;
-use crate::race::owner_shared::RaceShared;
+use crate::physics::store::DamageModel;
 use crate::session::Float;
 use rc2k_core::physics::damage_notices::{LEVELS, damage_notices as damage_notices_core};
 
 /// `unk_71A284` .. `unk_71A33C`: the gauges, 47 dwords in a row in the car's record.
-fn gauge(shared: &RaceShared, mut k: usize) -> u32 {
+fn gauge(car: &Car, mut k: usize) -> u32 {
     use std::slice::from_ref as one;
     let groups: [&[Float]; 24] = [
-        &shared.car.brake_heat,
-        one(&shared.car.engine_heat),
-        one(&shared.car.engine_damage),
-        one(&shared.car.exhaust_damage),
-        one(&shared.car.turbo_damage),
-        one(&shared.car.cooling_damage),
-        one(&shared.car.clutch_damage),
-        one(&shared.car.differential_damage),
-        &shared.car.gear_wear,
-        one(&shared.car.gearbox_damage),
-        &shared.car.wheel_hit_damage,
-        one(&shared.car.body_hit_damage),
-        one(&shared.car.body_damage),
-        one(&shared.car.electrics_damage),
-        &shared.car.light_damage,
-        one(&shared.car.lights_damage),
-        one(&shared.car.steering_damage),
-        &shared.car.suspension_damage,
-        one(&shared.car.overall_suspension_damage),
-        one(&shared.car.brake_wear_a),
-        one(&shared.car.brake_wear_b),
-        one(&shared.car.brake_damage),
-        &shared.car.tyre_wears,
-        one(&shared.car.tyre_wear),
+        &car.brake_heat,
+        one(&car.engine_heat),
+        one(&car.engine_damage),
+        one(&car.exhaust_damage),
+        one(&car.turbo_damage),
+        one(&car.cooling_damage),
+        one(&car.clutch_damage),
+        one(&car.differential_damage),
+        &car.gear_wear,
+        one(&car.gearbox_damage),
+        &car.wheel_hit_damage,
+        one(&car.body_hit_damage),
+        one(&car.body_damage),
+        one(&car.electrics_damage),
+        &car.light_damage,
+        one(&car.lights_damage),
+        one(&car.steering_damage),
+        &car.suspension_damage,
+        one(&car.overall_suspension_damage),
+        one(&car.brake_wear_a),
+        one(&car.brake_wear_b),
+        one(&car.brake_damage),
+        &car.tyre_wears,
+        one(&car.tyre_wear),
     ];
     for group in groups {
         match group.get(k) {
@@ -63,24 +63,24 @@ fn gauge(shared: &RaceShared, mut k: usize) -> u32 {
 }
 
 // Converted: `rc2k_core::physics::damage_notices::damage_notices`.
-fn steps(race: &Race) -> Result<(), Refused> {
-    let mut levels: [u32; LEVELS] = std::array::from_fn(|k| race.shared.car.damage_levels[k].get());
+fn steps(car: &Car, damage: &DamageModel) -> Result<(), Refused> {
+    let mut levels: [u32; LEVELS] = std::array::from_fn(|k| car.damage_levels[k].get());
     let result = damage_notices_core(
         &mut levels,
-        |k| f32::from_bits(gauge(&race.shared, k)),
+        |k| f32::from_bits(gauge(car, k)),
         |t| {
-            race.physics.damage.scratch.set_bits(from_int(t));
+            damage.scratch.set_bits(from_int(t));
         },
-        |q| queue_notice(&race.shared, q.notice, q.rank, gauge(&race.shared, q.gauge)),
+        |q| queue_notice(car, q.notice, q.rank, gauge(car, q.gauge)),
     );
     for (k, &v) in levels.iter().enumerate() {
-        race.shared.car.damage_levels[k].set(v);
+        car.damage_levels[k].set(v);
     }
     result
 }
 
-pub fn damage_notices(race: &Race) -> Result<(), Refused> {
-    steps(race)
+pub fn damage_notices(car: &Car, damage: &DamageModel) -> Result<(), Refused> {
+    steps(car, damage)
 }
 
 #[cfg(test)]

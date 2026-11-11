@@ -11,7 +11,8 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::race::owner_shared::RaceShared;
+use crate::physics::car_store::Car;
+use crate::race::vars_store::RaceVars;
 use crate::session::Cell32;
 use rc2k_core::physics::motion::{StepCounters, StepFacts, count_down};
 
@@ -51,28 +52,28 @@ pub fn count_at(v: &[&dyn Cell32]) {
     }
 }
 
-fn game(shared: &RaceShared) -> Vec<&dyn Cell32> {
+fn game<'a>(car: &'a Car, vars: &'a RaceVars) -> Vec<&'a dyn Cell32> {
     vec![
-        &shared.car.light_hold_steps as &dyn Cell32,
-        &shared.car.value_jump_steps,
-        &shared.car.run_ticks,
-        &shared.car.finish_flag,
-        &shared.car.go_stand_timer,
-        &shared.car.started_stand_timer,
-        &shared.vars.run_kind,
-        &shared.car.parts_present,
-        &shared.car.gear,
-        &shared.car.stopped_steps,
-        &shared.car.tyre_change_state,
-        &shared.car.wall_hit_timer,
-        &shared.car.drive_cut_steps,
-        &shared.car.engine_speed_scaled,
-        &shared.car.top_speed,
-        &shared.car.hit_cooldown,
+        &car.light_hold_steps as &dyn Cell32,
+        &car.value_jump_steps,
+        &car.run_ticks,
+        &car.finish_flag,
+        &car.go_stand_timer,
+        &car.started_stand_timer,
+        &vars.run_kind,
+        &car.parts_present,
+        &car.gear,
+        &car.stopped_steps,
+        &car.tyre_change_state,
+        &car.wall_hit_timer,
+        &car.drive_cut_steps,
+        &car.engine_speed_scaled,
+        &car.top_speed,
+        &car.hit_cooldown,
     ]
 }
 
 /// One compare and copy of floats: the same at any precision.
-pub fn count_down_timers(shared: &RaceShared) {
-    count_at(&game(shared));
+pub fn count_down_timers(car: &Car, vars: &RaceVars) {
+    count_at(&game(car, vars));
 }

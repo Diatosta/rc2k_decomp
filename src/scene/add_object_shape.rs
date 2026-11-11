@@ -109,8 +109,8 @@ fn shape() -> Result<Result<Shape, Option<u32>>, BadInput> {
     if points > MARKS || face_count > MARKS || normals > MARKS {
         return Err(BadInput("more points, faces or normals than can be marked"));
     }
-    let mask: u32 = scene.draw_switches.loading_group_mask.bits();
-    let slot: u32 = scene.drawing.object_work.loading_slot.bits();
+    let mask: u32 = scene.draw_switches.loading_group_mask.get();
+    let slot: u32 = scene.drawing.object_work.loading_slot.get();
     let mut point_marks = vec![0u32; MARKS];
     let mut normal_marks = vec![0u32; MARKS];
     let mut faces = Vec::with_capacity(face_count);
@@ -192,11 +192,11 @@ struct Room {
 fn room(course: &crate::race::owner_course::Course, shape: &Shape) -> Result<Room, BadInput> {
     let scene = scene();
     let room = Room {
-        slot: scene.drawing.object_work.loading_slot.bits(),
-        points: course.lists.object_points.bits(),
+        slot: scene.drawing.object_work.loading_slot.get(),
+        points: course.lists.object_points.get(),
         point_count: scene.objects.tables.point_count.get(),
-        face_memory: course.lists.face_memory.bits(),
-        face_cursor: scene.drawing.object_work.face_cursor.bits(),
+        face_memory: course.lists.face_memory.get(),
+        face_cursor: scene.drawing.object_work.face_cursor.get(),
         face_count: scene.objects.tables.face_count.get(),
     };
     if room.slot >= SLOTS || room.points == 0 || room.face_memory == 0 {
@@ -206,8 +206,8 @@ fn room(course: &crate::race::owner_course::Course, shape: &Shape) -> Result<Roo
     }
     let [points, normals, faces, face_bytes] = shape.added;
     let fits = (room.point_count as usize + points + normals) * 12
-        <= course.lists.object_points_room.bits() as usize
-        && room.face_cursor as usize + face_bytes <= course.lists.face_memory_room.bits() as usize
+        <= course.lists.object_points_room.get() as usize
+        && room.face_cursor as usize + face_bytes <= course.lists.face_memory_room.get() as usize
         && room.face_count as usize + faces <= FACES as usize;
     if !fits {
         return Err(BadInput("a shape that does not fit the objects' memory"));
@@ -228,7 +228,7 @@ pub fn add_object_shape(
                 &[u32::MAX, 0],
             );
             if let Some(points) = points {
-                scene.drawing.object_work.shape_counts[1].set_bits(points);
+                scene.drawing.object_work.shape_counts[1].set(points);
             }
             return Ok(());
         }
@@ -248,9 +248,9 @@ pub fn add_object_shape(
         &scene.drawing.object_work.shape_counts[5..7],
         &[u32::MAX, 0],
     );
-    scene.drawing.object_work.shape_counts[1].set_bits(shape.points as u32);
-    scene.drawing.object_work.shape_counts[0].set_bits(shape.faces.len() as u32);
-    scene.drawing.object_work.shape_counts[3].set_bits(shape.normals as u32);
+    scene.drawing.object_work.shape_counts[1].set(shape.points as u32);
+    scene.drawing.object_work.shape_counts[0].set(shape.faces.len() as u32);
+    scene.drawing.object_work.shape_counts[3].set(shape.normals as u32);
     for n in 0..MARKS {
         let taken = shape.faces.get(n).is_some_and(|face| face.taken);
         scene.textures.places.face_marks[n].set(taken as u32);
@@ -266,9 +266,9 @@ pub fn add_object_shape(
     );
     scene.objects.slots.first_point[slot].set(first_point);
     scene.objects.slots.first_face[slot].set(first_face);
-    let kind: u32 = scene.drawing.object_work.loading_kind.bits();
+    let kind: u32 = scene.drawing.object_work.loading_kind.get();
     let turned = (0x190..0x258).contains(&kind);
-    let drop: u32 = race.shared.physics_tables.ground_drop.bits();
+    let drop: u32 = race.shared.physics_tables.ground_drop.get();
     let mut radius = 0u32;
     let mut count = first_point;
     let mut to = room.points.wrapping_add(count.wrapping_mul(12));
@@ -287,18 +287,18 @@ pub fn add_object_shape(
         }
         crate::scene::object_points::set_point(to, point)?;
         let reach = x87::int_hypot(point[0] as i32, point[2] as i32) as u32;
-        scene.drawing.scene.scratch.set_bits(reach);
+        scene.drawing.scene.scratch.set(reach);
         if (reach.wrapping_sub(radius) as i32) >= 0 {
             radius = reach;
         }
         count += 1;
         to = to.wrapping_add(12);
     }
-    course.course.shape_radius.set_bits(radius);
+    course.course.shape_radius.set(radius);
     scene.objects.slots.radii[slot].set(radius);
     scene.objects.slots.point_counts[slot].set(count - first_point);
     let first_normal = count;
-    scene.drawing.object_work.shape_firsts[2].set_bits(first_normal);
+    scene.drawing.object_work.shape_firsts[2].set(first_normal);
 
     // The faces.
     let no_normals = shape.normals == 0;
@@ -355,7 +355,7 @@ pub fn add_object_shape(
         .drawing
         .object_work
         .face_cursor
-        .set_bits(out as u32 - room.face_memory);
+        .set(out as u32 - room.face_memory);
 
     // The normals.
     for n in 0..shape.normals {

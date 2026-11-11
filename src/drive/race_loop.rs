@@ -43,19 +43,19 @@ fn net_player_car(
 /// The quit answer `answer` put into the cars (0x444EB5 ..).
 fn put_answer(shared: &RaceShared, answer: u32) -> Result<(), BadInput> {
     if net().vars.session.get() != 0 {
-        net_player_car(shared)?.stop_state.set_bits(answer);
+        net_player_car(shared)?.stop_state.set(answer);
         return Ok(());
     }
-    CAR_BLOCKS.cars[0].stop_state.set_bits(answer);
-    CAR_BLOCKS.cars[1].stop_state.set_bits(answer);
+    CAR_BLOCKS.cars[0].stop_state.set(answer);
+    CAR_BLOCKS.cars[1].stop_state.set(answer);
     if shared.view.players.get() != 2 {
         return Ok(());
     }
-    if CAR_BLOCKS.cars[0].finish_flag.bits() != 0 {
-        CAR_BLOCKS.cars[0].stop_state.set_bits(2);
+    if CAR_BLOCKS.cars[0].finish_flag.get() != 0 {
+        CAR_BLOCKS.cars[0].stop_state.set(2);
     }
-    if CAR_BLOCKS.cars[1].finish_flag.bits() != 0 {
-        CAR_BLOCKS.cars[1].stop_state.set_bits(2);
+    if CAR_BLOCKS.cars[1].finish_flag.get() != 0 {
+        CAR_BLOCKS.cars[1].stop_state.set(2);
     }
     Ok(())
 }
@@ -68,7 +68,7 @@ pub fn race_loop(
 ) -> Result<(), Refused> {
     let devices = &input.devices;
     for c in 0..8 {
-        CAR_BLOCKS.cars[c as usize].reset_marker.set_bits(10);
+        CAR_BLOCKS.cars[c as usize].reset_marker.set(10);
     }
     system.session.flags.paused.set(0);
     race.shared.vars.scene_switch.set(0);
@@ -176,7 +176,7 @@ pub fn race_loop(
         }
         // 0x444F0F: paused.
         if net().vars.session.get() != 0 {
-            net_player_car(&race.shared)?.input_keys.set_bits(0);
+            net_player_car(&race.shared)?.input_keys.set(0);
         } else {
             { crate::drive::pause_until_key::pause_until_key(race, input, system) }?;
         }

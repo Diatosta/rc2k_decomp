@@ -23,7 +23,7 @@ fn record_field(record: u32, offset: u32) -> Result<u32, BadInput> {
 /// the fifth: rows 0x20 apart, from reach - 2 on the diagonal).
 fn cells(course: &Course) -> Vec<u32> {
     // Converted: `rc2k_core::race::view::cells_from`.
-    rc2k_core::race::view::cells_from(course.stage_prefs.grid_reach.bits().wrapping_sub(2), 5)
+    rc2k_core::race::view::cells_from(course.stage_prefs.grid_reach.get().wrapping_sub(2), 5)
 }
 
 /// What the original would read through a null or past the grid: refused before anything.
@@ -38,9 +38,9 @@ fn check(course: &Course, grid: &ViewGrid) -> Result<(), Refused> {
         if record >= 0x0FFF_FFFF {
             continue;
         }
-        if course.course.course_records.bits() == 0
-            || course.course.course_faces.bits() == 0
-            || course.course.scene_points.bits() == 0
+        if course.course.course_records.get() == 0
+            || course.course.course_faces.get() == 0
+            || course.course.scene_points.get() == 0
         {
             return Err(BadInput("no course records, faces or points").into());
         }
@@ -69,7 +69,7 @@ pub fn face_sound_spot(race: &Race, view: &ViewMatrices, face_number: u32) -> Re
         if kind != 0xFF || !sound_object(kind, f.object()) {
             return Ok(());
         }
-        let count: u32 = race.frame.sound_spots.sound_spot_count.bits();
+        let count: u32 = race.frame.sound_spots.sound_spot_count.get();
         if count == MOST_SPOTS {
             return Ok(());
         }
@@ -99,7 +99,7 @@ pub fn face_sound_spot(race: &Race, view: &ViewMatrices, face_number: u32) -> Re
         for (i, v) in t.into_iter().enumerate() {
             put(4 + 4 * i as u32, scaled(v, k))?;
         }
-        race.frame.sound_spots.sound_spot_count.set_bits(count + 1);
+        race.frame.sound_spots.sound_spot_count.set(count + 1);
     }
     Ok(())
 }
@@ -145,7 +145,7 @@ pub fn find_sound_spots(
     let grid = &view.grid;
     {
         check(&race.course, grid)?;
-        race.frame.sound_spots.sound_spot_count.set_bits(0u32);
+        race.frame.sound_spots.sound_spot_count.set(0u32);
         for c in cells(&race.course) {
             cell_sound_spots(race, &view.matrices, grid, c)?;
         }

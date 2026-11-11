@@ -18,7 +18,7 @@ use crate::pointers::GamePtr;
 /// (0x50 ..) without its block.
 fn check_object(race: &crate::race::owner::Race, object: u32) -> Result<(), Refused> {
     let car = object.wrapping_sub(0x50);
-    if race.course.numbers.in_race.bits() != 0
+    if race.course.numbers.in_race.get() != 0
         && car < 0xA0
         && race.shared.work.car_block((car / 0x14) as usize) == 0
     {
@@ -105,10 +105,10 @@ fn draw_description(
     if shown {
         check_object(race, object)?;
     }
-    ctx.view.cars.object_number.set_bits(object);
+    ctx.view.cars.object_number.set(object);
     let end = || {
         ctx.view.object.only_object.set(0u32);
-        ctx.view.object.object_place.set_bits(u32::MAX);
+        ctx.view.object.object_place.set(u32::MAX);
     };
     if object > 0x64 {
         end();
@@ -118,7 +118,7 @@ fn draw_description(
         end();
         return Ok(());
     }
-    ctx.view.object.object_place.set_bits(place);
+    ctx.view.object.object_place.set(place);
     if !shown {
         end();
         return Ok(());
@@ -142,7 +142,7 @@ fn draw_description(
         ctx.view.object.described_turns[0].set(byte(0x12) << 8);
         ctx.view.object.described_turns[1].set(byte(0x13) << 8);
     }
-    ctx.view.light.other_light.set_bits(get(0x2C));
+    ctx.view.light.other_light.set(get(0x2C));
     ctx.view.object.only_object.set((byte(0x25) >> 1) & 3);
     let light = |lowest: u32, highest: u32, level: u32, strength: u32| {
         ctx.view.light.light_lowest.set(lowest);
@@ -188,7 +188,7 @@ fn draw_description(
     ctx.view.light.view_kind.set(2u32);
     crate::race::frame_draw::place_object_matrix(ctx)?;
     ctx.view.light.light_kind.set(2u32);
-    let object: u32 = ctx.view.cars.object_number.bits();
+    let object: u32 = ctx.view.cars.object_number.get();
     let kind: u32 = scene.objects.tables.object_kind(object);
     let record = crate::scene::polygon::materials_ptr().offset(kind.wrapping_mul(0x80));
     if record.offset(0x1F).read::<u8>("an object's material")? != 0 {

@@ -30,7 +30,7 @@ fn try_place(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refu
     { crate::physics::probe_ground::probe_ground(race, &race.shared.car, scene) }?;
     crate::physics::crossed_edge::check(&race.physics)?;
     crate::physics::crossed_edge::steps(race, scene)?;
-    crate::physics::wall_contacts::check(&race.shared)?;
+    crate::physics::wall_contacts::check(&race.shared.car)?;
     crate::physics::wall_contacts::steps(race, scene)?;
     { crate::physics::car_collisions::car_collisions(race, scene) }?;
     crate::physics::face_contacts_around::face_contacts_around(race, scene)
@@ -47,8 +47,20 @@ pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refu
     let factor = extended(race.shared.physics_tables.clear_place_share.bits());
     crate::physics::scale_vector::scale_vector(&race.shared.car.velocity, factor);
     scene.drawing.scene.scratch.set(rounded(factor));
-    { crate::physics::restore_saved_car::restore_saved_car(race) }?;
-    { crate::physics::lowest_body_point::lowest_body_point(race) }?;
+    {
+        crate::physics::restore_saved_car::restore_saved_car(
+            &race.shared.car,
+            &race.shared.physics_tables,
+            &race.physics.contact,
+        )
+    }?;
+    {
+        crate::physics::lowest_body_point::lowest_body_point(
+            &race.shared.car,
+            &race.course.numbers,
+            &race.physics.contact,
+        )
+    }?;
     race.shared
         .physics_tables
         .clear_place_face
@@ -78,7 +90,13 @@ pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refu
     let Some(n) = found else {
         return crate::physics::reset_car::reset_car(race, scene);
     };
-    { crate::physics::lowest_body_point::lowest_body_point(race) }?;
+    {
+        crate::physics::lowest_body_point::lowest_body_point(
+            &race.shared.car,
+            &race.course.numbers,
+            &race.physics.contact,
+        )
+    }?;
     let depth = physics_store.contact.lowest_depth.get();
     if let Some(height) = clear_place::lifted(race.shared.car.position[1].get(), depth) {
         race.shared.car.position[1].set(height);
@@ -94,11 +112,15 @@ pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refu
             .get()
             .wrapping_add(1),
     );
-    crate::physics::limit_motion::limit_motion(race, scene);
+    crate::physics::limit_motion::limit_motion(
+        &race.shared.car,
+        &race.shared.physics_tables,
+        scene,
+    );
     Ok(())
 }
 
 pub fn find_clear_place(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    crate::physics::wall_contacts::check(&race.shared)?;
+    crate::physics::wall_contacts::check(&race.shared.car)?;
     steps(race, scene)
 }

@@ -7,17 +7,16 @@
 //!
 //! Caller: `physics::race_timers` (four calls).
 
-use crate::race::owner::Race;
-use crate::race::owner_course::Course;
-use crate::race::owner_shared::RaceShared;
+use crate::physics::car_store::Car;
+use crate::race::numbers_store::Numbers;
 use crate::session::Cell32;
 use rc2k_core::physics::motion::stop_timers;
 
 /// The core on the variables' cells (a compare of floats only: the same at any
 /// precision).
 // Converted: `rc2k_core::physics::motion::stop_timers`.
-pub fn count_stop_timers_at(course: &Course, v: &[&dyn Cell32]) {
-    let one = f32::from_bits(course.numbers.one.bits());
+pub fn count_stop_timers_at(numbers: &Numbers, v: &[&dyn Cell32]) {
+    let one = f32::from_bits(numbers.one.bits());
     let mut counters = [v[0].bits(), v[1].bits(), v[2].bits()];
     let result = stop_timers(&mut counters, f32::from_bits(v[3].bits()), one);
     for (k, c) in counters.iter().enumerate() {
@@ -30,16 +29,16 @@ pub fn count_stop_timers_at(course: &Course, v: &[&dyn Cell32]) {
     }
 }
 
-fn game(shared: &RaceShared) -> Vec<&dyn Cell32> {
+fn game(car: &Car) -> Vec<&dyn Cell32> {
     vec![
-        &shared.car.started_stand_timer as &dyn Cell32,
-        &shared.car.go_stand_timer,
-        &shared.car.finish_flag,
-        &shared.car.speed,
-        &shared.car.stop_state,
+        &car.started_stand_timer as &dyn Cell32,
+        &car.go_stand_timer,
+        &car.finish_flag,
+        &car.speed,
+        &car.stop_state,
     ]
 }
 
-pub fn count_stop_timers(race: &Race) {
-    count_stop_timers_at(&race.course, &game(&race.shared));
+pub fn count_stop_timers(car: &Car, numbers: &Numbers) {
+    count_stop_timers_at(numbers, &game(car));
 }

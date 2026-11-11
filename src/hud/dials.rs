@@ -115,7 +115,7 @@ fn set_up_disc(frame: &Frame, hud: &Hud, style: &DiscStyle) {
 fn set_up_needle(frame: &Frame, hud: &Hud, style: &NeedleStyle) {
     let own = (style.vars)(&hud.block);
     let value = (style.value)(&frame.panel_and_overlay.panel);
-    hud.block.needle_value.set_bits(value.get());
+    hud.block.needle_value.set(value.get());
     copy(&own[0], &hud.block.needle_centre[0]);
     copy(&own[1], &hud.block.needle_centre[1]);
     let size = if style.lifted_centre {

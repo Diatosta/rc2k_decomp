@@ -15,7 +15,7 @@ fn before(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
     screens.items.current[slot::NEW_SIMULATION]
         .set(screens.items.first[slot::NEW_SIMULATION].get());
-    screens.event.event_done.set(0x0u32);
+    screens.event.event_over.set(0x0u32);
     Ok(())
 }
 

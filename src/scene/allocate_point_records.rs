@@ -19,6 +19,6 @@ pub fn allocate_point_records_in_game(course: &Course) -> Result<(), Refused> {
     course
         .lists
         .course_bytes_total
-        .set_bits(course.lists.course_bytes_total.bits().wrapping_add(BYTES));
+        .set(course.lists.course_bytes_total.get().wrapping_add(BYTES));
     point_records::take(course, &course.lists.point_records_list)
 }

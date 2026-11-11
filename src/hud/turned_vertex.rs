@@ -21,21 +21,25 @@ pub fn turned_vertex(hud: &Hud, vertex: &Vertex, angle: u32, point: [f64; 2]) {
     let scale = hud.block.uv_scale_x.get();
     vertex
         .u
-        .set_bits(disc::turned_texture(x, hud.block.uv_shift[0].get(), scale).to_bits());
+        .set(disc::turned_texture(x, hud.block.uv_shift[0].get(), scale));
     vertex
         .v
-        .set_bits(disc::turned_texture(y, hud.block.uv_shift[1].get(), scale).to_bits());
+        .set(disc::turned_texture(y, hud.block.uv_shift[1].get(), scale));
     let [tx, _, tz, _] = turn_float_point_xz_plain(x.to_bits(), 0, y.to_bits(), angle);
     hud.block.point[1].set(tz);
     hud.block.point[0].set(tx);
     let size = hud.block.needle_size.get();
     let [tx, tz] = [tx, tz].map(f32::from_bits);
-    vertex
-        .x
-        .set_bits(disc::turned_place(tx, size, hud.block.needle_centre[0].get()).to_bits());
-    vertex
-        .y
-        .set_bits(disc::turned_place(tz, size, hud.block.needle_centre[1].get()).to_bits());
+    vertex.x.set(disc::turned_place(
+        tx,
+        size,
+        hud.block.needle_centre[0].get(),
+    ));
+    vertex.y.set(disc::turned_place(
+        tz,
+        size,
+        hud.block.needle_centre[1].get(),
+    ));
     let colour = disc::white_under(hud.block.quad.alpha.get());
     vertex.colour.set(colour);
     vertex.specular.set(0);

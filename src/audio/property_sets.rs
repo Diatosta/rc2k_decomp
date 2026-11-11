@@ -48,7 +48,7 @@ impl<'a> Opening<'a> {
 /// leaves the set where it went (it is released at the close). Refuses a holder that is
 /// no pointer (the original reads through it: `make_buffer`'s EAX bug, `notes/bugs.md`).
 pub fn open_property_set(state: &AudioState, o: &Opening, holder: u32) -> Result<bool, Refused> {
-    if o.setting.get() != 0 || o.object.get() != 0 {
+    if o.setting.is_set() || o.object.is_set() {
         return Ok(false);
     }
     if holder < 0x1_0000 {

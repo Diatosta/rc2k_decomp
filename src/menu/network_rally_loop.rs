@@ -11,7 +11,9 @@
 
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Callee, Entry, Frames, List, Screen, Step, carousel, screen_entry};
+use crate::menu::screen_loop::{
+    Callee, Entry, Frames, List, MenuSound, Screen, Step, carousel, screen_entry,
+};
 
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
@@ -63,11 +65,11 @@ pub const SCREEN: Screen = Screen {
         Step::Call(Callee::PrepareScene),
     ],
     after: &[
-        Step::Write(|m| &m.tables.captions.screen_left, 0x0),
-        Step::Write(|m| &m.screens.loop_flags.ended_a, 0x0),
-        Step::Write(|m| &m.screens.draw_work.escaped, 0x0),
-        Step::Write(|m| &m.screens.option_work.menu_sound, 0x6F),
-        Step::Write(|m| &m.screens.loop_flags.back, 0x0),
+        Step::Write(|m| &m.tables.captions.left_by_key, 0x0),
+        Step::Write(|m| &m.screens.loop_flags.ask_leave, 0x0),
+        Step::Write(|m| &m.screens.draw_work.escape_pressed, 0x0),
+        Step::Sound(MenuSound::None),
+        Step::Write(|m| &m.screens.loop_flags.leave_screen, 0x0),
     ],
     frames: Frames {
         no_quit_check: true,

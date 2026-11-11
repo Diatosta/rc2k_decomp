@@ -127,8 +127,8 @@ pub fn draw_flat_triangle() {
     // 1.0 at x, y of each of the three vertices; 0.0 at the rest of their floats (z, rhw,
     // u, v) and the specular.
     for vertex in &crate::d3d::vertices_store::VERTICES.vertices[..3] {
-        vertex.x.set_bits(1.0f32.to_bits());
-        vertex.y.set_bits(1.0f32.to_bits());
+        vertex.x.set(1.0f32);
+        vertex.y.set(1.0f32);
         vertex.z.set_bits(0);
         vertex.u.set_bits(0);
         vertex.v.set_bits(0);

@@ -12,29 +12,27 @@
 //! null sound object.
 
 use crate::errors::Refused;
-use crate::race::owner::Race;
+use crate::physics::car_store::Car;
 use rc2k_core::physics::engine::shares_figures;
 
 /// A compare of floats only: the same at any precision.
 // Converted: `rc2k_core::physics::engine::shares_figures`.
-pub fn share_engine_sound(race: &Race) -> Result<(), Refused> {
+pub fn share_engine_sound(car: &Car) -> Result<(), Refused> {
     let so = crate::sound::store::current_object();
     if shares_figures(
-        race.shared.car.contact_depth.get(),
+        car.contact_depth.get(),
         f32::from_bits(so.knock_in[3].get()),
     ) {
-        for (k, figure) in race
-            .shared
-            .car
+        for (k, figure) in car
             .contact_point
             .iter()
-            .chain([&race.shared.car.contact_depth])
+            .chain([&car.contact_depth])
             .enumerate()
         {
             so.knock_in[k].set(figure.bits());
         }
     }
-    so.steer_trim_copy.set(race.shared.car.steer_trim.get());
+    so.steer_trim_copy.set(car.steer_trim.get());
     so.new_revs.set(1);
     Ok(())
 }

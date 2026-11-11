@@ -19,7 +19,7 @@ pub fn draw_frame_rate(race: &Race, canvas: &mut dyn Canvas) -> Result<(), Refus
     // Converted: `rc2k_core::race::frame_rate::{shown_rate, fps_text}`.
     use rc2k_core::race::frame_rate::{fps_text, shown_rate};
     frame.text_state.text_mode.set(2);
-    let rate = shown_rate(f32::from_bits(race.shared.switches.frame_rate.bits()));
+    let rate = shown_rate(race.shared.switches.frame_rate.get());
     if rate == 0 || frame.counter.show.get() == 0 {
         return Ok(());
     }

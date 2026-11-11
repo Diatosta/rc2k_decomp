@@ -26,13 +26,13 @@ pub fn press(
         last_car: menus.cars.table.last_car.get(),
         picture: menus.screens.event.picture.get(),
         page: menus.screens.event.car_page.get(),
-        leave: menus.screens.loop_flags.back.get(),
+        leave: menus.screens.loop_flags.leave_screen.get(),
     };
     let calls = rc2k_core::menu::cars::press(b, &mut s);
     menus.screens.event.shown_car.set(s.car);
     menus.screens.event.picture.set(s.picture);
     menus.screens.event.car_page.set(s.page);
-    menus.screens.loop_flags.back.set(s.leave);
+    menus.screens.loop_flags.leave_screen.set(s.leave);
     for &c in calls {
         call(c)?;
     }

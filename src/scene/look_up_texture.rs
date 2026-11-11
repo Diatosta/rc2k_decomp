@@ -12,11 +12,11 @@ pub fn look_up_texture(
 ) -> u32 {
     // Converted: `rc2k_core::scene::textures::look_up`.
     let found = rc2k_core::scene::textures::look_up(
-        poly.texture_page.bits(),
+        poly.texture_page.get(),
         |p| scene.textures.places.place_slot[p].get(),
         |k| scene.textures.kinds.kind_first_slots[k].get(),
         || scene.textures.places.totals[2].get(),
     );
-    poly.polygon_texture.set_bits(found.texture);
+    poly.polygon_texture.set(found.texture);
     found.eax
 }

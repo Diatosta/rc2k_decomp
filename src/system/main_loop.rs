@@ -71,7 +71,7 @@ pub fn main_loop(session: &Session, saves: &crate::saves::owner::Saves) -> Resul
             log_line(c"Leaving main loop...");
             return Ok(());
         }
-        if session.flags.window_active.get() != 0 && session.clocks.key_ticks.get() != 0 {
+        if session.flags.window_active.is_set() && session.clocks.key_ticks.is_set() {
             break;
         }
     }
@@ -119,8 +119,8 @@ pub fn main_loop(session: &Session, saves: &crate::saves::owner::Saves) -> Resul
 
 /// The main loop, logged on the way in and out.
 pub fn main_loop_in_game(system: &crate::system::owner::System) -> Result<(), Refused> {
-    log("system::main_loop: the Rust version runs");
+    log("system::main_loop: runs");
     main_loop(&system.session, crate::saves::owner::saves())?;
-    log("system::main_loop: the Rust version has come back");
+    log("system::main_loop: has come back");
     Ok(())
 }

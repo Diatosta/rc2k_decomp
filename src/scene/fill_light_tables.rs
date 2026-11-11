@@ -32,8 +32,8 @@ pub fn fill_light_tables(
     let t = &scene.light_tables;
     use core::mem::offset_of;
     let plain =
-        rc2k_core::scene::lamps::plain_light(race.shared.switches.scene_set_up.bits(), || {
-            course.stage_prefs.lit_b.bits()
+        rc2k_core::scene::lamps::plain_light(race.shared.switches.scene_set_up.get(), || {
+            course.stage_prefs.lit_b.get()
         });
     // `unk_62DB10`: two colours; `dword_6092B4`: two colours (the dark one and the lit).
     let p = &scene.lights.work.plain_light_colours;

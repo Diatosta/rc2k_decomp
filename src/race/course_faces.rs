@@ -38,8 +38,7 @@ fn table_byte(
 pub fn face_depth_test_off(face: &FaceWork) {
     {
         // Converted: `rc2k_core::race::faces::depth_test_off`.
-        if !rc2k_core::race::faces::depth_test_off(face.texture_a.bits(), face.polygon_mode.bits())
-        {
+        if !rc2k_core::race::faces::depth_test_off(face.texture_a.get(), face.polygon_mode.get()) {
             return;
         }
         crate::scene::depth_test_off::depth_test_off();
@@ -53,7 +52,7 @@ pub fn face_depth_test_off(face: &FaceWork) {
 pub fn face_depth_test_on(face: &FaceWork) {
     {
         // Converted: `rc2k_core::race::faces::depth_test_on`.
-        if rc2k_core::race::faces::depth_test_on(face.depth_test.bits()) {
+        if rc2k_core::race::faces::depth_test_on(face.depth_test.get()) {
             crate::scene::depth_test_on::depth_test_on();
         }
         face.depth_test.set(0u32);
@@ -145,7 +144,7 @@ pub fn face_materials(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), BadInput> {
     let course = &race.course;
     let shared = &race.shared;
     {
-        let clock: u32 = crate::race::frame_view::car(0)?.step_clock.bits();
+        let clock: u32 = crate::race::frame_view::car(0)?.step_clock.get();
         let (k1, k2) = (course.numbers.ten.bits(), course.numbers.quarter.bits());
         let texture = |object: u32, first: bool| -> Result<u32, BadInput> {
             let speed = table_byte(&course.stage_prefs.face_speeds, object, "the face speeds")?;
@@ -203,7 +202,7 @@ pub fn face_switches(poly: &crate::scene::polygon_work::PolygonWork, work: &Face
     // Converted: `rc2k_core::race::faces::switches`.
     {
         let [first, second] =
-            rc2k_core::race::faces::switches([work.texture_a.bits(), work.texture_b.bits()]);
+            rc2k_core::race::faces::switches([work.texture_a.get(), work.texture_b.get()]);
         poly.polygon_sides[0].set(first);
         poly.polygon_sides[1].set(second);
     }
@@ -242,8 +241,8 @@ pub fn face_lights(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     let lit = wanted != 0
         && rc2k_core::race::faces::corners_lit(
             wanted,
-            ctx.view.face.texture_a.bits(),
-            ctx.view.face.polygon_mode.bits(),
+            ctx.view.face.texture_a.get(),
+            ctx.view.face.polygon_mode.get(),
         );
     if lit {
         crate::race::frame_draw::check_light_colour(&race.shared, &ctx.view.lamps)?;
@@ -277,12 +276,12 @@ pub fn clip_and_draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
             ctx.far_clip,
             ctx.view,
         )?;
-        if !draws_polygon(ctx.view.polygon.polygon_vertex_count.bits()) {
+        if !draws_polygon(ctx.view.polygon.polygon_vertex_count.get()) {
             return Ok(());
         }
     }
     crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(&ctx.view.polygon, race)?;
-    if !draws_polygon(ctx.view.polygon.polygon_vertex_count.bits()) {
+    if !draws_polygon(ctx.view.polygon.polygon_vertex_count.get()) {
         return Ok(());
     }
     crate::scene::draw_polygon::draw_polygon_in_game(
@@ -572,14 +571,14 @@ pub fn draw_whole_quad(ctx: &DrawCtx<'_>) -> Result<bool, Refused> {
     }
     plain_list(&ctx.view.polygon, 4, 4);
     crate::scene::project_polygon::project_polygon(&ctx.view.polygon, race, scene, ctx.view)?;
-    if let Some(triangles) = quad_by_outside(ctx.view.polygon.polygon_outside_count.bits()) {
+    if let Some(triangles) = quad_by_outside(ctx.view.polygon.polygon_outside_count.get()) {
         return Ok(triangles);
     }
     let [left, right, top, bottom] = screen_inside(
-        ctx.view.polygon.window.clip_edges[2].bits(),
-        ctx.view.polygon.window.clip_edges[3].bits(),
-        ctx.view.polygon.window.clip_edges[0].bits(),
-        ctx.view.polygon.window.clip_edges[1].bits(),
+        ctx.view.polygon.window.clip_edges[2].get(),
+        ctx.view.polygon.window.clip_edges[3].get(),
+        ctx.view.polygon.window.clip_edges[0].get(),
+        ctx.view.polygon.window.clip_edges[1].get(),
     );
     let inside = |v: u32, low: u32, high: u32| {
         let n = crate::math::x87::to_int(v) as u32;
@@ -613,7 +612,7 @@ pub fn draw_face_triangles(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     use rc2k_core::race::face_drawing::{
         FIRST_TRIANGLE, SECOND_TRIANGLE, draws_first, draws_second,
     };
-    if draws_first(ctx.view.face.turned[0].bits()) {
+    if draws_first(ctx.view.face.turned[0].get()) {
         for (slot, corner) in FIRST_TRIANGLE {
             fill_entry(&ctx.view.face, slot, corner)?;
         }
@@ -621,7 +620,7 @@ pub fn draw_face_triangles(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         draw_lit_triangle(ctx)?;
     }
     let fourth: u32 = ctx.view.face.corners[3].get();
-    if fourth != u32::MAX && draws_second(fourth, ctx.view.face.turned[1].bits()) {
+    if fourth != u32::MAX && draws_second(fourth, ctx.view.face.turned[1].get()) {
         for (slot, corner) in SECOND_TRIANGLE {
             fill_entry(&ctx.view.face, slot, corner)?;
         }
@@ -641,8 +640,8 @@ pub fn draw_face_polygons(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     if in_race != 0
         && rc2k_core::race::face_drawing::tries_quad(
             in_race,
-            ctx.view.face.turned[0].bits(),
-            ctx.view.face.turned[1].bits(),
+            ctx.view.face.turned[0].get(),
+            ctx.view.face.turned[1].get(),
         )
         && !draw_whole_quad(ctx)?
     {
@@ -683,7 +682,7 @@ pub fn draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     trap.finish()?;
     let wanted: u32 = ctx.view.lamps.lamps_wanted.get();
     if wanted != 0
-        && rc2k_core::race::faces::corners_lit(wanted, ctx.view.face.texture_a.bits(), mode)
+        && rc2k_core::race::faces::corners_lit(wanted, ctx.view.face.texture_a.get(), mode)
     {
         crate::race::frame_draw::check_light_colour(&race.shared, &ctx.view.lamps)?;
     }
@@ -799,7 +798,7 @@ pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         .set(crate::scene::polygon::pool_start());
     plain_list(
         &ctx.view.polygon,
-        ctx.view.polygon.polygon_vertex_count.bits(),
+        ctx.view.polygon.polygon_vertex_count.get(),
         6,
     );
     crate::scene::project_polygon::project_polygon(&ctx.view.polygon, race, scene, ctx.view)?;
@@ -923,7 +922,7 @@ fn turn_over(ctx: &DrawCtx<'_>) -> Result<(), BadInput> {
         // Converted: `rc2k_core::race::face_drawing::{turns_last_pair, turned_order}`.
         use rc2k_core::race::face_drawing::{turned_order, turns_last_pair};
         swap(0, 1);
-        if turns_last_pair(work.corners[3].bits()) {
+        if turns_last_pair(work.corners[3].get()) {
             swap(2, 3);
         }
         let order: u32 = work.order_a.get();
@@ -948,7 +947,7 @@ pub fn draw_back_face(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), Refused> {
     let scene = ctx.scene;
     // Converted: `rc2k_core::race::face_drawing::{has_back, turns_last_pair,
     // turned_order}`.
-    if !rc2k_core::race::face_drawing::has_back(ctx.view.face.back_a.bits()) {
+    if !rc2k_core::race::face_drawing::has_back(ctx.view.face.back_a.get()) {
         return Ok(());
     }
     turn_over(ctx)?;
@@ -983,12 +982,8 @@ pub fn draw_face_sides(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), Refused> {
         ctx.view.face.turned[1].set(0u32);
         return draw_back_face(ctx, face);
     }
-    let facings = || -> bool {
-        side_drawn(
-            ctx.view.face.turned[0].bits(),
-            ctx.view.face.turned[1].bits(),
-        )
-    };
+    let facings =
+        || -> bool { side_drawn(ctx.view.face.turned[0].get(), ctx.view.face.turned[1].get()) };
     if !has_objects(face.object(), face.second_object()) {
         return Ok(());
     }
@@ -1003,8 +998,8 @@ pub fn draw_face_sides(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), Refused> {
     if facings() {
         face_colours(ctx, face)?;
     }
-    ctx.view.face.turned[0].set(flipped(ctx.view.face.turned[0].bits()));
-    ctx.view.face.turned[1].set(flipped(ctx.view.face.turned[1].bits()));
+    ctx.view.face.turned[0].set(flipped(ctx.view.face.turned[0].get()));
+    ctx.view.face.turned[1].set(flipped(ctx.view.face.turned[1].get()));
     if facings() {
         draw_back_face(ctx, face)?;
     }
@@ -1086,7 +1081,7 @@ mod asm_reference {
             let e = face + half;
             let p = get(e + 8)
                 .wrapping_mul(12)
-                .wrapping_add(race().course.course.scene_points.bits());
+                .wrapping_add(race().course.course.scene_points.get());
             let status: u16;
             let old = crate::race::store::OldPlaces::lay(&[0x6062a4, 0x6062a8, 0x6062ac]);
             core::arch::asm!(

@@ -19,8 +19,8 @@ pub(super) fn table_root(course: &Course, v: u32) -> u32 {
 /// read: locals here.)
 pub(super) fn point_from_car(point: u32) -> Result<(u32, u32, u32), BadInput> {
     let [px, py, pz] = crate::race::scene_points::point_number(point)?;
-    let x = px.wrapping_sub(crate::race::frame_view::car(0)?.position[0].bits());
-    let z = pz.wrapping_sub(crate::race::frame_view::car(0)?.position[2].bits());
+    let x = px.wrapping_sub(crate::race::frame_view::car(0)?.position[0].get());
+    let z = pz.wrapping_sub(crate::race::frame_view::car(0)?.position[2].get());
     Ok((x, py, z))
 }
 
@@ -96,7 +96,7 @@ pub fn eax_environment(
         // Converted: `rc2k_core::race::view::{cells_from, record_faces}`.
         use rc2k_core::race::view::{NO_RECORD, cells_from, record_faces};
         for cell in cells_from(
-            hold_to_limit(&race.shared, race.course.stage_prefs.grid_reach.bits()).wrapping_sub(1),
+            hold_to_limit(&race.shared, race.course.stage_prefs.grid_reach.get()).wrapping_sub(1),
             3,
         ) {
             // 0x45C84C.

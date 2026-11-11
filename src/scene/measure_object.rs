@@ -30,7 +30,7 @@ fn points_of(
         return Err(BadInput("an object's slot past the tables"));
     }
     let count = objects.slots.point_counts[slot as usize].get();
-    let memory: u32 = course.lists.object_points.bits();
+    let memory: u32 = course.lists.object_points.get();
     if count > MOST || (count != 0 && memory == 0) {
         return Err(BadInput("points without their memory, or too many"));
     }
@@ -45,7 +45,7 @@ pub fn measure_object(
 ) -> Result<(), BadInput> {
     use rc2k_core::scene::objects::{HIGHEST_START, LOWEST_START, measure};
     {
-        let slot: u32 = scene.drawing.object_work.loading_slot.bits();
+        let slot: u32 = scene.drawing.object_work.loading_slot.get();
         let (at, count) = points_of(course, slot, scene)?;
         let mut points: Vec<[u32; 3]> = if count == 0 {
             Vec::new()

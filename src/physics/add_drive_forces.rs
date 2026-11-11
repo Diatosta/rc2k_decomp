@@ -8,7 +8,8 @@
 
 use crate::math::x87;
 use crate::math::x87_run::mul2_plus;
-use crate::race::owner_shared::RaceShared;
+use crate::physics::car_store::Car;
+use crate::physics::tables_store::PhysicsTables;
 use crate::session::Cell32;
 
 fn put(a: &dyn Cell32, v: u32) {
@@ -16,38 +17,42 @@ fn put(a: &dyn Cell32, v: u32) {
 }
 
 /// The core on the variables' cells.
-pub fn add_drive_forces_at(shared: &RaceShared, v: &[&dyn Cell32]) {
-    let mut factor = shared.physics_tables.drive_force_factor[0].bits();
+pub fn add_drive_forces_at(tables: &PhysicsTables, v: &[&dyn Cell32]) {
+    let mut factor = tables.drive_force_factor[0].bits();
     if v[1].bits() != 0 {
         v[0].set_bits(x87::loaded(factor));
-        factor = shared.physics_tables.drive_force_factor[1].bits();
+        factor = tables.drive_force_factor[1].bits();
     }
     put(
         v[6],
         x87::sum4_times(v[2].bits(), v[3].bits(), v[4].bits(), v[5].bits(), factor),
     );
-    let scale = shared.physics_tables.drive_shares[2].bits();
+    let scale = tables.drive_shares[2].bits();
     v[9].set_bits(mul2_plus(v[7].bits(), v[6].bits(), scale, v[9].bits()));
     v[10].set_bits(mul2_plus(v[8].bits(), v[6].bits(), scale, v[10].bits()));
 }
 
-fn game<'a>(shared: &'a RaceShared, scene: &'a crate::scene::owner::Scene) -> Vec<&'a dyn Cell32> {
+fn game<'a>(
+    car: &'a Car,
+    tables: &'a PhysicsTables,
+    scene: &'a crate::scene::owner::Scene,
+) -> Vec<&'a dyn Cell32> {
     vec![
         &scene.drawing.scene.scratch as &dyn Cell32,
-        &shared.car.drive_kind,
-        &shared.physics_tables.wheel_loads[0],
-        &shared.physics_tables.wheel_loads[1],
-        &shared.physics_tables.wheel_loads[2],
-        &shared.physics_tables.wheel_loads[3],
-        &shared.physics_tables.drive_force_scale,
-        &shared.physics_tables.wheel_slips[0],
-        &shared.physics_tables.wheel_slips[1],
-        &shared.physics_tables.drive_forces[0],
-        &shared.physics_tables.drive_forces[1],
+        &car.drive_kind,
+        &tables.wheel_loads[0],
+        &tables.wheel_loads[1],
+        &tables.wheel_loads[2],
+        &tables.wheel_loads[3],
+        &tables.drive_force_scale,
+        &tables.wheel_slips[0],
+        &tables.wheel_slips[1],
+        &tables.drive_forces[0],
+        &tables.drive_forces[1],
     ]
 }
 
 /// The exact version, for `physics::drive_wheels_step`.
-pub fn add_drive_forces(shared: &RaceShared, scene: &crate::scene::owner::Scene) {
-    add_drive_forces_at(shared, &game(shared, scene));
+pub fn add_drive_forces(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner::Scene) {
+    add_drive_forces_at(tables, &game(car, tables, scene));
 }

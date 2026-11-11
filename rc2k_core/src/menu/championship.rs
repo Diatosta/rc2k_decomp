@@ -104,8 +104,8 @@ pub fn run<G: Game>(e: &mut G, a8: bool) -> Result<(), G::Error> {
     e.run(Call::TakePlayer1Units)?;
     e.run(Call::HideAllInGameOptions)?;
     e.set(Var::Answer, 0);
-    e.set(Var::Leave561, 0);
-    e.set(Var::Leave, 0);
+    e.set(Var::LeaveScreen, 0);
+    e.set(Var::EventLeft, 0);
     e.set(Var::Mode, if a8 { 0x13 } else { 2 });
     e.set(Var::ModeAB40, if a8 { 1 } else { 2 });
     if e.get(start_section) == 0 {
@@ -128,7 +128,12 @@ pub fn run<G: Game>(e: &mut G, a8: bool) -> Result<(), G::Error> {
     loop {
         at = match at {
             At::Section => {
-                for v in [Var::LeftA3C, Var::ServiceTime, Var::ServiceDue, Var::TheEnd] {
+                for v in [
+                    Var::EscapePressed,
+                    Var::ServiceTime,
+                    Var::ServiceDue,
+                    Var::TheEnd,
+                ] {
                     e.set(v, 0);
                 }
                 e.set(Var::GoesOn, 1);
@@ -238,7 +243,7 @@ pub fn run<G: Game>(e: &mut G, a8: bool) -> Result<(), G::Error> {
                 e.run(Call::ChampionshipStandingsReview)?;
                 e.set(Var::ResetTimes, 0);
                 e.set(Var::GoesOn, 1);
-                if e.yes() || e.get(Var::Ended569) == 1 || e.get(Var::LeftA3C) == 1 {
+                if e.yes() || e.get(Var::AskLeave) == 1 || e.get(Var::EscapePressed) == 1 {
                     break 'standings At::End;
                 }
                 e.inc(Var::Section);
@@ -248,7 +253,12 @@ pub fn run<G: Game>(e: &mut G, a8: bool) -> Result<(), G::Error> {
             }
             At::RallyResults => 'results: {
                 e.set(Var::RallyDone, 1);
-                for v in [Var::Leave, Var::Leave561, Var::CarLeft, Var::GoesOn] {
+                for v in [
+                    Var::EventLeft,
+                    Var::LeaveScreen,
+                    Var::LeftByKey,
+                    Var::GoesOn,
+                ] {
                     e.set(v, 0);
                 }
                 if screens(
@@ -339,7 +349,7 @@ pub fn run<G: Game>(e: &mut G, a8: bool) -> Result<(), G::Error> {
                         Call::ChampionshipRacesReview
                     };
                     e.run(review)?;
-                    if e.yes() || e.get(Var::LeftA3C) == 1 || e.get(Var::Ended569) == 1 {
+                    if e.yes() || e.get(Var::EscapePressed) == 1 || e.get(Var::AskLeave) == 1 {
                         break 'races At::End;
                     }
                 }

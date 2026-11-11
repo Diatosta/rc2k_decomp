@@ -59,7 +59,7 @@ pub fn draw_view_scene(
         .shine
         .set(race.course.stage_prefs.shine_from.get());
     let input = crate::race::view_scratch::filter_input(view);
-    view.light.car_light.set(view.car.light_colour.bits());
+    view.light.car_light.set(view.car.light_colour.get());
     view.polygon.smooth.set(input[0]);
     view.polygon.plain_first.set(input[1]);
     view.polygon.plain_second.set(input[2]);

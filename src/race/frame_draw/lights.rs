@@ -28,7 +28,7 @@ pub fn car_light_modes(
     view: u32,
 ) -> Result<(), Refused> {
     let block = |n: u32| race.shared.work.car_block(n as usize);
-    let cars: u32 = race.shared.view.race_cars.bits();
+    let cars: u32 = race.shared.view.race_cars.get();
     if (0..8).any(|n| block(n) == 0) {
         return Err(BadInput("a null car block").into());
     }
@@ -48,17 +48,17 @@ pub fn car_light_modes(
     }
     // Converted: `rc2k_core::race::lights::{lights_drawn, light_word}`.
     use rc2k_core::race::lights::{light_word, lights_drawn};
-    let mode: u32 = race.shared.vars.run_kind.bits();
+    let mode: u32 = race.shared.vars.run_kind.get();
     for n in 0..cars {
         // The state bits are the view's own; what decides them, the physics'.
         let this_car = crate::race::frame_view::car_at(block(n))?;
         let at = states.state_of(block(n))?;
         let me = n == shown;
         let drawn = lights_drawn(
-            this_car.driver_kind.bits() != 0,
+            this_car.driver_kind.get() != 0,
             mode,
             me,
-            || this_car.camera_switch_share.bits() == 0 && this_car.camera_view.bits() == 0,
+            || this_car.camera_switch_share.bits() == 0 && this_car.camera_view.get() == 0,
             || mirrored,
         );
         if !drawn {
@@ -69,8 +69,8 @@ pub fn car_light_modes(
             at.get(),
             me,
             || this_car.camera_mode_is_2_or_3.get() != 0,
-            || this_car.camera_view.bits(),
-            race.shared.vars.settings_words[3].bits(),
+            || this_car.camera_view.get(),
+            race.shared.vars.settings_words[3].get(),
         );
         at.set(word);
     }
@@ -108,13 +108,13 @@ pub(super) fn add_lamp_entry(ctx: &DrawCtx, lamp: u32) -> Result<(), BadInput> {
     turned[0].set(out[0]);
     turned[1].set(out[1]);
     let key = out[2].wrapping_add(0x200_0000) >> 10;
-    view.face.depth_key.set_bits(key);
-    let second = view.lamps.lamp_count.bits().wrapping_add(0x300_0000);
-    let n: u32 = view.lists.depth_entry_count.bits();
+    view.face.depth_key.set(key);
+    let second = view.lamps.lamp_count.get().wrapping_add(0x300_0000);
+    let n: u32 = view.lists.depth_entry_count.get();
     let at = view.lists.depth_entry(n)?;
     at[0].set(key);
     at[1].set(second);
-    view.lists.depth_entry_count.set_bits(n.wrapping_add(1));
+    view.lists.depth_entry_count.set(n.wrapping_add(1));
     Ok(())
 }
 
@@ -126,22 +126,22 @@ pub(super) fn add_lamp_entry(ctx: &DrawCtx, lamp: u32) -> Result<(), BadInput> {
 pub fn gather_lamps(ctx: &DrawCtx) -> Result<(), Refused> {
     let race = ctx.race;
     let physics = &race.physics;
-    let count: u32 = physics.contact.lit_face_count.bits();
+    let count: u32 = physics.contact.lit_face_count.get();
     if count > 0x100 {
         return Err(BadInput("more than 0x100 lit faces").into());
     }
-    if count != 0 && ctx.view.lists.depth_entry_count.bits() > SORT_MAX - 16 {
+    if count != 0 && ctx.view.lists.depth_entry_count.get() > SORT_MAX - 16 {
         return Err(BadInput("the depth list has no room for the lamps").into());
     }
-    ctx.view.lamps.lamp_count.set_bits(0u32);
+    ctx.view.lamps.lamp_count.set(0u32);
     for k in 0..count {
-        let face = physics.contact.lit_faces[k as usize].bits();
+        let face = physics.contact.lit_faces[k as usize].get();
         // Converted: `rc2k_core::race::faces::takes_lamp`.
         let object = face_field::<u8>(face, 1)? as u32;
         if object != rc2k_core::race::faces::LAMP_OBJECT {
             continue;
         }
-        let lamp: u32 = ctx.view.lamps.lamp_count.bits();
+        let lamp: u32 = ctx.view.lamps.lamp_count.get();
         if !rc2k_core::race::faces::takes_lamp(object, lamp) {
             continue;
         }
@@ -150,7 +150,7 @@ pub fn gather_lamps(ctx: &DrawCtx) -> Result<(), Refused> {
         at[1].set(crate::race::course_places::face_number(face, "a lamp's face")?.mark() as u32);
         at[2].set(rc2k_core::race::faces::LAMP_COLOUR);
         add_lamp_entry(ctx, lamp)?;
-        ctx.view.lamps.lamp_count.set_bits(lamp + 1);
+        ctx.view.lamps.lamp_count.set(lamp + 1);
     }
     Ok(())
 }
@@ -178,14 +178,14 @@ pub(super) fn car_light_on_point(
 ) -> Result<(), BadInput> {
     use crate::math::x87_load::{int_square_sum_scaled_to_int, rotate_rounding};
     use rc2k_core::race::lights::headlight_index;
-    if car.lights_on.bits() == 0 {
+    if car.lights_on.get() == 0 {
         return Ok(());
     }
     let place = &object_light.lit_place;
     let d = [
-        place[0].get().wrapping_sub(car.position[0].bits()),
-        place[1].get().wrapping_sub(car.position[1].bits()),
-        place[2].get().wrapping_sub(car.position[2].bits()),
+        place[0].get().wrapping_sub(car.position[0].get()),
+        place[1].get().wrapping_sub(car.position[1].get()),
+        place[2].get().wrapping_sub(car.position[2].get()),
     ];
     let t = rotate_rounding(
         d.map(|v| v as i32),
@@ -204,7 +204,7 @@ pub(super) fn car_light_on_point(
     let colour = scene.light_tables.car_light_table[index as usize].get();
     object_light
         .light_colour
-        .set_bits(add_colours(colour, object_light.light_colour.bits()));
+        .set(add_colours(colour, object_light.light_colour.get()));
     Ok(())
 }
 
@@ -221,7 +221,7 @@ pub(super) fn car_lights_on_point(
     let course = &race.course;
     let vars = &net().vars;
     let shared = &race.shared;
-    let cars: u32 = shared.view.race_cars.bits();
+    let cars: u32 = shared.view.race_cars.get();
     let all = shared.vars.settings_words[4].get() == 1;
     let one = vars.session.get() != 0;
     for n in 0..cars {
@@ -231,8 +231,8 @@ pub(super) fn car_lights_on_point(
             one,
             || vars.player.get(),
             all,
-            || shared.view.players.bits(),
-            || shared.vars.run_kind.bits(),
+            || shared.view.players.get(),
+            || shared.vars.run_kind.get(),
             || {
                 let n = drawn_view as usize;
                 crate::session::read_on_in(&shared.view, &shared.view.view_cars, n, "the view cars")
@@ -248,7 +248,7 @@ pub(super) fn car_lights_on_point(
             car_light_on_point(
                 course,
                 crate::race::frame_view::car(n as usize)?,
-                shared.work.car(n as usize)?.marks_count.bits(),
+                shared.work.car(n as usize)?.marks_count.get(),
                 scene,
                 object_light,
             )?;
@@ -265,7 +265,7 @@ pub(super) fn lamp_lights_on_point(
     object_light: &crate::scene::object_light::ObjectLight,
 ) -> Result<(), BadInput> {
     {
-        let count: u32 = lamps.lamp_count.bits();
+        let count: u32 = lamps.lamp_count.get();
         if count == 0 {
             return Ok(());
         }
@@ -285,9 +285,9 @@ pub(super) fn lamp_lights_on_point(
             let (grey, _) = rc2k_core::race::lights::lamp_grey(distance, strength);
             let light = add_colours(
                 rc2k_core::race::lights::multiply_colours(grey, tint),
-                object_light.light_colour.bits(),
+                object_light.light_colour.get(),
             );
-            object_light.light_colour.set_bits(light);
+            object_light.light_colour.set(light);
         }
     }
     Ok(())
@@ -301,9 +301,9 @@ pub fn check_light_colour(
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::lights::check_light_colour`.
     Ok(rc2k_core::race::lights::check_light_colour(
-        shared.view.race_cars.bits(),
+        shared.view.race_cars.get(),
         |n| u32::from(shared.work.has_car_block(n as usize)),
-        || lamps.lamp_count.bits(),
+        || lamps.lamp_count.get(),
     )?)
 }
 
@@ -321,7 +321,7 @@ pub fn light_colour_at(
     // headlight_index, lamp_grey, add_colours, multiply_colours}` (the turned place, the
     // spreads and the lamps' distances the x87's and the scene's).
     check_light_colour(&race.shared, lamps)?;
-    object_light.light_colour.set_bits(0u32);
+    object_light.light_colour.set(0u32);
     car_lights_on_point(race, scene, object_light, drawn_view)?;
     lamp_lights_on_point(lamps, object_light)?;
     Ok(())
@@ -347,9 +347,9 @@ pub fn view_light(
         crate::session::read_bits(&car.position),
     );
     light_colour_at(race, scene, lamps, object_light, drawn_view)?;
-    let light: u32 = object_light.light_colour.bits();
+    let light: u32 = object_light.light_colour.get();
     object_light
         .view_light
-        .set(add_colours(car.light_colour.bits(), light));
+        .set(add_colours(car.light_colour.get(), light));
     Ok(())
 }

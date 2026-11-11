@@ -70,7 +70,7 @@ pub fn with_picture<R>(f: impl FnOnce(&mut [u8]) -> R) -> Result<R, BadInput> {
 
 /// Whether a picture buffer is set (`PICTURE.buffer` not 0).
 pub fn has_picture() -> bool {
-    gfx().pictures.picture.buffer.get() != 0
+    gfx().pictures.picture.buffer.is_set()
 }
 
 /// `len` bytes of buffer `handle` from byte `at`; refused past its end.

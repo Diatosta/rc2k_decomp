@@ -128,3 +128,8 @@ pub static GROUPS: &[Group] = &[
 ];
 ''' % "\n".join(lines))
 print(sum(len(v) for v in groups.values()), {g: len(groups[g]) for g in ORDER})
+
+# The rows leave this script on their IDA addresses; no row stays so: they are rewritten
+# to be read through their fields (typed_rows.py, which runs cargo).
+import subprocess, sys
+subprocess.run([sys.executable, "tools/debug_pages/typed_rows.py"], check=True)

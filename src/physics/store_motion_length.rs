@@ -6,15 +6,12 @@
 //! Callers (2): `physics::car_physics_step` (0x43B644, 0x43B94D), the car's physics step under
 //! `drive::race_step`.
 
+use crate::physics::car_store::Car;
 use crate::physics::vector_length::vector_length;
-use crate::race::owner::Race;
 use crate::scene::matrix3::rounded;
 
 /// The exact version, for `physics::car_physics_step` and `physics::keep_motion_vectors`: the
 /// length of the car's motion.
-pub fn store_motion_length(race: &Race) {
-    race.shared
-        .car
-        .speed
-        .set_bits(rounded(vector_length(&race.shared.car.velocity)));
+pub fn store_motion_length(car: &Car) {
+    car.speed.set_bits(rounded(vector_length(&car.velocity)));
 }

@@ -7,20 +7,10 @@
 //! `physics::fill_rival_table`, 0x436BD6), mode 3 `physics::compare_split_times` (0x436E11,
 //! against ten times kept per split). This file: the shared names and the test.
 
-use crate::race::owner_shared::RaceShared;
+use crate::physics::car_store::Car;
 
 /// `g_car + 0x140 + 4 split`: the splits run to 0x3F, past the sixteen figures of
 /// `split_times` (into the car's next fields), as the original writes them.
-pub fn put_split_time(
-    shared: &RaceShared,
-    split: usize,
-    v: u32,
-) -> Result<(), crate::errors::BadInput> {
-    crate::session::write_on_in(
-        &shared.car,
-        &shared.car.split_times,
-        split,
-        v,
-        "a split's time",
-    )
+pub fn put_split_time(car: &Car, split: usize, v: u32) -> Result<(), crate::errors::BadInput> {
+    crate::session::write_on_in(car, &car.split_times, split, v, "a split's time")
 }

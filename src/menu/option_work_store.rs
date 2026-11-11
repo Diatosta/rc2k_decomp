@@ -71,6 +71,17 @@ pub struct OptionWork {
 }
 
 impl OptionWork {
+    /// What the last key looked at was.
+    pub fn sound(&self) -> rc2k_core::menu::keys::MenuSound {
+        rc2k_core::menu::keys::MenuSound::from_code(self.menu_sound.get())
+    }
+
+    pub fn set_sound(&self, sound: rc2k_core::menu::keys::MenuSound) {
+        self.menu_sound.set(sound.code());
+    }
+}
+
+impl OptionWork {
     /// First values the image's (`tests::option_work_starts_as_the_games`).
     pub const fn new() -> Self {
         OptionWork {

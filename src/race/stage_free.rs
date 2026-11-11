@@ -119,7 +119,7 @@ pub fn free(race: &Race, f: &Freeing) -> Result<(), Refused> {
             course
                 .lists
                 .course_bytes_total
-                .bits()
+                .get()
                 .wrapping_sub(list.total),
         );
     }

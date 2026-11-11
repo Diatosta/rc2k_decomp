@@ -142,7 +142,7 @@ fn update_car_effects_with(
         }
         _ => {
             out.set(Effect::Fourth, 0, strength())?;
-            if o.flag_ac.get() != 0 {
+            if o.flag_ac.is_set() {
                 // Wheels off the ground.
                 o.landed.set(1);
                 out.set(Effect::Steering, 0, strength())?;
@@ -187,7 +187,7 @@ fn update_car_effects_with(
                 o.knock.set(0);
             }
         }
-        if !counted && o.knock_count.get() != 0 {
+        if !counted && o.knock_count.is_set() {
             o.knock_count.set(o.knock_count.get().wrapping_add(1));
             if o.knock_count.get() >= 4 {
                 o.knock_count.set(0);

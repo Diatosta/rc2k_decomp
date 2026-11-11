@@ -16,44 +16,46 @@
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87_run::sub_mul_add;
+use crate::physics::car_store::Car;
 use crate::physics::gear_store::GEAR;
 use crate::physics::gearbox::*;
-use crate::race::owner::Race;
+use crate::physics::tables_store::PhysicsTables;
+use crate::race::numbers_store::Numbers;
 use rc2k_core::physics::gear_shifts as shifts;
 
 /// The steps on `r`.
 // Converted: `rc2k_core::physics::gear_shifts::pick_start` (the engine's sums and compares
 // stay x87).
-pub fn pick_start_gear(race: &Race) -> Result<(), Refused> {
-    race.shared.physics_tables.start_gear_figures[2].set(race.shared.car.engine_speed.bits());
-    revs_speed(&race.shared)?;
-    race.shared.physics_tables.start_gear_figures[1].set(0);
-    race.shared.physics_tables.start_gear_figures[0]
-        .set(x87::loaded(race.course.numbers.hundred.bits()));
+pub fn pick_start_gear(
+    car: &Car,
+    tables: &PhysicsTables,
+    numbers: &Numbers,
+) -> Result<(), Refused> {
+    tables.start_gear_figures[2].set(car.engine_speed.bits());
+    revs_speed(car, tables)?;
+    tables.start_gear_figures[1].set(0);
+    tables.start_gear_figures[0].set(x87::loaded(numbers.hundred.bits()));
     let taken = shifts::pick_start(|gear| {
-        if bit(&race.shared, gear)? {
+        if bit(car, gear)? {
             return Ok::<_, Refused>(false);
         }
-        race.shared.car.gear.set(gear);
-        revs_speed(&race.shared)?;
-        race.shared.car.engine_speed.set_bits(over_top(race));
-        Ok(below(
-            race.shared.car.engine_speed.bits(),
-            GEAR.shift_up_point.bits(),
-        ))
+        car.gear.set(gear);
+        revs_speed(car, tables)?;
+        car.engine_speed.set_bits(over_top(car));
+        Ok(below(car.engine_speed.bits(), GEAR.shift_up_point.bits()))
     })?;
     let Some(gear) = taken else {
         return Ok(());
     };
-    race.shared.car.gear.set(gear);
-    revs_speed(&race.shared)?;
-    race.shared.car.engine_speed.set_bits(sub_mul_add(
-        race.shared.physics_tables.start_gear_figures[2].get(),
-        race.shared.car.engine_speed.bits(),
-        race.shared.physics_tables.start_gear_share.bits(),
-        race.shared.car.engine_speed.bits(),
+    car.gear.set(gear);
+    revs_speed(car, tables)?;
+    car.engine_speed.set_bits(sub_mul_add(
+        tables.start_gear_figures[2].get(),
+        car.engine_speed.bits(),
+        tables.start_gear_share.bits(),
+        car.engine_speed.bits(),
     ));
-    wheels(&race.shared)?;
-    settle(race);
+    wheels(car, tables)?;
+    settle(car, tables);
     Ok(())
 }

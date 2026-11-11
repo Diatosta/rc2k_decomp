@@ -21,18 +21,23 @@ pub enum Var {
     Mode,
     /// `dword_75598C`: the current player.
     Current,
-    /// `dword_758806`: the car choice was left.
-    CarLeft,
-    /// `dword_75555D`, `dword_755561`.
-    Leave,
-    Leave561,
-    /// `dword_755565`, `dword_755569`.
-    Ended565,
-    Ended569,
-    /// `dword_755A3C`.
-    LeftA3C,
+    /// `dword_758806`: the screen was left with a key (Escape or a yes / no answer); the
+    /// leave question is put when it is 1.
+    LeftByKey,
+    /// `dword_75555D`: the event is left too, not only the screen.
+    EventLeft,
+    /// `dword_755561`: the screen loop leaves at once (cleared by the key poll and set-up).
+    LeaveScreen,
+    /// `dword_755565`: set by `leave_with_carry` with `LeaveScreen`; the class pages set it
+    /// while a page with the player is shown.
+    LeftWithCarry,
+    /// `dword_755569`: an action asks to leave the screen (and, on a screen that asks, the
+    /// question is put).
+    AskLeave,
+    /// `dword_755A3C`: Escape was pressed (`handle_keys`).
+    EscapePressed,
     /// `dword_755980`: 1 when an event is over.
-    Done,
+    EventOver,
     /// `dword_758714`: the rounds of a multi-player event.
     Round,
     /// `dword_755918`: the time qualifies.

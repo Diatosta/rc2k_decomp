@@ -16,6 +16,7 @@
 //! The race's freeze as a check box.
 
 use crate::audio::owner::audio;
+use crate::debug::row_cells::Raw;
 use crate::debug::timing::STAGES;
 use crate::debug::wear_page::{SURFACES, value_at};
 use crate::race::owner::Race;
@@ -43,6 +44,8 @@ pub struct Row {
     label: &'static str,
     shown: Shown,
     at: usize,
+    /// The figure's cell; none: it is read through its IDA address.
+    cell: Option<fn() -> &'static dyn Raw>,
     bar: bool,
     place: (u32, u32),
 }
@@ -67,8 +70,50 @@ impl Row {
             label,
             shown,
             at,
+            cell: None,
             bar,
             place,
+        }
+    }
+
+    /// Whether it is read through its field.
+    #[cfg(test)]
+    pub fn is_typed(&self) -> bool {
+        self.cell.is_some()
+    }
+
+    /// Its cell's game address, when it has one.
+    #[cfg(test)]
+    pub fn cell_address(&self) -> Option<u32> {
+        self.cell.map(|cell| cell().address())
+    }
+
+    /// A figure read through its field (`row_cells::car_cell`).
+    pub const fn typed(
+        name: &'static str,
+        label: &'static str,
+        shown: Shown,
+        at: usize,
+        cell: fn() -> &'static dyn Raw,
+        bar: bool,
+        place: (u32, u32),
+    ) -> Self {
+        Self {
+            name,
+            label,
+            shown,
+            at,
+            cell: Some(cell),
+            bar,
+            place,
+        }
+    }
+
+    /// The figure's 32 bits, none when they cannot be read.
+    fn value(&self) -> Option<u32> {
+        match self.cell {
+            Some(cell) => Some(cell().raw()),
+            None => value_at(self.at),
         }
     }
 }
@@ -408,7 +453,7 @@ fn group_table(ui: &Ui, group: &Group, wanted: &str) {
     column("Original", 1.2);
     ui.table_headers_row();
     for row in group.rows.iter().filter(|r| wanted_row(r, wanted)) {
-        let value = value_at(row.at);
+        let value = row.value();
         ui.table_next_row();
         ui.table_next_column();
         ui.text(row.name);

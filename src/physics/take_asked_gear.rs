@@ -16,7 +16,7 @@ pub fn take_asked_gear(race: &Race) -> Result<(), Refused> {
         race.shared.car.gear_changed.set(0u32);
         let word: u32 = race.shared.car.input_keys.get();
         let asked = rc2k_core::physics::gearbox::asked_gear(word);
-        let gear = allowed_gear(race, asked)?;
+        let gear = allowed_gear(&race.shared.car, &race.course.numbers, asked)?;
         race.shared.physics_tables.gear_asked.set(gear);
         change_gear(race)
     };

@@ -13,7 +13,7 @@
 //! next change of `GetTickCount` 250 ms are timed by `rdtsc`, and the cycles / 250000 (the clock in
 //! MHz) go to `dword_5183E8`. The original executes `rdtsc`, `emms` and `xorps` once each to see
 //! that they do not fault, with `dword_51849C` the place its exception filter goes on at (0 after
-//! each); the Rust version does not execute them (a processor that says it has them has them) and
+//! each); this port does not execute them (a processor that says it has them has them) and
 //! leaves `dword_51849C` 0 where the original does. Refuses (with the processor's variables already
 //! written) a clock whose quotient does not fit in 32 bits (the original's `div` traps there). One
 //! caller, `start` (0x40101A), directly since 2026-10-23.

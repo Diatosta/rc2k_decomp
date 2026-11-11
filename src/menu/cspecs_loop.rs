@@ -28,12 +28,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     screens.flow.turning.set(0x0u32);
     screens.state.carousel.front.set(0x0u32);
     screens.event.shown_car.set(0x0u32);
-    crate::scene::polygon_work::front_end().window.view_offset[0].set(0x7u32);
-    crate::scene::polygon_work::front_end().window.view_offset[1].set(0xFFFFFFCEu32);
-    crate::scene::polygon_work::front_end()
-        .window
-        .view_zoom
-        .set(0x100u32);
+    entry.set_view(7, -50, 0x100);
     prepare_scene(entry.scene);
     Ok(())
 }

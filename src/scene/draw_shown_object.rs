@@ -39,28 +39,28 @@ struct Game<'a>(
 
 impl rc2k_core::scene::shown::RaceObject for Game<'_> {
     fn object(&self) -> u32 {
-        self.1.object_number.bits()
+        self.1.object_number.get()
     }
     fn kind_switch(&self) -> u32 {
-        self.0.shared.work.in_credits.bits()
+        self.0.shared.work.in_credits.get()
     }
     fn kind_mode(&self) -> u32 {
-        self.0.shared.vars.run_kind.bits()
+        self.0.shared.vars.run_kind.get()
     }
     fn kind(&self, object: u32) -> u32 {
         scene().objects.tables.object_kind(object)
     }
     fn other_way(&self) -> u32 {
-        self.0.shared.switches.scene_set_up.bits()
+        self.0.shared.switches.scene_set_up.get()
     }
     fn shown(&self) -> u32 {
-        self.0.course.stage_prefs.shown.bits()
+        self.0.course.stage_prefs.shown.get()
     }
     fn which(&self) -> u32 {
-        self.0.shared.work.stage_direction.bits()
+        self.0.shared.work.stage_direction.get()
     }
     fn only(&self) -> u32 {
-        self.2.only_object.bits()
+        self.2.only_object.get()
     }
     fn faces(&self, object: u32) -> u32 {
         scene().objects.slots.face_counts[object as usize].get()
@@ -76,11 +76,11 @@ pub fn draw_shown_object(
     cars: &crate::race::car_draw_state::CarDrawState,
     object: &crate::scene::object_place::ObjectPlace,
 ) -> Result<bool, Refused> {
-    let in_race = race.course.numbers.in_race.bits() != 0;
-    if in_race && cars.object_number.bits() >= OBJECTS {
+    let in_race = race.course.numbers.in_race.get() != 0;
+    if in_race && cars.object_number.get() >= OBJECTS {
         return Err(BadInput("an object's number past the tables").into());
     }
-    object.drawing_object.set_bits(1u32);
+    object.drawing_object.set(1u32);
     let show = if in_race {
         rc2k_core::scene::shown::race_shown(&Game(race, cars, object))
     } else {
@@ -91,6 +91,6 @@ pub fn draw_shown_object(
     if show {
         draw()?;
     }
-    object.drawing_object.set_bits(0u32);
+    object.drawing_object.set(0u32);
     Ok(show)
 }

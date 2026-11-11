@@ -20,6 +20,7 @@
 
 use crate::math::x87;
 use crate::math::x87_run::{ext_div2, int_80, neg_mul2, neg_rounded, sub_mul, wheel_int};
+use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::scene::matrix3::extended;
@@ -51,8 +52,8 @@ pub fn wheel_springs(race: &Race, scene: &crate::scene::owner::Scene) {
             race.course.numbers.k65536.bits(),
             ph.handling[3].bits(),
         ));
-        if below(q.bits(), race.course.numbers.zero.bits()) {
-            q.set_bits(x87::loaded(race.course.numbers.zero.bits()));
+        if below(q.bits(), ZERO) {
+            q.set_bits(x87::loaded(ZERO));
         }
         if !below(q.bits(), race.course.numbers.one.bits()) {
             q.set_bits(x87::loaded(race.course.numbers.one.bits()));
@@ -67,11 +68,11 @@ pub fn wheel_springs(race: &Race, scene: &crate::scene::owner::Scene) {
             drawing.scene.work_dword.get(),
             ph.handling[5].bits(),
         ));
-        if below(damping.bits(), race.course.numbers.zero.bits()) {
+        if below(damping.bits(), ZERO) {
             damping.set_bits(x87::mul(damping.bits(), ph.handling[0].bits()));
         }
         let zero_or_none = f32::from_bits(q.bits())
-            .partial_cmp(&f32::from_bits(race.course.numbers.zero.bits()))
+            .partial_cmp(&f32::from_bits(ZERO))
             .is_none_or(|o| o == Ordering::Equal);
         if !zero_or_none {
             force.set_bits(x87::add(damping.bits(), force.bits()));

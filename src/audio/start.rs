@@ -28,7 +28,7 @@ pub fn start(audio: &Audio) -> Result<bool, Refused> {
     };
     crate::audio::a3d::open_a3d2(&audio.state)?;
     audio.state.has_a3d2.set(audio.state.use_a3d.get());
-    crate::audio::a3d::close_a3d2(&audio.state)?;
+    crate::audio::a3d::close_a3d2(&audio.state);
     // The original's ebx: the race mode found.
     let mut found = MENU_MODE;
     audio.state.sound_mode.set(MENU_MODE | 0x190_0000);
@@ -65,7 +65,7 @@ pub fn start(audio: &Audio) -> Result<bool, Refused> {
             crate::audio::release_voice_manager::release_voice_manager(&audio.state);
             crate::audio::release_voice::release_voice_in_game(&audio.state, voice);
             crate::audio::mixer_set_up::close_way(audio, audio.state.sound_mode.get())?;
-            sd::release_primary(&audio.state)?;
+            sd::release_primary(&audio.state);
             // Converted: `rc2k_core::audio::device::probed_race_mode`.
             found = probed_race_mode(|fact| match fact {
                 Fact::CapsFlags => flags(),

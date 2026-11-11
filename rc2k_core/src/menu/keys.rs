@@ -10,9 +10,35 @@ pub enum Pressed {
     Enter = 3,
 }
 
-/// `dword_7556A4` on any key looked at, and after Enter.
-pub const NO_SOUND: u32 = 0x6F;
-pub const ENTER_SOUND: u32 = 0x14D;
+/// What the last key looked at was, as the menus' sound variable keeps it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MenuSound {
+    /// Any key looked at that was not Enter.
+    None,
+    /// Enter was pressed: the highlighted item's action runs.
+    Enter,
+}
+
+impl MenuSound {
+    const NONE_CODE: u32 = 0x6F;
+    const ENTER_CODE: u32 = 0x14D;
+
+    /// The value the game's variable holds.
+    pub const fn code(self) -> u32 {
+        match self {
+            MenuSound::None => Self::NONE_CODE,
+            MenuSound::Enter => Self::ENTER_CODE,
+        }
+    }
+
+    pub const fn from_code(code: u32) -> MenuSound {
+        if code == Self::ENTER_CODE {
+            MenuSound::Enter
+        } else {
+            MenuSound::None
+        }
+    }
+}
 
 /// The menu's sound Enter plays.
 pub const ENTER_CLICK: u32 = 2;

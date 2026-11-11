@@ -47,8 +47,8 @@ pub fn show_frame(race: &Race) -> Result<Shown, Refused> {
         &race.shared,
         crate::system::tick_count::tick_count(),
     );
-    let time = clock.wrapping_sub(race.shared.view.clock_base.bits());
-    race.shared.view.frame_time.set_bits(time);
+    let time = clock.wrapping_sub(race.shared.view.clock_base.get());
+    race.shared.view.frame_time.set(time);
     // The measuring leaves eax the counter's low half on the 16th call, else as it was.
     let eax = { crate::race::measure_frame_rate::measure_frame_rate(race, scene, system) }
         .unwrap_or(time);

@@ -26,7 +26,7 @@ fn frame_rate_plain(race: &Race, cycles: u64, system: &crate::system::owner::Sys
         course.numbers.sixteen.get(),
         cycles,
     );
-    race.shared.switches.frame_rate.set_bits(rate.to_bits());
+    race.shared.switches.frame_rate.set(rate);
 }
 
 pub fn measure_frame_rate(
@@ -37,18 +37,18 @@ pub fn measure_frame_rate(
     let shared = &race.shared;
     // Converted: `rc2k_core::race::frame_rate::{count_frame, cycles_since}`.
     use rc2k_core::race::frame_rate::{count_frame, cycles_since};
-    let (count, due) = count_frame(shared.physics_tables.frame_rate_count.bits());
+    let (count, due) = count_frame(shared.physics_tables.frame_rate_count.get());
     shared.physics_tables.frame_rate_count.set(count);
     if !due {
         return None;
     }
     let whole = crate::arch::rdtsc();
     let now = whole as u32;
-    shared.switches.frame_now.set_bits(now);
+    shared.switches.frame_now.set(now);
     if let Some(cycles) = cycles_since(whole, LAST.swap(whole, Relaxed)) {
-        scene.drawing.scene.scratch.set_bits(cycles as u32);
+        scene.drawing.scene.scratch.set(cycles as u32);
         frame_rate_plain(race, cycles, system);
     }
-    shared.switches.frame_last.set_bits(now);
+    shared.switches.frame_last.set(now);
     Some(now)
 }

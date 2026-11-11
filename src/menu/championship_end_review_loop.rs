@@ -19,7 +19,7 @@ use crate::menu::screen_loop::{
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
     Callee::NoOp.run(entry)?;
-    screens.loop_flags.ended_a.set(0x0u32);
+    screens.loop_flags.ask_leave.set(0x0u32);
     screens.flow.turning.set(0x1u32);
     screens.state.carousel.menu.set(0x14u32);
     carousel(None)?;
@@ -27,12 +27,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     screens.loop_flags.item.set(item);
     screens.state.carousel.front.set(item.wrapping_sub(1));
     screens.flow.turning.set(0x0u32);
-    crate::scene::polygon_work::front_end().window.view_offset[0].set(0xFFFFFF64u32);
-    crate::scene::polygon_work::front_end().window.view_offset[1].set(0x27u32);
-    crate::scene::polygon_work::front_end()
-        .window
-        .view_zoom
-        .set(0x140u32);
+    entry.set_view(-156, 39, 0x140);
     prepare_scene(entry.scene);
     Ok(())
 }
@@ -55,17 +50,17 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::Write(|m| &m.screens.draw_work.escaped, 0x0)],
+    before: &[Step::Write(|m| &m.screens.draw_work.escape_pressed, 0x0)],
     set_up_first: &[Step::Do(set_up_first)],
     background: &[Step::Call(Callee::LoadBackground(|m| {
         &m.tables.texts.championship_end_review_picture
     }))],
     after: &[Step::Call(Callee::NoOp)],
     asking: Some(Asking {
-        also_if: Some(|m| &m.screens.loop_flags.ended_a),
+        also_if: Some(|m| &m.screens.loop_flags.ask_leave),
         confirmed: &[
-            Step::Write(|m| &m.screens.loop_flags.ended_a, 0x0),
-            Step::Write(|m| &m.tables.captions.screen_left, 0x0),
+            Step::Write(|m| &m.screens.loop_flags.ask_leave, 0x0),
+            Step::Write(|m| &m.tables.captions.left_by_key, 0x0),
         ],
         ..Asking::DEFAULT
     }),

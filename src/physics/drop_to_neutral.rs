@@ -6,27 +6,25 @@
 //!
 //! Caller: `physics::car_physics_step` (0x43B966), every physics step.
 
-use crate::race::owner_shared::RaceShared;
+use crate::physics::car_store::Car;
+use crate::physics::tables_store::PhysicsTables;
 use rc2k_core::physics::gearing::drops_to_neutral;
 
 /// A compare of floats only: the same at any precision.
 // Converted: `rc2k_core::physics::gearing::drops_to_neutral`.
-pub fn drop_to_neutral(shared: &RaceShared) {
+pub fn drop_to_neutral(car: &Car, tables: &PhysicsTables) {
     if !drops_to_neutral(
-        shared.car.contact_flag.get(),
-        shared.car.gear.get(),
-        f32::from_bits(shared.car.engine_speed.bits()),
-        f32::from_bits(shared.physics_tables.stall_engine_speed.bits()),
-        || shared.physics_tables.no_auto_neutral.get(),
+        car.contact_flag.get(),
+        car.gear.get(),
+        f32::from_bits(car.engine_speed.bits()),
+        f32::from_bits(tables.stall_engine_speed.bits()),
+        || tables.no_auto_neutral.get(),
     ) {
         return;
     }
-    shared.car.gear.set(0);
-    shared
-        .car
-        .drive_cut_steps
-        .set(shared.physics_tables.drive_cut_steps.get());
-    shared.car.gear_change_hold.set(0x14);
-    shared.car.gear_changed.set(1);
-    shared.car.gear_change_pending.set(1);
+    car.gear.set(0);
+    car.drive_cut_steps.set(tables.drive_cut_steps.get());
+    car.gear_change_hold.set(0x14);
+    car.gear_changed.set(1);
+    car.gear_change_pending.set(1);
 }

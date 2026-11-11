@@ -14,7 +14,7 @@
 use crate::errors::Refused;
 use crate::math::x87_run::compare_80;
 use crate::physics::contact_force::contact_force;
-use crate::physics::flow::{copy_cells, fill_cells, negate};
+use crate::physics::flow::{ZERO_BITS as ZERO, copy_cells, fill_cells, negate};
 use crate::physics::vector_length::vector_length;
 use crate::race::norms::normalise_work_vector;
 use crate::race::owner::Race;
@@ -26,7 +26,7 @@ pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refu
     negate(&work[0]);
     negate(&work[1]);
     negate(&work[2]);
-    if compare_80(vector_length(&work), race.course.numbers.zero.bits()) & 0x4000 != 0 {
+    if compare_80(vector_length(&work), ZERO) & 0x4000 != 0 {
         fill_cells(work, 0);
     }
     normalise_work_vector(race);

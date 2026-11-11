@@ -440,6 +440,7 @@ mod tests {
 
     #[test]
     fn race_state_starts_as_the_games() {
+        let _g = crate::store::test_lock();
         let size = size_of::<RaceState>();
         assert!(END - START <= size && size <= (END - START).next_multiple_of(4));
         let mine = unsafe {

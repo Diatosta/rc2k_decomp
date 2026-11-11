@@ -28,8 +28,8 @@ pub fn set_up_textures(
 ) -> Result<(), Refused> {
     let drawing = &scene.drawing;
     build_texture_catalogue_in_game(shared, scene)?;
-    drawing.scene.mirror_picture.set_bits(0u32);
+    drawing.scene.mirror_picture.set(0u32);
     let (_, system) = crate::platform_3d::allocate_textures_for(0, 1, 3, 4, 0);
-    drawing.scene.mirror_picture.set_bits(system);
+    drawing.scene.mirror_picture.set(system);
     Ok(())
 }

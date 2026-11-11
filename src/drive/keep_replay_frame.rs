@@ -21,7 +21,7 @@ pub fn keep_replay_frame(race: &Race) -> Result<(), BadInput> {
     race.replay.replay_frames.frame.set(0);
     race.replay.replay_frames.tenth.set(0);
     if race.course.numbers.replay_mode.get() != PLAYING {
-        let (frame, tenth) = frame_and_tenth(CAR_BLOCKS.cars[0].step_clock.bits());
+        let (frame, tenth) = frame_and_tenth(CAR_BLOCKS.cars[0].step_clock.get());
         race.replay.replay_frames.frame.set(frame);
         race.replay.replay_frames.tenth.set(tenth);
     }

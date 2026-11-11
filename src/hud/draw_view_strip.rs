@@ -16,22 +16,26 @@ use crate::errors::{BadInput, Refused};
 use crate::gfx::owner::gfx;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
-use crate::system::owner::system;
+use crate::race::view_scratch::ViewScratch;
+use crate::system::owner::{System, system};
 use rc2k_core::hud::strips;
 
 /// The quad's input at byte offset `o` from `dword_623DE8`: its colour and see-through,
 /// texture coordinates, then corners (three consecutive fields).
-fn quad_input(shared: &RaceShared, o: usize) -> &crate::session::Dword {
+fn quad_input<'a>(
+    shared: &'a RaceShared,
+    scratch: &'a ViewScratch,
+    o: usize,
+) -> &'a crate::session::Dword {
     match o {
         0..0x8 => &shared.vars.quad_colour[o / 4],
-        0x8..0x28 => &crate::race::view_scratch::front_end().quad.uv[(o - 8) / 4],
-        _ => &crate::race::view_scratch::front_end().quad.corners[(o - 0x28) / 4],
+        0x8..0x28 => &scratch.quad.uv[(o - 8) / 4],
+        _ => &scratch.quad.corners[(o - 0x28) / 4],
     }
 }
 
 /// The strip's sizes into `dword_6D1870` .. (`strips::sizes`).
-fn sizes(v: [u32; 4]) {
-    let system = system();
+fn sizes(system: &System, v: [u32; 4]) {
     let (sizes, _) = strips::sizes(
         v,
         system.session.screen.width.get(),
@@ -52,26 +56,28 @@ fn quad(
     texture: Option<u32>,
 ) -> Result<(), Refused> {
     let scene = crate::scene::owner::scene();
+    let scratch = crate::race::view_scratch::front_end();
+    let polygon = &scratch.polygon;
     let shared = &race.shared;
     let course = &race.course;
     let sizes: [u32; 4] = std::array::from_fn(|n| gfx().strips.sizes[n].get());
     for (o, v) in strips::quad_inputs(left, width, &sizes, rows) {
-        quad_input(shared, o).set_bits(v);
+        quad_input(shared, scratch, o).set(v);
     }
     if let Some(t) = texture {
-        crate::scene::polygon_work::front_end().polygon_textures[0].set_bits(t);
+        polygon.polygon_textures[0].set(t);
     }
-    scene.drawing.scene.polygon_alpha.set_bits(0xFF);
-    quad_input(shared, 0).set_bits(0xFFFF_FFFF);
-    crate::scene::polygon_work::front_end().polygon_sides[0].set_bits(1);
-    crate::scene::polygon_work::front_end().polygon_sides[1].set_bits(0);
+    scene.drawing.scene.polygon_alpha.set(0xFF);
+    quad_input(shared, scratch, 0).set(0xFFFF_FFFF);
+    polygon.polygon_sides[0].set(1);
+    polygon.polygon_sides[1].set(0);
     crate::scene::draw_flat_quad::draw_flat_quad(
-        crate::scene::polygon_work::front_end(),
+        polygon,
         race,
-        &crate::race::view_scratch::front_end().face,
+        &scratch.face,
         course,
         scene,
-        crate::race::view_scratch::front_end(),
+        scratch,
     )
 }
 
@@ -87,7 +93,7 @@ pub fn overlay_tail(race: &Race) -> Result<(), Refused> {
         return Ok(());
     }
     for (v, rows) in strips::TAIL {
-        sizes(v);
+        sizes(system(), v);
         let get = |n: usize| gfx().strips.sizes[n].get();
         quad(race, get(2), get(3), rows, Some(strips::TAIL_TEXTURE))?;
     }
@@ -106,7 +112,7 @@ pub fn draw_view_strip(race: &Race, view: u32) -> Result<(), Refused> {
         let top = strips::top_entry(view, frame.panel_and_overlay.panel.flat.get());
         let top: u32 = strips.tops[top as usize].get();
         let left: u32 = strips.lefts[view as usize].get();
-        sizes([top, strips::HEIGHT, left, strips::WIDTH]);
+        sizes(system(), [top, strips::HEIGHT, left, strips::WIDTH]);
         let get = |n: usize| strips.sizes[n].get();
         let (mut left, width, mut rows) = (get(2), get(3), 0);
         for _ in 0..3 {

@@ -8,8 +8,9 @@
 //! Caller: `physics::car_physics_step` (0x43B90A), every physics step.
 
 use crate::math::x87_run::div_mul3_to_int;
-use crate::race::owner::Race;
-use crate::race::owner_shared::RaceShared;
+use crate::physics::car_store::Car;
+use crate::physics::tables_store::PhysicsTables;
+use crate::race::numbers_store::Numbers;
 use crate::session::Cell32;
 
 fn get(v: &[&dyn Cell32], k: usize) -> u32 {
@@ -21,12 +22,12 @@ fn put(v: &[&dyn Cell32], k: usize, x: u32) {
 }
 
 /// On the variables' cells `v`: the last turn added.
-pub fn spin_at(race: &Race, v: &[&dyn Cell32]) -> u32 {
+pub fn spin_at(tables: &PhysicsTables, numbers: &Numbers, v: &[&dyn Cell32]) -> u32 {
     let (wheel, dt, k65536, scale) = (
-        race.shared.physics_tables.wheel_spin_share.bits(),
-        race.shared.physics_tables.step_time.bits(),
-        race.course.numbers.k65536.bits(),
-        race.course.numbers.one_over_pi.bits(),
+        tables.wheel_spin_share.bits(),
+        tables.step_time.bits(),
+        numbers.k65536.bits(),
+        numbers.one_over_pi.bits(),
     );
     let mut last = 0;
     for (speed, turn) in [(0, 2), (1, 3)] {
@@ -37,17 +38,22 @@ pub fn spin_at(race: &Race, v: &[&dyn Cell32]) -> u32 {
     last
 }
 
-fn game<'a>(shared: &'a RaceShared, scene: &'a crate::scene::owner::Scene) -> Vec<&'a dyn Cell32> {
+fn game<'a>(car: &'a Car, scene: &'a crate::scene::owner::Scene) -> Vec<&'a dyn Cell32> {
     vec![
-        &shared.car.drive_speed_a as &dyn Cell32,
-        &shared.car.drive_speed_b,
-        &shared.car.driven_wheel_turns[0],
-        &shared.car.driven_wheel_turns[1],
+        &car.drive_speed_a as &dyn Cell32,
+        &car.drive_speed_b,
+        &car.driven_wheel_turns[0],
+        &car.driven_wheel_turns[1],
         &scene.drawing.scene.scratch,
     ]
 }
 
 /// The exact version, for `physics::car_physics_step`.
-pub fn spin_wheels(race: &Race, scene: &crate::scene::owner::Scene) -> u32 {
-    spin_at(race, &game(&race.shared, scene))
+pub fn spin_wheels(
+    car: &Car,
+    tables: &PhysicsTables,
+    numbers: &Numbers,
+    scene: &crate::scene::owner::Scene,
+) -> u32 {
+    spin_at(tables, numbers, &game(car, scene))
 }

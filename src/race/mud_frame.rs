@@ -11,19 +11,19 @@ pub fn mud_frame(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
     // Converted: `rc2k_core::race::mud::{count_frame, texture_turn, next_texture}`.
     use crate::race::mud_texture_turn::mud_texture_turn;
     use rc2k_core::race::mud::{count_frame, next_texture, texture_turn};
-    let (frames, due) = count_frame(race.shared.vars.mud_frames.bits());
-    race.shared.vars.mud_frames.set_bits(frames);
+    let (frames, due) = count_frame(race.shared.vars.mud_frames.get());
+    race.shared.vars.mud_frames.set(frames);
     if !due {
         return Ok(());
     }
     race.shared
         .vars
         .mud_texture
-        .set_bits(texture_turn(race.shared.vars.mud_texture.bits()));
+        .set(texture_turn(race.shared.vars.mud_texture.get()));
     mud_texture_turn(race, scene)?;
     race.shared
         .vars
         .mud_texture
-        .set_bits(next_texture(race.shared.vars.mud_texture.bits()));
+        .set(next_texture(race.shared.vars.mud_texture.get()));
     Ok(())
 }

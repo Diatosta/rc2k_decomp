@@ -14,26 +14,25 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
+use crate::physics::car_store::Car;
 use crate::race::owner::Race;
-use crate::race::owner_shared::RaceShared;
 use rc2k_core::physics::progress::{
     LAST_CHECKPOINT, OFF_LINE_CUE, TURNED_CUE, Warnings, cue_due, off_line, spread,
 };
 use rc2k_core::physics::x87::below as x87_below;
 
 /// The counters: off, turned, their times.
-fn counters(shared: &RaceShared) -> [&crate::session::Dword; 4] {
+fn counters(car: &Car) -> [&crate::session::Dword; 4] {
     [
-        &shared.car.off_line_steps,
-        &shared.car.turned_steps,
-        &shared.car.off_line_cue_time,
-        &shared.car.turned_cue_time,
+        &car.off_line_steps,
+        &car.turned_steps,
+        &car.off_line_cue_time,
+        &car.turned_cue_time,
     ]
 }
 
-fn load(shared: &RaceShared) -> Warnings {
-    let [off, turned, off_time, turned_time] =
-        counters(shared).map(super::super::session::Dword::get);
+fn load(car: &Car) -> Warnings {
+    let [off, turned, off_time, turned_time] = counters(car).map(super::super::session::Dword::get);
     Warnings {
         off,
         turned,
@@ -42,8 +41,8 @@ fn load(shared: &RaceShared) -> Warnings {
     }
 }
 
-fn store(shared: &RaceShared, w: &Warnings) {
-    for (c, v) in counters(shared)
+fn store(car: &Car, w: &Warnings) {
+    for (c, v) in counters(car)
         .into_iter()
         .zip([w.off, w.turned, w.off_time, w.turned_time])
     {
@@ -70,7 +69,7 @@ pub fn off_line_warnings(race: &Race, sound: &crate::sound::owner::Sound) -> Res
         ) as f64,
         f32::from_bits(race.shared.physics_tables.off_line_distance.bits()) as f64,
     );
-    let mut w = load(&race.shared);
+    let mut w = load(&race.shared.car);
     w.count_off(off_line(near, || {
         spread(cp, race.shared.car.reset_checkpoint.get())
     }));
@@ -81,7 +80,7 @@ pub fn off_line_warnings(race: &Race, sound: &crate::sound::owner::Sound) -> Res
         ),
         race.shared.physics_tables.off_line_word.get(),
     );
-    store(&race.shared, &w);
+    store(&race.shared.car, &w);
     if race.shared.replay_file.hold_car_revs.get() != 0 {
         return Ok(());
     }

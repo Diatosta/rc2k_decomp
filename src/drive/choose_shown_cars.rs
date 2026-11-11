@@ -21,11 +21,11 @@ use crate::session::Dword;
 use rc2k_core::drive::shown_cars::{ShownCars, ShownSetup};
 
 fn get(v: &[&Dword], k: usize) -> u32 {
-    v[k].bits()
+    v[k].get()
 }
 
 fn put(v: &[&Dword], k: usize, x: u32) {
-    v[k].set_bits(x);
+    v[k].set(x);
 }
 
 /// On the variables at `v` (`game`'s order).

@@ -32,7 +32,7 @@ fn step(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> 
     race.shared.car.local_velocity[2].set_bits(crate::math::x87::loaded(
         race.shared.car.drive_speed_a.bits(),
     ));
-    crate::physics::count_down_timers::count_down_timers(&race.shared);
+    crate::physics::count_down_timers::count_down_timers(&race.shared.car, &race.shared.vars);
     crate::physics::gearbox_step::gearbox_step(race, scene)?;
     crate::physics::engine_torque::engine_torque(race, scene);
     let gear = race.shared.car.gear.get();
@@ -43,9 +43,20 @@ fn step(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> 
         race,
         &race.shared.physics_tables.gear_ratios[gear.wrapping_add(1) as usize],
     );
-    crate::physics::drive_torque_share::drive_torque_share(race, scene);
+    crate::physics::drive_torque_share::drive_torque_share(
+        &race.shared.car,
+        &race.shared.physics_tables,
+        &race.course.numbers,
+        scene,
+    );
     x87_2(race, scene);
-    { crate::physics::revs_from_wheels::revs_from_wheels(race) }?;
+    {
+        crate::physics::revs_from_wheels::revs_from_wheels(
+            &race.shared.car,
+            &race.shared.physics_tables,
+            &race.course.numbers,
+        )
+    }?;
     Ok(())
 }
 

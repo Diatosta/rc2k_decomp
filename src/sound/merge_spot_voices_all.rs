@@ -13,7 +13,7 @@ use crate::errors::Refused;
 pub fn merge_spot_voices_all(owner: &crate::sound::owner::Sound) -> Result<(), Refused> {
     // Converted: `rc2k_core::sound::spot_voices::MERGED_SOUNDS`.
     for sound in rc2k_core::sound::spot_voices::MERGED_SOUNDS {
-        crate::sound::merge_spot_voices::merge_spot_voices(sound, owner)?;
+        crate::sound::merge_spot_voices::merge_spot_voices(sound, owner);
     }
     Ok(())
 }

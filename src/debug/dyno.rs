@@ -133,7 +133,12 @@ fn torque(race: &Race) {
     if shared.car.drive_cut_steps.get() != 0 {
         shared.physics_tables.drive_torque.set_bits(0);
     }
-    drive_torque_share(race, crate::scene::owner::scene());
+    drive_torque_share(
+        &race.shared.car,
+        &race.shared.physics_tables,
+        &race.course.numbers,
+        crate::scene::owner::scene(),
+    );
 }
 
 /// The drive at `speed`, full throttle: None at or above the limit, or where the engine's
@@ -143,7 +148,12 @@ fn drive_at(race: &Race, speed: f32) -> Option<(f32, f32)> {
     shared.car.drive_speed_a.set_bits(speed.to_bits());
     shared.car.drive_speed_b.set_bits(speed.to_bits());
     shared.car.local_velocity[2].set_bits(speed.to_bits());
-    revs_from_wheels(race).ok()?;
+    revs_from_wheels(
+        &race.shared.car,
+        &race.shared.physics_tables,
+        &race.course.numbers,
+    )
+    .ok()?;
     let revs = f32::from_bits(shared.car.engine_speed.bits());
     let limit = f32::from_bits(shared.car.engine_speed_limit.bits());
     if revs.is_nan() || revs >= limit || revs < 0.0 {

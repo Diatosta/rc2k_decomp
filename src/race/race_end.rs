@@ -331,7 +331,7 @@ pub fn run_race(race: &Race) -> Result<(), Refused> {
             .set(crate::math::next_random::next_random());
     }
     race.shared.switches.editor_mode.set(0u32);
-    race.course.numbers.replay_mode.set_bits(1u32);
+    race.course.numbers.replay_mode.set(1u32);
     crate::race::settings_copy::copy_settings_in(race)?;
     crate::race::race_cars::set_up_arcade_cars(race)?;
     race.shared.vars.settings_words[1].set(1u32);

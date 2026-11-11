@@ -41,14 +41,14 @@ pub fn request_quit() -> Result<(), FatalError> {
     result
 }
 
-/// `request_quit`, which version ran said in the log.
+/// `request_quit`, saying in the log that it ran.
 pub fn request_quit_logged() -> Result<(), FatalError> {
     // It happens once, while the game is closing, when `stats` can no longer be asked: say
-    // in the log which version ran.
+    // in the log that it ran.
     let was: u32 = system().session.flags.quitting.get();
     let result = request_quit();
     log(&format!(
-        "threading::request_quit: the Rust version ran (switch was {was}): {result:?}"
+        "threading::request_quit: ran (quitting was {was}): {result:?}"
     ));
     result
 }

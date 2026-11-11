@@ -34,7 +34,7 @@ pub fn swap_stage_texture(race: &Race) {
     let course = &race.course;
     // Converted: `rc2k_core::race::stage::swap_texture`.
     use rc2k_core::race::stage::{Swap, swap_texture};
-    let stage: u32 = race.shared.vars.stage_number.bits();
+    let stage: u32 = race.shared.vars.stage_number.get();
     let ((_, new), swap) = swap_texture(stage, |n| kind(race, n), |n| swapped(race, n));
     let swapped_kind = match swap {
         Swap::NotThisStage | Swap::NotFound => return,
@@ -53,7 +53,7 @@ pub fn tweak_stage(race: &Race) {
     let course = &race.course;
     {
         // Converted: `rc2k_core::race::stage::stage_tweaked`.
-        if rc2k_core::race::stage::stage_tweaked(race.shared.vars.stage_number.bits()) {
+        if rc2k_core::race::stage::stage_tweaked(race.shared.vars.stage_number.get()) {
             crate::session::write_bits(&course.stage_prefs.car_light_table, [0xFFu32; 3]);
         }
     }

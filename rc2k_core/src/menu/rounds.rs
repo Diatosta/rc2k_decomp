@@ -52,7 +52,7 @@ fn choose_cars<G: Game>(
             rally_car_list(e);
         }
         e.run(Call::SelectCarLoop)?;
-        if e.get(Var::CarLeft) == 1 {
+        if e.get(Var::LeftByKey) == 1 {
             return Ok(false);
         }
         if list_again.contains(&k) {
@@ -158,22 +158,22 @@ fn review<G: Game>(e: &mut G, hide: Option<u32>, ask: bool) -> Result<bool, G::E
         None => e.run(Call::ShowInGameOptions)?,
     }
     e.run(Call::SingleRallyReview)?;
-    Ok((ask && e.yes()) || e.get(Var::Ended569) == 1 || e.get(Var::Leave) == 1)
+    Ok((ask && e.yes()) || e.get(Var::AskLeave) == 1 || e.get(Var::EventLeft) == 1)
 }
 
 /// The end: done, the leave flags 0, the in-game options shown.
 fn end<G: Game>(e: &mut G) -> Result<(), G::Error> {
-    e.set(Var::Done, 1);
-    e.set(Var::Leave, 0);
-    e.set(Var::Ended569, 0);
-    e.set(Var::Ended565, 0);
+    e.set(Var::EventOver, 1);
+    e.set(Var::EventLeft, 0);
+    e.set(Var::AskLeave, 0);
+    e.set(Var::LeftWithCarry, 0);
     e.run(Call::ShowInGameOptions)
 }
 
 /// The stage choice: true when a yes or the leaving ends the event.
 fn stage_chosen<G: Game>(e: &mut G, screen: Call) -> Result<bool, G::Error> {
     e.run(screen)?;
-    Ok(!e.yes() && e.get(Var::Leave) != 1)
+    Ok(!e.yes() && e.get(Var::EventLeft) != 1)
 }
 
 /// `menu::single_rally`: one player (event mode 0x18).
@@ -183,12 +183,12 @@ pub fn single_rally<G: Game>(e: &mut G) -> Result<(), G::Error> {
     e.run(Call::TakePlayer1Units)?;
     e.set(Var::PlayerCount, 1);
     e.set(Var::EventMode, 0x18);
-    e.set(Var::Leave, 0);
+    e.set(Var::EventLeft, 0);
     e.run(Call::ClearEventState)?;
     e.set(Var::Current, 0);
     rally_car_list(e);
     e.run(Call::SelectCarLoop)?;
-    if e.get(Var::CarLeft) == 1 {
+    if e.get(Var::LeftByKey) == 1 {
         return Ok(());
     }
     e.run(Call::TakeShownCar)?;
@@ -215,7 +215,8 @@ pub fn single_rally<G: Game>(e: &mut G) -> Result<(), G::Error> {
         }
         e.run(Call::HideInGameOptions { players: 1 })?;
         e.run(Call::SingleRallyReview)?;
-        if e.get(Var::LeftA3C) == 1 || e.get(Var::Ended569) == 1 || e.get(Var::Leave) == 1 {
+        if e.get(Var::EscapePressed) == 1 || e.get(Var::AskLeave) == 1 || e.get(Var::EventLeft) == 1
+        {
             break;
         }
     }
@@ -234,7 +235,7 @@ pub fn single_rally_split<G: Game>(e: &mut G) -> Result<(), G::Error> {
     rally_start(e)?;
     e.set(Var::PlayerCount, 2);
     e.set(Var::EventMode, 5);
-    e.set(Var::Leave, 0);
+    e.set(Var::EventLeft, 0);
     e.run(Call::ClearEventState)?;
     if !choose_cars(e, 2, false, &[])? {
         return Ok(());
@@ -274,7 +275,7 @@ pub fn single_rally_two<G: Game>(e: &mut G) -> Result<(), G::Error> {
     rally_start(e)?;
     e.set(Var::PlayerCount, 2);
     e.set(Var::EventMode, 8);
-    e.set(Var::Leave, 0);
+    e.set(Var::EventLeft, 0);
     e.run(Call::ClearEventState)?;
     if !choose_cars(e, 2, false, &[])? {
         return Ok(());
@@ -344,7 +345,7 @@ pub fn single_rally_three<G: Game>(e: &mut G) -> Result<(), G::Error> {
     e.set(Var::Round, 0);
     e.set(Var::PlayerCount, 3);
     e.set(Var::EventMode, 8);
-    e.set(Var::Leave, 0);
+    e.set(Var::EventLeft, 0);
     if !choose_cars(e, 3, false, &[])? {
         return Ok(());
     }
@@ -373,7 +374,7 @@ pub fn time_trial_one<G: Game>(e: &mut G) -> Result<(), G::Error> {
     e.set(Var::PlayerCount, 1);
     e.set(Var::EventMode, 0x14);
     e.set(Var::EventType, 3);
-    e.set(Var::Leave, 0);
+    e.set(Var::EventLeft, 0);
     e.set(Var::Mode, 3);
     e.run(Call::BeginEvent)?;
     if !choose_cars(e, 1, true, &[])? {
@@ -438,7 +439,7 @@ fn time_trial_two_start<G: Game>(e: &mut G, mode: u32) -> Result<bool, G::Error>
     e.set(Var::PlayerCount, 2);
     e.set(Var::EventMode, mode);
     e.set(Var::EventType, 3);
-    e.set(Var::Leave, 0);
+    e.set(Var::EventLeft, 0);
     for k in CLEARED_TWO {
         e.set(Var::Cleared(k), 0);
     }
@@ -575,7 +576,7 @@ pub fn time_trial_three<G: Game>(e: &mut G) -> Result<(), G::Error> {
     e.set(Var::PlayerCount, 3);
     e.set(Var::EventMode, 0x16);
     e.set(Var::EventType, 3);
-    e.set(Var::Leave, 0);
+    e.set(Var::EventLeft, 0);
     for k in CLEARED_THREE {
         e.set(Var::Cleared(k), 0);
     }
@@ -593,7 +594,7 @@ pub fn time_trial_four<G: Game>(e: &mut G) -> Result<(), G::Error> {
     e.set(Var::PlayerCount, 4);
     e.set(Var::EventMode, 0x17);
     e.set(Var::EventType, 3);
-    e.set(Var::Leave, 0);
+    e.set(Var::EventLeft, 0);
     if !choose_cars(e, 4, true, &[0])? {
         return Ok(());
     }
@@ -632,7 +633,7 @@ mod tests {
 
     #[test]
     fn car_choice_left() {
-        let mut log = Log::default().on("SelectCarLoop", vec![vec![], vec![(Var::CarLeft, 1)]]);
+        let mut log = Log::default().on("SelectCarLoop", vec![vec![], vec![(Var::LeftByKey, 1)]]);
         time_trial_three(&mut log).unwrap();
         assert_eq!(log.count("SelectCarLoop"), 2);
         assert_eq!(log.count("CheatCarList"), 2);
@@ -662,7 +663,10 @@ mod tests {
             .with(Var::PlayerCount, 2)
             .on("Race", vec![vec![(Var::RaceResult, NO_RESULT)]])
             .on("TimeTrialQualifies", vec![vec![(Var::Qualifies, 1)]])
-            .on("TimeTrialSelectStage", vec![vec![], vec![(Var::Leave, 1)]]);
+            .on(
+                "TimeTrialSelectStage",
+                vec![vec![], vec![(Var::EventLeft, 1)]],
+            );
         time_trial_two(&mut log).unwrap();
         // All -1: only player 1's qualifying, without the player count.
         assert!(log.has("TimeTrialQualifies"));

@@ -86,8 +86,8 @@ impl Steps<'_> {
     fn progress(&mut self, mark: u32) -> Result<(), Refused> {
         let race = self.race;
         let shared = &race.shared;
-        shared.vars.bar_share.set_bits(mark);
-        if shared.vars.bar_function.bits() != self.v.bar {
+        shared.vars.bar_share.set(mark);
+        if shared.vars.bar_function.get() != self.v.bar {
             return Err(BadInput("the loading bar's callback is not the loading bar").into());
         }
         crate::race::loading_bar_frame::loading_bar_frame(race)
@@ -137,14 +137,14 @@ pub fn loadlevel_init(
     race.frame
         .map
         .packed_unless_editor
-        .set((race.shared.switches.editor_mode.bits() == 0) as u32);
-    let mut direction: u32 = race.shared.vars.direction.bits();
-    if [0x1F, 0x22, 0x51].contains(&race.shared.vars.stage_number.bits()) {
+        .set((race.shared.switches.editor_mode.get() == 0) as u32);
+    let mut direction: u32 = race.shared.vars.direction.get();
+    if [0x1F, 0x22, 0x51].contains(&race.shared.vars.stage_number.get()) {
         direction ^= 1;
     }
     race.shared.work.stage_direction.set(direction);
     race.course.numbers.in_race.set(1);
-    race.shared.vars.bar_function.set_bits(v.bar);
+    race.shared.vars.bar_function.set(v.bar);
     s.progress(0)?;
     s.indent(-3);
     s.step(
@@ -167,7 +167,7 @@ pub fn loadlevel_init(
     s.log();
     s.indent(3);
     level::load_texture_info(&race.course)?;
-    level::set_course_number(race.shared.vars.stage_number.bits(), scene)?;
+    level::set_course_number(race.shared.vars.stage_number.get(), scene)?;
     s.progress(6)?;
     s.indent(-3);
     s.step(&mut || stage_prefs::load_prefs(race), Some(7))?;
@@ -234,8 +234,8 @@ pub fn loadlevel_init(
     s.log();
     s.indent(3);
     level::reset_refresh();
-    let flags: u32 = race.course.stage_prefs.refresh_flags_a.bits();
-    scene.lights.work.marks_mask.set_bits((flags & 2) >> 1);
+    let flags: u32 = race.course.stage_prefs.refresh_flags_a.get();
+    scene.lights.work.marks_mask.set((flags & 2) >> 1);
     for car in &CAR_BLOCKS.cars[..8] {
         car.lights_on.set(flags & 1);
     }
@@ -243,7 +243,7 @@ pub fn loadlevel_init(
         .lights
         .work
         .lamps_mask
-        .set_bits(race.course.stage_prefs.refresh_flags_b.bits() & 1);
+        .set(race.course.stage_prefs.refresh_flags_b.get() & 1);
     s.indent(-3);
     s.step(
         &mut || {
@@ -274,7 +274,7 @@ pub fn loadlevel_init(
     crate::race::mud::init_mud(race, scene)?;
     s.progress(0x64)?;
     s.progress(0x64)?;
-    race.shared.vars.bar_function.set_bits(BAR_DONE);
+    race.shared.vars.bar_function.set(BAR_DONE);
     s.indent(-3);
     s.step(
         &mut || {
@@ -304,10 +304,10 @@ pub fn loadlevel_init(
     }
     use crate::scene::find_object_of_kind::find_object_of_kind;
     let mut marker = find_object_of_kind(0x7A, scene);
-    race.shared.switches.marker_object.set_bits(marker);
+    race.shared.switches.marker_object.set(marker);
     if marker == 0 {
         marker = find_object_of_kind(0x79, scene);
-        race.shared.switches.marker_object.set_bits(marker);
+        race.shared.switches.marker_object.set(marker);
     }
     // dword_719FD0 / D4.
     for cell in &REPLAY_WORK.camera_last_frame {

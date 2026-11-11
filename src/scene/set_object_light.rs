@@ -39,12 +39,12 @@ pub fn set_object_light(
     vars: &crate::race::view_vars_store::ViewVars,
 ) -> Result<(), Refused> {
     use rc2k_core::scene::lamps::{ObjectLight, WHITE, object_light};
-    light.light_added.set_bits(0u32);
-    let (clear_strength, own_car) = match object_light(light.light_kind.bits(), || {
+    light.light_added.set(0u32);
+    let (clear_strength, own_car) = match object_light(light.light_kind.get(), || {
         input().devices.keys_now.get(0x18) != 0 // byte_4F6B74
     }) {
         ObjectLight::White => {
-            light.light_added.set_bits(WHITE);
+            light.light_added.set(WHITE);
             return Ok(());
         }
         ObjectLight::Gathered {
@@ -54,26 +54,24 @@ pub fn set_object_light(
         ObjectLight::Nothing => return Ok(()),
     };
     if clear_strength {
-        object.light_strength.set_bits(0u32);
+        object.light_strength.set(0u32);
     }
     crate::session::write_bits(
         &light.lit_place,
         crate::session::read_bits::<_, 3>(&object.place),
     );
     if own_car {
-        light.drawn_car_light.set_bits(vars.drawn_car.bits());
+        light.drawn_car_light.set(vars.drawn_car.get());
     }
-    light.light_colour.set_bits(0u32);
+    light.light_colour.set(0u32);
     gather()?;
     if own_car {
-        light.drawn_car_light.set_bits(u32::MAX);
+        light.drawn_car_light.set(u32::MAX);
     }
     let mmx = system.session.machine.has_mmx.get() != 0;
-    light.light_added.set_bits(plus(
-        light.light_colour.bits(),
-        light.other_light.bits(),
-        mmx,
-    ));
+    light
+        .light_added
+        .set(plus(light.light_colour.get(), light.other_light.get(), mmx));
     Ok(())
 }
 

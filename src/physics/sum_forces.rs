@@ -7,16 +7,15 @@
 //! Caller: `physics::car_physics_step` (0x43B995), every physics step.
 
 use crate::math::x87_run::sum_over;
-use crate::race::owner::Race;
-use crate::race::owner_shared::RaceShared;
+use crate::physics::tables_store::PhysicsTables;
 use crate::session::Cell32;
 
 /// On the variables' cells `v`.
-pub fn sum_at(race: &Race, v: &[&dyn Cell32]) {
+pub fn sum_at(tables: &PhysicsTables, v: &[&dyn Cell32]) {
     let get = |k: usize| v[k].bits();
     let put = |k: usize, x: u32| v[k].set_bits(x);
-    let g: u32 = race.shared.physics_tables.gravity.bits();
-    let dt: u32 = race.shared.physics_tables.step_time.bits();
+    let g: u32 = tables.gravity.bits();
+    let dt: u32 = tables.step_time.bits();
     put(13, sum_over(&[get(0)], &[g, dt]));
     put(14, sum_over(&[get(1)], &[g, dt]));
     put(15, sum_over(&[get(2), get(3)], &[g, dt]));
@@ -27,30 +26,30 @@ pub fn sum_at(race: &Race, v: &[&dyn Cell32]) {
     );
 }
 
-fn game(shared: &RaceShared) -> Vec<&dyn Cell32> {
+fn game(tables: &PhysicsTables) -> Vec<&dyn Cell32> {
     vec![
-        &shared.physics_tables.drive_slip[0] as &dyn Cell32,
-        &shared.physics_tables.drive_slip[1],
-        &shared.physics_tables.axle_slips[0],
-        &shared.physics_tables.axle_slips[1],
-        &shared.physics_tables.forces[6].force[1],
-        &shared.physics_tables.forces[7].force[1],
-        &shared.physics_tables.forces[8].force[1],
-        &shared.physics_tables.forces[9].force[1],
-        &shared.physics_tables.forces[0].force[1],
-        &shared.physics_tables.forces[1].force[1],
-        &shared.physics_tables.forces[2].force[1],
-        &shared.physics_tables.forces[3].force[1],
-        &shared.physics_tables.forces[4].force[1],
-        &shared.physics_tables.force_sums[0],
-        &shared.physics_tables.force_sums[1],
-        &shared.physics_tables.force_sums[2],
-        &shared.physics_tables.force_sums[3],
-        &shared.physics_tables.force_sums[4],
+        &tables.drive_slip[0] as &dyn Cell32,
+        &tables.drive_slip[1],
+        &tables.axle_slips[0],
+        &tables.axle_slips[1],
+        &tables.forces[6].force[1],
+        &tables.forces[7].force[1],
+        &tables.forces[8].force[1],
+        &tables.forces[9].force[1],
+        &tables.forces[0].force[1],
+        &tables.forces[1].force[1],
+        &tables.forces[2].force[1],
+        &tables.forces[3].force[1],
+        &tables.forces[4].force[1],
+        &tables.force_sums[0],
+        &tables.force_sums[1],
+        &tables.force_sums[2],
+        &tables.force_sums[3],
+        &tables.force_sums[4],
     ]
 }
 
 /// The exact x87 version, for `physics::car_physics_step`.
-pub fn sum_forces(race: &Race) {
-    sum_at(race, &game(&race.shared));
+pub fn sum_forces(tables: &PhysicsTables) {
+    sum_at(tables, &game(tables));
 }

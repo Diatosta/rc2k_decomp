@@ -22,6 +22,9 @@ use crate::math::x87_float::int;
 use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
 use crate::math::x87_float::to_int;
+use crate::physics::ground_store::GroundWork;
+use crate::physics::tables_store::PhysicsTables;
+use crate::race::numbers_store::Numbers;
 use crate::race::owner::Race;
 use rc2k_core::physics::progress;
 use std::cmp::Ordering;
@@ -30,37 +33,44 @@ use std::cmp::Ordering;
 /// (`GROUND_WORK.ground_x` and `ground_z` less the point's x and z; the last one is left in
 /// the scratch dword +0x22400C), their squares added, `fsqrt`, x `flt_5C5DA0`, into
 /// +0x214D04.
-fn distance(race: &Race, point: [u32; 3], scene: &crate::scene::owner::Scene) {
+fn distance(
+    tables: &PhysicsTables,
+    numbers: &Numbers,
+    ground: &GroundWork,
+    point: [u32; 3],
+    scene: &crate::scene::owner::Scene,
+) {
     let drawing = &scene.drawing;
     let word = |k: usize| point[k] as i32;
-    let dx = word(0).wrapping_sub(race.physics.ground.ground_x.get() as i32);
+    let dx = word(0).wrapping_sub(ground.ground_x.get() as i32);
     drawing.scene.scratch.set_bits(dx as u32);
     let first = int(drawing.scene.scratch.bits() as i32);
-    let dz = word(2).wrapping_sub(race.physics.ground.ground_z.get() as i32);
+    let dz = word(2).wrapping_sub(ground.ground_z.get() as i32);
     drawing.scene.scratch.set_bits(dz as u32);
     let second = int(drawing.scene.scratch.bits() as i32);
-    race.shared
-        .physics_tables
-        .split_point_distance
-        .set_bits(st((first * first + second * second).sqrt()
-            * ld(race.course.numbers.one_over_65536.bits())));
+    tables.split_point_distance.set_bits(st(
+        (first * first + second * second).sqrt() * ld(numbers.one_over_65536.bits())
+    ));
 }
 
 /// 0x441770 .. 0x4417AD: the angle from `point` to the car, into `dword_62400C`: the gaps
 /// (the car's x and z less the point's, through the scratch dword +0x22400C), `fpatan`,
 /// over pi, x `flt_5C5E40` x `flt_5C5D98`, `fistp` into the scratch, its low 16 bits.
-fn angle(race: &Race, point: [u32; 3], scene: &crate::scene::owner::Scene) {
+fn angle(
+    numbers: &Numbers,
+    ground: &GroundWork,
+    point: [u32; 3],
+    scene: &crate::scene::owner::Scene,
+) {
     let drawing = &scene.drawing;
     let word = |k: usize| point[k] as i32;
-    let dx = (race.physics.ground.ground_x.get() as i32).wrapping_sub(word(0));
+    let dx = (ground.ground_x.get() as i32).wrapping_sub(word(0));
     drawing.scene.scratch.set_bits(dx as u32);
     let y = int(drawing.scene.scratch.bits() as i32);
-    let dz = (race.physics.ground.ground_z.get() as i32).wrapping_sub(word(2));
+    let dz = (ground.ground_z.get() as i32).wrapping_sub(word(2));
     drawing.scene.scratch.set_bits(dz as u32);
     let x = int(drawing.scene.scratch.bits() as i32);
-    let turns = y.atan2_over_pi(x)
-        * ld(race.course.numbers.half.bits())
-        * ld(race.course.numbers.k65536.bits());
+    let turns = y.atan2_over_pi(x) * ld(numbers.half.bits()) * ld(numbers.k65536.bits());
     drawing.scene.scratch.set_bits(to_int(turns) as u32);
     drawing
         .scene
@@ -118,7 +128,13 @@ pub fn passed_split_point(
         .ground
         .ground_z
         .set(race.shared.car.position[2].get());
-    distance(race, pt, scene);
+    distance(
+        &race.shared.physics_tables,
+        &race.course.numbers,
+        &race.physics.ground,
+        pt,
+        scene,
+    );
     let within = !matches!(
         f32::from_bits(race.shared.physics_tables.split_point_distance.bits()).partial_cmp(
             &f32::from_bits(race.shared.physics_tables.split_distance.bits())
@@ -128,7 +144,7 @@ pub fn passed_split_point(
     if !within {
         return Ok(false);
     }
-    angle(race, pt, scene);
+    angle(&race.course.numbers, &race.physics.ground, pt, scene);
     let car_angle = scene.drawing.scene.scratch.get() << 16;
     race.shared.physics_tables.split_word.set(car_angle);
     let heading = crate::race::checkpoints_store::angle(cp as usize).get();
@@ -201,7 +217,9 @@ mod asm_reference {
                 reference: |a| unsafe { distance_ref(a[0], a[1]) },
                 plain: |a| {
                     distance(
-                        crate::race::owner::race(),
+                        &crate::race::owner::race().shared.physics_tables,
+                        &crate::race::owner::race().course.numbers,
+                        &crate::race::owner::race().physics.ground,
                         point_at(a[1]),
                         crate::scene::owner::scene(),
                     );
@@ -228,7 +246,8 @@ mod asm_reference {
                 reference: |a| unsafe { angle_ref(a[0], a[1]) },
                 plain: |a| {
                     angle(
-                        crate::race::owner::race(),
+                        &crate::race::owner::race().course.numbers,
+                        &crate::race::owner::race().physics.ground,
                         point_at(a[1]),
                         crate::scene::owner::scene(),
                     );

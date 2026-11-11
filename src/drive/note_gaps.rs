@@ -10,12 +10,12 @@ use crate::session::Dword;
 /// The gap (edx), which `drive::start_cars_behind` reads.
 pub fn note_gap_at(car: &Car, lead: &Dword, best: &Dword, behind: bool) -> u32 {
     let mine: u32 = car.checkpoint.get();
-    let theirs: u32 = lead.bits();
-    let was: u32 = best.bits();
+    let theirs: u32 = lead.get();
+    let was: u32 = best.get();
     let mut now = was;
     let edx = rc2k_core::drive::places::note_gap(mine, theirs, behind, &mut now);
     if now != was {
-        best.set_bits(now);
+        best.set(now);
     }
     edx
 }

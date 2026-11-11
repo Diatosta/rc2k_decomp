@@ -13,17 +13,14 @@
 
 use crate::errors::Refused;
 use crate::physics::camera_ground::probe_at;
-use crate::physics::flow::c0;
+use crate::physics::flow::{ZERO_BITS as ZERO, c0};
 use crate::race::owner::Race;
 use rc2k_core::physics::camera_ground::{is_low, low_switch, low_switch_looks, over};
 
 // Converted: `rc2k_core::physics::camera_ground::{low_switch_looks, is_low, low_switch}`.
 pub fn camera_low_switch(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     if !low_switch_looks(
-        c0(
-            race.shared.car.crash_matrix[5].bits(),
-            race.course.numbers.zero.bits(),
-        ),
+        c0(race.shared.car.crash_matrix[5].bits(), ZERO),
         race.shared.car.camera_switch_active.get(),
         race.shared.car.camera_view.get(),
     ) {

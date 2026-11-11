@@ -11,7 +11,6 @@ use crate::input::owner::{Input, input};
 use crate::input::store::Devices;
 use crate::input::store::KEYS as KEYS_LEN;
 use crate::race::owner::race;
-use rc2k_core::fatal::Context;
 
 const SCREENSHOT_KEY: u32 = rc2k_core::input::frame::SCREENSHOT_KEY as u32; // byte_4F6BAE
 
@@ -161,6 +160,6 @@ pub fn update_input(shot: Screenshot) -> (u32, u32) {
 /// In the game: `gfx::take_screenshot`'s Rust version.
 pub fn game_screenshot() {
     if let Err(e) = crate::gfx::take_screenshot::take_screenshot() {
-        crate::fatal::raise::refused_in("gfx::take_screenshot", e, &Context::default());
+        crate::fatal::raise::refused("gfx::take_screenshot", e);
     }
 }

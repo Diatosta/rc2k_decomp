@@ -14,7 +14,7 @@ use crate::errors::Refused;
 pub fn thin_spot_voices_all(owner: &crate::sound::owner::Sound) -> Result<(), Refused> {
     // Converted: `rc2k_core::sound::spot_voices::THINNED_SOUNDS`.
     for sound in rc2k_core::sound::spot_voices::THINNED_SOUNDS {
-        crate::sound::thin_spot_voices::thin_spot_voices(sound, owner)?;
+        crate::sound::thin_spot_voices::thin_spot_voices(sound, owner);
     }
     Ok(())
 }

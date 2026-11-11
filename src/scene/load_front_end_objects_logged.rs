@@ -18,11 +18,11 @@ const TOTALS: [Total; 4] = [
     // "total points", g_objectPointCount
     (c"total points", || scene().objects.tables.point_count.get()),
     (c"total pointmem", || {
-        scene().drawing.object_work.point_memory_total.bits()
+        scene().drawing.object_work.point_memory_total.get()
     }),
     (c"total faces", || scene().objects.tables.face_count.get()),
     (c"total facemem", || {
-        scene().drawing.object_work.face_memory_total.bits()
+        scene().drawing.object_work.face_memory_total.get()
     }),
 ];
 

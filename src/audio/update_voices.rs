@@ -98,7 +98,7 @@ pub fn update_voices(audio: &Audio) -> Result<(), Refused> {
                 play::rewind_buffer(&audio.state, &voice_of(&audio.state, at))?;
             }
             Step::Play(at) => {
-                play::play_buffer_in_game(&audio.state, &voice_of(&audio.state, at))?;
+                play::play_buffer(&audio.state, &voice_of(&audio.state, at))?;
             }
             Step::Stop(at) => {
                 play::stop_buffer(&audio.state, &voice_of(&audio.state, at))?;

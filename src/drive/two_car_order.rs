@@ -17,9 +17,9 @@ pub fn two_car_order(shared: &RaceShared) -> Result<(), crate::errors::BadInput>
     let figure = |car: usize, o: u32| {
         let block = &CAR_BLOCKS.cars[car];
         match o {
-            places::FINISHED => block.finish_flag.bits(),
-            places::CHECKPOINT => block.reset_checkpoint.bits(),
-            _ => block.checkpoint_offset[1].bits(), // places::TIE_BREAK
+            places::FINISHED => block.finish_flag.get(),
+            places::CHECKPOINT => block.reset_checkpoint.get(),
+            _ => block.checkpoint_offset[1].get(), // places::TIE_BREAK
         }
     };
     let order = places::two_car_order(
@@ -29,8 +29,8 @@ pub fn two_car_order(shared: &RaceShared) -> Result<(), crate::errors::BadInput>
         0,
     );
     if let Some([x, y]) = order.places {
-        CAR_BLOCKS.cars[0].two_car_place.set_bits(x);
-        CAR_BLOCKS.cars[1].two_car_place.set_bits(y);
+        CAR_BLOCKS.cars[0].two_car_place.set(x);
+        CAR_BLOCKS.cars[1].two_car_place.set(y);
     }
     Ok(())
 }

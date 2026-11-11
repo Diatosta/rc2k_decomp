@@ -9,8 +9,9 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::race::owner_course::Course;
-use crate::race::owner_shared::RaceShared;
+use crate::physics::car_store::Car;
+use crate::physics::tables_store::PhysicsTables;
+use crate::race::numbers_store::Numbers;
 use crate::session::{Cell32, Float};
 
 /// The variables: the car's work copy's and the ratio table (gear -1 first).
@@ -26,15 +27,15 @@ pub struct GearPlaces<'a> {
 }
 
 impl<'a> GearPlaces<'a> {
-    pub fn game(shared: &'a RaceShared) -> Self {
+    pub fn game(car: &'a Car, tables: &'a PhysicsTables) -> Self {
         Self {
-            gear: &shared.car.gear,
-            engine_speed: &shared.car.engine_speed,
-            drive_speed: &shared.car.drive_speed_a,
-            drive_speed_b: &shared.car.drive_speed_b,
-            drive_kind: &shared.car.drive_kind,
-            ratios: &shared.physics_tables.gear_ratios,
-            speed: &shared.car.local_velocity[2],
+            gear: &car.gear,
+            engine_speed: &car.engine_speed,
+            drive_speed: &car.drive_speed_a,
+            drive_speed_b: &car.drive_speed_b,
+            drive_kind: &car.drive_kind,
+            ratios: &tables.gear_ratios,
+            speed: &car.local_velocity[2],
         }
     }
 }
@@ -53,7 +54,7 @@ fn gear_ratio(p: &GearPlaces<'_>) -> Result<Option<(u32, u32)>, Refused> {
 
 /// `physics::revs_from_wheels` (0x43C0C9): in gear, engine speed = the driven speed (with
 /// drive kind 1 the two driven speeds' sum times 0.5) over the gear's ratio.
-pub fn revs_from_wheels_at(course: &Course, p: &GearPlaces<'_>) -> Result<(), Refused> {
+pub fn revs_from_wheels_at(numbers: &Numbers, p: &GearPlaces<'_>) -> Result<(), Refused> {
     let Some((_, ratio)) = gear_ratio(p)? else {
         return Ok(());
     };
@@ -61,7 +62,7 @@ pub fn revs_from_wheels_at(course: &Course, p: &GearPlaces<'_>) -> Result<(), Re
         crate::math::x87_run::sum_times_over(
             p.drive_speed.bits(),
             p.drive_speed_b.bits(),
-            course.numbers.half.bits(),
+            numbers.half.bits(),
             ratio,
         )
     } else {

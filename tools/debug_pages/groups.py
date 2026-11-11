@@ -79,8 +79,8 @@ for g,items in out:
         lines.append('            Row::new("%s", "%s", Shown::%s, 0x%X, %s, (%d, %d)),'%(esc(N[i]),esc((r[0] or "").strip()),kind[r[1]],at,"true" if at in barset and r[1]=="float" else "false",r[3],r[4]))
     lines.append('        ],\n    },')
 src='''//! The display page's figures (`debug::draw_wear_bars`' 380, IDA 2026-10-30) named and
-//! grouped for the debug UI (owner, 2026-10-30: "a more meaningful name ... input with other
-//! inputs, damage together"): generated from the page's items (`debug::wear_items`), with
+//! grouped for the debug UI (a more meaningful name, the input with other
+//! inputs, the damage together): generated from the page's items (`debug::wear_items`), with
 //! the names IDA gives their places and the developers' labels; a place the page printed
 //! twice is listed once. "Car 1" and "Car 2" are the cars' blocks 0 and 1 (0xFE0 apart);
 //! "Player car" the first block's gauges and its state record (0x75B39C ..).
@@ -94,3 +94,8 @@ pub static GROUPS: &[Group] = &[
 '''%"\n".join(lines)
 open("src/debug/display_rows.rs","w").write(src)
 print(sum(len(i) for _,i in out))
+
+# The rows leave this script on their IDA addresses; no row stays so: they are rewritten
+# to be read through their fields (typed_rows.py, which runs cargo).
+import subprocess, sys
+subprocess.run([sys.executable, "tools/debug_pages/typed_rows.py"], check=True)

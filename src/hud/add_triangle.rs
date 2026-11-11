@@ -9,6 +9,6 @@ use crate::race::owner_frame::Frame;
 pub fn add_triangle(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
     crate::scene::polygon_work::front_end()
         .polygon_vertex_count
-        .set_bits(3u32);
+        .set(3u32);
     crate::hud::add_polygon::add_polygon(frame, hud)
 }

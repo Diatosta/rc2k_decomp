@@ -36,6 +36,7 @@ use crate::math::x87;
 use crate::math::x87_run::{int_times_times_over_to_int, less_plus_less_product_80};
 use crate::physics::car_store::Car;
 use crate::physics::contact_store::ContactWork;
+use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::physics::ground::*;
 use crate::physics::ground_query::GroundQuery;
 use crate::race::owner::Race;
@@ -169,8 +170,8 @@ fn probe_points(
         work.probe_height[i].set(d);
         if b < 4 {
             scratch.set(x87::loaded(car.crash_matrix[5].bits()));
-            if x87::compare_status(scratch.get(), race.course.numbers.zero.bits()) & 0x100 != 0 {
-                scratch.set(x87::loaded(race.course.numbers.zero.bits()));
+            if x87::compare_status(scratch.get(), ZERO) & 0x100 != 0 {
+                scratch.set(x87::loaded(ZERO));
             }
             work.wheel_height_raw[i].set(d);
             work.probe_height[i].set(x87::int_times_to_int(d as i32, scratch.get()) as u32);

@@ -13,7 +13,9 @@
 
 use crate::errors::Refused;
 use crate::math::x87;
+use crate::physics::car_store::Car;
 use crate::physics::fill_slot_on_bit::fill_slot_on_bit;
+use crate::race::numbers_store::Numbers;
 use crate::race::owner::Race;
 use rc2k_core::physics::parts::{self, DROP_TESTS, Hit, HitTest};
 
@@ -23,22 +25,23 @@ pub type Timers = [crate::session::Float; 4];
 /// The shared steps (`rc2k_core::physics::parts::hit_tests`): `act` the bit's step (with the bit,
 /// the original's ecx).
 pub fn hit_tests(
-    race: &Race,
+    car: &Car,
+    numbers: &Numbers,
     tests: &[HitTest; 4],
     timers: &Timers,
     act: &mut dyn FnMut(u32) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    let word = race.shared.car.noise_word.get();
+    let word = car.noise_word.get();
     let (_, hit) = parts::hit_tests(
         tests,
         word,
         |k| timers[k].get(),
-        || f32::from_bits(race.course.numbers.hundred.bits()),
-        || race.shared.car.parts_present.get(),
+        || f32::from_bits(numbers.hundred.bits()),
+        || car.parts_present.get(),
     );
     if let Hit::Act(k) = hit {
         act(tests[k].1)?;
-        timers[k].set_bits(x87::loaded(race.course.numbers.k256.bits()));
+        timers[k].set_bits(x87::loaded(numbers.k256.bits()));
     }
     Ok(())
 }
@@ -49,7 +52,8 @@ pub fn drop_hit_parts(race: &Race, scene: &crate::scene::owner::Scene) -> Result
         return Ok(());
     }
     hit_tests(
-        race,
+        &race.shared.car,
+        &race.course.numbers,
         &DROP_TESTS,
         &race.shared.car.wheel_hit_damage,
         &mut |bit| fill_slot_on_bit(race, bit, scene),

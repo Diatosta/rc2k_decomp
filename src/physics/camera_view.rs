@@ -9,12 +9,13 @@
 
 use crate::math::x87_float::int;
 use crate::math::x87_float::st;
+use crate::physics::car_store::Car;
 use crate::race::owner_shared::RaceShared;
 use crate::race::view_vars_store::{ViewRecord, ViewVars};
 
 /// esi as the original leaves it: the mode's record.
-pub fn record(shared: &RaceShared) -> Result<&ViewRecord, crate::errors::BadInput> {
-    let mode = (shared.car.camera_view.get() as i32).clamp(0, 0x33);
+pub fn record(car: &Car) -> Result<&ViewRecord, crate::errors::BadInput> {
+    let mode = (car.camera_view.get() as i32).clamp(0, 0x33);
     ViewVars::record_of(mode as usize)
 }
 

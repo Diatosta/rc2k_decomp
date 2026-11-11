@@ -7,8 +7,9 @@
 
 use crate::math::x87;
 use crate::math::x87_run::over_abs_plus_minus;
-use crate::race::owner::Race;
-use crate::race::owner_shared::RaceShared;
+use crate::physics::car_store::Car;
+use crate::physics::flow::ZERO_BITS as ZERO;
+use crate::physics::tables_store::PhysicsTables;
 use crate::session::Cell32;
 use std::cmp::Ordering;
 
@@ -32,15 +33,15 @@ fn put(a: &dyn Cell32, v: u32) {
 pub type CapPlaces<'a> = [&'a dyn Cell32; 4];
 
 /// The core.
-pub fn cap_drive_speed_at(race: &Race, v: CapPlaces<'_>) {
-    let zero = race.course.numbers.zero.bits();
+pub fn cap_drive_speed_at(tables: &PhysicsTables, v: CapPlaces<'_>) {
+    let zero = ZERO;
     put(
         v[0],
         over_abs_plus_minus(
-            race.shared.physics_tables.drive_speed_cap.bits(),
+            tables.drive_speed_cap.bits(),
             at(v[1]),
-            race.shared.physics_tables.drive_speed_cap_a.bits(),
-            race.shared.physics_tables.drive_speed_cap_b.bits(),
+            tables.drive_speed_cap_a.bits(),
+            tables.drive_speed_cap_b.bits(),
         ),
     );
     if below(at(v[0]), zero) {
@@ -52,16 +53,20 @@ pub fn cap_drive_speed_at(race: &Race, v: CapPlaces<'_>) {
     }
 }
 
-fn game<'a>(shared: &'a RaceShared, scene: &'a crate::scene::owner::Scene) -> CapPlaces<'a> {
+fn game<'a>(
+    car: &'a Car,
+    tables: &'a PhysicsTables,
+    scene: &'a crate::scene::owner::Scene,
+) -> CapPlaces<'a> {
     [
-        &shared.physics_tables.drive_speed_figure,
-        &shared.car.local_velocity[2],
+        &tables.drive_speed_figure,
+        &car.local_velocity[2],
         &scene.drawing.scene.scratch,
-        &shared.car.drive_speed_a,
+        &car.drive_speed_a,
     ]
 }
 
 /// The exact version, for `physics::drive_wheels_step`.
-pub fn cap_drive_speed(race: &Race, scene: &crate::scene::owner::Scene) {
-    cap_drive_speed_at(race, game(&race.shared, scene));
+pub fn cap_drive_speed(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner::Scene) {
+    cap_drive_speed_at(tables, game(car, tables, scene));
 }

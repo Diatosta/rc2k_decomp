@@ -13,13 +13,13 @@ pub fn duel_sound_levels(sound: &crate::sound::owner::Sound) {
     let stage = &sound.race.stage;
     stage
         .loop_volume_a
-        .set(first_level(CAR_BLOCKS.cars[0].surface_noise_a.bits()));
+        .set(first_level(CAR_BLOCKS.cars[0].surface_noise_a.get()));
     if stage.loop_volume_a.get() >= RARE_FROM {
         let r = crate::math::next_random::SOUNDS.next();
         if rare_draw(r) {
             stage.timed_arm.set(1);
         }
     }
-    let (level, _) = second_level(CAR_BLOCKS.cars[0].surface_noise_second.bits());
+    let (level, _) = second_level(CAR_BLOCKS.cars[0].surface_noise_second.get());
     stage.loop_volume_b.set(level);
 }

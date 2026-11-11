@@ -13,8 +13,9 @@ use crate::session::{Bytes, Dword, with_runs};
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct CaptionTables {
-    /// `dword_758806`: 1 when the screen (the car choice, a name entry) was left; the loops that look at it clear it.
-    pub screen_left: Dword,
+    /// `dword_758806`: 1 when the screen was left with a key (Escape in `handle_keys`, a yes / no
+    /// answer, a name entry); the loop puts its leave question on it and the screens that look at it clear it.
+    pub left_by_key: Dword,
     /// `dword_75880A`: Not read.
     pub dword_75880a: Dword,
     /// `dword_75880E`: The stage group of the stage shown (the record table's index; set by menu::option_items).
@@ -117,7 +118,7 @@ impl CaptionTables {
 impl CaptionTables {
     pub const fn new() -> Self {
         CaptionTables {
-            screen_left: Dword::new(0x0),
+            left_by_key: Dword::new(0x0),
             dword_75880a: Dword::new(0x1),
             shown_group: Dword::new(0x0),
             shown_stage: Dword::new(0x1),
@@ -391,7 +392,7 @@ mod tests {
         };
         assert_eq!(mine, &image_bytes(START, END - START)[..]);
         let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
-        at(offset_of!(CaptionTables, screen_left), 0x758806);
+        at(offset_of!(CaptionTables, left_by_key), 0x758806);
         at(offset_of!(CaptionTables, dword_75880a), 0x75880A);
         at(offset_of!(CaptionTables, shown_group), 0x75880E);
         at(offset_of!(CaptionTables, shown_stage), 0x758812);

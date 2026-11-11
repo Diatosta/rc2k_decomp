@@ -75,7 +75,7 @@ pub enum Var {
     /// `dword_755954`.
     EventType,
     /// `dword_758806`: the car choice was left.
-    CarLeft,
+    LeftByKey,
     /// `dword_75649C`.
     RepairSet,
     /// `dword_755984`.
@@ -91,12 +91,14 @@ pub enum Var {
     Current,
     /// `dword_755988`.
     EventMode,
-    /// `dword_75555D`, `dword_755569`, `dword_755565`.
-    Leave,
-    Ended569,
-    Ended565,
+    /// `dword_75555D`: the event is left too, not only the screen.
+    EventLeft,
+    /// `dword_755569`: an action asks to leave the screen.
+    AskLeave,
+    /// `dword_755565`: set by `leave_with_carry`.
+    LeftWithCarry,
     /// `dword_755980`: 1 when an event is over.
-    Done,
+    EventOver,
 }
 
 pub use super::car_lists::CarList;
@@ -146,7 +148,7 @@ pub fn start<E: Event>(s: Starter, e: &mut E) -> Result<(), E::Error> {
     match (s.first(), s.a8()) {
         (true, false) => {
             e.call(Call::RepairCar)?;
-            e.set(Var::CarLeft, 0);
+            e.set(Var::LeftByKey, 0);
             e.set(Var::EventType, s.event_type());
             e.set(Var::RepairSet, ALL_REPAIRS);
             e.set(Var::PlayerCount, 1);
@@ -154,7 +156,7 @@ pub fn start<E: Event>(s: Starter, e: &mut E) -> Result<(), E::Error> {
         }
         (true, true) => {
             e.set(Var::EventType, s.event_type());
-            e.set(Var::CarLeft, 0);
+            e.set(Var::LeftByKey, 0);
             e.set(Var::PlayerCount, 1);
             if e.get(Var::Continuing) != 1 {
                 e.call(Call::BeginEvent)?;
@@ -166,7 +168,7 @@ pub fn start<E: Event>(s: Starter, e: &mut E) -> Result<(), E::Error> {
         }
         (false, _) => {
             e.set(Var::EventType, s.event_type());
-            e.set(Var::CarLeft, 0);
+            e.set(Var::LeftByKey, 0);
             e.set(Var::RepairSet, ALL_REPAIRS);
             e.call(Call::ResetDriverCondition)?;
             zero_round(e);
@@ -177,7 +179,7 @@ pub fn start<E: Event>(s: Starter, e: &mut E) -> Result<(), E::Error> {
         e.set(Var::Current, k);
         e.call(Call::RepairCar)?;
         e.call(Call::SelectCar(list))?;
-        if e.get(Var::CarLeft) == 1 {
+        if e.get(Var::LeftByKey) == 1 {
             return Ok(());
         }
         e.call(Call::TakeShownCar)?;
@@ -193,11 +195,11 @@ pub fn start<E: Event>(s: Starter, e: &mut E) -> Result<(), E::Error> {
         }
     } else {
         e.call(Call::RunChampionship)?;
-        e.set(Var::Leave, 0);
-        e.set(Var::Ended569, 0);
-        e.set(Var::Ended565, 0);
+        e.set(Var::EventLeft, 0);
+        e.set(Var::AskLeave, 0);
+        e.set(Var::LeftWithCarry, 0);
     }
-    e.set(Var::Done, 1);
+    e.set(Var::EventOver, 1);
     Ok(())
 }
 
@@ -218,7 +220,7 @@ mod tests {
         fn get(&mut self, v: Var) -> u32 {
             match v {
                 Var::Continuing => self.continuing,
-                Var::CarLeft => u32::from(self.leave_at == Some(self.chosen - 1)),
+                Var::LeftByKey => u32::from(self.leave_at == Some(self.chosen - 1)),
                 _ => unreachable!(),
             }
         }
@@ -245,7 +247,7 @@ mod tests {
         start(two, &mut log).unwrap();
         assert_eq!(log.steps.first().unwrap(), "EventType=4");
         assert_eq!(log.steps.iter().filter(|s| *s == "TakeShownCar").count(), 2);
-        assert_eq!(log.steps.last().unwrap(), "Done=1");
+        assert_eq!(log.steps.last().unwrap(), "EventOver=1");
         assert!(log.steps.contains(&"RunChampionship".to_string()));
 
         let a8 = Starter {
@@ -271,6 +273,6 @@ mod tests {
         };
         start(four, &mut log).unwrap();
         assert_eq!(log.steps.iter().filter(|s| *s == "TakeShownCar").count(), 1);
-        assert!(!log.steps.contains(&"Done=1".to_string()));
+        assert!(!log.steps.contains(&"EventOver=1".to_string()));
     }
 }

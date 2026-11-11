@@ -16,11 +16,11 @@ use crate::race::viewer_screen_store::VIEWER_PANEL;
 
 pub fn replay_screenshot() -> Result<(), Refused> {
     let gfx = crate::gfx::owner::gfx();
-    if VIEWER_PANEL.replay_recording.bits() != 1 {
+    if VIEWER_PANEL.replay_recording.get() != 1 {
         return Ok(());
     }
-    if VIEWER_PANEL.pictures_started.bits() != 1 {
-        VIEWER_PANEL.pictures_started.set_bits(1u32);
+    if VIEWER_PANEL.pictures_started.get() != 1 {
+        VIEWER_PANEL.pictures_started.set(1u32);
         VIEWER_PANEL.picture_clock.set(crate::os::ticks());
     }
     let name = &VIEWER_PANEL.picture_name;
@@ -40,7 +40,7 @@ pub fn replay_screenshot() -> Result<(), Refused> {
     VIEWER_PANEL.picture_clock.set(
         VIEWER_PANEL
             .picture_clock
-            .bits()
+            .get()
             .wrapping_add(VIEWER_PANEL.picture_time()),
     );
     Ok(())

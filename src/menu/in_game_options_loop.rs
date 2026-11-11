@@ -17,12 +17,7 @@ use crate::menu::screen_loop::{
 
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
-    crate::scene::polygon_work::front_end().window.view_offset[0].set(0xFFFFFF64u32);
-    crate::scene::polygon_work::front_end().window.view_offset[1].set(0x27u32);
-    crate::scene::polygon_work::front_end()
-        .window
-        .view_zoom
-        .set(0x140u32);
+    entry.set_view(-156, 39, 0x140);
     prepare_scene(entry.scene);
     screens.flow.turning.set(0x1u32);
     screens.state.carousel.menu.set(0x11u32);
@@ -52,7 +47,7 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::Write(|m| &m.screens.draw_work.escaped, 0x0)],
+    before: &[Step::Write(|m| &m.screens.draw_work.escape_pressed, 0x0)],
     set_up_first: &[Step::Do(set_up_first)],
     background: &[Step::Call(Callee::LoadBackground(|m| {
         &m.tables.texts.in_game_options_picture

@@ -18,7 +18,7 @@ pub fn ease_view_angles(
     race: &Race,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), crate::errors::BadInput> {
-    let esi = record(&race.shared)?;
+    let esi = record(&race.shared.car)?;
     if esi.change_time.get() == 0 {
         return Ok(());
     }

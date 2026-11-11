@@ -12,8 +12,8 @@ use rc2k_core::physics::line_places::car_near;
 // Converted: `rc2k_core::physics::line_places::car_near`.
 pub fn near_at(car: &Car, checkpoint: u32) -> bool {
     car_near(
-        car.driver_kind.bits() != 0,
-        || car.checkpoint.bits(),
+        car.driver_kind.get() != 0,
+        || car.checkpoint.get(),
         checkpoint,
     )
     .is_some_and(|n| n.1)

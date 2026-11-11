@@ -82,8 +82,8 @@ pub fn init_texture_levels(race: &Race, scene: &crate::scene::owner::Scene) -> R
     use crate::logfile::log_int::log_int;
     use crate::scene::textures::with_cells;
     use rc2k_core::scene::texture_levels::{KindSlots, held_cars, set_levels};
-    let cars = held_cars(shared.view.race_cars.bits());
-    shared.view.race_cars.set_bits(cars);
+    let cars = held_cars(shared.view.race_cars.get());
+    shared.view.race_cars.set(cars);
     crate::scene::reset_texture_tables::reset_texture_tables(scene);
     crate::logfile::log_write::log_nul(&COUNT_TEXT_RVA, false, 1);
     log_int(cars as i32, true, 1);
@@ -122,9 +122,9 @@ pub fn init_texture_levels(race: &Race, scene: &crate::scene::owner::Scene) -> R
                     video,
                 },
                 cars,
-                shared.view.players.bits() == 1,
+                shared.view.players.get() == 1,
                 &kinds,
-                shared.switches.editor_mode.bits() != 0,
+                shared.switches.editor_mode.get() != 0,
                 other(scene),
                 |car| {
                     let kinds = &shared.vars.race_car_kinds;

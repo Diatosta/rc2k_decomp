@@ -45,7 +45,7 @@ pub fn load_hud_car_icons(
 ) -> Result<(), Refused> {
     let vars = &net().vars;
     use rc2k_core::scene::car_icons;
-    let texture: u32 = scene.textures.kinds.kind_first_textures[193].bits();
+    let texture: u32 = scene.textures.kinds.kind_first_textures[193].get();
     if texture == u32::MAX {
         return Ok(());
     }
@@ -54,13 +54,13 @@ pub fn load_hud_car_icons(
         let block: u32 = shared.work.car_block(car);
         crate::race::blocks_store::block_at(block, "a car without its block")?
             .car_kind
-            .bits()
+            .get()
     } else {
-        CAR_BLOCKS.cars[0].car_kind.bits()
+        CAR_BLOCKS.cars[0].car_kind.get()
     };
     let numbers = [
         car_icon_number(player),
-        car_icon_number(CAR_BLOCKS.cars[1].car_kind.bits()),
+        car_icon_number(CAR_BLOCKS.cars[1].car_kind.get()),
     ];
     car_icons::check_numbers(numbers)?;
     for (number, target_y) in numbers.into_iter().zip(car_icons::ROWS) {

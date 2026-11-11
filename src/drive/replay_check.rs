@@ -58,7 +58,7 @@ pub fn note(race: &Race) -> Result<(), BadInput> {
         PLAYING => "playing",
         _ => return Ok(()),
     };
-    let clock = CAR_BLOCKS.cars[0].step_clock.bits();
+    let clock = CAR_BLOCKS.cars[0].step_clock.get();
     #[cfg(feature = "remote")]
     if mode == "playing" {
         crate::remote::replay_tick(clock);
@@ -98,7 +98,7 @@ fn piece_name(piece: StartPiece) -> String {
 /// At a whole frame of a replay played, before its recorded state is loaded.
 pub fn compare_frame(race: &Race) -> Result<(), BadInput> {
     let saved = crate::race::blocks_store::replay_state(&race.replay);
-    let clock = CAR_BLOCKS.cars[0].step_clock.bits();
+    let clock = CAR_BLOCKS.cars[0].step_clock.get();
     if saved.offset(8).read::<u32>("the replay check's blocks")? != clock {
         SKIPPED.fetch_add(1, Relaxed);
         return Ok(());

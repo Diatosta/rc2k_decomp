@@ -41,24 +41,24 @@ const HEAD: [(&std::ffi::CStr, u32, Value); 10] = [
     (c"l", FLOAT, |poly| poly.window.clip_screen[2].bits()), // "l" g_clipScreenLeft
     (c"b", FLOAT, |poly| poly.window.clip_screen[1].bits()), // "b" g_clipScreenBottom
     (c"t", FLOAT, |poly| poly.window.clip_screen[0].bits()), // "t" g_clipScreenTop
-    (c"donezcut", INT, |poly| poly.depth_clipped.bits()),    // "donezcut"
-    (c"donesuth", INT, |poly| poly.screen_clipped.bits()),   // "donesuth"
-    (c"cuttest", INT_NL, |poly| poly.polygon_clip_mask.bits()), // "cuttest" g_polygonClipMask
+    (c"donezcut", INT, |poly| poly.depth_clipped.get()),     // "donezcut"
+    (c"donesuth", INT, |poly| poly.screen_clipped.get()),    // "donesuth"
+    (c"cuttest", INT_NL, |poly| poly.polygon_clip_mask.get()), // "cuttest" g_polygonClipMask
 ];
 const AFTER: [(&std::ffi::CStr, u32, Value); 2] = [
-    (c"tpage", HEX8, |poly| poly.texture_page.bits()), // "tpage"
-    (c"points", INT, |poly| poly.polygon_vertex_count.bits()), // "points" g_polygonVertexCount
+    (c"tpage", HEX8, |poly| poly.texture_page.get()), // "tpage"
+    (c"points", INT, |poly| poly.polygon_vertex_count.get()), // "points" g_polygonVertexCount
 ];
 const POLYGON_NUMBER: [(&std::ffi::CStr, u32, Value); 1] = [(c"polynum", INT, |poly| {
-    crate::race::view_scratch::of_polygon(poly).map_or(0, |v| v.face.course_face.bits())
+    crate::race::view_scratch::of_polygon(poly).map_or(0, |v| v.face.course_face.get())
 })]; // "polynum"
 const OBJECT: [(&std::ffi::CStr, u32, Value); 2] = [
     // The view's whose polygon this is (every polygon work is a view slot's).
     (c"objdraw", INT, |poly| {
-        crate::race::view_scratch::of_polygon(poly).map_or(0, |v| v.cars.object_number.bits())
+        crate::race::view_scratch::of_polygon(poly).map_or(0, |v| v.cars.object_number.get())
     }), // "objdraw" g_objectNumber
     (c"objfaced", INT, |poly| {
-        crate::race::view_scratch::of_polygon(poly).map_or(0, |v| v.face.face_number.bits())
+        crate::race::view_scratch::of_polygon(poly).map_or(0, |v| v.face.face_number.get())
     }), // "objfaced" g_faceNumber
 ];
 /// A vertex's: (label, kind, offset).
@@ -80,7 +80,7 @@ pub fn log_bad_polygon(
     poly: &crate::scene::polygon_work::PolygonWork,
     vertices: &dyn Store,
 ) -> Result<(), BadInput> {
-    let count: u32 = poly.polygon_vertex_count.bits();
+    let count: u32 = poly.polygon_vertex_count.get();
     if count > MOST {
         return Err(BadInput("more than 64 vertices"));
     }
@@ -88,9 +88,9 @@ pub fn log_bad_polygon(
         write(label);
         log(kind, at(poly));
     }
-    poly.polygon_clip_mask.set_bits(0u32);
+    poly.polygon_clip_mask.set(0u32);
     let object = crate::race::view_scratch::of_polygon(poly)
-        .is_some_and(|v| v.object.drawing_object.bits() == 1);
+        .is_some_and(|v| v.object.drawing_object.get() == 1);
     let tail: &[(&std::ffi::CStr, u32, Value)] = if object { &OBJECT } else { &POLYGON_NUMBER };
     for &(label, kind, at) in AFTER.iter().chain(tail) {
         write(label);

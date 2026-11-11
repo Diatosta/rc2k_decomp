@@ -78,7 +78,7 @@ fn var(v: starters::Var) -> &'static Dword {
     use starters::Var as V;
     match v {
         V::EventType => EVENT_TYPE,
-        V::CarLeft => CAR_LEFT,
+        V::LeftByKey => LEFT_BY_KEY,
         V::RepairSet => REPAIR_SET,
         V::PlayerCount => PLAYER_COUNT,
         V::Index => INDEX,
@@ -87,10 +87,10 @@ fn var(v: starters::Var) -> &'static Dword {
         V::Continuing => CONTINUING,
         V::Current => CURRENT,
         V::EventMode => EVENT_MODE,
-        V::Leave => LEAVE,
-        V::Ended569 => ENDED_569,
-        V::Ended565 => ENDED_565,
-        V::Done => DONE,
+        V::EventLeft => EVENT_LEFT,
+        V::AskLeave => ASK_LEAVE,
+        V::LeftWithCarry => LEFT_WITH_CARRY,
+        V::EventOver => EVENT_OVER,
     }
 }
 

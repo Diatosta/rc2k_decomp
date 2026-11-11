@@ -3,7 +3,8 @@
 //!
 //! Caller: `physics::car_physics_step` (0x43B87E), every physics step.
 
-use crate::race::owner_shared::RaceShared;
+use crate::physics::car_store::Car;
+use crate::physics::tables_store::PhysicsTables;
 use crate::session::Cell32;
 
 fn core(v: &[&dyn Cell32]) {
@@ -12,17 +13,17 @@ fn core(v: &[&dyn Cell32]) {
     }
 }
 
-fn game(shared: &RaceShared) -> Vec<&dyn Cell32> {
+fn game<'a>(car: &'a Car, tables: &'a PhysicsTables) -> Vec<&'a dyn Cell32> {
     vec![
-        &shared.car.local_velocity[0] as &dyn Cell32,
-        &shared.car.local_velocity[1],
-        &shared.car.local_velocity[2],
-        &shared.physics_tables.kept_motion[0],
-        &shared.physics_tables.kept_motion[1],
-        &shared.physics_tables.kept_motion[2],
+        &car.local_velocity[0] as &dyn Cell32,
+        &car.local_velocity[1],
+        &car.local_velocity[2],
+        &tables.kept_motion[0],
+        &tables.kept_motion[1],
+        &tables.kept_motion[2],
     ]
 }
 
-pub fn keep_motion(shared: &RaceShared) {
-    core(&game(shared));
+pub fn keep_motion(car: &Car, tables: &PhysicsTables) {
+    core(&game(car, tables));
 }

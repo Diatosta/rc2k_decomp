@@ -87,7 +87,7 @@ fn settings(
         1 => z.wrapping_sub(high(turn, forward)),
         _ => z,
     };
-    let clock: u32 = shared.physics_tables.scene_clock.bits();
+    let clock: u32 = shared.physics_tables.scene_clock.get();
     let mut set = Settings {
         place: [x, y, z],
         size: None,
@@ -123,12 +123,12 @@ pub fn draw_carousel_entry(
     let set = settings(shared, menus, entry, row)?;
     crate::session::write_bits(&view.object.place, set.place);
     if let Some(size) = set.size {
-        view.object.size.set_bits(size);
+        view.object.size.set(size);
     }
-    view.object.angles[0].set_bits(set.angle_x);
-    view.object.angles[1].set_bits(set.angle_y);
+    view.object.angles[0].set(set.angle_x);
+    view.object.angles[1].set(set.angle_y);
     crate::session::write_bits(&view.polygon.window.view_offset, [0u32; 2]);
     menus.screens.state.carousel.kind.set(set.kind);
-    view.cars.object_number.set_bits(set.object);
+    view.cars.object_number.set(set.object);
     draw()
 }

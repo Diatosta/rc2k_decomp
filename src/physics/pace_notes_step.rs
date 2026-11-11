@@ -72,6 +72,9 @@ pub fn pace_notes_step(
         }
         race.shared.car.last_pace_call.set(target);
     }
-    crate::physics::expire_car_events::expire_car_events(race)?;
+    crate::physics::expire_car_events::expire_car_events(
+        &race.shared.car,
+        &race.shared.physics_tables,
+    )?;
     Ok(())
 }

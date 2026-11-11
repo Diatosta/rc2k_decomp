@@ -43,9 +43,9 @@ pub fn pick_replay_camera(shared: &RaceShared, wish: u32) -> Result<Option<u32>,
     };
     let edx = kept_mode(
         edx,
-        || CAR_BLOCKS.cars[0].car_kind.bits(),
+        || CAR_BLOCKS.cars[0].car_kind.get(),
         || shared.view.players.get() != 1,
-        || CAR_BLOCKS.cars[1].car_kind.bits(),
+        || CAR_BLOCKS.cars[1].car_kind.get(),
     );
     Ok(Some(edx))
 }

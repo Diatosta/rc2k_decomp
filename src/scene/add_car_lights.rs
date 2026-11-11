@@ -35,13 +35,13 @@ impl rc2k_core::scene::lamps::CarLights for GameCars<'_> {
         net().vars.player.get()
     }
     fn all_cars(&self) -> bool {
-        self.0.shared.vars.settings_words[4].bits() == 1
+        self.0.shared.vars.settings_words[4].get() == 1
     }
     fn near(&self) -> u32 {
-        self.0.shared.view.players.bits()
+        self.0.shared.view.players.get()
     }
     fn view(&self) -> u32 {
-        self.0.shared.vars.run_kind.bits()
+        self.0.shared.vars.run_kind.get()
     }
     fn drawn(&self) -> u32 {
         self.2
@@ -68,7 +68,7 @@ pub fn add_car_lights(
 ) -> Result<(), Refused> {
     let shared = &race.shared;
     {
-        let cars: u32 = shared.view.race_cars.bits();
+        let cars: u32 = shared.view.race_cars.get();
         if cars == 0 || cars > BLOCKS {
             return Err(BadInput("no cars, or more than their blocks").into());
         }
@@ -82,7 +82,7 @@ pub fn add_car_lights(
                 // the block: `race::car_parts`).
                 let marks = crate::race::blocks_store::block_at(block, "no car")?
                     .marks_count
-                    .bits();
+                    .get();
                 add(crate::race::frame_view::car_at(block)?, marks)?;
             }
         }

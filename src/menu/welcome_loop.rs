@@ -26,7 +26,7 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::Write(|m| &m.screens.draw_work.escaped, 0x0)],
+    before: &[Step::Write(|m| &m.screens.draw_work.escape_pressed, 0x0)],
     set_up_first: &[Step::Write(|m| &m.tables.pages.yes_no_answer, 0x0)],
     background: &[Step::Call(Callee::LoadWelcomePicture)],
     after_first_frame: &[Step::Call(Callee::PlayRallySpeech)],

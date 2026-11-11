@@ -33,15 +33,15 @@ pub fn draw_flat_quad(
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
     let shared = &race.shared;
-    poly.polygon_drawn.set_bits(0);
+    poly.polygon_drawn.set(0);
     for n in 0..4 {
         let rec = &crate::scene::polygon_store::POLYGON_WORK.entries[n];
         rec.record
             .set(crate::scene::point_records::of_quad(n as u32));
-        rec.u.set(view.quad.uv[n].bits());
-        rec.v.set(view.quad.uv[4 + n].bits());
+        rec.u.set(view.quad.uv[n].get());
+        rec.v.set(view.quad.uv[4 + n].get());
     }
-    let float = |cell: &Dword| x87::from_int(cell.bits() as i32);
+    let float = |cell: &Dword| x87::from_int(cell.get() as i32);
     let [left, right, top, bottom] = [
         &view.quad.corners[0],
         &view.quad.corners[1],
@@ -50,7 +50,7 @@ pub fn draw_flat_quad(
     ]
     .map(float);
     let v = |n: usize, o: usize, x: u32| {
-        poly.quad_vertices[8 * n + o / 4].set_bits(x);
+        poly.quad_vertices[8 * n + o / 4].set(x);
     };
     for (n, x, y) in [
         (0, left, top),
@@ -71,31 +71,31 @@ pub fn draw_flat_quad(
             .set(0xFFFF_FFFF);
     }
     poly.polygon_colour
-        .set_bits(shared.vars.quad_colour[0].bits() & 0xFF_FFFF);
+        .set(shared.vars.quad_colour[0].get() & 0xFF_FFFF);
     for n in 0..4 {
         crate::scene::polygon_store::POLYGON_WORK.entries[n]
             .light
             .set(0);
     }
-    poly.polygon_vertex_count.set_bits(4);
+    poly.polygon_vertex_count.set(4);
     poly.polygon_next_record
-        .set_bits(crate::scene::polygon::pool_start());
+        .set(crate::scene::polygon::pool_start());
     for n in 0..4u32 {
         crate::scene::polygon::list_cell(n as usize).set(n);
     }
     crate::scene::polygon::list_cell(4).set(0);
-    poly.polygon_next_entry.set_bits(4);
+    poly.polygon_next_entry.set(4);
     crate::scene::scale_texture_coordinates::scale_texture_coordinates(poly)?;
     crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(poly, race)?;
-    if poly.polygon_vertex_count.bits() >= 3 {
-        face.polygon_mode.set_bits(6);
-        poly.polygon_sides[0].set_bits(1);
-        poly.polygon_sides[1].set_bits(0);
+    if poly.polygon_vertex_count.get() >= 3 {
+        face.polygon_mode.set(6);
+        poly.polygon_sides[0].set(1);
+        poly.polygon_sides[1].set(0);
         crate::scene::depth_buffer_on::depth_buffer(false);
         crate::scene::draw_polygon::draw_polygon_in_game(poly, race, face, scene)?;
-        poly.polygon_drawn.set_bits(1);
+        poly.polygon_drawn.set(1);
         crate::scene::depth_buffer_on::depth_buffer(true);
     }
-    poly.polygon_colour.set_bits(0xFF_FFFF);
+    poly.polygon_colour.set(0xFF_FFFF);
     Ok(())
 }

@@ -10,3 +10,6 @@ How `src/debug/display_rows.rs` was made from `debug::draw_wear_bars` (0x429B19)
 
 The IDA scripts read and write their JSON in the folder named by `RC2K_DEBUG_PAGES` (else
 IDA's working folder); `groups.py` runs from the repository's root, with the JSON files there.
+4. `typed_rows.py` (run by `groups.py` and `watch.py` at their end; needs cargo): rewrites the
+   rows from `Row::new(.., 0xADDR, ..)` to rows read through their fields (`Row::typed`), the
+   address kept only for the tooltip. A row in no field of a record stays on its address.

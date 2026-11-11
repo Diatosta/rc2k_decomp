@@ -27,13 +27,13 @@ pub fn draw_view_strips(race: &Race) -> Result<(), Refused> {
     use crate::hud::draw_view_strip::{draw_view_strip, overlay_tail};
     use rc2k_core::hud::strips::{SECOND_VIEW, TEXTURES};
     {
-        if race.shared.replay_file.hold_car_revs.bits() == 0 {
+        if race.shared.replay_file.hold_car_revs.get() == 0 {
             if flashing(race.shared.view.view_blocks[0].get())? {
-                crate::scene::polygon_work::front_end().polygon_textures[0].set_bits(TEXTURES[0]);
+                crate::scene::polygon_work::front_end().polygon_textures[0].set(TEXTURES[0]);
                 draw_view_strip(race, shown_layout(&race.shared))?;
             }
             if shown_layout(&race.shared) != 0 && flashing(race.shared.view.view_blocks[1].get())? {
-                crate::scene::polygon_work::front_end().polygon_textures[0].set_bits(TEXTURES[1]);
+                crate::scene::polygon_work::front_end().polygon_textures[0].set(TEXTURES[1]);
                 draw_view_strip(race, shown_layout(&race.shared).wrapping_add(SECOND_VIEW))?;
             }
         }

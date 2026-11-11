@@ -25,7 +25,7 @@ pub fn set_all_plates(race: &Race, scene: &crate::scene::owner::Scene) -> Result
     use rc2k_core::race::stage_objects::{
         CAR_PICTURE_KINDS, FIXED_PICTURES, PREF_PIECES, car_pictures, check_picture_cars,
     };
-    let cars: u32 = shared.view.race_cars.bits();
+    let cars: u32 = shared.view.race_cars.get();
     check_picture_cars(cars)?;
     let pictures = GamePtr::to(&scene.textures.places.kind_pictures);
     for (kind, dwords) in PREF_PIECES {

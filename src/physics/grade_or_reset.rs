@@ -13,12 +13,12 @@ pub fn grade_or_reset(race: &Race) {
     let shared = &race.shared;
     if shared.car.driver_kind.get() == 2 {
         reset_grades_at(
-            &race.course,
+            &race.course.numbers,
             &shared.car,
             &shared.car.suspension_stiffness,
             &shared.car.ride_height,
         );
     } else {
-        rate_damage(race);
+        rate_damage(&race.shared.car, &race.physics.damage);
     }
 }

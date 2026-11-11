@@ -21,14 +21,18 @@ pub struct LoopFlags {
     pub idle_frames: Dword,
     /// Unreferenced bytes (IDA 0x755559 .. 0x75555D).
     pub _gap_755559: Bytes<4>,
-    /// `dword_75555D`: 1 leaves the screen (`menu::screen_loop`).
-    pub went_back: Dword,
-    /// `dword_755561`: 1 leaves the screen at once; cleared by the loop.
-    pub back: Dword,
-    /// `dword_755565`: The event is over (`menu::leaving`).
-    pub ended_b: Dword,
-    /// `dword_755569`: Ask before leaving / done (`menu::leaving`).
-    pub ended_a: Dword,
+    /// `dword_75555D`: 1 when the event is left too, not only the screen (`go_back` clears it,
+    /// confirmed leaving sets it; the loop leaves on it after an action, the flows read it).
+    pub event_left: Dword,
+    /// `dword_755561`: 1 leaves the screen at once. Set by Escape, `go_back`,
+    /// `leave_with_carry`; cleared by the key poll, set-up and the loop's action check.
+    pub leave_screen: Dword,
+    /// `dword_755565`: set with `leave_screen` by `leave_with_carry`; the class result pages set
+    /// it while a page with the player is shown; a review ends the event when it is not 1.
+    pub left_with_carry: Dword,
+    /// `dword_755569`: an action asks to leave the screen (`ask_to_leave`): the loop leaves
+    /// after the action, and a screen with `also_if` puts the leave question.
+    pub ask_leave: Dword,
     /// `dword_75556D`: The characters typed so far (`menu::text_entry`).
     pub text_length: Dword,
     /// `dword_755571`: The most characters the text takes.
@@ -58,10 +62,10 @@ impl LoopFlags {
             idle: Dword::new(0x0),
             idle_frames: Dword::new(0x0),
             _gap_755559: Bytes::new([0; 4]),
-            went_back: Dword::new(0x0),
-            back: Dword::new(0x0),
-            ended_b: Dword::new(0x0),
-            ended_a: Dword::new(0x0),
+            event_left: Dword::new(0x0),
+            leave_screen: Dword::new(0x0),
+            left_with_carry: Dword::new(0x0),
+            ask_leave: Dword::new(0x0),
             text_length: Dword::new(0x0),
             text_max: Dword::new(0x1E),
             toggle: Dword::new(0x1),
@@ -109,10 +113,10 @@ mod tests {
         at(offset_of!(LoopFlags, item), 0x755525);
         at(offset_of!(LoopFlags, idle), 0x755551);
         at(offset_of!(LoopFlags, idle_frames), 0x755555);
-        at(offset_of!(LoopFlags, went_back), 0x75555D);
-        at(offset_of!(LoopFlags, back), 0x755561);
-        at(offset_of!(LoopFlags, ended_b), 0x755565);
-        at(offset_of!(LoopFlags, ended_a), 0x755569);
+        at(offset_of!(LoopFlags, event_left), 0x75555D);
+        at(offset_of!(LoopFlags, leave_screen), 0x755561);
+        at(offset_of!(LoopFlags, left_with_carry), 0x755565);
+        at(offset_of!(LoopFlags, ask_leave), 0x755569);
         at(offset_of!(LoopFlags, text_length), 0x75556D);
         at(offset_of!(LoopFlags, text_max), 0x755571);
         at(offset_of!(LoopFlags, toggle), 0x755575);

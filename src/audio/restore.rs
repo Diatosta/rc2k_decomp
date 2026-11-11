@@ -1,7 +1,7 @@
 //! Lost buffers restored, and the mixer's primary buffer closed (IDA, 2026-10-15):
 //! `audio::restore_buffer`, `replay_looping`, `restore_lost`, `close_primary_mixer`. Their
 //! calls go through a `Part` (the place, eax, esi -> the carry), so that the tests can
-//! stand them in; in the game they are the Rust versions.
+//! stand them in.
 
 use crate::audio::owner::Audio;
 use crate::audio::store::AudioState;
@@ -77,7 +77,7 @@ pub fn replay_looping(audio: &Audio) -> Result<(), Refused> {
     };
     let mut pool = crate::audio::voices::GamePool::new(audio);
     for v in rc2k_core::audio::voices::sounding_to_replay(&mut pool, &lists)? {
-        crate::audio::buffer_play::play_buffer_in_game(
+        crate::audio::buffer_play::play_buffer(
             &audio.state,
             &crate::audio::voices::voice_of(&audio.state, v),
         )?;
@@ -113,7 +113,7 @@ pub fn restore_lost(audio: &Audio) -> Result<(), Refused> {
 /// `audio::close_primary_mixer` on the game's variables: the channels cleared; in the
 /// mixer's mode with a DirectSound: `release_primary`, cooperative level 3, `make_primary`.
 /// The carry it leaves: `make_primary`'s, when that ran.
-pub fn close_primary_mixer_in_game(audio: &Audio) -> Result<bool, Refused> {
+pub fn close_primary_mixer(audio: &Audio) -> Result<bool, Refused> {
     let state = &audio.state;
     crate::audio::clear_channels::clear_channels(audio);
     // Converted: `rc2k_core::audio::buffers::remakes_primary`.
@@ -122,7 +122,7 @@ pub fn close_primary_mixer_in_game(audio: &Audio) -> Result<bool, Refused> {
     }) {
         return Ok(false);
     }
-    crate::audio::sound_device::release_primary(state)?;
+    crate::audio::sound_device::release_primary(state);
     let ds = state.direct_sound.get();
     crate::platform_sound::set_cooperative_level(ds, system().session.machine.window.get(), 3);
     make_primary_failed(state)

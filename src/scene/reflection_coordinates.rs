@@ -64,8 +64,8 @@ pub fn reflection_coordinates(
         return Err(BadInput("no records for the points"));
     }
     let table = crate::scene::reading::PointRecords::new()?;
-    let normal = table.place(object.reflection_normal_number.bits())?;
-    let point = table.place(object.reflection_point_number.bits().wrapping_neg())?;
+    let normal = table.place(object.reflection_normal_number.get())?;
+    let point = table.place(object.reflection_point_number.get().wrapping_neg())?;
     crate::session::write_bits(&m.reflect_vector, normal);
     crate::session::write_first(&m.work_vector, &point.map(negated));
     normalise_vector(race, &m.work_vector)?;

@@ -52,14 +52,14 @@ pub fn clear_race_slots(shared: &RaceShared) {
 /// is set), +0x18 and +0x1C 0.
 pub fn reset_car_starts(shared: &RaceShared) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::cars::start_value`.
-    let value = rc2k_core::race::cars::start_value(shared.work.in_credits.bits() != 0);
+    let value = rc2k_core::race::cars::start_value(shared.work.in_credits.get() != 0);
     for n in 0..BLOCKS {
         let b = block(shared, n);
         {
-            car_at(b)?.run_ticks.set_bits(value);
+            car_at(b)?.run_ticks.set(value);
             state_cell(car_at(b)?, 8)?.set(value);
-            car_at(b)?.start_in_gear.set_bits(0);
-            car_at(b)?.false_start_count.set_bits(0);
+            car_at(b)?.start_in_gear.set(0);
+            car_at(b)?.false_start_count.set(0);
         }
     }
     Ok(())
@@ -75,8 +75,8 @@ pub fn seed_car_randoms(shared: &RaceShared) -> Result<(), BadInput> {
     for (n, &seed) in seeds.iter().enumerate() {
         let b = block(shared, n as u32);
         {
-            car_at(b)?.car_flags.set_bits(seed);
-            car_at(b)?.noise_word.set_bits(seed);
+            car_at(b)?.car_flags.set(seed);
+            car_at(b)?.noise_word.set(seed);
         }
     }
     Ok(())
@@ -122,8 +122,8 @@ pub fn reset_car_race_state(race: &Race) -> Result<(), BadInput> {
 /// one: `g_lastCheckpoint` 0 or 1).
 pub fn first_check_checkpoint(shared: &RaceShared) -> Result<u32, Refused> {
     // Converted: `rc2k_core::race::checkpoints::first_check_checkpoint`.
-    let count: u32 = shared.vars.checkpoint_count.bits();
-    let last = || shared.vars.last_checkpoint.bits();
+    let count: u32 = shared.vars.checkpoint_count.get();
+    let last = || shared.vars.last_checkpoint.get();
     let trap = Trap::new();
     let look = rc2k_core::race::checkpoints::first_check_checkpoint(count, last, |n| {
         let face: u32 = crate::race::checkpoints_store::face(n as usize).get();

@@ -5,5 +5,5 @@
 //! thread hands to DirectInput (`input::device_effects`, the platform's side). Nothing
 //! here calls DirectInput.
 //!
-//! The calls by place (the callee's IDA address): in the game the Rust versions, in the
+//! The calls by place (the callee's IDA address): in the game the real ones, in the
 //! tests the noting stand-ins of `sound::turn_parts`.

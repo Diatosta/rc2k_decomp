@@ -12,10 +12,28 @@ use crate::menu::owner::Menus;
 
 // ---- game data ----
 
+/// What the highlighted item's action left for the screen loop to decide on.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct ActionResult {
+    /// The action asks to leave the screen (and, with its question, to be asked about it).
+    pub ask_leave: u32,
+    /// The event the screen belongs to is over.
+    pub event_over: u32,
+    /// The action leaves the screen.
+    pub leave_screen: bool,
+    /// The event flow behind the screen was left.
+    pub event_left: bool,
+    /// The item's value, which the screen loop tells a plain action (2) from others by.
+    pub action_mode: u32,
+}
+
 /// The highlighted item's action, with its value. (The original hands
 /// the action the screen loop's other registers too, which no action reads; what the
 /// action leaves is nobody's.)
-pub fn run_item_action(menus: &Menus, menu: MenuId) -> Result<(), crate::errors::Refused> {
+pub fn run_item_action(
+    menus: &Menus,
+    menu: MenuId,
+) -> Result<ActionResult, crate::errors::Refused> {
     let screens = &menus.screens;
     let items = menu.items();
     let highlighted: u32 = screens.loop_flags.item.get();
@@ -37,9 +55,15 @@ pub fn run_item_action(menus: &Menus, menu: MenuId) -> Result<(), crate::errors:
     if let Some(n) = found {
         let item = &items[n as usize];
         let value = item.fixed().action_value;
-        screens.draw_work.action_value.set(value);
+        screens.draw_work.action_mode.set(value);
         crate::menu::table_calls::call_action(menus, item.fixed().action, value, menu);
         screens.loop_flags.item.set(item.fixed().id);
     }
-    Ok(())
+    Ok(ActionResult {
+        ask_leave: screens.loop_flags.ask_leave.get(),
+        event_over: screens.event.event_over.get(),
+        leave_screen: screens.loop_flags.leave_screen.get() == 1,
+        event_left: screens.loop_flags.event_left.get() == 1,
+        action_mode: screens.draw_work.action_mode.get(),
+    })
 }

@@ -21,8 +21,8 @@ pub fn set_up_primary_mixer(audio: &Audio) -> Result<bool, Refused> {
     if audio.state.sound_mode.get() & MODE_MIXER == 0 {
         return Ok(true);
     }
-    let failed = || crate::audio::restore::close_primary_mixer_in_game(audio).map(|_| false);
-    crate::audio::sound_device::release_primary(&audio.state)?;
+    let failed = || crate::audio::restore::close_primary_mixer(audio).map(|_| false);
+    crate::audio::sound_device::release_primary(&audio.state);
     let ds = audio.state.direct_sound.get();
     if crate::platform_sound::set_cooperative_level(
         ds,
@@ -102,7 +102,7 @@ pub fn close_way(audio: &Audio, mode: u32) -> Result<bool, Refused> {
             crate::audio::clear_channels::clear_channels(audio);
             Ok(false)
         }
-        Some(Way::Mixer) => crate::audio::restore::close_primary_mixer_in_game(audio),
+        Some(Way::Mixer) => crate::audio::restore::close_primary_mixer(audio),
         None => Ok(true),
     }
 }

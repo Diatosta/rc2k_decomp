@@ -10,18 +10,19 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
+use crate::physics::car_store::Car;
 use crate::physics::cells::set_changed;
-use crate::race::owner_shared::RaceShared;
+use crate::race::vars_store::RaceVars;
 use rc2k_core::physics::easing::ease_value;
 
-pub fn ease_car_value(shared: &RaceShared) {
-    let was = shared.car.eased_value.get();
+pub fn ease_car_value(car: &Car, vars: &RaceVars) {
+    let was = car.eased_value.get();
     let mut value = was;
     ease_value(
-        shared.vars.scene_switch.get(),
-        shared.car.value_jump_steps.get(),
-        shared.car.eased_target.get(),
+        vars.scene_switch.get(),
+        car.value_jump_steps.get(),
+        car.eased_target.get(),
         &mut value,
     );
-    set_changed(&shared.car.eased_value, was, value);
+    set_changed(&car.eased_value, was, value);
 }

@@ -5,7 +5,7 @@ use crate::audio::store::AudioState;
 use crate::errors::Refused;
 
 /// `audio::take_sample_buffer`: the setting's KB (0: one) taken on its list.
-pub fn take_sample_buffer(state: &AudioState) -> Result<(), Refused> {
+pub fn take_sample_buffer(state: &AudioState) {
     // Converted: `rc2k_core::audio::levels::sample_buffer_size`.
     let size = rc2k_core::audio::levels::sample_buffer_size(state.sample_buffer_kb.get());
     state.sample_buffer_size.set(size);
@@ -13,7 +13,6 @@ pub fn take_sample_buffer(state: &AudioState) -> Result<(), Refused> {
     // `g_sampleBuffer` is no longer an address (it stays 0).
     crate::audio::sample_data::take(crate::audio::sample_data::Buffer::Work, size);
     crate::memory::count_owned(&state.sample_buffer_memory, size);
-    Ok(())
 }
 
 /// `audio::free_sample_buffer`: its list freed, size and buffer 0.

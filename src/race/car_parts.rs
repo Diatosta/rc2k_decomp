@@ -50,7 +50,7 @@ pub fn car_part_matrices(
     // the marks), `p` the car as the drawing sees it (`race::frame_view`).
     let c = car_at(car)?;
     let p = crate::race::frame_view::car_at(car)?;
-    let Some(ax) = axles(&race.shared, p.car_kind.bits())? else {
+    let Some(ax) = axles(&race.shared, p.car_kind.get())? else {
         return Err(BadInput("a car model whose axle scaling would fault").into());
     };
     let shown = &c.shown_engine_speed;
@@ -61,16 +61,16 @@ pub fn car_part_matrices(
     ) {
         shown.set_bits(loaded(race.shared.physics_tables.idle_engine_speed.bits()));
     }
-    let on = p.lights_on.bits();
+    let on = p.lights_on.get();
     let s = mark_switches(&PartState {
         on,
         marks_mask: scene.lights.work.marks_mask.get(),
         lamps_mask: scene.lights.work.lamps_mask.get(),
-        inside: p.brake.bits(),
-        mode: p.camera_view.bits(),
-        reversing: p.gear.bits(),
-        broken: std::array::from_fn(|k| p.electrical_failures[1 + k].bits()),
-        flags: p.parts_present.bits(),
+        inside: p.brake.get(),
+        mode: p.camera_view.get(),
+        reversing: p.gear.get(),
+        broken: std::array::from_fn(|k| p.electrical_failures[1 + k].get()),
+        flags: p.parts_present.get(),
     });
     c.marks_on.set(s.marks_on);
     c.mode_on.set(s.mode_on);
@@ -81,7 +81,7 @@ pub fn car_part_matrices(
         race.course.numbers.hundred.bits(),
     );
     c.marks_count.set(marks_bytes(s.count, slow, on));
-    c.shown_steering.set(steering(p.steer_angle_visual.bits()));
+    c.shown_steering.set(steering(p.steer_angle_visual.get()));
     let [front, rear_lift, height, front_z, _] = ax;
     race.physics.camera.axle_front.set(front);
     race.physics.camera.axle_front_neg.set(front.wrapping_neg());
@@ -90,11 +90,11 @@ pub fn car_part_matrices(
     race.physics.camera.axle_front_z.set(front_z);
     race.physics.camera.car_axles.set(ax[4]);
     scene.drawing.object_work.part_values[2].set(c.shown_steering.get());
-    scene.drawing.object_work.part_values[0].set_bits(p.driven_wheel_turns[0].bits());
-    scene.drawing.object_work.part_values[1].set_bits(p.driven_wheel_turns[1].bits());
+    scene.drawing.object_work.part_values[0].set(p.driven_wheel_turns[0].get());
+    scene.drawing.object_work.part_values[1].set(p.driven_wheel_turns[1].get());
     copy_cells(&p.crash_matrix, &race.frame.matrices.body_turn_matrix, 16);
     for i in 0..4 {
-        scene.drawing.object_work.part_weights[i].set_bits(p.wheel_spring_force[i].bits());
+        scene.drawing.object_work.part_weights[i].set(p.wheel_spring_force[i].get());
     }
     set_place(
         &race.frame.matrices.placed_matrix,

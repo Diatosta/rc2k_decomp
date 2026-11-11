@@ -32,7 +32,11 @@ fn car_step(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refus
     crate::drive::load_car::load_car(&race.shared)?;
     if race.shared.car.driver_kind.get() != 0 {
         crate::drive::read_car_controls::read_car_controls(race)?;
-        crate::physics::gear_input_rules::gear_input_rules(race);
+        crate::physics::gear_input_rules::gear_input_rules(
+            &race.shared.car,
+            &race.shared.physics_tables,
+            &race.shared.vars,
+        );
         crate::drive::steer_inputs::steer_inputs(race);
         crate::drive::pedal_inputs::pedal_inputs(race);
         crate::drive::reset_request::reset_request(race, scene)?;

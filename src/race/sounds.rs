@@ -38,10 +38,10 @@ pub fn start_race_sounds(sound: &crate::sound::owner::Sound) -> Result<(), Refus
 pub fn wake_car_sounds(race: &Race) -> Result<(), Refused> {
     let sound = crate::sound::owner::sound();
     let shared = &race.shared;
-    if shared.work.in_credits.bits() != 0 {
+    if shared.work.in_credits.get() != 0 {
         return Ok(());
     }
-    let cars: u32 = shared.view.race_cars.bits();
+    let cars: u32 = shared.view.race_cars.get();
     if cars >= MOST_CARS {
         return Err(BadInput("0x10000 cars or more").into());
     }

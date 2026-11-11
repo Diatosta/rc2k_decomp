@@ -39,7 +39,7 @@ pub fn take_first_view(
         race.shared.car.car_pitch.get(),
         race.shared.car.car_roll.get(),
     );
-    if record(&race.shared)?.halve_tilt.get() != 0 {
+    if record(&race.shared.car)?.halve_tilt.get() != 0 {
         eax = ((eax as i32) >> 1) as u32;
         ebx = ((ebx as i32) >> 1) as u32;
     }

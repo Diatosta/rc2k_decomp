@@ -40,11 +40,11 @@ fn steps(race: &Race) -> Result<(), Refused> {
     replay
         .replay_frames
         .camera_word_0
-        .set(CAR_BLOCKS.cars[0].frame_head[0].bits());
+        .set(CAR_BLOCKS.cars[0].frame_head[0].get());
     replay
         .replay_frames
         .camera_word_1
-        .set(CAR_BLOCKS.cars[0].frame_head[1].bits());
+        .set(CAR_BLOCKS.cars[0].frame_head[1].get());
     for c in 0..2usize {
         let car = &CAR_BLOCKS.cars[c];
         let wish = wish_of(head_byte(c)? as usize)?;
@@ -78,10 +78,10 @@ fn steps(race: &Race) -> Result<(), Refused> {
     }
     CAR_BLOCKS.cars[0]
         .option_bits
-        .set_bits(shared.view.player_options[0].get());
+        .set(shared.view.player_options[0].get());
     CAR_BLOCKS.cars[1]
         .option_bits
-        .set_bits(shared.view.player_options[1].get());
+        .set(shared.view.player_options[1].get());
     // The head's bytes 2 .. 5 into `dword_63DB74`, `63DB78`, `63DB84`, `63DB88`.
     for (k, to) in [
         &shared.view.view_on[0],

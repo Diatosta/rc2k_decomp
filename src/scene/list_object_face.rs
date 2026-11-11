@@ -61,10 +61,10 @@ struct GameFace<'a>(
 
 impl FaceWorld for GameFace<'_> {
     fn in_race(&self) -> bool {
-        self.0.course.numbers.in_race.bits() != 0
+        self.0.course.numbers.in_race.get() != 0
     }
     fn object(&self) -> u32 {
-        self.4.object_number.bits()
+        self.4.object_number.get()
     }
     fn object_kind(&self, object: u32) -> u32 {
         scene().objects.tables.object_kind(object)
@@ -91,10 +91,10 @@ impl FaceWorld for GameFace<'_> {
         [15, 16].map(|k| self.4.group_masks[k].get())
     }
     fn group_mask(&self) -> u32 {
-        self.4.shown_groups.bits()
+        self.4.shown_groups.get()
     }
     fn mask_kind(&self) -> u32 {
-        self.0.shared.switches.mask_kind.bits()
+        self.0.shared.switches.mask_kind.get()
     }
     fn group_table(&self, group: u32) -> u32 {
         let draw_switches = &scene().draw_switches;
@@ -107,32 +107,32 @@ impl FaceWorld for GameFace<'_> {
         ))
     }
     fn no_second_mask(&self) -> u32 {
-        self.5.camera_switch_active.bits()
+        self.5.camera_switch_active.get()
     }
     fn second_mask(&self) -> u32 {
-        self.4.group_mask.bits()
+        self.4.group_mask.get()
     }
     fn lone_group(&self) -> u32 {
-        self.4.group_masks[17].bits()
+        self.4.group_masks[17].get()
     }
     fn lone_group_on(&self) -> u32 {
-        scene().lights.work.marks_mask.bits()
+        scene().lights.work.marks_mask.get()
     }
     fn groups_which(&self) -> u32 {
-        self.4.groups_which.bits()
+        self.4.groups_which.get()
     }
     fn see_through_on(&self) -> u32 {
-        self.3.fading.bits()
+        self.3.fading.get()
     }
     fn see_through_value(&self) -> u32 {
-        self.3.fade[0].bits()
+        self.3.fade[0].get()
     }
     fn set_see_through(&mut self, value: u32) {
-        self.3.see_through.set_bits(value);
+        self.3.see_through.set(value);
     }
     fn line_value(&self, extra: u32) -> Result<u32, rc2k_core::Invalid> {
         {
-            let which: u32 = self.6.drawn_car.bits();
+            let which: u32 = self.6.drawn_car.get();
             let block: u32 = if which < BLOCKS {
                 self.0.shared.work.car_block(which as usize)
             } else {
@@ -145,7 +145,7 @@ impl FaceWorld for GameFace<'_> {
             crate::physics::car_store::Car::at(block)
                 .part_wake_counts
                 .get((extra as usize).wrapping_sub(1))
-                .map(crate::session::Dword::bits)
+                .map(crate::session::Dword::get)
                 .ok_or(rc2k_core::Invalid("a wake count past the six"))
         }
     }
@@ -179,7 +179,7 @@ pub fn list_object_face(
     if list.len() as u32 >= LIST_ROOM {
         return Err(BadInput("no room in the list of faces").into());
     }
-    ctx.view.object.see_through.set_bits(0x100u32);
+    ctx.view.object.see_through.set(0x100u32);
     let bytes = face_bytes(face)?;
     let mut world = GameFace(
         race,
@@ -204,17 +204,17 @@ pub fn list_object_face(
     if count as i32 <= 0 {
         return Ok(());
     }
-    ctx.view.polygon.polygon_vertex_count.set_bits(count);
-    ctx.view.polygon.face_sort_key.set_bits(0u32);
+    ctx.view.polygon.polygon_vertex_count.set(count);
+    ctx.view.polygon.face_sort_key.set(0u32);
     face_sort_key(&ctx.view.polygon, &race.course, face, count)?;
     // The original's room was 0x1000 entries but its list 0x400 long, the rest written over
     // the next tables (fixed: `wiki/Fixed-bugs.md`).
-    let key = listed_key(bytes, ctx.view.polygon.face_sort_key.bits());
+    let key = listed_key(bytes, ctx.view.polygon.face_sort_key.get());
     list.push([
-        ctx.view.face.face_number.bits(),
+        ctx.view.face.face_number.get(),
         key,
-        ctx.view.polygon.entry_third.bits(),
-        ctx.view.object.see_through.bits(),
+        ctx.view.polygon.entry_third.get(),
+        ctx.view.object.see_through.get(),
     ]);
     Ok(())
 }

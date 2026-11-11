@@ -16,8 +16,8 @@ use crate::math::x87_float::int;
 use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
 use crate::physics::flow::{hold_high, hold_low, negate};
+use crate::race::numbers_store::Numbers;
 use crate::race::owner::Race;
-use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
 
 // Converted: `rc2k_core::physics::camera_view::shakes` (the x87 steps stay).
@@ -44,7 +44,7 @@ fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused>
             .scene
             .scratch
             .set(crate::math::next_random::next_random());
-        x87_2(&race.course, scene);
+        x87_2(&race.course.numbers, scene);
         if race.physics.split_tables.still.get() != 0 {
             scene.lights.state.camera_shake_y.set(0);
             scene.lights.state.camera_shake_listener.set_bits(0);
@@ -72,13 +72,13 @@ fn x87_1(shared: &RaceShared, scene: &crate::scene::owner::Scene) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x237644] = (((int [rc + 0x22400C] / [rc + 0x1C5D98]) / [rc + 0x1C5E28]) * [rc + 0x1C5D40]) * [rc + 0x23763C]`
-fn x87_2(course: &Course, scene: &crate::scene::owner::Scene) {
+fn x87_2(numbers: &Numbers, scene: &crate::scene::owner::Scene) {
     let t0 = int(scene.drawing.scene.scratch.bits() as i32);
-    let t1 = ld(course.numbers.k65536.bits());
+    let t1 = ld(numbers.k65536.bits());
     let t2 = t0 / t1;
-    let t3 = ld(course.numbers.k4096.bits());
+    let t3 = ld(numbers.k4096.bits());
     let t4 = t2 / t3;
-    let t5 = ld(course.numbers.three.bits());
+    let t5 = ld(numbers.three.bits());
     let t6 = t4 * t5;
     let t7 = ld(scene.lights.state.camera_shake_y.bits());
     let t8 = t6 * t7;
@@ -123,7 +123,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_1(a[0]) },
                 plain: |_| {
                     x87_2(
-                        &crate::race::owner::race().course,
+                        &crate::race::owner::race().course.numbers,
                         crate::scene::owner::scene(),
                     );
                 },

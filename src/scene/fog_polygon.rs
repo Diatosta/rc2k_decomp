@@ -38,11 +38,11 @@ pub fn fog_entries(
     if entries.iter().any(|entry| entry.record.get() == 0) {
         return Err(BadInput("an entry without its record").into());
     }
-    let length: u32 = fog.length.bits();
+    let length: u32 = fog.length.get();
     if length > TABLE_LEN {
         return Err(BadInput("a fog table longer than its room").into());
     }
-    let fixed = (light.view_kind.bits() == 4).then(|| fog.next.bits());
+    let fixed = (light.view_kind.get() == 4).then(|| fog.next.get());
     for entry in entries {
         let record = entry.record.get();
         let depth = x87::to_int(crate::scene::point_records::vertex(

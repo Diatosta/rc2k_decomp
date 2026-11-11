@@ -8,7 +8,6 @@
 
 use crate::errors::FatalError;
 use crate::framework::log;
-use rc2k_core::fatal::Context;
 
 // ---- Rust version ----
 
@@ -47,7 +46,7 @@ fn run_routine(routine: u32) {
                 "threading::start_slot_thread: the routine {routine:#x} raises fatal error {:#x} {:?}",
                 error.code, error.message
             ));
-            crate::fatal::raise::raise(error, &Context::default());
+            crate::fatal::raise::raise_bare(error);
         }
         Some(Err(crate::errors::Refused::BadInput(why))) => crate::standalone::finish(
             &format!(

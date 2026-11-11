@@ -20,14 +20,14 @@ pub fn add_quad(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
     let (vertices, _, _) = quads::quad_vertices(&q, a, b);
     for (n, v) in vertices.into_iter().enumerate() {
         let at = &VERTICES.vertices[n];
-        at.x.set_bits(v.x.to_bits());
-        at.y.set_bits(v.y.to_bits());
+        at.x.set(v.x);
+        at.y.set(v.y);
         at.colour.set(v.colour);
-        at.u.set_bits(v.u.to_bits());
-        at.v.set_bits(v.v.to_bits());
+        at.u.set(v.u);
+        at.v.set(v.v);
     }
     crate::scene::polygon_work::front_end()
         .polygon_vertex_count
-        .set_bits(4u32);
+        .set(4u32);
     crate::hud::add_polygon::add_polygon(frame, hud)
 }

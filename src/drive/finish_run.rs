@@ -22,9 +22,9 @@ use crate::race::owner::Race;
 /// The car's lift: `dword_70F524` += `flt_64BB38` x `flt_5C5D98` (`fiadd`, `fistp`), over the
 /// race block at `rc`.
 fn lift_car(race: &Race) {
-    CAR_BLOCKS.cars[0].position[1].set_bits(to_int(
+    CAR_BLOCKS.cars[0].position[1].set(to_int(
         ld(race.replay.finish.car_lift.bits()) * ld(race.course.numbers.k65536.bits())
-            + int(CAR_BLOCKS.cars[0].position[1].bits() as i32),
+            + int(CAR_BLOCKS.cars[0].position[1].get() as i32),
     ) as u32);
 }
 
@@ -71,7 +71,7 @@ pub fn finish_run(
         if pressed(1) || pressed(0x1C) {
             break;
         }
-        CAR_BLOCKS.cars[0].camera_view.set_bits(6);
+        CAR_BLOCKS.cars[0].camera_view.set(6);
         crate::race::frame_views::load_first_car(&race.shared)?;
         crate::drive::finish_camera::finish_camera(&race.replay);
         crate::physics::camera_frame::camera_frame(race, scene)?;

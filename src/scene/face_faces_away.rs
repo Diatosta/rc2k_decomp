@@ -85,7 +85,7 @@ pub fn face_faces_away(
         return Err(BadInput("no face or no records").into());
     }
     let count: u32 = crate::scene::object_faces::word(face as u32)?;
-    ctx.view.polygon.polygon_vertex_count.set_bits(count);
+    ctx.view.polygon.polygon_vertex_count.set(count);
     if count < 3 {
         return Ok(true);
     }

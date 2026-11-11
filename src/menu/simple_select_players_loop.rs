@@ -16,7 +16,8 @@
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
-    Callee, Entry, Flow, Frames, List, Screen, Step, carousel, prepare_scene, screen_entry,
+    Callee, Entry, Flow, Frames, List, MenuSound, Screen, Step, carousel, prepare_scene,
+    screen_entry,
 };
 
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
@@ -27,20 +28,15 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let item = screens.items.current[slot::SIMPLE_SELECT_PLAYERS].get();
     screens.loop_flags.item.set(item);
     screens.state.carousel.front.set(item.wrapping_sub(1));
-    crate::scene::polygon_work::front_end().window.view_offset[0].set(0x7u32);
-    crate::scene::polygon_work::front_end().window.view_offset[1].set(0xAu32);
-    crate::scene::polygon_work::front_end()
-        .window
-        .view_zoom
-        .set(0x100u32);
+    entry.set_view(7, 10, 0x100);
     prepare_scene(entry.scene);
     Ok(())
 }
 
 fn after_first_frame(entry: &Entry) -> Result<Flow, Refused> {
     let tables = &entry.menus.tables;
-    if tables.captions.screen_left.get() == 0x1 {
-        tables.captions.screen_left.set(0x0u32);
+    if tables.captions.left_by_key.get() == 0x1 {
+        tables.captions.left_by_key.set(0x0u32);
         return Ok(Flow::SetUp);
     }
     Ok(Flow::On)
@@ -64,13 +60,13 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::Write(|m| &m.screens.event.event_done, 0x0)],
+    before: &[Step::Write(|m| &m.screens.event.event_over, 0x0)],
     set_up_first: &[Step::Do(set_up_first)],
     background: &[Step::Call(Callee::LoadBackground(|m| {
         &m.tables.texts.simple_select_players_picture
     }))],
     after_first_frame: &[Step::DoFlow(after_first_frame)],
-    after: &[Step::Write(|m| &m.screens.option_work.menu_sound, 0x6F)],
+    after: &[Step::Sound(MenuSound::None)],
     frames: Frames {
         next_frame_repeats_first: true,
         ..Frames::DEFAULT

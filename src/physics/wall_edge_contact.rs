@@ -22,9 +22,9 @@ use crate::math::x87::mul;
 use crate::math::x87_float::to_int;
 use crate::math::x87_float::{int, ld};
 use crate::physics::contact_force::contact_force;
-use crate::physics::flow::copy_cells;
+use crate::physics::flow::{ZERO_BITS as ZERO, copy_cells};
+use crate::race::numbers_store::Numbers;
 use crate::race::owner::Race;
-use crate::race::owner_course::Course;
 use rc2k_core::physics::walls;
 
 /// The four corners (scene point numbers) of face `face`.
@@ -60,21 +60,14 @@ pub fn edge_normal(
         .get()
         .wrapping_sub(race.shared.physics_tables.edge_points[1].get());
     let d = [dx, dz];
-    x87_1(&race.course, d, scene);
+    x87_1(&race.course.numbers, d, scene);
     drawing
         .scene
         .scratch
         .set(drawing.scene.scratch.get() & 0xFFFF);
     let heading = (drawing.scene.scratch.get() << 16).wrapping_add(0x4000_0000);
     race.shared.physics_tables.wall_heading.set(heading);
-    let out = {
-        turn_float_point_xz(
-            race_owner.course.numbers.zero.bits(),
-            race_owner.course.numbers.zero.bits(),
-            race_owner.course.numbers.one.bits(),
-            heading,
-        )
-    };
+    let out = { turn_float_point_xz(ZERO, ZERO, race_owner.course.numbers.one.bits(), heading) };
     race_owner.physics.contact.contact_normal[0].set_bits(out[0]);
     race_owner.physics.contact.contact_normal[1].set_bits(out[1]);
     race_owner.physics.contact.contact_normal[2].set_bits(out[2]);
@@ -123,13 +116,13 @@ pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refu
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [rc + 0x22400C] = (atan2(int [d + 0], int [d + 4]) * [rc + 0x1C5DD4]) * [rc + 0x1C5D98]`
-fn x87_1(course: &Course, d: [u32; 2], scene: &crate::scene::owner::Scene) {
+fn x87_1(numbers: &Numbers, d: [u32; 2], scene: &crate::scene::owner::Scene) {
     let t0 = int(d[0] as i32);
     let t1 = int(d[1] as i32);
     let t2 = t0.atan2(t1);
-    let t3 = ld(course.numbers.one_over_two_pi.bits());
+    let t3 = ld(numbers.one_over_two_pi.bits());
     let t4 = t2 * t3;
-    let t5 = ld(course.numbers.k65536.bits());
+    let t5 = ld(numbers.k65536.bits());
     let t6 = t4 * t5;
     scene.drawing.scene.scratch.set_bits(to_int(t6) as u32);
 }
@@ -159,7 +152,13 @@ mod asm_reference {
             ],
             ulps: 0,
             reference: |a| unsafe { ref_0(a[0], a[1]) },
-            plain: |a| x87_1(&race().course, *view(a[0], 0), crate::scene::owner::scene()),
+            plain: |a| {
+                x87_1(
+                    &race().course.numbers,
+                    *view(a[0], 0),
+                    crate::scene::owner::scene(),
+                );
+            },
         }]
     }
 

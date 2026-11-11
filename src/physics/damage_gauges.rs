@@ -13,18 +13,15 @@ use crate::errors::BadInput;
 use crate::math::x87::loaded;
 use crate::math::x87_float::X;
 use crate::math::x87_float::{ld, st};
+use crate::physics::car_store::Car;
 use crate::physics::flow::{below_or_unordered, c0};
 use crate::physics::store::DamageModel;
-use crate::race::owner::Race;
-use crate::race::owner_physics::Physics;
-use crate::race::owner_shared::RaceShared;
+use crate::race::work_store::RaceWork;
 use crate::session::{Cell32, Float};
 
 /// `unk_71A2AC[gear]` (the gear -1 .. 7 as the original indexes it, `gear_wear` by gear + 1).
-fn gear_gauge(shared: &RaceShared, gear: u32) -> &Float {
-    shared
-        .car
-        .gear_wear
+fn gear_gauge(car: &Car, gear: u32) -> &Float {
+    car.gear_wear
         .get(gear.wrapping_add(1) as usize)
         .unwrap_or_else(|| {
             crate::fatal::raise::end("a gear's wear gauge", BadInput("the gear is not -1 .. 7"))
@@ -32,426 +29,360 @@ fn gear_gauge(shared: &RaceShared, gear: u32) -> &Float {
 }
 
 /// The gauge at `at` held 0 ..= `flt_75B34C` (the two `fcompp` holds).
-fn hold_at(physics: &Physics, at: &Float) {
+fn hold_at(damage: &DamageModel, at: &Float) {
     let rd = || at.bits();
     let put = |v: u32| at.set_bits(v);
-    if c0(rd(), physics.damage.gauge_low.bits()) {
-        put(loaded(physics.damage.gauge_low.bits()));
+    if c0(rd(), damage.gauge_low.bits()) {
+        put(loaded(damage.gauge_low.bits()));
     }
-    if !c0(rd(), physics.damage.gauge_top.bits()) {
-        put(loaded(physics.damage.gauge_top.bits()));
+    if !c0(rd(), damage.gauge_top.bits()) {
+        put(loaded(damage.gauge_top.bits()));
     }
 }
 
 /// The damage gauges' step: each gauge raised by its rate times this step's shares and hit
 /// figures, then held 0 ..= `gauge_top`.
-pub fn steps(race: &Race) {
-    raise(&race.physics, &race.shared.car.engine_damage, |g| {
-        add_product(
-            &race.physics.damage.gauge_rates[0],
-            &race.physics.damage.gauge_step,
-            g,
-            g,
-        );
+pub fn steps(car: &Car, damage: &DamageModel, work: &RaceWork) {
+    raise(damage, &car.engine_damage, |g| {
+        add_product(&damage.gauge_rates[0], &damage.gauge_step, g, g);
     });
-    raise(&race.physics, &race.shared.car.exhaust_damage, |g| {
-        add_product(
-            &race.physics.damage.gauge_rates[1],
-            &race.physics.damage.gauge_step,
-            g,
-            g,
-        );
+    raise(damage, &car.exhaust_damage, |g| {
+        add_product(&damage.gauge_rates[1], &damage.gauge_step, g, g);
     });
-    raise(&race.physics, &race.shared.car.cooling_damage, |g| {
-        add_product(
-            &race.physics.damage.gauge_rates[2],
-            &race.physics.damage.gauge_step,
-            g,
-            g,
-        );
+    raise(damage, &car.cooling_damage, |g| {
+        add_product(&damage.gauge_rates[2], &damage.gauge_step, g, g);
     });
-    raise(&race.physics, &race.shared.car.clutch_damage, |g| {
-        add_product(
-            &race.physics.damage.gauge_rates[3],
-            &race.physics.damage.gauge_step,
-            g,
-            g,
-        );
+    raise(damage, &car.clutch_damage, |g| {
+        add_product(&damage.gauge_rates[3], &damage.gauge_step, g, g);
     });
-    raise(&race.physics, &race.shared.car.differential_damage, |g| {
-        add_product(
-            &race.physics.damage.gauge_rates[4],
-            &race.physics.damage.gauge_step,
-            g,
-            g,
-        );
+    raise(damage, &car.differential_damage, |g| {
+        add_product(&damage.gauge_rates[4], &damage.gauge_step, g, g);
     });
-    raise(&race.physics, &race.shared.car.electrics_damage, |g| {
-        add_product(
-            &race.physics.damage.gauge_rates[5],
-            &race.physics.damage.gauge_step,
-            g,
-            g,
-        );
+    raise(damage, &car.electrics_damage, |g| {
+        add_product(&damage.gauge_rates[5], &damage.gauge_step, g, g);
     });
     for k in 0..6 {
-        raise(&race.physics, &race.shared.car.light_damage[k], |g| {
-            add_product(
-                &race.physics.damage.gauge_rates[6],
-                &race.physics.damage.gauge_step,
-                g,
-                g,
-            );
+        raise(damage, &car.light_damage[k], |g| {
+            add_product(&damage.gauge_rates[6], &damage.gauge_step, g, g);
         });
     }
-    raise(&race.physics, &race.shared.car.steering_damage, |g| {
-        add_product(
-            &race.physics.damage.gauge_rates[7],
-            &race.physics.damage.gauge_step,
-            g,
-            g,
-        );
+    raise(damage, &car.steering_damage, |g| {
+        add_product(&damage.gauge_rates[7], &damage.gauge_step, g, g);
     });
     for k in 0..4 {
-        raise(&race.physics, &race.shared.car.suspension_damage[k], |g| {
-            add_product(
-                &race.physics.damage.gauge_rates[8],
-                &race.physics.damage.gauge_step,
-                g,
-                g,
-            );
+        raise(damage, &car.suspension_damage[k], |g| {
+            add_product(&damage.gauge_rates[8], &damage.gauge_step, g, g);
         });
     }
-    raise(&race.physics, &race.shared.car.turbo_damage, |g| {
+    raise(damage, &car.turbo_damage, |g| {
         add_scaled_triple(
-            &race.physics.damage,
-            &race.physics.damage.wear_rates[11],
-            &race.physics.damage.engine_over_limit,
-            &race.physics.damage.engine_speed_share,
+            damage,
+            &damage.wear_rates[11],
+            &damage.engine_over_limit,
+            &damage.engine_speed_share,
             g,
             g,
         );
     });
-    let gear = race.physics.damage.gear.bits();
-    let gauge = gear_gauge(&race.shared, gear);
-    let factor = race
-        .physics
-        .damage
+    let gear = damage.gear.bits();
+    let gauge = gear_gauge(car, gear);
+    let factor = damage
         .gear_factors
         .get(gear.wrapping_add(1) as usize)
         .unwrap_or_else(|| {
             crate::fatal::raise::end("a gear's factor", BadInput("the gear is not -1 .. 7"))
         });
-    gear_wear_from_speed(&race.physics.damage, factor, gauge);
-    hold_at(&race.physics, gauge);
-    brake_wear_step(&race.shared, &race.physics.damage);
-    hold_at(&race.physics, &race.shared.car.brake_wear_a);
-    raise(&race.physics, &race.shared.car.brake_wear_b, |g| {
+    gear_wear_from_speed(damage, factor, gauge);
+    hold_at(damage, gauge);
+    brake_wear_step(car, damage);
+    hold_at(damage, &car.brake_wear_a);
+    raise(damage, &car.brake_wear_b, |g| {
         add_scaled_triple(
-            &race.physics.damage,
-            &race.physics.damage.gauge_rates[9],
-            &race.physics.damage.brake_balance_complement,
-            &race.physics.damage.brake_share,
+            damage,
+            &damage.gauge_rates[9],
+            &damage.brake_balance_complement,
+            &damage.brake_share,
             g,
             g,
         );
     });
-    raise(&race.physics, &race.shared.car.electrics_damage, |g| {
+    raise(damage, &car.electrics_damage, |g| {
         add_triple_product(
-            &race.physics.damage.gauge_rates[10],
-            &race.physics.damage.on_surface_5,
-            &race.physics.damage.gauge_step,
+            &damage.gauge_rates[10],
+            &damage.on_surface_5,
+            &damage.gauge_step,
             g,
             g,
         );
     });
     for k in 0..6 {
-        raise(&race.physics, &race.shared.car.light_damage[k], |g| {
+        raise(damage, &car.light_damage[k], |g| {
             add_triple_product(
-                &race.physics.damage.gauge_rates[11],
-                &race.physics.damage.on_surface_5,
-                &race.physics.damage.gauge_step,
+                &damage.gauge_rates[11],
+                &damage.on_surface_5,
+                &damage.gauge_step,
                 g,
                 g,
             );
         });
     }
-    part_hit_figures(&race.physics.damage);
-    let part = race.physics.damage.drive_kind.bits();
+    part_hit_figures(damage);
+    let part = damage.drive_kind.bits();
     fn kind(table: &[Float; 2], part: u32) -> &Float {
         table.get(part as usize).unwrap_or_else(|| {
             crate::fatal::raise::end("a kind table", BadInput("the kind is not 0 or 1"))
         })
     }
     scale_part_hit_figures(
-        &race.physics.damage,
-        kind(&race.physics.damage.kind_table_a, part),
-        kind(&race.physics.damage.kind_table_b, part),
+        damage,
+        kind(&damage.kind_table_a, part),
+        kind(&damage.kind_table_b, part),
     );
     for k in 0..2 {
-        raise(&race.physics, &race.shared.car.tyre_wears[k], |g| {
+        raise(damage, &car.tyre_wears[k], |g| {
             add_triple_product(
-                &race.physics.damage.front_slip_wear_factor,
-                &race.physics.damage.front_tyre_wear_rate,
-                &race.physics.damage.hundredth,
+                &damage.front_slip_wear_factor,
+                &damage.front_tyre_wear_rate,
+                &damage.hundredth,
                 g,
                 g,
             );
         });
     }
     for k in 2..4 {
-        raise(&race.physics, &race.shared.car.tyre_wears[k], |g| {
+        raise(damage, &car.tyre_wears[k], |g| {
             add_triple_product(
-                &race.physics.damage.rear_slip_wear_factor,
-                &race.physics.damage.rear_tyre_wear_rate,
-                &race.physics.damage.hundredth,
+                &damage.rear_slip_wear_factor,
+                &damage.rear_tyre_wear_rate,
+                &damage.hundredth,
                 g,
                 g,
             );
         });
     }
-    raise(&race.physics, &race.shared.car.engine_damage, |g| {
+    raise(damage, &car.engine_damage, |g| {
         add_triple_product(
-            &race.physics.damage.engine_speed_wear_factor,
-            &race.physics.damage.gauge_rates[13],
-            &race.physics.damage.hundredth,
+            &damage.engine_speed_wear_factor,
+            &damage.gauge_rates[13],
+            &damage.hundredth,
             g,
             g,
         );
     });
-    raise(&race.physics, &race.shared.car.cooling_damage, |g| {
+    raise(damage, &car.cooling_damage, |g| {
         add_triple_product(
-            &race.physics.damage.engine_speed_wear_factor,
-            &race.physics.damage.gauge_rates[12],
-            &race.physics.damage.hundredth,
+            &damage.engine_speed_wear_factor,
+            &damage.gauge_rates[12],
+            &damage.hundredth,
             g,
             g,
         );
     });
-    if !below_or_unordered(
-        race.physics.damage.overheat_excess.bits(),
-        race.physics.damage.gauge_low.bits(),
-    ) {
-        engine_damage_carry(&race.shared, &race.physics.damage);
-        hold_at(&race.physics, &race.shared.car.engine_damage);
-        raise(&race.physics, &race.shared.car.cooling_damage, |g| {
+    if !below_or_unordered(damage.overheat_excess.bits(), damage.gauge_low.bits()) {
+        engine_damage_carry(car, damage);
+        hold_at(damage, &car.engine_damage);
+        raise(damage, &car.cooling_damage, |g| {
             add_triple_product(
-                &race.physics.damage.overheat_excess,
-                &race.physics.damage.gauge_rates[15],
-                &race.physics.damage.hundredth,
+                &damage.overheat_excess,
+                &damage.gauge_rates[15],
+                &damage.hundredth,
                 g,
                 g,
             );
         });
     }
-    if race.physics.damage.gear_changed.bits() == 0x1 {
-        add_rate_to_clutch(&race.shared, &race.physics.damage.gauge_rates[16]);
+    if damage.gear_changed.bits() == 0x1 {
+        add_rate_to_clutch(car, &damage.gauge_rates[16]);
     }
-    if race.physics.damage.gear_changed.bits() == 0xFFFFFFFF {
-        add_rate_to_clutch(&race.shared, &race.physics.damage.gauge_rates[17]);
+    if damage.gear_changed.bits() == 0xFFFFFFFF {
+        add_rate_to_clutch(car, &damage.gauge_rates[17]);
     }
-    let gear = race.physics.damage.gear.bits();
-    if race.physics.damage.gear_changed.bits() == 0x1 {
-        let gauge = gear_gauge(&race.shared, gear);
-        add_rate_to_gauge(gauge, &race.physics.damage.gauge_rates[18]);
+    let gear = damage.gear.bits();
+    if damage.gear_changed.bits() == 0x1 {
+        let gauge = gear_gauge(car, gear);
+        add_rate_to_gauge(gauge, &damage.gauge_rates[18]);
     }
-    let gear = race.physics.damage.gear.bits();
-    if race.physics.damage.gear_changed.bits() == 0xFFFFFFFF {
-        let gauge = gear_gauge(&race.shared, gear);
-        add_rate_to_gauge(gauge, &race.physics.damage.gauge_rates[19]);
+    let gear = damage.gear.bits();
+    if damage.gear_changed.bits() == 0xFFFFFFFF {
+        let gauge = gear_gauge(car, gear);
+        add_rate_to_gauge(gauge, &damage.gauge_rates[19]);
     }
     for k in 0..4 {
-        raise(&race.physics, &race.shared.car.wheel_hit_damage[k], |g| {
+        raise(damage, &car.wheel_hit_damage[k], |g| {
             add_triple_product(
-                &race.physics.damage.roughness_wear_base,
-                &race.physics.damage.wheel_roughness_rate,
-                &race.physics.damage.hundredth,
+                &damage.roughness_wear_base,
+                &damage.wheel_roughness_rate,
+                &damage.hundredth,
                 g,
                 g,
             );
         });
     }
     for k in 0..4 {
-        raise(&race.physics, &race.shared.car.suspension_damage[k], |g| {
+        raise(damage, &car.suspension_damage[k], |g| {
             add_triple_product(
-                &race.physics.damage.suspension_roughness_wear,
-                &race.physics.damage.figures[0],
-                &race.physics.damage.hundredth,
+                &damage.suspension_roughness_wear,
+                &damage.figures[0],
+                &damage.hundredth,
                 g,
                 g,
             );
         });
     }
-    raise(&race.physics, &race.shared.car.body_hit_damage, |g| {
+    raise(damage, &car.body_hit_damage, |g| {
         add_triple_product(
-            &race.physics.damage.body_roughness_wear,
-            &race.physics.damage.figures[1],
-            &race.physics.damage.hundredth,
+            &damage.body_roughness_wear,
+            &damage.figures[1],
+            &damage.hundredth,
             g,
             g,
         );
     });
-    raise(&race.physics, &race.shared.car.steering_damage, |g| {
+    raise(damage, &car.steering_damage, |g| {
         add_triple_product(
-            &race.physics.damage.body_roughness_wear,
-            &race.physics.damage.figures[2],
-            &race.physics.damage.hundredth,
+            &damage.body_roughness_wear,
+            &damage.figures[2],
+            &damage.hundredth,
             g,
             g,
         );
     });
-    raise(&race.physics, &race.shared.car.engine_damage, |g| {
+    raise(damage, &car.engine_damage, |g| {
         add_triple_product(
-            &race.physics.damage.body_roughness_wear,
-            &race.physics.damage.figures[3],
-            &race.physics.damage.hundredth,
+            &damage.body_roughness_wear,
+            &damage.figures[3],
+            &damage.hundredth,
             g,
             g,
         );
     });
-    raise(&race.physics, &race.shared.car.exhaust_damage, |g| {
+    raise(damage, &car.exhaust_damage, |g| {
         add_triple_product(
-            &race.physics.damage.body_roughness_wear,
-            &race.physics.damage.figures[4],
-            &race.physics.damage.hundredth,
+            &damage.body_roughness_wear,
+            &damage.figures[4],
+            &damage.hundredth,
             g,
             g,
         );
     });
-    raise(&race.physics, &race.shared.car.gear_wear[0], |g| {
+    raise(damage, &car.gear_wear[0], |g| {
         add_triple_product(
-            &race.physics.damage.body_roughness_wear,
-            &race.physics.damage.figures[5],
-            &race.physics.damage.hundredth,
+            &damage.body_roughness_wear,
+            &damage.figures[5],
+            &damage.hundredth,
             g,
             g,
         );
     });
     for k in 2..9 {
-        raise(&race.physics, &race.shared.car.gear_wear[k], |g| {
+        raise(damage, &car.gear_wear[k], |g| {
             add_triple_product(
-                &race.physics.damage.body_roughness_wear,
-                &race.physics.damage.figures[5],
-                &race.physics.damage.hundredth,
+                &damage.body_roughness_wear,
+                &damage.figures[5],
+                &damage.hundredth,
                 g,
                 g,
             );
         });
     }
-    raise(&race.physics, &race.shared.car.differential_damage, |g| {
+    raise(damage, &car.differential_damage, |g| {
         add_triple_product(
-            &race.physics.damage.body_roughness_wear,
-            &race.physics.damage.figures[6],
-            &race.physics.damage.hundredth,
+            &damage.body_roughness_wear,
+            &damage.figures[6],
+            &damage.hundredth,
             g,
             g,
         );
     });
-    if !below_or_unordered(
-        race.physics.damage.hit_size.bits(),
-        race.physics.damage.gauge_rates[23].bits(),
-    ) {
-        raise(&race.physics, &race.shared.car.body_hit_damage, |g| {
-            add_product(
-                &race.physics.damage.hit_size,
-                &race.physics.damage.figures[13],
-                g,
-                g,
-            );
+    if !below_or_unordered(damage.hit_size.bits(), damage.gauge_rates[23].bits()) {
+        raise(damage, &car.body_hit_damage, |g| {
+            add_product(&damage.hit_size, &damage.figures[13], g, g);
         });
     }
-    if !below_or_unordered(
-        race.physics.damage.hit_size.bits(),
-        race.physics.damage.gauge_rates[22].bits(),
-    ) {
-        side_hit_wear(race);
+    if !below_or_unordered(damage.hit_size.bits(), damage.gauge_rates[22].bits()) {
+        side_hit_wear(car, damage, work);
     }
     for k in 0..4 {
-        raise(&race.physics, &race.shared.car.suspension_damage[k], |g| {
+        raise(damage, &car.suspension_damage[k], |g| {
             add_triple_product(
-                &race.physics.damage.wheel_loads[k],
-                &race.physics.damage.figures[14],
-                &race.physics.damage.hundredth,
+                &damage.wheel_loads[k],
+                &damage.figures[14],
+                &damage.hundredth,
                 g,
                 g,
             );
         });
     }
-    raise(&race.physics, &race.shared.car.exhaust_damage, |g| {
+    raise(damage, &car.exhaust_damage, |g| {
         add_triple_product(
-            &race.physics.damage.wheel_load_mean,
-            &race.physics.damage.figures[15],
-            &race.physics.damage.hundredth,
+            &damage.wheel_load_mean,
+            &damage.figures[15],
+            &damage.hundredth,
             g,
             g,
         );
     });
-    raise(&race.physics, &race.shared.car.steering_damage, |g| {
+    raise(damage, &car.steering_damage, |g| {
         add_triple_product(
-            &race.physics.damage.wheel_load_mean,
-            &race.physics.damage.figures[16],
-            &race.physics.damage.hundredth,
+            &damage.wheel_load_mean,
+            &damage.figures[16],
+            &damage.hundredth,
             g,
             g,
         );
     });
-    gauge_totals(&race.shared, &race.physics.damage);
-    if race.physics.damage.drive_kind.bits() == 0 {
-        race.shared.car.turbo_damage.set_bits(0x0);
+    gauge_totals(car, damage);
+    if damage.drive_kind.bits() == 0 {
+        car.turbo_damage.set_bits(0x0);
     }
 }
 
 /// A hit big enough to count (its size at least `gauge_rates[22]`) wears the gauges of the
 /// side it landed on: `side` is 0 .. 3 for the hit figure 1 .. 4, and none for any other.
-fn side_hit_wear(race: &Race) {
-    scale_hit_size(&race.shared, &race.physics.damage);
-    let hit = race.physics.damage.hit_side.bits();
+fn side_hit_wear(car: &Car, damage: &DamageModel, work: &RaceWork) {
+    scale_hit_size(work, damage);
+    let hit = damage.hit_side.bits();
     let side = (1..=4).contains(&hit).then(|| hit as usize - 1);
     let wear = |gauge: &Float, figure: usize| {
-        raise(&race.physics, gauge, |g| {
-            add_product(
-                &race.physics.damage.hit_size,
-                &race.physics.damage.figures[figure],
-                g,
-                g,
-            );
+        raise(damage, gauge, |g| {
+            add_product(&damage.hit_size, &damage.figures[figure], g, g);
         });
     };
     if let Some(side) = side {
-        wear(&race.shared.car.light_damage[side], 24);
-        wear(&race.shared.car.light_damage[4 + side / 2], 25);
+        wear(&car.light_damage[side], 24);
+        wear(&car.light_damage[4 + side / 2], 25);
     }
-    wear(&race.shared.car.steering_damage, 23);
-    wear(&race.shared.car.electrics_damage, 22);
-    wear(&race.shared.car.turbo_damage, 17);
-    wear(&race.shared.car.clutch_damage, 18);
-    wear(&race.shared.car.differential_damage, 19);
-    for gauge in &race.shared.car.gear_wear {
+    wear(&car.steering_damage, 23);
+    wear(&car.electrics_damage, 22);
+    wear(&car.turbo_damage, 17);
+    wear(&car.clutch_damage, 18);
+    wear(&car.differential_damage, 19);
+    for gauge in &car.gear_wear {
         wear(gauge, 20);
     }
-    let gauge = gear_gauge(&race.shared, race.physics.damage.gear.bits());
-    add_hit_to_gear_gauge(&race.physics.damage, gauge);
-    hold_at(&race.physics, gauge);
+    let gauge = gear_gauge(car, damage.gear.bits());
+    add_hit_to_gear_gauge(damage, gauge);
+    hold_at(damage, gauge);
     if let Some(side) = side {
-        wear(&race.shared.car.wheel_hit_damage[side], 28);
-        wear(&race.shared.car.suspension_damage[side], 30);
+        wear(&car.wheel_hit_damage[side], 28);
+        wear(&car.suspension_damage[side], 30);
     }
     // The front hits (1 and 2) reach the cooling, the engine and the first brake wear,
     // the rear hits (3 and 4) the second brake wear.
     if (1..=2).contains(&hit) {
-        wear(&race.shared.car.cooling_damage, 27);
-        wear(&race.shared.car.engine_damage, 26);
-        wear(&race.shared.car.brake_wear_a, 29);
+        wear(&car.cooling_damage, 27);
+        wear(&car.engine_damage, 26);
+        wear(&car.brake_wear_a, 29);
     }
     if (3..=4).contains(&hit) {
-        wear(&race.shared.car.brake_wear_b, 29);
+        wear(&car.brake_wear_b, 29);
     }
 }
 
 /// Applies `step` to the gauge, then holds it 0 ..= `gauge_top`.
-pub(super) fn raise(physics: &Physics, gauge: &Float, step: impl FnOnce(&Float)) {
+pub(super) fn raise(damage: &DamageModel, gauge: &Float, step: impl FnOnce(&Float)) {
     step(gauge);
-    hold_at(physics, gauge);
+    hold_at(damage, gauge);
 }
 
 // ---- the arithmetic that was x87 assembly ----
@@ -516,7 +447,7 @@ fn gear_wear_from_speed(m: &DamageModel, t: &impl Cell32, v: &impl Cell32) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[m + 0x35B43C] = 1 - [m + 0x35B400]`
 /// `[rc + 0x31A320] = ((([m + 0x35B5F4] * [m + 0x35B400]) * [m + 0x35B3B0]) * [m + 0x35B38C]) + [rc + 0x31A320]`
-fn brake_wear_step(shared: &RaceShared, m: &DamageModel) {
+fn brake_wear_step(car: &Car, m: &DamageModel) {
     let t0 = X(1.0);
     let t1 = ld(m.brake_balance_share.bits());
     let t2 = t0 - t1;
@@ -528,9 +459,9 @@ fn brake_wear_step(shared: &RaceShared, m: &DamageModel) {
     let t7 = t5 * t6;
     let t8 = ld(m.gauge_step.bits());
     let t9 = t7 * t8;
-    let t10 = ld(shared.car.brake_wear_a.bits());
+    let t10 = ld(car.brake_wear_a.bits());
     let t11 = t9 + t10;
-    shared.car.brake_wear_a.set_bits(st(t11));
+    car.brake_wear_a.set_bits(st(t11));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -589,25 +520,25 @@ fn scale_part_hit_figures(m: &DamageModel, t: &impl Cell32, u: &impl Cell32) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x31A290] = (([rc + 0x31A28C] * [m + 0x35B608]) * [m + 0x35B370]) + [rc + 0x31A290]`
-fn engine_damage_carry(shared: &RaceShared, m: &DamageModel) {
-    let t0 = ld(shared.car.engine_heat.bits());
+fn engine_damage_carry(car: &Car, m: &DamageModel) {
+    let t0 = ld(car.engine_heat.bits());
     let t1 = ld(m.gauge_rates[14].bits());
     let t2 = t0 * t1;
     let t3 = ld(m.hundredth.bits());
     let t4 = t2 * t3;
-    let t5 = ld(shared.car.engine_damage.bits());
+    let t5 = ld(car.engine_damage.bits());
     let t6 = t4 + t5;
-    shared.car.engine_damage.set_bits(st(t6));
+    car.engine_damage.set_bits(st(t6));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x31A2A0] = [rc + 0x31A2A0] + [m + o1]`
-fn add_rate_to_clutch(shared: &RaceShared, o1: &impl Cell32) {
-    let t0 = ld(shared.car.clutch_damage.bits());
+fn add_rate_to_clutch(car: &Car, o1: &impl Cell32) {
+    let t0 = ld(car.clutch_damage.bits());
     let t1 = ld(o1.bits());
     let t2 = t0 + t1;
-    shared.car.clutch_damage.set_bits(st(t2));
+    car.clutch_damage.set_bits(st(t2));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -623,9 +554,9 @@ fn add_rate_to_gauge(v: &impl Cell32, o1: &impl Cell32) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[m + 0x35B3C8] = [m + 0x35B3C8] * [rc + 0x31C708]`
-fn scale_hit_size(shared: &RaceShared, m: &DamageModel) {
+fn scale_hit_size(work: &RaceWork, m: &DamageModel) {
     let t0 = ld(m.hit_size.bits());
-    let t1 = ld(shared.work.patch_factors[1].bits());
+    let t1 = ld(work.patch_factors[1].bits());
     let t2 = t0 * t1;
     m.hit_size.set_bits(st(t2));
 }
@@ -653,35 +584,35 @@ fn add_hit_to_gear_gauge(m: &DamageModel, v: &impl Cell32) {
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 /// `[rc + 0x31A31C] = ((([rc + 0x31A30C] + [rc + 0x31A310]) + [rc + 0x31A314]) + [rc + 0x31A318]) * [m + 0x35B364]`
 /// `[rc + 0x31A430] = ((([rc + 0x31A420] + [rc + 0x31A424]) + [rc + 0x31A428]) + [rc + 0x31A42C]) * [m + 0x35B364]`
-fn gauge_totals(shared: &RaceShared, m: &DamageModel) {
-    let t0 = ld(shared.car.light_damage[0].bits());
-    let t1 = ld(shared.car.light_damage[1].bits());
+fn gauge_totals(car: &Car, m: &DamageModel) {
+    let t0 = ld(car.light_damage[0].bits());
+    let t1 = ld(car.light_damage[1].bits());
     let t2 = t0 + t1;
-    let t3 = ld(shared.car.light_damage[2].bits());
+    let t3 = ld(car.light_damage[2].bits());
     let t4 = t2 + t3;
-    let t5 = ld(shared.car.light_damage[3].bits());
+    let t5 = ld(car.light_damage[3].bits());
     let t6 = t4 + t5;
-    let t7 = ld(shared.car.light_damage[5].bits());
+    let t7 = ld(car.light_damage[5].bits());
     let t8 = t6 + t7;
-    let t9 = ld(shared.car.light_damage[4].bits());
+    let t9 = ld(car.light_damage[4].bits());
     let t10 = t8 + t9;
     let t11 = ld(m.light_count_divisor.bits());
     let t12 = t10 / t11;
-    shared.car.lights_damage.set_bits(st(t12));
-    let t13 = ld(shared.car.brake_wear_a.bits());
-    let t14 = ld(shared.car.brake_wear_b.bits());
+    car.lights_damage.set_bits(st(t12));
+    let t13 = ld(car.brake_wear_a.bits());
+    let t14 = ld(car.brake_wear_b.bits());
     let t15 = t13 + t14;
     let t16 = ld(m.half.bits());
     let t17 = t15 * t16;
-    shared.car.brake_damage.set_bits(st(t17));
-    let t18 = ld(shared.car.tyre_wears[0].bits());
-    let t19 = ld(shared.car.tyre_wears[1].bits());
+    car.brake_damage.set_bits(st(t17));
+    let t18 = ld(car.tyre_wears[0].bits());
+    let t19 = ld(car.tyre_wears[1].bits());
     let t20 = t18 + t19;
     let t21 = ld(m.half.bits());
     let t22 = t20 * t21;
     m.front_tyre_wear.set_bits(st(t22));
-    let t23 = ld(shared.car.tyre_wears[2].bits());
-    let t24 = ld(shared.car.tyre_wears[3].bits());
+    let t23 = ld(car.tyre_wears[2].bits());
+    let t24 = ld(car.tyre_wears[3].bits());
     let t25 = t23 + t24;
     let t26 = ld(m.half.bits());
     let t27 = t25 * t26;
@@ -691,21 +622,21 @@ fn gauge_totals(shared: &RaceShared, m: &DamageModel) {
     let t30 = t28 + t29;
     let t31 = ld(m.half.bits());
     let t32 = t30 * t31;
-    shared.car.tyre_wear.set_bits(st(t32));
-    let t33 = ld(shared.car.gear_wear[0].bits());
-    let t34 = ld(shared.car.gear_wear[2].bits());
+    car.tyre_wear.set_bits(st(t32));
+    let t33 = ld(car.gear_wear[0].bits());
+    let t34 = ld(car.gear_wear[2].bits());
     let t35 = t33 + t34;
-    let t36 = ld(shared.car.gear_wear[3].bits());
+    let t36 = ld(car.gear_wear[3].bits());
     let t37 = t35 + t36;
-    let t38 = ld(shared.car.gear_wear[4].bits());
+    let t38 = ld(car.gear_wear[4].bits());
     let t39 = t37 + t38;
-    let t40 = ld(shared.car.gear_wear[5].bits());
+    let t40 = ld(car.gear_wear[5].bits());
     let t41 = t39 + t40;
-    let t42 = ld(shared.car.gear_wear[6].bits());
+    let t42 = ld(car.gear_wear[6].bits());
     let t43 = t41 + t42;
-    let t44 = ld(shared.car.gear_wear[7].bits());
+    let t44 = ld(car.gear_wear[7].bits());
     let t45 = t43 + t44;
-    let t46 = ld(shared.car.gear_wear[8].bits());
+    let t46 = ld(car.gear_wear[8].bits());
     let t47 = t45 + t46;
     let t48 = ld(m.half.bits());
     let t49 = t47 * t48;
@@ -713,49 +644,49 @@ fn gauge_totals(shared: &RaceShared, m: &DamageModel) {
     let t51 = t49 * t50;
     let t52 = ld(m.half.bits());
     let t53 = t51 * t52;
-    shared.car.gearbox_damage.set_bits(st(t53));
-    let t54 = ld(shared.car.wheel_hit_damage[0].bits());
-    let t55 = ld(shared.car.wheel_hit_damage[1].bits());
+    car.gearbox_damage.set_bits(st(t53));
+    let t54 = ld(car.wheel_hit_damage[0].bits());
+    let t55 = ld(car.wheel_hit_damage[1].bits());
     let t56 = t54 + t55;
-    let t57 = ld(shared.car.wheel_hit_damage[2].bits());
+    let t57 = ld(car.wheel_hit_damage[2].bits());
     let t58 = t56 + t57;
-    let t59 = ld(shared.car.wheel_hit_damage[3].bits());
+    let t59 = ld(car.wheel_hit_damage[3].bits());
     let t60 = t58 + t59;
-    let t61 = ld(shared.car.body_hit_damage.bits());
+    let t61 = ld(car.body_hit_damage.bits());
     let t62 = t60 + t61;
-    let t63 = ld(shared.car.body_hit_damage.bits());
+    let t63 = ld(car.body_hit_damage.bits());
     let t64 = t62 + t63;
-    let t65 = ld(shared.car.body_hit_damage.bits());
+    let t65 = ld(car.body_hit_damage.bits());
     let t66 = t64 + t65;
-    let t67 = ld(shared.car.body_hit_damage.bits());
+    let t67 = ld(car.body_hit_damage.bits());
     let t68 = t66 + t67;
-    let t69 = ld(shared.car.body_hit_damage.bits());
+    let t69 = ld(car.body_hit_damage.bits());
     let t70 = t68 + t69;
-    let t71 = ld(shared.car.body_hit_damage.bits());
+    let t71 = ld(car.body_hit_damage.bits());
     let t72 = t70 + t71;
     let t73 = ld(m.tenth.bits());
     let t74 = t72 * t73;
-    shared.car.body_damage.set_bits(st(t74));
-    let t75 = ld(shared.car.suspension_damage[0].bits());
-    let t76 = ld(shared.car.suspension_damage[1].bits());
+    car.body_damage.set_bits(st(t74));
+    let t75 = ld(car.suspension_damage[0].bits());
+    let t76 = ld(car.suspension_damage[1].bits());
     let t77 = t75 + t76;
-    let t78 = ld(shared.car.suspension_damage[2].bits());
+    let t78 = ld(car.suspension_damage[2].bits());
     let t79 = t77 + t78;
-    let t80 = ld(shared.car.suspension_damage[3].bits());
+    let t80 = ld(car.suspension_damage[3].bits());
     let t81 = t79 + t80;
     let t82 = ld(m.quarter.bits());
     let t83 = t81 * t82;
-    shared.car.overall_suspension_damage.set_bits(st(t83));
-    let t84 = ld(shared.car.wheel_stiffness[0].bits());
-    let t85 = ld(shared.car.wheel_stiffness[1].bits());
+    car.overall_suspension_damage.set_bits(st(t83));
+    let t84 = ld(car.wheel_stiffness[0].bits());
+    let t85 = ld(car.wheel_stiffness[1].bits());
     let t86 = t84 + t85;
-    let t87 = ld(shared.car.wheel_stiffness[2].bits());
+    let t87 = ld(car.wheel_stiffness[2].bits());
     let t88 = t86 + t87;
-    let t89 = ld(shared.car.wheel_stiffness[3].bits());
+    let t89 = ld(car.wheel_stiffness[3].bits());
     let t90 = t88 + t89;
     let t91 = ld(m.quarter.bits());
     let t92 = t90 * t91;
-    shared.car.stiffness_mean.set_bits(st(t92));
+    car.stiffness_mean.set_bits(st(t92));
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -1346,7 +1277,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_19(a[0], a[1]) },
-                plain: |a| brake_wear_step(&race().shared, dm(a[0])),
+                plain: |a| brake_wear_step(&race().shared.car, dm(a[0])),
             },
             Block {
                 name: "damage_gauges line 254",
@@ -1740,7 +1671,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_36(a[0], a[1]) },
-                plain: |a| engine_damage_carry(&race().shared, dm(a[1])),
+                plain: |a| engine_damage_carry(&race().shared.car, dm(a[1])),
             },
             Block {
                 name: "damage_gauges line 443",
@@ -1780,7 +1711,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_38(a[0], a[1]) },
-                plain: |a| add_rate_to_clutch(&race().shared, &dm(a[1]).gauge_rates[16]),
+                plain: |a| add_rate_to_clutch(&race().shared.car, &dm(a[1]).gauge_rates[16]),
             },
             Block {
                 name: "damage_gauges line 465",
@@ -1796,7 +1727,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_39(a[0], a[1]) },
-                plain: |a| add_rate_to_clutch(&race().shared, &dm(a[1]).gauge_rates[17]),
+                plain: |a| add_rate_to_clutch(&race().shared.car, &dm(a[1]).gauge_rates[17]),
             },
             Block {
                 name: "damage_gauges line 476",
@@ -2371,7 +2302,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_64(a[0], a[1]) },
-                plain: |a| scale_hit_size(&race().shared, dm(a[0])),
+                plain: |a| scale_hit_size(&race().shared.work, dm(a[0])),
             },
             Block {
                 name: "damage_gauges line 745",
@@ -3470,7 +3401,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_110(a[0], a[1]) },
-                plain: |a| gauge_totals(&race().shared, dm(a[1])),
+                plain: |a| gauge_totals(&race().shared.car, dm(a[1])),
             },
         ]
     }

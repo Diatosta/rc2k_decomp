@@ -155,17 +155,17 @@ pub fn load_object(
     race: &crate::race::owner::Race,
 ) -> Result<(), Refused> {
     let course = &race.course;
-    let kind: u32 = scene.drawing.object_work.loading_kind.bits();
+    let kind: u32 = scene.drawing.object_work.loading_kind.get();
     if kind == 0 {
         return Ok(());
     }
-    let slot: u32 = scene.drawing.object_work.loading_slot.bits();
+    let slot: u32 = scene.drawing.object_work.loading_slot.get();
     if slot >= SLOTS {
         return Err(crate::errors::BadInput("an object's slot past the tables").into());
     }
     scene.objects.tables.object_kinds[slot as usize].set(kind);
     set_object_file_names(scene, kind)?;
-    let name = scene.file_numbers.object_ro3_number.bits();
+    let name = scene.file_numbers.object_ro3_number.get();
     // The file read is the `.ro3` one, whatever the name's last character was.
     scene
         .file_numbers
@@ -176,7 +176,7 @@ pub fn load_object(
         &crate::files::cstring_at(
             scene
                 .file_numbers
-                .text_ptr(scene.file_numbers.object_ro3_path.bits() as usize),
+                .text_ptr(scene.file_numbers.object_ro3_path.get() as usize),
             "an object's file path",
         )?,
         crate::scene::objects::file(),
@@ -195,9 +195,9 @@ pub fn load_object(
         shape(scene, race, u32::MAX)?;
         return check(&race.course);
     }
-    scene.draw_switches.loading_group_mask.set_bits(u32::MAX);
+    scene.draw_switches.loading_group_mask.set(u32::MAX);
     let known = find_object_kind(kind);
-    race.frame.matrices.known_object.set_bits(known);
+    race.frame.matrices.known_object.set(known);
     // The kind's record from `dword_5C90C4` (its `groups`); the kind is not bounded.
     // A run-on past the 34 records into the gear figures, as the original.
     let record = LIGHT_RECORDS.record_ptr(known).offset(0x58);
@@ -214,29 +214,25 @@ pub fn load_object(
                 };
             }
         }
-        course.course.group_masks[part.mask / 4].set_bits(bits);
+        course.course.group_masks[part.mask / 4].set(bits);
     }
     let rest = FIRST_FIVE[1..]
         .iter()
         .fold(u32::MAX, |rest, &at| rest.wrapping_sub(mask(course, at)));
-    course.course.group_masks[REST / 4].set_bits(rest);
+    course.course.group_masks[REST / 4].set(rest);
     let (car, part) = ((slot - 0x50) / 0x14, (slot - 0x50) % 0x14);
     let first = car * 0x14 + 0x50;
     crate::session::write_all(&scene.drawing.object_work.loading_car, [car, part, first]);
     match part {
         0 => {
             for (n, &at) in FIRST_FIVE.iter().enumerate() {
-                scene
-                    .drawing
-                    .object_work
-                    .loading_slot
-                    .set_bits(first + n as u32);
+                scene.drawing.object_work.loading_slot.set(first + n as u32);
                 shape(scene, race, mask(course, at))?;
             }
-            scene.drawing.object_work.loading_slot.set_bits(first + 5);
+            scene.drawing.object_work.loading_slot.set(first + 5);
             for &(offset, at) in &MEASURED {
                 let slot = first + offset;
-                scene.drawing.object_work.loading_slot.set_bits(slot);
+                scene.drawing.object_work.loading_slot.set(slot);
                 shape(scene, race, mask(course, at))?;
                 measure_object(&race.course, scene)?;
                 let measures: [u32; 6] = crate::session::read_first(&scene.objects.slots.measures);
@@ -258,18 +254,18 @@ fn shape(
     race: &crate::race::owner::Race,
     mask: u32,
 ) -> Result<(), Refused> {
-    scene.draw_switches.loading_group_mask.set_bits(mask);
+    scene.draw_switches.loading_group_mask.set(mask);
     Ok({ add_object_shape(race, scene) }?)
 }
 
 /// The three fatal errors at the end, in the original's order.
 fn check(course: &crate::race::owner_course::Course) -> Result<(), Refused> {
     let scene = scene();
-    if scene.drawing.object_work.face_cursor.bits() > course.lists.face_memory_room.bits() {
+    if scene.drawing.object_work.face_cursor.get() > course.lists.face_memory_room.get() {
         return Err(NO_FACE_MEMORY.into());
     }
     if scene.objects.tables.point_count.get().wrapping_mul(12)
-        > course.lists.object_points_room.bits()
+        > course.lists.object_points_room.get()
     {
         return Err(NO_POINT_MEMORY.into());
     }

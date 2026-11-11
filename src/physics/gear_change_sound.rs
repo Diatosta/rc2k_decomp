@@ -9,7 +9,7 @@
 //! it would be written (the original writes near address 0).
 
 use crate::errors::Refused;
-use crate::race::owner_shared::RaceShared;
+use crate::physics::car_store::Car;
 use crate::session::Dword;
 use rc2k_core::physics::gearbox::{GearChange, gear_change};
 
@@ -29,9 +29,6 @@ pub fn gear_change_sound_at(
     Ok(())
 }
 
-pub fn gear_change_sound(shared: &RaceShared) -> Result<(), Refused> {
-    gear_change_sound_at(
-        crate::sound::store::current_object(),
-        &shared.car.gear_changed,
-    )
+pub fn gear_change_sound(car: &Car) -> Result<(), Refused> {
+    gear_change_sound_at(crate::sound::store::current_object(), &car.gear_changed)
 }

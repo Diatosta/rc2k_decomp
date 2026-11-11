@@ -39,12 +39,12 @@ fn progress(shared: &RaceShared, done: u32) -> Option<u32> {
 /// the original's (ebp the span, eax / edx / ebx the progress, esi the function) is passed.
 pub fn step_loading_bar(race: &Race, done: u32) -> Result<(), Refused> {
     let shared = &race.shared;
-    let show: u32 = shared.vars.bar_function.bits();
+    let show: u32 = shared.vars.bar_function.get();
     if show == 0 {
         return Err(BadInput("no function to show the loading with").into());
     }
     if let Some(progress) = progress(shared, done) {
-        shared.vars.bar_share.set_bits(progress);
+        shared.vars.bar_share.set(progress);
     }
     if show == BAR {
         crate::race::loading_bar_frame::loading_bar_frame(race)

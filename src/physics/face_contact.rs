@@ -35,7 +35,7 @@ use crate::math::x87_float::st;
 use crate::math::x87_float::to_int;
 use crate::math::x87_run::compare_80;
 use crate::physics::contact_force::contact_force;
-use crate::physics::flow::{copy_cells, fill_cells, negate};
+use crate::physics::flow::{ZERO_BITS as ZERO, copy_cells, fill_cells, negate};
 use crate::physics::touch_face::touch_face;
 use crate::physics::vector_length::vector_length;
 use crate::race::norms::normalise_work_vector;
@@ -160,7 +160,13 @@ pub fn steps(race: &Race, number: u32, scene: &crate::scene::owner::Scene) -> Re
         Inside::Touch => return touch(race, scene),
         Inside::Nothing => return Ok(()),
     }
-    { crate::physics::restore_saved_car::restore_saved_car(race) }?;
+    {
+        crate::physics::restore_saved_car::restore_saved_car(
+            &race.shared.car,
+            &race.shared.physics_tables,
+            &race.physics.contact,
+        )
+    }?;
     { crate::physics::feel_ground::feel_ground(race, scene) }?;
     touch(race, scene)?;
     // 0x45E62A: pushed back against the motion, level.
@@ -168,12 +174,7 @@ pub fn steps(race: &Race, number: u32, scene: &crate::scene::owner::Scene) -> Re
     negate(&race.frame.scratch.work_vector[0]);
     negate(&race.frame.scratch.work_vector[1]);
     negate(&race.frame.scratch.work_vector[2]);
-    if compare_80(
-        vector_length(&race.frame.scratch.work_vector),
-        race.course.numbers.zero.bits(),
-    ) & 0x4000
-        != 0
-    {
+    if compare_80(vector_length(&race.frame.scratch.work_vector), ZERO) & 0x4000 != 0 {
         fill_cells(&race.frame.scratch.work_vector, 0);
     }
     race.frame.scratch.work_vector[1].set(0);

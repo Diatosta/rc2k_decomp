@@ -7,26 +7,26 @@
 //! Caller: `physics::car_physics_step` (0x43B961), every physics step, right after
 //! `physics::damage_notices`.
 
+use crate::physics::car_store::Car;
 use crate::physics::cells::set_changed;
 use crate::physics::queue_notice::{load, store};
-use crate::race::owner_shared::RaceShared;
 use rc2k_core::physics::notices::Notice;
 
-pub fn take_notice(shared: &RaceShared) {
+pub fn take_notice(car: &Car) {
     let was = Notice {
-        id: shared.car.notice_id.get(),
-        shown: shared.car.notice_shown.get(),
-        time: shared.car.notice_time.get(),
-        w708: shared.car.notice_time_b.get(),
+        id: car.notice_id.get(),
+        shown: car.notice_shown.get(),
+        time: car.notice_time.get(),
+        w708: car.notice_time_b.get(),
         ..Notice::default()
     };
-    let queue = load(shared);
+    let queue = load(car);
     let (mut notice, mut now) = (was, queue);
     if notice.take(&mut now).is_none() {
         return;
     }
-    set_changed(&shared.car.notice_id, was.id, notice.id);
-    set_changed(&shared.car.notice_time_b, was.w708, notice.w708);
-    set_changed(&shared.car.notice_time, was.time, notice.time);
-    store(shared, &queue, &now);
+    set_changed(&car.notice_id, was.id, notice.id);
+    set_changed(&car.notice_time_b, was.w708, notice.w708);
+    set_changed(&car.notice_time, was.time, notice.time);
+    store(car, &queue, &now);
 }

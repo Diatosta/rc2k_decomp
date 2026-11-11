@@ -19,7 +19,7 @@ pub fn close_all(audio: &Audio) -> Result<(), Refused> {
     crate::audio::stop_streams::stop_streams(audio)?;
     crate::audio::free_voices::free_voices(audio)?;
     crate::audio::mixer_set_up::close_way(audio, state.sound_mode.get())?;
-    release_primary(state)?;
+    release_primary(state);
     close_sound(state)?;
     state.sound_mode.set(0);
     Ok(())

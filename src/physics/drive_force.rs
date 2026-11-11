@@ -38,6 +38,11 @@ pub fn drive_force(race: &Race, scene: &crate::scene::owner::Scene) -> Result<()
     if race.shared.car.drive_cut_steps.get() != 0 {
         race.shared.physics_tables.drive_torque.set_bits(0);
     }
-    drive_torque_share(race, scene);
+    drive_torque_share(
+        &race.shared.car,
+        &race.shared.physics_tables,
+        &race.course.numbers,
+        scene,
+    );
     Ok(())
 }

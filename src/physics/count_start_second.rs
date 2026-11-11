@@ -7,17 +7,17 @@
 //!
 //! Caller: `physics::race_timers` (four calls).
 
-use crate::race::owner_shared::RaceShared;
+use crate::physics::car_store::Car;
 use crate::session::Cell32;
 use rc2k_core::physics::start::CarStart;
 
-fn game(shared: &RaceShared) -> Vec<&dyn Cell32> {
+fn game(car: &Car) -> Vec<&dyn Cell32> {
     vec![
-        &shared.car.tyre_change_state as &dyn Cell32,
-        &shared.car.false_start_count,
-        &shared.car.run_ticks,
-        &shared.car.finish_flag,
-        &shared.car.stage_time,
+        &car.tyre_change_state as &dyn Cell32,
+        &car.false_start_count,
+        &car.run_ticks,
+        &car.finish_flag,
+        &car.stage_time,
     ]
 }
 
@@ -37,6 +37,6 @@ fn core(v: &[&dyn Cell32]) {
     crate::physics::cells::set_changed(v[4], was.time, c.time);
 }
 
-pub fn count_start_second(shared: &RaceShared) {
-    core(&game(shared));
+pub fn count_start_second(car: &Car) {
+    core(&game(car));
 }

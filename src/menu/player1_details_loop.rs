@@ -44,7 +44,7 @@ pub const SCREEN: Screen = Screen {
         },
     ],
     before: &[
-        Step::Write(|m| &m.screens.event.event_done, 0x0),
+        Step::Write(|m| &m.screens.event.event_over, 0x0),
         Step::Write(|m| &m.screens.event.current_player, 0x0),
     ],
     background: &[

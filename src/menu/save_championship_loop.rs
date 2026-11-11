@@ -19,7 +19,7 @@ use crate::menu::screen_loop::{
 
 fn before(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
-    screens.draw_work.escaped.set(0x0u32);
+    screens.draw_work.escape_pressed.set(0x0u32);
     screens.items.current[slot::SAVE_CHAMPIONSHIP]
         .set(screens.items.first[slot::SAVE_CHAMPIONSHIP].get());
     Ok(())

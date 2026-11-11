@@ -74,8 +74,8 @@ pub fn seal_stage_time(race: &Race) -> Result<(), BadInput> {
     {
         let key = replay.seal_key.get();
         let sealed = rc2k_core::race::seal::seal_time(
-            CAR_BLOCKS.cars[0].stop_state.bits(),
-            || CAR_BLOCKS.cars[0].stage_time.bits(),
+            CAR_BLOCKS.cars[0].stop_state.get(),
+            || CAR_BLOCKS.cars[0].stage_time.get(),
             key,
         );
         race.shared.replay_file.index_seal.set(sealed);
@@ -161,26 +161,26 @@ pub fn set_start_states(race: &Race) -> Result<(), Refused> {
         let first_kind: u32 = if one {
             shared.vars.race_car_kinds[chosen as usize].get()
         } else {
-            shared.vars.race_car_kinds[0].bits()
+            shared.vars.race_car_kinds[0].get()
         };
         let v = start_value(physics, first_kind);
         frame.panel_and_overlay.panel.start_values[0].set(v);
-        let v = start_value(physics, shared.vars.race_car_kinds[1].bits());
+        let v = start_value(physics, shared.vars.race_car_kinds[1].get());
         frame.panel_and_overlay.panel.start_values[1].set(v);
         if one {
             let block: u32 = shared.work.car_block(chosen as usize);
-            shared.vars.split.set_bits(0u32);
+            shared.vars.split.set(0u32);
             let block = crate::race::trap::car_at(block)?;
             if !flagged(block.car_kind.get()) {
                 settle_state(&block.camera_view);
             }
             return Ok(());
         }
-        let two = shared.view.players.bits() == 2;
-        let held = rc2k_core::race::cars::held_split(two, shared.vars.split.bits() as i32);
-        shared.vars.split.set_bits(held as u32);
-        let kind_0: u32 = CAR_BLOCKS.cars[0].car_kind.bits();
-        if !flagged(kind_0) || shared.view.players.bits() >= 2 {
+        let two = shared.view.players.get() == 2;
+        let held = rc2k_core::race::cars::held_split(two, shared.vars.split.get() as i32);
+        shared.vars.split.set(held as u32);
+        let kind_0: u32 = CAR_BLOCKS.cars[0].car_kind.get();
+        if !flagged(kind_0) || shared.view.players.get() >= 2 {
             settle_state(&CAR_BLOCKS.cars[0].camera_view);
             settle_state(&CAR_BLOCKS.cars[1].camera_view);
         }
@@ -198,7 +198,7 @@ pub fn store_results_by_mode(race: &Race) {
     let shared = &race.shared;
     // Converted: `rc2k_core::race::cars::margin`.
     use rc2k_core::race::cars::margin;
-    match shared.vars.run_kind.bits() {
+    match shared.vars.run_kind.get() {
         2 => {
             shared
                 .state
@@ -207,7 +207,7 @@ pub fn store_results_by_mode(race: &Race) {
                 .set(CAR_BLOCKS.cars[0].time_left.get());
             let v = CAR_BLOCKS.cars[0].mode2_place.get();
             shared.state.results.figure_000.set(v);
-            shared.tables.start_place.set_bits(v);
+            shared.tables.start_place.set(v);
             shared.state.results.results[0]
                 .time
                 .set(CAR_BLOCKS.cars[0].stage_time.get());

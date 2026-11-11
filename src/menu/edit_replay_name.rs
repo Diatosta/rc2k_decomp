@@ -64,7 +64,7 @@ pub fn edit_replay_name(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, 
         Key::Escape => {
             restore_text(name)?;
             menus.screens.option_work.typing.set(0u32);
-            menus.tables.captions.screen_left.set(1u32);
+            menus.tables.captions.left_by_key.set(1u32);
             return Ok(true);
         }
         Key::Enter => {

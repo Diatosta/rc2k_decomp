@@ -37,7 +37,7 @@ pub fn list_object_textures(scene: &crate::scene::owner::Scene) -> Result<(), Ba
     use rc2k_core::scene::objects::{texture_list, texture_record};
 
     let textures = texture_list(|offset| file_dword(offset).map_err(|e| rc2k_core::Invalid(e.0)))?;
-    let slot: u32 = scene.drawing.object_work.loading_slot.bits();
+    let slot: u32 = scene.drawing.object_work.loading_slot.get();
     let record = texture_record(slot, textures.len())?;
     scene.objects.slots.texture_count.set(textures.len() as u32);
     for (n, &texture) in textures.iter().enumerate() {

@@ -132,7 +132,7 @@ pub fn init_mud(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), R
     course
         .lists
         .course_bytes_total
-        .set(course.lists.course_bytes_total.bits().wrapping_add(MUD_LEN));
+        .set(course.lists.course_bytes_total.get().wrapping_add(MUD_LEN));
     MUD.take(&course.lists.mud_list, MUD_LEN, vec![0; MUD_LEN as usize])?;
     load_mud(&race.shared)?;
     clear_mud_state(&race.shared);

@@ -137,7 +137,7 @@ fn object(
     cars: &crate::race::car_draw_state::CarDrawState,
 ) -> Result<Object, BadInput> {
     let objects = &scene().objects;
-    let number: u32 = cars.object_number.bits();
+    let number: u32 = cars.object_number.get();
     if number >= OBJECTS {
         return Err(BadInput("an object's number past the tables"));
     }
@@ -145,7 +145,7 @@ fn object(
         first: objects.slots.first_point[number as usize].get(),
         points: objects.slots.point_counts[number as usize].get() as i32,
         normals: objects.slots.normal_counts[number as usize].get() as i32,
-        table: race.course.lists.object_points.bits(),
+        table: race.course.lists.object_points.get(),
     };
     if object.points <= 0 && object.normals > 0 {
         return Err(BadInput("an object of normals and no points"));
@@ -195,9 +195,9 @@ pub fn place_object_points(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
                 ctx.view.polygon.window.view_scale.bits(),
                 ctx.view.polygon.window.view_centre[0].bits(),
                 ctx.view.polygon.window.view_centre[1].bits(),
-                race.course.course.flat_depth.bits(),
+                race.course.course.flat_depth.get(),
             ];
-            let flat = race.course.stage_prefs.flat_depth.bits() != 0;
+            let flat = race.course.stage_prefs.flat_depth.get() != 0;
             to_screen(&mut r, &v, flat, &crate::session::Dword::new(0));
         }
         point_records::set(record, r)?;
@@ -254,9 +254,9 @@ pub fn place_object_points_sse(
                 ctx.view.polygon.window.view_scale.bits(),
                 ctx.view.polygon.window.view_centre[0].bits(),
                 ctx.view.polygon.window.view_centre[1].bits(),
-                race.course.course.flat_depth.bits(),
+                race.course.course.flat_depth.get(),
             ];
-            let flat = race.course.stage_prefs.flat_depth.bits() != 0;
+            let flat = race.course.stage_prefs.flat_depth.get() != 0;
             to_screen(&mut r, &v, flat, &crate::session::Dword::new(0));
         }
         point_records::set(record, r)?;

@@ -12,9 +12,10 @@
 //! Caller: `physics::car_physics_step` (0x43B91E), every physics step.
 
 use crate::math::x87;
+use crate::physics::car_store::Car;
+use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::race::kind_store::KIND_TABLES;
-use crate::race::owner::Race;
-use crate::race::owner_course::Course;
+use crate::race::vars_store::RaceVars;
 use crate::session::Float;
 use std::cmp::Ordering;
 
@@ -28,7 +29,6 @@ fn below(s: u32, zero: u32) -> bool {
 
 /// One half: `speed` (None with the switch set) held, scaled, added to the four at `to`.
 fn add_turn(
-    course: &Course,
     speed: Option<u32>,
     f1: &Float,
     f2: &Float,
@@ -39,11 +39,8 @@ fn add_turn(
     drawing.scene.scratch.set(0);
     if let Some(s) = speed {
         drawing.scene.scratch.set(s);
-        if below(drawing.scene.scratch.get(), course.numbers.zero.bits()) {
-            drawing
-                .scene
-                .scratch
-                .set(x87::loaded(course.numbers.zero.bits()));
+        if below(drawing.scene.scratch.get(), ZERO) {
+            drawing.scene.scratch.set(x87::loaded(ZERO));
         }
     }
     drawing
@@ -56,30 +53,23 @@ fn add_turn(
 }
 
 /// The exact version, for `physics::car_physics_step`.
-pub fn turn_wheel_angles(race: &Race, scene: &crate::scene::owner::Scene) {
-    let kind = race.shared.car.car_kind.get();
+pub fn turn_wheel_angles(car: &Car, vars: &RaceVars, scene: &crate::scene::owner::Scene) {
+    let kind = car.car_kind.get();
     if kind >= 0x22 || KIND_TABLES.kind_gets_mud[kind as usize].get() == 0 {
         return;
     }
-    let still = race.shared.car.all_wheels_off.get() != 0;
-    let drive = || x87::loaded(race.shared.car.drive_speed_a.bits());
-    let v = &race.shared.vars;
+    let still = car.all_wheels_off.get() != 0;
+    let drive = || x87::loaded(car.drive_speed_a.bits());
+    let v = &vars;
     add_turn(
-        &race.course,
         (!still).then(drive),
         &v.wheel_turn_a[0],
         &v.wheel_turn_b[0],
         &v.mud_thrown_in,
         scene,
     );
-    let slip = || {
-        x87::sub(
-            race.shared.car.drive_speed_a.bits(),
-            race.shared.car.local_velocity[2].bits(),
-        )
-    };
+    let slip = || x87::sub(car.drive_speed_a.bits(), car.local_velocity[2].bits());
     add_turn(
-        &race.course,
         (!still).then(slip),
         &v.wheel_turn_a[1],
         &v.wheel_turn_b[1],

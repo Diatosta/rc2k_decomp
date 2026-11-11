@@ -20,7 +20,7 @@
 //!   - `sleep(1000)`.
 //!
 //! A frame is the game's frame function 0x405A71 with the service area's draw callback
-//! `screens::service_area_frame`; neither is ported, so the Rust version calls them through
+//! `screens::service_area_frame`; neither is ported, so this code calls them through
 //! `Driver`. The clock is
 //! `tick_count`. They come in through `Driver`, so that the logic can be run and compared without
 //! real frames. Called from 0x48E0FD and 0x4A16AB. Refuses a missing player.
@@ -149,9 +149,8 @@ pub fn apply_repairs(menus: &Menus, driver: &mut dyn Driver) -> Result<(), Refus
     })
 }
 
-/// For Rust callers: the Rust version with the game's clock, frames and sleep. Every
-/// register kept. A refusal is the caller's (before 2026-10-23 the original was called,
-/// which the standalone does not have: it ended there).
+/// For Rust callers: the repairs with the game's clock, frames and sleep. A refusal is the
+/// caller's.
 pub fn apply_repairs_in_game(menus: &Menus) -> Result<(), Refused> {
     apply_repairs(menus, &mut GameDriver)
 }

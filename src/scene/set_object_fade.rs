@@ -39,7 +39,7 @@ fn words(
 ) -> Result<Option<(u32, u32, bool)>, BadInput> {
     let scene = scene();
     {
-        let object: u32 = cars.object_number.bits();
+        let object: u32 = cars.object_number.get();
         if object >= OBJECTS {
             return Ok(None);
         }
@@ -60,7 +60,7 @@ fn words(
 
 pub fn set_object_fade(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), BadInput> {
     let (race, scene) = (ctx.race, ctx.scene);
-    let place: u32 = ctx.view.object.object_place.bits();
+    let place: u32 = ctx.view.object.object_place.get();
     let Some((other_kind, distance, needs_record)) = words(&ctx.view.cars, place)? else {
         return Err(BadInput("an object's number past the tables"));
     };
@@ -69,37 +69,37 @@ pub fn set_object_fade(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(
         (false, _) => 0,
         (true, None) => return Err(BadInput("no records for the points")),
         (true, Some(record)) => {
-            if field(record, 0)? != place && race.course.course.scene_points.bits() == 0 {
+            if field(record, 0)? != place && race.course.course.scene_points.get() == 0 {
                 return Err(BadInput("no points"));
             }
             record
         }
     };
     crate::session::write_bits(&ctx.view.cars.fade_words, [other_kind, distance]);
-    ctx.view.object.position[0].set_bits(0u32);
-    ctx.view.object.position[2].set_bits(0u32);
-    ctx.view.object.fading.set_bits(0u32);
-    ctx.view.object.fade[0].set_bits(0x100u32);
+    ctx.view.object.position[0].set(0u32);
+    ctx.view.object.position[2].set(0u32);
+    ctx.view.object.fading.set(0u32);
+    ctx.view.object.fade[0].set(0x100u32);
     if !needs_record {
         return Ok(());
     }
     if field(record, 0)? != place {
         make_scene_record(ctx.race, place, record, ctx.scene, ctx.view)?;
     }
-    ctx.view.object.position[0].set_bits(x87::to_int(field(record, 0x10)?) as u32);
+    ctx.view.object.position[0].set(x87::to_int(field(record, 0x10)?) as u32);
     let depth = x87::to_int(field(record, 0x18)?);
-    ctx.view.object.position[2].set_bits(depth as u32);
+    ctx.view.object.position[2].set(depth as u32);
     let near = ((distance << 16) as i32).wrapping_sub(depth);
     if near >= 0 {
         return Ok(());
     }
     let fade = (near.wrapping_add(0x10_0000).max(0) as u32) >> 12;
     crate::session::write_bits(&ctx.view.object.fade, [fade, fade]);
-    ctx.view.object.fading.set_bits(1u32);
+    ctx.view.object.fading.set(1u32);
     if other_kind != 0 {
         let kinds: [u32; 0x100] = crate::session::read_bits(&scene.objects.tables.object_kinds);
         if let Some(other) = (1..0x100).find(|&n| kinds[n] == other_kind) {
-            ctx.view.cars.object_number.set_bits(other as u32);
+            ctx.view.cars.object_number.set(other as u32);
         }
     }
     Ok(())

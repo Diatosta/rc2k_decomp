@@ -59,7 +59,7 @@ pub fn take_commands(audio: &Audio) -> Result<(), Refused> {
             Command::StopAll => crate::audio::stop_all_voices::stop_all_voices(audio)?,
             Command::Volume(volume) => {
                 crate::audio::volume_command::volume_command(&audio.state, volume, &mut |v| {
-                    crate::audio::set_master_volume::set_master_volume_in_game(&audio.state, v);
+                    crate::audio::set_master_volume::set_master_volume(&audio.state, v);
                 });
             }
             Command::Stream {

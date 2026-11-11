@@ -31,7 +31,8 @@ fn blocked(race: &Race, scene: &crate::scene::owner::Scene) -> bool {
     // Blocks 1 .. 3: the other cars.
     (1..4).any(|n| {
         crate::physics::reset_point_blocked::reset_point_blocked(
-            race,
+            &race.shared.physics_tables,
+            &race.shared.vars,
             crate::race::blocks_store::block_addr(n),
         )
     })

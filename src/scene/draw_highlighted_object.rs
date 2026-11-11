@@ -54,23 +54,23 @@ pub fn draw_highlighted(
     if own.is_some_and(|own| own >= OWN) {
         return Err(BadInput("a kind past the records of the kinds' own places").into());
     }
-    let clock: u32 = shared.physics_tables.scene_clock.bits();
+    let clock: u32 = shared.physics_tables.scene_clock.get();
     object_place.angles[1].set((clock << 3) & 0xFFFF);
     object_place.place[2].set(screens.state.carousel.z.get());
-    object_place.place[0].set_bits(0u32);
+    object_place.place[0].set(0u32);
     if let Some(own) = own {
         let [size, y, angle] = own_place(&menus.tables, own)?;
-        object_place.size.set_bits(size);
+        object_place.size.set(size);
         if y != u32::MAX {
             object_place.place[1].set(y);
         }
         if angle != u32::MAX {
-            object_place.angles[0].set_bits(angle);
+            object_place.angles[0].set(angle);
         }
     }
     screens.state.carousel.kind.set(kind);
     let object = find_object_of_kind(kind, scene);
-    cars.object_number.set_bits(object);
+    cars.object_number.set(object);
     draw()
 }
 
@@ -86,7 +86,7 @@ pub fn run() -> Result<(), crate::errors::Refused> {
     assign_menu_textures(&menus.tables, scene)?;
     map_texture_places(scene);
     load_slot_textures_in_game(&race.frame, scene)?;
-    scene.lights.state.draw_mode.set_bits(0u32);
+    scene.lights.state.draw_mode.set(0u32);
     // The front end's 3D draws on a slot of its own (frame plan F4).
     let ctx = crate::race::view_scratch::DrawCtx::new(
         race,

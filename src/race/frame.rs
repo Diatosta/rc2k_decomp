@@ -29,7 +29,7 @@ pub fn players_all_out(race: &Race) -> Result<bool, Refused> {
         let players = if vars.session.get() == 1 {
             Players::Chosen(vars.player.get())
         } else {
-            Players::First(shared.view.players.bits())
+            Players::First(shared.view.players.get())
         };
         let all = players_all_out(players, out)?;
         trap.finish()?;
@@ -145,11 +145,11 @@ pub fn race_keys(race: &Race) -> Result<(), Refused> {
             }
         }
         Some(Key::Split) => {
-            if shared.view.players.bits() == 1 {
+            if shared.view.players.get() == 1 {
                 return Ok(());
             }
-            let (split, counter) = split_flip(shared.vars.split.bits());
-            shared.vars.split.set_bits(split);
+            let (split, counter) = split_flip(shared.vars.split.get());
+            shared.vars.split.set(split);
             set_both_counters(counter);
         }
         Some(k @ (Key::VolumeDown | Key::VolumeUp)) => {

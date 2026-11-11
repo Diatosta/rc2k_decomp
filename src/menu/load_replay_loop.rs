@@ -17,7 +17,7 @@ use crate::menu::screen_loop::{Callee, Entry, Frames, Keys, List, Screen, Step};
 fn before(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
     screens.items.current[slot::LOAD_REPLAY].set(screens.items.first[slot::LOAD_REPLAY].get());
-    screens.draw_work.escaped.set(0x0u32);
+    screens.draw_work.escape_pressed.set(0x0u32);
     Ok(())
 }
 
@@ -25,7 +25,7 @@ fn before(entry: &Entry) -> Result<(), Refused> {
 /// number, `dword_755248` * 20 + the highlighted item - 1.
 fn result(menus: &Menus) -> u32 {
     let item: u32 = menus.screens.loop_flags.item.get();
-    if item == 0x16 || menus.tables.captions.screen_left.get() == 1 {
+    if item == 0x16 || menus.tables.captions.left_by_key.get() == 1 {
         return 0xFFFF_FFFF;
     }
     menus

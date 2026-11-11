@@ -99,7 +99,7 @@ pub fn load_texture_picture(
             number,
             texture,
             || scene.textures.kinds.kind_first_textures[0x100].get(), // dword_5D0EE8,
-            || shared.view.race_cars.bits(),
+            || shared.view.race_cars.get(),
         );
         if let Some(car) = car {
             call(Call::Text(b"carnum".to_vec()));

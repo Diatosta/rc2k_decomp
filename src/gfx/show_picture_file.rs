@@ -61,7 +61,7 @@ pub fn show_picture_file(
     } else {
         let was_showing = gfx.pictures.showing.get();
         gfx.pictures.showing.set(0);
-        if was_showing != 0 && gfx.fonts.font_block.palettes.get() != 0 {
+        if was_showing != 0 && gfx.fonts.font_block.palettes.is_set() {
             gfx.pictures.picture.flags.set(0x802u32);
             crate::gfx::picture_as_surface::picture_as_surface(gfx)?;
             crate::text::draw_string_by_id::draw_string_by_id_at(

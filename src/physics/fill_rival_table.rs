@@ -9,26 +9,27 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 use crate::errors::Refused;
-use crate::race::owner::Race;
+use crate::physics::split_tables_store::SplitTables;
+use crate::race::vars_store::RaceVars;
 use rc2k_core::physics::splits::{RIVALS, default_rival};
 
 // Converted: `rc2k_core::physics::splits::default_rival`.
-pub fn fill_rival_table(race: &Race) -> Result<(), Refused> {
+pub fn fill_rival_table(split_tables: &SplitTables, vars: &RaceVars) -> Result<(), Refused> {
     for c in 0..RIVALS as u32 {
         let (time, car, name) = default_rival(c);
-        race.physics.split_tables.rival_times[c as usize].set(time);
-        race.physics.split_tables.rival_cars[c as usize].set(car);
-        race.physics.split_tables.rival_names[c as usize].set(name);
+        split_tables.rival_times[c as usize].set(time);
+        split_tables.rival_cars[c as usize].set(car);
+        split_tables.rival_names[c as usize].set(name);
     }
     // The standings summary (`g_rivals` 1 while it is there: `RACE_STATE.settings.rivals`).
-    if race.shared.vars.rivals.get() == 0 {
+    if vars.rivals.get() == 0 {
         return Ok(());
     }
     let rows = crate::saves::best_times::SUMMARY.with(|t| t.rows)?;
     for (c, r) in rows.iter().take(RIVALS).enumerate() {
-        race.physics.split_tables.rival_names[c].set(r.name_id);
-        race.physics.split_tables.rival_cars[c].set(r.car);
-        race.physics.split_tables.rival_times[c].set(r.time);
+        split_tables.rival_names[c].set(r.name_id);
+        split_tables.rival_cars[c].set(r.car);
+        split_tables.rival_times[c].set(r.time);
     }
     Ok(())
 }

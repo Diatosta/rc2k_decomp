@@ -122,13 +122,13 @@ pub fn reset_car_motion(race: &Race) -> Result<(), Refused> {
         v.set_bits(0);
     }
     let heading = shared.car.car_heading.get();
-    physics.camera.start_heading.set_bits(heading);
+    physics.camera.start_heading.set(heading);
     shared.car.camera_heading.set(heading);
     let pitch = shared.car.car_pitch.get();
-    physics.camera.start_pitch.set_bits(pitch);
+    physics.camera.start_pitch.set(pitch);
     shared.car.camera_pitch.set(pitch);
     let roll = shared.car.car_roll.get();
-    physics.camera.start_roll.set_bits(roll);
+    physics.camera.start_roll.set(roll);
     shared.car.camera_roll_turn.set(roll);
     shared.car.stuck_count.set(0);
     shared.car.drive_speed_a.set_bits(0);
@@ -156,7 +156,7 @@ fn move_turned(race: &Race, x: u32, z: u32) {
         x as i32,
         0,
         z as i32,
-        course.course.place_heading.bits(),
+        course.course.place_heading.get(),
     );
     add(&shared.car.position[0], x);
     add(&shared.car.position[2], z);
@@ -194,12 +194,12 @@ pub fn start_car(race: &Race) -> Result<(), Refused> {
         &race.shared.car.brake,
         &race.shared.car.handbrake,
     ]);
-    if race.shared.vars.run_kind.bits() != 4 || crate::debug::screens::free_play_placed() {
+    if race.shared.vars.run_kind.get() != 4 || crate::debug::screens::free_play_placed() {
         // Converted: `rc2k_core::race::start::{start_checkpoint, starts_aside,
         // side_offset, start_checks}`.
         use rc2k_core::race::start::{side_offset, start_checkpoint, starts_aside};
         let first = crate::race::race_init::first_check_checkpoint(&race.shared)?;
-        let mode: u32 = race.shared.vars.run_kind.bits();
+        let mode: u32 = race.shared.vars.run_kind.get();
         let place = start_checkpoint(first, mode, race.shared.work.current_car.get());
         lights.state.line_place.set(place);
         lights.state.line_fraction.set(0);
@@ -212,8 +212,8 @@ pub fn start_car(race: &Race) -> Result<(), Refused> {
             move_turned(race, 0, 0xFFFE_0000);
             let side = starts_aside(
                 net().vars.session.get(),
-                || race.shared.vars.run_kind.bits(),
-                || race.shared.view.players.bits(),
+                || race.shared.vars.run_kind.get(),
+                || race.shared.view.players.get(),
             );
             if side {
                 move_turned(race, side_offset(race.shared.work.current_car.get()), 0);
@@ -251,7 +251,7 @@ pub fn start_car(race: &Race) -> Result<(), Refused> {
 /// anything.
 pub fn start_cars(race: &Race) -> Result<(), Refused> {
     let shared = &race.shared;
-    let cars: u32 = shared.view.race_cars.bits();
+    let cars: u32 = shared.view.race_cars.get();
     if cars == 0 || cars > MOST_CARS {
         return Err(BadInput("no cars or more than eight").into());
     }

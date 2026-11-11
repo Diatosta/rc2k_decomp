@@ -36,7 +36,11 @@ pub fn step_replay_cars(race: &Race, input: &crate::input::owner::Input) -> Resu
             for step in RUN_STEPS {
                 match step {
                     RunStep::Controls => read_car_controls::read_car_controls(race)?,
-                    RunStep::GearRules => crate::physics::gear_input_rules::gear_input_rules(race),
+                    RunStep::GearRules => crate::physics::gear_input_rules::gear_input_rules(
+                        &race.shared.car,
+                        &race.shared.physics_tables,
+                        &race.shared.vars,
+                    ),
                     RunStep::Steering => steer_inputs::steer_inputs(race),
                     RunStep::Pedals => pedal_inputs::pedal_inputs(race),
                     RunStep::ResetKey => {

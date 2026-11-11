@@ -7,8 +7,9 @@
 //! Callers: `physics::car_physics_step` (0x43B827, 0x43B8A0), every physics step.
 
 use crate::math::x87_run::mul2_to_int;
-use crate::race::owner::Race;
-use crate::race::owner_shared::RaceShared;
+use crate::physics::car_store::Car;
+use crate::physics::tables_store::PhysicsTables;
+use crate::race::numbers_store::Numbers;
 use crate::session::Cell32;
 
 fn get(v: &[&dyn Cell32], k: usize) -> u32 {
@@ -20,9 +21,9 @@ fn put(v: &[&dyn Cell32], k: usize, x: u32) {
 }
 
 /// On the variables' cells `v`: the last move.
-pub fn move_at(race: &Race, v: &[&dyn Cell32]) -> u32 {
-    let k65536: u32 = race.course.numbers.k65536.bits();
-    let dt: u32 = race.shared.physics_tables.step_time.bits();
+pub fn move_at(tables: &PhysicsTables, numbers: &Numbers, v: &[&dyn Cell32]) -> u32 {
+    let k65536: u32 = numbers.k65536.bits();
+    let dt: u32 = tables.step_time.bits();
     let mut last = 0;
     for (motion, place) in [(0, 3), (2, 5), (1, 4)] {
         last = mul2_to_int(get(v, motion), k65536, dt) as u32;
@@ -32,19 +33,24 @@ pub fn move_at(race: &Race, v: &[&dyn Cell32]) -> u32 {
     last
 }
 
-fn game<'a>(shared: &'a RaceShared, scene: &'a crate::scene::owner::Scene) -> Vec<&'a dyn Cell32> {
+fn game<'a>(car: &'a Car, scene: &'a crate::scene::owner::Scene) -> Vec<&'a dyn Cell32> {
     vec![
-        &shared.car.velocity[0] as &dyn Cell32,
-        &shared.car.velocity[1],
-        &shared.car.velocity[2],
-        &shared.car.position[0],
-        &shared.car.position[1],
-        &shared.car.position[2],
+        &car.velocity[0] as &dyn Cell32,
+        &car.velocity[1],
+        &car.velocity[2],
+        &car.position[0],
+        &car.position[1],
+        &car.position[2],
         &scene.drawing.scene.scratch,
     ]
 }
 
 /// The exact version, for `physics::car_physics_step` and `physics::apply_wheel_torques`.
-pub fn move_car(race: &Race, scene: &crate::scene::owner::Scene) -> u32 {
-    move_at(race, &game(&race.shared, scene))
+pub fn move_car(
+    car: &Car,
+    tables: &PhysicsTables,
+    numbers: &Numbers,
+    scene: &crate::scene::owner::Scene,
+) -> u32 {
+    move_at(tables, numbers, &game(car, scene))
 }

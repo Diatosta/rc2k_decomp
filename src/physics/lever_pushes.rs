@@ -11,6 +11,7 @@
 
 use crate::math::x87;
 use crate::math::x87_run::{lever_share, one_less};
+use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::physics::lever_push::lever_push;
 use crate::race::owner::Race;
 use std::cmp::Ordering;
@@ -37,20 +38,17 @@ pub fn lever_pushes(race: &Race, scene: &crate::scene::owner::Scene) {
         race.shared.car.grip_forces[3].bits(),
         race.shared.car.grip_forces[1].bits(),
         race.shared.car.grip_forces[2].bits(),
-        race.course.numbers.zero.bits(),
+        ZERO,
     );
     race.shared.physics_tables.lever_share_start.set_bits(share);
     if zero {
         return;
     }
-    if below(
-        race.shared.physics_tables.lever_share_start.bits(),
-        race.course.numbers.zero.bits(),
-    ) {
+    if below(race.shared.physics_tables.lever_share_start.bits(), ZERO) {
         race.shared
             .physics_tables
             .lever_share_start
-            .set_bits(x87::loaded(race.course.numbers.zero.bits()));
+            .set_bits(x87::loaded(ZERO));
     }
     if !below(
         race.shared.physics_tables.lever_share_start.bits(),
@@ -69,12 +67,22 @@ pub fn lever_pushes(race: &Race, scene: &crate::scene::owner::Scene) {
         .set_bits(x87::loaded(
             race.shared.physics_tables.lever_share_start.bits(),
         ));
-    lever_push(race, scene);
+    lever_push(
+        &race.shared.car,
+        &race.shared.physics_tables,
+        &race.course.numbers,
+        scene,
+    );
     race.shared.physics_tables.lever_push_vector[2]
         .set(x87::loaded(race.shared.car.probe_point_z[0].bits()));
     race.shared
         .physics_tables
         .lever_share_left
         .set_bits(one_less(race.shared.physics_tables.lever_share_left.bits()));
-    lever_push(race, scene);
+    lever_push(
+        &race.shared.car,
+        &race.shared.physics_tables,
+        &race.course.numbers,
+        scene,
+    );
 }

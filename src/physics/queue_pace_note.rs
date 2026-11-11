@@ -67,7 +67,13 @@ pub fn queue_pace_note(
                 crate::physics::cue_listed_car_sound_last::cue_listed_car_sound_last(
                     race, byte, sound,
                 )?;
-                { crate::physics::queue_listed_event::queue_listed_event(race, byte) }?;
+                {
+                    crate::physics::queue_listed_event::queue_listed_event(
+                        &race.shared.car,
+                        &race.shared.physics_tables,
+                        byte,
+                    )
+                }?;
                 at = at.wrapping_add(1);
             }
         }

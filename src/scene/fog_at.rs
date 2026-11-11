@@ -16,7 +16,7 @@ pub fn fog_at(fog: &crate::scene::fog::Fog, depth: u32) -> Result<u32, Refused> 
     // Converted: `rc2k_core::scene::fog::fog_at`.
     Ok(rc2k_core::scene::fog::fog_at(
         depth,
-        fog.length.bits() as i32,
+        fog.length.get() as i32,
         |n| fog.level(n as u32),
     )?)
 }

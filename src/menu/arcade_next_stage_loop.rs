@@ -6,7 +6,7 @@
 //! highlight is not saved.
 //! The name is a reading from the title string of its menu, "ETAPA SEGUINTE", not yet a visit.
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Asking, Callee, List, Screen, Step};
+use crate::menu::screen_loop::{Asking, Callee, List, MenuSound, Screen, Step};
 
 pub const SCREEN: Screen = Screen {
     lists: &[
@@ -29,7 +29,7 @@ pub const SCREEN: Screen = Screen {
     before: &[Step::Write(|m| &m.tables.pages.yes_no_answer, 0x0)],
     after_lists: &[Step::Write(|m| &m.play.champ_view.stage_mode, 0x2)],
     background: &[Step::Call(Callee::DrawStageMap)],
-    after: &[Step::Write(|m| &m.screens.option_work.menu_sound, 0x6F)],
+    after: &[Step::Sound(MenuSound::None)],
     asking: Some(Asking {
         unasked_skips_save: true,
         ..Asking::DEFAULT

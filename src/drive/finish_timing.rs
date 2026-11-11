@@ -24,7 +24,7 @@ fn time(race: &Race) {
     race.replay
         .finish
         .time
-        .set_bits(st(int(scene().drawing.scene.scratch.bits() as i32)
+        .set_bits(st(int(scene().drawing.scene.scratch.get() as i32)
             / ld(race.course.numbers.thousand.bits())));
 }
 

@@ -14,7 +14,12 @@ use crate::race::owner::Race;
 
 pub fn test_drive(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     crate::physics::load_car_specs::load_car_specs(race, scene)?;
-    crate::physics::make_gear_ratios::make_gear_ratios(race, scene)?;
+    crate::physics::make_gear_ratios::make_gear_ratios(
+        &race.shared.car,
+        &race.shared.physics_tables,
+        &race.course.numbers,
+        scene,
+    )?;
     // The figures kept round the run: the drive speeds, the car's speed, the gear, the
     // engine, the gearbox kind.
     let kept = [

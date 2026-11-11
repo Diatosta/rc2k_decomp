@@ -453,7 +453,7 @@ pub fn draw_race_scene(
         race.shared.view.drawn_view.set(0);
         draw_view(owners, 0, 0, true)?;
     } else {
-        let side_by_side = race.shared.vars.split.bits() == 1;
+        let side_by_side = race.shared.vars.split.get() == 1;
         // A player's half of the screen.
         // (The store's drawn view is set on the game thread only: the parts read their
         // slot's, `ViewScratch::drawn_view`.)
@@ -469,17 +469,17 @@ pub fn draw_race_scene(
             let (w, h) = (session.screen.width.get(), session.screen.height.get());
             // (width, x, height, y).
             if side_by_side {
-                own.view_size[0].set_bits(w >> 1);
-                own.view_offset[0].set_bits(if view == 0 { 0 } else { w >> 1 });
-                own.view_size[1].set_bits(h);
-                own.view_offset[1].set_bits(0);
+                own.view_size[0].set(w >> 1);
+                own.view_offset[0].set(if view == 0 { 0 } else { w >> 1 });
+                own.view_size[1].set(h);
+                own.view_offset[1].set(0);
             } else {
-                own.view_size[0].set_bits(w);
-                own.view_offset[0].set_bits(0);
-                own.view_size[1].set_bits(h >> 1);
-                own.view_offset[1].set_bits(if view == 0 { 0 } else { h >> 1 });
+                own.view_size[0].set(w);
+                own.view_offset[0].set(0);
+                own.view_size[1].set(h >> 1);
+                own.view_offset[1].set(if view == 0 { 0 } else { h >> 1 });
             }
-            own.view_zoom.set_bits(0x100);
+            own.view_zoom.set(0x100);
             crate::scene::set_view_window::set_view_window_plain(
                 race,
                 scene,
@@ -508,12 +508,12 @@ pub fn draw_race_scene(
     for state in [0x11, 0x12] {
         set_render_state(2, state);
     }
-    if race.shared.work.in_credits.bits() == 0 && race.replay.finish.no_place.get() == 0 {
+    if race.shared.work.in_credits.get() == 0 && race.replay.finish.no_place.get() == 0 {
         crate::hud::overlay_pass::overlay_pass(crate::hud::owner::hud(), race)?;
     }
     crate::race::skid_laying::lay_skidmarks_if_on(race)?;
     crate::race::name_plates::update_name_plates(race, scene)?;
-    if race.course.numbers.replay_mode.bits() != 2 {
+    if race.course.numbers.replay_mode.get() != 2 {
         crate::drive::tyre_change_screen::tyre_change_screen(race, input, system)?;
     }
     Ok(())

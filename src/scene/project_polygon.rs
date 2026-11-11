@@ -45,11 +45,11 @@ pub fn project_entries(
     // and their objects' points (negative) only need the records.
     let scene_point = entries.iter().any(|entry| entry.point.get() as i32 >= 0);
     if !crate::scene::point_records::held()
-        || (scene_point && course.course.scene_points.bits() == 0)
+        || (scene_point && course.course.scene_points.get() == 0)
     {
         return Err(BadInput("no points or no records for them").into());
     }
-    let far = f32::from_bits(view.polygon.window.farthest.bits());
+    let far = view.polygon.window.farthest.get();
     let mut outside = 0u32;
     for entry in entries {
         let point = project_point(race, entry.point.get(), scene, view)?;
@@ -66,6 +66,6 @@ pub fn project_entries(
             outside += 1;
         }
     }
-    poly.polygon_outside_count.set_bits(outside);
+    poly.polygon_outside_count.set(outside);
     Ok(())
 }

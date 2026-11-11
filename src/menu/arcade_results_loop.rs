@@ -6,7 +6,7 @@
 //! the question, the highlight is not saved; its own 3D list goes to `g_sceneList` before the first
 //! frame only. Named by its address until then.
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Asking, Callee, Frames, List, Screen, Step};
+use crate::menu::screen_loop::{Asking, Callee, Frames, List, MenuSound, Screen, Step};
 
 pub const SCREEN: Screen = Screen {
     lists: &[
@@ -26,11 +26,11 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::Write(|m| &m.screens.event.event_done, 0x0)],
+    before: &[Step::Write(|m| &m.screens.event.event_over, 0x0)],
     background: &[Step::Call(Callee::LoadBackground(|m| {
         &m.tables.texts.arcade_results_picture
     }))],
-    after: &[Step::Write(|m| &m.screens.option_work.menu_sound, 0x6F)],
+    after: &[Step::Sound(MenuSound::None)],
     asking: Some(Asking {
         unasked_skips_save: true,
         ..Asking::DEFAULT

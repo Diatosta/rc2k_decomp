@@ -105,7 +105,7 @@ pub struct Event {
     /// `dword_75597C`: The count of the standings (`menu::number_all_a`).
     pub count_a: Dword,
     /// `dword_755980`: 1 when an event is over.
-    pub event_done: Dword,
+    pub event_over: Dword,
     /// `dword_755984`: The players in the event.
     pub player_count: Dword,
     /// `g_eventKind`: The event's kind (9 .. 0x18, `menu::run_event_races`).
@@ -173,7 +173,7 @@ impl Event {
             _gap_755974: Bytes::new(with_runs::<4>(&[(0x0, &[0x05])])),
             event_out: Dword::new(0x0),
             count_a: Dword::new(0x0),
-            event_done: Dword::new(0x0),
+            event_over: Dword::new(0x0),
             player_count: Dword::new(0x1),
             event_kind: Dword::new(0x18),
             current_player: Dword::new(0x0),
@@ -262,7 +262,7 @@ mod tests {
         at(offset_of!(Event, continuing_save), 0x755970);
         at(offset_of!(Event, event_out), 0x755978);
         at(offset_of!(Event, count_a), 0x75597C);
-        at(offset_of!(Event, event_done), 0x755980);
+        at(offset_of!(Event, event_over), 0x755980);
         at(offset_of!(Event, player_count), 0x755984);
         at(offset_of!(Event, event_kind), 0x755988);
         at(offset_of!(Event, current_player), 0x75598C);

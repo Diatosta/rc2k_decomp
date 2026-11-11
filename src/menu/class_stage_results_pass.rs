@@ -33,12 +33,12 @@ pub fn class_stage_results_pass(menus: &Menus) -> Result<(), Refused> {
         .map(|e| (e.head.group, e.head.player))
         .collect();
     for class in classes {
-        menus.screens.loop_flags.ended_b.set(0u32);
+        menus.screens.loop_flags.left_with_carry.set(0u32);
         let has_player = class_pages::has_player(all.len(), |n| all[n].0, |n| all[n].1, class);
         if !has_player {
             continue;
         }
-        menus.screens.loop_flags.ended_b.set(1u32);
+        menus.screens.loop_flags.left_with_carry.set(1u32);
         let numbered = number_standings(Which::A, class)?;
         menus.screens.event.count_a.set(numbered.last_number);
         crate::menu::show_class_stage_results::show_class_stage_results(menus, class)?;

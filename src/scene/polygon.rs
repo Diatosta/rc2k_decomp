@@ -67,7 +67,7 @@ pub type Listed = smallvec::SmallVec<[&'static PolygonEntry; 32]>;
 /// The polygon's entries in the list's order. Refuses what the originals go wrong on:
 /// more vertices than the vertex buffer holds, a list entry past the table.
 pub fn listed(poly: &crate::scene::polygon_work::PolygonWork) -> Result<Listed, BadInput> {
-    let count: u32 = poly.polygon_vertex_count.bits();
+    let count: u32 = poly.polygon_vertex_count.get();
     if count > MOST {
         return Err(BadInput("a polygon of more than 256 vertices"));
     }

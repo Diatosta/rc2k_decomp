@@ -51,6 +51,10 @@ pub mod kstar;
 pub mod overlay;
 #[cfg(debug_ui)]
 pub mod players;
+#[cfg(debug_ui)]
+pub mod row_cells;
+#[cfg(all(debug_ui, test))]
+mod row_paths;
 pub mod screens;
 #[cfg(debug_ui)]
 pub mod switches;

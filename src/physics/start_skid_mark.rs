@@ -8,7 +8,7 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::race::owner_shared::RaceShared;
+use crate::physics::car_store::Car;
 use crate::session::Cell32;
 use rc2k_core::physics::ground::SkidStart;
 
@@ -38,22 +38,22 @@ pub fn start_at(v: &[&dyn Cell32]) {
     }
 }
 
-fn game(shared: &RaceShared) -> Vec<&dyn Cell32> {
+fn game(car: &Car) -> Vec<&dyn Cell32> {
     vec![
-        &shared.car.wheel_squeeze[0] as &dyn Cell32,
-        &shared.car.wheel_squeeze[1],
-        &shared.car.wheel_squeeze[2],
-        &shared.car.wheel_squeeze[3],
-        &shared.car.camera_view_return,
-        &shared.car.camera_blend_view,
-        &shared.car.camera_switch_active,
-        &shared.car.camera_switch_share,
-        &shared.car.camera_switch_length,
-        &shared.car.step_clock,
-        &shared.car.camera_switch_clock,
+        &car.wheel_squeeze[0] as &dyn Cell32,
+        &car.wheel_squeeze[1],
+        &car.wheel_squeeze[2],
+        &car.wheel_squeeze[3],
+        &car.camera_view_return,
+        &car.camera_blend_view,
+        &car.camera_switch_active,
+        &car.camera_switch_share,
+        &car.camera_switch_length,
+        &car.step_clock,
+        &car.camera_switch_clock,
     ]
 }
 
-pub fn start_skid_mark(shared: &RaceShared) {
-    start_at(&game(shared));
+pub fn start_skid_mark(car: &Car) {
+    start_at(&game(car));
 }

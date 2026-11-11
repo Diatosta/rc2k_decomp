@@ -59,14 +59,15 @@ pub fn register_dump(c: &Context) -> Vec<u8> {
 /// The report, without its NUL: unless the code has bit 28, "Error code [XXXXXXXX]" (bit
 /// 31) or "Breakpoint [XXXXXXXX]"; the message (an empty one as none) with the two
 /// characters `\n` made a line break; `extra` (the string at 0x4F67BD); unless bit 28,
-/// "Last file: `path'", "W32=XXXXXXXX" when `w32` is not 0, and the register lines.
+/// "Last file: `path'", "W32=XXXXXXXX" when `w32` is not 0, and the register lines (left out
+/// when no `context` is known).
 pub fn report_text(
     code: u32,
     message: Option<&[u8]>,
     extra: &[u8],
     last_file: Option<&[u8]>,
     w32: u32,
-    context: &Context,
+    context: Option<&Context>,
 ) -> Vec<u8> {
     let mut text = Vec::new();
     let full = code & TEXT_ONLY == 0;
@@ -105,7 +106,9 @@ pub fn report_text(
             text.extend(hex(w32, 8).unwrap_or_default());
             text.extend_from_slice(b"\r\n");
         }
-        text.extend(register_dump(context));
+        if let Some(context) = context {
+            text.extend(register_dump(context));
+        }
     }
     text
 }
@@ -176,16 +179,18 @@ mod tests {
             b"",
             Some(b"a.txt"),
             5,
-            &c,
+            Some(&c),
         );
         let head =
             b"Error code [80108571]\r\nNeed\r\nmore\r\nLast file: `a.txt'\r\nW32=00000005\r\n";
         assert_eq!(&t[..head.len()], head);
         assert_eq!(&t[head.len()..], &dump[..]);
-        let t = report_text(0x1000_0001, Some(b""), b"x\r\n", Some(b"a"), 5, &c);
+        let t = report_text(0x1000_0001, Some(b""), b"x\r\n", Some(b"a"), 5, Some(&c));
         assert_eq!(t, b"x\r\n");
-        let t = report_text(0x0000_0002, Some(b"\\"), b"", None, 0, &c);
+        let t = report_text(0x0000_0002, Some(b"\\"), b"", None, 0, Some(&c));
         assert!(t.starts_with(b"Breakpoint [00000002]\r\n\\\r\nEAX="));
+        let t = report_text(0x0000_0002, Some(b"\\"), b"", None, 0, None);
+        assert_eq!(t, b"Breakpoint [00000002]\r\n\\\r\n");
         assert!(fits(0x3FF) && !fits(0x400));
     }
 

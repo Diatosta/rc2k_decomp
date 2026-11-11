@@ -18,18 +18,18 @@ pub fn normalise_work_vector(race: &Race) {
         .scratch
         .work_vector
         .each_ref()
-        .map(super::super::session::Dword::bits);
+        .map(super::super::session::Dword::get);
     let (length, zero) = x87::normalise_in_place(
         v.first_chunk_mut::<3>().expect("four parts"),
         race.course.numbers.zero.bits(),
     );
     for (cell, &bits) in race.frame.scratch.work_vector[..3].iter().zip(&v) {
-        cell.set_bits(bits);
+        cell.set(bits);
     }
-    scene().drawing.scene.scratch.set_bits(length);
+    scene().drawing.scene.scratch.set(length);
     for part in &race.frame.scratch.work_vector[..3] {
-        if zero || part.bits() == 0x8000_0000 {
-            part.set_bits(0u32);
+        if zero || part.get() == 0x8000_0000 {
+            part.set(0u32);
         }
     }
 }
@@ -99,7 +99,7 @@ pub fn store_face_normal(
         crate::race::course_places::update_face_number(face, what, |f| {
             f.set_switches(with_repeated(f.switches(), repeated));
         })?;
-        let count: u32 = race.course.course.scene_point_count.bits();
+        let count: u32 = race.course.course.scene_point_count.get();
         for (points, places) in NORMAL_TRIANGLES {
             let [a, b, c] = points.map(|k| corners[k]);
             if normal_made([a, b, c], count) {
@@ -127,10 +127,10 @@ pub fn lay_out_course(course: &Course) {
     {
         // Converted: `rc2k_core::race::faces::CourseLayout`.
         let layout = rc2k_core::race::faces::CourseLayout::of(
-            course.lists.course_memory.bits(),
-            course.course.course_record_count.bits(),
-            course.course.course_face_count.bits(),
-            course.course.scene_point_count.bits(),
+            course.lists.course_memory.get(),
+            course.course.course_record_count.get(),
+            course.course.course_face_count.get(),
+            course.course.scene_point_count.get(),
         );
         let [records, faces, points, after, after_offset] = layout.dwords();
         let c = &course.course;
@@ -166,7 +166,7 @@ pub fn store_norms(
 ) -> Result<(), Refused> {
     {
         // Converted: `rc2k_core::race::faces::check_face_count`.
-        let count: u32 = race.course.course.course_face_count.bits();
+        let count: u32 = race.course.course.course_face_count.get();
         rc2k_core::race::faces::check_face_count(count)?;
         lay_out_course(&race.course);
         for face in 0..count {

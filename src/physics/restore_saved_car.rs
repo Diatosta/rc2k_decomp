@@ -11,42 +11,32 @@
 //! work copy's end, 0x71AFB8), before writing.
 
 use crate::errors::Refused;
-use crate::race::owner::Race;
+use crate::physics::car_store::Car;
+use crate::physics::contact_store::ContactWork;
+use crate::physics::tables_store::PhysicsTables;
 use rc2k_core::physics::saved_car::{restore_count, restored};
 
 /// Converted: `rc2k_core::physics::saved_car::{restore_count, restored}`.
-pub fn restore_saved_car(race: &Race) -> Result<(), Refused> {
-    let n = restore_count(race.shared.car.probe_count.get())?;
-    race.shared
-        .physics_tables
+pub fn restore_saved_car(
+    car: &Car,
+    tables: &PhysicsTables,
+    contact: &ContactWork,
+) -> Result<(), Refused> {
+    let n = restore_count(car.probe_count.get())?;
+    tables
         .clear_place_count
-        .set(restored(race.shared.physics_tables.clear_place_count.get()));
-    for (to, from) in race
-        .shared
-        .car
-        .position
-        .iter()
-        .zip(&race.shared.physics_tables.saved_place)
-    {
+        .set(restored(tables.clear_place_count.get()));
+    for (to, from) in car.position.iter().zip(&tables.saved_place) {
         to.set(from.get());
     }
-    for (to, from) in race
-        .shared
-        .car
-        .crash_matrix
-        .iter()
-        .zip(&race.shared.physics_tables.saved_matrix)
-    {
+    for (to, from) in car.crash_matrix.iter().zip(&tables.saved_matrix) {
         to.set_bits(from.bits());
     }
     // By address: up to 0x7C dwords from a list of 0x40 (the original copies on into what
     // follows each).
     crate::session::copy_on_in(
-        (
-            &race.physics.contact,
-            &race.physics.contact.probe_saved_faces,
-        ),
-        (&race.shared.car, &race.shared.car.probe_point_face),
+        (contact, &contact.probe_saved_faces),
+        (car, &car.probe_point_face),
         n as usize,
         "the saved faces",
     )?;

@@ -195,6 +195,4 @@ pub fn change_page(menus: &Menus, page: ChangePage, confirm: bool) -> Result<(),
     Ok(())
 }
 
-// ---- hook side ----
-
 // ---- self-tests ----

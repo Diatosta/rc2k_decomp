@@ -30,7 +30,7 @@ pub fn set_mode(audio: &Audio, mode: u32) -> Result<bool, Refused> {
     crate::audio::stop_streams::stop_streams(audio)?;
     crate::audio::free_voices::free_voices(audio)?;
     close_way(audio, audio.state.sound_mode.get())?;
-    sd::release_primary(&audio.state)?;
+    sd::release_primary(&audio.state);
     audio.state.sound_mode.set(mode);
     // Converted: `rc2k_core::audio::modes::channels`. `g_soundCaps`: free hardware buffers
     // +0x24 all, +0x28 static, +0x3C 3D all, +0x40 3D static.

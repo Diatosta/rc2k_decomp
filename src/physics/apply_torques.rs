@@ -8,13 +8,20 @@
 
 use crate::errors::Refused;
 use crate::physics::apply_torque::apply_torque;
+use crate::physics::car_store::Car;
+use crate::physics::contact_store::ContactWork;
 use crate::physics::tables_store::ForceRecord;
-use crate::race::owner::Race;
+use crate::physics::tables_store::PhysicsTables;
 
 /// `records` (a whole table, the wheels' 0x17 or the contacts' 7) on the work car.
-pub fn apply_torques(race: &Race, records: &[ForceRecord]) -> Result<(), Refused> {
+pub fn apply_torques(
+    tables: &PhysicsTables,
+    contact: &ContactWork,
+    car: &Car,
+    records: &[ForceRecord],
+) -> Result<(), Refused> {
     for rec in records {
-        apply_torque(race, rec, &race.shared.car);
+        apply_torque(tables, contact, rec, car);
     }
     Ok(())
 }

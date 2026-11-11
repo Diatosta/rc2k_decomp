@@ -99,7 +99,7 @@ pub fn load_stage(race: &Race) -> Result<(), Refused> {
         &race.shared,
         crate::system::tick_count::tick_count(),
     );
-    let clock: u32 = race.shared.physics_tables.scene_clock.bits();
+    let clock: u32 = race.shared.physics_tables.scene_clock.get();
     race.frame.clock_ticks.clock_b.set(clock);
     race.frame.clock_ticks.sound_ticks.set(0);
     race.shared.physics_tables.race_clock_now.set(clock);

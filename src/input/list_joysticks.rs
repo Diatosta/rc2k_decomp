@@ -9,7 +9,7 @@
 use crate::input::owner::Input;
 
 pub fn list_joysticks(input: &Input) {
-    if input.devices.no_joysticks.get() != 0 {
+    if input.devices.no_joysticks.is_set() {
         return;
     }
     crate::input::di_objects::enum_devices(

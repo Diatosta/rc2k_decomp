@@ -6,15 +6,16 @@
 //!
 //! Caller: `physics::camera_avoid_ground` (0x4392CD).
 
-use crate::race::owner::Race;
+use crate::physics::camera_store::CameraWork;
+use crate::physics::car_store::Car;
 use crate::session::Cell32;
 use rc2k_core::physics::easing::ease_up;
 
-fn game(race: &Race) -> Vec<&dyn Cell32> {
+fn game<'a>(car: &'a Car, camera: &'a CameraWork) -> Vec<&'a dyn Cell32> {
     vec![
-        &race.physics.camera.pitch_ceiling as &dyn Cell32,
-        &race.shared.car.camera_pitch,
-        &race.physics.camera.pitch_step,
+        &camera.pitch_ceiling as &dyn Cell32,
+        &car.camera_pitch,
+        &camera.pitch_step,
     ]
 }
 
@@ -27,6 +28,6 @@ fn core(v: &[&dyn Cell32]) {
     v[1].set_bits(value);
 }
 
-pub fn ease_pitch_up(race: &Race) {
-    core(&game(race));
+pub fn ease_pitch_up(car: &Car, camera: &CameraWork) {
+    core(&game(car, camera));
 }

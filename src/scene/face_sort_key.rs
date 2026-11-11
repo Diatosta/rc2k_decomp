@@ -24,7 +24,7 @@ pub fn face_sort_key(
     face: usize,
     count: u32,
 ) -> Result<(), Refused> {
-    let vertices: u32 = poly.polygon_vertex_count.bits();
+    let vertices: u32 = poly.polygon_vertex_count.get();
     if face == 0
         || !crate::scene::point_records::held()
         || count == 0
@@ -41,7 +41,6 @@ pub fn face_sort_key(
         sum = x87::add(crate::scene::point_records::field(record, 0x18)?, sum);
     }
     let factor = course.lists.face_key_factors[vertices as usize].bits();
-    poly.face_sort_key
-        .set_bits(x87::mul_to_int(sum, factor) as u32);
+    poly.face_sort_key.set(x87::mul_to_int(sum, factor) as u32);
     Ok(())
 }

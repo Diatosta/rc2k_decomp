@@ -40,7 +40,7 @@ pub struct GameSurface;
 
 impl PictureSurface for GameSurface {
     fn locked(&self) -> bool {
-        gfx().locked.surface.get() != 0
+        gfx().locked.surface.is_set()
     }
     fn lock(&mut self) -> bool {
         // `cmp g_surfaceLocked, 1`'s carry clear: locked.

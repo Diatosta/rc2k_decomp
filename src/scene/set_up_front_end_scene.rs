@@ -110,18 +110,18 @@ pub fn set_up_front_end_scene() -> Result<(), Refused> {
     clear_slot_kinds(scene);
     colours(course, 0);
     // The scene's settings stored before the fog is cleared, after the two colours.
-    course.stage_prefs.scene_size_a.set_bits(0x100u32);
-    course.stage_prefs.scene_size_b.set_bits(0x100u32);
-    course.stage_prefs.fog_low.set_bits(0u32);
-    course.stage_prefs.fog_high.set_bits(0u32);
-    course.stage_prefs.fog_colour[0].set_bits(0u32);
-    course.stage_prefs.fog_colour[1].set_bits(0u32);
-    course.stage_prefs.fog_colour[2].set_bits(0u32);
-    course.stage_prefs.fog_near.set_bits(0u32);
-    course.stage_prefs.fog_start.set_bits(0u32);
-    course.stage_prefs.fog_end.set_bits(0u32);
+    course.stage_prefs.scene_size_a.set(0x100u32);
+    course.stage_prefs.scene_size_b.set(0x100u32);
+    course.stage_prefs.fog_low.set(0u32);
+    course.stage_prefs.fog_high.set(0u32);
+    course.stage_prefs.fog_colour[0].set(0u32);
+    course.stage_prefs.fog_colour[1].set(0u32);
+    course.stage_prefs.fog_colour[2].set(0u32);
+    course.stage_prefs.fog_near.set(0u32);
+    course.stage_prefs.fog_start.set(0u32);
+    course.stage_prefs.fog_end.set(0u32);
     crate::race::view_scratch::front_end().fog.clear();
-    shared.switches.scene_set_up.set_bits(1u32);
+    shared.switches.scene_set_up.set(1u32);
     fill_light_tables(scene, race)?;
 
     scene.objects.tables.slot_kinds[0].set(1);
@@ -148,7 +148,7 @@ pub fn set_up_front_end_scene() -> Result<(), Refused> {
             picture = picture.wrapping_add(1);
         }
     }
-    shared.vars.bar_function.set_bits(SHOW_BAR);
+    shared.vars.bar_function.set(SHOW_BAR);
     crate::scene::reload_system_textures::reload_system_textures(scene)?;
     allocate_point_records_in_game(course)?;
     colours(course, 0);
@@ -160,8 +160,8 @@ pub fn set_up_front_end_scene() -> Result<(), Refused> {
     );
     reload_slot_textures(frame, scene)?;
     colours(course, 0x7F);
-    shared.switches.scene_set_up.set_bits(1u32);
+    shared.switches.scene_set_up.set(1u32);
     fill_light_tables(scene, race)?;
-    shared.vars.settings_words[1].set_bits(1u32);
+    shared.vars.settings_words[1].set(1u32);
     Ok(())
 }

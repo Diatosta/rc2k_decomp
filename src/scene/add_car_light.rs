@@ -132,7 +132,7 @@ pub fn add_car_light(
     let place: [u32; 3] = crate::session::read_bits(&light.lit_place);
     let mut from = [0u32; 3];
     for k in 0..3 {
-        from[k] = place[k].wrapping_sub(car.position[k].bits());
+        from[k] = place[k].wrapping_sub(car.position[k].get());
     }
     let matrix = crate::session::read_bits(&car.car_inverse_matrix);
     let seen = turned(from, &matrix);
@@ -150,7 +150,7 @@ pub fn add_car_light(
     let mmx = system.session.machine.has_mmx.get() != 0;
     light
         .light_colour
-        .set(plus(colour, light.light_colour.bits(), mmx));
+        .set(plus(colour, light.light_colour.get(), mmx));
 }
 
 #[cfg(all(test, target_arch = "x86"))]

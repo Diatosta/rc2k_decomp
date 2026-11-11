@@ -12,7 +12,7 @@ use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
 
 fn count(shared: &RaceShared) -> Result<u32, Refused> {
-    let n: u32 = shared.vars.checkpoint_count.bits();
+    let n: u32 = shared.vars.checkpoint_count.get();
     if n > MOST_CHECKS {
         return Err(BadInput("more checkpoints than the lists hold").into());
     }
@@ -48,25 +48,25 @@ pub fn place_car_on_line(
     use rc2k_core::race::checkpoints::{lerp, line_neighbours};
     let count = count(shared)?;
     {
-        let (c, n) = line_neighbours(lights.state.line_place.bits(), count)?;
-        let t: u32 = lights.state.line_fraction.bits();
+        let (c, n) = line_neighbours(lights.state.line_place.get(), count)?;
+        let t: u32 = lights.state.line_fraction.get();
         let (face, a) = check_point(c)?;
-        course.course.place_face.set_bits(face);
+        course.course.place_face.set(face);
         let (_, b) = check_point(n)?;
         let (x, _) = lerp(get(a, 0)?, get(b, 0)?, t);
         let (y, _) = lerp(get(a, 1)?, get(b, 1)?, t);
-        let y = y.wrapping_add(shared.physics_tables.ground_drop.bits());
+        let y = y.wrapping_add(shared.physics_tables.ground_drop.get());
         let (z, _) = lerp(get(a, 2)?, get(b, 2)?, t);
         let heading_of =
             |k: u32| -> u32 { crate::race::checkpoints_store::angle(k as usize).get() };
         let (heading, _) = lerp(heading_of(c), heading_of(n), t);
-        course.course.place_x.set_bits(x);
-        course.course.place_y.set_bits(y);
-        course.course.place_z.set_bits(z);
-        course.course.place_heading.set_bits(heading);
-        shared.car.position[0].set_bits(x);
+        course.course.place_x.set(x);
+        course.course.place_y.set(y);
+        course.course.place_z.set(z);
+        course.course.place_heading.set(heading);
+        shared.car.position[0].set(x);
         shared.car.position[2].set(z);
-        shared.car.car_heading.set_bits(heading);
+        shared.car.car_heading.set(heading);
         shared.car.position[1].set(y);
         Ok(())
     }
@@ -83,9 +83,9 @@ pub fn distance_to_checkpoint(
     let physics = &race.physics;
     let drawing = &scene.drawing;
     // Converted: `rc2k_core::race::checkpoints::on_line`; the distance the x87's.
-    let count: u32 = race.shared.vars.checkpoint_count.bits();
+    let count: u32 = race.shared.vars.checkpoint_count.get();
     if !rc2k_core::race::checkpoints::on_line(c, count) {
-        drawing.scene.scratch.set_bits(u32::MAX);
+        drawing.scene.scratch.set(u32::MAX);
         return Ok(());
     }
     if c >= MOST_CHECKS {
@@ -93,12 +93,9 @@ pub fn distance_to_checkpoint(
     }
     {
         let (_, point) = check_point(c)?;
-        let dx = get(point, 0)?.wrapping_sub(physics.ground.ground_x.bits()) as i32;
-        let dz = get(point, 2)?.wrapping_sub(physics.ground.ground_z.bits()) as i32;
-        drawing
-            .scene
-            .scratch
-            .set_bits(x87::int_hypot(dx, dz) as u32);
+        let dx = get(point, 0)?.wrapping_sub(physics.ground.ground_x.get()) as i32;
+        let dz = get(point, 2)?.wrapping_sub(physics.ground.ground_z.get()) as i32;
+        drawing.scene.scratch.set(x87::int_hypot(dx, dz) as u32);
     }
     Ok(())
 }
@@ -132,7 +129,7 @@ pub fn nearest_checkpoint_in(
         let measured = measure_held(race, &mut c, to, &mut nearest, scene);
         if measured.is_err() || c < to {
             distance_to_checkpoint(race, c, scene)?;
-            nearest.consider(c, scene.drawing.scene.scratch.bits());
+            nearest.consider(c, scene.drawing.scene.scratch.get());
             c = c.wrapping_add(1);
         }
         if c >= to {
@@ -171,15 +168,15 @@ fn measure_held(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
     use crate::race::course_places::{faces_base, points_base, with_faces_and_points};
-    if race.course.course.course_faces.bits() != faces_base()
-        || race.course.course.scene_points.bits() != points_base()
+    if race.course.course.course_faces.get() != faces_base()
+        || race.course.course.scene_points.get() != points_base()
     {
         return Ok(());
     }
-    let count: u32 = race.shared.vars.checkpoint_count.bits();
+    let count: u32 = race.shared.vars.checkpoint_count.get();
     let (x, z) = (
-        race.physics.ground.ground_x.bits(),
-        race.physics.ground.ground_z.bits(),
+        race.physics.ground.ground_x.get(),
+        race.physics.ground.ground_z.get(),
     );
     // With rounding to nearest the distance is `round(sqrt(dx² + dz²))` in plain doubles,
     // rising with the sum: a checkpoint whose sum is at least (nearest + 1)² cannot be kept,
@@ -241,7 +238,7 @@ fn measure_held(
             .drawing
             .scene
             .scratch
-            .set_bits(x87::int_hypot(dx, dz) as u32);
+            .set(x87::int_hypot(dx, dz) as u32);
     }
     measured
 }
@@ -256,25 +253,25 @@ pub fn nearest_checkpoint(race: &Race, scene: &crate::scene::owner::Scene) -> Re
         race.physics
             .ground
             .ground_x
-            .set_bits(race.shared.car.position[0].bits());
+            .set(race.shared.car.position[0].get());
         race.physics
             .ground
             .ground_z
-            .set_bits(race.shared.car.position[2].get());
+            .set(race.shared.car.position[2].get());
         if count == 0 {
             return Ok(0);
         }
         let near = nearest_checkpoint_in(race, 0, count, scene)?;
-        scene.drawing.scene.scratch.set_bits(near.distance);
+        scene.drawing.scene.scratch.set(near.distance);
         // Converted: `rc2k_core::race::checkpoints::distance_units`.
         let units = rc2k_core::race::checkpoints::distance_units(
             near.distance,
-            f32::from_bits(race.course.numbers.k65536.bits()),
+            race.course.numbers.k65536.get(),
         );
         race.shared
             .physics_tables
             .nearest_checkpoint_distance
-            .set_bits(units.to_bits());
+            .set(units);
         Ok(near.checkpoint)
     }
 }
@@ -291,5 +288,5 @@ pub fn invert_car_matrix(race: &Race) {
         .drawing
         .scene
         .scratch
-        .set_bits(length);
+        .set(length);
 }

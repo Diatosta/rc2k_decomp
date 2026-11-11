@@ -156,7 +156,7 @@ pub fn lay_skidmarks(race: &Race) -> Result<(), Refused> {
                     car.skid_grip[wheel / 2].bits(),
                     grip,
                 )
-                && car.parts_present.bits() & (1 << (5 + wheel)) != 0;
+                && car.parts_present.get() & (1 << (5 + wheel)) != 0;
             if !on {
                 slot.set(u32::MAX);
                 continue;

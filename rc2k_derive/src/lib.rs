@@ -59,6 +59,9 @@ pub fn derive_cells(input: TokenStream) -> TokenStream {
     } else {
         quote! { let starts = [#( ::core::mem::offset_of!(Self, #names) ),*]; }
     };
+    // `field_path` (tests only): the path of the primitive cell holding a byte, from the record's
+    // field names, for the debug pages' tables.
+    let path_names: Vec<_> = names.iter().map(|n| format!(".{n}")).collect();
     quote! {
         const _: () = {
             const fn is_cells<T: crate::pointers::Cells + ?Sized>() {}
@@ -76,6 +79,19 @@ pub fn derive_cells(input: TokenStream) -> TokenStream {
 
             fn merge_changes(&self, now: &Self, start: &Self) {
                 #( crate::pointers::Cells::merge_changes(&self.#names, &now.#names, &start.#names); )*
+            }
+
+            #[cfg(test)]
+            fn field_path(&self, offset: usize, path: &mut String) -> &'static str {
+                #starts
+                let field = starts.partition_point(|&start| start <= offset).wrapping_sub(1);
+                match field {
+                    #( #indices => {
+                        path.push_str(#path_names);
+                        crate::pointers::Cells::field_path(&self.#names, offset - starts[#indices], path)
+                    } )*
+                    _ => panic!("Cells: byte {offset} outside the record"),
+                }
             }
 
             fn cell_run(&self, offset: usize) -> (usize, crate::pointers::CellRun<'_>) {

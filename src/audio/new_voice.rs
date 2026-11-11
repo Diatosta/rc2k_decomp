@@ -8,7 +8,7 @@
 use crate::audio::store::AudioState;
 use crate::errors::{FatalError, Refused};
 
-pub fn new_voice_in_game(state: &AudioState) -> Result<u32, Refused> {
+pub fn new_voice(state: &AudioState) -> Result<u32, Refused> {
     // Converted: `rc2k_core::audio::voices::new_voice`.
     let mut n = state.voice_count.get();
     let Some(place) = rc2k_core::audio::voices::new_voice(&mut n) else {

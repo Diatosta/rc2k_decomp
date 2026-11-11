@@ -31,7 +31,13 @@ use crate::race::owner::Race;
 fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let physics_store = &race.physics;
     physics_store.contact.ground_contact_started.set(0);
-    { lowest_body_point(race) }?;
+    {
+        lowest_body_point(
+            &race.shared.car,
+            &race.course.numbers,
+            &race.physics.contact,
+        )
+    }?;
     let depth = physics_store.contact.lowest_depth.get();
     let limit = rc2k_core::physics::contacts::GROUND_LIMIT;
     if !rc2k_core::physics::contacts::touches(
@@ -61,7 +67,13 @@ fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused>
         &race.shared.physics_tables.contacts[2].force,
     );
     if sign(physics_store.contact.lowest_depth.get()) {
-        { restore_saved_car(race) }?;
+        {
+            restore_saved_car(
+                &race.shared.car,
+                &race.shared.physics_tables,
+                &race.physics.contact,
+            )
+        }?;
         { feel_ground(race, scene) }?;
     }
     Ok(())

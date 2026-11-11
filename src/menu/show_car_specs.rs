@@ -37,7 +37,7 @@ pub fn show_car_specs(menus: &Menus) -> Result<(), Refused> {
         cars = cheat;
     }
     { run_screen(screen, &Entry::with_cars(menus, Some(cars))) }?;
-    if { menus.tables.captions.screen_left.get() } != 1 {
+    if { menus.tables.captions.left_by_key.get() } != 1 {
         crate::menu::take_shown_car::take_shown_car(menus, Some(cars))?;
     }
     Ok(())

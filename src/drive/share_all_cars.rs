@@ -79,15 +79,15 @@ pub fn share_all_cars(
         .shared
         .work
         .car_record(crate::race::blocks_store::own_car_number())?;
-    EFFECTS_SETTINGS.sound_objects_shown.set_bits(0u32);
+    EFFECTS_SETTINGS.sound_objects_shown.set(0u32);
     let reading = crate::scene::reading::Reading::new();
     let (shown, _) =
-        sharing::cars_shown(crate::race::blocks_store::own_car().car_kind.bits(), || {
+        sharing::cars_shown(crate::race::blocks_store::own_car().car_kind.get(), || {
             reading.keep(Ok(first_record.face_sums[0].get()))
         });
     reading.finish()?;
     if shown {
-        EFFECTS_SETTINGS.sound_objects_shown.set_bits(1u32);
+        EFFECTS_SETTINGS.sound_objects_shown.set(1u32);
     }
     put_back_lead_car_values(&race.frame);
     Ok(())

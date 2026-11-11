@@ -92,12 +92,12 @@ fn cut(
     b: &PolygonEntry,
     mask: u32,
 ) -> Result<u32, BadInput> {
-    let number: u32 = poly.polygon_next_entry.bits();
+    let number: u32 = poly.polygon_next_entry.get();
     if number >= ENTRIES {
         return Err(BadInput("no entry left for a new vertex"));
     }
     // the pool's next record (its number: `scene::point_records::of_pool`)
-    let record: u32 = poly.polygon_next_record.bits();
+    let record: u32 = poly.polygon_next_record.get();
     if record == 0 {
         return Err(BadInput("no pool of records"));
     }
@@ -120,15 +120,15 @@ fn cut(
     let out_2 = crate::session::read_bits(&poly.clip_out_words);
     w[OUT_1 / 4..OUT_1 / 4 + 12].copy_from_slice(&out_1);
     w[OUT_2 / 4..OUT_2 / 4 + 5].copy_from_slice(&out_2);
-    w[PLANE / 4] = poly.clip_plane.bits();
+    w[PLANE / 4] = poly.clip_plane.get();
     match edge {
         Edge::X(at) => {
-            poly.clip_kept_mask.set_bits(mask);
+            poly.clip_kept_mask.set(mask);
             w[OUT_1 / 4] = at;
             cut_at_x(&mut w);
         }
         Edge::Y(at) => {
-            poly.clip_kept_mask.set_bits(mask);
+            poly.clip_kept_mask.set(mask);
             w[OUT_1 / 4 + 1] = at;
             cut_at_y(&mut w);
         }
@@ -141,9 +141,9 @@ fn cut(
                 poly.window.view_scale.bits(),
                 poly.window.view_centre[0].bits(),
                 poly.window.view_centre[1].bits(),
-                course.course.flat_depth.bits(),
+                course.course.flat_depth.get(),
             ];
-            let flat = course.stage_prefs.flat_depth.bits() != 0;
+            let flat = course.stage_prefs.flat_depth.get() != 0;
             to_screen(
                 &mut point,
                 &v,
@@ -158,7 +158,7 @@ fn cut(
     crate::session::write_bits(&poly.clip_work, out_1);
     crate::session::write_bits(&poly.clip_out_words, out_2);
 
-    poly.polygon_next_record.set_bits(record.wrapping_add(1));
+    poly.polygon_next_record.set(record.wrapping_add(1));
     new.record.set(record);
     if !matches!(edge, Edge::Depth(_)) {
         made[..3].copy_from_slice(&out_1[5..8]);
@@ -231,11 +231,11 @@ pub fn clip_pass(
         if a_inside != b_inside {
             let number = cut(poly, course, edge, a, b, mask)?;
             crate::scene::polygon::list_cell(out).set(number);
-            poly.polygon_next_entry.set_bits(number + 1);
+            poly.polygon_next_entry.set(number + 1);
             out += 1;
         }
     }
-    poly.polygon_vertex_count.set_bits(out as u32);
+    poly.polygon_vertex_count.set(out as u32);
     Ok(None)
 }
 

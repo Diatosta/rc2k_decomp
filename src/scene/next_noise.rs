@@ -19,9 +19,9 @@ pub fn noise_step(state: u32) -> u32 {
 /// Converted: `rc2k_core::scene::noise::Noise::draw`.
 pub fn next_noise(shared: &RaceShared) -> u32 {
     let mut n = rc2k_core::scene::noise::Noise {
-        state: shared.physics_tables.noise_state.bits(),
+        state: shared.physics_tables.noise_state.get(),
     };
     let number = n.draw();
-    shared.physics_tables.noise_state.set_bits(n.state);
+    shared.physics_tables.noise_state.set(n.state);
     number
 }

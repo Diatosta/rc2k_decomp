@@ -7,10 +7,12 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::race::owner::Race;
+use crate::physics::car_store::Car;
+use crate::physics::store::DamageModel;
+use crate::race::work_store::RaceWork;
 
-pub fn damage_step(race: &Race) {
-    crate::physics::damage_factors::steps(race);
-    crate::physics::damage_wear::steps(race);
-    crate::physics::damage_gauges::steps(race);
+pub fn damage_step(car: &Car, damage: &DamageModel, work: &RaceWork) {
+    crate::physics::damage_factors::steps(car, damage);
+    crate::physics::damage_wear::steps(car, damage);
+    crate::physics::damage_gauges::steps(car, damage, work);
 }

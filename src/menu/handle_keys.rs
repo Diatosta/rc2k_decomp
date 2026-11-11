@@ -45,8 +45,8 @@ pub fn handle_keys(menus: &Menus, eax: u32) -> Result<Pressed, Refused> {
     if menus.screens.flow.asking.get() == 1 && !has_layout() {
         return Err(BadInput("no keyboard layout").into());
     }
-    menus.screens.option_work.menu_sound.set(keys::NO_SOUND);
-    menus.screens.loop_flags.back.set(0u32);
+    menus.screens.option_work.set_sound(keys::MenuSound::None);
+    menus.screens.loop_flags.leave_screen.set(0u32);
     let key = take_key();
     if key == 0 {
         return Ok(nothing);
@@ -57,16 +57,16 @@ pub fn handle_keys(menus: &Menus, eax: u32) -> Result<Pressed, Refused> {
     match action {
         Action::Ignored => return Ok(nothing),
         Action::Escape => {
-            menus.screens.loop_flags.back.set(1u32);
-            menus.screens.draw_work.escaped.set(1u32);
-            menus.tables.captions.screen_left.set(1);
+            menus.screens.loop_flags.leave_screen.set(1u32);
+            menus.screens.draw_work.escape_pressed.set(1u32);
+            menus.tables.captions.left_by_key.set(1);
             return Ok(Pressed::Escape);
         }
         _ => {}
     }
     let clock: u32 = system().session.clocks.frame.get();
     if action == Action::Enter {
-        menus.screens.option_work.menu_sound.set(keys::ENTER_SOUND);
+        menus.screens.option_work.set_sound(keys::MenuSound::Enter);
         menus.play.champ_view.last_key_time.set(clock);
         menus
             .screens

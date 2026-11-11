@@ -23,8 +23,8 @@ fn each_frame(entry: &Entry) -> Result<Flow, Refused> {
             if menus.screens.option_work.typing.get() != 0x0 {
                 return Ok(Flow::NextFrame);
             }
-            if menus.tables.captions.screen_left.get() == 0x1 {
-                menus.tables.captions.screen_left.set(0x0u32);
+            if menus.tables.captions.left_by_key.get() == 0x1 {
+                menus.tables.captions.left_by_key.set(0x0u32);
                 menus.screens.draw_work.scratch_0c.set(0xFFFFFFFFu32);
                 return Ok(Flow::Leave);
             }
@@ -69,7 +69,7 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::Write(|m| &m.screens.draw_work.escaped, 0x0)],
+    before: &[Step::Write(|m| &m.screens.draw_work.escape_pressed, 0x0)],
     background: &[Step::Call(Callee::LoadBackground(|m| {
         &m.tables.texts.save_replay_picture
     }))],

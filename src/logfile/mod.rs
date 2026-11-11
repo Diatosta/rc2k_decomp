@@ -1,5 +1,4 @@
-//! The game's log (`var\logfile.txt`): hooks removed in conversion phase 4, 2026-10-22; Rust
-//! callers call `write_line::log_text` and the number loggers directly, or through the
+//! The game's log (`var\logfile.txt`). Callers use `write_line::log_text` and the number loggers directly, or through the
 //! routes (`crate::routes`).
 
 pub mod date_text;

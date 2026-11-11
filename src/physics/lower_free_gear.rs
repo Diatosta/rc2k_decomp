@@ -14,8 +14,8 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::physics::car_store::Car;
 use crate::physics::gear_bit::bits_at;
-use crate::race::owner_shared::RaceShared;
 
 /// On the bits at `bits`: the free lower gear (None when neutral is reached first: CF).
 // Converted: `rc2k_core::physics::gearbox::GearBits::lower_free`.
@@ -27,6 +27,6 @@ pub fn lower_free_gear_at(
     Ok(s.found.then_some(s.gear))
 }
 
-pub fn lower_free_gear(shared: &RaceShared, gear: u32) -> Result<Option<u32>, Refused> {
-    lower_free_gear_at(&shared.car.lost_gear_bits, gear)
+pub fn lower_free_gear(car: &Car, gear: u32) -> Result<Option<u32>, Refused> {
+    lower_free_gear_at(&car.lost_gear_bits, gear)
 }

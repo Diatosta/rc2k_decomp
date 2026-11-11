@@ -13,17 +13,12 @@
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
-    Callee, Entry, List, Screen, Step, carousel, prepare_scene, screen_entry,
+    Callee, Entry, List, MenuSound, Screen, Step, carousel, prepare_scene, screen_entry,
 };
 
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
-    crate::scene::polygon_work::front_end().window.view_offset[0].set(0x7u32);
-    crate::scene::polygon_work::front_end().window.view_offset[1].set(0xAu32);
-    crate::scene::polygon_work::front_end()
-        .window
-        .view_zoom
-        .set(0x100u32);
+    entry.set_view(7, 10, 0x100);
     prepare_scene(entry.scene);
     screens.flow.turning.set(0x1u32);
     screens.state.carousel.menu.set(0x2u32);
@@ -52,12 +47,12 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::Write(|m| &m.screens.event.event_done, 0x0)],
+    before: &[Step::Write(|m| &m.screens.event.event_over, 0x0)],
     set_up_first: &[Step::Do(set_up_first)],
     background: &[Step::Call(Callee::LoadBackground(|m| {
         &m.tables.texts.time_trial_select_players_picture
     }))],
-    after: &[Step::Write(|m| &m.screens.option_work.menu_sound, 0x6F)],
+    after: &[Step::Sound(MenuSound::None)],
     ..Screen::new(
         |m| m.tables.menus.time_trial_select_players.id(),
         |m| &m.screens.items.current[slot::TIME_TRIAL_SELECT_PLAYERS],

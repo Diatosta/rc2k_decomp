@@ -22,7 +22,7 @@ pub fn set_view_at(car: &Car, step: &Dword) -> Result<(), BadInput> {
         wanted: car.camera_blend_view.get(),
         ..CameraView::default()
     };
-    v.take_wanted(step.bits());
+    v.take_wanted(step.get());
     car.camera_view.set(v.view);
     car.camera_switch_active.set(v.held);
     car.camera_switch_share.set_bits(v.w69c);

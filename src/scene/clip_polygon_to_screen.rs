@@ -64,11 +64,11 @@ pub fn clip_polygon_to_screen(
 ) -> Result<(), BadInput> {
     let course = &race.course;
     let (entries, mask) = outside_mask(poly)?;
-    poly.screen_clipped.set_bits(1u32);
+    poly.screen_clipped.set(1u32);
     if mask == 0 {
         return Ok(());
     }
-    poly.polygon_clip_mask.set_bits(mask);
+    poly.polygon_clip_mask.set(mask);
     or_undone(|| {
         let mut listed = Some(entries);
         for (bit, edge, inside_past) in [
@@ -79,7 +79,7 @@ pub fn clip_polygon_to_screen(
         ] {
             if mask & bit != 0 {
                 listed = clip_pass(poly, course, listed, edge, inside_past, mask)?;
-                if poly.polygon_vertex_count.bits() < 3 {
+                if poly.polygon_vertex_count.get() < 3 {
                     break;
                 }
             }

@@ -7,7 +7,7 @@
 
 use crate::errors::Refused;
 use crate::menu::screen_loop::{Entry, run_screen};
-use crate::net::choose_car::ESCAPED;
+use crate::net::choose_car::ESCAPE_PRESSED;
 use crate::net::store::NetVars;
 use crate::net::store::PlayerRecord;
 use crate::race::owner::Race;
@@ -15,14 +15,14 @@ use crate::race::owner::Race;
 /// The stage screen; the lobby loop's leftovers it carries (see `net::choose_car`) are all 0
 /// here.
 pub fn choose_stage(race: &Race, vars: &NetVars) -> Result<(), Refused> {
-    ESCAPED.set(0);
+    ESCAPE_PRESSED.set(0);
     {
         run_screen(
             &crate::menu::select_stage_loop::SCREEN,
             &Entry::new(crate::menu::owner::menus()),
         )
     }?;
-    if ESCAPED.get() != 1 {
+    if ESCAPE_PRESSED.get() != 1 {
         vars.own.head.set(
             PlayerRecord::STAGE,
             race.shared.state.settings.stage.get() as u8,

@@ -17,12 +17,12 @@ use rc2k_core::drive::countdown::{self, Beep};
 // Converted: `rc2k_core::drive::countdown::countdown_beep`.
 pub fn countdown_beep(race: &Race, block: &Car, to: &Loose32) -> Result<(), Refused> {
     let beep = countdown::countdown_beep(
-        block.false_start_count.bits(),
-        block.driver_kind.bits(),
+        block.false_start_count.get(),
+        block.driver_kind.get(),
         || {
             block
                 .run_ticks
-                .bits()
+                .get()
                 .wrapping_sub(race.frame.panel_and_overlay.overlay.countdown_start.get())
         },
     );

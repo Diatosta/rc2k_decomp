@@ -76,13 +76,13 @@ pub fn draw_shown_car(
     if car >= ENTRIES {
         return Err(BadInput("a car shown past the carousel's kinds").into());
     }
-    let clock: u32 = shared.physics_tables.scene_clock.bits();
+    let clock: u32 = shared.physics_tables.scene_clock.get();
     object_place.angles[1].set((clock << 3) & 0xFFFF);
     object_place.place[2].set(screens.state.carousel.z.get());
     let kind = screens.state.carousel.kinds[car as usize].get();
     screens.state.carousel.kind.set(kind);
     let object = find_object_of_kind(kind, scene);
-    cars.object_number.set_bits(object);
+    cars.object_number.set(object);
     draw()
 }
 
@@ -102,7 +102,7 @@ pub fn run() -> Result<(), crate::errors::Refused> {
     pick_pictures(menus)?;
     map_texture_places(scene);
     load_slot_textures_in_game(&race.frame, scene)?;
-    scene.lights.state.draw_mode.set_bits(0u32);
+    scene.lights.state.draw_mode.set(0u32);
     // The front end's 3D draws on a slot of its own (frame plan F4).
     let ctx = crate::race::view_scratch::DrawCtx::new(
         race,

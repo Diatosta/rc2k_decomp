@@ -33,11 +33,11 @@ pub fn take_split_counted(race: &Race, sound: &crate::sound::owner::Sound) -> Re
     )? {
         return Ok(());
     }
-    { keep_split_time(race) }?;
+    { keep_split_time(&race.shared.car, &race.physics.split_tables) }?;
     { flag_current_car_listed(race, sound) }?;
     split_by_mode(race)?;
     put_split_time(
-        &race.shared,
+        &race.shared.car,
         race.shared.car.splits_recorded.get() as usize,
         race.shared.car.split_gaps[0].get(),
     )?;

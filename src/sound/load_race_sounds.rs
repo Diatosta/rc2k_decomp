@@ -75,7 +75,7 @@ pub fn load_race_sounds(
         kind if kind < KINDS => Ok(kind as usize),
         _ => Err(BadInput("a car's kind past the table of sound sets")),
     };
-    let replay = race().shared.state.results.finished.get() != 0;
+    let replay = race().shared.state.results.finished.is_set();
     let (count, other_count) = (r.one_player.get(), r.count.get());
     let kinds = if replay {
         None

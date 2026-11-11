@@ -9,10 +9,10 @@ use rc2k_core::menu::leaving::{Leaving, Question};
 fn leaving_cells() -> [&'static Dword; 5] {
     let screens = &menus().screens;
     [
-        &screens.loop_flags.went_back,
-        &screens.loop_flags.back,
-        &screens.loop_flags.ended_b,
-        &screens.loop_flags.ended_a,
+        &screens.loop_flags.event_left,
+        &screens.loop_flags.leave_screen,
+        &screens.loop_flags.left_with_carry,
+        &screens.loop_flags.ask_leave,
         &screens.draw_work.scratch_0c,
     ]
 }
@@ -24,7 +24,7 @@ fn question_cells() -> [&'static Dword; 3] {
     [
         &menus.screens.flow.asking,
         &menus.tables.pages.yes_no_answer,
-        &menus.tables.captions.screen_left,
+        &menus.tables.captions.left_by_key,
     ]
 }
 
@@ -39,12 +39,18 @@ fn put<const N: usize>(at: [&'static Dword; N], v: [u32; N]) {
 }
 
 pub fn leaving() -> Leaving {
-    let [leave_event, leave_screen, leave_too, ask, scratch_0c] = get(leaving_cells());
-    Leaving {
-        leave_event,
+    let [
+        event_left,
         leave_screen,
-        leave_too,
-        ask,
+        left_with_carry,
+        ask_leave,
+        scratch_0c,
+    ] = get(leaving_cells());
+    Leaving {
+        event_left,
+        leave_screen,
+        left_with_carry,
+        ask_leave,
         scratch_0c,
     }
 }
@@ -53,10 +59,10 @@ pub fn put_leaving(l: &Leaving) {
     put(
         leaving_cells(),
         [
-            l.leave_event,
+            l.event_left,
             l.leave_screen,
-            l.leave_too,
-            l.ask,
+            l.left_with_carry,
+            l.ask_leave,
             l.scratch_0c,
         ],
     );

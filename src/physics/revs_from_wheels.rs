@@ -11,10 +11,16 @@
 //! before writing.
 
 use crate::errors::Refused;
+use crate::physics::car_store::Car;
 use crate::physics::gearing::*;
-use crate::race::owner::Race;
+use crate::physics::tables_store::PhysicsTables;
+use crate::race::numbers_store::Numbers;
 
 /// The exact version, for the gearbox's Rust callers, on the game's variables.
-pub fn revs_from_wheels(race: &Race) -> Result<(), Refused> {
-    revs_from_wheels_at(&race.course, &GearPlaces::game(&race.shared))
+pub fn revs_from_wheels(
+    car: &Car,
+    tables: &PhysicsTables,
+    numbers: &Numbers,
+) -> Result<(), Refused> {
+    revs_from_wheels_at(numbers, &GearPlaces::game(car, tables))
 }

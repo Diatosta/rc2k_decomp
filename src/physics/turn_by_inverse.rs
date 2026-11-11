@@ -12,9 +12,9 @@
 //! above are the original's, for reference.
 
 use crate::math::cells::Cells;
+use crate::physics::car_store::Car;
 use crate::physics::turn_by_car_matrix::turn_cells;
-use crate::race::owner_shared::RaceShared;
 
-pub fn turn_by_inverse(shared: &RaceShared, v: &(impl Cells + ?Sized)) {
-    turn_cells(&shared.car.car_inverse_matrix, v);
+pub fn turn_by_inverse(car: &Car, v: &(impl Cells + ?Sized)) {
+    turn_cells(&car.car_inverse_matrix, v);
 }

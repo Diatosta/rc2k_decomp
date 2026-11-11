@@ -46,7 +46,7 @@ fn state(
     course: &crate::race::owner_course::Course,
     face: &crate::race::face_work::FaceWork,
 ) -> Option<u32> {
-    (course.course.course_faces.bits() != 0).then(|| face.course_face.bits())
+    (course.course.course_faces.get() != 0).then(|| face.course_face.get())
 }
 
 /// The state's four dwords from +0x30 of the face.
@@ -66,7 +66,7 @@ fn step_shape(
         u32::from_le_bytes([b[4 * k], b[4 * k + 1], b[4 * k + 2], b[4 * k + 3]])
     });
     crate::session::write_bits(&scene.lights.work.phase_lengths, LENGTHS);
-    let clock: u32 = shared.physics_tables.scene_clock.bits();
+    let clock: u32 = shared.physics_tables.scene_clock.get();
     time = time.wrapping_add(clock.wrapping_sub(last).min(100));
     while time >= length {
         time -= length;
@@ -94,7 +94,7 @@ fn step_shape(
 pub fn set_object_material(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), BadInput> {
     let (race, scene) = (ctx.race, ctx.scene);
     let shared = &race.shared;
-    let object: u32 = ctx.view.cars.object_number.bits();
+    let object: u32 = ctx.view.cars.object_number.get();
     if object >= OBJECTS {
         return Err(BadInput("an object's number past the tables"));
     }
@@ -107,8 +107,8 @@ pub fn set_object_material(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
         return Err(BadInput("a moving object without its state"));
     }
     ctx.view.object.move_by.set(0);
-    ctx.view.polygon.polygon_colour.set_bits(0x00FF_FFFFu32);
-    ctx.view.cars.other_way_kind.set_bits(way);
+    ctx.view.polygon.polygon_colour.set(0x00FF_FFFFu32);
+    ctx.view.cars.other_way_kind.set(way);
     if let (4, Some(state)) = (way, state) {
         let points: [u32; 2] = [
             scene.objects.slots.first_point[object as usize].get(),
@@ -123,10 +123,10 @@ pub fn set_object_material(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
     ctx.view
         .object
         .first_face
-        .set_bits(scene.objects.slots.first_face[object as usize].get());
+        .set(scene.objects.slots.first_face[object as usize].get());
     ctx.view
         .object
         .face_count
-        .set_bits(scene.objects.slots.face_counts[object as usize].get());
+        .set(scene.objects.slots.face_counts[object as usize].get());
     Ok(())
 }

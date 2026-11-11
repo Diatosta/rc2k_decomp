@@ -125,7 +125,7 @@ pub fn set_up_car_points(
                 crate::scene::object_points::write(y, &lifted.to_le_bytes())?;
             }
             // Converted: `rc2k_core::race::cars::{point_float, open_two_points}`.
-            let scale = f32::from_bits(race.course.numbers.k65536.bits());
+            let scale = race.course.numbers.k65536.get();
             let car = car_at(block)?;
             let lists = [&car.probe_point_x, &car.probe_point_y, &car.probe_point_z];
             for n in 0..count {
@@ -146,12 +146,12 @@ pub fn set_up_car_points(
             race.physics.contact.car_point_count.set(count + 2);
         }
         log(c"carnum", false);
-        log_number(car_at(block)?.car_kind.bits(), false);
+        log_number(car_at(block)?.car_kind.get(), false);
         log(c"numcollpts", false);
         log_number(race.physics.contact.car_point_count.get(), true);
         car_at(block)?
             .probe_count
-            .set_bits(race.physics.contact.car_point_count.get());
+            .set(race.physics.contact.car_point_count.get());
     }
     Ok(())
 }
@@ -183,8 +183,8 @@ pub fn set_object_kinds(race: &Race, scene: &crate::scene::owner::Scene) -> Resu
         scene.objects.tables.slot_kinds[n as usize].set(default);
     }
     // `dword_5CCF7C` = `dword_621844`.
-    scene.objects.tables.slot_kinds[64].set(race.shared.switches.kept_kind.bits());
-    let cars: u32 = race.shared.view.race_cars.bits();
+    scene.objects.tables.slot_kinds[64].set(race.shared.switches.kept_kind.get());
+    let cars: u32 = race.shared.view.race_cars.get();
     if cars == 0 {
         return Ok(());
     }
@@ -193,7 +193,7 @@ pub fn set_object_kinds(race: &Race, scene: &crate::scene::owner::Scene) -> Resu
     for n in 0..cars {
         let block: u32 = race.shared.work.car_block(n as usize);
         for (kind, slot) in CAR_KINDS {
-            let car = car_at(block)?.car_kind.bits();
+            let car = car_at(block)?.car_kind.get();
             let k = match kind {
                 CarKind::Known => crate::scene::known_kind::known_kind(car),
                 CarKind::Table11 => car_table(&KIND_TABLES.kind_11_table, car),
@@ -225,7 +225,7 @@ pub fn reload_objects(race: &Race, scene: &crate::scene::owner::Scene) -> Result
     log(c"total polys", false);
     log_number(scene.objects.tables.face_count.get(), false);
     log(c"facemem used", false);
-    log_number(scene.drawing.object_work.face_cursor.bits(), true);
+    log_number(scene.drawing.object_work.face_cursor.get(), true);
     log(c"LOAD OBJECTS - FINIS", true);
     log(c"-------------------------------------", true);
     Ok(())

@@ -727,6 +727,17 @@ pub unsafe trait Cells {
     /// whole (`slice_run`).
     fn cell_run(&self, offset: usize) -> (usize, CellRun<'_>);
 
+    /// The path of the field holding byte `offset` (`.a.b[2]`) added to `path`, and the type of
+    /// the primitive cell it ends in: the debug pages' rows are named by it.
+    #[cfg(test)]
+    #[cfg_attr(not(debug_ui), allow(dead_code))] // only the debug pages' tests use it
+    fn field_path(&self, _offset: usize, _path: &mut String) -> &'static str
+    where
+        Self: Sized,
+    {
+        std::any::type_name::<Self>()
+    }
+
     /// A slice of this type as one run, when it is a primitive cell (an array's run).
     fn slice_run(_slice: &[Self]) -> Option<CellRun<'_>>
     where
@@ -1111,6 +1122,13 @@ unsafe impl<T: Cells, const N: usize> Cells for [T; N] {
         }
     }
 
+    #[cfg(test)]
+    fn field_path(&self, offset: usize, path: &mut String) -> &'static str {
+        let size = size_of::<T>();
+        path.push_str(&format!("[{}]", offset / size));
+        self[offset / size].field_path(offset % size, path)
+    }
+
     fn cell_run(&self, offset: usize) -> (usize, CellRun<'_>) {
         if let Some(run) = T::slice_run(self.as_slice()) {
             return (0, run);
@@ -1332,6 +1350,17 @@ pub unsafe trait Store: Sync {
     fn cell_run_at(&self, _offset: usize) -> Option<(usize, CellRun<'_>)> {
         None
     }
+    /// `Cells::field_path` of the record behind the store, and the record's type.
+    #[cfg(test)]
+    #[cfg_attr(not(debug_ui), allow(dead_code))] // only the debug pages' tests use it
+    fn field_path_at(&self, _offset: usize, _path: &mut String) -> Option<&'static str> {
+        None
+    }
+    #[cfg(test)]
+    #[cfg_attr(not(debug_ui), allow(dead_code))] // only the debug pages' tests use it
+    fn type_name(&self) -> &'static str {
+        ""
+    }
     fn load(&self, offset: usize, to: &mut [u8]) -> Result<(), BadInput>;
     fn store(&self, offset: usize, from: &[u8]) -> Result<(), BadInput>;
 }
@@ -1344,6 +1373,16 @@ unsafe impl<T: Cells + Sync> Store for T {
 
     fn cell_run_at(&self, offset: usize) -> Option<(usize, CellRun<'_>)> {
         Some(Cells::cell_run(self, offset))
+    }
+
+    #[cfg(test)]
+    fn field_path_at(&self, offset: usize, path: &mut String) -> Option<&'static str> {
+        Some(Cells::field_path(self, offset, path))
+    }
+
+    #[cfg(test)]
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<T>()
     }
 
     fn first(&self) -> *const u8 {

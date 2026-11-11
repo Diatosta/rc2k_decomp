@@ -3,15 +3,12 @@
 //!
 //! Caller: `physics::race_timers` (four calls).
 
-use crate::race::owner_shared::RaceShared;
+use crate::physics::car_store::Car;
 use crate::session::Cell32;
 use rc2k_core::physics::start::CarStart;
 
-fn game(shared: &RaceShared) -> Vec<&dyn Cell32> {
-    vec![
-        &shared.car.started_stand_timer as &dyn Cell32,
-        &shared.car.damage_failed,
-    ]
+fn game(car: &Car) -> Vec<&dyn Cell32> {
+    vec![&car.started_stand_timer as &dyn Cell32, &car.damage_failed]
 }
 
 /// On the variables' cells.
@@ -27,6 +24,6 @@ fn core(v: &[&dyn Cell32]) {
     crate::physics::cells::set_changed(v[0], was.started, c.started);
 }
 
-pub fn mark_car_started(shared: &RaceShared) {
-    core(&game(shared));
+pub fn mark_car_started(car: &Car) {
+    core(&game(car));
 }

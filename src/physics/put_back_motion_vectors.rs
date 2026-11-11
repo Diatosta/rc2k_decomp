@@ -6,18 +6,15 @@
 //! Caller: `physics::car_physics_step` (0x43B8F1, before `physics::limit_motion`).
 
 use crate::physics::car_frame_motion::car_frame_motion;
-use crate::race::owner::Race;
+use crate::physics::car_store::Car;
+use crate::physics::tables_store::PhysicsTables;
 
 /// The kept motion (`kept_vectors` 0 .. 2) and spin (4 .. 6) back, the motion turned into the car's
 /// frame.
-pub fn put_back_motion_vectors(race: &Race) {
+pub fn put_back_motion_vectors(car: &Car, tables: &PhysicsTables) {
     for k in 0..3 {
-        race.shared.car.velocity[k].set_bits(race.shared.physics_tables.kept_vectors[k].get());
-        race.shared.car.spin[k].set_bits(race.shared.physics_tables.kept_vectors[4 + k].get());
+        car.velocity[k].set_bits(tables.kept_vectors[k].get());
+        car.spin[k].set_bits(tables.kept_vectors[4 + k].get());
     }
-    car_frame_motion(
-        &race.shared.car.velocity,
-        &race.shared.car.car_inverse_matrix,
-        &race.shared.car.local_velocity,
-    );
+    car_frame_motion(&car.velocity, &car.car_inverse_matrix, &car.local_velocity);
 }

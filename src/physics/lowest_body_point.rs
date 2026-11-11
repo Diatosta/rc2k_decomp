@@ -12,12 +12,13 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::race::owner::Race;
-use crate::race::owner_course::Course;
+use crate::physics::car_store::Car;
+use crate::physics::contact_store::ContactWork;
+use crate::race::numbers_store::Numbers;
 use crate::session::Cell32;
 
 /// On the variables' cells `v`.
-pub fn lowest_at(course: &Course, v: &[&dyn Cell32]) -> Result<(), Refused> {
+pub fn lowest_at(numbers: &Numbers, v: &[&dyn Cell32]) -> Result<(), Refused> {
     let get = |k: usize| v[k].bits();
     let put = |k: usize, x: u32| v[k].set_bits(x);
     let n = get(0);
@@ -35,20 +36,20 @@ pub fn lowest_at(course: &Course, v: &[&dyn Cell32]) -> Result<(), Refused> {
             }
         }
     }
-    put(3, x87::int_div(get(1) as i32, course.numbers.k65536.bits()));
+    put(3, x87::int_div(get(1) as i32, numbers.k65536.bits()));
     Ok(())
 }
 
 /// The addresses: the count, the lowest, its number, the share, then the 0x40 depths.
-fn game(race: &Race) -> Vec<&dyn Cell32> {
+fn game<'a>(car: &'a Car, contact: &'a ContactWork) -> Vec<&'a dyn Cell32> {
     let mut v = vec![
-        &race.shared.car.probe_count as &dyn Cell32,
-        &race.physics.contact.lowest_depth,
-        &race.physics.contact.lowest_point,
-        &race.physics.contact.wheel_share,
+        &car.probe_count as &dyn Cell32,
+        &contact.lowest_depth,
+        &contact.lowest_point,
+        &contact.wheel_share,
     ];
     v.extend(
-        race.physics.contact.probe_height[..0x40]
+        contact.probe_height[..0x40]
             .iter()
             .map(|c| c as &dyn Cell32),
     );
@@ -57,6 +58,10 @@ fn game(race: &Race) -> Vec<&dyn Cell32> {
 
 /// The exact version, for `physics::feel_ground`, `ground_contact`, `find_clear_place`,
 /// `crash_contact`.
-pub fn lowest_body_point(race: &Race) -> Result<(), Refused> {
-    lowest_at(&race.course, &game(race))
+pub fn lowest_body_point(
+    car: &Car,
+    numbers: &Numbers,
+    contact: &ContactWork,
+) -> Result<(), Refused> {
+    lowest_at(numbers, &game(car, contact))
 }

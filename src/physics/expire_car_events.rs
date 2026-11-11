@@ -11,13 +11,14 @@
 //! 7.
 
 use crate::errors::Refused;
+use crate::physics::car_store::Car;
 use crate::physics::queue_car_event::{load, store};
-use crate::race::owner::Race;
+use crate::physics::tables_store::PhysicsTables;
 
-pub fn expire_car_events(race: &Race) -> Result<(), Refused> {
-    let was = load(race);
+pub fn expire_car_events(car: &Car, tables: &PhysicsTables) -> Result<(), Refused> {
+    let was = load(car);
     let mut q = was;
-    q.expire(race.shared.physics_tables.scene_clock.get())?;
-    store(&race.shared, &was, &q);
+    q.expire(tables.scene_clock.get())?;
+    store(car, &was, &q);
     Ok(())
 }

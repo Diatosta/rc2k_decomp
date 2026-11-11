@@ -499,11 +499,11 @@ impl ForceFeedback {
                 Dword::new(0),
                 Dword::new(0),
             ],
-            effect_ten: Float::from_bits(0x41200000),
-            effect_angle_scale: Float::from_bits(0x4322F983),
-            effect_full: Float::from_bits(0x43800000),
+            effect_ten: Float::new(10.0),
+            effect_angle_scale: Float::new(162.97466),
+            effect_full: Float::new(256.0),
             _gap_e8: Dword::new(0x42200000),
-            effect_tenth: Float::from_bits(0x3DCCCCCD),
+            effect_tenth: Float::new(0.1),
         }
     }
 }

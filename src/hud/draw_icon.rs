@@ -34,10 +34,10 @@ pub fn draw_icon(frame: &Frame, hud: &Hud, lights: &Lights, bottom: u32) -> Resu
     );
     for (n, u, v, x, y) in icons::corners(&i) {
         let at = &VERTICES.vertices[n];
-        at.u.set_bits((u as i32 as f32).to_bits());
-        at.v.set_bits((v as i32 as f32).to_bits());
-        at.x.set_bits((x as i32 as f32).to_bits());
-        at.y.set_bits((y as i32 as f32).to_bits());
+        at.u.set(u as i32 as f32);
+        at.v.set(v as i32 as f32);
+        at.x.set(x as i32 as f32);
+        at.y.set(y as i32 as f32);
         at.colour.set(i.colour);
         at.specular.set(0);
         // `fild` through `fistp_scratch`: it keeps the last.
@@ -45,6 +45,6 @@ pub fn draw_icon(frame: &Frame, hud: &Hud, lights: &Lights, bottom: u32) -> Resu
     }
     crate::scene::polygon_work::front_end()
         .polygon_vertex_count
-        .set_bits(4u32);
+        .set(4u32);
     crate::hud::add_polygon::add_polygon(frame, hud)
 }

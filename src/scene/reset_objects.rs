@@ -17,8 +17,8 @@ pub fn reset_objects(
 ) -> Result<(), BadInput> {
     {
         let (memory, room): (u32, u32) = (
-            course.lists.object_points.bits(),
-            course.lists.object_points_room.bits(),
+            course.lists.object_points.get(),
+            course.lists.object_points_room.get(),
         );
         if memory == 0 && room >= 4 {
             return Err(BadInput("room for the objects' points without memory"));
@@ -39,7 +39,7 @@ pub fn reset_objects(
         }
         scene.objects.tables.point_count.set(1);
         scene.objects.tables.face_count.set(0);
-        scene.drawing.object_work.face_cursor.set_bits(0u32);
+        scene.drawing.object_work.face_cursor.set(0u32);
         for kind in &scene.objects.tables.object_kinds {
             kind.set(u32::MAX);
         }

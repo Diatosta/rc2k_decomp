@@ -11,7 +11,7 @@ use crate::race::replay_viewer::Mode;
 /// them.)
 pub fn replay_mode(race: &Race, mode: Mode) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::viewer_flow::views_replay`.
-    if rc2k_core::race::viewer_flow::views_replay(race.shared.replay_file.replay_closed.bits()) {
+    if rc2k_core::race::viewer_flow::views_replay(race.shared.replay_file.replay_closed.get()) {
         crate::race::replay_viewer::replay_viewer(race, mode)?;
     }
     Ok(())

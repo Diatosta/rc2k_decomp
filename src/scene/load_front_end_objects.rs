@@ -29,16 +29,16 @@ pub fn load_front_end_objects(
     scene.objects.slots.no_normals.set(0);
     for slot in 0..SLOTS {
         let kind: u32 = scene.objects.tables.slot_kinds[slot as usize].get();
-        scene.drawing.object_work.loading_kind.set_bits(kind);
-        scene.drawing.object_work.loading_slot.set_bits(slot);
+        scene.drawing.object_work.loading_kind.set(kind);
+        scene.drawing.object_work.loading_slot.set(slot);
         load_object(scene, race)?;
     }
-    let cursor: u32 = scene.drawing.object_work.face_cursor.bits();
+    let cursor: u32 = scene.drawing.object_work.face_cursor.get();
     scene
         .drawing
         .object_work
         .point_memory_total
-        .set_bits(scene.objects.tables.point_count.get().wrapping_mul(12));
-    scene.drawing.object_work.face_memory_total.set_bits(cursor);
+        .set(scene.objects.tables.point_count.get().wrapping_mul(12));
+    scene.drawing.object_work.face_memory_total.set(cursor);
     Ok(())
 }

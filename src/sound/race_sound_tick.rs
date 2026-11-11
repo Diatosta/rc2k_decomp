@@ -15,8 +15,7 @@ use crate::race::owner_frame::Frame;
 
 // g_sceneClock, dword_5CC3B0 the last tick, dword_5CC3B8 the ticks counted.
 
-/// No caller reads what the original leaves in eax and ebx (every call site's live
-/// registers, 2026-10-23): the Rust version leaves nothing.
+/// Plays the race sounds once the sound clock says a tick is due.
 pub fn race_sound_tick(frame: &Frame) -> Result<(), Refused> {
     let input = crate::input::owner::input();
     let sound = crate::sound::owner::sound();

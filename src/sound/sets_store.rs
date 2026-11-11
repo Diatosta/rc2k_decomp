@@ -1485,7 +1485,7 @@ impl SoundKinds {
                     b"`jF\x00|\x92G\x00`jG\x00\x00\x80A\x00\x00\x80B\x00\x00@B",
                 ),
             ]),
-            sines: [const { Float::from_bits(0x0) }; 64],
+            sines: [const { Float::new(0.0) }; 64],
             _tail: Bytes::new([0; 8]),
         }
     }

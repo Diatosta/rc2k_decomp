@@ -17,19 +17,9 @@ use crate::menu::screen_loop::{
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
     log_line(c"InfoScr: Start");
-    crate::scene::polygon_work::front_end().window.view_offset[0].set(0xFFFFFF64u32);
-    crate::scene::polygon_work::front_end().window.view_offset[1].set(0x27u32);
-    crate::scene::polygon_work::front_end()
-        .window
-        .view_zoom
-        .set(0x140u32);
+    entry.set_view(-156, 39, 0x140);
     prepare_scene(entry.scene);
-    crate::scene::polygon_work::front_end().window.clip_edges[2].set(0xFFFFFFD8u32);
-    crate::scene::polygon_work::front_end().window.clip_edges[3].set(0x2F8u32);
-    crate::scene::polygon_work::front_end().window.clip_screen[2]
-        .set(crate::scene::polygon_work::front_end().window.clip_edges[2].bits() as i32 as f32);
-    crate::scene::polygon_work::front_end().window.clip_screen[3]
-        .set(crate::scene::polygon_work::front_end().window.clip_edges[3].bits() as i32 as f32);
+    entry.set_clip_sides(-40, 760);
     screens.flow.turning.set(0x1u32);
     screens.state.carousel.menu.set(0x9u32);
     carousel(None)?;

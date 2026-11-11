@@ -7,7 +7,8 @@
 
 use crate::math::x87;
 use crate::math::x87_run::{abs_compare, abs_div_add_mul};
-use crate::race::owner_shared::RaceShared;
+use crate::physics::car_store::Car;
+use crate::physics::tables_store::PhysicsTables;
 use crate::session::Cell32;
 
 fn at(a: &dyn Cell32) -> u32 {
@@ -20,13 +21,13 @@ fn put(a: &dyn Cell32, v: u32) {
 
 /// The core: the factor, the speed and the two forces at these places.
 pub fn ease_low_speed_forces_at(
-    shared: &RaceShared,
+    tables: &PhysicsTables,
     factor: &dyn Cell32,
     speed: &dyn Cell32,
     forces: [&dyn Cell32; 2],
 ) {
     put(factor, 0x3F80_0000);
-    let limit = shared.physics_tables.low_speed_limit.bits();
+    let limit = tables.low_speed_limit.bits();
     if abs_compare(at(speed), limit) & 0x100 == 0 {
         return;
     }
@@ -35,8 +36,8 @@ pub fn ease_low_speed_forces_at(
         abs_div_add_mul(
             at(speed),
             limit,
-            shared.physics_tables.low_speed_add.bits(),
-            shared.physics_tables.low_speed_scale.bits(),
+            tables.low_speed_add.bits(),
+            tables.low_speed_scale.bits(),
         ),
     );
     for f in forces {
@@ -45,14 +46,11 @@ pub fn ease_low_speed_forces_at(
 }
 
 /// The exact version, for `physics::drive_wheels_step`.
-pub fn ease_low_speed_forces(shared: &RaceShared) {
+pub fn ease_low_speed_forces(car: &Car, tables: &PhysicsTables) {
     ease_low_speed_forces_at(
-        shared,
-        &shared.physics_tables.low_speed_share,
-        &shared.car.local_velocity[2],
-        [
-            &shared.physics_tables.drive_forces[0],
-            &shared.physics_tables.drive_forces[1],
-        ],
+        tables,
+        &tables.low_speed_share,
+        &car.local_velocity[2],
+        [&tables.drive_forces[0], &tables.drive_forces[1]],
     );
 }

@@ -17,12 +17,7 @@ use crate::menu::screen_loop::{
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let menus = entry.menus;
     crate::strings::units::set_units(menus.play.players.players[0].get().metric_units); // g_isImperialUnits
-    crate::scene::polygon_work::front_end().window.view_offset[0].set(0xFFFFFF64u32);
-    crate::scene::polygon_work::front_end().window.view_offset[1].set(0x27u32);
-    crate::scene::polygon_work::front_end()
-        .window
-        .view_zoom
-        .set(0x140u32);
+    entry.set_view(-156, 39, 0x140);
     prepare_scene(entry.scene);
     menus.screens.flow.turning.set(0x1u32);
     menus.screens.state.carousel.menu.set(0x7u32);

@@ -23,8 +23,8 @@ use crate::errors::Refused;
 use crate::framework::log;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
-    ActionCheck, Asking, Callee, Entry, Flow, Frames, Keys, List, Screen, Step, carousel,
-    prepare_scene,
+    ActionCheck, Asking, Callee, Entry, Flow, Frames, Keys, List, MenuSound, Screen, Step,
+    carousel, prepare_scene,
 };
 use crate::menu::update_blink::update_blink;
 
@@ -32,20 +32,20 @@ use crate::menu::update_blink::update_blink;
 
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let menus = entry.menus;
-    menus.screens.event.event_done.set(0u32);
+    menus.screens.event.event_over.set(0u32);
     // menu::load_background (whether it failed is not looked at)
     Callee::LoadBackground(|m| &m.tables.texts.main_menu_picture).run(entry)?;
-    crate::scene::polygon_work::front_end().window.view_offset[0].set(7u32);
-    crate::scene::polygon_work::front_end().window.view_offset[1].set(0xAu32);
-    crate::scene::polygon_work::front_end()
-        .window
-        .view_zoom
-        .set(0x100u32);
+    entry.front_end.window.view_offset[0].set(7u32);
+    entry.front_end.window.view_offset[1].set(0xAu32);
+    entry.front_end.window.view_zoom.set(0x100u32);
     prepare_scene(entry.scene); // scene::prepare_menu_scene
-    menus.screens.loop_flags.ended_a.set(0u32);
+    menus.screens.loop_flags.ask_leave.set(0u32);
     Callee::TakeKey.run(entry)?; // input::take_key
-    menus.screens.draw_work.escaped.set(0u32);
-    menus.screens.option_work.menu_sound.set(0x6Fu32);
+    menus.screens.draw_work.escape_pressed.set(0u32);
+    menus
+        .screens
+        .option_work
+        .set_sound(rc2k_core::menu::keys::MenuSound::None);
     menus.screens.flow.turning.set(1u32);
     menus.screens.state.carousel.menu.set(0u32);
     carousel(None)?;
@@ -116,12 +116,12 @@ pub const SCREEN: Screen = Screen {
         },
     ],
     before: &[
-        Step::Write(|m| &m.screens.loop_flags.went_back, 0),
-        Step::Write(|m| &m.screens.loop_flags.back, 0),
-        Step::Write(|m| &m.screens.loop_flags.ended_b, 0),
-        Step::Write(|m| &m.screens.event.event_done, 0),
-        Step::Write(|m| &m.screens.option_work.menu_sound, 0x6F),
-        Step::Write(|m| &m.screens.draw_work.escaped, 0),
+        Step::Write(|m| &m.screens.loop_flags.event_left, 0),
+        Step::Write(|m| &m.screens.loop_flags.leave_screen, 0),
+        Step::Write(|m| &m.screens.loop_flags.left_with_carry, 0),
+        Step::Write(|m| &m.screens.event.event_over, 0),
+        Step::Sound(MenuSound::None),
+        Step::Write(|m| &m.screens.draw_work.escape_pressed, 0),
         Step::Write(|m| &m.screens.items.current[slot::MAIN_MENU], 1),
         Step::Write(|m| &m.screens.loop_flags.item, 1),
         Step::Call(Callee::SetUpFrontEnd),
@@ -141,10 +141,10 @@ pub const SCREEN: Screen = Screen {
     late_highlight: true,
     asking: Some(Asking {
         on_refusal: &[
-            Step::Write(|m| &m.screens.loop_flags.ended_a, 0),
-            Step::Write(|m| &m.screens.draw_work.escaped, 0),
-            Step::Write(|m| &m.screens.option_work.menu_sound, 0x6F),
-            Step::Write(|m| &m.screens.loop_flags.back, 0),
+            Step::Write(|m| &m.screens.loop_flags.ask_leave, 0),
+            Step::Write(|m| &m.screens.draw_work.escape_pressed, 0),
+            Step::Sound(MenuSound::None),
+            Step::Write(|m| &m.screens.loop_flags.leave_screen, 0),
         ],
         always: true,
         ..Asking::DEFAULT

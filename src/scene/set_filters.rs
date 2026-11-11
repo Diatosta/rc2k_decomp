@@ -15,7 +15,7 @@ use crate::scene::set_render_state::set_render_state;
 // Converted: `rc2k_core::scene::render_states::filters`
 pub fn set_filters() {
     {
-        for s in rc2k_core::scene::render_states::filters(race().shared.vars.mip_setting.bits()) {
+        for s in rc2k_core::scene::render_states::filters(race().shared.vars.mip_setting.get()) {
             set_render_state(s.value, s.state);
         }
     }

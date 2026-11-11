@@ -1,7 +1,7 @@
 //! DirectSound's device and primary buffer, given back and asked after (IDA, 2026-10-15):
 //! `audio::release_primary`, `read_caps`, `release_a3d`, `close_sound`. Their logging and
 //! the calls they make go through a `Part` (the place and eax), so that the tests can stand
-//! them in; in the game they are the Rust versions.
+//! them in.
 
 use crate::audio::a3d::{open_a3d, open_a3d2};
 use crate::audio::store::AudioState;
@@ -55,11 +55,6 @@ pub fn open_listener(state: &AudioState) -> Result<bool, Refused> {
     crate::audio::primary::open_listener(state, system().session.machine.has_fpu.get())
 }
 
-/// DirectSound closed (the game's object and window).
-pub fn close_sound_in_game(state: &AudioState) -> Result<(), Refused> {
-    close_sound(state)
-}
-
 /// DirectSound opened (GUID `guid`) with the game's variables: false when it failed.
 pub fn open_sound_in_game(state: &AudioState, guid: u32) -> Result<bool, Refused> {
     open_sound(state, guid, &mut game_direct_sound_create)
@@ -67,11 +62,11 @@ pub fn open_sound_in_game(state: &AudioState, guid: u32) -> Result<bool, Refused
 
 /// `audio::release_primary`: unless A3D or no primary buffer: stopped, its kept volume put
 /// back (unless 1, then 1), the listener released, the buffer released and forgotten.
-pub fn release_primary(state: &AudioState) -> Result<(), Refused> {
+pub fn release_primary(state: &AudioState) {
     {
         let p = state.primary_buffer.get();
         if crate::audio::buffer_settings::a3d(state) || p == 0 {
-            return Ok(());
+            return;
         }
         stop_primary(state);
         // Converted: `rc2k_core::audio::device::kept_volume`.
@@ -84,7 +79,6 @@ pub fn release_primary(state: &AudioState) -> Result<(), Refused> {
         crate::platform_sound::release(state.primary_buffer.get());
         state.primary_buffer.set(0);
     }
-    Ok(())
 }
 
 /// `audio::read_caps`: `GetCaps` into `g_soundCaps` (zeroed, its size 0x60), logged. False
@@ -246,6 +240,6 @@ pub fn reopen_sound(state: &AudioState) -> Result<bool, Refused> {
     ) {
         return Ok(false);
     }
-    close_sound_in_game(state)?;
+    close_sound(state)?;
     Ok(!open_sound_in_game(state, 0)?)
 }

@@ -22,6 +22,9 @@ pub fn free_rev_clutch(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
     free_rev(race, scene);
-    wheels_from_revs_at(&GearPlaces::game(&race.shared))?;
+    wheels_from_revs_at(&GearPlaces::game(
+        &race.shared.car,
+        &race.shared.physics_tables,
+    ))?;
     Ok(())
 }

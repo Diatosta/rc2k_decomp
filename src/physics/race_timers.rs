@@ -39,7 +39,7 @@ pub fn race_timers(race: &Race, sound: &crate::sound::owner::Sound) -> Result<()
     if run == TimerRun::None {
         return Ok(());
     }
-    count_start_second(&race.shared);
+    count_start_second(&race.shared.car);
     if run == TimerRun::Start {
         count_down_start(race, sound)?;
         take_split_counted(race, sound)?;
@@ -47,7 +47,7 @@ pub fn race_timers(race: &Race, sound: &crate::sound::owner::Sound) -> Result<()
     } else {
         take_split(race)?;
     }
-    count_stop_timers(race);
-    mark_car_started(&race.shared);
+    count_stop_timers(&race.shared.car, &race.course.numbers);
+    mark_car_started(&race.shared.car);
     Ok(())
 }

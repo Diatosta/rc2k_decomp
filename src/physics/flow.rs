@@ -8,6 +8,12 @@ use crate::math::x87_float::{compare, ld, st};
 use crate::math::x87_run::compare_full;
 use crate::session::Float;
 
+/// The bits of 0.0. The game keeps one such constant in `race.course.numbers.zero`
+/// (flt_5C5D90, 0.0 from the image); nothing in the program writes that cell (no
+/// `set` / `set_bits` on it, no byte write over IDA 0x5C5D90, checked 2026-11-11), so the
+/// physics reads this constant instead of going through the race for it.
+pub const ZERO_BITS: u32 = 0;
+
 /// The game's dword in the cell `x`.
 pub fn g(x: &impl crate::session::Cell32) -> u32 {
     x.bits()
@@ -49,8 +55,13 @@ pub fn abs_below_or_unordered(a: u32, b: u32) -> bool {
 /// `fld lim; fld v; fcompp; jnb skip; fld lim; fstp v`: v raised to lim when below it
 /// (or unordered).
 pub fn hold_low(v: &impl crate::session::Cell32, lim: &impl crate::session::Cell32) {
-    if c0(g(v), g(lim)) {
-        p(v, x87::loaded(g(lim)));
+    hold_low_bits(v, g(lim));
+}
+
+/// `hold_low` against a limit given as a value (its bits).
+pub fn hold_low_bits(v: &impl crate::session::Cell32, lim: u32) {
+    if c0(g(v), lim) {
+        p(v, x87::loaded(lim));
     }
 }
 

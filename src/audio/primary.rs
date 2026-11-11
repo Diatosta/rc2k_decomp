@@ -106,7 +106,7 @@ pub fn make_primary(state: &AudioState) -> Result<bool, Refused> {
         state.master_volume.set(volume);
     }
     menus().screens.option_work.master_volume_shown.set(volume);
-    crate::audio::set_master_volume::set_master_volume_in_game(state, volume);
+    crate::audio::set_master_volume::set_master_volume(state, volume);
     if state.sound_mode.get() & MODE_3D != 0 && !crate::audio::sound_device::open_listener(state)? {
         state.sound_mode.set(without_3d(state.sound_mode.get()));
     }

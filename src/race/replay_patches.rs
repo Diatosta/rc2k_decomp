@@ -40,7 +40,11 @@ pub fn apply_replay_patches(race: &Race) -> Result<(), Refused> {
         move_dwords(VIEWER_PANEL.kept_patch_switches.iter(), switches(shared)); // unk_5C2C98
         move_dwords(switches(shared), REPLAY_WORK.header_patches.iter()); // unk_719C58
         shared.work.patches_applied.set(0);
-        crate::physics::apply_patches::apply_patches(race);
+        crate::physics::apply_patches::apply_patches(
+            &race.shared.physics_tables,
+            &race.course.numbers,
+            &race.shared.work,
+        );
     }
     Ok(())
 }
@@ -58,7 +62,11 @@ pub fn restore_replay_patches(race: &Race) -> Result<(), Refused> {
         VIEWER_PANEL.patches_in_force.set(0);
         move_dwords(switches(shared), VIEWER_PANEL.kept_patch_switches.iter());
         shared.work.patches_applied.set(0);
-        crate::physics::apply_patches::apply_patches(race);
+        crate::physics::apply_patches::apply_patches(
+            &race.shared.physics_tables,
+            &race.course.numbers,
+            &race.shared.work,
+        );
     }
     Ok(())
 }

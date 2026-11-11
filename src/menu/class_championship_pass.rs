@@ -30,12 +30,12 @@ pub fn class_championship_pass(menus: &Menus) -> Result<(), Refused> {
         .map(|e| (e.group, e.player))
         .collect();
     for class in classes {
-        menus.screens.loop_flags.ended_b.set(0u32);
+        menus.screens.loop_flags.left_with_carry.set(0u32);
         let has_player = class_pages::has_player(all.len(), |n| all[n].0, |n| all[n].1, class);
         if !has_player {
             continue;
         }
-        menus.screens.loop_flags.ended_b.set(1u32);
+        menus.screens.loop_flags.left_with_carry.set(1u32);
         let numbered = number_standings(Which::B, class)?;
         menus.screens.event.count_a.set(numbered.last_number);
         crate::menu::show_class_championship_standings::show_class_championship_standings(

@@ -234,7 +234,11 @@ fn in_game(call: Call) -> Result<u32, Refused> {
             menus,
             crate::settings::read_driver_names::path(),
         )?,
-        Call::ApplyPatches => crate::physics::apply_patches::apply_patches(race),
+        Call::ApplyPatches => crate::physics::apply_patches::apply_patches(
+            &race.shared.physics_tables,
+            &race.course.numbers,
+            &race.shared.work,
+        ),
         Call::RemoveSecretCars => crate::menu::remove_secret_cars::remove_secret_cars(menus)?,
         Call::ApplyCheats => crate::menu::apply_cheats::apply_cheats(
             menus,

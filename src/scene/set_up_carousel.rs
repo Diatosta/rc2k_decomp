@@ -176,10 +176,7 @@ fn cars(menus: &Menus, list: CarList, size: u32) -> Result<(), BadInput> {
         menus.screens.state.carousel.count.set(n as u32);
         let last = (n as u32).wrapping_sub(1);
         menus.cars.table.last_car.set(last);
-        crate::race::view_scratch::front_end()
-            .object
-            .size
-            .set_bits(size);
+        crate::race::view_scratch::front_end().object.size.set(size);
         for op in CARS_TAIL {
             run_op(op);
         }
@@ -210,7 +207,7 @@ pub fn set_up_carousel(list: Option<CarList>) -> Result<(), Refused> {
                 crate::race::view_scratch::front_end()
                     .object
                     .size
-                    .set_bits(0xCu32);
+                    .set(0xCu32);
                 write_prefix(&menus.screens.state.carousel.kinds, &FIXED_KINDS);
                 menus.screens.state.carousel.count.set(6u32);
                 menus.cars.table.last_car.set(5u32);

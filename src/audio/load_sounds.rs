@@ -22,7 +22,7 @@ use crate::sound::sets_store::{MenuSounds, RaceSoundSets};
 use crate::system::owner::system;
 use rc2k_core::audio::commands::SoundList;
 
-/// The core's loader: each step the Rust version of the original's callee, with what it
+/// The core's loader: each step the port of the original's callee, with what it
 /// reads (the record, the voice, the shared voice or the mode; `make_buffer` the record as
 /// its ebx, which the EAX set-up reads through).
 struct GameLoader<'a> {
@@ -74,7 +74,7 @@ impl rc2k_core::audio::load::Loader for GameLoader<'_> {
         )
     }
     fn new_voice(&mut self, _: rc2k_core::audio::load::At, _: u32) -> Result<u32, Refused> {
-        crate::audio::new_voice::new_voice_in_game(&self.audio.state)
+        crate::audio::new_voice::new_voice(&self.audio.state)
     }
     fn make_ready(
         &mut self,

@@ -11,13 +11,15 @@
 
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Asking, Callee, Entry, Flow, Frames, List, Screen, Step};
+use crate::menu::screen_loop::{
+    Asking, Callee, Entry, Flow, Frames, List, MenuSound, Screen, Step,
+};
 use crate::net::owner::net;
 
 fn after_first_frame(entry: &Entry) -> Result<Flow, Refused> {
     let tables = &entry.menus.tables;
-    if tables.captions.screen_left.get() == 0x1 {
-        tables.captions.screen_left.set(0x0u32);
+    if tables.captions.left_by_key.get() == 0x1 {
+        tables.captions.left_by_key.set(0x0u32);
         return Ok(Flow::SetUp);
     }
     Ok(Flow::On)
@@ -50,7 +52,7 @@ pub const SCREEN: Screen = Screen {
     set_up_first: &[Step::Call(Callee::MarkStageChoice)],
     background: &[Step::Call(Callee::DrawStageMap)],
     after_first_frame: &[Step::DoFlow(after_first_frame)],
-    after: &[Step::Write(|m| &m.screens.option_work.menu_sound, 0x6F)],
+    after: &[Step::Sound(MenuSound::None)],
     asking: Some(Asking {
         unless: Some(|_| net().vars.session.get()),
         unasked_skips_save: true,

@@ -13,15 +13,24 @@
 
 use crate::math::x87;
 use crate::math::x87_run::{compare_full, weight_force};
+use crate::physics::car_store::Car;
+use crate::physics::contact_store::ContactWork;
+use crate::physics::tables_store::PhysicsTables;
 use crate::physics::turn_by_inverse::turn_by_inverse;
-use crate::race::owner::Race;
+use crate::race::numbers_store::Numbers;
 
-pub fn set_wheel_weights(race: &Race, scene: &crate::scene::owner::Scene) {
+pub fn set_wheel_weights(
+    car: &Car,
+    tables: &PhysicsTables,
+    contact: &ContactWork,
+    numbers: &Numbers,
+    scene: &crate::scene::owner::Scene,
+) {
     let scratch = &scene.drawing.scene.scratch;
-    let one: u32 = race.course.numbers.one.bits();
-    let high: u32 = race.course.numbers.five.bits();
-    let k: u32 = race.course.numbers.quarter.bits();
-    scratch.set(x87::loaded(race.physics.contact.wheel_share.bits()));
+    let one: u32 = numbers.one.bits();
+    let high: u32 = numbers.five.bits();
+    let k: u32 = numbers.quarter.bits();
+    scratch.set(x87::loaded(contact.wheel_share.bits()));
     if compare_full(scratch.get(), one) & 0x100 != 0 {
         scratch.set(x87::loaded(one));
     }
@@ -32,15 +41,15 @@ pub fn set_wheel_weights(race: &Race, scene: &crate::scene::owner::Scene) {
         scratch.get(),
         one,
         k,
-        race.shared.physics_tables.gravity.bits(),
-        race.shared.physics_tables.weight.bits(),
+        tables.gravity.bits(),
+        tables.weight.bits(),
     );
-    let wheels = &race.shared.physics_tables.forces[..4];
+    let wheels = &tables.forces[..4];
     for w in wheels {
         w.force[1].set_bits(f);
     }
     for w in wheels {
-        turn_by_inverse(&race.shared, &w.force);
+        turn_by_inverse(car, &w.force);
     }
     let plus = x87::loaded(1.0f32.to_bits());
     let minus = x87::negated(plus);
@@ -63,6 +72,6 @@ pub fn set_wheel_weights(race: &Race, scene: &crate::scene::owner::Scene) {
         cell.set_bits(minus);
     }
     for w in wheels {
-        turn_by_inverse(&race.shared, &w.point);
+        turn_by_inverse(car, &w.point);
     }
 }

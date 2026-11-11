@@ -10,35 +10,40 @@
 //! writes past the queue).
 
 use crate::errors::Refused;
+use crate::physics::car_store::Car;
 use crate::physics::cells::{set_changed, set_values_changed, values};
-use crate::race::owner::Race;
-use crate::race::owner_shared::RaceShared;
+use crate::physics::tables_store::PhysicsTables;
 use rc2k_core::physics::car_events::CarEvents;
 
 /// The work car's queue.
-pub fn load(race: &Race) -> CarEvents {
+pub fn load(car: &Car) -> CarEvents {
     CarEvents {
-        times: values(&race.shared.car.car_event_times),
-        events: values(&race.shared.car.car_event_codes),
-        count: race.shared.car.car_event_count.get(),
-        level: race.shared.car.car_event_limit.get(),
-        shown: race.shared.car.car_event_position.get(),
+        times: values(&car.car_event_times),
+        events: values(&car.car_event_codes),
+        count: car.car_event_count.get(),
+        level: car.car_event_limit.get(),
+        shown: car.car_event_position.get(),
     }
 }
 
 /// What changed from `was` to `now` stored back.
-pub fn store(shared: &RaceShared, was: &CarEvents, now: &CarEvents) {
-    set_values_changed(&shared.car.car_event_times, &was.times, &now.times);
-    set_values_changed(&shared.car.car_event_codes, &was.events, &now.events);
-    set_changed(&shared.car.car_event_count, was.count, now.count);
-    set_changed(&shared.car.car_event_limit, was.level, now.level);
-    set_changed(&shared.car.car_event_position, was.shown, now.shown);
+pub fn store(car: &Car, was: &CarEvents, now: &CarEvents) {
+    set_values_changed(&car.car_event_times, &was.times, &now.times);
+    set_values_changed(&car.car_event_codes, &was.events, &now.events);
+    set_changed(&car.car_event_count, was.count, now.count);
+    set_changed(&car.car_event_limit, was.level, now.level);
+    set_changed(&car.car_event_position, was.shown, now.shown);
 }
 
-pub fn queue_car_event(race: &Race, esi: u32, ebx: u32) -> Result<(), Refused> {
-    let was = load(race);
+pub fn queue_car_event(
+    car: &Car,
+    tables: &PhysicsTables,
+    esi: u32,
+    ebx: u32,
+) -> Result<(), Refused> {
+    let was = load(car);
     let mut q = was;
-    q.queue(race.shared.physics_tables.scene_clock.get(), esi, ebx)?;
-    store(&race.shared, &was, &q);
+    q.queue(tables.scene_clock.get(), esi, ebx)?;
+    store(car, &was, &q);
     Ok(())
 }

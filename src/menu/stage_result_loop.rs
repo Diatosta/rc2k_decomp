@@ -10,7 +10,7 @@
 //! stage, then "piloto", "tempo" and "velocidade máxima" (owner's screenshot from a Rust-run
 //! visit, 2026-10-11). Named `screen_48558d_loop` until then.
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Asking, Callee, Frames, List, Screen, Step};
+use crate::menu::screen_loop::{Asking, Callee, Frames, List, MenuSound, Screen, Step};
 
 pub const SCREEN: Screen = Screen {
     lists: &[
@@ -30,11 +30,11 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::Write(|m| &m.screens.event.event_done, 0x0)],
+    before: &[Step::Write(|m| &m.screens.event.event_over, 0x0)],
     background: &[Step::Call(Callee::LoadBackground(|m| {
         &m.tables.texts.stage_result_picture
     }))],
-    after: &[Step::Write(|m| &m.screens.option_work.menu_sound, 0x6F)],
+    after: &[Step::Sound(MenuSound::None)],
     asking: Some(Asking { ..Asking::DEFAULT }),
     frames: Frames {
         first_frame_lists: Some(&[

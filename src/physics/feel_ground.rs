@@ -27,9 +27,13 @@ pub fn feel_ground(race: &Race, scene: &crate::scene::owner::Scene) -> Result<()
     if race.shared.car.probe_count.get() > rc2k_core::physics::walls::PROBE_ROOM {
         return Err(BadInput("more than 0x40 probe points").into());
     }
-    crate::physics::note_surface_mode::note_surface_mode(&race.shared);
+    crate::physics::note_surface_mode::note_surface_mode(&race.shared.car);
     crate::physics::probe_ground::probe_ground(race, &race.shared.car, scene)?;
-    crate::physics::lowest_body_point::lowest_body_point(race)?;
+    crate::physics::lowest_body_point::lowest_body_point(
+        &race.shared.car,
+        &race.course.numbers,
+        &race.physics.contact,
+    )?;
     let off = WheelsOff::of([
         race.shared.car.wheel_squeeze[0].bits(),
         race.shared.car.wheel_squeeze[1].bits(),

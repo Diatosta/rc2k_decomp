@@ -32,7 +32,7 @@ pub fn set_cdat_number(course: &Course, number: u32) {
 /// `race::copy_course_header` (0x445736): the course memory's first 0x100 bytes to
 /// `g_courseHeader`.
 pub fn copy_course_header(course: &Course) -> Result<(), BadInput> {
-    let from: u32 = course.lists.course_memory.bits();
+    let from: u32 = course.lists.course_memory.get();
     crate::race::level_init::course_memory_at(from)?.copy_to(
         // The store types the header by its first dword.
         GamePtr::to(&course.course.course_header).unbounded(),
@@ -43,7 +43,7 @@ pub fn copy_course_header(course: &Course) -> Result<(), BadInput> {
 
 /// `race::clear_lit_faces` (0x45E9D5): `g_litFaceCount` 0.
 pub fn clear_lit_faces(physics: &Physics) {
-    physics.contact.lit_face_count.set_bits(0u32);
+    physics.contact.lit_face_count.set(0u32);
 }
 
 /// `race::reset_face_lights` (0x45ED70): each face whose first byte is 0xFF gets its +0x30 .. +0x38
@@ -53,7 +53,7 @@ pub fn reset_face_lights(race: &Race) -> Result<(), Refused> {
     let course = &race.course;
     let physics = &race.physics;
     {
-        let count: u32 = course.course.course_face_count.bits();
+        let count: u32 = course.course.course_face_count.get();
         rc2k_core::race::faces::check_face_count(count)?;
         // Converted: `rc2k_core::race::faces::reset_lights` (each record inside the
         // faces the original walks; written back only when changed).
@@ -86,7 +86,7 @@ pub fn group_records_by_kind(course: &Course) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::stage::group_by_kind`; the records read whole (every
     // one is swapped into place, so the original reads them all).
     {
-        let count: u32 = course.course.course_record_count.bits();
+        let count: u32 = course.course.course_record_count.get();
         if count > MOST_RECORDS {
             return Err(BadInput("more records than the course memory holds").into());
         }
@@ -132,18 +132,18 @@ fn load_log(n: usize) {
 /// game writes new points into.
 fn take_scene_points(course: &Course) -> Result<(), BadInput> {
     let layout = rc2k_core::race::faces::CourseLayout::of(
-        course.lists.course_memory.bits(),
-        course.course.course_record_count.bits(),
-        course.course.course_face_count.bits(),
-        course.course.scene_point_count.bits(),
+        course.lists.course_memory.get(),
+        course.course.course_record_count.get(),
+        course.course.course_face_count.get(),
+        course.course.scene_point_count.get(),
     );
     // The course info followed the first part in the original's block; it is a store of
     // its own now (`race::course_places::INFO`): the first part's end.
     let end: u32 = course
         .lists
         .course_memory
-        .bits()
-        .wrapping_add(course.lists.first_part.bits());
+        .get()
+        .wrapping_add(course.lists.first_part.get());
     if end <= layout.points {
         return Err(BadInput("scene points past the course info"));
     }
@@ -169,8 +169,8 @@ pub fn load_level(race: &Race) -> Result<(), Refused> {
     // The course memory is a region of its own (`level_init::take_course_memory`).
     let out = read_level_file::read_level_file(
         &course.level_paths.cdat_src.text(),
-        crate::race::level_init::course_memory_at(course.lists.course_memory.bits())?,
-        course.lists.first_part.bits(),
+        crate::race::level_init::course_memory_at(course.lists.course_memory.get())?,
+        course.lists.first_part.get(),
     )?;
     crate::files::state::BYTES_READ.set(out.eax);
     if out.carry {
@@ -201,7 +201,7 @@ pub fn locate_current_course(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let course = &race.course;
-    course.stage_prefs.cdat_number.set_bits(0u32);
+    course.stage_prefs.cdat_number.set(0u32);
     load_level(race)?;
     crate::race::norms::lay_out_course(course);
     group_records_by_kind(course)?;

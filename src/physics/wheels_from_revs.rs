@@ -10,10 +10,11 @@
 //! code at 0x43CA7B). Refuses a gear outside -1 ..= 7 (the ratio table), before writing.
 
 use crate::errors::Refused;
+use crate::physics::car_store::Car;
 use crate::physics::gearing::*;
-use crate::race::owner_shared::RaceShared;
+use crate::physics::tables_store::PhysicsTables;
 
 /// The exact version, for the gearbox's Rust callers, on the game's variables.
-pub fn wheels_from_revs(shared: &RaceShared) -> Result<(), Refused> {
-    wheels_from_revs_at(&GearPlaces::game(shared))
+pub fn wheels_from_revs(car: &Car, tables: &PhysicsTables) -> Result<(), Refused> {
+    wheels_from_revs_at(&GearPlaces::game(car, tables))
 }

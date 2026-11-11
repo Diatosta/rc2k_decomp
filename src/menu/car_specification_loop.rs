@@ -29,12 +29,7 @@ fn before(entry: &Entry) -> Result<(), Refused> {
 
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
-    crate::scene::polygon_work::front_end().window.view_offset[0].set(0xFFFFFF60u32);
-    crate::scene::polygon_work::front_end().window.view_offset[1].set(0xFFFFFF9Cu32);
-    crate::scene::polygon_work::front_end()
-        .window
-        .view_zoom
-        .set(0x100u32);
+    entry.set_view(-160, -100, 0x100);
     prepare_scene(entry.scene);
     screens.flow.turning.set(0x1u32);
     screens.state.carousel.menu.set(0xBu32);

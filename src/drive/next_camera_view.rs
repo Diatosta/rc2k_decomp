@@ -25,7 +25,7 @@ pub fn next_view_at(car: &Car, players: &Dword, step: &Dword) -> Result<(), BadI
         car.camera_view.get(),
         || car.car_kind.get(),
         |car| KIND_TABLES.kind_has_views[car as usize].get() != 0, /* dword_5C5AC0, by car (0x22) */
-        || players.bits(),
+        || players.get(),
     );
     car.camera_blend_view.set(view);
     set_view_at(car, step)

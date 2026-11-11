@@ -41,7 +41,7 @@ impl GameFont for MenuFont {
 
 /// A family's work variable.
 pub trait GameWork: Copy {
-    fn cell(self) -> &'static Dword;
+    fn cell(self, menus: &'static Menus) -> &'static Dword;
 }
 
 /// A text a screen draws (`HeldText`: a place in a typed store, bounded by it, or a name
@@ -177,6 +177,8 @@ pub struct GameScreen<'a, F, W, T = HeldText> {
     pub canvas: &'a mut dyn Canvas,
     /// The menu's first item (the menus' screen: `rc2k_core::screens::menus::MenuScreen`).
     pub menu_items: &'static [crate::menu::menus_store::MenuItem],
+    /// The menus' state the screens read.
+    menus: &'static Menus,
     family: PhantomData<(F, W, T)>,
 }
 
@@ -185,6 +187,7 @@ impl<'a, F, W, T> GameScreen<'a, F, W, T> {
         Self {
             canvas,
             menu_items: &[],
+            menus: menus(),
             family: PhantomData,
         }
     }
@@ -346,7 +349,7 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
     }
 
     fn spaced(&mut self, font: F, bytes: &[u8], x: i32, y: i32) -> Result<(), Refused> {
-        let screens = &menus().screens;
+        let screens = &self.menus.screens;
         let mut text = bytes.to_vec();
         text.push(0);
         store_in(Buffer::Line, &text)?;
@@ -365,7 +368,7 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
     }
 
     fn keep(&mut self, work: W, value: u32) {
-        work.cell().set(value);
+        work.cell(self.menus).set(value);
     }
 }
 
@@ -386,9 +389,9 @@ impl GameFont for rc2k_core::screens::best_scores::Font {
 }
 
 impl GameWork for rc2k_core::screens::best_scores::Work {
-    fn cell(self) -> &'static Dword {
+    fn cell(self, menus: &'static Menus) -> &'static Dword {
         use rc2k_core::screens::best_scores::Work as W;
-        let screens = &menus().screens;
+        let screens = &menus.screens;
         match self {
             W::Rank => &screens.draw_work.seconds,
             W::RowY => &screens.draw_work.scratch_b0,
@@ -415,9 +418,9 @@ impl GameFont for rc2k_core::screens::stage_panel::Font {
 }
 
 impl GameWork for rc2k_core::screens::stage_panel::Work {
-    fn cell(self) -> &'static Dword {
+    fn cell(self, menus: &'static Menus) -> &'static Dword {
         use rc2k_core::screens::stage_panel::Work as W;
-        let screens = &menus().screens;
+        let screens = &menus.screens;
         match self {
             W::Scratch => &screens.draw_work.figure,
             W::Finish => &screens.draw_work.hhmm,
@@ -440,9 +443,9 @@ impl GameFont for rc2k_core::screens::itinerary::Font {
 }
 
 impl GameWork for rc2k_core::screens::itinerary::Work {
-    fn cell(self) -> &'static Dword {
+    fn cell(self, menus: &'static Menus) -> &'static Dword {
         use rc2k_core::screens::itinerary::Work as W;
-        let screens = &menus().screens;
+        let screens = &menus.screens;
         match self {
             W::Y => &screens.draw_work.seconds,
             W::Row => &screens.draw_work.scratch_b0,
@@ -467,9 +470,9 @@ impl GameFont for rc2k_core::screens::settings_pages::Font {
 }
 
 impl GameWork for rc2k_core::screens::settings_pages::Work {
-    fn cell(self) -> &'static Dword {
+    fn cell(self, menus: &'static Menus) -> &'static Dword {
         use rc2k_core::screens::settings_pages::Work as W;
-        let screens = &menus().screens;
+        let screens = &menus.screens;
         match self {
             W::Scratch => &screens.draw_work.figure,
             W::Seconds => &screens.draw_work.seconds,
@@ -500,7 +503,7 @@ impl GameFont for rc2k_core::screens::car_pages::Font {
 }
 
 impl GameWork for rc2k_core::screens::car_pages::Work {
-    fn cell(self) -> &'static Dword {
+    fn cell(self, _menus: &'static Menus) -> &'static Dword {
         match self {}
     }
 }
@@ -519,8 +522,8 @@ impl GameFont for rc2k_core::screens::slot_lists::Font {
 }
 
 impl GameWork for rc2k_core::screens::slot_lists::Work {
-    fn cell(self) -> &'static Dword {
-        let screens = &menus().screens;
+    fn cell(self, menus: &'static Menus) -> &'static Dword {
+        let screens = &menus.screens;
         match self {
             rc2k_core::screens::slot_lists::Work::X => &screens.draw_work.marker_x,
             rc2k_core::screens::slot_lists::Work::Y => &screens.draw_work.marker_y,
@@ -545,7 +548,7 @@ impl GameFont for rc2k_core::screens::savegame_preview::Font {
 }
 
 impl GameWork for rc2k_core::screens::savegame_preview::Work {
-    fn cell(self) -> &'static Dword {
+    fn cell(self, _menus: &'static Menus) -> &'static Dword {
         match self {}
     }
 }
@@ -569,8 +572,8 @@ impl GameFont for rc2k_core::screens::players_results::Font {
 }
 
 impl GameWork for rc2k_core::screens::players_results::Work {
-    fn cell(self) -> &'static Dword {
-        let screens = &menus().screens;
+    fn cell(self, menus: &'static Menus) -> &'static Dword {
+        let screens = &menus.screens;
         match self {
             rc2k_core::screens::players_results::Work::Gap => &screens.draw_work.scratch_b8,
             rc2k_core::screens::players_results::Work::FirstTime => {
@@ -593,9 +596,9 @@ impl GameFont for rc2k_core::screens::stage_results::Font {
 }
 
 impl GameWork for rc2k_core::screens::stage_results::Work {
-    fn cell(self) -> &'static Dword {
+    fn cell(self, menus: &'static Menus) -> &'static Dword {
         use rc2k_core::screens::stage_results::Work as W;
-        let screens = &menus().screens;
+        let screens = &menus.screens;
         match self {
             W::Rank => &screens.draw_work.seconds,
             W::Scratch => &screens.draw_work.figure,
@@ -623,9 +626,8 @@ impl GameFont for rc2k_core::screens::results_pages::Font {
 }
 
 impl GameWork for rc2k_core::screens::results_pages::Work {
-    fn cell(self) -> &'static Dword {
+    fn cell(self, menus: &'static Menus) -> &'static Dword {
         use rc2k_core::screens::results_pages::Work as W;
-        let menus = menus();
         match self {
             W::FirstTime => &menus.screens.draw_work.first_player_time,
             W::OverallFirst => &menus.screens.draw_work.overall_first_time,
@@ -637,9 +639,9 @@ impl GameWork for rc2k_core::screens::results_pages::Work {
 }
 
 impl GameWork for rc2k_core::screens::results_pages::RankingWork {
-    fn cell(self) -> &'static Dword {
+    fn cell(self, menus: &'static Menus) -> &'static Dword {
         use rc2k_core::screens::results_pages::RankingWork as W;
-        let screens = &menus().screens;
+        let screens = &menus.screens;
         match self {
             W::FirstTime => &screens.draw_work.first_player_time,
             W::Place => &screens.draw_work.seconds,
@@ -662,7 +664,7 @@ impl GameFont for rc2k_core::screens::player_result::Font {
 }
 
 impl GameWork for rc2k_core::screens::player_result::Work {
-    fn cell(self) -> &'static Dword {
+    fn cell(self, _menus: &'static Menus) -> &'static Dword {
         match self {}
     }
 }
@@ -687,8 +689,8 @@ impl GameFont for rc2k_core::screens::duel_result::Font {
 }
 
 impl GameWork for rc2k_core::screens::duel_result::Work {
-    fn cell(self) -> &'static Dword {
-        let play = &menus().play;
+    fn cell(self, menus: &'static Menus) -> &'static Dword {
+        let play = &menus.play;
         match self {
             rc2k_core::screens::duel_result::Work::First => &play.results.order[0],
             rc2k_core::screens::duel_result::Work::Second => &play.results.order[1],
@@ -706,7 +708,7 @@ impl GameFont for rc2k_core::screens::notes::Font {
 }
 
 impl GameWork for rc2k_core::screens::notes::Work {
-    fn cell(self) -> &'static Dword {
+    fn cell(self, _menus: &'static Menus) -> &'static Dword {
         match self {}
     }
 }
@@ -738,8 +740,8 @@ impl GameFont for rc2k_core::screens::player_details::Font {
 }
 
 impl GameWork for rc2k_core::screens::player_details::Work {
-    fn cell(self) -> &'static Dword {
-        let screens = &menus().screens;
+    fn cell(self, menus: &'static Menus) -> &'static Dword {
+        let screens = &menus.screens;
         match self {
             rc2k_core::screens::player_details::Work::Seconds => &screens.draw_work.seconds,
             rc2k_core::screens::player_details::Work::Kept => &screens.draw_work.figure,
@@ -755,9 +757,9 @@ pub type DetailsScreen<'a> = GameScreen<
 >;
 
 impl GameWork for rc2k_core::screens::menus::Work {
-    fn cell(self) -> &'static Dword {
+    fn cell(self, menus: &'static Menus) -> &'static Dword {
         use rc2k_core::screens::menus::Work;
-        let screens = &menus().screens;
+        let screens = &menus.screens;
         match self {
             Work::SpacedFont => &screens.draw_work.figure,
             Work::MarkerX => &screens.draw_work.marker_x,
@@ -769,7 +771,7 @@ impl GameWork for rc2k_core::screens::menus::Work {
 
 impl rc2k_core::screens::menus::MenuScreen for MenuScreen<'_> {
     fn own_button(&mut self, n: usize) -> Result<(), Refused> {
-        let screens = &menus().screens;
+        let screens = &self.menus.screens;
         crate::screens::buttons::draw_item_button(screens, self.menu_item(n)?, self.canvas)
     }
     fn text_button(
@@ -826,9 +828,9 @@ impl GameFont for rc2k_core::screens::service::Font {
 }
 
 impl GameWork for rc2k_core::screens::service::Work {
-    fn cell(self) -> &'static Dword {
+    fn cell(self, menus: &'static Menus) -> &'static Dword {
         use rc2k_core::screens::service::Work;
-        let screens = &menus().screens;
+        let screens = &menus.screens;
         match self {
             Work::Penalty => &screens.state.driver_stats.money,
             Work::A => &screens.draw_work.seconds,
@@ -855,9 +857,9 @@ impl GameFont for rc2k_core::screens::highlighted_caption::Font {
 }
 
 impl GameWork for rc2k_core::screens::highlighted_caption::Work {
-    fn cell(self) -> &'static Dword {
+    fn cell(self, menus: &'static Menus) -> &'static Dword {
         use rc2k_core::screens::highlighted_caption::Work;
-        let screens = &menus().screens;
+        let screens = &menus.screens;
         match self {
             Work::MarkerX => &screens.draw_work.marker_x,
             Work::MarkerY => &screens.draw_work.marker_y,
@@ -881,8 +883,8 @@ impl GameFont for rc2k_core::screens::inspection::Font {
 }
 
 impl GameWork for rc2k_core::screens::inspection::Work {
-    fn cell(self) -> &'static Dword {
-        let screens = &menus().screens;
+    fn cell(self, menus: &'static Menus) -> &'static Dword {
+        let screens = &menus.screens;
         match self {
             rc2k_core::screens::inspection::Work::Lost => &screens.draw_work.figure,
             rc2k_core::screens::inspection::Work::Status => &screens.state.driver_stats.score,
@@ -897,7 +899,7 @@ impl GameFont for rc2k_core::screens::controls::Font {
 }
 
 impl GameWork for rc2k_core::screens::controls::Work {
-    fn cell(self) -> &'static Dword {
+    fn cell(self, _menus: &'static Menus) -> &'static Dword {
         match self {}
     }
 }
@@ -919,8 +921,7 @@ impl GameFont for rc2k_core::screens::championship_table::Font {
 }
 
 impl GameWork for rc2k_core::screens::championship_table::Work {
-    fn cell(self) -> &'static Dword {
-        let menus = menus();
+    fn cell(self, menus: &'static Menus) -> &'static Dword {
         match self {
             rc2k_core::screens::championship_table::Work::Position => {
                 &menus.screens.loop_flags.champ_row
@@ -937,9 +938,9 @@ impl GameFont for rc2k_core::screens::controller_page::Font {
 }
 
 impl GameWork for rc2k_core::screens::controller_page::Work {
-    fn cell(self) -> &'static Dword {
+    fn cell(self, menus: &'static Menus) -> &'static Dword {
         use rc2k_core::screens::controller_page::Work;
-        let screens = &menus().screens;
+        let screens = &menus.screens;
         match self {
             Work::Seconds => &screens.draw_work.seconds,
             Work::Record => &screens.draw_work.scratch_0c,

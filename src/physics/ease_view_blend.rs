@@ -22,7 +22,7 @@ pub fn ease_view_blend(
     race: &Race,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), crate::errors::BadInput> {
-    let esi = record(&race.shared)?;
+    let esi = record(&race.shared.car)?;
     if esi.blend.get() == 0 || esi.change_time.get() == 0 {
         return Ok(());
     }

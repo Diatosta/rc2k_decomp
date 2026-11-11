@@ -65,7 +65,7 @@ pub fn draw_needle(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
     }
     crate::scene::polygon_work::front_end()
         .polygon_vertex_count
-        .set_bits(4u32);
+        .set(4u32);
     crate::hud::add_polygon::add_polygon(frame, hud)
 }
 

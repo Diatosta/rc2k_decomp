@@ -6,19 +6,20 @@
 //! Caller: `physics::car_physics_step` (0x43B728), every physics step.
 
 use crate::math::x87_run::{minus_one, square_times_plus_times};
-use crate::race::owner::Race;
+use crate::physics::car_store::Car;
+use crate::physics::tables_store::PhysicsTables;
 
-pub fn set_downforce(race: &Race) {
-    if race.shared.car.rear_wheels_off.get() != 0 {
+pub fn set_downforce(car: &Car, tables: &PhysicsTables) {
+    if car.rear_wheels_off.get() != 0 {
         return;
     }
     let (load, negative) = square_times_plus_times(
-        race.shared.car.local_velocity[2].bits(),
-        race.shared.physics_tables.downforce_factor.bits(),
-        race.shared.physics_tables.downforce_spec.bits(),
-        race.shared.physics_tables.gravity.bits(),
+        car.local_velocity[2].bits(),
+        tables.downforce_factor.bits(),
+        tables.downforce_spec.bits(),
+        tables.gravity.bits(),
     );
-    race.shared.physics_tables.downforce.set_bits(load);
-    race.shared.physics_tables.forces[4].force[1].set_bits(negative);
-    race.shared.physics_tables.forces[4].point[2].set_bits(minus_one());
+    tables.downforce.set_bits(load);
+    tables.forces[4].force[1].set_bits(negative);
+    tables.forces[4].point[2].set_bits(minus_one());
 }

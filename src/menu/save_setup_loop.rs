@@ -16,19 +16,9 @@ use crate::menu::screen_loop::{
 };
 
 fn prepare(entry: &Entry) -> Result<(), Refused> {
-    crate::scene::polygon_work::front_end().window.view_offset[0].set(0x0u32);
-    crate::scene::polygon_work::front_end().window.view_offset[1].set(0x0u32);
-    crate::scene::polygon_work::front_end()
-        .window
-        .view_zoom
-        .set(0x100u32);
+    entry.set_view(0, 0, 0x100);
     prepare_scene(entry.scene);
-    crate::scene::polygon_work::front_end().window.clip_edges[2].set(0x0u32);
-    crate::scene::polygon_work::front_end().window.clip_edges[3].set(0x320u32);
-    crate::scene::polygon_work::front_end().window.clip_screen[2]
-        .set(crate::scene::polygon_work::front_end().window.clip_edges[2].bits() as i32 as f32);
-    crate::scene::polygon_work::front_end().window.clip_screen[3]
-        .set(crate::scene::polygon_work::front_end().window.clip_edges[3].bits() as i32 as f32);
+    entry.set_clip_sides(0, 800);
     Ok(())
 }
 
@@ -39,7 +29,7 @@ fn each_frame(entry: &Entry) -> Result<Flow, Refused> {
         if screens.option_work.typing.get() != 0x0 {
             return Ok(Flow::NextFrame);
         }
-        screens.draw_work.action_value.set(0x2u32);
+        screens.draw_work.action_mode.set(0x2u32);
         return Ok(Flow::Leave);
     }
     Ok(Flow::On)

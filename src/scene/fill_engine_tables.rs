@@ -42,7 +42,7 @@ const SEED: u32 = 0x0012_D687;
 fn tangent(frame: &crate::race::owner_frame::Frame, angle: u32) -> u32 {
     {
         let place = (angle >> 4) as usize;
-        scene().drawing.scene.scratch.set_bits(0x8000u32);
+        scene().drawing.scene.scratch.set(0x8000u32);
         let tangent = (x87::ratio_scaled_to_int(
             crate::scene::engine_tables_store::ENGINE_TABLES.sines[place].bits(),
             crate::scene::engine_tables_store::ENGINE_TABLES.sines[place + 0x400].bits(),
@@ -50,7 +50,7 @@ fn tangent(frame: &crate::race::owner_frame::Frame, angle: u32) -> u32 {
             0x8000,
         ) as u32)
             << 1;
-        frame.scratch.tangent_scratch.set_bits(tangent);
+        frame.scratch.tangent_scratch.set(tangent);
         tangent
     }
 }
@@ -70,7 +70,7 @@ pub fn fill_engine_tables(race: &crate::race::owner::Race) {
         course.lists.exponent_root_table[n].set_bits(x87::sqrt((n as u32) << 23));
     }
     // 0x41F661
-    race.shared.physics_tables.noise_state.set_bits(SEED);
+    race.shared.physics_tables.noise_state.set(SEED);
     let word = |n: usize| &crate::scene::engine_tables_store::ENGINE_TABLES.shuffled_words[n];
     for n in 0..0x1_0000usize {
         word(n).set(n as u16);
@@ -82,7 +82,7 @@ pub fn fill_engine_tables(race: &crate::race::owner::Race) {
         word(other).set(here);
     }
     // 0x41F635
-    race.shared.physics_tables.noise_state.set_bits(SEED);
+    race.shared.physics_tables.noise_state.set(SEED);
     for n in 0..NOISE_LEN {
         crate::scene::engine_tables_store::ENGINE_TABLES
             .noise_bytes
@@ -92,7 +92,7 @@ pub fn fill_engine_tables(race: &crate::race::owner::Race) {
     for n in 1..0x100usize {
         course.lists.face_key_factors[n].set_bits(x87::int_ratio(1, n as i32));
     }
-    course.lists.face_key_factors[0].set_bits(1.0f32.to_bits());
+    course.lists.face_key_factors[0].set(1.0f32);
     // 0x41F5EF
     for n in 0..SINES {
         crate::scene::engine_tables_store::ENGINE_TABLES.sines[n]
@@ -122,5 +122,5 @@ pub fn fill_engine_tables(race: &crate::race::owner::Race) {
         angle = angle_of(&race.course, place, 0x100);
     }
     // `scene::angle_between` left the last angle in `g_scratch`.
-    scene().drawing.scene.scratch.set_bits(angle);
+    scene().drawing.scene.scratch.set(angle);
 }

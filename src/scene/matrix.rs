@@ -112,12 +112,12 @@ pub fn set_light_direction(
     set_turn_x(
         &v.turn_x_matrix,
         &v.turn_x_work,
-        (light.light_turns[1].bits() << 8).wrapping_neg(),
+        (light.light_turns[1].get() << 8).wrapping_neg(),
     );
     set_turn_y(
         &v.turn_y_matrix,
         &v.turn_y_work,
-        (light.light_turns[0].bits() << 8).wrapping_neg(),
+        (light.light_turns[0].get() << 8).wrapping_neg(),
     );
     multiply_matrices(&v.turn_x_matrix, &v.turn_y_matrix, &v.turned_matrix);
     multiply_matrices(&v.turned_matrix, view_turn, &v.lit_matrix);
@@ -145,17 +145,17 @@ pub fn make_object_matrix(
     set_turn_y(
         &v.turn_y_matrix,
         &v.turn_y_work,
-        object.angles[1].bits().wrapping_neg(),
+        object.angles[1].get().wrapping_neg(),
     );
     set_turn_x(
         &v.turn_x_matrix,
         &v.turn_x_work,
-        object.angles[0].bits().wrapping_neg(),
+        object.angles[0].get().wrapping_neg(),
     );
     let place: [u32; 3] = crate::session::read_bits(&object.place);
     set_place(&v.placed_matrix, place);
     multiply_matrices(&v.turn_y_matrix, &v.turn_x_matrix, &v.turned_matrix);
-    let size: u32 = object.size.bits();
+    let size: u32 = object.size.get();
     let factor = x87::int_over_16(size as i32);
     for cell in &v.turned_matrix {
         cell.set_bits(x87::mul(cell.bits(), factor));

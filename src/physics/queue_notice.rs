@@ -20,37 +20,32 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::physics::car_store::Car;
 use crate::physics::cells::{set_changed, set_values_changed, values};
-use crate::race::owner_shared::RaceShared;
 use rc2k_core::physics::notices::NoticeQueue;
 
 /// The work car's notice queue.
-pub fn load(shared: &RaceShared) -> NoticeQueue {
+pub fn load(car: &Car) -> NoticeQueue {
     NoticeQueue {
-        count: shared.car.notice_count.get(),
-        ids: values(&shared.car.notice_ids),
-        values: values(&shared.car.notice_values),
-        levels: values(&shared.car.notice_ranks),
+        count: car.notice_count.get(),
+        ids: values(&car.notice_ids),
+        values: values(&car.notice_values),
+        levels: values(&car.notice_ranks),
     }
 }
 
 /// What changed from `was` to `now` stored back.
-pub fn store(shared: &RaceShared, was: &NoticeQueue, now: &NoticeQueue) {
-    set_values_changed(&shared.car.notice_ids, &was.ids, &now.ids);
-    set_values_changed(&shared.car.notice_values, &was.values, &now.values);
-    set_values_changed(&shared.car.notice_ranks, &was.levels, &now.levels);
-    set_changed(&shared.car.notice_count, was.count, now.count);
+pub fn store(car: &Car, was: &NoticeQueue, now: &NoticeQueue) {
+    set_values_changed(&car.notice_ids, &was.ids, &now.ids);
+    set_values_changed(&car.notice_values, &was.values, &now.values);
+    set_values_changed(&car.notice_ranks, &was.levels, &now.levels);
+    set_changed(&car.notice_count, was.count, now.count);
 }
 
-pub fn queue_notice(
-    shared: &RaceShared,
-    notice: u32,
-    rank: u32,
-    value: u32,
-) -> Result<(), Refused> {
-    let was = load(shared);
+pub fn queue_notice(car: &Car, notice: u32, rank: u32, value: u32) -> Result<(), Refused> {
+    let was = load(car);
     let mut q = was;
-    q.queue(shared.car.option_bits.get(), notice, rank, value)?;
-    store(shared, &was, &q);
+    q.queue(car.option_bits.get(), notice, rank, value)?;
+    store(car, &was, &q);
     Ok(())
 }

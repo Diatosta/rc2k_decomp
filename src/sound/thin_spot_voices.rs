@@ -13,11 +13,9 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::errors::Refused;
-
 /// Converted: `rc2k_core::sound::spot_voices::thin` and `thin_choose`. The voices of
 /// `sound` thinned.
-pub fn thin_spot_voices(sound: u32, owner: &crate::sound::owner::Sound) -> Result<(), Refused> {
+pub fn thin_spot_voices(sound: u32, owner: &crate::sound::owner::Sound) {
     use crate::sound::spot_voices::{load_voices, store_picks, store_voices};
     use rc2k_core::sound::spot_voices as core;
     let mut voices = load_voices(owner);
@@ -25,13 +23,12 @@ pub fn thin_spot_voices(sound: u32, owner: &crate::sound::owner::Sound) -> Resul
     store_voices(owner, &voices);
     store_picks(owner, &picks, &trail);
     if trail.ended_at.is_some() {
-        return Ok(());
+        return;
     }
     let (Some(_), Some(_)) = (picks.nearest, picks.next) else {
-        return Ok(());
+        return;
     };
     let random = crate::math::next_random::SOUNDS.next();
     core::thin_choose(&mut voices, &picks, random);
     store_voices(owner, &voices);
-    Ok(())
 }

@@ -57,7 +57,11 @@ pub fn point_hits_car(race: &Race, point: [u32; 3], face: u32) -> Result<bool, R
         physics_store.contact.object_point_turned[k]
             .set_bits(physics_store.contact.object_point_scaled[k].bits());
     }
-    turn_by_heading(&race.shared, &physics_store.contact.object_point_turned, y);
+    turn_by_heading(
+        &race.shared.car,
+        &physics_store.contact.object_point_turned,
+        y,
+    );
     x87_2(race);
     let (x, z) = (
         physics_store.contact.contact_point[0].bits(),

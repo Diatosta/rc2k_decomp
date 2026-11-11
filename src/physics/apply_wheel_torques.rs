@@ -8,9 +8,15 @@
 
 use crate::errors::Refused;
 use crate::physics::apply_torques::apply_torques;
-use crate::race::owner::Race;
+use crate::physics::car_store::Car;
+use crate::physics::contact_store::ContactWork;
+use crate::physics::tables_store::PhysicsTables;
 const COUNT: usize = 0x17;
 
-pub fn apply_wheel_torques(race: &Race) -> Result<(), Refused> {
-    apply_torques(race, &race.shared.physics_tables.forces[..COUNT])
+pub fn apply_wheel_torques(
+    tables: &PhysicsTables,
+    contact: &ContactWork,
+    car: &Car,
+) -> Result<(), Refused> {
+    apply_torques(tables, contact, car, &tables.forces[..COUNT])
 }

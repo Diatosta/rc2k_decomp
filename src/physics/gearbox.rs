@@ -10,12 +10,13 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::physics::car_store::Car;
 use crate::physics::gear_bit::gear_bit;
 use crate::physics::gearing::{
     GearPlaces, revs_from_speed_at, revs_from_wheels_at, wheels_from_revs_at,
 };
-use crate::race::owner::Race;
-use crate::race::owner_shared::RaceShared;
+use crate::physics::tables_store::PhysicsTables;
+use crate::race::numbers_store::Numbers;
 use std::cmp::Ordering;
 
 /// C0 of comparing `a` with `b`: below, or unordered.
@@ -27,60 +28,52 @@ pub fn below(a: u32, b: u32) -> bool {
 }
 
 /// The common end of a change: +0x1D0 = `dword_613FA4`, the hold 20, both words 1.
-pub fn settle(race: &Race) {
-    race.shared
-        .car
-        .drive_cut_steps
-        .set(race.shared.physics_tables.drive_cut_steps.get());
-    race.shared
-        .car
-        .gear_change_hold
+pub fn settle(car: &Car, tables: &PhysicsTables) {
+    car.drive_cut_steps.set(tables.drive_cut_steps.get());
+    car.gear_change_hold
         .set(rc2k_core::physics::gear_shifts::HOLD);
-    race.shared.car.gear_changed.set(1);
-    race.shared.car.gear_change_pending.set(1);
+    car.gear_changed.set(1);
+    car.gear_change_pending.set(1);
 }
 
 /// Neutral, then `settle`.
-pub fn neutral(race: &Race) {
-    race.shared.car.gear.set(0);
-    settle(race);
+pub fn neutral(car: &Car, tables: &PhysicsTables) {
+    car.gear.set(0);
+    settle(car, tables);
 }
 
 /// `gear_bit`: true for CF (the gear cannot be taken).
-pub fn bit(shared: &RaceShared, gear: u32) -> Result<bool, Refused> {
-    Ok({ gear_bit(shared, gear) }?.carry)
+pub fn bit(car: &Car, gear: u32) -> Result<bool, Refused> {
+    Ok({ gear_bit(car, gear) }?.carry)
 }
 
 /// `wheels_from_revs`.
-pub fn wheels(shared: &RaceShared) -> Result<(), Refused> {
-    { wheels_from_revs_at(&GearPlaces::game(shared)) }?;
+pub fn wheels(car: &Car, tables: &PhysicsTables) -> Result<(), Refused> {
+    { wheels_from_revs_at(&GearPlaces::game(car, tables)) }?;
     Ok(())
 }
 
 /// `revs_from_wheels`.
-pub fn revs(race: &Race) -> Result<(), Refused> {
-    { revs_from_wheels_at(&race.course, &GearPlaces::game(&race.shared)) }?;
+pub fn revs(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> Result<(), Refused> {
+    { revs_from_wheels_at(numbers, &GearPlaces::game(car, tables)) }?;
     Ok(())
 }
 
 /// `revs_from_speed`.
-pub fn revs_speed(shared: &RaceShared) -> Result<(), Refused> {
-    { revs_from_speed_at(&GearPlaces::game(shared)) }?;
+pub fn revs_speed(car: &Car, tables: &PhysicsTables) -> Result<(), Refused> {
+    { revs_from_speed_at(&GearPlaces::game(car, tables)) }?;
     Ok(())
 }
 
 /// The engine speed over its top (`fld; fdiv; fstp`).
-pub fn over_top(race: &Race) -> u32 {
-    x87::div(
-        race.shared.car.engine_speed.bits(),
-        race.shared.car.engine_speed_limit.bits(),
-    )
+pub fn over_top(car: &Car) -> u32 {
+    x87::div(car.engine_speed.bits(), car.engine_speed_limit.bits())
 }
 
 /// A gear's ratio; refused outside -1 ..= 7.
-pub fn ratio(shared: &RaceShared, gear: u32) -> Result<u32, Refused> {
+pub fn ratio(tables: &PhysicsTables, gear: u32) -> Result<u32, Refused> {
     if !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
-    Ok(shared.physics_tables.gear_ratios[(gear as i32 + 1) as usize].bits())
+    Ok(tables.gear_ratios[(gear as i32 + 1) as usize].bits())
 }

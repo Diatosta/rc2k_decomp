@@ -66,21 +66,21 @@ fn quad_tail_math(rect: [u32; 4], vertices: &[Vertex], screen: [u32; 2], scratch
         vertex.u.set_bits(st(if at_right { right } else { left }));
         vertex.v.set_bits(st(if at_bottom { bottom } else { top }));
     }
-    scratch.set_bits(st(
+    scratch.set(st(
         int(screen[0] as i32) * ld(VIEWER_PANEL.reciprocal_width_800.bits())
     ));
     for vertex in &vertices[..4] {
         vertex
             .x
-            .set_bits(st(ld(vertex.x.bits()) * ld(scratch.bits())));
+            .set_bits(st(ld(vertex.x.bits()) * ld(scratch.get())));
     }
-    scratch.set_bits(st(
+    scratch.set(st(
         int(screen[1] as i32) * ld(VIEWER_PANEL.reciprocal_height_600.bits())
     ));
     for vertex in &vertices[..4] {
         vertex
             .y
-            .set_bits(st(ld(vertex.y.bits()) * ld(scratch.bits())));
+            .set_bits(st(ld(vertex.y.bits()) * ld(scratch.get())));
     }
 }
 

@@ -58,11 +58,10 @@ pub fn open_a3d2(state: &AudioState) -> Result<bool, Refused> {
 }
 
 /// `audio::close_a3d2`: its interface released, `release_a3d` (place 9), A3D off.
-pub fn close_a3d2(state: &AudioState) -> Result<(), Refused> {
+pub fn close_a3d2(state: &AudioState) {
     release(&state.a3d2_interface);
     crate::audio::sound_device::release_a3d_object(state);
     state.use_a3d.set(0);
-    Ok(())
 }
 
 /// `audio::read_splash` and `write_splash`: nothing unless A3D was found at the start

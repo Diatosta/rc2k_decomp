@@ -34,7 +34,7 @@ pub fn load_slot_texture(
     frame
         .frame_work
         .kind_textures_done
-        .set_bits(frame.frame_work.kind_textures_done.bits().wrapping_add(1));
+        .set(frame.frame_work.kind_textures_done.get().wrapping_add(1));
     textures.places.slot_loaded[slot as usize].set(wanted);
     Ok(())
 }

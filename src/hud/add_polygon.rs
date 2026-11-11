@@ -27,7 +27,7 @@ pub fn add_polygon(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
     {
         let count: u32 = crate::scene::polygon_work::front_end()
             .polygon_vertex_count
-            .bits();
+            .get();
         let texture = hud.block.texture.get();
         let vertices = hud.block.vertex_count.get();
         let flushes = if count == 0 || count > MOST_VERTICES {
@@ -46,8 +46,8 @@ pub fn add_polygon(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
         ];
         for n in 0..count as usize {
             let v = &VERTICES.vertices[n];
-            v.x.set_bits(screen_scaled(v.x.get(), w, kx).to_bits());
-            v.y.set_bits(screen_scaled(v.y.get(), h, ky).to_bits());
+            v.x.set(screen_scaled(v.x.get(), w, kx));
+            v.y.set(screen_scaled(v.y.get(), h, ky));
         }
         if flushes {
             crate::hud::flush_batch::flush_batch(hud);

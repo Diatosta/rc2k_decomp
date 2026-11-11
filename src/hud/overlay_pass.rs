@@ -21,10 +21,10 @@ use crate::race::owner_shared::RaceShared;
 /// player's bars and strip stayed drawn (section 16, fixed 2026-10-23).
 pub fn shown_layout(shared: &RaceShared) -> u32 {
     {
-        if shared.view.views.bits() == 1 {
+        if shared.view.views.get() == 1 {
             0
         } else {
-            shared.vars.split.bits()
+            shared.vars.split.get()
         }
     }
 }
@@ -42,7 +42,7 @@ pub fn overlay_pass(hud: &Hud, race: &Race) -> Result<(), Refused> {
         race.frame.panel_and_overlay.panel.hud_flags[0].get(),
         race.frame.panel_and_overlay.panel.hud_flags[1].get(),
     ];
-    if race.shared.view.views.bits() == 2 {
+    if race.shared.view.views.get() == 2 {
         for n in 0..2 {
             if crate::race::frame_view::car(n)?.view_covered.get() != 0 {
                 race.frame.panel_and_overlay.panel.hud_flags[n]

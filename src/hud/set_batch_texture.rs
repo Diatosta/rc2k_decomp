@@ -11,6 +11,6 @@ use crate::scene::owner::scene;
 // Converted: `rc2k_core::hud::batch::texture_slot`
 pub fn set_batch_texture(frame: &Frame) -> Result<(), Refused> {
     let n = rc2k_core::hud::batch::texture_slot(frame.panel_and_overlay.panel.shown_texture.get())?;
-    crate::scene::set_texture::set_texture(scene().textures.kinds.kind_first_slots[n].bits());
+    crate::scene::set_texture::set_texture(scene().textures.kinds.kind_first_slots[n].get());
     Ok(())
 }

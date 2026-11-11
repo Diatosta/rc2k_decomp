@@ -17,7 +17,9 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::race::owner::Race;
+use crate::physics::car_store::Car;
+use crate::physics::tables_store::PhysicsTables;
+use crate::race::vars_store::RaceVars;
 use crate::session::Cell32;
 use rc2k_core::physics::gearbox::{GearCar, GearInputs};
 
@@ -67,26 +69,26 @@ pub fn rules_at(v: &[&dyn Cell32]) {
     }
 }
 
-fn game(race: &Race) -> Vec<&dyn Cell32> {
+fn game<'a>(car: &'a Car, tables: &'a PhysicsTables, vars: &'a RaceVars) -> Vec<&'a dyn Cell32> {
     vec![
-        &race.shared.car.tyre_change_state as &dyn Cell32,
-        &race.shared.physics_tables.input_gear_down,
-        &race.shared.physics_tables.input_gear_up,
-        &race.shared.physics_tables.input_throttle,
-        &race.shared.physics_tables.input_brake,
-        &race.shared.physics_tables.input_handbrake,
-        &race.shared.car.gear,
-        &race.shared.car.gearbox_kind,
-        &race.shared.physics_tables.input_gear_wanted,
-        &race.shared.car.run_ticks,
-        &race.shared.vars.run_kind,
-        &race.shared.physics_tables.input_steer,
-        &race.shared.car.go_stand_timer,
-        &race.shared.car.started_stand_timer,
-        &race.shared.car.finish_flag,
+        &car.tyre_change_state as &dyn Cell32,
+        &tables.input_gear_down,
+        &tables.input_gear_up,
+        &tables.input_throttle,
+        &tables.input_brake,
+        &tables.input_handbrake,
+        &car.gear,
+        &car.gearbox_kind,
+        &tables.input_gear_wanted,
+        &car.run_ticks,
+        &vars.run_kind,
+        &tables.input_steer,
+        &car.go_stand_timer,
+        &car.started_stand_timer,
+        &car.finish_flag,
     ]
 }
 
-pub fn gear_input_rules(race: &Race) {
-    rules_at(&game(race));
+pub fn gear_input_rules(car: &Car, tables: &PhysicsTables, vars: &RaceVars) {
+    rules_at(&game(car, tables, vars));
 }

@@ -39,9 +39,9 @@ pub fn splash_mud(shared: &RaceShared) -> Result<(), Refused> {
     // when they skip a place.
     let mut eax = splash_pattern(next_drawing_random());
     let mut colours = (eax >> 2) as usize; // the pattern's place: whole dwords
-    shared.vars.mud_row.set_bits(0u32);
+    shared.vars.mud_row.set(0u32);
     for row in 0..SPLASH_SIDE {
-        shared.vars.mud_column.set_bits(0u32);
+        shared.vars.mud_column.set(0u32);
         for column in 0..SPLASH_SIDE {
             eax = mud_texel(eax, x, y)?;
             if muddy(eax) {
@@ -56,11 +56,11 @@ pub fn splash_mud(shared: &RaceShared) -> Result<(), Refused> {
             }
             colours += 1;
             x = x.wrapping_add(1);
-            shared.vars.mud_column.set_bits(column + 1);
+            shared.vars.mud_column.set(column + 1);
         }
         x = x.wrapping_sub(4);
         y = y.wrapping_add(1);
-        shared.vars.mud_row.set_bits(row + 1);
+        shared.vars.mud_row.set(row + 1);
     }
     Ok(())
 }

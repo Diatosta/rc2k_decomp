@@ -28,17 +28,17 @@ pub fn cached_reflection_coordinates(
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
     use rc2k_core::scene::reflection::{cache_place, cached};
-    if view.face.reflections_kept.bits() == 0 {
+    if view.face.reflections_kept.get() == 0 {
         return Ok(reflection_coordinates(race, object, m)?);
     }
     let asked: [u32; 2] = [
-        object.reflection_normal_number.bits(),
-        object.reflection_point_number.bits(),
+        object.reflection_normal_number.get(),
+        object.reflection_point_number.get(),
     ];
     let place = cache_place(asked[0]);
     let slot = |table: usize| &object.kept_reflections[table * TABLE_CELLS + place];
-    if let Some(coordinates) = cached(asked, [slot(0).bits(), slot(1).bits()], || {
-        [slot(2).bits(), slot(3).bits()]
+    if let Some(coordinates) = cached(asked, [slot(0).get(), slot(1).get()], || {
+        [slot(2).get(), slot(3).get()]
     }) {
         crate::session::write_bits(&object.reflection_coordinates, coordinates);
         return Ok(());
@@ -49,7 +49,7 @@ pub fn cached_reflection_coordinates(
         .into_iter()
         .enumerate()
     {
-        slot(table).set_bits(value);
+        slot(table).set(value);
     }
     Ok(())
 }

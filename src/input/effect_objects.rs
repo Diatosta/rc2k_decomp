@@ -24,9 +24,9 @@ pub fn parameters_of(effect: &ForceEffect) -> EffectParameters {
     EffectParameters {
         duration: d.duration.get(),
         gain: d.gain.get(),
-        direction: (d.directions.get() != 0 && d.axes_count.get() > 0)
+        direction: (d.directions.is_set() && d.axes_count.get() > 0)
             .then(|| effect.directions[0].get() as i32),
-        envelope: (d.envelope.get() != 0).then(|| {
+        envelope: (d.envelope.is_set()).then(|| {
             let e = &effect.envelope;
             [
                 e.attack_level.get(),
@@ -35,7 +35,7 @@ pub fn parameters_of(effect: &ForceEffect) -> EffectParameters {
                 e.fade_time.get(),
             ]
         }),
-        type_specific: (d.type_specific.get() != 0).then(|| {
+        type_specific: (d.type_specific.is_set()).then(|| {
             effect
                 .type_specific
                 .iter()

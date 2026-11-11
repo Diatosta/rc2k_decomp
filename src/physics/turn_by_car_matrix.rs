@@ -13,7 +13,7 @@
 //! above are the original's, for reference.
 
 use crate::math::cells::Cells;
-use crate::race::owner_shared::RaceShared;
+use crate::physics::car_store::Car;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 
@@ -29,6 +29,6 @@ pub fn turn_cells(m: &(impl Cells + ?Sized), v: &(impl Cells + ?Sized)) {
     }
 }
 
-pub fn turn_by_car_matrix(shared: &RaceShared, v: &(impl Cells + ?Sized)) {
-    turn_cells(&shared.car.crash_matrix, v);
+pub fn turn_by_car_matrix(car: &Car, v: &(impl Cells + ?Sized)) {
+    turn_cells(&car.crash_matrix, v);
 }

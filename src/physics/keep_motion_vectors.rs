@@ -5,7 +5,8 @@
 //!
 //! Caller: `physics::car_physics_step` (0x43B89B), every physics step.
 
-use crate::race::owner::Race;
+use crate::physics::car_store::Car;
+use crate::physics::tables_store::PhysicsTables;
 use crate::session::Cell32;
 
 fn core(v: &[&dyn Cell32]) {
@@ -17,24 +18,24 @@ fn core(v: &[&dyn Cell32]) {
     }
 }
 
-fn game(race: &Race) -> Vec<&dyn Cell32> {
+fn game<'a>(car: &'a Car, tables: &'a PhysicsTables) -> Vec<&'a dyn Cell32> {
     vec![
-        &race.shared.physics_tables.contact_step as &dyn Cell32,
-        &race.shared.car.velocity[0],
-        &race.shared.car.velocity[1],
-        &race.shared.car.velocity[2],
-        &race.shared.car.spin[0],
-        &race.shared.car.spin[1],
-        &race.shared.car.spin[2],
-        &race.shared.physics_tables.kept_vectors[0],
-        &race.shared.physics_tables.kept_vectors[1],
-        &race.shared.physics_tables.kept_vectors[2],
-        &race.shared.physics_tables.kept_vectors[4],
-        &race.shared.physics_tables.kept_vectors[5],
-        &race.shared.physics_tables.kept_vectors[6],
+        &tables.contact_step as &dyn Cell32,
+        &car.velocity[0],
+        &car.velocity[1],
+        &car.velocity[2],
+        &car.spin[0],
+        &car.spin[1],
+        &car.spin[2],
+        &tables.kept_vectors[0],
+        &tables.kept_vectors[1],
+        &tables.kept_vectors[2],
+        &tables.kept_vectors[4],
+        &tables.kept_vectors[5],
+        &tables.kept_vectors[6],
     ]
 }
 
-pub fn keep_motion_vectors(race: &Race) {
-    core(&game(race));
+pub fn keep_motion_vectors(car: &Car, tables: &PhysicsTables) {
+    core(&game(car, tables));
 }

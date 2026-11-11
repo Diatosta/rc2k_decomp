@@ -7,7 +7,7 @@
 //! Which screen it is has not been confirmed, hence the name. Its title string: "RESULTADOS
 //! GERAIS".
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Callee, Frames, List, Screen, Step};
+use crate::menu::screen_loop::{Callee, Frames, List, MenuSound, Screen, Step};
 
 pub const SCREEN: Screen = Screen {
     lists: &[
@@ -27,12 +27,12 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::Write(|m| &m.screens.event.event_done, 0x0)],
+    before: &[Step::Write(|m| &m.screens.event.event_over, 0x0)],
     set_up_first: &[Step::Call(Callee::RankTotals)],
     background: &[Step::Call(Callee::LoadBackground(|m| {
         &m.tables.texts.single_rally_overall_results_picture
     }))],
-    after: &[Step::Write(|m| &m.screens.option_work.menu_sound, 0x6F)],
+    after: &[Step::Sound(MenuSound::None)],
     frames: Frames {
         first_frame_lists: Some(&[
             List {

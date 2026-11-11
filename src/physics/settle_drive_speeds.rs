@@ -13,6 +13,8 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at};
+use crate::physics::tables_store::PhysicsTables;
+use crate::race::numbers_store::Numbers;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use crate::session::Cell32;
@@ -65,7 +67,8 @@ fn settle(v: &dyn Cell32, step: &dyn Cell32) {
 
 /// The steps.
 pub fn settle_drive_speeds_at(
-    race: &Race,
+    tables: &PhysicsTables,
+    numbers: &Numbers,
     g: &GearPlaces<'_>,
     s: &SettlePlaces<'_>,
 ) -> Result<(), Refused> {
@@ -75,9 +78,9 @@ pub fn settle_drive_speeds_at(
     }
     let step = || {
         if s.fast.bits() != 0 {
-            race.shared.physics_tables.settle_fast_step.bits()
+            tables.settle_fast_step.bits()
         } else {
-            race.shared.physics_tables.settle_slow_step.bits()
+            tables.settle_slow_step.bits()
         }
     };
     if s.first.bits() != 0 && gear == 0 {
@@ -89,7 +92,7 @@ pub fn settle_drive_speeds_at(
         settle(g.drive_speed_b, s.scratch);
     }
     if gear != 0 {
-        return revs_from_wheels_at(&race.course, g);
+        return revs_from_wheels_at(numbers, g);
     }
     Ok(())
 }
@@ -97,8 +100,9 @@ pub fn settle_drive_speeds_at(
 /// The exact version, for `physics::car_physics_step`.
 pub fn settle_drive_speeds(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     settle_drive_speeds_at(
-        race,
-        &GearPlaces::game(&race.shared),
+        &race.shared.physics_tables,
+        &race.course.numbers,
+        &GearPlaces::game(&race.shared.car, &race.shared.physics_tables),
         &SettlePlaces::game(&race.shared, scene),
     )
 }

@@ -15,7 +15,7 @@
 //! priority 0, not running, `ExitThread(0)` (the routine's return since phase 11:
 //! `sync::spawn`).
 //! ecx (and edx before the first turn) handed on to `take_commands` and `close_all` are, in
-//! the original, what `CoInitialize` and the clock's Win32 calls leave; the Rust version
+//! the original, what `CoInitialize` and the clock's Win32 calls leave; the port
 //! hands on the entry's. Neither is read there (ecx is a volume for action 1, which does not
 //! read it; edx reaches `close_all` only when nothing plays yet, where every action stops).
 
@@ -40,7 +40,7 @@ pub fn audio_thread(audio: &crate::audio::owner::Audio) -> Result<(), Refused> {
             audio.state.no_audio.get() == 0
         }
         && {
-            thread_parts::take_sample_buffer(&audio.state)?;
+            thread_parts::take_sample_buffer(&audio.state);
             start::start(audio)?
         };
     if started {
@@ -65,7 +65,7 @@ pub fn audio_thread(audio: &crate::audio::owner::Audio) -> Result<(), Refused> {
                 crate::debug::timing::note_voices(stray_voices::on_lists(&audio.state));
             }
             crate::debug::timing::stop(crate::debug::timing::Stage::AudioTurn, begun);
-            if audio.state.sound_buffer_lost.get() != 0 {
+            if audio.state.sound_buffer_lost.is_set() {
                 restore::restore_lost(audio)?;
             }
             if system().session.flags.quitting.get() == 1 {

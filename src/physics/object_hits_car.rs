@@ -34,7 +34,7 @@ pub fn object_hits_car(
     let race_owner = race;
     let number = race_owner.physics.contact.face_object.get();
     contacts::check_object(number)?;
-    { object_turn_matrix(race, scene) }?;
+    { object_turn_matrix(&race.physics.contact, &race.frame.matrices, scene) }?;
     race.shared
         .physics_tables
         .object_hits

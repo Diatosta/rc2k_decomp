@@ -9,18 +9,18 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
+use crate::physics::car_store::Car;
 use crate::physics::cells::set_changed;
-use crate::race::owner_shared::RaceShared;
 use rc2k_core::physics::notices::Notice;
 
-pub fn count_down_notice(shared: &RaceShared) {
+pub fn count_down_notice(car: &Car) {
     let was = Notice {
-        shown: shared.car.notice_shown.get(),
-        time: shared.car.notice_time.get(),
+        shown: car.notice_shown.get(),
+        time: car.notice_time.get(),
         ..Notice::default()
     };
     let mut n = was;
     n.count_down();
-    set_changed(&shared.car.notice_time, was.time, n.time);
-    set_changed(&shared.car.notice_shown, was.shown, n.shown);
+    set_changed(&car.notice_time, was.time, n.time);
+    set_changed(&car.notice_shown, was.shown, n.shown);
 }

@@ -116,7 +116,7 @@ pub fn leave_edit_mode(screens: &Screens) {
 
 /// True if menu item `item` has a repair time (a non-null pointer in the table).
 pub fn has_repair_time(tables: &Tables, item: u32) -> bool {
-    item < ITEM_COUNT && tables.lists.repair_time_ptrs[item as usize].get() != 0
+    item < ITEM_COUNT && tables.lists.repair_time_ptrs[item as usize].is_set()
 }
 
 /// True if the second flag table has its end mark where it belongs.

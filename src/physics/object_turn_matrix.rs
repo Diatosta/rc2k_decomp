@@ -14,47 +14,49 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_run::{ext_div2, int_80};
-use crate::race::owner::Race;
+use crate::physics::contact_store::ContactWork;
+use crate::race::matrices_store::SceneMatrices;
 use crate::scene::matrix::{multiply_matrices, set_turn_x, set_turn_y};
 
-pub fn object_turn_matrix(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn object_turn_matrix(
+    contact: &ContactWork,
+    matrices: &SceneMatrices,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let drawing = &scene.drawing;
-    let object = race.physics.contact.face_object.get();
+    let object = contact.face_object.get();
     if object > 0xFF {
         return Err(BadInput("an object past 0xFF").into());
     }
     set_turn_y(
-        &race.frame.matrices.turn_y_matrix,
+        &matrices.turn_y_matrix,
         &scene.drawing.scene.turn_y_work,
         drawing.object_work.angles[0].get().wrapping_neg(),
     );
     let (out, turn_y, turn_x) = (
-        &race.frame.matrices.object_turn_matrix,
-        &race.frame.matrices.turn_y_matrix,
-        &race.frame.matrices.turn_x_matrix,
+        &matrices.object_turn_matrix,
+        &matrices.turn_y_matrix,
+        &matrices.turn_x_matrix,
     );
-    let (lit, turned) = (
-        &race.frame.matrices.lit_matrix,
-        &race.frame.matrices.turned_matrix,
-    );
+    let (lit, turned) = (&matrices.lit_matrix, &matrices.turned_matrix);
     for k in 0..16 {
         out[k].set_bits(turn_y[k].bits());
     }
     if drawing.object_work.angles[1].get() != 0 {
         set_turn_y(
-            &race.frame.matrices.turn_y_matrix,
+            &matrices.turn_y_matrix,
             &scene.drawing.scene.turn_y_work,
             drawing.object_work.angles[2].get().wrapping_neg(),
         );
         multiply_matrices(&out, &turn_y, &lit);
         set_turn_x(
-            &race.frame.matrices.turn_x_matrix,
+            &matrices.turn_x_matrix,
             &scene.drawing.scene.turn_x_work,
             drawing.object_work.angles[1].get().wrapping_neg(),
         );
         multiply_matrices(&lit, &turn_x, &turned);
         set_turn_y(
-            &race.frame.matrices.turn_y_matrix,
+            &matrices.turn_y_matrix,
             &scene.drawing.scene.turn_y_work,
             drawing.object_work.angles[2].get(),
         );

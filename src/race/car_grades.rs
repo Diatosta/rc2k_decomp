@@ -114,10 +114,10 @@ pub fn grade_car_values(block: u32, scene: &crate::scene::owner::Scene) -> Resul
     // tried (the ones before it are written over at once).
     let car = crate::race::trap::car_at(block)?;
     for &(from, to, thresholds) in &GRADES {
-        let x = f32::from_bits(from(car).bits());
+        let x = from(car).get();
         let (grade, tried) = rc2k_core::race::cars::grade(x, thresholds);
-        scene.drawing.scene.scratch.set_bits(tried);
-        to(car).set_bits(grade);
+        scene.drawing.scene.scratch.set(tried);
+        to(car).set(grade);
     }
     Ok(())
 }

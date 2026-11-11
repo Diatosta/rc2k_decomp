@@ -145,22 +145,22 @@ mod tests {
         let o = ObjectPlace::new();
         let work = crate::scene::object_store::ObjectWork::new();
         let ground = crate::physics::ground_store::GroundWork::new();
-        let bits = |c: &[Dword]| c.iter().map(Dword::bits).collect::<Vec<_>>();
+        let bits = |c: &[Dword]| c.iter().map(Dword::get).collect::<Vec<_>>();
         assert_eq!(bits(&o.position), bits(&work.object_position));
-        assert_eq!(o.face_depth.bits(), work.face_depth.bits());
-        assert_eq!(o.car_switches.bits(), work.car_switches.bits());
+        assert_eq!(o.face_depth.get(), work.face_depth.get());
+        assert_eq!(o.car_switches.get(), work.car_switches.get());
         assert_eq!(bits(&o.turned_place), bits(&work.turned_place));
         assert_eq!(bits(&o.turned_place), bits(&work.turned_place));
-        assert_eq!(o.first_face.bits(), work.object_first_face.bits());
-        assert_eq!(o.face_count.bits(), work.object_face_count.bits());
+        assert_eq!(o.first_face.get(), work.object_first_face.get());
+        assert_eq!(o.face_count.get(), work.object_face_count.get());
         assert_eq!(bits(&o.normal_work), bits(&ground.normal_work));
-        assert_eq!(o.fading.bits(), ground.object_fading.bits());
-        assert_eq!(o.see_through.bits(), ground.object_see_through.bits());
+        assert_eq!(o.fading.get(), ground.object_fading.get());
+        assert_eq!(o.see_through.get(), ground.object_see_through.get());
         assert_eq!(bits(&o.fade), bits(&ground.object_fade));
         assert_eq!(bits(&o.kept_reflections), bits(&ground.kept_reflections));
         assert_eq!(
-            o.reflection_normal_number.bits(),
-            ground.reflection_normal_number.bits()
+            o.reflection_normal_number.get(),
+            ground.reflection_normal_number.get()
         );
         assert_eq!(
             bits(&o.reflection_coordinates),

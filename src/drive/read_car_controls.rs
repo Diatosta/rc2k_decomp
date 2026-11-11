@@ -155,11 +155,7 @@ pub fn read_car_controls(race: &Race) -> Result<(), Refused> {
     if crate::remote::autodrive()
         && race_owner.shared.work.current_car.get() < race_owner.shared.view.players.get()
     {
-        race_owner
-            .shared
-            .work
-            .driver_start_blend
-            .set_bits(1.0f32.to_bits());
+        race_owner.shared.work.driver_start_blend.set(1.0f32);
     }
     drive_computer_car(race)?;
     let (ph, w) = (&race_owner.shared.physics_tables, &race_owner.shared.work);

@@ -5,8 +5,10 @@
 //!
 //! Caller: `physics::drive_wheels_step` (0x43E519).
 
-use crate::race::owner::Race;
-use crate::race::owner_course::Course;
+use crate::physics::car_store::Car;
+use crate::physics::flow::ZERO_BITS as ZERO;
+use crate::physics::tables_store::PhysicsTables;
+use crate::race::numbers_store::Numbers;
 use crate::session::Cell32;
 use rc2k_core::physics::drive_forces::cap_reverse;
 
@@ -18,7 +20,7 @@ fn at(a: &dyn Cell32) -> u32 {
 /// the two values at these places.
 // Converted: `rc2k_core::physics::drive_forces::cap_reverse`.
 pub fn cap_reverse_inputs_at(
-    course: &Course,
+    numbers: &Numbers,
     gear: &dyn Cell32,
     speed: &dyn Cell32,
     values: [&dyn Cell32; 2],
@@ -27,8 +29,8 @@ pub fn cap_reverse_inputs_at(
         return; // the speed and the values not read, as the original
     }
     let f = |a: &dyn Cell32| f32::from_bits(at(a));
-    let zero = f32::from_bits(course.numbers.zero.bits());
-    let cap = f32::from_bits(course.numbers.two.bits());
+    let zero = f32::from_bits(ZERO);
+    let cap = f32::from_bits(numbers.two.bits());
     let Some(held) = cap_reverse(at(gear), f(speed), zero, [f(values[0]), f(values[1])], cap)
     else {
         return;
@@ -41,14 +43,11 @@ pub fn cap_reverse_inputs_at(
 }
 
 /// Compares and copies of floats only: the same at any precision.
-pub fn cap_reverse_inputs(race: &Race) {
+pub fn cap_reverse_inputs(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
     cap_reverse_inputs_at(
-        &race.course,
-        &race.shared.car.gear,
-        &race.shared.car.local_velocity[2],
-        [
-            &race.shared.physics_tables.wheel_slips[0],
-            &race.shared.physics_tables.wheel_slips[1],
-        ],
+        numbers,
+        &car.gear,
+        &car.local_velocity[2],
+        [&tables.wheel_slips[0], &tables.wheel_slips[1]],
     );
 }

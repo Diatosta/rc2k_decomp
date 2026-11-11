@@ -8,17 +8,19 @@
 
 use crate::errors::Refused;
 use crate::physics::apply_force::apply_force;
+use crate::physics::car_store::Car;
 use crate::physics::tables_store::ForceRecord;
-use crate::race::owner_shared::RaceShared;
+use crate::physics::tables_store::PhysicsTables;
 
 /// `records` (a whole table, the wheels' 0x17 or the contacts' 7) on the work car.
 pub fn apply_forces(
-    shared: &RaceShared,
+    car: &Car,
+    tables: &PhysicsTables,
     records: &[ForceRecord],
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     for rec in records {
-        apply_force(shared, rec, &shared.car, scene);
+        apply_force(car, tables, rec, scene);
     }
     Ok(())
 }

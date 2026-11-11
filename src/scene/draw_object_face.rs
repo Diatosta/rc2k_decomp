@@ -54,7 +54,7 @@ pub fn draw_object_face(
 ) -> Result<(), Refused> {
     let (race, scene) = (ctx.race, ctx.scene);
     let (work, light, object) = (&ctx.view.face, &ctx.view.light, &ctx.view.object);
-    if scene.lights.state.draw_mode.bits() != 0 {
+    if scene.lights.state.draw_mode.get() != 0 {
         return Ok(());
     }
     if face == 0 {
@@ -72,40 +72,40 @@ pub fn draw_object_face(
     let fw = |at: usize| u32::from_le_bytes(words[at..at + 4].try_into().unwrap());
     let entries = &crate::scene::polygon_store::POLYGON_WORK.entries;
     let vertices = (0..count as usize).map(|n| (&entries[n], 0x10 + n * 0x10));
-    let view_kind: u32 = light.view_kind.bits();
-    let shine: u32 = ctx.view.course.shine.bits();
+    let view_kind: u32 = light.view_kind.get();
+    let shine: u32 = ctx.view.course.shine.get();
 
-    ctx.view.polygon.face_word.set_bits(fw(0xC));
-    light.face_bits.set_bits(words[7] as u32 & 0x1F);
+    ctx.view.polygon.face_word.set(fw(0xC));
+    light.face_bits.set(words[7] as u32 & 0x1F);
     let face_shine = words[9] as u32;
-    ctx.view.polygon.face_shine.set_bits(face_shine);
+    ctx.view.polygon.face_shine.set(face_shine);
     let reflects = shine != 0
-        && race.shared.vars.settings_words[1].bits() != 0
+        && race.shared.vars.settings_words[1].get() != 0
         && view_kind != 4
         && face_shine != 0;
-    ctx.view.face.reflects.set_bits(reflects as u32);
-    ctx.view.polygon.polygon_vertex_count.set_bits(count);
+    ctx.view.face.reflects.set(reflects as u32);
+    ctx.view.polygon.polygon_vertex_count.set(count);
 
-    if race.shared.switches.scene_set_up.bits() != 0 && ctx.view.cars.other_way_kind.bits() == 2 {
+    if race.shared.switches.scene_set_up.get() != 0 && ctx.view.cars.other_way_kind.get() == 2 {
         for (entry, vertex) in vertices {
             entry.point.set(fw(vertex).wrapping_neg());
             entry.u2.set(fw(vertex + 4));
             entry.v2.set(fw(vertex + 8));
             entry.amount.set(0xFF);
-            entry.light.set(light.other_light.bits());
+            entry.light.set(light.other_light.get());
         }
-        ctx.view.polygon.polygon_textures[1].set_bits(ctx.view.polygon.polygon_textures[0].bits());
-        ctx.view.polygon.polygon_sides[0].set_bits(0u32);
-        ctx.view.polygon.polygon_sides[1].set_bits(1u32);
-        work.polygon_mode.set_bits(4u32);
+        ctx.view.polygon.polygon_textures[1].set(ctx.view.polygon.polygon_textures[0].get());
+        ctx.view.polygon.polygon_sides[0].set(0u32);
+        ctx.view.polygon.polygon_sides[1].set(1u32);
+        work.polygon_mode.set(4u32);
         step(Step::DepthTestOff)?;
         step(Step::Draw)?;
         step(Step::DepthTestOn)?;
-        work.polygon_mode.set_bits(0u32);
+        work.polygon_mode.set(0u32);
         return Ok(());
     }
 
-    let (face_kind, face_unlit): (u32, u32) = (work.face_kind.bits(), work.face_unlit.bits());
+    let (face_kind, face_unlit): (u32, u32) = (work.face_kind.get(), work.face_unlit.get());
     let lit = view_kind != 4
         && (face_kind == 0x1C || (face_kind != 5 && (face_kind < 0xA || face_unlit == 0)));
     let table = crate::scene::reading::PointRecords::new()?;
@@ -123,12 +123,12 @@ pub fn draw_object_face(
         entry.light.set(light);
     }
     if reflects {
-        ctx.view.face.face_any_shine.set_bits(0u32);
+        ctx.view.face.face_any_shine.set(0u32);
         for (entry, vertex) in vertices {
-            object.reflection_normal_number.set_bits(fw(vertex + 0xC));
+            object.reflection_normal_number.set(fw(vertex + 0xC));
             object
                 .reflection_point_number
-                .set_bits(fw(vertex).wrapping_neg());
+                .set(fw(vertex).wrapping_neg());
             cached_reflection_coordinates(race, object, &ctx.view.matrices, ctx.view)?;
             let coordinates: [u32; 2] = crate::session::read_bits(&object.reflection_coordinates);
             entry.u2.set(coordinates[0]);
@@ -136,36 +136,36 @@ pub fn draw_object_face(
             let first_fog = entries[0].fog.get() as u32;
             let amount = (face_shine.wrapping_mul(shine).wrapping_mul(first_fog) >> 12).min(0xFF);
             if amount != 0 {
-                ctx.view.face.face_any_shine.set_bits(1u32);
+                ctx.view.face.face_any_shine.set(1u32);
             }
             entry.amount.set(amount as u8);
         }
-        ctx.view.polygon.polygon_textures[1].set_bits(REFLECTION_TEXTURE);
+        ctx.view.polygon.polygon_textures[1].set(REFLECTION_TEXTURE);
     }
-    let faded = work.fade_alpha.bits() != 0 && light.face_bits.bits() == work.faded_bits.bits();
-    work.faded.set_bits(faded as u32);
-    if ctx.view.face.face_any_shine.bits() == 0 {
-        ctx.view.face.reflects.set_bits(0u32);
+    let faded = work.fade_alpha.get() != 0 && light.face_bits.get() == work.faded_bits.get();
+    work.faded.set(faded as u32);
+    if ctx.view.face.face_any_shine.get() == 0 {
+        ctx.view.face.reflects.set(0u32);
     }
-    ctx.view.polygon.polygon_sides[0].set_bits(1u32);
-    ctx.view.polygon.polygon_sides[1].set_bits(ctx.view.face.reflects.bits());
-    let see_through: u32 = object.see_through.bits();
+    ctx.view.polygon.polygon_sides[0].set(1u32);
+    ctx.view.polygon.polygon_sides[1].set(ctx.view.face.reflects.get());
+    let see_through: u32 = object.see_through.get();
     if see_through != 0x100 {
         for entry in &entries[..0x10] {
             entry.amount.set(see_through as u8);
             entry.u2.set(entry.u.get());
             entry.v2.set(entry.v.get());
         }
-        ctx.view.polygon.polygon_sides[0].set_bits(0u32);
-        ctx.view.polygon.polygon_sides[1].set_bits(1u32);
-        work.polygon_mode.set_bits(3u32);
-        ctx.view.polygon.polygon_textures[1].set_bits(ctx.view.polygon.polygon_textures[0].bits());
+        ctx.view.polygon.polygon_sides[0].set(0u32);
+        ctx.view.polygon.polygon_sides[1].set(1u32);
+        work.polygon_mode.set(3u32);
+        ctx.view.polygon.polygon_textures[1].set(ctx.view.polygon.polygon_textures[0].get());
     } else {
-        work.polygon_mode.set_bits(4u32);
+        work.polygon_mode.set(4u32);
     }
     step(Step::Draw)?;
-    work.polygon_mode.set_bits(0u32);
-    work.faded.set_bits(0u32);
+    work.polygon_mode.set(0u32);
+    work.faded.set(0u32);
     Ok(())
 }
 

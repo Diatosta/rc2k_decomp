@@ -9,15 +9,16 @@
 //! entries (the original writes past it; race init clears 0x40).
 
 use crate::errors::Refused;
-use crate::race::owner::Race;
+use crate::physics::car_store::Car;
+use crate::physics::split_tables_store::SplitTables;
 use rc2k_core::physics::splits::kept_split_slot;
 
 /// Converted: `rc2k_core::physics::splits::kept_split_slot` (below 0x40).
-pub fn keep_split_time(race: &Race) -> Result<(), Refused> {
+pub fn keep_split_time(car: &Car, split_tables: &SplitTables) -> Result<(), Refused> {
     let k = kept_split_slot(
-        race.shared.car.splits_passed.get(),
-        race.physics.split_tables.split_colour_count.get(),
+        car.splits_passed.get(),
+        split_tables.split_colour_count.get(),
     )?;
-    race.physics.split_tables.kept_times[k as usize].set(race.shared.car.stage_time.get());
+    split_tables.kept_times[k as usize].set(car.stage_time.get());
     Ok(())
 }

@@ -9,20 +9,20 @@
 //! Caller: `physics::take_asked_gear` (0x43C1FD). Refuses what `gear_bit` refuses (a bit past 31).
 
 use crate::errors::Refused;
+use crate::physics::car_store::Car;
 use crate::physics::gear_bit::bits_at;
-use crate::race::owner::Race;
-use crate::race::owner_course::Course;
+use crate::race::numbers_store::Numbers;
 
 /// On the word +0x2B8, the word +0x3F4 and the gear bits at these places.
 // Converted: `rc2k_core::physics::gearbox::allowed_gear`.
 pub fn allowed_gear_at(
-    course: &Course,
+    numbers: &Numbers,
     locked: &dyn crate::session::Cell32,
     open: &dyn crate::session::Cell32,
     bits: &dyn crate::session::Cell32,
     eax: u32,
 ) -> Result<u32, Refused> {
-    let locked = locked.bits() == course.numbers.hundred.bits();
+    let locked = locked.bits() == numbers.hundred.bits();
     Ok(rc2k_core::physics::gearbox::allowed_gear(
         locked,
         eax,
@@ -31,12 +31,12 @@ pub fn allowed_gear_at(
     )?)
 }
 
-pub fn allowed_gear(race: &Race, eax: u32) -> Result<u32, Refused> {
+pub fn allowed_gear(car: &Car, numbers: &Numbers, eax: u32) -> Result<u32, Refused> {
     allowed_gear_at(
-        &race.course,
-        &race.shared.car.engine_damage,
-        &race.shared.car.engine_power_factor,
-        &race.shared.car.lost_gear_bits,
+        numbers,
+        &car.engine_damage,
+        &car.engine_power_factor,
+        &car.lost_gear_bits,
         eax,
     )
 }

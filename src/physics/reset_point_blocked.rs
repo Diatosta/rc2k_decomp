@@ -13,7 +13,8 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::race::owner::Race;
+use crate::physics::tables_store::PhysicsTables;
+use crate::race::vars_store::RaceVars;
 use crate::session::Cell32;
 use rc2k_core::physics::line_places;
 
@@ -35,10 +36,6 @@ pub fn reset_point_blocked_at(candidate: &dyn Cell32, count: &dyn Cell32, block:
     .carry()
 }
 
-pub fn reset_point_blocked(race: &Race, block: u32) -> bool {
-    reset_point_blocked_at(
-        &race.shared.physics_tables.reset_candidate,
-        &race.shared.vars.checkpoint_count,
-        block,
-    )
+pub fn reset_point_blocked(tables: &PhysicsTables, vars: &RaceVars, block: u32) -> bool {
+    reset_point_blocked_at(&tables.reset_candidate, &vars.checkpoint_count, block)
 }

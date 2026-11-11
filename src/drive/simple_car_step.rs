@@ -28,8 +28,8 @@ pub fn simple_car_step(
     let keys = race.shared.car.input_keys.get();
     { crate::drive::reset_request::reset_request(race, scene) }?;
     let distance = roam_distance(
-        CAR_BLOCKS.cars[0].throttle.bits(),
-        CAR_BLOCKS.cars[0].brake.bits(),
+        CAR_BLOCKS.cars[0].throttle.get(),
+        CAR_BLOCKS.cars[0].brake.get(),
         input.devices.keys_now.get(0x1D) != 0, // byte_4F6B79
     );
     let [x, _, z, _] = {
@@ -37,16 +37,16 @@ pub fn simple_car_step(
             0,
             keys as i32,
             distance as i32,
-            CAR_BLOCKS.cars[0].car_heading.bits(),
+            CAR_BLOCKS.cars[0].car_heading.get(),
         )
     };
-    CAR_BLOCKS.cars[0].position[0].set_bits(CAR_BLOCKS.cars[0].position[0].bits().wrapping_add(x));
-    CAR_BLOCKS.cars[0].position[2].set_bits(CAR_BLOCKS.cars[0].position[2].bits().wrapping_add(z));
-    CAR_BLOCKS.cars[0].car_heading.set_bits(
+    CAR_BLOCKS.cars[0].position[0].set(CAR_BLOCKS.cars[0].position[0].get().wrapping_add(x));
+    CAR_BLOCKS.cars[0].position[2].set(CAR_BLOCKS.cars[0].position[2].get().wrapping_add(z));
+    CAR_BLOCKS.cars[0].car_heading.set(
         CAR_BLOCKS.cars[0]
             .car_heading
-            .bits()
-            .wrapping_add(roam_turn(CAR_BLOCKS.cars[0].steering.bits())),
+            .get()
+            .wrapping_add(roam_turn(CAR_BLOCKS.cars[0].steering.get())),
     );
     { crate::physics::wheel_surfaces::wheel_surfaces(race, scene) }?;
     race.physics
@@ -66,10 +66,10 @@ pub fn simple_car_step(
             .get()
             .wrapping_add(race.shared.physics_tables.ground_drop.get());
         race.course.course.place_y.set(y);
-        CAR_BLOCKS.cars[0].position[1].set_bits(y);
+        CAR_BLOCKS.cars[0].position[1].set(y);
     }
-    CAR_BLOCKS.cars[0].car_pitch.set_bits(0);
-    CAR_BLOCKS.cars[0].car_roll.set_bits(0);
+    CAR_BLOCKS.cars[0].car_pitch.set(0);
+    CAR_BLOCKS.cars[0].car_roll.set(0);
     crate::race::stage_prefs::get_mat_crash(race);
     Ok(())
 }

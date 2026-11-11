@@ -6,12 +6,14 @@
 
 use crate::errors::Refused;
 use crate::physics::apply_forces::apply_forces;
-use crate::race::owner_shared::RaceShared;
+use crate::physics::car_store::Car;
+use crate::physics::tables_store::PhysicsTables;
 const COUNT: usize = 0x17;
 
 pub fn apply_wheel_forces(
-    shared: &RaceShared,
+    car: &Car,
+    tables: &PhysicsTables,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    apply_forces(shared, &shared.physics_tables.forces[..COUNT], scene)
+    apply_forces(car, tables, &tables.forces[..COUNT], scene)
 }

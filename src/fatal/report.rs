@@ -36,17 +36,17 @@ use std::sync::atomic::Ordering;
 pub use rc2k_core::fatal::{Context, Leave, TEXT_ONLY, register_dump, report_text};
 
 /// The report for what the game's variables hold now.
-fn text_from_game(context: &Context) -> Result<Vec<u8>, BadInput> {
+fn text_from_game(context: Option<&Context>) -> Vec<u8> {
     let message = crate::fatal::state::message().map(str::as_bytes);
     let last_file = crate::files::state::last_file_path();
-    Ok(report_text(
+    report_text(
         CODE.get(),
         message,
         &EXTRA.text(),
         last_file.as_deref(),
         W32.get(),
         context,
-    ))
+    )
 }
 
 /// What the reporter needs from code that is not ported, or from a test.
@@ -59,15 +59,15 @@ pub struct Outside<'a> {
     pub thread_slot: &'a dyn Fn() -> u32,
 }
 
-pub fn report(context: &Context, outside: &mut Outside) -> Result<Leave, BadInput> {
+pub fn report(context: Option<&Context>, outside: &mut Outside) -> Result<Leave, BadInput> {
     let code: u32 = CODE.get();
-    let text = text_from_game(context)?;
+    let text = text_from_game(context);
     // Converted: `rc2k_core::fatal` (`report_text`, `fits`, `leave`).
     if !rc2k_core::fatal::fits(text.len()) {
         return Err(BadInput("the report does not fit its buffer"));
     }
     if REPORTED.atomic().swap(1, Ordering::SeqCst) != 1 {
-        if code & TEXT_ONLY == 0 {
+        if let (true, Some(context)) = (code & TEXT_ONLY == 0, context) {
             // The original fills in its template in place, so it keeps the values.
             let dump = register_dump(context);
             TEMPLATE.write_at(0, &dump, "the registers' template")?;
@@ -87,13 +87,13 @@ pub fn report(context: &Context, outside: &mut Outside) -> Result<Leave, BadInpu
     ))
 }
 
-/// The reporter called directly by `fatal::raise` with the registers of the place that
-/// refused (not by its address through the fault handler). A code
+/// The reporter called directly by `fatal::raise`, with the registers of the place that
+/// refused when they are known (the report has no register lines otherwise). A code
 /// without the fatal bit returns; with it the game is asked to quit and this thread ends
 /// as the original's two ways out end it: with no thread slot the program at `start`'s way
 /// out, on a slot's thread its routine run again, which finds the game
 /// quitting, and the thread ended.
-pub fn report_now(context: &Context) {
+pub fn report_now(context: Option<&Context>) {
     log(&format!(
         "fatal::report: thread {}",
         crate::sync::thread_id()

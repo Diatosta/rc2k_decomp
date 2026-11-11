@@ -31,7 +31,7 @@ pub fn input_tick(input: &Input, sound: &crate::sound::owner::Sound) -> Result<(
         crate::input::read_device::read_device(&input.devices, record)?;
         crate::input::device_effects::device_effects(&input.devices, record)?;
     }
-    if input.devices.two_devices_one_player.get() != 0 {
+    if input.devices.two_devices_one_player.is_set() {
         // Converted: `rc2k_core::input::devices::merge_readings`.
         let [first, second] = records;
         let read = |record: &InputDevice| -> [u32; 4] {

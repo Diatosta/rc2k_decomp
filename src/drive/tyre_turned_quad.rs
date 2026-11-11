@@ -20,7 +20,7 @@ use crate::session::{Dword, Float};
 /// the input device, `d` the rectangle (floats), `v` the vertices, `t` the scratch float
 /// holding 2 pi.
 fn turn(ty: &TyreChange, e: &InputDevice, d: &[Float; 4], v: &[Vertex], t: &Dword) {
-    let angle = int(e.gauge.get() as i32) * ld(ty.gauge_unit.bits()) * ld(t.bits());
+    let angle = int(e.gauge.get() as i32) * ld(ty.gauge_unit.bits()) * ld(t.get());
     let (sin, cos) = angle.sin_cos();
     ty.turn_cos.set_bits(st(cos));
     ty.turn_sin.set_bits(st(sin));

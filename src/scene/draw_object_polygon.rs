@@ -72,26 +72,26 @@ pub fn draw_object_polygon(
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     use rc2k_core::scene::polygons::{drawn_whole, fan, first_list, fits};
-    let count: u32 = poly.polygon_vertex_count.bits();
+    let count: u32 = poly.polygon_vertex_count.get();
     if !fits(count) {
         return Err(BadInput("a polygon of no vertices, or of more than 64").into());
     }
     poly.polygon_next_record
-        .set_bits(crate::scene::polygon::pool_start());
+        .set(crate::scene::polygon::pool_start());
     for (n, number) in first_list(count).into_iter().enumerate() {
         crate::scene::polygon::list_cell(n).set(number);
     }
-    poly.polygon_next_entry.set_bits(count);
+    poly.polygon_next_entry.set(count);
     step(Step::Project)?;
     if drawn_whole(count, needs_clipping(poly, &race.course, count)?) {
         object
             .whole_polygon_count
-            .set_bits(object.whole_polygon_count.bits().wrapping_add(1));
+            .set(object.whole_polygon_count.get().wrapping_add(1));
         return step(Step::Draw);
     }
     object
         .split_polygon_count
-        .set_bits(object.split_polygon_count.bits().wrapping_add(1));
+        .set(object.split_polygon_count.get().wrapping_add(1));
     // the first `count` entries kept from entry 64 (`fits`: at most 64)
     let (entries, kept) = crate::scene::polygon_store::POLYGON_WORK
         .entries
@@ -99,14 +99,14 @@ pub fn draw_object_polygon(
     for (to, from) in kept.iter().zip(&entries[..count as usize]) {
         to.copy_from(from);
     }
-    poly.polygon_vertex_count.set_bits(3u32);
+    poly.polygon_vertex_count.set(3u32);
     step(Step::Draw)?;
-    poly.polygon_vertex_count.set_bits(count);
+    poly.polygon_vertex_count.set(count);
     for triangle in fan(count) {
         for (to, from) in triangle.into_iter().enumerate() {
             entries[to].copy_from(&kept[from]);
         }
-        poly.polygon_vertex_count.set_bits(3u32);
+        poly.polygon_vertex_count.set(3u32);
         step(Step::Draw)?;
     }
     Ok(())

@@ -39,9 +39,9 @@ pub fn pause_until_key(
     stop_race_sounds()?;
     shared.vars.scene_switch.set(1);
     for c in 0..2 {
-        CAR_BLOCKS.cars[c as usize].notice_id.set_bits(0xCB);
-        CAR_BLOCKS.cars[c as usize].notice_time_b.set_bits(0);
-        CAR_BLOCKS.cars[c as usize].notice_time.set_bits(u32::MAX);
+        CAR_BLOCKS.cars[c as usize].notice_id.set(0xCB);
+        CAR_BLOCKS.cars[c as usize].notice_time_b.set(0);
+        CAR_BLOCKS.cars[c as usize].notice_time.set(u32::MAX);
     }
     shared.vars.pause_wait.set(0x1E);
     // From 0x4453EE (the wait held) or 0x445401 (a turn).
@@ -71,13 +71,13 @@ pub fn pause_until_key(
         }
     }
     for c in 0..2 {
-        CAR_BLOCKS.cars[c as usize].notice_shown.set_bits(0);
-        CAR_BLOCKS.cars[c as usize].notice_id.set_bits(0);
-        CAR_BLOCKS.cars[c as usize].notice_last.set_bits(0);
+        CAR_BLOCKS.cars[c as usize].notice_shown.set(0);
+        CAR_BLOCKS.cars[c as usize].notice_id.set(0);
+        CAR_BLOCKS.cars[c as usize].notice_last.set(0);
     }
     shared.vars.scene_switch.set(0);
     wake_car_sounds(race)?;
     take_key();
-    CAR_BLOCKS.cars[0].input_keys.set_bits(0);
+    CAR_BLOCKS.cars[0].input_keys.set(0);
     Ok(())
 }

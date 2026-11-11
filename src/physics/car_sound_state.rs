@@ -19,8 +19,10 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87_float::ld;
 use crate::math::x87_float::{X, st};
 use crate::math::x87_run::{ext_times, ints_diff_80};
+use crate::physics::car_store::Car;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
+use crate::race::view_store::RaceView;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::session::Dword;
@@ -38,11 +40,11 @@ fn shares(race: &Race, so: &crate::sound::store::SoundObject) {
 
 /// The car the sound is heard from: view 0's block with one player (none if it has no
 /// block), else the work car.
-fn listener(shared: &RaceShared) -> Option<&crate::physics::car_store::Car> {
-    if shared.view.players.get() == 1 {
-        crate::race::blocks_store::car_of(shared.view.view_blocks[0].get())
+fn listener<'a>(car: &'a Car, view: &'a RaceView) -> Option<&'a crate::physics::car_store::Car> {
+    if view.players.get() == 1 {
+        crate::race::blocks_store::car_of(view.view_blocks[0].get())
     } else {
-        Some(&crate::race::owner::RACE.shared.car)
+        Some(car)
     }
 }
 
@@ -51,7 +53,7 @@ const _: () =
 
 /// The exact x87 version (for `physics::engine_sound`).
 pub fn car_sound_state(race: &Race) -> Result<(), Refused> {
-    let Some(l) = listener(&race.shared) else {
+    let Some(l) = listener(&race.shared.car, &race.shared.view) else {
         return Err(BadInput("a null view block").into());
     };
     let so = crate::sound::store::current_object();

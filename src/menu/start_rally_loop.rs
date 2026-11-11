@@ -23,27 +23,22 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let item = screens.items.current[slot::START_RALLY].get();
     screens.loop_flags.item.set(item);
     screens.state.carousel.front.set(item.wrapping_sub(1));
-    crate::scene::polygon_work::front_end().window.view_offset[0].set(0x7u32);
-    crate::scene::polygon_work::front_end().window.view_offset[1].set(0xAu32);
-    crate::scene::polygon_work::front_end()
-        .window
-        .view_zoom
-        .set(0x100u32);
+    entry.set_view(7, 10, 0x100);
     prepare_scene(entry.scene);
     Ok(())
 }
 
 fn after_first_frame(entry: &Entry) -> Result<Flow, Refused> {
     let tables = &entry.menus.tables;
-    if tables.captions.screen_left.get() == 0x1 {
-        tables.captions.screen_left.set(0x0u32);
+    if tables.captions.left_by_key.get() == 0x1 {
+        tables.captions.left_by_key.set(0x0u32);
         return Ok(Flow::SetUp);
     }
     Ok(Flow::On)
 }
 
 fn leaving(entry: &Entry) -> Result<(), Refused> {
-    if entry.menus.tables.captions.screen_left.get() == 0x1 {
+    if entry.menus.tables.captions.left_by_key.get() == 0x1 {
         Callee::GoBack.run(entry)?;
     }
     Ok(())
