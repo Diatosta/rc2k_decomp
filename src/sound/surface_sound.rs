@@ -13,20 +13,19 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::from_int;
 use crate::math::x87_float::{ld, st};
-use crate::pointers::GamePtr;
 use crate::session::Cell32;
 use crate::sound::sample_settings::{OWN, record, sample_settings};
-use crate::sound::sets_store::SoundRequest;
+use crate::sound::sets_store::{ListIn, SoundRequest};
 use rc2k_core::sound::surfaces;
 
 /// Object `o`'s sound of the surface's sound `set`, through `request`.
 pub fn surface_sound(
     o: &crate::sound::store::SoundObject,
-    set: GamePtr,
+    set: ListIn<392>,
     request: &SoundRequest,
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::sound::surfaces::pick`.
-    let eight = set.read::<u32>("a sound set")? == 1;
+    let eight = set.get(0)? == 1;
     let (n, slot) = surfaces::pick(eight, o.sound_offset.get(), || o.view_flag.get())
         .map_err(BadInput::from)?;
     // The core names the object's dword it replaces by its offset.
@@ -36,7 +35,7 @@ pub fn surface_sound(
         _ => return Err(BadInput("a surface sound's slot not worked out").into()),
     };
     // The set is a list of dwords inside the sets' lists, read by position (no record of its own).
-    let sound: u32 = set.offset(4 * (1 + n)).read("a sound set")?;
+    let sound = set.get(1 + n as usize)?;
     record(sound)?;
     if sound != playing.get() {
         let old = playing.get();

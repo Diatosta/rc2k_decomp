@@ -13,7 +13,6 @@ use crate::errors::BadInput;
 use crate::gfx::owner::gfx;
 use crate::menu::owner::menus;
 use crate::net::owner::net;
-use crate::pointers::GamePtr;
 use crate::race::owner::race;
 use crate::saves::owner::saves;
 use crate::scene::owner::scene;
@@ -451,15 +450,11 @@ fn settings() -> Result<Vec<(Vec<u8>, u32)>, BadInput> {
     )?)
 }
 
-pub fn apply_settings(text: GamePtr) -> Result<(), BadInput> {
-    if text.is_null() {
-        return Err(BadInput("no settings text or no key"));
-    }
+pub fn apply_settings(text: &[u8]) -> Result<(), BadInput> {
     let table = settings()?;
     let keys: Vec<&[u8]> = table.iter().map(|(key, _)| key.as_slice()).collect();
     // Found first, stored after: nothing is written if a key is refused.
-    let found =
-        rc2k_core::files::settings::apply(&text.bytes("a settings text")?, &keys, &case_table())?;
+    let found = rc2k_core::files::settings::apply(text, &keys, &case_table())?;
     for (n, number) in found {
         ENTRIES[n].2.set(number);
     }
@@ -468,7 +463,7 @@ pub fn apply_settings(text: GamePtr) -> Result<(), BadInput> {
 
 pub fn read_settings() -> Result<(), BadInput> {
     match read_text(&PATH[..PATH.len() - 1])? {
-        Some((text, _)) => apply_settings(text),
+        Some(text) => apply_settings(&text),
         None => Ok(()),
     }
 }

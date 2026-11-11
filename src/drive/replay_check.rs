@@ -16,7 +16,7 @@
 //! `SUMMARY_EVERY` frames compared a count.
 
 use crate::errors::BadInput;
-use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::blocks_store::{CAR_BLOCKS, REPLAY_STATE_DWORDS, REPLAY_STATE_OFFSET};
 use crate::race::owner::Race;
 use rc2k_core::drive::replay_frames::{CAR_DWORDS, PLAYING, RECORDING};
 use rc2k_core::drive::replay_frames::{StartPiece, start_layout};
@@ -97,9 +97,17 @@ fn piece_name(piece: StartPiece) -> String {
 
 /// At a whole frame of a replay played, before its recorded state is loaded.
 pub fn compare_frame(race: &Race) -> Result<(), BadInput> {
-    let saved = crate::race::blocks_store::replay_state(&race.replay);
+    let saved = |dword: usize| -> Result<u32, BadInput> {
+        if dword >= REPLAY_STATE_DWORDS {
+            return Err(BadInput("a dword past the replay's starting state"));
+        }
+        crate::pointers::load_value::<u32>(
+            &race.replay.cars_and_replay,
+            REPLAY_STATE_OFFSET + 4 * dword,
+        )
+    };
     let clock = CAR_BLOCKS.cars[0].step_clock.get();
-    if saved.offset(8).read::<u32>("the replay check's blocks")? != clock {
+    if saved(2)? != clock {
         SKIPPED.fetch_add(1, Relaxed);
         return Ok(());
     }
@@ -109,9 +117,7 @@ pub fn compare_frame(race: &Race) -> Result<(), BadInput> {
         for k in 0..n as u32 {
             let (now, kept) = (
                 crate::pointers::load_value::<u32>(ours, ours_at + 4 * k as usize)?,
-                saved
-                    .offset(4 * (offset as u32 + k))
-                    .read::<u32>("the replay check's blocks")?,
+                saved(offset + k as usize)?,
             );
             if now == kept
                 || matches!(piece, StartPiece::Car(_)) && VIEWERS.contains(&(4 * k as usize))

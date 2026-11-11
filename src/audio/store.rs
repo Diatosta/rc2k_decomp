@@ -829,26 +829,68 @@ pub const fn name_key(ida: u32) -> u32 {
 /// The bytes `SampleNames` has before IDA's `START` (its `_lead`).
 const NAMES_LEAD: usize = 12;
 
-/// Where the name of `key` is (`name_key`). Entry point: the menus and the sound commands
-/// ask without the owner.
-pub fn name_at(key: u32) -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
+/// The name of `key` (`name_key`): its text up to the NUL. Entry point: the menus and the
+/// sound commands ask without the owner.
+pub fn name_at(key: u32) -> Result<Vec<u8>, crate::errors::BadInput> {
     name_in(&audio().sample_names, key)
 }
 
-/// Where the name of `key` is in `names`.
+/// The name of `key` in `names`, read to its NUL inside the field that holds it: the last name
+/// of every field ends in a NUL, so a name never runs on into the next field.
 pub fn name_in(
     names: &crate::audio::names_store::SampleNames,
     key: u32,
-) -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
+) -> Result<Vec<u8>, crate::errors::BadInput> {
     use crate::audio::names_store::SampleNames;
-    let at = key as usize;
-    if !(NAMES_LEAD..NAMES_LEAD + SampleNames::LEN).contains(&at) {
+    use core::mem::offset_of;
+    let key = key as usize;
+    // Each field: where it starts in the names, its length, a byte of it.
+    type Field<'a> = (usize, usize, &'a dyn Fn(usize) -> u8);
+    let fields: [Field; 5] = [
+        (
+            offset_of!(SampleNames, effects),
+            names.effects.atomics().len(),
+            &|i| names.effects.get(i),
+        ),
+        (
+            offset_of!(SampleNames, male_speech),
+            names.male_speech.atomics().len(),
+            &|i| names.male_speech.get(i),
+        ),
+        (
+            offset_of!(SampleNames, female_speech),
+            names.female_speech.atomics().len(),
+            &|i| names.female_speech.get(i),
+        ),
+        (
+            offset_of!(SampleNames, rally_speech),
+            names.rally_speech.atomics().len(),
+            &|i| names.rally_speech.get(i),
+        ),
+        (
+            offset_of!(SampleNames, menu_speech_st1),
+            names.menu_speech_st1.atomics().len(),
+            &|i| names.menu_speech_st1.get(i),
+        ),
+    ];
+    let Some((start, len, byte)) = fields
+        .into_iter()
+        .find(|&(start, len, _)| (start..start + len).contains(&key))
+    else {
         return Err(crate::errors::BadInput(
             "a sample record's name key off the names",
         ));
+    };
+    let text: Vec<u8> = (key - start..len)
+        .map(byte)
+        .take_while(|&b| b != 0)
+        .collect();
+    if key - start + text.len() == len {
+        return Err(crate::errors::BadInput(
+            "a sample name with no end in its field",
+        ));
     }
-    // A name's text by its key in the names buffer (read up to its NUL).
-    Ok(crate::pointers::GamePtr::to(names).offset(at as u32))
+    Ok(text)
 }
 
 /// A record's `volume_factor`: which level its voices take (the original

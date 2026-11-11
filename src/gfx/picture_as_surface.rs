@@ -14,8 +14,9 @@
 //! The name is a reading.
 
 use crate::errors::{FatalError, Refused};
+use crate::gfx::modes::Modes;
 use crate::gfx::set_clip::set_clip;
-use crate::system::find_entry::entries;
+use core::mem::offset_of;
 
 // ---- game data ----
 
@@ -28,15 +29,16 @@ const PIXEL_KIND_COUNT: u32 = 2;
 
 /// The surface block for a picture with these flags, from its third dword on (the corner
 /// is not touched).
-pub fn surface_of(flags: u32, pixels: u32) -> Result<[u32; SURFACE_DWORDS - 2], Refused> {
+pub fn surface_of(
+    modes: &Modes,
+    flags: u32,
+    pixels: u32,
+) -> Result<[u32; SURFACE_DWORDS - 2], Refused> {
     // Converted: `rc2k_core::gfx::screen_modes::picture_surface`.
     rc2k_core::gfx::screen_modes::picture_surface(
         flags,
-        entries(crate::gfx::modes::Modes::sizes_ptr(), SIZE_COUNT),
-        entries(
-            crate::gfx::modes::Modes::pixel_kinds_ptr(),
-            PIXEL_KIND_COUNT,
-        ),
+        modes.entries(offset_of!(Modes, sizes), SIZE_COUNT),
+        modes.entries(offset_of!(Modes, pixel_kinds), PIXEL_KIND_COUNT),
         crate::gfx::pixel_format::SCREEN_FORMAT,
         pixels,
     )
@@ -52,7 +54,7 @@ pub fn surface_of(flags: u32, pixels: u32) -> Result<[u32; SURFACE_DWORDS - 2], 
 pub fn picture_as_surface(gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
     // The surface is the picture buffer by its number (`gfx::surface::Target::Picture`),
     // `g_surface.pixels` 0 (no address).
-    let block = surface_of(gfx.pictures.picture.flags.get(), 0)?;
+    let block = surface_of(&gfx.display.modes, gfx.pictures.picture.flags.get(), 0)?;
     let s = &gfx.drawing.draw_surface;
     s.width.set(block[0]);
     s.height.set(block[1]);

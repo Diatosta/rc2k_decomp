@@ -6,7 +6,6 @@ use crate::errors::{BadInput, Refused};
 use crate::gfx::blit_glyph::BlitCall;
 use crate::gfx::typefaces::FontRef;
 use crate::menu::owner::Menus;
-use crate::pointers::GamePtr;
 use crate::race::owner::race;
 use crate::session::DwordLike;
 use crate::strings::text_buffer::TextBuf;
@@ -52,8 +51,8 @@ pub trait GameText: Copy {
     /// Drawn in `font` at x, y.
     fn draw(self, font: FontRef, x: i32, y: i32, canvas: &mut dyn Canvas)
     -> Result<Drawn, Refused>;
-    /// A shared buffer of the game's.
-    fn of_buffer(at: GamePtr) -> Self;
+    /// A shared buffer of the game's, read when drawn.
+    fn of_buffer(buffer: Buffer) -> Self;
     /// Measured in `font` from x: its widest line's width.
     fn measure(self, font: FontRef, x: i32, canvas: &mut dyn Canvas) -> Result<u32, Refused>;
 }
@@ -99,6 +98,61 @@ pub fn held_name(text: Option<Vec<u8>>) -> Result<HeldText, crate::errors::BadIn
         .ok_or(crate::errors::BadInput("a name past its entry"))
 }
 
+/// The text from byte `at` of `run` up to and with its NUL, or to the run's end when it has
+/// none (the drawer then refuses it). Nothing past the run.
+fn text_in(run: &dyn crate::place::Run, at: usize) -> Vec<u8> {
+    let mut text = Vec::new();
+    for n in at..run.len() {
+        let b = run.get(n);
+        text.push(b);
+        if b == 0 {
+            break;
+        }
+    }
+    text
+}
+
+/// A name in a field of a typed table (a record's `name`), held for drawing with the table's
+/// bytes as they are now; refused without its NUL inside the field or past the held room.
+/// The screens build their rows and draw them in the same call, so nothing changes the
+/// field in between.
+pub fn held_field(field: &dyn crate::place::Run) -> Result<HeldText, crate::errors::BadInput> {
+    let mut text = text_in(field, 0);
+    held_name(if text.pop() == Some(0) {
+        Some(text)
+    } else {
+        None
+    })
+}
+
+/// A table of slot names the screens list: 0x20-byte names one after the other.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SlotNames {
+    /// The saved games' names (the load and save screens).
+    SavedGames,
+    /// The setups' names.
+    Setups,
+    /// The replays' names.
+    Replays,
+}
+
+impl SlotNames {
+    /// The table and the length of one name in it.
+    fn table(self) -> (&'static dyn crate::place::Run, usize) {
+        match self {
+            SlotNames::SavedGames => (&crate::saves::owner::saves().save_games.names, 0x20),
+            SlotNames::Setups => (
+                &crate::service::owner::service().set_ups.names,
+                crate::service::read_setup_slot::NAME_LEN,
+            ),
+            SlotNames::Replays => (
+                &crate::race::owner::race().shared.replays.names,
+                crate::menu::name_lists::NAME_LEN,
+            ),
+        }
+    }
+}
+
 /// The name of player `player` (counted from 0), drawn from the names' store.
 pub fn player_name_of(player: usize) -> HeldText {
     HeldText::Name(crate::menu::player_names::NameAt::of(player))
@@ -117,11 +171,37 @@ pub fn player_name(name_at: u32) -> Result<HeldText, crate::errors::BadInput> {
 /// The texts of a screen whose names are held by value: those, or the game's own buffers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum HeldText {
-    /// A text in a field of a typed store (a record's name), bounded by it.
-    Place(GamePtr),
+    /// The name of slot `.1` in a table of slot names, read when drawn and run on to the
+    /// table's end.
+    Slot(SlotNames, u32),
+    /// A shared text buffer, read when drawn.
+    Buffer(Buffer),
+    /// A saved car's name in the read saved-game file (from this offset), run on to the
+    /// file's end.
+    SavedCarName(usize),
     /// A player's name in the names' area, run on to the area's end.
     Name(crate::menu::player_names::NameAt),
     Held(Held),
+}
+
+impl HeldText {
+    /// The bytes of a text that stays in its table or buffer, as they are now.
+    fn read_in_place(self) -> Vec<u8> {
+        match self {
+            HeldText::Slot(names, slot) => {
+                let (table, len) = names.table();
+                text_in(table, (slot as usize).wrapping_mul(len))
+            }
+            HeldText::Buffer(buffer) => match buffer_at(buffer) {
+                TextBuf::Text(b) => text_in(b, 0),
+                TextBuf::Line(b) => text_in(b, 0),
+            },
+            HeldText::SavedCarName(at) => {
+                text_in(&crate::saves::owner::saves().save_games.file, at)
+            }
+            HeldText::Name(_) | HeldText::Held(_) => Vec::new(),
+        }
+    }
 }
 
 impl GameText for HeldText {
@@ -133,8 +213,8 @@ impl GameText for HeldText {
         canvas: &mut dyn Canvas,
     ) -> Result<Drawn, Refused> {
         match self {
-            HeldText::Place(at) => {
-                let out = draw_text_at(font, &at.bytes("a name")?, x, y, canvas)?;
+            HeldText::Slot(..) | HeldText::Buffer(_) | HeldText::SavedCarName(_) => {
+                let out = draw_text_at(font, &self.read_in_place(), x, y, canvas)?;
                 Ok(Drawn {
                     y: out.y,
                     too_wide: out.too_wide,
@@ -159,16 +239,16 @@ impl GameText for HeldText {
         }
     }
 
-    fn of_buffer(at: GamePtr) -> Self {
-        HeldText::Place(at)
+    fn of_buffer(buffer: Buffer) -> Self {
+        HeldText::Buffer(buffer)
     }
 
     fn measure(self, font: FontRef, x: i32, canvas: &mut dyn Canvas) -> Result<u32, Refused> {
         match self {
-            HeldText::Place(at) => {
+            HeldText::Slot(..) | HeldText::Buffer(_) | HeldText::SavedCarName(_) => {
                 let m = crate::text::measure_text::measure_text_at(
                     font,
-                    &at.bytes("a name")?,
+                    &self.read_in_place(),
                     x,
                     canvas,
                 )?;
@@ -263,7 +343,7 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
     }
 
     fn draw(&mut self, font: F, buffer: Buffer, x: i32, y: i32) -> Result<Drawn, Refused> {
-        self.text(font, T::of_buffer(buffer_at(buffer).place()), x, y)
+        self.text(font, T::of_buffer(buffer), x, y)
     }
 
     fn draw_time(&mut self, font: F, buffer: Buffer, right: i32, y: i32) -> Result<(), Refused> {

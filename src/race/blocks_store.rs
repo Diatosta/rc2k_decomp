@@ -179,14 +179,6 @@ const _: () = assert!(
         <= core::mem::size_of::<crate::race::groups_store::CarsAndReplay>()
 );
 
-/// The replay's starting state: 0xA04 dwords from car block 8, running past the car blocks
-/// into the replay work (their group holds both), as a pointer bounded by that length.
-pub fn replay_state(replay: &Replay) -> crate::pointers::GamePtr {
-    crate::pointers::GamePtr::to(&replay.cars_and_replay)
-        .offset((8 * BLOCK_LEN) as u32)
-        .limited((4 * REPLAY_STATE_DWORDS) as u32)
-}
-
 /// `own_car_number`'s block.
 pub fn own_car() -> &'static Car {
     &CAR_BLOCKS.cars[own_car_number()]

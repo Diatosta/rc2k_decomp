@@ -35,10 +35,18 @@ use crate::math::x87;
 use crate::race::effects_settings_store::{CarEffects, EffectsSettings, car_or_none};
 use crate::scene::matrix3::extended;
 
-/// The settings' flag for a ring entry's tag (its +8, a car's number times 0x4C8 for the
-/// cars' emitters): the word at the tag + 0x60 in the settings.
+/// The settings' flag for a ring entry's tag (its +8, a car's number times the car record's
+/// length, as `cars_particles` makes it): the first word of that car's record.
 fn entry_flag(marks: &EffectsSettings, tag: u32) -> Result<u32, BadInput> {
-    marks.at(tag.wrapping_add(0x60)).read("a mark's field")
+    let record = crate::race::effects_settings_store::CAR_LEN as u32;
+    if !tag.is_multiple_of(record) {
+        return Err(BadInput("a ring entry's tag that is no car's"));
+    }
+    marks
+        .cars
+        .get((tag / record) as usize)
+        .map(|car| car.streaks_on.get())
+        .ok_or(BadInput("a ring entry's tag past the cars"))
 }
 
 fn k(cell: &f32) -> u32 {

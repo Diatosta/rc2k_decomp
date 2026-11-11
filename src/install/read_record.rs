@@ -16,11 +16,11 @@ use rc2k_core::install::config;
 
 pub fn read_record(path: &[u8]) -> Result<(), BadInput> {
     {
-        let Some((text, _)) = read_text(path)? else {
+        let Some(text) = read_text(path)? else {
             return Ok(());
         };
         // Converted: `rc2k_core::install::config::read_record` (the keys as its constants).
-        let record = config::read_record(&text.bytes("the install record")?, &case_table())?;
+        let record = config::read_record(&text, &case_table())?;
         for (directory, text) in [(0, record.base), (1, record.locale)] {
             if let Some(text) = text {
                 crate::files::state::write_directory(directory, &text, false, "an installer path")?;

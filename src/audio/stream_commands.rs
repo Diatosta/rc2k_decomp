@@ -16,7 +16,6 @@ use crate::audio::owner::Audio;
 use crate::audio::store::AudioState;
 use crate::audio::stream::*;
 use crate::errors::Refused;
-use crate::pointers::GamePtr;
 use crate::session::Shared;
 
 fn playing(player: &Shared<AudioStream>) -> bool {
@@ -36,15 +35,15 @@ struct GamePlayer<'a> {
 enum StreamPath<'a> {
     /// The music's path buffer.
     Music(&'a crate::session::Bytes<24>),
-    /// A sample name in the sound set (a place in the names' table).
-    Name(GamePtr),
+    /// A sample name in the sound set (its text, read from the names' table).
+    Name(&'a [u8]),
 }
 
 impl StreamPath<'_> {
     fn text(self) -> Result<Vec<u8>, crate::errors::BadInput> {
         match self {
             StreamPath::Music(field) => crate::files::cstring(field, "a stream's path"),
-            StreamPath::Name(at) => crate::files::cstring_at(at, "a stream's path"),
+            StreamPath::Name(text) => Ok(text.to_vec()),
         }
     }
 }
@@ -112,13 +111,11 @@ impl rc2k_core::audio::streams::Tunes for GamePlayer<'_> {
 /// `rc2k_core::audio::streams::stream_command`.
 /// `name` the sample name's key (`audio::store::name_key`), 0 with none (a stop).
 pub fn stream_command(audio: &Audio, name: u32, volume: i32, action: u32) -> Result<(), Refused> {
-    let path = match name {
+    let text = match name {
         0 => None,
-        _ => Some(StreamPath::Name(crate::audio::store::name_in(
-            &audio.sample_names,
-            name,
-        )?)),
+        _ => Some(crate::audio::store::name_in(&audio.sample_names, name)?),
     };
+    let path = text.as_deref().map(StreamPath::Name);
     let mut p = GamePlayer {
         state: &audio.state,
         player: &audio.state.sound_stream,

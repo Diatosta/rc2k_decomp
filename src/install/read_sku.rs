@@ -18,11 +18,11 @@ pub fn read_sku(
     install: &'static crate::install::owner::Install,
     path: &[u8],
 ) -> Result<(), BadInput> {
-    let Some((text, _)) = read_text(path)? else {
+    let Some(text) = read_text(path)? else {
         return Ok(());
     };
     // Converted: `rc2k_core::install::config::read_sku` (the key as its constant).
-    let Some(sku) = config::read_sku(&text.bytes("the install record")?, &case_table())? else {
+    let Some(sku) = config::read_sku(&text, &case_table())? else {
         return Ok(());
     };
     if sku.oem {

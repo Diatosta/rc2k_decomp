@@ -660,6 +660,7 @@ impl GamePtr {
 
     /// `len` bytes copied from here to `to` (overlapping as `memmove`), each side inside one
     /// region.
+    #[cfg(test)]
     #[track_caller]
     pub fn copy_to(self, to: GamePtr, len: usize, what: &str) -> Result<(), BadInput> {
         let (from, into) = (self.check(len, what)?, to.check(len, what)?);
@@ -1520,11 +1521,6 @@ fn raw_load(addr: u32, _: &mut [u8]) {
 #[cfg(not(test))]
 fn raw_store(addr: u32, _: &[u8]) {
     raw_place(addr);
-}
-
-#[cfg(not(test))]
-fn raw_copy(from: u32, _: u32, _: usize) {
-    raw_place(from);
 }
 
 #[cfg(not(test))]

@@ -26,7 +26,6 @@
 
 use crate::errors::BadInput;
 use crate::input::types::{Controller, InputDevice};
-use crate::pointers::GamePtr;
 use crate::session::{Byte, Bytes, Dword, Float};
 
 // ---- first values, from the image (`store_data.rs`) ----
@@ -301,10 +300,12 @@ impl Devices {
             return Ok(self.device(n));
         }
         let at = 4 * (n - self.input_devices.len());
-        // A run-on past the pointers into the first record's bytes, as the original.
-        let held: u32 = GamePtr::to(&self.records[0])
-            .offset(at as u32)
-            .read("an input device past the table")?;
+        // A run-on past the pointers into the first record's fields, as the original.
+        let held = self.records[0]
+            .to_bytes()
+            .get(at..at + 4)
+            .map(|b| u32::from_le_bytes(b.try_into().unwrap()))
+            .ok_or(BadInput("an input device past the table"))?;
         if held == 0 {
             return Ok(None);
         }

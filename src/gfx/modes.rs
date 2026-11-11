@@ -2,12 +2,13 @@
 //! listed), out of RAL.EXE's image: IDA 0x4F4E30 .. 0x4F503C. The thirds table (`thirds`) that
 //! came before it in the image is `THIRDS`.
 //!
-//! The tables are walked by address (`system::find_entry`: the entry whose first dword is
+//! The tables are walked by offset (`Modes::entries`: the entry whose first dword is
 //! a key; a key not there gives the place past the table, as the original reads it), so
 //! the struct keeps the image's layout and the tables' addresses come from it (`*_addr`).
 
 use crate::gfx::plain_dwords;
 use crate::session::PlainDword;
+use core::mem::offset_of;
 
 /// IDA's address of the block's first byte.
 pub const START: usize = 0x4F4E30;
@@ -72,31 +73,42 @@ pub fn home() -> usize {
 }
 
 impl Modes {
-    /// Where a table is, as a pointer bounded by the whole block (the tables are walked
-    /// past their ends).
-    fn table_ptr(offset: usize) -> crate::pointers::GamePtr {
-        crate::pointers::GamePtr::to(&crate::gfx::owner::GFX.unchecked().display.modes)
-            .offset(offset as u32)
+    /// The `count` entries of 8 bytes from byte `table` of the block (the tables are walked
+    /// past their ends, inside the block); a read past the block ends the program.
+    pub fn entries(
+        &self,
+        table: usize,
+        count: u32,
+    ) -> impl Iterator<Item = rc2k_core::system::tables::Entry> + '_ {
+        (0..count as usize).map(move |n| {
+            crate::pointers::load_value(self, table.wrapping_add(8 * n))
+                .unwrap_or_else(|e| crate::system::checked_reads::refuse(e))
+        })
     }
-    pub fn pixel_kinds_ptr() -> crate::pointers::GamePtr {
-        Self::table_ptr(core::mem::offset_of!(Self, pixel_kinds))
+
+    /// The second dword of the entry whose first dword is `key`, among the `count` entries
+    /// from byte `table`; None when the key is not there.
+    pub fn value_of(&self, key: u32, table: usize, count: u32) -> Option<u32> {
+        let n = rc2k_core::system::tables::by_key(self.entries(table, count), key)?;
+        Some(
+            crate::pointers::load_value(self, table + 8 * n + 4)
+                .unwrap_or_else(|e| crate::fatal::raise::end("a screen mode table", e)),
+        )
     }
-    pub fn sizes_ptr() -> crate::pointers::GamePtr {
-        Self::table_ptr(core::mem::offset_of!(Self, sizes))
-    }
-    pub fn kinds_ptr() -> crate::pointers::GamePtr {
-        Self::table_ptr(core::mem::offset_of!(Self, kinds))
-    }
-    /// The mode table (walked past its end like the others).
-    pub fn mode_table_ptr() -> crate::pointers::GamePtr {
-        Self::table_ptr(core::mem::offset_of!(Self, table))
+
+    /// Whether one of the `count` modes listed has all of `bits`.
+    pub fn lists_bits(&self, bits: u32) -> bool {
+        rc2k_core::system::tables::with_bits(
+            self.entries(offset_of!(Self, table), self.count.get()),
+            bits,
+        )
+        .is_some()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
@@ -117,11 +129,11 @@ mod tests {
         assert_eq!(crate::moved::place(START), home());
         assert_eq!(
             crate::moved::place(0x4F4E50),
-            Modes::sizes_ptr().addr() as usize
+            home() + offset_of!(Modes, sizes)
         );
         assert_eq!(
             crate::moved::place(0x4F4F3C),
-            Modes::mode_table_ptr().addr() as usize
+            home() + offset_of!(Modes, table)
         );
     }
 }

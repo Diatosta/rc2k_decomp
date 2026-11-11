@@ -8,9 +8,9 @@
 //! that is missing leaves its range as it is. One caller, `scene::set_up_object_memory`.
 
 use crate::errors::Refused;
-use crate::files::read_whole_file::read_whole_file;
-use crate::pointers::GamePtr;
+use crate::files::read_whole_file::read_whole_file_store;
 use crate::scene::file_numbers_store::texts;
+use crate::scene::polygon_store::{POLYGON_TABLES, PolygonTables};
 use crate::scene::set_object_material::MATERIAL_LEN;
 use crate::session::TextPlace;
 
@@ -47,9 +47,10 @@ const FILES: [KindFile; 4] = [
     },
 ];
 
-fn records(file: &KindFile) -> (GamePtr, usize) {
+/// Where the file's records lie in the polygon tables, and their length.
+fn records(file: &KindFile) -> (usize, usize) {
     (
-        crate::scene::polygon::materials_ptr().offset((file.first_kind * MATERIAL_LEN) as u32),
+        core::mem::offset_of!(PolygonTables, object_materials) + file.first_kind * MATERIAL_LEN,
         file.kinds * MATERIAL_LEN,
     )
 }
@@ -58,14 +59,15 @@ fn records(file: &KindFile) -> (GamePtr, usize) {
 
 pub fn read_kind_records(scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     for file in &FILES {
-        let (to, room) = records(file);
-        read_whole_file(
+        let (at, room) = records(file);
+        read_whole_file_store(
             &scene
                 .file_numbers
                 .text_at(file.path)
                 .text("a kinds file's path")?,
-            to,
-            room as u32,
+            &*POLYGON_TABLES,
+            at,
+            room,
         )?;
     }
     Ok(())

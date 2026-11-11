@@ -31,7 +31,6 @@ use crate::gfx::owner::gfx;
 use crate::gfx::set_clip::set_clip;
 use crate::race::owner::Race;
 use crate::race::owner::race;
-use crate::system::find_entry::find_entry;
 use crate::system::owner::system;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
@@ -79,17 +78,13 @@ pub fn choose_screen_modes(gfx: &crate::gfx::owner::Gfx) -> Result<(), crate::er
         // passes the 3D check (`gfx::mark_3d_modes`).
         use rc2k_core::gfx::screen_modes::{Lookup, choose, look_up};
         let display = &gfx_display;
-        let (table, count) = (
-            crate::gfx::modes::Modes::mode_table_ptr(),
-            display.modes.count.get(),
-        );
+        let modes = &display.modes;
+        let table = core::mem::offset_of!(crate::gfx::modes::Modes, table);
         let works = |mode: u32| {
-            let entries = crate::system::find_entry::entries(table, count);
+            let entries = modes.entries(table, modes.count.get());
             matches!(look_up(entries, mode), Lookup::Found(_))
         };
-        let listed = |bits: u32| {
-            crate::system::find_entry_with_bits::find_entry_with_bits(bits, table, count).0
-        };
+        let listed = |bits: u32| modes.lists_bits(bits);
         let (menu, race) = (display.mode.menu_mode.get(), display.mode.race_mode.get());
         #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
         let race = crate::handheld::race_mode(race);
@@ -123,26 +118,21 @@ pub fn choose_screen_modes(gfx: &crate::gfx::owner::Gfx) -> Result<(), crate::er
 
 // ---- gfx::set_screen_mode (0x404B63) ----
 
-/// The value of a table's entry for a key.
-fn looked_up(key: u32, table: crate::pointers::GamePtr, entries: u32) -> Option<u32> {
-    let entry = find_entry(key, table, entries).ok()??;
-    Some(
-        entry
-            .offset(4)
-            .read("a screen mode table")
-            .unwrap_or_else(|e| crate::fatal::raise::end("a screen mode table", e)),
-    )
-}
-
 fn set_screen_mode(mode: u32, gfx: &crate::gfx::owner::Gfx) -> Result<(), String> {
     let system = system();
     gfx.display.mode.mode_flags.set(mode);
-    let size = looked_up(mode & 0xFF, crate::gfx::modes::Modes::sizes_ptr(), 8)
+    use crate::gfx::modes::Modes;
+    use core::mem::offset_of;
+    let modes = &gfx.display.modes;
+    let size = modes
+        .value_of(mode & 0xFF, offset_of!(Modes, sizes), 8)
         .ok_or("a screen size that is not known")?;
     let (width, height) = (size & 0xFFFF, size >> 16);
-    let bits = looked_up(mode & 0xF00, crate::gfx::modes::Modes::pixel_kinds_ptr(), 2)
+    let bits = modes
+        .value_of(mode & 0xF00, offset_of!(Modes, pixel_kinds), 2)
         .ok_or("a kind of pixel that is not known")?;
-    let kind = looked_up(mode & 0xF_0000, crate::gfx::modes::Modes::kinds_ptr(), 3)
+    let kind = modes
+        .value_of(mode & 0xF_0000, offset_of!(Modes, kinds), 3)
         .ok_or("a kind that is not known")?;
     let bytes = bits >> 3;
     // As the original: every texture given back before the screen changes;

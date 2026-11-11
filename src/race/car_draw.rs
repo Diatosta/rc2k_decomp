@@ -14,6 +14,7 @@ use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::trap::car_at;
 use crate::race::view_vars_store::ViewVars;
+use crate::race::work_store::RaceWork;
 use crate::scene::matrix::multiply_matrices;
 use crate::scene::view_matrices::ViewMatrices;
 use crate::session::Float;
@@ -50,6 +51,24 @@ pub fn car_body_matrix(course: &Course, cars: &CarDrawState, m: &ViewMatrices) {
     car_part_matrix(cars, m, &m.lit_matrix);
 }
 
+/// The byte at `offset` of the number texture names. The table holds 32 names of 0x30 bytes;
+/// kinds 32 and 33 read on into the fields after it, in their order: the drawn
+/// car's nearness and word, the tens' textures, the parts' break limits, the still matrix.
+/// Past those is refused.
+fn number_name_byte(work: &RaceWork, offset: u32) -> Result<u8, BadInput> {
+    let dword = (offset / 4) as usize;
+    let bits = match dword.checked_sub(work.number_texture_names.len()) {
+        None => work.number_texture_names[dword].bits(),
+        Some(0) => work.car_nearness.bits(),
+        Some(1) => work.car_draw_word.bits(),
+        Some(n @ 2..9) => work.number_tens_textures[n - 2].bits(),
+        Some(n @ 9..16) => work.part_break_limits[n - 9].bits(),
+        Some(n @ 16..32) => work.part_matrix_still[n - 16].bits(),
+        Some(_) => return Err(BadInput("a car kind's number texture name past the table")),
+    };
+    Ok(bits.to_le_bytes()[(offset % 4) as usize])
+}
+
 /// `race::car_number_textures` (0x46203D): car `car`'s marks' textures into `marks` (the original's
 /// `car_mark_textures` ..: `scene::car_marks`): +0x1B8 / +0x1BC (|x| not below `decal_limit`: 1) into
 /// `ObjectTables.car_mark_textures[1]`, `ObjectTables.car_mark_textures[4]` / `ObjectTables.car_mark_textures[2]`, `ObjectTables.car_mark_textures[3]`; the letter of its model's name
@@ -79,16 +98,13 @@ pub fn car_number_textures(
         let side = lamp_side(float(&block.drive_speed_b), limit);
         marks.mark(2).set(side);
         marks.mark(3).set(side);
-        // Unbounded: 34 kinds of 0x30 bytes, the table holds 32.
-        let name = GamePtr::to(&race.shared.work.number_texture_names)
-            .unbounded()
-            .offset(car_view(car)?.car_kind.get().wrapping_mul(0x30));
+        let name = car_view(car)?.car_kind.get().wrapping_mul(0x30);
         let n = crate::math::x87::to_int(&car_at(car)?.shown_engine_speed);
         let (place, _) = letter_place(n);
-        let letter = letter_number(
-            name.offset(place)
-                .read::<u8>("a car's number texture name")?,
-        ) as u32;
+        let letter = letter_number(number_name_byte(
+            &race.shared.work,
+            name.wrapping_add(place),
+        )?) as u32;
         marks.mark(5).set(letter);
         let d = number_digits(car_view(car)?.start_slot_value.get());
         marks.mark(6).set(d.tens);

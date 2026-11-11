@@ -8,8 +8,7 @@
 //! (0x758BCE, 0x758BD6). The menus and draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
-use crate::menu::name_lists::{NAME_LEN, REPLAY_PAGE_RVA};
-use crate::race::owner::race;
+use crate::menu::name_lists::REPLAY_PAGE_RVA;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -19,11 +18,6 @@ use crate::text::draw_text::Canvas;
 // `draw_work.figure`: a work variable, here the row counter
 
 // FontObjects.objects[41].first_char
-/// The name of replay slot `slot`.
-fn slot_name(slot: u32) -> crate::place::BytePlace {
-    crate::place::BytePlace::In(&race().shared.replays.names, slot as usize * NAME_LEN)
-}
-
 pub fn draw_replay_slot_names(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // The logic is in `rc2k_core::screens::slot_lists::names`.
     let page = REPLAY_PAGE_RVA.get();
@@ -31,7 +25,12 @@ pub fn draw_replay_slot_names(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         &mut crate::screens::game_screen::SlotScreen::new(canvas),
         &rc2k_core::screens::slot_lists::REPLAYS,
         page,
-        |slot| crate::screens::game_screen::HeldText::Place(slot_name(slot).game_ptr()),
+        |slot| {
+            crate::screens::game_screen::HeldText::Slot(
+                crate::screens::game_screen::SlotNames::Replays,
+                slot,
+            )
+        },
     )
     .map(|_| ())
 }

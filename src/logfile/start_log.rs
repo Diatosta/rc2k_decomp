@@ -58,8 +58,12 @@ pub fn start_log() -> Result<(), BadInput> {
     // Converted: `rc2k_core::files::log::head`; the values gathered (the date text,
     // the memory and the drive's numbers left in game memory as the original leaves
     // them), then each message logged as the original's call.
+    use crate::pointers::Store;
     use rc2k_core::files::log::{Machine, Message, head};
-    let c_text = |p: crate::pointers::GamePtr| crate::files::cstring_at(p, "a start-up text");
+    let machine = &system.session.machine;
+    let machine_text = |offset: usize, len: usize| crate::files::cstring_from(machine, offset, len);
+    let vendor_at = core::mem::offset_of!(crate::session::Machine, cpu_vendor);
+    let version_at = core::mem::offset_of!(crate::session::Machine, version);
     // The date in the numbers' scratch buffer, as the original makes it (the log's
     // lock is not held: no thread logs yet).
     let date = write_date_text(&system.work.numbers)?;
@@ -73,10 +77,8 @@ pub fn start_log() -> Result<(), BadInput> {
         second: (SECOND_TEXT[0] != 0).then(|| SECOND_TEXT[..SECOND_TEXT.len() - 1].to_vec()),
         cpu_family: system.session.machine.cpu_family.get() as i32,
         cpu_flags: system.session.machine.cpu_signature.get(),
-        // Twelve characters; the end follows the field.
-        cpu_name: c_text(
-            crate::pointers::GamePtr::to(&system.session.machine.cpu_vendor).unbounded(),
-        )?,
+        // Twelve characters; the end follows the field (read on to the record's end).
+        cpu_name: machine_text(vendor_at, machine.size() - vendor_at)?,
         clock: system.session.machine.cpu_mhz.get() as i32,
         fpu: system.session.machine.has_fpu.get() as i32,
         mmx: system.session.machine.found_mmx.get() as i32,
@@ -89,9 +91,8 @@ pub fn start_log() -> Result<(), BadInput> {
             system.session.machine.version[2].get() as i32,
             (system.session.machine.version[3].get() & 0xFFFF) as i32,
         ],
-        platform_text: c_text(
-            crate::pointers::GamePtr::to(&system.session.machine.version).offset(0x14),
-        )?,
+        // The Windows version record's text, inside the record.
+        platform_text: machine_text(version_at + 0x14, 4 * 37 - 0x14)?,
         memory,
         free_kb: free,
     };

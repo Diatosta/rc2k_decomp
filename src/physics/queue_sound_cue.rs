@@ -15,8 +15,6 @@ use crate::session::Dword;
 use crate::sound::store::{CueQueue, SoundObject};
 use rc2k_core::physics::sound_queue::{CuePlacement, ENTRY_DWORDS, check_cue, place, sounds};
 
-const WHAT: &str = "physics::queue_sound_cue's operand";
-
 /// Dword `i` of the queue, counted as the original walks it: the four header dwords, then
 /// the entries' eight each (the first cue's place at -1 reads the entry's count: a run-on
 /// kept). One past the sixteen entries is refused.
@@ -76,7 +74,7 @@ pub fn queue_sound_cue(first: bool, cue: u32, object: &SoundObject) -> Result<()
     let failed = std::cell::Cell::new(None);
     let (written, n) = sounds(
         |k| {
-            list.offset(4 * k).read::<u32>(WHAT).unwrap_or_else(|e| {
+            list.get(k as usize).unwrap_or_else(|e| {
                 failed.set(Some(e));
                 0
             })

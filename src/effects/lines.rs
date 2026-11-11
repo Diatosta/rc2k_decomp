@@ -412,11 +412,7 @@ pub fn set_up_blocks(
             .block_points
             .get(k as usize)
             .ok_or(BadInput("more than 8 settings blocks"))?;
-        table.take_at(
-            GamePtr::to(&block.points_list),
-            bytes,
-            vec![[0; 3]; points as usize],
-        )?;
+        table.take(&block.points_list, bytes, vec![[0; 3]; points as usize])?;
         let taken = k + 1;
         paths.morph_work.taken.set(taken);
         block.point_block.set(taken);

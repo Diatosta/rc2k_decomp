@@ -32,7 +32,7 @@ pub enum Work {
 /// The player's controller as the page shows it.
 #[derive(Clone, Copy, Debug)]
 pub struct Controller<T> {
-    /// The device record's address and its name (+0x30).
+    /// The device record's number among the controllers and its name (+0x30).
     pub record: u32,
     pub name: T,
     /// The record's +0x1C is 1: a strength.

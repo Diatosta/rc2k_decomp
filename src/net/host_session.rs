@@ -60,18 +60,18 @@ pub fn host_session(net: &Net) -> Result<bool, Refused> {
         net,
         posted_open_host,
         crate::net::create_group::create_group,
-        VIEWER_PANEL.text_ptr(texts::NET_HOST_COMPLETE),
+        texts::NET_HOST_COMPLETE,
     )
 }
 
 /// The session opened (posted or called: `posted`), "NET: Open" and its result logged, the
 /// window restored; the session marked made, the player made, then `then` (the group made or
-/// joined) and `done` logged. Shared with `net::join_session`. Whether all of it worked.
+/// joined) and the text numbered `done` logged. Shared with `net::join_session`. Whether all of it worked.
 pub fn finish(
     net: &Net,
     posted: fn() -> u32,
     then: fn() -> Result<bool, Refused>,
-    done: crate::pointers::GamePtr,
+    done: usize,
 ) -> Result<bool, Refused> {
     let result = posted_or_called(net, posted);
     log(VIEWER_PANEL.text_ptr(texts::NET_OPEN), false, 2);
@@ -84,6 +84,6 @@ pub fn finish(
     if !crate::net::create_player::create_player()? || !then()? {
         return Ok(false);
     }
-    log(done, true, 2);
+    log(VIEWER_PANEL.text_ptr(done), true, 2);
     Ok(true)
 }

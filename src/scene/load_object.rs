@@ -194,11 +194,10 @@ pub fn load_object(
     scene.draw_switches.loading_group_mask.set(u32::MAX);
     let known = find_object_kind(kind);
     race.frame.matrices.known_object.set(known);
-    // The kind's light record, from its groups; the kind is not bounded.
-    // A run-on past the 34 records into the gear figures, as the original.
-    let record = LIGHT_RECORDS.record_ptr(known).offset(0x58);
+    // The kind's light record, from its groups; a kind none of the known ones takes the place
+    // after the 34 records, which reads on into the gear figures (`group_at`).
     for part in &PARTS {
-        let group: u32 = record.offset(part.group as u32).read("a kind's record")?;
+        let group = LIGHT_RECORDS.group_at(known, part.group as u32)?;
         let mut bits = 0;
         if group != u32::MAX {
             bits = 1u32 << (group & 31);

@@ -11,14 +11,20 @@
 
 use crate::errors::BadInput;
 use crate::files::state::BYTES_READ;
-use crate::pointers::GamePtr;
 
-/// Reads the whole file at `path` into `buffer` (`count` bytes at most). The bytes read
-/// go to `BYTES_READ` (0 after any failure but a failed read's own count).
-pub fn read_whole_file(path: &[u8], to: GamePtr, count: u32) -> Result<(), BadInput> {
-    let mut into = to.read_bytes(count as usize, "a file's buffer")?;
+/// Reads the whole file at `path` into the `count` bytes of `to` from `offset` (what the file
+/// does not reach is kept). The bytes read go to `BYTES_READ` (0 after any failure but a failed
+/// read's own count).
+pub fn read_whole_file_store(
+    path: &[u8],
+    to: &dyn crate::pointers::Store,
+    offset: usize,
+    count: usize,
+) -> Result<(), BadInput> {
+    let mut into = vec![0u8; count];
+    to.load(offset, &mut into)?;
     read_whole_file_into(path, &mut into)?;
-    to.write_bytes(&into, "a file's buffer")
+    to.store(offset, &into)
 }
 
 /// `read_whole_file` into `cells` (a typed store's dwords, their bytes in order: `4 *

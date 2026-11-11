@@ -44,15 +44,36 @@ impl LightRecords {
 }
 
 impl LightRecords {
-    /// Record `index` as a place bounded to the whole group (the light records and the gear
-    /// figures after them): the original does not bound the index and reads on past the 34
-    /// records into the gear figures (`scene::load_object`).
-    pub fn record_ptr(&self, index: u32) -> crate::pointers::GamePtr {
-        use crate::race::groups_store::LightsAndGear;
-        crate::pointers::GamePtr::to(&race().frame.lights_and_gear).offset(
-            (core::mem::offset_of!(LightsAndGear, light_records) as u32)
-                .wrapping_add(index.wrapping_mul(0x134)),
-        )
+    /// The group number at byte `offset` (of the groups, a multiple of 4) of the record of
+    /// model `index`. The original does not bound the index: the place after the 34 records
+    /// (the one a kind none of the known ones gets) reads on into the gear figures, where the
+    /// record's groups fall on the test drive's speed samples; anything further is refused.
+    pub fn group_at(&self, index: u32, offset: u32) -> Result<u32, crate::errors::BadInput> {
+        const PAST: &str = "a model's record past the light records";
+        let group = (offset / 4) as usize;
+        match index.checked_sub(self.records.len() as u32) {
+            None => self.records[index as usize]
+                .groups
+                .get(group)
+                .map(crate::session::Dword::get)
+                .ok_or(crate::errors::BadInput(PAST)),
+            Some(0) => {
+                // The groups start 0x58 into the record; the one dword between the records
+                // and the gear figures is skipped, and the figures' samples start at +0x38.
+                let sample = (0x58 + offset - 4)
+                    .checked_sub(0x38)
+                    .ok_or(crate::errors::BadInput(PAST))?;
+                race()
+                    .frame
+                    .lights_and_gear
+                    .gear
+                    .test_speeds
+                    .get((sample / 4) as usize)
+                    .map(crate::session::Float::bits)
+                    .ok_or(crate::errors::BadInput(PAST))
+            }
+            Some(_) => Err(crate::errors::BadInput(PAST)),
+        }
     }
 }
 
@@ -107,19 +128,14 @@ mod tests {
     }
 
     #[test]
-    fn a_record_place_reads_on_into_the_group_and_no_further() {
+    fn a_record_past_the_last_reads_on_into_the_gear_figures_and_no_further() {
         // The longest read: a group number of the kind past the 34 (load_object).
-        assert!(
-            LIGHT_RECORDS
-                .record_ptr(34)
-                .offset(0x58 + 0x28)
-                .read::<u32>("t")
-                .is_ok()
-        );
+        assert!(LIGHT_RECORDS.group_at(34, 0x3C).is_ok());
         assert_eq!(
-            LIGHT_RECORDS.record_ptr(1).addr(),
-            LIGHT_RECORDS.record_addr(1)
+            LIGHT_RECORDS.group_at(34, 0).ok(),
+            Some(race().frame.lights_and_gear.gear.test_speeds[7].bits())
         );
-        assert!(LIGHT_RECORDS.record_ptr(0x1000).read::<u32>("t").is_err());
+        assert!(LIGHT_RECORDS.group_at(35, 0).is_err());
+        assert!(LIGHT_RECORDS.group_at(1, 0x1000).is_err());
     }
 }

@@ -15,6 +15,7 @@
 //!
 //! The receiving thread shares these: plain loads and stores (`Relaxed`), as the original's.
 
+use crate::pointers::Store;
 use crate::session::{Byte, Bytes, Dword, PlainBytes, PlainDword, Word, with_runs};
 
 const fn zeros<const N: usize>() -> [Dword; N] {
@@ -670,22 +671,21 @@ impl NetVars {
     /// is 8 bytes, the bytes after it are `players`).
     pub fn synced(&self, n: usize) -> u8 {
         let what = "a player's synced byte";
-        crate::pointers::GamePtr::to(&self.synced)
-            .unbounded()
-            .offset(n as u32)
-            .read(what)
-            .unwrap_or_else(|e| crate::fatal::raise::end(what, e))
+        let mut byte = [0u8];
+        self.load(Self::synced_offset(n), &mut byte)
+            .unwrap_or_else(|e| crate::fatal::raise::end(what, e));
+        byte[0]
     }
 
     pub fn set_synced(&self, n: usize, value: u8) {
         let what = "a player's synced byte";
-        if let Err(e) = crate::pointers::GamePtr::to(&self.synced)
-            .unbounded()
-            .offset(n as u32)
-            .write(value, what)
-        {
-            crate::fatal::raise::end(what, e)
-        }
+        self.store(Self::synced_offset(n), &[value])
+            .unwrap_or_else(|e| crate::fatal::raise::end(what, e));
+    }
+
+    /// Where player `n`'s byte is in the block.
+    fn synced_offset(n: usize) -> usize {
+        core::mem::offset_of!(NetVars, synced) + n
     }
 }
 

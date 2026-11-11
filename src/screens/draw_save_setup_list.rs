@@ -19,8 +19,9 @@ pub fn draw_save_setup_list(menus: &Menus, canvas: &mut dyn Canvas) -> Result<()
         rc2k_core::screens::slot_lists::SAVE_SETUP_TITLE,
         page,
         |slot| {
-            crate::screens::game_screen::HeldText::Place(
-                crate::service::read_setup_slot::slot_name(slot).game_ptr(),
+            crate::screens::game_screen::HeldText::Slot(
+                crate::screens::game_screen::SlotNames::Setups,
+                slot,
             )
         },
     )

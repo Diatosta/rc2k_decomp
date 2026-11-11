@@ -16,8 +16,7 @@
 use crate::audio::owner::Audio;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
-use crate::pointers::GamePtr;
-use crate::sound::sets_store::{MenuSounds, RaceSoundSets};
+use crate::sound::sets_store::RaceSoundSets;
 use crate::system::owner::system;
 use rc2k_core::audio::commands::SoundList;
 
@@ -64,10 +63,7 @@ impl rc2k_core::audio::load::Loader for GameLoader<'_> {
             &mut |p| {
                 samples::read_sample_in_game(
                     &self.audio.state,
-                    &crate::files::cstring_at(
-                        crate::audio::store::name_in(&self.audio.sample_names, p)?,
-                        "a sample's path",
-                    )?,
+                    &crate::audio::store::name_in(&self.audio.sample_names, p)?,
                 )
             },
         )
@@ -105,14 +101,20 @@ impl rc2k_core::audio::load::Loader for GameLoader<'_> {
     }
 }
 
-/// The place of a list. The original reads a list on until its -1, wherever that is; here
-/// the read is bounded to the store holding the list, and a list without its end there is
-/// refused.
-fn list_place(list: SoundList) -> Result<GamePtr, BadInput> {
+/// A list of sounds, read by position. The original reads a list on until its -1, wherever
+/// that is: the menu's list is its whole record; a race list may run on through the next
+/// fields of the sets (`RaceSoundSets::list_entry`), and a read past the sets is refused.
+fn list_entries(list: SoundList) -> Result<Box<dyn Fn(usize) -> Option<u32>>, BadInput> {
     match list {
-        SoundList::Menu => Ok(GamePtr::to(&crate::sound::owner::sound().menu.menu_sounds)
-            .offset(core::mem::offset_of!(MenuSounds, list) as u32)),
-        SoundList::Race { offset } => RaceSoundSets::list_place(offset),
+        SoundList::Menu => Ok(Box::new(|n| {
+            crate::sound::owner::sound().menu.menu_sounds.sound(n)
+        })),
+        SoundList::Race { offset } => {
+            RaceSoundSets::list_entry(offset, 0)?;
+            Ok(Box::new(move |n| {
+                RaceSoundSets::list_entry(offset, n).ok().flatten()
+            }))
+        }
     }
 }
 
@@ -124,17 +126,15 @@ pub fn load_sounds(audio: &Audio, list: Option<SoundList>) -> Result<(), Refused
     if crate::audio::buffer_settings::a3d(&audio.state) {
         return Err(BadInput("A3D").into());
     }
-    let place = list_place(list)?;
+    let entry = list_entries(list)?;
     let refusal = std::cell::Cell::new(None);
     let entries = rc2k_core::audio::load::entries(|n| {
-        // A list of sounds run through past its array, as the original.
-        match place.offset(n as u32 * 4).read::<u32>("a list of sounds") {
-            Ok(entry) => entry,
-            Err(e) => {
-                refusal.set(refusal.get().or(Some(e)));
-                rc2k_core::audio::load::END
-            }
-        }
+        entry(n).unwrap_or_else(|| {
+            refusal.set(Some(BadInput(
+                "a list of sounds without its end in its field",
+            )));
+            rc2k_core::audio::load::END
+        })
     })?;
     if let Some(e) = refusal.get() {
         return Err(e.into());
@@ -168,15 +168,12 @@ mod tests {
             });
         }
         for list in lists {
-            let place = list_place(list).unwrap();
+            let entry = list_entries(list).unwrap();
             let entries = rc2k_core::audio::load::entries(|n| {
-                place
-                    .offset(n as u32 * 4)
-                    .read::<u32>("a list of sounds")
-                    .expect("a list runs out of its store")
+                entry(n).expect("a list runs out of its field")
             });
             assert!(entries.is_ok(), "{list:?}");
         }
-        assert!(list_place(SoundList::Race { offset: 0x10000 }).is_err());
+        assert!(list_entries(SoundList::Race { offset: 0x10000 }).is_err());
     }
 }

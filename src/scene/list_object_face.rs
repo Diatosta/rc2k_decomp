@@ -74,9 +74,10 @@ impl FaceWorld for GameFace<'_> {
         // Groups 6 and 7 of the kind's light record.
         self.1.keep(
             LIGHT_RECORDS
-                .record_ptr(place as u32)
-                .offset(0x70)
-                .read("a kind's record"),
+                .records
+                .get(place)
+                .map(|record| [record.groups[6].get(), record.groups[7].get()])
+                .ok_or(crate::errors::BadInput("a kind's record")),
         )
     }
     fn hidden_groups(&self) -> [u32; 2] {

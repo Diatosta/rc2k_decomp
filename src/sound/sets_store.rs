@@ -68,6 +68,11 @@ impl MenuSounds {
 }
 
 impl MenuSounds {
+    /// Entry `n` of the list, none past its ten dwords (it ends in -1 at the tenth).
+    pub fn sound(&self, n: usize) -> Option<u32> {
+        (n < self.list.atomics().len() / 4).then(|| self.list.get_u32(4 * n))
+    }
+
     pub const START: usize = 0x511AE4;
     pub const LEN: usize = 0x28;
     #[cfg(test)]
@@ -830,13 +835,16 @@ impl RaceSoundSets {
         }
     }
 
-    /// Where a list of the race's sets is, bounded to the whole sets (the original reads a
-    /// list on until its end).
-    pub fn list_place(offset: u32) -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
+    /// Entry `n` of the list that starts `offset` bytes into the sets. A list is read on
+    /// until its -1, through the next fields of the sets in their order where it runs past
+    /// its own (as the original's list did); a read past the sets is none.
+    pub fn list_entry(offset: u32, n: usize) -> Result<Option<u32>, crate::errors::BadInput> {
+        let sets = &crate::sound::owner::sound().race.sets;
         if offset as usize >= core::mem::size_of::<Self>() {
             return Err(crate::errors::BadInput("a sound list off the race's sets"));
         }
-        Ok(crate::pointers::GamePtr::to(&crate::sound::owner::sound().race.sets).offset(offset))
+        let at = (offset as usize).checked_add(4 * n);
+        Ok(at.and_then(|at| crate::pointers::load_value::<u32>(sets, at).ok()))
     }
 
     /// 0x512360: `off_512360`, 36 kinds of car, two sets each.
@@ -886,23 +894,46 @@ impl CueLists {
     }
 }
 
+/// A list of dwords inside a block of bytes, read by position and bounded to the block.
+pub struct ListIn<const N: usize> {
+    bytes: &'static PlainBytes<N>,
+    from: usize,
+}
+
+impl<const N: usize> ListIn<N> {
+    /// Entry `k`; refused past the block (a list there has no end).
+    pub fn get(&self, k: usize) -> Result<u32, crate::errors::BadInput> {
+        k.checked_mul(4)
+            .and_then(|k| k.checked_add(self.from))
+            .filter(|at| at + 4 <= N)
+            .map(|at| self.bytes.get_u32(at))
+            .ok_or(crate::errors::BadInput(
+                "a sound list read past the lists that hold it",
+            ))
+    }
+}
+
 impl CueLists {
-    /// Cue `cue`'s list of sounds, a place in the whole block (the list runs to a -1).
-    pub fn list(cue: u32) -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
-        let cell = crate::sound::owner::sound()
-            .race
-            .cue_lists
-            .get()
+    /// Cue `cue`'s list of sounds, in the lists after the table (each ends in -1 inside them).
+    pub fn list(cue: u32) -> Result<ListIn<836>, crate::errors::BadInput> {
+        let lists = crate::sound::owner::sound().race.cue_lists.get();
+        let cell = lists
             .table
             .get(cue as usize)
             .ok_or(crate::errors::BadInput("a sound cue past the table"))?;
         let at = offset_in(cell.get(), CUE_TAG, Self::LEN).ok_or(crate::errors::BadInput(
             "a sound table's entry off its piece",
         ))?;
-        Ok(
-            crate::pointers::GamePtr::to(crate::sound::owner::sound().race.cue_lists.get())
-                .offset((at + 8) as u32),
-        )
+        // The piece starts with the table.
+        let from = at
+            .checked_sub(4 * lists.table.len())
+            .ok_or(crate::errors::BadInput(
+                "a sound cue's list inside the table",
+            ))?;
+        Ok(ListIn {
+            bytes: &lists.lists,
+            from,
+        })
     }
 }
 
@@ -1561,25 +1592,26 @@ impl SurfaceSets {
 }
 
 impl SurfaceSets {
-    /// Surface sound set `n`'s list (the original kept its address), a place in the whole
-    /// block: the list runs on in the lists after it as far as the sets read.
-    pub fn set(n: usize) -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
-        let cell = crate::sound::owner::sound()
-            .race
-            .surface_sets
-            .get()
-            .sets
-            .get(n)
-            .ok_or(crate::errors::BadInput(
-                "a surface sound set past the table",
-            ))?;
+    /// Surface sound set `n`'s list: the flag, then its sounds (nine dwords for a set of eight,
+    /// five for a set of four; the sets follow one another in the lists).
+    pub fn set(n: usize) -> Result<ListIn<392>, crate::errors::BadInput> {
+        let sets = crate::sound::owner::sound().race.surface_sets.get();
+        let cell = sets.sets.get(n).ok_or(crate::errors::BadInput(
+            "a surface sound set past the table",
+        ))?;
         let at = offset_in(cell.get(), SURFACE_TAG, Self::LEN).ok_or(crate::errors::BadInput(
             "a sound table's entry off its piece",
         ))?;
-        Ok(
-            crate::pointers::GamePtr::to(crate::sound::owner::sound().race.surface_sets.get())
-                .offset((at + 12) as u32),
-        )
+        // The piece starts with the table of sets.
+        let from = at
+            .checked_sub(4 * sets.sets.len())
+            .ok_or(crate::errors::BadInput(
+                "a surface sound set inside the table",
+            ))?;
+        Ok(ListIn {
+            bytes: &sets.lists,
+            from,
+        })
     }
 
     pub const START: usize = 0x51639C;
@@ -3276,8 +3308,9 @@ mod tests {
     fn cuelists_starts_as_the_games() {
         // Every cue's list is one of the lists, and ends.
         for cue in 0..113 {
-            let at = CueLists::list(cue).unwrap().addr() as usize;
-            assert!(at >= CueLists::home() + 113 * 4);
+            let list = CueLists::list(cue).unwrap();
+            // The list ends in -1 inside the lists.
+            assert!((0..6).any(|k| list.get(k) == Ok(u32::MAX)), "{cue}");
         }
         assert!(CueLists::list(113).is_err());
         let size = size_of::<CueLists>();
@@ -3312,9 +3345,9 @@ mod tests {
     fn surfacesets_starts_as_the_games() {
         for n in 0..14 {
             let set = SurfaceSets::set(n).unwrap();
-            assert!(set.addr() as usize >= SurfaceSets::home() + 14 * 4);
-            // The shortest set: its mode dword and a first sound.
-            set.offset(4).read::<u32>("a set").unwrap();
+            // A set of eight (flag 1) holds nine dwords, a set of four five, inside the lists.
+            let dwords = if set.get(0).unwrap() == 1 { 9 } else { 5 };
+            assert!(set.get(dwords - 1).is_ok(), "{n}");
         }
         for n in 0..36 {
             let record = crate::sound::owner::sound()

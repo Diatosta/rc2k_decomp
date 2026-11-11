@@ -398,10 +398,20 @@ impl CarEffects {
 }
 
 impl EffectsSettings {
-    /// The record's place `offset` bytes in, bounded by the record: for the reads the
-    /// original makes by offset (a list as long as a count, a field picked by a table).
-    pub fn at(&self, offset: u32) -> crate::pointers::GamePtr {
-        crate::pointers::GamePtr::to(self).offset(offset)
+    /// The settings' object number `k`: the list starts at `first_object` and, for a count
+    /// past 1, runs on through the fields after it (the original's layout), as far as 19
+    /// objects (`sound_objects_shown`); further is refused.
+    pub fn object(&self, k: usize) -> Result<u32, crate::errors::BadInput> {
+        match k {
+            0 => Ok(self.first_object.get()),
+            1..=7 => Ok(self.unused_20[k - 1].get()),
+            8 => Ok(self.listener_scale.bits()),
+            9..=15 => Ok(self.unused_40[k - 9].get()),
+            16 => Ok(self.spline_gear_changed.get()),
+            17 => Ok(self.spline_handbrake.get()),
+            18 => Ok(self.sound_objects_shown.get()),
+            _ => Err(crate::errors::BadInput("a settings object past the 19th")),
+        }
     }
 }
 
@@ -409,6 +419,28 @@ impl EffectsSettings {
 mod tests {
     use super::*;
     use core::mem::offset_of;
+
+    #[test]
+    fn the_object_list_runs_through_the_fields_after_it() {
+        assert_eq!(offset_of!(EffectsSettings, first_object), 0x26BC);
+        assert_eq!(offset_of!(EffectsSettings, unused_20), 0x26C0);
+        assert_eq!(offset_of!(EffectsSettings, listener_scale), 0x26BC + 4 * 8);
+        assert_eq!(offset_of!(EffectsSettings, unused_40), 0x26BC + 4 * 9);
+        assert_eq!(
+            offset_of!(EffectsSettings, spline_gear_changed),
+            0x26BC + 4 * 16
+        );
+        assert_eq!(
+            offset_of!(EffectsSettings, spline_handbrake),
+            0x26BC + 4 * 17
+        );
+        assert_eq!(
+            offset_of!(EffectsSettings, sound_objects_shown),
+            0x26BC + 4 * 18
+        );
+        assert!(EFFECTS_SETTINGS.object(18).is_ok());
+        assert!(EFFECTS_SETTINGS.object(19).is_err());
+    }
 
     #[test]
     fn fields_sit_where_the_effects_read_them() {

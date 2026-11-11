@@ -17,11 +17,10 @@
 //!
 //! Its arguments are what it reads.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::input::devices::{STATE_LEN, joy_state};
 use crate::input::store::Devices;
 use crate::input::types::InputDevice;
-use crate::pointers::GamePtr;
 use rc2k_core::input::joystick::{SELECT_SECOND, SELECT_THIRD, SELECT_X, SELECT_Y};
 
 fn state(devices: &Devices, n: u32) -> u32 {
@@ -59,12 +58,14 @@ pub fn poll_device(devices: &Devices, record: &InputDevice) -> Result<(), Refuse
     // and writes the record from there (sic) to the function's end.
     if failed {
         crate::input::di_objects::acquire(device);
-        GamePtr::to(record).copy_to(
-            GamePtr::to(&devices.device_state),
-            STATE_LEN,
-            "a device record read as its state",
-        )?;
-        return poll_shifted(devices, record);
+        // The record's first 0x50 bytes are its fields up to the first effect's GUID.
+        let bytes = record.to_bytes();
+        let (dwords, _) = bytes.as_chunks::<4>();
+        for (cell, dword) in devices.device_state.iter().zip(dwords) {
+            cell.set(u32::from_le_bytes(*dword));
+        }
+        poll_shifted(devices, record);
+        return Ok(());
     }
     // Converted: `rc2k_core::input::joystick` (`poll_axes`, `poll_buttons`).
     use rc2k_core::input::joystick::{poll_axes, poll_buttons};
@@ -82,35 +83,30 @@ pub fn poll_device(devices: &Devices, record: &InputDevice) -> Result<(), Refuse
     Ok(())
 }
 
-/// The rest of the poll after a failed read, on the record 0x50 bytes on (sic: the
-/// effects' fields stand where the axes were meant).
-fn poll_shifted(devices: &Devices, record: &InputDevice) -> Result<(), Refused> {
+/// The rest of the poll after a failed read, on the record 0x50 bytes on (sic: the first
+/// effect's fields stand where the axes were meant): the kind is the dword at +0x58, the
+/// third and fourth bytes of the effect's `pending` and the first two of its `object` are the
+/// four axis selectors (+0x6A .. +0x6D), and the axes and buttons go to +0x7C .. +0x88, the
+/// effect's `sample_period`, `gain`, `trigger_button` and `trigger_repeat_interval`.
+fn poll_shifted(devices: &Devices, record: &InputDevice) {
     use rc2k_core::input::joystick::{poll_axes, poll_buttons};
-    // A run-on past the record, as the original's pointer 0x50 on.
-    let at = |offset: u32| GamePtr::to(record).offset(STATE_LEN as u32 + offset);
-    let kind = at(8).read::<u32>("a device record's dword")?;
-    let late = crate::input::devices::Deferred::default();
+    let effect = &record.effects[0];
+    let kind = effect.guid.get_u32(0xC);
     let [x, y, z] = poll_axes(
         kind,
-        |place| {
-            late.get(
-                at(place)
-                    .read::<u8>("a device record's byte")
-                    .map(u32::from),
-            ) as u8
+        |place| match place {
+            SELECT_SECOND => effect.pending.get().to_le_bytes()[2],
+            SELECT_THIRD => effect.pending.get().to_le_bytes()[3],
+            SELECT_Y => effect.object.get().to_le_bytes()[0],
+            SELECT_X => effect.object.get().to_le_bytes()[1],
+            _ => unreachable!("the core asks for the four places of the axis codes"),
         },
         |n| state(devices, n),
     );
-    late.finish()?;
-    let put = |offset: u32, v: u32| -> Result<(), BadInput> {
-        at(offset).write(v, "a device record's dword")
-    };
-    put(0x2C, x)?;
-    put(0x30, y)?;
-    put(0x34, z)?;
-    put(
-        0x38,
-        poll_buttons(&joy_state(devices)[0x30..].try_into().unwrap()),
-    )?;
-    Ok(())
+    effect.effect.sample_period.set(x);
+    effect.effect.gain.set(y);
+    effect.effect.trigger_button.set(z);
+    effect.effect.trigger_repeat_interval.set(poll_buttons(
+        &joy_state(devices)[0x30..].try_into().unwrap(),
+    ));
 }

@@ -4,7 +4,6 @@
 //! second's flags and object). Here its leaves.
 
 use crate::errors::{BadInput, Refused};
-use crate::pointers::GamePtr;
 use crate::race::face_work::FaceWork;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
@@ -416,9 +415,10 @@ pub fn second_set<'a>(ctx: &DrawCtx<'a>) -> TextureSet<'a> {
     }
 }
 
-/// The `N` bytes (at most 4) at `offset` of texture `texture`'s info record: the records
-/// lie one after another, and the original's sums of addresses may leave the record, or
-/// the records (then read by address, checked).
+/// The `N` bytes (at most 4) at `offset` of texture `texture`'s info record. The texture is a
+/// byte (the face's object or its animation's place), the offsets are the record's own (the
+/// size word, the mapping byte, the corner table's 0 .. 12 and two more), so the bytes lie in
+/// one record; a place past the records is refused.
 fn info_bytes<const N: usize>(texture: u32, offset: u32) -> Result<[u8; N], BadInput> {
     let infos = &crate::scene::polygon_store::POLYGON_TABLES.texture_infos;
     let at = (texture << 6).wrapping_add(offset) as usize;
@@ -431,11 +431,7 @@ fn info_bytes<const N: usize>(texture: u32, offset: u32) -> Result<[u8; N], BadI
     {
         return Ok(bytes.try_into().expect("N bytes"));
     }
-    // A run-on past the infos, as the original (a byte offset into the info words).
-    GamePtr::to(&infos[0].words)
-        .unbounded()
-        .offset(at as u32)
-        .read("a texture info's bytes")
+    Err(BadInput("a texture info's bytes past the texture infos"))
 }
 
 /// `race::face_texture_coordinates` (0x453267) / `race::face_texture_coordinates_2`: the triangle's
@@ -666,20 +662,16 @@ pub fn draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     let second: u32 = ctx.view.face.texture_b.get();
     let trap = Trap::new();
     let picked = || {
-        // A run-on: the picked info number is not bounded, as the original.
-        let record =
-            GamePtr::to(&crate::scene::polygon_store::POLYGON_TABLES.texture_infos[0].words)
-                .unbounded()
-                .offset(second << 6);
-        let pick = trap.read_at::<u8>(record.offset(0x2C), "a texture info's kind") as usize;
-        // `surface_kinds`: indexed by a byte (not bounded by the field's 4 dwords), so
-        // read by address.
-        trap.read_at::<u32>(
-            GamePtr::to(&race.shared.view.surface_kinds)
-                .unbounded()
-                .offset((4 * pick) as u32),
-            "the surface kinds table",
-        )
+        // The record's kind byte picks one of the four surface kinds: 0 .. 3 in every
+        // texture info file the game ships; a byte past them is refused.
+        let pick = trap.keep_read(info_bytes::<1>(second, 0x2C))[0] as usize;
+        match race.shared.view.surface_kinds.get(pick) {
+            Some(kind) => kind.get(),
+            None => {
+                trap.keep(BadInput("a texture's surface kind past the four kinds"));
+                0
+            }
+        }
     };
     let mode = face_mode(second, picked);
     trap.finish()?;

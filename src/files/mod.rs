@@ -58,12 +58,33 @@ pub fn ansi_bytes(text: &str) -> Vec<u8> {
         .collect()
 }
 
-/// `cstring_at` on the store's own place.
+/// The text in `bytes` up to its NUL (not included); a text with no NUL in them is refused.
+pub fn cstring_in(bytes: &[u8]) -> Result<Vec<u8>, crate::errors::BadInput> {
+    match bytes.iter().position(|&b| b == 0) {
+        Some(end) => Ok(bytes[..end].to_vec()),
+        None => Err(crate::errors::BadInput(
+            "a text with no end in its allocation",
+        )),
+    }
+}
+
+/// The text at byte `offset` of the store, read within its next `len` bytes.
+pub fn cstring_from(
+    store: &dyn crate::pointers::Store,
+    offset: usize,
+    len: usize,
+) -> Result<Vec<u8>, crate::errors::BadInput> {
+    let mut bytes = vec![0u8; len];
+    store.load(offset, &mut bytes)?;
+    cstring_in(&bytes)
+}
+
+/// The text in the store up to its NUL, within the store.
 pub fn cstring(
     at: &dyn crate::pointers::Store,
-    what: &str,
+    _what: &str,
 ) -> Result<Vec<u8>, crate::errors::BadInput> {
-    cstring_at(crate::pointers::GamePtr::of_store(at), what)
+    cstring_from(at, 0, at.size())
 }
 
 /// The text at `at` up to its NUL (not included), read inside one allocation: a text with

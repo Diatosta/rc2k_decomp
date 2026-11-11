@@ -21,7 +21,6 @@
 
 use crate::audio::names_store::SampleNames;
 use crate::errors::BadInput;
-use crate::pointers::GamePtr;
 use crate::race::owner::race;
 use crate::session::Dword;
 use crate::sound::sets_store::RaceSoundSets;
@@ -37,18 +36,18 @@ const OBJECTS: u32 = 8;
 /// share kind 0xD's sets). The original reads it unchecked.
 const KINDS: u32 = 0x22;
 
-/// The lengths of a list's 95 names.
-fn lengths(list: GamePtr) -> Result<Vec<u32>, BadInput> {
-    use rc2k_core::strings::bytes::Bytes as _;
-    let bytes = list.bytes("a speech file's names")?;
-    let mut at = 0usize;
+/// The lengths of a list's 95 names, the list starting at the name key `first` (each name
+/// ends in a NUL inside its field).
+fn lengths(names: &SampleNames, first: u32) -> Result<Vec<u32>, BadInput> {
+    let mut key = first;
     let mut lengths = Vec::with_capacity(NAMES);
     for _ in 0..NAMES {
-        let length = (0..0x100usize)
-            .find(|&n| bytes.byte(at + n) == Some(0))
-            .ok_or(BadInput("a speech file's name without its end"))?;
+        let length = crate::audio::store::name_in(names, key)?.len();
+        if length >= 0x100 {
+            return Err(BadInput("a speech file's name without its end"));
+        }
         lengths.push(length as u32);
-        at += length + 1;
+        key += length as u32 + 1;
     }
     Ok(lengths)
 }
@@ -107,9 +106,10 @@ pub fn load_race_sounds(
             .get(),
     );
     let (mut first_name, mut second_name) = (list(a), list(b));
-    // Unbounded: the original reads the names on as far as they go.
-    let name = |key| crate::audio::store::name_at(key).map(GamePtr::unbounded);
-    let (of_first, of_second) = (lengths(name(first_name)?)?, lengths(name(second_name)?)?);
+    let (of_first, of_second) = (
+        lengths(&audio.sample_names, first_name)?,
+        lengths(&audio.sample_names, second_name)?,
+    );
     // Nothing has been written or sent up to here.
     for n in 0..NAMES {
         let records = &audio.sample_records.records;

@@ -82,9 +82,7 @@ pub fn draw_savegame_details(tables: &Tables, canvas: &mut dyn Canvas) -> Result
             Ok(Car {
                 // The saved car's copy of its player's name (+0x124), read as far as its NUL
                 // inside the read file.
-                name: crate::screens::game_screen::HeldText::Place(
-                    crate::pointers::GamePtr::to(file).offset((at + 0x124) as u32),
-                ),
+                name: crate::screens::game_screen::HeldText::SavedCarName(at + 0x124),
                 nation: p.nationality,
                 car: p.car_number,
                 numbers: [

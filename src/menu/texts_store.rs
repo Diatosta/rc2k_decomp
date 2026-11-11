@@ -2271,11 +2271,9 @@ mod tests {
                 continue;
             }
             names += 1;
-            let text = crate::audio::store::name_at(found)
-                .unwrap()
-                .read_bytes(16, "a name")
-                .unwrap();
-            assert_eq!(text, image_bytes(wanted as usize, 16), "{at:#x}");
+            let text = crate::audio::store::name_at(found).unwrap();
+            assert_eq!(text, image_bytes(wanted as usize, text.len()), "{at:#x}");
+            assert_eq!(image_bytes(wanted as usize + text.len(), 1), [0], "{at:#x}");
         }
         assert_eq!(names, 156);
     }

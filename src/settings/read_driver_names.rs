@@ -49,11 +49,11 @@ pub fn read_driver_names(menus: &Menus, path: &[u8]) -> Result<(), BadInput> {
     // anything is written. The key the original makes in place (`aName000`) is left as
     // its last one, "name179".
     {
-        let Some((text, _)) = read_text(path)? else {
+        let Some(text) = read_text(path)? else {
             return Ok(());
         };
         let entries = rc2k_core::files::settings::driver_names(
-            &text.bytes("the driver names' text")?,
+            &text,
             &crate::strings::same_text::case_table(),
         )
         .map_err(|e| BadInput(e.0))?;

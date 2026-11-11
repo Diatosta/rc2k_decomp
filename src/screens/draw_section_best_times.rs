@@ -15,7 +15,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
-use crate::pointers::GamePtr;
 use crate::saves::owner::saves;
 use crate::strings::append_time::show_hours;
 use crate::text::draw_text::Canvas;
@@ -31,10 +30,19 @@ pub fn draw_section_best_times(menus: &Menus, canvas: &mut dyn Canvas) -> Result
     // The logic is in `rc2k_core::screens::best_scores::section_best_times`.
     use rc2k_core::screens::best_scores::SectionRow;
     // The rallies' tables are the game's (`RALLY_TIMES`), not blocks.
+    // The names are read now: the rows are drawn below, in this call.
+    let names: [crate::screens::game_screen::HeldText; 10] = {
+        let mut held = Vec::with_capacity(10);
+        for e in &table[..10] {
+            held.push(crate::screens::game_screen::held_field(&e.name)?);
+        }
+        held.try_into()
+            .map_err(|_| BadInput("ten best times' names"))?
+    };
     let rows: [SectionRow<crate::screens::game_screen::HeldText>; 10] = std::array::from_fn(|n| {
         let e = &table[n];
         SectionRow {
-            name: crate::screens::game_screen::HeldText::Place(GamePtr::to(&e.name)),
+            name: names[n],
             time: e.rally_time.get(),
             nation: e.nation.get(),
             car: e.car.get(),

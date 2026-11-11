@@ -21,12 +21,12 @@ pub fn read_languages(
     path: &[u8],
 ) -> Result<(), BadInput> {
     {
-        let Some((text, _)) = read_text(path)? else {
+        let Some(text) = read_text(path)? else {
             return Ok(());
         };
         // Converted: `rc2k_core::install::config` (`find_languages`, its keys as constants;
         // `keep_languages`). Found first, stored after (0x4139AB).
-        let found = config::find_languages(&text.bytes("the languages' text")?, &case_table())?;
+        let found = config::find_languages(&text, &case_table())?;
         let all = &install.names.languages;
         let mut slots = all.read_at(0, LANGUAGE_SLOT * LANGUAGE_SLOTS, "the languages' slots")?;
         for (slot, value) in found {

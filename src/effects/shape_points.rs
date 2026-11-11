@@ -435,7 +435,7 @@ pub fn make_shape_sets(
         }
         let objects: Vec<u32> = (0..count.max(0) as u32)
             .rev()
-            .map(|k| marks.at(0x26BC + 4 * k).read::<u32>("a shape object"))
+            .map(|k| marks.object(k as usize))
             .collect::<Result<_, _>>()?;
         let t = &drops.tuning;
         let k = kind as usize; // under 0x22, checked above

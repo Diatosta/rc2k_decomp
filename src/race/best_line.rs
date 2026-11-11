@@ -132,9 +132,9 @@ const MOST_FACES: u32 = 0x10_0000;
 #[derive(Clone, Copy)]
 pub struct Cameras {
     pub kind: u8,
-    pub list: fn() -> &'static Dword,
+    pub list: fn() -> &'static [Dword],
     pub count: for<'a> fn(&'a RaceShared) -> &'a Dword,
-    pub nearest: fn() -> &'static Dword,
+    pub nearest: fn() -> &'static [Dword],
 }
 
 /// 0x445BB2 ("replaycam1") and 0x445CF1 ("replaycam2").
@@ -142,15 +142,15 @@ pub fn cameras() -> [Cameras; 2] {
     [
         Cameras {
             kind: 0x3C,
-            list: || &CHECKPOINTS.replay_cameras_1[0],
+            list: || &CHECKPOINTS.replay_cameras_1,
             count: |shared| &shared.vars.replay_camera_counts[0],
-            nearest: || &CHECKPOINTS.nearest_camera_1[0],
+            nearest: || &CHECKPOINTS.nearest_camera_1,
         },
         Cameras {
             kind: 0x38,
-            list: || &CHECKPOINTS.replay_cameras_2[0],
+            list: || &CHECKPOINTS.replay_cameras_2,
             count: |shared| &shared.vars.replay_camera_counts[1],
-            nearest: || &CHECKPOINTS.nearest_camera_2[0],
+            nearest: || &CHECKPOINTS.nearest_camera_2,
         },
     ]
 }
@@ -160,12 +160,22 @@ fn work(shared: &RaceShared, o: u32) -> &Dword {
     &shared.vars.map_work[((o - 0xB8) / 4) as usize]
 }
 
-fn read_n(table: &Dword, n: u32) -> u32 {
-    crate::race::checkpoints_store::nth(table, n as usize).get()
+/// Entry `n` of a checkpoint table. Every number here is held below the lists' limits
+/// (`count`, `MOST_CHECKS`, the cameras' `MOST_CAMERAS`), so none leaves its table; one
+/// that did is refused.
+fn read_n(table: &[Dword], n: u32) -> Result<u32, BadInput> {
+    table
+        .get(n as usize)
+        .map(Dword::get)
+        .ok_or(BadInput("a checkpoint number past its table"))
 }
 
-fn write_n(table: &Dword, n: u32, value: u32) {
-    crate::race::checkpoints_store::nth(table, n as usize).set(value);
+fn write_n(table: &[Dword], n: u32, value: u32) -> Result<(), BadInput> {
+    table
+        .get(n as usize)
+        .ok_or(BadInput("a checkpoint number past its table"))?
+        .set(value);
+    Ok(())
 }
 
 /// A face's first point (+4): its number.
@@ -213,7 +223,7 @@ pub fn sort_checkpoints(race: &Race) -> Result<(), Refused> {
         let mut list = Vec::new();
         for b in 0..n {
             if of_kind(b, shared.vars.line_face_kind.get() as u8)? {
-                write_n(&CHECKPOINTS.checkpoint_faces[0], list.len() as u32, b);
+                write_n(&CHECKPOINTS.checkpoint_faces, list.len() as u32, b)?;
                 list.push(b);
             }
         }
@@ -237,7 +247,7 @@ pub fn sort_checkpoints(race: &Race) -> Result<(), Refused> {
         );
         trap.finish()?;
         for (k, &f) in list.iter().enumerate() {
-            write_n(&CHECKPOINTS.checkpoint_faces[0], k as u32, f);
+            write_n(&CHECKPOINTS.checkpoint_faces, k as u32, f)?;
         }
         shared.vars.checkpoint_count.set(c.length);
         shared.vars.line_face_total.set(c.length);
@@ -285,10 +295,10 @@ pub fn checkpoint_angles(race: &Race, scene: &crate::scene::owner::Scene) -> Res
                 scene.drawing.scene.scratch.set(dz as u32);
                 x87::angle_scaled3_to_int(dx, dz, half, scale, scale) as u32
             },
-            || read_n(&CHECKPOINTS.angles[0], 2),
+            || trap.keep_read(read_n(&CHECKPOINTS.angles, 2)),
         );
         for (k, angle) in writes {
-            write_n(&CHECKPOINTS.angles[0], k, angle);
+            write_n(&CHECKPOINTS.angles, k, angle)?;
         }
     }
     trap.finish()?;
@@ -347,9 +357,9 @@ pub fn checkpoint_distances(
             length
         });
         for (k, &sum) in sums[..last as usize].iter().enumerate() {
-            write_n(&CHECKPOINTS.distances[0], k as u32, sum);
+            write_n(&CHECKPOINTS.distances, k as u32, sum)?;
         }
-        write_n(&CHECKPOINTS.distances[0], last, sums[last as usize]);
+        write_n(&CHECKPOINTS.distances, last, sums[last as usize])?;
         CHECKPOINTS.line_length.set(sums[last as usize]);
     }
     trap.finish()?;
@@ -377,7 +387,7 @@ pub fn replay_cameras(race: &Race, set: &Cameras) -> Result<(), Refused> {
         });
         trap.finish()?;
         for (e, &f) in cameras.iter().enumerate() {
-            write_n((set.list)(), e as u32, f);
+            write_n((set.list)(), e as u32, f)?;
         }
         let m = cameras.len() as u32;
         (set.count)(shared).set(m);
@@ -392,7 +402,7 @@ pub fn replay_cameras(race: &Race, set: &Cameras) -> Result<(), Refused> {
             ];
             crate::session::write_bits(&shared.vars.line_from, from);
             let nearest = rc2k_core::race::best_line::nearest_camera(m, |e| {
-                let q = match point_of(&race.course, read_n((set.list)(), e)) {
+                let q = match point_of(&race.course, trap.keep_read(read_n((set.list)(), e))) {
                     Ok(q) => q,
                     Err(err) => {
                         trap.keep(err);
@@ -417,7 +427,7 @@ pub fn replay_cameras(race: &Race, set: &Cameras) -> Result<(), Refused> {
             });
             trap.finish()?;
             crate::session::write_bits(&shared.vars.line_nearest, [nearest.0, nearest.1]);
-            write_n((set.nearest)(), c, nearest.1);
+            write_n((set.nearest)(), c, nearest.1)?;
         }
     }
     Ok(())
@@ -581,12 +591,12 @@ pub fn map_segment(race: &Race, scene: &crate::scene::owner::Scene) -> Result<()
             let z = x87::int_times_to_int(z as i32, scale);
             scene.drawing.scene.scratch.set(z as u32);
             let [x, _, z, _] = rotate_point_about_y(x, number as i32, z, map_angle);
-            write_n(&CHECKPOINTS.map_x[0], e, x.wrapping_add(place_a[0]));
+            write_n(&CHECKPOINTS.map_x, e, x.wrapping_add(place_a[0]))?;
             write_n(
-                &CHECKPOINTS.map_y[0],
+                &CHECKPOINTS.map_y,
                 e,
                 z.wrapping_add(place_a[1]).wrapping_neg(),
-            );
+            )?;
             e += 1;
             if e > b {
                 break;

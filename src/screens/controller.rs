@@ -166,12 +166,11 @@ pub fn draw_controller_page(
         else {
             return Err(BadInput("a player's device past the controllers").into());
         };
-        let record = crate::pointers::GamePtr::to(entry);
         let [stick_x, _, _, buttons] = crate::input::axes::first_device_state(input)?;
         let c = Controller {
-            // Kept in `draw_work.scratch_0c` as the original keeps it.
-            record: record.addr(),
-            name: HeldText::Place(crate::pointers::GamePtr::to(&entry.name)),
+            // Kept in `draw_work.scratch_0c`: the record's number among the controllers.
+            record: device - 1,
+            name: crate::screens::game_screen::held_field(&entry.name)?,
             has_strength: entry.force_feedback.get() == 1,
             mode: p.controller_mode,
             strength: p.strength,

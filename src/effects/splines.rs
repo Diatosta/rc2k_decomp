@@ -632,8 +632,6 @@ pub fn make_spline(
 }
 pub const RESUME: u32 = 0x4B9706; // loc_4B9706
 const KINDS: u32 = 0x22;
-/// The settings' objects: a count at +0x26B8, then the objects.
-const OBJECTS_AT: u32 = 0x26B8;
 const MOST_OBJECTS: u32 = (0x2708 - 0x26BC) / 4;
 
 /// `effects::load_splines` (0x4B96CD), in step 1: once (`g_marksSplinesLoaded`, then
@@ -665,11 +663,7 @@ pub fn load_splines(
     }
     let objects: Vec<u32> = (0..count.max(0) as u32)
         .rev()
-        .map(|k| {
-            marks
-                .at(OBJECTS_AT + 4 + 4 * k)
-                .read::<u32>("a spline object")
-        })
+        .map(|k| marks.object(k as usize))
         .collect::<Result<_, _>>()?;
     // The place starts at 0: the first eight are made, the rest only noted.
     for &o in objects.iter().take(8) {

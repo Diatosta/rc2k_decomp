@@ -44,10 +44,5 @@ pub fn join_session(net: &Net, number: u32) -> Result<bool, Refused> {
     net.vars.session_desc.clear();
     net.vars.session_desc.size.set(0x50);
     put_bytes(&net.vars.session_desc.instance, &net.joined().joined.read());
-    finish(
-        net,
-        posted_open_join,
-        join_group,
-        VIEWER_PANEL.text_ptr(texts::NET_JOIN_COMPLETE),
-    )
+    finish(net, posted_open_join, join_group, texts::NET_JOIN_COMPLETE)
 }

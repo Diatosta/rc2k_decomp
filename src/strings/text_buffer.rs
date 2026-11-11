@@ -44,14 +44,6 @@ impl TextBuf {
             TextBuf::Line(b) => b.write_at(at, bytes, what),
         }
     }
-
-    /// The buffer as a game place, for the screens' held texts.
-    pub fn place(self) -> crate::pointers::GamePtr {
-        match self {
-            TextBuf::Text(b) => crate::pointers::GamePtr::to(b),
-            TextBuf::Line(b) => crate::pointers::GamePtr::to(b),
-        }
-    }
 }
 
 impl TextBuffer {

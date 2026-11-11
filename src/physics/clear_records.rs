@@ -9,19 +9,13 @@
 
 use crate::errors::Refused;
 
-/// `clear_records_at` on the store's own place.
-pub fn clear_records(at: &dyn crate::pointers::Store, count: u32) -> Result<(), Refused> {
-    clear_records_at(crate::pointers::GamePtr::of_store(at), count)
-}
-
 // Converted: `rc2k_core::physics::pushes::{record_count, CLEARED_DWORDS}`.
-pub fn clear_records_at(at: crate::pointers::GamePtr, count: u32) -> Result<(), Refused> {
+pub fn clear_records(at: &dyn crate::pointers::Store, count: u32) -> Result<(), Refused> {
     use rc2k_core::physics::pushes::{CLEARED_DWORDS, record_count};
     let count = record_count(count, "a record count of 0 or above 0x100")?;
     for k in 0..count {
         for d in 0..CLEARED_DWORDS {
-            at.offset(0x20 * k + 4 * d)
-                .write::<u32>(0, "physics::clear_records's operand")
+            at.store((0x20 * k + 4 * d) as usize, &0u32.to_le_bytes())
                 .unwrap_or_else(|e| crate::fatal::raise::end("physics::clear_records", e));
         }
     }

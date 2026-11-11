@@ -25,21 +25,6 @@ pub fn count_on(list: &dyn crate::pointers::Store, bytes: u32) -> Result<(), Ref
     Ok(())
 }
 
-/// `count_on` for a list that is a computed place; refuses none.
-pub fn count_on_at(list: crate::pointers::GamePtr, bytes: u32) -> Result<(), Refused> {
-    check_count(bytes)?;
-    if list.is_null() {
-        return Err(BadInput("no list, or a size that wraps").into());
-    }
-    // Stores type a list by its first dword: the record runs on past that field.
-    let at = list.unbounded();
-    let mut l = at.read::<MemoryList>("a memory list")?;
-    l.total = l.total.wrapping_add(bytes);
-    at.write(l, "a memory list")?;
-    with_figures(|f| f.taken(bytes));
-    Ok(())
-}
-
 fn check_count(bytes: u32) -> Result<(), Refused> {
     if rc2k_core::memory::block_size(bytes).is_none() {
         return Err(BadInput("no list, or a size that wraps").into());
@@ -115,18 +100,6 @@ impl<T> Owned<T> {
         value: T,
     ) -> Result<(), Refused> {
         count_on(list, bytes)?;
-        *self.lock() = Some(Box::new(value));
-        Ok(())
-    }
-
-    /// `take` on a list that is a computed place (a record by offset).
-    pub fn take_at(
-        &self,
-        list: crate::pointers::GamePtr,
-        bytes: u32,
-        value: T,
-    ) -> Result<(), Refused> {
-        count_on_at(list, bytes)?;
         *self.lock() = Some(Box::new(value));
         Ok(())
     }

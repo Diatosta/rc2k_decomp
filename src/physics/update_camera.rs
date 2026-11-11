@@ -53,22 +53,22 @@ fn fixed_camera(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), crate::errors::BadInput> {
     let (nearest, replay) = if second {
-        (
-            &CHECKPOINTS.nearest_camera_2[0],
-            &CHECKPOINTS.replay_cameras_2[0],
-        )
+        (&CHECKPOINTS.nearest_camera_2, &CHECKPOINTS.replay_cameras_2)
     } else {
-        (
-            &CHECKPOINTS.nearest_camera_1[0],
-            &CHECKPOINTS.replay_cameras_1[0],
-        )
+        (&CHECKPOINTS.nearest_camera_1, &CHECKPOINTS.replay_cameras_1)
     };
-    let face = crate::race::checkpoints_store::nth(
-        replay,
-        crate::race::checkpoints_store::nth(nearest, c.car.checkpoint.get() as usize).get()
-            as usize,
-    )
-    .get();
+    // The car's checkpoint is held to the line's count (5144 at most; the tables hold 5146),
+    // its nearest camera is a number of the list (0x400 at most; the table holds 0x400).
+    let camera = nearest
+        .get(c.car.checkpoint.get() as usize)
+        .ok_or(crate::errors::BadInput(
+            "a checkpoint past the nearest cameras",
+        ))?
+        .get();
+    let face = replay
+        .get(camera as usize)
+        .ok_or(crate::errors::BadInput("a camera past the replay cameras"))?
+        .get();
     let point = crate::race::course_places::face_field::<u32>(c.course, face, 4)
         .unwrap_or_else(|e| crate::fatal::raise::end("a checkpoint face", e));
     for k in 0..3 {
