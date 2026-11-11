@@ -8,16 +8,23 @@
 
 use crate::errors::Refused;
 use crate::physics::place_car_sound::place_car_sound;
-use crate::race::owner::Race;
+use crate::race::matrices_store::SceneMatrices;
+use crate::race::numbers_store::Numbers;
+use crate::race::owner_shared::RaceShared;
 use rc2k_core::physics::parts::take_bit;
 
 // Converted: `rc2k_core::physics::parts::take_bit`.
-pub fn sound_on_bit(race: &Race, cl: u32) -> Result<(), Refused> {
-    let (_, cleared) = take_bit(race.shared.car.parts_present.bits(), cl);
+pub fn sound_on_bit(
+    numbers: &Numbers,
+    matrices: &SceneMatrices,
+    shared: &RaceShared,
+    cl: u32,
+) -> Result<(), Refused> {
+    let (_, cleared) = take_bit(shared.car.parts_present.bits(), cl);
     let Some(cleared) = cleared else {
         return Ok(());
     };
-    race.shared.car.parts_present.set(cleared);
-    { place_car_sound(race) }?;
+    shared.car.parts_present.set(cleared);
+    { place_car_sound(numbers, matrices, shared) }?;
     Ok(())
 }

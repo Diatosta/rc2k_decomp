@@ -1,7 +1,7 @@
 //! `audio::write_mix` (0x40C03A): the work buffer clipped into the primary buffer's two
 //! locked parts.
 //!
-//! In:  nothing (`g_lockedParts`, `g_soundMode`)
+//! Works on `g_lockedParts` and `g_soundMode`.
 //!
 //! See `audio/mixer.rs`; 0x40C087, 0x40C0E0, 0x40C153 (the three formats)
 //! inlined. Refuses sixteen bits with a right sample that clips (the original loops for

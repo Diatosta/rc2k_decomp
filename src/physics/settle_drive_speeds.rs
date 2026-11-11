@@ -15,7 +15,6 @@ use crate::math::x87;
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at};
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
-use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use crate::session::Cell32;
 
@@ -98,11 +97,15 @@ pub fn settle_drive_speeds_at(
 }
 
 /// The exact version, for `physics::car_physics_step`.
-pub fn settle_drive_speeds(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn settle_drive_speeds(
+    numbers: &Numbers,
+    shared: &RaceShared,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     settle_drive_speeds_at(
-        &race.shared.physics_tables,
-        &race.course.numbers,
-        &GearPlaces::game(&race.shared.car, &race.shared.physics_tables),
-        &SettlePlaces::game(&race.shared, scene),
+        &shared.physics_tables,
+        numbers,
+        &GearPlaces::game(&shared.car, &shared.physics_tables),
+        &SettlePlaces::game(shared, scene),
     )
 }

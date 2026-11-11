@@ -135,8 +135,7 @@ fn store(o: &crate::sound::store::SoundObject, before: &Engine, now: &Engine) {
     );
 }
 
-/// The object `so` brought up to date; its sound kind's number returned (the original's edi
-/// held the record's address).
+/// The object `so` brought up to date; its sound kind's number returned.
 pub fn car_engine_state(
     so: &crate::sound::store::SoundObject,
     sound: &crate::sound::owner::Sound,

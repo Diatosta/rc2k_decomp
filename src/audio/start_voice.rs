@@ -3,7 +3,7 @@
 //!
 //! See `audio/voices.rs`. Nothing for a negative number, a sound not loaded, or one whose
 //! first voice is not. With a volume and a voice of kind 0 (or, for another kind or no
-//! volume, a voice not playing, unless the sender's eax has bit 31): the first of its
+//! volume, a voice not playing, unless the sound word has bit 31): the first of its
 //! copies that is free gets a channel, a free one while `g_channelsUsed` is under
 //! `g_channelCount` (then counted), else the channel of the playing voice of the lowest
 //! priority below its own (signed; none: nothing), which goes to the stopping list; the

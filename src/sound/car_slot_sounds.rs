@@ -4,13 +4,9 @@
 //! Takes: the car's sound object, the request
 //! Nothing for a computer's car (+0 negative). The request's place = +0x2C .. +0x34;
 //! the slots at +0x164, +0x14C, +0x17C, +0x194 (only with +0xC 0), +0x260 and +0x1AC;
-//! then the place = +0x214 .. +0x21C and the slot at +0x220. Each call gets the
-//! registers the one before left. One caller, `sound::car_sounds`.
+//! then the place = +0x214 .. +0x21C and the slot at +0x220. One caller, `sound::car_sounds`.
 //! Refuses (before anything) a null object; what the slots refuse puts back
 //! what was written (sounds already sent stay sent).
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::sound::sets_store::SoundRequest;

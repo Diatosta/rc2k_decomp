@@ -7,21 +7,23 @@
 use crate::errors::{BadInput, Refused};
 use crate::physics::free_rev::free_rev;
 use crate::physics::gearing::{GearPlaces, wheels_from_revs_at};
-use crate::race::owner::Race;
+use crate::race::owner_course::Course;
+use crate::race::owner_shared::RaceShared;
 
 /// The exact version, for `physics::car_physics_step`.
-pub fn free_rev_clutch(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let gear = race.shared.car.gear.get();
-    if gear == 0 || race.shared.car.driven_wheels_off.get() == 0 {
+pub fn free_rev_clutch(
+    course: &Course,
+    shared: &RaceShared,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    let gear = shared.car.gear.get();
+    if gear == 0 || shared.car.driven_wheels_off.get() == 0 {
         return Ok(());
     }
     if !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
-    free_rev(race, scene);
-    wheels_from_revs_at(&GearPlaces::game(
-        &race.shared.car,
-        &race.shared.physics_tables,
-    ))?;
+    free_rev(course, shared, scene);
+    wheels_from_revs_at(&GearPlaces::game(&shared.car, &shared.physics_tables))?;
     Ok(())
 }

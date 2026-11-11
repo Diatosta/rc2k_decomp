@@ -77,7 +77,7 @@ fn normalised(race: &Race, from: &[Float], to: &[Float]) {
     for k in 0..3 {
         w[k].set(from[k].bits());
     }
-    normalise_work_vector(race);
+    normalise_work_vector(&race.course.numbers, &race.frame.scratch);
     for k in 0..3 {
         to[k].set_bits(w[k].get());
     }

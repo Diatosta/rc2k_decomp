@@ -14,7 +14,6 @@ use crate::physics::edge_side::edge_side;
 use crate::physics::find_course_record::find_course_record;
 use crate::physics::ground_query::GroundQuery;
 use crate::physics::plane_height::plane_height;
-use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use rc2k_core::physics::ground_search::{self, FaceTest};
 
@@ -28,14 +27,13 @@ fn record_faces(course: &Course, record: u32) -> Result<(u32, u32), BadInput> {
 /// (0x639708 ..), the point (0x6396FC, 0x639704), the differences, and the shares by the x87
 /// (`math::x87::face_shares`; the `rcpss` way with the SSE switch).
 pub fn face_shares_at(
-    race: &Race,
+    course: &Course,
     q: &GroundQuery<'_>,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let race_owner = race;
     let mut corner = [[0u32; 3]; 3];
     for (k, c) in corner.iter_mut().enumerate() {
-        *c = crate::race::scene_points::point_number(&race.course, q.corner_numbers[k].get())?;
+        *c = crate::race::scene_points::point_number(course, q.corner_numbers[k].get())?;
         for (n, &v) in c.iter().enumerate() {
             q.corners[3 * k + n].set(v);
         }
@@ -64,7 +62,7 @@ pub fn face_shares_at(
         d[3].1,
         d[4].1,
         d[5].1,
-        race_owner.course.numbers.k65536.bits(),
+        course.numbers.k65536.bits(),
     ];
     let mut o = [0u32; 8];
     crate::math::x87::face_shares(&i, &mut o, sse);
@@ -92,25 +90,24 @@ pub fn face_refusal(course: &Course, face: u32) -> Option<&'static str> {
 /// `physics/face_under_point.rs`): the carry.
 // Converted: `rc2k_core::physics::ground_search::face_under_point`.
 pub fn face_under_point_at(
-    race: &Race,
+    course: &Course,
     q: &GroundQuery<'_>,
     number: u32,
     scene: &crate::scene::owner::Scene,
 ) -> Result<bool, Refused> {
-    let race_owner = race;
-    if let Some(why) = face_refusal(&race_owner.course, number) {
+    if let Some(why) = face_refusal(course, number) {
         return Err(BadInput(why).into());
     }
     q.number.set(number);
     // The face read once: its kind, flags, corners and edges.
-    let f = crate::race::course_places::face_number(&race.course, number)?;
+    let f = crate::race::course_places::face_number(course, number)?;
     let trap = Trap::new();
     // One edge.
     let side = |from: u32, to: u32| -> Option<bool> {
         if trap.failed() {
             return None;
         }
-        match edge_side(&race.course, q, f.dword_at(from), f.dword_at(to)) {
+        match edge_side(course, q, f.dword_at(from), f.dword_at(to)) {
             Ok(s) => (s.zero == Some(true)).then_some(s.carry),
             Err(e) => {
                 trap.refuse(e);
@@ -137,7 +134,7 @@ pub fn face_under_point_at(
         q.corner_numbers[k].set(corner);
         q.face_corners[k].set(corner);
     }
-    face_shares_at(race, q, scene)?;
+    face_shares_at(course, q, scene)?;
     q.done.set(1);
     plane_height(q);
     Ok(true)
@@ -165,17 +162,17 @@ pub fn record_refusal(course: &Course, record: u32) -> Option<&'static str> {
 /// `record`, each by `face_under_point`; the carry when one has the point.
 // Converted: `rc2k_core::physics::ground_search::search_faces`.
 pub fn search_record_faces_at(
-    race: &Race,
+    course: &Course,
     q: &GroundQuery<'_>,
     record: u32,
     scene: &crate::scene::owner::Scene,
 ) -> Result<bool, Refused> {
-    if let Some(why) = record_refusal(&race.course, record) {
+    if let Some(why) = record_refusal(course, record) {
         return Err(BadInput(why).into());
     }
-    let (first, last) = record_faces(&race.course, record)?;
+    let (first, last) = record_faces(course, record)?;
     let (found, _) = ground_search::search_faces(first, last, |number| {
-        face_under_point_at(race, q, number, scene)
+        face_under_point_at(course, q, number, scene)
     })?;
     Ok(found)
 }
@@ -185,32 +182,32 @@ pub fn search_record_faces_at(
 /// found.
 // Converted: `rc2k_core::physics::ground_search::cell_key`.
 pub fn search_cell_at(
-    race: &Race,
+    course: &Course,
     q: &GroundQuery<'_>,
     x: u32,
     z: u32,
     scene: &crate::scene::owner::Scene,
 ) -> Result<bool, Refused> {
     let (key, _) = ground_search::cell_key(x, z);
-    let Some(record) = find_course_record(&race.course, key)? else {
+    let Some(record) = find_course_record(course, key)? else {
         return Ok(false);
     };
-    search_record_faces_at(race, q, record, scene)
+    search_record_faces_at(course, q, record, scene)
 }
 
 /// `physics::try_last_face` (0x441E0C): the saved last face (`last_face`); when it is a face (not -1,
 /// below the count) `face_under_point` on it. The carry when found.
 // Converted: `rc2k_core::physics::ground_search::last_face`.
 pub fn try_last_face_at(
-    race: &Race,
+    course: &Course,
     q: &GroundQuery<'_>,
     scene: &crate::scene::owner::Scene,
 ) -> Result<bool, Refused> {
     let last = q.last.get();
-    if ground_search::last_face(last, race.course.course.course_face_count.get()).is_none() {
+    if ground_search::last_face(last, course.course.course_face_count.get()).is_none() {
         return Ok(false);
     }
-    face_under_point_at(race, q, last, scene)
+    face_under_point_at(course, q, last, scene)
 }
 
 /// `physics::ground_search` (0x441E2F), inside `pusha` / `popa`: `try_last_face`; else
@@ -218,17 +215,17 @@ pub fn try_last_face_at(
 /// finds it. `g_groundFound` 1 when found, else 0. Registers kept; the carry the found.
 // Converted: `rc2k_core::physics::ground_search::ground_search`.
 pub fn ground_search_at(
-    race: &Race,
+    course: &Course,
     q: &GroundQuery<'_>,
     scene: &crate::scene::owner::Scene,
 ) -> Result<bool, Refused> {
     let found = ground_search::ground_search(
-        || try_last_face_at(race, q, scene),
+        || try_last_face_at(course, q, scene),
         || {
             q.slot.set(ground_search::NO_FACE);
         },
         || (q.x.get(), q.z.get()),
-        |x, z| search_cell_at(race, q, x, z, scene),
+        |x, z| search_cell_at(course, q, x, z, scene),
     )?;
     q.found.set(u32::from(found));
     Ok(found)

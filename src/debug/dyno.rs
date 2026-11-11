@@ -113,7 +113,7 @@ fn kept<T>(shared: &RaceShared, f: impl FnOnce() -> T) -> T {
 fn torque(race: &Race) {
     let shared = &race.shared;
     let course = &race.course;
-    engine_torque(race, crate::scene::owner::scene());
+    engine_torque(&race.course, &race.shared, crate::scene::owner::scene());
     shared.physics_tables.drive_ratio.set_bits(
         sum_times_int_over_minus(
             shared.physics_tables.engine_force.bits(),

@@ -1,7 +1,6 @@
-//! The game's own mixer (the Dolby mode's way, `g_soundMode` bit 0x40000; IDA 2026-10-14):
+//! The game's own mixer (the Dolby mode's way, `g_soundMode` bit 0x40000):
 //! the voices' channels mixed into a work buffer of left and right dwords
-//! (`g_mixBuffer`, 0x952AF8, 0x3C00 bytes up to `g_soundCommands`; `MIX`, Rust's since
-//! phase 12), then clipped into the primary buffer's format. The standalone program will
+//! (`g_mixBuffer`, 0x952AF8, 0x3C00 bytes up to `g_soundCommands`; `MIX`), then clipped into the primary buffer's format. The standalone program will
 //! mix this way.
 
 use crate::audio::store::AudioState;

@@ -10,17 +10,19 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::rotate_point_about_y::rotate_point_about_y;
-use crate::race::owner::Race;
+use crate::physics::car_store::Car;
+use crate::race::owner_course::Course;
+use crate::race::vars_store::RaceVars;
 use rc2k_core::physics::progress::checkpoint_ahead;
 
 // Converted: `rc2k_core::physics::progress::checkpoint_ahead` (the turn stays
 // `math::rotate_point_about_y`'s).
-pub fn checkpoint_offset(race: &Race) -> Result<(), Refused> {
-    let course_store = &race.course;
-    let c = race.shared.car.checkpoint.get();
-    if checkpoint_ahead(c, race.shared.vars.checkpoint_count.get())?.is_none() {
-        race.shared.car.checkpoint_offset[0].set(0);
-        race.shared.car.checkpoint_offset[1].set(0);
+pub fn checkpoint_offset(course: &Course, vars: &RaceVars, car: &Car) -> Result<(), Refused> {
+    let course_store = course;
+    let c = car.checkpoint.get();
+    if checkpoint_ahead(c, vars.checkpoint_count.get())?.is_none() {
+        car.checkpoint_offset[0].set(0);
+        car.checkpoint_offset[1].set(0);
         return Ok(());
     }
     if course_store.course.course_faces.get() == 0 || course_store.course.scene_points.get() == 0 {
@@ -28,24 +30,16 @@ pub fn checkpoint_offset(race: &Race) -> Result<(), Refused> {
     }
     let angle = crate::race::checkpoints_store::angle(c as usize).get();
     let face = crate::race::checkpoints_store::face(c as usize).get();
-    let point = crate::race::course_places::face_field::<u32>(&race.course, face, 4)?;
-    let x = race.shared.car.position[0]
+    let point = crate::race::course_places::face_field::<u32>(course, face, 4)?;
+    let x = car.position[0]
         .get()
-        .wrapping_sub(crate::race::scene_points::point_word(
-            &race.course,
-            point,
-            0,
-        )?);
-    let z = race.shared.car.position[2]
+        .wrapping_sub(crate::race::scene_points::point_word(course, point, 0)?);
+    let z = car.position[2]
         .get()
-        .wrapping_sub(crate::race::scene_points::point_word(
-            &race.course,
-            point,
-            2,
-        )?);
+        .wrapping_sub(crate::race::scene_points::point_word(course, point, 2)?);
     let [x2, _, z2, _] =
         rotate_point_about_y(x as i32, point as i32, z as i32, angle.wrapping_neg());
-    race.shared.car.checkpoint_offset[0].set(x2);
-    race.shared.car.checkpoint_offset[1].set(z2);
+    car.checkpoint_offset[0].set(x2);
+    car.checkpoint_offset[1].set(z2);
     Ok(())
 }

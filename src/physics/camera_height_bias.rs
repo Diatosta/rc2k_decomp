@@ -10,35 +10,33 @@ use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
 use crate::math::x87_float::to_int;
 use crate::physics::camera_view::record;
+use crate::physics::car_store::Car;
 use crate::physics::flow::{ZERO_BITS as ZERO, hold_high, hold_low_bits};
-use crate::race::owner::Race;
-use crate::race::owner_frame::Frame;
+use crate::race::groups_store::ViewAndRecords;
+use crate::race::numbers_store::Numbers;
 
 /// The exact version, for `physics::update_camera`.
 pub fn camera_height_bias(
-    race: &Race,
+    numbers: &Numbers,
+    view_records: &ViewAndRecords,
+    car: &Car,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), crate::errors::BadInput> {
     let drawing = &scene.drawing;
-    let esi = record(&race.shared.car)?;
+    let esi = record(car)?;
     if esi.height_bias.get() == 0 {
         return Ok(());
     }
-    x87_1(&race.frame, scene);
+    x87_1(view_records, scene);
     hold_low_bits(&drawing.scene.scratch, ZERO);
-    hold_high(&drawing.scene.scratch, &race.course.numbers.one);
+    hold_high(&drawing.scene.scratch, &numbers.one);
     if (esi.height_bias.get() as i32) < 0 {
         x87_2(scene);
     }
-    x87_3(race, scene);
+    x87_3(numbers, view_records, scene);
     let eax = drawing.scene.scratch.get();
-    race.frame
-        .view_and_records
-        .view_vars
-        .camera_height_bias
-        .set(eax);
-    race.shared.car.camera_position[1]
-        .set(race.shared.car.camera_position[1].get().wrapping_add(eax));
+    view_records.view_vars.camera_height_bias.set(eax);
+    car.camera_position[1].set(car.camera_position[1].get().wrapping_add(eax));
     Ok(())
 }
 
@@ -47,9 +45,9 @@ pub fn camera_height_bias(
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[scratch] = [camera_distance] / [camera_bias_limit]`
-fn x87_1(frame: &Frame, scene: &crate::scene::owner::Scene) {
-    let t0 = ld(frame.view_and_records.view_vars.camera_distance.bits());
-    let t1 = ld(frame.view_and_records.view_vars.camera_bias_limit.bits());
+fn x87_1(view_records: &ViewAndRecords, scene: &crate::scene::owner::Scene) {
+    let t0 = ld(view_records.view_vars.camera_distance.bits());
+    let t1 = ld(view_records.view_vars.camera_bias_limit.bits());
     let t2 = t0 / t1;
     scene.drawing.scene.scratch.set_bits(st(t2));
 }
@@ -68,17 +66,12 @@ fn x87_2(scene: &crate::scene::owner::Scene) {
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [scratch] = ([scratch] * [k65536]) * [camera_bias_scale]`
-fn x87_3(race: &Race, scene: &crate::scene::owner::Scene) {
+fn x87_3(numbers: &Numbers, view_and_records: &ViewAndRecords, scene: &crate::scene::owner::Scene) {
     let drawing = &scene.drawing;
     let t0 = ld(drawing.scene.scratch.bits());
-    let t1 = ld(race.course.numbers.k65536.bits());
+    let t1 = ld(numbers.k65536.bits());
     let t2 = t0 * t1;
-    let t3 = ld(race
-        .frame
-        .view_and_records
-        .view_vars
-        .camera_bias_scale
-        .bits());
+    let t3 = ld(view_and_records.view_vars.camera_bias_scale.bits());
     let t4 = t2 * t3;
     drawing.scene.scratch.set_bits(to_int(t4) as u32);
 }
@@ -105,7 +98,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_0(a[0]) },
                 plain: |_| {
                     x87_1(
-                        &crate::race::owner::race().frame,
+                        &crate::race::owner::race().frame.view_and_records,
                         crate::scene::owner::scene(),
                     );
                 },
@@ -128,7 +121,13 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_2(a[0]) },
-                plain: |_| x87_3(crate::race::owner::race(), crate::scene::owner::scene()),
+                plain: |_| {
+                    x87_3(
+                        &crate::race::owner::race().course.numbers,
+                        &crate::race::owner::race().frame.view_and_records,
+                        crate::scene::owner::scene(),
+                    );
+                },
             },
         ]
     }

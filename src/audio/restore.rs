@@ -1,6 +1,6 @@
-//! Lost buffers restored, and the mixer's primary buffer closed (IDA, 2026-10-15):
+//! Lost buffers restored, and the mixer's primary buffer closed:
 //! `audio::restore_buffer`, `replay_looping`, `restore_lost`, `close_primary_mixer`. Their
-//! calls go through a `Part` (the place, eax, esi -> the carry), so that the tests can
+//! calls go through a `Part` (the buffer's place and the voice -> the carry), so that the tests can
 //! stand them in.
 
 use crate::audio::owner::Audio;
@@ -23,16 +23,16 @@ pub fn make_primary_failed(state: &AudioState) -> Result<bool, Refused> {
     Ok(!crate::audio::primary::make_primary(state)?)
 }
 
-/// What `restore_buffer` leaves: the carry, and eax and edx where it changes them.
+/// What `restore_buffer` leaves: the carry, and the status and the `Restore` result where it changes them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Restored {
     pub carry: bool,
-    pub eax: Option<u32>,
-    pub edx: Option<u32>,
+    pub result: Option<u32>,
+    pub status: Option<u32>,
 }
 
-/// `audio::restore_buffer`: the buffer `b`, if any: `GetStatus` (+0x24, into edx, which
-/// `Restore` then leaves as it likes); lost: `Restore` (+0x50, into eax), whose failure sets
+/// `audio::restore_buffer`: the buffer `b`, if any: `GetStatus` (+0x24, giving the
+/// status); lost: `Restore` (+0x50), whose failure sets
 /// the lost flag and the carry. Refuses A3D (0x40CB0A).
 pub fn restore_buffer(state: &AudioState, b: u32) -> Result<Restored, Refused> {
     if crate::audio::buffer_settings::a3d(state) {
@@ -40,8 +40,8 @@ pub fn restore_buffer(state: &AudioState, b: u32) -> Result<Restored, Refused> {
     }
     let mut left = Restored {
         carry: false,
-        eax: None,
-        edx: None,
+        result: None,
+        status: None,
     };
     {
         if b == 0 {
@@ -49,15 +49,15 @@ pub fn restore_buffer(state: &AudioState, b: u32) -> Result<Restored, Refused> {
         }
         // A failed call leaves the status 0.
         let status = crate::platform_sound::status(b).unwrap_or(0);
-        left.edx = Some(status);
+        left.status = Some(status);
         // Converted: `rc2k_core::audio::buffers::needs_restore`.
         if !rc2k_core::audio::buffers::needs_restore(status) {
             return Ok(left);
         }
         let r = crate::platform_sound::restore(b);
-        left.eax = Some(r as u32);
-        // `Restore` may change edx as it likes (as any COM call): not the status any more.
-        left.edx = None;
+        left.result = Some(r as u32);
+        // After `Restore` the status is no longer known (as after any COM call).
+        left.status = None;
         if r != 0 {
             state.sound_buffer_lost.set(1);
             left.carry = true;

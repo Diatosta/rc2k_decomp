@@ -10,21 +10,21 @@ use crate::errors::Refused;
 use crate::physics::car_sounds::{listed, object, place};
 use crate::physics::sound_band_1::TWIN;
 use crate::physics::sound_bands::band_value;
-use crate::race::owner::Race;
+use crate::physics::step_families::SoundInputs;
 
 /// The exact version, for `physics::wall_push_back` and `physics::wall_edge_contact`.
-pub fn place_sound_e1(race: &Race) -> Result<(), Refused> {
-    if !listed(&race.frame, race.shared.work.current_car.bits())? {
+pub fn place_sound_e1(c: &SoundInputs<'_>) -> Result<(), Refused> {
+    if !listed(c.frame_work, c.work.current_car.bits())? {
         return Ok(());
     }
-    let b = band_value(race, TWIN);
+    let b = band_value(c, TWIN);
     if b == 0 {
         return Ok(());
     }
     let o = object();
     o.hit_sound.set(0xE1);
     o.hit_volume.set(b);
-    place(race, &o.hit_place, None);
+    place(c.numbers, c.matrices, c.car, &o.hit_place, None);
     // +0x10: the play switch, the cell the revs' new reading flag shares.
     o.new_revs.set(1);
     Ok(())

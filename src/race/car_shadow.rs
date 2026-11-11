@@ -513,7 +513,7 @@ fn raise_onto_face(race: &Race, work: &ShadowWork, index: u32) -> Result<(), Ref
     let (x, z) = point_xz(&race.course, p)?;
     q.x.set(x);
     q.z.set(z);
-    face_shares_at(race, &q, crate::scene::owner::scene())?;
+    face_shares_at(&race.course, &q, crate::scene::owner::scene())?;
     crate::physics::plane_height::plane_height(&q);
     put_point_word(
         &race.course,
@@ -740,7 +740,7 @@ pub fn shadow_points(race: &Race, work: &ShadowWork, car: &Car, sun: u32) -> Res
     q.x.set(car.position[0].get());
     q.z.set(car.position[2].get());
     q.last.set(car.probe_point_face[4].get());
-    crate::physics::find_ground::find_ground_with(race, &q, crate::scene::owner::scene())?;
+    crate::physics::find_ground::find_ground_with(&race.course, &q, crate::scene::owner::scene())?;
     work.farthest_length.set(-1.0f32);
     work.ground.set(q.height.get());
     let sun = sun.max(0x10);

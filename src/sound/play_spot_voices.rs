@@ -12,9 +12,6 @@
 //! stopped (`sound::stop_sound`) and playing 0. One caller, `sound::spot_sounds`.
 //! A sound past the sample records and the
 //! two leaves' refusals put back what was written (sounds already sent stay sent).
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::from_int;

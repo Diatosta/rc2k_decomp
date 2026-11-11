@@ -48,7 +48,12 @@ pub fn simple_car_step(
             .get()
             .wrapping_add(roam_turn(CAR_BLOCKS.cars[0].steering.get())),
     );
-    { crate::physics::wheel_surfaces::wheel_surfaces(race, scene) }?;
+    {
+        crate::physics::wheel_surfaces::wheel_surfaces(
+            &crate::physics::step_inputs::StepInputs::of(race),
+            scene,
+        )
+    }?;
     race.physics
         .ground
         .ground_x
@@ -57,7 +62,14 @@ pub fn simple_car_step(
         .ground
         .ground_z
         .set(race.course.course.place_z.get());
-    { crate::physics::find_ground::find_ground(race, scene) }?;
+    {
+        crate::physics::find_ground::find_ground(
+            &race.physics.ground_probe,
+            &race.physics.ground,
+            &race.course,
+            scene,
+        )
+    }?;
     if race.course.course.ground_slot.get() != u32::MAX {
         let y = race
             .physics
@@ -70,6 +82,6 @@ pub fn simple_car_step(
     }
     CAR_BLOCKS.cars[0].car_pitch.set(0);
     CAR_BLOCKS.cars[0].car_roll.set(0);
-    crate::race::stage_prefs::get_mat_crash(race);
+    crate::race::stage_prefs::get_mat_crash(&race.frame.matrices, &race.shared.car);
     Ok(())
 }

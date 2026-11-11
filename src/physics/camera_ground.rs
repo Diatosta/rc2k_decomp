@@ -9,24 +9,28 @@
 //! This file: the shared steps.
 
 use crate::errors::Refused;
-use crate::race::owner::Race;
+use crate::physics::step_families::CameraGroundInputs;
 
 /// One probe at (x, z) from the face kept at `slot`; true when found (the face found
 /// kept there).
 pub fn probe_at(
-    race: &Race,
+    c: &CameraGroundInputs<'_>,
     x: u32,
     z: u32,
     slot: &crate::session::Dword,
     scene: &crate::scene::owner::Scene,
 ) -> Result<bool, Refused> {
-    race.course.course.ground_face_last.set(slot.get());
-    race.physics.ground.ground_x.set(x);
-    race.physics.ground.ground_z.set(z);
-    { crate::physics::count_ground_probe::count_ground_probe(race, scene) }?;
-    if race.physics.ground.ground_found.get() == 0 {
+    c.course.course.ground_face_last.set(slot.get());
+    c.ground.ground_x.set(x);
+    c.ground.ground_z.set(z);
+    {
+        crate::physics::count_ground_probe::count_ground_probe(
+            c.camera, c.probe, c.ground, c.course, scene,
+        )
+    }?;
+    if c.ground.ground_found.get() == 0 {
         return Ok(false);
     }
-    slot.set(race.course.course.ground_slot.get());
+    slot.set(c.course.course.ground_slot.get());
     Ok(true)
 }

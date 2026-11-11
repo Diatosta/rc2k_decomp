@@ -7,11 +7,13 @@
 
 use crate::errors::Refused;
 use crate::physics::listed_car_flags::set_flag;
-use crate::race::owner::Race;
+use crate::race::frame_store::FrameWork;
+use crate::race::work_store::RaceWork;
 
 pub fn flag_current_car_listed(
-    race: &Race,
+    frame_work: &FrameWork,
+    work: &RaceWork,
     sound: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {
-    set_flag(race, &sound.race.stage.once[0])
+    set_flag(frame_work, work, &sound.race.stage.once[0])
 }

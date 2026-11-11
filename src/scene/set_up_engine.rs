@@ -15,5 +15,10 @@ pub fn set_up_engine() -> Result<(), Refused> {
     let scene = crate::scene::owner::scene();
     let race = race();
     fill_engine_tables(race);
-    crate::physics::test_drive::test_drive(race, scene)
+    crate::physics::test_drive::test_drive(
+        &race.physics.car_specs,
+        &race.course,
+        &race.shared,
+        scene,
+    )
 }

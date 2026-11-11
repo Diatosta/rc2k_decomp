@@ -17,8 +17,10 @@ use crate::math::x87;
 use crate::math::x87::int_lerp;
 use crate::physics::car_store::Car;
 use crate::physics::grade_or_reset::grade_or_reset;
+use crate::physics::store::DamageModel;
 use crate::physics::tables_store::PhysicsTables;
-use crate::race::owner::Race;
+use crate::race::numbers_store::Numbers;
+use crate::race::owner_shared::RaceShared;
 use crate::session::{Dword, Float};
 
 /// (out, setting, hi, lo) in the original's order, but the drive kind's.
@@ -86,31 +88,35 @@ fn after<'a>(
 }
 
 /// The exact version, for `race::settle_car` and `physics::car_physics_step`.
-pub fn set_handling(race: &Race) -> Result<(), Refused> {
-    let kind = race.shared.car.drive_kind.get() as usize;
+pub fn set_handling(
+    damage: &DamageModel,
+    numbers: &Numbers,
+    shared: &RaceShared,
+) -> Result<(), Refused> {
+    let kind = shared.car.drive_kind.get() as usize;
     if kind > 1 {
         return Err(BadInput("a drive kind above 1 (the pair tables hold two)").into());
     }
-    grade_or_reset(race);
-    let k256: u32 = race.course.numbers.k256.bits();
+    grade_or_reset(damage, numbers, shared);
+    let k256: u32 = numbers.k256.bits();
     let lerp = |(out, n, hi, lo): (&Float, &Dword, &Float, &Float)| {
         out.set_bits(int_lerp(n.get() as i32, k256, hi.bits(), lo.bits()).to_bits());
     };
-    for v in before(&race.shared.car, &race.shared.physics_tables) {
+    for v in before(&shared.car, &shared.physics_tables) {
         lerp(v);
     }
-    let r = &race.shared.physics_tables.handling_ranges_b;
+    let r = &shared.physics_tables.handling_ranges_b;
     lerp((
-        &race.shared.physics_tables.handling[4],
-        &race.shared.car.ride_height,
+        &shared.physics_tables.handling[4],
+        &shared.car.ride_height,
         &r[4 + kind],
         &r[2 + kind],
     ));
-    race.shared.physics_tables.handling[4].set(x87::mul(
-        &race.shared.physics_tables.handling[4],
-        race.shared.physics_tables.ride_height_handling_scale.get(),
+    shared.physics_tables.handling[4].set(x87::mul(
+        &shared.physics_tables.handling[4],
+        shared.physics_tables.ride_height_handling_scale.get(),
     ));
-    for v in after(&race.shared.car, &race.shared.physics_tables) {
+    for v in after(&shared.car, &shared.physics_tables) {
         lerp(v);
     }
     Ok(())

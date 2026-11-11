@@ -70,6 +70,11 @@ pub fn reset_request(race: &Race, scene: &crate::scene::owner::Scene) -> Result<
             .wrapping_add(reset_penalty(race_owner.shared.car.stuck_count.get())),
     );
     clear_notice(&race.shared);
-    { crate::physics::reset_car::reset_car(race, scene) }?;
+    {
+        crate::physics::reset_car::reset_car(
+            &crate::physics::step_inputs::StepInputs::of(race),
+            scene,
+        )
+    }?;
     Ok(())
 }

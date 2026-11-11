@@ -9,9 +9,6 @@
 //! stays heard (the code that would silence it, 0x40EA9B, is never reached: notes'
 //! bugs). With a next found: `math::next_random` & 1 for the nearest's +4, the other bit
 //! for the next's. Twelve callers, `sound::thin_spot_voices_all`.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 /// Converted: `rc2k_core::sound::spot_voices::thin` and `thin_choose`. The voices of
 /// `sound` thinned.

@@ -14,9 +14,10 @@
 //! `g_iidSound3dBuffer`; failing: "AUD: 1-DSBQuery3D failed" logged, carry), the place,
 //! `audio::set_buffer_min_distance`, `g_commit3d` 1, `audio::open_voice_manager` with bit
 //! 0x800000, with EAX (bit 0x1000000) `audio::open_eax` and, unless that sets the carry,
-//! `audio::set_eax_room` (the openings read through ebx, which is the caller's, the
-//! frequency after the create path, or the 3D buffer's place after the voice manager's
-//! call, as the original leaves it; `open_eax` refuses one that is no pointer). Callers:
+//! `audio::set_eax_room`. The openings read the 3D buffer through a "holder" value that
+//! is the caller's own value, or the frequency after the create path, or the 3D buffer's
+//! place after the voice manager's call (the game's bug, kept; `open_eax` refuses one
+//! that is no pointer). Callers:
 //! command 3 and `audio::start`.
 //! Refuses A3D (the chunk at 0x40CC88), and what the settings refuse, checked first.
 
@@ -43,9 +44,9 @@ pub struct BufferDescription {
     pub format: u32,
 }
 
-/// True for the carry clear. `ebx`: the caller's, which the original leaves in ebx (or
-/// replaces, as below) when it calls the EAX parts: they read through it.
-pub fn make_buffer(state: &AudioState, at: u32, ebx: u32) -> Result<bool, Refused> {
+/// True for the carry clear. `holder`: the caller's value, which the EAX parts read the 3D
+/// buffer through (replaced as below, as the original does).
+pub fn make_buffer(state: &AudioState, at: u32, holder: u32) -> Result<bool, Refused> {
     if a3d(state) {
         return Err(BadInput("A3D (the chunk at 0x40CC88)").into());
     }
@@ -63,10 +64,10 @@ pub fn make_buffer(state: &AudioState, at: u32, ebx: u32) -> Result<bool, Refuse
         if !(0..=0x40).contains(&level) || !(-0x40..=0x40).contains(&v.pan) {
             return Err(BadInput("a volume or pan past the volume table").into());
         }
-        // ebx as the original has it at each call: the caller's, the frequency after the
-        // create path (`mov ebx, [esi+60h]`), the 3D buffer's place after
+        // The holder value at each call, as the original has it: the caller's, the
+        // frequency after the create path, the 3D buffer's place after
         // `audio::open_voice_manager`'s.
-        let mut ebx = ebx;
+        let mut holder = holder;
         let mut made = false;
         if v.source != 0 {
             match crate::platform_sound::duplicate_sound_buffer(voice_of(state, v.source).buffer) {
@@ -78,7 +79,7 @@ pub fn make_buffer(state: &AudioState, at: u32, ebx: u32) -> Result<bool, Refuse
             }
         }
         if !made {
-            ebx = v.frequency;
+            holder = v.frequency;
             describe_wave_format(state, v.format, v.frequency)?;
             // Converted: `rc2k_core::audio::voices::buffer_flags`.
             let flags = rc2k_core::audio::voices::buffer_flags(mode, v.flags);
@@ -113,10 +114,10 @@ pub fn make_buffer(state: &AudioState, at: u32, ebx: u32) -> Result<bool, Refuse
             crate::audio::set_buffer_min_distance::set_buffer_min_distance(v)?;
             state.commit_3d.set(1);
             if mode & MODE_HARDWARE_3D != 0 {
-                ebx = stored_buffer_3d(state, at, v);
-                crate::audio::open_voice_manager::open_voice_manager(state, ebx)?;
+                holder = stored_buffer_3d(state, at, v);
+                crate::audio::open_voice_manager::open_voice_manager(state, holder)?;
             }
-            if mode & MODE_EAX != 0 && crate::audio::open_eax::open_eax(state, ebx)? {
+            if mode & MODE_EAX != 0 && crate::audio::open_eax::open_eax(state, holder)? {
                 crate::audio::set_eax_room::in_game(state)?;
             }
         }

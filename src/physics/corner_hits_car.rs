@@ -14,8 +14,8 @@ use crate::errors::Refused;
 use crate::math::x87::{abs_compare, ext_times};
 use crate::math::x87_float::{from_f80, ld, st};
 use crate::physics::contact_store::ContactWork;
+use crate::physics::step_families::ContactInputs;
 use crate::race::numbers_store::Numbers;
-use crate::race::owner::Race;
 use crate::scene::matrix3::extended;
 use crate::scene::rotate_point::rotate_point;
 use crate::session::Cell32;
@@ -38,22 +38,16 @@ pub fn corner_inside(contact: &ContactWork, numbers: &Numbers) -> bool {
 
 /// `block` the other car's block.
 pub fn corner_hits_car(
-    race: &Race,
+    c: &ContactInputs<'_>,
     block: u32,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    if !corner_inside(&race.physics.contact, &race.course.numbers) {
+    if !corner_inside(c.contact, c.numbers) {
         return Ok(());
     }
-    race.physics.contact.corner_inside.set(1);
-    {
-        crate::physics::restore_saved_car::restore_saved_car(
-            &race.shared.car,
-            &race.shared.physics_tables,
-            &race.physics.contact,
-        )
-    }?;
-    { crate::physics::bump_cars::bump_cars(race, block, scene) }?;
+    c.contact.corner_inside.set(1);
+    { crate::physics::restore_saved_car::restore_saved_car(c.car, c.tables, c.contact) }?;
+    { crate::physics::bump_cars::bump_cars(c, block, scene) }?;
     Ok(())
 }
 

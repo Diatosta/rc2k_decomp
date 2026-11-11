@@ -72,7 +72,7 @@ pub fn start_car_on_line(
     race.shared.tables.start_share.set_bits(share);
     race.shared.car.start_share.set_bits(share);
     crate::race::start_place::place_car_on_line(&race.shared, &race.course, scene)?;
-    crate::race::car_starts::reset_car_motion(race)?;
+    crate::race::car_starts::reset_car_motion(&crate::physics::step_inputs::StepInputs::of(race))?;
     race.shared.car.local_velocity[0].set_bits(0);
     race.shared.car.local_velocity[1].set_bits(0);
     race.shared.car.local_velocity[2].set(x87::loaded(&race.shared.tables.start_speed));

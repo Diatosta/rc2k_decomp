@@ -8,26 +8,23 @@
 use crate::math::x87_float::ld;
 use crate::math::x87_float::to_int;
 use crate::physics::camera_view::{record, share_done};
-use crate::race::owner::Race;
+use crate::race::numbers_store::Numbers;
+use crate::race::owner_shared::RaceShared;
+use crate::race::tables_store::RaceTables;
 
 /// The exact version, for `physics::update_camera`.
 pub fn ease_view_angles(
-    race: &Race,
+    numbers: &Numbers,
+    shared: &RaceShared,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), crate::errors::BadInput> {
-    let esi = record(&race.shared.car)?;
+    let esi = record(&shared.car)?;
     if esi.change_time.get() == 0 {
         return Ok(());
     }
-    share_done(&race.shared, esi, scene);
-    for (to, rate) in race
-        .shared
-        .car
-        .camera_offset_turns
-        .iter()
-        .zip(&esi.turn_rates)
-    {
-        x87_1(race, rate.get(), scene);
+    share_done(shared, esi, scene);
+    for (to, rate) in shared.car.camera_offset_turns.iter().zip(&esi.turn_rates) {
+        x87_1(numbers, &shared.tables, rate.get(), scene);
         to.set(
             to.get()
                 .wrapping_add(scene.drawing.scene.scratch.get() << 16),
@@ -42,11 +39,11 @@ pub fn ease_view_angles(
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [scratch] = ([s + 0] * [view_share]) * [k65536]` (`[s + 0]` a
 /// record's turn rate, passed by value)
-fn x87_1(race: &Race, rate: u32, scene: &crate::scene::owner::Scene) {
+fn x87_1(numbers: &Numbers, tables: &RaceTables, rate: u32, scene: &crate::scene::owner::Scene) {
     let t0 = ld(rate);
-    let t1 = ld(race.shared.tables.view_share.bits());
+    let t1 = ld(tables.view_share.bits());
     let t2 = t0 * t1;
-    let t3 = ld(race.course.numbers.k65536.bits());
+    let t3 = ld(numbers.k65536.bits());
     let t4 = t2 * t3;
     scene.drawing.scene.scratch.set_bits(to_int(t4) as u32);
 }
@@ -77,7 +74,8 @@ mod asm_reference {
             reference: |a| unsafe { ref_0(a[0], a[1]) },
             plain: |a| {
                 x87_1(
-                    race(),
+                    &race().course.numbers,
+                    &race().shared.tables,
                     crate::scene::x87_mem::Base::dword(a[0], 0),
                     crate::scene::owner::scene(),
                 );

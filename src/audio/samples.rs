@@ -1,4 +1,4 @@
-//! Loading a sound's sample (command 3's logic, IDA 2026-10-14).
+//! Loading a sound's sample (command 3's logic).
 //!
 //! `audio::read_sample` reads a file into the work buffer (`g_sampleBuffer`, 0x506930, of
 //! `g_sampleBufferSize` bytes: the setting at 0x5068EC times 0x400, else 0x400) and leaves
@@ -6,7 +6,7 @@
 //! it, or from the voice it shares data with; the data is prepared in place for the sound
 //! mode's quality and copied to the samples' memory (`g_sampleMemory`).
 //!
-//! Since phase 12 the bytes are Rust's (`audio::sample_data`): `SampleFile::data` and a
+//! The bytes are Rust's (`audio::sample_data`): `SampleFile::data` and a
 //! voice's `data` are ids there, not addresses.
 //!
 //! The format word: 0x10 eight bits, 0x20 sixteen; 0x100 mono, 0x200 stereo; the low four

@@ -2,8 +2,8 @@
 //! asked for and held to what the mixer takes.
 //!
 //! Returns: the volume, the rate
-//! A sample without a buffer (+8 null): ecx 0, edx 44100. Else ecx -0x6F takes the
-//! record's +0x28, then is held to 0 .. 0x40 (signed); edx -0x6F takes the record's
+//! A sample without a buffer (+8 null): volume 0, rate 44100. Else a volume of -0x6F (the
+//! sample's own) takes the record's +0x28, then is held to 0 .. 0x40 (signed); a rate of -0x6F takes the record's
 //! +0x30, then (so a record's -0x70 chains) -0x70 the buffer's +0x24, then is held to
 //! 100 .. 200000 (signed).
 //! Five callers (the race sounds' turn). Refuses a sample past the 0x1CD records (the

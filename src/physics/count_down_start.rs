@@ -8,23 +8,30 @@
 //! Caller: `physics::race_timers`. Refuses what `set_flag_5165a0` refuses.
 
 use crate::errors::Refused;
+use crate::physics::car_store::Car;
 use crate::physics::listed_car_flags::set_flag;
-use crate::race::owner::Race;
+use crate::race::frame_store::FrameWork;
+use crate::race::work_store::RaceWork;
 use rc2k_core::physics::start::{CarStart, StartCount};
 
-pub fn count_down_start(race: &Race, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
+pub fn count_down_start(
+    frame_work: &FrameWork,
+    work: &RaceWork,
+    car: &Car,
+    sound: &crate::sound::owner::Sound,
+) -> Result<(), Refused> {
     let mut c = CarStart {
-        finished: race.shared.car.finish_flag.get(),
-        timer: race.shared.car.run_ticks.get(),
-        countdown: race.shared.car.time_left.get(),
+        finished: car.finish_flag.get(),
+        timer: car.run_ticks.get(),
+        countdown: car.time_left.get(),
         ..CarStart::default()
     };
     match c.count_down_start() {
         StartCount::Stopped | StartCount::Waiting(_) => Ok(()),
         StartCount::Counted { beep, .. } => {
-            race.shared.car.time_left.set(c.countdown);
+            car.time_left.set(c.countdown);
             if beep {
-                set_flag(race, &sound.race.stage.once[1])?;
+                set_flag(frame_work, work, &sound.race.stage.once[1])?;
             }
             Ok(())
         }

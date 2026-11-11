@@ -9,16 +9,13 @@
 //! the sign bit of the first (negative: +0x44 / +0x6C), then the second of the pair when
 //! the other is negative; its surface goes to +0x294 and `dword_4F66F1`; on 7 and 8 the
 //! volume (`flt_516398`) x 0.25. The surface's sound set is `off_51639C[2 x
-//! dword_51655C[surface]]`, and `sound::surface_sound` (ebp the set, edx the other
-//! wheel). Then the same from the floats at +0xC (+0x290 = their sum x 64, the volume
+//! dword_51655C[surface]]`, and `sound::surface_sound` (with the set and
+//! the other wheel of the pair). Then the same from the floats at +0xC (+0x290 = their sum x 64, the volume
 //! their sum x 0.1, the surface into `dword_4F66F5`, x 0.1 on 7 and 8) with the sets
 //! of `off_5163A0`. The x87 code is plain Rust over `X` (`math/x87_float.rs`; the original's instructions
 //! are `asm_reference` in the tests; `dword_5183CC` is the scratch dword for the constants). One caller, `sound::car_sounds`.
 //! Refuses a null object, a surface past the 16 of `dword_51655C` and a set
 //! past the seven pairs: what was written is put back (a sound already sent stays).
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_float::X;
@@ -30,7 +27,7 @@ use crate::system::owner::system;
 use rc2k_core::sound::surfaces;
 
 /// The surface of the wheel picked (of object `so`), its set and `sound::surface_sound`
-/// (the other wheel of the pair, the original's edx, it does not read).
+/// (the other wheel of the pair is not needed there).
 fn one(
     o: &SoundObject,
     request: &SoundRequest,

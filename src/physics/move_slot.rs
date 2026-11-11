@@ -29,7 +29,7 @@ use crate::math::x87;
 use crate::math::x87::{abs_compare, abs_of, mul, mul2_to_int, negated};
 use crate::math::x87_float as bh;
 use crate::physics::axis_turn_matrix::axis_turn_matrix;
-use crate::race::owner::Race;
+use crate::physics::step_inputs::StepInputs;
 use crate::race::work_store::RaceSlot;
 use crate::scene::matrix::multiply_matrices;
 use crate::scene::matrix3::rounded;
@@ -45,14 +45,14 @@ fn copy<A: Cell32, B: Cell32>(from: &[A], to: &[B]) {
 
 /// The slot `s` (the registers it leaves are dropped by its caller's `popa`).
 pub fn move_slot(
-    race: &Race,
+    c: &StepInputs<'_>,
     s: &RaceSlot,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let drawing = &scene.drawing;
-    let dt = race.shared.physics_tables.step_time.bits();
-    let k65536 = race.course.numbers.k65536.bits();
-    copy(&s.place, &race.shared.work.slot_place);
+    let dt = c.tables.step_time.bits();
+    let k65536 = c.numbers.k65536.bits();
+    copy(&s.place, &c.work.slot_place);
     s.spin_length
         .set_bits(rounded(crate::physics::vector_length::vector_length(
             &s.spin,
@@ -61,19 +61,16 @@ pub fn move_slot(
         // From the spin's length on: two dwords past the slot, as the original has it (the
         // next slot's first, or what follows the table), so by address.
         let past = crate::pointers::GamePtr::to(&s.spin_length).unbounded();
-        unit_vector(&race.course, &past, &race.course.lists.spin_axis);
-        race.course
-            .lists
-            .spin_angle
-            .set(x87::mul(&s.spin_length, dt));
-        axis_turn_matrix(&race.course, &race.course.lists.turn_matrix);
-        square_matrix(&race.course, &race.course.lists.turn_matrix);
+        unit_vector(c.course, &past, &c.course.lists.spin_axis);
+        c.course.lists.spin_angle.set(x87::mul(&s.spin_length, dt));
+        axis_turn_matrix(c.course, &c.course.lists.turn_matrix);
+        square_matrix(c.course, &c.course.lists.turn_matrix);
         multiply_matrices(
             &s.matrix,
-            &race.course.lists.turn_matrix,
-            &race.frame.matrices.turned_matrix,
+            &c.course.lists.turn_matrix,
+            &c.frame.matrices.turned_matrix,
         );
-        copy(&race.frame.matrices.turned_matrix, &s.matrix);
+        copy(&c.frame.matrices.turned_matrix, &s.matrix);
     }
     for k in [1, 0, 2] {
         let d = mul2_to_int(s.motion[k].bits(), dt, k65536) as u32;
@@ -81,40 +78,44 @@ pub fn move_slot(
         s.place[k].set(s.place[k].get().wrapping_add(d));
     }
     s.motion[1].set_bits(bh::st(
-        -(bh::ld(race.shared.physics_tables.gravity.bits()) * bh::ld(dt))
-            + bh::ld(s.motion[1].bits()),
+        -(bh::ld(c.tables.gravity.bits()) * bh::ld(dt)) + bh::ld(s.motion[1].bits()),
     ));
-    race.physics.ground.ground_x.set(s.place[0].get());
-    race.physics.ground.ground_z.set(s.place[2].get());
-    race.course.course.ground_face_last.set(s.car_word.get());
-    race.physics.ground_probe.settle_mark.set(0x80);
-    crate::physics::find_ground::find_ground(race, scene)?;
-    let face: u32 = race.course.course.ground_slot.get();
+    c.physics.ground.ground_x.set(s.place[0].get());
+    c.physics.ground.ground_z.set(s.place[2].get());
+    c.course.course.ground_face_last.set(s.car_word.get());
+    c.physics.ground_probe.settle_mark.set(0x80);
+    crate::physics::find_ground::find_ground(
+        &c.physics.ground_probe,
+        &c.physics.ground,
+        c.course,
+        scene,
+    )?;
+    let face: u32 = c.course.course.ground_slot.get();
     if face == u32::MAX {
-        copy(&race.shared.work.slot_place, &s.place);
+        copy(&c.work.slot_place, &s.place);
         for cell in s.motion.iter().chain(&s.spin) {
             cell.set_bits(0);
         }
         return Ok(());
     }
     s.car_word.set(face);
-    let height: u32 = race.physics.ground.ground_height.get();
+    let height: u32 = c.physics.ground.ground_height.get();
     if (s.place[1].get().wrapping_sub(height) as i32) >= 0 {
         return Ok(());
     }
     s.place[1].set(height);
-    let half = race.course.numbers.half.bits();
+    let half = c.numbers.half.bits();
     s.motion[0].set(x87::mul(&s.motion[0], half));
     s.motion[1].set_bits(negated(mul(&s.motion[1], half)).to_bits());
     s.motion[2].set(x87::mul(&s.motion[2], half));
     for cell in &s.spin {
         cell.set_bits(negated(mul(cell, half)).to_bits());
     }
-    if abs_compare(s.motion[1].bits(), race.course.numbers.one.bits()) & 0x100 != 0 {
-        copy(&race.shared.work.part_matrix_flat[..12], &s.matrix);
+    if abs_compare(s.motion[1].bits(), c.numbers.one.bits()) & 0x100 != 0 {
+        copy(&c.work.part_matrix_flat[..12], &s.matrix);
         let n = s.part.get() % 20;
         if (n.wrapping_sub(5) as i32) >= 0 && (n.wrapping_sub(9) as i32) < 0 {
-            copy(&race.shared.work.part_matrix_still[..12], &s.matrix);
+            copy(&c.work.part_matrix_still[..12], &s.matrix);
             return Ok(());
         }
     }

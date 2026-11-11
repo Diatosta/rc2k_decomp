@@ -4,7 +4,9 @@
 
 use crate::errors::BadInput;
 use crate::errors::Refused;
+use crate::physics::car_store::Car;
 use crate::pointers::Store;
+use crate::race::matrices_store::SceneMatrices;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 
@@ -138,42 +140,40 @@ pub fn load_lights_data(race: &Race) -> Result<(), Refused> {
 /// `race::get_mat_crash` (0x43D43E): the three angles (`car_pitch`, `car_heading`,
 /// `car_roll`, each >> 16) kept at `angles` .., the x, y and z turns made of them, Z x X
 /// into the lit matrix, that x Y into `crash_matrix`.
-pub fn get_mat_crash(race: &Race) {
+pub fn get_mat_crash(matrices: &SceneMatrices, car: &Car) {
     let scene = crate::scene::owner::scene();
-    let shared = &race.shared;
-    let frame = &race.frame;
     use crate::scene::matrix;
     // Converted: `rc2k_core::race::stage_objects::crash_turns` (the matrices the
     // scene's).
     let turns = rc2k_core::race::stage_objects::crash_turns([
-        shared.car.car_heading.get(),
-        shared.car.car_pitch.get(),
-        shared.car.car_roll.get(),
+        car.car_heading.get(),
+        car.car_pitch.get(),
+        car.car_roll.get(),
     ]);
     crate::session::write_bits(&scene.drawing.object_work.angles, turns);
     matrix::set_turn_x(
-        &race.frame.matrices.turn_x_matrix,
+        &matrices.turn_x_matrix,
         &scene.drawing.scene.turn_x_work,
         turns[0],
     );
     matrix::set_turn_y(
-        &race.frame.matrices.turn_y_matrix,
+        &matrices.turn_y_matrix,
         &scene.drawing.scene.turn_y_work,
         turns[1],
     );
     matrix::set_turn_z_16(
-        &race.frame.matrices.turn_z_matrix,
+        &matrices.turn_z_matrix,
         &scene.drawing.scene.turn_z_work,
         turns[2],
     );
     matrix::multiply_matrices(
-        &frame.matrices.turn_z_matrix,
-        &frame.matrices.turn_x_matrix,
-        &frame.matrices.lit_matrix,
+        &matrices.turn_z_matrix,
+        &matrices.turn_x_matrix,
+        &matrices.lit_matrix,
     );
     matrix::multiply_matrices(
-        &frame.matrices.lit_matrix,
-        &frame.matrices.turn_y_matrix,
-        &shared.car.crash_matrix,
+        &matrices.lit_matrix,
+        &matrices.turn_y_matrix,
+        &car.crash_matrix,
     );
 }

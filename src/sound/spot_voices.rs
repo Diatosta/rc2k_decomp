@@ -1,4 +1,4 @@
-//! The shared spots' voices (stream B, 2026-10-18): `unk_5168C0`, 0x48 voices of 0x50
+//! The shared spots' voices: `unk_5168C0`, 0x48 voices of 0x50
 //! bytes, which `sound::spot_sounds` (0x40E611) keeps in step with the spots the race
 //! frame shares each frame (`g_sharedSoundSpots`, 0x14 bytes: +0 an id, +4 .. +0xC the
 //! place, +0x10 the kind 1 .. 0x15; `race::share_sound_spots`).

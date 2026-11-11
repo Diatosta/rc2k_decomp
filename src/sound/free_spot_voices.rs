@@ -6,9 +6,6 @@
 //! playing free one is left; one not playing is freed. Freed: id 0x1888FFFF, sound -2
 //! (+0x28 is left as it is). See `sound/spot_voices.rs`. One caller,
 //! `sound::spot_sounds`.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::sound::sets_store::SoundRequest;

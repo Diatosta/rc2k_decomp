@@ -9,52 +9,58 @@
 //! checkpoint past 0x1418 or a split past 0x40, and what the calls refuse.
 
 use crate::errors::Refused;
-use crate::race::owner::Race;
+use crate::physics::step_inputs::StepInputs;
 use rc2k_core::physics::splits::{at_split_end, check_tracked, split_ahead};
 
 /// The steps.
 // Converted: `rc2k_core::physics::splits::{check_tracked, at_split_end, split_ahead}`.
 pub fn track_checkpoints(
-    race: &Race,
+    c: &StepInputs<'_>,
     scene: &crate::scene::owner::Scene,
     sound: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {
-    let physics_store = &race.physics;
-    let checkpoint = { crate::physics::find_car_checkpoint::find_car_checkpoint(race, scene) }?;
-    check_tracked(checkpoint, race.shared.car.splits_passed.get())?;
-    race.shared.car.checkpoint.set(checkpoint);
+    let physics_store = c.physics;
+    let checkpoint = {
+        crate::physics::find_car_checkpoint::find_car_checkpoint(
+            c.physics, c.course, c.shared, scene,
+        )
+    }?;
+    check_tracked(checkpoint, c.car.splits_passed.get())?;
+    c.car.checkpoint.set(checkpoint);
     scene.lights.state.line_place.set(checkpoint);
-    { crate::physics::checkpoint_offset::checkpoint_offset(race) }?;
-    crate::physics::off_line_warnings::off_line_warnings(race, sound)?;
+    { crate::physics::checkpoint_offset::checkpoint_offset(c.course, c.vars, c.car) }?;
+    crate::physics::off_line_warnings::off_line_warnings(
+        &c.frame.frame_work,
+        c.work,
+        &c.shared.replay_file,
+        c.tables,
+        c.car,
+        sound,
+    )?;
     let next = crate::race::checkpoints_store::cell_in(
         &crate::race::checkpoints_store::CHECKPOINTS.check_counts,
-        race.shared.car.checkpoint.get() as usize,
+        c.car.checkpoint.get() as usize,
     )
     .get()
     .wrapping_sub(1);
-    if at_split_end(next.wrapping_add(1), race.shared.car.splits_passed.get()) {
-        race.shared
-            .car
-            .reset_checkpoint
-            .set(race.shared.car.checkpoint.get());
+    if at_split_end(next.wrapping_add(1), c.car.splits_passed.get()) {
+        c.car.reset_checkpoint.set(c.car.checkpoint.get());
     }
     if !split_ahead(
-        race.shared.car.splits_passed.get(),
+        c.car.splits_passed.get(),
         physics_store.split_tables.split_colour_count.get(),
     ) {
         return Ok(());
     }
-    if !{ crate::physics::passed_split_point::passed_split_point(race, scene) }? {
+    if !{ crate::physics::passed_split_point::passed_split_point(c, scene) }? {
         return Ok(());
     }
-    let split = physics_store.split_tables.checkpoints
-        [1 + race.shared.car.splits_passed.get() as usize]
-        .get();
-    race.shared.car.reset_checkpoint.set(split);
-    race.shared.car.checkpoint.set(split);
-    race.shared
-        .car
+    let split =
+        physics_store.split_tables.checkpoints[1 + c.car.splits_passed.get() as usize].get();
+    c.car.reset_checkpoint.set(split);
+    c.car.checkpoint.set(split);
+    c.car
         .splits_passed
-        .set(race.shared.car.splits_passed.get().wrapping_add(1));
+        .set(c.car.splits_passed.get().wrapping_add(1));
     Ok(())
 }

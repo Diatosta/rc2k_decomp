@@ -1,7 +1,7 @@
 //! The sound module's sets and tables that sit between `sound::store`'s pieces in the image
 //! (the settings page's menu sounds, the race's sets of sounds and the commands that name
 //! them, the cues' lists, the car sound kinds' records, the surface sound sets and the spot
-//! voices), out of RAL.EXE's image (phase 5), typed (phase 7). The sets are lists of sound
+//! voices), out of RAL.EXE's image, typed. The sets are lists of sound
 //! numbers ending in -1 that the audio thread reads by address; the tables of pointers name
 //! them by the image's addresses, pointed at their homes at start (`moved::point_into_homes`).
 //!
@@ -10,7 +10,7 @@
 
 use crate::session::{Bytes, Dword, Float, with_runs};
 
-/// Handles of the tables of sets (phase 13): in place of a list's, cue's or record's address
+/// Handles of the tables of sets: in place of a list's, cue's or record's address
 /// a table holds `TAG | (address - the piece's start)`; 0 does not occur. The resolvers keep
 /// the original's reads: the list runs on in its piece as far as the sounds read.
 /// The race's sets (`RaceSoundSets`, by kind of car).

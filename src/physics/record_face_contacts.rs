@@ -10,7 +10,7 @@
 
 use crate::errors::Refused;
 use crate::physics::face_contact;
-use crate::race::owner::Race;
+use crate::physics::step_families::ContactInputs;
 use crate::race::owner_course::Course;
 use rc2k_core::physics::ground_search;
 
@@ -22,13 +22,17 @@ pub fn record_faces(course: &Course, n: u32) -> Result<(u32, u32), Refused> {
 
 /// The steps for course record `record` , not guarded: each of its faces by `face_contact`.
 // Converted: `rc2k_core::physics::ground_search::each_face`.
-pub fn steps(race: &Race, record: u32, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let (first, last) = record_faces(&race.course, record)?;
+pub fn steps(
+    c: &ContactInputs<'_>,
+    record: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    let (first, last) = record_faces(c.course, record)?;
     ground_search::each_face(
         first,
         last,
-        race.course.course.course_face_count.get(),
-        |number| face_contact::steps(race, number, scene),
+        c.course.course.course_face_count.get(),
+        |number| face_contact::steps(c, number, scene),
     )?;
     Ok(())
 }

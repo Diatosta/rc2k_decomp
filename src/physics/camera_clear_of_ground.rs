@@ -7,26 +7,26 @@
 
 use crate::errors::Refused;
 use crate::physics::camera_ground::probe_at;
-use crate::race::owner::Race;
+use crate::physics::step_families::CameraGroundInputs;
 use rc2k_core::physics::camera_ground::{is_clear, over};
 
 /// Whether the camera is clear of the ground (CF clear).
 // Converted: `rc2k_core::physics::camera_ground::{over, is_clear}`.
 pub fn camera_clear_of_ground(
-    race: &Race,
+    c: &CameraGroundInputs<'_>,
     scene: &crate::scene::owner::Scene,
 ) -> Result<bool, Refused> {
     let mut clear = probe_at(
-        race,
-        race.shared.car.camera_position[0].get(),
-        race.shared.car.camera_position[2].get(),
-        &race.shared.car.camera_ground_faces[0],
+        c,
+        c.car.camera_position[0].get(),
+        c.car.camera_position[2].get(),
+        &c.car.camera_ground_faces[0],
         scene,
     )?;
     if clear {
         clear = is_clear(over(
-            race.shared.car.camera_position[1].get(),
-            race.physics.ground.ground_height.get(),
+            c.car.camera_position[1].get(),
+            c.ground.ground_height.get(),
         ));
     }
     Ok(clear)

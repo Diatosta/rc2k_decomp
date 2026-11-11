@@ -9,14 +9,11 @@
 //! +4) the cue is dropped (`sound::drop_cue`, place 0) and the next begun at 0, or with
 //! none left the place is -1. Else its sound: due again after
 //! `sound::sample_duration` (the sample's own rate) + 25 ms (sounds 0x13F and 0x140:
-//! 0x1000000 later, so never), and `sound::play_sound` with ebx (the volume)
-//! and edx -0x6F, ecx, edi, ebp 0.
+//! 0x1000000 later, so never), and `sound::play_sound` with the cue's volume, the
+//! sample's own rate and no place.
 //! Two callers, `sound::play_cue_queues`.
 //! Refuses a null object, a queue of more than 16 or a cue of more than six sounds
 //! (before anything), and the duration's refusals (what was written put back).
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::sound::sample_duration::sample_duration;
@@ -42,8 +39,7 @@ pub fn play_cue_queue(
         clock,
         |sound| Ok(sample_duration(sound, OWN)?),
         |queue, _| {
-            // The first cue taken out (`drop_cue` at 0; the place given was the
-            // original's ebx only).
+            // The first cue taken out (`drop_cue` at place 0).
             crate::sound::drop_cue::write_words(q, queue.to_words())?;
             crate::sound::drop_cue::drop_cue(q, 0)?;
             *queue = CueQueue::from_words(&crate::sound::drop_cue::read_words(q)?);

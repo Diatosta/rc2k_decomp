@@ -7,12 +7,13 @@
 //! (`..\f\..`); the second car has the other list, or the same one if its +0x298 is the
 //! first's. The sample records 0xED .. 0x1AA of `unk_50A7A4` (0x40 bytes each) get the
 //! names at their +0xC: the odd ones the first car's, the even ones the second's.
-//! Then the sets, each a command 3 with the set's address in eax: in a replay
+//! Then the sets, each a command 3 (load a list of sounds) naming the set: in a replay
 //! (`dword_75B108` not 0) only `unk_512340`; else the first car's kind
 //! (`off_512360[its +4 * 8]`), `unk_511CA8`, `unk_512268`, `unk_511D04`; unless
 //! `dword_514F78` is 1 the second car's kind (`off_512364[its +4 * 8]`), `unk_512014`,
 //! `unk_512070`; and `unk_5121EC` unless `dword_514F78` is `dword_514F7C`.
-//! The commands carry the loop's leftovers in the other registers, reproduced.
+//! The commands also carry the loop's leftover values in their unused words; they are
+//! reproduced because the sound hash of a held race records them.
 //! What the two counts and "a replay" are is a reading.
 //! One caller, `sound::set_up_race_sounds`. Refuses a car number of 8 or more, a missing
 //! object, a kind of 0x22 or more and a list of names that does not hold 95 of at most 0x100
@@ -105,17 +106,17 @@ pub fn load_race_sounds(
             .first
             .get(),
     );
-    let (mut ebx, mut edx) = (list(a), list(b));
+    let (mut first_name, mut second_name) = (list(a), list(b));
     // Unbounded: the original reads the names on as far as they go.
     let name = |key| crate::audio::store::name_at(key).map(GamePtr::unbounded);
-    let (of_first, of_second) = (lengths(name(ebx)?)?, lengths(name(edx)?)?);
+    let (of_first, of_second) = (lengths(name(first_name)?)?, lengths(name(second_name)?)?);
     // Nothing has been written or sent up to here.
     for n in 0..NAMES {
         let records = &audio.sample_records.records;
-        records[FIRST_SAMPLE + n * 2].update(|r| r.data_key = ebx);
-        records[FIRST_SAMPLE + n * 2 + 1].update(|r| r.data_key = edx);
-        ebx += (of_first[n] as usize + 1) as u32;
-        edx += (of_second[n] as usize + 1) as u32;
+        records[FIRST_SAMPLE + n * 2].update(|r| r.data_key = first_name);
+        records[FIRST_SAMPLE + n * 2 + 1].update(|r| r.data_key = second_name);
+        first_name += (of_first[n] as usize + 1) as u32;
+        second_name += (of_second[n] as usize + 1) as u32;
     }
     let (first_kind, second_kind) = kinds.unwrap_or((0, None));
     for set in sets(

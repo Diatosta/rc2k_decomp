@@ -1,6 +1,6 @@
-//! DirectSound's device and primary buffer, given back and asked after (IDA, 2026-10-15):
+//! DirectSound's device and primary buffer, given back and asked after:
 //! `audio::release_primary`, `read_caps`, `release_a3d`, `close_sound`. Their logging and
-//! the calls they make go through a `Part` (the place and eax), so that the tests can stand
+//! the calls they make go through a `Part` (the place and a value), so that the tests can stand
 //! them in.
 
 use crate::audio::a3d::{open_a3d, open_a3d2};

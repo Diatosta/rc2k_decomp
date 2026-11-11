@@ -7,22 +7,29 @@
 //! `fill_slot_on_bit` refuses; what was written is put back.
 
 use crate::errors::Refused;
+use crate::physics::car_store::Car;
 use crate::physics::fill_slot_on_bit::fill_slot_on_bit;
-use crate::race::owner::Race;
+use crate::race::numbers_store::Numbers;
+use crate::race::work_store::RaceWork;
 use rc2k_core::physics::parts::{BROKEN_BITS, breaks, broken_checked};
 
 // Converted: `rc2k_core::physics::parts::{BROKEN_BITS, broken_checked, breaks}`.
-pub fn drop_broken_parts(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn drop_broken_parts(
+    numbers: &Numbers,
+    work: &RaceWork,
+    car: &Car,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     for (k, &bit) in BROKEN_BITS.iter().enumerate() {
         if !broken_checked(k, || scene.lights.work.marks_mask.get() != 0) {
             continue;
         }
-        if !breaks(race.shared.car.part_damage_limits[k].get(), || {
-            race.shared.work.part_break_limits[k].get()
+        if !breaks(car.part_damage_limits[k].get(), || {
+            work.part_break_limits[k].get()
         }) {
             continue;
         }
-        fill_slot_on_bit(race, bit, scene)?;
+        fill_slot_on_bit(numbers, work, car, bit, scene)?;
     }
     Ok(())
 }

@@ -24,8 +24,8 @@ pub fn set_mode(audio: &Audio, mode: u32) -> Result<bool, Refused> {
     let caps = &audio.state.sound_caps;
     sd::log_text(SAM_TEXT, false);
     sd::log_hex(mode, true);
-    // Fixed (section 16, 2026-10-20): the streams stopped with action 0; the original
-    // hands on whatever edx holds (normally the thread's 1, a feed), so the music
+    // Fixed (section 16): the streams stopped with action 0; the original
+    // hands on whatever action value is left over (normally a feed), so the music
     // outlived the DirectSound it played on.
     crate::audio::stop_streams::stop_streams(audio)?;
     crate::audio::free_voices::free_voices(audio)?;

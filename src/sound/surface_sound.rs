@@ -9,9 +9,6 @@
 //! `sound::play_placed_sound` (a tail jump). Two callers, `sound::surface_sounds`.
 //! Refuses (before anything) a set of eight with +0xC
 //! over 1, and a sound past the sample records.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::from_int;

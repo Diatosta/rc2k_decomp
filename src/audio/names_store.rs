@@ -1,6 +1,6 @@
 //! The sound samples' file names (the text pool the sample records' keys point into and the
-//! speech lists `sound::load_race_sounds` names), out of RAL.EXE's image (phase 5), typed
-//! (phase 7). One byte buffer with the image's layout: the sample records
+//! speech lists `sound::load_race_sounds` names), out of RAL.EXE's image, typed.
+//! One byte buffer with the image's layout: the sample records
 //! (`audio::store::SampleRecords`) name their files by place in it (`audio::store::name_key`;
 //! the original kept the names' addresses); the co-driver's speech lists are two runs of 95 names.
 //!

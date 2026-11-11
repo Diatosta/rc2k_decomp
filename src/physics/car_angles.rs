@@ -9,33 +9,25 @@
 //! Caller: `physics::update_car_angles`.
 
 use crate::math::x87::mul3_to_int;
+use crate::physics::car_store::Car;
 use crate::physics::matrix_angles::matrix_angles;
-use crate::race::owner::Race;
+use crate::race::owner_course::Course;
 
 /// `matrix_angles` of the crash matrix, each angle scaled to the car's whole-number angle (pitch,
 /// heading, roll).
-pub fn car_angles(race: &Race, scene: &crate::scene::owner::Scene) {
-    matrix_angles(&race.course, &race.shared.car.crash_matrix, scene);
+pub fn car_angles(course: &Course, car: &Car, scene: &crate::scene::owner::Scene) {
+    matrix_angles(course, &car.crash_matrix, scene);
     let scale = |a: u32| {
         mul3_to_int(
             a,
-            race.course.numbers.k65536.bits(),
-            race.course.numbers.k4096.bits(),
-            race.course.numbers.one_over_two_pi.bits(),
+            course.numbers.k65536.bits(),
+            course.numbers.k4096.bits(),
+            course.numbers.one_over_two_pi.bits(),
         )
         .wrapping_shl(4)
     };
-    let l = &race.course.lists;
-    race.shared
-        .car
-        .car_pitch
-        .set_bits(scale(l.car_pitch.bits()) as u32);
-    race.shared
-        .car
-        .car_heading
-        .set_bits(scale(l.car_heading.bits()) as u32);
-    race.shared
-        .car
-        .car_roll
-        .set_bits(scale(l.car_roll.bits()) as u32);
+    let l = &course.lists;
+    car.car_pitch.set_bits(scale(l.car_pitch.bits()) as u32);
+    car.car_heading.set_bits(scale(l.car_heading.bits()) as u32);
+    car.car_roll.set_bits(scale(l.car_roll.bits()) as u32);
 }

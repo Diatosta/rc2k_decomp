@@ -16,7 +16,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::Car;
 use crate::physics::corner_hits_car::corner_hits_car;
-use crate::race::owner::Race;
+use crate::physics::step_inputs::StepInputs;
 use crate::race::view_store::RaceView;
 use crate::scene::matrix::{multiply_matrices, set_place};
 
@@ -25,39 +25,40 @@ fn cars(view: &RaceView) -> u32 {
     view.race_cars.get().max(1)
 }
 
-pub fn car_collisions(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let physics = &race.physics;
-    if !matches!(race.shared.vars.run_kind.get(), 0 | 2) {
+pub fn car_collisions(
+    c: &StepInputs<'_>,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    let physics = c.physics;
+    if !matches!(c.vars.run_kind.get(), 0 | 2) {
         return Ok(());
     }
-    let n = cars(&race.shared.view);
+    let n = cars(c.view);
     if n > 8 {
         return Err(BadInput("more than eight cars (g_carBlocks' room)").into());
     }
-    if (0..n).any(|k| {
-        k != race.shared.work.current_car.get() && race.shared.work.car_block(k as usize) == 0
-    }) {
+    if (0..n).any(|k| k != c.work.current_car.get() && c.work.car_block(k as usize) == 0) {
         return Err(BadInput("a null car block").into());
     }
     {
         physics.contact.corner_inside.set(0);
         for car in 0..n {
-            if car == race.shared.work.current_car.get() {
+            if car == c.work.current_car.get() {
                 continue;
             }
             physics.contact.other_car_number.set(car);
-            let block = race.shared.work.car_block(car as usize);
+            let block = c.work.car_block(car as usize);
             physics.contact.other_car_block.set(block);
             // SAFETY: a `g_carBlocks` entry of the eight, not null (both checked above).
             if { Car::at(block) }.driver_kind.bits() == 0 {
                 continue;
             }
             let place = [0usize, 1, 2].map(|k| {
-                race.shared.car.position[k]
+                c.car.position[k]
                     .get()
                     .wrapping_sub(Car::at(block).position[k].get())
             });
-            set_place(&race.frame.matrices.placed_matrix, place);
+            set_place(&c.frame.matrices.placed_matrix, place);
             // `scene::set_place` left the z in `g_scratch`.
             crate::scene::owner::scene()
                 .drawing
@@ -65,12 +66,12 @@ pub fn car_collisions(race: &Race, scene: &crate::scene::owner::Scene) -> Result
                 .scratch
                 .set_bits(place[2]);
             multiply_matrices(
-                &race.shared.car.crash_matrix,
-                &race.frame.matrices.placed_matrix,
-                &race.frame.matrices.turned_matrix,
+                &c.car.crash_matrix,
+                &c.frame.matrices.placed_matrix,
+                &c.frame.matrices.turned_matrix,
             );
             multiply_matrices(
-                &race.frame.matrices.turned_matrix,
+                &c.frame.matrices.turned_matrix,
                 &Car::at(block).car_inverse_matrix,
                 &physics.contact.corner_matrix,
             );
@@ -78,7 +79,7 @@ pub fn car_collisions(race: &Race, scene: &crate::scene::owner::Scene) -> Result
                 physics.contact.corner_in[0].set_bits(physics.contact.corner_x[k].bits());
                 physics.contact.corner_in[1].set_bits(physics.contact.corner_y[k].bits());
                 physics.contact.corner_in[2].set_bits(physics.contact.corner_z[k].bits());
-                { corner_hits_car(race, block, scene) }?;
+                { corner_hits_car(&c.contact(), block, scene) }?;
             }
         }
         Ok(())

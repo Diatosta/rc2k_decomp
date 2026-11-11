@@ -14,7 +14,9 @@
 //! put back.
 use crate::errors::{BadInput, Refused};
 use crate::physics::fill_rival_table::fill_rival_table;
-use crate::race::owner::Race;
+use crate::physics::split_tables_store::SplitTables;
+use crate::race::groups_store::PanelAndOverlay;
+use crate::race::owner_shared::RaceShared;
 use crate::session::Dword;
 use crate::strings::append_string_by_id::append_string_by_id;
 use crate::strings::owner::strings;
@@ -40,60 +42,57 @@ fn name(id: u32, to: &[Dword; 2]) -> Result<(), crate::errors::BadInput> {
 }
 
 // Converted: `rc2k_core::physics::splits::{split_scale, scaled_time, rank, gap}`.
-pub fn rank_split_time(race: &Race) -> Result<(), Refused> {
-    let shared = &race.shared;
+pub fn rank_split_time(
+    split_tables: &SplitTables,
+    panel_and_overlay: &PanelAndOverlay,
+    shared: &RaceShared,
+) -> Result<(), Refused> {
     let (split, count) = (
         shared.car.splits_recorded.get(),
-        race.physics.split_tables.split_colour_count.get(),
+        split_tables.split_colour_count.get(),
     );
     if split > 0x40 || count > 0x40 {
         return Err(BadInput("a split or a split count past 0x40").into());
     }
-    fill_rival_table(&race.physics.split_tables, &race.shared.vars)?;
+    fill_rival_table(split_tables, &shared.vars)?;
     for k in 0..5 {
         shared.car.split_gaps[k].set(u32::MAX);
     }
     for label in [
-        &race.frame.panel_and_overlay.overlay.label_behind,
-        &race.frame.panel_and_overlay.overlay.label_ahead,
+        &panel_and_overlay.overlay.label_behind,
+        &panel_and_overlay.overlay.label_ahead,
     ] {
         label[0].set(0x2020_2020);
         label[1].set(0x2020_2020);
     }
-    let base = race.physics.split_tables.checkpoints[1 + split as usize].get();
-    let d = race.physics.split_tables.checkpoints[count as usize].get();
+    let base = split_tables.checkpoints[1 + split as usize].get();
+    let d = split_tables.checkpoints[count as usize].get();
     let (scale, _) = split_scale(base, d)?;
     for c in 0..RIVALS {
-        let (q, _) = scaled_time(race.physics.split_tables.rival_times[c].get(), scale)?;
-        race.physics.split_tables.rival_scaled[c].set(q);
+        let (q, _) = scaled_time(split_tables.rival_times[c].get(), scale)?;
+        split_tables.rival_scaled[c].set(q);
     }
     // (A loop whose work was cut out: it left only registers, read by no one.)
     let time = shared.car.stage_time.get();
-    let (c, _) = rank(time, |c| race.physics.split_tables.rival_scaled[c].get());
+    let (c, _) = rank(time, |c| split_tables.rival_scaled[c].get());
     shared.car.split_gaps[0].set(c);
-    race.physics.split_tables.car_time.set(time);
+    split_tables.car_time.set(time);
     let c = c as usize;
     if c != 1 {
         // The one ahead: rival c - 2 (its scaled time, car and name).
-        shared.car.split_gaps[1].set(gap(
-            race.physics.split_tables.rival_scaled[c - 2].get(),
-            time,
-        ));
-        shared.car.split_gaps[3].set(race.physics.split_tables.rival_cars[c - 2].get());
-        let id = race.physics.split_tables.rival_names[c - 2].get();
+        shared.car.split_gaps[1].set(gap(split_tables.rival_scaled[c - 2].get(), time));
+        shared.car.split_gaps[3].set(split_tables.rival_cars[c - 2].get());
+        let id = split_tables.rival_names[c - 2].get();
         shared.car.split_gaps[5].set(id);
-        name(id, &race.frame.panel_and_overlay.overlay.label_ahead)?;
+        name(id, &panel_and_overlay.overlay.label_ahead)?;
     }
     if c != RIVALS {
         // The one behind: rival c - 1.
-        shared.car.split_gaps[2].set(gap(
-            time,
-            race.physics.split_tables.rival_scaled[c - 1].get(),
-        ));
-        shared.car.split_gaps[4].set(race.physics.split_tables.rival_cars[c - 1].get());
-        let id = race.physics.split_tables.rival_names[c - 1].get();
+        shared.car.split_gaps[2].set(gap(time, split_tables.rival_scaled[c - 1].get()));
+        shared.car.split_gaps[4].set(split_tables.rival_cars[c - 1].get());
+        let id = split_tables.rival_names[c - 1].get();
         shared.car.split_gaps[6].set(id);
-        name(id, &race.frame.panel_and_overlay.overlay.label_behind)?;
+        name(id, &panel_and_overlay.overlay.label_behind)?;
     }
     Ok(())
 }

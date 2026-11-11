@@ -24,12 +24,12 @@ pub fn send_command(command: Command) {
     send_with_eax(command, None);
 }
 
-/// `send_command`, for a sender that left an eax the audio thread does not read: the sound
-/// hash records it.
-pub fn send_with_eax(command: Command, eax: Option<u32>) {
+/// `send_command`, for a sender whose first word the audio thread does not read: only the
+/// sound hash records it (a held race's commands are compared turn by turn through it).
+pub fn send_with_eax(command: Command, first_word: Option<u32>) {
     let (number, mut registers) = command.record_words();
-    if let Some(eax) = eax {
-        registers[0] = eax;
+    if let Some(word) = first_word {
+        registers[0] = word;
     }
     hash_if_asked(number, registers);
     if audio().state.no_audio.is_set() {

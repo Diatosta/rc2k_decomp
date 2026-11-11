@@ -1,6 +1,6 @@
-//! The two stream commands (IDA, 2026-10-14): command 9, `audio::stream_command`
+//! The two stream commands: command 9, `audio::stream_command`
 //! (0x40C194, `g_soundStream`), and command 0xB, `audio::music_command` (0x40C4DD,
-//! `g_musicStream`); and `audio::stop_streams` (0x40C5E8). Actions (edx, unsigned): 0 stop;
+//! `g_musicStream`); and `audio::stop_streams` (0x40C5E8). Actions (unsigned): 0 stop;
 //! 1 the thread's turn (feed while playing; stopped after it: stop, and for the music the
 //! next tune); 3 the volume of what plays; any other plays (stop first if playing; nothing
 //! for a volume <= 0, for `g_noMusic` (music), and a stop for no path or tune).
@@ -8,7 +8,7 @@
 //! Music tunes: the file is `g_musicPath` with the tune's two last digits at +0xE
 //! (`strings::format_u32`, flags 0x12); tune 0xA is 10 + `g_tuneTurn` for the first turn
 //! (counted on, 0 .. 5) whose file exists. When a tune stops, `g_nextTune` is played, and it
-//! is never cleared there: the second tune repeats. Fixed (2026-10-20, section 16): a turn
+//! is never cleared there: the second tune repeats. Fixed (section 16): a turn
 //! past 5 starts from 0, and after `RETRIES` plays in a row that stop at their first feed
 //! the music stops (the original: both for ever, the audio thread hung).
 

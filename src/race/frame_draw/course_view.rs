@@ -334,7 +334,7 @@ pub fn face_hide_mask(
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
     crate::physics::probe_ground::probe_ground_in_view(
-        race,
+        &crate::physics::step_inputs::StepInputs::of(race).ground(),
         &view.car,
         crate::scene::owner::scene(),
     )?;

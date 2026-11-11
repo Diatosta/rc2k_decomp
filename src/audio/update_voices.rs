@@ -2,9 +2,8 @@
 //!
 //! By the mode: with A3D (`g_useA3d` 1) the chunk at 0x40CB2A; with voices' own buffers
 //! (`g_soundMode` bit 0x10000) the buffers' way, here; else with the game's mixer (bit
-//! 0x40000) the chunk at 0x40BC05; else nothing. The two chunks are called at the game's
-//! addresses (they begin with `pusha` and end with `popa; retn`). Plain since 2026-10-23
-//! (phase 3): the mixer's way is `audio::update_mixer_voices`; A3D is refused.
+//! 0x40000) `audio::update_mixer_voices` (the original's chunk at 0x40BC05); else nothing.
+//! A3D is refused.
 //! The buffers' way, in three passes:
 //! - the stopping list: a voice sounding (state 2) stopped (`audio::stop_buffer`); every
 //!   voice's state 0, its channel freed and 0, and each link of the list 0 (it is emptied);
@@ -32,7 +31,7 @@ use crate::errors::{BadInput, Refused};
 const MODE_MIXER: u32 = 0x4_0000;
 
 /// Converted: the own-buffers way is `rc2k_core::audio::voices::update_buffers`, each of
-/// its steps a callee here (esi the voice); the A3D and mixer ways stay the game's chunks.
+/// its steps a callee here (given the voice); the A3D and mixer ways stay the game's chunks.
 pub fn update_voices(audio: &Audio) -> Result<(), Refused> {
     use rc2k_core::audio::voices::{Lists, Room, Step, update_buffers};
     if audio.state.use_a3d.get() == 1 {

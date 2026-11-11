@@ -9,15 +9,15 @@ use crate::errors::Refused;
 use crate::physics::car_sounds::{cue_plain, listed, object};
 use crate::physics::sound_band_4::TWIN;
 use crate::physics::sound_bands::band_value_plain;
-use crate::race::owner::Race;
+use crate::physics::step_families::SoundInputs;
 use rc2k_core::physics::sound_places::{SECOND, SOUND_E5};
 
 // Converted: `rc2k_core::physics::sound_places`.
-pub fn place_sound_e5(race: &Race) -> Result<(), Refused> {
-    if !listed(&race.frame, race.shared.work.current_car.bits())? {
+pub fn place_sound_e5(c: &SoundInputs<'_>) -> Result<(), Refused> {
+    if !listed(c.frame_work, c.work.current_car.bits())? {
         return Ok(());
     }
-    let b = band_value_plain(race, TWIN);
-    cue_plain(race, object(), SECOND, SOUND_E5, b, None)?;
+    let b = band_value_plain(c, TWIN);
+    cue_plain(c, object(), SECOND, SOUND_E5, b, None)?;
     Ok(())
 }

@@ -13,7 +13,8 @@ use crate::math::x87;
 use crate::math::x87::{lerp_table, trunc_mul_to_int};
 use crate::math::x87_float as bh;
 use crate::physics::flow::ZERO_BITS as ZERO;
-use crate::race::owner::Race;
+use crate::race::owner_course::Course;
+use crate::race::owner_shared::RaceShared;
 use std::cmp::Ordering;
 
 /// C0 of comparing `a` with `b`: below, or unordered.
@@ -26,10 +27,9 @@ pub fn below(a: u32, b: u32) -> bool {
 
 /// The exact version, for `physics::engine_torque_or_cut`, `drive_force`, `free_rev*`,
 /// `test_drive_run`.
-pub fn engine_torque(race: &Race, scene: &crate::scene::owner::Scene) {
-    let shared_store = &race.shared;
+pub fn engine_torque(course: &Course, shared: &RaceShared, scene: &crate::scene::owner::Scene) {
+    let shared_store = shared;
     let drawing = &scene.drawing;
-    let course = &race.course;
     let s = x87::div(
         &shared_store.car.engine_speed,
         &shared_store.car.engine_speed_limit,

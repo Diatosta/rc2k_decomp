@@ -1,5 +1,5 @@
-//! A diagnostic (2026-10-20): the owner hears, now and then, a sound stuck over
-//! everything that even a pause does not stop, with the audio thread still turning. A
+//! A diagnostic: a sound is sometimes heard stuck over
+//! everything, one that even a pause does not stop, with the audio thread still turning. A
 //! sound only stops through the playing and stopping lists (`audio::update_voices`,
 //! `audio::stop_all_voices`), so a buffer that plays while its voice is on neither list
 //! can never be stopped. Once a second, after the turn's update (the voices' own buffers'

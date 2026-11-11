@@ -8,17 +8,18 @@
 use crate::errors::Refused;
 use crate::physics::allowed_gear::allowed_gear;
 use crate::physics::change_gear::change_gear;
-use crate::race::owner::Race;
+use crate::race::numbers_store::Numbers;
+use crate::race::owner_shared::RaceShared;
 
 // Converted: `rc2k_core::physics::gearbox::asked_gear`.
-pub fn take_asked_gear(race: &Race) -> Result<(), Refused> {
+pub fn take_asked_gear(numbers: &Numbers, shared: &RaceShared) -> Result<(), Refused> {
     let run = || -> Result<(), Refused> {
-        race.shared.car.gear_changed.set(0u32);
-        let word: u32 = race.shared.car.input_keys.get();
+        shared.car.gear_changed.set(0u32);
+        let word: u32 = shared.car.input_keys.get();
         let asked = rc2k_core::physics::gearbox::asked_gear(word);
-        let gear = allowed_gear(&race.shared.car, &race.course.numbers, asked)?;
-        race.shared.physics_tables.gear_asked.set(gear);
-        change_gear(race)
+        let gear = allowed_gear(&shared.car, numbers, asked)?;
+        shared.physics_tables.gear_asked.set(gear);
+        change_gear(numbers, shared)
     };
 
     run()

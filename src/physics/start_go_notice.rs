@@ -7,12 +7,19 @@
 
 use crate::errors::Refused;
 use crate::menu::owner::menus;
+use crate::physics::car_store::Car;
 use crate::physics::listed_car_flags::set_flag;
-use crate::race::owner::Race;
+use crate::race::frame_store::FrameWork;
+use crate::race::work_store::RaceWork;
 use rc2k_core::physics::progress::{GO_NOTICE, GoFacts};
 
-pub fn start_go_notice(race: &Race, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
-    let c = &race.shared.car;
+pub fn start_go_notice(
+    frame_work: &FrameWork,
+    work: &RaceWork,
+    car: &Car,
+    sound: &crate::sound::owner::Sound,
+) -> Result<(), Refused> {
+    let c = car;
     let facts = GoFacts {
         mode: c.driver_kind.get(),
         countdown: c.time_left.get(),
@@ -23,7 +30,7 @@ pub fn start_go_notice(race: &Race, sound: &crate::sound::owner::Sound) -> Resul
     if !facts.go_due() {
         return Ok(());
     }
-    set_flag(race, &sound.race.stage.once[2])?;
+    set_flag(frame_work, work, &sound.race.stage.once[2])?;
     c.go_stand_timer.set(1);
     c.notice_id.set(GO_NOTICE);
     c.notice_time_b.set(0x32);

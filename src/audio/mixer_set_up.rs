@@ -1,4 +1,4 @@
-//! The game's mixer set up, and the two ways chosen by the mode (IDA, 2026-10-15):
+//! The game's mixer set up, and the two ways chosen by the mode:
 //! `audio::set_up_primary_mixer` (0x40BAD2), `audio::open_way` (0x40AC3A),
 //! `audio::close_way` (0x40AC58).
 

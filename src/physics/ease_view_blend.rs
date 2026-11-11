@@ -11,23 +11,23 @@ use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
 use crate::math::x87_float::to_int;
 use crate::physics::camera_view::{record, share_done};
-use crate::race::owner::Race;
+use crate::physics::step_families::CameraInputs;
 use crate::race::owner_shared::RaceShared;
 
 /// The exact version, for `physics::update_camera`.
 pub fn ease_view_blend(
-    race: &Race,
+    c: &CameraInputs<'_>,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), crate::errors::BadInput> {
-    let esi = record(&race.shared.car)?;
+    let esi = record(c.car)?;
     if esi.blend.get() == 0 || esi.change_time.get() == 0 {
         return Ok(());
     }
-    share_done(&race.shared, esi, scene);
+    share_done(c.shared, esi, scene);
     if (esi.blend.get() as i32) < 0 {
-        x87_1(&race.shared);
+        x87_1(c.shared);
     }
-    x87_2(race);
+    x87_2(c);
     Ok(())
 }
 
@@ -47,29 +47,26 @@ fn x87_1(shared: &RaceShared) {
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[camera_zoom] = (([view_shift_b] - [view_shift_a]) * [view_share]) + [view_shift_a]`
 /// `int [camera_offset_z] = -(((([view_shift_d] - [view_shift_c]) * [view_share]) + [view_shift_c]) * [k65536])`
-fn x87_2(race: &Race) {
-    let t0 = ld(race.physics.camera.view_shift_b.bits());
-    let t1 = ld(race.physics.camera.view_shift_a.bits());
+fn x87_2(c: &CameraInputs<'_>) {
+    let t0 = ld(c.camera.view_shift_b.bits());
+    let t1 = ld(c.camera.view_shift_a.bits());
     let t2 = t0 - t1;
-    let t3 = ld(race.shared.tables.view_share.bits());
+    let t3 = ld(c.race_tables.view_share.bits());
     let t4 = t2 * t3;
-    let t5 = ld(race.physics.camera.view_shift_a.bits());
+    let t5 = ld(c.camera.view_shift_a.bits());
     let t6 = t4 + t5;
-    race.shared.car.camera_zoom.set_bits(st(t6));
-    let t7 = ld(race.physics.camera.view_shift_d.bits());
-    let t8 = ld(race.physics.camera.view_shift_c.bits());
+    c.car.camera_zoom.set_bits(st(t6));
+    let t7 = ld(c.camera.view_shift_d.bits());
+    let t8 = ld(c.camera.view_shift_c.bits());
     let t9 = t7 - t8;
-    let t10 = ld(race.shared.tables.view_share.bits());
+    let t10 = ld(c.race_tables.view_share.bits());
     let t11 = t9 * t10;
-    let t12 = ld(race.physics.camera.view_shift_c.bits());
+    let t12 = ld(c.camera.view_shift_c.bits());
     let t13 = t11 + t12;
-    let t14 = ld(race.course.numbers.k65536.bits());
+    let t14 = ld(c.numbers.k65536.bits());
     let t15 = t13 * t14;
     let t16 = -t15;
-    race.physics
-        .camera
-        .camera_offset_z
-        .set_bits(to_int(t16) as u32);
+    c.camera.camera_offset_z.set_bits(to_int(t16) as u32);
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -109,7 +106,12 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0]) },
-                plain: |_| x87_2(crate::race::owner::race()),
+                plain: |_| {
+                    x87_2(
+                        &crate::physics::step_inputs::StepInputs::of(crate::race::owner::race())
+                            .camera(),
+                    );
+                },
             },
         ]
     }

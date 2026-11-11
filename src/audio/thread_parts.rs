@@ -1,4 +1,4 @@
-//! The audio thread's small set-up and tear-down parts (IDA, 2026-10-15): the work buffer
+//! The audio thread's small set-up and tear-down parts: the work buffer
 //! for reading samples, the primary buffer's play and stop, the 3D listener's release.
 
 use crate::audio::store::AudioState;

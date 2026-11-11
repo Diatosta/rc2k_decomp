@@ -13,65 +13,64 @@
 //! Refuses what the calls refuse.
 
 use crate::errors::Refused;
-use crate::race::owner::Race;
+use crate::physics::step_inputs::StepInputs;
+use crate::physics::tables_store::PhysicsTables;
+use crate::race::vars_store::RaceVars;
 use rc2k_core::physics::line_places::{RESET_TRIES, reset_offsets};
 
 const NOWHERE_TEXT: &std::ffi::CStr = c"cant reset car anywhere - waiting a second"; // "cant reset car anywhere - waiting a sec"
 
 /// One try: the candidate set; true when a block is in the way (CF).
-fn blocked(race: &Race, scene: &crate::scene::owner::Scene) -> bool {
-    race.shared.physics_tables.reset_candidate.set(
+fn blocked(
+    vars: &RaceVars,
+    physics_tables: &PhysicsTables,
+    scene: &crate::scene::owner::Scene,
+) -> bool {
+    physics_tables.reset_candidate.set(
         scene
             .lights
             .state
             .line_place
             .get()
-            .wrapping_add(race.shared.physics_tables.reset_offset.get()),
+            .wrapping_add(physics_tables.reset_offset.get()),
     );
     // Blocks 1 .. 3: the other cars.
     (1..4).any(|n| {
         crate::physics::reset_point_blocked::reset_point_blocked(
-            &race.shared.physics_tables,
-            &race.shared.vars,
+            physics_tables,
+            vars,
             crate::race::blocks_store::block_addr(n),
         )
     })
 }
 
 // Converted: `rc2k_core::physics::line_places::reset_offsets`.
-pub fn reset_car(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn reset_car(c: &StepInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let lights = &scene.lights;
-    lights
-        .state
-        .line_place
-        .set(race.shared.car.reset_checkpoint.get());
+    lights.state.line_place.set(c.car.reset_checkpoint.get());
     lights.state.line_fraction.set(0);
-    if race.shared.vars.run_kind.get() == 2 {
+    if c.vars.run_kind.get() == 2 {
         let mut free = false;
         for offset in reset_offsets() {
-            race.shared.physics_tables.reset_offset.set(offset);
-            if !blocked(race, scene) {
+            c.tables.reset_offset.set(offset);
+            if !blocked(c.vars, c.tables, scene) {
                 free = true;
                 break;
             }
         }
         if !free {
-            race.shared.physics_tables.reset_offset.set(RESET_TRIES);
+            c.tables.reset_offset.set(RESET_TRIES);
             // `log_write_l1_nl`.
             crate::logfile::log_write::log_nul(&NOWHERE_TEXT, true, 1);
-            race.shared
-                .car
+            c.car
                 .stuck_count
-                .set(race.shared.car.stuck_count.get().wrapping_sub(100));
+                .set(c.car.stuck_count.get().wrapping_sub(100));
             return Ok(());
         }
-        lights
-            .state
-            .line_place
-            .set(race.shared.physics_tables.reset_candidate.get());
+        lights.state.line_place.set(c.tables.reset_candidate.get());
     }
-    crate::race::start_place::place_car_on_line(&race.shared, &race.course, scene)?;
-    crate::physics::reset_car_on_line::reset_car_on_line(race, scene)?;
-    race.shared.car.reset_marker.set(10);
+    crate::race::start_place::place_car_on_line(c.shared, c.course, scene)?;
+    crate::physics::reset_car_on_line::reset_car_on_line(c, scene)?;
+    c.car.reset_marker.set(10);
     Ok(())
 }

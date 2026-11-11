@@ -12,7 +12,7 @@ use crate::math::x87;
 use crate::physics::car_store::Car;
 use crate::physics::fill_slot_on_bit::fill_slot_on_bit;
 use crate::race::numbers_store::Numbers;
-use crate::race::owner::Race;
+use crate::race::work_store::RaceWork;
 use rc2k_core::physics::parts::{self, DROP_TESTS, Hit, HitTest};
 
 /// The four tests' timers.
@@ -42,15 +42,20 @@ pub fn hit_tests(
 }
 
 // Converted: `rc2k_core::physics::parts::{hit_tests, DROP_TESTS}`.
-pub fn drop_hit_parts(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    if race.shared.car.car_kind.get() >= 0x17 {
+pub fn drop_hit_parts(
+    numbers: &Numbers,
+    work: &RaceWork,
+    car: &Car,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    if car.car_kind.get() >= 0x17 {
         return Ok(());
     }
     hit_tests(
-        &race.shared.car,
-        &race.course.numbers,
+        car,
+        numbers,
         &DROP_TESTS,
-        &race.shared.car.wheel_hit_damage,
-        &mut |bit| fill_slot_on_bit(race, bit, scene),
+        &car.wheel_hit_damage,
+        &mut |bit| fill_slot_on_bit(numbers, work, car, bit, scene),
     )
 }

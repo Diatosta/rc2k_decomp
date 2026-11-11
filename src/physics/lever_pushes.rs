@@ -11,9 +11,12 @@
 
 use crate::math::x87;
 use crate::math::x87::{lever_share, one_less};
+use crate::physics::car_store::Car;
 use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::physics::lever_push::lever_push;
-use crate::race::owner::Race;
+use crate::physics::tables_store::PhysicsTables;
+use crate::race::numbers_store::Numbers;
+use crate::race::switches_store::FrameSwitches;
 use std::cmp::Ordering;
 
 /// `fld limit; fld share; fcompp` and its C0: share below limit, or unordered.
@@ -24,63 +27,48 @@ fn below(share: u32, limit: u32) -> bool {
     )
 }
 
-pub fn lever_pushes(race: &Race, scene: &crate::scene::owner::Scene) {
-    race.shared.physics_tables.lever_pushes[0].set(0);
-    race.shared.physics_tables.lever_pushes[1].set(0);
-    if race.shared.switches.levers_on.get() != 1 || race.shared.car.all_wheels_off.get() != 0 {
+pub fn lever_pushes(
+    numbers: &Numbers,
+    switches: &FrameSwitches,
+    physics_tables: &PhysicsTables,
+    car: &Car,
+    scene: &crate::scene::owner::Scene,
+) {
+    physics_tables.lever_pushes[0].set(0);
+    physics_tables.lever_pushes[1].set(0);
+    if switches.levers_on.get() != 1 || car.all_wheels_off.get() != 0 {
         return;
     }
-    race.shared.physics_tables.lever_push_vector[0].set(0);
-    race.shared.physics_tables.lever_push_vector[1].set(0);
-    race.shared.physics_tables.lever_share_start.set_bits(0);
+    physics_tables.lever_push_vector[0].set(0);
+    physics_tables.lever_push_vector[1].set(0);
+    physics_tables.lever_share_start.set_bits(0);
     let (share, zero) = lever_share(
-        race.shared.car.grip_forces[0].bits(),
-        race.shared.car.grip_forces[3].bits(),
-        race.shared.car.grip_forces[1].bits(),
-        race.shared.car.grip_forces[2].bits(),
+        car.grip_forces[0].bits(),
+        car.grip_forces[3].bits(),
+        car.grip_forces[1].bits(),
+        car.grip_forces[2].bits(),
         ZERO,
     );
-    race.shared.physics_tables.lever_share_start.set_bits(share);
+    physics_tables.lever_share_start.set_bits(share);
     if zero {
         return;
     }
-    if below(race.shared.physics_tables.lever_share_start.bits(), ZERO) {
-        race.shared
-            .physics_tables
-            .lever_share_start
-            .set(x87::loaded(ZERO));
+    if below(physics_tables.lever_share_start.bits(), ZERO) {
+        physics_tables.lever_share_start.set(x87::loaded(ZERO));
     }
-    if !below(
-        race.shared.physics_tables.lever_share_start.bits(),
-        race.course.numbers.one.bits(),
-    ) {
-        race.shared
-            .physics_tables
+    if !below(physics_tables.lever_share_start.bits(), numbers.one.bits()) {
+        physics_tables
             .lever_share_start
-            .set(x87::loaded(&race.course.numbers.one));
+            .set(x87::loaded(&numbers.one));
     }
-    race.shared.physics_tables.lever_push_vector[2]
-        .set(x87::loaded(&race.shared.car.probe_point_z[3]).to_bits());
-    race.shared
-        .physics_tables
+    physics_tables.lever_push_vector[2].set(x87::loaded(&car.probe_point_z[3]).to_bits());
+    physics_tables
         .lever_share_left
-        .set(x87::loaded(&race.shared.physics_tables.lever_share_start));
-    lever_push(
-        &race.shared.car,
-        &race.shared.physics_tables,
-        &race.course.numbers,
-        scene,
-    );
-    race.shared.physics_tables.lever_push_vector[2]
-        .set(x87::loaded(&race.shared.car.probe_point_z[0]).to_bits());
-    race.shared
-        .physics_tables
+        .set(x87::loaded(&physics_tables.lever_share_start));
+    lever_push(car, physics_tables, numbers, scene);
+    physics_tables.lever_push_vector[2].set(x87::loaded(&car.probe_point_z[0]).to_bits());
+    physics_tables
         .lever_share_left
-        .set_bits(one_less(race.shared.physics_tables.lever_share_left.bits()).to_bits());
-    lever_push(
-        &race.shared.car,
-        &race.shared.physics_tables,
-        &race.course.numbers,
-        scene,
-    );
+        .set_bits(one_less(physics_tables.lever_share_left.bits()).to_bits());
+    lever_push(car, physics_tables, numbers, scene);
 }

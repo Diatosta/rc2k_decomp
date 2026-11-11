@@ -11,36 +11,40 @@
 
 use crate::math::x87;
 use crate::physics::axis_turn_matrix::axis_turn_matrix;
+use crate::physics::car_store::Car;
+use crate::physics::tables_store::PhysicsTables;
 use crate::physics::vector_length::vector_length;
-use crate::race::owner::Race;
+use crate::race::matrices_store::SceneMatrices;
+use crate::race::owner_course::Course;
 use crate::scene::matrix::multiply_matrices;
 use crate::scene::matrix3::rounded;
 use crate::scene::view_matrix::{square_matrix, unit_vector};
 
-pub fn spin_matrix(race: &Race) {
-    race.shared
-        .car
-        .spin_length
-        .set_bits(rounded(vector_length(&race.shared.car.spin)));
-    if race.shared.car.spin_length.bits() != 0 {
-        let lists = &race.course.lists;
+pub fn spin_matrix(
+    course: &Course,
+    matrices: &SceneMatrices,
+    physics_tables: &PhysicsTables,
+    car: &Car,
+) {
+    car.spin_length.set_bits(rounded(vector_length(&car.spin)));
+    if car.spin_length.bits() != 0 {
+        let lists = &course.lists;
         let turn = &lists.turn_matrix;
-        let turned = &race.frame.matrices.turned_matrix;
-        unit_vector(&race.course, &race.shared.car.spin, &lists.spin_axis);
-        lists.spin_angle.set(x87::mul(
-            &race.shared.car.spin_length,
-            &race.shared.physics_tables.step_time,
-        ));
-        axis_turn_matrix(&race.course, turn);
-        square_matrix(&race.course, turn);
-        multiply_matrices(&race.shared.car.crash_matrix, turn, turned);
+        let turned = &matrices.turned_matrix;
+        unit_vector(course, &car.spin, &lists.spin_axis);
+        lists
+            .spin_angle
+            .set(x87::mul(&car.spin_length, &physics_tables.step_time));
+        axis_turn_matrix(course, turn);
+        square_matrix(course, turn);
+        multiply_matrices(&car.crash_matrix, turn, turned);
         for k in 0..16 {
-            race.shared.car.crash_matrix[k].set_bits(race.frame.matrices.turned_matrix[k].bits());
+            car.crash_matrix[k].set_bits(matrices.turned_matrix[k].bits());
         }
     }
     // `scene::square_matrix` left its last length in `g_scratch` (the ones before are
     // written over by it).
-    let length = square_matrix(&race.course, &race.shared.car.crash_matrix);
+    let length = square_matrix(course, &car.crash_matrix);
     crate::scene::owner::scene()
         .drawing
         .scene

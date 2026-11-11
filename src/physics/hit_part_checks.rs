@@ -8,16 +8,23 @@
 use crate::errors::Refused;
 use crate::physics::drop_hit_parts::drop_hit_parts;
 use crate::physics::sound_hit_parts::sound_hit_parts;
-use crate::race::owner::Race;
+use crate::race::matrices_store::SceneMatrices;
+use crate::race::numbers_store::Numbers;
+use crate::race::owner_shared::RaceShared;
 use rc2k_core::physics::parts::parts_left;
 
 // Converted: `rc2k_core::physics::parts::parts_left`.
-pub fn hit_part_checks(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let left = parts_left(race.shared.car.parts_present.get());
-    race.shared.car.parts_state.set(left);
-    if left != 0 || race.shared.car.tyre_change_state.get() != 0 {
+pub fn hit_part_checks(
+    numbers: &Numbers,
+    matrices: &SceneMatrices,
+    shared: &RaceShared,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    let left = parts_left(shared.car.parts_present.get());
+    shared.car.parts_state.set(left);
+    if left != 0 || shared.car.tyre_change_state.get() != 0 {
         return Ok(());
     }
-    drop_hit_parts(race, scene)?;
-    sound_hit_parts(race)
+    drop_hit_parts(numbers, &shared.work, &shared.car, scene)?;
+    sound_hit_parts(numbers, matrices, shared)
 }

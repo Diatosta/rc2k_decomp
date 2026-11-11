@@ -276,7 +276,7 @@ pub fn loadlevel_init(
     s.indent(-3);
     s.step(
         &mut || {
-            stage_prefs::get_mat_crash(race);
+            stage_prefs::get_mat_crash(&race.frame.matrices, &race.shared.car);
             Ok(())
         },
         None,

@@ -325,8 +325,8 @@ fn values(frames: u32, format: u32) -> u32 {
     }
 }
 
-/// Whether every loop `prepare` would run has a count (a count of 0 runs the original's
-/// `dec ecx; jnz` through 2^32 steps).
+/// Whether every loop `prepare` would run has a count (a count of 0 would run the original's
+/// countdown loop through 2^32 steps).
 fn counts_sound(v: &Shape, mode: u32) -> bool {
     if v.scale != 0x40 && values(v.frames, v.format) == 0 {
         return false;

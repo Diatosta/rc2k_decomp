@@ -11,7 +11,10 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::Car;
-use crate::race::owner::Race;
+use crate::physics::tables_store::PhysicsTables;
+use crate::race::frame_store::FrameWork;
+use crate::race::replay_file_store::ReplayFileBlock;
+use crate::race::work_store::RaceWork;
 use rc2k_core::physics::progress::{
     LAST_CHECKPOINT, OFF_LINE_CUE, TURNED_CUE, Warnings, cue_due, off_line, spread,
 };
@@ -48,53 +51,47 @@ fn store(car: &Car, w: &Warnings) {
 
 /// The steps.
 // Converted: `rc2k_core::physics::progress::{Warnings, off_line, cue_due}`.
-pub fn off_line_warnings(race: &Race, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
-    if race.shared.car.finish_flag.get() != 0 || race.shared.car.go_stand_timer.get() != 0 {
+pub fn off_line_warnings(
+    frame_work: &FrameWork,
+    work: &RaceWork,
+    replay_file: &ReplayFileBlock,
+    physics_tables: &PhysicsTables,
+    car: &Car,
+    sound: &crate::sound::owner::Sound,
+) -> Result<(), Refused> {
+    if car.finish_flag.get() != 0 || car.go_stand_timer.get() != 0 {
         return Ok(());
     }
-    let cp = race.shared.car.checkpoint.get();
+    let cp = car.checkpoint.get();
     if cp > LAST_CHECKPOINT {
         return Err(BadInput("a checkpoint past 0x1418").into());
     }
     let near = x87_below(
-        f32::from_bits(
-            race.shared
-                .physics_tables
-                .nearest_checkpoint_distance
-                .bits(),
-        ) as f64,
-        f32::from_bits(race.shared.physics_tables.off_line_distance.bits()) as f64,
+        f32::from_bits(physics_tables.nearest_checkpoint_distance.bits()) as f64,
+        f32::from_bits(physics_tables.off_line_distance.bits()) as f64,
     );
-    let mut w = load(&race.shared.car);
-    w.count_off(off_line(near, || {
-        spread(cp, race.shared.car.reset_checkpoint.get())
-    }));
+    let mut w = load(car);
+    w.count_off(off_line(near, || spread(cp, car.reset_checkpoint.get())));
     w.count_turned(
         spread(
-            race.shared.car.car_heading.get(),
+            car.car_heading.get(),
             crate::race::checkpoints_store::angle(cp as usize).get(),
         ),
-        race.shared.physics_tables.off_line_word.get(),
+        physics_tables.off_line_word.get(),
     );
-    store(&race.shared.car, &w);
-    if race.shared.replay_file.hold_car_revs.get() != 0 {
+    store(car, &w);
+    if replay_file.hold_car_revs.get() != 0 {
         return Ok(());
     }
     for (count, time, cue) in [
-        (
-            &race.shared.car.turned_steps,
-            &race.shared.car.turned_cue_time,
-            TURNED_CUE,
-        ),
-        (
-            &race.shared.car.off_line_steps,
-            &race.shared.car.off_line_cue_time,
-            OFF_LINE_CUE,
-        ),
+        (&car.turned_steps, &car.turned_cue_time, TURNED_CUE),
+        (&car.off_line_steps, &car.off_line_cue_time, OFF_LINE_CUE),
     ] {
         if let Some(next) = cue_due(count.get(), time.get()) {
             time.set(next);
-            crate::physics::cue_listed_car_sound::cue_listed_car_sound(race, cue, sound)?;
+            crate::physics::cue_listed_car_sound::cue_listed_car_sound(
+                frame_work, work, cue, sound,
+            )?;
         }
     }
     Ok(())

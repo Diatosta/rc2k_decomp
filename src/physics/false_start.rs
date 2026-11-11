@@ -9,15 +9,15 @@
 //! Caller: `physics::car_physics_step`, every physics step. Refuses what `start_car` refuses.
 
 use crate::errors::Refused;
-use crate::race::owner::Race;
+use crate::physics::step_inputs::StepInputs;
 use crate::session::Dword;
 use rc2k_core::physics::notices::Notice;
 use rc2k_core::physics::start::CarStart;
 
 /// The false start check, then `race::start_car`.
 // Converted: `rc2k_core::physics::start::CarStart::false_start`.
-pub fn false_start(race: &Race) -> Result<(), Refused> {
-    let c = &race.shared.car;
+pub fn false_start(inputs: &StepInputs<'_>) -> Result<(), Refused> {
+    let c = inputs.car;
     let was = CarStart {
         timer: c.run_ticks.get(),
         held: c.start_in_gear.get(),
@@ -53,7 +53,7 @@ pub fn false_start(race: &Race) -> Result<(), Refused> {
         }
     }
     if done.put_back {
-        { crate::race::car_starts::start_car(race) }?;
+        { crate::race::car_starts::start_car(inputs) }?;
     }
     Ok(())
 }

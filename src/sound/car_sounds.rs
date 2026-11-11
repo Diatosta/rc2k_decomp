@@ -1,18 +1,13 @@
 //! `sound::car_sounds` (0x40D893): one car's sounds for the turn.
 //!
-//! Takes: the car's number (`g_raceSoundObjects[]`)
-//! ebx the object, esi the request (`unk_5124BC`); `sound::car_engine_state`, then the
-//! request's +0x20 and +0x24 (the pitch and volume factors) = the object's +0x13C and
-//! +0x140 (eax left at +0x140), then `sound::revs_sound`, `sound::throttle_sound`,
+//! Takes the car's number (`g_raceSoundObjects[]`); the request is `unk_5124BC`.
+//! Runs `sound::car_engine_state` on the object, sets the request's +0x20 and +0x24 (the
+//! pitch and volume factors) to the object's +0x13C and +0x140, then `sound::revs_sound`, `sound::throttle_sound`,
 //! `sound::speed_sound`, `sound::surface_sounds`, `sound::car_slot_sounds`,
-//! `sound::car_hit_sound`, `sound::car_cue_sound`, `sound::car_gear_sounds`, each
-//! getting the registers the one before left (the engine state leaves edi the car's
-//! sound kind, which the next three read). Three calls, from `sound::car_sounds_all`.
+//! `sound::car_hit_sound`, `sound::car_cue_sound`, `sound::car_gear_sounds`
+//! (the engine state's result, the car's sound kind, goes to the next three). Three calls, from `sound::car_sounds_all`.
 //! Refuses (before anything) a number over 7 and a null object; what the callees refuse
 //! puts back what was written (sounds already sent stay sent).
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
 

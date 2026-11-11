@@ -4,7 +4,9 @@
 //! plan F4: the shadow's and the course view's searches no longer write the physics' work;
 //! held races showed that nothing in the physics read what they left there).
 
-use crate::race::owner::Race;
+use crate::physics::ground_probe_store::GroundProbe;
+use crate::physics::ground_store::GroundWork;
+use crate::race::course_store::CourseWork;
 use crate::session::{Dword, Float};
 
 /// The search's fields (the physics' names in brackets).
@@ -54,10 +56,7 @@ pub struct GroundQuery<'a> {
 
 impl<'a> GroundQuery<'a> {
     /// The physics' own fields.
-    pub fn of_physics(race: &'a Race) -> Self {
-        let g = &race.physics.ground;
-        let p = &race.physics.ground_probe;
-        let c = &race.course.course;
+    pub fn of_physics(g: &'a GroundWork, p: &'a GroundProbe, c: &'a CourseWork) -> Self {
         GroundQuery {
             x: &g.ground_x,
             z: &g.ground_z,

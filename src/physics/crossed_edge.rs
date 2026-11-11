@@ -9,50 +9,47 @@
 //! was written put back).
 
 use crate::errors::Refused;
+use crate::physics::contact_store::ContactWork;
 use crate::physics::crossed_edge_contact::check_probe;
-use crate::race::owner::Race;
-use crate::race::owner_physics::Physics;
+use crate::physics::step_families::ContactInputs;
 
 /// The steps, not guarded (the probe checked before).
 // Converted: `rc2k_core::physics::walls::{NONE_CROSSED, raised_hit}`.
-pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let physics_store = &race.physics;
-    let n = physics_store.contact.crossed_probe.get();
+pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    let contact = c.contact;
+    let n = contact.crossed_probe.get();
     if n == rc2k_core::physics::walls::NONE_CROSSED {
         return Ok(());
     }
     let k = n as usize;
-    race.shared.car.contact_point[0].set_bits(race.shared.car.probe_point_x[k].bits());
-    race.shared.car.contact_point[1].set_bits(race.shared.car.probe_point_y[k].bits());
-    race.shared.car.contact_point[2].set_bits(race.shared.car.probe_point_z[k].bits());
-    {
-        crate::physics::restore_saved_car::restore_saved_car(
-            &race.shared.car,
-            &race.shared.physics_tables,
-            &race.physics.contact,
-        )
-    }?;
-    crate::physics::crossed_edge_contact::steps(race, scene)?;
+    c.car.contact_point[0].set_bits(c.car.probe_point_x[k].bits());
+    c.car.contact_point[1].set_bits(c.car.probe_point_y[k].bits());
+    c.car.contact_point[2].set_bits(c.car.probe_point_z[k].bits());
+    { crate::physics::restore_saved_car::restore_saved_car(c.car, c.tables, c.contact) }?;
+    crate::physics::crossed_edge_contact::steps(c, scene)?;
     if let Some(hit) = rc2k_core::physics::walls::raised_hit(
-        f32::from_bits(physics_store.contact.contact_speed_length.bits()),
-        f32::from_bits(race.shared.car.contact_depth.bits()),
+        f32::from_bits(contact.contact_speed_length.bits()),
+        f32::from_bits(c.car.contact_depth.bits()),
     ) {
-        race.shared.car.contact_depth.set_bits(hit.to_bits());
+        c.car.contact_depth.set_bits(hit.to_bits());
     }
-    race.shared.car.contact_flag.set(1);
-    race.shared.car.wall_hit_timer.set(0x32);
-    crate::physics::feel_ground::feel_ground(race, scene)
+    c.car.contact_flag.set(1);
+    c.car.wall_hit_timer.set(0x32);
+    crate::physics::feel_ground::feel_ground(&c.ground, scene)
 }
 
 /// The probe checked (-1 is none).
-pub fn check(physics: &Physics) -> Result<(), Refused> {
-    if physics.contact.crossed_probe.get() == rc2k_core::physics::walls::NONE_CROSSED {
+pub fn check(contact: &ContactWork) -> Result<(), Refused> {
+    if contact.crossed_probe.get() == rc2k_core::physics::walls::NONE_CROSSED {
         return Ok(());
     }
-    check_probe(physics)
+    check_probe(contact)
 }
 
-pub fn crossed_edge(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    check(&race.physics)?;
-    steps(race, scene)
+pub fn crossed_edge(
+    c: &ContactInputs<'_>,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    check(c.contact)?;
+    steps(c, scene)
 }

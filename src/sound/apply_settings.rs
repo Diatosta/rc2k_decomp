@@ -12,8 +12,8 @@ use rc2k_core::audio::commands::SoundList;
 
 pub use rc2k_core::sound::set_up::Step;
 
-/// A step run: each command sent with its eax, all the audio thread reads of it (the
-/// original carries eax on to the steps after it, which read no more).
+/// One step of the settings run: a command sent, the music stopped, the race sounds
+/// loaded, or the queue waited for.
 pub fn run_step(
     step: Step,
     sound: &crate::sound::owner::Sound,

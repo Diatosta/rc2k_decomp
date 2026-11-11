@@ -9,6 +9,7 @@ use crate::menu::owner::Menus;
 use crate::pointers::GamePtr;
 use crate::race::owner::race;
 use crate::session::Dword;
+use crate::strings::text_buffer::TextBuf;
 use crate::text::draw_text::{Canvas, draw_text_at};
 
 use crate::gfx::owner::gfx;
@@ -210,12 +211,12 @@ fn clip_edge_cell(edge: rc2k_core::screens::screen::Edge) -> &'static crate::ses
 }
 
 /// Where a shared buffer is.
-pub fn buffer_at(buffer: Buffer) -> GamePtr {
+pub fn buffer_at(buffer: Buffer) -> TextBuf {
     use crate::screens::text_buffers_store::TEXT_BUFFERS;
     match buffer {
-        Buffer::Line => GamePtr::to(&TEXT_BUFFERS.line),
+        Buffer::Line => TextBuf::Line(&TEXT_BUFFERS.line),
         Buffer::Text => crate::strings::text_from_ids::text_at(),
-        Buffer::Cells => GamePtr::to(&TEXT_BUFFERS.cells),
+        Buffer::Cells => TextBuf::Line(&TEXT_BUFFERS.cells),
     }
 }
 
@@ -230,7 +231,7 @@ pub fn store_in(buffer: Buffer, bytes: &[u8]) -> Result<(), Refused> {
     if bytes.len() > room {
         return Err(BadInput("a text past its buffer").into());
     }
-    buffer_at(buffer).write_bytes(bytes, "a shared text buffer")?;
+    buffer_at(buffer).write_at(0, bytes, "a shared text buffer")?;
     Ok(())
 }
 
@@ -249,7 +250,7 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
     }
 
     fn draw(&mut self, font: F, buffer: Buffer, x: i32, y: i32) -> Result<Drawn, Refused> {
-        self.text(font, T::of_buffer(buffer_at(buffer)), x, y)
+        self.text(font, T::of_buffer(buffer_at(buffer).place()), x, y)
     }
 
     fn draw_time(&mut self, font: F, buffer: Buffer, right: i32, y: i32) -> Result<(), Refused> {

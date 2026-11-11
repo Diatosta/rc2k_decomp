@@ -7,30 +7,23 @@
 //! `cell_face_contacts` refuses.
 
 use crate::errors::Refused;
-use crate::race::owner::Race;
+use crate::physics::step_families::ContactInputs;
 
 /// The steps, not guarded.
 // Converted: `rc2k_core::physics::ground_search::cells_around`.
 pub fn face_contacts_around(
-    race: &Race,
+    c: &ContactInputs<'_>,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let physics_store = &race.physics;
-    physics_store
-        .ground
-        .ground_x
-        .set(race.shared.car.position[0].get());
-    physics_store
-        .ground
-        .ground_z
-        .set(race.shared.car.position[2].get());
+    c.ground.ground.ground_x.set(c.car.position[0].get());
+    c.ground.ground.ground_z.set(c.car.position[2].get());
     rc2k_core::physics::ground_search::cells_around(
         || {
             (
-                physics_store.ground.ground_x.get(),
-                physics_store.ground.ground_z.get(),
+                c.ground.ground.ground_x.get(),
+                c.ground.ground.ground_z.get(),
             )
         },
-        |x, z| crate::physics::cell_face_contacts::steps(race, x, z, scene),
+        |x, z| crate::physics::cell_face_contacts::steps(c, x, z, scene),
     )
 }

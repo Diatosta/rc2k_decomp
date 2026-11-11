@@ -9,8 +9,8 @@
 //! the place between left and right, which goes as 0 when +0xC is zero. With bit
 //! 0x2000000 of the mode (Dolby) and an angle below zero its second byte is inverted.
 //! With 3D: the volume as a whole number (not stored) and the three floats as they are.
-//! Then +4 = +4 x +0x20 as a whole number, and `sound::play_sound` with eax the sound,
-//! ebx the volume, ecx the place (3D: ecx, edi, ebp the three floats), edx = +4.
+//! Then +4 = +4 x +0x20 as a whole number, and `sound::play_sound` with the sound, the
+//! volume, the place (3D: the three floats) and the rate +4.
 //! The x87's arithmetic is plain Rust over `X` (`math/x87_float.rs`), rounding as the control
 //! word says; the original's instructions are `asm_reference` in the tests.
 //! Eight callers (the race's sounds).
@@ -54,8 +54,8 @@ fn angle_and_place(y: u32, x: u32, per_angle: u32, centre: u32) -> (u32, u32) {
     (out[0], out[1])
 }
 
-/// `mode` is the sound mode. Outside the
-/// 3D modes, where `sound::play_sound` replaces it, the original hands on its caller's ebp.
+/// Plays the request's sound at its place around the listener; `mode` is the sound mode.
+/// Outside the 3D modes the place sent on is the pan worked out here.
 pub fn play_placed_sound(
     request: &SoundRequest,
     mode: u32,
@@ -67,7 +67,7 @@ pub fn play_placed_sound(
     if !placed::played(sound) {
         return Ok(());
     }
-    let (ebx, ecx, edi, ebp);
+    let (volume_sent, pan, place_b, place_c);
     if mode & MODE_3D == 0 {
         let number = placed::sample_of(sound)?;
         let record = &audio.sample_records.records[number as usize];
@@ -88,19 +88,19 @@ pub fn play_placed_sound(
         request.angle.set(angle);
         request.pan.set(place);
         let place = placed::place(place, request.place[0].get(), angle, mode);
-        // Outside 3D `play_sound` sends no place for edi: the original's record address is not read.
-        (ebx, ecx, edi, ebp) = (volume, place, 0, 0);
+        // Outside 3D `play_sound` sends no place beyond the pan, so the other two values are 0.
+        (volume_sent, pan, place_b, place_c) = (volume, place, 0, 0);
     } else {
-        (ebx, ecx, edi, ebp) = (
+        (volume_sent, pan, place_b, place_c) = (
             to_int(request.volume.get()),
             request.place[0].get(),
             request.place[1].get(),
             request.place[2].get(),
         );
     }
-    let edx = product_to_int(request.pitch.get(), request.pitch_factor.get());
-    request.pitch.set(edx);
-    crate::sound::play_sound::play_sound(sound, ebx, edx, [ecx, edi, ebp]);
+    let rate = product_to_int(request.pitch.get(), request.pitch_factor.get());
+    request.pitch.set(rate);
+    crate::sound::play_sound::play_sound(sound, volume_sent, rate, [pan, place_b, place_c]);
     Ok(())
 }
 

@@ -16,35 +16,55 @@ use crate::physics::mark_car_started::mark_car_started;
 use crate::physics::start_go_notice::start_go_notice;
 use crate::physics::take_split::take_split;
 use crate::physics::take_split_counted::take_split_counted;
-use crate::race::owner::Race;
+use crate::race::frame_store::FrameWork;
+use crate::race::groups_store::PanelAndOverlay;
+use crate::race::league_store::League;
+use crate::race::numbers_store::Numbers;
+use crate::race::owner_physics::Physics;
+use crate::race::owner_shared::RaceShared;
 
 // Converted: `rc2k_core::physics::splits::{timer_rate, timer_run}`.
-pub fn race_timers(race: &Race, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
+pub fn race_timers(
+    physics: &Physics,
+    numbers: &Numbers,
+    league: &League,
+    frame_work: &FrameWork,
+    panel_and_overlay: &PanelAndOverlay,
+    shared: &RaceShared,
+    sound: &crate::sound::owner::Sound,
+) -> Result<(), Refused> {
     use rc2k_core::physics::splits::{TimerRun, timer_rate, timer_run};
-    race.shared.physics_tables.weight.set_bits(1.0f32.to_bits());
-    let finished = race.shared.car.finish_flag.get() != 0;
+    shared.physics_tables.weight.set_bits(1.0f32.to_bits());
+    let finished = shared.car.finish_flag.get() != 0;
     let factor = if finished {
-        race.physics.split_tables.timer_factor.bits()
+        physics.split_tables.timer_factor.bits()
     } else {
         0
     };
-    race.shared
+    shared
         .physics_tables
         .weight
         .set_bits(timer_rate(finished, f32::from_bits(factor)).to_bits());
-    let run = timer_run(race.shared.vars.run_kind.bits());
+    let run = timer_run(shared.vars.run_kind.bits());
     if run == TimerRun::None {
         return Ok(());
     }
-    count_start_second(&race.shared.car);
+    count_start_second(&shared.car);
     if run == TimerRun::Start {
-        count_down_start(race, sound)?;
-        take_split_counted(race, sound)?;
-        start_go_notice(race, sound)?;
+        count_down_start(frame_work, &shared.work, &shared.car, sound)?;
+        take_split_counted(
+            physics,
+            league,
+            frame_work,
+            panel_and_overlay,
+            shared,
+            sound,
+        )?;
+        start_go_notice(frame_work, &shared.work, &shared.car, sound)?;
     } else {
-        take_split(race)?;
+        take_split(&physics.split_tables, league, panel_and_overlay, shared)?;
     }
-    count_stop_timers(&race.shared.car, &race.course.numbers);
-    mark_car_started(&race.shared.car);
+    count_stop_timers(&shared.car, numbers);
+    mark_car_started(&shared.car);
     Ok(())
 }

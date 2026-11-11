@@ -6,8 +6,8 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::typefaces::FontRef;
-use crate::pointers::GamePtr;
 use crate::strings::append_string_by_id::append_string_by_id;
+use crate::strings::text_buffer::TextBuf;
 use crate::strings::text_from_ids::{TEXT_LEN, text_at};
 use crate::text::draw_text::{Canvas, Outcome, draw_text};
 use crate::text::font::Font;
@@ -32,11 +32,11 @@ pub fn draw_string_by_id(
     font: &mut Font,
     x: i32,
     y: i32,
-    buffer: GamePtr,
+    buffer: TextBuf,
     canvas: &mut dyn Canvas,
 ) -> Result<Outcome, Refused> {
     let bytes = string_text(id)?;
-    buffer.write_bytes(&bytes, "the text buffer")?;
+    buffer.write_at(0, &bytes, "the text buffer")?;
     draw_text(font, &bytes, x, y, canvas)
 }
 

@@ -15,9 +15,9 @@ use crate::strings::owner::strings;
 /// The shared text buffer's length (`strings::text_buffer`).
 pub const TEXT_LEN: usize = 0x400;
 
-/// The game's text buffer as a game pointer.
-pub fn text_at() -> crate::pointers::GamePtr {
-    crate::pointers::GamePtr::to(&strings().text.buffer.text)
+/// The game's text buffer.
+pub fn text_at() -> crate::strings::text_buffer::TextBuf {
+    crate::strings::text_buffer::TextBuf::Text(&strings().text.buffer.text)
 }
 
 /// The bytes the original leaves in the text buffer, including the NUL (converted:

@@ -12,21 +12,21 @@ use crate::errors::Refused;
 use crate::physics::car_sounds::{cue_plain, listed, object};
 use crate::physics::sound_band_3::TWIN;
 use crate::physics::sound_bands::band_value_plain;
-use crate::race::owner::Race;
+use crate::physics::step_families::SoundInputs;
 use rc2k_core::physics::sound_places::{FIRST, SOUND_E1};
 
 // Converted: `rc2k_core::physics::sound_places`.
-pub fn place_sound_e1_other(race: &Race) -> Result<(), Refused> {
-    if !listed(&race.frame, race.physics.contact.other_car_number.get())?
-        && !listed(&race.frame, race.shared.work.current_car.get())?
+pub fn place_sound_e1_other(c: &SoundInputs<'_>) -> Result<(), Refused> {
+    if !listed(c.frame_work, c.contact.other_car_number.get())?
+        && !listed(c.frame_work, c.work.current_car.get())?
     {
         return Ok(());
     }
-    let b = band_value_plain(race, TWIN);
+    let b = band_value_plain(c, TWIN);
     if b == 0 {
         return Ok(());
     }
-    race.frame.sound_spots.sound_scratch_b.set(b);
-    cue_plain(race, object(), FIRST, SOUND_E1, b, None)?;
+    c.spots.sound_scratch_b.set(b);
+    cue_plain(c, object(), FIRST, SOUND_E1, b, None)?;
     Ok(())
 }

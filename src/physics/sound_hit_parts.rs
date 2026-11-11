@@ -8,24 +8,29 @@ use crate::errors::Refused;
 use crate::physics::drop_hit_parts::hit_tests;
 use crate::physics::sound_on_bit::sound_on_bit;
 use crate::race::kind_store::KIND_TABLES;
-use crate::race::owner::Race;
+use crate::race::matrices_store::SceneMatrices;
+use crate::race::numbers_store::Numbers;
+use crate::race::owner_shared::RaceShared;
 use rc2k_core::physics::parts::{SOUND_TESTS, has_hit_sounds};
 
 // Converted: `rc2k_core::physics::parts::{has_hit_sounds, hit_tests, SOUND_TESTS}`.
-pub fn sound_hit_parts(race: &Race) -> Result<(), Refused> {
-    let shared = &race.shared;
+pub fn sound_hit_parts(
+    numbers: &Numbers,
+    matrices: &SceneMatrices,
+    shared: &RaceShared,
+) -> Result<(), Refused> {
     if !has_hit_sounds(shared.car.car_kind.get(), |kind| {
         KIND_TABLES.kind_hit_sounds[kind as usize].get()
     }) {
         return Ok(());
     }
     hit_tests(
-        &race.shared.car,
-        &race.course.numbers,
+        &shared.car,
+        numbers,
         &SOUND_TESTS,
         &shared.car.tyre_wears,
         &mut |bit| {
-            { sound_on_bit(race, bit & 0xFF) }?;
+            { sound_on_bit(numbers, matrices, shared, bit & 0xFF) }?;
             Ok(())
         },
     )

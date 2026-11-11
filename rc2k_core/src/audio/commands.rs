@@ -1,7 +1,6 @@
 //! The commands the game queues for the audio thread: what each asks, with the values the
-//! audio thread acts on, and the queue they wait in. The game sent them as records of the
-//! command's number and the sender's registers; the audio thread read only the registers
-//! each command names.
+//! audio thread acts on, and the queue they wait in. A command has its number and seven words
+//! (`record_words`); the audio thread reads only the words each command names.
 
 use std::collections::VecDeque;
 
@@ -90,9 +89,10 @@ pub enum Command {
 }
 
 impl Command {
-    /// The record the game queued for this command: its number and the sender's eax, ebx,
-    /// ecx, edx, esi, edi, ebp (the registers the audio thread does not read as 0). The
-    /// sound hash of a run is made of these.
+    /// The command's number and seven words (the values the game's senders queued; those the
+    /// audio thread does not read are 0). The sound hash of a run is made of these, so a held
+    /// race's commands can be compared turn by turn; the words keep the order the game
+    /// queued them in.
     pub fn record_words(&self) -> (u32, [u32; 7]) {
         match *self {
             Command::Start(s) => (
@@ -245,8 +245,8 @@ mod golden {
         }
     }
 
-    /// What a sender with these registers (eax, ebx, ecx, edx, esi, edi, ebp) asks for command
-    /// `number`: the recorded sequence is written as the game's senders sent it.
+    /// What the seven words a sender queued ask for command `number`: the inverse of
+    /// `record_words`.
     fn command_from(number: u32, r: [u32; 7]) -> Command {
         match number {
             1 => Command::Start(Start {

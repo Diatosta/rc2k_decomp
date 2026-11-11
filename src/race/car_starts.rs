@@ -7,9 +7,14 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::net::owner::net;
+use crate::physics::contact_store::ContactWork;
+use crate::physics::step_families::GroundInputs;
+use crate::physics::step_inputs::StepInputs;
 use crate::race::best_line::MOST_CHECKS;
+use crate::race::matrices_store::SceneMatrices;
 use crate::race::owner::Race;
-use crate::race::owner_physics::Physics;
+use crate::race::owner_course::Course;
+use crate::race::owner_shared::RaceShared;
 use crate::session::Dword;
 
 /// The most cars `g_carBlocks` has.
@@ -25,8 +30,8 @@ fn zero(cells: &[&Dword]) {
     }
 }
 
-fn wheels(physics: &Physics) -> [u32; 4] {
-    crate::session::read_first(&physics.contact.probe_height)
+fn wheels(contact: &ContactWork) -> [u32; 4] {
+    crate::session::read_first(&contact.probe_height)
 }
 
 /// One bisection step of `settle_car`: `angle` moved by `step` towards the higher pair
@@ -42,14 +47,13 @@ fn settle_step(low: u32, high: u32, angle: &Dword, step: &Dword) {
 }
 
 /// The matrix (`get_mat_crash`) and the wheels (`physics::probe_ground`).
-fn matrix_and_wheels(race: &Race) -> Result<[u32; 4], Refused> {
-    crate::race::stage_prefs::get_mat_crash(race);
-    crate::physics::probe_ground::probe_ground(
-        race,
-        &race.shared.car,
-        crate::scene::owner::scene(),
-    )?;
-    Ok(wheels(&race.physics))
+fn matrix_and_wheels(
+    ground: &GroundInputs<'_>,
+    matrices: &SceneMatrices,
+) -> Result<[u32; 4], Refused> {
+    crate::race::stage_prefs::get_mat_crash(matrices, ground.car);
+    crate::physics::probe_ground::probe_ground(ground, ground.car, crate::scene::owner::scene())?;
+    Ok(wheels(ground.contact))
 }
 
 /// `race::settle_car` (0x43FC32): 0x43EB5D (`physics::set_handling`); the work car's pitch and roll
@@ -58,17 +62,17 @@ fn matrix_and_wheels(race: &Race) -> Result<[u32; 4], Refused> {
 /// wheels 0 + 2 against 1 + 3, the pitch towards 0 + 1 against 2 + 3, each step halved; once more
 /// the matrix and the wheels, then the car's y, the four wheels and the four at 0x6D1F14 lowered by
 /// the lowest wheel (from 0x640000).
-pub fn settle_car(race: &Race) -> Result<(), Refused> {
-    let physics = &race.physics;
-    let shared = &race.shared;
-    crate::physics::set_handling::set_handling(race)?;
+pub fn settle_car(c: &StepInputs<'_>) -> Result<(), Refused> {
+    let physics = c.physics;
+    let shared = c.shared;
+    crate::physics::set_handling::set_handling(&c.physics.damage, c.numbers, c.shared)?;
     shared.car.car_pitch.set(0);
     shared.car.car_roll.set(0);
     shared.physics_tables.settle_steps[0].set(0x2000_0000u32);
     shared.physics_tables.settle_steps[1].set(0x2000_0000u32);
     physics.ground_probe.settle_mark.set(0x80);
     for _ in 0..8 {
-        let w = matrix_and_wheels(race)?;
+        let w = matrix_and_wheels(&c.ground(), &c.frame.matrices)?;
         settle_step(
             w[0].wrapping_add(w[2]),
             w[1].wrapping_add(w[3]),
@@ -82,7 +86,7 @@ pub fn settle_car(race: &Race) -> Result<(), Refused> {
             &shared.physics_tables.settle_steps[0],
         );
     }
-    let w = matrix_and_wheels(race)?;
+    let w = matrix_and_wheels(&c.ground(), &c.frame.matrices)?;
     let mut lowest = 0x64_0000u32;
     for &h in &w {
         if (h.wrapping_sub(lowest) as i32) < 0 {
@@ -106,11 +110,11 @@ pub fn settle_car(race: &Race) -> Result<(), Refused> {
 /// roll copied to `start_heading` / `58` / `54` and +0x6B0 / +0x6B8 / +0x6B4; +0x1E8,
 /// `g_carDriveSpeed`, `g_carDriveSpeed2`, `g_carGear`, +0x200, +0x204, +0x1C4, +0x1F4 0; with
 /// +0x68C not 0, +0x688 and +0x684 it less one and +0x68C 0.
-pub fn reset_car_motion(race: &Race) -> Result<(), Refused> {
-    let shared = &race.shared;
-    let physics = &race.physics;
-    settle_car(race)?;
-    crate::race::start_place::invert_car_matrix(&race.course, &race.shared.car);
+pub fn reset_car_motion(c: &StepInputs<'_>) -> Result<(), Refused> {
+    let shared = c.shared;
+    let physics = c.physics;
+    settle_car(c)?;
+    crate::race::start_place::invert_car_matrix(c.course, c.car);
     for v in &shared.car.velocity {
         v.set_bits(0);
     }
@@ -148,9 +152,7 @@ pub fn reset_car_motion(race: &Race) -> Result<(), Refused> {
 
 /// `math::rotate_point_about_y` of (x, 0, z) by the start place's heading: x and z moved. The original's y
 /// there is a leftover value; it lands only in `g_scratchY`, which every reader writes first.
-fn move_turned(race: &Race, x: u32, z: u32) {
-    let course = &race.course;
-    let shared = &race.shared;
+fn move_turned(course: &Course, shared: &RaceShared, x: u32, z: u32) {
     let [x, _, z, _] = crate::math::rotate_point_about_y::rotate_point_about_y(
         x as i32,
         0,
@@ -170,59 +172,56 @@ fn move_turned(race: &Race, x: u32, z: u32) {
 /// bit). Then `nearest_checkpoint` into +0x98, +0x94, +0x9C; its check count less one held to 0 ..
 /// 100 into +0x90 and +0xAC; `reset_car_motion`; +0x264 .. +0x26C 0. Refuses a nearest checkpoint
 /// past the lists (when met).
-pub fn start_car(race: &Race) -> Result<(), Refused> {
+pub fn start_car(c: &StepInputs<'_>) -> Result<(), Refused> {
     let scene = crate::scene::owner::scene();
     let lights = &scene.lights;
-    let course = &race.course;
-    let replay = &race.replay;
-    race.shared.car.notice_count.set(0);
-    race.shared.car.camera_switch_active.set(0);
-    race.shared.car.map_corner[0].set(0x8000_0000);
-    race.shared.car.map_corner[1].set(0x8000_0000);
-    race.shared.car.engine_sound_revs.set(0);
-    race.shared.car.engine_speed.set_bits(0);
-    race.shared.car.gear.set(0);
+    let course = &c.course;
+    let replay = &c.replay;
+    c.car.notice_count.set(0);
+    c.car.camera_switch_active.set(0);
+    c.car.map_corner[0].set(0x8000_0000);
+    c.car.map_corner[1].set(0x8000_0000);
+    c.car.engine_sound_revs.set(0);
+    c.car.engine_speed.set_bits(0);
+    c.car.gear.set(0);
     zero(&[
-        &race.shared.car.steering,
-        &race.shared.car.steering_raw,
-        &race.shared.car.steer_angle,
-        &race.shared.car.steer_angle_visual,
+        &c.car.steering,
+        &c.car.steering_raw,
+        &c.car.steer_angle,
+        &c.car.steer_angle_visual,
     ]);
-    zero(&[
-        &race.shared.car.throttle,
-        &race.shared.car.brake,
-        &race.shared.car.handbrake,
-    ]);
-    if race.shared.vars.run_kind.get() != 4 || crate::debug::screens::free_play_placed() {
+    zero(&[&c.car.throttle, &c.car.brake, &c.car.handbrake]);
+    if c.vars.run_kind.get() != 4 || crate::debug::screens::free_play_placed() {
         // Converted: `rc2k_core::race::start::{start_checkpoint, starts_aside,
         // side_offset, start_checks}`.
         use rc2k_core::race::start::{side_offset, start_checkpoint, starts_aside};
-        let first = crate::race::race_init::first_check_checkpoint(&race.course, &race.shared)?;
-        let mode: u32 = race.shared.vars.run_kind.get();
-        let place = start_checkpoint(first, mode, race.shared.work.current_car.get());
+        let first = crate::race::race_init::first_check_checkpoint(c.course, c.shared)?;
+        let mode: u32 = c.vars.run_kind.get();
+        let place = start_checkpoint(first, mode, c.work.current_car.get());
         lights.state.line_place.set(place);
         lights.state.line_fraction.set(0);
         if replay.finish.no_place.get() != 0 {
             lights.state.line_place.set(0);
             lights.state.line_fraction.set(0);
         }
-        crate::race::start_place::place_car_on_line(&race.shared, course, scene)?;
+        crate::race::start_place::place_car_on_line(c.shared, course, scene)?;
         if replay.finish.no_place.get() == 0 {
-            move_turned(race, 0, 0xFFFE_0000);
+            move_turned(c.course, c.shared, 0, 0xFFFE_0000);
             let side = starts_aside(
                 net().vars.session.get(),
-                || race.shared.vars.run_kind.get(),
-                || race.shared.view.players.get(),
+                || c.vars.run_kind.get(),
+                || c.view.players.get(),
             );
             if side {
-                move_turned(race, side_offset(race.shared.work.current_car.get()), 0);
+                move_turned(c.course, c.shared, side_offset(c.work.current_car.get()), 0);
             }
         }
     }
-    let nearest = crate::race::start_place::nearest_checkpoint(race, scene)?;
-    race.shared.car.checkpoint.set(nearest);
-    race.shared.car.reset_checkpoint.set(nearest);
-    race.shared.car.last_pace_call.set(nearest);
+    let nearest =
+        crate::race::start_place::nearest_checkpoint(c.physics, c.course, c.shared, scene)?;
+    c.car.checkpoint.set(nearest);
+    c.car.reset_checkpoint.set(nearest);
+    c.car.last_pace_call.set(nearest);
     if nearest >= MOST_CHECKS {
         return Err(BadInput("a nearest checkpoint past the lists").into());
     }
@@ -233,13 +232,13 @@ pub fn start_car(race: &Race) -> Result<(), Refused> {
         )
         .get(),
     );
-    race.shared.car.splits_passed.set(checks);
-    race.shared.car.splits_recorded.set(checks);
-    reset_car_motion(race)?;
+    c.car.splits_passed.set(checks);
+    c.car.splits_recorded.set(checks);
+    reset_car_motion(c)?;
     zero(&[
-        &race.shared.car.reset_key_count,
-        &race.shared.car.stopped_steps,
-        &race.shared.car.tyre_change_state,
+        &c.car.reset_key_count,
+        &c.car.stopped_steps,
+        &c.car.tyre_change_state,
     ]);
     Ok(())
 }
@@ -257,7 +256,7 @@ pub fn start_cars(race: &Race) -> Result<(), Refused> {
     for n in 0..cars {
         shared.work.current_car.set(n);
         crate::drive::load_car::load_car(shared)?;
-        start_car(race)?;
+        start_car(&crate::physics::step_inputs::StepInputs::of(race))?;
         // +0xA3C (8 dwords) and +0xA5C (0x11) 0.
         for cell in shared
             .car

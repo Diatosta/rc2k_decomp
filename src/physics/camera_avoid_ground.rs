@@ -22,16 +22,34 @@
 use crate::errors::Refused;
 use crate::physics::camera_clear_of_ground::camera_clear_of_ground;
 use crate::physics::camera_over_ground::camera_over_ground;
+use crate::physics::camera_store::CameraWork;
 use crate::physics::camera_view::record;
 use crate::physics::car_store::Car;
-use crate::race::owner::Race;
+use crate::physics::step_families::CameraInputs;
+use crate::race::frame_store::FrameWork;
+use crate::race::lights_store::LightsData;
+use crate::race::numbers_store::Numbers;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
 use crate::session::Dword;
 use rc2k_core::physics::camera_ground;
 
-fn place(race: &Race, scene: &crate::scene::owner::Scene) {
-    crate::physics::place_camera::place_camera(race, scene);
+fn place(
+    camera: &CameraWork,
+    lights_data: &LightsData,
+    numbers: &Numbers,
+    frame_work: &FrameWork,
+    shared: &RaceShared,
+    scene: &crate::scene::owner::Scene,
+) {
+    crate::physics::place_camera::place_camera(
+        camera,
+        lights_data,
+        numbers,
+        frame_work,
+        shared,
+        scene,
+    );
 }
 
 /// Turned to face from checkpoint `back` before the car's; false when there is none.
@@ -66,47 +84,51 @@ fn ground_faces(car: &Car) -> [&Dword; 5] {
 }
 
 /// The turn back toward the kept heading (0x43919D ..).
-fn turn_back(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+fn turn_back(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let drawing = &scene.drawing;
-    race.shared
-        .tables
+    c.race_tables
         .camera_turn_step
         .set(camera_ground::FIRST_TURN_STEP);
     loop {
         drawing
             .scene
             .camera_heading_saved
-            .set(race.shared.car.camera_heading.get());
+            .set(c.car.camera_heading.get());
         for k in 0..5 {
-            drawing.scene.camera_saved[k].set(ground_faces(&race.shared.car)[k].get());
+            drawing.scene.camera_saved[k].set(ground_faces(c.car)[k].get());
         }
         let mut stepped_back = false;
         if let Some(step) = camera_ground::turn_step(
             drawing.scene.camera_heading_kept.get(),
-            race.shared.car.camera_heading.get(),
-            race.shared.tables.camera_turn_step.get(),
+            c.car.camera_heading.get(),
+            c.race_tables.camera_turn_step.get(),
         ) {
-            race.shared
-                .car
+            c.car
                 .camera_heading
-                .set(race.shared.car.camera_heading.get().wrapping_add(step));
-            place(race, scene);
-            if camera_over_ground(race, scene)? {
+                .set(c.car.camera_heading.get().wrapping_add(step));
+            place(
+                c.camera,
+                c.lights_data,
+                c.numbers,
+                c.frame_work,
+                c.shared,
+                scene,
+            );
+            if camera_over_ground(&c.ground, scene)? {
                 continue;
             }
             stepped_back = true;
         }
         if stepped_back {
-            race.shared
-                .car
+            c.car
                 .camera_heading
                 .set(drawing.scene.camera_heading_saved.get());
             for k in 0..5 {
-                ground_faces(&race.shared.car)[k].set(drawing.scene.camera_saved[k].get());
+                ground_faces(c.car)[k].set(drawing.scene.camera_saved[k].get());
             }
         }
-        let (next, last) = camera_ground::next_turn_step(race.shared.tables.camera_turn_step.get());
-        race.shared.tables.camera_turn_step.set(next);
+        let (next, last) = camera_ground::next_turn_step(c.race_tables.camera_turn_step.get());
+        c.race_tables.camera_turn_step.set(next);
         if last {
             return Ok(());
         }
@@ -116,73 +138,87 @@ fn turn_back(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refu
 /// The steps.
 // Converted: `rc2k_core::physics::camera_ground::{back_checkpoint, turn_step,
 // next_turn_step}`.
-pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let drawing = &scene.drawing;
-    let physics_store = &race.physics;
-    crate::physics::ease_view_turn::ease_view_turn(race, scene);
-    race.shared.tables.camera_ground_flag.set(0);
-    race.shared.tables.camera_turn_step.set(u32::MAX);
+    crate::physics::ease_view_turn::ease_view_turn(c.camera, c.replay_frames, c.car, scene);
+    c.race_tables.camera_ground_flag.set(0);
+    c.race_tables.camera_turn_step.set(u32::MAX);
     drawing
         .scene
         .camera_heading_kept
-        .set(race.shared.car.camera_heading.get());
-    place(race, scene);
-    if record(&race.shared.car)?.halve_tilt.get() == 0 {
+        .set(c.car.camera_heading.get());
+    place(
+        c.camera,
+        c.lights_data,
+        c.numbers,
+        c.frame_work,
+        c.shared,
+        scene,
+    );
+    if record(c.car)?.halve_tilt.get() == 0 {
         return Ok(());
     }
-    if !camera_over_ground(race, scene)? {
+    if !camera_over_ground(&c.ground, scene)? {
         let mut found = false;
         for back in [1, 2] {
-            if !face_checkpoint(&race.course, &race.shared, back) {
+            if !face_checkpoint(c.course, c.shared, back) {
                 break;
             }
-            place(race, scene);
-            if camera_over_ground(race, scene)? {
+            place(
+                c.camera,
+                c.lights_data,
+                c.numbers,
+                c.frame_work,
+                c.shared,
+                scene,
+            );
+            if camera_over_ground(&c.ground, scene)? {
                 found = true;
                 break;
             }
         }
         if found {
-            turn_back(race, scene)?;
+            turn_back(c, scene)?;
         } else {
-            race.shared
-                .car
+            c.car
                 .camera_heading
                 .set(drawing.scene.camera_heading_kept.get());
         }
     }
     // 0x4392A3: clear of the ground by the pitch.
-    race.shared.tables.camera_ground_flag.set(u32::MAX);
-    place(race, scene);
-    if camera_clear_of_ground(race, scene)? {
+    c.race_tables.camera_ground_flag.set(u32::MAX);
+    place(
+        c.camera,
+        c.lights_data,
+        c.numbers,
+        c.frame_work,
+        c.shared,
+        scene,
+    );
+    if camera_clear_of_ground(&c.ground, scene)? {
         return Ok(());
     }
-    physics_store
-        .camera
-        .pitch_ceiling
-        .set(camera_ground::PITCH_START);
+    c.camera.pitch_ceiling.set(camera_ground::PITCH_START);
     let mut up = true;
     loop {
         if up {
-            physics_store
-                .camera
-                .pitch_floor
-                .set(race.shared.car.camera_pitch.get());
-            crate::physics::ease_pitch_up::ease_pitch_up(&race.shared.car, &race.physics.camera);
+            c.camera.pitch_floor.set(c.car.camera_pitch.get());
+            crate::physics::ease_pitch_up::ease_pitch_up(c.car, c.camera);
         } else {
-            physics_store
-                .camera
-                .pitch_ceiling
-                .set(race.shared.car.camera_pitch.get());
-            crate::physics::ease_pitch_down::ease_pitch_down(
-                &race.shared.car,
-                &race.physics.camera,
-            );
+            c.camera.pitch_ceiling.set(c.car.camera_pitch.get());
+            crate::physics::ease_pitch_down::ease_pitch_down(c.car, c.camera);
         }
-        if physics_store.camera.pitch_step.get() == 0 {
+        if c.camera.pitch_step.get() == 0 {
             return Ok(());
         }
-        place(race, scene);
-        up = !camera_clear_of_ground(race, scene)?;
+        place(
+            c.camera,
+            c.lights_data,
+            c.numbers,
+            c.frame_work,
+            c.shared,
+            scene,
+        );
+        up = !camera_clear_of_ground(&c.ground, scene)?;
     }
 }

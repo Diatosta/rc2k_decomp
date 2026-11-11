@@ -10,28 +10,37 @@
 //! `find_ground` refuses.
 
 use crate::errors::Refused;
-use crate::race::owner::Race;
+use crate::physics::camera_store::CameraWork;
+use crate::physics::ground_probe_store::GroundProbe;
+use crate::physics::ground_store::GroundWork;
+use crate::race::owner_course::Course;
 use rc2k_core::physics::walls::ProbeCounts;
 
 // Converted: `rc2k_core::physics::walls::ProbeCounts`.
-pub fn count_ground_probe(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn count_ground_probe(
+    camera: &CameraWork,
+    ground_probe: &GroundProbe,
+    ground: &GroundWork,
+    course: &Course,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let mut counts = ProbeCounts {
-        tries: race.physics.camera.ground_probes.get(),
-        found: race.physics.camera.ground_found.get(),
-        same: race.physics.camera.ground_same.get(),
+        tries: camera.ground_probes.get(),
+        found: camera.ground_found.get(),
+        same: camera.ground_same.get(),
     };
-    race.physics.ground_probe.settle_mark.set(0x40);
+    ground_probe.settle_mark.set(0x40);
     counts.tried();
-    race.physics.camera.ground_probes.set(counts.tries);
-    { crate::physics::find_ground::find_ground(race, scene) }?;
-    if race.physics.ground.ground_found.get() != 0 {
+    camera.ground_probes.set(counts.tries);
+    { crate::physics::find_ground::find_ground(ground_probe, ground, course, scene) }?;
+    if ground.ground_found.get() != 0 {
         counts.searched(
             true,
-            race.course.course.ground_face_last.get(),
-            race.course.course.ground_slot.get(),
+            course.course.ground_face_last.get(),
+            course.course.ground_slot.get(),
         );
-        race.physics.camera.ground_found.set(counts.found);
-        race.physics.camera.ground_same.set(counts.same);
+        camera.ground_found.set(counts.found);
+        camera.ground_same.set(counts.same);
     }
     Ok(())
 }

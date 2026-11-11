@@ -21,8 +21,8 @@ use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::Car;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::flow::ZERO_BITS as ZERO;
+use crate::physics::step_families::ContactInputs;
 use crate::race::numbers_store::Numbers;
-use crate::race::owner::Race;
 use crate::session::{Dword, Float};
 
 use crate::math::x87::loaded;
@@ -45,71 +45,64 @@ fn turn_speed(block: &Car) {
     }
 }
 
-fn steps(race: &Race, other_car: u32, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let race_owner = race;
+fn steps(
+    c: &ContactInputs<'_>,
+    other_car: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     for k in 0..3 {
-        race_owner.physics.contact.contact_point[k]
-            .set_bits(loaded(&race_owner.physics.contact.corner_turned[k]).to_bits());
+        c.contact.contact_point[k].set_bits(loaded(&c.contact.corner_turned[k]).to_bits());
     }
     let zero = ZERO;
     let note = [
-        race.shared.work.current_car.get(),
-        race_owner.physics.contact.other_car_number.get(),
-        race_owner.physics.contact.corner_in[0].bits(),
+        c.work.current_car.get(),
+        c.contact.other_car_number.get(),
+        c.contact.corner_in[0].bits(),
         zero,
-        race_owner.physics.contact.corner_in[2].bits(),
-        race_owner.physics.contact.contact_point[0].bits(),
+        c.contact.corner_in[2].bits(),
+        c.contact.contact_point[0].bits(),
         zero,
-        race_owner.physics.contact.contact_point[2].bits(),
+        c.contact.contact_point[2].bits(),
     ];
     for (k, v) in note.iter().enumerate() {
-        race_owner.physics.contact.bump_note[k].set(*v);
+        c.contact.bump_note[k].set(*v);
     }
-    for v in &race.shared.physics_tables.contacts[6].force {
+    for v in &c.tables.contacts[6].force {
         v.set_bits(0);
     }
-    race.shared.car.contact_flag.set(1);
+    c.car.contact_flag.set(1);
     let other_car = crate::race::trap::car_at(other_car)?;
     other_car.contact_flag.set(1);
-    relative_speed(&race.shared.car, &race.physics.contact, &other_car.velocity);
-    race_owner
-        .physics
-        .contact
+    relative_speed(c.car, c.contact, &other_car.velocity);
+    c.contact
         .bump_speed_length
-        .set_bits(rounded({
-            vector_length(&race_owner.physics.contact.bump_relative_speed)
-        }));
+        .set_bits(rounded(vector_length(&c.contact.bump_relative_speed)));
     // The car `other_car_block` names (the same as `other_car` in play).
-    let met_car = Car::at(race_owner.physics.contact.other_car_block.get());
-    share_out_speeds(&race.shared.car, &race.physics.contact, &met_car.velocity);
+    let met_car = Car::at(c.contact.other_car_block.get());
+    share_out_speeds(c.car, c.contact, &met_car.velocity);
     // 0x45F98C: pushed apart by the places' difference.
-    let other = Car::at(race_owner.physics.contact.other_car_block.get());
-    push_apart(
-        &race.shared.car,
-        &race.physics.contact,
-        &race.course.numbers,
-        &other.position,
-    );
-    let factor = extended(race_owner.course.numbers.three.bits());
-    scale_vector(&race_owner.physics.contact.bump_push, factor);
+    let other = Car::at(c.contact.other_car_block.get());
+    push_apart(c.car, c.contact, c.numbers, &other.position);
+    let factor = extended(c.numbers.three.bits());
+    scale_vector(&c.contact.bump_push, factor);
     scene.drawing.scene.scratch.set(rounded(factor));
-    add_push(&race.shared.car, &race.physics.contact, &other.velocity);
+    add_push(c.car, c.contact, &other.velocity);
     turn_speed(met_car);
-    turn_speed(&race.shared.car);
-    { crate::physics::place_sound_e1_other::place_sound_e1_other(race) }?;
+    turn_speed(c.car);
+    { crate::physics::place_sound_e1_other::place_sound_e1_other(&c.sound) }?;
     Ok(())
 }
 
 /// `other_car` the other car's block (an address in the game's memory).
 pub fn bump_cars(
-    race: &Race,
+    c: &ContactInputs<'_>,
     other_car: u32,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    if other_car == 0 || race.physics.contact.other_car_block.get() == 0 {
+    if other_car == 0 || c.contact.other_car_block.get() == 0 {
         return Err(BadInput("a null car block").into());
     }
-    steps(race, other_car, scene)
+    steps(c, other_car, scene)
 }
 
 // ---- the arithmetic that was x87 assembly ----

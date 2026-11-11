@@ -13,21 +13,30 @@ use crate::math::x87;
 use crate::math::x87_float::int;
 use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
+use crate::physics::car_store::Car;
 use crate::physics::engine_torque::{below, engine_torque};
 use crate::physics::gear_store::GEAR;
-use crate::race::owner::Race;
+use crate::physics::tables_store::PhysicsTables;
+use crate::race::numbers_store::Numbers;
+use crate::race::owner_course::Course;
+use crate::race::owner_shared::RaceShared;
 
 /// 0x43EA85 .. 0x43EAE7, as the original.
-fn run(race: &Race, scene: &crate::scene::owner::Scene) {
-    x87_1(race, scene);
+fn run(
+    numbers: &Numbers,
+    physics_tables: &PhysicsTables,
+    car: &Car,
+    scene: &crate::scene::owner::Scene,
+) {
+    x87_1(numbers, physics_tables, car, scene);
 }
 
 /// The exact version, for `physics::free_rev_in_neutral`, `free_rev_clutch` and their callers.
-pub fn free_rev(race: &Race, scene: &crate::scene::owner::Scene) {
-    engine_torque(race, scene);
-    run(race, scene);
+pub fn free_rev(course: &Course, shared: &RaceShared, scene: &crate::scene::owner::Scene) {
+    engine_torque(course, shared, scene);
+    run(&course.numbers, &shared.physics_tables, &shared.car, scene);
     let (e, drag) = (
-        race.shared.car.engine_speed.bits(),
+        shared.car.engine_speed.bits(),
         scene.drawing.scene.scratch.get(),
     );
     let x = f32::from_bits(e);
@@ -36,15 +45,15 @@ pub fn free_rev(race: &Race, scene: &crate::scene::owner::Scene) {
     }
     if x < 0.0 {
         let y = x87::add(e, drag);
-        race.shared.car.engine_speed.set_bits(y.to_bits());
+        shared.car.engine_speed.set_bits(y.to_bits());
         if !below(y.to_bits(), 0) {
-            race.shared.car.engine_speed.set_bits(0);
+            shared.car.engine_speed.set_bits(0);
         }
     } else {
         let y = x87::sub(e, drag);
-        race.shared.car.engine_speed.set_bits(y.to_bits());
+        shared.car.engine_speed.set_bits(y.to_bits());
         if below(y.to_bits(), 0) {
-            race.shared.car.engine_speed.set_bits(0);
+            shared.car.engine_speed.set_bits(0);
         }
     }
 }
@@ -56,31 +65,36 @@ pub fn free_rev(race: &Race, scene: &crate::scene::owner::Scene) {
 /// `[drive_torque] = (((([drive_ratio] * [drive_torque_figure]) / [rc + 0x2140C0]) / [k10000]) * int [throttle]) / [k256]`
 /// `[engine_speed] = (([drive_torque] * [step_time]) / [rc + 0x2140C0]) + [engine_speed]`
 /// `[scratch] = ([engine_speed] * [free_rev_scale]) + [free_rev_add]`
-fn x87_1(race: &Race, scene: &crate::scene::owner::Scene) {
-    let t0 = ld(race.shared.physics_tables.drive_ratio.bits());
+fn x87_1(
+    numbers: &Numbers,
+    physics_tables: &PhysicsTables,
+    car: &Car,
+    scene: &crate::scene::owner::Scene,
+) {
+    let t0 = ld(physics_tables.drive_ratio.bits());
     let t1 = ld(GEAR.drive_torque_figure.bits());
     let t2 = t0 * t1;
-    let t3 = ld(race.shared.physics_tables.gear_ratios[1].bits());
+    let t3 = ld(physics_tables.gear_ratios[1].bits());
     let t4 = t2 / t3;
-    let t5 = ld(race.course.numbers.k10000.bits());
+    let t5 = ld(numbers.k10000.bits());
     let t6 = t4 / t5;
-    let t7 = int(race.shared.car.throttle.bits() as i32);
+    let t7 = int(car.throttle.bits() as i32);
     let t8 = t6 * t7;
-    let t9 = ld(race.course.numbers.k256.bits());
+    let t9 = ld(numbers.k256.bits());
     let t10 = t8 / t9;
-    race.shared.physics_tables.drive_torque.set_bits(st(t10));
-    let t11 = ld(race.shared.physics_tables.drive_torque.bits());
-    let t12 = ld(race.shared.physics_tables.step_time.bits());
+    physics_tables.drive_torque.set_bits(st(t10));
+    let t11 = ld(physics_tables.drive_torque.bits());
+    let t12 = ld(physics_tables.step_time.bits());
     let t13 = t11 * t12;
-    let t14 = ld(race.shared.physics_tables.gear_ratios[1].bits());
+    let t14 = ld(physics_tables.gear_ratios[1].bits());
     let t15 = t13 / t14;
-    let t16 = ld(race.shared.car.engine_speed.bits());
+    let t16 = ld(car.engine_speed.bits());
     let t17 = t15 + t16;
-    race.shared.car.engine_speed.set_bits(st(t17));
-    let t18 = ld(race.shared.car.engine_speed.bits());
-    let t19 = ld(race.shared.physics_tables.free_rev_scale.bits());
+    car.engine_speed.set_bits(st(t17));
+    let t18 = ld(car.engine_speed.bits());
+    let t19 = ld(physics_tables.free_rev_scale.bits());
     let t20 = t18 * t19;
-    let t21 = ld(race.shared.physics_tables.free_rev_add.bits());
+    let t21 = ld(physics_tables.free_rev_add.bits());
     let t22 = t20 + t21;
     scene.drawing.scene.scratch.set_bits(st(t22));
 }
@@ -115,7 +129,14 @@ mod asm_reference {
             }],
             ulps: 0,
             reference: |a| unsafe { ref_0(a[0]) },
-            plain: |_| x87_1(race(), crate::scene::owner::scene()),
+            plain: |_| {
+                x87_1(
+                    &race().course.numbers,
+                    &race().shared.physics_tables,
+                    &race().shared.car,
+                    crate::scene::owner::scene(),
+                );
+            },
         }]
     }
 

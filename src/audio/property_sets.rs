@@ -1,4 +1,4 @@
-//! A 3D buffer's property sets (IDA, 2026-10-15): DirectSound's voice manager ("DSV",
+//! A 3D buffer's property sets: DirectSound's voice manager ("DSV",
 //! setting `ignoredsv`) and EAX 1's reverb ("EAX", `ignoreeax`), each opened once through
 //! the first 3D buffer made (`IKsPropertySet` from its `QueryInterface`), and the EAX room.
 //! The platform's DirectSound offers no property sets (`platform_sound::query_interface`
@@ -42,7 +42,7 @@ impl<'a> Opening<'a> {
 }
 
 /// `audio::open_voice_manager` and `audio::open_eax`: true for the carry clear. `holder`
-/// (ebx) holds the 3D buffer. Nothing with the setting on or the set already opened;
+/// holds the 3D buffer. Nothing with the setting on or the set already opened;
 /// else the set from the 3D buffer's `QueryInterface`, its `QuerySupport` (get and set
 /// both), for the voice manager its mode set to 2; then logged and `found` 1. A failure
 /// leaves the set where it went (it is released at the close). Refuses a holder that is
@@ -52,7 +52,7 @@ pub fn open_property_set(state: &AudioState, o: &Opening, holder: u32) -> Result
         return Ok(false);
     }
     if holder < 0x1_0000 {
-        return Err(BadInput("ebx holds no 3D buffer (make_buffer's EAX bug)").into());
+        return Err(BadInput("the holder value is no 3D buffer (make_buffer's EAX bug)").into());
     }
     let buffer = crate::audio::voices::read(holder);
     if buffer == 0 {
@@ -70,7 +70,7 @@ pub fn open_property_set(state: &AudioState, o: &Opening, holder: u32) -> Result
     }
 }
 
-/// `audio::set_eax_room`: the room's reverb (`g_eaxRooms`) set when EAX is open; eax the
+/// `audio::set_eax_room`: the room's reverb (`g_eaxRooms`) set when EAX is open; returns the
 /// room's entry. Refuses a room past the table (the original reads past it).
 pub fn set_eax_room(state: &AudioState, room: u32) -> Result<crate::pointers::GamePtr, Refused> {
     // Converted: `rc2k_core::audio::levels::eax_room_offset`.

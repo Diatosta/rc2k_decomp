@@ -34,7 +34,7 @@ pub fn rewind_buffer(state: &AudioState, v: &Voice) -> Result<i32, Refused> {
 }
 
 /// `Play` (+0x30) with 0, 0 and the looping flag for a looping voice (kind 1). Failing: the
-/// carry, and `DSERR_BUFFERLOST` sets the lost flag. Returns eax and the carry.
+/// carry, and `DSERR_BUFFERLOST` sets the lost flag. Returns the result code and the carry.
 pub fn play_buffer(state: &AudioState, v: &Voice) -> Result<(i32, bool), Refused> {
     let b = buffer(state, v, "A3D (0x40CEA0)")?;
     // Converted: `rc2k_core::audio::buffers::{play_flags, lost}`.

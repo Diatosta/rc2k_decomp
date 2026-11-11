@@ -1,6 +1,6 @@
-//! The music stream (IDA, 2026-10-14): a WAV file played through a looping DirectSound
+//! The music stream: a WAV file played through a looping DirectSound
 //! buffer that is refilled from the file each turn. Two players share the code, with the
-//! player in esi: `g_soundStream` (0x506960, command 9, `audio::stream_command`) and
+//! player picked by the caller: `g_soundStream` (0x506960, command 9, `audio::stream_command`) and
 //! `g_musicStream` (0x506990, command 0xB, `audio::music_command`).
 //!
 //! `audio::start_stream` reads the file's head into `g_streamHeader` (0xC00 bytes, taken

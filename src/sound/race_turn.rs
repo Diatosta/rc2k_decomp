@@ -1,17 +1,13 @@
 //! `sound::race_turn` (0x40D5F3): the race's sounds, once a frame.
 //!
-//! Quitting (`g_quitting` 1, the game closing): the original's jump (chunk 0x4154B5:
-//! esp = `g_mainLoopStack` and on into `system::main_loop`, or to 0x401116 when that is
-//! 0) was run as it is; in the standalone the program
-//! is ended as `start` ends it (`standalone::leave_on_close`). Owner, 2026-10-18. Else, once the sounds are
+//! Quitting (`g_quitting` 1, the game closing): the program is ended as `start` ends it
+//! (`standalone::leave_on_close`); the original jumped out of the loop (chunk 0x4154B5).
+//! Else, once the sounds are
 //! started (`dword_5124E4` 1): `sound::step_race_clock`; with a turn due (carry clear)
 //! `sound::mark_car_voices`, `car_sounds_all`, `play_cue_queues`, `stage_sounds`,
 //! `spot_sounds`, `send_end_of_turn`; and either way `input::step_effects_clock`.
 //! One caller, 0x421BCF (`sound::race_turn_if`).
 //! Refuses what its callees refuse.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::system::owner::system;

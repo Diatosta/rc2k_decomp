@@ -7,9 +7,6 @@
 //! equal); then with no limit (+2 0), or the repeats (+0x2C) below it (counted up), the
 //! restart flag +0x24 1. One caller, `sound::spot_sounds`.
 //! Refuses (before anything) a voice of kind 0 or past 0x15.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::Refused;
 

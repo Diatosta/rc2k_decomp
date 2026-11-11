@@ -27,8 +27,8 @@ use crate::physics::flow::{ZERO_BITS as ZERO, c0, ease_zero, hold_high, hold_low
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at};
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
-use crate::race::owner::Race;
 use crate::race::owner_course::Course;
+use crate::race::vars_store::RaceVars;
 use crate::scene::matrix3::extended;
 use crate::session::{Cell32, Float};
 
@@ -106,262 +106,185 @@ fn status_above(status: u16) -> bool {
 }
 
 /// The steps.
-fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+fn steps(
+    course: &Course,
+    vars: &RaceVars,
+    physics_tables: &PhysicsTables,
+    car: &Car,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let drawing = &scene.drawing;
-    let gear = race.shared.car.gear.get();
+    let gear = car.gear.get();
     one_less_abs(
-        &race.course,
-        &race.shared.car.crash_matrix[1],
-        &race.shared.physics_tables.drive_shares[0],
+        course,
+        &car.crash_matrix[1],
+        &physics_tables.drive_shares[0],
     );
-    hold_low(
-        &race.shared.physics_tables.drive_shares[0],
-        &race.course.numbers.tenth,
-    );
-    hold_high(
-        &race.shared.physics_tables.drive_shares[0],
-        &race.course.numbers.one,
-    );
+    hold_low(&physics_tables.drive_shares[0], &course.numbers.tenth);
+    hold_high(&physics_tables.drive_shares[0], &course.numbers.one);
     one_less_abs(
-        &race.course,
-        &race.shared.car.crash_matrix[9],
-        &race.shared.physics_tables.drive_shares[1],
+        course,
+        &car.crash_matrix[9],
+        &physics_tables.drive_shares[1],
     );
-    hold_low(
-        &race.shared.physics_tables.drive_shares[1],
-        &race.course.numbers.tenth,
-    );
-    hold_high(
-        &race.shared.physics_tables.drive_shares[1],
-        &race.course.numbers.one,
-    );
-    signed_share(&race.shared.physics_tables, &race.course.numbers);
-    hold_low_bits(&race.shared.physics_tables.drive_shares[2], ZERO);
-    hold_high(
-        &race.shared.physics_tables.drive_shares[2],
-        &race.course.numbers.one,
-    );
-    if race.shared.car.driven_wheels_off.get() == 0 {
+    hold_low(&physics_tables.drive_shares[1], &course.numbers.tenth);
+    hold_high(&physics_tables.drive_shares[1], &course.numbers.one);
+    signed_share(physics_tables, &course.numbers);
+    hold_low_bits(&physics_tables.drive_shares[2], ZERO);
+    hold_high(&physics_tables.drive_shares[2], &course.numbers.one);
+    if car.driven_wheels_off.get() == 0 {
         if gear == 0 {
-            race.shared.physics_tables.drive_torque.set_bits(0);
+            physics_tables.drive_torque.set_bits(0);
         }
-        crate::physics::cap_drive_speed::cap_drive_speed(
-            &race.shared.car,
-            &race.shared.physics_tables,
-            scene,
-        );
-        race.shared.physics_tables.wheels_driven.set(0);
+        crate::physics::cap_drive_speed::cap_drive_speed(car, physics_tables, scene);
+        physics_tables.wheels_driven.set(0);
         // the grips at +0 or, braking, +0x14: `wheel_grips_b`
-        let mut grips = &race.shared.physics_tables.wheel_grips;
-        if race.shared.car.brake.get() != 0 {
-            grips = &race.shared.physics_tables.wheel_grips_b;
-            race.shared.physics_tables.wheels_driven.set(1);
+        let mut grips = &physics_tables.wheel_grips;
+        if car.brake.get() != 0 {
+            grips = &physics_tables.wheel_grips_b;
+            physics_tables.wheels_driven.set(1);
         }
-        drive_forces_from_grips(&race.shared.car, &race.shared.physics_tables, grips);
+        drive_forces_from_grips(car, physics_tables, grips);
         drawing
             .scene
             .scratch
-            .set(race.shared.car.throttle.get().wrapping_add(0x100));
-        throttle_drive_limit(
-            &race.shared.car,
-            &race.shared.physics_tables,
-            &race.course.numbers,
-            scene,
-        );
-        hold_high(
-            &race.shared.physics_tables.drive_limits[1],
-            &drawing.scene.scratch,
-        );
+            .set(car.throttle.get().wrapping_add(0x100));
+        throttle_drive_limit(car, physics_tables, &course.numbers, scene);
+        hold_high(&physics_tables.drive_limits[1], &drawing.scene.scratch);
         let pick = if abs_below(
-            race.shared.physics_tables.drive_limits[1].bits(),
-            race.shared.physics_tables.drive_limits[0].bits(),
+            physics_tables.drive_limits[1].bits(),
+            physics_tables.drive_limits[0].bits(),
         ) {
-            &race.shared.physics_tables.drive_limits[0]
+            &physics_tables.drive_limits[0]
         } else {
-            &race.shared.physics_tables.drive_limits[1]
+            &physics_tables.drive_limits[1]
         };
-        store_loaded(&race.shared.physics_tables.drive_limits[2], pick);
-        let kind = race.shared.car.drive_kind.get();
+        store_loaded(&physics_tables.drive_limits[2], pick);
+        let kind = car.drive_kind.get();
         if gear != 0 && kind == 1 {
-            push_both_drive_speeds(
-                &race.shared.car,
-                &race.shared.physics_tables,
-                &race.course.numbers,
-            );
+            push_both_drive_speeds(car, physics_tables, &course.numbers);
         }
         if kind == 0 {
-            push_drive_speed_a(&race.shared.car, &race.shared.physics_tables);
+            push_drive_speed_a(car, physics_tables);
         }
-        revs(
-            &race.shared.car,
-            &race.shared.physics_tables,
-            &race.course.numbers,
-        )?;
+        revs(car, physics_tables, &course.numbers)?;
         // 0x43E2C2: the wheels' drag on each drive speed.
-        brake_step_for_a(
-            &race.shared.car,
-            &race.shared.physics_tables,
-            &race.course.numbers,
-        );
-        ease_zero(
-            &race.shared.car.drive_speed_a,
-            &race.shared.physics_tables.wheel_speed_step,
-        );
-        brake_step_for_b(
-            &race.shared.car,
-            &race.shared.physics_tables,
-            &race.course.numbers,
-        );
-        ease_zero(
-            &race.shared.car.drive_speed_b,
-            &race.shared.physics_tables.wheel_speed_step,
-        );
-        handbrake_step_for_b(
-            &race.shared.car,
-            &race.shared.physics_tables,
-            &race.course.numbers,
-        );
-        ease_zero(
-            &race.shared.car.drive_speed_b,
-            &race.shared.physics_tables.wheel_speed_step,
-        );
-        if race.shared.car.handbrake.get() != 0 {
+        brake_step_for_a(car, physics_tables, &course.numbers);
+        ease_zero(&car.drive_speed_a, &physics_tables.wheel_speed_step);
+        brake_step_for_b(car, physics_tables, &course.numbers);
+        ease_zero(&car.drive_speed_b, &physics_tables.wheel_speed_step);
+        handbrake_step_for_b(car, physics_tables, &course.numbers);
+        ease_zero(&car.drive_speed_b, &physics_tables.wheel_speed_step);
+        if car.handbrake.get() != 0 {
             let status = handbrake_stop_status([
-                race.shared.car.drive_speed_a.bits(),
-                race.shared.car.drive_speed_b.bits(),
-                race.course.numbers.one.bits(),
+                car.drive_speed_a.bits(),
+                car.drive_speed_b.bits(),
+                course.numbers.one.bits(),
             ]);
             if status_below(status) {
-                race.shared.car.drive_speed_a.set_bits(0);
-                race.shared.car.drive_speed_b.set_bits(0);
+                car.drive_speed_a.set_bits(0);
+                car.drive_speed_b.set_bits(0);
             }
         }
-        revs(
-            &race.shared.car,
-            &race.shared.physics_tables,
-            &race.course.numbers,
-        )?;
-        slip_gaps(&race.shared.car, &race.shared.physics_tables);
+        revs(car, physics_tables, &course.numbers)?;
+        slip_gaps(car, physics_tables);
         crate::physics::cap_reverse_inputs::cap_reverse_inputs(
-            &race.shared.car,
-            &race.shared.physics_tables,
-            &race.course.numbers,
+            car,
+            physics_tables,
+            &course.numbers,
         );
-        crate::physics::add_drive_forces::add_drive_forces(
-            &race.shared.car,
-            &race.shared.physics_tables,
-            scene,
-        );
-        crate::physics::ease_low_speed_forces::ease_low_speed_forces(
-            &race.shared.car,
-            &race.shared.physics_tables,
-        );
+        crate::physics::add_drive_forces::add_drive_forces(car, physics_tables, scene);
+        crate::physics::ease_low_speed_forces::ease_low_speed_forces(car, physics_tables);
 
-        scale_axle_forces(&race.shared.physics_tables);
-        if race.shared.car.parts_state.get() != 0 {
-            race.shared.physics_tables.drive_forces[0].set(x87::mul(
-                &race.shared.physics_tables.drive_forces[0],
-                &race.course.numbers.half,
+        scale_axle_forces(physics_tables);
+        if car.parts_state.get() != 0 {
+            physics_tables.drive_forces[0].set(x87::mul(
+                &physics_tables.drive_forces[0],
+                &course.numbers.half,
             ));
-            race.shared.physics_tables.drive_forces[1].set(x87::mul(
-                &race.shared.physics_tables.drive_forces[1],
-                &race.course.numbers.half,
+            physics_tables.drive_forces[1].set(x87::mul(
+                &physics_tables.drive_forces[1],
+                &course.numbers.half,
             ));
         }
         slip_limit(
-            &race.shared.car,
-            &race.shared.physics_tables,
-            &race.shared.car.drive_speed_a,
-            &race.shared.physics_tables.axle_slip_limits[0],
-            &race.shared.physics_tables.drive_forces[0],
-            &race.shared.physics_tables.axle_slips[0],
+            car,
+            physics_tables,
+            &car.drive_speed_a,
+            &physics_tables.axle_slip_limits[0],
+            &physics_tables.drive_forces[0],
+            &physics_tables.axle_slips[0],
         );
         settle_slip(
-            &race.shared.car,
-            &race.shared.physics_tables,
-            &race.course.numbers,
+            car,
+            physics_tables,
+            &course.numbers,
             &SlipCells {
-                drive: &race.shared.car.drive_speed_a,
-                slip: &race.shared.physics_tables.axle_slips[0],
-                ratio: &race.shared.physics_tables.axle_slip_limits[0],
-                f1: &race.shared.physics_tables.forces[15].force[2],
-                f2: &race.shared.physics_tables.forces[16].force[2],
+                drive: &car.drive_speed_a,
+                slip: &physics_tables.axle_slips[0],
+                ratio: &physics_tables.axle_slip_limits[0],
+                f1: &physics_tables.forces[15].force[2],
+                f2: &physics_tables.forces[16].force[2],
             },
         );
         slip_limit(
-            &race.shared.car,
-            &race.shared.physics_tables,
-            &race.shared.car.drive_speed_b,
-            &race.shared.physics_tables.axle_slip_limits[1],
-            &race.shared.physics_tables.drive_forces[1],
-            &race.shared.physics_tables.axle_slips[1],
+            car,
+            physics_tables,
+            &car.drive_speed_b,
+            &physics_tables.axle_slip_limits[1],
+            &physics_tables.drive_forces[1],
+            &physics_tables.axle_slips[1],
         );
         settle_slip(
-            &race.shared.car,
-            &race.shared.physics_tables,
-            &race.course.numbers,
+            car,
+            physics_tables,
+            &course.numbers,
             &SlipCells {
-                drive: &race.shared.car.drive_speed_b,
-                slip: &race.shared.physics_tables.axle_slips[1],
-                ratio: &race.shared.physics_tables.axle_slip_limits[1],
-                f1: &race.shared.physics_tables.forces[17].force[2],
-                f2: &race.shared.physics_tables.forces[18].force[2],
+                drive: &car.drive_speed_b,
+                slip: &physics_tables.axle_slips[1],
+                ratio: &physics_tables.axle_slip_limits[1],
+                f1: &physics_tables.forces[17].force[2],
+                f2: &physics_tables.forces[18].force[2],
             },
         );
         // 0x43E707: the car-frame side speed eased by the side grip.
-        drawing
-            .scene
-            .scratch
-            .set(race.shared.car.local_velocity[0].bits());
-        ease_zero(
-            &drawing.scene.scratch,
-            &race.shared.physics_tables.drive_limits[2],
-        );
-        side_slip_forces(
-            &race.shared.car,
-            &race.shared.physics_tables,
-            &race.course.numbers,
-            scene,
-        );
+        drawing.scene.scratch.set(car.local_velocity[0].bits());
+        ease_zero(&drawing.scene.scratch, &physics_tables.drive_limits[2]);
+        side_slip_forces(car, physics_tables, &course.numbers, scene);
+        store_loaded(&physics_tables.slip_limit, &physics_tables.drive_limits[0]);
         store_loaded(
-            &race.shared.physics_tables.slip_limit,
-            &race.shared.physics_tables.drive_limits[0],
-        );
-        store_loaded(
-            &race.shared.physics_tables.wheel_spin_push[0],
-            &race.shared.physics_tables.handling[4],
+            &physics_tables.wheel_spin_push[0],
+            &physics_tables.handling[4],
         );
         let status = abs_compare(
-            race.shared.physics_tables.drive_slip[0].bits(),
-            race.shared.physics_tables.slip_limit.bits(),
+            physics_tables.drive_slip[0].bits(),
+            physics_tables.slip_limit.bits(),
         );
         if status_above(status) {
-            slip_side_share(&race.shared.physics_tables);
+            slip_side_share(physics_tables);
         }
-        spin_push_b(&race.shared.physics_tables);
-        race.shared.physics_tables.forces[10].force[0].set_bits(0);
-        race.shared.physics_tables.forces[10].force[2].set_bits(0);
+        spin_push_b(physics_tables);
+        physics_tables.forces[10].force[0].set_bits(0);
+        physics_tables.forces[10].force[2].set_bits(0);
         // 0x43E855: the rolling drag against the motion.
-        let status = speed_over_ground(&race.shared.car, &race.shared.physics_tables, scene);
+        let status = speed_over_ground(car, physics_tables, scene);
         if status_above(status) {
-            rolling_drag_forces(&race.shared.car, &race.shared.physics_tables, scene);
+            rolling_drag_forces(car, physics_tables, scene);
         }
-        if race.shared.vars.run_kind.get() != 1
-            && (race.shared.car.run_ticks.get().wrapping_sub(0x320) as i32) < 0
-        {
-            race.shared.car.drive_speed_a.set_bits(0);
-            race.shared.car.drive_speed_b.set_bits(0);
+        if vars.run_kind.get() != 1 && (car.run_ticks.get().wrapping_sub(0x320) as i32) < 0 {
+            car.drive_speed_a.set_bits(0);
+            car.drive_speed_b.set_bits(0);
         }
-        share_wheel_forces(&race.shared.physics_tables, &race.course.numbers);
-        race.shared.physics_tables.forces[19].force[0].set_bits(0);
-        race.shared.physics_tables.forces[20].force[0].set_bits(0);
+        share_wheel_forces(physics_tables, &course.numbers);
+        physics_tables.forces[19].force[0].set_bits(0);
+        physics_tables.forces[20].force[0].set_bits(0);
     }
     // 0x43E957: the wheels' slip figures.
-    slip_figure_a(&race.shared.car, &race.shared.physics_tables, scene);
+    slip_figure_a(car, physics_tables, scene);
     hold_low_bits(&drawing.scene.work_float_a, ZERO);
-    slip_figure_b(&race.shared.car, &race.shared.physics_tables, scene);
+    slip_figure_b(car, physics_tables, scene);
     hold_low_bits(&drawing.scene.work_float_b, ZERO);
-    slip_lengths(&race.shared.car, scene);
+    slip_lengths(car, scene);
     Ok(())
 }
 
@@ -371,12 +294,18 @@ fn revs(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> Result<(), Refu
     Ok(())
 }
 
-pub fn drive_wheels_step(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let gear = race.shared.car.gear.get();
+pub fn drive_wheels_step(
+    course: &Course,
+    vars: &RaceVars,
+    physics_tables: &PhysicsTables,
+    car: &Car,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    let gear = car.gear.get();
     if gear != 0 && !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
-    steps(race, scene)
+    steps(course, vars, physics_tables, car, scene)
 }
 
 // ---- the arithmetic that was x87 assembly ----

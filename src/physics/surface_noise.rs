@@ -9,7 +9,9 @@
 
 use crate::math::x87::{ext_div2, int_80};
 use crate::race::frame_draw::sample_noise;
-use crate::race::owner::Race;
+use crate::race::numbers_store::Numbers;
+use crate::race::owner_shared::RaceShared;
+use crate::race::prefs_store::StagePrefs;
 use rc2k_core::physics::ground::{noise_level, rough_floor};
 
 /// lo + (hi - lo) x sample >> 16, held to 0 ..= 0xFF.
@@ -29,37 +31,39 @@ fn sample(
 // Converted: `rc2k_core::physics::ground::{noise_level, rough_floor}` (the share / 256
 // stays x87).
 pub fn surface_noise(
-    race: &Race,
+    stage_prefs: &StagePrefs,
+    numbers: &Numbers,
+    shared: &RaceShared,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), crate::errors::BadInput> {
     {
         let first = scaled(
-            sample(&race.shared, 0x50)?,
-            race.course.stage_prefs.blit_cleared[0].get(),
-            race.course.stage_prefs.blit_cleared[1].get(),
+            sample(shared, 0x50)?,
+            stage_prefs.blit_cleared[0].get(),
+            stage_prefs.blit_cleared[1].get(),
         );
-        race.shared.car.surface_noise_a.set(first);
-        race.shared.car.surface_noise_b.set(first);
+        shared.car.surface_noise_a.set(first);
+        shared.car.surface_noise_b.set(first);
         let second = scaled(
-            sample(&race.shared, 0x20)?,
-            race.course.stage_prefs.surface_scale[0].get(),
-            race.course.stage_prefs.surface_scale[1].get(),
+            sample(shared, 0x20)?,
+            stage_prefs.surface_scale[0].get(),
+            stage_prefs.surface_scale[1].get(),
         );
-        race.shared.car.surface_noise_second.set(second);
-        let floor = rough_floor(second, race.course.stage_prefs.surface_floor.get());
+        shared.car.surface_noise_second.set(second);
+        let floor = rough_floor(second, stage_prefs.surface_floor.get());
         scene.drawing.scene.scratch.set(floor);
-        race.shared.car.surface_blend.set_bits(
+        shared.car.surface_blend.set_bits(
             ext_div2(
                 int_80(floor as i32, false),
-                race.course.numbers.k256.bits(),
+                numbers.k256.bits(),
                 0x3F80_0000,
             )
             .to_bits(),
         );
-        if race.course.stage_prefs.noise_pick.get() != 0 {
-            race.shared.car.surface_noise_a.set(0);
+        if stage_prefs.noise_pick.get() != 0 {
+            shared.car.surface_noise_a.set(0);
         } else {
-            race.shared.car.surface_noise_b.set(0);
+            shared.car.surface_noise_b.set(0);
         }
     }
     Ok(())

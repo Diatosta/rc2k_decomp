@@ -9,9 +9,6 @@
 //! One caller, `sound::car_sounds`.
 //! Refuses (before anything) a null object and a sound past the sample
 //! records.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::sound::sample_settings::{record, sample_settings};

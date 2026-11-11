@@ -1,5 +1,5 @@
-//! The audio module's variables, out of RAL.EXE's image (phase 5, `notes/conversion.md`),
-//! typed (phase 7): each block is a `#[repr(C)]` struct of cells with the image's layout
+//! The audio module's variables, out of RAL.EXE's image,
+//! typed: each block is a `#[repr(C)]` struct of cells with the image's layout
 //! (the first values the image's, `tests::*_start_as_the_games`), one static a piece, and
 //! `moved::MOVED` points the image's addresses at it:
 //! - `AudioState` (`AUDIO`, IDA 0x4F8294 .. 0x506E6C): the sound mode and volumes, the
@@ -813,7 +813,7 @@ pub struct SampleRecords {
     pub records: [Shared<SampleRecord>; SAMPLE_COUNT],
 }
 
-/// A record's `data_key` (phase 13, handles): its file's name by place in
+/// A record's `data_key`: its file's name by place in
 /// `names_store::SAMPLE_NAMES` (the original kept the name's address; 0: none). The key is
 /// also what voices sharing a sample are matched by.
 pub const fn name_key(ida: u32) -> u32 {
@@ -851,7 +851,7 @@ pub fn name_in(
     Ok(crate::pointers::GamePtr::to(names).offset(at as u32))
 }
 
-/// A record's `volume_factor` (phase 13, handles): which level its voices take (the original
+/// A record's `volume_factor`: which level its voices take (the original
 /// kept the level's address; 0: none, 0x40).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[repr(u32)]

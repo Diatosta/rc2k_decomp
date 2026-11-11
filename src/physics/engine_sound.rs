@@ -24,8 +24,9 @@ use crate::math::x87_float::to_int;
 use crate::physics::car_sound_state::car_sound_state;
 use crate::physics::car_store::Car;
 use crate::physics::gear_change_sound::gear_change_sound;
+use crate::race::matrices_store::SceneMatrices;
 use crate::race::numbers_store::Numbers;
-use crate::race::owner::Race;
+use crate::race::owner_shared::RaceShared;
 use crate::scene::matrix3::extended;
 use rc2k_core::physics::engine::ease_revs;
 use rc2k_core::physics::x87::hold_low;
@@ -63,17 +64,22 @@ fn run_at(car: &Car, numbers: &Numbers) {
 
 // Converted: `rc2k_core::physics::engine::ease_revs` and `x87::hold_low` (the speed figures
 // and the rounding stay x87).
-pub fn engine_sound(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn engine_sound(
+    numbers: &Numbers,
+    matrices: &SceneMatrices,
+    shared: &RaceShared,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let drawing = &scene.drawing;
-    if race.shared.view.players.get() == 1 && race.shared.view.view_block(0) == 0 {
+    if shared.view.players.get() == 1 && shared.view.view_block(0) == 0 {
         return Err(crate::errors::BadInput("a null view block").into());
     }
-    run(&race.shared.car, &race.course.numbers);
+    run(&shared.car, numbers);
     drawing
         .scene
         .scratch
-        .set(x87::loaded(&race.shared.car.engine_speed).to_bits());
-    let floor = race.shared.physics_tables.idle_engine_speed.bits();
+        .set(x87::loaded(&shared.car.engine_speed).to_bits());
+    let floor = shared.physics_tables.idle_engine_speed.bits();
     let held = hold_low(
         f32::from_bits(drawing.scene.scratch.get()),
         f32::from_bits(floor),
@@ -84,12 +90,12 @@ pub fn engine_sound(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
         .scratch
         .set(ext_to_int(extended(drawing.scene.scratch.get())) as u32);
     let (revs, _) = ease_revs(
-        race.shared.car.engine_sound_revs.get(),
+        shared.car.engine_sound_revs.get(),
         drawing.scene.scratch.get(),
     );
-    race.shared.car.engine_sound_revs.set(revs);
-    { car_sound_state(race) }?;
-    gear_change_sound(&race.shared.car)
+    shared.car.engine_sound_revs.set(revs);
+    { car_sound_state(numbers, matrices, shared) }?;
+    gear_change_sound(&shared.car)
 }
 
 #[cfg(all(test, target_arch = "x86"))]

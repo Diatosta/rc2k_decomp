@@ -12,7 +12,7 @@ use crate::errors::Refused;
 use crate::math::x87::{ext_to_int, int_80};
 use crate::physics::object_turn_matrix::object_turn_matrix;
 use crate::physics::point_hits_car::point_hits_car;
-use crate::race::owner::Race;
+use crate::physics::step_families::ContactInputs;
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::physics::contacts;
 
@@ -21,27 +21,25 @@ use rc2k_core::physics::contacts;
 // Converted: `rc2k_core::physics::contacts::{check_object, walk_points}` (the turns stay
 // x87).
 pub fn object_hits_car(
-    race: &Race,
+    c: &ContactInputs<'_>,
     point: u32,
     face: u32,
     scene: &crate::scene::owner::Scene,
 ) -> Result<bool, Refused> {
     let objects = &scene.objects;
-    let race_owner = race;
-    let number = race_owner.physics.contact.face_object.get();
+    let number = c.contact.face_object.get();
     contacts::check_object(number)?;
-    { object_turn_matrix(&race.physics.contact, &race.frame.matrices, scene) }?;
-    race.shared
-        .physics_tables
+    { object_turn_matrix(c.contact, c.sound.matrices, scene) }?;
+    c.tables
         .object_hits
-        .set(race.shared.physics_tables.object_hits.get().wrapping_add(1));
+        .set(c.tables.object_hits.get().wrapping_add(1));
     let count = objects.slots.point_counts[number as usize].get();
     // With no points the original skips to `clc` before it sets the result register; the
     // points' table is read only when there are some.
     let points = if count == 0 {
         0
     } else {
-        race_owner.course.lists.object_points.get()
+        c.course.lists.object_points.get()
     };
     let refused = std::cell::Cell::new(None::<Refused>);
     let walk = contacts::walk_points(
@@ -65,19 +63,19 @@ pub fn object_hits_car(
                     return false;
                 }
             };
-            let turned = rotate_point(&race_owner.frame.matrices.object_turn_matrix, [x, y, z]);
+            let turned = rotate_point(&c.sound.matrices.object_turn_matrix, [x, y, z]);
             for (k, e) in turned.iter().enumerate() {
-                race_owner.physics.contact.object_offset[k].set(ext_to_int(*e) as u32);
+                c.contact.object_offset[k].set(ext_to_int(*e) as u32);
             }
             // `point` is the scene point's number (from `face_contact`).
-            let place = match crate::race::scene_points::point_number(&race.course, point) {
+            let place = match crate::race::scene_points::point_number(c.course, point) {
                 Ok(p) => p,
                 Err(e) => {
                     refused.set(Some(e.into()));
                     return false;
                 }
             };
-            match point_hits_car(race, place, face) {
+            match point_hits_car(c, place, face) {
                 Ok(inside) => inside,
                 Err(e) => {
                     refused.set(Some(e));

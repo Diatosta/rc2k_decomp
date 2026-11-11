@@ -1,4 +1,4 @@
-//! The primary buffer made (IDA, 2026-10-15): `audio::make_primary` and its parts
+//! The primary buffer made: `audio::make_primary` and its parts
 //! `volume_index`, `set_primary_format`, `open_listener`. Logging and calls go through
 //! `sound_device`'s named calls.
 
@@ -64,9 +64,9 @@ pub fn open_listener(state: &AudioState, has_fpu: u32) -> Result<bool, Refused> 
 /// `audio::make_primary`: nothing with A3D; no DirectSound or a failed create: false (the
 /// carry). `g_bufferDescription` zeroed, size 0x14, flags 0x81 (+0x10 in 3D);
 /// `CreateSoundBuffer` into the primary; `GetVolume` (+0x18) into the kept volume;
-/// `set_primary_format` (place 10, eax the mode; its carry not looked at); a master volume
+/// `set_primary_format` (place 10, given the mode; its carry not looked at); a master volume
 /// past 0x40 becomes `volume_index` of the kept one; it is shown and set
-/// (`set_master_volume`, place 12, eax); in 3D `open_listener` (place 13), whose failure
+/// (`set_master_volume`, place 12); in 3D `open_listener` (place 13), whose failure
 /// takes 3D out of the mode.
 pub fn make_primary(state: &AudioState) -> Result<bool, Refused> {
     use crate::audio::make_buffer::BufferDescription;

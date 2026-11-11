@@ -9,19 +9,19 @@
 
 use crate::errors::Refused;
 use crate::physics::find_course_record::find_course_record;
-use crate::race::owner::Race;
+use crate::physics::step_families::ContactInputs;
 
 /// The steps for the cell of (`x`, `z`), not guarded.
 // Converted: `rc2k_core::physics::ground_search::cell_key`.
 pub fn steps(
-    race: &Race,
+    c: &ContactInputs<'_>,
     x: u32,
     z: u32,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let (key, _) = rc2k_core::physics::ground_search::cell_key(x, z);
-    let Some(record) = find_course_record(&race.course, key)? else {
+    let Some(record) = find_course_record(c.course, key)? else {
         return Ok(());
     };
-    crate::physics::record_face_contacts::steps(race, record, scene)
+    crate::physics::record_face_contacts::steps(c, record, scene)
 }

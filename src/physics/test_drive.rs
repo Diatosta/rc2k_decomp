@@ -10,37 +10,50 @@
 use crate::errors::Refused;
 use crate::physics::gear_store::GEAR;
 use crate::physics::test_drive_run;
-use crate::race::owner::Race;
+use crate::race::car_specs_store::CarSpecs;
+use crate::race::owner_course::Course;
+use crate::race::owner_shared::RaceShared;
 
-pub fn test_drive(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    crate::physics::load_car_specs::load_car_specs(race, scene)?;
+pub fn test_drive(
+    car_specs: &CarSpecs,
+    course: &Course,
+    shared: &RaceShared,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    crate::physics::load_car_specs::load_car_specs(
+        car_specs,
+        course,
+        &shared.physics_tables,
+        &shared.car,
+        scene,
+    )?;
     crate::physics::make_gear_ratios::make_gear_ratios(
-        &race.shared.car,
-        &race.shared.physics_tables,
-        &race.course.numbers,
+        &shared.car,
+        &shared.physics_tables,
+        &course.numbers,
         scene,
     )?;
     // The figures kept round the run: the drive speeds, the car's speed, the gear, the
     // engine, the gearbox kind.
     let kept = [
-        race.shared.car.drive_speed_a.bits(),
-        race.shared.car.drive_speed_b.bits(),
-        race.shared.car.local_velocity[2].bits(),
-        race.shared.car.gear.bits(),
-        race.shared.car.engine_speed.bits(),
-        race.shared.car.gearbox_kind.bits(),
+        shared.car.drive_speed_a.bits(),
+        shared.car.drive_speed_b.bits(),
+        shared.car.local_velocity[2].bits(),
+        shared.car.gear.bits(),
+        shared.car.engine_speed.bits(),
+        shared.car.gearbox_kind.bits(),
     ];
-    race.shared
+    shared
         .car
         .engine_power_factor
         .set_bits(GEAR.test_power_factor.bits());
-    test_drive_run::test_drive_run(race, scene)?;
+    test_drive_run::test_drive_run(course, shared, scene)?;
     let [a, b, speed, gear, engine, kind] = kept;
-    race.shared.car.drive_speed_a.set_bits(a);
-    race.shared.car.drive_speed_b.set_bits(b);
-    race.shared.car.local_velocity[2].set_bits(speed);
-    race.shared.car.gear.set_bits(gear);
-    race.shared.car.engine_speed.set_bits(engine);
-    race.shared.car.gearbox_kind.set_bits(kind);
+    shared.car.drive_speed_a.set_bits(a);
+    shared.car.drive_speed_b.set_bits(b);
+    shared.car.local_velocity[2].set_bits(speed);
+    shared.car.gear.set_bits(gear);
+    shared.car.engine_speed.set_bits(engine);
+    shared.car.gearbox_kind.set_bits(kind);
     Ok(())
 }

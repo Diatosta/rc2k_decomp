@@ -22,7 +22,7 @@ fn buffer(v: &Voice) -> Result<u32, Refused> {
     Ok(v.buffer)
 }
 
-/// `SetVolume` with `g_volumeTable[volume * volume_factor >> 6]` (signed). Returns eax.
+/// `SetVolume` with `g_volumeTable[volume * volume_factor >> 6]` (signed). Returns the result code.
 pub fn set_buffer_volume(state: &AudioState, v: &Voice) -> Result<i32, Refused> {
     if a3d(state) {
         return Err(BadInput("A3D (0x40CEFE)").into());
@@ -35,7 +35,7 @@ pub fn set_buffer_volume(state: &AudioState, v: &Voice) -> Result<i32, Refused> 
 }
 
 /// `SetPan`, nothing in 3D: a pan below 0 is `g_volumeTable[pan + 0x40]`, else
-/// `-g_volumeTable[0x40 - pan]`. Returns eax, or `None` where the original leaves eax.
+/// `-g_volumeTable[0x40 - pan]`. Returns the result code, or `None` where the call is not made.
 pub fn set_buffer_pan(state: &AudioState, v: &Voice) -> Result<Option<i32>, Refused> {
     if state.sound_mode.get() & MODE_3D != 0 {
         return Ok(None);

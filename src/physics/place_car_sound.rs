@@ -9,14 +9,19 @@
 
 use crate::errors::Refused;
 use crate::math::x87::{ext_times, ints_diff_80};
-use crate::race::owner::Race;
+use crate::race::matrices_store::SceneMatrices;
+use crate::race::numbers_store::Numbers;
+use crate::race::owner_shared::RaceShared;
 use crate::scene::matrix3::rounded;
 use crate::scene::rotate_point::rotate_point;
 use crate::session::Dword;
 
 /// The exact x87 version (for `physics::sound_on_bit`).
-pub fn place_car_sound(race: &Race) -> Result<(), Refused> {
-    let shared = &race.shared;
+pub fn place_car_sound(
+    numbers: &Numbers,
+    matrices: &SceneMatrices,
+    shared: &RaceShared,
+) -> Result<(), Refused> {
     let so = crate::sound::store::current_object();
     so.slot_b.start.set(1);
     let d = |a: &Dword, b: &Dword| ints_diff_80(a.get() as i32, b.get() as i32);
@@ -25,8 +30,8 @@ pub fn place_car_sound(race: &Race) -> Result<(), Refused> {
         d(&shared.car.position[1], &shared.car.camera_position[1]),
         d(&shared.car.position[2], &shared.car.camera_position[2]),
     ];
-    let out = rotate_point(crate::race::heard_turn::turn(&race.frame.matrices), p);
-    let k = race.course.numbers.one_over_65536.bits();
+    let out = rotate_point(crate::race::heard_turn::turn(matrices), p);
+    let k = numbers.one_over_65536.bits();
     for (n, e) in out.iter().enumerate() {
         so.place_b[n].set_bits(rounded(ext_times(*e, k)));
     }

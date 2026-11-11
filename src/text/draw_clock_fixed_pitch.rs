@@ -16,7 +16,7 @@ use rc2k_core::text::{CLOCK_STEPS, columns};
 /// own carry is lost there).
 pub fn draw_clock_fixed_pitch(
     font: &mut Font,
-    text: crate::pointers::GamePtr,
+    text: crate::strings::text_buffer::TextBuf,
     x: i32,
     y: i32,
     canvas: &mut dyn Canvas,
@@ -35,7 +35,7 @@ pub fn draw_clock_fixed_pitch(
 /// The same with a font object in game memory, for Rust callers.
 pub fn draw_clock_fixed_pitch_at(
     font: impl Into<crate::gfx::typefaces::FontRef>,
-    text: crate::pointers::GamePtr,
+    text: crate::strings::text_buffer::TextBuf,
     x: i32,
     y: i32,
     canvas: &mut dyn Canvas,

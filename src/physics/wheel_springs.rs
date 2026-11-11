@@ -19,9 +19,11 @@
 
 use crate::math::x87;
 use crate::math::x87::{ext_div2, int_80, mul2, neg_rounded, negated, wheel_int};
+use crate::physics::contact_store::ContactWork;
 use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::owner::Race;
+use crate::race::numbers_store::Numbers;
+use crate::race::owner_shared::RaceShared;
 use crate::scene::matrix3::extended;
 use std::cmp::Ordering;
 
@@ -34,8 +36,12 @@ fn below(x: u32, b: u32) -> bool {
 }
 
 /// The exact version, for `physics::car_physics_step`.
-pub fn wheel_springs(race: &Race, scene: &crate::scene::owner::Scene) {
-    let shared = &race.shared;
+pub fn wheel_springs(
+    contact: &ContactWork,
+    numbers: &Numbers,
+    shared: &RaceShared,
+    scene: &crate::scene::owner::Scene,
+) {
     let drawing = &scene.drawing;
     let (c, ph) = (&shared.car, &shared.physics_tables);
     for k in 0..4 {
@@ -44,12 +50,12 @@ pub fn wheel_springs(race: &Race, scene: &crate::scene::owner::Scene) {
         let old = x87::loaded(q);
         drawing.scene.work_dword.set(old.to_bits());
         c.wheel_squeeze_last[k].set_bits(old.to_bits());
-        let eax = race.physics.contact.probe_height[k].get().wrapping_neg();
+        let eax = contact.probe_height[k].get().wrapping_neg();
         drawing.scene.scratch.set(eax);
         q.set_bits(
             ext_div2(
                 int_80(eax as i32, false),
-                race.course.numbers.k65536.bits(),
+                numbers.k65536.bits(),
                 ph.handling[3].bits(),
             )
             .to_bits(),
@@ -57,8 +63,8 @@ pub fn wheel_springs(race: &Race, scene: &crate::scene::owner::Scene) {
         if below(q.bits(), ZERO) {
             q.set(x87::loaded(ZERO));
         }
-        if !below(q.bits(), race.course.numbers.one.bits()) {
-            q.set(x87::loaded(&race.course.numbers.one));
+        if !below(q.bits(), numbers.one.bits()) {
+            q.set(x87::loaded(&numbers.one));
         }
         force.set_bits(negated(mul2(q, &ph.spring_force_scale, &ph.forces[0].force[1])).to_bits());
         damping.set(x87::sub_mul(
@@ -84,7 +90,7 @@ pub fn wheel_springs(race: &Race, scene: &crate::scene::owner::Scene) {
             c.wheel_squeeze[k].bits(),
             ph.probe_share.bits(),
             ph.handling[3].bits(),
-            race.course.numbers.k65536.bits(),
+            numbers.k65536.bits(),
         ]);
         c.wheel_spring_force[k].set(v as u32);
     }

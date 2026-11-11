@@ -7,9 +7,6 @@
 //! computer's, by the callers' reading). One caller, `sound::race_turn`.
 //! Refuses (before writing) a count of 0 (the original's loop would not end) or over 8,
 //! and a null object or car.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::race;

@@ -1,4 +1,4 @@
-//! The sounds' sample data in Rust's memory (phase 12; it was the game's heap, reached by
+//! The sounds' sample data in Rust's memory (the game kept them in its heap, reached by
 //! address): the work buffer a sound file is read into (`g_sampleBuffer`, its size
 //! `g_sampleBufferSize`), the stream's header buffer (`g_streamHeader`), and the samples a
 //! voice keeps (`audio::keep_sample`, on `g_sampleMemory`'s list).

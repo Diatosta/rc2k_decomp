@@ -8,9 +8,6 @@
 //! Else, playing: +8 cleared once the clock is at or past the end (`js` on the
 //! difference). 14 callers.
 //! Refuses what the two leaves refuse, before writing.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::sound::sample_duration::sample_duration;

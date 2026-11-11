@@ -28,8 +28,9 @@ use crate::physics::car_store::Car;
 use crate::physics::gear_store::GEAR;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::car_specs_store::CarSpec;
+use crate::race::car_specs_store::CarSpecs;
 use crate::race::numbers_store::Numbers;
-use crate::race::owner::Race;
+use crate::race::owner_course::Course;
 use crate::session::{Cell32, Dword};
 use rc2k_core::physics::car_specs::{OWN_FIGURES_FROM, check_drive, gear_count, record_of};
 use std::cmp::Ordering;
@@ -43,8 +44,8 @@ fn below(a: u32, b: u32) -> bool {
 }
 
 /// The record of the work car's kind (`record_of` holds it to the last).
-fn record(race: &Race) -> &CarSpec {
-    &race.physics.car_specs.cars[record_of(race.shared.car.car_kind.get()) as usize]
+fn record<'a>(car_specs: &'a CarSpecs, car: &Car) -> &'a CarSpec {
+    &car_specs.cars[record_of(car.car_kind.get()) as usize]
 }
 
 /// The whole-number steps both versions share, after the floats: the torque curve, the
@@ -71,26 +72,24 @@ fn words(tables: &PhysicsTables, spec: &CarSpec) {
 }
 
 /// The exact version, for `physics::car_physics_step` and `physics::test_drive`.
-pub fn load_car_specs(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let course = &race.course;
-    let kind = race.shared.car.car_kind.get();
-    let spec = record(race);
+pub fn load_car_specs(
+    car_specs: &CarSpecs,
+    course: &Course,
+    physics_tables: &PhysicsTables,
+    car: &Car,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    let kind = car.car_kind.get();
+    let spec = record(car_specs, car);
     let drive = check_drive(spec.drive_kind.get())?;
-    race.shared.car.drive_kind.set(drive);
+    car.drive_kind.set(drive);
     // 0x4214A7 .. 0x421543
-    load_figures_and_shift_points(
-        &race.shared.car,
-        &race.shared.physics_tables,
-        &race.course.numbers,
-        spec,
-    );
+    load_figures_and_shift_points(car, physics_tables, &course.numbers, spec);
     if below(
-        race.shared.car.engine_speed_limit.bits(),
+        car.engine_speed_limit.bits(),
         course.numbers.thousand.bits(),
     ) {
-        race.shared
-            .car
-            .engine_speed_limit
+        car.engine_speed_limit
             .set(x87::loaded(&course.numbers.thousand));
     }
     for figure in &GEAR.figures {
@@ -98,38 +97,28 @@ pub fn load_car_specs(race: &Race, scene: &crate::scene::owner::Scene) -> Result
             figure.set(x87::loaded(&course.numbers.eight));
         }
     }
-    words(&race.shared.physics_tables, spec);
+    words(physics_tables, spec);
     // 0x4216C5 .. 0x421704
-    scale_record_ratios(&race.shared.physics_tables, &race.course.numbers, spec);
+    scale_record_ratios(physics_tables, &course.numbers, spec);
     if kind < OWN_FIGURES_FROM {
         // 0x42170D .. 0x421755
-        scale_default_ratios(&race.shared.physics_tables, &race.course.numbers);
+        scale_default_ratios(physics_tables, &course.numbers);
     }
-    race.shared
-        .physics_tables
+    physics_tables
         .spec_grip
-        .set_bits(race.shared.physics_tables.spec_default_ba0.get());
-    race.shared
-        .physics_tables
+        .set_bits(physics_tables.spec_default_ba0.get());
+    physics_tables
         .spec_grip_b
-        .set_bits(race.shared.physics_tables.spec_default_ba4.get());
-    race.shared
-        .physics_tables
+        .set_bits(physics_tables.spec_default_ba4.get());
+    physics_tables
         .spec_wheel
-        .set_bits(race.shared.physics_tables.spec_default_ba8.get());
+        .set_bits(physics_tables.spec_default_ba8.get());
     // 0x421794 .. 0x4217B2
-    scale_record_grips(&race.shared.physics_tables, spec);
+    scale_record_grips(physics_tables, spec);
     scene.drawing.scene.scratch.set(spec.scratch_value.get());
-    race.shared
-        .physics_tables
-        .downforce_spec
-        .set(spec.downforce.get());
+    physics_tables.downforce_spec.set(spec.downforce.get());
     // 0x4217CA .. 0x4217E3
-    set_rev_limits(
-        &race.shared.physics_tables,
-        &race.course.numbers,
-        drive as usize,
-    );
+    set_rev_limits(physics_tables, &course.numbers, drive as usize);
     Ok(())
 }
 

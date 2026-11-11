@@ -10,13 +10,24 @@
 
 use crate::errors::Refused;
 use crate::physics::ground::*;
-use crate::race::owner::Race;
+use crate::physics::ground_probe_store::GroundProbe;
+use crate::physics::ground_store::GroundWork;
+use crate::race::owner_course::Course;
 
 /// The carry (the registers are kept).
-pub fn ground_search(race: &Race, scene: &crate::scene::owner::Scene) -> Result<bool, Refused> {
+pub fn ground_search(
+    ground_probe: &GroundProbe,
+    ground: &GroundWork,
+    course: &Course,
+    scene: &crate::scene::owner::Scene,
+) -> Result<bool, Refused> {
     ground_search_at(
-        race,
-        &crate::physics::ground_query::GroundQuery::of_physics(race),
+        course,
+        &crate::physics::ground_query::GroundQuery::of_physics(
+            ground,
+            ground_probe,
+            &course.course,
+        ),
         scene,
     )
 }

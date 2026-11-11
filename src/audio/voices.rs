@@ -1,4 +1,4 @@
-//! The audio thread's sounds: sample records, voices and mixer channels (IDA, 2026-10-14).
+//! The audio thread's sounds: sample records, voices and mixer channels.
 //!
 //! A sound number (what `sound::play_sound` sends) picks a sample record (`SampleRecord`,
 //! 0x1CD of them at `g_sampleRecords`, 0x50A7A4). A record that is loaded points at its
@@ -11,7 +11,7 @@
 //! changes in a voice is marked in its `dirty` bits for the turn to carry out: 1 volume,
 //! 2 pan, 4 frequency, 8 place, 0x10 play, 0x20 restart.
 //!
-//! Since phase 12 a voice or a channel is named by its id, its place + 1 (the original's
+//! A voice or a channel is named by its id, its place + 1 (the original's
 //! pointers: `first_voice`, `source`, `next_copy`, `next`, a channel's `voice`, the lists),
 //! never by an address.
 
@@ -29,7 +29,7 @@ pub fn read(at: u32) -> u32 {
     crate::pointers::read_or_end::<u32>(at, "audio::voices's operand")
 }
 
-/// An id's place in a pool of `len`: ids are the place + 1 (phase 12: no addresses; 0 is
+/// An id's place in a pool of `len`: ids are the place + 1 (0 is
 /// none, as a null pointer was). 0, or one past the pool, ends the program.
 fn place_of(id: u32, len: usize, what: &'static str) -> usize {
     match (id as usize).checked_sub(1) {
@@ -168,7 +168,7 @@ pub fn store_lists(state: &AudioState, l: &rc2k_core::audio::voices::Lists) {
 
 #[cfg(test)]
 mod id_tests {
-    /// The voices and channels are named by ids since phase 12: no pointer of the image's
+    /// The voices and channels are named by ids: no pointer of the image's
     /// may point into them (it would be taken for an id).
     #[test]
     fn no_pointer_of_the_image_points_at_a_voice_or_a_channel() {

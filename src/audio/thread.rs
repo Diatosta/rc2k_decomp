@@ -1,23 +1,17 @@
 //! `audio::thread` (0x409CCE): the audio thread's routine, from its start to `ExitThread`.
 //!
-//! Out: does not return (`ExitThread(0)`)
+//! It does not return to its caller (`ExitThread(0)`).
 //!
 //! Its slot (`stru_518604`, +0xC running): already running goes straight to the end. Else
-//! running; "AUDIOTDB:START"; `CoInitialize` (gone in phase 11: no COM objects are
-//! left); `g_noAudio` set: the end. Else
+//! running; "AUDIOTDB:START"; `CoInitialize` (nothing to do here: no COM objects are
+//! used); `g_noAudio` set: the end. Else
 //! `audio::take_sample_buffer`, `audio::start` (the carry: the end), `audio::read_splash`,
 //! `audio::set_mode` with `g_menuSoundMode`, `threading::set_priority` 0xF; then a turn
 //! every 20 ms: sleep what is left of them since the last (`g_audioTurnTick`; at least 1),
-//! `audio::stream_command` and `audio::music_command` with edx 1 (ebx the last turn's
-//! tick), `audio::take_commands`, `audio::update_voices`, `audio::restore_lost` when
+//! `audio::stream_command` and `audio::music_command` with action 1 (a feed), `audio::take_commands`, `audio::update_voices`, `audio::restore_lost` when
 //! `g_soundBufferLost`, until `g_quitting` is 1. The end: `g_noAudio` 1, `audio::close_all`,
 //! `audio::free_sample_buffer`, `audio::write_splash`, `CoUninitialize`, "AUDIOTDB:QUIT",
-//! priority 0, not running, `ExitThread(0)` (the routine's return since phase 11:
-//! `sync::spawn`).
-//! ecx (and edx before the first turn) handed on to `take_commands` and `close_all` are, in
-//! the original, what `CoInitialize` and the clock's Win32 calls leave; the port
-//! hands on the entry's. Neither is read there (ecx is a volume for action 1, which does not
-//! read it; edx reaches `close_all` only when nothing plays yet, where every action stops).
+//! priority 0, not running, `ExitThread(0)` (the routine's return, in `sync::spawn`).
 
 use crate::errors::Refused;
 use crate::system::owner::system;

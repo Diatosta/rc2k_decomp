@@ -4,7 +4,7 @@
 //!
 //! See `audio/property_sets.rs`: nothing with `g_ignoreEaxSetting` or the set already there
 //! (`g_eaxProperties`); "AUD: Using EAX" logged, `g_hasEax` 1. One caller,
-//! `audio::make_buffer` with bit 0x1000000, where ebx is not always the holder (the game's
+//! `audio::make_buffer` with bit 0x1000000, where the holder value is not always a 3D buffer (the game's
 //! bug, `notes/bugs.md`: refused when no pointer).
 
 use crate::audio::property_sets::*;

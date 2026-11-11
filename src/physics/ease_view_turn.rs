@@ -7,38 +7,45 @@
 //!
 //! Caller: `physics::camera_avoid_ground`.
 
+use crate::drive::replay_frames_store::ReplayFrames;
 use crate::math::x87_float::to_int;
 use crate::math::x87_float::{int, ld};
-use crate::race::owner::Race;
+use crate::physics::camera_store::CameraWork;
+use crate::physics::car_store::Car;
 use crate::session::Cell32;
 
 /// The exact version, for `physics::camera_avoid_ground`.
-pub fn ease_view_turn(race: &Race, scene: &crate::scene::owner::Scene) {
+pub fn ease_view_turn(
+    camera: &CameraWork,
+    replay_frames: &ReplayFrames,
+    car: &Car,
+    scene: &crate::scene::owner::Scene,
+) {
     let drawing = &scene.drawing;
-    if race.replay.replay_frames.step_first.get() != 0 {
+    if replay_frames.step_first.get() != 0 {
         for share in [
-            &race.physics.camera.view_share_pitch,
-            &race.physics.camera.view_share_heading,
-            &race.physics.camera.view_share_roll,
+            &camera.view_share_pitch,
+            &camera.view_share_heading,
+            &camera.view_share_roll,
         ] {
             share.set_bits(0x3F80_0000);
         }
     }
     for (target, turn, share) in [
         (
-            &race.physics.camera.start_heading,
-            &race.shared.car.camera_heading,
-            &race.physics.camera.view_share_heading,
+            &camera.start_heading,
+            &car.camera_heading,
+            &camera.view_share_heading,
         ),
         (
-            &race.physics.camera.start_pitch,
-            &race.shared.car.camera_pitch,
-            &race.physics.camera.view_share_pitch,
+            &camera.start_pitch,
+            &car.camera_pitch,
+            &camera.view_share_pitch,
         ),
         (
-            &race.physics.camera.start_roll,
-            &race.shared.car.camera_roll_turn,
-            &race.physics.camera.view_share_roll,
+            &camera.start_roll,
+            &car.camera_roll_turn,
+            &camera.view_share_roll,
         ),
     ] {
         drawing

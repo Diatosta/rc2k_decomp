@@ -6,7 +6,7 @@
 
 use crate::audio::owner::audio;
 
-/// The Rust version: (zero, carry) as the original's `cmp` leaves them.
+/// (zero, carry) as the original's `cmp` leaves them.
 pub fn stream_playing() -> (bool, bool) {
     let playing = audio().state.sound_stream.get().playing;
     (playing == 1, playing < 1)

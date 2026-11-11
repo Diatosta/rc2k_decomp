@@ -1,5 +1,5 @@
-//! The sound module's variables, out of RAL.EXE's image (phase 5, `notes/conversion.md`),
-//! typed (phase 7): each is a `#[repr(C)]` struct of atomic cells with the image's layout
+//! The sound module's variables, out of RAL.EXE's image,
+//! typed: each is a `#[repr(C)]` struct of atomic cells with the image's layout
 //! (the first values the image's, `tests::*_start_as_the_games`), one static a piece, and
 //! `moved::MOVED` points the image's addresses at it:
 //! - `WHEEL_SURFACES` (IDA 0x4F66F1 .. 0x4F66F9): the two wheel surfaces the sound reads;
@@ -14,8 +14,7 @@
 //! - `SpotPicks` (0x517F40 .. 0x518080): the spot-voice picks and the sound kinds per spot;
 //!   `SettingsApplied` (0x518080); `SoundOptions` (0x5180F0 .. 0x518104): the kept options
 //!   (`g_tuneTurn`, `g_musicVolume` ..); `CdAudio` (0x518104 .. 0x518120). Between them in the
-//!   image, the force-feedback effects' state is `input::store::ForceFeedback`'s (split
-//!   2026-10-25).
+//!   image, the force-feedback effects' state is `input::store::ForceFeedback`'s.
 //!
 //! The sound commands go to the audio thread through `audio::store`'s queue; these are the
 //! game thread's.
@@ -24,8 +23,8 @@ use crate::race::owner::race;
 use crate::session::{Dword, Float, Word};
 
 /// `g_wheelSurfaceA`, `g_wheelSurfaceB` (IDA 0x4F66F1, 0x4F66F5): the surfaces of the wheels
-/// the first and the second of a car's two sounds follow (`sound::surface_sounds`). Split
-/// 2026-10-25 from the dwords around them: the save file's four before
+/// the first and the second of a car's two sounds follow (`sound::surface_sounds`). Kept apart
+/// from the dwords around them: the save file's four before
 /// (`saves::owner::Files::options_kept`), the race record's seal key after (`race::replay::SEAL_KEY`).
 pub static WHEEL_SURFACES: [Dword; 2] = [Dword::new(0), Dword::new(0)];
 
@@ -456,7 +455,7 @@ const fn initial_object(sound_offset: u32) -> SoundObject {
     }
 }
 
-/// The race sounds' objects and the cars they follow (IDA 0x512A10 .. 0x514F90, the image's layout; phase 7, typed state).
+/// The race sounds' objects and the cars they follow (IDA 0x512A10 .. 0x514F90, the image's layout).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct RaceSounds {
@@ -522,7 +521,7 @@ pub fn race_sounds_addr() -> u32 {
 }
 
 /// The race sounds' clock and the constants of the placed and moving sounds (IDA 0x5124E4
-/// .. 0x512508, the image's layout; phase 7, typed state).
+/// .. 0x512508, the image's layout).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct RaceClock {
@@ -573,8 +572,8 @@ pub fn race_clock_addr() -> u32 {
     crate::pointers::game_address(&raw const crate::sound::owner::SOUND.race.clock)
 }
 
-/// The surface sounds' constants and work (IDA 0x516358 .. 0x51639C, the image's layout;
-/// phase 7, typed state): the factors the engine, speed, revs and throttle sounds and the
+/// The surface sounds' constants and work (IDA 0x516358 .. 0x51639C, the image's layout):
+/// the factors the engine, speed, revs and throttle sounds and the
 /// wheel sounds scale by, and what `sound::surface_sounds` works out.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -691,7 +690,7 @@ pub struct KindRepeats {
     pub most_delay: Word,
 }
 
-/// The stage sounds' state and the shared sound spots (IDA 0x51655C .. 0x5168C0, the image's layout; phase 7, typed state).
+/// The stage sounds' state and the shared sound spots (IDA 0x51655C .. 0x5168C0, the image's layout).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct StageSounds {
@@ -784,7 +783,7 @@ pub fn stage_sounds_addr() -> u32 {
     crate::pointers::game_address(&raw const crate::sound::owner::SOUND.race.stage)
 }
 
-/// The spot voices' pickers' work and the sound kinds per spot (IDA 0x517f40 .. 0x518080, the image's layout; phase 7, typed state).
+/// The spot voices' pickers' work and the sound kinds per spot (IDA 0x517f40 .. 0x518080, the image's layout).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SpotPicks {
@@ -999,7 +998,7 @@ impl SpotPicks {
     }
 }
 
-/// Set once the kept sound settings are applied (IDA 0x518080 .. 0x518084, the image's layout; phase 7, typed state).
+/// Set once the kept sound settings are applied (IDA 0x518080 .. 0x518084, the image's layout).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SettingsApplied {
@@ -1027,7 +1026,7 @@ impl SettingsApplied {
     }
 }
 
-/// The kept sound options (IDA 0x5180f0 .. 0x518104, the image's layout; phase 7, typed state).
+/// The kept sound options (IDA 0x5180f0 .. 0x518104, the image's layout).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SoundOptions {
@@ -1066,7 +1065,7 @@ impl SoundOptions {
     }
 }
 
-/// The CD audio's state (IDA 0x518104 .. 0x518120, the image's layout; phase 7, typed state).
+/// The CD audio's state (IDA 0x518104 .. 0x518120, the image's layout).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct CdAudio {

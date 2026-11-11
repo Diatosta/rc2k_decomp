@@ -8,40 +8,48 @@
 //! `split_by_mode` refuses.
 use crate::errors::Refused;
 use crate::physics::split_by_mode::split_by_mode;
+use crate::physics::split_tables_store::SplitTables;
 use crate::physics::splits::put_split_time;
-use crate::race::owner::Race;
+use crate::race::groups_store::PanelAndOverlay;
+use crate::race::league_store::League;
+use crate::race::owner_shared::RaceShared;
 use rc2k_core::physics::progress::{FINISH_NOTICE, finished_at, split_due};
 
 // Converted: `rc2k_core::physics::progress::{split_due, finished_at}`.
-pub fn take_split(race: &Race) -> Result<(), Refused> {
-    if race.shared.car.finish_flag.get() != 0 {
+pub fn take_split(
+    split_tables: &SplitTables,
+    league: &League,
+    panel_and_overlay: &PanelAndOverlay,
+    shared: &RaceShared,
+) -> Result<(), Refused> {
+    if shared.car.finish_flag.get() != 0 {
         return Ok(());
     }
     if !split_due(
-        race.shared.car.splits_recorded.get(),
-        race.shared.car.splits_passed.get(),
+        shared.car.splits_recorded.get(),
+        shared.car.splits_passed.get(),
     )? {
         return Ok(());
     }
-    split_by_mode(race)?;
+    split_by_mode(split_tables, league, panel_and_overlay, shared)?;
     put_split_time(
-        &race.shared.car,
-        race.shared.car.splits_recorded.get() as usize,
-        race.shared.car.split_gaps[0].get(),
+        &shared.car,
+        shared.car.splits_recorded.get() as usize,
+        shared.car.split_gaps[0].get(),
     )?;
-    race.shared
+    shared
         .car
         .splits_recorded
-        .set(race.shared.car.splits_passed.get());
+        .set(shared.car.splits_passed.get());
     if finished_at(
-        race.shared.car.splits_recorded.get(),
-        race.physics.split_tables.split_colour_count.get(),
+        shared.car.splits_recorded.get(),
+        split_tables.split_colour_count.get(),
     ) {
-        race.shared.car.finish_flag.set(1);
-        race.shared.car.started_stand_timer.set(0);
-        race.shared.car.notice_id.set(FINISH_NOTICE);
-        race.shared.car.notice_time.set(u32::MAX);
-        race.shared.car.notice_time_b.set(0);
+        shared.car.finish_flag.set(1);
+        shared.car.started_stand_timer.set(0);
+        shared.car.notice_id.set(FINISH_NOTICE);
+        shared.car.notice_time.set(u32::MAX);
+        shared.car.notice_time_b.set(0);
     }
     Ok(())
 }

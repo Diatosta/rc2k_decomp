@@ -14,8 +14,8 @@
 //! the voices the mix ended.
 //! Refuses, before anything: lists without their end; a playing voice without a channel; no
 //! mixing rate with a frequency to set (the original divides by 0); and a voice whose
-//! volume or pan changes while its sound has ended: the original's ebx (the list's link)
-//! then holds the pan, and it writes the link through it (section 16).
+//! volume or pan changes while its sound has ended: the original then mistakes the pan for
+//! the list's link and writes the link through it (section 16).
 
 use crate::audio::owner::Audio;
 use crate::audio::store::AudioState;

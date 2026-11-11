@@ -15,9 +15,9 @@
 //! room); what `place_sound_object` refuses (its writes put back).
 
 use crate::errors::{BadInput, Refused};
-use crate::race::owner::Race;
+use crate::physics::contact_store::ContactWork;
+use crate::physics::step_families::ContactInputs;
 use crate::race::owner_course::Course;
-use crate::race::owner_physics::Physics;
 
 use crate::math::next_random::next_random;
 use crate::physics::flow::{c0, p};
@@ -27,26 +27,28 @@ use rc2k_core::drive::lit_faces::{LIST_ROOM, Touch, fall_mark, lucky, touch};
 /// The usual marks: +9 = 0, +0x11 = `mark`, +0x13 = 0, +0x12 `face_angle`'s low byte.
 fn mark(
     course: &Course,
-    physics: &Physics,
+    contact: &ContactWork,
     face: u32,
     mark: u32,
     clear_9: bool,
 ) -> Result<(), BadInput> {
-    let angle = physics.contact.face_angle.get() as u8;
+    let angle = contact.face_angle.get() as u8;
     crate::race::course_places::update_face_number(course, face, |f| {
         f.touch(mark as u8, angle, clear_9);
     })
 }
 
 // Converted: `rc2k_core::drive::lit_faces::{touch, fall_mark, lucky}`.
-pub fn touch_face(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let race_owner = race;
-    let number = race_owner.physics.contact.face_number.get();
+pub fn touch_face(
+    c: &ContactInputs<'_>,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    let number = c.contact.face_number.get();
     let face = number;
-    if crate::race::course_places::face_number(&race.course, face)?.mark() != 0 {
+    if crate::race::course_places::face_number(c.course, face)?.mark() != 0 {
         return Ok(());
     }
-    let count = race_owner.physics.contact.lit_face_count.get();
+    let count = c.contact.lit_face_count.get();
     if count == LIST_ROOM {
         return Ok(());
     }
@@ -54,43 +56,37 @@ pub fn touch_face(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(),
         return Err(BadInput("g_litFaceCount past 0x100 (the list's room)").into());
     }
     (|| -> Result<(), crate::errors::Refused> {
-        p(
-            &race_owner.physics.contact.lit_faces[count as usize],
-            number,
-        );
-        let kind = race_owner.physics.contact.contact_kind.get();
+        p(&c.contact.lit_faces[count as usize], number);
+        let kind = c.contact.contact_kind.get();
         match touch(kind) {
             Touch::MarkIfFast => {
-                if c0(
-                    race.shared.car.speed.bits(),
-                    race_owner.course.numbers.eight.bits(),
-                ) {
+                if c0(c.car.speed.bits(), c.numbers.eight.bits()) {
                     return Ok(());
                 }
-                mark(&race.course, &race.physics, face, 1, true)?;
+                mark(c.course, c.contact, face, 1, true)?;
             }
-            Touch::Mark => mark(&race.course, &race.physics, face, 1, true)?,
+            Touch::Mark => mark(c.course, c.contact, face, 1, true)?,
             Touch::Fall => mark(
-                &race.course,
-                &race.physics,
+                c.course,
+                c.contact,
                 face,
-                fall_mark(race_owner.physics.contact.face_speed.get()),
+                fall_mark(c.contact.face_speed.get()),
                 false,
             )?,
             Touch::Chance => {
                 let (_, lucky) = lucky(next_random());
                 if lucky {
-                    crate::race::course_places::update_face_number(&race.course, face, |f| {
+                    crate::race::course_places::update_face_number(c.course, face, |f| {
                         f.set_mark(0xF);
                     })?;
-                    race_owner.physics.contact.lit_face_count.set(count + 1);
+                    c.contact.lit_face_count.set(count + 1);
                 }
                 return Ok(());
             }
             Touch::Sound => {}
         }
-        { place_sound_object(race, scene) }?;
-        race_owner.physics.contact.lit_face_count.set(count + 1);
+        { place_sound_object(&c.sound, scene) }?;
+        c.contact.lit_face_count.set(count + 1);
         Ok(())
     })()
 }

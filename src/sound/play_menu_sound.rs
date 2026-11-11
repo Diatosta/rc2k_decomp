@@ -1,12 +1,12 @@
 //! `sound::play_menu_sound` (0x40F059): plays one of the menus' sounds.
 //!
-//! Nothing for eax = 0, and nothing before the time kept in `dword_511B0C` (125 ms after
+//! Nothing for no sound bits (0), and nothing before the time kept in `dword_511B0C` (125 ms after
 //! the last sound; compared by the sign of the difference). The time is moved on before
 //! the bits are looked at. The first bit set of these, in this order, picks the sound
 //! and the volume it is played at:
 //! 0x80 sound 0xE4 at `dword_755694`; 0x10, 0x20, 0x40 sounds 0x163, 0x197, 0x1CB at
 //! `dword_7554E8`; 0x100, 8, 2, 4, 1 sounds 0x1CC, 0x1CA, 0x1C8, 0x1C9, 0x1C7 at
-//! `dword_755690`. Then `sound::play_sound` with edx = 0xFFFFFF91 and ecx, edi, ebp = 0.
+//! `dword_755690`. Then `sound::play_sound` with the sample's own rate (0xFFFFFF91) and no place.
 //! 25 callers (1 is the highlight's click, 2 Enter's sound: `menu::handle_keys`).
 
 use crate::session::Dword;

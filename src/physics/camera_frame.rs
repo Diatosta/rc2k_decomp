@@ -13,45 +13,46 @@ use crate::math::x87_float::int;
 use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
 use crate::physics::flow::{hold_high, hold_low, negate};
+use crate::physics::step_families::CameraInputs;
 use crate::race::numbers_store::Numbers;
-use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 
 // Converted: `rc2k_core::physics::camera_view::shakes` (the x87 steps stay).
-fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     scene.lights.state.camera_shake_listener.set_bits(0);
     scene.lights.state.camera_shake_y.set(0);
-    if rc2k_core::physics::camera_view::shakes(
-        race.shared.car.camera_view.get(),
-        race.shared.car.all_wheels_off.get(),
-    ) {
-        x87_1(&race.shared, scene);
+    if rc2k_core::physics::camera_view::shakes(c.car.camera_view.get(), c.car.all_wheels_off.get())
+    {
+        x87_1(c.shared, scene);
         hold_high(
             &scene.lights.state.camera_shake_y,
-            &race.shared.physics_tables.camera_frame_limit,
+            &c.tables.camera_frame_limit,
         );
-        negate(&race.shared.physics_tables.camera_frame_limit);
+        negate(&c.tables.camera_frame_limit);
         hold_low(
             &scene.lights.state.camera_shake_y,
-            &race.shared.physics_tables.camera_frame_limit,
+            &c.tables.camera_frame_limit,
         );
-        negate(&race.shared.physics_tables.camera_frame_limit);
+        negate(&c.tables.camera_frame_limit);
         scene
             .drawing
             .scene
             .scratch
             .set(crate::math::next_random::next_random());
-        x87_2(&race.course.numbers, scene);
-        if race.physics.split_tables.still.get() != 0 {
+        x87_2(c.numbers, scene);
+        if c.split_tables.still.get() != 0 {
             scene.lights.state.camera_shake_y.set(0);
             scene.lights.state.camera_shake_listener.set_bits(0);
         }
     }
-    crate::physics::update_camera::steps(race, scene)
+    crate::physics::update_camera::steps(c, scene)
 }
 
-pub fn camera_frame(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    steps(race, scene)
+pub fn camera_frame(
+    c: &CameraInputs<'_>,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    steps(c, scene)
 }
 
 // ---- the arithmetic that was x87 assembly ----

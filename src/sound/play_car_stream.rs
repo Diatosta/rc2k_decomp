@@ -2,7 +2,7 @@
 //!
 //! The car (as `menu::load_car_background` finds it, 0x21 counting as 0x17):
 //! `dword_A8C188` = 1, `dword_A8C184` = `off_75A31E[car]`, `dword_A8C180` = 0, and
-//! `sound::start_stream` with eax = the first dword there and ecx = `dword_755698`.
+//! `sound::start_stream` with the name (the first dword there) and the volume `dword_755698`.
 //! Five call sites, next to `load_car_background`'s.
 //! Refuses what the record's lookup refuses.
 

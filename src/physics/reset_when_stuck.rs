@@ -6,12 +6,15 @@
 //! refuses.
 
 use crate::errors::Refused;
-use crate::race::owner::Race;
+use crate::physics::step_inputs::StepInputs;
 use rc2k_core::physics::start::stuck_tick;
 
 // Converted: `rc2k_core::physics::start::stuck_tick`.
-pub fn reset_when_stuck(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let shared = &race.shared;
+pub fn reset_when_stuck(
+    c: &StepInputs<'_>,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    let shared = c.shared;
     let mode: u32 = shared.car.driver_kind.bits();
     let mut stuck = if mode == 2 || mode == 0 {
         0
@@ -21,7 +24,7 @@ pub fn reset_when_stuck(race: &Race, scene: &crate::scene::owner::Scene) -> Resu
     let reset = stuck_tick(mode, &mut stuck);
     shared.car.stuck_count.set(stuck);
     if reset {
-        crate::physics::reset_car::reset_car(race, scene)?;
+        crate::physics::reset_car::reset_car(c, scene)?;
     }
     Ok(())
 }

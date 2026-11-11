@@ -3,12 +3,17 @@
 //! Caller: `physics::car_physics_step` (0x43B7B2), every physics step.
 
 use crate::physics::free_rev::free_rev;
-use crate::race::owner::Race;
+use crate::race::owner_course::Course;
+use crate::race::owner_shared::RaceShared;
 
 /// The exact version, for `physics::car_physics_step`.
-pub fn free_rev_in_neutral(race: &Race, scene: &crate::scene::owner::Scene) {
-    if race.shared.car.gear.get() != 0 {
+pub fn free_rev_in_neutral(
+    course: &Course,
+    shared: &RaceShared,
+    scene: &crate::scene::owner::Scene,
+) {
+    if shared.car.gear.get() != 0 {
         return;
     }
-    free_rev(race, scene);
+    free_rev(course, shared, scene);
 }

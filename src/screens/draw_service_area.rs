@@ -86,7 +86,7 @@ pub fn draw_service_area(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool,
     if title.len() > TEXT_LEN {
         return Err(BadInput("the title is longer than the text buffer").into());
     }
-    text_at().write_bytes(&title, "the title")?;
+    text_at().write_at(0, &title, "the title")?;
     let (x, y) = AREA_TITLE_AT;
     draw_text_at(font_of(AreaFont::Title), &title, x, y, canvas)?;
 

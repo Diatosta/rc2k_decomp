@@ -18,9 +18,11 @@ use crate::math::x87::mul;
 use crate::math::x87_float::to_int;
 use crate::math::x87_float::{int, ld};
 use crate::physics::contact_force::contact_force;
+use crate::physics::contact_store::ContactWork;
 use crate::physics::flow::{ZERO_BITS as ZERO, copy_cells};
+use crate::physics::step_families::ContactInputs;
+use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
-use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use rc2k_core::physics::walls;
 
@@ -36,78 +38,73 @@ fn corners(course: &Course, face: u32) -> Result<[u32; 4], Refused> {
 /// `wall_heading`; (0, 0, 1) turned by it (`math::rotate_float_point_about_y`) goes into
 /// `contact_normal`. Returns the leftover register values of the original's code.
 pub fn edge_normal(
-    race: &Race,
+    contact: &ContactWork,
+    course: &Course,
+    physics_tables: &PhysicsTables,
     first: u32,
     second: u32,
     scene: &crate::scene::owner::Scene,
 ) -> Result<[u32; 4], Refused> {
     let drawing = &scene.drawing;
-    let race_owner = race;
-    let course = &race.course;
     let rd = |n: u32, k: u32| crate::race::scene_points::point_word(course, n, k);
-    race.shared.physics_tables.edge_points[0].set(rd(first, 0)?);
-    race.shared.physics_tables.edge_points[1].set(rd(first, 2)?);
-    race.shared.physics_tables.edge_points[2].set(rd(second, 0)?);
-    race.shared.physics_tables.edge_points[3].set(rd(second, 2)?);
-    let dx = race.shared.physics_tables.edge_points[2]
+    physics_tables.edge_points[0].set(rd(first, 0)?);
+    physics_tables.edge_points[1].set(rd(first, 2)?);
+    physics_tables.edge_points[2].set(rd(second, 0)?);
+    physics_tables.edge_points[3].set(rd(second, 2)?);
+    let dx = physics_tables.edge_points[2]
         .get()
-        .wrapping_sub(race.shared.physics_tables.edge_points[0].get());
-    let dz = race.shared.physics_tables.edge_points[3]
+        .wrapping_sub(physics_tables.edge_points[0].get());
+    let dz = physics_tables.edge_points[3]
         .get()
-        .wrapping_sub(race.shared.physics_tables.edge_points[1].get());
+        .wrapping_sub(physics_tables.edge_points[1].get());
     let d = [dx, dz];
-    x87_1(&race.course.numbers, d, scene);
+    x87_1(&course.numbers, d, scene);
     drawing
         .scene
         .scratch
         .set(drawing.scene.scratch.get() & 0xFFFF);
     let heading = (drawing.scene.scratch.get() << 16).wrapping_add(0x4000_0000);
-    race.shared.physics_tables.wall_heading.set(heading);
-    let out =
-        { rotate_float_point_about_y(ZERO, ZERO, race_owner.course.numbers.one.bits(), heading) };
-    race_owner.physics.contact.contact_normal[0].set_bits(out[0]);
-    race_owner.physics.contact.contact_normal[1].set_bits(out[1]);
-    race_owner.physics.contact.contact_normal[2].set_bits(out[2]);
+    physics_tables.wall_heading.set(heading);
+    let out = { rotate_float_point_about_y(ZERO, ZERO, course.numbers.one.bits(), heading) };
+    contact.contact_normal[0].set_bits(out[0]);
+    contact.contact_normal[1].set_bits(out[1]);
+    contact.contact_normal[2].set_bits(out[2]);
     Ok(out)
 }
 
 /// The steps, not guarded.
 // Converted: `rc2k_core::physics::walls::shared_edge` (the edge's heading stays x87).
-pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let face_corners = corners(&race.course, race.physics.contact.wall_face_now.get())?;
-    let wall_corners = corners(&race.course, race.physics.contact.wall_face_before.get())?;
+pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    let face_corners = corners(c.course, c.contact.wall_face_now.get())?;
+    let wall_corners = corners(c.course, c.contact.wall_face_before.get())?;
     let (shared, to, from) = walls::shared_edge(|j| wall_corners[j], face_corners);
     if !shared {
-        return crate::physics::wall_push_back::steps(race, scene);
+        return crate::physics::wall_push_back::steps(c, scene);
     }
     // 0x45DA9E: along the edge.
-    let n = race.physics.contact.probe_index.get();
+    let n = c.contact.probe_index.get();
     walls::check_probe(n)?;
-    race.physics.contact.wall_edge_from.set(from);
-    race.physics.contact.wall_edge_to.set(to);
-    edge_normal(race, to, from, scene)?;
-    copy_cells(
-        &race.physics.contact.contact_car_speed,
-        &race.shared.car.velocity,
-    );
-    copy_cells(
-        &race.physics.contact.contact_turn_speed,
-        &race.shared.car.spin,
-    );
+    c.contact.wall_edge_from.set(from);
+    c.contact.wall_edge_to.set(to);
+    edge_normal(c.contact, c.course, c.tables, to, from, scene)?;
+    copy_cells(&c.contact.contact_car_speed, &c.car.velocity);
+    copy_cells(&c.contact.contact_turn_speed, &c.car.spin);
     let n = n as usize;
-    race.physics.contact.contact_point[0].set_bits(race.physics.contact.probe_turned_x[n].bits());
-    race.physics.contact.contact_point[1].set_bits(race.physics.contact.probe_turned_y[n].bits());
-    race.physics.contact.contact_point[2].set_bits(race.physics.contact.probe_turned_z[n].bits());
-    race.physics.contact.contact_point[1].set_bits(
-        mul(
-            &race.physics.contact.contact_point[1],
-            &race.course.numbers.tenth,
-        )
-        .to_bits(),
+    c.contact.contact_point[0].set_bits(c.contact.probe_turned_x[n].bits());
+    c.contact.contact_point[1].set_bits(c.contact.probe_turned_y[n].bits());
+    c.contact.contact_point[2].set_bits(c.contact.probe_turned_z[n].bits());
+    c.contact.contact_point[1]
+        .set_bits(mul(&c.contact.contact_point[1], &c.numbers.tenth).to_bits());
+    c.contact.contact_slide_limit.set_bits(0);
+    contact_force(
+        c.contact,
+        c.numbers,
+        c.tables,
+        c.car,
+        &c.tables.contacts[4],
+        scene,
     );
-    race.physics.contact.contact_slide_limit.set_bits(0);
-    contact_force(race, &race.shared.physics_tables.contacts[4], scene);
-    { crate::physics::place_sound_e1::place_sound_e1(race) }?;
+    { crate::physics::place_sound_e1::place_sound_e1(&c.sound) }?;
     Ok(())
 }
 

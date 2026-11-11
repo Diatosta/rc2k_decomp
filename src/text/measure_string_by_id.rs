@@ -6,7 +6,7 @@
 
 use crate::errors::Refused;
 use crate::gfx::typefaces::FontRef;
-use crate::pointers::GamePtr;
+use crate::strings::text_buffer::TextBuf;
 use crate::strings::text_from_ids::text_at;
 use crate::text::draw_string_by_id::string_text;
 use crate::text::draw_text::Canvas;
@@ -19,11 +19,11 @@ pub fn measure_string_by_id(
     id: u32,
     font: &mut Font,
     x: i32,
-    buffer: GamePtr,
+    buffer: TextBuf,
     canvas: &mut dyn Canvas,
 ) -> Result<Measured, Refused> {
     let bytes = string_text(id)?;
-    buffer.write_bytes(&bytes, "the text buffer")?;
+    buffer.write_at(0, &bytes, "the text buffer")?;
     measure_text(font, &bytes, x, canvas)
 }
 

@@ -7,10 +7,9 @@
 //! `audio::sample_mode` on `g_soundMode`; `audio::prepare_sample`; `audio::keep_sample`;
 //! `audio::make_buffer` and `audio::fill_buffer` (their carries not looked at); the
 //! voice's flags get `LOADED`. After each entry of the list, `g_quitting` 1 ends it. The
-//! callees get the registers the original has at each call (ebx the record, esi the voice,
-//! eax the shared voice or the mode): `make_buffer` hands ebx on to the EAX set-up. One
-//! caller, `audio::take_commands`. Plain since 2026-10-23 (phase 3): each callee gets
-//! what it reads.
+//! callees get the record, the voice and the shared voice or the mode; `make_buffer` gets
+//! the record's place as the holder value its EAX set-up reads through. One
+//! caller, `audio::take_commands`.
 //! Refuses, before anything is done: a list without its -1 within 0x1000 entries, or with
 //! a sound of 0x1CD or more; A3D.
 
@@ -22,15 +21,15 @@ use crate::sound::sets_store::{MenuSounds, RaceSoundSets};
 use crate::system::owner::system;
 use rc2k_core::audio::commands::SoundList;
 
-/// The core's loader: each step the port of the original's callee, with what it
-/// reads (the record, the voice, the shared voice or the mode; `make_buffer` the record as
-/// its ebx, which the EAX set-up reads through).
+/// The core's loader: each step is one of the original's callees, given what it reads (the
+/// record, the voice, the shared voice or the mode; `make_buffer` the record's place as the
+/// holder value its EAX set-up reads through).
 struct GameLoader<'a> {
     audio: &'a Audio,
 }
 
 impl GameLoader<'_> {
-    /// The record's place, which the callees take for their ebx.
+    /// The record's place, which `make_buffer` takes as its holder value.
     fn record_at(&self, sound: u32) -> u32 {
         self.audio.sample_records.records[sound as usize].addr()
     }

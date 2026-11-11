@@ -18,7 +18,7 @@ pub const CELL_OFFSET: usize = 0x40;
 /// Returns whether the last character was too wide: the carry flag.
 pub fn draw_time_fixed_pitch(
     font: &mut Font,
-    text: crate::pointers::GamePtr,
+    text: crate::strings::text_buffer::TextBuf,
     x: i32,
     y: i32,
     canvas: &mut dyn Canvas,
@@ -34,18 +34,17 @@ pub fn draw_time_fixed_pitch(
 
 /// Copies the text's byte `i` to its cell with a NUL after it (the buffer keeps the cell, as
 /// the original's) and returns the cell, which is what is drawn.
-pub fn put_cell(text: crate::pointers::GamePtr, i: usize) -> Result<[u8; 2], Refused> {
-    let b = text.offset(i as u32).read::<u8>("a fixed-pitch text")?;
+pub fn put_cell(text: crate::strings::text_buffer::TextBuf, i: usize) -> Result<[u8; 2], Refused> {
+    let b = text.byte(i, "a fixed-pitch text")?;
     let cell = [b, 0];
-    text.offset(CELL_OFFSET as u32)
-        .write_bytes(&cell, "a fixed-pitch text's cell")?;
+    text.write_at(CELL_OFFSET, &cell, "a fixed-pitch text's cell")?;
     Ok(cell)
 }
 
 /// The same with a font object in game memory, for Rust callers.
 pub fn draw_time_fixed_pitch_at(
     font: impl Into<crate::gfx::typefaces::FontRef>,
-    text: crate::pointers::GamePtr,
+    text: crate::strings::text_buffer::TextBuf,
     x: i32,
     y: i32,
     canvas: &mut dyn Canvas,

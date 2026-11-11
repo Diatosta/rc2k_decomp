@@ -17,86 +17,97 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87_float::int;
 use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
+use crate::physics::car_store::Car;
 use crate::physics::flow::c0;
 use crate::physics::gear_store::GEAR;
-use crate::race::owner::Race;
+use crate::physics::tables_store::PhysicsTables;
+use crate::race::numbers_store::Numbers;
+use crate::race::owner_course::Course;
+use crate::race::owner_shared::RaceShared;
 use crate::session::Float;
 
 pub const STEPS: u32 = 0x1388;
 
 /// One step (0x42189D ..).
-fn step(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    race.shared.car.local_velocity[2].set(crate::math::x87::loaded(&race.shared.car.drive_speed_a));
-    crate::physics::count_down_timers::count_down_timers(&race.shared.car, &race.shared.vars);
-    crate::physics::gearbox_step::gearbox_step(race, scene)?;
-    crate::physics::engine_torque::engine_torque(race, scene);
-    let gear = race.shared.car.gear.get();
+fn step(
+    course: &Course,
+    shared: &RaceShared,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    shared.car.local_velocity[2].set(crate::math::x87::loaded(&shared.car.drive_speed_a));
+    crate::physics::count_down_timers::count_down_timers(&shared.car, &shared.vars);
+    crate::physics::gearbox_step::gearbox_step(&course.numbers, shared, scene)?;
+    crate::physics::engine_torque::engine_torque(course, shared, scene);
+    let gear = shared.car.gear.get();
     if !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
     x87_1(
-        race,
-        &race.shared.physics_tables.gear_ratios[gear.wrapping_add(1) as usize],
+        &shared.physics_tables,
+        &course.numbers,
+        &shared.physics_tables.gear_ratios[gear.wrapping_add(1) as usize],
     );
     crate::physics::drive_torque_share::drive_torque_share(
-        &race.shared.car,
-        &race.shared.physics_tables,
-        &race.course.numbers,
+        &shared.car,
+        &shared.physics_tables,
+        &course.numbers,
         scene,
     );
-    x87_2(race, scene);
+    x87_2(&shared.car, &shared.physics_tables, &course.numbers, scene);
     {
         crate::physics::revs_from_wheels::revs_from_wheels(
-            &race.shared.car,
-            &race.shared.physics_tables,
-            &race.course.numbers,
+            &shared.car,
+            &shared.physics_tables,
+            &course.numbers,
         )
     }?;
     Ok(())
 }
 
-fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+fn steps(
+    course: &Course,
+    shared: &RaceShared,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     for mark in &GEAR.test_marks {
         mark.set(0);
     }
-    race.shared.car.drive_speed_a.set_bits(0);
-    race.shared.car.drive_speed_b.set_bits(0);
-    race.shared.car.engine_speed.set_bits(0);
-    race.shared.car.gear.set(1);
-    race.shared.car.gearbox_kind.set(1);
+    shared.car.drive_speed_a.set_bits(0);
+    shared.car.drive_speed_b.set_bits(0);
+    shared.car.engine_speed.set_bits(0);
+    shared.car.gear.set(1);
+    shared.car.gearbox_kind.set(1);
     for n in 0..STEPS {
-        step(race, scene)?;
+        step(course, shared, scene)?;
         if GEAR.test_marks[0].get() == 0
-            && !c0(
-                race.shared.car.drive_speed_a.bits(),
-                GEAR.test_limits[0].bits(),
-            )
+            && !c0(shared.car.drive_speed_a.bits(), GEAR.test_limits[0].bits())
         {
             GEAR.test_marks[0].set(n);
         }
         if GEAR.test_marks[1].get() == 0
-            && !c0(
-                race.shared.car.drive_speed_a.bits(),
-                GEAR.test_limits[1].bits(),
-            )
+            && !c0(shared.car.drive_speed_a.bits(), GEAR.test_limits[1].bits())
         {
             GEAR.test_marks[1].set(n);
         }
         if n % 20 == 0 {
             let slot = (n / 20) as usize;
             GEAR.test_speeds[slot].set(crate::math::x87::mul(
-                &race.shared.car.drive_speed_a,
-                &race.course.numbers.two_and_a_quarter,
+                &shared.car.drive_speed_a,
+                &course.numbers.two_and_a_quarter,
             ));
-            GEAR.test_gears[slot].set(race.shared.car.gear.get());
+            GEAR.test_gears[slot].set(shared.car.gear.get());
         }
     }
-    x87_3(race);
+    x87_3(&shared.car, &course.numbers);
     Ok(())
 }
 
-pub fn test_drive_run(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    steps(race, scene)
+pub fn test_drive_run(
+    course: &Course,
+    shared: &RaceShared,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    steps(course, shared, scene)
 }
 
 // ---- the arithmetic that was x87 assembly ----
@@ -104,15 +115,15 @@ pub fn test_drive_run(race: &Race, scene: &crate::scene::owner::Scene) -> Result
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[drive_torque] = (([engine_force] * [drive_torque_figure]) / [r + 0]) / [k10000]`
-fn x87_1(race: &Race, r: &Float) {
-    let t0 = ld(race.shared.physics_tables.engine_force.bits());
+fn x87_1(tables: &PhysicsTables, numbers: &Numbers, r: &Float) {
+    let t0 = ld(tables.engine_force.bits());
     let t1 = ld(GEAR.drive_torque_figure.bits());
     let t2 = t0 * t1;
     let t3 = ld(r.bits());
     let t4 = t2 / t3;
-    let t5 = ld(race.course.numbers.k10000.bits());
+    let t5 = ld(numbers.k10000.bits());
     let t6 = t4 / t5;
-    race.shared.physics_tables.drive_torque.set_bits(st(t6));
+    tables.drive_torque.set_bits(st(t6));
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -120,25 +131,25 @@ fn x87_1(race: &Race, r: &Float) {
 /// `[scratch] = -(((([drive_speed_a] * [drive_speed_a]) * [air_drag]) / [k10000]) + [rolling_drag])`
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 /// (a long formula: see the instructions in the tests' `asm_reference`)
-fn x87_2(race: &Race, scene: &crate::scene::owner::Scene) {
-    let t0 = ld(race.shared.car.drive_speed_a.bits());
+fn x87_2(car: &Car, tables: &PhysicsTables, numbers: &Numbers, scene: &crate::scene::owner::Scene) {
+    let t0 = ld(car.drive_speed_a.bits());
     let t1 = t0 * t0;
-    let t2 = ld(race.shared.physics_tables.air_drag.bits());
+    let t2 = ld(tables.air_drag.bits());
     let t3 = t1 * t2;
-    let t4 = ld(race.course.numbers.k10000.bits());
+    let t4 = ld(numbers.k10000.bits());
     let t5 = t3 / t4;
-    let t6 = ld(race.shared.physics_tables.rolling_drag.bits());
+    let t6 = ld(tables.rolling_drag.bits());
     let t7 = t5 + t6;
     let t8 = -t7;
     scene.drawing.scene.scratch.set_bits(st(t8));
-    let t9 = ld(race.shared.physics_tables.drive_torque.bits());
+    let t9 = ld(tables.drive_torque.bits());
     let t10 = t8 + t9;
-    let t11 = ld(race.shared.physics_tables.step_time.bits());
+    let t11 = ld(tables.step_time.bits());
     let t12 = t10 * t11;
-    let t13 = ld(race.shared.car.drive_speed_a.bits());
+    let t13 = ld(car.drive_speed_a.bits());
     let t14 = t12 + t13;
-    race.shared.car.drive_speed_a.set_bits(st(t14));
-    race.shared.car.drive_speed_b.set_bits(st(t14));
+    car.drive_speed_a.set_bits(st(t14));
+    car.drive_speed_b.set_bits(st(t14));
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -146,17 +157,17 @@ fn x87_2(race: &Race, scene: &crate::scene::owner::Scene) {
 /// `[rc + 0x1CB984] = [drive_speed_a] * [two_and_a_quarter]`
 /// `[test_marks] = int [test_marks] / [hundred]`
 /// `[rc + 0x1CB980] = int [rc + 0x1CB980] / [hundred]`
-fn x87_3(race: &Race) {
-    let t0 = ld(race.shared.car.drive_speed_a.bits());
-    let t1 = ld(race.course.numbers.two_and_a_quarter.bits());
+fn x87_3(car: &Car, numbers: &Numbers) {
+    let t0 = ld(car.drive_speed_a.bits());
+    let t1 = ld(numbers.two_and_a_quarter.bits());
     let t2 = t0 * t1;
     GEAR.test_marks[2].set_bits(st(t2));
     let t3 = int(GEAR.test_marks[0].bits() as i32);
-    let t4 = ld(race.course.numbers.hundred.bits());
+    let t4 = ld(numbers.hundred.bits());
     let t5 = t3 / t4;
     GEAR.test_marks[0].set_bits(st(t5));
     let t6 = int(GEAR.test_marks[1].bits() as i32);
-    let t7 = ld(race.course.numbers.hundred.bits());
+    let t7 = ld(numbers.hundred.bits());
     let t8 = t6 / t7;
     GEAR.test_marks[1].set_bits(st(t8));
 }
@@ -189,7 +200,13 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1]) },
-                plain: |a| x87_1(race(), view(a[1], 0)),
+                plain: |a| {
+                    x87_1(
+                        &race().shared.physics_tables,
+                        &race().course.numbers,
+                        view(a[1], 0),
+                    );
+                },
             },
             Block {
                 name: "test_drive_run line 51",
@@ -206,7 +223,14 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0]) },
-                plain: |_| x87_2(race(), crate::scene::owner::scene()),
+                plain: |_| {
+                    x87_2(
+                        &race().shared.car,
+                        &race().shared.physics_tables,
+                        &race().course.numbers,
+                        crate::scene::owner::scene(),
+                    );
+                },
             },
             Block {
                 name: "test_drive_run line 93",
@@ -222,7 +246,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_2(a[0]) },
-                plain: |_| x87_3(race()),
+                plain: |_| x87_3(&race().shared.car, &race().course.numbers),
             },
         ]
     }

@@ -64,7 +64,10 @@ pub fn show_replay_still(
         load_car::load_car(&race.shared)?;
         if !matches!(race.shared.car.driver_kind.get(), 0 | 2) {
             race.replay.replay_frames.step_first.set(1);
-            crate::physics::camera_frame::camera_frame(race, crate::scene::owner::scene())?;
+            crate::physics::camera_frame::camera_frame(
+                &crate::physics::step_inputs::StepInputs::of(race).camera(),
+                crate::scene::owner::scene(),
+            )?;
             race.replay.replay_frames.step_first.set(0);
         }
         store_car::store_car(&race.shared)?;

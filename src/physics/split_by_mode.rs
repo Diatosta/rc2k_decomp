@@ -8,20 +8,29 @@
 use crate::errors::Refused;
 use crate::physics::compare_split_times::compare_split_times;
 use crate::physics::rank_split_time::rank_split_time;
+use crate::physics::split_tables_store::SplitTables;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::owner::Race;
+use crate::race::groups_store::PanelAndOverlay;
+use crate::race::league_store::League;
+use crate::race::owner_shared::RaceShared;
 use rc2k_core::physics::splits::{SplitFigure, split_figure};
 
 // Converted: `rc2k_core::physics::splits::split_figure`.
-pub fn split_by_mode(race: &Race) -> Result<(), Refused> {
-    let shared = &race.shared;
+pub fn split_by_mode(
+    split_tables: &SplitTables,
+    league: &League,
+    panel_and_overlay: &PanelAndOverlay,
+    shared: &RaceShared,
+) -> Result<(), Refused> {
     match split_figure(shared.vars.run_kind.get()) {
         SplitFigure::Place => {
             shared.car.split_gaps[0].set(CAR_BLOCKS.cars[0].mode2_place.get());
             Ok(())
         }
-        SplitFigure::Rank => rank_split_time(race),
-        SplitFigure::Compare => compare_split_times(race),
+        SplitFigure::Rank => rank_split_time(split_tables, panel_and_overlay, shared),
+        SplitFigure::Compare => {
+            compare_split_times(league, &shared.work, &shared.state, &shared.car)
+        }
         SplitFigure::Nothing => Ok(()),
     }
 }

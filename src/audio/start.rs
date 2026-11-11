@@ -1,12 +1,12 @@
 //! `audio::start` (0x40A01D): the sound device probed at the audio thread's start, and the
 //! two sound modes chosen.
 //!
-//! `audio::open_a3d2` (eax 0), `g_hasA3d2` = `g_useA3d`, `audio::close_a3d2`; the mode
-//! 0x11221 | 0x1900000; `audio::open_sound` (eax 0). Opened: `g_a3dSplashKept` =
+//! `audio::open_a3d2`, `g_hasA3d2` = `g_useA3d`, `audio::close_a3d2`; the mode
+//! 0x11221 | 0x1900000; `audio::open_sound` (with 0). Opened: `g_a3dSplashKept` =
 //! `g_a3dReady`; `audio::read_caps`; unless it fails or the caps say emulated (0x20):
 //! `audio::make_primary`, `g_has3d` from the mode's 3D bit, `audio::open_way`, a probe voice
 //! in `g_voices[0]` (zeroed; format 0x121, `g_mixRateSetting`, flags 1, 0x4000 bytes)
-//! through `audio::make_buffer` (ebx 0x11221, esi the voice), `release_eax`,
+//! through `audio::make_buffer` (mode 0x11221, the probe voice), `release_eax`,
 //! `release_voice_manager`, `release_voice`, `audio::close_way`, `audio::release_primary`; with
 //! caps flag 0x100, free hardware buffers and 3D: race bits 0x112221 for A3D2, else with
 //! `g_voiceManagerOn` and at least 6 free 3D buffers 0x900000 (and 0x1000000 with `g_hasEax`). Not
@@ -29,7 +29,7 @@ pub fn start(audio: &Audio) -> Result<bool, Refused> {
     crate::audio::a3d::open_a3d2(&audio.state)?;
     audio.state.has_a3d2.set(audio.state.use_a3d.get());
     crate::audio::a3d::close_a3d2(&audio.state);
-    // The original's ebx: the race mode found.
+    // The race mode found.
     let mut found = MENU_MODE;
     audio.state.sound_mode.set(MENU_MODE | 0x190_0000);
     let mut to_log = false;

@@ -8,34 +8,40 @@
 
 use crate::errors::Refused;
 use crate::physics::probe_ground::probe_ground_at;
-use crate::race::owner::Race;
+use crate::physics::step_families::GroundInputs;
 
 /// The steps.
-pub fn probe_and_keep_at(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let physics = &race.physics;
+pub fn probe_and_keep_at(
+    c: &GroundInputs<'_>,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    let contact = c.contact;
     probe_ground_at(
-        race,
-        &race.shared.car,
+        c,
+        c.car,
         scene,
-        &crate::physics::ground_query::GroundQuery::of_physics(race),
-        &race.physics.contact,
+        &crate::physics::ground_query::GroundQuery::of_physics(c.ground, c.probe, &c.course.course),
+        c.contact,
         &scene.drawing.scene.scratch,
     )?;
     for k in 0..64 {
-        physics.contact.saved_probe_x[k].set(physics.contact.probe_x[k].get());
+        contact.saved_probe_x[k].set(contact.probe_x[k].get());
     }
     for k in 0..64 {
-        physics.contact.saved_probe_y[k].set(physics.contact.probe_y[k].get());
+        contact.saved_probe_y[k].set(contact.probe_y[k].get());
     }
     for k in 0..64 {
-        physics.contact.saved_probe_z[k].set(physics.contact.probe_z[k].get());
+        contact.saved_probe_z[k].set(contact.probe_z[k].get());
     }
     for k in 0..0x40 {
-        physics.contact.saved_probe_faces[k].set(race.shared.car.probe_point_face[k].get());
+        contact.saved_probe_faces[k].set(c.car.probe_point_face[k].get());
     }
     Ok(())
 }
 
-pub fn probe_and_keep(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    probe_and_keep_at(race, scene)
+pub fn probe_and_keep(
+    c: &GroundInputs<'_>,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    probe_and_keep_at(c, scene)
 }

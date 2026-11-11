@@ -6,9 +6,6 @@
 //! free: the spot goes unheard. Then the voice's place = the spot's and heard (+4) 1.
 //! See `sound/spot_voices.rs`. One caller, `sound::spot_sounds`.
 //! Refuses (before anything) more than 36 spots (the table's size).
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
 use crate::sound::spot_voices::{MOST_KIND, MOST_SPOTS, load_voices, store_voices};

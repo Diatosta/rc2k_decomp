@@ -6,11 +6,15 @@
 //! Caller: `physics::drive_force`.
 
 use crate::physics::engine_torque::{below, engine_torque};
-use crate::race::owner::Race;
+use crate::race::owner_course::Course;
+use crate::race::owner_shared::RaceShared;
 
 /// The exact version, for `physics::drive_force`.
-pub fn engine_torque_or_cut(race: &Race, scene: &crate::scene::owner::Scene) {
-    let shared = &race.shared;
+pub fn engine_torque_or_cut(
+    course: &Course,
+    shared: &RaceShared,
+    scene: &crate::scene::owner::Scene,
+) {
     if !below(
         shared.car.engine_speed.bits(),
         shared.car.engine_speed_limit.bits(),
@@ -22,7 +26,7 @@ pub fn engine_torque_or_cut(race: &Race, scene: &crate::scene::owner::Scene) {
             .rev_cut_count
             .set(shared.car.rev_cut_count.get().wrapping_sub(1));
     } else {
-        engine_torque(race, scene);
+        engine_torque(course, shared, scene);
         return;
     }
     shared.physics_tables.engine_force.set_bits(0);

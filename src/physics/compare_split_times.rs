@@ -9,28 +9,31 @@
 //! Caller: `physics::split_by_mode`. Refuses (before anything) a split past 27 (each kept
 //! table is 0x70 bytes: `unk_75B02C` .. `unk_75B09C`, 28 dwords, IDA).
 use crate::errors::{BadInput, Refused};
-use crate::race::owner::Race;
+use crate::physics::car_store::Car;
+use crate::race::league_store::League;
+use crate::race::state_store::RaceState;
+use crate::race::work_store::RaceWork;
 use rc2k_core::physics::splits::{LAST_COMPARED_SPLIT, compare_split};
 
 // Converted: `rc2k_core::physics::splits::compare_split`.
-pub fn compare_split_times(race: &Race) -> Result<(), Refused> {
-    if race.shared.car.splits_recorded.get() > LAST_COMPARED_SPLIT {
+pub fn compare_split_times(
+    league: &League,
+    work: &RaceWork,
+    state: &RaceState,
+    car: &Car,
+) -> Result<(), Refused> {
+    if car.splits_recorded.get() > LAST_COMPARED_SPLIT {
         return Err(BadInput("a split past 27").into());
     }
-    let time = race.shared.car.stage_time.get();
-    race.course.league.car_time.set(time);
+    let time = car.stage_time.get();
+    league.car_time.set(time);
     // Splits 16 .. 27 read past the sixteen rows (a slip of the original, kept).
-    let first = race.shared.car.splits_recorded.get().wrapping_mul(10) as usize;
+    let first = car.splits_recorded.get().wrapping_mul(10) as usize;
     let mut kept = [0u32; 10];
     for (k, part) in kept.iter_mut().enumerate() {
-        *part = crate::session::read_on_in(
-            &race.course.league,
-            &race.course.league.rows,
-            first + k,
-            "a kept split time",
-        )?;
+        *part = crate::session::read_on_in(league, &league.rows, first + k, "a kept split time")?;
     }
-    let c = compare_split(time, &kept, |c| race.course.league.names[c].get());
+    let c = compare_split(time, &kept, |c| league.names[c].get());
     let f = c.figures;
     for (k, v) in [
         f.place,
@@ -42,17 +45,17 @@ pub fn compare_split_times(race: &Race) -> Result<(), Refused> {
     .into_iter()
     .enumerate()
     {
-        race.shared.car.split_gaps[k].set(v);
+        car.split_gaps[k].set(v);
     }
-    let car = race.shared.work.current_car.get();
-    let times = match car {
-        0 => &race.shared.state.results.results[0],
-        1 => &race.shared.state.results.results[1],
+    let current = work.current_car.get();
+    let times = match current {
+        0 => &state.results.results[0],
+        1 => &state.results.results[1],
         _ => return Ok(()),
     };
     // From the record's data on, and no further than the record.
     let at = std::mem::offset_of!(crate::race::state_store::RaceResult, data)
-        + 4 * race.shared.car.splits_recorded.get() as usize;
+        + 4 * car.splits_recorded.get() as usize;
     crate::pointers::Store::store(times, at, &time.to_le_bytes())?;
     Ok(())
 }

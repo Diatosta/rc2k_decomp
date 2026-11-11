@@ -5,10 +5,6 @@
 //! `audio::stop_streams`, `audio::free_voices`, `audio::close_way`,
 //! `audio::release_primary`, `audio::close_sound`, then `g_soundMode` 0. One caller, the
 //! audio thread.
-//!
-//! Plain since 2026-10-23 (phase 3). Fixed (section 16, 2026-10-23): the streams are
-//! stopped (action 0); the original hands on the thread's edx, 1 (a feed), so the music
-//! and the stream were left playing on the DirectSound it then closes.
 
 use crate::audio::owner::Audio;
 use crate::errors::Refused;

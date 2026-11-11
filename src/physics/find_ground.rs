@@ -9,19 +9,26 @@
 //! `ground_search` refuses.
 
 use crate::errors::Refused;
+use crate::physics::ground_probe_store::GroundProbe;
 use crate::physics::ground_search::ground_search;
-use crate::race::owner::Race;
+use crate::physics::ground_store::GroundWork;
+use crate::race::owner_course::Course;
 
 /// The carry (the registers are kept).
-pub fn find_ground(race: &Race, scene: &crate::scene::owner::Scene) -> Result<bool, Refused> {
-    ground_search(race, scene)
+pub fn find_ground(
+    ground_probe: &GroundProbe,
+    ground: &GroundWork,
+    course: &Course,
+    scene: &crate::scene::owner::Scene,
+) -> Result<bool, Refused> {
+    ground_search(ground_probe, ground, course, scene)
 }
 
 /// The same on the fields of `q` (a drawing's own: `race::car_shadow`).
 pub fn find_ground_with(
-    race: &Race,
+    course: &Course,
     q: &crate::physics::ground_query::GroundQuery<'_>,
     scene: &crate::scene::owner::Scene,
 ) -> Result<bool, Refused> {
-    crate::physics::ground::ground_search_at(race, q, scene)
+    crate::physics::ground::ground_search_at(course, q, scene)
 }

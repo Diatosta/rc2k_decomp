@@ -1,8 +1,8 @@
-//! Aureal's A3D (IDA, 2026-10-15): the two attempts to use it, its close, and the two
+//! Aureal's A3D: the two attempts to use it, its close, and the two
 //! functions that keep A3D's splash settings in the registry. A3D has not existed for a
 //! long time: the attempt (`CoCreateInstance` of A3D's classes) fails as on any machine
-//! without A3D's driver (phase 11, 2026-10-26: no COM, the class is never there), and the
-//! Rust versions go the original's way for that.
+//! without A3D's driver (there is no COM here: the class is never there), and the
+//! code goes the original's way for that.
 
 use crate::audio::store::AudioState;
 use crate::errors::{BadInput, Refused};

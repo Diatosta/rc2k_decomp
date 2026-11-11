@@ -6,7 +6,8 @@
 //! a null sound object when written.
 
 use crate::errors::Refused;
-use crate::race::owner::Race;
+use crate::race::frame_store::FrameWork;
+use crate::race::work_store::RaceWork;
 use crate::session::Dword;
 use crate::sound::store::SoundObject;
 use rc2k_core::physics::listed_cars::{CUE_E5, cue_e5_object};
@@ -28,9 +29,6 @@ pub fn sound_cue_e5_at(current: &Dword, listed: &[Dword; 8]) -> Result<(), Refus
     Ok(())
 }
 
-pub fn sound_cue_e5(race: &Race) -> Result<(), Refused> {
-    sound_cue_e5_at(
-        &race.shared.work.current_car,
-        &race.frame.frame_work.listed_car_sounds,
-    )
+pub fn sound_cue_e5(frame_work: &FrameWork, work: &RaceWork) -> Result<(), Refused> {
+    sound_cue_e5_at(&work.current_car, &frame_work.listed_car_sounds)
 }

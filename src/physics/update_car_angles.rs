@@ -4,17 +4,15 @@
 //! Callers: `physics::car_physics_step` (0x43B83B, 0x43B8B4, after `race::invert_car_matrix`).
 
 use crate::physics::car_angles::car_angles;
+use crate::physics::car_store::Car;
+use crate::race::owner_course::Course;
 
-use crate::race::owner::Race;
 use rc2k_core::physics::motion::angles_wanted as wanted;
 
 // Converted: `rc2k_core::physics::motion::angles_wanted`.
-pub fn update_car_angles(race: &Race, scene: &crate::scene::owner::Scene) {
-    let (force, hold) = (
-        race.shared.car.camera_mode_is_2_or_3.get(),
-        race.shared.car.all_wheels_off.get(),
-    );
+pub fn update_car_angles(course: &Course, car: &Car, scene: &crate::scene::owner::Scene) {
+    let (force, hold) = (car.camera_mode_is_2_or_3.get(), car.all_wheels_off.get());
     if wanted(force, hold) {
-        car_angles(race, scene);
+        car_angles(course, car, scene);
     }
 }

@@ -2,20 +2,17 @@
 //! each, and of the computer's only the two nearest the listener.
 //!
 //! Unless `dword_514F7C` (the objects in use) is 0: for each object whose +8 is 1, a
-//! player's (+0 not negative) gets `sound::car_sounds` (eax its number) at once; of the
+//! player's (+0 not negative) gets `sound::car_sounds` (with its number) at once; of the
 //! others the squared distance (+0x2C .. +0x34 squared and added, through `flt_514F88`)
 //! is compared as an integer (signed, the bits of a float that is not negative) with
 //! the nearest and the next (both starting at the bits of +inf), which keep their
-//! numbers in eax and ebx (-1 for none). When the nearest is last turn's second
+//! numbers (-1 for none). When the nearest is last turn's second
 //! (`dword_514F84`) or the next last turn's nearest (`dword_514F80`), the two swap, so
 //! that each keeps its voice; they are kept in the two dwords and each gets
 //! `sound::car_sounds` with its +0 set to -2 (the nearest) or -1 for the call and put
 //! back after. One caller, `sound::race_turn`.
 //! Refuses (before anything) a count over 8 and a null object; what the callees refuse
 //! puts back what was written (sounds already sent stay sent).
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_float::{ld, st};
@@ -31,8 +28,7 @@ pub fn car_sounds_all(sound: &crate::sound::owner::Sound) -> Result<(), Refused>
     if count > 8 {
         return Err(BadInput("a sound object count over 8").into());
     }
-    // Converted: `rc2k_core::sound::turn::Nearest` (the choice; `car_sounds` keeps the
-    // registers it is held in).
+    // Converted: `rc2k_core::sound::turn::Nearest` (the choice).
     use rc2k_core::sound::turn::{NEAREST_MARK, NEXT_MARK, Nearest};
     let mut nearest = Nearest::default();
     for n in 0..count {

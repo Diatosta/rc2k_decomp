@@ -446,7 +446,7 @@ fn start<P: Pool>(pool: &mut P, lists: &mut Lists, at: u32) {
 }
 
 /// Command 1: a sound started, changed or stopped. With a volume and a voice of kind 0
-/// (or, another kind or no volume, a voice not playing, unless the sender's eax has bit
+/// (or, another kind or no volume, a voice not playing, unless the sound word has bit
 /// 31) its first free copy gets a channel: a free one while fewer are used than there are
 /// (counted), else the channel of the playing voice of the lowest priority below its own
 /// (none: nothing), which goes to the stopping list; the voice to the playing list's

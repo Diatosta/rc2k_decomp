@@ -11,7 +11,6 @@ use crate::errors::{BadInput, Refused};
 use crate::physics::gear_bit::gear_bit_at;
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at, wheels_from_revs_at};
 use crate::race::numbers_store::Numbers;
-use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use crate::session::Cell32;
 use rc2k_core::physics::gear_shifts::Change;
@@ -90,10 +89,10 @@ pub fn change_gear_at(
     Ok(())
 }
 
-pub fn change_gear(race: &Race) -> Result<(), Refused> {
+pub fn change_gear(numbers: &Numbers, shared: &RaceShared) -> Result<(), Refused> {
     change_gear_at(
-        &race.course.numbers,
-        &GearPlaces::game(&race.shared.car, &race.shared.physics_tables),
-        &ChangePlaces::game(&race.shared),
+        numbers,
+        &GearPlaces::game(&shared.car, &shared.physics_tables),
+        &ChangePlaces::game(shared),
     )
 }
