@@ -754,16 +754,16 @@ pub fn shadow_points(race: &Race, work: &ShadowWork, car: &Car, sun: u32) -> Res
         .wrapping_neg()
         .wrapping_sub(0x40);
     sun_slant(work, sun, turn);
-    let (sx, sz) = (work.slant_x.bits(), work.slant_z.bits());
-    let lift: u32 = race.shared.physics_tables.camera_drop.bits();
-    let unit: u32 = race.course.numbers.k65536.bits();
+    let (sx, sz) = (work.slant_x.get(), work.slant_z.get());
+    let lift = race.shared.physics_tables.camera_drop.get();
+    let unit = race.course.numbers.k65536.get();
     for k in 0..count {
         let at = point_at(work, k)?;
         let k = k as usize;
         let p = [
-            to_tbyte(car.probe_point_x[k].bits()),
-            to_tbyte(car.probe_point_y[k].bits()),
-            to_tbyte(car.probe_point_z[k].bits()),
+            to_tbyte(&car.probe_point_x[k]),
+            to_tbyte(&car.probe_point_y[k]),
+            to_tbyte(&car.probe_point_z[k]),
         ];
         let t = crate::scene::rotate_point::rotate_point(&car.body_matrix, p);
         let [x, y, z] = t.map(tbyte_to_float);
@@ -788,7 +788,12 @@ pub fn shadow_points(race: &Race, work: &ShadowWork, car: &Car, sun: u32) -> Res
 
 /// `fld y; fadd lift; fmul slant; fadd base; fstp`: a corner moved along the sun's slant,
 /// rounded once.
-fn lifted(y: u32, lift: u32, slant: u32, base: u32) -> u32 {
+fn lifted(
+    y: u32,
+    lift: impl crate::math::x87_float::Loadable,
+    slant: impl crate::math::x87_float::Loadable,
+    base: u32,
+) -> u32 {
     use crate::math::x87_float::{ld, st};
     st((ld(y) + ld(lift)) * ld(slant) + ld(base))
 }

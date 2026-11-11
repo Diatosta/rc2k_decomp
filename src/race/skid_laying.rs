@@ -140,7 +140,7 @@ pub fn lay_skidmarks(race: &Race) -> Result<(), Refused> {
     if count == 0 {
         return Ok(());
     }
-    let grip: u32 = frame.shadow_skids.skid_grip.bits();
+    let grip = frame.shadow_skids.skid_grip.get();
     let zero = int_80(0);
     for c in 0..count {
         frame.shadow_skids.skid_cars.set(1 << (c & 31));

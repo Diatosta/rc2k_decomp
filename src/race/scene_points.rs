@@ -5,8 +5,7 @@
 //! the shadow's), and `race::free_course_memory` gives them back.
 //!
 //! A point is reached by its number (`point_number`, `point_word`, `put_point_word`,
-//! `copy_point`). `COURSE.scene_points` is `base()` while they are held (0 otherwise; a number
-//! in the range `race::course_places` reserves, which no host memory backs): the number's
+//! `copy_point`). `COURSE.scene_points` is `base()` while they are held (0 otherwise; a handle of `race::course_places`, which no host memory backs): the number's
 //! byte is 12 n from it, and any other value of `COURSE.scene_points` reads nothing.
 //!
 //! The points past the count are scratch: each drawing thread (`workers`) has its own,
@@ -112,7 +111,6 @@ pub fn held() -> bool {
 
 /// The points moved out of the course memory: `len` bytes at game address `from`.
 pub fn take_from(from: u32, len: u32) -> Result<(), BadInput> {
-    crate::race::course_places::reserve()?;
     if len > crate::race::course_places::room() {
         return Err(BadInput("more scene points than their places hold"));
     }
@@ -279,7 +277,6 @@ pub fn with_test_points<R>(words: &[u32], f: impl FnOnce() -> R) -> R {
     let course = &race().course;
     let kept = POINTS.all().ok();
     let kept_at = course.course.scene_points.get();
-    crate::race::course_places::reserve().expect("the course's places");
     POINTS
         .set(
             &words

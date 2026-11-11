@@ -30,13 +30,23 @@ pub fn show_car_specs(menus: &Menus) -> Result<(), Refused> {
     };
     let screen = &crate::menu::car_specs_display_loop::SCREEN;
     if !choice {
-        { run_screen(screen, &Entry::with_cars(menus, Some(cars))) }?;
+        {
+            run_screen(
+                screen,
+                &Entry::with_cars(crate::owners::boundary(), Some(cars)),
+            )
+        }?;
         return Ok(());
     }
     if let Some(cheat) = crate::menu::cheat_car_list::cheat_car_list(menus) {
         cars = cheat;
     }
-    { run_screen(screen, &Entry::with_cars(menus, Some(cars))) }?;
+    {
+        run_screen(
+            screen,
+            &Entry::with_cars(crate::owners::boundary(), Some(cars)),
+        )
+    }?;
     if !menus.tables.captions.left_by_key.is_set() {
         crate::menu::take_shown_car::take_shown_car(menus, Some(cars))?;
     }

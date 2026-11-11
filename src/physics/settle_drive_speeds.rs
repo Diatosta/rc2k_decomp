@@ -12,6 +12,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::physics::flow::FloatView;
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at};
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
@@ -44,19 +45,19 @@ impl<'a> SettlePlaces<'a> {
 
 /// One speed `v` toward 0 by the step `step`.
 fn settle(v: &dyn Cell32, step: &dyn Cell32) {
-    let x = f32::from_bits(v.bits());
+    let x = v.float();
     if x == 0.0 || x.is_nan() {
         return;
     }
     if x < 0.0 {
         let y = x87::add(v, step);
-        v.set_bits(y.to_bits());
+        v.set_float(y);
         if f32::from_bits(y.to_bits()) >= 0.0 {
             v.set_bits(0);
         }
     } else {
         let y = x87::sub(v, step);
-        v.set_bits(y.to_bits());
+        v.set_float(y);
         let y = f32::from_bits(y.to_bits());
         if y < 0.0 || y.is_nan() {
             v.set_bits(0);

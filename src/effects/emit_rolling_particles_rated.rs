@@ -22,7 +22,7 @@ use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
-use crate::scene::matrix3::rounded;
+use crate::scene::matrix3::rounded_value;
 use crate::session::{PlainBytes, PlainDword, PlainFloat};
 
 const LOOK: u32 = 0x34;
@@ -109,14 +109,14 @@ pub fn emit_rolling_particles_rated(
                 &wheel.place[k as usize / 4],
             ))
         })?;
-        slot.put(|en| &mut en.place[2], rounded(place[2]))?;
-        slot.put(|en| &mut en.place[1], rounded(place[1]))?;
+        slot.put(|en| &mut en.place[2], rounded_value(place[2]))?;
+        slot.put(|en| &mut en.place[1], rounded_value(place[1]))?;
         slot.put(
             |en| &mut en.ground_y,
-            x87::ext_less(place[1], &particles.kind21_set.lift).to_bits(),
+            x87::ext_less(place[1], &particles.kind21_set.lift),
         )?;
-        slot.put(|en| &mut en.place[0], rounded(place[0]))?;
-        let motion: [u32; 3] = crate::effects::try_from_fn(|k| {
+        slot.put(|en| &mut en.place[0], rounded_value(place[0]))?;
+        let motion: [f32; 3] = crate::effects::try_from_fn(|k| {
             let (first, third) = (
                 matrix_cell(m, 4 * k as u32)?,
                 matrix_cell(m, 0x20 + 4 * k as u32)?,
@@ -126,8 +126,7 @@ pub fn emit_rolling_particles_rated(
                 [first, wheel.local_velocity_x.bits(), f[0]],
                 [third, wheel.local_velocity_z.bits(), f[1]],
                 [third, wheel.driven_speed.bits(), f[2]],
-            ])
-            .to_bits())
+            ]))
         })?;
         slot.put(|en| &mut en.motion[2], motion[2])?;
         slot.put(|en| &mut en.motion[1], motion[1])?;

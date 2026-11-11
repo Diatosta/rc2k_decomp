@@ -112,7 +112,11 @@ fn int_and_one(course: &Course, i: u32, add: bool) -> u32 {
 }
 
 /// `fild i; fdiv a; fdiv b; fstp`.
-fn int_over_two(i: u32, a: u32, b: u32) -> u32 {
+fn int_over_two(
+    i: u32,
+    a: impl crate::math::x87_float::Loadable,
+    b: impl crate::math::x87_float::Loadable,
+) -> u32 {
     use crate::math::x87_float::{int, ld, st};
     st(int(i as i32) / ld(a) / ld(b))
 }
@@ -150,7 +154,7 @@ pub fn draw_view_backdrop(
     let y1 = int_and_one(course, view.quad.corners[5].get(), true);
     v[2].y.set_bits(y1);
     v[3].y.set_bits(y1);
-    let (a, b) = (course.numbers.k256.bits(), course.numbers.k65536.bits());
+    let (a, b) = (course.numbers.k256.get(), course.numbers.k65536.get());
     for vertex in &v[..4] {
         vertex.u.set_bits(int_over_two(view.quad.uv[0].get(), a, b));
     }

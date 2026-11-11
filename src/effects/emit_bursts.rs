@@ -23,7 +23,7 @@ use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
-use crate::scene::matrix3::{extended, rounded};
+use crate::scene::matrix3::{extended, rounded_value};
 use crate::session::{PlainDword, PlainFloat, read_bits, write_bits};
 
 const LIFE: u32 = 0x7D0;
@@ -283,9 +283,9 @@ pub fn emit_bursts_with(
                     ],
                     effects,
                 );
-                slot.put(|en| &mut en.motion[2], rounded(out[0]))?;
-                slot.put(|en| &mut en.motion[1], rounded(out[1]))?;
-                slot.put(|en| &mut en.motion[0], rounded(out[2]))?;
+                slot.put(|en| &mut en.motion[2], rounded_value(out[0]))?;
+                slot.put(|en| &mut en.motion[1], rounded_value(out[1]))?;
+                slot.put(|en| &mut en.motion[0], rounded_value(out[2]))?;
                 let r = next_c5(&set.tuning.randoms(n)[2]);
                 let size = (r.rotate_right(8) & h.size.0) + h.size.1;
                 effects.setup.frame.emit_side.set_bits(size);
@@ -304,15 +304,14 @@ pub fn emit_bursts_with(
                 let m = car.whole()?;
                 let side = (r.rotate_right(8) & 0x3FFF).wrapping_sub(0x2000);
                 effects.setup.frame.emit_side.set_bits(side);
-                let place: [u32; 3] = crate::effects::try_from_fn(|k| {
+                let place: [f32; 3] = crate::effects::try_from_fn(|k| {
                     let k4 = 4 * k as u32;
                     Ok(x87::less_plus_int_times(
                         &wheel.place[k4 as usize / 4],
                         matrix_cell(m, 0x30 + k4)?,
                         h.sides[k],
                         side as i32,
-                    )
-                    .to_bits())
+                    ))
                 })?;
                 slot.put(|en| &mut en.place[0], place[0])?;
                 slot.put(|en| &mut en.place[1], place[1])?;

@@ -53,17 +53,20 @@ pub fn open_service_box(screens: &Screens, page: u32) {
 }
 
 /// `menu::view_stage_details`: the stage information screen.
-pub fn view_stage_details(menus: &Menus, screens: &Screens) -> Result<(), Refused> {
+pub fn view_stage_details(screens: &Screens) -> Result<(), Refused> {
     // The logic is in `rc2k_core::menu::stage_screens::time_trial_details`.
     let time_trial =
         rc2k_core::menu::stage_screens::time_trial_details(screens.event.event_type.get());
     if time_trial {
         run_screen(
             &crate::menu::time_trial_stage_details_loop::SCREEN,
-            &Entry::new(menus),
+            &Entry::new(crate::owners::boundary()),
         )?;
     } else {
-        run_screen(&crate::menu::view_stage_loop::SCREEN, &Entry::new(menus))?;
+        run_screen(
+            &crate::menu::view_stage_loop::SCREEN,
+            &Entry::new(crate::owners::boundary()),
+        )?;
     }
     Ok(())
 }

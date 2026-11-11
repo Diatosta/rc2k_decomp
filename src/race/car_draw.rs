@@ -585,12 +585,12 @@ mod asm_reference {
                 options(nostack),
             );
             drop(old);
-            let near: u32 = shared.work.car_nearness.bits();
+            let near = shared.work.car_nearness.get();
             // `fld zero; fld near; fcompp`: near below 0 (or no number) -> 0.
             if below_or_unordered(near, course.numbers.zero.get()) {
                 shared.work.car_nearness.set(course.numbers.zero.get());
             }
-            let near: u32 = shared.work.car_nearness.bits();
+            let near = shared.work.car_nearness.get();
             if !below_or_unordered(near, course.numbers.one.get()) {
                 shared.work.car_nearness.set(course.numbers.one.get());
             }

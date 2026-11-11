@@ -10,6 +10,7 @@ use crate::math::x87;
 use crate::math::x87::toward_one;
 use crate::math::x87_float as bh;
 use crate::physics::car_store::Car;
+use crate::physics::flow::FloatView;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 use crate::session::Cell32;
@@ -33,17 +34,17 @@ pub fn drive_torque_share_at(tables: &PhysicsTables, numbers: &Numbers, v: &[&dy
     );
     let one = numbers.one.bits();
     let below = !matches!(
-        f32::from_bits(v[3].bits()).partial_cmp(&f32::from_bits(one)),
+        v[3].float().partial_cmp(&f32::from_bits(one)),
         Some(Ordering::Greater | Ordering::Equal)
     );
     if !below {
-        v[3].set_bits(x87::loaded(one).to_bits());
+        v[3].set_float(x87::loaded(one));
     }
     let eax = v[0].bits().wrapping_sub(v[5].bits());
     v[4].set_bits(eax);
-    v[4].set_bits(x87::int_ratio(v[4].bits() as i32, v[0].bits() as i32).to_bits());
-    v[6].set_bits(toward_one(v[4], v[3]).to_bits());
-    v[7].set_bits(x87::mul(v[7], v[6]).to_bits());
+    v[4].set_float(x87::int_ratio(v[4].bits() as i32, v[0].bits() as i32));
+    v[6].set_float(toward_one(v[4], v[3]));
+    v[7].set_float(x87::mul(v[7], v[6]));
     eax
 }
 

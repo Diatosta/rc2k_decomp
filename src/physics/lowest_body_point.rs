@@ -11,6 +11,7 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::physics::car_store::Car;
 use crate::physics::contact_store::ContactWork;
+use crate::physics::flow::FloatView;
 use crate::race::numbers_store::Numbers;
 use crate::session::Cell32;
 
@@ -33,7 +34,7 @@ pub fn lowest_at(numbers: &Numbers, v: &[&dyn Cell32]) -> Result<(), Refused> {
             }
         }
     }
-    put(3, x87::int_over(get(1) as i32, &numbers.k65536).to_bits());
+    v[3].set_float(x87::int_over(get(1) as i32, &numbers.k65536));
     Ok(())
 }
 

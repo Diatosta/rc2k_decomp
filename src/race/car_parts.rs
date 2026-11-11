@@ -54,10 +54,7 @@ pub fn car_part_matrices(
     };
     let shown = &c.shown_engine_speed;
     shown.set(loaded(&p.engine_speed));
-    if below_or_unordered(
-        shown.bits(),
-        race.shared.physics_tables.idle_engine_speed.get(),
-    ) {
+    if below_or_unordered(shown, race.shared.physics_tables.idle_engine_speed.get()) {
         shown.set(loaded(&race.shared.physics_tables.idle_engine_speed));
     }
     let on = p.lights_on.get();

@@ -234,6 +234,7 @@ impl BytePlace {
     }
 
     /// The game address, for the script's and the game's data (pointers they keep).
+    #[cfg(test)]
     pub fn game(self) -> u32 {
         self.game_ptr().addr()
     }

@@ -7,8 +7,10 @@
 
 use crate::errors::Refused;
 use crate::files::write_file::write_file_from_store;
-use crate::saves::load_options::{PIECES_LEN, pieces};
-use crate::system::owner::system;
+use crate::owners::Owners;
+#[cfg(test)]
+use crate::saves::load_options::pieces;
+use crate::saves::load_options::{PIECES_LEN, pieces_of};
 use crate::system::packed_local_time::packed_local_time;
 
 // ---- game data ----
@@ -21,10 +23,10 @@ pub fn file_len() -> usize {
 }
 
 /// True if the file was written.
-pub fn save_options(path: &dyn crate::pointers::Store) -> Result<bool, Refused> {
-    let file = &system().work.files.buffer;
+pub fn save_options(o: Owners<'_>, path: &dyn crate::pointers::Store) -> Result<bool, Refused> {
+    let file = &o.system.work.files.buffer;
     let mut owned = Vec::new();
-    for piece in pieces() {
+    for piece in pieces_of(o) {
         owned.push(piece.read()?);
     }
     let pieces: Vec<&[u8]> = owned.iter().map(std::vec::Vec::as_slice).collect();

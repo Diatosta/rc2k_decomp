@@ -33,7 +33,7 @@ pub fn choose_car(vars: &NetVars) -> Result<(), Refused> {
     CLEARED.set(0);
     let cars = crate::net::car_list::car_list(&menus.tables)?;
     ESCAPE_PRESSED.set(false);
-    let entry = Entry::with_cars(menus, Some(cars));
+    let entry = Entry::with_cars(crate::owners::boundary(), Some(cars));
     { run_screen(&crate::menu::select_car_loop::SCREEN, &entry) }?;
     if !ESCAPE_PRESSED.is_set() {
         crate::menu::take_shown_car::take_shown_car(menus, Some(cars))?;

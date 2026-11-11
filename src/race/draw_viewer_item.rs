@@ -36,7 +36,9 @@ pub fn draw_viewer_item(replay: &Replay, item: &[Dword; 4], index: u32) -> Resul
         ViewerPicture::Switch(1) => VIEWER_PANEL.switch_picture(1, camera_byte(replay, 5)?)?,
         ViewerPicture::Switch(_) => VIEWER_PANEL.switch_picture(2, camera_byte(replay, 4)?)?,
     };
-    let place: [u32; 4] = ReplayViewBlock::item_place(index)?.read("a viewer item's place")?;
+    let bytes = ReplayViewBlock::item_place(index)?.read_array::<16>("a viewer item's place")?;
+    let place: [u32; 4] =
+        std::array::from_fn(|k| u32::from_le_bytes(bytes[4 * k..4 * k + 4].try_into().unwrap()));
     let width = (uv[2] as i32).unsigned_abs();
     VIEWER_PANEL.item_place[2].set(width); // ViewerAndKinds.viewer_panel.item_place[0]: the quad's place
     VIEWER_PANEL.item_place[0].set(centred(place[0], place[2], width));

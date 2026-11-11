@@ -13,17 +13,18 @@
 /// 1.0 (`fld1; fstp`).
 pub const ONE: u32 = 0x3F80_0000;
 
+use crate::physics::flow::FloatView;
 use crate::session::Cell32;
 
 /// The value of a float cell as the model's arithmetic holds it: the game's code loads a
 /// float and works at double precision.
 pub fn value(cell: &impl Cell32) -> f64 {
-    f64::from(f32::from_bits(cell.bits()))
+    f64::from(cell.float())
 }
 
 /// A result of that arithmetic stored into a float cell, rounded to a float.
 pub fn store(cell: &impl Cell32, result: f64) {
-    cell.set_bits((result as f32).to_bits());
+    cell.set_float(result as f32);
 }
 
 /// The same figure for a whole number held in a cell (`fild`).

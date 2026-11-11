@@ -127,7 +127,12 @@ pub fn face_sides(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), BadInput> {
 }
 
 /// `fild t; fmul f; fmul a; fmul b; fistp`.
-fn frame_of(t: u32, f: u32, a: u32, b: u32) -> u32 {
+fn frame_of(
+    t: u32,
+    f: impl crate::math::x87_float::Loadable,
+    a: impl crate::math::x87_float::Loadable,
+    b: impl crate::math::x87_float::Loadable,
+) -> u32 {
     use crate::math::x87_float::{int, ld, to_int};
     to_int(int(t as i32) * ld(f) * ld(a) * ld(b)) as u32
 }
@@ -144,7 +149,7 @@ pub fn face_materials(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), BadInput> {
     let shared = &race.shared;
     {
         let clock: u32 = crate::race::frame_view::car(0)?.step_clock.get();
-        let (k1, k2) = (course.numbers.ten.bits(), course.numbers.quarter.bits());
+        let (k1, k2) = (course.numbers.ten.get(), course.numbers.quarter.get());
         let texture = |object: u32, first: bool| -> Result<u32, BadInput> {
             let speed = table_byte(&course.stage_prefs.face_speeds, object, "the face speeds")?;
             if speed == 0 {
@@ -152,7 +157,7 @@ pub fn face_materials(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), BadInput> {
             }
             let n = frame_of(
                 clock,
-                course.lists.face_key_factors[speed as usize].bits(),
+                course.lists.face_key_factors[speed as usize].get(),
                 k1,
                 k2,
             );

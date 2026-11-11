@@ -17,41 +17,28 @@ use crate::system::checked_reads::CheckedReads;
 // ---- game data ----
 
 /// (the numbers, the pointers, how many entries each has)
-const LISTS: [(&[PlainDword], &[PlainDword], usize); 2] = [
-    (
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .cars
-            .numbers
-            .first_numbers,
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .tables
-            .lists
-            .cars_second,
-        0x28,
-    ),
-    (
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .cars
-            .numbers
-            .second_numbers,
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .tables
-            .lists
-            .shown_cars,
-        0x14,
-    ),
-];
+fn lists(menus: &Menus) -> [(&[PlainDword], &[PlainDword], usize); 2] {
+    [
+        (
+            &menus.cars.numbers.first_numbers,
+            &menus.tables.lists.cars_second,
+            0x28,
+        ),
+        (
+            &menus.cars.numbers.second_numbers,
+            &menus.tables.lists.shown_cars,
+            0x14,
+        ),
+    ]
+}
 
 pub fn rebuild_car_lists(menus: &Menus) -> Result<(), BadInput> {
+    let lists = lists(menus);
     // Converted: `rc2k_core::saves::cars::pointers`, both lists worked out before either
     // is written.
 
     let mut found = Vec::new();
-    for (numbers, _, len) in LISTS {
+    for (numbers, _, len) in lists {
         let list: Vec<u32> = (0..len).map(|n| numbers[n].get()).collect();
         // Saved before the front end first ended: the lists stay as they start.
         if rc2k_core::saves::cars::never_listed(&list) {
@@ -65,7 +52,7 @@ pub fn rebuild_car_lists(menus: &Menus) -> Result<(), BadInput> {
         });
         found.push(Some(reads.finish(answer)??));
     }
-    for ((_, pointers, _), list) in LISTS.into_iter().zip(found) {
+    for ((_, pointers, _), list) in lists.into_iter().zip(found) {
         for (n, v) in list.into_iter().flatten().enumerate() {
             pointers[n].set(v);
         }

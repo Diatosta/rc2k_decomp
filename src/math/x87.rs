@@ -1306,7 +1306,8 @@ pub fn turned_place_less_f32(
     ]
 }
 
-/// `turned_place_less_f32` on bits.
+/// `turned_place_less_f32` on bits, for the 32-bit tests' kept assembly.
+#[cfg(all(test, target_arch = "x86"))]
 pub fn turned_place_less(
     t: [u32; 3],
     k: impl Flt,
@@ -1365,7 +1366,8 @@ pub fn turned_place_f32(
     [out(x), out(y), out(y - bh::ld(lift)), out(z)]
 }
 
-/// `turned_place_f32` on bits.
+/// `turned_place_f32` on bits, for the 32-bit tests' kept assembly.
+#[cfg(all(test, target_arch = "x86"))]
 pub fn turned_place(
     p: [u32; 3],
     lift: impl Flt,

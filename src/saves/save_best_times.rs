@@ -11,7 +11,7 @@
 use crate::errors::Refused;
 use crate::files::handle::{close, open_by_mode};
 use crate::saves::owner::Saves;
-use crate::system::owner::system;
+use crate::system::owner::System;
 use crate::system::packed_local_time::packed_local_time;
 
 // ---- game data ----
@@ -22,8 +22,7 @@ const WRITTEN: [usize; 6] = [1, 2, 3, 4, 7, 8];
 
 /// `saves::save_best_times` on the game's own file and tables: true if the file was opened
 /// (and so, as far as the function knows, written).
-pub fn in_game(saves: &Saves) -> Result<bool, Refused> {
-    let system = system();
+pub fn in_game(saves: &Saves, system: &System) -> Result<bool, Refused> {
     let best_times = &saves.best_times;
     if [best_times.allocated.get(), best_times.loaded.get()] != [1, 1] {
         return Ok(false);

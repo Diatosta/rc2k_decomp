@@ -28,7 +28,7 @@ use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
-use crate::scene::matrix3::{extended, rounded};
+use crate::scene::matrix3::{extended, rounded, rounded_value};
 use crate::session::{PlainDword, PlainFloat};
 
 /// The strength's two factors and its least.
@@ -172,13 +172,13 @@ pub fn emit_particle_1(
                 side,
             ))
         })?;
-        slot.put(|en| &mut en.place[0], rounded(place[0]))?;
-        slot.put(|en| &mut en.place[1], rounded(place[1]))?;
+        slot.put(|en| &mut en.place[0], rounded_value(place[0]))?;
+        slot.put(|en| &mut en.place[1], rounded_value(place[1]))?;
         slot.put(
             |en| &mut en.ground_y,
-            x87::ext_less(place[1], &effects.setup.floats.fixed_16_scale).to_bits(),
+            x87::ext_less(place[1], &effects.setup.floats.fixed_16_scale),
         )?;
-        slot.put(|en| &mut en.place[2], rounded(place[2]))?;
+        slot.put(|en| &mut en.place[2], rounded_value(place[2]))?;
         let motion: [[u8; 10]; 3] = crate::effects::try_from_fn(|k| {
             Ok({
                 let k4 = 4 * k as u32;
@@ -207,12 +207,12 @@ pub fn emit_particle_1(
             ],
             effects,
         );
-        slot.put(|en| &mut en.motion[2], rounded(moved[0]))?;
+        slot.put(|en| &mut en.motion[2], rounded_value(moved[0]))?;
         slot.put(
             |en| &mut en.motion[1],
-            x87::add(rounded(moved[1]), &particles.kind1_set.lift).to_bits(),
+            x87::add(rounded(moved[1]), &particles.kind1_set.lift),
         )?;
-        slot.put(|en| &mut en.motion[0], rounded(moved[2]))?;
+        slot.put(|en| &mut en.motion[0], rounded_value(moved[2]))?;
         let r = next_c5(&particles.kind1_set.spin_random);
         slot.put(|en| &mut en.angle_rate, (r & 0x3F).wrapping_sub(0x20))?;
         slot.put(|en| &mut en.angle, r.rotate_right(6) & 0xFFF)?;

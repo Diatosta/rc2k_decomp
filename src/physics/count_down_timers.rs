@@ -9,6 +9,7 @@
 //! specification's run).
 
 use crate::physics::car_store::Car;
+use crate::physics::flow::FloatView;
 use crate::race::vars_store::RaceVars;
 use crate::session::Cell32;
 use rc2k_core::physics::motion::{StepCounters, StepFacts, count_down};
@@ -22,7 +23,7 @@ pub fn count_at(v: &[&dyn Cell32]) {
         standing: get(9),
         running: get(10),
         later: [get(11), get(12), get(15)],
-        highest: f32::from_bits(get(14)),
+        highest: v[14].float(),
     };
     let facts = StepFacts {
         steps: get(2),
@@ -30,7 +31,7 @@ pub fn count_at(v: &[&dyn Cell32]) {
         mode: get(6),
         bits: get(7),
         gear: get(8),
-        figure: f32::from_bits(get(13)),
+        figure: v[13].float(),
     };
     count_down(&mut c, &facts);
     for (k, x) in [
@@ -40,13 +41,13 @@ pub fn count_at(v: &[&dyn Cell32]) {
         (10, c.running),
         (11, c.later[0]),
         (12, c.later[1]),
-        (14, c.highest.to_bits()),
         (15, c.later[2]),
     ] {
         if get(k) != x {
             put(k, x);
         }
     }
+    v[14].set_float(c.highest);
 }
 
 fn game<'a>(car: &'a Car, vars: &'a RaceVars) -> Vec<&'a dyn Cell32> {

@@ -3,7 +3,6 @@
 
 use crate::errors::BadInput;
 use crate::menu::owner::Menus;
-use crate::menu::owner::menus;
 use crate::strings::append_string_by_id::push_string;
 
 pub const DRIVERS: u32 = 180;
@@ -17,10 +16,15 @@ pub struct Driver(&'static crate::menu::drivers_store::Driver);
 
 impl Driver {
     pub fn number(number: u32) -> Result<Self, BadInput> {
+        Self::of(crate::owners::boundary().menus, number)
+    }
+
+    /// The record of driver `number` among `menus`' drivers.
+    pub fn of(menus: &'static Menus, number: u32) -> Result<Self, BadInput> {
         if number >= DRIVERS {
             return Err(BadInput("a driver past the 180"));
         }
-        Ok(Self(&menus().cars.drivers.drivers[number as usize]))
+        Ok(Self(&menus.cars.drivers.drivers[number as usize]))
     }
 
     /// The dword at `offset` of the record.

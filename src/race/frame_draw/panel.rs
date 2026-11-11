@@ -287,11 +287,11 @@ pub(super) fn panel_half(race: &Race, car: usize, first: bool) -> Result<(), Bad
     let at = |n: u32| crate::race::checkpoints_store::distance(n as usize).get();
     let from: u32 = race.physics.split_tables.checkpoints[0].get();
     let d = travelled(at(car.checkpoint.get()), at(from));
-    let (unit, miles): (u32, u32) = (
-        race.course.numbers.k65536.bits(),
-        race.course.numbers.metres_in_mile.bits(),
+    let (unit, miles) = (
+        race.course.numbers.k65536.get(),
+        race.course.numbers.metres_in_mile.get(),
     );
-    let shown = distance_shown(d as i32, f32::from_bits(unit), f32::from_bits(miles)).to_bits();
+    let shown = distance_shown(d as i32, unit, miles).to_bits();
     distance.set(shown);
     cells[4].set(car.stage_time.get().wrapping_mul(10));
     cells[3].set(car.split_gaps[0].get());

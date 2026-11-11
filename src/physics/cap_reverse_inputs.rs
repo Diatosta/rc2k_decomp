@@ -6,6 +6,7 @@
 //! Caller: `physics::drive_wheels_step` (0x43E519).
 
 use crate::physics::car_store::Car;
+use crate::physics::flow::FloatView;
 use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
@@ -37,7 +38,7 @@ pub fn cap_reverse_inputs_at(
     };
     for (v, h) in values.iter().zip(held) {
         if at(*v) != h.to_bits() {
-            v.set_bits(h.to_bits());
+            v.set_float(h);
         }
     }
 }

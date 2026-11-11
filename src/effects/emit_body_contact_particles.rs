@@ -21,7 +21,7 @@ use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
-use crate::scene::matrix3::{extended, rounded};
+use crate::scene::matrix3::{extended, rounded, rounded_value};
 
 const LIFE: u32 = 0x12C;
 const ONE: u32 = 0x3F80_0000; // fld1
@@ -70,7 +70,7 @@ pub fn emit_body_contact_particles(
                 None => object.tag.get(),
                 // (The original leaves a register here holding the entry before's last x,
                 // which is 0.)
-                Some(b) => crate::effects::ring_entries::entry(ring, b)?.last_place[0],
+                Some(b) => crate::effects::ring_entries::entry(ring, b)?.last_place[0].to_bits(),
             };
             let e = take_entry(ring, effects, tag & 0xFF_FFFF, 0x12)?;
             before = Some(e);
@@ -90,27 +90,21 @@ pub fn emit_body_contact_particles(
                 ],
                 effects,
             );
-            slot.put(|en| &mut en.motion[2], rounded(moved[0]))?;
-            slot.put(|en| &mut en.motion[1], rounded(moved[1]) & 0x7FFF_FFFF)?;
-            slot.put(|en| &mut en.motion[0], rounded(moved[2]))?;
+            slot.put(|en| &mut en.motion[2], rounded_value(moved[0]))?;
             slot.put(
-                |en| &mut en.place[0],
-                x87::loaded(&record.place[0]).to_bits(),
+                |en| &mut en.motion[1],
+                f32::from_bits(rounded(moved[1]) & 0x7FFF_FFFF),
             )?;
-            slot.put(
-                |en| &mut en.place[1],
-                x87::loaded(&record.place[1]).to_bits(),
-            )?;
+            slot.put(|en| &mut en.motion[0], rounded_value(moved[2]))?;
+            slot.put(|en| &mut en.place[0], x87::loaded(&record.place[0]))?;
+            slot.put(|en| &mut en.place[1], x87::loaded(&record.place[1]))?;
             slot.put(
                 |en| &mut en.ground_y,
-                x87::sub(&record.place[1], &effects.setup.floats.fixed_16_scale).to_bits(),
+                x87::sub(&record.place[1], &effects.setup.floats.fixed_16_scale),
             )?;
-            slot.put(
-                |en| &mut en.place[2],
-                x87::loaded(&record.place[2]).to_bits(),
-            )?;
+            slot.put(|en| &mut en.place[2], x87::loaded(&record.place[2]))?;
             for n in 0..3 {
-                slot.put(|en| &mut en.last_place[n], 0)?;
+                slot.put(|en| &mut en.last_place[n], 0.0)?;
             }
             slot.put(|en| &mut en.life, LIFE)?;
             slot.put(|en| &mut en.car, effects.kinds.emitter.car.get())?;

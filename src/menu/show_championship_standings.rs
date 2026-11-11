@@ -21,7 +21,7 @@ pub fn show_championship_standings(menus: &Menus) -> Result<(), Refused> {
     crate::menu::stage_range_caption::stage_range_caption(play)?;
     run_screen(
         &crate::menu::championship_standings_loop::SCREEN,
-        &Entry::new(menus),
+        &Entry::new(crate::owners::boundary()),
     )?;
     Ok(())
 }

@@ -37,7 +37,7 @@ pub fn best_class_scores(menus: &crate::menu::owner::Menus) -> Result<(), Refuse
             menus.screens.event.class.set(class);
             run_screen(
                 &crate::menu::best_class_scores_loop::SCREEN,
-                &Entry::new(menus),
+                &Entry::new(crate::owners::boundary()),
             )?;
             if menus.tables.pages.yes_no_answer.get() == 1 {
                 break;

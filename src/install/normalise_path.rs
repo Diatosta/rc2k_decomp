@@ -53,9 +53,6 @@ pub fn normalise_path(
         return Ok(false);
     };
     // An empty path takes the current directory, of any length; the places written hold 0x100.
-    to.game_ptr()
-        .unbounded()
-        .limited(0x100)
-        .write_bytes(&text, "a normalised path")?;
+    to.write(&text, "a normalised path")?;
     Ok(true)
 }

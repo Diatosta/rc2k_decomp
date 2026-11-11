@@ -63,7 +63,7 @@ pub fn time_trial_service(menus: &Menus) -> Result<(), Refused> {
             {
                 run_screen(
                     &crate::service::service_area_loop::SCREEN,
-                    &Entry::new(menus),
+                    &Entry::new(crate::owners::boundary()),
                 )
             }?;
             if yes() {
@@ -82,7 +82,7 @@ pub fn time_trial_service(menus: &Menus) -> Result<(), Refused> {
                 {
                     run_screen(
                         &crate::menu::inspection_area_loop::SCREEN,
-                        &Entry::new(menus),
+                        &Entry::new(crate::owners::boundary()),
                     )
                 }?;
                 if yes() {

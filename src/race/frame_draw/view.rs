@@ -351,12 +351,12 @@ fn view_own_matrices(
 /// The angle views 1 and 2 roll by: the car's speed and steering eased into the camera roll.
 fn rolled_angle(race: &Race, car: &crate::physics::car_store::Car) -> u32 {
     use crate::math::x87::{below_or_unordered, eased_roll};
-    let mut v = crate::math::x87::div(&car.local_velocity[2], &race.course.numbers.ten).to_bits();
-    if below_or_unordered(v, race.course.numbers.zero.bits()) {
-        v = race.course.numbers.zero.bits();
+    let mut v = crate::math::x87::div(&car.local_velocity[2], &race.course.numbers.ten);
+    if below_or_unordered(v, &race.course.numbers.zero) {
+        v = race.course.numbers.zero.get();
     }
-    if !below_or_unordered(v, race.course.numbers.one.bits()) {
-        v = race.course.numbers.one.bits();
+    if !below_or_unordered(v, &race.course.numbers.one) {
+        v = race.course.numbers.one.get();
     }
     let roll = eased_roll(
         car.steering_raw.get() as i32,
@@ -543,10 +543,10 @@ fn place_sun(
         & 0xFF;
     let dir = sun_direction(
         angle as i32,
-        race.course.numbers.sixty_four.bits(),
-        race.frame.frame_work.sun_depth.bits(),
+        &race.course.numbers.sixty_four,
+        &race.frame.frame_work.sun_depth,
         race.course.stage_prefs.sun_height.get() as i32,
-        race.course.numbers.k98304.bits(),
+        &race.course.numbers.k98304,
     );
     // (The original kept the direction in `FrameWork.sun_floats` and the turned point in
     // `sun_points`, read by nothing.)
@@ -556,7 +556,7 @@ fn place_sun(
     );
     let place = turned.map(tbyte_to_int);
     let z = crate::math::x87::from_int(place[2] as i32);
-    if crate::math::x87::below_or_unordered(z, race.course.numbers.k4096_a.bits()) {
+    if crate::math::x87::below_or_unordered(z, &race.course.numbers.k4096_a) {
         return Ok(());
     }
     let flat = race.course.stage_prefs.flat_depth.get() != 0;

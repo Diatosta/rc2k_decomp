@@ -9,6 +9,7 @@
 //! Refuses a list of pointers without its -1 within the numbers' room, and a null entry.
 
 use crate::errors::BadInput;
+use crate::menu::owner::Menus;
 use crate::session::PlainDword;
 use crate::system::checked_reads::CheckedReads;
 
@@ -17,39 +18,31 @@ use crate::system::checked_reads::CheckedReads;
 /// How many dwords of each list of numbers are filled.
 const FILLED: usize = 0x28;
 /// (the numbers, the pointers)
-const LISTS: [(&[PlainDword], &[PlainDword]); 2] = [
-    (
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .cars
-            .numbers
-            .first_numbers,
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .tables
-            .lists
-            .cars_second,
-    ),
-    (
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .cars
-            .numbers
-            .second_numbers,
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .tables
-            .lists
-            .shown_cars,
-    ),
-];
+fn lists(menus: &Menus) -> [(&[PlainDword], &[PlainDword]); 2] {
+    [
+        (
+            &menus.cars.numbers.first_numbers,
+            &menus.tables.lists.cars_second,
+        ),
+        (
+            &menus.cars.numbers.second_numbers,
+            &menus.tables.lists.shown_cars,
+        ),
+    ]
+}
 
+/// `list_car_numbers_in` on the game's menus.
 pub fn list_car_numbers() -> Result<(), BadInput> {
+    list_car_numbers_in(crate::owners::boundary().menus)
+}
+
+pub fn list_car_numbers_in(menus: &Menus) -> Result<(), BadInput> {
+    let lists = lists(menus);
     // Converted: `rc2k_core::saves::cars::numbers`, both lists worked out before either is
     // written.
     {
         let mut found = Vec::new();
-        for (_, pointers) in LISTS {
+        for (_, pointers) in lists {
             let list: Vec<u32> = (0..FILLED).map(|n| pointers[n].get()).collect();
             let reads = CheckedReads::new();
             let answer = rc2k_core::saves::cars::numbers(&list, |car| {
@@ -57,7 +50,7 @@ pub fn list_car_numbers() -> Result<(), BadInput> {
             });
             found.push(reads.finish(answer)??);
         }
-        for ((numbers, _), list) in LISTS.into_iter().zip(found) {
+        for ((numbers, _), list) in lists.into_iter().zip(found) {
             for (n, v) in list.into_iter().enumerate() {
                 numbers[n].set(v);
             }

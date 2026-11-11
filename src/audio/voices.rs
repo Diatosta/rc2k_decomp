@@ -24,7 +24,7 @@ pub use rc2k_core::audio::voices::{SAMPLES, VOICES};
 // The records, voices and channels and their constants: `rc2k_core::audio::voices`.
 pub use rc2k_core::audio::voices::{LOADED, MODE_3D, MixerChannel, SampleRecord, Voice};
 
-/// A dword at an address (the pointer a record or a COM call holds).
+/// A dword at an address (a number `audio::make_buffer` hands the openings as a pointer).
 pub fn read(at: u32) -> u32 {
     crate::pointers::read_or_end::<u32>(at, "audio::voices's operand")
 }
@@ -85,11 +85,15 @@ pub fn update_voice<R>(state: &AudioState, id: u32, change: impl FnOnce(&mut Voi
     answer
 }
 
-/// The voice being changed stored now, for what reads it by address; its `buffer_3d`'s address.
-pub fn stored_buffer_3d(state: &AudioState, id: u32, v: &Voice) -> u32 {
-    let place = voice_place(state, id);
-    place.set(*v);
-    place.addr() + core::mem::offset_of!(Voice, buffer_3d) as u32
+/// The voice being changed stored now, for the property sets' openings that read its
+/// `buffer_3d` from the pool.
+pub fn stored_buffer_3d(
+    state: &AudioState,
+    id: u32,
+    v: &Voice,
+) -> crate::audio::property_sets::Holder<'static> {
+    voice_place(state, id).set(*v);
+    crate::audio::property_sets::Holder::Buffer3d(id)
 }
 
 /// The id of the voice at place `n`.

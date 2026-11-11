@@ -414,33 +414,6 @@ static WATCH_NAMES: std::sync::Mutex<[&'static str; 4]> = std::sync::Mutex::new(
 type Seen = std::collections::HashSet<(&'static str, u32, &'static str)>;
 static SEEN: std::sync::Mutex<Option<Seen>> = std::sync::Mutex::new(None);
 
-/// `start .. end` watched under `name` (replacing a range of the same name; an empty range
-/// ends the watch). At most four at once: a fifth is not watched.
-pub fn watch(name: &'static str, start: u32, end: u32) {
-    use std::sync::atomic::Ordering::Release;
-    let mut names = WATCH_NAMES
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    let slot = names
-        .iter()
-        .position(|n| *n == name)
-        .or_else(|| names.iter().position(|n| n.is_empty()));
-    let Some(k) = slot else { return };
-    if start < end {
-        names[k] = name;
-        ANY_WATCHED.store(true, std::sync::atomic::Ordering::Relaxed);
-        WATCHED[k].store(start as u64 | (end as u64) << 32, Release);
-    } else {
-        names[k] = "";
-        WATCHED[k].store(0, Release);
-    }
-}
-
-/// The watched range `name` no longer watched.
-pub fn unwatch(name: &'static str) {
-    watch(name, 0, 0);
-}
-
 /// Whether any range has been watched: the check of every by-address access, kept cheap.
 static ANY_WATCHED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
@@ -561,6 +534,7 @@ impl GamePtr {
     }
 
     /// The same address, limited to `len` bytes from here: a buffer that is part of a field.
+    #[cfg(test)]
     pub const fn limited(self, len: u32) -> Self {
         Self {
             at: self.at,

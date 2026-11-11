@@ -69,7 +69,7 @@ pub fn steps(car: &Car, damage: &DamageModel) {
         damage.wheels_down.set_bits(ONE);
     }
     damage.brake_share.set(0.0);
-    if !abs_below_or_unordered(car.local_velocity[2].bits(), damage.grade_high.bits())
+    if !abs_below_or_unordered(&car.local_velocity[2], &damage.grade_high)
         && (car.brake.get().wrapping_sub(0x10) as i32) >= 0
     {
         brake_share_step(car, damage);

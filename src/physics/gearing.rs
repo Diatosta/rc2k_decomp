@@ -12,6 +12,7 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::physics::car_store::Car;
+use crate::physics::flow::FloatView;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 use crate::session::{Cell32, Float};
@@ -77,9 +78,9 @@ pub fn wheels_from_revs_at(p: &GearPlaces<'_>) -> Result<(), Refused> {
         return Ok(());
     };
     let speed = x87::mul(p.engine_speed, ratio);
-    p.drive_speed.set_bits(speed.to_bits());
+    p.drive_speed.set_float(speed);
     if p.drive_kind.bits() == 1 {
-        p.drive_speed_b.set_bits(x87::loaded(speed).to_bits());
+        p.drive_speed_b.set_float(x87::loaded(speed));
     }
     Ok(())
 }
@@ -90,6 +91,6 @@ pub fn revs_from_speed_at(p: &GearPlaces<'_>) -> Result<(), Refused> {
     let Some((_, ratio)) = gear_ratio(p)? else {
         return Ok(());
     };
-    p.engine_speed.set_bits(x87::div(p.speed, ratio).to_bits());
+    p.engine_speed.set_float(x87::div(p.speed, ratio));
     Ok(())
 }

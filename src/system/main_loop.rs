@@ -27,7 +27,7 @@
 
 use crate::errors::Refused;
 use crate::framework::log;
-use crate::system::owner::Session;
+use crate::owners::Owners;
 
 /// `InstallerPages.script_set_up` when the installer's script is set up.
 const INSTALLER_MARK: u16 = 0xBD;
@@ -48,12 +48,13 @@ fn quit_and_leave() -> Result<(), Refused> {
     log_line(c"Leaving main loop...");
     Ok(())
 }
-pub fn main_loop(session: &Session, saves: &crate::saves::owner::Saves) -> Result<(), Refused> {
-    let gfx = crate::gfx::owner::gfx();
-    let audio = crate::audio::owner::audio();
-    let sound = crate::sound::owner::sound();
-    let install = crate::install::owner::install();
-    let menus = crate::menu::owner::menus();
+pub fn main_loop(o: Owners<'static>) -> Result<(), Refused> {
+    let session = &o.system.session;
+    let saves = o.saves;
+    let gfx = o.gfx;
+    let sound = o.sound;
+    let install = o.install;
+    let menus = o.menus;
     log_line(c"");
     log_line(c"Entering main loop...");
     // Wait for the window to be the active one and the key thread to have run; the quit
@@ -95,7 +96,7 @@ pub fn main_loop(session: &Session, saves: &crate::saves::owner::Saves) -> Resul
     crate::sound::stop_cd_audio::stop_cd_audio(sound);
     // Its answer is not read (this build's nine `nop`s).
     crate::files::is_cd_drive::is_cd_drive(base_drive());
-    crate::menu::run_front_end::run_front_end(menus, audio)?;
+    crate::menu::run_front_end::run_front_end(o)?;
     crate::sound::stop_music::stop_music();
     if session.flags.quitting.is_set() {
         // The original leaves here without saving: the window closed (or any quit by the
@@ -111,9 +112,9 @@ pub fn main_loop(session: &Session, saves: &crate::saves::owner::Saves) -> Resul
 }
 
 /// The main loop, logged on the way in and out.
-pub fn main_loop_in_game(system: &crate::system::owner::System) -> Result<(), Refused> {
+pub fn main_loop_in_game(o: Owners<'static>) -> Result<(), Refused> {
     log("system::main_loop: runs");
-    main_loop(&system.session, crate::saves::owner::saves())?;
+    main_loop(o)?;
     log("system::main_loop: has come back");
     Ok(())
 }

@@ -22,7 +22,7 @@ pub fn show_class_championship_standings(menus: &Menus, class: u32) -> Result<()
     crate::menu::stage_range_caption::stage_range_caption(&menus.play)?;
     run_screen(
         &crate::menu::class_championship_standings_loop::SCREEN,
-        &Entry::new(menus),
+        &Entry::new(crate::owners::boundary()),
     )?;
     Ok(())
 }

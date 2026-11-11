@@ -14,12 +14,16 @@ use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_bytes;
 use crate::files::read_file::read_file_into;
 use crate::menu::name_lists::NAME_LEN;
-use crate::saves::owner::saves;
+use crate::saves::owner::{Saves, saves};
 use crate::saves::write_savegame_slot::{FILE_LEN, SLOTS, slot_name};
 
 /// True if the slot's file was read and accepted.
 pub fn read_savegame_slot(slot: u32) -> Result<bool, Refused> {
-    let saves = saves();
+    read_savegame_slot_in(saves(), slot)
+}
+
+/// `read_savegame_slot` on the given saved games.
+pub fn read_savegame_slot_in(saves: &'static Saves, slot: u32) -> Result<bool, Refused> {
     if slot >= SLOTS {
         return Err(BadInput("slot past the name list").into());
     }
@@ -33,7 +37,7 @@ pub fn read_savegame_slot(slot: u32) -> Result<bool, Refused> {
     let block = &bytes[..0x30];
     match kept::slot_name(block, kept::SAVEGAME, kept::SAVEGAME_VERSION) {
         Some(name) if read.ok => {
-            slot_name(slot).write(&name[..NAME_LEN], "a savegame slot's name")?;
+            slot_name(saves, slot).write(&name[..NAME_LEN], "a savegame slot's name")?;
             Ok(true)
         }
         _ => Ok(false),

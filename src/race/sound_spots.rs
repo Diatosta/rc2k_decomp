@@ -49,7 +49,7 @@ fn check(course: &Course, grid: &ViewGrid) -> Result<(), Refused> {
 }
 
 /// `fld tbyte; fmul dword; fstp dword`.
-fn scaled(t: [u8; 10], k: u32) -> u32 {
+fn scaled(t: [u8; 10], k: impl crate::math::x87_float::Loadable) -> u32 {
     use crate::math::x87_float::{from_f80, ld, st};
     st(from_f80(t) * ld(k))
 }
@@ -95,7 +95,7 @@ pub fn face_sound_spot(race: &Race, view: &ViewMatrices, face_number: u32) -> Re
             [f.dword_at(0x30), f.dword_at(0x34), f.dword_at(0x38)],
         );
         let t = { crate::scene::rotate_point::rotate_point(&view.view_matrix, place.map(int_80)) };
-        let k: u32 = race.course.numbers.one_over_65536.bits();
+        let k = race.course.numbers.one_over_65536.get();
         for (i, v) in t.into_iter().enumerate() {
             put(4 + 4 * i as u32, scaled(v, k))?;
         }

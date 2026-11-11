@@ -10,16 +10,18 @@
 
 use crate::errors::Refused;
 use crate::framework::log;
-use crate::menu::owner::Menus;
 use crate::menu::screen_loop::{Entry, run_screen};
+use crate::owners::Owners;
 
 // ---- game data ----
 
 const STARTING_RVA: &std::ffi::CStr = c"BEV: Starting GB_Front"; // "BEV: Starting GB_Front"
 const FINISHED_RVA: &std::ffi::CStr = c"BEV: Finished GB_Front"; // "BEV: Finished GB_Front"
 
-pub fn run_front_end(menus: &Menus, audio: &crate::audio::owner::Audio) -> Result<(), Refused> {
-    let gfx = crate::gfx::owner::gfx();
+pub fn run_front_end(o: Owners<'_>) -> Result<(), Refused> {
+    let menus = o.menus;
+    let audio = o.audio;
+    let gfx = o.gfx;
     let fonts = &gfx.fonts;
     let play = &menus.play;
     log("menu::run_front_end: runs");
@@ -32,7 +34,7 @@ pub fn run_front_end(menus: &Menus, audio: &crate::audio::owner::Audio) -> Resul
     // The films, with eax 0 (the game's start).
     crate::menu::play_films::play_films(false)?;
     crate::logfile::log_write::log_nul(STARTING_RVA, true, 1);
-    run_screen(&crate::menu::main_menu_loop::SCREEN, &Entry::new(menus))?;
+    run_screen(&crate::menu::main_menu_loop::SCREEN, &Entry::new(o))?;
     crate::logfile::log_write::log_nul(FINISHED_RVA, true, 1);
     crate::menu::store_player_names::store_player_names(menus, play, &mut |line| {
         crate::logfile::log_write::log_nul(line, true, 1);

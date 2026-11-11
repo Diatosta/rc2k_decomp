@@ -117,10 +117,7 @@ fn view(race: &Race, mode: Mode) -> Result<(), Refused> {
         Mode::LastRace => LAST_RACE,
         Mode::Saved | Mode::SaveLast => {
             let saving = mode == Mode::SaveLast;
-            let slot = crate::menu::replay_slot_loop::replay_slot_loop(
-                crate::menu::owner::menus(),
-                saving,
-            )?;
+            let slot = crate::menu::replay_slot_loop::replay_slot_loop(saving)?;
             if slot == u32::MAX {
                 return Ok(());
             }
@@ -260,7 +257,7 @@ fn stopped_key(
             _ => Next::Sound,
         });
     }
-    if crate::menu::list_step::list_step(key, Some(ReplayViewBlock::key_table()?.into()), list)? {
+    if crate::menu::list_step::list_step(key, Some(ReplayViewBlock::key_table()?), list)? {
         return Ok(Next::Mark);
     }
     if key == 0x1C {
@@ -311,7 +308,7 @@ fn mark(
             loop {
                 if !crate::menu::list_step::list_step(
                     key,
-                    Some(ReplayViewBlock::key_table()?.into()),
+                    Some(ReplayViewBlock::key_table()?),
                     list,
                 )? {
                     break;

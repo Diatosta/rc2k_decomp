@@ -68,7 +68,7 @@ impl starters::Event for Game<'_> {
                 {
                     run_screen(
                         &m::select_car_loop::SCREEN,
-                        &Entry::with_cars(self.menus, self.cars),
+                        &Entry::with_cars(crate::owners::boundary(), self.cars),
                     )
                 }?;
             }

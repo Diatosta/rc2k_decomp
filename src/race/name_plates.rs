@@ -172,12 +172,7 @@ pub fn draw_text_in_game(
     x: u32,
     y: u32,
 ) -> Result<bool, Refused> {
-    draw_bytes_in_game(
-        font,
-        &text.into().game_ptr().bytes("a name plate's text")?,
-        x,
-        y,
-    )
+    draw_bytes_in_game(font, &text.into().bytes("a name plate's text")?, x, y)
 }
 
 /// As `draw_text_in_game`, the text's bytes in hand.

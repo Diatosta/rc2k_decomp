@@ -7,18 +7,17 @@
 //! `race::choose_save_slot`, 0x46F79C, 0x46F7A7.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::Menus;
 use crate::menu::screen_loop::{Entry, run_screen};
 
 /// The slot chosen (-1 for none), on the saving screen when `saving`
 /// (the original's eax non-zero), else on the loading one.
-pub fn replay_slot_loop(menus: &Menus, saving: bool) -> Result<u32, Refused> {
+pub fn replay_slot_loop(saving: bool) -> Result<u32, Refused> {
     let screen = if saving {
         &crate::menu::save_replay_loop::SCREEN
     } else {
         &crate::menu::load_replay_loop::SCREEN
     };
-    let slot = { run_screen(screen, &Entry::new(menus)) }?;
+    let slot = { run_screen(screen, &Entry::new(crate::owners::boundary())) }?;
     // Both screens leave the slot in eax (their `result`).
     Ok(slot.ok_or(BadInput("a replay slot screen without its result"))?)
 }

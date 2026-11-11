@@ -22,8 +22,11 @@ pub fn default_class_times() -> Result<(), Refused> {
     if !LEVEL_SCORES.is_taken() {
         return Err(crate::errors::BadInput("no table").into());
     }
+    let o = crate::owners::boundary();
     let entries = class_times(&mut GameSource {
         log: &mut to_nowhere,
+        menus: o.menus,
+        race: o.race,
     })?;
     LEVEL_SCORES.with(|t| rc2k_core::saves::entries::fill_made_up(t, &entries))?;
     Ok(())

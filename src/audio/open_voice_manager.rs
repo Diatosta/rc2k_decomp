@@ -13,6 +13,6 @@ use crate::audio::store::AudioState;
 use crate::errors::Refused;
 
 /// True for the carry clear.
-pub fn open_voice_manager(state: &AudioState, holder: u32) -> Result<bool, Refused> {
+pub fn open_voice_manager(state: &AudioState, holder: Holder) -> Result<bool, Refused> {
     open_property_set(state, &Opening::voice_manager(state), holder)
 }

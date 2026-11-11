@@ -14,8 +14,8 @@
 
 use crate::errors::BadInput;
 use crate::math::random_below::random_below;
-use crate::menu::owner::Screens;
-use crate::race::owner::race;
+use crate::menu::owner::{Menus, Screens};
+use crate::race::owner::Race;
 use crate::records::stages_store::{RecordRef, RecordTable};
 use crate::saves::drivers::Driver;
 use rc2k_core::Invalid;
@@ -49,6 +49,8 @@ pub fn to_nowhere(_: Piece) {}
 /// numbers, its drivers, its checkpoint counts and its log (or none).
 pub struct GameSource<'a> {
     pub log: Log<'a>,
+    pub menus: &'static Menus,
+    pub race: &'static Race,
 }
 
 impl rc2k_core::saves::defaults::Source for GameSource<'_> {
@@ -57,10 +59,8 @@ impl rc2k_core::saves::defaults::Source for GameSource<'_> {
     }
 
     fn driver(&mut self, number: u32) -> Result<rc2k_core::saves::defaults::Driver, Invalid> {
-        let driver = Driver::number(number).map_err(|e| Invalid(e.0))?;
-        let (name_id, name) = driver
-            .name(crate::menu::owner::menus())
-            .map_err(|e| Invalid(e.0))?;
+        let driver = Driver::of(self.menus, number).map_err(|e| Invalid(e.0))?;
+        let (name_id, name) = driver.name(self.menus).map_err(|e| Invalid(e.0))?;
         Ok(rc2k_core::saves::defaults::Driver {
             fields: [driver.class(), driver.nation(), driver.car()],
             name_id,
@@ -69,7 +69,7 @@ impl rc2k_core::saves::defaults::Source for GameSource<'_> {
     }
 
     fn checkpoint_count(&mut self, stage: u32) -> u32 {
-        race().shared.work.checkpoint_counts[stage as usize].bits()
+        self.race.shared.work.checkpoint_counts[stage as usize].bits()
     }
 
     fn log(&mut self, piece: rc2k_core::saves::defaults::Piece) {
@@ -117,7 +117,12 @@ pub enum Target {
 /// Writes what a function of the time tables worked out: its blocks into `tables` (the
 /// function's own, then the rallies'), and the work variables. Refuses a block past its
 /// table.
-pub fn apply(screens: &Screens, filled: &Filled, tables: &[Target]) -> Result<(), BadInput> {
+pub fn apply(
+    screens: &Screens,
+    race: &Race,
+    filled: &Filled,
+    tables: &[Target],
+) -> Result<(), BadInput> {
     {
         for block in &filled.blocks {
             match tables[block.table] {
@@ -144,7 +149,7 @@ pub fn apply(screens: &Screens, filled: &Filled, tables: &[Target]) -> Result<()
             screens.draw_work.scratch_b0.set(sum);
         }
         if let Some(c) = filled.checkpoints {
-            for (cell, v) in race().shared.work.guessed_checkpoints.iter().zip(c) {
+            for (cell, v) in race.shared.work.guessed_checkpoints.iter().zip(c) {
                 cell.set(v);
             }
         }

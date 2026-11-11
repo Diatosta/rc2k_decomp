@@ -13,6 +13,21 @@ use crate::session::Float;
 /// physics reads this constant instead of going through the race for it.
 pub const ZERO_BITS: u32 = 0;
 
+/// A cell read and written as the float it holds.
+pub trait FloatView {
+    fn float(&self) -> f32;
+    fn set_float(&self, x: f32);
+}
+
+impl<T: crate::session::Cell32 + ?Sized> FloatView for T {
+    fn float(&self) -> f32 {
+        f32::from_bits(self.bits())
+    }
+    fn set_float(&self, x: f32) {
+        self.set_bits(x.to_bits());
+    }
+}
+
 /// The game's dword in the cell `x`.
 pub fn g(x: &impl crate::session::Cell32) -> u32 {
     x.bits()
@@ -47,7 +62,7 @@ pub fn equal_or_unordered(a: impl x87::Flt, b: impl x87::Flt) -> bool {
 
 /// The size of the float `a` is below `b`, or one of them is not a number (`fabs` then
 /// the comparison's C0).
-pub fn abs_below_or_unordered(a: u32, b: u32) -> bool {
+pub fn abs_below_or_unordered(a: impl x87::Flt, b: impl x87::Flt) -> bool {
     crate::math::x87::abs_compare(a, b) & 0x100 != 0
 }
 
@@ -60,7 +75,7 @@ pub fn hold_low(v: &impl crate::session::Cell32, lim: &impl crate::session::Cell
 /// `hold_low` against a limit given as a value (its bits).
 pub fn hold_low_bits(v: &impl crate::session::Cell32, lim: u32) {
     if c0(g(v), lim) {
-        p(v, x87::loaded(lim).to_bits());
+        v.set_float(x87::loaded(lim));
     }
 }
 
@@ -68,16 +83,15 @@ pub fn hold_low_bits(v: &impl crate::session::Cell32, lim: u32) {
 /// (or unordered).
 pub fn hold_high(v: &impl crate::session::Cell32, lim: &impl crate::session::Cell32) {
     if !c0(g(v), g(lim)) {
-        p(v, x87::loaded(g(lim)).to_bits());
+        v.set_float(x87::loaded(g(lim)));
     }
 }
 
 /// `fld v; fchs; fstp v`.
 pub fn negate(v: &impl crate::session::Cell32) {
-    p(
-        v,
-        crate::math::x87::neg_rounded(crate::scene::matrix3::extended(g(v))).to_bits(),
-    );
+    v.set_float(crate::math::x87::neg_rounded(
+        crate::scene::matrix3::extended(g(v)),
+    ));
 }
 
 /// The value at `v` brought toward 0 by the step at `step`, never past it; 0 (either
@@ -89,14 +103,14 @@ pub fn ease_zero(v: &impl crate::session::Cell32, step: &impl crate::session::Ce
     }
     if c0(x, 0) {
         let y = x87::add(x, g(step));
-        p(v, y.to_bits());
-        if !c0(y.to_bits(), 0) {
+        v.set_float(y);
+        if !c0(y, 0) {
             p(v, 0);
         }
     } else {
         let y = x87::sub(x, g(step));
-        p(v, y.to_bits());
-        if c0(y.to_bits(), 0) {
+        v.set_float(y);
+        if c0(y, 0) {
             p(v, 0);
         }
     }
@@ -113,15 +127,15 @@ pub fn table_lerp(
     out: &impl crate::session::Cell32,
 ) {
     if c0(g(x), &t[0]) {
-        p(out, x87::loaded(&t[1]).to_bits());
+        out.set_float(x87::loaded(&t[1]));
         return;
     }
     if !c0(g(x), &t[2]) {
-        p(out, x87::loaded(&t[3]).to_bits());
+        out.set_float(x87::loaded(&t[3]));
         return;
     }
     if x87_1(t, g(zero)) & 0x4000 != 0 {
-        p(out, x87::loaded(&t[1]).to_bits());
+        out.set_float(x87::loaded(&t[1]));
         return;
     }
     p(out, x87_2(g(x), t));

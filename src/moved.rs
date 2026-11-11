@@ -70,6 +70,7 @@ pub(crate) enum Home {
 
 impl Home {
     /// The home's bytes as a place bounded by them.
+    #[cfg(test)]
     fn place(&self) -> crate::pointers::GamePtr {
         match self {
             Home::Store(store) => crate::pointers::GamePtr::of_store(*store),
@@ -2750,6 +2751,7 @@ pub(crate) const MOVED: &[Moved] = &[
 /// The place IDA's address `ida` names (a table that keeps IDA's addresses as names, a
 /// debug page): in the home of the moved range holding it, bounded to that range. A name
 /// in no moved range is refused.
+#[cfg(test)]
 pub fn named(ida: usize) -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
     let ranges = sorted();
     let i = ranges.partition_point(|&(start, _, _)| start <= ida);

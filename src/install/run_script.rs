@@ -19,16 +19,16 @@ use crate::install::installer::{fatal, media_mode, rb, wb};
 use crate::place::BytePlace;
 use rc2k_core::install::script::{self, Op};
 
-/// The script at `script` run.
+/// The script at `script` (a place in the installer's names or variables) run.
 pub fn run_script(
     install: &'static crate::install::owner::Install,
-    script: impl Into<crate::place::BytePlace>,
+    script: BytePlace,
 ) -> Result<(), Refused> {
     use crate::install as i;
-    // Bounded by the script's allocation, not by the field it starts in: the uninstall
-    // script runs on from `INSTALLER_NAMES.script` through `script_mark` into the fields
-    // after it, as the original reads it.
-    let mut cursor = BytePlace::from(script.into().game_ptr().unbounded());
+    // Bounded by the record the script is in, not by its own field: the uninstall script
+    // (`names.script`) runs on through `script_mark` into the fields after it, as the
+    // original reads it.
+    let mut cursor = script;
     let mut end = BytePlace::from(&install.paths.script_path);
     wb(end, 0);
     let mut stack: Vec<BytePlace> = Vec::new();

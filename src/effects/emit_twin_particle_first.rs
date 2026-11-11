@@ -7,7 +7,7 @@
 //! The level (the twin set's `level`) is the car's +0x4C0 (+0x4C4); a random's bits 16 .. 18
 //! must be under it (signed). The wheel flags get 0x3E (0x33); the set's copy of the car's
 //! +0x4C .. +0x54 is kept. The entry: its place (the set's start point) turned and placed by
-//! the emitting car's matrix (`x87::turned_place`), less the set's lift in y at +0x28; its
+//! the emitting car's matrix (`x87::turned_place_f32`), less the set's lift in y at +0x28; its
 //! motion the matrix's second row by the set's factors, moved by `effects::jitter_point`
 //! (the set's spread) plus the kept car values by two more factors; a random spin and turn;
 //! the flags' low 6 bits; a size 0x4000 or 0x8000 by the random's bit 6 (the strength, +0x60
@@ -127,8 +127,12 @@ pub fn emit_twin(
     let slot = crate::effects::ring_entries::Slot::new(ring, e);
     let car = emitting_car(effects)?;
     let cells = car.whole()?;
-    let [x, y, y_less, z] = x87::turned_place(
-        crate::session::read_bits(&particles.twin_state.point),
+    let [x, y, y_less, z] = x87::turned_place_f32(
+        particles
+            .twin_state
+            .point
+            .each_ref()
+            .map(crate::session::PlainFloat::get),
         &set.tuning.lift,
         car.whole()?,
     );
@@ -150,8 +154,7 @@ pub fn emit_twin(
     for n in 0..3 {
         slot.put(
             |en| &mut en.motion[n],
-            x87::product_plus(motion[n], step, &set.tuning.motion_k[n], rounded(moved[n]))
-                .to_bits(),
+            x87::product_plus(motion[n], step, &set.tuning.motion_k[n], rounded(moved[n])),
         )?;
     }
     let r = next_c5(&set.tuning.spin_random);

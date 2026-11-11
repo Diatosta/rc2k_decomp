@@ -9,7 +9,7 @@ use crate::race::owner::Race;
 /// The slot chosen.
 pub fn choose_save_slot(race: &Race) -> Result<u32, Refused> {
     crate::race::viewer_tidy_stage::viewer_tidy_stage(race)?;
-    let slot = crate::menu::replay_slot_loop::replay_slot_loop(crate::menu::owner::menus(), true)?;
+    let slot = crate::menu::replay_slot_loop::replay_slot_loop(true)?;
     crate::race::viewer_load_stage::viewer_load_stage(race)?;
     Ok(slot)
 }

@@ -200,12 +200,12 @@ fn failures<'a>(
 pub fn rate_damage(car: &Car, damage: &DamageModel) {
     let d = &damage;
     let c = &car;
-    let less = |a: u32, b: u32| compare_full(a, b) & 0x100 != 0;
+    let less = |a: &Float, b: &Float| compare_full(a, b) & 0x100 != 0;
     let hold = |v: &Float| {
-        if less(v.bits(), d.gauge_low.bits()) {
+        if less(v, &d.gauge_low) {
             v.set(x87::loaded(&d.gauge_low));
         }
-        if !less(v.bits(), d.grade_high.bits()) {
+        if !less(v, &d.grade_high) {
             v.set(x87::loaded(&d.grade_high));
         }
     };
@@ -214,7 +214,7 @@ pub fn rate_damage(car: &Car, damage: &DamageModel) {
         [c.engine_damage.bits(), k, d.figures[7].bits()],
         [c.exhaust_damage.bits(), k, d.figures[8].bits()],
     ]);
-    if d.drive_kind.bits() != 0 && !less(c.turbo_damage.bits(), d.gauge_top.bits()) {
+    if d.drive_kind.bits() != 0 && !less(&c.turbo_damage, &d.gauge_top) {
         e = ext_times(e, d.wear_rates[10].bits());
     }
     c.engine_power_factor.set_bits(rounded(e));
@@ -303,12 +303,12 @@ pub fn rate_damage(car: &Car, damage: &DamageModel) {
         &c.electrics_damage,
     ]
     .iter()
-    .all(|v| less(v.bits(), d.gauge_top.bits()));
+    .all(|v| less(v, &d.gauge_top));
     if all_below {
         c.damage_failed.set(0);
     } else {
         c.damage_failed.set(1);
-        if !less(c.electrics_damage.bits(), d.gauge_top.bits()) {
+        if !less(&c.electrics_damage, &d.gauge_top) {
             c.engine_power_factor.set(0.0);
         }
     }

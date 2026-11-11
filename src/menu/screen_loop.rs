@@ -60,8 +60,8 @@ use crate::menu::owner::menus;
 use crate::menu::run_item_action::run_item_action;
 use crate::menu::run_list::run_list;
 use crate::menu::update_blink::update_blink;
+use crate::owners::Owners;
 use crate::race::owner::Race;
-use crate::race::owner::race;
 use crate::scene::owner::Scene;
 use crate::session::{Cell32, DwordLike, FlagLike};
 use crate::sound::owner::Sound;
@@ -374,21 +374,21 @@ impl<'a> Entry<'a> {
     }
 
     /// Entered with nothing carried in.
-    pub fn new(menus: &'a Menus) -> Self {
-        Entry::with_cars(menus, None)
+    pub fn new(o: Owners<'a>) -> Self {
+        Entry::with_cars(o, None)
     }
     /// Entered with the list of cars the carousel shows.
-    pub fn with_cars(menus: &'a Menus, cars: Option<CarList>) -> Self {
+    pub fn with_cars(o: Owners<'a>, cars: Option<CarList>) -> Self {
         Entry {
-            menus,
+            menus: o.menus,
             cars,
-            scene: crate::scene::owner::scene(),
+            scene: o.scene,
             front_end: crate::scene::polygon_work::front_end(),
-            system: system(),
-            race: race(),
-            sound: crate::sound::owner::sound(),
-            input: crate::input::owner::input(),
-            audio: crate::audio::owner::audio(),
+            system: o.system,
+            race: o.race,
+            sound: o.sound,
+            input: o.input,
+            audio: o.audio,
         }
     }
 }
@@ -946,7 +946,7 @@ pub fn confirm_leaving() -> Result<u32, Refused> {
             }
             asked = run_screen(
                 &crate::menu::leave_question_loop::SCREEN,
-                &Entry::new(menus()),
+                &Entry::new(crate::owners::boundary()),
             )
             .map(|_| ());
         })
@@ -961,7 +961,7 @@ pub fn confirm_leaving() -> Result<u32, Refused> {
 pub fn screen_entry(name: &str, screen: &Screen) -> Result<(), Refused> {
     let screens = &menus().screens;
     log(&format!("{name}: runs"));
-    let exit = screen_loop(screens, screen, &Entry::new(menus()))?;
+    let exit = screen_loop(screens, screen, &Entry::new(crate::owners::boundary()))?;
     log(&format!("{name}: has left the screen ({exit})"));
     Ok(())
 }

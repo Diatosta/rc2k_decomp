@@ -15,11 +15,9 @@ pub fn copy_counted(
     from: impl Into<crate::place::BytePlace>,
     to: impl Into<crate::place::BytePlace>,
 ) -> Result<bool, Refused> {
-    let from: u32 = from.into().game();
-    let to: u32 = to.into().game();
     install
         .run
         .files_copied
         .set(install.run.files_copied.get().wrapping_add(1));
-    copy_file(from, to)
+    copy_file(from.into(), to.into())
 }

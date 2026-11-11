@@ -28,11 +28,8 @@ use crate::scene::matrix3::extended;
 use std::cmp::Ordering;
 
 /// `fld b; fld x; fcompp` (or `fld x; fcomp b`), C0: x below b, or unordered.
-fn below(x: u32, b: u32) -> bool {
-    !matches!(
-        f32::from_bits(x).partial_cmp(&f32::from_bits(b)),
-        Some(Ordering::Greater | Ordering::Equal)
-    )
+fn below(x: f32, b: f32) -> bool {
+    !matches!(x.partial_cmp(&b), Some(Ordering::Greater | Ordering::Equal))
 }
 
 /// The exact version, for `physics::car_physics_step`.
@@ -52,11 +49,15 @@ pub fn wheel_springs(
         c.wheel_squeeze_last[k].set(old);
         let eax = contact.probe_height[k].get().wrapping_neg();
         drawing.scene.scratch.set(eax);
-        q.set_bits(ext_div2(int_80(eax as i32, false), &numbers.k65536, &ph.handling[3]).to_bits());
-        if below(q.bits(), ZERO) {
+        q.set(ext_div2(
+            int_80(eax as i32, false),
+            &numbers.k65536,
+            &ph.handling[3],
+        ));
+        if below(q.get(), 0.0) {
             q.set(x87::loaded(ZERO));
         }
-        if !below(q.bits(), numbers.one.bits()) {
+        if !below(q.get(), numbers.one.get()) {
             q.set(x87::loaded(&numbers.one));
         }
         force.set(negated(mul2(
@@ -69,12 +70,12 @@ pub fn wheel_springs(
             drawing.scene.work_dword.get(),
             ph.handling[5].bits(),
         ));
-        if below(damping.bits(), ZERO) {
+        if below(damping.get(), 0.0) {
             damping.set(x87::mul(damping, &ph.handling[0]));
         }
         let zero_or_none = q
             .get()
-            .partial_cmp(&f32::from_bits(ZERO))
+            .partial_cmp(&0.0)
             .is_none_or(|o| o == Ordering::Equal);
         if !zero_or_none {
             force.set(x87::add(damping, force));

@@ -45,13 +45,13 @@ fn p(x: usize, v: u32) {
 
 /// The press time's constants: `TyreChange::{time_base, time_scale, gauge_unit,
 /// log_two_ten}` and `one`.
-fn constants(shared: &RaceShared) -> [u32; 5] {
+fn constants(shared: &RaceShared) -> [f32; 5] {
     [
-        shared.tyre_change.time_base.bits(),
-        shared.tyre_change.time_scale.bits(),
-        shared.tyre_change.gauge_unit.bits(),
-        shared.tyre_change.log_two_ten.bits(),
-        VIEWER_PANEL.one.bits(),
+        shared.tyre_change.time_base.get(),
+        shared.tyre_change.time_scale.get(),
+        shared.tyre_change.gauge_unit.get(),
+        shared.tyre_change.log_two_ten.get(),
+        VIEWER_PANEL.one.get(),
     ]
 }
 
@@ -176,7 +176,7 @@ mod asm_reference {
     // The original block, verbatim.
     pub(super) fn press_time_asm(s: i32) -> i32 {
         let shared = &crate::race::owner::race().shared;
-        let f = constants(shared);
+        let f = constants(shared).map(f32::to_bits);
         let v = [
             f[1],
             f[3],

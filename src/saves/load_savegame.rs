@@ -34,7 +34,7 @@ use crate::menu::owner::Menus;
 use crate::pointers::Store;
 use crate::saves::gather_savegame::{CAR_LEN, RECORDS_LEN, cars, head};
 use crate::saves::owner::saves;
-use crate::saves::read_savegame_slot::read_savegame_slot;
+use crate::saves::read_savegame_slot::read_savegame_slot_in;
 use crate::saves::write_savegame_slot::SLOTS;
 use rc2k_core::saves::savegame::{A8_MODE, CORRUPT, Resume, resume};
 
@@ -73,7 +73,7 @@ fn load_and_run(menus: &Menus) -> Result<(), Refused> {
     menus.screens.event.event_goes_on.set(1u32);
     menus.tables.pages.reset_times.set(0u32);
     menus.screens.event.event_out.set(0u32);
-    if !read_savegame_slot(slot)? {
+    if !read_savegame_slot_in(saves, slot)? {
         crate::sound::play_menu_sound::play_menu_sound_in_game(UNREADABLE_SOUND);
         go_back::go_back();
         return Ok(());
@@ -87,7 +87,7 @@ fn load_and_run(menus: &Menus) -> Result<(), Refused> {
         cursor += 4;
     }
     if saves.savegame_preview.use_savegame_keys.get() == 0 {
-        crate::saves::keep_player_settings::keep_player_settings(file, cursor)?;
+        crate::saves::keep_player_settings::keep_player_settings(menus, file, cursor)?;
     }
     crate::menu::drop_missing_controllers::drop_missing_controllers(menus)?;
 
@@ -121,9 +121,7 @@ fn load_and_run(menus: &Menus) -> Result<(), Refused> {
         .start_section_a8
         .set(cars[0].get().saved_start_section_a8);
 
-    match resume(crate::menu::next_record_kind::next_record_kind(
-        crate::menu::owner::menus(),
-    )?) {
+    match resume(crate::menu::next_record_kind::next_record_kind(menus)?) {
         Resume::NextSection => {
             menus
                 .screens

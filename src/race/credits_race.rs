@@ -44,7 +44,7 @@ pub fn credits_race(race: &Race) -> Result<(), Refused> {
         system,
     )?;
     race.shared.view.after_credits.set(0);
-    crate::drive::play_race::play_race(race, crate::scene::owner::scene())?;
+    crate::drive::play_race::play_race(race, crate::owners::boundary())?;
     race.shared.work.in_credits.set(false);
     crate::race::race_end::tidy_everything(race)
 }

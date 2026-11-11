@@ -98,7 +98,13 @@ pub fn install_files(install: &'static crate::install::owner::Install) -> Result
     install.names.status.set(0x80);
     i::write_registry::write_registry(install, &mut crate::install::portable::Portable)?;
     normalise(&install.paths.game_dir, &install.paths.game_dir)?;
-    i::run_script::run_script(install, &install.names.script_count)?;
+    i::run_script::run_script(
+        install,
+        crate::place::BytePlace::in_store(
+            &install.names,
+            core::mem::offset_of!(crate::install::vars::InstallerNames, script_count),
+        ),
+    )?;
     install.run.files_copied.set(0);
     install.run.copy_spare.set(0);
     install.run.files_to_copy.set(install.run.file_count.get());

@@ -434,8 +434,7 @@ fn spin_and_move(
             set(
                 ring,
                 e,
-                x87::plus_times_int(entry(ring, e)?.place[axis], entry(ring, e)?.motion[axis], t)
-                    .to_bits(),
+                x87::plus_times_int(entry(ring, e)?.place[axis], entry(ring, e)?.motion[axis], t),
                 |en| &mut en.place[axis],
             )?;
         }
@@ -454,7 +453,7 @@ fn gain_y(
         set(
             ring,
             e,
-            x87::plus_times_int(entry(ring, e)?.motion[1], k(k_addr), t).to_bits(),
+            x87::plus_times_int(entry(ring, e)?.motion[1], k(k_addr), t),
             |en| &mut en.motion[1],
         )?;
     }
@@ -472,11 +471,13 @@ fn damp3(
         let t: i32 = effects.setup.clock.frame_ticks.get() as i32;
         for (axis, kk) in ks.into_iter().enumerate() {
             let old = entry(ring, e)?.motion[axis];
-            ring.work.whole.set(old);
-            let new = bh::st(bh::ld(old) - bh::ld(old) * bh::ld(k(kk)) * bh::int(t));
+            ring.work.whole.set(old.to_bits());
+            let new = f32::from_bits(bh::st(
+                bh::ld(old) - bh::ld(old) * bh::ld(k(kk)) * bh::int(t),
+            ));
             set(ring, e, new, |en| &mut en.motion[axis])?;
-            if (old ^ new) & 0x8000_0000 != 0 {
-                set(ring, e, 0, |en| &mut en.motion[axis])?;
+            if (old.to_bits() ^ new.to_bits()) & 0x8000_0000 != 0 {
+                set(ring, e, 0.0, |en| &mut en.motion[axis])?;
             }
         }
     }

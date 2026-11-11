@@ -8,6 +8,7 @@
 //! Caller: `physics::race_timers` (four calls).
 
 use crate::physics::car_store::Car;
+use crate::physics::flow::FloatView;
 use crate::race::numbers_store::Numbers;
 use crate::session::Cell32;
 use rc2k_core::physics::motion::stop_timers;
@@ -18,7 +19,7 @@ use rc2k_core::physics::motion::stop_timers;
 pub fn count_stop_timers_at(numbers: &Numbers, v: &[&dyn Cell32]) {
     let one = numbers.one.get();
     let mut counters = [v[0].bits(), v[1].bits(), v[2].bits()];
-    let result = stop_timers(&mut counters, f32::from_bits(v[3].bits()), one);
+    let result = stop_timers(&mut counters, v[3].float(), one);
     for (k, c) in counters.iter().enumerate() {
         if *c != v[k].bits() {
             v[k].set_bits(*c);

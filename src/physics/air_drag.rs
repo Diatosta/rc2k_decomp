@@ -8,28 +8,21 @@
 use crate::math::x87;
 use crate::math::x87::{abs_of, compare_full, square_times_over};
 use crate::physics::car_store::Car;
-use crate::physics::flow::ZERO_BITS as ZERO;
+use crate::physics::flow::{FloatView, ZERO_BITS as ZERO};
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 use crate::session::Cell32;
 
 /// On the variables' cells `v`.
 pub fn drag_at(tables: &PhysicsTables, numbers: &Numbers, v: &[&dyn Cell32]) {
-    let get = |k: usize| v[k].bits();
-    let put = |k: usize, x: u32| v[k].set_bits(x);
+    let get = |k: usize| v[k].float();
+    let put = |k: usize, x: f32| v[k].set_float(x);
     let (k, d, zero) = (&tables.air_drag, &numbers.k10000, ZERO);
     for i in 0..3 {
-        put(3 + i, square_times_over(get(i), k, d).to_bits());
+        put(3 + i, square_times_over(get(i), k, d));
         let a = abs_of(get(3 + i));
         let below = compare_full(get(i), zero) & 0x100 != 0;
-        put(
-            3 + i,
-            if below {
-                a.to_bits()
-            } else {
-                x87::negated(a).to_bits()
-            },
-        );
+        put(3 + i, if below { a } else { x87::negated(a) });
     }
 }
 

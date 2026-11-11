@@ -81,7 +81,7 @@ pub fn drive_grip_forces(
         negate(&car.grip_forces[0]);
         hold_high(&car.grip_forces[0], &tables.grip_limit);
         negate(&car.grip_forces[0]);
-        let slow = |v: &Float| abs_below_or_unordered(v.bits(), tables.grip_slow_speed.bits());
+        let slow = |v: &Float| abs_below_or_unordered(v, &tables.grip_slow_speed);
         if !slow(&car.local_velocity[2]) && slow(&car.drive_speed_a) {
             car.grip_forces[0].set(0.0);
         }

@@ -33,14 +33,6 @@ pub const COURSE: Freeing = Freeing {
         crate::race::scene_points::give_back();
         crate::race::course_places::give_back();
         crate::race::level_init::give_back_course_memory();
-        for name in [
-            "course records",
-            "course faces",
-            "old scene points",
-            "course info",
-        ] {
-            crate::pointers::unwatch(name);
-        }
     },
 };
 /// `race::free_course_list_2` (0x41F94D).

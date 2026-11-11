@@ -1,5 +1,6 @@
 //! The replay writer's and the viewer's state (IDA 0x5C2518 .. 0x5C2714; phase 7, typed): the padding frame, the file offset and frames in the block, the replay block and frame, the play end and the viewer's switches, then the viewer's list (header and 26 items of 16 bytes). `#[repr(C)]` with the image's layout, over the race block's bytes. The list's pointers are relocated addresses into the untyped rectangles and key table at 0x5C2714 .. 0x5C291C. Names are readings unless IDA's.
 
+use crate::place::BytePlace;
 use crate::race::owner::race;
 use crate::session::{Dword, Flag};
 
@@ -65,38 +66,37 @@ impl ReplayViewBlock {
     const LIST: usize = 0x5C255C;
     const ITEMS: u32 = 26;
     /// IDA's ranges the list's names point into: the key table and place rectangles
-    /// (untyped, the race block's bytes), and the panel with the pictures' rectangles.
+    /// (untyped, the race block's bytes: `OWN_RANGES[1]`), and the panel with the pictures'
+    /// rectangles.
     const RECTANGLES: core::ops::Range<usize> = 0x5C2714..0x5C291C;
     const PANEL: core::ops::Range<usize> =
         crate::race::viewer_screen_store::START..crate::race::viewer_screen_store::END;
 
-    /// Where IDA's name `ida` is now, if it lies in `range` (phase 13: the list keeps IDA's
-    /// addresses as names, and `moved::point_into_homes` passes them over).
-    fn named(
-        ida: u32,
-        range: core::ops::Range<usize>,
-        what: &'static str,
-    ) -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
-        if !range.contains(&(ida as usize)) {
+    /// Where IDA's name `ida` is now, if it lies in the rectangles: a place in the race
+    /// block's range of them, running on to that range's end (phase 13: the list keeps IDA's
+    /// addresses as names).
+    fn named(ida: u32, what: &'static str) -> Result<BytePlace, crate::errors::BadInput> {
+        if !Self::RECTANGLES.contains(&(ida as usize)) {
             return Err(crate::errors::BadInput(what));
         }
-        crate::moved::named(ida as usize)
+        Ok(BytePlace::Store(
+            &crate::race::store::OWN_RANGES[1],
+            ida as usize - Self::RECTANGLES.start,
+        ))
     }
 
     /// Where the list's key table (the header's +0x10) is.
-    pub fn key_table() -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
+    pub fn key_table() -> Result<BytePlace, crate::errors::BadInput> {
         Self::named(
             race().replay.replay_view.viewer_list[4].get(),
-            Self::RECTANGLES,
             "the viewer list's key table off its place",
         )
     }
 
     /// Where item `index`'s screen rectangle (its +4) is.
-    pub fn item_place(index: u32) -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
+    pub fn item_place(index: u32) -> Result<BytePlace, crate::errors::BadInput> {
         Self::named(
             Self::item_dword(index, 1)?,
-            Self::RECTANGLES,
             "a viewer item's place off the rectangles",
         )
     }
@@ -167,7 +167,7 @@ mod tests {
         let key_table = ReplayViewBlock::LIST + 0x10;
         assert_eq!(replay.replay_view.viewer_list[4].get(), name(key_table));
         assert_eq!(
-            ReplayViewBlock::key_table().unwrap().addr() as usize,
+            ReplayViewBlock::key_table().unwrap().game_ptr().addr() as usize,
             crate::moved::place(name(key_table) as usize)
         );
         for k in 0..26u32 {
@@ -182,7 +182,7 @@ mod tests {
                 name(item + 0xC)
             );
             assert_eq!(
-                ReplayViewBlock::item_place(k).unwrap().addr() as usize,
+                ReplayViewBlock::item_place(k).unwrap().game_ptr().addr() as usize,
                 crate::moved::place(name(item + 4) as usize)
             );
             match ReplayViewBlock::item_picture(k).unwrap() {

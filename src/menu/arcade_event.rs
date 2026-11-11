@@ -141,7 +141,12 @@ impl arcade::Arcade for Game<'_> {
 impl Game<'_> {
     /// A screen, entered with the car list (the only value a screen reads from its caller).
     fn screen(&self, screen: &Screen) -> Result<(), Refused> {
-        { run_screen(screen, &Entry::with_cars(self.menus, self.cars)) }?;
+        {
+            run_screen(
+                screen,
+                &Entry::with_cars(crate::owners::boundary(), self.cars),
+            )
+        }?;
         Ok(())
     }
 }

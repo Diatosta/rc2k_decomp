@@ -178,29 +178,29 @@ fn streak(
     if x87::compare_status(entry(ring, e)?.place[1], entry(ring, e)?.ground_y) == 0x100 {
         return Ok(true);
     }
-    if entry(ring, e)?.place[0] == 0 {
+    if entry(ring, e)?.place[0].to_bits() == 0 {
         first_frame(view_matrix, ring, e, effects);
     }
     move_on(ring, e, effects);
-    effects.frame.draw_work.second[0].set_bits(entry(ring, e)?.last_place[0]);
-    effects.frame.draw_work.second[1].set_bits(entry(ring, e)?.last_place[1]);
-    effects.frame.draw_work.second[2].set_bits(entry(ring, e)?.last_place[2]);
+    effects.frame.draw_work.second[0].set(entry(ring, e)?.last_place[0]);
+    effects.frame.draw_work.second[1].set(entry(ring, e)?.last_place[1]);
+    effects.frame.draw_work.second[2].set(entry(ring, e)?.last_place[2]);
     turn_place(view_matrix, ring, e, effects);
     let marks = effects.settings()?;
     if marks.own_marks_shown.get() != 0 || marks.other_marks_shown.get() == 1 {
-        set(ring, e, effects.frame.draw_work.turned[0].bits(), |en| {
+        set(ring, e, effects.frame.draw_work.turned[0].get(), |en| {
             &mut en.last_place[0]
         })?;
-        set(ring, e, effects.frame.draw_work.turned[1].bits(), |en| {
+        set(ring, e, effects.frame.draw_work.turned[1].get(), |en| {
             &mut en.last_place[1]
         })?;
-        set(ring, e, effects.frame.draw_work.turned[2].bits(), |en| {
+        set(ring, e, effects.frame.draw_work.turned[2].get(), |en| {
             &mut en.last_place[2]
         })?;
     }
     VERTICES.vertices[0]
         .specular
-        .set(fog_at(fog, entry(ring, e)?.last_place[2])?);
+        .set(fog_at(fog, entry(ring, e)?.last_place[2].to_bits())?);
     let i = x87::int_times_to_int(entry(ring, e)?.life as i32, entry(ring, e)?.alpha_fade);
     ring.work.whole.set(i as u32);
     let colour = colour_at(&effects.masks, ring, i as usize, effects);

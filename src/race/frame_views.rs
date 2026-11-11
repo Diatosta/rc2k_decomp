@@ -526,7 +526,11 @@ pub fn draw_own_car(
 }
 
 /// `fild i; fdiv a; fmul b; fstp`.
-fn int_over_times(i: u32, a: u32, b: u32) -> u32 {
+fn int_over_times(
+    i: u32,
+    a: impl crate::math::x87_float::Loadable,
+    b: impl crate::math::x87_float::Loadable,
+) -> u32 {
     use crate::math::x87_float::{int, ld, st};
     st(int(i as i32) / ld(a) * ld(b))
 }
@@ -603,13 +607,13 @@ pub fn run_view_marks(
     let n = race.frame.frame_work.view_layouts[layout_at as usize].get() as usize;
     ctx.view.polygon.window.view_centre[0].set_bits(int_over_times(
         session.screen.width.get(),
-        race.course.numbers.k800.bits(),
-        race.frame.frame_work.view_scale_x[n].bits(),
+        race.course.numbers.k800.get(),
+        race.frame.frame_work.view_scale_x[n].get(),
     ));
     ctx.view.polygon.window.view_centre[1].set_bits(int_over_times(
         session.screen.height.get(),
-        race.course.numbers.k600.bits(),
-        race.frame.frame_work.view_scale_y[n].bits(),
+        race.course.numbers.k600.get(),
+        race.frame.frame_work.view_scale_y[n].get(),
     ));
     // Neither reads a register nor leaves one read after it (0x456464, 0x456472).
     let done = crate::effects::frame_marks::frame_marks(race, effects).and_then(|_| {

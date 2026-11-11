@@ -15,14 +15,15 @@
 //! `audio::set_buffer_min_distance`, `g_commit3d` 1, `audio::open_voice_manager` with bit
 //! 0x800000, with EAX (bit 0x1000000) `audio::open_eax` and, unless that sets the carry,
 //! `audio::set_eax_room`. The openings read the 3D buffer through a "holder" value that
-//! is the caller's own value, or the frequency after the create path, or the 3D buffer's
-//! place after the voice manager's call (the game's bug, kept; `open_eax` refuses one
-//! that is no pointer). Callers:
+//! is the caller's own value (`property_sets::Holder`), or the frequency after the create
+//! path, or the voice's 3D buffer after the voice manager's call (the game's bug, kept;
+//! `open_eax` refuses one that is no pointer). Callers:
 //! command 3 and `audio::start`.
 //! Refuses A3D (the chunk at 0x40CC88), and what the settings refuse, checked first.
 
 use crate::audio::buffer_settings::{a3d, set_buffer_frequency, set_buffer_pan, set_buffer_volume};
 use crate::audio::describe_wave_format::describe_wave_format;
+use crate::audio::property_sets::Holder;
 use crate::audio::store::AudioState;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
@@ -46,7 +47,7 @@ pub struct BufferDescription {
 
 /// True for the carry clear. `holder`: the caller's value, which the EAX parts read the 3D
 /// buffer through (replaced as below, as the original does).
-pub fn make_buffer(state: &AudioState, at: u32, holder: u32) -> Result<bool, Refused> {
+pub fn make_buffer(state: &AudioState, at: u32, holder: Holder) -> Result<bool, Refused> {
     if a3d(state) {
         return Err(BadInput("A3D (the chunk at 0x40CC88)").into());
     }
@@ -65,7 +66,7 @@ pub fn make_buffer(state: &AudioState, at: u32, holder: u32) -> Result<bool, Ref
             return Err(BadInput("a volume or pan past the volume table").into());
         }
         // The holder value at each call, as the original has it: the caller's, the
-        // frequency after the create path, the 3D buffer's place after
+        // frequency after the create path, the voice's 3D buffer after
         // `audio::open_voice_manager`'s.
         let mut holder = holder;
         let mut made = false;
@@ -79,7 +80,7 @@ pub fn make_buffer(state: &AudioState, at: u32, holder: u32) -> Result<bool, Ref
             }
         }
         if !made {
-            holder = v.frequency;
+            holder = Holder::Value(v.frequency);
             describe_wave_format(state, v.format, v.frequency)?;
             // Converted: `rc2k_core::audio::voices::buffer_flags`.
             let flags = rc2k_core::audio::voices::buffer_flags(mode, v.flags);

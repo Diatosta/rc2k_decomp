@@ -229,15 +229,15 @@ impl<'a> Shapes<'a> {
 /// `x87::circle_points` on cells: radius `r` (bits), `out` three floats a point (the
 /// third left alone), the angle's step `pi / c * d`.
 fn circle_cells(r: u32, out: &[PlainFloat], count: u32, c: u32, d: u32) {
-    let mut buf = [0u32; 3 * 6];
+    let mut buf = [0f32; 3 * 6];
     let buf = &mut buf[..out.len()];
     for (b, f) in buf.iter_mut().zip(out) {
-        *b = f.bits();
+        *b = f.get();
     }
     let c = c as i32;
     x87::circle_points(r, buf, count, c, d);
     for (f, &b) in out.iter().zip(buf.iter()) {
-        f.set_bits(b);
+        f.set(b);
     }
 }
 

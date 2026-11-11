@@ -176,7 +176,7 @@ pub fn emit_slip_spray_with(
         let (a, b) = (((r & 0x3FFF) as i32) - 0x2000, (r & 0x3FFF) as i32);
         kinds.emitter.sides[0].set(a as u32);
         kinds.emitter.sides[1].set(b as u32);
-        let place: [u32; 3] = crate::effects::try_from_fn(|k| {
+        let place: [f32; 3] = crate::effects::try_from_fn(|k| {
             Ok({
                 let k = 4 * k as u32;
                 x87::pair_sum_less(
@@ -187,7 +187,6 @@ pub fn emit_slip_spray_with(
                     &wheel.place[k as usize / 4],
                     matrix_cell(m, 0x30 + k)?,
                 )
-                .to_bits()
             })
         })?;
         slot.put(|en| &mut en.place[2], place[2])?;
@@ -216,7 +215,7 @@ pub fn emit_slip_spray_with(
             let row = matrix_cell(m, 0x28 - 4 * n as u32)?;
             slot.put(
                 |en| &mut en.motion[2 - n],
-                x87::product_plus(row, set.roll_k[n], speed, rounded(moved)).to_bits(),
+                x87::product_plus(row, set.roll_k[n], speed, rounded(moved)),
             )?;
         }
         slot.put(

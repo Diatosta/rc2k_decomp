@@ -294,7 +294,7 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
         }
         ItemFn::NextAudioQuality => next_audio_quality::run(),
         ItemFn::PreviousAudioQuality => previous_audio_quality::run(),
-        ItemFn::ViewStageDetails => item_actions::view_stage_details(menus, &menus.screens),
+        ItemFn::ViewStageDetails => item_actions::view_stage_details(&menus.screens),
         ItemFn::ApplyScreenMode => apply_screen_mode::apply_screen_mode(&menus.screens),
         ItemFn::TogglePlayer3c => player_actions::toggle_controller_mode(menus),
         ItemFn::ReplayItemC => replay_items::replay_item_c(race),

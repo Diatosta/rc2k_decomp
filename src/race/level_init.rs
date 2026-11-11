@@ -58,15 +58,10 @@ pub fn allocate_course_memory(
 }
 
 /// The course memory (`memory::allocate` on the course's list in the original): Rust's
-/// bytes, counted on the list as the game's block was and lent
-/// (the stage's files are read into it and parsed in place; its faces, records and scene
-/// points then move out, `race::course_places`); given back with the list
-/// (`stage_free::COURSE`).
-struct CourseMemory {
-    _bytes: crate::pointers::LentBytes,
-}
-
-static COURSE_MEMORY: std::sync::Mutex<Option<CourseMemory>> = std::sync::Mutex::new(None);
+/// bytes, counted on the list as the game's block was (the stage's files are read into it and
+/// parsed in place; its faces, records and scene points then move out,
+/// `race::course_places`); given back with the list (`stage_free::COURSE`).
+static COURSE_MEMORY: std::sync::Mutex<Option<Vec<u8>>> = std::sync::Mutex::new(None);
 
 /// The course memory by handle: `COURSE_TAG | offset` names the byte at `offset`
 /// of the course memory, 0 none. `g_courseMemory` holds `COURSE_TAG` (offset 0), the
@@ -85,10 +80,9 @@ fn take_course_memory(
     let mut memory = crate::memory::owned::counted(list, bytes)?;
     memory.truncate(kept as usize);
     memory.shrink_to_fit();
-    let memory = crate::pointers::LentBytes::from_vec(memory);
     *COURSE_MEMORY
         .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(CourseMemory { _bytes: memory });
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(memory);
     Ok(COURSE_TAG)
 }
 
@@ -105,17 +99,41 @@ pub fn read_course_memory(at: u32, len: usize, what: &str) -> Result<Vec<u8>, Ba
     let guard = COURSE_MEMORY
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    let memory = &guard.as_ref().ok_or(BadInput("no course memory"))?._bytes;
-    memory.read_at(course_memory_offset(at)?, len, what)
+    let memory = guard.as_ref().ok_or(BadInput("no course memory"))?;
+    let offset = course_memory_offset(at)?;
+    let range = within(memory, offset, len, what)?;
+    Ok(memory[range].to_vec())
+}
+
+/// The range of `len` bytes from `offset` in `memory`; one past its end is refused.
+fn within(
+    memory: &[u8],
+    offset: u32,
+    len: usize,
+    what: &str,
+) -> Result<std::ops::Range<usize>, BadInput> {
+    let start = offset as usize;
+    match start.checked_add(len).filter(|&end| end <= memory.len()) {
+        Some(end) => Ok(start..end),
+        None => {
+            crate::framework::log(&format!(
+                "pointers: {what}: {len} bytes at offset {offset:#x}, past the {:#x} bytes",
+                memory.len()
+            ));
+            Err(BadInput("past the end of a field"))
+        }
+    }
 }
 
 /// `data` written into the course memory from handle `at`.
 pub fn write_course_memory(at: u32, data: &[u8], what: &str) -> Result<(), BadInput> {
-    let guard = COURSE_MEMORY
+    let mut guard = COURSE_MEMORY
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    let memory = &guard.as_ref().ok_or(BadInput("no course memory"))?._bytes;
-    memory.write_at(course_memory_offset(at)?, data, what)
+    let memory = guard.as_mut().ok_or(BadInput("no course memory"))?;
+    let range = within(memory, course_memory_offset(at)?, data.len(), what)?;
+    memory[range].copy_from_slice(data);
+    Ok(())
 }
 
 /// The course memory given back (the list's `free_list` counts it down).

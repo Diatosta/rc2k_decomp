@@ -496,7 +496,7 @@ fn stand_in_window_state() {
 
 fn run_main_loop(r: &Context) {
     rust("system::main_loop");
-    if let Err(e) = crate::system::main_loop::main_loop_in_game(system()) {
+    if let Err(e) = crate::system::main_loop::main_loop_in_game(crate::owners::Owners::the()) {
         refused("system::main_loop", e, r);
     }
 }

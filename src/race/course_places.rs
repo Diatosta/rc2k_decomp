@@ -7,54 +7,41 @@
 //! (`face_number`, `face_field`, `record_field`, ..; a field past its entry reads on into
 //! the next, as the original's arithmetic did) and the course info by offset
 //! (`info_bytes`, `info_field`). `COURSE.course_faces` and `COURSE.course_records` hold the
-//! tables' bases, numbers in a range of addresses reserved with no access (taken at the
-//! first course, kept for the program's life): nothing reads through them, and a reader
+//! tables' bases, handles (`PLACES_TAG`): nothing reads through them, and a reader
 //! that still took one for an address is ended by `pointers::host` with the number named.
 
 use crate::errors::BadInput;
 use crate::race::owner_course::Course;
 use rc2k_core::race::faces::Face;
-use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Each part's room: the course memory's first part (`level_init::FIRST_PART`) holds both.
 const ROOM: u32 = 0x100_0000;
 /// Faces, records, scene points, course info.
 const PARTS: u32 = 4;
 
-/// The reserved range's game address (faces from it, records `ROOM` on, the scene points
-/// `2 ROOM` on, `race::scene_points`, the course info `3 ROOM` on); 0 until taken.
-static WINDOW: AtomicU32 = AtomicU32::new(0);
-
-/// The reserved range, taken the first time.
-pub fn reserve() -> Result<u32, BadInput> {
-    let at = WINDOW.load(Ordering::Acquire);
-    if at != 0 {
-        return Ok(at);
-    }
-    let len = PARTS as usize * ROOM as usize;
-    let at = crate::address_map::reserve(len);
-    WINDOW.store(at, Ordering::Release);
-    Ok(at)
-}
+/// The handle of face 0 (`COURSE.course_faces` while held); the records' come `ROOM` on, the
+/// scene points' `2 ROOM` on (`race::scene_points`), the course info's `3 ROOM` on. A number
+/// like the other `*_TAG` handles, above every game address and every other tag.
+pub const PLACES_TAG: u32 = 0xD000_0000;
 
 /// Face 0's place (`COURSE.course_faces` while held).
-pub fn faces_base() -> u32 {
-    // A number only: nothing is published through it.
-    WINDOW.load(Ordering::Relaxed)
+pub const fn faces_base() -> u32 {
+    PLACES_TAG
 }
 
 /// Record 0's place (`COURSE.course_records` while held).
-pub fn records_base() -> u32 {
+pub const fn records_base() -> u32 {
     faces_base() + ROOM
 }
 
 /// Scene point 0's place (`COURSE.scene_points` while held).
-pub fn points_base() -> u32 {
+pub const fn points_base() -> u32 {
     faces_base() + 2 * ROOM
 }
 
 /// The course info's place (`COURSE_LISTS.course_info` while held).
-pub fn info_base() -> u32 {
+pub const fn info_base() -> u32 {
     faces_base() + 3 * ROOM
 }
 
@@ -78,7 +65,6 @@ pub fn take_info(len: u32) -> Result<u32, BadInput> {
     if len > ROOM {
         return Err(BadInput("a course info larger than its places"));
     }
-    reserve()?;
     INFO.set(&vec![0; len as usize])?;
     Ok(info_base())
 }
@@ -144,7 +130,6 @@ pub fn take_from(faces_at: u32, faces: u32, records_at: u32, records: u32) -> Re
             "more course faces or records than their places hold",
         ));
     }
-    reserve()?;
     let f =
         crate::race::level_init::read_course_memory(faces_at, faces as usize, "the course faces")?;
     let r = crate::race::level_init::read_course_memory(
@@ -183,8 +168,7 @@ pub fn with_faces_and_points<R>(
 /// Whether `at` is one of the course's places (faces, records, scene points).
 #[inline]
 pub fn is_place(at: u32) -> bool {
-    let w = faces_base();
-    w != 0 && at.wrapping_sub(w) < PARTS * ROOM
+    at.wrapping_sub(PLACES_TAG) < PARTS * ROOM
 }
 
 /// What the by-number readers and writers take: values of any bits, at most 64 bytes.

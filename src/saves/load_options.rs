@@ -10,18 +10,14 @@
 //! held decides. One caller, `system::load_game_data`. `saves::save_options` writes the file, the
 //! same pieces the other way.
 
-use crate::audio::owner::audio;
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::read_file::read_file_to_store;
-use crate::gfx::owner::gfx;
 use crate::menu::option_work_store::OptionWork;
-use crate::menu::owner::menus;
-use crate::net::owner::net;
+use crate::owners::Owners;
 use crate::pointers::{Cells, Store, load_cells, store_cells};
-use crate::race::owner::race;
+#[cfg(test)]
 use crate::saves::owner::saves;
 use crate::saves::rebuild_car_lists::rebuild_car_lists;
-use crate::service::owner::service;
 use crate::settings::TEXT_ROOM;
 use crate::system::owner::system;
 use std::mem::offset_of;
@@ -180,14 +176,14 @@ impl<'a> Piece<'a> {
 
 /// The file's pieces after its head, in order: (where each is, its length).
 #[rustfmt::skip]
-pub fn pieces() -> [Piece<'static>; 69] {
-    let race = race();
-    let net = net();
-    let audio = audio();
-    let system = system();
-let saves = saves();
-let display = &gfx().display;
-let menus = menus();
+pub fn pieces_of(o: Owners<'_>) -> [Piece<'_>; 69] {
+    let race = o.race;
+    let net = o.net;
+    let audio = o.audio;
+    let system = o.system;
+    let saves = o.saves;
+    let display = &o.gfx.display;
+    let menus = o.menus;
 
     let names = |n: usize| Piece::part(&menus.play.names.player_names, 0x20 * n, 0x20);
     [
@@ -198,11 +194,11 @@ let menus = menus();
         Piece::whole(&audio.state.menu_sound_mode),                     // the menus' sound mode
         Piece::whole(&audio.state.race_sound_mode),                     // the race's sound mode
         Piece::whole(&audio.state.master_volume),                       // the master volume
-        Piece::whole(&crate::sound::owner::sound().menu.options.unread_option_f0),                     // a sound option kept in the file and read by no other code
-        Piece::whole(&crate::sound::owner::sound().menu.options.race_music_on),                 // the race music switch
-        Piece::whole(&crate::sound::owner::sound().menu.options.tune_turn),                   // which tune comes next
-        Piece::whole(&crate::sound::owner::sound().menu.options.music_volume),                // the music volume
-        Piece::whole(&crate::sound::owner::sound().menu.options.race_music_volume),           // the race music's volume
+        Piece::whole(&o.sound.menu.options.unread_option_f0),                     // a sound option kept in the file and read by no other code
+        Piece::whole(&o.sound.menu.options.race_music_on),                 // the race music switch
+        Piece::whole(&o.sound.menu.options.tune_turn),                   // which tune comes next
+        Piece::whole(&o.sound.menu.options.music_volume),                // the music volume
+        Piece::whole(&o.sound.menu.options.race_music_volume),           // the race music's volume
         Piece::whole(&net.setup().machine_name),                         // the machine's name
         Piece::whole(&net.setup().most_players),                          // the most players a hosted session takes
         Piece::whole(&net.setup().host_address),                         // the host's address (TCP/IP)
@@ -210,7 +206,7 @@ let menus = menus();
         Piece::whole(&net.address().saved_connection),                     // the saved connection's GUID
         Piece::held(&saves.save_games.kept_a),                         // a saved-games word kept in the file and read by no other code
         Piece::held(&saves.save_games.kept_b),                         // a saved-games word kept in the file and read by no other code
-        Piece::held(&service().set_ups.kept),                              // a car set-ups word kept in the file and read by no other code
+        Piece::held(&o.service.set_ups.kept),                              // a car set-ups word kept in the file and read by no other code
         Piece::whole(&race.shared.tyre_change.record_name),                  // the tyre change record holder's name
         Piece::whole(&race.shared.tyre_change.record),                        // the tyre change record time
         Piece::held(&saves.files.options_kept[0]),                                   // four dwords nothing else reads
@@ -263,6 +259,12 @@ let menus = menus();
     ]
 }
 
+/// The pieces on the game's own places.
+#[cfg(test)]
+pub fn pieces() -> [Piece<'static>; 69] {
+    pieces_of(crate::owners::boundary())
+}
+
 /// Where the function works: the game's own places, or a test's.
 pub struct Places<'a> {
     pub loaded: &'a dyn crate::session::FlagLike,
@@ -303,9 +305,10 @@ pub fn load_options(path: &dyn Store, places: &mut Places) -> Result<bool, Refus
 }
 
 pub fn load_game_options(menus: &crate::menu::owner::Menus) -> Result<bool, Refused> {
-    let pieces = pieces();
+    let o = crate::owners::boundary();
+    let pieces = pieces_of(o);
     load_options(
-        &saves().files.options_path,
+        &o.saves.files.options_path,
         &mut Places {
             loaded: &menus.screens.loop_flags.options_loaded,
             pieces: &pieces,

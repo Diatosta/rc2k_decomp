@@ -22,7 +22,7 @@ pub fn show_class_rally_results(menus: &Menus, class: u32) -> Result<(), Refused
     crate::menu::stage_range_caption::stage_range_caption(&menus.play)?;
     run_screen(
         &crate::menu::class_rally_results_loop::SCREEN,
-        &Entry::new(menus),
+        &Entry::new(crate::owners::boundary()),
     )?;
     Ok(())
 }

@@ -7,11 +7,12 @@ use crate::race::owner_course::Course;
 
 /// The game's table root of a float (`sqrt` by `g_rootTable` x `g_exponentRootTable`),
 /// times 1/65536 (`race().course.numbers.one_over_65536`), as stored.
-pub(super) fn table_root(course: &Course, v: u32) -> u32 {
+pub(super) fn table_root(course: &Course, v: f32) -> f32 {
+    let v = v.to_bits();
     // g_rootTable: 256 floats by mantissa bits; g_exponentRootTable: by exponent
-    let root = course.lists.root_table[((v >> 15) & 0xFF) as usize].bits();
-    let scale = course.lists.exponent_root_table[((v & 0x7F80_0000) >> 23) as usize].bits();
-    crate::math::x87::mul2(root, scale, &course.numbers.one_over_65536).to_bits()
+    let root = &course.lists.root_table[((v >> 15) & 0xFF) as usize];
+    let scale = &course.lists.exponent_root_table[((v & 0x7F80_0000) >> 23) as usize];
+    crate::math::x87::mul2(root, scale, &course.numbers.one_over_65536)
 }
 
 /// A point's x and z less car 0's (`g_carBlockStore` +0x134, +0x13C), and its y. (The
@@ -27,8 +28,8 @@ pub(super) fn point_from_car(course: &Course, point: u32) -> Result<(u32, u32, u
 /// The weight's end: `v` held to 16.0 (`race().course.numbers.sixteen`; kept when below or
 /// not a number), added to `sum` (the original's `g_eaxEnvironment`; it also counted the
 /// faces in `g_eaxFaceCount`, which nothing read).
-pub(super) fn add_eax_weight(race: &Race, sum: &mut u32, v: u32) {
-    let sixteen: u32 = race.course.numbers.sixteen.bits();
+pub(super) fn add_eax_weight(race: &Race, sum: &mut u32, v: f32) {
+    let sixteen = race.course.numbers.sixteen.get();
     let w = if crate::math::x87::below_or_unordered(v, sixteen) {
         v
     } else {
@@ -58,9 +59,9 @@ pub fn eax_face_weight(race: &Race, sum: &mut u32, face: u32) -> Result<(), BadI
                 return Ok(());
             }
             let (x, _, z) = point_from_car(&race.course, face_field(&race.course, face, 4)?)?;
-            let distance = table_root(&race.course, int_square_sum(x as i32, z as i32).to_bits());
+            let distance = table_root(&race.course, int_square_sum(x as i32, z as i32));
             let strength = face_field::<u8>(&race.course, face, 0x18)? as u32;
-            add_eax_weight(race, sum, int_over(strength as i32, distance).to_bits());
+            add_eax_weight(race, sum, int_over(strength as i32, distance));
             return Ok(());
         }
         if kind >= 0x10 {
@@ -78,12 +79,8 @@ pub fn eax_face_weight(race: &Race, sum: &mut u32, face: u32) -> Result<(), BadI
         let half = race.course.numbers.half.get();
         let mx = int_plus_times(x2 as i32, mx, half);
         let mz = int_plus_times(z2 as i32, mz, half);
-        let distance = table_root(&race.course, float_square_sum(mx, mz).to_bits());
-        add_eax_weight(
-            race,
-            sum,
-            div(&race.course.numbers.three, distance).to_bits(),
-        );
+        let distance = table_root(&race.course, float_square_sum(mx, mz));
+        add_eax_weight(race, sum, div(&race.course.numbers.three, distance));
     }
     Ok(())
 }

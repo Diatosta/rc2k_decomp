@@ -10,36 +10,36 @@
 use crate::math::x87;
 use crate::math::x87::{compare_full, toward_one};
 use crate::physics::car_store::Car;
-use crate::physics::flow::ZERO_BITS as ZERO;
+use crate::physics::flow::{FloatView, ZERO_BITS as ZERO};
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 use crate::session::Cell32;
 
 /// On the variables' cells `v`.
 pub fn blend_at(tables: &PhysicsTables, numbers: &Numbers, v: &[&dyn Cell32]) {
-    let get = |k: usize| v[k].bits();
-    let put = |k: usize, x: u32| v[k].set_bits(x);
-    let less = |a: u32, b: u32| compare_full(a, b) & 0x100 != 0;
-    if less(get(0), tables.wheel_load_limit.bits()) {
+    let get = |k: usize| v[k].float();
+    let put = |k: usize, x: f32| v[k].set_float(x);
+    let less = |a: f32, b: f32| compare_full(a, b) & 0x100 != 0;
+    if less(get(0), tables.wheel_load_limit.get()) {
         return;
     }
-    let zero: u32 = ZERO;
-    let one: u32 = numbers.one.bits();
+    let zero = f32::from_bits(ZERO);
+    let one = numbers.one.get();
     let mut slot = 0;
     for (k, add) in [(1, 4), (2, 2), (3, 1)] {
         if less(get(k), zero) {
             slot += add;
         }
     }
-    put(4, x87::div(get(0), &numbers.sixty_four).to_bits());
+    put(4, x87::div(get(0), &numbers.sixty_four));
     if less(get(4), zero) {
-        put(4, x87::loaded(zero).to_bits());
+        put(4, x87::loaded(zero));
     }
     if !less(get(4), one) {
-        put(4, x87::loaded(one).to_bits());
+        put(4, x87::loaded(one));
     }
     let slot = 5 + slot;
-    put(slot, toward_one(get(slot), get(4)).to_bits());
+    put(slot, toward_one(get(slot), get(4)));
 }
 
 fn game<'a>(car: &'a Car, scene: &'a crate::scene::owner::Scene) -> Vec<&'a dyn Cell32> {

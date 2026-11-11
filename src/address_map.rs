@@ -27,7 +27,8 @@ const GRANULES: usize = 1 << (32 - GRANULE_BITS);
 const FIRST: u32 = 0x0100;
 /// The granule past the last one handed out (game 0xC000_0000): the numbers from there up
 /// are the handles' (`FORMAT_TAG`, `COURSE_TAG` and the other `*_TAG`s, 0xCA00_0000 ..
-/// 0xCFFF_FFFF), so no game address is ever one of them.
+/// 0xCFFF_FFFF; the course places' `PLACES_TAG` from 0xD000_0000), so no game address is
+/// ever one of them.
 const LAST: u32 = 0xC000;
 
 /// Per game granule: its host address less its game address, with bit 0 set; 0 when no
@@ -179,23 +180,6 @@ pub fn map(host: usize, len: usize) -> u32 {
         return host as u32;
     }
     map_range(host, len).game
-}
-
-/// A game range of `len` bytes with no host memory behind it: numbers only, each reached
-/// through the store that answers for it (the course's places, `race::course_places`).
-pub fn reserve(len: usize) -> u32 {
-    if IDENTITY {
-        // Untouched pages: numbers no other memory has (nothing reaches them as bytes).
-        let at = crate::os::map_pages(len).expect("pages for the course's places");
-        return at.expose_provenance() as u32;
-    }
-    let mut ranges = RANGES
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    if ranges.free.is_empty() && ranges.by_host.is_empty() {
-        ranges.free.insert(FIRST, LAST - FIRST);
-    }
-    take_granules(&mut ranges, len.max(1).div_ceil(GRANULE) as u32) << GRANULE_BITS
 }
 
 /// `count` free granules taken: the first one's number.

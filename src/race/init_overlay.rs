@@ -34,9 +34,9 @@ pub fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
         match parts {
             Some(count) => {
                 race.frame.panel_and_overlay.panel.overlay_miles.set(0);
-                let (scale, mile): (u32, u32) = (
-                    race.course.numbers.k65536.bits(),
-                    race.course.numbers.metres_in_mile.bits(),
+                let (scale, mile) = (
+                    race.course.numbers.k65536.get(),
+                    race.course.numbers.metres_in_mile.get(),
                 );
                 // By address: the list runs past its 0x101 entries, and a face number past
                 // the distances is the original's read.

@@ -1070,6 +1070,8 @@ impl<T: Copy> Shared<T> {
     }
 }
 
+/// A record's place by address, for the tests.
+#[cfg(test)]
 impl<T> Shared<T> {
     pub fn as_ptr(&self) -> *mut T {
         self.0.get()

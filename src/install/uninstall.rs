@@ -104,7 +104,13 @@ pub fn uninstall(install: &'static crate::install::owner::Install) -> Result<(),
     normalise(&install.names.source, &install.paths.installed)?;
     let whole = whole_folder(install);
     set_cd(&install.paths.installed);
-    i::run_script::run_script(install, &install.names.script)?;
+    i::run_script::run_script(
+        install,
+        crate::place::BytePlace::in_store(
+            &install.names,
+            core::mem::offset_of!(crate::install::vars::InstallerNames, script),
+        ),
+    )?;
     if install.run.file_count.get() != 0 {
         let mut n = 0;
         loop {

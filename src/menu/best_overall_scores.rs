@@ -27,7 +27,7 @@ pub fn best_overall_scores(menus: &crate::menu::owner::Menus) -> Result<(), Refu
     if screens.event.any_time_qualified.is_set() {
         run_screen(
             &crate::menu::best_overall_scores_loop::SCREEN,
-            &Entry::new(menus),
+            &Entry::new(crate::owners::boundary()),
         )?;
     }
     Ok(())

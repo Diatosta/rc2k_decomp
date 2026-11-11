@@ -23,7 +23,7 @@ use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
-use crate::scene::matrix3::rounded;
+use crate::scene::matrix3::rounded_value;
 use crate::session::{PlainDword, PlainFloat};
 
 /// The motion: per axis (x, y, z) the three (factor, wheel speed) pairs; the scales are
@@ -199,14 +199,14 @@ pub fn emit_wheel_fade_particle(
                 )
             })
         })?;
-        slot.put(|en| &mut en.place[2], rounded(place[2]))?;
-        slot.put(|en| &mut en.place[1], rounded(place[1]))?;
+        slot.put(|en| &mut en.place[2], rounded_value(place[2]))?;
+        slot.put(|en| &mut en.place[1], rounded_value(place[1]))?;
         slot.put(
             |en| &mut en.ground_y,
-            x87::ext_less(place[1], &particles.kind6_set.lift).to_bits(),
+            x87::ext_less(place[1], &particles.kind6_set.lift),
         )?;
-        slot.put(|en| &mut en.place[0], rounded(place[0]))?;
-        let motion: [u32; 3] = crate::effects::try_from_fn(|a| {
+        slot.put(|en| &mut en.place[0], rounded_value(place[0]))?;
+        let motion: [f32; 3] = crate::effects::try_from_fn(|a| {
             Ok({
                 x87::three_products(crate::effects::try_from_fn(|n| {
                     Ok({
@@ -218,7 +218,6 @@ pub fn emit_wheel_fade_particle(
                         ]
                     })
                 })?)
-                .to_bits()
             })
         })?;
         slot.put(|en| &mut en.motion[2], motion[2])?;

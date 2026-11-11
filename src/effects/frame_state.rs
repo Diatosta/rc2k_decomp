@@ -23,8 +23,8 @@ pub struct DrawWork {
     pub ends_scale: [PlainFloat; 2],
     /// 0x8EB8D5: `flt_8EB8D5` ..: the place turned into the view's frame (x, y, depth).
     pub turned: [PlainFloat; 3],
-    /// 0x8EB8E1: `dword_8EB8E1` ..: a ribbon piece's second place in the view's frame (x, y, depth; floats' bits).
-    pub second: [PlainDword; 3],
+    /// 0x8EB8E1: `dword_8EB8E1` ..: a ribbon piece's second place in the view's frame (x, y, depth).
+    pub second: [PlainFloat; 3],
     /// 0x8EB8ED: Not named: 84 bytes (a gap, or unreferenced data).
     pub _gap_8eb8ed: PlainBytes<84>,
     /// 0x8EB941: `flt_8EB941`, `flt_8EB945`: a flare part's sides (`effects::draw_flare_part`).
@@ -64,9 +64,9 @@ impl DrawWork {
                 PlainFloat::new(0.0),
             ],
             second: [
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
             ],
             _gap_8eb8ed: PlainBytes::new([
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,

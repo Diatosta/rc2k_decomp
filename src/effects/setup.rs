@@ -128,10 +128,10 @@ pub fn make_wave_tables(paths: &Paths) -> Result<(), Refused> {
             bh::int(level.get() as i32) / bh::ld(scale) - bh::ld(less),
         ));
     }
-    let mut sines = vec![0u32; SINES as usize];
+    let mut sines = vec![0f32; SINES as usize];
     x87::sine_table(&paths.wave.sine_step, &mut sines);
     for (cell, &v) in paths.sines.table.iter().zip(&sines) {
-        cell.set_bits(v);
+        cell.set(v);
     }
     paths.wave.done.set(target);
     Ok(())

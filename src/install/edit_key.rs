@@ -46,6 +46,15 @@ fn past_nul(text: BytePlace) -> u32 {
     }
 }
 
+/// Where the text lies in its record, the base of the limit the measure takes (the width a
+/// measuring font finds does not depend on it).
+fn measure_limit(text: BytePlace) -> u32 {
+    match text {
+        BytePlace::Store(_, at) | BytePlace::In(_, at) => at as u32,
+        BytePlace::At(at) => at.addr(),
+    }
+}
+
 fn clear(text: BytePlace, most: u32) {
     for n in 0..most + 2 {
         wb(text.add(n), 0);
@@ -148,7 +157,7 @@ pub fn edit_key(
     let (width, _) = measure_text(
         edit_font(record)?,
         &text_with_nul(text),
-        most.wrapping_add(text.game()).wrapping_add(1),
+        most.wrapping_add(measure_limit(text)).wrapping_add(1),
     )?;
     let widest = crate::install::folders::field_width(text, record.width());
     if edits::too_wide(width, widest) {

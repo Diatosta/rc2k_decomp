@@ -9,6 +9,7 @@
 use crate::math::x87;
 use crate::math::x87::mul2_plus;
 use crate::physics::car_store::Car;
+use crate::physics::flow::FloatView;
 use crate::physics::tables_store::PhysicsTables;
 use crate::session::Cell32;
 
@@ -20,7 +21,7 @@ fn put(a: &dyn Cell32, v: u32) {
 pub fn add_drive_forces_at(tables: &PhysicsTables, v: &[&dyn Cell32]) {
     let mut factor = tables.drive_force_factor[0].bits();
     if v[1].bits() != 0 {
-        v[0].set_bits(x87::loaded(factor).to_bits());
+        v[0].set_float(x87::loaded(factor));
         factor = tables.drive_force_factor[1].bits();
     }
     put(
@@ -28,8 +29,8 @@ pub fn add_drive_forces_at(tables: &PhysicsTables, v: &[&dyn Cell32]) {
         x87::sum4_times(v[2], v[3], v[4], v[5], factor).to_bits(),
     );
     let scale = tables.drive_shares[2].bits();
-    v[9].set_bits(mul2_plus(v[7], v[6], scale, v[9]).to_bits());
-    v[10].set_bits(mul2_plus(v[8], v[6], scale, v[10]).to_bits());
+    v[9].set_float(mul2_plus(v[7], v[6], scale, v[9]));
+    v[10].set_float(mul2_plus(v[8], v[6], scale, v[10]));
 }
 
 fn game<'a>(

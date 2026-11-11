@@ -32,15 +32,15 @@ pub struct Entry {
     pub emitter_tag: u32,
     /// 0x0C: The particle's kind (1, 5, 6, 0xB, 0xD, 0x10 ..).
     pub kind: u32,
-    /// 0x10: Its place (float bits).
-    pub place: [u32; 3],
+    /// 0x10: Its place.
+    pub place: [f32; 3],
     /// 0x1C: Its last place (the streaks), kept for the next frame's segment.
-    pub last_place: [u32; 3],
+    pub last_place: [f32; 3],
     /// 0x28: The height of the ground under it: it dies when its y is below this.
-    pub ground_y: u32,
-    /// 0x2C: Its motion a frame (float bits). It lies 0x1C after the place, as the place plus
+    pub ground_y: f32,
+    /// 0x2C: Its motion a frame. It lies 0x1C after the place, as the place plus
     /// the motion times the ticks is how it moves.
-    pub motion: [u32; 3],
+    pub motion: [f32; 3],
     /// 0x38: The burst particles' extra push (three floats; the car's +0x4C .. +0x54 times
     /// minus an eighth, x first).
     pub push: [f32; 3],
@@ -96,10 +96,10 @@ impl Entry {
             n += v.len();
         };
         push(&[self.prev, self.next, self.emitter_tag, self.kind]);
-        push(&self.place);
-        push(&self.last_place);
-        push(&[self.ground_y]);
-        push(&self.motion);
+        push(&self.place.map(f32::to_bits));
+        push(&self.last_place.map(f32::to_bits));
+        push(&[self.ground_y.to_bits()]);
+        push(&self.motion.map(f32::to_bits));
         push(&self.push.map(f32::to_bits));
         push(&self.spare);
         push(&[
@@ -128,10 +128,10 @@ impl Entry {
             next: w[1],
             emitter_tag: w[2],
             kind: w[3],
-            place: [w[4], w[5], w[6]],
-            last_place: [w[7], w[8], w[9]],
-            ground_y: w[10],
-            motion: [w[11], w[12], w[13]],
+            place: [w[4], w[5], w[6]].map(f32::from_bits),
+            last_place: [w[7], w[8], w[9]].map(f32::from_bits),
+            ground_y: f32::from_bits(w[10]),
+            motion: [w[11], w[12], w[13]].map(f32::from_bits),
             push: [w[14], w[15], w[16]].map(f32::from_bits),
             spare: [w[17], w[18], w[19]],
             angle: w[20],
@@ -265,8 +265,8 @@ mod tests {
         assert_eq!(entry(ring, ENTRIES).unwrap().next, 1);
         set(ring, 3, 0x1234, |e| &mut e.car_tag).unwrap();
         assert_eq!(get(ring, 3, |e| e.car_tag).unwrap(), 0x1234);
-        set(ring, 3, 7, |e| &mut e.motion[2]).unwrap();
-        assert_eq!(entry(ring, 3).unwrap().motion, [0, 0, 7]);
+        set(ring, 3, 7.0, |e| &mut e.motion[2]).unwrap();
+        assert_eq!(entry(ring, 3).unwrap().motion, [0.0, 0.0, 7.0]);
         assert!(entry(ring, 0).is_err());
         assert!(entry(ring, ENTRIES + 1).is_err());
         assert!(set(ring, 0, 1, |e| &mut e.life).is_err());
@@ -311,7 +311,7 @@ mod tests {
         let e = Entry::from_words(words);
         assert_eq!(e.words(), words);
         assert_eq!(e.life, 0x84 / 4 + 1);
-        assert_eq!(e.motion, [12, 13, 14]);
+        assert_eq!(e.motion.map(f32::to_bits), [12, 13, 14]);
         assert_eq!(e.box_limit, [32, 33]);
     }
 }

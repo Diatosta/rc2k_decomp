@@ -8,8 +8,9 @@
 //! the room's `Set`) is refused where it would be reached.
 
 use crate::audio::store::AudioState;
+use crate::audio::voices::SampleRecord;
 use crate::errors::{BadInput, Refused};
-use crate::session::Dword;
+use crate::session::{Dword, Shared};
 
 /// What a property set the platform made would need (it makes none).
 const NO_SETS: &str = "a DirectSound property set (the platform offers none)";
@@ -41,20 +42,47 @@ impl<'a> Opening<'a> {
     }
 }
 
+/// What `audio::make_buffer` hands the openings to read the 3D buffer through (the original's
+/// ebx, read as the address of a dword). Only the voice manager's call gives the 3D buffer; the
+/// other values are the game's bug (`notes/bugs.md`), read as the original reads them.
+#[derive(Clone, Copy)]
+pub enum Holder<'a> {
+    /// `audio::load_sounds`'s sample record: its first dword, the record's `number`, is read.
+    Record(&'a Shared<SampleRecord>),
+    /// The voice of this id's `buffer_3d` (stored before the openings).
+    Buffer3d(u32),
+    /// A number held as an address: the caller's sound mode (`audio::start`) or the voice's
+    /// frequency after the create path. Below 0x10000 it is refused; above, read where it
+    /// points.
+    Value(u32),
+}
+
+impl Holder<'_> {
+    /// The dword the original reads through the holder; refuses a number below 0x10000 (no
+    /// pointer).
+    fn read(self, state: &AudioState) -> Result<u32, Refused> {
+        match self {
+            Holder::Record(record) => Ok(record.get().number),
+            Holder::Buffer3d(voice) => Ok(crate::audio::voices::voice_of(state, voice).buffer_3d),
+            Holder::Value(value) if value < 0x1_0000 => {
+                Err(BadInput("the holder value is no 3D buffer (make_buffer's EAX bug)").into())
+            }
+            Holder::Value(value) => Ok(crate::audio::voices::read(value)),
+        }
+    }
+}
+
 /// `audio::open_voice_manager` and `audio::open_eax`: true for the carry clear. `holder`
-/// holds the 3D buffer. Nothing with the setting on or the set already opened;
+/// holds the 3D buffer (`Holder`). Nothing with the setting on or the set already opened;
 /// else the set from the 3D buffer's `QueryInterface`, its `QuerySupport` (get and set
 /// both), for the voice manager its mode set to 2; then logged and `found` 1. A failure
 /// leaves the set where it went (it is released at the close). Refuses a holder that is
 /// no pointer (the original reads through it: `make_buffer`'s EAX bug, `notes/bugs.md`).
-pub fn open_property_set(state: &AudioState, o: &Opening, holder: u32) -> Result<bool, Refused> {
+pub fn open_property_set(state: &AudioState, o: &Opening, holder: Holder) -> Result<bool, Refused> {
     if o.setting.is_set() || o.object.is_set() {
         return Ok(false);
     }
-    if holder < 0x1_0000 {
-        return Err(BadInput("the holder value is no 3D buffer (make_buffer's EAX bug)").into());
-    }
-    let buffer = crate::audio::voices::read(holder);
+    let buffer = holder.read(state)?;
     if buffer == 0 {
         return Ok(false);
     }

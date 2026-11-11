@@ -47,7 +47,13 @@ fn work(install: &'static crate::install::owner::Install) -> Result<Stop, Refuse
     {
         return Ok(Stop::Straight);
     }
-    i::run_script::run_script(install, &install.vars.clio_script)?;
+    i::run_script::run_script(
+        install,
+        crate::place::BytePlace::in_store(
+            &install.vars,
+            core::mem::offset_of!(crate::install::store::InstallVars, clio_script),
+        ),
+    )?;
     if install.run.dir_count.get() != 0 {
         let mut n = 0;
         loop {

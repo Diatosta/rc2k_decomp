@@ -19,7 +19,7 @@ pub fn choose_stage(race: &Race, vars: &NetVars) -> Result<(), Refused> {
     {
         run_screen(
             &crate::menu::select_stage_loop::SCREEN,
-            &Entry::new(crate::menu::owner::menus()),
+            &Entry::new(crate::owners::boundary()),
         )
     }?;
     if !ESCAPE_PRESSED.is_set() {
