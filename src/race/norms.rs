@@ -21,12 +21,12 @@ pub fn normalise_work_vector(race: &Race) {
         .map(super::super::session::Dword::get);
     let (length, zero) = x87::normalise_in_place(
         v.first_chunk_mut::<3>().expect("four parts"),
-        race.course.numbers.zero.bits(),
+        &race.course.numbers.zero,
     );
     for (cell, &bits) in race.frame.scratch.work_vector[..3].iter().zip(&v) {
         cell.set(bits);
     }
-    scene().drawing.scene.scratch.set(length);
+    scene().drawing.scene.scratch.set(length.to_bits());
     for part in &race.frame.scratch.work_vector[..3] {
         if zero || part.get() == 0x8000_0000 {
             part.set(0u32);

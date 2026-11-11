@@ -115,15 +115,7 @@ pub fn gate(
 ) -> Result<Gate, Refused> {
     Ok({
         let [k1, k2, k3, k4] = k.each_ref().map(super::super::session::Float::bits);
-        let rate = x87::rate_to_int(
-            a.bits(),
-            b.bits(),
-            k1,
-            k2,
-            k3,
-            effects().setup.floats.one.bits(),
-            k4,
-        );
+        let rate = x87::rate_to_int(a, b, k1, k2, k3, &effects().setup.floats.one, k4);
         gate_with(wheel, object, rate)?
     })
 }

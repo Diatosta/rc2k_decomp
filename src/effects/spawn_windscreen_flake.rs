@@ -45,8 +45,8 @@ pub fn spawn_windscreen_flake(
     let k = kind & 7;
     e.texture_u.set(x87::int_times_plus(
         k as i32,
-        fl.state.tile_offset_k[0].bits(),
-        fl.state.tile_offset_k[1].bits(),
+        &fl.state.tile_offset_k[0],
+        &fl.state.tile_offset_k[1],
     ));
     e.texture_v.set(x87::loaded(&fl.state.tile_offset_k[2]));
     e.born.set(shared.physics_tables.scene_clock.bits());

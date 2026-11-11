@@ -103,9 +103,9 @@ pub fn span_edges(
                 break;
             }
             let mut a = x87::loaded(xa);
-            xa = x87::add(xa, slopes[0]).to_bits();
+            xa = x87::add(xa, slopes[0]);
             let mut b = x87::loaded(xb);
-            xb = x87::add(xb, slopes[1]).to_bits();
+            xb = x87::add(xb, slopes[1]);
             let status = x87::compare_status(a, b);
             masks.vars.status_word.set(status);
             if status == 0 {
@@ -121,7 +121,7 @@ pub fn span_edges(
             to += 8;
         }
         masks.vars.row.set_bits(row.to_bits());
-        write_bits(&masks.vars.xs, [xa, xb]);
+        write_bits(&masks.vars.xs, [xa.to_bits(), xb.to_bits()]);
     }
     Ok(to)
 }

@@ -80,17 +80,13 @@ fn make_tables(paths: &Paths, effects: &crate::effects::owner::Effects) -> Resul
             let t = ida_table(paths, paths.profile_lists.curves[k].get());
             let mut x = x87::loaded(t[0].get());
             work(7, x.to_bits(), effects);
-            let step = x87::sub_div(
-                t[1].get(),
-                t[0].get(),
-                frame.draw_frame.profile_steps[1].bits(),
-            );
+            let step = x87::sub_div(t[1].get(), t[0].get(), &frame.draw_frame.profile_steps[1]);
             work(8, step.to_bits(), effects);
             let (scale, top) = (x87::loaded(t[2].get()), x87::loaded(t[3].get()));
             work(9, scale.to_bits(), effects);
             work(10, top.to_bits(), effects);
             for cell in t.iter().take(0x100) {
-                cell.set(x87::negated_square_times_plus_to_int(x.to_bits(), scale, top) as u32);
+                cell.set(x87::negated_square_times_plus_to_int(x, scale, top) as u32);
                 x = x87::add(x, step);
                 work(7, x.to_bits(), effects);
             }

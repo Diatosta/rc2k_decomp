@@ -1495,6 +1495,7 @@ fn comparisons_with_nan() {
         let z = n;
         let one = unsafe { normalise_in_place(r.as_mut_ptr(), z) };
         let two = plain::normalise_in_place((&mut p[..3]).try_into().unwrap(), z);
+        let two = (two.0.to_bits(), two.1);
         compare(
             "normalise_in_place (nan zero)",
             EXACT,
@@ -1619,6 +1620,7 @@ fn pointer_functions() {
         let (mut r, mut p) = (v, v);
         let one = unsafe { normalise_in_place(r.as_mut_ptr(), zero) };
         let two = plain::normalise_in_place((&mut p[..3]).try_into().unwrap(), zero);
+        let two = (two.0.to_bits(), two.1);
         compare(
             "normalise_in_place",
             EXACT,
@@ -1644,7 +1646,7 @@ fn pointer_functions() {
         let k = g.f();
         let (mut r, mut p) = (row, row);
         scale_row(r.as_mut_ptr(), k);
-        p = plain::scale_row_bits(p, k);
+        p = plain::scale_row_bits(p, k).map(f32::to_bits);
         compare(
             "scale_row",
             EXACT,

@@ -27,4 +27,6 @@ mod x87_reference_b;
 #[cfg(all(test, target_arch = "x86"))]
 mod x87_reference_c;
 #[cfg(test)]
+mod x87_results_tests;
+#[cfg(test)]
 mod x87_typed_tests;

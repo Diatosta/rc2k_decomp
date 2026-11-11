@@ -42,7 +42,7 @@ pub fn windscreen_drops_spawn(
             for _ in 0..n.max(0) {
                 pick_windscreen_drop(drops, effects)?;
             }
-            let share = x87::fraction_times_to_int(v, drops.hex.share_k.bits());
+            let share = x87::fraction_times_to_int(v, &drops.hex.share_k);
             let s = setup.work.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
             setup.work.seed.set(s);
             if ((s >> 8) & 0xFFFF) as i32 <= share {

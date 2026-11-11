@@ -24,8 +24,8 @@ pub fn aim_vector(effects: &crate::effects::owner::Effects) {
         to.set_bits(v);
     }
     let (unit, length) = x87::unit_and_length(v);
-    k.length.set(length);
+    k.length.set_bits(length.to_bits());
     for (to, u) in k.unit.iter().zip(unit) {
-        to.set_bits(u);
+        to.set(u);
     }
 }

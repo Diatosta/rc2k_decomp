@@ -100,7 +100,7 @@ fn turn_skid_point(
         // Only +0xC .. +0x20 are written; the projection reads +0x10 .. +0x18.
         let mut made = [0u32; 8];
         made[4..7].copy_from_slice(&t.map(st));
-        if !crate::math::x87::below_or_unordered(made[6], race.course.numbers.k4096_a.bits()) {
+        if !crate::math::x87::below_or_unordered(made[6], &race.course.numbers.k4096_a) {
             project_record(&race.course, &mut made, &ctx.view.polygon.window);
         }
         Ok(Turned {

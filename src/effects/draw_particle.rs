@@ -22,10 +22,10 @@ pub fn draw_particle(
     let effects_frame = &effects.frame;
     let turned = x87::column_turn(&place, view_matrix);
     for (n, v) in turned.into_iter().enumerate() {
-        effects_frame.draw_work.turned[n].set_bits(v);
+        effects_frame.draw_work.turned[n].set(v);
     }
     let [a, b, c] = turned;
-    if (c as i32) <= effects_frame.draw_work.near.bits() as i32 {
+    if (c.to_bits() as i32) <= effects_frame.draw_work.near.bits() as i32 {
         return;
     }
     let k = [
@@ -41,11 +41,11 @@ pub fn draw_particle(
     for n in 0..4 {
         let v = &VERTICES.vertices[n];
         v.colour.set(colour);
-        v.z.set_bits(sq[1]);
-        v.x.set_bits(sq[6 + n]);
-        v.y.set_bits(sq[2 + n]);
+        v.z.set(sq[1]);
+        v.x.set(sq[6 + n]);
+        v.y.set(sq[2 + n]);
     }
-    effects_frame.draw_work.half[0].set_bits(sq[0]);
-    effects_frame.draw_work.half[1].set_bits(sq[0]);
+    effects_frame.draw_work.half[0].set_bits(sq[0].to_bits());
+    effects_frame.draw_work.half[1].set_bits(sq[0].to_bits());
     crate::effects::clip_quad::draw_fan();
 }

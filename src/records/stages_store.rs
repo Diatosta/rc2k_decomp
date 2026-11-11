@@ -1422,13 +1422,8 @@ impl StageTables {
 
 /// The event table a name of this piece (an IDA address) is the first row of; refused for
 /// a name that starts no table.
-fn event_table_named(name: u32) -> Result<RecordTable, BadInput> {
-    let at = crate::moved::named_in(
-        name,
-        START,
-        END - START,
-        "a stage list's entry off the stage tables",
-    )?;
+fn event_table_named(tables: &StageTables, name: u32) -> Result<RecordTable, BadInput> {
+    let at = tables.place_of(name, "a stage list's entry off the stage tables")?;
     match RecordRef::at(at)? {
         RecordRef { table, index: 0 } => Ok(table),
         _ => Err(BadInput("a stage list's entry that starts no table")),
@@ -1465,7 +1460,7 @@ impl StageTables {
             .lists()
             .nth(first as usize + sub as usize)
             .ok_or(BadInput("a stage list read past the lists"))?;
-        event_table_named(entry.get())
+        event_table_named(self, entry.get())
     }
 
     /// `off_73555A[level]`: arcade level `level`'s event table; refused for a level past the
@@ -1475,7 +1470,7 @@ impl StageTables {
             .level_tables
             .get(level as usize)
             .ok_or(BadInput("an arcade level past off_73555A's list"))?;
-        event_table_named(entry.get())
+        event_table_named(self, entry.get())
     }
 
     /// `off_7354FE[n]`: the variable that holds best-times table `n` (the list's four,
@@ -1486,12 +1481,26 @@ impl StageTables {
             .get(n as usize)
             .filter(|_| n < 4)
             .ok_or(BadInput("a results table past off_7354FE's four"))?;
-        crate::moved::named_in(
-            entry.get(),
-            crate::menu::champ_store::START,
-            crate::menu::champ_store::END - crate::menu::champ_store::START,
-            "a results table's variable off the championship's",
-        )
+        use crate::menu::champ_store as champ;
+        let name = entry.get() as usize;
+        if !(champ::START..champ::END).contains(&name) {
+            return Err(BadInput(
+                "a results table's variable off the championship's",
+            ));
+        }
+        let view = crate::pointers::GamePtr::to(&crate::menu::owner::MENUS.play.champ_view);
+        Ok(view.addr() + (name - champ::START) as u32)
+    }
+
+    /// Where the name `name` (an address in the game's layout of these tables) is in these
+    /// tables; `what` is the refusal for a name off them. The tables begin 2 bytes into the
+    /// struct (the game's layout is not aligned).
+    fn place_of(&self, name: u32, what: &'static str) -> Result<u32, BadInput> {
+        let name = name as usize;
+        if !(START..END).contains(&name) {
+            return Err(BadInput(what));
+        }
+        Ok(crate::pointers::GamePtr::to(self).addr() + 2 + (name - START) as u32)
     }
 
     /// The text at `off` in `row` of these tables (a record number past a table runs on
@@ -1778,5 +1787,49 @@ mod tests {
             Ok(u32::MAX)
         );
         assert!(RecordTable::Event(1).row(7).unwrap().record().is_err());
+    }
+}
+
+#[cfg(test)]
+mod place_tests {
+    use super::*;
+
+    #[test]
+    fn the_names_resolve_where_named_in_put_them() {
+        let _g = crate::store::test_lock();
+        let tables = &system().records.stage_tables;
+        let mut names: Vec<u32> = tables.lists().map(Loose::get).collect();
+        names.extend(tables.group_lists.iter().map(Loose::get));
+        let mut valid = 0;
+        for name in names {
+            let old = crate::moved::named_in(name, START, END - START, "x");
+            let new = tables.place_of(name, "x");
+            assert_eq!(old.is_ok(), new.is_ok(), "{name:#x}");
+            if let (Ok(old), Ok(new)) = (old, new) {
+                assert_eq!(old, new, "{name:#x}");
+                valid += 1;
+            }
+        }
+        assert!(valid > 20);
+        for n in 0..8 {
+            let champ = crate::menu::champ_store::START;
+            let old = tables
+                .result_tables
+                .get(n as usize)
+                .filter(|_| n < 4)
+                .map(|e| {
+                    crate::moved::named_in(
+                        e.get(),
+                        champ,
+                        crate::menu::champ_store::END - champ,
+                        "x",
+                    )
+                });
+            match (old, tables.result_table(n)) {
+                (Some(Ok(old)), Ok(new)) => assert_eq!(old, new, "result {n}"),
+                (Some(Err(_)) | None, Err(_)) => {}
+                (old, new) => panic!("result {n}: {old:?} against {new:?}"),
+            }
+        }
     }
 }

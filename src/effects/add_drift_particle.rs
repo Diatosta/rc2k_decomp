@@ -49,7 +49,7 @@ pub fn add_drift_particle(
         put(0x10, rounded(v[4]))?;
         put(
             0x1C,
-            x87::ext_less(v[4], effects.kinds.particle_tuning.drift_lower.bits()).to_bits(),
+            x87::ext_less(v[4], &effects.kinds.particle_tuning.drift_lower).to_bits(),
         )?;
         put(0xC, rounded(v[5]))?;
         put(0x18, rounded(v[5]))?;

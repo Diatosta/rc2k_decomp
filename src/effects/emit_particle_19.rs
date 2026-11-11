@@ -126,7 +126,7 @@ pub fn emit_twin(
     let cells = car.whole()?;
     let [x, y, y_less, z] = x87::turned_place(
         crate::session::read_bits(&particles.twin_state.point),
-        set.tuning.lift.bits(),
+        &set.tuning.lift,
         car.whole()?,
     );
     slot.put(|en| &mut en.place[0], x)?;
@@ -137,7 +137,7 @@ pub fn emit_twin(
         crate::effects::try_from_fn::<u32, 3>(|i| matrix_cell(cells, [0x18u32, 0x14, 0x10][i]))?
             .into_iter()
             .zip(set.tuning.row_k.iter())
-            .map(|(a, k)| x87::mul_80(a, k.bits()))
+            .map(|(a, k)| x87::mul_80(a, k))
             .collect::<Vec<_>>();
     let (moved, _) = jitter_point(
         [extended(set.tuning.spread.bits()), row[2], row[1], row[0]],
@@ -147,13 +147,8 @@ pub fn emit_twin(
     for n in 0..3 {
         slot.put(
             |en| &mut en.motion[n],
-            x87::product_plus(
-                motion[n],
-                step,
-                set.tuning.motion_k[n].bits(),
-                rounded(moved[n]),
-            )
-            .to_bits(),
+            x87::product_plus(motion[n], step, &set.tuning.motion_k[n], rounded(moved[n]))
+                .to_bits(),
         )?;
     }
     let r = next_c5(&set.tuning.spin_random);

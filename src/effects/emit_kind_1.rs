@@ -49,16 +49,16 @@ const STEP: i32 = 0x18;
 /// (as `fist` and as a float), and, when an entry may be made, the strength (the float
 /// kept, before the hold to 1).
 struct Pace {
-    grown: (i32, u32),
+    grown: (i32, f32),
     strength: Option<(u32, bool)>,
 }
 
 fn pace(wheel: &MarkRecord) -> Result<Pace, Refused> {
     Ok({
         let grown = x87::abs_sum_to_int_kept(
-            wheel.local_velocity_z.bits(),
-            wheel.local_velocity_x.bits(),
-            wheel.driven_speed.bits(),
+            &wheel.local_velocity_z,
+            &wheel.local_velocity_x,
+            &wheel.driven_speed,
             wheel.pace.get(),
         );
         if grown.0 < STEP {
@@ -69,10 +69,10 @@ fn pace(wheel: &MarkRecord) -> Result<Pace, Refused> {
         }
         let [k1, k2, least] = STRENGTH_K.map(super::super::session::Float::bits);
         let (kept, status) = x87::abs_blend_compare(
-            wheel.local_velocity_x.bits(),
+            &wheel.local_velocity_x,
             k1,
-            wheel.driven_speed.bits(),
-            wheel.local_velocity_z.bits(),
+            &wheel.driven_speed,
+            &wheel.local_velocity_z,
             k2,
             least,
         );
@@ -116,7 +116,7 @@ pub fn emit_particle_1(
         masks.surface.wheel_flags.set(flags);
         let p = pace(wheel)?;
         ring.work.whole.set(p.grown.0 as u32);
-        wheel.pace.set(p.grown.1);
+        wheel.pace.set(p.grown.1.to_bits());
         let Some((kept, under)) = p.strength else {
             return Ok(());
         };
@@ -132,7 +132,7 @@ pub fn emit_particle_1(
             ring.work.whole.set(one);
         }
         let strength: u32 = ring.work.whole.get();
-        let life = x87::times_plus_to_int(strength, LIFE_K[0].bits(), LIFE_K[1].bits());
+        let life = x87::times_plus_to_int(strength, LIFE_K[0], LIFE_K[1]);
         ring.work.life.set(life as u32);
         let fade = x87::mul(strength, &effects.setup.floats.two_fifty_five);
         ring.work.fade.set_bits(fade.to_bits());
@@ -156,7 +156,7 @@ pub fn emit_particle_1(
         slot.put(|en| &mut en.place[1], rounded(place[1]))?;
         slot.put(
             |en| &mut en.ground_y,
-            x87::ext_less(place[1], effects.setup.floats.fixed_16_scale.bits()).to_bits(),
+            x87::ext_less(place[1], &effects.setup.floats.fixed_16_scale).to_bits(),
         )?;
         slot.put(|en| &mut en.place[2], rounded(place[2]))?;
         let motion: [[u8; 10]; 3] = crate::effects::try_from_fn(|k| {

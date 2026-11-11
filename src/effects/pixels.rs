@@ -202,8 +202,8 @@ pub fn map_shape_rows(
             let y: u32 = masks.vars.pixel[1].get();
             masks.vars.row_distance.set(x87::int_plus_less_squared(
                 y as i32,
-                effects.setup.mask_constants.row_add.bits(),
-                masks.vars.middle[1].bits(),
+                &effects.setup.mask_constants.row_add,
+                &masks.vars.middle[1],
             ));
             for n in 0..(len as i32).max(0) as u32 {
                 map_pixel(masks, drops, at, x.wrapping_add(n), effects)?;

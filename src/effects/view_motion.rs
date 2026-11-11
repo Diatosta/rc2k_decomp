@@ -28,7 +28,7 @@ pub fn view_motion(frame: &Frame, effects: &crate::effects::owner::Effects) -> R
     let zero = [extended(0); 3];
     let place = rotate_point(m, zero);
     for k in 0..3 {
-        let step = x87::ext_less(place[k], effects.frame.draw_frame.last[k].bits());
+        let step = x87::ext_less(place[k], &effects.frame.draw_frame.last[k]);
         effects.frame.draw_work.step[k].set_bits(step.to_bits());
         local[3 + k].set(step.to_bits());
     }

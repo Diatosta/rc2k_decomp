@@ -31,6 +31,7 @@ pub mod record_kinds;
 pub mod results;
 pub mod results_pages;
 pub mod rounds;
+pub mod screen_loop;
 pub mod section_walk;
 pub mod slides;
 pub mod stage_scale;

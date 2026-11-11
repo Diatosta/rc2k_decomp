@@ -35,7 +35,7 @@ fn count(
     Ok({
         let n = ((record.flags.get() >> 6) << 2) as i32;
         let (size, k) = (record.size.bits(), setup.floats.thirty_second.bits());
-        let under = x87::times_compare(size, k, setup.floats.one.bits()) & 0x700 == 0x100;
+        let under = x87::times_compare(size, k, &setup.floats.one) & 0x700 == 0x100;
         let count = if under {
             bh::to_int(bh::ld(size) * bh::ld(k) * bh::int(n))
         } else {

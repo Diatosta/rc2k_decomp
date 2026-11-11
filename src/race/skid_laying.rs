@@ -152,7 +152,7 @@ pub fn lay_skidmarks(race: &Race) -> Result<(), Refused> {
         for wheel in 0..4usize {
             let slot = &slots[wheel];
             let on = car.wheel_squeeze[wheel].bits() != 0
-                && !crate::math::x87::below_or_unordered(car.skid_grip[wheel / 2].bits(), grip)
+                && !crate::math::x87::below_or_unordered(&car.skid_grip[wheel / 2], grip)
                 && car.parts_present.get() & (1 << (5 + wheel)) != 0;
             if !on {
                 slot.set(u32::MAX);

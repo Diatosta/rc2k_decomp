@@ -67,9 +67,9 @@ fn angle(sh: &Shadow, effects: &crate::effects::owner::Effects) -> Result<[u8; 1
         let split: u32 = sh.quad.low.bits();
         let v = (sh.field)(marks).bits();
         if (split as i32) <= v as i32 {
-            x87::less_times_plus_negated_80(v, split, sh.quad.slope.bits(), sh.quad.middle.bits())
+            x87::less_times_plus_negated_80(v, split, &sh.quad.slope, &sh.quad.middle)
         } else {
-            x87::times_plus_negated_80(v, sh.quad.step.bits(), sh.quad.start.bits())
+            x87::times_plus_negated_80(v, &sh.quad.step, &sh.quad.start)
         }
     })
 }
@@ -186,7 +186,7 @@ pub fn draw_shadow_with(
         let vertex = &VERTICES.vertices[n];
         vertex.x.set_bits(q.corners[n][0].bits());
         vertex.y.set_bits(q.corners[n][1].bits());
-        let depth = x87::sub_mul(q.corners[n][2].bits(), sh.consts.lifts[n].to_bits(), z_k);
+        let depth = x87::sub_mul(&q.corners[n][2], sh.consts.lifts[n], z_k);
         vertex.z.set_bits(depth.to_bits());
     }
     crate::effects::clip_quad::draw_fan();

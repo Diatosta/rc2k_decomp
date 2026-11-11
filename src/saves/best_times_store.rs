@@ -1257,12 +1257,13 @@ impl RallyTimes {
         let name = self.tables.get(n).ok_or(crate::errors::BadInput(
             "a rally past the six best-times tables",
         ))?;
-        crate::moved::named_in(
-            name.get(),
-            Self::START,
-            Self::END - Self::START,
-            "a best-times table off the rallies' tables",
-        )
+        let name = name.get() as usize;
+        if !(Self::START..Self::END).contains(&name) {
+            return Err(crate::errors::BadInput(
+                "a best-times table off the rallies' tables",
+            ));
+        }
+        Ok(crate::pointers::GamePtr::to(self).addr() + (name - Self::START) as u32)
     }
 
     /// Rally `n`'s table, when the name the game keeps for it (`table_of`) is that table.
@@ -1355,5 +1356,34 @@ mod tests {
             );
         }
         assert!(rally_times.table_of(6).is_err());
+    }
+}
+
+#[cfg(test)]
+mod table_of_tests {
+    use super::*;
+
+    #[test]
+    fn table_of_resolves_where_named_in_put_it() {
+        let _g = crate::store::test_lock();
+        let times = &crate::saves::owner::saves().rally_times;
+        for n in 0..8 {
+            let old = times.tables.get(n).map(|name| {
+                crate::moved::named_in(
+                    name.get(),
+                    RallyTimes::START,
+                    RallyTimes::END - RallyTimes::START,
+                    "x",
+                )
+            });
+            match (old, times.table_of(n)) {
+                (Some(Ok(old)), Ok(new)) => assert_eq!(old, new, "rally {n}"),
+                (Some(Err(_)) | None, Err(_)) => {}
+                (old, new) => panic!("rally {n}: {old:?} against {new:?}"),
+            }
+            if n < 6 {
+                assert!(times.table(n).is_ok(), "rally {n}");
+            }
+        }
     }
 }

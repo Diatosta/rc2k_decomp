@@ -12,20 +12,7 @@ use crate::menu::owner::Menus;
 
 // ---- game data ----
 
-/// What the highlighted item's action left for the screen loop to decide on.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct ActionResult {
-    /// The action asks to leave the screen (and, with its question, to be asked about it).
-    pub ask_leave: bool,
-    /// The event the screen belongs to is over.
-    pub event_over: bool,
-    /// The action leaves the screen.
-    pub leave_screen: bool,
-    /// The event flow behind the screen was left.
-    pub event_left: bool,
-    /// The item's value, which the screen loop tells a plain action (2) from others by.
-    pub action_mode: u32,
-}
+pub use rc2k_core::menu::screen_loop::ActionResult;
 
 /// The highlighted item's action, with its value. (The original hands
 /// the action the screen loop's other registers too, which no action reads; what the

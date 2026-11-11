@@ -66,9 +66,9 @@ pub fn emit_particle_13(
     let t: [u32; 3] = read_first(&paths.spline_head.points[3 * model..]);
     let [x, y, y_less, z] = x87::turned_place_less(
         t,
-        effects.setup.floats.particle_13_place_k.bits(),
-        effects.setup.floats.seven_hundred.bits(),
-        particles.kind13_set.lift.bits(),
+        &effects.setup.floats.particle_13_place_k,
+        &effects.setup.floats.seven_hundred,
+        &particles.kind13_set.lift,
         car.whole()?,
     );
     slot.put(|en| &mut en.place[0], x)?;
@@ -76,11 +76,7 @@ pub fn emit_particle_13(
     slot.put(|en| &mut en.ground_y, y_less)?;
     slot.put(|en| &mut en.place[2], z)?;
     let one: u32 = effects.setup.floats.one.bits();
-    let s = x87::one_less_inverse(
-        object.engine_speed.bits(),
-        particles.kind13_set.strength_k.bits(),
-        one,
-    );
+    let s = x87::one_less_inverse(&object.engine_speed, &particles.kind13_set.strength_k, one);
     ring.work.whole.set(s.to_bits());
     let motion: [u32; 3] = crate::effects::try_from_fn(|k| {
         Ok({
@@ -98,14 +94,14 @@ pub fn emit_particle_13(
     let r = (next_c5(&particles.kind13_set.drift_random) & 0xFFFF) as i32;
     let moved = x87::drifted(
         r,
-        effects.setup.floats.over_65536.bits(),
+        &effects.setup.floats.over_65536,
         motion,
         effects.setup.clock.frame_ticks.get() as i32,
         [x, y, z],
     );
-    slot.put(|en| &mut en.place[0], moved[0])?;
-    slot.put(|en| &mut en.place[1], moved[1])?;
-    slot.put(|en| &mut en.place[2], moved[2])?;
+    slot.put(|en| &mut en.place[0], moved[0].to_bits())?;
+    slot.put(|en| &mut en.place[1], moved[1].to_bits())?;
+    slot.put(|en| &mut en.place[2], moved[2].to_bits())?;
     let r = next_c5(&particles.kind13_set.spin_random);
     slot.put(|en| &mut en.angle_rate, (r & 0x3F).wrapping_sub(0x20))?;
     slot.put(|en| &mut en.angle, r.rotate_right(6) & 0xFFF)?;
@@ -124,9 +120,9 @@ pub fn emit_particle_13(
     )?;
     slot.put(|en| &mut en.car, effects.kinds.emitter.car.get())?;
     let size = x87::times_plus_to_int(
-        particles.kind13_set.size_k[0].bits(),
+        &particles.kind13_set.size_k[0],
         s,
-        particles.kind13_set.size_k[1].bits(),
+        &particles.kind13_set.size_k[1],
     );
     slot.put(|en| &mut en.size_goal, size as u32)?;
     slot.put(|en| &mut en.car_pace, car.pace.get())?;

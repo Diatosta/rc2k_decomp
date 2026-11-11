@@ -36,9 +36,9 @@ pub fn drift_offsets(race: &Race, weather: &Weather, effects: &crate::effects::o
         if since >= r.drift_wait.get() {
             let s = next_seed(effects);
             let x = (s & 0xFFF).wrapping_sub(0x7FF);
-            r.drift_target[0].set(x87::int_times(x as i32, k.target_scale[0].to_bits()));
+            r.drift_target[0].set(x87::int_times(x as i32, k.target_scale[0]));
             let y = ((s >> 12) & 0xFFF).wrapping_sub(0x7FF);
-            r.drift_target[2].set(x87::int_times(y as i32, k.target_scale[1].to_bits()));
+            r.drift_target[2].set(x87::int_times(y as i32, k.target_scale[1]));
             r.drift_wait.set(((s >> 24) + 0x40) * 5);
             r.drift_since
                 .set(race.shared.physics_tables.scene_clock.bits());
@@ -47,11 +47,7 @@ pub fn drift_offsets(race: &Race, weather: &Weather, effects: &crate::effects::o
             r.drift_halves[2].set((s >> 16) << 8);
         }
         for (n, at) in [0, 2].into_iter().enumerate() {
-            let pace = x87::ease(
-                r.drift_target[at].bits(),
-                r.drift_pace[at].bits(),
-                k.ease[n].to_bits(),
-            );
+            let pace = x87::ease(&r.drift_target[at], &r.drift_pace[at], k.ease[n].to_bits());
             r.drift_pace[at].set_bits(pace.to_bits());
             let offset = bh::to_int(bh::int(r.view[at].get() as i32) + bh::ld(pace.to_bits()));
             r.view[at].set(offset as u32);

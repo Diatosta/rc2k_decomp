@@ -94,21 +94,21 @@ pub fn set_kind_values(
         k.values.map(|table| table[n].to_bits());
     let count = k.count[n];
     q.corner.set(count);
-    let (scaled, ratio) = x87::mul_and_div(size, c.size_k.to_bits(), divisor);
-    q.size.set_bits(scaled);
-    q.ratio.set_bits(ratio);
+    let (scaled, ratio) = x87::mul_and_div(size, c.size_k, divisor);
+    q.size.set(scaled);
+    q.ratio.set(ratio);
     q.low.set_bits(low);
     q.high.set_bits(high);
-    q.start.set(x87::mul(start, c.start_k.to_bits()));
+    q.start.set(x87::mul(start, c.start_k));
     q.step.set_bits(bh::st(
         (bh::ld(middle) - bh::ld(start)) / bh::ld(low) * bh::ld(c.step_k.to_bits()),
     ));
-    q.middle.set(x87::mul(middle, c.middle_k.to_bits()));
+    q.middle.set(x87::mul(middle, c.middle_k));
     q.slope.set_bits(bh::st(
         (bh::ld(end) - bh::ld(middle)) / (bh::ld(high) - bh::ld(low)) * bh::ld(c.slope_k.to_bits()),
     ));
-    q.spread.set(x87::mul(spread, c.spread_k.to_bits()));
-    k.extra.set(x87::mul(extra, c.extra_k.to_bits()));
+    q.spread.set(x87::mul(spread, c.spread_k));
+    k.extra.set(x87::mul(extra, c.extra_k));
     if let Some(copy) = k.divisor_copy {
         copy.set(divisor);
     }

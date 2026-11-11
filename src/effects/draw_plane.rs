@@ -144,12 +144,8 @@ pub fn draw_plane(
     }
     for n in 0..4 {
         let vertex = &VERTICES.vertices[n];
-        vertex
-            .u
-            .set(x87::loaded(PLANE_TUNING.places[n][0].to_bits()));
-        vertex
-            .v
-            .set(x87::loaded(PLANE_TUNING.places[n][1].to_bits()));
+        vertex.u.set(x87::loaded(PLANE_TUNING.places[n][0]));
+        vertex.v.set(x87::loaded(PLANE_TUNING.places[n][1]));
     }
     let light: u32 = ctx.view.light.view_light.get();
     for n in 0..4 {

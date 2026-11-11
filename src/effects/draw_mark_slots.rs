@@ -140,10 +140,10 @@ pub fn draw_mark_slots(
                 .bits(),
             x,
             z,
-            crate::scene::polygon_work::front_end().window.view_centre[0].bits(),
+            &crate::scene::polygon_work::front_end().window.view_centre[0],
             y,
-            crate::scene::polygon_work::front_end().window.view_centre[1].bits(),
-            effects.blocks.slots.slots[0].size.bits(),
+            &crate::scene::polygon_work::front_end().window.view_centre[1],
+            &effects.blocks.slots.slots[0].size,
         );
         effects.blocks.slots.work[0].set(px);
         effects.blocks.slots.work[1].set(py);
@@ -155,7 +155,7 @@ pub fn draw_mark_slots(
             (x87::sub(px, half), x87::add(py, half)),
         ];
         let depth = x87::mul(x, &effects.frame.draw_work.z_k);
-        let rhw = x87::reciprocal_times(x, effects.blocks.slot_tuning.rhw_k.bits());
+        let rhw = x87::reciprocal_times(x, &effects.blocks.slot_tuning.rhw_k);
         for (n, (vx, vy)) in corners.into_iter().enumerate() {
             let vertex = &VERTICES.vertices[n];
             vertex.x.set_bits(vx.to_bits());

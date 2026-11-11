@@ -57,7 +57,7 @@ pub fn draw_pong_box(
         VERTICES.vertices[n].v.set_bits(w);
     }
     corners(pong, fl, &v);
-    if x87::compare_status(fl.tables.corners[0][2].bits(), pong.rules.near.bits()) == 0x100 {
+    if x87::compare_status(&fl.tables.corners[0][2], &pong.rules.near) == 0x100 {
         return;
     }
     projected(fl);

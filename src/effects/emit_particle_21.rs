@@ -41,11 +41,11 @@ fn rate(
             .each_ref()
             .map(super::super::session::Float::bits);
         x87::speed_rate_to_int(
-            wheel.driven_speed.bits(),
+            &wheel.driven_speed,
             k1,
             k2,
             k3,
-            effects.setup.floats.one.bits(),
+            &effects.setup.floats.one,
             k4,
         )
     })
@@ -106,14 +106,14 @@ pub fn emit_particle_21(
                 matrix_cell(m, k)?,
                 b,
                 matrix_cell(m, 0x20 + k)?,
-                wheel.place[k as usize / 4].bits(),
+                &wheel.place[k as usize / 4],
             ))
         })?;
         slot.put(|en| &mut en.place[2], rounded(place[2]))?;
         slot.put(|en| &mut en.place[1], rounded(place[1]))?;
         slot.put(
             |en| &mut en.ground_y,
-            x87::ext_less(place[1], particles.kind21_set.lift.bits()).to_bits(),
+            x87::ext_less(place[1], &particles.kind21_set.lift).to_bits(),
         )?;
         slot.put(|en| &mut en.place[0], rounded(place[0]))?;
         let motion: [u32; 3] = crate::effects::try_from_fn(|k| {

@@ -147,7 +147,7 @@ pub fn emit_particle_5_with(
                     matrix_cell(m, k)?,
                     b,
                     matrix_cell(m, 0x20 + k)?,
-                    wheel.place[k as usize / 4].bits(),
+                    &wheel.place[k as usize / 4],
                     matrix_cell(m, 0x30 + k)?,
                 )
                 .to_bits()
@@ -162,7 +162,7 @@ pub fn emit_particle_5_with(
                 let lift = (k == 1).then(|| set.lift.bits());
                 x87::times_int_plus_times_80(
                     matrix_cell(m, 4 * k as u32)?,
-                    set.motion_k[k].bits(),
+                    set.motion_k[k],
                     sign,
                     lift,
                     strength,
@@ -179,12 +179,12 @@ pub fn emit_particle_5_with(
             let row = matrix_cell(m, 0x28 - 4 * n as u32)?;
             slot.put(
                 |en| &mut en.motion[2 - n],
-                x87::product_plus(row, set.roll_k[n].bits(), speed, rounded(moved)).to_bits(),
+                x87::product_plus(row, set.roll_k[n], speed, rounded(moved)).to_bits(),
             )?;
         }
         slot.put(
             |en| &mut en.angle_rate,
-            x87::float_times_int_to_int(set.spin.bits(), sign) as u32,
+            x87::float_times_int_to_int(set.spin, sign) as u32,
         )?;
         slot.put(|en| &mut en.cell, wheel.flags.get() & 0x3F)?;
         slot.put(|en| &mut en.size, ((last >> 2) & 0xFFF) + 0x7800)?;

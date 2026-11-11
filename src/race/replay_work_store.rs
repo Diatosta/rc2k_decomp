@@ -46,7 +46,7 @@ pub struct ReplayWork {
     pub header_game_over_0: Dword,
     /// +0x694 (0x719B50): `dword_719B50`: the header's game-over flag of car 1, offset 0x3C (`race::race_end`).
     pub header_game_over_1: Dword,
-    /// +0x698 (0x719B54): `dword_719B54`: the replay's sealed header part, 0x100 bytes: checksum dword, version byte at +4, copied settings (some unaligned, `HEADER_MOVES`), the player name at +0xD (0x20 bytes), sealed in blocks of 8 (`race::seal_replay_header`, `race::replay`).
+    /// +0x698 (0x719B54): `dword_719B54`: the replay's sealed header part, 0x100 bytes: checksum dword, version byte at +4, copied settings (some unaligned, `race::replay::copy_header_settings`), the player name at +0xD (0x20 bytes), sealed in blocks of 8 (`race::seal_replay_header`, `race::replay`).
     pub sealed_header: [Dword; 64],
     /// +0x798 (0x719C54): `dword_719C54`: set to 6 when the header holds the patch switches (`race::replay_patches`, `race::replay`).
     pub patches_in_header: Dword,

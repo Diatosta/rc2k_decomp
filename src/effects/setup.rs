@@ -129,7 +129,7 @@ pub fn make_wave_tables(paths: &Paths) -> Result<(), Refused> {
         ));
     }
     let mut sines = vec![0u32; SINES as usize];
-    x87::sine_table(paths.wave.sine_step.bits(), &mut sines);
+    x87::sine_table(&paths.wave.sine_step, &mut sines);
     for (cell, &v) in paths.sines.table.iter().zip(&sines) {
         cell.set_bits(v);
     }
@@ -182,9 +182,9 @@ pub fn tick_clock(
         c.quarter.set(ticks >> 2);
         c.sixteenth.set(ticks >> 4);
         let (reciprocal, scaled) =
-            x87::reciprocal_int_and_times(ticks as i32, setup.floats.quarter.bits());
-        c.reciprocal.set_bits(reciprocal);
-        c.reciprocal_scaled.set_bits(scaled);
+            x87::reciprocal_int_and_times(ticks as i32, &setup.floats.quarter);
+        c.reciprocal.set(reciprocal);
+        c.reciprocal_scaled.set(scaled);
         c.ticks_scaled
             .set(x87::mul(ticks, &setup.clock_k.ticks_scale));
     }

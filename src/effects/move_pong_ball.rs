@@ -29,7 +29,7 @@ pub fn move_pong_ball(pong: &Pong, effects: &crate::effects::owner::Effects) {
     }
     pong_ball_hits(pong, effects);
     let flip = |r: &Float| r.set_bits(r.bits() ^ 0x8000_0000);
-    if x87::compare_status(p.ball[0].bits(), limit(0)) != 0 {
+    if x87::compare_status(&p.ball[0], limit(0)) != 0 {
         p.ball[0].set(x87::loaded(limit(1)));
         flip(&p.ball_way[0]);
     }
@@ -42,7 +42,7 @@ pub fn move_pong_ball(pong: &Pong, effects: &crate::effects::owner::Effects) {
     if hit != 0 {
         crate::effects::splines::reset_pong(pong, effects);
     }
-    if x87::compare_status(p.ball[1].bits(), limit(4)) != 0 {
+    if x87::compare_status(&p.ball[1], limit(4)) != 0 {
         p.ball[1].set(x87::loaded(limit(5)));
         flip(&p.ball_way[1]);
     }

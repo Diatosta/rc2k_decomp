@@ -29,7 +29,7 @@ pub fn scale_rows3(rows: &[Float; 9], effects: &crate::effects::owner::Effects) 
         let bits = [row[0].bits(), row[1].bits(), row[2].bits()];
         let length = effects.setup.mask_constants.row_lengths[n].bits();
         for (cell, v) in row.iter().zip(x87::scale_row_bits(bits, length)) {
-            cell.set_bits(v);
+            cell.set(v);
         }
     }
 }
@@ -52,7 +52,7 @@ pub fn smooth_steps(
 pub fn smooth_pair(n: u32, a: u32, b: u32, effects: &crate::effects::owner::Effects) -> (u32, u32) {
     let setup = &effects.setup;
     {
-        let t = x87::sub_mul(b, a, setup.mask_constants.ease.bits());
+        let t = x87::sub_mul(b, a, &setup.mask_constants.ease);
         let steps: [i32; 2] = setup
             .mask_constants
             .steps

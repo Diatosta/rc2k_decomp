@@ -378,7 +378,7 @@ fn pull_size(
             t,
         );
         ring.work.whole.set(w as u32);
-        set(ring, e, f, |en| &mut en.size)?;
+        set(ring, e, f.to_bits(), |en| &mut en.size)?;
         if w > entry(ring, e)?.size_goal as i32 {
             set(
                 ring,
@@ -698,7 +698,7 @@ fn boxed_kind(
     if !outside && both {
         outside = (entry(ring, e)?.box_limit[1] as i32) < (ring.work.extent[1].get() as i32);
     }
-    if !outside && x87::compare_status(entry(ring, e)?.place[1], ring.work.top.bits()) == 0 {
+    if !outside && x87::compare_status(entry(ring, e)?.place[1], &ring.work.top) == 0 {
         return Ok(true);
     }
     Ok(x87::compare_status(entry(ring, e)?.place[1], entry(ring, e)?.ground_y) == 0x100)

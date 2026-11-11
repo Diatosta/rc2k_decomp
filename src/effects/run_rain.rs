@@ -129,9 +129,8 @@ pub fn run_rain(
         r.last_views[e][2].set(r.view[2].get());
         if setup.kind_floats.running.get() != 0 {
             let clock = race.shared.physics_tables.scene_clock.get() & 0xF_FFFF;
-            r.drift.set(
-                x87::int_times_to_int(clock as i32, weather.rain_rules.drift_k.to_bits()) as u32,
-            );
+            r.drift
+                .set(x87::int_times_to_int(clock as i32, weather.rain_rules.drift_k) as u32);
         }
         for k in (0..drops.max(0) as usize).rev() {
             let drift = r.drift.get();

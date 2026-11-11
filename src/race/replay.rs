@@ -89,7 +89,7 @@ mod block_tests {
 
 /// `race::seal_replay_header` (0x41F0A3): the replay's sealed header part (`sealed_header`, 0x40
 /// dwords): version byte 6, the player's name (`strings::copy_printable`, 0x20), the settings and
-/// options copied (`HEADER_MOVES`), a checksum (from dword 1: add, `rol` 5) into dword 0 and
+/// options copied (`copy_header_settings`), a checksum (from dword 1: add, `rol` 5) into dword 0 and
 /// `dword_4F66F9`; then its 32 blocks of 8 chained through `race::seal_block` with the key
 /// "halfmoon" (the game's key put back after).
 pub fn seal_replay_header(replay: &Replay) -> Result<(), Refused> {
@@ -106,11 +106,7 @@ pub fn seal_replay_header(replay: &Replay) -> Result<(), Refused> {
         sealed.offset(0x719B61 - 0x719B54),
         0x20,
     )?;
-    for &(size, to, from) in &HEADER_MOVES {
-        // IDA's names of the header's fields and the settings they copy.
-        let (to, from) = (crate::moved::named(to)?, crate::moved::named(from)?);
-        from.copy_to(to, size, "the replay header")?;
-    }
+    copy_header_settings(sealed)?;
     let sealed_dwords = &REPLAY_WORK.sealed_header;
     let dwords: Vec<u32> = (1..0x40).map(|n| sealed_dwords[n].get()).collect();
     let sum = seal_checksum(&dwords);
@@ -141,40 +137,94 @@ pub fn seal_replay_header(replay: &Replay) -> Result<(), Refused> {
     Ok(())
 }
 
-/// (bytes, to, from), in the original's order (made from the disassembly by script).
-const HEADER_MOVES: [(usize, usize, usize); 31] = [
-    (1, 0x719B81, 0x4E07A0),
-    (4, 0x719B59, 0x528510),
-    (1, 0x719B86, 0x75ACE8),
-    (1, 0x719B87, 0x75ACD4),
-    (1, 0x719B88, 0x75ACF0),
-    (1, 0x719B89, 0x75ACD8),
-    (1, 0x719B8A, 0x75AE1C),
-    (1, 0x719C8C, 0x75AE1C),
-    (1, 0x719B8B, 0x75AE24),
-    (4, 0x719B5D, 0x5BECAC),
-    (4, 0x719B82, 0x75870C),
-    (1, 0x719B94, 0x75AE2C),
-    (1, 0x719B95, 0x75AD30),
-    (1, 0x719B96, 0x75AD1C),
-    (1, 0x719B97, 0x75AD20),
-    (1, 0x719B98, 0x75AD2C),
-    (1, 0x719B99, 0x75AD24),
-    (1, 0x719B9A, 0x75AD28),
-    (1, 0x719B9B, 0x71C6D0),
-    (1, 0x719B9C, 0x71C6D4),
-    (1, 0x719B9D, 0x71C6D8),
-    (2, 0x719B9E, 0x71C6DC),
-    (4, 0x719BA0, 0x71C6E0),
-    (2, 0x719BA4, 0x71C6E4),
-    (2, 0x719BA6, 0x71C6E8),
-    (2, 0x719BA8, 0x71C6EC),
-    (2, 0x719BAA, 0x71C6F0),
-    (2, 0x719BAC, 0x71C6F4),
-    (2, 0x719BAE, 0x71C6F8),
-    (2, 0x719BB0, 0x71C6FC),
-    (2, 0x719BB2, 0x71C700),
-];
+/// The settings the sealed header copies, in the original's order: the low `size` bytes of
+/// each setting go to `at` (an offset from the header's first byte, 0x138 and more past the
+/// end of its 0x100 bytes are the first dword of `unknown_7d0`: the original's slip).
+fn copy_header_settings(sealed: GamePtr) -> Result<(), BadInput> {
+    use crate::race::state_store::{RaceCar, RaceSettings, RaceState};
+    use core::mem::offset_of;
+    // The cells of the race's settings as the front end keeps them, by IDA's address.
+    const SETTINGS: usize = offset_of!(RaceState, settings);
+    const CARS: usize = SETTINGS + offset_of!(RaceSettings, cars);
+    const fn setting(ida: usize) -> usize {
+        ida - 0x75ACCC
+    }
+    const _: () = {
+        assert!(SETTINGS + offset_of!(RaceSettings, stage) == setting(0x75ACD4));
+        assert!(SETTINGS + offset_of!(RaceSettings, run_kind) == setting(0x75ACD8));
+        assert!(SETTINGS + offset_of!(RaceSettings, car_kind_current) == setting(0x75ACE8));
+        assert!(SETTINGS + offset_of!(RaceSettings, direction) == setting(0x75ACF0));
+        assert!(CARS + offset_of!(RaceCar, tyre) == setting(0x75AD1C));
+        assert!(CARS + offset_of!(RaceCar, brake_balance) == setting(0x75AD20));
+        assert!(CARS + offset_of!(RaceCar, ride_height) == setting(0x75AD24));
+        assert!(CARS + offset_of!(RaceCar, suspension_stiffness) == setting(0x75AD28));
+        assert!(CARS + offset_of!(RaceCar, steering_sensitivity) == setting(0x75AD2C));
+        assert!(CARS + offset_of!(RaceCar, gear_ratio) == setting(0x75AD30));
+        assert!(CARS + offset_of!(RaceCar, race_number) == setting(0x75AE1C));
+        assert!(CARS + offset_of!(RaceCar, view) == setting(0x75AE24));
+        assert!(CARS + offset_of!(RaceCar, gearing) == setting(0x75AE2C));
+    };
+    let shared = &crate::race::owner::race().shared;
+    let settings = &shared.state.settings;
+    let car = &settings.cars[0];
+    let patches = &shared.work.patch_settings;
+    let cells: [(usize, usize, u32); 31] = [
+        (
+            1,
+            0x719B81,
+            u32::from(crate::strings::load_language::notice_kind()),
+        ),
+        (
+            4,
+            0x719B59,
+            GamePtr::to(&shared.replays.header)
+                .offset(0xC)
+                .read::<u32>("the replay header's source")?,
+        ),
+        (1, 0x719B86, settings.car_kind_current.get()),
+        (1, 0x719B87, settings.stage.get()),
+        (1, 0x719B88, settings.direction.get()),
+        (1, 0x719B89, settings.run_kind.get()),
+        (1, 0x719B8A, car.race_number.get()),
+        (1, 0x719C8C, car.race_number.get()),
+        (1, 0x719B8B, car.view.get()),
+        (4, 0x719B5D, shared.replay_file.season_code.get()),
+        (4, 0x719B82, menus().play.cheats.cheats.get()),
+        (1, 0x719B94, car.gearing.get()),
+        (1, 0x719B95, car.gear_ratio.get()),
+        (1, 0x719B96, car.tyre.get()),
+        (1, 0x719B97, car.brake_balance.get()),
+        (1, 0x719B98, car.steering_sensitivity.get()),
+        (1, 0x719B99, car.ride_height.get()),
+        (1, 0x719B9A, car.suspension_stiffness.get()),
+        (1, 0x719B9B, shared.work.patch_switch.get()),
+        (1, 0x719B9C, patches[0].get()),
+        (1, 0x719B9D, patches[1].get()),
+        (2, 0x719B9E, patches[2].get()),
+        (4, 0x719BA0, patches[3].get()),
+        (2, 0x719BA4, patches[4].get()),
+        (2, 0x719BA6, patches[5].get()),
+        (2, 0x719BA8, patches[6].get()),
+        (2, 0x719BAA, patches[7].get()),
+        (2, 0x719BAC, patches[8].get()),
+        (2, 0x719BAE, patches[9].get()),
+        (2, 0x719BB0, patches[10].get()),
+        (2, 0x719BB2, patches[11].get()),
+    ];
+    for (size, to, value) in cells {
+        let bytes = &value.to_le_bytes()[..size];
+        if to < 0x719B54 + 0x100 {
+            sealed
+                .offset((to - 0x719B54) as u32)
+                .write_bytes(bytes, "the replay header")?;
+        } else {
+            // 0x719C8C: the viewer's first car number, past the header.
+            let door = &REPLAY_WORK.unknown_7d0[0];
+            door.set(door.get() & !0xFF | u32::from(bytes[0]));
+        }
+    }
+    Ok(())
+}
 
 fn write(handle: u32, bytes: &[u8]) -> (u32, bool) {
     let (n, ok) = crate::files::handle::write_slice(handle, bytes);
@@ -428,5 +478,138 @@ mod seal_key_tests {
             core::mem::offset_of!(ReplayWork, sealed_header),
             0x719B54 - START
         );
+    }
+}
+
+#[cfg(test)]
+mod header_tests {
+    use super::*;
+    use crate::race::owner::race;
+
+    /// The header's copies as the first typed-by-address version did them (IDA names).
+    const HEADER_MOVES: [(usize, usize, usize); 31] = [
+        (1, 0x719B81, 0x4E07A0),
+        (4, 0x719B59, 0x528510),
+        (1, 0x719B86, 0x75ACE8),
+        (1, 0x719B87, 0x75ACD4),
+        (1, 0x719B88, 0x75ACF0),
+        (1, 0x719B89, 0x75ACD8),
+        (1, 0x719B8A, 0x75AE1C),
+        (1, 0x719C8C, 0x75AE1C),
+        (1, 0x719B8B, 0x75AE24),
+        (4, 0x719B5D, 0x5BECAC),
+        (4, 0x719B82, 0x75870C),
+        (1, 0x719B94, 0x75AE2C),
+        (1, 0x719B95, 0x75AD30),
+        (1, 0x719B96, 0x75AD1C),
+        (1, 0x719B97, 0x75AD20),
+        (1, 0x719B98, 0x75AD2C),
+        (1, 0x719B99, 0x75AD24),
+        (1, 0x719B9A, 0x75AD28),
+        (1, 0x719B9B, 0x71C6D0),
+        (1, 0x719B9C, 0x71C6D4),
+        (1, 0x719B9D, 0x71C6D8),
+        (2, 0x719B9E, 0x71C6DC),
+        (4, 0x719BA0, 0x71C6E0),
+        (2, 0x719BA4, 0x71C6E4),
+        (2, 0x719BA6, 0x71C6E8),
+        (2, 0x719BA8, 0x71C6EC),
+        (2, 0x719BAA, 0x71C6F0),
+        (2, 0x719BAC, 0x71C6F4),
+        (2, 0x719BAE, 0x71C6F8),
+        (2, 0x719BB0, 0x71C6FC),
+        (2, 0x719BB2, 0x71C700),
+    ];
+
+    fn old_copy() -> Result<(), BadInput> {
+        for &(size, to, from) in &HEADER_MOVES {
+            let (to, from) = (crate::moved::named(to)?, crate::moved::named(from)?);
+            from.copy_to(to, size, "the replay header")?;
+        }
+        Ok(())
+    }
+
+    /// splitmix64.
+    fn next(state: &mut u64) -> u64 {
+        *state = state.wrapping_add(0x9E37_79B9_7F4A_7C15);
+        let mut z = *state;
+        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+        z ^ (z >> 31)
+    }
+
+    #[test]
+    fn the_typed_copy_makes_the_header_the_old_loop_made() {
+        let _g = crate::store::test_lock();
+        let shared = &race().shared;
+        let settings = &shared.state.settings;
+        let car = &settings.cars[0];
+        let mut cells: Vec<&Dword> = vec![
+            &settings.stage,
+            &settings.run_kind,
+            &settings.car_kind_current,
+            &settings.direction,
+            &car.race_number,
+            &car.view,
+            &car.gearing,
+            &car.gear_ratio,
+            &car.tyre,
+            &car.brake_balance,
+            &car.steering_sensitivity,
+            &car.ride_height,
+            &car.suspension_stiffness,
+            &shared.replay_file.season_code,
+            &menus().play.cheats.cheats,
+            &shared.work.patch_switch,
+        ];
+        cells.extend(shared.work.patch_settings.iter());
+        let locale = &crate::strings::owner::strings().language.locale;
+        let header = &shared.replays.header;
+        let sealed = &REPLAY_WORK.sealed_header;
+        let door = &REPLAY_WORK.unknown_7d0[0];
+        let kept_cells: Vec<u32> = cells.iter().map(|c| c.get()).collect();
+        let kept_locale = locale.get(8);
+        let kept_header: Vec<u8> = (0..16).map(|i| header.get(i)).collect();
+        let kept_sealed: Vec<u32> = sealed.iter().map(Dword::get).collect();
+        let kept_door = door.get();
+        for seed in 1..=8u64 {
+            let mut state = seed;
+            for c in &cells {
+                c.set(next(&mut state) as u32);
+            }
+            locale.set(8, next(&mut state) as u8);
+            for i in 0..16 {
+                header.set(i, next(&mut state) as u8);
+            }
+            let run = |typed: bool| {
+                for d in sealed.iter() {
+                    d.set(0xAAAA_AAAA);
+                }
+                door.set(0x5555_5555);
+                if typed {
+                    copy_header_settings(GamePtr::to(sealed)).unwrap();
+                } else {
+                    old_copy().unwrap();
+                }
+                let mut out: Vec<u32> = sealed.iter().map(Dword::get).collect();
+                out.push(door.get());
+                out
+            };
+            let old = run(false);
+            let new = run(true);
+            assert_eq!(old, new, "seed {seed}");
+            assert_ne!(old[..64], [0xAAAA_AAAA; 64], "seed {seed}: nothing copied");
+        }
+        for (c, v) in cells.iter().zip(kept_cells) {
+            c.set(v);
+        }
+        locale.set(8, kept_locale);
+        for (i, b) in kept_header.into_iter().enumerate() {
+            header.set(i, b);
+        }
+        for (d, v) in sealed.iter().zip(kept_sealed) {
+            d.set(v);
+        }
+        door.set(kept_door);
     }
 }

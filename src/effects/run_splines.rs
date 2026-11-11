@@ -85,14 +85,14 @@ pub fn run_splines(paths: &Paths, effects: &crate::effects::owner::Effects) -> R
             .each_ref()
             .map(super::super::session::Float::bits);
         let (angle, wave) = x87::angle_and_wave(
-            paths.spline_head.angle.bits(),
+            &paths.spline_head.angle,
             (s & 0xFF).wrapping_sub(0x80) as i32,
             k[0],
             k[1],
             k[2],
         );
-        paths.spline_head.angle.set_bits(angle);
-        paths.spline_head.wave.set_bits(wave);
+        paths.spline_head.angle.set(angle);
+        paths.spline_head.wave.set(wave);
         for n in (0..places.max(0) as u32).rev() {
             place_spline(paths, n, effects)?;
         }

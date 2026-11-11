@@ -140,8 +140,8 @@ pub fn span_ring(
         ];
         write_bits(&masks.vars.ring_ends, ends.map(f32::to_bits));
         let (half, middle) = x87::half_and_middle(ends[1], ends[0], scales[2]);
-        masks.vars.ring_half.set_bits(half);
-        masks.vars.ring_middle.set_bits(middle);
+        masks.vars.ring_half.set(half);
+        masks.vars.ring_middle.set(middle);
         let mut angle = 0u32;
         masks.vars.ring_angle.set(angle);
         let step = bh::st(bh::int(n).pi_over());

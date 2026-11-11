@@ -28,14 +28,8 @@ pub fn draw_glow(
         }
         crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[211].get());
         let place = [
-            x87::add_80(
-                clipping.glow.place[2].bits(),
-                clipping.glow.offset[0].bits(),
-            ),
-            x87::add_80(
-                clipping.glow.place[1].bits(),
-                clipping.glow.offset[1].bits(),
-            ),
+            x87::add_80(&clipping.glow.place[2], &clipping.glow.offset[0]),
+            x87::add_80(&clipping.glow.place[1], &clipping.glow.offset[1]),
             extended(clipping.glow.place[0].bits()),
         ];
         crate::effects::draw_turned_sprite::draw_turned_sprite(

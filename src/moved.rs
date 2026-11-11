@@ -2304,6 +2304,7 @@ pub fn home_of_rva(rva: usize) -> Option<usize> {
 /// Where a table's entry names (the tables keep IDA's addresses as names): IDA's `ida`, which must
 /// lie in `start .. start + len` (the moved piece it names), at its new home. A name off the piece
 /// is refused with `what`.
+#[cfg(test)]
 pub fn named_in(
     ida: u32,
     start: usize,

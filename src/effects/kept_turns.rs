@@ -21,8 +21,8 @@ fn turn_kept(a: usize, b: usize, sc: &[Float; 2], effects: &crate::effects::owne
     let (s, c) = (sc[0].bits(), sc[1].bits());
     for v in vectors(effects) {
         let (nb, na) = x87::turn_yz(v[b].get(), v[a].get(), s, c);
-        v[b].set(nb);
-        v[a].set(na);
+        v[b].set_bits(nb.to_bits());
+        v[a].set_bits(na.to_bits());
     }
 }
 
@@ -49,9 +49,9 @@ pub fn turn_kept_vectors(effects: &crate::effects::owner::Effects) {
             &frame.kept_view.second_sine_cosine,
         ),
     ] {
-        let (s, c) = x87::sine_and_cosine(angle.bits());
-        to[0].set_bits(s);
-        to[1].set_bits(c);
+        let (s, c) = x87::sine_and_cosine(angle);
+        to[0].set(s);
+        to[1].set(c);
     }
     turn_kept_xz(effects);
     turn_kept_zy(effects);

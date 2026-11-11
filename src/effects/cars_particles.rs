@@ -148,6 +148,7 @@ pub fn cars_particles(effects: &Effects) -> Result<(), Refused> {
             x87::product_difference(up[0], matrix_cell(parts, 4)?, up[1], matrix_cell(parts, 0)?),
         ];
         let across = x87::normalised3(across.map(f32::to_bits), one);
+        let across = across.map(f32::to_bits);
         write_bits(&effects.kinds.emitter.across, across);
         let b = x87::crossed_turned(across, car.parts()?, car.whole()?);
         write_bits(&effects.kinds.emitter.side_b, b);

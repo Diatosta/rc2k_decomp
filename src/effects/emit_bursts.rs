@@ -101,21 +101,17 @@ fn strength(
     set: &BurstSet,
     n: usize,
     wheel: &MarkRecord,
-) -> Result<(u32, i32), Refused> {
+) -> Result<(f32, i32), Refused> {
     Ok({
         let scale: u32 = effects.setup.floats.thirty_two.bits();
         if n == 0 {
-            x87::times_kept_abs_to_int(
-                wheel.local_velocity_x.bits(),
-                set.tuning.strength_k.bits(),
-                scale,
-            )
+            x87::times_kept_abs_to_int(&wheel.local_velocity_x, &set.tuning.strength_k, scale)
         } else {
             x87::blend_kept_abs_to_int(
-                wheel.driven_speed.bits(),
-                wheel.local_velocity_z.bits(),
-                set.tuning.blend_k[0].bits(),
-                set.tuning.blend_k[1].bits(),
+                &wheel.driven_speed,
+                &wheel.local_velocity_z,
+                &set.tuning.blend_k[0],
+                &set.tuning.blend_k[1],
                 scale,
             )
         }
@@ -192,7 +188,7 @@ pub fn emit_bursts_with(
         }
         for (n, h) in set.halves.iter().enumerate() {
             let (s, rate) = strength(effects, set, n, wheel)?;
-            h.strength.set_bits(s);
+            h.strength.set_bits(s.to_bits());
             ring.work.whole.set(rate as u32);
             let r = next_c5(&set.tuning.randoms(n)[0]);
             if (r.rotate_right(16) & 0xFF) as i32 >= rate {
@@ -204,7 +200,7 @@ pub fn emit_bursts_with(
             let scale = h.scaled.then(|| effects.setup.floats.half.bits());
             let direction = [
                 x87::mul2(h.factors[0], s, k),
-                x87::times_less_abs_times(h.factors[1].bits(), s, scale, k),
+                x87::times_less_abs_times(h.factors[1], s, scale, k),
                 x87::mul2(h.factors[2], s, k),
             ];
             write_bits(&ring.work.direction, direction.map(f32::to_bits));
@@ -252,9 +248,9 @@ pub fn emit_bursts_with(
                 let place: [u32; 3] = crate::effects::try_from_fn(|k| {
                     let k4 = 4 * k as u32;
                     Ok(x87::less_plus_int_times(
-                        wheel.place[k4 as usize / 4].bits(),
+                        &wheel.place[k4 as usize / 4],
                         matrix_cell(m, 0x30 + k4)?,
-                        h.sides[k].bits(),
+                        h.sides[k],
                         side as i32,
                     )
                     .to_bits())
@@ -269,8 +265,8 @@ pub fn emit_bursts_with(
                     |en| &mut en.cell_rate,
                     x87::int_times_plus(
                         pick as i32,
-                        effects.setup.floats.over_65536.bits(),
-                        effects.setup.floats.one.bits(),
+                        &effects.setup.floats.over_65536,
+                        &effects.setup.floats.one,
                     )
                     .to_bits(),
                 )?;

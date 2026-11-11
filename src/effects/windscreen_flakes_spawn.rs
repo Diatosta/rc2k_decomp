@@ -45,7 +45,7 @@ pub fn windscreen_flakes_spawn(
             for _ in 0..n.max(0) {
                 pick_windscreen_flake(shared, fl)?;
             }
-            let share = x87::fraction_times_to_int(v, fl.state.share_k.bits());
+            let share = x87::fraction_times_to_int(v, &fl.state.share_k);
             let s = fl
                 .state
                 .spawn_random

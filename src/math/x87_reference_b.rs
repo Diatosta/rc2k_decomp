@@ -1567,7 +1567,7 @@ mod diff {
 
             let p80 = t.rng.p80();
             let want = super::column_turn(&p80, mp);
-            let got = plain::column_turn(&p80, &At(mp));
+            let got = plain::column_turn(&p80, &At(mp)).map(f32::to_bits);
             let ok = want.same(&got, 0);
             t.record("column_turn", ok, || {
                 format!("{p80:x?} {m:x?} want {want:x?} got {got:x?}")

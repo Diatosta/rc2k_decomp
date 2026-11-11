@@ -102,8 +102,7 @@ pub fn run_snow(
                 .scene_clock
                 .get()
                 .wrapping_sub(s.last_clock.get());
-            let fall =
-                x87::int_times_plus_int_to_int(ticks as i32, l.fall_k.bits(), s.fall.get() as i32);
+            let fall = x87::int_times_plus_int_to_int(ticks as i32, &l.fall_k, s.fall.get() as i32);
             s.fall.set(fall as u32);
         }
         s.fall.set(s.fall.get() & 0x0FFF_FFFF);

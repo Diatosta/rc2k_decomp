@@ -159,7 +159,7 @@ pub fn emit_particle_6(
                     matrix_cell(m, k)?,
                     b,
                     matrix_cell(m, 0x20 + k)?,
-                    wheel.place[k as usize / 4].bits(),
+                    &wheel.place[k as usize / 4],
                 )
             })
         })?;
@@ -167,7 +167,7 @@ pub fn emit_particle_6(
         slot.put(|en| &mut en.place[1], rounded(place[1]))?;
         slot.put(
             |en| &mut en.ground_y,
-            x87::ext_less(place[1], particles.kind6_set.lift.bits()).to_bits(),
+            x87::ext_less(place[1], &particles.kind6_set.lift).to_bits(),
         )?;
         slot.put(|en| &mut en.place[0], rounded(place[0]))?;
         let motion: [u32; 3] = crate::effects::try_from_fn(|a| {
@@ -222,8 +222,8 @@ pub fn emit_particle_6(
             |en| &mut en.size,
             x87::int_times_plus(
                 size as i32,
-                particles.kind6_set.size_k[0].bits(),
-                particles.kind6_set.size_k[1].bits(),
+                &particles.kind6_set.size_k[0],
+                &particles.kind6_set.size_k[1],
             )
             .to_bits(),
         )?;

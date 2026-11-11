@@ -127,12 +127,12 @@ pub fn clip_quad(effects: &crate::effects::owner::Effects) -> Result<bool, Refus
                 [s.u.bits(), o.u.bits()],
                 [s.v.bits(), o.v.bits()],
             ];
-            let v = x87::clip_lerp3(line, coord(o).bits(), coord(s).bits(), pairs);
+            let v = x87::clip_lerp3(line, coord(o), coord(s), pairs);
             let w = &work[built];
             coord(w).set_bits(line);
-            other(w).set_bits(v[0]);
-            w.u.set_bits(v[1]);
-            w.v.set_bits(v[2]);
+            other(w).set_bits(v[0].to_bits());
+            w.u.set_bits(v[1].to_bits());
+            w.v.set_bits(v[2].to_bits());
             w.z.set_bits(o.z.bits());
             w.rhw.set_bits(o.rhw.bits());
             w.colour.set(o.colour.get());

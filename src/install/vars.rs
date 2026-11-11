@@ -7,7 +7,7 @@
 //! `#[repr(C)]` structs of atomic cells with the image's layout, first values the image's
 //! (`tests`); `moved::MOVED` points the image's addresses at them (`home`): the pages'
 //! tables hold pointers into each other and into the installer's texts, as IDA addresses
-//! resolved where they are read (`moved::named_in`). The pages' lists are walked by pointer
+//! resolved where they are read. The pages' lists are walked by pointer
 //! (`install::installer`'s `rd`/`rb`), so their tables stay byte buffers.
 
 use crate::install::page_links::PageLink;

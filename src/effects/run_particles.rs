@@ -199,7 +199,7 @@ fn step(
                 )?;
                 gain_int(&effects.kinds.particle_tuning.dust[1])?;
                 let s = x87::compare_status(
-                    effects.kinds.particle_tuning.dust[2].bits(),
+                    &effects.kinds.particle_tuning.dust[2],
                     particle(particles, e, 0x2C)?,
                 );
                 effects.setup.work.fpu_status.set(s as u32);
@@ -256,19 +256,19 @@ fn step(
                     particles,
                     e,
                     0x28,
-                    x87::less_own_times(particle(particles, e, 0x28)?, k[1].bits()).to_bits(),
+                    x87::less_own_times(particle(particles, e, 0x28)?, &k[1]).to_bits(),
                 )?;
                 set_particle(
                     particles,
                     e,
                     0x2C,
-                    x87::less_own_times(particle(particles, e, 0x2C)?, k[2].bits()).to_bits(),
+                    x87::less_own_times(particle(particles, e, 0x2C)?, &k[2]).to_bits(),
                 )?;
                 set_particle(
                     particles,
                     e,
                     0x34,
-                    x87::less_own_times(particle(particles, e, 0x34)?, k[3].bits()).to_bits(),
+                    x87::less_own_times(particle(particles, e, 0x34)?, &k[3]).to_bits(),
                 )?;
                 gain_int(&k[4])?;
                 let (i, _) = colour_index(particles, e, particle(particles, e, 0x44)?)?;
@@ -396,16 +396,8 @@ pub fn run_particles(
                 * bh::ld(effects.kinds.particle_tuning.puff_y[1].bits())
                 + bh::ld(effects.kinds.particle_tuning.puff_y[2].bits()),
         ));
-        let mx = x87::sub_mul(
-            view(0x30),
-            x,
-            effects.kinds.particle_tuning.puff_m[0].bits(),
-        );
-        let mz = x87::sub_mul(
-            view(0x38),
-            z,
-            effects.kinds.particle_tuning.puff_m[1].bits(),
-        );
+        let mx = x87::sub_mul(view(0x30), x, &effects.kinds.particle_tuning.puff_m[0]);
+        let mz = x87::sub_mul(view(0x38), z, &effects.kinds.particle_tuning.puff_m[1]);
         for (n, v) in [x, y, z, mx, up, mz].into_iter().enumerate() {
             particles.puff_work.puff[n].set_bits(v.to_bits());
         }

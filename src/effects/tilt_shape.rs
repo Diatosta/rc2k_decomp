@@ -13,15 +13,15 @@ use crate::session::{Dword, Float, read_bits, write_bits};
 
 pub fn tilt_shape(drops: &WindscreenDrops) {
     let t = &drops.tilt;
-    let (s, c) = x87::sine_and_cosine(t.tilt.bits());
-    t.cosine.set_bits(c);
-    t.sine.set_bits(s);
-    let (y, z) = x87::turn_yz(t.point[1].bits(), t.point[2].bits(), s, c);
-    t.point[1].set_bits(y);
-    t.point[2].set_bits(z);
+    let (s, c) = x87::sine_and_cosine(&t.tilt);
+    t.cosine.set(c);
+    t.sine.set(s);
+    let (y, z) = x87::turn_yz(&t.point[1], &t.point[2], s, c);
+    t.point[1].set(y);
+    t.point[2].set(z);
     let (unit, length) = x87::unit_and_length(read_bits(&t.point));
-    t.length.set_bits(length);
-    write_bits(&t.unit, unit);
+    t.length.set_bits(length.to_bits());
+    write_bits(&t.unit, unit.map(f32::to_bits));
 }
 
 /// The shape tilt and the first view point (`effects::tilt_shape`, `effects::copy_first_point`, `effects::edges`) (IDA 0x811BC3 .. 0x811BEB).

@@ -121,22 +121,22 @@ pub fn set_up_surface(
     for k in (0..CELLS).rev() {
         let at = cells + k * 0x10;
         let (u0, u1) = x87::int_times_plus_on((k & 7) as i32, eighth, edge, eighth, pixel);
-        put(at, u0)?;
-        put(at + 8, u1)?;
+        put(at, u0.to_bits())?;
+        put(at + 8, u1.to_bits())?;
         let (v0, v1) = x87::int_times_plus_on((k >> 3) as i32, eighth, edge, eighth, pixel);
-        put(at + 4, v0)?;
-        put(at + 0xC, v1)?;
+        put(at + 4, v0.to_bits())?;
+        put(at + 0xC, v1.to_bits())?;
     }
     // Each cell's 4 rows of 4 sub-cells: 0x100 bytes.
     let sub = cells + 0x400;
     for j in (0..CELLS).rev() {
         let mut at = sub + j * 0x100;
         let (u0, u1) = x87::int_times_plus_on((j & 7) as i32, eighth, edge, step, pixel);
-        put(at, u0)?;
-        put(at + 8, u1)?;
+        put(at, u0.to_bits())?;
+        put(at + 8, u1.to_bits())?;
         let (v0, v1) = x87::int_times_plus_on((j >> 3) as i32, eighth, edge, step, pixel);
-        put(at + 4, v0)?;
-        put(at + 0xC, v1)?;
+        put(at + 4, v0.to_bits())?;
+        put(at + 0xC, v1.to_bits())?;
         let across = |at: &mut u32| -> Result<_, Refused> {
             let p = *at;
             put(p + 0x10, x87::add(get(p)?, step).to_bits())?;
