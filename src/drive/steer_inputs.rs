@@ -156,8 +156,8 @@ pub fn steer_inputs(race: &Race) {
             .wrapping_add(trim.wrapping_mul(4)),
     );
     if !c0(
-        race_owner.shared.car.steering_damage.bits(),
-        course.numbers.hundred.bits(),
+        race_owner.shared.car.steering_damage.get(),
+        course.numbers.hundred.get(),
     ) {
         race_owner.shared.car.steer_angle.set(0);
         race_owner.shared.car.steer_angle_visual.set(0);

@@ -97,8 +97,8 @@ pub fn drive_computer_car(race: &Race) -> Result<(), Refused> {
     let course = &race.course;
     let reaches = race.shared.car.run_ticks.get() >= driver::FIRST_STEP
         && compare_full(
-            race.shared.car.crash_matrix[5].bits(),
-            race.shared.work.driver_tilt_limit.bits(),
+            race.shared.car.crash_matrix[5].get(),
+            race.shared.work.driver_tilt_limit.get(),
         ) & 0x100
             == 0;
     if reaches && race.shared.vars.checkpoint_count.get() == 0 {
@@ -142,8 +142,8 @@ pub fn drive_computer_car(race: &Race) -> Result<(), Refused> {
     }
     race.shared.work.driver_lookahead.set(1);
     let speed = (float_hypot_to_int(
-        race.shared.car.velocity[0].bits(),
-        race.shared.car.velocity[2].bits(),
+        race.shared.car.velocity[0].get(),
+        race.shared.car.velocity[2].get(),
     ) as u32)
         << 1;
     race.shared.work.driver_speed.set(speed);
@@ -213,7 +213,7 @@ pub fn drive_computer_car(race: &Race) -> Result<(), Refused> {
         race.shared.work.driver_wanted_speed.set(int_toward_to_int(
             want as i32,
             race.shared.tables.computer_ease_speed.get(),
-            race.shared.work.driver_start_blend.bits(),
+            race.shared.work.driver_start_blend.get(),
         ) as u32);
     }
     let pedals = driver::pedals(speed, race.shared.work.driver_wanted_speed.get());
@@ -273,17 +273,17 @@ pub fn drive_computer_car(race: &Race) -> Result<(), Refused> {
         &race.shared.work.driver_ahead,
     );
     let (k1, k2) = (
-        race.shared.work.driver_speed_scale.bits(),
-        course.numbers.k65536.bits(),
+        race.shared.work.driver_speed_scale.get(),
+        course.numbers.k65536.get(),
     );
     race.shared
         .work
         .driver_step_x
-        .set(mul2_to_int(race.shared.work.driver_ahead[0].bits(), k1, k2) as u32);
+        .set(mul2_to_int(race.shared.work.driver_ahead[0].get(), k1, k2) as u32);
     race.shared
         .work
         .driver_step_z
-        .set(mul2_to_int(race.shared.work.driver_ahead[2].bits(), k1, k2) as u32);
+        .set(mul2_to_int(race.shared.work.driver_ahead[2].get(), k1, k2) as u32);
     race.shared.work.driver_to[0].set(
         race.shared.work.driver_to[0]
             .get()
@@ -310,7 +310,7 @@ pub fn drive_computer_car(race: &Race) -> Result<(), Refused> {
     );
     race.shared.work.driver_side[2].set(x87::loaded(&race.shared.car.crash_matrix[10]));
     race.shared.work.driver_side[0].set(x87::negated(&race.shared.car.crash_matrix[2]));
-    race.shared.work.driver_side[1].set_bits(0);
+    race.shared.work.driver_side[1].set(0.0);
     cross_product(
         &race.shared.work.driver_side,
         &race.shared.work.driver_way_unit,
@@ -318,8 +318,8 @@ pub fn drive_computer_car(race: &Race) -> Result<(), Refused> {
     );
     let (i, status) = times_fist_compare(
         race.shared.work.driver_work[1].get(),
-        course.numbers.k256.bits(),
-        course.numbers.zero.bits(),
+        course.numbers.k256.get(),
+        course.numbers.zero.get(),
     );
     race.shared.work.driver_bend_index.set(i as u32);
     let steer = driver::steering(

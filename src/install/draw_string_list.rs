@@ -6,25 +6,20 @@
 //! 2^32 records).
 
 use crate::errors::Refused;
-use crate::install::installer::{draw_string, rd, rl};
+use crate::install::installer::draw_string;
+use crate::install::page_links::PageLink;
+use crate::install::vars::StringRecord;
 use rc2k_core::install::layout;
 
-/// `count` records of `table` drawn at (x, y) on.
-pub fn draw_string_list(
-    count: u32,
-    table: impl Into<crate::place::BytePlace>,
-    x: u32,
-    y: u32,
-) -> Result<(), Refused> {
-    let table: crate::place::BytePlace = table.into();
+/// The records of `table` drawn at (x, y) on. An empty table is refused.
+pub fn draw_string_list(table: &[&StringRecord], x: u32, y: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::install::layout` (`list_records`, `list_place`).
-    for (offset, _) in layout::list_records(count)? {
-        let record = table.add(offset);
-        let (x, y) = layout::list_place(rd(record), rd(record.add(4)), x, y);
-        let font = rl(record.add(8))
+    for (record, _) in table.iter().zip(layout::list_records(table.len() as u32)?) {
+        let (x, y) = layout::list_place(record.dx.get(), record.dy.get(), x, y);
+        let font = PageLink::from_raw(record.font.get())
             .font()
             .unwrap_or_else(|e| crate::install::installer::refuse(e));
-        draw_string(rd(record.add(0xC)), font, x, y)?;
+        draw_string(record.string.get(), font, x, y)?;
     }
     Ok(())
 }

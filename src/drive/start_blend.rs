@@ -50,8 +50,8 @@ pub fn blend_at(race: &Race, v: &[&dyn Cell32]) -> u32 {
         bh::st(bh::ld(get(v, 4)) + bh::ld(get(v, 3)) + bh::ld(get(v, 5))),
     );
     let (low, high) = (
-        race.course.numbers.zero.bits(),
-        race.course.numbers.one.bits(),
+        race.course.numbers.zero.get(),
+        race.course.numbers.one.get(),
     );
     if compare_full(get(v, 6), low) & 0x100 != 0 {
         put(v, 6, x87::loaded(low).to_bits());

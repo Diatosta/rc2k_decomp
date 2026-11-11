@@ -76,11 +76,11 @@ pub fn set_view_window_reaching(
         ]
     };
     crate::session::write_bits(&window.clip_edges, edges);
-    window.view_scale.set_bits(bh::st(
+    window.view_scale.set(bh::stf(
         bh::int(system.session.screen.width.get() as i32)
-            * bh::ld(vars.view_scale.bits())
+            * bh::ld(vars.view_scale.get())
             * bh::int(window.view_zoom.get() as i32)
-            * bh::ld(race.shared.vars.scale_factor.bits()),
+            * bh::ld(race.shared.vars.scale_factor.get()),
     ));
     // Held to 90 ..= 100, compared by the signs of the differences as the game does.
     let mut nearer = 100u32.wrapping_sub(race.course.stage_prefs.nearer.get());
@@ -91,17 +91,17 @@ pub fn set_view_window_reaching(
         nearer = 0x64;
     }
     let divisor = x87::int_times(nearer as i32, &race.course.numbers.hundredth_a);
-    window.depth_divisor.set_bits(divisor.to_bits());
+    window.depth_divisor.set(divisor);
     let product = depth as u64 * 0x1_0000;
     let low = product as u32;
     let farthest = x87::int_over(low as i32, divisor);
-    window.farthest.set_bits(farthest.to_bits());
+    window.farthest.set(farthest);
     window.one_over_farthest.set(x87::reciprocal(farthest));
     window.farthest_scaled.set(x87::mul_div_div_to_int(
         farthest,
-        drawing.scene.fade_a.bits(),
-        drawing.scene.fade_b.bits(),
-        race.course.numbers.k65536.bits(),
+        drawing.scene.fade_a.get(),
+        drawing.scene.fade_b.get(),
+        race.course.numbers.k65536.get(),
     ) as u32);
     window
         .clip_farthest

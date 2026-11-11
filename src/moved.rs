@@ -1046,10 +1046,19 @@ pub(crate) const MOVED: &[Moved] = &[
     // (`menu::screen_items_store`), the items' sprite lists (`menu::item_sprites_store`)
     Moved {
         ida: crate::menu::texts_store::START,
-        len: crate::menu::texts_store::END - crate::menu::texts_store::START,
+        len: crate::menu::texts_store::CAR_SPEECH - crate::menu::texts_store::START,
         home: Home::Store(&crate::session::OnGameThread::tail(
             &crate::menu::owner::MENUS.unchecked().tables.texts,
             2,
+        )),
+    },
+    // the speech tables, two bytes further in the record than the image's distance
+    Moved {
+        ida: crate::menu::texts_store::CAR_SPEECH,
+        len: crate::menu::texts_store::END - crate::menu::texts_store::CAR_SPEECH,
+        home: Home::Store(&crate::session::OnGameThread::tail(
+            &crate::menu::owner::MENUS.unchecked().tables.texts,
+            crate::menu::texts_store::CAR_SPEECH_OFFSET,
         )),
     },
     Moved {

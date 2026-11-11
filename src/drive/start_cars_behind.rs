@@ -311,7 +311,7 @@ pub fn start_cars_behind(race: &Race) -> Result<(), Refused> {
     };
     first.pace_push.set_bits(push);
     second.pace_push.set_bits(push.wrapping_neg());
-    let k = race.shared.tables.pace_push_scale.bits();
+    let k = race.shared.tables.pace_push_scale.get();
     for b in [first, second] {
         b.pace_push
             .set(x87::int_times(b.pace_push.bits() as i32, k));

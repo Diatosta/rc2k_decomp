@@ -113,7 +113,7 @@ pub fn set_listener(
         EFFECTS_SETTINGS.listener_place[k].set(view.view_place[k].get().wrapping_neg());
     }
     for (k, o) in listener::TURN_OFFSETS.into_iter().enumerate() {
-        EFFECTS_SETTINGS.listener_turn[k].set_bits(view.view_turn_matrix[o as usize / 4].bits());
+        EFFECTS_SETTINGS.listener_turn[k].set(view.view_turn_matrix[o as usize / 4].get());
     }
     EFFECTS_SETTINGS.listener_figures[0].set(listener::first_figure(
         race.shared.vars.settings_words[0].get(),
@@ -127,7 +127,7 @@ pub fn set_listener(
     }
     // The car block 0's body matrix (0x70FC2C).
     for k in 0..16 {
-        race.frame.matrices.turned_matrix[k].set_bits(car.body_matrix[k].bits());
+        race.frame.matrices.turned_matrix[k].set(car.body_matrix[k].get());
     }
     multiply_matrices(
         &race.frame.matrices.turned_matrix,
@@ -140,8 +140,7 @@ pub fn set_listener(
         &race.frame.matrices.made_object_matrix,
     );
     for k in 0..16 {
-        race.frame.matrices.listener_matrix[k]
-            .set_bits(race.frame.matrices.made_object_matrix[k].bits());
+        race.frame.matrices.listener_matrix[k].set(race.frame.matrices.made_object_matrix[k].get());
     }
     let made = &race.frame.matrices.made_object_matrix;
     for (first, out, negate) in [
@@ -188,9 +187,9 @@ pub fn set_listener(
     EFFECTS_SETTINGS
         .spline_handbrake
         .set(u32::from(car.handbrake.get() != 0));
-    EFFECTS_SETTINGS.listener_scale.set_bits(bh::st(
+    EFFECTS_SETTINGS.listener_scale.set(bh::stf(
         bh::int(car.steer_angle_visual.get() as i32) / bh::int(0x2000_0000)
-            + bh::ld(scene.lights.state.camera_shake_listener.bits()),
+            + bh::ld(scene.lights.state.camera_shake_listener.get()),
     ));
     EFFECTS_SETTINGS
         .engine_speed_copy

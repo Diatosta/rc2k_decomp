@@ -19,6 +19,7 @@ use crate::install::installer::{
     unlock, wb,
 };
 use crate::install::name_tables::{FILES, FOLDERS};
+use crate::install::vars::StringRecord;
 use crate::place::BytePlace;
 use crate::system::owner::system;
 
@@ -52,14 +53,19 @@ fn build(
     Ok(())
 }
 
+/// The error message's two records: its own and the cancel message's that follows it in the
+/// pages (the original draws two records from the error message's place).
+fn error_messages(install: &'static crate::install::owner::Install) -> [&'static StringRecord; 2] {
+    [&install.pages.msg_error[0], &install.pages.msg_cancel[0]]
+}
+
 /// The error (count 2, `InstallerPages.msg_error`, y 0) or cancel (count 1, `InstallerPages.msg_cancel`, y -0x32)
 /// message shown, then a wait for a key.
-fn message(count: u32, table: impl Into<crate::place::BytePlace>, y: u32) -> Result<(), Refused> {
-    let table: u32 = table.into().game();
+fn message(table: &[&StringRecord], y: u32) -> Result<(), Refused> {
     crate::platform_events::hold_quit(false);
     run_frame(None)?;
     if lock() {
-        crate::install::draw_string_list::draw_string_list(count, table, 0, y)?;
+        crate::install::draw_string_list::draw_string_list(table, 0, y)?;
         unlock();
         show();
     }
@@ -141,7 +147,7 @@ pub fn install_files(install: &'static crate::install::owner::Install) -> Result
         for n in 0..install.run.dir_count.get() {
             build(installed(install), path_b(install), &FOLDERS, n)?;
             if !i::make_folders::make_folders(&install.paths.path_b)? {
-                return message(2, &install.pages.msg_error, 0);
+                return message(&error_messages(install), 0);
             }
         }
         set_cd(&install.paths.game_dir);
@@ -158,13 +164,13 @@ pub fn install_files(install: &'static crate::install::owner::Install) -> Result
                 &install.paths.path_a,
                 &install.paths.path_b,
             )? {
-                return message(2, &install.pages.msg_error, 0);
+                return message(&error_messages(install), 0);
             }
             if run_frame(Some(|| progress_frame(crate::install::owner::install())))? {
                 run_frame(Some(|| copying_frame(crate::install::owner::install())))?;
             }
             if take_key() == 1 {
-                return message(1, &install.pages.msg_cancel, 0xFFFF_FFCE);
+                return message(&install.pages.msg_cancel.each_ref(), 0xFFFF_FFCE);
             }
             n = n.wrapping_add(1);
             if n == install.run.file_count.get() {
@@ -176,7 +182,7 @@ pub fn install_files(install: &'static crate::install::owner::Install) -> Result
     // record write is the error message.
     set_cd(&install.paths.installed);
     if !i::write_record::write_record(install)? {
-        return message(2, &install.pages.msg_error, 0);
+        return message(&error_messages(install), 0);
     }
     if crate::install::installer::rb(crate::files::state::locale_directory_place()) != 0 {
         // readme.txt then manual.pdf

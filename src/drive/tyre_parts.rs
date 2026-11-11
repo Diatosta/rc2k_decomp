@@ -10,7 +10,7 @@
 use crate::d3d::vertices_store::{VERTICES, Vertex};
 use crate::errors::Refused;
 
-use crate::math::x87_float::{int, ld, st};
+use crate::math::x87_float::{int, ld, st, stf};
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::session::Dword;
 
@@ -29,8 +29,8 @@ pub fn set_render_state(value: u32, state: u32) {
 pub fn quad_words(colour: u32) {
     for k in 0..4 {
         let v = &VERTICES.vertices[k];
-        v.z.set_bits(0);
-        v.rhw.set_bits(0x3F80_0000);
+        v.z.set(0.0);
+        v.rhw.set(1.0);
         v.colour.set(colour);
         v.specular.set(0);
     }
@@ -57,30 +57,26 @@ pub fn quad_tail(uv: [u32; 4]) {
 /// through (stored as a single, as the original does).
 fn quad_tail_math(rect: [u32; 4], vertices: &[Vertex], screen: [u32; 2], scratch: &Dword) {
     let [x, y, width, height] = rect.map(|n| int(n as i32));
-    let texel = ld(VIEWER_PANEL.texel_scale.bits());
+    let texel = ld(VIEWER_PANEL.texel_scale.get());
     let (left, right) = (x * texel, (x + width) * texel);
     let (top, bottom) = (y * texel, (y + height) * texel);
     for (corner, vertex) in vertices[..4].iter().enumerate() {
         let at_right = corner % 2 == 1;
         let at_bottom = corner >= 2;
-        vertex.u.set_bits(st(if at_right { right } else { left }));
-        vertex.v.set_bits(st(if at_bottom { bottom } else { top }));
+        vertex.u.set(stf(if at_right { right } else { left }));
+        vertex.v.set(stf(if at_bottom { bottom } else { top }));
     }
     scratch.set(st(
-        int(screen[0] as i32) * ld(VIEWER_PANEL.reciprocal_width_800.bits())
+        int(screen[0] as i32) * ld(VIEWER_PANEL.reciprocal_width_800.get())
     ));
     for vertex in &vertices[..4] {
-        vertex
-            .x
-            .set_bits(st(ld(vertex.x.bits()) * ld(scratch.get())));
+        vertex.x.set(stf(ld(vertex.x.get()) * ld(scratch.get())));
     }
     scratch.set(st(
-        int(screen[1] as i32) * ld(VIEWER_PANEL.reciprocal_height_600.bits())
+        int(screen[1] as i32) * ld(VIEWER_PANEL.reciprocal_height_600.get())
     ));
     for vertex in &vertices[..4] {
-        vertex
-            .y
-            .set_bits(st(ld(vertex.y.bits()) * ld(scratch.get())));
+        vertex.y.set(stf(ld(vertex.y.get()) * ld(scratch.get())));
     }
 }
 

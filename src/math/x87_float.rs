@@ -320,9 +320,31 @@ impl X {
     }
 }
 
-/// `fld dword`: a float given as its bits.
-pub(crate) fn ld(bits: u32) -> X {
-    X(f64::from(f32::from_bits(bits)))
+/// What `fld dword` can load: a float, or a float given as its bits.
+pub(crate) trait Loadable {
+    fn value(self) -> f32;
+}
+
+impl Loadable for f32 {
+    fn value(self) -> f32 {
+        self
+    }
+}
+
+impl Loadable for u32 {
+    fn value(self) -> f32 {
+        f32::from_bits(self)
+    }
+}
+
+/// `fld dword`: a float, or a float given as its bits.
+pub(crate) fn ld(value: impl Loadable) -> X {
+    X(f64::from(value.value()))
+}
+
+/// `fstp dword`, as a float (`st`, as bits, is the same store).
+pub(crate) fn stf(x: X) -> f32 {
+    f32::from_bits(st(x))
 }
 
 /// `fild dword`: a whole number.

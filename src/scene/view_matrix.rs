@@ -25,8 +25,8 @@ pub enum Axis {
 pub fn set_fine_turn(course: &Course, matrices: &ViewMatrices, axis: Axis, angle: u32) {
     let (sine, cosine) = x87::sine_cosine(
         angle as i32,
-        course.numbers.k65536.bits(),
-        course.numbers.one_over_two_pi.bits(),
+        course.numbers.k65536.get(),
+        course.numbers.one_over_two_pi.get(),
     );
     let negated = sine ^ 0x8000_0000;
     // The work pair, then where the cosine, the sine, the sine negated and the
@@ -66,7 +66,7 @@ pub fn unit_vector(
         bh::ld(from.bits(2)),
     );
     let length = bh::st((x * x + (y * y + z * z)).sqrt());
-    if x87::equal_or_unordered(length, course.numbers.zero.bits()) {
+    if x87::equal_or_unordered(length, course.numbers.zero.get()) {
         for n in 0..3 {
             out.set_bits(n, 0);
         }

@@ -266,20 +266,20 @@ fn place(
             crate::scene::point_records::vertex(quad, vertex, 0x1C),
             y_offset,
         ));
-        out.z.set_bits(depth.to_bits());
+        out.z.set(depth);
         out.rhw.set_bits(if sse {
             x87::rcpss_times(
                 crate::scene::point_records::vertex(quad, vertex, 0x18),
                 race.course.numbers.k65536.bits(),
             )
         } else {
-            x87::reciprocal_times(depth, race.frame.panel_and_overlay.overlay.w_factor.bits())
+            x87::reciprocal_times(depth, race.frame.panel_and_overlay.overlay.w_factor.get())
                 .to_bits()
         });
         if mirrored && entries.len() > 2 {
             x = x87::mirrored(x, mirror_at, x_offset);
         }
-        out.x.set_bits(x.to_bits());
+        out.x.set(x);
     }
 }
 

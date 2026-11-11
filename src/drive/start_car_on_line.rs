@@ -20,7 +20,7 @@ use crate::math::x87;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
-use crate::scene::matrix3::{extended, rounded};
+use crate::scene::matrix3::{extended, rounded_value};
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::drive::start_places;
 
@@ -67,28 +67,27 @@ pub fn start_car_on_line(
         race.course.numbers.one.get(),
         race.shared.tables.start_share_first.get(),
         race.shared.tables.start_share_last.get(),
-    )
-    .to_bits();
-    race.shared.tables.start_share.set_bits(share);
-    race.shared.car.start_share.set_bits(share);
+    );
+    race.shared.tables.start_share.set(share);
+    race.shared.car.start_share.set(share);
     crate::race::start_place::place_car_on_line(&race.shared, &race.course, scene)?;
     crate::race::car_starts::reset_car_motion(
         &crate::physics::step_inputs::StepInputs::of(race).reset(),
     )?;
-    race.shared.car.local_velocity[0].set_bits(0);
-    race.shared.car.local_velocity[1].set_bits(0);
+    race.shared.car.local_velocity[0].set(0.0);
+    race.shared.car.local_velocity[1].set(0.0);
     race.shared.car.local_velocity[2].set(x87::loaded(&race.shared.tables.start_speed));
     let m = &race.shared.car.crash_matrix;
     let out = rotate_point(
         m,
         [
-            extended(race.shared.car.local_velocity[0].bits()),
-            extended(race.shared.car.local_velocity[1].bits()),
-            extended(race.shared.car.local_velocity[2].bits()),
+            extended(race.shared.car.local_velocity[0].get()),
+            extended(race.shared.car.local_velocity[1].get()),
+            extended(race.shared.car.local_velocity[2].get()),
         ],
     );
-    race.shared.car.velocity[0].set_bits(rounded(out[0]));
-    race.shared.car.velocity[1].set_bits(rounded(out[1]));
-    race.shared.car.velocity[2].set_bits(rounded(out[2]));
+    race.shared.car.velocity[0].set(rounded_value(out[0]));
+    race.shared.car.velocity[1].set(rounded_value(out[1]));
+    race.shared.car.velocity[2].set(rounded_value(out[2]));
     Ok(())
 }

@@ -252,6 +252,52 @@ impl InstallerNames {
     }
 }
 
+/// A record of a drawing list on the pages (`install::draw_string_list`): 16 bytes at any
+/// address, the offsets from the list's place, the font's link and the text's string id.
+#[repr(C)]
+#[derive(rc2k_derive::Cells)]
+pub struct StringRecord {
+    pub dx: PlainLoose,
+    pub dy: PlainLoose,
+    /// The link to the font (`page_links::PageLink`).
+    pub font: PlainLoose,
+    pub string: PlainLoose,
+}
+
+impl StringRecord {
+    pub const fn new(dx: u32, dy: u32, font: u32, string: u32) -> Self {
+        Self {
+            dx: PlainLoose::new(dx),
+            dy: PlainLoose::new(dy),
+            font: PlainLoose::new(font),
+            string: PlainLoose::new(string),
+        }
+    }
+}
+
+/// A record of a glyph list on the pages (`install::blit_glyph_list`): 16 bytes at any
+/// address, the offsets from the list's place, the glyph's number and the palette's link.
+#[repr(C)]
+#[derive(rc2k_derive::Cells)]
+pub struct GlyphRecord {
+    pub dx: PlainLoose,
+    pub dy: PlainLoose,
+    pub glyph: PlainLoose,
+    /// The link to the palette (`page_links::PageLink`).
+    pub palette: PlainLoose,
+}
+
+impl GlyphRecord {
+    pub const fn new(dx: u32, dy: u32, glyph: u32, palette: u32) -> Self {
+        Self {
+            dx: PlainLoose::new(dx),
+            dy: PlainLoose::new(dy),
+            glyph: PlainLoose::new(glyph),
+            palette: PlainLoose::new(palette),
+        }
+    }
+}
+
 /// The page: its pieces, the list menu's state, the fonts and the pages' tables (IDA 0x51C407 .. 0x51DE2C, the image's layout).
 #[repr(C, align(16))]
 #[derive(rc2k_derive::Cells)]
@@ -285,15 +331,15 @@ pub struct InstallerPages {
     /// 0x51D427: Not named: 12 bytes (a gap, or data nothing reads here).
     pub _gap_51d427: PlainBytes<12>,
     /// 0x51D433: `unk_51D433`: the copying page's two texts.
-    pub texts: PlainBytes<32>,
+    pub texts: [StringRecord; 2],
     /// 0x51D453: `unk_51D453`: the error message.
-    pub msg_error: PlainBytes<16>,
+    pub msg_error: [StringRecord; 1],
     /// 0x51D463: `unk_51D463`: the cancel message.
-    pub msg_cancel: PlainBytes<16>,
+    pub msg_cancel: [StringRecord; 1],
     /// 0x51D473: `unk_51D473`: the removal page's strings.
-    pub remove_strings: PlainBytes<16>,
+    pub remove_strings: [StringRecord; 1],
     /// 0x51D483: `unk_51D483`: the bar's glyph list.
-    pub bar_glyphs_list: PlainBytes<32>,
+    pub bar_glyphs_list: [GlyphRecord; 2],
     /// 0x51D4A3: `dword_51D4A3`: the bar's x, y, width, height.
     pub bar: PlainBytes<16>,
     /// 0x51D4B3: `unk_51D4B3`: its frame.
@@ -338,27 +384,6 @@ pub struct InstallerPages {
     pub _tail: PlainBytes<4>,
 }
 
-/// `bytes`, the installer pages' field that starts at IDA's address `start`, with each link
-/// it holds turned from the original's address to its handle (`page_links::PageLink`), once,
-/// where the data is built.
-const fn linked<const N: usize>(start: u32, mut bytes: [u8; N]) -> [u8; N] {
-    let mut k = 0;
-    while k < PAGE_LINKS.len() {
-        let at = PAGE_LINKS[k];
-        if at >= start && at + 4 <= start + N as u32 {
-            let i = (at - start) as usize;
-            let ida = u32::from_le_bytes([bytes[i], bytes[i + 1], bytes[i + 2], bytes[i + 3]]);
-            let link = PageLink::of_ida(ida).raw().to_le_bytes();
-            bytes[i] = link[0];
-            bytes[i + 1] = link[1];
-            bytes[i + 2] = link[2];
-            bytes[i + 3] = link[3];
-        }
-        k += 1;
-    }
-    bytes
-}
-
 impl InstallerPages {
     pub const fn new() -> Self {
         InstallerPages {
@@ -376,11 +401,11 @@ impl InstallerPages {
     frame_clock: PlainLoose::new(0x0),
     move_clock: PlainLoose::new(0x0),
     _gap_51d427: PlainBytes::new([0; 12]),
-    texts: PlainBytes::new(linked::<32>(0x51D433, with_runs::<32>(&[(0, b"\xa9\x01\x00\x00\xaf\x00\x00\x00\xa4\xe8Q\x00\xaf\x00\x00\x00\xa9\x01\x00\x00\xfa\x00\x00\x00d\xe9Q\x00\xb0")]))),
-    msg_error: PlainBytes::new(linked::<16>(0x51D453, with_runs::<16>(&[(0, b"\xa9\x01\x00\x00^\x01\x00\x00\xa4\xe8Q\x00\xb1")]))),
-    msg_cancel: PlainBytes::new(linked::<16>(0x51D463, with_runs::<16>(&[(0, b"\xa9\x01\x00\x00\x90\x01\x00\x00\xa4\xe8Q\x00\xb3")]))),
-    remove_strings: PlainBytes::new(linked::<16>(0x51D473, with_runs::<16>(&[(0, b"\xa9\x01\x00\x00,\x01\x00\x00\xa4\xe8Q\x00\xba")]))),
-    bar_glyphs_list: PlainBytes::new(linked::<32>(0x51D483, with_runs::<32>(&[(0, b"\xe1\x00\x00\x00,\x01"), (12, b"t;O\x00\xa9\x01\x00\x00,\x01\x00\x00\x01\x00\x00\x00t;O")]))),
+    texts: [StringRecord::new(0x1A9, 0xAF, PageLink::of_ida(0x51E8A4).raw(), 0xAF), StringRecord::new(0x1A9, 0xFA, PageLink::of_ida(0x51E964).raw(), 0xB0)],
+    msg_error: [StringRecord::new(0x1A9, 0x15E, PageLink::of_ida(0x51E8A4).raw(), 0xB1)],
+    msg_cancel: [StringRecord::new(0x1A9, 0x190, PageLink::of_ida(0x51E8A4).raw(), 0xB3)],
+    remove_strings: [StringRecord::new(0x1A9, 0x12C, PageLink::of_ida(0x51E8A4).raw(), 0xBA)],
+    bar_glyphs_list: [GlyphRecord::new(0xE1, 0x12C, 0, PageLink::of_ida(0x4F3B74).raw()), GlyphRecord::new(0x1A9, 0x12C, 1, PageLink::of_ida(0x4F3B74).raw())],
     bar: PlainBytes::new(with_runs::<16>(&[(0, b"\xe0\x00\x00\x00+\x01\x00\x00\x92\x01\x00\x00\x1f")])),
     frame: PlainBytes::new(with_runs::<17>(&[(0, b"\xdf\x00\x00\x00*\x01\x00\x00\x94\x01\x00\x00!")])),
     fonts: [PlainDword::new(0x0), PlainDword::new(0x51e624), PlainDword::new(0x51e824), PlainDword::new(0x51e824), PlainDword::new(0x51ea44), PlainDword::new(0x51ea64), PlainDword::new(0x51ea24), PlainDword::new(0x51e9e4), PlainDword::new(0x51ea04), PlainDword::new(0x51e9c4), PlainDword::new(0x51e864), PlainDword::new(0x51e884), PlainDword::new(0x51e844), PlainDword::new(0x51e6c4), PlainDword::new(0x51e6e4), PlainDword::new(0x51e6a4), PlainDword::new(0x51e8c4), PlainDword::new(0x51e8e4), PlainDword::new(0x51e8a4), PlainDword::new(0x51e8c4), PlainDword::new(0x51e8e4), PlainDword::new(0x51e8a4), PlainDword::new(0x51e984), PlainDword::new(0x51e9a4), PlainDword::new(0x51e964)],
@@ -512,6 +537,11 @@ impl InstallerPages {
 const _: () = {
     use core::mem::offset_of;
     const BASE: usize = 0x51C400;
+    assert!(offset_of!(InstallerPages, texts) == 0x51D433 - BASE);
+    assert!(offset_of!(InstallerPages, msg_error) == 0x51D453 - BASE);
+    assert!(offset_of!(InstallerPages, msg_cancel) == 0x51D463 - BASE);
+    assert!(offset_of!(InstallerPages, remove_strings) == 0x51D473 - BASE);
+    assert!(offset_of!(InstallerPages, bar_glyphs_list) == 0x51D483 - BASE);
     assert!(offset_of!(InstallerPages, kind_fonts) == 0x51D528 - BASE);
     assert!(offset_of!(InstallerPages, page_table) == 0x51D594 - BASE);
     assert!(offset_of!(InstallerPages, language_menu) == 0x51D670 - BASE);
@@ -656,6 +686,7 @@ impl InstallerPalette {
 
 /// The installer pages' dwords that name data: the pages' links, their items' fonts and
 /// variables (IDA's addresses, sorted). The code pointers beside them stay addresses.
+#[cfg(test)]
 pub(super) const PAGE_LINKS: [u32; 105] = [
     0x51D43B, 0x51D44B, 0x51D45B, 0x51D46B, 0x51D47B, 0x51D48F, 0x51D49F, 0x51D594, 0x51D59C,
     0x51D5A0, 0x51D5A4, 0x51D5A8, 0x51D5AC, 0x51D5B0, 0x51D5B4, 0x51D5B8, 0x51D5BC, 0x51D5C0,

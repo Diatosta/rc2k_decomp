@@ -194,8 +194,8 @@ pub struct MarksFloats {
     pub over_65536: PlainFloat,
     /// 0x765218: Not named: 4 bytes (a gap, or unreferenced data).
     pub _gap_765218: PlainBytes<4>,
-    /// 0x76521C: `dbl_76521C`: a double, 2^-31 (`effects::spread_point`).
-    pub spread_scale: PlainBytes<8>,
+    /// 0x76521C: `dbl_76521C`: a double (low dword, high dword), 2^-31 (`effects::spread_point`).
+    pub spread_scale: [PlainDword; 2],
     /// 0x765224: Not named: 20 bytes (a gap, or unreferenced data).
     pub _gap_765224: PlainBytes<20>,
 }
@@ -252,7 +252,7 @@ impl MarksFloats {
             ]),
             over_65536: PlainFloat::new(0.000015259),
             _gap_765218: PlainBytes::new([0x00, 0x00, 0x00, 0x4F]),
-            spread_scale: PlainBytes::new([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3E]),
+            spread_scale: [PlainDword::new(0), PlainDword::new(0x3E00_0000)],
             _gap_765224: PlainBytes::new([
                 0x00, 0x00, 0x80, 0x50, 0x00, 0x00, 0x80, 0x4F, 0x00, 0x00, 0x80, 0x4E, 0x00, 0x00,
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -265,6 +265,13 @@ impl MarksFloats {
     pub const START: usize = 0x765140;
     pub const LEN: usize = 0xF8;
 }
+
+const _: () = {
+    use core::mem::{offset_of, size_of};
+    assert!(size_of::<MarksFloats>() == MarksFloats::LEN);
+    assert!(offset_of!(MarksFloats, spread_scale) == 0x76521C - MarksFloats::START);
+    assert!(offset_of!(MarksFloats, over_65536) == 0x765214 - MarksFloats::START);
+};
 
 #[cfg(test)]
 mod marks_floats_tests {

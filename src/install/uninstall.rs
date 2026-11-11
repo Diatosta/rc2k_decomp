@@ -97,7 +97,7 @@ pub fn uninstall(install: &'static crate::install::owner::Install) -> Result<(),
     run_frame(None)?;
     if lock() {
         copy_picture()?;
-        i::draw_string_list::draw_string_list(1, &install.pages.remove_strings, 0, 0)?;
+        i::draw_string_list::draw_string_list(&install.pages.remove_strings.each_ref(), 0, 0)?;
         unlock();
         show();
     }

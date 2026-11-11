@@ -62,7 +62,6 @@ pub fn progress_frame(install: &'static crate::install::owner::Install) -> Resul
             .right
             .set(width.wrapping_add(x).wrapping_add(1));
         crate::install::blit_glyph_list::blit_glyph_list(
-            2,
             &install.pages.bar_glyphs_list,
             0,
             0,
@@ -97,7 +96,7 @@ pub fn copying_frame(install: &'static crate::install::owner::Install) -> Result
             continue;
         }
         copy_picture()?;
-        crate::install::draw_string_list::draw_string_list(2, &install.pages.texts, 0, 0)?;
+        crate::install::draw_string_list::draw_string_list(&install.pages.texts.each_ref(), 0, 0)?;
         // gfx::frame_rect: colour 0x2A
         crate::gfx::rect::frame_rect(
             crate::gfx::rect::rect_in(&install.pages.frame),

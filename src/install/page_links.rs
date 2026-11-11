@@ -25,6 +25,7 @@
 use crate::errors::BadInput;
 use crate::gfx::typefaces::{self, FontId};
 use crate::install::vars::{InstallerPages, InstallerPaths};
+use crate::menu::list_handle::EditRecord;
 use crate::pointers::GamePtr;
 
 const KIND_SHIFT: u32 = 24;
@@ -76,7 +77,7 @@ pub enum ListId {
 
 impl ListId {
     /// The lists with IDA's address of each, in the order of the enum.
-    const ALL: [(ListId, u32); 14] = [
+    pub(crate) const ALL: [(ListId, u32); 14] = [
         (ListId::Language, 0x51D670),
         (ListId::Main, 0x51D728),
         (ListId::Mode, 0x51D790),
@@ -251,10 +252,18 @@ impl PageLink {
         }
     }
 
-    /// The place of the edit record a link names.
-    pub fn edit_place(self) -> Result<GamePtr, BadInput> {
+    /// The list a link names, if it is a link to one of the pages' lists.
+    pub fn list_id(self) -> Option<ListId> {
         match self.kind() {
-            EDIT => self.in_pages(),
+            LIST => ListId::from_number(self.number()),
+            _ => None,
+        }
+    }
+
+    /// The edit record a link names (the folder item's).
+    pub fn edit_record(self) -> Result<&'static EditRecord, BadInput> {
+        match self.kind() {
+            EDIT if self.number() == 0 => Ok(&crate::install::owner::install().pages.folder_edit),
             _ => Err(BadInput("a page link that is no edit record")),
         }
     }
@@ -345,7 +354,7 @@ mod tests {
                 .in_pages()
                 .is_err()
         );
-        assert!(PageLink::of_ida(0x51DD70).edit_place().is_ok());
+        assert!(PageLink::of_ida(0x51DD70).edit_record().is_ok());
         assert!(PageLink::of_ida(0x51DD40).in_pages().is_ok());
     }
 }

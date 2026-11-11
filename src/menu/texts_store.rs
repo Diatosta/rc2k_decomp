@@ -6,11 +6,13 @@
 //! (`car_speech`, `stage_speech`: handles of `audio::names_store`'s names, `speech_entry`). Nothing writes
 //! the texts. `moved::MOVED` points the range at it.
 //!
-//! Every address of the range is 2 past a multiple of 4: a two-byte lead and `align(4)`
-//! keep each image address's alignment; the dwords are `Loose`.
+//! Every address of the texts is 2 past a multiple of 4: a two-byte lead and `align(4)` keep
+//! each image address's alignment; the keys menu's dword is `Loose`. The speech tables
+//! after the texts sit on dword boundaries (`SPEECH_PAD` bytes before them, which the
+//! handles of `text_key` count).
 
 use crate::menu::owner::menus;
-use crate::session::{PlainBytes, PlainLoose, with_runs};
+use crate::session::{PlainBytes, PlainDword, PlainLoose, with_runs};
 
 #[repr(C, align(4))]
 #[derive(rc2k_derive::Cells)]
@@ -621,12 +623,12 @@ pub struct MenuTexts {
     pub oscsl00_png: PlainBytes<29>,
     /// 0x734849: ";3files\g\slides\rclsl00.png".
     pub rclsl00_png: PlainBytes<29>,
+    /// Not in the image: two bytes that put the speech tables on a dword boundary.
+    pub _speech_pad: PlainBytes<2>,
     /// 0x734866: per car, its two speech samples' names and a 0.
-    pub car_speech: [[PlainLoose; 3]; 24],
+    pub car_speech: [[PlainDword; 3]; 24],
     /// 0x734986: per stage, three speech samples' names and a 0.
-    pub stage_speech: [[PlainLoose; 4]; 36],
-    /// Up to the record's alignment (no byte of a record of cells outside a field).
-    pub _tail: PlainBytes<2>,
+    pub stage_speech: [[PlainDword; 4]; 36],
 }
 
 impl MenuTexts {
@@ -1835,347 +1837,347 @@ impl MenuTexts {
                 0,
                 b";3files\\g\\slides\\rclsl00.png",
             )])),
+            _speech_pad: PlainBytes::new([0; 2]),
             car_speech: [
                 [
-                    PlainLoose::new(speech_key(0x50a15d)),
-                    PlainLoose::new(speech_key(0x50a17e)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50a15d)),
+                    PlainDword::new(speech_key(0x50a17e)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50a19f)),
-                    PlainLoose::new(speech_key(0x50a1bf)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50a19f)),
+                    PlainDword::new(speech_key(0x50a1bf)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50a1df)),
-                    PlainLoose::new(speech_key(0x50a201)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50a1df)),
+                    PlainDword::new(speech_key(0x50a201)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50a223)),
-                    PlainLoose::new(speech_key(0x50a243)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50a223)),
+                    PlainDword::new(speech_key(0x50a243)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50a263)),
-                    PlainLoose::new(speech_key(0x50a285)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50a263)),
+                    PlainDword::new(speech_key(0x50a285)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50a2a7)),
-                    PlainLoose::new(speech_key(0x50a2c5)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50a2a7)),
+                    PlainDword::new(speech_key(0x50a2c5)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50a3e3)),
-                    PlainLoose::new(speech_key(0x50a402)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50a3e3)),
+                    PlainDword::new(speech_key(0x50a402)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50a2e3)),
-                    PlainLoose::new(speech_key(0x50a304)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50a2e3)),
+                    PlainDword::new(speech_key(0x50a304)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50a325)),
-                    PlainLoose::new(speech_key(0x50a344)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50a325)),
+                    PlainDword::new(speech_key(0x50a344)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50a363)),
-                    PlainLoose::new(speech_key(0x50a384)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50a363)),
+                    PlainDword::new(speech_key(0x50a384)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50a3a5)),
-                    PlainLoose::new(speech_key(0x50a3c4)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50a3a5)),
+                    PlainDword::new(speech_key(0x50a3c4)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50a3e3)),
-                    PlainLoose::new(speech_key(0x50a402)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50a3e3)),
+                    PlainDword::new(speech_key(0x50a402)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50a421)),
-                    PlainLoose::new(speech_key(0x50a441)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50a421)),
+                    PlainDword::new(speech_key(0x50a441)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50a461)),
-                    PlainLoose::new(speech_key(0x50a481)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50a461)),
+                    PlainDword::new(speech_key(0x50a481)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50a4a1)),
-                    PlainLoose::new(speech_key(0x50a4bf)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50a4a1)),
+                    PlainDword::new(speech_key(0x50a4bf)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50a4dd)),
-                    PlainLoose::new(speech_key(0x50a4fe)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50a4dd)),
+                    PlainDword::new(speech_key(0x50a4fe)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50a51f)),
-                    PlainLoose::new(speech_key(0x50a541)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50a51f)),
+                    PlainDword::new(speech_key(0x50a541)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50a563)),
-                    PlainLoose::new(speech_key(0x50a583)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50a563)),
+                    PlainDword::new(speech_key(0x50a583)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50a5a3)),
-                    PlainLoose::new(speech_key(0x50a5c5)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50a5a3)),
+                    PlainDword::new(speech_key(0x50a5c5)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50a5e7)),
-                    PlainLoose::new(speech_key(0x50a609)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50a5e7)),
+                    PlainDword::new(speech_key(0x50a609)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50a62b)),
-                    PlainLoose::new(speech_key(0x50a64c)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50a62b)),
+                    PlainDword::new(speech_key(0x50a64c)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50a66d)),
-                    PlainLoose::new(speech_key(0x50a68c)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50a66d)),
+                    PlainDword::new(speech_key(0x50a68c)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50a6ab)),
-                    PlainLoose::new(speech_key(0x50a6ca)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50a6ab)),
+                    PlainDword::new(speech_key(0x50a6ca)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50a6e9)),
-                    PlainLoose::new(speech_key(0x50a706)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50a6e9)),
+                    PlainDword::new(speech_key(0x50a706)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
             ],
             stage_speech: [
                 [
-                    PlainLoose::new(speech_key(0x50962f)),
-                    PlainLoose::new(speech_key(0x509c71)),
-                    PlainLoose::new(speech_key(0x5097a9)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50962f)),
+                    PlainDword::new(speech_key(0x509c71)),
+                    PlainDword::new(speech_key(0x5097a9)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50964d)),
-                    PlainLoose::new(speech_key(0x509c94)),
-                    PlainLoose::new(speech_key(0x5097cb)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50964d)),
+                    PlainDword::new(speech_key(0x509c94)),
+                    PlainDword::new(speech_key(0x5097cb)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50966b)),
-                    PlainLoose::new(speech_key(0x509cb7)),
-                    PlainLoose::new(speech_key(0x5097ed)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50966b)),
+                    PlainDword::new(speech_key(0x509cb7)),
+                    PlainDword::new(speech_key(0x5097ed)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x509689)),
-                    PlainLoose::new(speech_key(0x509cda)),
-                    PlainLoose::new(speech_key(0x50980f)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x509689)),
+                    PlainDword::new(speech_key(0x509cda)),
+                    PlainDword::new(speech_key(0x50980f)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x5096a7)),
-                    PlainLoose::new(speech_key(0x509cfd)),
-                    PlainLoose::new(speech_key(0x509831)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x5096a7)),
+                    PlainDword::new(speech_key(0x509cfd)),
+                    PlainDword::new(speech_key(0x509831)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x5096c5)),
-                    PlainLoose::new(speech_key(0x509d20)),
-                    PlainLoose::new(speech_key(0x509853)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x5096c5)),
+                    PlainDword::new(speech_key(0x509d20)),
+                    PlainDword::new(speech_key(0x509853)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50962f)),
-                    PlainLoose::new(speech_key(0x509d43)),
-                    PlainLoose::new(speech_key(0x509875)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50962f)),
+                    PlainDword::new(speech_key(0x509d43)),
+                    PlainDword::new(speech_key(0x509875)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50964d)),
-                    PlainLoose::new(speech_key(0x509d66)),
-                    PlainLoose::new(speech_key(0x509897)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50964d)),
+                    PlainDword::new(speech_key(0x509d66)),
+                    PlainDword::new(speech_key(0x509897)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50966b)),
-                    PlainLoose::new(speech_key(0x509d89)),
-                    PlainLoose::new(speech_key(0x5098b9)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50966b)),
+                    PlainDword::new(speech_key(0x509d89)),
+                    PlainDword::new(speech_key(0x5098b9)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x509689)),
-                    PlainLoose::new(speech_key(0x509dac)),
-                    PlainLoose::new(speech_key(0x5098db)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x509689)),
+                    PlainDword::new(speech_key(0x509dac)),
+                    PlainDword::new(speech_key(0x5098db)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x5096a7)),
-                    PlainLoose::new(speech_key(0x509dcf)),
-                    PlainLoose::new(speech_key(0x5098fd)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x5096a7)),
+                    PlainDword::new(speech_key(0x509dcf)),
+                    PlainDword::new(speech_key(0x5098fd)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x5096c5)),
-                    PlainLoose::new(speech_key(0x509df2)),
-                    PlainLoose::new(speech_key(0x50991f)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x5096c5)),
+                    PlainDword::new(speech_key(0x509df2)),
+                    PlainDword::new(speech_key(0x50991f)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50962f)),
-                    PlainLoose::new(speech_key(0x509e15)),
-                    PlainLoose::new(speech_key(0x509941)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50962f)),
+                    PlainDword::new(speech_key(0x509e15)),
+                    PlainDword::new(speech_key(0x509941)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50964d)),
-                    PlainLoose::new(speech_key(0x509e38)),
-                    PlainLoose::new(speech_key(0x509963)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50964d)),
+                    PlainDword::new(speech_key(0x509e38)),
+                    PlainDword::new(speech_key(0x509963)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50966b)),
-                    PlainLoose::new(speech_key(0x509e5b)),
-                    PlainLoose::new(speech_key(0x509985)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50966b)),
+                    PlainDword::new(speech_key(0x509e5b)),
+                    PlainDword::new(speech_key(0x509985)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x509689)),
-                    PlainLoose::new(speech_key(0x509e7e)),
-                    PlainLoose::new(speech_key(0x5099a7)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x509689)),
+                    PlainDword::new(speech_key(0x509e7e)),
+                    PlainDword::new(speech_key(0x5099a7)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x5096a7)),
-                    PlainLoose::new(speech_key(0x509ea1)),
-                    PlainLoose::new(speech_key(0x5099c9)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x5096a7)),
+                    PlainDword::new(speech_key(0x509ea1)),
+                    PlainDword::new(speech_key(0x5099c9)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x5096c5)),
-                    PlainLoose::new(speech_key(0x509ec4)),
-                    PlainLoose::new(speech_key(0x5099eb)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x5096c5)),
+                    PlainDword::new(speech_key(0x509ec4)),
+                    PlainDword::new(speech_key(0x5099eb)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50962f)),
-                    PlainLoose::new(speech_key(0x509ee7)),
-                    PlainLoose::new(speech_key(0x509a0d)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50962f)),
+                    PlainDword::new(speech_key(0x509ee7)),
+                    PlainDword::new(speech_key(0x509a0d)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50964d)),
-                    PlainLoose::new(speech_key(0x509f0a)),
-                    PlainLoose::new(speech_key(0x509a2f)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50964d)),
+                    PlainDword::new(speech_key(0x509f0a)),
+                    PlainDword::new(speech_key(0x509a2f)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50966b)),
-                    PlainLoose::new(speech_key(0x509f2d)),
-                    PlainLoose::new(speech_key(0x509a51)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50966b)),
+                    PlainDword::new(speech_key(0x509f2d)),
+                    PlainDword::new(speech_key(0x509a51)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x509689)),
-                    PlainLoose::new(speech_key(0x509f50)),
-                    PlainLoose::new(speech_key(0x509a73)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x509689)),
+                    PlainDword::new(speech_key(0x509f50)),
+                    PlainDword::new(speech_key(0x509a73)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x5096a7)),
-                    PlainLoose::new(speech_key(0x509f73)),
-                    PlainLoose::new(speech_key(0x509a95)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x5096a7)),
+                    PlainDword::new(speech_key(0x509f73)),
+                    PlainDword::new(speech_key(0x509a95)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x5096c5)),
-                    PlainLoose::new(speech_key(0x509f96)),
-                    PlainLoose::new(speech_key(0x509ab7)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x5096c5)),
+                    PlainDword::new(speech_key(0x509f96)),
+                    PlainDword::new(speech_key(0x509ab7)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50962f)),
-                    PlainLoose::new(speech_key(0x509fb9)),
-                    PlainLoose::new(speech_key(0x509ad9)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50962f)),
+                    PlainDword::new(speech_key(0x509fb9)),
+                    PlainDword::new(speech_key(0x509ad9)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50964d)),
-                    PlainLoose::new(speech_key(0x509fdc)),
-                    PlainLoose::new(speech_key(0x509afb)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50964d)),
+                    PlainDword::new(speech_key(0x509fdc)),
+                    PlainDword::new(speech_key(0x509afb)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50966b)),
-                    PlainLoose::new(speech_key(0x509fff)),
-                    PlainLoose::new(speech_key(0x509b1d)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50966b)),
+                    PlainDword::new(speech_key(0x509fff)),
+                    PlainDword::new(speech_key(0x509b1d)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x509689)),
-                    PlainLoose::new(speech_key(0x50a022)),
-                    PlainLoose::new(speech_key(0x509b3f)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x509689)),
+                    PlainDword::new(speech_key(0x50a022)),
+                    PlainDword::new(speech_key(0x509b3f)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x5096a7)),
-                    PlainLoose::new(speech_key(0x50a045)),
-                    PlainLoose::new(speech_key(0x509b61)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x5096a7)),
+                    PlainDword::new(speech_key(0x50a045)),
+                    PlainDword::new(speech_key(0x509b61)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x5096c5)),
-                    PlainLoose::new(speech_key(0x50a068)),
-                    PlainLoose::new(speech_key(0x509b83)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x5096c5)),
+                    PlainDword::new(speech_key(0x50a068)),
+                    PlainDword::new(speech_key(0x509b83)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50962f)),
-                    PlainLoose::new(speech_key(0x50a08b)),
-                    PlainLoose::new(speech_key(0x509ba5)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50962f)),
+                    PlainDword::new(speech_key(0x50a08b)),
+                    PlainDword::new(speech_key(0x509ba5)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50964d)),
-                    PlainLoose::new(speech_key(0x50a0ae)),
-                    PlainLoose::new(speech_key(0x509bc7)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50964d)),
+                    PlainDword::new(speech_key(0x50a0ae)),
+                    PlainDword::new(speech_key(0x509bc7)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x50966b)),
-                    PlainLoose::new(speech_key(0x50a0d1)),
-                    PlainLoose::new(speech_key(0x509be9)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x50966b)),
+                    PlainDword::new(speech_key(0x50a0d1)),
+                    PlainDword::new(speech_key(0x509be9)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x509689)),
-                    PlainLoose::new(speech_key(0x50a0f4)),
-                    PlainLoose::new(speech_key(0x509c0b)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x509689)),
+                    PlainDword::new(speech_key(0x50a0f4)),
+                    PlainDword::new(speech_key(0x509c0b)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x5096a7)),
-                    PlainLoose::new(speech_key(0x50a117)),
-                    PlainLoose::new(speech_key(0x509c2d)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x5096a7)),
+                    PlainDword::new(speech_key(0x50a117)),
+                    PlainDword::new(speech_key(0x509c2d)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
                 [
-                    PlainLoose::new(speech_key(0x5096c5)),
-                    PlainLoose::new(speech_key(0x50a13a)),
-                    PlainLoose::new(speech_key(0x509c4f)),
-                    PlainLoose::new(speech_key(0xffffffff)),
+                    PlainDword::new(speech_key(0x5096c5)),
+                    PlainDword::new(speech_key(0x50a13a)),
+                    PlainDword::new(speech_key(0x509c4f)),
+                    PlainDword::new(speech_key(0xffffffff)),
                 ],
             ],
-            _tail: PlainBytes::new([0; 2]),
         }
     }
 }
@@ -2184,6 +2186,12 @@ impl MenuTexts {
 pub const START: usize = 0x731B82;
 /// The bytes `MenuTexts` has before IDA's `START` (its `_lead`).
 const LEAD: usize = 2;
+/// The bytes `MenuTexts` has before the speech tables that the image does not.
+const SPEECH_PAD: usize = 2;
+/// IDA 0x734866, the first speech table.
+pub const CAR_SPEECH: usize = 0x734866;
+/// Where the first speech table is in `MenuTexts`.
+pub const CAR_SPEECH_OFFSET: usize = CAR_SPEECH - START + LEAD + SPEECH_PAD;
 
 /// A speech table's entry: a sample name's handle (`audio::store::name_key`; the
 /// original kept its address), or the row's end mark, -1.
@@ -2219,13 +2227,14 @@ pub const fn text_key(ida: u32) -> u32 {
     }
     let at = ida as usize;
     assert!(START <= at && at < END);
-    (at - START + LEAD) as u32
+    let pad = if at >= CAR_SPEECH { SPEECH_PAD } else { 0 };
+    (at - START + LEAD + pad) as u32
 }
 
 /// Where the text of `key` is (`text_key`).
 pub fn text_at(key: u32) -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
     let at = key as usize;
-    if !(LEAD..LEAD + END - START).contains(&at) {
+    if !(LEAD..LEAD + SPEECH_PAD + END - START).contains(&at) {
         return Err(crate::errors::BadInput(
             "a text's handle off the menus' texts",
         ));
@@ -2235,9 +2244,6 @@ pub fn text_at(key: u32) -> Result<crate::pointers::GamePtr, crate::errors::BadI
 
 /// IDA 0x734BC6, the end of the piece.
 pub const END: usize = 0x734BC6;
-
-#[cfg(test)]
-const CAR_SPEECH: usize = 0x734866;
 
 #[cfg(test)]
 const SPEECH_TABLES_END: usize = 0x734986 + 36 * 4 * 4;
@@ -2276,18 +2282,16 @@ mod tests {
 
     #[test]
     fn menu_texts_start_as_the_games() {
-        assert_eq!(
-            size_of::<MenuTexts>(),
-            (END - START + 2).next_multiple_of(4)
-        );
+        assert_eq!(size_of::<MenuTexts>(), END - START + LEAD + SPEECH_PAD);
         assert_eq!(offset_of!(MenuTexts, keys_menu), 0x731BBB - START + 2);
-        assert_eq!(offset_of!(MenuTexts, car_speech), 0x734866 - START + 2);
-        assert_eq!(offset_of!(MenuTexts, stage_speech), 0x734986 - START + 2);
+        assert_eq!(offset_of!(MenuTexts, car_speech), 0x734866 - START + 4);
+        assert_eq!(offset_of!(MenuTexts, stage_speech), 0x734986 - START + 4);
         assert_eq!(menu_texts_addr() as usize % 4, START % 4);
+        assert_eq!(offset_of!(MenuTexts, car_speech) % 4, 0);
         let mine = unsafe {
             std::slice::from_raw_parts(
                 crate::pointers::host(menu_texts_addr()).cast_const(),
-                END - START,
+                END - START + SPEECH_PAD,
             )
         };
         let mut image = image_bytes(START, END - START);
@@ -2296,6 +2300,9 @@ mod tests {
             let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
             image[o..o + 4].copy_from_slice(&speech_key(v).to_le_bytes());
         }
-        assert_eq!(mine, &image[..]);
+        let split = CAR_SPEECH - START;
+        assert_eq!(&mine[..split], &image[..split]);
+        assert_eq!(&mine[split..split + SPEECH_PAD], &[0, 0]);
+        assert_eq!(&mine[split + SPEECH_PAD..], &image[split..]);
     }
 }

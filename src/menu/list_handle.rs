@@ -206,90 +206,195 @@ impl BoxRect {
     }
 }
 
-/// A list menu (the header's and items' places are taken from its place).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ListMenu(GamePtr);
+/// Where a list menu's header is: one of the installer's lists, typed with its items, or
+/// bytes read as a header.
+#[derive(Clone, Copy)]
+enum Head {
+    /// A list of the installer's pages: its header and the items it holds.
+    Pages(&'static ListHeader, &'static [Item]),
+    /// The 0x18 header bytes at a place: the replay viewer's list, or a thing of the
+    /// installer's pages that is no list (the page walk looks at what a link names).
+    Bytes(GamePtr),
+}
+
+/// A list menu.
+#[derive(Clone, Copy)]
+pub struct ListMenu(Head);
+
+impl core::fmt::Debug for ListMenu {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self.0 {
+            Head::Pages(header, _) => write!(f, "ListMenu(pages +{:#x})", pages_offset_of(header)),
+            Head::Bytes(at) => write!(f, "ListMenu({at:?})"),
+        }
+    }
+}
+
+impl PartialEq for ListMenu {
+    fn eq(&self, other: &Self) -> bool {
+        match (self.0, other.0) {
+            (Head::Pages(a, _), Head::Pages(b, _)) => core::ptr::eq(a, b),
+            (Head::Bytes(a), Head::Bytes(b)) => a == b,
+            _ => false,
+        }
+    }
+}
+
+impl Eq for ListMenu {}
+
+/// Where `thing`, a field of the installer's pages, starts in them.
+fn pages_offset_of<T>(thing: &T) -> usize {
+    let pages = &crate::install::owner::install().pages;
+    (std::ptr::from_ref(thing) as usize).wrapping_sub(std::ptr::from_ref(pages) as usize)
+}
+
+/// The header and items of one of the installer's lists. The pages that are only an action
+/// have no items.
+fn list_parts(list: ListId) -> (&'static ListHeader, &'static [Item]) {
+    let pages = &crate::install::owner::install().pages;
+    match list {
+        ListId::Language => (&pages.language_menu.header, &pages.language_menu.items),
+        ListId::Main => (&pages.main_menu.header, &pages.main_menu.items),
+        ListId::Mode => (&pages.mode_menu.header, &pages.mode_menu.items),
+        ListId::Drives8 => (&pages.drive_menu_8.header, &pages.drive_menu_8.items),
+        ListId::Drives16 => (&pages.drive_menu_16.header, &pages.drive_menu_16.items),
+        ListId::DrivesMore => (&pages.menu_more.header, &pages.menu_more.items),
+        ListId::Folder => (&pages.folder_menu.header, &pages.folder_menu.items),
+        ListId::Room => (&pages.room_menu.header, &pages.room_menu.items),
+        ListId::Dxsetup => (&pages.dxsetup_menu.header, &pages.dxsetup_menu.items),
+        ListId::Finish => (&pages.finish_menu.header, &pages.finish_menu.items),
+        ListId::InstallFiles => (&pages.action_pages[0], &[]),
+        ListId::Uninstall => (&pages.action_pages[1], &[]),
+        ListId::OpenInstalled => (&pages.action_pages[2], &[]),
+        ListId::AskRegistration => (&pages.action_pages[3], &[]),
+    }
+}
 
 impl ListMenu {
     /// The list a link of the installer's pages names. Any thing of the pages is taken: the
     /// page walk reads the words after an entry's answers as links and looks at the list they
-    /// name, as the original does (`install::run_pages::pass_over`).
+    /// name, as the original does (`install::run_pages::pass_over`); what is no list is read
+    /// as the bytes of a header.
     pub fn at(link: PageLink) -> Result<Self, crate::errors::BadInput> {
-        Ok(Self(link.in_pages()?))
+        match link.list_id() {
+            Some(list) => Ok(Self::installer(list)),
+            None => Ok(Self(Head::Bytes(link.in_pages()?))),
+        }
     }
 
     /// One of the installer's lists.
     pub fn installer(list: ListId) -> Self {
-        let pages = GamePtr::to(&crate::install::owner::install().pages);
-        Self(pages.offset(list.offset() as u32))
+        let (header, items) = list_parts(list);
+        Self(Head::Pages(header, items))
     }
 
-    /// The list at a place in the game's data.
+    /// The list at a place in the game's data (the replay viewer's, which is a run of dwords
+    /// and not typed as a list).
     pub fn of(place: impl Into<crate::place::BytePlace>) -> Self {
-        Self(place.into().game_ptr())
+        Self(Head::Bytes(place.into().game_ptr()))
     }
 
-    /// A header field: `len` bytes at `offset`, inside the header.
-    fn head(self, offset: u32, len: u32) -> GamePtr {
+    /// A header field's bytes: `len` bytes at `offset`, inside the header.
+    fn head(at: GamePtr, offset: u32, len: u32) -> GamePtr {
         debug_assert!(offset + len <= HEADER);
-        self.0.offset(offset).limited(len)
+        at.offset(offset).limited(len)
     }
 
     /// +0: the flags (bit 4 the page stays on Escape, bits 6 and 7 the page hidden).
     pub fn flags(self) -> u8 {
-        rb(self.head(0, 1))
+        match self.0 {
+            Head::Pages(header, _) => header.flags.get(),
+            Head::Bytes(at) => rb(Self::head(at, 0, 1)),
+        }
     }
 
     pub fn set_flags(self, flags: u8) {
-        wb(self.head(0, 1), flags);
+        match self.0 {
+            Head::Pages(header, _) => header.flags.set(flags),
+            Head::Bytes(at) => wb(Self::head(at, 0, 1), flags),
+        }
     }
 
     /// +1: the number of items.
     pub fn count(self) -> u8 {
-        rb(self.head(1, 1))
+        match self.0 {
+            Head::Pages(header, _) => header.count.get(),
+            Head::Bytes(at) => rb(Self::head(at, 1, 1)),
+        }
     }
 
     pub fn set_count(self, count: u8) {
-        wb(self.head(1, 1), count);
+        match self.0 {
+            Head::Pages(header, _) => header.count.set(count),
+            Head::Bytes(at) => wb(Self::head(at, 1, 1), count),
+        }
     }
 
     /// +2: the title's string.
     pub fn title_text(self) -> u16 {
-        rw(self.head(2, 2))
+        match self.0 {
+            Head::Pages(header, _) => header.title_text.get(),
+            Head::Bytes(at) => rw(Self::head(at, 2, 2)),
+        }
     }
 
     /// +4: the item highlighted.
     pub fn highlight(self) -> u32 {
-        rd(self.head(4, 4))
+        match self.0 {
+            Head::Pages(header, _) => header.highlight.get(),
+            Head::Bytes(at) => rd(Self::head(at, 4, 4)),
+        }
     }
 
     pub fn set_highlight(self, highlight: u32) {
-        wd(self.head(4, 4), highlight);
+        match self.0 {
+            Head::Pages(header, _) => header.highlight.set(highlight),
+            Head::Bytes(at) => wd(Self::head(at, 4, 4), highlight),
+        }
     }
 
     /// +8: the list's action (an address in RAL.EXE's code: `install::installer::page_action`).
     pub fn action(self) -> u32 {
-        rd(self.head(8, 4))
+        match self.0 {
+            Head::Pages(header, _) => header.action.get(),
+            Head::Bytes(at) => rd(Self::head(at, 8, 4)),
+        }
     }
 
     /// +0x10: the neighbours table for `menu::list_step` (None for none).
     pub fn neighbours(self) -> Option<GamePtr> {
-        let link = rl(self.head(0x10, 4));
+        let link = match self.0 {
+            Head::Pages(header, _) => PageLink::from_raw(header.neighbours.get()),
+            Head::Bytes(at) => rl(Self::head(at, 0x10, 4)),
+        };
         (!link.is_none()).then(|| link.in_pages().unwrap_or_else(|e| refuse(e)))
     }
 
     /// +0x14: the key action (`install::installer::key_action`).
     pub fn key_action(self) -> u32 {
-        rd(self.head(0x14, 4))
+        match self.0 {
+            Head::Pages(header, _) => header.key_action.get(),
+            Head::Bytes(at) => rd(Self::head(at, 0x14, 4)),
+        }
     }
 
-    /// Item `n`, from +0x18, 0x10 bytes each (wrapping as the original's sum).
+    /// Item `n`, from +0x18, 0x10 bytes each (wrapping as the original's sum). The item count
+    /// is not checked: an item past the list's items is the bytes that follow the list in the
+    /// installer's pages (the next list, table or record), read as an item.
     pub fn item(self, n: u32) -> ListItem {
-        ListItem(
-            self.0
+        let start = match self.0 {
+            Head::Pages(_, items) if (n as usize) < items.len() => {
+                return ListItem(Spot::Typed(&items[n as usize]));
+            }
+            Head::Pages(header, _) => GamePtr::to(&crate::install::owner::install().pages)
+                .offset(pages_offset_of(header) as u32),
+            Head::Bytes(at) => at,
+        };
+        ListItem(Spot::Bytes(
+            start
                 .offset(HEADER.wrapping_add(ITEM.wrapping_mul(n)))
                 .limited(ITEM),
-        )
+        ))
     }
 
     /// The item whose first byte is `offset` from the list (the pages' tables of marks
@@ -305,9 +410,39 @@ impl ListMenu {
     }
 }
 
+/// Where an item is: typed in one of the installer's lists, or its 0x10 bytes at a place.
+#[derive(Clone, Copy)]
+enum Spot {
+    Typed(&'static Item),
+    /// An item read past a list's items, or at an offset of the installer's pages that holds
+    /// no typed item.
+    Bytes(GamePtr),
+}
+
 /// One item of a list menu (its 0x10 bytes).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ListItem(GamePtr);
+#[derive(Clone, Copy)]
+pub struct ListItem(Spot);
+
+impl core::fmt::Debug for ListItem {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self.0 {
+            Spot::Typed(item) => write!(f, "ListItem(pages +{:#x})", pages_offset_of(item)),
+            Spot::Bytes(at) => write!(f, "ListItem({at:?})"),
+        }
+    }
+}
+
+impl PartialEq for ListItem {
+    fn eq(&self, other: &Self) -> bool {
+        match (self.0, other.0) {
+            (Spot::Typed(a), Spot::Typed(b)) => core::ptr::eq(a, b),
+            (Spot::Bytes(a), Spot::Bytes(b)) => a == b,
+            _ => false,
+        }
+    }
+}
+
+impl Eq for ListItem {}
 
 impl ListItem {
     /// The item `offset` bytes into the installer's pages (`crate::install::vars::
@@ -320,24 +455,40 @@ impl ListItem {
                 "an item outside the installer's pages",
             ));
         }
-        Ok(Self(
-            GamePtr::to(&crate::install::owner::install().pages)
-                .offset(offset)
-                .limited(ITEM),
-        ))
+        let pages = &crate::install::owner::install().pages;
+        if offset as usize == core::mem::offset_of!(InstallerPages, title) {
+            return Ok(Self::of_title());
+        }
+        for (list, list_at) in ListId::ALL.map(|(list, _)| (list, list.offset())) {
+            let (_, items) = list_parts(list);
+            let first = list_at + HEADER as usize;
+            let past = (offset as usize).wrapping_sub(first);
+            if past < items.len() * ITEM as usize && past.is_multiple_of(ITEM as usize) {
+                return Ok(Self(Spot::Typed(&items[past / ITEM as usize])));
+            }
+        }
+        // The bytes of the pages that are no typed item (a table, a record, a list's header).
+        Ok(Self(Spot::Bytes(
+            GamePtr::to(pages).offset(offset).limited(ITEM),
+        )))
     }
 
     /// The title's item (the pages' `title` record).
     pub fn of_title() -> Self {
-        Self(GamePtr::to(&crate::install::owner::install().pages.title).limited(ITEM))
+        Self(Spot::Typed(&crate::install::owner::install().pages.title))
     }
 
     /// Where this item is in the installer's pages (see `in_pages`); an item outside them is
     /// refused.
     pub fn pages_offset(self) -> Result<u32, crate::errors::BadInput> {
         use crate::install::vars::InstallerPages;
-        let start = GamePtr::to(&crate::install::owner::install().pages).addr();
-        let offset = self.0.addr().wrapping_sub(start);
+        let offset = match self.0 {
+            Spot::Typed(item) => pages_offset_of(item) as u32,
+            Spot::Bytes(at) => {
+                let start = GamePtr::to(&crate::install::owner::install().pages).addr();
+                at.addr().wrapping_sub(start)
+            }
+        };
         if (offset as usize).saturating_add(ITEM as usize) > size_of::<InstallerPages>() {
             return Err(crate::errors::BadInput(
                 "an item outside the installer's pages",
@@ -346,18 +497,24 @@ impl ListItem {
         Ok(offset)
     }
 
-    fn field(self, offset: u32, len: u32) -> GamePtr {
+    fn field(at: GamePtr, offset: u32, len: u32) -> GamePtr {
         debug_assert!(offset + len <= ITEM);
-        self.0.offset(offset).limited(len)
+        at.offset(offset).limited(len)
     }
 
     /// +0: the kind (low nibble) and marks (high bits), whole.
     pub fn first(self) -> u8 {
-        rb(self.field(0, 1))
+        match self.0 {
+            Spot::Typed(item) => item.first.get(),
+            Spot::Bytes(at) => rb(Self::field(at, 0, 1)),
+        }
     }
 
     pub fn set_first(self, first: u8) {
-        wb(self.field(0, 1), first);
+        match self.0 {
+            Spot::Typed(item) => item.first.set(first),
+            Spot::Bytes(at) => wb(Self::field(at, 0, 1), first),
+        }
     }
 
     /// The kind: the low nibble of +0.
@@ -367,12 +524,18 @@ impl ListItem {
 
     /// +1: the next list (a link) or the number of choices.
     pub fn count(self) -> u8 {
-        rb(self.field(1, 1))
+        match self.0 {
+            Spot::Typed(item) => item.count.get(),
+            Spot::Bytes(at) => rb(Self::field(at, 1, 1)),
+        }
     }
 
     /// +2: the item's text (a string id).
     pub fn text_id(self) -> u16 {
-        rw(self.field(2, 2))
+        match self.0 {
+            Spot::Typed(item) => item.text.get(),
+            Spot::Bytes(at) => rw(Self::field(at, 2, 2)),
+        }
     }
 
     /// +1 of the replay viewer's items: the viewer action Enter does there.
@@ -387,65 +550,80 @@ impl ListItem {
 
     /// +4: the box the item's pieces are placed in (none: the title's).
     pub fn box_link(self) -> PageLink {
-        rl(self.field(4, 4))
+        match self.0 {
+            Spot::Typed(item) => PageLink::from_raw(item.box_link.get()),
+            Spot::Bytes(at) => rl(Self::field(at, 4, 4)),
+        }
     }
 
     /// +8: the link's or action's address, or where the item's value or text is.
     pub fn target(self) -> u32 {
-        rd(self.field(8, 4))
+        match self.0 {
+            Spot::Typed(item) => item.target.get(),
+            Spot::Bytes(at) => rd(Self::field(at, 8, 4)),
+        }
+    }
+
+    /// +8 as the link.
+    fn target_link(self) -> PageLink {
+        PageLink::from_raw(self.target())
     }
 
     /// +8 as the text the item edits or shows (a link).
     pub fn text(self) -> crate::place::BytePlace {
-        crate::place::BytePlace::from(self.link_place(8))
+        crate::place::BytePlace::from(self.link_place())
     }
 
     /// +8 as the byte the item sets (a choice, a value; a link).
     pub fn value(self) -> ItemByte {
-        ItemByte(self.link_place(8))
+        ItemByte(self.link_place())
     }
 
-    /// The place the link at `offset` names, in the pages or the folder typed.
-    fn link_place(self, offset: u32) -> GamePtr {
-        rl(self.field(offset, 4))
-            .place()
-            .unwrap_or_else(|e| refuse(e))
+    /// The place the link at +8 names, in the pages or the folder typed.
+    fn link_place(self) -> GamePtr {
+        self.target_link().place().unwrap_or_else(|e| refuse(e))
     }
 
     /// +0xC: the pointer to the choices, the edit record or the text action.
     pub fn data(self) -> u32 {
-        rd(self.field(0xC, 4))
+        match self.0 {
+            Spot::Typed(item) => item.data.get(),
+            Spot::Bytes(at) => rd(Self::field(at, 0xC, 4)),
+        }
     }
 
     /// +0xC as the byte the least value is (a value item).
     pub fn value_least(self) -> u8 {
-        rb(self.field(0xC, 1))
+        match self.0 {
+            Spot::Typed(item) => item.data.get().to_le_bytes()[0],
+            Spot::Bytes(at) => rb(Self::field(at, 0xC, 1)),
+        }
     }
 
     /// +0xD: the most value (a value item).
     pub fn value_most(self) -> u8 {
-        rb(self.field(0xD, 1))
+        match self.0 {
+            Spot::Typed(item) => item.data.get().to_le_bytes()[1],
+            Spot::Bytes(at) => rb(Self::field(at, 0xD, 1)),
+        }
     }
 
-    /// The place in the pages the link at `offset` names.
-    fn pages_link(self, offset: u32) -> GamePtr {
-        rl(self.field(offset, 4))
-            .in_pages()
-            .unwrap_or_else(|e| refuse(e))
-    }
-
-    /// +0xC as the item's choices (a choice item; a link).
+    /// +0xC as the item's choices (a choice item; a link): the table is bytes of the
+    /// installer's pages, read on as far as the original reads (see `Choices`).
     pub fn choices(self) -> Choices {
-        Choices(self.pages_link(0xC))
+        Choices(
+            PageLink::from_raw(self.data())
+                .in_pages()
+                .unwrap_or_else(|e| refuse(e)),
+        )
     }
 
     /// +0xC as the item's edit record (an edit item).
     pub fn edit_field(self) -> EditField {
         EditField(
-            rl(self.field(0xC, 4))
-                .edit_place()
-                .unwrap_or_else(|e| refuse(e))
-                .limited(8),
+            PageLink::from_raw(self.data())
+                .edit_record()
+                .unwrap_or_else(|e| refuse(e)),
         )
     }
 }
@@ -499,34 +677,40 @@ impl Choices {
     }
 }
 
-/// An edit item's record (8 bytes): +0 flags, +1 the most characters, +2 the default text,
-/// +4 the font's kind, +6 the width.
-#[derive(Clone, Copy, Debug)]
-pub struct EditField(GamePtr);
+/// An edit item's record: the flags, the most characters, the default text, the font's kind
+/// and the width.
+#[derive(Clone, Copy)]
+pub struct EditField(&'static EditRecord);
+
+impl core::fmt::Debug for EditField {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "EditField(pages +{:#x})", pages_offset_of(self.0))
+    }
+}
 
 impl EditField {
     pub fn flags(self) -> u8 {
-        rb(self.0.limited(1))
+        self.0.flags.get()
     }
 
     pub fn set_flags(self, flags: u8) {
-        wb(self.0.limited(1), flags);
+        self.0.flags.set(flags);
     }
 
     pub fn most(self) -> u8 {
-        rb(self.0.offset(1).limited(1))
+        self.0.most.get()
     }
 
     pub fn default_text(self) -> u16 {
-        rw(self.0.offset(2).limited(2))
+        self.0.default_text.get()
     }
 
     pub fn font_kind(self) -> u8 {
-        rb(self.0.offset(4).limited(1))
+        self.0.font_kind.get()
     }
 
     pub fn width(self) -> u16 {
-        rw(self.0.offset(6).limited(2))
+        self.0.width.get()
     }
 }
 

@@ -40,8 +40,8 @@ pub fn reset_request(race: &Race, scene: &crate::scene::owner::Scene) -> Result<
         race_owner.shared.vars.run_kind.get(),
         || {
             c0(
-                race_owner.shared.car.speed.bits(),
-                race_owner.shared.physics_tables.reset_speed_limit.bits(),
+                race_owner.shared.car.speed.get(),
+                race_owner.shared.physics_tables.reset_speed_limit.get(),
             )
         },
     ) {

@@ -31,8 +31,8 @@ pub fn spread_point(
     let second = first.rotate_right(12);
     let third = second.rotate_right(12);
     paths.spread_random.random.set(third);
-    let k = setup.floats.spread_scale.get_u32(0) as u64
-        | (setup.floats.spread_scale.get_u32(4) as u64) << 32;
+    let k = setup.floats.spread_scale[0].get() as u64
+        | (setup.floats.spread_scale[1].get() as u64) << 32;
     let d = x87::grown(third as i32, k, d, spread);
     let c = x87::grown(second as i32, k, c, spread);
     let b = x87::grown(first as i32, k, b, spread);

@@ -7,7 +7,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::cells::{Cells, Off};
-use crate::math::x87_float::{self as bh, ONE, X, f80, from_f80, ld, st};
+use crate::math::x87_float::{self as bh, ONE, X, f80, from_f80, ld, st, stf};
 
 /// `scene::identity_matrix3` (0x46574E): the matrix `m` the identity (1.0 from `fld1`).
 /// Every register kept.
@@ -147,13 +147,18 @@ fn turn(stores: Stores, angle: [u8; 10], m: &(impl Cells + ?Sized)) {
 }
 
 /// A float made an 80-bit value (`fld dword; fstp tbyte`).
-pub fn extended(f: u32) -> [u8; 10] {
+pub fn extended(f: impl crate::math::x87_float::Loadable) -> [u8; 10] {
     f80(ld(f))
 }
 
 /// An 80-bit value rounded to a float (`fld tbyte; fstp dword`).
 pub fn rounded(v: [u8; 10]) -> u32 {
     st(from_f80(v))
+}
+
+/// As `rounded`, as a float.
+pub fn rounded_value(v: [u8; 10]) -> f32 {
+    stf(from_f80(v))
 }
 
 #[cfg(all(test, target_arch = "x86"))]

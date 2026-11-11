@@ -23,24 +23,24 @@ pub fn p(x: &impl crate::session::Cell32, v: u32) {
 }
 
 /// `fld a; fcomp b`: C0, a below b or unordered.
-pub fn c0(a: u32, b: u32) -> bool {
-    compare_full(a, b) & 0x100 != 0
+pub fn c0(a: impl x87::Flt, b: impl x87::Flt) -> bool {
+    compare_full(a.bits(), b.bits()) & 0x100 != 0
 }
 
 /// `fld a; fcomp b`: C3, a equal to b or unordered.
-pub fn c3(a: u32, b: u32) -> bool {
-    compare_full(a, b) & 0x4000 != 0
+pub fn c3(a: impl x87::Flt, b: impl x87::Flt) -> bool {
+    compare_full(a.bits(), b.bits()) & 0x4000 != 0
 }
 
 /// The float `a` is below `b`, or one of them is not a number (the x87's C0 after
 /// comparing them); `!below_or_unordered(a, b)` is "`a` is at least `b`".
-pub fn below_or_unordered(a: u32, b: u32) -> bool {
+pub fn below_or_unordered(a: impl x87::Flt, b: impl x87::Flt) -> bool {
     c0(a, b)
 }
 
 /// The float `a` equals `b`, or one of them is not a number (the x87's C3 after comparing
 /// them).
-pub fn equal_or_unordered(a: u32, b: u32) -> bool {
+pub fn equal_or_unordered(a: impl x87::Flt, b: impl x87::Flt) -> bool {
     c3(a, b)
 }
 

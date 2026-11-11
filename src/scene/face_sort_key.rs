@@ -40,7 +40,7 @@ pub fn face_sort_key(
         );
         sum = x87::add(crate::scene::point_records::field(record, 0x18)?, sum).to_bits();
     }
-    let factor = course.lists.face_key_factors[vertices as usize].bits();
+    let factor = course.lists.face_key_factors[vertices as usize].get();
     poly.face_sort_key.set(x87::mul_to_int(sum, factor) as u32);
     Ok(())
 }

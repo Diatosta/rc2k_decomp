@@ -20,12 +20,12 @@ pub fn pong_digit(
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     use rc2k_core::effects::pong as core;
-    let first = core::pattern(digit)? as usize;
+    let first = core::pattern(digit)? as usize; // the digit's offset, 20 bytes a digit
     for (n, (col, row)) in core::cells().enumerate() {
         crate::effects::pong_cell::pong_cell(
             pong,
             fl,
-            pong.state.digit_patterns.get(first + n),
+            pong.state.digit_patterns[first / 20][n].get(),
             col,
             row,
             effects,

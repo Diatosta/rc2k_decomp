@@ -11,7 +11,7 @@ use crate::d3d::vertices_store::{VERTICES, Vertex};
 use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
 use crate::input::types::InputDevice;
-use crate::math::x87_float::{int, ld, st};
+use crate::math::x87_float::{int, ld, stf};
 use crate::race::owner_shared::RaceShared;
 use crate::race::tyre_store::TyreChange;
 use crate::session::{Dword, Float};
@@ -20,31 +20,31 @@ use crate::session::{Dword, Float};
 /// the input device, `d` the rectangle (floats), `v` the vertices, `t` the scratch float
 /// holding 2 pi.
 fn turn(ty: &TyreChange, e: &InputDevice, d: &[Float; 4], v: &[Vertex], t: &Dword) {
-    let angle = int(e.gauge.get() as i32) * ld(ty.gauge_unit.bits()) * ld(t.get());
+    let angle = int(e.gauge.get() as i32) * ld(ty.gauge_unit.get()) * ld(t.get());
     let (sin, cos) = angle.sin_cos();
-    ty.turn_cos.set_bits(st(cos));
-    ty.turn_sin.set_bits(st(sin));
+    ty.turn_cos.set(stf(cos));
+    ty.turn_sin.set(stf(sin));
     ty.half_h_sin
-        .set_bits(st(ld(d[3].bits()) * ld(ty.turn_sin.bits())));
+        .set(stf(ld(d[3].get()) * ld(ty.turn_sin.get())));
     ty.neg_half_h_cos
-        .set_bits(st(-(ld(d[3].bits()) * ld(ty.turn_cos.bits()))));
+        .set(stf(-(ld(d[3].get()) * ld(ty.turn_cos.get()))));
     ty.half_w_cos
-        .set_bits(st(ld(d[2].bits()) * ld(ty.turn_cos.bits())));
+        .set(stf(ld(d[2].get()) * ld(ty.turn_cos.get())));
     ty.half_w_sin
-        .set_bits(st(ld(d[2].bits()) * ld(ty.turn_sin.bits())));
+        .set(stf(ld(d[2].get()) * ld(ty.turn_sin.get())));
     let (wheel_x, wheel_y) = (int(ty.wheel[0].get() as i32), int(ty.wheel[1].get() as i32));
-    let x = -ld(ty.half_w_cos.bits()) + ld(d[0].bits()) + wheel_x;
-    v[2].x.set_bits(st(x));
-    v[0].x.set_bits(st(x + ld(ty.half_h_sin.bits())));
-    let x = ld(ty.half_w_cos.bits()) + ld(d[0].bits()) + wheel_x;
-    v[3].x.set_bits(st(x));
-    v[1].x.set_bits(st(x + ld(ty.half_h_sin.bits())));
-    let y = -ld(ty.half_w_sin.bits()) + ld(d[1].bits()) + wheel_y;
-    v[2].y.set_bits(st(y));
-    v[0].y.set_bits(st(y + ld(ty.neg_half_h_cos.bits())));
-    let y = ld(ty.half_w_sin.bits()) + ld(d[1].bits()) + wheel_y;
-    v[3].y.set_bits(st(y));
-    v[1].y.set_bits(st(y + ld(ty.neg_half_h_cos.bits())));
+    let x = -ld(ty.half_w_cos.get()) + ld(d[0].get()) + wheel_x;
+    v[2].x.set(stf(x));
+    v[0].x.set(stf(x + ld(ty.half_h_sin.get())));
+    let x = ld(ty.half_w_cos.get()) + ld(d[0].get()) + wheel_x;
+    v[3].x.set(stf(x));
+    v[1].x.set(stf(x + ld(ty.half_h_sin.get())));
+    let y = -ld(ty.half_w_sin.get()) + ld(d[1].get()) + wheel_y;
+    v[2].y.set(stf(y));
+    v[0].y.set(stf(y + ld(ty.neg_half_h_cos.get())));
+    let y = ld(ty.half_w_sin.get()) + ld(d[1].get()) + wheel_y;
+    v[3].y.set(stf(y));
+    v[1].y.set(stf(y + ld(ty.neg_half_h_cos.get())));
 }
 
 /// The texture rectangle `uv`, the screen rectangle `rect`, the colour `colour`, the input device

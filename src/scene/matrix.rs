@@ -14,44 +14,46 @@ use crate::session::Float;
 
 /// An angle's sine and cosine from the game's tables: sixteen bits a turn, the low
 /// four dropped.
-fn sine_cosine(angle: u32) -> (u32, u32) {
+fn sine_cosine(angle: u32) -> (f32, f32) {
     let place = ((angle & 0xFFFF) >> 4) as usize;
-    {
-        (
-            crate::scene::engine_tables_store::sine(place).bits(),
-            crate::scene::engine_tables_store::cosine(place).bits(),
-        )
-    }
+    (
+        crate::scene::engine_tables_store::sine(place).get(),
+        crate::scene::engine_tables_store::cosine(place).get(),
+    )
 }
 
 /// `scene::set_turn_x` (0x426FE1): `turn_x` the matrix, `work` its sine and cosine.
 pub fn set_turn_x(turn_x: &[Float; 16], work: &[Float; 2], angle: u32) {
     let (sine, cosine) = sine_cosine(angle);
-    crate::session::write_bits(work, [sine, cosine]);
-    turn_x[5].set_bits(cosine);
-    turn_x[6].set_bits(sine);
-    turn_x[9].set_bits(sine ^ 0x8000_0000);
-    turn_x[10].set_bits(cosine);
+    work[0].set(sine);
+    work[1].set(cosine);
+    turn_x[5].set(cosine);
+    turn_x[6].set(sine);
+    turn_x[9].set(-sine);
+    turn_x[10].set(cosine);
 }
 
 /// `scene::set_turn_y` (0x42702A).
 pub fn set_turn_y(turn_y: &[Float; 16], work: &[Float; 2], angle: u32) {
     let (sine, cosine) = sine_cosine(angle);
-    crate::session::write_bits(work, [sine, cosine]);
-    turn_y[0].set_bits(cosine);
-    turn_y[2].set_bits(sine ^ 0x8000_0000);
-    turn_y[8].set_bits(sine);
-    turn_y[10].set_bits(cosine);
+    work[0].set(sine);
+    work[1].set(cosine);
+    turn_y[0].set(cosine);
+    turn_y[2].set(-sine);
+    turn_y[8].set(sine);
+    turn_y[10].set(cosine);
 }
 
 /// `scene::set_turn_z_16` (0x427072): as `set_turn_x`, about the z axis (the matrix and
 /// the work of `scene::set_turn_z`, whose angle is 32 bits a turn).
 pub fn set_turn_z_16(turn_z: &[Float; 16], work: &[Float; 2], angle: u32) {
     let (sine, cosine) = sine_cosine(angle);
-    crate::session::write_bits(work, [sine, cosine]);
-    crate::session::write_first(turn_z, &[cosine, sine]);
-    turn_z[4].set_bits(sine ^ 0x8000_0000);
-    turn_z[5].set_bits(cosine);
+    work[0].set(sine);
+    work[1].set(cosine);
+    turn_z[0].set(cosine);
+    turn_z[1].set(sine);
+    turn_z[4].set(-sine);
+    turn_z[5].set(cosine);
 }
 
 /// `scene::set_place` (0x4271AE), on the placed matrix. (The original also left the place's z

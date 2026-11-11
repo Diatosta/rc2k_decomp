@@ -43,9 +43,9 @@ fn tangent(frame: &crate::race::owner_frame::Frame, angle: u32) -> u32 {
         let place = (angle >> 4) as usize;
         scene().drawing.scene.scratch.set(0x8000u32);
         let tangent = (bh::to_int(
-            bh::ld(crate::scene::engine_tables_store::ENGINE_TABLES.sines[place].bits())
+            bh::ld(crate::scene::engine_tables_store::ENGINE_TABLES.sines[place].get())
                 / bh::ld(
-                    crate::scene::engine_tables_store::ENGINE_TABLES.sines[place + 0x400].bits(),
+                    crate::scene::engine_tables_store::ENGINE_TABLES.sines[place + 0x400].get(),
                 )
                 * bh::int(0x1_0000)
                 * bh::int(0x8000),
@@ -61,8 +61,8 @@ pub fn fill_engine_tables(race: &crate::race::owner::Race) {
     let course = &race.course;
     // The root tables.
     for n in 0..0x100usize {
-        let root = bh::st((bh::int(n as i32 + 0x100) / bh::ld(course.numbers.k256.bits())).sqrt());
-        course.lists.root_table[n].set_bits(root);
+        let root = bh::stf((bh::int(n as i32 + 0x100) / bh::ld(course.numbers.k256.get())).sqrt());
+        course.lists.root_table[n].set(root);
     }
     for n in 0..0x100usize {
         course.lists.exponent_root_table[n].set(x87::sqrt((n as u32) << 23));
@@ -93,7 +93,7 @@ pub fn fill_engine_tables(race: &crate::race::owner::Race) {
     course.lists.face_key_factors[0].set(1.0f32);
     // The sines.
     for n in 0..SINES {
-        crate::scene::engine_tables_store::ENGINE_TABLES.sines[n].set_bits(bh::st(
+        crate::scene::engine_tables_store::ENGINE_TABLES.sines[n].set(bh::stf(
             (bh::int(n as i32).times_pi() / bh::int(0x800)).sin(),
         ));
     }

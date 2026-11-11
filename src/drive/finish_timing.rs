@@ -12,7 +12,7 @@
 use crate::math::x87::loaded;
 use crate::math::x87_float::int;
 use crate::math::x87_float::ld;
-use crate::math::x87_float::st;
+use crate::math::x87_float::stf;
 use crate::physics::flow::c0;
 use crate::race::effects_settings_store::EFFECTS_SETTINGS;
 use crate::race::owner::Race;
@@ -24,39 +24,39 @@ fn time(race: &Race) {
     race.replay
         .finish
         .time
-        .set_bits(st(int(scene().drawing.scene.scratch.get() as i32)
-            / ld(race.course.numbers.thousand.bits())));
+        .set(stf(int(scene().drawing.scene.scratch.get() as i32)
+            / ld(race.course.numbers.thousand.get())));
 }
 
 /// The eased time between the two limits: t less ((t - a) / (b - a))^2 x ((b - a) x half).
 fn eased_middle(race: &Race) {
-    let q = (ld(race.replay.finish.time.bits()) - ld(race.replay.finish.limit_a.bits()))
-        / (ld(race.replay.finish.limit_b.bits()) - ld(race.replay.finish.limit_a.bits()));
+    let q = (ld(race.replay.finish.time.get()) - ld(race.replay.finish.limit_a.get()))
+        / (ld(race.replay.finish.limit_b.get()) - ld(race.replay.finish.limit_a.get()));
     let square = q * q;
-    let span = (ld(race.replay.finish.limit_b.bits()) - ld(race.replay.finish.limit_a.bits()))
-        * ld(race.course.numbers.half.bits());
+    let span = (ld(race.replay.finish.limit_b.get()) - ld(race.replay.finish.limit_a.get()))
+        * ld(race.course.numbers.half.get());
     let product = square * span;
     race.replay
         .finish
         .eased
-        .set_bits(st(-product + ld(race.replay.finish.time.bits())));
+        .set(stf(-product + ld(race.replay.finish.time.get())));
 }
 
 /// The eased time past the second limit: a + (b - a) x half.
 fn eased_end(race: &Race) {
-    let span = (ld(race.replay.finish.limit_b.bits()) - ld(race.replay.finish.limit_a.bits()))
-        * ld(race.course.numbers.half.bits());
+    let span = (ld(race.replay.finish.limit_b.get()) - ld(race.replay.finish.limit_a.get()))
+        * ld(race.course.numbers.half.get());
     race.replay
         .finish
         .eased
-        .set_bits(st(span + ld(race.replay.finish.limit_a.bits())));
+        .set(stf(span + ld(race.replay.finish.limit_a.get())));
 }
 
 /// The share between the last two limits: (t - c) / (d - c).
 fn share(replay: &Replay) {
-    let q = (ld(replay.finish.time.bits()) - ld(replay.finish.limit_c.bits()))
-        / (ld(replay.finish.limit_d.bits()) - ld(replay.finish.limit_c.bits()));
-    replay.finish.share.set_bits(st(q));
+    let q = (ld(replay.finish.time.get()) - ld(replay.finish.limit_c.get()))
+        / (ld(replay.finish.limit_d.get()) - ld(replay.finish.limit_c.get()));
+    replay.finish.share.set(stf(q));
 }
 
 /// The core from the clock's reading `now` (already in `g_sceneClock`).
@@ -65,21 +65,18 @@ pub fn timing_from(race: &Race, now: u32, scene: &crate::scene::owner::Scene) {
     let since = now.wrapping_sub(replay.finish.start_clock.get());
     scene.drawing.scene.scratch.set(since);
     time(race);
-    if c0(replay.finish.time.bits(), replay.finish.limit_a.bits()) {
-        replay
-            .finish
-            .eased
-            .set_bits(loaded(&replay.finish.time).to_bits());
-    } else if c0(replay.finish.time.bits(), replay.finish.limit_b.bits()) {
+    if c0(replay.finish.time.get(), replay.finish.limit_a.get()) {
+        replay.finish.eased.set(loaded(&replay.finish.time));
+    } else if c0(replay.finish.time.get(), replay.finish.limit_b.get()) {
         eased_middle(race);
     } else {
         eased_end(race);
     }
-    replay.finish.share.set_bits(0);
-    let late = !c0(replay.finish.time.bits(), replay.finish.limit_c.bits());
+    replay.finish.share.set(0.0);
+    let late = !c0(replay.finish.time.get(), replay.finish.limit_c.get());
     if race.shared.state.results.finished.get() != 0 && late {
-        replay.finish.share.set_bits(0x3F80_0000);
-        if c0(replay.finish.time.bits(), replay.finish.limit_d.bits()) {
+        replay.finish.share.set(1.0);
+        if c0(replay.finish.time.get(), replay.finish.limit_d.get()) {
             share(&race.replay);
         }
     }

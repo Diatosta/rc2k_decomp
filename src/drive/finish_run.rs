@@ -23,7 +23,7 @@ use crate::race::owner::Race;
 /// race block at `rc`.
 fn lift_car(race: &Race) {
     CAR_BLOCKS.cars[0].position[1].set(to_int(
-        ld(race.replay.finish.car_lift.bits()) * ld(race.course.numbers.k65536.bits())
+        ld(race.replay.finish.car_lift.get()) * ld(race.course.numbers.k65536.get())
             + int(CAR_BLOCKS.cars[0].position[1].get() as i32),
     ) as u32);
 }
@@ -62,8 +62,8 @@ pub fn finish_run(
             return Err(BadInput("a finish length past the table's two").into());
         }
         if !c0(
-            race.replay.finish.time.bits(),
-            race.replay.finish.finish_lengths[n as usize].bits(),
+            race.replay.finish.time.get(),
+            race.replay.finish.finish_lengths[n as usize].get(),
         ) {
             break;
         }

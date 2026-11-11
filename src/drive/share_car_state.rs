@@ -151,8 +151,8 @@ pub fn share_car_state_at(
     }
     o.gear_notice.set(p.gear_notice.get());
     p.gear_notice.set(0);
-    let from = race.shared.view.level_from.bits();
-    let step = race.course.numbers.four.bits();
+    let from = race.shared.view.level_from.get();
+    let step = race.course.numbers.four.get();
     for (level, field) in o.levels.iter().zip([0x2B4, 0x2B8]) {
         level.set(0);
         if compare_full(at(car, field)?, from) & 0x100 == 0 {
@@ -177,15 +177,15 @@ pub fn share_car_state_at(
     for (records, first) in QUADS {
         let (a, bb, c) = (
             first(car).bits(),
-            car.local_velocity[0].bits(),
-            car.local_velocity[2].bits(),
+            car.local_velocity[0].get(),
+            car.local_velocity[2].get(),
         );
         for wheel in records {
             let w = &o.records[wheel];
             w.driven_speed.set_bits(a);
-            w.local_velocity_x.set_bits(bb);
+            w.local_velocity_x.set(bb);
             w.local_velocity_y.set(0);
-            w.local_velocity_z.set_bits(c);
+            w.local_velocity_z.set(c);
         }
     }
     for (k, r) in WHEELS.into_iter().enumerate() {
