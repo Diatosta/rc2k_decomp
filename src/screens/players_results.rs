@@ -131,7 +131,6 @@ pub fn draw_players_results(
         for (row, (p, speed)) in players.iter().zip(speeds).enumerate() {
             rows.push(Row {
                 name: crate::screens::game_screen::player_name_of(
-                    menus,
                     crate::menu::player_names::name_of(&p.get())?,
                 ),
                 nation: p.get().nationality,

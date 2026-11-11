@@ -71,6 +71,14 @@ impl<const N: usize> From<&'static PlainBytes<N>> for BytePlace {
     }
 }
 
+/// A table of dwords read as bytes (the replay viewer's list, which the list menu code reads
+/// as a header and items).
+impl<const N: usize> From<&'static [crate::session::Dword; N]> for BytePlace {
+    fn from(cells: &'static [crate::session::Dword; N]) -> Self {
+        BytePlace::At(GamePtr::to(cells))
+    }
+}
+
 const PAST: BadInput = BadInput("past the end of a buffer");
 
 impl BytePlace {

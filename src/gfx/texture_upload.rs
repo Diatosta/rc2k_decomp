@@ -469,14 +469,14 @@ pub fn halvings_apart(
 /// copied `KEPT` bytes on, or, if there is none or it cannot be read, +0x5C made 0.
 pub fn keep_second_picture(
     record: &Record,
-    path: Option<crate::pointers::GamePtr>,
+    path: Option<&dyn crate::session::TextPlace>,
 ) -> Result<(), Refused> {
     if !record.keeps_alpha() {
         return Ok(());
     }
     let kept = match path {
         None => None,
-        Some(path) => match { read_texture_picture(path) }? {
+        Some(path) => match read_texture_picture(Some(path))? {
             (_, _, _, true) => None,
             found => Some(found),
         },

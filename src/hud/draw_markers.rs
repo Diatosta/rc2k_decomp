@@ -9,7 +9,7 @@
 
 use crate::errors::Refused;
 use crate::hud::owner::{Hud, Pen};
-use crate::hud::store::rect_place;
+use crate::hud::store::RectAt;
 use crate::race::owner_frame::Frame;
 use rc2k_core::hud::quads;
 use rc2k_core::math::extended::{from_f64, to_f64};
@@ -47,7 +47,7 @@ pub fn draw_markers(frame: &Frame, hud: &Hud, pen: Pen, rows: [u32; 2]) -> Resul
                 hud.block.marker_k[1].get(),
             );
             hud.block.fistp_scratch.set(x);
-            let rect = rect_place(hud, RECT);
+            let rect = RectAt::number(RECT);
             hud.block.fistp_scratch.set(0x78u32);
             let st1 = int_over_80(0x78, k);
             hud.block.fistp_scratch.set(0x100u32);

@@ -27,8 +27,8 @@ pub fn draw_viewer_item(replay: &Replay, item: &[Dword; 4], index: u32) -> Resul
     let byte = |n: u32| (item[0].get() >> (8 * n)) as u8;
     // Converted: `rc2k_core::race::viewer::{switch_byte, centred, item_colour}`.
     use rc2k_core::race::viewer::{centred, item_colour, switch_byte};
-    let picture = match ReplayViewBlock::item_picture(index)? {
-        ViewerPicture::Rectangle(picture) => picture,
+    let uv = match ReplayViewBlock::item_picture(index)? {
+        ViewerPicture::Rectangle(ida) => VIEWER_PANEL.rectangle(ida)?,
         ViewerPicture::Switch(0) => {
             let n = camera_byte(replay, switch_byte(byte(1)) as usize)?;
             VIEWER_PANEL.switch_picture(0, n)?
@@ -36,7 +36,6 @@ pub fn draw_viewer_item(replay: &Replay, item: &[Dword; 4], index: u32) -> Resul
         ViewerPicture::Switch(1) => VIEWER_PANEL.switch_picture(1, camera_byte(replay, 5)?)?,
         ViewerPicture::Switch(_) => VIEWER_PANEL.switch_picture(2, camera_byte(replay, 4)?)?,
     };
-    let uv: [u32; 4] = picture.read("a viewer item's picture")?;
     let place: [u32; 4] = ReplayViewBlock::item_place(index)?.read("a viewer item's place")?;
     let width = (uv[2] as i32).unsigned_abs();
     VIEWER_PANEL.item_place[2].set(width); // ViewerAndKinds.viewer_panel.item_place[0]: the quad's place

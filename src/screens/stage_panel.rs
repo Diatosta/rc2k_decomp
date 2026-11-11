@@ -101,7 +101,7 @@ pub fn draw_stage_body_in(
         // follows it (`trakpak_entry::Track`), and every field here may be reached so.
         let entry = record_entry(record)?;
         let fault = crate::menu::event_flow::Fault::default();
-        let f = |o: u32| fault.read_at::<u32>(entry.offset(o), "a stage record");
+        let f = |o: u32| fault.ok(crate::records::trakpak_entry::run_on(entry + o as usize));
         let made = Entry {
             // `MENU_LISTS.durations` (the stage durations) has 37 entries; the original's index
             // has no bound (fixed: refused).

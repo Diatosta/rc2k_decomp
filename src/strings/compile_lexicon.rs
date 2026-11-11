@@ -194,8 +194,7 @@ pub fn compile_lexicon() -> Result<(), Refused> {
             .lexicon
             .empty_message
             .set_u32(12, compiled.index_size);
-        crate::strings::string_table::lexicon_room()
-            .write_bytes(&compiled.table, "the lexicon's memory")?;
+        crate::strings::string_table::write_lexicon(&compiled.table)?;
         crate::strings::string_table::publish()?;
 
         if level() as i32 >= 3 {

@@ -207,8 +207,8 @@ pub fn loadlevel_init(
     s.indent(3);
     crate::race::game_map::load_game_map(
         &race.frame,
-        scene.file_numbers.text_ptr(texts::MAP_PATH),
-        scene.file_numbers.text_ptr(texts::MAP_KEY),
+        &scene.file_numbers.text_at(texts::MAP_PATH),
+        &scene.file_numbers.text_at(texts::MAP_KEY),
         system,
     )?;
     s.progress(0x5A)?;

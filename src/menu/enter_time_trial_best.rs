@@ -43,7 +43,7 @@ pub fn enter_time_trial_best(menus: &Menus) -> Result<(), Refused> {
         name_at: name,
         car: p.get().car_number,
         group: p.get().class,
-        name: name_of(menus, &p.get())?,
+        name: name_of(&p.get())?,
         entered: None,
         seal: Some(bests::Seal { cheats, sealed }),
         line: Some(p.get().best_line),

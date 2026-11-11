@@ -184,7 +184,7 @@ pub fn install_files(install: &'static crate::install::owner::Install) -> Result
     if !i::write_record::write_record(install)? {
         return message(&error_messages(install), 0);
     }
-    if crate::install::installer::rb(crate::files::state::locale_directory_place()) != 0 {
+    if crate::files::state::directory_byte(1) != 0 {
         // readme.txt then manual.pdf
         for (full, base) in [
             (

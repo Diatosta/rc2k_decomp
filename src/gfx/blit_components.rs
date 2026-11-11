@@ -37,7 +37,7 @@ pub fn game_target(gfx: &crate::gfx::owner::Gfx) -> Result<Target, BadInput> {
 /// picture's row bytes.
 #[derive(Clone, Copy, Debug)]
 pub struct Piece {
-    pub rectangle: crate::pointers::GamePtr,
+    pub rectangle: [u32; 4],
     pub x: u32,
     pub y: u32,
     pub pixels: u32,
@@ -47,13 +47,10 @@ pub struct Piece {
 /// Whether there is something to blit: a piece with a rectangle of some width and height,
 /// a picture, a surface and its format.
 fn something(p: &Piece, to: &Target) -> bool {
-    if p.rectangle.is_null() || p.pixels == 0 || to.rows.is_null() || to.format == 0 {
+    if p.pixels == 0 || to.rows.is_null() || to.format == 0 {
         return false;
     }
-    let [_, _, width, height]: [u32; 4] = p
-        .rectangle
-        .read("a blit's rectangle")
-        .unwrap_or_else(|e| crate::fatal::raise::end("a blit's rectangle", e));
+    let [_, _, width, height] = p.rectangle;
     width != 0 && height != 0
 }
 
@@ -61,7 +58,7 @@ pub fn blit_components(formats: &Formats, p: &Piece, to: &Target) -> Result<(), 
     if !something(p, to) {
         return Err(BadInput("a piece of nothing, or no surface, format, piece or picture").into());
     }
-    let [x, y, width, height] = p.rectangle.read::<[u32; 4]>("a piece's rectangle")?;
+    let [x, y, width, height] = p.rectangle;
     let format = crate::gfx::pixel_format::layout(to.format)?;
     // The picture's bytes from its buffer (`gfx::picture`; `pixels` names it).
     let mut source = (y.wrapping_mul(p.row_bytes) as usize).wrapping_add(x as usize * 4);

@@ -12,14 +12,15 @@ use crate::race::owner_frame::Frame;
 use crate::race::trap::Trap;
 use crate::scene::file_numbers_store::texts;
 use crate::scene::owner::scene;
+use crate::session::TextPlace;
 
 const FIRST_PART: u32 = 0xF0_0000;
 const INFO_PART: u32 = 0x40_0000;
 /// The path strings the course's number is written into: the tens' and the units' places.
-pub fn number_places(scene: &crate::scene::owner::Scene) -> [crate::place::BytePlace; 9] {
-    let file_numbers = &scene.file_numbers;
+pub fn number_places(
+    p: &'static crate::race::level_paths_store::LevelPaths,
+) -> [crate::place::BytePlace; 6] {
     use crate::place::BytePlace;
-    let p = &race().course.level_paths;
     [
         BytePlace::from(&p.edit_path).add(0xD),
         BytePlace::from(&p.cdat_src).add(0xD),
@@ -27,9 +28,6 @@ pub fn number_places(scene: &crate::scene::owner::Scene) -> [crate::place::ByteP
         BytePlace::from(&p.cdat_src_copy).add(0xD),
         BytePlace::from(&p.localdat_src).add(0xD),
         BytePlace::from(&p.localdat_files).add(0x12),
-        file_numbers.text_ptr(texts::NUMBER_PLACE_A).into(),
-        file_numbers.text_ptr(texts::NUMBER_PLACE_B).into(),
-        file_numbers.text_ptr(texts::NUMBER_PLACE_C).into(),
     ]
 }
 const TEXTURES: u32 = 0x100;
@@ -141,7 +139,7 @@ pub fn load_texture_info(course: &Course) -> Result<(), Refused> {
         return Err(BadInput("no course memory: the original reads into 0").into());
     }
     let read = |texts_at: usize, offset: u32, count: u32| {
-        let path = crate::files::cstring_at(file_numbers.text_ptr(texts_at), "a course info path")?;
+        let path = file_numbers.text_at(texts_at).text("a course info path")?;
         crate::race::course_places::read_file_into_info(&path, offset, count)
     };
     read(texts::TEXTURE_INFO_A, 0, 0x1F_4000)?;
@@ -157,8 +155,19 @@ pub fn load_texture_info(course: &Course) -> Result<(), Refused> {
 pub fn set_course_number(eax: u32, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::stage::two_digits`.
     let [tens, units] = rc2k_core::race::stage::two_digits(eax as u8);
-    for place in number_places(scene) {
+    for place in number_places(&race().course.level_paths) {
         place.write(&[tens, units], "a path's course number")?;
+    }
+    for text in [
+        texts::NUMBER_PLACE_A,
+        texts::NUMBER_PLACE_B,
+        texts::NUMBER_PLACE_C,
+    ] {
+        scene.file_numbers.text_at(text).write_text_at(
+            0,
+            &[tens, units],
+            "a path's course number",
+        )?;
     }
     Ok(())
 }
@@ -167,10 +176,10 @@ pub fn set_course_number(eax: u32, scene: &crate::scene::owner::Scene) -> Result
 /// 0x637660.
 pub fn load_error_list(frame: &Frame) -> Result<(), Refused> {
     crate::files::read_whole_file::read_whole_file_bytes(
-        &crate::files::cstring_at(
-            scene().file_numbers.text_ptr(texts::ERROR_LIST_PATH),
-            "the error list's path",
-        )?,
+        &scene()
+            .file_numbers
+            .text_at(texts::ERROR_LIST_PATH)
+            .text("the error list's path")?,
         &frame.error_list.list,
     )?;
     Ok(())

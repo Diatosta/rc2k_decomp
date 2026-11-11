@@ -31,13 +31,36 @@ pub fn name_of(player: &rc2k_core::menu::player::Player) -> Result<usize, crate:
         .ok_or(crate::errors::BadInput("a player without a name"))
 }
 
-/// Player `player`'s name as a pointer bounded by the names' store (the original runs on
-/// past a name that lacks its end).
-pub fn name_ptr(menus: &Menus, player: usize) -> crate::pointers::GamePtr {
-    crate::pointers::GamePtr::to(&menus.play.names).offset(
-        (std::mem::offset_of!(crate::menu::names_store::Names, player_names) + player * NAME_LEN)
-            as u32,
-    )
+/// A place in the names' area (the four names, then what follows them): a name's start, or
+/// a byte on in it. Reads run to the area's end, as the original runs on past a name that
+/// lacks its end.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct NameAt(usize);
+
+impl NameAt {
+    /// Player `player`'s name.
+    pub fn of(player: usize) -> Self {
+        Self(player * NAME_LEN)
+    }
+
+    /// `n` bytes on.
+    pub fn add(self, n: u32) -> Self {
+        Self(self.0.wrapping_add(n as usize))
+    }
+
+    /// The bytes from here to the end of the area (none past it).
+    pub fn tail(self) -> Vec<u8> {
+        let names = &crate::menu::owner::menus().play.names;
+        (self.0..crate::place::Run::len(names))
+            .map(|n| crate::place::Run::get(names, n))
+            .collect()
+    }
+}
+
+impl From<NameAt> for crate::place::BytePlace {
+    fn from(at: NameAt) -> Self {
+        crate::place::BytePlace::In(&crate::menu::owner::menus().play.names, at.0)
+    }
 }
 
 /// Player `player`'s name replaced.

@@ -35,6 +35,8 @@ fn check_object(race: &crate::race::owner::Race, object: u32) -> Result<(), Refu
 pub enum Description<'a> {
     At(GamePtr),
     Cells(&'a [crate::session::Dword]),
+    /// A matrix's floats, read as the bytes they are.
+    Floats(&'a [crate::session::Float]),
 }
 
 impl From<GamePtr> for Description<'_> {
@@ -44,21 +46,33 @@ impl From<GamePtr> for Description<'_> {
 }
 
 impl Description<'_> {
+    /// The first `len` bytes of the words, or the refusal `past` when they are fewer.
+    fn from_words(
+        words: impl Iterator<Item = u32>,
+        len: usize,
+        past: &'static str,
+    ) -> Result<Vec<u8>, BadInput> {
+        let bytes: Vec<u8> = words
+            .take(len.div_ceil(4))
+            .flat_map(u32::to_le_bytes)
+            .collect();
+        bytes.get(..len).map(<[u8]>::to_vec).ok_or(BadInput(past))
+    }
+
     /// The description's first `len` bytes.
     pub fn read_bytes(&self, len: usize) -> Result<Vec<u8>, BadInput> {
         match self {
             Description::At(at) => at.read_bytes(len, "a described object"),
-            Description::Cells(cells) => {
-                let bytes: Vec<u8> = cells
-                    .iter()
-                    .take(len.div_ceil(4))
-                    .flat_map(|c| c.get().to_le_bytes())
-                    .collect();
-                bytes
-                    .get(..len)
-                    .map(<[u8]>::to_vec)
-                    .ok_or(BadInput("a described object past the sort lists"))
-            }
+            Description::Cells(cells) => Self::from_words(
+                cells.iter().map(crate::session::Dword::get),
+                len,
+                "a described object past the sort lists",
+            ),
+            Description::Floats(cells) => Self::from_words(
+                cells.iter().map(crate::session::Float::bits),
+                len,
+                "a described object past its matrix",
+            ),
         }
     }
 }

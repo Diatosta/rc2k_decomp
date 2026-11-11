@@ -11,12 +11,13 @@ use crate::errors::Refused;
 use crate::gfx::read_texture_picture::read_texture_picture;
 use crate::gfx::texture_upload::{Record, keep_second_picture};
 use crate::gfx::upload_texture_picture::{GameSurfaces, upload_texture_picture};
+use crate::session::TextPlace;
 
 /// `upload` gets the texture and what the reading left: the pixels, the width and the
 /// height.
 pub fn load_picture_to_texture(
-    path: crate::pointers::GamePtr,
-    second: Option<crate::pointers::GamePtr>,
+    path: Option<&dyn TextPlace>,
+    second: Option<&dyn TextPlace>,
     texture: u32,
     upload: &mut dyn FnMut(u32, u32, u32, u32) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
@@ -28,8 +29,8 @@ pub fn load_picture_to_texture(
 
 /// With the Rust upload into the game's textures.
 pub fn load_picture_to_texture_in_game(
-    path: crate::pointers::GamePtr,
-    second: Option<crate::pointers::GamePtr>,
+    path: Option<&dyn TextPlace>,
+    second: Option<&dyn TextPlace>,
     texture: u32,
     gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {

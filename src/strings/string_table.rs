@@ -1,7 +1,6 @@
 //! The packed string table and the two string-pointer tables the string functions read.
 
 use crate::errors::BadInput;
-use crate::pointers::GamePtr;
 use rc2k_core::strings::table::StringTable;
 
 // `g_stringTable` (0x4E07D4), the packed table's address, is not kept: the original sets it
@@ -13,14 +12,22 @@ use rc2k_core::strings::table::StringTable;
 /// installer's languages and the credits.
 pub const MADE_TEXT_IDS: core::ops::Range<u32> = 0x1000..0x1040;
 
+/// Where a made text is: the variable holding it and the byte offset in it. The text runs
+/// on to its NUL inside that variable, which may be past the field it starts in.
+enum MadeText {
+    Notice(usize),
+    Buffers(usize),
+    DriveRows(usize),
+    Names(usize),
+    Vars(usize),
+}
+
 /// Where the made text of `id` is. An id off `MADE_TEXT_IDS` has no text.
-pub fn made_text(id: u32) -> Result<GamePtr, BadInput> {
-    use crate::install::owner::install;
+fn made_place(id: u32) -> Result<MadeText, BadInput> {
     use crate::install::store::{DriveRows, InstallVars};
     use crate::install::vars::InstallerNames;
     use crate::menu::build_notice::BuildNotice;
-    use crate::menu::owner::menus;
-    use crate::screens::text_buffers_store::{TEXT_BUFFERS, TextBuffers};
+    use crate::screens::text_buffers_store::TextBuffers;
     use core::mem::offset_of;
 
     /// Byte offsets from `credits_a` of the twelve texts in the installer's variables.
@@ -30,38 +37,67 @@ pub fn made_text(id: u32) -> Result<GamePtr, BadInput> {
     if !MADE_TEXT_IDS.contains(&id) {
         return Err(BadInput("a string id's text at no place"));
     }
-    let n = id - MADE_TEXT_IDS.start;
-    let at = |base: usize, step: u32, n: u32| base as u32 + step * n;
+    let n = (id - MADE_TEXT_IDS.start) as usize;
     Ok(match n {
-        0 => GamePtr::to(&menus().panels.notice).offset(0),
-        1 => GamePtr::to(&menus().panels.notice)
-            .offset(offset_of!(BuildNotice, notice_second) as u32),
-        2 => GamePtr::to(&menus().panels.notice)
-            .offset(offset_of!(BuildNotice, notice_second) as u32 + 0x36),
-        3..=6 => GamePtr::to(&*TEXT_BUFFERS).offset(at(
-            offset_of!(TextBuffers, stage_heading),
-            0x100,
-            n - 3,
-        )),
-        7..=16 => {
-            GamePtr::to(&*TEXT_BUFFERS).offset(at(offset_of!(TextBuffers, page_numbers), 4, n - 7))
-        }
-        17..=42 => GamePtr::to(&install().drive_rows).offset(at(
-            offset_of!(DriveRows, drive_rows),
-            0x10,
-            n - 17,
-        )),
-        43..=51 => GamePtr::to(&install().names).offset(at(
-            offset_of!(InstallerNames, languages),
-            0x80,
-            n - 43,
-        )),
-        _ => GamePtr::to(&install().vars).offset(at(
-            offset_of!(InstallVars, credits_a),
-            1,
-            CREDITS[(n - 52) as usize],
-        )),
+        0 => MadeText::Notice(0),
+        1 => MadeText::Notice(offset_of!(BuildNotice, notice_second)),
+        2 => MadeText::Notice(offset_of!(BuildNotice, notice_second) + 0x36),
+        3..=6 => MadeText::Buffers(offset_of!(TextBuffers, stage_heading) + 0x100 * (n - 3)),
+        7..=16 => MadeText::Buffers(offset_of!(TextBuffers, page_numbers) + 4 * (n - 7)),
+        17..=42 => MadeText::DriveRows(offset_of!(DriveRows, drive_rows) + 0x10 * (n - 17)),
+        43..=51 => MadeText::Names(offset_of!(InstallerNames, languages) + 0x80 * (n - 43)),
+        _ => MadeText::Vars(offset_of!(InstallVars, credits_a) + CREDITS[n - 52] as usize),
     })
+}
+
+/// The text of the made text `id`, up to its NUL (left out).
+pub fn made_text(id: u32) -> Result<Vec<u8>, BadInput> {
+    use crate::install::owner::install;
+    use crate::menu::owner::menus;
+    use crate::screens::text_buffers_store::TEXT_BUFFERS;
+
+    match made_place(id)? {
+        MadeText::Notice(at) => text_in(&menus().panels.notice, at),
+        MadeText::Buffers(at) => text_in(&*TEXT_BUFFERS, at),
+        MadeText::DriveRows(at) => text_in(&install().drive_rows, at),
+        MadeText::Names(at) => text_in(&install().names, at),
+        MadeText::Vars(at) => text_in(&install().vars, at),
+    }
+}
+
+/// The bytes of `holder` from `offset` to the first NUL (left out); the original reads on
+/// past the field the text starts in, so the whole variable is the limit.
+fn text_in<T: crate::pointers::Cells>(holder: &T, offset: usize) -> Result<Vec<u8>, BadInput> {
+    const CHUNK: usize = 16;
+    let mut text = Vec::new();
+    let mut at = offset;
+    while at < size_of::<T>() {
+        let mut chunk = [0u8; CHUNK];
+        let len = CHUNK.min(size_of::<T>() - at);
+        crate::pointers::load_cells(holder, at, &mut chunk[..len])?;
+        if let Some(end) = chunk[..len].iter().position(|&b| b == 0) {
+            text.extend_from_slice(&chunk[..end]);
+            return Ok(text);
+        }
+        text.extend_from_slice(&chunk[..len]);
+        at += len;
+    }
+    Err(BadInput("a string without its end in its block"))
+}
+
+/// The text in the driver names' block at byte `slot` (a driver name's slot value), up to its
+/// NUL (left out).
+pub fn driver_name_text(slot: u32) -> Result<Vec<u8>, BadInput> {
+    use crate::settings::read_driver_names::NAMES_SIZE;
+    let names = &crate::strings::owner::strings().drivers.names;
+    let mut text = Vec::new();
+    for at in slot as usize..NAMES_SIZE {
+        match names.get(at) {
+            0 => return Ok(text),
+            b => text.push(b),
+        }
+    }
+    Err(BadInput("a string without its end in its block"))
 }
 
 /// The offset in `drivers.names` of the name of driver-name id `id` (`POINTER_IDS`), 0 for
@@ -83,9 +119,14 @@ pub const LEXICON_ROOM: usize = rc2k_core::strings::lexicon::TABLE_ROOM;
 pub static LEXICON: crate::session::Bytes<LEXICON_ROOM> =
     crate::session::Bytes::new([0; LEXICON_ROOM]);
 
-/// The lexicon's room as a place bounded by it.
-pub fn lexicon_room() -> GamePtr {
-    GamePtr::to(&LEXICON)
+/// The lexicon's room, all of it.
+pub fn lexicon_bytes() -> Result<Vec<u8>, BadInput> {
+    LEXICON.read_at(0, LEXICON_ROOM, "the lexicon's room")
+}
+
+/// `table` written from the start of the lexicon's room.
+pub fn write_lexicon(table: &[u8]) -> Result<(), BadInput> {
+    LEXICON.write_at(0, table, "the lexicon's room")
 }
 
 /// The finished table as the core reads it: a copy of the lexicon's room, made once its bytes
@@ -96,8 +137,7 @@ static PUBLISHED: std::sync::RwLock<Option<&'static [u8]>> = std::sync::RwLock::
 /// Makes the room's bytes the table the game reads. Called at most twice, while the language
 /// loads (compiled, then corrected), so the copies kept for the program's life stay small.
 pub fn publish() -> Result<(), BadInput> {
-    let room = lexicon_room();
-    let copy = room.read_bytes(LEXICON_ROOM, "the lexicon's room")?;
+    let copy = lexicon_bytes()?;
     *PUBLISHED
         .write()
         .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(Vec::leak(copy));
@@ -130,12 +170,31 @@ mod tests {
         0x52A0F4,
     ];
 
+    /// The game address of the made text `id`.
+    fn address(id: u32) -> u32 {
+        use crate::pointers::GamePtr;
+        let (holder, at) = match made_place(id).unwrap() {
+            MadeText::Notice(at) => (GamePtr::to(&crate::menu::owner::menus().panels.notice), at),
+            MadeText::Buffers(at) => (
+                GamePtr::to(&*crate::screens::text_buffers_store::TEXT_BUFFERS),
+                at,
+            ),
+            MadeText::DriveRows(at) => (
+                GamePtr::to(&crate::install::owner::install().drive_rows),
+                at,
+            ),
+            MadeText::Names(at) => (GamePtr::to(&crate::install::owner::install().names), at),
+            MadeText::Vars(at) => (GamePtr::to(&crate::install::owner::install().vars), at),
+        };
+        holder.offset(at as u32).addr()
+    }
+
     #[test]
     fn made_texts_are_where_the_images_pointers_named() {
         for (n, &ida) in IMAGE_ADDRESSES.iter().enumerate() {
             let id = MADE_TEXT_IDS.start + n as u32;
             assert_eq!(
-                made_text(id).unwrap().addr(),
+                address(id),
                 crate::moved::named(ida).unwrap().addr(),
                 "{id:#X}"
             );
@@ -147,7 +206,7 @@ mod tests {
     #[test]
     fn caption_is_id_0x1004() {
         assert_eq!(
-            made_text(0x1004).unwrap().addr(),
+            address(0x1004),
             crate::screens::text_buffers_store::TEXT_BUFFERS
                 .caption
                 .addr()

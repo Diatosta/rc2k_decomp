@@ -54,7 +54,8 @@ impl ReplayViewBlock {
 /// kept the table's address).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ViewerPicture {
-    Rectangle(crate::pointers::GamePtr),
+    /// The rectangle's IDA address in the viewer panel.
+    Rectangle(usize),
     Switch(usize),
 }
 
@@ -66,7 +67,8 @@ impl ReplayViewBlock {
     /// IDA's ranges the list's names point into: the key table and place rectangles
     /// (untyped, the race block's bytes), and the panel with the pictures' rectangles.
     const RECTANGLES: core::ops::Range<usize> = 0x5C2714..0x5C291C;
-    const PANEL: core::ops::Range<usize> = 0x5C291C..0x5C2FE4;
+    const PANEL: core::ops::Range<usize> =
+        crate::race::viewer_screen_store::START..crate::race::viewer_screen_store::END;
 
     /// Where IDA's name `ida` is now, if it lies in `range` (phase 13: the list keeps IDA's
     /// addresses as names, and `moved::point_into_homes` passes them over).
@@ -118,11 +120,12 @@ impl ReplayViewBlock {
         if let Some(table) = switch {
             return Ok(ViewerPicture::Switch(table));
         }
-        Ok(ViewerPicture::Rectangle(Self::named(
-            ida,
-            Self::PANEL,
-            "a viewer item's picture off the panel",
-        )?))
+        if !Self::PANEL.contains(&(ida as usize)) {
+            return Err(crate::errors::BadInput(
+                "a viewer item's picture off the panel",
+            ));
+        }
+        Ok(ViewerPicture::Rectangle(ida as usize))
     }
 
     fn item_dword(index: u32, field: usize) -> Result<u32, crate::errors::BadInput> {
@@ -183,10 +186,7 @@ mod tests {
                 crate::moved::place(name(item + 4) as usize)
             );
             match ReplayViewBlock::item_picture(k).unwrap() {
-                ViewerPicture::Rectangle(picture) => assert_eq!(
-                    picture.addr() as usize,
-                    crate::moved::place(name(item + 0xC) as usize)
-                ),
+                ViewerPicture::Rectangle(ida) => assert_eq!(ida, name(item + 0xC) as usize),
                 ViewerPicture::Switch(table) => assert!(table < 3),
             }
         }

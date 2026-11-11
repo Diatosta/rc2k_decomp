@@ -217,7 +217,7 @@ impl PageLink {
 
     /// Where the thing of the installer pages the link names starts, as a byte offset in
     /// `InstallerPages`.
-    fn pages_offset(self) -> Option<usize> {
+    pub fn pages_offset(self) -> Option<usize> {
         use core::mem::offset_of;
         let number = self.number();
         match self.kind() {
@@ -244,12 +244,20 @@ impl PageLink {
         }
     }
 
-    /// The place of the box a link names.
-    pub fn box_place(self) -> Result<GamePtr, BadInput> {
-        match self.kind() {
-            BOX => self.in_pages(),
+    /// The byte offset in the pages of the box a link names.
+    pub fn box_offset(self) -> Result<usize, BadInput> {
+        match self.pages_offset() {
+            Some(offset) if self.kind() == BOX => Ok(offset),
             _ => Err(BadInput("a page link that is no box")),
         }
+    }
+
+    /// The pages' dword at the byte offset `at` (a table or text may run on inside them as the
+    /// original's does, but not out of them).
+    pub fn pages_dword(at: usize) -> Result<u32, BadInput> {
+        let mut bytes = [0; 4];
+        crate::pointers::load_cells(&crate::install::owner::install().pages, at, &mut bytes)?;
+        Ok(u32::from_le_bytes(bytes))
     }
 
     /// The list a link names, if it is a link to one of the pages' lists.
@@ -303,8 +311,8 @@ mod tests {
         let title_box = PageLink::of_ida(0x51DD98);
         assert_eq!(title_box, PageLink::box_at(1));
         assert_eq!(
-            title_box.box_place().unwrap().addr(),
-            GamePtr::to(&crate::install::owner::install().pages.boxes[1]).addr()
+            title_box.box_offset().unwrap(),
+            core::mem::offset_of!(InstallerPages, boxes) + 16
         );
         assert_eq!(
             PageLink::of_ida(0x51D5F8),
@@ -338,7 +346,7 @@ mod tests {
         assert!(PageLink::from_raw(0).in_pages().is_err());
         assert!(PageLink::of_ida(0x51E8A4).in_pages().is_err());
         assert!(PageLink::of_ida(0x51DD70).font().is_err());
-        assert!(PageLink::of_ida(0x51D5C0).box_place().is_err());
+        assert!(PageLink::of_ida(0x51D5C0).box_offset().is_err());
         assert!(
             PageLink::from_raw(TABLE << KIND_SHIFT | TABLE_LEN)
                 .in_pages()

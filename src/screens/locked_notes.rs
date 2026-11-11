@@ -38,13 +38,14 @@ pub fn note_locked_stage(menus: &Menus) -> Result<(), Refused> {
         menus.play.cheats.cheats.get(),
         menus.screens.loop_flags.item.get(),
         |index| {
-            fault.read_at::<u8>(
-                // Bounded to the arcade's store, not the six bytes: item 0 reads before them.
-                crate::pointers::GamePtr::to(&menus.play.arcade)
-                    .offset(core::mem::offset_of!(Arcade, levels_won) as u32)
-                    .offset(index),
-                "a stage\'s lock",
+            // Bounded to the arcade's store, not the six bytes: item 0 reads before them.
+            let at = (core::mem::offset_of!(Arcade, levels_won) as u32).wrapping_add(index);
+            fault.ok(crate::place::BytePlace::In(
+                &crate::menu::owner::menus().play.arcade,
+                at as usize,
             )
+            .read_array::<1>("a stage\'s lock")
+            .map(|[b]| b))
         },
     );
     fault.check()?;

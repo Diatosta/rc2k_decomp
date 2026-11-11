@@ -24,7 +24,7 @@ pub fn keep_stage_best(menus: &Menus) -> Result<(), Refused> {
         return Ok(());
     }
     name_player(&p.get())?;
-    let (row, name) = crate::menu::standings::as_holder(menus, &p.get())?;
+    let (row, name) = crate::menu::standings::as_holder(&p.get())?;
     record.record()?.set_holder(Holder::Second, &row, &name);
     Ok(())
 }

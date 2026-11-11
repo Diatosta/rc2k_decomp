@@ -8,6 +8,7 @@
 
 use crate::errors::BadInput;
 use crate::strings::same_text::case_table;
+use rc2k_core::strings::bytes::Bytes;
 
 /// 1 = the case is kept (`dword_4E0144` in IDA,
 /// 1 at the start). `input::joystick_found` sets it to 0 for a while.
@@ -28,35 +29,24 @@ pub fn printable_from(text: &[u8], room: u32) -> Result<Vec<u8>, BadInput> {
         .ok_or(BadInput("no room for a name: the original runs on"))
 }
 
-/// What is written, with its NUL (converted: `rc2k_core::strings::case::CaseTable::printable`).
-#[track_caller]
-pub fn printable(text: crate::pointers::GamePtr, room: u32) -> Result<Vec<u8>, BadInput> {
+/// What is written for the text `text`, with its NUL (converted:
+/// `rc2k_core::strings::case::CaseTable::printable`). Reads as far as the original: room - 1
+/// characters or the NUL; a text that ends first is refused.
+pub fn printable(text: &impl Bytes, room: u32) -> Result<Vec<u8>, BadInput> {
     let mut looked_at = Vec::new();
-    if !text.is_null() {
-        // As far as the original reads: room - 1 characters or the NUL.
-        for n in 0..(room as usize).saturating_sub(1) {
-            let c = text.offset(n as u32).read::<u8>("a name to copy")?;
-            if c == 0 {
-                break;
-            }
-            looked_at.push(c);
+    for n in 0..(room as usize).saturating_sub(1) {
+        let c = text
+            .byte(n)
+            .ok_or(BadInput("a name to copy without its end in its block"))?;
+        if c == 0 {
+            break;
         }
+        looked_at.push(c);
     }
     let keep_case = KEEP_CASE.get() == 1;
     case_table()
         .printable(&looked_at, room as usize, keep_case)
         .ok_or(BadInput("no room for a name: the original runs on"))
-}
-
-#[track_caller]
-pub fn copy_printable(
-    text: crate::pointers::GamePtr,
-    to: crate::pointers::GamePtr,
-    room: u32,
-) -> Result<(), BadInput> {
-    let bytes = printable(text, room)?;
-    to.write_bytes(&bytes, "a printable name")?;
-    Ok(())
 }
 
 #[cfg(test)]

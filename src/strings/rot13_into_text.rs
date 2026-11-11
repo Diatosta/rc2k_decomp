@@ -7,7 +7,6 @@
 //! first and put back.
 
 use crate::errors::BadInput;
-use crate::pointers::GamePtr;
 use crate::strings::owner::strings;
 use crate::strings::text_from_ids::TEXT_LEN;
 use rc2k_core::strings::bytes::Bytes;
@@ -18,8 +17,7 @@ pub fn rot13(b: u8) -> u8 {
 }
 
 /// The coded text with its NUL, also left in the text buffer.
-pub fn rot13_into_text(from: GamePtr) -> Result<Vec<u8>, BadInput> {
-    let source = from.bytes("a text to code")?;
+pub fn rot13_into_text(source: &impl Bytes) -> Result<Vec<u8>, BadInput> {
     let mut coded = Vec::new();
     loop {
         let b = source

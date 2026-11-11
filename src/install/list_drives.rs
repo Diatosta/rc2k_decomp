@@ -12,7 +12,7 @@
 //! Caller `install::run_installer`. Its two probes: `files::drive_type`,
 //! `files::drive_free_space_kb`.
 
-use crate::install::installer::{wb, wd};
+use crate::install::installer::wb;
 use crate::install::page_links::{ListId, PageLink};
 use rc2k_core::install::drives::{self, DriveMenu};
 
@@ -20,7 +20,8 @@ use rc2k_core::install::drives::{self, DriveMenu};
 const DRIVE_ENTRY: usize = 25;
 
 pub fn list_drives(install: &'static crate::install::owner::Install) {
-    let drives = crate::place::BytePlace::from(crate::pointers::GamePtr::to(&install.run.drives));
+    // Per letter from 'a', a pair of dwords: how often it was found and its free space.
+    let drives = &install.run.drives;
     let mut letter = install.run.first_drive.get();
     loop {
         // Converted: `rc2k_core::install::drives` (`offered`, `LISTED`, `free`, `text`,
@@ -29,9 +30,10 @@ pub fn list_drives(install: &'static crate::install::owner::Install) {
         if drives::offered(kind)
             && let Some(free) = crate::files::drive_free_space_kb::drive_free_space_kb(letter)
         {
-            let slot = drives.add(8u32.wrapping_mul(letter.wrapping_sub(b'a' as u32)));
-            wd(slot, g_at(slot).wrapping_add(1));
-            wd(slot.add(4), free);
+            // The first letter is 'a' or 'c', the last 'z': inside the 26 pairs.
+            let slot = 2 * (letter - b'a' as u32) as usize;
+            drives[slot].set(drives[slot].get().wrapping_add(1));
+            drives[slot + 1].set(free);
         }
         letter = letter.wrapping_add(1);
         if letter > b'z' as u32 {
@@ -42,8 +44,8 @@ pub fn list_drives(install: &'static crate::install::owner::Install) {
     let mut ebx = crate::place::BytePlace::from(&install.drive_rows.drive_rows);
     // 'a' .. 'y': the loop's bound leaves 'z' out (the game's slip, section 16)
     for letter in drives::LISTED {
-        let slot = drives.add(8 * (letter - b'a') as u32);
-        if g_at(slot) == 0 {
+        let slot = 2 * (letter - b'a') as usize;
+        if drives[slot].get() == 0 {
             continue;
         }
         install
@@ -52,7 +54,7 @@ pub fn list_drives(install: &'static crate::install::owner::Install) {
             .set(install.run.drive_count.get() + 1);
         let row = ebx;
         wb(row, letter);
-        let free = drives::free(g_at(slot.add(4)));
+        let free = drives::free(drives[slot + 1].get());
         let mut unit = Vec::new();
         crate::menu::event_flow::refuse_here(
             crate::strings::append_string_by_id::append_string_by_id(free.unit, &mut |bytes| {
@@ -75,8 +77,4 @@ pub fn list_drives(install: &'static crate::install::owner::Install) {
     // The drive page's entry links to the menu (`page_links::PageLink`).
     install.pages.page_table[DRIVE_ENTRY].set(PageLink::list(list).raw());
     crate::menu::list_handle::ListMenu::installer(list).set_count(drives::items(count));
-}
-
-fn g_at(at: crate::place::BytePlace) -> u32 {
-    crate::install::installer::rd(at)
 }

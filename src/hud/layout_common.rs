@@ -5,7 +5,7 @@
 use crate::errors::Refused;
 use crate::hud::draw_markers::{int_over_80, taken_off};
 use crate::hud::owner::{Hud, Pen};
-use crate::hud::store::{rect_place, texture};
+use crate::hud::store::{RectAt, texture};
 use crate::race::owner_frame::Frame;
 use rc2k_core::hud::panels;
 
@@ -28,7 +28,7 @@ pub fn sprite(
     x: u32,
     y: u32,
 ) -> Result<(), Refused> {
-    crate::hud::add_sprite::add_sprite(frame, hud, pen, x, y, rect_place(hud, rect))
+    crate::hud::add_sprite::add_sprite(frame, hud, pen, x, y, RectAt::number(rect))
 }
 
 /// The sign of a time into `sign`: `plus` or `minus`.
@@ -106,7 +106,7 @@ pub fn scaled(
     x: u32,
     y: u32,
 ) -> Result<(), Refused> {
-    let at = rect_place(hud, rect);
+    let at = RectAt::number(rect);
     let k = hud.block.uv_scale_x.bits();
     hud.block.fistp_scratch.set(0xC0);
     let v = int_over_80(0xC0, k);

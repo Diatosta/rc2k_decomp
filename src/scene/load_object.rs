@@ -37,6 +37,7 @@ use crate::scene::measure_object::measure_object;
 use crate::scene::objects::{FACES, SLOTS};
 use crate::scene::owner::scene;
 use crate::scene::set_object_file_names::set_object_file_names;
+use crate::session::TextPlace;
 
 // ---- game data ----
 
@@ -166,16 +167,14 @@ pub fn load_object(
     // The file read is the `.ro3` one, whatever the name's last character was.
     scene
         .file_numbers
-        .text_ptr(name as usize + 7)
-        .write(b'3', "an object's file name")?;
+        .text_at(name as usize + 7)
+        .write_text_at(0, b"3", "an object's file name")?;
     BYTES_READ.set(0);
     read_whole_file_bytes(
-        &crate::files::cstring_at(
-            scene
-                .file_numbers
-                .text_ptr(scene.file_numbers.object_ro3_path.get() as usize),
-            "an object's file path",
-        )?,
+        &scene
+            .file_numbers
+            .text_at(scene.file_numbers.object_ro3_path.get() as usize)
+            .text("an object's file path")?,
         crate::scene::objects::file(),
     )?;
     if BYTES_READ.get() == 0 {
@@ -183,8 +182,8 @@ pub fn load_object(
     }
     scene
         .file_numbers
-        .text_ptr(name as usize + 7)
-        .write(b'3', "an object's file name")?;
+        .text_at(name as usize + 7)
+        .write_text_at(0, b"3", "an object's file name")?;
     if slot <= 0x40 {
         list_object_textures(scene)?;
     }

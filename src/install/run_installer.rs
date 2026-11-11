@@ -31,15 +31,12 @@ pub fn run_installer(install: &'static crate::install::owner::Install) -> Result
     // (0x95EBFA, past the drive's `c:`); a Unix path has no drive, so the item shows it
     // whole.
     #[cfg(unix)]
-    crate::install::installer::wd(
-        // 0x51DBD0.
-        crate::place::BytePlace::from(crate::pointers::GamePtr::to(
-            &install.pages.folder_menu.items[1].target,
-        )),
+    install.pages.folder_menu.items[1]
+        .target
         // A link to `InstallerPaths::typed` from its first byte.
-        crate::install::page_links::PageLink::of_ida(0x95EBF8).raw(),
-    );
-    crate::install::installer::wb(crate::files::state::base_directory_place(), 0);
+        .set(crate::install::page_links::PageLink::of_ida(0x95EBF8).raw());
+
+    crate::files::state::set_directory_byte(0, 0);
     i::read_languages::read_languages(install, &install.names.lang_cfg.text()[..])?;
     { crate::gfx::build_fonts::build_fonts(gfx) }?;
     i::open_installer::open_installer(install)?;
@@ -80,7 +77,7 @@ pub fn run_installer(install: &'static crate::install::owner::Install) -> Result
             install.pages.main_menu.header.highlight.set(1);
             set_cd(&install.paths.installed);
             i::read_record::read_record(&install.texts.record_path.text()[..])?;
-            crate::install::installer::wb(crate::files::state::base_directory_place(), 0);
+            crate::files::state::set_directory_byte(0, 0);
             set_cd(&install.paths.game_dir);
             load_language()?;
         }

@@ -9,12 +9,14 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::read_picture_file::read_picture_file;
-use crate::pointers::GamePtr;
+use crate::session::TextPlace;
 use rc2k_core::gfx::picture_size as sizes;
 
 /// Returns the pixels (a picture buffer's number, `gfx::picture`), their
-/// width and height, and whether the reading failed.
-pub fn read_texture_picture(path: GamePtr) -> Result<(u32, u32, u32, bool), Refused> {
+/// width and height, and whether the reading failed. `path` is `None` for no picture to read.
+pub fn read_texture_picture(
+    path: Option<&dyn TextPlace>,
+) -> Result<(u32, u32, u32, bool), Refused> {
     let gfx = crate::gfx::owner::gfx();
     let pictures = &gfx.pictures;
     let buffer = pictures.picture.buffer.get();
@@ -27,17 +29,17 @@ pub fn read_texture_picture(path: GamePtr) -> Result<(u32, u32, u32, bool), Refu
         b.get_mut(..sizes::TEXTURE_FILLED * 4).map(|p| p.fill(0xFF))
     })?
     .ok_or(BadInput("a picture buffer shorter than a texture"))?;
-    let failed = if path.is_null() {
-        false
-    } else if read_picture_file(&path, gfx)? {
-        return Ok((
-            pictures.decoder.pixels.get(),
-            pictures.decoder.width.get(),
-            pictures.decoder.height.get(),
-            false,
-        ));
-    } else {
-        true
+    let failed = match path {
+        None => false,
+        Some(path) if read_picture_file(path, gfx)? => {
+            return Ok((
+                pictures.decoder.pixels.get(),
+                pictures.decoder.width.get(),
+                pictures.decoder.height.get(),
+                false,
+            ));
+        }
+        Some(_) => true,
     };
     Ok((
         buffer,

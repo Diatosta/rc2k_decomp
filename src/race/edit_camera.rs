@@ -42,7 +42,7 @@ pub fn step_camera(race: &Race, step: i8) -> Result<(), Refused> {
     if block == race.shared.replay_file.index_block_count.get() {
         return Ok(());
     }
-    let at = crate::race::viewer::camera_ptr(
+    let at = crate::race::viewer::camera_byte(
         0u32.wrapping_sub(1)
             .wrapping_add(
                 crate::race::viewer_buffers_store::VIEWER_BUFFERS

@@ -11,6 +11,7 @@
 //! character). One caller, `scene::load_object`.
 
 use crate::scene::file_numbers_store::texts;
+use crate::session::TextPlace;
 
 // ---- game data ----
 
@@ -39,14 +40,16 @@ pub fn set_object_file_names(
         scene.file_numbers.object_lwo_path.set(lwo as u32);
         scene.file_numbers.object_lwo_number.set(lwo_number);
         let digits = number_digits(scene.drawing.object_work.loading_kind.get());
-        scene
-            .file_numbers
-            .text_ptr(ro3 + number)
-            .write(digits, "the object's file number")?;
-        scene
-            .file_numbers
-            .text_ptr(lwo + number)
-            .write(digits, "the object's file number")?;
+        scene.file_numbers.text_at(ro3 + number).write_text_at(
+            0,
+            &digits,
+            "the object's file number",
+        )?;
+        scene.file_numbers.text_at(lwo + number).write_text_at(
+            0,
+            &digits,
+            "the object's file number",
+        )?;
         Ok(())
     }
 }

@@ -8,7 +8,7 @@
 
 use crate::errors::Refused;
 use crate::hud::owner::{Hud, Pen};
-use crate::hud::store::rect_place;
+use crate::hud::store::RectAt;
 use crate::race::owner_frame::Frame;
 use rc2k_core::hud::quads::marker_x;
 
@@ -26,6 +26,6 @@ pub fn draw_marker(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
             hud.block.marker_k[1].get(),
         );
         hud.block.fistp_scratch.set(x);
-        crate::hud::add_sprite::add_sprite(frame, hud, pen, x, 0, rect_place(hud, RECT))
+        crate::hud::add_sprite::add_sprite(frame, hud, pen, x, 0, RectAt::number(RECT))
     }
 }

@@ -1275,7 +1275,7 @@ pub fn cars_addr() -> u32 {
 
 /// Where the figures of the description `entry` names are now: its +0x74 keeps their IDA
 /// address, a name in `CarTable::description_texts` (read by `menu::driver_stats`).
-pub fn description_table(entry: u32) -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
+pub fn description_table(entry: u32) -> Result<DescriptionTable, crate::errors::BadInput> {
     const TEXTS: usize = 0x757558;
     let table = description(entry)?.get().figures;
     if table == 0 {
@@ -1286,7 +1286,26 @@ pub fn description_table(entry: u32) -> Result<crate::pointers::GamePtr, crate::
             "a description's table off the texts",
         ));
     }
-    crate::moved::named(table as usize)
+    Ok(DescriptionTable(table as usize - TEXTS))
+}
+
+/// A car's figures: their start in `CarTable::description_texts`.
+#[derive(Clone, Copy, Debug)]
+pub struct DescriptionTable(usize);
+
+impl DescriptionTable {
+    /// The dword `offset` bytes into the figures; refused past the texts' end (the original
+    /// reads on into whatever follows).
+    pub fn dword(self, offset: usize) -> Result<u32, crate::errors::BadInput> {
+        let texts = &menus().cars.table.description_texts;
+        let at = self.0 + offset;
+        if at + 4 > 4224 {
+            return Err(crate::errors::BadInput("a car's figures past the texts"));
+        }
+        Ok(u32::from_le_bytes(std::array::from_fn(|k| {
+            texts.get(at + k)
+        })))
+    }
 }
 
 #[cfg(test)]
@@ -1338,13 +1357,9 @@ mod tests {
             );
         }
         for car in 0..34 {
-            let found = description_table(car_entry(crate::menu::owner::menus(), car).unwrap())
-                .unwrap()
-                .addr();
-            assert!(
-                (menu_cars.table.description_texts.addr()..).contains(&found),
-                "{car}"
-            );
+            let found =
+                description_table(car_entry(crate::menu::owner::menus(), car).unwrap()).unwrap();
+            assert!(found.dword(0).is_ok(), "{car}");
         }
         assert_eq!(car_of(menu_cars.table.cars[33].get()), Ok(33));
         assert!(car_of(0x756568).is_err() && car_of(u32::MAX).is_err());

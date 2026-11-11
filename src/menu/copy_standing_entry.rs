@@ -6,17 +6,11 @@
 //! Callers: two of the game's. Refuses a null entry, record or name, before
 //! anything.
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
 /// `e` the entry of table A (edi in the original), `p` the player's record (esi), `index`
 /// the player's index (ebx).
-pub fn copy_standing_entry(
-    menus: &Menus,
-    e: usize,
-    p: PlayerCell,
-    index: u32,
-) -> Result<(), Refused> {
+pub fn copy_standing_entry(e: usize, p: PlayerCell, index: u32) -> Result<(), Refused> {
     name_player(&p.get())?;
     // The logic is in `rc2k_core::saves::rankings::fill_a`.
     use rc2k_core::menu::standings::PlayerA;
@@ -27,7 +21,7 @@ pub fn copy_standing_entry(
         group: p.get().class,
         total: p.get().total,
         name_at,
-        name: name_of(menus, &p.get())?,
+        name: name_of(&p.get())?,
         nationality: p.get().nationality,
         car: p.get().car_number,
         entered: p.get().entry,

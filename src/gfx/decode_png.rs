@@ -27,18 +27,24 @@
 use crate::errors::BadInput;
 use crate::gfx::owner::Png;
 use crate::gfx::picture::PICTURE_DWORDS;
-use crate::pointers::GamePtr;
+use crate::session::Bytes;
 
 // ---- game data ----
 
 // Converted: `rc2k_core::gfx::png`. Here the game's variables for the header, the pixel area
 // and the info block.
 
-/// Returns what the original returns. `pixels` names a picture buffer
-/// (`gfx::picture`, 0 none).
-pub fn decode_png(png: &Png, file: &[u8], pixels: u32, info_at: GamePtr) -> Result<u32, BadInput> {
+/// Returns what the original returns, but for the 3 it gives when the info block lies inside
+/// the pixel area (here it is another buffer: 0). `pixels` names a picture buffer
+/// (`gfx::picture`, 0 none); `info` is the buffer the info block is laid in.
+pub fn decode_png(
+    png: &Png,
+    file: &[u8],
+    pixels: u32,
+    info: &Bytes<65536>,
+) -> Result<u32, BadInput> {
     use rc2k_core::gfx::png;
-    if pixels == 0 || info_at.is_null() {
+    if pixels == 0 {
         return Ok(1);
     }
     // First the whole walk and the checks without writing anything: what is refused here
@@ -55,7 +61,6 @@ pub fn decode_png(png: &Png, file: &[u8], pixels: u32, info_at: GamePtr) -> Resu
         colour_type: png.header.colour_type.get(),
         compression: 0,
     });
-    let pixel_bytes = png::PIXEL_BYTES[header.colour_type as usize & 7];
     let area = match found.data {
         Some(_) => png::area_for(&header, PICTURE_DWORDS * 4)?,
         None => 0,
@@ -78,27 +83,27 @@ pub fn decode_png(png: &Png, file: &[u8], pixels: u32, info_at: GamePtr) -> Resu
         crate::gfx::picture::write_bytes(pixels, 0, &buffer)?;
     }
     let what = "the PNG info block";
-    info_at.write(0u8, what)?;
-    info_at
-        .offset(core::mem::offset_of!(crate::gfx::png::PngInfo, width) as u32)
-        .write(header.width, what)?;
-    info_at
-        .offset(core::mem::offset_of!(crate::gfx::png::PngInfo, height) as u32)
-        .write(header.height, what)?;
+    info.write_at(0, &[0u8], what)?;
+    info.write_at(
+        core::mem::offset_of!(crate::gfx::png::PngInfo, width),
+        &header.width.to_le_bytes(),
+        what,
+    )?;
+    info.write_at(
+        core::mem::offset_of!(crate::gfx::png::PngInfo, height),
+        &header.height.to_le_bytes(),
+        what,
+    )?;
     if let Some(start) = found.palette {
-        info_at.write(1u8, what)?;
+        info.write_at(0, &[1u8], what)?;
         let palette = file
             .get(start..start + 0x300)
             .ok_or(BadInput("a palette chunk that runs past the file"))?;
-        info_at
-            .offset(core::mem::offset_of!(crate::gfx::png::PngInfo, palette) as u32)
-            .write_bytes(palette, what)?;
+        info.write_at(
+            core::mem::offset_of!(crate::gfx::png::PngInfo, palette),
+            palette,
+            what,
+        )?;
     }
-    let end = pixel_bytes
-        .wrapping_mul(header.width)
-        .wrapping_mul(header.height)
-        .wrapping_add(pixels);
-    // The info block's place as a number only to compare it with the pixels' span.
-    let info = info_at.addr();
-    Ok(if info >= pixels && info < end { 3 } else { 0 })
+    Ok(0)
 }

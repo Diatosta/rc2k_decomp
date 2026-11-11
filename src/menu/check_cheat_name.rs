@@ -35,11 +35,10 @@ fn find(play: &Play, coded: &[u8]) -> Result<Option<(u32, u32)>, Refused> {
 pub fn check_cheat_name(menus: &Menus) -> Result<(), Refused> {
     let race = crate::race::owner::race();
     let play = &menus.play;
-    let name = crate::menu::player_names::name_ptr(
-        menus,
-        crate::menu::player_names::name_of(&crate::menu::standings::player(menus, 3).get())?,
-    );
-    let coded = rot13_into_text(name)?;
+    let name = crate::menu::player_names::NameAt::of(crate::menu::player_names::name_of(
+        &crate::menu::standings::player(menus, 3).get(),
+    )?);
+    let coded = rot13_into_text(&name.tail())?;
     let Some((_found, bit)) = find(play, &coded)? else {
         return Ok(());
     };
@@ -59,6 +58,6 @@ pub fn check_cheat_name(menus: &Menus) -> Result<(), Refused> {
     let mut hidden = Vec::new();
     crate::strings::append_string_by_id::push_string(&mut hidden, HIDDEN_NAME)?;
     hidden.push(0);
-    name.write_bytes(&hidden, "a player\'s name")?;
+    crate::place::BytePlace::from(name).write(&hidden, "a player\'s name")?;
     Ok(())
 }

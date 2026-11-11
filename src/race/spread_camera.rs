@@ -8,16 +8,16 @@
 //! is written.
 
 use crate::errors::Refused;
-use crate::pointers::GamePtr;
 use crate::race::owner::Race;
 use crate::race::trap::Trap;
+use crate::race::viewer::CameraByte;
 
 /// `byte` the changed camera byte, `old` its old value.
-pub fn spread_camera(race: &Race, byte: GamePtr, old: u8) -> Result<(), Refused> {
+pub fn spread_camera(race: &Race, byte: CameraByte, old: u8) -> Result<(), Refused> {
     let replay = &race.replay;
     // The camera bytes of the following blocks, 8 bytes apart (a stride over bytes).
-    let at = |n: u32| byte.offset(n.wrapping_mul(8));
-    let dl = byte.read::<u8>("a replay camera byte")?;
+    let at = |n: u32| byte.blocks_on(n);
+    let dl = byte.read("a replay camera byte")?;
     let count = race
         .shared
         .replay_file
@@ -27,7 +27,7 @@ pub fn spread_camera(race: &Race, byte: GamePtr, old: u8) -> Result<(), Refused>
     // Converted: `rc2k_core::race::viewer::spread` (how far it goes, first).
     let trap = Trap::new();
     let s = rc2k_core::race::viewer::spread(count, old, |n| {
-        trap.read_at::<u8>(at(n), "a replay camera byte")
+        trap.keep_read(at(n).read("a replay camera byte"))
     })?;
     trap.finish()?;
     for n in 1..=s.taken {

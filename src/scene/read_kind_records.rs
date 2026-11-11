@@ -12,6 +12,7 @@ use crate::files::read_whole_file::read_whole_file;
 use crate::pointers::GamePtr;
 use crate::scene::file_numbers_store::texts;
 use crate::scene::set_object_material::MATERIAL_LEN;
+use crate::session::TextPlace;
 
 // ---- game data ----
 
@@ -59,10 +60,10 @@ pub fn read_kind_records(scene: &crate::scene::owner::Scene) -> Result<(), Refus
     for file in &FILES {
         let (to, room) = records(file);
         read_whole_file(
-            &crate::files::cstring_at(
-                scene.file_numbers.text_ptr(file.path),
-                "a kinds file's path",
-            )?,
+            &scene
+                .file_numbers
+                .text_at(file.path)
+                .text("a kinds file's path")?,
             to,
             room as u32,
         )?;

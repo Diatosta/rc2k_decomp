@@ -183,14 +183,15 @@ pub fn roll_credits(
             _ => fonts::NAME,
         }
     };
-    // Unbounded: the script is read on to its end mark, as the original.
-    let mut at = crate::pointers::GamePtr::to(&frame.credits.script).unbounded();
+    // Read on to its end mark (two zero words, the script's last); a script without one is
+    // refused at its end.
+    let mut at = 0usize;
     let trap = Trap::new();
     let (lines, below) = lay_out(
         || {
-            let v = trap.read_at::<u16>(at, "the credits' script");
-            at = at.offset(2);
-            v
+            let v = frame.credits.script.get(at).map(Word::get);
+            at += 1;
+            trap.keep_read(v.ok_or(crate::errors::BadInput("the credits' script past its end")))
         },
         width,
         frame.credits.top.get() as i32,

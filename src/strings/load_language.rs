@@ -39,7 +39,6 @@ use crate::session::Bytes;
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::owner::{Strings, Text, strings};
 use crate::strings::same_text::set_case_table;
-use crate::strings::string_table::LEXICON_ROOM;
 use crate::system::owner::system;
 use rc2k_core::strings::case::CaseTable;
 use rc2k_core::strings::language::Locale;
@@ -126,10 +125,9 @@ fn make_case_tables(strings: &Strings) -> Result<(), BadInput> {
 /// `strings::correct_lexicon` (converted: `rc2k_core::strings::lexicon::correct`), on the lexicon's
 /// room.
 fn correct_lexicon() -> Result<(), BadInput> {
-    let room = crate::strings::string_table::lexicon_room();
-    let mut table = room.read_bytes(LEXICON_ROOM, "the lexicon's room")?;
+    let mut table = crate::strings::string_table::lexicon_bytes()?;
     rc2k_core::strings::lexicon::correct(&mut table)?;
-    room.write_bytes(&table, "the lexicon's room")?;
+    crate::strings::string_table::write_lexicon(&table)?;
     crate::strings::string_table::publish()
 }
 

@@ -12,14 +12,15 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
 use crate::menu::owner::menus;
+use crate::menu::player_names::NameAt;
 use crate::menu::player_settings::current;
 use crate::menu::text_entry::{TEXT_LEN, length, set_length};
 use crate::place::BytePlace;
 
-/// The current player's name as a place bounded by the names' store (the original runs on
+/// The current player's name as a place bounded by the names' area (the original runs on
 /// past a name that lacks its end).
-pub fn name_place(menus: &Menus) -> Result<crate::pointers::GamePtr, Refused> {
-    Ok(crate::menu::player_names::name_ptr(menus, name(menus)?))
+pub fn name_place(menus: &Menus) -> Result<NameAt, Refused> {
+    Ok(NameAt::of(name(menus)?))
 }
 
 pub fn kept() -> BytePlace {

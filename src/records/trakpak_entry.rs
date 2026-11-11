@@ -25,32 +25,30 @@ pub const INVALID_HEADER: FatalError = FatalError {
     message: "Invalid TrakPak Header",
 };
 
-/// Entry `index` in the pack header at `header`.
+/// Entry `index` in the pack header at byte `header` of the stage tables, as its byte offset
+/// there.
 /// The original loops forever instead of reporting the error when the header's first dword
 /// is non-zero; this version reports it in both cases.
 pub fn trakpak_entry(
-    header: crate::pointers::GamePtr,
+    header: usize,
     index: u32,
     pack_id: u32,
     loaded_pack_id: u32,
-) -> Result<crate::pointers::GamePtr, FatalError> {
+) -> Result<usize, FatalError> {
     // Converted: `rc2k_core::files::records::pack_entry`.
     rc2k_core::files::records::pack_entry(index, pack_id, loaded_pack_id)
-        .map(|place| header.offset(place as u32))
+        .map(|place| header + place)
         .ok_or(INVALID_HEADER)
 }
 
 /// The entry for `record`'s track (+4, +8 the pack's id), in the pack the game has loaded.
 ///
-/// The pointer is bounded to the stage tables as a whole (the original's index has no bound
+/// The offset is bounded to the stage tables as a whole (the original's index has no bound
 /// and reads on past the pack into what follows).
-pub fn record_entry(record: RecordRef) -> Result<crate::pointers::GamePtr, Refused> {
+pub fn record_entry(record: RecordRef) -> Result<usize, Refused> {
     let record = record.record()?;
     Ok(trakpak_entry(
-        crate::pointers::GamePtr::to(&system().records.stage_tables)
-            .offset(
-                core::mem::offset_of!(crate::records::stages_store::StageTables, trak_pak) as u32,
-            ),
+        core::mem::offset_of!(crate::records::stages_store::StageTables, trak_pak),
         record.track(),
         record.pack_id(),
         loaded_pack_id(),
@@ -63,7 +61,15 @@ pub fn record_entry(record: RecordRef) -> Result<crate::pointers::GamePtr, Refus
 pub enum Track {
     InPack(&'static TrackEntry),
     /// A run-on past the pack, as the original.
-    RunOn(crate::pointers::GamePtr),
+    /// The entry's byte offset in the stage tables.
+    RunOn(usize),
+}
+
+/// The dword at byte `at` of the stage tables, past the pack.
+pub fn run_on(at: usize) -> Result<u32, BadInput> {
+    let mut bytes = [0; 4];
+    crate::pointers::load_cells(&system().records.stage_tables, at, &mut bytes)?;
+    Ok(u32::from_le_bytes(bytes))
 }
 
 impl Track {
@@ -71,9 +77,7 @@ impl Track {
     pub fn name(&self) -> Result<u32, BadInput> {
         match self {
             Track::InPack(entry) => Ok(entry.name.get()),
-            Track::RunOn(at) => at
-                .offset(core::mem::offset_of!(TrackEntry, name) as u32)
-                .read::<u32>("a track pack entry"),
+            Track::RunOn(at) => run_on(*at + core::mem::offset_of!(TrackEntry, name)),
         }
     }
 
@@ -81,9 +85,7 @@ impl Track {
     pub fn length(&self) -> Result<u32, BadInput> {
         match self {
             Track::InPack(entry) => Ok(entry.length.get()),
-            Track::RunOn(at) => at
-                .offset(core::mem::offset_of!(TrackEntry, length) as u32)
-                .read::<u32>("a track pack entry"),
+            Track::RunOn(at) => run_on(*at + core::mem::offset_of!(TrackEntry, length)),
         }
     }
 
@@ -91,9 +93,7 @@ impl Track {
     pub fn stage(&self) -> Result<u32, BadInput> {
         match self {
             Track::InPack(entry) => Ok(entry.stage.get()),
-            Track::RunOn(at) => at
-                .offset(core::mem::offset_of!(TrackEntry, stage) as u32)
-                .read::<u32>("a track pack entry"),
+            Track::RunOn(at) => run_on(*at + core::mem::offset_of!(TrackEntry, stage)),
         }
     }
 }

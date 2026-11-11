@@ -21,12 +21,9 @@ pub fn read_record(path: &[u8]) -> Result<(), BadInput> {
         };
         // Converted: `rc2k_core::install::config::read_record` (the keys as its constants).
         let record = config::read_record(&text.bytes("the install record")?, &case_table())?;
-        for (place, text) in [
-            (crate::files::state::base_directory_place(), record.base),
-            (crate::files::state::locale_directory_place(), record.locale),
-        ] {
+        for (directory, text) in [(0, record.base), (1, record.locale)] {
             if let Some(text) = text {
-                place.write_bytes(&text, "an installer path")?;
+                crate::files::state::write_directory(directory, &text, false, "an installer path")?;
             }
         }
         if let Some(mode) = record.mode {

@@ -80,7 +80,7 @@ pub fn show_picture_file(
                 }
                 crate::gfx::rescale_to_surface::rescale_to_surface(
                     &gfx.rescale,
-                    crate::pointers::GamePtr::to(&gfx.drawing.draw_surface.x).limited(0x30),
+                    &gfx.drawing.draw_surface,
                     gfx,
                 )?;
                 unlock_surface();

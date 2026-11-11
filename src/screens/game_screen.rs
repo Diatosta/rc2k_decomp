@@ -100,15 +100,15 @@ pub fn held_name(text: Option<Vec<u8>>) -> Result<HeldText, crate::errors::BadIn
 }
 
 /// The name of player `player` (counted from 0), drawn from the names' store.
-pub fn player_name_of(menus: &Menus, player: usize) -> HeldText {
-    HeldText::Place(crate::menu::player_names::name_ptr(menus, player))
+pub fn player_name_of(player: usize) -> HeldText {
+    HeldText::Name(crate::menu::player_names::NameAt::of(player))
 }
 
 /// The name an entry's name address names (`player_names::name_address`), drawn from the
 /// names' store; refused when it names no player's name.
-pub fn player_name(menus: &Menus, name_at: u32) -> Result<HeldText, crate::errors::BadInput> {
+pub fn player_name(name_at: u32) -> Result<HeldText, crate::errors::BadInput> {
     crate::menu::player_names::index_of(name_at)
-        .map(|k| HeldText::Place(crate::menu::player_names::name_ptr(menus, k)))
+        .map(|k| HeldText::Name(crate::menu::player_names::NameAt::of(k)))
         .ok_or(crate::errors::BadInput(
             "a player's name that is no player's name",
         ))
@@ -119,6 +119,8 @@ pub fn player_name(menus: &Menus, name_at: u32) -> Result<HeldText, crate::error
 pub enum HeldText {
     /// A text in a field of a typed store (a record's name), bounded by it.
     Place(GamePtr),
+    /// A player's name in the names' area, run on to the area's end.
+    Name(crate::menu::player_names::NameAt),
     Held(Held),
 }
 
@@ -133,6 +135,13 @@ impl GameText for HeldText {
         match self {
             HeldText::Place(at) => {
                 let out = draw_text_at(font, &at.bytes("a name")?, x, y, canvas)?;
+                Ok(Drawn {
+                    y: out.y,
+                    too_wide: out.too_wide,
+                })
+            }
+            HeldText::Name(at) => {
+                let out = draw_text_at(font, &at.tail(), x, y, canvas)?;
                 Ok(Drawn {
                     y: out.y,
                     too_wide: out.too_wide,
@@ -163,6 +172,10 @@ impl GameText for HeldText {
                     x,
                     canvas,
                 )?;
+                Ok(m.width)
+            }
+            HeldText::Name(at) => {
+                let m = crate::text::measure_text::measure_text_at(font, &at.tail(), x, canvas)?;
                 Ok(m.width)
             }
             HeldText::Held(h) => {

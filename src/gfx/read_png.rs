@@ -63,7 +63,7 @@ fn read_held(
         png,
         file,
         pictures.picture.buffer.get(),
-        crate::gfx::png::info_ptr(system),
+        crate::gfx::png::info_buffer(system),
     )?;
     pictures.picture.flags.set(0x802u32);
     lay_out_png(gfx, system)?;

@@ -13,7 +13,6 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::gfx::pixel_format::PixelFormat;
-use crate::pointers::GamePtr;
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
 use crate::session::{Bytes, Loose};
@@ -304,23 +303,20 @@ pub fn load_packed_game_map(
 /// list freed and `g_mapKeyPixels` 0 at the end; the picture limits and buffer put back.
 pub fn load_game_map(
     frame: &Frame,
-    picture: GamePtr,
-    key_path: GamePtr,
+    picture: &dyn crate::session::TextPlace,
+    key_path: &dyn crate::session::TextPlace,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let gfx = crate::gfx::owner::gfx();
     let pictures = &gfx.pictures;
     if frame.map.use_packed.get() == 1
-        && !crate::files::file_exists::file_exists(&crate::files::cstring_at(
-            picture,
-            "a map picture's path",
-        )?)?
+        && !crate::files::file_exists::file_exists(&picture.text("a map picture's path")?)?
     {
         // The picture's path after 3 bytes, its last four made ".sq" and a NUL, then
         // "files\" at the start (`str_append` and the two writes of the original).
         let path = &crate::files::state::PACKED_PATH;
-        let len = crate::strings::text_length::nul_at(&picture.bytes("a text to append")?)?;
-        let text = picture.read_bytes(len as usize, "a text to append")?;
+        let text = picture.text("a text to append")?;
+        let len = text.len() as u32;
         path.write_at(3, &text, "a text to append")?;
         // At `3 + len - 4`: before the buffer when the path is empty, as the original's.
         let tail = (3 + len as usize).checked_sub(4);
@@ -361,10 +357,7 @@ pub fn load_game_map(
     pictures.picture.row_bytes.set(KEY_ROW_BYTES);
     pictures.picture.buffer.set(key);
     let built = (|| -> Result<(), Refused> {
-        if !crate::gfx::read_sheet::read_sheet(
-            &crate::files::cstring_at(key_path, "the key sheet's path")?,
-            gfx,
-        )? {
+        if !crate::gfx::read_sheet::read_sheet(&key_path.text("the key sheet's path")?, gfx)? {
             return Ok(());
         }
         if pictures.picture.flags.get() & 0x100 == 0 {
@@ -413,7 +406,7 @@ pub fn load_game_map(
         put_table(&table)?;
         let marked = table.iter().filter(|&&v| v != Tile::None).count() as u32;
         take_pixels(frame, (marked << 8).wrapping_mul(bytes))?;
-        if !crate::gfx::read_picture_file::read_picture_file(&picture, gfx)? {
+        if !crate::gfx::read_picture_file::read_picture_file(picture, gfx)? {
             return Ok(());
         }
         frame.map.tile_count.set(0u32);

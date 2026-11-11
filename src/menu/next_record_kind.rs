@@ -18,11 +18,11 @@ pub fn next_record_kind(menus: &Menus) -> Result<u32, Refused> {
     let index: u32 = screens.event.index.get();
     // The scan may run on past the 66 records (to `championship_end` and the event tables):
     // bounded by the whole store.
-    let table = crate::pointers::GamePtr::to(&system().records.stage_tables)
-        .offset(
-            std::mem::offset_of!(crate::records::stages_store::StageTables, championship) as u32,
-        )
-        .bytes("the championship's stage table")?;
+    let tables = &system().records.stage_tables;
+    let table = rc2k_core::strings::bytes::Offset {
+        bytes: &crate::pointers::StoreBytes(tables),
+        start: std::mem::offset_of!(crate::records::stages_store::StageTables, championship),
+    };
     // The logic is in `rc2k_core::menu::record_kinds::next_record_kind`.
     let kind = rc2k_core::menu::record_kinds::next_record_kind(&table, section, index)?;
     screens.draw_work.figure.set(kind);

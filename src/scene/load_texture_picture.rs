@@ -157,12 +157,10 @@ pub fn load_texture_picture_in_game(
                     }
                 }
                 Call::Load(name, second, texture) => {
-                    if let Err(e) = load_picture_to_texture_in_game(
-                        name.game_ptr(),
-                        Some(second.game_ptr()),
-                        texture,
-                        gfx,
-                    ) {
+                    let (name, second) = (name.game_ptr(), second.game_ptr());
+                    if let Err(e) =
+                        load_picture_to_texture_in_game(Some(&name), Some(&second), texture, gfx)
+                    {
                         refused.get_or_insert(e);
                     }
                 }

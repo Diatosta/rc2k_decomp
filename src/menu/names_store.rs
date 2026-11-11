@@ -19,6 +19,30 @@ pub struct Names {
     pub text_backup: PlainBytes<32>,
 }
 
+/// The whole area as one run of bytes: the four names, the rest of the names, the kept name and
+/// the text backup (a name that lacks its end runs on into what follows it).
+impl crate::place::Run for Names {
+    fn len(&self) -> usize {
+        size_of::<Names>()
+    }
+    fn get(&self, n: usize) -> u8 {
+        match n {
+            0..0x80 => self.player_names.get(n),
+            0x80..0x100 => self.more_names.get(n - 0x80),
+            0x100..0x120 => self.kept_name.get(n - 0x100),
+            _ => self.text_backup.get(n - 0x120),
+        }
+    }
+    fn set(&self, n: usize, v: u8) {
+        match n {
+            0..0x80 => self.player_names.set(n, v),
+            0x80..0x100 => self.more_names.set(n - 0x80, v),
+            0x100..0x120 => self.kept_name.set(n - 0x100, v),
+            _ => self.text_backup.set(n - 0x120, v),
+        }
+    }
+}
+
 /// First values the image's (`tests::name_buffers_starts_as_the_games`).
 impl Names {
     pub const fn new() -> Self {

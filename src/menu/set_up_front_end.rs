@@ -61,7 +61,7 @@ pub fn set_up_front_end(menus: &Menus, sound: &crate::sound::owner::Sound) -> Re
     crate::menu::link_player_names::link_player_names(menus)?;
     crate::menu::show_loading_picture::show_loading_picture(menus)?;
     crate::gfx::build_menu_sprites::build_menu_sprites_in_game(gfx, system)?;
-    crate::menu::fit_player_names::fit_player_names(menus)?;
+    crate::menu::fit_player_names::fit_player_names()?;
     // The two dwords: the music volumes, then the tables' copies.
     sound
         .menu

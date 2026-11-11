@@ -72,10 +72,7 @@ pub fn draw_class_ranking(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), 
                 name: if kind == 0 {
                     Name::String(e.head.name_id)
                 } else {
-                    Name::Text(crate::screens::game_screen::player_name(
-                        menus,
-                        e.head.name_id,
-                    )?)
+                    Name::Text(crate::screens::game_screen::player_name(e.head.name_id)?)
                 },
                 time: e.head.rally_time,
                 nation: e.head.nation,

@@ -6,9 +6,13 @@
 
 use crate::errors::BadInput;
 use crate::strings::expand_entry::expand_entry;
-use crate::strings::string_table::{driver_name_slot, made_text};
-use rc2k_core::strings::bytes::Bytes;
+use crate::strings::string_table::{driver_name_slot, driver_name_text, made_text};
 use rc2k_core::strings::table::Source;
+
+/// What the original leaves in its result register for a text kept in a variable: the text's
+/// address, which as the next string id (`text_from_ids`) is past every table entry. Any id
+/// past the table does the same, nothing being appended for it.
+pub const AFTER_VARIABLE_TEXT: u32 = 0x8000_0000;
 
 /// `emit` receives each run of bytes to append. Returns the value the original leaves in its result register.
 pub fn append_string_by_id(id: u32, emit: &mut impl FnMut(&[u8])) -> Result<u32, BadInput> {
@@ -18,20 +22,13 @@ pub fn append_string_by_id(id: u32, emit: &mut impl FnMut(&[u8])) -> Result<u32,
     fault.check()?;
     let direct = match source {
         Source::Made => Some(made_text(id)?),
-        Source::Pointer => Some(crate::settings::read_driver_names::name_at(
-            driver_name_slot(id)?,
-        )),
+        Source::Pointer => Some(driver_name_text(driver_name_slot(id)?)?),
         Source::Table => None,
     };
     match direct {
-        Some(p) => {
-            // The text runs to its NUL inside one block of the game's memory.
-            let text = p.bytes("a string")?;
-            let Some(len) = (0..).map_while(|n| text.byte(n)).position(|b| b == 0) else {
-                return Err(BadInput("a string without its end in its block"));
-            };
-            emit(&p.read_bytes(len, "a string")?);
-            Ok(p.addr())
+        Some(text) => {
+            emit(&text);
+            Ok(AFTER_VARIABLE_TEXT)
         }
         None => {
             expand_entry(id, emit);

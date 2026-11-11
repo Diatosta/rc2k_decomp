@@ -236,9 +236,33 @@ pub mod state {
     /// A directory's room (`DIRECTORIES` holds the two).
     pub const DIRECTORY_LEN: u32 = 0x100;
 
-    /// g_baseDirectory, as a place limited to its room.
-    pub fn base_directory_place() -> crate::pointers::GamePtr {
-        crate::pointers::GamePtr::to(&DIRECTORIES).limited(DIRECTORY_LEN)
+    /// Directory `n`'s first byte (0 g_baseDirectory, 1 g_localeDirectory).
+    pub fn directory_byte(n: usize) -> u8 {
+        DIRECTORIES.get(n * DIRECTORY_LEN as usize)
+    }
+
+    /// Sets directory `n`'s first byte.
+    pub fn set_directory_byte(n: usize, byte: u8) {
+        DIRECTORIES.set(n * DIRECTORY_LEN as usize, byte);
+    }
+
+    /// Writes `text` from the start of directory `n` (and a NUL after it when `nul`); a text
+    /// that does not fit in the room is refused.
+    pub fn write_directory(
+        n: usize,
+        text: &[u8],
+        nul: bool,
+        what: &str,
+    ) -> Result<(), crate::errors::BadInput> {
+        let room = DIRECTORY_LEN as usize;
+        if text.len() + usize::from(nul) > room {
+            return Err(crate::errors::BadInput("a directory text past its room"));
+        }
+        DIRECTORIES.write_at(n * room, text, what)?;
+        if nul {
+            DIRECTORIES.write_at(n * room + text.len(), &[0], what)?;
+        }
+        Ok(())
     }
 
     /// Directory `n`'s text (0 g_baseDirectory, 1 g_localeDirectory), up to its NUL (a text
@@ -253,48 +277,5 @@ pub mod state {
                 "a directory without its end in its room",
             ))?;
         Ok(bytes[..end].to_vec())
-    }
-
-    /// g_localeDirectory, as a place limited to its room.
-    pub fn locale_directory_place() -> crate::pointers::GamePtr {
-        // The second directory text of the buffer.
-        crate::pointers::GamePtr::to(&DIRECTORIES)
-            .offset(DIRECTORY_LEN)
-            .limited(DIRECTORY_LEN)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::state::*;
-    use crate::moved::image_bytes;
-
-    #[test]
-    fn state_starts_as_the_games() {
-        // `files::search`'s test writes the search record.
-        let _lock = crate::store::test_lock();
-        let word = |ida| u32::from_le_bytes(image_bytes(ida, 4).try_into().unwrap());
-        assert_eq!(word(0x4F52B0), 0, "no last path");
-        assert_eq!(word(0x4E05A4), FIND_HANDLE.get());
-        assert_eq!(word(0x4E06E6), SKIPPED_ATTRIBUTES.get());
-        assert_eq!(word(0x60B2CC), BYTES_READ.get());
-        assert_eq!(word(0x5189A4), MEDIA_MODE.get());
-        let bytes = |p: *const u8, n| unsafe { std::slice::from_raw_parts(p, n).to_vec() };
-        assert_eq!(
-            bytes(FIND_DATA.as_ptr(), 0x13E),
-            image_bytes(0x4E05A8, 0x13E)
-        );
-        assert_eq!(
-            bytes(PACKED_PATH.as_ptr().cast(), PACKED_PATH_LEN),
-            image_bytes(0x5BE9BD, PACKED_PATH_LEN)
-        );
-        assert_eq!(
-            bytes(DIRECTORIES.as_ptr().cast(), DIRECTORIES_LEN),
-            image_bytes(0x5189A8, DIRECTORIES_LEN)
-        );
-        assert_eq!(
-            bytes(PATHS.as_ptr().cast(), PATHS_LEN),
-            image_bytes(0x94E8B0, PATHS_LEN)
-        );
     }
 }

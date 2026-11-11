@@ -21,24 +21,23 @@ use crate::gfx::load_picture::load_picture;
 use crate::gfx::load_picture_with_overlay::load_picture_with_overlay;
 use crate::menu::load_car_background::shown_car;
 use crate::menu::owner::Menus;
-use crate::pointers::GamePtr;
 
 // ---- game data ----
 
 /// What it asks for.
-pub enum Step {
+pub enum Step<'a> {
     /// `gfx::load_picture_with_overlay` with the path (its text, without the NUL) and the
     /// title bar: the carry.
-    Overlay(Vec<u8>, GamePtr),
+    Overlay(Vec<u8>, &'a dyn crate::session::TextPlace),
     /// `gfx::load_picture` of the title bar.
-    Load(GamePtr),
+    Load(&'a dyn crate::session::TextPlace),
     Convert,
 }
 
 pub fn load_slideshow_picture(
     menus: &Menus,
     way: u32,
-    step: &mut dyn FnMut(Step) -> Result<bool, Refused>,
+    step: &mut dyn FnMut(Step<'_>) -> Result<bool, Refused>,
 ) -> Result<(), Refused> {
     // The logic is in `rc2k_core::menu::slides` (`slideshow_car`, `search`, `pcx`).
     use rc2k_core::menu::slides;
@@ -73,7 +72,7 @@ pub fn load_slideshow_picture(
         |next| menus.screens.event.picture.set(next),
     )?;
     let path = path.ok_or(crate::errors::BadInput("no slideshow picture tried"))?;
-    let title_bar = GamePtr::to(&menus.tables.texts.titlebar_png);
+    let title_bar = &menus.tables.texts.titlebar_png;
     if step(Step::Overlay(path, title_bar))? {
         step(Step::Load(title_bar))?;
     }
@@ -84,8 +83,8 @@ pub fn load_slideshow_picture(
 /// With the game's own steps for what it calls.
 pub fn load_slideshow_picture_in_game(menus: &Menus, way: u32) -> Result<(), Refused> {
     load_slideshow_picture(menus, way, &mut |step| match step {
-        Step::Overlay(path, over) => load_picture_with_overlay(&MirroredPath::new(path), &over),
-        Step::Load(path) => load_picture(&path).map(|_| false),
+        Step::Overlay(path, over) => load_picture_with_overlay(&MirroredPath::new(path), over),
+        Step::Load(path) => load_picture(path).map(|_| false),
         Step::Convert => convert_picture_now().map(|_| false).map_err(Into::into),
     })
 }

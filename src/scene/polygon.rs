@@ -43,22 +43,45 @@ pub fn materials_ptr() -> crate::pointers::GamePtr {
         .offset(core::mem::offset_of!(PolygonTables, object_materials) as u32)
 }
 
+/// The byte `offset` into the polygon tables' field of `len` bytes at `field`; the field's
+/// end is the limit, a read on into the next record inside it as the original's arithmetic
+/// does.
+fn field_byte(field: usize, len: usize, offset: u32, what: &'static str) -> Result<u8, BadInput> {
+    let offset = offset as usize;
+    if offset >= len {
+        return Err(BadInput(what));
+    }
+    let mut byte = [0u8];
+    crate::pointers::load_cells(
+        &*crate::scene::polygon_store::POLYGON_TABLES,
+        field + offset,
+        &mut byte,
+    )?;
+    Ok(byte[0])
+}
+
 /// Byte `offset` of texture info `n` (`g_textureInfos` + 0x40 n): an offset past the
 /// record reads on into the next, as the original's arithmetic does.
-#[track_caller]
 pub fn texture_info_byte(n: u32, offset: u32) -> Result<u8, BadInput> {
-    crate::pointers::GamePtr::to(&crate::scene::polygon_store::POLYGON_TABLES.texture_infos)
-        .offset(n.wrapping_mul(0x40).wrapping_add(offset))
-        .read("a texture info's byte")
+    use crate::scene::polygon_store::PolygonTables;
+    field_byte(
+        core::mem::offset_of!(PolygonTables, texture_infos),
+        core::mem::size_of_val(&crate::scene::polygon_store::POLYGON_TABLES.texture_infos),
+        n.wrapping_mul(0x40).wrapping_add(offset),
+        "a texture info's byte past the table",
+    )
 }
 
 /// Byte `offset` of object kind `kind`'s material record (`g_objectMaterials` + 0x80 kind;
 /// kind -1 the record before the first, as the original reads it).
-#[track_caller]
 pub fn material_byte(kind: u32, offset: u32) -> Result<u8, BadInput> {
-    crate::pointers::GamePtr::to(&crate::scene::polygon_store::POLYGON_TABLES.object_materials)
-        .offset(kind.wrapping_mul(0x80).wrapping_add(offset))
-        .read("an object's material byte")
+    use crate::scene::polygon_store::PolygonTables;
+    field_byte(
+        core::mem::offset_of!(PolygonTables, object_materials),
+        core::mem::size_of_val(&crate::scene::polygon_store::POLYGON_TABLES.object_materials),
+        kind.wrapping_mul(0x80).wrapping_add(offset),
+        "an object's material byte past the table",
+    )
 }
 
 /// A polygon's entries: on the stack for all but the largest polygons.

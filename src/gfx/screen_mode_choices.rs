@@ -31,26 +31,26 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::CarryZeroFlags;
 use crate::gfx::modes::Modes;
 use crate::gfx::owner::Display;
-use crate::pointers::GamePtr;
-use crate::system::find_entry_with_bits::find_entry_with_bits;
+use core::mem::offset_of;
 use rc2k_core::gfx::mode_choices as mc;
 
 // ---- game data (IDA addresses) ----
 
 /// `system::find_entry` as the original uses it (the mode tables are walked as bytes, a
-/// run-on past their last entry as the original): the entry whose first dword is `key`, or
-/// the place past the table's `count` entries.
-fn entry_or_past(key: u32, table: GamePtr, count: u32) -> Result<GamePtr, BadInput> {
+/// run-on past their last entry as the original): the offset in `Modes` of the entry whose
+/// first dword is `key`, or of the place past the table's `count` entries.
+fn entry_or_past(modes: &Modes, key: u32, table: usize, count: u32) -> Result<usize, BadInput> {
     for n in 0..count {
-        if read(table.offset(8 * n))? == key {
-            return Ok(table.offset(8 * n));
+        if read(modes, table + 8 * n as usize)? == key {
+            return Ok(table + 8 * n as usize);
         }
     }
-    Ok(table.offset(8 * count))
+    Ok(table + 8 * count as usize)
 }
 
-fn read(at: GamePtr) -> Result<u32, BadInput> {
-    at.read("a screen mode table's dword")
+fn read(modes: &Modes, at: usize) -> Result<u32, BadInput> {
+    crate::pointers::load_value(modes, at)
+        .inspect_err(|_| crate::framework::log("a screen mode table's dword: past the block"))
 }
 
 /// The list's mode at `place`, which may lie past the list's end (below `PLACE_LIMIT`).
@@ -61,33 +61,46 @@ fn list_mode(display: &Display, place: u32) -> Result<u32, BadInput> {
         .dword(place, 3, "a screen mode table's dword")
 }
 
-fn read_word(at: GamePtr) -> Result<u32, BadInput> {
-    Ok(at.read::<u16>("a screen mode table's word")? as u32)
+fn read_word(modes: &Modes, at: usize) -> Result<u32, BadInput> {
+    Ok(crate::pointers::load_value::<u16>(modes, at)
+        .inspect_err(|_| crate::framework::log("a screen mode table's word: past the block"))?
+        as u32)
+}
+
+/// `system::find_entry_with_bits`: the offset in `Modes` of the first of `count` entries from
+/// `table` whose first dword has all of `bits`, and the entries left with it.
+fn first_with_bits(modes: &Modes, bits: u32, table: usize, count: u32) -> Option<(usize, u32)> {
+    (0..count).find_map(|n| {
+        let at = table + 8 * n as usize;
+        let key = read(modes, at).unwrap_or_else(|e| crate::system::checked_reads::refuse(e));
+        (key & bits == bits).then_some((at, count - n))
+    })
 }
 
 /// The modes the list would hold (the mode table's of the pixel kind's bits), or None
 /// when the original stops (the kind's choice past 1, no mode of the kind).
-fn modes_of(display: &Display, kind: u32) -> Option<Vec<GamePtr>> {
+fn modes_of(display: &Display, kind: u32) -> Option<Vec<usize>> {
     if kind > 1 {
         return None;
     }
-    let bits = display.modes.kind_bits[kind as usize].get();
-    let (mut found, mut at, mut left) =
-        find_entry_with_bits(bits, Modes::mode_table_ptr(), display.modes.count.get());
-    if !found {
-        return None;
-    }
-    let mut modes = Vec::new();
-    while found {
-        modes.push(at);
+    let modes = &display.modes;
+    let bits = modes.kind_bits[kind as usize].get();
+    let (mut at, mut left) =
+        first_with_bits(modes, bits, offset_of!(Modes, table), modes.count.get())?;
+    let mut found = Vec::new();
+    loop {
+        found.push(at);
         // `system::next_entry`: on by one entry, the carry set when none are left.
         if left <= 1 {
             break;
         }
         // The mode table walked as bytes, its entries 8 bytes each (`Modes::table`).
-        (found, at, left) = find_entry_with_bits(bits, at.offset(8), left - 1);
+        match first_with_bits(modes, bits, at + 8, left - 1) {
+            Some(next) => (at, left) = next,
+            None => break,
+        }
     }
-    Some(modes)
+    Some(found)
 }
 
 /// With `try_choice` (true) the choice tried, else the list made
@@ -172,7 +185,7 @@ pub fn screen_mode_choices(display: &Display, try_choice: bool) -> Result<CarryZ
 fn rebuild(
     display: &Display,
     current: u32,
-    modes: Option<Vec<GamePtr>>,
+    modes: Option<Vec<usize>>,
 ) -> Result<CarryZeroFlags, Refused> {
     display.choices.listed.set(0);
     display.choices.resolutions.set(0);
@@ -184,15 +197,15 @@ fn rebuild(
     };
     let mut listed = Vec::new();
     for (n, &at) in modes.iter().enumerate() {
-        let mode = read(at)?;
+        let mode = read(&display.modes, at)?;
         let (size_key, kind_key) = mc::keys(mode);
-        let size = entry_or_past(size_key, Modes::sizes_ptr(), 8)?;
-        let kind = entry_or_past(kind_key, Modes::pixel_kinds_ptr(), 2)?;
+        let size = entry_or_past(&display.modes, size_key, offset_of!(Modes, sizes), 8)?;
+        let kind = entry_or_past(&display.modes, kind_key, offset_of!(Modes, pixel_kinds), 2)?;
         // The entries' fields by offset: the place may be the one past the table, as the original.
         let l = mc::Listed {
-            width: read_word(size.offset(4))?,
-            height: read_word(size.offset(6))?,
-            figure: read(kind.offset(4))?,
+            width: read_word(&display.modes, size + 4)?,
+            height: read_word(&display.modes, size + 6)?,
+            figure: read(&display.modes, kind + 4)?,
             mode,
         };
         // `n` is below the list's 16: the room was checked before anything was written.
@@ -216,13 +229,18 @@ fn rebuild(
     let race = display.mode.race_mode.get();
     let failed = std::cell::Cell::new(None);
     let (place, third) = mc::race_place(&listed, race, || {
-        entry_or_past(mc::third_key(race), Modes::kinds_ptr(), 3)
-            // (a third's entry, the place past the table possible, as above)
-            .and_then(|e| read(e.offset(4)))
-            .unwrap_or_else(|e| {
-                failed.set(Some(e));
-                0
-            })
+        entry_or_past(
+            &display.modes,
+            mc::third_key(race),
+            offset_of!(Modes, kinds),
+            3,
+        )
+        // (a third's entry, the place past the table possible, as above)
+        .and_then(|e| read(&display.modes, e + 4))
+        .unwrap_or_else(|e| {
+            failed.set(Some(e));
+            0
+        })
     });
     if let Some(e) = failed.take() {
         return Err(e.into());

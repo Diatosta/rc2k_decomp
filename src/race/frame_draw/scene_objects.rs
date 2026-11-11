@@ -2,10 +2,8 @@
 
 use super::*;
 use crate::errors::{BadInput, Refused};
-use crate::pointers::GamePtr;
 use crate::race::frame_view::car_at as car_view;
 use crate::race::kind_store::KIND_TABLES;
-use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use crate::race::trap::car_at;
@@ -101,7 +99,7 @@ pub fn draw_slot_object(
     // The object is placed by `g_turnedMatrix`, as the matrices' calls leave it.
     crate::scene::draw_scene_object::draw_scene_object_in_game(
         ctx,
-        Some(GamePtr::to(&ctx.view.matrices.turned_matrix).into()),
+        Some(Description::Floats(&ctx.view.matrices.turned_matrix)),
     )?;
     end_kept_reflections(ctx.view);
     Ok(())
@@ -341,7 +339,7 @@ pub(super) const PART_SWITCHES: u32 = 0xAC0;
 pub(super) fn light_pair(
     ctx: &DrawCtx,
     car: u32,
-    record: GamePtr,
+    record: u32,
     at: u32,
     left: u32,
     right: u32,
@@ -364,7 +362,10 @@ pub(super) fn light_pair(
     if right != u32::MAX {
         ctx.view.cars.light_right.set(byte(right)?);
     }
-    let [x, y, z]: [u32; 3] = record.offset(at).read("a light record's place")?;
+    let [x, y, z]: [u32; 3] = crate::pointers::load_value(
+        &race.frame.lights_and_gear,
+        record.wrapping_add(at) as usize,
+    )?;
     if x | y | z == 0 {
         return Ok(());
     }
@@ -425,7 +426,11 @@ pub fn car_light_flares(ctx: &DrawCtx, car: u32) -> Result<(), Refused> {
     }
     // 0x41F4E1: the kind held to 0 ..= 0x21 (by sign), through `KIND_TABLES.kind_light_records`.
     let index = KIND_TABLES.kind_light_records[(kind as i32).clamp(0, 0x21) as usize].get();
-    let record = LIGHT_RECORDS.record_ptr(index);
+    // The index is not bounded: the original reads on past the 34 records into the gear
+    // figures (the group `lights_and_gear` bounds the read).
+    let record = (core::mem::offset_of!(crate::race::groups_store::LightsAndGear, light_records)
+        as u32)
+        .wrapping_add(index.wrapping_mul(0x134));
     ctx.view.light.view_kind.set(1u32);
     ctx.view.light.light_kind.set(3u32);
     ctx.view.object.size.set(2u32);
@@ -741,7 +746,7 @@ pub fn draw_lamp_flare(
     // so it always ends by placing the object).
     crate::scene::draw_scene_object::draw_scene_object_in_game(
         ctx,
-        Some(GamePtr::to(&ctx.view.matrices.turned_matrix).into()),
+        Some(Description::Floats(&ctx.view.matrices.turned_matrix)),
     )
 }
 

@@ -8,17 +8,15 @@
 
 use crate::errors::Refused;
 use crate::hud::owner::{Hud, Pen};
-use crate::pointers::GamePtr;
+use crate::hud::store::RectAt;
 use crate::race::owner_frame::Frame;
 use rc2k_core::hud::quads;
 
 /// The quad record's texture places from the rectangle at `s` (shared with
 /// `hud::add_scaled_sprite`): the rectangle.
-pub fn put_places(hud: &Hud, s: GamePtr) -> Result<[u32; 4], Refused> {
+pub fn put_places(hud: &Hud, s: RectAt) -> Result<[u32; 4], Refused> {
     Ok({
-        let rect: [u32; 4] = crate::effects::try_from_fn(|n| {
-            Ok(s.offset(4 * n as u32).read::<u32>("a hud record's field")?)
-        })?;
+        let rect = s.read(hud)?;
         for (n, v) in quads::sprite_places(rect) {
             hud.block.quad.word(n).set(v);
         }
@@ -41,7 +39,7 @@ pub fn add_sprite(
     pen: Pen,
     x: u32,
     y: u32,
-    rect: GamePtr,
+    rect: RectAt,
 ) -> Result<(), Refused> {
     let [_, _, w, h] = put_places(hud, rect)?;
     put_corners(hud, x, y, w, h);

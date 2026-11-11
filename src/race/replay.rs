@@ -9,7 +9,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::menus;
 use crate::net::owner::net;
-use crate::pointers::GamePtr;
 use crate::race::owner::Race;
 use crate::race::owner_replay::Replay;
 use crate::race::owner_shared::RaceShared;
@@ -97,15 +96,13 @@ pub fn seal_replay_header(replay: &Replay) -> Result<(), Refused> {
     use rc2k_core::race::replay::{SEAL_KEY, SEAL_VERSION, chained, seal_checksum};
     // The sealed header is the file's bytes: the version byte and the name sit inside its
     // dwords.
-    let sealed = GamePtr::to(&REPLAY_WORK.sealed_header);
-    sealed
-        .offset(0x719B58 - 0x719B54)
-        .write::<u8>(SEAL_VERSION, "the replay header's version")?;
-    crate::strings::copy_printable::copy_printable(
-        crate::pointers::GamePtr::to(&menus().play.names.player_names), // g_playerNames
-        sealed.offset(0x719B61 - 0x719B54),
-        0x20,
-    )?;
+    let sealed = &REPLAY_WORK.sealed_header;
+    put_header(sealed, 0x719B58 - 0x719B54, &[SEAL_VERSION])?;
+    let name: [u8; 0x20] = menus().play.names.player_names.read()[..0x20]
+        .try_into()
+        .expect("0x20 bytes");
+    let printable = crate::strings::copy_printable::printable(&name, 0x20)?;
+    put_header(sealed, 0x719B61 - 0x719B54, &printable)?;
     copy_header_settings(sealed)?;
     let sealed_dwords = &REPLAY_WORK.sealed_header;
     let dwords: Vec<u32> = (1..0x40).map(|n| sealed_dwords[n].get()).collect();
@@ -137,10 +134,24 @@ pub fn seal_replay_header(replay: &Replay) -> Result<(), Refused> {
     Ok(())
 }
 
+/// `bytes` written into the sealed header from byte `at` (the file's bytes: the dwords hold
+/// them little-endian, whatever the alignment).
+fn put_header(sealed: &[Dword; 64], at: usize, bytes: &[u8]) -> Result<(), BadInput> {
+    if at + bytes.len() > sealed.len() * 4 {
+        return Err(BadInput("past the replay's sealed header"));
+    }
+    for (i, &b) in bytes.iter().enumerate() {
+        let (dword, shift) = ((at + i) / 4, 8 * ((at + i) % 4));
+        let kept = sealed[dword].get() & !(0xFF << shift);
+        sealed[dword].set(kept | u32::from(b) << shift);
+    }
+    Ok(())
+}
+
 /// The settings the sealed header copies, in the original's order: the low `size` bytes of
 /// each setting go to `at` (an offset from the header's first byte, 0x138 and more past the
 /// end of its 0x100 bytes are the first dword of `unknown_7d0`: the original's slip).
-fn copy_header_settings(sealed: GamePtr) -> Result<(), BadInput> {
+fn copy_header_settings(sealed: &[Dword; 64]) -> Result<(), BadInput> {
     use crate::race::state_store::{RaceCar, RaceSettings, RaceState};
     use core::mem::offset_of;
     // The cells of the race's settings as the front end keeps them, by IDA's address.
@@ -219,9 +230,7 @@ fn copy_header_settings(sealed: GamePtr) -> Result<(), BadInput> {
     for (size, to, value) in cells {
         let bytes = &value.to_le_bytes()[..size];
         if to < 0x719B54 + 0x100 {
-            sealed
-                .offset((to - 0x719B54) as u32)
-                .write_bytes(bytes, "the replay header")?;
+            put_header(sealed, to - 0x719B54, bytes)?;
         } else {
             // 0x719C8C: the viewer's first car number, past the header.
             let door = &REPLAY_WORK.unknown_7d0[0];
@@ -423,11 +432,36 @@ pub fn open_replay(race: &Race) -> Result<(), Refused> {
         to.set(from.get());
     }
     seal_replay_header(replay)?;
-    // The car header (0x400 bytes from `g_headerStage`, run on past the store's first
-    // field) copied into the file's header at +0x30.
-    let stage = GamePtr::to(&REPLAY_WORK.header_stage)
-        .unbounded()
-        .read_bytes(0x400, "the replay header's stage")?;
+    // The car header (0x400 bytes from the stage setting on through the sealed part, the
+    // patch switches and the door: all the dwords of the stretch) copied into the file's
+    // header at +0x30.
+    let w = &REPLAY_WORK;
+    let stage: Vec<u8> = [
+        &w.header_stage,
+        &w.header_mode,
+        &w.header_players,
+        &w.header_cars,
+        &w.header_kind_0,
+        &w.header_kind_1,
+        &w.header_kind_2,
+        &w.header_kind_3,
+        &w.header_one_player,
+        &w.header_codriver_sex_0,
+        &w.header_codriver_sex_1,
+        &w.header_start_place,
+        &w.header_arcade_cars,
+        &w.header_seed,
+        &w.header_game_over_0,
+        &w.header_game_over_1,
+    ]
+    .into_iter()
+    .chain(&w.sealed_header)
+    .chain(std::iter::once(&w.patches_in_header))
+    .chain(&w.header_patches)
+    .chain(&w.unknown_7d0)
+    .flat_map(|d| d.get().to_le_bytes())
+    .collect();
+    debug_assert_eq!(stage.len(), 0x400);
     shared
         .replays
         .header
@@ -599,7 +633,7 @@ mod header_tests {
                 }
                 door.set(0x5555_5555);
                 if typed {
-                    copy_header_settings(GamePtr::to(sealed)).unwrap();
+                    copy_header_settings(sealed).unwrap();
                 } else {
                     old_copy().unwrap();
                 }

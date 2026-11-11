@@ -5,23 +5,17 @@
 //!
 //! Refuses a null entry, record or name, before anything.
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
 /// `e` the entry of table B (edi in the original), `p` the player's record (esi), `index`
 /// the player's index (ebx).
-pub fn player_to_standing_b(
-    menus: &Menus,
-    e: usize,
-    p: PlayerCell,
-    index: u32,
-) -> Result<(), Refused> {
+pub fn player_to_standing_b(e: usize, p: PlayerCell, index: u32) -> Result<(), Refused> {
     name_player(&p.get())?;
     // The logic is in `rc2k_core::saves::rankings::fill_b`.
     use rc2k_core::menu::standings::PlayerB;
     let source = PlayerB {
         index,
-        name: name_of(menus, &p.get())?,
+        name: name_of(&p.get())?,
         nationality: p.get().nationality,
         car: p.get().car_number,
         group: p.get().class,

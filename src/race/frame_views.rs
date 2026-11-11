@@ -3,7 +3,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::owner::gfx;
-use crate::pointers::GamePtr;
 use crate::race::effects_settings_store::EFFECTS_SETTINGS;
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
@@ -552,7 +551,7 @@ pub fn run_view_marks(
     let records = race.shared.work.car_records_resolved()?;
     check_view_marks(
         block,
-        |b| GamePtr::to(records[b as usize]).addr(),
+        |b| u32::from(records.get(b as usize).is_some()),
         || effects.setup.settings.is_set.get(),
     )?;
     let (other, own) = marks_shown(

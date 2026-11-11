@@ -50,7 +50,7 @@ const PARTS: u32 = 14;
 pub fn player_and_table<'a>(
     menus: &'a Menus,
     screens: &Screens,
-) -> Result<(PlayerCell<'a>, crate::pointers::GamePtr), BadInput> {
+) -> Result<(PlayerCell<'a>, crate::menu::cars_store::DescriptionTable), BadInput> {
     let n: u32 = screens.event.current_player.get();
     if n >= 4 {
         return Err(BadInput("a current player past 3 or missing"));
@@ -60,7 +60,10 @@ pub fn player_and_table<'a>(
 }
 
 /// The player `p`'s car's table (the car table's row for the car, +0x74; car 0x21 as 0x17).
-pub fn car_table(menus: &Menus, p: PlayerCell) -> Result<crate::pointers::GamePtr, BadInput> {
+pub fn car_table(
+    menus: &Menus,
+    p: PlayerCell,
+) -> Result<crate::menu::cars_store::DescriptionTable, BadInput> {
     let car = match p.get().car_number {
         0x21 => 0x17,
         c => c,
@@ -75,7 +78,7 @@ pub fn driver_stats(menus: &Menus, screens: &Screens) -> Result<(), Refused> {
     use rc2k_core::menu::driver_figures::{Car, Constants, Table, figures};
     let (p, t) = player_and_table(menus, screens)?;
     let fault = Fault::default();
-    let table = Table::read(|o| fault.read_at::<u32>(t.offset(o as u32), "a car's figures"));
+    let table = Table::read(|o| fault.ok(t.dword(o)));
     let car = Car {
         wear: std::array::from_fn(|k| p.get().damage[k]),
         fitted: p.get().state_flags,

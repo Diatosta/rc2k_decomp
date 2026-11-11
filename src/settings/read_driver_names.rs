@@ -32,6 +32,7 @@ pub const NAMES_SIZE: usize = NAMES_LEN + POOL_ROOM;
 
 /// The text of a driver's name from its pointer slot: the slot keeps the name's byte offset
 /// in `NAMES` (the original kept its address), 0 for none. Bounded to `NAMES`.
+#[cfg(test)]
 pub fn name_at(slot: u32) -> crate::pointers::GamePtr {
     crate::pointers::GamePtr::to(&strings().drivers.names).offset(slot)
 }

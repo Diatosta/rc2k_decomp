@@ -20,6 +20,7 @@ use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
 use crate::menu::player_name::{backspace_name, bring_back_name, name_place};
 use crate::menu::text_entry::{TEXT_LEN, set_length};
+use crate::place::BytePlace;
 use crate::text::draw_text::Canvas;
 use crate::text::measure_text::measure_text_at;
 
@@ -62,10 +63,9 @@ pub fn edit_player_name(
         Key::Other(key) => {
             let c = key_to_char(key as u32)? as u8;
             if entry::appends(c, len, screens.loop_flags.text_max.get() as i32) {
-                name.offset(len as u32).write::<u8>(c, "a player's name")?;
+                BytePlace::from(name.add(len as u32)).write(&[c], "a player's name")?;
                 set_length(menus, len.wrapping_add(1));
-                let measured =
-                    measure_text_at(MEASURING_FONT, &name.bytes("a player's name")?, len, canvas)?;
+                let measured = measure_text_at(MEASURING_FONT, &name.tail(), len, canvas)?;
                 if entry::too_wide(measured.width as i32) {
                     backspace_name(menus, name)?;
                 }

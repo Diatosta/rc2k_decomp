@@ -2,10 +2,10 @@
 
 use super::*;
 use crate::errors::{BadInput, Refused};
-use crate::pointers::GamePtr;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::view_state::ViewState;
+use crate::scene::draw_described_object::Description;
 use crate::scene::engine_tables_store::ENGINE_TABLES;
 use crate::scene::view_matrices::ViewMatrices;
 
@@ -505,7 +505,7 @@ pub fn draw_sky(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refu
     // The matrix pointer is where the matrix's copy leaves it: past `g_madeObjectMatrix`.
     crate::scene::draw_scene_object::draw_scene_object_in_game(
         ctx,
-        Some(GamePtr::to(&ctx.view.matrices.object_matrix_slots).into()),
+        Some(Description::Cells(&ctx.view.matrices.object_matrix_slots)),
     )?;
     crate::scene::depth_buffer_on::depth_buffer(true);
     ctx.view.light.view_kind.set(0);

@@ -582,17 +582,32 @@ pub fn hud_addr() -> u32 {
     crate::pointers::game_address(&raw const crate::hud::owner::HUD.unchecked().block)
 }
 
-/// The place of the rectangle `n` of the table (the record's numbers are not checked, as in
-/// the original: a number past the table reads on into the block's next fields, so the
-/// place is bounded to the whole block).
-pub fn rect_place(hud: &crate::hud::owner::Hud, n: u32) -> crate::pointers::GamePtr {
-    rects_at(hud, n.wrapping_mul(0x10))
-}
+/// A rectangle of the table, by its byte offset in the block (the record's numbers are not
+/// checked, as in the original: a number past the table reads on into the block's next
+/// fields, so the offset is bounded to the whole block).
+#[derive(Clone, Copy)]
+pub struct RectAt(u32);
 
-/// The place `offset` bytes into the rectangles (bounded to the whole block, as `rect_place`).
-pub fn rects_at(hud: &crate::hud::owner::Hud, offset: u32) -> crate::pointers::GamePtr {
-    crate::pointers::GamePtr::to(&hud.block)
-        .offset((core::mem::offset_of!(HudBlock, rects) as u32).wrapping_add(offset))
+impl RectAt {
+    /// Rectangle `n` of the table.
+    pub fn number(n: u32) -> RectAt {
+        RectAt::offset(n.wrapping_mul(0x10))
+    }
+
+    /// The place `offset` bytes into the rectangles.
+    pub fn offset(offset: u32) -> RectAt {
+        RectAt((core::mem::offset_of!(HudBlock, rects) as u32).wrapping_add(offset))
+    }
+
+    /// Its left, top, width and height.
+    pub fn read(self, hud: &crate::hud::owner::Hud) -> Result<[u32; 4], crate::errors::Refused> {
+        let at = crate::pointers::GamePtr::to(&hud.block).offset(self.0);
+        crate::effects::try_from_fn(|n| {
+            Ok(at
+                .offset(4 * n as u32)
+                .read::<u32>("a hud record's field")?)
+        })
+    }
 }
 
 #[cfg(test)]

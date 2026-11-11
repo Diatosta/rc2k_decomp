@@ -77,7 +77,7 @@ pub fn draw_signs(frame: &Frame, hud: &Hud, pen: Pen, style: &SignStyle) -> Resu
         else {
             continue;
         };
-        let rect = crate::hud::store::rects_at(hud, sign.rectangle);
+        let rect = crate::hud::store::RectAt::offset(sign.rectangle);
         crate::hud::add_sprite::add_sprite(
             frame,
             hud,

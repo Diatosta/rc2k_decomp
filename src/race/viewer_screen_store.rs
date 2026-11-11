@@ -181,13 +181,11 @@ impl ViewerPanelBlock {
     /// check the number).
     pub fn camera_name(&self, camera: usize) -> u16 {
         // The names are the block's first bytes; a number past them reads on in the block.
-        crate::pointers::GamePtr::to(self)
-            .offset((2 * camera) as u32)
-            .read("a camera's name")
+        crate::pointers::load_value::<u16>(self, 2 * camera)
             .unwrap_or_else(|e| crate::fatal::raise::end("a camera's name", e))
     }
 
-    /// Where the picture `n` places on in switch table `table` (0 `ViewerAndKinds.viewer_panel.switch_pictures_a[0]`, 1
+    /// The rectangle of the picture `n` in switch table `table` (0 `ViewerAndKinds.viewer_panel.switch_pictures_a[0]`, 1
     /// `ViewerAndKinds.viewer_panel.switch_pictures_b[0]`, 2 `ViewerAndKinds.viewer_panel.switch_pictures_c[0]`) is (the tables keep IDA's addresses as names). The three tables
     /// are one run of nine names, which an `n` past a table's end reads on into, as the original; past the run,
     /// or a name off the panel, is refused.
@@ -195,7 +193,7 @@ impl ViewerPanelBlock {
         &self,
         table: usize,
         n: u32,
-    ) -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
+    ) -> Result<[u32; 4], crate::errors::BadInput> {
         let run: [&Dword; 9] = [
             &self.switch_pictures_a[0],
             &self.switch_pictures_a[1],
@@ -216,13 +214,18 @@ impl ViewerPanelBlock {
             .ok_or(crate::errors::BadInput(
                 "a camera byte past the switch pictures",
             ))?;
-        let ida = cell.get() as usize;
+        self.rectangle(cell.get() as usize)
+    }
+
+    /// The rectangle (four dwords) the IDA address `ida` in the panel names; an address off the
+    /// panel is refused.
+    pub fn rectangle(&self, ida: usize) -> Result<[u32; 4], crate::errors::BadInput> {
         if !(START..END).contains(&ida) {
             return Err(crate::errors::BadInput(
                 "a switch picture's name off the panel",
             ));
         }
-        Ok(crate::pointers::GamePtr::to(self).offset((ida - START) as u32))
+        crate::pointers::load_value(self, ida - START)
     }
 
     /// The dword at IDA's `ida` in the tail: unaligned, so made of the two cells it spans.
@@ -324,8 +327,8 @@ mod tests {
             };
             assert_eq!(cell.get(), name(ida));
             assert_eq!(
-                v.switch_picture(table, n as u32).unwrap().addr() as usize,
-                crate::moved::place(name(ida) as usize)
+                v.switch_picture(table, n as u32).unwrap(),
+                v.rectangle(name(ida) as usize).unwrap()
             );
         }
         assert!(v.switch_picture(0, 9).is_err());

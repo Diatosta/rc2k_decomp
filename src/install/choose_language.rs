@@ -31,10 +31,7 @@ pub fn choose_language(
             .add((slot * LANGUAGE_SLOT) as u32)
             .read(LANGUAGE_SLOT, "a language's slot")?;
         let directory = config::language_directory(&slot)?;
-        let to = crate::files::state::locale_directory_place();
-        to.write_bytes(directory, "the locale directory")?;
-        to.offset(directory.len() as u32)
-            .write(0u8, "the locale directory")?;
+        crate::files::state::write_directory(1, directory, true, "the locale directory")?;
         Ok(())
     }
 }

@@ -1252,8 +1252,8 @@ impl RallyTimes {
 }
 
 impl RallyTimes {
-    /// Where rally `n`'s table is.
-    pub fn table_of(&self, n: usize) -> Result<u32, crate::errors::BadInput> {
+    /// Where rally `n`'s table is, as a byte offset in the piece.
+    pub fn table_of(&self, n: usize) -> Result<usize, crate::errors::BadInput> {
         let name = self.tables.get(n).ok_or(crate::errors::BadInput(
             "a rally past the six best-times tables",
         ))?;
@@ -1263,7 +1263,7 @@ impl RallyTimes {
                 "a best-times table off the rallies' tables",
             ));
         }
-        Ok(crate::pointers::GamePtr::to(self).addr() + (name - Self::START) as u32)
+        Ok(name - Self::START)
     }
 
     /// Rally `n`'s table, when the name the game keeps for it (`table_of`) is that table.
@@ -1272,7 +1272,7 @@ impl RallyTimes {
         let table = self.rallies.get(n).ok_or(crate::errors::BadInput(
             "a rally past the six best-times tables",
         ))?;
-        if at != crate::pointers::GamePtr::to(table).addr() {
+        if at != core::mem::offset_of!(RallyTimes, rallies) + n * size_of::<[TimeEntry; 20]>() {
             return Err(crate::errors::BadInput(
                 "a rally's best-times name not at its own table",
             ));
@@ -1349,10 +1349,10 @@ mod tests {
             assert_eq!(name as usize, 0x742CB0 + 20 * 0x9C * n);
             assert_eq!(
                 rally_times.table_of(n),
-                Ok(RallyTimes::home() as u32 + name - RallyTimes::START as u32)
+                Ok(name as usize - RallyTimes::START)
             );
             assert_eq!(
-                rally_times.table_of(n).unwrap(),
+                RallyTimes::home() as u32 + rally_times.table_of(n).unwrap() as u32,
                 crate::pointers::game_address(core::ptr::from_ref(&rally_times.rallies[n]))
             );
         }
@@ -1378,7 +1378,9 @@ mod table_of_tests {
                 )
             });
             match (old, times.table_of(n)) {
-                (Some(Ok(old)), Ok(new)) => assert_eq!(old, new, "rally {n}"),
+                (Some(Ok(old)), Ok(new)) => {
+                    assert_eq!(old, RallyTimes::home() as u32 + new as u32, "rally {n}");
+                }
                 (Some(Err(_)) | None, Err(_)) => {}
                 (old, new) => panic!("rally {n}: {old:?} against {new:?}"),
             }

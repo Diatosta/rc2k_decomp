@@ -97,19 +97,11 @@ impl IconUploadCell {
     }
 }
 
-/// The piece's place: what `blit_components` gets, bounded to the piece's four dwords
-/// (the longest read is its 16 bytes).
-fn piece_place(upload: &IconUploadCell) -> crate::pointers::GamePtr {
-    crate::pointers::GamePtr::to(upload)
-        .offset(std::mem::offset_of!(IconUpload, piece) as u32)
-        .limited(std::mem::size_of::<[u32; 4]>() as u32)
-}
-
 /// What `upload_car_icon` is given: the icon sheet's two pictures, the system texture, where on
 /// the sheet the icon is and where on the texture it goes.
-pub struct CarIcon {
-    pub sheet: crate::pointers::GamePtr,
-    pub alpha_sheet: crate::pointers::GamePtr,
+pub struct CarIcon<'a> {
+    pub sheet: crate::scene::file_numbers_store::PathText<'a>,
+    pub alpha_sheet: crate::scene::file_numbers_store::PathText<'a>,
     pub texture: u32,
     pub sheet_x: u32,
     pub sheet_y: u32,
@@ -120,7 +112,7 @@ pub struct CarIcon {
 // ---- Rust version ----
 
 /// The Rust version. The original keeps every register.
-pub fn upload_car_icon(upload: &IconUploadCell, icon: &CarIcon) -> Result<(), Refused> {
+pub fn upload_car_icon(upload: &IconUploadCell, icon: &CarIcon<'_>) -> Result<(), Refused> {
     let gfx = crate::gfx::owner::gfx();
     let texture = icon.texture;
     let record = Record::of(texture)?;
@@ -130,8 +122,8 @@ pub fn upload_car_icon(upload: &IconUploadCell, icon: &CarIcon) -> Result<(), Re
         target_y: icon.target_y,
         piece: [icon.sheet_x, icon.sheet_y, 0x52, 0x2A],
     });
-    keep_second_picture(&record, Some(icon.alpha_sheet))?;
-    let (pixels, width, height, _) = read_texture_picture(icon.sheet)?;
+    keep_second_picture(&record, Some(&icon.alpha_sheet))?;
+    let (pixels, width, height, _) = read_texture_picture(Some(&icon.sheet))?;
     ready_picture(&record, pixels, width, height, gfx)?;
     let across = halvings_apart(
         &record,
@@ -159,7 +151,7 @@ pub fn upload_car_icon(upload: &IconUploadCell, icon: &CarIcon) -> Result<(), Re
     // blitted and the texture unlocked.
     if !crate::d3d::lock_texture::lock_texture(texture)?.carry {
         let piece = Piece {
-            rectangle: piece_place(upload),
+            rectangle: stored.piece,
             x: stored.target_x,
             y: stored.target_y,
             pixels,
@@ -186,20 +178,6 @@ mod block_tests {
         assert_eq!(
             crate::moved::place(START),
             crate::scene::owner::SCENE.icon_upload.addr() as usize
-        );
-    }
-
-    #[test]
-    fn the_piece_place_holds_its_four_dwords_and_no_more() {
-        assert!(
-            piece_place(&crate::scene::owner::SCENE.icon_upload)
-                .read::<[u32; 4]>("t")
-                .is_ok()
-        );
-        assert!(
-            piece_place(&crate::scene::owner::SCENE.icon_upload)
-                .read::<[u32; 5]>("t")
-                .is_err()
         );
     }
 }

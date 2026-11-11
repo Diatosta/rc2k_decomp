@@ -27,7 +27,6 @@ use crate::math::x87;
 use crate::math::x87::compare_full;
 use crate::math::x87_float as bh;
 use crate::physics::car_store::Car;
-use crate::pointers::GamePtr;
 use crate::race::effects_settings_store::CarEffects;
 use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::mud::car_file_number;
@@ -166,9 +165,7 @@ pub fn share_car_state_at(
     for (r, l) in LIGHT_MOVES {
         r(o).set_bits(l(light).get());
     }
-    o.set_block(crate::race::blocks_store::handle_of(
-        GamePtr::to(car).addr(),
-    ));
+    o.set_block(crate::race::blocks_store::handle_of_car(car));
     o.engine_speed.set(x87::loaded(&car.engine_speed));
     o.model.set(n);
     for (r, b) in MOVES_A {

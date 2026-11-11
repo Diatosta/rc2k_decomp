@@ -19,8 +19,7 @@ use crate::text::draw_text::Canvas;
 pub fn draw_player_rally_result(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let play = &menus.play;
     let player = crate::menu::player_settings::current(menus)?.get();
-    let name =
-        crate::screens::game_screen::player_name_of(menus, crate::menu::player_name::name(menus)?);
+    let name = crate::screens::game_screen::player_name_of(crate::menu::player_name::name(menus)?);
     (RALLY_STAGE_TIMES.records)(menus)?;
     let top_speed = player.figure;
     let speed = crate::strings::append_speed::append_speed(

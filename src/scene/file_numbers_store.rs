@@ -19,7 +19,7 @@ pub struct ObjectFileNumbers {
     pub object_lwo_path: Dword,
     /// +0x10 (0x60AD30): `dword_60AD30`: .lwo name number, kept as the text's IDA address within `path_texts` (the original kept its address; `scene::set_object_file_names`).
     pub object_lwo_number: Dword,
-    /// +0x14 (0x60AD34): the path texts the stored text addresses above point into: the folder, map, info and car-icon file names (`texts`, reached by IDA address through `text_ptr`; the dwords are only the storage, 464 bytes of NUL-ended strings).
+    /// +0x14 (0x60AD34): the path texts the stored text addresses above point into: the folder, map, info and car-icon file names (`texts`, reached by IDA address through `text_at`; the dwords are only the storage, 464 bytes of NUL-ended strings).
     pub path_texts: [Dword; 116],
     /// +0x1e4 (0x60AF04): `dword_60AF04`: the picture number (`scene::load_texture_picture`).
     pub picture_number: Dword,
@@ -37,7 +37,7 @@ impl ObjectFileNumbers {
     }
 }
 
-/// The path texts in `path_texts`, by IDA's address (for `ObjectFileNumbers::text_ptr`).
+/// The path texts in `path_texts`, by IDA's address (for `ObjectFileNumbers::text_at`).
 pub mod texts {
     pub const FOLDER_0_RO3: usize = 0x60AD4E;
     pub const FOLDER_0_LWO: usize = 0x60AD62;
@@ -66,15 +66,52 @@ pub mod texts {
     pub const CAR_ICON_3: usize = 0x60AEF0;
 }
 
+/// A path text in `path_texts`: read up to its NUL and written to inside the 464 bytes the
+/// texts occupy, its bounds.
+pub struct PathText<'a> {
+    numbers: &'a ObjectFileNumbers,
+    /// The text's first byte, within `path_texts`.
+    from: usize,
+}
+
 impl ObjectFileNumbers {
-    /// The text at IDA address `ida` as a pointer bounded by the untyped bytes `path_texts` hold the texts in.
-    pub fn text_ptr(&self, ida: usize) -> crate::pointers::GamePtr {
+    /// The text at IDA address `ida`.
+    pub fn text_at(&self, ida: usize) -> PathText<'_> {
         assert!((0x60AD34..0x60AF04).contains(&ida));
-        crate::pointers::GamePtr::to(&self.path_texts[0])
-            .limited(4 * self.path_texts.len() as u32)
-            .offset((ida - 0x60AD34) as u32)
+        PathText {
+            numbers: self,
+            from: ida - 0x60AD34,
+        }
     }
 }
+
+impl crate::session::TextPlace for PathText<'_> {
+    fn text(&self, _what: &str) -> Result<Vec<u8>, crate::errors::BadInput> {
+        let mut rest = vec![0; TEXTS_LEN - self.from];
+        crate::pointers::load_cells(self.numbers, TEXTS_AT + self.from, &mut rest)?;
+        match rest.iter().position(|&c| c == 0) {
+            Some(n) => Ok(rest[..n].to_vec()),
+            None => Err(crate::errors::BadInput("a text with no end in its buffer")),
+        }
+    }
+
+    fn write_text_at(
+        &self,
+        at: usize,
+        bytes: &[u8],
+        _what: &str,
+    ) -> Result<(), crate::errors::BadInput> {
+        let from = self.from.saturating_add(at);
+        if from.saturating_add(bytes.len()) > TEXTS_LEN {
+            return Err(crate::errors::BadInput("a write past the path texts"));
+        }
+        crate::pointers::store_cells(self.numbers, TEXTS_AT + from, bytes)
+    }
+}
+
+/// `path_texts`' place in the piece and its length in bytes.
+const TEXTS_AT: usize = core::mem::offset_of!(ObjectFileNumbers, path_texts);
+const TEXTS_LEN: usize = 4 * 116;
 
 /// IDA 0x60AD20, the first byte of the piece.
 pub const START: usize = 0x60AD20;

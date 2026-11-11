@@ -6,7 +6,6 @@
 
 use crate::errors::Refused;
 use crate::gfx::owner::gfx;
-use crate::pointers::GamePtr;
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
 use crate::strings::owner::strings;
@@ -67,19 +66,22 @@ pub fn draw_time_plate(frame: &Frame, slot: u32) -> Result<(), Refused> {
     let start = time_start(line, gfx.drawing.draw_surface.pitch.get());
     crate::gfx::rows::clear_surface_rows(start, time_rows(line), gfx)?;
     // A label is eight bytes (spaces after each split, no NUL): its text runs on into the
-    // block's next dword, so the place is bounded to the block, not the label.
-    use crate::race::overlay_store::OverlayBlock;
-    use core::mem::offset_of;
-    for (label, (x, y)) in [
-        offset_of!(OverlayBlock, label_behind),
-        offset_of!(OverlayBlock, label_ahead),
+    // dword after it, which ends it.
+    let overlay = &frame.panel_and_overlay.overlay;
+    for ((label, after), (x, y)) in [
+        (&overlay.label_behind, &overlay.unused_334),
+        (&overlay.label_ahead, &overlay.unused_340),
     ]
     .into_iter()
     .zip(time_places(line))
     {
-        let text = GamePtr::to(&frame.panel_and_overlay.overlay).offset(label as u32);
+        let text: Vec<u8> = label
+            .iter()
+            .chain(std::iter::once(after))
+            .flat_map(|d| d.get().to_le_bytes())
+            .collect();
         gfx.fonts.font_block.game_fonts[3].update(|f| f.box_width = TIME_BOX);
-        draw_text_in_game(&gfx.fonts.font_block.game_fonts[3], text, x, y)?;
+        draw_bytes_in_game(&gfx.fonts.font_block.game_fonts[3], &text, x, y)?;
     }
     unlock_texture(slot)?;
     Ok(())
@@ -170,11 +172,26 @@ pub fn draw_text_in_game(
     x: u32,
     y: u32,
 ) -> Result<bool, Refused> {
+    draw_bytes_in_game(
+        font,
+        &text.into().game_ptr().bytes("a name plate's text")?,
+        x,
+        y,
+    )
+}
+
+/// As `draw_text_in_game`, the text's bytes in hand.
+pub fn draw_bytes_in_game(
+    font: &crate::gfx::typefaces::FontObject,
+    text: &(impl rc2k_core::strings::bytes::Bytes + ?Sized),
+    x: u32,
+    y: u32,
+) -> Result<bool, Refused> {
     use crate::text::draw_text::GameCanvas;
     let mut copy = font.get();
     let wide = crate::text::draw_text_keep_regs::draw_text_keep_regs(
         &mut copy,
-        &text.into().game_ptr().bytes("a name plate's text")?,
+        text,
         x as i32,
         y as i32,
         &mut GameCanvas,

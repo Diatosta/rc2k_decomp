@@ -24,6 +24,42 @@ pub struct Arcade {
     pub levels_won: PlainBytes<8>,
 }
 
+/// The variables as one run of bytes (a read off `levels_won`'s start runs into the dwords
+/// before it, as the original's does).
+impl crate::place::Run for Arcade {
+    fn len(&self) -> usize {
+        size_of::<Arcade>()
+    }
+    fn get(&self, n: usize) -> u8 {
+        let dword = |d: &PlainDword| d.get().to_le_bytes()[n % 4];
+        match n / 4 {
+            0 => dword(&self.scene_let_go),
+            1 => dword(&self.level),
+            2 => dword(&self.stage),
+            3 => dword(&self.retry),
+            4 => dword(&self.places),
+            5 => self._gap_7587fc.get(n - 20),
+            _ => self.levels_won.get(n - 24),
+        }
+    }
+    fn set(&self, n: usize, v: u8) {
+        let dword = |d: &PlainDword| {
+            let mut bytes = d.get().to_le_bytes();
+            bytes[n % 4] = v;
+            d.set(u32::from_le_bytes(bytes));
+        };
+        match n / 4 {
+            0 => dword(&self.scene_let_go),
+            1 => dword(&self.level),
+            2 => dword(&self.stage),
+            3 => dword(&self.retry),
+            4 => dword(&self.places),
+            5 => self._gap_7587fc.set(n - 20, v),
+            _ => self.levels_won.set(n - 24, v),
+        }
+    }
+}
+
 /// First values the image's (`tests::arcade_game_starts_as_the_games`).
 impl Arcade {
     pub const fn new() -> Self {

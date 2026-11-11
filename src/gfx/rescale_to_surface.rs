@@ -17,48 +17,37 @@ use crate::gfx::components_to_pixel::components_to_pixel;
 use crate::gfx::fill_row_table::{ROW_TABLE_ROOM, fill_row_table, row_address};
 use crate::gfx::rescale_picture::Rescaler;
 
-// ---- game data ----
-
-// The fields used here of `g_surface` (`DRAW_SURFACE`, from 0x4F4998), twelve dwords.
-const WIDTH: usize = 0x08;
-const HEIGHT: usize = 0x0C;
-const BITS: usize = 0x10;
-const FORMAT: usize = 0x20;
-const PIXELS: usize = 0x28;
-const ROW_GAP: usize = 0x2C;
-
-/// `surface` is where the twelve dwords of a surface's description are.
+/// `surface` is the surface drawn on.
 pub fn rescale_to_surface(
     rescaler: &Rescaler,
-    surface: crate::pointers::GamePtr,
+    surface: &crate::gfx::screen_state::DrawSurface,
     gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     let pictures = &gfx.pictures;
     use crate::pointers::write_or_end;
-    let field = |offset: usize| {
-        surface
-            .offset(offset as u32)
-            .read::<u32>("a surface's description")
-    };
     let (from_width, from_height): (u32, u32) =
         (pictures.decoder.width.get(), pictures.decoder.height.get());
-    let (width, height) = (field(WIDTH)?, field(HEIGHT)?);
+    let (width, height) = (surface.width.get(), surface.height.get());
     let from: u32 = pictures.decoder.pixels.get();
     if from_width == 0 || from_height == 0 || width == 0 || height == 0 {
         return Err(BadInput("a picture or a surface without width or height").into());
     }
-    if from_height > ROW_TABLE_ROOM || from == 0 || field(PIXELS)? == 0 || field(FORMAT)? == 0 {
+    if from_height > ROW_TABLE_ROOM
+        || from == 0
+        || surface.pixels.get() == 0
+        || surface.format.get() == 0
+    {
         return Err(BadInput("a decoded picture or a surface the rescaler cannot take").into());
     }
     // The count was checked above. The rows as offsets in the decoded buffer.
     let _ = fill_row_table(0, pictures.decoder.stride.get(), from_height, gfx);
     // Converted: `rc2k_core::gfx::picture::rescale`; each pixel's parts through the
     // components variable, the last left there with its fourth byte as it was.
-    let format = crate::gfx::pixel_format::layout(field(FORMAT)?)?;
-    let words = field(BITS)? == 0x10;
+    let format = crate::gfx::pixel_format::layout(surface.format.get())?;
+    let words = surface.bits_per_pixel.get() == 0x10;
     // Where the next pixel goes (a game address).
-    let mut out = field(PIXELS)?;
-    let (width_pixels, gap) = (width, field(ROW_GAP)?);
+    let mut out = surface.pixels.get();
+    let (width_pixels, gap) = (width, surface.row_gap.get());
     let mut column = 0u32;
     let work = crate::gfx::picture::with_buffer(from, |pixels| {
         rc2k_core::gfx::picture::rescale(
