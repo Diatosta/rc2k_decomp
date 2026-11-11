@@ -8,8 +8,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::net::owner::net;
 use crate::physics::contact_store::ContactWork;
-use crate::physics::step_families::GroundInputs;
-use crate::physics::step_inputs::StepInputs;
+use crate::physics::step_families::{GroundInputs, ResetInputs};
 use crate::race::best_line::MOST_CHECKS;
 use crate::race::matrices_store::SceneMatrices;
 use crate::race::owner::Race;
@@ -62,7 +61,7 @@ fn matrix_and_wheels(
 /// wheels 0 + 2 against 1 + 3, the pitch towards 0 + 1 against 2 + 3, each step halved; once more
 /// the matrix and the wheels, then the car's y, the four wheels and the four at 0x6D1F14 lowered by
 /// the lowest wheel (from 0x640000).
-pub fn settle_car(c: &StepInputs<'_>) -> Result<(), Refused> {
+pub fn settle_car(c: &ResetInputs<'_>) -> Result<(), Refused> {
     let physics = c.physics;
     let shared = c.shared;
     crate::physics::set_handling::set_handling(&c.physics.damage, c.numbers, c.shared)?;
@@ -72,7 +71,7 @@ pub fn settle_car(c: &StepInputs<'_>) -> Result<(), Refused> {
     shared.physics_tables.settle_steps[1].set(0x2000_0000u32);
     physics.ground_probe.settle_mark.set(0x80);
     for _ in 0..8 {
-        let w = matrix_and_wheels(&c.ground(), &c.frame.matrices)?;
+        let w = matrix_and_wheels(&c.ground, c.matrices)?;
         settle_step(
             w[0].wrapping_add(w[2]),
             w[1].wrapping_add(w[3]),
@@ -86,7 +85,7 @@ pub fn settle_car(c: &StepInputs<'_>) -> Result<(), Refused> {
             &shared.physics_tables.settle_steps[0],
         );
     }
-    let w = matrix_and_wheels(&c.ground(), &c.frame.matrices)?;
+    let w = matrix_and_wheels(&c.ground, c.matrices)?;
     let mut lowest = 0x64_0000u32;
     for &h in &w {
         if (h.wrapping_sub(lowest) as i32) < 0 {
@@ -110,7 +109,7 @@ pub fn settle_car(c: &StepInputs<'_>) -> Result<(), Refused> {
 /// roll copied to `start_heading` / `58` / `54` and +0x6B0 / +0x6B8 / +0x6B4; +0x1E8,
 /// `g_carDriveSpeed`, `g_carDriveSpeed2`, `g_carGear`, +0x200, +0x204, +0x1C4, +0x1F4 0; with
 /// +0x68C not 0, +0x688 and +0x684 it less one and +0x68C 0.
-pub fn reset_car_motion(c: &StepInputs<'_>) -> Result<(), Refused> {
+pub fn reset_car_motion(c: &ResetInputs<'_>) -> Result<(), Refused> {
     let shared = c.shared;
     let physics = c.physics;
     settle_car(c)?;
@@ -172,11 +171,10 @@ fn move_turned(course: &Course, shared: &RaceShared, x: u32, z: u32) {
 /// bit). Then `nearest_checkpoint` into +0x98, +0x94, +0x9C; its check count less one held to 0 ..
 /// 100 into +0x90 and +0xAC; `reset_car_motion`; +0x264 .. +0x26C 0. Refuses a nearest checkpoint
 /// past the lists (when met).
-pub fn start_car(c: &StepInputs<'_>) -> Result<(), Refused> {
+pub fn start_car(c: &ResetInputs<'_>) -> Result<(), Refused> {
     let scene = crate::scene::owner::scene();
     let lights = &scene.lights;
     let course = &c.course;
-    let replay = &c.replay;
     c.car.notice_count.set(0);
     c.car.camera_switch_active.set(0);
     c.car.map_corner[0].set(0x8000_0000);
@@ -200,12 +198,12 @@ pub fn start_car(c: &StepInputs<'_>) -> Result<(), Refused> {
         let place = start_checkpoint(first, mode, c.work.current_car.get());
         lights.state.line_place.set(place);
         lights.state.line_fraction.set(0);
-        if replay.finish.no_place.get() != 0 {
+        if c.finish.no_place.get() != 0 {
             lights.state.line_place.set(0);
             lights.state.line_fraction.set(0);
         }
         crate::race::start_place::place_car_on_line(c.shared, course, scene)?;
-        if replay.finish.no_place.get() == 0 {
+        if c.finish.no_place.get() == 0 {
             move_turned(c.course, c.shared, 0, 0xFFFE_0000);
             let side = starts_aside(
                 net().vars.session.get(),
@@ -256,7 +254,7 @@ pub fn start_cars(race: &Race) -> Result<(), Refused> {
     for n in 0..cars {
         shared.work.current_car.set(n);
         crate::drive::load_car::load_car(shared)?;
-        start_car(&crate::physics::step_inputs::StepInputs::of(race))?;
+        start_car(&crate::physics::step_inputs::StepInputs::of(race).reset())?;
         // +0xA3C (8 dwords) and +0xA5C (0x11) 0.
         for cell in shared
             .car

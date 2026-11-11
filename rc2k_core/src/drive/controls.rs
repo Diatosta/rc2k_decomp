@@ -7,9 +7,9 @@
 /// What the keys word gives (`read_car_controls`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Keys {
-    /// The bits not held before (`dword_71A44C`).
+    /// The bits not held before.
     pub pressed: u32,
-    /// The handbrake's input (`dword_61389C`): bit 2 held times 0x60.
+    /// The handbrake's input: bit 2 held times 0x60.
     pub hand: u32,
     /// Bit 0 newly pressed (`dword_6138A0`, `input_gear_up`).
     pub up: u32,
@@ -38,7 +38,7 @@ pub fn flipped(v: u32) -> u32 {
     v.wrapping_add(1) & 1
 }
 
-/// Whether the computer drives the car: its switch (`dword_71C3E0`), or race mode 2 with
+/// Whether the computer drives the car: its switch, or race mode 2 with
 /// the grades' mode 2 (each asked only when the one before does not decide).
 pub fn computer_drives(
     switch: bool,

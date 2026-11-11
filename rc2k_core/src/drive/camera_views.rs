@@ -27,7 +27,7 @@ pub const CARS_WITH_ENTRY: u32 = 0x22;
 
 impl CameraView {
     /// `drive::set_camera_view`: the view wanted taken at step count `step`; the step
-    /// count (the original's eax).
+    /// count.
     pub fn take_wanted(&mut self, step: u32) -> u32 {
         self.view = self.wanted;
         self.held = 0;

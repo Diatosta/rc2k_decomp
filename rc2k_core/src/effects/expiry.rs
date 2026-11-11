@@ -1,8 +1,8 @@
-//! The squares' and windscreen drops' items ending (from
-//! `effects::expire_windscreen_flakes` 0x4C06AD and `effects::expire_windscreen_drops` 0x4BCB1D): a live item ends
-//! when its cell of the masks (0x80 rows of 0x100, a cell 8 units square) holds the
-//! shapes' value, and a windscreen drop also by lot. The place is rounded by `fistp` of a float
-//! loaded from memory, which does not depend on the x87's precision.
+//! The squares' and windscreen drops' items ending (from `effects::expire_windscreen_flakes`
+//! 0x4C06AD and `effects::expire_windscreen_drops` 0x4BCB1D): a live item ends when its cell of the
+//! masks (0x80 rows of 0x100, a cell 8 units square) holds the shapes' value, and a windscreen drop
+//! also by lot. The place is rounded by `fistp` of a float loaded from memory, which does not
+//! depend on the x87's precision.
 
 use crate::math::geometry::fistp;
 
@@ -27,9 +27,9 @@ pub fn cell(x: f32, z: f32) -> Cell {
     }
 }
 
-/// `expire_windscreen_flakes`: a square ends when its cell in the first mask is the shapes' low byte,
-/// or (with more than one run of masks, signed) in the second; `mask(n)` mask n's byte of
-/// the cell, the second asked only with more runs.
+/// `expire_windscreen_flakes`: a square ends when its cell in the first mask is the shapes' low
+/// byte, or (with more than one run of masks, signed) in the second; `mask(n)` mask n's byte of the
+/// cell, the second asked only with more runs.
 pub fn square_ends(shape: u8, runs: impl FnOnce() -> i32, mask: impl Fn(usize) -> u8) -> bool {
     let first = mask(0) == shape;
     let second = runs() > 1 && mask(1) == shape;
@@ -46,7 +46,7 @@ pub fn windscreen_drop_draw(random: u32) -> (u32, u32) {
 /// Whether a windscreen drop ends by the shapes of the last `steps` steps (signed; the latest
 /// first): `value(k)` the shapes' value of step k (`dword_844A10` at the latest step plus
 /// k, on a clock of 256), its low byte in either mask's cell (`mask(n)`) ends it. With the
-/// last value read (what the original leaves in eax), none with no steps.
+/// last value read, none with no steps.
 pub fn windscreen_drop_hit(
     steps: i32,
     value: impl Fn(u32) -> u32,
@@ -56,8 +56,8 @@ pub fn windscreen_drop_hit(
     for k in (0..steps.max(0) as u32).rev() {
         let v = value(k);
         last = Some(v);
-        let al = v as u8;
-        if mask(0) == al || mask(1) == al {
+        let low = v as u8;
+        if mask(0) == low || mask(1) == low {
             return (true, last);
         }
     }

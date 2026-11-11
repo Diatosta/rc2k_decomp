@@ -1,9 +1,9 @@
-//! The car specification and slideshow screens' buttons (from
-//! `menu::next_car` 0x469AFD, `previous_car` 0x469A6F, `next_car_page` 0x469BD1, `previous_slideshow_car` 0x469B35,
-//! `next_slideshow_car` 0x469B70, `previous_slideshow_picture` 0x469BF4,
-//! `next_slideshow_picture` 0x469C1A): what each changes, then what it calls; and the car
-//! choice's carousel (`menu::find_player_car`, `next_choice_car`, `previous_choice_car`);
-//! the car specifications' list by the kind of event (`menu::show_car_specs` 0x46FD31).
+//! The car specification and slideshow screens' buttons (from `menu::next_car` 0x469AFD,
+//! `previous_car` 0x469A6F, `next_car_page` 0x469BD1, `previous_slideshow_car` 0x469B35,
+//! `next_slideshow_car` 0x469B70, `previous_slideshow_picture` 0x469BF4, `next_slideshow_picture`
+//! 0x469C1A): what each changes, then what it calls; and the car choice's carousel
+//! (`menu::find_player_car`, `next_choice_car`, `previous_choice_car`); the car specifications'
+//! list by the kind of event (`menu::show_car_specs` 0x46FD31).
 
 /// What the screens show: the car (an entry up to `last_car`), the slideshow's picture
 /// (0 .. 99), the specification's page (0 .. 3), the screen loop's leaving switch.
@@ -113,7 +113,7 @@ pub enum SpecsList {
     Kind5,
 }
 
-/// `menu::show_car_specs`: the list for the kind of event (`dword_755954`), and whether
+/// `menu::show_car_specs`: the list for the kind of event, and whether
 /// the screen is a choice (the cheat's list may stand in, the car shown is taken unless
 /// the screen was left) or shown alone (kind 5). None: another kind, the original's fatal
 /// error 0x80713214, "No GameMode Defined".

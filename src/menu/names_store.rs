@@ -3,30 +3,30 @@
 //! keeps, and the text as it was before an entry started. A `#[repr(C)]` struct with the image's
 //! layout, one static; `moved::MOVED` points the range at it.
 
-use crate::session::Bytes;
+use crate::session::PlainBytes;
 
 /// The names and the text backup (IDA 0x755784 .. 0x7558C4).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Names {
     /// `g_playerNames`: The four players' names, 0x20 bytes each (`menu::player_names`).
-    pub player_names: Bytes<128>,
+    pub player_names: PlainBytes<128>,
     /// `byte_7557E4`: The rest of the names' area.
-    pub more_names: Bytes<128>,
+    pub more_names: PlainBytes<128>,
     /// `g_keptPlayerName`: The name kept by `menu::standings` (0x1F bytes and a NUL).
-    pub kept_name: Bytes<32>,
+    pub kept_name: PlainBytes<32>,
     /// `unk_7558A4`: The text as it was before the entry started (`menu::text_entry`).
-    pub text_backup: Bytes<32>,
+    pub text_backup: PlainBytes<32>,
 }
 
 /// First values the image's (`tests::name_buffers_starts_as_the_games`).
 impl Names {
     pub const fn new() -> Self {
         Names {
-            player_names: Bytes::new([0; 128]),
-            more_names: Bytes::new([0; 128]),
-            kept_name: Bytes::new([0; 32]),
-            text_backup: Bytes::new([0; 32]),
+            player_names: PlainBytes::new([0; 128]),
+            more_names: PlainBytes::new([0; 128]),
+            kept_name: PlainBytes::new([0; 32]),
+            text_backup: PlainBytes::new([0; 32]),
         }
     }
 }
@@ -39,7 +39,7 @@ pub const END: usize = 0x7558C4;
 /// Where IDA 0x755784 lives (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn names_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::menu::owner::MENUS.play.names)
+    crate::pointers::game_address(&raw const crate::menu::owner::menus().play.names)
 }
 
 #[cfg(test)]

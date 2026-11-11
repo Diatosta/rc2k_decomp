@@ -104,8 +104,8 @@ pub fn rect_of(cells: &[crate::session::Dword; 4]) -> [i32; 4] {
 }
 
 /// A rectangle (x, y, width, height) kept in the first 16 bytes of a buffer.
-pub fn rect_in<const N: usize>(bytes: &crate::session::Bytes<N>) -> [i32; 4] {
-    std::array::from_fn(|n| bytes.get_u32(4 * n) as i32)
+pub fn rect_in(bytes: &impl crate::session::ByteBuffer) -> [i32; 4] {
+    std::array::from_fn(|n| bytes.get_u32_at(4 * n) as i32)
 }
 
 /// `gfx::fill_rect` (0x406869): the rectangle (x, y, width, height) filled, clipped. As the

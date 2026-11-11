@@ -134,7 +134,7 @@ pub struct Queued {
 }
 
 /// The steps on the levels: `gauge(k)` read where a step applies, `limit(t)` told of each
-/// threshold stored (`flt_75B36C`), `queue` each notice (its refusal stops the steps).
+/// threshold stored, `queue` each notice (its refusal stops the steps).
 pub fn damage_notices<E>(
     levels: &mut [u32; LEVELS],
     gauge: impl Fn(usize) -> f32,

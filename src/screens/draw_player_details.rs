@@ -28,14 +28,22 @@ use crate::errors::{BadInput, Refused};
 use crate::input::owner::input;
 use crate::menu::owner::Menus;
 use crate::menu::player::Player;
-use crate::session::Dword;
+use crate::session::PlainDword;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-const NATIONALITIES_RVA: &[Dword] = &crate::menu::owner::MENUS.tables.captions.nationalities;
-const VIEWS_RVA: &[Dword] = &crate::menu::owner::MENUS.tables.captions.views;
-const SECOND_VIEWS_RVA: &[Dword] = &crate::menu::owner::MENUS.tables.captions.second_views;
+const NATIONALITIES_RVA: &[PlainDword] = &crate::menu::owner::MENUS
+    .unchecked()
+    .tables
+    .captions
+    .nationalities;
+const VIEWS_RVA: &[PlainDword] = &crate::menu::owner::MENUS.unchecked().tables.captions.views;
+const SECOND_VIEWS_RVA: &[PlainDword] = &crate::menu::owner::MENUS
+    .unchecked()
+    .tables
+    .captions
+    .second_views;
 /// What differs between the players' pages: players 1 and 2 (`screens::draw_player_details`,
 /// 0x4677B5) have the controller's item at 9 and the second view's line; players 3
 /// and 4 (0x467975) have it at 8 and no second view, the lines below moving up one.
@@ -59,11 +67,11 @@ const NATIONALITIES: u32 = 40;
 const VIEWS: u32 = 7;
 const SECOND_VIEWS: u32 = 6;
 
-fn string(table: &[Dword], index: u32, count: u32) -> Result<u32, Refused> {
+fn string(table: &[impl crate::session::Cell32], index: u32, count: u32) -> Result<u32, Refused> {
     if index >= count {
         return Err(BadInput("an index past its string table").into());
     }
-    Ok(table[index as usize].get())
+    Ok(table[index as usize].bits())
 }
 
 pub fn draw_player_page(

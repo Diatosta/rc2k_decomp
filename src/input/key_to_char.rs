@@ -96,5 +96,5 @@ fn typed(input: &Input, eax: u32, for_text: bool) -> Result<u32, BadInput> {
     if let Some(pending) = typed.pending {
         input.devices.dead_key.set(pending);
     }
-    Ok(typed.eax)
+    Ok(typed.code)
 }

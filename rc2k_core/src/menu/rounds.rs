@@ -249,7 +249,7 @@ pub fn single_rally_split<G: Game>(e: &mut G) -> Result<(), G::Error> {
         }
         e.set(Var::Current, 0);
         e.set(Var::PlayerEntry(0), 1);
-        // Both cars repaired. (The original put 0 and 1 in ecx, which `repair_car` does not
+        // Both cars repaired. (The original passed 0 and 1, which `repair_car` does not
         // read: player 0's car was repaired twice, player 1's kept the last stage's damage.
         // Fixed bug; the current player is 0 again for the race, as the original's.)
         for player in 0..2 {

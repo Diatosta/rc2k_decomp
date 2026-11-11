@@ -18,7 +18,7 @@ use crate::menu::owner::menus;
 /// The table's address goes to `sprite_table`.
 pub fn build_menu_sprites(
     vars: &SheetVars,
-    sprite_table: &crate::session::Dword,
+    sprite_table: &crate::session::PlainDword,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {

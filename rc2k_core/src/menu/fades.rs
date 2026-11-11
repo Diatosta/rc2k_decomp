@@ -1,7 +1,7 @@
 //! The inspection's fades: the see-through of the fade's quad by the time gone
 //! (from `menu::fade_in` 0x4A1CFA and `menu::fade_out` 0x4A1DA5). The length
 //! (`dword_75AB44`, ms) is cut in a hundred steps; the see-through goes from 0 up to the
-//! full one (`dword_75AA94`) in, or from it down out, a hundredth of it a step.
+//! full one in, or from it down out, a hundredth of it a step.
 
 /// The steps of a fade.
 pub const STEPS: u32 = 100;

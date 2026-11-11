@@ -16,7 +16,7 @@
 use crate::d3d::draw_fan_unclipped::polygon;
 use crate::d3d::{NO_TEXTURE, Vertex};
 use crate::logfile::log_hex8::log_hex8;
-use crate::scene::owner::scene;
+use crate::session::Screen;
 
 // ---- game data ----
 const TEXTURES: u32 = 0x400;
@@ -33,7 +33,7 @@ pub trait Outside {
     /// `d3d::draw_fan_unclipped`: Direct3D's result.
     fn draw_fan(&mut self, vertices: &[Vertex]) -> u32;
     /// A vertex is off the screen: "Error" to the log and `scene::show_bad_polygon`.
-    fn bad_vertex(&mut self, poly: &crate::scene::polygon_work::PolygonWork);
+    fn bad_vertex(&mut self, poly: &crate::scene::polygon_work::PolygonWork, screen: &Screen);
     /// Direct3D did not draw: "drawtri" and its result to the log.
     fn not_drawn(&mut self, result: u32);
 }
@@ -50,11 +50,13 @@ pub fn vertices_fit(vertices: &[Vertex], width: u32, height: u32) -> bool {
         .all(|v| fits(v[0], width as f64) && fits(v[1], height as f64) && fits(v[2], 1.0))
 }
 
-pub fn submit_polygon(poly: &crate::scene::polygon_work::PolygonWork, outside: &mut dyn Outside) {
-    let system = crate::system::owner::system();
-    let session = &system.session;
-    let scene = scene();
-    let device_on = scene.objects.tables.d3d_drawing_on.get() != 0;
+/// `device_on`: the draw switch (`d3d_drawing_on`) is set; `screen` is the screen's size.
+pub fn submit_polygon(
+    poly: &crate::scene::polygon_work::PolygonWork,
+    outside: &mut dyn Outside,
+    device_on: bool,
+    screen: &Screen,
+) {
     let texture: u32 = poly.polygon_texture.get();
     if texture == NO_TEXTURE {
         if device_on {
@@ -67,12 +69,8 @@ pub fn submit_polygon(poly: &crate::scene::polygon_work::PolygonWork, outside: &
         }
     }
     let vertices = polygon(poly);
-    if !vertices_fit(
-        &vertices,
-        session.screen.width.get(),
-        session.screen.height.get(),
-    ) {
-        outside.bad_vertex(poly);
+    if !vertices_fit(&vertices, screen.width.get(), screen.height.get()) {
+        outside.bad_vertex(poly, screen);
         return;
     }
     if device_on {
@@ -95,9 +93,9 @@ impl Outside for Game {
         crate::platform_3d::draw_fan(vertices);
         0
     }
-    fn bad_vertex(&mut self, poly: &crate::scene::polygon_work::PolygonWork) {
+    fn bad_vertex(&mut self, poly: &crate::scene::polygon_work::PolygonWork, screen: &Screen) {
         crate::logfile::log_write::log_nul(&ERROR_TEXT, true, 1);
-        if let Err(e) = crate::scene::show_bad_polygon::show_bad_polygon(poly) {
+        if let Err(e) = crate::scene::show_bad_polygon::show_bad_polygon(poly, screen) {
             crate::fatal::raise::end("scene::show_bad_polygon", e);
         }
     }

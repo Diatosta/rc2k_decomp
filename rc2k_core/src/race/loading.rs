@@ -61,8 +61,8 @@ pub fn frame_tried(active: u32, lost: u32) -> bool {
 }
 
 pub fn restored(lost_before: u32, lost_after: u32) -> (u32, bool, bool) {
-    let ebx = (lost_before ^ 1) | lost_after;
-    (ebx, ebx < 1, ebx == 1)
+    let state = (lost_before ^ 1) | lost_after;
+    (state, state < 1, state == 1)
 }
 
 #[cfg(test)]

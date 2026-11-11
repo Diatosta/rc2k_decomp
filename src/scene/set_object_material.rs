@@ -25,7 +25,6 @@ use crate::errors::BadInput;
 use crate::math::next_random::next_drawing_random;
 use crate::math::x87;
 use crate::math::x87_float as bh;
-use crate::race::owner_shared::RaceShared;
 
 // ---- game data ----
 const OBJECTS: u32 = 0xFF;
@@ -55,18 +54,27 @@ const STATE: u32 = 0x30;
 /// The fraction into `fraction_out` (the view's `ObjectPlace::move_fraction`).
 fn step_shape(
     course: &crate::race::owner_course::Course,
-    shared: &RaceShared,
+    clock: u32,
     face: u32,
     scene: &crate::scene::owner::Scene,
     fraction_out: &crate::session::Dword,
 ) -> Result<(), BadInput> {
     use crate::race::course_places::{face_field, write_face_field};
-    let b: [u8; 16] = face_field(course, face, STATE)?;
-    let [last, mut time, mut length, mut phase]: [u32; 4] = std::array::from_fn(|k| {
-        u32::from_le_bytes([b[4 * k], b[4 * k + 1], b[4 * k + 2], b[4 * k + 3]])
-    });
+    let read = || -> Result<[u32; 4], BadInput> {
+        let b: [u8; 16] = face_field(course, face, STATE)?;
+        Ok(std::array::from_fn(|k| {
+            u32::from_le_bytes([b[4 * k], b[4 * k + 1], b[4 * k + 2], b[4 * k + 3]])
+        }))
+    };
+    let [mut last, mut time, mut length, mut phase] = read()?;
     crate::session::write_bits(&scene.lights.work.phase_lengths, LENGTHS);
-    let clock: u32 = shared.physics_tables.scene_clock.get();
+    if time.wrapping_add(clock.wrapping_sub(last).min(100)) >= length {
+        // The phase advances: in the list's order, after the views before this one have
+        // stepped the face (the mirror then finds the view's new state and does not advance
+        // it again, as when one thread draws them in turn).
+        crate::workers::wait_for_earlier_runs();
+        [last, time, length, phase] = read()?;
+    }
     time = time.wrapping_add(clock.wrapping_sub(last).min(100));
     while time >= length {
         time -= length;
@@ -93,7 +101,6 @@ fn step_shape(
 
 pub fn set_object_material(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), BadInput> {
     let (race, scene) = (ctx.race, ctx.scene);
-    let shared = &race.shared;
     let object: u32 = ctx.view.cars.object_number.get();
     if object >= OBJECTS {
         return Err(BadInput("an object's number past the tables"));
@@ -120,7 +127,7 @@ pub fn set_object_material(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
             .set(points[1].wrapping_sub(points[0]).wrapping_mul(12));
         step_shape(
             &race.course,
-            shared,
+            ctx.clock,
             state,
             scene,
             &ctx.view.object.move_fraction,

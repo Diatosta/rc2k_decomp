@@ -15,9 +15,9 @@ use crate::math::geometry::fistp64;
 pub const PARTS: u32 = 0x40;
 /// The frame's and the lines' colour.
 pub const FRAME: u32 = 0x21_2463;
-/// The bar's width in pixels (`dword_75C000`).
+/// The bar's width in pixels.
 pub const WIDTH: u32 = 0x229;
-/// The last colour offset: the colours are four dwords (`dword_75BF70`) read at a byte
+/// The last colour offset: the colours are four dwords read at a byte
 /// offset.
 pub const LAST_KIND: u32 = 0xC;
 /// The alphas: the frame and borders, the colour inside.
@@ -31,7 +31,7 @@ pub fn check(count: u32, players: u32, kind: impl Fn(u32, u32) -> u32) -> Result
         return Err(Invalid("a stage bar of more than 0x40 parts"));
     }
     if (0..players).any(|p| (0..count).any(|n| kind(p, n) > LAST_KIND)) {
-        return Err(Invalid("a stage bar colour past dword_75BF70"));
+        return Err(Invalid("a stage bar colour past the table"));
     }
     Ok(())
 }
@@ -59,7 +59,7 @@ pub fn frame(dy: u32, two: bool) -> Vec<(u32, [u32; 4])> {
     ]
 }
 
-/// A part's end (`dword_75BFFC`): the miles so far plus its own (`fld; fadd; fstp`), the
+/// A part's end: the miles so far plus its own (`fld; fadd; fstp`), the
 /// last part's the record's total.
 pub fn part_end(miles: f32, end: f32, last: bool, total: f32) -> f32 {
     if last {
@@ -79,9 +79,6 @@ pub struct Quad {
     pub alpha: Option<u32>,
     pub colour: Option<u32>,
     pub corners: [u32; 4],
-    pub eax: u32,
-    pub ebx: u32,
-    pub edx: Option<u32>,
 }
 
 /// A band's rows: its top, and its height to the border's lower row.
@@ -106,9 +103,6 @@ pub fn part_quads(a: u32, b: u32, colours: &[u32], last: bool, dy: u32) -> Vec<Q
             alpha: (k == 0 && colour.is_some()).then_some(SOLID),
             colour,
             corners,
-            eax: x0,
-            ebx: x1,
-            edx: None,
         };
         out.push(border(Some(0), [x0, t, x1, t.wrapping_add(1)]));
         out.push(border(None, [x1, t, x1.wrapping_add(1), t.wrapping_add(h)]));
@@ -137,9 +131,6 @@ pub fn part_quads(a: u32, b: u32, colours: &[u32], last: bool, dy: u32) -> Vec<Q
             alpha: (k == 0).then_some(SEE_THROUGH),
             colour: Some(c),
             corners: [x0, t.wrapping_add(1), x1.wrapping_add(1), t.wrapping_add(h)],
-            eax: x0,
-            ebx: x1,
-            edx: Some(c),
         });
     }
     if !last {
@@ -149,9 +140,6 @@ pub fn part_quads(a: u32, b: u32, colours: &[u32], last: bool, dy: u32) -> Vec<Q
                 alpha: (k == 0).then_some(SOLID),
                 colour: Some(FRAME),
                 corners: [x0, t, x1.wrapping_add(1), t.wrapping_add(h + 1)],
-                eax: x0,
-                ebx: x1,
-                edx: None,
             });
         }
     }
@@ -185,9 +173,6 @@ mod tests {
                 alpha: Some(SEE_THROUGH),
                 colour: Some(7),
                 corners: [0x8A, 4, 0x96, 0x1C],
-                eax: 0x8A,
-                ebx: 0x95,
-                edx: Some(7)
             }
         );
         assert_eq!(single[5].corners, [0x97, 3, 0x99, 0x1D]);

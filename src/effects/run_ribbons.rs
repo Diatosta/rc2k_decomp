@@ -24,7 +24,6 @@ use crate::effects::setup::MarksClock;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::scene::fog_at::fog_at;
-use crate::session::Float;
 
 const STREAK: u32 = 0x12;
 
@@ -65,7 +64,7 @@ impl Colours257 {
 
 /// The original's 0x4CF890 .. 0x4CF94D: a new streak's place turned into its last (+0x1C ..), and a first move.
 fn first_frame(
-    view_matrix: &[Float; 16],
+    view_matrix: &[crate::session::Float; 16],
     ring: &Ring,
     e: u32,
     effects: &crate::effects::owner::Effects,
@@ -86,7 +85,7 @@ fn move_(ring: &Ring, e: u32, effects: &crate::effects::owner::Effects) {
 
 /// The original's 0x4CF9A6 .. 0x4CFA2D: the place turned by the view into `flt_8EB8D5` ...
 fn turn_place(
-    view_matrix: &[Float; 16],
+    view_matrix: &[crate::session::Float; 16],
     ring: &Ring,
     e: u32,
     effects: &crate::effects::owner::Effects,
@@ -164,7 +163,7 @@ fn refusal(
 
 /// The streak step at e (see the header): whether the entry dies.
 fn streak(
-    view_matrix: &[Float; 16],
+    view_matrix: &[crate::session::Float; 16],
     ring: &Ring,
     e: u32,
     effects: &crate::effects::owner::Effects,
@@ -271,7 +270,7 @@ use crate::math::x87_float::int;
 
 /// The entry's place turned by the view matrix (its rows' x, y, z columns plus the translation
 /// in cells 12 .. 14), in the x87's order: the three results unrounded to a stored float.
-fn view_turned(view_matrix: &[Float; 16], ring: &Ring, e: u32) -> [bh::X; 3] {
+fn view_turned(view_matrix: &[crate::session::Float; 16], ring: &Ring, e: u32) -> [bh::X; 3] {
     let t0 = ld(ring, e, |en| en.place[2]);
     let t1 = ld(ring, e, |en| en.place[1]);
     let t2 = ld(ring, e, |en| en.place[0]);
@@ -306,7 +305,13 @@ fn view_turned(view_matrix: &[Float; 16], ring: &Ring, e: u32) -> [bh::X; 3] {
 }
 
 /// `first_frame`'s x87 block as plain Rust on the x87 model (52 instructions), same order and memory places.
-fn first_frame_x87(view_matrix: &[Float; 16], ring: &Ring, e: u32, c: &MarksClock, ribbon_a: f32) {
+fn first_frame_x87(
+    view_matrix: &[crate::session::Float; 16],
+    ring: &Ring,
+    e: u32,
+    c: &MarksClock,
+    ribbon_a: f32,
+) {
     let [turned_x, turned_y, turned_z] = view_turned(view_matrix, ring, e);
     st(ring, e, turned_x, |en| &mut en.last_place[0]);
     st(ring, e, turned_y, |en| &mut en.last_place[1]);
@@ -335,7 +340,7 @@ fn move_x87(ring: &Ring, e: u32, c: &MarksClock, y_gain: f32) {
 }
 
 /// `turn_place`'s x87 block as plain Rust on the x87 model (36 instructions), same order and memory places.
-fn turn_place_x87(view_matrix: &[Float; 16], ring: &Ring, e: u32, dw: &DrawWork) {
+fn turn_place_x87(view_matrix: &[crate::session::Float; 16], ring: &Ring, e: u32, dw: &DrawWork) {
     let [x, y, z] = view_turned(view_matrix, ring, e);
     dw.turned[0].st(x);
     dw.turned[1].st(y);
@@ -351,7 +356,7 @@ mod old {
     use crate::math::x87_float::int;
     /// The previous version of `first_frame`'s x87 block as plain Rust on the x87 model (52 instructions), same order and memory places.
     pub(super) fn first_frame_x87(
-        view_matrix: &[Float; 16],
+        view_matrix: &[crate::session::Float; 16],
         ring: &Ring,
         e: u32,
         c: &MarksClock,
@@ -429,7 +434,12 @@ mod old {
     }
 
     /// The previous version of `turn_place`'s x87 block as plain Rust on the x87 model (36 instructions), same order and memory places.
-    pub(super) fn turn_place_x87(view_matrix: &[Float; 16], ring: &Ring, e: u32, dw: &DrawWork) {
+    pub(super) fn turn_place_x87(
+        view_matrix: &[crate::session::Float; 16],
+        ring: &Ring,
+        e: u32,
+        dw: &DrawWork,
+    ) {
         let t0 = ld(ring, e, |en| en.place[2]);
         let t1 = ld(ring, e, |en| en.place[1]);
         let t2 = ld(ring, e, |en| en.place[0]);
@@ -497,7 +507,7 @@ mod same_as_old {
         let clock = &MarksClock::new();
         let kept_matrix: Vec<u32> = view_matrix
             .iter()
-            .map(crate::session::Float::bits)
+            .map(crate::session::Cell32::bits)
             .collect();
         let figures = crate::memory::figures();
         let memory = crate::memory::ListCells::empty();
@@ -507,7 +517,7 @@ mod same_as_old {
             .draw_work
             .turned
             .iter()
-            .map(crate::session::Float::bits)
+            .map(crate::session::Cell32::bits)
             .collect();
         let mut state = 0x9E37_79B9_7F4A_7C15u64;
         for case in 0..12_000 {
@@ -536,7 +546,7 @@ mod same_as_old {
                     (_, _) => turn_place_x87(view_matrix, ring, 1, &effects().frame.draw_work),
                 }
                 let mut bytes = ring.entries.with(|r| r[0].words().to_vec()).unwrap();
-                bytes.extend(turned.iter().map(crate::session::Float::bits));
+                bytes.extend(turned.iter().map(crate::session::Cell32::bits));
                 results.push(bytes);
             }
             assert_eq!(results[0], results[1], "case {case}");
@@ -901,7 +911,7 @@ mod colours_tests {
     #[test]
     fn colours_start_as_the_games() {
         assert_eq!(size_of::<Colours257>(), Colours257::LEN);
-        let p = (&raw const crate::effects::owner::EFFECTS.ring.colours).cast::<u8>();
+        let p = (&raw const crate::effects::owner::effects().ring.colours).cast::<u8>();
         let own: Vec<u8> = (0..Colours257::LEN)
             .map(|i| unsafe { p.add(i).read() })
             .collect();

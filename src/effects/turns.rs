@@ -4,12 +4,12 @@
 use crate::effects::mask_store::Masks;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::math::x87;
-use crate::session::{Dword, Float};
+use crate::session::{PlainDword, PlainFloat};
 
 /// `effects::set_line_turn` (0x4BF432) and, `back`, `effects::set_line_turn_back` (0x4BF466):
 /// from the line (+0, +4 to +0xC, +0x10: here `line`'s dwords 0, 1 to 3, 4) dx into
 /// +0x396 and +0x3A6, minus dy (dy when `back`) into +0x3A2, its negation into +0x39A.
-pub fn set_line_turn(masks: &Masks, line: &[Dword; 6], back: bool) {
+pub fn set_line_turn(masks: &Masks, line: &[PlainDword; 6], back: bool) {
     let dx = x87::sub(line[3].get(), line[0].get());
     let dy = if back {
         x87::sub(line[4].get(), line[1].get())
@@ -24,7 +24,7 @@ pub fn set_line_turn(masks: &Masks, line: &[Dword; 6], back: bool) {
 
 /// `effects::scale_rows3` (0x4BF498): the three rows of three floats each made the
 /// length the effects' row lengths say (`x87::scale_row`).
-pub fn scale_rows3(rows: &[Float; 9], effects: &crate::effects::owner::Effects) {
+pub fn scale_rows3(rows: &[PlainFloat; 9], effects: &crate::effects::owner::Effects) {
     for (n, row) in rows.as_chunks::<3>().0.iter().enumerate() {
         let bits = [row[0].bits(), row[1].bits(), row[2].bits()];
         let length = effects.setup.mask_constants.row_lengths[n].bits();
@@ -73,12 +73,12 @@ pub fn turn_pair(masks: &Masks, inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
 }
 
 /// `fld tbyte; fmul; fistp` for st(0) then st(1): their whole-number scalings.
-fn scaled_ints(inputs: &[[u8; 10]; 2], k0: &Float, k1: &Float) -> (i32, i32) {
+fn scaled_ints(inputs: &[[u8; 10]; 2], k0: &PlainFloat, k1: &PlainFloat) -> (i32, i32) {
     scaled_ints_x87(inputs, k0, k1)
 }
 
 /// `fild v; fdiv k; fstp tbyte`.
-fn int_over_80(v: i32, k: &Float) -> [u8; 10] {
+fn int_over_80(v: i32, k: &PlainFloat) -> [u8; 10] {
     int_over_80_x87(v, k)
 }
 
@@ -102,7 +102,7 @@ use crate::math::x87_float as bh;
 
 /// `turn_pair`'s x87 block as plain Rust on the x87 model (16 instructions), same order and memory places
 /// (`i` the two inputs, `m` the turn: the block reads its floats 0, 1, 3 and 4).
-fn turn_pair_x87(i: &[[u8; 10]; 2], m: &[Float; 9]) -> [[u8; 10]; 2] {
+fn turn_pair_x87(i: &[[u8; 10]; 2], m: &[PlainFloat; 9]) -> [[u8; 10]; 2] {
     let t0 = bh::from_f80(i[1]);
     let t1 = bh::from_f80(i[0]);
     let t2 = t1 * ld_cell(&m[4]);
@@ -116,7 +116,7 @@ fn turn_pair_x87(i: &[[u8; 10]; 2], m: &[Float; 9]) -> [[u8; 10]; 2] {
 
 /// `scaled_ints`'s x87 block as plain Rust on the x87 model (6 instructions), same order and memory places
 /// (the two whole numbers it stores).
-fn scaled_ints_x87(i: &[[u8; 10]; 2], k0: &Float, k1: &Float) -> (i32, i32) {
+fn scaled_ints_x87(i: &[[u8; 10]; 2], k0: &PlainFloat, k1: &PlainFloat) -> (i32, i32) {
     let t0 = bh::from_f80(i[1]);
     let t1 = bh::from_f80(i[0]);
     let t2 = t1 * ld_cell(k0);
@@ -127,7 +127,7 @@ fn scaled_ints_x87(i: &[[u8; 10]; 2], k0: &Float, k1: &Float) -> (i32, i32) {
 }
 
 /// `int_over_80`'s x87 block as plain Rust on the x87 model (3 instructions), same order and memory places.
-fn int_over_80_x87(v: i32, k: &Float) -> [u8; 10] {
+fn int_over_80_x87(v: i32, k: &PlainFloat) -> [u8; 10] {
     let t0 = bh::int(v);
     let t1 = t0 / ld_cell(k);
     bh::f80(t1)
@@ -207,7 +207,7 @@ mod asm_differential {
     use super::asm_reference as reference;
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::{Op, Spec, differential};
-    use crate::session::Float;
+    use crate::session::PlainFloat;
 
     /// The `N` bytes of the test buffer at `at`.
     fn bytes<const N: usize>(at: usize) -> [u8; N] {
@@ -215,8 +215,8 @@ mod asm_differential {
     }
 
     /// The test buffer's dword at `at` as a float cell.
-    fn cell(at: usize) -> Float {
-        Float::from_bits(u32::from_le_bytes(bytes::<4>(at)))
+    fn cell(at: usize) -> PlainFloat {
+        PlainFloat::from_bits(u32::from_le_bytes(bytes::<4>(at)))
     }
 
     /// `data` into the test buffer at `at`.
@@ -261,7 +261,7 @@ mod asm_differential {
             |b| reference::turn_pair_x87(b[0], b[1], b[2]),
             |b| {
                 // The turn's floats 0, 1, 3 and 4 (byte offsets 0, 4, 0xC, 0x10).
-                let m: [Float; 9] = std::array::from_fn(|n| {
+                let m: [PlainFloat; 9] = std::array::from_fn(|n| {
                     if n < 5 {
                         cell(b[1] + 4 * n)
                     } else {

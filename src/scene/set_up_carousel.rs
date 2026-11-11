@@ -26,7 +26,8 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::lists_store::CarList;
 use crate::scene::carousel_set_ups::PLAIN;
-use crate::session::{Dword, write_all, write_prefix};
+use crate::session::DwordLike;
+use crate::session::{write_all, write_prefix};
 
 // ---- game data ----
 const MENUS: u32 = 0x15;
@@ -37,32 +38,76 @@ use rc2k_core::scene::carousel;
 #[derive(Clone, Copy)]
 pub enum Op {
     /// A dword to one of the physics block's variables.
-    Set(&'static Dword, u32),
+    Set(&'static dyn DwordLike, u32),
     /// A dword of the race block's, found at run time (those statics do not deref in a `const`).
-    Run(fn() -> &'static Dword, u32),
+    Run(fn() -> &'static dyn DwordLike, u32),
     /// The eight textures of the menu set to -1.
     Fill,
 }
 
 /// The cars' carousels' stores after their entries.
 const CARS_TAIL: [Op; 9] = [
-    Op::Set(&crate::menu::owner::MENUS.screens.state.carousel.front, 0),
-    Op::Set(&crate::menu::owner::MENUS.screens.state.carousel.angle, 0),
     Op::Set(
-        &crate::menu::owner::MENUS.screens.state.carousel.direction,
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .screens
+            .state
+            .carousel
+            .front,
         0,
     ),
     Op::Set(
-        &crate::menu::owner::MENUS.screens.state.carousel.spacing,
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .screens
+            .state
+            .carousel
+            .angle,
+        0,
+    ),
+    Op::Set(
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .screens
+            .state
+            .carousel
+            .direction,
+        0,
+    ),
+    Op::Set(
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .screens
+            .state
+            .carousel
+            .spacing,
         0x36BC0,
     ),
     Op::Set(
-        &crate::menu::owner::MENUS.screens.state.carousel.y,
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .screens
+            .state
+            .carousel
+            .y,
         0xFFFF_4000,
     ),
-    Op::Set(&crate::menu::owner::MENUS.screens.state.carousel.z, 0x5F000),
     Op::Set(
-        &crate::menu::owner::MENUS.screens.state.carousel.forward,
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .screens
+            .state
+            .carousel
+            .z,
+        0x5F000,
+    ),
+    Op::Set(
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .screens
+            .state
+            .carousel
+            .forward,
         0x20000,
     ),
     Op::Run(

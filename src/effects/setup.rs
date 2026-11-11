@@ -9,53 +9,53 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::race::owner_shared::RaceShared;
-use crate::session::{Bytes, Dword, Float};
+use crate::session::{PlainBytes, PlainDword, PlainFloat};
 
 /// The marks' clock (`effects::tick_clock`) (IDA 0x764FC8 .. 0x764FFC).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MarksClock {
     /// 0x764FC8: `g_marksClockStarted`: 0 until `effects::tick_clock` has run once (`init_marks` clears it).
-    pub started: Dword,
+    pub started: PlainDword,
     /// 0x764FCC: `g_marksLastClock`: the scene clock at the last tick.
-    pub last: Dword,
+    pub last: PlainDword,
     /// 0x764FD0: `g_marksFrameTicks`: the clock's ticks since the last frame (0 unless the settings' +0x10 is 1).
-    pub frame_ticks: Dword,
+    pub frame_ticks: PlainDword,
     /// 0x764FD4: `flt_764FD4`: the ticks' bits taken as a float, times `flt_93CC14` (a game bug, section 16).
-    pub ticks_scaled: Float,
+    pub ticks_scaled: PlainFloat,
     /// 0x764FD8: `dword_764FD8`: the ticks shifted right 4.
-    pub sixteenth: Dword,
+    pub sixteenth: PlainDword,
     /// 0x764FDC: `dword_764FDC`: the ticks shifted right 2.
-    pub quarter: Dword,
+    pub quarter: PlainDword,
     /// 0x764FE0: `flt_764FE0`: one over the ticks (`fidiv`); the first tick's `flt_93CC10`.
-    pub reciprocal: Float,
+    pub reciprocal: PlainFloat,
     /// 0x764FE4: `flt_764FE4`: `reciprocal` times `flt_7651BC`.
-    pub reciprocal_scaled: Float,
+    pub reciprocal_scaled: PlainFloat,
     /// 0x764FE8: `g_marksClockNow`: the scene clock now.
-    pub now: Dword,
+    pub now: PlainDword,
     /// 0x764FEC: `g_marksClockBefore`: the clock at the tick before.
-    pub before: Dword,
+    pub before: PlainDword,
     /// 0x764FF0: `dword_764FF0`: a copy of the settings' +0x18 (`effects::frame_marks`), 1 from `init_marks`; `dword_764FF4`: 1 from `init_marks` (nothing ported reads it).
-    pub settings_copies: [Dword; 2],
+    pub settings_copies: [PlainDword; 2],
     /// 0x764FF8: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_764ff8: Bytes<4>,
+    pub _gap_764ff8: PlainBytes<4>,
 }
 
 impl MarksClock {
     pub const fn new() -> Self {
         Self {
-            started: Dword::new(0x0),
-            last: Dword::new(0x0),
-            frame_ticks: Dword::new(0x0),
-            ticks_scaled: Float::new(0.0),
-            sixteenth: Dword::new(0x0),
-            quarter: Dword::new(0x0),
-            reciprocal: Float::new(0.0),
-            reciprocal_scaled: Float::new(0.0),
-            now: Dword::new(0x0),
-            before: Dword::new(0x0),
-            settings_copies: [Dword::new(0x0), Dword::new(0x0)],
-            _gap_764ff8: Bytes::new([0; 4]),
+            started: PlainDword::new(0x0),
+            last: PlainDword::new(0x0),
+            frame_ticks: PlainDword::new(0x0),
+            ticks_scaled: PlainFloat::new(0.0),
+            sixteenth: PlainDword::new(0x0),
+            quarter: PlainDword::new(0x0),
+            reciprocal: PlainFloat::new(0.0),
+            reciprocal_scaled: PlainFloat::new(0.0),
+            now: PlainDword::new(0x0),
+            before: PlainDword::new(0x0),
+            settings_copies: [PlainDword::new(0x0), PlainDword::new(0x0)],
+            _gap_764ff8: PlainBytes::new([0; 4]),
         }
     }
 }
@@ -249,7 +249,7 @@ pub fn make_noise_curve(
         .snow_light
         .smooth_weights
         .each_ref()
-        .map(super::super::session::Float::bits);
+        .map(super::super::session::PlainFloat::bits);
     for _ in 0..core::SMOOTHINGS {
         core::smooth(&mut curve, &mut copy, |a, b, c| {
             x87::weighted3_to_int(a, b, c, weights[0], weights[1], weights[2])
@@ -304,7 +304,7 @@ pub fn make_noise_curve(
         .snow_light
         .record_values
         .each_ref()
-        .map(super::super::session::Float::bits);
+        .map(super::super::session::PlainFloat::bits);
     let layout = core::record_values(values);
     for n in 0..CURVE_RECORDS as usize {
         for &(o, v) in &layout {
@@ -337,13 +337,13 @@ pub fn make_noise_curve(
 #[derive(rc2k_derive::Cells)]
 pub struct SettingsPointer {
     /// 0x767A28: `g_marksSettings`: 1 when the settings are set, else 0.
-    pub is_set: Dword,
+    pub is_set: PlainDword,
 }
 
 impl SettingsPointer {
     pub const fn new() -> Self {
         Self {
-            is_set: Dword::new(0),
+            is_set: PlainDword::new(0),
         }
     }
 }
@@ -366,17 +366,17 @@ impl SettingsPointer {
 #[derive(rc2k_derive::Cells)]
 pub struct ClockK {
     /// 0x93CC10: `flt_93CC10`: the reciprocal the first tick starts with
-    pub first_reciprocal: Float,
+    pub first_reciprocal: PlainFloat,
     /// 0x93CC14: `flt_93CC14`: the ticks' scale
-    pub ticks_scale: Float,
+    pub ticks_scale: PlainFloat,
 }
 
 impl ClockK {
     /// ClockK's first values.
     pub const fn new() -> Self {
         Self {
-            first_reciprocal: Float::new(1e-6),
-            ticks_scale: Float::new(0.1),
+            first_reciprocal: PlainFloat::new(1e-6),
+            ticks_scale: PlainFloat::new(0.1),
         }
     }
 }

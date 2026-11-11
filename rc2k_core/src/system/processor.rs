@@ -24,7 +24,7 @@ pub const CYRIX: [u32; 3] = [0x6972_7943, 0x736E_4978, 0x6461_6574];
 pub trait Processor {
     /// Whether toggling `bit` in the flags changes them.
     fn flag_toggles(&self, bit: u32) -> bool;
-    /// `cpuid` leaf -> (eax, ebx, ecx, edx).
+    /// `cpuid` leaf ->.
     fn cpuid(&self, leaf: u32) -> (u32, u32, u32, u32);
     /// The status word after `fninit` (0x5A5A there before) and the control word.
     fn fpu_words(&self) -> (u16, u16);
@@ -36,7 +36,7 @@ pub trait Processor {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Var {
     Family,
-    /// Leaf 1's eax.
+    /// Leaf 1's first result word.
     Signature,
     /// The vendor's text, dword 0 .. 2.
     Vendor(usize),

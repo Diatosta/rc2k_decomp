@@ -41,7 +41,6 @@ pub fn draw_view_overlays(
         )?;
     }
     draw_screen_tint(ctx, &ctx.view.fog)?;
-    crate::race::flush_draw_batch::flush_draw_batch(race)?;
     set_filters();
     Ok(())
 }

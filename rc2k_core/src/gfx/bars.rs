@@ -14,7 +14,7 @@ pub trait BarCanvas {
     fn set_clip_right(&mut self, x: i32);
     /// `seconds` (0x7559AC): the fill's end.
     fn keep_fill_end(&mut self, x: i32);
-    /// The bar's x (`dword_755224`) set: the marker's place.
+    /// The bar's x set: the marker's place.
     fn set_bar_x(&mut self, x: i32);
     /// The game's fatal error 0x80701010.
     fn no_length(&mut self) -> Self::Error;

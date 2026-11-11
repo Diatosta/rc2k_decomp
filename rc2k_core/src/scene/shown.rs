@@ -6,13 +6,13 @@
 
 /// The objects' tables' length.
 pub const OBJECTS: u32 = 0x100;
-/// The texture set of the objects drawn with the other set (`dword_639954`).
+/// The texture set of the objects drawn with the other set.
 pub const OTHER_SET: u32 = 0x108;
 
 /// What the race's tests read, each asked for where they read it: the object, the kind
-/// test's switches (`dword_71C3E0`, `dword_62389C`), an object's kind (`g_objectKinds`), the
-/// other way (`dword_621480`), whether the special objects are shown (`dword_609330`),
-/// which of two (`dword_71B400`), the only object (`dword_635058`, plus 1) and an object's
+/// test's switches, an object's kind (`g_objectKinds`), the
+/// other way, whether the special objects are shown,
+/// which of two, the only object (`dword_635058`, plus 1) and an object's
 /// face count.
 pub trait RaceObject {
     fn object(&self) -> u32;
@@ -56,7 +56,7 @@ pub fn race_shown(o: &impl RaceObject) -> bool {
     o.faces(object) != 0
 }
 
-/// `scene::clear_kind_bytes` (0x46219C): the menus' 0x100 kind dwords (`dword_5CD688`), 0
+/// `scene::clear_kind_bytes` (0x46219C): the menus' 0x100 kind dwords, 0
 /// but the seventh, eighth and tenth, 999.
 pub fn kind_bytes() -> [u32; 0x100] {
     let mut bytes = [0u32; 0x100];
@@ -103,7 +103,7 @@ pub enum Way {
     Described,
 }
 
-/// The way on by the scene's mode (`dword_6365C4`): none for an object without faces.
+/// The way on by the scene's mode: none for an object without faces.
 pub fn way(faces: u32, mode: u32) -> Option<Way> {
     if faces == 0 {
         return None;

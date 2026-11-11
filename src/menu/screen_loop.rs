@@ -63,7 +63,7 @@ use crate::menu::update_blink::update_blink;
 use crate::race::owner::Race;
 use crate::race::owner::race;
 use crate::scene::owner::Scene;
-use crate::session::{Dword, Flag, Float};
+use crate::session::{Cell32, DwordLike, FlagLike};
 use crate::sound::owner::Sound;
 use crate::system::owner::{System, system};
 pub use rc2k_core::menu::keys::MenuSound;
@@ -89,10 +89,10 @@ pub enum FrameRoutine {
 
 /// A variable of the game that a screen's description names, found when asked (a description
 /// is a constant, and a constant cannot hold a reference to a static).
-pub type Cell = fn(&Menus) -> &Dword;
+pub type Cell = fn(&Menus) -> &dyn DwordLike;
 
 /// A flag of the game that a screen's description names.
-pub type FlagCell = fn(&Menus) -> &Flag;
+pub type FlagCell = fn(&Menus) -> &dyn FlagLike;
 
 /// A text of the game that a screen's description names (a picture's path), found when
 /// asked.
@@ -110,12 +110,18 @@ pub enum Step {
     /// Sets the menu's sound variable.
     Sound(MenuSound),
     /// Writes a scene variable.
-    WriteScene(fn(&Scene) -> &Dword, u32),
-    WriteSceneF32(fn(&Scene) -> &Float, f32),
+    WriteScene(fn(&Scene) -> &dyn DwordLike, u32),
+    WriteSceneF32(fn(&Scene) -> &dyn Cell32, f32),
     /// Writes a variable of the front end's object lighting.
-    WriteLight(fn(&crate::scene::object_light::ObjectLight) -> &Dword, u32),
+    WriteLight(
+        fn(&crate::scene::object_light::ObjectLight) -> &dyn DwordLike,
+        u32,
+    ),
     /// A cell of the front end's slot's object placing.
-    WriteObject(fn(&crate::scene::object_place::ObjectPlace) -> &Dword, u32),
+    WriteObject(
+        fn(&crate::scene::object_place::ObjectPlace) -> &dyn DwordLike,
+        u32,
+    ),
     /// Calls the game function, and if it fails (the original's carry flag), that is the
     /// fatal error with this code (and no message).
     CallOrFatal(Callee, u32),
@@ -630,7 +636,7 @@ fn run(steps: &[Step], entry: &Entry) -> Result<Flow, Refused> {
             Step::WriteObject(variable, value) => {
                 variable(&crate::race::view_scratch::front_end().object).set(value);
             }
-            Step::WriteSceneF32(variable, value) => variable(entry.scene).set(value),
+            Step::WriteSceneF32(variable, value) => variable(entry.scene).set_bits(value.to_bits()),
             Step::WriteLight(variable, value) => {
                 variable(&crate::race::view_scratch::front_end().light).set(value);
             }
@@ -681,7 +687,7 @@ impl MenuHost<'_> {
     }
 
     /// The variable the highlight is kept in around an item's action.
-    fn action_item(&self) -> &Dword {
+    fn action_item(&self) -> &dyn DwordLike {
         (self
             .screen
             .keys

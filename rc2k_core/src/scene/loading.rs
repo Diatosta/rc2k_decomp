@@ -1,7 +1,7 @@
 //! The loading bar's progress while the textures load (from
 //! `scene::step_loading_bar` 0x446786).
 
-/// The bar's ends (`dword_623634`, `dword_623638`).
+/// The bar's ends.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct BarEnds {
     pub low: u32,

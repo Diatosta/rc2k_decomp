@@ -72,7 +72,7 @@ pub fn reset_request(race: &Race, scene: &crate::scene::owner::Scene) -> Result<
     clear_notice(&race.shared);
     {
         crate::physics::reset_car::reset_car(
-            &crate::physics::step_inputs::StepInputs::of(race),
+            &crate::physics::step_inputs::StepInputs::of(race).reset(),
             scene,
         )
     }?;

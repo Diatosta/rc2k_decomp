@@ -22,7 +22,7 @@ use crate::race::effects_settings_store::CarEffects;
 use crate::race::owner_course::Course;
 use crate::scene::object_slots_store::ObjectTables;
 use crate::scene::objects::SLOTS;
-use crate::session::{Bytes, Dword};
+use crate::session::{PlainBytes, PlainDword};
 
 const MOST_CARS: i32 = 8;
 
@@ -156,28 +156,28 @@ pub fn morph_object_points(
 #[derive(rc2k_derive::Cells)]
 pub struct MorphWork {
     /// 0x93C6CC: `g_marksTaken`: the block last taken for a settings block's points (`lines::set_up_blocks`)
-    pub taken: Dword,
+    pub taken: PlainDword,
     /// 0x93C6D0: Not named: 4 bytes (a gap, or unreferenced data)
-    pub _gap_93c6d0: Bytes<4>,
+    pub _gap_93c6d0: PlainBytes<4>,
     /// 0x93C6D4: `dword_93C6D4` .. `dword_93C6F0`: the factors kept
-    pub kept: [Dword; 8],
+    pub kept: [PlainDword; 8],
 }
 
 impl MorphWork {
     /// The values the game starts with (the image's bytes).
     pub const fn new() -> Self {
         MorphWork {
-            taken: Dword::new(0x0),
-            _gap_93c6d0: Bytes::new([0; 4]),
+            taken: PlainDword::new(0x0),
+            _gap_93c6d0: PlainBytes::new([0; 4]),
             kept: [
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
             ],
         }
     }
@@ -201,7 +201,7 @@ mod morph_work_tests {
     fn morph_work_starts_as_the_games() {
         assert_eq!(size_of::<MorphWork>(), MorphWork::LEN);
         assert!(
-            bytes(&crate::effects::owner::EFFECTS.paths.morph_work)
+            bytes(&crate::effects::owner::effects().paths.morph_work)
                 == crate::moved::image_bytes(MorphWork::START, MorphWork::LEN),
             "MORPH_WORK starts differently from the image"
         );

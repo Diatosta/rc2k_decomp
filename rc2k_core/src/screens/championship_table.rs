@@ -19,9 +19,9 @@ pub enum Font {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {
-    /// `dword_755579`: the position drawn.
+    /// The position drawn.
     Position,
-    /// `dword_7556BC`: the position after the last.
+    /// The position after the last.
     End,
 }
 

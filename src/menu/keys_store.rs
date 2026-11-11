@@ -3,31 +3,31 @@
 //! the reserved keys. Bytes only, at addresses one past a multiple of four. A `#[repr(C)]` struct with
 //! the image's layout, one static; `moved::MOVED` points the range at it.
 
-use crate::session::{Bytes, with_runs};
+use crate::session::{PlainBytes, with_runs};
 
 /// The keys' tables (IDA 0x755595 .. 0x755640).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct KeyTables {
     /// `g_redefinedKeys`: The copy of the player's twelve keys the page works on (`menu::redefine_keys`).
-    pub redefined_keys: Bytes<14>,
+    pub redefined_keys: PlainBytes<14>,
     /// Unreferenced bytes (IDA 0x7555A3 .. 0x7555B1).
-    pub _gap_7555a3: Bytes<14>,
+    pub _gap_7555a3: PlainBytes<14>,
     /// `unk_7555B1`: The 0x2C bytes of a player's controls the controller pages copy out and back (`menu::keep_player_keys`).
-    pub controls: Bytes<44>,
+    pub controls: PlainBytes<44>,
     /// Unreferenced bytes (IDA 0x7555DD .. 0x755621).
-    pub _gap_7555dd: Bytes<68>,
+    pub _gap_7555dd: PlainBytes<68>,
     /// `g_reservedKeys`: The keys that cannot be taken, ended by a NUL.
-    pub reserved_keys: Bytes<31>,
+    pub reserved_keys: PlainBytes<31>,
 }
 
 /// First values the image's (`tests::key_tables_starts_as_the_games`).
 impl KeyTables {
     pub const fn new() -> Self {
         KeyTables {
-            redefined_keys: Bytes::new([0; 14]),
-            _gap_7555a3: Bytes::new([0; 14]),
-            controls: Bytes::new(with_runs::<44>(&[(
+            redefined_keys: PlainBytes::new([0; 14]),
+            _gap_7555a3: PlainBytes::new([0; 14]),
+            controls: PlainBytes::new(with_runs::<44>(&[(
                 0x0,
                 &[
                     0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
@@ -36,11 +36,11 @@ impl KeyTables {
                     0x00, 0x01,
                 ],
             )])),
-            _gap_7555dd: Bytes::new(with_runs::<68>(&[(
+            _gap_7555dd: PlainBytes::new(with_runs::<68>(&[(
                 0x0,
                 &[0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01],
             )])),
-            reserved_keys: Bytes::new(with_runs::<31>(&[(
+            reserved_keys: PlainBytes::new(with_runs::<31>(&[(
                 0x0,
                 &[
                     0x70, 0x01, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f, 0x40, 0x41, 0x42, 0x43, 0x44, 0x57,
@@ -60,7 +60,7 @@ pub const END: usize = 0x755640;
 /// Where IDA 0x755595 lives (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn key_tables_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::menu::owner::MENUS.keys.tables)
+    crate::pointers::game_address(&raw const crate::menu::owner::menus().keys.tables)
 }
 
 #[cfg(test)]

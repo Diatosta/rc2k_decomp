@@ -29,6 +29,7 @@ pub fn loading_bar_quad(race: &Race, system: &crate::system::owner::System) -> R
         race,
         &scratch.face,
         crate::scene::owner::scene(),
+        &session.screen,
         scratch,
     )
 }

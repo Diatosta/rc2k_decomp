@@ -10,7 +10,7 @@ pub fn next_random(r: u32) -> u32 {
 }
 
 /// What `jitter_point` leaves: the point moved (in the stack's order, b c d as they came
-/// in st(1) .. st(3)), the random and its last value shifted right 12 (ebx).
+/// in st(1) .. st(3)), the random and its last value shifted right 12.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Jittered {
     pub point: [f32; 3],
@@ -39,7 +39,7 @@ pub fn jitter(spread: f32, point: [f32; 3], seed: u32) -> Jittered {
 /// `effects::spread_point`: one step of the random, then it rotated right 12 and again; each
 /// of the point's values (d by the third, c the second, b the first) grown by itself times
 /// the spread times the value (signed) times `scale` (a double), stored. Returns the point
-/// (b c d) and the third value (the random kept, and eax).
+/// (b c d) and the third value (the random kept).
 pub fn spread(spread: f32, point: [f32; 3], random: u32, scale: f64) -> ([f32; 3], u32) {
     let first = next_random(random);
     let second = first.rotate_right(12);

@@ -40,7 +40,7 @@ pub fn first_tile(corner: u32) -> u32 {
     ((corner as i32) >> 4) as u32
 }
 
-/// The map picture's slot: the first (`dword_5D0E00`) plus the car's number, unless one
+/// The map picture's slot: the first plus the car's number, unless one
 /// view only is shown (`session`).
 pub fn picture_slot(first: u32, one_view: bool, car: u32) -> u32 {
     if one_view {

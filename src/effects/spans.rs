@@ -8,7 +8,7 @@ use crate::effects::mask_store::Masks;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_float as bh;
-use crate::session::{Float, read_bits, write_bits};
+use crate::session::{PlainFloat, read_bits, write_bits};
 
 /// The edge pair `span_edges` works from (`MASKS.edge`): y0, y1, the left and right x at y0, at y1.
 /// The control words (`MASKS.control_word`, `MASKS.status_word`): the one the triangle came
@@ -193,7 +193,7 @@ pub fn spans_fit(masks: &Masks, triangles: u32, rows: Option<u32>) -> Result<(),
 /// away, before writing.
 pub fn span_triangle(
     masks: &Masks,
-    at: &[Float; 6],
+    at: &[PlainFloat; 6],
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     {
@@ -250,7 +250,7 @@ pub fn span_triangle(
 /// `span_triangle` (the second only after the first is made).
 pub fn span_quad(
     masks: &Masks,
-    at: &[Float; 8],
+    at: &[PlainFloat; 8],
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     {

@@ -15,9 +15,13 @@ use crate::errors::Refused;
 use crate::menu::event_flow::*;
 use crate::menu::owner::Menus;
 use crate::menu::standings::name_address_of;
-use crate::session::Dword;
+use crate::session::PlainDword;
 
-const STAGE_SLOT: &Dword = &crate::menu::owner::MENUS.screens.draw_work.figure;
+const STAGE_SLOT: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .draw_work
+    .figure;
 // hhmm
 pub fn enter_time_trial_best(menus: &Menus) -> Result<(), Refused> {
     let play = &menus.play;

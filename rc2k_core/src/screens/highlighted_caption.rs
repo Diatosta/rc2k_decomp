@@ -40,7 +40,7 @@ pub enum Work {
 /// The caption's string.
 pub const CAPTION_STRING: u32 = 0x1004;
 
-/// The button and caption, measured from x `measured_at` (the caller's ecx); the carry of
+/// The button and caption, measured from x `measured_at`; the carry of
 /// the caption's text. A width of 0 is the original's fatal error 0x80701010; refused: a
 /// caption narrower than 20 (the original then draws 2^32 middle pieces).
 pub fn highlighted_caption<S: Screen<Font = Font, Work = Work>>(

@@ -17,7 +17,7 @@ pub fn next_random(random: u32) -> u32 {
     random.wrapping_mul(0xC5).wrapping_add(0x5D)
 }
 
-/// A new slot (`what` eax, `at` esi): `fild` the random's low word, `fadd base`.
+/// A new slot: `fild` the random's low word, `fadd base`.
 pub fn new_slot(what: u32, at: u32, random: u32, base: f32) -> [u32; 5] {
     let value = ((random & 0xFFFF) as f64 + base as f64) as f32;
     [TIME, what, at, 0, value.to_bits()]

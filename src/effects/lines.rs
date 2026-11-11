@@ -14,7 +14,7 @@ use crate::race::effects_settings_store::{CarEffects, EffectsSettings};
 use crate::race::owner_course::Course;
 use crate::scene::object_slots_store::ObjectTables;
 use crate::scene::objects::FACES;
-use crate::session::{Bytes, Dword, Float};
+use crate::session::{PlainBytes, PlainDword, PlainFloat};
 use rc2k_core::effects::lines as core;
 
 /// A settings block is a car record's part (`core::BLOCKS_AT` from the settings).
@@ -434,23 +434,23 @@ pub fn set_up_blocks(
 #[derive(rc2k_derive::Cells)]
 pub struct LinesWork {
     /// 0x93C738: `g_marksBlockStart`: the eight values a block's +0x90 .. starts with
-    pub block_start: [Float; 8],
+    pub block_start: [PlainFloat; 8],
     /// 0x93C758: `flt_93C73C` .. `flt_93C794`, `dword_93C7F0` .. `flt_93C810`: read only by code in no function (no ported code reads them)
-    pub _gap_93c758: Bytes<280>,
+    pub _gap_93c758: PlainBytes<280>,
     /// 0x93C870: `dword_93C870` .. `dword_93C878`: the last line's x, y, z differences
-    pub difference: [Dword; 3],
+    pub difference: [PlainDword; 3],
     /// 0x93C87C: Not named: 44 bytes (a gap, or unreferenced data)
-    pub _gap_93c87c: Bytes<44>,
+    pub _gap_93c87c: PlainBytes<44>,
     /// 0x93C8A8: `g_marksMeasuredBlock`: the block being measured. Not used: nothing reads it (the original kept the block's address)
-    pub current: Dword,
+    pub current: PlainDword,
     /// 0x93C8AC: Not named: 8 bytes (a gap, or unreferenced data)
-    pub _gap_93c8ac: Bytes<8>,
+    pub _gap_93c8ac: PlainBytes<8>,
     /// 0x93C8B4: `g_marksMeasureEvery`: measure every block
-    pub every: Dword,
+    pub every: PlainDword,
     /// 0x93C8B8: `g_marksMakeShares`: make the shares
-    pub shares: Dword,
+    pub shares: PlainDword,
     /// 0x93C8BC: `g_marksAnyMeasured`: a marked block was measured
-    pub any: Dword,
+    pub any: PlainDword,
 }
 
 impl LinesWork {
@@ -458,16 +458,16 @@ impl LinesWork {
     pub const fn new() -> Self {
         LinesWork {
             block_start: [
-                Float::new(1.0),
-                Float::new(1.0),
-                Float::new(1.0),
-                Float::new(1.0),
-                Float::new(0.0),
-                Float::new(0.0),
-                Float::new(0.0),
-                Float::new(0.0),
+                PlainFloat::new(1.0),
+                PlainFloat::new(1.0),
+                PlainFloat::new(1.0),
+                PlainFloat::new(1.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
             ],
-            _gap_93c758: Bytes::new([
+            _gap_93c758: PlainBytes::new([
                 0x0A, 0xD7, 0x23, 0xBC, 0x0A, 0xD7, 0x23, 0xBC, 0x0A, 0xD7, 0x23, 0xBC, 0x0A, 0xD7,
                 0x23, 0xBC, 0x0A, 0xD7, 0x23, 0x3C, 0x0A, 0xD7, 0x23, 0x3C, 0x0A, 0xD7, 0x23, 0x3C,
                 0x0A, 0xD7, 0x23, 0x3C, 0x0A, 0xD7, 0x23, 0x3C, 0x0A, 0xD7, 0x23, 0x3C, 0x0A, 0xD7,
@@ -489,13 +489,17 @@ impl LinesWork {
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             ]),
-            difference: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
-            _gap_93c87c: Bytes::new([0; 44]),
-            current: Dword::new(0x0),
-            _gap_93c8ac: Bytes::new([0; 8]),
-            every: Dword::new(0x0),
-            shares: Dword::new(0x0),
-            any: Dword::new(0x0),
+            difference: [
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+            ],
+            _gap_93c87c: PlainBytes::new([0; 44]),
+            current: PlainDword::new(0x0),
+            _gap_93c8ac: PlainBytes::new([0; 8]),
+            every: PlainDword::new(0x0),
+            shares: PlainDword::new(0x0),
+            any: PlainDword::new(0x0),
         }
     }
     pub const START: usize = 0x93C738;
@@ -538,7 +542,7 @@ mod lines_work_tests {
     fn lines_work_starts_as_the_games() {
         assert_eq!(size_of::<LinesWork>(), LinesWork::LEN);
         assert!(
-            bytes(&crate::effects::owner::EFFECTS.paths.lines_work)
+            bytes(&crate::effects::owner::effects().paths.lines_work)
                 == crate::moved::image_bytes(LinesWork::START, LinesWork::LEN),
             "LINES_WORK starts differently from the image"
         );

@@ -46,11 +46,11 @@ impl FnList {
 /// A list pointer: none (0, as the image starts) or a list.
 #[repr(transparent)]
 #[derive(rc2k_derive::Cells)]
-pub struct ListCell(crate::session::Dword);
+pub struct ListCell(crate::session::PlainDword);
 
 impl ListCell {
     pub const fn new() -> Self {
-        ListCell(crate::session::Dword::new(0))
+        ListCell(crate::session::PlainDword::new(0))
     }
 
     pub fn get(&self) -> Result<FnList, BadInput> {

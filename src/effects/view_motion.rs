@@ -16,12 +16,12 @@ use crate::race::owner_frame::Frame;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::scene::vector3::{dot_product3, normalise};
-use crate::session::Dword;
+use crate::session::PlainDword;
 
 pub fn view_motion(frame: &Frame, effects: &crate::effects::owner::Effects) -> Result<(), Refused> {
     let m = &frame.matrices.view_place;
     // The original's six floats on its stack: the third row, then the step.
-    let local: [Dword; 6] = std::array::from_fn(|_| Dword::new(0));
+    let local: [PlainDword; 6] = std::array::from_fn(|_| PlainDword::new(0));
     for k in 0..3 {
         local[k].set(x87::loaded(&m[8 + k]).to_bits());
     }

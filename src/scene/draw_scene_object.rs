@@ -85,8 +85,7 @@ pub fn draw_scene_object_in_game(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     description: Option<crate::scene::draw_described_object::Description<'_>>,
 ) -> Result<(), Refused> {
-    let (race, scene) = (ctx.race, ctx.scene);
-    let system = crate::system::owner::system();
+    let (race, scene, system) = (ctx.race, ctx.scene, ctx.system);
     draw_scene_object(
         race,
         &mut |way| match way {
@@ -103,6 +102,7 @@ pub fn draw_scene_object_in_game(
                 };
                 draw_shown_object(
                     race,
+                    scene,
                     &mut || draw_object_in_game(ctx, system),
                     &ctx.view.cars,
                     &ctx.view.object,

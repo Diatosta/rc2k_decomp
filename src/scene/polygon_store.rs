@@ -190,7 +190,7 @@ impl core::ops::Deref for InBuffers {
 }
 
 impl crate::workers::Copies for InBuffers {
-    fn copy(&self, n: usize) -> &dyn crate::pointers::Store {
+    fn copy(&self, n: usize) -> &(dyn crate::pointers::Store + Sync) {
         match n {
             0 => &race().shared.buffers.polygon,
             n => &WORKER_COPIES[n - 1],

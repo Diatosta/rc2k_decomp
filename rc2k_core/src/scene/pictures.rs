@@ -65,7 +65,7 @@ pub fn picture_car(
     (car < cars()).then_some(car)
 }
 
-/// Whether a car's gravel value (`dword_6235FC`) takes its picture from `files\b\gravel`
+/// Whether a car's gravel value takes its picture from `files\b\gravel`
 /// when the file is there: 3 or more, by the difference's sign as the original has it.
 pub fn takes_gravel(gravel: u32) -> bool {
     gravel.wrapping_sub(3) as i32 >= 0

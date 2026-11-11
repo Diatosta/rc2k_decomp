@@ -12,24 +12,49 @@
 
 use crate::errors::BadInput;
 use crate::menu::owner::Menus;
-use crate::session::Dword;
+use crate::session::PlainDword;
 use rc2k_core::menu::car_lists;
 
 // ---- game data ----
 
 /// A list of dwords ended by -1: its cells and how many dwords it has room for.
-pub type List = (&'static [Dword], usize);
+pub type List = (&'static [PlainDword], usize);
 /// off_75A042: the cars of one kind of event (0x28 entries are kept in `var\ral.dat`).
-pub const FIRST: List = (&crate::menu::owner::MENUS.tables.lists.cars_second, 0x28);
+pub const FIRST: List = (
+    &crate::menu::owner::MENUS
+        .unchecked()
+        .tables
+        .lists
+        .cars_second,
+    0x28,
+);
 /// off_759D16: the next variable is 0xB4 bytes on.
 pub const SECOND: List = (
-    &crate::menu::owner::MENUS.tables.lists.a8_championship_cars,
+    &crate::menu::owner::MENUS
+        .unchecked()
+        .tables
+        .lists
+        .a8_championship_cars,
     0x2D,
 );
 /// off_759F4A: the secret cars.
-const SECRET: List = (&crate::menu::owner::MENUS.tables.lists.secret_cars, 0x0C);
+const SECRET: List = (
+    &crate::menu::owner::MENUS
+        .unchecked()
+        .tables
+        .lists
+        .secret_cars,
+    0x0C,
+);
 /// unk_759F7A: where a list is copied to and back from.
-const SCRATCH: List = (&crate::menu::owner::MENUS.tables.lists.cars_scratch, 0x32);
+const SCRATCH: List = (
+    &crate::menu::owner::MENUS
+        .unchecked()
+        .tables
+        .lists
+        .cars_scratch,
+    0x32,
+);
 /// The list's entries before its -1.
 pub fn read_list(list: List) -> Result<Vec<u32>, BadInput> {
     Ok(car_lists::entries(list.1, |n| list.0[n].get())?)

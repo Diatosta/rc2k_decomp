@@ -28,7 +28,7 @@ pub enum Work {
     Seconds,
     /// `dword_7559F0`.
     Glyph,
-    /// `dword_755A18`: the check marks' x.
+    /// The check marks' x.
     CheckX,
 }
 

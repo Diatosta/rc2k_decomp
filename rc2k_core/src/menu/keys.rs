@@ -1,7 +1,7 @@
 //! What a key means on a menu (from `menu::handle_keys` 0x465FCC).
 //! The keys are the game's scan codes as `input::take_key` gives them.
 
-/// What a key means to the screen loop (`handle_keys`' eax 1, 2, 3).
+/// What a key means to the screen loop (`handle_keys`' answers 1, 2, 3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Pressed {
     /// Nothing for the caller to do.
@@ -49,7 +49,7 @@ pub const ENTER: u8 = 0x1C;
 pub const IGNORED: u8 = 0x38;
 
 /// The cheat bit that lets key 0x14 add time (bit 14 of `g_cheats`), and the time it adds
-/// to the service's budget (`dword_75593C`).
+/// to the service's budget.
 pub const ADD_TIME_BIT: u32 = 14;
 pub const ADDED_TIME: u32 = 60;
 
@@ -69,9 +69,10 @@ pub enum Action {
     NoKey,
     /// Key 0x38: nothing (after the yes / no handling).
     Ignored,
-    /// Escape: `dword_755561`, `dword_755A3C` and `dword_758806` 1; eax 2.
+    /// Escape: `dword_755561`, `dword_755A3C` and `dword_758806` 1; answer 2.
     Escape,
-    /// Enter: the sound 0x14D, the key's time, `g_enterSkipsNameEntry` by ah, the click; eax 3.
+    /// Enter: the sound 0x14D, the key's time, `g_enterSkipsNameEntry` by the key code's second
+    /// byte, the click; answer 3.
     Enter,
     /// The key's time, then one of the four highlight moves.
     Move(Move),
@@ -109,9 +110,9 @@ pub fn action(key: u8, cheats: impl FnOnce() -> u32) -> Action {
     }
 }
 
-/// Enter's `g_enterSkipsNameEntry`: 1 when ah (what the caller had there) is 4.
-pub fn enter_skips_name_entry(eax: u32) -> u32 {
-    (eax >> 8 & 0xFF == 4) as u32
+/// Enter's `g_enterSkipsNameEntry`: 1 when the key code's second byte is 4.
+pub fn enter_skips_name_entry(key_code: u32) -> u32 {
+    (key_code >> 8 & 0xFF == 4) as u32
 }
 
 #[cfg(test)]

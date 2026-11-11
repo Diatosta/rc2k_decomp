@@ -6,7 +6,7 @@ use crate::menu::owner::Menus;
 use crate::menu::owner::Play;
 use crate::records::stages_store::{Holder, RecordRef, RecordTable};
 use crate::screens::game_screen::{Held, HeldText};
-use crate::session::Dword;
+use crate::session::PlainDword;
 use crate::system::owner::system;
 use crate::text::draw_text::Canvas;
 
@@ -49,7 +49,7 @@ fn times_table<'a>(
     ]
     .into_iter()
     // The entry names one of the variables by its address.
-    .find(|(var, _)| crate::pointers::GamePtr::to::<Dword>(var).addr() == p)
+    .find(|(var, _)| crate::pointers::GamePtr::to::<PlainDword>(var).addr() == p)
     .ok_or(BadInput(
         "a times table list entry that names no best times variable",
     ))?;

@@ -13,7 +13,7 @@ pub fn pong_setup(pong: &Pong, fl: &WindscreenFlakes, scene: &crate::scene::owne
         pong.rules
             .setup_places
             .each_ref()
-            .map(super::super::session::Float::bits),
+            .map(super::super::session::PlainFloat::bits),
         scene,
     );
 }

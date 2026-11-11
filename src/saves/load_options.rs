@@ -240,7 +240,7 @@ let menus = menus();
 
 /// Where the function works: the game's own places, or a test's.
 pub struct Places<'a> {
-    pub loaded: &'a crate::session::Flag,
+    pub loaded: &'a dyn crate::session::FlagLike,
     pub pieces: &'a [Piece<'a>],
     pub rebuild_car_lists: &'a mut dyn FnMut() -> Result<(), BadInput>,
 }

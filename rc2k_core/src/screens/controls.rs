@@ -16,7 +16,8 @@ pub enum Font {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {}
 
-/// A binding (the player's +0x50 + 4 x n): dl a button, dh a direction, 0 nothing.
+/// A binding (the player's +0x50 + 4 x n): the low byte a button, the next byte a direction, 0
+/// nothing.
 #[derive(Clone, Copy, Debug)]
 pub struct Binding {
     pub binding: u32,
@@ -42,14 +43,14 @@ pub fn binding_text<S: Screen>(
     n: usize,
     names: &DirectionNames,
 ) -> Result<Vec<u8>, Invalid> {
-    let (dl, dh) = (b.binding as u8, (b.binding >> 8) as u8);
+    let (button, direction) = (b.binding as u8, (b.binding >> 8) as u8);
     if b.binding == 0 {
         return Ok(s.string_bytes(0x3BD));
     }
     let mut out = Vec::new();
-    if dh != 0 {
+    if direction != 0 {
         let table = if b.kind < 2 { &names.pad } else { &names.stick };
-        let Some(&id) = table.get(dh as usize) else {
+        let Some(&id) = table.get(direction as usize) else {
             return Err(Invalid("a direction past the name tables"));
         };
         out.extend(s.string_bytes(id as u32));
@@ -57,13 +58,13 @@ pub fn binding_text<S: Screen>(
             out.extend(axis_name(b.axis));
         }
     }
-    if dl != 0 {
-        if dh != 0 {
+    if button != 0 {
+        if direction != 0 {
             out.push(b'+');
         }
         out.extend(s.string_bytes(0x3C0));
         out.push(b' ');
-        out.extend(decimal(dl as u32, Pad::None));
+        out.extend(decimal(button as u32, Pad::None));
     }
     Ok(out)
 }

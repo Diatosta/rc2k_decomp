@@ -42,9 +42,9 @@ pub enum Text {
     Dashes,
     /// "guesscheckpointtimes:start"
     Start,
-    /// "passing:(time:ebx)"
+    /// "passing:(time:...)"
     Passing,
-    /// "(stage:eax)"
+    /// "(stage:...)"
     Stage,
     /// "testcheckdata"
     CheckData,
@@ -253,7 +253,7 @@ impl Filled {
     }
 }
 
-/// `default_stage_times` (`stage` its ebp) and `default_stage_times_alt` (`stage` None:
+/// `default_stage_times` (`stage` its argument) and `default_stage_times_alt` (`stage` None:
 /// each record's pick): for each table's records 1 .. 6, ten entries at the record's
 /// time + 24 s, 0x8B apart, in the ten its +0x3C picks. `tables` holds the six tables'
 /// records 1 .. 6.
@@ -286,7 +286,7 @@ pub fn stage_times(
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Championship {
     /// `default_championship_times`: the record's +0x24, the stage for the checkpoints
-    /// the caller's ebp, and the rallies' tables filled.
+    /// the caller's argument, and the rallies' tables filled.
     Times { stage: u32 },
     /// `default_checkpoint_times`: the record's +0x18, the stage its track; the rallies'
     /// sum made and thrown away.

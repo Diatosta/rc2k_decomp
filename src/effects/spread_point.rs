@@ -11,7 +11,7 @@
 use crate::effects::paths::Paths;
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
-use crate::session::Dword;
+use crate::session::PlainDword;
 
 /// The three results.
 pub fn spread_point(
@@ -51,14 +51,14 @@ pub fn spread_point(
 #[derive(rc2k_derive::Cells)]
 pub struct SpreadRandom {
     /// 0x923004: `g_marksSpreadRandom`: the random (times 0x9D plus 0x47) of `effects::spread_point`.
-    pub random: Dword,
+    pub random: PlainDword,
 }
 
 impl SpreadRandom {
     /// The values the game starts with (the image's bytes).
     pub const fn new() -> Self {
         SpreadRandom {
-            random: Dword::new(0x0),
+            random: PlainDword::new(0x0),
         }
     }
     pub const START: usize = 0x923004;
@@ -67,8 +67,9 @@ impl SpreadRandom {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::effects::owner::EFFECTS.paths.spread_random)
-            as usize
+        crate::pointers::game_address(
+            &raw const crate::effects::owner::effects().paths.spread_random,
+        ) as usize
     }
 }
 

@@ -7,12 +7,12 @@
 //! Caller: `physics::reset_car` (its end). Refuses what the three calls refuse.
 
 use crate::errors::Refused;
-use crate::physics::step_inputs::StepInputs;
+use crate::physics::step_families::ResetInputs;
 
 /// The nearest checkpoint (`race::nearest_checkpoint`), the car placed there
 /// (`race::place_car_on_line`) and its motion reset (`race::reset_car_motion`).
 pub fn reset_car_on_line(
-    c: &StepInputs<'_>,
+    c: &ResetInputs<'_>,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let lights = &scene.lights;

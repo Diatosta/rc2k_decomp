@@ -24,20 +24,20 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
 use crate::scene::matrix3::{extended, rounded};
-use crate::session::{Dword, Float, read_bits, write_bits};
+use crate::session::{PlainDword, PlainFloat, read_bits, write_bits};
 
 const LIFE: u32 = 0x7D0;
 
 /// One half's variables.
 pub struct Half {
     pub kind: u32,
-    pub strength: &'static Float,
+    pub strength: &'static PlainFloat,
     /// The direction's factors (x, y, z) and whether |s| is scaled by the half constant in y.
-    pub factors: [&'static Float; 3],
+    pub factors: [&'static PlainFloat; 3],
     pub scaled: bool,
     /// The size's mask and base, the side's factors.
     pub size: (u32, u32),
-    pub sides: [&'static Float; 3],
+    pub sides: [&'static PlainFloat; 3],
 }
 
 /// One function's variables: its two halves and the typed factors and randoms.
@@ -50,47 +50,106 @@ pub struct BurstSet {
 pub const HALVES: [Half; 2] = [
     Half {
         kind: 0x11,
-        strength: &crate::effects::owner::EFFECTS.ring.work.strength[0],
+        strength: &crate::effects::owner::EFFECTS
+            .unchecked()
+            .ring
+            .work
+            .strength[0],
         factors: [
-            &crate::effects::owner::EFFECTS.kinds.emitter.side_a[0],
-            &crate::effects::owner::EFFECTS.kinds.emitter.side_a[1],
-            &crate::effects::owner::EFFECTS.kinds.emitter.side_a[2],
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .kinds
+                .emitter
+                .side_a[0],
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .kinds
+                .emitter
+                .side_a[1],
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .kinds
+                .emitter
+                .side_a[2],
         ],
         scaled: false,
         size: (0x7FF, 0x400),
         sides: [
-            &crate::effects::owner::EFFECTS.kinds.emitter.side_b[0],
-            &crate::effects::owner::EFFECTS.kinds.emitter.side_b[1],
-            &crate::effects::owner::EFFECTS.kinds.emitter.side_b[2],
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .kinds
+                .emitter
+                .side_b[0],
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .kinds
+                .emitter
+                .side_b[1],
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .kinds
+                .emitter
+                .side_b[2],
         ],
     },
     Half {
         kind: 0x10,
-        strength: &crate::effects::owner::EFFECTS.ring.work.strength[1],
+        strength: &crate::effects::owner::EFFECTS
+            .unchecked()
+            .ring
+            .work
+            .strength[1],
         factors: [
-            &crate::effects::owner::EFFECTS.kinds.emitter.side_b[0],
-            &crate::effects::owner::EFFECTS.kinds.emitter.side_b[1],
-            &crate::effects::owner::EFFECTS.kinds.emitter.side_b[2],
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .kinds
+                .emitter
+                .side_b[0],
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .kinds
+                .emitter
+                .side_b[1],
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .kinds
+                .emitter
+                .side_b[2],
         ],
         scaled: true,
         size: (0x3FF, 0x600),
         sides: [
-            &crate::effects::owner::EFFECTS.kinds.emitter.side_a[0],
-            &crate::effects::owner::EFFECTS.kinds.emitter.side_a[1],
-            &crate::effects::owner::EFFECTS.kinds.emitter.side_a[2],
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .kinds
+                .emitter
+                .side_a[0],
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .kinds
+                .emitter
+                .side_a[1],
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .kinds
+                .emitter
+                .side_a[2],
         ],
     },
 ];
 
 /// `emit_bursts`'.
-pub static FIRST: BurstSet = BurstSet {
+pub const FIRST: BurstSet = BurstSet {
     halves: HALVES,
-    tuning: &crate::effects::owner::EFFECTS.particles.first_tuning,
+    tuning: &crate::effects::owner::EFFECTS
+        .unchecked()
+        .particles
+        .first_tuning,
 };
 
 impl BurstTuning {
     /// The half's (`n` 0 or 1) rate, count and entry randoms.
-    pub fn randoms(&self, n: usize) -> &[Dword; 3] {
+    pub fn randoms(&self, n: usize) -> &[PlainDword; 3] {
         if n == 0 { &self.first } else { &self.second }
     }
 }
@@ -291,23 +350,31 @@ pub fn emit_bursts_with(
 #[derive(rc2k_derive::Cells)]
 pub struct BurstTuning {
     /// 0x93A3D2: the strength's factor
-    pub strength_k: Float,
+    pub strength_k: PlainFloat,
     /// 0x93A3D6: the first half's rate, count and entry randoms
-    pub first: [Dword; 3],
+    pub first: [PlainDword; 3],
     /// 0x93A3E2: the blend's two factors
-    pub blend_k: [Float; 2],
+    pub blend_k: [PlainFloat; 2],
     /// 0x93A3EA: the second half's rate, count and entry randoms
-    pub second: [Dword; 3],
+    pub second: [PlainDword; 3],
 }
 
 impl BurstTuning {
     /// The values the game starts with (the image's bytes).
     pub const fn first() -> Self {
         BurstTuning {
-            strength_k: Float::new(-0.25),
-            first: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
-            blend_k: [Float::new(-0.25), Float::new(-0.05)],
-            second: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
+            strength_k: PlainFloat::new(-0.25),
+            first: [
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+            ],
+            blend_k: [PlainFloat::new(-0.25), PlainFloat::new(-0.05)],
+            second: [
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+            ],
         }
     }
 }
@@ -340,7 +407,7 @@ mod first_tuning_tests {
     fn first_tuning_starts_as_the_games() {
         assert_eq!(size_of::<BurstTuning>(), BurstTuning::LEN);
         assert!(
-            bytes(&crate::effects::owner::EFFECTS.particles.first_tuning)
+            bytes(&crate::effects::owner::effects().particles.first_tuning)
                 == crate::moved::image_bytes(FirstTuning::START, BurstTuning::LEN),
             "FIRST_TUNING starts differently from the image"
         );

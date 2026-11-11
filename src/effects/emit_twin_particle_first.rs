@@ -27,7 +27,7 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::effects_settings_store::CarEffects;
 use crate::scene::matrix3::{extended, rounded};
-use crate::session::{Bytes, Dword, Float};
+use crate::session::{PlainBytes, PlainDword, PlainFloat};
 
 const LEVELS: u32 = 9;
 
@@ -41,11 +41,14 @@ pub struct TwinSet {
 }
 
 /// `emit_twin_particle_first`'s.
-pub static NINETEENTH: TwinSet = TwinSet {
+pub const NINETEENTH: TwinSet = TwinSet {
     kind: 0x13,
     level: 0,
     flags: 0x3E,
-    tuning: &crate::effects::owner::EFFECTS.particles.nineteenth_tuning,
+    tuning: &crate::effects::owner::EFFECTS
+        .unchecked()
+        .particles
+        .nineteenth_tuning,
 };
 
 /// Whether an entry is to be made (the chance and a free entry), worked out without
@@ -177,23 +180,31 @@ pub fn emit_twin(
 #[derive(rc2k_derive::Cells)]
 pub struct TwinState {
     /// 0x93A1B6: `flt_93A1B6` .. `flt_93A1BE`: the point the entry's place starts at (turned and placed by the car's matrix)
-    pub point: [Float; 3],
+    pub point: [PlainFloat; 3],
     /// 0x93A1C2: `dword_93A1C2` .. `dword_93A1CA`: the car's +0x4C .. +0x54, kept
-    pub motion: [Dword; 3],
+    pub motion: [PlainDword; 3],
     /// 0x93A1CE: `dword_93A1CE`: the car's level (its +0x4C0 or +0x4C4)
-    pub level: Dword,
+    pub level: PlainDword,
     /// 0x93A1D2: Not named: 4 bytes (a gap, or unreferenced data)
-    pub _gap_93a1d2: Bytes<4>,
+    pub _gap_93a1d2: PlainBytes<4>,
 }
 
 impl TwinState {
     /// The values the game starts with (the image's bytes).
     pub const fn new() -> Self {
         TwinState {
-            point: [Float::new(0.0), Float::new(8192.0), Float::new(101072.0)],
-            motion: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
-            level: Dword::new(0x0),
-            _gap_93a1d2: Bytes::new([0x0A, 0xD7, 0xA3, 0x3B]),
+            point: [
+                PlainFloat::new(0.0),
+                PlainFloat::new(8192.0),
+                PlainFloat::new(101072.0),
+            ],
+            motion: [
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+            ],
+            level: PlainDword::new(0x0),
+            _gap_93a1d2: PlainBytes::new([0x0A, 0xD7, 0xA3, 0x3B]),
         }
     }
 }
@@ -219,7 +230,7 @@ mod twin_state_tests {
     fn twin_state_starts_as_the_games() {
         assert_eq!(size_of::<TwinState>(), TwinState::LEN);
         assert!(
-            bytes(&crate::effects::owner::EFFECTS.particles.twin_state)
+            bytes(&crate::effects::owner::effects().particles.twin_state)
                 == crate::moved::image_bytes(TwinState::START, TwinState::LEN),
             "TWIN_STATE starts differently from the image"
         );
@@ -234,29 +245,37 @@ mod twin_state_tests {
 #[derive(rc2k_derive::Cells)]
 pub struct TwinTuning {
     /// 0x93A48A: the chance's random
-    pub chance_random: Dword,
+    pub chance_random: PlainDword,
     /// 0x93A48E: the place's lift
-    pub lift: Float,
+    pub lift: PlainFloat,
     /// 0x93A492: the second row's factors (z, y, x)
-    pub row_k: [Float; 3],
+    pub row_k: [PlainFloat; 3],
     /// 0x93A49E: the spread `jitter_point` takes
-    pub spread: Float,
+    pub spread: PlainFloat,
     /// 0x93A4A2: the motion's factors (x, y, z)
-    pub motion_k: [Float; 3],
+    pub motion_k: [PlainFloat; 3],
     /// 0x93A4AE: the spin's random
-    pub spin_random: Dword,
+    pub spin_random: PlainDword,
 }
 
 impl TwinTuning {
     /// The values the game starts with (the image's bytes).
     pub const fn nineteenth() -> Self {
         TwinTuning {
-            chance_random: Dword::new(0x0),
-            lift: Float::new(65536.0),
-            row_k: [Float::new(256.0), Float::new(256.0), Float::new(256.0)],
-            spread: Float::new(128.0),
-            motion_k: [Float::new(0.8), Float::new(0.8), Float::new(0.8)],
-            spin_random: Dword::new(0x0),
+            chance_random: PlainDword::new(0x0),
+            lift: PlainFloat::new(65536.0),
+            row_k: [
+                PlainFloat::new(256.0),
+                PlainFloat::new(256.0),
+                PlainFloat::new(256.0),
+            ],
+            spread: PlainFloat::new(128.0),
+            motion_k: [
+                PlainFloat::new(0.8),
+                PlainFloat::new(0.8),
+                PlainFloat::new(0.8),
+            ],
+            spin_random: PlainDword::new(0x0),
         }
     }
 }
@@ -289,7 +308,7 @@ mod nineteenth_tuning_tests {
     fn nineteenth_tuning_starts_as_the_games() {
         assert_eq!(size_of::<TwinTuning>(), TwinTuning::LEN);
         assert!(
-            bytes(&crate::effects::owner::EFFECTS.particles.nineteenth_tuning)
+            bytes(&crate::effects::owner::effects().particles.nineteenth_tuning)
                 == crate::moved::image_bytes(TwinFirstTuning::START, TwinTuning::LEN),
             "NINETEENTH_TUNING starts differently from the image"
         );

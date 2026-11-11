@@ -1,4 +1,4 @@
-//! The race frame's draw batches (part R3): the scene's batch (`race::flush_draw_batch`) with its vertices and indices, and the two batches `race::draw_race_scene` flushes (`race::flush_triangle_batch`, the plain one; `race::flush_texture_batch`, the textured one): vertices, indices, counts, first words and the counts kept. The buffers' lengths are the spans up to the next item: no code checks a capacity (IDA: the scene batch is appended to only by `sub_45FCBA`, which copies a polygon's vertices as 0x20-byte records and adds 16-bit triangle-fan indices, and is reached from no function, so in play the scene batch stays empty and `flush_draw_batch` draws nothing). Names are by use.
+//! The race frame's draw batches (part R3): the scene's batch (the original's `flush_draw_batch`) with its vertices and indices, and the two batches `race::draw_race_scene` flushes (`race::flush_triangle_batch`, the plain one; `race::flush_texture_batch`, the textured one): vertices, indices, counts, first words and the counts kept. The buffers' lengths are the spans up to the next item: no code checks a capacity (IDA: the scene batch is appended to only by `sub_45FCBA`, which copies a polygon's vertices as 0x20-byte records and adds 16-bit triangle-fan indices, and is reached from no function, so in play the scene batch stays empty and `flush_draw_batch` draws nothing). Names are by use.
 //! It stops before the replay's variables at 0x6EF7CC (`drive::replay_frames_store`).
 
 #[cfg(test)]
@@ -8,9 +8,9 @@ use crate::session::{Bytes, Dword};
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct DrawBatches {
-    /// +0x0 (0x6D3CF4): `unk_6D3CF4`: the scene batch's vertices (`race::flush_draw_batch`; 0x20-byte vertex records appended by the unreached `sub_45FCBA`; the length is the span to the next item).
+    /// +0x0 (0x6D3CF4): `unk_6D3CF4`: the scene batch's vertices (the original's `flush_draw_batch`; 0x20-byte vertex records appended by the unreached `sub_45FCBA`; the length is the span to the next item).
     pub scene_vertices: Bytes<0x4000>,
-    /// +0x4000 (0x6D7CF4): `unk_6D7CF4`: the scene batch's indices (`race::flush_draw_batch`).
+    /// +0x4000 (0x6D7CF4): `unk_6D7CF4`: the scene batch's indices (the original's `flush_draw_batch`).
     pub scene_indices: Bytes<0x1800>,
     /// +0x5800 (0x6D94F4): `unk_6D94F4`: the plain batch's vertices (`race::flush_triangle_batch`).
     pub plain_vertices: Bytes<0x8000>,

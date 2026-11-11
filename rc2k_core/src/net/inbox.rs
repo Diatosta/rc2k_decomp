@@ -36,7 +36,7 @@ fn set(inbox: &mut [u8], at: usize, v: u32) {
     inbox[at..at + 4].copy_from_slice(&v.to_le_bytes());
 }
 
-/// A message received (`sequence` as sent, doubled here: `add al, al`) put into the inbox
+/// A message received (`sequence` as sent, doubled here) put into the inbox
 /// (`INBOX` bytes) at `time`: one older than the oldest still wanted is dropped; the
 /// newest seen kept; the first goes first; into a full inbox the records move up one
 /// (the oldest gone) and it goes in past the last record, over the oldest and newest
@@ -77,7 +77,6 @@ pub fn store(inbox: &mut [u8], sequence: u8, time: u32, message: &[u8]) -> Resul
                 break;
             }
             inbox.copy_within(at - 0xFC..at + 4, at + 4);
-            // `mov ecx, 40h; rep movsd` leaves ecx 0.
             length = 0;
             at -= RECORD;
             if at == 0 {

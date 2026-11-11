@@ -90,8 +90,8 @@ fn int_over_over(i: u32, a: f32, b: f32) -> f32 {
 }
 
 /// `add_quad`: the record's four vertices (left top, right top, right bottom, left bottom),
-/// the places over `a` (`flt_75C00C`) and over `b` (`flt_75C010`), the colour's low 24 bits
-/// under the alpha; and what is left in eax (the colour) and ebx (the low 24 bits).
+/// the places over `a` and over `b`, the colour's low 24 bits
+/// under the alpha; and the colour and its low 24 bits.
 pub fn quad_vertices(q: &[u32; RECORD], a: f32, b: f32) -> ([Vertex; 4], u32, u32) {
     let int = |n: usize| q[n] as i32 as f32;
     let corners = [
@@ -167,14 +167,14 @@ mod tests {
         for n in 0..8 {
             q[PLACES + n] = (n as u32) << 16;
         }
-        let (v, eax, ebx) = quad_vertices(&q, 256.0, 1.0);
-        assert_eq!((eax, ebx), (0x8012_3456, 0x12_3456));
+        let (v, colour, low24) = quad_vertices(&q, 256.0, 1.0);
+        assert_eq!((colour, low24), (0x8012_3456, 0x12_3456));
         assert_eq!(
             (v[0].x, v[0].y, v[2].x, v[2].y, v[3].x),
             (10.0, 20.0, 30.0, 40.0, 10.0)
         );
         assert_eq!((v[1].u, v[1].v, v[3].v), (512.0, 768.0, 1792.0));
-        assert_eq!(v[2].colour, eax);
+        assert_eq!(v[2].colour, colour);
         assert_eq!(screen_scaled(320.0, 1024, 640.0), 512.0);
         assert_eq!(marker_x(500.0, 1000.0, 560.0, 40.0), 320);
         assert_eq!(marker_x(1.0, 0.0, 1.0, 0.0), 0x8000_0000);

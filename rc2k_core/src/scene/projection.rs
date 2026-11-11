@@ -8,10 +8,10 @@
 //! precision. Also an object's points and normals (from `scene::place_object_points`
 //! 0x45BE05, its normal step 0x45C1E7).
 
-/// A point nearer than this (`flt_5C5E18`) is not put on the screen, and counts as outside
+/// A point nearer than this is not put on the screen, and counts as outside
 /// a polygon's depths.
 pub const NEAR: f32 = 4096.0;
-/// What a lowered record's depth loses (`flt_5C5E1C`).
+/// What a lowered record's depth loses.
 pub const LOWERED_BY: f32 = 262144.0;
 
 /// Why a point's number has no record: past the object's points (fatal error 0x80600902)
@@ -22,8 +22,8 @@ pub enum TooHigh {
     Scene,
 }
 
-/// The offset of a point's record: `object_points` the objects' count (`dword_5CD680`),
-/// `scene_points` the scene's (`dword_5CCD20`).
+/// The offset of a point's record: `object_points` the objects' count,
+/// `scene_points` the scene's.
 pub fn record_offset(point: u32, object_points: u32, scene_points: u32) -> Result<u32, TooHigh> {
     if (point as i32) < 0 {
         let number = point.wrapping_neg();
@@ -59,8 +59,8 @@ pub fn turn_normal(normal: [f32; 3], m: &[f32; 16]) -> [f32; 3] {
     })
 }
 
-/// The view's screen: its scale (`flt_624088`), centre (`flt_62409C`, `flt_6240A0`) and,
-/// when it is flat (`dword_60932C`), the whole number the depth divided by is made from
+/// The view's screen: its scale, centre and,
+/// when it is flat, the whole number the depth divided by is made from
 /// (`dword_5CCD80`, plus 1).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Screen {
@@ -124,7 +124,7 @@ pub fn make_record(
 }
 
 /// `project_polygon`'s test of a projected point's depth: nearer than `NEAR` or not below
-/// the farthest (`flt_6241C8`), each compare taking "no number" for "below".
+/// the farthest, each compare taking "no number" for "below".
 pub fn outside_depths(depth: f32, far: f32) -> bool {
     let below = |a: f32, b: f32| a.partial_cmp(&b).is_none_or(std::cmp::Ordering::is_lt);
     below(depth, NEAR) || !below(depth, far)

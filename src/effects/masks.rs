@@ -7,7 +7,7 @@ use crate::effects::mask_store::Masks;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
 use crate::race::owner_course::Course;
-use crate::session::Dword;
+use crate::session::PlainDword;
 use rc2k_core::effects::masks::{ShapeRows, Span};
 
 pub const MASK_LEN: u32 = rc2k_core::effects::masks::MASK_LEN as u32;
@@ -15,9 +15,9 @@ pub const MASK_LEN: u32 = rc2k_core::effects::masks::MASK_LEN as u32;
 /// The two point lists `collect_points_a` and `_b` fill: count, ids, faces.
 #[derive(Clone, Copy)]
 pub struct PointList<'a> {
-    pub count: &'a Dword,
-    pub ids: &'a [Dword; 64],
-    pub faces: &'a [Dword; 64],
+    pub count: &'a PlainDword,
+    pub ids: &'a [PlainDword; 64],
+    pub faces: &'a [PlainDword; 64],
 }
 
 impl PointList<'_> {

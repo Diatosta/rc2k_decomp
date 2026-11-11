@@ -29,7 +29,7 @@ use crate::race::effects_settings_store::EffectsSettings;
 use crate::race::owner_frame::Frame;
 use crate::scene::cross_product3::cross;
 use crate::scene::vector3::normalise;
-use crate::session::Float;
+use crate::session::PlainFloat;
 
 const POINTS: u32 = 0x30;
 
@@ -59,7 +59,7 @@ fn frame_facing(drops: &WindscreenDrops) {
 }
 
 /// A point (x, y at p) turned onto the axes (x, y, z back at p).
-fn point_turned(drops: &WindscreenDrops, p: &[Float; 3]) {
+fn point_turned(drops: &WindscreenDrops, p: &[PlainFloat; 3]) {
     point_turned_x87(drops, p);
 }
 
@@ -92,7 +92,7 @@ pub fn windscreen_drops_top(
         .work
         .shares
         .each_ref()
-        .map(super::super::session::Float::bits);
+        .map(super::super::session::PlainFloat::bits);
     for n in 0..POINTS as usize {
         let (p, o) = (3 * n, 3 * n);
         drops.work.scaled[o].set(x87::mul(&drops.work.points[p], kx));
@@ -217,7 +217,7 @@ fn frame_facing_x87(drops: &WindscreenDrops) {
 }
 
 /// `point_turned`'s x87 block as plain Rust on the x87 model (19 instructions), same order and memory places.
-fn point_turned_x87(drops: &WindscreenDrops, p: &[Float; 3]) {
+fn point_turned_x87(drops: &WindscreenDrops, p: &[PlainFloat; 3]) {
     let t0 = ld_cell(&p[0]);
     let t1 = ld_cell(&p[1]);
     let t2 = t0 * drops.work.axes[0].ld();
@@ -393,7 +393,7 @@ mod asm_differential {
     use crate::effects::typed_sync::{overlay, with_overlays};
     use crate::effects::windscreen_drop_state::{WindscreenDropState, WindscreenDropWork};
     use crate::effects::windscreen_drop_vars::WindscreenDropVars;
-    use crate::session::Float;
+    use crate::session::PlainFloat;
 
     #[test]
     fn frame_axes_x87_matches() {
@@ -448,22 +448,22 @@ mod asm_differential {
                     b[0],
                     &[
                         overlay(
-                            &crate::effects::owner::EFFECTS.windscreen_drops.state,
+                            &crate::effects::owner::effects().windscreen_drops.state,
                             WindscreenDropState::START,
                         ),
                         overlay(
-                            &crate::effects::owner::EFFECTS.windscreen_drops.work,
+                            &crate::effects::owner::effects().windscreen_drops.work,
                             WindscreenDropWork::START,
                         ),
                         overlay(
-                            &crate::effects::owner::EFFECTS.windscreen_drops.hex,
+                            &crate::effects::owner::effects().windscreen_drops.hex,
                             WindscreenDropVars::START,
                         ),
                     ],
                     || {
                         with_settings(b[1], |m| {
                             super::frame_axes_x87(
-                                &crate::effects::owner::EFFECTS.windscreen_drops,
+                                &crate::effects::owner::effects().windscreen_drops,
                                 m,
                                 crate::effects::setup::clock_at(b[0]),
                             );
@@ -518,18 +518,18 @@ mod asm_differential {
                     b[0],
                     &[
                         overlay(
-                            &crate::effects::owner::EFFECTS.windscreen_drops.work,
+                            &crate::effects::owner::effects().windscreen_drops.work,
                             WindscreenDropWork::START,
                         ),
                         overlay(
-                            &crate::effects::owner::EFFECTS.windscreen_drops.hex,
+                            &crate::effects::owner::effects().windscreen_drops.hex,
                             WindscreenDropVars::START,
                         ),
                     ],
                     || {
                         with_settings(b[1], |m| {
                             super::frame_up_x87(
-                                &crate::effects::owner::EFFECTS.windscreen_drops,
+                                &crate::effects::owner::effects().windscreen_drops,
                                 m,
                             );
                         });
@@ -565,13 +565,13 @@ mod asm_differential {
                 with_overlays(
                     b[0],
                     &[overlay(
-                        &crate::effects::owner::EFFECTS.windscreen_drops.hex,
+                        &crate::effects::owner::effects().windscreen_drops.hex,
                         WindscreenDropVars::START,
                     )],
                     || {
                         with_settings(b[1], |m| {
                             super::frame_place_x87(
-                                &crate::effects::owner::EFFECTS.windscreen_drops,
+                                &crate::effects::owner::effects().windscreen_drops,
                                 m,
                             );
                         });
@@ -607,19 +607,19 @@ mod asm_differential {
                     b[0],
                     &[
                         overlay(
-                            &crate::effects::owner::EFFECTS.windscreen_drops.state,
+                            &crate::effects::owner::effects().windscreen_drops.state,
                             WindscreenDropState::START,
                         ),
                         overlay(
-                            &crate::effects::owner::EFFECTS.windscreen_drops.work,
+                            &crate::effects::owner::effects().windscreen_drops.work,
                             WindscreenDropWork::START,
                         ),
                         overlay(
-                            &crate::effects::owner::EFFECTS.windscreen_drops.hex,
+                            &crate::effects::owner::effects().windscreen_drops.hex,
                             WindscreenDropVars::START,
                         ),
                     ],
-                    || super::frame_facing_x87(&crate::effects::owner::EFFECTS.windscreen_drops),
+                    || super::frame_facing_x87(&crate::effects::owner::effects().windscreen_drops),
                 );
             },
         );
@@ -658,17 +658,17 @@ mod asm_differential {
                 with_overlays(
                     b[0],
                     &[overlay(
-                        &crate::effects::owner::EFFECTS.windscreen_drops.work,
+                        &crate::effects::owner::effects().windscreen_drops.work,
                         WindscreenDropWork::START,
                     )],
                     || {
                         // The point's three floats, as the buffer holds them at b[1].
                         let host = |n: usize| crate::pointers::host_at(b[1] + 4 * n).cast::<u32>();
-                        let p: [Float; 3] = std::array::from_fn(|n| {
-                            Float::from_bits(unsafe { host(n).read_unaligned() })
+                        let p: [PlainFloat; 3] = std::array::from_fn(|n| {
+                            PlainFloat::from_bits(unsafe { host(n).read_unaligned() })
                         });
                         super::point_turned_x87(
-                            &crate::effects::owner::EFFECTS.windscreen_drops,
+                            &crate::effects::owner::effects().windscreen_drops,
                             &p,
                         );
                         for (n, cell) in p.iter().enumerate() {

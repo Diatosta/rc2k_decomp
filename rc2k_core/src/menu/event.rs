@@ -23,7 +23,7 @@ pub fn empty_result_slot(k: usize) -> u32 {
 /// The event mode that keeps the players' setups (`menu::begin_event`).
 pub const KEEPS_SETUP: u32 = 3;
 
-/// Which stage the stage screens' map shows (`dword_755700`).
+/// Which stage the stage screens' map shows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MapStage {
     /// The stage choice's (`menu::mark_stage_choice`).

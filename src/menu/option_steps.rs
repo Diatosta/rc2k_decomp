@@ -24,7 +24,7 @@ use crate::errors::Refused;
 use crate::gfx::owner::gfx;
 use crate::menu::owner::Screens;
 use crate::menu::owner::Tables;
-use crate::session::Dword;
+use crate::session::{DwordLike, PlainDword};
 
 // ---- the volume steps ----
 
@@ -38,15 +38,23 @@ pub enum Then {
 
 #[derive(Clone, Copy)]
 pub struct Volume {
-    pub value: &'static Dword,
+    pub value: &'static dyn DwordLike,
     pub up: bool,
     pub then: Then,
 }
 
-pub const MUSIC_LEVEL_RVA: &Dword = &crate::menu::owner::MENUS.screens.option_work.music_level;
-pub const SPEECH_LEVEL_RVA: &Dword = &crate::menu::owner::MENUS.screens.option_work.speech_level;
-pub const SOUNDS_A_RVA: &Dword = &crate::audio::owner::AUDIO_OWNER.levels.sounds_a;
-pub const SOUNDS_B_RVA: &Dword = &crate::audio::owner::AUDIO_OWNER.levels.sounds_b;
+pub const MUSIC_LEVEL_RVA: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .option_work
+    .music_level;
+pub const SPEECH_LEVEL_RVA: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .option_work
+    .speech_level;
+pub const SOUNDS_A_RVA: &crate::session::Dword = &crate::audio::owner::AUDIO_OWNER.levels.sounds_a;
+pub const SOUNDS_B_RVA: &crate::session::Dword = &crate::audio::owner::AUDIO_OWNER.levels.sounds_b;
 /// One volume step.
 pub fn volume_step(screens: &Screens, v: Volume) {
     let audio = crate::audio::owner::audio();
@@ -100,21 +108,37 @@ pub fn step_texture_setting(screens: &Screens, up: bool, race: &crate::race::own
 /// One of the two start-section picks (IDA's "colour" choices): (its number, the table, where the pick goes).
 #[derive(Clone, Copy)]
 pub struct StartPick {
-    pub number: &'static Dword,
+    pub number: &'static PlainDword,
     /// The table of the pictures' string ids, in `CAPTIONS.caption_lists`, from `table_at`.
     pub table_at: usize,
-    pub pick: &'static Dword,
+    pub pick: &'static PlainDword,
 }
 
 pub const START_PICK_A: StartPick = StartPick {
-    number: &crate::menu::owner::MENUS.screens.flow.start_section,
+    number: &crate::menu::owner::MENUS
+        .unchecked()
+        .screens
+        .flow
+        .start_section,
     table_at: 21,
-    pick: &crate::menu::owner::MENUS.tables.captions.caption_lists[7],
+    pick: &crate::menu::owner::MENUS
+        .unchecked()
+        .tables
+        .captions
+        .caption_lists[7],
 };
 pub const START_PICK_B: StartPick = StartPick {
-    number: &crate::menu::owner::MENUS.screens.flow.start_section_a8,
+    number: &crate::menu::owner::MENUS
+        .unchecked()
+        .screens
+        .flow
+        .start_section_a8,
     table_at: 13,
-    pick: &crate::menu::owner::MENUS.tables.captions.caption_lists[8],
+    pick: &crate::menu::owner::MENUS
+        .unchecked()
+        .tables
+        .captions
+        .caption_lists[8],
 };
 
 /// `menu::next_colour_a` and the three others.
@@ -137,16 +161,55 @@ pub fn step_start_pick(tables: &Tables, c: StartPick, up: bool) {
 // ---- the advanced audio page's choices ----
 
 /// (the work value, its place among `g_audioOptions`' six choices and six applied).
-const CHOICES: [(&Dword, usize); 6] = [
+const CHOICES: [(&PlainDword, usize); 6] = [
     (
-        &crate::menu::owner::MENUS.screens.option_work.audio_quality,
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .screens
+            .option_work
+            .audio_quality,
         0,
     ), // quality
-    (&crate::menu::owner::MENUS.screens.option_work.channels, 1), // channels
-    (&crate::menu::owner::MENUS.screens.option_work.dolby, 5),    // Dolby
-    (&crate::menu::owner::MENUS.screens.option_work.a3d, 4),      // A3D
-    (&crate::menu::owner::MENUS.screens.option_work.eax, 3),      // EAX
-    (&crate::menu::owner::MENUS.screens.option_work.ds3d, 2),     // DS3D
+    (
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .screens
+            .option_work
+            .channels,
+        1,
+    ), // channels
+    (
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .screens
+            .option_work
+            .dolby,
+        5,
+    ), // Dolby
+    (
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .screens
+            .option_work
+            .a3d,
+        4,
+    ), // A3D
+    (
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .screens
+            .option_work
+            .eax,
+        3,
+    ), // EAX
+    (
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .screens
+            .option_work
+            .ds3d,
+        2,
+    ), // DS3D
 ];
 /// `menu::apply_audio_choices`.
 pub fn apply_audio_choices(audio: &crate::audio::owner::Audio) -> Result<(), Refused> {

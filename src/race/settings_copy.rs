@@ -16,6 +16,7 @@ use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use crate::race::state_store::RaceCar;
+use crate::session::DwordLike;
 use crate::session::{Dword, Float};
 
 #[cfg(test)]
@@ -36,7 +37,7 @@ pub enum StepOperand {
     /// A float of car block n, by its bits (`car_bits!`).
     CarBits(usize, fn(&Car) -> &Float),
     /// A dword of an overlay store on the race block (`var!`: `RACE_VARS.stage_number`).
-    Var(fn() -> &'static Dword),
+    Var(fn() -> &'static dyn DwordLike),
 }
 #[cfg(test)]
 use StepOperand::{Bits, Cell};
@@ -99,7 +100,7 @@ macro_rules! car_bits {
 macro_rules! var {
     ($($s:ident)::+ . $($f:tt)+) => {
         $crate::race::settings_copy::StepOperand::Var({
-            fn f() -> &'static $crate::session::Dword {
+            fn f() -> &'static dyn $crate::session::DwordLike {
                 &$($s)::+.$($f)+
             }
             f

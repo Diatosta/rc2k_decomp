@@ -94,7 +94,7 @@ pub fn drawn(count: u32, front: impl FnOnce() -> u32, turning: impl FnOnce() -> 
 }
 
 /// A list of cars' entries looked at for its end (-1), and the car numbers a kind is
-/// picked by (`dword_75A1FE`).
+/// picked by.
 pub const LIST_ENTRIES: usize = 0x100;
 pub const CAR_NUMBERS: u32 = 0x400;
 pub const END: u32 = u32::MAX;

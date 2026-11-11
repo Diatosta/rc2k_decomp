@@ -20,16 +20,16 @@ pub fn check_start(n: u32) -> Result<(), Invalid> {
     Ok(())
 }
 
-/// The grades' mode a started car takes (`dword_71A234`).
+/// The grades' mode a started car takes.
 pub const STARTED_MODE: u32 = 2;
 
-/// The car's checkpoint: the lead car's (`dword_70F484`) plus the checkpoints on (ebx).
+/// The car's checkpoint: the lead car's plus the checkpoints on.
 pub fn start_checkpoint(lead: u32, ahead: u32) -> u32 {
     lead.wrapping_add(ahead)
 }
 
-/// The share (`flt_6051AC`, `flt_71A650`) of start n of m between lo and hi:
-/// lo + ((m - 1) - n) / (m - 1) x (hi - lo), "1" the float `one` (`flt_5C5D38`), in the
+/// The share of start n of m between lo and hi:
+/// lo + ((m - 1) - n) / (m - 1) x (hi - lo), "1" the float `one`, in the
 /// original's order (`fild n; fild m; fsub one; fsubr; fdivp; fld hi; fsub lo; fmulp;
 /// fadd lo`).
 pub fn start_share(n: i32, m: i32, one: f32, hi: f32, lo: f32) -> f32 {

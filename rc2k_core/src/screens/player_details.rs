@@ -33,7 +33,7 @@ pub struct Details<T> {
     pub name: T,
     /// A name is being typed (`dword_7556A8` not 0): the cursor after it.
     pub typing: bool,
-    /// The cursor's blink (`dword_7559A8`): drawn while 1.
+    /// The cursor's blink: drawn while 1.
     pub blink: bool,
     pub nationality: u32,
     /// `dword_758816[nationality]`.
@@ -66,8 +66,8 @@ pub fn name_cursor<S: Screen<Font = Font, Work = Work>>(
     }
 }
 
-/// The page; the typing cursor after the name measured from the x it was drawn from. The lines below the views are 0x1B lower on a page
-/// with the second view.
+/// The page; the typing cursor after the name measured from the x it was drawn from. The lines
+/// below the views are 0x1B lower on a page with the second view.
 pub fn player_details<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     d: &Details<S::Text>,

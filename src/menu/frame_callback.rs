@@ -21,9 +21,17 @@ use rc2k_core::menu::notice;
 
 // ---- game data ----
 
-const DRAW_LIST: &ListCell = &crate::menu::owner::MENUS.screens.flow.draw_list; // g_drawList
-const SCENE_LIST: &ListCell = &crate::menu::owner::MENUS.screens.flow.scene_list; // g_sceneList
-const OVERLAY_LIST: &ListCell = &crate::menu::owner::MENUS.screens.flow.overlay_list; // g_overlayList
+const DRAW_LIST: &ListCell = &crate::menu::owner::MENUS.unchecked().screens.flow.draw_list; // g_drawList
+const SCENE_LIST: &ListCell = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .flow
+    .scene_list; // g_sceneList
+const OVERLAY_LIST: &ListCell = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .flow
+    .overlay_list; // g_overlayList
 const NOTICE_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::NOTICE;
 
 /// Runs the functions of the list `list` points at (the original keeps the registers

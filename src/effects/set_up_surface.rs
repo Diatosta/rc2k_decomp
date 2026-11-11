@@ -15,7 +15,7 @@ use crate::effects::owner::effects;
 use crate::effects::ring_store::Ring;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::session::{Bytes, Dword};
+use crate::session::{PlainBytes, PlainDword};
 
 const MASK_BYTES: u32 = 0x4_0000;
 const PIXELS: u32 = 0x1_0000;
@@ -23,7 +23,7 @@ const SIDE: u32 = 0x100;
 const CELLS: u32 = 0x40;
 /// `gfx::read_picture_file` at 256 x 256 (the picture's sizes kept round it): whether it
 /// was read.
-fn read(path: &Bytes<21>) -> Result<bool, Refused> {
+fn read(path: &PlainBytes<21>) -> Result<bool, Refused> {
     let gfx = crate::gfx::owner::gfx();
     let sizes: [u32; 3] = [
         gfx.pictures.picture.width.get(),
@@ -169,9 +169,9 @@ pub fn set_up_surface(
 #[derive(rc2k_derive::Cells)]
 pub struct MaskList {
     /// 0x93A1DA: `stru_93A1DA`: a `memory::List` (head, total, cursor, remaining)
-    pub list: [Dword; 4],
+    pub list: [PlainDword; 4],
     /// 0x93A1EA: Not named: 48 bytes (a gap, or unreferenced data)
-    pub _gap_93a1ea: Bytes<48>,
+    pub _gap_93a1ea: PlainBytes<48>,
 }
 
 /// MaskList's first values.
@@ -179,12 +179,12 @@ impl MaskList {
     pub const fn new() -> Self {
         MaskList {
             list: [
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
             ],
-            _gap_93a1ea: Bytes::new([0; 48]),
+            _gap_93a1ea: PlainBytes::new([0; 48]),
         }
     }
 }

@@ -11,7 +11,7 @@ pub const CHAMPIONSHIP: u32 = 2;
 /// `g_eventType` of the time trial.
 pub const TIME_TRIAL: u32 = 3;
 
-/// The stage speeches' table (`off_75A37E`) has this many entries.
+/// The stage speeches' table has this many entries.
 pub const STAGE_SPEECHES: u32 = 0x40;
 
 /// The highest section the rally speeches' and welcome pictures' tables are read at

@@ -152,7 +152,7 @@ pub fn torque_share(
 }
 
 /// `physics::set_downforce`: (`speed`² `factor` + `offset`) `gravity` (`downforce`) and
-/// its negative (`flt_6147F4`): the car's weight with downforce
+/// its negative: the car's weight with downforce
 /// growing with the speed's square.
 pub fn downforce(speed: f32, factor: f32, offset: f32, gravity: f32) -> (f32, f32) {
     let s = speed as f64;

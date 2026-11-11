@@ -19,11 +19,11 @@ pub fn seal_time(absent: u32, time: impl FnOnce() -> u32, key: u32) -> u32 {
 }
 
 /// `race::permute_bits`: the bits picked by `picks` (a table's count byte n is followed
-/// by n + 1 picks: bit 5 set takes bit (pick & 0x1F) of the first input word, else of the second), gathered
-/// from the top down: the first picks in the high half, the rest in the low.
-pub fn permute_bits(picks: &[u8], eax: u32, edx: u32) -> u64 {
+/// by n + 1 picks: bit 5 set takes bit (pick & 0x1F) of the first input word, else of the
+/// second), gathered from the top down: the first picks in the high half, the rest in the low.
+pub fn permute_bits(picks: &[u8], first: u32, second: u32) -> u64 {
     picks.iter().fold(0u64, |bits, &b| {
-        let from = if b & 0x20 != 0 { eax } else { edx };
+        let from = if b & 0x20 != 0 { first } else { second };
         (bits << 1) | ((from >> (b & 0x1F)) & 1) as u64
     })
 }
@@ -40,7 +40,7 @@ pub struct Cipher<'a> {
     pub pc1: [&'a [u8]; 2],
     /// The subkeys' choice (PC2, 0x4E0196).
     pub pc2: &'a [u8],
-    /// Whether each round turns the halves twice (`byte_4E01C7`).
+    /// Whether each round turns the halves twice.
     pub shifts: [u8; 16],
     /// The initial permutation (0x4E01D7).
     pub initial: &'a [u8],
@@ -93,16 +93,16 @@ pub fn seal_block(
     let (mut l, mut r) = halves(permute_bits(t.initial, block[0], block[1]));
     for subkey in &subkeys {
         let e = permute_bits(t.expansion, r, r);
-        let mut eax = (e >> 32) as u32 ^ subkey[0];
-        let mut edx = e as u32 ^ subkey[1];
-        let mut ebx = 0u32;
+        let mut high = (e >> 32) as u32 ^ subkey[0];
+        let mut low = e as u32 ^ subkey[1];
+        let mut mixed = 0u32;
         for k in 0..8 {
-            eax = (eax << 6) | (edx >> 26);
-            edx <<= 6;
-            ebx <<= 4;
-            ebx |= sbox(k, (eax >> 16) & 0x3F) as u32;
+            high = (high << 6) | (low >> 26);
+            low <<= 6;
+            mixed <<= 4;
+            mixed |= sbox(k, (high >> 16) & 0x3F) as u32;
         }
-        let f = permute_bits(t.permutation, ebx, ebx) as u32;
+        let f = permute_bits(t.permutation, mixed, mixed) as u32;
         (l, r) = (r, l ^ f);
     }
     let (a, b) = halves(permute_bits(t.last, r, l));
@@ -125,12 +125,12 @@ pub fn pack_runs(from: &[u8]) -> Vec<u8> {
     let mut literal_all = count < 3;
     if !literal_all {
         loop {
-            let al = src(s);
+            let byte = src(s);
             if (left as i32) <= 1 {
                 literal_all = true;
                 break;
             }
-            if al == src(s + 1) {
+            if byte == src(s + 1) {
                 let mut n = 2u32;
                 let mut end = false;
                 loop {
@@ -138,7 +138,7 @@ pub fn pack_runs(from: &[u8]) -> Vec<u8> {
                         end = true;
                         break;
                     }
-                    if al != src(s + n) {
+                    if byte != src(s + n) {
                         break;
                     }
                     n += 1;
@@ -148,25 +148,25 @@ pub fn pack_runs(from: &[u8]) -> Vec<u8> {
                 }
                 s += n;
                 out.push((n as u8).wrapping_sub(1));
-                out.push(al);
+                out.push(byte);
                 if end {
                     break;
                 }
                 left -= n;
             } else {
                 let mut n = 1u32;
-                let mut al = al;
+                let mut previous = byte;
                 let mut end = false;
                 loop {
                     if n == left {
                         end = true;
                         break;
                     }
-                    if al == src(s + n) {
+                    if previous == src(s + n) {
                         n -= 1;
                         break;
                     }
-                    al = src(s + n);
+                    previous = src(s + n);
                     n += 1;
                     if n >= 0x81 {
                         n -= 1;

@@ -19,7 +19,7 @@ pub struct SpringFactors {
     /// `spring_force_scale`, `flt_614774`: the force's factors.
     pub stiffness: f32,
     pub load: f32,
-    /// `flt_614C00`: the damping's; `handling` its share when below 0.
+    /// The damping's; `handling` its share when below 0.
     pub damping: f32,
     pub rebound: f32,
 }

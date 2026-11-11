@@ -17,9 +17,17 @@ use crate::menu::owner::Menus;
 use crate::platform::{show_frame_now, unlock_surface};
 use crate::scene::owner::scene;
 
-const DRAW_LIST: &ListCell = &crate::menu::owner::MENUS.screens.flow.draw_list; // g_drawList
-const SCENE_LIST: &ListCell = &crate::menu::owner::MENUS.screens.flow.scene_list; // g_sceneList
-const OVERLAY_LIST: &ListCell = &crate::menu::owner::MENUS.screens.flow.overlay_list; // g_overlayList
+const DRAW_LIST: &ListCell = &crate::menu::owner::MENUS.unchecked().screens.flow.draw_list; // g_drawList
+const SCENE_LIST: &ListCell = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .flow
+    .scene_list; // g_sceneList
+const OVERLAY_LIST: &ListCell = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .flow
+    .overlay_list; // g_overlayList
 
 /// Whether the frame of `menu` was made.
 pub fn inspection_frame(

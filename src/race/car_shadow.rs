@@ -620,6 +620,7 @@ pub fn shadow_on_face(
         race,
         &ctx.view.face,
         scene,
+        &ctx.system.session.screen,
     )?;
     ctx.view.polygon.polygon_drawn.set(1u32);
     Ok(())

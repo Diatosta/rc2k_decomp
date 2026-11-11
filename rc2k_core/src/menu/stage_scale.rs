@@ -22,8 +22,8 @@ pub fn scale_time(time: u32, factor: f32) -> u32 {
     fistp64(time as i32 as f64 * factor as f64) as u32
 }
 
-/// The four record times: the first by `factors[1]` (`flt_604654`), the other three by
-/// `factors[0]` (`flt_60463C`).
+/// The four record times: the first by `factors[1]`, the other three by
+/// `factors[0]`.
 pub fn scale_times(times: [u32; 4], factors: [f32; 2]) -> [u32; 4] {
     std::array::from_fn(|k| scale_time(times[k], factors[usize::from(k == 0)]))
 }

@@ -5,26 +5,26 @@
 /// The menus' leaving switches the event flows read and write; each is 0 or 1 in the game.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Switch {
-    /// `dword_75555D`: the event is left too, not only the screen.
+    /// The event is left too, not only the screen.
     EventLeft,
-    /// `dword_755561`: the screen loop leaves at once (cleared by the key poll and set-up).
+    /// The screen loop leaves at once (cleared by the key poll and set-up).
     LeaveScreen,
-    /// `dword_755565`: set by `leave_with_carry` with `LeaveScreen`; the class pages set it
+    /// Set by `leave_with_carry` with `LeaveScreen`; the class pages set it
     /// while a page with the player is shown.
     LeftWithCarry,
-    /// `dword_755569`: an action asks to leave the screen (and, on a screen that asks, the
+    /// An action asks to leave the screen (and, on a screen that asks, the
     /// question is put).
     AskLeave,
-    /// `dword_755980`: an event is over.
+    /// An event is over.
     EventOver,
-    /// `dword_758806`: the screen was left with a key (Escape or a yes / no answer); the
+    /// The screen was left with a key (Escape or a yes / no answer); the
     /// leave question is put when it is set.
     LeftByKey,
-    /// `dword_755A3C`: Escape was pressed (`handle_keys`).
+    /// Escape was pressed (`handle_keys`).
     EscapePressed,
-    /// `dword_75AB20`: the rally's results reached.
+    /// The rally's results reached.
     RallyDone,
-    /// `dword_755920`: one was entered in the best times.
+    /// One was entered in the best times.
     Entered,
     /// `g_quitting`: the window was closed (read only).
     Quitting,
@@ -34,15 +34,16 @@ pub enum Switch {
 /// `dword_755A0C`. What each means is a reading.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Leaving {
-    /// `dword_75555D`: the event left too (0 when only the screen is).
+    /// The event left too (0 when only the screen is).
     pub event_left: bool,
-    /// `dword_755561`: the screen loop leaves.
+    /// The screen loop leaves.
     pub leave_screen: bool,
-    /// `dword_755565`: set with the one before by `leave_with_carry`.
+    /// Set with the one before by `leave_with_carry`.
     pub left_with_carry: bool,
-    /// `dword_755569`: the screen loop asks whether to leave.
+    /// The screen loop asks whether to leave.
     pub ask_leave: bool,
-    /// `dword_755A0C` (`DrawWork::scratch_0c`, a scratch variable the screens share): -1 on going back; the screens after it use it for their own values.
+    /// `dword_755A0C` (`DrawWork::scratch_0c`, a scratch variable the screens share): -1 on going
+    /// back; the screens after it use it for their own values.
     pub scratch_0c: u32,
 }
 
@@ -66,7 +67,7 @@ impl Leaving {
     }
 }
 
-/// A yes/no question's state: 1 on a screen that asks (`dword_7554CC`), the answer
+/// A yes/no question's state: 1 on a screen that asks, the answer
 /// (`g_yesNoAnswer`, 1 yes, 0 no) and whether it was answered (`dword_758806`, which the
 /// screen loops also read as "left").
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

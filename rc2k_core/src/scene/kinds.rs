@@ -1,9 +1,8 @@
-//! Object kinds (from `scene::known_kind` 0x41F469,
-//! `known_kind_picture` 0x41F44D, `car_icon_number` 0x41F519, `find_object_kind`
-//! 0x41F4BD, `find_object_of_kind` 0x422298, `kind_is_hidden` 0x452303 and
-//! `kind_hidden_at` 0x4522F7): the 0x22 known kinds of car, each with an object kind, a
-//! first picture and an icon number (the HUD's car icons), and the kind of each of the scene's 0x100
-//! objects. The tables are read entry by entry, as the original reads them.
+//! Object kinds (from `scene::known_kind` 0x41F469, `known_kind_picture` 0x41F44D,
+//! `car_icon_number` 0x41F519, `find_object_kind` 0x41F4BD, `find_object_of_kind` 0x422298,
+//! `kind_is_hidden` 0x452303 and `kind_hidden_at` 0x4522F7): the 0x22 known kinds of car, each with
+//! an object kind, a first picture and an icon number (the HUD's car icons), and the kind of each
+//! of the scene's 0x100 objects. The tables are read entry by entry, as the original reads them.
 
 use crate::Invalid;
 
@@ -38,7 +37,7 @@ pub fn first_of_kind(kind_of: impl Fn(usize) -> u32, kind: u32) -> u32 {
         .unwrap_or(0)
 }
 
-/// The two settings under which some kinds are not drawn (`dword_71C3E0`, `dword_62389C`).
+/// The two settings under which some kinds are not drawn.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct HideSettings {
     pub switch: bool,
@@ -52,9 +51,9 @@ impl HideSettings {
     }
 }
 
-/// Whether `object` is hidden by its kind (`kind_of`, asked only with the settings on),
-/// and what the original leaves in eax: the kind when it looked, else the object.
-/// Refuses an object past the table with the settings on (the original reads past it).
+/// Whether `object` is hidden by its kind (`kind_of`, asked only with the settings on), and the
+/// number looked at: the kind when it looked, else the object. Refuses an object past the table
+/// with the settings on (the original reads past it).
 pub fn kind_is_hidden(
     settings: HideSettings,
     object: u32,

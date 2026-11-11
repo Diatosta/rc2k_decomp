@@ -1,13 +1,12 @@
-//! The installer's page items under the keys (from
-//! `install::choice_back` 0x414826, `choice_on` 0x414848, `choice_by_number` 0x41486A,
-//! `value_down` 0x414881, `value_up` 0x41489C, `value_by_number` 0x4148B7, `key_up`
-//! 0x414784, `key_down` 0x414794, `key_left` 0x4147A4, `key_right` 0x4147C0 and
-//! `key_number` 0x4147DC; and the choices' part of `install::mark_page` 0x414B53, and
-//! `install::next_edit` 0x41530F; the keys' ways of `install::page_key` 0x4146E4,
-//! `install::item_enter` 0x4147FE, `install::item_link` 0x414A28, `install::item_action`
-//! 0x414A4B and `install::folder_key` 0x41534E). An item of choices (kind 2) has a chosen byte and a
-//! table of two bytes a choice, the second's bits 6, 7 its marks; an item of a value (kind
-//! 3) has the value's byte and its least and most.
+//! The installer's page items under the keys (from `install::choice_back` 0x414826, `choice_on`
+//! 0x414848, `choice_by_number` 0x41486A, `value_down` 0x414881, `value_up` 0x41489C,
+//! `value_by_number` 0x4148B7, `key_up` 0x414784, `key_down` 0x414794, `key_left` 0x4147A4,
+//! `key_right` 0x4147C0 and `key_number` 0x4147DC; and the choices' part of `install::mark_page`
+//! 0x414B53, and `install::next_edit` 0x41530F; the keys' ways of `install::page_key` 0x4146E4,
+//! `install::item_enter` 0x4147FE, `install::item_link` 0x414A28, `install::item_action` 0x414A4B
+//! and `install::folder_key` 0x41534E). An item of choices (kind 2) has a chosen byte and a table
+//! of two bytes a choice, the second's bits 6, 7 its marks; an item of a value (kind 3) has the
+//! value's byte and its least and most.
 
 use crate::Invalid;
 
@@ -17,24 +16,23 @@ pub const ROUND: usize = 0x202;
 /// A choice's marks (bits 6, 7 of its second byte): marked, it is passed over.
 pub const MARKS: u8 = 0xC0;
 
-/// The choice before `chosen` that is free (`free`, asked of each choice reached but the
-/// chosen one), round from the first to the last (`dec cl; jns`: from 0x80 .. 0xFF and 0 to
-/// the last, `count` - 1, asked only then); the chosen one again when none is. Refused: a
-/// chosen byte past the choices with every choice marked (the original goes round for
-/// ever).
+/// The choice before `chosen` that is free (`free`, asked of each choice reached but the chosen
+/// one), round from the first to the last (stepping below 0 wraps to 0xFF; from 0x80 .. 0xFF it
+/// goes to the last, `count` - 1, asked only then); the chosen one again when none is. Refused: a
+/// chosen byte past the choices with every choice marked (the original goes round for ever).
 pub fn choice_back(
     chosen: u8,
     count: impl Fn() -> u8,
     free: impl Fn(u8) -> bool,
 ) -> Result<u8, Invalid> {
-    let mut cl = chosen;
+    let mut choice = chosen;
     for _ in 0..ROUND {
-        cl = cl.wrapping_sub(1);
-        if cl & 0x80 != 0 {
-            cl = count().wrapping_sub(1);
+        choice = choice.wrapping_sub(1);
+        if choice & 0x80 != 0 {
+            choice = count().wrapping_sub(1);
         }
-        if cl == chosen || free(cl) {
-            return Ok(cl);
+        if choice == chosen || free(choice) {
+            return Ok(choice);
         }
     }
     Err(Invalid("every choice marked and the chosen one past them"))
@@ -47,14 +45,14 @@ pub fn choice_on(
     count: impl Fn() -> u8,
     free: impl Fn(u8) -> bool,
 ) -> Result<u8, Invalid> {
-    let mut cl = chosen;
+    let mut choice = chosen;
     for _ in 0..ROUND {
-        cl = cl.wrapping_add(1);
-        if cl >= count() {
-            cl = 0;
+        choice = choice.wrapping_add(1);
+        if choice >= count() {
+            choice = 0;
         }
-        if cl == chosen || free(cl) {
-            return Ok(cl);
+        if choice == chosen || free(choice) {
+            return Ok(choice);
         }
     }
     Err(Invalid("every choice marked and the chosen one past them"))
@@ -114,19 +112,19 @@ pub fn mark_choices(table: &mut [u8], mark: u8) {
     }
 }
 
-/// `install::mark_page`, an unmarked item of choices: with at most one free choice (counted
-/// in a byte), its chosen byte becomes that one (`neg al; add al, [esi+1]`: with none, the
-/// count less 2) and the item is not to be chosen; `None`: more are free.
+/// `install::mark_page`, an unmarked item of choices: with at most one free choice (counted in a
+/// byte), its chosen byte becomes that one (with none, the count less 2) and the item is not to be
+/// chosen; `None`: more are free.
 pub fn lone_choice(table: &[u8], count: u8) -> Option<u8> {
     let mut free = 0u8;
     let mut last = 2u8;
-    let mut dl = count;
+    let mut position = count;
     for choice in table.chunks(2) {
         if choice[1] & MARKS == 0 {
             free = free.wrapping_add(1);
-            last = dl;
+            last = position;
         }
-        dl = dl.wrapping_sub(1);
+        position = position.wrapping_sub(1);
     }
     (free <= 1).then(|| last.wrapping_neg().wrapping_add(count))
 }
@@ -192,8 +190,8 @@ impl ItemKey {
         }
     }
 
-    /// The kind its last compare is with when no helper takes the key (`cmp bl, 22h` for up
-    /// and down, `cmp bl, 3` for the others).
+    /// The kind its last compare is with when no helper takes the key (0x22 for up and
+    /// down, 3 for the others).
     pub fn last_compared(self) -> u8 {
         match self {
             ItemKey::Up | ItemKey::Down => 0x22,
@@ -216,7 +214,7 @@ impl ItemKey {
     }
 }
 
-/// A number key's choice or eighth (`key` less 2, all 32 bits of eax's low byte less 2).
+/// A number key's choice or eighth (`key` less 2, in all 32 bits).
 pub fn number_of_key(key: u8) -> u32 {
     (key as u32).wrapping_sub(2)
 }
@@ -239,7 +237,7 @@ pub const STAYS: u8 = 0x10;
 /// The key that takes a screenshot (with screenshots on).
 pub const SCREENSHOT_KEY: u8 = 0x52;
 
-/// A key's way: `None` for no key or one of 0x80 and above (`test al, al; jle`).
+/// A key's way: `None` for no key or one of 0x80 and above.
 pub fn page_key(key: u8) -> Option<PageKey> {
     if key == 0 || key & 0x80 != 0 {
         return None;
@@ -313,8 +311,8 @@ pub fn link(action: u32, next: impl FnOnce() -> u8) -> LinkWay {
     }
 }
 
-/// A key on the folder page (`install::folder_key`): with ah bit 3 (an edit's key), 1
-/// leaves with answer 0 (not while the edit holds `STAYS`), 0x1C with answer 1.
+/// A key on the folder page (`install::folder_key`): with bit 3 of the key's second byte set (an
+/// edit's key), 1 leaves with answer 0 (not while the edit holds `STAYS`), 0x1C with answer 1.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FolderKey {
     /// No bit 3: nothing.
@@ -328,11 +326,11 @@ pub enum FolderKey {
 }
 
 impl FolderKey {
-    pub fn of(eax: u32) -> FolderKey {
-        if eax & 0x800 == 0 {
+    pub fn of(key: u32) -> FolderKey {
+        if key & 0x800 == 0 {
             return FolderKey::NotEdited;
         }
-        match eax as u8 {
+        match key as u8 {
             1 => FolderKey::Back,
             0x1C => FolderKey::On,
             _ => FolderKey::Other,

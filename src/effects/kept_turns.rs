@@ -3,10 +3,10 @@
 //! steps `effects::turn_kept_xz` (0x4C1411) and `effects::turn_kept_zy` (0x4C14D2).
 
 use crate::math::x87;
-use crate::session::{Dword, Float};
+use crate::session::{PlainDword, PlainFloat};
 
 /// The kept vectors, in the original's order.
-fn vectors(effects: &crate::effects::owner::Effects) -> [&[Dword; 3]; 3] {
+fn vectors(effects: &crate::effects::owner::Effects) -> [&[PlainDword; 3]; 3] {
     let frame = &effects.frame;
     [
         &frame.kept_view.kept_a.vector,
@@ -17,7 +17,7 @@ fn vectors(effects: &crate::effects::owner::Effects) -> [&[Dword; 3]; 3] {
 
 /// One turn: for each kept vector, its (`b`, `a`) = (`a` s + `b` c, `a` c - `b` s) by the
 /// stored sine and cosine `sc` (`x87::turn_yz` with y the `b` field, z the `a`).
-fn turn_kept(a: usize, b: usize, sc: &[Float; 2], effects: &crate::effects::owner::Effects) {
+fn turn_kept(a: usize, b: usize, sc: &[PlainFloat; 2], effects: &crate::effects::owner::Effects) {
     let (s, c) = (sc[0].bits(), sc[1].bits());
     for v in vectors(effects) {
         let (nb, na) = x87::turn_yz(v[b].get(), v[a].get(), s, c);

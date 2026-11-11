@@ -17,7 +17,7 @@ pub fn tick_runs(tick: u32, every: u32) -> bool {
 /// `drive::race_step`'s ticks: from the tenths gone (`dword_613844`, signed) while above
 /// 0, `tick(counter)` (the tick, then whether the players are all out, and the counter
 /// as that leaves it) until the players are all out; the counter less one after each.
-/// The counter left (the original's ecx).
+/// The counter left.
 pub fn run_ticks<E>(
     tenths: u32,
     mut tick: impl FnMut(u32) -> Result<(bool, u32), E>,
@@ -35,18 +35,18 @@ pub fn run_ticks<E>(
 }
 
 /// `drive::quit_question`'s best whole frame: the first block's clock (+8) / 100 less 7,
-/// and the remainder (eax, edx as `div` leaves them).
+/// and the remainder.
 pub fn best_frame(clock: u32) -> (u32, u32) {
     ((clock / 100).wrapping_sub(7), clock % 100)
 }
 
-/// Whether the best frame is kept over `kept` (`dword_70F3E8`): not below it, by the
+/// Whether the best frame is kept over `kept`: not below it, by the
 /// sign of the difference.
 pub fn keeps_frame(frame: u32, kept: u32) -> bool {
     (frame.wrapping_sub(kept) as i32) >= 0
 }
 
-/// The question's notice: 0xC2 with the third answer offered (`dword_6238C0`), else 0xC1.
+/// The question's notice: 0xC2 with the third answer offered, else 0xC1.
 pub fn quit_notice(third: bool) -> u32 {
     if third { 0xC2 } else { 0xC1 }
 }

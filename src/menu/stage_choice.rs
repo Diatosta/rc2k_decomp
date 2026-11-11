@@ -6,12 +6,24 @@ use crate::errors::{FatalError, Refused};
 use crate::gfx::owner::gfx;
 use crate::menu::owner::Menus;
 use crate::screens::draw_stage_records::selection;
-use crate::session::Dword;
+use crate::session::PlainDword;
 use crate::system::owner::system;
 
-pub const GROUP_RVA: &Dword = &crate::menu::owner::MENUS.screens.event.stage_group; // 0 or 1
-pub const SUB_RVA: &Dword = &crate::menu::owner::MENUS.screens.event.stage_sub; // 0 .. 5
-pub const NUMBER_RVA: &Dword = &crate::menu::owner::MENUS.screens.event.stage_number; // 1 .. 6
+pub const GROUP_RVA: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .event
+    .stage_group; // 0 or 1
+pub const SUB_RVA: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .event
+    .stage_sub; // 0 .. 5
+pub const NUMBER_RVA: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .event
+    .stage_number; // 1 .. 6
 const MAP_SPRITE: u32 = 0xA0;
 /// The map that cannot be loaded: no message.
 const NO_MAP: FatalError = FatalError {
@@ -84,7 +96,7 @@ pub type Draw<'a> = &'a mut dyn FnMut() -> Result<(), Refused>;
 /// `stage_number`): the variable stepped, then the map drawn again (`draw`: the Rust
 /// version in the game). When the map refuses, the variable is put back first, so that the
 /// original, which then runs, steps it once.
-fn step(cell: &Dword, next: impl Fn(u32) -> u32, draw: Draw) -> Result<(), Refused> {
+fn step(cell: &PlainDword, next: impl Fn(u32) -> u32, draw: Draw) -> Result<(), Refused> {
     let old = cell.get();
     cell.set(next(old));
     draw().inspect_err(|_| cell.set(old))

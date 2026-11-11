@@ -71,7 +71,7 @@ pub fn sample_noise(car: &crate::physics::car_store::Car, map: usize) -> Result<
     Ok(s.value)
 }
 
-/// `race::fog_table` (0x44FC33): `draw_distance_settings`; the noise at the car
+/// `race::fog_table` (0x44FC33): the noise at the car
 /// (`sample_noise` of `g_noiseBytes`) spread between `race().course.stage_prefs.fog_low` and
 /// `race().course.stage_prefs.fog_high` into a step; the near and far values = (`race().frame.frame_work.sun_size` x
 /// the view's value, `ViewSun::view_out`, >> 4) x `race().course.stage_prefs.fog_near` / `race().course.stage_prefs.fog_far` >> 8 (the far one to
@@ -93,7 +93,6 @@ pub fn fog_table(
         return Err(BadInput("a fog table length of 0 or past 0x1000").into());
     }
     // Converted: `rc2k_core::race::view::fog_table`.
-    draw_distance_settings(&race.course);
     let noise = sample_noise(car, 0)?;
     let set = rc2k_core::race::view::fog_table(
         noise,
@@ -116,7 +115,7 @@ pub fn fog_table(
     Ok(())
 }
 
-/// `race::set_up_fog` (0x44FBD9): `scene::restart_clock`; `DRAW.fog_colour` = the fog colour
+/// `race::set_up_fog` (0x44FBD9): `DRAW.fog_colour` = the fog colour
 /// from `race().course.stage_prefs.fog_colour` (red), `race().course.stage_prefs.fog_colour[1]`, `race().course.stage_prefs.fog_colour[2]` (each shifted into its byte
 /// and added); `fog_table` into the view's `fog`; the colour with 0xFF000000 to the device.
 /// None of it reads a register at entry, and its callers (`race::draw_view_scene`,
@@ -133,10 +132,6 @@ pub fn set_up_fog(
     if length == 0 || length > 0x1000 {
         return Err(BadInput("a fog table length of 0 or past 0x1000").into());
     }
-    crate::scene::restart_clock::restart_clock(
-        &race.shared,
-        crate::system::tick_count::tick_count(),
-    );
     // Converted: `rc2k_core::race::view::{fog_colour, device_fog_colour}`.
     let colour = rc2k_core::race::view::fog_colour(
         course.stage_prefs.fog_colour[0].get(),
@@ -393,6 +388,7 @@ fn rolled_angle(race: &Race, car: &crate::physics::car_store::Car) -> u32 {
 pub fn camera_view(
     race: &Race,
     scene: &crate::scene::owner::Scene,
+    system: &crate::system::owner::System,
     m: &ViewMatrices,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), BadInput> {
@@ -459,7 +455,13 @@ pub fn camera_view(
     view.vars.view_place_f[0].set_bits(from_int(place[0] as i32).to_bits());
     view.vars.view_place_f[1].set_bits(from_int(place[1] as i32).to_bits());
     view.vars.view_place_f[2].set_bits(from_int(place[2] as i32).to_bits());
-    crate::scene::set_view_window::set_view_window(race, scene, &view.polygon.window, &view.vars);
+    crate::scene::set_view_window::set_view_window(
+        race,
+        scene,
+        system,
+        &view.polygon.window,
+        &view.vars,
+    );
     view_matrices(race, m, view)?;
     Ok(())
 }
@@ -476,7 +478,6 @@ pub fn camera_view(
 /// less half its distance from the centre, at least 0).
 pub fn draw_sky(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
     let (race, scene) = (ctx.race, ctx.scene);
-    let system = crate::system::owner::system();
     fetch_view_value(race, &ctx.view.polygon.sun, ctx.view.drawn_view(race))?;
     // Not left from the previous view's last object (the original's slip, fixed:
     // `wiki/Fixed-bugs.md`).
@@ -506,11 +507,10 @@ pub fn draw_sky(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refu
         ctx,
         Some(GamePtr::to(&ctx.view.matrices.object_matrix_slots).into()),
     )?;
-    crate::race::flush_draw_batch::flush_draw_batch(race)?;
     crate::scene::depth_buffer_on::depth_buffer(true);
     ctx.view.light.view_kind.set(0);
     ctx.view.face.no_far_clip.set(0);
-    place_sun(ctx, system)
+    place_sun(ctx, ctx.system)
 }
 
 /// The sun: its direction from the stage's sun angles, turned by the sky's matrix, and when it is

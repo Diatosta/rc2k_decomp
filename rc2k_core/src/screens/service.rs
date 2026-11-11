@@ -20,7 +20,7 @@ pub enum Font {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {
-    /// `dword_75ACC0`: the penalty.
+    /// The penalty.
     Penalty,
     /// `seconds`, `dword_7559EC`: work variables.
     A,
@@ -31,7 +31,7 @@ pub enum Work {
 const COLUMNS: [i32; 2] = [0x6A, 0x1B9];
 const ROWS: [i32; 8] = [0x6E, 0x8B, 0xA8, 0xC5, 0xE2, 0xFF, 0x11C, 0x1C4];
 
-/// The sixteen times (`dword_75AB60`).
+/// The sixteen times.
 pub fn repair_times<S: Screen<Font = Font>>(s: &mut S, times: &[u32; 16]) -> Result<(), S::Error> {
     for (i, &t) in times.iter().enumerate() {
         let (x, y) = (COLUMNS[i % 2], ROWS[i / 2]);
@@ -127,7 +127,7 @@ pub const AREA_TITLE: (u32, u32) = (0x190, 0x486);
 pub const AREA_TITLE_AT: (i32, i32) = (0x190, 0xE);
 /// The damage bars: width, fill and end glyphs.
 pub const DAMAGE_BAR: (i32, u32, u32) = (0xA0, 0x86, 0x87);
-/// The chosen tyre's name: this string plus the tyre (`dword_75AC9C`), and where.
+/// The chosen tyre's name: this string plus the tyre, and where.
 pub const TYRE_FIRST_STRING: u32 = 0x4B0;
 pub const TYRE_AT: (i32, i32) = (0x238, 0x152);
 

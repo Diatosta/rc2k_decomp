@@ -126,10 +126,10 @@ impl Source {
     }
 }
 
-/// The text of `count` ids from `first` (from `strings::text_from_ids`
-/// 0x40229B), with its NUL. `append` appends one id's text and returns what the original
-/// leaves in eax, whose next value is the next id (the id itself for the string table's
-/// texts). `None` for a count of 0 (the original's counter wraps) or a text over `room`.
+/// The text of `count` ids from `first` (from `strings::text_from_ids` 0x40229B), with its NUL.
+/// `append` appends one id's text and returns the id it finished at; the next id is that plus one
+/// (the id itself for the string table's texts). `None` for a count of 0 (the original's counter
+/// wraps) or a text over `room`.
 pub fn text_from_ids(
     first: u32,
     count: u32,

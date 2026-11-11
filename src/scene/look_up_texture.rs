@@ -18,5 +18,5 @@ pub fn look_up_texture(
         || scene.textures.places.totals[2].get(),
     );
     poly.polygon_texture.set(found.texture);
-    found.eax
+    found.last_number
 }

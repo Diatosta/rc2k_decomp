@@ -33,12 +33,14 @@ use crate::scene::view_window::ViewWindow;
 pub fn set_view_window(
     race: &Race,
     scene: &crate::scene::owner::Scene,
+    system: &crate::system::owner::System,
     window: &ViewWindow,
     vars: &ViewVars,
 ) {
     set_view_window_reaching(
         race,
         scene,
+        system,
         window,
         vars,
         race.course.stage_prefs.grid_reach.get(),
@@ -50,11 +52,11 @@ pub fn set_view_window(
 pub fn set_view_window_reaching(
     race: &Race,
     scene: &crate::scene::owner::Scene,
+    system: &crate::system::owner::System,
     window: &ViewWindow,
     vars: &ViewVars,
     reach: u32,
 ) {
-    let system = crate::system::owner::system();
     let drawing = &scene.drawing;
     let depth = reach.wrapping_mul(0x20);
     crate::session::write_bits(&window.view_depth, [depth, depth]);

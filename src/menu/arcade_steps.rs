@@ -51,12 +51,12 @@ use crate::menu::owner::Play;
 use crate::menu::standings::{name_address_of, name_of, name_player, with_kept_name};
 use crate::race::owner::race;
 use crate::records::stages_store::{Holder, RecordRef};
-use crate::session::{Dword, read_all, write_all};
+use crate::session::{PlainDword, read_all, write_all};
 use crate::system::owner::system;
 use rc2k_core::menu::{bests, standings};
 
-const SCORE: &Dword = &crate::menu::owner::MENUS.play.results.totals[0];
-const SCORE_1: &Dword = &crate::menu::owner::MENUS.play.results.totals[1];
+const SCORE: &PlainDword = &crate::menu::owner::MENUS.unchecked().play.results.totals[0];
+const SCORE_1: &PlainDword = &crate::menu::owner::MENUS.unchecked().play.results.totals[1];
 // hhmm
 const CARS_LEN: u32 = 0x28;
 const SHOWN_LIST_LEN: u32 = 0x30;
@@ -248,7 +248,7 @@ pub fn take_arcade_stage_best(play: &Play) -> Result<(), Refused> {
 }
 
 /// The place of a list's end mark.
-fn end_of(list: &[Dword], len: u32) -> Result<u32, Refused> {
+fn end_of(list: &[PlainDword], len: u32) -> Result<u32, Refused> {
     (0..len)
         .find(|&k| list[k as usize].get() == u32::MAX)
         .ok_or(BadInput("a list of cars without its end").into())
@@ -257,7 +257,7 @@ fn end_of(list: &[Dword], len: u32) -> Result<u32, Refused> {
 pub fn add_shown_car(menus: &Menus) -> Result<(), Refused> {
     // The logic is in `rc2k_core::menu::car_lists` (`entries`, `shown_car`).
     use rc2k_core::menu::car_lists::{entries, shown_car};
-    let list = |cells: &[Dword], len: u32| entries(len as usize, |k| cells[k].get());
+    let list = |cells: &[PlainDword], len: u32| entries(len as usize, |k| cells[k].get());
     let shown = menus.screens.event.shown_car.get();
     let car = shown_car(
         &list(&menus.tables.lists.shown_cars, SHOWN_LIST_LEN)?,

@@ -87,8 +87,8 @@ pub struct ShadowSkids {
     pub skid_lift: Float,
     /// +0x2034 (0x643AD8): `dword_643AD8` .. `dword_643AE0`: the wheel's place (`race::skid_laying`).
     pub skid_place: [Dword; 3],
-    /// +0x2040 (0x643AE4): `dword_643AE4`: the views that show the skid marks, as bits (`race::skidmarks`).
-    pub skid_views: Dword,
+    /// +0x2040 (0x643AE4): the original kept here the views that show the skid marks, as bits (`race::skidmarks`); no code reads or writes it (the field's name nowhere in Rust), it only keeps the image's layout.
+    pub unused_2040: Dword,
     /// +0x2044 (0x643AE8): `g_skidLinks`: 0x400 links of four words (before, ..., shown views; 8 bytes each; `race::skid_laying`, `race::skidmarks`, `race::stage_prefs`).
     pub skid_links: Bytes<0x2000>,
     /// +0x4044 (0x645AE8): `dword_645AE8` ..: the last point's turned work values (`race::skid_laying`).

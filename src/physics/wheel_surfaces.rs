@@ -35,7 +35,7 @@ use crate::math::x87_float::to_int;
 use crate::physics::car_store::Car;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::flip_cell_index::flip_cell_index;
-use crate::physics::step_inputs::StepInputs;
+use crate::physics::step_families::WheelInputs;
 use crate::physics::tables_store::{PhysicsTables, Surface};
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_course::Course;
@@ -70,9 +70,9 @@ fn check(course: &Course, car: &Car) -> Result<(), Refused> {
 
 /// The steps (a refusal may come after some are written: `wheel_surfaces` puts them
 /// back).
-fn steps(c: &StepInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+fn steps(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let drawing = &scene.drawing;
-    let physics = c.physics;
+    let contact = c.contact;
     check(c.course, c.car)?;
     for point in 0..5u32 {
         let cc = point as usize;
@@ -83,11 +83,11 @@ fn steps(c: &StepInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), R
             )?))
         };
         let t1 = face_byte(1)?;
-        let mut edx = share_bit(c.course, &physics.contact.probe_share_v, point, scene);
-        let mut ebx = share_bit(c.course, &physics.contact.probe_share_u, point, scene);
+        let mut edx = share_bit(c.course, &contact.probe_share_v, point, scene);
+        let mut ebx = share_bit(c.course, &contact.probe_share_u, point, scene);
         edx = (edx >> 15) & 1;
         ebx = (ebx >> 15) & 1;
-        if physics.contact.probe_face_flip[cc].get() == 1 {
+        if contact.probe_face_flip[cc].get() == 1 {
             edx ^= 1;
             ebx ^= 1;
         }
@@ -119,7 +119,7 @@ fn steps(c: &StepInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), R
                 && c.car.wheel_surface_b[cc].get() != 0
                 && face_byte(0x21)? != 0
             {
-                let (x, y, z) = if physics.contact.probe_face_flip[cc].get() == 1 {
+                let (x, y, z) = if contact.probe_face_flip[cc].get() == 1 {
                     (face_byte(0x25)?, face_byte(0x24)?, face_byte(0x23)?)
                 } else {
                     (face_byte(0x22)?, face_byte(0x23)?, face_byte(0x24)?)
@@ -127,7 +127,7 @@ fn steps(c: &StepInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), R
                 drawing.scene.surface_point[0].set(x);
                 drawing.scene.surface_point[1].set(y.wrapping_sub(x));
                 drawing.scene.surface_point[2].set(z.wrapping_sub(x));
-                x87_2(&physics.contact, c.numbers, c.car, cc, scene);
+                x87_2(contact, c.numbers, c.car, cc, scene);
             }
             if crate::race::course_places::face_number(c.course, f)?.switches() & 0x1000 != 0 {
                 c.car.wheel_surface_a[cc].set(5);
@@ -210,7 +210,7 @@ fn steps(c: &StepInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), R
 
 /// What was written is put back on a refusal.
 pub fn wheel_surfaces(
-    c: &StepInputs<'_>,
+    c: &WheelInputs<'_>,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     steps(c, scene)
@@ -416,7 +416,7 @@ fn x87_6(shared: &RaceShared) {
 /// `[rc + 0x214764] = [rc + 0x2146E4]`
 /// `[mud_scale_a] = [rc + 0x2146F8]`
 /// `[rc + 0x223DAC] = [rc + 0x21470C]`
-fn x87_7(c: &StepInputs<'_>, scene: &crate::scene::owner::Scene) {
+fn x87_7(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) {
     let drawing = &scene.drawing;
     let t0 = ld(c.car.ground_bump_scale.bits());
     let t1 = ld(c.tables.handling[6].bits());
@@ -996,7 +996,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_6(a[0]) },
                 plain: |_| {
                     x87_7(
-                        &crate::physics::step_inputs::StepInputs::of(race()),
+                        &crate::physics::step_inputs::StepInputs::of(race()).wheels(),
                         crate::scene::owner::scene(),
                     );
                 },

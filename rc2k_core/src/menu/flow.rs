@@ -12,7 +12,7 @@ use crate::Invalid;
 pub enum Var {
     /// `g_yesNoAnswer`.
     Answer,
-    /// The number of players (`dword_755984`).
+    /// The number of players.
     PlayerCount,
     /// The event mode, 9 .. 0x18 (`menu::run_event_races`).
     EventMode,
@@ -37,9 +37,9 @@ pub enum Var {
     Cheats,
     /// The cleared flag of level k (k 0 .. 7).
     Cleared(u32),
-    /// Player n's time (+0x88; the original's edi the player).
+    /// Player n's time (+0x88).
     PlayerTime(u32),
-    /// Player n's +0xD0 (the original's edi the player).
+    /// Player n's +0xD0.
     PlayerEntry(u32),
     /// 1 when a saved game goes on.
     Continuing,
@@ -49,7 +49,7 @@ pub enum Var {
     ResetTimes,
     /// The services.
     Services,
-    /// A mode word the review sets (`dword_75AB40`).
+    /// A mode word the review sets.
     ModeAB40,
     /// The section to start at (the championship's, or the A8's).
     StartSection {
@@ -149,7 +149,7 @@ pub enum Call {
     ChampionshipEndReview,
     /// `menu::show_in_game_options`.
     ShowInGameOptions,
-    /// `menu::hide_in_game_options` for `players` (eax).
+    /// `menu::hide_in_game_options` for `players`.
     HideInGameOptions {
         players: u32,
     },
@@ -164,8 +164,8 @@ pub enum Call {
     SelectStageLoop,
     TimeTrialSelectStage,
     TimeTrialService,
-    /// `race::single_rally_race`: `next` (eax) when another player's race follows, `kind`
-    /// (ebx).
+    /// `race::single_rally_race`: `next` when another player's race follows, `kind`
+    ///.
     Race {
         next: bool,
         kind: u32,
@@ -213,7 +213,7 @@ pub trait Game {
     fn wait_or_key(&mut self, ms: u32) -> Result<Option<u8>, Self::Error>;
     /// `sound::stream_playing`: whether the speech still plays.
     fn stream_playing(&mut self) -> Result<bool, Self::Error>;
-    /// The car list the next car choice shows (the original's esi).
+    /// The car list the next car choice shows.
     fn hand_cars(&mut self, list: CarList);
     /// The fatal error `code` with `message`.
     fn fatal(&mut self, code: u32, message: &'static str) -> Self::Error;

@@ -26,7 +26,7 @@ pub fn block_slot(car: u32) -> usize {
 
 /// The cars' loop: `g_currentCar` 0 (`set_current`), then `step()` (a car's step: it
 /// reads the current car itself), the current (`current()`, read back) one up, until it
-/// is the count (`count()`, read after each). The last current car (the original's eax).
+/// is the count (`count()`, read after each). The last current car.
 pub fn each_car<E>(
     current: impl Fn() -> u32,
     count: impl Fn() -> u32,
@@ -51,12 +51,12 @@ pub fn skids_restart(clock: u32, kept: u32) -> bool {
 }
 
 /// `drive::play_replay_frame`: None while not playing (`dword_5C5CE0` not 2); else
-/// whether the tenth (`dword_5C2534`) is a whole frame's (0: the frame read and loaded).
+/// whether the tenth is a whole frame's (0: the frame read and loaded).
 pub fn play_frame(mode: u32, tenth: impl FnOnce() -> u32) -> Option<bool> {
     (mode == crate::drive::replay_frames::PLAYING).then(|| tenth() == 0)
 }
 
-/// `drive::read_packed`: the count's meaning (ecx): 0 or more a plain read of that many
+/// `drive::read_packed`: the count's meaning: 0 or more a plain read of that many
 /// bytes (None); below 0 the packed bytes to read, -count.
 pub fn packed_bytes(count: u32) -> Option<u32> {
     ((count as i32) < 0).then(|| count.wrapping_neg())

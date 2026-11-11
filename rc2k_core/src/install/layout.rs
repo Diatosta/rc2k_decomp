@@ -204,8 +204,8 @@ pub fn rows(count: u32, box_of: impl Fn(u32) -> u32) -> Result<Vec<(u32, u32, u3
 /// glyph and a palette).
 pub const LIST_RECORD: u32 = 0x10;
 
-/// A drawing list of `count` records: each record's offset in the table and what ebp holds
-/// while it is drawn (the records left, this one counted), in order. Refused: a count of 0
+/// A drawing list of `count` records: each record's offset in the table and the number
+/// of records left while it is drawn (this one counted), in order. Refused: a count of 0
 /// (the original's do-while goes round 2^32 times).
 pub fn list_records(count: u32) -> Result<Vec<(u32, u32)>, Invalid> {
     if count == 0 {

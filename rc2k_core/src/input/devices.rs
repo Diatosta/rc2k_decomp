@@ -70,7 +70,7 @@ pub struct Readings {
 
 /// The hat as an angle in 256ths (`hat_reading`): with a device whose hat kind is 0 and a
 /// hat (`state`'s +0x20) not centred (its low word not 0xFFFF), its hundredths of degrees
-/// x 256 / 36000; else 0. Also the `div`'s ecx and edx when it was reached.
+/// x 256 / 36000; else 0. Also the divisor and the remainder when the division was reached.
 pub fn hat_reading(record: &Record, state: &State) -> (u32, Option<(u32, u32)>) {
     if field(record, DEVICE) == 0 || field(record, HAT_KIND) != 0 {
         return (0, None);
@@ -116,8 +116,6 @@ pub struct BindingSource {
     pub sign: u32,
     /// The button's bit (0 none).
     pub button: u32,
-    /// The low byte (less one when not 0) when acquired: what the original leaves in ecx.
-    pub ecx: Option<u32>,
 }
 
 pub fn binding_place(word: u32, acquired: bool) -> BindingSource {
@@ -126,7 +124,6 @@ pub fn binding_place(word: u32, acquired: bool) -> BindingSource {
             axis: 0,
             sign: 0,
             button: 0,
-            ecx: None,
         };
     }
     let (axis, sign) = if word & 0x400 != 0 {
@@ -141,17 +138,12 @@ pub fn binding_place(word: u32, acquired: bool) -> BindingSource {
         (0, 1)
     };
     let low = word & 0xFF;
-    let (button, ecx) = if low == 0 {
-        (0, 0)
+    let button = if low == 0 {
+        0
     } else {
-        (1u32.wrapping_shl(low - 1), low - 1)
+        1u32.wrapping_shl(low - 1)
     };
-    BindingSource {
-        axis,
-        sign,
-        button,
-        ecx: Some(ecx),
-    }
+    BindingSource { axis, sign, button }
 }
 
 /// Bound keys past 0xFF and axis places past the record are refused.
@@ -295,8 +287,7 @@ pub fn read_device(
 
 /// Which axis moved past 0x80 from rest (`input::axis_moved` 0x40939F): of the six
 /// (`now` less `rest`, signed) the first the controller has (`axes`, a bit an axis), its
-/// number, + 0x10 when it went up. None: the last difference worked out (the original
-/// leaves it in eax).
+/// number, + 0x10 when it went up. None: the last difference worked out.
 pub fn axis_moved(now: &[u32; 6], rest: &[u32; 6], axes: u32) -> Result<u32, u32> {
     let mut last = 0;
     for n in 0..6 {
@@ -374,7 +365,7 @@ pub enum CommandStep {
     BeginEffects,
 }
 
-/// The steps of command `command` (al; `device` ah for 1): 1 the device given back and
+/// The steps of command `command` (`device` too for 1): 1 the device given back and
 /// acquired again; 2 (the race's end) the effects off and ended, a tick, both devices
 /// given back and not read; 3 (the race's start) device 0 set up and read, device 1 too
 /// unless one player on one device (`two_devices` 0 and `one_player` 1), a second's
@@ -421,7 +412,7 @@ pub fn command_steps(
 /// another's history is empty gives 0x400 (left empty) / 0x800 (right) / 0x100 (y) /
 /// 0x200 (z) with the button; none empty, the button alone; else 0. The histories after,
 /// and what was found.
-/// The controller page's learning of a control (`dword_7551F4` .. `dword_7551FC`): on,
+/// The controller page's learning of a control: on,
 /// when it began (the 3 s start), which control (1 .. 11).
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -533,10 +524,8 @@ mod tests {
                 axis: 0x2C,
                 sign: u32::MAX,
                 button: 4,
-                ecx: Some(2)
             }
         );
-        assert_eq!(binding_place(0x403, false).ecx, None);
     }
 
     #[test]

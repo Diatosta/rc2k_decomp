@@ -11,14 +11,14 @@
 //! (`install::installer`'s `rd`/`rb`), so their tables stay byte buffers.
 
 use crate::install::page_links::PageLink;
-use crate::session::{Byte, Bytes, Loose, PlainDword, Word, with_runs};
+use crate::session::{PlainByte, PlainBytes, PlainDword, PlainLoose, PlainWord, with_runs};
 
 /// The installer's flags, counters and lists (IDA 0x51B9C8 .. 0x51BB60, the image's layout).
 #[repr(C, align(16))]
 #[derive(rc2k_derive::Cells)]
 pub struct InstallerRun {
     /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
-    pub _lead: Bytes<8>,
+    pub _lead: PlainBytes<8>,
     /// 0x51B9C8: `dword_51B9C8`: the installation is this version (`install::mark_main_page`).
     pub same_version: PlainDword,
     /// 0x51B9CC: `dword_51B9CC`: -u: the update run (`install::install_clio`).
@@ -38,7 +38,7 @@ pub struct InstallerRun {
     /// 0x51B9E8: `g_runRegistration`: the registration program is run at the end.
     pub run_registration: PlainDword,
     /// 0x51B9EC: `a4eregEregipExe`: the registration program's script: a count, "ereg\eregip.exe" from +2 (`install::run_after_exit`).
-    pub ereg: Bytes<20>,
+    pub ereg: PlainBytes<20>,
     /// 0x51BA00: `g_pathProblem`: 1 a bad folder, 2 no room.
     pub path_problem: PlainDword,
     /// 0x51BA04: `g_ignoreRoom`: the lack of room is ignored.
@@ -60,11 +60,11 @@ pub struct InstallerRun {
     /// 0x51BAF0: `dword_51BAF0`: `install::install_files`' spare.
     pub copy_spare: PlainDword,
     /// 0x51BAF4: Not named: 4 bytes (a gap, or data nothing reads here).
-    pub _gap_51baf4: Bytes<4>,
+    pub _gap_51baf4: PlainBytes<4>,
     /// 0x51BAF8: `g_roomNeededKb`: KB needed.
     pub room_needed: PlainDword,
     /// 0x51BAFC: `stru_51BAFC`: the installer's memory list (a `MemoryList` of 16 bytes, then its work).
-    pub buffers: Bytes<64>,
+    pub buffers: PlainBytes<64>,
     /// 0x51BB3C: `g_installBarGlyphs`: the progress bar's glyph table.
     pub bar_glyphs: PlainDword,
     /// 0x51BB40: `g_dirNames`: the folders' names (a 0x10000-byte buffer; 0 now:
@@ -90,7 +90,7 @@ pub struct InstallerRun {
 impl InstallerRun {
     pub const fn new() -> Self {
         InstallerRun {
-            _lead: Bytes::new([0; 8]),
+            _lead: PlainBytes::new([0; 8]),
             same_version: PlainDword::new(0x0),
             updating: PlainDword::new(0x0),
             from_command: PlainDword::new(0x0),
@@ -100,7 +100,7 @@ impl InstallerRun {
             installing: PlainDword::new(0x0),
             offer_registration: PlainDword::new(0x0),
             run_registration: PlainDword::new(0x0),
-            ereg: Bytes::new(with_runs::<20>(&[(0, b";4ereg\\eregip.exe")])),
+            ereg: PlainBytes::new(with_runs::<20>(&[(0, b";4ereg\\eregip.exe")])),
             path_problem: PlainDword::new(0x0),
             ignore_room: PlainDword::new(0x0),
             given_mode: PlainDword::new(0x2),
@@ -111,9 +111,9 @@ impl InstallerRun {
             files_copied: PlainDword::new(0x0),
             files_to_copy: PlainDword::new(0x0),
             copy_spare: PlainDword::new(0x0),
-            _gap_51baf4: Bytes::new([0; 4]),
+            _gap_51baf4: PlainBytes::new([0; 4]),
             room_needed: PlainDword::new(0x0),
-            buffers: Bytes::new([0; 64]),
+            buffers: PlainBytes::new([0; 64]),
             bar_glyphs: PlainDword::new(0x0),
             dirs: PlainDword::new(0x0),
             files: PlainDword::new(0x0),
@@ -143,94 +143,94 @@ impl InstallerRun {
 #[derive(rc2k_derive::Cells)]
 pub struct InstallerNames {
     /// 0x51BB60: `aSoftwareMagnet`: "SOFTWARE\Magnetic Fields\RC99".
-    pub key_name: Bytes<30>,
+    pub key_name: PlainBytes<30>,
     /// 0x51BB7E: `aStatus`: "status".
-    pub status_name: Bytes<7>,
+    pub status_name: PlainBytes<7>,
     /// 0x51BB85: `aSource`: "source".
-    pub source_name: Bytes<7>,
+    pub source_name: PlainBytes<7>,
     /// 0x51BB8C: `g_installStatus`: the installed status byte (`install::check_installed_version`).
-    pub status: Byte,
+    pub status: PlainByte,
     /// 0x51BB8D: `g_installSource`: the folder installed from (0xFF bytes used).
-    pub source: Bytes<259>,
+    pub source: PlainBytes<259>,
     /// 0x51BC90: `dword_51BC90`: the size of the source folder's name.
     pub source_size: PlainDword,
     /// 0x51BC94: `Type`: the registry value's type.
     pub reg_type: PlainDword,
     /// 0x51BC98: Not named: 176 bytes (a gap, or data nothing reads here).
-    pub _gap_51bc98: Bytes<176>,
+    pub _gap_51bc98: PlainBytes<176>,
     /// 0x51BD48: `g_countScript`: the count script (`install::install_files`).
-    pub script_count: Bytes<200>,
+    pub script_count: PlainBytes<200>,
     /// 0x51BE10: `byte_51BE10`: the uninstall script.
-    pub script: Bytes<17>,
+    pub script: PlainBytes<17>,
     /// 0x51BE21: `byte_51BE21`: a byte of the script (`install::finish_page`).
-    pub script_mark: Byte,
+    pub script_mark: PlainByte,
     /// 0x51BE22: Not named: 30 bytes (a gap, or data nothing reads here).
-    pub _gap_51be22: Bytes<30>,
+    pub _gap_51be22: PlainBytes<30>,
     /// 0x51BE40: `path`: "ral.exe" (in ".\ral.exe").
-    pub program: Bytes<8>,
+    pub program: PlainBytes<8>,
     /// 0x51BE48: `aRalExe_0`: "ral.exe".
-    pub ral_exe: Bytes<8>,
+    pub ral_exe: PlainBytes<8>,
     /// 0x51BE50: Not named: 4 bytes (a gap, or data nothing reads here).
-    pub _gap_51be50: Bytes<4>,
+    pub _gap_51be50: PlainBytes<4>,
     /// 0x51BE54: `aRedistDirectxD`: "redist\directx\dxsetup.exe".
-    pub dxsetup: Bytes<27>,
+    pub dxsetup: PlainBytes<27>,
     /// 0x51BE6F: `aFilesReadmeRea`: "files\%readme\readme.txt".
-    pub readme: Bytes<25>,
+    pub readme: PlainBytes<25>,
     /// 0x51BE88: `aFilesReadmeMan`: "files\%readme\manual.pdf".
-    pub manual: Bytes<25>,
+    pub manual: PlainBytes<25>,
     /// 0x51BEA1: `aFilesDGfxInsta`: "files\d\gfx\install.bun".
-    pub installer_data: Bytes<24>,
+    pub installer_data: PlainBytes<24>,
     /// 0x51BEB9: `aFilesDGfxInsta_0`: "files\d\gfx\install.pal".
-    pub install_pal: Bytes<24>,
+    pub install_pal: PlainBytes<24>,
     /// 0x51BED1: `aFilesDGfxBackd`: "files\d\gfx\backdrop.pcx".
-    pub backdrop: Bytes<25>,
+    pub backdrop: PlainBytes<25>,
     /// 0x51BEEA: `g_languageCount`: the languages found.
-    pub language_count: Loose,
+    pub language_count: PlainLoose,
     /// 0x51BEEE: `g_languages`: the languages found, 0x80 bytes each (eight).
-    pub languages: Bytes<1024>,
+    pub languages: PlainBytes<1024>,
     /// 0x51C2EE: Not named: 128 bytes (a gap, or data nothing reads here).
-    pub _gap_51c2ee: Bytes<128>,
+    pub _gap_51c2ee: PlainBytes<128>,
     /// 0x51C36E: `aLangCfg`: "lang.cfg".
-    pub lang_cfg: Bytes<10>,
+    pub lang_cfg: PlainBytes<10>,
     /// 0x51C378: Not named: 127 bytes (a gap, or data nothing reads here).
-    pub _gap_51c378: Bytes<127>,
+    pub _gap_51c378: PlainBytes<127>,
     /// 0x51C3F7: `g_roomByMode`: KB needed by installation mode.
-    pub room_by_mode: Bytes<16>,
+    pub room_by_mode: PlainBytes<16>,
     /// Up to the record's alignment (no byte of a record of cells outside a field).
-    pub _tail: Bytes<9>,
+    pub _tail: PlainBytes<9>,
 }
 
 impl InstallerNames {
     pub const fn new() -> Self {
         InstallerNames {
-    key_name: Bytes::new(with_runs::<30>(&[(0, b"SOFTWARE\\Magnetic Fields\\RC99")])),
-    status_name: Bytes::new(with_runs::<7>(&[(0, b"status")])),
-    source_name: Bytes::new(with_runs::<7>(&[(0, b"source")])),
-    status: Byte::new(0x0),
-    source: Bytes::new([0; 259]),
+    key_name: PlainBytes::new(with_runs::<30>(&[(0, b"SOFTWARE\\Magnetic Fields\\RC99")])),
+    status_name: PlainBytes::new(with_runs::<7>(&[(0, b"status")])),
+    source_name: PlainBytes::new(with_runs::<7>(&[(0, b"source")])),
+    status: PlainByte::new(0x0),
+    source: PlainBytes::new([0; 259]),
     source_size: PlainDword::new(0x0),
     reg_type: PlainDword::new(0x0),
-    _gap_51bc98: Bytes::new(with_runs::<176>(&[(20, b"\x18"), (44, b"PROGMAN\x00[CreateGroup(Rally Championship)]\x00[DeleteGroup(Rally Championship)]\x00[AddItem(\x00,Rally)]\x00,Uninstall Rally)]\x00,View Readme)]")])),
-    script_count: Bytes::new(with_runs::<200>(&[(0, b"\x03ral.exe\x03*.txt\x03*.pdf\x08\x02\x01files\x04a\x04b\x04d\x08\x03\x04fmv\t\x01g\x04frnt\x04graphics\x08\x03\x04slides\t\x02\x04levels\x04%locale\x04m\x04maps\x08\x03\x04music\t\x04replay\x04s\x01%speech\x04m\x04f\x08\x03\x04cars\x04rally\t\x02\x02\t\x01savedata\x01carsetup\x02\x01replay\x02\x01savegame\x02\x01snapshot\x02\x02\x01var\x03ral.cfg\x02\x06\x05")])),
-    script: Bytes::new(with_runs::<17>(&[(0, b"\x03*.*\x01files\x02\x04files")])),
-    script_mark: Byte::new(0x1),
-    _gap_51be22: Bytes::new(with_runs::<30>(&[(0, b"savedata\x02\x04savedata\x01var\x02\x04var\x05.\\")])),
-    program: Bytes::new(with_runs::<8>(&[(0, b"ral.exe")])),
-    ral_exe: Bytes::new(with_runs::<8>(&[(0, b"ral.exe")])),
-    _gap_51be50: Bytes::new(with_runs::<4>(&[(0, b" -u")])),
-    dxsetup: Bytes::new(with_runs::<27>(&[(0, b"redist\\directx\\dxsetup.exe")])),
-    readme: Bytes::new(with_runs::<25>(&[(0, b"files\\%readme\\readme.txt")])),
-    manual: Bytes::new(with_runs::<25>(&[(0, b"files\\%readme\\manual.pdf")])),
-    installer_data: Bytes::new(with_runs::<24>(&[(0, b"files\\d\\gfx\\install.bun")])),
-    install_pal: Bytes::new(with_runs::<24>(&[(0, b"files\\d\\gfx\\install.pal")])),
-    backdrop: Bytes::new(with_runs::<25>(&[(0, b"files\\d\\gfx\\backdrop.pcx")])),
-    language_count: Loose::new(0x0),
-    languages: Bytes::new([0; 1024]),
-    _gap_51c2ee: Bytes::new([0; 128]),
-    lang_cfg: Bytes::new(with_runs::<10>(&[(0, b"lang.cfg")])),
-    _gap_51c378: Bytes::new(with_runs::<127>(&[(0, b"lang1\x00\xee\xbeQ\x00\x7f\x00\x00\x00lang2\x00n\xbfQ\x00\x7f\x00\x00\x00lang3\x00\xee\xbfQ\x00\x7f\x00\x00\x00lang4\x00n\xc0Q\x00\x7f\x00\x00\x00lang5\x00\xee\xc0Q\x00\x7f\x00\x00\x00lang6\x00n\xc1Q\x00\x7f\x00\x00\x00lang7\x00\xee\xc1Q\x00\x7f\x00\x00\x00lang8\x00n\xc2Q\x00\x7f\x00\x00\x00lang9\x00\xee\xc2Q\x00\x7f")])),
-    room_by_mode: Bytes::new(with_runs::<16>(&[(5, b"("), (10, b"\x05\x00\x00(\n")])),
-    _tail: Bytes::new([0; 9]),
+    _gap_51bc98: PlainBytes::new(with_runs::<176>(&[(20, b"\x18"), (44, b"PROGMAN\x00[CreateGroup(Rally Championship)]\x00[DeleteGroup(Rally Championship)]\x00[AddItem(\x00,Rally)]\x00,Uninstall Rally)]\x00,View Readme)]")])),
+    script_count: PlainBytes::new(with_runs::<200>(&[(0, b"\x03ral.exe\x03*.txt\x03*.pdf\x08\x02\x01files\x04a\x04b\x04d\x08\x03\x04fmv\t\x01g\x04frnt\x04graphics\x08\x03\x04slides\t\x02\x04levels\x04%locale\x04m\x04maps\x08\x03\x04music\t\x04replay\x04s\x01%speech\x04m\x04f\x08\x03\x04cars\x04rally\t\x02\x02\t\x01savedata\x01carsetup\x02\x01replay\x02\x01savegame\x02\x01snapshot\x02\x02\x01var\x03ral.cfg\x02\x06\x05")])),
+    script: PlainBytes::new(with_runs::<17>(&[(0, b"\x03*.*\x01files\x02\x04files")])),
+    script_mark: PlainByte::new(0x1),
+    _gap_51be22: PlainBytes::new(with_runs::<30>(&[(0, b"savedata\x02\x04savedata\x01var\x02\x04var\x05.\\")])),
+    program: PlainBytes::new(with_runs::<8>(&[(0, b"ral.exe")])),
+    ral_exe: PlainBytes::new(with_runs::<8>(&[(0, b"ral.exe")])),
+    _gap_51be50: PlainBytes::new(with_runs::<4>(&[(0, b" -u")])),
+    dxsetup: PlainBytes::new(with_runs::<27>(&[(0, b"redist\\directx\\dxsetup.exe")])),
+    readme: PlainBytes::new(with_runs::<25>(&[(0, b"files\\%readme\\readme.txt")])),
+    manual: PlainBytes::new(with_runs::<25>(&[(0, b"files\\%readme\\manual.pdf")])),
+    installer_data: PlainBytes::new(with_runs::<24>(&[(0, b"files\\d\\gfx\\install.bun")])),
+    install_pal: PlainBytes::new(with_runs::<24>(&[(0, b"files\\d\\gfx\\install.pal")])),
+    backdrop: PlainBytes::new(with_runs::<25>(&[(0, b"files\\d\\gfx\\backdrop.pcx")])),
+    language_count: PlainLoose::new(0x0),
+    languages: PlainBytes::new([0; 1024]),
+    _gap_51c2ee: PlainBytes::new([0; 128]),
+    lang_cfg: PlainBytes::new(with_runs::<10>(&[(0, b"lang.cfg")])),
+    _gap_51c378: PlainBytes::new(with_runs::<127>(&[(0, b"lang1\x00\xee\xbeQ\x00\x7f\x00\x00\x00lang2\x00n\xbfQ\x00\x7f\x00\x00\x00lang3\x00\xee\xbfQ\x00\x7f\x00\x00\x00lang4\x00n\xc0Q\x00\x7f\x00\x00\x00lang5\x00\xee\xc0Q\x00\x7f\x00\x00\x00lang6\x00n\xc1Q\x00\x7f\x00\x00\x00lang7\x00\xee\xc1Q\x00\x7f\x00\x00\x00lang8\x00n\xc2Q\x00\x7f\x00\x00\x00lang9\x00\xee\xc2Q\x00\x7f")])),
+    room_by_mode: PlainBytes::new(with_runs::<16>(&[(5, b"("), (10, b"\x05\x00\x00(\n")])),
+    _tail: PlainBytes::new([0; 9]),
         }
     }
 }
@@ -251,106 +251,106 @@ impl InstallerNames {
 #[derive(rc2k_derive::Cells)]
 pub struct InstallerPages {
     /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
-    pub _lead: Bytes<7>,
+    pub _lead: PlainBytes<7>,
     /// 0x51C407: `g_pageLayout`: the page's pieces: a count, then 0x30 bytes each.
-    pub layout: Bytes<4096>,
+    pub layout: PlainBytes<4096>,
     /// 0x51D407: `g_listChoice`: the list's choice.
-    pub choice: Loose,
+    pub choice: PlainLoose,
     /// 0x51D40B: `g_listChoiceBefore`: the choice before the key.
-    pub choice_before: Loose,
+    pub choice_before: PlainLoose,
     /// 0x51D40F: `g_listRepeats`: how many repeats of the key.
-    pub repeats: Loose,
+    pub repeats: PlainLoose,
     /// 0x51D413: `g_listLastKey`: the last key (`race::viewer` reads it too).
-    pub last_key: Byte,
+    pub last_key: PlainByte,
     /// 0x51D414: `byte_51D414`: a key was taken.
-    pub key_taken: Byte,
+    pub key_taken: PlainByte,
     /// 0x51D415: `byte_51D415`: the list's answer.
-    pub list_answer: Byte,
+    pub list_answer: PlainByte,
     /// 0x51D416: `g_listLeave`: the list is left.
-    pub list_leave: Byte,
+    pub list_leave: PlainByte,
     /// 0x51D417: Not named: 4 bytes (a gap, or data nothing reads here).
-    pub _gap_51d417: Bytes<4>,
+    pub _gap_51d417: PlainBytes<4>,
     /// 0x51D41B: `dword_51D41B`: the key's clock.
-    pub key_clock: Loose,
+    pub key_clock: PlainLoose,
     /// 0x51D41F: `dword_51D41F`: the frame's clock.
-    pub frame_clock: Loose,
+    pub frame_clock: PlainLoose,
     /// 0x51D423: `dword_51D423`: the move's clock.
-    pub move_clock: Loose,
+    pub move_clock: PlainLoose,
     /// 0x51D427: Not named: 12 bytes (a gap, or data nothing reads here).
-    pub _gap_51d427: Bytes<12>,
+    pub _gap_51d427: PlainBytes<12>,
     /// 0x51D433: `unk_51D433`: the copying page's two texts.
-    pub texts: Bytes<32>,
+    pub texts: PlainBytes<32>,
     /// 0x51D453: `unk_51D453`: the error message.
-    pub msg_error: Bytes<16>,
+    pub msg_error: PlainBytes<16>,
     /// 0x51D463: `unk_51D463`: the cancel message.
-    pub msg_cancel: Bytes<16>,
+    pub msg_cancel: PlainBytes<16>,
     /// 0x51D473: `unk_51D473`: the removal page's strings.
-    pub remove_strings: Bytes<16>,
+    pub remove_strings: PlainBytes<16>,
     /// 0x51D483: `unk_51D483`: the bar's glyph list.
-    pub bar_glyphs_list: Bytes<32>,
+    pub bar_glyphs_list: PlainBytes<32>,
     /// 0x51D4A3: `dword_51D4A3`: the bar's x, y, width, height.
-    pub bar: Bytes<16>,
+    pub bar: PlainBytes<16>,
     /// 0x51D4B3: `unk_51D4B3`: its frame.
-    pub frame: Bytes<17>,
+    pub frame: PlainBytes<17>,
     /// 0x51D4C4: `dword_51D4C4`: the page's fonts (pointers).
     pub fonts: [PlainDword; 25],
     /// 0x51D528: `byte_51D528`: font by mark, 8 bytes a kind (`install::lay_out_pieces`, from +4).
-    pub kind_fonts: Bytes<108>,
+    pub kind_fonts: PlainBytes<108>,
     /// 0x51D594: `off_51D594`: the pages of a normal run.
-    pub normal_pages: Bytes<44>,
+    pub normal_pages: PlainBytes<44>,
     /// 0x51D5C0: Not named: 24 bytes (a gap, or data nothing reads here).
-    pub _gap_51d5c0: Bytes<24>,
+    pub _gap_51d5c0: PlainBytes<24>,
     /// 0x51D5D8: `off_51D5D8`: the pages of an update run.
-    pub update_pages: Bytes<12>,
+    pub update_pages: PlainBytes<12>,
     /// 0x51D5E4: Not named: 20 bytes (a gap, or data nothing reads here).
-    pub _gap_51d5e4: Bytes<20>,
+    pub _gap_51d5e4: PlainBytes<20>,
     /// 0x51D5F8: `g_driveMenu`: the drive page's menu.
-    pub chosen_menu: Bytes<12>,
+    pub chosen_menu: PlainBytes<12>,
     /// 0x51D604: Not named: 292 bytes (a gap, or data nothing reads here).
-    pub _gap_51d604: Bytes<292>,
+    pub _gap_51d604: PlainBytes<292>,
     /// 0x51D728: `off_51D728`: the script's entry (`install::check_at_start`).
     pub script_entry: PlainDword,
     /// 0x51D72C: `g_readInstalledRecord`: the installed record was read.
     pub record_flag: PlainDword,
     /// 0x51D730: Not named: 16 bytes (a gap, or data nothing reads here).
-    pub _gap_51d730: Bytes<16>,
+    pub _gap_51d730: PlainBytes<16>,
     /// 0x51D740: `off_51D740`+0: the script entry's first byte (5; `install::check_at_start::set_script_entry`).
-    pub entry_kind: Byte,
+    pub entry_kind: PlainByte,
     /// 0x51D741: the script entry's second byte (0x0C).
-    pub entry_marks: Byte,
+    pub entry_marks: PlainByte,
     /// 0x51D742: the script entry's text id.
-    pub entry_text: Word,
+    pub entry_text: PlainWord,
     /// 0x51D744: Not named: 14 bytes (a gap, or data nothing reads here).
-    pub _gap_51d744: Bytes<14>,
+    pub _gap_51d744: PlainBytes<14>,
     /// 0x51D752: `word_51D752`: 0xBD when the installer's script is set up (`system::main_loop`).
-    pub script_set_up: Word,
+    pub script_set_up: PlainWord,
     /// 0x51D754: Not named: 164 bytes (a gap, or data nothing reads here).
-    pub _gap_51d754: Bytes<164>,
+    pub _gap_51d754: PlainBytes<164>,
     /// 0x51D7F8: `off_51D7F8`: the menu listing the drives when there are 8 or fewer (`install::list_drives`: item count and the page link set from `drives::menu`).
-    pub drive_menu_8: Bytes<184>,
+    pub drive_menu_8: PlainBytes<184>,
     /// 0x51D8B0: `off_51D8B0`: the menu listing the drives when there are 9 to 16.
-    pub drive_menu_16: Bytes<312>,
+    pub drive_menu_16: PlainBytes<312>,
     /// 0x51D9E8: `off_51D9E8`: the longer list menu.
-    pub menu_more: Bytes<440>,
+    pub menu_more: PlainBytes<440>,
     /// 0x51DBA0: the folder page's items (424 bytes, not split further): its edit item at
     /// 0x51DBC8, whose text link at +8 (0x51DBD0) `run_installer` sets on Unix.
-    pub folder_page: Bytes<424>,
+    pub folder_page: PlainBytes<424>,
     /// 0x51DD48: `off_51DD48`: the third page's action.
-    pub step: Bytes<16>,
+    pub step: PlainBytes<16>,
     /// 0x51DD58: Not named: 32 bytes (a gap, or data nothing reads here).
-    pub _gap_51dd58: Bytes<32>,
+    pub _gap_51dd58: PlainBytes<32>,
     /// 0x51DD78: `unk_51DD78`: the title's item.
-    pub title: Bytes<16>,
+    pub title: PlainBytes<16>,
     /// 0x51DD88: Not named: 16 bytes (a gap, or data nothing reads here).
-    pub _gap_51dd88: Bytes<16>,
+    pub _gap_51dd88: PlainBytes<16>,
     /// 0x51DD98: `unk_51DD98`: the title's box.
-    pub title_box: Bytes<16>,
+    pub title_box: PlainBytes<16>,
     /// 0x51DDA8: Not named: 112 bytes (a gap, or data nothing reads here).
-    pub _gap_51dda8: Bytes<112>,
+    pub _gap_51dda8: PlainBytes<112>,
     /// 0x51DE18: `g_badFolderChars`: the characters a folder name may not hold.
-    pub bad_folder_chars: Bytes<20>,
+    pub bad_folder_chars: PlainBytes<20>,
     /// Up to the record's alignment (no byte of a record of cells outside a field).
-    pub _tail: Bytes<4>,
+    pub _tail: PlainBytes<4>,
 }
 
 /// `bytes`, the installer pages' field that starts at IDA's address `start`, with each link
@@ -377,56 +377,56 @@ const fn linked<const N: usize>(start: u32, mut bytes: [u8; N]) -> [u8; N] {
 impl InstallerPages {
     pub const fn new() -> Self {
         InstallerPages {
-    _lead: Bytes::new([0; 7]),
-    layout: Bytes::new([0; 4096]),
-    choice: Loose::new(0x0),
-    choice_before: Loose::new(0x0),
-    repeats: Loose::new(0x1),
-    last_key: Byte::new(0x0),
-    key_taken: Byte::new(0x0),
-    list_answer: Byte::new(0x0),
-    list_leave: Byte::new(0x0),
-    _gap_51d417: Bytes::new([0; 4]),
-    key_clock: Loose::new(0x0),
-    frame_clock: Loose::new(0x0),
-    move_clock: Loose::new(0x0),
-    _gap_51d427: Bytes::new([0; 12]),
-    texts: Bytes::new(linked::<32>(0x51D433, with_runs::<32>(&[(0, b"\xa9\x01\x00\x00\xaf\x00\x00\x00\xa4\xe8Q\x00\xaf\x00\x00\x00\xa9\x01\x00\x00\xfa\x00\x00\x00d\xe9Q\x00\xb0")]))),
-    msg_error: Bytes::new(linked::<16>(0x51D453, with_runs::<16>(&[(0, b"\xa9\x01\x00\x00^\x01\x00\x00\xa4\xe8Q\x00\xb1")]))),
-    msg_cancel: Bytes::new(linked::<16>(0x51D463, with_runs::<16>(&[(0, b"\xa9\x01\x00\x00\x90\x01\x00\x00\xa4\xe8Q\x00\xb3")]))),
-    remove_strings: Bytes::new(linked::<16>(0x51D473, with_runs::<16>(&[(0, b"\xa9\x01\x00\x00,\x01\x00\x00\xa4\xe8Q\x00\xba")]))),
-    bar_glyphs_list: Bytes::new(linked::<32>(0x51D483, with_runs::<32>(&[(0, b"\xe1\x00\x00\x00,\x01"), (12, b"t;O\x00\xa9\x01\x00\x00,\x01\x00\x00\x01\x00\x00\x00t;O")]))),
-    bar: Bytes::new(with_runs::<16>(&[(0, b"\xe0\x00\x00\x00+\x01\x00\x00\x92\x01\x00\x00\x1f")])),
-    frame: Bytes::new(with_runs::<17>(&[(0, b"\xdf\x00\x00\x00*\x01\x00\x00\x94\x01\x00\x00!")])),
+    _lead: PlainBytes::new([0; 7]),
+    layout: PlainBytes::new([0; 4096]),
+    choice: PlainLoose::new(0x0),
+    choice_before: PlainLoose::new(0x0),
+    repeats: PlainLoose::new(0x1),
+    last_key: PlainByte::new(0x0),
+    key_taken: PlainByte::new(0x0),
+    list_answer: PlainByte::new(0x0),
+    list_leave: PlainByte::new(0x0),
+    _gap_51d417: PlainBytes::new([0; 4]),
+    key_clock: PlainLoose::new(0x0),
+    frame_clock: PlainLoose::new(0x0),
+    move_clock: PlainLoose::new(0x0),
+    _gap_51d427: PlainBytes::new([0; 12]),
+    texts: PlainBytes::new(linked::<32>(0x51D433, with_runs::<32>(&[(0, b"\xa9\x01\x00\x00\xaf\x00\x00\x00\xa4\xe8Q\x00\xaf\x00\x00\x00\xa9\x01\x00\x00\xfa\x00\x00\x00d\xe9Q\x00\xb0")]))),
+    msg_error: PlainBytes::new(linked::<16>(0x51D453, with_runs::<16>(&[(0, b"\xa9\x01\x00\x00^\x01\x00\x00\xa4\xe8Q\x00\xb1")]))),
+    msg_cancel: PlainBytes::new(linked::<16>(0x51D463, with_runs::<16>(&[(0, b"\xa9\x01\x00\x00\x90\x01\x00\x00\xa4\xe8Q\x00\xb3")]))),
+    remove_strings: PlainBytes::new(linked::<16>(0x51D473, with_runs::<16>(&[(0, b"\xa9\x01\x00\x00,\x01\x00\x00\xa4\xe8Q\x00\xba")]))),
+    bar_glyphs_list: PlainBytes::new(linked::<32>(0x51D483, with_runs::<32>(&[(0, b"\xe1\x00\x00\x00,\x01"), (12, b"t;O\x00\xa9\x01\x00\x00,\x01\x00\x00\x01\x00\x00\x00t;O")]))),
+    bar: PlainBytes::new(with_runs::<16>(&[(0, b"\xe0\x00\x00\x00+\x01\x00\x00\x92\x01\x00\x00\x1f")])),
+    frame: PlainBytes::new(with_runs::<17>(&[(0, b"\xdf\x00\x00\x00*\x01\x00\x00\x94\x01\x00\x00!")])),
     fonts: [PlainDword::new(0x0), PlainDword::new(0x51e624), PlainDword::new(0x51e824), PlainDword::new(0x51e824), PlainDword::new(0x51ea44), PlainDword::new(0x51ea64), PlainDword::new(0x51ea24), PlainDword::new(0x51e9e4), PlainDword::new(0x51ea04), PlainDword::new(0x51e9c4), PlainDword::new(0x51e864), PlainDword::new(0x51e884), PlainDword::new(0x51e844), PlainDword::new(0x51e6c4), PlainDword::new(0x51e6e4), PlainDword::new(0x51e6a4), PlainDword::new(0x51e8c4), PlainDword::new(0x51e8e4), PlainDword::new(0x51e8a4), PlainDword::new(0x51e8c4), PlainDword::new(0x51e8e4), PlainDword::new(0x51e8a4), PlainDword::new(0x51e984), PlainDword::new(0x51e9a4), PlainDword::new(0x51e964)],
-    kind_fonts: Bytes::new(with_runs::<108>(&[(0, b"\x12\x00\t\x0c\x00\x02\x00\x1e\x17\x00\x08\x0b\x01\x02\x00\x1e\n\x00\x07\x10\x02\x02\x00\x1e"), (32, b"\x12\x00\t\x0c\x00\x02\x00\x1e"), (64, b"\x0c\x00\t\x12\x00\x02\x00\x1e\x15\x00\x15\x15\x00\x03\x00,\x0c\x00\x0c\x0c\x00\x02\x00\x1e\x12\x00\x12\x12\x00\x02\x00\x1e\x18\x00\x18\x18\x00\x02\x00\x1e\t")])),
-    normal_pages: Bytes::new(linked::<44>(0x51D594, with_runs::<44>(&[(0, b"p\xd6Q"), (8, b"\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q")]))),
-    _gap_51d5c0: Bytes::new(linked::<24>(0x51D5C0, with_runs::<24>(&[(0, b"(\xd7Q"), (8, b"\xe4\xd5Q\x00T\xd6Q\x00\x10\xd6Q\x00`\xd6Q")]))),
-    update_pages: Bytes::new(linked::<12>(0x51D5D8, with_runs::<12>(&[(0, b"\xb8\xdcQ"), (8, b"H\xd6Q")]))),
-    _gap_51d5e4: Bytes::new(linked::<20>(0x51D5E4, with_runs::<20>(&[(0, b"\x90\xd7Q\x00\xc0\xd5Q\x00\xf8\xd5Q\x00\xf8\xd5Q\x00\xf8\xd5Q")]))),
-    chosen_menu: Bytes::new(linked::<12>(0x51D5F8, with_runs::<12>(&[(0, b"\xf8\xd7Q\x00\xe4\xd5Q\x00\x04\xd6Q")]))),
-    _gap_51d604: Bytes::new(linked::<292>(0x51D604, with_runs::<292>(&[(0, b"\xa0\xdbQ\x00\xf8\xd5Q\x00\x1c\xd6Q\x00\xb8\xdcQ\x00\xc0\xd5Q\x00H\xd6Q\x00\x10\xddQ\x00\x04\xd6Q"), (40, b"0\xd6Q\x00\x18\xdcQ\x00\xf8\xd5Q\x00\x1c\xd6Q\x00`\xdcQ"), (68, b"(\xddQ"), (80, b"@\xddQ"), (92, b"X\xddQ"), (104, b"\t"), (109, b"\n\x9b"), (116, b"\x99AA"), (132, b"\x01\x01+\x10"), (148, b"\x01\x02,\x10"), (164, b"\x01\x03-\x10"), (180, b"\x01\x04.\x10"), (196, b"\x01\x05/\x10"), (212, b"\x01\x060\x10"), (228, b"\x01\x071\x10"), (244, b"\x01\x082\x10"), (260, b"\x01\t3\x10"), (276, b"\x01\x00\x99")]))),
+    kind_fonts: PlainBytes::new(with_runs::<108>(&[(0, b"\x12\x00\t\x0c\x00\x02\x00\x1e\x17\x00\x08\x0b\x01\x02\x00\x1e\n\x00\x07\x10\x02\x02\x00\x1e"), (32, b"\x12\x00\t\x0c\x00\x02\x00\x1e"), (64, b"\x0c\x00\t\x12\x00\x02\x00\x1e\x15\x00\x15\x15\x00\x03\x00,\x0c\x00\x0c\x0c\x00\x02\x00\x1e\x12\x00\x12\x12\x00\x02\x00\x1e\x18\x00\x18\x18\x00\x02\x00\x1e\t")])),
+    normal_pages: PlainBytes::new(linked::<44>(0x51D594, with_runs::<44>(&[(0, b"p\xd6Q"), (8, b"\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q")]))),
+    _gap_51d5c0: PlainBytes::new(linked::<24>(0x51D5C0, with_runs::<24>(&[(0, b"(\xd7Q"), (8, b"\xe4\xd5Q\x00T\xd6Q\x00\x10\xd6Q\x00`\xd6Q")]))),
+    update_pages: PlainBytes::new(linked::<12>(0x51D5D8, with_runs::<12>(&[(0, b"\xb8\xdcQ"), (8, b"H\xd6Q")]))),
+    _gap_51d5e4: PlainBytes::new(linked::<20>(0x51D5E4, with_runs::<20>(&[(0, b"\x90\xd7Q\x00\xc0\xd5Q\x00\xf8\xd5Q\x00\xf8\xd5Q\x00\xf8\xd5Q")]))),
+    chosen_menu: PlainBytes::new(linked::<12>(0x51D5F8, with_runs::<12>(&[(0, b"\xf8\xd7Q\x00\xe4\xd5Q\x00\x04\xd6Q")]))),
+    _gap_51d604: PlainBytes::new(linked::<292>(0x51D604, with_runs::<292>(&[(0, b"\xa0\xdbQ\x00\xf8\xd5Q\x00\x1c\xd6Q\x00\xb8\xdcQ\x00\xc0\xd5Q\x00H\xd6Q\x00\x10\xddQ\x00\x04\xd6Q"), (40, b"0\xd6Q\x00\x18\xdcQ\x00\xf8\xd5Q\x00\x1c\xd6Q\x00`\xdcQ"), (68, b"(\xddQ"), (80, b"@\xddQ"), (92, b"X\xddQ"), (104, b"\t"), (109, b"\n\x9b"), (116, b"\x99AA"), (132, b"\x01\x01+\x10"), (148, b"\x01\x02,\x10"), (164, b"\x01\x03-\x10"), (180, b"\x01\x04.\x10"), (196, b"\x01\x05/\x10"), (212, b"\x01\x060\x10"), (228, b"\x01\x071\x10"), (244, b"\x01\x082\x10"), (260, b"\x01\t3\x10"), (276, b"\x01\x00\x99")]))),
     script_entry: PlainDword::new(0x950500),
     record_flag: PlainDword::new(0x0),
-    _gap_51d730: Bytes::new(with_runs::<16>(&[(0, b"\xefAA")])),
-    entry_kind: Byte::new(0x1),
-    entry_marks: Byte::new(0x1),
-    entry_text: Word::new(0x96),
-    _gap_51d744: Bytes::new(with_runs::<14>(&[(12, b"\x01\x02")])),
-    script_set_up: Word::new(0x97),
-    _gap_51d754: Bytes::new(with_runs::<164>(&[(12, b"\x01\x03\x98"), (28, b"\x01\x04|\x05"), (44, b"\x01\x00\x99"), (61, b"\x05\x9a\x00\x02\x00\x00\x00+BA"), (84, b"\x05\x0c\xa1"), (96, b"\x04SA\x00\x01\x01\xa2"), (116, b"\x01\x02\xa3"), (132, b"\x01\x03\xa4"), (148, b"\x01\x00\xbf")])),
-    drive_menu_8: Bytes::new(linked::<184>(0x51D7F8, with_runs::<184>(&[(1, b"\n\x9a\x00\x02\x00\x00\x00^BA"), (24, b"\x05\x0c\x9d\x00\xf8\xddQ"), (40, b"\x01\x00\xbf\x00\x08\xdeQ"), (56, b"\x01\x01\x11\x10\xb8\xddQ"), (72, b"\x01\x01\x12\x10\xb8\xddQ"), (88, b"\x01\x01\x13\x10\xb8\xddQ"), (104, b"\x01\x01\x14\x10\xb8\xddQ"), (120, b"\x01\x01\x15\x10\xb8\xddQ"), (136, b"\x01\x01\x16\x10\xb8\xddQ"), (152, b"\x01\x01\x17\x10\xb8\xddQ"), (168, b"\x01\x01\x18\x10\xb8\xddQ")]))),
-    drive_menu_16: Bytes::new(linked::<312>(0x51D8B0, with_runs::<312>(&[(1, b"\x12\x9a\x00\x02\x00\x00\x00^BA"), (24, b"\x05\x0c\x9d\x00\xf8\xddQ"), (40, b"\x01\x00\xbf\x00\x08\xdeQ"), (56, b"\x01\x01\x11\x10\xd8\xddQ"), (72, b"\x01\x01\x12\x10\xd8\xddQ"), (88, b"\x01\x01\x13\x10\xd8\xddQ"), (104, b"\x01\x01\x14\x10\xd8\xddQ"), (120, b"\x01\x01\x15\x10\xd8\xddQ"), (136, b"\x01\x01\x16\x10\xd8\xddQ"), (152, b"\x01\x01\x17\x10\xd8\xddQ"), (168, b"\x01\x01\x18\x10\xd8\xddQ"), (184, b"\x01\x01\x19\x10\xe8\xddQ"), (200, b"\x01\x01\x1a\x10\xe8\xddQ"), (216, b"\x01\x01\x1b\x10\xe8\xddQ"), (232, b"\x01\x01\x1c\x10\xe8\xddQ"), (248, b"\x01\x01\x1d\x10\xe8\xddQ"), (264, b"\x01\x01\x1e\x10\xe8\xddQ"), (280, b"\x01\x01\x1f\x10\xe8\xddQ"), (296, b"\x01\x01 \x10\xe8\xddQ")]))),
-    menu_more: Bytes::new(linked::<440>(0x51D9E8, with_runs::<440>(&[(1, b"\x1a\x9a\x00\x02\x00\x00\x00^BA"), (24, b"\x05\x0c\x9d\x00\xf8\xddQ"), (40, b"\x01\x00\xbf\x00\x08\xdeQ"), (56, b"\x01\x01\x11\x10\xa8\xddQ"), (72, b"\x01\x01\x12\x10\xa8\xddQ"), (88, b"\x01\x01\x13\x10\xa8\xddQ"), (104, b"\x01\x01\x14\x10\xa8\xddQ"), (120, b"\x01\x01\x15\x10\xa8\xddQ"), (136, b"\x01\x01\x16\x10\xa8\xddQ"), (152, b"\x01\x01\x17\x10\xa8\xddQ"), (168, b"\x01\x01\x18\x10\xa8\xddQ"), (184, b"\x01\x01\x19\x10\xb8\xddQ"), (200, b"\x01\x01\x1a\x10\xb8\xddQ"), (216, b"\x01\x01\x1b\x10\xb8\xddQ"), (232, b"\x01\x01\x1c\x10\xb8\xddQ"), (248, b"\x01\x01\x1d\x10\xb8\xddQ"), (264, b"\x01\x01\x1e\x10\xb8\xddQ"), (280, b"\x01\x01\x1f\x10\xb8\xddQ"), (296, b"\x01\x01 \x10\xb8\xddQ"), (312, b"\x01\x01!\x10\xc8\xddQ"), (328, b"\x01\x01\"\x10\xc8\xddQ"), (344, b"\x01\x01#\x10\xc8\xddQ"), (360, b"\x01\x01$\x10\xc8\xddQ"), (376, b"\x01\x01%\x10\xc8\xddQ"), (392, b"\x01\x01&\x10\xc8\xddQ"), (408, b"\x01\x01'\x10\xc8\xddQ"), (424, b"\x01\x01(\x10\xc8\xddQ")]))),
-    folder_page: Bytes::new(linked::<424>(0x51DBA0, with_runs::<424>(&[(1, b"\x06\x9a"), (8, b"\xf5BA"), (20, b"NSA\x00\x05\x0c\x9e"), (40, b"$\x01"), (48, b"\xfa\xeb\x95\x00p\xddQ\x00\x05\n\xaa"), (72, b"\x05\n\xac"), (88, b"\x05\n\xad"), (104, b"\x05\n\xab"), (121, b"\x03\x9a"), (128, b"\xc7BA"), (144, b"\x05\n\xad"), (156, b"\x04SA\x00\x01\x01\xae"), (168, b"\xdaBA"), (176, b"\x01\x00\xbf"), (193, b"\x04\x9a"), (200, b"/CA"), (216, b"\x05\x0b\xb2"), (228, b"\x04SA\x00\x05\x0c\xb4"), (244, b"\x04SA\x00\x01\x01l\x05"), (264, b"\x01\x00k\x05"), (281, b"\x04\xb6\x00\x02\x00\x00\x00GCA"), (304, b"\x05\n\xb7"), (316, b"\x04SA\x00\x01\x01\xb8"), (336, b"\x01\x02\xb9"), (352, b"\x01\x00\xbf"), (368, b"@"), (376, b"\xcd0A"), (392, b"@"), (400, b"\xdf4A"), (416, b"@")]))),
-    step: Bytes::new(with_runs::<16>(&[(0, b")6A")])),
-    _gap_51dd58: Bytes::new(with_runs::<32>(&[(0, b"@"), (8, b"P6A"), (24, b"\x02|\xa0\x00\x0b\x00\xe9\x02")])),
-    title: Bytes::new(linked::<16>(0x51DD78, with_runs::<16>(&[(0, b"\x05\t\x00\x00\x88\xddQ")]))),
-    _gap_51dd88: Bytes::new(with_runs::<16>(&[(0, b"2\x00\x00\x00\x96\x00\x00\x00\xee\x02\x00\x00,")])),
-    title_box: Bytes::new(with_runs::<16>(&[(0, b"2\x00\x00\x00\x96\x00\x00\x00\xee\x02\x00\x00\x90\x01")])),
-    _gap_51dda8: Bytes::new(with_runs::<112>(&[(0, b"}\x00\x00\x00\x96\x00\x00\x00\xc8\x00\x00\x00\x90\x01\x00\x00E\x01\x00\x00\x96\x00\x00\x00\xc8\x00\x00\x00\x90\x01\x00\x00\r\x02\x00\x00\x96\x00\x00\x00\xc8\x00\x00\x00\x90\x01\x00\x00\xe1\x00\x00\x00\x96\x00\x00\x00\xc8\x00\x00\x00\x90\x01\x00\x00\xa9\x01\x00\x00\x96\x00\x00\x00\xc8\x00\x00\x00\x90\x01\x00\x002\x00\x00\x00\xc8\x00\x00\x00\xee\x02\x00\x00\x1e\x00\x00\x002\x00\x00\x00\xef\x01\x00\x00\xee\x02\x00\x00\x1e")])),
-    bad_folder_chars: Bytes::new(with_runs::<20>(&[(0, b"\"+*,;=/:<>?\\{}[]|\x7f")])),
-    _tail: Bytes::new([0; 4]),
+    _gap_51d730: PlainBytes::new(with_runs::<16>(&[(0, b"\xefAA")])),
+    entry_kind: PlainByte::new(0x1),
+    entry_marks: PlainByte::new(0x1),
+    entry_text: PlainWord::new(0x96),
+    _gap_51d744: PlainBytes::new(with_runs::<14>(&[(12, b"\x01\x02")])),
+    script_set_up: PlainWord::new(0x97),
+    _gap_51d754: PlainBytes::new(with_runs::<164>(&[(12, b"\x01\x03\x98"), (28, b"\x01\x04|\x05"), (44, b"\x01\x00\x99"), (61, b"\x05\x9a\x00\x02\x00\x00\x00+BA"), (84, b"\x05\x0c\xa1"), (96, b"\x04SA\x00\x01\x01\xa2"), (116, b"\x01\x02\xa3"), (132, b"\x01\x03\xa4"), (148, b"\x01\x00\xbf")])),
+    drive_menu_8: PlainBytes::new(linked::<184>(0x51D7F8, with_runs::<184>(&[(1, b"\n\x9a\x00\x02\x00\x00\x00^BA"), (24, b"\x05\x0c\x9d\x00\xf8\xddQ"), (40, b"\x01\x00\xbf\x00\x08\xdeQ"), (56, b"\x01\x01\x11\x10\xb8\xddQ"), (72, b"\x01\x01\x12\x10\xb8\xddQ"), (88, b"\x01\x01\x13\x10\xb8\xddQ"), (104, b"\x01\x01\x14\x10\xb8\xddQ"), (120, b"\x01\x01\x15\x10\xb8\xddQ"), (136, b"\x01\x01\x16\x10\xb8\xddQ"), (152, b"\x01\x01\x17\x10\xb8\xddQ"), (168, b"\x01\x01\x18\x10\xb8\xddQ")]))),
+    drive_menu_16: PlainBytes::new(linked::<312>(0x51D8B0, with_runs::<312>(&[(1, b"\x12\x9a\x00\x02\x00\x00\x00^BA"), (24, b"\x05\x0c\x9d\x00\xf8\xddQ"), (40, b"\x01\x00\xbf\x00\x08\xdeQ"), (56, b"\x01\x01\x11\x10\xd8\xddQ"), (72, b"\x01\x01\x12\x10\xd8\xddQ"), (88, b"\x01\x01\x13\x10\xd8\xddQ"), (104, b"\x01\x01\x14\x10\xd8\xddQ"), (120, b"\x01\x01\x15\x10\xd8\xddQ"), (136, b"\x01\x01\x16\x10\xd8\xddQ"), (152, b"\x01\x01\x17\x10\xd8\xddQ"), (168, b"\x01\x01\x18\x10\xd8\xddQ"), (184, b"\x01\x01\x19\x10\xe8\xddQ"), (200, b"\x01\x01\x1a\x10\xe8\xddQ"), (216, b"\x01\x01\x1b\x10\xe8\xddQ"), (232, b"\x01\x01\x1c\x10\xe8\xddQ"), (248, b"\x01\x01\x1d\x10\xe8\xddQ"), (264, b"\x01\x01\x1e\x10\xe8\xddQ"), (280, b"\x01\x01\x1f\x10\xe8\xddQ"), (296, b"\x01\x01 \x10\xe8\xddQ")]))),
+    menu_more: PlainBytes::new(linked::<440>(0x51D9E8, with_runs::<440>(&[(1, b"\x1a\x9a\x00\x02\x00\x00\x00^BA"), (24, b"\x05\x0c\x9d\x00\xf8\xddQ"), (40, b"\x01\x00\xbf\x00\x08\xdeQ"), (56, b"\x01\x01\x11\x10\xa8\xddQ"), (72, b"\x01\x01\x12\x10\xa8\xddQ"), (88, b"\x01\x01\x13\x10\xa8\xddQ"), (104, b"\x01\x01\x14\x10\xa8\xddQ"), (120, b"\x01\x01\x15\x10\xa8\xddQ"), (136, b"\x01\x01\x16\x10\xa8\xddQ"), (152, b"\x01\x01\x17\x10\xa8\xddQ"), (168, b"\x01\x01\x18\x10\xa8\xddQ"), (184, b"\x01\x01\x19\x10\xb8\xddQ"), (200, b"\x01\x01\x1a\x10\xb8\xddQ"), (216, b"\x01\x01\x1b\x10\xb8\xddQ"), (232, b"\x01\x01\x1c\x10\xb8\xddQ"), (248, b"\x01\x01\x1d\x10\xb8\xddQ"), (264, b"\x01\x01\x1e\x10\xb8\xddQ"), (280, b"\x01\x01\x1f\x10\xb8\xddQ"), (296, b"\x01\x01 \x10\xb8\xddQ"), (312, b"\x01\x01!\x10\xc8\xddQ"), (328, b"\x01\x01\"\x10\xc8\xddQ"), (344, b"\x01\x01#\x10\xc8\xddQ"), (360, b"\x01\x01$\x10\xc8\xddQ"), (376, b"\x01\x01%\x10\xc8\xddQ"), (392, b"\x01\x01&\x10\xc8\xddQ"), (408, b"\x01\x01'\x10\xc8\xddQ"), (424, b"\x01\x01(\x10\xc8\xddQ")]))),
+    folder_page: PlainBytes::new(linked::<424>(0x51DBA0, with_runs::<424>(&[(1, b"\x06\x9a"), (8, b"\xf5BA"), (20, b"NSA\x00\x05\x0c\x9e"), (40, b"$\x01"), (48, b"\xfa\xeb\x95\x00p\xddQ\x00\x05\n\xaa"), (72, b"\x05\n\xac"), (88, b"\x05\n\xad"), (104, b"\x05\n\xab"), (121, b"\x03\x9a"), (128, b"\xc7BA"), (144, b"\x05\n\xad"), (156, b"\x04SA\x00\x01\x01\xae"), (168, b"\xdaBA"), (176, b"\x01\x00\xbf"), (193, b"\x04\x9a"), (200, b"/CA"), (216, b"\x05\x0b\xb2"), (228, b"\x04SA\x00\x05\x0c\xb4"), (244, b"\x04SA\x00\x01\x01l\x05"), (264, b"\x01\x00k\x05"), (281, b"\x04\xb6\x00\x02\x00\x00\x00GCA"), (304, b"\x05\n\xb7"), (316, b"\x04SA\x00\x01\x01\xb8"), (336, b"\x01\x02\xb9"), (352, b"\x01\x00\xbf"), (368, b"@"), (376, b"\xcd0A"), (392, b"@"), (400, b"\xdf4A"), (416, b"@")]))),
+    step: PlainBytes::new(with_runs::<16>(&[(0, b")6A")])),
+    _gap_51dd58: PlainBytes::new(with_runs::<32>(&[(0, b"@"), (8, b"P6A"), (24, b"\x02|\xa0\x00\x0b\x00\xe9\x02")])),
+    title: PlainBytes::new(linked::<16>(0x51DD78, with_runs::<16>(&[(0, b"\x05\t\x00\x00\x88\xddQ")]))),
+    _gap_51dd88: PlainBytes::new(with_runs::<16>(&[(0, b"2\x00\x00\x00\x96\x00\x00\x00\xee\x02\x00\x00,")])),
+    title_box: PlainBytes::new(with_runs::<16>(&[(0, b"2\x00\x00\x00\x96\x00\x00\x00\xee\x02\x00\x00\x90\x01")])),
+    _gap_51dda8: PlainBytes::new(with_runs::<112>(&[(0, b"}\x00\x00\x00\x96\x00\x00\x00\xc8\x00\x00\x00\x90\x01\x00\x00E\x01\x00\x00\x96\x00\x00\x00\xc8\x00\x00\x00\x90\x01\x00\x00\r\x02\x00\x00\x96\x00\x00\x00\xc8\x00\x00\x00\x90\x01\x00\x00\xe1\x00\x00\x00\x96\x00\x00\x00\xc8\x00\x00\x00\x90\x01\x00\x00\xa9\x01\x00\x00\x96\x00\x00\x00\xc8\x00\x00\x00\x90\x01\x00\x002\x00\x00\x00\xc8\x00\x00\x00\xee\x02\x00\x00\x1e\x00\x00\x002\x00\x00\x00\xef\x01\x00\x00\xee\x02\x00\x00\x1e")])),
+    bad_folder_chars: PlainBytes::new(with_runs::<20>(&[(0, b"\"+*,;=/:<>?\\{}[]|\x7f")])),
+    _tail: PlainBytes::new([0; 4]),
         }
     }
 }
@@ -477,34 +477,34 @@ impl InstallerPages {
 #[derive(rc2k_derive::Cells)]
 pub struct InstallerPaths {
     /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
-    pub _lead: Bytes<8>,
+    pub _lead: PlainBytes<8>,
     /// 0x95E6F8: `byte_95E6F8`: the folder installed into (also the first of `-i`'s paths).
-    pub game_dir: Bytes<256>,
+    pub game_dir: PlainBytes<256>,
     /// 0x95E7F8: `byte_95E7F8`: the folder installed from (also `-i`'s second path).
-    pub installed: Bytes<256>,
+    pub installed: PlainBytes<256>,
     /// 0x95E8F8: `byte_95E8F8`: a path being built (the lobby's number edited as text).
-    pub path_a: Bytes<256>,
+    pub path_a: PlainBytes<256>,
     /// 0x95E9F8: `byte_95E9F8`: another path being built.
-    pub path_b: Bytes<256>,
+    pub path_b: PlainBytes<256>,
     /// 0x95EAF8: `byte_95EAF8`: the script's path; an edit's backup (the lobby's text before editing).
-    pub script_path: Bytes<256>,
+    pub script_path: PlainBytes<256>,
     /// 0x95EBF8: `byte_95EBF8`: the folder typed on the page.
-    pub typed: Bytes<256>,
+    pub typed: PlainBytes<256>,
     /// Up to the record's alignment (no byte of a record of cells outside a field).
-    pub _tail: Bytes<8>,
+    pub _tail: PlainBytes<8>,
 }
 
 impl InstallerPaths {
     pub const fn new() -> Self {
         InstallerPaths {
-            _lead: Bytes::new([0; 8]),
-            game_dir: Bytes::new([0; 256]),
-            installed: Bytes::new([0; 256]),
-            path_a: Bytes::new([0; 256]),
-            path_b: Bytes::new([0; 256]),
-            script_path: Bytes::new([0; 256]),
-            typed: Bytes::new([0; 256]),
-            _tail: Bytes::new([0; 8]),
+            _lead: PlainBytes::new([0; 8]),
+            game_dir: PlainBytes::new([0; 256]),
+            installed: PlainBytes::new([0; 256]),
+            path_a: PlainBytes::new([0; 256]),
+            path_b: PlainBytes::new([0; 256]),
+            script_path: PlainBytes::new([0; 256]),
+            typed: PlainBytes::new([0; 256]),
+            _tail: PlainBytes::new([0; 8]),
         }
     }
 }
@@ -525,19 +525,19 @@ impl InstallerPaths {
 #[derive(rc2k_derive::Cells)]
 pub struct InstallerPalette {
     /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
-    pub _lead: Bytes<4>,
+    pub _lead: PlainBytes<4>,
     /// 0x4F3874: `unk_4F3874`: the installer's palette file read here (0x300 bytes, `install::open_installer`).
-    pub palette: Bytes<768>,
+    pub palette: PlainBytes<768>,
     /// Up to the record's alignment (no byte of a record of cells outside a field).
-    pub _tail: Bytes<12>,
+    pub _tail: PlainBytes<12>,
 }
 
 impl InstallerPalette {
     pub const fn new() -> Self {
         InstallerPalette {
-            _lead: Bytes::new([0; 4]),
-            palette: Bytes::new([0; 768]),
-            _tail: Bytes::new([0; 12]),
+            _lead: PlainBytes::new([0; 4]),
+            palette: PlainBytes::new([0; 768]),
+            _tail: PlainBytes::new([0; 12]),
         }
     }
 }

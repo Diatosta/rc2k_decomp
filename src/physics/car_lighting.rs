@@ -16,7 +16,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::ground_store::GroundWork;
-use crate::physics::step_inputs::StepInputs;
+use crate::physics::step_families::LightingInputs;
 use crate::race::course_store::CourseWork;
 use rc2k_core::physics::lighting;
 
@@ -32,12 +32,12 @@ fn corners(ground: &GroundWork, course_work: &CourseWork) -> u32 {
 
 // Converted: `rc2k_core::physics::lighting`.
 pub fn car_lighting(
-    c: &StepInputs<'_>,
+    c: &LightingInputs<'_>,
     scene: &crate::scene::owner::Scene,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
-    c.physics.ground.ground_x.set(c.car.position[0].get());
-    c.physics.ground.ground_z.set(c.car.position[2].get());
+    c.ground.ground_x.set(c.car.position[0].get());
+    c.ground.ground_z.set(c.car.position[2].get());
     c.course.course.light_kept.set(c.car.light_level.get());
     scene.lights.work.car_light_colour.set(0);
     scene.lights.work.lamp_a_colour.set(0);
@@ -45,14 +45,7 @@ pub fn car_lighting(
         .course
         .ground_face_last
         .set(c.car.probe_point_face[4].get());
-    {
-        crate::physics::find_ground::find_ground(
-            &c.physics.ground_probe,
-            &c.physics.ground,
-            c.course,
-            scene,
-        )
-    }?;
+    { crate::physics::find_ground::find_ground(c.probe, c.ground, c.course, scene) }?;
     let face = c.course.course.ground_slot.get();
     if face == u32::MAX {
         return Ok(());
@@ -61,24 +54,20 @@ pub fn car_lighting(
         return Err(BadInput("no course faces").into());
     }
     if c.course.course.ground_half.get() == 1 {
-        let (s, t) = lighting::half_shares(
-            1,
-            c.physics.ground.share_s.get(),
-            c.physics.ground.share_t.get(),
-        );
-        c.physics.ground.share_s.set(s);
-        c.physics.ground.share_t.set(t);
+        let (s, t) = lighting::half_shares(1, c.ground.share_s.get(), c.ground.share_t.get());
+        c.ground.share_s.set(s);
+        c.ground.share_t.set(t);
     }
     scene
         .lights
         .work
         .ground_texture_s
-        .set(c.physics.ground.share_s.get());
+        .set(c.ground.share_s.get());
     scene
         .lights
         .work
         .ground_texture_t
-        .set(c.physics.ground.share_t.get());
+        .set(c.ground.share_t.get());
     let face_byte = |offset| -> Result<u32, BadInput> {
         Ok(u32::from(crate::race::course_places::face_field::<u8>(
             c.course, face, offset,
@@ -94,7 +83,7 @@ pub fn car_lighting(
             at.set(v);
         }
     }
-    let light = corners(&c.physics.ground, &c.course.course);
+    let light = corners(c.ground, &c.course.course);
     c.car.light_level.set(light);
     if c.car.light_hold_steps.get() != 0 {
         let held = lighting::hold_change(
@@ -129,7 +118,7 @@ pub fn car_lighting(
         for k in 0..4u32 {
             c.course.course.face_light_bytes[k as usize].set(face_byte(first + k)?);
         }
-        let i = corners(&c.physics.ground, &c.course.course);
+        let i = corners(c.ground, &c.course.course);
         if i >= lighting::TABLE {
             return Err(BadInput("a colour index past 0xFF").into());
         }

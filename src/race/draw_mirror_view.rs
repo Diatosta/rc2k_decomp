@@ -52,7 +52,7 @@ pub fn draw_mirror_view(
         crate::race::frame_views::mirror_view_window(race, scene, system, view)?;
         view.polygon.window.view_depth[1].set(view.course.view_value_kept.get());
         crate::race::frame_flush::draw_view_backdrop(race, scene, view);
-        crate::race::draw_view_scene::draw_view_scene(race, scene, view)
+        crate::race::draw_view_scene::draw_view_scene(race, scene, system, view)
     })();
     view.vars.view_scale.set_bits(saved);
     // (The original's full window again after the mirror is the front end's: `race::draw_race_scene`.)

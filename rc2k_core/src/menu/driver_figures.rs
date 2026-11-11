@@ -61,9 +61,9 @@ pub struct Car {
 /// The game's values the figures use.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Constants {
-    /// `flt_75AB58`: a part's span is cut in this many steps of wear.
+    /// A part's span is cut in this many steps of wear.
     pub steps: f32,
-    /// `flt_75AB5C`: the weights' and penalties' scale.
+    /// The weights' and penalties' scale.
     pub scale: f32,
     /// `dword_75ACC4`: 1 keeps part 1's limit.
     pub keep_part_1: u32,
@@ -81,18 +81,18 @@ pub struct Logged {
 /// The figures, as the original leaves them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Figures {
-    /// `dword_75AB60`: the fourteen values, then (over 12 and 13 and past them) the
+    /// The fourteen values, then (over 12 and 13 and past them) the
     /// table's +0x30, +0x68, +0x70, +0x74.
     pub values: [u32; 16],
-    /// `dword_75ABA0`: each part's high end.
+    /// Each part's high end.
     pub highs: [u32; PARTS],
-    /// `dword_75ABD8`: each part's limit.
+    /// Each part's limit.
     pub limits: [u32; PARTS],
-    /// `dword_75AC10`: the inspected parts' weights.
+    /// The inspected parts' weights.
     pub weights: [Option<u32>; PARTS],
-    /// `dword_75AC48`: the penalties of the inspected parts at or past their limits.
+    /// The penalties of the inspected parts at or past their limits.
     pub penalties: [Option<u32>; PARTS],
-    /// `dword_75AC84`: the inspected parts' high ends added.
+    /// The inspected parts' high ends added.
     pub total: u32,
     /// `dword_75ACA8`, `ACAC`, `ACB4`, `ACB8`: the player's +0x114 twice, +0x118 twice.
     pub kept: [u32; 4],

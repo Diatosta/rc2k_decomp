@@ -38,7 +38,7 @@ fn players(menus: &Menus, n: u32) -> Result<Vec<crate::menu::standings::PlayerCe
         .collect()
 }
 
-fn place_pointer(menus: &Menus, offset: u32) -> Result<&crate::session::Dword, Refused> {
+fn place_pointer(menus: &Menus, offset: u32) -> Result<&crate::session::PlainDword, Refused> {
     if offset > 12 || !offset.is_multiple_of(4) {
         return Err(BadInput("an offset past the place pointers").into());
     }

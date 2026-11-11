@@ -1,6 +1,6 @@
 //! Where the view is drawn on the screen (from
 //! `scene::choose_view_window` 0x44FE1A): the whole screen, or in the framed layout
-//! (`dword_621514`) 800 x 600 at 0, 0 (with `dword_621480`, or mode `word_636526` 2) or
+//! 800 x 600 at 0, 0 (with `dword_621480`, or mode `word_636526` 2) or
 //! 720 x 540 at 0x50, 0; and the window's middle, clip rectangle, scale and depths
 //! (from `scene::set_view_window` 0x44E47B; what the x87 keeps on
 //! its stack an `f64`, the same at the game's double precision).
@@ -44,12 +44,12 @@ pub fn choose(settings: ViewSettings, screen: impl FnOnce() -> [u32; 2]) -> View
     }
 }
 
-/// What `set_view_window` reads: the reach (`dword_60A87C`), the window's size
-/// (`dword_62408C`) and offsets (`dword_623FB0`), whether in a race (`g_inRace` 1), the
+/// What `set_view_window` reads: the reach, the window's size
+/// and offsets, whether in a race (`g_inRace` 1), the
 /// screen's width, the scale's three (`dword_606294` a float, `dword_624080`,
-/// `flt_623DCC`), the nearer setting (`dword_60AC80`) and its factor (`flt_5C5CFC`), the
-/// fade's two (`flt_624228`, `flt_624220`), 65536 (`flt_5C5D98`), the clip's factor
-/// (`flt_62422C`), one (`flt_5C5D38`).
+/// `flt_623DCC`), the nearer setting and its factor, the
+/// fade's two, 65536, the clip's factor
+///, one.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct WindowInputs {
     pub reach: u32,

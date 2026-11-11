@@ -280,7 +280,7 @@ pub fn adjugate_matrix(p: &mut impl Places, m: u32, out: u32) {
     }
 }
 
-/// `scene::cross_product`: ebx `b`, ecx `c`, edx `out`: out[0] c2 b1 - b2 c1, out[1] c0 b2
+/// `scene::cross_product` of `b` and `c` into `out`: out[0] c2 b1 - b2 c1, out[1] c0 b2
 /// - b0 c2, out[2] c1 b0 - b1 c0, each stored before the next.
 pub fn cross(p: &mut impl Places, b: u32, c: u32, out: u32) {
     for (n, (x, y)) in [(2, 1), (0, 2), (1, 0)].into_iter().enumerate() {
@@ -290,7 +290,7 @@ pub fn cross(p: &mut impl Places, b: u32, c: u32, out: u32) {
     }
 }
 
-/// `scene::cross_product3`: esi `a`, edi `b`, ebp `out`: x a.y b.z - a.z b.y, y a.z b.x -
+/// `scene::cross_product3` of `a` and `b` into `out`: x a.y b.z - a.z b.y, y a.z b.x -
 /// a.x b.z, z a.x b.y - a.y b.x, each stored before the next.
 pub fn cross3(p: &mut impl Places, a: u32, b: u32, out: u32) {
     for (n, (x, y)) in [(1, 2), (2, 0), (0, 1)].into_iter().enumerate() {
@@ -614,7 +614,7 @@ mod tests {
         p.set_floats(0, &[1.0, 0.0, 0.0, 0.0, 1.0, 0.0]);
         cross3(&mut p, 0, 12, 24);
         assert_eq!(p.floats::<3>(24), [0.0, 0.0, 1.0]);
-        // ebx b, ecx c: b x c, as well.
+        // b x c, as well.
         p.set_floats(24, &[0.0; 3]);
         cross(&mut p, 0, 12, 24);
         assert_eq!(p.floats::<3>(24), [0.0, 0.0, 1.0]);

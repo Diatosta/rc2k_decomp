@@ -35,7 +35,7 @@ pub fn quieter(surface: u32) -> bool {
 /// Refuses a surface past the table and a pair past the seven.
 pub fn set_pair(surface: u32, sets_of: impl FnOnce(u32) -> u32) -> Result<u32, Invalid> {
     if surface >= SURFACES {
-        return Err(Invalid("a surface past the 16 of dword_51655C"));
+        return Err(Invalid("a surface past the 16 surface sounds"));
     }
     let pair = sets_of(surface);
     if pair >= SET_PAIRS {

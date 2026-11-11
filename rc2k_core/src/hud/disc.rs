@@ -13,8 +13,8 @@ use crate::physics::x87::{below, loaded};
 /// The ring's entries.
 pub const ENTRIES: u32 = 0x11;
 
-/// One ring entry: its place (`flt_75C188`, `flt_75C1CC`) and its texture place
-/// (`flt_75C210`, `flt_75C254`).
+/// One ring entry: its place and its texture place
+///.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RingEntry {
     pub x: f32,
@@ -23,9 +23,9 @@ pub struct RingEntry {
     pub v: f32,
 }
 
-/// The disc's size and places: its radius (`dword_75C050`), the texture's scale
-/// (`dword_75C04C`), middle (`flt_75C01C`), shift (`dword_75C054`, `dword_75C058`) and
-/// size (`flt_75C020`), and the centre on the screen (`dword_75C044`, `dword_75C048`).
+/// The disc's size and places: its radius, the texture's scale
+///, middle, shift and
+/// size, and the centre on the screen.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Disc {
     pub radius: f32,
@@ -119,7 +119,7 @@ pub struct NeedleTurn {
     pub plus: f32,
 }
 
-/// `hud::draw_needle`'s value held to the least (`flt_75C018`) and the most (C0 of the
+/// `hud::draw_needle`'s value held to the least and the most (C0 of the
 /// compares: an unordered one counts as below), and which way it is made an angle: with the
 /// kind switch over the scale plus the base; without, below the split over the second scale
 /// plus the base, else less the split over the scale plus the second base. `value` is the
@@ -165,8 +165,8 @@ pub fn needle_turn(value: f32, kind: bool, least: f32, k: impl Fn(usize) -> f32)
     }
 }
 
-/// What `hud::draw_needle` leaves in edx: the rounded turn times -16.
-pub fn needle_edx(turn: u32) -> u32 {
+/// The needle's angle: the rounded turn times -16.
+pub fn needle_angle(turn: u32) -> u32 {
     (turn << 4).wrapping_neg()
 }
 
@@ -203,7 +203,7 @@ mod tests {
         );
         // an unordered value is held to the least (below), then kept (below the most)
         assert_eq!(needle_turn(f32::NAN, true, 10.0, k).value, 10.0);
-        assert_eq!(needle_edx(3), 0xFFFF_FFD0);
+        assert_eq!(needle_angle(3), 0xFFFF_FFD0);
         assert_eq!(
             needle_corners([1, 2, 3, 4]),
             [(1, 2), (3, 2), (3, 4), (1, 4)]

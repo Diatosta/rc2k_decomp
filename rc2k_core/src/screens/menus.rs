@@ -9,7 +9,7 @@ use crate::screens::screen::{Buffer, Screen};
 /// The work variable of the spaced-out text.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {
-    /// `dword_7559EC`: the spaced-out text's font.
+    /// The spaced-out text's font.
     SpacedFont,
     /// `g_markerX`, `g_markerY`: where the item's text went.
     MarkerX,
@@ -151,12 +151,12 @@ pub trait MenuScreen: Screen<Work = Work> {
     fn font_value(&self, f: Self::Font) -> u32;
 }
 
-/// The items. `current` is the highlighted item's kind (`dword_755525`), `since_key` the
+/// The items. `current` is the highlighted item's kind, `since_key` the
 /// time since the last key (0 while the blink is off). `after` as for `item_text`.
 ///
 /// The original hands each sprite a palette (its own number, or for the highlighted item
-/// the font of the item before, or for the first the caller's ebx) and each text button's
-/// measuring an x (the text x of the item before, or the caller's ecx). Neither is looked
+/// the font of the item before, or for the first none) and each text button's
+/// measuring an x (the text x of the item before, or none). Neither is looked
 /// at: the menu sprites are direct colour (`gfx::build_menu_sprites` checks) and a measured
 /// width does not depend on where the measuring starts (`screens::buttons` checks the
 /// measuring font only measures).

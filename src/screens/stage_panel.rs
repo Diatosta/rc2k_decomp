@@ -13,6 +13,7 @@ use crate::records::trakpak_entry::record_entry;
 use crate::screens::draw_stage_heading::heading_text;
 use crate::screens::draw_stage_records::draw_stage_records;
 use crate::screens::game_screen::GameScreen;
+use crate::session::DwordLike;
 use crate::strings::units::units;
 use crate::text::draw_string_by_id::draw_string_by_id_at;
 use crate::text::draw_text::Canvas;
@@ -29,7 +30,7 @@ const HEADING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts
 /// The dword `index` of `table`, reading on only inside `holder`, the store holding it.
 pub fn table_dword_at<H: crate::pointers::Cells>(
     holder: &H,
-    table: &[crate::session::Dword],
+    table: &[impl crate::session::Cell32],
     index: u32,
 ) -> Result<u32, crate::errors::BadInput> {
     crate::session::read_on_in(holder, table, index as usize, "a table's dword")
@@ -202,7 +203,9 @@ pub fn draw_records_for_group(
 
 /// The string id (+0x14) of item `n` (from 0) of the current menu, or None without a menu
 /// (or past its end).
-pub fn menu_item_id(screens: &Screens, n: u32) -> Option<&'_ crate::session::Dword> {
+pub fn menu_item_id(screens: &Screens, n: u32) -> Option<&'_ dyn DwordLike> {
     let menu = screens.loop_flags.menu.get().ok()?;
-    menu.items().get(n as usize).map(|i| &i.string)
+    menu.items()
+        .get(n as usize)
+        .map(|i| &i.string as &dyn DwordLike)
 }

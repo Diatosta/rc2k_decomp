@@ -65,7 +65,7 @@ pub fn measure(points: &mut [[u32; 3]]) -> Option<Measures> {
     })
 }
 
-/// The textures a list holds at most (`dword_631B6C`).
+/// The textures a list holds at most.
 pub const MOST_TEXTURES: usize = 0x100;
 /// The slots with a record of textures (0x40 bytes each, `unk_5DCEBC`).
 pub const RECORD_SLOTS: u32 = 0x40;

@@ -59,8 +59,8 @@ pub struct CourseLists {
     pub point_records: Dword,
     /// +0x670 (0x5C6FBC): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unused_670: [Dword; 2],
-    /// +0x678 (0x5C6FC4): `dword_5C6FC4`: cleared by `race::clear_point_records` (`race::frame_draw`).
-    pub clear_count: Dword,
+    /// +0x678 (0x5C6FC4): the original cleared it in `race::clear_point_records`; no code reads or writes it (the field's name nowhere in Rust), it only keeps the image's layout.
+    pub unused_678: Dword,
     /// +0x67c (0x5C6FC8): `dword_5C6FC8`: the course memory's first part (`race::course_data`, `race::level_init`).
     pub first_part: Dword,
     /// +0x680 (0x5C6FCC): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.

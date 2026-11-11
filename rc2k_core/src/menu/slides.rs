@@ -4,10 +4,10 @@
 
 use crate::Invalid;
 
-/// The car pages' background tables (`off_759AD2`), one a page.
+/// The car pages' background tables, one a page.
 pub const PAGES: u32 = 4;
 
-/// The cars with slideshow pictures (`off_759B0E`): the first 0x18.
+/// The cars with slideshow pictures: the first 0x18.
 pub const SLIDESHOW_CARS: u32 = 0x18;
 
 /// A car's pictures are numbered 0 .. 99.

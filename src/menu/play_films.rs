@@ -37,23 +37,23 @@ pub const FILMS_LEN: usize = 0x52983C - FILMS_START;
 #[derive(rc2k_derive::Cells)]
 pub struct Films {
     /// `a3filesFmvIntro` (`0x5297F5`).
-    pub intro: crate::session::Bytes<22>,
+    pub intro: crate::session::PlainBytes<22>,
     /// `a3filesFmvMflog` (`0x52980B`).
-    pub mflogo: crate::session::Bytes<23>,
+    pub mflogo: crate::session::PlainBytes<23>,
     /// `a3filesFmvAllog` (`0x529822`).
-    pub allogo: crate::session::Bytes<23>,
+    pub allogo: crate::session::PlainBytes<23>,
     /// `0x529839` .. `0x52983C`: nothing reads or writes them (a gap).
-    pub _gap_44: crate::session::Bytes<3>,
+    pub _gap_44: crate::session::PlainBytes<3>,
 }
 
 /// The films' names (the leading `;3` is the game's own marker for the file functions).
 impl Films {
     pub const fn new() -> Self {
         Films {
-            intro: crate::session::Bytes::new(*b";3files\\fmv\\intro.mpg\0"),
-            mflogo: crate::session::Bytes::new(*b";3files\\fmv\\mflogo.mpg\0"),
-            allogo: crate::session::Bytes::new(*b";3files\\fmv\\allogo.avi\0"),
-            _gap_44: crate::session::Bytes::new([0; 3]),
+            intro: crate::session::PlainBytes::new(*b";3files\\fmv\\intro.mpg\0"),
+            mflogo: crate::session::PlainBytes::new(*b";3files\\fmv\\mflogo.mpg\0"),
+            allogo: crate::session::PlainBytes::new(*b";3files\\fmv\\allogo.avi\0"),
+            _gap_44: crate::session::PlainBytes::new([0; 3]),
         }
     }
 }

@@ -17,14 +17,14 @@ pub enum Font {
 pub enum Work {
     /// `seconds`: the string drawn.
     Seconds,
-    /// `dword_755A0C`: the device's record (as the game keeps it).
+    /// The device's record (as the game keeps it).
     Record,
     /// `dword_7559DC` .. `dword_7559E8`: the sliders' ends.
     FirstLeft,
     FirstRight,
     SecondLeft,
     SecondRight,
-    /// `dword_7559EC`: the stick's place; `dword_7559F0`: its buttons.
+    /// The stick's place; `dword_7559F0`: its buttons.
     Place,
     Buttons,
 }

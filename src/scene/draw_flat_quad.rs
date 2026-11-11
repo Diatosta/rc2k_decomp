@@ -27,6 +27,7 @@ pub fn draw_flat_quad(
     face: &crate::race::face_work::FaceWork,
     course: &Course,
     scene: &crate::scene::owner::Scene,
+    screen: &crate::session::Screen,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
     let shared = &race.shared;
@@ -89,7 +90,7 @@ pub fn draw_flat_quad(
         poly.polygon_sides[0].set(1);
         poly.polygon_sides[1].set(0);
         crate::scene::depth_buffer_on::depth_buffer(false);
-        crate::scene::draw_polygon::draw_polygon_in_game(poly, race, face, scene)?;
+        crate::scene::draw_polygon::draw_polygon_in_game(poly, race, face, scene, screen)?;
         poly.polygon_drawn.set(1);
         crate::scene::depth_buffer_on::depth_buffer(true);
     }

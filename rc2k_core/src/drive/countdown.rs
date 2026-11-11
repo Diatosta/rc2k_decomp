@@ -12,7 +12,7 @@ pub const SECONDS: u32 = 6;
 pub enum Beep {
     /// Finished, or not running: nothing.
     Idle,
-    /// Before the count down's start: the time since it (below 0; the original's eax).
+    /// Before the count down's start: the time since it (below 0).
     Before(u32),
     /// The car's second (-1 from 6 on) and the hundredths past it; `cue` on a whole
     /// second not -1 (the second's sound is cued).
@@ -47,24 +47,23 @@ pub fn countdown_beep(finished: u32, running: u32, elapsed: impl FnOnce() -> u32
     }
 }
 
-/// `drive::hold_count_tick`: the hold (`dword_6235EC`) counted down to 0.
+/// `drive::hold_count_tick`: the hold counted down to 0.
 pub fn hold_tick(hold: &mut u32) {
     if *hold != 0 {
         *hold -= 1;
     }
 }
 
-/// How `drive::countdown_sound` plays the beep (`sound::play_sound`'s registers: eax the
-/// sound, ebx and edx the volume, ecx, edi, ebp 0).
+/// How `drive::countdown_sound` plays the beep (the sound and its volume).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct BeepSound {
-    /// The car's sound slot plus the beep (eax).
+    /// The car's sound slot plus the beep.
     pub sound: u32,
-    /// -0x6F (ebx, edx).
+    /// -0x6F.
     pub volume: u32,
 }
 
-/// The beeps' volume (ebx and edx).
+/// The beeps' volume.
 pub const BEEP_VOLUME: u32 = 0xFFFF_FF91;
 
 /// `drive::countdown_sound`: for a listed car's sound slot 0 or 1 (unsigned) the beep

@@ -30,9 +30,9 @@ fn turn_of(v: u32, less: Option<u32>, over: u32, plus: u32, k: [u32; 2]) -> u32 
     }
 }
 
-// Converted: `rc2k_core::hud::disc::{needle_turn, needle_edx, needle_corners}`
+// Converted: `rc2k_core::hud::disc::{needle_turn, needle_angle, needle_corners}`
 pub fn draw_needle(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
-    use rc2k_core::hud::disc::{needle_corners, needle_edx, needle_turn};
+    use rc2k_core::hud::disc::{needle_angle, needle_corners, needle_turn};
     use rc2k_core::math::extended::to_f64;
     let kind = hud.block.needle_kind.get() != 0;
     let value = f32::from_bits(x87::from_int(hud.block.needle_value.get() as i32).to_bits());
@@ -49,7 +49,7 @@ pub fn draw_needle(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
         tk,
     );
     hud.block.fistp_scratch.set(turn);
-    let angle = needle_edx(turn);
+    let angle = needle_angle(turn);
     for (n, (x, y)) in needle_corners(
         hud.block
             .needle_corners

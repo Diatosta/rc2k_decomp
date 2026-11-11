@@ -87,7 +87,7 @@ pub enum Var {
     StagesDone,
     /// `dword_755970`: 1 when a saved game goes on.
     Continuing,
-    /// `dword_75598C`: the current player.
+    /// The current player.
     Current,
     /// `dword_755988`.
     EventMode,
@@ -103,7 +103,7 @@ pub enum Call {
     BeginEvent,
     ResetDrivers,
     ResetDriverCondition,
-    /// `menu::select_car_loop` with the list (esi).
+    /// `menu::select_car_loop` with the list.
     SelectCar(CarList),
     TakeShownCar,
     HideAllInGameOptions,
@@ -122,7 +122,7 @@ pub trait Event {
     fn call(&mut self, c: Call) -> Result<(), Self::Error>;
 }
 
-/// The repairs' set (`dword_75649C`).
+/// The repairs' set.
 pub const ALL_REPAIRS: u32 = 0xF;
 
 /// A starter's steps: the set-up (the one-player ones in their own order; the A8's

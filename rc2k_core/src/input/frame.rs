@@ -64,8 +64,7 @@ impl KeyTables {
     }
 
     /// The keys down now and not before (their low bits only, a dword at a time), and
-    /// before = now. The last dword's pressed and now (what the original leaves in eax
-    /// and edx).
+    /// before = now. The last dword's pressed and now.
     pub fn find_pressed(&mut self) -> (u32, u32) {
         let mut last = (0, 0);
         for at in (0..KEYS).step_by(4) {

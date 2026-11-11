@@ -9,7 +9,6 @@ use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
 use crate::race::owner_shared::RaceShared;
 use crate::race::trap::{Trap, car_at};
-use crate::scene::owner::scene;
 
 /// `race::full_view_window` (0x455ECB) / `race::full_view_window_2` (0x456004): the view
 /// window the whole screen (`view_size` / `dword_624090` its size, `view_offset` /
@@ -17,10 +16,13 @@ use crate::scene::owner::scene;
 /// `view_mirrored` 0 (the mirrored flag, now the mirror's own `PolygonWork::view_mirrored`)
 /// and the first's `draw_mode` 0 not kept. Its callers (`race::draw_race_scene`,
 /// `race::draw_mirror_view`) read no register it leaves.
-pub fn full_view_window(race: &Race, window: &crate::scene::view_window::ViewWindow) {
-    let system = crate::system::owner::system();
+pub fn full_view_window(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    system: &crate::system::owner::System,
+    window: &crate::scene::view_window::ViewWindow,
+) {
     let session = &system.session;
-    let scene = scene();
     window.view_size[0].set(session.screen.width.get());
     window.view_size[1].set(session.screen.height.get());
     window.view_offset[0].set(0);
@@ -29,6 +31,7 @@ pub fn full_view_window(race: &Race, window: &crate::scene::view_window::ViewWin
     crate::scene::set_view_window::set_view_window(
         race,
         scene,
+        system,
         window,
         &race.frame.view_and_records.view_vars,
     );
@@ -109,6 +112,7 @@ pub fn mirror_view_window(
     crate::scene::set_view_window::set_view_window_reaching(
         race,
         scene,
+        system,
         &poly.window,
         vars,
         MIRROR_REACH,

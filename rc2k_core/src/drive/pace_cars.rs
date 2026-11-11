@@ -1,12 +1,11 @@
 //! The arcade race's (run kind 2) two computer opponents kept near the lead car (from
-//! `drive::start_cars_behind` 0x43703E, its rules; the moves and calls stay the
-//! adapter's): their first starts, the gaps by how many cars are ahead, the wanted gaps
-//! eased toward (what the arcade HUD shows as the gaps to the cars ahead and behind), and
-//! the push apart of two cars too close. Only two of the arcade race's opponents are
-//! simulated at a time (the rest are numbers in `arcade_cars`). Every comparison takes the sign of the difference, as
-//! the original.
+//! `drive::start_cars_behind` 0x43703E, its rules; the moves and calls stay the adapter's): their
+//! first starts, the gaps by how many cars are ahead, the wanted gaps eased toward (what the arcade
+//! HUD shows as the gaps to the cars ahead and behind), and the push apart of two cars too close.
+//! Only two of the arcade race's opponents are simulated at a time (the rest are numbers in
+//! `arcade_cars`). Every comparison takes the sign of the difference, as the original.
 
-/// The first two starts: the last start (`dword_6051BC`) less 2 and less 1, put 80 and 40
+/// The first two starts: the last start less 2 and less 1, put 80 and 40
 /// checkpoints on.
 pub fn first_starts(last: u32) -> [(u32, u32); 2] {
     let a = last.wrapping_sub(2);
@@ -25,7 +24,7 @@ pub fn hold_signs(v: u32, lo_zero: bool, hi: u32) -> u32 {
     v
 }
 
-/// The start whose word gives the gaps: the cars ahead (`dword_70FA40`) less one, both
+/// The start whose word gives the gaps: the cars ahead less one, both
 /// held to 0 ..= the start count.
 pub fn gap_start(ahead: u32, count: u32) -> u32 {
     let v = hold_signs(ahead, true, count);
@@ -69,8 +68,8 @@ pub const EASE_SCALE: u32 = 0x14A;
 /// How far the eased gap may be before it jumps.
 pub const EASE_JUMP: u32 = 1000;
 
-/// The first pass: (the distance made positive, the original's eax; the eased gap when
-/// it jumps to the wanted one, which eax then holds).
+/// The first pass: (the distance made positive; the eased gap when it jumps to the
+/// wanted one, which the distance then holds).
 pub fn ease_jump(wanted: u32, eased: u32) -> (u32, Option<u32>) {
     let target = wanted.wrapping_mul(EASE_SCALE);
     let mut d = target.wrapping_sub(eased);

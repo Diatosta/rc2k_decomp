@@ -50,7 +50,7 @@ pub fn simple_car_step(
     );
     {
         crate::physics::wheel_surfaces::wheel_surfaces(
-            &crate::physics::step_inputs::StepInputs::of(race),
+            &crate::physics::step_inputs::StepInputs::of(race).wheels(),
             scene,
         )
     }?;

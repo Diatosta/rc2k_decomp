@@ -1,6 +1,6 @@
 //! The markers on the service area's four setup bars (from the six
 //! `screens::draw_*_marker` functions, 0x4A6E.. .. 0x4A70..): which marker is drawn, where
-//! on its bar, and what the original leaves in eax and esi. Drawing it (the bar's length
+//! on its bar. Drawing it (the bar's length
 //! and the blit) is the caller's.
 
 /// The bars' x (left, right) and y (upper, lower); 204 pixels long.
@@ -36,9 +36,9 @@ pub struct Menu {
 /// What is to be done.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Plan {
-    /// Nothing drawn: eax the item.
+    /// Nothing drawn: the item.
     Hidden { item: u32 },
-    /// The marker drawn: eax the percentage.
+    /// The marker drawn: the percentage.
     Draw {
         x: i32,
         y: i32,
@@ -49,8 +49,7 @@ pub enum Plan {
 
 /// What a marker does. `percent` is the value it shows (the installed one for `Always`,
 /// the chosen one for `Lower`, the player's for `Upper`), read only when the original
-/// reads it; for `Lower`, `installed` and `repair_flag` likewise. Also whether the repair
-/// flag was looked at (the original then leaves its address in esi). Errors are the
+/// reads it; for `Lower`, `installed` and `repair_flag` likewise. Errors are the
 /// readers'.
 pub fn plan<E>(
     marker: Marker,

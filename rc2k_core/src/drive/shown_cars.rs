@@ -7,31 +7,31 @@ use crate::Invalid;
 /// What the choice reads.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ShownSetup {
-    /// `dword_63DB94`: the players (views).
+    /// The players (views).
     pub players: u32,
-    /// `dword_5C5CE0`: the replay's mode (2 playing: the views are laid out by `layout`).
+    /// The replay's mode (2 playing: the views are laid out by `layout`).
     pub replay_mode: u32,
-    /// `dword_63DB88`: the playing replay's layout (1 .. 3), the replay frame head's byte +5: 1 one view
-    /// of car 1, 2 two views with split 1 (side by side), 3 two views with split 2.
+    /// The playing replay's layout (1 .. 3), the replay frame head's byte +5: 1 one
+    /// view of car 1, 2 two views with split 1 (side by side), 3 two views with split 2.
     pub layout: u32,
     /// `dword_52A910` (`g_netSession`): a network game on (only this machine's car is shown).
     pub network: u32,
-    /// `dword_63DBA0`: this machine's car in a network game.
+    /// This machine's car in a network game.
     pub local_car: u32,
 }
 
 /// What it sets.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ShownCars {
-    /// `dword_63DBA8`, `dword_63DBAC`: the cars the two views show.
+    /// The cars the two views show.
     pub cars: [u32; 2],
-    /// `dword_63DB98`: the views.
+    /// The views.
     pub views: u32,
-    /// `dword_6238A4`: the split (set only by a layout).
+    /// The split (set only by a layout).
     pub split: u32,
-    /// `off_63DBB0`, `off_63DBB4`: the two cars' blocks.
+    /// The two cars' blocks.
     pub blocks: [u32; 2],
-    /// `dword_641680` ..: each car's view (-1: not shown).
+    /// Each car's view (-1: not shown).
     pub listed: [u32; 8],
 }
 
@@ -39,13 +39,13 @@ pub struct ShownCars {
 pub const BLOCK: u32 = 0xFE0;
 
 impl ShownCars {
-    /// `drive::choose_shown_cars`: the blocks from `first_block` on. The original's eax:
-    /// this machine's car (network game), or the second view's block. A car past 7 is refused
-    /// before anything (it would write past the eight).
+    /// `drive::choose_shown_cars`: the blocks from `first_block` on. Returns this machine's car
+    /// (network game), or the second view's block. A car past 7 is refused before anything (it
+    /// would write past the eight).
     pub fn choose(&mut self, s: &ShownSetup, first_block: u32) -> Result<u32, Invalid> {
         let network = s.network != 0;
         if network && s.local_car > 7 {
-            return Err(Invalid("a network car above 7 (past dword_641680's eight)"));
+            return Err(Invalid("a network car above 7 (past the eight)"));
         }
         self.cars = [0, 0];
         self.views = s.players;

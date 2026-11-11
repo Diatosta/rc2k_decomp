@@ -16,7 +16,7 @@ use crate::gfx::blit_bar::BAR_HAS_NO_LENGTH;
 use crate::gfx::blit_glyph::BlitCall;
 use crate::menu::item_sprites_store::ItemSprite;
 use crate::menu::owner::Menus;
-use crate::session::Dword;
+use crate::session::DwordLike;
 use crate::text::draw_text::Canvas;
 use crate::text::measure_string_by_id::measure_string_by_id_at;
 
@@ -25,11 +25,11 @@ pub struct Kind {
     /// Which of the item's five sprite numbers the two ends are.
     left_at: usize,
     right_at: usize,
-    width: &'static Dword,
-    x: &'static Dword,
-    y: &'static Dword,
-    left: &'static Dword,
-    right: &'static Dword,
+    width: &'static dyn DwordLike,
+    x: &'static dyn DwordLike,
+    y: &'static dyn DwordLike,
+    left: &'static dyn DwordLike,
+    right: &'static dyn DwordLike,
     /// `draw_button` only. Right-aligned, it goes wrong in two places: from the second whole
     /// middle piece on it continues in the centred branch's loop, which draws rightwards and
     /// ends with a second right end; and when the width is a multiple of 32 it falls through
@@ -49,11 +49,31 @@ const BAD_ALIGN: &str = "Invalid Active Vbutt Align Tag";
 pub const PLAIN: Kind = Kind {
     left_at: 0,
     right_at: 1,
-    width: &crate::menu::owner::MENUS.screens.draw_work.seconds,
-    x: &crate::menu::owner::MENUS.screens.draw_work.scratch_b0,
-    y: &crate::menu::owner::MENUS.screens.draw_work.scratch_b4,
-    left: &crate::menu::owner::MENUS.screens.draw_work.glyph,
-    right: &crate::menu::owner::MENUS.screens.draw_work.scratch_c4,
+    width: &crate::menu::owner::MENUS
+        .unchecked()
+        .screens
+        .draw_work
+        .seconds,
+    x: &crate::menu::owner::MENUS
+        .unchecked()
+        .screens
+        .draw_work
+        .scratch_b0,
+    y: &crate::menu::owner::MENUS
+        .unchecked()
+        .screens
+        .draw_work
+        .scratch_b4,
+    left: &crate::menu::owner::MENUS
+        .unchecked()
+        .screens
+        .draw_work
+        .glyph,
+    right: &crate::menu::owner::MENUS
+        .unchecked()
+        .screens
+        .draw_work
+        .scratch_c4,
     slips: true,
     borrows: false,
     bad_align: FatalError {
@@ -78,11 +98,27 @@ pub const HIGHLIGHTED: Kind = Kind {
 pub const ALT: Kind = Kind {
     left_at: 0,
     right_at: 1,
-    width: &crate::menu::owner::MENUS.screens.draw_work.figure,
-    x: &crate::menu::owner::MENUS.screens.draw_work.hhmm,
-    y: &crate::menu::owner::MENUS.screens.draw_work.scratch_f4,
-    left: &crate::menu::owner::MENUS.screens.draw_work.scratch_00,
-    right: &crate::menu::owner::MENUS.screens.draw_work.scratch_04,
+    width: &crate::menu::owner::MENUS
+        .unchecked()
+        .screens
+        .draw_work
+        .figure,
+    x: &crate::menu::owner::MENUS.unchecked().screens.draw_work.hhmm,
+    y: &crate::menu::owner::MENUS
+        .unchecked()
+        .screens
+        .draw_work
+        .scratch_f4,
+    left: &crate::menu::owner::MENUS
+        .unchecked()
+        .screens
+        .draw_work
+        .scratch_00,
+    right: &crate::menu::owner::MENUS
+        .unchecked()
+        .screens
+        .draw_work
+        .scratch_04,
     slips: false,
     borrows: true,
     bad_align: FatalError {

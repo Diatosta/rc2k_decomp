@@ -12,12 +12,24 @@
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::race::owner::Race;
-use crate::session::Float;
+use crate::session::PlainFloat;
 /// Where the share goes (its factor is `FRAME_K.times`): the draw, the ring, the whole.
-static SHARES: [&Float; 3] = [
-    &crate::effects::owner::EFFECTS.setup.frame.draw_share,
-    &crate::effects::owner::EFFECTS.setup.frame.ring_share,
-    &crate::effects::owner::EFFECTS.setup.frame.whole_share,
+const SHARES: [&PlainFloat; 3] = [
+    &crate::effects::owner::EFFECTS
+        .unchecked()
+        .setup
+        .frame
+        .draw_share,
+    &crate::effects::owner::EFFECTS
+        .unchecked()
+        .setup
+        .frame
+        .ring_share,
+    &crate::effects::owner::EFFECTS
+        .unchecked()
+        .setup
+        .frame
+        .whole_share,
 ];
 const STATES: [(u32, u32); 6] = [
     (4, 0x15),
@@ -48,7 +60,7 @@ fn share(at: usize, start: u32, effects: &crate::effects::owner::Effects) {
 #[derive(Clone, Copy)]
 pub struct EffectsView<'a> {
     pub fog: &'a crate::scene::fog::Fog,
-    pub view_matrix: &'a [Float; 16],
+    pub view_matrix: &'a [crate::session::Float; 16],
     pub light: u32,
 }
 

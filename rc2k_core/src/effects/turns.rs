@@ -56,7 +56,7 @@ pub fn cosine_step(c: i32, m: i32, t: f32, a: f32) -> f32 {
     (-trig::cosine(angle) * t + a + t) as f32
 }
 
-/// `effects::smooth_steps`' two results (ecx, ebx) from step `n`, a (ebx) and b (ecx): t
+/// `effects::smooth_steps`' two results from step `n`, a and b: t
 /// (b - a) times `ease` (stored), then a + t - t cos(pi (n + 1) / steps[0]) and the same
 /// with n over steps[1].
 pub fn smooth_pair(n: u32, a: f32, b: f32, ease: f32, steps: [i32; 2]) -> (f32, f32) {
@@ -92,8 +92,8 @@ pub fn adjugate(p: &mut impl Places, s: u32, d: u32) {
 }
 
 /// `effects::clamp_pair`: st(0) times `k[0]` rounded (`fistp`) and held to 0 .. 0x7FFF
-/// (ebx), st(1) times `k[1]` held to 0 .. 0xFFFF (eax); then each over `k[3]` (st(0))
-/// and `k[2]` (st(1)), kept on the stack: (ebx, eax, [st(0), st(1)]).
+///, st(1) times `k[1]` held to 0 .. 0xFFFF; then each over `k[3]` (st(0))
+/// and `k[2]` (st(1)), kept on the stack: (the first, the second, [st(0), st(1)]).
 pub fn clamp_pair(st0: f64, st1: f64, k: [f32; 4]) -> (u32, u32, [f64; 2]) {
     use crate::math::geometry::fistp64;
     let b = fistp64(st0 * k[0] as f64).clamp(0, 0x7FFF);

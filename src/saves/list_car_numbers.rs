@@ -9,7 +9,7 @@
 //! Refuses a list of pointers without its -1 within the numbers' room, and a null entry.
 
 use crate::errors::BadInput;
-use crate::session::Dword;
+use crate::session::PlainDword;
 use crate::system::checked_reads::CheckedReads;
 
 // ---- game data ----
@@ -17,14 +17,30 @@ use crate::system::checked_reads::CheckedReads;
 /// How many dwords of each list of numbers are filled.
 const FILLED: usize = 0x28;
 /// (the numbers, the pointers)
-const LISTS: [(&[Dword], &[Dword]); 2] = [
+const LISTS: [(&[PlainDword], &[PlainDword]); 2] = [
     (
-        &crate::menu::owner::MENUS.cars.numbers.first_numbers,
-        &crate::menu::owner::MENUS.tables.lists.cars_second,
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .cars
+            .numbers
+            .first_numbers,
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .tables
+            .lists
+            .cars_second,
     ),
     (
-        &crate::menu::owner::MENUS.cars.numbers.second_numbers,
-        &crate::menu::owner::MENUS.tables.lists.shown_cars,
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .cars
+            .numbers
+            .second_numbers,
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .tables
+            .lists
+            .shown_cars,
     ),
 ];
 

@@ -52,7 +52,7 @@ impl Kind {
 
     /// Whether this kind goes out at the own car's step `count` (read afresh for each:
     /// every fourth step the inputs, at & 0x1F = 2 the place, at & 0xFF = 1 the rest),
-    /// with the masked count the original leaves in eax.
+    /// with the masked count.
     pub fn due(self, count: u32) -> (bool, u32) {
         let (mask, value) = match self {
             Kind::Inputs => (3, 0),

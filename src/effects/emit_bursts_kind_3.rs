@@ -13,12 +13,15 @@ use crate::effects::emit_bursts::{BurstSet, HALVES, emit_bursts_with};
 use crate::effects::owner::Effects;
 use crate::errors::Refused;
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
-use crate::session::{Dword, Float};
+use crate::session::{PlainDword, PlainFloat};
 
 /// `emit_bursts_kind_3`'s: `emit_bursts`' with its own factors and randoms.
-pub static SECOND: BurstSet = BurstSet {
+pub const SECOND: BurstSet = BurstSet {
     halves: HALVES,
-    tuning: &crate::effects::owner::EFFECTS.particles.second_tuning,
+    tuning: &crate::effects::owner::EFFECTS
+        .unchecked()
+        .particles
+        .second_tuning,
 };
 
 pub fn emit_bursts_kind_3(
@@ -33,10 +36,18 @@ impl BurstTuning {
     /// The values the game starts with (the image's bytes).
     pub const fn second() -> Self {
         BurstTuning {
-            strength_k: Float::new(-0.25),
-            first: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
-            blend_k: [Float::new(-0.25), Float::new(-0.25)],
-            second: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
+            strength_k: PlainFloat::new(-0.25),
+            first: [
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+            ],
+            blend_k: [PlainFloat::new(-0.25), PlainFloat::new(-0.25)],
+            second: [
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+            ],
         }
     }
 }
@@ -64,7 +75,7 @@ mod second_tuning_tests {
     fn second_tuning_starts_as_the_games() {
         assert_eq!(size_of::<BurstTuning>(), BurstTuning::LEN);
         assert!(
-            bytes(&crate::effects::owner::EFFECTS.particles.second_tuning)
+            bytes(&crate::effects::owner::effects().particles.second_tuning)
                 == crate::moved::image_bytes(BurstKind3Tuning::START, BurstTuning::LEN),
             "SECOND_TUNING starts differently from the image"
         );

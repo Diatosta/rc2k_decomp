@@ -83,7 +83,7 @@ pub fn polygon_indices(first: u32, count: u32) -> Vec<u16> {
 /// 0xDC).
 pub const KIND_SLOTS: u32 = 0x400;
 
-/// `set_batch_texture`: the entry of the texture shown (`dword_6D14FE`); refuses one
+/// `set_batch_texture`: the entry of the texture shown; refuses one
 /// past the table, before anything.
 pub fn texture_slot(shown: u32) -> Result<usize, Invalid> {
     if shown >= KIND_SLOTS {

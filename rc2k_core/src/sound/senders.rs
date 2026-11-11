@@ -4,7 +4,7 @@
 //! command (`sound::play_music` 0x40F80E, `stop_music` 0x40F826, `play_tune_2` .. `_9`
 //! 0x40F76F ..).
 
-/// The menus' sounds' volumes: `dword_755694`, `dword_7554E8`, `dword_755690`.
+/// The three volume settings the menus' sounds are played at.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MenuVolume {
     A,
@@ -42,22 +42,24 @@ pub fn menu_sound(which: u32, now: u32, next: u32) -> Option<(u32, Option<(u32, 
     Some((now.wrapping_add(MENU_SOUND_GAP), pick))
 }
 
-/// The sound modes with a place (`dword_4F82BC`'s bit).
+/// The sound mode bit of the modes that give a sound a place in space.
 pub const MODE_3D: u32 = 0x10_0000;
-/// No place: what esi, edi and ebp are sent as outside the 3D modes.
+/// No place: what the three place coordinates are sent as outside the 3D modes.
 pub const NO_PLACE: u32 = 0xFF80_0000;
 
-/// Command 1's esi, ecx, edi, ebp from the sender's ecx, edi, ebp: None while sounds are
-/// held back (1); outside the 3D modes no place, else the place (esi the ecx, ecx 0).
+/// The four values command 1 carries besides the sound, from the sender's `place`
+/// (a volume or distance value, then two coordinates): None while sounds are held back
+/// (1); outside the 3D modes no place and the first value in the second slot, else the
+/// place with a zero in the second slot.
 pub fn sound_place(held_back: u32, mode: u32, place: [u32; 3]) -> Option<[u32; 4]> {
     if held_back == 1 {
         return None;
     }
-    let [ecx, edi, ebp] = place;
+    let [first, second, third] = place;
     Some(if mode & MODE_3D == 0 {
-        [NO_PLACE, ecx, NO_PLACE, NO_PLACE]
+        [NO_PLACE, first, NO_PLACE, NO_PLACE]
     } else {
-        [ecx, 0, edi, ebp]
+        [first, 0, second, third]
     })
 }
 
@@ -71,7 +73,8 @@ pub fn stopped(request: u32) -> Option<u32> {
     (request & 0x8000 == 0).then_some(request)
 }
 
-/// Command 0xB, the music's: what it is sent with (eax, ebx, ecx, edx).
+/// Command 0xB, the music's: the tune, the tune to follow, the volume and the action it is sent
+/// with.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Music {
     pub tune: u32,
@@ -106,14 +109,14 @@ impl Music {
 pub enum TuneVolume {
     /// 0x40.
     Full,
-    /// The music's volume (`dword_5180FC`).
+    /// The music's volume setting.
     Music,
-    /// `dword_518100` (tune 8's).
+    /// Tune 8's own volume setting.
     Other,
 }
 
 /// `sound::play_tune_n` (2 .. 9): the tune, the one to go on with and its volume. Tune 8
-/// is started only while its switch (`dword_5180F4`) is 1, else the music is stopped.
+/// is started only while its switch is 1, else the music is stopped.
 pub fn tune(n: u32) -> Option<(u32, u32, TuneVolume)> {
     Some(match n {
         2 => (2, 0, TuneVolume::Full),

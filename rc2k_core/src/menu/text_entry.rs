@@ -16,8 +16,8 @@ pub const TEXT_LEN: usize = 0x1F;
 /// A text field's text, its NUL left out.
 pub type Text = [u8; TEXT_LEN];
 
-/// The entry's state: the length typed so far (`dword_75556D`), 1 while a text is being
-/// typed (`dword_7556A8`), the text as it was before (`unk_7558A4`, which Escape brings
+/// The entry's state: the length typed so far, 1 while a text is being
+/// typed, the text as it was before (`unk_7558A4`, which Escape brings
 /// back).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Entry {
@@ -59,7 +59,7 @@ impl Entry {
         self.length = 0;
     }
 
-    /// `menu::begin_player_name`: unless the Enter came with ah 4 (`with_4`), the name
+    /// `menu::begin_player_name`: unless the Enter came with the second byte 4 (`with_4`), the name
     /// kept in `kept` (the players' own copy), cleared and an entry going on; either way
     /// nothing typed.
     pub fn begin_player_name(&mut self, with_4: bool, name: &mut Text, kept: &mut Text) {

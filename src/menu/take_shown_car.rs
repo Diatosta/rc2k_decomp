@@ -9,9 +9,13 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::lists_store::CarList;
 use crate::menu::owner::Menus;
 use crate::menu::player::{PLAYERS, Player, player};
-use crate::session::Dword;
+use crate::session::PlainDword;
 
-pub const CURRENT_PLAYER_RVA: &Dword = &crate::menu::owner::MENUS.screens.event.current_player;
+pub const CURRENT_PLAYER_RVA: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .event
+    .current_player;
 const _: () = assert!(std::mem::offset_of!(Player, car_number) == 8);
 const _: () = assert!(std::mem::offset_of!(Player, class) == 0x90);
 

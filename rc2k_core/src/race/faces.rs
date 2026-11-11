@@ -362,7 +362,7 @@ pub fn depth_key(depth: u32) -> u32 {
     depth.wrapping_add(0x200_0000) >> 10
 }
 
-/// The depth entries' room (`dword_9D3730`).
+/// The depth entries' room.
 pub const MOST_DEPTH_ENTRIES: u32 = 0x1000;
 
 /// `race::add_depth_entry`: refused past the room (the original writes past the table).

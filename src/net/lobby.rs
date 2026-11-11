@@ -19,13 +19,18 @@
 //! objects whose methods note their arguments.
 
 use crate::errors::Refused;
+use crate::session::PlainDword;
 use crate::session::{Bytes, Dword};
 use crate::strings::owner::strings;
 use rc2k_core::fatal::Context;
 
 // ---- game data (IDA addresses) ----
 
-pub const SPRITES: &Dword = &crate::menu::owner::MENUS.screens.loop_flags.sprite_table; // g_spriteTable
+pub const SPRITES: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .loop_flags
+    .sprite_table; // g_spriteTable
 pub const PALETTE: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::MEASURE_23;
 pub const FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEADING_23;
 

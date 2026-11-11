@@ -275,13 +275,18 @@ pub fn front_end() -> &'static ViewScratch {
     &SLOTS[4]
 }
 
-/// What a view's drawing works with: the race, the scene, the view's own state, and whether
-/// polygons are cut at the far depth.
+/// What a view's drawing works with: the race, the scene, the system's facts (the screen's
+/// size, the machine's processor), the view's own state, and whether polygons are cut at the
+/// far depth.
 #[derive(Clone, Copy)]
 pub struct DrawCtx<'a> {
     pub race: &'a crate::race::owner::Race,
     pub scene: &'a crate::scene::owner::Scene,
+    pub system: &'a crate::system::owner::System,
     pub view: &'a ViewScratch,
+    /// The scene's clock as the frame took it (`restart_clock` in `race::draw_race_scene`,
+    /// before any view is drawn), what the animated shapes step by.
+    pub clock: u32,
     /// Off for the own car drawn over the view (`race::draw_view_overlays`; the original
     /// cleared `far_on` around it): `scene::clip_polygon_by_depth`'s far pass.
     pub far_clip: bool,
@@ -295,12 +300,15 @@ impl<'a> DrawCtx<'a> {
     pub fn new(
         race: &'a crate::race::owner::Race,
         scene: &'a crate::scene::owner::Scene,
+        system: &'a crate::system::owner::System,
         view: &'a ViewScratch,
     ) -> Self {
         Self {
             race,
             scene,
+            system,
             view,
+            clock: race.shared.physics_tables.scene_clock.get(),
             far_clip: true,
             marks: &crate::scene::car_marks::NONE,
         }

@@ -1,15 +1,14 @@
-//! The car's damage made into its working grades and failures, and its handling figures
-//! from its setup (from `physics::rate_damage` 0x4AF1EC and
-//! `physics::set_handling` 0x43EB5D). What each figure is, is a reading at best; the variables are named by where they are: the
-//! work copy (`g_car`) +offset, the grades' block (0x75B340) +offset, the handling block
-//! (0x613E00) +offset, and the setup's scale (`k256`, 256.0). The functions read
-//! and write them through `Figures`, in the original's order, each only where the
-//! original does.
+//! The car's damage made into its working grades and failures, and its handling figures from its
+//! setup (from `physics::rate_damage` 0x4AF1EC and `physics::set_handling` 0x43EB5D). What each
+//! figure is, is a reading at best; the variables are named by where they are: the work copy
+//! (`g_car`) +offset, the grades' block (0x75B340) +offset, the handling block (0x613E00) +offset,
+//! and the setup's scale (`k256`, 256.0). The functions read and write them through `Figures`, in
+//! the original's order, each only where the original does.
 //!
-//! Floats: what the x87 keeps on its stack is an `f64`, rounded to `f32` where the
-//! original stores (`physics::x87`): the same bits at the game's double precision. The
-//! chances' whole numbers are `fistp`ed from the product of two floats (exact in an
-//! `f64`, as on the x87), so the failures follow the original's to the bit.
+//! Floats: what the x87 keeps on its stack is an `f64`, rounded to `f32` where the original stores
+//! (`physics::x87`): the same bits at the game's double precision. The chances' whole numbers are
+//! `fistp`ed from the product of two floats (exact in an `f64`, as on the x87), so the failures
+//! follow the original's to the bit.
 
 use super::x87::{below, equal, fistp64, loaded};
 use crate::Invalid;
@@ -45,18 +44,18 @@ pub trait Figures {
 
 use At::{Car, Grades, Handling};
 
-/// `flt_75B388`: the products' factor.
+/// The products' factor.
 const K: At = Grades(0x48);
-/// `flt_75B350`, `flt_75B348`: the grades' floor and ceiling.
+/// The grades' floor and ceiling.
 const LOW: At = Grades(0x10);
 const HIGH: At = Grades(0x08);
-/// `flt_75B34C`: zero, as the original compares with it.
+/// Zero, as the original compares with it.
 const ZERO: At = Grades(0x0C);
-/// `flt_75B340`: the chances' factor.
+/// The chances' factor.
 const CHANCE: At = Grades(0);
-/// `dword_75B4A0`: the random the chances are drawn against.
+/// The random the chances are drawn against.
 const RANDOM: At = Grades(0x160);
-/// `dword_75B36C`: each chance's whole number.
+/// Each chance's whole number.
 const SCRATCH: At = Grades(0x2C);
 /// `engine_power_factor`: the first grade (+0x3F4).
 const FIRST: At = Car(0x3F4);
@@ -162,7 +161,8 @@ fn chance(m: &mut impl Figures, figure: At, turn: u32) -> bool {
     (r.wrapping_sub(t) as i32) < 0
 }
 
-/// `physics::rate_damage`: the damage figures made into the grades and failures; returns the gear bits.
+/// `physics::rate_damage`: the damage figures made into the grades and failures; returns the gear
+/// bits.
 pub fn rate_damage(m: &mut impl Figures) -> u32 {
     let k = m.float(K);
     let mut e = one_less_products(&[
@@ -265,9 +265,8 @@ const AFTER: [(At, At, At, At); 4] = [
 ];
 
 /// `physics::set_handling`: a drive kind above 1 refused before anything; then `grade`
-/// (`physics::grade_or_reset`, its result passed back) and the nine figures, each lo +
-/// setting / 256 (hi - lo), the drive kind's then times the drive-kind factor. Also returns the drive
-/// kind.
+/// (`physics::grade_or_reset`, its result passed back) and the nine figures, each lo + setting /
+/// 256 (hi - lo), the drive kind's then times the drive-kind factor. Also returns the drive kind.
 pub fn set_handling<M: Figures, T>(
     m: &mut M,
     grade: impl FnOnce(&mut M) -> T,

@@ -2,39 +2,39 @@
 //! scene switch, the level, stage and retry being played and the levels won. A `#[repr(C)]` struct
 //! with the image's layout, one static; `moved::MOVED` points the range at it.
 
-use crate::session::{Bytes, Dword};
+use crate::session::{PlainBytes, PlainDword};
 
 /// The arcade game's variables (IDA 0x7587E8 .. 0x758806).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Arcade {
     /// `dword_7587E8`: 1 when the front end's scene was let go for a race (`menu::reload_front_end` sets it up again).
-    pub scene_let_go: Dword,
+    pub scene_let_go: PlainDword,
     /// `g_arcadeLevel`: The arcade level being played.
-    pub level: Dword,
+    pub level: PlainDword,
     /// `g_arcadeStage`: The arcade stage being played.
-    pub stage: Dword,
+    pub stage: PlainDword,
     /// `g_arcadeRetry`: The retry count.
-    pub retry: Dword,
+    pub retry: PlainDword,
     /// `dword_7587F8`: The places the arcade game ranks (`menu::arcade_steps`).
-    pub places: Dword,
+    pub places: PlainDword,
     /// Unreferenced bytes (IDA 0x7587FC .. 0x758800).
-    pub _gap_7587fc: Bytes<4>,
+    pub _gap_7587fc: PlainBytes<4>,
     /// `byte_758800`: One byte a level: won before (the options file's last six bytes; `screens::locked_notes`).
-    pub levels_won: Bytes<8>,
+    pub levels_won: PlainBytes<8>,
 }
 
 /// First values the image's (`tests::arcade_game_starts_as_the_games`).
 impl Arcade {
     pub const fn new() -> Self {
         Arcade {
-            scene_let_go: Dword::new(0x0),
-            level: Dword::new(0x0),
-            stage: Dword::new(0x1),
-            retry: Dword::new(0x0),
-            places: Dword::new(0x64),
-            _gap_7587fc: Bytes::new([0; 4]),
-            levels_won: Bytes::new([0; 8]),
+            scene_let_go: PlainDword::new(0x0),
+            level: PlainDword::new(0x0),
+            stage: PlainDword::new(0x1),
+            retry: PlainDword::new(0x0),
+            places: PlainDword::new(0x64),
+            _gap_7587fc: PlainBytes::new([0; 4]),
+            levels_won: PlainBytes::new([0; 8]),
         }
     }
 }
@@ -47,7 +47,7 @@ pub const END: usize = 0x758806;
 /// Where IDA 0x7587E8 lives (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn arcade_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::menu::owner::MENUS.play.arcade)
+    crate::pointers::game_address(&raw const crate::menu::owner::menus().play.arcade)
 }
 
 #[cfg(test)]

@@ -1,8 +1,8 @@
-//! The lists of cars that can be chosen, and what the cheats add to them
-//! (from `menu::remove_secret_cars` 0x471BC7, `menu::add_clio_car` 0x471C33 and
-//! `menu::apply_cheats` 0x480AC1, and the choice of the cheat's list from
-//! `menu::cheat_car_list` 0x480D35; the arcade's `menu::add_shown_car` 0x486BD2). A list holds the addresses of car descriptions and
-//! ends with -1; each has a room of so many dwords before the next variable.
+//! The lists of cars that can be chosen, and what the cheats add to them (from
+//! `menu::remove_secret_cars` 0x471BC7, `menu::add_clio_car` 0x471C33 and `menu::apply_cheats`
+//! 0x480AC1, and the choice of the cheat's list from `menu::cheat_car_list` 0x480D35; the arcade's
+//! `menu::add_shown_car` 0x486BD2). A list holds the addresses of car descriptions and ends with
+//! -1; each has a room of so many dwords before the next variable.
 
 use crate::Invalid;
 
@@ -76,23 +76,23 @@ pub fn add_car(cars: &mut Vec<u32>, room: usize, car: u32) -> Result<bool, Inval
 }
 
 /// The lists of cars the menus hand to the car screens and the carousels (the original
-/// passes a list by its address, in esi, and keeps the carousel's in `dword_75A65C`).
+/// passes a list by its address and keeps the carousel's in `dword_75A65C`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CarList {
-    /// `off_759DCA`: the single rally's first list (by `dword_7554D8`), the network game's
+    /// The single rally's first list (by `dword_7554D8`), the network game's
     /// without a won car.
     First,
-    /// `off_75A042`: the single rally's second, the time trial's and the arcade's.
+    /// The single rally's second, the time trial's and the arcade's.
     Second,
-    /// `off_759E52`: the network game's with a won car (the Clio and the extra cars).
+    /// The network game's with a won car (the Clio and the extra cars).
     WithClio,
-    /// `off_759CAE`: the championship's.
+    /// The championship's.
     Championship,
-    /// `off_759D16`: the A8 game's (and the six fixed kinds' carousel, menu 0xC).
+    /// The A8 game's (and the six fixed kinds' carousel, menu 0xC).
     A8,
-    /// `off_75A412`: the cheat "Unlock Cars"'s (bit 1).
+    /// The cheat "Unlock Cars"'s (bit 1).
     Cheat,
-    /// `off_75A12E`: the arcade's shown cars.
+    /// The arcade's shown cars.
     Shown,
 }
 
@@ -129,7 +129,7 @@ impl CarList {
     }
 }
 
-/// `menu::cheat_car_list`: whether the cheat's car list (`off_75A412`) is chosen: the
+/// `menu::cheat_car_list`: whether the cheat's car list is chosen: the
 /// cheat "Unlock Cars" (bit 1) on.
 pub fn cheat_cars(cheats: u32) -> bool {
     cheats & 1 << 1 != 0

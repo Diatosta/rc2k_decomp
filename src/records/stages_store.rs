@@ -1488,7 +1488,7 @@ impl StageTables {
                 "a results table's variable off the championship's",
             ));
         }
-        let view = crate::pointers::GamePtr::to(&crate::menu::owner::MENUS.play.champ_view);
+        let view = crate::pointers::GamePtr::to(&crate::menu::owner::menus().play.champ_view);
         Ok(view.addr() + (name - champ::START) as u32)
     }
 

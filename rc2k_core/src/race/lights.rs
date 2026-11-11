@@ -111,8 +111,7 @@ pub fn part_wake(flag: u32, count: u32) -> PartWake {
 }
 
 /// Two colours added byte by byte, each held to 0xFF: all four bytes with MMX
-/// (`paddusb`), else the low three, the top byte left as `a`'s (the original's
-/// `add al, cl` / `add ah, ch` / `ror` steps).
+/// (`paddusb`), else the low three, the top byte left as `a`'s.
 pub fn add_colours(a: u32, b: u32, mmx: bool) -> u32 {
     let bytes = if mmx { 4 } else { 3 };
     let mut out = a;
@@ -167,13 +166,13 @@ pub fn headlights_light(
 /// square sum), the place's height off the beam (`side`, the turned y) and the car's
 /// marks (+0xABC).
 pub fn headlight_index(spread: u32, side: u32, marks: u32) -> u32 {
-    let mut ecx = clamp_byte(((spread >> 2).wrapping_sub(0x100)).wrapping_neg());
-    ecx = ecx.wrapping_add(ecx);
+    let mut beam = clamp_byte(((spread >> 2).wrapping_sub(0x100)).wrapping_neg());
+    beam = beam.wrapping_add(beam);
     let side = (side as i32).wrapping_abs() as u32;
     let f = clamp_byte(((0x10_0000u32.wrapping_sub(side)) as i32 >> 12) as u32);
-    let mut eax = f.wrapping_mul(ecx) >> 8;
-    eax = eax.wrapping_mul(marks) >> 8;
-    clamp_byte(eax)
+    let mut strength = f.wrapping_mul(beam) >> 8;
+    strength = strength.wrapping_mul(marks) >> 8;
+    clamp_byte(strength)
 }
 
 /// 0x44F863's grey of a lamp at the place: ((0x200000 - its distance) x its

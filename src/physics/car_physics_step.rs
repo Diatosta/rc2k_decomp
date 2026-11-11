@@ -131,7 +131,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     ph::probe_and_keep::probe_and_keep(&inputs.ground(), scene)?;
     ph::ease_car_value::ease_car_value(&race.shared.car, &race.shared.vars);
     ph::count_down_timers::count_down_timers(&race.shared.car, &race.shared.vars);
-    ph::wheel_surfaces::wheel_surfaces(&crate::physics::step_inputs::StepInputs::of(race), scene)?;
+    ph::wheel_surfaces::wheel_surfaces(&inputs.wheels(), scene)?;
     ph::surface_noise::surface_noise(
         &race.course.stage_prefs,
         &race.course.numbers,
@@ -242,7 +242,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
         ph::crossed_edge::crossed_edge(&inputs.contact(), scene)?;
         ph::wall_contacts::wall_contacts(&inputs.contact(), scene)?;
         ph::ground_contact::ground_contact(&inputs.contact(), scene)?;
-        { ph::car_collisions::car_collisions(&inputs, scene) }?;
+        { ph::car_collisions::car_collisions(&inputs.collisions(), scene) }?;
         ph::face_contacts::face_contacts(&inputs.contact(), scene)?;
         ph::keep_motion::keep_motion(&race.shared.car, &race.shared.physics_tables);
         ph::apply_contact_forces::apply_contact_forces(
@@ -286,7 +286,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
             >= race.shared.physics_tables.contact_steps.get()
         {
             ph::limit_motion::limit_motion(&race.shared.car, &race.shared.physics_tables, scene);
-            ph::find_clear_place::find_clear_place(&inputs, scene)?;
+            ph::find_clear_place::find_clear_place(&inputs.clear_place(), scene)?;
 
             race.shared
                 .physics_tables
@@ -303,10 +303,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
         ph::limit_motion::limit_motion(&race.shared.car, &race.shared.physics_tables, scene);
     }
     ph::feel_ground::feel_ground(&inputs.ground(), scene)?;
-    ph::reset_when_stuck::reset_when_stuck(
-        &crate::physics::step_inputs::StepInputs::of(race),
-        scene,
-    )?;
+    ph::reset_when_stuck::reset_when_stuck(&inputs.reset(), scene)?;
     ph::engine_sound::engine_sound(
         &race.course.numbers,
         &race.frame.matrices,
@@ -319,16 +316,8 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
         &race.course.numbers,
         scene,
     );
-    ph::track_checkpoints::track_checkpoints(
-        &crate::physics::step_inputs::StepInputs::of(race),
-        scene,
-        sound,
-    )?;
-    ph::pace_notes_step::pace_notes_step(
-        &crate::physics::step_inputs::StepInputs::of(race),
-        scene,
-        sound,
-    )?;
+    ph::track_checkpoints::track_checkpoints(&inputs.checkpoints(), scene, sound)?;
+    ph::pace_notes_step::pace_notes_step(&inputs.checkpoints(), scene, sound)?;
     ph::count_down_notice::count_down_notice(&race.shared.car);
     ph::accumulate_mud::accumulate_mud(&race.shared.car, &race.shared.vars, scene);
     x87_1(race);
@@ -362,11 +351,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
         &race.shared.car,
         scene,
     )?;
-    ph::car_lighting::car_lighting(
-        &crate::physics::step_inputs::StepInputs::of(race),
-        scene,
-        system,
-    )?;
+    ph::car_lighting::car_lighting(&inputs.lighting(), scene, system)?;
     ph::sum_forces::sum_forces(&race.shared.physics_tables);
     ph::blend_wheel_load::blend_wheel_load(
         &race.shared.car,
@@ -375,7 +360,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
         scene,
     );
     ph::share_engine_sound::share_engine_sound(&race.shared.car)?;
-    ph::false_start::false_start(&crate::physics::step_inputs::StepInputs::of(race))?;
+    ph::false_start::false_start(&inputs.reset())?;
     ph::value_notice::value_notice(&race.shared.car);
     Ok(())
 }

@@ -24,53 +24,89 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
 use crate::scene::matrix3::rounded;
-use crate::session::{Dword, Float};
+use crate::session::{PlainDword, PlainFloat};
 
 /// The motion: per axis (x, y, z) the three (factor, wheel speed) pairs; the scales are
 /// `KIND6_SET.motion_k[3 * axis + n]`.
 /// A wheel record's speed figure.
-type Speed = fn(&MarkRecord) -> &Float;
+type Speed = fn(&MarkRecord) -> &crate::session::Float;
 
-const MOTION: [[(&Float, Speed); 3]; 3] = [
+const MOTION: [[(&PlainFloat, Speed); 3]; 3] = [
     [
         (
-            &crate::effects::owner::EFFECTS.kinds.emitter.side_a[0],
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .kinds
+                .emitter
+                .side_a[0],
             |w| &w.local_velocity_x,
         ),
         (
-            &crate::effects::owner::EFFECTS.kinds.emitter.side_b[0],
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .kinds
+                .emitter
+                .side_b[0],
             |w| &w.local_velocity_z,
         ),
         (
-            &crate::effects::owner::EFFECTS.kinds.emitter.side_b[0],
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .kinds
+                .emitter
+                .side_b[0],
             |w| &w.driven_speed,
         ),
     ],
     [
         (
-            &crate::effects::owner::EFFECTS.kinds.emitter.side_a[1],
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .kinds
+                .emitter
+                .side_a[1],
             |w| &w.local_velocity_x,
         ),
         (
-            &crate::effects::owner::EFFECTS.kinds.emitter.side_b[1],
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .kinds
+                .emitter
+                .side_b[1],
             |w| &w.local_velocity_z,
         ),
         (
-            &crate::effects::owner::EFFECTS.kinds.emitter.side_b[1],
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .kinds
+                .emitter
+                .side_b[1],
             |w| &w.driven_speed,
         ),
     ],
     [
         (
-            &crate::effects::owner::EFFECTS.kinds.emitter.side_a[2],
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .kinds
+                .emitter
+                .side_a[2],
             |w| &w.local_velocity_x,
         ),
         (
-            &crate::effects::owner::EFFECTS.kinds.emitter.side_b[2],
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .kinds
+                .emitter
+                .side_b[2],
             |w| &w.local_velocity_z,
         ),
         (
-            &crate::effects::owner::EFFECTS.kinds.emitter.side_b[2],
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .kinds
+                .emitter
+                .side_b[2],
             |w| &w.driven_speed,
         ),
     ],
@@ -236,17 +272,17 @@ pub fn emit_wheel_fade_particle(
 #[derive(rc2k_derive::Cells)]
 pub struct WheelFadeSet {
     /// 0x93A41A: `flt_93A41A` .. `flt_93A426`: the rate's factors
-    pub rate_k: [Float; 4],
+    pub rate_k: [PlainFloat; 4],
     /// 0x93A42A: `dword_93A42A`: the side's random
-    pub side_random: Dword,
+    pub side_random: PlainDword,
     /// 0x93A42E: `flt_93A42E`: the place's drop in y
-    pub lift: Float,
+    pub lift: PlainFloat,
     /// 0x93A432: `flt_93A432` .. `flt_93A452`: per axis (x, y, z) the scales of the three products (wheel +0x10, +0x18, +0xC)
-    pub motion_k: [Float; 9],
+    pub motion_k: [PlainFloat; 9],
     /// 0x93A456: `dword_93A456`: the spin's random
-    pub spin_random: Dword,
+    pub spin_random: PlainDword,
     /// 0x93A45A: `flt_93A45A`, `flt_93A45E`: the size's factors
-    pub size_k: [Float; 2],
+    pub size_k: [PlainFloat; 2],
 }
 
 impl WheelFadeSet {
@@ -254,26 +290,26 @@ impl WheelFadeSet {
     pub const fn new() -> Self {
         WheelFadeSet {
             rate_k: [
-                Float::new(65.336),
-                Float::new(0.0002),
-                Float::new(1.0),
-                Float::new(196608.0),
+                PlainFloat::new(65.336),
+                PlainFloat::new(0.0002),
+                PlainFloat::new(1.0),
+                PlainFloat::new(196608.0),
             ],
-            side_random: Dword::new(0x0),
-            lift: Float::new(65536.0),
+            side_random: PlainDword::new(0x0),
+            lift: PlainFloat::new(65536.0),
             motion_k: [
-                Float::new(65.536),
-                Float::new(-49.152),
-                Float::new(26.152),
-                Float::new(65.536),
-                Float::new(-49.152),
-                Float::new(26.152),
-                Float::new(65.536),
-                Float::new(-49.152),
-                Float::new(26.152),
+                PlainFloat::new(65.536),
+                PlainFloat::new(-49.152),
+                PlainFloat::new(26.152),
+                PlainFloat::new(65.536),
+                PlainFloat::new(-49.152),
+                PlainFloat::new(26.152),
+                PlainFloat::new(65.536),
+                PlainFloat::new(-49.152),
+                PlainFloat::new(26.152),
             ],
-            spin_random: Dword::new(0x0),
-            size_k: [Float::new(0.3), Float::new(8192.0)],
+            spin_random: PlainDword::new(0x0),
+            size_k: [PlainFloat::new(0.3), PlainFloat::new(8192.0)],
         }
     }
 }
@@ -299,7 +335,7 @@ mod kind6_set_tests {
     fn kind6_set_starts_as_the_games() {
         assert_eq!(size_of::<WheelFadeSet>(), WheelFadeSet::LEN);
         assert!(
-            bytes(&crate::effects::owner::EFFECTS.particles.kind6_set)
+            bytes(&crate::effects::owner::effects().particles.kind6_set)
                 == crate::moved::image_bytes(WheelFadeSet::START, WheelFadeSet::LEN),
             "KIND6_SET starts differently from the image"
         );

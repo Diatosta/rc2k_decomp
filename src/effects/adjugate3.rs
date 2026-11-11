@@ -7,17 +7,17 @@
 //! Caller: `effects::expire_windscreen_drops` (0x4BCD63). The arithmetic is plain Rust on the x87
 //! model (`math::x87_float`), in the original's order.
 
-use crate::session::Float;
+use crate::session::PlainFloat;
 
 /// `s` the matrix, `d` the result (another array).
-pub fn adjugate3(s: &[Float; 9], d: &[Float; 9]) {
+pub fn adjugate3(s: &[PlainFloat; 9], d: &[PlainFloat; 9]) {
     adjugate3_x87(s, d);
 }
 
 use crate::effects::plain::{ld_cell, st_cell};
 
 /// `adjugate3`'s x87 block as plain Rust on the x87 model (54 instructions), same order and memory places.
-fn adjugate3_x87(s: &[Float; 9], d: &[Float; 9]) {
+fn adjugate3_x87(s: &[PlainFloat; 9], d: &[PlainFloat; 9]) {
     let t0 = ld_cell(&s[4]);
     let t1 = t0 * ld_cell(&s[8]);
     let t2 = ld_cell(&s[5]);
@@ -150,12 +150,12 @@ mod asm_differential {
     use super::asm_reference as reference;
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::{Op, Spec, differential};
-    use crate::session::Float;
+    use crate::session::PlainFloat;
 
     /// Nine floats holding the test buffer's (at `at`) dwords.
-    fn staged(at: usize) -> [Float; 9] {
+    fn staged(at: usize) -> [PlainFloat; 9] {
         std::array::from_fn(|n| {
-            Float::from_bits(unsafe {
+            PlainFloat::from_bits(unsafe {
                 crate::pointers::host_at(at + 4 * n)
                     .cast::<u32>()
                     .read_unaligned()
@@ -164,7 +164,7 @@ mod asm_differential {
     }
 
     /// The nine floats back into the test buffer at `at`.
-    fn put_back(at: usize, cells: &[Float; 9]) {
+    fn put_back(at: usize, cells: &[PlainFloat; 9]) {
         for (n, cell) in cells.iter().enumerate() {
             unsafe {
                 crate::pointers::host_at(at + 4 * n)

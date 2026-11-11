@@ -7,12 +7,12 @@ use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::session::{Bytes, Dword, Float, write_bits};
+use crate::session::{PlainBytes, PlainDword, PlainFloat, write_bits};
 
 /// One variable of a kind's tables: a typed cell.
 pub enum Var<'a> {
-    Dword(&'a Dword),
-    Float(&'a Float),
+    Dword(&'a PlainDword),
+    Float(&'a PlainFloat),
 }
 
 impl Var<'_> {
@@ -35,14 +35,14 @@ impl Var<'_> {
 pub struct Shapes<'a> {
     pub done: Var<'a>,
     /// The items (`ITEMS` of `item_len` bytes).
-    pub items: &'a Bytes<0x18000>,
+    pub items: &'a PlainBytes<0x18000>,
     pub item_len: u32,
-    pub curve: &'a [Float; CURVE as usize],
+    pub curve: &'a [PlainFloat; CURVE as usize],
     pub curve_a: Var<'a>,
     pub curve_b: Var<'a>,
-    pub radii: &'a [Float],
+    pub radii: &'a [PlainFloat],
     /// The circles' points, three floats a point, `sides` points a circle.
-    pub points: &'a [Float],
+    pub points: &'a [PlainFloat],
     pub sides: u32,
     pub step_c: Var<'a>,
     pub step_d: Var<'a>,
@@ -148,7 +148,7 @@ mod squares {
 }
 
 /// The four floats `set_up_windscreen_drops` scales once, by one or two factors each.
-fn scaled(drops: &WindscreenDrops) -> [(&Float, Vec<&Float>); 4] {
+fn scaled(drops: &WindscreenDrops) -> [(&PlainFloat, Vec<&PlainFloat>); 4] {
     let hex = &drops.hex;
     [
         (&hex.scale[0], vec![&hex.factors[0]]),
@@ -181,7 +181,7 @@ impl<'a> Shapes<'a> {
     }
 
     /// Circle `n`'s points.
-    fn circle(&self, n: usize) -> &'a [Float] {
+    fn circle(&self, n: usize) -> &'a [PlainFloat] {
         let len = 3 * self.sides as usize;
         &self.points[len * n..len * (n + 1)]
     }
@@ -228,7 +228,7 @@ impl<'a> Shapes<'a> {
 
 /// `x87::circle_points` on cells: radius `r` (bits), `out` three floats a point (the
 /// third left alone), the angle's step `pi / c * d`.
-fn circle_cells(r: u32, out: &[Float], count: u32, c: u32, d: u32) {
+fn circle_cells(r: u32, out: &[PlainFloat], count: u32, c: u32, d: u32) {
     let mut buf = [0u32; 3 * 6];
     let buf = &mut buf[..out.len()];
     for (b, f) in buf.iter_mut().zip(out) {

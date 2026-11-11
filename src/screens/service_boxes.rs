@@ -4,14 +4,14 @@
 use crate::errors::Refused;
 use crate::menu::owner::Screens;
 use crate::race::owner::race;
-use crate::session::Dword;
+use crate::session::DwordLike;
 
 /// A variable of the game.
-pub fn rd(a: &Dword) -> u32 {
+pub fn rd(a: &dyn DwordLike) -> u32 {
     a.get()
 }
 
-pub fn set(a: &Dword, v: u32) {
+pub fn set(a: &dyn DwordLike, v: u32) {
     a.set(v);
 }
 
@@ -29,6 +29,7 @@ pub fn quad(x: u32, y: u32, w: u32, h: u32, colour: u32, see: u32) -> Result<(),
     crate::scene::draw_tinted_quad::draw_tinted_quad(&crate::race::view_scratch::DrawCtx::new(
         crate::race::owner::race(),
         scene,
+        crate::system::owner::system(),
         scratch,
     ))
 }
@@ -113,7 +114,7 @@ pub fn chosen_frame(
     screens: &Screens,
     item: u32,
     setup: &crate::menu::state_store::SetupItem,
-    flag: &Dword,
+    flag: &dyn DwordLike,
     first_x: u32,
     step: u32,
     cells: u32,

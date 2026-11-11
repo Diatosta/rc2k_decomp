@@ -15,6 +15,7 @@ use crate::scene::view_matrix::set_view_matrices;
 
 pub fn prepare_menu_scene(scene: &crate::scene::owner::Scene, scratch: &ViewScratch) {
     let race = race();
+    let system = crate::system::owner::system();
     let frame = &race.frame;
     crate::session::write_bits(&race.frame.view_and_records.view_vars.view_place, [0u32; 3]);
     crate::session::write_first(
@@ -25,6 +26,7 @@ pub fn prepare_menu_scene(scene: &crate::scene::owner::Scene, scratch: &ViewScra
     set_view_window(
         race,
         scene,
+        system,
         &scratch.polygon.window,
         &race.frame.view_and_records.view_vars,
     );

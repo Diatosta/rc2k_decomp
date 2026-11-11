@@ -8,7 +8,7 @@
 /// The A8 championship's `g_eventMode`.
 pub const A8: u32 = 0x13;
 
-/// The most a page's figure (`dword_7556B4`) may be (signed).
+/// The most a page's figure may be (signed).
 pub const OVERALL_MOST: u32 = 0xAB;
 pub const CLASS_MOST: u32 = 0x33;
 pub const A8_CLASS_MOST: u32 = 0x51;

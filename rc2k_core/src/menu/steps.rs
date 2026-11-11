@@ -39,8 +39,8 @@ pub fn texture(value: u32, up: bool) -> u32 {
     }
 }
 
-/// A start-section pick (IDA's "colour": 0 .. 6, see `ScreenFlow::start_section`) cycled through 0 .. 6 (signed: a number past 6 going up is 0, one
-/// below 0 going down 6).
+/// A start-section pick (IDA's "colour": 0 .. 6, see `ScreenFlow::start_section`) cycled through 0
+/// .. 6 (signed: a number past 6 going up is 0, one below 0 going down 6).
 pub fn colour(n: i32, up: bool) -> i32 {
     if up {
         let n = n.wrapping_add(1);
@@ -216,7 +216,8 @@ pub fn gearing_switch_text(switch: u32) -> u32 {
 }
 
 /// `menu::apply_screen_mode`: what the screen mode's setting (`gfx::screen_mode_choices`) is asked:
-/// eax 1 the mode chosen, then, refused, 0 the list made again from the race screen mode (the mode before; see `gfx::screen_mode_choices`).
+/// 1 the mode chosen, then, refused, 0 the list made again from the race screen mode (the
+/// mode before).
 pub const TRY_CHOSEN_MODE: u32 = 1;
 pub const BACK_TO_MODE: u32 = 0;
 

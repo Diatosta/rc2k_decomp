@@ -34,7 +34,7 @@ pub enum EditKey {
 }
 
 impl EditKey {
-    /// The key's way, for a key that is not a character itself (ah bit 0 clear).
+    /// The key's way, for a key that is not a character itself (bit 8 of the key code clear).
     pub fn of(key: u8) -> EditKey {
         match key {
             1 => EditKey::Escape,

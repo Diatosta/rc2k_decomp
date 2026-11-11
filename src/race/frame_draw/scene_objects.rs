@@ -152,6 +152,7 @@ pub fn draw_screen_quad(
     race: &Race,
     face: &crate::race::face_work::FaceWork,
     scene: &crate::scene::owner::Scene,
+    screen: &crate::session::Screen,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
     let course = &race.course;
@@ -197,7 +198,7 @@ pub fn draw_screen_quad(
         face.polygon_mode.set(0u32);
         poly.polygon_sides[0].set(1u32);
         poly.polygon_sides[1].set(0u32);
-        crate::scene::draw_polygon::draw_polygon_in_game(poly, race, face, scene)?;
+        crate::scene::draw_polygon::draw_polygon_in_game(poly, race, face, scene, screen)?;
         face.polygon_mode.set(0u32);
         poly.polygon_drawn.set(1u32);
         crate::scene::depth_buffer_on::depth_buffer(true);
@@ -214,6 +215,7 @@ pub fn draw_view_tint(
     race: &Race,
     face: &crate::race::face_work::FaceWork,
     scene: &crate::scene::owner::Scene,
+    screen: &crate::session::Screen,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
     let shared = &race.shared;
@@ -225,7 +227,7 @@ pub fn draw_view_tint(
     poly.polygon_textures[0].set(u32::MAX);
     poly.polygon_sides[0].set(1u32);
     poly.polygon_sides[1].set(0u32);
-    draw_screen_quad(poly, race, face, scene, view)
+    draw_screen_quad(poly, race, face, scene, screen, view)
 }
 
 /// `race::add_car_depth_entry` (0x4574A0): the place (+0x134 .., into `OBJECT_WORK.place` ..) of

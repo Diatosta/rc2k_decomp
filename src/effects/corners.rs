@@ -10,16 +10,16 @@ use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
-use crate::session::{Bytes, Dword, read_bits, read_first, write_bits};
+use crate::session::{PlainBytes, PlainDword, read_bits, read_first, write_bits};
 
 /// The two corner tables (`g_marksCornersA`, `_B`).
-pub fn tables(masks: &Masks) -> [&Bytes<3096>; 2] {
+pub fn tables(masks: &Masks) -> [&PlainBytes<3096>; 2] {
     [&masks.vars.corners_a, &masks.vars.corners_b]
 }
 pub const ENTRIES: u32 = 0x81;
 const ENTRY: u32 = 0x18;
 /// Each table's two steps' starts and the end they both go to.
-fn steps(drops: &WindscreenDrops) -> [([usize; 2], &Dword); 2] {
+fn steps(drops: &WindscreenDrops) -> [([usize; 2], &PlainDword); 2] {
     [
         ([0, 2], &drops.shape_work.work.steps[0]), // `MaskConstants::corner_angles`: dword_89C9CC, dword_89C9D4; dword_884FC4
         ([4, 6], &drops.shape_work.work.steps[1]), // dword_89C9DC, dword_89C9E4; dword_884FC8
@@ -36,7 +36,7 @@ fn offsets(drops: &WindscreenDrops, n: usize) -> [u32; 2] {
     read_first(low)
 }
 
-fn get<const N: usize>(table: &Bytes<N>, at: u32) -> Result<u32, BadInput> {
+fn get<const N: usize>(table: &PlainBytes<N>, at: u32) -> Result<u32, BadInput> {
     let at = at as usize;
     if at.checked_add(4).is_none_or(|end| end > N) {
         return Err(BadInput("a read past a marks' table"));
@@ -44,7 +44,7 @@ fn get<const N: usize>(table: &Bytes<N>, at: u32) -> Result<u32, BadInput> {
     Ok(table.get_u32(at))
 }
 
-fn put<const N: usize>(table: &Bytes<N>, at: u32, v: u32) -> Result<(), BadInput> {
+fn put<const N: usize>(table: &PlainBytes<N>, at: u32, v: u32) -> Result<(), BadInput> {
     let at = at as usize;
     if at.checked_add(4).is_none_or(|end| end > N) {
         return Err(BadInput("a write past a marks' table"));

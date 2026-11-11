@@ -28,7 +28,6 @@ use crate::menu::name_lists::NAME_LEN;
 use crate::net::owner::net;
 use crate::race::owner::race;
 use crate::service::owner::service;
-use crate::session::Bytes;
 use crate::session::Dword;
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::copy_printable::printable_from;
@@ -76,8 +75,8 @@ pub enum Call {
 pub type Outside<'a> = &'a mut dyn FnMut(Call) -> Result<u32, Refused>;
 
 /// The string and what follows it, with a NUL, at `to`.
-fn default_name<const N: usize>(
-    to: &Bytes<N>,
+fn default_name(
+    to: &impl crate::session::ByteBuffer,
     at: usize,
     room: usize,
     id: u32,
@@ -87,21 +86,21 @@ fn default_name<const N: usize>(
     push_string(&mut string, id)?;
     let name = rc2k_core::system::game_data::default_name(&string, after, room)
         .ok_or(BadInput("a default name longer than its place"))?;
-    to.write_at(at, &name, "a default name")?;
+    to.write_bytes_at(at, &name, "a default name")?;
     Ok(())
 }
 
 /// A list of 100 names: every empty one becomes the string and the slot's number.
-fn number_empty_names<const N: usize>(names: &Bytes<N>, id: u32) -> Result<(), BadInput> {
+fn number_empty_names(names: &impl crate::session::ByteBuffer, id: u32) -> Result<(), BadInput> {
     for slot in 0..SLOTS {
         let name = slot as usize * NAME_LEN;
-        if names.get(name) == 0 {
+        if names.get_byte(name) == 0 {
             let mut string = Vec::new();
             push_string(&mut string, id)?;
             let bytes = rc2k_core::system::game_data::slot_name(&string, slot, NAME_LEN)
                 .ok_or(BadInput("a default name longer than its place"))?;
             // The name bytes at their slot in the names buffer.
-            names.write_at(name, &bytes, "a default slot name")?;
+            names.write_bytes_at(name, &bytes, "a default slot name")?;
         }
     }
     Ok(())

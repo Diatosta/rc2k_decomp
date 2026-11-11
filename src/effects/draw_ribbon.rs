@@ -303,10 +303,9 @@ mod asm_differential {
     use crate::effects::asm_test::with_copy;
     use crate::effects::asm_test::{Op, Spec, differential};
     use crate::effects::frame_state::{DrawWork, ViewVars};
-    use crate::session::Float;
 
     /// The vertex float at byte `off` of the vertices (x, y or z of a vertex).
-    fn vertex_cell(off: usize) -> &'static Float {
+    fn vertex_cell(off: usize) -> &'static crate::session::Float {
         let v = &VERTICES.vertices[off / 32];
         match off % 32 {
             0x0 => &v.x,

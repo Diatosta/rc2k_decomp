@@ -4,14 +4,14 @@
 use crate::d3d::vertices_store::Vertex;
 #[cfg(test)]
 use crate::effects::owner::effects;
-use crate::session::{Bytes, Dword, Float};
+use crate::session::{Dword, Float, PlainBytes, PlainDword, PlainFloat};
 
 /// The clip's screen edges and work vertices (IDA 0x7687E4 .. 0x7688B4).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ClipScreen {
     /// 0x7687E4: `g_marksScreenMiddleX`, `g_marksScreenMiddleXLess`, `g_marksScreenMiddleY`, `g_marksScreenMiddleYLess`: the screen's middle and one less (`effects::init_marks` sets them; `effects::clip_quad` clips against the settings' edge).
-    pub edges: [Float; 4],
+    pub edges: [PlainFloat; 4],
     /// 0x7687F4: `g_marksClipVertices`: six `TLVertex`s (0x20 bytes each) `effects::clip_quad` builds the clipped quad in.
     pub vertices: [Vertex; 6],
 }
@@ -33,10 +33,10 @@ impl ClipScreen {
     pub const fn new() -> Self {
         Self {
             edges: [
-                Float::new(400.0),
-                Float::new(399.0),
-                Float::new(300.0),
-                Float::new(299.0),
+                PlainFloat::new(400.0),
+                PlainFloat::new(399.0),
+                PlainFloat::new(300.0),
+                PlainFloat::new(299.0),
             ],
             vertices: [const { zero_vertex() }; 6],
         }
@@ -53,35 +53,35 @@ impl ClipScreen {
 #[derive(rc2k_derive::Cells)]
 pub struct GlowState {
     /// 0x93CC70: `dword_93CC70`: 1 = no glow (initially 1).
-    pub off: Dword,
+    pub off: PlainDword,
     /// 0x93CC74: `flt_93CC74`, `flt_93CC78`, `flt_93CC7C`: the glow's place (as the sprite's x, y, z are taken: z, y, x).
-    pub place: [Float; 3],
+    pub place: [PlainFloat; 3],
     /// 0x93CC80: Not named: 20 bytes (a gap, or unreferenced data).
-    pub _gap_93cc80: Bytes<20>,
+    pub _gap_93cc80: PlainBytes<20>,
     /// 0x93CC94: `dword_93CC94`: the vertex count `effects::clip_quad` leaves (nothing ported reads it; it sits in the glow's block).
-    pub clip_count: Dword,
+    pub clip_count: PlainDword,
     /// 0x93CC98: Not named: 12 bytes (a gap, or unreferenced data).
-    pub _gap_93cc98: Bytes<12>,
+    pub _gap_93cc98: PlainBytes<12>,
     /// 0x93CCA4: `dword_93CCA4`: the glow sprite's angle.
-    pub angle: Dword,
+    pub angle: PlainDword,
     /// 0x93CCA8: `flt_93CCA8`, `flt_93CCAC`: added to the place's z and y.
-    pub offset: [Float; 2],
+    pub offset: [PlainFloat; 2],
 }
 
 impl GlowState {
     pub const fn new() -> Self {
         Self {
-            off: Dword::new(0x1),
+            off: PlainDword::new(0x1),
             place: [
-                Float::new(262144.0),
-                Float::new(-65536.0),
-                Float::new(-65536.0),
+                PlainFloat::new(262144.0),
+                PlainFloat::new(-65536.0),
+                PlainFloat::new(-65536.0),
             ],
-            _gap_93cc80: Bytes::new([0; 20]),
-            clip_count: Dword::new(0x0),
-            _gap_93cc98: Bytes::new([0; 12]),
-            angle: Dword::new(0x0),
-            offset: [Float::new(0.0), Float::new(0.0)],
+            _gap_93cc80: PlainBytes::new([0; 20]),
+            clip_count: PlainDword::new(0x0),
+            _gap_93cc98: PlainBytes::new([0; 12]),
+            angle: PlainDword::new(0x0),
+            offset: [PlainFloat::new(0.0), PlainFloat::new(0.0)],
         }
     }
 }

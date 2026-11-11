@@ -6,7 +6,7 @@
 use crate::Invalid;
 use std::ops::Range;
 
-/// The most classes (`dword_7558F8`) the passes take.
+/// The most classes the passes take.
 pub const MOST_CLASSES: u32 = 0x100;
 
 /// `dword_75AB40` when the class pages start at class 1.

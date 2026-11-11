@@ -76,12 +76,12 @@ pub fn held_cars(cars: u32) -> u32 {
     cars
 }
 
-/// The cars' runs, two each: the own car's second at level 0 when `second_first`
-/// (`dword_63DB94` 1), else 1, each other car's second at level 1 (half the size); firsts
-/// at level 0; the other levels 1 for the own car, 2 for the others. Car 0's slots are 0x100 and 0x104, a further car's 0x108 + 8 a car; the tag
-/// 0x29 for car 0, else 0x29 + the car. `own` tells the cars this machine's cockpit may
-/// draw from: its own and any of the same model. The original has always car 0, which left
-/// a network client's cockpit at the lower levels.
+/// The cars' runs, two each: the own car's second at level 0 when `second_first` (`dword_63DB94`
+/// 1), else 1, each other car's second at level 1 (half the size); firsts at level 0; the other
+/// levels 1 for the own car, 2 for the others. Car 0's slots are 0x100 and 0x104, a further car's
+/// 0x108 + 8 a car; the tag 0x29 for car 0, else 0x29 + the car. `own` tells the cars this
+/// machine's cockpit may draw from: its own and any of the same model. The original has always car
+/// 0, which left a network client's cockpit at the lower levels.
 pub fn car_runs(cars: u32, second_first: bool, own: impl Fn(u32) -> bool) -> Vec<Run> {
     (0..MOST_CARS)
         .take_while(|&car| car == 0 || cars != car)
@@ -103,7 +103,7 @@ pub fn car_runs(cars: u32, second_first: bool, own: impl Fn(u32) -> bool) -> Vec
 }
 
 /// A kind's block of slots: the first, its tag, levels, and what the kinds' slot count
-/// (`dword_5DC978`) gets for each slot taken.
+/// gets for each slot taken.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct KindSlots {
     pub first: u32,

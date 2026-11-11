@@ -93,10 +93,11 @@ static POOL_HOMES: RwLock<BTreeMap<u32, &'static pool::PoolBlock>> = RwLock::new
 
 /// Stores that are regions of their own, by their game address: the drawing threads' copies
 /// of the drawing's state (`workers`; copy 0 is the store's home, `moved`).
-static STORE_HOMES: RwLock<BTreeMap<u32, &'static dyn Store>> = RwLock::new(BTreeMap::new());
+static STORE_HOMES: RwLock<BTreeMap<u32, &'static (dyn Store + Sync)>> =
+    RwLock::new(BTreeMap::new());
 
 /// `store` a region of its own, reached through its cells as a moved store's home is.
-pub fn register_store(store: &'static dyn Store) {
+pub fn register_store(store: &'static (dyn Store + Sync)) {
     let at = game_address(store.first());
     if let Ok(mut homes) = STORE_HOMES.write() {
         homes.insert(at, store);
@@ -842,6 +843,10 @@ enum CellRef<'a> {
     /// A non-atomic dword (a `PlainDword` and the other plain cells): only the game's thread
     /// reaches it.
     Plain32(&'a std::cell::Cell<u32>),
+    /// A non-atomic byte (`PlainByte`, `PlainBytes`, `PlainLoose`).
+    Plain8(&'a std::cell::Cell<u8>),
+    /// A non-atomic word (`PlainWord`).
+    Plain16(&'a std::cell::Cell<u16>),
 }
 
 impl CellRef<'_> {
@@ -852,7 +857,7 @@ impl CellRef<'_> {
             CellRef::U8(a) => (a.as_ptr().cast_const(), 1),
             CellRef::U16(a) => (a.as_ptr().cast::<u8>().cast_const(), 2),
             CellRef::U32(a) => (a.as_ptr().cast::<u8>().cast_const(), 4),
-            CellRef::Plain32(_) => return,
+            CellRef::Plain32(_) | CellRef::Plain8(_) | CellRef::Plain16(_) => return,
         };
         if write {
             crate::write_watch::wrote(at, len);
@@ -878,14 +883,20 @@ pub enum CellRun<'a> {
     PlainDword(&'a [crate::session::PlainDword]),
     PlainFloat(&'a [crate::session::PlainFloat]),
     PlainFlag(&'a [crate::session::PlainFlag]),
+    PlainBytes(&'a [std::cell::Cell<u8>]),
+    PlainByte(&'a [crate::session::PlainByte]),
+    PlainWord(&'a [crate::session::PlainWord]),
 }
 
 impl<'a> CellRun<'a> {
     /// Its cells' width in bytes.
     fn width(self) -> usize {
         match self {
-            CellRun::Bytes(_) | CellRun::Byte(_) => 1,
-            CellRun::Word(_) => 2,
+            CellRun::Bytes(_)
+            | CellRun::Byte(_)
+            | CellRun::PlainBytes(_)
+            | CellRun::PlainByte(_) => 1,
+            CellRun::Word(_) | CellRun::PlainWord(_) => 2,
             CellRun::Dword(_)
             | CellRun::Float(_)
             | CellRun::Flag(_)
@@ -909,6 +920,9 @@ impl<'a> CellRun<'a> {
             CellRun::PlainDword(r) => r.len(),
             CellRun::PlainFloat(r) => r.len(),
             CellRun::PlainFlag(r) => r.len(),
+            CellRun::PlainBytes(r) => r.len(),
+            CellRun::PlainByte(r) => r.len(),
+            CellRun::PlainWord(r) => r.len(),
         };
         cells * self.width()
     }
@@ -927,6 +941,9 @@ impl<'a> CellRun<'a> {
             CellRun::PlainDword(r) => r.as_ptr() as usize,
             CellRun::PlainFloat(r) => r.as_ptr() as usize,
             CellRun::PlainFlag(r) => r.as_ptr() as usize,
+            CellRun::PlainBytes(r) => r.as_ptr() as usize,
+            CellRun::PlainByte(r) => r.as_ptr() as usize,
+            CellRun::PlainWord(r) => r.as_ptr() as usize,
         }
     }
 
@@ -947,6 +964,9 @@ impl<'a> CellRun<'a> {
             CellRun::PlainDword(r) => CellRun::PlainDword(&r[i..]),
             CellRun::PlainFloat(r) => CellRun::PlainFloat(&r[i..]),
             CellRun::PlainFlag(r) => CellRun::PlainFlag(&r[i..]),
+            CellRun::PlainBytes(r) => CellRun::PlainBytes(&r[i..]),
+            CellRun::PlainByte(r) => CellRun::PlainByte(&r[i..]),
+            CellRun::PlainWord(r) => CellRun::PlainWord(&r[i..]),
         })
     }
 
@@ -963,6 +983,9 @@ impl<'a> CellRun<'a> {
             CellRun::PlainDword(r) => CellRef::Plain32(r[i].cell()),
             CellRun::PlainFloat(r) => CellRef::Plain32(r[i].cell()),
             CellRun::PlainFlag(r) => CellRef::Plain32(r[i].cell()),
+            CellRun::PlainBytes(r) => CellRef::Plain8(&r[i]),
+            CellRun::PlainByte(r) => CellRef::Plain8(r[i].cell()),
+            CellRun::PlainWord(r) => CellRef::Plain16(r[i].cell()),
         }
     }
 
@@ -970,6 +993,12 @@ impl<'a> CellRun<'a> {
     pub fn load(self, offset: usize, to: &mut [u8]) {
         if let CellRun::Bytes(r) = self {
             return load_bytes(&r[offset..offset + to.len()], to);
+        }
+        if let CellRun::PlainBytes(r) = self {
+            for (b, c) in to.iter_mut().zip(&r[offset..]) {
+                *b = c.get();
+            }
+            return;
         }
         let (w, end) = (self.width(), offset + to.len());
         let mut at = offset;
@@ -986,6 +1015,12 @@ impl<'a> CellRun<'a> {
     pub fn store(self, offset: usize, from: &[u8]) {
         if let CellRun::Bytes(r) = self {
             return store_bytes(&r[offset..offset + from.len()], from);
+        }
+        if let CellRun::PlainBytes(r) = self {
+            for (c, &b) in r[offset..].iter().zip(from) {
+                c.set(b);
+            }
+            return;
         }
         let (w, end) = (self.width(), offset + from.len());
         let mut at = offset;
@@ -1268,6 +1303,73 @@ unsafe impl Cells for crate::session::Loose {
         (0, CellRun::Bytes(self.atomics()))
     }
 }
+// SAFETY: one `Cell<u16>`.
+unsafe impl Cells for crate::session::PlainWord {
+    fn copy_from(&self, other: &Self) {
+        self.cell().set(other.cell().get());
+    }
+
+    fn merge_changes(&self, now: &Self, start: &Self) {
+        if let Some(v) = merged!(u16, now.cell().get(), start.cell().get()) {
+            self.cell().set(v);
+        }
+    }
+
+    fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
+        (0, CellRun::PlainWord(std::slice::from_ref(self)))
+    }
+
+    fn slice_run(slice: &[Self]) -> Option<CellRun<'_>> {
+        Some(CellRun::PlainWord(slice))
+    }
+}
+// SAFETY: one `Cell<u8>`.
+unsafe impl Cells for crate::session::PlainByte {
+    fn copy_from(&self, other: &Self) {
+        self.cell().set(other.cell().get());
+    }
+
+    fn merge_changes(&self, now: &Self, start: &Self) {
+        if let Some(v) = merged!(u8, now.cell().get(), start.cell().get()) {
+            self.cell().set(v);
+        }
+    }
+
+    fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
+        (0, CellRun::PlainByte(std::slice::from_ref(self)))
+    }
+
+    fn slice_run(slice: &[Self]) -> Option<CellRun<'_>> {
+        Some(CellRun::PlainByte(slice))
+    }
+}
+// SAFETY: `N` cells of plain bytes, all of it one run.
+unsafe impl<const N: usize> Cells for crate::session::PlainBytes<N> {
+    fn copy_from(&self, other: &Self) {
+        for (to, from) in self.cells().iter().zip(other.cells()) {
+            to.set(from.get());
+        }
+    }
+
+    fn merge_changes(&self, now: &Self, start: &Self) {
+        for ((to, now), start) in self.cells().iter().zip(now.cells()).zip(start.cells()) {
+            let v = now.get();
+            if v != start.get() {
+                to.set(v);
+            }
+        }
+    }
+
+    fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
+        (0, CellRun::PlainBytes(self.cells()))
+    }
+}
+// SAFETY: four cells of plain bytes, all of it one run.
+unsafe impl Cells for crate::session::PlainLoose {
+    fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
+        (0, CellRun::PlainBytes(self.cells()))
+    }
+}
 // SAFETY: `N` of a type of cells, one after another.
 unsafe impl<T: Cells, const N: usize> Cells for [T; N] {
     fn copy_from(&self, other: &Self) {
@@ -1500,7 +1602,7 @@ plain_record!(
 /// # Safety
 /// `first()` is the store's first byte and `size()` bytes behind it are the store's own, laid
 /// out as it says (`GamePtr::record` and `slice` reach them from `first()`).
-pub unsafe trait Store: Sync {
+pub unsafe trait Store {
     /// Its length in bytes.
     fn size(&self) -> usize;
     /// Its first byte: a checked place's bytes are found from it (`place_of`), inside `size()`.
@@ -1526,7 +1628,7 @@ pub unsafe trait Store: Sync {
 }
 
 // SAFETY: `first` is the record's first byte and `size` its size.
-unsafe impl<T: Cells + Sync> Store for T {
+unsafe impl<T: Cells> Store for T {
     fn size(&self) -> usize {
         size_of::<T>()
     }
@@ -1568,6 +1670,8 @@ fn cell_bytes(cell: CellRef) -> [u8; 4] {
         CellRef::U16(a) => bytes[..2].copy_from_slice(&a.load(Relaxed).to_ne_bytes()),
         CellRef::U32(a) => bytes = a.load(Relaxed).to_ne_bytes(),
         CellRef::Plain32(c) => bytes = c.get().to_ne_bytes(),
+        CellRef::Plain8(c) => bytes[0] = c.get(),
+        CellRef::Plain16(c) => bytes[..2].copy_from_slice(&c.get().to_ne_bytes()),
     }
     bytes
 }
@@ -1594,6 +1698,12 @@ fn set_cell_bytes(cell: CellRef, from: usize, new: &[u8]) {
             });
         }
         CellRef::Plain32(c) => c.set(u32::from_ne_bytes(merge(c.get().to_ne_bytes()))),
+        CellRef::Plain8(c) => c.set(new[0]),
+        CellRef::Plain16(c) => {
+            let [a, b, ..] = c.get().to_ne_bytes();
+            let [a, b, ..] = merge([a, b, 0, 0]);
+            c.set(u16::from_ne_bytes([a, b]));
+        }
         CellRef::U32(a) => {
             if new.len() == 4 {
                 a.store(u32::from_ne_bytes(merge([0; 4])), Relaxed);

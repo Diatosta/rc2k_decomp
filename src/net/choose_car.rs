@@ -11,10 +11,18 @@ use crate::menu::owner::menus;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::net::store::NetVars;
 use crate::net::store::PlayerRecord;
-use crate::session::{Dword, Flag};
+use crate::session::{PlainDword, PlainFlag};
 
-const CLEARED: &Dword = &crate::menu::owner::MENUS.screens.event.current_player; // dword_75598C
-pub const ESCAPE_PRESSED: &Flag = &crate::menu::owner::MENUS.screens.draw_work.escape_pressed; // dword_755A3C: the screen was left with Escape
+const CLEARED: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .event
+    .current_player; // dword_75598C
+pub const ESCAPE_PRESSED: &PlainFlag = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .draw_work
+    .escape_pressed; // dword_755A3C: the screen was left with Escape
 
 /// The car screen is handed the list of cars; the
 /// car it starts from its set-up finds itself (the current player's record,

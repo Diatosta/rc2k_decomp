@@ -6,12 +6,12 @@
 //! refuses.
 
 use crate::errors::Refused;
-use crate::physics::step_inputs::StepInputs;
+use crate::physics::step_families::ResetInputs;
 use rc2k_core::physics::start::stuck_tick;
 
 // Converted: `rc2k_core::physics::start::stuck_tick`.
 pub fn reset_when_stuck(
-    c: &StepInputs<'_>,
+    c: &ResetInputs<'_>,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let shared = c.shared;

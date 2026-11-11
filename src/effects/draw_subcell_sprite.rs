@@ -19,14 +19,13 @@ use crate::effects::ring_store::Ring;
 use crate::effects::ring_store::RingWork;
 use crate::errors::{BadInput, Refused};
 use crate::scene::fog_at::fog_at;
-use crate::session::Float;
 
 use crate::d3d::vertices_store::VERTICES;
 const SUBCELLS: u32 = 0x410;
 
 /// The place turned by the view.
 fn turn(
-    view_matrix: &[Float; 16],
+    view_matrix: &[crate::session::Float; 16],
     ring: &Ring,
     p: &[[u8; 10]; 3],
     effects: &crate::effects::owner::Effects,
@@ -103,7 +102,12 @@ use crate::math::x87_float as bh;
 use crate::math::x87_float::ld;
 
 /// `turn`'s x87 block as plain Rust on the x87 model (37 instructions), same order and memory places.
-fn turn_x87(view_matrix: &[Float; 16], p: &[[u8; 10]; 3], w: &RingWork, dw: &DrawWork) {
+fn turn_x87(
+    view_matrix: &[crate::session::Float; 16],
+    p: &[[u8; 10]; 3],
+    w: &RingWork,
+    dw: &DrawWork,
+) {
     let t0 = bh::from_f80(p[2]);
     let t1 = bh::from_f80(p[1]);
     let t2 = bh::from_f80(p[0]);
@@ -297,10 +301,9 @@ mod asm_differential {
     use crate::effects::asm_test::{Op, Spec, differential, with_copy};
     use crate::effects::frame_state::DrawWork;
     use crate::effects::ring_store::RingWork;
-    use crate::session::Float;
 
     /// The vertex float at byte `off` of the vertices (x, y or z of a vertex).
-    fn vertex_cell(off: usize) -> &'static Float {
+    fn vertex_cell(off: usize) -> &'static crate::session::Float {
         let v = &VERTICES.vertices[off / 32];
         match off % 32 {
             0x0 => &v.x,

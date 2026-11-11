@@ -114,7 +114,7 @@ impl NeedTotals {
 
 /// `count_texture_needs`: the needed textures counted and their levels' sizes (`size_of`,
 /// asked per needed level) added, system and video memory taken texture by texture; and
-/// the last number looked at (a level or a size: eax). Refuses a level past the sizes'
+/// the last number looked at (a level or a size). Refuses a level past the sizes'
 /// table.
 pub fn count_needs(
     system: &[u32],
@@ -148,7 +148,7 @@ pub fn count_needs(
 /// `map_texture_places`: each place's slot (`places`, all -1 first): for the slots from
 /// the last down, the texture it wants, if a texture, has a place, and that place, if
 /// one, gets the slot (so of two slots the lower stays). Gives the last number looked at
-/// (eax).
+///.
 pub fn map_places(wanted: &[u32], texture_place: &[u32], places: &mut [u32]) -> u32 {
     places.fill(NONE);
     let mut last = NONE;
@@ -165,11 +165,11 @@ pub fn map_places(wanted: &[u32], texture_place: &[u32], places: &mut [u32]) -> 
     last
 }
 
-/// What `look_up_texture` gives: `g_polygonTexture` and eax.
+/// What `look_up_texture` gives: `g_polygonTexture` and the number looked at.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct LookUp {
     pub texture: u32,
-    pub eax: u32,
+    pub last_number: u32,
 }
 
 /// `look_up_texture`: the slot a texture word names: -1 none; with the top bit a place
@@ -181,9 +181,9 @@ pub fn look_up(
     first_slot: impl FnOnce(usize) -> u32,
     slot_count: impl FnOnce() -> u32,
 ) -> LookUp {
-    let none = |eax| LookUp {
+    let none = |last_number| LookUp {
         texture: NO_TEXTURE,
-        eax,
+        last_number,
     };
     if word == NONE {
         return none(word);
@@ -206,7 +206,7 @@ pub fn look_up(
     }
     LookUp {
         texture: slot,
-        eax: slot,
+        last_number: slot,
     }
 }
 
@@ -282,7 +282,7 @@ pub fn picture_folder(number: u32) -> PictureFolder {
     }
 }
 
-/// `load_slot_textures`: the slots in use (`dword_5DC970`); refuses none (the original
+/// `load_slot_textures`: the slots in use; refuses none (the original
 /// goes through 2^32) and more than the table has.
 pub fn slots_in_use(count: u32) -> Result<u32, Invalid> {
     if count == 0 || count > SLOTS {
@@ -341,9 +341,9 @@ pub trait TextureMemory {
     /// The level a texture is needed at in video memory (`video`) or system memory;
     /// `NONE` for not needed.
     fn level(&self, video: bool, texture: u32) -> u32;
-    /// What a texture of a level takes (`dword_5CDAAC`).
+    /// What a texture of a level takes.
     fn size(&self, level: u32) -> u32;
-    /// The mip levels' setting (`dword_623898`) and a level's entry (`dword_5CDABC`).
+    /// The mip levels' setting and a level's entry.
     fn mips(&self) -> u32;
     fn level_mips(&self, level: u32) -> u32;
     /// Each kind's first slot and first texture -1.
@@ -353,7 +353,7 @@ pub trait TextureMemory {
     /// A video texture's first slot (`g_kindFirstSlots`).
     fn set_first_slot(&mut self, texture: u32, slot: u32);
     /// A system texture's first texture (`g_kindFirstTextures`) and the texture at that
-    /// number (`dword_5D2AE8`), in that order of the original's: the second first.
+    /// number, in that order of the original's: the second first.
     fn set_first_texture(&mut self, texture: u32, first: u32);
 }
 
@@ -545,24 +545,30 @@ mod tests {
             l(NONE),
             LookUp {
                 texture: NO_TEXTURE,
-                eax: NONE
+                last_number: NONE
             }
         );
-        assert_eq!(l(0x8000_0003), LookUp { texture: 4, eax: 4 });
-        assert_eq!(l(0x8000_0FA0).eax, 0xFA0);
+        assert_eq!(
+            l(0x8000_0003),
+            LookUp {
+                texture: 4,
+                last_number: 4
+            }
+        );
+        assert_eq!(l(0x8000_0FA0).last_number, 0xFA0);
         assert_eq!(l(0x400).texture, NO_TEXTURE);
         assert_eq!(
             l(7),
             LookUp {
                 texture: 14,
-                eax: 14
+                last_number: 14
             }
         );
         assert_eq!(
             l(8),
             LookUp {
                 texture: NO_TEXTURE,
-                eax: 16
+                last_number: 16
             }
         );
         assert_eq!(look_up(1, |_| 0, |_| 0, || 0).texture, NO_TEXTURE);

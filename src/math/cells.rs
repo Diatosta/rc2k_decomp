@@ -54,6 +54,19 @@ impl<const N: usize> Cells for crate::session::Bytes<N> {
     }
 }
 
+/// A plain byte buffer's little-endian dwords.
+impl<const N: usize> Cells for crate::session::PlainBytes<N> {
+    fn bits(&self, n: usize) -> u32 {
+        self.get_u32(4 * n)
+    }
+    fn set_bits(&self, n: usize, bits: u32) {
+        self.set_u32(4 * n, bits);
+    }
+    fn count(&self) -> usize {
+        N / 4
+    }
+}
+
 impl<T: Cells + ?Sized> Cells for &T {
     fn bits(&self, n: usize) -> u32 {
         (**self).bits(n)

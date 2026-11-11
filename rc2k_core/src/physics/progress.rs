@@ -79,7 +79,9 @@ pub fn spread(a: u32, b: u32) -> u32 {
     if (d as i32) < 0 { d.wrapping_neg() } else { d }
 }
 
-/// The highest checkpoint `off_line_warnings` takes (`dword_9ED808` holds 0x1418 = 5144 angles, `CHECKPOINTS.angles[2..]`; the check lets index 0x1418 itself through, one past the table, into the gap that follows it, as the original).
+/// The highest checkpoint `off_line_warnings` takes (`dword_9ED808` holds 0x1418 = 5144 angles,
+/// `CHECKPOINTS.angles[2..]`; the check lets index 0x1418 itself through, one past the table, into
+/// the gap that follows it, as the original).
 pub const LAST_CHECKPOINT: u32 = 0x1418;
 
 /// Whether the car's checkpoint has one after it (the next below the count, by the sign
@@ -189,7 +191,7 @@ pub fn face_known(face: u32, face_count: u32) -> bool {
 }
 
 /// Whether the car has passed the split's point: its angle from the point (the whole
-/// number << 16, `split_word`) not below the checkpoint's heading (`dword_9ED808`) less
+/// number << 16, `split_word`) not below the checkpoint's heading less
 /// a quarter turn, by the sign. (passed, the heading less the quarter: the original's
 /// the leftover value).
 pub fn passed_point(angle: u32, heading: u32) -> (bool, u32) {

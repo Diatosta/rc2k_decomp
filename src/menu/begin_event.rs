@@ -13,11 +13,11 @@
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
 use crate::menu::player::PLAYERS;
-use crate::session::Dword;
+use crate::session::PlainDword;
 use rc2k_core::menu::event::KEEPS_SETUP;
 use rc2k_core::menu::player::Player;
 
-const CURRENT_PLAYER: &Dword = crate::menu::take_shown_car::CURRENT_PLAYER_RVA;
+const CURRENT_PLAYER: &PlainDword = crate::menu::take_shown_car::CURRENT_PLAYER_RVA;
 pub fn begin_event(menus: &Menus) -> Result<(), Refused> {
     let drivers = crate::menu::standings::drivers(menus)?;
     menus.tables.pages.services.set(0u32);

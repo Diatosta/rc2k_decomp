@@ -4,70 +4,70 @@
 //! (`saves::load_options`). A `#[repr(C)]` struct with the image's layout, one static;
 //! `moved::MOVED` points the range at it.
 
-use crate::session::{Bytes, Dword, Flag};
+use crate::session::{PlainBytes, PlainDword, PlainFlag};
 
 /// The options' work copies (IDA 0x755640 .. 0x7556B4).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct OptionWork {
     /// `dword_755640`: A visual page switch (a copy of `dword_4F50D0`; `OptionSwitch::Mipmapping`).
-    pub switch_0: Dword,
+    pub switch_0: PlainDword,
     /// `dword_755644`: A visual page switch (a copy of `dword_4F50CC`).
-    pub switch_1: Dword,
+    pub switch_1: PlainDword,
     /// `dword_755648`: Set when the screen mode was changed (`menu::option_steps`).
-    pub mode_changed: Dword,
+    pub mode_changed: PlainDword,
     /// `dword_75564C`: The screen modes' switch (`OptionSwitch::ScreenModeCard`).
-    pub modes_switch: Dword,
+    pub modes_switch: PlainDword,
     /// `dword_755650`: The graphics page's lens flare option, work copy (the race's `lens_flare`).
-    pub lens_flare: Dword,
+    pub lens_flare: PlainDword,
     /// `dword_755654`: a 0 ..= 100 level, stepped by dead code only; copied to `race::state_store`.
-    pub unused_percent_a: Dword,
+    pub unused_percent_a: PlainDword,
     /// `dword_755658`: the same, the second level.
-    pub unused_percent_b: Dword,
+    pub unused_percent_b: PlainDword,
     /// `dword_75565C`: The graphics page's reflections option, work copy.
-    pub reflections: Dword,
+    pub reflections: PlainDword,
     /// +0x10 (0x755660) `dword_755660`: the options page's car shadows setting (row 6 of the visual options, strings 0x396 "reduzido" / 0x397 "completo"); copied to the race's `settings.car_shadows` (0x75AD10) and `settings_words[2]` (0x6238B0). Probable: the debug tab reads the race copy as "Car shadows".
-    pub car_shadows: Dword,
+    pub car_shadows: PlainDword,
     /// +0x14 (0x755664) `dword_755664`: the options page's car detail setting, 0 .. 2 (row 7, strings 0x393 "nenhum carro" / "o seu carro" / "todos os carros": which cars get the detailed textures; stepped by `menu::next_texture_setting`); copied to the race's `settings.car_detail` (0x75AD14) and `settings_words[3]` (0x6238B4). Probable, from the string and the page's row order.
-    pub car_detail: Dword,
+    pub car_detail: PlainDword,
     /// `dword_755668`: The graphics page's headlights option, work copy.
-    pub headlights: Dword,
+    pub headlights: PlainDword,
     /// `dword_75566C`: The audio quality chosen (`menu::next_audio_quality`).
-    pub audio_quality: Dword,
+    pub audio_quality: PlainDword,
     /// `dword_755670`: The DirectSound 3D switch.
-    pub ds3d: Dword,
+    pub ds3d: PlainDword,
     /// `dword_755674`: The EAX switch.
-    pub eax: Dword,
+    pub eax: PlainDword,
     /// `dword_755678`: The A3D switch.
-    pub a3d: Dword,
+    pub a3d: PlainDword,
     /// `dword_75567C`: The Dolby switch.
-    pub dolby: Dword,
+    pub dolby: PlainDword,
     /// `dword_755680`: The channels chosen.
-    pub channels: Dword,
+    pub channels: PlainDword,
     /// 4 bytes of the image's layout: the master volume shown (now `audio::levels::Levels`).
-    pub _gap_755684: Bytes<4>,
+    pub _gap_755684: PlainBytes<4>,
     /// `dword_755688`: The music level (`menu::option_steps`).
-    pub music_level: Dword,
+    pub music_level: PlainDword,
     /// `dword_75568C`: Read by the music "up" step (`menu::music_volume_up`).
-    pub other_volume: Dword,
+    pub other_volume: PlainDword,
     /// `dword_755690`: The menu sounds' third volume (`sound::play_menu_sound`).
-    pub menu_sounds_c: Dword,
+    pub menu_sounds_c: PlainDword,
     /// 4 bytes of the image's layout: the race sounds' volume (now `audio::levels::Levels`).
-    pub _gap_755694: Bytes<4>,
+    pub _gap_755694: PlainBytes<4>,
     /// `dword_755698`: The speech level (`menu::option_steps`, `sound::play_car_stream`).
-    pub speech_level: Dword,
+    pub speech_level: PlainDword,
     /// 4 bytes of the image's layout: the sounds' first level (now `audio::levels::Levels`).
-    pub _gap_75569c: Bytes<4>,
+    pub _gap_75569c: PlainBytes<4>,
     /// 4 bytes of the image's layout: the sounds' second level (now `audio::levels::Levels`).
-    pub _gap_7556a0: Bytes<4>,
+    pub _gap_7556a0: PlainBytes<4>,
     /// `dword_7556A4`: The menu's sound: 0x6F, or 0x14D after Enter (`menu::handle_keys`).
-    pub menu_sound: Dword,
+    pub menu_sound: PlainDword,
     /// `dword_7556A8`: 1 while a text is being typed (`menu::text_entry`).
-    pub typing: Flag,
+    pub typing: PlainFlag,
     /// `g_redefiningKey`: 1 while a key is being redefined; also 1 = the highlight does not blink (`menu::update_blink`).
-    pub redefining_key: Flag,
+    pub redefining_key: PlainFlag,
     /// `g_redefinedKeyPlace`: The place of the key being redefined (999 = none).
-    pub redefined_key_place: Dword,
+    pub redefined_key_place: PlainDword,
 }
 
 impl OptionWork {
@@ -85,35 +85,35 @@ impl OptionWork {
     /// First values the image's (`tests::option_work_starts_as_the_games`).
     pub const fn new() -> Self {
         OptionWork {
-            switch_0: Dword::new(0x0),
-            switch_1: Dword::new(0x0),
-            mode_changed: Dword::new(0x0),
-            modes_switch: Dword::new(0x1),
-            lens_flare: Dword::new(0x1),
-            unused_percent_a: Dword::new(0x64),
-            unused_percent_b: Dword::new(0x64),
-            reflections: Dword::new(0x1),
-            car_shadows: Dword::new(0x1),
-            car_detail: Dword::new(0x1),
-            headlights: Dword::new(0x0),
-            audio_quality: Dword::new(0x3),
-            ds3d: Dword::new(0x0),
-            eax: Dword::new(0x0),
-            a3d: Dword::new(0x0),
-            dolby: Dword::new(0x0),
-            channels: Dword::new(0x1),
-            _gap_755684: Bytes::new([0x40, 0, 0, 0]),
-            music_level: Dword::new(0x40),
-            other_volume: Dword::new(0x40),
-            menu_sounds_c: Dword::new(0x40),
-            _gap_755694: Bytes::new([0x40, 0, 0, 0]),
-            speech_level: Dword::new(0x40),
-            _gap_75569c: Bytes::new([0x40, 0, 0, 0]),
-            _gap_7556a0: Bytes::new([0x40, 0, 0, 0]),
-            menu_sound: Dword::new(0x6F),
-            typing: Flag::new(false),
-            redefining_key: Flag::new(false),
-            redefined_key_place: Dword::new(0x3E7),
+            switch_0: PlainDword::new(0x0),
+            switch_1: PlainDword::new(0x0),
+            mode_changed: PlainDword::new(0x0),
+            modes_switch: PlainDword::new(0x1),
+            lens_flare: PlainDword::new(0x1),
+            unused_percent_a: PlainDword::new(0x64),
+            unused_percent_b: PlainDword::new(0x64),
+            reflections: PlainDword::new(0x1),
+            car_shadows: PlainDword::new(0x1),
+            car_detail: PlainDword::new(0x1),
+            headlights: PlainDword::new(0x0),
+            audio_quality: PlainDword::new(0x3),
+            ds3d: PlainDword::new(0x0),
+            eax: PlainDword::new(0x0),
+            a3d: PlainDword::new(0x0),
+            dolby: PlainDword::new(0x0),
+            channels: PlainDword::new(0x1),
+            _gap_755684: PlainBytes::new([0x40, 0, 0, 0]),
+            music_level: PlainDword::new(0x40),
+            other_volume: PlainDword::new(0x40),
+            menu_sounds_c: PlainDword::new(0x40),
+            _gap_755694: PlainBytes::new([0x40, 0, 0, 0]),
+            speech_level: PlainDword::new(0x40),
+            _gap_75569c: PlainBytes::new([0x40, 0, 0, 0]),
+            _gap_7556a0: PlainBytes::new([0x40, 0, 0, 0]),
+            menu_sound: PlainDword::new(0x6F),
+            typing: PlainFlag::new(false),
+            redefining_key: PlainFlag::new(false),
+            redefined_key_place: PlainDword::new(0x3E7),
         }
     }
 }
@@ -126,7 +126,7 @@ pub const END: usize = 0x7556B4;
 /// Where IDA 0x755640 lives (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn option_work_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::menu::owner::MENUS.screens.option_work)
+    crate::pointers::game_address(&raw const crate::menu::owner::menus().screens.option_work)
 }
 
 impl OptionWork {

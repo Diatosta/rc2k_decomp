@@ -268,10 +268,10 @@ pub struct ContactWork {
     pub bump_relative_speed: [Float; 3],
     /// +0x1f0c (0x6D3CE4): unreferenced bytes (0x8 of them).
     pub _gap_1f0c: Bytes<8>,
-    /// +0x1f14 (0x6D3CEC): `dword_6D3CEC` (`race::flush_draw_batch`).
-    pub batch_index_count: Dword,
-    /// +0x1f18 (0x6D3CF0): `dword_6D3CF0` (`race::flush_draw_batch`).
-    pub batch_vertex_count: Dword,
+    /// +0x1f14 (0x6D3CEC): the scene batch's index count, which the original's `flush_draw_batch` read and cleared and nothing counted up; no code reads or writes it (the field's name nowhere in Rust), it only keeps the image's layout.
+    pub unused_1f14: Dword,
+    /// +0x1f18 (0x6D3CF0): the scene batch's vertex count, likewise; no code reads or writes it (the field's name nowhere in Rust), it only keeps the image's layout.
+    pub unused_1f18: Dword,
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of

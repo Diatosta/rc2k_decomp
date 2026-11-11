@@ -34,7 +34,6 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::effects_settings_store::{CarEffects, EffectsSettings, car_or_none};
 use crate::scene::matrix3::extended;
-use crate::session::Float;
 
 /// The settings' flag for a ring entry's tag (its +8, a car's number times 0x4C8 for the
 /// cars' emitters): the word at the tag + 0x60 in the settings.
@@ -52,12 +51,12 @@ fn entry_car(ring: &Ring, e: u32) -> Result<&'static CarEffects, Refused> {
     car_or_none(entry(ring, e)?.car).ok_or_else(|| BadInput("a ring entry without its car").into())
 }
 
-fn box_(ring: &Ring, e: u32, whole: &[Float; 16], car: &CarEffects) {
+fn box_(ring: &Ring, e: u32, whole: &[crate::session::Float; 16], car: &CarEffects) {
     box_x87(ring, &ring.work, e, whole, car);
 }
 
 /// The car's whole matrix (its block's), refused where the original would read address 0.
-fn whole_of(car: &CarEffects) -> Result<&'static [Float; 16], BadInput> {
+fn whole_of(car: &CarEffects) -> Result<&'static [crate::session::Float; 16], BadInput> {
     crate::race::blocks_store::car_of(car.whole_block.get())
         .map(|b| &b.whole_matrix)
         .ok_or(BadInput("a ring entry without its object"))
@@ -69,7 +68,7 @@ fn facing(ring: &Ring, car: &CarEffects, effects: &crate::effects::owner::Effect
 }
 
 /// The original's 0x4CEF8A .. 0x4CEFDA: the place less the object's into `flt_935718` .., its length (kept, 80 bits, at `l`) less `flt_93A526` into `flt_9356BC`.
-fn pull_length(ring: &Ring, e: u32, whole: &[Float; 16], length: &mut [u8; 10]) {
+fn pull_length(ring: &Ring, e: u32, whole: &[crate::session::Float; 16], length: &mut [u8; 10]) {
     pull_length_x87(ring, e, whole, length, &ring.work, &ring.kinds);
 }
 
@@ -127,54 +126,168 @@ impl Kind {
 static K6: Kind = Kind {
     gain: None,
     damp: [
-        &crate::effects::owner::EFFECTS.ring.kinds.k6_damp[0],
-        &crate::effects::owner::EFFECTS.ring.kinds.k6_damp[1],
-        &crate::effects::owner::EFFECTS.ring.kinds.k6_damp[2],
+        &crate::effects::owner::EFFECTS
+            .unchecked()
+            .ring
+            .kinds
+            .k6_damp[0],
+        &crate::effects::owner::EFFECTS
+            .unchecked()
+            .ring
+            .kinds
+            .k6_damp[1],
+        &crate::effects::owner::EFFECTS
+            .unchecked()
+            .ring
+            .kinds
+            .k6_damp[2],
     ],
-    pull: Some(&crate::effects::owner::EFFECTS.ring.kinds.k6_pull),
+    pull: Some(
+        &crate::effects::owner::EFFECTS
+            .unchecked()
+            .ring
+            .kinds
+            .k6_pull,
+    ),
 };
 static K15: Kind = Kind {
     gain: None,
     damp: [
-        &crate::effects::owner::EFFECTS.ring.kinds.k15_damp[0],
-        &crate::effects::owner::EFFECTS.ring.kinds.k15_damp[1],
-        &crate::effects::owner::EFFECTS.ring.kinds.k15_damp[2],
+        &crate::effects::owner::EFFECTS
+            .unchecked()
+            .ring
+            .kinds
+            .k15_damp[0],
+        &crate::effects::owner::EFFECTS
+            .unchecked()
+            .ring
+            .kinds
+            .k15_damp[1],
+        &crate::effects::owner::EFFECTS
+            .unchecked()
+            .ring
+            .kinds
+            .k15_damp[2],
     ],
-    pull: Some(&crate::effects::owner::EFFECTS.ring.kinds.k15_pull),
+    pull: Some(
+        &crate::effects::owner::EFFECTS
+            .unchecked()
+            .ring
+            .kinds
+            .k15_pull,
+    ),
 };
 static K1: Kind = Kind {
     gain: None,
     damp: [
-        &crate::effects::owner::EFFECTS.ring.kinds.k1_damp[0],
-        &crate::effects::owner::EFFECTS.ring.kinds.k1_damp[1],
-        &crate::effects::owner::EFFECTS.ring.kinds.k1_damp[2],
+        &crate::effects::owner::EFFECTS
+            .unchecked()
+            .ring
+            .kinds
+            .k1_damp[0],
+        &crate::effects::owner::EFFECTS
+            .unchecked()
+            .ring
+            .kinds
+            .k1_damp[1],
+        &crate::effects::owner::EFFECTS
+            .unchecked()
+            .ring
+            .kinds
+            .k1_damp[2],
     ],
-    pull: Some(&crate::effects::owner::EFFECTS.ring.kinds.k1_pull),
+    pull: Some(
+        &crate::effects::owner::EFFECTS
+            .unchecked()
+            .ring
+            .kinds
+            .k1_pull,
+    ),
 };
 static KD: Kind = Kind {
-    gain: Some(&crate::effects::owner::EFFECTS.ring.kinds.kd_gain),
+    gain: Some(
+        &crate::effects::owner::EFFECTS
+            .unchecked()
+            .ring
+            .kinds
+            .kd_gain,
+    ),
     damp: [
-        &crate::effects::owner::EFFECTS.ring.kinds.kd_damp[0],
-        &crate::effects::owner::EFFECTS.ring.kinds.kd_damp[1],
-        &crate::effects::owner::EFFECTS.ring.kinds.kd_damp[2],
+        &crate::effects::owner::EFFECTS
+            .unchecked()
+            .ring
+            .kinds
+            .kd_damp[0],
+        &crate::effects::owner::EFFECTS
+            .unchecked()
+            .ring
+            .kinds
+            .kd_damp[1],
+        &crate::effects::owner::EFFECTS
+            .unchecked()
+            .ring
+            .kinds
+            .kd_damp[2],
     ],
-    pull: Some(&crate::effects::owner::EFFECTS.ring.kinds.kd_pull),
+    pull: Some(
+        &crate::effects::owner::EFFECTS
+            .unchecked()
+            .ring
+            .kinds
+            .kd_pull,
+    ),
 };
 static K13: Kind = Kind {
-    gain: Some(&crate::effects::owner::EFFECTS.ring.kinds.k13_gain),
+    gain: Some(
+        &crate::effects::owner::EFFECTS
+            .unchecked()
+            .ring
+            .kinds
+            .k13_gain,
+    ),
     damp: [
-        &crate::effects::owner::EFFECTS.ring.kinds.k13_damp[0],
-        &crate::effects::owner::EFFECTS.ring.kinds.k13_damp[1],
-        &crate::effects::owner::EFFECTS.ring.kinds.k13_damp[2],
+        &crate::effects::owner::EFFECTS
+            .unchecked()
+            .ring
+            .kinds
+            .k13_damp[0],
+        &crate::effects::owner::EFFECTS
+            .unchecked()
+            .ring
+            .kinds
+            .k13_damp[1],
+        &crate::effects::owner::EFFECTS
+            .unchecked()
+            .ring
+            .kinds
+            .k13_damp[2],
     ],
     pull: None,
 };
 static K16: Kind = Kind {
-    gain: Some(&crate::effects::owner::EFFECTS.ring.kinds.k16_gain),
+    gain: Some(
+        &crate::effects::owner::EFFECTS
+            .unchecked()
+            .ring
+            .kinds
+            .k16_gain,
+    ),
     damp: [
-        &crate::effects::owner::EFFECTS.ring.kinds.k16_damp[0],
-        &crate::effects::owner::EFFECTS.ring.kinds.k16_damp[1],
-        &crate::effects::owner::EFFECTS.ring.kinds.k16_damp[2],
+        &crate::effects::owner::EFFECTS
+            .unchecked()
+            .ring
+            .kinds
+            .k16_damp[0],
+        &crate::effects::owner::EFFECTS
+            .unchecked()
+            .ring
+            .kinds
+            .k16_damp[1],
+        &crate::effects::owner::EFFECTS
+            .unchecked()
+            .ring
+            .kinds
+            .k16_damp[2],
     ],
     pull: None,
 };
@@ -785,7 +898,7 @@ use crate::effects::plain::{ld_cell, ldi_cell};
 use crate::math::x87_float as bh;
 
 /// `fld dword ptr` of a float of a car record in the settings.
-fn car_float(cell: &Float) -> bh::X {
+fn car_float(cell: &impl crate::session::Cell32) -> bh::X {
     cell.ld()
 }
 
@@ -795,7 +908,13 @@ fn turn(car: &CarEffects, n: usize) -> bh::X {
 }
 
 /// `box_`'s x87 block as plain Rust on the x87 model (45 instructions), same order and memory places.
-fn box_x87(ring: &Ring, w: &RingWork, e: u32, whole: &[Float; 16], car: &CarEffects) {
+fn box_x87(
+    ring: &Ring,
+    w: &RingWork,
+    e: u32,
+    whole: &[crate::session::Float; 16],
+    car: &CarEffects,
+) {
     let t0 = ld(ring, e, |en| en.place[0]);
     let t1 = t0 - ld_cell(&whole[12]);
     w.away[0].st(t1);
@@ -875,7 +994,7 @@ fn facing_x87(car: &CarEffects, f: &MarksFloats, w: &RingWork) {
 fn pull_length_x87(
     ring: &Ring,
     e: u32,
-    whole: &[Float; 16],
+    whole: &[crate::session::Float; 16],
     l: &mut [u8; 10],
     w: &RingWork,
     rk: &RingKinds,
@@ -1419,7 +1538,6 @@ mod asm_differential {
     use crate::effects::ring_store::RingWork;
     use crate::effects::tuning::MarksFloats;
     use crate::race::effects_settings_store::CarEffects;
-    use crate::session::Float;
 
     fn word(at: usize) -> u32 {
         unsafe { crate::pointers::host_at(at).cast::<u32>().read_unaligned() }
@@ -1448,9 +1566,9 @@ mod asm_differential {
 
     /// A whole matrix whose translation (+0x30 ..) is the buffer's at `at` + 0x30 (`at` the
     /// matrix's place, as the original reads it).
-    fn whole_at(at: usize) -> [Float; 16] {
+    fn whole_at(at: usize) -> [crate::session::Float; 16] {
         std::array::from_fn(|i| {
-            Float::from_bits(if (12..15).contains(&i) {
+            crate::session::Float::from_bits(if (12..15).contains(&i) {
                 word(at + 4 * i)
             } else {
                 0
@@ -1614,7 +1732,7 @@ mod asm_differential {
                         let mut length = [0xAA; 10];
                         let kinds = super::RingKinds {
                             near_less: f32::from_bits(word(b[4] + 0x4C)),
-                            ..crate::effects::owner::EFFECTS.ring.kinds
+                            ..crate::effects::owner::effects().ring.kinds
                         };
                         super::pull_length_x87(ring, e, &whole_at(b[2]), &mut length, w, &kinds);
                         unsafe {
@@ -1728,7 +1846,7 @@ mod asm_differential {
                             let kinds = super::RingKinds {
                                 near_scale: f32::from_bits(word(b[3] + 0x50)),
                                 near_rate: f32::from_bits(word(b[3] + 0x54)),
-                                ..crate::effects::owner::EFFECTS.ring.kinds
+                                ..crate::effects::owner::effects().ring.kinds
                             };
                             super::pull_strength_x87(
                                 ring,

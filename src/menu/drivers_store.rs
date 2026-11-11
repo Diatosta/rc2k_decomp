@@ -8,39 +8,39 @@
 //! nationality and car).
 
 use crate::menu::owner::Menus;
-use crate::session::Dword;
+use crate::session::PlainDword;
 
 /// A driver's record (0x94 bytes).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Driver {
     /// +0: the name entry, also the computer team's number (`menu::find_cpu_team`).
-    pub name_entry: Dword,
-    pub field_4: Dword,
+    pub name_entry: PlainDword,
+    pub field_4: PlainDword,
     /// +8: the class (a time entry's group, +0x1C).
-    pub class: Dword,
+    pub class: PlainDword,
     /// +0xC: the stage's time (`menu::calc_cpu_times`; a time entry's time).
-    pub time: Dword,
+    pub time: PlainDword,
     /// +0x10: the event's total time, each stage's added.
-    pub total: Dword,
+    pub total: PlainDword,
     /// +0x14: the nationality (a time entry's +8, the flag's sprite; `var\name.cfg`'s first
     /// number).
-    pub nation: Dword,
+    pub nation: PlainDword,
     /// +0x18: the car (a time entry's +0x10; `name.cfg`'s second number).
-    pub car: Dword,
-    pub field_1c: Dword,
+    pub car: PlainDword,
+    pub field_1c: PlainDword,
     /// +0x20: 0 in all 180 shipped records and put back to 0 at an event's start (`begin`); read by no code (saved with the record).
-    pub unread_zero_20: Dword,
+    pub unread_zero_20: PlainDword,
     /// +0x24: 1 while in the event (`IN_EVENT`), 4 once dropped out
     /// (`rc2k_core::menu::event_races::DROPPED`).
-    pub in_event: Dword,
-    pub field_28: Dword,
+    pub in_event: PlainDword,
+    pub field_28: PlainDword,
     /// +0x2C: twelve figures set to 100 at an event's start (the car's condition).
-    pub condition: [Dword; 12],
+    pub condition: [PlainDword; 12],
     /// +0x5C: the result slots: six sections' overall points and their total, then six
     /// sections' stage points and their total (`menu::clear_result_slots`,
     /// `menu::award_overall_points`, `menu::award_stage_points`).
-    pub results: [Dword; 14],
+    pub results: [PlainDword; 14],
 }
 
 impl Driver {
@@ -48,35 +48,35 @@ impl Driver {
     /// filled in (see `DRIVER_ROWS` for the ones that differ).
     const fn new(index: u32, [class, nation, car]: [u32; 3]) -> Self {
         Self {
-            name_entry: Dword::new(index),
-            field_4: Dword::new(1),
-            class: Dword::new(class),
-            time: Dword::new(0),
-            total: Dword::new(0),
-            nation: Dword::new(nation),
-            car: Dword::new(car),
-            field_1c: Dword::new(0),
-            unread_zero_20: Dword::new(0),
-            in_event: Dword::new(IN_EVENT),
-            field_28: Dword::new(0),
-            condition: [const { Dword::new(100) }; 12],
+            name_entry: PlainDword::new(index),
+            field_4: PlainDword::new(1),
+            class: PlainDword::new(class),
+            time: PlainDword::new(0),
+            total: PlainDword::new(0),
+            nation: PlainDword::new(nation),
+            car: PlainDword::new(car),
+            field_1c: PlainDword::new(0),
+            unread_zero_20: PlainDword::new(0),
+            in_event: PlainDword::new(IN_EVENT),
+            field_28: PlainDword::new(0),
+            condition: [const { PlainDword::new(100) }; 12],
             // Six sections' overall points and their total (the last of them 0), then the
             // same for the stage points.
             results: [
-                const { Dword::new(0xFFFF_FFFF) },
-                const { Dword::new(0xFFFF_FFFF) },
-                const { Dword::new(0xFFFF_FFFF) },
-                const { Dword::new(0xFFFF_FFFF) },
-                const { Dword::new(0xFFFF_FFFF) },
-                const { Dword::new(0xFFFF_FFFF) },
-                const { Dword::new(0) },
-                const { Dword::new(0xFFFF_FFFF) },
-                const { Dword::new(0xFFFF_FFFF) },
-                const { Dword::new(0xFFFF_FFFF) },
-                const { Dword::new(0xFFFF_FFFF) },
-                const { Dword::new(0xFFFF_FFFF) },
-                const { Dword::new(0xFFFF_FFFF) },
-                const { Dword::new(0) },
+                const { PlainDword::new(0xFFFF_FFFF) },
+                const { PlainDword::new(0xFFFF_FFFF) },
+                const { PlainDword::new(0xFFFF_FFFF) },
+                const { PlainDword::new(0xFFFF_FFFF) },
+                const { PlainDword::new(0xFFFF_FFFF) },
+                const { PlainDword::new(0xFFFF_FFFF) },
+                const { PlainDword::new(0) },
+                const { PlainDword::new(0xFFFF_FFFF) },
+                const { PlainDword::new(0xFFFF_FFFF) },
+                const { PlainDword::new(0xFFFF_FFFF) },
+                const { PlainDword::new(0xFFFF_FFFF) },
+                const { PlainDword::new(0xFFFF_FFFF) },
+                const { PlainDword::new(0xFFFF_FFFF) },
+                const { PlainDword::new(0) },
             ],
         }
     }
@@ -117,22 +117,22 @@ impl Driver {
     }
 
     /// The overall points of section `section` (0 .. 5; `menu::award_overall_points`).
-    pub fn overall(&self, section: usize) -> &Dword {
+    pub fn overall(&self, section: usize) -> &PlainDword {
         &self.results[section]
     }
 
     /// The total of the overall points.
-    pub fn overall_total(&self) -> &Dword {
+    pub fn overall_total(&self) -> &PlainDword {
         &self.results[6]
     }
 
     /// The stage points of section `section` (0 .. 5; `menu::award_stage_points`).
-    pub fn stage(&self, section: usize) -> &Dword {
+    pub fn stage(&self, section: usize) -> &PlainDword {
         &self.results[7 + section]
     }
 
     /// The total of the stage points.
-    pub fn stage_total(&self) -> &Dword {
+    pub fn stage_total(&self) -> &PlainDword {
         &self.results[13]
     }
 }
@@ -141,8 +141,8 @@ impl Driver {
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct DriverName {
-    pub string: Dword,
-    pub field_4: [Dword; 4],
+    pub string: PlainDword,
+    pub field_4: [PlainDword; 4],
 }
 
 impl DriverName {
@@ -150,8 +150,13 @@ impl DriverName {
     /// `NAME_ROWS` holds the three that differ.
     const fn new(index: u32, [a, b, c]: [u32; 3]) -> Self {
         Self {
-            string: Dword::new(0x5A5 + index),
-            field_4: [Dword::new(a), Dword::new(b), Dword::new(c), Dword::new(100)],
+            string: PlainDword::new(0x5A5 + index),
+            field_4: [
+                PlainDword::new(a),
+                PlainDword::new(b),
+                PlainDword::new(c),
+                PlainDword::new(100),
+            ],
         }
     }
 }
@@ -162,7 +167,7 @@ pub struct DriverTable {
     /// `g_drivers` (0x73B674).
     pub drivers: [Driver; 180],
     /// 0x741E84: -1, the walks' end.
-    pub end: Dword,
+    pub end: PlainDword,
     /// `g_driverNames` (0x741E88).
     pub names: [DriverName; 180],
 }
@@ -553,7 +558,7 @@ impl DriverTable {
         }
         DriverTable {
             drivers,
-            end: Dword::new(0xFFFF_FFFF),
+            end: PlainDword::new(0xFFFF_FFFF),
             names,
         }
     }
@@ -582,7 +587,7 @@ pub const END: usize = 0x742C98;
 /// Where IDA 0x73B674 lives (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn drivers_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::menu::owner::MENUS.cars.drivers)
+    crate::pointers::game_address(&raw const crate::menu::owner::menus().cars.drivers)
 }
 
 #[cfg(test)]

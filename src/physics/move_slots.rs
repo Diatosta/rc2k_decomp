@@ -7,20 +7,20 @@
 
 use crate::errors::Refused;
 use crate::physics::move_slot::move_slot;
-use crate::physics::step_inputs::StepInputs;
+use crate::physics::step_families::SlotInputs;
 
 /// The eight slots, those in use moved, `slot_count` the number done so far.
-pub fn move_slots(c: &StepInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let shared = c.shared;
-    let slots = &shared.work.race_slots;
+pub fn move_slots(c: &SlotInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    let work = c.work;
+    let slots = &work.race_slots;
     let mut n = 0u32;
     for slot in slots {
         if slot.part.get() != 0 {
             n += 1;
-            shared.work.slot_count.set(n);
+            work.slot_count.set(n);
             move_slot(c, slot, scene)?;
         }
     }
-    shared.work.slot_count.set(n);
+    work.slot_count.set(n);
     Ok(())
 }

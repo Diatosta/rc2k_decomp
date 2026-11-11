@@ -15,12 +15,12 @@
 use crate::errors::BadInput;
 use crate::menu::owner::{Menus, Play};
 use crate::pointers::Store;
-use crate::session::Dword;
+use crate::session::DwordLike;
 
 // ---- game data ----
 
 /// The seven variables at the start, in the order they are saved.
-pub fn head(menus: &Menus) -> [&Dword; 7] {
+pub fn head(menus: &Menus) -> [&dyn DwordLike; 7] {
     [
         &menus.screens.event.player_count,
         &menus.screens.event.stages_done,

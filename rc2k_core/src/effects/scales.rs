@@ -1,6 +1,6 @@
-//! The marks' scaled settings (from `effects::scale_axes` 0x4BFD73,
-//! `effects::scale_setting` 0x4C08BB and `effects::scale_corners` 0x4C6420). As in `math::vector`, what the x87 keeps on its stack
-//! is an `f64`, rounded to `f32` where the original stores it: the same bits at the game's
+//! The marks' scaled settings (from `effects::scale_axes` 0x4BFD73, `effects::scale_setting`
+//! 0x4C08BB and `effects::scale_corners` 0x4C6420). As in `math::vector`, what the x87 keeps on its
+//! stack is an `f64`, rounded to `f32` where the original stores it: the same bits at the game's
 //! double precision.
 
 /// `fild n; fmul k; fstp`: a setting's whole number scaled.
@@ -8,8 +8,8 @@ pub fn scaled_setting(n: i32, factor: f32) -> f32 {
     (n as f64 * factor as f64) as f32
 }
 
-/// What `scale_axes` reads: the two axes (`flt_89CF1A`, `flt_89CF26`), the factor of
-/// both (`flt_89CECA`), one factor each (`flt_89CEEE`, `flt_89CEF2`) and two sets of
+/// What `scale_axes` reads: the two axes, the factor of
+/// both, one factor each and two sets of
 /// per-part factors (`flt_8BC1DE` .., `flt_8BC1F6` ..).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Axes {

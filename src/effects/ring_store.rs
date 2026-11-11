@@ -5,89 +5,89 @@ use crate::effects::ring_entries::Entry;
 use crate::effects::run_ribbons::Colours257;
 use crate::effects::run_ring::RingKinds;
 use crate::memory::owned::Owned;
-use crate::session::{Bytes, Dword, Float};
+use crate::session::{PlainBytes, PlainDword, PlainFloat};
 
 /// The ring's work (IDA 0x935620 .. 0x93573C): its list, cursor and count, the emitters' and the draws' integers.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct RingWork {
     /// 0x935620: `stru_935620`: the ring's memory list (`memory::List`, 16 bytes: `effects::set_up_surface` takes the 0x25000-byte ring on it).
-    pub list: Bytes<16>,
+    pub list: PlainBytes<16>,
     /// 0x935630: Not named: 48 bytes (a gap, or unreferenced data).
-    pub _gap_935630: Bytes<48>,
+    pub _gap_935630: PlainBytes<48>,
     /// 0x935660: `g_marksRingCursor`: the ring's next entry to take (an entry number + 1, 0 none; see `ring_entries`).
-    pub cursor: Dword,
+    pub cursor: PlainDword,
     /// 0x935664: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_935664: Bytes<4>,
+    pub _gap_935664: PlainBytes<4>,
     /// 0x935668: `g_marksRingBlock`: the ring's first entry (an entry number + 1, as the entries' links; the original kept the 0x25000-byte block's address).
-    pub block: Dword,
+    pub block: PlainDword,
     /// 0x93566C: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_93566c: Bytes<4>,
+    pub _gap_93566c: PlainBytes<4>,
     /// 0x935670: `flt_935670`: an entry's +0x14 against it ends the box kinds' draw (`effects::run_ring`).
-    pub top: Float,
+    pub top: PlainFloat,
     /// 0x935674: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_935674: Bytes<4>,
+    pub _gap_935674: PlainBytes<4>,
     /// 0x935678: `flt_935678`: `effects::emit_rolling_particles`'s fade (the strength times a factor).
-    pub fade: Float,
+    pub fade: PlainFloat,
     /// 0x93567C: `dword_93567C`: `effects::emit_rolling_particles`'s life.
-    pub life: Dword,
+    pub life: PlainDword,
     /// 0x935680: `dword_935680`, `dword_935684`: the box's |x| and |z| (`effects::run_ring`, `fistp`ed).
-    pub extent: [Dword; 2],
+    pub extent: [PlainDword; 2],
     /// 0x935688: `flt_935688` .. `flt_935690`: `effects::emit_bursts`' direction.
-    pub direction: [Float; 3],
+    pub direction: [PlainFloat; 3],
     /// 0x935694: `flt_935694`, `flt_935698`: `effects::emit_bursts`' two halves' strengths.
-    pub strength: [Float; 2],
+    pub strength: [PlainFloat; 2],
     /// 0x93569C: Not named: 20 bytes (a gap, or unreferenced data).
-    pub _gap_93569c: Bytes<20>,
+    pub _gap_93569c: PlainBytes<20>,
     /// 0x9356B0: `dword_9356B0`: the emitters' rate (`effects::emitters::gate`).
-    pub rate: Dword,
+    pub rate: PlainDword,
     /// 0x9356B4: `flt_9356B4`: the entry's way dotted with the object's (`effects::run_ring`).
-    pub facing: Float,
+    pub facing: PlainFloat,
     /// 0x9356B8: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_9356b8: Bytes<4>,
+    pub _gap_9356b8: PlainBytes<4>,
     /// 0x9356BC: `flt_9356BC`: the place's length less `flt_93A526` (`effects::run_ring`).
-    pub near: Float,
+    pub near: PlainFloat,
     /// 0x9356C0: `dword_9356C0`: the work integer of the emitters and the ring's draws (a strength, a count, a chance, a size, a depth, an alpha).
-    pub whole: Dword,
+    pub whole: PlainDword,
     /// 0x9356C4: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_9356c4: Bytes<4>,
+    pub _gap_9356c4: PlainBytes<4>,
     /// 0x9356C8: `g_marksRingCount`: the entries taken.
-    pub count: Dword,
+    pub count: PlainDword,
     /// 0x9356CC: Not named: 76 bytes (a gap, or unreferenced data).
-    pub _gap_9356cc: Bytes<76>,
+    pub _gap_9356cc: PlainBytes<76>,
     /// 0x935718: `flt_935718` .. `flt_935720`: the place less the object's (`effects::run_ring`).
-    pub away: [Float; 3],
+    pub away: [PlainFloat; 3],
     /// 0x935724: `flt_935724` .. `flt_93572C`: the same turned by the object's matrix.
-    pub turned: [Float; 3],
+    pub turned: [PlainFloat; 3],
     /// 0x935730: Not named: 12 bytes (a gap, or unreferenced data).
-    pub _gap_935730: Bytes<12>,
+    pub _gap_935730: PlainBytes<12>,
 }
 
 impl RingWork {
     pub const fn new() -> Self {
         RingWork {
-            list: Bytes::new([0; 16]),
-            _gap_935630: Bytes::new([0; 48]),
-            cursor: Dword::new(0x0),
-            _gap_935664: Bytes::new([0; 4]),
-            block: Dword::new(0x0),
-            _gap_93566c: Bytes::new([0x00, 0x80, 0xFF, 0xFF]),
-            top: Float::new(-32768.0),
-            _gap_935674: Bytes::new([0; 4]),
-            fade: Float::new(0.0),
-            life: Dword::new(0x0),
-            extent: [const { Dword::new(0x0) }; 2],
-            direction: [const { Float::new(0.0) }; 3],
-            strength: [const { Float::new(0.0) }; 2],
-            _gap_93569c: Bytes::new([0; 20]),
-            rate: Dword::new(0x0),
-            facing: Float::new(0.0),
-            _gap_9356b8: Bytes::new([0; 4]),
-            near: Float::new(0.0),
-            whole: Dword::new(0x0),
-            _gap_9356c4: Bytes::new([0; 4]),
-            count: Dword::new(0x0),
-            _gap_9356cc: Bytes::new([
+            list: PlainBytes::new([0; 16]),
+            _gap_935630: PlainBytes::new([0; 48]),
+            cursor: PlainDword::new(0x0),
+            _gap_935664: PlainBytes::new([0; 4]),
+            block: PlainDword::new(0x0),
+            _gap_93566c: PlainBytes::new([0x00, 0x80, 0xFF, 0xFF]),
+            top: PlainFloat::new(-32768.0),
+            _gap_935674: PlainBytes::new([0; 4]),
+            fade: PlainFloat::new(0.0),
+            life: PlainDword::new(0x0),
+            extent: [const { PlainDword::new(0x0) }; 2],
+            direction: [const { PlainFloat::new(0.0) }; 3],
+            strength: [const { PlainFloat::new(0.0) }; 2],
+            _gap_93569c: PlainBytes::new([0; 20]),
+            rate: PlainDword::new(0x0),
+            facing: PlainFloat::new(0.0),
+            _gap_9356b8: PlainBytes::new([0; 4]),
+            near: PlainFloat::new(0.0),
+            whole: PlainDword::new(0x0),
+            _gap_9356c4: PlainBytes::new([0; 4]),
+            count: PlainDword::new(0x0),
+            _gap_9356cc: PlainBytes::new([
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0xC5, 0x00, 0x00,
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -95,9 +95,9 @@ impl RingWork {
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             ]),
-            away: [const { Float::new(0.0) }; 3],
-            turned: [const { Float::new(0.0) }; 3],
-            _gap_935730: Bytes::new([0; 12]),
+            away: [const { PlainFloat::new(0.0) }; 3],
+            turned: [const { PlainFloat::new(0.0) }; 3],
+            _gap_935730: PlainBytes::new([0; 12]),
         }
     }
 }
@@ -115,7 +115,7 @@ mod tests {
     #[test]
     fn the_ring_work_starts_as_the_games() {
         assert_eq!(size_of::<RingWork>(), RingWork::LEN);
-        let p = (&raw const crate::effects::owner::EFFECTS.ring.work).cast::<u8>();
+        let p = (&raw const crate::effects::owner::effects().ring.work).cast::<u8>();
         let bytes: Vec<u8> = (0..size_of::<RingWork>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();
@@ -147,19 +147,19 @@ mod tests {
 #[derive(rc2k_derive::Cells)]
 pub struct PictureNames {
     /// 0x93573C: "files\m\surfdata.pcx" (`aFilesMSurfdata`).
-    pub surfdata: Bytes<21>,
+    pub surfdata: PlainBytes<21>,
     /// 0x935751: "files\m\surfmask.pcx" (`aFilesMSurfmask`).
-    pub surfmask: Bytes<21>,
+    pub surfmask: PlainBytes<21>,
 }
 
 impl PictureNames {
     pub const fn new() -> Self {
         PictureNames {
-            surfdata: Bytes::new([
+            surfdata: PlainBytes::new([
                 0x66, 0x69, 0x6C, 0x65, 0x73, 0x5C, 0x6D, 0x5C, 0x73, 0x75, 0x72, 0x66, 0x64, 0x61,
                 0x74, 0x61, 0x2E, 0x70, 0x63, 0x78, 0x00,
             ]),
-            surfmask: Bytes::new([
+            surfmask: PlainBytes::new([
                 0x66, 0x69, 0x6C, 0x65, 0x73, 0x5C, 0x6D, 0x5C, 0x73, 0x75, 0x72, 0x66, 0x6D, 0x61,
                 0x73, 0x6B, 0x2E, 0x70, 0x63, 0x78, 0x00,
             ]),
@@ -180,7 +180,7 @@ mod name_tests {
     #[test]
     fn the_picture_names_starts_as_the_games() {
         assert_eq!(size_of::<PictureNames>(), PictureNames::LEN);
-        let p = (&raw const crate::effects::owner::EFFECTS.ring.names).cast::<u8>();
+        let p = (&raw const crate::effects::owner::effects().ring.names).cast::<u8>();
         let bytes: Vec<u8> = (0..size_of::<PictureNames>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();

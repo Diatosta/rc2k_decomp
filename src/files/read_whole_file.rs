@@ -44,6 +44,17 @@ pub fn read_whole_file_bytes<const N: usize>(
     Ok(())
 }
 
+/// `read_whole_file_bytes` into a plain buffer.
+pub fn read_whole_file_plain_bytes<const N: usize>(
+    path: &[u8],
+    bytes: &crate::session::PlainBytes<N>,
+) -> Result<(), BadInput> {
+    let mut into = bytes.read();
+    read_whole_file_into(path, &mut into)?;
+    bytes.write(&into);
+    Ok(())
+}
+
 /// `read_whole_file` into Rust's memory (`into.len()` bytes at most).
 pub fn read_whole_file_into(path: &[u8], into: &mut [u8]) -> Result<(), BadInput> {
     // Converted: `rc2k_core::files::io::read_whole_file`.

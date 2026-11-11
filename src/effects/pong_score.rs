@@ -8,13 +8,13 @@
 use crate::effects::pong::Pong;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::Refused;
-use crate::session::Dword;
+use crate::session::PlainDword;
 
 /// A number of the score as three digits.
 fn number(
     pong: &Pong,
     fl: &WindscreenFlakes,
-    at: &Dword,
+    at: &PlainDword,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     use crate::effects::pong_digit::pong_digit;

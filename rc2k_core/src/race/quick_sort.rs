@@ -209,7 +209,7 @@ mod tests {
     }
 
     #[test]
-    fn registers_left() {
+    fn ends_left() {
         // Two records in order: one partition, no swap; the right part is empty.
         let mut list = [[1u32, 10], [2, 20]];
         let ends = quick_sort(&mut list, 1, Order::Up).unwrap();
@@ -232,46 +232,54 @@ mod tests {
     fn reference(mem: &mut [u32], n: u32, key: u32, down: bool, r: &mut [u32; 7]) {
         let size = 4 * n;
         let get = |m: &[u32], a: u32| m[((a - 0x1000) / 4) as usize];
-        let [eax, ebx, ecx, edx, esi, edi, ebp] = r;
-        if *esi >= *edi {
+        let [pivot, value, low, high, first, last, swap] = r;
+        if *first >= *last {
             return;
         }
-        *ecx = *esi;
-        *edx = *edi;
-        *eax = get(mem, (*edx - *ecx) / 2 / size * size + *ecx + 4 * key);
+        *low = *first;
+        *high = *last;
+        *pivot = get(mem, (*high - *low) / 2 / size * size + *low + 4 * key);
         loop {
-            *ebx = get(mem, *ecx + 4 * key);
-            *ecx += size;
-            let stays = if down { *eax < *ebx } else { *eax > *ebx };
+            *value = get(mem, *low + 4 * key);
+            *low += size;
+            let stays = if down {
+                *pivot < *value
+            } else {
+                *pivot > *value
+            };
             if !stays {
-                *ecx -= size;
+                *low -= size;
             }
             loop {
-                *ebx = get(mem, *edx + 4 * key);
-                *edx = edx.wrapping_sub(size);
-                let on = if down { *eax > *ebx } else { *eax < *ebx };
+                *value = get(mem, *high + 4 * key);
+                *high = high.wrapping_sub(size);
+                let on = if down {
+                    *pivot > *value
+                } else {
+                    *pivot < *value
+                };
                 if !on {
                     break;
                 }
             }
-            *edx = edx.wrapping_add(size);
-            if *ecx == *edx {
+            *high = high.wrapping_add(size);
+            if *low == *high {
                 break;
             }
             for k in 0..n {
-                *ebp = get(mem, *ecx + 4 * k);
-                *ebx = get(mem, *edx + 4 * k);
-                mem[((*edx + 4 * k - 0x1000) / 4) as usize] = *ebp;
-                mem[((*ecx + 4 * k - 0x1000) / 4) as usize] = *ebx;
+                *swap = get(mem, *low + 4 * k);
+                *value = get(mem, *high + 4 * k);
+                mem[((*high + 4 * k - 0x1000) / 4) as usize] = *swap;
+                mem[((*low + 4 * k - 0x1000) / 4) as usize] = *value;
             }
-            *ebx = get(mem, *ecx + 4 * key);
-            if *ebx == get(mem, *edx + 4 * key) {
-                *ecx += size;
+            *value = get(mem, *low + 4 * key);
+            if *value == get(mem, *high + 4 * key) {
+                *low += size;
             }
         }
-        let outer = *edi;
-        *edi = ecx.wrapping_sub(size);
-        let mut regs = [*eax, *ebx, *ecx, *edx, *esi, *edi, *ebp];
+        let outer = *last;
+        *last = low.wrapping_sub(size);
+        let mut regs = [*pivot, *value, *low, *high, *first, *last, *swap];
         if regs[4] < regs[5] {
             reference(mem, n, key, down, &mut regs);
         }

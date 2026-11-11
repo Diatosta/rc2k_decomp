@@ -10,11 +10,23 @@
 use crate::errors::Refused;
 use crate::menu::event_flow::*;
 use crate::menu::owner::Menus;
-use crate::session::{Dword, Flag};
+use crate::session::{PlainDword, PlainFlag};
 
-pub const QUALIFIES: &Dword = &crate::menu::owner::MENUS.screens.event.time_qualifies;
-pub const TIME: &Dword = &crate::menu::owner::MENUS.screens.event.player_time;
-pub const ANY_QUALIFIED: &Flag = &crate::menu::owner::MENUS.screens.event.any_time_qualified;
+pub const QUALIFIES: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .event
+    .time_qualifies;
+pub const TIME: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .event
+    .player_time;
+pub const ANY_QUALIFIED: &PlainFlag = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .event
+    .any_time_qualified;
 
 pub fn time_trial_qualifies(menus: &Menus) -> Result<(), Refused> {
     stage_times()?;

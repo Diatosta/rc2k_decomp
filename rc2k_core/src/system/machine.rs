@@ -2,10 +2,9 @@
 //! `system::check_developer_machine` 0x416292 and `system::read_keyboard_type` 0x410AA3;
 //! `system::same_guid` 0x4016F9 and `system::read_volume_serial` 0x403131's results).
 
-/// Whether the computer is called "andrew" (its first six bytes, as three words each with
-/// 0x2020 or'ed in: any case, and some other bytes, pass), and the last word compared, as
-/// the original leaves it in ax. A developer's machine is kept off the best tyre-change
-/// time.
+/// Whether the computer is called "andrew" (its first six bytes, as three words each with 0x2020
+/// or'ed in: any case, and some other bytes, pass), and the last word compared. A developer's
+/// machine is kept off the best tyre-change time.
 pub fn developer(name: [u8; 6]) -> (bool, u16) {
     let mut last = 0;
     for (n, pair) in [*b"an", *b"dr", *b"ew"].into_iter().enumerate() {
@@ -30,7 +29,7 @@ pub fn same_guid(a: impl Fn(u32) -> u32, b: impl Fn(u32) -> u32) -> bool {
 
 /// What `system::read_volume_serial` leaves from the 16 bytes `GetVolumeInformationA`
 /// filled (+0 the serial, +4 the name in 12 bytes): the name's last byte (+0xF) made 0,
-/// the dwords at +4, +8, +0xC (ebx, ecx, edx) and whether the serial is 0 (the zero flag).
+/// the dwords at +4, +8, +0xC and whether the serial is 0 (the zero flag).
 pub fn volume_registers(info: &mut [u8; 16]) -> ([u32; 3], bool) {
     info[0xF] = 0;
     let d = |o: usize| u32::from_le_bytes([info[o], info[o + 1], info[o + 2], info[o + 3]]);

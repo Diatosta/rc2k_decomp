@@ -13,7 +13,7 @@
 
 use crate::errors::Refused;
 use crate::physics::car_store::Car;
-use crate::physics::step_inputs::StepInputs;
+use crate::physics::step_families::CheckpointInputs;
 use crate::race::replay_file_store::ReplayFileBlock;
 use crate::race::work_store::RaceWork;
 use rc2k_core::physics::pace_calls::{call_target, calling, calls};
@@ -34,11 +34,11 @@ const ONE_F32: u32 = 0x3F80_0000;
 
 // Converted: `rc2k_core::physics::pace_calls::{calling, call_target, calls}`.
 pub fn pace_notes_step(
-    c: &StepInputs<'_>,
+    c: &CheckpointInputs<'_>,
     scene: &crate::scene::owner::Scene,
     sound: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {
-    let (physics, numbers, frame_work) = (c.physics, c.numbers, &c.frame.frame_work);
+    let (physics, numbers, frame_work) = (c.physics, c.numbers, &c.frame_work);
     let (work, vars, replay_file) = (c.work, c.vars, &c.shared.replay_file);
     let (physics_tables, car) = (c.tables, c.car);
     if !calling(

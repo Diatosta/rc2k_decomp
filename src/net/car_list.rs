@@ -9,17 +9,20 @@
 use crate::errors::Refused;
 use crate::menu::lists_store::CarList;
 use crate::menu::owner::Tables;
-use crate::session::Dword;
 
 /// Whether one of the cars in `won` is in the list `secret` (read on past their ends, as
 /// the original reads to their ends' marks).
-pub fn any_won(tables: &Tables, secret: &[Dword], won: &[Dword]) -> Result<bool, Refused> {
+pub fn any_won(
+    tables: &Tables,
+    secret: &[impl crate::session::Cell32],
+    won: &[impl crate::session::Cell32],
+) -> Result<bool, Refused> {
     // Converted: `rc2k_core::net::cars::any_won`, the lists' dwords by index.
     // The core asks infallibly: the first refusal is kept and raised after.
     let refused = std::cell::Cell::new(None);
     fn reader<'a>(
         tables: &'a Tables,
-        list: &'a [Dword],
+        list: &'a [impl crate::session::Cell32],
         refused: &'a std::cell::Cell<Option<crate::errors::BadInput>>,
     ) -> impl Fn(u32) -> u32 + 'a {
         move |n: u32| {

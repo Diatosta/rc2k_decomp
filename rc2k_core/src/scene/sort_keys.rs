@@ -1,13 +1,13 @@
 //! The depth a face is sorted by (from `scene::face_sort_key`
 //! 0x450564): its points' depths (each point's record 0x1000 + its number's low 12 bits,
 //! +0x18) added one by one, each sum stored as a float, times one over the vertices
-//! (`flt_5C6950`), rounded to a whole number. As in `math::geometry`, what the x87 keeps on
+//!, rounded to a whole number. As in `math::geometry`, what the x87 keeps on
 //! its stack is an `f64`: the same at the game's double precision.
 
 use crate::Invalid;
 use crate::math::geometry::fistp64;
 
-/// The factors' table (`flt_5C6950`): 0x100 floats.
+/// The factors' table: 0x100 floats.
 pub const FACTORS: u32 = 0x100;
 /// The most points a face's key is made from (the records' second half).
 pub const MOST_POINTS: u32 = 0x1000;

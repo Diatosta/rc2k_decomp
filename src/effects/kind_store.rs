@@ -17,85 +17,105 @@
 
 #[cfg(test)]
 use crate::effects::owner::effects;
-use crate::session::{Bytes, Dword, Float};
+use crate::session::{PlainBytes, PlainDword, PlainFloat};
 
 /// A quad's work area, the image's layout (IDA 0xF8 bytes, three copies: `QUAD_1`, `QUAD_2`, `QUAD_3`). The offsets are from its start.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct QuadWork {
     /// +0x0: the quad's place (z, y, x as `kind_values` writes it, a reading): the kind's two triples blended (set 1 `flt_9331B4`, `flt_9331B8` ..; set 2 `flt_933ED0`, `flt_933ED4` ..; plane `flt_934BD0`, `flt_934BD4` ..)
-    pub place: [Float; 3],
+    pub place: [PlainFloat; 3],
     /// +0xC: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_c: Bytes<4>,
+    pub _gap_c: PlainBytes<4>,
     /// +0x10: the light's way turned by the matrix (`draw_shadow`), a reading (set 1 `flt_9331C4`, `flt_9331C8` ..; set 2 `flt_933EE0`, `flt_933EE4` ..; plane `flt_934BE0`, `flt_934BE4` ..)
-    pub light_turned: [Float; 3],
+    pub light_turned: [PlainFloat; 3],
     /// +0x1C: the matrix turned about z by the angle (`turn_matrix3`); its rows are made the frame's (set 1 `dword_9331D0`, `dword_9331D4` ..; set 2 `dword_933EEC`, `dword_933EF0` ..; plane `dword_934BEC`, `dword_934BF0` ..)
-    pub matrix: [Float; 9],
+    pub matrix: [PlainFloat; 9],
     /// +0x40: Not named: 12 bytes (a gap, or unreferenced data).
-    pub _gap_40: Bytes<12>,
+    pub _gap_40: PlainBytes<12>,
     /// +0x4C: the quad's two sides: the kind's triple (`copied`), then (0, difference y, minus difference x) (set 1 `dword_933200`, `dword_933204` ..; set 2 `dword_933F1C`, `dword_933F20` ..; plane `dword_934C1C`, `dword_934C20` ..)
-    pub sides: [[Float; 3]; 2],
+    pub sides: [[PlainFloat; 3]; 2],
     /// +0x64: Not named: 12 bytes (a gap, or unreferenced data).
-    pub _gap_64: Bytes<12>,
+    pub _gap_64: PlainBytes<12>,
     /// +0x70: the sides made one long and square (`normalise_vector3`, `cross_product3`); the light turned is stored in the third (set 1 `dword_933224`, `dword_933228` ..; set 2 `dword_933F40`, `dword_933F44` ..; plane `dword_934C40`, `dword_934C44` ..)
-    pub frame: [[Float; 3]; 3],
+    pub frame: [[PlainFloat; 3]; 3],
     /// +0x94: the corner of `g_marksCorners` (-1: none), the kind's `count` (set 1 `dword_933248`; set 2 `dword_933F64`; plane `dword_934C64`)
-    pub corner: Dword,
+    pub corner: PlainDword,
     /// +0x98: the kind's size over its divisor (`kind_values`) (set 1 `flt_93324C`; set 2 `flt_933F68`; plane `flt_934C68`)
-    pub ratio: Float,
+    pub ratio: PlainFloat,
     /// +0x9C: the kind's size times its constant (`kind_values`) (set 1 `flt_933250`; set 2 `flt_933F6C`; plane `flt_934C6C`)
-    pub size: Float,
+    pub size: PlainFloat,
     /// +0xA0: the kind's start times its constant (set 1 `flt_933254`; set 2 `flt_933F70`; plane `flt_934C70`)
-    pub start: Float,
+    pub start: PlainFloat,
     /// +0xA4: the angle line below the split: the factor (set 1 `flt_933258`; set 2 `flt_933F74`; plane `flt_934C74`)
-    pub step: Float,
+    pub step: PlainFloat,
     /// +0xA8: the split of the angle's two lines: the kind's `low` (signed compare of the bits) (set 1 `dword_93325C`; set 2 `dword_933F78`; plane `flt_934C78`)
-    pub low: Float,
+    pub low: PlainFloat,
     /// +0xAC: the kind's `high` (set 1 `dword_933260`; set 2 `dword_933F7C`; plane `flt_934C7C`)
-    pub high: Float,
+    pub high: PlainFloat,
     /// +0xB0: the angle line above the split: its base (set 1 `flt_933264`; set 2 `flt_933F80`; plane `flt_934C80`)
-    pub middle: Float,
+    pub middle: PlainFloat,
     /// +0xB4: the angle line above the split: its factor (set 1 `flt_933268`; set 2 `flt_933F84`; plane `flt_934C84`)
-    pub slope: Float,
+    pub slope: PlainFloat,
     /// +0xB8: the factor the quad is drawn in by (`corners_in`) (set 1 `flt_93326C`; set 2 `flt_933F88`; plane `flt_934C88`)
-    pub spread: Float,
+    pub spread: PlainFloat,
     /// +0xBC: the way between two corners, made one long (`normalise_vector3`) (set 1 `flt_933270`, `flt_933274` ..; set 2 `flt_933F8C`, `flt_933F90` ..; plane `flt_934C8C`, `flt_934C90` ..)
-    pub way: [Float; 3],
+    pub way: [PlainFloat; 3],
     /// +0xC8: the quad's four corners (z, y, x), turned to the view then projected (set 1 `flt_93327C`, `flt_933280` ..; set 2 `flt_933F98`, `flt_933F9C` ..; plane `flt_934C98`, `flt_934C9C` ..)
-    pub corners: [[Float; 3]; 4],
+    pub corners: [[PlainFloat; 3]; 4],
 }
 
 impl QuadWork {
     /// The second shadow's (`draw_shadow::SECOND`) quad (IDA 0x9331B4 .. 0x9332AC); the first values are the image's.
     pub const fn new_1() -> Self {
         Self {
-            place: [Float::new(0.0), Float::new(125536.0), Float::new(0.0)],
-            _gap_c: Bytes::new([0; 4]),
-            light_turned: [const { Float::new(0.0) }; 3],
-            matrix: [const { Float::new(0.0) }; 9],
-            _gap_40: Bytes::new([0; 12]),
+            place: [
+                PlainFloat::new(0.0),
+                PlainFloat::new(125536.0),
+                PlainFloat::new(0.0),
+            ],
+            _gap_c: PlainBytes::new([0; 4]),
+            light_turned: [const { PlainFloat::new(0.0) }; 3],
+            matrix: [const { PlainFloat::new(0.0) }; 9],
+            _gap_40: PlainBytes::new([0; 12]),
             sides: [
-                [Float::new(1.0), Float::new(0.0), Float::new(0.0)],
-                [Float::new(0.0), Float::new(-1.0), Float::new(-1.0)],
+                [
+                    PlainFloat::new(1.0),
+                    PlainFloat::new(0.0),
+                    PlainFloat::new(0.0),
+                ],
+                [
+                    PlainFloat::new(0.0),
+                    PlainFloat::new(-1.0),
+                    PlainFloat::new(-1.0),
+                ],
             ],
-            _gap_64: Bytes::new([0; 12]),
+            _gap_64: PlainBytes::new([0; 12]),
             frame: [
-                [Float::new(1.0), Float::new(0.0), Float::new(0.0)],
-                [Float::new(0.0), Float::new(-1.0), Float::new(-1.0)],
-                [const { Float::new(0.0) }; 3],
+                [
+                    PlainFloat::new(1.0),
+                    PlainFloat::new(0.0),
+                    PlainFloat::new(0.0),
+                ],
+                [
+                    PlainFloat::new(0.0),
+                    PlainFloat::new(-1.0),
+                    PlainFloat::new(-1.0),
+                ],
+                [const { PlainFloat::new(0.0) }; 3],
             ],
-            corner: Dword::new(0x4),
-            ratio: Float::new(32768.0),
-            size: Float::new(65536.0),
-            start: Float::new(0.0),
-            step: Float::new(0.0),
-            low: Float::new(0.0),
-            high: Float::new(0.0),
-            middle: Float::new(0.0),
-            slope: Float::new(0.0),
-            spread: Float::new(0.0),
-            way: [const { Float::new(0.0) }; 3],
-            corners: [const { [const { Float::new(0.0) }; 3] }; 4],
+            corner: PlainDword::new(0x4),
+            ratio: PlainFloat::new(32768.0),
+            size: PlainFloat::new(65536.0),
+            start: PlainFloat::new(0.0),
+            step: PlainFloat::new(0.0),
+            low: PlainFloat::new(0.0),
+            high: PlainFloat::new(0.0),
+            middle: PlainFloat::new(0.0),
+            slope: PlainFloat::new(0.0),
+            spread: PlainFloat::new(0.0),
+            way: [const { PlainFloat::new(0.0) }; 3],
+            corners: [const { [const { PlainFloat::new(0.0) }; 3] }; 4],
         }
     }
 }
@@ -104,33 +124,53 @@ impl QuadWork {
     /// The first shadow's (`draw_shadow::FIRST`) quad (IDA 0x933ED0 .. 0x933FC8); the first values are the image's.
     pub const fn new_2() -> Self {
         Self {
-            place: [Float::new(0.0), Float::new(125536.0), Float::new(0.0)],
-            _gap_c: Bytes::new([0; 4]),
-            light_turned: [const { Float::new(0.0) }; 3],
-            matrix: [const { Float::new(0.0) }; 9],
-            _gap_40: Bytes::new([0; 12]),
+            place: [
+                PlainFloat::new(0.0),
+                PlainFloat::new(125536.0),
+                PlainFloat::new(0.0),
+            ],
+            _gap_c: PlainBytes::new([0; 4]),
+            light_turned: [const { PlainFloat::new(0.0) }; 3],
+            matrix: [const { PlainFloat::new(0.0) }; 9],
+            _gap_40: PlainBytes::new([0; 12]),
             sides: [
-                [Float::new(1.0), Float::new(0.0), Float::new(0.0)],
-                [Float::new(0.0), Float::new(-1.0), Float::new(-1.0)],
+                [
+                    PlainFloat::new(1.0),
+                    PlainFloat::new(0.0),
+                    PlainFloat::new(0.0),
+                ],
+                [
+                    PlainFloat::new(0.0),
+                    PlainFloat::new(-1.0),
+                    PlainFloat::new(-1.0),
+                ],
             ],
-            _gap_64: Bytes::new([0; 12]),
+            _gap_64: PlainBytes::new([0; 12]),
             frame: [
-                [Float::new(1.0), Float::new(0.0), Float::new(0.0)],
-                [Float::new(0.0), Float::new(-1.0), Float::new(-1.0)],
-                [const { Float::new(0.0) }; 3],
+                [
+                    PlainFloat::new(1.0),
+                    PlainFloat::new(0.0),
+                    PlainFloat::new(0.0),
+                ],
+                [
+                    PlainFloat::new(0.0),
+                    PlainFloat::new(-1.0),
+                    PlainFloat::new(-1.0),
+                ],
+                [const { PlainFloat::new(0.0) }; 3],
             ],
-            corner: Dword::new(0x4),
-            ratio: Float::new(32768.0),
-            size: Float::new(65536.0),
-            start: Float::new(0.0),
-            step: Float::new(0.0),
-            low: Float::new(0.0),
-            high: Float::new(0.0),
-            middle: Float::new(0.0),
-            slope: Float::new(0.0),
-            spread: Float::new(0.0),
-            way: [const { Float::new(0.0) }; 3],
-            corners: [const { [const { Float::new(0.0) }; 3] }; 4],
+            corner: PlainDword::new(0x4),
+            ratio: PlainFloat::new(32768.0),
+            size: PlainFloat::new(65536.0),
+            start: PlainFloat::new(0.0),
+            step: PlainFloat::new(0.0),
+            low: PlainFloat::new(0.0),
+            high: PlainFloat::new(0.0),
+            middle: PlainFloat::new(0.0),
+            slope: PlainFloat::new(0.0),
+            spread: PlainFloat::new(0.0),
+            way: [const { PlainFloat::new(0.0) }; 3],
+            corners: [const { [const { PlainFloat::new(0.0) }; 3] }; 4],
         }
     }
 }
@@ -139,33 +179,53 @@ impl QuadWork {
     /// The plane's (`draw_plane`) quad (IDA 0x934BD0 .. 0x934CC8); the first values are the image's.
     pub const fn new_3() -> Self {
         Self {
-            place: [Float::new(0.0), Float::new(125536.0), Float::new(0.0)],
-            _gap_c: Bytes::new([0; 4]),
-            light_turned: [const { Float::new(0.0) }; 3],
-            matrix: [const { Float::new(0.0) }; 9],
-            _gap_40: Bytes::new([0; 12]),
+            place: [
+                PlainFloat::new(0.0),
+                PlainFloat::new(125536.0),
+                PlainFloat::new(0.0),
+            ],
+            _gap_c: PlainBytes::new([0; 4]),
+            light_turned: [const { PlainFloat::new(0.0) }; 3],
+            matrix: [const { PlainFloat::new(0.0) }; 9],
+            _gap_40: PlainBytes::new([0; 12]),
             sides: [
-                [Float::new(1.0), Float::new(0.0), Float::new(0.0)],
-                [Float::new(0.0), Float::new(-1.0), Float::new(-1.0)],
+                [
+                    PlainFloat::new(1.0),
+                    PlainFloat::new(0.0),
+                    PlainFloat::new(0.0),
+                ],
+                [
+                    PlainFloat::new(0.0),
+                    PlainFloat::new(-1.0),
+                    PlainFloat::new(-1.0),
+                ],
             ],
-            _gap_64: Bytes::new([0; 12]),
+            _gap_64: PlainBytes::new([0; 12]),
             frame: [
-                [Float::new(1.0), Float::new(0.0), Float::new(0.0)],
-                [Float::new(0.0), Float::new(-1.0), Float::new(-1.0)],
-                [const { Float::new(0.0) }; 3],
+                [
+                    PlainFloat::new(1.0),
+                    PlainFloat::new(0.0),
+                    PlainFloat::new(0.0),
+                ],
+                [
+                    PlainFloat::new(0.0),
+                    PlainFloat::new(-1.0),
+                    PlainFloat::new(-1.0),
+                ],
+                [const { PlainFloat::new(0.0) }; 3],
             ],
-            corner: Dword::new(0x4),
-            ratio: Float::new(32768.0),
-            size: Float::new(65536.0),
-            start: Float::new(0.0),
-            step: Float::new(0.0),
-            low: Float::new(0.0),
-            high: Float::new(0.0),
-            middle: Float::new(0.0),
-            slope: Float::new(0.0),
-            spread: Float::new(0.0),
-            way: [const { Float::new(0.0) }; 3],
-            corners: [const { [const { Float::new(0.0) }; 3] }; 4],
+            corner: PlainDword::new(0x4),
+            ratio: PlainFloat::new(32768.0),
+            size: PlainFloat::new(65536.0),
+            start: PlainFloat::new(0.0),
+            step: PlainFloat::new(0.0),
+            low: PlainFloat::new(0.0),
+            high: PlainFloat::new(0.0),
+            middle: PlainFloat::new(0.0),
+            slope: PlainFloat::new(0.0),
+            spread: PlainFloat::new(0.0),
+            way: [const { PlainFloat::new(0.0) }; 3],
+            corners: [const { [const { PlainFloat::new(0.0) }; 3] }; 4],
         }
     }
 }
@@ -570,20 +630,20 @@ impl Tables2 {
 #[derive(rc2k_derive::Cells)]
 pub struct KindExtras1 {
     /// +0x0: the kind's `extra` times `extra_k` (`flt_933E70`), the lift along the up
-    pub extra: Float,
+    pub extra: PlainFloat,
     /// +0x4: `divisor` copied (`dword_933E74`; the first set only)
-    pub divisor_copy: Dword,
+    pub divisor_copy: PlainDword,
     /// +0x8: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_8: Bytes<4>,
+    pub _gap_8: PlainBytes<4>,
 }
 
 impl KindExtras1 {
     /// Set 1's outs; the first values are the image's.
     pub const fn new() -> Self {
         Self {
-            extra: Float::new(0.0),
-            divisor_copy: Dword::new(0x0),
-            _gap_8: Bytes::new([0x00, 0x00, 0x80, 0x47]),
+            extra: PlainFloat::new(0.0),
+            divisor_copy: PlainDword::new(0x0),
+            _gap_8: PlainBytes::new([0x00, 0x00, 0x80, 0x47]),
         }
     }
 }
@@ -598,14 +658,14 @@ impl KindExtras1 {
 #[derive(rc2k_derive::Cells)]
 pub struct KindExtra2 {
     /// +0x0: the kind's `extra` times `extra_k` (`flt_934B78`), the lift along the up
-    pub extra: Float,
+    pub extra: PlainFloat,
 }
 
 impl KindExtra2 {
     /// Set 2's out; the first values are the image's.
     pub const fn new() -> Self {
         Self {
-            extra: Float::new(0.0),
+            extra: PlainFloat::new(0.0),
         }
     }
 }

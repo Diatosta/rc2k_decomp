@@ -25,7 +25,7 @@ use crate::scene::cross_product3::cross;
 use crate::scene::matrix3::{Axis, extended, rounded, turn_matrix3, turnable};
 use crate::scene::rotate_point::rotate_point;
 use crate::scene::vector3::normalise;
-use crate::session::Float;
+use crate::session::PlainFloat;
 
 use crate::d3d::vertices_store::VERTICES;
 
@@ -35,24 +35,35 @@ pub struct Shadow<'a> {
     pub quad: &'a QuadWork,
     pub consts: &'a KindConsts,
     /// The quad is lifted along it.
-    pub up: &'a Float,
+    pub up: &'a PlainFloat,
     /// The settings' field the angle comes from.
-    pub field: fn(&EffectsSettings) -> &Float,
+    pub field: fn(&EffectsSettings) -> &crate::session::Float,
 }
 
 /// `draw_shadow`'s.
-pub static FIRST: Shadow<'static> = Shadow {
-    quad: &crate::effects::owner::EFFECTS.kinds.shadow_quad,
+pub const FIRST: Shadow<'static> = Shadow {
+    quad: &crate::effects::owner::EFFECTS.unchecked().kinds.shadow_quad,
     consts: &CONSTS_2,
-    up: &crate::effects::owner::EFFECTS.kinds.shadow_extra.extra,
+    up: &crate::effects::owner::EFFECTS
+        .unchecked()
+        .kinds
+        .shadow_extra
+        .extra,
     field: |marks| &marks.engine_speed_scaled_copy,
 };
 
 /// `effects::draw_overlays`'s.
-pub static SECOND: Shadow<'static> = Shadow {
-    quad: &crate::effects::owner::EFFECTS.kinds.overlay_quad,
+pub const SECOND: Shadow<'static> = Shadow {
+    quad: &crate::effects::owner::EFFECTS
+        .unchecked()
+        .kinds
+        .overlay_quad,
     consts: &CONSTS_1,
-    up: &crate::effects::owner::EFFECTS.kinds.overlay_extras.extra,
+    up: &crate::effects::owner::EFFECTS
+        .unchecked()
+        .kinds
+        .overlay_extras
+        .extra,
     field: |marks| &marks.engine_speed_copy,
 };
 
@@ -117,7 +128,7 @@ pub fn draw_shadow_with(
     }
     effects.settings()?;
     turnable(&angle(sh, effects)?)?;
-    let temps = [const { Float::new(0.0) }; 2];
+    let temps = [const { PlainFloat::new(0.0) }; 2];
 
     if depth {
         crate::scene::depth_buffer_on::depth_buffer(true);
@@ -198,7 +209,7 @@ use crate::math::x87_float as bh;
 use crate::race::effects_settings_store::EffectsSettings;
 
 /// `light_turned`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places, on either shadow's variables.
-fn light_turned_x87(s: &Shadow, m: &[Float; 9], t: &[Float; 2]) {
+fn light_turned_x87(s: &Shadow, m: &[PlainFloat; 9], t: &[PlainFloat; 2]) {
     let t0 = bh::ld(s.consts.light[0].to_bits());
     let t1 = bh::ld(s.consts.light[1].to_bits());
     let t2 = bh::ld(s.consts.light[2].to_bits());
@@ -227,7 +238,7 @@ fn light_turned_x87(s: &Shadow, m: &[Float; 9], t: &[Float; 2]) {
 }
 
 /// `second_turned`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places, on either shadow's variables.
-fn second_turned_x87(s: &Shadow, m: &[Float; 9], t: &[Float; 2]) {
+fn second_turned_x87(s: &Shadow, m: &[PlainFloat; 9], t: &[PlainFloat; 2]) {
     let t0 = s.quad.light_turned[2].ld();
     let t1 = s.quad.light_turned[1].ld();
     let t2 = s.quad.light_turned[0].ld();
@@ -1177,7 +1188,7 @@ mod asm_differential {
     use crate::effects::asm_test::with_copy;
     use crate::effects::kind_store::{KindConsts, QuadWork};
     use crate::effects::store::START;
-    use crate::session::Float;
+    use crate::session::PlainFloat;
 
     /// A shadow's variables: the quad, the constants and the up (IDA addresses).
     #[derive(Clone, Copy)]
@@ -1190,7 +1201,7 @@ mod asm_differential {
     fn with_shadow<R>(mk: usize, l: Layout, f: impl FnOnce(&Shadow) -> R) -> R {
         with_copy::<QuadWork, R>(mk, l.0, |quad| {
             with_copy::<KindConsts, R>(mk, l.1, |consts| {
-                with_copy::<Float, R>(mk, l.2, |up| {
+                with_copy::<PlainFloat, R>(mk, l.2, |up| {
                     f(&Shadow {
                         quad,
                         consts,
@@ -1206,9 +1217,9 @@ mod asm_differential {
         })
     }
     /// `f` on the matrix and the two temporaries at the test addresses `m` and `t`.
-    fn with_matrix(m: usize, t: usize, f: impl FnOnce(&[Float; 9], &[Float; 2])) {
-        with_copy::<[Float; 9], ()>(m, START, |m| {
-            with_copy::<[Float; 2], ()>(t, START, |t| f(m, t));
+    fn with_matrix(m: usize, t: usize, f: impl FnOnce(&[PlainFloat; 9], &[PlainFloat; 2])) {
+        with_copy::<[PlainFloat; 9], ()>(m, START, |m| {
+            with_copy::<[PlainFloat; 2], ()>(t, START, |t| f(m, t));
         });
     }
     use crate::effects::asm_test::Kind::*;

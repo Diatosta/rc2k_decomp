@@ -80,7 +80,7 @@ struct Token {
     length: u32,
     /// Where the word's bytes are; None for the space between two words.
     start: Option<usize>,
-    /// What the original leaves in esi when the length is 0.
+    /// Where the scan stands when the length is 0.
     left: usize,
     after: usize,
 }

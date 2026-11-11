@@ -34,7 +34,7 @@ pub struct NoiseSample {
     /// The four corners round the place (`noise_samples` ..): (x, z), (x + 1, z),
     /// (x, z + 1), (x + 1, z + 1).
     pub corners: [u32; 4],
-    /// Blended along x at z and at z + 1 (`dword_637630`, `dword_637634`).
+    /// Blended along x at z and at z + 1.
     pub near: u32,
     pub far: u32,
     /// Those blended along z, << 8.

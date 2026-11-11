@@ -9,7 +9,7 @@ use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::session::write_bits;
-use crate::session::{Bytes, Dword, Float, Word};
+use crate::session::{PlainBytes, PlainDword, PlainFloat, PlainWord};
 
 pub const PLACES_LEN: u32 = 0x7024;
 pub const RING_LEN: u32 = 0x4C000;
@@ -156,7 +156,7 @@ pub fn reset_settings_blocks(effects: &crate::effects::owner::Effects) -> Result
             {
                 cell.set(x87::loaded(v));
             }
-            let last = car.steps[0].each_ref().map(Float::bits);
+            let last = car.steps[0].each_ref().map(crate::session::Cell32::bits);
             for steps in &car.steps[1..] {
                 for (cell, v) in steps.iter().zip(last) {
                     cell.set_bits(v);
@@ -173,31 +173,31 @@ pub fn reset_settings_blocks(effects: &crate::effects::owner::Effects) -> Result
 #[derive(rc2k_derive::Cells)]
 pub struct PlacesBlock {
     /// 0x8DB570: `stru_8DB570` (`g_marksPlacesList`): the list the places' block is taken on (16 bytes).
-    pub list: [Dword; 4],
+    pub list: [PlainDword; 4],
     /// 0x8DB580: Not named: 48 bytes (a gap, or unreferenced data).
-    pub _gap_8db580: Bytes<48>,
+    pub _gap_8db580: PlainBytes<48>,
     /// 0x8DB5B0: `g_marksPlaces`: the places' block (0x7024 bytes; 0 since phase 12: only
     /// counted, `allocate_places`).
-    pub places: Dword,
+    pub places: PlainDword,
     /// 0x8DB5B4: `flt_8DB5B4` .. `flt_8DB5BC`: the places' block's first three floats (`effects::allocate_places`).
-    pub start: [Float; 3],
+    pub start: [PlainFloat; 3],
 }
 
 impl PlacesBlock {
     pub const fn new() -> Self {
         Self {
             list: [
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
             ],
-            _gap_8db580: Bytes::new([0; 48]),
-            places: Dword::new(0x0),
+            _gap_8db580: PlainBytes::new([0; 48]),
+            places: PlainDword::new(0x0),
             start: [
-                Float::new(0.0),
-                Float::new(-262144.0),
-                Float::new(1279952.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(-262144.0),
+                PlainFloat::new(1279952.0),
             ],
         }
     }
@@ -218,25 +218,25 @@ impl PlacesBlock {
 #[derive(rc2k_derive::Cells)]
 pub struct MarkLinks {
     /// 0x9206F0: `stru_9206F0` (`g_marksLinksList`): the list the links' block is taken on (16 bytes).
-    pub list: [Dword; 4],
+    pub list: [PlainDword; 4],
     /// 0x920700: Not named: 48 bytes (a gap, or unreferenced data).
-    pub _gap_920700: Bytes<48>,
+    pub _gap_920700: PlainBytes<48>,
     /// 0x920730: `g_marksLinks`: the links' block (0x71020 bytes; 0 since phase 12: only
     /// counted, `allocate_links`).
-    pub links: Dword,
+    pub links: PlainDword,
 }
 
 impl MarkLinks {
     pub const fn new() -> Self {
         Self {
             list: [
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
             ],
-            _gap_920700: Bytes::new([0; 48]),
-            links: Dword::new(0x0),
+            _gap_920700: PlainBytes::new([0; 48]),
+            links: PlainDword::new(0x0),
         }
     }
 }
@@ -258,9 +258,9 @@ impl MarkLinks {
 #[derive(rc2k_derive::Cells)]
 pub struct Slope {
     /// +0: |+0xA - +2| over |+4 - +0| of the corner record, as a float.
-    pub slope: Float,
+    pub slope: PlainFloat,
     /// +4: the corner's four word pairs times `DrawWork::uv_k`.
-    pub values: [Float; 8],
+    pub values: [PlainFloat; 8],
 }
 
 impl Slope {
@@ -268,8 +268,8 @@ impl Slope {
     pub const LEN: usize = 0x24;
     pub const fn new() -> Self {
         Slope {
-            slope: Float::new(0.0),
-            values: [const { Float::new(0.0) }; 8],
+            slope: PlainFloat::new(0.0),
+            values: [const { PlainFloat::new(0.0) }; 8],
         }
     }
 }
@@ -305,7 +305,7 @@ impl CornerSlopes {
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Corner {
-    pub words: [Word; 0x40],
+    pub words: [PlainWord; 0x40],
 }
 
 impl Corner {
@@ -313,7 +313,7 @@ impl Corner {
     pub const LEN: usize = 0x80;
     pub const fn new() -> Self {
         Corner {
-            words: [const { Word::new(0) }; 0x40],
+            words: [const { PlainWord::new(0) }; 0x40],
         }
     }
 }
@@ -349,29 +349,29 @@ impl MarkCorners {
 #[derive(rc2k_derive::Cells)]
 pub struct RingPool {
     /// 0x93A580: `stru_93A580` (`g_marksRingList`): a `memory::List` (head, total, cursor, remaining)
-    pub list: [Dword; 4],
+    pub list: [PlainDword; 4],
     /// 0x93A590: Not named: 48 bytes (a gap, or unreferenced data)
-    pub _gap_93a590: Bytes<48>,
+    pub _gap_93a590: PlainBytes<48>,
     /// 0x93A5C0: `g_marksRingFree`: the first entry of the ring in use
-    pub free: Dword,
+    pub free: PlainDword,
     /// 0x93A5C4: Not named: 4 bytes (a gap, or unreferenced data)
-    pub _gap_93a5c4: Bytes<4>,
+    pub _gap_93a5c4: PlainBytes<4>,
     /// 0x93A5C8: `g_marksRing`: the block taken for the ring
-    pub ring: Dword,
+    pub ring: PlainDword,
     /// 0x93A5CC: Not named: 4 bytes (a gap, or unreferenced data)
-    pub _gap_93a5cc: Bytes<4>,
+    pub _gap_93a5cc: PlainBytes<4>,
     /// 0x93A5D0: `dword_93A5D0`: a burst particle's +8 (kind plus 8 bits)
-    pub nine: Dword,
+    pub nine: PlainDword,
     /// 0x93A5D4: `dword_93A5D4`: a burst particle's kind times 0x400
-    pub kind: Dword,
+    pub kind: PlainDword,
     /// 0x93A5D8: Not named: 12 bytes (a gap, or unreferenced data)
-    pub _gap_93a5d8: Bytes<12>,
+    pub _gap_93a5d8: PlainBytes<12>,
     /// 0x93A5E4: `g_marksBurstRadius`: the burst's radius (`flt_93A5E4`)
-    pub burst_radius: Float,
+    pub burst_radius: PlainFloat,
     /// 0x93A5E8: `dword_93A5E8`: the colour index of the particle being drawn
-    pub index: Dword,
+    pub index: PlainDword,
     /// 0x93A5EC: `g_marksRingUsed`: the entries taken
-    pub used: Dword,
+    pub used: PlainDword,
 }
 
 /// RingPool's first values.
@@ -379,24 +379,24 @@ impl RingPool {
     pub const fn new() -> Self {
         RingPool {
             list: [
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
             ],
-            _gap_93a590: Bytes::new([0; 48]),
-            free: Dword::new(0x0),
-            _gap_93a5c4: Bytes::new([0; 4]),
-            ring: Dword::new(0x0),
-            _gap_93a5cc: Bytes::new([0; 4]),
-            nine: Dword::new(0x0),
-            kind: Dword::new(0x0),
-            _gap_93a5d8: Bytes::new([
+            _gap_93a590: PlainBytes::new([0; 48]),
+            free: PlainDword::new(0x0),
+            _gap_93a5c4: PlainBytes::new([0; 4]),
+            ring: PlainDword::new(0x0),
+            _gap_93a5cc: PlainBytes::new([0; 4]),
+            nine: PlainDword::new(0x0),
+            kind: PlainDword::new(0x0),
+            _gap_93a5d8: PlainBytes::new([
                 0x0D, 0x00, 0x80, 0x39, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             ]),
-            burst_radius: Float::new(0.0),
-            index: Dword::new(0x0),
-            used: Dword::new(0x0),
+            burst_radius: PlainFloat::new(0.0),
+            index: PlainDword::new(0x0),
+            used: PlainDword::new(0x0),
         }
     }
 }

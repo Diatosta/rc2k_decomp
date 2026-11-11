@@ -164,15 +164,15 @@ pub fn lowest_point(
     }
     *lowest = 0x64_0000;
     *number = u32::MAX;
-    let mut eax = 0;
+    let mut last = 0;
     for n in 4..count {
-        eax = depth(n);
-        if (eax.wrapping_sub(*lowest) as i32) < 0 {
-            *lowest = eax;
+        last = depth(n);
+        if (last.wrapping_sub(*lowest) as i32) < 0 {
+            *lowest = last;
             *number = n;
         }
     }
-    Ok(Some((eax, count)))
+    Ok(Some((last, count)))
 }
 
 /// `physics::lowest_body_point`'s share: the lowest (a whole number) over `scale`.
@@ -212,8 +212,8 @@ pub struct StepFacts {
     pub figure: f32,
 }
 
-/// `physics::count_down_timers`: the leftover value as the original leaves it (`parts_present` & 0x1E
-/// when that is looked at).
+/// `physics::count_down_timers`: the leftover value as the original leaves it (`parts_present` &
+/// 0x1E when that is looked at).
 pub fn count_down(c: &mut StepCounters, f: &StepFacts) -> Option<u32> {
     let down = |v: &mut u32| {
         if *v != 0 {
@@ -221,7 +221,7 @@ pub fn count_down(c: &mut StepCounters, f: &StepFacts) -> Option<u32> {
         }
     };
     c.first.iter_mut().for_each(down);
-    let mut eax = None;
+    let mut last = None;
     let reset = 'standing: {
         if f.steps < 1000 || f.switches.iter().any(|&s| s != 0) {
             break 'standing Some(true);
@@ -230,7 +230,7 @@ pub fn count_down(c: &mut StepCounters, f: &StepFacts) -> Option<u32> {
             break 'standing None;
         }
         let bits = f.bits & 0x1E;
-        eax = Some(bits);
+        last = Some(bits);
         Some(bits == 0x1E || f.gear != 0)
     };
     match reset {
@@ -246,7 +246,7 @@ pub fn count_down(c: &mut StepCounters, f: &StepFacts) -> Option<u32> {
         c.highest = loaded(f.figure);
     }
     down(&mut c.later[2]);
-    eax
+    last
 }
 
 /// `physics::count_stop_timers`: the three counters (`started_stand_timer` .. `finish_flag`) in

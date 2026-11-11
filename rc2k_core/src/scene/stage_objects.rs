@@ -4,7 +4,7 @@
 /// The loading kinds whose points are turned.
 pub const TURNED_KINDS: std::ops::Range<u32> = 0x190..0x258;
 
-/// A point (x, z, y as the original's eax, ecx, ebx) turned a quarter and shifted for the
+/// A point (x, z, y) turned a quarter and shifted for the
 /// turned kinds: (z, -x, y - `shift`), wrapping; `None` (left as it is) for the others.
 pub fn turn_point(kind: u32, shift: u32, p: (u32, u32, u32)) -> Option<(u32, u32, u32)> {
     TURNED_KINDS

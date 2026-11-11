@@ -490,6 +490,7 @@ mod seal_key_tests {
 mod header_tests {
     use super::*;
     use crate::race::owner::race;
+    use crate::session::DwordLike;
 
     /// The header's copies as the first typed-by-address version did them (IDA names).
     const HEADER_MOVES: [(usize, usize, usize); 31] = [
@@ -549,7 +550,7 @@ mod header_tests {
         let shared = &race().shared;
         let settings = &shared.state.settings;
         let car = &settings.cars[0];
-        let mut cells: Vec<&Dword> = vec![
+        let mut cells: Vec<&dyn DwordLike> = vec![
             &settings.stage,
             &settings.run_kind,
             &settings.car_kind_current,
@@ -567,7 +568,13 @@ mod header_tests {
             &menus().play.cheats.cheats,
             &shared.work.patch_switch,
         ];
-        cells.extend(shared.work.patch_settings.iter());
+        cells.extend(
+            shared
+                .work
+                .patch_settings
+                .iter()
+                .map(|c| c as &dyn DwordLike),
+        );
         let locale = &crate::strings::owner::strings().language.locale;
         let header = &shared.replays.header;
         let sealed = &REPLAY_WORK.sealed_header;

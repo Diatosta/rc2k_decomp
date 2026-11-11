@@ -1,8 +1,8 @@
-//! The light on the work car from the face under it (`physics::car_lighting`): the face's four corner lights blended by the car's
-//! shares across the face (16.16), scaled by the texture's shade bytes when it has them;
-//! a change held to `MOST_CHANGE` a step; colours added byte by byte with saturation.
-//! Each step also returns the leftover values of the original's last products, which later
-//! code of the original still reads.
+//! The light on the work car from the face under it (`physics::car_lighting`): the face's four
+//! corner lights blended by the car's shares across the face (16.16), scaled by the texture's shade
+//! bytes when it has them; a change held to `MOST_CHANGE` a step; colours added byte by byte with
+//! saturation. Each step also returns the leftover values of the original's last products, which
+//! later code of the original still reads.
 
 /// The shares' whole (16.16 fixed point).
 pub const WHOLE: u32 = 0x10000;
@@ -32,8 +32,8 @@ pub fn blend(lo: u32, hi: u32, s: u32) -> (u32, u32) {
 pub fn corners(c: [u32; 4], s: u32, t: u32) -> ([u32; 2], u32, u32) {
     let (a, _) = blend(c[0], c[1], s);
     let (b, _) = blend(c[2], c[3], s);
-    let (v, edx) = blend(a, b, t);
-    ([a, b], v, edx)
+    let (v, high) = blend(a, b, t);
+    ([a, b], v, high)
 }
 
 /// A corner's light scaled by its shade byte (the face's +0x22 + k): ((byte >> 1) ^ 0x7F)
@@ -44,12 +44,10 @@ pub fn shaded(light: u32, shade: u8) -> (u32, u32) {
     ((product as u32) >> 8, (product >> 32) as u32)
 }
 
-/// A held change's end: the light, and the leftover values where the original sets them.
+/// A held change's end: the light.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Held {
     pub light: u32,
-    pub eax: Option<u32>,
-    pub ecx: Option<u32>,
 }
 
 /// The light's change from `old` held (with the car's +0xFB4 set): kept at `old` with
@@ -57,11 +55,7 @@ pub struct Held {
 /// made `MOST_CHANGE` that way.
 pub fn hold_change(light: u32, old: u32, keep: bool) -> Held {
     if keep {
-        return Held {
-            light: old,
-            eax: None,
-            ecx: None,
-        };
+        return Held { light: old };
     }
     let gap = light.wrapping_sub(old);
     let size = if (gap as i32) < 0 {
@@ -70,11 +64,7 @@ pub fn hold_change(light: u32, old: u32, keep: bool) -> Held {
         gap
     };
     if size < MOST_CHANGE {
-        return Held {
-            light,
-            eax: Some(MOST_CHANGE),
-            ecx: Some(size),
-        };
+        return Held { light };
     }
     let step = if (gap as i32) < 0 {
         MOST_CHANGE.wrapping_neg()
@@ -82,11 +72,7 @@ pub fn hold_change(light: u32, old: u32, keep: bool) -> Held {
         MOST_CHANGE
     };
     let v = step.wrapping_add(old);
-    Held {
-        light: v,
-        eax: Some(v),
-        ecx: Some(gap),
-    }
+    Held { light: v }
 }
 
 /// The light and colour tables' size: an index past it is refused.
@@ -119,17 +105,9 @@ mod tests {
     #[test]
     fn holds() {
         assert_eq!(hold_change(50, 20, true).light, 20);
-        assert_eq!(
-            hold_change(25, 20, false),
-            Held {
-                light: 25,
-                eax: Some(10),
-                ecx: Some(5)
-            }
-        );
+        assert_eq!(hold_change(25, 20, false), Held { light: 25 });
         assert_eq!(hold_change(50, 20, false).light, 30);
         assert_eq!(hold_change(0, 20, false).light, 10);
-        assert_eq!(hold_change(0, 20, false).ecx, Some(20u32.wrapping_neg()));
     }
 
     #[test]

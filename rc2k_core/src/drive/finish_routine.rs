@@ -10,10 +10,10 @@ pub enum Var {
     D621514,
     D623854,
     D6235FC,
-    /// `dword_62389C`: the race mode.
+    /// The race mode.
     RaceMode,
     D6238A4,
-    /// `dword_63DB94`: the race's cars.
+    /// The race's cars.
     RaceCars,
     D63DB90,
     D6238A8,
@@ -80,7 +80,7 @@ pub fn set_up() -> Vec<(Set, u32)> {
     s
 }
 
-/// Cleared after the stage is loaded, before the routine (`dword_63DB84`).
+/// Cleared after the stage is loaded, before the routine.
 pub const BEFORE_RUN: Var = Var::D63DB84;
 
 /// Cleared after everything is tidied, in order.

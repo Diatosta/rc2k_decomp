@@ -18,7 +18,7 @@ pub const MOST_PIECES: u32 = ROOM / PIECE;
 pub const UNKNOWN_KIND: u32 = 0x80A9_7451;
 
 /// A list as the layout reads it, each part only when the original reads it: its header,
-/// its items by number, a choice item's table and a text item's font (`byte_51D52C`).
+/// its items by number, a choice item's table and a text item's font.
 pub trait ListSource {
     /// +0: the list's flags.
     fn flags(&self) -> u8;

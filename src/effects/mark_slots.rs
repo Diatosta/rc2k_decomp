@@ -6,23 +6,23 @@
 #[cfg(test)]
 use crate::effects::owner::effects;
 use crate::race::owner_frame::Frame;
-use crate::session::{Bytes, Dword, Float};
+use crate::session::{PlainBytes, PlainDword, PlainFloat};
 
 /// One mark slot (IDA `g_markSlots`, 0x14 bytes): a sprite that lives a number of ticks.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MarkSlot {
     /// +0: the ticks left (0 or less: free; `effects::add_mark_slot` sets 0x3C).
-    pub life: Dword,
+    pub life: PlainDword,
     /// +4: which point of `g_marksPoints` (12 bytes each) the slot sits at.
-    pub point: Dword,
+    pub point: PlainDword,
     /// +8: the matrix it is turned by, as a handle (`VIEW_PLACE_MATRIX`; the original kept
     /// the matrix's address); 0 for none.
-    pub matrix: Dword,
+    pub matrix: PlainDword,
     /// +0xC: 0.
-    pub spare: Dword,
+    pub spare: PlainDword,
     /// +0x10: a float of the slot's own random (`flt_93540E` plus the random's low word).
-    pub size: Float,
+    pub size: PlainFloat,
 }
 
 /// A slot's matrix handle for the view place matrix (`g_viewPlaceMatrix`, `MATRICES.view_place`),
@@ -50,9 +50,9 @@ pub struct MarkSlots {
     /// 0x934F7C: `g_markSlots`: 0x20 slots of 0x14 bytes.
     pub slots: [MarkSlot; 32],
     /// 0x9351FC: Not named: 248 bytes (a gap, or unreferenced data).
-    pub _gap_9351fc: Bytes<248>,
+    pub _gap_9351fc: PlainBytes<248>,
     /// 0x9352F4: `dword_9352F4` ..: the slot's point turned, then its projected place (z, y, x; then x, y).
-    pub work: [Dword; 3],
+    pub work: [PlainDword; 3],
 }
 
 impl MarkSlots {
@@ -60,14 +60,14 @@ impl MarkSlots {
         Self {
             slots: [const {
                 MarkSlot {
-                    life: Dword::new(0),
-                    point: Dword::new(0),
-                    matrix: Dword::new(0),
-                    spare: Dword::new(0),
-                    size: Float::new(16384.0),
+                    life: PlainDword::new(0),
+                    point: PlainDword::new(0),
+                    matrix: PlainDword::new(0),
+                    spare: PlainDword::new(0),
+                    size: PlainFloat::new(16384.0),
                 }
             }; 32],
-            _gap_9351fc: Bytes::new([
+            _gap_9351fc: PlainBytes::new([
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x30, 0xF5, 0x47, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -87,7 +87,7 @@ impl MarkSlots {
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             ]),
-            work: [Dword::new(0), Dword::new(0), Dword::new(0)],
+            work: [PlainDword::new(0), PlainDword::new(0), PlainDword::new(0)],
         }
     }
 }
@@ -102,39 +102,39 @@ impl MarkSlots {
 #[derive(rc2k_derive::Cells)]
 pub struct SlotTuning {
     /// 0x9353A6: `flt_9353A6`: half the slot square's size on the screen.
-    pub half: Float,
+    pub half: PlainFloat,
     /// 0x9353AA: Not named: 68 bytes (a gap, or unreferenced data).
-    pub _gap_9353aa: Bytes<68>,
+    pub _gap_9353aa: PlainBytes<68>,
     /// 0x9353EE: `flt_9353EE`, `flt_9353F2`, `flt_9353F6`, `flt_9353FA`: what a slot's point is scaled by: z times the first, y less the second times the third, x times the fourth.
-    pub place_k: [Float; 4],
+    pub place_k: [PlainFloat; 4],
     /// 0x9353FE: `dword_9353FE`: `effects::draw_mark_slots`' random (times 0xC5 plus 0x5D) choosing a corner picture.
-    pub draw_random: Dword,
+    pub draw_random: PlainDword,
     /// 0x935402: `flt_935402`: what one over the depth is multiplied by (the vertices' rhw).
-    pub rhw_k: Float,
+    pub rhw_k: PlainFloat,
     /// 0x935406: `flt_935406`: `effects::add_mark_slot` first takes it, then the random (nothing keeps it).
-    pub first_float: Float,
+    pub first_float: PlainFloat,
     /// 0x93540A: `g_marksSlotRandom`: `effects::add_mark_slot`' random (times 0xC5 plus 0x5D).
-    pub slot_random: Dword,
+    pub slot_random: PlainDword,
     /// 0x93540E: `flt_93540E`: added to a new slot's random (the slot's size).
-    pub base: Float,
+    pub base: PlainFloat,
 }
 
 impl SlotTuning {
     pub const fn new() -> Self {
         Self {
-            half: Float::new(0.0),
-            _gap_9353aa: Bytes::new([0; 68]),
+            half: PlainFloat::new(0.0),
+            _gap_9353aa: PlainBytes::new([0; 68]),
             place_k: [
-                Float::new(65.536),
-                Float::new(700.0),
-                Float::new(65.536),
-                Float::new(65.536),
+                PlainFloat::new(65.536),
+                PlainFloat::new(700.0),
+                PlainFloat::new(65.536),
+                PlainFloat::new(65.536),
             ],
-            draw_random: Dword::new(0x0),
-            rhw_k: Float::new(256.0),
-            first_float: Float::new(32768.0),
-            slot_random: Dword::new(0x0),
-            base: Float::new(16384.0),
+            draw_random: PlainDword::new(0x0),
+            rhw_k: PlainFloat::new(256.0),
+            first_float: PlainFloat::new(32768.0),
+            slot_random: PlainDword::new(0x0),
+            base: PlainFloat::new(16384.0),
         }
     }
 }

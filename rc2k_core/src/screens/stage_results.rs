@@ -23,13 +23,13 @@ pub enum Font {
 pub enum Work {
     /// `seconds` (0x7559AC): the rank.
     Rank,
-    /// `dword_7559EC`: the seal code's y.
+    /// The seal code's y.
     Scratch,
-    /// `dword_75AB24`: the first row's time.
+    /// The first row's time.
     FirstTime,
-    /// `dword_7559F0`: a row's gap.
+    /// A row's gap.
     Gap,
-    /// `dword_7559B0`: the row's y after its rank.
+    /// The row's y after its rank.
     RowY,
 }
 

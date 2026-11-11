@@ -18,15 +18,19 @@ pub fn letter_place(value: i32) -> (u32, u32) {
     (held / 250, held % 250)
 }
 
-/// The letter's number: a digit's value, a letter's from 10 on ('a' 10; `sub al, 0x30`,
-/// then 0x27 off at 10 or more, unsigned).
+/// The letter's number: a digit's value, a letter's from 10 on ('a' 10: 0x30 off, then 0x27 more
+/// at 10 or more, unsigned).
 pub fn letter_number(character: u8) -> u8 {
-    let al = character.wrapping_sub(0x30);
-    if al >= 10 { al.wrapping_sub(0x27) } else { al }
+    let value = character.wrapping_sub(0x30);
+    if value >= 10 {
+        value.wrapping_sub(0x27)
+    } else {
+        value
+    }
 }
 
-/// The race number's digits: the tens and the units (`dword_5CD6A0`, `dword_5CD6A4`) and
-/// the units alone (`dword_5CD6AC`) for a number below ten; `NO_DIGIT` where none.
+/// The race number's digits: the tens and the units and
+/// the units alone for a number below ten; `NO_DIGIT` where none.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Digits {
     pub tens: u32,

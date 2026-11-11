@@ -3,14 +3,14 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::service::state::current_player;
-use crate::session::Dword;
+use crate::session::DwordLike;
 
 // ---- steppers ----
 
 #[derive(Clone, Copy)]
 pub enum Target {
     /// A game variable.
-    Global(&'static Dword),
+    Global(&'static dyn DwordLike),
     /// A setup value of the current player's car.
     CarField(rc2k_core::menu::player::SetupField),
 }
@@ -55,6 +55,6 @@ pub fn step(stepper: Stepper) -> Result<(), Refused> {
 /// `installed` what the car has.
 #[derive(Clone, Copy)]
 pub struct Change {
-    pub chosen: &'static Dword,
-    pub installed: &'static Dword,
+    pub chosen: &'static dyn DwordLike,
+    pub installed: &'static dyn DwordLike,
 }

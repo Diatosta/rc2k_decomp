@@ -640,15 +640,15 @@ mod asm_differential {
             mk,
             &[
                 overlay(
-                    &crate::effects::owner::EFFECTS.windscreen_drops.tilt,
+                    &crate::effects::owner::effects().windscreen_drops.tilt,
                     ShapeTilt::START,
                 ),
                 overlay(
-                    &crate::effects::owner::EFFECTS.windscreen_drops.state,
+                    &crate::effects::owner::effects().windscreen_drops.state,
                     WindscreenDropState::START,
                 ),
                 overlay(
-                    &crate::effects::owner::EFFECTS.windscreen_drops.work,
+                    &crate::effects::owner::effects().windscreen_drops.work,
                     WindscreenDropWork::START,
                 ),
             ],
@@ -664,7 +664,7 @@ mod asm_differential {
         with_overlays(
             mk,
             &[overlay(
-                &crate::effects::owner::EFFECTS.windscreen_drops.hex,
+                &crate::effects::owner::effects().windscreen_drops.hex,
                 WindscreenDropVars::START,
             )],
             f,
@@ -674,22 +674,23 @@ mod asm_differential {
     /// The test buffer's `len` bytes at `at` run through `f` as `bytes` (a stand-in for the
     /// item or record the original found by address): `bytes` holds them from offset 0 and
     /// what `f` leaves goes back to the buffer, the stand-in as it was.
-    fn staged<const N: usize, R>(
+    fn staged<R>(
         at: usize,
         from: usize,
         len: usize,
-        bytes: &crate::session::Bytes<N>,
+        bytes: &impl crate::session::ByteBuffer,
         f: impl FnOnce() -> R,
     ) -> R {
         let host = crate::pointers::host_at(at + from);
-        let saved: Vec<u8> = (from..from + len).map(|i| bytes.get(i)).collect();
+        let saved: Vec<u8> = (from..from + len).map(|i| bytes.get_byte(i)).collect();
         for i in 0..len {
-            bytes.set(from + i, unsafe { host.add(i).read() });
+            let b = unsafe { host.add(i).read() };
+            bytes.write_bytes_at(from + i, &[b], "a test byte").unwrap();
         }
         let out = f();
         for (i, &b) in saved.iter().enumerate() {
-            unsafe { host.add(i).write(bytes.get(from + i)) };
-            bytes.set(from + i, b);
+            unsafe { host.add(i).write(bytes.get_byte(from + i)) };
+            bytes.write_bytes_at(from + i, &[b], "a test byte").unwrap();
         }
         out
     }
@@ -723,7 +724,7 @@ mod asm_differential {
             |b| reference::drift_cell_x87(b[0], b[1]),
             |b| {
                 windscreen_drops(b[0], || {
-                    super::drift_cell_x87(&crate::effects::owner::EFFECTS.windscreen_drops, b[1]);
+                    super::drift_cell_x87(&crate::effects::owner::effects().windscreen_drops, b[1]);
                 });
             },
         );
@@ -769,10 +770,10 @@ mod asm_differential {
                             b[2],
                             0x14,
                             0x10,
-                            &crate::effects::owner::EFFECTS.windscreen_drops.hex.items,
+                            &crate::effects::owner::effects().windscreen_drops.hex.items,
                             || {
                                 super::drift_move_x87(
-                                    &crate::effects::owner::EFFECTS.windscreen_drops,
+                                    &crate::effects::owner::effects().windscreen_drops,
                                     b[1],
                                     0,
                                 );
@@ -821,7 +822,7 @@ mod asm_differential {
             |b| {
                 windscreen_drops(b[0], || {
                     hex(b[0], || {
-                        super::sprite_depth_x87(&crate::effects::owner::EFFECTS.windscreen_drops);
+                        super::sprite_depth_x87(&crate::effects::owner::effects().windscreen_drops);
                     });
                 });
             },
@@ -948,7 +949,7 @@ mod asm_differential {
                 canon(
                     windscreen_drops(b[1], || {
                         super::sprite_corners_x87(
-                            &crate::effects::owner::EFFECTS.windscreen_drops,
+                            &crate::effects::owner::effects().windscreen_drops,
                             b[2],
                         )
                     })
@@ -1077,7 +1078,7 @@ mod asm_differential {
                                     &crate::gfx::owner::gfx().card.windscreen_drop_batch.records,
                                     || {
                                         super::sprite_project_x87(
-                                            &crate::effects::owner::EFFECTS.windscreen_drops,
+                                            &crate::effects::owner::effects().windscreen_drops,
                                             0,
                                             super::bh::ld(b[3] as u32),
                                         );

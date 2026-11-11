@@ -1,6 +1,6 @@
 //! The championship's working tables: the ranked times
 //! (`g_rankedTimes`, standings table A), the championship's history (`g_champHistory`,
-//! standings table B) and the summary the race takes its rivals from (`dword_7556F4`). Not
+//! standings table B) and the summary the race takes its rivals from. Not
 //! in `var\hst.dat`; taken with the best times' tables (`saves::allocate_best_times`, the
 //! nine's first, sixth and seventh).
 //!

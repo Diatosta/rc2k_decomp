@@ -8,20 +8,25 @@ use crate::place::BytePlace;
 use crate::race::owner::race;
 use crate::saves::owner::saves;
 use crate::service::state::menu_item;
-use crate::session::{Bytes, Dword};
+use crate::session::PlainDword;
 
 pub const NAME_LEN: usize = 0x20;
 const NAMES: u32 = 100;
 
-pub const SAVEGAME_PAGE_RVA: &Dword = &crate::menu::owner::MENUS.tables.pages.save_page;
+pub const SAVEGAME_PAGE_RVA: &PlainDword =
+    &crate::menu::owner::MENUS.unchecked().tables.pages.save_page;
 const SAVEGAMES_PER_PAGE: u32 = 10;
 
-pub const REPLAY_PAGE_RVA: &Dword = &crate::menu::owner::MENUS.tables.pages.replay_page;
+pub const REPLAY_PAGE_RVA: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .tables
+    .pages
+    .replay_page;
 const REPLAYS_PER_PAGE: u32 = 20;
 
-fn highlighted<const N: usize>(
-    names: &'static Bytes<N>,
-    page: &Dword,
+fn highlighted(
+    names: &'static dyn crate::place::Run,
+    page: &PlainDword,
     per_page: u32,
 ) -> Result<BytePlace, BadInput> {
     let index = page

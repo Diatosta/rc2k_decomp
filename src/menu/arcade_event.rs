@@ -4,7 +4,8 @@ use crate::menu::lists_store::CarList;
 use crate::menu::owner::Menus;
 use crate::menu::screen_loop::{Entry, Screen, run_screen};
 use crate::race::owner::race;
-use crate::session::Dword;
+use crate::session::DwordLike;
+use crate::session::PlainDword;
 use crate::system::owner::system;
 use rc2k_core::menu::arcade_event::{self as arcade, Step, Var};
 use rc2k_core::menu::leaving::Switch;
@@ -18,7 +19,7 @@ struct Game<'a> {
 }
 
 /// The variables that are in the physics block.
-fn cell(v: Var) -> Option<&'static Dword> {
+fn cell(v: Var) -> Option<&'static dyn DwordLike> {
     let race = race();
     Some(match v {
         Var::RaceStage => &race.shared.state.results.race_stage,
@@ -31,7 +32,7 @@ fn cell(v: Var) -> Option<&'static Dword> {
     })
 }
 
-fn address(menus: &Menus, v: Var) -> &'_ Dword {
+fn address(menus: &Menus, v: Var) -> &'_ PlainDword {
     match v {
         Var::Failed => &menus.play.arcade.retry,
         Var::TotalA8 => &menus.play.results.before[0],

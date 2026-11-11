@@ -135,7 +135,7 @@ pub fn trail_particles(
                 .particle_tuning
                 .trail_size_k
                 .each_ref()
-                .map(super::super::session::Float::bits);
+                .map(super::super::session::PlainFloat::bits);
             put(
                 0x38,
                 x87::times_plus_to_int(a, particle(particles, p, 0x2C)?, b) as u32,

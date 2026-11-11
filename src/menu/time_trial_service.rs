@@ -18,12 +18,28 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::*;
 use crate::menu::owner::Menus;
 use crate::menu::screen_loop::{Entry, run_screen};
-use crate::session::Dword;
+use crate::session::PlainDword;
 
-const SERVICE_TIME: &Dword = &crate::menu::owner::MENUS.screens.event.service_minutes;
-const GOES_ON: &Dword = &crate::menu::owner::MENUS.screens.event.event_goes_on;
-const OUT: &Dword = &crate::menu::owner::MENUS.screens.event.event_out;
-const DUE: &Dword = &crate::menu::owner::MENUS.screens.event.service_due;
+const SERVICE_TIME: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .event
+    .service_minutes;
+const GOES_ON: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .event
+    .event_goes_on;
+const OUT: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .event
+    .event_out;
+const DUE: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .event
+    .service_due;
 
 pub fn time_trial_service(menus: &Menus) -> Result<(), Refused> {
     let screens = &menus.screens;

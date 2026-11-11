@@ -1,7 +1,9 @@
 //! The smaller views of `StepInputs` that one family of steps reads, each built by a method
 //! of `StepInputs` and handed down in its place: the sound cues of a contact, the ground
-//! search and probe, and the contact steps (which hold the other two).
+//! search and probe, the contact steps (which hold the other two), the camera, the reset
+//! chain and the clear-place search, the checkpoints, the lighting and the moving slots.
 
+use crate::drive::finish_store::Finish;
 use crate::drive::replay_frames_store::ReplayFrames;
 use crate::physics::camera_store::CameraWork;
 use crate::physics::car_store::Car;
@@ -17,10 +19,13 @@ use crate::race::lights_store::LightsData;
 use crate::race::matrices_store::SceneMatrices;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_course::Course;
+use crate::race::owner_physics::Physics;
 use crate::race::owner_shared::RaceShared;
 use crate::race::scratch_store::FrameScratch;
 use crate::race::sound_spots_store::SoundSpotBlock;
 use crate::race::tables_store::RaceTables;
+use crate::race::vars_store::RaceVars;
+use crate::race::view_store::RaceView;
 use crate::race::work_store::RaceWork;
 
 /// What a contact's sound cue reads: the car, the numbers, the sound spots and bands, the
@@ -93,6 +98,98 @@ pub struct ContactInputs<'a> {
     pub sound: SoundInputs<'a>,
 }
 
+/// What the reset chain reads (`reset_car`, `reset_car_on_line`, `reset_when_stuck`,
+/// `false_start`, and the cars' starts `start_car`, `settle_car`, `reset_car_motion`): the car
+/// and its tables, the course and the nearest-checkpoint search, the start place's flags, the
+/// matrices the settling turns, and the ground probe the settling uses.
+#[derive(Clone, Copy)]
+pub struct ResetInputs<'a> {
+    pub physics: &'a Physics,
+    pub car: &'a Car,
+    pub numbers: &'a Numbers,
+    pub tables: &'a PhysicsTables,
+    pub course: &'a Course,
+    pub work: &'a RaceWork,
+    pub shared: &'a RaceShared,
+    pub vars: &'a RaceVars,
+    pub view: &'a RaceView,
+    pub finish: &'a Finish,
+    pub matrices: &'a SceneMatrices,
+    pub ground: GroundInputs<'a>,
+}
+
+/// What `car_collisions` reads: the contact steps' inputs (the car, the other cars' work, the
+/// corner hits), the matrices the places are turned by, the race mode and the cars' count.
+#[derive(Clone, Copy)]
+pub struct CollisionInputs<'a> {
+    pub contact: ContactInputs<'a>,
+    pub matrices: &'a SceneMatrices,
+    pub vars: &'a RaceVars,
+    pub view: &'a RaceView,
+}
+
+/// What the clear-place search reads: the reset chain it ends in and the collision steps it
+/// tries (which hold the contact steps).
+#[derive(Clone, Copy)]
+pub struct ClearPlaceInputs<'a> {
+    pub reset: ResetInputs<'a>,
+    pub collisions: CollisionInputs<'a>,
+}
+
+/// What the checkpoint steps read: the checkpoint tracking, the pace notes and the split
+/// points. `physics` holds the ground work, the split tables and the pace notes they search.
+#[derive(Clone, Copy)]
+pub struct CheckpointInputs<'a> {
+    pub physics: &'a Physics,
+    pub course: &'a Course,
+    pub numbers: &'a Numbers,
+    pub shared: &'a RaceShared,
+    pub car: &'a Car,
+    pub tables: &'a PhysicsTables,
+    pub work: &'a RaceWork,
+    pub vars: &'a RaceVars,
+    pub frame_work: &'a FrameWork,
+    pub finish: &'a Finish,
+}
+
+/// What the car's lighting reads: the car, the course's faces, the ground search and probe,
+/// and the scene switch.
+#[derive(Clone, Copy)]
+pub struct LightingInputs<'a> {
+    pub car: &'a Car,
+    pub course: &'a Course,
+    pub ground: &'a GroundWork,
+    pub probe: &'a GroundProbe,
+    pub vars: &'a RaceVars,
+}
+
+/// What the wheels' surfaces read: the car and the surface tables, the probe points' shares,
+/// the surface kinds and the mud scale. `shared` is for the x87 steps, which take the whole.
+#[derive(Clone, Copy)]
+pub struct WheelInputs<'a> {
+    pub car: &'a Car,
+    pub numbers: &'a Numbers,
+    pub tables: &'a PhysicsTables,
+    pub course: &'a Course,
+    pub shared: &'a RaceShared,
+    pub contact: &'a ContactWork,
+    pub view: &'a RaceView,
+    pub vars: &'a RaceVars,
+}
+
+/// What the moving slots read: the slots and their scratch places, the physics numbers, the
+/// course's turn lists, the matrices and the ground search.
+#[derive(Clone, Copy)]
+pub struct SlotInputs<'a> {
+    pub numbers: &'a Numbers,
+    pub tables: &'a PhysicsTables,
+    pub course: &'a Course,
+    pub work: &'a RaceWork,
+    pub matrices: &'a SceneMatrices,
+    pub ground: &'a GroundWork,
+    pub probe: &'a GroundProbe,
+}
+
 impl<'a> StepInputs<'a> {
     pub fn camera(&self) -> CameraInputs<'a> {
         CameraInputs {
@@ -158,6 +255,89 @@ impl<'a> StepInputs<'a> {
             shared: self.shared,
             ground: self.ground(),
             sound: self.sound(),
+        }
+    }
+
+    pub fn reset(&self) -> ResetInputs<'a> {
+        ResetInputs {
+            physics: self.physics,
+            car: self.car,
+            numbers: self.numbers,
+            tables: self.tables,
+            course: self.course,
+            work: self.work,
+            shared: self.shared,
+            vars: self.vars,
+            view: self.view,
+            finish: &self.replay.finish,
+            matrices: &self.frame.matrices,
+            ground: self.ground(),
+        }
+    }
+
+    pub fn collisions(&self) -> CollisionInputs<'a> {
+        CollisionInputs {
+            contact: self.contact(),
+            matrices: &self.frame.matrices,
+            vars: self.vars,
+            view: self.view,
+        }
+    }
+
+    pub fn clear_place(&self) -> ClearPlaceInputs<'a> {
+        ClearPlaceInputs {
+            reset: self.reset(),
+            collisions: self.collisions(),
+        }
+    }
+
+    pub fn checkpoints(&self) -> CheckpointInputs<'a> {
+        CheckpointInputs {
+            physics: self.physics,
+            course: self.course,
+            numbers: self.numbers,
+            shared: self.shared,
+            car: self.car,
+            tables: self.tables,
+            work: self.work,
+            vars: self.vars,
+            frame_work: &self.frame.frame_work,
+            finish: &self.replay.finish,
+        }
+    }
+
+    pub fn lighting(&self) -> LightingInputs<'a> {
+        LightingInputs {
+            car: self.car,
+            course: self.course,
+            ground: &self.physics.ground,
+            probe: &self.physics.ground_probe,
+            vars: self.vars,
+        }
+    }
+
+    pub fn wheels(&self) -> WheelInputs<'a> {
+        WheelInputs {
+            car: self.car,
+            numbers: self.numbers,
+            tables: self.tables,
+            course: self.course,
+            shared: self.shared,
+            contact: &self.physics.contact,
+            view: self.view,
+            vars: self.vars,
+        }
+    }
+
+    pub fn slots(&self) -> SlotInputs<'a> {
+        SlotInputs {
+            numbers: self.numbers,
+            tables: self.tables,
+            course: self.course,
+            work: self.work,
+            matrices: &self.frame.matrices,
+            ground: &self.physics.ground,
+            probe: &self.physics.ground_probe,
         }
     }
 }

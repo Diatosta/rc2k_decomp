@@ -357,10 +357,10 @@ impl Repeats {
     }
 }
 
-/// Each voice heard and not playing: a delay of its kind (the least plus `below(n, range)`
-/// when the range is not 0, the random number's upper half kept as the original's `ax`
-/// leaves it), and the restart flag while its repeats last (counted). Refused (before
-/// anything): such a voice of kind 0 or past 0x15.
+/// Each voice heard and not playing: a delay of its kind (the least plus `below(n, range)` when the
+/// range is not 0, the random number's upper half kept in the low 16 bits), and the restart flag
+/// while its repeats last (counted). Refused (before anything): such a voice of kind 0 or past
+/// 0x15.
 pub fn repeat<E: From<Invalid>>(
     voices: &mut [Voice; VOICES],
     table: &[Repeats; MOST_KIND as usize],

@@ -18,12 +18,12 @@ pub fn wish_kind(wish: u32) -> Option<u32> {
 }
 
 /// Whether a drawn mode of kind `mode_kind` ends the draws for `kind`: its kind, but for
-/// kind 0 any other kind (0x23's loop is `cmp [ebx], 0 / jz`; notes/bugs.md).
+/// kind 0 any other kind (see notes/bugs.md).
 pub fn fits(kind: u32, mode_kind: u32) -> bool {
     (mode_kind == kind) != (kind == 0)
 }
 
-/// A draw: a random number x `MODES` as `mul` leaves it, (eax, edx the mode).
+/// A draw: a random number x `MODES`: the low half, and the high half, the mode.
 pub fn draw(random: u32) -> (u32, u32) {
     let product = u64::from(random) * u64::from(MODES);
     (product as u32, (product >> 32) as u32)
@@ -55,10 +55,10 @@ pub const DRAW_GAP: u32 = 3;
 /// What `replay_cameras` does for one car's wish.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WishStep {
-    /// Nothing (a drawing wish too soon, with the frames since the last draw: the
-    /// original's ebx; or the wish already the view).
+    /// Nothing (a drawing wish too soon, with the frames since the last draw; or the wish already
+    /// the view).
     Nothing(Option<u32>),
-    /// A drawing wish: a mode drawn (the frames since, ebx).
+    /// A drawing wish: a mode drawn (the frames since).
     Draw(u32),
     /// Another wish: it is the view (and the wanted one), the last draw's frame 0.
     Set,

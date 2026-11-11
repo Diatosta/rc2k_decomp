@@ -150,7 +150,7 @@ pub struct Player {
     /// player details page shows it as a marker at x + 2 * it).
     pub controller_sensitivity: u32,
     /// The HUD's bits: set to -1 for every player by `menu::clear_hud_bits` at an event's
-    /// start, taken into the race and given back by `single_rally_race` (`dword_75B010`).
+    /// start, taken into the race and given back by `single_rally_race`.
     pub hud_bits: i32,
     /// The money the service spent (the money times 100, `menu::service_pass`); 0 again
     /// after an event's races (`menu::clear_service_spent`).
@@ -590,7 +590,7 @@ impl Player {
 }
 
 /// `menu::set_player_entry_kind`: the current player's +0xD0 for a score
-/// (`dword_75AC80`): 1 at 100 or more (signed), else 2.
+///: 1 at 100 or more (signed), else 2.
 pub fn entry_kind(score: i32) -> u32 {
     if score >= 100 { 1 } else { 2 }
 }

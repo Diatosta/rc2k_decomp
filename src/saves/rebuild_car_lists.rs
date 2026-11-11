@@ -11,21 +11,37 @@
 
 use crate::errors::BadInput;
 use crate::menu::owner::Menus;
-use crate::session::Dword;
+use crate::session::PlainDword;
 use crate::system::checked_reads::CheckedReads;
 
 // ---- game data ----
 
 /// (the numbers, the pointers, how many entries each has)
-const LISTS: [(&[Dword], &[Dword], usize); 2] = [
+const LISTS: [(&[PlainDword], &[PlainDword], usize); 2] = [
     (
-        &crate::menu::owner::MENUS.cars.numbers.first_numbers,
-        &crate::menu::owner::MENUS.tables.lists.cars_second,
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .cars
+            .numbers
+            .first_numbers,
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .tables
+            .lists
+            .cars_second,
         0x28,
     ),
     (
-        &crate::menu::owner::MENUS.cars.numbers.second_numbers,
-        &crate::menu::owner::MENUS.tables.lists.shown_cars,
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .cars
+            .numbers
+            .second_numbers,
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .tables
+            .lists
+            .shown_cars,
         0x14,
     ),
 ];

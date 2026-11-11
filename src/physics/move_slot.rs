@@ -29,7 +29,7 @@ use crate::math::x87;
 use crate::math::x87::{abs_compare, abs_of, mul, mul2_to_int, negated};
 use crate::math::x87_float as bh;
 use crate::physics::axis_turn_matrix::axis_turn_matrix;
-use crate::physics::step_inputs::StepInputs;
+use crate::physics::step_families::SlotInputs;
 use crate::race::work_store::RaceSlot;
 use crate::scene::matrix::multiply_matrices;
 use crate::scene::matrix3::rounded;
@@ -45,7 +45,7 @@ fn copy<A: Cell32, B: Cell32>(from: &[A], to: &[B]) {
 
 /// The slot `s` (the registers it leaves are dropped by its caller's `popa`).
 pub fn move_slot(
-    c: &StepInputs<'_>,
+    c: &SlotInputs<'_>,
     s: &RaceSlot,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
@@ -68,9 +68,9 @@ pub fn move_slot(
         multiply_matrices(
             &s.matrix,
             &c.course.lists.turn_matrix,
-            &c.frame.matrices.turned_matrix,
+            &c.matrices.turned_matrix,
         );
-        copy(&c.frame.matrices.turned_matrix, &s.matrix);
+        copy(&c.matrices.turned_matrix, &s.matrix);
     }
     for k in [1, 0, 2] {
         let d = mul2_to_int(s.motion[k].bits(), dt, k65536) as u32;
@@ -80,16 +80,11 @@ pub fn move_slot(
     s.motion[1].set_bits(bh::st(
         -(bh::ld(c.tables.gravity.bits()) * bh::ld(dt)) + bh::ld(s.motion[1].bits()),
     ));
-    c.physics.ground.ground_x.set(s.place[0].get());
-    c.physics.ground.ground_z.set(s.place[2].get());
+    c.ground.ground_x.set(s.place[0].get());
+    c.ground.ground_z.set(s.place[2].get());
     c.course.course.ground_face_last.set(s.car_word.get());
-    c.physics.ground_probe.settle_mark.set(0x80);
-    crate::physics::find_ground::find_ground(
-        &c.physics.ground_probe,
-        &c.physics.ground,
-        c.course,
-        scene,
-    )?;
+    c.probe.settle_mark.set(0x80);
+    crate::physics::find_ground::find_ground(c.probe, c.ground, c.course, scene)?;
     let face: u32 = c.course.course.ground_slot.get();
     if face == u32::MAX {
         copy(&c.work.slot_place, &s.place);
@@ -99,7 +94,7 @@ pub fn move_slot(
         return Ok(());
     }
     s.car_word.set(face);
-    let height: u32 = c.physics.ground.ground_height.get();
+    let height: u32 = c.ground.ground_height.get();
     if (s.place[1].get().wrapping_sub(height) as i32) >= 0 {
         return Ok(());
     }

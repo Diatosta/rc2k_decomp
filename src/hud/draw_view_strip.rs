@@ -51,6 +51,7 @@ fn sizes(system: &System, v: [u32; 4]) {
 fn quad(
     race: &Race,
     scratch: &ViewScratch,
+    screen: &crate::session::Screen,
     left: u32,
     width: u32,
     rows: u32,
@@ -77,6 +78,7 @@ fn quad(
         &scratch.face,
         course,
         scene,
+        screen,
         scratch,
     )
 }
@@ -98,6 +100,7 @@ pub fn overlay_tail(race: &Race, scratch: &ViewScratch, system: &System) -> Resu
         quad(
             race,
             scratch,
+            &system.session.screen,
             get(2),
             get(3),
             rows,
@@ -128,7 +131,15 @@ pub fn draw_view_strip(
         let get = |n: usize| strips.sizes[n].get();
         let (mut left, width, mut rows) = (get(2), get(3), 0);
         for _ in 0..3 {
-            quad(race, scratch, left, width, rows, None)?;
+            quad(
+                race,
+                scratch,
+                &system.session.screen,
+                left,
+                width,
+                rows,
+                None,
+            )?;
             left = left.wrapping_add(width);
             rows = rows.wrapping_add(strips::ROWS_STEP);
         }

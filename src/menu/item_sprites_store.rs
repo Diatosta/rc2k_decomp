@@ -4,12 +4,12 @@
 //! eight the in-race menus' (0x11 ..). Nothing changes them.
 
 use crate::menu::owner::menus;
-use crate::session::Dword;
+use crate::session::PlainDword;
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ItemSprites {
-    pub lists: [[Dword; 5]; 16],
+    pub lists: [[PlainDword; 5]; 16],
 }
 
 impl ItemSprites {
@@ -17,116 +17,116 @@ impl ItemSprites {
         ItemSprites {
             lists: [
                 [
-                    Dword::new(0xa),
-                    Dword::new(0xc),
-                    Dword::new(0xa),
-                    Dword::new(0xc),
-                    Dword::new(0xb),
+                    PlainDword::new(0xa),
+                    PlainDword::new(0xc),
+                    PlainDword::new(0xa),
+                    PlainDword::new(0xc),
+                    PlainDword::new(0xb),
                 ],
                 [
-                    Dword::new(0xa),
-                    Dword::new(0xc),
-                    Dword::new(0xf),
-                    Dword::new(0x10),
-                    Dword::new(0xb),
+                    PlainDword::new(0xa),
+                    PlainDword::new(0xc),
+                    PlainDword::new(0xf),
+                    PlainDword::new(0x10),
+                    PlainDword::new(0xb),
                 ],
                 [
-                    Dword::new(0xa),
-                    Dword::new(0xc),
-                    Dword::new(0xf),
-                    Dword::new(0xe),
-                    Dword::new(0xb),
+                    PlainDword::new(0xa),
+                    PlainDword::new(0xc),
+                    PlainDword::new(0xf),
+                    PlainDword::new(0xe),
+                    PlainDword::new(0xb),
                 ],
                 [
-                    Dword::new(0xa),
-                    Dword::new(0xc),
-                    Dword::new(0xd),
-                    Dword::new(0x10),
-                    Dword::new(0xb),
+                    PlainDword::new(0xa),
+                    PlainDword::new(0xc),
+                    PlainDword::new(0xd),
+                    PlainDword::new(0x10),
+                    PlainDword::new(0xb),
                 ],
                 [
-                    Dword::new(0xa),
-                    Dword::new(0xc),
-                    Dword::new(0xa),
-                    Dword::new(0xe),
-                    Dword::new(0xb),
+                    PlainDword::new(0xa),
+                    PlainDword::new(0xc),
+                    PlainDword::new(0xa),
+                    PlainDword::new(0xe),
+                    PlainDword::new(0xb),
                 ],
                 [
-                    Dword::new(0xa),
-                    Dword::new(0xc),
-                    Dword::new(0xd),
-                    Dword::new(0xc),
-                    Dword::new(0xb),
+                    PlainDword::new(0xa),
+                    PlainDword::new(0xc),
+                    PlainDword::new(0xd),
+                    PlainDword::new(0xc),
+                    PlainDword::new(0xb),
                 ],
                 [
-                    Dword::new(0xa),
-                    Dword::new(0xc),
-                    Dword::new(0xf),
-                    Dword::new(0xc),
-                    Dword::new(0xb),
+                    PlainDword::new(0xa),
+                    PlainDword::new(0xc),
+                    PlainDword::new(0xf),
+                    PlainDword::new(0xc),
+                    PlainDword::new(0xb),
                 ],
                 [
-                    Dword::new(0xa),
-                    Dword::new(0xc),
-                    Dword::new(0xa),
-                    Dword::new(0x10),
-                    Dword::new(0xb),
+                    PlainDword::new(0xa),
+                    PlainDword::new(0xc),
+                    PlainDword::new(0xa),
+                    PlainDword::new(0x10),
+                    PlainDword::new(0xb),
                 ],
                 [
-                    Dword::new(0x11),
-                    Dword::new(0x13),
-                    Dword::new(0x11),
-                    Dword::new(0x13),
-                    Dword::new(0x12),
+                    PlainDword::new(0x11),
+                    PlainDword::new(0x13),
+                    PlainDword::new(0x11),
+                    PlainDword::new(0x13),
+                    PlainDword::new(0x12),
                 ],
                 [
-                    Dword::new(0x11),
-                    Dword::new(0x13),
-                    Dword::new(0x16),
-                    Dword::new(0x17),
-                    Dword::new(0x12),
+                    PlainDword::new(0x11),
+                    PlainDword::new(0x13),
+                    PlainDword::new(0x16),
+                    PlainDword::new(0x17),
+                    PlainDword::new(0x12),
                 ],
                 [
-                    Dword::new(0x11),
-                    Dword::new(0x13),
-                    Dword::new(0x16),
-                    Dword::new(0x15),
-                    Dword::new(0x12),
+                    PlainDword::new(0x11),
+                    PlainDword::new(0x13),
+                    PlainDword::new(0x16),
+                    PlainDword::new(0x15),
+                    PlainDword::new(0x12),
                 ],
                 [
-                    Dword::new(0x11),
-                    Dword::new(0x13),
-                    Dword::new(0x14),
-                    Dword::new(0x17),
-                    Dword::new(0x12),
+                    PlainDword::new(0x11),
+                    PlainDword::new(0x13),
+                    PlainDword::new(0x14),
+                    PlainDword::new(0x17),
+                    PlainDword::new(0x12),
                 ],
                 [
-                    Dword::new(0x11),
-                    Dword::new(0x13),
-                    Dword::new(0x11),
-                    Dword::new(0x15),
-                    Dword::new(0x12),
+                    PlainDword::new(0x11),
+                    PlainDword::new(0x13),
+                    PlainDword::new(0x11),
+                    PlainDword::new(0x15),
+                    PlainDword::new(0x12),
                 ],
                 [
-                    Dword::new(0x11),
-                    Dword::new(0x13),
-                    Dword::new(0x14),
-                    Dword::new(0x13),
-                    Dword::new(0x12),
+                    PlainDword::new(0x11),
+                    PlainDword::new(0x13),
+                    PlainDword::new(0x14),
+                    PlainDword::new(0x13),
+                    PlainDword::new(0x12),
                 ],
                 [
-                    Dword::new(0x11),
-                    Dword::new(0x13),
-                    Dword::new(0x16),
-                    Dword::new(0x13),
-                    Dword::new(0x12),
+                    PlainDword::new(0x11),
+                    PlainDword::new(0x13),
+                    PlainDword::new(0x16),
+                    PlainDword::new(0x13),
+                    PlainDword::new(0x12),
                 ],
                 [
-                    Dword::new(0x11),
-                    Dword::new(0x13),
-                    Dword::new(0x11),
-                    Dword::new(0x17),
-                    Dword::new(0x12),
+                    PlainDword::new(0x11),
+                    PlainDword::new(0x13),
+                    PlainDword::new(0x11),
+                    PlainDword::new(0x17),
+                    PlainDword::new(0x12),
                 ],
             ],
         }
@@ -161,7 +161,7 @@ const LIST_TAG: u32 = 0x7FFF_FFF0;
 /// A menu item's +0x20 (a handle).
 #[repr(transparent)]
 #[derive(rc2k_derive::Cells)]
-pub struct SpriteCell(crate::session::Dword);
+pub struct SpriteCell(crate::session::PlainDword);
 
 impl SpriteCell {
     /// From the image's value (`ida`: a number, or IDA's address of a list; an address inside
@@ -175,7 +175,7 @@ impl SpriteCell {
             assert!(ida & !0xF != LIST_TAG);
             ida
         };
-        Self(crate::session::Dword::new(value))
+        Self(crate::session::PlainDword::new(value))
     }
 
     pub fn get(&self) -> ItemSprite {
@@ -211,7 +211,7 @@ pub const END: usize = 0x747AD8;
 /// Where IDA 0x747998 lives (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn item_sprites_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::menu::owner::MENUS.panels.item_sprites)
+    crate::pointers::game_address(&raw const crate::menu::owner::menus().panels.item_sprites)
 }
 
 #[cfg(test)]

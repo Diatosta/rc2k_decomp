@@ -110,7 +110,7 @@ fn turn_skid_point(
 }
 
 /// `race::draw_skidmarks` (0x458C03): the skidmarks shown in the drawn view (all in modes 0 and 2,
-/// else those with the view's bit, `skid_views`): the polygon's four work entries set once
+/// else those with the view's bit): the polygon's four work entries set once
 /// (vertices 0x623E40 .., texture places `fade_uv` / `dword_623DC0`, bytes 0 and 0x60,
 /// textures 0xC0); then for each link with a link before, its two points and the two before as a
 /// quad (vertices 3, 2, 0, 1), `scene::fog_polygon`, cut by depth and to the screen and drawn in
@@ -124,7 +124,6 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
     if mode != 0 && mode != 2 {
         views = 1u32.wrapping_shl(ctx.view.drawn_view(race) & 0x1F);
     }
-    frame.shadow_skids.skid_views.set(views);
     let entries = &crate::scene::polygon_store::POLYGON_WORK.entries[..4];
     for (k, e) in (0..4u32).zip(entries) {
         e.record.set(crate::scene::point_records::of_quad(k));
@@ -224,6 +223,7 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
                 race,
                 &ctx.view.face,
                 scene,
+                &ctx.system.session.screen,
             )?;
             ctx.view.face.polygon_mode.set(0u32);
             ctx.view.polygon.polygon_drawn.set(1u32);

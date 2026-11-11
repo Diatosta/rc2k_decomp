@@ -32,7 +32,7 @@ use crate::service::{
     step_tyre_down, step_tyre_up, toggle_gear_ratio_change, toggle_ride_height_change,
     toggle_suspension_stiffness_change, toggle_tyre_change,
 };
-use crate::session::Dword;
+use crate::session::DwordLike;
 use crate::system::owner::system;
 use rc2k_core::menu::player::SetupField;
 
@@ -54,7 +54,7 @@ pub struct ChangePage {
     pub up: Stepper,
     pub change: Change,
     /// The chosen value as it was when the edit started.
-    pub entry: &'static Dword,
+    pub entry: &'static dyn DwordLike,
     /// The car's value, for the pages that compare with it.
     pub in_car: Option<SetupField>,
     /// The page's menu item (the one to highlight).
@@ -75,7 +75,13 @@ pub const GEAR_RATIO: ChangePage = ChangePage {
     down: step_gear_ratio_down::STEPPER,
     up: step_gear_ratio_up::STEPPER,
     change: toggle_gear_ratio_change::CHANGE,
-    entry: &crate::menu::owner::MENUS.screens.state.driver_stats.setups[0].start,
+    entry: &crate::menu::owner::MENUS
+        .unchecked()
+        .screens
+        .state
+        .driver_stats
+        .setups[0]
+        .start,
     in_car: None,
     item: 0xE,
 };
@@ -83,7 +89,13 @@ pub const TYRE: ChangePage = ChangePage {
     down: step_tyre_down::STEPPER,
     up: step_tyre_up::STEPPER,
     change: toggle_tyre_change::CHANGE,
-    entry: &crate::menu::owner::MENUS.screens.state.driver_stats.setups[1].start,
+    entry: &crate::menu::owner::MENUS
+        .unchecked()
+        .screens
+        .state
+        .driver_stats
+        .setups[1]
+        .start,
     in_car: None,
     item: 0xF,
 };
@@ -91,7 +103,13 @@ pub const RIDE_HEIGHT: ChangePage = ChangePage {
     down: step_ride_height_down::STEPPER,
     up: step_ride_height_up::STEPPER,
     change: toggle_ride_height_change::CHANGE,
-    entry: &crate::menu::owner::MENUS.screens.state.driver_stats.setups[2].start,
+    entry: &crate::menu::owner::MENUS
+        .unchecked()
+        .screens
+        .state
+        .driver_stats
+        .setups[2]
+        .start,
     in_car: Some(SetupField::RideHeight),
     item: 0x12,
 };
@@ -99,7 +117,13 @@ pub const SUSPENSION_STIFFNESS: ChangePage = ChangePage {
     down: step_suspension_stiffness_down::STEPPER,
     up: step_suspension_stiffness_up::STEPPER,
     change: toggle_suspension_stiffness_change::CHANGE,
-    entry: &crate::menu::owner::MENUS.screens.state.driver_stats.setups[3].start,
+    entry: &crate::menu::owner::MENUS
+        .unchecked()
+        .screens
+        .state
+        .driver_stats
+        .setups[3]
+        .start,
     in_car: Some(SetupField::Stiffness),
     item: 0x13,
 };

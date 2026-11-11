@@ -27,7 +27,8 @@ pub const TEXTS_START: usize = 0x5295B4;
 /// Their length.
 pub const TEXTS_LEN: usize = 0x18;
 
-/// The texts the installer (and `files::resolve_path`) use.
+/// The texts the installer (and `files::resolve_path`) use. Atomic cells: the audio
+/// thread's file calls resolve paths against `base_b`.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct InstallTexts {

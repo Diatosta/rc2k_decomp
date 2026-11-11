@@ -6,10 +6,10 @@
 
 use crate::errors::BadInput;
 use crate::pointers::GamePtr;
-use crate::session::Bytes;
+use crate::session::{Bytes, PlainBytes};
 
 /// A run of bytes read and written in place.
-pub trait Run: Sync {
+pub trait Run {
     fn len(&self) -> usize;
     fn get(&self, n: usize) -> u8;
     fn set(&self, n: usize, v: u8);
@@ -24,6 +24,18 @@ impl<const N: usize> Run for Bytes<N> {
     }
     fn set(&self, n: usize, v: u8) {
         Bytes::set(self, n, v);
+    }
+}
+
+impl<const N: usize> Run for PlainBytes<N> {
+    fn len(&self) -> usize {
+        N
+    }
+    fn get(&self, n: usize) -> u8 {
+        PlainBytes::get(self, n)
+    }
+    fn set(&self, n: usize, v: u8) {
+        PlainBytes::set(self, n, v);
     }
 }
 
@@ -49,6 +61,12 @@ impl From<GamePtr> for BytePlace {
 
 impl<const N: usize> From<&'static Bytes<N>> for BytePlace {
     fn from(b: &'static Bytes<N>) -> Self {
+        BytePlace::In(b, 0)
+    }
+}
+
+impl<const N: usize> From<&'static PlainBytes<N>> for BytePlace {
+    fn from(b: &'static PlainBytes<N>) -> Self {
         BytePlace::In(b, 0)
     }
 }

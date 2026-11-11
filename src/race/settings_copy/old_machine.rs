@@ -6,6 +6,7 @@
 
 use super::*;
 use crate::race::owner::race;
+use crate::session::DwordLike;
 use Step::*;
 use std::ffi::{CStr, CString};
 
@@ -729,11 +730,11 @@ pub fn shaun_to_graham() -> Vec<Step<StepOperand>> {
 }
 
 /// The race variable of each of the two cars' colours, and of each player's options.
-const CAR_COLOURS: [fn() -> &'static Dword; 2] = [
+const CAR_COLOURS: [fn() -> &'static dyn DwordLike; 2] = [
     || &crate::race::owner::RACE.shared.vars.car_colours[0],
     || &crate::race::owner::RACE.shared.vars.car_colours[1],
 ];
-const PLAYER_OPTIONS: [fn() -> &'static Dword; 2] = [
+const PLAYER_OPTIONS: [fn() -> &'static dyn DwordLike; 2] = [
     || &crate::race::owner::RACE.shared.view.player_options[0],
     || &crate::race::owner::RACE.shared.view.player_options[1],
 ];

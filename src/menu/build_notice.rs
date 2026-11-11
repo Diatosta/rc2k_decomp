@@ -39,23 +39,23 @@ pub fn build_notice(menus: &Menus) {
 // ---- the notice's lines (IDA 0x52A263 .. 0x52A30F, split from the network's block) ----
 
 use crate::menu::owner::Menus;
-use crate::session::{Bytes, with_runs};
+use crate::session::{PlainBytes, with_runs};
 
 /// IDA 0x52A263 .. 0x52A30F.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct BuildNotice {
     /// 0x52A263: `unk_52A263`: the build notice's first line, "Copyright ... Magnetic Fields ..." (`menu::build_notice`).
-    pub notice_first: Bytes<78>,
+    pub notice_first: PlainBytes<78>,
     /// 0x52A2B1: `byte_52A2B1`: the build notice's second line, "Copyright ... Actualize Ltd ...", and the web address after it.
-    pub notice_second: Bytes<94>,
+    pub notice_second: PlainBytes<94>,
 }
 
 impl BuildNotice {
     pub const fn new() -> Self {
         BuildNotice {
-    notice_first: Bytes::new(with_runs::<78>(&[(0, b"Copyright \xa9 Magnetic Fields (Software Design) Ltd, 1999. All rights reserved.")])),
-    notice_second: Bytes::new(with_runs::<94>(&[(0, b"Copyright \xa9 Actualize Ltd, 1999. All rights reserved.\x00http:\x01/\x01/\x01www.rallychampionship.co.uk\x01/")])),
+    notice_first: PlainBytes::new(with_runs::<78>(&[(0, b"Copyright \xa9 Magnetic Fields (Software Design) Ltd, 1999. All rights reserved.")])),
+    notice_second: PlainBytes::new(with_runs::<94>(&[(0, b"Copyright \xa9 Actualize Ltd, 1999. All rights reserved.\x00http:\x01/\x01/\x01www.rallychampionship.co.uk\x01/")])),
         }
     }
 }
@@ -73,7 +73,7 @@ mod notice_tests {
     #[test]
     fn notice_starts_as_the_games_image() {
         assert_eq!(size_of::<BuildNotice>(), BuildNotice::LEN);
-        let p = (&raw const crate::menu::owner::MENUS.panels.notice).cast::<u8>();
+        let p = (&raw const crate::menu::owner::menus().panels.notice).cast::<u8>();
         let image = crate::moved::image_bytes(BuildNotice::START, BuildNotice::LEN);
         for (i, &b) in image.iter().enumerate() {
             assert_eq!(

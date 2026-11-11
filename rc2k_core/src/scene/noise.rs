@@ -1,6 +1,6 @@
 //! The scene's own generator (from `scene::noise_step` 0x440F4E and
 //! `scene::next_noise` 0x440F3E): the game's random step (`math::random::step`) with
-//! 0x87654321 mixed into each result, on a state of its own (`dword_614C54`).
+//! 0x87654321 mixed into each result, on a state of its own.
 
 use crate::math::random;
 

@@ -49,8 +49,8 @@ pub fn point_part(point: u32, object: u32, offset: u32, car: u32) -> u32 {
 }
 
 /// Whether the point turned into the car's frame (whole numbers x, z) lies in its box:
-/// x below the half width (`dword_614BC8`) and not below minus it, z below the front
-/// (`spec_ints`) and not below minus the back (`dword_614BC4`); each by the sign of
+/// x below the half width and not below minus it, z below the front
+/// (`spec_ints`) and not below minus the back; each by the sign of
 /// the difference, as the original's `cmp`.
 pub fn inside_box(x: u32, z: u32, half_width: u32, front: u32, back: u32) -> bool {
     let sign = |v: u32| (v as i32) < 0;
@@ -76,7 +76,8 @@ pub fn check_object(object: u32) -> Result<(), Invalid> {
     Ok(())
 }
 
-/// How `object_hits_car`'s walk ended: whether a point was inside, the point's number, the points left and its address.
+/// How `object_hits_car`'s walk ended: whether a point was inside, the point's number, the points
+/// left and its address.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PointWalk {
     pub inside: bool,
@@ -86,13 +87,13 @@ pub struct PointWalk {
 }
 
 /// `physics::object_hits_car`: the object's `count` points from `first` (12 bytes each
-/// from `points`), `hits(address)` each in turn until one is inside. With no points the address
-/// is not set.
+/// from `points`), `hits(address)` each in turn until one is inside. With no points the
+/// address is `no_points_address`, as passed in.
 pub fn walk_points(
     first: u32,
     count: u32,
     points: u32,
-    edx: u32,
+    no_points_address: u32,
     mut hits: impl FnMut(u32) -> bool,
 ) -> PointWalk {
     let mut walk = PointWalk {
@@ -100,7 +101,7 @@ pub fn walk_points(
         number: first,
         left: count,
         address: if count == 0 {
-            edx
+            no_points_address
         } else {
             first.wrapping_mul(12).wrapping_add(points)
         },

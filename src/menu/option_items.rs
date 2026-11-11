@@ -192,7 +192,7 @@ pub fn volume(
             volume_item(var!(AUDIO_OWNER.levels.master_volume_shown), up, Then::Send)
         }
         VolumeKind::RaceMusic => volume_item(
-            var!(MENUS.screens.option_work.other_volume),
+            var!(MENUS.get().screens.option_work.other_volume),
             up,
             Then::Store(var!(SOUND.menu.options.race_music_volume)),
         ),
@@ -202,7 +202,7 @@ pub fn volume(
             Then::Sound(0x80),
         ),
         VolumeKind::MenuSounds => volume_item(
-            var!(MENUS.screens.option_work.menu_sounds_c),
+            var!(MENUS.get().screens.option_work.menu_sounds_c),
             up,
             Then::Sound(1),
         ),
@@ -264,51 +264,64 @@ pub fn switch(which: OptionSwitch) -> Result<(), Refused> {
     let flip = |other: StepOperand| Kind::SwitchCopy { other, flip: true };
     let (var, kind) = match which {
         OptionSwitch::RaceMusicOn => (var!(SOUND.menu.options.race_music_on), Kind::Switch),
-        OptionSwitch::StageRecordsSet => (var!(MENUS.play.champ_view.switch_f8), Kind::Switch),
-        OptionSwitch::StageRecordsAlt => (var!(MENUS.play.champ_view.switch_fc), Kind::Switch),
+        OptionSwitch::StageRecordsSet => {
+            (var!(MENUS.get().play.champ_view.switch_f8), Kind::Switch)
+        }
+        OptionSwitch::StageRecordsAlt => {
+            (var!(MENUS.get().play.champ_view.switch_fc), Kind::Switch)
+        }
         OptionSwitch::Mipmapping => (
-            var!(MENUS.screens.option_work.switch_0),
+            var!(MENUS.get().screens.option_work.switch_0),
             flip(var!(GFX.display.choices.mipmapping)),
         ),
         OptionSwitch::Buffering => (
-            var!(MENUS.screens.option_work.switch_1),
+            var!(MENUS.get().screens.option_work.switch_1),
             flip(var!(GFX.display.choices.buffering)),
         ),
         OptionSwitch::ScreenModeCard => (
-            var!(MENUS.screens.option_work.modes_switch),
+            var!(MENUS.get().screens.option_work.modes_switch),
             Kind::SwitchModes {
                 other: var!(GFX.display.choices.card),
             },
         ),
         OptionSwitch::LensFlare => (
-            var!(MENUS.screens.option_work.lens_flare),
+            var!(MENUS.get().screens.option_work.lens_flare),
             copy(var!(
                 crate::race::owner::RACE.shared.state.settings.lens_flare
             )),
         ),
         OptionSwitch::Reflections => (
-            var!(MENUS.screens.option_work.reflections),
+            var!(MENUS.get().screens.option_work.reflections),
             copy(var!(
                 crate::race::owner::RACE.shared.state.settings.reflections
             )),
         ),
         OptionSwitch::CarShadows => (
-            var!(MENUS.screens.option_work.car_shadows),
+            var!(MENUS.get().screens.option_work.car_shadows),
             copy(var!(
                 crate::race::owner::RACE.shared.state.settings.car_shadows
             )),
         ),
         OptionSwitch::Headlights => (
-            var!(MENUS.screens.option_work.headlights),
+            var!(MENUS.get().screens.option_work.headlights),
             copy(var!(
                 crate::race::owner::RACE.shared.state.settings.headlights
             )),
         ),
-        OptionSwitch::Ds3d => (var!(MENUS.screens.option_work.ds3d), Kind::SwitchAudio),
-        OptionSwitch::Eax => (var!(MENUS.screens.option_work.eax), Kind::SwitchAudio),
-        OptionSwitch::A3d => (var!(MENUS.screens.option_work.a3d), Kind::SwitchAudio),
-        OptionSwitch::Dolby => (var!(MENUS.screens.option_work.dolby), Kind::SwitchAudio),
-        OptionSwitch::Channels => (var!(MENUS.screens.option_work.channels), Kind::SwitchAudio),
+        OptionSwitch::Ds3d => (
+            var!(MENUS.get().screens.option_work.ds3d),
+            Kind::SwitchAudio,
+        ),
+        OptionSwitch::Eax => (var!(MENUS.get().screens.option_work.eax), Kind::SwitchAudio),
+        OptionSwitch::A3d => (var!(MENUS.get().screens.option_work.a3d), Kind::SwitchAudio),
+        OptionSwitch::Dolby => (
+            var!(MENUS.get().screens.option_work.dolby),
+            Kind::SwitchAudio,
+        ),
+        OptionSwitch::Channels => (
+            var!(MENUS.get().screens.option_work.channels),
+            Kind::SwitchAudio,
+        ),
     };
     option_item(Item { var, kind })
 }
@@ -317,8 +330,8 @@ pub fn switch(which: OptionSwitch) -> Result<(), Refused> {
 /// (1 .. 6) shown by the stage pages, one less or one more, past an end the other end.
 pub fn stage_counter(which: StageCounter, up: bool) -> Result<(), Refused> {
     let (var, low, high) = match which {
-        StageCounter::Group => (var!(MENUS.tables.captions.shown_group), 0, 5),
-        StageCounter::InGroup => (var!(MENUS.tables.captions.shown_stage), 1, 6),
+        StageCounter::Group => (var!(MENUS.get().tables.captions.shown_group), 0, 5),
+        StageCounter::InGroup => (var!(MENUS.get().tables.captions.shown_stage), 1, 6),
     };
     option_item(Item {
         var,
@@ -342,7 +355,7 @@ option_item!(
     next_audio_quality,
     "menu::next_audio_quality",
     Item {
-        var: var!(MENUS.screens.option_work.audio_quality),
+        var: var!(MENUS.get().screens.option_work.audio_quality),
         kind: Kind::Quality { up: true },
     }
 );
@@ -350,7 +363,7 @@ option_item!(
     previous_audio_quality,
     "menu::previous_audio_quality",
     Item {
-        var: var!(MENUS.screens.option_work.audio_quality),
+        var: var!(MENUS.get().screens.option_work.audio_quality),
         kind: Kind::Quality { up: false },
     }
 );

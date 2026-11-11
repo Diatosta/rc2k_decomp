@@ -4,8 +4,8 @@
 //!
 //! Both set-ups mark which they are (`dword_518080`: 1 the menus', 2 the race's), stop the
 //! music, queue their commands, wait for the thread to take them and let sounds play again
-//! (`dword_506C84` 0). The registers go into the commands as the caller left them, eax set
-//! by each command for those after it.
+//! (`dword_506C84` 0). Each command's values go in as the caller left them, a result set by each
+//! command for those after it.
 
 /// `dword_518080` after the menus' set-up.
 pub const MENUS: u32 = 1;
@@ -27,7 +27,7 @@ pub enum Step {
     Wait,
 }
 
-/// The menus' set-up: the mode (`dword_4F82C4`), the sounds' list (`unk_511AE4`) and the master volume (`dword_755684`).
+/// The menus' set-up: the mode, the sounds' list and the master volume.
 pub fn menus(mode: u32, list: crate::audio::commands::SoundList, volume: u32) -> [Step; 5] {
     [
         Step::StopMusic,
@@ -38,7 +38,7 @@ pub fn menus(mode: u32, list: crate::audio::commands::SoundList, volume: u32) ->
     ]
 }
 
-/// The race's set-up: the race's mode (`dword_4F82C8`).
+/// The race's set-up: the race's mode.
 pub fn race(mode: u32) -> [Step; 4] {
     [
         Step::StopMusic,
@@ -75,8 +75,8 @@ pub fn wait_for_commands(w: &mut dyn Waiting) {
 }
 
 /// The car screens' stream started (`sound::play_car_stream`): on (`dword_A8C188` 1), its
-/// list (`dword_A8C184`), the place in it 0 (`dword_A8C180`), and `sound::start_stream`
-/// with the list's first entry (eax) and the volume (ecx, `dword_755698`).
+/// list, the place in it 0, and `sound::start_stream`
+/// with the list's first entry and the volume.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CarStream {
     pub on: u32,

@@ -16,18 +16,34 @@ use crate::math::x87;
 use crate::race::owner::Race;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
-use crate::session::{Float, read_bits};
+use crate::session::{PlainFloat, read_bits};
 const CORNERS_FROM: u32 = 0x1C_2000;
 const CORNERS_LEN: u32 = 0x8000;
 /// (the time kept, where it goes).
-static TIMES: [(&Float, &Float); 2] = [
+const TIMES: [(&PlainFloat, &PlainFloat); 2] = [
     (
-        &crate::effects::owner::EFFECTS.frame.draw_frame.times[0],
-        &crate::effects::owner::EFFECTS.setup.frame.quads_share,
+        &crate::effects::owner::EFFECTS
+            .unchecked()
+            .frame
+            .draw_frame
+            .times[0],
+        &crate::effects::owner::EFFECTS
+            .unchecked()
+            .setup
+            .frame
+            .quads_share,
     ),
     (
-        &crate::effects::owner::EFFECTS.frame.draw_frame.times[1],
-        &crate::effects::owner::EFFECTS.setup.frame.empty_share,
+        &crate::effects::owner::EFFECTS
+            .unchecked()
+            .frame
+            .draw_frame
+            .times[1],
+        &crate::effects::owner::EFFECTS
+            .unchecked()
+            .setup
+            .frame
+            .empty_share,
     ),
 ];
 

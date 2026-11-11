@@ -11,11 +11,23 @@
 use crate::errors::Refused;
 use crate::menu::owner::Screens;
 use crate::screens::service_boxes::{quad, rd, set};
-use crate::session::Dword;
+use crate::session::PlainDword;
 
-const ROW: &Dword = &crate::menu::owner::MENUS.screens.draw_work.figure;
-const MARKER_X: &Dword = &crate::menu::owner::MENUS.screens.draw_work.marker_x; // g_markerX
-const MARKER_Y: &Dword = &crate::menu::owner::MENUS.screens.draw_work.marker_y; // g_markerY
+const ROW: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .draw_work
+    .figure;
+const MARKER_X: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .draw_work
+    .marker_x; // g_markerX
+const MARKER_Y: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .draw_work
+    .marker_y; // g_markerY
 
 pub fn draw_column_boxes(screens: &Screens) -> Result<(), Refused> {
     // The logic is in `rc2k_core::screens::panels::row_box`; the row and marker variables

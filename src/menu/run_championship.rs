@@ -49,22 +49,70 @@
 
 use crate::errors::Refused;
 use crate::menu::flow_game::Game;
-use crate::session::Dword;
+use crate::session::PlainDword;
 
-pub const STAGES_DONE: &Dword = &crate::menu::owner::MENUS.screens.event.stages_done;
-pub const RESET_TIMES: &Dword = &crate::menu::owner::MENUS.tables.pages.reset_times;
-pub const SERVICES: &Dword = &crate::menu::owner::MENUS.tables.pages.services;
-pub const START_SECTION: &Dword = &crate::menu::owner::MENUS.screens.flow.start_section;
-pub const START_SECTION_A8: &Dword = &crate::menu::owner::MENUS.screens.flow.start_section_a8;
-pub const SERVICE_TIME: &Dword = &crate::menu::owner::MENUS.screens.event.service_minutes;
-pub const SERVICE_DUE: &Dword = &crate::menu::owner::MENUS.screens.event.service_due;
-pub const THE_END: &Dword = &crate::menu::owner::MENUS.screens.event.championship_end;
-pub const GOES_ON: &Dword = &crate::menu::owner::MENUS.screens.event.event_goes_on;
-pub const WELCOME_FIGURE: &Dword = &crate::menu::owner::MENUS.screens.event.welcome_figure;
-pub const WELCOMED: &Dword = &crate::menu::owner::MENUS.screens.event.welcomed;
-pub const SERVICE_RECORD_C: &Dword = &crate::menu::owner::MENUS.screens.event.service_record_c;
-pub const CPU_SPREAD_FIRST: &Dword = &crate::menu::owner::MENUS.screens.event.cpu_spread_first;
-pub const SERVICE_NEXT: &Dword = &crate::menu::owner::MENUS.screens.event.service_next;
+pub const STAGES_DONE: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .event
+    .stages_done;
+pub const RESET_TIMES: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .tables
+    .pages
+    .reset_times;
+pub const SERVICES: &PlainDword = &crate::menu::owner::MENUS.unchecked().tables.pages.services;
+pub const START_SECTION: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .flow
+    .start_section;
+pub const START_SECTION_A8: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .flow
+    .start_section_a8;
+pub const SERVICE_TIME: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .event
+    .service_minutes;
+pub const SERVICE_DUE: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .event
+    .service_due;
+pub const THE_END: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .event
+    .championship_end;
+pub const GOES_ON: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .event
+    .event_goes_on;
+pub const WELCOME_FIGURE: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .event
+    .welcome_figure;
+pub const WELCOMED: &PlainDword = &crate::menu::owner::MENUS.unchecked().screens.event.welcomed;
+pub const SERVICE_RECORD_C: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .event
+    .service_record_c;
+pub const CPU_SPREAD_FIRST: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .event
+    .cpu_spread_first;
+pub const SERVICE_NEXT: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .event
+    .service_next;
 
 /// The two championships' driver: `a8` for `menu::run_a8_championship`'s differences.
 pub fn run_event(menus: &crate::menu::owner::Menus, a8: bool) -> Result<(), Refused> {

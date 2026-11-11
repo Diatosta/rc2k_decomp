@@ -18,8 +18,8 @@ pub fn scaled(v: u32, scale: f32) -> u32 {
     fistp64(v as i32 as f64 * scale as f64) as u32
 }
 
-/// An icon's place: its scaled width and drop (`dword_75C064`, `dword_75C068`), its
-/// colour (white under the entry's alpha), left and right (esi, edi), top and bottom.
+/// An icon's place: its scaled width and drop, its
+/// colour (white under the entry's alpha), left and right, top and bottom.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Icon {
     pub width: u32,
@@ -31,7 +31,7 @@ pub struct Icon {
     pub bottom: u32,
 }
 
-/// The icon of an entry (width, alpha, drop fields) under `top` (ebx going in).
+/// The icon of an entry (width, alpha, drop fields) under `top`.
 pub fn icon(width: u32, alpha: u32, drop: u32, scale: f32, shift: u32, top: u32) -> Icon {
     let w = scaled(width, scale);
     let drop = scaled(drop, scale);

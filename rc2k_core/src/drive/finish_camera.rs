@@ -7,8 +7,8 @@
 //! Floats: what the x87 keeps on its stack is an `f64`, rounded to `f32` where the
 //! original stores: the same bits at the game's double precision.
 
-/// The lines' figures (`flt_64BB4C` .. `flt_64BB7C`), the time (`flt_64BB68`) and the
-/// share (`flt_64BB6C`).
+/// The lines' figures, the time and the
+/// share.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FinishLines {
     /// `flt_64BB4C`, `flt_64BB50`, `flt_64BB54`, `flt_64BB58`, `flt_64BB5C`.
@@ -24,7 +24,7 @@ pub struct FinishLines {
     pub k7c: f32,
 }
 
-/// The four figures: (`dword_606748`, `dword_606730`, `dword_606734`, `dword_606744`).
+/// The four figures:.
 pub fn finish_camera(l: &FinishLines) -> [f32; 4] {
     let (t, s) = (l.time as f64, l.share as f64);
     [

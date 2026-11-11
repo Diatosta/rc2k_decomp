@@ -14,7 +14,7 @@ use crate::race::viewer::{MOST_BLOCKS, OWN_FROM};
 
 // ---- opening ----
 
-/// The file's header read (`dword_528504`).
+/// The file's header read.
 pub const HEADER_LEN: u32 = 0x430;
 /// The index at the file's end ("RCIB", the count, the blocks' places).
 pub const INDEX_LEN: u32 = 0x3850;
@@ -74,15 +74,15 @@ pub fn opened_marks(blocks: u32) -> (u32, u32) {
 pub const CAMERA_DWORDS: usize = 2;
 
 /// The opening's answer: carry clear, zero when the patches' call left 0.
-pub fn opened_zero(eax: u32) -> bool {
-    eax == 0
+pub fn opened_zero(result: u32) -> bool {
+    result == 0
 }
 
 // ---- saving ----
 
 /// The new header's first three dwords ("REPL", 0, the version); the date follows.
 pub const SAVED_HEADER: [u32; 3] = [HEADER_MAGIC, 0, HEADER_VERSION];
-/// A slot's name (`byte_528934`): 32 bytes a slot, copied after the date.
+/// A slot's name: 32 bytes a slot, copied after the date.
 pub const NAME_LEN: usize = 0x20;
 /// A block's data read and written packed (`block`).
 pub const BLOCK_LEN: u32 = 0x2810;

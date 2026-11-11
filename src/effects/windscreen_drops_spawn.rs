@@ -160,19 +160,19 @@ mod asm_differential {
                         b[1],
                         &[
                             overlay(
-                                &crate::effects::owner::EFFECTS.windscreen_drops.tilt,
+                                &crate::effects::owner::effects().windscreen_drops.tilt,
                                 ShapeTilt::START,
                             ),
                             overlay(
-                                &crate::effects::owner::EFFECTS.windscreen_drops.state,
+                                &crate::effects::owner::effects().windscreen_drops.state,
                                 WindscreenDropState::START,
                             ),
                             overlay(
-                                &crate::effects::owner::EFFECTS.windscreen_drops.hex,
+                                &crate::effects::owner::effects().windscreen_drops.hex,
                                 WindscreenDropVars::START,
                             ),
                         ],
-                        || super::rate_x87(&crate::effects::owner::EFFECTS.windscreen_drops, kv),
+                        || super::rate_x87(&crate::effects::owner::effects().windscreen_drops, kv),
                     );
                 });
             },

@@ -94,7 +94,7 @@ pub fn draw_mark_slots(
             .slot_tuning
             .place_k
             .each_ref()
-            .map(super::super::session::Float::bits);
+            .map(super::super::session::PlainFloat::bits);
         let z = x87::mul(c, k4[0]);
         let y = x87::sub_mul(b, k4[1], k4[2]);
         let x = x87::mul(a, k4[3]);

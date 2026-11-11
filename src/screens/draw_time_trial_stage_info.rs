@@ -23,12 +23,16 @@ use crate::screens::stage_panel::{
     TITLE_FONT, build_second_heading, draw_records_for_group, draw_stage_body, label,
     table_dword_at,
 };
-use crate::session::Dword;
+use crate::session::PlainDword;
 use crate::text::draw_text::{Canvas, draw_text_at};
 
 // ---- game data ----
 
-pub const GROUP_TITLES: &[Dword] = &crate::menu::owner::MENUS.play.results.group_titles; // `results.group_titles`[group]: title string ids
+pub const GROUP_TITLES: &[PlainDword] = &crate::menu::owner::MENUS
+    .unchecked()
+    .play
+    .results
+    .group_titles; // `results.group_titles`[group]: title string ids
 
 const TITLE_X: i32 = 0x2EB;
 const GROUP_TITLE_Y: i32 = 0x77;

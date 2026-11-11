@@ -37,6 +37,7 @@ pub fn choose_view_window(
     crate::scene::set_view_window::set_view_window(
         race,
         scene,
+        system,
         window,
         &race.frame.view_and_records.view_vars,
     );

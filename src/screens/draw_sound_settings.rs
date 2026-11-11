@@ -10,23 +10,59 @@ use crate::errors::Refused;
 use crate::menu::disable_item::disable_item;
 use crate::menu::enable_item::enable_item;
 use crate::menu::owner::Menus;
-use crate::session::Dword;
+use crate::session::DwordLike;
 use crate::text::draw_text::Canvas;
 
 /// (the setting, its first string).
-const NAMES: [(&Dword, u32); 6] = [
+const NAMES: [(&dyn DwordLike, u32); 6] = [
     (
-        &crate::menu::owner::MENUS.screens.option_work.audio_quality,
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .screens
+            .option_work
+            .audio_quality,
         0x54B,
     ),
     (
-        &crate::menu::owner::MENUS.screens.option_work.channels,
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .screens
+            .option_work
+            .channels,
         0x554,
     ),
-    (&crate::menu::owner::MENUS.screens.option_work.ds3d, 0x56D),
-    (&crate::menu::owner::MENUS.screens.option_work.eax, 0x56D),
-    (&crate::menu::owner::MENUS.screens.option_work.a3d, 0x56D),
-    (&crate::menu::owner::MENUS.screens.option_work.dolby, 0x56D),
+    (
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .screens
+            .option_work
+            .ds3d,
+        0x56D,
+    ),
+    (
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .screens
+            .option_work
+            .eax,
+        0x56D,
+    ),
+    (
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .screens
+            .option_work
+            .a3d,
+        0x56D,
+    ),
+    (
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .screens
+            .option_work
+            .dolby,
+        0x56D,
+    ),
 ];
 
 pub fn draw_sound_settings(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {

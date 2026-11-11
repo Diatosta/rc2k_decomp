@@ -331,11 +331,11 @@ mod tests {
         .unwrap();
         assert_eq!(n, 9);
         let mut walked = Vec::new();
-        let ebx = each_face::<Invalid>(3, 5, 9, |f| {
+        let result = each_face::<Invalid>(3, 5, 9, |f| {
             walked.push(f);
             Ok(())
         });
-        assert_eq!((ebx, walked), (Ok(6), vec![3, 4, 5]));
+        assert_eq!((result, walked), (Ok(6), vec![3, 4, 5]));
         assert_eq!(each_face::<Invalid>(5, 3, 9, |_| Ok(())), Ok(5));
         assert!(each_face::<Invalid>(3, NO_FACE, 9, |_| Ok(())).is_err());
         assert!(each_face::<Invalid>(3, 9, 9, |_| Ok(())).is_err());

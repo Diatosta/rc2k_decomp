@@ -45,12 +45,12 @@ pub fn switch(
     }
 }
 
-/// What a key typed: eax's low half as the original leaves it (al the character, 0 for
-/// none; ah the dead key stored or used), and the pending dead key's new value, if it
+/// What a key typed: the low 16 bits as the game returns them (the low byte the character, 0 for
+/// none; the next byte the dead key stored or used), and the pending dead key's new value, if it
 /// changes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Typed {
-    pub eax: u32,
+    pub code: u32,
     pub pending: Option<u8>,
 }
 
@@ -124,13 +124,13 @@ pub fn key_to_char(
     }
     if dead != 0 {
         return Ok(Typed {
-            eax: (dead as u32) << 8,
+            code: (dead as u32) << 8,
             pending: Some(dead),
         });
     }
     if silent {
         return Ok(Typed {
-            eax: 0,
+            code: 0,
             pending: None,
         });
     }
@@ -141,7 +141,7 @@ pub fn key_to_char(
     };
     if let Some(c) = composed {
         return Ok(Typed {
-            eax: high | c as u32,
+            code: high | c as u32,
             pending,
         });
     }
@@ -152,11 +152,11 @@ pub fn key_to_char(
     } else {
         layout.plain
     };
-    let eax = match table {
+    let code = match table {
         Some(table) => high | at(table, key as usize)? as u32,
         None => high,
     };
-    Ok(Typed { eax, pending })
+    Ok(Typed { code, pending })
 }
 
 /// A key's name on the keyboard pages (`input::append_key_name` 0x407F39): the layout's
@@ -211,34 +211,34 @@ mod tests {
         assert_eq!(
             typed(5, false, false, 0),
             Typed {
-                eax: 0x25,
+                code: 0x25,
                 pending: None
             }
         );
-        assert_eq!(typed(5, true, false, 0).eax, 0x45);
+        assert_eq!(typed(5, true, false, 0).code, 0x45);
         assert_eq!(
             typed(0x1A, false, false, 0),
             Typed {
-                eax: 0x5E00,
+                code: 0x5E00,
                 pending: Some(b'^')
             }
         );
         assert_eq!(
             typed(5, false, false, b'^'),
             Typed {
-                eax: 0x5EE2,
+                code: 0x5EE2,
                 pending: Some(0)
             }
         );
         assert_eq!(
             typed(6, false, false, b'^'),
             Typed {
-                eax: 0x5E26,
+                code: 0x5E26,
                 pending: Some(0)
             }
         );
-        assert_eq!(typed(15, false, false, 0).eax, 0); // silent
-        assert_eq!(typed(5, false, true, 0).eax, 0); // no AltGr table
+        assert_eq!(typed(15, false, false, 0).code, 0); // silent
+        assert_eq!(typed(5, false, true, 0).code, 0); // no AltGr table
         assert_eq!(switch(2, true, false, false, true), Some(Switch::Second));
         assert_eq!(switch(1, true, false, true, false), None);
     }

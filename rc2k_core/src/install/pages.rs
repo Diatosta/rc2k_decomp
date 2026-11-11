@@ -1,7 +1,7 @@
 //! The installer's page actions (from `install::mark_main_page`
 //! 0x4141EF, `mode_page` 0x41422B, `drive_page` 0x41425E, `folder_page` 0x4142F5,
 //! `language_page` 0x414199, `dxsetup_page` 0x41432F and `finish_page` 0x414347): what a
-//! page sets up at its start (ebx 0) and takes at its end (ebx negative), and which of its
+//! page sets up at its start and takes at its end (a negative argument), and which of its
 //! items are marked. An item's first byte: 0x40 hidden, 0x80 not to be chosen. And the
 //! pages' walk (`install::run_pages` 0x4144AA): an entry is a
 //! page's list and, after it, the entries its answers go to.
@@ -9,17 +9,17 @@
 /// When a page action is called.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum When {
-    /// ebx 0.
+    /// The argument is 0.
     Start,
-    /// ebx negative.
+    /// The argument is negative.
     End,
-    /// Any other ebx.
+    /// Any other argument.
     Other,
 }
 
 impl When {
-    pub fn of(ebx: u32) -> When {
-        match ebx as i32 {
+    pub fn of(argument: u32) -> When {
+        match argument as i32 {
             0 => When::Start,
             n if n < 0 => When::End,
             _ => When::Other,
@@ -34,7 +34,7 @@ pub const UNUSABLE: u8 = 0x80;
 /// A change to an item's first byte: `(offset in the list, or, and)`, made in order.
 pub type Mark = (u32, u8, u8);
 
-/// The update script's title (the list's `[edi+2Ah]`).
+/// The update script's title.
 pub const UPDATE_TITLE: u16 = 0xBD;
 
 /// The main page's marks, in the original's order: not this version, "play" (+0x28)

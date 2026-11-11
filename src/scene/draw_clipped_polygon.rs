@@ -107,7 +107,14 @@ pub fn draw_clipped_polygon_in_game(
             Step::ClipByDepth => clip_polygon_by_depth(poly, race, scene, ctx.far_clip, ctx.view)?,
             Step::ClipToScreen => clip_polygon_to_screen(poly, race)?,
             Step::Draw => {
-                draw_polygon(poly, race, &ctx.view.face, &mut Game, scene)?;
+                draw_polygon(
+                    poly,
+                    race,
+                    &ctx.view.face,
+                    &mut Game,
+                    scene,
+                    &ctx.system.session.screen,
+                )?;
             }
         }
         Ok(())

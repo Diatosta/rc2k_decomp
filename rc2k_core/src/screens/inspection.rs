@@ -12,9 +12,9 @@ pub enum Font {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {
-    /// `dword_7559EC`: the weights lost.
+    /// The weights lost.
     Lost,
-    /// `dword_75AC80`: the status.
+    /// The status.
     Status,
 }
 

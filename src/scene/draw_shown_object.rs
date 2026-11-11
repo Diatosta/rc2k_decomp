@@ -24,7 +24,6 @@ use crate::errors::{BadInput, Refused};
 
 // ---- game data ----
 use crate::race::owner::Race;
-use crate::scene::owner::scene;
 use rc2k_core::scene::shown::OBJECTS;
 
 // ---- Rust version ----
@@ -34,6 +33,7 @@ struct Game<'a>(
     &'a Race,
     &'a crate::race::car_draw_state::CarDrawState,
     &'a crate::scene::object_place::ObjectPlace,
+    &'a crate::scene::owner::Scene,
 );
 
 impl rc2k_core::scene::shown::RaceObject for Game<'_> {
@@ -47,7 +47,7 @@ impl rc2k_core::scene::shown::RaceObject for Game<'_> {
         self.0.shared.vars.run_kind.get()
     }
     fn kind(&self, object: u32) -> u32 {
-        scene().objects.tables.object_kind(object)
+        self.3.objects.tables.object_kind(object)
     }
     fn other_way(&self) -> u32 {
         self.0.shared.switches.scene_set_up.get()
@@ -62,7 +62,7 @@ impl rc2k_core::scene::shown::RaceObject for Game<'_> {
         self.2.only_object.get()
     }
     fn faces(&self, object: u32) -> u32 {
-        scene().objects.slots.face_counts[object as usize].get()
+        self.3.objects.slots.face_counts[object as usize].get()
     }
 }
 
@@ -70,6 +70,7 @@ impl rc2k_core::scene::shown::RaceObject for Game<'_> {
 // Converted: `rc2k_core::scene::shown::race_shown`
 pub fn draw_shown_object(
     race: &Race,
+    scene: &crate::scene::owner::Scene,
     draw: &mut dyn FnMut() -> Result<(), Refused>,
     cars: &crate::race::car_draw_state::CarDrawState,
     object: &crate::scene::object_place::ObjectPlace,
@@ -80,7 +81,7 @@ pub fn draw_shown_object(
     }
     object.drawing_object.set(1u32);
     let show = if in_race {
-        rc2k_core::scene::shown::race_shown(&Game(race, cars, object))
+        rc2k_core::scene::shown::race_shown(&Game(race, cars, object, scene))
     } else {
         // The original set the 0x100 kind dwords here (`scene::clear_kind_bytes`): the
         // caller's context has the menus' marks (`scene::car_marks`).

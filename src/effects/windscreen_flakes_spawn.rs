@@ -182,12 +182,12 @@ mod asm_differential {
                                     with_overlays(
                                         b[1],
                                         &[overlay(
-                                            &crate::effects::owner::EFFECTS.windscreen_drops.tilt,
+                                            &crate::effects::owner::effects().windscreen_drops.tilt,
                                             ShapeTilt::START,
                                         )],
                                         || {
                                             super::rate_x87(
-                                                &crate::effects::owner::EFFECTS.windscreen_drops,
+                                                &crate::effects::owner::effects().windscreen_drops,
                                                 kv,
                                                 sti,
                                                 ss,

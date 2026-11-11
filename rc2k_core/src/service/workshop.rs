@@ -2,7 +2,7 @@
 //! (from `service::apply_repairs` 0x46C14D): each chosen repair shown being done, a frame
 //! at a time, then the chosen setup installed.
 //!
-//! A chosen item is one whose flag (`dword_759B6E`) is exactly 1. Items 2 .. 0xF are the
+//! A chosen item is one whose flag is exactly 1. Items 2 .. 0xF are the
 //! car's parts, their damage `Player::damage[item - 2]` (the tyres' the last).
 
 use crate::menu::player::Player;
@@ -66,7 +66,7 @@ impl Setting {
 /// The setup items installed after the repairs: (item, setting).
 pub const SETUPS: [(u32, Setting); 2] = [(0x12, Setting::RideHeight), (0x13, Setting::Stiffness)];
 
-/// The time-keeping variables (`dword_75AB48`, `dword_75AB4C`, `dword_75AB54`).
+/// The time-keeping variables.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Timer {
     /// The clock when a piece of work started.

@@ -62,7 +62,7 @@ pub fn find_group(
     Ok((0..groups).find(|&n| checkpoint_of(n) == checkpoint))
 }
 
-/// The texts' room (`byte_61BE18`).
+/// The texts' room.
 pub const TEXT_LEN: u32 = 0x4000;
 /// The first bad code.
 pub const BAD_CODE: u32 = 0x54;
@@ -90,7 +90,9 @@ pub fn code(byte: u8) -> Code {
 /// A text place checked before its code is read.
 pub fn text_place(place: u32) -> Result<u32, Invalid> {
     if place >= TEXT_LEN {
-        return Err(Invalid("a pace note text place past byte_61BE18's 0x4000"));
+        return Err(Invalid(
+            "a pace note text place past the text buffer's 0x4000",
+        ));
     }
     Ok(place)
 }

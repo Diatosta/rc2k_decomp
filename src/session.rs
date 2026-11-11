@@ -367,6 +367,7 @@ impl<const N: usize> Bytes<N> {
         Self(atomic_bytes(value))
     }
 
+    #[cfg(test)]
     pub fn as_ptr(&self) -> *mut u8 {
         self.0.as_ptr().cast::<u8>().cast_mut()
     }
@@ -670,6 +671,245 @@ impl Cell32 for PlainFloat {
     }
     fn set_bits(&self, bits: u32) {
         self.0.set(bits);
+    }
+}
+
+/// A `Word` only the game's thread reaches: the same two bytes and methods, no atomic.
+#[repr(transparent)]
+pub struct PlainWord(Cell<u16>);
+
+impl PlainWord {
+    pub const fn new(value: u16) -> Self {
+        Self(Cell::new(value))
+    }
+
+    pub fn get(&self) -> u16 {
+        self.0.get()
+    }
+
+    pub fn set(&self, value: u16) {
+        self.0.set(value);
+    }
+
+    /// The cell itself (`pointers`' copies of a run).
+    pub(crate) fn cell(&self) -> &Cell<u16> {
+        &self.0
+    }
+}
+
+/// A `Byte` only the game's thread reaches.
+#[repr(transparent)]
+pub struct PlainByte(Cell<u8>);
+
+impl PlainByte {
+    pub const fn new(value: u8) -> Self {
+        Self(Cell::new(value))
+    }
+
+    pub fn get(&self) -> u8 {
+        self.0.get()
+    }
+
+    pub fn set(&self, value: u8) {
+        self.0.set(value);
+    }
+
+    /// The cell itself (`pointers`' copies of a run).
+    pub(crate) fn cell(&self) -> &Cell<u8> {
+        &self.0
+    }
+}
+
+/// A buffer of the game's bytes only the game's thread reaches: the same methods as `Bytes`,
+/// each byte a plain cell.
+#[repr(transparent)]
+pub struct PlainBytes<const N: usize>([Cell<u8>; N]);
+
+impl<const N: usize> PlainBytes<N> {
+    pub const fn new(value: [u8; N]) -> Self {
+        Self(plain_bytes(value))
+    }
+
+    pub fn as_ptr(&self) -> *mut u8 {
+        self.0.as_ptr().cast::<u8>().cast_mut()
+    }
+
+    /// Its cells (the cells' copies, `pointers::CellRef`).
+    pub(crate) fn cells(&self) -> &[Cell<u8>] {
+        &self.0
+    }
+
+    #[cfg(test)]
+    pub fn addr(&self) -> u32 {
+        crate::pointers::game_address(self.as_ptr())
+    }
+
+    pub fn get(&self, index: usize) -> u8 {
+        self.0[index].get()
+    }
+
+    pub fn set(&self, index: usize, value: u8) {
+        self.0[index].set(value);
+    }
+
+    /// The little-endian dword at byte `offset` (any alignment, as the game's records are read).
+    pub fn get_u32(&self, offset: usize) -> u32 {
+        u32::from_le_bytes(std::array::from_fn(|i| self.get(offset + i)))
+    }
+
+    pub fn set_u32(&self, offset: usize, value: u32) {
+        for (i, b) in value.to_le_bytes().into_iter().enumerate() {
+            self.set(offset + i, b);
+        }
+    }
+
+    /// All of it.
+    pub fn read(&self) -> [u8; N] {
+        std::array::from_fn(|i| self.get(i))
+    }
+
+    /// The bytes up to the first NUL (or all of them): a text kept in the buffer.
+    pub fn text(&self) -> Vec<u8> {
+        let all = self.read();
+        let n = all.iter().position(|&c| c == 0).unwrap_or(N);
+        all[..n].to_vec()
+    }
+
+    pub fn write(&self, value: &[u8; N]) {
+        for (i, &b) in value.iter().enumerate() {
+            self.set(i, b);
+        }
+    }
+
+    /// `len` bytes from `offset` (`what` names them in a refusal past the end).
+    pub fn read_at(
+        &self,
+        offset: usize,
+        len: usize,
+        what: &str,
+    ) -> Result<Vec<u8>, crate::errors::BadInput> {
+        self.range(offset, len, what)?;
+        Ok((offset..offset + len).map(|i| self.get(i)).collect())
+    }
+
+    /// `data` written from `offset`.
+    pub fn write_at(
+        &self,
+        offset: usize,
+        data: &[u8],
+        what: &str,
+    ) -> Result<(), crate::errors::BadInput> {
+        self.range(offset, data.len(), what)?;
+        for (i, &b) in data.iter().enumerate() {
+            self.set(offset + i, b);
+        }
+        Ok(())
+    }
+
+    fn range(&self, offset: usize, len: usize, what: &str) -> Result<(), crate::errors::BadInput> {
+        match offset.checked_add(len) {
+            Some(end) if end <= N => Ok(()),
+            _ => {
+                crate::framework::log(&format!(
+                    "session: {what}: {len} bytes at {offset:#x} of a {N:#x}-byte buffer"
+                ));
+                Err(crate::errors::BadInput("past the end of a buffer"))
+            }
+        }
+    }
+}
+
+/// A `Loose` only the game's thread reaches: a dword at an address that is not a multiple of
+/// 4, four byte cells.
+#[repr(transparent)]
+pub struct PlainLoose([Cell<u8>; 4]);
+
+impl PlainLoose {
+    pub const fn new(value: u32) -> Self {
+        Self(plain_bytes(value.to_le_bytes()))
+    }
+
+    pub fn get(&self) -> u32 {
+        u32::from_le_bytes(std::array::from_fn(|i| self.0[i].get()))
+    }
+
+    pub fn set(&self, value: u32) {
+        for (cell, b) in self.0.iter().zip(value.to_le_bytes()) {
+            cell.set(b);
+        }
+    }
+
+    /// Its cells (the cells' copies, `pointers::CellRef`).
+    pub(crate) fn cells(&self) -> &[Cell<u8>] {
+        &self.0
+    }
+}
+
+/// `value`'s bytes as cells (a `const` initialiser of `PlainBytes` and `PlainLoose`), in one
+/// move: a loop over a table of the game's data is too slow for the compiler's evaluator.
+const fn plain_bytes<const N: usize>(value: [u8; N]) -> [Cell<u8>; N] {
+    use std::mem::ManuallyDrop;
+    union Both<const N: usize> {
+        plain: ManuallyDrop<[u8; N]>,
+        cells: ManuallyDrop<[Cell<u8>; N]>,
+    }
+    // SAFETY: `Cell<u8>` has `u8`'s size, alignment and bit validity, so the arrays are the
+    // same bytes; the value is moved, not shared.
+    ManuallyDrop::into_inner(unsafe {
+        Both {
+            plain: ManuallyDrop::new(value),
+        }
+        .cells
+    })
+}
+
+/// A dword cell read and written as a number, whether shared (`Dword`) or the game thread's
+/// (`PlainDword`): what the menus' and the screens' tables name when their cells come from
+/// both kinds of store.
+pub trait DwordLike {
+    fn get(&self) -> u32;
+    fn set(&self, value: u32);
+}
+
+impl DwordLike for Dword {
+    fn get(&self) -> u32 {
+        Dword::get(self)
+    }
+    fn set(&self, value: u32) {
+        Dword::set(self, value);
+    }
+}
+
+impl DwordLike for PlainDword {
+    fn get(&self) -> u32 {
+        PlainDword::get(self)
+    }
+    fn set(&self, value: u32) {
+        PlainDword::set(self, value);
+    }
+}
+
+/// A flag cell, shared (`Flag`) or the game thread's (`PlainFlag`).
+pub trait FlagLike {
+    fn is_set(&self) -> bool;
+    fn set(&self, value: bool);
+}
+
+impl FlagLike for Flag {
+    fn is_set(&self) -> bool {
+        Flag::is_set(self)
+    }
+    fn set(&self, value: bool) {
+        Flag::set(self, value);
+    }
+}
+
+impl FlagLike for PlainFlag {
+    fn is_set(&self) -> bool {
+        PlainFlag::is_set(self)
+    }
+    fn set(&self, value: bool) {
+        PlainFlag::set(self, value);
     }
 }
 
@@ -1081,23 +1321,118 @@ impl<const N: usize> TextPlace for [u8; N] {
     }
 }
 
-/// A text in a `Bytes` that begins `from` bytes in (a path among several in one buffer): read
-/// up to its NUL inside the buffer, written to inside it.
-pub struct TextFrom<'a, const N: usize> {
-    buffer: &'a Bytes<N>,
+/// What a buffer of the game's bytes offers whether it is shared (`Bytes`) or the game
+/// thread's (`PlainBytes`): the code that reads or writes a typed buffer without caring which.
+pub trait ByteBuffer {
+    fn read_vec(&self) -> Vec<u8>;
+    fn get_u32_at(&self, offset: usize) -> u32;
+    fn get_byte(&self, index: usize) -> u8;
+    fn read_bytes_at(
+        &self,
+        offset: usize,
+        len: usize,
+        what: &str,
+    ) -> Result<Vec<u8>, crate::errors::BadInput>;
+    fn write_bytes_at(
+        &self,
+        offset: usize,
+        data: &[u8],
+        what: &str,
+    ) -> Result<(), crate::errors::BadInput>;
+}
+
+impl<const N: usize> ByteBuffer for Bytes<N> {
+    fn read_vec(&self) -> Vec<u8> {
+        self.read().to_vec()
+    }
+    fn get_byte(&self, index: usize) -> u8 {
+        self.get(index)
+    }
+    fn get_u32_at(&self, offset: usize) -> u32 {
+        self.get_u32(offset)
+    }
+    fn read_bytes_at(
+        &self,
+        offset: usize,
+        len: usize,
+        what: &str,
+    ) -> Result<Vec<u8>, crate::errors::BadInput> {
+        self.read_at(offset, len, what)
+    }
+    fn write_bytes_at(
+        &self,
+        offset: usize,
+        data: &[u8],
+        what: &str,
+    ) -> Result<(), crate::errors::BadInput> {
+        self.write_at(offset, data, what)
+    }
+}
+
+impl<const N: usize> ByteBuffer for PlainBytes<N> {
+    fn read_vec(&self) -> Vec<u8> {
+        self.read().to_vec()
+    }
+    fn get_byte(&self, index: usize) -> u8 {
+        self.get(index)
+    }
+    fn get_u32_at(&self, offset: usize) -> u32 {
+        self.get_u32(offset)
+    }
+    fn read_bytes_at(
+        &self,
+        offset: usize,
+        len: usize,
+        what: &str,
+    ) -> Result<Vec<u8>, crate::errors::BadInput> {
+        self.read_at(offset, len, what)
+    }
+    fn write_bytes_at(
+        &self,
+        offset: usize,
+        data: &[u8],
+        what: &str,
+    ) -> Result<(), crate::errors::BadInput> {
+        self.write_at(offset, data, what)
+    }
+}
+
+impl<const N: usize> TextPlace for PlainBytes<N> {
+    fn text(&self, _what: &str) -> Result<Vec<u8>, crate::errors::BadInput> {
+        let all = self.read();
+        match all.iter().position(|&c| c == 0) {
+            Some(n) => Ok(all[..n].to_vec()),
+            None => Err(crate::errors::BadInput("a text with no end in its buffer")),
+        }
+    }
+
+    fn write_text_at(
+        &self,
+        at: usize,
+        bytes: &[u8],
+        what: &str,
+    ) -> Result<(), crate::errors::BadInput> {
+        self.write_at(at, bytes, what)
+    }
+}
+
+/// A text in a buffer of bytes that begins `from` bytes in (a path among several in one
+/// buffer): read up to its NUL inside the buffer, written to inside it.
+pub struct TextFrom<'a, B: ByteBuffer> {
+    buffer: &'a B,
     from: usize,
 }
 
-impl<const N: usize> Bytes<N> {
+impl<const N: usize> PlainBytes<N> {
     /// The text that begins `from` bytes in.
-    pub fn text_from(&self, from: usize) -> TextFrom<'_, N> {
+    pub fn text_from(&self, from: usize) -> TextFrom<'_, Self> {
         TextFrom { buffer: self, from }
     }
 }
 
-impl<const N: usize> TextPlace for TextFrom<'_, N> {
+impl<B: ByteBuffer> TextPlace for TextFrom<'_, B> {
     fn text(&self, _what: &str) -> Result<Vec<u8>, crate::errors::BadInput> {
-        let all = self.buffer.read();
+        let all = self.buffer.read_vec();
         let rest = all
             .get(self.from..)
             .ok_or(crate::errors::BadInput("a text past its buffer"))?;
@@ -1114,7 +1449,7 @@ impl<const N: usize> TextPlace for TextFrom<'_, N> {
         what: &str,
     ) -> Result<(), crate::errors::BadInput> {
         self.buffer
-            .write_at(self.from.saturating_add(at), bytes, what)
+            .write_bytes_at(self.from.saturating_add(at), bytes, what)
     }
 }
 

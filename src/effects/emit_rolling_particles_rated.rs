@@ -23,7 +23,7 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
 use crate::scene::matrix3::rounded;
-use crate::session::{Bytes, Dword, Float};
+use crate::session::{PlainBytes, PlainDword, PlainFloat};
 
 const LOOK: u32 = 0x34;
 const LIFE: u32 = 0x3E8;
@@ -39,7 +39,7 @@ fn rate(
             .kind21_set
             .rate_k
             .each_ref()
-            .map(super::super::session::Float::bits);
+            .map(super::super::session::PlainFloat::bits);
         x87::speed_rate_to_int(
             &wheel.driven_speed,
             k1,
@@ -174,19 +174,19 @@ pub fn emit_rolling_particles_rated(
 #[derive(rc2k_derive::Cells)]
 pub struct RollingRatedSet {
     /// 0x93A312: `flt_93A312` .. `flt_93A31E`: the rate's factors
-    pub rate_k: [Float; 4],
+    pub rate_k: [PlainFloat; 4],
     /// 0x93A322: `dword_93A322`: the side's random
-    pub side_random: Dword,
+    pub side_random: PlainDword,
     /// 0x93A326: `flt_93A326`: the place's drop in y
-    pub lift: Float,
+    pub lift: PlainFloat,
     /// 0x93A32A: `flt_93A32A` .. `flt_93A34A`: per axis (x, y, z) the factors of the first row, the third row and the side
-    pub motion_k: [Float; 9],
+    pub motion_k: [PlainFloat; 9],
     /// 0x93A34E: `dword_93A34E`: the spin's random
-    pub spin_random: Dword,
+    pub spin_random: PlainDword,
     /// 0x93A352: `flt_93A352`: the size's factor
-    pub size_k: Float,
+    pub size_k: PlainFloat,
     /// 0x93A356: `flt_93A35E` .. `flt_93A396`: read only by code in no function
-    pub _gap_93a356: Bytes<68>,
+    pub _gap_93a356: PlainBytes<68>,
 }
 
 impl RollingRatedSet {
@@ -194,27 +194,27 @@ impl RollingRatedSet {
     pub const fn new() -> Self {
         RollingRatedSet {
             rate_k: [
-                Float::new(65.336),
-                Float::new(0.00002),
-                Float::new(1.0),
-                Float::new(196608.0),
+                PlainFloat::new(65.336),
+                PlainFloat::new(0.00002),
+                PlainFloat::new(1.0),
+                PlainFloat::new(196608.0),
             ],
-            side_random: Dword::new(0x0),
-            lift: Float::new(65536.0),
+            side_random: PlainDword::new(0x0),
+            lift: PlainFloat::new(65536.0),
             motion_k: [
-                Float::new(49.152),
-                Float::new(49.152),
-                Float::new(-49.152),
-                Float::new(49.152),
-                Float::new(49.152),
-                Float::new(-49.152),
-                Float::new(49.152),
-                Float::new(49.152),
-                Float::new(-49.152),
+                PlainFloat::new(49.152),
+                PlainFloat::new(49.152),
+                PlainFloat::new(-49.152),
+                PlainFloat::new(49.152),
+                PlainFloat::new(49.152),
+                PlainFloat::new(-49.152),
+                PlainFloat::new(49.152),
+                PlainFloat::new(49.152),
+                PlainFloat::new(-49.152),
             ],
-            spin_random: Dword::new(0x0),
-            size_k: Float::new(0.2),
-            _gap_93a356: Bytes::new([
+            spin_random: PlainDword::new(0x0),
+            size_k: PlainFloat::new(0.2),
+            _gap_93a356: PlainBytes::new([
                 0x0A, 0xD7, 0x23, 0x45, 0x17, 0xB7, 0x51, 0x39, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00,
                 0x40, 0x48, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x47, 0x6F, 0x12, 0x83, 0x42,
                 0xA6, 0x9B, 0x44, 0x42, 0x4C, 0x37, 0x99, 0xC1, 0x6F, 0x12, 0x83, 0x42, 0xA6, 0x9B,
@@ -246,7 +246,7 @@ mod kind21_set_tests {
     fn kind21_set_starts_as_the_games() {
         assert_eq!(size_of::<RollingRatedSet>(), RollingRatedSet::LEN);
         assert!(
-            bytes(&crate::effects::owner::EFFECTS.particles.kind21_set)
+            bytes(&crate::effects::owner::effects().particles.kind21_set)
                 == crate::moved::image_bytes(RollingRatedSet::START, RollingRatedSet::LEN),
             "KIND21_SET starts differently from the image"
         );

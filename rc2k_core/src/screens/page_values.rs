@@ -27,7 +27,7 @@ pub fn stage_options_caption(page: u32) -> u32 {
 }
 
 /// The stage pages' line ("<label> <n>/6: <track>") may fill at most this much of its
-/// buffer (`byte_A8BD54`), its NUL with it.
+/// buffer, its NUL with it.
 pub const STAGE_LINE_ROOM: usize = 0x100;
 
 /// The setting the controller pages copy from the player picked: its +0x2C and the 0x2C

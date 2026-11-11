@@ -67,7 +67,7 @@ pub fn highlighted_slot(page: u32, item: u32) -> u32 {
     }
 }
 
-/// The service area's edit pages, by their number (`dword_75AAA0`).
+/// The service area's edit pages, by their number.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EditPage {
     GearRatio = 1,

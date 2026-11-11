@@ -21,7 +21,7 @@ pub enum Font {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {
-    /// `dword_758720`, `dword_758724`: the rows' byte offsets in `g_players`.
+    /// The rows' byte offsets in `g_players`.
     First,
     Second,
 }

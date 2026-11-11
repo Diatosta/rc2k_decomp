@@ -10,13 +10,23 @@
 //! 25 callers (1 is the highlight's click, 2 Enter's sound: `menu::handle_keys`).
 
 use crate::session::Dword;
+use crate::session::DwordLike;
+use crate::session::PlainDword;
 use crate::system::tick_count::tick_count;
 
 // ---- game data ----
 
 const VOLUME_A: &Dword = &crate::audio::owner::AUDIO_OWNER.levels.menu_sounds_a; // dword_755694
-const VOLUME_B: &Dword = &crate::menu::owner::MENUS.screens.flow.menu_sounds_volume; // dword_7554E8
-const VOLUME_C: &Dword = &crate::menu::owner::MENUS.screens.option_work.menu_sounds_c; // dword_755690
+const VOLUME_B: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .flow
+    .menu_sounds_volume; // dword_7554E8
+const VOLUME_C: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .option_work
+    .menu_sounds_c; // dword_755690
 
 /// `sound` the menu's sound (0: none); `now` is asked for the clock.
 pub fn play_menu_sound(
@@ -36,7 +46,7 @@ pub fn play_menu_sound(
     let Some((sound, volume)) = pick else {
         return;
     };
-    let volume = match volume {
+    let volume: &dyn DwordLike = match volume {
         MenuVolume::A => VOLUME_A,
         MenuVolume::B => VOLUME_B,
         MenuVolume::C => VOLUME_C,

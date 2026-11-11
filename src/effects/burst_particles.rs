@@ -79,7 +79,7 @@ pub fn burst_particles(
             .particle_tuning
             .burst_scale
             .each_ref()
-            .map(super::super::session::Float::bits);
+            .map(super::super::session::PlainFloat::bits);
         let radius = bh::st((bh::int(r as i32) * bh::ld(m) + bh::ld(c)) * bh::ld(k));
         ring.pool.burst_radius.set_bits(radius);
         ring.pool.kind.set((s & 7) * 0x400);

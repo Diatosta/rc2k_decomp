@@ -1,6 +1,6 @@
 //! What a race view's scene leaves its overlays in the shared stores (the frame census,
-//! `RC2K_FRAME_CENSUS`: `viewN_scene` -> `viewN_rest`): the clock
-//! and the scratch matrices' rows that `scene::multiply_matrices` never writes. Kept from the
+//! `RC2K_FRAME_CENSUS`: `viewN_scene` -> `viewN_rest`): the
+//! scratch matrices' rows that `scene::multiply_matrices` never writes. Kept from the
 //! scene's own copies at its end, and set again before its overlays when they run after
 //! other views' parts (the players' views beside each other, `race::draw_race_scene`): the
 //! merged stores hold what the last part left there, and a part that set a value back to
@@ -15,8 +15,6 @@ use crate::session::Dword;
 pub struct SceneHandOff {
     /// 1 when the mirror was drawn this frame (its full window follows: `race::draw_race_scene`).
     mirror_drawn: Dword,
-    /// `PhysicsTables.scene_clock` (restarted at the view's fog).
-    clock: Dword,
     /// `SceneMatrices.lit_matrix`.
     lit: [Dword; 16],
     /// `SceneMatrices.made_object_matrix`.
@@ -33,7 +31,6 @@ impl SceneHandOff {
     pub const fn new() -> Self {
         Self {
             mirror_drawn: Dword::new(0),
-            clock: Dword::new(0),
             lit: [const { Dword::new(0) }; 16],
             made: [const { Dword::new(0) }; 16],
             environment: [const { Dword::new(0) }; 2],
@@ -77,7 +74,6 @@ impl SceneHandOff {
     /// The scene's values kept (at its end; the matrices' fourth columns the part's own,
     /// `scene::view_matrices::current_matrix`).
     pub fn keep(&self, race: &Race) {
-        self.clock.set(race.shared.physics_tables.scene_clock.get());
         let m = &race.frame.matrices;
         for (kept, n) in [(&self.lit, 1), (&self.made, 2)] {
             let now = crate::scene::view_matrices::current_matrix(m, n);
@@ -89,7 +85,6 @@ impl SceneHandOff {
 
     /// The kept values set again (before the view's overlays).
     pub fn put(&self, race: &Race) {
-        race.shared.physics_tables.scene_clock.set(self.clock.get());
         let m = &race.frame.matrices;
         for (kept, now) in [&self.lit, &self.made]
             .into_iter()

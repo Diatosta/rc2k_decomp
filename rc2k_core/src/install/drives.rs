@@ -20,8 +20,8 @@ pub fn offered(drive_type: u32) -> bool {
     drive_type != CD_ROM && drive_type != RAM_DISK
 }
 
-/// The letters listed on the page: 'a' to 'y' (`cmp ecx, 7Ah; jb`: a drive Z found is never
-/// listed, the game's slip).
+/// The letters listed on the page: 'a' to 'y' (a drive Z found is never listed,
+/// the game's slip).
 pub const LISTED: RangeInclusive<u8> = b'a'..=b'y';
 
 /// Free space as the page shows it: the number, its unit's string id, and whether ">="
@@ -73,11 +73,11 @@ pub fn text(free: Free, unit: &[u8]) -> Vec<u8> {
 /// The drive page's menu by the drives listed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DriveMenu {
-    /// 8 or fewer (`off_51D7F8`).
+    /// 8 or fewer.
     Eight,
-    /// 16 or fewer (`off_51D8B0`).
+    /// 16 or fewer.
     Sixteen,
-    /// More (`off_51D9E8`).
+    /// More.
     More,
 }
 

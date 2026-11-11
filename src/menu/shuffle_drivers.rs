@@ -10,27 +10,47 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
 use crate::pointers::Store;
-use crate::session::Dword;
+use crate::session::PlainDword;
 
 const DRIVER_LEN: usize = 0x94;
 
 /// The four classes' first drivers (`g_drivers` + 90, + 140, + 170, + 0) and counts.
-const TABLES: [(usize, &Dword); 4] = [
+const TABLES: [(usize, &PlainDword); 4] = [
     (
         90,
-        &crate::menu::owner::MENUS.screens.state.menus.class_counts[1],
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .screens
+            .state
+            .menus
+            .class_counts[1],
     ),
     (
         140,
-        &crate::menu::owner::MENUS.screens.state.menus.class_counts[2],
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .screens
+            .state
+            .menus
+            .class_counts[2],
     ),
     (
         170,
-        &crate::menu::owner::MENUS.screens.state.menus.class_counts[3],
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .screens
+            .state
+            .menus
+            .class_counts[3],
     ),
     (
         0,
-        &crate::menu::owner::MENUS.screens.state.menus.class_counts[0],
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .screens
+            .state
+            .menus
+            .class_counts[0],
     ),
 ];
 

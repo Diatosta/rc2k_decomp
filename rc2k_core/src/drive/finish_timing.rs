@@ -10,26 +10,26 @@ use crate::physics::x87::{below, loaded};
 /// The routine's figures (`flt_64BB44` ..).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct FinishFigures {
-    /// `flt_5C5D18`: the clock's units a second.
+    /// The clock's units a second.
     pub units: f32,
-    /// `flt_64BB44`, `flt_64BB48`: the easing's start and end.
+    /// The easing's start and end.
     pub ease: [f32; 2],
-    /// `flt_5C5E40`: a half.
+    /// A half.
     pub half: f32,
-    /// `flt_64BB70`, `flt_64BB74`: the share's start and end.
+    /// The share's start and end.
     pub share: [f32; 2],
-    /// `dword_75B108`: the share's switch.
+    /// The share's switch.
     pub switch: bool,
 }
 
 /// What it stores.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct FinishTiming {
-    /// `flt_64BB64`: the time.
+    /// The time.
     pub time: f32,
-    /// `flt_64BB68`: the eased time.
+    /// The eased time.
     pub eased: f32,
-    /// `flt_64BB6C`: the share.
+    /// The share.
     pub share: f32,
     /// `dword_5C2F88` set to 1.
     pub flag: bool,

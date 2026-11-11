@@ -14,11 +14,11 @@ use crate::menu::owner::Play;
 use crate::menu::player::Player;
 use crate::net::owner::Net;
 use crate::race::owner::Race;
-use crate::session::Dword;
+use crate::session::DwordLike;
 use rc2k_core::net::record;
 
 /// A setting copied: (to, from player 1's record).
-type Setting = (&'static Dword, fn(&Player) -> u32);
+type Setting = (&'static dyn DwordLike, fn(&Player) -> u32);
 
 /// The settings copied.
 const SETTINGS: [Setting; 13] = [
@@ -76,26 +76,46 @@ const SETTINGS: [Setting; 13] = [
     ),
 ];
 /// Copied after the HUD's bits: (to, from).
-const MORE: [(&Dword, &Dword); 5] = [
+const MORE: [(&dyn DwordLike, &dyn DwordLike); 5] = [
     (
         &crate::race::owner::RACE.shared.state.settings.lens_flare,
-        &crate::menu::owner::MENUS.screens.option_work.lens_flare,
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .screens
+            .option_work
+            .lens_flare,
     ),
     (
         &crate::race::owner::RACE.shared.state.settings.reflections,
-        &crate::menu::owner::MENUS.screens.option_work.reflections,
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .screens
+            .option_work
+            .reflections,
     ),
     (
         &crate::race::owner::RACE.shared.state.settings.car_shadows,
-        &crate::menu::owner::MENUS.screens.option_work.car_shadows,
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .screens
+            .option_work
+            .car_shadows,
     ),
     (
         &crate::race::owner::RACE.shared.state.settings.car_detail,
-        &crate::menu::owner::MENUS.screens.option_work.car_detail,
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .screens
+            .option_work
+            .car_detail,
     ),
     (
         &crate::race::owner::RACE.shared.state.settings.headlights,
-        &crate::menu::owner::MENUS.screens.option_work.headlights,
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .screens
+            .option_work
+            .headlights,
     ),
 ];
 pub fn fill_own_player(

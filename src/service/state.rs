@@ -94,7 +94,7 @@ pub fn time_of(menus: &Menus, tables: &Tables, item: usize) -> Option<i32> {
         .lists
         .repair_time_ptrs
         .get(item)
-        .map(super::super::session::Dword::get)
+        .map(crate::session::DwordLike::get)
         .unwrap_or_else(|| refuse(BadInput("an item past the repair times' pointers")));
     crate::menu::lists_store::repair_time_at(menus, key)
         .unwrap_or_else(|e| refuse(e))

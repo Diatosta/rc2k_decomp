@@ -11,6 +11,9 @@ use crate::race::owner::Race;
 pub fn animate_stage(race: &Race) -> Result<(), Refused> {
     let scene = crate::scene::owner::scene();
     animate_lit_faces(race, scene)?;
-    move_slots(&crate::physics::step_inputs::StepInputs::of(race), scene)?;
+    move_slots(
+        &crate::physics::step_inputs::StepInputs::of(race).slots(),
+        scene,
+    )?;
     Ok(())
 }

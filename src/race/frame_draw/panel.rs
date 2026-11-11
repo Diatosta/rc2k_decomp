@@ -184,14 +184,10 @@ pub fn share_sound_spots(race: &Race) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::clear_point_records` (0x4500FF), on its variables: `COURSE_LISTS.clear_count` 0, then the
+/// `race::clear_point_records` (0x4500FF), on its variables: the
 /// 0x1000 point records of 0x20 bytes at `g_pointRecords`: each first dword -1, or with `g_useSse`
 /// set each first 16 bytes `LIGHT_WORK.sse_fill` (`movntps`).
-pub fn clear_point_records(
-    race: &Race,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), BadInput> {
-    race.course.lists.clear_count.set(0u32);
+pub fn clear_point_records(scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
     let pattern: [u32; 4] = crate::session::read_bits(&scene.lights.work.sse_fill);
     let sse = scene.draw_switches.use_sse.get() != 0;
     for record in crate::scene::point_records::first_records_everywhere(0x1000)? {

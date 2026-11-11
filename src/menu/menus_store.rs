@@ -14,28 +14,28 @@
 use crate::gfx::typefaces::FontCell;
 use crate::menu::item_sprites_store::SpriteCell;
 use crate::menu::owner::{Menus, menus};
-use crate::session::Dword;
+use crate::session::PlainDword;
 use rc2k_core::menu::tables::{MENUS, MenuItem as Fixed};
 
 /// A label: x, y, the font, the string id.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MenuLabel {
-    pub x: Dword,
-    pub y: Dword,
+    pub x: PlainDword,
+    pub y: PlainDword,
     /// The font (the original kept the object's address; `moved::point_into_homes` passes
     /// it over).
     pub font: FontCell,
-    pub string: Dword,
+    pub string: PlainDword,
 }
 
 impl MenuLabel {
     pub const fn new(v: [u32; 4]) -> Self {
         Self {
-            x: Dword::new(v[0]),
-            y: Dword::new(v[1]),
+            x: PlainDword::new(v[0]),
+            y: PlainDword::new(v[1]),
             font: FontCell::at(v[2]),
-            string: Dword::new(v[3]),
+            string: PlainDword::new(v[3]),
         }
     }
 }
@@ -45,14 +45,14 @@ impl MenuLabel {
 #[derive(rc2k_derive::Cells)]
 pub struct LabelList {
     pub label: MenuLabel,
-    pub end: Dword,
+    pub end: PlainDword,
 }
 
 impl LabelList {
     pub const fn new(v: [u32; 4]) -> Self {
         Self {
             label: MenuLabel::new(v),
-            end: Dword::new(0xFFFF_FFFF),
+            end: PlainDword::new(0xFFFF_FFFF),
         }
     }
 }
@@ -368,465 +368,591 @@ impl LabelTables {
 
 /// The 98 label lists, in the image's order (the first 98 fields of `MenuTables`, one after
 /// the other from IDA 0x747AD8).
-pub static LABEL_LISTS: [&LabelList; 98] = [
+pub const LABEL_LISTS: [&LabelList; 98] = [
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .single_rally_review_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .arcade_review_options_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .arcade_next_level_review_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .arcade_retry_review_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .after_arcade_retry_review_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .stage_result_labels,
-    &crate::menu::owner::MENUS.tables.menus.labels.labels_747b50,
     &crate::menu::owner::MENUS
+        .unchecked()
+        .tables
+        .menus
+        .labels
+        .labels_747b50,
+    &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .single_rally_two_results_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .after_single_rally_two_results_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .single_rally_three_four_results_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .single_rally_overall_results_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .time_trial_results_labels,
-    &crate::menu::owner::MENUS.tables.menus.labels.labels_747bc8,
     &crate::menu::owner::MENUS
+        .unchecked()
+        .tables
+        .menus
+        .labels
+        .labels_747bc8,
+    &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .main_menu_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .network_rally_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .start_rally_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .championship_new_simulation_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .new_simulation_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .after_new_simulation_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .second_after_new_simulation_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .simple_select_players_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .time_trial_select_players_labels,
-    &crate::menu::owner::MENUS.tables.menus.labels.labels_747c90,
     &crate::menu::owner::MENUS
+        .unchecked()
+        .tables
+        .menus
+        .labels
+        .labels_747c90,
+    &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .arcade_select_level_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .service_area_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .after_service_area_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .in_game_options_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .after_in_game_options_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .audio_setup_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .advanced_audio_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .leave_question_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .car_specification_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .slideshow_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .select_car_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .car_specs_display_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .menu_74ba3c_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .inspection_area_labels,
-    &crate::menu::owner::MENUS.tables.menus.labels.welcome_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
+        .tables
+        .menus
+        .labels
+        .welcome_labels,
+    &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .arcade_next_stage_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .arcade_level_end_results_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .arcade_results_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .rally_stages_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .class_stage_results_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .overall_stage_results_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .class_rally_results_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .overall_rally_results_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .after_overall_rally_results_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .second_after_overall_rally_results_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .class_championship_standings_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .championship_standings_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .menu_74fea8_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .championship_service_review_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .championship_standings_review_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .championship_races_review_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .championship_end_review_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .select_stage_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .time_trial_select_stage_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .next_stage_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .view_stage_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .view_courses_labels,
-    &crate::menu::owner::MENUS.tables.menus.labels.labels_747f88,
     &crate::menu::owner::MENUS
+        .unchecked()
+        .tables
+        .menus
+        .labels
+        .labels_747f88,
+    &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .player1_controller_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .player1_buttons_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .player2_controller_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .player2_buttons_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .player3_controller_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .player3_buttons_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .player4_controller_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .player4_buttons_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .redefine_keys_player1_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .redefine_keys_player2_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .redefine_keys_player3_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .redefine_keys_player4_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .view_best_times_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .view_best_scores_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .best_times_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .arcade_best_times_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .time_trial_best_times_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .arcade_best_scores_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .best_class_scores_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .best_overall_scores_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .after_best_overall_scores_labels,
-    &crate::menu::owner::MENUS.tables.menus.labels.options_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
+        .tables
+        .menus
+        .labels
+        .options_labels,
+    &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .after_options_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .player1_details_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .player2_details_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .player3_details_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .player4_details_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .player_details_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .information_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .load_championship_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .save_championship_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .load_replay_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .save_replay_labels,
-    &crate::menu::owner::MENUS.tables.menus.labels.labels_748230,
     &crate::menu::owner::MENUS
+        .unchecked()
+        .tables
+        .menus
+        .labels
+        .labels_748230,
+    &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .save_setup_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
         .visual_preferences_labels,
     &crate::menu::owner::MENUS
+        .unchecked()
         .tables
         .menus
         .labels
@@ -881,16 +1007,16 @@ pub struct MenuItem {
     menu: u16,
     item: u16,
     /// The string id (+0x14).
-    pub string: Dword,
+    pub string: PlainDword,
     /// The font (+0x18; `menu::disable_item` / `enable_item`).
     pub font: FontCell,
     /// +0x1C.
-    pub behind: Dword,
+    pub behind: PlainDword,
     /// +0x20: the sprite behind it, or a button's sprite list (`menu::stage_view_steps::
     /// style_stage_item`).
     pub sprites: SpriteCell,
     /// +0x48: passed over when the moves up and down meet it.
-    pub skip_mark: Dword,
+    pub skip_mark: PlainDword,
     /// +0x50: the font a highlighted item pulses in (`style_stage_item`).
     pub highlight_font: FontCell,
 }
@@ -909,11 +1035,11 @@ impl MenuItem {
         Self {
             menu: menu as u16,
             item: item as u16,
-            string: Dword::new(fixed.string),
+            string: PlainDword::new(fixed.string),
             font: FontCell::at(fixed.font.ral()),
-            behind: Dword::new(fixed.behind),
+            behind: PlainDword::new(fixed.behind),
             sprites: SpriteCell::at(fixed.sprites),
-            skip_mark: Dword::new(fixed.skip_mark),
+            skip_mark: PlainDword::new(fixed.skip_mark),
             highlight_font: FontCell::at(fixed.highlight_font.ral()),
         }
     }
@@ -1222,11 +1348,11 @@ impl MenuId {
 /// A menu pointer: none (0, as the image starts) or a menu.
 #[repr(transparent)]
 #[derive(rc2k_derive::Cells)]
-pub struct MenuCell(Dword);
+pub struct MenuCell(PlainDword);
 
 impl MenuCell {
     pub const fn new() -> Self {
-        MenuCell(Dword::new(0))
+        MenuCell(PlainDword::new(0))
     }
 
     pub fn get(&self) -> Result<MenuId, crate::errors::BadInput> {

@@ -95,7 +95,7 @@ pub const BACK_FIRES: u32 = 0x1000;
 /// The revs extrapolated, worked out before anything is written: the change since the
 /// last reading, as the readings' rise over their gap (held to 1000) times the time since,
 /// or None without one (a new reading, the revs held, or a gap of 0). `hold`
-/// (`dword_5BEC94`) is asked only without a new reading. Refuses a quotient that does not
+/// is asked only without a new reading. Refuses a quotient that does not
 /// fit (the original's `idiv` traps).
 pub fn extrapolation(
     o: &Engine,

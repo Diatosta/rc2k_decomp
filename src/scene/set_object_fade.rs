@@ -16,7 +16,6 @@
 
 use crate::errors::BadInput;
 use crate::math::x87;
-use crate::scene::owner::scene;
 use crate::scene::point_records::field;
 use crate::scene::project_point::make_scene_record;
 use crate::scene::set_object_material::MATERIAL_LEN;
@@ -34,10 +33,10 @@ fn record_at(course: &crate::race::owner_course::Course, place: u32) -> Option<u
 /// The two words of the object's kind, and whether the object's place is looked at;
 /// None for an object's number past the tables.
 fn words(
+    scene: &crate::scene::owner::Scene,
     cars: &crate::race::car_draw_state::CarDrawState,
     place: u32,
 ) -> Result<Option<(u32, u32, bool)>, BadInput> {
-    let scene = scene();
     {
         let object: u32 = cars.object_number.get();
         if object >= OBJECTS {
@@ -61,7 +60,7 @@ fn words(
 pub fn set_object_fade(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), BadInput> {
     let (race, scene) = (ctx.race, ctx.scene);
     let place: u32 = ctx.view.object.object_place.get();
-    let Some((other_kind, distance, needs_record)) = words(&ctx.view.cars, place)? else {
+    let Some((other_kind, distance, needs_record)) = words(scene, &ctx.view.cars, place)? else {
         return Err(BadInput("an object's number past the tables"));
     };
     // What can refuse is asked before anything is written.

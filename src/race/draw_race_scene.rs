@@ -49,7 +49,6 @@ struct Owners<'a> {
     race: &'a Race,
     scene: &'a crate::scene::owner::Scene,
     system: &'a crate::system::owner::System,
-    effects: &'a crate::effects::owner::Effects,
 }
 
 /// Whether the view with `flags` has its mirror (the flags' bit 3).
@@ -87,7 +86,7 @@ fn view_scene(o: Owners<'_>, car: usize) -> Result<(), Refused> {
     let _step = crate::write_watch::step(["view0_scene", "view1_scene"][car]);
     let view = crate::race::view_scratch::main_view(car);
     view.take_vars(o.race);
-    let output = crate::race::draw_view_scene::draw_view_scene(o.race, o.scene, view)?;
+    let output = crate::race::draw_view_scene::draw_view_scene(o.race, o.scene, o.system, view)?;
     view.hand_off.keep_output(output);
     view.hand_off.keep(o.race);
     crate::moved::census::after(if car == 0 { "view0" } else { "view1" }, c);
@@ -117,8 +116,12 @@ fn view_rest(o: Owners<'_>, car: usize, blit: bool) -> Result<(), Refused> {
         crate::d3d::copy_screen_to_texture::copy_screen_to_texture(&o.race.frame);
     }
     let c = crate::moved::census::before();
-    let ctx = crate::race::view_scratch::DrawCtx::new(o.race, o.scene, view);
-    crate::race::draw_view_overlays::draw_view_overlays(&ctx, o.system, o.effects)?;
+    let ctx = crate::race::view_scratch::DrawCtx::new(o.race, o.scene, o.system, view);
+    crate::race::draw_view_overlays::draw_view_overlays(
+        &ctx,
+        o.system,
+        crate::effects::owner::effects(),
+    )?;
     crate::moved::census::after("overlays", c);
     if car == 0 {
         crate::race::sound_spots::find_sound_spots(o.race, view)?;
@@ -164,6 +167,8 @@ fn view_drawn(o: Owners<'_>, car: usize, mirror: bool) -> Result<(), Refused> {
     if mirror && view.hand_off.mirror_drawn() {
         crate::race::frame_views::full_view_window(
             o.race,
+            o.scene,
+            o.system,
             &crate::scene::polygon_work::front_end().window,
         );
     }
@@ -279,12 +284,10 @@ pub fn draw_race_scene(
 ) -> Result<(), Refused> {
     let session = &system.session;
     let scene = scene();
-    let effects = crate::effects::owner::effects();
     let owners = Owners {
         race,
         scene,
         system,
-        effects,
     };
     let frame = &race.frame;
     use crate::scene::set_render_state::set_render_state;
@@ -415,8 +418,11 @@ pub fn draw_race_scene(
         &crate::race::view_scratch::main_view(0).polygon.window,
         &crate::race::view_scratch::main_view(1).polygon.window,
     ] {
-        crate::race::frame_views::full_view_window(race, window);
+        crate::race::frame_views::full_view_window(race, scene, system, window);
     }
+    // The level's draw distance and fog settings, once for the frame: the views and the
+    // mirrors only read them (the original set them again at each view's fog).
+    crate::race::frame_draw::draw_distance_settings(&race.course);
     crate::race::car_parts::ready_car_parts(race, scene)?;
     crate::race::map_scroll::scroll_maps(race, scene)?;
     race.frame.panel_and_overlay.panel.texture_changes.set(0);

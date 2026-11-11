@@ -26,7 +26,7 @@ pub struct CarState {
 pub fn save_count(count: u32) -> Result<usize, Invalid> {
     if count > MOST_SAVED {
         return Err(Invalid(
-            "a list of more than 0x40 dwords (past dword_6D2814's room)",
+            "a list of more than 0x40 dwords (past the saved list's room)",
         ));
     }
     Ok(count as usize)

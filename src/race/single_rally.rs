@@ -14,6 +14,8 @@ use crate::errors::{BadInput, FatalError, Refused};
 use crate::race::effects_settings_store::EFFECTS_SETTINGS;
 use crate::race::owner::race;
 use crate::race::state_store::{RaceCar, RaceResult};
+use crate::session::DwordLike;
+use crate::session::PlainDword;
 use crate::session::{Bytes, Dword};
 use crate::system::owner::system;
 use rc2k_core::menu::player::{Player, TAKES_PART};
@@ -27,19 +29,43 @@ type Record = crate::menu::standings::PlayerCell<'static>;
 /// g_players (0x75647C): the players' records, 4 bytes each.
 /// dword_7556F4: whether the standings summary is taken (1, `saves::best_times::SUMMARY`),
 /// copied to `RACE_INFO`.
-const SUMMARY: &Dword = &crate::menu::owner::MENUS.play.champ_view.summary;
+const SUMMARY: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .play
+    .champ_view
+    .summary;
 /// dword_7558DC, copied to `after_loading_copy` after the loading picture.
-const AFTER_LOADING: &Dword = &crate::menu::owner::MENUS.screens.event.sparks_mode;
+const AFTER_LOADING: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .event
+    .sparks_mode;
 /// dword_7554C8: kept over the race (`RACE_KEPT`).
-const KEPT: &Dword = &crate::menu::owner::MENUS.screens.flow.kept;
+const KEPT: &PlainDword = &crate::menu::owner::MENUS.unchecked().screens.flow.kept;
 /// dword_755984: the number of players.
-const PLAYER_COUNT: &Dword = &crate::menu::owner::MENUS.screens.event.player_count;
+const PLAYER_COUNT: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .event
+    .player_count;
 /// dword_755988: the event mode (5, 4, 0xF, 0xA: the events' one-car races).
-const EVENT_MODE: &Dword = &crate::menu::owner::MENUS.screens.event.event_kind;
+const EVENT_MODE: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .event
+    .event_kind;
 /// dword_75598C: the current player's number.
-const CURRENT: &Dword = &crate::menu::owner::MENUS.screens.event.current_player;
+const CURRENT: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .event
+    .current_player;
 /// dword_7587E8: the run's start argument (1: no loading picture after).
-const SWITCH: &Dword = &crate::menu::owner::MENUS.play.arcade.scene_let_go;
+const SWITCH: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .play
+    .arcade
+    .scene_let_go;
 /// dword_75ACD0: a copy of `SUMMARY` (the summary's block id, as the race reads it:
 /// `race::copy_league_table`, `physics::fill_rival_table`).
 const RACE_INFO: &Dword = &crate::race::owner::RACE.shared.state.settings.rivals;
@@ -61,13 +87,13 @@ const RESULT_2: &Dword = &crate::race::owner::RACE.shared.state.results.results[
 struct Side {
     car: &'static RaceCar,
     /// dword_75ACE8 / dword_75ACEC: the record's `car_number` (+8).
-    car_kind: &'static Dword,
+    car_kind: &'static dyn DwordLike,
     /// The record's `service_spent`.
-    service_spent: &'static Dword,
+    service_spent: &'static dyn DwordLike,
     /// The record's `state_flags`.
-    flags: &'static Dword,
+    flags: &'static dyn DwordLike,
     /// dword_75B00C (the current's): the record's `hud_bits`.
-    hud_bits: &'static Dword,
+    hud_bits: &'static dyn DwordLike,
     /// The car's result, and the 0x20 bytes of its `impact_marks`.
     result: &'static RaceResult,
 }
@@ -146,25 +172,45 @@ const UNKNOWN_TRACK: FatalError = FatalError {
 };
 
 /// Five settings words copied to the race variables (from, to).
-const SETTINGS_TO_RACE: [(&Dword, &Dword); 5] = [
+const SETTINGS_TO_RACE: [(&PlainDword, &Dword); 5] = [
     (
-        &crate::menu::owner::MENUS.screens.option_work.lens_flare,
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .screens
+            .option_work
+            .lens_flare,
         &crate::race::owner::RACE.shared.state.settings.lens_flare,
     ),
     (
-        &crate::menu::owner::MENUS.screens.option_work.reflections,
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .screens
+            .option_work
+            .reflections,
         &crate::race::owner::RACE.shared.state.settings.reflections,
     ),
     (
-        &crate::menu::owner::MENUS.screens.option_work.car_shadows,
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .screens
+            .option_work
+            .car_shadows,
         &crate::race::owner::RACE.shared.state.settings.car_shadows,
     ),
     (
-        &crate::menu::owner::MENUS.screens.option_work.car_detail,
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .screens
+            .option_work
+            .car_detail,
         &crate::race::owner::RACE.shared.state.settings.car_detail,
     ),
     (
-        &crate::menu::owner::MENUS.screens.option_work.headlights,
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .screens
+            .option_work
+            .headlights,
         &crate::race::owner::RACE.shared.state.settings.headlights,
     ),
 ];

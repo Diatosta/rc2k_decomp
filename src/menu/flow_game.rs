@@ -11,12 +11,17 @@ use crate::menu::screen_loop::{Entry, Screen, run_screen};
 use crate::menu::standings::Which;
 use crate::race::owner::race;
 use crate::records::stages_store::RecordRef;
-use crate::session::Dword;
+use crate::session::DwordLike;
+use crate::session::PlainDword;
 use crate::system::owner::system;
 use rc2k_core::menu::flow::{self, Picture, Var};
 use rc2k_core::menu::leaving::Switch;
 
-pub const SPEECH_CHANNEL: &Dword = &crate::menu::owner::MENUS.screens.option_work.speech_level;
+pub const SPEECH_CHANNEL: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .option_work
+    .speech_level;
 
 pub struct Game<'a> {
     /// The menus' owner.
@@ -69,7 +74,7 @@ impl PlayerField {
 /// Where a variable is.
 enum Place<'a> {
     /// A variable of the front end's or the physics block's.
-    Cell(&'a Dword),
+    Cell(&'a dyn DwordLike),
     /// Player n's field (edi the player).
     Player(u32, PlayerField),
     /// The found record's field.

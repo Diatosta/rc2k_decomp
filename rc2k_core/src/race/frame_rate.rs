@@ -28,7 +28,7 @@ pub fn cycles_since(now: u64, last: u64) -> Option<u64> {
     ((c as i64) > 0).then_some(c)
 }
 
-/// The frame rate (`frame_rate`): the CPU's clock (`dword_5183E8`) x `k` x `k` x `k2`
+/// The frame rate (`frame_rate`): the CPU's clock x `k` x `k` x `k2`
 /// (`thousand`, `sixteen`) / the cycles, as `fild`, `fmul`s, `fild`, `fdivp`, `fstp`.
 pub fn frame_rate(clock: i32, k: f32, k2: f32, cycles: u64) -> f32 {
     let product = clock as f64 * k as f64 * k as f64 * k2 as f64;

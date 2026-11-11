@@ -10,7 +10,7 @@ pub const NUMBERS: u32 = 0x24;
 /// CarIcon numbers below this take the first pair of pictures (`tx1822`, `tx1823`), the
 /// rest the second (`tx1824`, `tx1825`).
 pub const FIRST_PAIR_BELOW: u32 = 0x12;
-/// The two icons' rows (ebp) and their column (edi).
+/// The two icons' rows and their column.
 pub const ROWS: [u32; 2] = [0x68, 0x94];
 pub const COLUMN: u32 = 0xAD;
 /// The most cars (`g_carBlocks`).
@@ -29,7 +29,7 @@ pub fn pictures(number: u32) -> usize {
     if number < FIRST_PAIR_BELOW { 0 } else { 2 }
 }
 
-/// The one car shown (`dword_52A920`): its block's number; refuses one past the blocks.
+/// The one car shown: its block's number; refuses one past the blocks.
 pub fn one_car(car: u32) -> Result<usize, Invalid> {
     if car >= CARS {
         return Err(Invalid("the one car's number is past the blocks"));

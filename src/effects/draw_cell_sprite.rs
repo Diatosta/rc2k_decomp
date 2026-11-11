@@ -28,7 +28,7 @@ const ANGLES: u32 = 0x1000;
 
 /// The place turned by the view.
 fn turn(
-    view_matrix: &[Float; 16],
+    view_matrix: &[crate::session::Float; 16],
     ring: &Ring,
     p: &[[u8; 10]; 3],
     effects: &crate::effects::owner::Effects,
@@ -117,10 +117,15 @@ use crate::effects::frame_state::DrawWork;
 use crate::effects::plain::{ld_cell, st_cell};
 use crate::math::x87_float as bh;
 use crate::scene::engine_tables_store::{cosine, sine};
-use crate::session::Float;
+use crate::session::PlainFloat;
 
 /// `turn`'s x87 block as plain Rust on the x87 model (37 instructions), same order and memory places.
-fn turn_x87(view_matrix: &[Float; 16], p: &[[u8; 10]; 3], w: &RingWork, dw: &DrawWork) {
+fn turn_x87(
+    view_matrix: &[crate::session::Float; 16],
+    p: &[[u8; 10]; 3],
+    w: &RingWork,
+    dw: &DrawWork,
+) {
     let t0 = bh::from_f80(p[2]);
     let t1 = bh::from_f80(p[1]);
     let t2 = bh::from_f80(p[0]);
@@ -158,7 +163,7 @@ fn turn_x87(view_matrix: &[Float; 16], p: &[[u8; 10]; 3], w: &RingWork, dw: &Dra
 }
 
 /// The float at byte `k` of the slope records, whatever field of a record it falls on.
-fn slope_at(cs: &CornerSlopes, k: usize) -> &Float {
+fn slope_at(cs: &CornerSlopes, k: usize) -> &PlainFloat {
     let record = &cs.slopes[k / 0x24];
     match (k % 0x24) / 4 {
         0 => &record.slope,
@@ -406,10 +411,9 @@ mod asm_differential {
     use crate::effects::frame_state::DrawWork;
     use crate::effects::ring_store::RingWork;
     use crate::scene::engine_tables_store::{cosine, sine};
-    use crate::session::Float;
 
     /// The vertex float at byte `off` of the vertices (x, y or z of a vertex).
-    fn vertex_cell(off: usize) -> &'static Float {
+    fn vertex_cell(off: usize) -> &'static crate::session::Float {
         let v = &crate::d3d::vertices_store::VERTICES.vertices[off / 32];
         match off % 32 {
             0x0 => &v.x,
@@ -421,7 +425,7 @@ mod asm_differential {
 
     /// Runs `f` with each cell holding the test buffer's dword at its address; what `f`
     /// leaves goes back to the buffer, the cells as they were.
-    fn staged<R>(cells: &[(&Float, usize)], f: impl FnOnce() -> R) -> R {
+    fn staged<R>(cells: &[(&dyn crate::session::Cell32, usize)], f: impl FnOnce() -> R) -> R {
         let host = |a: usize| crate::pointers::host_at(a).cast::<u32>();
         let saved: Vec<u32> = cells.iter().map(|(c, _)| c.bits()).collect();
         for &(c, a) in cells {
@@ -578,11 +582,16 @@ mod asm_differential {
             |b| {
                 with_copy::<DrawWork, _>(b[2], DrawWork::START, |dw| {
                     with_copy::<CornerSlopes, _>(b[2], CornerSlopes::START, |cs| {
-                        let vertices: Vec<(&Float, usize)> = [
+                        let vertices: Vec<(&dyn crate::session::Cell32, usize)> = [
                             0x0, 0x4, 0x8, 0x20, 0x24, 0x28, 0x40, 0x44, 0x48, 0x60, 0x64, 0x68,
                         ]
                         .into_iter()
-                        .map(|o| (vertex_cell(o), b[1].wrapping_add(0x5605A0 + o)))
+                        .map(|o| {
+                            (
+                                vertex_cell(o) as &dyn crate::session::Cell32,
+                                b[1].wrapping_add(0x5605A0 + o),
+                            )
+                        })
                         .collect();
                         let tables = b[1].wrapping_add(0x623AE4);
                         let mut cells = vertices;

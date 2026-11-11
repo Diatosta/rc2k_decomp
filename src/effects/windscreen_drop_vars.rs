@@ -1,159 +1,159 @@
 //! The windscreen drops' variables: the item table, the view's moves kept and the drift, the shape constants.
 
-use crate::session::{Bytes, Dword, Float};
+use crate::session::{PlainBytes, PlainDword, PlainFloat};
 
 /// The windscreen drops' variables (IDA 0x816192 .. 0x82E342).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct WindscreenDropVars {
     /// 0x816192: `flt_816192` .. `flt_81619E`: four floats `set_up_windscreen_drops` scales once
-    pub scale: [Float; 4],
+    pub scale: [PlainFloat; 4],
     /// 0x8161A2: `flt_8161A2` ..: the item's place as floats (`draw_plane`, `windscreen_drops_top`, `windscreen_flakes_frame`)
-    pub place: [Float; 3],
+    pub place: [PlainFloat; 3],
     /// 0x8161AE: `dword_8161AE`: the drift has run once (`windscreen_drops_drift`)
-    pub started: Dword,
+    pub started: PlainDword,
     /// 0x8161B2: `dword_8161B2`: a move has been kept (`windscreen_drops_drift`)
-    pub moved: Dword,
+    pub moved: PlainDword,
     /// 0x8161B6: `dword_8161B6`, `dword_8161BA`: cleared with the two above by `set_up_windscreen_drops`
-    pub spare: [Dword; 2],
+    pub spare: [PlainDword; 2],
     /// 0x8161BE: Not named: 24 bytes (a gap, or unreferenced data).
-    pub _gap_8161be: Bytes<24>,
+    pub _gap_8161be: PlainBytes<24>,
     /// 0x8161D6: `flt_8161D6` ..: the view's place kept
-    pub kept_place: [Float; 3],
+    pub kept_place: [PlainFloat; 3],
     /// 0x8161E2: `flt_8161E2` ..: the view's move kept
-    pub kept_move: [Float; 3],
+    pub kept_move: [PlainFloat; 3],
     /// 0x8161EE: `flt_8161EE` ..: the view's move (its place less the kept place, times `flt_764FE0`)
-    pub view_move: [Float; 3],
+    pub view_move: [PlainFloat; 3],
     /// 0x8161FA: `flt_8161FA` ..: the move less the last, plus the last times `flt_82E326` ..
-    pub move_change: [Float; 3],
+    pub move_change: [PlainFloat; 3],
     /// 0x816206: Not named: 24 bytes (a gap, or unreferenced data).
-    pub _gap_816206: Bytes<24>,
+    pub _gap_816206: PlainBytes<24>,
     /// 0x81621E: `flt_81621E` ..: the drift turned back by the view's turn, negated
-    pub drift: [Float; 3],
+    pub drift: [PlainFloat; 3],
     /// 0x81622A: `flt_81622A`: the ease by the ticks (`windscreen_drops_top`)
-    pub ease: Float,
+    pub ease: PlainFloat,
     /// 0x81622E: `dword_81622E`: the steps since the last look (`windscreen_drops_step`)
-    pub steps: Dword,
+    pub steps: PlainDword,
     /// 0x816232: `dword_816232`: where the next sprite goes: its byte offset in the batch's records (the original kept the address; `windscreen_drops_frame`)
-    pub buffer: Dword,
+    pub buffer: PlainDword,
     /// 0x816236: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_816236: Bytes<4>,
+    pub _gap_816236: PlainBytes<4>,
     /// 0x81623A: `dword_81623A`: 0 at each `windscreen_flakes_step`
-    pub windscreen_flakes_cleared: Dword,
+    pub windscreen_flakes_cleared: PlainDword,
     /// 0x81623E: `g_marksWindscreenDropItems`: 0x800 items of 0x30 bytes (+0 1 live)
-    pub items: Bytes<98304>,
+    pub items: PlainBytes<98304>,
     /// 0x82E23E: `g_marksWindscreenDropsDone`: the once-only mark of `set_up_windscreen_drops`
-    pub done: Dword,
+    pub done: PlainDword,
     /// 0x82E242: `flt_82E242` .. `flt_82E256`: the factors the four scale floats are scaled by (1, 1, 2, 2)
-    pub factors: [Float; 6],
+    pub factors: [PlainFloat; 6],
     /// 0x82E25A: `flt_82E25A`: the quarter-circle curve's first constant
-    pub curve_a: Float,
+    pub curve_a: PlainFloat,
     /// 0x82E25E: `flt_82E25E`: its second
-    pub curve_b: Float,
+    pub curve_b: PlainFloat,
     /// 0x82E262: `dword_82E262`: the circles' step count
-    pub step_c: Dword,
+    pub step_c: PlainDword,
     /// 0x82E266: `flt_82E266`: the circles' step
-    pub step_d: Float,
+    pub step_d: PlainFloat,
     /// 0x82E26A: `flt_82E26A` .. `flt_82E276`: constants of `windscreen_drops_top` (the last is the length it divides by)
-    pub top_k: [Float; 4],
+    pub top_k: [PlainFloat; 4],
     /// 0x82E27A: `dword_82E27A`: a count per vertex (`windscreen_drops_top`)
-    pub per_vertex: Dword,
+    pub per_vertex: PlainDword,
     /// 0x82E27E: Not named: 8 bytes (a gap, or unreferenced data).
-    pub _gap_82e27e: Bytes<8>,
+    pub _gap_82e27e: PlainBytes<8>,
     /// 0x82E286: `flt_82E286` ..: what `windscreen_drops_setup` scales the two axes by
-    pub axes_k: [Float; 6],
+    pub axes_k: [PlainFloat; 6],
     /// 0x82E29E: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_82e29e: Bytes<4>,
+    pub _gap_82e29e: PlainBytes<4>,
     /// 0x82E2A2: `dword_82E2A2`: the texture square's side
-    pub side: Dword,
+    pub side: PlainDword,
     /// 0x82E2A6: `flt_82E2A6`: a constant of `windscreen_drops_frame`
-    pub frame_k: Float,
+    pub frame_k: PlainFloat,
     /// 0x82E2AA: `flt_82E2AA`, `flt_82E2AE`: constants of `windscreen_drops_spawn`
-    pub spawn_k: [Float; 2],
+    pub spawn_k: [PlainFloat; 2],
     /// 0x82E2B2: `flt_82E2B2`: the share constant of `windscreen_drops_spawn`
-    pub share_k: Float,
+    pub share_k: PlainFloat,
     /// 0x82E2B6: `dword_82E2B6`: the windscreen drops' random (times 0xC5 plus 0x5D)
-    pub random: Dword,
+    pub random: PlainDword,
     /// 0x82E2BA: Not named: 12 bytes (a gap, or unreferenced data).
-    pub _gap_82e2ba: Bytes<12>,
+    pub _gap_82e2ba: PlainBytes<12>,
     /// 0x82E2C6: `dword_82E2C6` ..: the view's turn copied by columns (3 x 3)
-    pub turn: [Float; 9],
+    pub turn: [PlainFloat; 9],
     /// 0x82E2EA: Not named: 12 bytes (a gap, or unreferenced data).
-    pub _gap_82e2ea: Bytes<12>,
+    pub _gap_82e2ea: PlainBytes<12>,
     /// 0x82E2F6: `unk_82E2F6`: its adjugate (3 x 3)
-    pub adjugate: [Float; 9],
+    pub adjugate: [PlainFloat; 9],
     /// 0x82E31A: Not named: 12 bytes (a gap, or unreferenced data).
-    pub _gap_82e31a: Bytes<12>,
+    pub _gap_82e31a: PlainBytes<12>,
     /// 0x82E326: `flt_82E326` ..: what the last move is multiplied by
-    pub decay: [Float; 3],
+    pub decay: [PlainFloat; 3],
     /// 0x82E332: `flt_82E332`: the turn about x
-    pub angle: Float,
+    pub angle: PlainFloat,
     /// 0x82E336: `flt_82E336` ..: what the drift is multiplied by into `flt_811BDF` ..
-    pub result_k: [Float; 3],
+    pub result_k: [PlainFloat; 3],
 }
 
 impl WindscreenDropVars {
     pub const fn new() -> Self {
         WindscreenDropVars {
             scale: [
-                Float::new(0.000625),
-                Float::new(0.00083333335),
-                Float::new(0.000625),
-                Float::new(0.00083333335),
+                PlainFloat::new(0.000625),
+                PlainFloat::new(0.00083333335),
+                PlainFloat::new(0.000625),
+                PlainFloat::new(0.00083333335),
             ],
-            place: [const { Float::new(0.0) }; 3],
-            started: Dword::new(0x0),
-            moved: Dword::new(0x0),
-            spare: [const { Dword::new(0x0) }; 2],
-            _gap_8161be: Bytes::new([0; 24]),
-            kept_place: [const { Float::new(0.0) }; 3],
-            kept_move: [const { Float::new(0.0) }; 3],
-            view_move: [const { Float::new(0.0) }; 3],
-            move_change: [const { Float::new(0.0) }; 3],
-            _gap_816206: Bytes::new([0; 24]),
-            drift: [const { Float::new(0.0) }; 3],
-            ease: Float::new(0.0),
-            steps: Dword::new(0x0),
-            buffer: Dword::new(0x0),
-            _gap_816236: Bytes::new([0; 4]),
-            windscreen_flakes_cleared: Dword::new(0x0),
-            items: Bytes::new([0; 98304]),
-            done: Dword::new(0x0),
+            place: [const { PlainFloat::new(0.0) }; 3],
+            started: PlainDword::new(0x0),
+            moved: PlainDword::new(0x0),
+            spare: [const { PlainDword::new(0x0) }; 2],
+            _gap_8161be: PlainBytes::new([0; 24]),
+            kept_place: [const { PlainFloat::new(0.0) }; 3],
+            kept_move: [const { PlainFloat::new(0.0) }; 3],
+            view_move: [const { PlainFloat::new(0.0) }; 3],
+            move_change: [const { PlainFloat::new(0.0) }; 3],
+            _gap_816206: PlainBytes::new([0; 24]),
+            drift: [const { PlainFloat::new(0.0) }; 3],
+            ease: PlainFloat::new(0.0),
+            steps: PlainDword::new(0x0),
+            buffer: PlainDword::new(0x0),
+            _gap_816236: PlainBytes::new([0; 4]),
+            windscreen_flakes_cleared: PlainDword::new(0x0),
+            items: PlainBytes::new([0; 98304]),
+            done: PlainDword::new(0x0),
             factors: [
-                Float::new(2.0),
-                Float::new(2.0),
-                Float::new(-2.0),
-                Float::new(16.0),
-                Float::new(-2.0),
-                Float::new(16.0),
+                PlainFloat::new(2.0),
+                PlainFloat::new(2.0),
+                PlainFloat::new(-2.0),
+                PlainFloat::new(16.0),
+                PlainFloat::new(-2.0),
+                PlainFloat::new(16.0),
             ],
-            curve_a: Float::new(1024.0),
-            curve_b: Float::new(0.00054414064),
-            step_c: Dword::new(0x6),
-            step_d: Float::new(2.0),
+            curve_a: PlainFloat::new(1024.0),
+            curve_b: PlainFloat::new(0.00054414064),
+            step_c: PlainDword::new(0x6),
+            step_d: PlainFloat::new(2.0),
             top_k: [
-                Float::new(0.003),
-                Float::new(0.7),
-                Float::new(2048.0),
-                Float::new(1024.0),
+                PlainFloat::new(0.003),
+                PlainFloat::new(0.7),
+                PlainFloat::new(2048.0),
+                PlainFloat::new(1024.0),
             ],
-            per_vertex: Dword::new(0xC0),
-            _gap_82e27e: Bytes::new([0x00, 0x00, 0x80, 0x46, 0x00, 0x00, 0x80, 0x46]),
-            axes_k: [const { Float::new(0.5) }; 6],
-            _gap_82e29e: Bytes::new([0x00, 0x00, 0x80, 0x43]),
-            side: Dword::new(0x3F000000),
-            frame_k: Float::new(1024.0),
-            spawn_k: [Float::new(0.1), Float::new(0.0)],
-            share_k: Float::new(65536.0),
-            random: Dword::new(0x0),
-            _gap_82e2ba: Bytes::new([0; 12]),
-            turn: [const { Float::new(0.0) }; 9],
-            _gap_82e2ea: Bytes::new([0; 12]),
-            adjugate: [const { Float::new(0.0) }; 9],
-            _gap_82e31a: Bytes::new([0; 12]),
-            decay: [const { Float::new(0.02) }; 3],
-            angle: Float::new(-45.0),
-            result_k: [const { Float::new(0.02) }; 3],
+            per_vertex: PlainDword::new(0xC0),
+            _gap_82e27e: PlainBytes::new([0x00, 0x00, 0x80, 0x46, 0x00, 0x00, 0x80, 0x46]),
+            axes_k: [const { PlainFloat::new(0.5) }; 6],
+            _gap_82e29e: PlainBytes::new([0x00, 0x00, 0x80, 0x43]),
+            side: PlainDword::new(0x3F000000),
+            frame_k: PlainFloat::new(1024.0),
+            spawn_k: [PlainFloat::new(0.1), PlainFloat::new(0.0)],
+            share_k: PlainFloat::new(65536.0),
+            random: PlainDword::new(0x0),
+            _gap_82e2ba: PlainBytes::new([0; 12]),
+            turn: [const { PlainFloat::new(0.0) }; 9],
+            _gap_82e2ea: PlainBytes::new([0; 12]),
+            adjugate: [const { PlainFloat::new(0.0) }; 9],
+            _gap_82e31a: PlainBytes::new([0; 12]),
+            decay: [const { PlainFloat::new(0.02) }; 3],
+            angle: PlainFloat::new(-45.0),
+            result_k: [const { PlainFloat::new(0.02) }; 3],
         }
     }
 }
@@ -338,7 +338,7 @@ mod tests_hex {
         // The x87 tests put their buffer's bytes in HEX for a while (`typed_sync::with_overlays`).
         let _lock = crate::store::test_lock();
         let p =
-            core::ptr::addr_of!(crate::effects::owner::EFFECTS.windscreen_drops.hex).cast::<u8>();
+            core::ptr::addr_of!(crate::effects::owner::effects().windscreen_drops.hex).cast::<u8>();
         let now: Vec<u8> = (0..WindscreenDropVars::LEN)
             .map(|i| unsafe { p.add(i).read() })
             .collect();

@@ -21,9 +21,9 @@ pub enum Font {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {
-    /// `dword_7559B8`: a row's gap, then its points.
+    /// A row's gap, then its points.
     Gap,
-    /// `dword_7559BC`: the first row's time.
+    /// The first row's time.
     FirstTime,
 }
 
@@ -97,12 +97,12 @@ pub struct Page {
     /// The units' head: string 0x574 when true, else 0x573.
     pub units_set: bool,
     pub show_hours: bool,
-    /// `dword_7559B4`: the third row's extra sprite.
+    /// The third row's extra sprite.
     pub extra_glyph: u32,
 }
 
-/// The page. Every sprite's palette is where the original leaves ebx: the line buffer after
-/// the spaced numbers, then what the times leave.
+/// The page. Every sprite's palette is taken from where the previous drawing left off: the line
+/// buffer after the spaced numbers, then what the times leave.
 pub fn players_results<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     layout: &Layout,
@@ -192,7 +192,7 @@ pub struct Standing<T> {
 
 /// `screens::draw_players_standings` 0x483FDE: the heads, then per row the name, the
 /// nationality's and the car's sprites (the palette where the last name ended), the place
-/// (strings 0x4FE ..) and the points (kept in `dword_7559B8`); rows 0x17 apart from y 0xFE.
+/// (strings 0x4FE ..) and the points; rows 0x17 apart from y 0xFE.
 pub fn standings<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     rows: &[Standing<S::Text>],

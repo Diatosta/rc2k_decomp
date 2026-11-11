@@ -24,7 +24,6 @@ use crate::errors::Refused;
 use crate::math::x87;
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
-use crate::session::Float;
 
 const MOST: i32 = 0x800;
 use crate::d3d::vertices_store::VERTICES;
@@ -32,7 +31,7 @@ use crate::d3d::vertices_store::VERTICES;
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 
 /// The light's place and way turned by the view.
-fn turn_light(frame: &Frame, view_matrix: &[Float; 16], weather: &Weather) {
+fn turn_light(frame: &Frame, view_matrix: &[crate::session::Float; 16], weather: &Weather) {
     turn_light_x87(frame, view_matrix, &weather.snow_light);
 }
 
@@ -76,7 +75,7 @@ pub fn run_snow(
         }
         let rhw = l.rhw.get();
         let light = view.light | 0xFF00_0000;
-        let [u0, v0, u1, v1] = l.uv.each_ref().map(super::super::session::Dword::get);
+        let [u0, v0, u1, v1] = l.uv.each_ref().map(super::super::session::PlainDword::get);
         let uv = [(u0, v0), (u1, v0), (u1, v1), (u0, v1)];
         for (n, (u, v)) in uv.into_iter().enumerate() {
             let at = &VERTICES.vertices[n];
@@ -127,7 +126,7 @@ pub fn run_snow(
 }
 
 /// `turn_light`'s x87 block as plain Rust on the x87 model (126 instructions), same order and memory places.
-fn turn_light_x87(frame: &Frame, view_matrix: &[Float; 16], l: &SnowLight) {
+fn turn_light_x87(frame: &Frame, view_matrix: &[crate::session::Float; 16], l: &SnowLight) {
     let t0 = l.light_source[0].ld();
     let t1 = l.light_source[1].ld();
     let t2 = l.light_source[2].ld();

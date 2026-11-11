@@ -265,7 +265,7 @@ pub fn is_cd(kind: u32) -> (bool, bool) {
 /// A stream's buffer.
 pub const BUFFER_LEN: usize = 0x2000;
 
-/// A buffered file, as the game keeps one (the block the stream functions take in esi).
+/// A buffered file, as the game keeps one (the block the stream functions take).
 #[repr(C)]
 pub struct Stream<H> {
     /// The mode it was opened with (1: written to, closing writes the buffer out).
@@ -419,24 +419,24 @@ pub fn write_stream_byte<F: Files>(
 }
 
 /// Bytes into a stream: (how many, the carry: a write failed, the zero flag: none to write
-/// or the last eax 0); `eax` that register at entry, its low byte each byte in turn.
+/// or the last word 0); `word` is that value at entry, its low byte each byte in turn.
 pub fn write_stream_block<F: Files>(
     f: &mut F,
     s: &mut Stream<F::Handle>,
     bytes: &[u8],
-    eax: u32,
+    word: u32,
 ) -> Result<(u32, bool, bool), Invalid> {
     if bytes.is_empty() {
         return Ok((0, false, true));
     }
-    let mut eax = eax;
+    let mut word = word;
     for (n, &b) in bytes.iter().enumerate() {
-        eax = eax & !0xFF | b as u32;
+        word = word & !0xFF | b as u32;
         if !write_stream_byte(f, s, b)? {
             return Ok((n as u32, true, false));
         }
     }
-    Ok((bytes.len() as u32, false, eax == 0))
+    Ok((bytes.len() as u32, false, word == 0))
 }
 
 #[cfg(test)]

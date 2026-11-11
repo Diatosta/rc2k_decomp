@@ -25,45 +25,82 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
 use crate::scene::matrix3::{extended, rounded};
-use crate::session::{Dword, Float};
+use crate::session::{PlainDword, PlainFloat};
 
 /// One emitter's variables (kind 5's and kind 0xB's code is the same but for these).
 pub struct JitterSet {
     pub kind: u32,
     /// Whether the rounded |speed| must be over 1 (kind 0xB) or the speed not 0 (kind 5).
     pub over_one: bool,
-    pub place_random: &'static Dword,
+    pub place_random: &'static PlainDword,
     /// The motion's factors (x, y, z); `lift` the y's.
-    pub motion_k: [&'static Float; 3],
-    pub lift: &'static Float,
-    pub spread: &'static Float,
+    pub motion_k: [&'static PlainFloat; 3],
+    pub lift: &'static PlainFloat,
+    pub spread: &'static PlainFloat,
     /// The third row's factors (z, y, x).
-    pub roll_k: [&'static Float; 3],
-    pub spin: &'static Float,
+    pub roll_k: [&'static PlainFloat; 3],
+    pub spin: &'static PlainFloat,
     pub life: u32,
 }
 
 /// Kind 5's variables.
-pub static FIFTH: JitterSet = JitterSet {
+pub const FIFTH: JitterSet = JitterSet {
     kind: 5,
     over_one: false,
     place_random: &crate::effects::owner::EFFECTS
+        .unchecked()
         .particles
         .kind5_set
         .place_random,
     motion_k: [
-        &crate::effects::owner::EFFECTS.particles.kind5_set.motion_x,
-        &crate::effects::owner::EFFECTS.particles.kind5_set.motion_y,
-        &crate::effects::owner::EFFECTS.particles.kind5_set.motion_z,
+        &crate::effects::owner::EFFECTS
+            .unchecked()
+            .particles
+            .kind5_set
+            .motion_x,
+        &crate::effects::owner::EFFECTS
+            .unchecked()
+            .particles
+            .kind5_set
+            .motion_y,
+        &crate::effects::owner::EFFECTS
+            .unchecked()
+            .particles
+            .kind5_set
+            .motion_z,
     ],
-    lift: &crate::effects::owner::EFFECTS.particles.kind5_set.lift,
-    spread: &crate::effects::owner::EFFECTS.particles.kind5_set.spread,
+    lift: &crate::effects::owner::EFFECTS
+        .unchecked()
+        .particles
+        .kind5_set
+        .lift,
+    spread: &crate::effects::owner::EFFECTS
+        .unchecked()
+        .particles
+        .kind5_set
+        .spread,
     roll_k: [
-        &crate::effects::owner::EFFECTS.particles.kind5_set.roll_k[0],
-        &crate::effects::owner::EFFECTS.particles.kind5_set.roll_k[1],
-        &crate::effects::owner::EFFECTS.particles.kind5_set.roll_k[2],
+        &crate::effects::owner::EFFECTS
+            .unchecked()
+            .particles
+            .kind5_set
+            .roll_k[0],
+        &crate::effects::owner::EFFECTS
+            .unchecked()
+            .particles
+            .kind5_set
+            .roll_k[1],
+        &crate::effects::owner::EFFECTS
+            .unchecked()
+            .particles
+            .kind5_set
+            .roll_k[2],
     ],
-    spin: &crate::effects::owner::EFFECTS.particles.kind5_set.spin,
+    spin: &crate::effects::owner::EFFECTS
+        .unchecked()
+        .particles
+        .kind5_set
+        .spin,
     life: 0x1388,
 };
 
@@ -200,35 +237,39 @@ pub fn emit_slip_spray_with(
 #[derive(rc2k_derive::Cells)]
 pub struct SlipSpraySet {
     /// 0x93A23A: `dword_93A23A`: the place's random
-    pub place_random: Dword,
+    pub place_random: PlainDword,
     /// 0x93A23E: `flt_93A23E`: the motion's x factor
-    pub motion_x: Float,
+    pub motion_x: PlainFloat,
     /// 0x93A242: `flt_93A242`: the motion's y factor
-    pub motion_y: Float,
+    pub motion_y: PlainFloat,
     /// 0x93A246: `flt_93A246`: added to the motion's y
-    pub lift: Float,
+    pub lift: PlainFloat,
     /// 0x93A24A: `flt_93A24A`: the motion's z factor
-    pub motion_z: Float,
+    pub motion_z: PlainFloat,
     /// 0x93A24E: `flt_93A24E`: the spread `jitter_point` takes
-    pub spread: Float,
+    pub spread: PlainFloat,
     /// 0x93A252: `flt_93A252` .. `flt_93A25A`: the third row's factors (z, y, x)
-    pub roll_k: [Float; 3],
+    pub roll_k: [PlainFloat; 3],
     /// 0x93A25E: `flt_93A25E`: the spin's factor
-    pub spin: Float,
+    pub spin: PlainFloat,
 }
 
 impl SlipSpraySet {
     /// The values the game starts with (the image's bytes).
     pub const fn new() -> Self {
         SlipSpraySet {
-            place_random: Dword::new(0x0),
-            motion_x: Float::new(10.0),
-            motion_y: Float::new(10.0),
-            lift: Float::new(15.0),
-            motion_z: Float::new(10.0),
-            spread: Float::new(110.0),
-            roll_k: [Float::new(-12.0), Float::new(-12.0), Float::new(-12.0)],
-            spin: Float::new(-64.0),
+            place_random: PlainDword::new(0x0),
+            motion_x: PlainFloat::new(10.0),
+            motion_y: PlainFloat::new(10.0),
+            lift: PlainFloat::new(15.0),
+            motion_z: PlainFloat::new(10.0),
+            spread: PlainFloat::new(110.0),
+            roll_k: [
+                PlainFloat::new(-12.0),
+                PlainFloat::new(-12.0),
+                PlainFloat::new(-12.0),
+            ],
+            spin: PlainFloat::new(-64.0),
         }
     }
 }
@@ -254,7 +295,7 @@ mod kind5_set_tests {
     fn kind5_set_starts_as_the_games() {
         assert_eq!(size_of::<SlipSpraySet>(), SlipSpraySet::LEN);
         assert!(
-            bytes(&crate::effects::owner::EFFECTS.particles.kind5_set)
+            bytes(&crate::effects::owner::effects().particles.kind5_set)
                 == crate::moved::image_bytes(SlipSpraySet::START, SlipSpraySet::LEN),
             "KIND5_SET starts differently from the image"
         );

@@ -2,7 +2,7 @@
 //! times of the HUD's record, each divided by 10 as the original's signed `idiv` does
 //! (towards zero).
 
-/// The six times' quotients, and the last one's remainder (left in edx).
+/// The six times' quotients, and the last one's remainder.
 pub fn tenths(times: [i32; 6]) -> ([i32; 6], i32) {
     // `idiv` by 10: no quotient can overflow.
     (times.map(|t| t / 10), times[5] % 10)

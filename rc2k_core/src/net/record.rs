@@ -102,7 +102,7 @@ pub fn first_not_host(count: u32, state_of: impl Fn(u32) -> u8) -> Option<u32> {
     }
 }
 
-/// What a car's block's +0xB0 says of its race (`lets_race`'s ebx): -1 not finished, else
+/// What a car's block's +0xB0 says of its race: -1 not finished, else
 /// 0.
 pub fn not_finished(flag: u32) -> u32 {
     if flag == u32::MAX { u32::MAX } else { 0 }

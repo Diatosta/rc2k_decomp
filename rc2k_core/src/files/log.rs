@@ -199,7 +199,7 @@ pub enum Entry {
     /// Logging is off (`g_logEnabled` 0 or less): nothing changes.
     Off,
     /// The log level is 0: the original's lock function returns straight to the caller's
-    /// caller (eax left the code address after its call).
+    /// caller.
     Skipped,
     /// The lock taken and the line written.
     Written,
@@ -258,7 +258,7 @@ pub enum Message {
 /// What `start` has found out by the log's start (`logfile::start_log` 0x401135).
 #[derive(Clone, Debug, Default)]
 pub struct Machine {
-    /// `logfile::date_text`'s text, the version (`byte_4E0050`) and a second text if any.
+    /// `logfile::date_text`'s text, the version and a second text if any.
     pub date: Vec<u8>,
     pub version: Vec<u8>,
     pub second: Option<Vec<u8>>,

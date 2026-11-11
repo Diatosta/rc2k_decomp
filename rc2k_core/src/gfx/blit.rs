@@ -354,7 +354,7 @@ pub fn blit_glyph(
                         runs.draw(count, dst)?;
                         runs.skip_pixels(left.wrapping_neg());
                         if format.is_direct() {
-                            left = left.wrapping_neg(); // these two paths `neg edx`
+                            left = left.wrapping_neg(); // these two paths negate it
                         }
                         step = Step::Rest;
                     } else {

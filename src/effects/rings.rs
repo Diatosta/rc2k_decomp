@@ -7,7 +7,7 @@ use crate::effects::mask_vars::Shape;
 use crate::effects::spans::{span_quad, spans_fit, triangle_rows};
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_float as bh;
-use crate::session::Bytes;
+use crate::session::PlainBytes;
 
 use crate::math::x87;
 use crate::session::{read_bits, write_bits};
@@ -17,7 +17,7 @@ pub const MOST_QUADS: u32 = 0x80;
 const ENTRY: u32 = 0x18;
 
 /// The corner table in use (`g_marksRingCorners` holds its number, 0 for A and 1 for B).
-fn ring_corners(masks: &Masks) -> Result<&Bytes<3096>, BadInput> {
+fn ring_corners(masks: &Masks) -> Result<&PlainBytes<3096>, BadInput> {
     crate::effects::corners::tables(masks)
         .get(masks.vars.ring_corners.get() as usize)
         .copied()
@@ -25,19 +25,19 @@ fn ring_corners(masks: &Masks) -> Result<&Bytes<3096>, BadInput> {
 }
 
 /// The dword at byte `at` of a corner table.
-fn corner_get(corners: &Bytes<3096>, at: u32) -> Result<u32, BadInput> {
+fn corner_get(corners: &PlainBytes<3096>, at: u32) -> Result<u32, BadInput> {
     let bytes = corners.read_at(at as usize, 4, "the ring corners")?;
     Ok(u32::from_le_bytes(bytes.try_into().expect("four bytes")))
 }
 
 /// `v` put at byte `at` of a ring angle table.
-fn angle_put(angles: &Bytes<1032>, at: u32, v: u32) -> Result<(), BadInput> {
+fn angle_put(angles: &PlainBytes<1032>, at: u32, v: u32) -> Result<(), BadInput> {
     angles.write_at(at as usize, &v.to_le_bytes(), "the ring angles")
 }
 
 /// The quad of corner entries k and k + 1: k's +0, +4, k + 1's +0, +4, k + 1's +0xC, +0x10,
 /// k's +0xC, +0x10.
-fn quad(corners: &Bytes<3096>, k: u32) -> Result<[u32; 8], Refused> {
+fn quad(corners: &PlainBytes<3096>, k: u32) -> Result<[u32; 8], Refused> {
     Ok({
         let e = k * ENTRY;
         crate::effects::try_from_fn(|i__| {
@@ -104,7 +104,7 @@ fn span_ring_quad(
 pub fn span_ring(
     masks: &Masks,
     s: &Shape,
-    angles: &Bytes<1032>,
+    angles: &PlainBytes<1032>,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     let mut table = 0u32;

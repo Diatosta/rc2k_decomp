@@ -777,13 +777,13 @@ mod asm_differential {
                 with_overlays(
                     b[0],
                     &[overlay(
-                        &crate::effects::owner::EFFECTS.windscreen_drops.hex,
+                        &crate::effects::owner::effects().windscreen_drops.hex,
                         WindscreenDropVars::START,
                     )],
                     || {
                         with_settings(b[1], |m| {
                             super::plane_place_x87(
-                                &crate::effects::owner::EFFECTS.windscreen_drops,
+                                &crate::effects::owner::effects().windscreen_drops,
                                 m,
                             );
                         });
@@ -819,11 +819,11 @@ mod asm_differential {
                     b[0],
                     &[
                         overlay(
-                            &crate::effects::owner::EFFECTS.windscreen_drops.state,
+                            &crate::effects::owner::effects().windscreen_drops.state,
                             WindscreenDropState::START,
                         ),
                         overlay(
-                            &crate::effects::owner::EFFECTS.windscreen_drops.hex,
+                            &crate::effects::owner::effects().windscreen_drops.hex,
                             WindscreenDropVars::START,
                         ),
                     ],
@@ -833,7 +833,7 @@ mod asm_differential {
                             WindscreenFlakeTables::START,
                             |m| {
                                 super::plane_facing_x87(
-                                    &crate::effects::owner::EFFECTS.windscreen_drops,
+                                    &crate::effects::owner::effects().windscreen_drops,
                                     m,
                                 );
                             },

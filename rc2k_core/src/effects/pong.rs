@@ -19,9 +19,9 @@ pub const DIGITS: u32 = 10;
 pub const PATTERN_LEN: u32 = 0x14;
 pub const COLUMNS: u32 = 4;
 pub const ROWS: u32 = 5;
-/// How far a digit moves the score's place (`dword_7687D4`) on.
+/// How far a digit moves the score's place on.
 pub const DIGIT_STEP: u32 = 0x40;
-/// Where the score starts (`dword_7687D4`, `dword_7687D8`) and the gap between the hits
+/// Where the score starts and the gap between the hits
 /// and the best.
 pub const SCORE_AT: [u32; 2] = [0x100, 0x384];
 pub const SCORE_GAP: u32 = 0x20;
@@ -65,7 +65,7 @@ pub fn status(a: f64, b: f64) -> u32 {
     }
 }
 
-/// The court's variables (`flt_768688` .. `dword_7687D0`): the ball (x, y), its way, its
+/// The court's variables: the ball (x, y), its way, its
 /// size; the bat's place before its move (as bits: moved through registers); the bat and
 /// its size; the work places of a hit (the ball's centre `flt_7686DC`, the bat's
 /// `flt_7686E8`, their difference `flt_7686F4`); the ball's steps a frame (`g_pongSteps`)
@@ -86,8 +86,8 @@ pub struct Court {
 }
 
 /// The court's constants: the centres' factors (ball x, y, bat x, y: `flt_7691C6` ..), the
-/// nudge of an across of 0 bits (`flt_7691D6`), the new way's scales (`flt_7691DA`,
-/// `flt_7691DE`), its length (`flt_76516C`), the walls (`flt_7691A6` .. `flt_7691C2`) and
+/// nudge of an across of 0 bits, the new way's scales (`flt_7691DA`,
+/// `flt_7691DE`), its length, the walls and
 /// the start (`flt_769182` .., four (x, y) pairs as bits: the ball, its size, the bat, its
 /// size).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -144,7 +144,7 @@ impl Court {
 
     /// `effects::pong_bat_back`: the bat put back to its place before the move when it
     /// overlaps the ball. Returns the last status, or with the bat put back its place's
-    /// bits (what eax and ebx hold).
+    /// bits.
     pub fn bat_back(&mut self) -> Back {
         let (over, status) = self.overlap();
         if !over {

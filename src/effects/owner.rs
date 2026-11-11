@@ -15,6 +15,7 @@ use crate::effects::run_particles::Particles;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::BadInput;
+use crate::session::GameThread;
 
 /// The effects' state.
 pub struct Effects {
@@ -46,7 +47,7 @@ impl Effects {
 }
 
 /// The one instance. Reached through `effects()`; `moved` registers its stores' places.
-pub static EFFECTS: Effects = Effects {
+pub static EFFECTS: GameThread<Effects> = GameThread::new(Effects {
     windscreen_flakes: WindscreenFlakes::new(),
     pong: Pong::new(),
     weather: Weather::new(),
@@ -60,9 +61,9 @@ pub static EFFECTS: Effects = Effects {
     frame: FrameState::new(),
     kinds: Kinds::new(),
     setup: Setup::new(),
-};
+});
 
 /// The effects' state, for a caller that does not take it as a parameter yet.
 pub fn effects() -> &'static Effects {
-    &EFFECTS
+    EFFECTS.get()
 }

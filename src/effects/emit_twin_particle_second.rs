@@ -14,14 +14,15 @@ use crate::effects::ring_store::Ring;
 use crate::effects::run_particles::Particles;
 use crate::errors::Refused;
 use crate::race::effects_settings_store::CarEffects;
-use crate::session::{Dword, Float};
+use crate::session::{PlainDword, PlainFloat};
 
 /// `emit_twin_particle_second`'s variables.
-pub static TWENTY_SECOND: TwinSet = TwinSet {
+pub const TWENTY_SECOND: TwinSet = TwinSet {
     kind: 0x16,
     level: 1,
     flags: 0x33,
     tuning: &crate::effects::owner::EFFECTS
+        .unchecked()
         .particles
         .twenty_second_tuning,
 };
@@ -39,12 +40,20 @@ impl TwinTuning {
     /// The values the game starts with (the image's bytes).
     pub const fn twenty_second() -> Self {
         TwinTuning {
-            chance_random: Dword::new(0x0),
-            lift: Float::new(65536.0),
-            row_k: [Float::new(128.0), Float::new(128.0), Float::new(128.0)],
-            spread: Float::new(64.0),
-            motion_k: [Float::new(0.8), Float::new(0.8), Float::new(0.8)],
-            spin_random: Dword::new(0x0),
+            chance_random: PlainDword::new(0x0),
+            lift: PlainFloat::new(65536.0),
+            row_k: [
+                PlainFloat::new(128.0),
+                PlainFloat::new(128.0),
+                PlainFloat::new(128.0),
+            ],
+            spread: PlainFloat::new(64.0),
+            motion_k: [
+                PlainFloat::new(0.8),
+                PlainFloat::new(0.8),
+                PlainFloat::new(0.8),
+            ],
+            spin_random: PlainDword::new(0x0),
         }
     }
 }
@@ -73,7 +82,7 @@ mod twenty_second_tuning_tests {
         assert_eq!(size_of::<TwinTuning>(), TwinTuning::LEN);
         assert!(
             bytes(
-                &crate::effects::owner::EFFECTS
+                &crate::effects::owner::effects()
                     .particles
                     .twenty_second_tuning
             ) == crate::moved::image_bytes(TwinSecondTuning::START, TwinTuning::LEN),

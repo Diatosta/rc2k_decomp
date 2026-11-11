@@ -34,7 +34,6 @@ pub mod error_list_store;
 pub mod face_work;
 pub mod find_present_courses;
 pub mod flares_store;
-pub mod flush_draw_batch;
 pub mod frame;
 pub mod frame_counter_store;
 pub mod frame_draw;

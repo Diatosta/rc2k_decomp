@@ -12,7 +12,7 @@ pub fn pack_inputs(a: u32, b: u32, c: u32) -> u32 {
 }
 
 /// `drive::unpack_inputs`: a packed word taken apart: [bits 4 .. 12, the top ten (signed,
-/// `sar` 22), bits 13 .. 21] (the original's eax, ecx, edx).
+/// `sar` 22), bits 13 .. 21].
 pub fn unpack_inputs(x: u32) -> [u32; 3] {
     [
         (x >> 4) & 0x1FF,

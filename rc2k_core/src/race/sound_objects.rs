@@ -5,7 +5,7 @@
 /// The race's sound objects.
 pub const OBJECTS: u32 = 8;
 
-/// The players with a sound object: one when the menu's single switch (`dword_75ACE0`)
+/// The players with a sound object: one when the menu's single switch
 /// is 1, else two.
 pub fn sound_players(single: u32) -> u32 {
     if single == 1 { 1 } else { 2 }

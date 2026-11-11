@@ -11,10 +11,10 @@ use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
-use crate::session::{Bytes, Dword, read_bits, write_bits};
+use crate::session::{PlainBytes, PlainDword, read_bits, write_bits};
 
 /// The pixel table `n` (0 or 1, the shape's: `PICKS.pixel_table_a`, `_b`).
-fn pixel_table(drops: &WindscreenDrops, n: u32) -> Result<&Bytes<0x2_0000>, BadInput> {
+fn pixel_table(drops: &WindscreenDrops, n: u32) -> Result<&PlainBytes<0x2_0000>, BadInput> {
     [&drops.picks.pixel_table_a, &drops.picks.pixel_table_b]
         .get(n as usize)
         .copied()
@@ -22,7 +22,7 @@ fn pixel_table(drops: &WindscreenDrops, n: u32) -> Result<&Bytes<0x2_0000>, BadI
 }
 
 /// The line of `g_marksLines` from dword `at` (0 or 6): its two ends, 3 dwords apart.
-fn line(masks: &Masks, at: usize) -> &[Dword; 6] {
+fn line(masks: &Masks, at: usize) -> &[PlainDword; 6] {
     let (lines, _) = masks.vars.lines.as_chunks::<6>();
     &lines[at / 6]
 }

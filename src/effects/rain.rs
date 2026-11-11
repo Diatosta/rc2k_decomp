@@ -6,143 +6,193 @@
 
 #[cfg(test)]
 use crate::effects::owner::effects;
-use crate::session::{Bytes, Dword, Float};
+use crate::session::{PlainBytes, PlainDword, PlainFloat};
 
 /// The rain's variables (IDA 0x8BC405 .. 0x8BDE55).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct RainState {
     /// 0x8BC405: `dword_8BC405`: 1 once a rain frame has been drawn, 0 with no drops (and after `effects::seed_noise`, which also clears it); `effects::draw_rain_streak` draws nothing while it is 0.
-    pub drawn: Dword,
+    pub drawn: PlainDword,
     /// 0x8BC409: `dword_8BC409`: the scene clock at the last drift targets (`effects::drift_offsets`).
-    pub drift_since: Dword,
+    pub drift_since: PlainDword,
     /// 0x8BC40D: `dword_8BC40D`: the ticks to wait for the next targets.
-    pub drift_wait: Dword,
+    pub drift_wait: PlainDword,
     /// 0x8BC411: `flt_8BC411`, `flt_8BC419`: the wandering offsets' targets (x, [y not used], z).
-    pub drift_target: [Float; 3],
+    pub drift_target: [PlainFloat; 3],
     /// 0x8BC41D: `flt_8BC41D`, `flt_8BC425`: their pace, eased toward the targets (x, [y not used], z).
-    pub drift_pace: [Float; 3],
+    pub drift_pace: [PlainFloat; 3],
     /// 0x8BC429: `dword_8BC429`, `dword_8BC431`: a random's halves times 0x100 (x, [y not used], z); `run_rain` adds the first and third to the drops' places.
-    pub drift_halves: [Dword; 3],
+    pub drift_halves: [PlainDword; 3],
     /// 0x8BC435: `dword_8BC435` ..: the settings' +0x1C .. +0x24, the view's place (whole numbers).
-    pub view_place: [Dword; 3],
+    pub view_place: [PlainDword; 3],
     /// 0x8BC441: `dword_8BC441` ..: the settings' +0x28 .. +0x48, the view's 3 x 3 matrix (identity at first).
-    pub view_matrix: [Float; 9],
+    pub view_matrix: [PlainFloat; 9],
     /// 0x8BC465: Not named: 24 bytes (a gap, or unreferenced data).
-    pub _gap_8bc465: Bytes<24>,
+    pub _gap_8bc465: PlainBytes<24>,
     /// 0x8BC47D: `dword_8BC47D` .. `dword_8BC485`: the view's move since the last frame (floats), held to a length.
-    pub motion: [Float; 3],
+    pub motion: [PlainFloat; 3],
     /// 0x8BC489: `flt_8BC489`: the view's move since the last frame, scaled, by view entry (the settings' +8; 5 of 12 bytes).
-    pub moves: [[Float; 3]; 5],
+    pub moves: [[PlainFloat; 3]; 5],
     /// 0x8BC4C5: `dword_8BC4C5`: the view's place at the last frame, by view entry (5 of 12 bytes; whole numbers, the y with the drift).
-    pub last_views: [[Dword; 3]; 5],
+    pub last_views: [[PlainDword; 3]; 5],
     /// 0x8BC501: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_8bc501: Bytes<4>,
+    pub _gap_8bc501: PlainBytes<4>,
     /// 0x8BC505: `dword_8BC505`: the drift added to the drops' y (the clock's low 20 bits times `flt_8C5FB5` when drifting).
-    pub drift: Dword,
+    pub drift: PlainDword,
     /// 0x8BC509: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_8bc509: Bytes<4>,
+    pub _gap_8bc509: PlainBytes<4>,
     /// 0x8BC50D: `dword_8BC50D`: the number of drops (the settings' +0x2764, held to 0x100; initially 0x100). Also read by `effects::ring_frame`.
-    pub drops: Dword,
+    pub drops: PlainDword,
     /// 0x8BC511: `g_marksNoiseA` (0x8BC511), `g_marksNoiseB` (0x8BC911), `g_marksNoiseC` (0x8BCD11): the drops' random places (18 bits; `effects::seed_noise`).
-    pub noise: [[Dword; 256]; 3],
+    pub noise: [[PlainDword; 256]; 3],
     /// 0x8BD111: `dword_8BD111`, 0x8BD511, 0x8BD911: each drop's turned place kept for the next frame (when the settings' +0x10 is set).
-    pub kept: [[Dword; 256]; 3],
+    pub kept: [[PlainDword; 256]; 3],
     /// 0x8BDD11: Not named: 24 bytes (a gap, or unreferenced data).
-    pub _gap_8bdd11: Bytes<24>,
+    pub _gap_8bdd11: PlainBytes<24>,
     /// 0x8BDD29: `flt_8BDD29`, `flt_8BDD2D`: the streak's half-width offset (x, y) at its first end: the line across the streak's screen direction (the direction turned a quarter: -dy, dx) normalised, times the kind's half width and the first end's perspective scale (`effects::draw_rain_streak`: the quad's corners are the ends' points less / plus it).
-    pub edge_a: [Float; 2],
+    pub edge_a: [PlainFloat; 2],
     /// 0x8BDD31: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_8bdd31: Bytes<4>,
+    pub _gap_8bdd31: PlainBytes<4>,
     /// 0x8BDD35: `flt_8BDD35`, `flt_8BDD39`: the same for the second end.
-    pub edge_b: [Float; 2],
+    pub edge_b: [PlainFloat; 2],
     /// 0x8BDD3D: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_8bdd3d: Bytes<4>,
+    pub _gap_8bdd3d: PlainBytes<4>,
     /// 0x8BDD41: `flt_8BDD41` .. `flt_8BDD55`: the streak's two ends projected: (x, y, scale) each.
-    pub ends: [[Float; 3]; 2],
+    pub ends: [[PlainFloat; 3]; 2],
     /// 0x8BDD59: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_8bdd59: Bytes<4>,
+    pub _gap_8bdd59: PlainBytes<4>,
     /// 0x8BDD5D: `flt_8BDD5D`: the first end's depth (and the length of the move).
-    pub depth: Float,
+    pub depth: PlainFloat,
     /// 0x8BDD61: `flt_8BDD61`: one over `flt_6241C8`, what the vertices' depth is multiplied by.
-    pub depth_scale: Float,
+    pub depth_scale: PlainFloat,
     /// 0x8BDD65: `flt_8BDD65` ..: what the drop's place is scaled by before it is turned (1.0 each).
-    pub point_scale: [Float; 3],
+    pub point_scale: [PlainFloat; 3],
     /// 0x8BDD71: `dword_8BDD71` ..: the turned point's whole numbers added (`effects::place_rain_view`).
-    pub point: [Dword; 3],
+    pub point: [PlainDword; 3],
     /// 0x8BDD7D: `dword_8BDD7D` ..: the view's place less the point (`effects::place_rain_view`), drifting by `effects::drift_offsets`.
-    pub view: [Dword; 3],
+    pub view: [PlainDword; 3],
     /// 0x8BDD89: `dword_8BDD89` ..: the view matrix copied (`effects::place_rain_view`).
-    pub matrix_copy: [Float; 9],
+    pub matrix_copy: [PlainFloat; 9],
     /// 0x8BDDAD: Not named: 144 bytes (a gap, or unreferenced data).
-    pub _gap_8bddad: Bytes<144>,
+    pub _gap_8bddad: PlainBytes<144>,
     /// 0x8BDE3D: `flt_8BDE3D` ..: the drop's place turned.
-    pub turned: [Float; 3],
+    pub turned: [PlainFloat; 3],
     /// 0x8BDE49: `flt_8BDE49` ..: the place scaled, then the second end (less the motion) turned; `flt_8BDE51` its depth.
-    pub second: [Float; 3],
+    pub second: [PlainFloat; 3],
 }
 
 impl RainState {
     pub const fn new() -> Self {
         RainState {
-            drawn: Dword::new(0x0),
-            drift_since: Dword::new(0x0),
-            drift_wait: Dword::new(0x0),
-            drift_target: [Float::new(0.0), Float::new(0.0), Float::new(0.0)],
-            drift_pace: [Float::new(0.0), Float::new(0.0), Float::new(0.0)],
-            drift_halves: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
-            view_place: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
-            view_matrix: [
-                Float::new(1.0),
-                Float::new(0.0),
-                Float::new(0.0),
-                Float::new(0.0),
-                Float::new(1.0),
-                Float::new(0.0),
-                Float::new(0.0),
-                Float::new(0.0),
-                Float::new(1.0),
+            drawn: PlainDword::new(0x0),
+            drift_since: PlainDword::new(0x0),
+            drift_wait: PlainDword::new(0x0),
+            drift_target: [
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
             ],
-            _gap_8bc465: Bytes::new([
+            drift_pace: [
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+            ],
+            drift_halves: [
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+            ],
+            view_place: [
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+            ],
+            view_matrix: [
+                PlainFloat::new(1.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(1.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(1.0),
+            ],
+            _gap_8bc465: PlainBytes::new([
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00,
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F,
             ]),
-            motion: [Float::new(0.0), Float::new(0.0), Float::new(1.0)],
-            moves: [const { [Float::new(0.0), Float::new(0.0), Float::new(1.0)] }; 5],
-            last_views: [const { [Dword::new(0x0), Dword::new(0x0), Dword::new(0x3F800000)] }; 5],
-            _gap_8bc501: Bytes::new([0; 4]),
-            drift: Dword::new(0x0),
-            _gap_8bc509: Bytes::new([0; 4]),
-            drops: Dword::new(0x100),
-            noise: [const { [const { Dword::new(0x0) }; 256] }; 3],
-            kept: [const { [const { Dword::new(0x0) }; 256] }; 3],
-            _gap_8bdd11: Bytes::new([
+            motion: [
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(1.0),
+            ],
+            moves: [const {
+                [
+                    PlainFloat::new(0.0),
+                    PlainFloat::new(0.0),
+                    PlainFloat::new(1.0),
+                ]
+            }; 5],
+            last_views: [const {
+                [
+                    PlainDword::new(0x0),
+                    PlainDword::new(0x0),
+                    PlainDword::new(0x3F800000),
+                ]
+            }; 5],
+            _gap_8bc501: PlainBytes::new([0; 4]),
+            drift: PlainDword::new(0x0),
+            _gap_8bc509: PlainBytes::new([0; 4]),
+            drops: PlainDword::new(0x100),
+            noise: [const { [const { PlainDword::new(0x0) }; 256] }; 3],
+            kept: [const { [const { PlainDword::new(0x0) }; 256] }; 3],
+            _gap_8bdd11: PlainBytes::new([
                 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x41, 0x00, 0x00,
                 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x20, 0x41,
             ]),
-            edge_a: [Float::new(0.0), Float::new(0.0)],
-            _gap_8bdd31: Bytes::new([0; 4]),
-            edge_b: [Float::new(0.0), Float::new(0.0)],
-            _gap_8bdd3d: Bytes::new([0; 4]),
-            ends: [const { [Float::new(0.0), Float::new(0.0), Float::new(0.0)] }; 2],
-            _gap_8bdd59: Bytes::new([0; 4]),
-            depth: Float::new(0.0),
-            depth_scale: Float::new(0.0),
-            point_scale: [Float::new(1.0), Float::new(1.0), Float::new(1.0)],
-            point: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
-            view: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
-            matrix_copy: [
-                Float::new(1.0),
-                Float::new(0.0),
-                Float::new(0.0),
-                Float::new(0.0),
-                Float::new(1.0),
-                Float::new(0.0),
-                Float::new(0.0),
-                Float::new(0.0),
-                Float::new(1.0),
+            edge_a: [PlainFloat::new(0.0), PlainFloat::new(0.0)],
+            _gap_8bdd31: PlainBytes::new([0; 4]),
+            edge_b: [PlainFloat::new(0.0), PlainFloat::new(0.0)],
+            _gap_8bdd3d: PlainBytes::new([0; 4]),
+            ends: [const {
+                [
+                    PlainFloat::new(0.0),
+                    PlainFloat::new(0.0),
+                    PlainFloat::new(0.0),
+                ]
+            }; 2],
+            _gap_8bdd59: PlainBytes::new([0; 4]),
+            depth: PlainFloat::new(0.0),
+            depth_scale: PlainFloat::new(0.0),
+            point_scale: [
+                PlainFloat::new(1.0),
+                PlainFloat::new(1.0),
+                PlainFloat::new(1.0),
             ],
-            _gap_8bddad: Bytes::new([
+            point: [
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+            ],
+            view: [
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+            ],
+            matrix_copy: [
+                PlainFloat::new(1.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(1.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(1.0),
+            ],
+            _gap_8bddad: PlainBytes::new([
                 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00,
@@ -155,8 +205,16 @@ impl RainState {
                 0x31, 0x46, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 0x00, 0x00, 0x00, 0x00,
             ]),
-            turned: [Float::new(0.0), Float::new(0.0), Float::new(0.0)],
-            second: [Float::new(0.0), Float::new(0.0), Float::new(0.0)],
+            turned: [
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+            ],
+            second: [
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+            ],
         }
     }
 }

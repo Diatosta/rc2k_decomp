@@ -4,7 +4,7 @@
 //! at it. The code that hands a player on by address (`player_at`) reads the table's entries, which
 //! hold the records' real addresses once `moved::point_into_homes` has run. (The cars follow in `CarTable`.)
 
-use crate::session::{Dword, Shared, with_runs};
+use crate::session::{PlainDword, Shared, with_runs};
 use rc2k_core::menu::player::Player;
 
 /// The four players and their table (IDA 0x755A4C .. 0x75648C).
@@ -15,7 +15,7 @@ pub struct PlayerTable {
     pub players: [Shared<Player>; 4],
     /// `g_players`: the records' addresses as the image names them, player 1 first; read by
     /// nothing (the original's code that follows them is converted to numbers).
-    pub pointers: [Dword; 4],
+    pub pointers: [PlainDword; 4],
 }
 
 /// First values the image's (`tests::player_table_starts_as_the_games`).
@@ -245,10 +245,10 @@ impl PlayerTable {
                 ]))),
             ],
             pointers: [
-                Dword::new(0x755A4C),
-                Dword::new(0x755CD8),
-                Dword::new(0x755F64),
-                Dword::new(0x7561F0),
+                PlainDword::new(0x755A4C),
+                PlainDword::new(0x755CD8),
+                PlainDword::new(0x755F64),
+                PlainDword::new(0x7561F0),
             ],
         }
     }
@@ -262,7 +262,7 @@ pub const END: usize = 0x75648C;
 /// Where IDA 0x755A4C lives (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn players_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::menu::owner::MENUS.play.players)
+    crate::pointers::game_address(&raw const crate::menu::owner::menus().play.players)
 }
 
 /// Links each player's name to its player (the image's records held the old links). The

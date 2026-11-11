@@ -69,11 +69,11 @@ pub trait RecordEntries {
     type Error;
     /// `menu::clear_record_entries`.
     fn clear(&mut self) -> Result<(), Self::Error>;
-    /// `dword_755920`: one was entered.
+    /// One was entered.
     fn set_entered(&mut self, on: bool);
-    /// `dword_75598C`: the current player.
+    /// The current player.
     fn set_current(&mut self, n: u32);
-    /// `menu::beat_target_time` for player n (ecx): `dword_755918` 1 after it.
+    /// `menu::beat_target_time` for player n: `dword_755918` 1 after it.
     fn beats(&mut self, n: u32) -> Result<bool, Self::Error>;
     /// `menu::enter_record_entry` for player n.
     fn enter(&mut self, n: u32) -> Result<(), Self::Error>;

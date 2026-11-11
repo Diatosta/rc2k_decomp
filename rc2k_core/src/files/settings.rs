@@ -254,8 +254,8 @@ mod tests {
 
 /// What `var\name.cfg` gives a driver (`settings::read_driver_names` 0x4162DB): key
 /// `name000` .. `name179`, then up to three words: a name (at most 30 characters kept), a
-/// number under 0x28 for the driver record's +0 (`dword_73B688`), one under 0x22 for its +4
-/// (`dword_73B68C`); a number too large is left out, a missing word ends the entry.
+/// number under 0x28 for the driver record's +0, one under 0x22 for its +4
+///; a number too large is left out, a missing word ends the entry.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct DriverName {
     pub name: Option<Vec<u8>>,

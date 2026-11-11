@@ -18,9 +18,9 @@ use crate::errors::Refused;
 use crate::math::x87;
 use crate::race::effects_settings_store::EffectsSettings;
 use crate::race::owner::Race;
-use crate::session::Dword;
+use crate::session::PlainDword;
 /// (the settings' field, the copy): +0x50, +0x4C and +0x10.
-fn copies(marks: &EffectsSettings) -> [(&Dword, &Dword); 3] {
+fn copies(marks: &EffectsSettings) -> [(&crate::session::Dword, &PlainDword); 3] {
     let setup = &effects().setup;
     [
         (&marks.listener_near, &setup.kind_floats.fading),

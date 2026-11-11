@@ -73,7 +73,7 @@ fn place(weather: &Weather, k: u32) -> ([u32; 3], [u32; 2], [u32; 3]) {
             .snow
             .view
             .each_ref()
-            .map(super::super::session::Dword::get);
+            .map(super::super::session::PlainDword::get);
         let curve = |i: u32| {
             if i < CURVE {
                 weather.snow_curve.curve[i as usize].get()
@@ -141,7 +141,7 @@ pub fn draw_snow(
                 let [top, bottom] = snow_light
                     .v
                     .each_ref()
-                    .map(super::super::session::Dword::get);
+                    .map(super::super::session::PlainDword::get);
                 for n in 0..4 {
                     VERTICES.vertices[n]
                         .v

@@ -21,9 +21,9 @@ pub enum Step {
     Step4059F4,
     /// `input::take_key`: the zero flag clear with a key.
     TakeKey,
-    /// `files::swap_missing_extension` on the film (eax).
+    /// `files::swap_missing_extension` on the film.
     SwapMissingExtension(Film),
-    /// The player (0x41AE39, ebx 0) on the film, or on the path the step before left
+    /// The player (0x41AE39) on the film, or on the path the step before left
     /// (None); the zero flag clear when a key ended it.
     Player(Option<Film>),
     /// `scene::set_up_lit_engine`.
@@ -35,7 +35,7 @@ pub enum Step {
     ReleaseTextures,
     /// `files::file_exists`: the carry set when it is not there.
     FileExists(Film),
-    /// `race::credits_race`, the demonstration (ebp kept across it).
+    /// `race::credits_race`, the demonstration.
     Demonstration,
     /// `sound::let_sounds_play`.
     Step409B76,
@@ -63,7 +63,7 @@ pub trait Films {
 /// The screen depth that shows the first logo.
 pub const LOGO_BITS: u32 = 0x10;
 
-/// `menu::play_films`: `idle` (eax 1) from the idle main menu, else at the start (0).
+/// `menu::play_films`: `idle` from the idle main menu, else at the start (0).
 pub fn play_films<F: Films>(e: &mut F, idle: bool) {
     e.step(Step::StopMusic);
     e.step(Step::Step4059F4);

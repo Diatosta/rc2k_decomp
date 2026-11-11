@@ -1,14 +1,14 @@
 //! The race's and the replay's clocks (from
 //! `drive::race_clock_tick` 0x445554 and `replay_clock_tick` 0x460C20).
 
-/// The race's clock in tenths (`dword_61383C` .. `dword_613844`).
+/// The race's clock in tenths.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct RaceClock {
-    /// `dword_61383C`: the scene clock's last reading.
+    /// The scene clock's last reading.
     pub now: u32,
-    /// `dword_613840`: the time counted up to (whole tenths).
+    /// The time counted up to (whole tenths).
     pub counted: u32,
-    /// `dword_613844`: the tenths of this tick.
+    /// The tenths of this tick.
     pub tenths: u32,
 }
 
@@ -18,7 +18,7 @@ const MOST_BEHIND: u32 = 1000;
 impl RaceClock {
     /// `drive::race_clock_tick` after the scene clock's reading `now`: the counted time
     /// brought within 1000 of it (by the sign of the difference), the whole tenths since
-    /// counted. The tenths x 10 as `mul` leaves it (the original's eax and edx).
+    /// counted. The tenths x 10 as `mul` leaves it.
     pub fn tick(&mut self, now: u32) -> (u32, u32) {
         self.now = now;
         if (now.wrapping_sub(self.counted).wrapping_sub(MOST_BEHIND) as i32) >= 0 {

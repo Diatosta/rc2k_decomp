@@ -16,11 +16,11 @@ use crate::menu::event_flow::*;
 use crate::menu::lists_store::CarList;
 use crate::menu::owner::Menus;
 use crate::menu::screen_loop::{Entry, run_screen};
-use crate::session::Dword;
+use crate::session::PlainDword;
 use rc2k_core::menu::leaving::Switch;
 use rc2k_core::menu::starters;
 
-const REPAIR_SET: &Dword = &crate::menu::owner::MENUS.cars.table.last_car; // 0xF
+const REPAIR_SET: &PlainDword = &crate::menu::owner::MENUS.unchecked().cars.table.last_car; // 0xF
 
 pub struct Starter {
     /// The championship and the seats (see `rc2k_core::menu::starters`).
@@ -85,7 +85,7 @@ impl starters::Event for Game<'_> {
     }
 }
 
-fn var(v: starters::Var) -> &'static Dword {
+fn var(v: starters::Var) -> &'static PlainDword {
     use starters::Var as V;
     match v {
         V::EventType => EVENT_TYPE,

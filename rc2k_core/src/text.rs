@@ -225,7 +225,7 @@ pub fn draw<C: Canvas>(
     let line_x = x;
     let mut place = 0usize;
     let mut y = y.wrapping_add(font.y_offset);
-    // The spacing of the glyph before (the original's ebp). It survives from line to line,
+    // The spacing of the glyph before. It survives from line to line,
     // but an aligned line clears it before it is drawn.
     let mut spacing = 0i32;
 

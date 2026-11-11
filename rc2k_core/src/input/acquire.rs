@@ -39,7 +39,7 @@ pub fn acquire(
     }
 }
 
-/// The configuration's values (`dword_4F68E0` .. `dword_4F68F8`).
+/// The configuration's values.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Config {
     pub kind: u32,

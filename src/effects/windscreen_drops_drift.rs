@@ -22,7 +22,7 @@ use crate::errors::Refused;
 use crate::race::effects_settings_store::EffectsSettings;
 use crate::race::owner_frame::Frame;
 use crate::scene::matrix3::{Axis, extended, turn_matrix3};
-use crate::session::{Bytes, Float};
+use crate::session::{PlainBytes, PlainFloat};
 
 /// The view's move (the settings' +0x26AC .. less the kept place, times the clock constant),
 /// less the last move, plus the last move times the drift's decay.
@@ -69,8 +69,8 @@ pub fn windscreen_drops_drift(
             }
             adjugate3(&drops.hex.turn, &drops.hex.adjugate);
             // The two temporaries `[esp]` held and the three 80-bit values kept across the two calls.
-            let temps = [Float::new(0.0), Float::new(0.0)];
-            let kept = Bytes::new([0u8; 30]);
+            let temps = [PlainFloat::new(0.0), PlainFloat::new(0.0)];
+            let kept = PlainBytes::new([0u8; 30]);
             drift_turned_x87(drops, &drops.hex.adjugate, &temps, &kept);
             turn_matrix3(Axis::X, &drops.hex.turn, extended(drops.hex.angle.bits()))?;
             drift_back_x87(drops, &drops.hex.turn, &temps, &kept);
@@ -131,7 +131,12 @@ fn view_moved_x87(drops: &WindscreenDrops, m: &EffectsSettings, c: &MarksClock) 
 }
 
 /// `drift_turned`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places.
-fn drift_turned_x87(drops: &WindscreenDrops, m: &[Float; 9], t: &[Float; 2], l: &Bytes<30>) {
+fn drift_turned_x87(
+    drops: &WindscreenDrops,
+    m: &[PlainFloat; 9],
+    t: &[PlainFloat; 2],
+    l: &PlainBytes<30>,
+) {
     let t0 = ld_cell(&drops.hex.move_change[2]);
     let t1 = ld_cell(&drops.hex.move_change[1]);
     let t2 = ld_cell(&drops.hex.move_change[0]);
@@ -160,7 +165,12 @@ fn drift_turned_x87(drops: &WindscreenDrops, m: &[Float; 9], t: &[Float; 2], l: 
 }
 
 /// `drift_back`'s x87 block as plain Rust on the x87 model (40 instructions), same order and memory places.
-fn drift_back_x87(drops: &WindscreenDrops, m: &[Float; 9], t: &[Float; 2], l: &Bytes<30>) {
+fn drift_back_x87(
+    drops: &WindscreenDrops,
+    m: &[PlainFloat; 9],
+    t: &[PlainFloat; 2],
+    l: &PlainBytes<30>,
+) {
     let t0 = bh::from_f80(ld80_at(l, 20));
     let t1 = bh::from_f80(ld80_at(l, 10));
     let t2 = bh::from_f80(ld80_at(l, 0));
@@ -395,14 +405,14 @@ mod asm_differential {
     use crate::effects::tilt_shape::ShapeTilt;
     use crate::effects::typed_sync::{overlay, with_overlays};
     use crate::effects::windscreen_drop_vars::WindscreenDropVars;
-    use crate::session::{Bytes, Float};
+    use crate::session::{PlainBytes, PlainFloat};
 
     /// Runs `f` with `HEX` holding the buffer's bytes (`typed_sync`).
     fn hex<R>(mk: usize, f: impl FnOnce() -> R) -> R {
         with_overlays(
             mk,
             &[overlay(
-                &crate::effects::owner::EFFECTS.windscreen_drops.hex,
+                &crate::effects::owner::effects().windscreen_drops.hex,
                 WindscreenDropVars::START,
             )],
             f,
@@ -410,19 +420,19 @@ mod asm_differential {
     }
 
     /// The `N` floats at the test address `at`.
-    fn floats<const N: usize>(at: usize) -> [Float; N] {
+    fn floats<const N: usize>(at: usize) -> [PlainFloat; N] {
         std::array::from_fn(|i| {
             let word = unsafe {
                 crate::pointers::host_at(at + 4 * i)
                     .cast::<u32>()
                     .read_unaligned()
             };
-            Float::from_bits(word)
+            PlainFloat::from_bits(word)
         })
     }
 
     /// The floats written back to the test address `at`.
-    fn put_floats(at: usize, cells: &[Float]) {
+    fn put_floats(at: usize, cells: &[PlainFloat]) {
         for (i, c) in cells.iter().enumerate() {
             unsafe {
                 crate::pointers::host_at(at + 4 * i)
@@ -433,13 +443,13 @@ mod asm_differential {
     }
 
     /// The 30 bytes at the test address `at` as a buffer.
-    fn kept(at: usize) -> Bytes<30> {
-        Bytes::new(std::array::from_fn(|i| unsafe {
+    fn kept(at: usize) -> PlainBytes<30> {
+        PlainBytes::new(std::array::from_fn(|i| unsafe {
             crate::pointers::host_at(at + i).read()
         }))
     }
 
-    fn put_kept(at: usize, kept: &Bytes<30>) {
+    fn put_kept(at: usize, kept: &PlainBytes<30>) {
         for i in 0..30 {
             unsafe { crate::pointers::host_at(at + i).write(kept.get(i)) };
         }
@@ -495,7 +505,7 @@ mod asm_differential {
                 hex(b[0], || {
                     with_settings(b[1], |m| {
                         super::view_moved_x87(
-                            &crate::effects::owner::EFFECTS.windscreen_drops,
+                            &crate::effects::owner::effects().windscreen_drops,
                             m,
                             crate::effects::setup::clock_at(b[0]),
                         );
@@ -553,7 +563,7 @@ mod asm_differential {
                 hex(b[0], || {
                     let (m, temps, l) = (floats::<9>(b[1]), floats::<2>(b[2]), kept(b[3]));
                     super::drift_turned_x87(
-                        &crate::effects::owner::EFFECTS.windscreen_drops,
+                        &crate::effects::owner::effects().windscreen_drops,
                         &m,
                         &temps,
                         &l,
@@ -621,18 +631,18 @@ mod asm_differential {
                     b[0],
                     &[
                         overlay(
-                            &crate::effects::owner::EFFECTS.windscreen_drops.tilt,
+                            &crate::effects::owner::effects().windscreen_drops.tilt,
                             ShapeTilt::START,
                         ),
                         overlay(
-                            &crate::effects::owner::EFFECTS.windscreen_drops.hex,
+                            &crate::effects::owner::effects().windscreen_drops.hex,
                             WindscreenDropVars::START,
                         ),
                     ],
                     || {
                         let (m, temps, l) = (floats::<9>(b[1]), floats::<2>(b[2]), kept(b[3]));
                         super::drift_back_x87(
-                            &crate::effects::owner::EFFECTS.windscreen_drops,
+                            &crate::effects::owner::effects().windscreen_drops,
                             &m,
                             &temps,
                             &l,
@@ -670,7 +680,7 @@ mod asm_differential {
                 hex(b[0], || {
                     with_settings(b[1], |m| {
                         super::move_kept_x87(
-                            &crate::effects::owner::EFFECTS.windscreen_drops,
+                            &crate::effects::owner::effects().windscreen_drops,
                             m,
                             crate::effects::setup::clock_at(b[0]),
                         );

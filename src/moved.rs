@@ -55,7 +55,7 @@ pub(crate) struct Moved {
 /// Where a moved range lives: a store of cells, read and written by offset
 /// (`pointers::Store`).
 pub(crate) enum Home {
-    Store(&'static dyn crate::pointers::Store),
+    Store(&'static (dyn crate::pointers::Store + Sync)),
 }
 
 impl Home {
@@ -459,7 +459,9 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::menu::build_notice::BuildNotice::START, // BuildNotice
         len: crate::menu::build_notice::BuildNotice::LEN,
-        home: Home::Store(&crate::menu::owner::MENUS.panels.notice),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::menu::owner::MENUS.unchecked().panels.notice,
+        )),
     },
     Moved {
         ida: crate::install::store::DriveRows::START, // DriveRows
@@ -505,9 +507,8 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::install::installer::TEXTS_START, // The installer's texts
         len: crate::install::installer::TEXTS_LEN,
-        home: Home::Store(&crate::session::OnGameThread::new(
-            &crate::install::owner::INSTALL.unchecked().texts,
-        )),
+        // Not `OnGameThread`: the audio thread's file calls read `base_b` (`resolve_path`).
+        home: Home::Store(&crate::install::owner::INSTALL.unchecked().texts),
     },
     Moved {
         ida: crate::saves::load_options::PATH_START, // var\ral.dat
@@ -541,7 +542,9 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::menu::play_films::FILMS_START, // The films' file names
         len: crate::menu::play_films::FILMS_LEN,
-        home: Home::Store(&crate::menu::owner::MENUS.panels.films),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::menu::owner::MENUS.unchecked().panels.films,
+        )),
     },
     Moved {
         ida: crate::screens::draw_message_box::BOX_START, // The message box's rectangle
@@ -750,82 +753,114 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::menu::players_store::START,
         len: crate::menu::players_store::END - crate::menu::players_store::START,
-        home: Home::Store(&crate::menu::owner::MENUS.play.players),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::menu::owner::MENUS.unchecked().play.players,
+        )),
     },
     Moved {
         ida: crate::menu::cars_store::START,
         len: crate::menu::cars_store::END - crate::menu::cars_store::START,
-        home: Home::Store(&crate::menu::owner::MENUS.cars.table),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::menu::owner::MENUS.unchecked().cars.table,
+        )),
     },
     Moved {
         ida: crate::menu::cheats_store::START,
         len: crate::menu::cheats_store::END - crate::menu::cheats_store::START,
-        home: Home::Store(&crate::menu::owner::MENUS.play.cheats),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::menu::owner::MENUS.unchecked().play.cheats,
+        )),
     },
     Moved {
         ida: crate::menu::results_store::START,
         len: crate::menu::results_store::END - crate::menu::results_store::START,
-        home: Home::Store(&crate::menu::owner::MENUS.play.results),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::menu::owner::MENUS.unchecked().play.results,
+        )),
     },
     Moved {
         ida: crate::menu::arcade_store::START,
         len: crate::menu::arcade_store::END - crate::menu::arcade_store::START,
-        home: Home::Store(&crate::menu::owner::MENUS.play.arcade),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::menu::owner::MENUS.unchecked().play.arcade,
+        )),
     },
     Moved {
         ida: crate::menu::captions_store::START,
         len: crate::menu::captions_store::END - crate::menu::captions_store::START,
-        home: Home::Store(&crate::menu::owner::MENUS.tables.captions),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::menu::owner::MENUS.unchecked().tables.captions,
+        )),
     },
     Moved {
         ida: crate::menu::pages_store::START,
         len: crate::menu::pages_store::END - crate::menu::pages_store::START,
-        home: Home::Store(&crate::menu::owner::MENUS.tables.pages),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::menu::owner::MENUS.unchecked().tables.pages,
+        )),
     },
     Moved {
         ida: crate::menu::car_numbers_store::START,
         len: crate::menu::car_numbers_store::END - crate::menu::car_numbers_store::START,
-        home: Home::Store(&crate::menu::owner::MENUS.cars.numbers),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::menu::owner::MENUS.unchecked().cars.numbers,
+        )),
     },
     Moved {
         ida: crate::menu::flow_store::START,
         len: crate::menu::flow_store::END - crate::menu::flow_store::START,
-        home: Home::Store(&crate::menu::owner::MENUS.screens.flow),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::menu::owner::MENUS.unchecked().screens.flow,
+        )),
     },
     Moved {
         ida: crate::menu::loop_store::START,
         len: crate::menu::loop_store::END - crate::menu::loop_store::START,
-        home: Home::Store(&crate::menu::owner::MENUS.screens.loop_flags),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::menu::owner::MENUS.unchecked().screens.loop_flags,
+        )),
     },
     Moved {
         ida: crate::menu::keys_store::START,
         len: crate::menu::keys_store::END - crate::menu::keys_store::START,
-        home: Home::Store(&crate::menu::owner::MENUS.keys.tables),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::menu::owner::MENUS.unchecked().keys.tables,
+        )),
     },
     Moved {
         ida: crate::menu::option_work_store::START,
         len: crate::menu::option_work_store::END - crate::menu::option_work_store::START,
-        home: Home::Store(&crate::menu::owner::MENUS.screens.option_work),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::menu::owner::MENUS.unchecked().screens.option_work,
+        )),
     },
     Moved {
         ida: crate::menu::champ_store::START,
         len: crate::menu::champ_store::END - crate::menu::champ_store::START,
-        home: Home::Store(&crate::menu::owner::MENUS.play.champ_view),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::menu::owner::MENUS.unchecked().play.champ_view,
+        )),
     },
     Moved {
         ida: crate::menu::names_store::START,
         len: crate::menu::names_store::END - crate::menu::names_store::START,
-        home: Home::Store(&crate::menu::owner::MENUS.play.names),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::menu::owner::MENUS.unchecked().play.names,
+        )),
     },
     Moved {
         ida: crate::menu::event_store::START,
         len: crate::menu::event_store::END - crate::menu::event_store::START,
-        home: Home::Store(&crate::menu::owner::MENUS.screens.event),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::menu::owner::MENUS.unchecked().screens.event,
+        )),
     },
     Moved {
         ida: crate::menu::draw_work_store::START,
         len: crate::menu::draw_work_store::END - crate::menu::draw_work_store::START,
-        home: Home::Store(&crate::menu::owner::MENUS.screens.draw_work),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::menu::owner::MENUS.unchecked().screens.draw_work,
+        )),
     },
     // the race block's tail: the menus' texts (`menu::texts_store`), the stages' tables
     // (`records::stages_store`), the drivers (`menu::drivers_store`), the rallies' best times and
@@ -834,8 +869,8 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::menu::texts_store::START,
         len: crate::menu::texts_store::END - crate::menu::texts_store::START,
-        home: Home::Store(&crate::race::store::RecordTail::new(
-            &crate::menu::owner::MENUS.tables.texts,
+        home: Home::Store(&crate::session::OnGameThread::tail(
+            &crate::menu::owner::MENUS.unchecked().tables.texts,
             2,
         )),
     },
@@ -850,7 +885,9 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::menu::drivers_store::START,
         len: crate::menu::drivers_store::END - crate::menu::drivers_store::START,
-        home: Home::Store(&crate::menu::owner::MENUS.cars.drivers),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::menu::owner::MENUS.unchecked().cars.drivers,
+        )),
     },
     Moved {
         ida: crate::saves::best_times_store::RallyTimes::START,
@@ -870,17 +907,23 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::menu::screen_items_store::START,
         len: crate::menu::screen_items_store::END - crate::menu::screen_items_store::START,
-        home: Home::Store(&crate::menu::owner::MENUS.screens.items),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::menu::owner::MENUS.unchecked().screens.items,
+        )),
     },
     Moved {
         ida: crate::menu::item_sprites_store::START,
         len: crate::menu::item_sprites_store::END - crate::menu::item_sprites_store::START,
-        home: Home::Store(&crate::menu::owner::MENUS.panels.item_sprites),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::menu::owner::MENUS.unchecked().panels.item_sprites,
+        )),
     },
     Moved {
         ida: crate::menu::menus_store::START,
         len: crate::menu::menus_store::END - crate::menu::menus_store::START,
-        home: Home::Store(&crate::menu::owner::MENUS.tables.menus.labels),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::menu::owner::MENUS.unchecked().tables.menus.labels,
+        )),
     },
     // the former `rest` module's pieces: typed, each in its owner's module
     Moved {
@@ -1472,7 +1515,9 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::work_store::START,
         len: crate::effects::work_store::END - crate::effects::work_store::START,
-        home: Home::Store(&crate::effects::owner::EFFECTS.setup.work),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().setup.work,
+        )),
     },
     // the menus' lists, the menus' working variables, the race's settings and results and
     // the damage model (`menu::lists_store`, `menu::state_store`, `race::state_store`,
@@ -1480,12 +1525,16 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::menu::lists_store::START,
         len: crate::menu::lists_store::END - crate::menu::lists_store::START,
-        home: Home::Store(&crate::menu::owner::MENUS.tables.lists),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::menu::owner::MENUS.unchecked().tables.lists,
+        )),
     },
     Moved {
         ida: crate::menu::state_store::START,
         len: crate::menu::state_store::END - crate::menu::state_store::START,
-        home: Home::Store(&crate::menu::owner::MENUS.screens.state),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::menu::owner::MENUS.unchecked().screens.state,
+        )),
     },
     Moved {
         ida: crate::race::state_store::START,
@@ -1702,466 +1751,793 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::shape_points::ShapeInputs::START,
         len: crate::effects::shape_points::ShapeInputs::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.windscreen_drops.inputs),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .windscreen_drops
+                .inputs,
+        )),
     },
     Moved {
         ida: crate::effects::view_vectors::ViewSources::START,
         len: crate::effects::view_vectors::ViewSources::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.frame.view_sources),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .frame
+                .view_sources,
+        )),
     },
     Moved {
         ida: crate::effects::setup::MarksClock::START,
         len: crate::effects::setup::MarksClock::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.setup.clock),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().setup.clock,
+        )),
     },
     Moved {
         ida: crate::effects::tuning::MarksFrame::START,
         len: crate::effects::tuning::MarksFrame::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.setup.frame),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().setup.frame,
+        )),
     },
     Moved {
         ida: crate::effects::tuning::MarksFloats::START,
         len: crate::effects::tuning::MarksFloats::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.setup.floats),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().setup.floats,
+        )),
     },
     Moved {
         ida: crate::effects::tuning::MarksKindFloats::START,
         len: crate::effects::tuning::MarksKindFloats::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.setup.kind_floats),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().setup.kind_floats,
+        )),
     },
     Moved {
         ida: crate::effects::setup::SettingsPointer::START,
         len: crate::effects::setup::SettingsPointer::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.setup.settings),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().setup.settings,
+        )),
     },
     Moved {
         ida: crate::effects::pong::PongState::START,
         len: crate::effects::pong::PongState::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.pong.state),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().pong.state,
+        )),
     },
     Moved {
         ida: crate::effects::clip::ClipScreen::START,
         len: crate::effects::clip::ClipScreen::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.clipping.clip),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().clipping.clip,
+        )),
     },
     Moved {
         ida: crate::effects::pong::PongRules::START,
         len: crate::effects::pong::PongRules::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.pong.rules),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().pong.rules,
+        )),
     },
     Moved {
         ida: crate::effects::kind_values::MarksKind::START,
         len: crate::effects::kind_values::MarksKind::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.kinds.marks_kind),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().kinds.marks_kind,
+        )),
     },
     Moved {
         ida: crate::effects::view_vectors::KeptView::START,
         len: crate::effects::view_vectors::KeptView::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.frame.kept_view),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().frame.kept_view,
+        )),
     },
     Moved {
         ida: crate::effects::splines::SplineHead::START,
         len: crate::effects::splines::SplineHead::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.paths.spline_head),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().paths.spline_head,
+        )),
     },
     Moved {
         ida: crate::effects::splines::SplineWork::START,
         len: crate::effects::splines::SplineWork::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.paths.spline_work),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().paths.spline_work,
+        )),
     },
     Moved {
         ida: crate::effects::splines::SplineTables::START,
         len: crate::effects::splines::SplineTables::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.paths.spline_tables),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .paths
+                .spline_tables,
+        )),
     },
     Moved {
         ida: crate::effects::splines::SplineKinds::START,
         len: crate::effects::splines::SplineKinds::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.paths.spline_kinds),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .paths
+                .spline_kinds,
+        )),
     },
     Moved {
         ida: crate::effects::splines::SplinePath::START,
         len: crate::effects::splines::SplinePath::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.paths.spline_path),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().paths.spline_path,
+        )),
     },
     Moved {
         ida: crate::effects::splines::SplineConstants::START,
         len: crate::effects::splines::SplineConstants::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.paths.spline_constants),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .paths
+                .spline_constants,
+        )),
     },
     Moved {
         ida: crate::effects::edges::EdgeMask::START,
         len: crate::effects::edges::EdgeMask::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.masks.edge_mask),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().masks.edge_mask,
+        )),
     },
     Moved {
         ida: crate::effects::tilt_shape::ShapeTilt::START,
         len: crate::effects::tilt_shape::ShapeTilt::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.windscreen_drops.tilt),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .windscreen_drops
+                .tilt,
+        )),
     },
     Moved {
         ida: crate::effects::edges::KindBoxes::START,
         len: crate::effects::edges::KindBoxes::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.masks.kind_boxes),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().masks.kind_boxes,
+        )),
     },
     Moved {
         ida: crate::effects::windscreen_drop_state::WindscreenDropState::START,
         len: crate::effects::windscreen_drop_state::WindscreenDropState::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.windscreen_drops.state),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .windscreen_drops
+                .state,
+        )),
     },
     Moved {
         ida: crate::effects::windscreen_drop_state::WindscreenDropWork::START,
         len: crate::effects::windscreen_drop_state::WindscreenDropWork::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.windscreen_drops.work),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .windscreen_drops
+                .work,
+        )),
     },
     Moved {
         ida: crate::effects::windscreen_drop_vars::WindscreenDropVars::START,
         len: crate::effects::windscreen_drop_vars::WindscreenDropVars::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.windscreen_drops.hex),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .windscreen_drops
+                .hex,
+        )),
     },
     Moved {
         ida: crate::effects::mask_vars::MaskVars::START,
         len: crate::effects::mask_vars::MaskVars::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.masks.vars),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().masks.vars,
+        )),
     },
     Moved {
         ida: crate::effects::mask_picks::MaskPicks::START,
         len: crate::effects::mask_picks::MaskPicks::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.windscreen_drops.picks),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .windscreen_drops
+                .picks,
+        )),
     },
     Moved {
         ida: crate::effects::shape_work::ShapeWork::START,
         len: crate::effects::shape_work::ShapeWork::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.windscreen_drops.shape_work),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .windscreen_drops
+                .shape_work,
+        )),
     },
     Moved {
         ida: crate::effects::shape_points::ShapeSetTuning::START,
         len: crate::effects::shape_points::ShapeSetTuning::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.windscreen_drops.tuning),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .windscreen_drops
+                .tuning,
+        )),
     },
     Moved {
         ida: crate::effects::mask_constants::MaskConstants::START,
         len: crate::effects::mask_constants::MaskConstants::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.setup.mask_constants),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .setup
+                .mask_constants,
+        )),
     },
     Moved {
         ida: crate::effects::windscreen_flakes_store::WindscreenFlakeTiming::START,
         len: crate::effects::windscreen_flakes_store::WindscreenFlakeTiming::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.windscreen_flakes.timing),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .windscreen_flakes
+                .timing,
+        )),
     },
     Moved {
         ida: crate::effects::windscreen_flakes_store::WindscreenFlakeTables::START,
         len: crate::effects::windscreen_flakes_store::WindscreenFlakeTables::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.windscreen_flakes.tables),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .windscreen_flakes
+                .tables,
+        )),
     },
     Moved {
         ida: crate::effects::windscreen_flakes_store::WindscreenFlakeItems::START,
         len: crate::effects::windscreen_flakes_store::WindscreenFlakeItems::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.windscreen_flakes.items),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .windscreen_flakes
+                .items,
+        )),
     },
     Moved {
         ida: crate::effects::windscreen_flakes_store::WindscreenFlakeState::START,
         len: crate::effects::windscreen_flakes_store::WindscreenFlakeState::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.windscreen_flakes.state),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .windscreen_flakes
+                .state,
+        )),
     },
     Moved {
         ida: crate::effects::edges::EdgeSettings::START,
         len: crate::effects::edges::EdgeSettings::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.masks.edge_settings),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .masks
+                .edge_settings,
+        )),
     },
     Moved {
         ida: crate::effects::rain::RainState::START,
         len: crate::effects::rain::RainState::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.weather.rain),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().weather.rain,
+        )),
     },
     Moved {
         ida: crate::effects::snow::SnowTables::START,
         len: crate::effects::snow::SnowTables::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.weather.snow_tables),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .weather
+                .snow_tables,
+        )),
     },
     Moved {
         ida: crate::effects::snow::SnowState::START,
         len: crate::effects::snow::SnowState::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.weather.snow),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().weather.snow,
+        )),
     },
     Moved {
         ida: crate::effects::snow::SnowCurve::START,
         len: crate::effects::snow::SnowCurve::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.weather.snow_curve),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .weather
+                .snow_curve,
+        )),
     },
     Moved {
         ida: crate::effects::snow::SnowCurveVars::START,
         len: crate::effects::snow::SnowCurveVars::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.weather.snow_vars),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().weather.snow_vars,
+        )),
     },
     Moved {
         ida: crate::effects::snow::SnowLight::START,
         len: crate::effects::snow::SnowLight::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.weather.snow_light),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .weather
+                .snow_light,
+        )),
     },
     Moved {
         ida: crate::effects::blocks::PlacesBlock::START,
         len: crate::effects::blocks::PlacesBlock::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.blocks.places),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().blocks.places,
+        )),
     },
     Moved {
         ida: crate::effects::profiles::ProfileRings::START,
         len: crate::effects::profiles::ProfileRings::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.paths.profile_rings),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .paths
+                .profile_rings,
+        )),
     },
     Moved {
         ida: crate::effects::profiles::ProfileTables::START,
         len: crate::effects::profiles::ProfileTables::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.paths.profile_tables),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .paths
+                .profile_tables,
+        )),
     },
     Moved {
         ida: crate::effects::frame_state::DrawWork::START,
         len: crate::effects::frame_state::DrawWork::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.frame.draw_work),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().frame.draw_work,
+        )),
     },
     Moved {
         ida: crate::effects::blocks::MarkCorners::START,
         len: crate::effects::blocks::MarkCorners::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.blocks.corners),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().blocks.corners,
+        )),
     },
     Moved {
         ida: crate::effects::frame_state::ViewVars::START,
         len: crate::effects::frame_state::ViewVars::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.frame.view_vars),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().frame.view_vars,
+        )),
     },
     Moved {
         ida: crate::effects::profiles::ProfileLists::START,
         len: crate::effects::profiles::ProfileLists::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.paths.profile_lists),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .paths
+                .profile_lists,
+        )),
     },
     Moved {
         ida: crate::effects::frame_state::DrawFrame::START,
         len: crate::effects::frame_state::DrawFrame::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.frame.draw_frame),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().frame.draw_frame,
+        )),
     },
     Moved {
         ida: crate::effects::waves::MarksSines::START,
         len: crate::effects::waves::MarksSines::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.paths.sines),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().paths.sines,
+        )),
     },
     Moved {
         ida: crate::effects::frame_state::FlareParts::START,
         len: crate::effects::frame_state::FlareParts::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.frame.flare_parts),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().frame.flare_parts,
+        )),
     },
     Moved {
         ida: crate::effects::waves::WaveLevels::START,
         len: crate::effects::waves::WaveLevels::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.paths.wave_levels),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().paths.wave_levels,
+        )),
     },
     Moved {
         ida: crate::effects::waves::WaveState::START,
         len: crate::effects::waves::WaveState::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.paths.wave),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().paths.wave,
+        )),
     },
     Moved {
         ida: crate::effects::frame_state::FlareScales::START,
         len: crate::effects::frame_state::FlareScales::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.frame.flare_scales),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .frame
+                .flare_scales,
+        )),
     },
     Moved {
         ida: crate::effects::blocks::MarkLinks::START,
         len: crate::effects::blocks::MarkLinks::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.blocks.links),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().blocks.links,
+        )),
     },
     Moved {
         ida: crate::effects::blocks::CornerSlopes::START,
         len: crate::effects::blocks::CornerSlopes::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.blocks.corner_slopes),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .blocks
+                .corner_slopes,
+        )),
     },
     Moved {
         ida: crate::effects::spread_point::SpreadRandom::START,
         len: crate::effects::spread_point::SpreadRandom::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.paths.spread_random),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .paths
+                .spread_random,
+        )),
     },
     Moved {
         ida: crate::effects::kind_store::Quad1::START,
         len: crate::effects::kind_store::Quad1::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.kinds.overlay_quad),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .kinds
+                .overlay_quad,
+        )),
     },
     Moved {
         ida: crate::effects::kind_store::KindExtras1::START,
         len: crate::effects::kind_store::KindExtras1::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.kinds.overlay_extras),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .kinds
+                .overlay_extras,
+        )),
     },
     Moved {
         ida: crate::effects::kind_store::Quad2::START,
         len: crate::effects::kind_store::Quad2::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.kinds.shadow_quad),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().kinds.shadow_quad,
+        )),
     },
     Moved {
         ida: crate::effects::kind_store::KindExtra2::START,
         len: crate::effects::kind_store::KindExtra2::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.kinds.shadow_extra),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .kinds
+                .shadow_extra,
+        )),
     },
     Moved {
         ida: crate::effects::kind_store::Quad3::START,
         len: crate::effects::kind_store::Quad3::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.kinds.plane_quad),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().kinds.plane_quad,
+        )),
     },
     Moved {
         ida: crate::effects::mask_store::GroundNames::START,
         len: crate::effects::mask_store::GroundNames::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.masks.ground_names),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .masks
+                .ground_names,
+        )),
     },
     Moved {
         ida: crate::effects::mask_store::MaskBlocks::START,
         len: crate::effects::mask_store::MaskBlocks::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.masks.blocks),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().masks.blocks,
+        )),
     },
     Moved {
         ida: crate::effects::mask_store::PictureCopy::START,
         len: crate::effects::mask_store::PictureCopy::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.masks.picture_copy),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .masks
+                .picture_copy,
+        )),
     },
     Moved {
         ida: crate::effects::mark_slots::MarkSlots::START,
         len: crate::effects::mark_slots::MarkSlots::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.blocks.slots),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().blocks.slots,
+        )),
     },
     Moved {
         ida: crate::effects::mark_slots::SlotTuning::START,
         len: crate::effects::mark_slots::SlotTuning::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.blocks.slot_tuning),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .blocks
+                .slot_tuning,
+        )),
     },
     Moved {
         ida: crate::effects::emitters::EmitterVars::START,
         len: crate::effects::emitters::EmitterVars::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.kinds.emitter),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().kinds.emitter,
+        )),
     },
     Moved {
         ida: crate::effects::ring_store::RingWork::START,
         len: crate::effects::ring_store::RingWork::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.ring.work),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().ring.work,
+        )),
     },
     Moved {
         ida: crate::effects::ring_store::PictureNames::START,
         len: crate::effects::ring_store::PictureNames::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.ring.names),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().ring.names,
+        )),
     },
     Moved {
         ida: crate::effects::surface_store::SurfaceTables::START,
         len: crate::effects::surface_store::SurfaceTables::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.masks.surface),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().masks.surface,
+        )),
     },
     Moved {
         ida: crate::effects::emit_twin_particle_first::TwinState::START,
         len: crate::effects::emit_twin_particle_first::TwinState::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.particles.twin_state),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .particles
+                .twin_state,
+        )),
     },
     Moved {
         ida: crate::effects::emit_rolling_particles::RollingChoice::START,
         len: crate::effects::emit_rolling_particles::RollingChoice::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.particles.kind1_choice),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .particles
+                .kind1_choice,
+        )),
     },
     Moved {
         ida: crate::effects::set_up_surface::MaskList::START,
         len: crate::effects::set_up_surface::MaskList::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.masks.list),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().masks.list,
+        )),
     },
     Moved {
         ida: crate::effects::emit_slip_spray::SlipSpraySet::START,
         len: crate::effects::emit_slip_spray::SlipSpraySet::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.particles.kind5_set),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .particles
+                .kind5_set,
+        )),
     },
     Moved {
         ida: crate::effects::emit_slip_spray_long::SlipSprayLongSet::START,
         len: crate::effects::emit_slip_spray_long::SlipSprayLongSet::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.particles.kind11_set),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .particles
+                .kind11_set,
+        )),
     },
     Moved {
         ida: crate::effects::emit_rolling_particles_rated::RollingRatedSet::START,
         len: crate::effects::emit_rolling_particles_rated::RollingRatedSet::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.particles.kind21_set),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .particles
+                .kind21_set,
+        )),
     },
     Moved {
         ida: crate::effects::emit_rolling_particles::RollingSet::START,
         len: crate::effects::emit_rolling_particles::RollingSet::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.particles.kind1_set),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .particles
+                .kind1_set,
+        )),
     },
     Moved {
         ida: crate::effects::emit_bursts::FirstTuning::START,
         len: crate::effects::emit_bursts::FirstTuning::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.particles.first_tuning),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .particles
+                .first_tuning,
+        )),
     },
     Moved {
         ida: crate::effects::emit_bursts_kind_3::BurstKind3Tuning::START,
         len: crate::effects::emit_bursts_kind_3::BurstKind3Tuning::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.particles.second_tuning),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .particles
+                .second_tuning,
+        )),
     },
     Moved {
         ida: crate::effects::emit_wheel_fade_particle::WheelFadeSet::START,
         len: crate::effects::emit_wheel_fade_particle::WheelFadeSet::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.particles.kind6_set),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .particles
+                .kind6_set,
+        )),
     },
     Moved {
         ida: crate::effects::emit_exhaust_smoke::ExhaustSet::START,
         len: crate::effects::emit_exhaust_smoke::ExhaustSet::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.particles.kind13_set),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .particles
+                .kind13_set,
+        )),
     },
     Moved {
         ida: crate::effects::emit_twin_particle_first::TwinFirstTuning::START,
         len: crate::effects::emit_twin_particle_first::TwinFirstTuning::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.particles.nineteenth_tuning),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .particles
+                .nineteenth_tuning,
+        )),
     },
     Moved {
         ida: crate::effects::emit_twin_particle_second::TwinSecondTuning::START,
         len: crate::effects::emit_twin_particle_second::TwinSecondTuning::LEN,
-        home: Home::Store(
+        home: Home::Store(&crate::session::OnGameThread::new(
             &crate::effects::owner::EFFECTS
+                .unchecked()
                 .particles
                 .twenty_second_tuning,
-        ),
+        )),
     },
     Moved {
         ida: crate::effects::blocks::RingPool::START,
         len: crate::effects::blocks::RingPool::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.ring.pool),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().ring.pool,
+        )),
     },
     Moved {
         ida: crate::effects::run_particles::PuffWork::START,
         len: crate::effects::run_particles::PuffWork::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.particles.puff_work),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .particles
+                .puff_work,
+        )),
     },
     Moved {
         ida: crate::effects::run_particles::BurstColours::START,
         len: crate::effects::run_particles::BurstColours::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.kinds.burst_colours),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .kinds
+                .burst_colours,
+        )),
     },
     Moved {
         ida: crate::effects::run_particles::ParticleTuning::START,
         len: crate::effects::run_particles::ParticleTuning::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.kinds.particle_tuning),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .kinds
+                .particle_tuning,
+        )),
     },
     Moved {
         ida: crate::effects::blend_corner::BlendWork::START,
         len: crate::effects::blend_corner::BlendWork::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.clipping.blend_work),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS
+                .unchecked()
+                .clipping
+                .blend_work,
+        )),
     },
     Moved {
         ida: crate::effects::morph_object_points::MorphWork::START,
         len: crate::effects::morph_object_points::MorphWork::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.paths.morph_work),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().paths.morph_work,
+        )),
     },
     Moved {
         ida: crate::effects::lines::LinesWork::START,
         len: crate::effects::lines::LinesWork::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.paths.lines_work),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().paths.lines_work,
+        )),
     },
     Moved {
         ida: crate::effects::setup::ClockK::START,
         len: crate::effects::setup::ClockK::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.setup.clock_k),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().setup.clock_k,
+        )),
     },
     Moved {
         ida: crate::effects::clip::GlowState::START,
         len: crate::effects::clip::GlowState::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.clipping.glow),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::effects::owner::EFFECTS.unchecked().clipping.glow,
+        )),
     },
 ];
 
@@ -2232,8 +2608,8 @@ fn sorted() -> &'static [(usize, usize, usize)] {
 /// The store whose moved range holds the game address `addr`, and the offset of `addr` in it
 /// (`pointers::GamePtr`'s reads and writes); `None` for a range not yet a store and anything
 /// outside the moved ranges.
-pub fn store_of(addr: usize) -> Option<(&'static dyn crate::pointers::Store, usize)> {
-    type Entry = (usize, usize, &'static dyn crate::pointers::Store);
+pub fn store_of(addr: usize) -> Option<(&'static (dyn crate::pointers::Store + Sync), usize)> {
+    type Entry = (usize, usize, &'static (dyn crate::pointers::Store + Sync));
     static BY_HOME: std::sync::OnceLock<Vec<Entry>> = std::sync::OnceLock::new();
     thread_local! {
         // The last range found: most reads follow one another in one store.

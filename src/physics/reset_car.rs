@@ -13,7 +13,7 @@
 //! Refuses what the calls refuse.
 
 use crate::errors::Refused;
-use crate::physics::step_inputs::StepInputs;
+use crate::physics::step_families::ResetInputs;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::vars_store::RaceVars;
 use rc2k_core::physics::line_places::{RESET_TRIES, reset_offsets};
@@ -45,7 +45,7 @@ fn blocked(
 }
 
 // Converted: `rc2k_core::physics::line_places::reset_offsets`.
-pub fn reset_car(c: &StepInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn reset_car(c: &ResetInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let lights = &scene.lights;
     lights.state.line_place.set(c.car.reset_checkpoint.get());
     lights.state.line_fraction.set(0);

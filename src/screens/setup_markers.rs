@@ -17,33 +17,57 @@ use crate::gfx::blit_bar::Bar;
 use crate::gfx::blit_bar_marker::blit_bar_marker;
 use crate::menu::owner::Menus;
 use crate::service::state::{blink_on, edit_mode, menu_item, repair_flag};
-use crate::session::Dword;
+use crate::session::DwordLike;
+use crate::session::PlainDword;
 use crate::text::draw_text::Canvas;
 
 pub use rc2k_core::screens::setup_markers::{BAR_WIDTH, LEFT_X, RIGHT_X};
 
-pub const LOWER_LEFT_CHOSEN: &Dword =
-    &crate::menu::owner::MENUS.screens.state.driver_stats.setups[2].chosen;
-pub const LOWER_LEFT_INSTALLED: &Dword =
-    &crate::menu::owner::MENUS.screens.state.driver_stats.setups[2].installed;
-pub const LOWER_RIGHT_CHOSEN: &Dword =
-    &crate::menu::owner::MENUS.screens.state.driver_stats.setups[3].chosen;
-pub const LOWER_RIGHT_INSTALLED: &Dword =
-    &crate::menu::owner::MENUS.screens.state.driver_stats.setups[3].installed;
+pub const LOWER_LEFT_CHOSEN: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .state
+    .driver_stats
+    .setups[2]
+    .chosen;
+pub const LOWER_LEFT_INSTALLED: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .state
+    .driver_stats
+    .setups[2]
+    .installed;
+pub const LOWER_RIGHT_CHOSEN: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .state
+    .driver_stats
+    .setups[3]
+    .chosen;
+pub const LOWER_RIGHT_INSTALLED: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .state
+    .driver_stats
+    .setups[3]
+    .installed;
 
 /// One of the six functions.
 #[derive(Clone, Copy)]
 pub enum Marker {
     /// Always drawn, at the percentage in a variable (glyph 0x77).
-    Always { x: i32, percent: &'static Dword },
+    Always {
+        x: i32,
+        percent: &'static dyn DwordLike,
+    },
     /// Glyph 0x76 on a lower bar, at the chosen value. While its item is being edited it
     /// blinks. Otherwise it is drawn if the chosen value differs from the installed one, or
     /// if the item's flag in the repair flag table is 1.
     Lower {
         item: u32,
         x: i32,
-        chosen: &'static Dword,
-        installed: &'static Dword,
+        chosen: &'static dyn DwordLike,
+        installed: &'static dyn DwordLike,
     },
     /// Glyph 0x76 on an upper bar, at the percentage in a field of the player in edi.
     /// While its item is being edited it blinks.
@@ -88,7 +112,7 @@ pub fn draw_marker(
         item: menu_item(),
         blink_on: blink_on(menus),
     };
-    let read = |cell: &Dword| -> Result<i32, Refused> { Ok(cell.get() as i32) };
+    let read = |cell: &dyn DwordLike| -> Result<i32, Refused> { Ok(cell.get() as i32) };
     let (core, item): (M, u32) = match marker {
         Marker::Always { x, .. } => (M::Always { x }, 0),
         Marker::Lower { item, x, .. } => (M::Lower { item, x }, item),

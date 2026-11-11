@@ -5,11 +5,12 @@
 /// A car block's figures `two_car_order` reads.
 pub const FINISHED: u32 = 0xA8;
 pub const CHECKPOINT: u32 = 0x94;
-/// The tie-break (+0x624 = `checkpoint_offset[1]`: the car's z in its checkpoint's frame, `physics::checkpoint_offset`).
+/// The tie-break (+0x624 = `checkpoint_offset[1]`: the car's z in its checkpoint's frame,
+/// `physics::checkpoint_offset`).
 pub const TIE_BREAK: u32 = 0x624;
 
 /// `two_car_order`'s result: the places to give the two cars (`None`: left as they are)
-/// and the last figure compared (the original's ebx; as it came in when none was).
+/// and the last figure compared (as `last_figure` came in when none was).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Order {
     pub places: Option<[u32; 2]>,
@@ -24,18 +25,18 @@ pub fn two_car_order(
     mode: u32,
     players: u32,
     figure: impl Fn(usize, u32) -> u32,
-    ebx: u32,
+    last_figure: u32,
 ) -> Order {
     if mode != 0 || players == 1 {
         return Order {
             places: Some([u32::MAX, u32::MAX]),
-            last: ebx,
+            last: last_figure,
         };
     }
     if figure(0, FINISHED) != 0 || figure(1, FINISHED) != 0 {
         return Order {
             places: None,
-            last: ebx,
+            last: last_figure,
         };
     }
     let mut last = figure(0, CHECKPOINT);
@@ -55,7 +56,7 @@ pub fn two_car_order(
 }
 
 /// `drive::note_gap_ahead` / `note_gap_behind`: the car's checkpoint against the lead
-/// car's (ahead: car - lead, behind: lead - car), plus one (the original's edx); it
+/// car's (ahead: car - lead, behind: lead - car), plus one; it
 /// replaces `best` when below it (unsigned).
 pub fn note_gap(car: u32, lead: u32, behind: bool, best: &mut u32) -> u32 {
     let d = if behind {

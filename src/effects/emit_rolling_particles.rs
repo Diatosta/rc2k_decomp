@@ -29,18 +29,38 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
 use crate::scene::matrix3::{extended, rounded};
-use crate::session::{Dword, Float};
+use crate::session::{PlainDword, PlainFloat};
 
 /// The strength's two factors and its least.
-static STRENGTH_K: [&Float; 3] = [
-    &crate::effects::owner::EFFECTS.setup.floats.three_tenths,
-    &crate::effects::owner::EFFECTS.setup.floats.thirty_second,
-    &crate::effects::owner::EFFECTS.setup.floats.fifth,
+const STRENGTH_K: [&PlainFloat; 3] = [
+    &crate::effects::owner::EFFECTS
+        .unchecked()
+        .setup
+        .floats
+        .three_tenths,
+    &crate::effects::owner::EFFECTS
+        .unchecked()
+        .setup
+        .floats
+        .thirty_second,
+    &crate::effects::owner::EFFECTS
+        .unchecked()
+        .setup
+        .floats
+        .fifth,
 ];
 /// The life's factor and base.
-static LIFE_K: [&Float; 2] = [
-    &crate::effects::owner::EFFECTS.setup.floats.two_thousand,
-    &crate::effects::owner::EFFECTS.setup.floats.hundred,
+const LIFE_K: [&PlainFloat; 2] = [
+    &crate::effects::owner::EFFECTS
+        .unchecked()
+        .setup
+        .floats
+        .two_thousand,
+    &crate::effects::owner::EFFECTS
+        .unchecked()
+        .setup
+        .floats
+        .hundred,
 ];
 const SIZE: u32 = 0x1_0000;
 const STEP: i32 = 0x18;
@@ -67,7 +87,7 @@ fn pace(wheel: &MarkRecord) -> Result<Pace, Refused> {
                 strength: None,
             });
         }
-        let [k1, k2, least] = STRENGTH_K.map(super::super::session::Float::bits);
+        let [k1, k2, least] = STRENGTH_K.map(super::super::session::PlainFloat::bits);
         let (kept, status) = x87::abs_blend_compare(
             &wheel.local_velocity_x,
             k1,
@@ -232,14 +252,14 @@ pub fn emit_rolling_particles(
 #[derive(rc2k_derive::Cells)]
 pub struct RollingChoice {
     /// 0x93A1D6: `g_marksKind1Choice`: `emit_rolling_particles_rated` when not 0 (`ring_frame` sets it from the rain's drops)
-    pub choice: Dword,
+    pub choice: PlainDword,
 }
 
 impl RollingChoice {
     /// The values the game starts with (the image's bytes).
     pub const fn new() -> Self {
         RollingChoice {
-            choice: Dword::new(0x0),
+            choice: PlainDword::new(0x0),
         }
     }
 }
@@ -265,7 +285,7 @@ mod kind1_choice_tests {
     fn kind1_choice_starts_as_the_games() {
         assert_eq!(size_of::<RollingChoice>(), RollingChoice::LEN);
         assert!(
-            bytes(&crate::effects::owner::EFFECTS.particles.kind1_choice)
+            bytes(&crate::effects::owner::effects().particles.kind1_choice)
                 == crate::moved::image_bytes(RollingChoice::START, RollingChoice::LEN),
             "KIND1_CHOICE starts differently from the image"
         );
@@ -281,39 +301,39 @@ mod kind1_choice_tests {
 #[derive(rc2k_derive::Cells)]
 pub struct RollingSet {
     /// 0x93A39A: `dword_93A39A`: the side's random
-    pub side_random: Dword,
+    pub side_random: PlainDword,
     /// 0x93A39E: `flt_93A39E` .. `flt_93A3BE`: per axis (x, y, z) the factors of the first row, the third row and the side
-    pub motion_k: [Float; 9],
+    pub motion_k: [PlainFloat; 9],
     /// 0x93A3C2: `flt_93A3C2`: the spread `jitter_point` takes
-    pub spread: Float,
+    pub spread: PlainFloat,
     /// 0x93A3C6: `flt_93A3C6`: added to y
-    pub lift: Float,
+    pub lift: PlainFloat,
     /// 0x93A3CA: `dword_93A3CA`: the spin's random
-    pub spin_random: Dword,
+    pub spin_random: PlainDword,
     /// 0x93A3CE: `flt_93A3CE`: the size's factor
-    pub size_k: Float,
+    pub size_k: PlainFloat,
 }
 
 impl RollingSet {
     /// The values the game starts with (the image's bytes).
     pub const fn new() -> Self {
         RollingSet {
-            side_random: Dword::new(0x0),
+            side_random: PlainDword::new(0x0),
             motion_k: [
-                Float::new(65.536),
-                Float::new(49.152),
-                Float::new(12.152),
-                Float::new(65.536),
-                Float::new(49.152),
-                Float::new(12.152),
-                Float::new(65.536),
-                Float::new(49.152),
-                Float::new(12.152),
+                PlainFloat::new(65.536),
+                PlainFloat::new(49.152),
+                PlainFloat::new(12.152),
+                PlainFloat::new(65.536),
+                PlainFloat::new(49.152),
+                PlainFloat::new(12.152),
+                PlainFloat::new(65.536),
+                PlainFloat::new(49.152),
+                PlainFloat::new(12.152),
             ],
-            spread: Float::new(96.0),
-            lift: Float::new(64.0),
-            spin_random: Dword::new(0x0),
-            size_k: Float::new(0.2),
+            spread: PlainFloat::new(96.0),
+            lift: PlainFloat::new(64.0),
+            spin_random: PlainDword::new(0x0),
+            size_k: PlainFloat::new(0.2),
         }
     }
 }
@@ -339,7 +359,7 @@ mod kind1_set_tests {
     fn kind1_set_starts_as_the_games() {
         assert_eq!(size_of::<RollingSet>(), RollingSet::LEN);
         assert!(
-            bytes(&crate::effects::owner::EFFECTS.particles.kind1_set)
+            bytes(&crate::effects::owner::effects().particles.kind1_set)
                 == crate::moved::image_bytes(RollingSet::START, RollingSet::LEN),
             "KIND1_SET starts differently from the image"
         );

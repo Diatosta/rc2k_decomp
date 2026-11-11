@@ -9,7 +9,7 @@
 //! slots; the tape holds each tenth's input words, 16 bytes a tenth, 8 for each of the
 //! two cars.
 
-/// The replay's mode (`dword_5C5CE0`): 1 recording, 2 playing.
+/// The replay's mode: 1 recording, 2 playing.
 pub const RECORDING: u32 = 1;
 pub const PLAYING: u32 = 2;
 
@@ -47,7 +47,7 @@ pub fn frame_fault(frame: u32, tenth: u32) -> Option<u32> {
     }
 }
 
-/// Whether a frame is at or past the replay's last (`dword_5BECD0`): then the last is
+/// Whether a frame is at or past the replay's last: then the last is
 /// shown, nothing read.
 pub fn past_end(frame: u32, frames: u32) -> bool {
     frame >= frames
@@ -94,7 +94,7 @@ pub fn marks_offset(frame: u32) -> u32 {
     frame.wrapping_mul(8)
 }
 
-/// A piece of the replay's starting state (`unk_7172EC`).
+/// A piece of the replay's starting state.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum StartPiece {
     /// The first `CAR_DWORDS` of car block k (`g_carBlockStore` + 0xFE0 k).

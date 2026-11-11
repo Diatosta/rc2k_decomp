@@ -27,7 +27,6 @@
 use crate::errors::BadInput;
 use crate::math::x87;
 use crate::scene::light_dot::light_dot;
-use crate::scene::owner::scene;
 
 // ---- game data ----
 const TABLE_LEN: u32 = 0x100;
@@ -105,12 +104,12 @@ fn table_place(
 /// The lit colour, also left in `light_colour`.
 fn lit(
     course: &crate::race::owner_course::Course,
+    scene: &crate::scene::owner::Scene,
     number: u32,
     mmx: bool,
     light: &crate::scene::object_light::ObjectLight,
     object: &crate::scene::object_place::ObjectPlace,
 ) -> Result<u32, BadInput> {
-    let scene = scene();
     // The checks first, on a copy of what they would write.
     let place = set_normal(course, number, light).and_then(|()| table_place(light, object));
     let place = place?;
@@ -160,7 +159,11 @@ pub fn vertex_light(
     let mmx = system.session.machine.has_mmx.get() != 0;
     if kind == 4 {
         // The lit colour added to nothing: it only makes the bytes the right ones.
-        return Ok(plus(0, lit(course, number, mmx, light, object)?, mmx));
+        return Ok(plus(
+            0,
+            lit(course, scene, number, mmx, light, object)?,
+            mmx,
+        ));
     }
     let lit_at_all =
         race.shared.switches.scene_set_up.get() != 0 || course.stage_prefs.lit_b.get() != 0;
@@ -170,7 +173,7 @@ pub fn vertex_light(
     let added: u32 = light.light_added.get();
     match kind {
         2 | 5 => Ok(plus(
-            plus(0, lit(course, number, mmx, light, object)?, mmx),
+            plus(0, lit(course, scene, number, mmx, light, object)?, mmx),
             added,
             mmx,
         )),

@@ -40,7 +40,7 @@ pub enum Var {
     RaceFigure000,
     /// A best was made.
     Qualifies,
-    /// Player 0's +0xD0 (the original's edi the player).
+    /// Player 0's +0xD0.
     Player0Entry,
 }
 
@@ -56,9 +56,9 @@ pub enum Step {
     TakeShownCar = 4,
     NextStageLoop = 5,
     TakeStageBest = 6,
-    /// `service::repair_car` (eax 0).
+    /// `service::repair_car`.
     RepairCar = 7,
-    /// `race::single_rally_race` (kind 2, from 0: `RepairCar` clears eax just before).
+    /// `race::single_rally_race` (kind 2, from 0).
     Race = 8,
     ScoreStage = 9,
     ResultsLoop = 10,
@@ -112,7 +112,8 @@ enum At {
     Out,
 }
 
-/// A review: true when it ends the event (the ask-to-leave flag 1, or the left-with-carry flag not 1).
+/// A review: true when it ends the event (the ask-to-leave flag 1, or the left-with-carry flag not
+/// 1).
 fn review_ends<A: Arcade>(e: &mut A, s: Step) -> Result<bool, A::Error> {
     e.step(s)?;
     Ok(e.flag(Switch::AskLeave) || !e.flag(Switch::LeftWithCarry))

@@ -39,7 +39,7 @@ pub fn players_of(mode: u32) -> Option<(u32, bool)> {
 /// The variables.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Var {
-    /// `dword_75592C`: the event goes on.
+    /// The event goes on.
     GoesOn,
     /// `dword_75ACF0`, `g_cheats`.
     CheatSwitch,
@@ -65,7 +65,7 @@ pub enum Step {
     /// `dword_75ACD0` the summary table, `dword_75ACD4` the track pack entry's +0x34.
     RaceInfo,
     /// `race::single_rally_race` (kind 1); `next` when another player's race follows
-    /// (the original's eax 1, from `menu::player_entered`; 0 otherwise).
+    /// (1 from `menu::player_entered`; 0 otherwise).
     Race {
         next: bool,
     },
@@ -80,15 +80,15 @@ pub trait EventRaces {
     fn step(&mut self, s: Step) -> Result<(), Self::Error>;
     /// A random number below `n`.
     fn below(&mut self, n: u32) -> Result<u32, Self::Error>;
-    /// Driver `k` (of the picked) gets `added` on its two times (edi it, eax `added`).
+    /// Driver `k` (of the picked) gets `added` on its two times.
     fn slow(&mut self, k: u32, added: u32);
-    /// Whether driver `k` still runs (edi it, eax its offset).
+    /// Whether driver `k` still runs.
     fn running(&mut self, k: u32) -> bool;
     /// The driver last asked about drops out.
     fn drop_out(&mut self);
-    /// Whether player `i` takes part (edi it).
+    /// Whether player `i` takes part.
     fn takes_part(&mut self, i: u32) -> bool;
-    /// The fourth player's dropping out noted (edi it).
+    /// The fourth player's dropping out noted.
     fn fourth_out(&mut self);
 }
 

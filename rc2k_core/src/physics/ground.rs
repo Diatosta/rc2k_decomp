@@ -12,7 +12,8 @@ pub fn surface_flag(mode: u32) -> u32 {
     u32::from(mode == 2 || mode == 3)
 }
 
-/// A skid mark's start (`camera_blend_view` .. `camera_switch_share`; a skid mark's start: its place, a count of 10 and the step it began).
+/// A skid mark's start (`camera_blend_view` .. `camera_switch_share`; a skid mark's start: its
+/// place, a count of 10 and the step it began).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct SkidStart {
     /// `camera_blend_view`: the pending value less one.
@@ -39,17 +40,17 @@ impl SkidStart {
         if wheels.iter().all(|&w| w == 0) {
             return None;
         }
-        let mut eax = self.pending;
-        if eax != 0 {
-            self.from = eax - 1;
+        let mut count = self.pending;
+        if count != 0 {
+            self.from = count - 1;
             self.on = 1;
             self.w674 = 0;
             self.w670 = 10;
-            eax = step();
-            self.step = eax;
+            count = step();
+            self.step = count;
         }
         self.pending = 0;
-        Some(eax)
+        Some(count)
     }
 }
 
@@ -106,9 +107,9 @@ pub fn rough_floor(level: u32, floor: u32) -> u32 {
     level.max(floor)
 }
 
-/// `physics::probe_ground`: whether wheel `b` (0 .. 3) is lifted by `probe_lift`: bit
-/// b + 5 of the car's bits (`parts_present`) clear, or else bit b + 1 clear. Returns whether it is lifted and the
-/// last bit tested.
+/// `physics::probe_ground`: whether wheel `b` (0 .. 3) is lifted by `probe_lift`: bit b + 5 of the
+/// car's bits (`parts_present`) clear, or else bit b + 1 clear. Returns whether it is lifted and
+/// the last bit tested.
 pub fn wheel_lifted(bits: u32, b: u32) -> (bool, u32) {
     if bits >> (b + 5) & 1 == 0 {
         (true, b + 5)
@@ -117,9 +118,9 @@ pub fn wheel_lifted(bits: u32, b: u32) -> (bool, u32) {
     }
 }
 
-/// The noise bytes' cell of a place (whole-number x, z): the row, the row's offset (the row << 6), the four
-/// bytes' indices in the original's order (`ground_noise_corners`: the corner, the one right,
-/// below right, below) and the last row offset.
+/// The noise bytes' cell of a place (whole-number x, z): the row, the row's offset (the row << 6),
+/// the four bytes' indices in the original's order (`ground_noise_corners`: the corner, the one
+/// right, below right, below) and the last row offset.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct NoiseCell {
     pub row: u32,
@@ -131,18 +132,18 @@ pub struct NoiseCell {
 pub fn noise_cell(x: u32, z: u32) -> NoiseCell {
     let row = (z >> 14) & 0x3F;
     let row_offset = row << 6;
-    let mut ecx = ((x >> 14) & 0x3F).wrapping_add(row_offset) & 0x3F;
+    let mut column = ((x >> 14) & 0x3F).wrapping_add(row_offset) & 0x3F;
     let top = row_offset & 0xFC0;
-    let first = top + ecx;
-    ecx = (ecx + 1) & 0x3F;
-    let right = top + ecx;
+    let first = top + column;
+    column = (column + 1) & 0x3F;
+    let right = top + column;
     let below = (top + 0x40) & 0xFC0;
-    let below_right = below + ecx;
-    ecx = ecx.wrapping_sub(1) & 0x3F;
+    let below_right = below + column;
+    column = column.wrapping_sub(1) & 0x3F;
     NoiseCell {
         row,
         row_offset,
-        corners: [first, right, below_right, below + ecx],
+        corners: [first, right, below_right, below + column],
         below,
     }
 }

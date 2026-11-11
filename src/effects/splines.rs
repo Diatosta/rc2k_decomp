@@ -10,7 +10,7 @@ use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::owner_course::Course;
-use crate::session::{Bytes, Dword, Float, read_bits};
+use crate::session::{PlainBytes, PlainDword, PlainFloat, read_bits};
 
 pub const SPLINE_LEN: u32 = 0xE90;
 /// The most points a record holds.
@@ -44,7 +44,7 @@ impl Spline {
     }
 
     /// The table byte `at` of the four tables is in.
-    fn table_byte(paths: &Paths, at: u32) -> &Bytes<29824> {
+    fn table_byte(paths: &Paths, at: u32) -> &PlainBytes<29824> {
         [
             &paths.spline_tables.a,
             &paths.spline_tables.b,
@@ -117,12 +117,12 @@ impl Spline {
     }
 
     /// The `n` points from point `first` (+0x654), as cells for the matrix helpers.
-    pub fn points(self, paths: &Paths, first: u32, n: u32) -> Result<Vec<Dword>, BadInput> {
+    pub fn points(self, paths: &Paths, first: u32, n: u32) -> Result<Vec<PlainDword>, BadInput> {
         Ok(self
             .triples(paths, COORDS + 12 * first, n)?
             .as_flattened()
             .iter()
-            .map(|&v| Dword::new(v))
+            .map(|&v| PlainDword::new(v))
             .collect())
     }
 }
@@ -369,7 +369,7 @@ pub fn turn_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
     )?;
     let turned: Vec<u32> = points
         .iter()
-        .map(super::super::session::Dword::get)
+        .map(super::super::session::PlainDword::get)
         .collect();
     s.put_words(paths, COORDS, &turned)?;
     Ok(())
@@ -487,7 +487,7 @@ pub fn order_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
         // they were.
         let mut ordered_ids: Vec<u32> = ids[..n_us]
             .iter()
-            .map(super::super::session::Dword::get)
+            .map(super::super::session::PlainDword::get)
             .collect();
         let mut ordered_coords: Vec<[u32; 3]> = coords[..3 * n_us]
             .chunks(3)
@@ -676,7 +676,7 @@ pub fn load_splines(
         spline_checks(paths, o, scene)?;
     }
     if loaded == 0 {
-        crate::files::read_whole_file::read_whole_file_bytes(
+        crate::files::read_whole_file::read_whole_file_plain_bytes(
             &crate::files::cstring(&paths.spline_path.path, "a spline file's path")?,
             &paths.spline_head.file,
         )?;
@@ -699,23 +699,23 @@ pub fn load_splines(
 #[derive(rc2k_derive::Cells)]
 pub struct SplineHead {
     /// 0x769312: `g_marksPoints`: three floats by car model (34 models), a mark slot's point is an index into it (12 bytes each).
-    pub points: [Float; 102],
+    pub points: [PlainFloat; 102],
     /// 0x7694AA: `dword_7694AA`, `dword_7694B2` ..: the looks by the car's model (two dwords 8 bytes apart, 33 pairs; models 32 and 33 read past the end: `found`, `wave`).
-    pub looks: [Dword; 66],
+    pub looks: [PlainDword; 66],
     /// 0x7695B2: `g_marksSplineFaces`: how many faces of the kind `gather_spline_points` found.
-    pub found: Dword,
+    pub found: PlainDword,
     /// 0x7695B6: `flt_7695B6`: the wave's angle (`effects::run_splines`).
-    pub angle: Float,
+    pub angle: PlainFloat,
     /// 0x7695BA: `flt_7695BA`: the wave (`effects::run_splines`).
-    pub wave: Float,
+    pub wave: PlainFloat,
     /// 0x7695BE: `g_marksSplineShift`: added to the third table's highest point for its +0x44.
-    pub shift: [Dword; 3],
+    pub shift: [PlainDword; 3],
     /// 0x7695CA: `dword_7695CA`: 0 or 1, which of the two graded records is being placed.
-    pub switch: Dword,
+    pub switch: PlainDword,
     /// 0x7695CE: `g_marksSplinesMade`: the splines' fade-in counter, 0 .. 0xFF.
-    pub made: Dword,
+    pub made: PlainDword,
     /// 0x7695D2: `g_marksSplineFile`: `files\m\spline.dat` (0xC00 bytes at most): 12 bytes an entry, the blend weights.
-    pub file: Bytes<3072>,
+    pub file: PlainBytes<3072>,
 }
 
 impl SplineHead {
@@ -723,184 +723,188 @@ impl SplineHead {
     pub const fn new() -> Self {
         SplineHead {
             points: [
-                Float::new(2070.1),
-                Float::new(265.6),
-                Float::new(-572.5),
-                Float::new(2055.2),
-                Float::new(271.4),
-                Float::new(-453.4),
-                Float::new(2167.5),
-                Float::new(229.9),
-                Float::new(-463.5),
-                Float::new(2232.2),
-                Float::new(265.9),
-                Float::new(472.5),
-                Float::new(2204.0),
-                Float::new(275.5),
-                Float::new(427.5),
-                Float::new(2012.3),
-                Float::new(182.2),
-                Float::new(-486.1),
-                Float::new(2132.9),
-                Float::new(296.0),
-                Float::new(476.5),
-                Float::new(2384.4),
-                Float::new(236.3),
-                Float::new(-547.2),
-                Float::new(2184.4),
-                Float::new(173.5),
-                Float::new(-411.8),
-                Float::new(2200.1),
-                Float::new(252.0),
-                Float::new(396.1),
-                Float::new(2444.9),
-                Float::new(259.8),
-                Float::new(-458.9),
-                Float::new(2019.6),
-                Float::new(240.2),
-                Float::new(-513.8),
-                Float::new(2128.0),
-                Float::new(232.8),
-                Float::new(476.5),
-                Float::new(1874.5),
-                Float::new(244.1),
-                Float::new(392.2),
-                Float::new(2037.8),
-                Float::new(203.6),
-                Float::new(-538.7),
-                Float::new(2243.2),
-                Float::new(263.7),
-                Float::new(-538.6),
-                Float::new(2343.1),
-                Float::new(319.1),
-                Float::new(-501.5),
-                Float::new(2135.3),
-                Float::new(220.0),
-                Float::new(-414.0),
-                Float::new(1947.3),
-                Float::new(340.3),
-                Float::new(-548.3),
-                Float::new(2029.5),
-                Float::new(220.0),
-                Float::new(-454.1),
-                Float::new(2238.6),
-                Float::new(299.3),
-                Float::new(-264.7),
-                Float::new(2024.5),
-                Float::new(224.5),
-                Float::new(405.7),
-                Float::new(2365.3),
-                Float::new(236.1),
-                Float::new(-542.2),
-                Float::new(1850.0),
-                Float::new(350.0),
-                Float::new(-400.0),
-                Float::new(2060.0),
-                Float::new(280.0),
-                Float::new(480.0),
-                Float::new(2120.0),
-                Float::new(260.0),
-                Float::new(-520.0),
-                Float::new(1120.0),
-                Float::new(180.0),
-                Float::new(0.0),
-                Float::new(1120.0),
-                Float::new(1120.0),
-                Float::new(0.0),
-                Float::new(950.0),
-                Float::new(1600.0),
-                Float::new(-300.0),
-                Float::new(800.0),
-                Float::new(1000.0),
-                Float::new(-300.0),
-                Float::new(2500.0),
-                Float::new(250.0),
-                Float::new(0.0),
-                Float::new(1450.0),
-                Float::new(2800.0),
-                Float::new(-0.0),
-                Float::new(1450.0),
-                Float::new(2800.0),
-                Float::new(-0.0),
-                Float::new(1929.0),
-                Float::new(307.0),
-                Float::new(-174.0),
+                PlainFloat::new(2070.1),
+                PlainFloat::new(265.6),
+                PlainFloat::new(-572.5),
+                PlainFloat::new(2055.2),
+                PlainFloat::new(271.4),
+                PlainFloat::new(-453.4),
+                PlainFloat::new(2167.5),
+                PlainFloat::new(229.9),
+                PlainFloat::new(-463.5),
+                PlainFloat::new(2232.2),
+                PlainFloat::new(265.9),
+                PlainFloat::new(472.5),
+                PlainFloat::new(2204.0),
+                PlainFloat::new(275.5),
+                PlainFloat::new(427.5),
+                PlainFloat::new(2012.3),
+                PlainFloat::new(182.2),
+                PlainFloat::new(-486.1),
+                PlainFloat::new(2132.9),
+                PlainFloat::new(296.0),
+                PlainFloat::new(476.5),
+                PlainFloat::new(2384.4),
+                PlainFloat::new(236.3),
+                PlainFloat::new(-547.2),
+                PlainFloat::new(2184.4),
+                PlainFloat::new(173.5),
+                PlainFloat::new(-411.8),
+                PlainFloat::new(2200.1),
+                PlainFloat::new(252.0),
+                PlainFloat::new(396.1),
+                PlainFloat::new(2444.9),
+                PlainFloat::new(259.8),
+                PlainFloat::new(-458.9),
+                PlainFloat::new(2019.6),
+                PlainFloat::new(240.2),
+                PlainFloat::new(-513.8),
+                PlainFloat::new(2128.0),
+                PlainFloat::new(232.8),
+                PlainFloat::new(476.5),
+                PlainFloat::new(1874.5),
+                PlainFloat::new(244.1),
+                PlainFloat::new(392.2),
+                PlainFloat::new(2037.8),
+                PlainFloat::new(203.6),
+                PlainFloat::new(-538.7),
+                PlainFloat::new(2243.2),
+                PlainFloat::new(263.7),
+                PlainFloat::new(-538.6),
+                PlainFloat::new(2343.1),
+                PlainFloat::new(319.1),
+                PlainFloat::new(-501.5),
+                PlainFloat::new(2135.3),
+                PlainFloat::new(220.0),
+                PlainFloat::new(-414.0),
+                PlainFloat::new(1947.3),
+                PlainFloat::new(340.3),
+                PlainFloat::new(-548.3),
+                PlainFloat::new(2029.5),
+                PlainFloat::new(220.0),
+                PlainFloat::new(-454.1),
+                PlainFloat::new(2238.6),
+                PlainFloat::new(299.3),
+                PlainFloat::new(-264.7),
+                PlainFloat::new(2024.5),
+                PlainFloat::new(224.5),
+                PlainFloat::new(405.7),
+                PlainFloat::new(2365.3),
+                PlainFloat::new(236.1),
+                PlainFloat::new(-542.2),
+                PlainFloat::new(1850.0),
+                PlainFloat::new(350.0),
+                PlainFloat::new(-400.0),
+                PlainFloat::new(2060.0),
+                PlainFloat::new(280.0),
+                PlainFloat::new(480.0),
+                PlainFloat::new(2120.0),
+                PlainFloat::new(260.0),
+                PlainFloat::new(-520.0),
+                PlainFloat::new(1120.0),
+                PlainFloat::new(180.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(1120.0),
+                PlainFloat::new(1120.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(950.0),
+                PlainFloat::new(1600.0),
+                PlainFloat::new(-300.0),
+                PlainFloat::new(800.0),
+                PlainFloat::new(1000.0),
+                PlainFloat::new(-300.0),
+                PlainFloat::new(2500.0),
+                PlainFloat::new(250.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(1450.0),
+                PlainFloat::new(2800.0),
+                PlainFloat::new(-0.0),
+                PlainFloat::new(1450.0),
+                PlainFloat::new(2800.0),
+                PlainFloat::new(-0.0),
+                PlainFloat::new(1929.0),
+                PlainFloat::new(307.0),
+                PlainFloat::new(-174.0),
             ],
             looks: [
-                Dword::new(0xD800),
-                Dword::new(0x14000),
-                Dword::new(0xD800),
-                Dword::new(0x14000),
-                Dword::new(0xD800),
-                Dword::new(0x14000),
-                Dword::new(0xD800),
-                Dword::new(0x14000),
-                Dword::new(0xD800),
-                Dword::new(0x14000),
-                Dword::new(0xD800),
-                Dword::new(0x14000),
-                Dword::new(0xD800),
-                Dword::new(0x14000),
-                Dword::new(0xD800),
-                Dword::new(0x14000),
-                Dword::new(0xD800),
-                Dword::new(0x14000),
-                Dword::new(0xD800),
-                Dword::new(0x14000),
-                Dword::new(0xD800),
-                Dword::new(0x14000),
-                Dword::new(0xD800),
-                Dword::new(0x14000),
-                Dword::new(0xD800),
-                Dword::new(0x14000),
-                Dword::new(0xD800),
-                Dword::new(0x14000),
-                Dword::new(0xD800),
-                Dword::new(0x14000),
-                Dword::new(0xD800),
-                Dword::new(0x14000),
-                Dword::new(0xD800),
-                Dword::new(0x14000),
-                Dword::new(0xD800),
-                Dword::new(0x14000),
-                Dword::new(0xD800),
-                Dword::new(0x14000),
-                Dword::new(0xD800),
-                Dword::new(0x14000),
-                Dword::new(0xD800),
-                Dword::new(0x14000),
-                Dword::new(0xD800),
-                Dword::new(0x14000),
-                Dword::new(0xD800),
-                Dword::new(0x14000),
-                Dword::new(0xD800),
-                Dword::new(0x14000),
-                Dword::new(0xD800),
-                Dword::new(0x14000),
-                Dword::new(0xD800),
-                Dword::new(0x14000),
-                Dword::new(0xD800),
-                Dword::new(0x14000),
-                Dword::new(0xD800),
-                Dword::new(0x14000),
-                Dword::new(0xD800),
-                Dword::new(0x14000),
-                Dword::new(0xD800),
-                Dword::new(0x14000),
-                Dword::new(0xD800),
-                Dword::new(0x14000),
-                Dword::new(0xD800),
-                Dword::new(0x14000),
-                Dword::new(0xD800),
-                Dword::new(0x14000),
+                PlainDword::new(0xD800),
+                PlainDword::new(0x14000),
+                PlainDword::new(0xD800),
+                PlainDword::new(0x14000),
+                PlainDword::new(0xD800),
+                PlainDword::new(0x14000),
+                PlainDword::new(0xD800),
+                PlainDword::new(0x14000),
+                PlainDword::new(0xD800),
+                PlainDword::new(0x14000),
+                PlainDword::new(0xD800),
+                PlainDword::new(0x14000),
+                PlainDword::new(0xD800),
+                PlainDword::new(0x14000),
+                PlainDword::new(0xD800),
+                PlainDword::new(0x14000),
+                PlainDword::new(0xD800),
+                PlainDword::new(0x14000),
+                PlainDword::new(0xD800),
+                PlainDword::new(0x14000),
+                PlainDword::new(0xD800),
+                PlainDword::new(0x14000),
+                PlainDword::new(0xD800),
+                PlainDword::new(0x14000),
+                PlainDword::new(0xD800),
+                PlainDword::new(0x14000),
+                PlainDword::new(0xD800),
+                PlainDword::new(0x14000),
+                PlainDword::new(0xD800),
+                PlainDword::new(0x14000),
+                PlainDword::new(0xD800),
+                PlainDword::new(0x14000),
+                PlainDword::new(0xD800),
+                PlainDword::new(0x14000),
+                PlainDword::new(0xD800),
+                PlainDword::new(0x14000),
+                PlainDword::new(0xD800),
+                PlainDword::new(0x14000),
+                PlainDword::new(0xD800),
+                PlainDword::new(0x14000),
+                PlainDword::new(0xD800),
+                PlainDword::new(0x14000),
+                PlainDword::new(0xD800),
+                PlainDword::new(0x14000),
+                PlainDword::new(0xD800),
+                PlainDword::new(0x14000),
+                PlainDword::new(0xD800),
+                PlainDword::new(0x14000),
+                PlainDword::new(0xD800),
+                PlainDword::new(0x14000),
+                PlainDword::new(0xD800),
+                PlainDword::new(0x14000),
+                PlainDword::new(0xD800),
+                PlainDword::new(0x14000),
+                PlainDword::new(0xD800),
+                PlainDword::new(0x14000),
+                PlainDword::new(0xD800),
+                PlainDword::new(0x14000),
+                PlainDword::new(0xD800),
+                PlainDword::new(0x14000),
+                PlainDword::new(0xD800),
+                PlainDword::new(0x14000),
+                PlainDword::new(0xD800),
+                PlainDword::new(0x14000),
+                PlainDword::new(0xD800),
+                PlainDword::new(0x14000),
             ],
-            found: Dword::new(0x0),
-            angle: Float::new(0.0),
-            wave: Float::new(0.0),
-            shift: [Dword::new(0x4000), Dword::new(0xFFFF8000), Dword::new(0x0)],
-            switch: Dword::new(0x0),
-            made: Dword::new(0x0),
-            file: Bytes::new([0; 3072]),
+            found: PlainDword::new(0x0),
+            angle: PlainFloat::new(0.0),
+            wave: PlainFloat::new(0.0),
+            shift: [
+                PlainDword::new(0x4000),
+                PlainDword::new(0xFFFF8000),
+                PlainDword::new(0x0),
+            ],
+            switch: PlainDword::new(0x0),
+            made: PlainDword::new(0x0),
+            file: PlainBytes::new([0; 3072]),
         }
     }
     pub const START: usize = 0x769312;
@@ -915,7 +919,7 @@ mod spline_head_tests {
     fn spline_head_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<SplineHead>(), SplineHead::LEN);
-        let p = (&raw const crate::effects::owner::EFFECTS.paths.spline_head).cast::<u8>();
+        let p = (&raw const crate::effects::owner::effects().paths.spline_head).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<SplineHead>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();
@@ -940,56 +944,64 @@ mod spline_head_tests {
 #[derive(rc2k_derive::Cells)]
 pub struct SplineWork {
     /// 0x76A1D2: `dword_76A1D2` ..: four points of three whole numbers: A, B, C and D (`effects::bend_points`).
-    pub bend: [Dword; 12],
+    pub bend: [PlainDword; 12],
     /// 0x76A202: `g_marksSplineObject`: the object being made.
-    pub object: Dword,
+    pub object: PlainDword,
     /// 0x76A206: `g_marksSplinePlace`: the next of 8 places.
-    pub place: Dword,
+    pub place: PlainDword,
     /// 0x76A20A: `g_marksSplineOffset`: the place times 0xE90.
-    pub offset: Dword,
+    pub offset: PlainDword,
     /// 0x76A20E: Not named: 8 bytes (a gap, or unreferenced data).
-    pub _gap_76a20e: Bytes<8>,
+    pub _gap_76a20e: PlainBytes<8>,
     /// 0x76A216: `g_marksSplineUp`: the vector the angle is measured from.
-    pub up: [Float; 3],
+    pub up: [PlainFloat; 3],
     /// 0x76A222: `g_marksSplineSize`: the points' size, as floats.
-    pub size: [Float; 3],
+    pub size: [PlainFloat; 3],
     /// 0x76A22E: `g_marksTurnXY`: the X turn times the Y turn (a matrix of 12 floats).
-    pub turn_xy: [Float; 12],
+    pub turn_xy: [PlainFloat; 12],
     /// 0x76A25E: `g_marksTurn`: all three turns.
-    pub turn: [Float; 12],
+    pub turn: [PlainFloat; 12],
     /// 0x76A28E: `g_marksTurnX`.
-    pub turn_x: [Float; 12],
+    pub turn_x: [PlainFloat; 12],
     /// 0x76A2BE: `g_marksTurnY`.
-    pub turn_y: [Float; 12],
+    pub turn_y: [PlainFloat; 12],
     /// 0x76A2EE: `g_marksTurnZ`.
-    pub turn_z: [Float; 12],
+    pub turn_z: [PlainFloat; 12],
     /// 0x76A31E: `g_marksOrderedIds`: `order_spline_points`' work, one id a point (at most 0x80 points).
-    pub ordered_ids: [Dword; 128],
+    pub ordered_ids: [PlainDword; 128],
     /// 0x76A51E: `g_marksOrderedCoords`: the ordered points, three whole numbers each.
-    pub ordered_coords: [Dword; 384],
+    pub ordered_coords: [PlainDword; 384],
     /// 0x76AB1E: Not named: 3732 bytes (a gap, or unreferenced data).
-    pub _gap_76ab1e: Bytes<3732>,
+    pub _gap_76ab1e: PlainBytes<3732>,
 }
 
 impl SplineWork {
     /// The values the game starts with (the image's bytes).
     pub const fn new() -> Self {
         SplineWork {
-            bend: [const { Dword::new(0x0) }; 12],
-            object: Dword::new(0x0),
-            place: Dword::new(0x0),
-            offset: Dword::new(0x0),
-            _gap_76a20e: Bytes::new([0; 8]),
-            up: [Float::new(0.0), Float::new(0.0), Float::new(1.0)],
-            size: [Float::new(0.0), Float::new(0.0), Float::new(0.0)],
-            turn_xy: [const { Float::new(0.0) }; 12],
-            turn: [const { Float::new(0.0) }; 12],
-            turn_x: [const { Float::new(0.0) }; 12],
-            turn_y: [const { Float::new(0.0) }; 12],
-            turn_z: [const { Float::new(0.0) }; 12],
-            ordered_ids: [const { Dword::new(0x0) }; 128],
-            ordered_coords: [const { Dword::new(0x0) }; 384],
-            _gap_76ab1e: Bytes::new(crate::session::with_runs::<3732>(&[(
+            bend: [const { PlainDword::new(0x0) }; 12],
+            object: PlainDword::new(0x0),
+            place: PlainDword::new(0x0),
+            offset: PlainDword::new(0x0),
+            _gap_76a20e: PlainBytes::new([0; 8]),
+            up: [
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(1.0),
+            ],
+            size: [
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+            ],
+            turn_xy: [const { PlainFloat::new(0.0) }; 12],
+            turn: [const { PlainFloat::new(0.0) }; 12],
+            turn_x: [const { PlainFloat::new(0.0) }; 12],
+            turn_y: [const { PlainFloat::new(0.0) }; 12],
+            turn_z: [const { PlainFloat::new(0.0) }; 12],
+            ordered_ids: [const { PlainDword::new(0x0) }; 128],
+            ordered_coords: [const { PlainDword::new(0x0) }; 384],
+            _gap_76ab1e: PlainBytes::new(crate::session::with_runs::<3732>(&[(
                 0x3C,
                 &[
                     0xC0, 0xE0, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xE0,
@@ -1010,7 +1022,7 @@ mod spline_work_tests {
     fn spline_work_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<SplineWork>(), SplineWork::LEN);
-        let p = (&raw const crate::effects::owner::EFFECTS.paths.spline_work).cast::<u8>();
+        let p = (&raw const crate::effects::owner::effects().paths.spline_work).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<SplineWork>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();
@@ -1048,20 +1060,20 @@ mod spline_work_tests {
 #[derive(rc2k_derive::Cells)]
 pub struct SplineTables {
     /// 0x76B9B2: `g_marksSplinesA`: eight `MarkSpline` records.
-    pub a: Bytes<29824>,
+    pub a: PlainBytes<29824>,
     /// 0x772E32: `g_marksSplinesB`.
-    pub b: Bytes<29824>,
+    pub b: PlainBytes<29824>,
     /// 0x77A2B2: `g_marksSplinesC`.
-    pub c: Bytes<29824>,
+    pub c: PlainBytes<29824>,
     /// 0x781732: `g_marksSplinesD`.
-    pub d: Bytes<29824>,
+    pub d: PlainBytes<29824>,
 }
 
 impl SplineTables {
     /// The values the game starts with (the image's bytes).
     pub const fn new() -> Self {
         SplineTables {
-            a: Bytes::new(crate::session::with_runs::<29824>(&[
+            a: PlainBytes::new(crate::session::with_runs::<29824>(&[
                 (
                     0x38,
                     &[
@@ -1119,7 +1131,7 @@ impl SplineTables {
                     ],
                 ),
             ])),
-            b: Bytes::new(crate::session::with_runs::<29824>(&[
+            b: PlainBytes::new(crate::session::with_runs::<29824>(&[
                 (
                     0x38,
                     &[
@@ -1177,7 +1189,7 @@ impl SplineTables {
                     ],
                 ),
             ])),
-            c: Bytes::new(crate::session::with_runs::<29824>(&[
+            c: PlainBytes::new(crate::session::with_runs::<29824>(&[
                 (
                     0x38,
                     &[
@@ -1235,7 +1247,7 @@ impl SplineTables {
                     ],
                 ),
             ])),
-            d: Bytes::new(crate::session::with_runs::<29824>(&[
+            d: PlainBytes::new(crate::session::with_runs::<29824>(&[
                 (
                     0x38,
                     &[
@@ -1307,7 +1319,7 @@ mod spline_tables_tests {
     fn spline_tables_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<SplineTables>(), SplineTables::LEN);
-        let p = (&raw const crate::effects::owner::EFFECTS.paths.spline_tables).cast::<u8>();
+        let p = (&raw const crate::effects::owner::effects().paths.spline_tables).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<SplineTables>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();
@@ -1327,13 +1339,13 @@ mod spline_tables_tests {
 #[derive(rc2k_derive::Cells)]
 pub struct SplineKinds {
     /// 0x788BB2: `g_marksSplineChosen`, then `g_marksSplineKinds` (four): the five values of `g_marksKind`.
-    pub chosen: [Dword; 5],
+    pub chosen: [PlainDword; 5],
     /// 0x788BC6: `dword_788BC6` .. `dword_788DE6`: five tables of 0x22 values by kind.
-    pub by_kind: [Dword; 170],
+    pub by_kind: [PlainDword; 170],
     /// 0x788E6E: Not named: 136 bytes (a gap, or unreferenced data).
-    pub _gap_788e6e: Bytes<136>,
+    pub _gap_788e6e: PlainBytes<136>,
     /// 0x788EF6: `g_marksSplinesLoaded`: 0, or where to go on.
-    pub loaded: Dword,
+    pub loaded: PlainDword,
 }
 
 impl SplineKinds {
@@ -1341,185 +1353,185 @@ impl SplineKinds {
     pub const fn new() -> Self {
         SplineKinds {
             chosen: [
-                Dword::new(0x0),
-                Dword::new(0x13),
-                Dword::new(0x19),
-                Dword::new(0x18),
-                Dword::new(0x1C),
+                PlainDword::new(0x0),
+                PlainDword::new(0x13),
+                PlainDword::new(0x19),
+                PlainDword::new(0x18),
+                PlainDword::new(0x1C),
             ],
             by_kind: [
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x1),
-                Dword::new(0x0),
-                Dword::new(0x1),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x1),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x13),
-                Dword::new(0x13),
-                Dword::new(0xC),
-                Dword::new(0x12),
-                Dword::new(0x13),
-                Dword::new(0x13),
-                Dword::new(0x15),
-                Dword::new(0x10),
-                Dword::new(0x4),
-                Dword::new(0x15),
-                Dword::new(0x10),
-                Dword::new(0xE),
-                Dword::new(0x13),
-                Dword::new(0x1C),
-                Dword::new(0x13),
-                Dword::new(0x15),
-                Dword::new(0x11),
-                Dword::new(0xE),
-                Dword::new(0xA),
-                Dword::new(0xB),
-                Dword::new(0x11),
-                Dword::new(0x16),
-                Dword::new(0x10),
-                Dword::new(0xE),
-                Dword::new(0x15),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0x13),
-                Dword::new(0x18),
-                Dword::new(0x18),
-                Dword::new(0x1A),
-                Dword::new(0x19),
-                Dword::new(0x1C),
-                Dword::new(0x18),
-                Dword::new(0x1B),
-                Dword::new(0x1C),
-                Dword::new(0x18),
-                Dword::new(0x1A),
-                Dword::new(0x19),
-                Dword::new(0x19),
-                Dword::new(0x1A),
-                Dword::new(0x12),
-                Dword::new(0x18),
-                Dword::new(0x18),
-                Dword::new(0x1A),
-                Dword::new(0x12),
-                Dword::new(0xD),
-                Dword::new(0xE),
-                Dword::new(0x14),
-                Dword::new(0x19),
-                Dword::new(0x1C),
-                Dword::new(0x11),
-                Dword::new(0x1B),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0x18),
-                Dword::new(0x19),
-                Dword::new(0x19),
-                Dword::new(0x1B),
-                Dword::new(0x1A),
-                Dword::new(0x1B),
-                Dword::new(0x19),
-                Dword::new(0x1A),
-                Dword::new(0x1B),
-                Dword::new(0x19),
-                Dword::new(0x19),
-                Dword::new(0x18),
-                Dword::new(0x1A),
-                Dword::new(0x19),
-                Dword::new(0x11),
-                Dword::new(0x19),
-                Dword::new(0x19),
-                Dword::new(0x19),
-                Dword::new(0x11),
-                Dword::new(0xE),
-                Dword::new(0xF),
-                Dword::new(0x15),
-                Dword::new(0x1A),
-                Dword::new(0x1B),
-                Dword::new(0x12),
-                Dword::new(0x1A),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0x19),
-                Dword::new(0x1C),
-                Dword::new(0x1C),
-                Dword::new(0x1C),
-                Dword::new(0x1B),
-                Dword::new(0x1F),
-                Dword::new(0x1C),
-                Dword::new(0x1C),
-                Dword::new(0x1F),
-                Dword::new(0x1B),
-                Dword::new(0x1B),
-                Dword::new(0x1A),
-                Dword::new(0x1B),
-                Dword::new(0x1B),
-                Dword::new(0x8),
-                Dword::new(0x1A),
-                Dword::new(0x1B),
-                Dword::new(0x1C),
-                Dword::new(0x1C),
-                Dword::new(0x1B),
-                Dword::new(0x1A),
-                Dword::new(0x17),
-                Dword::new(0x1C),
-                Dword::new(0x1F),
-                Dword::new(0x14),
-                Dword::new(0x1C),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0x1C),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x1),
+                PlainDword::new(0x0),
+                PlainDword::new(0x1),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x1),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x13),
+                PlainDword::new(0x13),
+                PlainDword::new(0xC),
+                PlainDword::new(0x12),
+                PlainDword::new(0x13),
+                PlainDword::new(0x13),
+                PlainDword::new(0x15),
+                PlainDword::new(0x10),
+                PlainDword::new(0x4),
+                PlainDword::new(0x15),
+                PlainDword::new(0x10),
+                PlainDword::new(0xE),
+                PlainDword::new(0x13),
+                PlainDword::new(0x1C),
+                PlainDword::new(0x13),
+                PlainDword::new(0x15),
+                PlainDword::new(0x11),
+                PlainDword::new(0xE),
+                PlainDword::new(0xA),
+                PlainDword::new(0xB),
+                PlainDword::new(0x11),
+                PlainDword::new(0x16),
+                PlainDword::new(0x10),
+                PlainDword::new(0xE),
+                PlainDword::new(0x15),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0x13),
+                PlainDword::new(0x18),
+                PlainDword::new(0x18),
+                PlainDword::new(0x1A),
+                PlainDword::new(0x19),
+                PlainDword::new(0x1C),
+                PlainDword::new(0x18),
+                PlainDword::new(0x1B),
+                PlainDword::new(0x1C),
+                PlainDword::new(0x18),
+                PlainDword::new(0x1A),
+                PlainDword::new(0x19),
+                PlainDword::new(0x19),
+                PlainDword::new(0x1A),
+                PlainDword::new(0x12),
+                PlainDword::new(0x18),
+                PlainDword::new(0x18),
+                PlainDword::new(0x1A),
+                PlainDword::new(0x12),
+                PlainDword::new(0xD),
+                PlainDword::new(0xE),
+                PlainDword::new(0x14),
+                PlainDword::new(0x19),
+                PlainDword::new(0x1C),
+                PlainDword::new(0x11),
+                PlainDword::new(0x1B),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0x18),
+                PlainDword::new(0x19),
+                PlainDword::new(0x19),
+                PlainDword::new(0x1B),
+                PlainDword::new(0x1A),
+                PlainDword::new(0x1B),
+                PlainDword::new(0x19),
+                PlainDword::new(0x1A),
+                PlainDword::new(0x1B),
+                PlainDword::new(0x19),
+                PlainDword::new(0x19),
+                PlainDword::new(0x18),
+                PlainDword::new(0x1A),
+                PlainDword::new(0x19),
+                PlainDword::new(0x11),
+                PlainDword::new(0x19),
+                PlainDword::new(0x19),
+                PlainDword::new(0x19),
+                PlainDword::new(0x11),
+                PlainDword::new(0xE),
+                PlainDword::new(0xF),
+                PlainDword::new(0x15),
+                PlainDword::new(0x1A),
+                PlainDword::new(0x1B),
+                PlainDword::new(0x12),
+                PlainDword::new(0x1A),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0x19),
+                PlainDword::new(0x1C),
+                PlainDword::new(0x1C),
+                PlainDword::new(0x1C),
+                PlainDword::new(0x1B),
+                PlainDword::new(0x1F),
+                PlainDword::new(0x1C),
+                PlainDword::new(0x1C),
+                PlainDword::new(0x1F),
+                PlainDword::new(0x1B),
+                PlainDword::new(0x1B),
+                PlainDword::new(0x1A),
+                PlainDword::new(0x1B),
+                PlainDword::new(0x1B),
+                PlainDword::new(0x8),
+                PlainDword::new(0x1A),
+                PlainDword::new(0x1B),
+                PlainDword::new(0x1C),
+                PlainDword::new(0x1C),
+                PlainDword::new(0x1B),
+                PlainDword::new(0x1A),
+                PlainDword::new(0x17),
+                PlainDword::new(0x1C),
+                PlainDword::new(0x1F),
+                PlainDword::new(0x14),
+                PlainDword::new(0x1C),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0x1C),
             ],
-            _gap_788e6e: Bytes::new([
+            _gap_788e6e: PlainBytes::new([
                 0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC,
                 0x4C, 0x3F, 0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC, 0x4C, 0x3F,
                 0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC,
@@ -1531,7 +1543,7 @@ impl SplineKinds {
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xCD, 0xCC, 0x4C, 0x3F,
             ]),
-            loaded: Dword::new(0x0),
+            loaded: PlainDword::new(0x0),
         }
     }
     pub const START: usize = 0x788BB2;
@@ -1546,7 +1558,7 @@ mod spline_kinds_tests {
     fn spline_kinds_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<SplineKinds>(), SplineKinds::LEN);
-        let p = (&raw const crate::effects::owner::EFFECTS.paths.spline_kinds).cast::<u8>();
+        let p = (&raw const crate::effects::owner::effects().paths.spline_kinds).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<SplineKinds>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();
@@ -1574,14 +1586,14 @@ mod spline_kinds_tests {
 #[derive(rc2k_derive::Cells)]
 pub struct SplinePath {
     /// 0x788EFA: `files\m\spline.dat`, the file's name.
-    pub path: Bytes<19>,
+    pub path: PlainBytes<19>,
 }
 
 impl SplinePath {
     /// The values the game starts with (the image's bytes).
     pub const fn new() -> Self {
         SplinePath {
-            path: Bytes::new([
+            path: PlainBytes::new([
                 0x66, 0x69, 0x6C, 0x65, 0x73, 0x5C, 0x6D, 0x5C, 0x73, 0x70, 0x6C, 0x69, 0x6E, 0x65,
                 0x2E, 0x64, 0x61, 0x74, 0x00,
             ]),
@@ -1599,7 +1611,7 @@ mod spline_path_tests {
     fn spline_path_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<SplinePath>(), SplinePath::LEN);
-        let p = (&raw const crate::effects::owner::EFFECTS.paths.spline_path).cast::<u8>();
+        let p = (&raw const crate::effects::owner::effects().paths.spline_path).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<SplinePath>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();
@@ -1616,29 +1628,33 @@ mod spline_path_tests {
 #[derive(rc2k_derive::Cells)]
 pub struct SplineConstants {
     /// 0x788F0D: `flt_788F0D`, `flt_788F11`, `flt_788F15`: the wave's constants.
-    pub wave_k: [Float; 3],
+    pub wave_k: [PlainFloat; 3],
     /// 0x788F19: `flt_788F19` .. `flt_788F35`: `place_spline`'s factors and limits.
-    pub place_k: [Float; 8],
+    pub place_k: [PlainFloat; 8],
     /// 0x788F39: `g_marksSplineAngles`: each table's +0x24, +0x2C, +0x28 (four times three).
-    pub angles: [Float; 12],
+    pub angles: [PlainFloat; 12],
 }
 
 impl SplineConstants {
     /// The values the game starts with (the image's bytes).
     pub const fn new() -> Self {
         SplineConstants {
-            wave_k: [Float::new(128.0), Float::new(0.2), Float::new(1.0)],
-            place_k: [
-                Float::new(0.8),
-                Float::new(0.4),
-                Float::new(0.0),
-                Float::new(0.6),
-                Float::new(0.1),
-                Float::new(0.0),
-                Float::new(0.6),
-                Float::new(0.1),
+            wave_k: [
+                PlainFloat::new(128.0),
+                PlainFloat::new(0.2),
+                PlainFloat::new(1.0),
             ],
-            angles: [const { Float::new(0.0) }; 12],
+            place_k: [
+                PlainFloat::new(0.8),
+                PlainFloat::new(0.4),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.6),
+                PlainFloat::new(0.1),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.6),
+                PlainFloat::new(0.1),
+            ],
+            angles: [const { PlainFloat::new(0.0) }; 12],
         }
     }
     pub const START: usize = 0x788F0D;
@@ -1653,7 +1669,7 @@ mod spline_constants_tests {
     fn spline_constants_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<SplineConstants>(), SplineConstants::LEN);
-        let p = (&raw const crate::effects::owner::EFFECTS.paths.spline_constants).cast::<u8>();
+        let p = (&raw const crate::effects::owner::effects().paths.spline_constants).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<SplineConstants>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();

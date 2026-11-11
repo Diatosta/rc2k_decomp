@@ -129,7 +129,7 @@ pub fn play_rally_speech(menus: &Menus) -> Result<(), Refused> {
 pub fn load_welcome_picture(menus: &Menus) -> Result<(), Refused> {
     let section = small_section(menus)?;
     // The logic is in `rc2k_core::menu::stage_screens::welcome`.
-    let table: &[crate::session::Dword] =
+    let table: &[crate::session::PlainDword] =
         match stage_screens::welcome(menus.play.champ_view.event_mode.get()) {
             stage_screens::Welcome::Championship => &menus.tables.lists.welcome_championship,
             stage_screens::Welcome::Other => &menus.tables.lists.welcome_other,

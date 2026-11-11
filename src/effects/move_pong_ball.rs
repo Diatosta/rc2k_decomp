@@ -14,7 +14,7 @@
 use crate::effects::pong::{self, Pong};
 use crate::effects::pong_ball_hits::pong_ball_hits;
 use crate::math::x87;
-use crate::session::Float;
+use crate::session::PlainFloat;
 
 /// The court's limits (`PongRules::walls`), as bits.
 fn limit(pong: &Pong, n: usize) -> u32 {
@@ -28,7 +28,7 @@ pub fn move_pong_ball(pong: &Pong, effects: &crate::effects::owner::Effects) {
         p.ball[n].set(x87::add(&p.ball[n], &p.ball_way[n]));
     }
     pong_ball_hits(pong, effects);
-    let flip = |r: &Float| r.set_bits(r.bits() ^ 0x8000_0000);
+    let flip = |r: &PlainFloat| r.set_bits(r.bits() ^ 0x8000_0000);
     if x87::compare_status(&p.ball[0], limit(0)) != 0 {
         p.ball[0].set(x87::loaded(limit(1)));
         flip(&p.ball_way[0]);

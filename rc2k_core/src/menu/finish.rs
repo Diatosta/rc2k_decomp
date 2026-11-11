@@ -9,11 +9,11 @@ use crate::Invalid;
 /// The variables.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Var {
-    /// `dword_75B108`: the finish is the leader's.
+    /// The finish is the leader's.
     On,
     /// `dword_75ACE4`.
     Kept,
-    /// `dword_75ACCC`: a leader was found.
+    /// A leader was found.
     Leader,
     /// `g_eventMode`.
     EventMode,
@@ -157,7 +157,7 @@ pub fn championship_finish<F: Finish>(e: &mut F) -> Result<(), F::Error> {
     match e.find_leader(group_b)? {
         Some(n) => {
             if n >= 4 {
-                return Err(Invalid("the leader's ecx past the players").into());
+                return Err(Invalid("the leader's index past the players").into());
             }
             e.racer(Racer::Leader(n))?;
             e.set(Var::Leader, 1);

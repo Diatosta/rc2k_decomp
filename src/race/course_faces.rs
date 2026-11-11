@@ -190,6 +190,7 @@ pub fn draw_marked_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         race,
         &ctx.view.face,
         scene,
+        &ctx.system.session.screen,
     )?;
     ctx.view.polygon.polygon_drawn.set(1u32);
     Ok(())
@@ -224,6 +225,7 @@ fn point_light(ctx: &DrawCtx<'_>, n: u32) -> Result<u32, Refused> {
         &ctx.view.lamps,
         &ctx.view.light,
         ctx.view.drawn_view(race),
+        crate::race::frame_draw::has_mmx(ctx.system),
     )?;
     let light: u32 = ctx.view.light.light_colour.get();
     Ok(light)
@@ -288,6 +290,7 @@ pub fn clip_and_draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         race,
         &ctx.view.face,
         scene,
+        &ctx.system.session.screen,
     )?;
     ctx.view.polygon.polygon_drawn.set(1u32);
     Ok(())
@@ -779,6 +782,7 @@ fn halfway_entry(course: &Course, first: &PolygonEntry, second: &PolygonEntry, t
 pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     let (race, scene) = (ctx.race, ctx.scene);
     use crate::race::frame_draw::add_colours;
+    let mmx = crate::race::frame_draw::has_mmx(ctx.system);
     let mut lit = false;
     for s in 0..3 {
         if lamp_byte(s)? != 0 {
@@ -849,6 +853,7 @@ pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
             &ctx.view.lamps,
             &ctx.view.light,
             ctx.view.drawn_view(race),
+            mmx,
         )?;
         let light: u32 = ctx.view.light.light_colour.get();
         to.lamp_light.set(light);
@@ -860,7 +865,8 @@ pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
             let fog = e.amount.get() as i32 - 2 * lamp_byte(slot)? as i32;
             e.amount.set(fog.max(0) as u8);
         }
-        e.light.set(add_colours(e.light.get(), e.lamp_light.get()));
+        e.light
+            .set(add_colours(e.light.get(), e.lamp_light.get(), mmx));
     }
     for list in [[0u32, 3, 5], [1, 4, 3], [2, 5, 4], [3, 4, 5]] {
         for (k, n) in list.iter().enumerate() {
@@ -894,12 +900,7 @@ pub fn face_colours(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), Refused> {
                 let b = light_tables.lamp_table_b[b as usize].get();
                 (a, b)
             };
-            let c = corner_colour(
-                c,
-                lit,
-                extra,
-                crate::race::frame_draw::has_mmx(crate::system::owner::system()),
-            );
+            let c = corner_colour(c, lit, extra, crate::race::frame_draw::has_mmx(ctx.system));
             ctx.view.face.corner_colours[k].set(c);
         }
     }
@@ -1046,7 +1047,7 @@ pub fn draw_tinted_face(ctx: &DrawCtx<'_>, face: u32) -> Result<(), Refused> {
         ctx.view.polygon.polygon_colour.set(tinted(
             tint,
             colour,
-            crate::race::frame_draw::has_mmx(crate::system::owner::system()),
+            crate::race::frame_draw::has_mmx(ctx.system),
         ));
     }
     let done = draw_course_face(ctx, face);

@@ -83,7 +83,7 @@ pub fn run_splines(paths: &Paths, effects: &crate::effects::owner::Effects) -> R
             .spline_constants
             .wave_k
             .each_ref()
-            .map(super::super::session::Float::bits);
+            .map(super::super::session::PlainFloat::bits);
         let (angle, wave) = x87::angle_and_wave(
             &paths.spline_head.angle,
             (s & 0xFF).wrapping_sub(0x80) as i32,

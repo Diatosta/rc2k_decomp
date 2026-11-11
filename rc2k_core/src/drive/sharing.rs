@@ -60,8 +60,8 @@ pub fn fill_holes(values: &mut [u32; 6]) {
 }
 
 /// `drive::share_all_cars`: `dword_5C5688`, the cars shown: the lead car's file
-/// (`dword_70F410`) not 0x21 and the first record's +0x258 (`laps()`, read only then) 10
-/// or more. (the flag, that word when read: the original's eax).
+/// not 0x21 and the first record's +0x258 (`laps()`, read only then) 10
+/// or more. (the flag, that word when read).
 pub fn cars_shown(lead_file: u32, laps: impl FnOnce() -> u32) -> (bool, Option<u32>) {
     if lead_file == 0x21 {
         return (false, None);

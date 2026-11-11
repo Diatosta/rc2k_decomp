@@ -2,7 +2,7 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::Fault;
 use crate::menu::owner::Menus;
 use crate::race::owner::race;
-use crate::session::Dword;
+use crate::session::DwordLike;
 use rc2k_core::menu::finish::{self, Racer, Step, Var};
 
 /// The game for `rc2k_core::menu::finish`: the variables at their addresses, the finders
@@ -59,7 +59,7 @@ impl Game<'_> {
 }
 
 /// The variables that are in static cells.
-fn cell(menus: &Menus, v: Var) -> Option<&'_ Dword> {
+fn cell(menus: &Menus, v: Var) -> Option<&'_ dyn DwordLike> {
     let race = race();
     Some(match v {
         Var::On => &race.shared.state.results.finished,

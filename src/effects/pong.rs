@@ -5,86 +5,86 @@
 //! before the game was seen), the score's place `dword_7687D4` / `dword_7687D8`, the
 //! digits' 4 x 5 patterns `unk_768704` (0x14 each).
 
-use crate::session::{Bytes, Dword, Float};
+use crate::session::{PlainBytes, PlainDword, PlainFloat};
 
 /// The pong game over the race: the box scratch, the ball, the bat, the score (IDA 0x768658 .. 0x7687DC).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct PongState {
     /// 0x768658: `flt_768658` .. `flt_768684`: the box drawn last (`effects::draw_pong_box`): the offsets of its corners from the place, twice (a reading: six, then the same plus the second shift).
-    pub box_sides: [Float; 12],
+    pub box_sides: [PlainFloat; 12],
     /// 0x768688: `g_pongBall`, `flt_76868C`: the ball's place (x, y).
-    pub ball: [Float; 2],
+    pub ball: [PlainFloat; 2],
     /// 0x768690: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_768690: Bytes<4>,
+    pub _gap_768690: PlainBytes<4>,
     /// 0x768694: `flt_768694`, `flt_768698`: the ball's way, added to its place at each step (starts 1, 1).
-    pub ball_way: [Float; 2],
+    pub ball_way: [PlainFloat; 2],
     /// 0x76869C: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_76869c: Bytes<4>,
+    pub _gap_76869c: PlainBytes<4>,
     /// 0x7686A0: `flt_7686A0`, `flt_7686A4`: the ball's size (width, height).
-    pub ball_size: [Float; 2],
+    pub ball_size: [PlainFloat; 2],
     /// 0x7686A8: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_7686a8: Bytes<4>,
+    pub _gap_7686a8: PlainBytes<4>,
     /// 0x7686AC: `dword_7686AC`, `dword_7686B0`: the bat's place before the move (kept as bits; put back when the bat overlaps the ball).
-    pub saved_bat: [Dword; 2],
+    pub saved_bat: [PlainDword; 2],
     /// 0x7686B4: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_7686b4: Bytes<4>,
+    pub _gap_7686b4: PlainBytes<4>,
     /// 0x7686B8: `g_pongBat`, `flt_7686BC`: the bat's place (x, y).
-    pub bat: [Float; 2],
+    pub bat: [PlainFloat; 2],
     /// 0x7686C0: Not named: 16 bytes (a gap, or unreferenced data).
-    pub _gap_7686c0: Bytes<16>,
+    pub _gap_7686c0: PlainBytes<16>,
     /// 0x7686D0: `flt_7686D0`, `flt_7686D4`: the bat's size.
-    pub bat_size: [Float; 2],
+    pub bat_size: [PlainFloat; 2],
     /// 0x7686D8: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_7686d8: Bytes<4>,
+    pub _gap_7686d8: PlainBytes<4>,
     /// 0x7686DC: `flt_7686DC`, `flt_7686E0`: the ball's centre, worked out by the court's steps (`effects::pong_ball_hits`).
-    pub ball_centre: [Float; 2],
+    pub ball_centre: [PlainFloat; 2],
     /// 0x7686E4: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_7686e4: Bytes<4>,
+    pub _gap_7686e4: PlainBytes<4>,
     /// 0x7686E8: `flt_7686E8`, `flt_7686EC`: the bat's centre (`effects::pong_ball_hits`).
-    pub bat_centre: [Float; 2],
+    pub bat_centre: [PlainFloat; 2],
     /// 0x7686F0: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_7686f0: Bytes<4>,
+    pub _gap_7686f0: PlainBytes<4>,
     /// 0x7686F4: `flt_7686F4`, `flt_7686F8`: the ball's centre less the bat's (`effects::pong_ball_hits`); it becomes the ball's way after a hit.
-    pub difference: [Float; 2],
+    pub difference: [PlainFloat; 2],
     /// 0x7686FC: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_7686fc: Bytes<4>,
+    pub _gap_7686fc: PlainBytes<4>,
     /// 0x768700: `g_pongSteps`: the ball's steps a frame (5 at the start, 4 more with each hit).
-    pub steps: Dword,
+    pub steps: PlainDword,
     /// 0x768704: `g_pongDigitPatterns`: the digits' 4 x 5 patterns, 10 of 0x14 bytes (a byte a cell, 0 for empty).
-    pub digit_patterns: Bytes<200>,
+    pub digit_patterns: PlainBytes<200>,
     /// 0x7687CC: `g_pongBest`: the best score (hits).
-    pub best: Dword,
+    pub best: PlainDword,
     /// 0x7687D0: `g_pongHits`: the hits of this game.
-    pub hits: Dword,
+    pub hits: PlainDword,
     /// 0x7687D4: `dword_7687D4`, `dword_7687D8`: where the next score digit is drawn (x, y).
-    pub digit_at: [Dword; 2],
+    pub digit_at: [PlainDword; 2],
 }
 
 impl PongState {
     pub const fn new() -> Self {
         PongState {
-            box_sides: [const { Float::new(0.0) }; 12],
-            ball: [Float::new(0.0), Float::new(0.0)],
-            _gap_768690: Bytes::new([0; 4]),
-            ball_way: [Float::new(1.0), Float::new(1.0)],
-            _gap_76869c: Bytes::new([0; 4]),
-            ball_size: [Float::new(0.0), Float::new(0.0)],
-            _gap_7686a8: Bytes::new([0; 4]),
-            saved_bat: [Dword::new(0x0), Dword::new(0x0)],
-            _gap_7686b4: Bytes::new([0; 4]),
-            bat: [Float::new(0.0), Float::new(0.0)],
-            _gap_7686c0: Bytes::new([0; 16]),
-            bat_size: [Float::new(0.0), Float::new(0.0)],
-            _gap_7686d8: Bytes::new([0; 4]),
-            ball_centre: [Float::new(0.0), Float::new(0.0)],
-            _gap_7686e4: Bytes::new([0; 4]),
-            bat_centre: [Float::new(0.0), Float::new(0.0)],
-            _gap_7686f0: Bytes::new([0; 4]),
-            difference: [Float::new(0.0), Float::new(0.0)],
-            _gap_7686fc: Bytes::new([0; 4]),
-            steps: Dword::new(0x0),
-            digit_patterns: Bytes::new([
+            box_sides: [const { PlainFloat::new(0.0) }; 12],
+            ball: [PlainFloat::new(0.0), PlainFloat::new(0.0)],
+            _gap_768690: PlainBytes::new([0; 4]),
+            ball_way: [PlainFloat::new(1.0), PlainFloat::new(1.0)],
+            _gap_76869c: PlainBytes::new([0; 4]),
+            ball_size: [PlainFloat::new(0.0), PlainFloat::new(0.0)],
+            _gap_7686a8: PlainBytes::new([0; 4]),
+            saved_bat: [PlainDword::new(0x0), PlainDword::new(0x0)],
+            _gap_7686b4: PlainBytes::new([0; 4]),
+            bat: [PlainFloat::new(0.0), PlainFloat::new(0.0)],
+            _gap_7686c0: PlainBytes::new([0; 16]),
+            bat_size: [PlainFloat::new(0.0), PlainFloat::new(0.0)],
+            _gap_7686d8: PlainBytes::new([0; 4]),
+            ball_centre: [PlainFloat::new(0.0), PlainFloat::new(0.0)],
+            _gap_7686e4: PlainBytes::new([0; 4]),
+            bat_centre: [PlainFloat::new(0.0), PlainFloat::new(0.0)],
+            _gap_7686f0: PlainBytes::new([0; 4]),
+            difference: [PlainFloat::new(0.0), PlainFloat::new(0.0)],
+            _gap_7686fc: PlainBytes::new([0; 4]),
+            steps: PlainDword::new(0x0),
+            digit_patterns: PlainBytes::new([
                 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00,
                 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00,
                 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x01, 0x01, 0x00, 0x01, 0x01,
@@ -101,9 +101,9 @@ impl PongState {
                 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00,
                 0x01, 0x01, 0x00, 0x00,
             ]),
-            best: Dword::new(0x0),
-            hits: Dword::new(0x0),
-            digit_at: [Dword::new(0x0), Dword::new(0x0)],
+            best: PlainDword::new(0x0),
+            hits: PlainDword::new(0x0),
+            digit_at: [PlainDword::new(0x0), PlainDword::new(0x0)],
         }
     }
 
@@ -116,84 +116,84 @@ impl PongState {
 #[derive(rc2k_derive::Cells)]
 pub struct PongRules {
     /// 0x769182: `flt_769182` .. `flt_76919E`: the court at the start of a game (`Court::reset`), as bits: four (x, y) pairs, the ball, its size, the bat, its size.
-    pub start: [Float; 8],
+    pub start: [PlainFloat; 8],
     /// 0x7691A2: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_7691a2: Bytes<4>,
+    pub _gap_7691a2: PlainBytes<4>,
     /// 0x7691A6: `flt_7691A6` .. `flt_7691C2`: the court's walls the ball turns at and the places it is put back at (a reading, `effects::move_pong_ball`).
-    pub walls: [Float; 8],
+    pub walls: [PlainFloat; 8],
     /// 0x7691C6: `flt_7691C6` .. `flt_7691D2`: a half, four times: a place plus its size times it is the centre (`Court` centres).
-    pub centre: [Float; 4],
+    pub centre: [PlainFloat; 4],
     /// 0x7691D6: `flt_7691D6`: 1, what a hit changes the way by.
-    pub nudge: Float,
+    pub nudge: PlainFloat,
     /// 0x7691DA: `flt_7691DA`, `flt_7691DE`: 4, 4: the way after a hit is the difference over them (`effects::pong_ball_hits`).
-    pub way_scale: [Float; 2],
+    pub way_scale: [PlainFloat; 2],
     /// 0x7691E2: Not named: 24 bytes (a gap, or unreferenced data).
-    pub _gap_7691e2: Bytes<24>,
+    pub _gap_7691e2: PlainBytes<24>,
     /// 0x7691FA: `flt_7691FA`, `flt_7691FE`: 16 and -16: a score cell's step across and down (`effects::pong_cell`).
-    pub cell_step: [Float; 2],
+    pub cell_step: [PlainFloat; 2],
     /// 0x769202: `flt_769202`, `flt_769206`: 16, 16: a score cell's size.
-    pub cell_size: [Float; 2],
+    pub cell_size: [PlainFloat; 2],
     /// 0x76920A: `dword_76920A` .. `dword_769216`: the texture places of a pong box (`effects::draw_pong_box`; 0.99 four times, as bits).
-    pub box_places: [Float; 4],
+    pub box_places: [PlainFloat; 4],
     /// 0x76921A: `flt_76921A`: 16384: `effects::draw_pong_box` draws nothing when the first corner's third value (its depth) compares below it.
-    pub near: Float,
+    pub near: PlainFloat,
     /// 0x76921E: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_76921e: Bytes<4>,
+    pub _gap_76921e: PlainBytes<4>,
     /// 0x769222: `dword_769222` .. `dword_76922E`: the texture places the pong frame's set-up uses (`effects::pong_setup`).
-    pub setup_places: [Float; 4],
+    pub setup_places: [PlainFloat; 4],
 }
 
 impl PongRules {
     pub const fn new() -> Self {
         PongRules {
             start: [
-                Float::new(1024.0),
-                Float::new(512.0),
-                Float::new(64.0),
-                Float::new(64.0),
-                Float::new(1792.0),
-                Float::new(256.0),
-                Float::new(64.0),
-                Float::new(256.0),
+                PlainFloat::new(1024.0),
+                PlainFloat::new(512.0),
+                PlainFloat::new(64.0),
+                PlainFloat::new(64.0),
+                PlainFloat::new(1792.0),
+                PlainFloat::new(256.0),
+                PlainFloat::new(64.0),
+                PlainFloat::new(256.0),
             ],
-            _gap_7691a2: Bytes::new([0; 4]),
+            _gap_7691a2: PlainBytes::new([0; 4]),
             walls: [
-                Float::new(128.0),
-                Float::new(128.0),
-                Float::new(2048.0),
-                Float::new(128.0),
-                Float::new(128.0),
-                Float::new(128.0),
-                Float::new(1024.0),
-                Float::new(1024.0),
+                PlainFloat::new(128.0),
+                PlainFloat::new(128.0),
+                PlainFloat::new(2048.0),
+                PlainFloat::new(128.0),
+                PlainFloat::new(128.0),
+                PlainFloat::new(128.0),
+                PlainFloat::new(1024.0),
+                PlainFloat::new(1024.0),
             ],
             centre: [
-                Float::new(0.5),
-                Float::new(0.5),
-                Float::new(0.5),
-                Float::new(0.5),
+                PlainFloat::new(0.5),
+                PlainFloat::new(0.5),
+                PlainFloat::new(0.5),
+                PlainFloat::new(0.5),
             ],
-            nudge: Float::new(1.0),
-            way_scale: [Float::new(4.0), Float::new(4.0)],
-            _gap_7691e2: Bytes::new([
+            nudge: PlainFloat::new(1.0),
+            way_scale: [PlainFloat::new(4.0), PlainFloat::new(4.0)],
+            _gap_7691e2: PlainBytes::new([
                 0x00, 0x00, 0x00, 0x42, 0x00, 0x00, 0x00, 0x43, 0x00, 0x00, 0x00, 0x43, 0x00, 0x00,
                 0x00, 0x42, 0x00, 0x00, 0x80, 0x44, 0x00, 0x00, 0x80, 0x44,
             ]),
-            cell_step: [Float::new(16.0), Float::new(-16.0)],
-            cell_size: [Float::new(16.0), Float::new(16.0)],
+            cell_step: [PlainFloat::new(16.0), PlainFloat::new(-16.0)],
+            cell_size: [PlainFloat::new(16.0), PlainFloat::new(16.0)],
             box_places: [
-                Float::new(0.99),
-                Float::new(0.99),
-                Float::new(0.99),
-                Float::new(0.99),
+                PlainFloat::new(0.99),
+                PlainFloat::new(0.99),
+                PlainFloat::new(0.99),
+                PlainFloat::new(0.99),
             ],
-            near: Float::new(16384.0),
-            _gap_76921e: Bytes::new([0x00, 0x00, 0x80, 0x43]),
+            near: PlainFloat::new(16384.0),
+            _gap_76921e: PlainBytes::new([0x00, 0x00, 0x80, 0x43]),
             setup_places: [
-                Float::new(0.11328125),
-                Float::new(0.03125),
-                Float::new(0.24609375),
-                Float::new(0.1640625),
+                PlainFloat::new(0.11328125),
+                PlainFloat::new(0.03125),
+                PlainFloat::new(0.24609375),
+                PlainFloat::new(0.1640625),
             ],
         }
     }
@@ -267,11 +267,11 @@ fn less_status(x: u32, k: u32, w: u32, m: Option<u32>) -> u16 {
     bh::compare(t, bh::ld(x))
 }
 
-fn pair(r: &[Float; 2]) -> [f32; 2] {
-    r.each_ref().map(Float::get)
+fn pair(r: &[PlainFloat; 2]) -> [f32; 2] {
+    r.each_ref().map(PlainFloat::get)
 }
 
-fn put_pair(r: &[Float; 2], v: [f32; 2]) {
+fn put_pair(r: &[PlainFloat; 2], v: [f32; 2]) {
     for (r, v) in r.iter().zip(v) {
         r.set(v);
     }
@@ -284,7 +284,7 @@ pub fn court(pong: &Pong) -> rc2k_core::effects::pong::Court {
         ball: pair(&p.ball),
         way: pair(&p.ball_way),
         ball_size: pair(&p.ball_size),
-        saved_bat: p.saved_bat.each_ref().map(Dword::get),
+        saved_bat: p.saved_bat.each_ref().map(PlainDword::get),
         bat: pair(&p.bat),
         bat_size: pair(&p.bat_size),
         ball_centre: pair(&p.ball_centre),
@@ -330,12 +330,12 @@ pub fn rules(
 ) -> rc2k_core::effects::pong::Rules {
     let r = &pong.rules;
     rc2k_core::effects::pong::Rules {
-        centre: r.centre.each_ref().map(Float::get),
+        centre: r.centre.each_ref().map(PlainFloat::get),
         nudge: r.nudge.get(),
         way_scale: pair(&r.way_scale),
         length: f32::from_bits(effects.setup.floats.one.bits()),
-        walls: r.walls.each_ref().map(Float::get),
-        start: r.start.each_ref().map(Float::bits),
+        walls: r.walls.each_ref().map(PlainFloat::get),
+        start: r.start.each_ref().map(PlainFloat::bits),
     }
 }
 
@@ -584,16 +584,16 @@ mod state_tests {
     fn moved_sends_the_addresses_to_the_statics() {
         assert_eq!(
             crate::moved::place(0x768688),
-            crate::effects::owner::EFFECTS.pong.state.ball[0].addr() as usize
+            crate::effects::owner::effects().pong.state.ball[0].addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x76921A),
-            crate::effects::owner::EFFECTS.pong.rules.near.addr() as usize
+            crate::effects::owner::effects().pong.rules.near.addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x7687DC),
-            (crate::effects::store::STORE.addr() + (0x7687DC - crate::effects::store::START) as u32)
-                as usize
+            (crate::effects::store::STORE.get().addr()
+                + (0x7687DC - crate::effects::store::START) as u32) as usize
         );
     }
 }

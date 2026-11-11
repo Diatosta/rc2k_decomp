@@ -2,31 +2,31 @@
 //! RAL.EXE's image (IDA 0x7585D8 .. 0x758714). A `#[repr(C)]` struct with the image's
 //! layout, one static; `moved::MOVED` points the range at it.
 
-use crate::session::{Bytes, Dword, with_runs};
+use crate::session::{PlainBytes, PlainDword, with_runs};
 
 /// The notice flag, the kept car and the cheats (IDA 0x7585D8 .. 0x758714).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Cheats {
     /// `g_noticeDue`: Set to 1 by the main menu before a frame (`menu::frame_callback` looks at it).
-    pub notice_due: Dword,
+    pub notice_due: PlainDword,
     /// `dword_7585DC`: The car shown on the car specification screen, kept over its visits.
-    pub kept_car: Dword,
+    pub kept_car: PlainDword,
     /// `aNepnqrNpgvba`: The list of the cheats' coded names: each entry a rot13 name, its NUL and the cheat's bit number; a NUL where a name would start ends it (`menu::check_cheat_name`).
-    pub cheat_names: Bytes<300>,
+    pub cheat_names: PlainBytes<300>,
     /// `g_cheats`: The cheats switched on, one bit each (`menu::apply_cheats`).
-    pub cheats: Dword,
+    pub cheats: PlainDword,
     /// `g_allSecretCars`: The `allsecretcars` / `secretcar` setting of `var\ral.cfg`.
-    pub all_secret_cars: Dword,
+    pub all_secret_cars: PlainDword,
 }
 
 /// First values the image's (`tests::cheat_vars_starts_as_the_games`).
 impl Cheats {
     pub const fn new() -> Self {
         Cheats {
-            notice_due: Dword::new(0x0),
-            kept_car: Dword::new(0x0),
-            cheat_names: Bytes::new(with_runs::<300>(&[(
+            notice_due: PlainDword::new(0x0),
+            kept_car: PlainDword::new(0x0),
+            cheat_names: PlainBytes::new(with_runs::<300>(&[(
                 0x0,
                 &[
                     0x6e, 0x65, 0x70, 0x6e, 0x71, 0x72, 0x20, 0x6e, 0x70, 0x67, 0x76, 0x62, 0x61,
@@ -54,8 +54,8 @@ impl Cheats {
                     0x20, 0x65, 0x72, 0x69, 0x72, 0x65, 0x66, 0x76, 0x00, 0x12,
                 ],
             )])),
-            cheats: Dword::new(0x0),
-            all_secret_cars: Dword::new(0xFFFFFFFF),
+            cheats: PlainDword::new(0x0),
+            all_secret_cars: PlainDword::new(0xFFFFFFFF),
         }
     }
 }
@@ -68,7 +68,7 @@ pub const END: usize = 0x758714;
 /// Where IDA 0x7585D8 lives (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn cheats_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::menu::owner::MENUS.play.cheats)
+    crate::pointers::game_address(&raw const crate::menu::owner::menus().play.cheats)
 }
 
 #[cfg(test)]

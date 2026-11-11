@@ -84,7 +84,7 @@ pub fn drops_to_neutral(
 pub struct GearSetup {
     /// `gear_count`: the forward gears.
     pub count: u32,
-    /// The top gear's ends (`flt_5CB978`, `flt_5CB970`) and the first's (`flt_5CB974`,
+    /// The top gear's ends and the first's (`flt_5CB974`,
     /// `figures`).
     pub top: [f32; 2],
     pub first: [f32; 2],

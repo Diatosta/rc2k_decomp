@@ -6,12 +6,11 @@ use crate::menu::arcade_store::Arcade;
 use crate::menu::owner::Menus;
 
 /// A note's box put up (converted: `rc2k_core::screens::locked`). The original's x for the
-/// box is the caller's ecx, which only the measuring of the text gets, in a font in measure
-/// mode (`dword_51E824`'s mode 4): it changes nothing, so 0. What the original leaves (eax)
-/// is read by no list entry after it.
+/// box only reaches the measuring of the text, in a font in measure mode: it changes
+/// nothing, so 0.
 fn show(note: rc2k_core::screens::locked::Note) -> Result<(), Refused> {
     let gfx = crate::gfx::owner::gfx();
-    if note.eax.is_some() && note.show {
+    if note.show {
         crate::screens::draw_message_box::draw_message_box(
             0,
             &mut crate::text::draw_text::GameCanvas,

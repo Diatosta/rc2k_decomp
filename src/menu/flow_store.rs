@@ -5,36 +5,36 @@
 //! at it. The list pointers hold the lists by handle (`menu::fn_list`).
 
 use crate::menu::fn_list::ListCell;
-use crate::session::{Bytes, Dword, Flag, with_runs};
+use crate::session::{PlainBytes, PlainDword, PlainFlag, with_runs};
 
 /// The screens' flow variables (IDA 0x7554C0 .. 0x755525).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ScreenFlow {
     /// +0 (0x7554C0) `g_startSection`: the rally of the Mobil One championship to start at, 0 .. 6 (0: from the first, with the welcome; n: section n - 1, `rc2k_core::menu::championship`). Chosen on the options page by `menu::next_colour_a` / `previous_colour_a` (IDA's names: nothing here is a colour; the pictures are string 0x1D9, the championship's name, then the six rallies' names, 0x3DC .. 0x3E1). `saves::gather_savegame` keeps it in car 0 at +0x14 and `load_savegame` puts it back.
-    pub start_section: Dword,
+    pub start_section: PlainDword,
     /// +4 (0x7554C4) `g_startSectionA8`: the same for the A8 rally championship, 0 .. 6 (the pictures are string 0x1DA, "Campeonato de Rali A8", then "ronda um" .. "ronda seis", 0x3D6 .. 0x3DB; chosen by `menu::next_colour_b` / `previous_colour_b`). Kept in car 0 at +0x274 by the saved games.
-    pub start_section_a8: Dword,
+    pub start_section_a8: PlainDword,
     /// `dword_7554C8`: Kept by `menu::run_event_races`.
-    pub kept: Dword,
+    pub kept: PlainDword,
     /// `g_askingYesNo`: 1 on a yes / no screen (`menu::leaving`).
-    pub asking: Flag,
+    pub asking: PlainFlag,
     /// `dword_7554D0`: 1 = left and right do not click (`menu::navigation`).
-    pub quiet: Dword,
+    pub quiet: PlainDword,
     /// `g_enterSkipsNameEntry`: Enter acts as key 4 (`menu::handle_keys`, `menu::begin_player_name`).
-    pub enter_skips_name_entry: Dword,
+    pub enter_skips_name_entry: PlainDword,
     /// `dword_7554D8`: 1 picks the first list of cars (`menu::event_flow`).
-    pub car_list_kind: Dword,
+    pub car_list_kind: PlainDword,
     /// Unreferenced bytes (IDA 0x7554DC .. 0x7554E4).
-    pub _gap_7554dc: Bytes<8>,
+    pub _gap_7554dc: PlainBytes<8>,
     /// `dword_7554E4`: 0 on the service area's screen, 1 after it (`draw_background_band`).
-    pub left_service: Dword,
+    pub left_service: PlainDword,
     /// `dword_7554E8`: The menu sounds' second volume (`sound::play_menu_sound`).
-    pub menu_sounds_volume: Dword,
+    pub menu_sounds_volume: PlainDword,
     /// `dword_7554EC`: 1 = left and right turn the counter (`menu::navigation`).
-    pub turning: Dword,
+    pub turning: PlainDword,
     /// `g_shownGearing`: The gearing shown (`screens::gearing_text`).
-    pub shown_gearing: Dword,
+    pub shown_gearing: PlainDword,
     /// `g_unreadList`: The screen's first list (`menu::fn_list`: by handle, not the list's address).
     pub unread_list: ListCell,
     /// `g_drawList`: The screen's draw list.
@@ -46,31 +46,31 @@ pub struct ScreenFlow {
     /// `g_sceneList`: The screen's 3D list.
     pub scene_list: ListCell,
     /// Unreferenced bytes (IDA 0x755508 .. 0x755525).
-    pub _gap_755508: Bytes<32>,
+    pub _gap_755508: PlainBytes<32>,
 }
 
 impl ScreenFlow {
     /// First values the image's (`tests::screen_flow_starts_as_the_games`).
     pub const fn new() -> Self {
         ScreenFlow {
-            start_section: Dword::new(0x0),
-            start_section_a8: Dword::new(0x0),
-            kept: Dword::new(0x1),
-            asking: Flag::new(false),
-            quiet: Dword::new(0x0),
-            enter_skips_name_entry: Dword::new(0x0),
-            car_list_kind: Dword::new(0x0),
-            _gap_7554dc: Bytes::new([0; 8]),
-            left_service: Dword::new(0x1),
-            menu_sounds_volume: Dword::new(0x0),
-            turning: Dword::new(0x1),
-            shown_gearing: Dword::new(0x1),
+            start_section: PlainDword::new(0x0),
+            start_section_a8: PlainDword::new(0x0),
+            kept: PlainDword::new(0x1),
+            asking: PlainFlag::new(false),
+            quiet: PlainDword::new(0x0),
+            enter_skips_name_entry: PlainDword::new(0x0),
+            car_list_kind: PlainDword::new(0x0),
+            _gap_7554dc: PlainBytes::new([0; 8]),
+            left_service: PlainDword::new(0x1),
+            menu_sounds_volume: PlainDword::new(0x0),
+            turning: PlainDword::new(0x1),
+            shown_gearing: PlainDword::new(0x1),
             unread_list: ListCell::new(),
             draw_list: ListCell::new(),
             overlay_list: ListCell::new(),
             setup_list: ListCell::new(),
             scene_list: ListCell::new(),
-            _gap_755508: Bytes::new(with_runs::<32>(&[(0x0, &[0xff, 0xff, 0xff, 0xff])])),
+            _gap_755508: PlainBytes::new(with_runs::<32>(&[(0x0, &[0xff, 0xff, 0xff, 0xff])])),
         }
     }
 }
@@ -83,7 +83,7 @@ pub const END: usize = 0x755525;
 /// Where IDA 0x7554C0 lives (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn screen_flow_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::menu::owner::MENUS.screens.flow)
+    crate::pointers::game_address(&raw const crate::menu::owner::menus().screens.flow)
 }
 
 #[cfg(test)]

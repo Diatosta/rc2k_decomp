@@ -21,7 +21,7 @@ pub enum Work {
     X,
     /// `g_markerY`.
     Y,
-    /// `dword_7559EC`: the row counter.
+    /// The row counter.
     Row,
 }
 

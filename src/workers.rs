@@ -76,11 +76,11 @@ pub fn pick<'a, T>(first: &'a T, others: &'a [T; COUNT - 1]) -> &'a T {
 
 /// A store with one copy per drawing thread, reached by copy number (0 the game's own).
 pub trait Copies: Sync {
-    fn copy(&self, n: usize) -> &dyn crate::pointers::Store;
+    fn copy(&self, n: usize) -> &(dyn crate::pointers::Store + Sync);
 }
 
-impl<T: crate::pointers::Store> Copies for PerWorker<T> {
-    fn copy(&self, n: usize) -> &dyn crate::pointers::Store {
+impl<T: crate::pointers::Store + Sync> Copies for PerWorker<T> {
+    fn copy(&self, n: usize) -> &(dyn crate::pointers::Store + Sync) {
         &self.0[n]
     }
 }

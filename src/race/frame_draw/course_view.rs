@@ -32,16 +32,14 @@ pub fn add_sort_entry(lists: &SortLists, kind: u32, face: u32) -> Result<(), Ref
 
 /// `race::checkpoint_colours` (0x4548E3): the current checkpoint's (`CAR.checkpoint`) face
 /// (`g_checkpointFaces`, records of 0x40 at `g_courseFaces`): its +0x10 byte's low and high nibbles
-/// (0 read as 0x10) to `PHYSICS.checkpoint_colours` / `PHYSICS.checkpoint_colours[1]`;
-/// `PHYSICS.checkpoint_colours[2]` = `CHECKPOINTS.angles[2][checkpoint]` - `CAR.car_heading`; the
-/// far cells' limit returned (the original's `LEVEL_GRID.far_cell_limit`): the low (twice the
+/// (0 read as 0x10) and `CHECKPOINTS.angles[2][checkpoint]` - `CAR.car_heading` (the
+/// original stored the three where nothing reads them); the far cells' limit returned (the original's `LEVEL_GRID.far_cell_limit`): the low (twice the
 /// distance below 0x40000000 as signed), the high (from 0xC0000000), else the larger. The tables
 /// are read unchecked, as the original.
 pub fn checkpoint_colours(
     race: &Race,
     car: &crate::physics::car_store::Car,
 ) -> Result<u32, BadInput> {
-    let shared = &race.shared;
     // Converted: `rc2k_core::race::frame::checkpoint_colours`.
     {
         let n: u32 = car.checkpoint.get();
@@ -52,9 +50,6 @@ pub fn checkpoint_colours(
         let along =
             crate::race::checkpoints_store::cell_in(&CHECKPOINTS.angles[2..], n as usize).get();
         let c = rc2k_core::race::frame::checkpoint_colours(byte, along, car.car_heading.get());
-        shared.physics_tables.checkpoint_colours[0].set(c.near);
-        shared.physics_tables.checkpoint_colours[1].set(c.far);
-        shared.physics_tables.checkpoint_colours[2].set(c.distance);
         Ok(c.level)
     }
 }
@@ -331,12 +326,13 @@ pub fn gather_visible_faces(ctx: &DrawCtx) -> Result<(), Refused> {
 /// flipped when any is set (0xA), or'd with bits 4 and 5 likewise (0x30).
 pub fn face_hide_mask(
     race: &Race,
+    scene: &crate::scene::owner::Scene,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
     crate::physics::probe_ground::probe_ground_in_view(
         &crate::physics::step_inputs::StepInputs::of(race).ground(),
         &view.car,
-        crate::scene::owner::scene(),
+        scene,
     )?;
     let ground: u32 = view.car.probe_point_face[4].get();
     if ground == u32::MAX {
@@ -403,11 +399,12 @@ pub fn mark_far_cells(
 /// anything) what `course_grid` would.
 pub fn prepare_course_view(
     race: &Race,
+    scene: &crate::scene::owner::Scene,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
     let course = &race.course;
     check_course_grid(course)?;
-    face_hide_mask(race, view)?;
+    face_hide_mask(race, scene, view)?;
     course_grid(race, &view.grid, &view.vars)?;
     if race.shared.switches.scene_set_up.get() == 0 {
         return Ok(());

@@ -5,7 +5,7 @@
 //! `threading::wait_for_threads` 0x410BA8).
 //!
 //! The game keeps four thread slots (0x110 bytes, +4 the thread's id); a thread finds its
-//! own by its id. Its Win32 calls answer in the flags: a handle by `cmp eax, 1`, a wait
+//! own by its id. Its Win32 calls answer in the flags: a handle by comparing with 1, a wait
 //! by carry (failed) and zero (failed or timed out).
 
 /// The thread slots.
@@ -48,12 +48,12 @@ impl Waited {
     }
 }
 
-/// `cmp eax, 1` on a handle: (carry, zero); the carry says there is none.
+/// A handle compared with 1: (carry, zero); the carry says there is none.
 pub fn handle_flags(handle: u32) -> (bool, bool) {
     (handle < 1, handle == 1)
 }
 
-/// The quit switch (`dword_51837C`) once the game is shutting down.
+/// The quit switch once the game is shutting down.
 pub const QUITTING: u32 = 1;
 
 /// `threading::request_quit`: the shutdown thread is started only by the first request

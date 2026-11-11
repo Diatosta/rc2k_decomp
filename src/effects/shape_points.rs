@@ -11,42 +11,42 @@ use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::race::owner_course::Course;
 use crate::scene::matrix3::{Axis, extended, turn_matrix3, turnable};
-use crate::session::{Bytes, Dword, Float, read_bits, write_bits};
+use crate::session::{PlainBytes, PlainDword, PlainFloat, read_bits, write_bits};
 
 impl MarkShapes {
     /// List `n`'s (0 A, 1 B) count of points.
-    pub fn count(&self, n: usize) -> &Dword {
+    pub fn count(&self, n: usize) -> &PlainDword {
         [&self.count_a, &self.count_b][n]
     }
     /// List `n`'s point ids (the targets: pointers into the object's points).
-    pub fn ids(&self, n: usize) -> &[Dword; 64] {
+    pub fn ids(&self, n: usize) -> &[PlainDword; 64] {
         [&self.ids_a, &self.ids_b][n]
     }
     /// List `n`'s turned points (12 bytes each).
-    pub fn turned(&self, n: usize) -> &Bytes<0x300> {
+    pub fn turned(&self, n: usize) -> &PlainBytes<0x300> {
         [&self.turned_a, &self.turned_b][n]
     }
     /// List `n`'s farthest pair.
-    pub fn farthest(&self, n: usize) -> &[Dword; 2] {
+    pub fn farthest(&self, n: usize) -> &[PlainDword; 2] {
         [&self.farthest_a, &self.farthest_b][n]
     }
     /// List `n`'s lowest point.
-    pub fn low(&self, n: usize) -> &[Dword; 3] {
+    pub fn low(&self, n: usize) -> &[PlainDword; 3] {
         [&self.low_a, &self.low_b][n]
     }
     /// List `n`'s turn.
-    pub fn matrix(&self, n: usize) -> &[Float; 9] {
+    pub fn matrix(&self, n: usize) -> &[PlainFloat; 9] {
         [&self.matrix_a, &self.matrix_b][n]
     }
 }
 
 /// The working block's farthest pair of list `n` (`g_marksFarthestA`, `_B`).
-pub fn farthest_pair(drops: &WindscreenDrops, n: usize) -> &[Dword; 2] {
+pub fn farthest_pair(drops: &WindscreenDrops, n: usize) -> &[PlainDword; 2] {
     drops.shape_work.work.farthest(n)
 }
 
 /// The working block's turned points of list `n` (`g_marksTurnedA`, `_B`).
-pub fn turned(drops: &WindscreenDrops, n: usize) -> &Bytes<0x300> {
+pub fn turned(drops: &WindscreenDrops, n: usize) -> &PlainBytes<0x300> {
     drops.shape_work.work.turned(n)
 }
 
@@ -56,21 +56,21 @@ fn set(drops: &WindscreenDrops) -> &MarkShapes {
 }
 
 /// The turn about X, and the turns about Z of lists A and B (3 x 3 floats).
-fn turn_x(drops: &WindscreenDrops) -> &[Float; 9] {
+fn turn_x(drops: &WindscreenDrops) -> &[PlainFloat; 9] {
     &drops.shape_work.turn_x
 }
-fn turn_z(drops: &WindscreenDrops, n: usize) -> &[Float; 9] {
+fn turn_z(drops: &WindscreenDrops, n: usize) -> &[PlainFloat; 9] {
     [&drops.shape_work.turn_a, &drops.shape_work.turn_b][n]
 }
 pub const MOST_POINTS: u32 = 0x40;
 
 /// Point `k`'s part `c` of turned points `t` (12 bytes a point).
-fn part(t: &Bytes<0x300>, k: u32, c: u32) -> u32 {
+fn part(t: &PlainBytes<0x300>, k: u32, c: u32) -> u32 {
     t.get_u32((12 * k + 4 * c) as usize)
 }
 
 /// A points list's count, refused past 0x40 (its tables' end).
-fn listed(count: &Dword) -> Result<u32, BadInput> {
+fn listed(count: &PlainDword) -> Result<u32, BadInput> {
     let n = count.get();
     if n > MOST_POINTS {
         return Err(BadInput("a points list of more than 0x40"));
@@ -176,7 +176,7 @@ pub fn turn_shape_points(drops: &WindscreenDrops, a: u32, b: u32) -> Result<(), 
 fn all_steps<'a>(
     masks: &'a crate::effects::mask_store::Masks,
     drops: &'a WindscreenDrops,
-) -> [(&'a Dword, usize, &'a Dword, &'a Dword); 2] {
+) -> [(&'a PlainDword, usize, &'a PlainDword, &'a PlainDword); 2] {
     [
         (
             &masks.vars.shapes[0].ease_step,
@@ -484,29 +484,29 @@ pub fn make_shape_sets(
 #[derive(rc2k_derive::Cells)]
 pub struct ShapeInputs {
     /// 0x764F40: `dword_764F40`: the angle in hand while a turn matrix is made (`turn_shape_points`, `smooth_steps`; a scratch, nothing reads it back).
-    pub scratch: Dword,
+    pub scratch: PlainDword,
     /// 0x764F44: Not named: 28 bytes (a gap, or unreferenced data).
-    pub _gap_764f44: Bytes<28>,
+    pub _gap_764f44: PlainBytes<28>,
     /// 0x764F60: `g_marksShapeInputs`, `dword_764F64`: the tilts a shape set is made with (`make_shape_set`: copied into the working block; `make_shape_sets` writes both).
-    pub tilts: [Dword; 2],
+    pub tilts: [PlainDword; 2],
     /// 0x764F68: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_764f68: Bytes<4>,
+    pub _gap_764f68: PlainBytes<4>,
     /// 0x764F6C: `flt_764F6C` .. `flt_764F78`: the set's four ends (`make_shape_sets` writes them, `make_shape_set` scales them into the working block).
-    pub ends: [Float; 4],
+    pub ends: [PlainFloat; 4],
 }
 
 impl ShapeInputs {
     pub const fn new() -> Self {
         ShapeInputs {
-            scratch: Dword::new(0x0),
-            _gap_764f44: Bytes::new([0; 28]),
-            tilts: [Dword::new(0x0), Dword::new(0x0)],
-            _gap_764f68: Bytes::new([0; 4]),
+            scratch: PlainDword::new(0x0),
+            _gap_764f44: PlainBytes::new([0; 28]),
+            tilts: [PlainDword::new(0x0), PlainDword::new(0x0)],
+            _gap_764f68: PlainBytes::new([0; 4]),
             ends: [
-                Float::new(0.0),
-                Float::new(0.0),
-                Float::new(0.0),
-                Float::new(0.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
             ],
         }
     }
@@ -525,7 +525,7 @@ mod shape_inputs_tests {
     fn shape_inputs_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<ShapeInputs>(), ShapeInputs::LEN);
-        let p = (&raw const crate::effects::owner::EFFECTS.windscreen_drops.inputs).cast::<u8>();
+        let p = (&raw const crate::effects::owner::effects().windscreen_drops.inputs).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<ShapeInputs>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();
@@ -550,195 +550,195 @@ mod shape_inputs_tests {
 #[derive(rc2k_derive::Cells)]
 pub struct ShapeSetTuning {
     /// 0x89C724: `g_marksShapeKinds`, `dword_89C728`: the two face kinds the shape sets are made for (set by `effects::make_shape_sets` from the kind's entries of the two tables that follow).
-    pub face_kinds: [Dword; 2],
+    pub face_kinds: [PlainDword; 2],
     /// 0x89C72C: `dword_89C72C` ..: the kind's first face kind, by `g_marksKind` (0x22 entries).
-    pub first_face_kind: [Dword; 34],
+    pub first_face_kind: [PlainDword; 34],
     /// 0x89C7B4: `dword_89C7B4` ..: the kind's second face kind, by `g_marksKind` (0x22 entries).
-    pub second_face_kind: [Dword; 34],
+    pub second_face_kind: [PlainDword; 34],
     /// 0x89C83C: `dword_89C83C` ..: the second shape's end by `g_marksKind` (floats: -80, -90 .. as bits; 0x22 entries), put into the set's inputs (`flt_764F74`).
-    pub end_b: [Float; 34],
+    pub end_b: [PlainFloat; 34],
     /// 0x89C8C4: `dword_89C8C4` ..: the first shape's end by `g_marksKind` (floats as bits; 0x22 entries), put into the set's inputs (`flt_764F6C`).
-    pub end_a: [Float; 34],
+    pub end_a: [PlainFloat; 34],
     /// 0x89C94C: `flt_89C94C` .. `flt_89C968`: four (end, 0) pairs, -90, -80, 80, 90 (read by the original `make_shape_sets`, which overwrites what it takes; the port reads none of them).
-    pub end_pairs: [Float; 8],
+    pub end_pairs: [PlainFloat; 8],
     /// 0x89C96C: `flt_89C96C`, `flt_89C970`: the sets' second ends of the first and second shape (0 at first).
-    pub set_ends: [Float; 2],
+    pub set_ends: [PlainFloat; 2],
     /// 0x89C974: `dword_89C974`, `dword_89C978`, `dword_89C97C`, `dword_89C980`: each shape's eased turn from its first angle (0) and a second (-pi / 2, which the port does not read), as bits (`effects::turn_all_shapes`).
-    pub turn_angles: [Float; 4],
+    pub turn_angles: [PlainFloat; 4],
     /// 0x89C984: `flt_89C984` .. `flt_89C990`: 0.0175 (degrees to radians) four times, the set's step scales (`effects::make_shape_set`).
-    pub step_scales: [Float; 4],
+    pub step_scales: [PlainFloat; 4],
 }
 
 impl ShapeSetTuning {
     pub const fn new() -> Self {
         ShapeSetTuning {
-            face_kinds: [Dword::new(0x1E), Dword::new(0x1D)],
+            face_kinds: [PlainDword::new(0x1E), PlainDword::new(0x1D)],
             first_face_kind: [
-                Dword::new(0x1E),
-                Dword::new(0x1E),
-                Dword::new(0x1E),
-                Dword::new(0x1E),
-                Dword::new(0x1E),
-                Dword::new(0x1E),
-                Dword::new(0x1E),
-                Dword::new(0x1E),
-                Dword::new(0x1E),
-                Dword::new(0x1E),
-                Dword::new(0x1E),
-                Dword::new(0x1E),
-                Dword::new(0x1E),
-                Dword::new(0x1E),
-                Dword::new(0x1E),
-                Dword::new(0x1E),
-                Dword::new(0x1E),
-                Dword::new(0x1E),
-                Dword::new(0x1E),
-                Dword::new(0x1E),
-                Dword::new(0x1E),
-                Dword::new(0x1E),
-                Dword::new(0x1E),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0x1E),
+                PlainDword::new(0x1E),
+                PlainDword::new(0x1E),
+                PlainDword::new(0x1E),
+                PlainDword::new(0x1E),
+                PlainDword::new(0x1E),
+                PlainDword::new(0x1E),
+                PlainDword::new(0x1E),
+                PlainDword::new(0x1E),
+                PlainDword::new(0x1E),
+                PlainDword::new(0x1E),
+                PlainDword::new(0x1E),
+                PlainDword::new(0x1E),
+                PlainDword::new(0x1E),
+                PlainDword::new(0x1E),
+                PlainDword::new(0x1E),
+                PlainDword::new(0x1E),
+                PlainDword::new(0x1E),
+                PlainDword::new(0x1E),
+                PlainDword::new(0x1E),
+                PlainDword::new(0x1E),
+                PlainDword::new(0x1E),
+                PlainDword::new(0x1E),
+                PlainDword::new(0x1E),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0x1E),
             ],
             second_face_kind: [
-                Dword::new(0x1D),
-                Dword::new(0x1D),
-                Dword::new(0x1D),
-                Dword::new(0x1D),
-                Dword::new(0x1D),
-                Dword::new(0x1D),
-                Dword::new(0x1D),
-                Dword::new(0x1D),
-                Dword::new(0x1D),
-                Dword::new(0x1D),
-                Dword::new(0x1D),
-                Dword::new(0x1D),
-                Dword::new(0x1D),
-                Dword::new(0x1D),
-                Dword::new(0x1D),
-                Dword::new(0x1D),
-                Dword::new(0x1D),
-                Dword::new(0x1D),
-                Dword::new(0x1D),
-                Dword::new(0x1D),
-                Dword::new(0x1D),
-                Dword::new(0x10),
-                Dword::new(0x1D),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0xFFFFFFFF),
-                Dword::new(0x1D),
+                PlainDword::new(0x1D),
+                PlainDword::new(0x1D),
+                PlainDword::new(0x1D),
+                PlainDword::new(0x1D),
+                PlainDword::new(0x1D),
+                PlainDword::new(0x1D),
+                PlainDword::new(0x1D),
+                PlainDword::new(0x1D),
+                PlainDword::new(0x1D),
+                PlainDword::new(0x1D),
+                PlainDword::new(0x1D),
+                PlainDword::new(0x1D),
+                PlainDword::new(0x1D),
+                PlainDword::new(0x1D),
+                PlainDword::new(0x1D),
+                PlainDword::new(0x1D),
+                PlainDword::new(0x1D),
+                PlainDword::new(0x1D),
+                PlainDword::new(0x1D),
+                PlainDword::new(0x1D),
+                PlainDword::new(0x1D),
+                PlainDword::new(0x10),
+                PlainDword::new(0x1D),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0x1D),
             ],
             end_b: [
-                Float::new(-80.0),
-                Float::new(-80.0),
-                Float::new(-80.0),
-                Float::new(-80.0),
-                Float::new(-80.0),
-                Float::new(-80.0),
-                Float::new(-80.0),
-                Float::new(-80.0),
-                Float::new(-80.0),
-                Float::new(-80.0),
-                Float::new(90.0),
-                Float::new(-80.0),
-                Float::new(90.0),
-                Float::new(-80.0),
-                Float::new(-80.0),
-                Float::new(-80.0),
-                Float::new(-80.0),
-                Float::new(-80.0),
-                Float::new(-80.0),
-                Float::new(-80.0),
-                Float::new(-80.0),
-                Float::new(-80.0),
-                Float::new(75.0),
-                Float::new(-90.0),
-                Float::new(-90.0),
-                Float::new(-90.0),
-                Float::new(-90.0),
-                Float::new(-90.0),
-                Float::new(-90.0),
-                Float::new(-90.0),
-                Float::new(-90.0),
-                Float::new(-90.0),
-                Float::new(-90.0),
-                Float::new(-80.0),
+                PlainFloat::new(-80.0),
+                PlainFloat::new(-80.0),
+                PlainFloat::new(-80.0),
+                PlainFloat::new(-80.0),
+                PlainFloat::new(-80.0),
+                PlainFloat::new(-80.0),
+                PlainFloat::new(-80.0),
+                PlainFloat::new(-80.0),
+                PlainFloat::new(-80.0),
+                PlainFloat::new(-80.0),
+                PlainFloat::new(90.0),
+                PlainFloat::new(-80.0),
+                PlainFloat::new(90.0),
+                PlainFloat::new(-80.0),
+                PlainFloat::new(-80.0),
+                PlainFloat::new(-80.0),
+                PlainFloat::new(-80.0),
+                PlainFloat::new(-80.0),
+                PlainFloat::new(-80.0),
+                PlainFloat::new(-80.0),
+                PlainFloat::new(-80.0),
+                PlainFloat::new(-80.0),
+                PlainFloat::new(75.0),
+                PlainFloat::new(-90.0),
+                PlainFloat::new(-90.0),
+                PlainFloat::new(-90.0),
+                PlainFloat::new(-90.0),
+                PlainFloat::new(-90.0),
+                PlainFloat::new(-90.0),
+                PlainFloat::new(-90.0),
+                PlainFloat::new(-90.0),
+                PlainFloat::new(-90.0),
+                PlainFloat::new(-90.0),
+                PlainFloat::new(-80.0),
             ],
             end_a: [
-                Float::new(-90.0),
-                Float::new(-90.0),
-                Float::new(-90.0),
-                Float::new(-90.0),
-                Float::new(-90.0),
-                Float::new(-90.0),
-                Float::new(-90.0),
-                Float::new(-90.0),
-                Float::new(-90.0),
-                Float::new(-90.0),
-                Float::new(80.0),
-                Float::new(-90.0),
-                Float::new(80.0),
-                Float::new(-90.0),
-                Float::new(-90.0),
-                Float::new(-90.0),
-                Float::new(-90.0),
-                Float::new(-90.0),
-                Float::new(-90.0),
-                Float::new(-90.0),
-                Float::new(-90.0),
-                Float::new(-75.0),
-                Float::new(99.0),
-                Float::new(90.0),
-                Float::new(90.0),
-                Float::new(90.0),
-                Float::new(90.0),
-                Float::new(90.0),
-                Float::new(90.0),
-                Float::new(90.0),
-                Float::new(90.0),
-                Float::new(90.0),
-                Float::new(-90.0),
-                Float::new(-90.0),
+                PlainFloat::new(-90.0),
+                PlainFloat::new(-90.0),
+                PlainFloat::new(-90.0),
+                PlainFloat::new(-90.0),
+                PlainFloat::new(-90.0),
+                PlainFloat::new(-90.0),
+                PlainFloat::new(-90.0),
+                PlainFloat::new(-90.0),
+                PlainFloat::new(-90.0),
+                PlainFloat::new(-90.0),
+                PlainFloat::new(80.0),
+                PlainFloat::new(-90.0),
+                PlainFloat::new(80.0),
+                PlainFloat::new(-90.0),
+                PlainFloat::new(-90.0),
+                PlainFloat::new(-90.0),
+                PlainFloat::new(-90.0),
+                PlainFloat::new(-90.0),
+                PlainFloat::new(-90.0),
+                PlainFloat::new(-90.0),
+                PlainFloat::new(-90.0),
+                PlainFloat::new(-75.0),
+                PlainFloat::new(99.0),
+                PlainFloat::new(90.0),
+                PlainFloat::new(90.0),
+                PlainFloat::new(90.0),
+                PlainFloat::new(90.0),
+                PlainFloat::new(90.0),
+                PlainFloat::new(90.0),
+                PlainFloat::new(90.0),
+                PlainFloat::new(90.0),
+                PlainFloat::new(90.0),
+                PlainFloat::new(-90.0),
+                PlainFloat::new(-90.0),
             ],
             end_pairs: [
-                Float::new(-90.0),
-                Float::new(0.0),
-                Float::new(-80.0),
-                Float::new(0.0),
-                Float::new(80.0),
-                Float::new(0.0),
-                Float::new(90.0),
-                Float::new(0.0),
+                PlainFloat::new(-90.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(-80.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(80.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(90.0),
+                PlainFloat::new(0.0),
             ],
-            set_ends: [Float::new(0.0), Float::new(0.0)],
+            set_ends: [PlainFloat::new(0.0), PlainFloat::new(0.0)],
             turn_angles: [
-                Float::new(0.0),
-                Float::new(-1.5707964),
-                Float::new(0.0),
-                Float::new(-1.5707964),
+                PlainFloat::new(0.0),
+                PlainFloat::new(-1.5707964),
+                PlainFloat::new(0.0),
+                PlainFloat::new(-1.5707964),
             ],
             step_scales: [
-                Float::new(0.017453292),
-                Float::new(0.017453292),
-                Float::new(0.017453292),
-                Float::new(0.017453292),
+                PlainFloat::new(0.017453292),
+                PlainFloat::new(0.017453292),
+                PlainFloat::new(0.017453292),
+                PlainFloat::new(0.017453292),
             ],
         }
     }
@@ -752,7 +752,7 @@ impl ShapeSetTuning {
     #[cfg(test)]
     pub fn home() -> usize {
         crate::pointers::game_address(
-            &raw const crate::effects::owner::EFFECTS.windscreen_drops.tuning,
+            &raw const crate::effects::owner::effects().windscreen_drops.tuning,
         ) as usize
     }
 }

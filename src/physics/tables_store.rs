@@ -516,8 +516,8 @@ pub struct PhysicsTables {
     pub split_heading: Dword,
     /// +0x14dc (0x614D04): the distance to the split point.
     pub split_point_distance: Float,
-    /// +0x14e0 (0x614D08): near, far, distance (`race::frame_draw`).
-    pub checkpoint_colours: [Dword; 3],
+    /// +0x14e0 (0x614D08): the original kept here the checkpoint's near and far colours and the distance (`race::frame_draw`); no code reads or writes it (the field's name nowhere in Rust), it only keeps the image's layout.
+    pub unused_14e0: [Dword; 3],
     /// +0x14ec (0x614D14): `g_paceSlotOffsets`: each slot's byte in the face.
     pub pace_slot_offsets: [Dword; 8],
     /// +0x150c (0x614D34): `g_paceSlot`: the slot 0 .. 7.

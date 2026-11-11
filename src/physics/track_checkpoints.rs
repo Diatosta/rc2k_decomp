@@ -9,13 +9,13 @@
 //! checkpoint past 0x1418 or a split past 0x40, and what the calls refuse.
 
 use crate::errors::Refused;
-use crate::physics::step_inputs::StepInputs;
+use crate::physics::step_families::CheckpointInputs;
 use rc2k_core::physics::splits::{at_split_end, check_tracked, split_ahead};
 
 /// The steps.
 // Converted: `rc2k_core::physics::splits::{check_tracked, at_split_end, split_ahead}`.
 pub fn track_checkpoints(
-    c: &StepInputs<'_>,
+    c: &CheckpointInputs<'_>,
     scene: &crate::scene::owner::Scene,
     sound: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {
@@ -30,7 +30,7 @@ pub fn track_checkpoints(
     scene.lights.state.line_place.set(checkpoint);
     { crate::physics::checkpoint_offset::checkpoint_offset(c.course, c.vars, c.car) }?;
     crate::physics::off_line_warnings::off_line_warnings(
-        &c.frame.frame_work,
+        c.frame_work,
         c.work,
         &c.shared.replay_file,
         c.tables,

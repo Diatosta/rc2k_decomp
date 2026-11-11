@@ -9,7 +9,7 @@ use crate::menu::drivers_store::Driver;
 use crate::menu::owner::Menus;
 use crate::menu::owner::Play;
 use crate::menu::owner::Screens;
-use crate::session::Dword;
+use crate::session::PlainDword;
 use crate::system::owner::system;
 use rc2k_core::menu::standings::{self, NAME_LEN};
 
@@ -139,7 +139,7 @@ pub fn walked_drivers(menus: &Menus) -> Result<Vec<rc2k_core::saves::rankings::D
             nation: d.nation.get(),
             car: d.car.get(),
             entered: d.in_event.get(),
-            points: d.results.each_ref().map(Dword::get),
+            points: d.results.each_ref().map(PlainDword::get),
         })
         .collect())
 }
@@ -192,9 +192,13 @@ pub fn with_kept_name<R>(play: &Play, f: impl FnOnce(&mut [u8; NAME_LEN]) -> R) 
     r
 }
 
-pub const PLAYER_COUNT_RVA: &Dword = &crate::menu::owner::MENUS.screens.event.player_count;
-pub const SECTION_RVA: &Dword = &crate::menu::owner::MENUS.screens.event.section; // section
-pub const INDEX_RVA: &Dword = &crate::menu::owner::MENUS.screens.event.index; // index
+pub const PLAYER_COUNT_RVA: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .event
+    .player_count;
+pub const SECTION_RVA: &PlainDword = &crate::menu::owner::MENUS.unchecked().screens.event.section; // section
+pub const INDEX_RVA: &PlainDword = &crate::menu::owner::MENUS.unchecked().screens.event.index; // index
 
 /// The players `0 .. dword_755984` (the original's `do .. while`): refused at 0, past 4 or
 /// with one missing.

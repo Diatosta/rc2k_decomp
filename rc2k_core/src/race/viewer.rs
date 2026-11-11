@@ -524,9 +524,9 @@ pub fn mark_out_here(block: u32, mark_in: u32) -> bool {
 /// A camera byte one on: byte 5 (the view) past 3 back to 2, byte 4 past 2 back to 0
 /// (signed bytes).
 pub fn next_byte(byte: u32, old: u8) -> u8 {
-    let dl = old.wrapping_add(1);
+    let next = old.wrapping_add(1);
     let (last, back) = if byte == 5 { (3, 2) } else { (2, 0) };
-    if (dl as i8) > last { back } else { dl }
+    if (next as i8) > last { back } else { next }
 }
 
 /// A cut's marks (first, second): None when the second is not after the first
@@ -568,19 +568,19 @@ pub fn next_snapshot(digits: [u8; 3]) -> ([u8; 3], usize, u32) {
 /// digits, the last touched, and the loop's counter (its place, one less when it went past
 /// '9'). Also used for the picture name of `race::replay_screenshot`.
 pub fn count_up<const N: usize>(mut digits: [u8; N]) -> ([u8; N], usize, u32) {
-    let mut ecx = 0;
+    let mut counter = 0;
     let mut last = N - 1;
     for n in (0..N).rev() {
         last = n;
         digits[n] = digits[n].wrapping_add(1);
-        ecx = n as u32;
+        counter = n as u32;
         if digits[n] <= b'9' {
             break;
         }
         digits[n] = b'0';
-        ecx = (n as u32).wrapping_sub(1);
+        counter = (n as u32).wrapping_sub(1);
     }
-    (digits, last, ecx)
+    (digits, last, counter)
 }
 
 #[cfg(test)]

@@ -3,50 +3,50 @@
 
 #[cfg(test)]
 use crate::effects::owner::effects;
-use crate::session::{Bytes, Dword, Float};
+use crate::session::{PlainBytes, PlainDword, PlainFloat};
 
 /// The marks' frame timing and counters (`effects::frame_marks`, `effects::run_frame`, `effects::draw_frame`) (IDA 0x765110 .. 0x765140).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MarksFrame {
     /// 0x765110: `dword_765110`: the time stamp counter's low half at the last frame step.
-    pub last_count: Dword,
+    pub last_count: PlainDword,
     /// 0x765114: `dword_765114`: the cycles between the last two frame steps.
-    pub frame_cycles: Dword,
+    pub frame_cycles: PlainDword,
     /// 0x765118: `flt_765118`: the share of the frame an empty timed stretch took (`effects::draw_frame`).
-    pub empty_share: Float,
+    pub empty_share: PlainFloat,
     /// 0x76511C: `flt_76511C`: the share the ring's frame took (`effects::run_frame`).
-    pub ring_share: Float,
+    pub ring_share: PlainFloat,
     /// 0x765120: `flt_765120`: the share the whole of the marks' frame took (`effects::run_frame`).
-    pub whole_share: Float,
+    pub whole_share: PlainFloat,
     /// 0x765124: `flt_765124`: the share `effects::begin_quads` took (`effects::draw_frame`).
-    pub quads_share: Float,
+    pub quads_share: PlainFloat,
     /// 0x765128: `flt_765128`: the share the frame step took (`effects::frame_marks`).
-    pub step_share: Float,
+    pub step_share: PlainFloat,
     /// 0x76512C: Not named: 8 bytes (a gap, or unreferenced data).
-    pub _gap_76512c: Bytes<8>,
+    pub _gap_76512c: PlainBytes<8>,
     /// 0x765134: `flt_765134`: the share the draw took (`effects::run_frame`).
-    pub draw_share: Float,
+    pub draw_share: PlainFloat,
     /// 0x765138: `dword_765138`: a particle's side / size in hand while it is emitted (`effects::emit_rolling_particles`, `effects::emit_bursts`; a scratch).
-    pub emit_side: Dword,
+    pub emit_side: PlainDword,
     /// 0x76513C: `dword_76513C`: the frame steps counted (cleared at `effects::init_marks`).
-    pub steps: Dword,
+    pub steps: PlainDword,
 }
 
 impl MarksFrame {
     pub const fn new() -> Self {
         Self {
-            last_count: Dword::new(0x0),
-            frame_cycles: Dword::new(0x0),
-            empty_share: Float::new(0.0),
-            ring_share: Float::new(0.0),
-            whole_share: Float::new(0.0),
-            quads_share: Float::new(0.0),
-            step_share: Float::new(0.0),
-            _gap_76512c: Bytes::new([0; 8]),
-            draw_share: Float::new(0.0),
-            emit_side: Dword::new(0x0),
-            steps: Dword::new(0x0),
+            last_count: PlainDword::new(0x0),
+            frame_cycles: PlainDword::new(0x0),
+            empty_share: PlainFloat::new(0.0),
+            ring_share: PlainFloat::new(0.0),
+            whole_share: PlainFloat::new(0.0),
+            quads_share: PlainFloat::new(0.0),
+            step_share: PlainFloat::new(0.0),
+            _gap_76512c: PlainBytes::new([0; 8]),
+            draw_share: PlainFloat::new(0.0),
+            emit_side: PlainDword::new(0x0),
+            steps: PlainDword::new(0x0),
         }
     }
 }
@@ -117,143 +117,143 @@ mod marks_frame_tests {
 #[derive(rc2k_derive::Cells)]
 pub struct MarksFloats {
     /// 0x765140: `dword_765140`: 0x10000, the ring's pull limit (`effects::run_ring`).
-    pub pull_limit: Dword,
+    pub pull_limit: PlainDword,
     /// 0x765144: Not named: 8 bytes (a gap, or unreferenced data).
-    pub _gap_765144: Bytes<8>,
+    pub _gap_765144: PlainBytes<8>,
     /// 0x76514C: `flt_76514C`: -65.536, multiplied with a burst's strength and direction factors to make the burst's direction vector (`effects::emit_bursts`).
-    pub burst_direction_k: Float,
+    pub burst_direction_k: PlainFloat,
     /// 0x765150: `flt_765150`: -0.125, the burst's turn scale (`effects::emit_bursts`).
-    pub minus_eighth: Float,
+    pub minus_eighth: PlainFloat,
     /// 0x765154: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_765154: Bytes<4>,
+    pub _gap_765154: PlainBytes<4>,
     /// 0x765158: `flt_765158`: 0.5 (`effects::emit_bursts`, `effects::emit_car_particles`, `effects::draw_pong_box`).
-    pub half: Float,
+    pub half: PlainFloat,
     /// 0x76515C: `flt_76515C`: 0.05, the ring's frame scale (`effects::run_ring`).
-    pub twentieth: Float,
+    pub twentieth: PlainFloat,
     /// 0x765160: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_765160: Bytes<4>,
+    pub _gap_765160: PlainBytes<4>,
     /// 0x765164: `flt_765164`: 0.2 (`effects::emit_rolling_particles`).
-    pub fifth: Float,
+    pub fifth: PlainFloat,
     /// 0x765168: `flt_765168`: 0.3 (`effects::emit_rolling_particles`).
-    pub three_tenths: Float,
+    pub three_tenths: PlainFloat,
     /// 0x76516C: `flt_76516C`: 1.0.
-    pub one: Float,
+    pub one: PlainFloat,
     /// 0x765170: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_765170: Bytes<4>,
+    pub _gap_765170: PlainBytes<4>,
     /// 0x765174: `flt_765174`: 3.0 (`effects::emit_body_particles`).
-    pub three: Float,
+    pub three: PlainFloat,
     /// 0x765178: Not named: 20 bytes (a gap, or unreferenced data).
-    pub _gap_765178: Bytes<20>,
+    pub _gap_765178: PlainBytes<20>,
     /// 0x76518C: `flt_76518C`: 16.0 (`effects::draw_snow`).
-    pub sixteen: Float,
+    pub sixteen: PlainFloat,
     /// 0x765190: `flt_765190`: 32.0 (`effects::emit_bursts`).
-    pub thirty_two: Float,
+    pub thirty_two: PlainFloat,
     /// 0x765194: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_765194: Bytes<4>,
+    pub _gap_765194: PlainBytes<4>,
     /// 0x765198: `flt_765198`: 128.0 (`effects::emit_body_contact_particles`).
-    pub hundred_twenty_eight: Float,
+    pub hundred_twenty_eight: PlainFloat,
     /// 0x76519C: `dword_76519C`: 255.0, as bits (the particles' fade scale).
-    pub two_fifty_five: Float,
+    pub two_fifty_five: PlainFloat,
     /// 0x7651A0: `dword_7651A0`: 256.0, as bits.
-    pub two_fifty_six: Float,
+    pub two_fifty_six: PlainFloat,
     /// 0x7651A4: `flt_7651A4`: 257.0 (the particles' life scale).
-    pub two_fifty_seven: Float,
+    pub two_fifty_seven: PlainFloat,
     /// 0x7651A8: Not named: 20 bytes (a gap, or unreferenced data).
-    pub _gap_7651a8: Bytes<20>,
+    pub _gap_7651a8: PlainBytes<20>,
     /// 0x7651BC: `flt_7651BC`: 0.25.
-    pub quarter: Float,
+    pub quarter: PlainFloat,
     /// 0x7651C0: `flt_7651C0`: 0.125 (`effects::set_up_surface`).
-    pub eighth: Float,
+    pub eighth: PlainFloat,
     /// 0x7651C4: `flt_7651C4`: 0.0625 (`effects::make_fade_colours`).
-    pub sixteenth: Float,
+    pub sixteenth: PlainFloat,
     /// 0x7651C8: `flt_7651C8`: 1/512, the surface places' edge value (`effects::set_up_surface`'s `edge`).
-    pub surface_edge: Float,
+    pub surface_edge: PlainFloat,
     /// 0x7651CC: `flt_7651CC`: 1/256, the surface places' pixel value (`effects::set_up_surface`'s `pixel`).
-    pub surface_pixel: Float,
+    pub surface_pixel: PlainFloat,
     /// 0x7651D0: `flt_7651D0`: 1/32: the surface places' step (`effects::set_up_surface`), the emitters' size factor (`effects::emit_body_contact_particles`, `effects::emit_rolling_particles`'s count) and the least strength.
-    pub thirty_second: Float,
+    pub thirty_second: PlainFloat,
     /// 0x7651D4: `flt_7651D4`: 65.536, the scale `effects::emit_exhaust_smoke` turns the spline point's place with (probably the model units to metres).
-    pub particle_13_place_k: Float,
+    pub particle_13_place_k: PlainFloat,
     /// 0x7651D8: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_7651d8: Bytes<4>,
+    pub _gap_7651d8: PlainBytes<4>,
     /// 0x7651DC: `flt_7651DC`: 65536.0, the 16-bit fixed-point one: a chance (0 .. 1) times it is compared with a 16-bit random, and the ring's fractions are scaled by it.
-    pub fixed_16_scale: Float,
+    pub fixed_16_scale: PlainFloat,
     /// 0x7651E0: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_7651e0: Bytes<4>,
+    pub _gap_7651e0: PlainBytes<4>,
     /// 0x7651E4: `flt_7651E4`: 700.0 (`effects::emit_exhaust_smoke`).
-    pub seven_hundred: Float,
+    pub seven_hundred: PlainFloat,
     /// 0x7651E8: `flt_7651E8`: 100.0.
-    pub hundred: Float,
+    pub hundred: PlainFloat,
     /// 0x7651EC: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_7651ec: Bytes<4>,
+    pub _gap_7651ec: PlainBytes<4>,
     /// 0x7651F0: `flt_7651F0`: 2000.0 (`effects::emit_rolling_particles`).
-    pub two_thousand: Float,
+    pub two_thousand: PlainFloat,
     /// 0x7651F4: Not named: 32 bytes (a gap, or unreferenced data).
-    pub _gap_7651f4: Bytes<32>,
+    pub _gap_7651f4: PlainBytes<32>,
     /// 0x765214: `flt_765214`: 1/65536 (`effects::emit_bursts`, `effects::emit_exhaust_smoke`).
-    pub over_65536: Float,
+    pub over_65536: PlainFloat,
     /// 0x765218: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_765218: Bytes<4>,
+    pub _gap_765218: PlainBytes<4>,
     /// 0x76521C: `dbl_76521C`: a double, 2^-31 (`effects::spread_point`).
-    pub spread_scale: Bytes<8>,
+    pub spread_scale: PlainBytes<8>,
     /// 0x765224: Not named: 20 bytes (a gap, or unreferenced data).
-    pub _gap_765224: Bytes<20>,
+    pub _gap_765224: PlainBytes<20>,
 }
 
 impl MarksFloats {
     pub const fn new() -> Self {
         Self {
-            pull_limit: Dword::new(0x10000),
-            _gap_765144: Bytes::new([0x00, 0x00, 0x80, 0xBF, 0x00, 0x00, 0x80, 0xC7]),
-            burst_direction_k: Float::new(-65.536),
-            minus_eighth: Float::new(-0.125),
-            _gap_765154: Bytes::new([0x00, 0x00, 0x80, 0x3E]),
-            half: Float::new(0.5),
-            twentieth: Float::new(0.05),
-            _gap_765160: Bytes::new([0xCD, 0xCC, 0xCC, 0x3D]),
-            fifth: Float::new(0.2),
-            three_tenths: Float::new(0.3),
-            one: Float::new(1.0),
-            _gap_765170: Bytes::new([0x00, 0x00, 0x00, 0x40]),
-            three: Float::new(3.0),
-            _gap_765178: Bytes::new([
+            pull_limit: PlainDword::new(0x10000),
+            _gap_765144: PlainBytes::new([0x00, 0x00, 0x80, 0xBF, 0x00, 0x00, 0x80, 0xC7]),
+            burst_direction_k: PlainFloat::new(-65.536),
+            minus_eighth: PlainFloat::new(-0.125),
+            _gap_765154: PlainBytes::new([0x00, 0x00, 0x80, 0x3E]),
+            half: PlainFloat::new(0.5),
+            twentieth: PlainFloat::new(0.05),
+            _gap_765160: PlainBytes::new([0xCD, 0xCC, 0xCC, 0x3D]),
+            fifth: PlainFloat::new(0.2),
+            three_tenths: PlainFloat::new(0.3),
+            one: PlainFloat::new(1.0),
+            _gap_765170: PlainBytes::new([0x00, 0x00, 0x00, 0x40]),
+            three: PlainFloat::new(3.0),
+            _gap_765178: PlainBytes::new([
                 0x00, 0x00, 0x80, 0x40, 0x00, 0x00, 0xA0, 0x40, 0x00, 0x00, 0xC0, 0x40, 0x00, 0x00,
                 0xE0, 0x40, 0x00, 0x00, 0x00, 0x41,
             ]),
-            sixteen: Float::new(16.0),
-            thirty_two: Float::new(32.0),
-            _gap_765194: Bytes::new([0x00, 0x00, 0x80, 0x42]),
-            hundred_twenty_eight: Float::new(128.0),
-            two_fifty_five: Float::new(255.0),
-            two_fifty_six: Float::new(256.0),
-            two_fifty_seven: Float::new(257.0),
-            _gap_7651a8: Bytes::new([
+            sixteen: PlainFloat::new(16.0),
+            thirty_two: PlainFloat::new(32.0),
+            _gap_765194: PlainBytes::new([0x00, 0x00, 0x80, 0x42]),
+            hundred_twenty_eight: PlainFloat::new(128.0),
+            two_fifty_five: PlainFloat::new(255.0),
+            two_fifty_six: PlainFloat::new(256.0),
+            two_fifty_seven: PlainFloat::new(257.0),
+            _gap_7651a8: PlainBytes::new([
                 0x00, 0x00, 0x00, 0x44, 0x00, 0x00, 0x80, 0x44, 0x00, 0x00, 0x02, 0x42, 0x00, 0x00,
                 0x7A, 0x42, 0x00, 0x00, 0xFA, 0x42,
             ]),
-            quarter: Float::new(0.25),
-            eighth: Float::new(0.125),
-            sixteenth: Float::new(0.0625),
-            surface_edge: Float::new(0.001953125),
-            surface_pixel: Float::new(0.00390625),
-            thirty_second: Float::new(0.03125),
-            particle_13_place_k: Float::new(65.536),
-            _gap_7651d8: Bytes::new([0x0A, 0xD7, 0x23, 0x44]),
-            fixed_16_scale: Float::new(65536.0),
-            _gap_7651e0: Bytes::new([0x00, 0x00, 0x00, 0x47]),
-            seven_hundred: Float::new(700.0),
-            hundred: Float::new(100.0),
-            _gap_7651ec: Bytes::new([0x00, 0x00, 0xFA, 0x43]),
-            two_thousand: Float::new(2000.0),
-            _gap_7651f4: Bytes::new([
+            quarter: PlainFloat::new(0.25),
+            eighth: PlainFloat::new(0.125),
+            sixteenth: PlainFloat::new(0.0625),
+            surface_edge: PlainFloat::new(0.001953125),
+            surface_pixel: PlainFloat::new(0.00390625),
+            thirty_second: PlainFloat::new(0.03125),
+            particle_13_place_k: PlainFloat::new(65.536),
+            _gap_7651d8: PlainBytes::new([0x0A, 0xD7, 0x23, 0x44]),
+            fixed_16_scale: PlainFloat::new(65536.0),
+            _gap_7651e0: PlainBytes::new([0x00, 0x00, 0x00, 0x47]),
+            seven_hundred: PlainFloat::new(700.0),
+            hundred: PlainFloat::new(100.0),
+            _gap_7651ec: PlainBytes::new([0x00, 0x00, 0xFA, 0x43]),
+            two_thousand: PlainFloat::new(2000.0),
+            _gap_7651f4: PlainBytes::new([
                 0xF1, 0xF0, 0x70, 0x3D, 0x00, 0x00, 0x00, 0x3B, 0x39, 0xFE, 0x7F, 0x3A, 0xF7, 0xFF,
                 0xFF, 0x39, 0x0D, 0x00, 0x80, 0x39, 0xD5, 0xFF, 0xFF, 0x38, 0xD5, 0xFF, 0x7F, 0x38,
                 0x74, 0x00, 0x00, 0x38,
             ]),
-            over_65536: Float::new(0.000015259),
-            _gap_765218: Bytes::new([0x00, 0x00, 0x00, 0x4F]),
-            spread_scale: Bytes::new([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3E]),
-            _gap_765224: Bytes::new([
+            over_65536: PlainFloat::new(0.000015259),
+            _gap_765218: PlainBytes::new([0x00, 0x00, 0x00, 0x4F]),
+            spread_scale: PlainBytes::new([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3E]),
+            _gap_765224: PlainBytes::new([
                 0x00, 0x00, 0x80, 0x50, 0x00, 0x00, 0x80, 0x4F, 0x00, 0x00, 0x80, 0x4E, 0x00, 0x00,
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             ]),
@@ -396,49 +396,49 @@ mod marks_floats_tests {
 #[derive(rc2k_derive::Cells)]
 pub struct MarksKindFloats {
     /// 0x765238: `dword_765238`: the settings' +0x4C, copied each frame step (a reading: which colours the ribbons use).
-    pub other: Dword,
+    pub other: PlainDword,
     /// 0x76523C: `dword_76523C`: the settings' +0x50, copied each frame step (a reading: the snow fades).
-    pub fading: Dword,
+    pub fading: PlainDword,
     /// 0x765240: `g_marksKindFloatTable`: 0x17 floats by kind (the depth bias).
-    pub kind_floats: [Float; 23],
+    pub kind_floats: [PlainFloat; 23],
     /// 0x76529C: `g_marksKindFloat`: this kind's float.
-    pub kind_float: Float,
+    pub kind_float: PlainFloat,
     /// 0x7652A0: `dword_7652A0`: the settings' +0x10, copied each frame step (a reading: whether the effects run).
-    pub running: Dword,
+    pub running: PlainDword,
 }
 
 impl MarksKindFloats {
     pub const fn new() -> Self {
         Self {
-            other: Dword::new(0x1),
-            fading: Dword::new(0x1),
+            other: PlainDword::new(0x1),
+            fading: PlainDword::new(0x1),
             kind_floats: [
-                Float::new(16240.0),
-                Float::new(18240.0),
-                Float::new(18240.0),
-                Float::new(18240.0),
-                Float::new(18240.0),
-                Float::new(18240.0),
-                Float::new(17240.0),
-                Float::new(18240.0),
-                Float::new(17240.0),
-                Float::new(18240.0),
-                Float::new(25240.0),
-                Float::new(18240.0),
-                Float::new(15240.0),
-                Float::new(13240.0),
-                Float::new(18240.0),
-                Float::new(18240.0),
-                Float::new(16240.0),
-                Float::new(18240.0),
-                Float::new(18240.0),
-                Float::new(18240.0),
-                Float::new(18240.0),
-                Float::new(18240.0),
-                Float::new(18240.0),
+                PlainFloat::new(16240.0),
+                PlainFloat::new(18240.0),
+                PlainFloat::new(18240.0),
+                PlainFloat::new(18240.0),
+                PlainFloat::new(18240.0),
+                PlainFloat::new(18240.0),
+                PlainFloat::new(17240.0),
+                PlainFloat::new(18240.0),
+                PlainFloat::new(17240.0),
+                PlainFloat::new(18240.0),
+                PlainFloat::new(25240.0),
+                PlainFloat::new(18240.0),
+                PlainFloat::new(15240.0),
+                PlainFloat::new(13240.0),
+                PlainFloat::new(18240.0),
+                PlainFloat::new(18240.0),
+                PlainFloat::new(16240.0),
+                PlainFloat::new(18240.0),
+                PlainFloat::new(18240.0),
+                PlainFloat::new(18240.0),
+                PlainFloat::new(18240.0),
+                PlainFloat::new(18240.0),
+                PlainFloat::new(18240.0),
             ],
-            kind_float: Float::new(0.0),
-            running: Dword::new(0x0),
+            kind_float: PlainFloat::new(0.0),
+            running: PlainDword::new(0x0),
         }
     }
 }

@@ -34,7 +34,6 @@ use crate::d3d::NO_TEXTURE;
 use crate::errors::BadInput;
 use crate::math::x87;
 use crate::race::owner::Race;
-use crate::scene::owner::scene;
 use crate::scene::polygon_store::PolygonEntry;
 use crate::scene::submit_polygon::{self, submit_polygon};
 
@@ -240,11 +239,11 @@ fn hit_test(
 fn place(
     quad: &[crate::session::Dword; 32],
     race: &crate::race::owner::Race,
+    scene: &crate::scene::owner::Scene,
     entries: &[Listed],
     mirrored: bool,
     window: &crate::scene::view_window::ViewWindow,
 ) {
-    let scene = scene();
     let (x_offset, y_offset): (u32, u32) = (
         window.view_offset_float[0].bits(),
         window.view_offset_float[1].bits(),
@@ -348,7 +347,12 @@ fn clear_a_switch(
     Ok(())
 }
 
-fn shade(poly: &crate::scene::polygon_work::PolygonWork, entries: &[Listed], how: Shade) {
+fn shade(
+    poly: &crate::scene::polygon_work::PolygonWork,
+    scene: &crate::scene::owner::Scene,
+    entries: &[Listed],
+    how: Shade,
+) {
     let colour: u32 = poly.polygon_colour.get();
     for &(_, entry) in entries {
         let (fog, other) = (entry.fog.get() as u32, entry.amount.get() as u32);
@@ -360,16 +364,7 @@ fn shade(poly: &crate::scene::polygon_work::PolygonWork, entries: &[Listed], how
                 continue;
             }
             Shade::WithAlpha => {
-                put(
-                    0x24,
-                    crate::scene::owner::scene()
-                        .drawing
-                        .scene
-                        .polygon_alpha
-                        .get()
-                        << 24
-                        | colour,
-                );
+                put(0x24, scene.drawing.scene.polygon_alpha.get() << 24 | colour);
                 put(0x28, 0);
                 continue;
             }
@@ -398,6 +393,7 @@ pub fn draw_polygon(
     face: &crate::race::face_work::FaceWork,
     outside: &mut dyn Outside,
     scene: &crate::scene::owner::Scene,
+    screen: &crate::session::Screen,
 ) -> Result<(), BadInput> {
     let count: u32 = poly.polygon_vertex_count.get();
     if count == 0 || count > MOST {
@@ -426,7 +422,14 @@ pub fn draw_polygon(
             crate::scene::polygon::list_cell(n).set(number);
         }
     }
-    place(&poly.quad_vertices, race, &entries, mirrored, &poly.window);
+    place(
+        &poly.quad_vertices,
+        race,
+        scene,
+        &entries,
+        mirrored,
+        &poly.window,
+    );
 
     if face.faded.get() != 0 {
         let (mode, texture): (u32, u32) = (face.polygon_mode.get(), poly.texture_page.get());
@@ -448,7 +451,12 @@ pub fn draw_polygon(
         for (state, value) in [(0x15, 4), (0x13, 5), (0x14, 6), (0x1B, 1), (0x1C, 0)] {
             outside.state(state, value);
         }
-        submit_polygon(poly, outside);
+        submit_polygon(
+            poly,
+            outside,
+            scene.objects.tables.d3d_drawing_on.get() != 0,
+            screen,
+        );
         poly.texture_page.set(texture);
         face.polygon_mode.set(mode);
     }
@@ -472,7 +480,7 @@ pub fn draw_polygon(
         }
     }
     if let Some((how, passes)) = passes(mode) {
-        shade(poly, &entries, how);
+        shade(poly, scene, &entries, how);
         for pass in passes {
             let (texture, smooth) = match pass.set {
                 Set::A => (&poly.polygon_textures[0], &poly.plain_first),
@@ -491,7 +499,12 @@ pub fn draw_polygon(
             for &(state, value) in pass.states {
                 outside.state(state, value);
             }
-            submit_polygon(poly, outside);
+            submit_polygon(
+                poly,
+                outside,
+                scene.objects.tables.d3d_drawing_on.get() != 0,
+                screen,
+            );
             if pass.as_mode.is_some() {
                 face.polygon_mode.set(mode);
             }
@@ -520,8 +533,12 @@ impl submit_polygon::Outside for Game {
     fn draw_fan(&mut self, vertices: &[crate::d3d::Vertex]) -> u32 {
         submit_polygon::Game.draw_fan(vertices)
     }
-    fn bad_vertex(&mut self, poly: &crate::scene::polygon_work::PolygonWork) {
-        submit_polygon::Game.bad_vertex(poly);
+    fn bad_vertex(
+        &mut self,
+        poly: &crate::scene::polygon_work::PolygonWork,
+        screen: &crate::session::Screen,
+    ) {
+        submit_polygon::Game.bad_vertex(poly, screen);
     }
     fn not_drawn(&mut self, result: u32) {
         submit_polygon::Game.not_drawn(result);
@@ -541,6 +558,7 @@ pub fn draw_polygon_in_game(
     race: &Race,
     face: &crate::race::face_work::FaceWork,
     scene: &crate::scene::owner::Scene,
+    screen: &crate::session::Screen,
 ) -> Result<(), BadInput> {
-    draw_polygon(poly, race, face, &mut Game, scene)
+    draw_polygon(poly, race, face, &mut Game, scene, screen)
 }

@@ -9,7 +9,7 @@ use crate::effects::owner::effects;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_float as bh;
-use crate::session::{Dword, Float};
+use crate::session::{PlainDword, PlainFloat};
 
 pub const KINDS: u32 = 0x22;
 
@@ -28,12 +28,12 @@ pub struct KindSet {
     /// The quad the values are put in.
     pub quad: &'static QuadWork,
     /// Out: `extra`.
-    pub extra: &'static Float,
+    pub extra: &'static PlainFloat,
     /// `divisor` copied here too (the first set only).
-    pub divisor_copy: Option<&'static Dword>,
+    pub divisor_copy: Option<&'static PlainDword>,
 }
 
-pub static FIRST: KindSet = KindSet {
+pub const FIRST: KindSet = KindSet {
     triples: [&TABLES_1.to, &TABLES_1.from, &TABLES_1.copied],
     values: [
         &TABLES_1.size,
@@ -48,17 +48,25 @@ pub static FIRST: KindSet = KindSet {
     ],
     count: &TABLES_1.count,
     consts: &CONSTS_1,
-    quad: &crate::effects::owner::EFFECTS.kinds.overlay_quad,
-    extra: &crate::effects::owner::EFFECTS.kinds.overlay_extras.extra,
+    quad: &crate::effects::owner::EFFECTS
+        .unchecked()
+        .kinds
+        .overlay_quad,
+    extra: &crate::effects::owner::EFFECTS
+        .unchecked()
+        .kinds
+        .overlay_extras
+        .extra,
     divisor_copy: Some(
         &crate::effects::owner::EFFECTS
+            .unchecked()
             .kinds
             .overlay_extras
             .divisor_copy,
     ),
 };
 
-pub static SECOND: KindSet = KindSet {
+pub const SECOND: KindSet = KindSet {
     triples: [&TABLES_2.to, &TABLES_2.from, &TABLES_2.copied],
     values: [
         &TABLES_2.size,
@@ -73,8 +81,12 @@ pub static SECOND: KindSet = KindSet {
     ],
     count: &TABLES_2.count,
     consts: &CONSTS_2,
-    quad: &crate::effects::owner::EFFECTS.kinds.shadow_quad,
-    extra: &crate::effects::owner::EFFECTS.kinds.shadow_extra.extra,
+    quad: &crate::effects::owner::EFFECTS.unchecked().kinds.shadow_quad,
+    extra: &crate::effects::owner::EFFECTS
+        .unchecked()
+        .kinds
+        .shadow_extra
+        .extra,
     divisor_copy: None,
 };
 
@@ -141,13 +153,13 @@ pub fn set_kind_values(
 #[derive(rc2k_derive::Cells)]
 pub struct MarksKind {
     /// 0x769232: `g_marksKind`: the kind of the marks (the surface / weather: 0 .. 0x21), set at `effects::init_marks`.
-    pub kind: Dword,
+    pub kind: PlainDword,
 }
 
 impl MarksKind {
     pub const fn new() -> Self {
         Self {
-            kind: Dword::new(0x0),
+            kind: PlainDword::new(0x0),
         }
     }
 }

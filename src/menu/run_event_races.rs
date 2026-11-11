@@ -30,13 +30,22 @@ use crate::menu::event_flow::Fault;
 use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 use crate::race::owner::race;
-use crate::session::Dword;
+use crate::session::DwordLike;
+use crate::session::PlainDword;
 use rc2k_core::menu::event_races::{self as races, PICKED, Step, Var};
 
-const GOES_ON: &Dword = &crate::menu::owner::MENUS.screens.event.event_goes_on;
-const CHEATS: &Dword = &crate::menu::owner::MENUS.play.cheats.cheats; // g_cheats
-const KEPT: &Dword = &crate::menu::owner::MENUS.screens.flow.kept;
-const CURRENT: &Dword = &crate::menu::owner::MENUS.screens.event.current_player;
+const GOES_ON: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .event
+    .event_goes_on;
+const CHEATS: &PlainDword = &crate::menu::owner::MENUS.unchecked().play.cheats.cheats; // g_cheats
+const KEPT: &PlainDword = &crate::menu::owner::MENUS.unchecked().screens.flow.kept;
+const CURRENT: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .screens
+    .event
+    .current_player;
 
 /// The game for `rc2k_core::menu::event_races`: the variables at their addresses, the
 /// steps, the race and the front end.
@@ -66,7 +75,7 @@ impl<'a> Game<'a> {
 }
 
 /// The variables that are in the physics block.
-fn cell(v: Var) -> &'static Dword {
+fn cell(v: Var) -> &'static dyn DwordLike {
     let race = race();
     match v {
         Var::CheatSwitch => &race.shared.state.settings.direction,

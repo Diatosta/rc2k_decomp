@@ -9,7 +9,7 @@ use crate::effects::owner::effects;
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::race::effects_settings_store::CarEffects;
-use crate::session::Float;
+use crate::session::PlainFloat;
 
 /// `block` the car record whose block holds the factors, `to` where
 /// the point goes, `from` the point blended, `base` the base point.
@@ -40,14 +40,14 @@ pub fn blend_corner(
 #[derive(rc2k_derive::Cells)]
 pub struct BlendWork {
     /// 0x93C6C8: `flt_93C6C8`: the blend factor (`blend_corner`'s)
-    pub factor: Float,
+    pub factor: PlainFloat,
 }
 
 impl BlendWork {
     /// BlendWork's first values.
     pub const fn new() -> Self {
         Self {
-            factor: Float::new(0.0),
+            factor: PlainFloat::new(0.0),
         }
     }
 }

@@ -9,7 +9,7 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::owner_course::Course;
 use crate::race::panel_store::Loose32;
-use crate::session::{Bytes, Dword, Float, read_bits};
+use crate::session::{PlainBytes, PlainDword, PlainFloat, read_bits};
 
 pub const RESUME: u32 = 0x4C0FFD; // loc_4C0FFD
 const KINDS: u32 = 0x22;
@@ -146,13 +146,13 @@ pub fn load_kind_data(
 #[derive(rc2k_derive::Cells)]
 pub struct EdgeMask {
     /// 0x809BC3: `g_marksEdgeMask`: 256 x 128 cells, a byte set where an item dies.
-    pub mask: Bytes<32768>,
+    pub mask: PlainBytes<32768>,
 }
 
 impl EdgeMask {
     pub const fn new() -> Self {
         EdgeMask {
-            mask: Bytes::new([0; 32768]),
+            mask: PlainBytes::new([0; 32768]),
         }
     }
 }
@@ -170,7 +170,7 @@ mod edge_mask_tests {
     fn edge_mask_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<EdgeMask>(), EdgeMask::LEN);
-        let p = (&raw const crate::effects::owner::EFFECTS.masks.edge_mask).cast::<u8>();
+        let p = (&raw const crate::effects::owner::effects().masks.edge_mask).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<EdgeMask>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();
@@ -187,15 +187,15 @@ mod edge_mask_tests {
 #[derive(rc2k_derive::Cells)]
 pub struct KindBoxes {
     /// 0x811BEB: `g_marksKindBoxes`: 0x22 records of 0x30 bytes, scaled once at `effects::load_edges`.
-    pub boxes: Bytes<1632>,
+    pub boxes: PlainBytes<1632>,
     /// 0x81224B: `g_marksKindFloats`: 0x22 floats, one a kind (less from 90 once).
-    pub kind_floats: [Float; 34],
+    pub kind_floats: [PlainFloat; 34],
 }
 
 impl KindBoxes {
     pub const fn new() -> Self {
         KindBoxes {
-            boxes: Bytes::new(crate::session::with_runs::<1632>(&[
+            boxes: PlainBytes::new(crate::session::with_runs::<1632>(&[
                 (
                     0x0,
                     &[
@@ -340,40 +340,40 @@ impl KindBoxes {
                 (0x659, &[0x60, 0x62, 0x44, 0x66, 0xC6, 0x38, 0xC4]),
             ])),
             kind_floats: [
-                Float::new(33.8),
-                Float::new(28.5),
-                Float::new(33.4),
-                Float::new(33.9),
-                Float::new(32.5),
-                Float::new(35.8),
-                Float::new(34.9),
-                Float::new(36.7),
-                Float::new(35.2),
-                Float::new(31.9),
-                Float::new(37.6),
-                Float::new(35.8),
-                Float::new(34.4),
-                Float::new(44.3),
-                Float::new(30.5),
-                Float::new(37.5),
-                Float::new(34.2),
-                Float::new(32.0),
-                Float::new(45.0),
-                Float::new(35.3),
-                Float::new(34.2),
-                Float::new(29.4),
-                Float::new(36.7),
-                Float::new(36.7),
-                Float::new(36.7),
-                Float::new(36.7),
-                Float::new(36.7),
-                Float::new(36.7),
-                Float::new(36.7),
-                Float::new(36.7),
-                Float::new(36.7),
-                Float::new(36.7),
-                Float::new(36.7),
-                Float::new(36.7),
+                PlainFloat::new(33.8),
+                PlainFloat::new(28.5),
+                PlainFloat::new(33.4),
+                PlainFloat::new(33.9),
+                PlainFloat::new(32.5),
+                PlainFloat::new(35.8),
+                PlainFloat::new(34.9),
+                PlainFloat::new(36.7),
+                PlainFloat::new(35.2),
+                PlainFloat::new(31.9),
+                PlainFloat::new(37.6),
+                PlainFloat::new(35.8),
+                PlainFloat::new(34.4),
+                PlainFloat::new(44.3),
+                PlainFloat::new(30.5),
+                PlainFloat::new(37.5),
+                PlainFloat::new(34.2),
+                PlainFloat::new(32.0),
+                PlainFloat::new(45.0),
+                PlainFloat::new(35.3),
+                PlainFloat::new(34.2),
+                PlainFloat::new(29.4),
+                PlainFloat::new(36.7),
+                PlainFloat::new(36.7),
+                PlainFloat::new(36.7),
+                PlainFloat::new(36.7),
+                PlainFloat::new(36.7),
+                PlainFloat::new(36.7),
+                PlainFloat::new(36.7),
+                PlainFloat::new(36.7),
+                PlainFloat::new(36.7),
+                PlainFloat::new(36.7),
+                PlainFloat::new(36.7),
+                PlainFloat::new(36.7),
             ],
         }
     }
@@ -392,7 +392,7 @@ mod kind_boxes_tests {
     fn kind_boxes_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<KindBoxes>(), KindBoxes::LEN);
-        let p = (&raw const crate::effects::owner::EFFECTS.masks.kind_boxes).cast::<u8>();
+        let p = (&raw const crate::effects::owner::effects().masks.kind_boxes).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<KindBoxes>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();
@@ -413,39 +413,43 @@ mod kind_boxes_tests {
 #[derive(rc2k_derive::Cells)]
 pub struct EdgeSettings {
     /// 0x8BC39E: `flt_8BC39E`: what the settings' +0x2750 is multiplied by (`effects::scale_setting`; 1.0).
-    pub factor: Float,
+    pub factor: PlainFloat,
     /// 0x8BC3A2: `flt_8BC3A2`: Not named: 52 bytes (a gap, or unreferenced data).
-    pub _gap_8bc3a2: Bytes<52>,
+    pub _gap_8bc3a2: PlainBytes<52>,
     /// 0x8BC3D6: `g_marksEdgesDone`: 0, or where `effects::load_edges` goes on.
-    pub done: Dword,
+    pub done: PlainDword,
     /// 0x8BC3DA: `flt_8BC3DA`, `flt_8BC3DE`, `flt_8BC3E2`: 65536.0, 1000.0, 90.0: the kinds' records are scaled by the first over the second, and their floats taken from the third.
-    pub scale: [Float; 3],
+    pub scale: [PlainFloat; 3],
     /// 0x8BC3E6: `files\m\edge00.pcx` and its NUL: the edge picture's path (the kind's two digits at +12, +13).
-    pub path: Bytes<19>,
+    pub path: PlainBytes<19>,
     /// 0x8BC3F9: `flt_8BC3F9`: 0.0175 (degrees to radians), the shape tilt's scale (a float at an address that is 1 more than a multiple of 4).
     pub tilt_scale: Loose32,
     /// 0x8BC3FD: tail padding of the record (outside its range; zero).
-    pub _tail: Bytes<1>,
+    pub _tail: PlainBytes<1>,
 }
 
 impl EdgeSettings {
     pub const fn new() -> Self {
         EdgeSettings {
-            factor: Float::new(1.0),
-            _gap_8bc3a2: Bytes::new([
+            factor: PlainFloat::new(1.0),
+            _gap_8bc3a2: PlainBytes::new([
                 0xCD, 0xCC, 0xCC, 0x3D, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x47, 0x0D, 0x00,
                 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0xCD, 0xCC, 0xCC, 0x3D, 0x00, 0x00, 0x00, 0x00,
                 0x00, 0x00, 0x80, 0x47, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 0x80, 0x3D, 0x00, 0x00, 0x00, 0x3B, 0x00, 0x00, 0x80, 0x3D,
             ]),
-            done: Dword::new(0x0),
-            scale: [Float::new(65536.0), Float::new(1000.0), Float::new(90.0)],
-            path: Bytes::new([
+            done: PlainDword::new(0x0),
+            scale: [
+                PlainFloat::new(65536.0),
+                PlainFloat::new(1000.0),
+                PlainFloat::new(90.0),
+            ],
+            path: PlainBytes::new([
                 0x66, 0x69, 0x6C, 0x65, 0x73, 0x5C, 0x6D, 0x5C, 0x65, 0x64, 0x67, 0x65, 0x30, 0x30,
                 0x2E, 0x70, 0x63, 0x78, 0x00,
             ]),
             tilt_scale: Loose32::new(0x3C8EFA35),
-            _tail: Bytes::new([0]),
+            _tail: PlainBytes::new([0]),
         }
     }
 }
@@ -456,8 +460,9 @@ impl EdgeSettings {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::effects::owner::EFFECTS.masks.edge_settings)
-            as usize
+        crate::pointers::game_address(
+            &raw const crate::effects::owner::effects().masks.edge_settings,
+        ) as usize
     }
 }
 

@@ -41,7 +41,7 @@ pub const OVERLAY: [Setting; 5] = [
     set(FOG_ENABLE, 0),
 ];
 
-/// `set_filters`: the textures' filters by the setting (`dword_623898`): made larger 2;
+/// `set_filters`: the textures' filters by the setting: made larger 2;
 /// made smaller 2 with the setting 0, else 6; then 0x31 1.
 pub fn filters(setting: u32) -> [Setting; 3] {
     let smaller = if setting == 0 { 2 } else { 6 };

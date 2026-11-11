@@ -24,7 +24,7 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::race::effects_settings_store::CarEffects;
-use crate::session::{Dword, Float, read_first};
+use crate::session::{PlainDword, PlainFloat, read_first};
 
 const MODELS: u32 = 34;
 const LOOK: u32 = 0x3F;
@@ -138,33 +138,37 @@ pub fn emit_exhaust_smoke(
 #[derive(rc2k_derive::Cells)]
 pub struct ExhaustSet {
     /// 0x93A462: `flt_93A462`: the place's lift
-    pub lift: Float,
+    pub lift: PlainFloat,
     /// 0x93A466: `flt_93A466`: the strength's factor
-    pub strength_k: Float,
+    pub strength_k: PlainFloat,
     /// 0x93A46A: `flt_93A46A` .. `flt_93A472`: the motion's factors (x, y, z)
-    pub motion_k: [Float; 3],
+    pub motion_k: [PlainFloat; 3],
     /// 0x93A476: `dword_93A476`: the drift's random
-    pub drift_random: Dword,
+    pub drift_random: PlainDword,
     /// 0x93A47A: `dword_93A47A`: the spin's random
-    pub spin_random: Dword,
+    pub spin_random: PlainDword,
     /// 0x93A47E: `flt_93A47E`, `flt_93A482`, `flt_93A486`: the size's factor, base and scale
-    pub size_k: [Float; 3],
+    pub size_k: [PlainFloat; 3],
 }
 
 impl ExhaustSet {
     /// The values the game starts with (the image's bytes).
     pub const fn new() -> Self {
         ExhaustSet {
-            lift: Float::new(65536.0),
-            strength_k: Float::new(0.0001),
+            lift: PlainFloat::new(65536.0),
+            strength_k: PlainFloat::new(0.0001),
             motion_k: [
-                Float::new(-2048.0),
-                Float::new(-2048.0),
-                Float::new(-2048.0),
+                PlainFloat::new(-2048.0),
+                PlainFloat::new(-2048.0),
+                PlainFloat::new(-2048.0),
             ],
-            drift_random: Dword::new(0x0),
-            spin_random: Dword::new(0x0),
-            size_k: [Float::new(65536.0), Float::new(2048.0), Float::new(0.2)],
+            drift_random: PlainDword::new(0x0),
+            spin_random: PlainDword::new(0x0),
+            size_k: [
+                PlainFloat::new(65536.0),
+                PlainFloat::new(2048.0),
+                PlainFloat::new(0.2),
+            ],
         }
     }
 }
@@ -190,7 +194,7 @@ mod kind13_set_tests {
     fn kind13_set_starts_as_the_games() {
         assert_eq!(size_of::<ExhaustSet>(), ExhaustSet::LEN);
         assert!(
-            bytes(&crate::effects::owner::EFFECTS.particles.kind13_set)
+            bytes(&crate::effects::owner::effects().particles.kind13_set)
                 == crate::moved::image_bytes(ExhaustSet::START, ExhaustSet::LEN),
             "KIND13_SET starts differently from the image"
         );

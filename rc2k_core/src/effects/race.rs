@@ -9,7 +9,7 @@ pub const MOST_CARS: u32 = 8;
 /// The last kind of car with a row (`dword_5C90D8` ..: rows of 0x134 bytes).
 pub const LAST_KIND: i32 = 0x16;
 pub const ROW_LEN: usize = 0x134;
-/// The stages' records (`off_606320`).
+/// The stages' records.
 pub const STAGE_RECORDS: u32 = 0x34;
 
 /// The row's offsets the record's `slot_kinds` (its first seven) are set from.
@@ -65,7 +65,7 @@ pub fn car_fields(n: u32, row: impl Fn(usize) -> u32) -> CarFields {
 /// `stage_record`: the record of a stage's number; refuses one past the table (unsigned).
 pub fn stage_record(number: u32) -> Result<usize, Invalid> {
     if number >= STAGE_RECORDS {
-        return Err(Invalid("a stage number past off_606320's 0x34"));
+        return Err(Invalid("a stage number past the 0x34"));
     }
     Ok(number as usize)
 }

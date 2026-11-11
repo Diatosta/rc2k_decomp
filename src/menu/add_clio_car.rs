@@ -17,9 +17,23 @@ use rc2k_core::menu::car_lists::place_if_missing;
 /// The three lists, in the original's order, with the room each has before the next
 /// variable.
 const LISTS: [List; 3] = [
-    (&crate::menu::owner::MENUS.tables.lists.cars_first, 0x22),
+    (
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .tables
+            .lists
+            .cars_first,
+        0x22,
+    ),
     FIRST,
-    (&crate::menu::owner::MENUS.tables.lists.cars_with_clio, 0x3E),
+    (
+        &crate::menu::owner::MENUS
+            .unchecked()
+            .tables
+            .lists
+            .cars_with_clio,
+        0x3E,
+    ),
 ];
 
 pub fn add_clio_car() -> Result<(), BadInput> {

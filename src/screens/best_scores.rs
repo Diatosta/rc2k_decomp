@@ -13,12 +13,17 @@ use crate::menu::owner::Tables;
 use crate::records::stages_store::{Holder, RecordRef, RecordTable};
 use crate::screens::game_screen::GameScreen;
 use crate::screens::game_screen::{Held, HeldText};
-use crate::session::Dword;
+use crate::session::DwordLike;
+use crate::session::PlainDword;
 use crate::system::owner::system;
 use crate::text::draw_text::Canvas;
 use rc2k_core::screens::best_scores::{Row, Rows};
 
-const PAGE: &Dword = &crate::menu::owner::MENUS.tables.pages.scores_page;
+const PAGE: &PlainDword = &crate::menu::owner::MENUS
+    .unchecked()
+    .tables
+    .pages
+    .scores_page;
 /// Which typed table a page shows.
 pub enum Source {
     /// The best scores (`saves::best_times::SCORES`): the name, the score, the
@@ -45,7 +50,7 @@ pub struct Table {
     /// The best scores keep the last row's y in `draw_work.scratch_b0`.
     pub keeps_y: bool,
     /// Where the group's number is: a dword, or (None) the page's entry of the group list.
-    pub group_at: Option<&'static Dword>,
+    pub group_at: Option<&'static dyn DwordLike>,
     /// A fixed group instead.
     pub group_fixed: Option<u32>,
     /// An entry whose highlight field is 1 is drawn in the highlight fonts.
@@ -75,7 +80,7 @@ pub const CLASS_TIMES: Table = Table {
 pub const MARKED_CLASS_TIMES: Table = Table {
     at: Source::LevelScores,
     keeps_y: true,
-    group_at: Some(&crate::menu::owner::MENUS.play.arcade.level),
+    group_at: Some(&crate::menu::owner::MENUS.unchecked().play.arcade.level),
     group_fixed: None,
     highlight: true,
     sprite_dy: 4,
@@ -232,7 +237,7 @@ pub struct StageTimes {
     /// The stage record's table (the records 0xA4 bytes; +0x38 the stage's name string, +0x3C
     /// its times' number) and the record's number.
     pub records: fn(&Menus) -> Result<RecordTable, BadInput>,
-    pub record: &'static Dword,
+    pub record: &'static dyn DwordLike,
     /// The times' table (ten for each stage; the record's +0x3C the stage).
     pub table: fn(&Menus) -> &StageTable,
     /// The rally page keeps the sprites' y (+4) in `draw_work.scratch_b0` and the flag's glyph in
@@ -270,14 +275,18 @@ fn rally_table(_: &Menus) -> &'static StageTable {
 /// `screens::draw_stage_times`' (0x48D0F2).
 pub const STAGE_TIMES: StageTimes = StageTimes {
     records: champ_records,
-    record: &crate::menu::owner::MENUS.screens.event.stage_number,
+    record: &crate::menu::owner::MENUS
+        .unchecked()
+        .screens
+        .event
+        .stage_number,
     table: champ_table,
     rally: false,
 };
 /// `screens::draw_rally_stage_times`' (0x48A948).
 pub const RALLY_STAGE_TIMES: StageTimes = StageTimes {
     records: rally_records,
-    record: &crate::menu::owner::MENUS.play.arcade.stage,
+    record: &crate::menu::owner::MENUS.unchecked().play.arcade.stage,
     table: rally_table,
     rally: true,
 };
@@ -387,8 +396,8 @@ pub fn draw_time_rows(
     drawn
 }
 
-const SECTION: &Dword = &crate::menu::owner::MENUS.screens.event.section; // section
-const INDEX: &Dword = &crate::menu::owner::MENUS.screens.event.index; // index
+const SECTION: &PlainDword = &crate::menu::owner::MENUS.unchecked().screens.event.section; // section
+const INDEX: &PlainDword = &crate::menu::owner::MENUS.unchecked().screens.event.index; // index
 
 /// `records::find_record` of the record table: the section's record `index`.
 pub fn record_at(index: u32) -> Result<RecordRef, crate::errors::BadInput> {
@@ -477,7 +486,7 @@ pub fn draw_record_times(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), R
 /// `screens::draw_event_best_scores`' (0x4A8DBF): group `event.class`, the player's own
 /// (+0x14 1) in the highlight fonts.
 pub const EVENT_BEST_SCORES: Table = Table {
-    group_at: Some(&crate::menu::owner::MENUS.screens.event.class),
+    group_at: Some(&crate::menu::owner::MENUS.unchecked().screens.event.class),
     highlight: true,
     ..BEST_SCORES
 };

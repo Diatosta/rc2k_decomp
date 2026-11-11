@@ -21,7 +21,7 @@ use crate::effects::store_data::RUNS;
 use crate::errors::BadInput;
 #[cfg(test)]
 use crate::framework;
-use crate::session::Bytes;
+use crate::session::{GameThread, PlainBytes};
 #[cfg(test)]
 use core::ops::Add;
 
@@ -35,7 +35,7 @@ pub const LEN: usize = END - START;
 /// aligned as IDA's `START` is; the tail fills it to the alignment (no byte outside a cell).
 #[repr(C, align(16))]
 #[derive(rc2k_derive::Cells)]
-pub struct Store(Bytes<LEN>, Bytes<TAIL>);
+pub struct Store(PlainBytes<LEN>, PlainBytes<TAIL>);
 
 const TAIL: usize = LEN.next_multiple_of(16) - LEN;
 const _: () = assert!(START.is_multiple_of(16));
@@ -52,7 +52,7 @@ const fn initial() -> Store {
         }
         r += 1;
     }
-    Store(Bytes::new(bytes), Bytes::new([0; TAIL]))
+    Store(PlainBytes::new(bytes), PlainBytes::new([0; TAIL]))
 }
 
 impl Store {
@@ -64,7 +64,7 @@ impl Store {
 }
 
 /// The block (its first values are the image's bytes, `RUNS`).
-pub static STORE: Store = initial();
+pub static STORE: GameThread<Store> = GameThread::new(initial());
 
 /// One segment of `SEGS` as a store of its own: its bytes in the block, found by offset.
 pub struct Segment {
@@ -89,12 +89,12 @@ unsafe impl crate::pointers::Store for Segment {
 
     fn load(&self, offset: usize, to: &mut [u8]) -> Result<(), BadInput> {
         self.check(offset, to.len())?;
-        crate::pointers::load_cells(&STORE, self.from + offset, to)
+        crate::pointers::load_cells(STORE.get(), self.from + offset, to)
     }
 
     fn store(&self, offset: usize, from: &[u8]) -> Result<(), BadInput> {
         self.check(offset, from.len())?;
-        crate::pointers::store_cells(&STORE, self.from + offset, from)
+        crate::pointers::store_cells(STORE.get(), self.from + offset, from)
     }
 }
 
@@ -108,7 +108,12 @@ impl Segment {
     }
 
     fn first_byte(&self) -> *const u8 {
-        STORE.0.as_ptr().cast_const().wrapping_add(self.from)
+        STORE
+            .unchecked()
+            .0
+            .as_ptr()
+            .cast_const()
+            .wrapping_add(self.from)
     }
 }
 
@@ -321,7 +326,7 @@ impl Slot {
 
     /// The place's address.
     pub fn address(self) -> usize {
-        (STORE.addr() + self.0 as u32) as usize
+        (STORE.get().addr() + self.0 as u32) as usize
     }
 }
 
@@ -357,7 +362,7 @@ mod tests {
     #[test]
     fn first_values_are_the_games() {
         // Read in place: a copy of the block would not fit the test thread's stack.
-        let first = unsafe { std::slice::from_raw_parts(STORE.0.as_ptr(), LEN) };
+        let first = unsafe { std::slice::from_raw_parts(STORE.get().0.as_ptr(), LEN) };
         let image = crate::moved::image_bytes(START, LEN);
         // The ranges that left the block have their own statics (and tests); what is left of the
         // block holds the image's bytes.
@@ -389,7 +394,7 @@ mod tests {
         assert_eq!(crate::moved::place(0x7652A8), Slot::at(0x7652A8).address());
         assert_eq!(
             crate::moved::place(0x764F7C),
-            (STORE.addr() + (0x764F7C - START) as u32) as usize
+            (STORE.get().addr() + (0x764F7C - START) as u32) as usize
         );
         assert_eq!(
             crate::moved::place(END),

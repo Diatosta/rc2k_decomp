@@ -218,15 +218,15 @@ mod asm_differential {
                     b[0],
                     &[
                         overlay(
-                            &crate::effects::owner::EFFECTS.windscreen_drops.work,
+                            &crate::effects::owner::effects().windscreen_drops.work,
                             WindscreenDropWork::START,
                         ),
                         overlay(
-                            &crate::effects::owner::EFFECTS.windscreen_drops.hex,
+                            &crate::effects::owner::effects().windscreen_drops.hex,
                             WindscreenDropVars::START,
                         ),
                     ],
-                    || super::axes_x87(&crate::effects::owner::EFFECTS.windscreen_drops),
+                    || super::axes_x87(&crate::effects::owner::effects().windscreen_drops),
                 );
             },
         );

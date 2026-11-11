@@ -9,7 +9,7 @@
 
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::math::x87;
-use crate::session::{Dword, Float, read_bits, write_bits};
+use crate::session::{PlainDword, PlainFloat, read_bits, write_bits};
 
 pub fn tilt_shape(drops: &WindscreenDrops) {
     let t = &drops.tilt;
@@ -29,28 +29,36 @@ pub fn tilt_shape(drops: &WindscreenDrops) {
 #[derive(rc2k_derive::Cells)]
 pub struct ShapeTilt {
     /// 0x811BC3: `g_marksShapeTilt`: the kind's float times 0.0175.
-    pub tilt: Float,
+    pub tilt: PlainFloat,
     /// 0x811BC7: `flt_811BC7`: the sine of the tilt.
-    pub sine: Float,
+    pub sine: PlainFloat,
     /// 0x811BCB: `flt_811BCB`: the cosine of the tilt.
-    pub cosine: Float,
+    pub cosine: PlainFloat,
     /// 0x811BCF: `dword_811BCF`: the point's length.
-    pub length: Dword,
+    pub length: PlainDword,
     /// 0x811BD3: `unk_811BD3` ..: the point made of length 1.
-    pub unit: [Float; 3],
+    pub unit: [PlainFloat; 3],
     /// 0x811BDF: `flt_811BDF` .. `flt_811BE7`: the first kept view point (copied by `effects::copy_first_point`, turned by the tilt, then also set to 0 by `effects::windscreen_drops_drift` and moved by the drift).
-    pub point: [Float; 3],
+    pub point: [PlainFloat; 3],
 }
 
 impl ShapeTilt {
     pub const fn new() -> Self {
         ShapeTilt {
-            tilt: Float::new(0.0),
-            sine: Float::new(0.0),
-            cosine: Float::new(0.0),
-            length: Dword::new(0x0),
-            unit: [Float::new(0.0), Float::new(1.0), Float::new(0.0)],
-            point: [Float::new(0.0), Float::new(0.0), Float::new(1.0)],
+            tilt: PlainFloat::new(0.0),
+            sine: PlainFloat::new(0.0),
+            cosine: PlainFloat::new(0.0),
+            length: PlainDword::new(0x0),
+            unit: [
+                PlainFloat::new(0.0),
+                PlainFloat::new(1.0),
+                PlainFloat::new(0.0),
+            ],
+            point: [
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(1.0),
+            ],
         }
     }
 }
@@ -70,7 +78,7 @@ mod shape_tilt_tests {
         assert_eq!(size_of::<ShapeTilt>(), ShapeTilt::LEN);
         // The x87 tests put their buffer's bytes here for a while (`typed_sync::with_overlays`).
         let _lock = crate::store::test_lock();
-        let p = (&raw const crate::effects::owner::EFFECTS.windscreen_drops.tilt).cast::<u8>();
+        let p = (&raw const crate::effects::owner::effects().windscreen_drops.tilt).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<ShapeTilt>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();

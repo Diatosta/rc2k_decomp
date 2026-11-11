@@ -8,7 +8,7 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::race::owner_course::Course;
-use crate::session::Dword;
+use crate::session::PlainDword;
 
 pub const RESUME: u32 = 0x4C3EA6; // loc_4C3EA6
 pub const COURSE_CORNERS: u32 = 0x1C_2000;
@@ -139,20 +139,20 @@ pub fn make_profiles(
 #[derive(rc2k_derive::Cells)]
 pub struct ProfileRings {
     /// 0x8DD061: `g_marksRingBefore`: each of the 0x100 indexes' one before it (`effects::make_profiles`).
-    pub before: [Dword; 256],
+    pub before: [PlainDword; 256],
     /// 0x8DD461: `g_marksRingAfter`: each index's one after it.
-    pub after: [Dword; 256],
+    pub after: [PlainDword; 256],
     /// 0x8DD861: `dword_8DD861`: 0 (`effects::make_profiles` writes it).
-    pub zero: Dword,
+    pub zero: PlainDword,
 }
 
 impl ProfileRings {
     /// The values the game starts with (the image's bytes).
     pub const fn new() -> Self {
         ProfileRings {
-            before: [const { Dword::new(0x0) }; 256],
-            after: [const { Dword::new(0x0) }; 256],
-            zero: Dword::new(0x0),
+            before: [const { PlainDword::new(0x0) }; 256],
+            after: [const { PlainDword::new(0x0) }; 256],
+            zero: PlainDword::new(0x0),
         }
     }
     pub const START: usize = 0x8DD061;
@@ -161,8 +161,9 @@ impl ProfileRings {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::effects::owner::EFFECTS.paths.profile_rings)
-            as usize
+        crate::pointers::game_address(
+            &raw const crate::effects::owner::effects().paths.profile_rings,
+        ) as usize
     }
 }
 
@@ -171,11 +172,11 @@ impl ProfileRings {
 #[derive(rc2k_derive::Cells)]
 pub struct ProfileLists {
     /// 0x9152F6: `off_9152F6` (`g_marksRampTables`): the three ramp tables' addresses (IDA addresses in the image; `moved::RAW_KEPT` keeps them so).
-    pub ramps: [Dword; 3],
+    pub ramps: [PlainDword; 3],
     /// 0x915302: `off_915302` (`g_marksSineTables`): the eight sine tables' addresses.
-    pub sines: [Dword; 8],
+    pub sines: [PlainDword; 8],
     /// 0x915322: `off_915322` (`g_marksCurveTables`): the two curve tables' addresses.
-    pub curves: [Dword; 2],
+    pub curves: [PlainDword; 2],
 }
 
 impl ProfileLists {
@@ -183,21 +184,21 @@ impl ProfileLists {
     pub const fn new() -> Self {
         ProfileLists {
             ramps: [
-                Dword::new(0x8E506D),
-                Dword::new(0x8E686D),
-                Dword::new(0x8E706D),
+                PlainDword::new(0x8E506D),
+                PlainDword::new(0x8E686D),
+                PlainDword::new(0x8E706D),
             ],
             sines: [
-                Dword::new(0x8E786D),
-                Dword::new(0x8E806D),
-                Dword::new(0x8E886D),
-                Dword::new(0x8E906D),
-                Dword::new(0x8E986D),
-                Dword::new(0x8EA06D),
-                Dword::new(0x8EA86D),
-                Dword::new(0x8EB06D),
+                PlainDword::new(0x8E786D),
+                PlainDword::new(0x8E806D),
+                PlainDword::new(0x8E886D),
+                PlainDword::new(0x8E906D),
+                PlainDword::new(0x8E986D),
+                PlainDword::new(0x8EA06D),
+                PlainDword::new(0x8EA86D),
+                PlainDword::new(0x8EB06D),
             ],
-            curves: [Dword::new(0x8E586D), Dword::new(0x8E606D)],
+            curves: [PlainDword::new(0x8E586D), PlainDword::new(0x8E606D)],
         }
     }
     pub const START: usize = 0x9152F6;
@@ -206,21 +207,22 @@ impl ProfileLists {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::effects::owner::EFFECTS.paths.profile_lists)
-            as usize
+        crate::pointers::game_address(
+            &raw const crate::effects::owner::effects().paths.profile_lists,
+        ) as usize
     }
 }
 
 /// One profile table: 0x100 whole numbers and then their 0x100 differences (the first
 /// dwords hold the table's inputs until `effects::make_profiles` makes it).
-pub type ProfileTable = [Dword; 0x200];
+pub type ProfileTable = [PlainDword; 0x200];
 
 /// A profile table with the given first values (index, value).
 const fn table(first: &[(usize, u32)]) -> ProfileTable {
-    let mut t = [const { Dword::new(0) }; 0x200];
+    let mut t = [const { PlainDword::new(0) }; 0x200];
     let mut k = 0;
     while k < first.len() {
-        t[first[k].0] = Dword::new(first[k].1);
+        t[first[k].0] = PlainDword::new(first[k].1);
         k += 1;
     }
     t
@@ -262,7 +264,7 @@ impl ProfileTables {
     #[cfg(test)]
     pub fn home() -> usize {
         crate::pointers::game_address(
-            &raw const crate::effects::owner::EFFECTS.paths.profile_tables,
+            &raw const crate::effects::owner::effects().paths.profile_tables,
         ) as usize
     }
 }

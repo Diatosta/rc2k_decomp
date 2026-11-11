@@ -6,8 +6,8 @@
 use crate::Invalid;
 
 /// What drawing a text leaves: the y of its last line and whether a line was too wide for
-/// a font that says so (the carry flag). (The original also leaves where the text ended in
-/// ebx, which some screens hand the blitter as a sprite's palette, never looked at.)
+/// a font that says so (the carry flag). (The original also leaves where the text ended, which some
+/// screens hand the blitter as a sprite's palette, never looked at.)
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Drawn {
     pub y: i32,

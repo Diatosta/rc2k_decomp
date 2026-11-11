@@ -29,7 +29,7 @@ pub enum Font {
 pub enum Work {
     /// `g_firstPlayerTime`.
     FirstTime,
-    /// `dword_7559D4`: the overall stage page's first time.
+    /// The overall stage page's first time.
     OverallFirst,
     /// `hundredths`: a row's gap.
     Gap,
@@ -74,7 +74,7 @@ pub struct Row<T> {
 
 /// One page: `first` the time the gaps are from, `first_row` the list's row the page starts
 /// at, `keep_overall` the first time kept in `dword_7559D4` too. The sprites' palette is
-/// where the last text left ebx: the line buffer after a time, the string's end else.
+/// where the last text ended: the line buffer after a time, the string's end else.
 #[allow(clippy::too_many_arguments)] // one page's parts, as the original reads them
 pub fn results_page<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
@@ -136,7 +136,7 @@ pub enum RankingWork {
     Place,
     /// `glyph` (0x7559C0): the row's gap.
     Gap,
-    /// `dword_7559B0`: the sprites' y.
+    /// The sprites' y.
     SpriteY,
 }
 

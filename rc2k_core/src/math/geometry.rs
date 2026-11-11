@@ -1,12 +1,11 @@
-//! Points and vectors in plain `f32` (from the x87 code of
-//! `math::rotate_scratch_about_y` 0x41FEF8 and its siblings, `math::nearest_on_segment` 0x4633DE,
-//! `math::normalise_vector` 0x45C3FE).
+//! Points and vectors in plain `f32` (from the x87 code of `math::rotate_scratch_about_y` 0x41FEF8
+//! and its siblings, `math::nearest_on_segment` 0x4633DE, `math::normalise_vector` 0x45C3FE).
 //!
-//! Every step is in the original's order. What the x87 keeps on its stack is an `f64`
-//! here, rounded to `f32` only where the original stores it: at the x87's double
-//! precision, which the game runs at most of the time (control word 0x027F), every step rounds as an `f64` step does, so the results are the same bits;
-//! at its extended precision (0x037F, after the game's `finit`) the last bit may differ
-//! (`notes/conversion.md`, the float decision).
+//! Every step is in the original's order. What the x87 keeps on its stack is an `f64` here, rounded
+//! to `f32` only where the original stores it: at the x87's double precision, which the game runs
+//! at most of the time (control word 0x027F), every step rounds as an `f64` step does, so the
+//! results are the same bits; at its extended precision (0x037F, after the game's `finit`) the last
+//! bit may differ (`notes/conversion.md`, the float decision).
 
 /// `fistp` under the default rounding: to the nearest, ties to even; what does not fit
 /// (and NaN) is the "integer indefinite", `i32::MIN`.
@@ -94,7 +93,7 @@ pub fn nearest_on_segment(block: &mut [f32; nearest::LEN], low: f32, high: f32) 
 /// What normalising the x87 way leaves.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Normalised {
-    /// The squares' sum, as the original leaves its bits in eax.
+    /// The squares' sum.
     pub sum: f32,
     pub length: f32,
     /// The vector, a component that comes out minus zero made plus zero.

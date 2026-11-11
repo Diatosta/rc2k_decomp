@@ -14,6 +14,7 @@ use crate::menu::owner::Menus;
 use crate::menu::owner::Play;
 use crate::menu::owner::Screens;
 use crate::records::stages_store::{RecordRef, RecordTable};
+use crate::session::DwordLike;
 use crate::system::owner::system;
 use crate::text::draw_text::Canvas;
 
@@ -42,11 +43,7 @@ fn player(menus: &Menus, row: usize) -> Result<crate::menu::standings::PlayerCel
 }
 
 /// The row's points (`off_758992[offset]`).
-fn points_at<'a>(
-    menus: &'a Menus,
-    play: &Play,
-    row: usize,
-) -> Result<&'a crate::session::Dword, Refused> {
+fn points_at<'a>(menus: &'a Menus, play: &Play, row: usize) -> Result<&'a dyn DwordLike, Refused> {
     Ok(CaptionTables::sum_of(
         menus,
         offset(play, row) as usize / 4,

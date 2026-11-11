@@ -19,19 +19,19 @@ fn sign(v: u32) -> bool {
 /// What `steer_inputs` reads.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SteerInputs {
-    /// `dword_613890`: the input word (0 none, below 0 left).
+    /// The input word (0 none, below 0 left).
     pub word: u32,
     /// `unk_71A234`: 2 when driven by device.
     pub mode: u32,
-    /// `unk_71A440`: the keys (bit 0x1000 steering).
+    /// The keys (bit 0x1000 steering).
     pub keys: u32,
-    /// `flt_614C08`, `flt_614C0C`: the device's and the keys' factors.
+    /// The device's and the keys' factors.
     pub device_factor: f32,
     pub key_factor: f32,
-    /// `unk_71A3E0`: the trim's share; `unk_719FE8` bit 0x10 turns it.
+    /// The trim's share; `unk_719FE8` bit 0x10 turns it.
     pub trim: f32,
     pub flags: u32,
-    /// `unk_71A308`, `flt_5C5D14`: the trims apply below the limit (or unordered).
+    /// The trims apply below the limit (or unordered).
     pub figure: f32,
     pub limit: f32,
 }
@@ -79,7 +79,7 @@ fn by_keys(v: u32, word: u32, step: u32) -> u32 {
     }
 }
 
-/// `drive::steer_inputs` on the two steering values (`unk_71A61C`, `unk_71A620`).
+/// `drive::steer_inputs` on the two steering values.
 pub fn steer(s: &SteerInputs, values: [u32; 2]) -> Steered {
     let [mut first, mut second] = values;
     let mut keys = s.word == 0;

@@ -50,7 +50,7 @@ pub fn place_spline(
             .spline_constants
             .place_k
             .each_ref()
-            .map(super::super::session::Float::bits);
+            .map(super::super::session::PlainFloat::bits);
         paths.spline_work.offset.set(n * SPLINE_LEN);
         let [a, b, c, d] = records(n);
         let (abc, dsize) = sizes(marks.listener_scale.bits(), k[0], k[1]);

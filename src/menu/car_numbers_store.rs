@@ -4,29 +4,29 @@
 //! scratch tables `menu::shuffle_drivers` works in. A `#[repr(C)]` struct with the image's layout, one
 //! static; `moved::MOVED` points the range at it.
 
-use crate::session::{Bytes, Dword, with_runs};
+use crate::session::{PlainBytes, PlainDword, with_runs};
 
 /// The lists of car numbers (IDA 0x755258 .. 0x7554C0).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct CarNumbers {
     /// `unk_755258`: The first list's car numbers, ended by -1 (0x28 entries; the options file's first 0xA0 bytes here).
-    pub first_numbers: [Dword; 40],
+    pub first_numbers: [PlainDword; 40],
     /// `unk_7552F8`: The second list's car numbers, ended by -1 (the options file holds 0x14 of its entries, `saves::list_car_numbers` fills 0x28).
-    pub second_numbers: [Dword; 40],
+    pub second_numbers: [PlainDword; 40],
     /// `unk_755398`: The first scratch table of `menu::shuffle_drivers` (0x94 bytes).
-    pub shuffle_a: Bytes<148>,
+    pub shuffle_a: PlainBytes<148>,
     /// `unk_75542C`: The second.
-    pub shuffle_b: Bytes<148>,
+    pub shuffle_b: PlainBytes<148>,
 }
 
 /// First values the image's (`tests::car_numbers_starts_as_the_games`).
 impl CarNumbers {
     pub const fn new() -> Self {
         CarNumbers {
-            first_numbers: [const { Dword::new(0x0) }; 40],
-            second_numbers: [const { Dword::new(0x0) }; 40],
-            shuffle_a: Bytes::new(with_runs::<148>(&[(
+            first_numbers: [const { PlainDword::new(0x0) }; 40],
+            second_numbers: [const { PlainDword::new(0x0) }; 40],
+            shuffle_a: PlainBytes::new(with_runs::<148>(&[(
                 0x24,
                 &[
                     0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0x64,
@@ -40,7 +40,7 @@ impl CarNumbers {
                     0xff, 0xff, 0xff, 0xff,
                 ],
             )])),
-            shuffle_b: Bytes::new(with_runs::<148>(&[(
+            shuffle_b: PlainBytes::new(with_runs::<148>(&[(
                 0x24,
                 &[
                     0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0x64,
@@ -66,7 +66,7 @@ pub const END: usize = 0x7554C0;
 /// Where IDA 0x755258 lives (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn car_numbers_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::menu::owner::MENUS.cars.numbers)
+    crate::pointers::game_address(&raw const crate::menu::owner::menus().cars.numbers)
 }
 
 #[cfg(test)]

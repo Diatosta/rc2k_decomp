@@ -9,7 +9,7 @@ pub struct Clock {
     pub started: u32,
     pub last: u32,
     pub ticks: u32,
-    /// The ticks' bits taken as a float (section 16) times a scale (`flt_764FD4`).
+    /// The ticks' bits taken as a float (section 16) times a scale.
     pub ticks_scaled: f32,
     pub sixteenth: u32,
     pub quarter: u32,
@@ -19,8 +19,8 @@ pub struct Clock {
     pub before: u32,
 }
 
-/// The constants it uses: the first reciprocal (`flt_93CC10`), the reciprocal's scale
-/// (`flt_7651BC`), the ticks' (`flt_93CC14`).
+/// The constants it uses: the first reciprocal, the reciprocal's scale
+///, the ticks'.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Scales {
     pub first: f32,

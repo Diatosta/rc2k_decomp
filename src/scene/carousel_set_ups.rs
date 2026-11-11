@@ -17,13 +17,16 @@ const fn menu_ops<const N: usize>(
     count: u32,
     [spacing, y, z, forward]: [u32; 4],
 ) -> [Op; N] {
-    let carousel = &MENUS.screens.state.carousel;
+    let carousel = &MENUS.unchecked().screens.state.carousel;
     let mut ops = [Fill; N];
     ops[0] = Set(&carousel.set_up, set_up);
     let mut n = 2; // ops[1] is the fill
     let mut k = 0;
     while k < textures.len() {
-        ops[n] = Set(&MENUS.tables.lists.carousel_textures[k], textures[k]);
+        ops[n] = Set(
+            &MENUS.unchecked().tables.lists.carousel_textures[k],
+            textures[k],
+        );
         n += 1;
         k += 1;
     }

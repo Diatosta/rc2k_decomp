@@ -7,7 +7,7 @@
 //! What is not there keeps its value. One caller, `system::load_game_data`.
 
 use crate::errors::BadInput;
-use crate::session::{Byte, Bytes, PlainDword, with_runs};
+use crate::session::{PlainByte, PlainBytes, PlainDword, with_runs};
 use crate::settings::read_text::read_text;
 use crate::strings::same_text::case_table;
 use rc2k_core::install::config;
@@ -52,13 +52,13 @@ pub struct Sku {
     /// 0x5190FC: `dword_5190FC`: 1 for a DVD edition.
     pub dvd: PlainDword,
     /// 0x519100: `byte_519100`: the sku file's third byte.
-    pub third: Byte,
+    pub third: PlainByte,
     /// 0x519101: `byte_519101`: its second byte.
-    pub second: Byte,
+    pub second: PlainByte,
     /// 0x519102: `aFilesDGfxSku`: "files\d\gfx\sku", the file read.
-    pub path: Bytes<16>,
+    pub path: PlainBytes<16>,
     /// 0x519112: Not named: 6 bytes (a gap, or data nothing reads here).
-    pub _gap_519112: Bytes<6>,
+    pub _gap_519112: PlainBytes<6>,
 }
 
 impl Sku {
@@ -67,10 +67,10 @@ impl Sku {
             number: PlainDword::new(0xffffffff),
             oem: PlainDword::new(0x0),
             dvd: PlainDword::new(0x0),
-            third: Byte::new(0x0),
-            second: Byte::new(0x0),
-            path: Bytes::new(with_runs::<16>(&[(0, b"files\\d\\gfx\\sku")])),
-            _gap_519112: Bytes::new(with_runs::<6>(&[(0, b"sku")])),
+            third: PlainByte::new(0x0),
+            second: PlainByte::new(0x0),
+            path: PlainBytes::new(with_runs::<16>(&[(0, b"files\\d\\gfx\\sku")])),
+            _gap_519112: PlainBytes::new(with_runs::<6>(&[(0, b"sku")])),
         }
     }
 }

@@ -5,27 +5,27 @@
 //! alignments (`MaskBlocks` on 2 more than a multiple of 4, `PictureCopy` on 1 more): each
 //! struct starts at its first cell, so that offsets inside stay as in the image.
 
-use crate::session::{Bytes, Dword};
+use crate::session::{PlainBytes, PlainDword};
 
 /// The ground picture's name (IDA 0x934CC8 .. 0x934D6E). The offsets are from its start.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct GroundNames {
     /// +0x0: `g_marksGround`: which of the six names (0 .. 5)
-    pub ground: Dword,
+    pub ground: PlainDword,
     /// +0x4: `g_marksGroundPath`: the offset of the chosen name in `names` (the original kept its address; set by `load_mask_pictures`)
-    pub ground_path: Dword,
+    pub ground_path: PlainDword,
     /// +0x8: `aFilesMSnow1Pcx` ..: `files\m\snow1.pcx`, `mud1`, `dust1`, `mud1`, `mud1`, `gumbo0`, each NUL-ended, then zeros
-    pub names: Bytes<160>,
+    pub names: PlainBytes<160>,
 }
 
 /// The ground picture's names; the first values are the image's.
 impl GroundNames {
     pub const fn new() -> Self {
         GroundNames {
-            ground: Dword::new(0x0),
-            ground_path: Dword::new(0x0),
-            names: Bytes::new([
+            ground: PlainDword::new(0x0),
+            ground_path: PlainDword::new(0x0),
+            names: PlainBytes::new([
                 0x66, 0x69, 0x6C, 0x65, 0x73, 0x5C, 0x6D, 0x5C, 0x73, 0x6E, 0x6F, 0x77, 0x31, 0x2E,
                 0x70, 0x63, 0x78, 0x00, 0x66, 0x69, 0x6C, 0x65, 0x73, 0x5C, 0x6D, 0x5C, 0x6D, 0x75,
                 0x64, 0x31, 0x2E, 0x70, 0x63, 0x78, 0x00, 0x66, 0x69, 0x6C, 0x65, 0x73, 0x5C, 0x6D,
@@ -53,51 +53,51 @@ impl GroundNames {
 #[derive(rc2k_derive::Cells)]
 pub struct MaskBlocks {
     /// +0x0: `dword_934D6E`: the last mask switch seen by `swap_mask` (-1 once the masks are loaded)
-    pub seen: Dword,
+    pub seen: PlainDword,
     /// +0x4: `dword_934D72`: the block `swap_mask` last drew from (the game's address;
     /// since phase 12 `Mask::Plain` 1 or `Mask::Bordered` 2, 0 none yet)
-    pub chosen: Dword,
+    pub chosen: PlainDword,
     /// +0x8: `stru_934D76`: the list the first mask block is taken on
-    pub list_a: [Dword; 4],
+    pub list_a: [PlainDword; 4],
     /// +0x18: Not named: 48 bytes (a gap, or unreferenced data).
-    pub _gap_18: Bytes<48>,
+    pub _gap_18: PlainBytes<48>,
     /// +0x48: `g_marksMaskBlock`: the first mask block (0x20000 bytes; the game's
     /// address, unused since the masks are Rust's, `MASK`)
-    pub mask: Dword,
+    pub mask: PlainDword,
     /// +0x4C: `g_marksBMaskList`: the list the second mask block is taken on
-    pub list_b: [Dword; 4],
+    pub list_b: [PlainDword; 4],
     /// +0x5C: Not named: 48 bytes (a gap, or unreferenced data).
-    pub _gap_5c: Bytes<48>,
+    pub _gap_5c: PlainBytes<48>,
     /// +0x8C: `g_marksBMaskBlock`: the second mask block (0x20000 bytes; the game's
     /// address, unused since the masks are Rust's, `BMASK`)
-    pub bmask: Dword,
+    pub bmask: PlainDword,
     /// +0x90: `aRseRseRseRseRs`: "rse " repeated, then a NUL (unreferenced; the next list's head starts inside it)
-    pub junk: Bytes<44>,
+    pub junk: PlainBytes<44>,
 }
 
 /// The mask blocks' lists; the first values are the image's.
 impl MaskBlocks {
     pub const fn new() -> Self {
         MaskBlocks {
-            seen: Dword::new(0xFFFFFFFF),
-            chosen: Dword::new(0x0),
+            seen: PlainDword::new(0xFFFFFFFF),
+            chosen: PlainDword::new(0x0),
             list_a: [
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
             ],
-            _gap_18: Bytes::new([0; 48]),
-            mask: Dword::new(0x0),
+            _gap_18: PlainBytes::new([0; 48]),
+            mask: PlainDword::new(0x0),
             list_b: [
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
             ],
-            _gap_5c: Bytes::new([0; 48]),
-            bmask: Dword::new(0x0),
-            junk: Bytes::new([
+            _gap_5c: PlainBytes::new([0; 48]),
+            bmask: PlainDword::new(0x0),
+            junk: PlainBytes::new([
                 0x72, 0x73, 0x65, 0x20, 0x72, 0x73, 0x65, 0x20, 0x72, 0x73, 0x65, 0x20, 0x72, 0x73,
                 0x65, 0x20, 0x72, 0x73, 0x65, 0x20, 0x72, 0x73, 0x65, 0x20, 0x72, 0x73, 0x65, 0x20,
                 0x72, 0x73, 0x65, 0x20, 0x72, 0x73, 0x65, 0x20, 0x72, 0x73, 0x65, 0x20, 0x72, 0x73,
@@ -178,14 +178,14 @@ impl MaskBlocks {
 #[derive(rc2k_derive::Cells)]
 pub struct PictureCopy {
     /// +0x0: the list the 0x80000-byte picture copy is taken on (its head starts inside `aRseRseRseRseRs`: the image's first values are "se" and zeros)
-    pub list: [Dword; 4],
+    pub list: [PlainDword; 4],
     /// +0x10: Not named: 48 bytes (a gap, or unreferenced data).
-    pub _gap_10: Bytes<48>,
+    pub _gap_10: PlainBytes<48>,
     /// +0x40: `g_marksPictureCopy`: the picture copy block (0x80000 bytes; the game's
     /// address, unused since the copy is Rust's, phase 12)
-    pub copy: Dword,
+    pub copy: PlainDword,
     /// +0x44: `files\m\mask00.pcx` at +0, `files\m\bmask00.pcx` at +0x13, `files\m\bdata00.pcx` at +0x25 (`byte_934E79` .. the digits: +0xC, +0x20, +0x34)
-    pub paths: Bytes<60>,
+    pub paths: PlainBytes<60>,
 }
 
 /// The picture copy's list; the first values are the image's.
@@ -193,14 +193,14 @@ impl PictureCopy {
     pub const fn new() -> Self {
         PictureCopy {
             list: [
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
+                PlainDword::new(0x0),
             ],
-            _gap_10: Bytes::new([0; 48]),
-            copy: Dword::new(0x0),
-            paths: Bytes::new([
+            _gap_10: PlainBytes::new([0; 48]),
+            copy: PlainDword::new(0x0),
+            paths: PlainBytes::new([
                 0x66, 0x69, 0x6C, 0x65, 0x73, 0x5C, 0x6D, 0x5C, 0x6D, 0x61, 0x73, 0x6B, 0x30, 0x30,
                 0x2E, 0x70, 0x63, 0x78, 0x00, 0x66, 0x69, 0x6C, 0x65, 0x73, 0x5C, 0x6D, 0x5C, 0x62,
                 0x6D, 0x61, 0x73, 0x6B, 0x30, 0x30, 0x2E, 0x70, 0x63, 0x78, 0x00, 0x66, 0x69, 0x6C,
@@ -268,19 +268,19 @@ mod tests {
         assert_eq!(size_of::<KindPictures>(), KindPictures::LEN);
         assert!(
             bytes(
-                &crate::effects::owner::EFFECTS.masks.ground_names,
+                &crate::effects::owner::effects().masks.ground_names,
                 GroundNames::LEN
             ) == image(GroundNames::START, GroundNames::LEN)
         );
         assert!(
             bytes(
-                &crate::effects::owner::EFFECTS.masks.blocks,
+                &crate::effects::owner::effects().masks.blocks,
                 MaskBlocks::LEN
             ) == image(MaskBlocks::START, MaskBlocks::LEN)
         );
         assert!(
             bytes(
-                &crate::effects::owner::EFFECTS.masks.picture_copy,
+                &crate::effects::owner::effects().masks.picture_copy,
                 PictureCopy::LEN
             ) == image(PictureCopy::START, PictureCopy::LEN)
         );

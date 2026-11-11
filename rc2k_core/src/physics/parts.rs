@@ -24,19 +24,19 @@ pub struct SlotChoice {
     /// The slot's number.
     pub slot: usize,
     /// The slot's number the search ends at, 8 when none was empty.
-    pub ecx: u32,
+    pub search_end: u32,
     /// With no slot empty: the lowest +0x64 (the slot's age, a clock).
     pub lowest: Option<u32>,
 }
 
-/// The first empty slot (its part 0; asked in order up to the first empty one), else the
-/// one with the lowest age (unsigned, the first of equals; asked only when none is empty). None when every age is
-/// -1 (the original takes a slot it never chose: refused by the callers).
+/// The first empty slot (its part 0; asked in order up to the first empty one), else the one with
+/// the lowest age (unsigned, the first of equals; asked only when none is empty). None when every
+/// age is -1 (the original takes a slot it never chose: refused by the callers).
 pub fn choose_slot(part: impl Fn(usize) -> u32, age: impl Fn(usize) -> u32) -> Option<SlotChoice> {
     if let Some(slot) = (0..SLOTS).find(|&c| part(c) == 0) {
         return Some(SlotChoice {
             slot,
-            ecx: slot as u32,
+            search_end: slot as u32,
             lowest: None,
         });
     }
@@ -51,7 +51,7 @@ pub fn choose_slot(part: impl Fn(usize) -> u32, age: impl Fn(usize) -> u32) -> O
     }
     best.map(|slot| SlotChoice {
         slot,
-        ecx: SLOTS as u32,
+        search_end: SLOTS as u32,
         lowest: Some(lowest),
     })
 }
@@ -164,10 +164,10 @@ mod tests {
     #[test]
     fn slots() {
         let c = choose_slot(|k| [1, 2, 0, 0, 5, 6, 7, 8][k], |_| unreachable!()).unwrap();
-        assert_eq!((c.slot, c.ecx, c.lowest), (2, 2, None));
+        assert_eq!((c.slot, c.search_end, c.lowest), (2, 2, None));
         let ages = [9u32, 4, 7, 4, 10, 11, 12, 13];
         let c = choose_slot(|_| 1, |k| ages[k]).unwrap();
-        assert_eq!((c.slot, c.ecx, c.lowest), (1, 8, Some(4)));
+        assert_eq!((c.slot, c.search_end, c.lowest), (1, 8, Some(4)));
         assert_eq!(choose_slot(|_| 1, |_| u32::MAX), None);
     }
 

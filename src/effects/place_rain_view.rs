@@ -10,18 +10,18 @@ use crate::effects::rain::Weather;
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87_float as bh;
-use crate::session::{Dword, Float};
+use crate::session::{PlainDword, PlainFloat};
 
 /// One of the two near-copies' variables (`place_rain_view`'s and `place_snow_view`'s), as addresses.
 pub struct ViewPlace<'a> {
-    pub point: &'a [Dword; 3],
+    pub point: &'a [PlainDword; 3],
     pub start_z: u32,
-    pub place: &'a [Dword; 3],
-    pub matrix: &'a [Float; 9],
-    pub out: &'a [Dword; 3],
+    pub place: &'a [PlainDword; 3],
+    pub matrix: &'a [PlainFloat; 9],
+    pub out: &'a [PlainDword; 3],
     /// The height's bits, read when the view's variables are made (nothing writes it between).
     pub height: u32,
-    pub matrix_copy: &'a [Float; 9],
+    pub matrix_copy: &'a [PlainFloat; 9],
 }
 
 /// `place_rain_view`'s: the rain's.

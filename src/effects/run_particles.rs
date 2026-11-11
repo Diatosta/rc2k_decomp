@@ -40,7 +40,7 @@ use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::race::owner_frame::Frame;
 use crate::scene::matrix3::extended;
-use crate::session::{Bytes, Float};
+use crate::session::{PlainBytes, PlainFloat};
 const TRAIL_COLOURS: i32 = 298;
 const BURST_COLOURS_LEN: i32 = 0x2000;
 const BIGGER: u32 = 0x386A0;
@@ -159,7 +159,7 @@ fn step(
             )?;
             Ok(())
         };
-        let gain_int = |k: &crate::session::Float| -> Result<_, Refused> {
+        let gain_int = |k: &crate::session::PlainFloat| -> Result<_, Refused> {
             let v = x87::int_times_int_plus_int(
                 k.bits() as i32,
                 t,
@@ -377,7 +377,7 @@ pub fn run_particles(
         let r = seed();
         let view = |o: usize| frame.matrices.view_place[o / 4].bits();
         let uv_k: u32 = effects.frame.draw_work.uv_k.bits();
-        let wave = |k: &[crate::session::Float; 3], add: u32, cosine: bool| {
+        let wave = |k: &[crate::session::PlainFloat; 3], add: u32, cosine: bool| {
             x87::int_times3_wave_plus(
                 r as i32,
                 [uv_k, k[0].bits(), k[1].bits()],
@@ -466,26 +466,26 @@ impl TrailColours {
 #[derive(rc2k_derive::Cells)]
 pub struct PuffWork {
     /// 0x93A5F0: Not named: 16 bytes (a gap, or unreferenced data)
-    pub _gap_93a5f0: Bytes<16>,
+    pub _gap_93a5f0: PlainBytes<16>,
     /// 0x93A600: `flt_93A600` .. `flt_93A614`: the puff's place, size and motion
-    pub puff: [Float; 6],
+    pub puff: [PlainFloat; 6],
 }
 
 impl PuffWork {
     /// The values the game starts with (the image's bytes).
     pub const fn new() -> Self {
         PuffWork {
-            _gap_93a5f0: Bytes::new([
+            _gap_93a5f0: PlainBytes::new([
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0xC5, 0x00, 0x00,
                 0x00, 0x00,
             ]),
             puff: [
-                Float::new(0.0),
-                Float::new(0.0),
-                Float::new(0.0),
-                Float::new(0.0),
-                Float::new(0.0),
-                Float::new(0.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
             ],
         }
     }
@@ -573,7 +573,7 @@ mod puff_work_tests {
     fn puff_work_starts_as_the_games() {
         assert_eq!(size_of::<PuffWork>(), PuffWork::LEN);
         assert!(
-            bytes(&crate::effects::owner::EFFECTS.particles.puff_work)
+            bytes(&crate::effects::owner::effects().particles.puff_work)
                 == crate::moved::image_bytes(PuffWork::START, PuffWork::LEN),
             "PUFF_WORK starts differently from the image"
         );
@@ -603,14 +603,14 @@ const fn burst_colours() -> [u8; 0x2000] {
 #[derive(rc2k_derive::Cells)]
 pub struct BurstColours {
     /// 0x93A618: `dword_93A618`: 8 ramps of 256 dwords (a channel mask times the step)
-    pub table: Bytes<8192>,
+    pub table: PlainBytes<8192>,
 }
 
 impl BurstColours {
     /// BurstColours's first values.
     pub const fn new() -> Self {
         Self {
-            table: Bytes::new(burst_colours()),
+            table: PlainBytes::new(burst_colours()),
         }
     }
 }
@@ -652,39 +652,39 @@ mod burst_colours_tests {
 #[derive(rc2k_derive::Cells)]
 pub struct ParticleTuning {
     /// 0x93C618: `flt_93C618` .. `flt_93C620`: the puff's x wave (three factors)
-    pub puff_x: [Float; 3],
+    pub puff_x: [PlainFloat; 3],
     /// 0x93C624: `flt_93C624` .. `flt_93C62C`: the puff's z wave
-    pub puff_z: [Float; 3],
+    pub puff_z: [PlainFloat; 3],
     /// 0x93C630: `flt_93C630` .. `flt_93C638`: the puff's y (add, factor, add)
-    pub puff_y: [Float; 3],
+    pub puff_y: [PlainFloat; 3],
     /// 0x93C63C: `flt_93C63C`, `flt_93C640`: the puff's motion factors
-    pub puff_m: [Float; 2],
+    pub puff_m: [PlainFloat; 2],
     /// 0x93C644: `flt_93C644`: an added drift particle's last y is less this
-    pub drift_lower: Float,
+    pub drift_lower: PlainFloat,
     /// 0x93C648: `flt_93C648`: the trail's random radius factor
-    pub trail_random_k: Float,
+    pub trail_random_k: PlainFloat,
     /// 0x93C64C: `flt_93C64C` .. `flt_93C660`: per axis (x, y, z) the trail's two motion factors
-    pub trail_axes: [Float; 6],
+    pub trail_axes: [PlainFloat; 6],
     /// 0x93C664: `flt_93C664`: the trail's spread
-    pub trail_spread: Float,
+    pub trail_spread: PlainFloat,
     /// 0x93C668: `flt_93C668`, `flt_93C66C`: the trail's size factor and base
-    pub trail_size_k: [Float; 2],
+    pub trail_size_k: [PlainFloat; 2],
     /// 0x93C670: `flt_93C670`: the trail's life factor
-    pub trail_life_k: Float,
+    pub trail_life_k: PlainFloat,
     /// 0x93C674: `flt_93C674`, `flt_93C678`: the burst radius' base and scale
-    pub burst_scale: [Float; 2],
+    pub burst_scale: [PlainFloat; 2],
     /// 0x93C67C: `flt_93C67C`: the burst particle's life factor
-    pub burst_life: Float,
+    pub burst_life: PlainFloat,
     /// 0x93C680: `flt_93C680`, `dword_93C684`, `flt_93C688`: kind 0's gain, int gain and least
-    pub dust: [Float; 3],
+    pub dust: [PlainFloat; 3],
     /// 0x93C68C: `flt_93C68C`, `dword_93C690`: kind 4's gain and int gain
-    pub trail: [Float; 2],
+    pub trail: [PlainFloat; 2],
     /// 0x93C694: `flt_93C694` .. `dword_93C6A4`: kind 8's +0x30 gain, three dampings, +0x3C gain
-    pub burst8: [Float; 5],
+    pub burst8: [PlainFloat; 5],
     /// 0x93C6A8: `flt_93C6A8` .. `dword_93C6B8`: kind 9's, the same
-    pub burst9: [Float; 5],
+    pub burst9: [PlainFloat; 5],
     /// 0x93C6BC: Not named: 12 bytes (a gap, or unreferenced data)
-    pub _gap_93c6bc: Bytes<12>,
+    pub _gap_93c6bc: PlainBytes<12>,
 }
 
 impl ParticleTuning {
@@ -692,53 +692,57 @@ impl ParticleTuning {
     pub const fn new() -> Self {
         Self {
             puff_x: [
-                Float::new(std::f32::consts::PI),
-                Float::new(2.0),
-                Float::new(2621440.0),
+                PlainFloat::new(std::f32::consts::PI),
+                PlainFloat::new(2.0),
+                PlainFloat::new(2621440.0),
             ],
             puff_z: [
-                Float::new(std::f32::consts::PI),
-                Float::new(2.0),
-                Float::new(2621440.0),
+                PlainFloat::new(std::f32::consts::PI),
+                PlainFloat::new(2.0),
+                PlainFloat::new(2621440.0),
             ],
-            puff_y: [Float::new(1.0), Float::new(2000.0), Float::new(500.0)],
-            puff_m: [Float::new(0.0001), Float::new(0.0001)],
-            drift_lower: Float::new(1000.0),
-            trail_random_k: Float::new(-0.5),
+            puff_y: [
+                PlainFloat::new(1.0),
+                PlainFloat::new(2000.0),
+                PlainFloat::new(500.0),
+            ],
+            puff_m: [PlainFloat::new(0.0001), PlainFloat::new(0.0001)],
+            drift_lower: PlainFloat::new(1000.0),
+            trail_random_k: PlainFloat::new(-0.5),
             trail_axes: [
-                Float::new(0.001),
-                Float::new(0.1),
-                Float::new(0.001),
-                Float::new(0.1),
-                Float::new(0.001),
-                Float::new(0.1),
+                PlainFloat::new(0.001),
+                PlainFloat::new(0.1),
+                PlainFloat::new(0.001),
+                PlainFloat::new(0.1),
+                PlainFloat::new(0.001),
+                PlainFloat::new(0.1),
             ],
-            trail_spread: Float::new(256.0),
-            trail_size_k: [Float::new(16.0), Float::new(2048.0)],
-            trail_life_k: Float::new(256.0),
-            burst_scale: [Float::new(1.0), Float::new(1024.0)],
-            burst_life: Float::new(256.0),
+            trail_spread: PlainFloat::new(256.0),
+            trail_size_k: [PlainFloat::new(16.0), PlainFloat::new(2048.0)],
+            trail_life_k: PlainFloat::new(256.0),
+            burst_scale: [PlainFloat::new(1.0), PlainFloat::new(1024.0)],
+            burst_life: PlainFloat::new(256.0),
             dust: [
-                Float::new(-1.2),
-                Float::from_bits(0xFF800000),
-                Float::new(-1000.0),
+                PlainFloat::new(-1.2),
+                PlainFloat::from_bits(0xFF800000),
+                PlainFloat::new(-1000.0),
             ],
-            trail: [Float::new(-0.1), Float::from_bits(0xFF800000)],
+            trail: [PlainFloat::new(-0.1), PlainFloat::from_bits(0xFF800000)],
             burst8: [
-                Float::new(-0.1),
-                Float::new(0.1),
-                Float::new(0.1),
-                Float::new(0.1),
-                Float::from_bits(0xFF800000),
+                PlainFloat::new(-0.1),
+                PlainFloat::new(0.1),
+                PlainFloat::new(0.1),
+                PlainFloat::new(0.1),
+                PlainFloat::from_bits(0xFF800000),
             ],
             burst9: [
-                Float::new(-0.1),
-                Float::new(0.1),
-                Float::new(0.1),
-                Float::new(0.1),
-                Float::from_bits(0xFF800000),
+                PlainFloat::new(-0.1),
+                PlainFloat::new(0.1),
+                PlainFloat::new(0.1),
+                PlainFloat::new(0.1),
+                PlainFloat::from_bits(0xFF800000),
             ],
-            _gap_93c6bc: Bytes::new([0; 12]),
+            _gap_93c6bc: PlainBytes::new([0; 12]),
         }
     }
 }

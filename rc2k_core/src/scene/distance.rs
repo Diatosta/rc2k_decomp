@@ -2,8 +2,7 @@
 //! `scene::approximate_distance` 0x44EB78): the lamps' and the race's distances; and the
 //! stage objects' radius (from `scene::widen_object_radius` 0x426A7F), with one.
 
-/// The length and the two smaller parts' shares of it (what the original leaves in ebx
-/// and ecx).
+/// The length and the two smaller parts' shares of it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Approximate {
     pub length: u32,

@@ -28,6 +28,7 @@ use crate::menu::results_store::Results;
 use crate::menu::screen_items_store::ScreenItems;
 use crate::menu::state_store::MenuState;
 use crate::menu::texts_store::MenuTexts;
+use crate::session::GameThread;
 
 /// The cars, their numbers and the drivers.
 pub struct Cars {
@@ -161,16 +162,16 @@ impl Keys {
 }
 
 /// The one instance. Reached through `menus()`; `moved` registers its stores' places.
-pub static MENUS: Menus = Menus {
+pub static MENUS: GameThread<Menus> = GameThread::new(Menus {
     cars: Cars::new(),
     panels: Panels::new(),
     keys: Keys::new(),
     screens: Screens::new(),
     tables: Tables::new(),
     play: Play::new(),
-};
+});
 
 /// The menus' state, for a caller that does not take it as a parameter yet.
 pub fn menus() -> &'static Menus {
-    &MENUS
+    MENUS.get()
 }

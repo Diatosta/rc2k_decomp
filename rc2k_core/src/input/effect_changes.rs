@@ -35,13 +35,13 @@ pub enum Field {
 pub enum Call {
     /// Download and Start.
     Start,
-    /// SetParameters with these flags (eax).
+    /// SetParameters with these flags.
     Set(u32),
     Stop,
 }
 
 /// What a change does: its stores in order, then its call. For effect 1's values the
-/// divisor and remainder of its `idiv` (what ecx and edx hold at the call).
+/// divisor and remainder of its `idiv` (the two operands of the division).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Plan {
     pub stores: Vec<(Field, u32)>,
@@ -59,15 +59,15 @@ fn blend(a: u32, b: u32, by: u32) -> u32 {
     ((((b.wrapping_sub(a) as i32).wrapping_mul(by as i32)) >> 8) as u32).wrapping_add(a)
 }
 
-/// Effect `number`'s answer to `change` with values `ecx`, `edx`. `sensitivity` is the
+/// Effect `number`'s answer to `change` with values `arg_a`, `arg_b`. `sensitivity` is the
 /// record's +0x20 (asked only for effect 5's set-up), `row` effect 1's table row (asked
 /// only for its values, with a row inside the table). Refuses (before anything) for effect
 /// 1's values a row past the table and a blend of 0 (the original's `idiv` traps).
 pub fn plan(
     number: u32,
     change: u32,
-    ecx: u32,
-    edx: u32,
+    arg_a: u32,
+    arg_b: u32,
     sensitivity: impl FnOnce() -> u32,
     row: impl FnOnce(u32) -> [u32; 4],
 ) -> Result<Plan, Invalid> {
@@ -99,18 +99,18 @@ pub fn plan(
         }
         (2, 0 | 1 | 4) => p.call = Some(Call::Start),
         (3, 0) => {
-            s.push((Field::Specific(1), value(ecx)));
-            s.push((Field::Specific(2), value(ecx)));
-            s.push((Field::Specific(0), value(edx)));
+            s.push((Field::Specific(1), value(arg_a)));
+            s.push((Field::Specific(2), value(arg_a)));
+            s.push((Field::Specific(0), value(arg_b)));
             p.call = Some(Call::Set(0x100));
         }
         (3, 1) => {
-            if !(0..ROWS).contains(&(ecx as i32)) {
+            if !(0..ROWS).contains(&(arg_a as i32)) {
                 return Err(Invalid("a row past the effect's table"));
             }
-            let r = row(ecx);
-            let first = blend(r[0], r[2], edx);
-            let second = blend(r[1], r[3], edx);
+            let r = row(arg_a);
+            let first = blend(r[0], r[2], arg_b);
+            let second = blend(r[1], r[3], arg_b);
             if second == 0 {
                 return Err(Invalid("a blend of 0 (the original's idiv traps)"));
             }
@@ -123,12 +123,12 @@ pub fn plan(
             p.call = Some(Call::Set(0x100));
         }
         (3, 2 | 3 | 5) => {
-            s.push((Field::Specific(0), value(ecx)));
+            s.push((Field::Specific(0), value(arg_a)));
             p.call = Some(Call::Set(0x2000_0100));
         }
         (3, 4) => {
-            s.push((Field::Specific(1), value(ecx)));
-            s.push((Field::Specific(2), value(ecx)));
+            s.push((Field::Specific(1), value(arg_a)));
+            s.push((Field::Specific(2), value(arg_a)));
             p.call = Some(Call::Set(0x100));
         }
         (4, _) => p.call = Some(Call::Stop),

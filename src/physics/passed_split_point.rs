@@ -25,7 +25,7 @@ use crate::math::x87_float::to_int;
 use crate::physics::car_store::Car;
 use crate::physics::ground_store::GroundWork;
 use crate::physics::split_tables_store::SplitTables;
-use crate::physics::step_inputs::StepInputs;
+use crate::physics::step_families::CheckpointInputs;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_course::Course;
@@ -106,10 +106,10 @@ fn point(split_tables: &SplitTables, course: &Course, car: &Car) -> Result<(u32,
 // Converted: `rc2k_core::physics::progress::{check_split_point, face_known, passed_point}`
 // (the distance and the angle stay x87).
 pub fn passed_split_point(
-    c: &StepInputs<'_>,
+    c: &CheckpointInputs<'_>,
     scene: &crate::scene::owner::Scene,
 ) -> Result<bool, Refused> {
-    if c.replay.finish.no_place.get() != 0 {
+    if c.finish.no_place.get() != 0 {
         return Ok(false);
     }
     let (cp, pt) = point(&c.physics.split_tables, c.course, c.car)?;
