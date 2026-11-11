@@ -7,12 +7,12 @@
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
+use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::car_draw_state::CarDrawState;
-use crate::race::frame_view::car_at as car_view;
+use crate::race::frame_view::car as car_view;
 use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
-use crate::race::trap::car_at;
 use crate::race::view_vars_store::ViewVars;
 use crate::race::work_store::RaceWork;
 use crate::scene::draw_described_object::Description;
@@ -81,7 +81,7 @@ fn number_name_byte(work: &RaceWork, offset: u32) -> Result<u8, BadInput> {
 /// `car_decal_places`[]` names (marks 0xA .. 0x1B; one past the marks is refused).
 pub fn car_number_textures(
     race: &Race,
-    car: u32,
+    car: usize,
     marks: &crate::scene::car_marks::CarMarks,
 ) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::car_marks` (the rounding of +0x718 the x87's, under the
@@ -100,7 +100,7 @@ pub fn car_number_textures(
         marks.mark(2).set(side);
         marks.mark(3).set(side);
         let name = car_view(car)?.car_kind.get().wrapping_mul(0x30);
-        let n = crate::math::x87::to_int(&car_at(car)?.shown_engine_speed);
+        let n = crate::math::x87::to_int(&CAR_BLOCKS.cars[car].shown_engine_speed);
         let (place, _) = letter_place(n);
         let letter = letter_number(number_name_byte(
             &race.shared.work,
@@ -120,7 +120,7 @@ pub fn car_number_textures(
             race.course.numbers.hundred.get(),
         ) {
             for k in 0..0x11u32 {
-                let byte = car_at(car)?.part_switches.get(k as usize) as u32;
+                let byte = CAR_BLOCKS.cars[car].part_switches.get(k as usize) as u32;
                 let to = race.frame.frame_work.car_decal_places[k as usize].get() as usize;
                 if to >= crate::scene::car_marks::MARKS {
                     return Err(BadInput("a decal place past the car's marks"));
@@ -228,10 +228,10 @@ fn shown_groups(masks: &[crate::session::Dword; 18], switches: u32) -> u32 {
 /// leave it (the object's description, read only on the described way). Refuses (before anything)
 /// what `scene::draw_scene_object` would for the car's objects: in a race (`g_inRace`) car
 /// `drawn_car` (below eight) without its block.
-pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Result<(), Refused> {
+pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Result<(), Refused> {
     let race = ctx.race;
     let n: u32 = ctx.view.state.drawn_car.get();
-    if race.course.numbers.in_race.is_set() && n < 8 && race.shared.work.car_block(n as usize) == 0
+    if race.course.numbers.in_race.is_set() && n < 8 && !race.shared.work.has_car_block(n as usize)
     {
         return Err(BadInput("the drawn car without its block").into());
     }
@@ -244,7 +244,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
         ..*ctx
     };
     let [p0, p1, p2, p3] = part_matrices(&ctx.view.cars);
-    let c = car_at(car)?;
+    let c = &CAR_BLOCKS.cars[car];
     let kept = &c.part_matrices;
     for (from, to) in [
         &kept[..16],
@@ -265,7 +265,10 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
     ]) {
         crate::math::cells::copy_cells(from, to, 16);
     }
-    ctx.view.cars.groups_which.set(car_at(car)?.mode_on.get());
+    ctx.view
+        .cars
+        .groups_which
+        .set(CAR_BLOCKS.cars[car].mode_on.get());
     let model = car_view(car)?.car_kind.get();
     ctx.view.matrices.known_object.set(model);
     set_group_masks(&ctx.view.cars.group_masks, model)?;
@@ -303,7 +306,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
     ctx.view
         .cars
         .car_nearness
-        .set_bits(race.course.numbers.zero.bits());
+        .set(race.course.numbers.zero.get());
     let mut stage = ctx.view.state.view_car_stage.get();
     if (stage as i32) < 0 {
         stage = 0;
@@ -442,14 +445,14 @@ fn nearness(race: &Race, cars: &CarDrawState, mine: &crate::race::view_course::V
         let depth = int(cars.car_depth.get() as i32);
         cars.car_nearness
             .st((depth - int(0xA_0000)) / int(0x14_0000));
-        let near: u32 = cars.car_nearness.bits();
+        let near = cars.car_nearness.get();
         // `fld zero; fld near; fcompp`: near below 0 (or no number) -> 0.
-        if below_or_unordered(near, race.course.numbers.zero.bits()) {
-            cars.car_nearness.set_bits(race.course.numbers.zero.bits());
+        if below_or_unordered(near, race.course.numbers.zero.get()) {
+            cars.car_nearness.set(race.course.numbers.zero.get());
         }
-        let near: u32 = cars.car_nearness.bits();
-        if !below_or_unordered(near, race.course.numbers.one.bits()) {
-            cars.car_nearness.set_bits(race.course.numbers.one.bits());
+        let near = cars.car_nearness.get();
+        if !below_or_unordered(near, race.course.numbers.one.get()) {
+            cars.car_nearness.set(race.course.numbers.one.get());
         }
         let shine = (ONE - cars.car_nearness.ld()) * int(mine.shine.get() as i32);
         let whole = to_int(shine);
@@ -472,7 +475,7 @@ fn near_size(cars: &CarDrawState) -> u32 {
 /// put back.
 pub fn draw_car_shined(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
-    car: u32,
+    car: usize,
 ) -> Result<(), Refused> {
     let race = ctx.race;
     let course = &race.course;
@@ -505,10 +508,10 @@ pub fn draw_car_entry(
     use crate::math::x87::tbyte_to_int;
     use crate::race::skidmarks::int_80;
     let n = entry & 7;
-    let car: u32 = race.shared.work.car_block(n as usize);
-    if car == 0 {
+    if !race.shared.work.has_car_block(n as usize) {
         return Err(BadInput("a car without its block").into());
     }
+    let car = race.shared.work.block_number(n as usize)?;
     ctx.view.vars.drawn_car.set(n);
     ctx.view.state.drawn_car.set(n);
     ctx.view
@@ -584,15 +587,12 @@ mod asm_reference {
             drop(old);
             let near: u32 = shared.work.car_nearness.bits();
             // `fld zero; fld near; fcompp`: near below 0 (or no number) -> 0.
-            if below_or_unordered(near, course.numbers.zero.bits()) {
-                shared
-                    .work
-                    .car_nearness
-                    .set_bits(course.numbers.zero.bits());
+            if below_or_unordered(near, course.numbers.zero.get()) {
+                shared.work.car_nearness.set(course.numbers.zero.get());
             }
             let near: u32 = shared.work.car_nearness.bits();
-            if !below_or_unordered(near, course.numbers.one.bits()) {
-                shared.work.car_nearness.set_bits(course.numbers.one.bits());
+            if !below_or_unordered(near, course.numbers.one.get()) {
+                shared.work.car_nearness.set(course.numbers.one.get());
             }
             let old = crate::race::store::OldPlaces::lay(&[0x5cce74, 0x5cce78, 0x71ba08]);
             core::arch::asm!(
@@ -691,10 +691,7 @@ mod asm_reference {
                 mine.shine.set(race.course.course.shine.get());
                 nearness(race, &cars, &mine);
                 race.course.course.shine.set(mine.shine.get());
-                race.shared
-                    .work
-                    .car_nearness
-                    .set_bits(cars.car_nearness.bits());
+                race.shared.work.car_nearness.set(cars.car_nearness.get());
                 assert_eq!(state(), want, "nearness from {before:x?}");
                 let size_got = near_size(&cars);
                 assert_eq!(size_got, size_want, "size from {before:x?}");

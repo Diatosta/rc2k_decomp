@@ -149,28 +149,28 @@ fn projected_x87(k: &MarksKindFloats, sq: &WindscreenFlakeTables) {
         crate::scene::polygon_work::front_end()
             .window
             .view_scale
-            .bits(),
+            .get(),
     );
     let t1 = t0 / sq.corners[3][2].ld();
     let t2 = crate::math::x87_float::ld(
         crate::scene::polygon_work::front_end()
             .window
             .view_scale
-            .bits(),
+            .get(),
     );
     let t3 = t2 / sq.corners[2][2].ld();
     let t4 = crate::math::x87_float::ld(
         crate::scene::polygon_work::front_end()
             .window
             .view_scale
-            .bits(),
+            .get(),
     );
     let t5 = t4 / sq.corners[1][2].ld();
     let t6 = crate::math::x87_float::ld(
         crate::scene::polygon_work::front_end()
             .window
             .view_scale
-            .bits(),
+            .get(),
     );
     let t7 = t6 / sq.corners[0][2].ld();
     let t8 = sq.corners[0][1].ld();
@@ -179,12 +179,12 @@ fn projected_x87(k: &MarksKindFloats, sq: &WindscreenFlakeTables) {
     let t11 = -t9;
     let t12 = t11
         + crate::math::x87_float::ld(
-            crate::scene::polygon_work::front_end().window.view_centre[1].bits(),
+            crate::scene::polygon_work::front_end().window.view_centre[1].get(),
         );
     st_cell(&VERTICES.vertices[0].y, t12);
     let t13 = t10
         + crate::math::x87_float::ld(
-            crate::scene::polygon_work::front_end().window.view_centre[0].bits(),
+            crate::scene::polygon_work::front_end().window.view_centre[0].get(),
         );
     st_cell(&VERTICES.vertices[0].x, t13);
     let t14 = sq.corners[1][1].ld();
@@ -193,12 +193,12 @@ fn projected_x87(k: &MarksKindFloats, sq: &WindscreenFlakeTables) {
     let t17 = -t15;
     let t18 = t17
         + crate::math::x87_float::ld(
-            crate::scene::polygon_work::front_end().window.view_centre[1].bits(),
+            crate::scene::polygon_work::front_end().window.view_centre[1].get(),
         );
     st_cell(&VERTICES.vertices[1].y, t18);
     let t19 = t16
         + crate::math::x87_float::ld(
-            crate::scene::polygon_work::front_end().window.view_centre[0].bits(),
+            crate::scene::polygon_work::front_end().window.view_centre[0].get(),
         );
     st_cell(&VERTICES.vertices[1].x, t19);
     let t20 = sq.corners[2][1].ld();
@@ -207,12 +207,12 @@ fn projected_x87(k: &MarksKindFloats, sq: &WindscreenFlakeTables) {
     let t23 = -t21;
     let t24 = t23
         + crate::math::x87_float::ld(
-            crate::scene::polygon_work::front_end().window.view_centre[1].bits(),
+            crate::scene::polygon_work::front_end().window.view_centre[1].get(),
         );
     st_cell(&VERTICES.vertices[2].y, t24);
     let t25 = t22
         + crate::math::x87_float::ld(
-            crate::scene::polygon_work::front_end().window.view_centre[0].bits(),
+            crate::scene::polygon_work::front_end().window.view_centre[0].get(),
         );
     st_cell(&VERTICES.vertices[2].x, t25);
     let t26 = sq.corners[3][1].ld();
@@ -221,12 +221,12 @@ fn projected_x87(k: &MarksKindFloats, sq: &WindscreenFlakeTables) {
     let t29 = -t27;
     let t30 = t29
         + crate::math::x87_float::ld(
-            crate::scene::polygon_work::front_end().window.view_centre[1].bits(),
+            crate::scene::polygon_work::front_end().window.view_centre[1].get(),
         );
     st_cell(&VERTICES.vertices[3].y, t30);
     let t31 = t28
         + crate::math::x87_float::ld(
-            crate::scene::polygon_work::front_end().window.view_centre[0].bits(),
+            crate::scene::polygon_work::front_end().window.view_centre[0].get(),
         );
     st_cell(&VERTICES.vertices[3].x, t31);
     let t32 = sq.corners[0][2].ld();

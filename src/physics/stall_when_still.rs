@@ -29,10 +29,10 @@ pub fn stall_at(tables: &PhysicsTables, v: &[&dyn Cell32]) {
             ext_div2(dot_product(&v[4..7], &v[0..3]), get(3), get(3)).to_bits(),
         );
     }
-    if abs_compare(get(3), tables.stall_speed.bits()) & 0x100 != 0 {
+    if abs_compare(get(3), &tables.stall_speed) & 0x100 != 0 {
         return;
     }
-    if compare_full(get(7), tables.stall_share.bits()) & 0x100 == 0 {
+    if compare_full(get(7), &tables.stall_share) & 0x100 == 0 {
         return;
     }
     if get(8) != 0 {

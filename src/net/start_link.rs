@@ -23,7 +23,7 @@
 
 use crate::errors::Refused;
 use crate::menu::owner::menus;
-use crate::net::lobby::log;
+use crate::net::lobby::log_bytes;
 use crate::net::owner::Net;
 use crate::net::owner::net;
 use crate::net::store::PlayerRecord;
@@ -95,7 +95,7 @@ pub fn start_link(mode: u32) -> Result<(), Refused> {
     let race = crate::race::owner::race();
     let vars = &net.vars;
     use crate::net::*;
-    log(VIEWER_PANEL.text_ptr(texts::NET_STARTING_LINK), true, 2);
+    log_bytes(&VIEWER_PANEL.text(texts::NET_STARTING_LINK), true, 2);
     vars.mode.set(mode);
     take_player_settings::take_player_settings(race);
     let play = &menus().play;
@@ -129,7 +129,7 @@ pub fn start_link(mode: u32) -> Result<(), Refused> {
             }
         }
     }
-    log(VIEWER_PANEL.text_ptr(texts::NET_STOPPING_LINK), true, 2);
+    log_bytes(&VIEWER_PANEL.text(texts::NET_STOPPING_LINK), true, 2);
     stopping::stopping(&net.vars)?;
     crate::sound::play_tune_3::play_tune_3();
     Ok(())

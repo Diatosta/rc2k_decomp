@@ -9,7 +9,7 @@ use crate::net::store::NetVars;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 pub fn release_dplay(vars: &NetVars) {
     if vars.dplay.get() != 0 {
-        crate::logfile::log_write::log_at(VIEWER_PANEL.text_ptr(texts::NET_DESTROY_DPLAY), true, 2);
+        crate::net::lobby::log_bytes(&VIEWER_PANEL.text(texts::NET_DESTROY_DPLAY), true, 2);
         crate::net::dp_objects::release(vars.dplay.get());
         vars.dplay.set(0);
     }

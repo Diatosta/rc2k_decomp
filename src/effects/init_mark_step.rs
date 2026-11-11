@@ -32,11 +32,10 @@ pub fn init_mark_step(
         } else {
             race.shared.view.players.bits()
         };
-        let block = |n: u32| race.shared.work.car_block(n as usize);
         let records = race.shared.work.car_records_resolved()?;
         // `check_cars` holds the count to 8 before `record` is asked.
         let record = |n: u32| records[n as usize];
-        race::check_cars(count, |n| block(n) != 0)?;
+        race::check_cars(count, |n| race.shared.work.has_car_block(n as usize))?;
         EFFECTS_SETTINGS
             .cars_copy
             .set(race.shared.view.race_cars.get());
@@ -49,7 +48,7 @@ pub fn init_mark_step(
             crate::race::mud::car_file_number(crate::race::blocks_store::own_car().car_kind.bits());
         EFFECTS_SETTINGS.mark_car_file_number.set_bits(file);
         for n in 0..count {
-            let kind = crate::physics::car_store::Car::at(block(n)).car_kind.get() as i32;
+            let kind = race.shared.work.car_or_end(n as usize).car_kind.get() as i32;
             // Rows of 0x134 bytes, from the sixth group of the kind's light record on, run on
             // past it as the original does.
             let row = (0x6C + race::kind_row(kind)) as u32 as usize;

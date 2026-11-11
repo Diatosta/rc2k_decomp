@@ -90,7 +90,7 @@ fn ribbon_x87(dw: &DrawWork, vv: &ViewVars) {
     let t0 = ld(crate::scene::polygon_work::front_end()
         .window
         .view_scale
-        .bits());
+        .get());
     let t1 = t0 / dw.turned[2].ld();
     let t2 = t1 * dw.turned[0].ld();
     let t3 = t1 * dw.turned[1].ld();
@@ -103,7 +103,7 @@ fn ribbon_x87(dw: &DrawWork, vv: &ViewVars) {
     let t7 = ld(crate::scene::polygon_work::front_end()
         .window
         .view_scale
-        .bits());
+        .get());
     let t8 = t7 / dw.second[2].ld();
     let t9 = t8 * dw.second[0].ld();
     let t10 = t8 * dw.second[1].ld();

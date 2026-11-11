@@ -14,8 +14,8 @@ pub fn plane_height(q: &GroundQuery<'_>) {
         q.corners[4].get() as i32,
         q.corners[7].get() as i32,
         q.corners[1].get() as i32,
-        q.plane_f.bits(),
-        q.plane_g.bits(),
+        q.plane_f,
+        q.plane_g,
     );
     q.height.set(h as u32);
 }

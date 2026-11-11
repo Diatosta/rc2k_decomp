@@ -15,9 +15,9 @@ const _: () = assert!(core::mem::size_of::<Car>() == CAR_LEN);
 pub fn current_block(shared: &RaceShared) -> Result<&'static Car, Refused> {
     use rc2k_core::drive::work_car::{car_block, car_slot};
     let slot = car_slot(shared.work.current_car.get());
-    let block = car_block(shared.work.car_block(slot as usize))?;
+    car_block(u32::from(shared.work.has_car_block(slot as usize)))?;
 
-    Ok(Car::at(block))
+    Ok(shared.work.car(slot as usize)?)
 }
 
 /// Copies `CAR_LEN` bytes, dword by dword upwards as `rep movsd` does (the two never

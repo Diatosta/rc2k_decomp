@@ -59,9 +59,9 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
             // 0x45D83E: a wall met.
             let k = probe as usize;
             contact.probe_index.set(probe);
-            c.car.contact_point[0].set_bits(c.car.probe_point_x[k].bits());
-            c.car.contact_point[1].set_bits(c.car.probe_point_y[k].bits());
-            c.car.contact_point[2].set_bits(c.car.probe_point_z[k].bits());
+            c.car.contact_point[0].set(c.car.probe_point_x[k].get());
+            c.car.contact_point[1].set(c.car.probe_point_y[k].get());
+            c.car.contact_point[2].set(c.car.probe_point_z[k].get());
             crate::physics::wall_edge_contact::steps(c, scene)?;
             if let Some(hit) = rc2k_core::physics::walls::raised_hit(
                 contact.contact_speed_length.get(),
@@ -77,9 +77,9 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
             if bits != walls::WALL_BITS {
                 return Ok(());
             }
-            c.car.contact_point[0].set_bits(c.car.local_velocity[0].bits());
-            c.car.contact_point[1].set_bits(c.car.local_velocity[1].bits());
-            c.car.contact_point[2].set_bits(c.car.local_velocity[2].bits());
+            c.car.contact_point[0].set(c.car.local_velocity[0].get());
+            c.car.contact_point[1].set(c.car.local_velocity[1].get());
+            c.car.contact_point[2].set(c.car.local_velocity[2].get());
             crate::physics::wall_push_back::steps(c, scene)?;
             after(c, scene)
         }

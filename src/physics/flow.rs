@@ -112,11 +112,11 @@ pub fn table_lerp(
     zero: &impl crate::session::Cell32,
     out: &impl crate::session::Cell32,
 ) {
-    if c0(g(x), t[0].bits()) {
+    if c0(g(x), &t[0]) {
         p(out, x87::loaded(&t[1]).to_bits());
         return;
     }
-    if !c0(g(x), t[2].bits()) {
+    if !c0(g(x), &t[2]) {
         p(out, x87::loaded(&t[3]).to_bits());
         return;
     }

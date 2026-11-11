@@ -64,9 +64,9 @@ fn settle_slip(car: &Car, tables: &PhysicsTables, numbers: &Numbers, cells: &Sli
         f2,
     } = *cells;
     slip_ratio(car, tables, drive, ratio);
-    let s = abs_of(slip.bits());
-    let signed = if c0(ratio.bits(), ZERO) {
-        neg_rounded(extended(s.to_bits()))
+    let s = abs_of(slip);
+    let signed = if c0(ratio, ZERO) {
+        neg_rounded(extended(s))
     } else {
         s
     };
@@ -85,11 +85,7 @@ fn slip_limit(
     slip: &Float,
 ) {
     slip_ratio_size(car, tables, drive, ratio);
-    let pick = if c0(ratio.bits(), force.bits()) {
-        ratio
-    } else {
-        force
-    };
+    let pick = if c0(ratio, force) { ratio } else { force };
     store_loaded(slip, pick);
 }
 
@@ -134,7 +130,7 @@ fn steps(
     hold_high(&physics_tables.drive_shares[2], &course.numbers.one);
     if car.driven_wheels_off.get() == 0 {
         if gear == 0 {
-            physics_tables.drive_torque.set_bits(0);
+            physics_tables.drive_torque.set(0.0);
         }
         crate::physics::cap_drive_speed::cap_drive_speed(car, physics_tables, scene);
         physics_tables.wheels_driven.set(0);
@@ -182,8 +178,8 @@ fn steps(
                 course.numbers.one.bits(),
             ]);
             if status_below(status) {
-                car.drive_speed_a.set_bits(0);
-                car.drive_speed_b.set_bits(0);
+                car.drive_speed_a.set(0.0);
+                car.drive_speed_b.set(0.0);
             }
         }
         revs(car, physics_tables, &course.numbers)?;
@@ -256,28 +252,25 @@ fn steps(
             &physics_tables.wheel_spin_push[0],
             &physics_tables.handling[4],
         );
-        let status = abs_compare(
-            physics_tables.drive_slip[0].bits(),
-            physics_tables.slip_limit.bits(),
-        );
+        let status = abs_compare(&physics_tables.drive_slip[0], &physics_tables.slip_limit);
         if status_above(status) {
             slip_side_share(physics_tables);
         }
         spin_push_b(physics_tables);
-        physics_tables.forces[10].force[0].set_bits(0);
-        physics_tables.forces[10].force[2].set_bits(0);
+        physics_tables.forces[10].force[0].set(0.0);
+        physics_tables.forces[10].force[2].set(0.0);
         // 0x43E855: the rolling drag against the motion.
         let status = speed_over_ground(car, physics_tables, scene);
         if status_above(status) {
             rolling_drag_forces(car, physics_tables, scene);
         }
         if vars.run_kind.get() != 1 && (car.run_ticks.get().wrapping_sub(0x320) as i32) < 0 {
-            car.drive_speed_a.set_bits(0);
-            car.drive_speed_b.set_bits(0);
+            car.drive_speed_a.set(0.0);
+            car.drive_speed_b.set(0.0);
         }
         share_wheel_forces(physics_tables, &course.numbers);
-        physics_tables.forces[19].force[0].set_bits(0);
-        physics_tables.forces[20].force[0].set_bits(0);
+        physics_tables.forces[19].force[0].set(0.0);
+        physics_tables.forces[20].force[0].set(0.0);
     }
     // 0x43E957: the wheels' slip figures.
     slip_figure_a(car, physics_tables, scene);

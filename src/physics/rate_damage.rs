@@ -240,25 +240,22 @@ pub fn rate_damage(car: &Car, damage: &DamageModel) {
         (&c.drive_efficiency[0], &d.front_tyre_wear),
         (&c.drive_efficiency[1], &d.rear_tyre_wear),
     ] {
-        d.brake_balance_complement.set(ramp(
-            x.bits(),
-            table_of(&d.lerp_tables[5]),
-            d.gauge_low.bits(),
-        ));
+        d.brake_balance_complement
+            .set(ramp(x, table_of(&d.lerp_tables[5]), &d.gauge_low));
         out.st(d.brake_balance_complement.ld() * bh::ld(k) * bh::ld(k) * out.ld());
     }
     c.steering_efficiency.set_bits(
         ramp(
-            c.steering_damage.bits(),
+            &c.steering_damage,
             table_of(&d.lerp_tables[6]),
-            d.gauge_low.bits(),
+            &d.gauge_low,
         )
         .to_bits(),
     );
     let efficiency = c.steering_efficiency.bits();
     c.steering_efficiency.set(x87::mul(efficiency, efficiency));
     for (out, x, t) in ramps_c(car, damage) {
-        out.set(ramp(x.bits(), table_of(t), d.gauge_low.bits()));
+        out.set(ramp(x, table_of(t), &d.gauge_low));
     }
     // Chance: the figure times `DamageModel.chance_scale` against the random's low word turned.
     let chance = |figure: &Float, turn: u32| {
@@ -290,10 +287,10 @@ pub fn rate_damage(car: &Car, damage: &DamageModel) {
     if chance(&d.gearbox_neutral_chance, 0x12) {
         c.forced_neutral.set(1);
     }
-    c.gear_wear[1].set_bits(0);
+    c.gear_wear[1].set(0.0);
     let mut bits = 0u32;
     for (n, wear) in c.gear_wear.iter().enumerate() {
-        if compare_full(wear.bits(), d.gauge_top.bits()) & 0x4000 != 0 {
+        if compare_full(wear, &d.gauge_top) & 0x4000 != 0 {
             bits |= 1 << n;
         }
     }
@@ -312,7 +309,7 @@ pub fn rate_damage(car: &Car, damage: &DamageModel) {
     } else {
         c.damage_failed.set(1);
         if !less(c.electrics_damage.bits(), d.gauge_top.bits()) {
-            c.engine_power_factor.set_bits(0);
+            c.engine_power_factor.set(0.0);
         }
     }
 }

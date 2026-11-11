@@ -19,7 +19,7 @@ static KEPT: AtomicBool = AtomicBool::new(false);
 /// After car 0's view: its turn (`view`, its own) kept for the sounds.
 pub fn keep(view: &crate::scene::view_matrices::ViewMatrices) {
     for (kept, now) in TURN.iter().zip(&view.view_turn_matrix) {
-        kept.set_bits(now.bits());
+        kept.set(now.get());
     }
     KEPT.store(true, Ordering::Relaxed);
 }

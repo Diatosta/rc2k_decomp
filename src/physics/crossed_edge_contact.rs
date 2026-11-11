@@ -27,7 +27,7 @@ use rc2k_core::physics::walls;
 /// Three floats copied as bits, in order.
 fn copy3(to: &[Float], from: &[Float]) {
     for k in 0..3 {
-        to[k].set_bits(from[k].bits());
+        to[k].set(from[k].get());
     }
 }
 
@@ -89,11 +89,11 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
     c.contact.crossed_heading.set(c.tables.wall_heading.get());
     copy3(&c.contact.contact_car_speed, &c.car.velocity);
     copy3(&c.contact.contact_turn_speed, &c.car.spin);
-    c.contact.contact_point[0].set_bits(c.contact.probe_turned_x[k].bits());
-    c.contact.contact_point[1].set_bits(c.contact.probe_turned_y[k].bits());
-    c.contact.contact_point[2].set_bits(c.contact.probe_turned_z[k].bits());
+    c.contact.contact_point[0].set(c.contact.probe_turned_x[k].get());
+    c.contact.contact_point[1].set(c.contact.probe_turned_y[k].get());
+    c.contact.contact_point[2].set(c.contact.probe_turned_z[k].get());
     c.contact.contact_point[1].set(mul(&c.contact.contact_point[1], &c.numbers.tenth));
-    c.contact.contact_slide_limit.set_bits(0);
+    c.contact.contact_slide_limit.set(0.0);
     contact_force(
         c.contact,
         c.numbers,

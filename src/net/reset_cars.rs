@@ -28,7 +28,7 @@ fn reset_fields(car: u32) -> [Reset; 7] {
 }
 pub fn reset_cars(race: &Race) -> Result<(), crate::errors::BadInput> {
     for car in 0..cars::CARS {
-        let block = crate::race::trap::car_at(race.shared.work.car_block(car as usize))?;
+        let block = race.shared.work.car(car as usize)?;
         for (field, v) in reset_fields(car) {
             field(block).set(v);
         }

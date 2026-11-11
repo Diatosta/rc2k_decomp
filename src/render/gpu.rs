@@ -723,10 +723,15 @@ mod comparison {
 
         system.session.screen.width.set(width as u32);
         system.session.screen.height.set(height as u32);
-        let soft = vec![0u8; width * height * 4];
-        let soft_lent = crate::pointers::Lent::new(&soft);
+        let soft_held =
+            std::sync::Arc::new(crate::pointers::LentBytes::from_vec(vec![
+                0u8;
+                width * height * 4
+            ]));
+        let soft_handle = 0x7000_0000;
+        crate::gfx::locked_pixels::register(soft_handle, &soft_held);
         let target = Target {
-            pixels: soft_lent.addr() as usize,
+            pixels: soft_handle,
             pitch: width * 4,
             width,
             height,
@@ -738,6 +743,7 @@ mod comparison {
             read_commands(&mut Reader(r.0)),
         );
 
+        let soft = soft_held.to_vec();
         sdl_gpu::init_video();
         let Some(device) = make_device() else {
             println!("SKIPPED: no GPU device: {}", sdl_error());

@@ -18,7 +18,7 @@ use crate::race::owner_shared::RaceShared;
 
 // Converted: `rc2k_core::physics::camera_view::shakes` (the x87 steps stay).
 fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    scene.lights.state.camera_shake_listener.set_bits(0);
+    scene.lights.state.camera_shake_listener.set(0.0);
     scene.lights.state.camera_shake_y.set(0);
     if rc2k_core::physics::camera_view::shakes(c.car.camera_view.get(), c.car.all_wheels_off.get())
     {
@@ -41,7 +41,7 @@ fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(),
         x87_2(c.numbers, scene);
         if c.split_tables.still.get() != 0 {
             scene.lights.state.camera_shake_y.set(0);
-            scene.lights.state.camera_shake_listener.set_bits(0);
+            scene.lights.state.camera_shake_listener.set(0.0);
         }
     }
     crate::physics::update_camera::steps(c, scene)

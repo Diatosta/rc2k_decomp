@@ -12,7 +12,7 @@
 //! Caller: DirectPlay, from `net::find_connections` (`callback`, a `stdcall` Rust function).
 
 use crate::errors::Refused;
-use crate::net::lobby::{log, log_bytes};
+use crate::net::lobby::log_bytes;
 use crate::net::owner::net;
 use crate::net::tables::{copy_printable_into, with_connection};
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
@@ -22,7 +22,7 @@ use rc2k_core::net::lists;
 /// short name.
 pub fn connection_found(guid: &[u8; 16], data: &[u8], short: &[u8]) -> Result<u32, Refused> {
     let vars = &net().vars;
-    log(VIEWER_PANEL.text_ptr(texts::NET_FOUND), false, 2);
+    log_bytes(&VIEWER_PANEL.text(texts::NET_FOUND), false, 2);
     log_bytes(short, true, 2);
     if crate::strings::load_language::notice_kind() == lists::LEAVES_OUT_PROVIDERS
         && [&vars.sp_serial, &vars.sp_modem]

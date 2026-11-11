@@ -63,7 +63,7 @@ pub fn surface_sound(
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `volume = [sf + 0x40]` (the request's +8)
 fn x87_1(sf: &crate::sound::store::SurfaceSounds, volume: &impl Cell32) {
-    let t0 = ld(sf.volume.bits());
+    let t0 = ld(sf.volume.get());
     volume.set_bits(st(t0));
 }
 

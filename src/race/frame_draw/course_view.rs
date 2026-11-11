@@ -114,7 +114,7 @@ pub fn face_hidden(
     ctx.view.object.position[0].set(x as u32);
     let depth = crate::math::x87::add_to_int(
         crate::scene::point_records::field(record, 0x18)?,
-        race.course.level_grid.depth_shift.bits(),
+        race.course.level_grid.depth_shift.get(),
     );
     ctx.view.object.face_depth.set(depth as u32);
     Ok(hidden_by_depth(depth as u32, x as u32))
@@ -363,9 +363,9 @@ pub fn mark_far_cells(
     let half: u32 = view.half.get();
     // Nothing in the loop writes the matrix: its floats read once.
     let matrix = crate::session::read_bits(&scratch.matrices.view_turn_matrix);
-    let two: u32 = race.course.numbers.two.bits();
-    let zero: u32 = race.course.numbers.zero.bits();
-    let point_five: u32 = race.course.numbers.half.bits();
+    let two = race.course.numbers.two.get();
+    let zero = race.course.numbers.zero.get();
+    let point_five = race.course.numbers.half.get();
     let mut out = [0u32; 8];
     for cell in 0..0x400u32 {
         let x = (cell & 0x1F).wrapping_sub(half);

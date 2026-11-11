@@ -741,7 +741,7 @@ fn halfway_record(
         v[k] = st((to - from) * half + from);
     }
     (v[3], v[7]) = (0, 0);
-    if below_or_unordered(v[6], course.numbers.k4096_a.bits()) {
+    if below_or_unordered(v[6], course.numbers.k4096_a.get()) {
         return;
     }
     crate::race::skidmarks::project_record(course, v, window);
@@ -1164,7 +1164,7 @@ mod asm_reference {
             crate::pointers::host(v + 0x1C)
                 .cast::<u32>()
                 .write_unaligned(0);
-            if below_or_unordered(get(v + 0x18), course.numbers.k4096_a.bits()) {
+            if below_or_unordered(get(v + 0x18), course.numbers.k4096_a.get()) {
                 return;
             }
             if course.stage_prefs.flat_depth.get() != 0 {

@@ -27,9 +27,9 @@ pub fn car_light_modes(
     mirrored: bool,
     view: u32,
 ) -> Result<(), Refused> {
-    let block = |n: u32| race.shared.work.car_block(n as usize);
+    let block = |n: u32| race.shared.work.block_number(n as usize);
     let cars: u32 = race.shared.view.race_cars.get();
-    if (0..8).any(|n| block(n) == 0) {
+    if (0..8).any(|n| !race.shared.work.has_car_block(n as usize)) {
         return Err(BadInput("a null car block").into());
     }
     if cars > 8 {
@@ -44,15 +44,15 @@ pub fn car_light_modes(
         .get();
     // (The original kept it in `g_shownCar`, read only here.)
     for n in 0..8 {
-        states.state_of(block(n))?.set(0);
+        states.state_of(block(n)?)?.set(0);
     }
     // Converted: `rc2k_core::race::lights::{lights_drawn, light_word}`.
     use rc2k_core::race::lights::{light_word, lights_drawn};
     let mode: u32 = race.shared.vars.run_kind.get();
     for n in 0..cars {
         // The state bits are the view's own; what decides them, the physics'.
-        let this_car = crate::race::frame_view::car_at(block(n))?;
-        let at = states.state_of(block(n))?;
+        let this_car = crate::race::frame_view::car(block(n)?)?;
+        let at = states.state_of(block(n)?)?;
         let me = n == shown;
         let drawn = lights_drawn(
             this_car.driver_kind.get() != 0,
@@ -192,7 +192,7 @@ pub(super) fn car_light_on_point(
         &crate::session::read_bits(&car.car_inverse_matrix),
     );
     crate::session::write_bits(&object_light.turned_light, t);
-    let k: u32 = course.numbers.one_over_65536.bits();
+    let k = course.numbers.one_over_65536.get();
     let s1 = int_square_sum_scaled_to_int(
         t[2].wrapping_sub(0x20_0000) as i32,
         t[0].wrapping_add(t[0]) as i32,

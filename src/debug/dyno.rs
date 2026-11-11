@@ -148,44 +148,41 @@ fn torque(race: &Race) {
 /// speed is no number (a ratio of 0).
 fn drive_at(race: &Race, speed: f32) -> Option<(f32, f32)> {
     let shared = &race.shared;
-    shared.car.drive_speed_a.set_bits(speed.to_bits());
-    shared.car.drive_speed_b.set_bits(speed.to_bits());
-    shared.car.local_velocity[2].set_bits(speed.to_bits());
+    shared.car.drive_speed_a.set(speed);
+    shared.car.drive_speed_b.set(speed);
+    shared.car.local_velocity[2].set(speed);
     revs_from_wheels(
         &race.shared.car,
         &race.shared.physics_tables,
         &race.course.numbers,
     )
     .ok()?;
-    let revs = f32::from_bits(shared.car.engine_speed.bits());
-    let limit = f32::from_bits(shared.car.engine_speed_limit.bits());
+    let revs = shared.car.engine_speed.get();
+    let limit = shared.car.engine_speed_limit.get();
     if revs.is_nan() || revs >= limit || revs < 0.0 {
         return None;
     }
     shared.car.throttle.set(0x100);
     torque(race);
-    Some((
-        f32::from_bits(shared.physics_tables.drive_torque.bits()),
-        revs / limit,
-    ))
+    Some((shared.physics_tables.drive_torque.get(), revs / limit))
 }
 
 /// 0x428F42, without its drawing.
 fn measure(race: &Race) -> Option<Measured> {
     let shared = &race.shared;
     let course = &race.course;
-    let limit = f32::from_bits(shared.car.engine_speed_limit.bits());
+    let limit = shared.car.engine_speed_limit.get();
     let count = shared.physics_tables.gear_count.get().min(7) as usize;
     if limit.is_nan() || limit <= 0.0 || count == 0 {
         return None;
     }
-    let figure = |f: &crate::session::Float| f32::from_bits(f.bits());
+    let figure = |f: &crate::session::Float| f.get();
     let up = figure(&GEAR.shift_up_point);
     let clutch = figure(&GEAR.shift_down_clutch_point);
     let down = figure(&GEAR.shift_down_point);
     let air = figure(&shared.physics_tables.air_drag);
     let rolling = figure(&shared.physics_tables.rolling_drag);
-    let k = f32::from_bits(course.numbers.k10000.bits());
+    let k = course.numbers.k10000.get();
     Some(kept(shared, || {
         let mut gears = Vec::new();
         let mut best = [f32::MIN; POINTS];
@@ -236,11 +233,11 @@ fn measure(race: &Race) -> Option<Measured> {
 fn cursor(race: &Race) -> Option<(f32, f32, f32, i32)> {
     let shared = &race.shared;
     let gear = shared.car.gear.get() as i32;
-    let speed = f32::from_bits(shared.car.drive_speed_a.bits());
+    let speed = shared.car.drive_speed_a.get();
     if !(1..=7).contains(&gear)
         || !speed.is_finite()
-        || f32::from_bits(shared.car.engine_speed_limit.bits()).is_nan()
-        || f32::from_bits(shared.car.engine_speed_limit.bits()) <= 0.0
+        || shared.car.engine_speed_limit.get().is_nan()
+        || shared.car.engine_speed_limit.get() <= 0.0
     {
         return None;
     }
@@ -321,13 +318,7 @@ pub fn tab(race: &Race, ui: &Ui) {
         .iter()
         .zip(&GEAR.test_gears)
         .enumerate()
-        .map(|(n, (s, g))| {
-            (
-                n as f32,
-                f32::from_bits(s.bits()),
-                (g.get() as usize).min(6),
-            )
-        })
+        .map(|(n, (s, g))| (n as f32, s.get(), (g.get() as usize).min(6)))
         .collect();
     let top = samples.iter().map(|s| s.1).fold(0.0_f32, f32::max);
     if top > 0.0 {
@@ -362,9 +353,9 @@ mod tests {
         let was_limit = shared.car.engine_speed_limit.bits();
         let was_count = shared.physics_tables.gear_count.get();
         let was_ratio = shared.physics_tables.gear_ratios[2].bits();
-        shared.car.engine_speed_limit.set_bits(7000.0_f32.to_bits());
+        shared.car.engine_speed_limit.set(7000.0_f32);
         shared.physics_tables.gear_count.set(1);
-        shared.physics_tables.gear_ratios[2].set_bits(0.01_f32.to_bits());
+        shared.physics_tables.gear_ratios[2].set(0.01_f32);
         let before = places(shared).map(crate::session::Cell32::bits);
         let m = measure(race()).expect("a car");
         assert_eq!(places(shared).map(crate::session::Cell32::bits), before);

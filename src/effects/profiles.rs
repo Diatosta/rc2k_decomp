@@ -27,8 +27,8 @@ fn ida_table(paths: &Paths, ida: u32) -> &ProfileTable {
 }
 
 /// The profiles' work, `DrawWork.profile_work[0]` .. `DrawWork.profile_work[10]`.
-fn work(n: usize, v: u32, effects: &crate::effects::owner::Effects) {
-    effects.frame.draw_work.profile_work[n].set_bits(v);
+fn work(n: usize, v: f32, effects: &crate::effects::owner::Effects) {
+    effects.frame.draw_work.profile_work[n].set(v);
 }
 
 /// A table's second half: each the next less this (whole numbers, so the last reads the
@@ -48,30 +48,30 @@ fn make_tables(paths: &Paths, effects: &crate::effects::owner::Effects) -> Resul
     {
         for k in 0..3 {
             let t = ida_table(paths, paths.profile_lists.ramps[k].get());
-            let step = bh::st(
+            let step = bh::stf(
                 (bh::int(t[1].get() as i32) - bh::int(t[0].get() as i32))
                     / bh::ld(frame.draw_frame.profile_steps[0].get()),
             );
             work(2, step, effects);
             let mut v = x87::from_int(t[0].get() as i32);
-            work(0, v.to_bits(), effects);
+            work(0, v, effects);
             for cell in t.iter().take(0x100) {
                 cell.set(x87::to_int(v) as u32);
                 v = x87::add(v, step);
-                work(0, v.to_bits(), effects);
+                work(0, v, effects);
             }
             differences(t);
         }
         for k in 0..8 {
             let t = ida_table(paths, paths.profile_lists.sines[k].get());
-            let p: [u32; 4] = std::array::from_fn(|i| x87::loaded(t[i].get())).map(f32::to_bits);
+            let p: [f32; 4] = std::array::from_fn(|i| x87::loaded(t[i].get()));
             for (i, &v) in p.iter().enumerate() {
                 work(3 + i, v, effects);
             }
             let mut a = p[0];
             for cell in t.iter().take(0x100) {
                 cell.set(bh::to_int(bh::ld(a).sin() * bh::ld(p[2]) + bh::ld(p[1])) as u32);
-                a = x87::add(a, p[3]).to_bits();
+                a = x87::add(a, p[3]);
                 work(3, a, effects);
             }
             differences(t);
@@ -79,16 +79,16 @@ fn make_tables(paths: &Paths, effects: &crate::effects::owner::Effects) -> Resul
         for k in 0..2 {
             let t = ida_table(paths, paths.profile_lists.curves[k].get());
             let mut x = x87::loaded(t[0].get());
-            work(7, x.to_bits(), effects);
+            work(7, x, effects);
             let step = x87::sub_div(t[1].get(), t[0].get(), &frame.draw_frame.profile_steps[1]);
-            work(8, step.to_bits(), effects);
+            work(8, step, effects);
             let (scale, top) = (x87::loaded(t[2].get()), x87::loaded(t[3].get()));
-            work(9, scale.to_bits(), effects);
-            work(10, top.to_bits(), effects);
+            work(9, scale, effects);
+            work(10, top, effects);
             for cell in t.iter().take(0x100) {
                 cell.set(x87::negated_square_times_plus_to_int(x, scale, top) as u32);
                 x = x87::add(x, step);
-                work(7, x.to_bits(), effects);
+                work(7, x, effects);
             }
             differences(t);
         }

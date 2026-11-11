@@ -8,7 +8,6 @@ use crate::math::cells::copy_cells;
 use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
-use crate::race::trap::car_at;
 use crate::scene::matrix::{multiply_matrices, set_place, set_turn_x, set_turn_y};
 use crate::session::Float;
 
@@ -38,7 +37,7 @@ fn axles(shared: &RaceShared, model: u32) -> Result<Option<[u32; 5]>, BadInput> 
 /// `FrameWork.part_matrices[48]`. Refuses (before anything) axle values whose scaling would fault.
 pub fn car_part_matrices(
     race: &Race,
-    car: u32,
+    car: usize,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::car_parts::{axles, mark_switches, marks_bytes,
@@ -48,8 +47,8 @@ pub fn car_part_matrices(
     use rc2k_core::race::car_parts::{PartState, mark_switches, marks_bytes, steering};
     // `c` the block (what the drawing keeps there: the shown speed and steering, the switches,
     // the marks), `p` the car as the drawing sees it (`race::frame_view`).
-    let c = car_at(car)?;
-    let p = crate::race::frame_view::car_at(car)?;
+    let c = race.shared.work.car(car)?;
+    let p = crate::race::frame_view::car(race.shared.work.block_number(car)?)?;
     let Some(ax) = axles(&race.shared, p.car_kind.get())? else {
         return Err(BadInput("a car model whose axle scaling would fault").into());
     };
@@ -57,7 +56,7 @@ pub fn car_part_matrices(
     shown.set(loaded(&p.engine_speed));
     if below_or_unordered(
         shown.bits(),
-        race.shared.physics_tables.idle_engine_speed.bits(),
+        race.shared.physics_tables.idle_engine_speed.get(),
     ) {
         shown.set(loaded(&race.shared.physics_tables.idle_engine_speed));
     }
@@ -76,10 +75,7 @@ pub fn car_part_matrices(
     c.mode_on.set(s.mode_on);
     c.part_switches
         .write_at(0, &s.bytes, "a car block's switches")?;
-    let slow = below_or_unordered(
-        p.electrics_damage.bits(),
-        race.course.numbers.hundred.bits(),
-    );
+    let slow = below_or_unordered(p.electrics_damage.get(), race.course.numbers.hundred.get());
     c.marks_count.set(marks_bytes(s.count, slow, on));
     c.shown_steering.set(steering(p.steer_angle_visual.get()));
     let [front, rear_lift, height, front_z, _] = ax;
@@ -190,13 +186,16 @@ pub fn ready_car_parts(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
     // KEPT_MATRICES}`.
     use rc2k_core::race::car_parts::{KEPT_MATRICES, check_part_cars, parts_shown};
     let count = race.shared.view.race_cars.get();
-    check_part_cars(count, |n| race.shared.work.car_block(n as usize))?;
+    check_part_cars(count, |n| {
+        u32::from(race.shared.work.has_car_block(n as usize))
+    })?;
     // The loop's test is at its end: no cars still looks at car 0.
     let mut c = 0u32;
     loop {
-        let car = race.shared.work.car_block(c as usize);
-        let block = car_at(car)?;
-        if parts_shown(crate::race::frame_view::car_at(car)?.driver_kind.get()) {
+        let car = c as usize;
+        let block = race.shared.work.car(car)?;
+        let view = crate::race::frame_view::car(race.shared.work.block_number(car)?)?;
+        if parts_shown(view.driver_kind.get()) {
             car_part_matrices(race, car, scene)?;
             let wheels = &block.part_matrices;
             let kept: [&[Float]; KEPT_MATRICES as usize] = [

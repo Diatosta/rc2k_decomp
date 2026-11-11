@@ -337,6 +337,23 @@ impl Loadable for u32 {
     }
 }
 
+/// What `fstp dword` can store into: a float, or a dword holding the float's bits.
+pub(crate) trait Stored {
+    fn stored(x: X) -> Self;
+}
+
+impl Stored for f32 {
+    fn stored(x: X) -> Self {
+        stf(x)
+    }
+}
+
+impl Stored for u32 {
+    fn stored(x: X) -> Self {
+        st(x)
+    }
+}
+
 /// `fld dword`: a float, or a float given as its bits.
 pub(crate) fn ld(value: impl Loadable) -> X {
     X(f64::from(value.value()))

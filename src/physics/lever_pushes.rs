@@ -41,12 +41,12 @@ pub fn lever_pushes(
     }
     physics_tables.lever_push_vector[0].set(0);
     physics_tables.lever_push_vector[1].set(0);
-    physics_tables.lever_share_start.set_bits(0);
+    physics_tables.lever_share_start.set(0.0);
     let (share, zero) = lever_share(
-        car.grip_forces[0].bits(),
-        car.grip_forces[3].bits(),
-        car.grip_forces[1].bits(),
-        car.grip_forces[2].bits(),
+        &car.grip_forces[0],
+        &car.grip_forces[3],
+        &car.grip_forces[1],
+        &car.grip_forces[2],
         ZERO,
     );
     physics_tables.lever_share_start.set_bits(share);
@@ -69,6 +69,6 @@ pub fn lever_pushes(
     physics_tables.lever_push_vector[2].set(x87::loaded(&car.probe_point_z[0]).to_bits());
     physics_tables
         .lever_share_left
-        .set(one_less(physics_tables.lever_share_left.bits()));
+        .set(one_less(&physics_tables.lever_share_left));
     lever_push(car, physics_tables, numbers, scene);
 }

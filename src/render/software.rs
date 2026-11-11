@@ -123,13 +123,8 @@ fn draw(into: &Target, noted: Vec<Command>) {
         if small.is_none() && (depth.width != into.width || depth.height != into.height) {
             return;
         }
-        // The screen's pixels are lent (a region the size of its rows), checked here; the
-        // depths are Rust's own, borrowed for the frame.
-        crate::pointers::check_or_end(
-            into.pixels as u32,
-            into.pitch * into.height,
-            "the screen's pixels",
-        );
+        // The screen's pixels are checked by `pixels`; the depths are Rust's own, borrowed
+        // for the frame.
         let mut frame = match small.as_mut().map(Small::frame_parts) {
             Some((pixels, width, height, depth)) => {
                 Frame::new(Pixels::Bits32(pixels), width, width, height, depth)

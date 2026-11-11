@@ -38,10 +38,10 @@ pub fn cap_drive_speed_at(tables: &PhysicsTables, v: CapPlaces<'_>) {
     put(
         v[0],
         over_abs_plus_minus(
-            tables.drive_speed_cap.bits(),
+            &tables.drive_speed_cap,
             at(v[1]),
-            tables.drive_speed_cap_a.bits(),
-            tables.drive_speed_cap_b.bits(),
+            &tables.drive_speed_cap_a,
+            &tables.drive_speed_cap_b,
         )
         .to_bits(),
     );

@@ -20,7 +20,7 @@ fn check_object(race: &crate::race::owner::Race, object: u32) -> Result<(), Refu
     let car = object.wrapping_sub(0x50);
     if race.course.numbers.in_race.is_set()
         && car < 0xA0
-        && race.shared.work.car_block((car / 0x14) as usize) == 0
+        && !race.shared.work.has_car_block((car / 0x14) as usize)
     {
         return Err(BadInput("a car without its block").into());
     }

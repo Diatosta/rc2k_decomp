@@ -46,13 +46,13 @@ pub fn free_rev(course: &Course, shared: &RaceShared, scene: &crate::scene::owne
         let y = x87::add(e, drag);
         shared.car.engine_speed.set(y);
         if !below(y.to_bits(), 0) {
-            shared.car.engine_speed.set_bits(0);
+            shared.car.engine_speed.set(0.0);
         }
     } else {
         let y = x87::sub(e, drag);
         shared.car.engine_speed.set(y);
         if below(y.to_bits(), 0) {
-            shared.car.engine_speed.set_bits(0);
+            shared.car.engine_speed.set(0.0);
         }
     }
 }

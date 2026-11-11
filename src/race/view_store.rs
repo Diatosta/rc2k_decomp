@@ -136,9 +136,19 @@ impl RaceView {
 }
 
 impl RaceView {
-    /// View `n`'s car block (`g_viewBlocks[n]`, kept by handle: `blocks_store::block_of`).
-    pub fn view_block(&self, n: usize) -> u32 {
-        crate::race::blocks_store::block_of(self.view_blocks[n].get())
+    /// View `n`'s car block, or the end of the program for none (as `Car::at` on its address).
+    pub fn view_car_or_end(&self, n: usize) -> &'static crate::physics::car_store::Car {
+        self.view_car(n).unwrap_or_else(|| {
+            crate::fatal::raise::end(
+                "physics::Car::at",
+                crate::errors::BadInput("a car block at no car's place"),
+            )
+        })
+    }
+
+    /// The number of view `n`'s car block, refused for none.
+    pub fn view_number(&self, n: usize) -> Result<usize, crate::errors::BadInput> {
+        crate::race::blocks_store::number_of(self.view_blocks[n].get())
     }
 
     /// View `n`'s car block (None for none).

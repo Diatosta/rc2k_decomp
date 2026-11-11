@@ -20,9 +20,9 @@ pub fn car_angles(course: &Course, car: &Car, scene: &crate::scene::owner::Scene
     let scale = |a: u32| {
         mul3_to_int(
             a,
-            course.numbers.k65536.bits(),
-            course.numbers.k4096.bits(),
-            course.numbers.one_over_two_pi.bits(),
+            &course.numbers.k65536,
+            &course.numbers.k4096,
+            &course.numbers.one_over_two_pi,
         )
         .wrapping_shl(4)
     };

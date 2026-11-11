@@ -68,14 +68,14 @@ pub fn eax_face_weight(race: &Race, sum: &mut u32, face: u32) -> Result<(), BadI
         }
         if !abs_below_or_unordered(
             face_field::<u32>(&race.course, face, 0x30)?,
-            race.course.numbers.quarter.bits(),
+            race.course.numbers.quarter.get(),
         ) {
             return Ok(());
         }
         let (x1, _, z1) = point_from_car(&race.course, face_field(&race.course, face, 8)?)?;
         let (mx, mz) = (from_int(x1 as i32), from_int(z1 as i32));
         let (x2, _, z2) = point_from_car(&race.course, face_field(&race.course, face, 0xC)?)?;
-        let half: u32 = race.course.numbers.half.bits();
+        let half = race.course.numbers.half.get();
         let mx = int_plus_times(x2 as i32, mx, half);
         let mz = int_plus_times(z2 as i32, mz, half);
         let distance = table_root(&race.course, float_square_sum(mx, mz).to_bits());

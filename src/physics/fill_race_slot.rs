@@ -56,14 +56,14 @@ pub fn fill_race_slot(
     slot.car_word.set(car.probe_point_face[4].get());
     slot.age.set(car.step_clock.get());
     for k in 0..16 {
-        slot.matrix[k].set_bits(car.crash_matrix[k].bits());
+        slot.matrix[k].set(car.crash_matrix[k].get());
     }
     let k = work.part_fling.bits();
     slot.motion[0].set_bits(
         int_mul_add(
             scene.drawing.object_work.object_position[0].get() as i32,
             k,
-            car.velocity[0].bits(),
+            &car.velocity[0],
             None,
         )
         .to_bits(),
@@ -81,13 +81,13 @@ pub fn fill_race_slot(
         int_mul_add(
             scene.drawing.object_work.object_position[2].get() as i32,
             k,
-            car.velocity[2].bits(),
+            &car.velocity[2],
             None,
         )
         .to_bits(),
     );
     for k in 0..3 {
-        slot.spin[k].set_bits(car.spin[k].bits());
+        slot.spin[k].set(car.spin[k].get());
     }
     Ok(())
 }

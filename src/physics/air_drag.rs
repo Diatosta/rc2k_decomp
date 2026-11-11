@@ -17,7 +17,7 @@ use crate::session::Cell32;
 pub fn drag_at(tables: &PhysicsTables, numbers: &Numbers, v: &[&dyn Cell32]) {
     let get = |k: usize| v[k].bits();
     let put = |k: usize, x: u32| v[k].set_bits(x);
-    let (k, d, zero) = (tables.air_drag.bits(), numbers.k10000.bits(), ZERO);
+    let (k, d, zero) = (&tables.air_drag, &numbers.k10000, ZERO);
     for i in 0..3 {
         put(3 + i, square_times_over(get(i), k, d).to_bits());
         let a = abs_of(get(3 + i));

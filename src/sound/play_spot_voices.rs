@@ -74,9 +74,8 @@ pub fn play_spot_voices(
         }
         for (to, from) in REQUEST_FROM {
             request
-                .word(to)
-                .ok_or(BadInput("a request word past its ten"))?
-                .set(vw(v, from)?);
+                .set_word(to, vw(v, from)?)
+                .ok_or(BadInput("a request word past its ten"))?;
         }
         crate::sound::turn_parts::placed(request)?;
         if time_up(clock, vw(v, 0x34)?) {

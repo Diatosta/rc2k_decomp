@@ -37,17 +37,19 @@ const COPIED_WORDS: [&Dword; 5] = [
 ];
 
 /// This machine's car's block.
-pub fn own_block(shared: &RaceShared, vars: &NetVars) -> u32 {
-    shared.work.car_block(vars.player.get() as usize)
+pub fn own_block(
+    shared: &RaceShared,
+    vars: &NetVars,
+) -> Result<&'static crate::physics::car_store::Car, crate::errors::BadInput> {
+    shared.work.car(vars.player.get() as usize)
 }
 pub fn set_hud_options(race: &Race, vars: &NetVars) -> Result<(), crate::errors::BadInput> {
-    let block = own_block(&race.shared, vars);
     let mut bits = race.shared.state.results.hud_bits_current.get();
     // Converted: `rc2k_core::net::cars::hud_bits`.
     if bits == cars::NOT_KEPT {
         bits = cars::hud_bits(SWITCHES.map(super::super::session::Dword::get));
     }
-    let block = crate::race::trap::car_at(block)?;
+    let block = own_block(&race.shared, vars)?;
     block.option_bits.set(bits);
     block
         .camera_view

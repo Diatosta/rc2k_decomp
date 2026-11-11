@@ -36,11 +36,11 @@ fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<()
     }
     let n = point_number(c.contact)?;
     contact.ground_contact_started.set(1);
-    c.car.contact_point[0].set_bits(c.car.probe_point_x[n].bits());
-    c.car.contact_point[1].set_bits(c.car.probe_point_y[n].bits());
-    c.car.contact_point[2].set_bits(c.car.probe_point_z[n].bits());
+    c.car.contact_point[0].set(c.car.probe_point_x[n].get());
+    c.car.contact_point[1].set(c.car.probe_point_y[n].get());
+    c.car.contact_point[2].set(c.car.probe_point_z[n].get());
     take_contact(c.contact, c.course, c.car, n)?;
-    contact.contact_slide_limit.set_bits(0);
+    contact.contact_slide_limit.set(0.0);
     contact_force(
         c.contact,
         c.numbers,

@@ -46,7 +46,7 @@ impl SceneHandOff {
         self.environment[1].set(weight);
         let (there, (block, value)) = output.view_value.map_or((0, (0, 0)), |v| (1, v));
         self.view_value[0].set(there);
-        self.view_value[1].set(block);
+        self.view_value[1].set(block as u32);
         self.view_value[2].set(value);
         self.view_matrices.set(u32::from(output.view_matrices));
     }
@@ -66,7 +66,7 @@ impl SceneHandOff {
         ViewOutput {
             environment: (self.environment[0].get() != 0).then(|| self.environment[1].get()),
             view_value: (self.view_value[0].get() != 0)
-                .then(|| (self.view_value[1].get(), self.view_value[2].get())),
+                .then(|| (self.view_value[1].get() as usize, self.view_value[2].get())),
             view_matrices: self.view_matrices.get() != 0,
         }
     }

@@ -70,7 +70,7 @@ pub fn engine_sound(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let drawing = &scene.drawing;
-    if shared.view.players.get() == 1 && shared.view.view_block(0) == 0 {
+    if shared.view.players.get() == 1 && shared.view.view_car(0).is_none() {
         return Err(crate::errors::BadInput("a null view block").into());
     }
     run(&shared.car, numbers);

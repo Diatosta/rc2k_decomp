@@ -5,7 +5,7 @@
 //!
 //! Caller: `net::close_if_host`.
 
-use crate::net::lobby::{log, log_hex};
+use crate::net::lobby::{log_bytes, log_hex};
 use crate::net::owner::Net;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
@@ -14,11 +14,7 @@ pub fn disable_new_players(net: &Net) {
     if net.vars.own.state() & 0x10 == 0 {
         return;
     }
-    log(
-        VIEWER_PANEL.text_ptr(texts::NET_DISABLE_NEW_PLAYERS),
-        false,
-        2,
-    );
+    log_bytes(&VIEWER_PANEL.text(texts::NET_DISABLE_NEW_PLAYERS), false, 2);
     if net.vars.dplay.get() == 0 {
         return;
     }

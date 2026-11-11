@@ -35,12 +35,11 @@ use crate::scene::owner::scene;
 const SLOTS: u32 = 0x400;
 
 /// The two view blocks, or the refusal.
-fn view_blocks(shared: &RaceShared) -> Result<[u32; 2], Refused> {
-    let blocks: [u32; 2] = [shared.view.view_block(0), shared.view.view_block(1)];
-    if blocks.contains(&0) {
+fn view_blocks(shared: &RaceShared) -> Result<[usize; 2], Refused> {
+    let (Ok(first), Ok(second)) = (shared.view.view_number(0), shared.view.view_number(1)) else {
         return Err(BadInput("a null view block").into());
-    }
-    Ok(blocks)
+    };
+    Ok([first, second])
 }
 
 /// The frame's owners a view's drawing takes.
@@ -82,14 +81,12 @@ fn fetch_value(o: Owners<'_>, car: usize, mirror: bool) -> Result<(), Refused> {
 
 /// View `car`'s scene, and what it leaves its overlays kept (`race::scene_hand_off`).
 fn view_scene(o: Owners<'_>, car: usize) -> Result<(), Refused> {
-    let c = crate::moved::census::before();
     let _step = crate::write_watch::step(["view0_scene", "view1_scene"][car]);
     let view = crate::race::view_scratch::main_view(car);
     view.take_vars(o.race);
     let output = crate::race::draw_view_scene::draw_view_scene(o.race, o.scene, o.system, view)?;
     view.hand_off.keep_output(output);
     view.hand_off.keep(o.race);
-    crate::moved::census::after(if car == 0 { "view0" } else { "view1" }, c);
     Ok(())
 }
 
@@ -115,14 +112,12 @@ fn view_rest(o: Owners<'_>, car: usize, blit: bool) -> Result<(), Refused> {
     if blit {
         crate::d3d::copy_screen_to_texture::copy_screen_to_texture(&o.race.frame);
     }
-    let c = crate::moved::census::before();
     let ctx = crate::race::view_scratch::DrawCtx::new(o.race, o.scene, o.system, view);
     crate::race::draw_view_overlays::draw_view_overlays(
         &ctx,
         o.system,
         crate::effects::owner::effects(),
     )?;
-    crate::moved::census::after("overlays", c);
     if car == 0 {
         crate::race::sound_spots::find_sound_spots(o.race, view)?;
         crate::race::heard_turn::keep(&view.matrices);
@@ -135,14 +130,12 @@ fn view_mirror(o: Owners<'_>, car: usize) -> Result<(), Refused> {
     let _step = crate::write_watch::step(["mirror0", "mirror1"][car]);
     let mirror = crate::race::view_scratch::mirror(car);
     crate::race::frame::load_view_car(&o.race.shared, car, mirror)?;
-    let c = crate::moved::census::before();
     let begun = crate::debug::timing::start();
     let output =
         crate::race::draw_mirror_view::draw_mirror_view(o.race, o.scene, o.system, mirror)?;
     mirror.hand_off.keep_mirror_drawn(output.is_some());
     mirror.hand_off.keep_output(output.unwrap_or_default());
     crate::debug::timing::stop(crate::debug::timing::Stage::Mirror, begun);
-    crate::moved::census::after("mirror", c);
     Ok(())
 }
 
@@ -319,7 +312,7 @@ pub fn draw_race_scene(
         .iter()
         .zip(blocks)
     {
-        flags.set(crate::race::frame_view::car_at(block)?.option_bits.get());
+        flags.set(crate::race::frame_view::car(block)?.option_bits.get());
     }
     for (flags, on) in race
         .frame
@@ -381,7 +374,7 @@ pub fn draw_race_scene(
         != 0
     {
         race.frame.frame_work.mirror_wanted.set(
-            crate::race::frame_view::car_at(blocks[0])?
+            crate::race::frame_view::car(blocks[0])?
                 .camera_mode_is_2_or_3
                 .get(),
         );

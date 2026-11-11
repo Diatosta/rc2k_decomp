@@ -45,8 +45,10 @@ fn texture_set(
             race.course.numbers.in_race.is_set(),
             |object| scene.objects.tables.object_kind(object),
             |car| {
-                let block: u32 = shared.work.car_block(car as usize);
-                (block != 0).then(|| crate::physics::car_store::Car::at(block).car_kind.get())
+                shared
+                    .work
+                    .has_car_block(car as usize)
+                    .then(|| shared.work.car_or_end(car as usize).car_kind.get())
             },
         )
         .map_err(|e| -> Refused {

@@ -63,9 +63,9 @@ pub fn add_surface_share(race: &Race, surface: u32) {
     let share = &shared.vars.surface_shares[(surface & 0xF) as usize];
     // 256, 0.25, 100
     let [a, b, c] = [
-        course.numbers.k256.bits(),
-        course.numbers.quarter.bits(),
-        course.numbers.hundred.bits(),
+        course.numbers.k256.get(),
+        course.numbers.quarter.get(),
+        course.numbers.hundred.get(),
     ];
     let count = shared.vars.checkpoint_count.get() as i32;
     share.st(bh::int(weight) / bh::ld(a) * bh::ld(b) / bh::int(count) * bh::ld(c) + share.ld());
@@ -264,7 +264,7 @@ pub fn checkpoint_angles(race: &Race, scene: &crate::scene::owner::Scene) -> Res
     let n = count(&race.shared)?;
     let trap = Trap::new();
     {
-        let scales = (n >= 2).then(|| (course.numbers.half.bits(), course.numbers.k65536.bits()));
+        let scales = (n >= 2).then(|| (course.numbers.half.get(), course.numbers.k65536.get()));
         let (writes, _) = rc2k_core::race::best_line::link_angles(
             n,
             |b| {
@@ -561,7 +561,7 @@ pub fn map_segment(race: &Race, scene: &crate::scene::owner::Scene) -> Result<()
             ground[1] as i32,
         );
         work(shared, 0xC8).set(scale.to_bits());
-        let (half, unit) = (course.numbers.half.bits(), course.numbers.k65536.bits());
+        let (half, unit) = (course.numbers.half.get(), course.numbers.k65536.get());
         let map_angle =
             (x87::angle_scaled5_to_int(map[0] as i32, map[1] as i32, half, unit) as u32) << 2;
         work(shared, 0xB8).set(map_angle);

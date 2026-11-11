@@ -101,7 +101,7 @@ fn fixed_camera(
     c.view_records.view_vars.camera_distance.set_bits(rounded({
         crate::physics::vector_length::vector_length(&c.view_records.view_vars.camera_vector)
     }));
-    c.car.camera_zoom.set_bits(c.camera.camera_zoom_kept.bits());
+    c.car.camera_zoom.set(c.camera.camera_zoom_kept.get());
     if record(c.car)?.fixed_zoom.get() != 0 {
         c.car.camera_zoom.set_bits(0x180);
         x87_3(c.car, c.numbers, c.view_records);
@@ -167,7 +167,7 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
             c.car.camera_switch_length.get(),
         ) {
             c.car.camera_switch_active.set(0);
-            c.car.camera_switch_share.set_bits(0);
+            c.car.camera_switch_share.set(0.0);
             c.car.camera_view.set(c.car.camera_blend_view.get());
             c.car.value_jump_steps.set(camera_view::SWITCH_HOLD);
             let after = camera_view::mode_after_switch(c.car.camera_view.get());
@@ -252,13 +252,13 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
     }
     c.camera
         .view_share_pitch
-        .set_bits(c.camera.view_a_shares[0].bits());
+        .set(c.camera.view_a_shares[0].get());
     c.camera
         .view_share_heading
-        .set_bits(c.camera.view_a_shares[1].bits());
+        .set(c.camera.view_a_shares[1].get());
     c.camera
         .view_share_roll
-        .set_bits(c.camera.view_a_shares[2].bits());
+        .set(c.camera.view_a_shares[2].get());
     c.camera.view_blend_aux.set(c.camera.view_a_aux.get());
     c.camera.view_blend_aux_2.set(c.camera.view_a_aux_2.get());
     x87_8(c.camera, c.car);

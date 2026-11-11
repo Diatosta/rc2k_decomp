@@ -38,8 +38,8 @@ pub fn stage_sounds(
     use crate::sound::turn_parts::play;
     let request = crate::sound::turn_parts::request();
     let stage = sound.race.stage.get();
-    request.pitch_factor.set(ONE);
-    request.volume_factor.set(ONE);
+    request.pitch_factor.set(1.0);
+    request.volume_factor.set(1.0);
     for (n, sound) in ONE_OFFS {
         if stage.once[n].get() == 1 {
             stage.once[n].set(0);

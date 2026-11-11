@@ -50,9 +50,9 @@ pub fn pace_notes_step(
     }
     // `fld; fmul; fdiv; fistp` (the extra division by 1.0 is exact).
     let ahead = crate::math::x87::mul_div_div_to_int(
-        car.local_velocity[2].bits(),
-        physics_tables.pace_scale.bits(),
-        numbers.eight.bits(),
+        &car.local_velocity[2],
+        &physics_tables.pace_scale,
+        &numbers.eight,
         ONE_F32,
     );
     scene.drawing.scene.scratch.set(ahead as u32);

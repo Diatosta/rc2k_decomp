@@ -37,8 +37,8 @@ pub fn car_gear_sounds(
     }
     let factor = &request.pitch_factor;
     let kept = factor.get();
-    let pitch = gear_pitch(f32::from_bits(kept), so.gear_pitch.get());
-    factor.set(pitch.to_bits());
+    let pitch = gear_pitch(kept, so.gear_pitch.get());
+    factor.set(pitch);
     crate::sound::play_timed_slot::play_timed_slot(&so.gear_slot, request)?;
     factor.set(kept);
     Ok(())

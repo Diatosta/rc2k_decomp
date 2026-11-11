@@ -33,8 +33,8 @@ pub fn ratios_at(numbers: &Numbers, v: &[&dyn Cell32]) -> Result<u32, Refused> {
     if n > 7 {
         return Err(BadInput("a gear count above 7 (past g_gearRatios)").into());
     }
-    let (k, d) = (numbers.quarter.bits(), numbers.two_and_a_quarter.bits());
-    let one: u32 = numbers.one.bits();
+    let (k, d) = (&numbers.quarter, &numbers.two_and_a_quarter);
+    let one = numbers.one.get();
     let i = get(5) as i32;
     put(
         RATIO + n as usize,

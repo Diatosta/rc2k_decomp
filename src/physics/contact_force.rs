@@ -48,7 +48,7 @@ use crate::session::Float;
 /// Three floats copied as bits, in order.
 fn copy3(to: &[Float], from: &[Float]) {
     for k in 0..3 {
-        to[k].set_bits(from[k].bits());
+        to[k].set(from[k].get());
     }
 }
 
@@ -119,7 +119,7 @@ pub fn contact_force(
     x87_3(contact, numbers);
     // 0x45F2C2: the normal push, the speed along the normal and across it.
     copy3(&contact.contact_normal_push, &contact.contact_normal);
-    let factor = extended(contact.contact_factor.bits());
+    let factor = extended(contact.contact_factor.get());
     scale_vector(&contact.contact_normal_push, factor);
     drawing.scene.scratch.set(rounded(factor));
     let along = { dot_product(&contact.contact_point_speed, &contact.contact_normal) };
@@ -173,7 +173,7 @@ pub fn contact_force(
     x87_8(contact, physics_tables, &record.force);
     turn_by_inverse(car, &contact.contact_point);
     for k in 0..3 {
-        record.point[k].set_bits(contact.contact_point[k].bits());
+        record.point[k].set(contact.contact_point[k].get());
     }
 }
 

@@ -120,17 +120,17 @@ pub fn scroll_maps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<()
     );
     for &v in views {
         let car = view_car(&race.shared, v).get() & 7;
-        if race.shared.work.car_block(car as usize) == 0 {
+        if !race.shared.work.has_car_block(car as usize) {
             return Err(BadInput("a view car without its block").into());
         }
     }
     scroll_refuses(race)?;
     for &v in views {
         let n = view_car(&race.shared, v).get();
-        let car = crate::race::blocks_store::block_at(
-            race.shared.work.car_block((n & 7) as usize),
-            "a view car's block",
-        )?;
+        let car = race
+            .shared
+            .work
+            .block_car((n & 7) as usize, "a view car's block")?;
         scroll_map(race, car, n, scene)?;
     }
     Ok(())

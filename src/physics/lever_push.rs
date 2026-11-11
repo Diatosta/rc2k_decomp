@@ -37,7 +37,7 @@ pub fn lever_push(
     );
     turn_by_car_matrix(car, &tables.lever_push_turned);
     for factor in [&tables.lever_share_left, &tables.lever_share] {
-        let f = extended(factor.bits());
+        let f = extended(factor.get());
         scale_vector(&tables.lever_push_turned, f);
         scene.drawing.scene.scratch.set(rounded(f));
     }
@@ -53,7 +53,7 @@ pub fn lever_push(
             &car.position[2],
         ),
     ] {
-        let v = mul2_to_int(from.get(), numbers.k65536.bits(), tables.step_time.bits()) as u32;
+        let v = mul2_to_int(from.get(), &numbers.k65536, &tables.step_time) as u32;
         int.set(v);
         place.set(place.get().wrapping_add(int.get()));
     }

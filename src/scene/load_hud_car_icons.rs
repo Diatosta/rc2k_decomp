@@ -48,8 +48,9 @@ pub fn load_hud_car_icons(
     }
     let player = if vars.session.get() != 0 {
         let car = car_icons::one_car(vars.player.get())?;
-        let block: u32 = shared.work.car_block(car);
-        crate::race::blocks_store::block_at(block, "a car without its block")?
+        shared
+            .work
+            .block_car(car, "a car without its block")?
             .car_kind
             .get()
     } else {

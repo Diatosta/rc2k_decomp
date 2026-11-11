@@ -7,7 +7,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::owner::Race;
-use crate::race::trap::car_at;
 use crate::session::Dword;
 
 const LIFT: u32 = 0x5_0000;
@@ -79,7 +78,7 @@ fn log_number(value: u32, newline: bool) {
 pub fn set_up_car_points(
     race: &Race,
     slot: u32,
-    block: u32,
+    car_number: usize,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let slot = 11 + slot as usize;
@@ -126,7 +125,7 @@ pub fn set_up_car_points(
             }
             // Converted: `rc2k_core::race::cars::{point_float, open_two_points}`.
             let scale = race.course.numbers.k65536.get();
-            let car = car_at(block)?;
+            let car = race.shared.work.car(car_number)?;
             let lists = [&car.probe_point_x, &car.probe_point_y, &car.probe_point_z];
             for n in 0..count {
                 let p = points + n * 12;
@@ -146,10 +145,12 @@ pub fn set_up_car_points(
             race.physics.contact.car_point_count.set(count + 2);
         }
         log(c"carnum", false);
-        log_number(car_at(block)?.car_kind.get(), false);
+        log_number(race.shared.work.car(car_number)?.car_kind.get(), false);
         log(c"numcollpts", false);
         log_number(race.physics.contact.car_point_count.get(), true);
-        car_at(block)?
+        race.shared
+            .work
+            .car(car_number)?
             .probe_count
             .set(race.physics.contact.car_point_count.get());
     }
@@ -191,9 +192,8 @@ pub fn set_object_kinds(race: &Race, scene: &crate::scene::owner::Scene) -> Resu
     check_object_cars(cars)?;
     let mut slots = car_slot(0);
     for n in 0..cars {
-        let block: u32 = race.shared.work.car_block(n as usize);
         for (kind, slot) in CAR_KINDS {
-            let car = car_at(block)?.car_kind.get();
+            let car = race.shared.work.car(n as usize)?.car_kind.get();
             let k = match kind {
                 CarKind::Known => crate::scene::known_kind::known_kind(car),
                 CarKind::Table11 => car_table(&KIND_TABLES.kind_11_table, car),
@@ -206,8 +206,7 @@ pub fn set_object_kinds(race: &Race, scene: &crate::scene::owner::Scene) -> Resu
     crate::scene::load_front_end_objects::load_front_end_objects(race, scene)?;
     let mut slot = FIRST_CAR_SLOT;
     for n in 0..cars {
-        let block: u32 = race.shared.work.car_block(n as usize);
-        set_up_car_points(race, slot, block, scene)?;
+        set_up_car_points(race, slot, n as usize, scene)?;
         slot += CAR_SLOT_STEP;
     }
     Ok(())

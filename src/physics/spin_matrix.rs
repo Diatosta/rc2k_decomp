@@ -39,7 +39,7 @@ pub fn spin_matrix(
         square_matrix(course, turn);
         multiply_matrices(&car.crash_matrix, turn, turned);
         for k in 0..16 {
-            car.crash_matrix[k].set_bits(matrices.turned_matrix[k].bits());
+            car.crash_matrix[k].set(matrices.turned_matrix[k].get());
         }
     }
     // `scene::square_matrix` left its last length in `g_scratch` (the ones before are

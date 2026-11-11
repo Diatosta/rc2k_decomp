@@ -15,7 +15,7 @@ pub fn reset_when_stuck(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let shared = c.shared;
-    let mode: u32 = shared.car.driver_kind.bits();
+    let mode = shared.car.driver_kind.get();
     let mut stuck = if mode == 2 || mode == 0 {
         0
     } else {

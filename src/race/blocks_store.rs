@@ -107,23 +107,6 @@ pub fn block_of(handle: u32) -> u32 {
     block_addr(n)
 }
 
-/// The handle of the block at `addr` (0 for 0); an address that is no block's start ends
-/// the program.
-pub fn handle_of(addr: u32) -> u32 {
-    let replay = &race().replay;
-    if addr == 0 {
-        return 0;
-    }
-    let off = addr.wrapping_sub(blocks_addr(replay)) as usize;
-    if !off.is_multiple_of(BLOCK_LEN) || off / BLOCK_LEN >= BLOCK_COUNT {
-        crate::fatal::raise::end(
-            "race::blocks_store::handle_of",
-            crate::errors::BadInput("a car block's address off the blocks"),
-        );
-    }
-    BLOCK_TAG | (off / BLOCK_LEN) as u32
-}
-
 /// The handle of the block `car`; a car that is none of the blocks ends the program.
 pub fn handle_of_car(car: &Car) -> u32 {
     match CAR_BLOCKS.cars.iter().position(|c| core::ptr::eq(c, car)) {
@@ -156,6 +139,15 @@ pub fn own_car_number() -> usize {
 /// `block_of`).
 pub fn car_of(handle: u32) -> Option<&'static Car> {
     (block_of(handle) != 0).then(|| &CAR_BLOCKS.cars[(handle ^ BLOCK_TAG) as usize])
+}
+
+/// The number of the block a handle names; refused for 0 (the address version found no car
+/// block's place there) and the end of the program for a value naming none (as `block_of`).
+pub fn number_of(handle: u32) -> Result<usize, crate::errors::BadInput> {
+    if block_of(handle) == 0 {
+        return Err(crate::errors::BadInput("a car block at no car's place"));
+    }
+    Ok((handle ^ BLOCK_TAG) as usize)
 }
 
 /// The block at `address` (what `block_of` or `RACE_WORK.car_block` gave), or the refusal

@@ -112,9 +112,7 @@ pub fn trail_particles(
                             - bh::ld(particle(particles, p, place)?))
                             * bh::ld(effects.kinds.particle_tuning.trail_axes[2 * n].get())
                             + bh::ld(particle(particles, p, motion)?)
-                                * bh::ld(
-                                    effects.kinds.particle_tuning.trail_axes[2 * n + 1].bits(),
-                                ),
+                                * bh::ld(effects.kinds.particle_tuning.trail_axes[2 * n + 1].get()),
                     ),
                 )?;
             }

@@ -227,7 +227,7 @@ pub fn emit_particle_1(
             |en| &mut en.size,
             x87::int_times(SIZE as i32, &particles.kind1_set.size_k).to_bits(),
         )?;
-        slot.put(|en| &mut en.size_factor, 0)?;
+        slot.put(|en| &mut en.size_factor, 0.0)?;
     }
     Ok(())
 }

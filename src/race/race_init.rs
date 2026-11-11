@@ -11,14 +11,13 @@ use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
 use crate::race::trap::Trap;
-use crate::race::trap::car_at;
 use crate::session::Dword;
 
 /// The car blocks `g_carBlocks` lists (all eight, whatever the race's count).
 pub const BLOCKS: u32 = 8;
 /// Car block n (`g_carBlocks`[n]).
-pub fn block(shared: &RaceShared, n: u32) -> u32 {
-    shared.work.car_block(n as usize)
+pub fn block(shared: &RaceShared, n: u32) -> Result<&'static Car, BadInput> {
+    shared.work.car(n as usize)
 }
 
 /// The car block's dword at `off`, for the offsets the race state and the overlay's clearing
@@ -55,12 +54,11 @@ pub fn reset_car_starts(shared: &RaceShared) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::cars::start_value`.
     let value = rc2k_core::race::cars::start_value(shared.work.in_credits.is_set());
     for n in 0..BLOCKS {
-        let b = block(shared, n);
         {
-            car_at(b)?.run_ticks.set(value);
-            state_cell(car_at(b)?, 8)?.set(value);
-            car_at(b)?.start_in_gear.set(0);
-            car_at(b)?.false_start_count.set(0);
+            block(shared, n)?.run_ticks.set(value);
+            state_cell(block(shared, n)?, 8)?.set(value);
+            block(shared, n)?.start_in_gear.set(0);
+            block(shared, n)?.false_start_count.set(0);
         }
     }
     Ok(())
@@ -74,10 +72,9 @@ pub fn seed_car_randoms(shared: &RaceShared) -> Result<(), BadInput> {
     DRAWS.fetch_add(BLOCKS, std::sync::atomic::Ordering::SeqCst);
     let seeds = with_random(rc2k_core::race::cars::car_seeds);
     for (n, &seed) in seeds.iter().enumerate() {
-        let b = block(shared, n as u32);
         {
-            car_at(b)?.car_flags.set(seed);
-            car_at(b)?.noise_word.set(seed);
+            block(shared, n as u32)?.car_flags.set(seed);
+            block(shared, n as u32)?.noise_word.set(seed);
         }
     }
     Ok(())
@@ -91,9 +88,8 @@ pub fn reset_car_race_state(race: &Race) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::cars::{RACE_STATE, BLANK_TEXT, UNSET_TEXT}`.
     use rc2k_core::race::cars::{BLANK_TEXT, RACE_STATE, UNSET_TEXT};
     for n in 0..BLOCKS {
-        let b = block(shared, n);
         for (off, v) in RACE_STATE {
-            state_cell(car_at(b)?, off)?.set(v);
+            state_cell(block(shared, n)?, off)?.set(v);
         }
     }
     // `label_behind`, a64, `label_ahead`, a32: four dwords of spaces.

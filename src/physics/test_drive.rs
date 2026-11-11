@@ -46,7 +46,7 @@ pub fn test_drive(
     shared
         .car
         .engine_power_factor
-        .set_bits(GEAR.test_power_factor.bits());
+        .set(GEAR.test_power_factor.get());
     test_drive_run::test_drive_run(course, shared, scene)?;
     let [a, b, speed, gear, engine, kind] = kept;
     shared.car.drive_speed_a.set_bits(a);

@@ -16,7 +16,7 @@
 //! Caller: `net::start_link`.
 
 use crate::errors::Refused;
-use crate::net::lobby::{log, run_frame};
+use crate::net::lobby::{log_bytes, run_frame};
 use crate::net::owner::Net;
 use crate::race::owner::Race;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
@@ -27,7 +27,7 @@ use rc2k_core::net::record;
 pub fn lets_rally(race: &Race, net: &Net) -> Result<bool, Refused> {
     let sound = crate::sound::owner::sound();
     use crate::race::sound_tables;
-    log(VIEWER_PANEL.text_ptr(texts::NET_LETS_RALLY), true, 2);
+    log_bytes(&VIEWER_PANEL.text(texts::NET_LETS_RALLY), true, 2);
     net.vars.racing.set(1);
     let own = &net.vars.player_block(net.vars.player.get()).record;
     race.shared.state.settings.race_mode.set(1);

@@ -8,7 +8,7 @@
 //! `#[repr(C)]` structs of atomic cells with the image's layout, first values the image's
 //! (`tests`); `moved::MOVED` points the image's addresses at them (`home`).
 
-use crate::session::{Bytes, Dword, PlainBytes, PlainDword, PlainFloat, with_runs};
+use crate::session::{Bytes, Cell32, Dword, Float, PlainBytes, PlainDword, PlainFloat, with_runs};
 
 /// Handles of the tables of sets: in place of a list's, cue's or record's address
 /// a table holds `TAG | (address - the piece's start)`; 0 does not occur. The resolvers keep
@@ -131,17 +131,18 @@ pub struct SoundRequest {
     /// +0x1C: without 3D, the place between left and right (a whole number).
     pub pan: Dword,
     /// +0x20: the pitch's factor, a float.
-    pub pitch_factor: Dword,
+    pub pitch_factor: Float,
     /// +0x24: the volume's factor, a float.
-    pub volume_factor: Dword,
+    pub volume_factor: Float,
 }
 
 const _: () = assert!(size_of::<SoundRequest>() == 40);
 
 impl SoundRequest {
-    /// Dword `n` (the original's +4n), for the cores that name the words by number.
-    pub fn word(&self, n: usize) -> Option<&Dword> {
-        Some(match n {
+    /// Stores `bits` in dword `n` (the original's +4n), for the cores that name the words by
+    /// number; None past the ten.
+    pub fn set_word(&self, n: usize, bits: u32) -> Option<()> {
+        let cell: &dyn Cell32 = match n {
             0 => &self.sound,
             1 => &self.pitch,
             2 => &self.volume,
@@ -151,7 +152,9 @@ impl SoundRequest {
             8 => &self.pitch_factor,
             9 => &self.volume_factor,
             _ => return None,
-        })
+        };
+        cell.set_bits(bits);
+        Some(())
     }
 }
 
@@ -804,8 +807,8 @@ impl RaceSoundSets {
                 place: [Dword::new(0), Dword::new(0), Dword::new(0)],
                 angle: Dword::new(0),
                 pan: Dword::new(0),
-                pitch_factor: Dword::new(0),
-                volume_factor: Dword::new(0),
+                pitch_factor: Float::new(0.0),
+                volume_factor: Float::new(0.0),
             },
             _tail: Bytes::new([0; 12]),
         }

@@ -22,9 +22,9 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
         return Ok(());
     }
     let k = n as usize;
-    c.car.contact_point[0].set_bits(c.car.probe_point_x[k].bits());
-    c.car.contact_point[1].set_bits(c.car.probe_point_y[k].bits());
-    c.car.contact_point[2].set_bits(c.car.probe_point_z[k].bits());
+    c.car.contact_point[0].set(c.car.probe_point_x[k].get());
+    c.car.contact_point[1].set(c.car.probe_point_y[k].get());
+    c.car.contact_point[2].set(c.car.probe_point_z[k].get());
     { crate::physics::restore_saved_car::restore_saved_car(c.car, c.tables, c.contact) }?;
     crate::physics::crossed_edge_contact::steps(c, scene)?;
     if let Some(hit) = rc2k_core::physics::walls::raised_hit(

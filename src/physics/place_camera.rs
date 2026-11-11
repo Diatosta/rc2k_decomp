@@ -154,7 +154,7 @@ pub fn place_camera(
 /// `ext [o + 0] = int [v + 0] / [k65536]`; the value is `o`'s ten bytes.
 fn view_turn_part(v: &impl Cell32) -> [u8; 10] {
     let t0 = int(v.bits() as i32);
-    let t1 = ld(race().course.numbers.k65536.bits());
+    let t1 = ld(race().course.numbers.k65536.get());
     let t2 = t0 / t1;
     f80(t2)
 }

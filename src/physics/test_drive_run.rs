@@ -71,21 +71,17 @@ fn steps(
     for mark in &GEAR.test_marks {
         mark.set(0);
     }
-    shared.car.drive_speed_a.set_bits(0);
-    shared.car.drive_speed_b.set_bits(0);
-    shared.car.engine_speed.set_bits(0);
+    shared.car.drive_speed_a.set(0.0);
+    shared.car.drive_speed_b.set(0.0);
+    shared.car.engine_speed.set(0.0);
     shared.car.gear.set(1);
     shared.car.gearbox_kind.set(1);
     for n in 0..STEPS {
         step(course, shared, scene)?;
-        if GEAR.test_marks[0].get() == 0
-            && !c0(shared.car.drive_speed_a.bits(), GEAR.test_limits[0].bits())
-        {
+        if GEAR.test_marks[0].get() == 0 && !c0(&shared.car.drive_speed_a, &GEAR.test_limits[0]) {
             GEAR.test_marks[0].set(n);
         }
-        if GEAR.test_marks[1].get() == 0
-            && !c0(shared.car.drive_speed_a.bits(), GEAR.test_limits[1].bits())
-        {
+        if GEAR.test_marks[1].get() == 0 && !c0(&shared.car.drive_speed_a, &GEAR.test_limits[1]) {
             GEAR.test_marks[1].set(n);
         }
         if n % 20 == 0 {

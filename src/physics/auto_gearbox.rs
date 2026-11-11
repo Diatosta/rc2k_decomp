@@ -92,7 +92,7 @@ fn tests(
                 drawing.scene.scratch.get(),
                 rb,
                 rl,
-                GEAR.shift_ratio_figure.bits(),
+                &GEAR.shift_ratio_figure,
             ) & 0x100
                 == 0
             {
@@ -132,9 +132,9 @@ pub fn auto_gearbox(
         }
         if car.gear.get() == 0 {
             if mul_status(
-                car.engine_speed_limit.bits(),
-                tables.auto_gear_engine_share.bits(),
-                car.engine_speed.bits(),
+                &car.engine_speed_limit,
+                &tables.auto_gear_engine_share,
+                &car.engine_speed,
             ) & 0x100
                 == 0
             {

@@ -39,7 +39,7 @@ use rc2k_core::physics::contacts;
 /// Three floats copied as bits, in order.
 fn copy3(to: &[Float], from: &[Float]) {
     for k in 0..3 {
-        to[k].set_bits(from[k].bits());
+        to[k].set(from[k].get());
     }
 }
 
@@ -67,9 +67,9 @@ pub fn take_contact(
         contact.contact_normal[k].set(loaded(v));
     }
     copy3(&contact.contact_turn_speed, &car.spin);
-    contact.contact_point[0].set_bits(contact.probe_turned_x[n].bits());
-    contact.contact_point[1].set_bits(contact.probe_turned_y[n].bits());
-    contact.contact_point[2].set_bits(contact.probe_turned_z[n].bits());
+    contact.contact_point[0].set(contact.probe_turned_x[n].get());
+    contact.contact_point[1].set(contact.probe_turned_y[n].get());
+    contact.contact_point[2].set(contact.probe_turned_z[n].get());
     Ok(())
 }
 
@@ -132,7 +132,7 @@ fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<()
         c.contact.ground_force[k].set(c.tables.forces[21].force[k].bits());
     }
     for cell in &c.tables.forces[21].point {
-        cell.set_bits(0);
+        cell.set(0.0);
     }
     x87_2(c.contact, c.car, c.numbers);
     hold_high(&c.contact.crash_ground_scale, &c.numbers.one);

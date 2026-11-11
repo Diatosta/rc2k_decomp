@@ -4,11 +4,12 @@
 use crate::errors::{BadInput, Refused};
 use crate::gfx::owner::gfx;
 use crate::physics::car_store::Car;
+use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::effects_settings_store::EFFECTS_SETTINGS;
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
 use crate::race::owner_shared::RaceShared;
-use crate::race::trap::{Trap, car_at};
+use crate::race::trap::Trap;
 
 /// `race::full_view_window` (0x455ECB) / `race::full_view_window_2` (0x456004): the view
 /// window the whole screen (`view_size` / `SceneDraw.view_size[1]` its size, `view_offset` /
@@ -192,7 +193,7 @@ pub fn draw_marks_overlays(
 /// `race::draw_race_scene` and `drive::finish_run`, read no register it leaves.) Refuses
 /// (before anything) car 0 without its block.
 pub fn load_first_car(shared: &RaceShared) -> Result<(), Refused> {
-    if shared.work.car_block(0) == 0 {
+    if !shared.work.has_car_block(0) {
         return Err(BadInput("car 0 without its block").into());
     }
     shared.work.current_car.set(0);
@@ -317,12 +318,12 @@ pub fn forget_view_textures(
     use rc2k_core::race::view_steps::{
         FORGET_COST, FORGET_ORDER, Forget, MIRROR_BIT, MIRROR_COST, check_slots, forgets, mirror_on,
     };
-    let blocks = [shared.view.view_block(0), shared.view.view_block(1)];
-    if blocks.contains(&0) {
+    let (Ok(first), Ok(second)) = (shared.view.view_number(0), shared.view.view_number(1)) else {
         return Err(BadInput("a view without its car block").into());
-    }
+    };
+    let blocks = [first, second];
     let trap = Trap::new();
-    let field = |b: u32, word: fn(&Car) -> u32| trap.keep_read(car_at(b).map(word));
+    let field = |b: usize, word: fn(&Car) -> u32| word(&CAR_BLOCKS.cars[b]);
     // (the switch, the slot's variable) of each.
     let slot_of = |n: usize| &textures.kinds.kind_first_slots[n];
     let source = |f: Forget| match f {
@@ -379,7 +380,7 @@ pub fn forget_view_textures(
             .view_textures_forgotten
             .set(frame.frame_work.view_textures_forgotten.get() | bit);
         if let Forget::Counted(v) = f {
-            let counter = &crate::race::trap::car_at(blocks[v])?.notice_counter;
+            let counter = &CAR_BLOCKS.cars[blocks[v]].notice_counter;
             counter.set(counter.get().wrapping_sub(1));
         }
     }
@@ -492,17 +493,17 @@ pub fn draw_own_car(
         return Ok(());
     }
     let number = race.shared.view.view_cars[ctx.view.drawn_view(race) as usize].get();
-    let car = race.shared.work.car_block(car_number(number) as usize);
-    if car == 0 {
+    if !race.shared.work.has_car_block(car_number(number) as usize) {
         return Err(BadInput("the drawn car without its block").into());
     }
+    let car = race.shared.work.block_number(car_number(number) as usize)?;
     ctx.view.vars.drawn_car.set(number);
     ctx.view.state.drawn_car.set(number);
     // The state bits are the view's own; the rest, the car as seen.
     if !seen_inside(ctx.view.cars.state_of(car)?.get()) {
         return Ok(());
     }
-    let block = crate::race::frame_view::car_at(car)?;
+    let block = crate::race::frame_view::car(car)?;
     ctx.view.light.car_light.set(block.light_colour.get());
     let clears = clears_depth(
         block.surface_noise_a.get(),
@@ -555,10 +556,9 @@ pub fn run_view_marks(
         return Ok(());
     }
     let view = ctx.view.drawn_view(race);
-    let block = race.shared.view.view_block(view as usize);
     let records = race.shared.work.car_records_resolved()?;
     check_view_marks(
-        block,
+        u32::from(race.shared.view.view_car(view as usize).is_some()),
         |b| u32::from(records.get(b as usize).is_some()),
         || effects.setup.settings.is_set.get(),
     )?;
@@ -573,7 +573,8 @@ pub fn run_view_marks(
     let layout = race.frame.frame_work.view_layouts[layout_at as usize].get();
     EFFECTS_SETTINGS.marks_layout.set(layout);
     crate::math::cells::copy_cells(
-        &car_at(block)?.whole_matrix,
+        &crate::race::blocks_store::CAR_BLOCKS.cars[race.shared.view.view_number(view as usize)?]
+            .whole_matrix,
         &race.frame.matrices.view_place,
         16,
     );

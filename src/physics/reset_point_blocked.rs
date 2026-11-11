@@ -21,8 +21,11 @@ fn at(a: &dyn Cell32) -> u32 {
 /// The candidate and count read at `candidate`, `count`; `block` the car block tried. Returns
 /// the carry (blocked).
 // Converted: `rc2k_core::physics::line_places::reset_point_blocked`.
-pub fn reset_point_blocked_at(candidate: &dyn Cell32, count: &dyn Cell32, block: u32) -> bool {
-    let block = crate::physics::car_store::Car::at(block);
+pub fn reset_point_blocked_at(
+    candidate: &dyn Cell32,
+    count: &dyn Cell32,
+    block: &crate::physics::car_store::Car,
+) -> bool {
     line_places::reset_point_blocked(
         block.driver_kind.get(),
         at(candidate),
@@ -32,6 +35,10 @@ pub fn reset_point_blocked_at(candidate: &dyn Cell32, count: &dyn Cell32, block:
     .carry()
 }
 
-pub fn reset_point_blocked(tables: &PhysicsTables, vars: &RaceVars, block: u32) -> bool {
+pub fn reset_point_blocked(
+    tables: &PhysicsTables,
+    vars: &RaceVars,
+    block: &crate::physics::car_store::Car,
+) -> bool {
     reset_point_blocked_at(&tables.reset_candidate, &vars.checkpoint_count, block)
 }

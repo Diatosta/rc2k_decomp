@@ -13,20 +13,18 @@ use crate::race::owner::race;
 use crate::sound::store::SoundObject;
 
 /// The (object, car) pairs in use, or a refusal.
-fn pairs() -> Result<Vec<(&'static SoundObject, u32)>, BadInput> {
+fn pairs() -> Result<Vec<(&'static SoundObject, usize)>, BadInput> {
     let count = crate::sound::owner::sound().race.sounds.count.get();
     if count == 0 || count > 8 {
         return Err(BadInput("a sound object count of 0 or over 8"));
     }
     let pairs = (0..count as usize)
-        .map(|n| {
-            Ok((
-                SoundObject::number(n as u32)?,
-                race().shared.work.car_block(n),
-            ))
-        })
+        .map(|n| Ok((SoundObject::number(n as u32)?, n)))
         .collect::<Result<Vec<_>, BadInput>>()?;
-    if pairs.iter().any(|&(_, c)| c == 0) {
+    if pairs
+        .iter()
+        .any(|&(_, c)| !race().shared.work.has_car_block(c))
+    {
         return Err(BadInput("a null car"));
     }
     Ok(pairs)
@@ -38,7 +36,9 @@ pub fn mark_car_voices(sound: &crate::sound::owner::Sound) -> Result<(), Refused
         return Ok(());
     }
     for (n, (o, car)) in pairs()?.into_iter().enumerate() {
-        let kind = crate::race::frame_view::car_at(car)?.driver_kind.get();
+        let kind = crate::race::frame_view::car(race().shared.work.block_number(car)?)?
+            .driver_kind
+            .get();
         let (sounds, voice) = rc2k_core::sound::cars::voice_mark(n as u32, kind);
         o.in_use.set(sounds);
         if let Some(voice) = voice {

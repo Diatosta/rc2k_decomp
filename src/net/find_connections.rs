@@ -10,12 +10,12 @@
 //! Caller: `net::find_connections_regs`.
 
 use crate::errors::Refused;
-use crate::net::lobby::log;
+use crate::net::lobby::log_bytes;
 use crate::net::store::NetVars;
 use crate::net::{allocate_lists, create_dplay, open_lobby};
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 pub fn find_connections(vars: &NetVars) -> Result<bool, Refused> {
-    log(VIEWER_PANEL.text_ptr(texts::NET_FIND_CONNECTIONS), true, 2);
+    log_bytes(&VIEWER_PANEL.text(texts::NET_FIND_CONNECTIONS), true, 2);
     if vars.receive_done.get() == 1 || !open_lobby::open_lobby(vars)? {
         return Ok(false);
     }

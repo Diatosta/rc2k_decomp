@@ -25,7 +25,7 @@ pub fn save_car_state(
         to.set(from.get());
     }
     for (to, from) in tables.saved_matrix.iter().zip(&car.crash_matrix) {
-        to.set_bits(from.bits());
+        to.set(from.get());
     }
     for (to, from) in contact.probe_saved_faces[..n]
         .iter()

@@ -23,11 +23,11 @@ fn turn_point_with(
 ) -> [u32; 4] {
     // Converted: `rc2k_core::math::geometry` (`fild` / `fstp` is `as f32`, `fistp` below).
     let mut point = Scratch {
-        x: (x as f32).to_bits(),
-        y: (y as f32).to_bits(),
-        z: (z as f32).to_bits(),
+        x: x as f32,
+        y: y as f32,
+        z: z as f32,
     };
     let entry = turn(&mut point, angle);
-    let back = |v: u32| rc2k_core::math::geometry::fistp(f32::from_bits(v)) as u32;
+    let back = |v: f32| rc2k_core::math::geometry::fistp(v) as u32;
     [back(point.x), back(point.y), back(point.z), entry]
 }

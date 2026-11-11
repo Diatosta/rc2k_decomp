@@ -601,11 +601,9 @@ impl RectAt {
 
     /// Its left, top, width and height.
     pub fn read(self, hud: &crate::hud::owner::Hud) -> Result<[u32; 4], crate::errors::Refused> {
-        let at = crate::pointers::GamePtr::to(&hud.block).offset(self.0);
+        let at = self.0 as usize;
         crate::effects::try_from_fn(|n| {
-            Ok(at
-                .offset(4 * n as u32)
-                .read::<u32>("a hud record's field")?)
+            Ok(crate::pointers::load_value::<u32>(&hud.block, at + 4 * n)?)
         })
     }
 }

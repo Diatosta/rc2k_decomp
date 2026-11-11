@@ -758,12 +758,9 @@ fn pull_toward(
         }
         pull_strength(ring, e, car, effects);
         if (ring.work.whole.get() as i32) > (setup.floats.pull_limit.bits() as i32) {
-            set(
-                ring,
-                e,
-                x87::loaded(&setup.floats.fixed_16_scale).to_bits(),
-                |en| &mut en.size_factor,
-            )?;
+            set(ring, e, x87::loaded(&setup.floats.fixed_16_scale), |en| {
+                &mut en.size_factor
+            })?;
         }
     }
     Ok(())

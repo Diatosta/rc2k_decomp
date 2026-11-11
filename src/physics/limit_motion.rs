@@ -58,9 +58,9 @@ pub fn limit_motion(car: &Car, tables: &PhysicsTables, scene: &crate::scene::own
         }
 
         for k in 0..3usize {
-            car.velocity[k].set_bits(0);
-            car.local_velocity[k].set_bits(0);
-            car.spin[k].set_bits(0);
+            car.velocity[k].set(0.0);
+            car.local_velocity[k].set(0.0);
+            car.spin[k].set(0.0);
         }
     }
     for k in 0..3usize {

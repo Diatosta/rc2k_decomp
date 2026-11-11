@@ -35,7 +35,7 @@ use rc2k_core::drive::listener;
 
 /// The car file's six figures times 65536 over 1000, or the refusal (before anything).
 fn figures(shared: &RaceShared, viewed: u32) -> Result<[i32; 6], Refused> {
-    listener::check_viewed(viewed, || shared.work.car_block(viewed as usize) != 0)?;
+    listener::check_viewed(viewed, || shared.work.has_car_block(viewed as usize))?;
     let n = car_file_number(crate::race::blocks_store::own_car().car_kind.get());
     rc2k_core::drive::sharing::check_light_record(n)?;
     let mut out = [0i32; 6];
@@ -97,10 +97,10 @@ pub fn set_listener(
     let physics = &race.physics;
     let f = figures(&race.shared, view.drawn_view)?;
     let car = crate::race::blocks_store::own_car();
-    let s = crate::race::blocks_store::block_at(
-        race.shared.work.car_block(view.drawn_view as usize),
-        "a car's block",
-    )?;
+    let s = race
+        .shared
+        .work
+        .block_car(view.drawn_view as usize, "a car's block")?;
     let place: [u32; 3] = crate::session::read_all(&s.position);
     let strength: u32 = s.marks_count.get();
     EFFECTS_SETTINGS.listener_car_place[2].set(x87::from_int(place[2] as i32));

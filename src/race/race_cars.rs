@@ -76,8 +76,7 @@ pub fn reset_car_blocks(race: &Race) -> Result<(), BadInput> {
     {
         let cars: u32 = shared.view.race_cars.get();
         for n in 0..BLOCK_COUNT {
-            let b: u32 = shared.work.car_block(n as usize);
-            let car = crate::race::trap::car_at(b)?;
+            let car = shared.work.car(n as usize)?;
             for (field, v) in reset_block(n, cars, physics.split_tables.stage_numbers[0].get()) {
                 field(car).set_bits(v);
             }
@@ -205,13 +204,12 @@ pub fn read_stage_car_numbers(race: &Race) -> Result<(), Refused> {
 /// s, +0x28 its +0xC less one, +0x2C its +8, each logged with its range, then a line break. Refuses
 /// stage 0x14 (the original's `sub` then makes an index of 0x9999999B: a read far outside), before
 /// anything.
-pub fn auto_set_up_car(race: &Race, b: u32) -> Result<(), Refused> {
+pub fn auto_set_up_car(race: &Race, car: &Car) -> Result<(), Refused> {
     let course = &race.course;
     {
         // Converted: `rc2k_core::race::cars::set_up_pick`.
         let stage: u32 = race.shared.vars.stage_number.get();
         let pick = rc2k_core::race::cars::set_up_pick(stage)?;
-        let car = crate::race::trap::car_at(b)?;
         car.brake_balance.set(0x80);
         car.steering_sensitivity.set(0x80);
         car.ride_height.set(0x80);
@@ -278,7 +276,7 @@ pub fn set_up_mode_0_cars(race: &Race) -> Result<(), Refused> {
             drop_absent_player(&race.shared);
             set_player_car_kinds(&race.shared);
             for n in 0..2 {
-                auto_set_up_car(race, crate::race::blocks_store::block_addr(n as usize))?;
+                auto_set_up_car(race, &CAR_BLOCKS.cars[n as usize])?;
             }
             for n in 0..2 {
                 CAR_BLOCKS.cars[n]
@@ -287,7 +285,7 @@ pub fn set_up_mode_0_cars(race: &Race) -> Result<(), Refused> {
             }
         } else {
             for n in 0..cars {
-                auto_set_up_car(race, race.shared.work.car_block(n as usize))?;
+                auto_set_up_car(race, race.shared.work.car(n as usize)?)?;
             }
             set_player_car_kinds(&race.shared);
         }
@@ -565,7 +563,7 @@ pub fn set_up_mode_2_cars(race: &Race) -> Result<(), Refused> {
     }
     clear_race_tables(&race.shared);
     for n in 0..4 {
-        auto_set_up_car(race, crate::race::blocks_store::block_addr(n as usize))?;
+        auto_set_up_car(race, &CAR_BLOCKS.cars[n as usize])?;
     }
     CAR_BLOCKS.cars[0]
         .steering_sensitivity
@@ -610,8 +608,7 @@ pub fn set_up_cars(race: &Race, scene: &crate::scene::owner::Scene) -> Result<()
     use rc2k_core::race::cars::{CarsStep, cars_steps};
     for n in 0..2 {
         for (field, v) in PLAYER_RESETS {
-            let b = race.shared.work.car_block(n as usize);
-            field(crate::race::trap::car_at(b)?).set_bits(v);
+            field(race.shared.work.car(n as usize)?).set_bits(v);
         }
     }
     for &step in cars_steps(race.shared.vars.run_kind.get()) {

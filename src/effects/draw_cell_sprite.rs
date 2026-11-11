@@ -181,7 +181,7 @@ fn square_x87(k: usize, angle: usize, dw: &DrawWork, cs: &CornerSlopes) -> u32 {
         crate::scene::polygon_work::front_end()
             .window
             .view_scale
-            .bits(),
+            .get(),
     );
     let t1 = t0 / dw.turned[2].ld();
     let t2 = dw.turned[2].ld();
@@ -227,7 +227,7 @@ fn square_x87(k: usize, angle: usize, dw: &DrawWork, cs: &CornerSlopes) -> u32 {
     let t30 = -t29;
     let t31 = t30
         + crate::math::x87_float::ld(
-            crate::scene::polygon_work::front_end().window.view_centre[1].bits(),
+            crate::scene::polygon_work::front_end().window.view_centre[1].get(),
         );
     let t32 = t31 - dw.sprite_half[1].ld();
     st_cell(&VERTICES.vertices[0].y, t32);
@@ -239,7 +239,7 @@ fn square_x87(k: usize, angle: usize, dw: &DrawWork, cs: &CornerSlopes) -> u32 {
     st_cell(&VERTICES.vertices[3].y, t35);
     let t36 = t28
         + crate::math::x87_float::ld(
-            crate::scene::polygon_work::front_end().window.view_centre[0].bits(),
+            crate::scene::polygon_work::front_end().window.view_centre[0].get(),
         );
     let t37 = t36 - dw.sprite_half[0].ld();
     st_cell(&VERTICES.vertices[0].x, t37);

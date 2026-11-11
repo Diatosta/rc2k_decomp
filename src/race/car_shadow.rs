@@ -154,8 +154,8 @@ pub fn shadow_angles(race: &Race, work: &ShadowWork) -> Result<(), Refused> {
     }
     let first = records[0].angle.get();
     work.first_angle.set_bits(first);
-    let zero: u32 = race.course.numbers.zero.bits();
-    let unit: u32 = race.course.numbers.k65536.bits();
+    let zero = race.course.numbers.zero.get();
+    let unit = race.course.numbers.k65536.get();
     for k in 0..count {
         let record = point_at(work, k)?;
         let mut v = sub(record.angle.get(), first);
@@ -775,7 +775,7 @@ pub fn shadow_points(race: &Race, work: &ShadowWork, car: &Car, sun: u32) -> Res
         at.angle.set(angle_of(at));
         let length = crate::math::x87::float_hypot(x, z);
         at.length.set(length.to_bits());
-        if !below_or_unordered(length, work.farthest_length.bits()) {
+        if !below_or_unordered(length, work.farthest_length.get()) {
             work.farthest_length.set(length);
             work.farthest.set(k as u32);
         }
@@ -840,8 +840,9 @@ pub fn cast_car_shadows(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
         SHADOW_STRENGTH, SUN_PASS, casts_shadow, check_shadow_cars, first_pass,
     };
     let cars: u32 = race.shared.view.race_cars.get();
-    let block = |n: u32| race.shared.work.car_block(n as usize);
-    check_shadow_cars(cars, block)?;
+    check_shadow_cars(cars, |n| {
+        u32::from(race.shared.work.has_car_block(n as usize))
+    })?;
     let work = ShadowWork::new();
     crate::scene::depth_test_off::depth_test_off();
     work.lift.set(SHADOW_STRENGTH);
@@ -849,8 +850,13 @@ pub fn cast_car_shadows(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
         // Each car's shadow from its own block (the original loaded it into the work car,
         // `drive::load_car`, and left the last one there for the rest of the view:
         // `notes/bugs.md`).
-        let car = crate::race::blocks_store::block_at(block(n), "a car's block")?;
-        if !casts_shadow(ctx.view.cars.state_of(block(n))?.get()) {
+        let car = race.shared.work.block_car(n as usize, "a car's block")?;
+        if !casts_shadow(
+            ctx.view
+                .cars
+                .state_of(race.shared.work.block_number(n as usize)?)?
+                .get(),
+        ) {
             continue;
         }
         work.point_count.set(car.probe_count.get());
@@ -1360,7 +1366,7 @@ mod asm_reference {
                 // The shadow code writes the view's work: put its pieces where `read` looks.
                 let old = &crate::scene::owner::scene().drawing.scene;
                 for k in [2, 4, 10, 11] {
-                    old.clip_work[k].set_bits(poly.clip_work[k].bits());
+                    old.clip_work[k].set(poly.clip_work[k].get());
                 }
                 old.clip_out_words[0].set(poly.clip_out_words[0].get());
                 old.crossing_amount.set(poly.crossing_amount.get());

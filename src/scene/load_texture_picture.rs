@@ -157,7 +157,6 @@ pub fn load_texture_picture_in_game(
                     }
                 }
                 Call::Load(name, second, texture) => {
-                    let (name, second) = (name.game_ptr(), second.game_ptr());
                     if let Err(e) =
                         load_picture_to_texture_in_game(Some(&name), Some(&second), texture, gfx)
                     {

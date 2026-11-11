@@ -11,10 +11,6 @@ use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use crate::scene::owner::scene;
 
-fn block(shared: &RaceShared, n: u32) -> u32 {
-    shared.work.car_block(n as usize)
-}
-
 /// `race::players_all_out` (0x445506): carry when every player is out (+0xB0 not 0): the chosen
 /// car's with `session` 1, else each of the `players` players'. Refuses, before anything,
 /// a chosen car past 7 or more than 8 players (the original reads past the table).
@@ -26,9 +22,7 @@ pub fn players_all_out(race: &Race) -> Result<bool, Refused> {
     {
         let trap = crate::race::trap::Trap::new();
         let out = |n: u32| {
-            trap.keep_read(
-                crate::race::trap::car_at(block(shared, n)).map(|car| car.stop_state.get()),
-            ) != 0
+            trap.keep_read(shared.work.car(n as usize).map(|car| car.stop_state.get())) != 0
         };
         let players = if vars.session.get() == 1 {
             Players::Chosen(vars.player.get())
@@ -80,8 +74,8 @@ pub fn load_view_car(
 ) -> Result<(), Refused> {
     use rc2k_core::drive::work_car::{car_block, car_slot};
     let slot = car_slot(view_car(shared, n).get());
-    let block = car_block(shared.work.car_block(slot as usize))?;
-    crate::drive::car::copy_car(crate::physics::car_store::Car::at(block), &view.car);
+    car_block(u32::from(shared.work.has_car_block(slot as usize)))?;
+    crate::drive::car::copy_car(shared.work.car(slot as usize)?, &view.car);
     Ok(())
 }
 
@@ -110,8 +104,7 @@ pub fn race_keys(race: &Race) -> Result<(), Refused> {
     let shared = &race.shared;
     crate::drive::choose_shown_cars::choose_shown_cars(race)?;
     let second = devices.keys_now.get(VIEW_MODE_KEY) != 0;
-    let view_addr = shared.view.view_block(usize::from(second));
-    let view = Car::at(view_addr);
+    let view = shared.view.view_car_or_end(usize::from(second));
     // Converted: `rc2k_core::race::keys::{first_key, split_flip, volume_key,
     // volume_step, flip_bit}`.
     use rc2k_core::race::keys::{
@@ -139,7 +132,7 @@ pub fn race_keys(race: &Race) -> Result<(), Refused> {
     };
     match key {
         Some(Key::NextView) => {
-            crate::drive::next_camera_view::next_camera_view(race, view_addr)?;
+            crate::drive::next_camera_view::next_camera_view(race, view)?;
             let camera = view.camera_blend_view.get();
             if camera < COUNTED_VIEWS {
                 set_car_counter(
@@ -182,7 +175,7 @@ pub fn race_keys(race: &Race) -> Result<(), Refused> {
             set_car_counter(view, counter);
         }
         Some(Key::Shared) => {
-            let counter = flip(Car::at(shared.view.view_block(0)), SHARED_BIT);
+            let counter = flip(shared.view.view_car_or_end(0), SHARED_BIT);
             set_both_counters(counter);
         }
         None => {}

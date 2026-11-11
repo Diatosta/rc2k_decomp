@@ -75,12 +75,7 @@ pub fn blit(glyph: u32, x: u32, y: u32) -> Result<(), Refused> {
     crate::gfx::blit_glyph::blit_glyph_on_surface(glyph, SPRITES.get(), x as i32, y as i32, None)
 }
 
-/// `logfile::log_write_l<level>[_nl]` on the text at the address `text`.
-pub fn log(text: impl Into<crate::place::BytePlace>, newline: bool, level: u8) {
-    crate::logfile::log_write::log_at(text, newline, level);
-}
-
-/// `log` of a text in hand (up to its NUL or its end).
+/// `logfile::log_write_l<level>[_nl]` on a text in hand (up to its NUL or its end).
 pub fn log_bytes(text: &[u8], newline: bool, level: u8) {
     let n = text.iter().position(|&c| c == 0).unwrap_or(text.len());
     crate::logfile::write_line::log_text(&text[..n], newline, level);

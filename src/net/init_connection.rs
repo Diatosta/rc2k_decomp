@@ -8,13 +8,13 @@
 
 use crate::errors::Refused;
 use crate::net::build_address::build_address;
-use crate::net::lobby::{log, log_hex, log_int_nl};
+use crate::net::lobby::{log_bytes, log_hex, log_int_nl};
 use crate::net::owner::Net;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 pub fn init_connection(net: &Net, connection: u32) -> Result<bool, Refused> {
     let vars = &net.vars;
-    log(
-        VIEWER_PANEL.text_ptr(texts::NET_INIT_CONNECTION_INDEX),
+    log_bytes(
+        &VIEWER_PANEL.text(texts::NET_INIT_CONNECTION_INDEX),
         false,
         2,
     );
@@ -29,7 +29,7 @@ pub fn init_connection(net: &Net, connection: u32) -> Result<bool, Refused> {
             (!address.is_empty()).then_some(&address[..]),
         )
     };
-    log(VIEWER_PANEL.text_ptr(texts::NET_INIT), false, 2);
+    log_bytes(&VIEWER_PANEL.text(texts::NET_INIT), false, 2);
     log_hex(result, true);
     Ok(result == 0)
 }

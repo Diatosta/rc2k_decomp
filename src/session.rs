@@ -45,13 +45,10 @@ impl Dword {
         &self.0
     }
 
-    /// Its place, for code that is handed an address (a Windows call, an `fild`).
-    pub fn as_ptr(&self) -> *mut u32 {
-        self.0.as_ptr()
-    }
-
+    /// Its place, for the tests that are handed an address.
+    #[cfg(test)]
     pub fn addr(&self) -> u32 {
-        crate::pointers::game_address(self.as_ptr())
+        crate::pointers::game_address(self.0.as_ptr())
     }
 
     /// The cell's 32 bits (as `Float::bits`).

@@ -40,7 +40,7 @@ pub fn steps(c: &ClearPlaceInputs<'_>, scene: &crate::scene::owner::Scene) -> Re
     let (car, tables, numbers) = (c.reset.car, c.reset.tables, c.reset.numbers);
     let contact = c.collisions.contact.contact;
     tables.clear_place_mark.set(clear_place::TRY_MARK);
-    let factor = extended(tables.clear_place_share.bits());
+    let factor = extended(tables.clear_place_share.get());
     crate::physics::scale_vector::scale_vector(&car.velocity, factor);
     scene.drawing.scene.scratch.set(rounded(factor));
     { crate::physics::restore_saved_car::restore_saved_car(car, tables, contact) }?;

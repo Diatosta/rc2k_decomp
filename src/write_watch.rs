@@ -13,6 +13,9 @@
 //! The field-leaving census (`RC2K_FIELD_LEAVE=<file>`, the watch build only; see `leaves`)
 //! notes every by-address read or write of a store whose bytes run past the end of the field
 //! it starts in.
+//!
+//! The call-site census (`RC2K_BY_ADDRESS=<file>`, the watch build only; see `calls`) notes
+//! every by-address access of a store, one row per call site, store and field.
 
 /// `len` bytes at `at` read.
 #[inline(always)]
@@ -71,21 +74,27 @@ pub fn dump_fields() {
     {
         fields::dump();
         leaves::dump();
+        calls::dump();
     }
 }
 
 /// `len` bytes at offset `at` of `store` read or written by game address (`pointers`' loads
-/// and stores): noted when they run past the end of the field they start in.
+/// and stores): noted when they run past the end of the field they start in (`leaves`), and
+/// every one by its call site (`calls`).
 #[inline(always)]
+#[cfg_attr(feature = "write_watch", track_caller)]
 pub fn by_address(_store: &dyn crate::pointers::Store, _at: usize, _len: usize, _write: bool) {
     #[cfg(feature = "write_watch")]
-    leaves::note(_store, _at, _len, _write);
+    {
+        leaves::note(_store, _at, _len, _write);
+        calls::note(_store, _at, _len, _write, std::panic::Location::caller());
+    }
 }
 
 /// The frame census (`RC2K_FRAME_CENSUS`): for every step of the race's frame, what it reads
 /// that another step (or itself, a frame before) wrote: the steps' real inputs and outputs.
 /// Every 600 frames each edge "writer -> reader" is logged with the places it hands over, by
-/// IDA address (`tools/frame_census.py` names them).
+/// store and field path (`stores`).
 #[cfg(feature = "write_watch")]
 mod census {
     use std::cell::RefCell;
@@ -222,12 +231,10 @@ mod census {
                     let host = first * 4;
                     if let Some((what, at)) = crate::memory::shared_table::table_of(host) {
                         text += &format!(" [{what}+{at:#x}+{len:#x}]");
+                    } else if let Some(found) = crate::stores::find(host) {
+                        text += &format!(" {}{}+{len:#x}", found.name, found.field());
                     } else {
-                        let game = crate::address_map::game_of(host).map(|g| g as usize);
-                        match game.and_then(crate::moved::ida_of) {
-                            Some(ida) => text += &format!(" {ida:#x}+{len:#x}"),
-                            None => text += &format!(" host:{host:#x}+{len:#x}"),
-                        }
+                        text += &format!(" host:{host:#x}+{len:#x}");
                     }
                     k += 1;
                 }
@@ -247,7 +254,7 @@ mod census {
 /// `sync::spawn`'s). At the program's end (`standalone::finish`) and every 1,200 frames of
 /// the race the file is written, one row per field (store, field path with indices dropped),
 /// in the columns
-/// `ida,store,field,dwords,read_by,written_by`, the threads joined by `+`. A dword that no
+/// `offset,store,field,dwords,read_by,written_by`, the threads joined by `+`. A dword that no
 /// moved store holds is named by its shared table, or by its 4 KiB page.
 #[cfg(feature = "write_watch")]
 mod fields {
@@ -284,7 +291,7 @@ mod fields {
 
     /// The kind of the running thread, from its name: the slot threads are named by their
     /// routine's address (0x4078DA input, 0x409CCE audio, 0x4183C3 net receive).
-    fn kind() -> usize {
+    pub(super) fn kind() -> usize {
         let thread = std::thread::current();
         let name = thread.name().unwrap_or("").to_ascii_lowercase();
         if name == "main" {
@@ -331,23 +338,18 @@ mod fields {
         let n = FRAMES.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
         if n.is_multiple_of(1200) {
             dump();
+            super::calls::dump();
         }
     }
 
-    /// A field: where it is (IDA address of its first dword, or a host page), its store,
+    /// A field: where it is (its dword's offset in the store, or a host page), its store,
     /// and its path in the store.
     fn name_of(host: usize) -> (String, String, String) {
-        let game = crate::address_map::game_of(host).map(|g| g as usize);
-        if let Some(game) = game
-            && let Some((store, offset)) = crate::moved::store_of(game)
-        {
-            let mut path = String::new();
-            store.field_path_at(offset, &mut path);
-            let ida = crate::moved::ida_of(game).unwrap_or(game);
+        if let Some(found) = crate::stores::find(host) {
             return (
-                format!("{ida:#x}"),
-                store.type_name().to_owned(),
-                strip_indices(&path),
+                format!("{:#x}", found.offset),
+                found.name.to_owned(),
+                strip_indices(&found.field()),
             );
         }
         if let Some((what, at)) = crate::memory::shared_table::table_of(host) {
@@ -375,7 +377,7 @@ mod fields {
         out
     }
 
-    fn kinds(mask: u8) -> String {
+    pub(super) fn kinds(mask: u8) -> String {
         let names: Vec<_> = (0..KINDS.len())
             .filter(|k| mask & (1 << k) != 0)
             .map(|k| KINDS[k])
@@ -383,8 +385,8 @@ mod fields {
         names.join("+")
     }
 
-    /// A field's row: the IDA address of its lowest dword, that dword's host address, the
-    /// dwords seen, and the masks of the kinds that read and wrote.
+    /// A field's row: the offset of its lowest dword in the store, that dword's host address,
+    /// the dwords seen, and the masks of the kinds that read and wrote.
     type Row = (String, usize, usize, u8, u8);
 
     /// The file written from what every thread has noted so far.
@@ -427,7 +429,7 @@ mod fields {
             row.3 |= read;
             row.4 |= written;
         }
-        let mut text = String::from("ida,store,field,dwords,read_by,written_by\n");
+        let mut text = String::from("offset,store,field,dwords,read_by,written_by\n");
         for ((store, field), (ida, _, dwords, read, written)) in rows {
             text += &format!(
                 "{ida},{store},{field},{dwords},{},{}\n",
@@ -495,7 +497,7 @@ mod leaves {
     }
 
     /// `.a[3].b` as `.a.b`.
-    fn strip(path: &str) -> String {
+    pub(super) fn strip(path: &str) -> String {
         let mut out = String::new();
         let mut inside = false;
         for c in path.chars() {
@@ -569,7 +571,7 @@ mod leaves {
 
     /// The first frame of the backtrace outside the access layers (`pointers`, `session`,
     /// this file, the standard library), as `function @ src/path.rs:line`.
-    fn site() -> String {
+    pub(super) fn site() -> String {
         let text = std::backtrace::Backtrace::force_capture().to_string();
         let mut lines = text.lines().peekable();
         while let Some(line) = lines.next() {
@@ -636,7 +638,7 @@ mod leaves {
 
     /// The module of a site (`f @ race/frame_views.rs:12:5` -> `race`; a file directly in
     /// `src/` is its own module).
-    fn module_of(site: &str) -> &str {
+    pub(super) fn module_of(site: &str) -> &str {
         let file = site.rsplit_once(" @ ").map_or(site, |(_, f)| f);
         let first = file.split('/').next().unwrap_or(file);
         first.split_once(".rs").map_or(first, |(m, _)| m)
@@ -705,6 +707,193 @@ mod leaves {
     }
 }
 
+/// The call-site census (`RC2K_BY_ADDRESS=<file>`; `1` writes `by_address.csv`): every
+/// by-address read and write of a store (`pointers::load_at` / `store_at`), counted per call
+/// site, store and field (indices dropped). The site is the first caller outside the access
+/// layers that `#[track_caller]` reaches (`path:line`); where the chain breaks inside
+/// `pointers` or `session` (a trait method, a helper) it is the first frame of a backtrace
+/// outside them (`function @ path:line:col`), found once per place and direction, and
+/// `via path:line` past 2,000 such lookups. Written at the program's end and every 1,200
+/// frames of the race, in the columns
+/// `module,site,store,field,reads,writes,read_bytes,write_bytes,threads`, the threads
+/// (kinds as in `fields`) joined by `+`. A store the registry (`stores`) lacks is named by
+/// its type.
+#[cfg(feature = "write_watch")]
+mod calls {
+    use crate::pointers::Store;
+    use std::cell::RefCell;
+    use std::collections::{BTreeMap, HashMap};
+    use std::panic::Location;
+    use std::sync::atomic::{AtomicU32, Ordering};
+    use std::sync::{Arc, Mutex, OnceLock};
+
+    /// What one (store, offset, direction, call site) did.
+    struct Row {
+        store: String,
+        field: String,
+        site: String,
+        write: bool,
+        count: u64,
+        bytes: u64,
+    }
+
+    /// (the store's first byte, offset, write, the location's file, its line).
+    type Key = (usize, usize, bool, usize, u32);
+
+    /// One thread's rows and its kind (`fields::kind`).
+    struct Mine {
+        kind: usize,
+        rows: HashMap<Key, Row>,
+    }
+
+    static THREADS: Mutex<Vec<Arc<Mutex<Mine>>>> = Mutex::new(Vec::new());
+    /// The backtraces taken for sites in the access layers.
+    static BACKTRACES: AtomicU32 = AtomicU32::new(0);
+
+    thread_local! {
+        static MINE: RefCell<Option<Arc<Mutex<Mine>>>> = const { RefCell::new(None) };
+    }
+
+    fn file() -> Option<&'static std::path::Path> {
+        static FILE: OnceLock<Option<std::path::PathBuf>> = OnceLock::new();
+        FILE.get_or_init(|| {
+            let value = std::env::var_os("RC2K_BY_ADDRESS")?;
+            Some(if value == "1" {
+                "by_address.csv".into()
+            } else {
+                value.into()
+            })
+        })
+        .as_deref()
+    }
+
+    /// Whether a location is inside the access layers (`leaves::site` skips the same).
+    fn in_layers(file: &str) -> bool {
+        [
+            "src/pointers.rs",
+            "src/pointers/",
+            "src/write_watch.rs",
+            "src/session.rs",
+        ]
+        .iter()
+        .any(|l| file.ends_with(l) || file.contains(l))
+    }
+
+    fn site_of(at: &Location<'static>) -> String {
+        if !in_layers(at.file()) {
+            return format!("{}:{}", at.file().trim_start_matches("src/"), at.line());
+        }
+        if BACKTRACES.fetch_add(1, Ordering::Relaxed) < 2000 {
+            let site = super::leaves::site();
+            if site != "?" {
+                return site;
+            }
+        }
+        format!("via {}:{}", at.file(), at.line())
+    }
+
+    pub fn note(
+        store: &dyn Store,
+        at: usize,
+        len: usize,
+        write: bool,
+        from: &'static Location<'static>,
+    ) {
+        if len == 0 || file().is_none() {
+            return;
+        }
+        let key = (
+            store.first().addr(),
+            at,
+            write,
+            from.file().as_ptr().addr(),
+            from.line(),
+        );
+        let mine = MINE.with_borrow_mut(|m| {
+            m.get_or_insert_with(|| {
+                let mine = Arc::new(Mutex::new(Mine {
+                    kind: super::fields::kind(),
+                    rows: HashMap::new(),
+                }));
+                THREADS
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .push(mine.clone());
+                mine
+            })
+            .clone()
+        });
+        let mut mine = mine
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if let Some(row) = mine.rows.get_mut(&key) {
+            row.count += 1;
+            row.bytes += len as u64;
+            return;
+        }
+        let mut path = String::new();
+        if at < store.size() {
+            store.field_path_at(at, &mut path);
+        }
+        let row = Row {
+            store: crate::stores::name_of(store)
+                .unwrap_or_else(|| store.type_name())
+                .to_owned(),
+            field: super::leaves::strip(&path),
+            site: site_of(from),
+            write,
+            count: 1,
+            bytes: len as u64,
+        };
+        mine.rows.insert(key, row);
+    }
+
+    /// A line of the file: (site, store, field).
+    type RowKey = (String, String, String);
+
+    /// What the threads did at one: (reads, writes, bytes read, bytes written, kinds).
+    type Total = (u64, u64, u64, u64, u8);
+
+    pub fn dump() {
+        let Some(path) = file() else {
+            return;
+        };
+        let mut totals: BTreeMap<RowKey, Total> = BTreeMap::new();
+        for mine in THREADS
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .iter()
+        {
+            let mine = mine
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            for row in mine.rows.values() {
+                let t = totals
+                    .entry((row.site.clone(), row.store.clone(), row.field.clone()))
+                    .or_default();
+                if row.write {
+                    t.1 += row.count;
+                    t.3 += row.bytes;
+                } else {
+                    t.0 += row.count;
+                    t.2 += row.bytes;
+                }
+                t.4 |= 1 << mine.kind;
+            }
+        }
+        let mut text =
+            String::from("module,site,store,field,reads,writes,read_bytes,write_bytes,threads\n");
+        for ((site, store, field), (reads, writes, read_bytes, write_bytes, kinds)) in totals {
+            text += &format!(
+                "{},\"{site}\",{store},{field},{reads},{writes},{read_bytes},{write_bytes},{}\n",
+                super::leaves::module_of(&site),
+                super::fields::kinds(kinds)
+            );
+        }
+        let _ = std::fs::write(path, text);
+    }
+}
+
 #[cfg(feature = "write_watch")]
 mod on {
     use std::cell::{Cell, RefCell};
@@ -755,7 +944,7 @@ mod on {
 
 /// The places one part writes and another reads or writes (what threads drawing the parts at
 /// once race on), gathered over the drawings and
-/// logged as IDA ranges (the moved ranges) or game addresses (Rust's own state) at the 300th.
+/// logged as store field paths (`stores`) or host addresses (Rust's own state) at the 300th.
 #[cfg(feature = "write_watch")]
 pub(crate) mod shared {
     use std::collections::BTreeSet;
@@ -790,7 +979,6 @@ pub(crate) mod shared {
             }
             let len = (words[k] - first + 1) * 4;
             let host = first * 4;
-            let game = crate::address_map::game_of(host).map(|g| g as usize);
             if let Some((slot, at)) = crate::race::view_scratch::place_of(host) {
                 let window = crate::race::view_scratch::window_range();
                 if window.contains(&at) {
@@ -810,9 +998,9 @@ pub(crate) mod shared {
                 k += 1;
                 continue;
             }
-            match game.and_then(crate::moved::ida_of) {
-                Some(ida) => text += &format!(" {ida:#x}+{len:#x}"),
-                None => text += &format!(" game:{:#x}+{len:#x}", game.unwrap_or(0)),
+            match crate::stores::find(host) {
+                Some(found) => text += &format!(" {}{}+{len:#x}", found.name, found.field()),
+                None => text += &format!(" host:{host:#x}+{len:#x}"),
             }
             k += 1;
         }

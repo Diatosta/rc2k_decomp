@@ -30,7 +30,7 @@ pub fn restore_saved_car(
         to.set(from.get());
     }
     for (to, from) in car.crash_matrix.iter().zip(&tables.saved_matrix) {
-        to.set_bits(from.bits());
+        to.set(from.get());
     }
     // By address: up to 0x7C dwords from a list of 0x40 (the original copies on into what
     // follows each).

@@ -7,7 +7,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
-use crate::race::trap::car_at;
 use crate::session::Dword;
 
 /// The edges' offset for an angle (`math::rotate_point_about_y` of (0x1555, y, 0) by angle << 16).
@@ -116,7 +115,7 @@ pub fn add_skid_point(race: &Race, slot: &Dword) -> Result<(), Refused> {
 /// What `lay_skidmarks` reads: the cars' blocks.
 fn cars_refuse(shared: &RaceShared) -> Result<(), Refused> {
     for n in 0..shared.view.race_cars.get().min(8) {
-        if shared.work.car_block(n as usize) == 0 {
+        if !shared.work.has_car_block(n as usize) {
             return Err(BadInput("a race car without its block").into());
         }
     }
@@ -146,9 +145,8 @@ pub fn lay_skidmarks(race: &Race) -> Result<(), Refused> {
     for c in 0..count {
         frame.shadow_skids.skid_cars.set(1 << (c & 31));
         // The skid slots are the drawing's own (in the block); the wheels, the physics'.
-        let block = shared.work.car_block(c as usize);
-        let slots = &car_at(block)?.skid_slots;
-        let car = crate::race::frame_view::car_at(block)?;
+        let slots = &shared.work.car(c as usize)?.skid_slots;
+        let car = crate::race::frame_view::car(shared.work.block_number(c as usize)?)?;
         for wheel in 0..4usize {
             let slot = &slots[wheel];
             let on = car.wheel_squeeze[wheel].bits() != 0

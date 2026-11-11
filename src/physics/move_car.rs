@@ -22,8 +22,8 @@ fn put(v: &[&dyn Cell32], k: usize, x: u32) {
 
 /// On the variables' cells `v`: the last move.
 pub fn move_at(tables: &PhysicsTables, numbers: &Numbers, v: &[&dyn Cell32]) -> u32 {
-    let k65536: u32 = numbers.k65536.bits();
-    let dt: u32 = tables.step_time.bits();
+    let k65536 = numbers.k65536.get();
+    let dt = tables.step_time.get();
     let mut last = 0;
     for (motion, place) in [(0, 3), (2, 5), (1, 4)] {
         last = mul2_to_int(get(v, motion), k65536, dt) as u32;

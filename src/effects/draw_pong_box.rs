@@ -168,28 +168,28 @@ fn projected_x87(sq: &WindscreenFlakeTables) {
         crate::scene::polygon_work::front_end()
             .window
             .view_scale
-            .bits(),
+            .get(),
     );
     let t1 = t0 / sq.corners[3][2].ld();
     let t2 = bh::ld(
         crate::scene::polygon_work::front_end()
             .window
             .view_scale
-            .bits(),
+            .get(),
     );
     let t3 = t2 / sq.corners[2][2].ld();
     let t4 = bh::ld(
         crate::scene::polygon_work::front_end()
             .window
             .view_scale
-            .bits(),
+            .get(),
     );
     let t5 = t4 / sq.corners[1][2].ld();
     let t6 = bh::ld(
         crate::scene::polygon_work::front_end()
             .window
             .view_scale
-            .bits(),
+            .get(),
     );
     let t7 = t6 / sq.corners[0][2].ld();
     let t8 = sq.corners[0][1].ld();

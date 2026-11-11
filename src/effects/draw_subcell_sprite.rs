@@ -149,7 +149,7 @@ fn square_x87(dw: &DrawWork) {
     let t0 = ld(crate::scene::polygon_work::front_end()
         .window
         .view_scale
-        .bits());
+        .get());
     let t1 = t0 / dw.turned[2].ld();
     let t2 = dw.turned[2].ld();
     let t3 = t2 * dw.z_k.ld();

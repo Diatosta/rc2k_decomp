@@ -632,7 +632,7 @@ fn profiler(race: &Race, ui: &Ui) {
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     take_readings(&mut t);
-    let fps = f32::from_bits(shared.switches.frame_rate.bits());
+    let fps = shared.switches.frame_rate.get();
     ui.text(format!("Frame rate (the game's, over 16 frames): {fps:.1}"));
     ui.same_line();
     ui.checkbox("Each part in the graph", &mut t.each);

@@ -167,9 +167,8 @@ pub fn set_start_states(race: &Race) -> Result<(), Refused> {
         let v = start_value(physics, shared.vars.race_car_kinds[1].get());
         frame.panel_and_overlay.panel.start_values[1].set(v);
         if one {
-            let block: u32 = shared.work.car_block(chosen as usize);
             shared.vars.split.set(0u32);
-            let block = crate::race::trap::car_at(block)?;
+            let block = shared.work.car(chosen as usize)?;
             if !flagged(block.car_kind.get()) {
                 settle_state(&block.camera_view);
             }

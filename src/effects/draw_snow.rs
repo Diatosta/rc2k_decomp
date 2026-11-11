@@ -236,7 +236,7 @@ fn square_x87(vt: impl Base, i: usize, t: &SnowTables, s: &SnowState, l: &SnowLi
         crate::scene::polygon_work::front_end()
             .window
             .view_scale
-            .bits(),
+            .get(),
     ) / t0;
     s.depth.set(bh::st(t1));
     let t2 = s.turned[1].ld();
@@ -245,12 +245,12 @@ fn square_x87(vt: impl Base, i: usize, t: &SnowTables, s: &SnowState, l: &SnowLi
     let t5 = -t3;
     let t6 = t5
         + crate::math::x87_float::ld(
-            crate::scene::polygon_work::front_end().window.view_centre[1].bits(),
+            crate::scene::polygon_work::front_end().window.view_centre[1].get(),
         );
     st(vt, 0x4, t6);
     let t7 = t4
         + crate::math::x87_float::ld(
-            crate::scene::polygon_work::front_end().window.view_centre[0].bits(),
+            crate::scene::polygon_work::front_end().window.view_centre[0].get(),
         );
     st(vt, 0x0, t7);
     let t8 = l.side.ld();

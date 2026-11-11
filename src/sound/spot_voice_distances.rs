@@ -58,7 +58,7 @@ fn x87_1(bx: &[impl Cell32; 20], ck: &crate::sound::store::RaceClock) {
     let t12 = t11.sqrt();
     bx[0x40 / 4].set_bits(st(t12));
     let t13 = t0 - t12;
-    let t14 = ld(ck.turns_a_second.bits());
+    let t14 = ld(ck.turns_a_second.get());
     let t15 = t13 * t14;
     bx[0x44 / 4].set_bits(st(t15));
 }
@@ -72,13 +72,13 @@ fn x87_2(
     sf: &crate::sound::store::SurfaceSounds,
 ) {
     let t0 = ld(bx[0x44 / 4].bits());
-    let t1 = ld(ck.sound_speed.bits());
+    let t1 = ld(ck.sound_speed.get());
     let t2 = t0 + t1;
-    let t3 = ld(ck.over_sound_speed.bits());
+    let t3 = ld(ck.over_sound_speed.get());
     let t4 = t2 * t3;
     let t5 = ld(bx[0x48 / 4].bits());
     let t6 = t4 - t5;
-    let t7 = ld(sf.pitch_blend.bits());
+    let t7 = ld(sf.pitch_blend.get());
     let t8 = t6 * t7;
     let t9 = ld(bx[0x48 / 4].bits());
     let t10 = t8 + t9;

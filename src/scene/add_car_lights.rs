@@ -72,16 +72,20 @@ pub fn add_car_lights(
         }
         let lights = GameCars(race, crate::scene::reading::Reading::new(), drawn, view);
         for car in 0..cars {
-            let block = shared.work.car_block(car as usize);
             let lit = rc2k_core::scene::lamps::car_lights(&lights, car);
             lights.1.finish()?;
             if lit {
                 // The car as the drawing sees it, and its marks count (the drawing's own, in
                 // the block: `race::car_parts`).
-                let marks = crate::race::blocks_store::block_at(block, "no car")?
+                let marks = shared
+                    .work
+                    .block_car(car as usize, "no car")?
                     .marks_count
                     .get();
-                add(crate::race::frame_view::car_at(block)?, marks)?;
+                add(
+                    crate::race::frame_view::car(shared.work.block_number(car as usize)?)?,
+                    marks,
+                )?;
             }
         }
         Ok(())

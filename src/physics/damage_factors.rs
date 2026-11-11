@@ -34,7 +34,7 @@ pub fn steps(car: &Car, damage: &DamageModel) {
         hold_low(stiffness, &damage.gauge_low);
         hold_high(stiffness, &damage.gauge_top);
         wheel_ride_height_from_share(damage, ride_height);
-        if equal_or_unordered(suspension.bits(), damage.gauge_top.bits()) {
+        if equal_or_unordered(suspension, &damage.gauge_top) {
             fail_wheel(damage, stiffness, ride_height);
         }
     }
@@ -68,7 +68,7 @@ pub fn steps(car: &Car, damage: &DamageModel) {
     if car.all_wheels_off.get() == 0 {
         damage.wheels_down.set_bits(ONE);
     }
-    damage.brake_share.set_bits(0);
+    damage.brake_share.set(0.0);
     if !abs_below_or_unordered(car.local_velocity[2].bits(), damage.grade_high.bits())
         && (car.brake.get().wrapping_sub(0x10) as i32) >= 0
     {
@@ -87,11 +87,11 @@ pub fn steps(car: &Car, damage: &DamageModel) {
     damage.tyre_kind.set_bits(car.tyre_kind.get());
     let surface = car.wheel_surface_a[4].get();
     damage.surface.set_bits(surface);
-    damage.on_surface_5.set_bits(0);
+    damage.on_surface_5.set(0.0);
     if surface == 5 {
         damage.on_surface_5.set_bits(ONE);
     }
-    damage.surface_blend.set_bits(car.surface_blend.bits());
+    damage.surface_blend.set(car.surface_blend.get());
     damage.hit_side.set_bits(side_hit(car, damage));
     hit_size_and_dive(car, damage);
     hold_low(&damage.scratch, &damage.gauge_low);
@@ -99,7 +99,7 @@ pub fn steps(car: &Car, damage: &DamageModel) {
     square_dive(damage);
     // A wheel that has just touched down carries the dive's load.
     for wheel in 0..4 {
-        damage.wheel_loads[wheel].set_bits(0);
+        damage.wheel_loads[wheel].set(0.0);
         if car.wheel_squeeze_last[wheel].bits() == 0 && car.wheel_squeeze[wheel].bits() != 0 {
             store(
                 &damage.wheel_loads[wheel],
@@ -109,7 +109,7 @@ pub fn steps(car: &Car, damage: &DamageModel) {
     }
     blend_wheel_loads(damage);
     if damage.hit_size.bits() != 0 && car.hit_cooldown.get() != 0 {
-        damage.hit_size.set_bits(0);
+        damage.hit_size.set(0.0);
         car.hit_cooldown.set(0x64);
     }
 }
@@ -120,10 +120,10 @@ fn side_hit(car: &Car, damage: &DamageModel) -> u32 {
         return 0;
     }
     let mut hit = 1;
-    if !below_or_unordered(car.contact_point[0].bits(), damage.gauge_low.bits()) {
+    if !below_or_unordered(&car.contact_point[0], &damage.gauge_low) {
         hit += 1;
     }
-    if below_or_unordered(car.contact_point[2].bits(), damage.gauge_low.bits()) {
+    if below_or_unordered(&car.contact_point[2], &damage.gauge_low) {
         hit += 2;
     }
     hit
@@ -242,7 +242,7 @@ fn finish_shares(m: &DamageModel) {
         &m.drive_b_extrapolated_share,
         value(&m.scratch) / value(&m.speed_range),
     );
-    m.wheels_down.set_bits(0);
+    m.wheels_down.set(0.0);
 }
 
 /// The brake pedal, a whole number over 256, as a share.
@@ -289,8 +289,8 @@ fn blend_wheel_loads(m: &DamageModel) {
     // (`quarter` 0.25) and the half-mean (`half` 0.5, both constants of the model) are +0.0 in
     // every rounding mode, and each load is +0.0 x 0.5 + +0.0 = +0.0: set the results at once.
     if m.wheel_loads.iter().all(|load| load.bits() == 0) {
-        m.wheel_load_mean.set_bits(0);
-        m.scratch.set_bits(0);
+        m.wheel_load_mean.set(0.0);
+        m.scratch.set(0.0);
         return;
     }
     let [l0, l1, l2, l3] = &m.wheel_loads;
@@ -786,7 +786,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_21(a[0]) },
-                plain: |a| dm(a[0]).brake_share.set_bits(0),
+                plain: |a| dm(a[0]).brake_share.set(0.0),
             },
             Block {
                 name: "damage_factors line 276",
@@ -832,7 +832,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_24(a[0]) },
-                plain: |a| dm(a[0]).on_surface_5.set_bits(0),
+                plain: |a| dm(a[0]).on_surface_5.set(0.0),
             },
             Block {
                 name: "damage_factors line 322",
@@ -1059,7 +1059,7 @@ mod plain_matches_x87 {
         // No wheel just landed: the loads are zero, the constants are the model's own.
         let still = |s: &crate::physics::damage_model::proof::State| {
             for load in &s.damage.wheel_loads {
-                load.set_bits(0);
+                load.set(0.0);
             }
             s.damage.quarter.set_bits(0x3E80_0000);
             s.damage.half.set_bits(0x3F00_0000);

@@ -24,10 +24,10 @@ fn put(v: &[&dyn Cell32], k: usize, x: u32) {
 /// On the variables' cells `v`: the last turn added.
 pub fn spin_at(tables: &PhysicsTables, numbers: &Numbers, v: &[&dyn Cell32]) -> u32 {
     let (wheel, dt, k65536, scale) = (
-        tables.wheel_spin_share.bits(),
-        tables.step_time.bits(),
-        numbers.k65536.bits(),
-        numbers.one_over_pi.bits(),
+        &tables.wheel_spin_share,
+        &tables.step_time,
+        &numbers.k65536,
+        &numbers.one_over_pi,
     );
     let mut last = 0;
     for (speed, turn) in [(0, 2), (1, 3)] {

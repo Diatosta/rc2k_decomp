@@ -135,7 +135,7 @@ fn start_line(
         drawing.scene.scratch.get(),
         rb,
         rc,
-        GEAR.shift_ratio_figure.bits(),
+        &GEAR.shift_ratio_figure,
     ) & 0x100
         == 0
     {

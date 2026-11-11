@@ -88,16 +88,16 @@ fn probe_points(
             let add;
             (add, _) = ground::wheel_lifted(car.parts_present.get(), b);
             less_plus_less_product_80(
-                car.probe_point_y[6].bits(),
-                c.tables.handling[2].bits(),
+                &car.probe_point_y[6],
+                &c.tables.handling[2],
                 add.then(|| c.tables.probe_lift.bits()),
-                c.tables.probe_share.bits(),
-                c.tables.handling[3].bits(),
+                &c.tables.probe_share,
+                &c.tables.handling[3],
             )
         } else {
             extended(y)
         };
-        let x = extended(car.probe_point_x[b as usize].bits());
+        let x = extended(car.probe_point_x[b as usize].get());
         let out = rotate_point(&car.crash_matrix, [x, y, extended(z)]);
         let (ox, oy, oz) = (rounded(out[0]), rounded(out[1]), rounded(out[2]));
         contact.probe_turned_x_last.set_bits(ox);

@@ -74,7 +74,7 @@ pub struct ViewerPanelBlock {
     pub picture_folder: Dword,
     /// +0x3c0 (0x5C2CDC): `aRpl000000Pcx`: the 15-byte name rpl\000000.pcx, taken in place; the last 3 bytes (0x5C2CE8 .. 0x5C2CEB) are not a whole dword (`race::replay_screenshot`).
     pub picture_name: [Dword; 3],
-    /// +0x3cc (0x5C2CE8): the untyped tail: the viewer's texts and unaligned values, reached through `text_ptr` and the unaligned readers below.
+    /// +0x3cc (0x5C2CE8): the untyped tail: the viewer's texts and unaligned values, reached through `text` and the unaligned readers below.
     pub untyped_tail: [Dword; 167],
 }
 
@@ -95,7 +95,7 @@ pub static VIEWER_PANEL: InGroup = InGroup;
 /// its unaligned values.
 const TAIL: usize = 0x5C2CE8;
 
-/// The texts in `untyped_tail`, by IDA's address (for `ViewerPanelBlock::text_ptr`).
+/// The texts in `untyped_tail`, by IDA's address (for `ViewerPanelBlock::text`).
 pub mod texts {
     /// "SVM: Release all textures"
     pub const SVM_RELEASE_TEXTURES: usize = 0x5C2DDF;
@@ -142,8 +142,19 @@ pub mod texts {
 }
 
 impl ViewerPanelBlock {
-    /// Where the byte at IDA `ida` is, inside the untyped tail `untyped_tail` (the texts of
-    /// `texts`, the unaligned values below).
+    /// The text of `texts` that starts at IDA's `ida` in the untyped tail, up to its NUL (or the
+    /// tail's end).
+    pub fn text(&self, ida: usize) -> Vec<u8> {
+        assert!((TAIL..TAIL + 4 * 167).contains(&ida));
+        let at = ida - TAIL;
+        (at..4 * 167)
+            .map(|k| (self.untyped_tail[k / 4].get() >> (8 * (k % 4))) as u8)
+            .take_while(|&byte| byte != 0)
+            .collect()
+    }
+
+    /// Where the byte at IDA `ida` is, inside the untyped tail `untyped_tail` (the tests).
+    #[cfg(test)]
     pub fn text_ptr(&self, ida: usize) -> crate::pointers::GamePtr {
         assert!((TAIL..TAIL + 4 * 167).contains(&ida));
         crate::pointers::GamePtr::to(&self.untyped_tail).offset((ida - TAIL) as u32)

@@ -25,11 +25,11 @@ pub fn add_drive_forces_at(tables: &PhysicsTables, v: &[&dyn Cell32]) {
     }
     put(
         v[6],
-        x87::sum4_times(v[2].bits(), v[3].bits(), v[4].bits(), v[5].bits(), factor).to_bits(),
+        x87::sum4_times(v[2], v[3], v[4], v[5], factor).to_bits(),
     );
     let scale = tables.drive_shares[2].bits();
-    v[9].set_bits(mul2_plus(v[7].bits(), v[6].bits(), scale, v[9].bits()).to_bits());
-    v[10].set_bits(mul2_plus(v[8].bits(), v[6].bits(), scale, v[10].bits()).to_bits());
+    v[9].set_bits(mul2_plus(v[7], v[6], scale, v[9]).to_bits());
+    v[10].set_bits(mul2_plus(v[8], v[6], scale, v[10]).to_bits());
 }
 
 fn game<'a>(

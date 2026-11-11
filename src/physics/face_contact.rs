@@ -163,8 +163,8 @@ pub fn steps(
     copy_cells(&c.contact.contact_car_speed, &c.car.velocity);
     copy_cells(&c.contact.contact_turn_speed, &c.car.spin);
     copy_cells(&c.contact.contact_point, &c.contact.object_point_scaled);
-    c.contact.contact_point[1].set_bits(0);
-    c.contact.contact_slide_limit.set_bits(0);
+    c.contact.contact_point[1].set(0.0);
+    c.contact.contact_slide_limit.set(0.0);
     contact_force(
         c.contact,
         c.numbers,

@@ -360,15 +360,6 @@ pub fn lend_block(block: &'static pool::PoolBlock, len: usize) -> u32 {
     at
 }
 
-/// The first of `len` bytes at the game address `addr` inside one lent block of the pool (the
-/// screen's pixels for the renderers): its host pointer, or None for bytes in no lent block.
-pub fn lent_bytes(addr: u32, len: usize) -> Option<*mut u8> {
-    let homes = POOL_HOMES.read().ok()?;
-    let (&start, block) = homes.range(..=addr).next_back()?;
-    let offset = (addr - start) as usize;
-    (offset.checked_add(len)? <= block.len()).then(|| block.as_ptr().wrapping_add(offset))
-}
-
 /// A lent block given back: its region, its store and its game range; the block, for the
 /// pool (None for an address `lend_block` did not hand out).
 pub fn forget_block(at: u32) -> Option<&'static pool::PoolBlock> {
@@ -1838,6 +1829,7 @@ pub fn copy_between(
 /// `len` bytes from `addr` checked to lie in one region; outside, the program ends naming
 /// them (`fatal::raise::end`). For hot paths (the x87 runs' operands).
 #[track_caller]
+#[cfg(all(test, target_arch = "x86"))] // only the 32-bit tests' kept x87 runs use it
 pub fn check_or_end(addr: u32, len: usize, what: &str) {
     watched(addr, len, what);
     match inside(addr, len) {
@@ -1848,7 +1840,9 @@ pub fn check_or_end(addr: u32, len: usize, what: &str) {
 
 /// An access by address to the store behind `backing`, noted for the field-leaving census
 /// (`write_watch`).
+#[cfg(all(test, target_arch = "x86"))]
 #[inline(always)]
+#[cfg_attr(feature = "write_watch", track_caller)]
 fn note_by_address(_addr: u32, _backing: Backing, _len: usize, _write: bool) {
     #[cfg(feature = "write_watch")]
     if let Backing::Store(store, home) = _backing {
@@ -1866,6 +1860,7 @@ pub fn read_or_end<T: Plain>(addr: u32, what: &str) -> T {
 }
 
 /// A checked write, as `read_or_end`.
+#[cfg(test)]
 #[track_caller]
 pub fn write_or_end<T: Plain>(addr: u32, value: T, what: &str) {
     if let Err(e) = GamePtr::new(addr).write(value, what) {
@@ -1892,11 +1887,6 @@ impl LentBytes {
             len: bytes.len(),
             game: lend_block(block, bytes.len()),
         }
-    }
-
-    /// The bytes' game address.
-    pub fn addr(&self) -> u32 {
-        self.game
     }
 
     pub fn len(&self) -> usize {
@@ -1971,6 +1961,11 @@ impl LentBytes {
         Store::load(self.block, 0, &mut bytes)
             .unwrap_or_else(|e| crate::fatal::raise::end("pointers::LentBytes", e));
         bytes
+    }
+
+    /// The bytes' first byte, for a slice of them written in place.
+    pub fn as_mut_ptr(&self) -> *mut u8 {
+        self.block.as_ptr()
     }
 
     /// The bytes in place.

@@ -230,6 +230,53 @@ impl RaceWork {
         crate::race::trap::car_at(self.car_block(n))
     }
 
+    /// Car `n`'s block as `g_carBlocks[n]` keeps it: its handle (0 for none), the value other
+    /// places keep for "that car" (`block_ref`).
+    pub fn car_handle(&self, n: usize) -> u32 {
+        self.car_blocks
+            .get(n)
+            .map_or_else(|| self.car_block(n), Dword::get)
+    }
+
+    /// Car `n`'s block as a car, or the refusal `what` for none (the original's read at a small
+    /// offset from 0 fails). A handle that names no block ends the program, as `car_block`.
+    pub fn block_car(
+        &self,
+        n: usize,
+        what: &'static str,
+    ) -> Result<&'static crate::physics::car_store::Car, BadInput> {
+        match self.car_blocks.get(n) {
+            Some(cell) if cell.get() == 0 => Err(BadInput(what)),
+            Some(_) => self.car(n),
+            None => crate::race::blocks_store::block_at(self.car_block(n), what),
+        }
+    }
+
+    /// Car `n`'s block as a car; a null block or one that is none of the ten ends the program
+    /// (as `Car::at(self.car_block(n))`).
+    pub fn car_or_end(&self, n: usize) -> &'static crate::physics::car_store::Car {
+        let block = self.car_block(n);
+        match self.car_blocks.get(n) {
+            Some(_) if block != 0 => self.car(n),
+            _ => crate::race::trap::car_at(block),
+        }
+        .unwrap_or_else(|e| crate::fatal::raise::end("physics::Car::at", e))
+    }
+
+    /// The number of the block car `n` has, refused for none (as `frame_view::car_at` on its
+    /// address).
+    pub fn block_number(&self, n: usize) -> Result<usize, BadInput> {
+        use crate::race::blocks_store::{BLOCK_COUNT, BLOCK_TAG};
+        if let Some(cell) = self.car_blocks.get(n) {
+            let k = (cell.get() ^ BLOCK_TAG) as usize;
+            if k < BLOCK_COUNT {
+                return Ok(k);
+            }
+        }
+        crate::physics::car_store::Car::block_number(self.car_block(n))
+            .ok_or(BadInput("no car block's place for a snapshot"))
+    }
+
     /// Whether car `n` has a block (`car_block(n) != 0`, ending the program on a handle that
     /// names none as it does), without working out its address.
     pub fn has_car_block(&self, n: usize) -> bool {

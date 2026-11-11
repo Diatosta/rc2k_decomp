@@ -82,7 +82,6 @@ pub fn apply_message(
     if player >= 8 {
         return Ok(());
     }
-    let block = race.shared.work.car_block(player as usize);
     // The block is looked up after the message is read and believed: a null one refuses
     // at the first write, as the original's.
     let Some(kind) = Kind::of(word_at(message, 0)?) else {
@@ -97,7 +96,7 @@ pub fn apply_message(
         note_unbelievable(player);
         return Ok(());
     }
-    let car = crate::race::trap::car_at(block)?;
+    let car = race.shared.work.car(player as usize)?;
     for (n, (&(field, _), &value)) in table.iter().zip(&values).enumerate() {
         // The place received goes where the car is to be.
         if kind == Kind::Position && n < 3 {

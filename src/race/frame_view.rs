@@ -167,9 +167,3 @@ pub fn car(n: usize) -> Result<&'static CarView, BadInput> {
     }
     CARS.get(n).ok_or(BadInput("a car past the blocks"))
 }
-
-/// The snapshot of the block at `address` (as `trap::car_at`; the work car or any other address
-/// refused).
-pub fn car_at(address: u32) -> Result<&'static CarView, BadInput> {
-    car(Car::block_number(address).ok_or(BadInput("no car block's place for a snapshot"))?)
-}

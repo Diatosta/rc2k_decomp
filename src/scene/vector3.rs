@@ -100,7 +100,7 @@ pub fn angle_between_vectors(a: &(impl Cells + ?Sized), b: &(impl Cells + ?Sized
         }
         step = crate::math::x87::mul(step, half);
     }
-    crate::scene::matrix3::extended(angle.to_bits())
+    crate::scene::matrix3::extended(angle)
 }
 
 #[cfg(all(test, target_arch = "x86"))]

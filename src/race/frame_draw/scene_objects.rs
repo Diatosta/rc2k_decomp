@@ -2,11 +2,11 @@
 
 use super::*;
 use crate::errors::{BadInput, Refused};
-use crate::race::frame_view::car_at as car_view;
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::frame_view::car as car_view;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
-use crate::race::trap::car_at;
 use crate::race::view_scratch::DrawCtx;
 use crate::scene::draw_described_object::Description;
 use crate::scene::polygon_store::POLYGON_WORK;
@@ -112,7 +112,7 @@ pub fn check_slot_object(
     slot: &crate::race::work_store::RaceSlot,
 ) -> Result<(), Refused> {
     let n = slot.part.get().wrapping_sub(0x50);
-    if n < 0xA0 && shared.work.car_block((n / 0x14) as usize) == 0 {
+    if n < 0xA0 && !shared.work.has_car_block((n / 0x14) as usize) {
         return Err(BadInput("a slot's car without its block").into());
     }
     Ok(())
@@ -233,7 +233,7 @@ pub fn draw_view_tint(
 /// `OBJECT_WORK.turned_place` ..; x and y back as floats, z the key: plus 0x2000000, shifted right
 /// 10), a depth entry of the key with the car's `number` plus 0x2000000. Refuses (before anything)
 /// a depth entry past the 0x1000.
-pub fn add_car_depth_entry(ctx: &DrawCtx, car: u32, number: u32) -> Result<(), Refused> {
+pub fn add_car_depth_entry(ctx: &DrawCtx, car: usize, number: u32) -> Result<(), Refused> {
     let DrawCtx { view, .. } = *ctx;
     use crate::math::x87::from_int;
     let n: u32 = view.lists.depth_entry_count.get();
@@ -315,7 +315,7 @@ pub(super) fn add_flare(ctx: &DrawCtx) -> Result<(), BadInput> {
 
 /// 0x4572B0: a flare at `point` in the frame of the car block at `car` (its matrix +0xB4,
 /// each part rounded, plus its place +0x134 ..), object 0x39, by `add_flare`.
-pub(super) fn place_flare(ctx: &DrawCtx, car: u32, point: [u32; 3]) -> Result<(), BadInput> {
+pub(super) fn place_flare(ctx: &DrawCtx, car: usize, point: [u32; 3]) -> Result<(), BadInput> {
     let t = crate::math::x87::rotate_rounding(
         point.map(|v| v as i32),
         &crate::session::read_bits(&car_view(car)?.crash_matrix),
@@ -338,7 +338,7 @@ pub(super) const PART_SWITCHES: u32 = 0xAC0;
 /// `place_flare`; `race().frame.frame_work.light_left` / `race().frame.frame_work.light_right` the two bytes.
 pub(super) fn light_pair(
     ctx: &DrawCtx,
-    car: u32,
+    car: usize,
     record: u32,
     at: u32,
     left: u32,
@@ -346,7 +346,7 @@ pub(super) fn light_pair(
 ) -> Result<(), BadInput> {
     let race = ctx.race;
     // The bytes are the block's part switches (+0xAC0 ..).
-    let switches = &car_at(car)?.part_switches;
+    let switches = &CAR_BLOCKS.cars[car].part_switches;
     let byte = |o: u32| -> Result<u32, BadInput> {
         let n = o.wrapping_sub(PART_SWITCHES) as usize;
         if n >= switches.atomics().len() {
@@ -381,7 +381,7 @@ pub(super) fn light_pair(
 
 /// `race::car_light_flares` (0x457036): the lights of the car block at `car` as flares. Refuses
 /// (before anything) a flare list or depth list without room for the 24 flares a car can give.
-pub fn car_light_flares(ctx: &DrawCtx, car: u32) -> Result<(), Refused> {
+pub fn car_light_flares(ctx: &DrawCtx, car: usize) -> Result<(), Refused> {
     let DrawCtx {
         race, scene, view, ..
     } = *ctx;
@@ -412,8 +412,8 @@ pub fn car_light_flares(ctx: &DrawCtx, car: u32) -> Result<(), Refused> {
     let valid = kind < 0x22 && KIND_TABLES.kind_shows_parts[kind as usize].get() != 0;
     if valid {
         if !crate::math::x87::below_or_unordered(
-            car_view(car)?.electrics_damage.bits(),
-            race.course.numbers.hundred.bits(),
+            car_view(car)?.electrics_damage.get(),
+            race.course.numbers.hundred.get(),
         ) {
             return Ok(());
         }
@@ -474,13 +474,12 @@ pub fn car_lights(ctx: &DrawCtx) -> Result<(), Refused> {
     use rc2k_core::race::lights::{check_car_lights, lights_on};
     let cars: u32 = race.shared.view.race_cars.get();
     check_car_lights(cars, 0, SORT_MAX)?;
-    let block = |n: u32| race.shared.work.car_block(n as usize);
-    if (0..cars).any(|n| block(n) == 0) {
+    if (0..cars).any(|n| !race.shared.work.has_car_block(n as usize)) {
         return Err(BadInput("a null car block").into());
     }
     check_car_lights(cars, ctx.view.lists.depth_entry_count.get(), SORT_MAX)?;
     for n in 0..cars {
-        let b = block(n);
+        let b = race.shared.work.block_number(n as usize)?;
         // Both only with the lights on: the `jz` skips to the `popa`.
         if lights_on(ctx.view.cars.state_of(b)?.get()) {
             add_car_depth_entry(ctx, b, n)?;

@@ -52,14 +52,7 @@ pub fn wheel_springs(
         c.wheel_squeeze_last[k].set(old);
         let eax = contact.probe_height[k].get().wrapping_neg();
         drawing.scene.scratch.set(eax);
-        q.set_bits(
-            ext_div2(
-                int_80(eax as i32, false),
-                numbers.k65536.bits(),
-                ph.handling[3].bits(),
-            )
-            .to_bits(),
-        );
+        q.set_bits(ext_div2(int_80(eax as i32, false), &numbers.k65536, &ph.handling[3]).to_bits());
         if below(q.bits(), ZERO) {
             q.set(x87::loaded(ZERO));
         }
@@ -72,7 +65,7 @@ pub fn wheel_springs(
             &ph.forces[0].force[1],
         )));
         damping.set(x87::sub_mul(
-            q.bits(),
+            q,
             drawing.scene.work_dword.get(),
             ph.handling[5].bits(),
         ));
@@ -120,12 +113,12 @@ pub fn wheel_springs(
             ph.forces[15 + k].point[row].set(v);
         }
     }
-    ph.forces[10].point[1].set_bits(0);
-    let n = neg_rounded(extended(ph.wheel_spin_push[0].bits()));
+    ph.forces[10].point[1].set(0.0);
+    let n = neg_rounded(extended(ph.wheel_spin_push[0].get()));
     for k in 0..4 {
         ph.forces[11 + k].point[1].set(n);
     }
-    let n = neg_rounded(extended(ph.wheel_spin_push[1].bits()));
+    let n = neg_rounded(extended(ph.wheel_spin_push[1].get()));
     for k in 0..4 {
         ph.forces[15 + k].point[1].set(n);
     }

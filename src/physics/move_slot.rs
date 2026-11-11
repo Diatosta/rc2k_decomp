@@ -91,7 +91,7 @@ pub fn move_slot(
         copy(&c.matrices.turned_matrix, &s.matrix);
     }
     for k in [1, 0, 2] {
-        let d = mul2_to_int(s.motion[k].bits(), dt, k65536) as u32;
+        let d = mul2_to_int(&s.motion[k], dt, k65536) as u32;
         drawing.scene.scratch.set(d);
         s.place[k].set(s.place[k].get().wrapping_add(d));
     }
@@ -105,7 +105,7 @@ pub fn move_slot(
     if face == u32::MAX {
         copy(&c.work.slot_place, &s.place);
         for cell in s.motion.iter().chain(&s.spin) {
-            cell.set_bits(0);
+            cell.set(0.0);
         }
         return Ok(());
     }
@@ -122,7 +122,7 @@ pub fn move_slot(
     for cell in &s.spin {
         cell.set(negated(mul(cell, half)));
     }
-    if abs_compare(s.motion[1].bits(), c.numbers.one.bits()) & 0x100 != 0 {
+    if abs_compare(&s.motion[1], &c.numbers.one) & 0x100 != 0 {
         copy(&c.work.part_matrix_flat[..12], &s.matrix);
         let n = s.part.get() % 20;
         if (n.wrapping_sub(5) as i32) >= 0 && (n.wrapping_sub(9) as i32) < 0 {
@@ -130,9 +130,6 @@ pub fn move_slot(
             return Ok(());
         }
     }
-    drawing
-        .scene
-        .scratch
-        .set(abs_of(s.motion[1].bits()).to_bits());
+    drawing.scene.scratch.set(abs_of(&s.motion[1]).to_bits());
     Ok(())
 }

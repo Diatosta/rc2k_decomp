@@ -248,9 +248,9 @@ fn place(
         window.view_offset_float[0].bits(),
         window.view_offset_float[1].bits(),
     );
-    let depth_factor: u32 = window.one_over_farthest.bits();
+    let depth_factor = window.one_over_farthest.get();
     let sse = scene.draw_switches.use_sse.get() != 0;
-    let mirror_at: u32 = window.view_centre[0].bits();
+    let mirror_at = window.view_centre[0].get();
     for (n, &(_, entry)) in entries.iter().enumerate() {
         let vertex = entry.record.get();
         let out = out(n);

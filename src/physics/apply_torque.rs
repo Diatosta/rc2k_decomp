@@ -24,22 +24,17 @@ pub fn apply_torque(tables: &PhysicsTables, contact: &ContactWork, rec: &ForceRe
     let work = &contact.contact_turn_speed;
     let cross = &tables.torque_cross;
     for (w, s) in work.iter().zip(&car.spin) {
-        w.set_bits(s.bits());
+        w.set(s.get());
     }
     turn_cells(&car.car_inverse_matrix, work);
     cross_product(&rec.force, &rec.point, cross);
     let step = tables.step_time.bits();
     for k in 0..3 {
         let inertia = tables.inertia[k].bits();
-        work[k].set(neg_product2_plus(
-            cross[k].bits(),
-            step,
-            inertia,
-            work[k].bits(),
-        ));
+        work[k].set(neg_product2_plus(&cross[k], step, inertia, &work[k]));
     }
     turn_cells(&car.crash_matrix, work);
     for (s, w) in car.spin.iter().zip(work) {
-        s.set_bits(w.bits());
+        s.set(w.get());
     }
 }

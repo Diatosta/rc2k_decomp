@@ -43,7 +43,7 @@ pub fn choose_at(v: &[&Dword]) -> Result<(), Refused> {
         split,
         ..ShownCars::default()
     };
-    shown.choose(&setup, crate::race::blocks_store::block_addr(0))?;
+    shown.choose(&setup, 0)?;
     put(v, 0, shown.cars[0]);
     put(v, 1, shown.cars[1]);
     put(v, 3, shown.views);
@@ -51,8 +51,9 @@ pub fn choose_at(v: &[&Dword]) -> Result<(), Refused> {
         put(v, 6, shown.split);
     }
     // The views' blocks kept by handle (`blocks_store::block_ref`).
-    put(v, 9, crate::race::blocks_store::handle_of(shown.blocks[0]));
-    put(v, 10, crate::race::blocks_store::handle_of(shown.blocks[1]));
+    // (the cars are below eight: `choose` refuses a network car above 7)
+    put(v, 9, crate::race::blocks_store::BLOCK_TAG | shown.cars[0]);
+    put(v, 10, crate::race::blocks_store::BLOCK_TAG | shown.cars[1]);
     for (k, &x) in shown.listed.iter().enumerate() {
         put(v, 11 + k, x);
     }

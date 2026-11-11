@@ -27,20 +27,18 @@ pub fn corner_inside(contact: &ContactWork, numbers: &Numbers) -> bool {
     let corner = contact
         .corner_in
         .each_ref()
-        .map(|x| ext_times(extended(x.bits()), k));
+        .map(|x| ext_times(extended(x.get()), k));
     let turned = rotate_point(&contact.corner_matrix, corner);
     for (n, e) in turned.iter().enumerate() {
         x87_1(numbers, e, &contact.corner_turned[n]);
     }
-    (0..3).all(|n| {
-        abs_compare(contact.corner_turned[n].bits(), contact.box_size[n].bits()) & 0x100 != 0
-    })
+    (0..3).all(|n| abs_compare(&contact.corner_turned[n], &contact.box_size[n]) & 0x100 != 0)
 }
 
 /// `block` the other car's block.
 pub fn corner_hits_car(
     c: &ContactInputs<'_>,
-    block: u32,
+    block: &crate::physics::car_store::Car,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     if !corner_inside(c.contact, c.numbers) {

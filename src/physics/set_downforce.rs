@@ -14,10 +14,10 @@ pub fn set_downforce(car: &Car, tables: &PhysicsTables) {
         return;
     }
     let (load, negative) = square_times_plus_times(
-        car.local_velocity[2].bits(),
-        tables.downforce_factor.bits(),
-        tables.downforce_spec.bits(),
-        tables.gravity.bits(),
+        &car.local_velocity[2],
+        &tables.downforce_factor,
+        &tables.downforce_spec,
+        &tables.gravity,
     );
     tables.downforce.set_bits(load);
     tables.forces[4].force[1].set_bits(negative);

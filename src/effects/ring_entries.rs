@@ -22,7 +22,7 @@ pub const RING_BYTES: u32 = 0x2_5000;
 /// bits, as the x87 blocks load and store them). The three-axis fields are arrays x, y, z.
 /// Fields no code reads or writes by name are `unknown_<offset>`.
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Entry {
     /// 0x00: The link to the entry before it in the ring (an entry number + 1).
     pub prev: u32,
@@ -43,7 +43,7 @@ pub struct Entry {
     pub motion: [u32; 3],
     /// 0x38: The burst particles' extra push (three floats; the car's +0x4C .. +0x54 times
     /// minus an eighth, x first).
-    pub push: [u32; 3],
+    pub push: [f32; 3],
     /// 0x44: Three dwords no emitter sets (0 from the emitter that clears them).
     pub spare: [u32; 3],
     /// 0x50: The sprite's angle.
@@ -59,7 +59,7 @@ pub struct Entry {
     pub size: u32,
     /// 0x64: Kind 1's size factor (a float): the size grows by it times `k1_size`; pulled
     /// toward 65536 while the entry is near the car and faces it.
-    pub size_factor: u32,
+    pub size_factor: f32,
     /// 0x68: The car it was emitted for (a `effects_settings_store::car_handle`).
     pub car: u32,
     /// 0x6C: The emitting car's +0x88 (its pace), kept by the emitters of kinds 6, 0xD, 0x15.
@@ -100,7 +100,7 @@ impl Entry {
         push(&self.last_place);
         push(&[self.ground_y]);
         push(&self.motion);
-        push(&self.push);
+        push(&self.push.map(f32::to_bits));
         push(&self.spare);
         push(&[
             self.angle,
@@ -108,7 +108,7 @@ impl Entry {
             self.cell,
             self.cell_rate,
             self.size,
-            self.size_factor,
+            self.size_factor.to_bits(),
             self.car,
             self.car_pace,
             self.size_goal,
@@ -132,14 +132,14 @@ impl Entry {
             last_place: [w[7], w[8], w[9]],
             ground_y: w[10],
             motion: [w[11], w[12], w[13]],
-            push: [w[14], w[15], w[16]],
+            push: [w[14], w[15], w[16]].map(f32::from_bits),
             spare: [w[17], w[18], w[19]],
             angle: w[20],
             angle_rate: w[21],
             cell: w[22],
             cell_rate: w[23],
             size: w[24],
-            size_factor: w[25],
+            size_factor: f32::from_bits(w[25]),
             car: w[26],
             car_pace: w[27],
             size_goal: w[28],
@@ -178,7 +178,7 @@ impl<'a> Slot<'a> {
     }
 
     /// The field `field` selects set to `v`.
-    pub fn put(&self, field: impl FnOnce(&mut Entry) -> &mut u32, v: u32) -> Result<(), BadInput> {
+    pub fn put<T>(&self, field: impl FnOnce(&mut Entry) -> &mut T, v: T) -> Result<(), BadInput> {
         set(self.ring, self.e, v, field)
     }
 }
@@ -191,16 +191,16 @@ pub fn entry(ring: &Ring, e: u32) -> Result<Entry, BadInput> {
 }
 
 /// What `field` reads of entry `e`; refused as `entry`.
-pub fn get(ring: &Ring, e: u32, field: impl FnOnce(&Entry) -> u32) -> Result<u32, BadInput> {
+pub fn get<T>(ring: &Ring, e: u32, field: impl FnOnce(&Entry) -> T) -> Result<T, BadInput> {
     Ok(field(&entry(ring, e)?))
 }
 
 /// The field `field` selects of entry `e` set to `v`; refused as `entry`.
-pub fn set(
+pub fn set<T>(
     ring: &Ring,
     e: u32,
-    v: u32,
-    field: impl FnOnce(&mut Entry) -> &mut u32,
+    v: T,
+    field: impl FnOnce(&mut Entry) -> &mut T,
 ) -> Result<(), BadInput> {
     ring.entries
         .with(|r| {
@@ -212,13 +212,13 @@ pub fn set(
 
 /// A field loaded on the x87 stack (a refusal ends the game, as the reads of the game's
 /// memory did).
-pub fn ld(ring: &Ring, e: u32, field: impl FnOnce(&Entry) -> u32) -> X {
+pub fn ld<T: bh::Loadable>(ring: &Ring, e: u32, field: impl FnOnce(&Entry) -> T) -> X {
     bh::ld(get(ring, e, field).unwrap_or_else(|r| crate::fatal::raise::end("a ring entry", r)))
 }
 
 /// A field stored from the x87 stack (as `ld`).
-pub fn st(ring: &Ring, e: u32, x: X, field: impl FnOnce(&mut Entry) -> &mut u32) {
-    if let Err(r) = set(ring, e, bh::st(x), field) {
+pub fn st<T: bh::Stored>(ring: &Ring, e: u32, x: X, field: impl FnOnce(&mut Entry) -> &mut T) {
+    if let Err(r) = set(ring, e, T::stored(x), field) {
         crate::fatal::raise::end("a ring entry", r)
     }
 }

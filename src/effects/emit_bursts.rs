@@ -295,9 +295,9 @@ pub fn emit_bursts_with(
                     ((flags2 & 0x3F) << 4) + (r.rotate_right(17) & 3),
                 )?;
                 let tk = effects.setup.floats.minus_eighth.get();
-                slot.put(|en| &mut en.push[2], x87::mul(&car.motion[2], tk).to_bits())?;
-                slot.put(|en| &mut en.push[1], x87::mul(&car.motion[1], tk).to_bits())?;
-                slot.put(|en| &mut en.push[0], x87::mul(&car.motion[0], tk).to_bits())?;
+                slot.put(|en| &mut en.push[2], x87::mul(&car.motion[2], tk))?;
+                slot.put(|en| &mut en.push[1], x87::mul(&car.motion[1], tk))?;
+                slot.put(|en| &mut en.push[0], x87::mul(&car.motion[0], tk))?;
                 for n in 0..3 {
                     slot.put(|en| &mut en.spare[n], 0)?;
                 }

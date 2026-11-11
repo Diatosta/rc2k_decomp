@@ -16,15 +16,15 @@ use crate::race::owner_course::Course;
 /// The matrix into `out` (16 cells).
 pub fn axis_turn_matrix(course: &Course, out: &(impl Cells + ?Sized)) {
     {
-        let (s, c) = sine_cosine_of(course.lists.spin_angle.bits());
+        let (s, c) = sine_cosine_of(&course.lists.spin_angle);
         course.lists.turn_cosine.set_bits(c);
         course.lists.turn_sine.set_bits(s);
-        let t = one_less(course.lists.turn_cosine.bits());
+        let t = one_less(&course.lists.turn_cosine);
         course.lists.turn_one_less_cosine.set(t);
         let (x, y, z) = (
-            course.lists.spin_axis[0].bits(),
-            course.lists.spin_axis[1].bits(),
-            course.lists.spin_axis[2].bits(),
+            &course.lists.spin_axis[0],
+            &course.lists.spin_axis[1],
+            &course.lists.spin_axis[2],
         );
         course.lists.turn_product_xz.set(x87::mul2(t, x, z));
         course.lists.turn_product_xy.set(x87::mul2(t, x, y));
@@ -33,14 +33,14 @@ pub fn axis_turn_matrix(course: &Course, out: &(impl Cells + ?Sized)) {
         course.lists.turn_sine_y.set(x87::mul(y, s));
         course.lists.turn_sine_z.set(x87::mul(z, s));
         let (p1, p2, p3) = (
-            course.lists.turn_product_xz.bits(),
-            course.lists.turn_product_xy.bits(),
-            course.lists.turn_product_yz.bits(),
+            &course.lists.turn_product_xz,
+            &course.lists.turn_product_xy,
+            &course.lists.turn_product_yz,
         );
         let (q1, q2, q3) = (
-            course.lists.turn_sine_x.bits(),
-            course.lists.turn_sine_y.bits(),
-            course.lists.turn_sine_z.bits(),
+            &course.lists.turn_sine_x,
+            &course.lists.turn_sine_y,
+            &course.lists.turn_sine_z,
         );
         let put = |o: usize, v: u32| out.set_bits(o / 4, v);
         put(0x00, abs_sqrt_times_plus(x, t, c).to_bits());

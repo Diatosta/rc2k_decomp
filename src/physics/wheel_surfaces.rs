@@ -104,7 +104,7 @@ fn steps(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), 
             c.car.wheel_surface_b[cc].set(info_byte(t2, e2.wrapping_add(0x10))?);
             c.car.wheel_cell_b_byte18[cc].set(info_byte(t2, e2.wrapping_add(0x18))?);
             c.car.wheel_cell_b_byte14[cc].set(info_byte(t2, e2.wrapping_add(0x14))?);
-            c.car.wheel_surface_blend[cc].set_bits(0);
+            c.car.wheel_surface_blend[cc].set(0.0);
             let kind_index = info_byte(t2, 0x2C)?;
             // The index is a byte: past the four kinds the original reads on (a slip).
             let kind = crate::session::read_on_in(

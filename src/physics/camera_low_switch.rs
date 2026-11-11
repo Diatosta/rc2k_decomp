@@ -20,7 +20,7 @@ pub fn camera_low_switch(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     if !low_switch_looks(
-        c0(c.car.crash_matrix[5].bits(), ZERO),
+        c0(&c.car.crash_matrix[5], ZERO),
         c.car.camera_switch_active.get(),
         c.car.camera_view.get(),
     ) {

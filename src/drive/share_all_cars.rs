@@ -23,7 +23,7 @@ fn cars(
     shared: &RaceShared,
 ) -> Result<
     [(
-        u32,
+        usize,
         &'static CarEffects,
         &'static crate::sound::store::SoundObject,
     ); 8],
@@ -32,7 +32,7 @@ fn cars(
     let records = shared.work.car_records_resolved()?;
     Ok(std::array::from_fn(|n| {
         (
-            shared.work.car_block(n),
+            n,
             records[n],
             &crate::sound::owner::sound().race.sounds.objects[n],
         )
@@ -42,10 +42,10 @@ fn cars(
 /// The refusals, worked out before anything is written.
 fn refusal(shared: &RaceShared) -> Result<Option<&'static str>, BadInput> {
     for (block, _, _) in cars(shared)? {
-        if block == 0 {
+        if !shared.work.has_car_block(block) {
             return Ok(Some("a null car block or record"));
         }
-        let n = car_file_number(crate::physics::car_store::Car::at(block).car_kind.get());
+        let n = car_file_number(shared.work.car_or_end(block).car_kind.get());
         if let Err(e) = sharing::check_light_record(n) {
             return Ok(Some(e.0));
         }
@@ -68,12 +68,7 @@ pub fn share_all_cars(
     keep_lead_car_values(&race.frame);
     for (n, (block, record, sound)) in cars(&race.shared)?.into_iter().enumerate() {
         race.shared.work.current_car.set(n as u32);
-        share_car_state(
-            race,
-            crate::physics::car_store::Car::at(block),
-            record,
-            sound,
-        )?;
+        share_car_state(race, race.shared.work.car_or_end(block), record, sound)?;
     }
     let first_record = race
         .shared

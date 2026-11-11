@@ -31,9 +31,8 @@ pub fn next_view_at(car: &Car, players: &Dword, step: &Dword) -> Result<(), BadI
     set_view_at(car, step)
 }
 
-/// On the block at `s`.
-pub fn next_camera_view(race: &Race, s: u32) -> Result<(), BadInput> {
+/// On the block `car`.
+pub fn next_camera_view(race: &Race, car: &Car) -> Result<(), BadInput> {
     let shared = &race.shared;
-    let car = crate::race::blocks_store::block_at(s, "a car's block")?;
     next_view_at(car, &shared.view.players, &shared.car.step_clock)
 }

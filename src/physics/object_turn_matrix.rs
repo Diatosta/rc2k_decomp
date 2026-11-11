@@ -37,7 +37,7 @@ pub fn object_turn_matrix(
     );
     let (lit, turned) = (&matrices.lit_matrix, &matrices.turned_matrix);
     for k in 0..16 {
-        out[k].set_bits(turn_y[k].bits());
+        out[k].set(turn_y[k].get());
     }
     if drawing.object_work.angles[1].get() != 0 {
         set_turn_y(

@@ -280,7 +280,7 @@ fn copy_in(race: &Race, fx: &mut impl Effects) -> Result<(), Refused> {
 
     // The car blocks' settings. The brake-like settings are percentages: below 0 is 0,
     // 100 or more is 0x100 (full), else the setting x 2.56 (the x87's product, rounded).
-    let brake_scale = race.course.numbers.brake_scale.bits();
+    let brake_scale = race.course.numbers.brake_scale.get();
     for car in 0..2 {
         let c = &CAR_BLOCKS.cars[car];
         let s = &settings.cars[car];

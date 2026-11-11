@@ -9,28 +9,19 @@ use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::memory::owned::Owned;
-use crate::pointers::GamePtr;
 use crate::race::effects_settings_store::{CarEffects, EffectsSettings};
 use crate::race::owner_course::Course;
 use crate::scene::object_slots_store::ObjectTables;
 use crate::scene::objects::FACES;
-use crate::session::{PlainBytes, PlainDword, PlainFloat};
+use crate::session::{Dword, PlainBytes, PlainDword, PlainFloat};
 use rc2k_core::effects::lines as core;
 
 /// A settings block is a car record's part (`core::BLOCKS_AT` from the settings).
 const _: () = assert!(crate::race::effects_settings_store::CAR_BLOCK + 0x60 == core::BLOCKS_AT);
 
-fn get(at: GamePtr) -> Result<u32, BadInput> {
-    at.read("a game field")
-}
-
-fn put(at: GamePtr, v: u32) -> Result<(), BadInput> {
-    at.write(v, "a game field")
-}
-
 /// The lines of two faces (`from`, `to`): for each of `from`'s points (+0x10, 0x10 apart)
 /// the length to `to`'s, added to the whole number at `sum`.
-fn lines(course: &Course, paths: &Paths, from: u32, to: u32, sum: GamePtr) -> Result<(), Refused> {
+fn lines(course: &Course, paths: &Paths, from: u32, to: u32, sum: &Dword) -> Result<(), Refused> {
     lines_with(course, paths, from, to, sum, x87_length)?;
     Ok(())
 }
@@ -46,7 +37,7 @@ fn lines_with(
     paths: &Paths,
     from: u32,
     to: u32,
-    sum: GamePtr,
+    sum: &Dword,
     length: fn([i32; 3], i32) -> i32,
 ) -> Result<(), Refused> {
     {
@@ -67,7 +58,7 @@ fn lines_with(
             for (cell, v) in paths.lines_work.difference.iter().zip(d) {
                 cell.set(v);
             }
-            put(sum, length(d.map(|v| v as i32), get(sum)? as i32) as u32)?;
+            sum.set(length(d.map(|v| v as i32), sum.get() as i32) as u32);
             n += 1;
         }
     }
@@ -95,7 +86,7 @@ pub fn measure_slot_lines(
                     paths,
                     from,
                     to,
-                    GamePtr::to(&block.slot_sums[k as usize]),
+                    &block.slot_sums[k as usize],
                     x87_length,
                 )?;
             }
@@ -122,17 +113,18 @@ pub fn measure_kind_lines(
                 crate::scene::object_faces::byte(from + 6)?,
                 crate::scene::object_faces::byte(from + 0xB)?,
             ) {
-                let count = GamePtr::to(&block.kind_counts[k as usize]);
-                put(
-                    count,
-                    get(count)?.wrapping_add(crate::scene::object_faces::word(from)?),
-                )?;
+                let count = &block.kind_counts[k as usize];
+                count.set(
+                    count
+                        .get()
+                        .wrapping_add(crate::scene::object_faces::word(from)?),
+                );
                 lines_with(
                     course,
                     paths,
                     from,
                     to,
-                    GamePtr::to(&block.kind_sums[k as usize]),
+                    &block.kind_sums[k as usize],
                     x87_length,
                 )?;
             }
@@ -247,13 +239,7 @@ pub fn measure_lines(
                 if crate::scene::object_faces::byte(from + 6)? == 0x1C {
                     let kind = crate::scene::object_faces::byte(from + 0xB)? as u32;
                     if (1..=6).contains(&kind) {
-                        lines(
-                            course,
-                            paths,
-                            from,
-                            to,
-                            GamePtr::to(&block.face_sums[kind as usize - 1]),
-                        )?;
+                        lines(course, paths, from, to, &block.face_sums[kind as usize - 1])?;
                     }
                 }
                 measure_slot_lines(course, paths, from, to, block)?;
@@ -261,28 +247,20 @@ pub fn measure_lines(
             }
             if paths.lines_work.shares.get() == 1 {
                 let hundred = effects.setup.floats.hundred.get();
-                let share = |at: GamePtr, of: GamePtr| -> Result<_, Refused> {
-                    put(
-                        at,
-                        x87::share_left_to_int(get(at)? as i32, get(of)? as i32, hundred) as u32,
-                    )?;
-                    Ok(())
+                let share = |at: &Dword, of: &Dword| {
+                    at.set(
+                        x87::share_left_to_int(at.get() as i32, of.get() as i32, hundred) as u32,
+                    );
                 };
                 for (sum, of) in block.face_sums.iter().zip(&block.face_shares) {
-                    share(GamePtr::to(sum), GamePtr::to(of))?;
+                    share(sum, of);
                 }
                 x87::finit();
                 for n in (0..8).rev() {
-                    share(
-                        GamePtr::to(&block.slot_sums[n]),
-                        GamePtr::to(&block.slot_shares[n]),
-                    )?;
+                    share(&block.slot_sums[n], &block.slot_shares[n]);
                 }
                 for n in (0..0x11).rev() {
-                    share(
-                        GamePtr::to(&block.kind_sums[n]),
-                        GamePtr::to(&block.kind_shares[n]),
-                    )?;
+                    share(&block.kind_sums[n], &block.kind_shares[n]);
                 }
             }
         }

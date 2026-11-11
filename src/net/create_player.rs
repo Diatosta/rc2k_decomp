@@ -11,12 +11,12 @@
 //! is not made (nothing else reads it).
 
 use crate::errors::Refused;
-use crate::net::lobby::{log, log_bytes};
+use crate::net::lobby::log_bytes;
 use crate::net::owner::net;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 pub fn create_player() -> Result<bool, Refused> {
     let vars = &net().vars;
-    log(VIEWER_PANEL.text_ptr(texts::NET_CREATE_PLAYER), false, 2);
+    log_bytes(&VIEWER_PANEL.text(texts::NET_CREATE_PLAYER), false, 2);
     let name = net().setup().player_name.read();
     log_bytes(&name, true, 2);
     let made = crate::net::dp_objects::create_player(

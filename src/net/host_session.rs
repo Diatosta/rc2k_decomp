@@ -15,7 +15,7 @@
 
 use crate::errors::Refused;
 use crate::net::find_sessions::{posted_or_called, zeroed_description};
-use crate::net::lobby::{log, log_bytes, log_hex};
+use crate::net::lobby::{log_bytes, log_hex};
 use crate::net::owner::Net;
 use crate::net::owner::net;
 use crate::net::store::put_bytes;
@@ -36,7 +36,7 @@ pub fn posted_open_host() -> u32 {
     open(OPEN_CREATE, &net().setup().machine_name.read())
 }
 pub fn host_session(net: &Net) -> Result<bool, Refused> {
-    log(VIEWER_PANEL.text_ptr(texts::NET_HOST), false, 2);
+    log_bytes(&VIEWER_PANEL.text(texts::NET_HOST), false, 2);
     log_bytes(&net.setup().machine_name.read(), true, 2);
     if net.vars.dplay.get() == 0 {
         return Ok(false);
@@ -74,7 +74,7 @@ pub fn finish(
     done: usize,
 ) -> Result<bool, Refused> {
     let result = posted_or_called(net, posted);
-    log(VIEWER_PANEL.text_ptr(texts::NET_OPEN), false, 2);
+    log_bytes(&VIEWER_PANEL.text(texts::NET_OPEN), false, 2);
     log_hex(result, true);
     crate::system::restore_window::restore_window();
     if result != 0 {
@@ -84,6 +84,6 @@ pub fn finish(
     if !crate::net::create_player::create_player()? || !then()? {
         return Ok(false);
     }
-    log(VIEWER_PANEL.text_ptr(done), true, 2);
+    log_bytes(&VIEWER_PANEL.text(done), true, 2);
     Ok(true)
 }

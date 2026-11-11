@@ -75,7 +75,7 @@ pub fn play_placed_sound(
         let volume = placed::volume(product3_to_int(
             request.volume.get(),
             factor,
-            request.volume_factor.get(),
+            request.volume_factor.bits(),
         ));
         request.volume.set(volume);
         let clock = crate::sound::owner::sound().race.clock.get();
@@ -98,7 +98,7 @@ pub fn play_placed_sound(
             request.place[2].get(),
         );
     }
-    let rate = product_to_int(request.pitch.get(), request.pitch_factor.get());
+    let rate = product_to_int(request.pitch.get(), request.pitch_factor.bits());
     request.pitch.set(rate);
     crate::sound::play_sound::play_sound(sound, volume_sent, rate, [pan, place_b, place_c]);
     Ok(())

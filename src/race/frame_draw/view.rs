@@ -360,19 +360,19 @@ fn rolled_angle(race: &Race, car: &crate::physics::car_store::Car) -> u32 {
     }
     let roll = eased_roll(
         car.steering_raw.get() as i32,
-        race.course.numbers.k65536.bits(),
-        race.course.numbers.one_over_two_pi.bits(),
+        race.course.numbers.k65536.get(),
+        race.course.numbers.one_over_two_pi.get(),
         v,
-        race.course.numbers.tenth.bits(),
-        car.camera_roll.bits(),
-        race.course.numbers.half.bits(),
+        race.course.numbers.tenth.get(),
+        car.camera_roll.get(),
+        race.course.numbers.half.get(),
     );
     car.camera_roll.set(roll);
     (crate::math::x87::mul3_to_int(
         roll,
-        race.course.numbers.k65536.bits(),
-        race.course.numbers.k4096.bits(),
-        race.course.numbers.one_over_two_pi.bits(),
+        race.course.numbers.k65536.get(),
+        race.course.numbers.k4096.get(),
+        race.course.numbers.one_over_two_pi.get(),
     ) as u32)
         << 4
 }
@@ -414,7 +414,7 @@ pub fn camera_view(
         return Ok(());
     }
     let place: [u32; 3] = if view.polygon.view_mirrored.get() == 0 {
-        view.vars.view_scale.set_bits(view.car.camera_zoom.bits());
+        view.vars.view_scale.set(view.car.camera_zoom.get());
         for (from, to) in [
             (&view.car.camera_heading, 0usize),
             (&view.car.camera_pitch, 1),
@@ -438,9 +438,7 @@ pub fn camera_view(
         kept[0].set(view.car.position[0].get());
         kept[1].set(view.car.position[1].get().wrapping_add(0x8000));
         kept[2].set(view.car.position[2].get());
-        view.vars
-            .view_scale
-            .set_bits(view.vars.view_scale_kept.bits());
+        view.vars.view_scale.set(view.vars.view_scale_kept.get());
         [kept[0].get(), kept[1].get(), kept[2].get()]
     };
     for (k, &p) in place.iter().enumerate() {
@@ -580,11 +578,11 @@ fn place_sun(
     sun.on_screen.set(u32::from(on));
     let size = sun_size(
         fx,
-        ctx.view.polygon.window.view_centre[0].bits(),
+        ctx.view.polygon.window.view_centre[0].get(),
         fy,
-        ctx.view.polygon.window.view_centre[1].bits(),
-        race.course.numbers.half.bits(),
-        race.course.numbers.k256.bits(),
+        ctx.view.polygon.window.view_centre[1].get(),
+        race.course.numbers.half.get(),
+        race.course.numbers.k256.get(),
     );
     sun.size.set(if (size as i32) < 0 { 0 } else { size });
     Ok(())

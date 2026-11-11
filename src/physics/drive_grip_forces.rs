@@ -61,13 +61,13 @@ pub fn drive_grip_forces(
     lever_share_from_timer(car, tables, numbers, scene);
     hold_low_bits(&tables.lever_share, ZERO);
     hold_high(&tables.lever_share, &numbers.one);
-    car.grip_forces[0].set_bits(0);
+    car.grip_forces[0].set(0.0);
     if car.front_wheels_off.get() == 0 {
         steer_sine_force(car, tables, steer_index(car) as usize);
     }
     // The original takes the force a second time over.
     steer_sine_force(car, tables, steer_index(car) as usize);
-    if !c3(car.local_velocity[2].bits(), ZERO) {
+    if !c3(&car.local_velocity[2], ZERO) {
         // 0x43CE53: the slip limit, by the drive kind's factor.
         let factor = if kind == 1 {
             &tables.grip_factor[1]
@@ -83,7 +83,7 @@ pub fn drive_grip_forces(
         negate(&car.grip_forces[0]);
         let slow = |v: &Float| abs_below_or_unordered(v.bits(), tables.grip_slow_speed.bits());
         if !slow(&car.local_velocity[2]) && slow(&car.drive_speed_a) {
-            car.grip_forces[0].set_bits(0);
+            car.grip_forces[0].set(0.0);
         }
         if car.input_keys.get() & 0x1000 != 0 {
             if drawing.scene.scratch.get() == 0 {
@@ -105,7 +105,7 @@ pub fn drive_grip_forces(
         };
         car.grip_forces[0].set(x87::mul(&car.grip_forces[0], k));
     }
-    car.grip_forces[3].set_bits(0);
+    car.grip_forces[3].set(0.0);
     if kind == 0 {
         ground_speed_into_scratch(car, scene);
         hold_high(&drawing.scene.scratch, &tables.grip_ramp);
@@ -138,7 +138,7 @@ pub fn drive_grip_forces(
         };
         car.grip_forces[1].set(x87::mul(&car.grip_forces[1], k));
     }
-    car.grip_forces[2].set_bits(0);
+    car.grip_forces[2].set(0.0);
     if kind == 1 {
         abs_speed_into_work(car, scene);
         hold_high(&drawing.scene.work_float_a, &tables.grip_slip_limit);
@@ -157,8 +157,8 @@ pub fn drive_grip_forces(
     }
     // 0x43D2C9: the sum, and the yaw twist on the rear wheels.
     sum_grip_forces(car);
-    tables.forces[19].force[0].set_bits(0);
-    tables.forces[20].force[0].set_bits(0);
+    tables.forces[19].force[0].set(0.0);
+    tables.forces[20].force[0].set(0.0);
     if car.all_wheels_off.get() != 0 {
         return;
     }

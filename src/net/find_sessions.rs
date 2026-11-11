@@ -11,7 +11,7 @@
 //! Caller: `net::find_sessions_regs`.
 
 use crate::errors::Refused;
-use crate::net::lobby::log;
+use crate::net::lobby::log_bytes;
 use crate::net::owner::Net;
 use crate::net::owner::net;
 use crate::net::store::NetVars;
@@ -57,7 +57,7 @@ pub fn posted_or_called(net: &Net, code: fn() -> u32) -> u32 {
 }
 pub fn find_sessions(net: &Net) -> Result<bool, Refused> {
     let vars = &net.vars;
-    log(VIEWER_PANEL.text_ptr(texts::NET_FIND_SESSIONS), true, 2);
+    log_bytes(&VIEWER_PANEL.text(texts::NET_FIND_SESSIONS), true, 2);
     if vars.dplay.get() == 0 {
         return Ok(false);
     }

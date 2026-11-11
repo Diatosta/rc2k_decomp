@@ -28,6 +28,7 @@ mod menu;
 mod moved;
 mod net;
 mod os;
+mod owners;
 mod physics;
 mod place;
 mod platform;
@@ -55,6 +56,8 @@ mod shared_memory;
 mod sound;
 pub mod standalone;
 mod store;
+#[cfg(any(test, feature = "write_watch"))]
+mod stores;
 mod strings;
 mod sync;
 mod system;

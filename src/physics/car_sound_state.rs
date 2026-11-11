@@ -32,9 +32,9 @@ use crate::session::Dword;
 fn shares(numbers: &Numbers, shared: &RaceShared, so: &crate::sound::store::SoundObject) {
     x87_1(shared);
     if shared.car.all_wheels_off.get() != 0 {
-        shared.car.sound_slip_share.set_bits(0);
-        shared.car.sound_level.set_bits(0);
-        shared.car.sound_speed.set_bits(0);
+        shared.car.sound_slip_share.set(0.0);
+        shared.car.sound_level.set(0.0);
+        shared.car.sound_speed.set(0.0);
     }
     x87_2(numbers, &shared.car, so);
 }
@@ -72,7 +72,7 @@ pub fn car_sound_state(
     let n = shared.car.throttle.get() as i32;
     so.throttle.set(n.clamp(0, 0x100) as u32);
     so.gear.set(shared.car.gear.get());
-    so.speed.set_bits(shared.car.mean_drive_speed.bits());
+    so.speed.set(shared.car.mean_drive_speed.get());
     so.flag_ac
         .set(shared.car.front_wheels_off.get() & shared.car.rear_wheels_off.get());
     so.view_flag.set(shared.car.camera_mode_is_2_or_3.get() ^ 1);
@@ -91,9 +91,9 @@ pub fn car_sound_state(
     let out = rotate_point(
         m,
         [
-            extended(shared.car.crash_matrix[8].bits()),
-            extended(shared.car.crash_matrix[9].bits()),
-            extended(shared.car.crash_matrix[10].bits()),
+            extended(shared.car.crash_matrix[8].get()),
+            extended(shared.car.crash_matrix[9].get()),
+            extended(shared.car.crash_matrix[10].get()),
         ],
     );
     for (i, e) in out.iter().enumerate() {

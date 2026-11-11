@@ -90,7 +90,7 @@ fn turn_skid_point(
         if at + 0xC > 0x6000 {
             return Err(BadInput("a skidmark point past the table"));
         }
-        let lift: u32 = race.frame.shadow_skids.skid_lift.bits();
+        let lift = race.frame.shadow_skids.skid_lift.get();
         use crate::math::x87_float::{int, ld, st};
         let point = [
             int(points.get_u32(at) as i32),

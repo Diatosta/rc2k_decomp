@@ -27,24 +27,24 @@ pub fn drive_force(
     engine_torque_or_cut(course, shared, scene);
     shared.physics_tables.drive_ratio.set_bits(
         sum_times_int_over_minus(
-            shared.physics_tables.engine_force.bits(),
-            shared.physics_tables.engine_torque.bits(),
+            &shared.physics_tables.engine_force,
+            &shared.physics_tables.engine_torque,
             shared.car.throttle.get() as i32,
-            course.numbers.k256.bits(),
+            &course.numbers.k256,
         )
         .to_bits(),
     );
     shared.physics_tables.drive_torque.set_bits(
         mul_div2(
-            shared.physics_tables.drive_ratio.bits(),
-            GEAR.drive_torque_figure.bits(),
-            shared.physics_tables.gear_ratios[(gear as i32 + 1) as usize].bits(),
-            course.numbers.k10000.bits(),
+            &shared.physics_tables.drive_ratio,
+            &GEAR.drive_torque_figure,
+            &shared.physics_tables.gear_ratios[(gear as i32 + 1) as usize],
+            &course.numbers.k10000,
         )
         .to_bits(),
     );
     if shared.car.drive_cut_steps.get() != 0 {
-        shared.physics_tables.drive_torque.set_bits(0);
+        shared.physics_tables.drive_torque.set(0.0);
     }
     drive_torque_share(&shared.car, &shared.physics_tables, &course.numbers, scene);
     Ok(())

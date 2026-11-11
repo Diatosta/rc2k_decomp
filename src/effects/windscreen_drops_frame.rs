@@ -229,7 +229,7 @@ fn sprite_corners_x87(drops: &WindscreenDrops, c: usize) -> bh::X {
         crate::scene::polygon_work::front_end()
             .window
             .view_scale
-            .bits(),
+            .get(),
     ) / work.cell[2].ld();
     // Axis by axis (x, y, z), each of the six corners.
     for axis in 0..3 {

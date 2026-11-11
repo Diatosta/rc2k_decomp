@@ -64,7 +64,8 @@ pub enum Command {
 /// What the commands draw into.
 #[derive(Clone, Copy, PartialEq)]
 pub struct Target {
-    pub pixels: usize,
+    /// The handle of the pixels (`gfx::locked_pixels`).
+    pub pixels: u32,
     pub pitch: usize,
     pub width: usize,
     pub height: usize,
@@ -272,20 +273,21 @@ impl Target {
     /// Nothing else may touch them while the slice lives.
     pub unsafe fn bytes<'a>(&self) -> &'a mut [u8] {
         let len = self.pitch * self.height;
-        crate::pointers::check_or_end(self.pixels as u32, len, "the screen's pixels");
-        // The screen is a lent block of the pool (the tests' screens are lent buffers of
-        // their own).
-        let first = crate::pointers::lent_bytes(self.pixels as u32, len);
-        #[cfg(test)]
-        let first = first.or_else(|| Some(crate::pointers::host_at(self.pixels)));
-        let first = first.unwrap_or_else(|| {
+        let held = crate::gfx::locked_pixels::bytes_of(self.pixels).unwrap_or_else(|| {
             crate::fatal::raise::end(
                 "the screen's pixels",
-                crate::errors::BadInput("a screen in no lent block"),
+                crate::errors::BadInput("a screen with no pixels"),
             )
         });
-        // SAFETY: `len` bytes of one lent block (found above); the caller's promise.
-        unsafe { std::slice::from_raw_parts_mut(first, len) }
+        if len > held.len() {
+            crate::fatal::raise::end(
+                "the screen's pixels",
+                crate::errors::BadInput("the screen's rows past its pixels"),
+            );
+        }
+        // SAFETY: the pixels' bytes (the platform keeps them as long as the screen), `len`
+        // of them checked above; the caller's promise.
+        unsafe { std::slice::from_raw_parts_mut(held.as_mut_ptr(), len) }
     }
 
     /// The screen's pixels for the rasteriser, rows `pitch / (bits / 8)` pixels apart: its

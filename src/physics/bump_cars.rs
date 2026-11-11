@@ -37,7 +37,7 @@ use crate::scene::rotate_point::rotate_point;
 fn turn_speed(block: &Car) {
     let turned = rotate_point(
         &block.car_inverse_matrix,
-        [0, 1, 2].map(|k| extended(block.velocity[k].bits())),
+        [0, 1, 2].map(|k| extended(block.velocity[k].get())),
     );
     for (cell, e) in block.local_velocity.iter().zip(turned) {
         cell.set_bits(rounded(e));
@@ -46,7 +46,7 @@ fn turn_speed(block: &Car) {
 
 fn steps(
     c: &ContactInputs<'_>,
-    other_car: u32,
+    other_car: &Car,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     for k in 0..3 {
@@ -67,38 +67,35 @@ fn steps(
         c.contact.bump_note[k].set(*v);
     }
     for v in &c.tables.contacts[6].force {
-        v.set_bits(0);
+        v.set(0.0);
     }
     c.car.contact_flag.set(1);
-    let other_car = crate::race::trap::car_at(other_car)?;
     other_car.contact_flag.set(1);
     relative_speed(c.car, c.contact, &other_car.velocity);
     c.contact
         .bump_speed_length
         .set_bits(rounded(vector_length(&c.contact.bump_relative_speed)));
-    // The car `other_car_block` names (the same as `other_car` in play).
-    let met_car = Car::at(c.contact.other_car_block.get());
-    share_out_speeds(c.car, c.contact, &met_car.velocity);
+    // The car `other_car_block` names is `other_car`.
+    share_out_speeds(c.car, c.contact, &other_car.velocity);
     // 0x45F98C: pushed apart by the places' difference.
-    let other = Car::at(c.contact.other_car_block.get());
-    push_apart(c.car, c.contact, c.numbers, &other.position);
-    let factor = extended(c.numbers.three.bits());
+    push_apart(c.car, c.contact, c.numbers, &other_car.position);
+    let factor = extended(c.numbers.three.get());
     scale_vector(&c.contact.bump_push, factor);
     scene.drawing.scene.scratch.set(rounded(factor));
-    add_push(c.car, c.contact, &other.velocity);
-    turn_speed(met_car);
+    add_push(c.car, c.contact, &other_car.velocity);
+    turn_speed(other_car);
     turn_speed(c.car);
     { crate::physics::place_sound_e1_other::place_sound_e1_other(&c.sound) }?;
     Ok(())
 }
 
-/// `other_car` the other car's block (an address in the game's memory).
+/// `other_car` the other car's block.
 pub fn bump_cars(
     c: &ContactInputs<'_>,
-    other_car: u32,
+    other_car: &Car,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    if other_car == 0 || c.contact.other_car_block.get() == 0 {
+    if c.contact.other_car_block.get() == 0 {
         return Err(BadInput("a null car block").into());
     }
     steps(c, other_car, scene)

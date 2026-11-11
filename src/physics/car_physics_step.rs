@@ -94,7 +94,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     ] {
         cell.set(0);
     }
-    race.physics.contact.contact_normal_speed[0].set_bits(0);
+    race.physics.contact.contact_normal_speed[0].set(0.0);
     for cell in [
         &race.physics.camera.ground_probes,
         &race.physics.camera.ground_found,
@@ -122,7 +122,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
         .iter()
         .chain([&race.shared.car.contact_depth])
     {
-        figure.set_bits(0);
+        figure.set(0.0);
     }
     crate::race::start_place::invert_car_matrix(&race.course, &race.shared.car);
     ph::feel_ground::feel_ground(&inputs.ground(), scene)?;
@@ -157,7 +157,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     race.shared
         .car
         .side_speed_held
-        .set_bits(race.shared.car.local_velocity[0].bits());
+        .set(race.shared.car.local_velocity[0].get());
     hold_high(
         &race.shared.car.side_speed_held,
         &race.shared.physics_tables.side_speed_limit,

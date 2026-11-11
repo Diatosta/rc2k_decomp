@@ -132,16 +132,14 @@ impl FaceWorld for GameFace<'_> {
     fn line_value(&self, extra: u32) -> Result<u32, rc2k_core::Invalid> {
         {
             let which: u32 = self.6.drawn_car.get();
-            let block: u32 = if which < BLOCKS {
-                self.0.shared.work.car_block(which as usize)
-            } else {
-                0
-            };
-            if block == 0 {
+            if which >= BLOCKS || !self.0.shared.work.has_car_block(which as usize) {
                 return Err(rc2k_core::Invalid("no block for a face of kind 0x1C"));
             }
             // The core asks for 1 ..= 6: the six parts' wake counts, after `state_bits`.
-            crate::physics::car_store::Car::at(block)
+            self.0
+                .shared
+                .work
+                .car_or_end(which as usize)
                 .part_wake_counts
                 .get((extra as usize).wrapping_sub(1))
                 .map(crate::session::Dword::get)

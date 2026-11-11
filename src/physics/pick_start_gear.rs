@@ -49,9 +49,9 @@ pub fn pick_start_gear(
     car.engine_speed.set_bits(
         sub_mul_add(
             tables.start_gear_figures[2].get(),
-            car.engine_speed.bits(),
-            tables.start_gear_share.bits(),
-            car.engine_speed.bits(),
+            &car.engine_speed,
+            &tables.start_gear_share,
+            &car.engine_speed,
         )
         .to_bits(),
     );

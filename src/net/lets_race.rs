@@ -23,11 +23,10 @@ pub fn lets_race(race: &Race, vars: &NetVars) -> Result<(u32, u32), Refused> {
     crate::net::set_hud_options::set_hud_options(race, vars)?;
     { crate::drive::play_race::play_race(race, crate::scene::owner::scene()) }?;
     crate::net::keep_hud_options::keep_hud_options(&race.shared, vars)?;
-    let block = crate::race::trap::car_at(
-        race.shared
-            .work
-            .car_block(race.shared.view.local_car.get() as usize),
-    )?;
+    let block = race
+        .shared
+        .work
+        .car(race.shared.view.local_car.get() as usize)?;
     // Converted: `rc2k_core::net::record::not_finished`.
     Ok((
         block.stage_time.get(),

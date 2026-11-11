@@ -75,7 +75,7 @@ pub fn replay_step(
     }
     CAR_BLOCKS.cars[0]
         .previous_step_clock
-        .set_bits(CAR_BLOCKS.cars[0].step_clock.bits());
+        .set(CAR_BLOCKS.cars[0].step_clock.get());
     race_steps::each_car(
         || shared.work.current_car.get(),
         || shared.view.race_cars.get(),

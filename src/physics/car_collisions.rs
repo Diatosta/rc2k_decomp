@@ -14,7 +14,6 @@
 //! `g_carBlocks` or through null), and what `corner_hits_car` refuses (what was written put back).
 
 use crate::errors::{BadInput, Refused};
-use crate::physics::car_store::Car;
 use crate::physics::corner_hits_car::corner_hits_car;
 use crate::physics::step_families::CollisionInputs;
 use crate::race::view_store::RaceView;
@@ -37,7 +36,7 @@ pub fn car_collisions(
     if n > 8 {
         return Err(BadInput("more than eight cars (g_carBlocks' room)").into());
     }
-    if (0..n).any(|k| k != work.current_car.get() && work.car_block(k as usize) == 0) {
+    if (0..n).any(|k| k != work.current_car.get() && !work.has_car_block(k as usize)) {
         return Err(BadInput("a null car block").into());
     }
     {
@@ -47,16 +46,16 @@ pub fn car_collisions(
                 continue;
             }
             physics.other_car_number.set(car);
-            let block = work.car_block(car as usize);
-            physics.other_car_block.set(block);
-            // SAFETY: a `g_carBlocks` entry of the eight, not null (both checked above).
-            if { Car::at(block) }.driver_kind.bits() == 0 {
+            physics.other_car_block.set(work.car_handle(car as usize));
+            // A `g_carBlocks` entry of the eight, not null (both checked above).
+            let block = work.car_or_end(car as usize);
+            if block.driver_kind.bits() == 0 {
                 continue;
             }
             let place = [0usize, 1, 2].map(|k| {
                 car_now.position[k]
                     .get()
-                    .wrapping_sub(Car::at(block).position[k].get())
+                    .wrapping_sub(block.position[k].get())
             });
             set_place(&c.matrices.placed_matrix, place);
             // `scene::set_place` left the z in `g_scratch`.
@@ -72,13 +71,13 @@ pub fn car_collisions(
             );
             multiply_matrices(
                 &c.matrices.turned_matrix,
-                &Car::at(block).car_inverse_matrix,
+                &block.car_inverse_matrix,
                 &physics.corner_matrix,
             );
             for k in 0..8 {
-                physics.corner_in[0].set_bits(physics.corner_x[k].bits());
-                physics.corner_in[1].set_bits(physics.corner_y[k].bits());
-                physics.corner_in[2].set_bits(physics.corner_z[k].bits());
+                physics.corner_in[0].set(physics.corner_x[k].get());
+                physics.corner_in[1].set(physics.corner_y[k].get());
+                physics.corner_in[2].set(physics.corner_z[k].get());
                 { corner_hits_car(&c.contact, block, scene) }?;
             }
         }

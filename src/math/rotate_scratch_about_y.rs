@@ -12,9 +12,9 @@
 #[derive(Clone, Copy, Default)]
 #[repr(C)]
 pub struct Scratch {
-    pub z: u32,
-    pub x: u32,
-    pub y: u32,
+    pub z: f32,
+    pub x: f32,
+    pub y: f32,
 }
 
 /// `math::rotate_scratch_about_y` exactly as the original (the x87, at whatever precision it is
@@ -28,12 +28,15 @@ pub fn rotate_scratch_about_y(point: &mut Scratch, angle: u32) -> u32 {
 
 fn x87_turn(point: &mut Scratch, entry: u32) {
     use crate::scene::engine_tables_store::{cosine, sine};
+    let (mut x, mut z) = (point.x.to_bits(), point.z.to_bits());
     crate::math::x87::turn_in_place(
-        sine(entry as usize).bits(),
-        cosine(entry as usize).bits(),
-        &mut point.x,
-        &mut point.z,
+        sine(entry as usize).get(),
+        cosine(entry as usize).get(),
+        &mut x,
+        &mut z,
     );
+    point.x = f32::from_bits(x);
+    point.z = f32::from_bits(z);
 }
 
 /// The converted version (`rc2k_core::math::geometry`, plain floats): the hook's, and what
@@ -43,13 +46,13 @@ pub fn rotate_scratch_about_y_plain(point: &mut Scratch, angle: u32) -> u32 {
     let entry = geometry::turn_entry(angle);
     {
         let (x, z) = geometry::turn_xz(
-            f32::from_bits(point.x),
-            f32::from_bits(point.z),
+            point.x,
+            point.z,
             crate::scene::engine_tables_store::sine(entry as usize).get(),
             crate::scene::engine_tables_store::cosine(entry as usize).get(),
         );
-        point.x = x.to_bits();
-        point.z = z.to_bits();
+        point.x = x;
+        point.z = z;
 
         entry
     }

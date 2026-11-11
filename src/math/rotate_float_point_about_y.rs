@@ -29,7 +29,16 @@ fn turn_float_with(
     angle: u32,
     turn: fn(&mut Scratch, u32) -> u32,
 ) -> [u32; 4] {
-    let mut point = Scratch { x, y, z };
+    let mut point = Scratch {
+        x: f32::from_bits(x),
+        y: f32::from_bits(y),
+        z: f32::from_bits(z),
+    };
     let entry = { turn(&mut point, angle) };
-    [point.x, point.y, point.z, entry]
+    [
+        point.x.to_bits(),
+        point.y.to_bits(),
+        point.z.to_bits(),
+        entry,
+    ]
 }

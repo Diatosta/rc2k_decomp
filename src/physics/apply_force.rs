@@ -37,7 +37,7 @@ pub fn apply_force(
     for (v, w) in car.velocity.iter().zip(work) {
         v.set(x87::add(w, v));
     }
-    let p = car.velocity.each_ref().map(|v| extended(v.bits()));
+    let p = car.velocity.each_ref().map(|v| extended(v.get()));
     let out = rotate_point(&car.car_inverse_matrix, p);
     for (l, e) in car.local_velocity.iter().zip(out) {
         l.set_bits(rounded(e));

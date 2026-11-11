@@ -60,7 +60,7 @@ pub fn touch_face(
         let kind = c.contact.contact_kind.get();
         match touch(kind) {
             Touch::MarkIfFast => {
-                if c0(c.car.speed.bits(), c.numbers.eight.bits()) {
+                if c0(&c.car.speed, &c.numbers.eight) {
                     return Ok(());
                 }
                 mark(c.course, c.contact, face, 1, true)?;

@@ -100,12 +100,8 @@ pub fn edit_setup_name(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Ref
                 put_char(name, len, c)?;
                 set_length(menus, len.wrapping_add(1));
                 // x is the length before this character.
-                let measured = measure_text_at(
-                    MEASURING_FONT,
-                    &name.game_ptr().bytes("a setup's name")?,
-                    len,
-                    canvas,
-                )?;
+                let measured =
+                    measure_text_at(MEASURING_FONT, &name.bytes("a setup's name")?, len, canvas)?;
                 if entry::too_wide(measured.width as i32) {
                     backspace_setup_name(menus)?;
                 }

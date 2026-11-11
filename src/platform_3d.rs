@@ -325,9 +325,10 @@ fn reads_texture(pixels: TextureId) -> bool {
 pub fn screen() -> Option<Target> {
     let surface = crate::gfx::owner::draw_surface();
     // The renderers draw on the bytes where they lie.
-    let pixels = crate::gfx::locked_pixels::bytes_of(surface.present_pixels.get())?.addr();
+    let pixels = surface.present_pixels.get();
+    crate::gfx::locked_pixels::bytes_of(pixels)?;
     Some(Target {
-        pixels: pixels as usize,
+        pixels,
         pitch: surface.present_pitch.get() as usize,
         width: crate::system::owner::system().session.screen.width.get() as usize,
         height: crate::system::owner::system().session.screen.height.get() as usize,
@@ -868,9 +869,7 @@ pub fn release_textures() {
 /// `gfx::set_screen_mode` does first).
 pub fn release_all_textures(gfx: &crate::gfx::owner::Gfx) {
     flush();
-    let what = "the release text";
-    let text = crate::files::cstring_at(VIEWER_PANEL.text_ptr(texts::SVM_RELEASE_TEXTURES), what)
-        .unwrap_or_else(|e| crate::fatal::raise::end(what, e));
+    let text = VIEWER_PANEL.text(texts::SVM_RELEASE_TEXTURES);
     crate::logfile::write_line::log_text(&text, true, 2);
     release_pool(1, gfx);
     release_pool(0, gfx);

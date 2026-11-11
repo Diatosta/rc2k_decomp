@@ -79,6 +79,7 @@ pub mod owner_frame;
 pub mod owner_physics;
 pub mod owner_replay;
 pub mod owner_shared;
+pub mod owner_views;
 pub mod pace_notes;
 pub mod panel_clock_store;
 pub mod panel_store;

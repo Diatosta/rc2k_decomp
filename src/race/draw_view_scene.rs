@@ -20,7 +20,7 @@ use crate::race::view_scratch::{DrawCtx, ViewScratch};
 #[derive(Clone, Copy, Debug, Default)]
 pub struct ViewOutput {
     pub environment: Option<u32>,
-    pub view_value: Option<(u32, u32)>,
+    pub view_value: Option<(usize, u32)>,
     pub view_matrices: bool,
 }
 
@@ -107,21 +107,17 @@ pub fn draw_view_scene(
     gather_lamps(&ctx)?;
     lamps_wanted(&race.shared, &view.lamps)?;
     sort_entries(&lists.sort_entry_count, lists.sort_entries())?;
-    let c = crate::moved::census::before();
     let begun = crate::debug::timing::start();
     draw_entries(&ctx, &lists.sort_entry_count, |n| lists.sort_from(n))?;
     crate::debug::timing::stop(crate::debug::timing::Stage::CourseEntries, begun);
-    crate::moved::census::after("sorted", c);
     draw_race_slots(&ctx)?;
     crate::race::car_shadow::cast_car_shadows(&ctx)?;
     crate::race::skidmarks::draw_skidmarks_if_on(&ctx)?;
     car_lights(&ctx)?;
     sort_entries(&lists.depth_entry_count, lists.depth_entries())?;
-    let c = crate::moved::census::before();
     let begun = crate::debug::timing::start();
     draw_entries(&ctx, &lists.depth_entry_count, |n| lists.depth_from(n))?;
     crate::debug::timing::stop(crate::debug::timing::Stage::DepthEntries, begun);
-    crate::moved::census::after("depth", c);
     let view_value = view_value(race, &view.polygon.sun, view.drawn_view(race))?;
     // The lamps the next view starts from (`race::lamp_work::PUBLISHED`).
     {

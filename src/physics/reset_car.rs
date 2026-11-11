@@ -39,7 +39,7 @@ fn blocked(
         crate::physics::reset_point_blocked::reset_point_blocked(
             physics_tables,
             vars,
-            crate::race::blocks_store::block_addr(n),
+            &crate::race::blocks_store::CAR_BLOCKS.cars[n],
         )
     })
 }

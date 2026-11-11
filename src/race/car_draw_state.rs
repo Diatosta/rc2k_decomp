@@ -88,12 +88,10 @@ impl CarDrawState {
 }
 
 impl CarDrawState {
-    /// The state bits of the car whose block is at `block`.
-    pub fn state_of(&self, block: u32) -> Result<&Dword, crate::errors::BadInput> {
-        crate::physics::car_store::Car::block_number(block)
-            .map(|n| &self.car_states[n])
-            .ok_or(crate::errors::BadInput(
-                "a car's state bits not of a car block",
-            ))
+    /// The state bits of the car in block `block`.
+    pub fn state_of(&self, block: usize) -> Result<&Dword, crate::errors::BadInput> {
+        self.car_states.get(block).ok_or(crate::errors::BadInput(
+            "a car's state bits not of a car block",
+        ))
     }
 }

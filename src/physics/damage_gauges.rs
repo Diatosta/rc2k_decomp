@@ -28,10 +28,10 @@ fn gear_gauge(car: &Car, gear: u32) -> &Float {
 
 /// The gauge at `at` held 0 ..= `DamageModel.gauge_top` (the two `fcompp` holds).
 fn hold_at(damage: &DamageModel, at: &Float) {
-    if c0(at.bits(), damage.gauge_low.bits()) {
+    if c0(at, &damage.gauge_low) {
         store(at, value(&damage.gauge_low));
     }
-    if !c0(at.bits(), damage.gauge_top.bits()) {
+    if !c0(at, &damage.gauge_top) {
         store(at, value(&damage.gauge_top));
     }
 }
@@ -174,7 +174,7 @@ pub fn steps(car: &Car, damage: &DamageModel, work: &RaceWork) {
             g,
         );
     });
-    if !below_or_unordered(damage.overheat_excess.bits(), damage.gauge_low.bits()) {
+    if !below_or_unordered(&damage.overheat_excess, &damage.gauge_low) {
         engine_damage_carry(car, damage);
         hold_at(damage, &car.engine_damage);
         raise(damage, &car.cooling_damage, |g| {
@@ -290,12 +290,12 @@ pub fn steps(car: &Car, damage: &DamageModel, work: &RaceWork) {
             g,
         );
     });
-    if !below_or_unordered(damage.hit_size.bits(), damage.gauge_rates[23].bits()) {
+    if !below_or_unordered(&damage.hit_size, &damage.gauge_rates[23]) {
         raise(damage, &car.body_hit_damage, |g| {
             add_product(&damage.hit_size, &damage.figures[13], g, g);
         });
     }
-    if !below_or_unordered(damage.hit_size.bits(), damage.gauge_rates[22].bits()) {
+    if !below_or_unordered(&damage.hit_size, &damage.gauge_rates[22]) {
         side_hit_wear(car, damage, work);
     }
     for k in 0..4 {

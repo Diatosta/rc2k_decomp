@@ -30,10 +30,10 @@ pub fn car_input_words(race: &Race, input: &crate::input::owner::Input) -> Resul
         race_owner.shared.physics_tables.input_words[k].set(*v);
     }
     if vars.session.get() != 0 {
-        let block = crate::race::blocks_store::block_at(
-            race_owner.shared.work.car_block(car as usize),
-            "a car's block",
-        )?;
+        let block = race_owner
+            .shared
+            .work
+            .block_car(car as usize, "a car's block")?;
         // +0xFD0 .. +0xFDC: the kept throttle, key bits, steering and brake words.
         let kept = [
             &block.kept_throttle_word,

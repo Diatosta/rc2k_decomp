@@ -42,8 +42,8 @@ pub fn engine_torque(course: &Course, shared: &RaceShared, scene: &crate::scene:
         shared_store.physics_tables.engine_force.set_bits(
             lerp_table(
                 s,
-                shared_store.physics_tables.torque_curve[k].bits(),
-                shared_store.physics_tables.torque_curve[k + 1].bits(),
+                &shared_store.physics_tables.torque_curve[k],
+                &shared_store.physics_tables.torque_curve[k + 1],
                 shared_store.physics_tables.spec_torque[k].get(),
                 shared_store.physics_tables.spec_torque[k + 1].get(),
             )

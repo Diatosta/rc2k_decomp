@@ -53,7 +53,7 @@ pub fn point_hits_car(c: &ContactInputs<'_>, point: [u32; 3], face: u32) -> Resu
     }
     x87_1(c.contact, c.numbers);
     for k in 0..3 {
-        contact.object_point_turned[k].set_bits(contact.object_point_scaled[k].bits());
+        contact.object_point_turned[k].set(contact.object_point_scaled[k].get());
     }
     turn_by_heading(c.car, &contact.object_point_turned, y);
     x87_2(c.contact, c.numbers);

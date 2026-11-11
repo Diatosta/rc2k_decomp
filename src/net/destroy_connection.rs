@@ -15,11 +15,7 @@ use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 pub fn destroy_connection(vars: &NetVars) -> Result<(), Refused> {
     if vars.dplay.get() != 0 {
         vars.session.set(0);
-        crate::logfile::log_write::log_at(
-            VIEWER_PANEL.text_ptr(texts::NET_DESTROY_CONNECTION),
-            true,
-            2,
-        );
+        crate::net::lobby::log_bytes(&VIEWER_PANEL.text(texts::NET_DESTROY_CONNECTION), true, 2);
         destroy_player::destroy_player(vars);
         close_session::close_session(vars);
         release_dplay::release_dplay(vars);

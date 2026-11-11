@@ -98,9 +98,9 @@ pub fn set_handling(
         return Err(BadInput("a drive kind above 1 (the pair tables hold two)").into());
     }
     grade_or_reset(damage, numbers, shared);
-    let k256: u32 = numbers.k256.bits();
+    let k256 = numbers.k256.get();
     let lerp = |(out, n, hi, lo): (&Float, &Dword, &Float, &Float)| {
-        out.set(int_lerp(n.get() as i32, k256, hi.bits(), lo.bits()));
+        out.set(int_lerp(n.get() as i32, k256, hi, lo));
     };
     for v in before(&shared.car, &shared.physics_tables) {
         lerp(v);

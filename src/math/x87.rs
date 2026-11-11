@@ -60,6 +60,24 @@ pub trait Flt {
     fn bits(&self) -> u32;
 }
 
+/// A float slot a stored result goes to: a float, or its bits.
+pub(crate) trait Slot {
+    /// `fstp dword` into the slot.
+    fn put(&mut self, x: bh::X);
+}
+
+impl Slot for u32 {
+    fn put(&mut self, x: bh::X) {
+        *self = bh::st(x);
+    }
+}
+
+impl Slot for f32 {
+    fn put(&mut self, x: bh::X) {
+        *self = out(x);
+    }
+}
+
 impl Flt for u32 {
     fn bits(&self) -> u32 {
         *self
@@ -401,12 +419,12 @@ pub fn int_div_less(a: i32, b: u32, c: u32) -> u32 {
 
 /// `out.len()` sines of an angle that starts at 0 and grows by `step` each time (the angle
 /// kept as a double, never rounded to a float), one dword each.
-pub fn sine_table(step: impl Flt, out: &mut [u32]) {
+pub fn sine_table(step: impl Flt, out: &mut [impl Slot]) {
     let step = step.bits();
     let step = bh::ld(step);
     let mut angle = bh::X(0.0);
     for o in out {
-        *o = bh::st(angle.sin());
+        o.put(angle.sin());
         angle += step;
     }
 }
@@ -647,14 +665,14 @@ pub fn circle_curve(i: i32, a: impl Flt, b: impl Flt, negate: bool) -> f32 {
 /// `pi / c * d` each time, kept as a double. `count` at least 1 (the original would run 2^32
 /// times on 0; here nothing is done).
 /// (`out` holds at least `3 (count - 1) + 2` dwords: the slice's index check.)
-pub fn circle_points(r: impl Flt, out: &mut [u32], count: u32, c: i32, d: impl Flt) {
+pub fn circle_points(r: impl Flt, out: &mut [impl Slot], count: u32, c: i32, d: impl Flt) {
     let r = r.bits();
     let d = d.bits();
     let mut angle = bh::X(0.0);
     for i in 0..count as usize {
         let (sin, cos) = angle.sin_cos();
-        out[i * 3 + 1] = bh::st(cos * bh::ld(r));
-        out[i * 3] = bh::st(sin * bh::ld(r));
+        out[i * 3 + 1].put(cos * bh::ld(r));
+        out[i * 3].put(sin * bh::ld(r));
         angle += bh::int(c).pi_over() * bh::ld(d);
     }
 }
@@ -1263,13 +1281,13 @@ fn matrix_turn(m: &[u32; 15], a: bh::X, b: bh::X, c: bh::X, translate: bool) -> 
 /// `effects::emit_exhaust_smoke`'s point: (-t0 k, (t1 - d) k, t2 k) turned by the matrix at `m` (its
 /// rows 0x10 apart), placed by +0x30 .. and the place taken off again; then x, y, y less
 /// `lift`, z.
-pub fn turned_place_less(
-    t: [u32; 3],
+pub fn turned_place_less_f32(
+    t: [f32; 3],
     k: impl Flt,
     d: impl Flt,
     lift: impl Flt,
     m: &(impl crate::math::cells::Cells + ?Sized),
-) -> [u32; 4] {
+) -> [f32; 4] {
     let k = k.bits();
     let d = d.bits();
     let lift = lift.bits();
@@ -1281,11 +1299,22 @@ pub fn turned_place_less(
     let [x, y, z] = matrix_turn(&m, c, b, a, true);
     let at = |i: usize| bh::ld(m[i]);
     [
-        bh::st(x - at(12)),
-        bh::st(y - at(13)),
-        bh::st(y - at(13) - bh::ld(lift)),
-        bh::st(z - at(14)),
+        out(x - at(12)),
+        out(y - at(13)),
+        out(y - at(13) - bh::ld(lift)),
+        out(z - at(14)),
     ]
+}
+
+/// `turned_place_less_f32` on bits.
+pub fn turned_place_less(
+    t: [u32; 3],
+    k: impl Flt,
+    d: impl Flt,
+    lift: impl Flt,
+    m: &(impl crate::math::cells::Cells + ?Sized),
+) -> [u32; 4] {
+    turned_place_less_f32(t.map(f32::from_bits), k, d, lift, m).map(f32::to_bits)
 }
 
 /// `r k` kept; then for each of three: `((p r k) ticks) + at`.
@@ -1320,11 +1349,11 @@ pub fn mul_80(a: impl Flt, b: impl Flt) -> [u8; 10] {
 
 /// The point (p0, p1, p2) turned and placed by the matrix at `m`; then x, y, y less
 /// `lift`, z.
-pub fn turned_place(
-    p: [u32; 3],
+pub fn turned_place_f32(
+    p: [f32; 3],
     lift: impl Flt,
     m: &(impl crate::math::cells::Cells + ?Sized),
-) -> [u32; 4] {
+) -> [f32; 4] {
     let lift = lift.bits();
     let [x, y, z] = matrix_turn(
         &matrix_at(m),
@@ -1333,7 +1362,16 @@ pub fn turned_place(
         bh::ld(p[2]),
         true,
     );
-    [bh::st(x), bh::st(y), bh::st(y - bh::ld(lift)), bh::st(z)]
+    [out(x), out(y), out(y - bh::ld(lift)), out(z)]
+}
+
+/// `turned_place_f32` on bits.
+pub fn turned_place(
+    p: [u32; 3],
+    lift: impl Flt,
+    m: &(impl crate::math::cells::Cells + ?Sized),
+) -> [u32; 4] {
+    turned_place_f32(p.map(f32::from_bits), lift, m).map(f32::to_bits)
 }
 
 /// `a b` as a whole number.
