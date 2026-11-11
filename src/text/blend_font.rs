@@ -16,7 +16,6 @@ use crate::gfx::blend_palette::blend_palette;
 use crate::gfx::owner::gfx;
 use crate::gfx::pixel_format::surface_format;
 use crate::gfx::typefaces::{FontObject, FontRef};
-use crate::pointers::GamePtr;
 use crate::session::{GameThread, PlainDword};
 use crate::strings::owner::strings;
 use crate::text::font::Font;
@@ -69,17 +68,19 @@ pub fn blend_font(
     if mode == 0 {
         return Ok(());
     }
-    let palette = GamePtr::to(BLENDED_PALETTE.get());
     blend_palette(
         &gfx().pixel.formats,
         from_font.palette,
         to_palette,
-        palette,
+        crate::gfx::glyph_store::BLENDED_PLACE,
         PALETTE_ENTRIES,
         t,
         &surface_format()?,
     )?;
-    BLENDED_FONT.get().palette.set(palette.addr());
+    BLENDED_FONT
+        .get()
+        .palette
+        .set(crate::gfx::glyph_store::BLENDED_PLACE);
     Ok(())
 }
 

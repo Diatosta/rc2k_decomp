@@ -40,7 +40,7 @@ const LINE_LEN: usize = 0x100;
 
 /// An item's text: one string, or with `spaced` one character at a time 18 pixels apart
 /// from x - 26, each through a one-character text in `Buffers.text.cells`, the font kept
-/// (`font_value`, as the game keeps it). The string is put in the line buffer with its NUL
+/// (`font_value`: the font's number). The string is put in the line buffer with its NUL
 /// and read from there: the first character is drawn even when it is an empty string's
 /// NUL, and then the loop goes on into what the line buffer held after it (`after(n)`,
 /// asked for each byte past the string the original reads, n < 0x100). At the buffer's end
@@ -158,7 +158,7 @@ pub trait MenuScreen: Screen<Work = Work> {
     /// A sprite list drawn where a sprite number is drawn (the original passed the list's
     /// address as the number).
     fn list_sprite(&mut self, list: usize, x: i32, y: i32) -> Result<(), Self::Error>;
-    /// A font as the registers hold it (its address in the game).
+    /// A font as the work variable keeps it (its number).
     fn font_value(&self, f: Self::Font) -> u32;
 }
 

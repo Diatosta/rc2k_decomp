@@ -1,6 +1,6 @@
 //! `race::viewer_palettes` (0x41D8BF): for the viewer's page, kind 0x35's and 0x2A's first texture
 //! and slot (`g_kindFirstTextures` / `g_kindFirstSlots` +0x350, +0x324) into `viewer_first_texture_a` ..
-//! `viewer_device_texture`, and the six fonts' palettes pointed at `Buffers.viewer.colours[0]`, which gets the fonts' 256
+//! `viewer_device_texture`, and the six fonts' palettes pointed at the glyph store's viewer palette, which gets the fonts' 256
 //! colours (`g_fontPalettes`) taken apart in the screen's format (`gfx::pixel_to_components`,
 //! `g_surfaceFormat`), made opaque and put together in the texture format
 //! (`gfx::components_to_pixel`, `[Textures.kinds[0] + 0xC] + 8`).
@@ -47,7 +47,7 @@ pub fn viewer_palettes(
     for font in PALETTES {
         font.object()
             .palette
-            .set(crate::race::viewer_buffers_store::VIEWER_BUFFERS.colours[0].addr());
+            .set(crate::gfx::glyph_store::VIEWER_PALETTE);
     }
     {
         let screen = crate::gfx::pixel_format::surface_format()?;
@@ -58,7 +58,6 @@ pub fn viewer_palettes(
         // by colour, as the original).
         use rc2k_core::race::viewer_flow::{FONT_COLOURS, font_colour};
         let from = gfx.fonts.font_block.palettes.get();
-        let to = &crate::race::viewer_buffers_store::VIEWER_BUFFERS.colours;
         for n in 0..FONT_COLOURS as u32 {
             let colour = font_colour(
                 u32::from_le_bytes(
@@ -69,7 +68,12 @@ pub fn viewer_palettes(
                 |c| crate::gfx::pixel_to_components::pixel_to_components(&screen, c),
                 |p| crate::gfx::components_to_pixel::components_to_pixel(&texture, p),
             );
-            to[n as usize].set(colour);
+            crate::gfx::glyph_store::write_bytes(
+                crate::gfx::glyph_store::VIEWER_PALETTE,
+                4 * n,
+                &colour.to_le_bytes(),
+                "a font palette",
+            )?;
         }
     }
     Ok(())

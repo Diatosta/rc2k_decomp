@@ -36,8 +36,7 @@ fn core_surface() -> rc2k_core::gfx::raster::Surface {
 /// The palette a colour is looked up in: 256 dwords.
 #[derive(Clone, Copy)]
 pub enum Palette<'a> {
-    /// A font's palette as the game's data keeps it: a place of `gfx::glyph_store`, or a
-    /// game address.
+    /// A font's palette as the game's data keeps it: a place of `gfx::glyph_store`.
     Held(u32),
     /// A palette of Rust's game state: a store, bounded by it.
     Of(&'a dyn crate::pointers::Store),

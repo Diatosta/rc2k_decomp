@@ -16,7 +16,7 @@ use crate::pointers::{load_value, store_value};
 /// The list's blocks given back, the list a store (or a field of one).
 pub fn free_list(list: &dyn crate::pointers::Store) -> Result<(), BadInput> {
     free_with(
-        crate::pointers::game_address(list.first()),
+        Some(crate::gfx::glyph_store::key(list)),
         || load_value::<MemoryList>(list, 0),
         |l| store_value(list, 0, l),
     )
@@ -31,22 +31,25 @@ pub fn free_list_at(list: crate::pointers::GamePtr) -> Result<(), BadInput> {
     // Stores type a list by its first dword: the record runs on past that field.
     let at = list.unbounded();
     free_with(
-        at.addr(),
+        None,
         || at.read::<MemoryList>("a memory list"),
         |l| at.write(l, "a memory list"),
     )
 }
 
-/// The work of `free_list`; `key` names the list for what `gfx::glyph_store` holds on it.
+/// The work of `free_list`; `key` names the list for what `gfx::glyph_store` holds on it
+/// (none: a list nothing is held on).
 fn free_with(
-    key: u32,
+    key: Option<usize>,
     read: impl Fn() -> Result<MemoryList, BadInput>,
     write: impl Fn(MemoryList) -> Result<(), BadInput>,
 ) -> Result<(), BadInput> {
     // Rust's own tables counted on it (`memory::owned`) are given back by their owners
     // (`saves::free_best_times`); its total counts them like the others.
     // The palettes and glyph tables carved off it (`gfx::glyph_store`) go with it.
-    crate::gfx::glyph_store::give_back(key);
+    if let Some(key) = key {
+        crate::gfx::glyph_store::give_back(key);
+    }
     let mut l = read()?;
     // No block of the system's is put on a list any more (every user's memory is Rust's;
     // the original gave each back with `VirtualFree`, or to its own heap): a list

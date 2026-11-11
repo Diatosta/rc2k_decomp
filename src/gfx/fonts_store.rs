@@ -6,7 +6,10 @@
 //! module's stores (converted in parallel); its users keep naming the fonts by IDA address
 //! through `moved::MOVED` until they are rewritten.
 //!
-//! `#[repr(C)]` structs with the image's layout, first values the image's (`tests`);
+//! `#[repr(C)]` structs with the image's layout, first values the image's (`tests`), but for
+//! the four menu fonts' palette and glyph table: the image holds the addresses of the jade
+//! font's block there, and here they are its places in `gfx::glyph_store` (`JADE_COLOUR`,
+//! `JADE`), converted once when the block is built;
 //! `moved::MOVED` points the image's addresses at them (`home`).
 
 use crate::gfx::typefaces::FontObject;
@@ -51,8 +54,8 @@ impl FontBlock {
                     line_height: 9,
                     y_offset: 0,
                     extended_spacing: 6,
-                    palette: 0x4f66c4,
-                    glyph_table: 0x4f52c4,
+                    palette: crate::gfx::glyph_store::JADE_COLOUR,
+                    glyph_table: crate::gfx::glyph_store::JADE,
                     box_width: 0x0,
                 }),
                 FontObject::from_font(Font {
@@ -64,8 +67,8 @@ impl FontBlock {
                     line_height: 9,
                     y_offset: 0,
                     extended_spacing: 6,
-                    palette: 0x4f66c4,
-                    glyph_table: 0x4f52c4,
+                    palette: crate::gfx::glyph_store::JADE_COLOUR,
+                    glyph_table: crate::gfx::glyph_store::JADE,
                     box_width: 0x0,
                 }),
                 FontObject::from_font(Font {
@@ -77,8 +80,8 @@ impl FontBlock {
                     line_height: 9,
                     y_offset: 0,
                     extended_spacing: 6,
-                    palette: 0x4f66c4,
-                    glyph_table: 0x4f52c4,
+                    palette: crate::gfx::glyph_store::JADE_COLOUR,
+                    glyph_table: crate::gfx::glyph_store::JADE,
                     box_width: 0x0,
                 }),
                 FontObject::from_font(Font {
@@ -90,8 +93,8 @@ impl FontBlock {
                     line_height: 9,
                     y_offset: 0,
                     extended_spacing: 6,
-                    palette: 0x4f66c4,
-                    glyph_table: 0x4f52c4,
+                    palette: crate::gfx::glyph_store::JADE_COLOUR,
+                    glyph_table: crate::gfx::glyph_store::JADE,
                     box_width: 0x0,
                 }),
             ],
@@ -205,7 +208,12 @@ mod tests {
     fn fonts_starts_as_the_games() {
         let size = size_of::<FontBlock>();
         assert!(FontBlock::LEN <= size && size <= (FontBlock::LEN).next_multiple_of(16));
-        let image = crate::moved::image_bytes(FontBlock::START, FontBlock::LEN);
+        let mut image = crate::moved::image_bytes(FontBlock::START, FontBlock::LEN);
+        for n in 0..4 {
+            let at = 0x20 * n + 0x14;
+            image[at..at + 4].copy_from_slice(&crate::gfx::glyph_store::JADE_COLOUR.to_le_bytes());
+            image[at + 4..at + 8].copy_from_slice(&crate::gfx::glyph_store::JADE.to_le_bytes());
+        }
         let mine = unsafe {
             std::slice::from_raw_parts(
                 crate::pointers::host_at(FontBlock::home()).cast_const(),
@@ -217,21 +225,21 @@ mod tests {
 
     #[test]
     fn menu_fonts_keep_the_images_numbers() {
-        // The image's relocated dwords and the first values agree, and name the jade font's block.
+        // The image's relocated dwords name the jade font's block (colour 0x4F66C4, glyph
+        // table 0x4F52C4); the first values are its places in the glyph store.
         for n in 0..4 {
             let at = FontBlock::START + 0x20 * n;
             let image = crate::moved::image_bytes(at + 0x14, 8);
             let font = gfx().fonts.font_block.menu_fonts[n].get();
+            assert_eq!(u32::from_le_bytes(image[..4].try_into().unwrap()), 0x4F66C4);
+            assert_eq!(u32::from_le_bytes(image[4..].try_into().unwrap()), 0x4F52C4);
             assert_eq!(
-                (font.palette.to_le_bytes(), font.glyph_table.to_le_bytes()),
+                (font.palette, font.glyph_table),
                 (
-                    image[..4].try_into().unwrap(),
-                    image[4..].try_into().unwrap()
+                    crate::gfx::glyph_store::JADE_COLOUR,
+                    crate::gfx::glyph_store::JADE
                 )
             );
-            assert_eq!((font.palette, font.glyph_table), (0x4F66C4, 0x4F52C4));
-            assert!(crate::moved::home_of_rva(0x4F66C4 - 0x400000).is_some());
-            assert!(crate::moved::home_of_rva(0x4F52C4 - 0x400000).is_some());
         }
     }
 }

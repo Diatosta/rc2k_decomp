@@ -7,27 +7,52 @@
 //! - a palette (0x400 bytes, 256 pixels): `id << 10 | offset`, ids 1 .. 15, so a place in
 //!   it (the fonts' `palettes + 0x180`) is the palette's number plus the offset, as the
 //!   address was;
-//! - a glyph table: `0x4000 + id`, growing as sheets are appended.
+//! - the blended font's palette (`BLENDED_PLACE`, id 16): the bytes of
+//!   `text::blend_font::BLENDED_PALETTE`, which the installer's bar shares;
+//! - the replay viewer's panel fonts' palette (`VIEWER_PALETTE`, id 17), the store's own,
+//!   zeroed on first use and never given back;
+//! - the loading font's palette (`SHEET_PLACE`, id 18, font 56): the bytes of
+//!   `FontBlock.palette_sheet`, which `gfx::build_fonts` fills;
+//! - a glyph table: `TABLE_FIRST + id`, growing as sheets are appended;
+//! - the jade font (`JADE`, read only): its glyph table at `JADE`, its colour at
+//!   `JADE_COLOUR`, the bytes of `JadeFont` on from each.
+//!
+//! Every glyph table and palette a font object holds is such a place (or 0, none, or a
+//! counter in the measuring mode); no font object holds a game address.
 //!
 //! The lists keep their counts (`memory::owned::count_on` in place of `allocate`, the
 //! cursor carved as before): running out is the original's fatal error at the same point.
-//! What lies on a list is given back by its `free_list`. A place at or above 0x10000 is a
-//! game address (the image's palettes, a screen's own): read and written there as before.
+//! What lies on a list is given back by its `free_list`.
 
 use crate::errors::BadInput;
 use crate::gfx::owner::gfx;
-use crate::pointers::{GameBytes, GamePtr};
+use rc2k_core::strings::bytes::Bytes as _;
 use std::sync::{Arc, Mutex};
 
 /// A palette's bytes.
 pub const PALETTE_BYTES: usize = 0x400;
-const PALETTE_IDS: usize = 16;
-const TABLE_FIRST: u32 = 0x4000;
-const PLACE_END: u32 = 0x1_0000;
+const PALETTE_IDS: usize = 18;
+/// The palettes from this id on belong to the store itself, not to a list.
+const FIRST_OWN_PALETTE: usize = 17;
+/// The palettes `new_palette` hands out are the ids below this one.
+const FIRST_FIXED_PALETTE: usize = 16;
+/// The blended font's palette (15 entries are made, `text::blend_font`).
+pub const BLENDED_PLACE: u32 = 16 << 10;
+/// The replay viewer's panel fonts' palette (`race::viewer_palettes`).
+pub const VIEWER_PALETTE: u32 = 17 << 10;
+/// The loading font's palette: the fonts block's palette sheet (`gfx::build_fonts`).
+pub const SHEET_PLACE: u32 = 18 << 10;
+const TABLE_FIRST: u32 = 19 << 10;
+/// The jade font's glyph table; the glyph tables end below it.
+pub const JADE: u32 = 0xA000;
+/// The jade font's colour, 0x1400 bytes on in `JadeFont`.
+pub const JADE_COLOUR: u32 = JADE + 0x1400;
+/// `JadeFont`'s bytes from the glyph table to the end of the record.
+const JADE_LEN: u32 = 0x1400 + 4 + 21 + 3;
 
 struct Held {
-    /// The list it is counted on: its game address (`give_back`'s key).
-    list: u32,
+    /// The list it is counted on (`give_back`'s key); none for the store's own palettes.
+    list: Option<usize>,
     bytes: Arc<Vec<u8>>,
 }
 
@@ -47,11 +72,6 @@ fn store() -> std::sync::MutexGuard<'static, Store> {
         .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
-/// Whether `v` names a palette or a table of the store (not a game address).
-pub const fn is_place(v: u32) -> bool {
-    v >= 0x400 && v < PLACE_END
-}
-
 /// The held bytes and the offset `place` names in them.
 fn slot(s: &mut Store, place: u32) -> Option<(&mut Arc<Vec<u8>>, usize)> {
     if place >= TABLE_FIRST {
@@ -59,8 +79,15 @@ fn slot(s: &mut Store, place: u32) -> Option<(&mut Arc<Vec<u8>>, usize)> {
         let held = s.tables.get_mut(id)?.as_mut()?;
         Some((&mut held.bytes, 0))
     } else {
-        let held = s.palettes.get_mut((place >> 10) as usize)?.as_mut()?;
-        Some((&mut held.bytes, (place & 0x3FF) as usize))
+        let id = (place >> 10) as usize;
+        let cell = s.palettes.get_mut(id)?;
+        if cell.is_none() && id >= FIRST_OWN_PALETTE {
+            *cell = Some(Held {
+                list: None,
+                bytes: Arc::new(vec![0; PALETTE_BYTES]),
+            });
+        }
+        Some((&mut cell.as_mut()?.bytes, (place & 0x3FF) as usize))
     }
 }
 
@@ -68,11 +95,11 @@ fn slot(s: &mut Store, place: u32) -> Option<(&mut Arc<Vec<u8>>, usize)> {
 /// its place. Refused when all fifteen are held.
 pub fn new_palette(list: &dyn crate::pointers::Store) -> Result<u32, BadInput> {
     let mut s = store();
-    let id = (1..PALETTE_IDS)
+    let id = (1..FIRST_FIXED_PALETTE)
         .find(|&id| s.palettes[id].is_none())
         .ok_or(BadInput("more than fifteen palettes held"))?;
     s.palettes[id] = Some(Held {
-        list: key(list),
+        list: Some(key(list)),
         bytes: Arc::new(vec![0; PALETTE_BYTES]),
     });
     Ok((id as u32) << 10)
@@ -82,7 +109,7 @@ pub fn new_palette(list: &dyn crate::pointers::Store) -> Result<u32, BadInput> {
 pub fn new_table(list: &dyn crate::pointers::Store) -> Result<u32, BadInput> {
     let mut s = store();
     let held = Some(Held {
-        list: key(list),
+        list: Some(key(list)),
         bytes: Arc::new(Vec::new()),
     });
     let id = match s.tables.iter().position(Option::is_none) {
@@ -96,83 +123,138 @@ pub fn new_table(list: &dyn crate::pointers::Store) -> Result<u32, BadInput> {
         }
     };
     let place = TABLE_FIRST + id as u32;
-    if place >= PLACE_END {
+    if place >= JADE {
         s.tables[id] = None;
         return Err(BadInput("more glyph tables held than there are places"));
     }
     Ok(place)
 }
 
-/// What names a list: its game address.
-fn key(list: &dyn crate::pointers::Store) -> u32 {
-    crate::pointers::game_address(list.first())
+/// What names a list: where its store is.
+pub fn key(list: &dyn crate::pointers::Store) -> usize {
+    list.first().addr()
 }
 
-/// Everything held on the list at game address `list` given back (`memory::free_list`).
-pub fn give_back(list: u32) {
+/// Everything held on the list `list` (its `key`) given back (`memory::free_list`).
+pub fn give_back(list: usize) {
     let mut s = store();
     let Store { palettes, tables } = &mut *s;
     for slot in palettes.iter_mut().chain(tables.iter_mut()) {
-        if slot.as_ref().is_some_and(|h| h.list == list) {
+        if slot.as_ref().is_some_and(|h| h.list == Some(list)) {
             *slot = None;
         }
     }
 }
 
-/// Where `place` is: when it is an IDA address of the jade font's block (the four menu
-/// fonts name its glyphs and colour by the image's numbers), a place in
-/// `JADE_FONT`, bounded to it; else the game address itself (the image's palettes, a
-/// screen's own: numbers the font objects keep). No game address lies in the jade range:
-/// the image's range is reserved.
-fn resolved(place: u32) -> GamePtr {
-    let ida = place as usize;
-    let jade = crate::gfx::jade_store::JadeFont::START;
-    if (jade..jade + crate::gfx::jade_store::JadeFont::LEN).contains(&ida) {
-        // The block starts 4 bytes into the store (`JadeFont::home`).
-        GamePtr::to(&gfx().fonts.jade).offset((4 + ida - jade) as u32)
-    } else {
-        GamePtr::new(place)
+/// Where in the jade font's record `place` is, if it names a byte of it.
+fn jade_offset(place: u32) -> Option<usize> {
+    (JADE..JADE + JADE_LEN)
+        .contains(&place)
+        .then(|| (place - JADE) as usize)
+}
+
+/// A palette held in cells of another store.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CellPalette {
+    /// `text::blend_font::BLENDED_PALETTE` (`BLENDED_PLACE`).
+    Blended,
+    /// `FontBlock.palette_sheet` (`SHEET_PLACE`).
+    Sheet,
+}
+
+impl CellPalette {
+    fn cells(self) -> &'static [crate::session::PlainDword; 256] {
+        match self {
+            CellPalette::Blended => crate::text::blend_font::BLENDED_PALETTE.get(),
+            CellPalette::Sheet => &gfx().fonts.font_block.palette_sheet,
+        }
+    }
+
+    fn name(self) -> &'static str {
+        match self {
+            CellPalette::Blended => "a read past the blended palette",
+            CellPalette::Sheet => "a read past the palette sheet",
+        }
     }
 }
 
-/// The bytes from a place or a game address on.
+/// Whether `place` is in a palette held in cells, which one and the offset in it.
+fn cell_palette_offset(place: u32) -> Option<(CellPalette, usize)> {
+    let which = match place & !0x3FF {
+        BLENDED_PLACE => CellPalette::Blended,
+        SHEET_PLACE => CellPalette::Sheet,
+        _ => return None,
+    };
+    Some((which, (place & 0x3FF) as usize))
+}
+
+/// Byte `at` of a cell palette's 256 pixels, read from its cells.
+fn cell_palette_byte(which: CellPalette, at: usize) -> Option<u8> {
+    let cell = which.cells().get(at / 4)?;
+    Some(cell.get().to_le_bytes()[at % 4])
+}
+
+/// Byte `at` of the jade font's record (the glyph table, the colour, the file name and the
+/// padding), read from its cells.
+fn jade_byte(at: usize) -> Option<u8> {
+    let jade = &gfx().fonts.jade;
+    match at {
+        0..0x1400 => Some(jade.glyphs.get(at)),
+        0x1400..0x1404 => Some(jade.colour.get().to_le_bytes()[at - 0x1400]),
+        0x1404..0x1419 => Some(jade.name.get(at - 0x1404)),
+        0x1419..0x141C => Some(jade._tail.get(at - 0x1419)),
+        _ => None,
+    }
+}
+
+/// The bytes from a place on.
 #[derive(Clone, Debug)]
 pub enum Glyphs {
-    Game(GameBytes),
     Held(Arc<Vec<u8>>, usize),
+    /// From this offset in the jade font's record, read from its cells.
+    Jade(usize),
+    /// From this offset in a palette held in cells.
+    Cells(CellPalette, usize),
 }
 
 impl rc2k_core::strings::bytes::Bytes for Glyphs {
     fn byte(&self, at: usize) -> Option<u8> {
         match self {
-            Glyphs::Game(b) => b.byte(at),
             Glyphs::Held(b, from) => b.get(from.checked_add(at)?).copied(),
+            Glyphs::Jade(from) => jade_byte(from.checked_add(at)?),
+            Glyphs::Cells(which, from) => cell_palette_byte(*which, from.checked_add(at)?),
         }
     }
     fn copy_run(&self, at: usize, out: &mut [u8]) -> Option<()> {
         match self {
-            Glyphs::Game(b) => b.copy_run(at, out),
             Glyphs::Held(..) => {
                 out.copy_from_slice(self.run(at, out.len())?);
+                Some(())
+            }
+            _ => {
+                for (i, place) in out.iter_mut().enumerate() {
+                    *place = self.byte(at.checked_add(i)?)?;
+                }
                 Some(())
             }
         }
     }
     fn run(&self, at: usize, len: usize) -> Option<&[u8]> {
-        match self {
-            Glyphs::Game(_) => None,
-            Glyphs::Held(b, from) => {
-                let start = from.checked_add(at)?;
-                b.get(start..start.checked_add(len)?)
-            }
-        }
+        let Glyphs::Held(b, from) = self else {
+            return None;
+        };
+        let start = from.checked_add(at)?;
+        b.get(start..start.checked_add(len)?)
     }
 }
 
-/// The bytes from `place` on: a palette or table of the store, or game memory.
-pub fn bytes(place: u32, what: &str) -> Result<Glyphs, BadInput> {
-    if !is_place(place) {
-        return Ok(Glyphs::Game(resolved(place).bytes(what)?));
+/// The bytes from `place` on: a palette or table of the store, or the jade font's.
+pub fn bytes(place: u32, _what: &str) -> Result<Glyphs, BadInput> {
+    if let Some(from) = jade_offset(place) {
+        return Ok(Glyphs::Jade(from));
+    }
+    if let Some((which, from)) = cell_palette_offset(place) {
+        return Ok(Glyphs::Cells(which, from));
     }
     let mut s = store();
     let (b, from) = slot(&mut s, place).ok_or(BadInput("no palette or glyph table there"))?;
@@ -180,9 +262,17 @@ pub fn bytes(place: u32, what: &str) -> Result<Glyphs, BadInput> {
 }
 
 /// `len` bytes from `place` + `at`.
-pub fn read_bytes(place: u32, at: u32, len: usize, what: &str) -> Result<Vec<u8>, BadInput> {
-    if !is_place(place) {
-        return resolved(place).offset(at).read_bytes(len, what);
+pub fn read_bytes(place: u32, at: u32, len: usize, _what: &str) -> Result<Vec<u8>, BadInput> {
+    let view = if let Some(from) = jade_offset(place) {
+        Some((Glyphs::Jade(from), "a read past the jade font"))
+    } else {
+        cell_palette_offset(place).map(|(which, from)| (Glyphs::Cells(which, from), which.name()))
+    };
+    if let Some((view, refusal)) = view {
+        let mut out = vec![0; len];
+        view.copy_run(at as usize, &mut out)
+            .ok_or(BadInput(refusal))?;
+        return Ok(out);
     }
     let mut s = store();
     let (b, from) = slot(&mut s, place).ok_or(BadInput("no palette or glyph table there"))?;
@@ -194,9 +284,24 @@ pub fn read_bytes(place: u32, at: u32, len: usize, what: &str) -> Result<Vec<u8>
 
 /// `bytes` written at `place` + `at`; a table grows to take them, a palette refuses a
 /// write past its end.
-pub fn write_bytes(place: u32, at: u32, bytes: &[u8], what: &str) -> Result<(), BadInput> {
-    if !is_place(place) {
-        return resolved(place).offset(at).write_bytes(bytes, what);
+pub fn write_bytes(place: u32, at: u32, bytes: &[u8], _what: &str) -> Result<(), BadInput> {
+    if jade_offset(place).is_some() {
+        return Err(BadInput("a write into the jade font"));
+    }
+    if let Some((which, from)) = cell_palette_offset(place) {
+        let cells = which.cells();
+        let start = from + at as usize;
+        if start + bytes.len() > PALETTE_BYTES {
+            return Err(BadInput("a write past a palette"));
+        }
+        // Whole dwords only: the palette is written entry by entry.
+        if !start.is_multiple_of(4) || !bytes.len().is_multiple_of(4) {
+            return Err(BadInput("a write into a cell palette off its entries"));
+        }
+        for (n, entry) in bytes.as_chunks::<4>().0.iter().enumerate() {
+            cells[start / 4 + n].set(u32::from_le_bytes(*entry));
+        }
+        return Ok(());
     }
     let table = place >= TABLE_FIRST;
     let mut s = store();
@@ -217,25 +322,30 @@ pub fn write_bytes(place: u32, at: u32, bytes: &[u8], what: &str) -> Result<(), 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rc2k_core::strings::bytes::Bytes as _;
 
     #[test]
-    fn the_jade_fonts_image_numbers_resolve_to_its_block() {
+    fn the_jade_font_is_read_through_its_places() {
         let fonts = &gfx().fonts;
-        use crate::gfx::jade_store::JadeFont;
         let _lock = crate::store::test_lock();
         // The glyph table and the palette (the colour), as the menu fonts name them.
-        let table = bytes(0x4F52C4, "the jade glyphs").unwrap();
-        let colour = read_bytes(0x4F66C4, 0, 4, "the jade colour").unwrap();
+        let table = bytes(JADE, "the jade glyphs").unwrap();
+        let colour = read_bytes(JADE_COLOUR, 0, 4, "the jade colour").unwrap();
         assert_eq!(colour, fonts.jade.colour.get().to_le_bytes());
         assert_eq!(table.byte(0), Some(fonts.jade.glyphs.get(0)));
-        assert_eq!(
-            resolved(0x4F66C4).addr() as usize,
-            JadeFont::home() + 0x1400
-        );
-        // Anything else is left as it was.
-        assert_eq!(resolved(0x4F66DD + 0x20).addr(), 0x4F66DD + 0x20);
-        assert_eq!(resolved(0x4F52C3).addr(), 0x4F52C3);
+        assert_eq!(table.byte(0x1400), Some(colour[0]));
+        assert!(write_bytes(JADE_COLOUR, 0, &[1], "the jade colour").is_err());
+        assert!(bytes(JADE + JADE_LEN, "past the jade font").is_err());
+    }
+
+    #[test]
+    fn the_stores_own_palettes_start_zeroed() {
+        let _lock = crate::store::test_lock();
+        for place in [BLENDED_PLACE, VIEWER_PALETTE] {
+            assert_eq!(read_bytes(place, 0x3FC, 4, "a palette").unwrap(), [0; 4]);
+            write_bytes(place, 8, &[3, 0, 0, 0], "a palette").unwrap();
+            assert_eq!(read_bytes(place, 8, 4, "a palette").unwrap(), [3, 0, 0, 0]);
+            write_bytes(place, 8, &[0; 4], "a palette").unwrap();
+        }
     }
 
     #[test]
@@ -247,10 +357,10 @@ mod tests {
             cursor: 0,
             remaining: 0,
         });
-        let key = crate::pointers::game_address(crate::pointers::Store::first(&list));
+        let key = key(&list);
         let p = new_palette(&list).unwrap();
         let t = new_table(&list).unwrap();
-        assert!(is_place(p) && is_place(t) && p < TABLE_FIRST && t >= TABLE_FIRST);
+        assert!(p < TABLE_FIRST && t >= TABLE_FIRST);
         write_bytes(p + 0x180, 4, &[1, 2], "a palette").unwrap();
         assert_eq!(bytes(p, "a palette").unwrap().byte(0x184), Some(1));
         assert_eq!(read_bytes(p + 0x180, 4, 2, "a palette").unwrap(), [1, 2]);

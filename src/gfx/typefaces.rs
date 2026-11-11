@@ -242,6 +242,12 @@ impl FontId {
         &gfx().fonts.typefaces.objects[self.0]
     }
 
+    /// The font's number in the block, as the screens' core keeps a font in a work
+    /// variable (`GameScreen::font_value`).
+    pub const fn number(self) -> u32 {
+        self.0 as u32
+    }
+
     /// Where the object is (the tests').
     #[cfg(test)]
     pub fn addr(self) -> u32 {
@@ -254,6 +260,9 @@ impl FontId {
         START + 0x20 * self.0
     }
 }
+
+/// What the screens' core keeps for the menus' blended font: one past the block's numbers.
+pub const BLENDED_NUMBER: u32 = COUNT as u32;
 
 /// A font the text functions draw and measure with: one of the block's, or the menus' blended
 /// font (`text::blend_font::BLENDED_FONT`). Resolved to the object's cells in one place
@@ -291,12 +300,6 @@ impl FontRef {
 
     pub fn is_blended(self) -> bool {
         matches!(self, FontRef::Blended)
-    }
-
-    /// Where the object is, as the game's tables keep a font (`GameScreen::font_value`
-    /// only: the screens' core stores the font in a work variable as the original did).
-    pub fn addr(self) -> u32 {
-        crate::pointers::GamePtr::to(self.object()).addr()
     }
 }
 

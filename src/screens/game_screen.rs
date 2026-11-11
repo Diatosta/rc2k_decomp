@@ -807,8 +807,8 @@ impl rc2k_core::screens::menus::MenuScreen for MenuScreen<'_> {
     }
     fn font_value(&self, f: MenuFont) -> u32 {
         match f {
-            MenuFont::Object(id) => FontRef::from(id).addr(),
-            MenuFont::Blended => FontRef::Blended.addr(),
+            MenuFont::Object(id) => id.number(),
+            MenuFont::Blended => crate::gfx::typefaces::BLENDED_NUMBER,
         }
     }
 }

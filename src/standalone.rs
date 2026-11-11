@@ -268,7 +268,8 @@ fn start() {
 }
 
 /// The objects the image pointed at each other: the players' records, font 56's palette (the
-/// image names the palette sheet; `gfx::build_fonts` hangs the rest) and `g_surface.format`
+/// image names the palette sheet: its place in `gfx::glyph_store`; `gfx::build_fonts` hangs
+/// the rest) and `g_surface.format`
 /// (the image points it at the format record, `session::SCREEN`'s, named by its handle; the
 /// platform sets it again at every lock).
 fn set_up_fixed_objects() {
@@ -276,7 +277,7 @@ fn set_up_fixed_objects() {
     crate::menu::players_store::point_players(crate::menu::owner::menus());
     gfx.fonts.typefaces.objects[56]
         .palette
-        .set(gfx.fonts.font_block.palette_sheet[0].addr());
+        .set(crate::gfx::glyph_store::SHEET_PLACE);
     gfx.drawing
         .draw_surface
         .format

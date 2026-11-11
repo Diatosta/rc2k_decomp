@@ -83,9 +83,11 @@ pub fn glyph_record(surface: &Surface, table: u32, glyph: u32) -> Result<Glyphs,
     let offset = records
         .u32_le(glyph.wrapping_mul(4) as usize)
         .ok_or(BadInput("a glyph table's offset"))?;
+    let offset = offset as usize;
     Ok(match records {
-        Glyphs::Held(b, from) => Glyphs::Held(b, from.wrapping_add(offset as usize)),
-        Glyphs::Game(_) => glyph_store::bytes(table.wrapping_add(offset), "a glyph")?,
+        Glyphs::Held(b, from) => Glyphs::Held(b, from.wrapping_add(offset)),
+        Glyphs::Jade(from) => Glyphs::Jade(from.wrapping_add(offset)),
+        Glyphs::Cells(which, from) => Glyphs::Cells(which, from.wrapping_add(offset)),
     })
 }
 
