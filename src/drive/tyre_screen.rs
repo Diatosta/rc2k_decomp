@@ -43,41 +43,41 @@ pub fn tyre_screen(
     let (number, shift) = layout(mode, car);
     let table = 8 * number as usize;
     for k in 0..4 {
-        shared.tyre_change.panel[k].set(shared.tyre_change.layouts[table + k].get());
+        shared.tyre_change().panel[k].set(shared.tyre_change().layouts[table + k].get());
     }
     for k in 0..4 {
-        shared.tyre_change.parts[k].set(shared.tyre_change.layouts[table + 4 + k].get());
+        shared.tyre_change().parts[k].set(shared.tyre_change().layouts[table + 4 + k].get());
     }
-    let panel = std::array::from_fn(|k| shared.tyre_change.panel[k].get());
+    let panel = std::array::from_fn(|k| shared.tyre_change().panel[k].get());
     let [x, y] = wheel_place(
         panel,
         [
-            shared.tyre_change.wheel[2].get(),
-            shared.tyre_change.wheel[3].get(),
+            shared.tyre_change().wheel[2].get(),
+            shared.tyre_change().wheel[3].get(),
         ],
         shift,
     );
-    shared.tyre_change.wheel[0].set(x);
-    shared.tyre_change.wheel[1].set(y);
-    shared.tyre_change.player.set(car);
+    shared.tyre_change().wheel[0].set(x);
+    shared.tyre_change().wheel[1].set(y);
+    shared.tyre_change().player.set(car);
     let Some(device) = input.devices.input_device(car as usize)? else {
         return Err(crate::errors::BadInput("a tyre screen car without a device").into());
     };
-    set_texture(shared.tyre_change.device_texture.get());
+    set_texture(shared.tyre_change().device_texture.get());
     for (value, state) in STATES {
         set_render_state(value, state);
     }
     crate::drive::tyre_quad::tyre_quad_cells(
-        &shared.tyre_change.panel_texture,
-        &shared.tyre_change.panel,
+        &shared.tyre_change().panel_texture,
+        &shared.tyre_change().panel,
         0xFF_FFFF,
         race.viewer_panel(),
         system,
         crate::workers::game_scratch().vertices,
     )?;
     crate::drive::tyre_quad::tyre_quad_cells(
-        &shared.tyre_change.wheel_texture,
-        &shared.tyre_change.wheel,
+        &shared.tyre_change().wheel_texture,
+        &shared.tyre_change().wheel,
         0xFF_FFFF,
         race.viewer_panel(),
         system,
@@ -85,8 +85,8 @@ pub fn tyre_screen(
     )?;
     crate::drive::tyre_turned_quad::tyre_turned_quad(
         shared,
-        read_all(&shared.tyre_change.turning_texture),
-        &shared.tyre_change.turning_rect,
+        read_all(&shared.tyre_change().turning_texture),
+        &shared.tyre_change().turning_rect,
         0xFF_FFFF,
         device,
         system,

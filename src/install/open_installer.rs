@@ -63,7 +63,7 @@ pub fn open_installer(
     if !crate::files::read_file::read_file_into(&path[..], &mut bytes[..0x3000], 0)?.ok {
         return Err(fatal(0x80AF_7444));
     }
-    crate::gfx::glyph_store::write_bytes(glyphs, 0, &bytes, "the progress glyphs")?;
+    crate::gfx::glyph_store::write_bytes(&gfx.fonts, glyphs, 0, &bytes, "the progress glyphs")?;
     read(
         &install.names.install_pal.text(),
         &install.palette.palette,

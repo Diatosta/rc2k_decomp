@@ -547,7 +547,13 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
     // A panic ends the program at once (it cannot unwind out of an `extern "C"` function):
     // say where first.
     std::panic::set_hook(Box::new(|info| {
-        log(&format!("standalone: panic: {info}"));
+        let thread = std::thread::current();
+        let name = thread.name().unwrap_or("unnamed");
+        let trace = std::backtrace::Backtrace::force_capture();
+        log(&format!(
+            "standalone: panic on thread {name} ({:?}): {info}\n{trace}",
+            thread.id()
+        ));
     }));
     #[cfg(unix)]
     crate::ffi::unix::install_fault_reporter();

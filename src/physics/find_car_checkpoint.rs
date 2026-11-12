@@ -23,12 +23,18 @@ pub fn find_car_checkpoint(
     shared: &RaceShared,
     scene: &crate::scene::owner::Scene,
 ) -> Result<u32, Refused> {
-    physics.ground.ground_x.set(shared.car.position[0].get());
-    physics.ground.ground_z.set(shared.car.position[2].get());
+    physics
+        .ground()
+        .ground_x
+        .set(shared.car().position[0].get());
+    physics
+        .ground()
+        .ground_z
+        .set(shared.car().position[2].get());
     if shared.vars.checkpoint_count.get() == 0 {
         return Ok(0);
     }
-    let (from, to) = progress::near_window(shared.car.checkpoint.get());
+    let (from, to) = progress::near_window(shared.car().checkpoint.get());
     let near =
         crate::race::start_place::nearest_checkpoint_in(physics, course, shared, from, to, scene)?;
     scene.drawing.scene.scratch.set(near.distance);

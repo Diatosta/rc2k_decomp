@@ -4,27 +4,27 @@
 //! race block's bytes.
 //! Names are readings unless IDA's.
 
-use crate::session::Dword;
+use crate::session::PlainDword;
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ObjectFileNumbers {
     /// +0x0 (0x60AD20): the dword before the file numbers; nothing reads or writes it (a gap).
-    pub unknown_0: Dword,
+    pub unknown_0: PlainDword,
     /// +0x4 (0x60AD24): `dword_60AD24`: .ro3 name number, kept as the text's IDA address within `path_texts` (the original kept its address; `scene::set_object_file_names`).
-    pub object_ro3_number: Dword,
+    pub object_ro3_number: PlainDword,
     /// +0x8 (0x60AD28): `dword_60AD28`: .ro3 path, kept as the text's IDA address within `path_texts` (the original kept its address; `scene::set_object_file_names`).
-    pub object_ro3_path: Dword,
+    pub object_ro3_path: PlainDword,
     /// +0xc (0x60AD2C): `dword_60AD2C`: .lwo path, kept as the text's IDA address within `path_texts` (the original kept its address; `scene::set_object_file_names`).
-    pub object_lwo_path: Dword,
+    pub object_lwo_path: PlainDword,
     /// +0x10 (0x60AD30): `dword_60AD30`: .lwo name number, kept as the text's IDA address within `path_texts` (the original kept its address; `scene::set_object_file_names`).
-    pub object_lwo_number: Dword,
+    pub object_lwo_number: PlainDword,
     /// +0x14 (0x60AD34): the path texts the stored text addresses above point into: the folder, map, info and car-icon file names (`texts`, reached by IDA address through `text_at`; the dwords are only the storage, 464 bytes of NUL-ended strings).
-    pub path_texts: [Dword; 116],
+    pub path_texts: [PlainDword; 116],
     /// +0x1e4 (0x60AF04): `dword_60AF04`: the picture number (`scene::load_texture_picture`).
-    pub picture_number: Dword,
+    pub picture_number: PlainDword,
     /// +0x1e8 (0x60AF08): `dword_60AF08`: the texture (`scene::load_texture_picture`).
-    pub picture_texture: Dword,
+    pub picture_texture: PlainDword,
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
@@ -128,7 +128,7 @@ mod tests {
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::scene::owner::SCENE.file_numbers,
+            crate::scene::owner::SCENE.file_numbers(),
         );
     }
 

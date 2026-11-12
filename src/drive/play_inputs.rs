@@ -17,7 +17,7 @@ pub fn play_inputs(race: &Race) -> Result<(), BadInput> {
     if !on_tape(car) {
         return Ok(());
     }
-    let esi = tape_offset(replay.replay_frames.step_frame.get(), car);
+    let esi = tape_offset(replay.replay_frames().step_frame.get(), car);
     let mut words = [0u8; 8];
     race.replay_work()
         .replay_tape

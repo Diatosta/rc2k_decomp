@@ -96,8 +96,8 @@ pub fn replay_viewer(race: &'static Race, o: Owners<'static>, mode: Mode) -> Res
     // The end (0x41D436).
     crate::race::close_viewed_replay::close_viewed_replay(race)?;
     crate::race::viewer_tidy_stage::viewer_tidy_stage(race, o)?;
-    race.shared.replay_file.viewer_stopped.set(false);
-    race.shared.replay_file.hold_car_revs.set(0);
+    race.shared.replay_file().viewer_stopped.set(false);
+    race.shared.replay_file().hold_car_revs.set(0);
     Ok(())
 }
 
@@ -108,9 +108,9 @@ fn view(race: &'static Race, o: Owners<'static>, mode: Mode) -> Result<(), Refus
     let session = &system.session;
     let replay = &race.replay;
     use crate::race::*;
-    race.shared.replay_file.viewer_mode.set(mode as u32);
-    race.shared.replay_file.hold_car_revs.set(1);
-    replay.replay_view.viewer_only_shown.set(0);
+    race.shared.replay_file().viewer_mode.set(mode as u32);
+    race.shared.replay_file().hold_car_revs.set(1);
+    replay.replay_view().viewer_only_shown.set(0);
     let slot = match mode {
         Mode::LastRace => LAST_RACE,
         Mode::Saved | Mode::SaveLast => {
@@ -120,27 +120,27 @@ fn view(race: &'static Race, o: Owners<'static>, mode: Mode) -> Result<(), Refus
                 return Ok(());
             }
             if saving {
-                race.shared.replay_file.viewer_slot.set(slot);
+                race.shared.replay_file().viewer_slot.set(slot);
                 return save_last_replay::save_last_replay(race, o.system, slot);
             }
             slot
         }
     };
-    race.shared.replay_file.viewer_slot.set(slot);
-    race.shared.replay_file.viewer_stopped.set(true);
+    race.shared.replay_file().viewer_slot.set(slot);
+    race.shared.replay_file().viewer_stopped.set(true);
     let failed = open_viewed_replay::open_viewed_replay(race, o.system, slot)?;
     if failed {
         return Ok(());
     }
     race.viewer_buffers().camera_edit.set(0);
-    replay.replay_view.last_race_viewed.set(slot == LAST_RACE);
+    replay.replay_view().last_race_viewed.set(slot == LAST_RACE);
     find_snapshot_number::find_snapshot_number(&race.replay)?;
     viewer_load_stage::viewer_load_stage(race, o)?;
     let list = ListMenu::of(crate::place::BytePlace::in_store(
-        &o.race.replay.replay_view,
+        o.race.replay.replay_view(),
         core::mem::offset_of!(ReplayViewBlock, viewer_list),
     ));
-    race.shared.replay_file.viewer_sound.set(0);
+    race.shared.replay_file().viewer_sound.set(0);
     install.pages.list_answer.set(1);
     install.pages.list_leave.set(0);
     let now = session.clocks.key_ticks.get();
@@ -172,30 +172,30 @@ fn view(race: &'static Race, o: Owners<'static>, mode: Mode) -> Result<(), Refus
         if session.flags.quitting.is_set() {
             return Ok(());
         }
-        if replay.replay_view.wait_key_release.get() == 1 {
+        if replay.replay_view().wait_key_release.get() == 1 {
             if devices.keys_down.get(1) == 0 && devices.keys_down.get(0x1C) == 0 {
-                replay.replay_view.wait_key_release.set(0);
+                replay.replay_view().wait_key_release.set(0);
             }
             key = 0;
         }
         if key == 1 {
-            replay.replay_view.wait_key_release.set(1);
+            replay.replay_view().wait_key_release.set(1);
             replay
-                .replay_view
+                .replay_view()
                 .escape_count
-                .set(replay.replay_view.escape_count.get().wrapping_add(1));
-            if replay.replay_view.escape_count.get() == 2 {
+                .set(replay.replay_view().escape_count.get().wrapping_add(1));
+            if replay.replay_view().escape_count.get() == 2 {
                 return Ok(());
             }
             key = 0;
         }
         if key != 0 {
-            replay.replay_view.escape_count.set(0);
+            replay.replay_view().escape_count.set(0);
         }
-        if !race.shared.replay_file.viewer_stopped.is_set() {
+        if !race.shared.replay_file().viewer_stopped.is_set() {
             let ended = step_viewed_replay::step_viewed_replay(race, system)?;
             if ended || key != 0 {
-                race.shared.replay_file.viewer_stopped.set(true);
+                race.shared.replay_file().viewer_stopped.set(true);
             }
             continue;
         }
@@ -212,8 +212,8 @@ fn view(race: &'static Race, o: Owners<'static>, mode: Mode) -> Result<(), Refus
             mark(race, install, list, key)?;
         }
         // The menu sound asked for (0x41D41C).
-        let sound = race.shared.replay_file.viewer_sound.get();
-        race.shared.replay_file.viewer_sound.set(0);
+        let sound = race.shared.replay_file().viewer_sound.get();
+        race.shared.replay_file().viewer_sound.set(0);
         crate::sound::play_menu_sound::play_menu_sound_in_game(o, sound);
         if install.pages.list_leave.get() == 1 {
             return Ok(());
@@ -277,7 +277,7 @@ fn stopped_key(
     {
         return Ok(Next::Action(action));
     }
-    if race.shared.replay_file.viewer_editing.get() == 0 {
+    if race.shared.replay_file().viewer_editing.get() == 0 {
         return Ok(Next::Sound);
     }
     Ok(KEYS

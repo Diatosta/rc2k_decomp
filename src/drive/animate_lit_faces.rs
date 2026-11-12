@@ -188,7 +188,7 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                         at(&race.course, f, 0x38)?.wrapping_add(z),
                     )?;
                     let p = at(&race.course, f, 4)?;
-                    race.physics.ground.ground_x.set(
+                    race.physics.ground().ground_x.set(
                         crate::race::scene_points::point_word(
                             &race.course,
                             &crate::race::scene_points::NO_OWN,
@@ -197,7 +197,7 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                         )?
                         .wrapping_add(at(&race.course, f, 0x30)?),
                     );
-                    race.physics.ground.ground_z.set(
+                    race.physics.ground().ground_z.set(
                         crate::race::scene_points::point_word(
                             &race.course,
                             &crate::race::scene_points::NO_OWN,
@@ -212,7 +212,7 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                         .set(race.car_blocks().cars[0].probe_point_face[4].get());
                     crate::physics::find_ground::find_ground(
                         &race.physics.ground_probe,
-                        &race.physics.ground,
+                        race.physics.ground(),
                         &race.course,
                         scene,
                     )?;
@@ -220,7 +220,7 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                         &race.course,
                         f,
                         0x34,
-                        race.physics.ground.ground_height.get().wrapping_sub(
+                        race.physics.ground().ground_height.get().wrapping_sub(
                             crate::race::scene_points::point_word(
                                 &race.course,
                                 &crate::race::scene_points::NO_OWN,

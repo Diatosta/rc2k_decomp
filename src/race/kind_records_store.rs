@@ -3,17 +3,17 @@
 //! `physics::find_course_record`). The course store follows (`race::course_store`).
 //! Names are readings unless IDA's.
 
-use crate::session::Dword;
+use crate::session::PlainDword;
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct KindRecords {
     /// +0x0 (0x5CC3C0): IDA touches +0x1c (0x5CC3DC) only in code outside any function (0x421C63 .. 0x421D96, dead); the port never reaches it.
-    pub unused_0: [Dword; 9],
+    pub unused_0: [PlainDword; 9],
     /// +0x24 (0x5CC3E4): `g_kindFirstRecords`: each kind's first record (`physics::ground`, `race::course_data`, `physics::find_course_record`).
-    pub first_records: [Dword; 256],
+    pub first_records: [PlainDword; 256],
     /// +0x424 (0x5CC7E4): `g_kindLastRecords`: each kind's last record (`physics::ground`, `race::course_data`).
-    pub last_records: [Dword; 259],
+    pub last_records: [PlainDword; 259],
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
@@ -36,7 +36,7 @@ const _: () = assert!(END - START == core::mem::size_of::<KindRecords>());
 /// The piece's host address (the alignment checks).
 #[cfg(test)]
 pub fn piece_addr() -> usize {
-    std::ptr::from_ref(&crate::race::owner::RACE.course.kind_records).addr()
+    std::ptr::from_ref(crate::race::owner::RACE.course.kind_records()).addr()
 }
 
 #[cfg(test)]
@@ -47,7 +47,7 @@ mod tests {
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::race::owner::RACE.course.kind_records,
+            crate::race::owner::RACE.course.kind_records(),
         );
     }
 

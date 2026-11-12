@@ -31,7 +31,7 @@ pub fn measure_text(
     x: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<Measured, Refused> {
-    let glyphs = glyph_store::bytes(font.glyph_table, "a font's glyph table")?;
+    let glyphs = glyph_store::bytes(canvas.fonts(), font.glyph_table, "a font's glyph table")?;
     let m = refusal(rc2k_core::text::measure(
         font,
         text,

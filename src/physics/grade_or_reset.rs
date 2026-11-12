@@ -12,14 +12,14 @@ use crate::race::owner_shared::RaceShared;
 
 /// `CAR.driver_kind` 2 resets the grades.
 pub fn grade_or_reset(damage: &DamageModel, numbers: &Numbers, shared: &RaceShared) {
-    if shared.car.driver_kind.get() == 2 {
+    if shared.car().driver_kind.get() == 2 {
         reset_grades_at(
             numbers,
-            &shared.car,
-            &shared.car.suspension_stiffness,
-            &shared.car.ride_height,
+            shared.car(),
+            &shared.car().suspension_stiffness,
+            &shared.car().ride_height,
         );
     } else {
-        rate_damage(&shared.car, damage);
+        rate_damage(shared.car(), damage);
     }
 }

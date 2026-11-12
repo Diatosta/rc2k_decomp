@@ -190,11 +190,11 @@ pub fn tyre_change(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     use crate::race::tyre_change_gauge::tyre_change_gauge;
     let car = &race.car_blocks().cars[0];
     shared
-        .tyre_change
+        .tyre_change()
         .texture
         .set(textures.kinds.kind_first_textures[599].get());
     shared
-        .tyre_change
+        .tyre_change()
         .device_texture
         .set(textures.kinds.kind_first_slots[599].get());
     if car.parts_present.get() & 0x1E != 0x1E

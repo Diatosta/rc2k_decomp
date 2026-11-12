@@ -16,20 +16,13 @@ use crate::sound::sets_store::SoundRequest;
 
 /// Converted: `rc2k_core::sound::cars::slot_turn`.
 pub fn play_timed_slot(
-    slot: &crate::sound::store::SoundSlot,
+    slot: &impl crate::sound::store::TimedCells,
     request: &SoundRequest,
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
-    use rc2k_core::sound::cars::{SlotTurn, TimedSlot, from_int, slot_turn};
-    let mut s = TimedSlot {
-        sound: slot.sound.get(),
-        start: slot.start.get(),
-        playing: slot.playing.get(),
-        ends: slot.ends.get(),
-        volume: slot.volume.get(),
-        rate: slot.rate.get(),
-    };
+    use rc2k_core::sound::cars::{SlotTurn, from_int, slot_turn};
+    let mut s = slot.load();
     let clock = sound.race.clock.get().last.get();
     let turn = slot_turn(
         &mut s,
@@ -37,12 +30,7 @@ pub fn play_timed_slot(
         |sample, volume, rate| sample_settings(audio, sample, volume, rate),
         |sample, rate| sample_duration(audio, sample, rate),
     )?;
-    slot.sound.set(s.sound);
-    slot.start.set(s.start);
-    slot.playing.set(s.playing);
-    slot.ends.set(s.ends);
-    slot.volume.set(s.volume);
-    slot.rate.set(s.rate);
+    slot.store(&s);
     match turn {
         SlotTurn::Nothing | SlotTurn::Checked => Ok(()),
         SlotTurn::Start { volume, rate, .. } => {

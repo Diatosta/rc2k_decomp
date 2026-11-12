@@ -25,28 +25,31 @@ pub fn read_replay_frame(
 ) -> Result<bool, Refused> {
     let race_owner = race;
     let replay = &race.replay;
-    if !race_owner.shared.replay_file.replay_open.is_set() {
+    if !race_owner.shared.replay_file().replay_open.is_set() {
         return Ok(true);
     }
     if let Some(code) = frame_fault(frame, tenth) {
         return Err(FatalError { code, message: "" }.into());
     }
-    if past_end(frame, race_owner.shared.replay_file.index_block_count.get()) {
-        race_owner.shared.replay_file.replay_at_end.set(true);
+    if past_end(
+        frame,
+        race_owner.shared.replay_file().index_block_count.get(),
+    ) {
+        race_owner.shared.replay_file().replay_at_end.set(true);
         replay
-            .replay_view
+            .replay_view()
             .replay_block
-            .set(race_owner.shared.replay_file.index_block_count.get());
-        replay.replay_view.replay_frame.set(0);
+            .set(race_owner.shared.replay_file().index_block_count.get());
+        replay.replay_view().replay_frame.set(0);
         return Ok(false);
     }
-    replay.replay_view.replay_frame.set(tenth);
-    race_owner.shared.replay_file.replay_at_end.set(false);
-    replay.replay_view.replay_block.set(frame);
+    replay.replay_view().replay_frame.set(tenth);
+    race_owner.shared.replay_file().replay_at_end.set(false);
+    replay.replay_view().replay_block.set(frame);
     let place = crate::race::replay::block_place(race_owner, 2 * frame as usize)?; // (place, count) a frame
     if {
         crate::files::handle::seek(
-            race_owner.shared.replay_file.replay_handle.get(),
+            race_owner.shared.replay_file().replay_handle.get(),
             place as i32,
             0,
         )
@@ -60,7 +63,7 @@ pub fn read_replay_frame(
         crate::drive::read_packed::read_packed(
             race_owner,
             system,
-            race_owner.shared.replay_file.replay_handle.get(),
+            race_owner.shared.replay_file().replay_handle.get(),
             count,
         )
     }?;

@@ -15,7 +15,7 @@ use crate::scene::owner::Scene;
 pub fn set_up_engine_in(race: &Race, scene: &Scene) -> Result<(), Refused> {
     fill_engine_tables(race, scene);
     crate::physics::test_drive::test_drive(
-        &race.physics.car_specs,
+        race.physics.car_specs(),
         &race.course,
         &race.shared,
         race.gear(),

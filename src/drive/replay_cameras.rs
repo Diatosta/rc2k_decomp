@@ -37,11 +37,11 @@ fn steps(race: &Race) -> Result<(), Refused> {
     let shared = &race.shared;
     let replay = &race.replay;
     replay
-        .replay_frames
+        .replay_frames()
         .camera_word_0
         .set(race.car_blocks().cars[0].frame_head[0].get());
     replay
-        .replay_frames
+        .replay_frames()
         .camera_word_1
         .set(race.car_blocks().cars[0].frame_head[1].get());
     for c in 0..2usize {
@@ -49,12 +49,13 @@ fn steps(race: &Race) -> Result<(), Refused> {
         let wish = wish_of(race.replay_work(), head_byte(race, c)? as usize)?;
         match wish_step(
             wish,
-            replay.replay_view.replay_block.get(),
+            replay.replay_view().replay_block.get(),
             race.replay_work().camera_last_frame[c].get(),
             || car.camera_view.get(),
         ) {
             WishStep::Draw(_) => {
-                race.replay_work().camera_last_frame[c].set(replay.replay_view.replay_block.get());
+                race.replay_work().camera_last_frame[c]
+                    .set(replay.replay_view().replay_block.get());
                 // `Draw` comes only for the wishes that draw: the mode is there.
                 if let Some(mode) =
                     { crate::drive::pick_replay_camera::pick_replay_camera(race, wish) }?

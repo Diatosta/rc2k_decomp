@@ -65,9 +65,9 @@ fn matrix_and_wheels(
 pub fn settle_car(c: &ResetInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let physics = c.physics;
     let shared = c.shared;
-    crate::physics::set_handling::set_handling(&c.physics.damage, c.numbers, c.shared)?;
-    shared.car.car_pitch.set(0);
-    shared.car.car_roll.set(0);
+    crate::physics::set_handling::set_handling(c.physics.damage(), c.numbers, c.shared)?;
+    shared.car().car_pitch.set(0);
+    shared.car().car_roll.set(0);
     shared.physics_tables.settle_steps[0].set(0x2000_0000u32);
     shared.physics_tables.settle_steps[1].set(0x2000_0000u32);
     physics.ground_probe.settle_mark.set(0x80);
@@ -76,13 +76,13 @@ pub fn settle_car(c: &ResetInputs<'_>, scene: &crate::scene::owner::Scene) -> Re
         settle_step(
             w[0].wrapping_add(w[2]),
             w[1].wrapping_add(w[3]),
-            &shared.car.car_roll,
+            &shared.car().car_roll,
             &shared.physics_tables.settle_steps[1],
         );
         settle_step(
             w[0].wrapping_add(w[1]),
             w[2].wrapping_add(w[3]),
-            &shared.car.car_pitch,
+            &shared.car().car_pitch,
             &shared.physics_tables.settle_steps[0],
         );
     }
@@ -93,7 +93,7 @@ pub fn settle_car(c: &ResetInputs<'_>, scene: &crate::scene::owner::Scene) -> Re
             lowest = h;
         }
     }
-    shared.car.position[1].set(shared.car.position[1].get().wrapping_sub(lowest));
+    shared.car().position[1].set(shared.car().position[1].get().wrapping_sub(lowest));
     // `probe_height` .. 20: the four wheels' heights (made by `physics::probe_ground`).
     for (k, h) in w.iter().enumerate() {
         physics.contact.probe_height[k].set(h.wrapping_sub(lowest));
@@ -118,37 +118,37 @@ pub fn reset_car_motion(
     let physics = c.physics;
     settle_car(c, scene)?;
     crate::race::start_place::invert_car_matrix(c.course, c.car, scene);
-    for v in &shared.car.velocity {
+    for v in &shared.car().velocity {
         v.set_bits(0);
     }
-    shared.car.local_velocity[0].set_bits(0x3F80_0000);
-    shared.car.local_velocity[1].set_bits(0);
-    shared.car.local_velocity[2].set_bits(0);
-    for v in &shared.car.spin {
+    shared.car().local_velocity[0].set_bits(0x3F80_0000);
+    shared.car().local_velocity[1].set_bits(0);
+    shared.car().local_velocity[2].set_bits(0);
+    for v in &shared.car().spin {
         v.set_bits(0);
     }
-    let heading = shared.car.car_heading.get();
-    physics.camera.start_heading.set(heading);
-    shared.car.camera_heading.set(heading);
-    let pitch = shared.car.car_pitch.get();
-    physics.camera.start_pitch.set(pitch);
-    shared.car.camera_pitch.set(pitch);
-    let roll = shared.car.car_roll.get();
-    physics.camera.start_roll.set(roll);
-    shared.car.camera_roll_turn.set(roll);
-    shared.car.stuck_count.set(0);
-    shared.car.drive_speed_a.set_bits(0);
-    shared.car.drive_speed_b.set_bits(0);
-    shared.car.gear.set(0);
-    shared.car.eased_yaw_spin.set_bits(0);
-    shared.car.grip_force_sum.set_bits(0);
-    shared.car.speed.set_bits(0);
-    shared.car.wall_hit_timer.set(0);
-    let pending = shared.car.camera_view_return.get();
+    let heading = shared.car().car_heading.get();
+    physics.camera().start_heading.set(heading);
+    shared.car().camera_heading.set(heading);
+    let pitch = shared.car().car_pitch.get();
+    physics.camera().start_pitch.set(pitch);
+    shared.car().camera_pitch.set(pitch);
+    let roll = shared.car().car_roll.get();
+    physics.camera().start_roll.set(roll);
+    shared.car().camera_roll_turn.set(roll);
+    shared.car().stuck_count.set(0);
+    shared.car().drive_speed_a.set_bits(0);
+    shared.car().drive_speed_b.set_bits(0);
+    shared.car().gear.set(0);
+    shared.car().eased_yaw_spin.set_bits(0);
+    shared.car().grip_force_sum.set_bits(0);
+    shared.car().speed.set_bits(0);
+    shared.car().wall_hit_timer.set(0);
+    let pending = shared.car().camera_view_return.get();
     if pending != 0 {
-        shared.car.camera_blend_view.set(pending - 1);
-        shared.car.camera_view.set(pending - 1);
-        shared.car.camera_view_return.set(0);
+        shared.car().camera_blend_view.set(pending - 1);
+        shared.car().camera_view.set(pending - 1);
+        shared.car().camera_view_return.set(0);
     }
     Ok(())
 }
@@ -163,8 +163,8 @@ fn move_turned(course: &Course, shared: &RaceShared, x: u32, z: u32) {
         z as i32,
         course.course.place_heading.get(),
     );
-    add(&shared.car.position[0], x);
-    add(&shared.car.position[2], z);
+    add(&shared.car().position[0], x);
+    add(&shared.car().position[2], z);
 }
 
 /// `race::start_car` (0x4464AD): the work car's +0x478, +0x694 0, +0xAD4/+0xAD8 0x80000000, +0x1E4,
@@ -273,10 +273,10 @@ pub fn start_cars(
         )?;
         // +0xA3C (8 dwords) and +0xA5C (0x11) 0.
         for cell in shared
-            .car
+            .car()
             .part_damage_limits
             .iter()
-            .chain(&shared.car.saved_point_figures[..18])
+            .chain(&shared.car().saved_point_figures[..18])
         {
             cell.set(0);
         }

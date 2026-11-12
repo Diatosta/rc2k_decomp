@@ -38,52 +38,53 @@ pub fn take_split_counted(
         return Ok(());
     }
     if !split_due(
-        shared.car.splits_recorded.get(),
-        shared.car.splits_passed.get(),
+        shared.car().splits_recorded.get(),
+        shared.car().splits_passed.get(),
     )? {
         return Ok(());
     }
-    { keep_split_time(&shared.car, &physics.split_tables) }?;
+    { keep_split_time(shared.car(), physics.split_tables()) }?;
     { flag_current_car_listed(frame_work, &shared.work, sound) }?;
     split_by_mode(
         o,
-        &physics.split_tables,
+        physics.split_tables(),
         league,
         panel_and_overlay,
         shared,
         car_blocks,
     )?;
     put_split_time(
-        &shared.car,
-        shared.car.splits_recorded.get() as usize,
-        shared.car.split_gaps[0].get(),
+        shared.car(),
+        shared.car().splits_recorded.get() as usize,
+        shared.car().split_gaps[0].get(),
     )?;
-    if shared.car.splits_passed.get() < physics_store.split_tables.split_colour_count.get() {
-        shared.car.notice_id.set(SPLIT_NOTICE);
-        shared.car.notice_time_b.set(0x32);
-        shared.car.notice_time.set(300);
+    if shared.car().splits_passed.get() < physics_store.split_tables().split_colour_count.get() {
+        shared.car().notice_id.set(SPLIT_NOTICE);
+        shared.car().notice_time_b.set(0x32);
+        shared.car().notice_time.set(300);
         let bonus = split_bonus(
-            physics_store.split_tables.stage_numbers[1 + shared.car.splits_recorded.get() as usize]
+            physics_store.split_tables().stage_numbers
+                [1 + shared.car().splits_recorded.get() as usize]
                 .get(),
         );
         shared
-            .car
+            .car()
             .time_left
-            .set(shared.car.time_left.get().wrapping_add(bonus));
+            .set(shared.car().time_left.get().wrapping_add(bonus));
     }
-    shared.car.go_stand_timer.set(0);
+    shared.car().go_stand_timer.set(0);
     shared
-        .car
+        .car()
         .splits_recorded
-        .set(shared.car.splits_passed.get());
+        .set(shared.car().splits_passed.get());
     if finished_at(
-        shared.car.splits_recorded.get(),
-        physics_store.split_tables.split_colour_count.get(),
+        shared.car().splits_recorded.get(),
+        physics_store.split_tables().split_colour_count.get(),
     ) {
-        shared.car.finish_flag.set(1);
-        shared.car.notice_id.set(FINISH_NOTICE);
-        shared.car.notice_time.set(u32::MAX);
-        shared.car.notice_time_b.set(0);
+        shared.car().finish_flag.set(1);
+        shared.car().notice_id.set(FINISH_NOTICE);
+        shared.car().notice_time.set(u32::MAX);
+        shared.car().notice_time_b.set(0);
     }
     Ok(())
 }

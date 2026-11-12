@@ -68,14 +68,19 @@ pub const GLYPH_OUT_OF_RANGE: FatalError = FatalError {
 
 /// Record number `glyph` of a glyph table after the three checks
 /// the original makes first.
-pub fn glyph_record(surface: &Surface, table: u32, glyph: u32) -> Result<Glyphs, Refused> {
+pub fn glyph_record<'a>(
+    fonts: &'a crate::gfx::owner::FontStores,
+    surface: &Surface,
+    table: u32,
+    glyph: u32,
+) -> Result<Glyphs<'a>, Refused> {
     if surface.target.is_none() {
         return Err(NO_SURFACE.into());
     }
     if table == 0 {
         return Err(NO_GLYPH_TABLE.into());
     }
-    let records = glyph_store::bytes(table, "a glyph table")?;
+    let records = glyph_store::bytes(fonts, table, "a glyph table")?;
     let count = records.u32_le(0).ok_or(BadInput("a glyph table"))?;
     if glyph >= count >> 2 {
         return Err(GLYPH_OUT_OF_RANGE.into());
@@ -86,8 +91,8 @@ pub fn glyph_record(surface: &Surface, table: u32, glyph: u32) -> Result<Glyphs,
     let offset = offset as usize;
     Ok(match records {
         Glyphs::Held(b, from) => Glyphs::Held(b, from.wrapping_add(offset)),
-        Glyphs::Jade(from) => Glyphs::Jade(from.wrapping_add(offset)),
-        Glyphs::Cells(which, from) => Glyphs::Cells(which, from.wrapping_add(offset)),
+        Glyphs::Jade(jade, from) => Glyphs::Jade(jade, from.wrapping_add(offset)),
+        Glyphs::Cells(which, cells, from) => Glyphs::Cells(which, cells, from.wrapping_add(offset)),
     })
 }
 
@@ -98,6 +103,7 @@ pub fn glyph_record(surface: &Surface, table: u32, glyph: u32) -> Result<Glyphs,
 /// offset from the surface's start.
 #[allow(clippy::too_many_arguments)] // the original's five inputs, the surface, the clip and the sink
 pub fn blit_glyph(
+    fonts: &crate::gfx::owner::FontStores,
     record: &Glyphs,
     x: i32,
     y: i32,
@@ -126,7 +132,8 @@ pub fn blit_glyph(
             past_palette.set(true);
             return 0;
         };
-        let Ok(colours) = colours.get_or_init(|| glyph_store::bytes(palette, "a palette")) else {
+        let Ok(colours) = colours.get_or_init(|| glyph_store::bytes(fonts, palette, "a palette"))
+        else {
             past_palette.set(true);
             return 0;
         };
@@ -185,7 +192,7 @@ pub fn blit_glyph_on_surface(
     gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     let surface = surface(gfx);
-    let record = glyph_record(&surface, table, glyph)?;
+    let record = glyph_record(&gfx.fonts, &surface, table, glyph)?;
     let mut scratch = read_scratch(gfx);
     let target = surface.target.ok_or(NO_SURFACE)?;
     let surface_window = match target {
@@ -194,6 +201,7 @@ pub fn blit_glyph_on_surface(
     };
     {
         blit_glyph(
+            &gfx.fonts,
             &record,
             x,
             y,

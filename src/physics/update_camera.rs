@@ -507,7 +507,7 @@ mod reference_vectors {
                     },
                 ],
                 ulps: 0,
-                plain: |a| x87_1(&race().shared.car, &race().course.numbers, *view(a[0], 0)),
+                plain: |a| x87_1(race().shared.car(), &race().course.numbers, *view(a[0], 0)),
             },
             Block {
                 name: "update_camera line 89",
@@ -539,7 +539,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     x87_3(
-                        &crate::race::owner::race().shared.car,
+                        crate::race::owner::race().shared.car(),
                         &crate::race::owner::race().course.numbers,
                         &crate::race::owner::race().frame.view_and_records,
                     );
@@ -598,7 +598,7 @@ mod reference_vectors {
                     writes: &[(0x31A674, Out::F)],
                 }],
                 ulps: 0,
-                plain: |_| x87_5(&race().shared.car),
+                plain: |_| x87_5(race().shared.car()),
             },
             Block {
                 name: "update_camera line 205",
@@ -615,7 +615,7 @@ mod reference_vectors {
                     writes: &[(0x208B50, Out::I), (0x208B54, Out::I), (0x208B58, Out::I)],
                 }],
                 ulps: 0,
-                plain: |_| x87_6(&race().physics.camera, &race().shared.car),
+                plain: |_| x87_6(race().physics.camera(), race().shared.car()),
             },
             Block {
                 name: "update_camera line 235",
@@ -641,7 +641,7 @@ mod reference_vectors {
                 plain: |a| {
                     use crate::scene::x87_mem::HostCell;
                     x87_7(
-                        &race().shared.car,
+                        race().shared.car(),
                         &race().course.numbers,
                         &HostCell(a[0]),
                         &HostCell(a[1]),
@@ -656,7 +656,7 @@ mod reference_vectors {
                     writes: &[(0x31A6A0, Out::F)],
                 }],
                 ulps: 0,
-                plain: |_| x87_8(&race().physics.camera, &race().shared.car),
+                plain: |_| x87_8(race().physics.camera(), race().shared.car()),
             },
             Block {
                 name: "update_camera line 266",
@@ -667,7 +667,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     x87_9(
-                        &crate::race::owner::race().physics.camera,
+                        crate::race::owner::race().physics.camera(),
                         &crate::race::owner::race().course.course,
                     );
                 },

@@ -20,11 +20,11 @@ pub fn sound_on_bit(
     shared: &RaceShared,
     cl: u32,
 ) -> Result<(), Refused> {
-    let (_, cleared) = take_bit(shared.car.parts_present.bits(), cl);
+    let (_, cleared) = take_bit(shared.car().parts_present.bits(), cl);
     let Some(cleared) = cleared else {
         return Ok(());
     };
-    shared.car.parts_present.set(cleared);
+    shared.car().parts_present.set(cleared);
     { place_car_sound(numbers, matrices, shared) }?;
     Ok(())
 }

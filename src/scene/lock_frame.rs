@@ -16,11 +16,11 @@ pub fn lock_frame(race: &Race, gfx: &Gfx, system: &crate::system::owner::System)
     let locked = crate::platform::lock_surface(gfx, system);
     {
         race.frame
-            .scratch
+            .scratch()
             .frame_pixels
             .set(drawing.draw_surface.present_pixels.get());
         let kept: u32 = drawing.draw_surface.present_pitch.get();
-        race.frame.scratch.frame_pitch.set(kept);
+        race.frame.scratch().frame_pitch.set(kept);
         (locked, kept)
     }
 }

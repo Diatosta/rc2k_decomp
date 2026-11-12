@@ -20,8 +20,8 @@ pub fn find_course_record(course: &Course, key: u32) -> Result<Option<u32>, Refu
     let course_store = course;
     let (kind, _) = kind_of(key);
     // `kind_of` gives at most 0xFF: inside both tables.
-    let first = course_store.kind_records.first_records[kind as usize].get();
-    let last = course_store.kind_records.last_records[kind as usize].get();
+    let first = course_store.kind_records().first_records[kind as usize].get();
+    let last = course_store.kind_records().last_records[kind as usize].get();
     let trap = Trap::new();
     let found = find_record(
         key,

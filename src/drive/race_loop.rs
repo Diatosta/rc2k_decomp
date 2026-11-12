@@ -77,17 +77,17 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
     race.shared.vars.scene_switch.set(0);
     restart_clock(race);
     race.frame
-        .clock_ticks
+        .clock_ticks()
         .clock_a
         .set(race.shared.physics_tables.scene_clock.get());
     race.frame
-        .clock_ticks
+        .clock_ticks()
         .sound_tick_last
         .set(race.shared.physics_tables.scene_clock.get());
-    for mark in &race.frame.clock_ticks.marks {
+    for mark in &race.frame.clock_ticks().marks {
         mark.set(u32::MAX);
     }
-    race.replay.replay_view.play_end.set(u32::MAX);
+    race.replay.replay_view().play_end.set(u32::MAX);
     loop {
         restart_clock(race);
         race.shared
@@ -106,7 +106,7 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
             input_update(o);
             crate::debug::timing::stop(crate::debug::timing::Stage::Input, begun);
             if race.shared.work.in_credits.is_set() {
-                if race.frame.credits.done.get() != 0 {
+                if race.frame.credits().done.get() != 0 {
                     crate::framework::log("drive::race_loop: the credits race ends: rolled off");
                     return Ok(());
                 }

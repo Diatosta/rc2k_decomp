@@ -253,7 +253,11 @@ fn log_cars(race: &Race, fx: &mut impl Effects) {
 /// The arcade positions, logged at the end of both copies.
 fn log_arcade_positions(race: &Race, fx: &mut impl Effects) {
     let shared = &race.shared;
-    logged_int(fx, "[arcadestartposition]", shared.tables.start_place.get());
+    logged_int(
+        fx,
+        "[arcadestartposition]",
+        shared.tables().start_place.get(),
+    );
     logged_int(
         fx,
         "[car1.arcadeposition]",
@@ -389,7 +393,7 @@ fn copy_in(race: &Race, gfx: &Gfx, fx: &mut impl Effects) -> Result<(), Refused>
     race.car_blocks().cars[1]
         .parts_present
         .set(results.flags_first.get());
-    shared.tables.start_place.set(results.figure_000.get());
+    shared.tables().start_place.set(results.figure_000.get());
     race.car_blocks().cars[0]
         .mode2_place
         .set(results.figure_000.get());
@@ -416,7 +420,7 @@ fn copy_out(race: &Race, fx: &mut impl Effects) -> Result<(), Refused> {
     let (settings, results) = (&shared.state.settings, &shared.state.results);
     fx.text(RULE, true);
     fx.text("COPY SHAUN TO GRAHAM", true);
-    if shared.replay_file.hold_car_revs.get() != 0 {
+    if shared.replay_file().hold_car_revs.get() != 0 {
         fx.text("SKIPPING - REPLAY!", true);
     } else {
         results
@@ -722,7 +726,7 @@ mod tests {
                 scale.set_bits(scales[round % scales.len()]);
                 let start = snapshot(&cells);
                 branches[0] += u32::from(race.shared.view.players.get() == 2);
-                branches[1] += u32::from(race.shared.replay_file.hold_car_revs.get() != 0);
+                branches[1] += u32::from(race.shared.replay_file().hold_car_revs.get() != 0);
 
                 let mut old_log = Capture::default();
                 let old_result = old_machine::run(race, &mut old_log, steps);

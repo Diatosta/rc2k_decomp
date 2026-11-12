@@ -655,7 +655,9 @@ mod tests {
 
     #[test]
     fn damage_starts_as_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(&race().physics.damage);
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            race().physics.damage(),
+        );
         let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
         at(offset_of!(DamageModel, lerp_tables), 0x75B4A8);
         at(offset_of!(DamageModel, gear_factors), 0x75B5AC);

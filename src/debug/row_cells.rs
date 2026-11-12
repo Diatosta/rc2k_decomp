@@ -2,10 +2,10 @@
 //! field is checked at compile time against the address the row's tooltip names. The rows are
 //! rewritten to these by `tools/debug_pages/typed_rows.py`.
 
-use crate::session::{Dword, Float};
+use crate::session::{Dword, Float, PlainDword, PlainFloat};
 
 /// A cell of the game's state as the pages read it.
-pub trait Raw: Sync {
+pub trait Raw {
     /// Its 32 bits.
     fn raw(&self) -> u32;
 }
@@ -17,6 +17,18 @@ impl Raw for Dword {
 }
 
 impl Raw for Float {
+    fn raw(&self) -> u32 {
+        self.bits()
+    }
+}
+
+impl Raw for PlainDword {
+    fn raw(&self) -> u32 {
+        self.get()
+    }
+}
+
+impl Raw for PlainFloat {
     fn raw(&self) -> u32 {
         self.bits()
     }

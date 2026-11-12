@@ -44,12 +44,33 @@ use rc2k_core::physics::ground;
 
 pub const MOST_POINTS: u32 = 0x40;
 
+/// What the probe reads besides the car and the query: the drawing parts build it from the
+/// race's shared parts (the work car and the physics' ground work are the game thread's).
+#[derive(Clone, Copy)]
+pub struct ProbeInputs<'a> {
+    pub numbers: &'a crate::race::numbers_store::Numbers,
+    pub tables: &'a crate::physics::tables_store::PhysicsTables,
+    pub course: &'a crate::race::owner_course::Course,
+    pub engine_tables: &'a crate::scene::engine_tables_store::EngineTables,
+}
+
+impl<'a> ProbeInputs<'a> {
+    pub fn of_ground(c: &GroundInputs<'a>) -> Self {
+        ProbeInputs {
+            numbers: c.numbers,
+            tables: c.tables,
+            course: c.course,
+            engine_tables: c.engine_tables,
+        }
+    }
+}
+
 /// The steps.
 // Converted: `rc2k_core::physics::ground::{wheel_lifted, noise_cell, bump_noise}` (the
 // turns and the bump's scaling stay x87).
 /// `scratch` is the dword the original spills its work values to (`g_scratch`).
 pub fn probe_ground_at(
-    c: &GroundInputs<'_>,
+    c: &ProbeInputs<'_>,
     car: &Car,
     scene: &crate::scene::owner::Scene,
     q: &GroundQuery<'_>,
@@ -68,7 +89,7 @@ pub fn probe_ground_at(
 }
 
 fn probe_points(
-    c: &GroundInputs<'_>,
+    c: &ProbeInputs<'_>,
     car: &Car,
     n: u32,
     scene: &crate::scene::owner::Scene,
@@ -189,7 +210,7 @@ pub fn probe_ground(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     probe_ground_at(
-        c,
+        &ProbeInputs::of_ground(c),
         car,
         scene,
         &GroundQuery::of_physics(c.ground, c.probe, &c.course.course),
@@ -202,7 +223,7 @@ pub fn probe_ground(
 /// its work values on fields of its own, not the physics' work and `g_scratch` (nothing the
 /// drawing does reads them after), the scene points through the drawing part's `points`.
 pub fn probe_ground_in_view(
-    c: &GroundInputs<'_>,
+    c: &ProbeInputs<'_>,
     car: &Car,
     scene: &crate::scene::owner::Scene,
     points: &crate::race::scene_points::OwnPoints,

@@ -21,13 +21,13 @@ pub fn ease_view_angles(
     view_records: &ViewAndRecords,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), crate::errors::BadInput> {
-    let esi = record(view_records, &shared.car)?;
+    let esi = record(view_records, shared.car())?;
     if esi.change_time.get() == 0 {
         return Ok(());
     }
     share_done(shared, esi, scene);
-    for (to, rate) in shared.car.camera_offset_turns.iter().zip(&esi.turn_rates) {
-        x87_1(numbers, &shared.tables, rate.get(), scene);
+    for (to, rate) in shared.car().camera_offset_turns.iter().zip(&esi.turn_rates) {
+        x87_1(numbers, shared.tables(), rate.get(), scene);
         to.set(
             to.get()
                 .wrapping_add(scene.drawing.scene.scratch.get() << 16),
@@ -74,7 +74,7 @@ mod reference_vectors {
             plain: |a| {
                 x87_1(
                     &race().course.numbers,
-                    &race().shared.tables,
+                    race().shared.tables(),
                     crate::scene::x87_mem::Base::dword(a[0], 0),
                     crate::scene::owner::scene(),
                 );

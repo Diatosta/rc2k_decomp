@@ -113,7 +113,7 @@ pub fn palette_to_pixels(
         let components: u32 = pictures.decoder.palette[entry].get();
         pixels.extend_from_slice(&components_to_pixel(&format, components, gfx).to_le_bytes());
     }
-    crate::gfx::glyph_store::write_bytes(to, 0, &pixels, "a palette's pixels")
+    crate::gfx::glyph_store::write_bytes(&gfx.fonts, to, 0, &pixels, "a palette's pixels")
 }
 
 /// The last sheet's palette for pixels that are a colour in the low four bits and an alpha

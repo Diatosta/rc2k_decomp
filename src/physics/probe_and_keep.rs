@@ -17,7 +17,7 @@ pub fn probe_and_keep_at(
 ) -> Result<(), Refused> {
     let contact = c.contact;
     probe_ground_at(
-        c,
+        &crate::physics::probe_ground::ProbeInputs::of_ground(c),
         c.car,
         scene,
         &crate::physics::ground_query::GroundQuery::of_physics(c.ground, c.probe, &c.course.course),

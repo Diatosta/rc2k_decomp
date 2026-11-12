@@ -23,8 +23,8 @@ pub fn scaled(race: &Race, times: [u32; 4], section: u32) -> ([u32; 4], [u32; 2]
     // The two factor tables: six entries each.
     let s = section as usize;
     let f: [u32; 2] = [
-        race.shared.tables.stage_time_factors_last[s].bits(),
-        race.shared.tables.stage_time_factors_first[s].bits(),
+        race.shared.tables().stage_time_factors_last[s].bits(),
+        race.shared.tables().stage_time_factors_first[s].bits(),
     ];
     // The logic is in `rc2k_core::menu::stage_scale` (exact at the game's precisions for times
     // below 2^29; its header).

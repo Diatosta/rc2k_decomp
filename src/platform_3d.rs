@@ -678,9 +678,9 @@ pub fn draw_indexed_bytes(
 /// 0, drawn.
 pub fn draw_indexed<const V: usize, const I: usize>(
     part: &crate::workers::PartScratch,
-    vertices: &crate::session::Bytes<V>,
+    vertices: &crate::session::PlainBytes<V>,
     vertex_count: u32,
-    indices: &crate::session::Bytes<I>,
+    indices: &crate::session::PlainBytes<I>,
     index_count: u32,
 ) -> u32 {
     draw_indexed_bytes(part, vertices, V, vertex_count, indices, I, index_count);

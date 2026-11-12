@@ -37,10 +37,10 @@ use rc2k_core::race::tyre_change::{Gauge, Io, turn};
 fn constants(race: &Race) -> [f32; 5] {
     let shared = &race.shared;
     [
-        shared.tyre_change.time_base.get(),
-        shared.tyre_change.time_scale.get(),
-        shared.tyre_change.gauge_unit.get(),
-        shared.tyre_change.log_two_ten.get(),
+        shared.tyre_change().time_base.get(),
+        shared.tyre_change().time_scale.get(),
+        shared.tyre_change().gauge_unit.get(),
+        shared.tyre_change().log_two_ten.get(),
         race.viewer_panel().one.get(),
     ]
 }
@@ -105,16 +105,16 @@ impl Io for GameIo {
             == 1
     }
     fn record(&mut self) -> u32 {
-        self.race.shared.tyre_change.record.get()
+        self.race.shared.tyre_change().record.get()
     }
     fn beaten(&mut self, time: u32) {
         let shared = &self.race.shared;
-        shared.tyre_change.record.set(time);
+        shared.tyre_change().record.set(time);
         // g_playerNames, or the second name, Names.player_names: 30 bytes.
-        let from = 0x20 * (shared.tyre_change.player.get() != 0) as usize;
+        let from = 0x20 * (shared.tyre_change().player.get() != 0) as usize;
         for n in 0..30 {
             shared
-                .tyre_change
+                .tyre_change()
                 .record_name
                 .set(n, self.o.menus.play.names.player_names.get(from + n));
         }
@@ -131,7 +131,7 @@ pub fn tyre_change_gauge(o: Owners<'static>, start: bool, player: u32) -> Result
     let Some(d) = input.devices.input_device(player as usize)? else {
         return Err(BadInput("a tyre change player without a device").into());
     };
-    race.shared.tyre_change.player.set(player);
+    race.shared.tyre_change().player.set(player);
     let mut io = GameIo { o, race, device: d };
     let mut gauge = Gauge {
         gauge: d.gauge.get(),
@@ -161,10 +161,10 @@ mod reference_vectors {
     impl Drop for Kept {
         fn drop(&mut self) {
             let shared = &race().shared;
-            shared.tyre_change.time_base.set_bits(self.0[0]);
-            shared.tyre_change.time_scale.set_bits(self.0[1]);
-            shared.tyre_change.gauge_unit.set_bits(self.0[2]);
-            shared.tyre_change.log_two_ten.set_bits(self.0[3]);
+            shared.tyre_change().time_base.set_bits(self.0[0]);
+            shared.tyre_change().time_scale.set_bits(self.0[1]);
+            shared.tyre_change().gauge_unit.set_bits(self.0[2]);
+            shared.tyre_change().log_two_ten.set_bits(self.0[3]);
             VIEWER_PANEL.one.set_bits(self.0[4]);
         }
     }
@@ -177,10 +177,10 @@ mod reference_vectors {
         let shared = &race().shared;
         let _l = lock();
         let _kept = Kept([
-            shared.tyre_change.time_base.bits(),
-            shared.tyre_change.time_scale.bits(),
-            shared.tyre_change.gauge_unit.bits(),
-            shared.tyre_change.log_two_ten.bits(),
+            shared.tyre_change().time_base.bits(),
+            shared.tyre_change().time_scale.bits(),
+            shared.tyre_change().gauge_unit.bits(),
+            shared.tyre_change().log_two_ten.bits(),
             VIEWER_PANEL.one.bits(),
         ]);
         let mut r = Rng(31);
@@ -190,10 +190,10 @@ mod reference_vectors {
         at_each_control_word(|| {
             for n in 0..20000u32 {
                 if n >= 8000 {
-                    shared.tyre_change.time_base.set_bits(r.float());
-                    shared.tyre_change.time_scale.set_bits(r.float());
-                    shared.tyre_change.gauge_unit.set_bits(r.float());
-                    shared.tyre_change.log_two_ten.set_bits(r.float());
+                    shared.tyre_change().time_base.set_bits(r.float());
+                    shared.tyre_change().time_scale.set_bits(r.float());
+                    shared.tyre_change().gauge_unit.set_bits(r.float());
+                    shared.tyre_change().log_two_ten.set_bits(r.float());
                     VIEWER_PANEL.one.set_bits(r.float());
                 }
                 let s = if n < 8000 {
@@ -202,10 +202,10 @@ mod reference_vectors {
                     r.int()
                 };
                 let constants = [
-                    shared.tyre_change.time_base.bits(),
-                    shared.tyre_change.time_scale.bits(),
-                    shared.tyre_change.gauge_unit.bits(),
-                    shared.tyre_change.log_two_ten.bits(),
+                    shared.tyre_change().time_base.bits(),
+                    shared.tyre_change().time_scale.bits(),
+                    shared.tyre_change().gauge_unit.bits(),
+                    shared.tyre_change().log_two_ten.bits(),
                     VIEWER_PANEL.one.bits(),
                 ];
                 for w in constants.iter().chain(&[s as u32]) {

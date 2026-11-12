@@ -7,18 +7,18 @@
 
 #[cfg(test)]
 use crate::race::owner::race;
-use crate::session::Dword;
+use crate::session::PlainDword;
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct TextState {
     /// +0x0 (0x5C6604): `dword_5C6604`: the original's debug drawing colour number (read by its fill-rectangle and glyph drawers); `race::draw_frame_rate` sets it to 2 before the frame-rate text. Nothing in the port reads it.
-    pub text_mode: Dword,
+    pub text_mode: PlainDword,
     /// +0x4 (0x5C6608): `g_debugPixel16`: the debug font's colour made a 16-bit pixel
     /// (`debug::draw`).
-    pub debug_pixel_16: Dword,
+    pub debug_pixel_16: PlainDword,
     /// +0x8 (0x5C660C): `g_debugPixel32`: the same, 32-bit.
-    pub debug_pixel_32: Dword,
+    pub debug_pixel_32: PlainDword,
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
@@ -41,7 +41,7 @@ const _: () = assert!(END - START == core::mem::size_of::<TextState>());
 /// The piece's host address (the alignment checks).
 #[cfg(test)]
 pub fn piece_addr() -> usize {
-    std::ptr::from_ref(&race().frame.text_state).addr()
+    std::ptr::from_ref(race().frame.text_state()).addr()
 }
 
 #[cfg(test)]
@@ -52,7 +52,7 @@ mod tests {
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
-            &race().frame.text_state,
+            race().frame.text_state(),
         );
     }
 

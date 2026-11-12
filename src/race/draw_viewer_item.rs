@@ -14,12 +14,12 @@ use crate::install::owner::Install;
 use crate::race::owner::Race;
 use crate::race::owner_replay::Replay;
 use crate::race::viewer_state_store::{ReplayViewBlock, ViewerPicture};
-use crate::session::Dword;
+use crate::session::PlainDword;
 
 fn camera_byte(race: &Race, replay: &Replay, byte: usize) -> Result<u32, BadInput> {
     Ok(crate::race::viewer::camera_byte_at(
         race,
-        byte.wrapping_add(8 * replay.replay_view.replay_block.get() as usize),
+        byte.wrapping_add(8 * replay.replay_view().replay_block.get() as usize),
     )? as u32)
 }
 
@@ -27,7 +27,7 @@ fn camera_byte(race: &Race, replay: &Replay, byte: usize) -> Result<u32, BadInpu
 pub fn draw_viewer_item(
     race: &Race,
     install: &Install,
-    item: &[Dword; 4],
+    item: &[PlainDword; 4],
     index: u32,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {

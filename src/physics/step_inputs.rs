@@ -41,14 +41,14 @@ impl<'a> StepInputs<'a> {
             course: &race.course,
             numbers: &race.course.numbers,
             frame: &race.frame,
-            car: &race.shared.car,
+            car: race.shared.car(),
             tables: &race.shared.physics_tables,
             work: &race.shared.work,
             shared: &race.shared,
             vars: &race.shared.vars,
             view: &race.shared.view,
-            race_tables: &race.shared.tables,
-            replay_frames: &race.replay.replay_frames,
+            race_tables: race.shared.tables(),
+            replay_frames: race.replay.replay_frames(),
             replay: &race.replay,
         }
     }

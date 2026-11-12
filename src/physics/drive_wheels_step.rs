@@ -894,7 +894,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     slip_ratio(
-                        &race().shared.car,
+                        race().shared.car(),
                         &race().shared.physics_tables,
                         &crate::scene::x87_mem::HostCell(a[0]),
                         &crate::scene::x87_mem::HostCell(a[2]),
@@ -962,7 +962,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     slip_ratio_size(
-                        &race().shared.car,
+                        race().shared.car(),
                         &race().shared.physics_tables,
                         &crate::scene::x87_mem::HostCell(a[0]),
                         &crate::scene::x87_mem::HostCell(a[2]),
@@ -1007,7 +1007,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     drive_forces_from_grips(
-                        &race().shared.car,
+                        race().shared.car(),
                         &race().shared.physics_tables,
                         if a[1] == 0 {
                             &crate::race::owner::race().shared.physics_tables.wheel_grips
@@ -1049,7 +1049,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     drive_forces_from_grips(
-                        &race().shared.car,
+                        race().shared.car(),
                         &race().shared.physics_tables,
                         if a[1] == 0 {
                             &crate::race::owner::race().shared.physics_tables.wheel_grips
@@ -1079,7 +1079,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     throttle_drive_limit(
-                        &race().shared.car,
+                        race().shared.car(),
                         &race().shared.physics_tables,
                         &race().course.numbers,
                         crate::scene::owner::scene(),
@@ -1102,7 +1102,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     push_both_drive_speeds(
-                        &race().shared.car,
+                        race().shared.car(),
                         &race().shared.physics_tables,
                         &race().course.numbers,
                     );
@@ -1120,7 +1120,7 @@ mod reference_vectors {
                     writes: &[(0x31A190, Out::F)],
                 }],
                 ulps: 0,
-                plain: |_| push_drive_speed_a(&race().shared.car, &race().shared.physics_tables),
+                plain: |_| push_drive_speed_a(race().shared.car(), &race().shared.physics_tables),
             },
             Block {
                 name: "drive_wheels_step line 231",
@@ -1139,7 +1139,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     brake_step_for_a(
-                        &race().shared.car,
+                        race().shared.car(),
                         &race().shared.physics_tables,
                         &race().course.numbers,
                     );
@@ -1162,7 +1162,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     brake_step_for_b(
-                        &race().shared.car,
+                        race().shared.car(),
                         &race().shared.physics_tables,
                         &race().course.numbers,
                     );
@@ -1184,7 +1184,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     handbrake_step_for_b(
-                        &race().shared.car,
+                        race().shared.car(),
                         &race().shared.physics_tables,
                         &race().course.numbers,
                     );
@@ -1212,7 +1212,7 @@ mod reference_vectors {
                     writes: &[(0x214234, Out::F), (0x214238, Out::F)],
                 }],
                 ulps: 0,
-                plain: |_| slip_gaps(&race().shared.car, &race().shared.physics_tables),
+                plain: |_| slip_gaps(race().shared.car(), &race().shared.physics_tables),
             },
             Block {
                 name: "drive_wheels_step line 308",
@@ -1249,7 +1249,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     side_slip_forces(
-                        &race().shared.car,
+                        race().shared.car(),
                         &race().shared.physics_tables,
                         &race().course.numbers,
                         crate::scene::owner::scene(),
@@ -1297,7 +1297,7 @@ mod reference_vectors {
                     a[1].set_word(
                         0,
                         speed_over_ground(
-                            &race().shared.car,
+                            race().shared.car(),
                             &race().shared.physics_tables,
                             crate::scene::owner::scene(),
                         ),
@@ -1318,7 +1318,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     rolling_drag_forces(
-                        &race().shared.car,
+                        race().shared.car(),
                         &race().shared.physics_tables,
                         crate::scene::owner::scene(),
                     );
@@ -1357,7 +1357,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     slip_figure_a(
-                        &race().shared.car,
+                        race().shared.car(),
                         &race().shared.physics_tables,
                         crate::scene::owner::scene(),
                     );
@@ -1372,7 +1372,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     slip_figure_b(
-                        &race().shared.car,
+                        race().shared.car(),
                         &race().shared.physics_tables,
                         crate::scene::owner::scene(),
                     );
@@ -1398,7 +1398,7 @@ mod reference_vectors {
                     ],
                 }],
                 ulps: 0,
-                plain: |_| slip_lengths(&race().shared.car, crate::scene::owner::scene()),
+                plain: |_| slip_lengths(race().shared.car(), crate::scene::owner::scene()),
             },
         ]
     }

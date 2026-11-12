@@ -8,12 +8,12 @@
 
 use crate::race::owner::Race;
 use crate::race::race_end::{header_cell, setting_cell};
-use crate::session::Dword;
+use crate::session::DwordLike;
 use rc2k_core::race::replay::{HEADER_SETTINGS, Setting, read_logged};
 
 /// The race's places a header setting goes back to, in the original's order (a kind
 /// into its block and into `g_raceCarKinds`).
-fn targets(race: &Race, s: Setting) -> Vec<&Dword> {
+fn targets(race: &Race, s: Setting) -> Vec<&dyn DwordLike> {
     match s {
         Setting::Kind(n) => vec![
             setting_cell(race, s),

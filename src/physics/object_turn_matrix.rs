@@ -21,7 +21,7 @@ pub fn object_turn_matrix(
     matrices: &SceneMatrices,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let drawing = &scene.drawing;
+    let (drawing, work) = (&scene.drawing, scene.object_work());
     let object = contact.face_object.get();
     if object > 0xFF {
         return Err(BadInput("an object past 0xFF").into());
@@ -30,7 +30,7 @@ pub fn object_turn_matrix(
         engine_tables,
         &matrices.turn_y_matrix,
         &scene.drawing.scene.turn_y_work,
-        drawing.object_work.angles[0].get().wrapping_neg(),
+        work.angles[0].get().wrapping_neg(),
     );
     let (out, turn_y, turn_x) = (
         &matrices.object_turn_matrix,
@@ -41,30 +41,30 @@ pub fn object_turn_matrix(
     for k in 0..16 {
         out[k].set(turn_y[k].get());
     }
-    if drawing.object_work.angles[1].get() != 0 {
+    if work.angles[1].get() != 0 {
         set_turn_y(
             engine_tables,
             &matrices.turn_y_matrix,
             &scene.drawing.scene.turn_y_work,
-            drawing.object_work.angles[2].get().wrapping_neg(),
+            work.angles[2].get().wrapping_neg(),
         );
         multiply_matrices(&out, &turn_y, &lit);
         set_turn_x(
             engine_tables,
             &matrices.turn_x_matrix,
             &scene.drawing.scene.turn_x_work,
-            drawing.object_work.angles[1].get().wrapping_neg(),
+            work.angles[1].get().wrapping_neg(),
         );
         multiply_matrices(&lit, &turn_x, &turned);
         set_turn_y(
             engine_tables,
             &matrices.turn_y_matrix,
             &scene.drawing.scene.turn_y_work,
-            drawing.object_work.angles[2].get(),
+            work.angles[2].get(),
         );
         multiply_matrices(&turned, &turn_y, &out);
     }
-    let figure = drawing.object_work.size.get();
+    let figure = work.size.get();
     drawing.scene.scratch.set(figure);
     let sixteen = 16.0f32.to_bits();
     let share = ext_div2(int_80(figure as i32, false), sixteen, 0x3F80_0000);

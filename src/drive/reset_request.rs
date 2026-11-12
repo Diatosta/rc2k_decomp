@@ -18,10 +18,10 @@ use rc2k_core::drive::controls::{
 
 fn clear_notice(shared: &RaceShared) {
     for cell in [
-        &shared.car.notice_last,
-        &shared.car.notice_id,
-        &shared.car.notice_time,
-        &shared.car.notice_shown,
+        &shared.car().notice_last,
+        &shared.car().notice_id,
+        &shared.car().notice_time,
+        &shared.car().notice_shown,
     ] {
         cell.set(0);
     }
@@ -32,42 +32,42 @@ fn clear_notice(shared: &RaceShared) {
 pub fn reset_request(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let race_owner = race;
 
-    if !reset_counts(race_owner.shared.car.run_ticks.get()) {
+    if !reset_counts(race_owner.shared.car().run_ticks.get()) {
         return Ok(());
     }
     if !reset_held(
-        race_owner.shared.car.input_keys.get(),
+        race_owner.shared.car().input_keys.get(),
         race_owner.shared.vars.run_kind.get(),
         || {
             c0(
-                race_owner.shared.car.speed.get(),
+                race_owner.shared.car().speed.get(),
                 race_owner.shared.physics_tables.reset_speed_limit.get(),
             )
         },
     ) {
-        if race_owner.shared.car.reset_key_count.get() != 0 {
+        if race_owner.shared.car().reset_key_count.get() != 0 {
             clear_notice(&race.shared);
-            race_owner.shared.car.reset_key_count.set(0);
+            race_owner.shared.car().reset_key_count.set(0);
         }
         return Ok(());
     }
-    let (first, count, reset) = reset_step(race_owner.shared.car.reset_key_count.get());
+    let (first, count, reset) = reset_step(race_owner.shared.car().reset_key_count.get());
     if first {
-        race_owner.shared.car.notice_id.set(RESET_NOTICE);
-        race_owner.shared.car.notice_time_b.set(0x19);
-        race_owner.shared.car.notice_time.set(0x12C);
+        race_owner.shared.car().notice_id.set(RESET_NOTICE);
+        race_owner.shared.car().notice_time_b.set(0x19);
+        race_owner.shared.car().notice_time.set(0x12C);
     }
-    race_owner.shared.car.reset_key_count.set(count);
+    race_owner.shared.car().reset_key_count.set(count);
     if !reset {
         return Ok(());
     }
-    race_owner.shared.car.stage_time.set(
+    race_owner.shared.car().stage_time.set(
         race_owner
             .shared
-            .car
+            .car()
             .stage_time
             .get()
-            .wrapping_add(reset_penalty(race_owner.shared.car.stuck_count.get())),
+            .wrapping_add(reset_penalty(race_owner.shared.car().stuck_count.get())),
     );
     clear_notice(&race.shared);
     {

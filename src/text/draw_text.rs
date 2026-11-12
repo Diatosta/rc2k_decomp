@@ -23,8 +23,12 @@ use rc2k_core::strings::bytes::Bytes;
 
 /// What drawing text needs from outside: the kerning row table and the blitter.
 pub trait Canvas {
-    /// The typefaces a font number is resolved against.
-    fn typefaces(&self) -> &'static crate::gfx::typefaces::FontObjects;
+    /// The fonts' stores: the typefaces a font number is resolved against, the palettes and
+    /// glyph tables.
+    fn fonts(&self) -> &'static crate::gfx::owner::FontStores;
+    fn typefaces(&self) -> &'static crate::gfx::typefaces::FontObjects {
+        &self.fonts().typefaces
+    }
     /// False for a canvas that only predicts: font objects in game memory are then left alone.
     fn keeps_font_changes(&self) -> bool;
     /// The kerning row table the canvas keeps.
@@ -47,8 +51,8 @@ impl GameCanvas {
 }
 
 impl Canvas for GameCanvas {
-    fn typefaces(&self) -> &'static crate::gfx::typefaces::FontObjects {
-        &self.gfx.fonts.typefaces
+    fn fonts(&self) -> &'static crate::gfx::owner::FontStores {
+        &self.gfx.fonts
     }
     fn keeps_font_changes(&self) -> bool {
         true
@@ -153,7 +157,7 @@ pub fn draw_text(
     y: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<Outcome, Refused> {
-    let glyphs = glyph_store::bytes(font.glyph_table, "a font's glyph table")?;
+    let glyphs = glyph_store::bytes(canvas.fonts(), font.glyph_table, "a font's glyph table")?;
     let out = refusal(rc2k_core::text::draw(
         font,
         text,

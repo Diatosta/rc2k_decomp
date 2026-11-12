@@ -85,7 +85,7 @@ fn fill(
     crate::gfx::rect::fill_rect(
         crate::gfx::rect::rect_of(&panel.texture_rect),
         0,
-        crate::gfx::rect::Palette::Of(&race.shared.tyre_change.palette),
+        crate::gfx::rect::Palette::Of(&race.shared.tyre_change().palette),
         gfx,
     )
 }
@@ -136,9 +136,9 @@ pub fn draw_tyre_change(
     );
     let done = (|| -> Result<(), Refused> {
         let failed =
-            { crate::d3d::lock_texture::lock_texture_in(gfx, shared.tyre_change.texture.get()) }?
+            { crate::d3d::lock_texture::lock_texture_in(gfx, shared.tyre_change().texture.get()) }?
                 .carry;
-        if !failed && shared.tyre_change.drawn.get() != 1 {
+        if !failed && shared.tyre_change().drawn.get() != 1 {
             let mut y = 0u32;
             for (n, (id, font, x)) in [
                 (0x129u32, &gfx.fonts.font_block.game_fonts[2], 4u32),
@@ -171,19 +171,19 @@ pub fn draw_tyre_change(
         }
         set_clip(&gfx.drawing.blit.clip.left, 0x80);
         fill(race, 0x80, 0x32, 0x80, 0x4B, gfx)?;
-        { build_text(so, strings, 0x12E, Some(shared.tyre_change.record.get())) }?;
+        { build_text(so, strings, 0x12E, Some(shared.tyre_change().record.get())) }?;
         three_times(gfx, strings, 0x84, 0x32)?;
         set_clip(&gfx.drawing.blit.clip.left, 0);
         fill(race, 0, 0x99, 0x100, 0x19, gfx)?;
         gfx.fonts.font_block.game_fonts[2].update(|f| f.box_width = 0xF8);
         text(
             font(gfx),
-            &race.shared.tyre_change.record_name,
+            &race.shared.tyre_change().record_name,
             4,
             0x99,
             gfx,
         )?;
-        let x = if shared.tyre_change.player.get() == 0 {
+        let x = if shared.tyre_change().player.get() == 0 {
             set_clip(&gfx.drawing.blit.clip.right, 0x7F);
             0
         } else {
@@ -198,13 +198,13 @@ pub fn draw_tyre_change(
             { build_text(so, strings, 0x12C, None) }?;
         }
         three_times(gfx, strings, x.wrapping_add(4), 0xB2)?;
-        { crate::d3d::unlock_texture::unlock_texture(shared.tyre_change.texture.get()) }?;
+        { crate::d3d::unlock_texture::unlock_texture(shared.tyre_change().texture.get()) }?;
         // The platform's (Direct3D).
         crate::d3d::copy_to_device_texture::copy_to_device_texture(
-            shared.tyre_change.texture.get(),
-            shared.tyre_change.device_texture.get(),
+            shared.tyre_change().texture.get(),
+            shared.tyre_change().device_texture.get(),
         );
-        shared.tyre_change.drawn.set(1);
+        shared.tyre_change().drawn.set(1);
         Ok(())
     })();
     set_clip(&gfx.drawing.blit.clip.left, clips.0);

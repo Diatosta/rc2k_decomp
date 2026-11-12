@@ -5,13 +5,13 @@
 
 #[cfg(test)]
 use crate::race::owner::race;
-use crate::session::Dword;
+use crate::session::PlainDword;
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct PanelClock {
     /// +0x0 (0x62290C): `dword_62290C`: the scene clock the panel's motion shows from (`race::panel_motion`).
-    pub shown_since: Dword,
+    pub shown_since: PlainDword,
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
@@ -34,7 +34,7 @@ const _: () = assert!(END - START == core::mem::size_of::<PanelClock>());
 /// The piece's host address (the alignment checks).
 #[cfg(test)]
 pub fn piece_addr() -> usize {
-    core::ptr::from_ref(&race().frame.panel_clock).addr()
+    core::ptr::from_ref(race().frame.panel_clock()).addr()
 }
 
 #[cfg(test)]
@@ -45,7 +45,7 @@ mod tests {
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
-            &race().frame.panel_clock,
+            race().frame.panel_clock(),
         );
     }
 

@@ -30,12 +30,12 @@ use crate::session::Dword;
 /// 0x45CB02 .. 0x45CB88 (the shares into the voices), the integer steps between in Rust.
 fn shares(numbers: &Numbers, shared: &RaceShared, so: &crate::sound::store::SoundObject) {
     x87_1(shared);
-    if shared.car.all_wheels_off.get() != 0 {
-        shared.car.sound_slip_share.set(0.0);
-        shared.car.sound_level.set(0.0);
-        shared.car.sound_speed.set(0.0);
+    if shared.car().all_wheels_off.get() != 0 {
+        shared.car().sound_slip_share.set(0.0);
+        shared.car().sound_level.set(0.0);
+        shared.car().sound_speed.set(0.0);
     }
-    x87_2(numbers, &shared.car, so);
+    x87_2(numbers, shared.car(), so);
 }
 
 /// The car the sound is heard from: view 0's block with one player (none if it has no
@@ -44,7 +44,7 @@ fn listener(shared: &RaceShared) -> Option<&crate::physics::car_store::Car> {
     if shared.view.players.get() == 1 {
         shared.car_blocks.of(shared.view.view_blocks[0].get())
     } else {
-        Some(&shared.car)
+        Some(shared.car())
     }
 }
 
@@ -62,24 +62,25 @@ pub fn car_sound_state(
     };
     let so = crate::sound::store::current_object();
     so.new_revs.set(1);
-    so.revs.set(shared.car.engine_sound_revs.get());
-    let w = shared.car.wheel_surface_a[4].get();
+    so.revs.set(shared.car().engine_sound_revs.get());
+    let w = shared.car().wheel_surface_a[4].get();
     for voice in &so.voices {
         voice.surface.set(w);
     }
     shares(numbers, shared, so);
-    let n = shared.car.throttle.get() as i32;
+    let n = shared.car().throttle.get() as i32;
     so.throttle.set(n.clamp(0, 0x100) as u32);
-    so.gear.set(shared.car.gear.get());
-    so.speed.set(shared.car.mean_drive_speed.get());
+    so.gear.set(shared.car().gear.get());
+    so.speed.set(shared.car().mean_drive_speed.get());
     so.flag_ac
-        .set(shared.car.front_wheels_off.get() & shared.car.rear_wheels_off.get());
-    so.view_flag.set(shared.car.camera_mode_is_2_or_3.get() ^ 1);
+        .set(shared.car().front_wheels_off.get() & shared.car().rear_wheels_off.get());
+    so.view_flag
+        .set(shared.car().camera_mode_is_2_or_3.get() ^ 1);
     let d = |c: &Dword, other: &Dword| ints_diff_80(c.get() as i32, other.get() as i32);
     let place = [
-        d(&shared.car.position[0], &l.camera_position[0]),
-        d(&shared.car.position[1], &l.camera_position[1]),
-        d(&shared.car.position[2], &l.camera_position[2]),
+        d(&shared.car().position[0], &l.camera_position[0]),
+        d(&shared.car().position[1], &l.camera_position[1]),
+        d(&shared.car().position[2], &l.camera_position[2]),
     ];
     let m = crate::race::heard_turn::turn(matrices);
     let out = rotate_point(m, place);
@@ -90,9 +91,9 @@ pub fn car_sound_state(
     let out = rotate_point(
         m,
         [
-            extended(shared.car.crash_matrix[8].get()),
-            extended(shared.car.crash_matrix[9].get()),
-            extended(shared.car.crash_matrix[10].get()),
+            extended(shared.car().crash_matrix[8].get()),
+            extended(shared.car().crash_matrix[9].get()),
+            extended(shared.car().crash_matrix[10].get()),
         ],
     );
     for (i, e) in out.iter().enumerate() {
@@ -108,12 +109,12 @@ pub fn car_sound_state(
 /// `[sound_slip_share] = [slip_speed] / [sound_speed_scale]`
 /// `[sound_level] = 1`
 fn x87_1(shared: &RaceShared) {
-    let t0 = shared.car.slip_speed.ld();
+    let t0 = shared.car().slip_speed.ld();
     let t1 = shared.physics_tables.sound_speed_scale.ld();
     let t2 = t0 / t1;
-    shared.car.sound_slip_share.st(t2);
+    shared.car().sound_slip_share.st(t2);
     let t3 = X(1.0);
-    shared.car.sound_level.st(t3);
+    shared.car().sound_level.st(t3);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -199,7 +200,7 @@ mod reference_vectors {
                 ],
                 ulps: 0,
                 plain: |a| {
-                    x87_2(&race().course.numbers, &race().shared.car, unsafe {
+                    x87_2(&race().course.numbers, race().shared.car(), unsafe {
                         &*(crate::test_support::vectors::block_vectors::at(a[1])
                             as *const crate::sound::store::SoundObject)
                     });

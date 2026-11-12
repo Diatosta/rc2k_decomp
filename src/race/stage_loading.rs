@@ -55,7 +55,7 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
             system,
         )?;
     }
-    race.replay.replay_frames.last_kept.set(u32::MAX);
+    race.replay.replay_frames().last_kept.set(u32::MAX);
     crate::race::sounds::wake_car_sounds(race, o.sound, o.audio)?;
     indent(-3);
     log();
@@ -95,8 +95,8 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
         crate::system::tick_count::tick_count(),
     );
     let clock: u32 = race.shared.physics_tables.scene_clock.get();
-    race.frame.clock_ticks.clock_b.set(clock);
-    race.frame.clock_ticks.sound_ticks.set(0);
+    race.frame.clock_ticks().clock_b.set(clock);
+    race.frame.clock_ticks().sound_ticks.set(0);
     race.shared.physics_tables.race_clock_now.set(clock);
     race.shared.physics_tables.race_clock_base.set(clock);
     race.frame.panel_and_overlay.overlay.start_lights_lit.set(0);
@@ -114,7 +114,7 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
     }
     race.shared.switches.scene_set_up.set(1);
     race.shared.switches.view_marks_on.set(1);
-    race.physics.ground.stage_loading.set(0);
+    race.physics.ground().stage_loading.set(0);
     race.shared.view.view_on[0].set(1);
     race.shared.view.view_on[1].set(1);
     indent(-3);

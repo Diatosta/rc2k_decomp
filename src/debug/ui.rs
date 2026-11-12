@@ -206,7 +206,7 @@ fn draw_probes(race: &Race, ui: &Ui) {
     };
     let list = ui.get_foreground_draw_list();
     let size = ui.current_font_size() / 4.0;
-    for n in 0..race.shared.car.probe_count.get().min(0x40) as usize {
+    for n in 0..race.shared.car().probe_count.get().min(0x40) as usize {
         let (x, y, z) = (
             wk.probe_x[n].get() as i32,
             wk.probe_y[n].get() as i32,
@@ -850,14 +850,14 @@ const DUMPS: [(&str, &str, DumpWord, usize, usize); 4] = [
     (
         "League: the ten records' names (g_leagueNames)",
         "`race::copy_league_table` fills them; `physics::compare_split_times` reads them.",
-        |race, n| race.course.league.names[n].get(),
+        |race, n| race.course.league().names[n].get(),
         1,
         10,
     ),
     (
         "League: kept times, sixteen rows of ten (g_leagueRows)",
         "A row a split, a column a record; hundredths of a second.",
-        |race, n| race.course.league.rows[n].get(),
+        |race, n| race.course.league().rows[n].get(),
         10,
         16,
     ),
@@ -931,13 +931,13 @@ fn rivals(so: crate::strings::append_string_by_id::StringOwners<'_>, physics: &P
         let mut name = Vec::new();
         let _ = crate::strings::append_string_by_id::append_string_by_id(
             so,
-            physics.split_tables.rival_names[n].get(),
+            physics.split_tables().rival_names[n].get(),
             &mut |run| name.extend_from_slice(run),
         );
         ui.text(name.iter().map(|&b| char::from(b)).collect::<String>());
         ui.table_next_column();
-        ui.text(time(physics.split_tables.rival_scaled[n].get()));
+        ui.text(time(physics.split_tables().rival_scaled[n].get()));
         ui.table_next_column();
-        ui.text(time(physics.split_tables.rival_times[n].get()));
+        ui.text(time(physics.split_tables().rival_times[n].get()));
     }
 }

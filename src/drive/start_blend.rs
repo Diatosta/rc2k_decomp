@@ -39,7 +39,7 @@ pub fn blend_at(race: &Race, v: &[&dyn Cell32]) -> u32 {
     put(
         v,
         3,
-        x87::int_times(n as i32, &race.shared.tables.start_blend_step).to_bits(),
+        x87::int_times(n as i32, &race.shared.tables().start_blend_step).to_bits(),
     );
     put(
         v,
@@ -62,13 +62,13 @@ pub fn blend_at(race: &Race, v: &[&dyn Cell32]) -> u32 {
 fn game<'a>(race: &'a Race, scene: &'a crate::scene::owner::Scene) -> Vec<&'a dyn Cell32> {
     let shared = &race.shared;
     vec![
-        &shared.car.checkpoint,
+        &shared.car().checkpoint,
         &race.car_blocks().cars[0].checkpoint,
         &scene.drawing.scene.scratch,
-        &shared.car.start_blend_share,
-        &shared.car.start_share,
-        &shared.car.pace_push,
-        &shared.car.start_blend,
+        &shared.car().start_blend_share,
+        &shared.car().start_share,
+        &shared.car().pace_push,
+        &shared.car().start_blend,
     ]
 }
 

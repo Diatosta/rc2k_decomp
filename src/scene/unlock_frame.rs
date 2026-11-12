@@ -10,8 +10,8 @@ use crate::race::owner_frame::Frame;
 pub fn unlock_frame(frame: &Frame, gfx: &crate::gfx::owner::Gfx) -> u32 {
     let locked = crate::platform::unlock_surface(gfx);
     {
-        frame.scratch.frame_pixels.set(0u32);
-        frame.scratch.frame_pitch.set(0u32);
+        frame.scratch().frame_pixels.set(0u32);
+        frame.scratch().frame_pitch.set(0u32);
     }
     locked
 }

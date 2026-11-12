@@ -35,9 +35,9 @@ pub struct SettlePlaces<'a> {
 impl<'a> SettlePlaces<'a> {
     pub fn game(shared: &'a RaceShared, scene: &'a crate::scene::owner::Scene) -> Self {
         Self {
-            first: &shared.car.front_wheels_off,
-            second: &shared.car.rear_wheels_off,
-            fast: &shared.car.brake,
+            first: &shared.car().front_wheels_off,
+            second: &shared.car().rear_wheels_off,
+            fast: &shared.car().brake,
             scratch: &scene.drawing.scene.scratch,
         }
     }
@@ -106,7 +106,7 @@ pub fn settle_drive_speeds(
     settle_drive_speeds_at(
         &shared.physics_tables,
         numbers,
-        &GearPlaces::game(&shared.car, &shared.physics_tables),
+        &GearPlaces::game(shared.car(), &shared.physics_tables),
         &SettlePlaces::game(shared, scene),
     )
 }

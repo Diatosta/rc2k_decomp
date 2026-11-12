@@ -139,7 +139,13 @@ pub fn build_game_fonts(
         gfx.pictures.decoder.palette[n].set(brighter);
         pixels.extend_from_slice(&components_to_pixel(&layout, brighter, gfx).to_le_bytes());
     }
-    crate::gfx::glyph_store::write_bytes(to, 0, &pixels, "the second palette's pixels")?;
+    crate::gfx::glyph_store::write_bytes(
+        &gfx.fonts,
+        to,
+        0,
+        &pixels,
+        "the second palette's pixels",
+    )?;
 
     let palette_b: u32 = gfx.fonts.font_block.game_fonts[3].get().palette;
     gfx.fonts.font_block.game_fonts[3].update(|f| f.glyph_table = glyphs);

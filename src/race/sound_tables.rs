@@ -252,7 +252,7 @@ pub fn set_up_race_sound_objects(
         for o in v.objects {
             set_up_object(o);
         }
-        shared.tyre_change.drawn.set(0);
+        shared.tyre_change().drawn.set(0);
         restart_race_sounds(sound, audio, system)?;
     }
     Ok(())

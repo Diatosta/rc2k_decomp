@@ -222,7 +222,7 @@ pub fn reload_objects(race: &Race, scene: &crate::scene::owner::Scene) -> Result
     log(c"total polys", false);
     log_number(scene.objects.tables.face_count.get(), false);
     log(c"facemem used", false);
-    log_number(scene.drawing.object_work.face_cursor.get(), true);
+    log_number(scene.object_work().face_cursor.get(), true);
     log(c"LOAD OBJECTS - FINIS", true);
     log(c"-------------------------------------", true);
     Ok(())

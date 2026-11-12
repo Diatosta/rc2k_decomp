@@ -42,12 +42,12 @@ pub fn free_rev(
     run(
         &course.numbers,
         &shared.physics_tables,
-        &shared.car,
+        shared.car(),
         gear,
         scene,
     );
     let (e, drag) = (
-        shared.car.engine_speed.bits(),
+        shared.car().engine_speed.bits(),
         scene.drawing.scene.scratch.get(),
     );
     let x = f32::from_bits(e);
@@ -56,15 +56,15 @@ pub fn free_rev(
     }
     if x < 0.0 {
         let y = x87::add(e, drag);
-        shared.car.engine_speed.set(y);
+        shared.car().engine_speed.set(y);
         if !below(y.to_bits(), 0) {
-            shared.car.engine_speed.set(0.0);
+            shared.car().engine_speed.set(0.0);
         }
     } else {
         let y = x87::sub(e, drag);
-        shared.car.engine_speed.set(y);
+        shared.car().engine_speed.set(y);
         if below(y.to_bits(), 0) {
-            shared.car.engine_speed.set(0.0);
+            shared.car().engine_speed.set(0.0);
         }
     }
 }
@@ -141,7 +141,7 @@ mod reference_vectors {
                 x87_1(
                     &race().course.numbers,
                     &race().shared.physics_tables,
-                    &race().shared.car,
+                    race().shared.car(),
                     race().gear(),
                     crate::scene::owner::scene(),
                 );

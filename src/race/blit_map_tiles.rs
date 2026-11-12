@@ -42,9 +42,9 @@ pub fn blit_map_tiles(
         { unlock_texture(texture) }?;
         return Err(e.into());
     }
-    frame.map.row_gap.set(row_gap(pitch, bytes));
+    frame.map().row_gap.set(row_gap(pitch, bytes));
     let surface = crate::gfx::rows::Rows::new(pixels, pitch, drawing.draw_surface.height.get());
-    let black = frame.map.black.get();
+    let black = frame.map().black.get();
     for row in 0..BLITTED {
         for col in 0..BLITTED {
             let (x, y) = (first_x.wrapping_add(col), first_y.wrapping_add(row));

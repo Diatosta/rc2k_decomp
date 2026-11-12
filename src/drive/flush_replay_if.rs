@@ -12,7 +12,7 @@ use rc2k_core::drive::replay_frames::flush_due;
 pub fn flush_replay_if(race: &Race, system: &System) -> Result<(), Refused> {
     if flush_due(
         race.course.numbers.replay_mode.get(),
-        race.replay.replay_frames.tenth.get(),
+        race.replay.replay_frames().tenth.get(),
     ) {
         return crate::drive::flush_replay::flush_replay(race, system);
     }

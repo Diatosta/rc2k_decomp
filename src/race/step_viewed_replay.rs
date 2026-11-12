@@ -17,23 +17,23 @@ pub fn step_viewed_replay(race: &Race, system: &System) -> Result<bool, Refused>
     let shared = &race.shared;
     let stop = |at_end: bool| {
         if at_end {
-            shared.replay_file.replay_at_end.set(true);
+            shared.replay_file().replay_at_end.set(true);
         }
         true
     };
     // Converted: `rc2k_core::race::viewer::step`.
     use rc2k_core::race::viewer::{Step, step};
-    let open = shared.replay_file.replay_open.is_set();
+    let open = shared.replay_file().replay_open.is_set();
     let (block, frame) = (
-        replay.replay_view.replay_block.get(),
-        replay.replay_view.replay_frame.get(),
+        replay.replay_view().replay_block.get(),
+        replay.replay_view().replay_frame.get(),
     );
     let (block, frame) = match step(
         open,
         block,
         frame,
-        shared.replay_file.index_block_count.get(),
-        replay.replay_view.play_end.get(),
+        shared.replay_file().index_block_count.get(),
+        replay.replay_view().play_end.get(),
     ) {
         Step::Closed | Step::AtLast { .. } => return Ok(stop(true)),
         Step::PlayEnd { .. } => return Ok(stop(false)),
@@ -48,7 +48,7 @@ pub fn step_viewed_replay(race: &Race, system: &System) -> Result<bool, Refused>
             (block, frame)
         }
     };
-    replay.replay_view.replay_block.set(block);
-    replay.replay_view.replay_frame.set(frame);
+    replay.replay_view().replay_block.set(block);
+    replay.replay_view().replay_frame.set(frame);
     Ok(false)
 }

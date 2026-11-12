@@ -39,7 +39,7 @@ pub fn index_of_kind(shared: &RaceShared, kind: u32) -> Result<u32, BadInput> {
     let first = core::mem::offset_of!(crate::race::tables_store::RaceTables, kind_order);
     let trap = Trap::new();
     let order =
-        (0..KIND_ORDER_LEN).map(|n| trap.load_at::<u32>(&shared.tables, first + 4 * n as usize));
+        (0..KIND_ORDER_LEN).map(|n| trap.load_at::<u32>(shared.tables(), first + 4 * n as usize));
     let place = rc2k_core::race::cars::index_of_kind(kind, order).unwrap_or(0);
     trap.finish()?;
     Ok(place)
@@ -68,13 +68,13 @@ pub fn seal_stage_time(race: &Race) -> Result<(), BadInput> {
     let replay = &race.replay;
     // Converted: `rc2k_core::race::seal::seal_time`.
     {
-        let key = replay.seal_key.get();
+        let key = replay.seal_key().get();
         let sealed = rc2k_core::race::seal::seal_time(
             race.car_blocks().cars[0].stop_state.get(),
             || race.car_blocks().cars[0].stage_time.get(),
             key,
         );
-        race.shared.replay_file.index_seal.set(sealed);
+        race.shared.replay_file().index_seal.set(sealed);
     }
     Ok(())
 }
@@ -106,9 +106,9 @@ pub fn copy_league_table(race: &Race) -> Result<(), BadInput> {
         if failed.get() {
             return Err(BadInput("a league record past the summary"));
         }
-        crate::session::write_bits(&course.league.names, l.firsts);
+        crate::session::write_bits(&course.league().names, l.firsts);
         for (k, row) in l.rows.iter().enumerate() {
-            crate::session::write_first(&course.league.rows[10 * k..10 * k + 10], row);
+            crate::session::write_first(&course.league().rows[10 * k..10 * k + 10], row);
         }
     }
     Ok(())
@@ -118,7 +118,7 @@ pub fn copy_league_table(race: &Race) -> Result<(), BadInput> {
 /// +0x18 when its limit (`CarSpecs.cars[0].engine_top`) is 0x1B58 or less, else 0.
 fn start_value(physics: &Physics, kind: u32) -> u32 {
     use rc2k_core::race::cars::{start_record, start_state_value};
-    let record = &physics.car_specs.cars[start_record(kind) as usize];
+    let record = &physics.car_specs().cars[start_record(kind) as usize];
     start_state_value(record.engine_top.get(), || record.drive_kind.get())
 }
 
@@ -201,7 +201,7 @@ pub fn store_results_by_mode(race: &Race) {
                 .set(race.car_blocks().cars[0].time_left.get());
             let v = race.car_blocks().cars[0].mode2_place.get();
             shared.state.results.figure_000.set(v);
-            shared.tables.start_place.set(v);
+            shared.tables().start_place.set(v);
             shared.state.results.results[0]
                 .time
                 .set(race.car_blocks().cars[0].stage_time.get());
@@ -213,7 +213,7 @@ pub fn store_results_by_mode(race: &Race) {
             shared.state.results.results[1]
                 .time
                 .set(race.car_blocks().cars[1].stage_time.get());
-            let total = physics.split_tables.stage_car_total.get();
+            let total = physics.split_tables().stage_car_total.get();
             shared.state.results.results[0]
                 .word
                 .set(margin(total, race.car_blocks().cars[0].stage_time.get()));

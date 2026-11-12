@@ -7,4 +7,9 @@
 
 use crate::physics::sound_bands::Twin;
 
-pub const TWIN: Twin = (0x45D121, |c| &c.car.speed, |c| &c.spots.crash_band_scale, 1);
+pub const TWIN: Twin = (
+    0x45D121,
+    |c| c.car.speed.bits(),
+    |c| c.spots.crash_band_scale.bits(),
+    1,
+);

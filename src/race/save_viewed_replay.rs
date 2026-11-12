@@ -40,17 +40,17 @@ fn save(race: &Race, system: &System, slot: u32) -> Result<bool, Refused> {
         CAMERA_DWORDS, HEADER_LEN, INDEX_HEAD_LEN, NAME_LEN, SAVED_HEADER, has_blocks, name_offset,
         next_offset,
     };
-    if !has_blocks(shared.replay_file.index_block_count.get()) {
+    if !has_blocks(shared.replay_file().index_block_count.get()) {
         return Ok(false);
     }
-    let header = &shared.replays.header;
+    let header = &shared.replays().header;
     for (k, word) in SAVED_HEADER.into_iter().enumerate() {
         header.set_u32(4 * k, word);
     }
     header.set_u32(0xC, crate::system::packed_local_time::packed_local_time());
     let name =
         shared
-            .replays
+            .replays()
             .names
             .read_at(name_offset(slot) as usize, NAME_LEN, "a replay's name")?;
     header.write_at(0x10, &name, "a replay's name")?;
@@ -74,10 +74,10 @@ fn save(race: &Race, system: &System, slot: u32) -> Result<bool, Refused> {
         handle::close(race.viewer_buffers().to_file.get());
         handle::close(race.viewer_buffers().from_file.get());
     };
-    replay.replay_view.file_offset.set(HEADER_LEN); // the new file's length so far
+    replay.replay_view().file_offset.set(HEADER_LEN); // the new file's length so far
     if !handle::write_slice(
         race.viewer_buffers().to_file.get(),
-        &shared.replays.header.read(),
+        &shared.replays().header.read(),
     )
     .1
     {
@@ -105,7 +105,7 @@ fn save(race: &Race, system: &System, slot: u32) -> Result<bool, Refused> {
             CAMERA_DWORDS,
         )?;
         undo_place(race.viewer_buffers(), 2 * block as usize)
-            .set(replay.replay_view.file_offset.get());
+            .set(replay.replay_view().file_offset.get());
         let (written, failed) = crate::race::replay::write_replay_chunk(
             race,
             system,
@@ -117,17 +117,17 @@ fn save(race: &Race, system: &System, slot: u32) -> Result<bool, Refused> {
         }
         undo_place(race.viewer_buffers(), 2 * block as usize + 1).set(written);
         replay
-            .replay_view
+            .replay_view()
             .file_offset
-            .set(next_offset(replay.replay_view.file_offset.get(), written));
+            .set(next_offset(replay.replay_view().file_offset.get(), written));
         block += 1;
-        if block == shared.replay_file.index_block_count.get() {
+        if block == shared.replay_file().index_block_count.get() {
             break;
         }
     }
     let done = handle::write_cells(
         race.viewer_buffers().to_file.get(),
-        &shared.replay_file.index()[..INDEX_HEAD_LEN as usize / 4],
+        &shared.replay_file().index()[..INDEX_HEAD_LEN as usize / 4],
     )
     .1 && handle::write_cells(
         race.viewer_buffers().to_file.get(),

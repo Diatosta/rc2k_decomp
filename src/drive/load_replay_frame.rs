@@ -14,7 +14,7 @@ const DWORDS: usize = 0xA04;
 
 pub fn load_replay_frame(race: &Race, system: &System) -> Result<(), Refused> {
     let replay = &race.replay;
-    let frame = replay.replay_frames.step_block.get();
+    let frame = replay.replay_frames().step_block.get();
     { crate::drive::read_replay_frame_0::read_replay_frame_0(race, system, frame) }?;
     crate::drive::replay_frame_marks::replay_frame_marks(race)?;
     copy_cells(

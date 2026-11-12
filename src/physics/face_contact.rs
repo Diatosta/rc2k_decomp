@@ -106,9 +106,9 @@ pub fn steps(
         return Ok(());
     }
     for (k, o) in [8u32, 0xC, 0x10].iter().enumerate() {
-        scene.drawing.object_work.angles[k].set(contacts::turn_word(face_byte(*o)?));
+        scene.object_work().angles[k].set(contacts::turn_word(face_byte(*o)?));
     }
-    scene.drawing.object_work.size.set(face_byte(0x18)?);
+    scene.object_work().size.set(face_byte(0x18)?);
     // The face is both the record and the object here.
     let (inside, point) = { crate::physics::scene_point_hits_car::scene_point_hits_car(c, face) }?;
     if !inside {
@@ -135,7 +135,7 @@ pub fn steps(
         scene.drawing.scene.scratch.set(distance);
         let (reach, _) = contacts::reach(
             scene.objects.slots.radii[c.contact.face_object.get() as usize].get(),
-            scene.drawing.object_work.size.get(),
+            scene.object_work().size.get(),
         );
         if contacts::out_of_reach(reach, distance) {
             return Ok(());
@@ -284,7 +284,7 @@ mod reference_vectors {
                 plain: |_| {
                     x87_2(
                         &crate::race::owner::race().physics.contact,
-                        &crate::race::owner::race().shared.car,
+                        crate::race::owner::race().shared.car(),
                         &crate::race::owner::race().course.numbers,
                     );
                 },

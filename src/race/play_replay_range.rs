@@ -22,15 +22,16 @@ pub fn play_replay_range(race: &Race, o: crate::owners::Owners<'static>) -> Resu
     race_end::reset_race_sounds(&race_end::SoundVars::game(sound), sound, o.audio, o.system)?;
     // The key taken: its low byte only.
     let key = crate::input::take_key::take_key() as u32 & 0xFF;
-    replay.replay_view.key_after_play.set(key);
-    replay.replay_view.wait_key_release.set(1);
-    if race.shared.replay_file.index_block_count.get() <= replay.replay_view.replay_block.get() {
+    replay.replay_view().key_after_play.set(key);
+    replay.replay_view().wait_key_release.set(1);
+    if race.shared.replay_file().index_block_count.get() <= replay.replay_view().replay_block.get()
+    {
         replay
-            .replay_view
+            .replay_view()
             .replay_block
-            .set(race.shared.replay_file.index_block_count.get());
-        replay.replay_view.replay_frame.set(0);
+            .set(race.shared.replay_file().index_block_count.get());
+        replay.replay_view().replay_frame.set(0);
     }
-    race.shared.replay_file.viewer_stopped.set(true);
+    race.shared.replay_file().viewer_stopped.set(true);
     Ok(())
 }

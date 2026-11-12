@@ -21,7 +21,7 @@ pub const MOST_RECORDS: u32 = 0x7_8000;
 pub fn set_cdat_number(course: &Course, number: u32) {
     // Converted: `rc2k_core::race::stage::two_digits`.
     let digits = rc2k_core::race::stage::two_digits(number as u8);
-    let p = &course.level_paths;
+    let p = course.level_paths();
     p.cdat_src.set(0x14, digits[0]);
     p.cdat_src.set(0x15, digits[1]);
     p.cdat_files.set(0x19, digits[0]);
@@ -139,8 +139,8 @@ pub fn group_records_by_kind(course: &Course) -> Result<(), Refused> {
             .collect();
         crate::race::course_places::write_records_table(course, &out)?;
         for kind in 0..KINDS as usize {
-            course.kind_records.first_records[kind].set(grouped.first[kind]);
-            course.kind_records.last_records[kind].set(grouped.last[kind]);
+            course.kind_records().first_records[kind].set(grouped.first[kind]);
+            course.kind_records().last_records[kind].set(grouped.last[kind]);
         }
     }
     Ok(())
@@ -204,7 +204,7 @@ pub fn load_level(race: &Race) -> Result<(), Refused> {
         course.lists.first_part.get() as usize,
         "the course data",
     )?;
-    let read = read_level_file::read_level_file(&course.level_paths.cdat_src.text(), &mut data);
+    let read = read_level_file::read_level_file(&course.level_paths().cdat_src.text(), &mut data);
     // What the file's bytes reached stays, also when the unpacking is refused.
     crate::race::level_init::write_course_memory(memory, &data, "the course data")?;
     let out = read?;
@@ -213,7 +213,7 @@ pub fn load_level(race: &Race) -> Result<(), Refused> {
         // The original says nothing more: the path named, for the reports.
         crate::framework::log(&format!(
             "race::load_level: the course data \"{}\" could not be read",
-            String::from_utf8_lossy(&course.level_paths.cdat_src.text())
+            String::from_utf8_lossy(&course.level_paths().cdat_src.text())
         ));
         return Err(NOT_READ.into());
     }

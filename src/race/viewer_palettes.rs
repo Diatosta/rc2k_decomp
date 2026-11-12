@@ -27,19 +27,19 @@ pub fn viewer_palettes(
     // The textures and slots kept: (to, from).
     for (to, from) in [
         (
-            &shared.replay_file.viewer_first_texture_a,
+            &shared.replay_file().viewer_first_texture_a,
             &textures.kinds.kind_first_textures[212],
         ), // g_kindFirstTextures + 0x350
         (
-            &shared.replay_file.viewer_list_texture,
+            &shared.replay_file().viewer_list_texture,
             &textures.kinds.kind_first_slots[212],
         ), // g_kindFirstSlots + 0x350
         (
-            &shared.replay_file.viewer_panel_texture,
+            &shared.replay_file().viewer_panel_texture,
             &textures.kinds.kind_first_textures[201],
         ), // g_kindFirstTextures + 0x324
         (
-            &shared.replay_file.viewer_device_texture,
+            &shared.replay_file().viewer_device_texture,
             &textures.kinds.kind_first_slots[201],
         ), // g_kindFirstSlots + 0x324
     ] {
@@ -64,14 +64,21 @@ pub fn viewer_palettes(
         for n in 0..FONT_COLOURS as u32 {
             let colour = font_colour(
                 u32::from_le_bytes(
-                    crate::gfx::glyph_store::read_bytes(from, 4 * n, 4, "a font palette")?
-                        .try_into()
-                        .map_err(|_| BadInput("a font palette"))?,
+                    crate::gfx::glyph_store::read_bytes(
+                        &gfx.fonts,
+                        from,
+                        4 * n,
+                        4,
+                        "a font palette",
+                    )?
+                    .try_into()
+                    .map_err(|_| BadInput("a font palette"))?,
                 ),
                 |c| crate::gfx::pixel_to_components::pixel_to_components(&screen, c),
                 |p| crate::gfx::components_to_pixel::components_to_pixel(&texture, p, gfx),
             );
             crate::gfx::glyph_store::write_bytes(
+                &gfx.fonts,
                 crate::gfx::glyph_store::VIEWER_PALETTE,
                 4 * n,
                 &colour.to_le_bytes(),

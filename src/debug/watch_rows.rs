@@ -293,7 +293,7 @@ pub static GROUPS: &[Group] = &[
                 0x6043F8,
                 store_cell!(
                     crate::race::league_store::START,
-                    |o| o.race.course.league,
+                    |o| o.race.course.league(),
                     crate::race::league_store::League,
                     0x6043f8,
                     car_time
@@ -323,7 +323,7 @@ pub static GROUPS: &[Group] = &[
                 0x601830,
                 store_cell!(
                     crate::physics::split_tables_store::START,
-                    |o| o.race.physics.split_tables,
+                    |o| o.race.physics.split_tables(),
                     crate::physics::split_tables_store::SplitTables,
                     0x601830,
                     split_colour_count
@@ -353,7 +353,7 @@ pub static GROUPS: &[Group] = &[
                 0x601C4C,
                 store_cell!(
                     crate::physics::split_tables_store::START,
-                    |o| o.race.physics.split_tables,
+                    |o| o.race.physics.split_tables(),
                     crate::physics::split_tables_store::SplitTables,
                     0x601c4c,
                     stage_car_total
@@ -368,7 +368,7 @@ pub static GROUPS: &[Group] = &[
                 0x6051BC,
                 store_cell!(
                     crate::race::tables_store::START,
-                    |o| o.race.shared.tables,
+                    |o| o.race.shared.tables(),
                     crate::race::tables_store::RaceTables,
                     0x6051bc,
                     start_place
@@ -383,7 +383,7 @@ pub static GROUPS: &[Group] = &[
                 0x6051C0,
                 store_cell!(
                     crate::race::tables_store::START,
-                    |o| o.race.shared.tables,
+                    |o| o.race.shared.tables(),
                     crate::race::tables_store::RaceTables,
                     0x6051c0,
                     best_place
@@ -398,7 +398,7 @@ pub static GROUPS: &[Group] = &[
                 0x6051A0,
                 store_cell!(
                     crate::race::tables_store::START,
-                    |o| o.race.shared.tables,
+                    |o| o.race.shared.tables(),
                     crate::race::tables_store::RaceTables,
                     0x6051a0,
                     start_slot
@@ -3240,7 +3240,7 @@ pub static GROUPS: &[Group] = &[
                 0x608B30,
                 store_cell!(
                     crate::physics::camera_store::START,
-                    |o| o.race.physics.camera,
+                    |o| o.race.physics.camera(),
                     crate::physics::camera_store::CameraWork,
                     0x608b30,
                     camera_offset_x
@@ -3255,7 +3255,7 @@ pub static GROUPS: &[Group] = &[
                 0x608B34,
                 store_cell!(
                     crate::physics::camera_store::START,
-                    |o| o.race.physics.camera,
+                    |o| o.race.physics.camera(),
                     crate::physics::camera_store::CameraWork,
                     0x608b34,
                     camera_offset_y
@@ -3270,7 +3270,7 @@ pub static GROUPS: &[Group] = &[
                 0x608B38,
                 store_cell!(
                     crate::physics::camera_store::START,
-                    |o| o.race.physics.camera,
+                    |o| o.race.physics.camera(),
                     crate::physics::camera_store::CameraWork,
                     0x608b38,
                     camera_offset_z
@@ -3285,7 +3285,7 @@ pub static GROUPS: &[Group] = &[
                 0x605260,
                 store_cell!(
                     crate::race::tables_store::START,
-                    |o| o.race.shared.tables,
+                    |o| o.race.shared.tables(),
                     crate::race::tables_store::RaceTables,
                     0x605260,
                     view_share
@@ -3315,7 +3315,7 @@ pub static GROUPS: &[Group] = &[
                 0x608B50,
                 store_cell!(
                     crate::physics::camera_store::START,
-                    |o| o.race.physics.camera,
+                    |o| o.race.physics.camera(),
                     crate::physics::camera_store::CameraWork,
                     0x608b50,
                     start_heading
@@ -3357,7 +3357,7 @@ pub static GROUPS: &[Group] = &[
                 "lightys1",
                 Shown::Whole,
                 0x63F58C,
-                indexed_cell!(|o| o.race.course.flare_tables, place_y[0]),
+                indexed_cell!(|o| o.race.course.flare_tables(), place_y[0]),
                 false,
                 (0, 0),
             ),
@@ -3366,7 +3366,7 @@ pub static GROUPS: &[Group] = &[
                 "lightzs1",
                 Shown::Whole,
                 0x63F98C,
-                indexed_cell!(|o| o.race.course.flare_tables, place_z[0]),
+                indexed_cell!(|o| o.race.course.flare_tables(), place_z[0]),
                 false,
                 (0, 0),
             ),
@@ -3375,7 +3375,7 @@ pub static GROUPS: &[Group] = &[
                 "lightss1",
                 Shown::Whole,
                 0x64018C,
-                indexed_cell!(|o| o.race.course.flare_tables, size[0]),
+                indexed_cell!(|o| o.race.course.flare_tables(), size[0]),
                 false,
                 (0, 0),
             ),
@@ -3384,7 +3384,7 @@ pub static GROUPS: &[Group] = &[
                 "lightcs1",
                 Shown::Whole,
                 0x63FD8C,
-                indexed_cell!(|o| o.race.course.flare_tables, other_light[0]),
+                indexed_cell!(|o| o.race.course.flare_tables(), other_light[0]),
                 false,
                 (0, 0),
             ),
@@ -3393,7 +3393,7 @@ pub static GROUPS: &[Group] = &[
                 "lightds1",
                 Shown::Whole,
                 0x64058C,
-                indexed_cell!(|o| o.race.course.flare_tables, object_number[0]),
+                indexed_cell!(|o| o.race.course.flare_tables(), object_number[0]),
                 false,
                 (0, 0),
             ),
@@ -3474,7 +3474,7 @@ pub static GROUPS: &[Group] = &[
                 "drnalpha",
                 Shown::Whole,
                 0x635018,
-                indexed_cell!(|o| o.scene.drawing.object_work, view_cleared[1]),
+                indexed_cell!(|o| o.scene.object_work(), view_cleared[1]),
                 false,
                 (0, 0),
             ),
@@ -3671,7 +3671,7 @@ pub static GROUPS: &[Group] = &[
                 0x6D1AF0,
                 store_cell!(
                     crate::race::sound_spots_store::START,
-                    |o| o.race.frame.sound_spots,
+                    |o| o.race.frame.sound_spots(),
                     crate::race::sound_spots_store::SoundSpotBlock,
                     0x6d1af0,
                     eax_face_count
@@ -4081,7 +4081,7 @@ pub static GROUPS: &[Group] = &[
                 0x5C2530,
                 store_cell!(
                     crate::race::viewer_state_store::START,
-                    |o| o.race.replay.replay_view,
+                    |o| o.race.replay.replay_view(),
                     crate::race::viewer_state_store::ReplayViewBlock,
                     0x5c2530,
                     replay_block
@@ -4096,7 +4096,7 @@ pub static GROUPS: &[Group] = &[
                 0x6EF7E0,
                 store_cell!(
                     crate::drive::replay_frames_store::START,
-                    |o| o.race.replay.replay_frames,
+                    |o| o.race.replay.replay_frames(),
                     crate::drive::replay_frames_store::ReplayFrames,
                     0x6ef7e0,
                     step_block
@@ -4111,7 +4111,7 @@ pub static GROUPS: &[Group] = &[
                 0x5C2534,
                 store_cell!(
                     crate::race::viewer_state_store::START,
-                    |o| o.race.replay.replay_view,
+                    |o| o.race.replay.replay_view(),
                     crate::race::viewer_state_store::ReplayViewBlock,
                     0x5c2534,
                     replay_frame
@@ -4126,7 +4126,7 @@ pub static GROUPS: &[Group] = &[
                 0x6EF7E4,
                 store_cell!(
                     crate::drive::replay_frames_store::START,
-                    |o| o.race.replay.replay_frames,
+                    |o| o.race.replay.replay_frames(),
                     crate::drive::replay_frames_store::ReplayFrames,
                     0x6ef7e4,
                     step_frame
@@ -4141,7 +4141,7 @@ pub static GROUPS: &[Group] = &[
                 0x6EF7D0,
                 store_cell!(
                     crate::drive::replay_frames_store::START,
-                    |o| o.race.replay.replay_frames,
+                    |o| o.race.replay.replay_frames(),
                     crate::drive::replay_frames_store::ReplayFrames,
                     0x6ef7d0,
                     camera_word_0
@@ -4156,7 +4156,7 @@ pub static GROUPS: &[Group] = &[
                 0x6EF7D4,
                 store_cell!(
                     crate::drive::replay_frames_store::START,
-                    |o| o.race.replay.replay_frames,
+                    |o| o.race.replay.replay_frames(),
                     crate::drive::replay_frames_store::ReplayFrames,
                     0x6ef7d4,
                     camera_word_1
@@ -4224,7 +4224,7 @@ pub static GROUPS: &[Group] = &[
                 0x5EB100,
                 store_cell!(
                     crate::race::frame_counter_store::START,
-                    |o| o.race.frame.counter,
+                    |o| o.race.frame.counter(),
                     crate::race::frame_counter_store::FrameCounter,
                     0x5eb100,
                     show

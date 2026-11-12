@@ -71,7 +71,7 @@ impl Stage for GameStage<'_> {
         self.0.shared.physics_tables.pace_slot_offsets[slot as usize].get() // PhysicsTables.pace_slot_offsets[0]: each slot's byte in the face
     }
     fn word(&self, tens: u32) -> u8 {
-        self.0.physics.pace.distance_words.get(tens as usize)
+        self.0.physics.pace().distance_words.get(tens as usize)
     }
     fn face_byte(&self, at: u32) -> u8 {
         // The core asks only inside the course's window; a refusal here is kept for
@@ -112,7 +112,7 @@ const _: () = assert!(IMAGE_LEN == 8 + 6 * 4096 + 0x4000);
 /// The tables the machine works on, as one image: from the notes' count to the end of the
 /// text, the pace store's fields in their order, no gap between them.
 fn image(physics: &Physics) -> Vec<u8> {
-    let pace = &physics.pace;
+    let pace = physics.pace();
     let mut image = Vec::with_capacity(IMAGE_LEN);
     image.extend(pace.note_count.get().to_le_bytes());
     image.extend(pace.group_count.get().to_le_bytes());
@@ -127,7 +127,7 @@ fn image(physics: &Physics) -> Vec<u8> {
 
 /// The image put back in the fields it was read from.
 fn put_image(physics: &Physics, image: &[u8]) {
-    let pace = &physics.pace;
+    let pace = physics.pace();
     let (dwords, text) = image.split_at(IMAGE_LEN - pace.text.atomics().len());
     let mut words = dwords
         .as_chunks::<4>()

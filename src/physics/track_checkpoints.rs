@@ -41,7 +41,7 @@ pub fn track_checkpoints(
     crate::physics::off_line_warnings::off_line_warnings(
         c.frame_work,
         c.work,
-        &c.shared.replay_file,
+        c.shared.replay_file(),
         c.tables,
         c.checkpoints,
         c.car,
@@ -57,7 +57,7 @@ pub fn track_checkpoints(
     }
     if !split_ahead(
         c.car.splits_passed.get(),
-        physics_store.split_tables.split_colour_count.get(),
+        physics_store.split_tables().split_colour_count.get(),
     ) {
         return Ok(());
     }
@@ -65,7 +65,7 @@ pub fn track_checkpoints(
         return Ok(());
     }
     let split =
-        physics_store.split_tables.checkpoints[1 + c.car.splits_passed.get() as usize].get();
+        physics_store.split_tables().checkpoints[1 + c.car.splits_passed.get() as usize].get();
     c.car.reset_checkpoint.set(split);
     c.car.checkpoint.set(split);
     c.car

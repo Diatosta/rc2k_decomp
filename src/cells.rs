@@ -906,15 +906,31 @@ pub const fn cells_of_bytes<T: Cells, const N: usize>(bytes: [u8; N]) -> T {
 
 /// `N` dwords of a record of cells from byte `at` on, for a record read as a run of dwords.
 pub fn dwords_in<T: Cells, const N: usize>(cells: &T, at: usize) -> &[crate::session::Dword; N] {
-    use crate::session::Dword;
+    dwords_as(cells, at)
+}
+
+/// `dwords_in` for a record of the game thread's cells.
+pub fn plain_dwords_in<T: Cells, const N: usize>(
+    cells: &T,
+    at: usize,
+) -> &[crate::session::PlainDword; N] {
+    dwords_as(cells, at)
+}
+
+/// A cell over one dword, any bits valid: `Dword` and `PlainDword` (`dwords_as`'s kinds).
+trait DwordCell {}
+impl DwordCell for crate::session::Dword {}
+impl DwordCell for crate::session::PlainDword {}
+
+fn dwords_as<D: DwordCell, T: Cells, const N: usize>(cells: &T, at: usize) -> &[D; N] {
     assert!(
-        at + N * size_of::<Dword>() <= size_of::<T>(),
+        at + N * size_of::<D>() <= size_of::<T>(),
         "dwords past the record"
     );
     let first = std::ptr::from_ref::<T>(cells).cast::<u8>().wrapping_add(at);
-    assert!(first.cast::<Dword>().is_aligned(), "dwords on an odd place");
+    assert!(first.cast::<D>().is_aligned(), "dwords on an odd place");
     // SAFETY: inside `cells`, whose every byte is a cell (`Cells`) for as long as the borrow,
-    // aligned (checked above), and any bits make a `Dword`.
+    // aligned (checked above), and any bits make a `D` (`DwordCell`: a cell over a `u32`).
     unsafe { &*first.cast() }
 }
 

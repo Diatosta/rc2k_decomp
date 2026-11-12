@@ -610,8 +610,8 @@ mod tests {
         assert_eq!(offset_of!(Car, skid_slots), 0xF48);
         assert_eq!(offset_of!(Car, gear), 0x1D4);
         assert_eq!(offset_of!(Car, probe_point_face), 0xDF0);
-        assert_eq!(core::ptr::from_ref(&shared_store.car).addr() % 4, 0);
+        assert_eq!(core::ptr::from_ref(shared_store.car()).addr() % 4, 0);
         drop(_lock);
-        crate::test_support::first_values::assert_block_starts_as_the_games(&shared_store.car);
+        crate::test_support::first_values::assert_block_starts_as_the_games(shared_store.car());
     }
 }

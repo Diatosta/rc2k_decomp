@@ -2,29 +2,29 @@
 
 #[cfg(test)]
 use crate::race::owner::race;
-use crate::session::{Bytes, Dword};
+use crate::session::{PlainBytes, PlainDword};
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ReplayFrames {
     /// +0x0 (0x6EF7CC): `dword_6EF7CC`: set while the replay steps to a still (`physics::ease_view_turn`, `race::show_replay_still`).
-    pub step_first: Dword,
+    pub step_first: PlainDword,
     /// +0x4 (0x6EF7D0): `dword_6EF7D0`: the first car block's first dword (`drive::replay_cameras`).
-    pub camera_word_0: Dword,
+    pub camera_word_0: PlainDword,
     /// +0x8 (0x6EF7D4): `dword_6EF7D4`: the first car block's second dword (`drive::replay_cameras`).
-    pub camera_word_1: Dword,
+    pub camera_word_1: PlainDword,
     /// +0xc (0x6EF7D8): `dword_6EF7D8`: the replay's frame (`drive::keep_replay_frame`).
-    pub frame: Dword,
+    pub frame: PlainDword,
     /// +0x10 (0x6EF7DC): `dword_6EF7DC`: the tenth within the frame (`drive::keep_replay_frame`, `drive::record_inputs`, `drive::flush_replay_if`).
-    pub tenth: Dword,
+    pub tenth: PlainDword,
     /// +0x14 (0x6EF7E0): `dword_6EF7E0`: the block the step is in (`drive::load_replay_frame`, `drive::play_replay_frame`, `race::show_replay_still`).
-    pub step_block: Dword,
+    pub step_block: PlainDword,
     /// +0x18 (0x6EF7E4): `dword_6EF7E4`: the frame the step is at (`drive::play_inputs`, `drive::play_replay_frame`).
-    pub step_frame: Dword,
+    pub step_frame: PlainDword,
     /// +0x1c (0x6EF7E8): `unk_6EF7E8`: eight kept frames of 0x3F80 bytes (`drive::keep_replay_frame`).
-    pub slots: Bytes<0x1FC00>,
+    pub slots: PlainBytes<0x1FC00>,
     /// +0x1fc1c (0x70F3E8): `dword_70F3E8`: the last frame `drive::quit_question` kept (-1 from `race::stage_loading`).
-    pub last_kept: Dword,
+    pub last_kept: PlainDword,
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
@@ -47,7 +47,7 @@ const _: () = assert!(END - START == core::mem::size_of::<ReplayFrames>());
 /// The piece's host address (the alignment checks).
 #[cfg(test)]
 pub fn piece_addr() -> usize {
-    core::ptr::from_ref(&race().replay.replay_frames).addr()
+    core::ptr::from_ref(race().replay.replay_frames()).addr()
 }
 
 #[cfg(test)]
@@ -58,7 +58,7 @@ mod tests {
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
-            &race().replay.replay_frames,
+            race().replay.replay_frames(),
         );
     }
 

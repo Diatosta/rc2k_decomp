@@ -47,7 +47,7 @@ mod tests {
     /// Each field sits where the core's table had its offset in the car's block.
     #[test]
     fn the_fields_sit_where_the_offsets_were() {
-        let car = &race().shared.car;
+        let car = race().shared.car();
         let base = core::ptr::from_ref(car).addr();
         let offsets: Vec<u32> = reset_fields(3)
             .iter()

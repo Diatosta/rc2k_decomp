@@ -158,8 +158,8 @@ fn test_course(o: Owners<'static>) -> Result<(), Refused> {
     let race = o.race;
     round_a_race(o, || {
         race.course.numbers.replay_mode.set(1);
-        race.shared.tables.noise_seed.set(0x1234_5678);
-        race.physics.split_tables.arcade_kind.set(2);
+        race.shared.tables().noise_seed.set(0x1234_5678);
+        race.physics.split_tables().arcade_kind.set(2);
         race.shared.switches.editor_mode.set(0);
         // Free play leaves the car where it was: on another course, or with no race
         // yet, that is nowhere, and the first search ends the game.
@@ -288,7 +288,7 @@ mod tab {
         });
         number(ui, "Car", &s.car, 0x21);
         ui.same_line();
-        let name = race.physics.car_specs.cars[s.car.load(Relaxed) as usize]
+        let name = race.physics.car_specs().cars[s.car.load(Relaxed) as usize]
             .name
             .read();
         let end = name.iter().position(|&b| b == 0).unwrap_or(name.len());

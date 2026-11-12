@@ -10,6 +10,7 @@ use crate::race::level_paths_store::LevelPaths;
 use crate::race::lights_store::LightsData;
 use crate::race::numbers_store::Numbers;
 use crate::race::prefs_store::StagePrefs;
+use crate::session::GameThread;
 
 /// The race's course state (step 11, owned state: the stores move in as fields).
 pub struct Course {
@@ -19,15 +20,20 @@ pub struct Course {
     pub lists: CourseLists,
     /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
     pub level_grid: LevelGrid,
-    pub level_paths: LevelPaths,
-    pub kind_records: KindRecords,
-    pub lights_data: LightsData,
-    pub flare_tables: FlareTables,
     /// One copy (frame plan F4): the drawing writes only what each view's fog set-up works
     /// out from the draw distance (`race::draw_distance_settings`), the same in every view.
     pub stage_prefs: StagePrefs,
     pub numbers: Numbers,
-    pub league: League,
+    main: GameThread<CourseMain>,
+}
+
+/// What only the game's thread reaches (no drawing part and no other thread touches it).
+struct CourseMain {
+    level_paths: LevelPaths,
+    kind_records: KindRecords,
+    lights_data: LightsData,
+    flare_tables: FlareTables,
+    league: League,
 }
 
 impl Course {
@@ -36,13 +42,35 @@ impl Course {
             course: CourseWork::new(),
             lists: CourseLists::new(),
             level_grid: LevelGrid::new(),
-            level_paths: LevelPaths::new(),
-            kind_records: KindRecords::new(),
-            lights_data: LightsData::new(),
-            flare_tables: FlareTables::new(),
             stage_prefs: StagePrefs::new(),
             numbers: Numbers::new(),
-            league: League::new(),
+            main: GameThread::new(CourseMain {
+                level_paths: LevelPaths::new(),
+                kind_records: KindRecords::new(),
+                lights_data: LightsData::new(),
+                flare_tables: FlareTables::new(),
+                league: League::new(),
+            }),
         }
+    }
+
+    pub fn level_paths(&self) -> &LevelPaths {
+        &self.main.get().level_paths
+    }
+
+    pub fn kind_records(&self) -> &KindRecords {
+        &self.main.get().kind_records
+    }
+
+    pub fn lights_data(&self) -> &LightsData {
+        &self.main.get().lights_data
+    }
+
+    pub fn flare_tables(&self) -> &FlareTables {
+        &self.main.get().flare_tables
+    }
+
+    pub fn league(&self) -> &League {
+        &self.main.get().league
     }
 }

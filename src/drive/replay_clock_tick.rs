@@ -9,13 +9,13 @@ use rc2k_core::drive::clocks::ReplayClock;
 // Converted: `rc2k_core::drive::clocks::ReplayClock::tick`.
 pub fn replay_clock_tick(replay: &Replay) {
     let was = ReplayClock {
-        frame: replay.replay_view.replay_block.get(),
-        hundredths: replay.replay_view.replay_frame.get(),
+        frame: replay.replay_view().replay_block.get(),
+        hundredths: replay.replay_view().replay_frame.get(),
     };
     let mut c = was;
     c.tick();
-    replay.replay_view.replay_frame.set(c.hundredths);
+    replay.replay_view().replay_frame.set(c.hundredths);
     if c.frame != was.frame {
-        replay.replay_view.replay_block.set(c.frame);
+        replay.replay_view().replay_block.set(c.frame);
     }
 }

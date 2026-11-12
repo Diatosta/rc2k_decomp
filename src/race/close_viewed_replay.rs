@@ -11,10 +11,10 @@ use crate::race::owner::Race;
 pub fn close_viewed_replay(race: &Race) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::viewer_flow::closes`.
     let shared = &race.shared;
-    if rc2k_core::race::viewer_flow::closes(shared.replay_file.replay_open.is_set()) {
+    if rc2k_core::race::viewer_flow::closes(shared.replay_file().replay_open.is_set()) {
         crate::race::replay_patches::restore_replay_patches(race)?;
-        crate::files::handle::close(shared.replay_file.replay_handle.get());
-        shared.replay_file.replay_open.set(false);
+        crate::files::handle::close(shared.replay_file().replay_handle.get());
+        shared.replay_file().replay_open.set(false);
     }
     Ok(())
 }

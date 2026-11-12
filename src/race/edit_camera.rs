@@ -20,8 +20,8 @@ pub fn edit_camera(race: &Race, camera: u32) {
     // Converted: `rc2k_core::race::viewer_flow::edits_camera`.
     crate::race::keep_undo::keep_undo(race);
     if rc2k_core::race::viewer_flow::edits_camera(
-        replay.replay_view.replay_block.get(),
-        race.shared.replay_file.index_block_count.get(),
+        replay.replay_view().replay_block.get(),
+        race.shared.replay_file().index_block_count.get(),
     ) {
         race.viewer_buffers().camera_edit.set(camera);
     }
@@ -35,8 +35,8 @@ fn name_of(race: &Race, camera: u8) -> u16 {
 /// `viewer_action` (which keeps every register), does not read.
 pub fn step_camera(race: &Race, step: i8) -> Result<(), Refused> {
     let replay = &race.replay;
-    let block = replay.replay_view.replay_block.get();
-    if block == race.shared.replay_file.index_block_count.get() {
+    let block = replay.replay_view().replay_block.get();
+    if block == race.shared.replay_file().index_block_count.get() {
         return Ok(());
     }
     let at = crate::race::viewer::camera_byte(

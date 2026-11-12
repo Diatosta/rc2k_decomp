@@ -6,7 +6,7 @@ use crate::errors::Refused;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::owner_frame::Frame;
-use crate::session::Dword;
+use crate::session::PlainDword;
 
 /// The render states both batches set: (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (1, 0x1C), (5, 0x13), (2, 0x14), (1, 0x1B)];
@@ -14,12 +14,12 @@ const STATES: [(u32, u32); 5] = [(4, 0x15), (1, 0x1C), (5, 0x13), (2, 0x14), (1,
 /// A batch: its count, its first word (the draw's first argument), the vertices and
 /// indices, where the count is kept, and the second render state's value (+0x14).
 pub struct Batch<'a> {
-    pub count: &'a Dword,
-    pub word: &'a Dword,
+    pub count: &'a PlainDword,
+    pub word: &'a PlainDword,
     /// The platform's draw on the batch's vertices and indices (0x41ADF5, its result),
     /// given their counts.
     pub draw: fn(&crate::workers::PartScratch, &Frame, u32, u32) -> u32,
-    pub kept: &'a Dword,
+    pub kept: &'a PlainDword,
     pub blend: u32,
     pub text: &'static std::ffi::CStr,
 }
@@ -27,18 +27,18 @@ pub struct Batch<'a> {
 /// `race::flush_triangle_batch`'s (0x45FDCF).
 pub fn plain(frame: &Frame) -> Batch<'_> {
     Batch {
-        count: &frame.draw_batches.plain_count,
-        word: &frame.draw_batches.plain_word,
+        count: &frame.draw_batches().plain_count,
+        word: &frame.draw_batches().plain_word,
         draw: |part, frame, vertices, indices| {
             crate::platform_3d::draw_indexed(
                 part,
-                &frame.draw_batches.plain_vertices,
+                &frame.draw_batches().plain_vertices,
                 vertices,
-                &frame.draw_batches.plain_indices,
+                &frame.draw_batches().plain_indices,
                 indices,
             )
         },
-        kept: &frame.draw_batches.plain_kept,
+        kept: &frame.draw_batches().plain_kept,
         blend: 2,
         text: c"drawtri",
     }
@@ -47,18 +47,18 @@ pub fn plain(frame: &Frame) -> Batch<'_> {
 /// `race::flush_texture_batch`'s (0x45FEFE).
 pub fn textured(frame: &Frame) -> Batch<'_> {
     Batch {
-        count: &frame.draw_batches.textured_count,
-        word: &frame.draw_batches.textured_word,
+        count: &frame.draw_batches().textured_count,
+        word: &frame.draw_batches().textured_word,
         draw: |part, frame, vertices, indices| {
             crate::platform_3d::draw_indexed(
                 part,
-                &frame.draw_batches.textured_vertices,
+                &frame.draw_batches().textured_vertices,
                 vertices,
-                &frame.draw_batches.textured_indices,
+                &frame.draw_batches().textured_indices,
                 indices,
             )
         },
-        kept: &frame.draw_batches.textured_kept,
+        kept: &frame.draw_batches().textured_kept,
         blend: 6,
         text: c"drawtri",
     }

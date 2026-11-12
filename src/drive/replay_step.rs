@@ -30,10 +30,10 @@ fn car_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refuse
         .work_block
         .set(race.shared.work.car_block(slot as usize));
     crate::drive::load_car::load_car(&race.shared)?;
-    if race.shared.car.driver_kind.get() != 0 {
+    if race.shared.car().driver_kind.get() != 0 {
         crate::drive::read_car_controls::read_car_controls(race, net, scene)?;
         crate::physics::gear_input_rules::gear_input_rules(
-            &race.shared.car,
+            race.shared.car(),
             &race.shared.physics_tables,
             &race.shared.vars,
         );
@@ -44,13 +44,13 @@ fn car_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refuse
         crate::net::race_step::race_step(race, net)?;
     }
     race.shared
-        .car
+        .car()
         .step_clock
-        .set(race.shared.car.step_clock.get().wrapping_add(1));
+        .set(race.shared.car().step_clock.get().wrapping_add(1));
     race.shared
-        .car
+        .car()
         .run_ticks
-        .set(race.shared.car.run_ticks.get().wrapping_add(1));
+        .set(race.shared.car().run_ticks.get().wrapping_add(1));
     crate::drive::store_car::store_car(&race.shared)?;
     Ok(())
 }

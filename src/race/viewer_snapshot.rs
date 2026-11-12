@@ -19,21 +19,21 @@ pub fn viewer_snapshot(
     // Converted: `rc2k_core::race::viewer::next_snapshot`.
     let what = "the snapshot's digits";
     let digits: [u8; 3] = replay
-        .snapshot
+        .snapshot()
         .read_at(DIGITS_AT, 3, what)
         .unwrap_or_else(|e| crate::fatal::raise::end(what, e))
         .try_into()
         .expect("3 bytes");
     let (next, _, _) = rc2k_core::race::viewer::next_snapshot(digits);
     replay
-        .snapshot
+        .snapshot()
         .write_at(DIGITS_AT, &next, what)
         .unwrap_or_else(|e| crate::fatal::raise::end(what, e));
     // `cmp g_surfaceLocked, 1`'s carry: not locked.
     if crate::platform::lock_surface(gfx, system) >= 1 {
         crate::gfx::write_screen_pcx::write_screen_pcx(
             &gfx.shots,
-            Some(&replay.snapshot.text()),
+            Some(&replay.snapshot().text()),
             gfx,
             system,
         )?;

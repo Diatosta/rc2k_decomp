@@ -16,6 +16,7 @@ use crate::race::tyre_store::TyreChange;
 use crate::race::vars_store::RaceVars;
 use crate::race::view_store::RaceView;
 use crate::race::work_store::RaceWork;
+use crate::session::GameThread;
 
 /// The race's stores the menus, the network and the audio side read too.
 pub struct RaceShared {
@@ -24,12 +25,8 @@ pub struct RaceShared {
     pub work: RaceWork,
     /// `RACE_STATE` (`race`).
     pub state: RaceState,
-    /// `RACE_TABLES` (`race`).
-    pub tables: RaceTables,
     /// `BUFFERS` (`race`).
     pub buffers: Buffers,
-    /// `TYRE_CHANGE` (`race`).
-    pub tyre_change: TyreChange,
     /// `RACE_VARS` (`race`).
     /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
     pub vars: RaceVars,
@@ -39,22 +36,28 @@ pub struct RaceShared {
     /// `FRAME_SWITCHES` (`race`).
     /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
     pub switches: FrameSwitches,
-    /// `REPLAY_FILE` (`race`).
-    pub replay_file: ReplayFileBlock,
-    /// `TEMPLATES` (`race`).
-    pub replay_templates: Templates,
-    /// `REPLAYS` (`race`).
-    pub replays: Replays,
     /// `PHYSICS` (`physics`).
     /// One copy: the drawing only reads it (frame plan F4).
     pub physics_tables: PhysicsTables,
     /// `CAR` (`physics`): the work car. One copy: the drawing no longer reads it (frame plan
     /// F3), so the drawing threads need none of their own.
-    pub car: Car,
+    car: GameThread<Car>,
     /// The ten cars' blocks (`Race::replay`'s), for the code that holds only this group.
     pub car_blocks: &'static CarBlocks,
     /// The effects' settings with the cars' records (`Race::replay`'s), as `car_blocks`.
     pub effects_settings: &'static EffectsSettings,
+    /// `TEMPLATES` (`race`): the replay files' names.
+    pub replay_templates: Templates,
+    main: GameThread<SharedMain>,
+}
+
+/// What only the game's thread reaches among the shared stores (no drawing part and no other
+/// thread touches them).
+struct SharedMain {
+    tables: RaceTables,
+    tyre_change: TyreChange,
+    replay_file: ReplayFileBlock,
+    replays: Replays,
 }
 
 impl RaceShared {
@@ -67,20 +70,43 @@ impl RaceShared {
         RaceShared {
             work: RaceWork::new(),
             state: RaceState::new(),
-            tables: RaceTables::new(),
             buffers: Buffers::new(),
-            tyre_change: TyreChange::new(),
             vars: RaceVars::new(),
             view: RaceView::new(),
             switches: FrameSwitches::new(),
-            replay_file: ReplayFileBlock::new(),
-            replay_templates: Templates::new(),
-            replays: Replays::new(),
             physics_tables: PhysicsTables::new(),
-            car: Car::new(),
+            car: GameThread::new(Car::new()),
             car_blocks,
             effects_settings,
+            replay_templates: Templates::new(),
+            main: GameThread::new(SharedMain {
+                tables: RaceTables::new(),
+                tyre_change: TyreChange::new(),
+                replay_file: ReplayFileBlock::new(),
+                replays: Replays::new(),
+            }),
         }
+    }
+
+    /// The work car (`CAR`): the game thread's; the cars' blocks stay atomic, the drawing parts read them.
+    pub fn car(&self) -> &Car {
+        self.car.get()
+    }
+
+    pub fn tables(&self) -> &RaceTables {
+        &self.main.get().tables
+    }
+
+    pub fn tyre_change(&self) -> &TyreChange {
+        &self.main.get().tyre_change
+    }
+
+    pub fn replay_file(&self) -> &ReplayFileBlock {
+        &self.main.get().replay_file
+    }
+
+    pub fn replays(&self) -> &Replays {
+        &self.main.get().replays
     }
 
     /// Car `n`'s block (`g_carBlocks[n]`), refused for a value that names no block (see

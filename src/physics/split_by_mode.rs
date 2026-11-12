@@ -25,12 +25,12 @@ pub fn split_by_mode(
 ) -> Result<(), Refused> {
     match split_figure(shared.vars.run_kind.get()) {
         SplitFigure::Place => {
-            shared.car.split_gaps[0].set(car_blocks.cars[0].mode2_place.get());
+            shared.car().split_gaps[0].set(car_blocks.cars[0].mode2_place.get());
             Ok(())
         }
         SplitFigure::Rank => rank_split_time(o, split_tables, panel_and_overlay, shared),
         SplitFigure::Compare => {
-            compare_split_times(league, &shared.work, &shared.state, &shared.car)
+            compare_split_times(league, &shared.work, &shared.state, shared.car())
         }
         SplitFigure::Nothing => Ok(()),
     }

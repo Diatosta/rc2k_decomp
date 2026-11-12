@@ -184,7 +184,12 @@ fn log_glyph(glyph: &Glyph, number: u32, flags: u32, pixel_size: u32) {
 
 /// On the table being built: the sheet's table of `size` bytes at `sheet`
 /// becomes part of it.
-fn append_to_table(vars: &SheetVars, sheet: u32, more: &[u8]) -> Result<(), Refused> {
+fn append_to_table(
+    fonts: &crate::gfx::owner::FontStores,
+    vars: &SheetVars,
+    sheet: u32,
+    more: &[u8],
+) -> Result<(), Refused> {
     let size = more.len() as u32;
     let (table, held): (u32, u32) = (vars.table.get(), vars.table_size.get());
     if level() as i32 >= 3 {
@@ -201,9 +206,9 @@ fn append_to_table(vars: &SheetVars, sheet: u32, more: &[u8]) -> Result<(), Refu
     if table == 0 {
         return Err(fatal(0x80E4_8077, ""));
     }
-    let mut joined = glyph_store::read_bytes(table, 0, held as usize, "the glyph table")?;
+    let mut joined = glyph_store::read_bytes(fonts, table, 0, held as usize, "the glyph table")?;
     append(&mut joined, more)?;
-    glyph_store::write_bytes(table, 0, &joined, "the glyph table")?;
+    glyph_store::write_bytes(fonts, table, 0, &joined, "the glyph table")?;
     vars.table_size.set(joined.len() as u32);
     Ok(())
 }
@@ -434,7 +439,7 @@ pub fn build_glyphs(
         if take_from_list(list, size)?.is_none() {
             return Err(fatal(0x80E4_8012, ""));
         }
-        append_to_table(vars, place, &table)?;
+        append_to_table(&gfx.fonts, vars, place, &table)?;
 
         if flags & ONE_FILE != 0 {
             return Ok(());

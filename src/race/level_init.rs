@@ -155,7 +155,7 @@ pub fn load_texture_info(
     course: &Course,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let file_numbers = &scene.file_numbers;
+    let file_numbers = &scene.file_numbers();
     let info = course.lists.course_info.get();
     if info == 0 {
         return Err(BadInput("no course memory: the original reads into 0").into());
@@ -181,7 +181,7 @@ pub fn set_course_number(
 ) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::stage::two_digits`.
     let [tens, units] = rc2k_core::race::stage::two_digits(eax as u8);
-    for place in number_places(&race.course.level_paths) {
+    for place in number_places(race.course.level_paths()) {
         place.write(&[tens, units], "a path's course number")?;
     }
     for text in [
@@ -189,7 +189,7 @@ pub fn set_course_number(
         texts::NUMBER_PLACE_B,
         texts::NUMBER_PLACE_C,
     ] {
-        scene.file_numbers.text_at(text).write_text_at(
+        scene.file_numbers().text_at(text).write_text_at(
             0,
             &[tens, units],
             "a path's course number",
@@ -201,12 +201,12 @@ pub fn set_course_number(
 /// `race::load_error_list` (0x439A92): the file named at 0x60AE02, 0x2000 bytes at most, to
 /// 0x637660.
 pub fn load_error_list(frame: &Frame, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    crate::files::read_whole_file::read_whole_file_bytes(
+    crate::files::read_whole_file::read_whole_file_plain_bytes(
         &scene
-            .file_numbers
+            .file_numbers()
             .text_at(texts::ERROR_LIST_PATH)
             .text("the error list's path")?,
-        &frame.error_list.list,
+        &frame.error_list().list,
     )?;
     Ok(())
 }
@@ -276,7 +276,7 @@ pub fn init_checkpoints(race: &Race) -> Result<(), Refused> {
     {
         let kinds = shared.vars.checkpoint_count.get();
         if (kinds.wrapping_sub(2) as i32) < 0 {
-            physics.split_tables.split_colour_count.set(0);
+            physics.split_tables().split_colour_count.set(0);
             return Ok(());
         }
         let end = shared.vars.last_checkpoint.get();
@@ -296,14 +296,14 @@ pub fn init_checkpoints(race: &Race) -> Result<(), Refused> {
             )) != 0
         })?;
         trap.finish()?;
-        physics.split_tables.split_colour_count.set(0);
+        physics.split_tables().split_colour_count.set(0);
         // By address: the list runs on past its 0x101 entries as the original's does.
-        let list = &physics.split_tables.checkpoints;
+        let list = &physics.split_tables().checkpoints;
         for (k, &n) in listed.iter().enumerate() {
-            crate::session::write_on_in(&physics.split_tables, list, k, n, "a course variable")?;
+            crate::session::write_on_in(physics.split_tables(), list, k, n, "a course variable")?;
         }
         physics
-            .split_tables
+            .split_tables()
             .split_colour_count
             .set((listed.len() as u32).wrapping_sub(1));
     }

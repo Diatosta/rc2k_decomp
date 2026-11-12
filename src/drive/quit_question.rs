@@ -29,8 +29,8 @@ pub fn quit_question(race: &Race, o: crate::owners::Owners<'static>) -> Result<u
     // The carried value: the best frame, then each key's answer, then what the frame leaves; it goes
     // into `input::yes_no_key` (the key given, when one is).
     let (mut eax, _) = race_ticks::best_frame(race.car_blocks().cars[0].step_clock.get());
-    if race_ticks::keeps_frame(eax, replay.replay_frames.last_kept.get()) {
-        replay.replay_frames.last_kept.set(eax);
+    if race_ticks::keeps_frame(eax, replay.replay_frames().last_kept.get()) {
+        replay.replay_frames().last_kept.set(eax);
     }
     let kind = race_ticks::quit_notice(shared.vars.no_replay.get() != 0);
     for c in 0..8 {

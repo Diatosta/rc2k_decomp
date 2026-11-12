@@ -12,7 +12,10 @@ use crate::errors::BadInput;
 use crate::gfx::formats::Formats;
 use crate::gfx::pixel_format::PixelFormat;
 
+// The original's six arguments, plus the font stores and formats it reads.
+#[allow(clippy::too_many_arguments)]
 pub fn blend_palette(
+    fonts: &crate::gfx::owner::FontStores,
     formats: &Formats,
     first: u32,
     second: u32,
@@ -31,10 +34,9 @@ pub fn blend_palette(
     }
     // The palettes are places of `gfx::glyph_store`.
     let entry_of = |palette: u32, n: u32| -> Result<u32, BadInput> {
-        let b = crate::gfx::glyph_store::read_bytes(palette, 4 * n, 4, "a palette")?;
+        let b = crate::gfx::glyph_store::read_bytes(fonts, palette, 4 * n, 4, "a palette")?;
         Ok(u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
     };
-    let write = crate::gfx::glyph_store::write_bytes;
     for n in 0..count {
         // Converted: `rc2k_core::gfx::pixels::blend_entry`; the scratch bytes as
         // `components_to_pixel` leaves them.
@@ -48,7 +50,7 @@ pub fn blend_palette(
         if let Some(scratch) = scratch {
             formats.scratch.write(&scratch);
         }
-        write(out, 4 * n, &pixel.to_le_bytes(), "a palette")?;
+        crate::gfx::glyph_store::write_bytes(fonts, out, 4 * n, &pixel.to_le_bytes(), "a palette")?;
     }
     Ok(())
 }

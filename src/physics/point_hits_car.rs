@@ -208,7 +208,7 @@ mod reference_vectors {
                     x87_3(
                         &crate::race::owner::race().physics.contact,
                         &crate::race::owner::race().course.numbers,
-                        &crate::race::owner::race().shared.car,
+                        crate::race::owner::race().shared.car(),
                     );
                 },
             },

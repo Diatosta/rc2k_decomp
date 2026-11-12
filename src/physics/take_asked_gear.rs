@@ -14,10 +14,10 @@ use crate::race::owner_shared::RaceShared;
 // Converted: `rc2k_core::physics::gearbox::asked_gear`.
 pub fn take_asked_gear(numbers: &Numbers, shared: &RaceShared) -> Result<(), Refused> {
     let run = || -> Result<(), Refused> {
-        shared.car.gear_changed.set(0u32);
-        let word: u32 = shared.car.input_keys.get();
+        shared.car().gear_changed.set(0u32);
+        let word: u32 = shared.car().input_keys.get();
         let asked = rc2k_core::physics::gearbox::asked_gear(word);
-        let gear = allowed_gear(&shared.car, numbers, asked)?;
+        let gear = allowed_gear(shared.car(), numbers, asked)?;
         shared.physics_tables.gear_asked.set(gear);
         change_gear(numbers, shared)
     };

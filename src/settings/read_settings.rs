@@ -262,17 +262,17 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"framecounter",
         0x5EB100,
-        dword!(o => o.race.frame.counter.show),
+        dword!(o => o.race.frame.counter().show),
     ),
     (
         b"noreplay",
         0x5BEC7C,
-        dword!(o => o.race.shared.replay_file.no_replay_switch),
+        dword!(o => o.race.shared.replay_file().no_replay_switch),
     ),
     (
         b"replaykeys",
         0x5BECA8,
-        dword!(o => o.race.shared.replay_file.viewer_editing),
+        dword!(o => o.race.shared.replay_file().viewer_editing),
     ),
     (
         b"logfile",
@@ -283,7 +283,7 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"key",
         0x4E052C,
-        dword!(o => o.race.replay.seal_work.key[0]),
+        dword!(o => o.race.replay.seal_work().key[0]),
     ),
     (
         b"allsecretcars",
@@ -313,7 +313,7 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"seasoncode",
         0x5BECAC,
-        dword!(o => o.race.shared.replay_file.season_code),
+        dword!(o => o.race.shared.replay_file().season_code),
     ),
     (
         b"noautoneutral",

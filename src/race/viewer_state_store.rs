@@ -4,41 +4,41 @@ use crate::place::BytePlace;
 #[cfg(test)]
 use crate::race::owner::race;
 use crate::race::owner_replay::Replay;
-use crate::session::{Dword, Flag};
+use crate::session::{PlainDword, PlainFlag};
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ReplayViewBlock {
     /// +0x0 (0x5C2518): the 16-byte frame that pads a block's end, zeros (`race::replay`, `race::add_replay_frame`).
-    pub pad_frame: [Dword; 4],
+    pub pad_frame: [PlainDword; 4],
     /// +0x10 (0x5C2528): `dword_5C2528`: the new replay file's length so far (`race::save_viewed_replay`, `race::replay`).
-    pub file_offset: Dword,
+    pub file_offset: PlainDword,
     /// +0x14 (0x5C252C): `dword_5C252C`: frames in the block being written, 0 .. 100 (`race::replay`, `drive::write_replay_frames`).
-    pub frames_in_block: Dword,
+    pub frames_in_block: PlainDword,
     /// +0x18 (0x5C2530): `g_replayBlock`: the block shown/played (`race::viewer`, `drive::replay_clock_tick`, `drive::read_replay_frame`).
-    pub replay_block: Dword,
+    pub replay_block: PlainDword,
     /// +0x1c (0x5C2534): `g_replayFrame`: its frame in the block, 0 .. 99 (`race::viewer`, `drive::replay_clock_tick`).
-    pub replay_frame: Dword,
+    pub replay_frame: PlainDword,
     /// +0x20 (0x5C2538): `g_playEnd`: playing stops before this block, -1 none (`race::viewer`, `drive::race_loop`, `drive::finish_run`).
-    pub play_end: Dword,
+    pub play_end: PlainDword,
     /// +0x24 (0x5C253C): `g_playFromHere` (`race::viewer`).
-    pub play_from_here: Dword,
+    pub play_from_here: PlainDword,
     /// +0x28 (0x5C2540): `g_snapshotAsked`: a picture of the next frame asked (`race::viewer_frame`).
-    pub snapshot_asked: Dword,
+    pub snapshot_asked: PlainDword,
     /// +0x2c (0x5C2544): `g_lastRaceViewed`: the slot is 222 (`race::viewer`).
-    pub last_race_viewed: Flag,
+    pub last_race_viewed: PlainFlag,
     /// +0x30 (0x5C2548): `g_viewerOnlyShown`: modes 4 and 5 (`race::viewer`).
-    pub viewer_only_shown: Dword,
+    pub viewer_only_shown: PlainDword,
     /// +0x34 (0x5C254C): `g_viewerKeysIgnored`: mode 5 (`race::viewer`).
-    pub viewer_keys_ignored: Dword,
+    pub viewer_keys_ignored: PlainDword,
     /// +0x38 (0x5C2550): `g_keyAfterPlay`; image value -1 (`race::viewer`).
-    pub key_after_play: Dword,
+    pub key_after_play: PlainDword,
     /// +0x3c (0x5C2554): `g_waitKeyRelease`: keys held after playing (`race::viewer`).
-    pub wait_key_release: Dword,
+    pub wait_key_release: PlainDword,
     /// +0x40 (0x5C2558): `g_escapeCount`: Escape twice leaves (`race::viewer`).
-    pub escape_count: Dword,
+    pub escape_count: PlainDword,
     /// +0x44 (0x5C255C): `g_viewerList`, taken in place: header 0x18 bytes (byte +1 = item count, set at run time; +0x10 a pointer to the key table), then 26 items of 16 bytes (flags, source rectangle pointer, 0, screen rectangle pointer; relocated pointers) (`race::viewer_frame`, `race::mark_viewer_items`, `race::draw_viewer_item`).
-    pub viewer_list: [Dword; 110],
+    pub viewer_list: [PlainDword; 110],
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
@@ -91,7 +91,7 @@ impl ReplayViewBlock {
     /// Where the list's key table (the header's +0x10) is.
     pub fn key_table(replay: &Replay) -> Result<BytePlace, crate::errors::BadInput> {
         Self::named(
-            replay.replay_view.viewer_list[4].get(),
+            replay.replay_view().viewer_list[4].get(),
             "the viewer list's key table off its place",
         )
     }
@@ -142,7 +142,7 @@ impl ReplayViewBlock {
         if index >= Self::ITEMS {
             return Err(crate::errors::BadInput("a viewer item past the 26"));
         }
-        Ok(replay.replay_view.viewer_list[6 + 4 * index as usize + field].get())
+        Ok(replay.replay_view().viewer_list[6 + 4 * index as usize + field].get())
     }
 }
 
@@ -156,7 +156,7 @@ const _: () = assert!(END - START == core::mem::size_of::<ReplayViewBlock>());
 /// The piece's host address (the alignment checks).
 #[cfg(test)]
 pub fn piece_addr() -> usize {
-    core::ptr::from_ref(&race().replay.replay_view).addr()
+    core::ptr::from_ref(race().replay.replay_view()).addr()
 }
 
 #[cfg(test)]
@@ -167,7 +167,7 @@ mod tests {
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
-            &race().replay.replay_view,
+            race().replay.replay_view(),
         );
     }
 
@@ -182,16 +182,16 @@ mod tests {
             )
         };
         let key_table = 0x10;
-        assert_eq!(replay.replay_view.viewer_list[4].get(), name(key_table));
+        assert_eq!(replay.replay_view().viewer_list[4].get(), name(key_table));
         for k in 0..26u32 {
             let item = 0x18 + 0x10 * k as usize;
             // Kept as the image's names; resolved to the same places.
             assert_eq!(
-                replay.replay_view.viewer_list[6 + 4 * k as usize + 1].get(),
+                replay.replay_view().viewer_list[6 + 4 * k as usize + 1].get(),
                 name(item + 4)
             );
             assert_eq!(
-                replay.replay_view.viewer_list[6 + 4 * k as usize + 3].get(),
+                replay.replay_view().viewer_list[6 + 4 * k as usize + 3].get(),
                 name(item + 0xC)
             );
             match ReplayViewBlock::item_picture(replay, k).unwrap() {

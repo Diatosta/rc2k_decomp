@@ -122,7 +122,7 @@ pub fn set_listener(
     race.effects_settings().listener_figures[2].set(view.sun.place[1].get());
     let f = listener::listener_points(f, race.shared.physics_tables.ground_drop.get());
     for (k, &v) in f.iter().enumerate() {
-        physics.camera.listener_points[k].set(v as u32);
+        physics.camera().listener_points[k].set(v as u32);
     }
     // The car block 0's body matrix (0x70FC2C).
     for k in 0..16 {
@@ -196,7 +196,7 @@ pub fn set_listener(
     race.effects_settings()
         .engine_speed_scaled_copy
         .set(x87::loaded(&car.engine_speed_scaled));
-    if physics.split_tables.still.get() != 0 {
+    if physics.split_tables().still.get() != 0 {
         race.effects_settings().spline_handbrake.set(0);
         race.effects_settings().spline_gear_changed.set(0);
     }

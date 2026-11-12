@@ -3,7 +3,7 @@
 //! working figures, the force and contact records, the gearbox and the spec's figures.
 //! Named from the code's uses (2026-10-25); most names are readings, `unknown_*` runs are
 //! places no ported code names. `#[repr(C)]` with the image's layout, over the race block's
-//! bytes (`PHYSICS`, as `crate::race::owner::race().shared.car`) until the code reaching them by RVA from
+//! bytes (`PHYSICS`, as `crate::race::owner::race().shared.car()`) until the code reaching them by RVA from
 //! the race block is typed.
 
 #[cfg(test)]

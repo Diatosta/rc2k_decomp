@@ -70,7 +70,7 @@ const _: () = assert!(END - START == core::mem::size_of::<SplitTables>());
 /// The piece's host address (the alignment checks).
 #[cfg(test)]
 pub fn piece_addr() -> usize {
-    core::ptr::from_ref(&race().physics.split_tables).addr()
+    core::ptr::from_ref(race().physics.split_tables()).addr()
 }
 
 #[cfg(test)]
@@ -81,7 +81,7 @@ mod tests {
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
-            &race().physics.split_tables,
+            race().physics.split_tables(),
         );
     }
 

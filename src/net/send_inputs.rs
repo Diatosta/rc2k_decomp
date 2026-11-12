@@ -111,7 +111,7 @@ const EXTRA_FIELDS: [Field; 9] = [
 /// The shared body: the car block `g_car`, the message built at `RaceWork::net_message`.
 pub fn send_fields(race: &Race, net: &Net, m: &Message) -> Result<(), Refused> {
     let shared = &race.shared;
-    let car = &shared.car;
+    let car = shared.car();
     let message = &shared.work.net_message;
     log_send(race, &net.vars, m.text);
     // The tag, then the kind's fields' bits.
@@ -138,7 +138,7 @@ mod tests {
     /// Each field sits where the core's table had its offset in the car's block.
     #[test]
     fn the_fields_sit_where_the_offsets_were() {
-        let car = &race().shared.car;
+        let car = race().shared.car();
         let base = core::ptr::from_ref(car).addr();
         let offsets = |kind| -> Vec<u32> {
             fields(kind)
@@ -165,7 +165,7 @@ mod tests {
     /// The limits are the ranges the core's table matched by offset.
     #[test]
     fn the_limits_are_the_old_ranges() {
-        let car = &race().shared.car;
+        let car = race().shared.car();
         let base = core::ptr::from_ref(car).addr();
         for kind in [Kind::Inputs, Kind::Position, Kind::Extra] {
             for (field, limit) in fields(kind) {

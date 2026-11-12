@@ -21,14 +21,14 @@ use crate::race::owner::Race;
 // Converted: `rc2k_core::physics::splits::{timer_rate, timer_run}`.
 pub fn race_timers(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
     let sound = o.sound;
-    let (physics, numbers, league) = (&race.physics, &race.course.numbers, &race.course.league);
+    let (physics, numbers, league) = (&race.physics, &race.course.numbers, race.course.league());
     let (frame_work, panel_and_overlay) = (&race.frame.frame_work, &race.frame.panel_and_overlay);
     let (shared, car_blocks) = (&race.shared, race.car_blocks());
     use rc2k_core::physics::splits::{TimerRun, timer_rate, timer_run};
     shared.physics_tables.weight.set(1.0f32);
-    let finished = shared.car.finish_flag.get() != 0;
+    let finished = shared.car().finish_flag.get() != 0;
     let factor = if finished {
-        physics.split_tables.timer_factor.bits()
+        physics.split_tables().timer_factor.bits()
     } else {
         0
     };
@@ -40,9 +40,9 @@ pub fn race_timers(o: crate::owners::Owners<'static>, race: &Race) -> Result<(),
     if run == TimerRun::None {
         return Ok(());
     }
-    count_start_second(&shared.car);
+    count_start_second(shared.car());
     if run == TimerRun::Start {
-        count_down_start(frame_work, &shared.work, &shared.car, sound)?;
+        count_down_start(frame_work, &shared.work, shared.car(), sound)?;
         take_split_counted(
             o,
             physics,
@@ -52,18 +52,18 @@ pub fn race_timers(o: crate::owners::Owners<'static>, race: &Race) -> Result<(),
             shared,
             car_blocks,
         )?;
-        start_go_notice(frame_work, &shared.work, &shared.car, sound, o.menus)?;
+        start_go_notice(frame_work, &shared.work, shared.car(), sound, o.menus)?;
     } else {
         take_split(
             o,
-            &physics.split_tables,
+            physics.split_tables(),
             league,
             panel_and_overlay,
             shared,
             car_blocks,
         )?;
     }
-    count_stop_timers(&shared.car, numbers);
-    mark_car_started(&shared.car);
+    count_stop_timers(shared.car(), numbers);
+    mark_car_started(shared.car());
     Ok(())
 }

@@ -65,7 +65,7 @@ pub fn read_kind_records(
         let (at, room) = records(file);
         read_whole_file_store(
             &scene
-                .file_numbers
+                .file_numbers()
                 .text_at(file.path)
                 .text("a kinds file's path")?,
             race.polygon_tables(),

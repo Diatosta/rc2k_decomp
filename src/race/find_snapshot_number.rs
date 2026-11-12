@@ -34,11 +34,11 @@ pub fn find_first(pattern: &[u8]) -> bool {
 pub fn find_snapshot_number(replay: &Replay) -> Result<(), BadInput> {
     // The name's bytes: a file name.
     replay
-        .snapshot
+        .snapshot()
         .write_at(DIGITS_AT, b"???.", "the snapshot name")?;
     let mut highest = 0u32;
     // The pattern: the snapshot name's text, read where it is named.
-    let found = match crate::files::cstring(&replay.snapshot, "a search pattern") {
+    let found = match crate::files::cstring(replay.snapshot(), "a search pattern") {
         Ok(pattern) => find_first(&pattern),
         Err(_) => {
             set_last_file_path(None);
@@ -64,7 +64,7 @@ pub fn find_snapshot_number(replay: &Replay) -> Result<(), BadInput> {
     crate::files::search::close();
     let digits = crate::strings::format_u32::format_u32(highest, 0x13);
     replay
-        .snapshot
+        .snapshot()
         .write_at(DIGITS_AT, &digits, "the snapshot name")?;
     Ok(())
 }
@@ -76,6 +76,6 @@ mod block_tests {
     #[test]
     fn first_value_is_the_games() {
         let replay = &race().replay;
-        crate::test_support::first_values::assert_block_starts_as_the_games(&replay.snapshot);
+        crate::test_support::first_values::assert_block_starts_as_the_games(replay.snapshot());
     }
 }

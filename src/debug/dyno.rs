@@ -79,12 +79,12 @@ static MEASURED: Mutex<Option<Measured>> = Mutex::new(None);
 fn places<'a>(shared: &'a RaceShared, scene: &'a Scene) -> [&'a dyn Cell32; 15] {
     let drawing = &scene.drawing;
     [
-        &shared.car.gear,
-        &shared.car.throttle,
-        &shared.car.engine_speed,
-        &shared.car.local_velocity[2],
-        &shared.car.drive_speed_a,
-        &shared.car.drive_speed_b,
+        &shared.car().gear,
+        &shared.car().throttle,
+        &shared.car().engine_speed,
+        &shared.car().local_velocity[2],
+        &shared.car().drive_speed_a,
+        &shared.car().drive_speed_b,
         &shared.physics_tables.drive_torque,
         &shared.physics_tables.drive_ratio,
         &shared.physics_tables.engine_force,
@@ -117,12 +117,12 @@ fn torque(race: &Race, scene: &Scene) {
         sum_times_int_over_minus(
             shared.physics_tables.engine_force.bits(),
             shared.physics_tables.engine_torque.bits(),
-            shared.car.throttle.get() as i32,
+            shared.car().throttle.get() as i32,
             course.numbers.k256.bits(),
         )
         .to_bits(),
     );
-    let gear = shared.car.gear.get() as i32;
+    let gear = shared.car().gear.get() as i32;
     shared.physics_tables.drive_torque.set_bits(
         mul_div2(
             shared.physics_tables.drive_ratio.bits(),
@@ -132,11 +132,11 @@ fn torque(race: &Race, scene: &Scene) {
         )
         .to_bits(),
     );
-    if shared.car.drive_cut_steps.get() != 0 {
+    if shared.car().drive_cut_steps.get() != 0 {
         shared.physics_tables.drive_torque.set_bits(0);
     }
     drive_torque_share(
-        &race.shared.car,
+        race.shared.car(),
         &race.shared.physics_tables,
         &race.course.numbers,
         scene,
@@ -147,21 +147,21 @@ fn torque(race: &Race, scene: &Scene) {
 /// speed is no number (a ratio of 0).
 fn drive_at(race: &Race, scene: &Scene, speed: f32) -> Option<(f32, f32)> {
     let shared = &race.shared;
-    shared.car.drive_speed_a.set(speed);
-    shared.car.drive_speed_b.set(speed);
-    shared.car.local_velocity[2].set(speed);
+    shared.car().drive_speed_a.set(speed);
+    shared.car().drive_speed_b.set(speed);
+    shared.car().local_velocity[2].set(speed);
     revs_from_wheels(
-        &race.shared.car,
+        race.shared.car(),
         &race.shared.physics_tables,
         &race.course.numbers,
     )
     .ok()?;
-    let revs = shared.car.engine_speed.get();
-    let limit = shared.car.engine_speed_limit.get();
+    let revs = shared.car().engine_speed.get();
+    let limit = shared.car().engine_speed_limit.get();
     if revs.is_nan() || revs >= limit || revs < 0.0 {
         return None;
     }
-    shared.car.throttle.set(0x100);
+    shared.car().throttle.set(0x100);
     torque(race, scene);
     Some((shared.physics_tables.drive_torque.get(), revs / limit))
 }
@@ -170,7 +170,7 @@ fn drive_at(race: &Race, scene: &Scene, speed: f32) -> Option<(f32, f32)> {
 fn measure(race: &Race, scene: &Scene) -> Option<Measured> {
     let shared = &race.shared;
     let course = &race.course;
-    let limit = shared.car.engine_speed_limit.get();
+    let limit = shared.car().engine_speed_limit.get();
     let count = shared.physics_tables.gear_count.get().min(7) as usize;
     if limit.is_nan() || limit <= 0.0 || count == 0 {
         return None;
@@ -186,7 +186,7 @@ fn measure(race: &Race, scene: &Scene) -> Option<Measured> {
         let mut gears = Vec::new();
         let mut best = [f32::MIN; POINTS];
         for gear in 1..=count {
-            shared.car.gear.set(gear as u32);
+            shared.car().gear.set(gear as u32);
             let mut curve = Vec::new();
             for (n, best) in best.iter_mut().enumerate() {
                 let speed = n as f32 / POINTS as f32 * TOP_SPEED;
@@ -231,12 +231,12 @@ fn measure(race: &Race, scene: &Scene) -> Option<Measured> {
 /// below the limit.
 fn cursor(race: &Race, scene: &Scene) -> Option<(f32, f32, f32, i32)> {
     let shared = &race.shared;
-    let gear = shared.car.gear.get() as i32;
-    let speed = shared.car.drive_speed_a.get();
+    let gear = shared.car().gear.get() as i32;
+    let speed = shared.car().drive_speed_a.get();
     if !(1..=7).contains(&gear)
         || !speed.is_finite()
-        || shared.car.engine_speed_limit.get().is_nan()
-        || shared.car.engine_speed_limit.get() <= 0.0
+        || shared.car().engine_speed_limit.get().is_nan()
+        || shared.car().engine_speed_limit.get() <= 0.0
     {
         return None;
     }
@@ -351,10 +351,10 @@ mod tests {
     fn measuring_puts_back_all_it_writes() {
         let shared = &race().shared;
         let _lock = crate::test_support::test_lock();
-        let was_limit = shared.car.engine_speed_limit.bits();
+        let was_limit = shared.car().engine_speed_limit.bits();
         let was_count = shared.physics_tables.gear_count.get();
         let was_ratio = shared.physics_tables.gear_ratios[2].bits();
-        shared.car.engine_speed_limit.set(7000.0_f32);
+        shared.car().engine_speed_limit.set(7000.0_f32);
         shared.physics_tables.gear_count.set(1);
         shared.physics_tables.gear_ratios[2].set(0.01_f32);
         let before = places(shared, scene()).map(crate::session::Cell32::bits);
@@ -365,7 +365,7 @@ mod tests {
         );
         assert_eq!(m.gears.len(), 1);
         assert!(!m.gears[0].is_empty());
-        shared.car.engine_speed_limit.set_bits(was_limit);
+        shared.car().engine_speed_limit.set_bits(was_limit);
         shared.physics_tables.gear_count.set(was_count);
         shared.physics_tables.gear_ratios[2].set_bits(was_ratio);
     }
@@ -374,9 +374,9 @@ mod tests {
     fn no_limit_no_measuring() {
         let shared = &race().shared;
         let _lock = crate::test_support::test_lock();
-        let was = shared.car.engine_speed_limit.bits();
-        shared.car.engine_speed_limit.set_bits(0);
+        let was = shared.car().engine_speed_limit.bits();
+        shared.car().engine_speed_limit.set_bits(0);
         assert!(measure(race(), scene()).is_none());
-        shared.car.engine_speed_limit.set_bits(was);
+        shared.car().engine_speed_limit.set_bits(was);
     }
 }

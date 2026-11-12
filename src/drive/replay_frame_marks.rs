@@ -9,7 +9,7 @@ use crate::race::owner::Race;
 // Converted: `rc2k_core::drive::replay_frames::marks_offset`.
 pub fn replay_frame_marks(race: &Race) -> Result<(), BadInput> {
     let replay = &race.replay;
-    let at = rc2k_core::drive::replay_frames::marks_offset(replay.replay_view.replay_block.get());
+    let at = rc2k_core::drive::replay_frames::marks_offset(replay.replay_view().replay_block.get());
     let marks: [u32; 2] =
         crate::cells::load_value(&race.viewer_buffers().block_cameras, at as usize)?;
     for (k, mark) in marks.into_iter().enumerate() {

@@ -3,17 +3,17 @@
 //! second and the seven for the second, then `files\s\data\ldata` (0x1320 bytes). `#[repr(C)]`
 //! with the image's layout, over the race block's bytes (`LIGHTS_DATA`). Names are readings.
 
-use crate::session::{Bytes, Dword};
+use crate::session::{PlainBytes, PlainDword};
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct LightsData {
     /// +0x0 (0x6077B0): `unk_6077B0`: seven dwords of the camera's place (`physics::place_camera`, the usual mode).
-    pub place_usual: [Dword; 7],
+    pub place_usual: [PlainDword; 7],
     /// +0x1c (0x6077CC): `unk_6077CC`: seven dwords of the camera's place (`physics::place_camera`, the second record mode).
-    pub place_second: [Dword; 7],
+    pub place_second: [PlainDword; 7],
     /// +0x38 (0x6077E8): `g_lightsData`: the lights' data, 0x22 records of 0x90 bytes (`race::load_lights_data`, `race::copy_lights_data`).
-    pub lights: Bytes<0x1320>,
+    pub lights: PlainBytes<0x1320>,
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
@@ -36,7 +36,7 @@ const _: () = assert!(END - START == core::mem::size_of::<LightsData>());
 /// The piece's host address (the alignment checks).
 #[cfg(test)]
 pub fn piece_addr() -> usize {
-    core::ptr::from_ref(&crate::race::owner::RACE.course.lights_data).addr()
+    core::ptr::from_ref(crate::race::owner::RACE.course.lights_data()).addr()
 }
 
 #[cfg(test)]
@@ -47,7 +47,7 @@ mod tests {
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::race::owner::RACE.course.lights_data,
+            crate::race::owner::RACE.course.lights_data(),
         );
     }
 

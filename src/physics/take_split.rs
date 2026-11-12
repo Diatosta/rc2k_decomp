@@ -24,12 +24,12 @@ pub fn take_split(
     shared: &RaceShared,
     car_blocks: &crate::race::blocks_store::CarBlocks,
 ) -> Result<(), Refused> {
-    if shared.car.finish_flag.get() != 0 {
+    if shared.car().finish_flag.get() != 0 {
         return Ok(());
     }
     if !split_due(
-        shared.car.splits_recorded.get(),
-        shared.car.splits_passed.get(),
+        shared.car().splits_recorded.get(),
+        shared.car().splits_passed.get(),
     )? {
         return Ok(());
     }
@@ -42,23 +42,23 @@ pub fn take_split(
         car_blocks,
     )?;
     put_split_time(
-        &shared.car,
-        shared.car.splits_recorded.get() as usize,
-        shared.car.split_gaps[0].get(),
+        shared.car(),
+        shared.car().splits_recorded.get() as usize,
+        shared.car().split_gaps[0].get(),
     )?;
     shared
-        .car
+        .car()
         .splits_recorded
-        .set(shared.car.splits_passed.get());
+        .set(shared.car().splits_passed.get());
     if finished_at(
-        shared.car.splits_recorded.get(),
+        shared.car().splits_recorded.get(),
         split_tables.split_colour_count.get(),
     ) {
-        shared.car.finish_flag.set(1);
-        shared.car.started_stand_timer.set(0);
-        shared.car.notice_id.set(FINISH_NOTICE);
-        shared.car.notice_time.set(u32::MAX);
-        shared.car.notice_time_b.set(0);
+        shared.car().finish_flag.set(1);
+        shared.car().started_stand_timer.set(0);
+        shared.car().notice_id.set(FINISH_NOTICE);
+        shared.car().notice_time.set(u32::MAX);
+        shared.car().notice_time_b.set(0);
     }
     Ok(())
 }

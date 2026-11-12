@@ -11,7 +11,7 @@ use crate::d3d::vertices_store::PolygonVertices;
 use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
 use crate::race::viewer_screen_store::ViewerPanelBlock;
-use crate::session::{Dword, read_all};
+use crate::session::{Cell32, Dword, read_all};
 use rc2k_core::drive::tyre_screen::quad_corners;
 
 /// The texture rectangle at `uv`, the screen rectangle `rect`, the colour `colour`; For the
@@ -31,8 +31,8 @@ pub fn tyre_quad(
 /// `tyre_quad` on rectangles held as cells.
 // Converted: `rc2k_core::drive::tyre_screen::quad_corners` (the shared tail stays x87).
 pub fn tyre_quad_cells(
-    uv: &[Dword; 4],
-    rect: &[Dword; 4],
+    uv: &[impl Cell32; 4],
+    rect: &[impl Cell32; 4],
     colour: u32,
     panel: &ViewerPanelBlock,
     system: &crate::system::owner::System,

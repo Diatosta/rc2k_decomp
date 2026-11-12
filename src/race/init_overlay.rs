@@ -26,7 +26,7 @@ pub fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
         // OVERLAY_CLEARED}`; the miles the x87's.
         use rc2k_core::race::panel::{OVERLAY_CLEARED, OVERLAY_SIZES, half_length, overlay_parts};
         let (found, parts) = overlay_parts(race.shared.vars.checkpoint_count.get(), || {
-            race.physics.split_tables.split_colour_count.get()
+            race.physics.split_tables().split_colour_count.get()
         })?;
         if let Some(count) = found {
             race.frame.panel_and_overlay.panel.overlay_parts.set(count);
@@ -40,7 +40,7 @@ pub fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
                 );
                 // By address: the list runs past its 0x101 entries, and a face number past
                 // the distances is the original's read.
-                let list = &race.physics.split_tables.checkpoints;
+                let list = &race.physics.split_tables().checkpoints;
                 let distances = &race.checkpoints().distances;
                 let distance = |k: u32| {
                     crate::session::read_on_in(
@@ -52,13 +52,13 @@ pub fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
                 };
                 for n in 0..count {
                     let end = distance(crate::session::read_on_in(
-                        &race.physics.split_tables,
+                        race.physics.split_tables(),
                         list,
                         n as usize + 1,
                         "an overlay variable",
                     )?)?;
                     let start = distance(crate::session::read_on_in(
-                        &race.physics.split_tables,
+                        race.physics.split_tables(),
                         list,
                         n as usize,
                         "an overlay variable",

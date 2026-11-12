@@ -13,7 +13,7 @@ use crate::race::owner_shared::RaceShared;
 
 // Converted: `rc2k_core::drive::work_car::{car_slot, car_block}`.
 pub fn store_car(shared: &RaceShared) -> Result<(), Refused> {
-    copy_car(&shared.car, current_block(shared)?);
+    copy_car(shared.car(), current_block(shared)?);
 
     Ok(())
 }

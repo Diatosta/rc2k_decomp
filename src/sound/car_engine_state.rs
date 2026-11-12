@@ -151,7 +151,7 @@ pub fn car_engine_state(
     let clock = sound.race.clock.get().last.get();
     // The revs extrapolated, worked out first: its `idiv` may trap.
     let change = extrapolation(&object, clock, || {
-        race.shared.replay_file.hold_car_revs.get()
+        race.shared.replay_file().hold_car_revs.get()
     })
     .map_err(BadInput::from)?;
     readings(&mut object, clock, change);

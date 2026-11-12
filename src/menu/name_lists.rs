@@ -49,7 +49,7 @@ pub fn savegame_name(menus: &Menus, saves: &'static Saves) -> Result<BytePlace, 
 pub fn replay_name(menus: &Menus, race: &'static Race) -> Result<BytePlace, BadInput> {
     highlighted(
         menus,
-        &race.shared.replays.names,
+        &race.shared.replays().names,
         &menus.tables.pages.replay_page,
         REPLAYS_PER_PAGE,
     )

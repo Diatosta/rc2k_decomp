@@ -186,8 +186,8 @@ pub fn pieces_of(o: Owners<'static>) -> [Piece<'static>; 69] {
         Piece::held(&saves.save_games.kept_a),                         // a saved-games word kept in the file and read by no other code
         Piece::held(&saves.save_games.kept_b),                         // a saved-games word kept in the file and read by no other code
         Piece::held(&o.service.set_ups.kept),                              // a car set-ups word kept in the file and read by no other code
-        Piece::whole(&race.shared.tyre_change.record_name),                  // the tyre change record holder's name
-        Piece::whole(&race.shared.tyre_change.record),                        // the tyre change record time
+        Piece::whole(&race.shared.tyre_change().record_name),                  // the tyre change record holder's name
+        Piece::whole(&race.shared.tyre_change().record),                        // the tyre change record time
         Piece::held(&saves.files.options_kept[0]),                                   // four dwords nothing else reads
         Piece::held(&saves.files.options_kept[1]),
         Piece::held(&saves.files.options_kept[2]),

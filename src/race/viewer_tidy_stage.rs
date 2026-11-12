@@ -19,12 +19,12 @@ pub fn viewer_tidy_stage(race: &Race, o: Owners<'static>) -> Result<(), Refused>
     // Converted: `rc2k_core::race::viewer_flow::{tidies, TIDY_FIRST, frees_fonts,
     // TIDY_AFTER}` (the fonts' switch read after the first steps, as the original).
     use rc2k_core::race::viewer_flow::{TIDY_AFTER, TIDY_FIRST, TidyStep, frees_fonts, tidies};
-    if tidies(shared.replay_file.viewer_stage_loaded.get()) {
-        shared.replay_file.viewer_stage_loaded.set(0);
+    if tidies(shared.replay_file().viewer_stage_loaded.get()) {
+        shared.replay_file().viewer_stage_loaded.set(0);
         for step in TIDY_FIRST {
             run(race, o, step)?;
         }
-        if frees_fonts(shared.replay_file.viewer_fonts_built.get()) {
+        if frees_fonts(shared.replay_file().viewer_fonts_built.get()) {
             run(race, o, TidyStep::FreeFonts)?;
         }
         for step in TIDY_AFTER {

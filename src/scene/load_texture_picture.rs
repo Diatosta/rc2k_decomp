@@ -33,7 +33,7 @@ use crate::place::BytePlace;
 /// names up to the end of `files\s\extr\txxxxx.pcx`.
 /// The six folders' names and second names, and where the number is in the name.
 fn folders(course: &'static crate::race::owner_course::Course) -> [(BytePlace, BytePlace, u32); 6] {
-    let p = &course.level_paths;
+    let p = course.level_paths();
     [
         ((&p.picture_a).into(), (&p.second_a).into(), 0x0A), // files\a
         ((&p.picture_m).into(), (&p.second_m).into(), 0x0A), // files\m
@@ -65,7 +65,7 @@ fn write_names(
     texture: u32,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
-    let file_numbers = &scene.file_numbers;
+    let file_numbers = &scene.file_numbers();
     {
         file_numbers.picture_number.set(number);
         file_numbers.picture_texture.set(texture);

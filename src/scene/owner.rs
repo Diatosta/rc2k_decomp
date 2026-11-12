@@ -18,18 +18,42 @@ use crate::scene::object_store::ObjectWork;
 use crate::scene::object_tables_store::ObjectTables;
 use crate::scene::texture_places_store::TexturePlaces;
 use crate::scene::upload_car_icon::IconUploadCell;
+use crate::session::GameThread;
 
 /// The scene's state.
 pub struct Scene {
-    pub file_numbers: ObjectFileNumbers,
     /// One copy: the drawing only reads it (frame plan F4).
     pub draw_switches: DrawSwitches,
     pub light_tables: LightTables,
-    pub icon_upload: IconUploadCell,
     pub drawing: Drawing,
     pub lights: Lights,
     pub objects: Objects,
     pub textures: Textures,
+    main: GameThread<SceneMain>,
+}
+
+/// What the game's thread alone reaches (no drawing part or other thread does): the object
+/// loaders' file numbers and path texts, the car icon upload's work and the scene objects'
+/// work variables.
+struct SceneMain {
+    file_numbers: ObjectFileNumbers,
+    icon_upload: IconUploadCell,
+    /// The scene objects' work variables (`OBJECT_WORK`).
+    object_work: ObjectWork,
+}
+
+impl Scene {
+    pub fn file_numbers(&self) -> &ObjectFileNumbers {
+        &self.main.get().file_numbers
+    }
+
+    pub fn icon_upload(&self) -> &IconUploadCell {
+        &self.main.get().icon_upload
+    }
+
+    pub fn object_work(&self) -> &ObjectWork {
+        &self.main.get().object_work
+    }
 }
 
 /// The drawing state: the draw variables and the scene objects' work.
@@ -37,9 +61,6 @@ pub struct Drawing {
     /// The scene's draw variables (`DRAW`).
     /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
     pub scene: SceneDraw,
-    /// The scene objects' work variables (`OBJECT_WORK`).
-    /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
-    pub object_work: ObjectWork,
 }
 
 /// The light state and the lights' work variables.
@@ -72,13 +93,10 @@ pub struct Textures {
 
 /// The one instance. Reached through `scene()`; `moved` registers its stores' places.
 pub static SCENE: Scene = Scene {
-    file_numbers: ObjectFileNumbers::new(),
     draw_switches: DrawSwitches::new(),
     light_tables: LightTables::new(),
-    icon_upload: IconUploadCell::new(),
     drawing: Drawing {
         scene: SceneDraw::new(),
-        object_work: ObjectWork::new(),
     },
     lights: Lights {
         state: LightState::new(),
@@ -92,6 +110,11 @@ pub static SCENE: Scene = Scene {
         places: TexturePlaces::new(),
         kinds: KindTextureTables::new(),
     },
+    main: GameThread::new(SceneMain {
+        file_numbers: ObjectFileNumbers::new(),
+        icon_upload: IconUploadCell::new(),
+        object_work: ObjectWork::new(),
+    }),
 };
 
 /// The scene's state, for a caller that does not take it as a parameter yet.

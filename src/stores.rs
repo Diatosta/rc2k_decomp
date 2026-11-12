@@ -514,7 +514,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.shared.replays",
-            &crate::race::owner::RACE.shared.replays,
+            on_game(crate::race::owner::RACE.shared.replays()),
         ),
         listed!(
             "install.owner.INSTALL.texts",
@@ -534,7 +534,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.replay.snapshot",
-            &crate::race::owner::RACE.replay.snapshot,
+            on_game(crate::race::owner::RACE.replay.snapshot()),
         ),
         listed!(
             "menu.owner.MENUS.panels.films",
@@ -546,7 +546,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.frame.credits",
-            &crate::race::owner::RACE.frame.credits,
+            on_game(crate::race::owner::RACE.frame.credits()),
         ),
         listed!(
             "system.check_developer_machine.DEVELOPER",
@@ -563,11 +563,11 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "scene.owner.SCENE.icon_upload",
-            &crate::scene::owner::SCENE.icon_upload,
+            on_game(crate::scene::owner::SCENE.icon_upload()),
         ),
         listed!(
             "race.owner.RACE.frame.map",
-            &crate::race::owner::RACE.frame.map,
+            on_game(crate::race::owner::RACE.frame.map()),
         ),
         listed!(
             "gfx.owner.GFX.drawing.surfaces",
@@ -616,7 +616,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.replay.seal_key",
-            &crate::race::owner::RACE.replay.seal_key,
+            on_game(crate::race::owner::RACE.replay.seal_key()),
         ),
         listed!(
             "sound.owner.SOUND.race.sounds",
@@ -794,11 +794,11 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.shared.tyre_change",
-            &crate::race::owner::RACE.shared.tyre_change,
+            on_game(crate::race::owner::RACE.shared.tyre_change()),
         ),
         listed!(
             "race.owner.RACE.replay.seal_work",
-            record_tail(&crate::race::owner::RACE.replay.seal_work, 12),
+            on_game_tail(crate::race::owner::RACE.replay.seal_work(), 12),
             0x98,
         ),
         listed!(
@@ -943,23 +943,23 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.physics.split_tables",
-            &crate::race::owner::RACE.physics.split_tables,
+            on_game(crate::race::owner::RACE.physics.split_tables()),
         ),
         listed!(
             "race.owner.RACE.course.league",
-            &crate::race::owner::RACE.course.league,
+            on_game(crate::race::owner::RACE.course.league()),
         ),
         listed!(
             "race.owner.RACE.course.lights_data",
-            &crate::race::owner::RACE.course.lights_data,
+            on_game(crate::race::owner::RACE.course.lights_data()),
         ),
         listed!(
             "race.owner.RACE.course.level_paths",
-            &crate::race::owner::RACE.course.level_paths,
+            on_game(crate::race::owner::RACE.course.level_paths()),
         ),
         listed!(
             "race.owner.RACE.physics.pace",
-            &crate::race::owner::RACE.physics.pace,
+            on_game(crate::race::owner::RACE.physics.pace()),
         ),
         listed!(
             "race.owner.RACE.physics.ground_probe",
@@ -967,7 +967,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.frame.panel_clock",
-            &crate::race::owner::RACE.frame.panel_clock,
+            on_game(crate::race::owner::RACE.frame.panel_clock()),
         ),
         listed!(
             "scene.owner.SCENE.objects.slots",
@@ -979,11 +979,11 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.frame.error_list",
-            &crate::race::owner::RACE.frame.error_list,
+            on_game(crate::race::owner::RACE.frame.error_list()),
         ),
         listed!(
             "race.owner.RACE.course.flare_tables",
-            &crate::race::owner::RACE.course.flare_tables,
+            on_game(crate::race::owner::RACE.course.flare_tables()),
         ),
         listed!(
             "race.owner.RACE.frame.shadow_skids",
@@ -995,11 +995,11 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.shared.replay_file",
-            &crate::race::owner::RACE.shared.replay_file,
+            on_game(crate::race::owner::RACE.shared.replay_file()),
         ),
         listed!(
             "race.owner.RACE.replay.replay_view",
-            &crate::race::owner::RACE.replay.replay_view,
+            on_game(crate::race::owner::RACE.replay.replay_view()),
         ),
         listed!(
             "race.owner.RACE.course.numbers",
@@ -1007,7 +1007,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.frame.scratch",
-            &crate::race::owner::RACE.frame.scratch,
+            on_game(crate::race::owner::RACE.frame.scratch()),
         ),
         listed!(
             "race.owner.RACE.course.lists",
@@ -1015,7 +1015,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.physics.car_specs",
-            &crate::race::owner::RACE.physics.car_specs,
+            on_game(crate::race::owner::RACE.physics.car_specs()),
         ),
         listed!(
             "race.owner.RACE.course.course",
@@ -1035,7 +1035,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.shared.tables",
-            &crate::race::owner::RACE.shared.tables,
+            on_game(crate::race::owner::RACE.shared.tables()),
         ),
         listed!(
             "race.owner.RACE.frame.view_and_records",
@@ -1043,7 +1043,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.physics.camera",
-            &crate::race::owner::RACE.physics.camera,
+            on_game(crate::race::owner::RACE.physics.camera()),
         ),
         listed!(
             "race.owner.RACE.course.stage_prefs",
@@ -1051,7 +1051,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "scene.owner.SCENE.file_numbers",
-            &crate::scene::owner::SCENE.file_numbers,
+            on_game(crate::scene::owner::SCENE.file_numbers()),
         ),
         listed!(
             "race.owner.RACE.shared.physics_tables",
@@ -1083,7 +1083,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.frame.sound_spots",
-            &crate::race::owner::RACE.frame.sound_spots,
+            on_game(crate::race::owner::RACE.frame.sound_spots()),
         ),
         listed!(
             "race.owner.RACE.physics.contact",
@@ -1091,11 +1091,11 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.replay.replay_frames",
-            &crate::race::owner::RACE.replay.replay_frames,
+            on_game(crate::race::owner::RACE.replay.replay_frames()),
         ),
         listed!(
             "race.owner.RACE.shared.car",
-            &crate::race::owner::RACE.shared.car,
+            on_game(crate::race::owner::RACE.shared.car()),
         ),
         listed!(
             "race.owner.RACE.shared.work",
@@ -1103,15 +1103,15 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.frame.text_state",
-            &crate::race::owner::RACE.frame.text_state,
+            on_game(crate::race::owner::RACE.frame.text_state()),
         ),
         listed!(
             "race.owner.RACE.frame.clock_ticks",
-            &crate::race::owner::RACE.frame.clock_ticks,
+            on_game(crate::race::owner::RACE.frame.clock_ticks()),
         ),
         listed!(
             "race.owner.RACE.course.kind_records",
-            &crate::race::owner::RACE.course.kind_records,
+            on_game(crate::race::owner::RACE.course.kind_records()),
         ),
         listed!(
             "scene.owner.SCENE.textures.kinds",
@@ -1119,7 +1119,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.frame.counter",
-            &crate::race::owner::RACE.frame.counter,
+            on_game(crate::race::owner::RACE.frame.counter()),
         ),
         listed!(
             "race.owner.RACE.shared.switches",
@@ -1135,15 +1135,15 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "scene.owner.SCENE.drawing.object_work",
-            &crate::scene::owner::SCENE.drawing.object_work,
+            on_game(crate::scene::owner::SCENE.object_work()),
         ),
         listed!(
             "race.owner.RACE.physics.ground",
-            &crate::race::owner::RACE.physics.ground,
+            on_game(crate::race::owner::RACE.physics.ground()),
         ),
         listed!(
             "race.owner.RACE.frame.draw_batches",
-            &crate::race::owner::RACE.frame.draw_batches,
+            on_game(crate::race::owner::RACE.frame.draw_batches()),
         ),
         listed!(
             "effects.owner.EFFECTS.setup.work",
@@ -1164,7 +1164,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.physics.damage",
-            &crate::race::owner::RACE.physics.damage,
+            on_game(crate::race::owner::RACE.physics.damage()),
         ),
         listed!(
             "effects.owner.EFFECTS.windscreen_drops.inputs",

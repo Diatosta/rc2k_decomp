@@ -5,7 +5,7 @@ use crate::race::frame_view::car as car_view;
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
 use crate::race::owner_shared::RaceShared;
-use crate::session::Dword;
+use crate::session::{Dword, PlainDword};
 
 /// `race::car_label` (0x45B1B7): the panel's seven-byte label " CAR nn" for the neighbouring car,
 /// `car_number`'s two digits (tens and units, each + '0' as a byte), or seven spaces when
@@ -152,16 +152,16 @@ pub fn fetch_view_value(
 }
 
 /// `race::share_sound_spots` (0x45C7B9): the shared count =
-/// `race().frame.sound_spots.sound_spot_count`, and that many 0x14-byte spots copied from 0x6D1AF4
+/// `race().frame.sound_spots().sound_spot_count`, and that many 0x14-byte spots copied from 0x6D1AF4
 /// to 0x5165F0 (read by the sound side, `sound::match_spot_voices`). Refuses (before anything) more
 /// than 36 (past both tables).
 pub fn share_sound_spots(race: &Race, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     let frame = &race.frame;
     // Converted: `rc2k_core::race::view::shared_spot_bytes`.
-    let n: u32 = frame.sound_spots.sound_spot_count.get();
+    let n: u32 = frame.sound_spots().sound_spot_count.get();
     let bytes = rc2k_core::race::view::shared_spot_bytes(n)?;
     sound.race.stage.get().shared_count.set(n);
-    let from = frame.sound_spots.sound_spots.chunks(5);
+    let from = frame.sound_spots().sound_spots.chunks(5);
     for (spot, d) in sound
         .race
         .stage
@@ -284,7 +284,7 @@ pub(super) fn panel_half(race: &Race, car: usize, first: bool) -> Result<(), Bad
     cells[2].set(car.gear.get());
     let at =
         |n: u32| crate::race::checkpoints_store::distance(race.checkpoints(), n as usize).get();
-    let from: u32 = race.physics.split_tables.checkpoints[0].get();
+    let from: u32 = race.physics.split_tables().checkpoints[0].get();
     let d = travelled(at(car.checkpoint.get()), at(from));
     let (unit, miles) = (
         race.course.numbers.k65536.get(),
@@ -393,9 +393,9 @@ pub fn panel_neighbours(race: &Race) -> Result<(), Refused> {
     // The place indexes unchecked, as the original does: the cars by place start at
     // `computer_ease_speed` (slot 0, the float 30.0) and run on into `arcade_car_kinds`; the
     // numbers' `number_before_first` is the entry at place -1.
-    let on = |first: &Dword, n: u32| {
+    let on = |first: &PlainDword, n: u32| {
         crate::session::read_on_in(
-            &shared.tables,
+            shared.tables(),
             std::slice::from_ref(first),
             n as usize,
             "a place table",
@@ -411,10 +411,10 @@ pub fn panel_neighbours(race: &Race) -> Result<(), Refused> {
         Ok(car_view(shared.work.block_number(car as usize)?)?)
     };
     let behind = block_of(on(
-        &shared.tables.computer_ease_speed,
+        &shared.tables().computer_ease_speed,
         place.wrapping_add(1),
     )?)?;
-    let ahead = block_of(on(&shared.tables.computer_ease_speed, place)?)?;
+    let ahead = block_of(on(&shared.tables().computer_ease_speed, place)?)?;
     frame.panel_and_overlay.panel.view_a.place.set(place);
     frame
         .panel_and_overlay
@@ -426,11 +426,11 @@ pub fn panel_neighbours(race: &Race) -> Result<(), Refused> {
     // `rc2k_core::race::start::car_label`).
     use rc2k_core::race::frame::neighbour_number;
     let number = behind.car_kind.get();
-    let back = neighbour_number(place == shared.tables.arcade_cars.get(), number);
+    let back = neighbour_number(place == shared.tables().arcade_cars.get(), number);
     frame.panel_and_overlay.panel.view_a.back.set(back);
     car_label(
         &frame.panel_and_overlay.overlay.label_behind,
-        on(&shared.tables.arcade_car_numbers[0], place)?,
+        on(&shared.tables().arcade_car_numbers[0], place)?,
         back,
     );
     frame
@@ -443,7 +443,7 @@ pub fn panel_neighbours(race: &Race) -> Result<(), Refused> {
     frame.panel_and_overlay.panel.view_a.front.set(front);
     car_label(
         &frame.panel_and_overlay.overlay.label_ahead,
-        on(&shared.tables.number_before_first, place)?,
+        on(&shared.tables().number_before_first, place)?,
         front,
     );
     frame
@@ -602,7 +602,7 @@ pub fn colour_buffers(frame: &Frame) -> [&'_ [Dword; 64]; 2] {
 
 /// `split_colours`' refusal, for both views, before anything is written.
 pub fn check_split_colours(race: &Race) -> Result<(), Refused> {
-    let fill: u32 = race.physics.split_tables.split_colour_count.get();
+    let fill: u32 = race.physics.split_tables().split_colour_count.get();
     for view in 0..2 {
         let n = car_view(race.shared.view.view_number(view)?)?
             .splits_passed
@@ -622,7 +622,7 @@ pub fn both_split_colours(race: &Race) -> Result<(), Refused> {
         split_colours(
             race.shared.view.view_number(view)?,
             buffer,
-            race.physics.split_tables.split_colour_count.get(),
+            race.physics.split_tables().split_colour_count.get(),
         )?;
     }
     Ok(())
@@ -635,9 +635,9 @@ pub(super) fn check_panel_neighbours(shared: &RaceShared) -> Result<(), Refused>
     }
     let place = car_view(shared.view.view_number(0)?)?.mode2_place.get();
     // The cars by place (from `computer_ease_speed`, see `panel_neighbours`) at the place and the one after.
-    let first = std::slice::from_ref(&shared.tables.computer_ease_speed);
+    let first = std::slice::from_ref(&shared.tables().computer_ease_speed);
     for n in [place, place.wrapping_add(1)] {
-        let car = crate::session::read_on_in(&shared.tables, first, n as usize, "a place table")?;
+        let car = crate::session::read_on_in(shared.tables(), first, n as usize, "a place table")?;
         if car > 7 || !shared.work.has_car_block(car as usize) {
             return Err(BadInput("a neighbour's car past the eight or null").into());
         }

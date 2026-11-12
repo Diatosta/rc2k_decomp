@@ -40,7 +40,7 @@ pub fn pace_notes_step(
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     let (physics, numbers, frame_work) = (c.physics, c.numbers, &c.frame_work);
-    let (work, vars, replay_file) = (c.work, c.vars, &c.shared.replay_file);
+    let (work, vars, replay_file) = (c.work, c.vars, c.shared.replay_file());
     let (physics_tables, car) = (c.tables, c.car);
     if !calling(
         gates(work, replay_file, car),

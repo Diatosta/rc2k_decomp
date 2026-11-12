@@ -21,11 +21,11 @@ pub fn hit_part_checks(
     kind_tables: &crate::race::kind_store::KindTables,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let left = parts_left(shared.car.parts_present.get());
-    shared.car.parts_state.set(left);
-    if left != 0 || shared.car.tyre_change_state.get() != 0 {
+    let left = parts_left(shared.car().parts_present.get());
+    shared.car().parts_state.set(left);
+    if left != 0 || shared.car().tyre_change_state.get() != 0 {
         return Ok(());
     }
-    drop_hit_parts(numbers, &shared.work, &shared.car, scene)?;
+    drop_hit_parts(numbers, &shared.work, shared.car(), scene)?;
     sound_hit_parts(numbers, matrices, shared, kind_tables)
 }

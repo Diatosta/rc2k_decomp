@@ -74,14 +74,14 @@ fn place_with(
     );
     for (y_turn, z_turn, x_turn) in [
         (
-            &shared.car.camera_offset_turns[2],
-            &shared.car.camera_offset_turns[0],
-            &shared.car.camera_offset_turns[1],
+            &shared.car().camera_offset_turns[2],
+            &shared.car().camera_offset_turns[0],
+            &shared.car().camera_offset_turns[1],
         ),
         (
-            &shared.car.camera_roll_turn,
-            &shared.car.camera_pitch,
-            &shared.car.camera_heading,
+            &shared.car().camera_roll_turn,
+            &shared.car().camera_pitch,
+            &shared.car().camera_heading,
         ),
     ] {
         let i = |v: u32| v as i32;
@@ -119,9 +119,9 @@ fn place_with(
         x = new_x;
         z = new_z;
     }
-    shared.car.camera_position[0].set(x);
-    shared.car.camera_position[1].set(y);
-    shared.car.camera_position[2].set(z);
+    shared.car().camera_position[0].set(x);
+    shared.car().camera_position[1].set(y);
+    shared.car().camera_position[2].set(z);
     // 0x438F14: the second offset, turned with the car.
     let whole = second();
     scene.drawing.scene.scratch.set(whole[2] as u32);
@@ -131,14 +131,14 @@ fn place_with(
         frame_work.camera_car[2].get(),
     ];
     let place = [
-        shared.car.camera_position[0].get(),
-        shared.car.camera_position[1].get(),
-        shared.car.camera_position[2].get(),
+        shared.car().camera_position[0].get(),
+        shared.car().camera_position[1].get(),
+        shared.car().camera_position[2].get(),
     ];
     let (_, place) = add_offset(place, whole, car);
-    shared.car.camera_position[0].set(place[0]);
-    shared.car.camera_position[1].set(place[1]);
-    shared.car.camera_position[2].set(place[2]);
+    shared.car().camera_position[0].set(place[0]);
+    shared.car().camera_position[1].set(place[1]);
+    shared.car().camera_position[2].set(place[2]);
 }
 
 /// The exact version, for `physics::camera_avoid_ground`.
@@ -159,7 +159,8 @@ pub fn place_camera(
             &camera.view_turn_z,
         ];
         let parts = turns.map(|turn| view_turn_part(turn, numbers));
-        let turned = { crate::scene::rotate_point::rotate_point(&shared.car.crash_matrix, parts) };
+        let turned =
+            { crate::scene::rotate_point::rotate_point(&shared.car().crash_matrix, parts) };
         let k = numbers.k65536.bits();
         turned.map(|e| crate::math::x87::ext_to_int(crate::math::x87::ext_times(e, k)))
     };

@@ -50,7 +50,7 @@ fn tangent(race: &crate::race::owner::Race, scene: &Scene, angle: u32) -> u32 {
                 * bh::int(0x8000),
         ) as u32)
             << 1;
-        frame.scratch.tangent_scratch.set(tangent);
+        frame.scratch().tangent_scratch.set(tangent);
         tangent
     }
 }

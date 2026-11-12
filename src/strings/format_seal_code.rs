@@ -23,8 +23,8 @@ pub fn seal_code(a: u32, b: u32) -> Vec<u8> {
 
 pub fn format_seal_code(race: &Race, a: u32, b: u32) -> Result<(), crate::errors::BadInput> {
     let replay = &race.replay;
-    replay.seal_work.sealed[0].set(a);
-    replay.seal_work.sealed[1].set(b);
+    replay.seal_work().sealed[0].set(a);
+    replay.seal_work().sealed[1].set(b);
     let code = seal_code(a, b);
     SEAL_TEXT.get().write_at(0, &code, "the seal text")
 }

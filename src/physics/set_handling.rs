@@ -93,7 +93,7 @@ pub fn set_handling(
     numbers: &Numbers,
     shared: &RaceShared,
 ) -> Result<(), Refused> {
-    let kind = shared.car.drive_kind.get() as usize;
+    let kind = shared.car().drive_kind.get() as usize;
     if kind > 1 {
         return Err(BadInput("a drive kind above 1 (the pair tables hold two)").into());
     }
@@ -102,13 +102,13 @@ pub fn set_handling(
     let lerp = |(out, n, hi, lo): (&Float, &Dword, &Float, &Float)| {
         out.set(int_lerp(n.get() as i32, k256, hi, lo));
     };
-    for v in before(&shared.car, &shared.physics_tables) {
+    for v in before(shared.car(), &shared.physics_tables) {
         lerp(v);
     }
     let r = &shared.physics_tables.handling_ranges_b;
     lerp((
         &shared.physics_tables.handling[4],
-        &shared.car.ride_height,
+        &shared.car().ride_height,
         &r[4 + kind],
         &r[2 + kind],
     ));
@@ -116,7 +116,7 @@ pub fn set_handling(
         &shared.physics_tables.handling[4],
         shared.physics_tables.ride_height_handling_scale.get(),
     ));
-    for v in after(&shared.car, &shared.physics_tables) {
+    for v in after(shared.car(), &shared.physics_tables) {
         lerp(v);
     }
     Ok(())

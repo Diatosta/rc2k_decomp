@@ -13,7 +13,7 @@ pub fn replay_item_a(
     o: crate::owners::Owners<'static>,
 ) -> Result<(), Refused> {
     if race.shared.state.settings.no_replay.get() != 1
-        && race.shared.replay_file.replay_closed.get() == 1
+        && race.shared.replay_file().replay_closed.get() == 1
     {
         return crate::race::replay_mode::replay_mode(race, o, Mode::LastRace);
     }

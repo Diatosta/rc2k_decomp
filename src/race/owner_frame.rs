@@ -14,6 +14,7 @@ use crate::race::scratch_store::FrameScratch;
 use crate::race::shadow_skids_store::ShadowSkids;
 use crate::race::sound_spots_store::SoundSpotBlock;
 use crate::race::text_state_store::TextState;
+use crate::session::GameThread;
 
 /// The race's frame state (step 11, owned state: the stores move in as fields). The view
 /// variables, the panel and the overlay are fields of `view_and_records` and
@@ -24,25 +25,28 @@ pub struct Frame {
     /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7;
     /// the held columns are each part's own, `scene::view_matrices::Held`).
     pub matrices: SceneMatrices,
-    /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
-    pub scratch: FrameScratch,
-    pub counter: FrameCounter,
-    pub draw_batches: DrawBatches,
-    pub panel_clock: PanelClock,
-    pub text_state: TextState,
-    pub clock_ticks: ClockTicks,
     /// One copy: the drawing only reads it (frame plan F4).
     pub shadow_skids: ShadowSkids,
-    /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
-    pub sound_spots: SoundSpotBlock,
-    pub error_list: ErrorList,
-    pub credits: Credits,
-    pub map: MapVars,
     pub panel_and_overlay: PanelAndOverlay,
     /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
     /// Each view draws on its own view variables (`ViewScratch::vars`).
     pub view_and_records: ViewAndRecords,
     pub lights_and_gear: LightsAndGear,
+    main: GameThread<FrameMain>,
+}
+
+/// What only the game's thread reaches (no drawing part and no other thread touches it).
+struct FrameMain {
+    scratch: FrameScratch,
+    counter: FrameCounter,
+    draw_batches: DrawBatches,
+    panel_clock: PanelClock,
+    text_state: TextState,
+    clock_ticks: ClockTicks,
+    sound_spots: SoundSpotBlock,
+    error_list: ErrorList,
+    credits: Credits,
+    map: MapVars,
 }
 
 impl Frame {
@@ -50,20 +54,62 @@ impl Frame {
         Frame {
             frame_work: FrameWork::new(),
             matrices: SceneMatrices::new(),
-            scratch: FrameScratch::new(),
-            counter: FrameCounter::new(),
-            draw_batches: DrawBatches::new(),
-            panel_clock: PanelClock::new(),
-            text_state: TextState::new(),
-            clock_ticks: ClockTicks::new(),
             shadow_skids: ShadowSkids::new(),
-            sound_spots: SoundSpotBlock::new(),
-            error_list: ErrorList::new(),
-            credits: Credits::new(),
-            map: MapVars::new(),
             panel_and_overlay: PanelAndOverlay::new(),
             view_and_records: ViewAndRecords::new(),
             lights_and_gear: LightsAndGear::new(),
+            main: GameThread::new(FrameMain {
+                scratch: FrameScratch::new(),
+                counter: FrameCounter::new(),
+                draw_batches: DrawBatches::new(),
+                panel_clock: PanelClock::new(),
+                text_state: TextState::new(),
+                clock_ticks: ClockTicks::new(),
+                sound_spots: SoundSpotBlock::new(),
+                error_list: ErrorList::new(),
+                credits: Credits::new(),
+                map: MapVars::new(),
+            }),
         }
+    }
+
+    pub fn scratch(&self) -> &FrameScratch {
+        &self.main.get().scratch
+    }
+
+    pub fn counter(&self) -> &FrameCounter {
+        &self.main.get().counter
+    }
+
+    pub fn draw_batches(&self) -> &DrawBatches {
+        &self.main.get().draw_batches
+    }
+
+    pub fn panel_clock(&self) -> &PanelClock {
+        &self.main.get().panel_clock
+    }
+
+    pub fn text_state(&self) -> &TextState {
+        &self.main.get().text_state
+    }
+
+    pub fn clock_ticks(&self) -> &ClockTicks {
+        &self.main.get().clock_ticks
+    }
+
+    pub fn sound_spots(&self) -> &SoundSpotBlock {
+        &self.main.get().sound_spots
+    }
+
+    pub fn error_list(&self) -> &ErrorList {
+        &self.main.get().error_list
+    }
+
+    pub fn credits(&self) -> &Credits {
+        &self.main.get().credits
+    }
+
+    pub fn map(&self) -> &MapVars {
+        &self.main.get().map
     }
 }

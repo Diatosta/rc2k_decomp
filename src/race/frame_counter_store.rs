@@ -4,13 +4,13 @@
 
 #[cfg(test)]
 use crate::race::owner::race;
-use crate::session::Dword;
+use crate::session::PlainDword;
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct FrameCounter {
     /// +0x0 (0x5EB100): `dword_5EB100`: the `framecounter` setting (`race::draw_frame_rate`).
-    pub show: Dword,
+    pub show: PlainDword,
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
@@ -33,7 +33,7 @@ const _: () = assert!(END - START == core::mem::size_of::<FrameCounter>());
 /// The piece's host address (the alignment checks).
 #[cfg(test)]
 pub fn piece_addr() -> usize {
-    std::ptr::from_ref(&race().frame.counter).addr()
+    std::ptr::from_ref(race().frame.counter()).addr()
 }
 
 #[cfg(test)]
@@ -43,7 +43,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(&race().frame.counter);
+        crate::test_support::first_values::assert_block_starts_as_the_games(race().frame.counter());
     }
 
     #[test]

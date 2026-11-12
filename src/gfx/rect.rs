@@ -44,10 +44,12 @@ pub enum Palette<'a> {
 
 impl Palette<'_> {
     /// Entry `colour`.
-    fn entry(self, colour: u32) -> u32 {
+    fn entry(self, fonts: &crate::gfx::owner::FontStores, colour: u32) -> u32 {
         let what = "a palette entry";
         let bytes = match self {
-            Palette::Held(place) => crate::gfx::glyph_store::read_bytes(place, 4 * colour, 4, what),
+            Palette::Held(place) => {
+                crate::gfx::glyph_store::read_bytes(fonts, place, 4 * colour, 4, what)
+            }
             Palette::Of(store) => {
                 let mut entry = vec![0; 4];
                 store.load(4 * colour as usize, &mut entry).map(|()| entry)
@@ -78,7 +80,7 @@ fn carry_out(plan: &rc2k_core::gfx::raster::Plan, colour: u32, palette: Palette<
         crate::fatal::raise::end("gfx::rect", crate::errors::BadInput("no surface"))
     };
     for &offset in &plan.pixels {
-        let bytes = pixel(plan.bits, colour, palette);
+        let bytes = pixel(&gfx.fonts, plan.bits, colour, palette);
         if let Err(e) = crate::gfx::surface::write(target, offset as u32, &bytes, gfx) {
             crate::fatal::raise::end("gfx::rect", e)
         }
@@ -87,8 +89,13 @@ fn carry_out(plan: &rc2k_core::gfx::raster::Plan, colour: u32, palette: Palette<
 
 /// The pixel for colour `colour` by the surface's depth: `palette[colour]` as a word or a
 /// dword, else the byte itself.
-fn pixel(bits: u32, colour: u32, palette: Palette<'_>) -> Vec<u8> {
-    let entry = || palette.entry(colour);
+fn pixel(
+    fonts: &crate::gfx::owner::FontStores,
+    bits: u32,
+    colour: u32,
+    palette: Palette<'_>,
+) -> Vec<u8> {
+    let entry = || palette.entry(fonts, colour);
     match bits {
         16 => (entry() as u16).to_le_bytes().to_vec(),
         32 => entry().to_le_bytes().to_vec(),

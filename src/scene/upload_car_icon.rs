@@ -50,7 +50,7 @@ const _: () = assert!(STORED_LEN == 0x1C);
 /// them to and from an `IconUpload`.
 #[repr(transparent)]
 #[derive(rc2k_derive::Cells)]
-pub struct IconUploadCell(crate::session::Bytes<STORED_LEN>);
+pub struct IconUploadCell(crate::session::PlainBytes<STORED_LEN>);
 
 impl IconUploadCell {
     pub fn get(&self) -> IconUpload {
@@ -86,7 +86,7 @@ impl IconUploadCell {
 
 impl IconUploadCell {
     pub const fn new() -> Self {
-        IconUploadCell(crate::session::Bytes::new([0; STORED_LEN]))
+        IconUploadCell(crate::session::PlainBytes::new([0; STORED_LEN]))
     }
 }
 
@@ -168,7 +168,7 @@ mod block_tests {
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::scene::owner::SCENE.icon_upload,
+            crate::scene::owner::SCENE.icon_upload(),
         );
     }
 }

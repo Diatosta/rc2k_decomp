@@ -152,7 +152,7 @@ fn driven_car<'a>(race: &'a Race, course: &Course) -> &'a crate::physics::car_st
     let viewed = race.car_blocks().of(race.shared.view.view_blocks[0].get());
     match viewed {
         Some(car) if course.numbers.in_race.is_set() => car,
-        _ => &race.shared.car,
+        _ => race.shared.car(),
     }
 }
 
@@ -253,7 +253,7 @@ pub fn autodrive_keys(race: &Race, checkpoint: u32) -> u32 {
         if *held == 0 {
             crate::framework::log(&format!(
                 "remote: the reset key let go at checkpoint {checkpoint} (stage time {})",
-                race.shared.car.stage_time.get()
+                race.shared.car().stage_time.get()
             ));
         }
         return rc2k_core::drive::controls::RESET_KEY;
@@ -458,7 +458,7 @@ pub fn shots_loading(race: &Race, effects: &crate::effects::owner::Effects) {
     // step's start: the held clock's from here.
     race.shared.physics_tables.scene_clock.set(0x10000u32);
     // The frame rate's text measures the host: not drawn.
-    race.frame.counter.show.set(0);
+    race.frame.counter().show.set(0);
 }
 
 /// With `RC2K_HELD_RACE` (a check: two runs of a driven race the same tick for tick,

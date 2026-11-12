@@ -36,7 +36,7 @@ pub fn draw_viewer_panel(
     use rc2k_core::race::viewer_flow::{camera_name, replay_length, shown_time, switch_lights};
     if crate::d3d::lock_texture::lock_texture_in(
         gfx,
-        shared.replay_file.viewer_panel_texture.get(),
+        shared.replay_file().viewer_panel_texture.get(),
     )?
     .carry
     {
@@ -91,19 +91,19 @@ pub fn draw_viewer_panel(
     };
     string(0x1A4, FONT_A, 4, 0)?;
     append_time(shown_time(
-        replay.replay_view.replay_block.get(),
-        replay.replay_view.replay_frame.get(),
+        replay.replay_view().replay_block.get(),
+        replay.replay_view().replay_frame.get(),
     ));
     text(FONT_B, 4, 8)?;
     string(0x1A5, FONT_C, 0x60, 0x19)?;
-    append_time(replay_length(shared.replay_file.index_block_count.get()));
+    append_time(replay_length(shared.replay_file().index_block_count.get()));
     text(FONT_D, 0x60, 0x21)?;
     // The two cameras' names, three times each, 0xD lower and 0x78 to the left.
     let mut y = 0x32;
     for byte in 0..2usize {
         let camera = camera_name(crate::race::viewer::camera_byte_at(
             race,
-            byte.wrapping_add(8 * replay.replay_view.replay_block.get() as usize),
+            byte.wrapping_add(8 * replay.replay_view().replay_block.get() as usize),
         )?);
         let id = race.viewer_panel().camera_name(camera as usize);
         let mut out = 0usize;
@@ -131,19 +131,19 @@ pub fn draw_viewer_panel(
     }
     string(0x560, FONT_E, 0x75, 0)?;
     string(0x561, FONT_E, 0x75, 0xF)?;
-    crate::d3d::unlock_texture::unlock_texture(shared.replay_file.viewer_panel_texture.get())?;
+    crate::d3d::unlock_texture::unlock_texture(shared.replay_file().viewer_panel_texture.get())?;
     crate::d3d::copy_to_device_texture::copy_to_device_texture(
-        shared.replay_file.viewer_panel_texture.get(),
-        shared.replay_file.viewer_device_texture.get(),
+        shared.replay_file().viewer_panel_texture.get(),
+        shared.replay_file().viewer_device_texture.get(),
     );
     crate::d3d::set_texture::set_texture(
         crate::workers::game_scratch(),
-        shared.replay_file.viewer_device_texture.get(),
+        shared.replay_file().viewer_device_texture.get(),
     );
     // The quads.
     let camera_5 = crate::race::viewer::camera_byte_at(
         race,
-        5usize.wrapping_add(8 * replay.replay_view.replay_block.get() as usize),
+        5usize.wrapping_add(8 * replay.replay_view().replay_block.get() as usize),
     )?;
     let (first, second) = switch_lights(camera_5);
     let white = 0x00FF_FFFF;

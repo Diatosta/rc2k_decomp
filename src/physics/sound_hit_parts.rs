@@ -20,16 +20,16 @@ pub fn sound_hit_parts(
     shared: &RaceShared,
     kind_tables: &KindTables,
 ) -> Result<(), Refused> {
-    if !has_hit_sounds(shared.car.car_kind.get(), |kind| {
+    if !has_hit_sounds(shared.car().car_kind.get(), |kind| {
         kind_tables.kind_hit_sounds[kind as usize].get()
     }) {
         return Ok(());
     }
     hit_tests(
-        &shared.car,
+        shared.car(),
         numbers,
         &SOUND_TESTS,
-        &shared.car.tyre_wears,
+        &shared.car().tyre_wears,
         &mut |bit| {
             { sound_on_bit(numbers, matrices, shared, bit & 0xFF) }?;
             Ok(())

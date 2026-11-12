@@ -199,7 +199,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     relative_speed(
-                        &race().shared.car,
+                        race().shared.car(),
                         &race().physics.contact,
                         view(a[1], 0x198),
                     );
@@ -226,7 +226,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     share_out_speeds(
-                        &race().shared.car,
+                        race().shared.car(),
                         &race().physics.contact,
                         view(a[1], 0x198),
                     );
@@ -253,7 +253,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     push_apart(
-                        &crate::race::owner::race().shared.car,
+                        crate::race::owner::race().shared.car(),
                         &crate::race::owner::race().physics.contact,
                         &crate::race::owner::race().course.numbers,
                         view(a[1], 0x134),
@@ -282,7 +282,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     add_push(
-                        &race().shared.car,
+                        race().shared.car(),
                         &race().physics.contact,
                         view(a[1], 0x198),
                     );

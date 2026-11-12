@@ -5,7 +5,7 @@ use crate::errors::Refused;
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
 use crate::race::trap::Trap;
-use crate::session::{Dword, Word};
+use crate::session::{PlainDword, PlainWord};
 use crate::text::draw_string_by_id::draw_string_by_id_at;
 use crate::text::draw_text::{Canvas, draw_text_at};
 
@@ -21,9 +21,9 @@ pub fn draw_frame_rate(
     let frame = &race.frame;
     // Converted: `rc2k_core::race::frame_rate::{shown_rate, fps_text}`.
     use rc2k_core::race::frame_rate::{fps_text, shown_rate};
-    frame.text_state.text_mode.set(2);
+    frame.text_state().text_mode.set(2);
     let rate = shown_rate(race.shared.switches.frame_rate.get());
-    if rate == 0 || frame.counter.show.get() == 0 {
+    if rate == 0 || frame.counter().show.get() == 0 {
         return Ok(());
     }
     let t = crate::strings::text_from_ids::text_at(strings);
@@ -66,14 +66,14 @@ pub const SCRIPT_WORDS: usize = 670;
 #[derive(rc2k_derive::Cells)]
 pub struct Credits {
     /// `dword_52984C`: the top of the script on the screen.
-    pub top: Dword,
+    pub top: PlainDword,
     /// `dword_529850`: the clock the top moves by.
-    pub clock: Dword,
+    pub clock: PlainDword,
     /// `dword_529854`: 1 when the credits are over.
-    pub done: Dword,
+    pub done: PlainDword,
     /// `0x529858`: the script, words (1, 2, 7, 8 a string in a font, ...; see
     /// `rc2k_core::race::credits::lay_out`); never written.
-    pub script: [Word; SCRIPT_WORDS],
+    pub script: [PlainWord; SCRIPT_WORDS],
 }
 
 /// The script's first values (the image's words).
@@ -122,11 +122,11 @@ const SCRIPT: [u16; SCRIPT_WORDS] = [
     0x756, 0x6, 0x28, 0x7, 0x1000, 0x6, 0xa, 0x7, 0x1001, 0x6, 0x14, 0x7, 0x1002, 0x0, 0x0,
 ];
 
-const fn script_words() -> [Word; SCRIPT_WORDS] {
-    let mut words = [const { Word::new(0) }; SCRIPT_WORDS];
+const fn script_words() -> [PlainWord; SCRIPT_WORDS] {
+    let mut words = [const { PlainWord::new(0) }; SCRIPT_WORDS];
     let mut i = 0;
     while i < SCRIPT_WORDS {
-        words[i] = Word::new(SCRIPT[i]);
+        words[i] = PlainWord::new(SCRIPT[i]);
         i += 1;
     }
     words
@@ -136,9 +136,9 @@ const fn script_words() -> [Word; SCRIPT_WORDS] {
 impl Credits {
     pub const fn new() -> Self {
         Credits {
-            top: Dword::new(0),
-            clock: Dword::new(0),
-            done: Dword::new(0),
+            top: PlainDword::new(0),
+            clock: PlainDword::new(0),
+            done: PlainDword::new(0),
             script: script_words(),
         }
     }
@@ -167,10 +167,10 @@ pub fn roll_credits(
     let width = session.screen.width.get() as i32;
     let height: u32 = session.screen.height.get();
     if eax == 0 {
-        frame.credits.clock.set(tick_count());
+        frame.credits().clock.set(tick_count());
         let top = start_top(height);
-        frame.credits.top.set(top);
-        frame.credits.done.set(0);
+        frame.credits().top.set(top);
+        frame.credits().done.set(0);
         sound();
         return Ok(());
     }
@@ -192,12 +192,12 @@ pub fn roll_credits(
     let typefaces = canvas.typefaces();
     let (lines, below) = lay_out(
         || {
-            let v = frame.credits.script.get(at).map(Word::get);
+            let v = frame.credits().script.get(at).map(PlainWord::get);
             at += 1;
             trap.keep_read(v.ok_or(crate::errors::BadInput("the credits' script past its end")))
         },
         width,
-        frame.credits.top.get() as i32,
+        frame.credits().top.get() as i32,
         |f| font_of(f).object(typefaces).line_height.get() as i32,
     );
     trap.finish()?;
@@ -213,16 +213,16 @@ pub fn roll_credits(
         )?;
     }
     let (top, clock, _) = catch_up(
-        frame.credits.top.get(),
-        frame.credits.clock.get(),
+        frame.credits().top.get(),
+        frame.credits().clock.get(),
         tick_count,
     );
-    frame.credits.top.set(top);
-    frame.credits.clock.set(clock);
+    frame.credits().top.set(top);
+    frame.credits().clock.set(clock);
     if !rolled_off(below, audio.state.music_stream.get().playing) {
         return Ok(());
     }
-    frame.credits.done.set(1);
+    frame.credits().done.set(1);
     Ok(())
 }
 
@@ -239,7 +239,7 @@ mod block_tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(&race().frame.credits);
+        crate::test_support::first_values::assert_block_starts_as_the_games(race().frame.credits());
     }
 
     #[test]

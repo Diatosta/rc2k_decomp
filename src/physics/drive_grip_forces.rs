@@ -502,7 +502,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     steer_sine_force(
-                        &race().shared.car,
+                        race().shared.car(),
                         &race().shared.physics_tables,
                         race().engine_tables(),
                         a[1],
@@ -525,7 +525,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     steer_sine_force(
-                        &race().shared.car,
+                        race().shared.car(),
                         &race().shared.physics_tables,
                         race().engine_tables(),
                         a[1],
@@ -548,7 +548,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     steer_sine_force(
-                        &race().shared.car,
+                        race().shared.car(),
                         &race().shared.physics_tables,
                         race().engine_tables(),
                         a[1],
@@ -564,7 +564,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     lever_share_from_timer(
-                        &race().shared.car,
+                        race().shared.car(),
                         &race().shared.physics_tables,
                         &race().course.numbers,
                         crate::scene::owner::scene(),
@@ -591,7 +591,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     grip_limit_for(
-                        &race().shared.car,
+                        race().shared.car(),
                         &race().shared.physics_tables,
                         view(a[1], 0),
                     );
@@ -606,7 +606,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     divide_into_scratch(
-                        &crate::race::owner::race().shared.car.grip_forces[0],
+                        &crate::race::owner::race().shared.car().grip_forces[0],
                         &scene().drawing.scene.scratch,
                         crate::scene::owner::scene(),
                     );
@@ -619,7 +619,7 @@ mod reference_vectors {
                     writes: &[(0x31A61C, Out::I)],
                 }],
                 ulps: 0,
-                plain: |_| scale_steering(&race().shared.car, crate::scene::owner::scene()),
+                plain: |_| scale_steering(race().shared.car(), crate::scene::owner::scene()),
             },
             Block {
                 name: "drive_grip_forces line 122",
@@ -629,7 +629,7 @@ mod reference_vectors {
                 }],
                 ulps: 0,
                 plain: |_| {
-                    ground_speed_into_scratch(&race().shared.car, crate::scene::owner::scene());
+                    ground_speed_into_scratch(race().shared.car(), crate::scene::owner::scene());
                 },
             },
             Block {
@@ -656,7 +656,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     lean_force(
-                        &race().shared.car,
+                        race().shared.car(),
                         &race().shared.physics_tables,
                         &race().course.numbers,
                         race().engine_tables(),
@@ -689,7 +689,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     lean_force(
-                        &race().shared.car,
+                        race().shared.car(),
                         &race().shared.physics_tables,
                         &race().course.numbers,
                         race().engine_tables(),
@@ -722,7 +722,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     lean_force(
-                        &race().shared.car,
+                        race().shared.car(),
                         &race().shared.physics_tables,
                         &race().course.numbers,
                         race().engine_tables(),
@@ -740,7 +740,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     braking_count_geared(
-                        &race().shared.car,
+                        race().shared.car(),
                         &race().shared.physics_tables,
                         &race().course.numbers,
                         crate::scene::owner::scene(),
@@ -756,7 +756,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     braking_count_neutral(
-                        &race().shared.car,
+                        race().shared.car(),
                         &race().shared.physics_tables,
                         crate::scene::owner::scene(),
                     );
@@ -777,7 +777,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     engine_braking_force(
-                        &race().shared.car,
+                        race().shared.car(),
                         &race().shared.physics_tables,
                         &race().course.numbers,
                     );
@@ -790,7 +790,7 @@ mod reference_vectors {
                     writes: &[(0x22401C, Out::F)],
                 }],
                 ulps: 0,
-                plain: |_| abs_speed_into_work(&race().shared.car, crate::scene::owner::scene()),
+                plain: |_| abs_speed_into_work(race().shared.car(), crate::scene::owner::scene()),
             },
             Block {
                 name: "drive_grip_forces line 202",
@@ -847,7 +847,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     yaw_force(
-                        &race().shared.car,
+                        race().shared.car(),
                         &race().shared.physics_tables,
                         &race().course.numbers,
                         race().engine_tables(),
@@ -879,7 +879,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     yaw_force(
-                        &race().shared.car,
+                        race().shared.car(),
                         &race().shared.physics_tables,
                         &race().course.numbers,
                         race().engine_tables(),
@@ -911,7 +911,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     yaw_force(
-                        &race().shared.car,
+                        race().shared.car(),
                         &race().shared.physics_tables,
                         &race().course.numbers,
                         race().engine_tables(),
@@ -932,7 +932,7 @@ mod reference_vectors {
                     writes: &[(0x31A1DC, Out::F)],
                 }],
                 ulps: 0,
-                plain: |_| sum_grip_forces(&race().shared.car),
+                plain: |_| sum_grip_forces(race().shared.car()),
             },
             Block {
                 name: "drive_grip_forces line 253",
@@ -970,7 +970,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     ease_yaw_twist(
-                        &race().shared.car,
+                        race().shared.car(),
                         &race().shared.physics_tables,
                         &race().course.numbers,
                         HostCell(a[1]).bits(),

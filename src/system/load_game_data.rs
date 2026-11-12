@@ -180,7 +180,7 @@ pub fn load_game_data(o: Owners<'static>, outside: Outside) -> Result<(), Refuse
         }
     }
 
-    if race.shared.tyre_change.record_name.get(0) == 0 {
+    if race.shared.tyre_change().record_name.get(0) == 0 {
         let mut draws = 0;
         let end = loop {
             let drawn = outside(Call::RandomBelow(DRIVER_NAME_IDS.1))?;
@@ -195,10 +195,10 @@ pub fn load_game_data(o: Owners<'static>, outside: Outside) -> Result<(), Refuse
             }
             // No NUL yet: a short name leaves what was there after it.
             for (k, &b) in name.iter().enumerate() {
-                race.shared.tyre_change.record_name.set(k, b);
+                race.shared.tyre_change().record_name.set(k, b);
             }
             if !drawn_again(std::array::from_fn(|k| {
-                race.shared.tyre_change.record_name.get(k)
+                race.shared.tyre_change().record_name.get(k)
             })) {
                 break name.len();
             }
@@ -207,8 +207,8 @@ pub fn load_game_data(o: Owners<'static>, outside: Outside) -> Result<(), Refuse
                 return Err(BadInput("no driver's name that can be taken").into());
             }
         };
-        race.shared.tyre_change.record_name.set(end, 0);
-        race.shared.tyre_change.record.set(TYRE_CHANGE_RECORD);
+        race.shared.tyre_change().record_name.set(end, 0);
+        race.shared.tyre_change().record.set(TYRE_CHANGE_RECORD);
     }
 
     for slot in 0..SLOTS {
@@ -218,7 +218,7 @@ pub fn load_game_data(o: Owners<'static>, outside: Outside) -> Result<(), Refuse
     for slot in 0..SLOTS {
         outside(Call::ReadReplaySlot(slot))?;
     }
-    number_empty_names(o, &race.shared.replays.names, REPLAY_NAME_ID)?;
+    number_empty_names(o, &race.shared.replays().names, REPLAY_NAME_ID)?;
     for slot in 0..SLOTS {
         outside(Call::ReadSetupSlot(slot))?;
     }

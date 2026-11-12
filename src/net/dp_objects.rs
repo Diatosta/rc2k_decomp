@@ -639,9 +639,18 @@ mod tests {
     #[test]
     fn a_session_is_hosted_found_joined_and_talked_to() {
         let _lock = crate::test_support::test_lock();
-        let port = 47_700 + (std::process::id() % 200) as u16;
-        let host = play_object(port);
-        assert_eq!(open(host, &desc([0; 16]), DPOPEN_CREATE), DP_OK);
+        // A port another program holds (a network game on this machine): the next ones.
+        let first = 47_700 + (std::process::id() % 200) as u16;
+        let (port, host) = (first..first + 20)
+            .find_map(|port| {
+                let host = play_object(port);
+                if open(host, &desc([0; 16]), DPOPEN_CREATE) == DP_OK {
+                    return Some((port, host));
+                }
+                release(host);
+                None
+            })
+            .expect("a free port to host on");
         let host_player = create_player(host, b"host\0", 0, &[]).unwrap();
 
         let guest = play_object(port);

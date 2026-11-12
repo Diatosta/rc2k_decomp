@@ -32,17 +32,17 @@ pub fn finish_run(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), 
     lift_car(race);
     restart_clock(race);
     race.frame
-        .clock_ticks
+        .clock_ticks()
         .clock_a
         .set(race.shared.physics_tables.scene_clock.get());
     race.frame
-        .clock_ticks
+        .clock_ticks()
         .sound_tick_last
         .set(race.shared.physics_tables.scene_clock.get());
-    for mark in &race.frame.clock_ticks.marks {
+    for mark in &race.frame.clock_ticks().marks {
         mark.set(u32::MAX);
     }
-    race.replay.replay_view.play_end.set(u32::MAX);
+    race.replay.replay_view().play_end.set(u32::MAX);
     restart_clock(race);
     race.replay
         .finish

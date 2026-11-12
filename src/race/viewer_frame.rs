@@ -21,22 +21,22 @@ use crate::session::Dword;
 pub fn viewer_frame(o: Owners<'static>) -> Result<bool, Refused> {
     let (system, gfx, race) = (o.system, o.gfx, o.race);
     let replay = &race.replay;
-    if race.shared.replay_file.replay_at_end.is_set() {
+    if race.shared.replay_file().replay_at_end.is_set() {
         crate::gfx::clear_back_surface::clear_back_surface(gfx, system)?;
     }
     // `d3d::begin_scene` cannot fail (its carry is clear).
     crate::platform_3d::begin_layer(o.d3d, crate::workers::game_scratch());
-    if !race.shared.replay_file.replay_at_end.is_set() {
+    if !race.shared.replay_file().replay_at_end.is_set() {
         crate::drive::replay_frame_marks::replay_frame_marks(race)?;
         crate::race::show_replay_still::show_replay_still(race, o)?;
     }
-    if replay.replay_view.snapshot_asked.get() == 1 {
-        replay.replay_view.snapshot_asked.set(0);
+    if replay.replay_view().snapshot_asked.get() == 1 {
+        replay.replay_view().snapshot_asked.set(0);
         // `d3d::end_scene` cannot fail either.
         crate::platform_3d::end_layer(o.d3d);
         crate::race::viewer_snapshot::viewer_snapshot(replay, gfx, o.system)?;
     } else {
-        if race.shared.replay_file.viewer_stopped.is_set() {
+        if race.shared.replay_file().viewer_stopped.is_set() {
             stopped(race, o)?;
         }
         crate::platform_3d::end_layer(o.d3d);
@@ -53,19 +53,19 @@ fn stopped(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::viewer_flow::{LIST_STATES, bar_places, mark_x, place_x}`.
     use rc2k_core::race::viewer_flow::{LIST_STATES, bar_places, mark_x, place_x};
     let part = crate::workers::game_scratch();
-    crate::d3d::set_texture::set_texture(part, shared.replay_file.viewer_list_texture.get());
+    crate::d3d::set_texture::set_texture(part, shared.replay_file().viewer_list_texture.get());
     for (value, state) in LIST_STATES {
         crate::d3d::set_render_state::set_render_state(part, value, state);
     }
     // The list's item count: the byte at +1 of its first dword.
-    let items = (replay.replay_view.viewer_list[0].get() >> 8) as u8;
+    let items = (replay.replay_view().viewer_list[0].get() >> 8) as u8;
     // The original counts up to the byte at +1 after each item, from 0: a count of 0
     // goes round 256 times. The items are the list's 16-byte entries from +0x18; one past
     // the 26 there is refused.
     for index in 0..if items == 0 { 256 } else { u32::from(items) } {
         let first = 6 + 4 * index as usize;
         let item = replay
-            .replay_view
+            .replay_view()
             .viewer_list
             .get(first..)
             .and_then(|rest| rest.first_chunk::<4>())
@@ -88,7 +88,7 @@ fn stopped(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
     };
     let v = race.viewer_panel();
     quad(&v.frame_picture_rect, &v.bar_frame_rect, 0xFF_FFFF)?;
-    let blocks = shared.replay_file.index_block_count.get();
+    let blocks = shared.replay_file().index_block_count.get();
     if blocks != 0 {
         let (w, x) = (
             race.viewer_panel().bar_rect[2].get(),
@@ -99,8 +99,8 @@ fn stopped(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
                 race.viewer_buffers().mark_in.get(),
                 race.viewer_buffers().mark_out.get(),
             ),
-            replay.replay_view.replay_block.get(),
-            replay.replay_view.replay_frame.get(),
+            replay.replay_view().replay_block.get(),
+            replay.replay_view().replay_frame.get(),
             w,
             blocks,
         )?;

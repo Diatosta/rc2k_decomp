@@ -29,9 +29,9 @@ impl<'a> ChangePlaces<'a> {
     pub fn game(shared: &'a RaceShared) -> Self {
         Self {
             wanted: &shared.physics_tables.gear_asked,
-            bits: &shared.car.lost_gear_bits,
-            changed: &shared.car.gear_changed,
-            pending: &shared.car.gear_change_pending,
+            bits: &shared.car().lost_gear_bits,
+            changed: &shared.car().gear_changed,
+            pending: &shared.car().gear_change_pending,
         }
     }
 }
@@ -92,7 +92,7 @@ pub fn change_gear_at(
 pub fn change_gear(numbers: &Numbers, shared: &RaceShared) -> Result<(), Refused> {
     change_gear_at(
         numbers,
-        &GearPlaces::game(&shared.car, &shared.physics_tables),
+        &GearPlaces::game(shared.car(), &shared.physics_tables),
         &ChangePlaces::game(shared),
     )
 }

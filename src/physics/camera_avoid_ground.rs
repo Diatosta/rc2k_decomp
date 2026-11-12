@@ -63,7 +63,8 @@ fn face_checkpoint(
     back: u32,
     scene: &crate::scene::owner::Scene,
 ) -> bool {
-    let Some(checkpoint) = camera_ground::back_checkpoint(shared.car.checkpoint.get(), back) else {
+    let Some(checkpoint) = camera_ground::back_checkpoint(shared.car().checkpoint.get(), back)
+    else {
         return false;
     };
     let face = crate::race::checkpoints_store::face(checkpoints, checkpoint as usize).get();
@@ -73,12 +74,12 @@ fn face_checkpoint(
         crate::race::scene_points::point_word(course, &crate::race::scene_points::NO_OWN, point, k)
             .unwrap_or_else(|e| crate::fatal::raise::end("a scene point", e))
     };
-    let first = shared.car.position[0].get().wrapping_sub(coordinate(0));
-    let second = shared.car.position[2].get().wrapping_sub(coordinate(2));
+    let first = shared.car().position[0].get().wrapping_sub(coordinate(0));
+    let second = shared.car().position[2].get().wrapping_sub(coordinate(2));
     let angle = crate::scene::angle_between::angle_of(course, first, second);
     // `scene::angle_between` left the angle in `g_scratch`.
     scene.drawing.scene.scratch.set_bits(angle);
-    shared.car.camera_heading.set(angle << 16);
+    shared.car().camera_heading.set(angle << 16);
     true
 }
 

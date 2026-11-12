@@ -13,7 +13,7 @@ use crate::race::owner_course::Course;
 // The stage's localdat is the whole of `race().course.stage_prefs` (0x608CB4, 0x206C bytes).
 /// `files\levels\levelxx\localdat`, `srclvls\levelxx\localdat` (the xx the course's).
 fn prefs_paths(course: &Course) -> [&dyn Store; 2] {
-    let p = &course.level_paths;
+    let p = course.level_paths();
     [&p.localdat_files, &p.localdat_src]
 }
 pub const LIGHT_RECORDS: u32 = rc2k_core::race::stage_objects::LIGHT_RECORDS as u32;
@@ -119,7 +119,7 @@ pub fn copy_lights_data(race: &Race) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::stage_objects::lay_lights`.
     use rc2k_core::race::stage_objects::{LIGHT_RECORD, lay_lights};
     let records = &race.light_records().records;
-    let source = race.course.lights_data.lights.read();
+    let source = race.course.lights_data().lights.read();
     let mut laid = vec![0; LIGHT_RECORDS as usize * LIGHT_RECORD];
     Store::load(records, 0, &mut laid)?;
     lay_lights(&source, &mut laid);
@@ -129,9 +129,9 @@ pub fn copy_lights_data(race: &Race) -> Result<(), BadInput> {
 /// `race::load_lights_data` (0x438AE5): `files\s\data\ldata` (0x1320 bytes at most) into the
 /// lights' data, then `copy_lights_data`.
 pub fn load_lights_data(race: &Race) -> Result<(), Refused> {
-    crate::files::read_whole_file::read_whole_file_bytes(
-        &crate::files::cstring(&race.physics.camera.lights_path, "the lights data path")?, // "files\s\data\ldata"
-        &race.course.lights_data.lights,
+    crate::files::read_whole_file::read_whole_file_plain_bytes(
+        &crate::files::cstring(&race.physics.camera().lights_path, "the lights data path")?, // "files\s\data\ldata"
+        &race.course.lights_data().lights,
     )?;
     copy_lights_data(race)?;
     Ok(())
@@ -154,7 +154,7 @@ pub fn get_mat_crash(
         car.car_pitch.get(),
         car.car_roll.get(),
     ]);
-    crate::session::write_bits(&scene.drawing.object_work.angles, turns);
+    crate::session::write_bits(&scene.object_work().angles, turns);
     matrix::set_turn_x(
         engine_tables,
         &matrices.turn_x_matrix,

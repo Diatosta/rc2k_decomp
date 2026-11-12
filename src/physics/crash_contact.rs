@@ -224,7 +224,7 @@ mod reference_vectors {
                 plain: |_| {
                     x87_2(
                         &crate::race::owner::race().physics.contact,
-                        &crate::race::owner::race().shared.car,
+                        crate::race::owner::race().shared.car(),
                         &crate::race::owner::race().course.numbers,
                     );
                 },

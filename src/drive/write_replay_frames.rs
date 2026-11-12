@@ -13,17 +13,17 @@ use rc2k_core::drive::replay_frames::written_view;
 // Converted: `rc2k_core::drive::replay_frames::written_view`.
 pub fn write_replay_frames(race: &Race, system: &System) -> Result<(), Refused> {
     let replay = &race.replay;
-    if !race.shared.replay_file.replay_open.is_set() {
+    if !race.shared.replay_file().replay_open.is_set() {
         return Ok(());
     }
-    race.shared.replay_file.index_frame_count.set(
+    race.shared.replay_file().index_frame_count.set(
         race.shared
-            .replay_file
+            .replay_file()
             .index_frame_count
             .get()
             .wrapping_add(0x64),
     );
-    replay.replay_view.frames_in_block.set(0x64);
+    replay.replay_view().frames_in_block.set(0x64);
     race.viewer_buffers().block[0].set(0);
     race.viewer_buffers().block[1].set(0);
     if race.replay_work().header_one_player.get() != 1 {
@@ -34,6 +34,6 @@ pub fn write_replay_frames(race: &Race, system: &System) -> Result<(), Refused> 
     }
     { crate::race::replay::write_replay_block(race, system, replay) }?;
     race.viewer_buffers().block_used.set(0);
-    replay.replay_view.frames_in_block.set(0);
+    replay.replay_view().frames_in_block.set(0);
     Ok(())
 }

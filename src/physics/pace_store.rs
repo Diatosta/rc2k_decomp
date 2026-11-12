@@ -54,7 +54,7 @@ const _: () = assert!(END - START == core::mem::size_of::<PaceNotes>());
 /// The piece's host address (the alignment checks).
 #[cfg(test)]
 pub fn piece_addr() -> usize {
-    core::ptr::from_ref(&race().physics.pace).addr()
+    core::ptr::from_ref(race().physics.pace()).addr()
 }
 
 #[cfg(test)]
@@ -64,7 +64,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(&race().physics.pace);
+        crate::test_support::first_values::assert_block_starts_as_the_games(race().physics.pace());
     }
 
     #[test]

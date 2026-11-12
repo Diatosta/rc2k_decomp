@@ -43,6 +43,6 @@ pub fn next_camera_view(race: &Race, car: &Car) -> Result<(), BadInput> {
         race.kind_tables(),
         car,
         &shared.view.players,
-        &shared.car.step_clock,
+        &shared.car().step_clock,
     )
 }

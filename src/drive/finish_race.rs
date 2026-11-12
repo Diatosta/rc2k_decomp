@@ -24,7 +24,7 @@ fn log_number(v: u32) {
 /// A variable's place.
 fn var(race: &Race, v: Var) -> &Dword {
     match v {
-        Var::D60101C => &race.physics.split_tables.arcade_kind,
+        Var::D60101C => &race.physics.split_tables().arcade_kind,
         Var::D621514 => &race.shared.switches.editor_mode,
         Var::D623854 => &race.shared.vars.direction,
         Var::D6235FC => &race.shared.vars.car_tyres[0],

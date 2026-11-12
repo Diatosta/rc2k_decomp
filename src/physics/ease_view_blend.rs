@@ -37,9 +37,9 @@ pub fn ease_view_blend(
 /// `[view_share] = 1 - [view_share]`
 fn x87_1(shared: &RaceShared) {
     let t0 = X(1.0);
-    let t1 = shared.tables.view_share.ld();
+    let t1 = shared.tables().view_share.ld();
     let t2 = t0 - t1;
-    shared.tables.view_share.st(t2);
+    shared.tables().view_share.st(t2);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables

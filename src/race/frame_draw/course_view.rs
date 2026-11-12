@@ -327,7 +327,12 @@ pub fn face_hide_mask(
     part: &crate::workers::PartScratch,
 ) -> Result<(), Refused> {
     crate::physics::probe_ground::probe_ground_in_view(
-        &crate::physics::step_inputs::StepInputs::of(race).ground(),
+        &crate::physics::probe_ground::ProbeInputs {
+            numbers: &race.course.numbers,
+            tables: &race.shared.physics_tables,
+            course: &race.course,
+            engine_tables: &race.shared.buffers.engine_tables,
+        },
         &view.car,
         scene,
         &part.points,

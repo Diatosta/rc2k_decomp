@@ -15,12 +15,12 @@ fn core(v: &[&dyn Cell32]) {
 
 fn game(shared: &RaceShared) -> Vec<&dyn Cell32> {
     vec![
-        &shared.car.driver_kind,
-        &shared.car.checkpoint,
-        &shared.car.engine_sound_speed_int,
-        &shared.car.start_share,
-        &shared.car.start_blend,
-        &shared.car.unused_44,
+        &shared.car().driver_kind,
+        &shared.car().checkpoint,
+        &shared.car().engine_sound_speed_int,
+        &shared.car().start_share,
+        &shared.car().start_blend,
+        &shared.car().unused_44,
     ]
 }
 

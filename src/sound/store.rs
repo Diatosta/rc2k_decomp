@@ -634,6 +634,73 @@ pub struct SoundSlot {
     pub rate: Dword,
 }
 
+/// The stage's timed sound slot: `SoundSlot`'s six dwords, plain (the game thread's alone; the
+/// race sound objects' slots sit among atomic cells).
+#[repr(C)]
+#[derive(rc2k_derive::Cells)]
+pub struct StageSlot {
+    /// The sound (a sample number).
+    pub sound: PlainDword,
+    /// 1 = start it (cleared by the slot's turn).
+    pub start: PlainDword,
+    /// 1 = playing.
+    pub playing: PlainDword,
+    /// When it ends (the sound clock, ms).
+    pub ends: PlainDword,
+    /// The volume (-0x6F: the sample's own).
+    pub volume: PlainDword,
+    /// The rate (-0x6F: the sample's own).
+    pub rate: PlainDword,
+}
+
+/// A timed slot's six dwords, whichever kind of cells hold them (`sound::play_timed_slot`).
+pub trait TimedCells {
+    fn load(&self) -> rc2k_core::sound::cars::TimedSlot;
+    fn store(&self, slot: &rc2k_core::sound::cars::TimedSlot);
+}
+
+impl TimedCells for SoundSlot {
+    fn load(&self) -> rc2k_core::sound::cars::TimedSlot {
+        rc2k_core::sound::cars::TimedSlot {
+            sound: self.sound.get(),
+            start: self.start.get(),
+            playing: self.playing.get(),
+            ends: self.ends.get(),
+            volume: self.volume.get(),
+            rate: self.rate.get(),
+        }
+    }
+    fn store(&self, s: &rc2k_core::sound::cars::TimedSlot) {
+        self.sound.set(s.sound);
+        self.start.set(s.start);
+        self.playing.set(s.playing);
+        self.ends.set(s.ends);
+        self.volume.set(s.volume);
+        self.rate.set(s.rate);
+    }
+}
+
+impl TimedCells for StageSlot {
+    fn load(&self) -> rc2k_core::sound::cars::TimedSlot {
+        rc2k_core::sound::cars::TimedSlot {
+            sound: self.sound.get(),
+            start: self.start.get(),
+            playing: self.playing.get(),
+            ends: self.ends.get(),
+            volume: self.volume.get(),
+            rate: self.rate.get(),
+        }
+    }
+    fn store(&self, s: &rc2k_core::sound::cars::TimedSlot) {
+        self.sound.set(s.sound);
+        self.start.set(s.start);
+        self.playing.set(s.playing);
+        self.ends.set(s.ends);
+        self.volume.set(s.volume);
+        self.rate.set(s.rate);
+    }
+}
+
 /// A sound spot shared with the sound side, 0x14 bytes.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -683,7 +750,7 @@ pub struct StageSounds {
     /// `g_stageTimedWaiting`: 1 while it waits to be due.
     pub timed_waiting: PlainDword,
     /// `g_stageTimedSlot` (`StageSounds.timed_slot.sound`): the timed sound's slot (sound 0x1C4).
-    pub timed_slot: SoundSlot,
+    pub timed_slot: StageSlot,
     /// `g_stageRandomSound1`, `g_stageRandomSound2`: at 1 a sound (0x1AE, 0x1AF) at a random pitch and place is played once.
     pub random: [PlainDword; 2],
     /// `g_sharedSoundSpotCount`: the spots the race frame shared this frame (`race::share_sound_spots`).
@@ -726,13 +793,13 @@ impl StageSounds {
             loop_volume_b: PlainDword::new(0),
             timed_due: PlainDword::new(0),
             timed_waiting: PlainDword::new(0),
-            timed_slot: SoundSlot {
-                sound: Dword::new(0x1C4),
-                start: Dword::new(0),
-                playing: Dword::new(0),
-                ends: Dword::new(0),
-                volume: Dword::new(0xFFFFFF91),
-                rate: Dword::new(0xFFFFFF91),
+            timed_slot: StageSlot {
+                sound: PlainDword::new(0x1C4),
+                start: PlainDword::new(0),
+                playing: PlainDword::new(0),
+                ends: PlainDword::new(0),
+                volume: PlainDword::new(0xFFFFFF91),
+                rate: PlainDword::new(0xFFFFFF91),
             },
             random: [PlainDword::new(0), PlainDword::new(0)],
             shared_count: PlainDword::new(0),

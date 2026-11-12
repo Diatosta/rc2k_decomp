@@ -580,7 +580,7 @@ pub fn run_view_marks(
     let (other, own) = marks_shown(
         view,
         race.shared.vars.scene_switch.get(),
-        race.physics.split_tables.still.get(),
+        race.physics.split_tables().still.get(),
     );
     race.effects_settings().other_marks_shown.set(other);
     race.effects_settings().own_marks_shown.set(own);

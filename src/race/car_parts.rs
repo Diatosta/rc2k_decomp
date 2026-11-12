@@ -75,18 +75,21 @@ pub fn car_part_matrices(
     c.marks_count.set(marks_bytes(s.count, slow, on));
     c.shown_steering.set(steering(p.steer_angle_visual.get()));
     let [front, rear_lift, height, front_z, _] = ax;
-    race.physics.camera.axle_front.set(front);
-    race.physics.camera.axle_front_neg.set(front.wrapping_neg());
-    race.physics.camera.axle_rear_lift.set(rear_lift);
-    race.physics.camera.axle_height.set(height);
-    race.physics.camera.axle_front_z.set(front_z);
-    race.physics.camera.car_axles.set(ax[4]);
-    scene.drawing.object_work.part_values[2].set(c.shown_steering.get());
-    scene.drawing.object_work.part_values[0].set(p.driven_wheel_turns[0].get());
-    scene.drawing.object_work.part_values[1].set(p.driven_wheel_turns[1].get());
+    race.physics.camera().axle_front.set(front);
+    race.physics
+        .camera()
+        .axle_front_neg
+        .set(front.wrapping_neg());
+    race.physics.camera().axle_rear_lift.set(rear_lift);
+    race.physics.camera().axle_height.set(height);
+    race.physics.camera().axle_front_z.set(front_z);
+    race.physics.camera().car_axles.set(ax[4]);
+    scene.object_work().part_values[2].set(c.shown_steering.get());
+    scene.object_work().part_values[0].set(p.driven_wheel_turns[0].get());
+    scene.object_work().part_values[1].set(p.driven_wheel_turns[1].get());
     copy_cells(&p.crash_matrix, &race.frame.matrices.body_turn_matrix, 16);
     for i in 0..4 {
-        scene.drawing.object_work.part_weights[i].set(p.wheel_spring_force[i].get());
+        scene.object_work().part_weights[i].set(p.wheel_spring_force[i].get());
     }
     set_place(
         &race.frame.matrices.placed_matrix,
@@ -102,7 +105,7 @@ pub fn car_part_matrices(
         16,
     );
     // (x, z, the x turn, the height, the matrix): the four wheels.
-    let (c, o) = (&race.physics.camera, &scene.drawing.object_work);
+    let (c, o) = (race.physics.camera(), scene.object_work());
     let parts = |n: usize| &race.frame.frame_work.part_matrices[n..n + 16];
     for (n, (x, z, spin, lift, out)) in [
         (
@@ -138,13 +141,13 @@ pub fn car_part_matrices(
     .enumerate()
     {
         if n == 2 {
-            scene.drawing.object_work.part_values[2].set(0);
+            scene.object_work().part_values[2].set(0);
         }
         set_place(
             &race.frame.matrices.placed_matrix,
             [
                 x.get().wrapping_neg(),
-                race.physics.camera.axle_rear_lift.get().wrapping_neg(),
+                race.physics.camera().axle_rear_lift.get().wrapping_neg(),
                 z.get().wrapping_neg(),
             ],
         );
@@ -162,7 +165,7 @@ pub fn car_part_matrices(
             race.engine_tables(),
             &race.frame.matrices.turn_y_matrix,
             &scene.drawing.scene.turn_y_work,
-            scene.drawing.object_work.part_values[2].get(),
+            scene.object_work().part_values[2].get(),
         );
         multiply_matrices(turned, &race.frame.matrices.turn_y_matrix, lit);
         set_place(

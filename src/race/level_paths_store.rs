@@ -4,49 +4,49 @@
 //! `localdat` paths. `#[repr(C)]` with the image's layout, over the race block's bytes
 //! (`LEVEL_PATHS`). Names are readings unless IDA's.
 
-use crate::session::Bytes;
+use crate::session::PlainBytes;
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct LevelPaths {
     /// +0x0 (0x60AF0C): `files\a\txxxxx.pcx` (`scene::load_texture_picture`; the number written in).
-    pub picture_a: Bytes<0x13>,
+    pub picture_a: PlainBytes<0x13>,
     /// +0x13 (0x60AF1F): `files\m\txxxxx.pcx`.
-    pub picture_m: Bytes<0x13>,
+    pub picture_m: PlainBytes<0x13>,
     /// +0x26 (0x60AF32): `files\b\txxxxx.pcx`.
-    pub picture_b: Bytes<0x13>,
+    pub picture_b: PlainBytes<0x13>,
     /// +0x39 (0x60AF45): `files\b\gravel\txxxxx.pcx`.
-    pub picture_gravel: Bytes<0x1a>,
+    pub picture_gravel: PlainBytes<0x1a>,
     /// +0x53 (0x60AF5F): `files\g\frnt\txxxxx.pcx`.
-    pub picture_front: Bytes<0x18>,
+    pub picture_front: PlainBytes<0x18>,
     /// +0x6b (0x60AF77): `files\s\extr\txxxxx.pcx`.
-    pub picture_extra: Bytes<0x18>,
+    pub picture_extra: PlainBytes<0x18>,
     /// +0x83 (0x60AF8F): the second name of the same, `files\a\txxxxx.pcx`.
-    pub second_a: Bytes<0x13>,
+    pub second_a: PlainBytes<0x13>,
     /// +0x96 (0x60AFA2): second name, `files\m\txxxxx.pcx`.
-    pub second_m: Bytes<0x13>,
+    pub second_m: PlainBytes<0x13>,
     /// +0xa9 (0x60AFB5): second name, `files\b\txxxxx.pcx`.
-    pub second_b: Bytes<0x13>,
+    pub second_b: PlainBytes<0x13>,
     /// +0xbc (0x60AFC8): second name, `files\b\gravel\txxxxx.pcx`.
-    pub second_gravel: Bytes<0x1a>,
+    pub second_gravel: PlainBytes<0x1a>,
     /// +0xd6 (0x60AFE2): second name, `files\g\frnt\txxxxx.pcx`.
-    pub second_front: Bytes<0x18>,
+    pub second_front: PlainBytes<0x18>,
     /// +0xee (0x60AFFA): second name, `files\s\extr\txxxxx.pcx`.
-    pub second_extra: Bytes<0x18>,
+    pub second_extra: PlainBytes<0x18>,
     /// +0x106 (0x60B012): `srclvls\level01\editpref` (`race::set_course_number` writes the number at +0xD).
-    pub edit_path: Bytes<0x19>,
+    pub edit_path: PlainBytes<0x19>,
     /// +0x11f (0x60B02B): `srclvls\level01\cdat00c` (`race::course_data`, `race::find_present_courses`).
-    pub cdat_src: Bytes<0x18>,
+    pub cdat_src: PlainBytes<0x18>,
     /// +0x137 (0x60B043): `srclvls\levelxx\localdat` (`race::stage_prefs`).
-    pub localdat_src: Bytes<0x19>,
+    pub localdat_src: PlainBytes<0x19>,
     /// +0x150 (0x60B05C): `files\levels\levelxx\localdat`.
-    pub localdat_files: Bytes<0x1e>,
+    pub localdat_files: PlainBytes<0x1e>,
     /// +0x16e (0x60B07A): `files\levels\level01\cdat00c.sq`.
-    pub cdat_files: Bytes<0x20>,
+    pub cdat_files: PlainBytes<0x20>,
     /// +0x18e (0x60B09A): `srclvls\level01\cdat00c`, a second copy of `cdat_src`, whose number `race::level_init::number_places` writes too.
-    pub cdat_src_copy: Bytes<0x18>,
+    pub cdat_src_copy: PlainBytes<0x18>,
     /// +0x1a6 (0x60B0B2): `files\s\!!`.
-    pub files_s: Bytes<0xb>,
+    pub files_s: PlainBytes<0xb>,
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
@@ -74,7 +74,7 @@ mod tests {
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::race::owner::RACE.course.level_paths,
+            crate::race::owner::RACE.course.level_paths(),
         );
     }
 

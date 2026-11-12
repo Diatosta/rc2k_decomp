@@ -11,7 +11,7 @@ use crate::net::store::NetVars;
 use crate::race::owner::Race;
 use rc2k_core::net::race;
 pub fn follow_remote(race: &Race, vars: &NetVars) -> Result<(), crate::errors::BadInput> {
-    let car = &race.shared.car;
+    let car = race.shared.car();
     // Converted: `rc2k_core::net::race::glide` (the block read only with the race on).
     if vars.session.get() == 0 {
         return Ok(());

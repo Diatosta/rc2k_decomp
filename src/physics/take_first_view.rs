@@ -104,7 +104,7 @@ mod reference_vectors {
             ulps: 0,
             plain: |a| {
                 x87_1(
-                    &crate::race::owner::race().physics.camera,
+                    crate::race::owner::race().physics.camera(),
                     [4, 8, 0xC].map(|o| crate::scene::x87_mem::Base::dword(a[0], o)),
                     crate::scene::owner::scene(),
                 );

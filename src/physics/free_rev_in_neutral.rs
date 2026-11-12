@@ -13,7 +13,7 @@ pub fn free_rev_in_neutral(
     gear: &crate::physics::gear_store::GearFigures,
     scene: &crate::scene::owner::Scene,
 ) {
-    if shared.car.gear.get() != 0 {
+    if shared.car().gear.get() != 0 {
         return;
     }
     free_rev(course, shared, gear, scene);

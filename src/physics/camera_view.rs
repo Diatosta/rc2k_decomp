@@ -30,10 +30,10 @@ pub fn share_done(
     scene: &crate::scene::owner::Scene,
 ) -> u32 {
     let mut eax = shared
-        .car
+        .car()
         .step_clock
         .get()
-        .wrapping_sub(shared.car.camera_switch_clock.get());
+        .wrapping_sub(shared.car().camera_switch_clock.get());
     if (eax as i32) < 0 {
         eax = 0;
     }
@@ -56,7 +56,7 @@ fn x87_1(shared: &RaceShared, change_time: u32, scene: &crate::scene::owner::Sce
     let t0 = int(scene.drawing.scene.scratch.bits() as i32);
     let t1 = int(change_time as i32);
     let t2 = t0 / t1;
-    shared.tables.view_share.st(t2);
+    shared.tables().view_share.st(t2);
 }
 
 #[cfg(test)]

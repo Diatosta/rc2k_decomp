@@ -32,9 +32,9 @@ pub fn play_movie_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result
     crate::race::stage_prefs::init_skidmarks(race)?;
     log_text(TEXTS[0], false);
     log_text(TEXTS[1], false);
-    log_number(race.replay.replay_view.replay_block.get());
+    log_number(race.replay.replay_view().replay_block.get());
     log_text(TEXTS[2], false);
-    log_number(race.replay.replay_view.play_end.get());
+    log_number(race.replay.replay_view().play_end.get());
     race.course.numbers.replay_mode.set(2); // Numbers.replay_mode
     race_parts::restart_clock(race);
     race.shared
@@ -48,7 +48,8 @@ pub fn play_movie_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result
         }
         { crate::drive::race_step::race_step(o, race) }?;
         race_parts::race_frame(race, o)?;
-        if race.replay.replay_view.replay_block.get() == race.replay.replay_view.play_end.get() {
+        if race.replay.replay_view().replay_block.get() == race.replay.replay_view().play_end.get()
+        {
             break;
         }
     }

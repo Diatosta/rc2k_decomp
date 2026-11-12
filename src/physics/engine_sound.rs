@@ -73,11 +73,11 @@ pub fn engine_sound(
     if shared.view.players.get() == 1 && shared.view_car(0).is_none() {
         return Err(crate::errors::BadInput("a null view block").into());
     }
-    run(&shared.car, numbers);
+    run(shared.car(), numbers);
     drawing
         .scene
         .scratch
-        .set(x87::loaded(&shared.car.engine_speed).to_bits());
+        .set(x87::loaded(&shared.car().engine_speed).to_bits());
     let floor = shared.physics_tables.idle_engine_speed.bits();
     let held = hold_low(
         f32::from_bits(drawing.scene.scratch.get()),
@@ -89,12 +89,12 @@ pub fn engine_sound(
         .scratch
         .set(ext_to_int(extended(drawing.scene.scratch.get())) as u32);
     let (revs, _) = ease_revs(
-        shared.car.engine_sound_revs.get(),
+        shared.car().engine_sound_revs.get(),
         drawing.scene.scratch.get(),
     );
-    shared.car.engine_sound_revs.set(revs);
+    shared.car().engine_sound_revs.set(revs);
     { car_sound_state(numbers, matrices, shared) }?;
-    gear_change_sound(&shared.car)
+    gear_change_sound(shared.car())
 }
 
 #[cfg(test)]
@@ -120,7 +120,7 @@ mod reference_vectors {
                 writes: &[(0x31AEE0, Out::F), (0x31AA88, Out::I), (0x31A26C, Out::F)],
             }],
             ulps: 0,
-            plain: |_| run_at(&race().shared.car, &race().course.numbers),
+            plain: |_| run_at(race().shared.car(), &race().course.numbers),
         }];
         sparse("physics.engine_sound", &blocks, 4000, 200);
     }

@@ -158,7 +158,7 @@ impl SlotNames {
                 crate::service::read_setup_slot::NAME_LEN,
             ),
             SlotNames::Replays => (
-                &o.race.shared.replays.names,
+                &o.race.shared.replays().names,
                 crate::menu::name_lists::NAME_LEN,
             ),
         }

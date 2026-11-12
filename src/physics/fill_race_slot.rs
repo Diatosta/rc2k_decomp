@@ -50,7 +50,7 @@ pub fn fill_race_slot(
     let out = rotate_point(&car.crash_matrix, [i(0), i(1), i(2)]);
     for (k, e) in out.iter().enumerate() {
         let n = ext_to_int(*e) as u32;
-        scene.drawing.object_work.object_position[k].set_bits(n);
+        scene.object_work().object_position[k].set_bits(n);
         slot.place[k].set(n.wrapping_add(car.position[k].get()));
     }
     slot.car_word.set(car.probe_point_face[4].get());
@@ -61,7 +61,7 @@ pub fn fill_race_slot(
     let k = work.part_fling.bits();
     slot.motion[0].set_bits(
         int_mul_add(
-            scene.drawing.object_work.object_position[0].get() as i32,
+            scene.object_work().object_position[0].get() as i32,
             k,
             &car.velocity[0],
             None,
@@ -70,7 +70,7 @@ pub fn fill_race_slot(
     );
     slot.motion[1].set_bits(
         int_mul_add(
-            scene.drawing.object_work.object_position[1].get() as i32,
+            scene.object_work().object_position[1].get() as i32,
             k,
             car.velocity[1].bits(),
             Some(numbers.two.bits()),
@@ -79,7 +79,7 @@ pub fn fill_race_slot(
     );
     slot.motion[2].set_bits(
         int_mul_add(
-            scene.drawing.object_work.object_position[2].get() as i32,
+            scene.object_work().object_position[2].get() as i32,
             k,
             &car.velocity[2],
             None,

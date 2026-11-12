@@ -20,10 +20,10 @@ pub fn spread_camera(race: &Race, byte: CameraByte, old: u8) -> Result<(), Refus
     let dl = byte.read(race, "a replay camera byte")?;
     let count = race
         .shared
-        .replay_file
+        .replay_file()
         .index_block_count
         .get()
-        .wrapping_sub(replay.replay_view.replay_block.get());
+        .wrapping_sub(replay.replay_view().replay_block.get());
     // Converted: `rc2k_core::race::viewer::spread` (how far it goes, first).
     let trap = Trap::new();
     let s = rc2k_core::race::viewer::spread(count, old, |n| {

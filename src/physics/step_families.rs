@@ -205,13 +205,13 @@ impl<'a> StepInputs<'a> {
             course: self.course,
             numbers: self.numbers,
             tables: self.tables,
-            camera: &self.physics.camera,
-            split_tables: &self.physics.split_tables,
+            camera: self.physics.camera(),
+            split_tables: self.physics.split_tables(),
             race_tables: self.race_tables,
             shared: self.shared,
             frame_work: &self.frame.frame_work,
             view_records: &self.frame.view_and_records,
-            lights_data: &self.course.lights_data,
+            lights_data: self.course.lights_data(),
             replay_frames: self.replay_frames,
             checkpoints: &self.shared.buffers.checkpoints,
             kind_tables: &self.replay.viewer_and_kinds.kind_tables,
@@ -224,8 +224,8 @@ impl<'a> StepInputs<'a> {
         CameraGroundInputs {
             car: self.car,
             course: self.course,
-            camera: &self.physics.camera,
-            ground: &self.physics.ground,
+            camera: self.physics.camera(),
+            ground: self.physics.ground(),
             probe: &self.physics.ground_probe,
         }
     }
@@ -237,7 +237,7 @@ impl<'a> StepInputs<'a> {
             work: self.work,
             frame_work: &self.frame.frame_work,
             matrices: &self.frame.matrices,
-            spots: &self.frame.sound_spots,
+            spots: self.frame.sound_spots(),
             polygon_tables: &self.shared.buffers.polygon_tables,
             contact: &self.physics.contact,
         }
@@ -250,7 +250,7 @@ impl<'a> StepInputs<'a> {
             tables: self.tables,
             course: self.course,
             contact: &self.physics.contact,
-            ground: &self.physics.ground,
+            ground: self.physics.ground(),
             probe: &self.physics.ground_probe,
             engine_tables: &self.shared.buffers.engine_tables,
         }
@@ -264,7 +264,7 @@ impl<'a> StepInputs<'a> {
             course: self.course,
             contact: &self.physics.contact,
             work: self.work,
-            scratch: &self.frame.scratch,
+            scratch: self.frame.scratch(),
             shared: self.shared,
             ground: self.ground(),
             sound: self.sound(),
@@ -325,7 +325,7 @@ impl<'a> StepInputs<'a> {
         LightingInputs {
             car: self.car,
             course: self.course,
-            ground: &self.physics.ground,
+            ground: self.physics.ground(),
             probe: &self.physics.ground_probe,
             vars: self.vars,
             polygon_tables: &self.shared.buffers.polygon_tables,
@@ -352,7 +352,7 @@ impl<'a> StepInputs<'a> {
             course: self.course,
             work: self.work,
             matrices: &self.frame.matrices,
-            ground: &self.physics.ground,
+            ground: self.physics.ground(),
             probe: &self.physics.ground_probe,
         }
     }

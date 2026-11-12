@@ -72,10 +72,10 @@ pub fn place_car_on_line(
         course.course.place_y.set(y);
         course.course.place_z.set(z);
         course.course.place_heading.set(heading);
-        shared.car.position[0].set(x);
-        shared.car.position[2].set(z);
-        shared.car.car_heading.set(heading);
-        shared.car.position[1].set(y);
+        shared.car().position[0].set(x);
+        shared.car().position[2].set(z);
+        shared.car().car_heading.set(heading);
+        shared.car().position[1].set(y);
         Ok(())
     }
 }
@@ -103,8 +103,8 @@ pub fn distance_to_checkpoint(
     }
     {
         let (_, point) = check_point(checkpoints, course, c)?;
-        let dx = get(course, point, 0)?.wrapping_sub(physics.ground.ground_x.get()) as i32;
-        let dz = get(course, point, 2)?.wrapping_sub(physics.ground.ground_z.get()) as i32;
+        let dx = get(course, point, 0)?.wrapping_sub(physics.ground().ground_x.get()) as i32;
+        let dz = get(course, point, 2)?.wrapping_sub(physics.ground().ground_z.get()) as i32;
         drawing.scene.scratch.set(x87::int_hypot(dx, dz) as u32);
     }
     Ok(())
@@ -139,7 +139,7 @@ pub fn nearest_checkpoint_in(
         // Every checkpoint, every physics tick: read straight from the stores while nothing
         // needs looking at more closely, by `distance_to_checkpoint` otherwise.
         let measured = measure_held(
-            &physics.ground,
+            physics.ground(),
             &course.course,
             shared,
             &mut c,
@@ -282,8 +282,14 @@ pub fn nearest_checkpoint(
 ) -> Result<u32, Refused> {
     let count = count(shared)?;
     {
-        physics.ground.ground_x.set(shared.car.position[0].get());
-        physics.ground.ground_z.set(shared.car.position[2].get());
+        physics
+            .ground()
+            .ground_x
+            .set(shared.car().position[0].get());
+        physics
+            .ground()
+            .ground_z
+            .set(shared.car().position[2].get());
         if count == 0 {
             return Ok(0);
         }

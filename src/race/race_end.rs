@@ -8,13 +8,16 @@ use crate::race::owner::Race;
 use rc2k_core::audio::commands::Command;
 
 /// Where a header setting lives in the race's variables (its first place).
-pub fn setting_cell(race: &Race, s: rc2k_core::race::replay::Setting) -> &crate::session::Dword {
+pub fn setting_cell(
+    race: &Race,
+    s: rc2k_core::race::replay::Setting,
+) -> &dyn crate::session::DwordLike {
     let shared = &race.shared;
     use rc2k_core::race::replay::Setting::*;
     match s {
-        Seed => &shared.tables.noise_seed,
-        StartPlace => &shared.tables.start_place,
-        ArcadeCars => &shared.tables.arcade_cars,
+        Seed => &shared.tables().noise_seed,
+        StartPlace => &shared.tables().start_place,
+        ArcadeCars => &shared.tables().arcade_cars,
         Stage => &shared.vars.stage_number,
         Mode => &shared.vars.run_kind,
         Players => &shared.view.players,
@@ -321,13 +324,13 @@ pub fn tidy_everything(race: &Race, o: crate::owners::Owners<'static>) -> Result
 /// settings out. `indent` is `g_logIndent`'s address.
 pub fn run_race(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let race = o.race;
-    race.physics.split_tables.arcade_kind.set(1);
+    race.physics.split_tables().arcade_kind.set(1);
     crate::logfile::write_line::state::INDENT.set(0);
     if race.shared.state.results.race_stage.get() == 0
         && race.shared.state.settings.run_kind.get() == 2
     {
         race.shared
-            .tables
+            .tables()
             .noise_seed
             .set(crate::math::next_random::next_random());
     }

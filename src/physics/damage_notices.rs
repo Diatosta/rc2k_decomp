@@ -86,9 +86,9 @@ mod gauge_tests {
     fn the_gauges_are_in_a_row() {
         let shared_store = &crate::race::owner::race().shared;
 
-        let first = (&raw const shared_store.car.brake_heat) as usize;
+        let first = (&raw const shared_store.car().brake_heat) as usize;
         assert_eq!(
-            (&raw const shared_store.car.tyre_wear) as usize,
+            (&raw const shared_store.car().tyre_wear) as usize,
             first + 46 * 4
         );
     }

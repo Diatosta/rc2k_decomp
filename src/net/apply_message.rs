@@ -136,7 +136,7 @@ mod tests {
     /// The places sit where the core's constants put them in the car's block.
     #[test]
     fn the_places_sit_where_the_offsets_were() {
-        let car = &race().shared.car;
+        let car = race().shared.car();
         let base = core::ptr::from_ref(car).addr();
         let at = |cell: &Dword| (core::ptr::from_ref(cell).addr() - base) as u32;
         assert_eq!(at(&place(car)[0]), 0x134);

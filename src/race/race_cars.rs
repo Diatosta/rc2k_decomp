@@ -77,7 +77,7 @@ pub fn reset_car_blocks(race: &Race) -> Result<(), BadInput> {
         let cars: u32 = shared.view.race_cars.get();
         for n in 0..BLOCK_COUNT {
             let car = shared.race_car(n as usize)?;
-            for (field, v) in reset_block(n, cars, physics.split_tables.stage_numbers[0].get()) {
+            for (field, v) in reset_block(n, cars, physics.split_tables().stage_numbers[0].get()) {
                 field(car).set_bits(v);
             }
         }
@@ -126,7 +126,7 @@ pub fn set_player_car_kinds(race: &Race) {
 /// The cars' data text from its start, as the original reads it (past the buffer's end
 /// too).
 fn text_data(shared: &RaceShared) -> crate::cells::StoreBytes<'_> {
-    crate::cells::StoreBytes(&shared.tables.car_data_text)
+    crate::cells::StoreBytes(&shared.tables().car_data_text)
 }
 
 /// `race::set_up_race_cars` (0x4364AD): `reset_car_blocks`, `drop_absent_player`,
@@ -194,10 +194,10 @@ pub fn read_stage_car_numbers(race: &Race) -> Result<(), Refused> {
     crate::files::state::BYTES_READ.set(len);
     let mut total = 0u32;
     for (k, &n) in found.numbers.iter().enumerate() {
-        physics.split_tables.stage_numbers[k].set(n);
+        physics.split_tables().stage_numbers[k].set(n);
         total = total.wrapping_add(n);
     }
-    physics.split_tables.stage_car_total.set(total);
+    physics.split_tables().stage_car_total.set(total);
     Ok(())
 }
 
@@ -231,8 +231,8 @@ pub fn auto_set_up_car(race: &Race, car: &Car) -> Result<(), Refused> {
         let set_up = |k: usize| {
             (pick.index as usize)
                 .checked_mul(4)
-                .and_then(|first| course.league.auto_setups.get(first + k))
-                .map(Dword::get)
+                .and_then(|first| course.league().auto_setups.get(first + k))
+                .map(crate::session::PlainDword::get)
                 .ok_or(BadInput("the auto set-ups"))
         };
         for (value, field, words) in [
@@ -385,7 +385,7 @@ pub fn set_car_times(race: &Race, scene: &crate::scene::owner::Scene) -> Result<
     let w = |n: usize| TIME_WORDS[n];
     {
         let stage: u32 = race.shared.vars.stage_number.get();
-        let count: u32 = race.physics.split_tables.split_colour_count.get();
+        let count: u32 = race.physics.split_tables().split_colour_count.get();
         if stage < rc2k_core::race::stage::UNTIMED_STAGES
             && (count == 0 || count as usize > MOST_NUMBERS)
         {
@@ -395,8 +395,9 @@ pub fn set_car_times(race: &Race, scene: &crate::scene::owner::Scene) -> Result<
         // factor's float steps stay the x87's (whole numbers rounded from them).
         use rc2k_core::race::stage::{difficulty, rally_of, timed_kind};
         let kind = timed_kind(race.shared.vars.race_car_kinds[0].get() as i32);
-        let factor = crate::math::x87::loaded(&race.shared.tables.kind_time_factors[kind as usize]);
-        race.physics.split_tables.kind_factor.set(factor);
+        let factor =
+            crate::math::x87::loaded(&race.shared.tables().kind_time_factors[kind as usize]);
+        race.physics.split_tables().kind_factor.set(factor);
         let Some(rally) = rally_of(stage) else {
             return Ok(());
         };
@@ -406,31 +407,31 @@ pub fn set_car_times(race: &Race, scene: &crate::scene::owner::Scene) -> Result<
         text(w(1), false);
         number(level, false);
         let percentage = crate::session::read_on_in(
-            &race.shared.tables,
-            &race.shared.tables.time_percentages,
+            race.shared.tables(),
+            &race.shared.tables().time_percentages,
             level as usize,
             "the time percentages",
         )?;
         text(w(2), false);
         number(percentage, false);
         scene.drawing.scene.scratch.set(percentage);
-        let total: i32 = race.physics.split_tables.stage_car_total.get() as i32;
+        let total: i32 = race.physics.split_tables().stage_car_total.get() as i32;
         let extra = bh::to_int(
             bh::int(percentage as i32) * bh::int(total) / race.course.numbers.hundred.ld(),
         );
-        race.physics.split_tables.extra_time.set(extra as u32);
+        race.physics.split_tables().extra_time.set(extra as u32);
         text(w(3), false);
         number(total as u32, false);
         text(w(4), false);
         number(extra as u32, true);
-        race.physics.split_tables.stage_numbers[0].set(
-            race.physics.split_tables.stage_numbers[0]
+        race.physics.split_tables().stage_numbers[0].set(
+            race.physics.split_tables().stage_numbers[0]
                 .get()
                 .wrapping_add(extra as u32),
         );
         let mut k = 0u32;
         loop {
-            let at = &race.physics.split_tables.stage_numbers[k as usize];
+            let at = &race.physics.split_tables().stage_numbers[k as usize];
             text(w(5), false);
             number(k, false);
             text(w(6), false);
@@ -477,11 +478,11 @@ pub fn set_up_mode_2_cars(race: &Race) -> Result<(), Refused> {
     let rally: u32 = race.shared.vars.race_level.get();
     // The arcade tables hold six by rally (`arcade_cars_by_rally` ..) or stage (`arcade_best_place_by_stage`),
     // back to back: an index past them reads on into the next, as the original does.
-    let pick = |table: &[crate::session::Dword; 6], n: u32| {
-        crate::session::read_on_in(&race.shared.tables, table, n as usize, "the arcade tables")
+    let pick = |table: &[crate::session::PlainDword; 6], n: u32| {
+        crate::session::read_on_in(race.shared.tables(), table, n as usize, "the arcade tables")
     };
-    let by_rally = |table: &[crate::session::Dword; 6]| pick(table, rally);
-    let cars: u32 = by_rally(&race.shared.tables.arcade_cars_by_rally)?;
+    let by_rally = |table: &[crate::session::PlainDword; 6]| pick(table, rally);
+    let cars: u32 = by_rally(&race.shared.tables().arcade_cars_by_rally)?;
     if cars == 0 || cars > MOST_ARCADE_CARS {
         return Err(BadInput("an arcade car count of 0 or past the tables").into());
     }
@@ -491,34 +492,34 @@ pub fn set_up_mode_2_cars(race: &Race) -> Result<(), Refused> {
     text(w(2), false);
     let stage_in: u32 = race.shared.vars.race_stage.get();
     number(stage_in, false);
-    race.shared.tables.arcade_cars.set(cars);
+    race.shared.tables().arcade_cars.set(cars);
     race.shared
-        .tables
+        .tables()
         .start_share_last
-        .set_bits(by_rally(&race.shared.tables.start_share_last_by_rally)?);
+        .set_bits(by_rally(&race.shared.tables().start_share_last_by_rally)?);
     race.shared
-        .tables
+        .tables()
         .start_share_first
-        .set_bits(by_rally(&race.shared.tables.start_share_first_by_rally)?);
+        .set_bits(by_rally(&race.shared.tables().start_share_first_by_rally)?);
     // Converted: `rc2k_core::race::cars::{arcade_start_is_last, arcade_number,
     // arcade_type_draw, arcade_swap_draw}`.
     use crate::scene::next_noise::next_noise;
     use rc2k_core::race::cars::{
         arcade_number, arcade_start_is_last, arcade_swap_draw, arcade_type_draw,
     };
-    if arcade_start_is_last(race.physics.split_tables.arcade_kind.get(), stage_in) {
-        race.shared.tables.start_place.set(cars);
+    if arcade_start_is_last(race.physics.split_tables().arcade_kind.get(), stage_in) {
+        race.shared.tables().start_place.set(cars);
     }
-    race.shared.tables.best_place.set(pick(
-        &race.shared.tables.arcade_best_place_by_stage,
+    race.shared.tables().best_place.set(pick(
+        &race.shared.tables().arcade_best_place_by_stage,
         stage_in,
     )?);
     text(w(3), false);
     number(cars, false);
     text(w(4), false);
-    number(race.shared.tables.best_place.get(), false);
+    number(race.shared.tables().best_place.get(), false);
     text(w(5), false);
-    number(race.shared.tables.start_place.get(), true);
+    number(race.shared.tables().start_place.get(), true);
     race.shared.view.views.set(1u32);
     race.shared.view.players.set(1u32);
     race.shared.view.race_cars.set(4u32);
@@ -536,7 +537,7 @@ pub fn set_up_mode_2_cars(race: &Race) -> Result<(), Refused> {
     race.shared
         .physics_tables
         .noise_state
-        .set(race.shared.tables.noise_seed.get());
+        .set(race.shared.tables().noise_seed.get());
     // Each car a type (never the last one's again) and a number.
     let mut last_type = u32::MAX;
     let mut number_next = 1u32;
@@ -552,17 +553,17 @@ pub fn set_up_mode_2_cars(race: &Race) -> Result<(), Refused> {
             }
         };
         last_type = kind;
-        race.shared.tables.arcade_car_kinds[car as usize].set(kind + 1);
-        race.shared.tables.arcade_car_numbers[car as usize].set(number_next);
+        race.shared.tables().arcade_car_kinds[car as usize].set(kind + 1);
+        race.shared.tables().arcade_car_numbers[car as usize].set(number_next);
         number_next += 1;
     }
     // The numbers shuffled.
     for car in 0..cars {
-        let mine: u32 = race.shared.tables.arcade_car_numbers[car as usize].get();
+        let mine: u32 = race.shared.tables().arcade_car_numbers[car as usize].get();
         let (_, other_car) = arcade_swap_draw(next_noise(&race.shared), cars);
-        let other: u32 = race.shared.tables.arcade_car_numbers[other_car as usize].get();
-        race.shared.tables.arcade_car_numbers[car as usize].set(other);
-        race.shared.tables.arcade_car_numbers[other_car as usize].set(mine);
+        let other: u32 = race.shared.tables().arcade_car_numbers[other_car as usize].get();
+        race.shared.tables().arcade_car_numbers[car as usize].set(other);
+        race.shared.tables().arcade_car_numbers[other_car as usize].set(mine);
     }
     clear_race_tables(&race.shared);
     for n in 0..4 {
@@ -575,14 +576,14 @@ pub fn set_up_mode_2_cars(race: &Race) -> Result<(), Refused> {
     for cell in [&lead.pace_placed, &lead.pace_cars[0], &lead.pace_cars[1]] {
         cell.set(0);
     }
-    let behind = cars.wrapping_sub(race.shared.tables.start_place.get());
+    let behind = cars.wrapping_sub(race.shared.tables().start_place.get());
     race.car_blocks().cars[0].mode2_behind.set(behind);
     text(w(6), false);
     number(behind, false);
     text(w(7), false);
     for car in 0..cars {
         number(
-            race.shared.tables.arcade_car_kinds[car as usize].get(),
+            race.shared.tables().arcade_car_kinds[car as usize].get(),
             false,
         );
     }
@@ -629,7 +630,7 @@ pub fn set_up_cars(
             CarsStep::SetUp(_) => set_up_mode_4_cars(race)?,
             CarsStep::ClearArcadeTable => {
                 for k in 0..0x40 {
-                    race.physics.split_tables.kept_times[k].set(0);
+                    race.physics.split_tables().kept_times[k].set(0);
                 }
             }
         }
@@ -683,7 +684,7 @@ pub fn choose_arcade_opponents(shared: &RaceShared) -> Result<(), Refused> {
     }
     let first_place = index_of_kind(shared, first)?;
     text(SEED_WORD_RVA, false);
-    number(shared.tables.noise_seed.get(), true);
+    number(shared.tables().noise_seed.get(), true);
     text(OPPONENT_WORDS[0], false);
     number(first, false);
     text(OPPONENT_WORDS[1], false);
@@ -691,7 +692,7 @@ pub fn choose_arcade_opponents(shared: &RaceShared) -> Result<(), Refused> {
     shared
         .physics_tables
         .noise_state
-        .set(shared.tables.noise_seed.get());
+        .set(shared.tables().noise_seed.get());
     let mut taken = vec![first];
     for (n, at) in shared.vars.race_car_kinds[1..4].iter().enumerate() {
         let (kind, place) = loop {

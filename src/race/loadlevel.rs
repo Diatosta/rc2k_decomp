@@ -139,9 +139,9 @@ pub fn loadlevel_init(
     };
     s.log();
     s.indent(3);
-    race.frame.map.use_packed.set(1u32);
+    race.frame.map().use_packed.set(1u32);
     race.frame
-        .map
+        .map()
         .packed_unless_editor
         .set((race.shared.switches.editor_mode.get() == 0) as u32);
     let mut direction: u32 = race.shared.vars.direction.get();
@@ -215,8 +215,8 @@ pub fn loadlevel_init(
     s.indent(3);
     crate::race::game_map::load_game_map(
         &race.frame,
-        &scene.file_numbers.text_at(texts::MAP_PATH),
-        &scene.file_numbers.text_at(texts::MAP_KEY),
+        &scene.file_numbers().text_at(texts::MAP_PATH),
+        &scene.file_numbers().text_at(texts::MAP_KEY),
         system,
         gfx,
     )?;
@@ -287,7 +287,7 @@ pub fn loadlevel_init(
             stage_prefs::get_mat_crash(
                 race.engine_tables(),
                 &race.frame.matrices,
-                &race.shared.car,
+                race.shared.car(),
                 scene,
             );
             Ok(())

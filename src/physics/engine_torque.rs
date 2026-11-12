@@ -31,8 +31,8 @@ pub fn engine_torque(course: &Course, shared: &RaceShared, scene: &crate::scene:
     let shared_store = shared;
     let drawing = &scene.drawing;
     let s = x87::div(
-        &shared_store.car.engine_speed,
-        &shared_store.car.engine_speed_limit,
+        &shared_store.car().engine_speed,
+        &shared_store.car().engine_speed_limit,
     );
     drawing.scene.scratch.set(s.to_bits());
     if below(s.to_bits(), course.numbers.one.bits()) && !below(s.to_bits(), ZERO) {
@@ -58,11 +58,11 @@ pub fn engine_torque(course: &Course, shared: &RaceShared, scene: &crate::scene:
         .physics_tables
         .engine_torque
         .st(
-            shared_store.car.engine_speed.ld() / shared_store.car.engine_speed_limit.ld()
+            shared_store.car().engine_speed.ld() / shared_store.car().engine_speed_limit.ld()
                 * shared_store.physics_tables.torque_ease.ld(),
         );
     shared_store.physics_tables.engine_force.set(x87::mul(
         &shared_store.physics_tables.engine_force,
-        &shared_store.car.engine_power_factor,
+        &shared_store.car().engine_power_factor,
     ));
 }

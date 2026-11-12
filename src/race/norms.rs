@@ -21,7 +21,7 @@ pub fn normalise_work_vector(
     let mut v = scratch
         .work_vector
         .each_ref()
-        .map(super::super::session::Dword::get);
+        .map(crate::session::PlainDword::get);
     let (length, zero) =
         x87::normalise_in_place(v.first_chunk_mut::<3>().expect("four parts"), &numbers.zero);
     for (cell, &bits) in scratch.work_vector[..3].iter().zip(&v) {
@@ -68,7 +68,7 @@ pub fn face_normal(
         work[3..6].copy_from_slice(&b);
         work[6..9].copy_from_slice(&c);
         work[9..].copy_from_slice(&d);
-        crate::session::write_bits(&race.physics.ground.normal_work, work.map(|v| v as u32));
+        crate::session::write_bits(&race.physics.ground().normal_work, work.map(|v| v as u32));
         // c4 = d[0], c8 = d[1], cc = d[2], d0 = d[3], d4 = d[4], d8 = d[5]
         let normal = [
             x87::int_product_difference(d[5], d[2], d[3], d[4]),
@@ -76,8 +76,8 @@ pub fn face_normal(
             x87::int_product_difference(d[3], d[0], d[1], d[2]),
         ]
         .map(f32::to_bits);
-        crate::session::write_first(&race.frame.scratch.work_vector, &normal);
-        normalise_work_vector(&race.course.numbers, &race.frame.scratch, scene);
+        crate::session::write_first(&race.frame.scratch().work_vector, &normal);
+        normalise_work_vector(&race.course.numbers, race.frame.scratch(), scene);
     }
     Ok(())
 }
@@ -117,7 +117,7 @@ pub fn store_face_normal(
             if normal_made([a, b, c], count) {
                 normal(a, b, c)?;
             }
-            let work: [u32; 3] = crate::session::read_first(&race.frame.scratch.work_vector);
+            let work: [u32; 3] = crate::session::read_first(&race.frame.scratch().work_vector);
             for (place, value) in places.into_iter().zip(work) {
                 crate::race::course_places::write_face_field(&race.course, face, place, value)?;
             }

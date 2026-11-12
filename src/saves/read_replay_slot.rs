@@ -20,7 +20,7 @@ const HEAD_LEN: usize = 0x430;
 const SLOTS: u32 = 100;
 
 fn slot_name(race: &'static Race, slot: u32) -> crate::place::BytePlace {
-    crate::place::BytePlace::In(&race.shared.replays.names, slot as usize * NAME_LEN)
+    crate::place::BytePlace::In(&race.shared.replays().names, slot as usize * NAME_LEN)
 }
 
 /// True if the slot's file was read and accepted.
@@ -30,9 +30,9 @@ pub fn read_replay_slot(slot: u32, race: &'static Race) -> Result<bool, Refused>
     }
     let template = race.shared.replay_templates.saved;
     let path = numbered_path_bytes(&template[..template.len() - 1], slot)?;
-    let mut bytes = race.shared.replays.header.read();
+    let mut bytes = race.shared.replays().header.read();
     let read = read_file_into(&path[..], &mut bytes[..HEAD_LEN], 0)?;
-    race.shared.replays.header.write(&bytes);
+    race.shared.replays().header.write(&bytes);
     // Converted: `rc2k_core::saves::kept::slot_name`.
     use rc2k_core::saves::kept;
     let block = &bytes[..0x30];

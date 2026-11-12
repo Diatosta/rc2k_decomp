@@ -116,13 +116,13 @@ pub fn passed_split_point(
     if c.finish.no_place.get() != 0 {
         return Ok(false);
     }
-    let (cp, pt) = point(&c.physics.split_tables, c.course, c.checkpoints, c.car)?;
+    let (cp, pt) = point(c.physics.split_tables(), c.course, c.checkpoints, c.car)?;
     // The point read from `race::scene_points`; the x87 runs read a copy.
     let pt =
         crate::race::scene_points::point_number(c.course, &crate::race::scene_points::NO_OWN, pt)?;
-    c.physics.ground.ground_x.set(c.car.position[0].get());
-    c.physics.ground.ground_z.set(c.car.position[2].get());
-    distance(c.tables, c.numbers, &c.physics.ground, pt, scene);
+    c.physics.ground().ground_x.set(c.car.position[0].get());
+    c.physics.ground().ground_z.set(c.car.position[2].get());
+    distance(c.tables, c.numbers, c.physics.ground(), pt, scene);
     let within = !matches!(
         c.tables
             .split_point_distance
@@ -133,7 +133,7 @@ pub fn passed_split_point(
     if !within {
         return Ok(false);
     }
-    angle(c.numbers, &c.physics.ground, pt, scene);
+    angle(c.numbers, c.physics.ground(), pt, scene);
     let car_angle = scene.drawing.scene.scratch.get() << 16;
     c.tables.split_word.set(car_angle);
     let heading = crate::race::checkpoints_store::angle(c.checkpoints, cp as usize).get();
@@ -177,7 +177,7 @@ mod reference_vectors {
                     distance(
                         &crate::race::owner::race().shared.physics_tables,
                         &crate::race::owner::race().course.numbers,
-                        &crate::race::owner::race().physics.ground,
+                        crate::race::owner::race().physics.ground(),
                         point_at(a[1]),
                         crate::scene::owner::scene(),
                     );
@@ -204,7 +204,7 @@ mod reference_vectors {
                 plain: |a| {
                     angle(
                         &crate::race::owner::race().course.numbers,
-                        &crate::race::owner::race().physics.ground,
+                        crate::race::owner::race().physics.ground(),
                         point_at(a[1]),
                         crate::scene::owner::scene(),
                     );

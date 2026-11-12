@@ -375,10 +375,10 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         view.object.whole_polygon_count.set(0);
     }
     for cell in [
-        &race.frame.draw_batches.plain_word,
-        &race.frame.draw_batches.plain_count,
-        &race.frame.draw_batches.textured_word,
-        &race.frame.draw_batches.textured_count,
+        &race.frame.draw_batches().plain_word,
+        &race.frame.draw_batches().plain_count,
+        &race.frame.draw_batches().textured_word,
+        &race.frame.draw_batches().textured_count,
     ] {
         cell.set(0);
     }
@@ -432,9 +432,9 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         set_render_state(part, value, state);
     }
     race.physics
-        .ground
+        .ground()
         .frames_drawn
-        .set(race.physics.ground.frames_drawn.get().wrapping_add(1));
+        .set(race.physics.ground().frames_drawn.get().wrapping_add(1));
     race.shared
         .view
         .clock_base

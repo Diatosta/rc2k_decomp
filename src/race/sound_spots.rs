@@ -69,7 +69,7 @@ pub fn face_sound_spot(race: &Race, view: &ViewMatrices, face_number: u32) -> Re
         if kind != 0xFF || !sound_object(kind, f.object()) {
             return Ok(());
         }
-        let count: u32 = race.frame.sound_spots.sound_spot_count.get();
+        let count: u32 = race.frame.sound_spots().sound_spot_count.get();
         if count == MOST_SPOTS {
             return Ok(());
         }
@@ -80,8 +80,8 @@ pub fn face_sound_spot(race: &Race, view: &ViewMatrices, face_number: u32) -> Re
         }
         let put = |o: u32, v: u32| {
             crate::session::write_on_in(
-                &race.frame.sound_spots,
-                &race.frame.sound_spots.sound_spots,
+                race.frame.sound_spots(),
+                &race.frame.sound_spots().sound_spots,
                 spot + (o / 4) as usize,
                 v,
                 "a sound spot",
@@ -103,7 +103,7 @@ pub fn face_sound_spot(race: &Race, view: &ViewMatrices, face_number: u32) -> Re
         for (i, v) in t.into_iter().enumerate() {
             put(4 + 4 * i as u32, scaled(v, k))?;
         }
-        race.frame.sound_spots.sound_spot_count.set(count + 1);
+        race.frame.sound_spots().sound_spot_count.set(count + 1);
     }
     Ok(())
 }
@@ -151,7 +151,7 @@ pub fn find_sound_spots(
     let grid = &view.grid;
     {
         check(&race.course, grid)?;
-        race.frame.sound_spots.sound_spot_count.set(0u32);
+        race.frame.sound_spots().sound_spot_count.set(0u32);
         for c in cells(&race.course) {
             cell_sound_spots(race, &view.matrices, grid, c)?;
         }

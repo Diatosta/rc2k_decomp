@@ -26,9 +26,9 @@ pub fn place_car_sound(
     so.slot_b.start.set(1);
     let d = |a: &Dword, b: &Dword| ints_diff_80(a.get() as i32, b.get() as i32);
     let p = [
-        d(&shared.car.position[0], &shared.car.camera_position[0]),
-        d(&shared.car.position[1], &shared.car.camera_position[1]),
-        d(&shared.car.position[2], &shared.car.camera_position[2]),
+        d(&shared.car().position[0], &shared.car().camera_position[0]),
+        d(&shared.car().position[1], &shared.car().camera_position[1]),
+        d(&shared.car().position[2], &shared.car().camera_position[2]),
     ];
     let out = rotate_point(crate::race::heard_turn::turn(matrices), p);
     let k = numbers.one_over_65536.bits();

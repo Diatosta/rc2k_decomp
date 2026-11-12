@@ -333,7 +333,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     load_figures_and_shift_points(
-                        &race().shared.car,
+                        race().shared.car(),
                         &race().shared.physics_tables,
                         &race().course.numbers,
                         race().gear(),

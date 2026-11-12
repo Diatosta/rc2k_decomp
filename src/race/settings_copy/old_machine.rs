@@ -602,7 +602,7 @@ static FLAGS_IN: [Step<StepOperand>; 4] = [
         Cell(&crate::race::owner::RACE.shared.state.results.flags_first),
     ),
     Copy(
-        var!(crate::race::owner::RACE.shared.tables.start_place),
+        var!(crate::race::owner::RACE.shared.tables().start_place),
         Cell(&crate::race::owner::RACE.shared.state.results.figure_000),
     ),
     Copy(
@@ -625,7 +625,7 @@ static TAIL_IN: [Step<StepOperand>; 15] = [
     Store(car!(1, stop_state)),
     Text(c"[arcadestartposition]", false),
     Value(
-        var!(crate::race::owner::RACE.shared.tables.start_place),
+        var!(crate::race::owner::RACE.shared.tables().start_place),
         Kind::Int,
     ),
     Text(c"[car1.arcadeposition]", false),
@@ -645,7 +645,7 @@ static TAIL_IN: [Step<StepOperand>; 15] = [
 static TAIL_OUT: [Step<StepOperand>; 6] = [
     Text(c"[arcadestartposition]", false),
     Value(
-        var!(crate::race::owner::RACE.shared.tables.start_place),
+        var!(crate::race::owner::RACE.shared.tables().start_place),
         Kind::Int,
     ),
     Text(c"[car1.arcadeposition]", false),
@@ -666,7 +666,7 @@ pub fn shaun_to_graham() -> Vec<Step<StepOperand>> {
     b.push(Text(c"COPY SHAUN TO GRAHAM", true));
     let skip = b.here();
     b.push(JumpIfNot(
-        var!(crate::race::owner::RACE.shared.replay_file.hold_car_revs),
+        var!(crate::race::owner::RACE.shared.replay_file().hold_car_revs),
         0x0,
         0,
     ));
@@ -717,7 +717,7 @@ pub fn shaun_to_graham() -> Vec<Step<StepOperand>> {
     let over = b.here();
     b.push(Jump(0));
     b.0[skip] = JumpIfNot(
-        var!(crate::race::owner::RACE.shared.replay_file.hold_car_revs),
+        var!(crate::race::owner::RACE.shared.replay_file().hold_car_revs),
         0x0,
         b.here(),
     );

@@ -4,7 +4,7 @@
 //! message, the `patch*` settings, the stages' checkpoint counts. Named from the code's uses
 //! (2026-10-25); most names are readings, `unknown_*` runs are places no ported code names.
 //! `#[repr(C)]` with the image's layout, over the race block's bytes (`RACE_WORK`, as
-//! `crate::race::owner::race().shared.car`) until the code reaching them by RVA is typed.
+//! `crate::race::owner::race().shared.car()`) until the code reaching them by RVA is typed.
 
 use crate::errors::BadInput;
 #[cfg(test)]

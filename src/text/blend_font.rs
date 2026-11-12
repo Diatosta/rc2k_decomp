@@ -72,6 +72,7 @@ pub fn blend_font(
         return Ok(());
     }
     blend_palette(
+        &gfx.fonts,
         &gfx.pixel.formats,
         from_font.palette,
         to_palette,

@@ -84,7 +84,7 @@ const _: () = assert!(END - START == core::mem::size_of::<CarSpecs>());
 /// The piece's host address (the alignment checks).
 #[cfg(test)]
 pub fn piece_addr() -> usize {
-    core::ptr::from_ref(&race().physics.car_specs).addr()
+    core::ptr::from_ref(&race().physics.car_specs()).addr()
 }
 
 #[cfg(test)]
@@ -95,7 +95,7 @@ mod tests {
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
-            &race().physics.car_specs,
+            race().physics.car_specs(),
         );
     }
 
@@ -111,11 +111,11 @@ mod tests {
         assert_eq!(offset_of!(CarSpec, shift_points), 0xA4);
         let title = |k: usize| {
             (0..9)
-                .map(|i| physics.car_specs.cars[k].name.get(i))
+                .map(|i| physics.car_specs().cars[k].name.get(i))
                 .collect::<Vec<u8>>()
         };
         assert_eq!(title(0), b"00 renaul");
         assert_eq!(title(33), b"33 Renaul");
-        assert_eq!(physics.car_specs.cars[0].engine_top.get(), 8500);
+        assert_eq!(physics.car_specs().cars[0].engine_top.get(), 8500);
     }
 }

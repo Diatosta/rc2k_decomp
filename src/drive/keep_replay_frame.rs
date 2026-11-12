@@ -17,19 +17,19 @@ const SIZE: usize = SLOT_SIZE as usize;
 
 // Converted: `rc2k_core::drive::replay_frames::{frame_and_tenth, slot_offset}`.
 pub fn keep_replay_frame(race: &Race) -> Result<(), BadInput> {
-    race.replay.replay_frames.frame.set(0);
-    race.replay.replay_frames.tenth.set(0);
+    race.replay.replay_frames().frame.set(0);
+    race.replay.replay_frames().tenth.set(0);
     if race.course.numbers.replay_mode.get() != PLAYING {
         let (frame, tenth) = frame_and_tenth(race.car_blocks().cars[0].step_clock.get());
-        race.replay.replay_frames.frame.set(frame);
-        race.replay.replay_frames.tenth.set(tenth);
+        race.replay.replay_frames().frame.set(frame);
+        race.replay.replay_frames().tenth.set(tenth);
     }
-    if race.replay.replay_frames.tenth.get() == 0 {
-        let offset = slot_offset(race.replay.replay_frames.frame.get());
+    if race.replay.replay_frames().tenth.get() == 0 {
+        let offset = slot_offset(race.replay.replay_frames().frame.get());
         // The first four blocks (`SLOT_SIZE` is four of them).
         copy_cells(
             (&race.car_blocks().cars, 0),
-            (&race.replay.replay_frames.slots, offset as usize),
+            (&race.replay.replay_frames().slots, offset as usize),
             SIZE,
         );
         if race.course.numbers.replay_mode.get() == RECORDING {

@@ -38,10 +38,10 @@ pub fn build_menu_sprites(
 fn all_direct_colour(table: u32, gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
     use rc2k_core::strings::bytes::Bytes as _;
     let surface = crate::gfx::surface::surface(gfx);
-    let records = crate::gfx::glyph_store::bytes(table, "the menus' sprite table")?;
+    let records = crate::gfx::glyph_store::bytes(&gfx.fonts, table, "the menus' sprite table")?;
     let count = records.u32_le(0).unwrap_or(0) / 4;
     for glyph in 0..count {
-        let record = crate::gfx::blit_glyph::glyph_record(&surface, table, glyph)?;
+        let record = crate::gfx::blit_glyph::glyph_record(&gfx.fonts, &surface, table, glyph)?;
         if !rc2k_core::gfx::blit::direct_colour(record.u32_le(0).unwrap_or(0)) {
             return Err(
                 crate::errors::BadInput("a menu sprite whose pixels need a palette").into(),

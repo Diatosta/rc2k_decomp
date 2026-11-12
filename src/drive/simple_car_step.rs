@@ -25,7 +25,7 @@ pub fn simple_car_step(
     crate::drive::pedal_inputs::pedal_inputs(race);
     // The keys `drive::pedal_inputs` leaves (`reset_request` loads the same again
     // before `physics::reset_car`): the turn's y.
-    let keys = race.shared.car.input_keys.get();
+    let keys = race.shared.car().input_keys.get();
     { crate::drive::reset_request::reset_request(race, scene) }?;
     let distance = roam_distance(
         race.car_blocks().cars[0].throttle.get(),
@@ -58,17 +58,17 @@ pub fn simple_car_step(
         )
     }?;
     race.physics
-        .ground
+        .ground()
         .ground_x
         .set(race.course.course.place_x.get());
     race.physics
-        .ground
+        .ground()
         .ground_z
         .set(race.course.course.place_z.get());
     {
         crate::physics::find_ground::find_ground(
             &race.physics.ground_probe,
-            &race.physics.ground,
+            race.physics.ground(),
             &race.course,
             scene,
         )
@@ -76,7 +76,7 @@ pub fn simple_car_step(
     if race.course.course.ground_slot.get() != u32::MAX {
         let y = race
             .physics
-            .ground
+            .ground()
             .ground_height
             .get()
             .wrapping_add(race.shared.physics_tables.ground_drop.get());
@@ -88,7 +88,7 @@ pub fn simple_car_step(
     crate::race::stage_prefs::get_mat_crash(
         race.engine_tables(),
         &race.frame.matrices,
-        &race.shared.car,
+        race.shared.car(),
         scene,
     );
     Ok(())

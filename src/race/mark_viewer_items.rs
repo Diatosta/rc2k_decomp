@@ -19,11 +19,11 @@ pub fn mark_viewer_items(
     let replay = &race.replay;
     // Converted: `rc2k_core::race::viewer::item_marks`.
     crate::menu::list_clear_marks::list_clear_marks(list);
-    let block = replay.replay_view.replay_block.get();
+    let block = replay.replay_view().replay_block.get();
     let state = rc2k_core::race::viewer::ViewerState {
-        last_race: replay.replay_view.last_race_viewed.is_set(),
+        last_race: replay.replay_view().last_race_viewed.is_set(),
         block,
-        blocks: race.shared.replay_file.index_block_count.get(),
+        blocks: race.shared.replay_file().index_block_count.get(),
         mark_in: race.viewer_buffers().mark_in.get(),
         mark_out: race.viewer_buffers().mark_out.get(),
         clip_blocks: race.viewer_buffers().clip_blocks.get(),

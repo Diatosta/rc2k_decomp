@@ -17,7 +17,7 @@ use crate::race::owner_course::Course;
 
 /// `srclvls\level01\cdat00c`, `files\levels\level01\cdat00c.sq`.
 fn paths(course: &Course) -> [&dyn crate::cells::Store; 2] {
-    let p = &course.level_paths;
+    let p = course.level_paths();
     [&p.cdat_src, &p.cdat_files]
 }
 use rc2k_core::race::stage_objects::COURSES;

@@ -24,7 +24,7 @@ pub fn record_inputs(race: &Race) -> Result<(), BadInput> {
         shared.physics_tables.input_words[3].get(),
     );
     let packed = crate::drive::pack_inputs::pack_inputs(eax, ecx, edx);
-    let esi = tape_offset(replay.replay_frames.tenth.get(), car);
+    let esi = tape_offset(replay.replay_frames().tenth.get(), car);
     let mut words = [0u8; 8];
     words[..4].copy_from_slice(&ebx.to_le_bytes());
     words[4..].copy_from_slice(&packed.to_le_bytes());
