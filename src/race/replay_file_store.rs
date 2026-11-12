@@ -105,26 +105,18 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&race().shared.replay_file, START, END);
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &race().shared.replay_file,
+        );
     }
 
     #[test]
-    fn piece_has_its_home() {
+    fn fields_are_at_the_games_offsets() {
         assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            piece_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
-        assert_eq!(offset_of!(ReplayFileBlock, replays_on), 0x5BEC78 - START);
-        assert_eq!(offset_of!(ReplayFileBlock, replay_at_end), 0x5BEC90 - START);
-        assert_eq!(
-            offset_of!(ReplayFileBlock, viewer_editing),
-            0x5BECA8 - START
-        );
-        assert_eq!(
-            offset_of!(ReplayFileBlock, viewer_stage_loaded),
-            0x5BECC0 - START
-        );
-        assert_eq!(offset_of!(ReplayFileBlock, block_places), 0x5BECD8 - START);
+        assert_eq!(offset_of!(ReplayFileBlock, replays_on), 0x0);
+        assert_eq!(offset_of!(ReplayFileBlock, replay_at_end), 0x18);
+        assert_eq!(offset_of!(ReplayFileBlock, viewer_editing), 0x30);
+        assert_eq!(offset_of!(ReplayFileBlock, viewer_stage_loaded), 0x48);
+        assert_eq!(offset_of!(ReplayFileBlock, block_places), 0x60);
     }
 }

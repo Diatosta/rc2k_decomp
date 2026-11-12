@@ -53,17 +53,15 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&race().physics.ground_probe, START, END);
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &race().physics.ground_probe,
+        );
     }
 
     #[test]
-    fn piece_has_its_home() {
+    fn fields_are_at_the_games_offsets() {
         assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            crate::moved::place(END - 1),
-            (piece_addr() + (END - START) as u32 - 1) as usize
-        );
-        assert_eq!(offset_of!(GroundProbe, product), 0x620460 - START);
-        assert_eq!(offset_of!(GroundProbe, settle_mark), 0x620470 - START);
+        assert_eq!(offset_of!(GroundProbe, product), 0x8);
+        assert_eq!(offset_of!(GroundProbe, settle_mark), 0x18);
     }
 }

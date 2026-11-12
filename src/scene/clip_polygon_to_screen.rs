@@ -21,9 +21,10 @@ use crate::session::Float;
 
 /// The polygon's entries and the mask of the edges some vertex is past.
 fn outside_mask(
+    polygon_work: &'static crate::scene::polygon_store::PolygonWork,
     poly: &crate::scene::polygon_work::PolygonWork,
 ) -> Result<(crate::scene::polygon::Listed, u32), BadInput> {
-    let entries = listed_with_records(poly)?;
+    let entries = listed_with_records(polygon_work, poly)?;
     let edge = |cell: &Float| cell.get() as f64;
     let (left, right, top, bottom) = (
         edge(&poly.window.clip_screen[2]),
@@ -59,11 +60,12 @@ fn outside_mask(
 }
 
 pub fn clip_polygon_to_screen(
+    polygon_work: &'static crate::scene::polygon_store::PolygonWork,
     poly: &crate::scene::polygon_work::PolygonWork,
     race: &Race,
 ) -> Result<(), BadInput> {
     let course = &race.course;
-    let (entries, mask) = outside_mask(poly)?;
+    let (entries, mask) = outside_mask(polygon_work, poly)?;
     poly.screen_clipped.set(1u32);
     if mask == 0 {
         return Ok(());
@@ -78,7 +80,7 @@ pub fn clip_polygon_to_screen(
             (8, Edge::Y(poly.window.clip_screen[1].bits()), false),
         ] {
             if mask & bit != 0 {
-                listed = clip_pass(poly, course, listed, edge, inside_past, mask)?;
+                listed = clip_pass(polygon_work, poly, course, listed, edge, inside_past, mask)?;
                 if poly.polygon_vertex_count.get() < 3 {
                     break;
                 }

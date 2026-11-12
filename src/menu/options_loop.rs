@@ -18,7 +18,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let menus = entry.menus;
     crate::strings::units::set_units(menus.play.players.players[0].get().metric_units); // g_isImperialUnits
     entry.set_view(-156, 39, 0x140);
-    prepare_scene(entry.scene);
+    prepare_scene(entry);
     menus.screens.flow.turning.set(0x1u32);
     menus.screens.state.carousel.menu.set(0x7u32);
     carousel(None)?;

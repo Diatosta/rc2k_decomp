@@ -305,55 +305,31 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
+        crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::race::owner::race().physics.contact,
-            START,
-            END,
         );
     }
 
     #[test]
-    fn piece_has_its_home() {
+    fn fields_are_at_the_games_offsets() {
         assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            piece_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
-        assert_eq!(offset_of!(ContactWork, eax_mid_x), 0x6D1DD8 - START);
-        assert_eq!(
-            offset_of!(ContactWork, contact_normal_factor),
-            0x6D1DF8 - START
-        );
-        assert_eq!(offset_of!(ContactWork, probe_turned_y), 0x6D2314 - START);
-        assert_eq!(offset_of!(ContactWork, probe_face_flip), 0x6D2914 - START);
-        assert_eq!(offset_of!(ContactWork, saved_probe_faces), 0x6D2F14 - START);
-        assert_eq!(offset_of!(ContactWork, wall_bits), 0x6D3038 - START);
-        assert_eq!(offset_of!(ContactWork, lowest_depth), 0x6D3068 - START);
-        assert_eq!(
-            offset_of!(ContactWork, contact_turn_speed),
-            0x6D30B4 - START
-        );
-        assert_eq!(
-            offset_of!(ContactWork, contact_slide_limit),
-            0x6D3100 - START
-        );
-        assert_eq!(offset_of!(ContactWork, contact_extra), 0x6D3160 - START);
-        assert_eq!(offset_of!(ContactWork, crossed_figures), 0x6D31A0 - START);
-        assert_eq!(offset_of!(ContactWork, contact_depth), 0x6D31DC - START);
-        assert_eq!(offset_of!(ContactWork, face_number), 0x6D3218 - START);
-        assert_eq!(
-            offset_of!(ContactWork, probe_turned_z_last),
-            0x6D3630 - START
-        );
-        assert_eq!(
-            offset_of!(ContactWork, object_point_scaled),
-            0x6D3B78 - START
-        );
-        assert_eq!(offset_of!(ContactWork, corner_inside), 0x6D3BB4 - START);
-        assert_eq!(offset_of!(ContactWork, corner_y), 0x6D3C00 - START);
-        assert_eq!(
-            offset_of!(ContactWork, bump_relative_speed),
-            0x6D3CD8 - START
-        );
+        assert_eq!(offset_of!(ContactWork, eax_mid_x), 0x0);
+        assert_eq!(offset_of!(ContactWork, contact_normal_factor), 0x20);
+        assert_eq!(offset_of!(ContactWork, probe_turned_y), 0x53c);
+        assert_eq!(offset_of!(ContactWork, probe_face_flip), 0xb3c);
+        assert_eq!(offset_of!(ContactWork, saved_probe_faces), 0x113c);
+        assert_eq!(offset_of!(ContactWork, wall_bits), 0x1260);
+        assert_eq!(offset_of!(ContactWork, lowest_depth), 0x1290);
+        assert_eq!(offset_of!(ContactWork, contact_turn_speed), 0x12dc);
+        assert_eq!(offset_of!(ContactWork, contact_slide_limit), 0x1328);
+        assert_eq!(offset_of!(ContactWork, contact_extra), 0x1388);
+        assert_eq!(offset_of!(ContactWork, crossed_figures), 0x13c8);
+        assert_eq!(offset_of!(ContactWork, contact_depth), 0x1404);
+        assert_eq!(offset_of!(ContactWork, face_number), 0x1440);
+        assert_eq!(offset_of!(ContactWork, probe_turned_z_last), 0x1858);
+        assert_eq!(offset_of!(ContactWork, object_point_scaled), 0x1da0);
+        assert_eq!(offset_of!(ContactWork, corner_inside), 0x1ddc);
+        assert_eq!(offset_of!(ContactWork, corner_y), 0x1e28);
+        assert_eq!(offset_of!(ContactWork, bump_relative_speed), 0x1f00);
     }
 }

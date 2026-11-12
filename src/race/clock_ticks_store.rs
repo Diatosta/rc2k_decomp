@@ -57,22 +57,16 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&race().frame.clock_ticks, START, END);
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &race().frame.clock_ticks,
+        );
     }
 
     #[test]
-    fn piece_has_its_home() {
+    fn fields_are_at_the_games_offsets() {
         assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            piece_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
-        assert_eq!(
-            crate::moved::place(END - 1),
-            (piece_addr() + (END - START) as u32 - 1) as usize
-        );
-        assert_eq!(offset_of!(ClockTicks, unused_text), 0x5CC198 - START);
-        assert_eq!(offset_of!(ClockTicks, clock_a), 0x5CC3B4 - START);
-        assert_eq!(offset_of!(ClockTicks, clock_b), 0x5CC3BC - START);
+        assert_eq!(offset_of!(ClockTicks, unused_text), 0x0);
+        assert_eq!(offset_of!(ClockTicks, clock_a), 0x21c);
+        assert_eq!(offset_of!(ClockTicks, clock_b), 0x224);
     }
 }

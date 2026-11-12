@@ -189,84 +189,68 @@ pub const START: usize = 0x7558C4;
 /// IDA 0x7559A4, the end of the piece.
 pub const END: usize = 0x7559A4;
 
-/// Where IDA 0x7558C4 lives (`moved::MOVED`'s home).
-#[cfg(test)]
-pub fn event_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::menu::owner::menus().screens.event)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moved::image_bytes;
-    use core::mem::{offset_of, size_of};
+    use core::mem::offset_of;
 
     #[test]
     fn event_state_starts_as_the_games() {
-        assert!(
-            END - START <= size_of::<Event>()
-                && size_of::<Event>() <= (END - START).next_multiple_of(4)
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &crate::menu::owner::menus().screens.event,
         );
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host(event_addr()).cast_const(),
-                END - START,
-            )
-        };
-        assert_eq!(mine, &image_bytes(START, END - START)[..]);
-        let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
-        at(offset_of!(Event, picked_controller), 0x7558C4);
-        at(offset_of!(Event, stage_group), 0x7558C8);
-        at(offset_of!(Event, stage_number), 0x7558CC);
-        at(offset_of!(Event, stage_sub), 0x7558D0);
-        at(offset_of!(Event, dword_7558d4), 0x7558D4);
-        at(offset_of!(Event, clears_escape_flag), 0x7558D8);
-        at(offset_of!(Event, sparks_mode), 0x7558DC);
-        at(offset_of!(Event, dword_7558e0), 0x7558E0);
-        at(offset_of!(Event, dword_7558e4), 0x7558E4);
-        at(offset_of!(Event, dword_7558e8), 0x7558E8);
-        at(offset_of!(Event, dword_7558ec), 0x7558EC);
-        at(offset_of!(Event, dword_7558f0), 0x7558F0);
-        at(offset_of!(Event, class), 0x7558F4);
-        at(offset_of!(Event, classes), 0x7558F8);
-        at(offset_of!(Event, dword_7558fc), 0x7558FC);
-        at(offset_of!(Event, dword_755900), 0x755900);
-        at(offset_of!(Event, dword_755904), 0x755904);
-        at(offset_of!(Event, dword_755908), 0x755908);
-        at(offset_of!(Event, dword_75590c), 0x75590C);
-        at(offset_of!(Event, dword_755910), 0x755910);
-        at(offset_of!(Event, player_time), 0x755914);
-        at(offset_of!(Event, time_qualifies), 0x755918);
-        at(offset_of!(Event, dword_75591c), 0x75591C);
-        at(offset_of!(Event, any_time_qualified), 0x755920);
-        at(offset_of!(Event, welcome_figure), 0x755924);
-        at(offset_of!(Event, championship_end), 0x755928);
-        at(offset_of!(Event, event_goes_on), 0x75592C);
-        at(offset_of!(Event, dword_755930), 0x755930);
-        at(offset_of!(Event, welcomed), 0x755934);
-        at(offset_of!(Event, service_due), 0x755938);
-        at(offset_of!(Event, service_minutes), 0x75593C);
-        at(offset_of!(Event, service_record_c), 0x755940);
-        at(offset_of!(Event, cpu_spread_first), 0x755944);
-        at(offset_of!(Event, cpu_spread_step), 0x755948);
-        at(offset_of!(Event, service_next), 0x75594C);
-        at(offset_of!(Event, stages_done), 0x755950);
-        at(offset_of!(Event, event_type), 0x755954);
-        at(offset_of!(Event, index), 0x755958);
-        at(offset_of!(Event, section), 0x75595C);
-        at(offset_of!(Event, first_page_stage), 0x755960);
-        at(offset_of!(Event, viewed_section), 0x755964);
-        at(offset_of!(Event, stage_pages), 0x755968);
-        at(offset_of!(Event, stage_page), 0x75596C);
-        at(offset_of!(Event, continuing_save), 0x755970);
-        at(offset_of!(Event, event_out), 0x755978);
-        at(offset_of!(Event, count_a), 0x75597C);
-        at(offset_of!(Event, event_over), 0x755980);
-        at(offset_of!(Event, player_count), 0x755984);
-        at(offset_of!(Event, event_kind), 0x755988);
-        at(offset_of!(Event, current_player), 0x75598C);
-        at(offset_of!(Event, shown_car), 0x755990);
-        at(offset_of!(Event, picture), 0x755994);
-        at(offset_of!(Event, car_page), 0x755998);
+        assert_eq!(offset_of!(Event, picked_controller), 0x0);
+        assert_eq!(offset_of!(Event, stage_group), 0x4);
+        assert_eq!(offset_of!(Event, stage_number), 0x8);
+        assert_eq!(offset_of!(Event, stage_sub), 0xc);
+        assert_eq!(offset_of!(Event, dword_7558d4), 0x10);
+        assert_eq!(offset_of!(Event, clears_escape_flag), 0x14);
+        assert_eq!(offset_of!(Event, sparks_mode), 0x18);
+        assert_eq!(offset_of!(Event, dword_7558e0), 0x1c);
+        assert_eq!(offset_of!(Event, dword_7558e4), 0x20);
+        assert_eq!(offset_of!(Event, dword_7558e8), 0x24);
+        assert_eq!(offset_of!(Event, dword_7558ec), 0x28);
+        assert_eq!(offset_of!(Event, dword_7558f0), 0x2c);
+        assert_eq!(offset_of!(Event, class), 0x30);
+        assert_eq!(offset_of!(Event, classes), 0x34);
+        assert_eq!(offset_of!(Event, dword_7558fc), 0x38);
+        assert_eq!(offset_of!(Event, dword_755900), 0x3c);
+        assert_eq!(offset_of!(Event, dword_755904), 0x40);
+        assert_eq!(offset_of!(Event, dword_755908), 0x44);
+        assert_eq!(offset_of!(Event, dword_75590c), 0x48);
+        assert_eq!(offset_of!(Event, dword_755910), 0x4c);
+        assert_eq!(offset_of!(Event, player_time), 0x50);
+        assert_eq!(offset_of!(Event, time_qualifies), 0x54);
+        assert_eq!(offset_of!(Event, dword_75591c), 0x58);
+        assert_eq!(offset_of!(Event, any_time_qualified), 0x5c);
+        assert_eq!(offset_of!(Event, welcome_figure), 0x60);
+        assert_eq!(offset_of!(Event, championship_end), 0x64);
+        assert_eq!(offset_of!(Event, event_goes_on), 0x68);
+        assert_eq!(offset_of!(Event, dword_755930), 0x6c);
+        assert_eq!(offset_of!(Event, welcomed), 0x70);
+        assert_eq!(offset_of!(Event, service_due), 0x74);
+        assert_eq!(offset_of!(Event, service_minutes), 0x78);
+        assert_eq!(offset_of!(Event, service_record_c), 0x7c);
+        assert_eq!(offset_of!(Event, cpu_spread_first), 0x80);
+        assert_eq!(offset_of!(Event, cpu_spread_step), 0x84);
+        assert_eq!(offset_of!(Event, service_next), 0x88);
+        assert_eq!(offset_of!(Event, stages_done), 0x8c);
+        assert_eq!(offset_of!(Event, event_type), 0x90);
+        assert_eq!(offset_of!(Event, index), 0x94);
+        assert_eq!(offset_of!(Event, section), 0x98);
+        assert_eq!(offset_of!(Event, first_page_stage), 0x9c);
+        assert_eq!(offset_of!(Event, viewed_section), 0xa0);
+        assert_eq!(offset_of!(Event, stage_pages), 0xa4);
+        assert_eq!(offset_of!(Event, stage_page), 0xa8);
+        assert_eq!(offset_of!(Event, continuing_save), 0xac);
+        assert_eq!(offset_of!(Event, event_out), 0xb4);
+        assert_eq!(offset_of!(Event, count_a), 0xb8);
+        assert_eq!(offset_of!(Event, event_over), 0xbc);
+        assert_eq!(offset_of!(Event, player_count), 0xc0);
+        assert_eq!(offset_of!(Event, event_kind), 0xc4);
+        assert_eq!(offset_of!(Event, current_player), 0xc8);
+        assert_eq!(offset_of!(Event, shown_car), 0xcc);
+        assert_eq!(offset_of!(Event, picture), 0xd0);
+        assert_eq!(offset_of!(Event, car_page), 0xd4);
     }
 }

@@ -303,9 +303,9 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Resu
         }
         ItemFn::ApplyScreenMode => apply_screen_mode::apply_screen_mode(o),
         ItemFn::TogglePlayer3c => player_actions::toggle_controller_mode(menus),
-        ItemFn::ReplayItemC => replay_items::replay_item_c(race),
-        ItemFn::ReplayItemB => replay_items::replay_item_b(race),
-        ItemFn::ReplayItemA => replay_items::replay_item_a(race),
+        ItemFn::ReplayItemC => replay_items::replay_item_c(race, o),
+        ItemFn::ReplayItemB => replay_items::replay_item_b(race, o),
+        ItemFn::ReplayItemA => replay_items::replay_item_a(race, o),
         ItemFn::ToggleCaptionChoice => {
             player_actions::toggle_caption_choice(&menus.screens, o.race).map_err(Into::into)
         }
@@ -399,10 +399,10 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Resu
         }
         ItemFn::NewSimulationIfUnlocked => item_actions::new_simulation_if_unlocked(o),
         ItemFn::NewSimulationLoop => new_simulation_loop::run(o),
-        ItemFn::NetworkSettingsItem => settings_loop::settings_loop(),
+        ItemFn::NetworkSettingsItem => settings_loop::settings_loop(o),
         // (The original leaves eax the mode and the carry set: no caller reads them.)
-        ItemFn::JoinNetworkGame => start_link::start_link(2),
-        ItemFn::HostNetworkGame => start_link::start_link(1),
+        ItemFn::JoinNetworkGame => start_link::start_link(o, 2),
+        ItemFn::HostNetworkGame => start_link::start_link(o, 1),
     }
 }
 

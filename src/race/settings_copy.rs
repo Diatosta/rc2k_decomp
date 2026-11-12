@@ -64,7 +64,7 @@ impl StepOperand {
     }
 
     /// Its dword (a float's bits), the owners' being `o`'s.
-    pub fn get_with(self, o: &Owners<'_>) -> u32 {
+    pub fn get_with(self, o: &Owners<'static>) -> u32 {
         match self {
             #[cfg(test)]
             Cell(cell) => cell.get(),
@@ -80,7 +80,7 @@ impl StepOperand {
     }
 
     /// Its dword set (a float's bits), the owners' being `o`'s.
-    pub fn set_with(self, o: &Owners<'_>, v: u32) {
+    pub fn set_with(self, o: &Owners<'static>, v: u32) {
         match self {
             #[cfg(test)]
             Cell(cell) => cell.set(v),

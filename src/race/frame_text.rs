@@ -219,7 +219,7 @@ pub fn roll_credits(
 }
 
 /// `roll_credits`' tune in the game: `sound::play_tune_2`'s command, sent and waited for.
-pub fn credits_tune(o: crate::owners::Owners<'_>) {
+pub fn credits_tune(o: crate::owners::Owners<'static>) {
     crate::sound::play_tune_2::play_tune_2(o.sound, o.audio, o.system);
 }
 
@@ -231,24 +231,11 @@ mod block_tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
-            &race().frame.credits,
-            CREDITS_START,
-            CREDITS_START + CREDITS_LEN,
-        );
+        crate::test_support::first_values::assert_block_starts_as_the_games(&race().frame.credits);
     }
 
     #[test]
-    fn moved_knows_the_block() {
-        let frame = &race().frame;
-        assert_eq!(offset_of!(Credits, script), 0x529858 - CREDITS_START);
-        assert_eq!(
-            crate::moved::place(CREDITS_START),
-            frame.credits.top.addr() as usize
-        );
-        assert_eq!(
-            crate::moved::place(0x529858),
-            (crate::pointers::game_address(frame.credits.script.as_ptr())) as usize
-        );
+    fn fields_are_at_the_games_offsets() {
+        assert_eq!(offset_of!(Credits, script), 0xc);
     }
 }

@@ -7,7 +7,7 @@
 //! view (their records 0x1000 + (number & 0xFFF), +0x10 .. +0x18) kept in the work area; the
 //! two sides from the first point; their cross product to the work vector; and the first
 //! point's place times that. A product above 0 (or no number) says this triangle faces away;
-//! the first one that does not ends it with 0. The x87's arithmetic in `X` (plain Rust; the original's instructions are `asm_reference` in the tests).
+//! the first one that does not ends it with 0. The x87's arithmetic in `X` (plain Rust; the original's instructions' results are recorded vectors in the tests (`data/vectors`)).
 //! A point's number below 0 is fatal error 0x80600314.
 //! One caller, `scene::list_object_face`, which turns the answer into the carry flag.
 //! Refuses when there is no face or no records.
@@ -118,57 +118,10 @@ pub fn face_faces_away(
     Ok(true)
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
-    use crate::scene::asm_test::{Kind, differential};
-
-    /// The original's instructions for `triangle`.
-    unsafe fn triangle_ref(w: *mut u8) {
-        unsafe {
-            core::arch::asm!(
-                "fld dword ptr [{w} + 12]", "fsub dword ptr [{w}]", "fstp dword ptr [{w} + 36]",
-                "fld dword ptr [{w} + 24]", "fsub dword ptr [{w}]", "fstp dword ptr [{w} + 40]",
-                "fld dword ptr [{w} + 16]", "fsub dword ptr [{w} + 4]", "fstp dword ptr [{w} + 44]",
-                "fld dword ptr [{w} + 28]", "fsub dword ptr [{w} + 4]", "fstp dword ptr [{w} + 48]",
-                "fld dword ptr [{w} + 20]", "fsub dword ptr [{w} + 8]", "fstp dword ptr [{w} + 52]",
-                "fld dword ptr [{w} + 32]", "fsub dword ptr [{w} + 8]", "fstp dword ptr [{w} + 56]",
-                "fld dword ptr [{w} + 56]", "fld dword ptr [{w} + 44]",
-                ".byte 0xDE, 0xC9", // fmulp st(1), st
-                "fld dword ptr [{w} + 48]", "fld dword ptr [{w} + 52]",
-                ".byte 0xDE, 0xC9",
-                ".byte 0xDE, 0xE9", // fsubp st(1), st
-                "fstp dword ptr [{w} + 60]",
-                "fld dword ptr [{w} + 40]", "fld dword ptr [{w} + 52]",
-                ".byte 0xDE, 0xC9",
-                "fld dword ptr [{w} + 56]", "fld dword ptr [{w} + 36]",
-                ".byte 0xDE, 0xC9",
-                ".byte 0xDE, 0xE9",
-                "fstp dword ptr [{w} + 64]",
-                "fld dword ptr [{w} + 48]", "fld dword ptr [{w} + 36]",
-                ".byte 0xDE, 0xC9",
-                "fld dword ptr [{w} + 40]", "fld dword ptr [{w} + 44]",
-                ".byte 0xDE, 0xC9",
-                ".byte 0xDE, 0xE9",
-                "fstp dword ptr [{w} + 68]",
-                "fld dword ptr [{w}]", "fld dword ptr [{w} + 60]",
-                ".byte 0xDE, 0xC9",
-                "fld dword ptr [{w} + 4]", "fld dword ptr [{w} + 64]",
-                ".byte 0xDE, 0xC9",
-                "fld dword ptr [{w} + 8]", "fld dword ptr [{w} + 68]",
-                ".byte 0xDE, 0xC9",
-                ".byte 0xDE, 0xC1", // faddp st(1), st
-                ".byte 0xDE, 0xC1",
-                ".byte 0xD9, 0xEE", // fldz
-                ".byte 0xDE, 0xD9", // fcompp
-                "fnstsw word ptr [{w} + 72]",
-                w = in(reg) w,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-    }
+    use crate::test_support::vectors::{Differential, Kind, differential};
 
     #[test]
     fn triangle_matches_the_assembly() {
@@ -178,12 +131,12 @@ mod asm_reference {
             k[18] = Kind::Exact;
             k
         };
-        differential::<19>(
-            "face_faces_away triangle",
-            8000,
-            11,
+        let test = Differential {
+            name: "scene.face_faces_away.triangle",
+            cases: 8000,
+            seed: 11,
             kinds,
-            |rng, m| {
+            fill: &|rng, m| {
                 let moderate = rng.below(2) == 0;
                 for d in m.iter_mut().take(9) {
                     *d = if moderate { rng.moderate() } else { rng.fl() };
@@ -196,22 +149,17 @@ mod asm_reference {
                     m[3..6].copy_from_slice(&first);
                 }
             },
-            |base| unsafe {
-                triangle_ref(base);
-                let s = base.add(72).cast::<u32>();
-                s.write_unaligned(s.read_unaligned() & 0x4500);
-            },
-            |base| unsafe {
-                let w = base.cast::<[u32; 19]>();
-                let mut block = w.read_unaligned();
+            plain: &|c| {
+                let block: [u32; 19] = std::array::from_fn(|k| c[k].get());
                 let places =
                     std::array::from_fn(|k| [block[3 * k], block[3 * k + 1], block[3 * k + 2]]);
                 let t = Triangle::of(places);
-                block[..15].copy_from_slice(&t.work);
-                block[15..18].copy_from_slice(&t.cross);
-                block[18] = u32::from(t.status) & 0x4500;
-                w.write_unaligned(block);
+                for (cell, &d) in c.iter().zip(t.work.iter().chain(&t.cross)) {
+                    cell.set(d);
+                }
+                c[18].set(u32::from(t.status) & 0x4500);
             },
-        );
+        };
+        differential(test);
     }
 }

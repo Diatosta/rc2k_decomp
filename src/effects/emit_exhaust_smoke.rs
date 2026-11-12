@@ -197,26 +197,16 @@ mod kind13_set_tests {
         assert_eq!(size_of::<ExhaustSet>(), ExhaustSet::LEN);
         assert!(
             bytes(&crate::effects::owner::effects().particles.kind13_set)
-                == crate::moved::image_bytes(ExhaustSet::START, ExhaustSet::LEN),
+                == crate::test_support::first_values::bytes(
+                    "effects.owner.EFFECTS.particles.kind13_set/40"
+                ),
             "KIND13_SET starts differently from the image"
         );
-        assert_eq!(offset_of!(ExhaustSet, lift), 0x93A462 - ExhaustSet::START);
-        assert_eq!(
-            offset_of!(ExhaustSet, strength_k),
-            0x93A466 - ExhaustSet::START
-        );
-        assert_eq!(
-            offset_of!(ExhaustSet, motion_k),
-            0x93A46A - ExhaustSet::START
-        );
-        assert_eq!(
-            offset_of!(ExhaustSet, drift_random),
-            0x93A476 - ExhaustSet::START
-        );
-        assert_eq!(
-            offset_of!(ExhaustSet, spin_random),
-            0x93A47A - ExhaustSet::START
-        );
-        assert_eq!(offset_of!(ExhaustSet, size_k), 0x93A47E - ExhaustSet::START);
+        assert_eq!(offset_of!(ExhaustSet, lift), 0x0);
+        assert_eq!(offset_of!(ExhaustSet, strength_k), 0x4);
+        assert_eq!(offset_of!(ExhaustSet, motion_k), 0x8);
+        assert_eq!(offset_of!(ExhaustSet, drift_random), 0x14);
+        assert_eq!(offset_of!(ExhaustSet, spin_random), 0x18);
+        assert_eq!(offset_of!(ExhaustSet, size_k), 0x1c);
     }
 }

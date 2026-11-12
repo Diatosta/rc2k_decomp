@@ -21,7 +21,6 @@
 //! Caller: `effects::run_frame` Refuses (before anything) null settings and a
 //! live slot with a null matrix.
 
-use crate::d3d::vertices_store::VERTICES;
 use crate::effects::mark_slots::slot_matrix;
 use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
@@ -51,6 +50,7 @@ fn refusal(effects: &crate::effects::owner::Effects) -> Option<&'static str> {
 /// `add_mark_slot`, `scene::set_texture`,
 /// `scene::draw_fan`.
 pub fn draw_mark_slots(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
     race: &Race,
     paths: &Paths,
     scene: &crate::scene::owner::Scene,
@@ -119,12 +119,12 @@ pub fn draw_mark_slots(
         let word = |off: u32| u32::from(corner.words[off as usize / 2].get());
         let uv_k = effects.frame.draw_work.uv_k.get();
         for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
-            let vertex = &VERTICES.vertices[n];
+            let vertex = &buffer.vertices[n];
             vertex.u.set(x87::int_times(word(u) as i32, uv_k));
             vertex.v.set(x87::int_times(word(v) as i32, uv_k));
         }
         for n in 0..4 {
-            VERTICES.vertices[n].colour.set(0xFFFF_FFFFu32);
+            buffer.vertices[n].colour.set(0xFFFF_FFFFu32);
         }
         if (x as i32) <= (race.course.numbers.k4096_a.bits() as i32) {
             continue;
@@ -153,13 +153,13 @@ pub fn draw_mark_slots(
         let depth = x87::mul(x, &effects.frame.draw_work.z_k);
         let rhw = x87::reciprocal_times(x, &effects.blocks.slot_tuning.rhw_k);
         for (n, (vx, vy)) in corners.into_iter().enumerate() {
-            let vertex = &VERTICES.vertices[n];
+            let vertex = &buffer.vertices[n];
             vertex.x.set(vx);
             vertex.y.set(vy);
             vertex.z.set(depth);
             vertex.rhw.set(rhw);
         }
-        crate::effects::clip_quad::draw_fan(scene);
+        crate::effects::clip_quad::draw_fan(buffer, scene);
     }
     Ok(())
 }

@@ -9,7 +9,6 @@ use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use crate::race::view_scratch::DrawCtx;
 use crate::scene::draw_described_object::Description;
-use crate::scene::polygon_store::POLYGON_WORK;
 
 /// `race::start_kept_reflections` (0x451864): the 0x400 kept reflection normals cleared to
 /// -999 (0xFFFFFC19) and `g_reflectionsKept` 1.
@@ -147,6 +146,7 @@ pub fn draw_race_slots(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(
 /// seen with four vertices).
 pub fn draw_screen_quad(
     poly: &crate::scene::polygon_work::PolygonWork,
+    part: &crate::workers::PartScratch,
     race: &Race,
     face: &crate::race::face_work::FaceWork,
     scene: &crate::scene::owner::Scene,
@@ -156,7 +156,7 @@ pub fn draw_screen_quad(
     let course = &race.course;
     let shared = &race.shared;
     poly.polygon_drawn.set(0u32);
-    let entries = &POLYGON_WORK.entries[..4];
+    let entries = &part.polygon.entries[..4];
     for (k, e) in (0u32..).zip(entries) {
         // the quad vertex's record (the original's address of it)
         e.record.set(crate::scene::point_records::of_quad(k));
@@ -185,18 +185,18 @@ pub fn draw_screen_quad(
     poly.polygon_next_record
         .set(crate::scene::polygon::pool_start());
     for k in 0..4u32 {
-        POLYGON_WORK.list[k as usize].set(k);
+        part.polygon.list[k as usize].set(k);
     }
-    POLYGON_WORK.list[4].set(0u32);
+    part.polygon.list[4].set(0u32);
     poly.polygon_next_entry.set(4u32);
-    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(poly, race)?;
+    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(part.polygon, poly, race)?;
     if poly.polygon_vertex_count.get() >= 3 {
         crate::scene::depth_buffer_on::depth_buffer(false);
         poly.polygon_textures[0].set(u32::MAX);
         face.polygon_mode.set(0u32);
         poly.polygon_sides[0].set(1u32);
         poly.polygon_sides[1].set(0u32);
-        crate::scene::draw_polygon::draw_polygon_in_game(poly, race, face, scene, screen)?;
+        crate::scene::draw_polygon::draw_polygon_in_game(poly, part, race, face, scene, screen)?;
         face.polygon_mode.set(0u32);
         poly.polygon_drawn.set(1u32);
         crate::scene::depth_buffer_on::depth_buffer(true);
@@ -210,6 +210,7 @@ pub fn draw_screen_quad(
 /// by `draw_screen_quad`.
 pub fn draw_view_tint(
     poly: &crate::scene::polygon_work::PolygonWork,
+    part: &crate::workers::PartScratch,
     race: &Race,
     face: &crate::race::face_work::FaceWork,
     scene: &crate::scene::owner::Scene,
@@ -225,7 +226,7 @@ pub fn draw_view_tint(
     poly.polygon_textures[0].set(u32::MAX);
     poly.polygon_sides[0].set(1u32);
     poly.polygon_sides[1].set(0u32);
-    draw_screen_quad(poly, race, face, scene, screen, view)
+    draw_screen_quad(poly, part, race, face, scene, screen, view)
 }
 
 /// `race::add_car_depth_entry` (0x4574A0): the place (+0x134 .., into `OBJECT_WORK.place` ..) of

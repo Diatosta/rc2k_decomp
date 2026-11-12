@@ -92,7 +92,7 @@ fn pressed(devices: &crate::input::store::Devices, key: usize) -> bool {
 }
 
 /// `race::race_keys` (0x43A649): the race's view and sound keys (see its header).
-pub fn race_keys(race: &Race, o: crate::owners::Owners<'_>) -> Result<(), Refused> {
+pub fn race_keys(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (audio, sound) = (o.audio, o.sound);
     let devices = &o.input.devices;
     let state = &audio.state;

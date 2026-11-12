@@ -21,8 +21,13 @@ use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::session::Dword;
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the view's polygon work, the part's scratch and the owners"
+)]
 pub fn draw_flat_quad(
     poly: &crate::scene::polygon_work::PolygonWork,
+    part: &crate::workers::PartScratch,
     race: &Race,
     face: &crate::race::face_work::FaceWork,
     course: &Course,
@@ -33,7 +38,7 @@ pub fn draw_flat_quad(
     let shared = &race.shared;
     poly.polygon_drawn.set(0);
     for n in 0..4 {
-        let rec = &crate::scene::polygon_store::POLYGON_WORK.entries[n];
+        let rec = &part.polygon.entries[n];
         rec.record
             .set(crate::scene::point_records::of_quad(n as u32));
         rec.u.set(view.quad.uv[n].get());
@@ -64,33 +69,29 @@ pub fn draw_flat_quad(
         v(n, 0x18, depth);
     }
     for n in 0..4 {
-        crate::scene::polygon_store::POLYGON_WORK.entries[n]
-            .point
-            .set(0xFFFF_FFFF);
+        part.polygon.entries[n].point.set(0xFFFF_FFFF);
     }
     poly.polygon_colour
         .set(shared.vars.quad_colour[0].get() & 0xFF_FFFF);
     for n in 0..4 {
-        crate::scene::polygon_store::POLYGON_WORK.entries[n]
-            .light
-            .set(0);
+        part.polygon.entries[n].light.set(0);
     }
     poly.polygon_vertex_count.set(4);
     poly.polygon_next_record
         .set(crate::scene::polygon::pool_start());
     for n in 0..4u32 {
-        crate::scene::polygon::list_cell(n as usize).set(n);
+        crate::scene::polygon::list_cell(part.polygon, n as usize).set(n);
     }
-    crate::scene::polygon::list_cell(4).set(0);
+    crate::scene::polygon::list_cell(part.polygon, 4).set(0);
     poly.polygon_next_entry.set(4);
-    crate::scene::scale_texture_coordinates::scale_texture_coordinates(poly)?;
-    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(poly, race)?;
+    crate::scene::scale_texture_coordinates::scale_texture_coordinates(part.polygon, poly)?;
+    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(part.polygon, poly, race)?;
     if poly.polygon_vertex_count.get() >= 3 {
         face.polygon_mode.set(6);
         poly.polygon_sides[0].set(1);
         poly.polygon_sides[1].set(0);
         crate::scene::depth_buffer_on::depth_buffer(false);
-        crate::scene::draw_polygon::draw_polygon_in_game(poly, race, face, scene, screen)?;
+        crate::scene::draw_polygon::draw_polygon_in_game(poly, part, race, face, scene, screen)?;
         poly.polygon_drawn.set(1);
         crate::scene::depth_buffer_on::depth_buffer(true);
     }

@@ -6,7 +6,10 @@
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-pub fn finish_race_0(race: &Race) -> Result<(), Refused> {
+pub fn finish_race_0(
+    race: &'static Race,
+    o: crate::owners::Owners<'static>,
+) -> Result<(), Refused> {
     race.shared.switches.mask_kind.set(0);
-    crate::drive::finish_race::finish_race(race)
+    crate::drive::finish_race::finish_race(race, o)
 }

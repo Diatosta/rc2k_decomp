@@ -157,14 +157,6 @@ impl ProfileRings {
     }
     pub const START: usize = 0x8DD061;
     pub const LEN: usize = 0x804;
-    #[cfg(test)]
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    #[cfg(test)]
-    pub fn home() -> usize {
-        crate::pointers::game_address(
-            &raw const crate::effects::owner::effects().paths.profile_rings,
-        ) as usize
-    }
 }
 
 /// The profile tables' address lists (IDA 0x9152F6 .. 0x91532A).
@@ -203,14 +195,6 @@ impl ProfileLists {
     }
     pub const START: usize = 0x9152F6;
     pub const LEN: usize = 0x34;
-    #[cfg(test)]
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    #[cfg(test)]
-    pub fn home() -> usize {
-        crate::pointers::game_address(
-            &raw const crate::effects::owner::effects().paths.profile_lists,
-        ) as usize
-    }
 }
 
 /// One profile table: 0x100 whole numbers and then their 0x100 differences (the first
@@ -259,14 +243,6 @@ impl ProfileTables {
     }
     pub const START: usize = 0x8E506D;
     pub const LEN: usize = 0x6800;
-    #[cfg(test)]
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    #[cfg(test)]
-    pub fn home() -> usize {
-        crate::pointers::game_address(
-            &raw const crate::effects::owner::effects().paths.profile_tables,
-        ) as usize
-    }
 }
 
 #[cfg(test)]
@@ -277,63 +253,55 @@ mod typed_tests {
     #[test]
     fn profile_rings_starts_as_the_games() {
         assert_eq!(size_of::<ProfileRings>(), ProfileRings::LEN);
-        let image = crate::moved::image_bytes(ProfileRings::START, ProfileRings::LEN);
+        let image = crate::test_support::first_values::bytes(
+            "effects.owner.EFFECTS.paths.profile_rings/2052",
+        );
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(ProfileRings::home()).cast_const(),
+                (&raw const crate::effects::owner::effects().paths.profile_rings).cast::<u8>(),
                 ProfileRings::LEN,
             )
         };
         assert!(
-            mine == &image[..],
+            mine == image,
             "PROFILE_RINGS starts differently from the image"
         );
-        assert_eq!(
-            offset_of!(ProfileRings, after),
-            0x8DD461 - ProfileRings::START
-        );
-        assert_eq!(
-            offset_of!(ProfileRings, zero),
-            0x8DD861 - ProfileRings::START
-        );
+        assert_eq!(offset_of!(ProfileRings, after), 0x400);
+        assert_eq!(offset_of!(ProfileRings, zero), 0x800);
     }
 
     #[test]
     fn profile_lists_starts_as_the_games() {
         assert_eq!(size_of::<ProfileLists>(), ProfileLists::LEN);
-        let image = crate::moved::image_bytes(ProfileLists::START, ProfileLists::LEN);
+        let image = crate::test_support::first_values::bytes(
+            "effects.owner.EFFECTS.paths.profile_lists/52",
+        );
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(ProfileLists::home()).cast_const(),
+                (&raw const crate::effects::owner::effects().paths.profile_lists).cast::<u8>(),
                 ProfileLists::LEN,
             )
         };
         assert!(
-            mine == &image[..],
+            mine == image,
             "PROFILE_LISTS starts differently from the image"
         );
-        assert_eq!(
-            offset_of!(ProfileLists, sines),
-            0x915302 - ProfileLists::START
-        );
-        assert_eq!(
-            offset_of!(ProfileLists, curves),
-            0x915322 - ProfileLists::START
-        );
+        assert_eq!(offset_of!(ProfileLists, sines), 0xc);
+        assert_eq!(offset_of!(ProfileLists, curves), 0x2c);
     }
 
     #[test]
     fn profile_tables_starts_as_the_games() {
         assert_eq!(size_of::<ProfileTables>(), ProfileTables::LEN);
-        let image = crate::moved::image_bytes(ProfileTables::START, ProfileTables::LEN);
+        let key = "effects.owner.EFFECTS.paths.profile_tables/26624";
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(ProfileTables::home()).cast_const(),
+                (&raw const crate::effects::owner::effects().paths.profile_tables).cast::<u8>(),
                 ProfileTables::LEN,
             )
         };
         assert!(
-            mine == &image[..],
+            crate::test_support::first_values::holds(key, mine),
             "PROFILE_TABLES starts differently from the image"
         );
     }

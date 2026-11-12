@@ -23,6 +23,7 @@ const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (1, 0x1C), (1,
     reason = "the effects' groups, the owners and the view's fog"
 )]
 pub fn ring_frame(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
     masks: &Masks,
     weather: &crate::effects::rain::Weather,
     particles: &Particles,
@@ -46,9 +47,9 @@ pub fn ring_frame(
         // The settings' +0x7C: the first car record's +0x1C.
         masks.surface.lives_by_level[8].set(marks.cars[0].tag.get() & 0xFF_FFFF);
         particles.kind1_choice.choice.set(weather.rain.drops.get());
-        crate::effects::run_ring::run_ring(masks, ring, scene, effects, view)?;
+        crate::effects::run_ring::run_ring(buffer, masks, ring, scene, effects, view)?;
         set_render_state(2, 0x14);
-        crate::effects::run_ribbons::run_ribbons(ring, scene, effects, view)?;
+        crate::effects::run_ribbons::run_ribbons(buffer, ring, scene, effects, view)?;
     }
     Ok(())
 }

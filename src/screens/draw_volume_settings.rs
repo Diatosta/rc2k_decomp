@@ -14,7 +14,7 @@ use crate::errors::Refused;
 use crate::owners::Owners;
 use crate::text::draw_text::Canvas;
 
-pub fn draw_volume_settings(o: Owners<'_>, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_volume_settings(o: Owners<'static>, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let menus = o.menus;
     let screens = &menus.screens;
     let levels = &o.audio.levels;

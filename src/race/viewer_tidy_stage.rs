@@ -43,14 +43,16 @@ fn run(
     use crate::race::{race_end, sound_tables};
     use rc2k_core::race::viewer_flow::TidyStep;
     match step {
-        TidyStep::TidyEverything => race_end::tidy_everything_in(race, o)?,
+        TidyStep::TidyEverything => race_end::tidy_everything(race, o)?,
         TidyStep::MenuScreenMode => {
             crate::platform::set_menu_mode_now();
         }
         TidyStep::LoadingPicture => {
             crate::menu::show_loading_picture::show_loading_picture_in(o.menus, o.gfx, o.system)?;
         }
-        TidyStep::ClearRaceSounds => sound_tables::clear_race_sound_objects(o.sound)?,
+        TidyStep::ClearRaceSounds => {
+            sound_tables::clear_race_sound_objects(o.sound, o.audio, o.system)?;
+        }
         TidyStep::SoundSettings => crate::sound::apply_settings::apply_settings(o)?,
         TidyStep::FreeFonts => crate::gfx::free_fonts::free_fonts(
             &fonts.glyph_tables.memory,

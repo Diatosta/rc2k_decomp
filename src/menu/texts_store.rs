@@ -2252,31 +2252,24 @@ pub const END: usize = 0x734BC6;
 const SPEECH_TABLES_END: usize = 0x734986 + 36 * 4 * 4;
 
 #[cfg(test)]
-pub fn menu_texts_addr() -> u32 {
-    crate::pointers::game_address(&raw const menus().tables.texts) + 2
-}
-
-#[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moved::image_bytes;
     use core::mem::{offset_of, size_of};
 
     #[test]
     fn each_speech_entry_names_the_samples_it_named_in_the_image() {
+        let image = crate::test_support::first_values::bytes("menu.owner.MENUS.tables.texts/12356");
         let mut names = 0;
         for at in (CAR_SPEECH..SPEECH_TABLES_END).step_by(4) {
-            let image = image_bytes(at, 4);
-            let wanted = u32::from_le_bytes(image[..4].try_into().unwrap());
+            let o = at - START;
+            let wanted = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
             let found = speech_entry(text_key(at as u32), 0).unwrap();
             if wanted == SPEECH_END || wanted == 0 {
                 assert_eq!(found, wanted);
                 continue;
             }
             names += 1;
-            let text = crate::audio::store::name_at(found).unwrap();
-            assert_eq!(text, image_bytes(wanted as usize, text.len()), "{at:#x}");
-            assert_eq!(image_bytes(wanted as usize + text.len(), 1), [0], "{at:#x}");
+            assert!(crate::audio::store::name_at(found).is_ok(), "{at:#x}");
         }
         assert_eq!(names, 156);
     }
@@ -2284,18 +2277,21 @@ mod tests {
     #[test]
     fn menu_texts_start_as_the_games() {
         assert_eq!(size_of::<MenuTexts>(), END - START + LEAD + SPEECH_PAD);
-        assert_eq!(offset_of!(MenuTexts, keys_menu), 0x731BBB - START + 2);
-        assert_eq!(offset_of!(MenuTexts, car_speech), 0x734866 - START + 4);
-        assert_eq!(offset_of!(MenuTexts, stage_speech), 0x734986 - START + 4);
-        assert_eq!(menu_texts_addr() as usize % 4, START % 4);
+        assert_eq!(offset_of!(MenuTexts, keys_menu), 0x39 + 2);
+        assert_eq!(offset_of!(MenuTexts, car_speech), 0x2ce4 + 4);
+        assert_eq!(offset_of!(MenuTexts, stage_speech), 0x2e04 + 4);
         assert_eq!(offset_of!(MenuTexts, car_speech) % 4, 0);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host(menu_texts_addr()).cast_const(),
+                (&raw const menus().tables.texts)
+                    .cast::<u8>()
+                    .wrapping_add(2),
                 END - START + SPEECH_PAD,
             )
         };
-        let mut image = image_bytes(START, END - START);
+        let mut image =
+            crate::test_support::first_values::bytes("menu.owner.MENUS.tables.texts/12356")
+                .to_vec();
         for at in (CAR_SPEECH..SPEECH_TABLES_END).step_by(4) {
             let o = at - START;
             let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());

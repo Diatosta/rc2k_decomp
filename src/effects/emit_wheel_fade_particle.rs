@@ -279,32 +279,16 @@ mod kind6_set_tests {
         assert_eq!(size_of::<WheelFadeSet>(), WheelFadeSet::LEN);
         assert!(
             bytes(&crate::effects::owner::effects().particles.kind6_set)
-                == crate::moved::image_bytes(WheelFadeSet::START, WheelFadeSet::LEN),
+                == crate::test_support::first_values::bytes(
+                    "effects.owner.EFFECTS.particles.kind6_set/72"
+                ),
             "KIND6_SET starts differently from the image"
         );
-        assert_eq!(
-            offset_of!(WheelFadeSet, rate_k),
-            0x93A41A - WheelFadeSet::START
-        );
-        assert_eq!(
-            offset_of!(WheelFadeSet, side_random),
-            0x93A42A - WheelFadeSet::START
-        );
-        assert_eq!(
-            offset_of!(WheelFadeSet, lift),
-            0x93A42E - WheelFadeSet::START
-        );
-        assert_eq!(
-            offset_of!(WheelFadeSet, motion_k),
-            0x93A432 - WheelFadeSet::START
-        );
-        assert_eq!(
-            offset_of!(WheelFadeSet, spin_random),
-            0x93A456 - WheelFadeSet::START
-        );
-        assert_eq!(
-            offset_of!(WheelFadeSet, size_k),
-            0x93A45A - WheelFadeSet::START
-        );
+        assert_eq!(offset_of!(WheelFadeSet, rate_k), 0x0);
+        assert_eq!(offset_of!(WheelFadeSet, side_random), 0x10);
+        assert_eq!(offset_of!(WheelFadeSet, lift), 0x14);
+        assert_eq!(offset_of!(WheelFadeSet, motion_k), 0x18);
+        assert_eq!(offset_of!(WheelFadeSet, spin_random), 0x3c);
+        assert_eq!(offset_of!(WheelFadeSet, size_k), 0x40);
     }
 }

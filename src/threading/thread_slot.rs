@@ -76,16 +76,13 @@ mod tests {
     #[test]
     fn slots_start_as_the_games() {
         assert_eq!(super::SLOT_LEN, 0x110);
-        let d = crate::moved::image_bytes(0x5184F4, super::SLOT_COUNT * super::SLOT_LEN);
-        let mut mine = vec![0u8; d.len()];
-        unsafe {
-            std::ptr::copy_nonoverlapping(
-                super::SLOTS.as_ptr().cast::<u8>(),
-                mine.as_mut_ptr(),
-                d.len(),
-            );
-        };
-        // The image's routines are relocated addresses; compared here as IDA's.
-        assert_eq!(mine, d);
+        // The routines are kept as the image's addresses.
+        crate::test_support::first_values::assert_store_starts_as_the_games(
+            "store:threading.thread_slot.SLOTS",
+        );
+        assert_eq!(
+            size_of_val(&super::SLOTS),
+            super::SLOT_COUNT * super::SLOT_LEN
+        );
     }
 }

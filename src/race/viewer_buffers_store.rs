@@ -99,33 +99,23 @@ pub const END: usize = 0x975510;
 
 const _: () = assert!(END - START == core::mem::size_of::<ViewerBuffers>());
 
-/// Where IDA 0x960FA0 is now.
-#[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::moved::place(START) as u32
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_buffers() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            crate::moved::place(END - 1),
-            (piece_addr() + (END - START) as u32 - 1) as usize
-        );
-        assert_eq!(offset_of!(ViewerBuffers, block_used), 0x9613A0 - START);
-        assert_eq!(offset_of!(ViewerBuffers, block), 0x9613A4 - START);
-        assert_eq!(offset_of!(ViewerBuffers, block_cameras), 0x963BB4 - START);
-        assert_eq!(offset_of!(ViewerBuffers, undo_blocks), 0x9673F4 - START);
-        assert_eq!(offset_of!(ViewerBuffers, undo_cameras), 0x96AC38 - START);
-        assert_eq!(offset_of!(ViewerBuffers, mark_in), 0x96E478 - START);
-        assert_eq!(offset_of!(ViewerBuffers, clip_places), 0x96E488 - START);
-        assert_eq!(offset_of!(ViewerBuffers, clip_cameras), 0x971CC8 - START);
-        assert_eq!(offset_of!(ViewerBuffers, to_file), 0x97550C - START);
+    fn fields_are_at_the_games_offsets() {
+        assert_eq!(core::ptr::from_ref(&*VIEWER_BUFFERS).addr() % 4, 0);
+        assert_eq!(offset_of!(ViewerBuffers, block_used), 0x400);
+        assert_eq!(offset_of!(ViewerBuffers, block), 0x404);
+        assert_eq!(offset_of!(ViewerBuffers, block_cameras), 0x2c14);
+        assert_eq!(offset_of!(ViewerBuffers, undo_blocks), 0x6454);
+        assert_eq!(offset_of!(ViewerBuffers, undo_cameras), 0x9c98);
+        assert_eq!(offset_of!(ViewerBuffers, mark_in), 0xd4d8);
+        assert_eq!(offset_of!(ViewerBuffers, clip_places), 0xd4e8);
+        assert_eq!(offset_of!(ViewerBuffers, clip_cameras), 0x10d28);
+        assert_eq!(offset_of!(ViewerBuffers, to_file), 0x1456c);
     }
 
     #[test]

@@ -132,9 +132,6 @@ impl ViewRecord {
 }
 
 impl ViewVars {
-    /// IDA's address of the table of view records (`ViewAndRecords.view_vars.view_records[0]`) and its length (52 dwords).
-    #[cfg(test)]
-    const TABLE: usize = 0x606320;
     /// IDA's addresses of the first view record and the end of the last (52 of 0x5C).
     const RECORDS: usize = 0x606500;
     const RECORDS_END: usize = 0x6077B0;
@@ -233,7 +230,7 @@ mod tests {
             END,
             |image| {
                 for k in 0..52 {
-                    let o = ViewVars::TABLE - START + 4 * k;
+                    let o = offset_of!(ViewVars, view_records) + 4 * k;
                     let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
                     image[o..o + 4].copy_from_slice(&view_ref(v).to_le_bytes());
                 }
@@ -244,8 +241,10 @@ mod tests {
     #[test]
     fn the_view_table_names_its_records_as_the_image_does() {
         for n in 0..52usize {
-            let ida = ViewVars::TABLE + 4 * n;
-            let image = u32::from_le_bytes(crate::moved::image_bytes(ida, 4).try_into().unwrap());
+            let image = crate::test_support::first_values::dword(
+                "race.owner.RACE.frame.view_and_records.view_vars.view_records[0]/208",
+                n,
+            );
             // A handle in place of the image's address, naming the same record.
             assert_eq!(
                 race().frame.view_and_records.view_vars.view_records[n].get(),
@@ -261,15 +260,11 @@ mod tests {
     }
 
     #[test]
-    fn piece_has_its_home() {
+    fn fields_are_at_the_games_offsets() {
         assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            piece_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
-        assert_eq!(offset_of!(ViewVars, view_car_flag_a), 0x60626C - START);
-        assert_eq!(offset_of!(ViewVars, fade_alpha_moved), 0x606284 - START);
-        assert_eq!(offset_of!(ViewVars, view_place_f), 0x6062A4 - START);
-        assert_eq!(offset_of!(ViewVars, camera_distance), 0x60631C - START);
+        assert_eq!(offset_of!(ViewVars, view_car_flag_a), 0x0);
+        assert_eq!(offset_of!(ViewVars, fade_alpha_moved), 0x18);
+        assert_eq!(offset_of!(ViewVars, view_place_f), 0x38);
+        assert_eq!(offset_of!(ViewVars, camera_distance), 0xb0);
     }
 }

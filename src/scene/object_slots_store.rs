@@ -66,12 +66,6 @@ pub const END: usize = 0x634FA0;
 
 const _: () = assert!(END - START == core::mem::size_of::<ObjectTables>());
 
-/// Where IDA 0x62DB5C is now.
-#[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&scene().objects.slots))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -79,25 +73,20 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&scene().objects.slots, START, END);
+        crate::test_support::first_values::assert_block_starts_as_the_games(&scene().objects.slots);
     }
 
     #[test]
     fn piece_has_its_home() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            crate::moved::place(END - 1),
-            (piece_addr() + (END - START) as u32 - 1) as usize
-        );
-        assert_eq!(offset_of!(ObjectTables, phase_work), 0x631B5C - START);
-        assert_eq!(offset_of!(ObjectTables, texture_count), 0x631B68 - START);
-        assert_eq!(offset_of!(ObjectTables, texture_list), 0x631B6C - START);
-        assert_eq!(offset_of!(ObjectTables, no_normals), 0x631F6C - START);
-        assert_eq!(offset_of!(ObjectTables, first_point), 0x631F70 - START);
-        assert_eq!(offset_of!(ObjectTables, point_counts), 0x632370 - START);
-        assert_eq!(offset_of!(ObjectTables, face_counts), 0x632F70 - START);
-        assert_eq!(offset_of!(ObjectTables, part_extents), 0x633370 - START);
-        assert_eq!(offset_of!(ObjectTables, measures), 0x634B70 - START);
-        assert_eq!(offset_of!(ObjectTables, radii), 0x634BA0 - START);
+        assert_eq!(offset_of!(ObjectTables, phase_work), 0x4000);
+        assert_eq!(offset_of!(ObjectTables, texture_count), 0x400c);
+        assert_eq!(offset_of!(ObjectTables, texture_list), 0x4010);
+        assert_eq!(offset_of!(ObjectTables, no_normals), 0x4410);
+        assert_eq!(offset_of!(ObjectTables, first_point), 0x4414);
+        assert_eq!(offset_of!(ObjectTables, point_counts), 0x4814);
+        assert_eq!(offset_of!(ObjectTables, face_counts), 0x5414);
+        assert_eq!(offset_of!(ObjectTables, part_extents), 0x5814);
+        assert_eq!(offset_of!(ObjectTables, measures), 0x7014);
+        assert_eq!(offset_of!(ObjectTables, radii), 0x7044);
     }
 }

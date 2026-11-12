@@ -15,6 +15,7 @@ const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1,
 /// The render states (`scene::set_render_state`), the
 /// texture (`scene::set_texture`), `draw_turned_sprite`.
 pub fn draw_glow(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
     scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
@@ -36,6 +37,7 @@ pub fn draw_glow(
             extended(clipping.glow.place[0].get()),
         ];
         crate::effects::draw_turned_sprite::draw_turned_sprite(
+            buffer,
             clipping.glow.angle.get(),
             0xFFFF_FFFF,
             0x1_0000,

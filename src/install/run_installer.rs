@@ -41,7 +41,7 @@ pub fn run_installer(
     crate::files::state::set_directory_byte(0, 0);
     i::read_languages::read_languages(install, system, &install.names.lang_cfg.text()[..])?;
     crate::gfx::build_fonts::build_fonts_in(gfx, system, o.strings)?;
-    i::open_installer::open_installer(install, gfx)?;
+    i::open_installer::open_installer(install, gfx, system)?;
     // From the command line: the install, and on past the pages (`jmp loc_412EDC`).
     let from_command = install.run.from_command.get() == 1;
     if from_command {

@@ -140,22 +140,26 @@ mod tests {
     use super::*;
     use crate::input::owner::input;
     use crate::input::store::KEYBOARD_IDA;
-    use crate::moved::image_bytes;
     use crate::strings::owner::strings;
+    use crate::test_support::first_values::dword;
 
-    fn word(bytes: &[u8], at: usize) -> usize {
-        u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap()) as usize
+    /// The game's keyboard tables' pointers (the keyboard block from its second dword) and the
+    /// NEC layout's, as named reads of `data/first_values.golden`.
+    const KEYBOARD_POINTERS: &str = "input.owner.INPUT.keyboard.table_pointers/20";
+    const NEC_POINTERS: &str = "strings.keyboard_tables.NEC_POINTERS/20";
+
+    fn word(key: &str, n: usize) -> usize {
+        dword(key, n) as usize
     }
 
     #[test]
     fn the_built_in_tables_are_where_the_images_pointers_say() {
         let input = input();
-        let block = image_bytes(KEYBOARD_IDA + 4, 0x14);
-        assert_eq!(word(&block, 0), 0);
-        assert_eq!(word(&block, 4), KEYBOARD_IDA + 0x94);
-        assert_eq!(word(&block, 8), KEYBOARD_IDA + 0x114);
-        assert_eq!(word(&block, 12), 0);
-        assert_eq!(word(&block, 16), KEYBOARD_IDA + 0x194);
+        assert_eq!(word(KEYBOARD_POINTERS, 0), 0);
+        assert_eq!(word(KEYBOARD_POINTERS, 1), KEYBOARD_IDA + 0x94);
+        assert_eq!(word(KEYBOARD_POINTERS, 2), KEYBOARD_IDA + 0x114);
+        assert_eq!(word(KEYBOARD_POINTERS, 3), 0);
+        assert_eq!(word(KEYBOARD_POINTERS, 4), KEYBOARD_IDA + 0x194);
         assert_eq!(input.keyboard.plain.read().len(), 0x80);
         assert_eq!(input.keyboard.shifted.read().len(), 0x80);
         assert_eq!(input.keyboard.key_names.read().len(), 0x100);
@@ -165,13 +169,12 @@ mod tests {
     fn the_nec_tables_are_where_the_images_pointers_say() {
         let strings = strings();
         let at = 0x4F0E10;
-        let block = image_bytes(at, 0x14);
         let (plain, shifted, names, end) = NEC_TABLES;
-        assert_eq!(word(&block, 0), 0);
-        assert_eq!(word(&block, 4), at + plain);
-        assert_eq!(word(&block, 8), at + shifted);
-        assert_eq!(word(&block, 12), 0);
-        assert_eq!(word(&block, 16), at + names);
+        assert_eq!(word(NEC_POINTERS, 0), 0);
+        assert_eq!(word(NEC_POINTERS, 1), at + plain);
+        assert_eq!(word(NEC_POINTERS, 2), at + shifted);
+        assert_eq!(word(NEC_POINTERS, 3), 0);
+        assert_eq!(word(NEC_POINTERS, 4), at + names);
         assert_eq!(end - names, 0x100);
         assert!(end <= strings.language.keyboard.nec_layout.len());
         assert_eq!(strings.language.keyboard.nec_head[NEC_MODE_AT], 1);

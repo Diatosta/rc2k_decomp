@@ -12,7 +12,7 @@ use crate::owners::Owners;
 use crate::screens::service_boxes::quad;
 
 /// Parts: 1 the quads, 2 the rules, 3 the boxes.
-pub fn draw_two_column_panel(o: Owners<'_>) -> Result<(), Refused> {
+pub fn draw_two_column_panel(o: Owners<'static>) -> Result<(), Refused> {
     let menus = o.menus;
     // The logic is in `rc2k_core::screens::panels::two_column_panel`.
     for a in

@@ -21,12 +21,6 @@ use rc2k_core::gfx::picture_size as sizes;
 // ---- game data ----
 
 /// Returns whether the file was read.
-pub fn load_picture(path: &dyn crate::session::TextPlace) -> Result<bool, Refused> {
-    let o = crate::owners::boundary();
-    load_picture_with(path, o.gfx, o.system)
-}
-
-/// `load_picture` for a caller that holds the owners.
 pub fn load_picture_with(
     path: &dyn crate::session::TextPlace,
     gfx: &crate::gfx::owner::Gfx,

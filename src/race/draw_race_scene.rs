@@ -47,6 +47,7 @@ struct Owners<'a> {
     race: &'a Race,
     scene: &'a crate::scene::owner::Scene,
     system: &'a crate::system::owner::System,
+    sound: &'static crate::sound::owner::Sound,
 }
 
 /// Whether the view with `flags` has its mirror (the flags' bit 3).
@@ -79,11 +80,16 @@ fn fetch_value(o: Owners<'_>, car: usize, mirror: bool) -> Result<(), Refused> {
 }
 
 /// View `car`'s scene, and what it leaves its overlays kept (`race::scene_hand_off`).
-fn view_scene(o: Owners<'_>, car: usize) -> Result<(), Refused> {
+fn view_scene(
+    o: Owners<'_>,
+    car: usize,
+    part: &crate::workers::PartScratch,
+) -> Result<(), Refused> {
     let _step = crate::write_watch::step(["view0_scene", "view1_scene"][car]);
     let view = crate::race::view_scratch::main_view(car);
     view.take_vars(o.race);
-    let output = crate::race::draw_view_scene::draw_view_scene(o.race, o.scene, o.system, view)?;
+    let output =
+        crate::race::draw_view_scene::draw_view_scene(o.race, o.scene, o.system, view, part)?;
     view.hand_off.keep_output(output);
     view.hand_off.keep(o.race);
     Ok(())
@@ -111,10 +117,17 @@ fn view_rest(o: Owners<'_>, car: usize, blit: bool) -> Result<(), Refused> {
     if blit {
         crate::d3d::copy_screen_to_texture::copy_screen_to_texture(&o.race.frame, o.scene);
     }
-    let ctx = crate::race::view_scratch::DrawCtx::new(o.race, o.scene, o.system, view);
+    let ctx = crate::race::view_scratch::DrawCtx::new(
+        o.race,
+        o.scene,
+        o.system,
+        view,
+        crate::workers::game_scratch(),
+    );
     crate::race::draw_view_overlays::draw_view_overlays(
         &ctx,
         o.system,
+        o.sound,
         crate::effects::owner::effects(),
     )?;
     if car == 0 {
@@ -125,13 +138,17 @@ fn view_rest(o: Owners<'_>, car: usize, blit: bool) -> Result<(), Refused> {
 }
 
 /// View `car`'s mirror.
-fn view_mirror(o: Owners<'_>, car: usize) -> Result<(), Refused> {
+fn view_mirror(
+    o: Owners<'_>,
+    car: usize,
+    part: &crate::workers::PartScratch,
+) -> Result<(), Refused> {
     let _step = crate::write_watch::step(["mirror0", "mirror1"][car]);
     let mirror = crate::race::view_scratch::mirror(car);
     crate::race::frame::load_view_car(&o.race.shared, car, mirror)?;
     let begun = crate::debug::timing::start();
     let output =
-        crate::race::draw_mirror_view::draw_mirror_view(o.race, o.scene, o.system, mirror)?;
+        crate::race::draw_mirror_view::draw_mirror_view(o.race, o.scene, o.system, mirror, part)?;
     mirror.hand_off.keep_mirror_drawn(output.is_some());
     mirror.hand_off.keep_output(output.unwrap_or_default());
     crate::debug::timing::stop(crate::debug::timing::Stage::Mirror, begun);
@@ -178,12 +195,14 @@ fn draw_view(o: Owners<'_>, car: usize, flags: usize, blit: bool) -> Result<(), 
     load_car(o, car)?;
     fetch_value(o, car, false)?;
     fetch_value(o, car, true)?;
+    // One after another on the game's thread: on its part's scratch.
+    let part = crate::workers::game_scratch();
     let view = || -> Result<(), Refused> {
-        view_scene(o, car)?;
+        view_scene(o, car, part)?;
         view_drawn(o, car, false)?;
         view_rest(o, car, blit)
     };
-    let mirror = || view_mirror(o, car);
+    let mirror = || view_mirror(o, car, part);
     if !mirrored(o.race, flags) {
         return view();
     }
@@ -193,8 +212,8 @@ fn draw_view(o: Owners<'_>, car: usize, flags: usize, blit: bool) -> Result<(), 
     // the mirror's changes to the stores they share put over theirs as when drawn after them.
     if crate::workers::mirror_beside() {
         return crate::workers::draw_beside(
-            || view_scene(o, car),
-            mirror,
+            |part| view_scene(o, car, part),
+            |part| view_mirror(o, car, part),
             || {
                 view_drawn(o, car, false)?;
                 view_rest(o, car, blit)
@@ -244,15 +263,15 @@ fn draw_players_beside(
             pieces.push(Piece::Mirror(p));
         }
     }
-    let part = |n: usize| -> Result<(), Refused> {
+    let part = |n: usize, part: &crate::workers::PartScratch| -> Result<(), Refused> {
         match pieces[n] {
             Piece::Scene(p) => {
                 own(p, false, true)?;
-                view_scene(o, p)
+                view_scene(o, p, part)
             }
             Piece::Mirror(p) => {
                 own(p, true, false)?;
-                view_mirror(o, p)
+                view_mirror(o, p, part)
             }
         }
     };
@@ -276,6 +295,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         race,
         scene,
         system,
+        sound: o.sound,
     };
     let frame = &race.frame;
     use crate::scene::set_render_state::set_render_state;

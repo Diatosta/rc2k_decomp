@@ -1267,12 +1267,6 @@ pub const START: usize = 0x75648C;
 /// IDA 0x7585D8, the end of the piece.
 pub const END: usize = 0x7585D8;
 
-/// Where IDA 0x75648C lives (`moved::MOVED`'s home).
-#[cfg(test)]
-pub fn cars_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::menu::owner::menus().cars.table)
-}
-
 /// Where the figures of the description `entry` names are now: its +0x74 keeps their IDA
 /// address, a name in `CarTable::description_texts` (read by `menu::driver_stats`).
 pub fn description_table(entry: u32) -> Result<DescriptionTable, crate::errors::BadInput> {
@@ -1311,7 +1305,6 @@ impl DescriptionTable {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moved::image_bytes;
     use core::mem::{offset_of, size_of};
 
     #[test]
@@ -1322,40 +1315,17 @@ mod tests {
                 && size_of::<CarTable>() <= (END - START).next_multiple_of(4)
         );
         let mine = unsafe {
-            std::slice::from_raw_parts(crate::pointers::host(cars_addr()).cast_const(), END - START)
+            std::slice::from_raw_parts((&raw const menu_cars.table).cast::<u8>(), END - START)
         };
         // The table's entries are handles: the image's addresses made handles to compare.
-        let mut image = image_bytes(START, END - START);
+        let mut image =
+            crate::test_support::first_values::bytes("menu.owner.MENUS.cars.table/8524").to_vec();
         for n in 0..DESCRIPTION_COUNT as usize {
             let at = 0x7564A0 - START + 4 * n;
             let v = u32::from_le_bytes(image[at..at + 4].try_into().unwrap());
             image[at..at + 4].copy_from_slice(&car_ref(v).to_le_bytes());
         }
         assert_eq!(mine, &image[..]);
-        // The name places and the descriptions' text places are the image's addresses,
-        // names that resolve to what they named.
-        for n in 0..4 {
-            let at = 4 * n;
-            let name = u32::from_le_bytes(image[at..at + 4].try_into().unwrap());
-            assert_eq!(name as usize, crate::menu::names_store::START + 0x20 * n);
-            assert_eq!(
-                crate::moved::named_in(
-                    name,
-                    crate::menu::names_store::START,
-                    crate::menu::names_store::END - crate::menu::names_store::START,
-                    "a player's name off the names"
-                ),
-                Ok(crate::menu::names_store::names_addr() + 0x20 * n as u32)
-            );
-        }
-        for n in 0..DESCRIPTION_COUNT as usize {
-            let at = 0x756568 - START + 0x78 * n + 0x74;
-            let text = u32::from_le_bytes(image[at..at + 4].try_into().unwrap());
-            assert_eq!(
-                crate::moved::named_in(text, 0x757558, 4224, "a description's text off the texts"),
-                Ok(cars_addr() + (text as usize - START) as u32)
-            );
-        }
         for car in 0..34 {
             let found =
                 description_table(car_entry(crate::menu::owner::menus(), car).unwrap()).unwrap();

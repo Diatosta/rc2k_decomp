@@ -48,19 +48,6 @@ const NOT_THERE: i32 = 0x8876_0000u32 as i32 | 0x1C2;
 
 // ---- DirectX interface ids (nothing reads them) ----
 
-/// IDA's address of the first interface ids (four of 16 bytes and five zero dwords).
-#[cfg(test)]
-pub const GUIDS_A_START: usize = 0x5BE81C;
-/// Their length.
-#[cfg(test)]
-pub const GUIDS_A_LEN: usize = 0x5BE870 - GUIDS_A_START;
-/// IDA's address of the last two interface ids.
-#[cfg(test)]
-pub const GUIDS_B_START: usize = 0x5BE874;
-/// Their length.
-#[cfg(test)]
-pub const GUIDS_B_LEN: usize = 0x20;
-
 /// The ids the original passed to `QueryInterface` (DirectDraw and Direct3D); the
 /// standalone's platform does not use them.
 #[cfg(test)]
@@ -982,17 +969,14 @@ pub fn clear_viewport(own: &[crate::session::Dword; 4]) {
 mod block_tests {
     use super::*;
 
+    fn bytes_of(ids: &[u32]) -> Vec<u8> {
+        ids.iter().flat_map(|w| w.to_le_bytes()).collect()
+    }
+
     #[test]
     fn the_interface_ids_are_the_games() {
-        crate::gfx::first_values_are_the_games(
-            &GUIDS_A,
-            GUIDS_A_START,
-            GUIDS_A_START + GUIDS_A_LEN,
-        );
-        crate::gfx::first_values_are_the_games(
-            &GUIDS_B,
-            GUIDS_B_START,
-            GUIDS_B_START + GUIDS_B_LEN,
-        );
+        use crate::test_support::first_values::assert_matches;
+        assert_matches("platform_3d.GUIDS_A/84", &bytes_of(&GUIDS_A));
+        assert_matches("platform_3d.GUIDS_B/32", &bytes_of(&GUIDS_B));
     }
 }

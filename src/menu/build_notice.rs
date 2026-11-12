@@ -73,19 +73,9 @@ mod notice_tests {
     #[test]
     fn notice_starts_as_the_games_image() {
         assert_eq!(size_of::<BuildNotice>(), BuildNotice::LEN);
-        let p = (&raw const crate::menu::owner::menus().panels.notice).cast::<u8>();
-        let image = crate::moved::image_bytes(BuildNotice::START, BuildNotice::LEN);
-        for (i, &b) in image.iter().enumerate() {
-            assert_eq!(
-                unsafe { p.add(i).read() },
-                b,
-                "{:#x}",
-                BuildNotice::START + i
-            );
-        }
-        assert_eq!(
-            offset_of!(BuildNotice, notice_second),
-            0x52A2B1 - BuildNotice::START
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &crate::menu::owner::menus().panels.notice,
         );
+        assert_eq!(offset_of!(BuildNotice, notice_second), 0x4e);
     }
 }

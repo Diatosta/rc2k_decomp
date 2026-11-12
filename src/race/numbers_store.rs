@@ -210,33 +210,27 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
+        crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::race::owner::RACE.course.numbers,
-            START,
-            END,
         );
     }
 
     #[test]
-    fn piece_has_its_home() {
+    fn fields_are_at_the_games_offsets() {
         assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            piece_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
-        assert_eq!(offset_of!(Numbers, replay_mode), 0x5C5CE0 - START);
-        assert_eq!(offset_of!(Numbers, two_and_a_quarter), 0x5C5D00 - START);
-        assert_eq!(offset_of!(Numbers, thousand), 0x5C5D18 - START);
-        assert_eq!(offset_of!(Numbers, thirty_two), 0x5C5D30 - START);
-        assert_eq!(offset_of!(Numbers, five), 0x5C5D48 - START);
-        assert_eq!(offset_of!(Numbers, sixty_four), 0x5C5D60 - START);
-        assert_eq!(offset_of!(Numbers, fifth), 0x5C5D78 - START);
-        assert_eq!(offset_of!(Numbers, zero), 0x5C5D90 - START);
-        assert_eq!(offset_of!(Numbers, three_quarters), 0x5C5DA8 - START);
-        assert_eq!(offset_of!(Numbers, half_pi), 0x5C5DC0 - START);
-        assert_eq!(offset_of!(Numbers, nine_tenths), 0x5C5DD8 - START);
-        assert_eq!(offset_of!(Numbers, k262144), 0x5C5E1C - START);
-        assert_eq!(offset_of!(Numbers, k10000), 0x5C5E34 - START);
-        assert_eq!(offset_of!(Numbers, k98304), 0x5C5E4C - START);
+        assert_eq!(offset_of!(Numbers, replay_mode), 0x0);
+        assert_eq!(offset_of!(Numbers, two_and_a_quarter), 0x20);
+        assert_eq!(offset_of!(Numbers, thousand), 0x38);
+        assert_eq!(offset_of!(Numbers, thirty_two), 0x50);
+        assert_eq!(offset_of!(Numbers, five), 0x68);
+        assert_eq!(offset_of!(Numbers, sixty_four), 0x80);
+        assert_eq!(offset_of!(Numbers, fifth), 0x98);
+        assert_eq!(offset_of!(Numbers, zero), 0xb0);
+        assert_eq!(offset_of!(Numbers, three_quarters), 0xc8);
+        assert_eq!(offset_of!(Numbers, half_pi), 0xe0);
+        assert_eq!(offset_of!(Numbers, nine_tenths), 0xf8);
+        assert_eq!(offset_of!(Numbers, k262144), 0x13c);
+        assert_eq!(offset_of!(Numbers, k10000), 0x154);
+        assert_eq!(offset_of!(Numbers, k98304), 0x16c);
     }
 }

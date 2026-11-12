@@ -82,7 +82,7 @@ mod tests {
     #[test]
     fn first_table_is_the_games() {
         assert_eq!(
-            crate::moved::image_bytes(0x4F0BC8, 256),
+            crate::test_support::first_values::bytes("strings.same_text.LOWER/256"),
             super::case_table().lower
         );
     }

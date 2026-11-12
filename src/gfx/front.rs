@@ -31,24 +31,12 @@ impl Surfaces {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::gfx::owner::gfx;
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&gfx().drawing.surfaces, START, START + LEN);
-    }
-
-    #[test]
-    fn moved_knows_the_block() {
-        let drawing = &gfx().drawing;
-        assert_eq!(
-            crate::moved::place(START),
-            drawing.surfaces.front.addr() as usize
-        );
-        assert_eq!(
-            crate::moved::place(START + 4),
-            drawing.surfaces.back.addr() as usize
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &gfx().drawing.surfaces,
         );
     }
 }

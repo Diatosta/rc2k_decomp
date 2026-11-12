@@ -21,7 +21,7 @@ pub fn append_string_by_id(id: u32, emit: &mut impl FnMut(&[u8])) -> Result<u32,
 
 /// `append_string_by_id` for a caller that holds the owners.
 pub fn append_string_by_id_in(
-    o: crate::owners::Owners<'_>,
+    o: crate::owners::Owners<'static>,
     id: u32,
     emit: &mut impl FnMut(&[u8]),
 ) -> Result<u32, BadInput> {
@@ -57,7 +57,7 @@ pub fn push_string(out: &mut Vec<u8>, id: u32) -> Result<(), BadInput> {
 
 /// `push_string` for a caller that holds the owners.
 pub fn push_string_in(
-    o: crate::owners::Owners<'_>,
+    o: crate::owners::Owners<'static>,
     out: &mut Vec<u8>,
     id: u32,
 ) -> Result<(), BadInput> {

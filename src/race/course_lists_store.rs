@@ -162,27 +162,22 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&crate::race::owner::RACE.course.lists, START, END);
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &crate::race::owner::RACE.course.lists,
+        );
     }
 
     #[test]
-    fn piece_has_its_home() {
+    fn fields_are_at_the_games_offsets() {
         assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            piece_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
-        assert_eq!(offset_of!(CourseLists, input_keys_mask), 0x5C694C - START);
-        assert_eq!(offset_of!(CourseLists, list_6ed0), 0x5C6ED0 - START);
-        assert_eq!(offset_of!(CourseLists, course_info), 0x5C6FA0 - START);
-        assert_eq!(offset_of!(CourseLists, point_records), 0x5C6FB8 - START);
-        assert_eq!(offset_of!(CourseLists, turn_matrix), 0x5C7010 - START);
-        assert_eq!(offset_of!(CourseLists, turn_product_xz), 0x5C70A4 - START);
-        assert_eq!(offset_of!(CourseLists, vector_length), 0x5C70BC - START);
-        assert_eq!(offset_of!(CourseLists, car_heading), 0x5C70D8 - START);
-        assert_eq!(
-            offset_of!(CourseLists, exponent_root_table),
-            0x5C74F8 - START
-        );
+        assert_eq!(offset_of!(CourseLists, input_keys_mask), 0x0);
+        assert_eq!(offset_of!(CourseLists, list_6ed0), 0x584);
+        assert_eq!(offset_of!(CourseLists, course_info), 0x654);
+        assert_eq!(offset_of!(CourseLists, point_records), 0x66c);
+        assert_eq!(offset_of!(CourseLists, turn_matrix), 0x6c4);
+        assert_eq!(offset_of!(CourseLists, turn_product_xz), 0x758);
+        assert_eq!(offset_of!(CourseLists, vector_length), 0x770);
+        assert_eq!(offset_of!(CourseLists, car_heading), 0x78c);
+        assert_eq!(offset_of!(CourseLists, exponent_root_table), 0xbac);
     }
 }

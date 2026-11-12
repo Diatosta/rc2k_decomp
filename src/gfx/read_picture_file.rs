@@ -56,18 +56,11 @@ pub fn read_picture_file_in(
 
 #[cfg(test)]
 mod block_tests {
-    use super::*;
 
     #[test]
     fn first_value_is_the_games() {
-        crate::gfx::first_values_are_the_games(
+        crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::gfx::owner::GFX.unchecked().png.setting,
-            PNG_SETTING_START,
-            PNG_SETTING_START + 4,
-        );
-        assert_eq!(
-            crate::moved::place(PNG_SETTING_START),
-            crate::gfx::owner::GFX.unchecked().png.setting.addr() as usize
         );
     }
 }

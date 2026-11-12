@@ -34,7 +34,9 @@ pub fn maybe_compile_lexicon(
 mod tests {
     #[test]
     fn setting_starts_as_the_games() {
-        let d = crate::moved::image_bytes(0x4E0758, 4);
+        let d = crate::test_support::first_values::bytes(
+            "strings.maybe_compile_lexicon.RECOMPILE_LEVEL/4",
+        );
         assert_eq!(
             u32::from_le_bytes(d.try_into().unwrap()),
             super::RECOMPILE_LEVEL.get()

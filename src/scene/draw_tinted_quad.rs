@@ -22,7 +22,7 @@ pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
     let shared = &race.shared;
     ctx.view.polygon.polygon_drawn.set(0);
     for n in 0..4 {
-        let rec = &crate::scene::polygon_store::POLYGON_WORK.entries[n];
+        let rec = &ctx.part.polygon.entries[n];
         rec.record
             .set(crate::scene::point_records::of_quad(n as u32));
         rec.u.set(0);
@@ -58,7 +58,7 @@ pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
         .polygon_colour
         .set(shared.vars.quad_colour[0].get());
     for n in 0..4 {
-        let rec = &crate::scene::polygon_store::POLYGON_WORK.entries[n];
+        let rec = &ctx.part.polygon.entries[n];
         rec.point.set(0xFFFF_FFFF);
         rec.amount.set(see);
         rec.light.set(0xFF_FFFF);
@@ -71,11 +71,15 @@ pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
         .polygon_next_record
         .set(crate::scene::polygon::pool_start());
     for n in 0..4u32 {
-        crate::scene::polygon::list_cell(n as usize).set(n);
+        crate::scene::polygon::list_cell(ctx.part.polygon, n as usize).set(n);
     }
-    crate::scene::polygon::list_cell(4).set(0);
+    crate::scene::polygon::list_cell(ctx.part.polygon, 4).set(0);
     ctx.view.polygon.polygon_next_entry.set(4);
-    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(&ctx.view.polygon, race)?;
+    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(
+        ctx.part.polygon,
+        &ctx.view.polygon,
+        race,
+    )?;
     if ctx.view.polygon.polygon_vertex_count.get() >= 3 {
         crate::scene::depth_buffer_on::depth_buffer(false);
         ctx.view.face.polygon_mode.set(3);
@@ -85,6 +89,7 @@ pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
         ctx.view.polygon.polygon_sides[1].set(1);
         crate::scene::draw_polygon::draw_polygon_in_game(
             &ctx.view.polygon,
+            ctx.part,
             race,
             &ctx.view.face,
             scene,

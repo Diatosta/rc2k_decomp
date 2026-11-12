@@ -16,7 +16,6 @@ use crate::math::x87;
 use crate::scene::matrix3::rounded;
 
 const CORNERS: u32 = 0x100;
-use crate::d3d::vertices_store::VERTICES;
 /// Each vertex's texture place: the corner entry's word offsets (u, v).
 const UV_WORDS: [(u32, u32); 4] = [(0, 2), (4, 6), (0xC, 0xE), (8, 0xA)];
 
@@ -33,6 +32,7 @@ fn abs16(a: u32, b: u32) -> u32 {
     reason = "the original's registers, the effects' groups and the owners"
 )]
 pub fn draw_flare_part(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
     corner: u32,
     angle: u32,
     alpha: u32,
@@ -54,19 +54,19 @@ pub fn draw_flare_part(
         }
         let colour = (alpha << 24) | colour;
         for n in 0..4 {
-            VERTICES.vertices[n].colour.set(colour);
+            buffer.vertices[n].colour.set(colour);
         }
         let entry = &effects.blocks.corners.corners[corner as usize];
         let word = |off: u32| u32::from(entry.words[off as usize / 2].get());
         let uv_k = effects.frame.draw_work.uv_k.get();
         for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
-            let vertex = &VERTICES.vertices[n];
+            let vertex = &buffer.vertices[n];
             vertex.u.set(x87::int_times(word(u) as i32, uv_k));
             vertex.v.set(x87::int_times(word(v) as i32, uv_k));
         }
         let [cx, cy] = centre.map(rounded);
-        VERTICES.vertices[4].x.set_bits(cx);
-        VERTICES.vertices[4].y.set_bits(cy);
+        buffer.vertices[4].x.set_bits(cx);
+        buffer.vertices[4].y.set_bits(cy);
         let across = abs16(word(4), word(0));
         let along = abs16(word(0xA), word(2));
         let ratio = x87::int_ratio(along as i32, across as i32);
@@ -89,7 +89,7 @@ pub fn draw_flare_part(
         let cos: u32 = crate::scene::engine_tables_store::cosine(turn as usize).bits();
         let depth = x87::mul(&effects.frame.draw_work.near, &effects.frame.draw_work.z_k);
         for (n, (x, y)) in corners.into_iter().enumerate() {
-            let vertex = &VERTICES.vertices[n];
+            let vertex = &buffer.vertices[n];
             let [tx, ty] = x87::turn_about(x, y, sin, cos, cx, cy);
             vertex.x.set(tx);
             vertex.y.set(ty);
@@ -100,10 +100,10 @@ pub fn draw_flare_part(
             .view_vars
             .cleared
             .set(effects.frame.view_vars.cleared.get().wrapping_add(1));
-        if clip_quad(effects)? {
+        if clip_quad(buffer, effects)? {
             return Ok(());
         }
-        draw_fan(scene);
+        draw_fan(buffer, scene);
     }
     Ok(())
 }

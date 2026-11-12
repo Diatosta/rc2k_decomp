@@ -45,12 +45,6 @@ pub const END: usize = 0x9E3738;
 
 const _: () = assert!(END - START == core::mem::size_of::<Faces>());
 
-/// Where IDA 0x9A3730 is now.
-#[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::moved::place(START) as u32
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -58,23 +52,9 @@ mod tests {
 
     #[test]
     fn piece_sits_on_the_buffers() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            crate::moved::place(END - 1),
-            (piece_addr() + (END - START) as u32 - 1) as usize
-        );
         let lists = offset_of!(Faces, lists);
-        assert_eq!(
-            lists + offset_of!(SortLists, depth_entries),
-            0x9D3730 - START
-        );
-        assert_eq!(
-            lists + offset_of!(SortLists, sort_entries),
-            0x9DB730 - START
-        );
-        assert_eq!(
-            lists + offset_of!(SortLists, unknown_40000),
-            0x9E3730 - START
-        );
+        assert_eq!(lists + offset_of!(SortLists, depth_entries), 0x30000);
+        assert_eq!(lists + offset_of!(SortLists, sort_entries), 0x38000);
+        assert_eq!(lists + offset_of!(SortLists, unknown_40000), 0x40000);
     }
 }

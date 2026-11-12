@@ -31,6 +31,7 @@
 //! work table and an entry without its vertex.
 
 use crate::d3d::NO_TEXTURE;
+use crate::d3d::vertices_store::PolygonVertices;
 use crate::errors::BadInput;
 use crate::math::x87;
 use crate::race::owner::Race;
@@ -161,8 +162,8 @@ pub trait Outside: submit_polygon::Outside {
 }
 
 /// The vertex buffer's vertex `n` (the polygon has at most as many vertices: checked).
-fn out(n: usize) -> &'static crate::d3d::vertices_store::Vertex {
-    &crate::d3d::vertices_store::VERTICES.vertices[n]
+fn out(buffer: &PolygonVertices, n: usize) -> &crate::d3d::vertices_store::Vertex {
+    &buffer.vertices[n]
 }
 
 /// An entry of the polygon: its number in the work table and the entry.
@@ -186,14 +187,17 @@ fn faded(from: u32, to: u32, by: u32) -> u32 {
 }
 
 /// The polygon's entries, in the list's order.
-fn entries(count: u32) -> Result<smallvec::SmallVec<[Listed; 32]>, BadInput> {
+fn entries(
+    polygon_work: &'static crate::scene::polygon_store::PolygonWork,
+    count: u32,
+) -> Result<smallvec::SmallVec<[Listed; 32]>, BadInput> {
     (0..count as usize)
         .map(|n| {
-            let number: u32 = crate::scene::polygon::list_cell(n).get();
+            let number: u32 = crate::scene::polygon::list_cell(polygon_work, n).get();
             if number >= ENTRIES {
                 return Err(BadInput("a list entry past the work table"));
             }
-            let entry = crate::scene::polygon::entry(number as usize)?;
+            let entry = crate::scene::polygon::entry(polygon_work, number as usize)?;
             if entry.record.get() == 0 {
                 return Err(BadInput("an entry without its vertex"));
             }
@@ -237,6 +241,7 @@ fn hit_test(
 
 /// The positions into the vertex buffer, mirrored for a mirrored view.
 fn place(
+    buffer: &PolygonVertices,
     quad: &[crate::session::Dword; 32],
     race: &crate::race::owner::Race,
     scene: &crate::scene::owner::Scene,
@@ -253,7 +258,7 @@ fn place(
     let mirror_at = window.view_centre[0].get();
     for (n, &(_, entry)) in entries.iter().enumerate() {
         let vertex = entry.record.get();
-        let out = out(n);
+        let out = out(buffer, n);
         let mut x = x87::add(
             crate::scene::point_records::vertex(quad, vertex, 0x0C),
             x_offset,
@@ -284,13 +289,13 @@ fn place(
 }
 
 /// A set's texture coordinates, colour and specular into the buffer.
-fn copy_set(entries: &[Listed], set: Set) {
+fn copy_set(buffer: &PolygonVertices, entries: &[Listed], set: Set) {
     let (uv, colour) = match set {
         Set::A => (0x08, 0x24),
         Set::B => (0x10, 0x2C),
     };
     for (n, &(_, entry)) in entries.iter().enumerate() {
-        let out = out(n);
+        let out = out(buffer, n);
         out.u.set(x87::loaded(entry.word(uv)));
         out.v.set(x87::loaded(entry.word(uv + 4)));
         out.colour.set(entry.word(colour));
@@ -389,6 +394,7 @@ fn shade(
 
 pub fn draw_polygon(
     poly: &crate::scene::polygon_work::PolygonWork,
+    part: &crate::workers::PartScratch,
     race: &crate::race::owner::Race,
     face: &crate::race::face_work::FaceWork,
     outside: &mut dyn Outside,
@@ -399,13 +405,14 @@ pub fn draw_polygon(
     if count == 0 || count > MOST {
         return Err(BadInput("a polygon of no vertices, or of too many"));
     }
-    if count as usize > crate::d3d::vertices_store::VERTICES.vertices.len() {
+    let buffer = part.vertices;
+    if count as usize > buffer.vertices.len() {
         // The original writes the vertices on past the buffer.
         return Err(BadInput(
             "a polygon of more vertices than the vertex buffer holds",
         ));
     }
-    let mut entries = entries(count)?;
+    let mut entries = entries(part.polygon, count)?;
     // Nothing has been written up to here.
     hit_test(&poly.quad_vertices, &poly.sun, &entries);
     let kept: [u32; 3] = [
@@ -419,10 +426,11 @@ pub fn draw_polygon(
         // The list's entries after the first, turned round.
         entries[1..].reverse();
         for (n, &(number, _)) in entries.iter().enumerate().skip(1) {
-            crate::scene::polygon::list_cell(n).set(number);
+            crate::scene::polygon::list_cell(part.polygon, n).set(number);
         }
     }
     place(
+        buffer,
         &poly.quad_vertices,
         race,
         scene,
@@ -437,7 +445,7 @@ pub fn draw_polygon(
         let (from, alpha): (u32, u32) = (poly.fade_from.get(), face.fade_alpha.get());
         let uv = crate::session::read_bits(&race.shared.vars.fade_uv);
         for (n, &(_, entry)) in entries.iter().enumerate() {
-            let out = out(n);
+            let out = out(buffer, n);
             let by = entry.fog.get() as u32;
             out.colour
                 .set(faded(from, 0x10, by) & 0xFF_FFFF | alpha << 24);
@@ -453,6 +461,7 @@ pub fn draw_polygon(
         }
         submit_polygon(
             poly,
+            buffer,
             outside,
             scene.objects.tables.d3d_drawing_on.get() != 0,
             screen,
@@ -488,7 +497,7 @@ pub fn draw_polygon(
             };
             poly.texture_page.set(texture.get());
             poly.smooth.set(smooth.get());
-            copy_set(&entries, pass.set);
+            copy_set(buffer, &entries, pass.set);
             if let Some(as_mode) = pass.as_mode {
                 face.polygon_mode.set(as_mode);
             }
@@ -501,6 +510,7 @@ pub fn draw_polygon(
             }
             submit_polygon(
                 poly,
+                buffer,
                 outside,
                 scene.objects.tables.d3d_drawing_on.get() != 0,
                 screen,
@@ -536,9 +546,10 @@ impl submit_polygon::Outside for Game {
     fn bad_vertex(
         &mut self,
         poly: &crate::scene::polygon_work::PolygonWork,
+        buffer: &PolygonVertices,
         screen: &crate::session::Screen,
     ) {
-        submit_polygon::Game.bad_vertex(poly, screen);
+        submit_polygon::Game.bad_vertex(poly, buffer, screen);
     }
     fn not_drawn(&mut self, result: u32) {
         submit_polygon::Game.not_drawn(result);
@@ -555,10 +566,11 @@ impl Outside for Game {
 /// callers.
 pub fn draw_polygon_in_game(
     poly: &crate::scene::polygon_work::PolygonWork,
+    part: &crate::workers::PartScratch,
     race: &Race,
     face: &crate::race::face_work::FaceWork,
     scene: &crate::scene::owner::Scene,
     screen: &crate::session::Screen,
 ) -> Result<(), BadInput> {
-    draw_polygon(poly, race, face, &mut Game, scene, screen)
+    draw_polygon(poly, part, race, face, &mut Game, scene, screen)
 }

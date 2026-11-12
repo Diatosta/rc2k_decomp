@@ -253,7 +253,6 @@ mod tests {
 
     #[test]
     fn the_statics_start_as_the_games() {
-        let image = crate::moved::image_bytes;
         // The structs end on an odd byte in the image; their sizes round up to 4 (the padding
         // is past the range and nothing reaches it).
         assert_eq!(
@@ -270,41 +269,39 @@ mod tests {
             bytes(
                 &crate::effects::owner::effects().masks.ground_names,
                 GroundNames::LEN
-            ) == image(GroundNames::START, GroundNames::LEN)
+            ) == crate::test_support::first_values::bytes(
+                "effects.owner.EFFECTS.masks.ground_names/166"
+            )
         );
         assert!(
             bytes(
                 &crate::effects::owner::effects().masks.blocks,
                 MaskBlocks::LEN
-            ) == image(MaskBlocks::START, MaskBlocks::LEN)
+            ) == crate::test_support::first_values::bytes("effects.owner.EFFECTS.masks.blocks/187")
         );
         assert!(
             bytes(
                 &crate::effects::owner::effects().masks.picture_copy,
                 PictureCopy::LEN
-            ) == image(PictureCopy::START, PictureCopy::LEN)
+            ) == crate::test_support::first_values::bytes(
+                "effects.owner.EFFECTS.masks.picture_copy/127"
+            )
         );
         assert!(
             bytes(&KIND_PICTURES, KindPictures::LEN)
-                == image(KindPictures::START, KindPictures::LEN)
+                == crate::test_support::first_values::bytes("effects.mask_store.KIND_PICTURES")
         );
     }
 
     #[test]
     fn the_fields_are_where_the_game_has_them() {
-        assert_eq!(
-            GroundNames::START + offset_of!(GroundNames, names),
-            0x934CD0
-        );
-        assert_eq!(MaskBlocks::START + offset_of!(MaskBlocks, list_a), 0x934D76);
-        assert_eq!(MaskBlocks::START + offset_of!(MaskBlocks, mask), 0x934DB6);
-        assert_eq!(MaskBlocks::START + offset_of!(MaskBlocks, list_b), 0x934DBA);
-        assert_eq!(MaskBlocks::START + offset_of!(MaskBlocks, bmask), 0x934DFA);
-        assert_eq!(PictureCopy::START + offset_of!(PictureCopy, copy), 0x934E69);
-        assert_eq!(
-            PictureCopy::START + offset_of!(PictureCopy, paths),
-            0x934E6D
-        );
+        assert_eq!(offset_of!(GroundNames, names), 0x8);
+        assert_eq!(offset_of!(MaskBlocks, list_a), 0x8);
+        assert_eq!(offset_of!(MaskBlocks, mask), 0x48);
+        assert_eq!(offset_of!(MaskBlocks, list_b), 0x4c);
+        assert_eq!(offset_of!(MaskBlocks, bmask), 0x8c);
+        assert_eq!(offset_of!(PictureCopy, copy), 0x40);
+        assert_eq!(offset_of!(PictureCopy, paths), 0x44);
         assert_eq!(MaskBlocks::START + MaskBlocks::LEN, PictureCopy::START);
         assert_eq!(PictureCopy::START + PictureCopy::LEN, KindPictures::START);
     }

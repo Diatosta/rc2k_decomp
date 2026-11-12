@@ -473,19 +473,13 @@ mod block_tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&race().frame.map, START, START + LEN);
+        crate::test_support::first_values::assert_block_starts_as_the_games(&race().frame.map);
     }
 
     #[test]
-    fn moved_knows_the_block() {
-        let frame = &race().frame;
-        assert_eq!(offset_of!(MapVars, key_list), 0x5BE94D - START);
-        assert_eq!(offset_of!(MapVars, key_pixels), 0x5BE98D - START);
-        assert_eq!(offset_of!(MapVars, use_packed), 0x5BE9B5 - START);
-        assert_eq!(crate::moved::place(START), frame.map.list.addr() as usize);
-        assert_eq!(
-            crate::moved::place(0x5BE94D),
-            frame.map.key_list.addr() as usize
-        );
+    fn fields_are_at_the_games_offsets() {
+        assert_eq!(offset_of!(MapVars, key_list), 0x40);
+        assert_eq!(offset_of!(MapVars, key_pixels), 0x80);
+        assert_eq!(offset_of!(MapVars, use_packed), 0xa8);
     }
 }

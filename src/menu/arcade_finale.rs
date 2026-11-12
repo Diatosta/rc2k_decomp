@@ -42,6 +42,7 @@ pub fn arcade_finale(o: Owners<'static>) -> Result<(), Refused> {
         race,
         &crate::race::sound_tables::ObjectVars::of(sound),
         sound,
+        o.audio,
         o.net,
         o.system,
     )?;
@@ -50,8 +51,8 @@ pub fn arcade_finale(o: Owners<'static>) -> Result<(), Refused> {
     crate::race::stage_free::render3d_tidy(race)?;
     crate::race::stage_free::objects_tidy(race)?;
     // `nullsub_6`.
-    crate::race::race_end::release_textures();
-    crate::drive::finish_race_0::finish_race_0(race)?;
+    crate::race::race_end::release_textures(o.scene);
+    crate::drive::finish_race_0::finish_race_0(race, o)?;
     crate::sound::stop_music::stop_music(o.audio, o.system);
     crate::platform::set_menu_mode_now();
     crate::menu::show_loading_picture::show_loading_picture_in(menus, o.gfx, o.system)?;

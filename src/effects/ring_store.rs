@@ -120,25 +120,26 @@ mod tests {
             .map(|i| unsafe { p.add(i).read() })
             .collect();
         assert!(
-            bytes == crate::moved::image_bytes(RingWork::START, RingWork::LEN),
+            bytes
+                == crate::test_support::first_values::bytes("effects.owner.EFFECTS.ring.work/284"),
             "RING_WORK starts differently from the image"
         );
-        assert_eq!(offset_of!(RingWork, list), 0x935620 - RingWork::START);
-        assert_eq!(offset_of!(RingWork, cursor), 0x935660 - RingWork::START);
-        assert_eq!(offset_of!(RingWork, block), 0x935668 - RingWork::START);
-        assert_eq!(offset_of!(RingWork, top), 0x935670 - RingWork::START);
-        assert_eq!(offset_of!(RingWork, fade), 0x935678 - RingWork::START);
-        assert_eq!(offset_of!(RingWork, life), 0x93567C - RingWork::START);
-        assert_eq!(offset_of!(RingWork, extent), 0x935680 - RingWork::START);
-        assert_eq!(offset_of!(RingWork, direction), 0x935688 - RingWork::START);
-        assert_eq!(offset_of!(RingWork, strength), 0x935694 - RingWork::START);
-        assert_eq!(offset_of!(RingWork, rate), 0x9356B0 - RingWork::START);
-        assert_eq!(offset_of!(RingWork, facing), 0x9356B4 - RingWork::START);
-        assert_eq!(offset_of!(RingWork, near), 0x9356BC - RingWork::START);
-        assert_eq!(offset_of!(RingWork, whole), 0x9356C0 - RingWork::START);
-        assert_eq!(offset_of!(RingWork, count), 0x9356C8 - RingWork::START);
-        assert_eq!(offset_of!(RingWork, away), 0x935718 - RingWork::START);
-        assert_eq!(offset_of!(RingWork, turned), 0x935724 - RingWork::START);
+        assert_eq!(offset_of!(RingWork, list), 0x0);
+        assert_eq!(offset_of!(RingWork, cursor), 0x40);
+        assert_eq!(offset_of!(RingWork, block), 0x48);
+        assert_eq!(offset_of!(RingWork, top), 0x50);
+        assert_eq!(offset_of!(RingWork, fade), 0x58);
+        assert_eq!(offset_of!(RingWork, life), 0x5c);
+        assert_eq!(offset_of!(RingWork, extent), 0x60);
+        assert_eq!(offset_of!(RingWork, direction), 0x68);
+        assert_eq!(offset_of!(RingWork, strength), 0x74);
+        assert_eq!(offset_of!(RingWork, rate), 0x90);
+        assert_eq!(offset_of!(RingWork, facing), 0x94);
+        assert_eq!(offset_of!(RingWork, near), 0x9c);
+        assert_eq!(offset_of!(RingWork, whole), 0xa0);
+        assert_eq!(offset_of!(RingWork, count), 0xa8);
+        assert_eq!(offset_of!(RingWork, away), 0xf8);
+        assert_eq!(offset_of!(RingWork, turned), 0x104);
     }
 }
 
@@ -185,17 +186,12 @@ mod name_tests {
             .map(|i| unsafe { p.add(i).read() })
             .collect();
         assert!(
-            bytes == crate::moved::image_bytes(PictureNames::START, PictureNames::LEN),
+            bytes
+                == crate::test_support::first_values::bytes("effects.owner.EFFECTS.ring.names/42"),
             "PICTURE_NAMES starts differently from the image"
         );
-        assert_eq!(
-            offset_of!(PictureNames, surfdata),
-            0x93573C - PictureNames::START
-        );
-        assert_eq!(
-            offset_of!(PictureNames, surfmask),
-            0x935751 - PictureNames::START
-        );
+        assert_eq!(offset_of!(PictureNames, surfdata), 0x0);
+        assert_eq!(offset_of!(PictureNames, surfmask), 0x15);
     }
 }
 

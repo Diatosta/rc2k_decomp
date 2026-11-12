@@ -105,11 +105,11 @@ pub fn main_loop(o: Owners<'static>) -> Result<(), Refused> {
         // The original leaves here without saving: the window closed (or any quit by the
         // switch) lost the options and best times changed since the last save (section 16);
         // here they are saved.
-        crate::saves::save_game_data::save_in_game_in(o, saves)?;
+        crate::saves::save_game_data::save_in_game(o, saves)?;
         log_line(c"Leaving main loop...");
         return Ok(());
     }
-    crate::saves::save_game_data::save_in_game_in(o, saves)?;
+    crate::saves::save_game_data::save_in_game(o, saves)?;
     crate::saves::free_best_times::free_in_game(saves)?;
     quit_and_leave(o.system)
 }

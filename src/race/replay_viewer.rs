@@ -91,8 +91,7 @@ enum Next {
     Action(u32),
 }
 
-pub fn replay_viewer(race: &Race, mode: Mode) -> Result<(), Refused> {
-    let o = crate::owners::boundary();
+pub fn replay_viewer(race: &'static Race, o: Owners<'static>, mode: Mode) -> Result<(), Refused> {
     view(race, o, mode)?;
     // The end (0x41D436).
     crate::race::close_viewed_replay::close_viewed_replay(race)?;
@@ -103,7 +102,7 @@ pub fn replay_viewer(race: &Race, mode: Mode) -> Result<(), Refused> {
 }
 
 /// Up to the end.
-fn view(race: &Race, o: Owners<'static>, mode: Mode) -> Result<(), Refused> {
+fn view(race: &'static Race, o: Owners<'static>, mode: Mode) -> Result<(), Refused> {
     let (system, install) = (o.system, o.install);
     let devices = &o.input.devices;
     let session = &system.session;
@@ -159,7 +158,7 @@ fn view(race: &Race, o: Owners<'static>, mode: Mode) -> Result<(), Refused> {
     }
     loop {
         // `screens::run_frame` with `race::viewer_frame` (0x41D5FB).
-        if let Some(lost) = crate::platform::run_frame_now(viewer_frame::viewer_frame) {
+        if let Some(lost) = crate::platform::run_frame_now(|| viewer_frame::viewer_frame(o)) {
             lost?;
         }
         install
@@ -221,7 +220,7 @@ fn view(race: &Race, o: Owners<'static>, mode: Mode) -> Result<(), Refused> {
 }
 
 /// An action done: the items are marked again after one that is an action.
-fn action_next(race: &Race, o: Owners<'static>, action: u32) -> Result<Next, Refused> {
+fn action_next(race: &'static Race, o: Owners<'static>, action: u32) -> Result<Next, Refused> {
     Ok(
         if crate::race::viewer_action::viewer_action(race, o, action)? {
             Next::Mark
@@ -232,7 +231,12 @@ fn action_next(race: &Race, o: Owners<'static>, action: u32) -> Result<Next, Ref
 }
 
 /// A key while stopped (0x41D139 ..): where it leads.
-fn stopped_key(race: &Race, o: Owners<'static>, list: ListMenu, key: u8) -> Result<Next, Refused> {
+fn stopped_key(
+    race: &'static Race,
+    o: Owners<'static>,
+    list: ListMenu,
+    key: u8,
+) -> Result<Next, Refused> {
     let install = o.install;
     if crate::gfx::shots::on() != 0 && key == 0x52 {
         crate::gfx::take_screenshot::take_screenshot()?;

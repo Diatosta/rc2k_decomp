@@ -98,50 +98,34 @@ pub const START: usize = 0x7556B4;
 /// IDA 0x755784, the end of the piece.
 pub const END: usize = 0x755784;
 
-/// Where IDA 0x7556B4 lives (`moved::MOVED`'s home).
-#[cfg(test)]
-pub fn champ_view_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::menu::owner::menus().play.champ_view)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moved::image_bytes;
-    use core::mem::{offset_of, size_of};
+    use core::mem::offset_of;
 
     #[test]
     fn champ_view_starts_as_the_games() {
-        assert!(
-            END - START <= size_of::<ChampView>()
-                && size_of::<ChampView>() <= (END - START).next_multiple_of(4)
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &crate::menu::owner::menus().play.champ_view,
         );
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host(champ_view_addr()).cast_const(),
-                END - START,
-            )
-        };
-        assert_eq!(mine, &image_bytes(START, END - START)[..]);
-        let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
-        at(offset_of!(ChampView, count), 0x7556B4);
-        at(offset_of!(ChampView, first_row), 0x7556B8);
-        at(offset_of!(ChampView, row_end), 0x7556BC);
-        at(offset_of!(ChampView, ranked_player), 0x7556C0);
-        at(offset_of!(ChampView, last_key_time), 0x7556C4);
-        at(offset_of!(ChampView, cursor_time), 0x7556C8);
-        at(offset_of!(ChampView, event_mode), 0x7556D0);
-        at(offset_of!(ChampView, best_scores), 0x7556D4);
-        at(offset_of!(ChampView, stage_best_times), 0x7556D8);
-        at(offset_of!(ChampView, level_best_scores), 0x7556DC);
-        at(offset_of!(ChampView, course_best_times), 0x7556E0);
-        at(offset_of!(ChampView, stage_best_times_alt), 0x7556E4);
-        at(offset_of!(ChampView, time_trial_best_times), 0x7556E8);
-        at(offset_of!(ChampView, ranked_times), 0x7556EC);
-        at(offset_of!(ChampView, champ_history), 0x7556F0);
-        at(offset_of!(ChampView, summary), 0x7556F4);
-        at(offset_of!(ChampView, switch_f8), 0x7556F8);
-        at(offset_of!(ChampView, switch_fc), 0x7556FC);
-        at(offset_of!(ChampView, stage_mode), 0x755700);
+        assert_eq!(offset_of!(ChampView, count), 0x0);
+        assert_eq!(offset_of!(ChampView, first_row), 0x4);
+        assert_eq!(offset_of!(ChampView, row_end), 0x8);
+        assert_eq!(offset_of!(ChampView, ranked_player), 0xc);
+        assert_eq!(offset_of!(ChampView, last_key_time), 0x10);
+        assert_eq!(offset_of!(ChampView, cursor_time), 0x14);
+        assert_eq!(offset_of!(ChampView, event_mode), 0x1c);
+        assert_eq!(offset_of!(ChampView, best_scores), 0x20);
+        assert_eq!(offset_of!(ChampView, stage_best_times), 0x24);
+        assert_eq!(offset_of!(ChampView, level_best_scores), 0x28);
+        assert_eq!(offset_of!(ChampView, course_best_times), 0x2c);
+        assert_eq!(offset_of!(ChampView, stage_best_times_alt), 0x30);
+        assert_eq!(offset_of!(ChampView, time_trial_best_times), 0x34);
+        assert_eq!(offset_of!(ChampView, ranked_times), 0x38);
+        assert_eq!(offset_of!(ChampView, champ_history), 0x3c);
+        assert_eq!(offset_of!(ChampView, summary), 0x40);
+        assert_eq!(offset_of!(ChampView, switch_f8), 0x44);
+        assert_eq!(offset_of!(ChampView, switch_fc), 0x48);
+        assert_eq!(offset_of!(ChampView, stage_mode), 0x4c);
     }
 }

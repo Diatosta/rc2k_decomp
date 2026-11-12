@@ -31,7 +31,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::item_sprites_store::ItemSprite;
-use crate::menu::owner::Menus;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -44,10 +43,11 @@ const END: u32 = u32::MAX;
 const ITEM_LIMIT: u32 = 256;
 
 pub fn draw_menu_items(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     menu: crate::menu::menus_store::MenuId,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
+    let menus = o.menus;
     let all = menu.items();
     if all.len() > ITEM_LIMIT as usize {
         return Err(BadInput("a menu without an end").into());
@@ -81,7 +81,6 @@ pub fn draw_menu_items(
             spaced: i.fixed().spaced == 1,
         })
         .collect();
-    let o = crate::owners::boundary();
     let since_key = if menus.screens.option_work.redefining_key.is_set() {
         0
     } else {
@@ -92,7 +91,7 @@ pub fn draw_menu_items(
             .get()
             .wrapping_sub(menus.play.champ_view.last_key_time.get())
     };
-    let mut screen = MenuScreen::new(canvas);
+    let mut screen = MenuScreen::with_owners(canvas, o);
     screen.menu_items = all;
     let line = &o.race.text_buffers().line;
     rc2k_core::screens::menus::items(

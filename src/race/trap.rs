@@ -67,14 +67,3 @@ pub fn car_at(addr: u32) -> Result<&'static crate::physics::car_store::Car, BadI
         }
     }
 }
-
-/// A test's own buffer made a region while the guard lives (any items; see
-/// `pointers::TestRegion`).
-#[cfg(all(test, target_arch = "x86"))]
-pub fn test_region<T>(items: &[T]) -> crate::pointers::Lent {
-    // SAFETY: the same memory seen as bytes, for the registry only.
-    let bytes = unsafe {
-        std::slice::from_raw_parts(items.as_ptr().cast::<u8>(), std::mem::size_of_val(items))
-    };
-    crate::pointers::Lent::new(bytes)
-}

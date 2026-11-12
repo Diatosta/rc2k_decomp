@@ -883,7 +883,6 @@ impl Default for MenuCell {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moved::image_bytes;
 
     #[test]
     fn menu_labels_are_label_lists() {
@@ -938,28 +937,21 @@ mod tests {
     fn handles_follow_the_tables() {
         // Handle fields are in `MENUS`' order: the first and the last.
         let tables = &menus().tables.menus;
-        assert_eq!(
-            MENUS[tables.visual_preferences.id().0 as usize].at,
-            0x748280
-        );
-        assert_eq!(
-            MENUS[tables.championship_end_review.id().0 as usize].at,
-            0x754F14
-        );
+        assert_eq!(tables.visual_preferences.id().0, 0);
+        assert_eq!(tables.championship_end_review.id().0, MENU_COUNT - 1);
     }
 
     #[test]
     fn labels_start_as_the_games() {
+        // The labels' fonts are kept as `FontCell`s: the game's address of the font object
+        // goes back in for the comparison.
         let labels = &menus().tables.menus.labels;
-        let mine = unsafe {
-            std::slice::from_raw_parts(std::ptr::from_ref(labels).cast::<u8>(), END - START)
-        };
-        // The labels' fonts are kept as `FontCell`s: compared by the objects' IDA addresses.
-        let mut mine = mine.to_vec();
-        for (n, list) in label_lists(labels).iter().enumerate() {
-            let at = n * LABEL_LIST_LEN + 8;
-            mine[at..at + 4].copy_from_slice(&(list.label.font.get().ida() as u32).to_le_bytes());
-        }
-        assert_eq!(mine, image_bytes(START, END - START));
+        crate::test_support::front::assert_block_starts_as_the_games_but(labels, |bytes| {
+            for (n, list) in label_lists(labels).iter().enumerate() {
+                let at = n * LABEL_LIST_LEN + 8;
+                bytes[at..at + 4]
+                    .copy_from_slice(&(list.label.font.get().ida() as u32).to_le_bytes());
+            }
+        });
     }
 }

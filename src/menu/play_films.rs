@@ -60,9 +60,9 @@ impl Films {
 /// The game for `rc2k_core::menu::films`: the settings and the steps.
 /// A step that refuses ends the films: its error is kept (`failed`), every step after it
 /// does nothing and answers "a key was pressed", and `play_films` returns the error.
-struct Game<'a> {
+struct Game {
     failed: Option<Refused>,
-    owners: Owners<'a>,
+    owners: Owners<'static>,
 }
 
 fn film(panels: &Panels, f: Film) -> &dyn crate::session::TextPlace {
@@ -75,11 +75,11 @@ fn film(panels: &Panels, f: Film) -> &dyn crate::session::TextPlace {
 
 /// The film player (`gfx::play_film`, the platform's) for the file at `path`: the zero
 /// flag it leaves (the film's end).
-fn play(path: &dyn crate::session::TextPlace) -> bool {
-    crate::film::play_film_now(path)
+fn play(o: Owners<'static>, path: &dyn crate::session::TextPlace) -> bool {
+    crate::film::play_film_now(o, path)
 }
 
-impl Game<'_> {
+impl Game {
     fn run(&mut self, s: Step) -> Result<StepAnswer, Refused> {
         let o = self.owners;
         let (scene, race) = (o.scene, o.race);
@@ -95,7 +95,7 @@ impl Game<'_> {
                 crate::files::swap_missing_extension::swap_missing_extension(film(panels, f))?;
             }
             Step::Player(f) => {
-                flags.zero = play(film(panels, f.unwrap_or(Film::AlLogo)));
+                flags.zero = play(o, film(panels, f.unwrap_or(Film::AlLogo)));
             }
             Step::LitEngine => {
                 crate::scene::set_up_lit_engine::set_up_lit_engine(race, scene)?;
@@ -106,7 +106,7 @@ impl Game<'_> {
             Step::ObjectsTidy => crate::race::stage_free::objects_tidy(race)?,
             // `nullsub_6`.
             Step::Nothing => {}
-            Step::ReleaseTextures => crate::race::race_end::release_textures(),
+            Step::ReleaseTextures => crate::race::race_end::release_textures(scene),
             Step::FileExists(f) => {
                 let there = crate::files::file_exists::file_exists(
                     &film(panels, f).text("a film's path")?,
@@ -120,7 +120,7 @@ impl Game<'_> {
             // the quit question, and its demonstration ended at its first frame.
             Step::Demonstration => {
                 crate::race::race_shell::clear_player_absences();
-                crate::race::credits_race::credits_race(race)?;
+                crate::race::credits_race::credits_race(race, o)?;
             }
             Step::Step409B76 => crate::sound::let_sounds_play::let_sounds_play_in(o.audio),
             Step::SetUpEngine => crate::scene::set_up_engine::set_up_engine_in(race, scene)?,
@@ -134,7 +134,7 @@ impl Game<'_> {
     }
 }
 
-impl films::Films for Game<'_> {
+impl films::Films for Game {
     fn no_fmv(&mut self) -> bool {
         crate::film::NO_FMV.get() != 0
     }
@@ -185,19 +185,10 @@ pub fn play_films(o: Owners<'static>, idle: bool) -> Result<(), Refused> {
 
 #[cfg(test)]
 mod films_tests {
-    use super::*;
 
     #[test]
     fn first_values_are_the_games() {
         let panels = &crate::menu::owner::menus().panels;
-        crate::gfx::first_values_are_the_games(&panels.films, FILMS_START, FILMS_START + FILMS_LEN);
-        assert_eq!(
-            crate::moved::place(0x52980B),
-            panels.films.mflogo.addr() as usize
-        );
-        assert_eq!(
-            crate::moved::place(0x529822),
-            panels.films.allogo.addr() as usize
-        );
+        crate::test_support::first_values::assert_block_starts_as_the_games(&panels.films);
     }
 }

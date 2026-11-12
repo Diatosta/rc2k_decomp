@@ -12,7 +12,7 @@ use crate::errors::Refused;
 use crate::owners::Owners;
 use crate::screens::service_boxes::{quad, rd, set};
 
-pub fn draw_column_boxes(o: Owners<'_>) -> Result<(), Refused> {
+pub fn draw_column_boxes(o: Owners<'static>) -> Result<(), Refused> {
     let screens = &o.menus.screens;
     // The logic is in `rc2k_core::screens::panels::row_box`; the row and marker variables
     // are left as the original leaves them.

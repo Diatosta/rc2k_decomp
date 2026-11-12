@@ -16,12 +16,12 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::scene::matrix3::rounded;
 
-use crate::d3d::vertices_store::VERTICES;
 const ANGLES: u32 = 0x1000;
 
 /// `angle` turns the sprite, `colour` has its low three bytes made 0xFF, `size` is the
 /// side, `place` the place (st(0) .. st(2)).
 pub fn draw_turned_sprite(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
     angle: u32,
     colour: u32,
     size: u32,
@@ -60,7 +60,7 @@ pub fn draw_turned_sprite(
         let cos = crate::scene::engine_tables_store::cosine(angle as usize).bits();
         let sq = x87::turned_sprite(a, b, c, k, size as i32, sin, cos);
         for n in 0..4 {
-            let v = &VERTICES.vertices[n];
+            let v = &buffer.vertices[n];
             v.colour.set(colour);
             v.u.set(x87::loaded(SPRITE_UV.uv[2 * n]));
             v.v.set(x87::loaded(SPRITE_UV.uv[2 * n + 1]));
@@ -71,10 +71,10 @@ pub fn draw_turned_sprite(
         for (n, v) in sq[2..6].iter().enumerate() {
             effects.frame.draw_work.sprite_half[n].set_bits(*v);
         }
-        if clip_quad(effects)? {
+        if clip_quad(buffer, effects)? {
             return Ok(());
         }
-        draw_fan(scene);
+        draw_fan(buffer, scene);
         crate::scene::polygon_work::front_end()
             .polygon_vertex_count
             .set_bits(4u32);
@@ -96,7 +96,6 @@ pub static SPRITE_UV: SpriteUv = SpriteUv {
 
 #[cfg(test)]
 impl SpriteUv {
-    pub const START: usize = 0x93A21A;
     pub const LEN: usize = 0x20;
 }
 
@@ -116,9 +115,10 @@ mod sprite_uv_tests {
     fn sprite_uv_starts_as_the_games() {
         assert_eq!(size_of::<SpriteUv>(), SpriteUv::LEN);
         assert!(
-            bytes(&SPRITE_UV) == crate::moved::image_bytes(SpriteUv::START, SpriteUv::LEN),
+            bytes(&SPRITE_UV)
+                == crate::test_support::first_values::bytes("effects.draw_turned_sprite.SPRITE_UV"),
             "SPRITE_UV starts differently from the image"
         );
-        assert_eq!(offset_of!(SpriteUv, uv), 0x93A21A - SpriteUv::START);
+        assert_eq!(offset_of!(SpriteUv, uv), 0x0);
     }
 }

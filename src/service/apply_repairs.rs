@@ -50,11 +50,11 @@ pub trait Driver {
 }
 
 /// The game's own.
-pub struct GameDriver<'a> {
-    o: Owners<'a>,
+pub struct GameDriver {
+    o: Owners<'static>,
 }
 
-impl Driver for GameDriver<'_> {
+impl Driver for GameDriver {
     fn clock(&mut self) -> u32 {
         tick_count()
     }

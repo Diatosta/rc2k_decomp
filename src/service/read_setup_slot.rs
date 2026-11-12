@@ -96,33 +96,17 @@ mod block_tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
+        crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::service::owner::SERVICE.get().set_ups,
-            START,
-            START + LEN,
         );
-        crate::gfx::first_values_are_the_games(
+        crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::service::owner::SERVICE.get().template,
-            TEMPLATE_START,
-            TEMPLATE_START + 27,
         );
     }
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(offset_of!(SetUps, names), 0x527880 - START);
-        assert_eq!(offset_of!(SetUps, kept), 0x528500 - START);
-        assert_eq!(
-            crate::moved::place(START),
-            crate::service::owner::SERVICE.get().set_ups.file.addr() as usize
-        );
-        assert_eq!(
-            crate::moved::place(0x527880),
-            crate::service::owner::SERVICE.get().set_ups.names.addr() as usize
-        );
-        assert_eq!(
-            crate::moved::place(TEMPLATE_START),
-            crate::service::owner::SERVICE.get().template.addr() as usize
-        );
+        assert_eq!(offset_of!(SetUps, names), 0x48);
+        assert_eq!(offset_of!(SetUps, kept), 0xcc8);
     }
 }

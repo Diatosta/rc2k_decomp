@@ -4,36 +4,33 @@
 
 use crate::errors::BadInput;
 pub use crate::scene::draw_polygon::{ENTRIES, ENTRY_LEN, MOST};
-use crate::scene::polygon_store::PolygonEntry;
+use crate::scene::polygon_store::{PolygonEntry, PolygonWork};
 use crate::session::Dword;
 
-/// The work table's entry `n` (the 64 of the polygon, then the 64 kept for the fan).
-/// A number past the table is refused.
-pub fn entry(n: usize) -> Result<&'static PolygonEntry, BadInput> {
-    crate::scene::polygon_store::POLYGON_WORK
-        .entries
+/// The work table's entry `n` (the 64 of the polygon, then the 64 kept for the fan) in the
+/// drawing part's work. A number past the table is refused.
+pub fn entry(work: &'static PolygonWork, n: usize) -> Result<&'static PolygonEntry, BadInput> {
+    work.entries
         .get(n)
         .ok_or(BadInput("a polygon entry past the work table"))
 }
 
 /// The list's cell `n` (the original's list has room for `MOST` numbers, more than the
 /// field: the cells after it are the old list's).
-pub fn list_cell(n: usize) -> &'static Dword {
-    use crate::scene::polygon_store::{POLYGON_WORK, PolygonWork};
+pub fn list_cell(work: &'static PolygonWork, n: usize) -> &'static Dword {
     crate::race::checkpoints_store::cell_in(
-        &POLYGON_WORK.list,
-        &*POLYGON_WORK,
+        &work.list,
+        work,
         core::mem::offset_of!(PolygonWork, list),
         n,
     )
 }
 
 /// The list kept before a clip, cell `n` (as `list_cell`).
-pub fn old_list_cell(n: usize) -> &'static Dword {
-    use crate::scene::polygon_store::{POLYGON_WORK, PolygonWork};
+pub fn old_list_cell(work: &'static PolygonWork, n: usize) -> &'static Dword {
     crate::race::checkpoints_store::cell_in(
-        &POLYGON_WORK.old_list,
-        &*POLYGON_WORK,
+        &work.old_list,
+        work,
         core::mem::offset_of!(PolygonWork, old_list),
         n,
     )
@@ -123,18 +120,21 @@ pub type Listed = smallvec::SmallVec<[&'static PolygonEntry; 32]>;
 
 /// The polygon's entries in the list's order. Refuses what the originals go wrong on:
 /// more vertices than the vertex buffer holds, a list entry past the table.
-pub fn listed(poly: &crate::scene::polygon_work::PolygonWork) -> Result<Listed, BadInput> {
+pub fn listed(
+    work: &'static PolygonWork,
+    poly: &crate::scene::polygon_work::PolygonWork,
+) -> Result<Listed, BadInput> {
     let count: u32 = poly.polygon_vertex_count.get();
     if count > MOST {
         return Err(BadInput("a polygon of more than 256 vertices"));
     }
     (0..count as usize)
         .map(|n| {
-            let number: u32 = crate::scene::polygon::list_cell(n).get();
+            let number: u32 = list_cell(work, n).get();
             if number >= ENTRIES {
                 return Err(BadInput("a list entry past the work table"));
             }
-            entry(number as usize)
+            entry(work, number as usize)
         })
         .collect()
 }

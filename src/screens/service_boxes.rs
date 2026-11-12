@@ -16,7 +16,7 @@ pub fn set(a: &dyn DwordLike, v: u32) {
 
 /// One quad: x .. x + w, y .. y + h, the colour and see-through, then `draw_tinted_quad`.
 pub fn quad(
-    o: Owners<'_>,
+    o: Owners<'static>,
     x: u32,
     y: u32,
     w: u32,
@@ -33,7 +33,11 @@ pub fn quad(
     q.quad_colour[0].set(colour);
     q.quad_colour[1].set(see);
     crate::scene::draw_tinted_quad::draw_tinted_quad(&crate::race::view_scratch::DrawCtx::new(
-        o.race, o.scene, o.system, scratch,
+        o.race,
+        o.scene,
+        o.system,
+        scratch,
+        crate::workers::game_scratch(),
     ))
 }
 
@@ -81,7 +85,7 @@ impl Outline {
     }
 
     /// Top, left, right and bottom edges, solid.
-    pub fn draw(self, o: Owners<'_>, colour: u32) -> Result<(), Refused> {
+    pub fn draw(self, o: Owners<'static>, colour: u32) -> Result<(), Refused> {
         let Outline {
             x,
             y,
@@ -96,7 +100,7 @@ impl Outline {
     }
 
     /// The cursor's highlight: the outline and the one round it, yellow.
-    pub fn draw_highlighted(self, o: Owners<'_>) -> Result<(), Refused> {
+    pub fn draw_highlighted(self, o: Owners<'static>) -> Result<(), Refused> {
         self.draw(o, YELLOW)?;
         self.grown().draw(o, YELLOW)
     }
@@ -105,7 +109,7 @@ impl Outline {
 /// A frame of two nested outlines round cell `index` of a row of cells `step` apart, the first
 /// one at `first_x`.
 pub fn cell_frame(
-    o: Owners<'_>,
+    o: Owners<'static>,
     first_x: u32,
     step: u32,
     index: u32,
@@ -120,7 +124,7 @@ pub fn cell_frame(
 /// service box is turned over and the cursor is on it (when it blinks on), or else when the
 /// chosen part differs from the installed one or the row's inspection flag is set.
 pub fn chosen_frame(
-    o: Owners<'_>,
+    o: Owners<'static>,
     item: u32,
     setup: &crate::menu::state_store::SetupItem,
     flag: &dyn DwordLike,

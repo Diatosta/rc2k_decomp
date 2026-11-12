@@ -377,21 +377,12 @@ mod tests {
     #[test]
     fn car_records_resolve_to_what_the_image_named() {
         let shared = &race().shared;
-        let at = 0x71B3D8 - START;
-        let image = crate::moved::image_bytes(START, END - START);
         for k in 0..8 {
-            let o = at + 4 * k;
-            let name = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
-            assert_eq!(name as usize, CAR_RECORDS_IDA + 0x4C8 * k);
-            assert_eq!(
-                shared
-                    .work
-                    .car_record(k)
-                    .map(|r| crate::pointers::GamePtr::to(r).addr()),
-                Ok(crate::framework::game_addr(crate::framework::rva(
-                    name as usize
-                )))
+            let name = crate::test_support::first_values::dword(
+                "race.owner.RACE.shared.work.car_records[0]/32",
+                k,
             );
+            assert_eq!(name as usize, CAR_RECORDS_IDA + 0x4C8 * k);
             assert!(std::ptr::eq(
                 shared.work.car_records_resolved().unwrap()[k],
                 shared.work.car_record(k).unwrap()
@@ -401,23 +392,19 @@ mod tests {
     }
 
     #[test]
-    fn piece_has_its_home() {
+    fn fields_are_at_the_games_offsets() {
         assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            piece_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
-        assert_eq!(offset_of!(RaceWork, car_blocks), 0x71B3B8 - START);
-        assert_eq!(offset_of!(RaceWork, car_nearness), 0x71BA08 - START);
-        assert_eq!(offset_of!(RaceWork, race_slots), 0x71BAC8 - START);
-        assert_eq!(offset_of!(RaceWork, driver_tilt_limit), 0x71BF70 - START);
-        assert_eq!(offset_of!(RaceWork, driver_flags), 0x71BF94 - START);
-        assert_eq!(offset_of!(RaceWork, driver_bend_index), 0x71C000 - START);
-        assert_eq!(offset_of!(RaceWork, driver_bend_turn), 0x71C088 - START);
-        assert_eq!(offset_of!(RaceWork, driver_lookahead), 0x71C0D0 - START);
-        assert_eq!(offset_of!(RaceWork, driver_points_now), 0x71C0E8 - START);
-        assert_eq!(offset_of!(RaceWork, driver_ahead), 0x71C278 - START);
-        assert_eq!(offset_of!(RaceWork, stage_time_scales), 0x71C3D8 - START);
-        assert_eq!(offset_of!(RaceWork, patch_settings), 0x71C6D4 - START);
+        assert_eq!(offset_of!(RaceWork, car_blocks), 0x400);
+        assert_eq!(offset_of!(RaceWork, car_nearness), 0xa50);
+        assert_eq!(offset_of!(RaceWork, race_slots), 0xb10);
+        assert_eq!(offset_of!(RaceWork, driver_tilt_limit), 0xfb8);
+        assert_eq!(offset_of!(RaceWork, driver_flags), 0xfdc);
+        assert_eq!(offset_of!(RaceWork, driver_bend_index), 0x1048);
+        assert_eq!(offset_of!(RaceWork, driver_bend_turn), 0x10d0);
+        assert_eq!(offset_of!(RaceWork, driver_lookahead), 0x1118);
+        assert_eq!(offset_of!(RaceWork, driver_points_now), 0x1130);
+        assert_eq!(offset_of!(RaceWork, driver_ahead), 0x12c0);
+        assert_eq!(offset_of!(RaceWork, stage_time_scales), 0x1420);
+        assert_eq!(offset_of!(RaceWork, patch_settings), 0x171c);
     }
 }

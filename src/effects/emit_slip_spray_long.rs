@@ -123,40 +123,18 @@ mod kind11_set_tests {
         assert_eq!(size_of::<SlipSprayLongSet>(), SlipSprayLongSet::LEN);
         assert!(
             bytes(&crate::effects::owner::effects().particles.kind11_set)
-                == crate::moved::image_bytes(SlipSprayLongSet::START, SlipSprayLongSet::LEN),
+                == crate::test_support::first_values::bytes(
+                    "effects.owner.EFFECTS.particles.kind11_set/176"
+                ),
             "KIND11_SET starts differently from the image"
         );
-        assert_eq!(
-            offset_of!(SlipSprayLongSet, place_random),
-            0x93A262 - SlipSprayLongSet::START
-        );
-        assert_eq!(
-            offset_of!(SlipSprayLongSet, motion_x),
-            0x93A266 - SlipSprayLongSet::START
-        );
-        assert_eq!(
-            offset_of!(SlipSprayLongSet, motion_y),
-            0x93A26A - SlipSprayLongSet::START
-        );
-        assert_eq!(
-            offset_of!(SlipSprayLongSet, lift),
-            0x93A26E - SlipSprayLongSet::START
-        );
-        assert_eq!(
-            offset_of!(SlipSprayLongSet, motion_z),
-            0x93A272 - SlipSprayLongSet::START
-        );
-        assert_eq!(
-            offset_of!(SlipSprayLongSet, spread),
-            0x93A276 - SlipSprayLongSet::START
-        );
-        assert_eq!(
-            offset_of!(SlipSprayLongSet, roll_k),
-            0x93A27A - SlipSprayLongSet::START
-        );
-        assert_eq!(
-            offset_of!(SlipSprayLongSet, spin),
-            0x93A286 - SlipSprayLongSet::START
-        );
+        assert_eq!(offset_of!(SlipSprayLongSet, place_random), 0x0);
+        assert_eq!(offset_of!(SlipSprayLongSet, motion_x), 0x4);
+        assert_eq!(offset_of!(SlipSprayLongSet, motion_y), 0x8);
+        assert_eq!(offset_of!(SlipSprayLongSet, lift), 0xc);
+        assert_eq!(offset_of!(SlipSprayLongSet, motion_z), 0x10);
+        assert_eq!(offset_of!(SlipSprayLongSet, spread), 0x14);
+        assert_eq!(offset_of!(SlipSprayLongSet, roll_k), 0x18);
+        assert_eq!(offset_of!(SlipSprayLongSet, spin), 0x24);
     }
 }

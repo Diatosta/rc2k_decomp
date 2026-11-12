@@ -14,16 +14,11 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::{list_key, other_key, run_frame};
-/// For the table of item functions, which holds no owners.
-pub fn settings_loop() -> Result<(), Refused> {
-    settings_loop_in(crate::owners::boundary())
-}
-
-pub fn settings_loop_in(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+pub fn settings_loop(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (install, net, system) = (o.install, o.net, o.system);
     let vars = &net.vars;
     vars.mode.set(0);
-    crate::net::show_background::show_background(o.gfx, &net.vars)?;
+    crate::net::show_background::show_background(o.gfx, o.system, &net.vars)?;
     crate::net::settings_done::settings_done(net, system, o.race.viewer_panel())?;
     let now = system.session.clocks.key_ticks.get();
     install.pages.move_clock.set(now);

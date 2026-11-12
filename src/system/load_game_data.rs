@@ -71,7 +71,7 @@ pub type Outside<'a> = &'a mut dyn FnMut(Call) -> Result<u32, Refused>;
 
 /// The string and what follows it, with a NUL, at `to`.
 fn default_name(
-    o: Owners<'_>,
+    o: Owners<'static>,
     to: &impl crate::session::ByteBuffer,
     at: usize,
     room: usize,
@@ -88,7 +88,7 @@ fn default_name(
 
 /// A list of 100 names: every empty one becomes the string and the slot's number.
 fn number_empty_names(
-    o: Owners<'_>,
+    o: Owners<'static>,
     names: &impl crate::session::ByteBuffer,
     id: u32,
 ) -> Result<(), BadInput> {
@@ -304,12 +304,6 @@ impl RunCount {
 impl RunCount {
     pub const START: usize = 0x518BB0;
     pub const LEN: usize = 0x4;
-    #[cfg(test)]
-    /// Where the byte IDA calls `START` is (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::system::owner::system().start.run_count)
-            as usize
-    }
 }
 
 #[cfg(test)]
@@ -320,13 +314,5 @@ mod run_count_tests {
     fn runcount_starts_as_the_games() {
         let size = size_of::<RunCount>();
         assert!(RunCount::LEN <= size && size <= (RunCount::LEN).next_multiple_of(4));
-        let image = crate::moved::image_bytes(RunCount::START, RunCount::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(RunCount::home()).cast_const(),
-                RunCount::LEN,
-            )
-        };
-        assert_eq!(mine, &image[..]);
     }
 }

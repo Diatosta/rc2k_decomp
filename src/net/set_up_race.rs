@@ -46,7 +46,7 @@ enum Count {
     Kind(usize),
 }
 pub fn set_up_race(
-    race: &Race,
+    race: &'static Race,
     vars: &NetVars,
     o: crate::owners::Owners<'static>,
 ) -> Result<(), Refused> {
@@ -97,7 +97,7 @@ pub fn set_up_race(
         };
         log_int_nl(value, 1);
     }
-    { crate::race::stage_loading::load_stage_in(race, o) }?;
+    { crate::race::stage_loading::load_stage(race, o) }?;
     log_bytes(COMPLETE.to_bytes(), true, 1);
     log_bytes(RULE_2.to_bytes(), true, 1);
     Ok(())

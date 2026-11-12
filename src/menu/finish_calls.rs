@@ -11,7 +11,7 @@ use rc2k_core::menu::finish::{self, Racer, Step, Var};
 /// edi) the racer fields are read through: a player's.
 pub struct Game<'a> {
     menus: &'a Menus,
-    owners: Owners<'a>,
+    owners: Owners<'static>,
     pub racer: RacerAt<'a>,
     /// A refused read or write of the core's variables (checked at each step and at the end).
     fault: Fault,
@@ -20,7 +20,7 @@ pub struct Game<'a> {
 impl<'a> Game<'a> {
     /// Runs a flow on a new game; a refused read or write of its variables ends it.
     pub fn run(
-        o: Owners<'a>,
+        o: Owners<'static>,
         flow: impl FnOnce(&mut Game<'a>) -> Result<(), Refused>,
     ) -> Result<(), Refused> {
         let mut game = Game {
@@ -142,6 +142,7 @@ impl finish::Finish for Game<'_> {
                 race,
                 &crate::race::sound_tables::ObjectVars::of(sound),
                 sound,
+                self.owners.audio,
                 self.owners.net,
                 self.owners.system,
             )?,
@@ -159,9 +160,9 @@ impl finish::Finish for Game<'_> {
             Step::ObjectsTidy => crate::race::stage_free::objects_tidy(race)?,
             // `nullsub_6`.
             Step::Nothing => {}
-            Step::ReleaseTextures => crate::race::race_end::release_textures(),
+            Step::ReleaseTextures => crate::race::race_end::release_textures(self.owners.scene),
             Step::FinishRace => {
-                crate::drive::finish_race_0::finish_race_0(race)?;
+                crate::drive::finish_race_0::finish_race_0(race, self.owners)?;
             }
             Step::StopMusic => {
                 crate::sound::stop_music::stop_music(self.owners.audio, self.owners.system);

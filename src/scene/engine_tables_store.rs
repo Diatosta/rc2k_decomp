@@ -52,12 +52,6 @@ pub const END: usize = 0xA8BB54;
 
 const _: () = assert!(END - START == core::mem::size_of::<EngineTables>());
 
-/// Where IDA 0xA23AE4 is now (the tests' reference).
-#[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::moved::place(START) as u32
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -65,18 +59,9 @@ mod tests {
 
     #[test]
     fn piece_sits_on_the_buffers() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            crate::moved::place(END - 1),
-            (piece_addr() + (END - START) as u32 - 1) as usize
-        );
-        assert_eq!(offset_of!(EngineTables, arctangents), 0xA28AE4 - START);
-        assert_eq!(offset_of!(EngineTables, noise_bytes), 0xA2AAE4 - START);
-        assert_eq!(offset_of!(EngineTables, object_file), 0xA2BB54 - START);
-        assert_eq!(offset_of!(EngineTables, shuffled_words), 0xA6BB54 - START);
-        assert_eq!(
-            ENGINE_TABLES.sines[0x400].addr() as usize,
-            crate::moved::place(0xA24AE4)
-        );
+        assert_eq!(offset_of!(EngineTables, arctangents), 0x5000);
+        assert_eq!(offset_of!(EngineTables, noise_bytes), 0x7000);
+        assert_eq!(offset_of!(EngineTables, object_file), 0x8070);
+        assert_eq!(offset_of!(EngineTables, shuffled_words), 0x48070);
     }
 }

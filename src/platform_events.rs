@@ -141,7 +141,7 @@ pub fn pump() {
     let (input, system, course) = (o.input, o.system, &o.race.course);
     restore_if_asked();
     #[cfg(feature = "remote")]
-    crate::remote::poll(course);
+    crate::remote::poll(&o, course);
     while let Some(event) = next_event() {
         match event {
             Event::Quit if HOLD_QUIT.load(std::sync::atomic::Ordering::Relaxed) => {

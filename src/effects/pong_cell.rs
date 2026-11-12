@@ -18,7 +18,12 @@ use rc2k_core::math::extended::from_f64;
 
 /// `pattern` is the pattern byte, `column` and `row` the cell's place.
 // Converted: `rc2k_core::effects::pong::cell_place`
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the effects' groups, the cell's place, the owners and the vertex buffer"
+)]
 pub fn pong_cell(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
     pong: &Pong,
     fl: &WindscreenFlakes,
     pattern: u8,
@@ -42,7 +47,7 @@ pub fn pong_cell(
                 from_f64(y),
                 from_f64(x),
             ];
-            crate::effects::draw_pong_box::draw_pong_box(pong, fl, values, scene, effects);
+            crate::effects::draw_pong_box::draw_pong_box(buffer, pong, fl, values, scene, effects);
         }
     }
     Ok(())

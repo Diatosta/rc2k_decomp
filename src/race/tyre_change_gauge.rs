@@ -34,15 +34,6 @@ use crate::race::owner_shared::RaceShared;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use rc2k_core::race::tyre_change::{Gauge, Io, turn};
 
-/// `one` (`VIEWER_PANEL.one`): added to the square root in the press time's logarithm.
-#[cfg(all(test, target_arch = "x86"))]
-const SQRT_OFFSET: usize = 0x5C2C60;
-
-#[cfg(all(test, target_arch = "x86"))]
-fn p(x: usize, v: u32) {
-    crate::store::game_write(crate::framework::rva(x), v);
-}
-
 /// The press time's constants: `TyreChange::{time_base, time_scale, gauge_unit,
 /// log_two_ten}` and `one`.
 fn constants(shared: &RaceShared) -> [f32; 5] {
@@ -158,11 +149,11 @@ pub fn tyre_change_gauge(o: Owners<'static>, start: bool, player: u32) -> Result
 mod asm_reference {
     use super::*;
     use crate::math::x87::x87;
-    use crate::race::asm_test::{Rng, Saved, at_each_control_word, lock};
+    use crate::race::asm_test::{Rng, at_each_control_word, lock};
     use crate::race::owner::race;
 
-    /// The four constants as they were, put back when dropped.
-    struct Kept([u32; 4]);
+    /// The five constants as they were, put back when dropped.
+    struct Kept([u32; 5]);
 
     impl Drop for Kept {
         fn drop(&mut self) {
@@ -171,6 +162,7 @@ mod asm_reference {
             shared.tyre_change.time_scale.set_bits(self.0[1]);
             shared.tyre_change.gauge_unit.set_bits(self.0[2]);
             shared.tyre_change.log_two_ten.set_bits(self.0[3]);
+            VIEWER_PANEL.one.set_bits(self.0[4]);
         }
     }
 
@@ -214,12 +206,12 @@ mod asm_reference {
     fn press_time_matches() {
         let shared = &race().shared;
         let _l = lock();
-        let _saved = Saved::new(&[SQRT_OFFSET]);
         let _kept = Kept([
             shared.tyre_change.time_base.bits(),
             shared.tyre_change.time_scale.bits(),
             shared.tyre_change.gauge_unit.bits(),
             shared.tyre_change.log_two_ten.bits(),
+            VIEWER_PANEL.one.bits(),
         ]);
         let mut r = Rng(31);
         let mut off = 0;
@@ -231,7 +223,7 @@ mod asm_reference {
                     shared.tyre_change.time_scale.set_bits(r.float());
                     shared.tyre_change.gauge_unit.set_bits(r.float());
                     shared.tyre_change.log_two_ten.set_bits(r.float());
-                    p(SQRT_OFFSET, r.float());
+                    VIEWER_PANEL.one.set_bits(r.float());
                 }
                 let s = if n < 20000 {
                     (n % 0x10000) as i32

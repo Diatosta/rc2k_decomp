@@ -13,7 +13,6 @@
 
 use crate::errors::Refused;
 use crate::menu::fn_list::ListCell;
-use crate::menu::owner::Menus;
 use crate::owners::Owners;
 use crate::platform::{lock_surface, show_frame_now, unlock_surface};
 use crate::text::draw_text::GameCanvas;
@@ -43,8 +42,11 @@ pub fn copy_picture() -> Result<(), Refused> {
 }
 
 /// `menu::draw_menu` (0x4746B7) on the game's canvas.
-pub fn draw_menu(menus: &Menus, menu: crate::menu::menus_store::MenuId) -> Result<(), Refused> {
-    crate::menu::draw_menu::draw_menu(menus, menu, &mut GameCanvas)
+pub fn draw_menu(
+    o: Owners<'static>,
+    menu: crate::menu::menus_store::MenuId,
+) -> Result<(), Refused> {
+    crate::menu::draw_menu::draw_menu(o, menu, &mut GameCanvas)
 }
 
 /// `menu` is edi at entry. Returns whether the
@@ -59,7 +61,7 @@ pub fn frame_callback(
         return Ok(false);
     }
     copy_picture()?;
-    draw_menu(menus, menu)?;
+    draw_menu(o, menu)?;
     run_listed(o, &o.menus.screens.flow.draw_list)?;
     unlock_surface();
     o.scene.lights.state.scene_state.set_bits(4u32);

@@ -590,22 +590,6 @@ impl GamePtr {
         store_at(self.at, backing, bytes)
     }
 
-    /// `len` bytes copied from here to `to` (overlapping as `memmove`), each side inside one
-    /// region.
-    #[cfg(test)]
-    #[track_caller]
-    pub fn copy_to(self, to: GamePtr, len: usize, what: &str) -> Result<(), BadInput> {
-        let (from, into) = (self.check(len, what)?, to.check(len, what)?);
-        if matches!(from, Backing::Store(..)) || matches!(into, Backing::Store(..)) {
-            // Through a copy, as `memmove`: either side may be a store's cells.
-            let mut bytes = vec![0; len];
-            load_at(self.at, from, &mut bytes)?;
-            return store_at(to.at, into, &bytes);
-        }
-        raw_copy(self.at, to.at, len);
-        Ok(())
-    }
-
     /// The record of cells at the address (`Cells`: atomics and cells only, so a shared
     /// reference to memory the game also writes is sound), when all of it lies in one region
     /// and the address has the record's alignment. Keep it no longer than the step that
@@ -1424,12 +1408,6 @@ fn raw_store(addr: u32, from: &[u8]) {
     unsafe { crate::shared_memory::store(raw_place(addr), from.as_ptr(), from.len()) };
 }
 
-#[cfg(test)]
-fn raw_copy(from: u32, to: u32, len: usize) {
-    // SAFETY: both runs lie in live regions; `copy` allows overlap.
-    unsafe { crate::shared_memory::copy(raw_place(from), raw_place(to), len) };
-}
-
 #[cfg(not(test))]
 fn raw_load(addr: u32, _: &mut [u8]) {
     raw_place(addr);
@@ -1530,7 +1508,7 @@ pub unsafe trait Store {
         None
     }
     #[cfg(any(test, feature = "write_watch"))]
-    #[cfg_attr(not(debug_ui), allow(dead_code))] // only the debug pages' tests and the audit use it
+    #[cfg_attr(not(feature = "write_watch"), allow(dead_code))] // only the audit uses it
     fn type_name(&self) -> &'static str {
         ""
     }

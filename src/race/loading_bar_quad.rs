@@ -30,6 +30,7 @@ pub fn loading_bar_quad(
     polygon.texture_page.set(0xFFFF_FFFFu32);
     crate::race::frame_draw::draw_screen_quad(
         polygon,
+        crate::workers::game_scratch(),
         race,
         &scratch.face,
         scene,

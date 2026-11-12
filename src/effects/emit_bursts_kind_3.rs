@@ -75,7 +75,9 @@ mod second_tuning_tests {
         assert_eq!(size_of::<BurstTuning>(), BurstTuning::LEN);
         assert!(
             bytes(&crate::effects::owner::effects().particles.second_tuning)
-                == crate::moved::image_bytes(BurstKind3Tuning::START, BurstTuning::LEN),
+                == crate::test_support::first_values::bytes(
+                    "effects.owner.EFFECTS.particles.second_tuning/36"
+                ),
             "SECOND_TUNING starts differently from the image"
         );
     }

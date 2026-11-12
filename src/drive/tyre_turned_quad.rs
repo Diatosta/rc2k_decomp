@@ -7,7 +7,7 @@
 //!
 //! Caller: `drive::tyre_screen`.
 
-use crate::d3d::vertices_store::{VERTICES, Vertex};
+use crate::d3d::vertices_store::{PolygonVertices, Vertex};
 use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
 use crate::input::types::InputDevice;
@@ -49,6 +49,10 @@ fn turn(ty: &TyreChange, e: &InputDevice, d: &[Float; 4], v: &[Vertex], t: &Dwor
 
 /// The texture rectangle `uv`, the screen rectangle `rect`, the colour `colour`, the input device
 /// `device`.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the tyre change, the quad's inputs, the owners and the vertex buffer"
+)]
 pub fn tyre_turned_quad(
     shared: &RaceShared,
     uv: [u32; 4],
@@ -57,18 +61,19 @@ pub fn tyre_turned_quad(
     device: &InputDevice,
     system: &crate::system::owner::System,
     panel: &crate::race::viewer_screen_store::ViewerPanelBlock,
+    buffer: &PolygonVertices,
 ) -> Result<(), Refused> {
     system.session.machine.scratch.set(0x40C9_0FDB);
     turn(
         &shared.tyre_change,
         device,
         rect,
-        &VERTICES.vertices[..4],
+        &buffer.vertices[..4],
         &system.session.machine.scratch,
     );
-    quad_words(colour);
-    quad_tail(uv, panel, system);
-    draw()
+    quad_words(buffer, colour);
+    quad_tail(buffer, uv, panel, system);
+    draw(buffer)
 }
 
 #[cfg(all(test, target_arch = "x86"))]

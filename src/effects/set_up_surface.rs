@@ -210,9 +210,9 @@ mod mask_list_tests {
         assert_eq!(size_of::<MaskList>(), MaskList::LEN);
         assert!(
             bytes(&effects().masks.list)
-                == crate::moved::image_bytes(MaskList::START, MaskList::LEN),
+                == crate::test_support::first_values::bytes("effects.owner.EFFECTS.masks.list/64"),
             "MASK_LIST starts differently from the image"
         );
-        assert_eq!(offset_of!(MaskList, list), 0x93A1DA - MaskList::START);
+        assert_eq!(offset_of!(MaskList, list), 0x0);
     }
 }

@@ -40,6 +40,7 @@ fn rdtsc() -> u32 {
 /// `cars_particles`, `view_heading`, `view_motion`,
 /// `begin_quads`, `scene::depth_test_on`.
 pub fn draw_frame(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
     race: &Race,
     scene: &crate::scene::owner::Scene,
     effects: &Effects,
@@ -83,7 +84,7 @@ pub fn draw_frame(
     view_motion::view_motion(&race.frame, effects)?;
     let times = times(effects);
     let start = rdtsc();
-    begin_quads::begin_quads(effects, scene);
+    begin_quads::begin_quads(buffer, effects, scene);
     let frame = effects.setup.frame.frame_cycles.bits() as i32;
     let took = rdtsc().wrapping_sub(start) as i32;
     times[0]

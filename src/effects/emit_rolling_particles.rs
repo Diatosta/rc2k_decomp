@@ -275,13 +275,12 @@ mod kind1_choice_tests {
         assert_eq!(size_of::<RollingChoice>(), RollingChoice::LEN);
         assert!(
             bytes(&crate::effects::owner::effects().particles.kind1_choice)
-                == crate::moved::image_bytes(RollingChoice::START, RollingChoice::LEN),
+                == crate::test_support::first_values::bytes(
+                    "effects.owner.EFFECTS.particles.kind1_choice/4"
+                ),
             "KIND1_CHOICE starts differently from the image"
         );
-        assert_eq!(
-            offset_of!(RollingChoice, choice),
-            0x93A1D6 - RollingChoice::START
-        );
+        assert_eq!(offset_of!(RollingChoice, choice), 0x0);
     }
 }
 
@@ -349,23 +348,16 @@ mod kind1_set_tests {
         assert_eq!(size_of::<RollingSet>(), RollingSet::LEN);
         assert!(
             bytes(&crate::effects::owner::effects().particles.kind1_set)
-                == crate::moved::image_bytes(RollingSet::START, RollingSet::LEN),
+                == crate::test_support::first_values::bytes(
+                    "effects.owner.EFFECTS.particles.kind1_set/56"
+                ),
             "KIND1_SET starts differently from the image"
         );
-        assert_eq!(
-            offset_of!(RollingSet, side_random),
-            0x93A39A - RollingSet::START
-        );
-        assert_eq!(
-            offset_of!(RollingSet, motion_k),
-            0x93A39E - RollingSet::START
-        );
-        assert_eq!(offset_of!(RollingSet, spread), 0x93A3C2 - RollingSet::START);
-        assert_eq!(offset_of!(RollingSet, lift), 0x93A3C6 - RollingSet::START);
-        assert_eq!(
-            offset_of!(RollingSet, spin_random),
-            0x93A3CA - RollingSet::START
-        );
-        assert_eq!(offset_of!(RollingSet, size_k), 0x93A3CE - RollingSet::START);
+        assert_eq!(offset_of!(RollingSet, side_random), 0x0);
+        assert_eq!(offset_of!(RollingSet, motion_k), 0x4);
+        assert_eq!(offset_of!(RollingSet, spread), 0x28);
+        assert_eq!(offset_of!(RollingSet, lift), 0x2c);
+        assert_eq!(offset_of!(RollingSet, spin_random), 0x30);
+        assert_eq!(offset_of!(RollingSet, size_k), 0x34);
     }
 }

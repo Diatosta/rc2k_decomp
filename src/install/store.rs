@@ -157,39 +157,27 @@ pub fn text_of(field: &[u8]) -> &[u8] {
 }
 
 #[cfg(test)]
-impl LobbyKeys {
-    pub const START: usize = 0x5AB419;
-    pub const LEN: usize = 0x77;
-}
-
-#[cfg(test)]
 mod tests {
     use super::*;
     use core::mem::{offset_of, size_of};
 
-    /// The static's bytes (after `lead`) are the image's, its size the range's (with the
-    /// tail padding up to the struct's alignment: each range ends at a string's end, so no
-    /// read runs on into the next).
-    fn check(
-        p: *const u8,
-        size: usize,
-        lead: usize,
-        start: usize,
-        len: usize,
-        skip: core::ops::Range<usize>,
-    ) {
-        let end = lead + len;
+    /// The static's bytes (after `lead`) are the game's first values (`image`, a named read
+    /// of `data/first_values.golden`), its size the range's (with the tail padding up to the
+    /// struct's alignment: each range ends at a string's end, so no read runs on into the
+    /// next).
+    fn check(p: *const u8, size: usize, lead: usize, image: &str, skip: core::ops::Range<usize>) {
+        let image = crate::test_support::first_values::bytes(image);
+        let end = lead + image.len();
         assert!(
             end <= size && size <= end.next_multiple_of(4),
-            "{start:#x}: size"
+            "{image:?}: size"
         );
-        let image = crate::moved::image_bytes(start, len);
         for (i, &b) in image.iter().enumerate() {
-            if skip.contains(&(start + i)) {
+            if skip.contains(&i) {
                 continue;
             }
             let ours = unsafe { p.add(lead + i).read() };
-            assert_eq!(ours, b, "differs first at {:#x}", start + i);
+            assert_eq!(ours, b, "differs first at {i:#x}");
         }
     }
 
@@ -199,55 +187,26 @@ mod tests {
             (&raw const crate::install::owner::INSTALL.get().vars).cast::<u8>(),
             size_of::<InstallVars>(),
             1,
-            InstallVars::START,
-            InstallVars::LEN,
+            "install.store.VARS/1206",
             // The original's pointers to the made texts (zeros here).
-            0x529DE8..0x529EE8,
+            0x3B..0x13B,
         );
-        assert_eq!(
-            offset_of!(InstallVars, running_from_cd),
-            1 + 0x529DB0 - InstallVars::START
-        );
-        assert_eq!(
-            offset_of!(InstallVars, has_clio),
-            1 + 0x529DB4 - InstallVars::START
-        );
-        assert_eq!(
-            offset_of!(InstallVars, clio_file),
-            1 + 0x529DB8 - InstallVars::START
-        );
-        assert_eq!(
-            offset_of!(InstallVars, clio_script),
-            1 + 0x529DCC - InstallVars::START
-        );
-        assert_eq!(
-            offset_of!(InstallVars, _gap_529de8),
-            1 + 0x529DE8 - InstallVars::START
-        );
-        assert_eq!(
-            offset_of!(InstallVars, credits_a),
-            1 + 0x529EE8 - InstallVars::START
-        );
-        assert_eq!(
-            offset_of!(InstallVars, clio_car_name),
-            1 + 0x529F03 - InstallVars::START
-        );
-        assert_eq!(
-            offset_of!(InstallVars, credits_b),
-            1 + 0x529F1E - InstallVars::START
-        );
+        assert_eq!(offset_of!(InstallVars, running_from_cd), 0x4);
+        assert_eq!(offset_of!(InstallVars, has_clio), 0x8);
+        assert_eq!(offset_of!(InstallVars, clio_file), 0xC);
+        assert_eq!(offset_of!(InstallVars, clio_script), 0x20);
+        assert_eq!(offset_of!(InstallVars, _gap_529de8), 0x3C);
+        assert_eq!(offset_of!(InstallVars, credits_a), 0x13C);
+        assert_eq!(offset_of!(InstallVars, clio_car_name), 0x157);
+        assert_eq!(offset_of!(InstallVars, credits_b), 0x172);
         check(
             (&raw const crate::install::owner::INSTALL.get().drive_rows).cast::<u8>(),
             size_of::<DriveRows>(),
             0,
-            DriveRows::START,
-            DriveRows::LEN,
+            "install.store.DRIVE_ROWS/417",
             0..0,
         );
-        assert_eq!(
-            offset_of!(DriveRows, drive_rows),
-            0x52A30F - DriveRows::START
-        );
+        assert_eq!(offset_of!(DriveRows, drive_rows), 0x0);
         let keys = &crate::install::owner::INSTALL.get().lobby_keys;
         let mine = [
             &keys.registry_key[..],
@@ -259,9 +218,6 @@ mod tests {
             &keys._gap_5ab48f,
         ]
         .concat();
-        assert_eq!(
-            mine,
-            crate::moved::image_bytes(LobbyKeys::START, LobbyKeys::LEN)
-        );
+        crate::test_support::first_values::assert_matches("install.store.LOBBY_KEYS/119", &mine);
     }
 }

@@ -97,7 +97,8 @@ pub fn allocate_ring(particles: &Particles, ring: &Ring) -> Result<(), Refused> 
 /// only counted on its list (the memory figures) and not kept.
 pub fn allocate_links(effects: &crate::effects::owner::Effects) -> Result<(), Refused> {
     crate::memory::owned::count_on(&effects.blocks.links.list, LINKS_LEN)?;
-    scale_corners(effects);
+    // Set up on the game's thread, into its buffer.
+    scale_corners(crate::workers::game_scratch().vertices, effects);
     Ok(())
 }
 
@@ -108,7 +109,10 @@ const CORNER_PAIRS: [u32; 4] = [0, 4, 0xC, 8];
 /// word pairs (+0, +4, +0xC, +8) each times `DrawWork.uv_k` into the work and into +4 .. +0x20
 /// of the record's 0x24 at `g_marksCornerSlopes`; +0 there the slope: |+0xA - +2| over
 /// |+4 - +0| (sixteen-bit differences; `DrawWork.half[0]`, `DrawWork.half[1]`).
-pub fn scale_corners(effects: &crate::effects::owner::Effects) {
+pub fn scale_corners(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
+    effects: &crate::effects::owner::Effects,
+) {
     {
         let scale = effects.frame.draw_work.uv_k.get();
         for n in (0..CORNERS).rev() {
@@ -119,7 +123,7 @@ pub fn scale_corners(effects: &crate::effects::owner::Effects) {
                 for h in 0..2 {
                     let v = x87::int_times(word(o + 2 * h as u32) as i32, scale);
                     values[2 * k + h] = v.to_bits();
-                    let vertex = &crate::d3d::vertices_store::VERTICES.vertices[k];
+                    let vertex = &buffer.vertices[k];
                     if h == 0 {
                         vertex.u.set(v);
                     } else {
@@ -206,11 +210,6 @@ impl PlacesBlock {
 impl PlacesBlock {
     pub const START: usize = 0x8DB570;
     pub const LEN: usize = 0x50;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    #[cfg(test)]
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const effects().blocks.places) as usize
-    }
 }
 
 /// The links' list and block (IDA 0x9206F0 .. 0x920734).
@@ -244,11 +243,6 @@ impl MarkLinks {
 impl MarkLinks {
     pub const START: usize = 0x9206F0;
     pub const LEN: usize = 0x44;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    #[cfg(test)]
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const effects().blocks.links) as usize
-    }
 }
 
 /// A corner's slope record (0x24 bytes): the slope of its sides and its eight scaled values
@@ -293,11 +287,6 @@ impl CornerSlopes {
 impl CornerSlopes {
     pub const START: usize = 0x920734;
     pub const LEN: usize = 0x2400;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    #[cfg(test)]
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const effects().blocks.corner_slopes) as usize
-    }
 }
 
 /// A corner record of `g_marksCorners` (0x80 bytes of 16-bit words: four (u, v) pairs of a
@@ -337,11 +326,6 @@ impl MarkCorners {
 impl MarkCorners {
     pub const START: usize = 0x8EB971;
     pub const LEN: usize = 0x8000;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    #[cfg(test)]
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const effects().blocks.corners) as usize
-    }
 }
 
 /// The particle ring's pool and the burst code's scratch (IDA 0x93A580 .. 0x93A5F0).
@@ -414,56 +398,54 @@ mod typed_tests {
     #[test]
     fn places_block_starts_as_the_games() {
         assert_eq!(size_of::<PlacesBlock>(), PlacesBlock::LEN);
-        let image = crate::moved::image_bytes(PlacesBlock::START, PlacesBlock::LEN);
+        let image =
+            crate::test_support::first_values::bytes("effects.owner.EFFECTS.blocks.places/80");
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(PlacesBlock::home()).cast_const(),
+                (&raw const effects().blocks.places).cast::<u8>(),
                 PlacesBlock::LEN,
             )
         };
         assert!(
-            mine == &image[..],
+            mine == image,
             "PLACES_BLOCK starts differently from the image"
         );
-        assert_eq!(
-            offset_of!(PlacesBlock, places),
-            0x8DB5B0 - PlacesBlock::START
-        );
-        assert_eq!(
-            offset_of!(PlacesBlock, start),
-            0x8DB5B4 - PlacesBlock::START
-        );
+        assert_eq!(offset_of!(PlacesBlock, places), 0x40);
+        assert_eq!(offset_of!(PlacesBlock, start), 0x44);
     }
 
     #[test]
     fn mark_links_starts_as_the_games() {
         assert_eq!(size_of::<MarkLinks>(), MarkLinks::LEN);
-        let image = crate::moved::image_bytes(MarkLinks::START, MarkLinks::LEN);
+        let image =
+            crate::test_support::first_values::bytes("effects.owner.EFFECTS.blocks.links/68");
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(MarkLinks::home()).cast_const(),
+                (&raw const effects().blocks.links).cast::<u8>(),
                 MarkLinks::LEN,
             )
         };
         assert!(
-            mine == &image[..],
+            mine == image,
             "MARK_LINKS starts differently from the image"
         );
-        assert_eq!(offset_of!(MarkLinks, links), 0x920730 - MarkLinks::START);
+        assert_eq!(offset_of!(MarkLinks, links), 0x40);
     }
 
     #[test]
     fn corner_slopes_starts_as_the_games() {
         assert_eq!(size_of::<CornerSlopes>(), CornerSlopes::LEN);
-        let image = crate::moved::image_bytes(CornerSlopes::START, CornerSlopes::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(CornerSlopes::home()).cast_const(),
+                (&raw const effects().blocks.corner_slopes).cast::<u8>(),
                 CornerSlopes::LEN,
             )
         };
         assert!(
-            mine == &image[..],
+            crate::test_support::first_values::holds(
+                "effects.owner.EFFECTS.blocks.corner_slopes/9216",
+                mine
+            ),
             "CORNER_SLOPES starts differently from the image"
         );
         assert_eq!(size_of::<Slope>(), Slope::LEN);
@@ -472,15 +454,17 @@ mod typed_tests {
     #[test]
     fn mark_corners_starts_as_the_games() {
         assert_eq!(size_of::<MarkCorners>(), MarkCorners::LEN);
-        let image = crate::moved::image_bytes(MarkCorners::START, MarkCorners::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(MarkCorners::home()).cast_const(),
+                (&raw const effects().blocks.corners).cast::<u8>(),
                 MarkCorners::LEN,
             )
         };
         assert!(
-            mine == &image[..],
+            crate::test_support::first_values::holds(
+                "effects.owner.EFFECTS.blocks.corners/32768",
+                mine
+            ),
             "MARK_CORNERS starts differently from the image"
         );
         assert_eq!(size_of::<Corner>(), Corner::LEN);
@@ -504,19 +488,16 @@ mod ring_pool_tests {
         assert_eq!(size_of::<RingPool>(), RingPool::LEN);
         assert!(
             bytes(&effects().ring.pool)
-                == crate::moved::image_bytes(RingPool::START, RingPool::LEN),
+                == crate::test_support::first_values::bytes("effects.owner.EFFECTS.ring.pool/112"),
             "RING_POOL starts differently from the image"
         );
-        assert_eq!(offset_of!(RingPool, list), 0x93A580 - RingPool::START);
-        assert_eq!(offset_of!(RingPool, free), 0x93A5C0 - RingPool::START);
-        assert_eq!(offset_of!(RingPool, ring), 0x93A5C8 - RingPool::START);
-        assert_eq!(offset_of!(RingPool, nine), 0x93A5D0 - RingPool::START);
-        assert_eq!(offset_of!(RingPool, kind), 0x93A5D4 - RingPool::START);
-        assert_eq!(
-            offset_of!(RingPool, burst_radius),
-            0x93A5E4 - RingPool::START
-        );
-        assert_eq!(offset_of!(RingPool, index), 0x93A5E8 - RingPool::START);
-        assert_eq!(offset_of!(RingPool, used), 0x93A5EC - RingPool::START);
+        assert_eq!(offset_of!(RingPool, list), 0x0);
+        assert_eq!(offset_of!(RingPool, free), 0x40);
+        assert_eq!(offset_of!(RingPool, ring), 0x48);
+        assert_eq!(offset_of!(RingPool, nine), 0x50);
+        assert_eq!(offset_of!(RingPool, kind), 0x54);
+        assert_eq!(offset_of!(RingPool, burst_radius), 0x64);
+        assert_eq!(offset_of!(RingPool, index), 0x68);
+        assert_eq!(offset_of!(RingPool, used), 0x6c);
     }
 }

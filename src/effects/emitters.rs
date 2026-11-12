@@ -288,72 +288,30 @@ mod tests {
             .map(|i| unsafe { p.add(i).read() })
             .collect();
         assert!(
-            bytes == crate::moved::image_bytes(EmitterVars::START, EmitterVars::LEN),
+            bytes
+                == crate::test_support::first_values::bytes(
+                    "effects.owner.EFFECTS.kinds.emitter/332"
+                ),
             "EMITTER starts differently from the image"
         );
-        assert_eq!(
-            offset_of!(EmitterVars, record),
-            0x935416 - EmitterVars::START
-        );
-        assert_eq!(offset_of!(EmitterVars, sign), 0x935432 - EmitterVars::START);
-        assert_eq!(offset_of!(EmitterVars, car), 0x935436 - EmitterVars::START);
-        assert_eq!(
-            offset_of!(EmitterVars, side_b),
-            0x93543A - EmitterVars::START
-        );
-        assert_eq!(offset_of!(EmitterVars, up), 0x935446 - EmitterVars::START);
-        assert_eq!(
-            offset_of!(EmitterVars, across),
-            0x935452 - EmitterVars::START
-        );
-        assert_eq!(
-            offset_of!(EmitterVars, side_a),
-            0x93545E - EmitterVars::START
-        );
-        assert_eq!(
-            offset_of!(EmitterVars, motion),
-            0x93546A - EmitterVars::START
-        );
-        assert_eq!(
-            offset_of!(EmitterVars, looks),
-            0x935476 - EmitterVars::START
-        );
-        assert_eq!(offset_of!(EmitterVars, tag), 0x93547E - EmitterVars::START);
-        assert_eq!(
-            offset_of!(EmitterVars, settings_start),
-            0x9354C6 - EmitterVars::START
-        );
-        assert_eq!(
-            offset_of!(EmitterVars, tag_k),
-            0x9354DE - EmitterVars::START
-        );
-        assert_eq!(
-            offset_of!(EmitterVars, rate_k),
-            0x9354E2 - EmitterVars::START
-        );
-        assert_eq!(
-            offset_of!(EmitterVars, place_k),
-            0x9354EE - EmitterVars::START
-        );
-        assert_eq!(
-            offset_of!(EmitterVars, body_k),
-            0x93550A - EmitterVars::START
-        );
-        assert_eq!(
-            offset_of!(EmitterVars, wheel_random),
-            0x935522 - EmitterVars::START
-        );
-        assert_eq!(
-            offset_of!(EmitterVars, body_random),
-            0x935526 - EmitterVars::START
-        );
-        assert_eq!(
-            offset_of!(EmitterVars, sides),
-            0x93554A - EmitterVars::START
-        );
-        assert_eq!(
-            offset_of!(EmitterVars, strength),
-            0x93555E - EmitterVars::START
-        );
+        assert_eq!(offset_of!(EmitterVars, record), 0x0);
+        assert_eq!(offset_of!(EmitterVars, sign), 0x1c);
+        assert_eq!(offset_of!(EmitterVars, car), 0x20);
+        assert_eq!(offset_of!(EmitterVars, side_b), 0x24);
+        assert_eq!(offset_of!(EmitterVars, up), 0x30);
+        assert_eq!(offset_of!(EmitterVars, across), 0x3c);
+        assert_eq!(offset_of!(EmitterVars, side_a), 0x48);
+        assert_eq!(offset_of!(EmitterVars, motion), 0x54);
+        assert_eq!(offset_of!(EmitterVars, looks), 0x60);
+        assert_eq!(offset_of!(EmitterVars, tag), 0x68);
+        assert_eq!(offset_of!(EmitterVars, settings_start), 0xb0);
+        assert_eq!(offset_of!(EmitterVars, tag_k), 0xc8);
+        assert_eq!(offset_of!(EmitterVars, rate_k), 0xcc);
+        assert_eq!(offset_of!(EmitterVars, place_k), 0xd8);
+        assert_eq!(offset_of!(EmitterVars, body_k), 0xf4);
+        assert_eq!(offset_of!(EmitterVars, wheel_random), 0x10c);
+        assert_eq!(offset_of!(EmitterVars, body_random), 0x110);
+        assert_eq!(offset_of!(EmitterVars, sides), 0x134);
+        assert_eq!(offset_of!(EmitterVars, strength), 0x148);
     }
 }

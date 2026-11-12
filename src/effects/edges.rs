@@ -175,10 +175,13 @@ mod edge_mask_tests {
             .map(|i| unsafe { p.add(i).read() })
             .collect();
         assert!(
-            ours == crate::moved::image_bytes(EdgeMask::START, EdgeMask::LEN),
+            crate::test_support::first_values::holds(
+                "effects.owner.EFFECTS.masks.edge_mask/32768",
+                &ours
+            ),
             "masks.edge_mask starts differently from the image"
         );
-        assert_eq!(offset_of!(EdgeMask, mask), 0x809BC3 - EdgeMask::START);
+        assert_eq!(offset_of!(EdgeMask, mask), 0x0);
     }
 }
 
@@ -397,14 +400,13 @@ mod kind_boxes_tests {
             .map(|i| unsafe { p.add(i).read() })
             .collect();
         assert!(
-            ours == crate::moved::image_bytes(KindBoxes::START, KindBoxes::LEN),
+            ours == crate::test_support::first_values::bytes(
+                "effects.owner.EFFECTS.masks.kind_boxes/1768"
+            ),
             "masks.kind_boxes starts differently from the image"
         );
-        assert_eq!(offset_of!(KindBoxes, boxes), 0x811BEB - KindBoxes::START);
-        assert_eq!(
-            offset_of!(KindBoxes, kind_floats),
-            0x81224B - KindBoxes::START
-        );
+        assert_eq!(offset_of!(KindBoxes, boxes), 0x0);
+        assert_eq!(offset_of!(KindBoxes, kind_floats), 0x660);
     }
 }
 
@@ -457,13 +459,6 @@ impl EdgeSettings {
 impl EdgeSettings {
     pub const START: usize = 0x8BC39E;
     pub const LEN: usize = 0x5F;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    #[cfg(test)]
-    pub fn home() -> usize {
-        crate::pointers::game_address(
-            &raw const crate::effects::owner::effects().masks.edge_settings,
-        ) as usize
-    }
 }
 
 #[cfg(test)]
@@ -478,32 +473,22 @@ mod typed_tests {
             (EdgeSettings::LEN..=EdgeSettings::LEN.next_multiple_of(4))
                 .contains(&size_of::<EdgeSettings>())
         );
-        let image = crate::moved::image_bytes(EdgeSettings::START, EdgeSettings::LEN);
+        let image = crate::test_support::first_values::bytes(
+            "effects.owner.EFFECTS.masks.edge_settings/95",
+        );
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(EdgeSettings::home()).cast_const(),
+                (&raw const crate::effects::owner::effects().masks.edge_settings).cast::<u8>(),
                 EdgeSettings::LEN,
             )
         };
         assert!(
-            mine == &image[..],
+            mine == image,
             "masks.edge_settings starts differently from the image"
         );
-        assert_eq!(
-            offset_of!(EdgeSettings, done),
-            0x8BC3D6 - EdgeSettings::START
-        );
-        assert_eq!(
-            offset_of!(EdgeSettings, scale),
-            0x8BC3DA - EdgeSettings::START
-        );
-        assert_eq!(
-            offset_of!(EdgeSettings, path),
-            0x8BC3E6 - EdgeSettings::START
-        );
-        assert_eq!(
-            offset_of!(EdgeSettings, tilt_scale),
-            0x8BC3F9 - EdgeSettings::START
-        );
+        assert_eq!(offset_of!(EdgeSettings, done), 0x38);
+        assert_eq!(offset_of!(EdgeSettings, scale), 0x3c);
+        assert_eq!(offset_of!(EdgeSettings, path), 0x48);
+        assert_eq!(offset_of!(EdgeSettings, tilt_scale), 0x5b);
     }
 }

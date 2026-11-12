@@ -179,26 +179,23 @@ mod tests_shape_work {
     #[test]
     fn shape_work_starts_as_the_games() {
         assert_eq!(size_of::<ShapeWork>(), ShapeWork::LEN);
-        assert_eq!(
-            offset_of!(ShapeWork, first_point),
-            0x884E5C - ShapeWork::START
-        );
-        assert_eq!(offset_of!(ShapeWork, turn_x), 0x884E60 - ShapeWork::START);
-        assert_eq!(offset_of!(ShapeWork, turn_a), 0x884F50 - ShapeWork::START);
-        assert_eq!(offset_of!(ShapeWork, turn_b), 0x884F80 - ShapeWork::START);
-        assert_eq!(
-            offset_of!(ShapeWork, sets_made),
-            0x884FB0 - ShapeWork::START
-        );
-        assert_eq!(offset_of!(ShapeWork, work), 0x884FB4 - ShapeWork::START);
-        assert_eq!(offset_of!(ShapeWork, sets), 0x885A6C - ShapeWork::START);
+        assert_eq!(offset_of!(ShapeWork, first_point), 0x0);
+        assert_eq!(offset_of!(ShapeWork, turn_x), 0x4);
+        assert_eq!(offset_of!(ShapeWork, turn_a), 0xf4);
+        assert_eq!(offset_of!(ShapeWork, turn_b), 0x124);
+        assert_eq!(offset_of!(ShapeWork, sets_made), 0x154);
+        assert_eq!(offset_of!(ShapeWork, work), 0x158);
+        assert_eq!(offset_of!(ShapeWork, sets), 0xc10);
         let p = core::ptr::addr_of!(crate::effects::owner::effects().windscreen_drops.shape_work)
             .cast::<u8>();
         let now: Vec<u8> = (0..ShapeWork::LEN)
             .map(|i| unsafe { p.add(i).read() })
             .collect();
         assert!(
-            now == crate::moved::image_bytes(ShapeWork::START, ShapeWork::LEN),
+            crate::test_support::first_values::holds(
+                "effects.owner.EFFECTS.windscreen_drops.shape_work/93768",
+                &now
+            ),
             "SHAPE_WORK starts differently from the image"
         );
     }

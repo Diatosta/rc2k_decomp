@@ -243,98 +243,62 @@ mod tests_masks {
     #[test]
     fn masks_starts_as_the_games() {
         assert_eq!(size_of::<MaskVars>(), MaskVars::LEN);
-        assert_eq!(
-            offset_of!(MaskVars, spans_total),
-            0x82E342 - MaskVars::START
-        );
-        assert_eq!(offset_of!(MaskVars, list), 0x82E346 - MaskVars::START);
-        assert_eq!(offset_of!(MaskVars, work), 0x82E386 - MaskVars::START);
-        assert_eq!(offset_of!(MaskVars, count), 0x82E38A - MaskVars::START);
-        assert_eq!(
-            offset_of!(MaskVars, corner_scale),
-            0x82E38E - MaskVars::START
-        );
-        assert_eq!(offset_of!(MaskVars, turn), 0x82E396 - MaskVars::START);
-        assert_eq!(offset_of!(MaskVars, slope), 0x82E3C6 - MaskVars::START);
-        assert_eq!(offset_of!(MaskVars, work_pixel), 0x82E3D2 - MaskVars::START);
-        assert_eq!(offset_of!(MaskVars, lines), 0x82E3DA - MaskVars::START);
-        assert_eq!(offset_of!(MaskVars, ends), 0x82E40A - MaskVars::START);
-        assert_eq!(
-            offset_of!(MaskVars, ring_corners),
-            0x82E422 - MaskVars::START
-        );
-        assert_eq!(offset_of!(MaskVars, corners_a), 0x82E426 - MaskVars::START);
-        assert_eq!(offset_of!(MaskVars, corners_b), 0x82F03E - MaskVars::START);
-        assert_eq!(offset_of!(MaskVars, shapes), 0x82FC56 - MaskVars::START);
-        assert_eq!(
-            offset_of!(MaskVars, control_word),
-            0x82FCE6 - MaskVars::START
-        );
-        assert_eq!(
-            offset_of!(MaskVars, status_word),
-            0x82FCE8 - MaskVars::START
-        );
-        assert_eq!(offset_of!(MaskVars, height), 0x82FCEE - MaskVars::START);
-        assert_eq!(offset_of!(MaskVars, row_int), 0x82FCF2 - MaskVars::START);
-        assert_eq!(offset_of!(MaskVars, row), 0x82FCF6 - MaskVars::START);
-        assert_eq!(offset_of!(MaskVars, slopes), 0x82FCFA - MaskVars::START);
-        assert_eq!(offset_of!(MaskVars, xs), 0x82FD02 - MaskVars::START);
-        assert_eq!(offset_of!(MaskVars, split), 0x82FD0A - MaskVars::START);
-        assert_eq!(offset_of!(MaskVars, cursor), 0x82FD0E - MaskVars::START);
-        assert_eq!(offset_of!(MaskVars, runs), 0x82FD12 - MaskVars::START);
-        assert_eq!(offset_of!(MaskVars, edge), 0x82FD16 - MaskVars::START);
-        assert_eq!(offset_of!(MaskVars, run_table), 0x831D2E - MaskVars::START);
-        assert_eq!(offset_of!(MaskVars, triangle), 0x833D2E - MaskVars::START);
-        assert_eq!(
-            offset_of!(MaskVars, quad_triangle),
-            0x833D46 - MaskVars::START
-        );
-        assert_eq!(offset_of!(MaskVars, ring_quad), 0x833D5E - MaskVars::START);
-        assert_eq!(offset_of!(MaskVars, run_count), 0x833D7E - MaskVars::START);
-        assert_eq!(offset_of!(MaskVars, ring_ends), 0x833D82 - MaskVars::START);
-        assert_eq!(
-            offset_of!(MaskVars, ring_middle),
-            0x833D8A - MaskVars::START
-        );
-        assert_eq!(offset_of!(MaskVars, ring_half), 0x833D8E - MaskVars::START);
-        assert_eq!(
-            offset_of!(MaskVars, ring_angles),
-            0x833D92 - MaskVars::START
-        );
-        assert_eq!(offset_of!(MaskVars, ring_turns), 0x833D9A - MaskVars::START);
-        assert_eq!(offset_of!(MaskVars, ring_angle), 0x833DAA - MaskVars::START);
-        assert_eq!(offset_of!(MaskVars, ring_step), 0x833DAE - MaskVars::START);
-        assert_eq!(offset_of!(MaskVars, pixel), 0x833DB2 - MaskVars::START);
-        assert_eq!(offset_of!(MaskVars, mask_value), 0x833DBA - MaskVars::START);
-        assert_eq!(offset_of!(MaskVars, mask_a), 0x833DC2 - MaskVars::START);
-        assert_eq!(offset_of!(MaskVars, mask_b), 0x83BDC2 - MaskVars::START);
-        assert_eq!(
-            offset_of!(MaskVars, ring_angles_a),
-            0x843DC2 - MaskVars::START
-        );
-        assert_eq!(
-            offset_of!(MaskVars, ring_angles_b),
-            0x8441CA - MaskVars::START
-        );
-        assert_eq!(
-            offset_of!(MaskVars, pixel_table),
-            0x8445D2 - MaskVars::START
-        );
-        assert_eq!(offset_of!(MaskVars, middle), 0x8445D6 - MaskVars::START);
-        assert_eq!(
-            offset_of!(MaskVars, row_distance),
-            0x8445E2 - MaskVars::START
-        );
-        assert_eq!(
-            offset_of!(MaskVars, pixel_corners),
-            0x8445E6 - MaskVars::START
-        );
+        assert_eq!(offset_of!(MaskVars, spans_total), 0x0);
+        assert_eq!(offset_of!(MaskVars, list), 0x4);
+        assert_eq!(offset_of!(MaskVars, work), 0x44);
+        assert_eq!(offset_of!(MaskVars, count), 0x48);
+        assert_eq!(offset_of!(MaskVars, corner_scale), 0x4c);
+        assert_eq!(offset_of!(MaskVars, turn), 0x54);
+        assert_eq!(offset_of!(MaskVars, slope), 0x84);
+        assert_eq!(offset_of!(MaskVars, work_pixel), 0x90);
+        assert_eq!(offset_of!(MaskVars, lines), 0x98);
+        assert_eq!(offset_of!(MaskVars, ends), 0xc8);
+        assert_eq!(offset_of!(MaskVars, ring_corners), 0xe0);
+        assert_eq!(offset_of!(MaskVars, corners_a), 0xe4);
+        assert_eq!(offset_of!(MaskVars, corners_b), 0xcfc);
+        assert_eq!(offset_of!(MaskVars, shapes), 0x1914);
+        assert_eq!(offset_of!(MaskVars, control_word), 0x19a4);
+        assert_eq!(offset_of!(MaskVars, status_word), 0x19a6);
+        assert_eq!(offset_of!(MaskVars, height), 0x19ac);
+        assert_eq!(offset_of!(MaskVars, row_int), 0x19b0);
+        assert_eq!(offset_of!(MaskVars, row), 0x19b4);
+        assert_eq!(offset_of!(MaskVars, slopes), 0x19b8);
+        assert_eq!(offset_of!(MaskVars, xs), 0x19c0);
+        assert_eq!(offset_of!(MaskVars, split), 0x19c8);
+        assert_eq!(offset_of!(MaskVars, cursor), 0x19cc);
+        assert_eq!(offset_of!(MaskVars, runs), 0x19d0);
+        assert_eq!(offset_of!(MaskVars, edge), 0x19d4);
+        assert_eq!(offset_of!(MaskVars, run_table), 0x39ec);
+        assert_eq!(offset_of!(MaskVars, triangle), 0x59ec);
+        assert_eq!(offset_of!(MaskVars, quad_triangle), 0x5a04);
+        assert_eq!(offset_of!(MaskVars, ring_quad), 0x5a1c);
+        assert_eq!(offset_of!(MaskVars, run_count), 0x5a3c);
+        assert_eq!(offset_of!(MaskVars, ring_ends), 0x5a40);
+        assert_eq!(offset_of!(MaskVars, ring_middle), 0x5a48);
+        assert_eq!(offset_of!(MaskVars, ring_half), 0x5a4c);
+        assert_eq!(offset_of!(MaskVars, ring_angles), 0x5a50);
+        assert_eq!(offset_of!(MaskVars, ring_turns), 0x5a58);
+        assert_eq!(offset_of!(MaskVars, ring_angle), 0x5a68);
+        assert_eq!(offset_of!(MaskVars, ring_step), 0x5a6c);
+        assert_eq!(offset_of!(MaskVars, pixel), 0x5a70);
+        assert_eq!(offset_of!(MaskVars, mask_value), 0x5a78);
+        assert_eq!(offset_of!(MaskVars, mask_a), 0x5a80);
+        assert_eq!(offset_of!(MaskVars, mask_b), 0xda80);
+        assert_eq!(offset_of!(MaskVars, ring_angles_a), 0x15a80);
+        assert_eq!(offset_of!(MaskVars, ring_angles_b), 0x15e88);
+        assert_eq!(offset_of!(MaskVars, pixel_table), 0x16290);
+        assert_eq!(offset_of!(MaskVars, middle), 0x16294);
+        assert_eq!(offset_of!(MaskVars, row_distance), 0x162a0);
+        assert_eq!(offset_of!(MaskVars, pixel_corners), 0x162a4);
         let p = core::ptr::addr_of!(crate::effects::owner::effects().masks.vars).cast::<u8>();
         let now: Vec<u8> = (0..MaskVars::LEN)
             .map(|i| unsafe { p.add(i).read() })
             .collect();
         assert!(
-            now == crate::moved::image_bytes(MaskVars::START, MaskVars::LEN),
+            crate::test_support::first_values::holds(
+                "effects.owner.EFFECTS.masks.vars/90816",
+                &now
+            ),
             "MASKS starts differently from the image"
         );
     }

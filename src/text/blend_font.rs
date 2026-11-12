@@ -98,7 +98,6 @@ pub fn blend_font_in(
 
 #[cfg(test)]
 mod tests {
-    use crate::moved::image_bytes;
     use crate::strings::owner::strings;
 
     #[test]
@@ -116,14 +115,23 @@ mod tests {
         ] {
             bytes.extend(w.to_le_bytes());
         }
-        assert_eq!(bytes, image_bytes(0x51E384, 0x20));
+        assert_eq!(
+            bytes,
+            crate::test_support::first_values::bytes("text.blend_font.BLENDED_FONT/32")
+        );
         let bytes: Vec<u8> = super::BLENDED_PALETTE
             .get()
             .iter()
             .flat_map(|w| w.get().to_le_bytes())
             .collect();
-        assert_eq!(bytes, image_bytes(0x4F3B74, 0x400));
+        assert_eq!(
+            bytes,
+            crate::test_support::first_values::bytes("text.blend_font.BLENDED_PALETTE/1024")
+        );
         let mode = strings().text.blend_mode.get();
-        assert_eq!(mode.to_le_bytes().to_vec(), image_bytes(0x4F3F74, 4));
+        assert_eq!(
+            mode.to_le_bytes().to_vec(),
+            crate::test_support::first_values::bytes("strings.owner.STRINGS.text.blend_mode/4")
+        );
     }
 }

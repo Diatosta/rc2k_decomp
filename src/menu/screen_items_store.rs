@@ -327,28 +327,17 @@ pub const START: usize = 0x747660;
 /// IDA 0x747998, the end of the piece.
 pub const END: usize = 0x747998;
 
-/// Where IDA 0x747660 lives (`moved::MOVED`'s home).
-#[cfg(test)]
-pub fn screen_items_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::menu::owner::menus().screens.items)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moved::image_bytes;
     use core::mem::{offset_of, size_of};
 
     #[test]
     fn screen_items_start_as_the_games() {
         assert_eq!(size_of::<ScreenItems>(), END - START);
-        assert_eq!(offset_of!(ScreenItems, first), 0x7477FC - START);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host(screen_items_addr()).cast_const(),
-                END - START,
-            )
-        };
-        assert_eq!(mine, &image_bytes(START, END - START)[..]);
+        assert_eq!(offset_of!(ScreenItems, first), 0x19c);
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &crate::menu::owner::menus().screens.items,
+        );
     }
 }

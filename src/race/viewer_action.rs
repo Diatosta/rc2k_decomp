@@ -36,7 +36,11 @@ use crate::owners::Owners;
 use crate::race::owner::Race;
 
 /// Whether the action is one. `action` the action.
-pub fn viewer_action(race: &Race, o: Owners<'static>, action: u32) -> Result<bool, Refused> {
+pub fn viewer_action(
+    race: &'static Race,
+    o: Owners<'static>,
+    action: u32,
+) -> Result<bool, Refused> {
     let replay = &race.replay;
     // Converted: `rc2k_core::race::viewer::{Action, goto_block, frame_back, frame_on,
     // mark_in_here, mark_out_here}`.
@@ -252,7 +256,7 @@ fn paste(race: &Race) -> Result<(), Refused> {
 }
 
 /// 0x14: another replay chosen to view.
-fn another_replay(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
+fn another_replay(race: &'static Race, o: Owners<'static>) -> Result<(), Refused> {
     let replay = &race.replay;
     let shared = &race.shared;
     if replay.replay_view.last_race_viewed.is_set() {
@@ -278,7 +282,7 @@ fn another_replay(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
 }
 
 /// 0x15, 0x16: saved back into its slot (`back`, a slot below 100) or into one chosen.
-fn save(race: &Race, o: Owners<'static>, back: bool) -> Result<(), Refused> {
+fn save(race: &'static Race, o: Owners<'static>, back: bool) -> Result<(), Refused> {
     let replay = &race.replay;
     let shared = &race.shared;
     if shared.replay_file.index_block_count.get() == 0 {

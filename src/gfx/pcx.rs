@@ -111,27 +111,14 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&gfx().pictures.pcx, START, START + LEN);
+        crate::test_support::first_values::assert_block_starts_as_the_games(&gfx().pictures.pcx);
     }
 
     #[test]
     fn moved_knows_the_block() {
-        let pictures = &gfx().pictures;
-        assert_eq!(offset_of!(Pcx, stream), 0x5195E4 - START);
-        assert_eq!(offset_of!(Pcx, header), 0x51B5F4 - START);
-        assert_eq!(offset_of!(Pcx, file_palette), 0x51B674 - START);
-        assert_eq!(offset_of!(Pcx, width_limit), 0x51B974 - START);
-        assert_eq!(
-            crate::moved::place(START),
-            pictures.pcx.file_width.addr() as usize
-        );
-        assert_eq!(
-            crate::moved::place(0x51B5F4),
-            pictures.pcx.header.addr() as usize
-        );
-        assert_eq!(
-            crate::moved::place(0x51B978),
-            pictures.pcx.height_limit.addr() as usize
-        );
+        assert_eq!(offset_of!(Pcx, stream), 0x10);
+        assert_eq!(offset_of!(Pcx, header), 0x2020);
+        assert_eq!(offset_of!(Pcx, file_palette), 0x20a0);
+        assert_eq!(offset_of!(Pcx, width_limit), 0x23a0);
     }
 }

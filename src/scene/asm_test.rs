@@ -11,167 +11,15 @@ pub fn lock() -> MutexGuard<'static, ()> {
     crate::store::test_lock()
 }
 
-/// Nearest (the game's), chop (the bug-hunting one), down, up.
-pub const CONTROL_WORDS: [u16; 4] = [0x027F, 0x0E7F, 0x067F, 0x0A7F];
-
-pub struct Rng(u64);
-
-const EDGES: [f32; 24] = [
-    0.0,
-    -0.0,
-    1.0,
-    -1.0,
-    0.5,
-    -0.5,
-    1.5,
-    2.5,
-    -2.5,
-    0.25,
-    1e-45,
-    1.1754942e-38,
-    -1e-45,
-    1e30,
-    1e-30,
-    2147483520.0,
-    2147483648.0,
-    -2147483648.0,
-    16777216.0,
-    16777217.0,
-    std::f32::consts::PI,
-    std::f32::consts::FRAC_PI_2,
-    4096.0,
-    65536.0,
-];
-
-impl Rng {
-    pub fn new(seed: u64) -> Rng {
-        Rng(seed)
-    }
-
-    pub fn next(&mut self) -> u64 {
-        self.0 = self.0.wrapping_add(0x9E37_79B9_7F4A_7C15);
-        let mut z = self.0;
-        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
-        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-        z ^ (z >> 31)
-    }
-
-    pub fn below(&mut self, n: u64) -> u64 {
-        self.next() % n
-    }
-
-    /// A uniform f32 in [-1, 1).
-    pub fn unit(&mut self) -> f32 {
-        (self.next() >> 40) as f32 / (1u64 << 23) as f32 - 1.0
-    }
-
-    /// A float's bits: edge values, the unit range, game-sized values, integers, halves,
-    /// large and tiny values, any finite pattern. Never a NaN or an infinity.
-    pub fn fl(&mut self) -> u32 {
-        match self.below(12) {
-            0 => EDGES[self.below(EDGES.len() as u64) as usize].to_bits(),
-            1 | 2 => self.unit().to_bits(),
-            3 | 4 => (self.unit() * 1000.0).to_bits(),
-            5 => (self.small() as f32).to_bits(),
-            6 => (self.small() as f32 * 0.5).to_bits(),
-            7 => (self.unit() * 1e6).to_bits(),
-            8 => (self.unit() * 1e-3).to_bits(),
-            9 => {
-                let b = self.next() as u32;
-                if (b >> 23) & 0xFF == 0xFF {
-                    b & !(1 << 30)
-                } else {
-                    b
-                }
-            }
-            10 => (self.unit() * 100.0).to_bits(),
-            _ => (self.unit() * 1e9).to_bits(),
-        }
-    }
-
-    /// A float that is not a huge or tiny value (for chains that would overflow).
-    pub fn moderate(&mut self) -> u32 {
-        match self.below(4) {
-            0 => (self.unit() * 100.0).to_bits(),
-            1 => self.unit().to_bits(),
-            2 => (self.unit() * 5000.0).to_bits(),
-            _ => (self.small() as f32 * 0.25).to_bits(),
-        }
-    }
-
-    /// An angle in radians (bits): the turns of a game's objects, zero and the exact multiples
-    /// of the float pi among them. Never large (the x87 and libm reduce large ones differently).
-    pub fn angle(&mut self) -> u32 {
-        match self.below(8) {
-            0 => 0.0f32.to_bits(),
-            1 => (std::f32::consts::FRAC_PI_2 * (self.below(9) as f32 - 4.0)).to_bits(),
-            2 | 3 => (self.unit() * 7.0).to_bits(),
-            4 => (self.unit() * 100.0).to_bits(),
-            5 => (self.unit() * 0.01).to_bits(),
-            6 => (self.small() as f32 * 0.01).to_bits(),
-            _ => (self.unit() * 1000.0).to_bits(),
-        }
-    }
-
-    /// A small whole number, positive or negative.
-    pub fn small(&mut self) -> i32 {
-        (self.below(20001) as i32) - 10000
-    }
-
-    /// A whole number: zero, small, game-sized, near the edges of the type.
-    pub fn int(&mut self) -> u32 {
-        (match self.below(8) {
-            0 => 0,
-            1 | 2 => self.small(),
-            3 => (self.unit() * 1.0e6) as i32,
-            4 => (self.unit() * 2.0e7) as i32,
-            5 => self.next() as i32,
-            6 => i32::MAX - self.below(300) as i32,
-            _ => i32::MIN + self.below(300) as i32,
-        }) as u32
-    }
-}
-
-/// The same float, or both a NaN.
-pub fn same_float(a: u32, b: u32) -> bool {
-    a == b || (f32::from_bits(a).is_nan() && f32::from_bits(b).is_nan())
-}
-
-/// Within `ulps` units in the last place (a NaN against a NaN, an exact zero against a zero).
-pub fn close_float(a: u32, b: u32, ulps: i64) -> bool {
-    if same_float(a, b) {
-        return true;
-    }
-    let (x, y) = (f32::from_bits(a), f32::from_bits(b));
-    if x.is_nan() || y.is_nan() {
-        return false;
-    }
-    let key = |v: u32| -> i64 {
-        if v & 0x8000_0000 != 0 {
-            -((v & 0x7FFF_FFFF) as i64)
-        } else {
-            v as i64
-        }
-    };
-    (key(a) - key(b)).abs() <= ulps
-}
+pub use crate::test_support::vectors::{
+    CONTROL_WORDS, Kind, Rng, close_float, put_t80, same_float,
+};
 
 struct Restore(u16);
 impl Drop for Restore {
     fn drop(&mut self) {
         set_control_word(self.0);
     }
-}
-
-/// How one dword of the block's memory is compared.
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum Kind {
-    /// Bit for bit.
-    Exact,
-    /// A float: bit for bit, or both a NaN.
-    Float,
-    /// A float of a transcendental: one ulp apart is allowed.
-    Ulp1,
 }
 
 /// Runs `cases` random memory images through the reference and the plain version at each
@@ -227,11 +75,6 @@ pub fn differential<const N: usize>(
     );
 }
 
-/// Writes the float with these bits, as an 80-bit value, `at` bytes into the image.
-pub fn put_t80<const N: usize>(m: &mut [u32; N], at: usize, bits: u32) {
-    use crate::math::x87_float::ld;
-    crate::scene::x87_mem::fstp80(m.as_mut_ptr().cast(), at, ld(bits));
-}
 // ---- the sparse tests: blocks that touch a few places of a large memory ----
 
 /// A reference block: the original's instructions as a function over the operands' values

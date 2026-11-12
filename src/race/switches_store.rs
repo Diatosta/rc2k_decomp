@@ -93,19 +93,17 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&race().shared.switches, START, END);
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &race().shared.switches,
+        );
     }
 
     #[test]
-    fn piece_has_its_home() {
+    fn fields_are_at_the_games_offsets() {
         assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            piece_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
-        assert_eq!(offset_of!(FrameSwitches, scene_set_up), 0x621480 - START);
-        assert_eq!(offset_of!(FrameSwitches, object_number), 0x6214FC - START);
-        assert_eq!(offset_of!(FrameSwitches, editor_mode), 0x621514 - START);
-        assert_eq!(offset_of!(FrameSwitches, service_cleared), 0x6218AC - START);
+        assert_eq!(offset_of!(FrameSwitches, scene_set_up), 0x0);
+        assert_eq!(offset_of!(FrameSwitches, object_number), 0x7c);
+        assert_eq!(offset_of!(FrameSwitches, editor_mode), 0x94);
+        assert_eq!(offset_of!(FrameSwitches, service_cleared), 0x42c);
     }
 }

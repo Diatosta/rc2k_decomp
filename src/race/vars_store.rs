@@ -208,26 +208,22 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&race().shared.vars, START, END);
+        crate::test_support::first_values::assert_block_starts_as_the_games(&race().shared.vars);
     }
 
     #[test]
-    fn piece_has_its_home() {
+    fn fields_are_at_the_games_offsets() {
         assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            piece_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
-        assert_eq!(offset_of!(RaceVars, scene_switch), 0x6235E8 - START);
-        assert_eq!(offset_of!(RaceVars, face_mark), 0x62361C - START);
-        assert_eq!(offset_of!(RaceVars, line_face_kind), 0x623654 - START);
-        assert_eq!(offset_of!(RaceVars, map_anchor_count), 0x6236B4 - START);
-        assert_eq!(offset_of!(RaceVars, race_car_kinds), 0x623858 - START);
-        assert_eq!(offset_of!(RaceVars, rivals), 0x6238BC - START);
-        assert_eq!(offset_of!(RaceVars, mud_turn_a), 0x62390C - START);
-        assert_eq!(offset_of!(RaceVars, mud_packed), 0x623D34 - START);
-        assert_eq!(offset_of!(RaceVars, mud_texture), 0x623D5C - START);
-        assert_eq!(offset_of!(RaceVars, mud_scale_b), 0x623DB0 - START);
-        assert_eq!(offset_of!(RaceVars, mapping_a), 0x623DD8 - START);
+        assert_eq!(offset_of!(RaceVars, scene_switch), 0x0);
+        assert_eq!(offset_of!(RaceVars, face_mark), 0x34);
+        assert_eq!(offset_of!(RaceVars, line_face_kind), 0x6c);
+        assert_eq!(offset_of!(RaceVars, map_anchor_count), 0xcc);
+        assert_eq!(offset_of!(RaceVars, race_car_kinds), 0x270);
+        assert_eq!(offset_of!(RaceVars, rivals), 0x2d4);
+        assert_eq!(offset_of!(RaceVars, mud_turn_a), 0x324);
+        assert_eq!(offset_of!(RaceVars, mud_packed), 0x74c);
+        assert_eq!(offset_of!(RaceVars, mud_texture), 0x774);
+        assert_eq!(offset_of!(RaceVars, mud_scale_b), 0x7c8);
+        assert_eq!(offset_of!(RaceVars, mapping_a), 0x7f0);
     }
 }

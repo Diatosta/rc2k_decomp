@@ -192,47 +192,33 @@ impl FontBlock {
 impl FontBlock {
     pub const START: usize = 0x51DE30;
     pub const LEN: usize = 0x554;
-    /// Where the byte IDA calls `START` is (`moved::MOVED`'s home).
-    #[cfg(test)]
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::gfx::owner::gfx().fonts.font_block) as usize
-    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::gfx::owner::gfx;
 
     #[test]
     fn fonts_starts_as_the_games() {
-        let size = size_of::<FontBlock>();
-        assert!(FontBlock::LEN <= size && size <= (FontBlock::LEN).next_multiple_of(16));
-        let mut image = crate::moved::image_bytes(FontBlock::START, FontBlock::LEN);
-        for n in 0..4 {
-            let at = 0x20 * n + 0x14;
-            image[at..at + 4].copy_from_slice(&crate::gfx::glyph_store::JADE_COLOUR.to_le_bytes());
-            image[at + 4..at + 8].copy_from_slice(&crate::gfx::glyph_store::JADE.to_le_bytes());
-        }
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(FontBlock::home()).cast_const(),
-                FontBlock::LEN,
-            )
-        };
-        assert_eq!(mine, &image[..]);
+        // The menu fonts' palette and glyph table are places in the glyph store where the
+        // game has the jade font's addresses.
+        crate::test_support::front::assert_block_starts_as_the_games_but(
+            &gfx().fonts.font_block,
+            |bytes| {
+                for n in 0..4 {
+                    let at = 0x20 * n + 0x14;
+                    bytes[at..at + 4].copy_from_slice(&0x4F66C4_u32.to_le_bytes());
+                    bytes[at + 4..at + 8].copy_from_slice(&0x4F52C4_u32.to_le_bytes());
+                }
+            },
+        );
     }
 
     #[test]
     fn menu_fonts_keep_the_images_numbers() {
-        // The image's relocated dwords name the jade font's block (colour 0x4F66C4, glyph
-        // table 0x4F52C4); the first values are its places in the glyph store.
+        // The first values are the jade font's places in the glyph store.
         for n in 0..4 {
-            let at = FontBlock::START + 0x20 * n;
-            let image = crate::moved::image_bytes(at + 0x14, 8);
             let font = gfx().fonts.font_block.menu_fonts[n].get();
-            assert_eq!(u32::from_le_bytes(image[..4].try_into().unwrap()), 0x4F66C4);
-            assert_eq!(u32::from_le_bytes(image[4..].try_into().unwrap()), 0x4F52C4);
             assert_eq!(
                 (font.palette, font.glyph_table),
                 (

@@ -89,12 +89,7 @@ fn link(o: Owners<'static>) -> Result<Way, Refused> {
 }
 
 /// A network game in `mode` (1 host, 2 join).
-/// For the table of item functions, which holds no owners.
-pub fn start_link(mode: u32) -> Result<(), Refused> {
-    start_link_in(crate::owners::boundary(), mode)
-}
-
-pub fn start_link_in(o: crate::owners::Owners<'static>, mode: u32) -> Result<(), Refused> {
+pub fn start_link(o: crate::owners::Owners<'static>, mode: u32) -> Result<(), Refused> {
     let (net, race) = (o.net, o.race);
     let vars = &net.vars;
     use crate::net::*;
@@ -103,7 +98,7 @@ pub fn start_link_in(o: crate::owners::Owners<'static>, mode: u32) -> Result<(),
     take_player_settings::take_player_settings(race, o.menus);
     let menus = o.menus;
     fill_own_player::fill_own_player(race, net, menus, &menus.play.names.player_names.read())?;
-    show_background::show_background(o.gfx, &net.vars)?;
+    show_background::show_background(o.gfx, o.system, &net.vars)?;
     match link(o)? {
         Way::Message(n) => show_message::show_message(n)?,
         Way::End => {}

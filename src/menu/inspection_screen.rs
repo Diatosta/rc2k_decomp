@@ -16,7 +16,9 @@ pub fn inspection_screen(o: crate::owners::Owners<'static>) -> Result<(), Refuse
     front_end.window.view_offset[1].set_bits(0u32);
     front_end.window.view_zoom.set_bits(0x100u32);
     crate::scene::prepare_menu_scene::prepare_menu_scene(
+        o.race,
         scene,
+        o.system,
         crate::race::view_scratch::front_end(),
     );
     front_end.window.clip_edges[2].set_bits(0u32);

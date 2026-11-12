@@ -12,9 +12,12 @@ use crate::scene::view_matrix::set_view_matrices;
 
 // ---- Rust version ----
 
-pub fn prepare_menu_scene(scene: &crate::scene::owner::Scene, scratch: &ViewScratch) {
-    let o = crate::owners::boundary();
-    let (race, system) = (o.race, o.system);
+pub fn prepare_menu_scene(
+    race: &crate::race::owner::Race,
+    scene: &crate::scene::owner::Scene,
+    system: &crate::system::owner::System,
+    scratch: &ViewScratch,
+) {
     let frame = &race.frame;
     crate::session::write_bits(&race.frame.view_and_records.view_vars.view_place, [0u32; 3]);
     crate::session::write_first(

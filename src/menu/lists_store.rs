@@ -1545,7 +1545,6 @@ const CAR_LISTS: [(usize, usize); 9] = {
 mod tests {
     use super::*;
     use crate::menu::owner::menus;
-    use crate::moved::image_bytes;
     use core::mem::{offset_of, size_of};
 
     #[test]
@@ -1556,7 +1555,8 @@ mod tests {
             std::slice::from_raw_parts((&raw const menus().tables.lists).cast::<u8>(), END - START)
         };
         // The car lists' entries are handles: the image's addresses made handles to compare.
-        let mut image = image_bytes(START, END - START);
+        let mut image =
+            crate::test_support::first_values::bytes("menu.owner.MENUS.tables.lists/4526").to_vec();
         for (at, len) in CAR_LISTS {
             for n in 0..len {
                 let o = at - START + 4 * n;
@@ -1578,7 +1578,7 @@ mod tests {
         made(NAME_TABLE, &crate::audio::store::name_key);
         made(REPAIR_TABLE, &repair_key);
         assert_eq!(mine, &image[..]);
-        assert_eq!(offset_of!(MenuLists, secret_cars), 0x759F4A - START);
-        assert_eq!(offset_of!(MenuLists, carousel_textures), 0x75A622 - START);
+        assert_eq!(offset_of!(MenuLists, secret_cars), 0xaa0);
+        assert_eq!(offset_of!(MenuLists, carousel_textures), 0x1178);
     }
 }

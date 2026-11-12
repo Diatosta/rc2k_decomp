@@ -46,7 +46,7 @@ pub fn play_movie_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result
         if input.devices.keys_pressed.get(1) != 0 {
             break;
         }
-        { crate::drive::race_step::race_step(race, o.scene, input, o.sound, o.system, o.net) }?;
+        { crate::drive::race_step::race_step(o, race) }?;
         race_parts::race_frame(race, o)?;
         if race.replay.replay_view.replay_block.get() == race.replay.replay_view.play_end.get() {
             break;

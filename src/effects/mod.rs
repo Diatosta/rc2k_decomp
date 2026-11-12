@@ -11,7 +11,7 @@ pub mod add_drift_particle;
 pub mod add_mark_slot;
 pub mod adjugate3;
 pub mod aim_vector;
-#[cfg(all(test, target_arch = "x86"))]
+#[cfg(test)]
 mod asm_test;
 pub mod begin_quads;
 pub mod bend_points;
@@ -140,7 +140,7 @@ pub mod tilt_shape;
 pub mod trail_particles;
 pub mod tuning;
 pub mod turns;
-#[cfg(all(test, target_arch = "x86"))]
+#[cfg(test)]
 mod typed_sync;
 pub mod view_frame;
 pub mod view_heading;

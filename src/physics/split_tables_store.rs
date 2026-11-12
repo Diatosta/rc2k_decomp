@@ -81,28 +81,23 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&race().physics.split_tables, START, END);
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &race().physics.split_tables,
+        );
     }
 
     #[test]
-    fn piece_has_its_home() {
+    fn fields_are_at_the_games_offsets() {
         assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            crate::moved::place(END - 1),
-            (piece_addr() + (END - START) as u32 - 1) as usize
-        );
-        assert_eq!(offset_of!(SplitTables, still), 0x601024 - START);
-        assert_eq!(offset_of!(SplitTables, checkpoints), 0x60102C - START);
-        assert_eq!(offset_of!(SplitTables, stage_numbers), 0x601430 - START);
-        assert_eq!(
-            offset_of!(SplitTables, split_colour_count),
-            0x601830 - START
-        );
-        assert_eq!(offset_of!(SplitTables, stage_car_total), 0x601C4C - START);
-        assert_eq!(offset_of!(SplitTables, kind_factor), 0x601C64 - START);
-        assert_eq!(offset_of!(SplitTables, kept_times), 0x601C68 - START);
-        assert_eq!(offset_of!(SplitTables, rival_names), 0x601D68 - START);
-        assert_eq!(offset_of!(SplitTables, rival_scaled), 0x6021A0 - START);
-        assert_eq!(offset_of!(SplitTables, car_time), 0x602308 - START);
+        assert_eq!(offset_of!(SplitTables, still), 0x8);
+        assert_eq!(offset_of!(SplitTables, checkpoints), 0x10);
+        assert_eq!(offset_of!(SplitTables, stage_numbers), 0x414);
+        assert_eq!(offset_of!(SplitTables, split_colour_count), 0x814);
+        assert_eq!(offset_of!(SplitTables, stage_car_total), 0xc30);
+        assert_eq!(offset_of!(SplitTables, kind_factor), 0xc48);
+        assert_eq!(offset_of!(SplitTables, kept_times), 0xc4c);
+        assert_eq!(offset_of!(SplitTables, rival_names), 0xd4c);
+        assert_eq!(offset_of!(SplitTables, rival_scaled), 0x1184);
+        assert_eq!(offset_of!(SplitTables, car_time), 0x12ec);
     }
 }

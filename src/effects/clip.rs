@@ -107,22 +107,21 @@ mod tests {
         let clipping = &effects().clipping;
         assert_eq!(size_of::<ClipScreen>(), ClipScreen::LEN);
         assert_eq!(size_of::<GlowState>(), GlowState::LEN);
-        let image = crate::moved::image_bytes;
         assert!(
-            bytes(&clipping.clip) == image(ClipScreen::START, ClipScreen::LEN),
+            bytes(&clipping.clip)
+                == crate::test_support::first_values::bytes(
+                    "effects.owner.EFFECTS.clipping.clip/208"
+                ),
             "CLIP starts differently from the image"
         );
         assert!(
-            bytes(&clipping.glow) == image(GlowState::START, GlowState::LEN),
+            bytes(&clipping.glow)
+                == crate::test_support::first_values::bytes(
+                    "effects.owner.EFFECTS.clipping.glow/64"
+                ),
             "GLOW starts differently from the image"
         );
-        assert_eq!(
-            core::mem::offset_of!(ClipScreen, vertices),
-            0x7687F4 - ClipScreen::START
-        );
-        assert_eq!(
-            core::mem::offset_of!(GlowState, angle),
-            0x93CCA4 - GlowState::START
-        );
+        assert_eq!(core::mem::offset_of!(ClipScreen, vertices), 0x10);
+        assert_eq!(core::mem::offset_of!(GlowState, angle), 0x34);
     }
 }

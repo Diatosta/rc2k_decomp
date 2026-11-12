@@ -49,7 +49,11 @@ pub fn movsb(
 }
 
 /// `strings::append_string_by_id`: the string `id` added to the text being built.
-pub fn push_id(o: crate::owners::Owners<'_>, text: &mut Vec<u8>, id: u32) -> Result<(), Refused> {
+pub fn push_id(
+    o: crate::owners::Owners<'static>,
+    text: &mut Vec<u8>,
+    id: u32,
+) -> Result<(), Refused> {
     crate::strings::append_string_by_id::push_string_in(o, text, id)?;
     Ok(())
 }

@@ -79,11 +79,6 @@ impl Sku {
 impl Sku {
     pub const START: usize = 0x5190F4;
     pub const LEN: usize = 0x24;
-    #[cfg(test)]
-    /// Where the byte IDA calls `START` is (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::install::owner::INSTALL.get().sku) as usize
-    }
 }
 
 #[cfg(test)]
@@ -94,10 +89,5 @@ mod sku_tests {
     fn sku_starts_as_the_games() {
         let size = size_of::<Sku>();
         assert!(Sku::LEN <= size && size <= (Sku::LEN).next_multiple_of(4));
-        let image = crate::moved::image_bytes(Sku::START, Sku::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(crate::pointers::host_at(Sku::home()).cast_const(), Sku::LEN)
-        };
-        assert_eq!(mine, &image[..]);
     }
 }

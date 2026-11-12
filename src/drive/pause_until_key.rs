@@ -32,7 +32,7 @@ pub fn pause_until_key(race: &Race, o: crate::owners::Owners<'static>) -> Result
     for _ in 0..5 {
         take_key();
     }
-    stop_race_sounds(o.sound)?;
+    stop_race_sounds(o.sound, o.audio, o.system)?;
     shared.vars.scene_switch.set(1);
     for c in 0..2 {
         race.car_blocks().cars[c as usize].notice_id.set(0xCB);

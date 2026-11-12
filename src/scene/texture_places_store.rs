@@ -119,14 +119,6 @@ pub const END: usize = 0x5E9EC8;
 
 const _: () = assert!(END - START == core::mem::size_of::<TexturePlaces>());
 
-/// Where IDA 0x5D2AE8 is now (its own static).
-#[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(
-        &crate::scene::owner::scene().textures.places,
-    ))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -135,22 +127,15 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&scene().textures.places, START, END);
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &scene().textures.places,
+        );
     }
 
     #[test]
     fn piece_has_its_home() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            piece_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
-        assert_eq!(
-            crate::moved::place(END - 1),
-            (piece_addr() + (END - START) as u32 - 1) as usize
-        );
-        assert_eq!(offset_of!(TexturePlaces, texture_of), 0x5D2AE8 - START);
-        assert_eq!(offset_of!(TexturePlaces, kind_slot_bytes), 0x5DC978 - START);
-        assert_eq!(offset_of!(TexturePlaces, normal_marks), 0x5E5EBC - START);
+        assert_eq!(offset_of!(TexturePlaces, texture_of), 0x0);
+        assert_eq!(offset_of!(TexturePlaces, kind_slot_bytes), 0x9e90);
+        assert_eq!(offset_of!(TexturePlaces, normal_marks), 0x133d4);
     }
 }

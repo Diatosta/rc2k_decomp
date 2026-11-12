@@ -112,7 +112,7 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
     let (install, net, system) = (o.install, o.net, o.system);
     net.vars.players.set(0);
     net.vars.racing.set(0);
-    crate::net::show_background::show_background(o.gfx, &net.vars)?;
+    crate::net::show_background::show_background(o.gfx, o.system, &net.vars)?;
     let now = system.session.clocks.key_ticks.get();
     install.pages.move_clock.set(now);
     install.pages.key_clock.set(now);

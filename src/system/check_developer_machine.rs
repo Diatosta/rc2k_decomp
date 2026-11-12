@@ -40,10 +40,6 @@ mod developer_tests {
 
     #[test]
     fn first_value_is_the_games() {
-        crate::gfx::first_values_are_the_games(&DEVELOPER, DEVELOPER_START, DEVELOPER_START + 4);
-        assert_eq!(
-            crate::moved::place(DEVELOPER_START),
-            DEVELOPER.addr() as usize
-        );
+        crate::test_support::first_values::assert_block_starts_as_the_games(&DEVELOPER);
     }
 }

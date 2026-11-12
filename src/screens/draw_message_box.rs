@@ -68,7 +68,6 @@ mod box_tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&BOX, BOX_START, BOX_START + 16);
-        assert_eq!(crate::moved::place(BOX_START + 8), BOX[2].addr() as usize);
+        crate::test_support::first_values::assert_block_starts_as_the_games(&BOX);
     }
 }

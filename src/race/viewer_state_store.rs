@@ -61,9 +61,7 @@ pub enum ViewerPicture {
 }
 
 impl ReplayViewBlock {
-    /// IDA's address of the viewer's list and the count of its items (from 24 bytes in).
-    #[cfg(test)]
-    const LIST: usize = 0x5C255C;
+    /// The count of the viewer's list's items (from 24 bytes in).
     const ITEMS: u32 = 26;
     /// IDA's ranges the list's names point into: the key table and place rectangles
     /// (untyped, the race block's bytes: `OWN_RANGES[1]`), and the panel with the pictures'
@@ -156,22 +154,25 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&race().replay.replay_view, START, END);
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &race().replay.replay_view,
+        );
     }
 
     #[test]
     fn the_list_names_its_targets_as_the_image_does() {
         let replay = &race().replay;
-        let name =
-            |ida: usize| u32::from_le_bytes(crate::moved::image_bytes(ida, 4).try_into().unwrap());
-        let key_table = ReplayViewBlock::LIST + 0x10;
+        // The image's dword at byte `at` of the list.
+        let name = |at: usize| {
+            crate::test_support::first_values::dword(
+                "race.owner.RACE.replay.replay_view.viewer_list[0]/440",
+                at / 4,
+            )
+        };
+        let key_table = 0x10;
         assert_eq!(replay.replay_view.viewer_list[4].get(), name(key_table));
-        assert_eq!(
-            ReplayViewBlock::key_table().unwrap().game_ptr().addr() as usize,
-            crate::moved::place(name(key_table) as usize)
-        );
         for k in 0..26u32 {
-            let item = ReplayViewBlock::LIST + 0x18 + 0x10 * k as usize;
+            let item = 0x18 + 0x10 * k as usize;
             // Kept as the image's names; resolved to the same places.
             assert_eq!(
                 replay.replay_view.viewer_list[6 + 4 * k as usize + 1].get(),
@@ -180,10 +181,6 @@ mod tests {
             assert_eq!(
                 replay.replay_view.viewer_list[6 + 4 * k as usize + 3].get(),
                 name(item + 0xC)
-            );
-            assert_eq!(
-                ReplayViewBlock::item_place(k).unwrap().game_ptr().addr() as usize,
-                crate::moved::place(name(item + 4) as usize)
             );
             match ReplayViewBlock::item_picture(k).unwrap() {
                 ViewerPicture::Rectangle(ida) => assert_eq!(ida, name(item + 0xC) as usize),
@@ -194,20 +191,10 @@ mod tests {
     }
 
     #[test]
-    fn piece_has_its_home() {
+    fn fields_are_at_the_games_offsets() {
         assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            piece_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
-        assert_eq!(offset_of!(ReplayViewBlock, pad_frame), 0x5C2518 - START);
-        assert_eq!(
-            offset_of!(ReplayViewBlock, play_from_here),
-            0x5C253C - START
-        );
-        assert_eq!(
-            offset_of!(ReplayViewBlock, wait_key_release),
-            0x5C2554 - START
-        );
+        assert_eq!(offset_of!(ReplayViewBlock, pad_frame), 0x0);
+        assert_eq!(offset_of!(ReplayViewBlock, play_from_here), 0x24);
+        assert_eq!(offset_of!(ReplayViewBlock, wait_key_release), 0x3c);
     }
 }

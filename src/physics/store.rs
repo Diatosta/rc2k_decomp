@@ -651,18 +651,12 @@ pub const END: usize = 0x75B940;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moved::image_bytes;
     use crate::race::owner::race;
-    use core::mem::{offset_of, size_of};
+    use core::mem::offset_of;
 
     #[test]
     fn damage_starts_as_the_games() {
-        let size = size_of::<DamageModel>();
-        assert!(END - START <= size && size <= (END - START).next_multiple_of(4));
-        let mine = unsafe {
-            std::slice::from_raw_parts((&raw const race().physics.damage).cast::<u8>(), END - START)
-        };
-        assert_eq!(mine, &image_bytes(START, END - START)[..]);
+        crate::test_support::first_values::assert_block_starts_as_the_games(&race().physics.damage);
         let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
         at(offset_of!(DamageModel, lerp_tables), 0x75B4A8);
         at(offset_of!(DamageModel, gear_factors), 0x75B5AC);

@@ -7,7 +7,7 @@
 //!
 //! Callers: `drive::tyre_screen` (two), `drive::tyre_screen_parts` (ten).
 
-use crate::d3d::vertices_store::VERTICES;
+use crate::d3d::vertices_store::PolygonVertices;
 use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
 use crate::race::viewer_screen_store::ViewerPanelBlock;
@@ -22,9 +22,10 @@ pub fn tyre_quad(
     colour: u32,
     panel: &ViewerPanelBlock,
     system: &crate::system::owner::System,
+    buffer: &PolygonVertices,
 ) -> Result<(), Refused> {
     let rect = read_all(rect);
-    quad_of(uv, rect, colour, panel, system)
+    quad_of(uv, rect, colour, panel, system, buffer)
 }
 
 /// `tyre_quad` on rectangles held as cells.
@@ -35,8 +36,9 @@ pub fn tyre_quad_cells(
     colour: u32,
     panel: &ViewerPanelBlock,
     system: &crate::system::owner::System,
+    buffer: &PolygonVertices,
 ) -> Result<(), Refused> {
-    quad_of(read_all(uv), read_all(rect), colour, panel, system)
+    quad_of(read_all(uv), read_all(rect), colour, panel, system, buffer)
 }
 
 fn quad_of(
@@ -45,13 +47,14 @@ fn quad_of(
     colour: u32,
     panel: &ViewerPanelBlock,
     system: &crate::system::owner::System,
+    buffer: &PolygonVertices,
 ) -> Result<(), Refused> {
     let corners = quad_corners(rect);
     for (k, [x, y]) in corners.into_iter().enumerate() {
-        VERTICES.vertices[k].x.set(x);
-        VERTICES.vertices[k].y.set(y);
+        buffer.vertices[k].x.set(x);
+        buffer.vertices[k].y.set(y);
     }
-    quad_words(colour);
-    quad_tail(uv, panel, system);
-    draw()
+    quad_words(buffer, colour);
+    quad_tail(buffer, uv, panel, system);
+    draw(buffer)
 }

@@ -63,12 +63,6 @@ impl MarksClock {
 impl MarksClock {
     pub const START: usize = 0x764FC8;
     pub const LEN: usize = 0x34;
-    #[cfg(test)]
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    #[cfg(test)]
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const effects().setup.clock) as usize
-    }
 }
 
 const WAVE_DONE_TARGET: u32 = 0x4C4EA0; // nullsub_23
@@ -403,14 +397,13 @@ mod clock_k_tests {
         assert_eq!(size_of::<ClockK>(), ClockK::LEN);
         assert!(
             bytes(&effects().setup.clock_k)
-                == crate::moved::image_bytes(ClockK::START, ClockK::LEN),
+                == crate::test_support::first_values::bytes(
+                    "effects.owner.EFFECTS.setup.clock_k/8"
+                ),
             "CLOCK_K starts differently from the image"
         );
-        assert_eq!(
-            offset_of!(ClockK, first_reciprocal),
-            0x93CC10 - ClockK::START
-        );
-        assert_eq!(offset_of!(ClockK, ticks_scale), 0x93CC14 - ClockK::START);
+        assert_eq!(offset_of!(ClockK, first_reciprocal), 0x0);
+        assert_eq!(offset_of!(ClockK, ticks_scale), 0x4);
     }
 }
 
@@ -424,23 +417,19 @@ mod clock_tests {
         assert_eq!(size_of::<MarksClock>(), MarksClock::LEN);
         let bytes = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(MarksClock::home()).cast_const(),
+                (&raw const effects().setup.clock).cast::<u8>(),
                 MarksClock::LEN,
             )
         };
         assert!(
-            bytes == &crate::moved::image_bytes(MarksClock::START, MarksClock::LEN)[..],
+            bytes
+                == crate::test_support::first_values::bytes("effects.owner.EFFECTS.setup.clock/52"),
             "the clock starts differently from the image"
         );
-        let s = MarksClock::START;
-        assert_eq!(offset_of!(MarksClock, frame_ticks), 0x764FD0 - s);
-        assert_eq!(offset_of!(MarksClock, reciprocal), 0x764FE0 - s);
-        assert_eq!(offset_of!(MarksClock, now), 0x764FE8 - s);
-        assert_eq!(offset_of!(MarksClock, settings_copies), 0x764FF0 - s);
+        assert_eq!(offset_of!(MarksClock, frame_ticks), 0x8);
+        assert_eq!(offset_of!(MarksClock, reciprocal), 0x18);
+        assert_eq!(offset_of!(MarksClock, now), 0x20);
+        assert_eq!(offset_of!(MarksClock, settings_copies), 0x28);
         assert_eq!(size_of::<SettingsPointer>(), SettingsPointer::LEN);
-        assert_eq!(
-            crate::moved::place(SettingsPointer::START),
-            effects().setup.settings.is_set.addr() as usize
-        );
     }
 }

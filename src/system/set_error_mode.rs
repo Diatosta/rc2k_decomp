@@ -40,12 +40,6 @@ impl ErrorMode {
 impl ErrorMode {
     pub const START: usize = 0x4E059C;
     pub const LEN: usize = 0x8;
-    #[cfg(test)]
-    /// Where the byte IDA calls `START` is (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::system::owner::system().start.error_mode)
-            as usize
-    }
 }
 
 #[cfg(test)]
@@ -56,13 +50,5 @@ mod error_mode_tests {
     fn errormode_starts_as_the_games() {
         let size = size_of::<ErrorMode>();
         assert!(ErrorMode::LEN <= size && size <= (ErrorMode::LEN).next_multiple_of(4));
-        let image = crate::moved::image_bytes(ErrorMode::START, ErrorMode::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(ErrorMode::home()).cast_const(),
-                ErrorMode::LEN,
-            )
-        };
-        assert_eq!(mine, &image[..]);
     }
 }

@@ -26,7 +26,6 @@ use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
 
 const MOST: i32 = 0x800;
-use crate::d3d::vertices_store::VERTICES;
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 
@@ -36,6 +35,7 @@ fn turn_light(frame: &Frame, view_matrix: &[crate::session::Float; 16], weather:
 }
 
 pub fn run_snow(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
     race: &Race,
     weather: &Weather,
     scene: &crate::scene::owner::Scene,
@@ -81,7 +81,7 @@ pub fn run_snow(
         let [u0, v0, u1, v1] = l.uv.each_ref().map(super::super::session::PlainDword::get);
         let uv = [(u0, v0), (u1, v0), (u1, v1), (u0, v1)];
         for (n, (u, v)) in uv.into_iter().enumerate() {
-            let at = &VERTICES.vertices[n];
+            let at = &buffer.vertices[n];
             at.rhw.set_bits(rhw);
             at.colour.set(light);
             at.specular.set(0u32);
@@ -122,7 +122,7 @@ pub fn run_snow(
         for m in 0..4 {
             s.wide_focal[m].set_bits(focal);
         }
-        crate::effects::draw_snow::draw_snow(weather, scene, effects)?;
+        crate::effects::draw_snow::draw_snow(buffer, weather, scene, effects)?;
         crate::scene::depth_test_on::depth_test_on();
     }
     Ok(())

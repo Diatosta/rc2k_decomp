@@ -132,12 +132,6 @@ pub const END: usize = 0xA12AE4;
 
 const _: () = assert!(END - START == core::mem::size_of::<Checkpoints>());
 
-/// Where IDA 0x9E3738 is now.
-#[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::moved::place(START) as u32
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -162,21 +156,17 @@ mod tests {
     }
 
     #[test]
-    fn piece_sits_on_the_buffers() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            crate::moved::place(END - 1),
-            (piece_addr() + (END - START) as u32 - 1) as usize
-        );
-        assert_eq!(offset_of!(Checkpoints, check_counts), 0x9E87A0 - START);
-        assert_eq!(offset_of!(Checkpoints, angles), 0x9ED800 - START);
-        assert_eq!(offset_of!(Checkpoints, distances), 0x9F78D8 - START);
-        assert_eq!(offset_of!(Checkpoints, map_x), 0x9FC940 - START);
-        assert_eq!(offset_of!(Checkpoints, map_y), 0xA019A8 - START);
-        assert_eq!(offset_of!(Checkpoints, nearest_camera_1), 0xA06A10 - START);
-        assert_eq!(offset_of!(Checkpoints, nearest_camera_2), 0xA0BA78 - START);
-        assert_eq!(offset_of!(Checkpoints, line_length), 0xA10AE0 - START);
-        assert_eq!(offset_of!(Checkpoints, replay_cameras_1), 0xA10AE4 - START);
-        assert_eq!(offset_of!(Checkpoints, replay_cameras_2), 0xA11AE4 - START);
+    fn fields_are_at_the_games_offsets() {
+        assert_eq!(core::ptr::from_ref(&*CHECKPOINTS).addr() % 4, 0);
+        assert_eq!(offset_of!(Checkpoints, check_counts), 0x5068);
+        assert_eq!(offset_of!(Checkpoints, angles), 0xa0c8);
+        assert_eq!(offset_of!(Checkpoints, distances), 0x141a0);
+        assert_eq!(offset_of!(Checkpoints, map_x), 0x19208);
+        assert_eq!(offset_of!(Checkpoints, map_y), 0x1e270);
+        assert_eq!(offset_of!(Checkpoints, nearest_camera_1), 0x232d8);
+        assert_eq!(offset_of!(Checkpoints, nearest_camera_2), 0x28340);
+        assert_eq!(offset_of!(Checkpoints, line_length), 0x2d3a8);
+        assert_eq!(offset_of!(Checkpoints, replay_cameras_1), 0x2d3ac);
+        assert_eq!(offset_of!(Checkpoints, replay_cameras_2), 0x2e3ac);
     }
 }

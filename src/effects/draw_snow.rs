@@ -27,7 +27,6 @@ use crate::errors::{BadInput, Refused};
 const MOST: i32 = 0x800;
 const CURVE: u32 = 4095;
 const FADES: u32 = 17;
-use crate::d3d::vertices_store::VERTICES;
 /// The flake's whole-number place turned by the view.
 fn turn(weather: &Weather, v: &[u32; 3]) {
     turn_x87(&v[..], &weather.snow);
@@ -39,7 +38,7 @@ fn fade(weather: &Weather, effects: &crate::effects::owner::Effects) {
 }
 
 /// The projected square, its depth and u.
-fn square(weather: &Weather, i: u32) {
+fn square(buffer: &crate::d3d::vertices_store::PolygonVertices, weather: &Weather, i: u32) {
     let mut w = [0u32; 32];
     square_x87(
         crate::scene::x87_mem::cells(&mut w),
@@ -48,7 +47,7 @@ fn square(weather: &Weather, i: u32) {
         &weather.snow,
         &weather.snow_light,
     );
-    for (vertex, w) in VERTICES.vertices.iter().zip(w.as_chunks::<8>().0) {
+    for (vertex, w) in buffer.vertices.iter().zip(w.as_chunks::<8>().0) {
         vertex.x.set_bits(w[0]);
         vertex.y.set_bits(w[1]);
         vertex.z.set_bits(w[2]);
@@ -102,6 +101,7 @@ fn refusal(weather: &Weather, effects: &crate::effects::owner::Effects) -> Optio
 }
 
 pub fn draw_snow(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
     weather: &Weather,
     scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
@@ -135,21 +135,21 @@ pub fn draw_snow(
                     }
                     let colour = snow_light.fade_colours[index as usize].get();
                     for n in 0..4 {
-                        VERTICES.vertices[n].colour.set(colour);
+                        buffer.vertices[n].colour.set(colour);
                     }
                 }
-                square(weather, 4 * k);
+                square(buffer, weather, 4 * k);
                 let [top, bottom] = snow_light
                     .v
                     .each_ref()
                     .map(super::super::session::PlainDword::get);
                 for n in 0..4 {
-                    VERTICES.vertices[n]
+                    buffer.vertices[n]
                         .v
                         .set_bits(if n < 2 { top } else { bottom });
                 }
-                if !clip_quad(effects)? {
-                    draw_fan(scene);
+                if !clip_quad(buffer, effects)? {
+                    draw_fan(buffer, scene);
                     snow.drawn.set(snow.drawn.get().wrapping_add(1));
                     crate::scene::polygon_work::front_end()
                         .polygon_vertex_count

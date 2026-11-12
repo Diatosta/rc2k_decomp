@@ -35,14 +35,11 @@ pub fn value_at(ida: usize) -> Option<u32> {
 mod tests {
     #[test]
     fn every_place_is_a_variable_of_the_image() {
-        // Each figure's place resolves, outside the dead bytes of the race block.
+        // Each figure is a field of its own or is read from the race block's bytes.
         let groups = crate::debug::display_rows::GROUPS.iter();
         for group in groups.chain(crate::debug::watch_rows::GROUPS) {
             for row in group.rows {
                 let at = row.at();
-                let place = crate::moved::place(at) as u32;
-                assert!(!crate::race::store::is_dead(place), "{at:#x}");
-                // A row without a field of its own is read from the race block's bytes.
                 assert!(row.is_typed() || super::value_at(at).is_some(), "{at:#x}");
             }
         }

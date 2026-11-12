@@ -246,32 +246,16 @@ mod kind21_set_tests {
         assert_eq!(size_of::<RollingRatedSet>(), RollingRatedSet::LEN);
         assert!(
             bytes(&crate::effects::owner::effects().particles.kind21_set)
-                == crate::moved::image_bytes(RollingRatedSet::START, RollingRatedSet::LEN),
+                == crate::test_support::first_values::bytes(
+                    "effects.owner.EFFECTS.particles.kind21_set/136"
+                ),
             "KIND21_SET starts differently from the image"
         );
-        assert_eq!(
-            offset_of!(RollingRatedSet, rate_k),
-            0x93A312 - RollingRatedSet::START
-        );
-        assert_eq!(
-            offset_of!(RollingRatedSet, side_random),
-            0x93A322 - RollingRatedSet::START
-        );
-        assert_eq!(
-            offset_of!(RollingRatedSet, lift),
-            0x93A326 - RollingRatedSet::START
-        );
-        assert_eq!(
-            offset_of!(RollingRatedSet, motion_k),
-            0x93A32A - RollingRatedSet::START
-        );
-        assert_eq!(
-            offset_of!(RollingRatedSet, spin_random),
-            0x93A34E - RollingRatedSet::START
-        );
-        assert_eq!(
-            offset_of!(RollingRatedSet, size_k),
-            0x93A352 - RollingRatedSet::START
-        );
+        assert_eq!(offset_of!(RollingRatedSet, rate_k), 0x0);
+        assert_eq!(offset_of!(RollingRatedSet, side_random), 0x10);
+        assert_eq!(offset_of!(RollingRatedSet, lift), 0x14);
+        assert_eq!(offset_of!(RollingRatedSet, motion_k), 0x18);
+        assert_eq!(offset_of!(RollingRatedSet, spin_random), 0x3c);
+        assert_eq!(offset_of!(RollingRatedSet, size_k), 0x40);
     }
 }

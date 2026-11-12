@@ -67,14 +67,6 @@ pub const END: usize = 0x60B0BD;
 
 const _: () = assert!(END - START == core::mem::size_of::<LevelPaths>());
 
-/// Where IDA 0x60AF0C is now.
-#[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(
-        &crate::race::owner::RACE.course.level_paths,
-    ))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -82,25 +74,19 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
+        crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::race::owner::RACE.course.level_paths,
-            START,
-            END,
         );
     }
 
     #[test]
-    fn piece_has_its_home() {
-        assert_eq!(
-            crate::moved::place(END - 1),
-            (piece_addr() + (END - START) as u32 - 1) as usize
-        );
-        assert_eq!(offset_of!(LevelPaths, picture_gravel), 0x60AF45 - START);
-        assert_eq!(offset_of!(LevelPaths, second_a), 0x60AF8F - START);
-        assert_eq!(offset_of!(LevelPaths, edit_path), 0x60B012 - START);
-        assert_eq!(offset_of!(LevelPaths, cdat_src), 0x60B02B - START);
-        assert_eq!(offset_of!(LevelPaths, localdat_files), 0x60B05C - START);
-        assert_eq!(offset_of!(LevelPaths, cdat_files), 0x60B07A - START);
-        assert_eq!(offset_of!(LevelPaths, files_s), 0x60B0B2 - START);
+    fn fields_are_at_the_games_offsets() {
+        assert_eq!(offset_of!(LevelPaths, picture_gravel), 0x39);
+        assert_eq!(offset_of!(LevelPaths, second_a), 0x83);
+        assert_eq!(offset_of!(LevelPaths, edit_path), 0x106);
+        assert_eq!(offset_of!(LevelPaths, cdat_src), 0x11f);
+        assert_eq!(offset_of!(LevelPaths, localdat_files), 0x150);
+        assert_eq!(offset_of!(LevelPaths, cdat_files), 0x16e);
+        assert_eq!(offset_of!(LevelPaths, files_s), 0x1a6);
     }
 }

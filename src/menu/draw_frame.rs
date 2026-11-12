@@ -24,7 +24,7 @@ pub fn draw_frame(
     if lock_failed() {
         return Ok(());
     }
-    draw_menu(menus, menu)?;
+    draw_menu(o, menu)?;
     crate::menu::run_draw_list::run_draw_list(o)?;
     crate::platform::unlock_surface();
     Ok(())

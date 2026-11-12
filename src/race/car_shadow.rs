@@ -12,16 +12,12 @@ use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::Car;
 use crate::physics::ground_query::{GroundCells, GroundQuery};
-#[cfg(all(test, target_arch = "x86"))]
-use crate::pointers::GamePtr;
 use crate::race::owner::Race;
-#[cfg(all(test, target_arch = "x86"))]
-use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::race::scene_points::{point_word, point_xz, put_point_word};
 use crate::race::shadow_skids_store::ShadowPoint;
 use crate::race::trap::Trap;
-use crate::scene::polygon_store::{POLYGON_WORK, PolygonEntry};
+use crate::scene::polygon_store::PolygonEntry;
 use crate::session::{Byte, Dword, Float, copy_on_in, read_on_in, write_on_in};
 
 /// The shadow's working state: what `cast_car_shadows` writes and reads within itself, one
@@ -227,7 +223,11 @@ fn circle_place(e: &PolygonEntry, k: u32, n: u32, radius: u32, unit: u32) {
 /// circle's texture place: cos / sin of 2 pi k / n times `CIRCLE[0]` plus it, rounded, over
 /// `CIRCLE[1]`). Refuses (before anything) a hull of no points (its loop tests at its end) or more
 /// than 0x40.
-pub fn shadow_polygon(race: &Race, work: &ShadowWork) -> Result<(), Refused> {
+pub fn shadow_polygon(
+    polygon_work: &'static crate::scene::polygon_store::PolygonWork,
+    race: &Race,
+    work: &ShadowWork,
+) -> Result<(), Refused> {
     let n: u32 = work.hull_count.get();
     if n == 0 || n > 0x40 {
         return Err(BadInput("a shadow hull of no points or more than 0x40").into());
@@ -242,7 +242,7 @@ pub fn shadow_polygon(race: &Race, work: &ShadowWork) -> Result<(), Refused> {
         put_point_word(&race.course, point, 0, record.x.get())?;
         put_point_word(&race.course, point, 2, record.z.get())?;
         put_point_word(&race.course, point, 1, work.ground.get())?;
-        let e = &POLYGON_WORK.entries[k as usize];
+        let e = &polygon_work.entries[k as usize];
         e.point.set(point);
         e.light.set(0x00FF_FFFFu32);
         e.amount
@@ -253,8 +253,11 @@ pub fn shadow_polygon(race: &Race, work: &ShadowWork) -> Result<(), Refused> {
 }
 
 /// A polygon work entry's address (`POLYGON_WORK.entries` + 0x44 x n).
-fn work_entry(n: u32) -> Result<&'static PolygonEntry, BadInput> {
-    POLYGON_WORK
+fn work_entry(
+    polygon_work: &'static crate::scene::polygon_store::PolygonWork,
+    n: u32,
+) -> Result<&'static PolygonEntry, BadInput> {
+    polygon_work
         .entries
         .get(n as usize)
         .ok_or(BadInput("a polygon work entry past 0x80"))
@@ -387,7 +390,7 @@ fn clip_to_edge(
     work.edge[3].set(tz);
     work.edge[0].set(fx);
     work.edge[1].set(fz);
-    let (list, old) = (&POLYGON_WORK.list, &POLYGON_WORK.old_list);
+    let (list, old) = (&ctx.part.polygon.list, &ctx.part.polygon.old_list);
     copy_on_in(
         (&race.shared.buffers, list),
         (&race.shared.buffers, old),
@@ -419,7 +422,7 @@ fn clip_to_edge(
             })
         },
         |e| {
-            let entry = match work_entry(e) {
+            let entry = match work_entry(ctx.part.polygon, e) {
                 Ok(x) => x.point.get(),
                 Err(err) => {
                     trap.keep(err);
@@ -433,8 +436,15 @@ fn clip_to_edge(
         },
         |a, b| {
             let next: u32 = ctx.view.polygon.polygon_next_entry.get();
-            let crossing =
-                (|| edge_crossing(ctx, work, work_entry(a)?, work_entry(b)?, work_entry(next)?))();
+            let crossing = (|| {
+                edge_crossing(
+                    ctx,
+                    work,
+                    work_entry(ctx.part.polygon, a)?,
+                    work_entry(ctx.part.polygon, b)?,
+                    work_entry(ctx.part.polygon, next)?,
+                )
+            })();
             if let Err(err) = crossing {
                 trap.keep(err);
             }
@@ -504,9 +514,14 @@ pub fn clip_shadow_to_face(
 /// the face's corners (into `GROUND_WORK.face_corner_numbers` ..) and the point (into `GROUND_WORK.ground_x` /
 /// `GROUND_WORK.ground_z`) through `physics::face_shares` and `physics::plane_height`, its y the
 /// height (`GROUND_WORK.ground_height`) plus `work.lift`.
-fn raise_onto_face(race: &Race, work: &ShadowWork, index: u32) -> Result<(), Refused> {
+fn raise_onto_face(
+    polygon_work: &'static crate::scene::polygon_store::PolygonWork,
+    race: &Race,
+    work: &ShadowWork,
+    index: u32,
+) -> Result<(), Refused> {
     use crate::physics::ground::face_shares_at;
-    let p = work_entry(index)?.point.get();
+    let p = work_entry(polygon_work, index)?.point.get();
     let q = work.query(race);
     for k in 0..3 {
         q.corner_numbers[k].set(work.face_corners[k].get());
@@ -544,7 +559,7 @@ pub fn shadow_on_face(
         return Err(BadInput("a shadow list past 0x40").into());
     }
     ctx.view.polygon.polygon_drawn.set(0u32);
-    let list = &POLYGON_WORK.list;
+    let list = &ctx.part.polygon.list;
     copy_on_in(
         (work, &work.list),
         (&race.shared.buffers, list),
@@ -580,13 +595,20 @@ pub fn shadow_on_face(
     let n: u32 = ctx.view.polygon.polygon_vertex_count.get();
     for k in 0..n {
         raise_onto_face(
+            ctx.part.polygon,
             race,
             work,
             read_on_in(&race.shared.buffers, list, k as usize, "the polygon list")?,
         )?;
     }
-    crate::scene::project_polygon::project_polygon(&ctx.view.polygon, race, scene, ctx.view)?;
-    crate::scene::fog_polygon::fog_polygon(ctx.view)?;
+    crate::scene::project_polygon::project_polygon(
+        ctx.part.polygon,
+        &ctx.view.polygon,
+        race,
+        scene,
+        ctx.view,
+    )?;
+    crate::scene::fog_polygon::fog_polygon(ctx.part.polygon, ctx.view)?;
     ctx.view
         .polygon
         .polygon_next_record
@@ -597,6 +619,7 @@ pub fn shadow_on_face(
             return Ok(());
         }
         crate::scene::clip_polygon_by_depth::clip_polygon_by_depth(
+            ctx.part.polygon,
             &ctx.view.polygon,
             race,
             scene,
@@ -607,7 +630,11 @@ pub fn shadow_on_face(
             return Ok(());
         }
     }
-    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(&ctx.view.polygon, race)?;
+    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(
+        ctx.part.polygon,
+        &ctx.view.polygon,
+        race,
+    )?;
     if ctx.view.polygon.polygon_vertex_count.get() < 3 {
         return Ok(());
     }
@@ -618,6 +645,7 @@ pub fn shadow_on_face(
     ctx.view.face.polygon_mode.set(5u32);
     crate::scene::draw_polygon::draw_polygon_in_game(
         &ctx.view.polygon,
+        ctx.part,
         race,
         &ctx.view.face,
         scene,
@@ -821,7 +849,7 @@ pub fn cast_car_shadow(
     if !hull_drawn(work.hull_count.get()) {
         return Ok(());
     }
-    shadow_polygon(race, work)?;
+    shadow_polygon(ctx.part.polygon, race, work)?;
     let n: u32 = work.hull_count.get();
     work.list_count.set(n);
     for k in hull_list(n) {
@@ -965,193 +993,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn inside_edge_asm(n: u32, points: &[u32]) -> bool {
-        let physics = &race().physics;
-        unsafe {
-            physics.ground.ground_x.set(points[3 * n as usize]);
-            physics.ground.ground_z.set(points[3 * n as usize + 2]);
-            let status: u16;
-            let old = crate::race::store::OldPlaces::lay(&[
-                0x639824, 0x63982c, 0x641948, 0x64194c, 0x641950, 0x641954,
-            ]);
-            core::arch::asm!(
-                "fild dword ptr [{rc} + 0x239824]",
-                "fild dword ptr [{rc} + 0x241948]",
-                ".byte 0xDE, 0xE9",
-                "fild dword ptr [{rc} + 0x241954]",
-                "fild dword ptr [{rc} + 0x24194C]",
-                ".byte 0xDE, 0xE9",
-                ".byte 0xDE, 0xC9",
-                "fild dword ptr [{rc} + 0x23982C]",
-                "fild dword ptr [{rc} + 0x24194C]",
-                ".byte 0xDE, 0xE9",
-                "fild dword ptr [{rc} + 0x241950]",
-                "fild dword ptr [{rc} + 0x241948]",
-                ".byte 0xDE, 0xE9",
-                ".byte 0xDE, 0xC9",
-                ".byte 0xDE, 0xE9",
-                ".byte 0xD9, 0xEE",
-                ".byte 0xDE, 0xD9",
-                "fnstsw ax",
-                rc = in(reg) crate::race::store::asm_base(),
-                out("ax") status,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-            drop(old);
-            status & 0x0100 != 0
-        }
-    }
-
-    pub(super) unsafe fn crossing_block_asm(pa: u32, pb: u32, ea: u32, eb: u32) {
-        unsafe {
-            let old = crate::race::store::OldPlaces::lay(&[
-                0x623f88, 0x623f90, 0x623fa8, 0x623fac, 0x62400c, 0x62419c, 0x6241ac, 0x639810,
-                0x641978, 0x64197c, 0x641980, 0x641984, 0x641988, 0x64198c,
-            ]);
-            core::arch::asm!(
-                "fild dword ptr [{rc} + 0x241978]",
-                "fild dword ptr [{rc} + 0x24197C]",
-                "fild dword ptr [{rc} + 0x241980]",
-                "fild dword ptr [{rc} + 0x241984]",
-                ".byte 0xD8, 0xCB",
-                ".byte 0xD9, 0xC9",
-                ".byte 0xD8, 0xCA",
-                ".byte 0xDE, 0xE9",
-                "fild dword ptr [{rc} + 0x241988]",
-                "fild dword ptr [{rc} + 0x24198C]",
-                ".byte 0xD8, 0xCC",
-                ".byte 0xD9, 0xC9",
-                ".byte 0xD8, 0xCB",
-                ".byte 0xDE, 0xE9",
-                ".byte 0xD8, 0xE1",
-                ".byte 0xDE, 0xF9",
-                ".byte 0xD9, 0xE0",
-                "fstp dword ptr [{rc} + 0x239810]",
-                "fstp dword ptr [{rc} + 0x22400C]",
-                "fstp dword ptr [{rc} + 0x22400C]",
-                "fld dword ptr [{rc} + 0x239810]",
-                "fild dword ptr [{pa}]",
-                "fild dword ptr [{pb}]",
-                ".byte 0xD8, 0xE1",
-                ".byte 0xD8, 0xCA",
-                ".byte 0xDE, 0xC1",
-                "fistp dword ptr [{rc} + 0x223F88]",
-                "fild dword ptr [{pa} + 8]",
-                "fild dword ptr [{pb} + 8]",
-                ".byte 0xD8, 0xE1",
-                ".byte 0xD8, 0xCA",
-                ".byte 0xDE, 0xC1",
-                "fistp dword ptr [{rc} + 0x223F90]",
-                "fld dword ptr [{ea} + 0x10]",
-                "fld dword ptr [{eb} + 0x10]",
-                ".byte 0xD8, 0xE1",
-                ".byte 0xD8, 0xCA",
-                ".byte 0xDE, 0xC1",
-                "fstp dword ptr [{rc} + 0x223FA8]",
-                "fld dword ptr [{ea} + 0x14]",
-                "fld dword ptr [{eb} + 0x14]",
-                ".byte 0xD8, 0xE1",
-                ".byte 0xD8, 0xCA",
-                ".byte 0xDE, 0xC1",
-                "fstp dword ptr [{rc} + 0x223FAC]",
-                "xor eax, eax",
-                "mov al, byte ptr [{ea} + 0x21]",
-                "mov dword ptr [{rc} + 0x22400C], eax",
-                "fild dword ptr [{rc} + 0x22400C]",
-                "mov al, byte ptr [{eb} + 0x21]",
-                "mov dword ptr [{rc} + 0x22400C], eax",
-                "fild dword ptr [{rc} + 0x22400C]",
-                ".byte 0xD8, 0xE1",
-                ".byte 0xD8, 0xCA",
-                ".byte 0xDE, 0xC1",
-                "fistp dword ptr [{rc} + 0x22419C]",
-                "xor eax, eax",
-                "mov al, byte ptr [{ea} + 0x20]",
-                "mov dword ptr [{rc} + 0x22400C], eax",
-                "fild dword ptr [{rc} + 0x22400C]",
-                "mov al, byte ptr [{eb} + 0x20]",
-                "mov dword ptr [{rc} + 0x22400C], eax",
-                "fild dword ptr [{rc} + 0x22400C]",
-                ".byte 0xD8, 0xE1",
-                ".byte 0xD8, 0xCA",
-                ".byte 0xDE, 0xC1",
-                "fistp dword ptr [{rc} + 0x2241AC]",
-                "fstp dword ptr [{rc} + 0x22400C]",
-                rc = in(reg) crate::race::store::asm_base(),
-                pa = in(reg) pa,
-                pb = in(reg) pb,
-                ea = in(reg) ea,
-                eb = in(reg) eb,
-                out("eax") _,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-            drop(old);
-        }
-    }
-
-    pub(super) unsafe fn sun_slant_asm(sun: u32, turn: u32) {
-        unsafe {
-            let v = [sun, 0x80u32, turn];
-            let old = crate::race::store::OldPlaces::lay(&[0x62400c, 0x643ac4, 0x643ac8]);
-            core::arch::asm!(
-                "mov eax, dword ptr [{v}]",
-                "mov dword ptr [{rc} + 0x22400C], eax",
-                "fild dword ptr [{rc} + 0x22400C]",
-                "mov dword ptr [{rc} + 0x22400C], 0x80",
-                "fild dword ptr [{rc} + 0x22400C]",
-                ".byte 0xDE, 0xF9",
-                "fldpi",
-                ".byte 0xDE, 0xC9",
-                "fsincos",
-                ".byte 0xDE, 0xF1",
-                "mov eax, dword ptr [{v} + 8]",
-                "mov dword ptr [{rc} + 0x22400C], eax",
-                "fild dword ptr [{rc} + 0x22400C]",
-                "mov dword ptr [{rc} + 0x22400C], 0x80",
-                "fild dword ptr [{rc} + 0x22400C]",
-                ".byte 0xDE, 0xF9",
-                "fldpi",
-                ".byte 0xDE, 0xC9",
-                "fsincos",
-                ".byte 0xD8, 0xCA",
-                "fstp dword ptr [{rc} + 0x243AC4]",
-                ".byte 0xDE, 0xC9",
-                "fstp dword ptr [{rc} + 0x243AC8]",
-                rc = in(reg) crate::race::store::asm_base(),
-                v = in(reg) v.as_ptr(),
-                out("eax") _,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-            drop(old);
-        }
-    }
-
-    pub(super) unsafe fn angle_asm(at: u32) -> u32 {
-        unsafe {
-            let mut angle = 0u32;
-            core::arch::asm!(
-                "fld dword ptr [{a}]",
-                "fld dword ptr [{a} + 8]",
-                "fpatan",
-                "fstp dword ptr [{o}]",
-                a = in(reg) at,
-                o = in(reg) &raw mut angle,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-            angle
-        }
-    }
-
-    use crate::framework::{game_read, game_write, rva};
-    use crate::race::asm_test::{Rng, Saved, at_each_control_word, lock, same, within_ulps};
+    use crate::race::asm_test::{Rng, at_each_control_word, lock, same};
 
     #[test]
     fn two_pi_plus_matches() {
@@ -1204,11 +1046,8 @@ mod asm_reference {
                 let radius = r.float();
                 let unit = r.float();
                 let mut a = [0xAAAA_AAAAu32; 17];
-                let cells: [Dword; 17] = std::array::from_fn(|_| Dword::new(0xAAAA_AAAA));
-                let _r = crate::race::trap::test_region(&cells);
-                let entry = GamePtr::new(crate::pointers::game_address(cells.as_ptr()))
-                    .record::<PolygonEntry>("the test's entry")
-                    .expect("the test's memory is registered");
+                let entry = super::vector_tests::entry_of([0xAAAA_AAAA; 17]);
+                let cells = crate::pointers::dwords_in::<_, 17>(&entry, 0);
                 unsafe {
                     circle_place_asm(
                         crate::pointers::game_address(a.as_mut_ptr()),
@@ -1218,7 +1057,7 @@ mod asm_reference {
                         unit,
                     );
                 }
-                circle_place(entry, k, n, radius, unit);
+                circle_place(&entry, k, n, radius, unit);
                 let b: [u32; 17] = std::array::from_fn(|w| cells[w].get());
                 for w in [4, 5] {
                     assert!(
@@ -1235,79 +1074,90 @@ mod asm_reference {
         });
         eprintln!("circle_place: worst difference {worst} ulps");
     }
+}
+
+/// The blocks that read the race's state against the original's outputs, recorded
+/// (`test_support::race_vectors`).
+#[cfg(test)]
+mod vector_tests {
+    use super::*;
+    use crate::race::asm_test::{Rng, at_each_control_word, lock, same, within_ulps};
+    use crate::race::owner::race;
+    use crate::test_support::race_vectors::{Kind, Vectors};
+    use crate::test_support::state::Snapshot;
+
+    /// A polygon entry of the words `words`.
+    pub(super) fn entry_of(words: [u32; 17]) -> PolygonEntry {
+        let mut bytes = [0u8; 68];
+        for (b, w) in bytes.as_chunks_mut::<4>().0.iter_mut().zip(words) {
+            b.copy_from_slice(&w.to_le_bytes());
+        }
+        crate::pointers::cells_of_bytes(bytes)
+    }
 
     #[test]
-    fn inside_edge_matches() {
-        let race = race();
+    fn inside_edge_is_the_originals() {
         let _l = lock();
-        let places = [
-            0x639824, 0x63982C, 0x641948, 0x64194C, 0x641950, 0x641954, 0x5CCCC0,
-        ];
-        let _saved = Saved::new(&places);
+        let kept = Snapshot::of(&[
+            "race.owner.RACE.physics.ground",
+            "race.owner.RACE.frame.frame_work",
+            "race.owner.RACE.course.course",
+        ]);
+        let mut vectors = Vectors::open("race.car_shadow.inside_edge", Kind::Exact, 3);
         let mut r = Rng(24);
         let mut points = [0u32; 12];
-        let _region = crate::race::trap::test_region(&points);
         let (mut yes, mut no) = (0, 0);
         at_each_control_word(|| {
             for _ in 0..20000 {
                 for q in points.iter_mut() {
                     *q = r.int() as u32;
                 }
-                race.course
-                    .course
-                    .scene_points
-                    .set(crate::pointers::game_address(points.as_ptr()));
-                for a in &places[2..6] {
-                    game_write(rva(*a), r.int() as u32);
-                }
-                race.physics.ground.ground_x.set(0xAAAA_AAAAu32);
-                race.physics.ground.ground_z.set(0xAAAA_AAAAu32);
+                let edge: [u32; 4] = std::array::from_fn(|_| r.int() as u32);
                 let n = r.below(4);
-                let want = unsafe { inside_edge_asm(n, &points) };
-                let seen = (
-                    race.physics.ground.ground_x.get(),
-                    race.physics.ground.ground_z.get(),
-                );
-                // The edge the original read at 0x641948 .., the shadow's own work holds it.
                 let work = ShadowWork::new();
-                for (k, a) in places[2..6].iter().enumerate() {
-                    work.edge[k].set(game_read::<u32>(rva(*a)));
+                for (cell, &e) in work.edge.iter().zip(&edge) {
+                    cell.set(e);
                 }
-                let got = crate::race::scene_points::with_test_points(&points, || {
-                    inside_edge(&crate::race::owner::race().course, &work, n)
+                let inside = crate::race::scene_points::with_test_points(&points, || {
+                    inside_edge(&race().course, &work, n)
                 })
                 .expect("the test's memory is registered");
-                assert_eq!(want, got, "{points:x?} {n}");
-                // The point the original left in `GROUND_WORK`, the shadow's own search in the
-                // shadow's own search fields.
+                // The point the original left in the ground work, the shadow's own search in
+                // the shadow's own search fields.
                 let q = work.search.query();
-                assert_eq!(seen, (q.x.get(), q.z.get()));
-                if want { yes += 1 } else { no += 1 }
+                let got = [inside as u32, q.x.get(), q.z.get()];
+                vectors.check(&got, |a, b| a == b, || format!("{points:x?} {edge:x?} {n}"));
+                if got[0] != 0 { yes += 1 } else { no += 1 }
             }
         });
+        kept.restore();
+        vectors.finish();
         assert!(yes > 1000 && no > 1000, "{yes} {no}");
     }
 
     #[test]
-    fn crossing_block_matches() {
+    fn crossing_block_is_the_originals() {
         let _l = lock();
-        let places = [
-            0x62400C, 0x641978, 0x64197C, 0x641980, 0x641984, 0x641988, 0x64198C, 0x639810,
-            0x623F88, 0x623F90, 0x623FA8, 0x623FAC, 0x62419C, 0x6241AC,
-        ];
-        let _saved = Saved::new(&places);
+        let kept = Snapshot::of(&[
+            "scene.owner.SCENE.drawing.scene",
+            "race.owner.RACE.frame.frame_work",
+            "race.owner.RACE.physics.ground",
+        ]);
+        let mut vectors = Vectors::open("race.car_shadow.crossing_block", Kind::Exact, 13);
         let mut r = Rng(25);
         at_each_control_word(|| {
             for _ in 0..20000 {
                 let small = r.below(2) == 0;
-                for a in &places[1..7] {
+                // The work dwords the original read from its frame work, the shadow's own in
+                // its work.
+                let inputs: [u32; 6] = std::array::from_fn(|_| {
                     let v = if small {
                         r.below(200) as i32 - 100
                     } else {
                         r.int()
                     };
-                    game_write(rva(*a), v as u32);
-                }
+                    v as u32
+                });
                 let point = |r: &mut Rng| [r.int() as u32, r.u32(), r.int() as u32];
                 let (pa, pb) = (point(&mut r), point(&mut r));
                 let entry = |r: &mut Rng| {
@@ -1322,117 +1172,56 @@ mod asm_reference {
                     e
                 };
                 let (ea, eb) = (entry(&mut r), entry(&mut r));
-                let (_r1, _r2, _r3, _r4) = (
-                    crate::race::trap::test_region(&pa),
-                    crate::race::trap::test_region(&pb),
-                    crate::race::trap::test_region(&ea),
-                    crate::race::trap::test_region(&eb),
-                );
-                let args = (
-                    crate::pointers::game_address(pa.as_ptr()),
-                    crate::pointers::game_address(pb.as_ptr()),
-                    crate::pointers::game_address(ea.as_ptr()),
-                    crate::pointers::game_address(eb.as_ptr()),
-                );
-                let read = || places.map(|a| game_read::<u32>(rva(a)));
-                for a in &places[7..] {
-                    game_write(rva(*a), 0xAAAA_AAAAu32);
-                }
-                unsafe { crossing_block_asm(args.0, args.1, args.2, args.3) };
-                let want = read();
-                for a in &places[7..] {
-                    game_write(rva(*a), 0xAAAA_AAAAu32);
-                }
-                // The work dwords the original read at 0x641978 .., the shadow's own in its
-                // work.
                 let work = ShadowWork::new();
                 let poly = crate::scene::polygon_work::PolygonWork::new();
-                for (k, a) in places[1..7].iter().enumerate() {
-                    work.crossing[8 + k].set(game_read::<u32>(rva(*a)));
+                for (k, &v) in inputs.iter().enumerate() {
+                    work.crossing[8 + k].set(v);
                 }
                 let both = [pa, pb].concat();
+                let (a, b) = (entry_of(ea), entry_of(eb));
                 crate::race::scene_points::with_test_points(&both, || {
-                    let entry = |a: u32| {
-                        GamePtr::new(a)
-                            .record::<PolygonEntry>("the test's entry")
-                            .expect("the test's memory is registered")
-                    };
-                    crossing_block(
-                        &crate::race::owner::race().course,
-                        &poly,
-                        &work,
-                        0,
-                        1,
-                        entry(args.2),
-                        entry(args.3),
-                    )
+                    crossing_block(&race().course, &poly, &work, 0, 1, &a, &b)
                 })
                 .expect("the test's memory is registered");
-                // The shadow code writes the view's work: put its pieces where `read` looks.
-                let old = &crate::scene::owner::scene().drawing.scene;
+                // The inputs, `plane_f` (kept in the shadow's own search fields) and the
+                // view's work the block writes.
+                let mut got = inputs.to_vec();
+                got.push(work.search.query().plane_f.bits());
                 for k in [2, 4, 10, 11] {
-                    old.clip_work[k].set(poly.clip_work[k].get());
+                    got.push(poly.clip_work[k].bits());
                 }
-                old.clip_out_words[0].set(poly.clip_out_words[0].get());
-                old.crossing_amount.set(poly.crossing_amount.get());
-                let mut got = read();
-                // `plane_f` (0x639810) is kept in the shadow's own search fields.
-                got[7] = work.search.query().plane_f.bits();
-                // Place 0 (0x62400C, the assembly's spill dword) is not kept.
-                for k in 1..places.len() {
-                    assert!(
-                        same(want[k], got[k]),
-                        "place {:#x}: {:#x} {:#x} (inputs {:x?})",
-                        places[k],
-                        want[k],
-                        got[k],
-                        &want[1..7]
-                    );
-                }
+                got.push(poly.crossing_amount.get());
+                got.push(poly.clip_out_words[0].get());
+                vectors.check(&got, same, || format!("inputs {inputs:x?}"));
             }
         });
+        kept.restore();
+        vectors.finish();
     }
 
     #[test]
-    fn sun_slant_and_angle_match() {
+    fn sun_slant_and_angle_are_the_originals() {
         let _l = lock();
-        let _saved = Saved::new(&[0x62400C, 0x643AC4, 0x643AC8]);
+        let kept = Snapshot::of(&[
+            "scene.owner.SCENE.drawing.scene",
+            "race.owner.RACE.frame.shadow_skids",
+        ]);
+        let mut vectors = Vectors::open("race.car_shadow.sun_slant_and_angle", Kind::Close, 3);
         let mut r = Rng(26);
-        let mut worst = 0;
         at_each_control_word(|| {
-            for _ in 0..20000 {
+            for _ in 0..4096 {
                 let sun = 0x10 + r.below(0x400);
                 let turn = (r.below(0x800) as i32 - 0x400) as u32;
                 // At a multiple of a quarter turn (sun 0x40, ...) the sine or the cosine is
                 // about 1e-16: the x87 reduces by a 66-bit pi, libm exactly, so those few
-                // digits differ (shadow_skids.slant_x and shadow_skids.slant_z are then about 1e-17 or 1e16 in
-                // the original, whatever the processor). Left out here, reported.
+                // digits differ (the slants are then about 1e-17 or 1e16 in the original,
+                // whatever the processor). Left out here.
                 if sun.is_multiple_of(64) || turn.is_multiple_of(64) {
                     continue;
                 }
-                unsafe { sun_slant_asm(sun, turn) };
-                let want = [0x62400C, 0x643AC4, 0x643AC8].map(|a| game_read::<u32>(rva(a)));
-                for a in [0x62400C, 0x643AC4, 0x643AC8] {
-                    game_write(rva(a), 0xAAAA_AAAAu32);
-                }
                 let work = ShadowWork::new();
                 sun_slant(&work, sun, turn);
-                // The assembly's 0x80 store to 0x62400C (want[0]) is not kept.
-                let got = [0, work.slant_x.bits(), work.slant_z.bits()];
-                for k in 1..3 {
-                    assert!(
-                        within_ulps(want[k], got[k], 1),
-                        "{sun:#x} {turn:#x}: {:#x} {:#x}",
-                        want[k],
-                        got[k]
-                    );
-                    worst = worst.max(want[k].abs_diff(got[k]));
-                }
-                // the angle
                 let at = [r.float(), r.float(), r.float()];
-                let _region = crate::race::trap::test_region(&at);
-                use crate::race::shadow_skids_store::ShadowPoint;
-                use crate::session::Dword;
                 let point = ShadowPoint {
                     x: Dword::new(at[0]),
                     y: Dword::new(at[1]),
@@ -1442,14 +1231,15 @@ mod asm_reference {
                     zeroed: Dword::new(0),
                     carried_words: [Dword::new(0), Dword::new(0)],
                 };
-                let (want, got) = (
-                    unsafe { angle_asm(crate::pointers::game_address(at.as_ptr())) },
-                    angle_of(&point),
+                let got = [work.slant_x.bits(), work.slant_z.bits(), angle_of(&point)];
+                vectors.check(
+                    &got,
+                    |a, b| within_ulps(a, b, 1),
+                    || format!("{sun:#x} {turn:#x} {at:x?}"),
                 );
-                assert!(within_ulps(want, got, 1), "{at:x?}: {want:#x} {got:#x}");
-                worst = worst.max(want.abs_diff(got));
             }
         });
-        eprintln!("sun_slant, angle_of: worst difference {worst} ulps");
+        kept.restore();
+        vectors.finish();
     }
 }

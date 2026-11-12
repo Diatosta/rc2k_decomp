@@ -10,9 +10,8 @@
 //! original's `bts` would reach past `g_cheats`), and what the coding refuses.
 
 use crate::errors::Refused;
-use crate::menu::owner::{Menus, Play};
+use crate::menu::owner::Play;
 use crate::pointers::Store;
-use crate::race::owner::Race;
 use crate::strings::rot13_into_text::rot13_into_text;
 
 const HIDDEN_NAME: u32 = 0x18F;
@@ -33,7 +32,8 @@ fn find(play: &Play, coded: &[u8]) -> Result<Option<(u32, u32)>, Refused> {
     Ok(found.map(|f| (f.at as u32, f.bit as u32)))
 }
 
-pub fn check_cheat_name(menus: &'static Menus, race: &Race) -> Result<(), Refused> {
+pub fn check_cheat_name(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    let (menus, race) = (o.menus, o.race);
     let play = &menus.play;
     let name = crate::menu::player_names::NameAt::of(crate::menu::player_names::name_of(
         &crate::menu::standings::player(menus, 3).get(),
@@ -47,7 +47,7 @@ pub fn check_cheat_name(menus: &'static Menus, race: &Race) -> Result<(), Refuse
     play.cheats.cheats.set(cheats);
     // The original's registers at the calls: eax 8, ebx the entry, ecx the bit, edi
     // the record.
-    crate::sound::play_menu_sound::play_menu_sound_at_boundary(8);
+    crate::sound::play_menu_sound::play_menu_sound_in_game(o, 8);
     crate::menu::apply_cheats::apply_cheats(
         menus,
         &mut |line| {
@@ -56,7 +56,7 @@ pub fn check_cheat_name(menus: &'static Menus, race: &Race) -> Result<(), Refuse
         race,
     )?;
     let mut hidden = Vec::new();
-    crate::strings::append_string_by_id::push_string(&mut hidden, HIDDEN_NAME)?;
+    crate::strings::append_string_by_id::push_string_in(o, &mut hidden, HIDDEN_NAME)?;
     hidden.push(0);
     name.place(menus).write(&hidden, "a player\'s name")?;
     Ok(())

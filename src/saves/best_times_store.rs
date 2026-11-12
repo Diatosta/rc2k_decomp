@@ -1284,12 +1284,6 @@ impl RallyTimes {
     pub const START: usize = 0x742C98;
     /// IDA 0x7475D0, its end.
     pub const END: usize = 0x7475D0;
-    #[cfg(test)]
-    /// Where IDA 0x742C98 is (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::saves::owner::SAVES.get().rally_times)
-            as usize
-    }
 }
 
 /// IDA 0x7475D0, the first byte of the piece.
@@ -1297,63 +1291,38 @@ pub const START: usize = 0x7475D0;
 /// IDA 0x747660, the end of the piece.
 pub const END: usize = 0x747660;
 
-/// Where IDA 0x7475D0 is (`moved::MOVED`'s home).
-#[cfg(test)]
-pub fn best_times_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::saves::owner::SAVES.get().best_times)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moved::image_bytes;
     use crate::saves::owner::saves;
     use core::mem::{offset_of, size_of};
 
     #[test]
     fn best_times_start_as_the_games() {
         assert_eq!(size_of::<BestTimes>(), END - START);
-        assert_eq!(offset_of!(BestTimes, allocated), 0x747610 - START);
-        assert_eq!(offset_of!(BestTimes, tables), 0x747618 - START);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host(best_times_addr()).cast_const(),
-                END - START,
-            )
-        };
-        assert_eq!(mine, &image_bytes(START, END - START)[..]);
+        assert_eq!(offset_of!(BestTimes, allocated), 0x40);
+        assert_eq!(offset_of!(BestTimes, tables), 0x48);
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &crate::saves::owner::SAVES.get().best_times,
+        );
     }
 
     #[test]
     fn rally_times_start_as_the_games() {
         let rally_times = &saves().rally_times;
-        let len = RallyTimes::END - RallyTimes::START;
-        assert_eq!(size_of::<RallyTimes>(), len);
-        assert_eq!(
-            offset_of!(RallyTimes, rallies),
-            0x742CB0 - RallyTimes::START
-        );
+        assert_eq!(size_of::<RallyTimes>(), RallyTimes::END - RallyTimes::START);
+        assert_eq!(offset_of!(RallyTimes, rallies), 0x18);
         assert_eq!(offset_of!(TimeEntry, name), 0x20);
         assert_eq!(offset_of!(TimeEntry, checkpoints), 0x5C);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(RallyTimes::home()).cast_const(),
-                len,
-            )
-        };
-        let image = image_bytes(RallyTimes::START, len);
-        assert_eq!(mine, &image[..]);
-        // The six names are the image's addresses of the six tables and resolve to them.
+        crate::test_support::first_values::assert_block_starts_as_the_games(rally_times);
+        // The six names are the tables' places and resolve to them.
+        let first = rally_times.tables[0].get();
         for n in 0..6 {
-            let name = u32::from_le_bytes(image[4 * n..4 * n + 4].try_into().unwrap());
-            assert_eq!(name as usize, 0x742CB0 + 20 * 0x9C * n);
+            let table = 20 * 0x9C * n;
+            assert_eq!(rally_times.tables[n].get() as usize, first as usize + table);
             assert_eq!(
                 rally_times.table_of(n),
-                Ok(name as usize - RallyTimes::START)
-            );
-            assert_eq!(
-                RallyTimes::home() as u32 + rally_times.table_of(n).unwrap() as u32,
-                crate::pointers::game_address(core::ptr::from_ref(&rally_times.rallies[n]))
+                Ok(offset_of!(RallyTimes, rallies) + table)
             );
         }
         assert!(rally_times.table_of(6).is_err());
@@ -1362,28 +1331,13 @@ mod tests {
 
 #[cfg(test)]
 mod table_of_tests {
-    use super::*;
 
     #[test]
-    fn table_of_resolves_where_named_in_put_it() {
+    fn table_of_resolves_the_six_names_and_no_more() {
         let _g = crate::store::test_lock();
         let times = &crate::saves::owner::saves().rally_times;
         for n in 0..8 {
-            let old = times.tables.get(n).map(|name| {
-                crate::moved::named_in(
-                    name.get(),
-                    RallyTimes::START,
-                    RallyTimes::END - RallyTimes::START,
-                    "x",
-                )
-            });
-            match (old, times.table_of(n)) {
-                (Some(Ok(old)), Ok(new)) => {
-                    assert_eq!(old, RallyTimes::home() as u32 + new as u32, "rally {n}");
-                }
-                (Some(Err(_)) | None, Err(_)) => {}
-                (old, new) => panic!("rally {n}: {old:?} against {new:?}"),
-            }
+            assert_eq!(times.table_of(n).is_ok(), n < 6, "rally {n}");
             if n < 6 {
                 assert!(times.table(n).is_ok(), "rally {n}");
             }

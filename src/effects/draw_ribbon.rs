@@ -19,18 +19,25 @@ use crate::effects::clip_quad::{clip_quad, draw_fan};
 use crate::effects::mask_store::Masks;
 use crate::errors::{BadInput, Refused};
 
-use crate::d3d::vertices_store::VERTICES;
 const CELLS: u32 = 0x41;
 
 /// The two places projected and the ribbon's corners.
-fn ribbon(effects: &crate::effects::owner::Effects) {
+fn ribbon(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
+    effects: &crate::effects::owner::Effects,
+) {
     let frame = &effects.frame;
-    ribbon_x87(&frame.draw_work, &frame.view_vars);
+    ribbon_x87(buffer, &frame.draw_work, &frame.view_vars);
 }
 
 /// Draws a ribbon piece of `colour` and `alpha` and `width`, with the texture places of
 /// `cell`.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the effects' groups, the owners and the vertex buffer"
+)]
 pub fn draw_ribbon(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
     masks: &Masks,
     cell: u32,
     alpha: u32,
@@ -49,7 +56,7 @@ pub fn draw_ribbon(
         effects.frame.draw_work.half[0].set_bits(width >> 1);
         let colour = (alpha << 24) | colour;
         for n in 0..4 {
-            VERTICES.vertices[n].colour.set(colour);
+            buffer.vertices[n].colour.set(colour);
         }
         let at = cell << 4;
         let place = |n: usize| masks.surface.places.get_u32(at as usize + 4 * n);
@@ -58,8 +65,8 @@ pub fn draw_ribbon(
             .into_iter()
             .enumerate()
         {
-            VERTICES.vertices[n].u.set_bits(u);
-            VERTICES.vertices[n].v.set_bits(v);
+            buffer.vertices[n].u.set_bits(u);
+            buffer.vertices[n].v.set_bits(v);
         }
         for depth in [
             effects.frame.draw_work.turned[2].bits(),
@@ -69,11 +76,11 @@ pub fn draw_ribbon(
                 return Ok(());
             }
         }
-        ribbon(effects);
-        if clip_quad(effects)? {
+        ribbon(buffer, effects);
+        if clip_quad(buffer, effects)? {
             return Ok(());
         }
-        draw_fan(scene);
+        draw_fan(buffer, scene);
         crate::scene::polygon_work::front_end()
             .polygon_vertex_count
             .set_bits(4u32);
@@ -87,7 +94,7 @@ use crate::math::x87_float as bh;
 use crate::math::x87_float::ld;
 
 /// `ribbon`'s x87 block as plain Rust on the x87 model (93 instructions), same order and memory places.
-fn ribbon_x87(dw: &DrawWork, vv: &ViewVars) {
+fn ribbon_x87(buffer: &crate::d3d::vertices_store::PolygonVertices, dw: &DrawWork, vv: &ViewVars) {
     let t0 = ld(crate::scene::polygon_work::front_end()
         .window
         .view_scale
@@ -153,36 +160,36 @@ fn ribbon_x87(dw: &DrawWork, vv: &ViewVars) {
     vv.second_end_half_width[1].st(t42);
     let t43 = dw.turned[0].ld();
     let t44 = t43 - vv.first_end_half_width[0].ld();
-    st_cell(&VERTICES.vertices[0].x, t44);
+    st_cell(&buffer.vertices[0].x, t44);
     let t45 = dw.turned[1].ld();
     let t46 = t45 - vv.first_end_half_width[1].ld();
-    st_cell(&VERTICES.vertices[0].y, t46);
+    st_cell(&buffer.vertices[0].y, t46);
     let t47 = dw.turned[0].ld();
     let t48 = t47 + vv.first_end_half_width[0].ld();
-    st_cell(&VERTICES.vertices[1].x, t48);
+    st_cell(&buffer.vertices[1].x, t48);
     let t49 = dw.turned[1].ld();
     let t50 = t49 + vv.first_end_half_width[1].ld();
-    st_cell(&VERTICES.vertices[1].y, t50);
+    st_cell(&buffer.vertices[1].y, t50);
     let t51 = dw.second[0].ld();
     let t52 = t51 + vv.second_end_half_width[0].ld();
-    st_cell(&VERTICES.vertices[2].x, t52);
+    st_cell(&buffer.vertices[2].x, t52);
     let t53 = dw.second[1].ld();
     let t54 = t53 + vv.second_end_half_width[1].ld();
-    st_cell(&VERTICES.vertices[2].y, t54);
+    st_cell(&buffer.vertices[2].y, t54);
     let t55 = dw.second[0].ld();
     let t56 = t55 - vv.second_end_half_width[0].ld();
-    st_cell(&VERTICES.vertices[3].x, t56);
+    st_cell(&buffer.vertices[3].x, t56);
     let t57 = dw.second[1].ld();
     let t58 = t57 - vv.second_end_half_width[1].ld();
-    st_cell(&VERTICES.vertices[3].y, t58);
+    st_cell(&buffer.vertices[3].y, t58);
     let t59 = dw.turned[2].ld();
     let t60 = t59 * dw.z_k.ld();
-    st_cell(&VERTICES.vertices[0].z, t60);
-    st_cell(&VERTICES.vertices[1].z, t60);
+    st_cell(&buffer.vertices[0].z, t60);
+    st_cell(&buffer.vertices[1].z, t60);
     let t61 = dw.second[2].ld();
     let t62 = t61 * dw.z_k.ld();
-    st_cell(&VERTICES.vertices[2].z, t62);
-    st_cell(&VERTICES.vertices[3].z, t62);
+    st_cell(&buffer.vertices[2].z, t62);
+    st_cell(&buffer.vertices[3].z, t62);
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -409,7 +416,7 @@ mod asm_differential {
                             &[
                                 0x0, 0x4, 0x8, 0x20, 0x24, 0x28, 0x40, 0x44, 0x48, 0x60, 0x64, 0x68,
                             ],
-                            || super::ribbon_x87(dw, vv),
+                            || super::ribbon_x87(&crate::d3d::vertices_store::VERTICES, dw, vv),
                         );
                     });
                 });

@@ -18,7 +18,7 @@ use crate::menu::screen_loop::{
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
     entry.set_view(7, 10, 0x100);
-    prepare_scene(entry.scene);
+    prepare_scene(entry);
     screens.flow.turning.set(0x1u32);
     screens.state.carousel.menu.set(0x2u32);
     carousel(None)?;

@@ -136,12 +136,6 @@ impl InstallerRun {
 impl InstallerRun {
     pub const START: usize = 0x51B9C8;
     pub const LEN: usize = 0x198;
-    #[cfg(test)]
-    /// Where the byte IDA calls `START` is (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        (crate::pointers::game_address(&raw const crate::install::owner::INSTALL.get().run) + 8)
-            as usize
-    }
 }
 
 /// The registry names, the installed record, the scripts and file names, the languages (IDA 0x51BB60 .. 0x51C407, the image's layout).
@@ -244,12 +238,6 @@ impl InstallerNames {
 impl InstallerNames {
     pub const START: usize = 0x51BB60;
     pub const LEN: usize = 0x8A7;
-    #[cfg(test)]
-    /// Where the byte IDA calls `START` is (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::install::owner::INSTALL.get().names)
-            as usize
-    }
 }
 
 /// A record of a drawing list on the pages (`install::draw_string_list`): 16 bytes at any
@@ -596,12 +584,6 @@ impl InstallerPages {
     const FONTS_AT: usize = 0x51D4C4;
     pub const START: usize = 0x51C407;
     pub const LEN: usize = 0x1A25;
-    #[cfg(test)]
-    /// Where the byte IDA calls `START` is (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        (crate::pointers::game_address(&raw const crate::install::owner::INSTALL.get().pages) + 7)
-            as usize
-    }
 }
 
 /// The installer's path buffers (0x100 bytes each; the network's lobby edits two of them) (IDA 0x95E6F8 .. 0x95ECF8, the image's layout).
@@ -644,12 +626,6 @@ impl InstallerPaths {
 impl InstallerPaths {
     pub const START: usize = 0x95E6F8;
     pub const LEN: usize = 0x600;
-    #[cfg(test)]
-    /// Where the byte IDA calls `START` is (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        (crate::pointers::game_address(&raw const crate::install::owner::INSTALL.get().paths) + 8)
-            as usize
-    }
 }
 
 /// The installer's palette buffer (IDA 0x4F3874 .. 0x4F3B74, the image's layout).
@@ -677,12 +653,6 @@ impl InstallerPalette {
 impl InstallerPalette {
     pub const START: usize = 0x4F3874;
     pub const LEN: usize = 0x300;
-    #[cfg(test)]
-    /// Where the byte IDA calls `START` is (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        (crate::pointers::game_address(&raw const crate::install::owner::INSTALL.get().palette) + 4)
-            as usize
-    }
 }
 
 /// The installer pages' dwords that name data: the pages' links, their items' fonts and
@@ -705,26 +675,25 @@ pub(super) const PAGE_LINKS: [u32; 105] = [
 
 #[cfg(test)]
 mod tests {
+    /// The game's pages block and names block (named reads of `data/first_values.golden`),
+    /// and the pages store's key.
+    const PAGES_IMAGE: &str = "install.owner.INSTALL.pages/6693";
+    const NAMES_IMAGE: &str = "install.owner.INSTALL.names/2215";
+    const PAGES_STORE: &str = "store:install.owner.INSTALL.pages";
+
+    /// The game's dword at the address `at` of its pages block.
+    fn pages_dword(at: usize) -> u32 {
+        let image = crate::test_support::first_values::bytes(PAGES_IMAGE);
+        let off = at - InstallerPages::START;
+        u32::from_le_bytes(image[off..off + 4].try_into().unwrap())
+    }
+
     #[test]
     fn page_links_are_the_images_data_pointers() {
-        let found: Vec<u32> = crate::moved::image_relocations()
-            .into_iter()
-            .filter(|&p| {
-                let at = p as usize;
-                let fonts =
-                    (InstallerPages::FONTS_AT..InstallerPages::FONTS_AT + 100).contains(&at);
-                let value = crate::moved::image_bytes(at, 4);
-                let value = u32::from_le_bytes(value.try_into().unwrap());
-                (InstallerPages::START..InstallerPages::START + InstallerPages::LEN).contains(&at)
-                    && !fonts
-                    && value >= 0x4DA000
-            })
-            .collect();
-        assert_eq!(found, PAGE_LINKS);
         for &p in &PAGE_LINKS {
             let off = (p as usize - InstallerPages::START) as u32;
-            let image = crate::moved::image_bytes(p as usize, 4);
-            let ida = u32::from_le_bytes(image.try_into().unwrap());
+            let ida = pages_dword(p as usize);
+            assert!(ida >= 0x4DA000, "{p:#X}");
             let link = PageLink::from_raw(
                 crate::pointers::GamePtr::to(&crate::install::owner::install().pages)
                     .offset(off + 7)
@@ -732,11 +701,6 @@ mod tests {
                     .unwrap(),
             );
             assert_eq!(link, PageLink::of_ida(ida), "{p:#X}");
-            // The handle names the place the image's address is now.
-            let home = crate::moved::home_of_rva(ida as usize - crate::framework::IMAGE_BASE);
-            if let Ok(place) = link.place() {
-                assert_eq!(Some(place.game() as usize), home, "{p:#X}");
-            }
         }
     }
 
@@ -748,8 +712,7 @@ mod tests {
         assert!(InstallerPages::font_of(crate::install::owner::install(), 0).is_err());
         assert!(InstallerPages::font_of(crate::install::owner::install(), 25).is_err());
         for n in 1..25 {
-            let image = crate::moved::image_bytes(0x51D4C4 + 4 * n, 4);
-            let ida = u32::from_le_bytes(image[..4].try_into().unwrap()) as usize;
+            let ida = pages_dword(InstallerPages::FONTS_AT + 4 * n) as usize;
             let font = crate::gfx::typefaces::FontId::try_at(ida).unwrap();
             assert_eq!(font.ida(), ida);
             assert_eq!(
@@ -763,8 +726,8 @@ mod tests {
     fn installer_languages_keys_are_the_images() {
         // Nine keys, a slot's address each (0x51BEEE + 0x80 n), kept as the image's numbers.
         for n in 0..9 {
-            let at = 0x51C378 + 0xE * n;
-            let image = crate::moved::image_bytes(at, 0xE);
+            let at = 0x51C378 - InstallerNames::START + 0xE * n;
+            let image = &crate::test_support::first_values::bytes(NAMES_IMAGE)[at..at + 0xE];
             assert_eq!(&image[..5], format!("lang{}", n + 1).as_bytes());
             let slot = u32::from_le_bytes(image[6..10].try_into().unwrap()) as usize;
             assert_eq!(slot, 0x51BEEE + 0x80 * n);
@@ -779,14 +742,6 @@ mod tests {
         assert!(
             8 + InstallerRun::LEN <= size && size <= (8 + InstallerRun::LEN).next_multiple_of(16)
         );
-        let image = crate::moved::image_bytes(InstallerRun::START, InstallerRun::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(InstallerRun::home()).cast_const(),
-                InstallerRun::LEN,
-            )
-        };
-        assert_eq!(mine, &image[..]);
     }
 
     #[test]
@@ -795,14 +750,6 @@ mod tests {
         let _lock = crate::store::test_lock();
         let size = size_of::<InstallerNames>();
         assert!(InstallerNames::LEN <= size && size <= (InstallerNames::LEN).next_multiple_of(16));
-        let image = crate::moved::image_bytes(InstallerNames::START, InstallerNames::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(InstallerNames::home()).cast_const(),
-                InstallerNames::LEN,
-            )
-        };
-        assert_eq!(mine, &image[..]);
     }
 
     #[test]
@@ -812,20 +759,15 @@ mod tests {
             7 + InstallerPages::LEN <= size
                 && size <= (7 + InstallerPages::LEN).next_multiple_of(16)
         );
-        let mut image = crate::moved::image_bytes(InstallerPages::START, InstallerPages::LEN);
+        let mut image = crate::test_support::first_values::bytes(PAGES_IMAGE).to_vec();
         // The links are the handles that stand for the image's addresses.
         for &p in &PAGE_LINKS {
             let at = p as usize - InstallerPages::START;
             let ida = u32::from_le_bytes(image[at..at + 4].try_into().unwrap());
             image[at..at + 4].copy_from_slice(&PageLink::of_ida(ida).raw().to_le_bytes());
         }
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(InstallerPages::home()).cast_const(),
-                InstallerPages::LEN,
-            )
-        };
-        assert_eq!(mine, &image[..]);
+        let mine = crate::test_support::first_values::store_bytes(PAGES_STORE);
+        assert_eq!(mine, image);
     }
 
     #[test]
@@ -835,14 +777,6 @@ mod tests {
             8 + InstallerPaths::LEN <= size
                 && size <= (8 + InstallerPaths::LEN).next_multiple_of(16)
         );
-        let image = crate::moved::image_bytes(InstallerPaths::START, InstallerPaths::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(InstallerPaths::home()).cast_const(),
-                InstallerPaths::LEN,
-            )
-        };
-        assert_eq!(mine, &image[..]);
     }
 
     #[test]
@@ -852,13 +786,5 @@ mod tests {
             4 + InstallerPalette::LEN <= size
                 && size <= (4 + InstallerPalette::LEN).next_multiple_of(16)
         );
-        let image = crate::moved::image_bytes(InstallerPalette::START, InstallerPalette::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(InstallerPalette::home()).cast_const(),
-                InstallerPalette::LEN,
-            )
-        };
-        assert_eq!(mine, &image[..]);
     }
 }

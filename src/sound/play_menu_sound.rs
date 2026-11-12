@@ -14,7 +14,7 @@ use crate::session::DwordLike;
 use crate::system::tick_count::tick_count;
 
 /// `sound` the menu's sound (0: none); `now` is asked for the clock.
-pub fn play_menu_sound(sound: u32, now: &mut dyn FnMut() -> u32, o: Owners<'_>) {
+pub fn play_menu_sound(sound: u32, now: &mut dyn FnMut() -> u32, o: Owners<'static>) {
     // Converted: `rc2k_core::sound::senders::menu_sound`.
     use rc2k_core::sound::senders::{MenuVolume, menu_sound};
     if sound == 0 {
@@ -38,11 +38,6 @@ pub fn play_menu_sound(sound: u32, now: &mut dyn FnMut() -> u32, o: Owners<'_>) 
 }
 
 /// With the game's clock: what other Rust code calls.
-pub fn play_menu_sound_in_game(o: Owners<'_>, sound: u32) {
+pub fn play_menu_sound_in_game(o: Owners<'static>, sound: u32) {
     play_menu_sound(sound, &mut tick_count, o);
-}
-
-/// `play_menu_sound_in_game` for a caller that holds no owners.
-pub fn play_menu_sound_at_boundary(sound: u32) {
-    play_menu_sound_in_game(crate::owners::boundary(), sound);
 }

@@ -12,7 +12,6 @@ use crate::effects::cell_x87::CellX87;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::math::x87;
 
-use crate::d3d::vertices_store::VERTICES;
 const STATES: [(u32, u32); 8] = [
     (1, 0x11),
     (1, 0x12),
@@ -29,7 +28,11 @@ fn axes(drops: &WindscreenDrops) {
     axes_x87(drops);
 }
 
-pub fn windscreen_drops_setup(drops: &WindscreenDrops, scene: &crate::scene::owner::Scene) {
+pub fn windscreen_drops_setup(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
+    drops: &WindscreenDrops,
+    scene: &crate::scene::owner::Scene,
+) {
     use crate::scene::set_render_state::set_render_state;
     {
         axes(drops);
@@ -40,19 +43,19 @@ pub fn windscreen_drops_setup(drops: &WindscreenDrops, scene: &crate::scene::own
             set_render_state(value, state);
         }
         for n in 0..6 {
-            VERTICES.vertices[n].rhw.set(x87::from_int(0x100));
+            buffer.vertices[n].rhw.set(x87::from_int(0x100));
         }
         for n in 0..6 {
-            VERTICES.vertices[n].colour.set(0xFFFF_FFFFu32);
-            VERTICES.vertices[n].specular.set(0xFF00_0000u32);
+            buffer.vertices[n].colour.set(0xFFFF_FFFFu32);
+            buffer.vertices[n].specular.set(0xFF00_0000u32);
         }
         let side: u32 = drops.hex.side.get();
         for (n, (u, v)) in [(0, 0), (side, 0), (side, side), (0, side)]
             .into_iter()
             .enumerate()
         {
-            VERTICES.vertices[n].u.set_bits(u);
-            VERTICES.vertices[n].v.set_bits(v);
+            buffer.vertices[n].u.set_bits(u);
+            buffer.vertices[n].v.set_bits(v);
         }
         crate::scene::polygon_work::front_end()
             .polygon_vertex_count

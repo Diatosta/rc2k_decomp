@@ -99,7 +99,11 @@ fn set_up_race(race: &Race) -> Result<(), Refused> {
 
 /// `f` between what the menus' own route does round a race (`race::single_rally`): the
 /// game's mode changes round a test race are the menus' here.
-fn round_a_race(race: &Race, f: impl FnOnce() -> Result<(), Refused>) -> Result<(), Refused> {
+fn round_a_race(
+    o: Owners<'static>,
+    f: impl FnOnce() -> Result<(), Refused>,
+) -> Result<(), Refused> {
+    let race = o.race;
     let shared = &race.shared;
     // The game's own mode change, which the race's sound objects are made from (without them, a race
     // with no engine heard); the menus' own put back after.
@@ -116,32 +120,32 @@ fn round_a_race(race: &Race, f: impl FnOnce() -> Result<(), Refused>) -> Result<
     ];
     let kept = menus.map(|(cell, _)| cell.get());
     // The player's HUD, keys and set-up, before the tab's own over them.
-    crate::race::single_rally::player_settings_in()?;
+    crate::race::single_rally::player_settings_in(o)?;
     for (cell, v) in menus {
         cell.set(v);
     }
     use crate::race::single_rally::{Call, step};
     use crate::race::{race_end, race_shell, stage_free};
-    step(Call::StopMusic)?;
-    step(Call::SetRaceScreenMode)?;
-    step(Call::ShowLoadingPicture)?;
-    step(Call::SetUpRaceSoundObjects)?;
-    step(Call::SetUpRaceSounds)?;
+    step(o, Call::StopMusic)?;
+    step(o, Call::SetRaceScreenMode)?;
+    step(o, Call::ShowLoadingPicture)?;
+    step(o, Call::SetUpRaceSoundObjects)?;
+    step(o, Call::SetUpRaceSounds)?;
     stage_free::render3d_tidy(race)?;
     stage_free::objects_tidy(race)?;
-    race_end::release_textures();
+    race_end::release_textures(o.scene);
     shared.switches.mask_kind.set(0);
     race_shell::clear_player_absences();
     f()?;
-    step(Call::StopMusic)?;
-    step(Call::SetMenuScreenMode)?;
-    step(Call::ShowLoadingPicture)?;
-    step(Call::ClearRaceSoundObjects)?;
-    step(Call::ApplySettings)?;
-    step(Call::SetUpEngine)?;
-    step(Call::SetUpFrontEndScene)?;
-    step(Call::SetUpEngine)?;
-    step(Call::TakeKey)?;
+    step(o, Call::StopMusic)?;
+    step(o, Call::SetMenuScreenMode)?;
+    step(o, Call::ShowLoadingPicture)?;
+    step(o, Call::ClearRaceSoundObjects)?;
+    step(o, Call::ApplySettings)?;
+    step(o, Call::SetUpEngine)?;
+    step(o, Call::SetUpFrontEndScene)?;
+    step(o, Call::SetUpEngine)?;
+    step(o, Call::TakeKey)?;
     for ((cell, _), v) in menus.into_iter().zip(kept) {
         cell.set(v);
     }
@@ -152,7 +156,7 @@ fn round_a_race(race: &Race, f: impl FnOnce() -> Result<(), Refused>) -> Result<
 fn test_course(o: Owners<'static>) -> Result<(), Refused> {
     use crate::race::{race_end, race_shell, replay, stage_loading};
     let race = o.race;
-    round_a_race(race, || {
+    round_a_race(o, || {
         race.course.numbers.replay_mode.set(1);
         race.shared.tables.noise_seed.set(0x1234_5678);
         race.physics.split_tables.arcade_kind.set(2);
@@ -168,20 +172,20 @@ fn test_course(o: Owners<'static>) -> Result<(), Refused> {
         set_up_race(race)?;
         crate::race::race_cars::set_up_arcade_cars(race)?;
         race_shell::set_start_states(race)?;
-        stage_loading::load_stage(race)?;
+        stage_loading::load_stage(race, o)?;
         race_end::record_replay_header(race);
-        replay::open_replay(race)?;
+        replay::open_replay(race, o)?;
         race.shared.view.after_credits.set(0);
         crate::drive::play_race::play_race(race, o)?;
         replay::close_replay(race)?;
-        race_end::tidy_everything(race)
+        race_end::tidy_everything(race, o)
     })
 }
 
 /// The finish sequence (0x442FEF), for the course's index (0 .. 5) and the car.
 fn finish_sequence(o: Owners<'static>) -> Result<(), Refused> {
     let race = o.race;
-    round_a_race(race, || {
+    round_a_race(o, || {
         let s = &SETTINGS;
         let car = s.car.load(Relaxed);
         race.course.numbers.replay_mode.set(1);
@@ -193,7 +197,7 @@ fn finish_sequence(o: Owners<'static>) -> Result<(), Refused> {
         results.finish_kind.set(car);
         results.finish_player.set(0x45);
         results.finished.set(car & 1);
-        let result = crate::drive::finish_race::finish_race(race);
+        let result = crate::drive::finish_race::finish_race(race, o);
         race.replay.finish.no_place.set(0);
         result
     })
@@ -202,9 +206,9 @@ fn finish_sequence(o: Owners<'static>) -> Result<(), Refused> {
 /// The credits' race (0x443104), without its fonts (the menus' are up).
 fn credits(o: Owners<'static>) -> Result<(), Refused> {
     let (race, sound) = (o.race, o.sound);
-    round_a_race(race, || {
-        crate::race::sound_tables::silence_race_sounds(sound)?;
-        crate::race::credits_race::credits_race(race)
+    round_a_race(o, || {
+        crate::race::sound_tables::silence_race_sounds(sound, o.audio, o.system)?;
+        crate::race::credits_race::credits_race(race, o)
     })
 }
 
@@ -213,19 +217,22 @@ fn last_replay(o: Owners<'static>) -> Result<(), Refused> {
     let race = o.race;
     let shared = &race.shared;
     let course = &race.course;
-    round_a_race(race, || {
+    round_a_race(o, || {
         course.numbers.replay_mode.set(2);
         shared.view.player_options[0].set(u32::MAX);
         shared.view.player_options[1].set(u32::MAX);
-        let result =
-            crate::race::replay_mode::replay_mode(race, crate::race::replay_viewer::Mode::LastRace);
+        let result = crate::race::replay_mode::replay_mode(
+            race,
+            o,
+            crate::race::replay_viewer::Mode::LastRace,
+        );
         course.numbers.replay_mode.set(0);
         result
     })
 }
 
 /// A menu's frame: runs what was asked for; true if something ran.
-pub fn serve() -> Result<bool, Refused> {
+pub fn serve(o: Owners<'static>) -> Result<bool, Refused> {
     let run: fn(Owners<'static>) -> Result<(), Refused> = match WANTED.swap(0, Relaxed) {
         TEST => test_course,
         FINISH => finish_sequence,
@@ -233,7 +240,7 @@ pub fn serve() -> Result<bool, Refused> {
         REPLAY => last_replay,
         _ => return Ok(false),
     };
-    run(crate::owners::boundary())?;
+    run(o)?;
     Ok(true)
 }
 
@@ -261,7 +268,7 @@ mod tab {
     }
 
     /// The tab.
-    pub fn tab(o: &Owners<'_>, ui: &Ui) {
+    pub fn tab(o: &Owners<'static>, ui: &Ui) {
         let (race, scene) = (o.race, o.scene);
         let s = &SETTINGS;
         number(ui, "Course", &s.course, 99);

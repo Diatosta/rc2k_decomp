@@ -8,7 +8,6 @@
 //! field is off the lists' grid (the fonts are handles: `menus_store::label_font`).
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::Menus;
 use crate::text::draw_text::Canvas;
 
 const LABEL_LEN: u32 = 0x10;
@@ -26,10 +25,11 @@ fn has_end(dword: &impl Fn(u32) -> Result<u32, BadInput>) -> Result<bool, BadInp
 }
 
 pub fn draw_menu_labels(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     menu: crate::menu::menus_store::MenuId,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
+    let menus = o.menus;
     let (Some(labels), Some(first)) = (
         menu.labels_place()?,
         crate::menu::menus_store::labels_slot(menu, 0)?,
@@ -60,5 +60,5 @@ pub fn draw_menu_labels(
             break;
         }
     }
-    rc2k_core::screens::menus::labels(&mut MenuScreen::new(canvas), &list)
+    rc2k_core::screens::menus::labels(&mut MenuScreen::with_owners(canvas, o), &list)
 }

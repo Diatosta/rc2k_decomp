@@ -21,12 +21,13 @@ use crate::scene::project_point::{NEAR, project_point};
 // ---- Rust version ----
 
 pub fn project_polygon(
+    polygon_work: &'static crate::scene::polygon_store::PolygonWork,
     poly: &crate::scene::polygon_work::PolygonWork,
     race: &Race,
     scene: &crate::scene::owner::Scene,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
-    project_entries(poly, race, &listed(poly)?, scene, view)
+    project_entries(poly, race, &listed(polygon_work, poly)?, scene, view)
 }
 
 /// `project_polygon` on the polygon's entries as listed.

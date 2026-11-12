@@ -16,7 +16,12 @@ use crate::errors::Refused;
 use crate::race::owner::Race;
 
 /// `race::set_all_plates` (see the header).
-pub fn set_all_plates(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn set_all_plates(
+    race: &'static Race,
+    gfx: &crate::gfx::owner::Gfx,
+    net: &crate::net::owner::Net,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let course = &race.course;
     let shared = &race.shared;
     // Converted: `rc2k_core::race::stage_objects::{check_picture_cars, PREF_PIECES,
@@ -54,7 +59,7 @@ pub fn set_all_plates(race: &Race, scene: &crate::scene::owner::Scene) -> Result
             at += 1;
         }
     }
-    crate::scene::reload_system_textures::reload_system_textures(scene)?;
+    crate::scene::reload_system_textures::reload_system_textures(race, gfx, net, scene)?;
     crate::scene::reload_slot_textures::reload_slot_textures(&race.frame, scene)?;
     Ok(())
 }

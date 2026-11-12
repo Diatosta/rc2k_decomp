@@ -161,24 +161,23 @@ mod tests {
         assert_eq!(size_of::<MarkSlot>(), 0x14);
         assert_eq!(size_of::<MarkSlots>(), MarkSlots::LEN);
         assert_eq!(size_of::<SlotTuning>(), SlotTuning::LEN);
-        let image = crate::moved::image_bytes;
         assert!(
-            bytes(&blocks.slots) == image(MarkSlots::START, MarkSlots::LEN),
+            bytes(&blocks.slots)
+                == crate::test_support::first_values::bytes(
+                    "effects.owner.EFFECTS.blocks.slots/900"
+                ),
             "SLOTS starts differently from the image"
         );
         assert!(
-            bytes(&blocks.slot_tuning) == image(SlotTuning::START, SlotTuning::LEN),
+            bytes(&blocks.slot_tuning)
+                == crate::test_support::first_values::bytes(
+                    "effects.owner.EFFECTS.blocks.slot_tuning/108"
+                ),
             "TUNING starts differently from the image"
         );
         use core::mem::offset_of;
-        assert_eq!(offset_of!(MarkSlots, work), 0x9352F4 - MarkSlots::START);
-        assert_eq!(
-            offset_of!(SlotTuning, place_k),
-            0x9353EE - SlotTuning::START
-        );
-        assert_eq!(
-            offset_of!(SlotTuning, slot_random),
-            0x93540A - SlotTuning::START
-        );
+        assert_eq!(offset_of!(MarkSlots, work), 0x378);
+        assert_eq!(offset_of!(SlotTuning, place_k), 0x48);
+        assert_eq!(offset_of!(SlotTuning, slot_random), 0x64);
     }
 }

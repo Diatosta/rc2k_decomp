@@ -65,13 +65,6 @@ impl Modes {
     }
 }
 
-#[cfg(test)]
-/// Where the block is (`moved::MOVED`'s home for IDA 0x4F4E30).
-pub fn home() -> usize {
-    crate::pointers::game_address(&raw const crate::gfx::owner::GFX.unchecked().display.modes)
-        as usize
-}
-
 impl Modes {
     /// The `count` entries of 8 bytes from byte `table` of the block (the tables are walked
     /// past their ends, inside the block); a read past the block ends the program.
@@ -112,28 +105,17 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
+        crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::gfx::owner::GFX.unchecked().display.modes,
-            START,
-            START + LEN,
         );
     }
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(offset_of!(Modes, pixel_kinds), 0x4F4E40 - START);
-        assert_eq!(offset_of!(Modes, sizes), 0x4F4E50 - START);
-        assert_eq!(offset_of!(Modes, kinds), 0x4F4E90 - START);
-        assert_eq!(offset_of!(Modes, count), 0x4F4F38 - START);
-        assert_eq!(offset_of!(Modes, table), 0x4F4F3C - START);
-        assert_eq!(crate::moved::place(START), home());
-        assert_eq!(
-            crate::moved::place(0x4F4E50),
-            home() + offset_of!(Modes, sizes)
-        );
-        assert_eq!(
-            crate::moved::place(0x4F4F3C),
-            home() + offset_of!(Modes, table)
-        );
+        assert_eq!(offset_of!(Modes, pixel_kinds), 0x10);
+        assert_eq!(offset_of!(Modes, sizes), 0x20);
+        assert_eq!(offset_of!(Modes, kinds), 0x60);
+        assert_eq!(offset_of!(Modes, count), 0x108);
+        assert_eq!(offset_of!(Modes, table), 0x10c);
     }
 }

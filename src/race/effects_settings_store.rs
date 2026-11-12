@@ -457,9 +457,5 @@ mod tests {
         );
         assert_eq!(offset_of!(EffectsSettings, listener_figures), 0x2754);
         assert_eq!(offset_of!(EffectsSettings, rain_drops), 0x2764);
-        assert_eq!(
-            crate::pointers::game_address(core::ptr::from_ref(&*EFFECTS_SETTINGS)),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
     }
 }

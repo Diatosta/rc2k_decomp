@@ -235,41 +235,25 @@ pub fn compile_lexicon(
 
 #[cfg(test)]
 mod tests {
-    use crate::moved::image_bytes;
     use crate::strings::owner::strings;
+    use crate::test_support::first_values::{assert_block_starts_as_the_games, bytes};
 
     #[test]
     fn lexicon_memory_first_values_are_the_games() {
         let strings = strings();
-        crate::gfx::first_values_are_the_games(
-            &strings.lexicon.memory,
-            super::MEMORY_START,
-            super::MEMORY_START + super::MEMORY_LEN,
-        );
-        assert_eq!(
-            crate::moved::place(0x519558),
-            strings.lexicon.memory.memory.addr() as usize
-        );
+        assert_block_starts_as_the_games(&strings.lexicon.memory);
     }
 
     #[test]
     fn pattern_and_first_values_are_the_games() {
-        assert_eq!(image_bytes(0x4E0770, super::PATTERN.len()), super::PATTERN);
-        assert!(
-            image_bytes(0x94EAB4, super::WORK_LEN)
-                .iter()
-                .all(|&b| b == 0)
-        );
-        assert!(
-            image_bytes(0x4F3034, super::EMPTY_MESSAGE_LEN)
-                .iter()
-                .all(|&b| b == 0)
-        );
-        assert!(
-            image_bytes(0x4E07F8, super::super::string_table::LEXICON_ROOM)
-                .iter()
-                .all(|&b| b == 0)
-        );
-        assert_eq!(image_bytes(0x4E07D4, 4), [0; 4]);
+        assert_eq!(bytes("strings.compile_lexicon.PATTERN/19"), super::PATTERN);
+        // The work area, the empty message, the room and the counter start as zeros.
+        for key in [
+            "strings.compile_lexicon.WORK/3140",
+            "strings.compile_lexicon.EMPTY_MESSAGE/16",
+            "strings.compile_lexicon.COUNTER/4",
+        ] {
+            assert!(bytes(key).iter().all(|&b| b == 0), "{key}");
+        }
     }
 }

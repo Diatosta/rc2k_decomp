@@ -557,92 +557,37 @@ pub fn draw_car_entry(
     draw_car_shined(ctx, car)
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+/// The blocks against the original's outputs, recorded (`test_support::race_vectors`).
+#[cfg(test)]
+mod vector_tests {
     use super::*;
-    use crate::framework::{game_read, rva};
-    use crate::race::asm_test::{Rng, Saved, at_each_control_word, lock};
+    use crate::race::asm_test::{Rng, at_each_control_word, lock};
     use crate::race::owner::race;
     use crate::scene::owner::scene;
+    use crate::test_support::race_vectors::{Kind, Vectors};
+    use crate::test_support::state::Snapshot;
 
-    // The original blocks, verbatim (with the clamps between them).
-    pub(super) unsafe fn nearness_asm() {
-        let shared = &race().shared;
-        let course = &race().course;
-        use crate::math::x87::below_or_unordered;
-        unsafe {
-            scene().drawing.scene.scratch.set(0xA_0000u32);
-            let old = crate::race::store::OldPlaces::lay(&[0x62400c, 0x6415a4, 0x71ba08]);
-            core::arch::asm!(
-                "fild dword ptr [{rc} + 0x2415A4]",
-                "fisub dword ptr [{rc} + 0x22400C]",
-                "mov dword ptr [{rc} + 0x22400C], 0x140000",
-                "fidiv dword ptr [{rc} + 0x22400C]",
-                "fstp dword ptr [{rc} + 0x31BA08]",
-                rc = in(reg) crate::race::store::asm_base(),
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-            drop(old);
-            let near = shared.work.car_nearness.get();
-            // `fld zero; fld near; fcompp`: near below 0 (or no number) -> 0.
-            if below_or_unordered(near, course.numbers.zero.get()) {
-                shared.work.car_nearness.set(course.numbers.zero.get());
-            }
-            let near = shared.work.car_nearness.get();
-            if !below_or_unordered(near, course.numbers.one.get()) {
-                shared.work.car_nearness.set(course.numbers.one.get());
-            }
-            let old = crate::race::store::OldPlaces::lay(&[0x5cce74, 0x5cce78, 0x71ba08]);
-            core::arch::asm!(
-                ".byte 0xD9, 0xE8",
-                "fsub dword ptr [{rc} + 0x31BA08]",
-                "fimul dword ptr [{rc} + 0x1CCE74]",
-                "fist dword ptr [{rc} + 0x1CCE78]",
-                "fistp dword ptr [{rc} + 0x1CCE74]",
-                rc = in(reg) crate::race::store::asm_base(),
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-            drop(old);
-        }
-    }
-
-    /// `race::draw_car`'s size: 0x90 (into `scratch`) times `car_nearness`, rounded (left in
-    /// `scratch`).
-    pub(super) unsafe fn near_size_asm() -> u32 {
-        let drawing = &scene().drawing;
-        unsafe {
-            drawing.scene.scratch.set(0x90u32);
-            let old = crate::race::store::OldPlaces::lay(&[0x62400c, 0x71ba08]);
-            core::arch::asm!(
-                "fild dword ptr [{rc} + 0x22400C]",
-                "fmul dword ptr [{rc} + 0x31BA08]",
-                "fistp dword ptr [{rc} + 0x22400C]",
-                rc = in(reg) crate::race::store::asm_base(),
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-            drop(old);
-            drawing.scene.scratch.get()
-        }
-    }
-
-    const PLACES: [usize; 8] = [
-        0x62400C, 0x6415A4, 0x71BA08, 0x5CCE78, 0x5CCE74, 0x5C5D90, 0x5C5D38, 0x6415A4,
+    /// The stores the test writes.
+    const STORES: [&str; 5] = [
+        "scene.owner.SCENE.drawing.scene",
+        "race.owner.RACE.frame.frame_work",
+        "race.owner.RACE.shared.work",
+        "race.owner.RACE.course.course",
+        "race.owner.RACE.course.numbers",
     ];
 
-    /// The places' values, without `scratch` (the assembly's spill dword) and
-    /// `shine_whole` (the shine as a whole number, read by nothing): neither kept by the Rust
-    /// versions.
-    fn state() -> Vec<u32> {
-        let mut v: Vec<u32> = PLACES.iter().map(|&a| game_read(rva(a))).collect();
-        v[0] = 0;
-        v[3] = 0;
-        v
+    /// The values the blocks read and write, without `scratch` (the assembly's spill dword)
+    /// and `shine_whole` (the shine as a whole number, read by nothing): neither kept by the
+    /// plain versions.
+    fn state() -> [u32; 5] {
+        let race = race();
+        [
+            race.frame.frame_work.car_depth.get(),
+            race.shared.work.car_nearness.bits(),
+            race.course.course.shine.get(),
+            race.course.numbers.zero.bits(),
+            race.course.numbers.one.bits(),
+        ]
     }
 
     fn fill(r: &mut Rng) {
@@ -666,37 +611,37 @@ mod asm_reference {
         });
     }
 
-    #[test]
-    fn nearness_and_size_match() {
+    /// The state after the nearness, then the size.
+    fn plain() -> Vec<u32> {
         let race = race();
+        let cars = CarDrawState::new();
+        cars.car_depth.set(race.frame.frame_work.car_depth.get());
+        let mine = crate::race::view_course::ViewCourse::new();
+        mine.shine.set(race.course.course.shine.get());
+        nearness(race, &cars, &mine);
+        race.course.course.shine.set(mine.shine.get());
+        race.shared.work.car_nearness.set(cars.car_nearness.get());
+        let mut out = state().to_vec();
+        out.push(near_size(&cars));
+        assert_eq!(state()[..], out[..5]);
+        out
+    }
+
+    #[test]
+    fn nearness_and_size_are_the_originals() {
         let _l = lock();
-        let _saved = Saved::new(&PLACES);
+        let kept = Snapshot::of(&STORES);
+        let mut vectors = Vectors::open("race.car_draw.nearness_and_size", Kind::Exact, 6);
         let mut r = Rng(6);
         at_each_control_word(|| {
             for _ in 0..20000 {
-                let seed = r.0;
                 fill(&mut r);
                 let before = state();
-                unsafe { nearness_asm() };
-                let want = state();
-                let size_want = unsafe { near_size_asm() };
-                let want_size_place = state();
-                // again with the plain versions
-                r.0 = seed;
-                fill(&mut r);
-                assert_eq!(state(), before);
-                let cars = CarDrawState::new();
-                cars.car_depth.set(race.frame.frame_work.car_depth.get());
-                let mine = crate::race::view_course::ViewCourse::new();
-                mine.shine.set(race.course.course.shine.get());
-                nearness(race, &cars, &mine);
-                race.course.course.shine.set(mine.shine.get());
-                race.shared.work.car_nearness.set(cars.car_nearness.get());
-                assert_eq!(state(), want, "nearness from {before:x?}");
-                let size_got = near_size(&cars);
-                assert_eq!(size_got, size_want, "size from {before:x?}");
-                assert_eq!(state(), want_size_place);
+                let got = plain();
+                vectors.check(&got, |a, b| a == b, || format!("from {before:x?}"));
             }
         });
+        kept.restore();
+        vectors.finish();
     }
 }

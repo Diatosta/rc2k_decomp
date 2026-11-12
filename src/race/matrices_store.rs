@@ -97,22 +97,15 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&race().frame.matrices, START, END);
+        crate::test_support::first_values::assert_block_starts_as_the_games(&race().frame.matrices);
     }
 
     #[test]
-    fn piece_has_its_home() {
+    fn fields_are_at_the_games_offsets() {
         assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            piece_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
-        assert_eq!(offset_of!(SceneMatrices, known_object), 0x5E9EC8 - START);
-        assert_eq!(offset_of!(SceneMatrices, placed_matrix), 0x5EA04C - START);
-        assert_eq!(
-            offset_of!(SceneMatrices, view_place_matrix),
-            0x5EA1CC - START
-        );
-        assert_eq!(offset_of!(SceneMatrices, view_place), 0x5EA3CC - START);
+        assert_eq!(offset_of!(SceneMatrices, known_object), 0x0);
+        assert_eq!(offset_of!(SceneMatrices, placed_matrix), 0x184);
+        assert_eq!(offset_of!(SceneMatrices, view_place_matrix), 0x304);
+        assert_eq!(offset_of!(SceneMatrices, view_place), 0x504);
     }
 }

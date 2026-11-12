@@ -7,7 +7,7 @@
 //! Caller: `hud::draw_disc` (three a triangle). Refuses an entry past 0x10, before anything.
 //!
 //! The arithmetic is the x87's, in plain Rust over `X` (`math/x87_float.rs`); the original's
-//! instructions are `asm_reference` in the tests ..
+//! instructions' results are recorded vectors in the tests (`data/vectors`) ..
 
 use crate::d3d::vertices_store::Vertex;
 use crate::errors::{BadInput, Refused};
@@ -85,20 +85,20 @@ fn x87_1(h: &HudBlock, k: usize, e: impl Base) {
     fstp(e, 4, t33);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+    use crate::test_support::vectors::{Block, In, Operand, Out, sparse};
 
     // The original's instructions, one function per run.
-    reference!(ref_0(b, k, e) "fld dword ptr [{b} + {k} + 0x8D0]", "fmul dword ptr [{b} + 0x710]", "fmul dword ptr [{b} + 0x70C]", "fadd dword ptr [{b} + 0x6DC]", "fadd dword ptr [{b} + 0x714]", "fdiv dword ptr [{b} + 0x6E0]", "fstp dword ptr [{e} + 0x18]", "fld dword ptr [{b} + {k} + 0x914]", "fchs", "fmul dword ptr [{b} + 0x710]", "fmul dword ptr [{b} + 0x70C]", "fadd dword ptr [{b} + 0x6DC]", "fadd dword ptr [{b} + 0x718]", "fdiv dword ptr [{b} + 0x6E0]", "fstp dword ptr [{e} + 0x1C]", "fld dword ptr [{b} + {k} + 0x848]", "fmul dword ptr [{b} + 0x710]", "fadd dword ptr [{b} + 0x704]", "fstp dword ptr [{e}]", "fld dword ptr [{b} + {k} + 0x88C]", "fchs", "fmul dword ptr [{b} + 0x710]", "fadd dword ptr [{b} + 0x708]", "fstp dword ptr [{e} + 4]");
 
     fn blocks() -> Vec<Block> {
         vec![
             Block {
                 name: "disc_vertex line 25 idx k=0",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::Sized {
+                        len: size_of::<HudBlock>(),
                         reads: &[
                             (0x6DC, In::F),
                             (0x6E0, In::F),
@@ -122,19 +122,13 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
-                plain: |a| {
-                    x87_1(
-                        unsafe { &*(crate::pointers::host_at(a[0]) as *const HudBlock) },
-                        a[1],
-                        a[2],
-                    );
-                },
+                plain: |a| x87_1(a[0].view::<HudBlock>(), a[1].value(), a[2].cells()),
             },
             Block {
                 name: "disc_vertex line 25 idx k=4",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::Sized {
+                        len: size_of::<HudBlock>(),
                         reads: &[
                             (0x6DC, In::F),
                             (0x6E0, In::F),
@@ -158,19 +152,13 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
-                plain: |a| {
-                    x87_1(
-                        unsafe { &*(crate::pointers::host_at(a[0]) as *const HudBlock) },
-                        a[1],
-                        a[2],
-                    );
-                },
+                plain: |a| x87_1(a[0].view::<HudBlock>(), a[1].value(), a[2].cells()),
             },
             Block {
                 name: "disc_vertex line 25 idx k=36",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::Sized {
+                        len: size_of::<HudBlock>(),
                         reads: &[
                             (0x6DC, In::F),
                             (0x6E0, In::F),
@@ -194,20 +182,13 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
-                plain: |a| {
-                    x87_1(
-                        unsafe { &*(crate::pointers::host_at(a[0]) as *const HudBlock) },
-                        a[1],
-                        a[2],
-                    );
-                },
+                plain: |a| x87_1(a[0].view::<HudBlock>(), a[1].value(), a[2].cells()),
             },
         ]
     }
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse(&blocks(), 1200, 100);
+        sparse("hud.disc_vertex", &blocks(), 1200, 100);
     }
 }

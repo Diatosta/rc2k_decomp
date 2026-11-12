@@ -53,8 +53,8 @@ fn highlighted_slot(menus: &Menus) -> u32 {
 
 /// Saves the game in `slot`. Whether it worked is not looked at, as in the original. A slot
 /// or a state the Rust writer refuses ends the program with the reason.
-pub fn save_game(menus: &Menus, slot: u32) {
-    if let Err(why) = write_savegame_slot(menus, slot) {
+pub fn save_game(menus: &Menus, saves: &'static Saves, slot: u32) {
+    if let Err(why) = write_savegame_slot(menus, saves, slot) {
         crate::framework::log(&format!("saves::write_savegame_slot: slot {slot}"));
         crate::fatal::raise::end("saves::write_savegame_slot", why);
     }

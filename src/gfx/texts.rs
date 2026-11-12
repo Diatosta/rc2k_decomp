@@ -39,19 +39,19 @@ mod tests {
 
     #[test]
     fn texts_are_the_games() {
-        for (ida, text) in [
-            (0x732C93, &MBUTS[..]),
-            (0x5C2CF7, &FINDING_3D[..]),
-            (0x4F66C8, &JADE[..]),
-            (0x5BE8D8, &FNT22[..]),
-            (0x5AB400, &CHATZONE[..]),
-            (0x5297DE, &PAL_00[..]),
-            (0x52977A, &FNT13[..]),
-            (0x529793, &FNT21[..]),
-            (0x5297AC, &FNT23[..]),
-            (0x5297C5, &FNT27[..]),
+        for (key, text) in [
+            ("gfx.texts.MBUTS", &MBUTS[..]),
+            ("gfx.texts.FINDING_3D", &FINDING_3D[..]),
+            ("gfx.texts.JADE", &JADE[..]),
+            ("gfx.texts.FNT22", &FNT22[..]),
+            ("gfx.texts.CHATZONE", &CHATZONE[..]),
+            ("gfx.texts.PAL_00", &PAL_00[..]),
+            ("gfx.texts.FNT13", &FNT13[..]),
+            ("gfx.texts.FNT21", &FNT21[..]),
+            ("gfx.texts.FNT23", &FNT23[..]),
+            ("gfx.texts.FNT27", &FNT27[..]),
         ] {
-            assert_eq!(crate::moved::image_bytes(ida, text.len()), text, "{ida:#X}");
+            assert_eq!(crate::test_support::first_values::bytes(key), text, "{key}");
         }
     }
 }

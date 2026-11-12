@@ -89,26 +89,19 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&race().replay.finish, START, END);
+        crate::test_support::first_values::assert_block_starts_as_the_games(&race().replay.finish);
     }
 
     #[test]
-    fn piece_has_its_home() {
+    fn fields_are_at_the_games_offsets() {
         assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            crate::moved::place(END - 1),
-            (piece_addr() + (END - START) as u32 - 1) as usize
-        );
-        assert_eq!(offset_of!(Finish, finish_stages), 0x64BB1C - START);
-        assert_eq!(offset_of!(Finish, finish_lengths), 0x64BB3C - START);
-        assert_eq!(offset_of!(Finish, limit_a), 0x64BB44 - START);
-        assert_eq!(offset_of!(Finish, start_clock), 0x64BB60 - START);
-        assert_eq!(offset_of!(Finish, time), 0x64BB64 - START);
-        assert_eq!(offset_of!(Finish, share), 0x64BB6C - START);
-        assert_eq!(offset_of!(Finish, limit_d), 0x64BB74 - START);
-        assert_eq!(
-            offset_of!(Finish, unreached_loader_buffers),
-            0x64BB80 - START
-        );
+        assert_eq!(offset_of!(Finish, finish_stages), 0x4);
+        assert_eq!(offset_of!(Finish, finish_lengths), 0x24);
+        assert_eq!(offset_of!(Finish, limit_a), 0x2c);
+        assert_eq!(offset_of!(Finish, start_clock), 0x48);
+        assert_eq!(offset_of!(Finish, time), 0x4c);
+        assert_eq!(offset_of!(Finish, share), 0x54);
+        assert_eq!(offset_of!(Finish, limit_d), 0x5c);
+        assert_eq!(offset_of!(Finish, unreached_loader_buffers), 0x68);
     }
 }

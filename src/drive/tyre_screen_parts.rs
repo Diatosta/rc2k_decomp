@@ -35,6 +35,7 @@ pub fn tyre_screen_parts(
                 0xFF_FFFF,
                 race.viewer_panel(),
                 system,
+                crate::workers::game_scratch().vertices,
             )
         }?;
     }

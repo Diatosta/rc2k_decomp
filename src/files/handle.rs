@@ -294,6 +294,6 @@ mod tests {
             .flatten()
             .flat_map(|w| w.to_le_bytes())
             .collect();
-        assert_eq!(bytes, crate::moved::image_bytes(0x4E06EA, bytes.len()));
+        crate::test_support::first_values::assert_matches("files.handle.MODES", &bytes);
     }
 }

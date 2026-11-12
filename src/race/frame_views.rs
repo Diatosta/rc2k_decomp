@@ -126,10 +126,13 @@ pub fn mirror_view_window(
 /// `race::draw_flat_triangle` (0x455912): three vertices at (1, 1, 0) with texture 0, 0,
 /// colour 0 (the original's `fld1` / `fldz` stores), `g_polygonVertexCount` 3, drawn
 /// (`scene::draw_fan`). Every register kept.
-pub fn draw_flat_triangle(scene: &crate::scene::owner::Scene) {
+pub fn draw_flat_triangle(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
+    scene: &crate::scene::owner::Scene,
+) {
     // 1.0 at x, y of each of the three vertices; 0.0 at the rest of their floats (z, rhw,
     // u, v) and the specular.
-    for vertex in &crate::d3d::vertices_store::VERTICES.vertices[..3] {
+    for vertex in &buffer.vertices[..3] {
         vertex.x.set(1.0f32);
         vertex.y.set(1.0f32);
         vertex.z.set_bits(0);
@@ -141,7 +144,7 @@ pub fn draw_flat_triangle(scene: &crate::scene::owner::Scene) {
     crate::scene::polygon_work::front_end()
         .polygon_vertex_count
         .set(3);
-    crate::scene::draw_fan::draw_fan(scene, crate::scene::polygon_work::front_end());
+    crate::scene::draw_fan::draw_fan(scene, crate::scene::polygon_work::front_end(), buffer);
 }
 
 /// The marks' shadow refusals (`effects::draw_shadow`'s first and second shadows), checked
@@ -546,6 +549,7 @@ fn int_over_times(
 pub fn run_view_marks(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     system: &crate::system::owner::System,
+    sound: &'static crate::sound::owner::Sound,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     let (race, scene) = (ctx.race, ctx.scene);
@@ -583,6 +587,7 @@ pub fn run_view_marks(
     );
     crate::drive::share_all_cars::share_all_cars(
         race,
+        sound,
         scene,
         crate::drive::set_listener::ListenerView::of(ctx.view, race),
     )?;
@@ -618,9 +623,11 @@ pub fn run_view_marks(
     let done = crate::effects::frame_marks::frame_marks(race, scene, effects).and_then(|_| {
         if race.frame.frame_work.drawing.get() == 0 {
             crate::effects::run_frame::run_frame(
+                ctx.part.vertices,
                 race,
                 scene,
                 effects,
+                sound,
                 crate::effects::run_frame::EffectsView::of(ctx.view),
             )
         } else {

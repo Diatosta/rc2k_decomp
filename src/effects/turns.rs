@@ -133,80 +133,10 @@ fn int_over_80_x87(v: i32, k: &PlainFloat) -> [u8; 10] {
     bh::f80(t1)
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
-    //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
-
-    pub(super) fn turn_pair_x87(i: usize, m: usize, o: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld tbyte ptr [{i} + 10]",
-            "fld tbyte ptr [{i}]",
-            ".byte 0xD9, 0xC1",
-            ".byte 0xD9, 0xC1",
-            "fmul dword ptr [{m} + 0x10]",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{m} + 0xC]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xCA",
-            "fmul dword ptr [{m}]",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{m} + 4]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xC9",
-            "fstp tbyte ptr [{o}]",
-            "fstp tbyte ptr [{o} + 10]",
-            i = in(reg) i,
-            m = in(reg) m,
-            o = in(reg) o,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn scaled_ints_x87(i: usize, k: usize, v: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld tbyte ptr [{i} + 10]",
-            "fld tbyte ptr [{i}]",
-            "fmul dword ptr [{k}]",
-            "fistp dword ptr [{v}]",
-            "fmul dword ptr [{k} + 4]",
-            "fistp dword ptr [{v} + 4]",
-            i = in(reg) i,
-            k = in(reg) k,
-            v = in(reg) v,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn int_over_80_x87(v: usize, k: usize, o: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fild dword ptr [{v}]",
-            "fdiv dword ptr [{k}]",
-            "fstp tbyte ptr [{o}]",
-            v = in(reg) v,
-            k = in(reg) k,
-            o = in(reg) o,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-}
-
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_differential {
-    use super::asm_reference as reference;
+#[cfg(test)]
+mod reference_vectors {
     use crate::effects::asm_test::Kind::*;
-    use crate::effects::asm_test::{Op, Spec, differential};
+    use crate::effects::asm_test::{Op, Spec, recorded};
     use crate::session::PlainFloat;
 
     /// The `N` bytes of the test buffer at `at`.
@@ -256,23 +186,19 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::turn_pair_x87(b[0], b[1], b[2]),
-            |b| {
-                // The turn's floats 0, 1, 3 and 4 (byte offsets 0, 4, 0xC, 0x10).
-                let m: [PlainFloat; 9] = std::array::from_fn(|n| {
-                    if n < 5 {
-                        cell(b[1] + 4 * n)
-                    } else {
-                        cell(b[1])
-                    }
-                });
-                let out = super::turn_pair_x87(&pair(b[0]), &m);
-                put(b[2], &out[0]);
-                put(b[2] + 0xA, &out[1]);
-            },
-        );
+        recorded("effects.turns.turn_pair_x87", &SPEC, |b| {
+            // The turn's floats 0, 1, 3 and 4 (byte offsets 0, 4, 0xC, 0x10).
+            let m: [PlainFloat; 9] = std::array::from_fn(|n| {
+                if n < 5 {
+                    cell(b[1] + 4 * n)
+                } else {
+                    cell(b[1])
+                }
+            });
+            let out = super::turn_pair_x87(&pair(b[0]), &m);
+            put(b[2], &out[0]);
+            put(b[2] + 0xA, &out[1]);
+        });
     }
 
     #[test]
@@ -300,15 +226,11 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::scaled_ints_x87(b[0], b[1], b[2]),
-            |b| {
-                let (v0, v1) = super::scaled_ints_x87(&pair(b[0]), &cell(b[1]), &cell(b[1] + 4));
-                put(b[2], &v0.to_le_bytes());
-                put(b[2] + 4, &v1.to_le_bytes());
-            },
-        );
+        recorded("effects.turns.scaled_ints_x87", &SPEC, |b| {
+            let (v0, v1) = super::scaled_ints_x87(&pair(b[0]), &cell(b[1]), &cell(b[1] + 4));
+            put(b[2], &v0.to_le_bytes());
+            put(b[2] + 4, &v1.to_le_bytes());
+        });
     }
 
     #[test]
@@ -336,13 +258,9 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::int_over_80_x87(b[0], b[1], b[2]),
-            |b| {
-                let v = i32::from_le_bytes(bytes::<4>(b[0]));
-                put(b[2], &super::int_over_80_x87(v, &cell(b[1])));
-            },
-        );
+        recorded("effects.turns.int_over_80_x87", &SPEC, |b| {
+            let v = i32::from_le_bytes(bytes::<4>(b[0]));
+            put(b[2], &super::int_over_80_x87(v, &cell(b[1])));
+        });
     }
 }

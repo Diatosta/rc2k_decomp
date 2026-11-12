@@ -12,7 +12,7 @@ use dear_imgui_rs::{TreeNodeFlags, Ui};
 #[derive(Clone, Copy)]
 enum At {
     /// A variable of the effects' or the scene's state.
-    Cell(fn(&Owners<'_>) -> u32),
+    Cell(fn(&Owners<'static>) -> u32),
     /// A figure of the settings `g_marksSettings` stands for (the race's record); the windows
     /// and cracks lie in its first car's record.
     Through(fn(&EffectsSettings) -> u32),
@@ -208,7 +208,7 @@ const CRACK_SETS: [fn(&EffectsSettings, usize) -> u32; 3] = [
     |s, n| s.cars[0].kind_counts[n].get(),
 ];
 
-fn read(o: &Owners<'_>, at: At) -> Option<u32> {
+fn read(o: &Owners<'static>, at: At) -> Option<u32> {
     match at {
         Cell(read) => Some(read(o)),
         Through(read) => effects_settings().ok().map(read),
@@ -224,7 +224,7 @@ fn shown(value: Option<u32>, float: bool) -> String {
 }
 
 /// The tab.
-pub fn tab(o: &Owners<'_>, ui: &Ui) {
+pub fn tab(o: &Owners<'static>, ui: &Ui) {
     // 0x4D2B90: its warning, when the two counts differ.
     let frame = &o.effects.frame.draw_frame;
     let (drawn, run) = (
@@ -262,7 +262,7 @@ pub fn tab(o: &Owners<'_>, ui: &Ui) {
 }
 
 /// A group of figures, under its header.
-fn group(ui: &Ui, o: &Owners<'_>, (name, figures): &(&str, &[Figure])) {
+fn group(ui: &Ui, o: &Owners<'static>, (name, figures): &(&str, &[Figure])) {
     if ui.collapsing_header(name, TreeNodeFlags::DEFAULT_OPEN)
         && let Some(_table) = ui.begin_table(name, 2)
     {
@@ -277,7 +277,7 @@ fn group(ui: &Ui, o: &Owners<'_>, (name, figures): &(&str, &[Figure])) {
 }
 
 /// The three sets of cracks.
-fn cracks(ui: &Ui, o: &Owners<'_>) {
+fn cracks(ui: &Ui, o: &Owners<'static>) {
     if ui.collapsing_header("Cracks", TreeNodeFlags::DEFAULT_OPEN) {
         ui.text(format!(
             "?crack.flag: {}",

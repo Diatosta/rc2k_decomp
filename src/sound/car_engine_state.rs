@@ -324,14 +324,8 @@ mod asm_reference {
                 reference: |a| unsafe { ref_0(a[0], a[1]) },
                 plain: |a| {
                     revs_input(
-                        unsafe {
-                            &*(crate::pointers::host_at(a[0])
-                                as *const crate::sound::store::SoundObject)
-                        },
-                        unsafe {
-                            &*(crate::pointers::host_at(a[1])
-                                as *const crate::sound::sets_store::KindRecord)
-                        },
+                        unsafe { &*(a[0] as *const crate::sound::store::SoundObject) },
+                        unsafe { &*(a[1] as *const crate::sound::sets_store::KindRecord) },
                     );
                 },
             },
@@ -351,14 +345,8 @@ mod asm_reference {
                 reference: |a| unsafe { ref_1(a[0], a[1]) },
                 plain: |a| {
                     speed_input(
-                        unsafe {
-                            &*(crate::pointers::host_at(a[0])
-                                as *const crate::sound::store::SoundObject)
-                        },
-                        unsafe {
-                            &*(crate::pointers::host_at(a[1])
-                                as *const crate::sound::store::SurfaceSounds)
-                        },
+                        unsafe { &*(a[0] as *const crate::sound::store::SoundObject) },
+                        unsafe { &*(a[1] as *const crate::sound::store::SurfaceSounds) },
                     );
                 },
             },
@@ -397,14 +385,8 @@ mod asm_reference {
                 reference: |a| unsafe { ref_3(a[0], a[1]) },
                 plain: |a| {
                     distance_and_approach(
-                        unsafe {
-                            &*(crate::pointers::host_at(a[0])
-                                as *const crate::sound::store::SoundObject)
-                        },
-                        unsafe {
-                            &*(crate::pointers::host_at(a[1])
-                                as *const crate::sound::store::RaceClock)
-                        },
+                        unsafe { &*(a[0] as *const crate::sound::store::SoundObject) },
+                        unsafe { &*(a[1] as *const crate::sound::store::RaceClock) },
                     );
                 },
             },
@@ -428,18 +410,9 @@ mod asm_reference {
                 reference: |a| unsafe { ref_4(a[0], a[1], a[2]) },
                 plain: |a| {
                     ease_pitch_factor(
-                        unsafe {
-                            &*(crate::pointers::host_at(a[0])
-                                as *const crate::sound::store::SoundObject)
-                        },
-                        unsafe {
-                            &*(crate::pointers::host_at(a[1])
-                                as *const crate::sound::store::RaceClock)
-                        },
-                        unsafe {
-                            &*(crate::pointers::host_at(a[2])
-                                as *const crate::sound::store::SurfaceSounds)
-                        },
+                        unsafe { &*(a[0] as *const crate::sound::store::SoundObject) },
+                        unsafe { &*(a[1] as *const crate::sound::store::RaceClock) },
+                        unsafe { &*(a[2] as *const crate::sound::store::SurfaceSounds) },
                     );
                 },
             },
@@ -453,8 +426,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_5(a[0]) },
                 plain: |a| {
                     volume_factor_by_distance(unsafe {
-                        &*(crate::pointers::host_at(a[0])
-                            as *const crate::sound::store::SoundObject)
+                        &*(a[0] as *const crate::sound::store::SoundObject)
                     });
                 },
             },

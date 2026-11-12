@@ -60,35 +60,19 @@ pub const START: usize = 0x755784;
 /// IDA 0x7558C4, the end of the piece.
 pub const END: usize = 0x7558C4;
 
-/// Where IDA 0x755784 lives (`moved::MOVED`'s home).
-#[cfg(test)]
-pub fn names_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::menu::owner::menus().play.names)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moved::image_bytes;
-    use core::mem::{offset_of, size_of};
+    use core::mem::offset_of;
 
     #[test]
     fn name_buffers_starts_as_the_games() {
-        assert!(
-            END - START <= size_of::<Names>()
-                && size_of::<Names>() <= (END - START).next_multiple_of(4)
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &crate::menu::owner::menus().play.names,
         );
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host(names_addr()).cast_const(),
-                END - START,
-            )
-        };
-        assert_eq!(mine, &image_bytes(START, END - START)[..]);
-        let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
-        at(offset_of!(Names, player_names), 0x755784);
-        at(offset_of!(Names, more_names), 0x755804);
-        at(offset_of!(Names, kept_name), 0x755884);
-        at(offset_of!(Names, text_backup), 0x7558A4);
+        assert_eq!(offset_of!(Names, player_names), 0x0);
+        assert_eq!(offset_of!(Names, more_names), 0x80);
+        assert_eq!(offset_of!(Names, kept_name), 0x100);
+        assert_eq!(offset_of!(Names, text_backup), 0x120);
     }
 }

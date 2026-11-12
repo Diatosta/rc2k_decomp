@@ -104,20 +104,23 @@ mod tests {
         assert_eq!(size_of::<MarksSines>(), MarksSines::LEN);
         assert_eq!(size_of::<WaveLevels>(), WaveLevels::LEN);
         assert_eq!(size_of::<WaveState>(), WaveState::LEN);
-        let image = crate::moved::image_bytes;
         assert!(
             bytes(&crate::effects::owner::effects().paths.sines)
-                == image(MarksSines::START, MarksSines::LEN),
+                == crate::test_support::first_values::bytes(
+                    "effects.owner.EFFECTS.paths.sines/1280"
+                ),
             "SINES starts differently from the image"
         );
         assert!(
             bytes(&crate::effects::owner::effects().paths.wave_levels)
-                == image(WaveLevels::START, WaveLevels::LEN),
+                == crate::test_support::first_values::bytes(
+                    "effects.owner.EFFECTS.paths.wave_levels/68"
+                ),
             "WAVE_LEVELS starts differently from the image"
         );
         assert!(
             bytes(&crate::effects::owner::effects().paths.wave)
-                == image(WaveState::START, WaveState::LEN),
+                == crate::test_support::first_values::bytes("effects.owner.EFFECTS.paths.wave/16"),
             "WAVE starts differently from the image"
         );
     }

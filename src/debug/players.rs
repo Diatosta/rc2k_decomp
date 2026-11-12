@@ -82,16 +82,16 @@ fn figure(word: u32) -> String {
     format!("{}", word as i32)
 }
 
-fn player_figure(o: &Owners<'_>, player: usize, offset: usize) -> String {
+fn player_figure(o: &Owners<'static>, player: usize, offset: usize) -> String {
     figure(o.menus.play.players.players[player].get().word(offset))
 }
 
-fn car_figure(o: &Owners<'_>, car: usize, field: CarField) -> String {
+fn car_figure(o: &Owners<'static>, car: usize, field: CarField) -> String {
     figure(field(&o.race.car_blocks().cars[car]).get())
 }
 
 /// The player's name, to its NUL.
-fn name(o: &Owners<'_>, player: usize) -> String {
+fn name(o: &Owners<'static>, player: usize) -> String {
     let record = o.menus.play.players.players[player].get();
     let bytes: Vec<u8> = record
         .name_copy
@@ -103,7 +103,7 @@ fn name(o: &Owners<'_>, player: usize) -> String {
 }
 
 /// Both dumps to the log.
-fn write_log(o: &Owners<'_>) {
+fn write_log(o: &Owners<'static>) {
     use crate::framework::log;
     for player in 0..4 {
         log(&format!("DATA DUMP OF PLAYER {}", player + 1));
@@ -155,7 +155,7 @@ fn table(
 }
 
 /// The tab.
-pub fn tab(o: &Owners<'_>, ui: &Ui) {
+pub fn tab(o: &Owners<'static>, ui: &Ui) {
     if ui.button("Write both dumps to the log") {
         write_log(o);
     }

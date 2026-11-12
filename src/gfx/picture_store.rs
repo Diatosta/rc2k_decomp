@@ -68,26 +68,15 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&gfx().pictures.picture, START, START + LEN);
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &gfx().pictures.picture,
+        );
     }
 
     #[test]
     fn moved_knows_the_block() {
-        let pictures = &gfx().pictures;
-        assert_eq!(offset_of!(Picture, flags), 0x4F49CC - START);
-        assert_eq!(offset_of!(Picture, buffer), 0x4F49DC - START);
-        assert_eq!(offset_of!(Picture, list), 0x4F49E4 - START);
-        assert_eq!(
-            crate::moved::place(START),
-            pictures.picture.name.addr() as usize
-        );
-        assert_eq!(
-            crate::moved::place(0x4F49E4),
-            pictures.picture.list.addr() as usize
-        );
-        assert_eq!(
-            crate::moved::place(0x4F49DC),
-            pictures.picture.buffer.addr() as usize
-        );
+        assert_eq!(offset_of!(Picture, flags), 0x4);
+        assert_eq!(offset_of!(Picture, buffer), 0x14);
+        assert_eq!(offset_of!(Picture, list), 0x1c);
     }
 }

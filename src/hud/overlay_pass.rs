@@ -59,8 +59,10 @@ pub fn overlay_pass(
     }
     let scratch = crate::race::view_scratch::front_end();
     let polygons = &scratch.polygon;
+    let part = crate::workers::game_scratch();
     let pen = Pen {
         polygons,
+        vertices: part.vertices,
         system,
         scene,
     };
@@ -77,6 +79,7 @@ pub fn overlay_pass(
     crate::hud::draw_view_strips::draw_view_strips(&crate::hud::draw_view_strip::Overlay {
         race,
         scratch,
+        part,
         system,
         scene,
         strips: &gfx.strips,

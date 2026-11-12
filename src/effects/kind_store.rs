@@ -767,47 +767,65 @@ mod tests {
     #[test]
     fn the_statics_start_as_the_games() {
         let kinds = &effects().kinds;
-        let image = crate::moved::image_bytes;
         assert_eq!(size_of::<QuadWork>(), 0xF8);
         assert!(
-            bytes(&kinds.overlay_quad) == image(Quad1::START, Quad1::LEN),
+            bytes(&kinds.overlay_quad)
+                == crate::test_support::first_values::bytes(
+                    "effects.owner.EFFECTS.kinds.overlay_quad/248"
+                ),
             "QUAD_1"
         );
         assert!(
-            bytes(&kinds.shadow_quad) == image(Quad2::START, Quad2::LEN),
+            bytes(&kinds.shadow_quad)
+                == crate::test_support::first_values::bytes(
+                    "effects.owner.EFFECTS.kinds.shadow_quad/248"
+                ),
             "QUAD_2"
         );
         assert!(
-            bytes(&kinds.plane_quad) == image(Quad3::START, Quad3::LEN),
+            bytes(&kinds.plane_quad)
+                == crate::test_support::first_values::bytes(
+                    "effects.owner.EFFECTS.kinds.plane_quad/248"
+                ),
             "QUAD_3"
         );
         assert_eq!(size_of::<KindTables<0x1AC>>(), Tables1::LEN);
         assert_eq!(size_of::<KindTables<0x198>>(), Tables2::LEN);
         assert!(
-            bytes(&TABLES_1) == image(Tables1::START, Tables1::LEN),
+            bytes(&TABLES_1)
+                == crate::test_support::first_values::bytes("effects.kind_store.TABLES_1"),
             "TABLES_1"
         );
         assert!(
-            bytes(&TABLES_2) == image(Tables2::START, Tables2::LEN),
+            bytes(&TABLES_2)
+                == crate::test_support::first_values::bytes("effects.kind_store.TABLES_2"),
             "TABLES_2"
         );
         assert_eq!(size_of::<KindExtras1>(), KindExtras1::LEN);
         assert_eq!(size_of::<KindExtra2>(), KindExtra2::LEN);
         assert!(
-            bytes(&kinds.overlay_extras) == image(KindExtras1::START, KindExtras1::LEN),
+            bytes(&kinds.overlay_extras)
+                == crate::test_support::first_values::bytes(
+                    "effects.owner.EFFECTS.kinds.overlay_extras/12"
+                ),
             "EXTRAS_1"
         );
         assert!(
-            bytes(&kinds.shadow_extra) == image(KindExtra2::START, KindExtra2::LEN),
+            bytes(&kinds.shadow_extra)
+                == crate::test_support::first_values::bytes(
+                    "effects.owner.EFFECTS.kinds.shadow_extra/4"
+                ),
             "EXTRA_2"
         );
         assert_eq!(size_of::<KindConsts>(), Consts1::LEN);
         assert!(
-            bytes(&CONSTS_1) == image(Consts1::START, Consts1::LEN),
+            bytes(&CONSTS_1)
+                == crate::test_support::first_values::bytes("effects.kind_store.CONSTS_1"),
             "CONSTS_1"
         );
         assert!(
-            bytes(&CONSTS_2) == image(Consts2::START, Consts2::LEN),
+            bytes(&CONSTS_2)
+                == crate::test_support::first_values::bytes("effects.kind_store.CONSTS_2"),
             "CONSTS_2"
         );
     }
@@ -827,21 +845,15 @@ mod tests {
     #[test]
     fn the_fields_are_where_the_game_has_them() {
         let q = |base: usize, rel: usize| base + rel;
-        assert_eq!(offset_of!(QuadWork, corner), 0x933248 - Quad1::START);
-        assert_eq!(offset_of!(QuadWork, frame), 0x933224 - Quad1::START);
-        assert_eq!(offset_of!(QuadWork, corners), 0x93327C - Quad1::START);
+        assert_eq!(offset_of!(QuadWork, corner), 0x94);
+        assert_eq!(offset_of!(QuadWork, frame), 0x70);
+        assert_eq!(offset_of!(QuadWork, corners), 0xc8);
         assert_eq!(q(Quad2::START, offset_of!(QuadWork, spread)), 0x933F88);
         assert_eq!(q(Quad3::START, offset_of!(QuadWork, corners)), 0x934C98);
         assert_eq!(offset_of!(KindTables<0x1AC>, to), 0x1AC + 0x330);
-        assert_eq!(
-            Tables1::START + offset_of!(KindTables<0x1AC>, low),
-            0x933DE8
-        );
-        assert_eq!(
-            Tables2::START + offset_of!(KindTables<0x198>, count),
-            0x934848
-        );
-        assert_eq!(Consts1::START + offset_of!(KindConsts, lifts), 0x933EC0);
-        assert_eq!(Consts2::START + offset_of!(KindConsts, light), 0x934BB4);
+        assert_eq!(offset_of!(KindTables<0x1AC>, low), 0xb3c);
+        assert_eq!(offset_of!(KindTables<0x198>, count), 0x880);
+        assert_eq!(offset_of!(KindConsts, lifts), 0x44);
+        assert_eq!(offset_of!(KindConsts, light), 0x38);
     }
 }

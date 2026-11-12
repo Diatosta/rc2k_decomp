@@ -173,19 +173,8 @@ mod block_tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&gfx().fonts.game_fonts_memory, START, START + LEN);
-    }
-
-    #[test]
-    fn moved_knows_the_block() {
-        let fonts = &gfx().fonts;
-        assert_eq!(
-            crate::moved::place(START),
-            fonts.game_fonts_memory.units.addr() as usize
-        );
-        assert_eq!(
-            crate::moved::place(0x5BE898),
-            fonts.game_fonts_memory.memory.addr() as usize
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &gfx().fonts.game_fonts_memory,
         );
     }
 }

@@ -33,7 +33,7 @@ pub fn inspection_frame(
     if lock_failed() {
         return Ok(false);
     }
-    draw_menu(o.menus, menu)?;
+    draw_menu(o, menu)?;
     run_listed(o, &o.menus.screens.flow.overlay_list)?;
     unlock_surface();
     Ok(show_frame_now())

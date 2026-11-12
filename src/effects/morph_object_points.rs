@@ -199,10 +199,12 @@ mod morph_work_tests {
         assert_eq!(size_of::<MorphWork>(), MorphWork::LEN);
         assert!(
             bytes(&crate::effects::owner::effects().paths.morph_work)
-                == crate::moved::image_bytes(MorphWork::START, MorphWork::LEN),
+                == crate::test_support::first_values::bytes(
+                    "effects.owner.EFFECTS.paths.morph_work/40"
+                ),
             "MORPH_WORK starts differently from the image"
         );
-        assert_eq!(offset_of!(MorphWork, taken), 0x93C6CC - MorphWork::START);
-        assert_eq!(offset_of!(MorphWork, kept), 0x93C6D4 - MorphWork::START);
+        assert_eq!(offset_of!(MorphWork, taken), 0x0);
+        assert_eq!(offset_of!(MorphWork, kept), 0x8);
     }
 }

@@ -156,7 +156,7 @@ fn driven_car<'a>(race: &'a Race, course: &Course) -> &'a crate::physics::car_st
     }
 }
 
-fn state(o: &Owners<'_>, course: &Course) -> String {
+fn state(o: &Owners<'static>, course: &Course) -> String {
     let race = o.race;
     use crate::race::checkpoints_store::{map_x, map_y};
     let screens = &o.menus.screens;
@@ -273,7 +273,7 @@ const LOOK_AHEAD: usize = 12;
 /// And its near target, for a slow car in a sharp turn.
 const LOOK_NEAR: usize = 4;
 
-fn run(o: &Owners<'_>, line: &str) {
+fn run(o: &Owners<'static>, line: &str) {
     let course = &o.race.course;
     let words: Vec<&str> = line.split_whitespace().collect();
     let [id, command, rest @ ..] = &words[..] else {
@@ -335,13 +335,16 @@ static SCREEN: std::sync::Mutex<(Option<crate::menu::menus_store::MenuId>, u32, 
     std::sync::Mutex::new((None, 0, 0));
 
 /// The screen's identity: its menu (none outside the menus) and the race flag.
-fn screen_now(o: &Owners<'_>, course: &Course) -> (Option<crate::menu::menus_store::MenuId>, u32) {
+fn screen_now(
+    o: &Owners<'static>,
+    course: &Course,
+) -> (Option<crate::menu::menus_store::MenuId>, u32) {
     let menu = o.menus.screens.loop_flags.menu.get().ok();
     (menu, u32::from(course.numbers.in_race.is_set()))
 }
 
 /// A change of screen noted at its first frame.
-fn note_screen(o: &Owners<'_>, course: &Course) {
+fn note_screen(o: &Owners<'static>, course: &Course) {
     let (menu, race) = screen_now(o, course);
     let frames = o.gfx.drawing.draw_surface.frames.get();
     let mut s = SCREEN
@@ -354,7 +357,7 @@ fn note_screen(o: &Owners<'_>, course: &Course) {
 
 /// The frames drawn since the screen (menu or race) changed: a test presses keys once its
 /// screen has drawn a few, not by waiting a fixed time.
-fn screen_frames(o: &Owners<'_>) -> u32 {
+fn screen_frames(o: &Owners<'static>) -> u32 {
     let s = SCREEN
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -362,9 +365,8 @@ fn screen_frames(o: &Owners<'_>) -> u32 {
 }
 
 /// At each pump: the releases due, then the commands waiting.
-pub fn poll(course: &Course) {
+pub fn poll(o: &Owners<'static>, course: &Course) {
     let Some(folder) = folder() else { return };
-    let o = &crate::owners::boundary();
     note_screen(o, course);
     let now = Instant::now();
     note_slow_frame(o, course, now);
@@ -388,7 +390,7 @@ pub fn poll(course: &Course) {
 /// With `RC2K_SLOW_FRAMES=<ms>`, a log line for each pump in a race that comes more than
 /// that many milliseconds after the one before, with the driven car's checkpoint: where on
 /// the stage the frame rate drops (the five-second lines smooth the drops away).
-fn note_slow_frame(o: &Owners<'_>, course: &Course, now: Instant) {
+fn note_slow_frame(o: &Owners<'static>, course: &Course, now: Instant) {
     static LIMIT: OnceLock<Option<u128>> = OnceLock::new();
     static LAST: Mutex<Option<Instant>> = Mutex::new(None);
     let Some(limit) = *LIMIT.get_or_init(|| {

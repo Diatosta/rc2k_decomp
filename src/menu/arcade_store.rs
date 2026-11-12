@@ -80,37 +80,21 @@ pub const START: usize = 0x7587E8;
 /// IDA 0x758806, the end of the piece.
 pub const END: usize = 0x758806;
 
-/// Where IDA 0x7587E8 lives (`moved::MOVED`'s home).
-#[cfg(test)]
-pub fn arcade_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::menu::owner::menus().play.arcade)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moved::image_bytes;
-    use core::mem::{offset_of, size_of};
+    use core::mem::offset_of;
 
     #[test]
     fn arcade_game_starts_as_the_games() {
-        assert!(
-            END - START <= size_of::<Arcade>()
-                && size_of::<Arcade>() <= (END - START).next_multiple_of(4)
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &crate::menu::owner::menus().play.arcade,
         );
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host(arcade_addr()).cast_const(),
-                END - START,
-            )
-        };
-        assert_eq!(mine, &image_bytes(START, END - START)[..]);
-        let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
-        at(offset_of!(Arcade, scene_let_go), 0x7587E8);
-        at(offset_of!(Arcade, level), 0x7587EC);
-        at(offset_of!(Arcade, stage), 0x7587F0);
-        at(offset_of!(Arcade, retry), 0x7587F4);
-        at(offset_of!(Arcade, places), 0x7587F8);
-        at(offset_of!(Arcade, levels_won), 0x758800);
+        assert_eq!(offset_of!(Arcade, scene_let_go), 0x0);
+        assert_eq!(offset_of!(Arcade, level), 0x4);
+        assert_eq!(offset_of!(Arcade, stage), 0x8);
+        assert_eq!(offset_of!(Arcade, retry), 0xc);
+        assert_eq!(offset_of!(Arcade, places), 0x10);
+        assert_eq!(offset_of!(Arcade, levels_won), 0x18);
     }
 }

@@ -18,8 +18,7 @@ use crate::race::owner::Race;
 use crate::session::Dword;
 
 /// Whether the frame was lost.
-pub fn viewer_frame() -> Result<bool, Refused> {
-    let o = crate::owners::boundary();
+pub fn viewer_frame(o: Owners<'static>) -> Result<bool, Refused> {
     let (system, gfx, race) = (o.system, o.gfx, o.race);
     let replay = &race.replay;
     if race.shared.replay_file.replay_at_end.is_set() {
@@ -77,7 +76,14 @@ fn stopped(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
         let uv = uv
             .first_chunk::<4>()
             .ok_or(BadInput("a texture rectangle of fewer than four"))?;
-        crate::drive::tyre_quad::tyre_quad_cells(uv, rect, colour, race.viewer_panel(), system)
+        crate::drive::tyre_quad::tyre_quad_cells(
+            uv,
+            rect,
+            colour,
+            race.viewer_panel(),
+            system,
+            crate::workers::game_scratch().vertices,
+        )
     };
     let v = race.viewer_panel();
     quad(&v.frame_picture_rect, &v.bar_frame_rect, 0xFF_FFFF)?;

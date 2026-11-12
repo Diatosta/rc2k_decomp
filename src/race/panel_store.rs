@@ -161,41 +161,27 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_race_block() {
+    fn fields_are_at_the_games_offsets() {
         assert_eq!(piece_addr() % (core::mem::align_of::<Panel>()) as u32, 0);
-        assert_eq!(piece_addr() as usize, crate::moved::place(START));
-        assert_eq!(
-            crate::moved::place(END - 1),
-            (piece_addr() + (END - START) as u32 - 1) as usize
-        );
 
-        assert_eq!(offset_of!(Panel, split_6), 0x6D13FE - START);
-        assert_eq!(offset_of!(Panel, view_a), 0x6D140E - START);
-        assert_eq!(offset_of!(Panel, view_b), 0x6D143E - START);
-        assert_eq!(offset_of!(Panel, overlay_miles), 0x6D1466 - START);
-        assert_eq!(offset_of!(Panel, lights), 0x6D1482 - START);
-        assert_eq!(offset_of!(Panel, marks), 0x6D14A2 - START);
-        assert_eq!(offset_of!(Panel, start_values), 0x6D14CA - START);
-        assert_eq!(offset_of!(Panel, players), 0x6D14F2 - START);
-        assert_eq!(offset_of!(Panel, flat), 0x6D1502 - START);
-        assert_eq!(offset_of!(Panel, texture_changes), 0x6D1508 - START);
+        assert_eq!(offset_of!(Panel, split_6), 0x0);
+        assert_eq!(offset_of!(Panel, view_a), 0x10);
+        assert_eq!(offset_of!(Panel, view_b), 0x40);
+        assert_eq!(offset_of!(Panel, overlay_miles), 0x68);
+        assert_eq!(offset_of!(Panel, lights), 0x84);
+        assert_eq!(offset_of!(Panel, marks), 0xa4);
+        assert_eq!(offset_of!(Panel, start_values), 0xcc);
+        assert_eq!(offset_of!(Panel, players), 0xf4);
+        assert_eq!(offset_of!(Panel, flat), 0x104);
+        assert_eq!(offset_of!(Panel, texture_changes), 0x10a);
 
-        // The three places at +0x78 are the image's addresses of the overlay's arrays, names
-        // that resolve to them.
-        let image = crate::moved::image_bytes(0x6D1476, 12);
-        for (k, miles) in [0x6D150C_usize, 0x6D160C, 0x6D170C].into_iter().enumerate() {
-            let name = u32::from_le_bytes(image[4 * k..4 * k + 4].try_into().unwrap());
-            assert_eq!(name as usize, miles);
-            assert_eq!(
-                crate::moved::named_in(
-                    name,
-                    crate::race::overlay_store::START,
-                    crate::race::overlay_store::END - crate::race::overlay_store::START,
-                    "an overlay array off the overlay"
-                ),
-                Ok(crate::race::overlay_store::piece_addr()
-                    + (miles - crate::race::overlay_store::START) as u32)
-            );
+        // The three places at +0x78 hold the image's addresses of the overlay's arrays (its
+        // first values, `every_store_starts_as_the_games`): 0x100 bytes apart from the
+        // overlay's first byte on.
+        let unused = &race().frame.panel_and_overlay.panel.unused_78;
+        for k in 0..3 {
+            let name = unused.get_u32(4 * k) as usize;
+            assert_eq!(name, crate::race::overlay_store::START + 0x100 * k);
         }
     }
 }

@@ -75,12 +75,6 @@ impl MenuSounds {
 
     pub const START: usize = 0x511AE4;
     pub const LEN: usize = 0x28;
-    #[cfg(test)]
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        (crate::pointers::game_address(&raw const crate::sound::owner::SOUND.menu.menu_sounds) + 4)
-            as usize
-    }
 }
 
 /// The sets of sounds a race loads (`sound::load_race_sounds`) and the request it sends (IDA 0x511B10 .. 0x5124E4, the image's layout).
@@ -863,11 +857,6 @@ impl RaceSoundSets {
     const KIND_ENTRIES: usize = 72;
     pub const START: usize = 0x511B10;
     pub const LEN: usize = 0x9D4;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    #[cfg(test)]
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::sound::owner::SOUND.race.sets) as usize
-    }
 }
 
 /// The cues' lists (IDA 0x512508 .. 0x512A10, the image's layout).
@@ -895,13 +884,6 @@ impl CueLists {
 impl CueLists {
     pub const START: usize = 0x512508;
     pub const LEN: usize = 0x508;
-    #[cfg(test)]
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        (crate::pointers::game_address(
-            &raw const *crate::sound::owner::SOUND.race.cue_lists.unchecked(),
-        ) + 8) as usize
-    }
 }
 
 /// A list of dwords inside a block of bytes, read by position and bounded to the block.
@@ -1568,12 +1550,6 @@ impl SoundKinds {
 
     pub const START: usize = 0x514F90;
     pub const LEN: usize = 0x13C8;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    #[cfg(test)]
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const *crate::sound::owner::SOUND.race.kinds.unchecked())
-            as usize
-    }
 }
 
 /// The surface sound sets (IDA 0x51639C .. 0x51655C, the image's layout).
@@ -1626,13 +1602,6 @@ impl SurfaceSets {
 
     pub const START: usize = 0x51639C;
     pub const LEN: usize = 0x1C0;
-    #[cfg(test)]
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        (crate::pointers::game_address(
-            &raw const *crate::sound::owner::SOUND.race.surface_sets.unchecked(),
-        ) + 12) as usize
-    }
 }
 
 /// The spot voices (IDA 0x5168C0 .. 0x517F40, the image's layout).
@@ -3239,18 +3208,23 @@ impl SpotVoices {
 impl SpotVoices {
     pub const START: usize = 0x5168C0;
     pub const LEN: usize = 0x1680;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    #[cfg(test)]
-    pub fn home() -> usize {
-        crate::pointers::game_address(
-            &raw const *crate::sound::owner::SOUND.race.spot_voices.unchecked(),
-        ) as usize
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::first_values;
+
+    /// The game's first bytes of the stores that hold handles where the game holds addresses
+    /// (named reads of `data/first_values.golden`), and the stores' golden keys.
+    const SETS_IMAGE: &str = "sound.owner.SOUND.race.sets/2516";
+    const CUES_IMAGE: &str = "sound.owner.SOUND.race.cue_lists/1288";
+    const KINDS_IMAGE: &str = "sound.owner.SOUND.race.kinds/5064";
+    const SURFACES_IMAGE: &str = "sound.owner.SOUND.race.surface_sets/448";
+    const SETS_STORE: &str = "store:sound.owner.SOUND.race.sets";
+    const CUES_STORE: &str = "store:sound.owner.SOUND.race.cue_lists";
+    const KINDS_STORE: &str = "store:sound.owner.SOUND.race.kinds";
+    const SURFACES_STORE: &str = "store:sound.owner.SOUND.race.surface_sets";
 
     /// The image's `count` address dwords from `at` made handles of `tag` (offsets from `start`).
     fn handled(image: &mut [u8], at: usize, count: usize, tag: u32, start: usize) {
@@ -3265,14 +3239,6 @@ mod tests {
     fn menusounds_starts_as_the_games() {
         let size = size_of::<MenuSounds>();
         assert!(4 + MenuSounds::LEN <= size && size <= (4 + MenuSounds::LEN).next_multiple_of(16));
-        let image = crate::moved::image_bytes(MenuSounds::START, MenuSounds::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(MenuSounds::home()).cast_const(),
-                MenuSounds::LEN,
-            )
-        };
-        assert_eq!(mine, &image[..]);
     }
 
     #[test]
@@ -3288,22 +3254,19 @@ mod tests {
                 }
             );
             // The image's relocated dword names the same set.
-            let image = crate::moved::image_bytes(RaceSoundSets::KINDS_AT + 4 * n, 4);
             assert_eq!(
-                u32::from_le_bytes(image[..4].try_into().unwrap()) as usize,
+                first_values::dword(
+                    SETS_IMAGE,
+                    (RaceSoundSets::KINDS_AT - RaceSoundSets::START) / 4 + n
+                ) as usize,
                 ida
             );
         }
         assert!(RaceSoundSets::kind_list_of(72).is_err());
         let size = size_of::<RaceSoundSets>();
         assert!(RaceSoundSets::LEN <= size && size <= (RaceSoundSets::LEN).next_multiple_of(16));
-        let mut image = crate::moved::image_bytes(RaceSoundSets::START, RaceSoundSets::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(RaceSoundSets::home()).cast_const(),
-                RaceSoundSets::LEN,
-            )
-        };
+        let mut image = first_values::bytes(SETS_IMAGE).to_vec();
+        let mine = first_values::store_bytes(SETS_STORE);
         handled(
             &mut image,
             RaceSoundSets::KINDS_AT - RaceSoundSets::START,
@@ -3311,7 +3274,7 @@ mod tests {
             RACE_LIST_TAG,
             RaceSoundSets::START,
         );
-        assert_eq!(mine, &image[..]);
+        assert_eq!(mine, image);
     }
 
     #[test]
@@ -3325,30 +3288,20 @@ mod tests {
         assert!(CueLists::list(113).is_err());
         let size = size_of::<CueLists>();
         assert!(8 + CueLists::LEN <= size && size <= (8 + CueLists::LEN).next_multiple_of(16));
-        let mut image = crate::moved::image_bytes(CueLists::START, CueLists::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(CueLists::home()).cast_const(),
-                CueLists::LEN,
-            )
-        };
+        let mut image = first_values::bytes(CUES_IMAGE).to_vec();
+        let mine = first_values::store_bytes(CUES_STORE);
         handled(&mut image, 0, 113, CUE_TAG, CueLists::START);
-        assert_eq!(mine, &image[..]);
+        assert_eq!(mine, image);
     }
 
     #[test]
     fn soundkinds_starts_as_the_games() {
         let size = size_of::<SoundKinds>();
         assert!(SoundKinds::LEN <= size && size <= (SoundKinds::LEN).next_multiple_of(16));
-        let mut image = crate::moved::image_bytes(SoundKinds::START, SoundKinds::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(SoundKinds::home()).cast_const(),
-                SoundKinds::LEN,
-            )
-        };
+        let mut image = first_values::bytes(KINDS_IMAGE).to_vec();
+        let mine = first_values::store_bytes(KINDS_STORE);
         handled(&mut image, 0, 36, KIND_TAG, SoundKinds::START);
-        assert_eq!(mine, &image[..]);
+        assert_eq!(mine, image);
     }
 
     #[test]
@@ -3371,36 +3324,26 @@ mod tests {
                 .get()
                 .record(n)
                 .unwrap();
+            // The records follow the table of their 36 addresses.
+            let kinds = crate::test_support::state::store("sound.owner.SOUND.race.kinds");
             assert!(
-                crate::pointers::GamePtr::to(record).addr() as usize >= SoundKinds::home() + 36 * 4
+                std::ptr::from_ref(record).addr() - kinds.first().addr() >= 36 * 4,
+                "{n}"
             );
         }
         let size = size_of::<SurfaceSets>();
         assert!(
             12 + SurfaceSets::LEN <= size && size <= (12 + SurfaceSets::LEN).next_multiple_of(16)
         );
-        let mut image = crate::moved::image_bytes(SurfaceSets::START, SurfaceSets::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(SurfaceSets::home()).cast_const(),
-                SurfaceSets::LEN,
-            )
-        };
+        let mut image = first_values::bytes(SURFACES_IMAGE).to_vec();
+        let mine = first_values::store_bytes(SURFACES_STORE);
         handled(&mut image, 0, 14, SURFACE_TAG, SurfaceSets::START);
-        assert_eq!(mine, &image[..]);
+        assert_eq!(mine, image);
     }
 
     #[test]
     fn spotvoices_starts_as_the_games() {
         let size = size_of::<SpotVoices>();
         assert!(SpotVoices::LEN <= size && size <= (SpotVoices::LEN).next_multiple_of(16));
-        let image = crate::moved::image_bytes(SpotVoices::START, SpotVoices::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(SpotVoices::home()).cast_const(),
-                SpotVoices::LEN,
-            )
-        };
-        assert_eq!(mine, &image[..]);
     }
 }

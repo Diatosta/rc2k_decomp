@@ -155,27 +155,22 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&race().frame.frame_work, START, END);
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &race().frame.frame_work,
+        );
     }
 
     #[test]
-    fn piece_has_its_home() {
+    fn fields_are_at_the_games_offsets() {
         assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            piece_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
-        assert_eq!(offset_of!(FrameWork, flare_count), 0x64158C - START);
-        assert_eq!(offset_of!(FrameWork, sun_depth), 0x6415A8 - START);
-        assert_eq!(offset_of!(FrameWork, view_out), 0x6415D8 - START);
-        assert_eq!(
-            offset_of!(FrameWork, view_textures_forgotten),
-            0x6415F4 - START
-        );
-        assert_eq!(offset_of!(FrameWork, view_layouts), 0x6416A0 - START);
-        assert_eq!(offset_of!(FrameWork, car_decal_places), 0x6416F8 - START);
-        assert_eq!(offset_of!(FrameWork, light_right), 0x64175C - START);
-        assert_eq!(offset_of!(FrameWork, shadow_light), 0x641938 - START);
-        assert_eq!(offset_of!(FrameWork, shadow_list_count), 0x641A9C - START);
+        assert_eq!(offset_of!(FrameWork, flare_count), 0x0);
+        assert_eq!(offset_of!(FrameWork, sun_depth), 0x1c);
+        assert_eq!(offset_of!(FrameWork, view_out), 0x4c);
+        assert_eq!(offset_of!(FrameWork, view_textures_forgotten), 0x68);
+        assert_eq!(offset_of!(FrameWork, view_layouts), 0x114);
+        assert_eq!(offset_of!(FrameWork, car_decal_places), 0x16c);
+        assert_eq!(offset_of!(FrameWork, light_right), 0x1d0);
+        assert_eq!(offset_of!(FrameWork, shadow_light), 0x3ac);
+        assert_eq!(offset_of!(FrameWork, shadow_list_count), 0x510);
     }
 }

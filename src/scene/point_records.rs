@@ -7,7 +7,7 @@
 //! A record is named by its number + 1 (1 .. 0x2000), where the original held its
 //! address: in the polygon entries' +4. The two other kinds of record the entries name
 //! follow: the four quad vertices (`PolygonWork::quad_vertices`, the view's own, `of_quad`)
-//! and the clipper's pool (`POLYGON_WORK.record_pool`, `of_pool`; `g_polygonNextRecord`
+//! and the clipper's pool (the part's `PolygonWork::record_pool`, `of_pool`; `g_polygonNextRecord`
 //! holds the next one's number where the original held its address).
 //! `COURSE_LISTS.point_records` is `HELD` while the records are taken, 0 otherwise.
 
@@ -24,17 +24,20 @@ pub const HELD: u32 = 1;
 
 pub type Record = [u32; 8];
 
-/// The records, as cells: read and written many times a polygon.
-/// One set per drawing thread (`workers`): a record is a thread's own projection, made again
-/// by another thread that needs it.
-static RECORDS: crate::workers::PerWorker<[[Dword; 8]; COUNT as usize]> =
-    crate::workers::PerWorker::new(
-        [const { [const { [const { Dword::new(0) }; 8] }; COUNT as usize] }; crate::workers::COUNT],
-    );
-/// The records' copies (`workers`).
-#[cfg(test)]
-pub fn copies() -> &'static dyn crate::workers::Copies {
-    &RECORDS
+/// The records of one part, as cells: read and written many times a polygon.
+pub type Records = [[Dword; 8]; COUNT as usize];
+
+/// The records, one set per drawing part (`workers::PartScratch`): a record is a part's own
+/// projection, made again by another part that needs it.
+pub(crate) static RECORDS: [Records; crate::workers::COUNT] =
+    [const { [const { [const { Dword::new(0) }; 8] }; COUNT as usize] }; crate::workers::COUNT];
+
+/// The scratch of the drawing part running on this thread (`workers::part_scratch`): the
+/// records and the clipper's pool it reaches. (Not yet handed down from the part: the
+/// records' readers are the polygon code's every step.)
+#[inline]
+fn running_part() -> &'static crate::workers::PartScratch {
+    crate::workers::part_scratch(crate::workers::index())
 }
 
 /// Whether the records are taken.
@@ -47,7 +50,6 @@ pub fn take(
 ) -> Result<(), Refused> {
     crate::memory::owned::count_on(list, BYTES)?;
     RECORDS
-        .all()
         .iter()
         .flatten()
         .flatten()
@@ -76,9 +78,9 @@ pub fn first_records_everywhere(
         return Err(BadInput("a point record past the block"));
     }
     let copies: &'static [_] = if crate::workers::beside() {
-        std::slice::from_ref(&*RECORDS)
+        std::slice::from_ref(running_part().records)
     } else {
-        RECORDS.all()
+        &RECORDS
     };
     Ok(copies.iter().flat_map(move |copy| &copy[..n]))
 }
@@ -109,7 +111,7 @@ pub const QUAD_FIRST: u32 = COUNT + 1;
 pub const QUADS: u32 = 4;
 /// The clipper's pool's first record.
 pub const POOL_FIRST: u32 = QUAD_FIRST + QUADS;
-/// The pool's records (`POLYGON_WORK.record_pool`, 0x2020 bytes).
+/// The pool's records (the part's `PolygonWork::record_pool`, 0x2020 bytes).
 pub const POOL: u32 = 0x101;
 
 /// The record of quad vertex `k`.
@@ -135,7 +137,7 @@ fn cells(r: u32, quad: Option<&[Dword; 32]>) -> Result<&[Dword; 8], BadInput> {
     }
     (r as usize)
         .checked_sub(1)
-        .and_then(|k| RECORDS.get(k))
+        .and_then(|k| running_part().records.get(k))
         .ok_or(BadInput("a point record past the block"))
 }
 
@@ -146,10 +148,9 @@ fn far_cells<'a>(r: u32, quad: Option<&'a [Dword; 32]>) -> Result<&'a [Dword; 8]
             quad.ok_or(BadInput("a quad vertex outside a view's drawing"))?,
             r - QUAD_FIRST,
         ),
-        _ if (POOL_FIRST..POOL_FIRST + POOL).contains(&r) => (
-            &crate::scene::polygon_store::POLYGON_WORK.record_pool,
-            r - POOL_FIRST,
-        ),
+        _ if (POOL_FIRST..POOL_FIRST + POOL).contains(&r) => {
+            (&running_part().polygon.record_pool, r - POOL_FIRST)
+        }
         _ => return Err(BadInput("a point record past the records")),
     };
     all.get(8 * k as usize..8 * k as usize + 8)
@@ -264,7 +265,7 @@ mod tests {
         assert!(field(1, 0x20).is_err() && field(1, 2).is_err());
         // after the point records the quad vertices, then the clipper's pool, by their cells
         assert_eq!((of_quad(0), of_pool(0)), (COUNT + 1, COUNT + 1 + QUADS));
-        let pool = &crate::scene::polygon_store::POLYGON_WORK.record_pool;
+        let pool = &crate::workers::game_scratch().polygon.record_pool;
         let (kept_quad, kept_pool) = (
             get_in(Some(&quad), of_quad(3)).unwrap(),
             get(of_pool(POOL - 1)).unwrap(),

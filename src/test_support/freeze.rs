@@ -10,6 +10,9 @@
 
 use super::first_values::{hash, store_keys};
 
+/// A named read longer than this many bytes is frozen as size and hash only.
+const LONGEST_HELD: usize = 0x4000;
+
 fn hex(n: &str) -> usize {
     usize::from_str_radix(n.trim_start_matches("0x").replace('_', "").as_str(), 16)
         .unwrap_or_else(|_| panic!("a hex number: {n}"))
@@ -52,12 +55,22 @@ fn freeze_first_values() {
             panic!("a manifest line is `key ida len`: {line}");
         };
         let image = crate::moved::image_bytes(hex(ida), hex(len));
-        let bytes: String = image.iter().map(|b| format!("{b:02x}")).collect();
-        lines.push(format!(
-            "{key} {} {:016x} {bytes}",
-            image.len(),
-            hash(&image)
-        ));
+        // A long read is held as size and hash only (`first_values::holds`).
+        let bytes: String = if image.len() > LONGEST_HELD {
+            String::new()
+        } else {
+            image
+                .iter()
+                .map(|b| format!(" {b:02x}"))
+                .collect::<String>()
+                .replace(' ', "")
+        };
+        let line = format!("{key} {} {:016x}", image.len(), hash(&image));
+        lines.push(if bytes.is_empty() {
+            line
+        } else {
+            format!("{line} {bytes}")
+        });
     }
     lines.sort();
     let n = lines.len();

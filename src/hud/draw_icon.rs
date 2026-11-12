@@ -5,7 +5,6 @@
 //!
 //! Callers: `hud::icons`.
 
-use crate::d3d::vertices_store::VERTICES;
 use crate::errors::Refused;
 use crate::hud::owner::{Hud, Pen};
 use crate::race::owner_frame::Frame;
@@ -39,7 +38,7 @@ pub fn draw_icon(
         bottom,
     );
     for (n, u, v, x, y) in icons::corners(&i) {
-        let at = &VERTICES.vertices[n];
+        let at = &pen.vertices.vertices[n];
         at.u.set(u as i32 as f32);
         at.v.set(v as i32 as f32);
         at.x.set(x as i32 as f32);

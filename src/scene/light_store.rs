@@ -80,14 +80,6 @@ pub const END: usize = 0x637660;
 
 const _: () = assert!(END - START == core::mem::size_of::<LightState>());
 
-/// Where IDA 0x636588 is now (its own static).
-#[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(
-        &crate::scene::owner::scene().lights.state,
-    ))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -96,19 +88,14 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&scene().lights.state, START, END);
+        crate::test_support::first_values::assert_block_starts_as_the_games(&scene().lights.state);
     }
 
     #[test]
     fn piece_has_its_home() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            piece_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
-        assert_eq!(offset_of!(LightState, lit_place), 0x636588 - START);
-        assert_eq!(offset_of!(LightState, line_place), 0x6365E4 - START);
-        assert_eq!(offset_of!(LightState, fog_next), 0x636610 - START);
-        assert_eq!(offset_of!(LightState, camera_shake_z), 0x637640 - START);
+        assert_eq!(offset_of!(LightState, lit_place), 0x0);
+        assert_eq!(offset_of!(LightState, line_place), 0x5c);
+        assert_eq!(offset_of!(LightState, fog_next), 0x88);
+        assert_eq!(offset_of!(LightState, camera_shake_z), 0x10b8);
     }
 }

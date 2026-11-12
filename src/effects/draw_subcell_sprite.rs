@@ -20,7 +20,6 @@ use crate::effects::ring_store::RingWork;
 use crate::errors::{BadInput, Refused};
 use crate::scene::fog_at::fog_at;
 
-use crate::d3d::vertices_store::VERTICES;
 const SUBCELLS: u32 = 0x410;
 
 /// The place turned by the view.
@@ -34,8 +33,11 @@ fn turn(
 }
 
 /// The square about the projected place.
-fn square(effects: &crate::effects::owner::Effects) {
-    square_x87(&effects.frame.draw_work);
+fn square(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
+    effects: &crate::effects::owner::Effects,
+) {
+    square_x87(buffer, &effects.frame.draw_work);
 }
 
 /// `subcell` is the subcell's number, `size` a float's bits, `entry` the ring entry.
@@ -44,6 +46,7 @@ fn square(effects: &crate::effects::owner::Effects) {
     reason = "the original's registers, the effects' groups and the owners"
 )]
 pub fn draw_subcell_sprite(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
     masks: &Masks,
     ring: &Ring,
     scene: &crate::scene::owner::Scene,
@@ -72,8 +75,8 @@ pub fn draw_subcell_sprite(
     let fogged = fog_at(view.fog, ring.work.whole.get())?;
     let colour = crate::effects::ring_entries::entry(ring, entry)?.car_tag | 0xFF00_0000;
     for n in 0..4 {
-        VERTICES.vertices[n].specular.set(fogged);
-        VERTICES.vertices[n].colour.set(colour);
+        buffer.vertices[n].specular.set(fogged);
+        buffer.vertices[n].colour.set(colour);
     }
     effects.frame.draw_work.half[0].set_bits(size);
     let at = subcell << 4;
@@ -83,14 +86,14 @@ pub fn draw_subcell_sprite(
         .into_iter()
         .enumerate()
     {
-        VERTICES.vertices[n].u.set_bits(u);
-        VERTICES.vertices[n].v.set_bits(v);
+        buffer.vertices[n].u.set_bits(u);
+        buffer.vertices[n].v.set_bits(v);
     }
-    square(effects);
-    if clip_quad(effects)? {
+    square(buffer, effects);
+    if clip_quad(buffer, effects)? {
         return Ok(());
     }
-    draw_fan(scene);
+    draw_fan(buffer, scene);
     crate::scene::polygon_work::front_end()
         .polygon_vertex_count
         .set_bits(4u32);
@@ -146,7 +149,7 @@ fn turn_x87(
 }
 
 /// `square`'s x87 block as plain Rust on the x87 model (41 instructions), same order and memory places.
-fn square_x87(dw: &DrawWork) {
+fn square_x87(buffer: &crate::d3d::vertices_store::PolygonVertices, dw: &DrawWork) {
     let t0 = ld(crate::scene::polygon_work::front_end()
         .window
         .view_scale
@@ -154,10 +157,10 @@ fn square_x87(dw: &DrawWork) {
     let t1 = t0 / dw.turned[2].ld();
     let t2 = dw.turned[2].ld();
     let t3 = t2 * dw.z_k.ld();
-    st_cell(&VERTICES.vertices[0].z, t3);
-    st_cell(&VERTICES.vertices[1].z, t3);
-    st_cell(&VERTICES.vertices[2].z, t3);
-    st_cell(&VERTICES.vertices[3].z, t3);
+    st_cell(&buffer.vertices[0].z, t3);
+    st_cell(&buffer.vertices[1].z, t3);
+    st_cell(&buffer.vertices[2].z, t3);
+    st_cell(&buffer.vertices[3].z, t3);
     let t4 = dw.half[0].ld();
     let t5 = t4 * t1;
     dw.half[0].st(t5);
@@ -167,22 +170,22 @@ fn square_x87(dw: &DrawWork) {
     let t8 = -t7;
     let t9 = t8 + crate::scene::polygon_work::front_end().window.view_centre[1].ld();
     let t10 = t9 - dw.half[1].ld();
-    st_cell(&VERTICES.vertices[0].y, t10);
+    st_cell(&buffer.vertices[0].y, t10);
     let t11 = t9 - dw.half[1].ld();
-    st_cell(&VERTICES.vertices[1].y, t11);
+    st_cell(&buffer.vertices[1].y, t11);
     let t12 = t9 + dw.half[1].ld();
-    st_cell(&VERTICES.vertices[2].y, t12);
+    st_cell(&buffer.vertices[2].y, t12);
     let t13 = t9 + dw.half[1].ld();
-    st_cell(&VERTICES.vertices[3].y, t13);
+    st_cell(&buffer.vertices[3].y, t13);
     let t14 = t6 + crate::scene::polygon_work::front_end().window.view_centre[0].ld();
     let t15 = t14 - dw.half[0].ld();
-    st_cell(&VERTICES.vertices[0].x, t15);
+    st_cell(&buffer.vertices[0].x, t15);
     let t16 = t14 + dw.half[0].ld();
-    st_cell(&VERTICES.vertices[1].x, t16);
+    st_cell(&buffer.vertices[1].x, t16);
     let t17 = t14 + dw.half[0].ld();
-    st_cell(&VERTICES.vertices[2].x, t17);
+    st_cell(&buffer.vertices[2].x, t17);
     let t18 = t14 - dw.half[0].ld();
-    st_cell(&VERTICES.vertices[3].x, t18);
+    st_cell(&buffer.vertices[3].x, t18);
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -447,7 +450,7 @@ mod asm_differential {
                         &[
                             0x0, 0x4, 0x8, 0x20, 0x24, 0x28, 0x40, 0x44, 0x48, 0x60, 0x64, 0x68,
                         ],
-                        || super::square_x87(dw),
+                        || super::square_x87(&crate::d3d::vertices_store::VERTICES, dw),
                     );
                 });
             },

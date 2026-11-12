@@ -500,22 +500,10 @@ pub fn draw_action(_place: u32) -> Result<(), Refused> {
 
 #[cfg(test)]
 mod text_tests {
-    use super::*;
-
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
+        crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::install::owner::install().texts,
-            TEXTS_START,
-            TEXTS_START + TEXTS_LEN,
-        );
-        assert_eq!(
-            crate::moved::place(TEXTS_START),
-            crate::install::owner::install().texts.base_b.addr() as usize
-        );
-        assert_eq!(
-            crate::moved::place(0x5295C0),
-            crate::install::owner::install().texts.record_path.addr() as usize
         );
     }
 }

@@ -13,7 +13,7 @@ use crate::files::write_file::write_file_from;
 use crate::menu::name_lists::NAME_LEN;
 use crate::menu::owner::Menus;
 use crate::saves::gather_savegame::gather_savegame;
-use crate::saves::owner::{Saves, saves};
+use crate::saves::owner::Saves;
 use crate::session::{Bytes, PlainDword};
 use crate::system::packed_local_time::packed_local_time;
 
@@ -64,8 +64,11 @@ pub fn slot_name(saves: &'static Saves, slot: u32) -> crate::place::BytePlace {
 }
 
 /// True if the file was written.
-pub fn write_savegame_slot(menus: &Menus, slot: u32) -> Result<bool, Refused> {
-    let saves = saves();
+pub fn write_savegame_slot(
+    menus: &Menus,
+    saves: &'static Saves,
+    slot: u32,
+) -> Result<bool, Refused> {
     if slot >= SLOTS {
         return Err(BadInput("slot past the name list").into());
     }
@@ -95,36 +98,19 @@ mod block_tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
+        crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::saves::owner::SAVES.get().save_games,
-            START,
-            START + LEN,
         );
-        crate::gfx::first_values_are_the_games(
+        crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::saves::owner::SAVES.get().files.savegame_template,
-            TEMPLATE_START,
-            TEMPLATE_START + 27,
         );
     }
 
     #[test]
     fn moved_knows_the_block() {
-        let saves = saves();
         assert_eq!(offset_of!(SaveGames, kept_a), 0);
-        assert_eq!(offset_of!(SaveGames, file), 0x51EBB4 - START);
-        assert_eq!(offset_of!(SaveGames, names), 0x526BB4 - START);
-        assert_eq!(offset_of!(SaveGames, kept_b), 0x527834 - START);
-        assert_eq!(
-            crate::moved::place(0x51EBB4),
-            saves.save_games.file.addr() as usize
-        );
-        assert_eq!(
-            crate::moved::place(0x526BB4),
-            saves.save_games.names.addr() as usize
-        );
-        assert_eq!(
-            crate::moved::place(TEMPLATE_START),
-            saves.files.savegame_template.addr() as usize
-        );
+        assert_eq!(offset_of!(SaveGames, file), 0x4);
+        assert_eq!(offset_of!(SaveGames, names), 0x8004);
+        assert_eq!(offset_of!(SaveGames, kept_b), 0x8c84);
     }
 }

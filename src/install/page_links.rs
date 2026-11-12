@@ -333,13 +333,6 @@ mod tests {
             FontId::at(0x51E8A4)
         );
         assert!(PageLink::of_ida(PALETTE_IDA).is_blended_palette());
-        assert_eq!(
-            Some(
-                crate::pointers::GamePtr::to(crate::text::blend_font::BLENDED_PALETTE.get()).addr()
-                    as usize
-            ),
-            crate::moved::home_of_rva(PALETTE_IDA as usize - crate::framework::IMAGE_BASE)
-        );
         let typed = PageLink::of_ida(TYPED_IDA + 2).place().unwrap();
         assert_eq!(
             typed.game(),

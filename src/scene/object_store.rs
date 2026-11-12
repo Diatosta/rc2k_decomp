@@ -100,14 +100,6 @@ pub const END: usize = 0x635118;
 
 const _: () = assert!(END - START == core::mem::size_of::<ObjectWork>());
 
-/// Where IDA 0x634FA0 is now (the piece's static).
-#[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(std::ptr::from_ref(
-        &crate::scene::owner::scene().drawing.object_work,
-    ))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -116,20 +108,17 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&scene().drawing.object_work, START, END);
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &scene().drawing.object_work,
+        );
     }
 
     #[test]
     fn piece_has_its_home() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            piece_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
-        assert_eq!(offset_of!(ObjectWork, face_cursor), 0x634FA0 - START);
-        assert_eq!(offset_of!(ObjectWork, loading_car), 0x634FF0 - START);
-        assert_eq!(offset_of!(ObjectWork, car_switches), 0x635028 - START);
-        assert_eq!(offset_of!(ObjectWork, only_object), 0x635058 - START);
-        assert_eq!(offset_of!(ObjectWork, light_level), 0x63508C - START);
+        assert_eq!(offset_of!(ObjectWork, face_cursor), 0x0);
+        assert_eq!(offset_of!(ObjectWork, loading_car), 0x50);
+        assert_eq!(offset_of!(ObjectWork, car_switches), 0x88);
+        assert_eq!(offset_of!(ObjectWork, only_object), 0xb8);
+        assert_eq!(offset_of!(ObjectWork, light_level), 0xec);
     }
 }

@@ -24,12 +24,7 @@ pub fn save_game_data(
 /// The two parts on the game's files: whether the best times were written. The original's
 /// flags (carry: not written) are read by neither of its callers (`system::main_loop`,
 /// `menu::arcade_level_end`).
-pub fn save_in_game(saves: &Saves) -> Result<bool, Refused> {
-    save_in_game_in(crate::owners::boundary(), saves)
-}
-
-/// `save_in_game` for a caller that holds the owners.
-pub fn save_in_game_in(o: Owners<'_>, saves: &Saves) -> Result<bool, Refused> {
+pub fn save_in_game(o: Owners<'static>, saves: &Saves) -> Result<bool, Refused> {
     save_game_data(
         o.menus,
         &mut || crate::saves::save_options::save_options(o, &saves.files.options_path),

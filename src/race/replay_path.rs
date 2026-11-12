@@ -17,13 +17,6 @@ pub const LAST_RACE_START: usize = 0x5295F0;
 /// Its room.
 pub const LAST_RACE_LEN: usize = 0x5296FB - LAST_RACE_START;
 
-/// IDA's address of the replay files' names' templates.
-#[cfg(test)]
-pub const TEMPLATES_START: usize = 0x52974B;
-/// Their length.
-#[cfg(test)]
-pub const TEMPLATES_LEN: usize = 0x52977A - TEMPLATES_START;
-
 /// The replay files' names, the number's two digits last.
 pub struct Templates {
     /// `aSavedataReplay`: "savedata\replay\replay00".
@@ -43,15 +36,14 @@ impl Templates {
 
 #[cfg(test)]
 mod block_tests {
-    use super::*;
     use crate::race::owner::race;
 
     #[test]
     fn values_are_the_games() {
         let shared = &race().shared;
-        let image = crate::moved::image_bytes(LAST_RACE_START, LAST_RACE_LEN);
-        assert_eq!(&race().replay.last_race[..], &image[..]);
-        let image = crate::moved::image_bytes(TEMPLATES_START, TEMPLATES_LEN);
+        let image = crate::test_support::first_values::bytes("race.replay_path.LAST_RACE");
+        assert_eq!(&race().replay.last_race[..], image);
+        let image = crate::test_support::first_values::bytes("race.replay_path.TEMPLATES");
         let mine = [
             &shared.replay_templates.saved[..],
             &shared.replay_templates.own[..],

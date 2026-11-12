@@ -133,7 +133,16 @@ mod tests {
         let pictures = &gfx().pictures;
         let _lock = crate::store::test_lock();
         let figures = crate::memory::figures();
-        let kept = crate::moved::snapshot();
+        let kept = crate::test_support::state::Snapshot::of(&[
+            "gfx.owner.GFX.pictures.decoder",
+            "gfx.owner.GFX.pictures.pcx",
+            "gfx.owner.GFX.pictures.picture",
+            "gfx.owner.GFX.pictures.planes",
+            "gfx.owner.GFX.pictures.showing",
+            "gfx.owner.GFX.png.file",
+            "gfx.owner.GFX.png.header",
+            "gfx.owner.GFX.png.setting",
+        ]);
         let memory = crate::memory::ListCells::empty();
         let list = &memory;
         pictures
@@ -157,13 +166,10 @@ mod tests {
         file.extend((0..256u32).flat_map(|k| [k as u8, (2 * k) as u8, (3 * k) as u8]));
         let name = format!("target/rc2k_picture_test_{}.pcx", std::process::id());
         std::fs::write(&name, &file).unwrap();
-        let path: Vec<u8> = name.bytes().chain([0]).collect();
-        let path_at = crate::pointers::Lent::new(&path);
-        let read = crate::gfx::read_picture_file::read_picture_file(
-            &crate::pointers::GamePtr::new(path_at.addr()),
-            crate::gfx::owner::gfx(),
-        );
-        drop(path_at);
+        let mut path = [0u8; 64];
+        path[..name.len()].copy_from_slice(name.as_bytes());
+        let read =
+            crate::gfx::read_picture_file::read_picture_file(&path, crate::gfx::owner::gfx());
         std::fs::remove_file(&name).unwrap();
         assert!(read.unwrap(), "the picture was read");
         let palette: [u32; 256] = pictures.decoder.palette();
@@ -183,7 +189,7 @@ mod tests {
         }
         assert_ne!(palette[1], palette[2]);
         give_back(Buffer::Main);
-        crate::moved::restore(&kept);
+        kept.restore();
         crate::memory::with_figures(|f| *f = figures);
     }
 
@@ -240,7 +246,16 @@ mod tests {
         let pictures = &gfx().pictures;
         let _lock = crate::store::test_lock();
         let figures = crate::memory::figures();
-        let kept = crate::moved::snapshot();
+        let kept = crate::test_support::state::Snapshot::of(&[
+            "gfx.owner.GFX.pictures.decoder",
+            "gfx.owner.GFX.pictures.pcx",
+            "gfx.owner.GFX.pictures.picture",
+            "gfx.owner.GFX.pictures.planes",
+            "gfx.owner.GFX.pictures.showing",
+            "gfx.owner.GFX.png.file",
+            "gfx.owner.GFX.png.header",
+            "gfx.owner.GFX.png.setting",
+        ]);
         let memory = crate::memory::ListCells::empty();
         let list = &memory;
         pictures
@@ -258,7 +273,7 @@ mod tests {
         let up = read_png_file(&png(2));
         assert_eq!(plain, up, "Up against the zero row is the row itself");
         give_back(Buffer::Main);
-        crate::moved::restore(&kept);
+        kept.restore();
         crate::memory::with_figures(|f| *f = figures);
     }
 }

@@ -37,28 +37,16 @@ impl JadeFont {
 impl JadeFont {
     pub const START: usize = 0x4F52C4;
     pub const LEN: usize = 0x1419;
-    /// Where the byte IDA calls `START` is (`moved::MOVED`'s home).
-    #[cfg(test)]
-    pub fn home() -> usize {
-        (crate::pointers::game_address(&raw const crate::gfx::owner::gfx().fonts.jade) + 4) as usize
-    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn jadefont_starts_as_the_games() {
-        let size = size_of::<JadeFont>();
-        assert!(4 + JadeFont::LEN <= size && size <= (4 + JadeFont::LEN).next_multiple_of(16));
-        let image = crate::moved::image_bytes(JadeFont::START, JadeFont::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(JadeFont::home()).cast_const(),
-                JadeFont::LEN,
-            )
-        };
-        assert_eq!(mine, &image[..]);
+        let _g = crate::store::test_lock();
+        crate::test_support::first_values::assert_store_starts_as_the_games(
+            "store:gfx.owner.GFX.fonts.jade",
+        );
     }
 }

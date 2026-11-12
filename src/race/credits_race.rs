@@ -17,8 +17,7 @@ use crate::race::owner::Race;
 const WORDS: [&std::ffi::CStr; 2] = [c"INIT CREDITS - track", c"car"]; // "INIT CREDITS - track", "car"
 
 /// The steps in order.
-pub fn credits_race(race: &Race) -> Result<(), Refused> {
-    let o = crate::owners::boundary();
+pub fn credits_race(race: &'static Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let frame = &race.frame;
     crate::framework::log("race::credits_race: the demonstration starts");
     race.course.numbers.replay_mode.set(0);
@@ -35,7 +34,7 @@ pub fn credits_race(race: &Race) -> Result<(), Refused> {
     log_int(race.shared.vars.stage_number.get() as i32, false, 1);
     crate::logfile::log_write::log_nul(word(1), false, 1);
     log_int(race.shared.vars.race_car_kinds[0].get() as i32, true, 1);
-    crate::race::stage_loading::load_stage_in(race, o)?;
+    crate::race::stage_loading::load_stage(race, o)?;
     crate::race::frame_text::roll_credits(
         frame,
         0,
@@ -47,5 +46,5 @@ pub fn credits_race(race: &Race) -> Result<(), Refused> {
     race.shared.view.after_credits.set(0);
     crate::drive::play_race::play_race(race, o)?;
     race.shared.work.in_credits.set(false);
-    crate::race::race_end::tidy_everything_in(race, o)
+    crate::race::race_end::tidy_everything(race, o)
 }

@@ -81,9 +81,11 @@ impl<'a> EffectsView<'a> {
 
 /// For `view`.
 pub fn run_frame(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
     race: &Race,
     scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
+    sound: &crate::sound::owner::Sound,
     view: EffectsView<'_>,
 ) -> Result<(), Refused> {
     let gfx = crate::gfx::owner::gfx();
@@ -98,13 +100,14 @@ pub fn run_frame(
         for (value, state) in STATES {
             set_render_state(value, state);
         }
-        run_rain::run_rain(race, weather, scene, effects)?;
-        run_snow::run_snow(race, weather, scene, effects, view)?;
+        run_rain::run_rain(buffer, race, weather, scene, effects)?;
+        run_snow::run_snow(buffer, race, weather, scene, effects, view)?;
         let start = rdtsc();
         share(0, start, effects);
-        draw_frame::draw_frame(race, scene, effects)?;
+        draw_frame::draw_frame(buffer, race, scene, effects)?;
         let start = rdtsc();
         ring_frame::ring_frame(
+            buffer,
             &effects.masks,
             weather,
             particles,
@@ -115,21 +118,22 @@ pub fn run_frame(
         )?;
         share(1, start, effects);
         set_render_state(2, 0x14);
-        flare_frame::flare_frame(paths, scene, effects)?;
+        flare_frame::flare_frame(buffer, paths, scene, effects)?;
         set_render_state(1, 3);
-        draw_mark_slots::draw_mark_slots(race, paths, scene, effects, view)?;
+        draw_mark_slots::draw_mark_slots(buffer, race, paths, scene, effects, view)?;
         run_particles::run_particles(
+            buffer,
             &race.frame,
             particles,
             ring,
             scene,
             effects,
-            crate::sound::owner::sound(),
+            sound,
             view,
         )?;
         share(2, whole, effects);
         stage_record::stage_record(&race.frame)?;
-        draw_glow::draw_glow(scene, effects)?;
+        draw_glow::draw_glow(buffer, scene, effects)?;
         crate::scene::depth_buffer_on::depth_buffer(true);
         crate::scene::depth_test_on::depth_test_on();
     }
@@ -153,7 +157,6 @@ pub static FRAME_K: FrameK = FrameK {
 
 #[cfg(test)]
 impl FrameK {
-    pub const START: usize = 0x93C8C0;
     pub const LEN: usize = 0x10;
 }
 
@@ -173,10 +176,11 @@ mod frame_k_tests {
     fn frame_k_starts_as_the_games() {
         assert_eq!(size_of::<FrameK>(), FrameK::LEN);
         assert!(
-            bytes(&FRAME_K) == crate::moved::image_bytes(FrameK::START, FrameK::LEN),
+            bytes(&FRAME_K)
+                == crate::test_support::first_values::bytes("effects.run_frame.FRAME_K"),
             "FRAME_K starts differently from the image"
         );
-        assert_eq!(offset_of!(FrameK, share_k), 0x93C8C0 - FrameK::START);
-        assert_eq!(offset_of!(FrameK, times), 0x93C8C4 - FrameK::START);
+        assert_eq!(offset_of!(FrameK, share_k), 0x0);
+        assert_eq!(offset_of!(FrameK, times), 0x4);
     }
 }

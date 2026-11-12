@@ -31,6 +31,7 @@ pub enum Step {
 
 /// `scene::needs_clipping` on the work table's records.
 fn needs_clipping(
+    polygon_work: &'static crate::scene::polygon_store::PolygonWork,
     poly: &crate::scene::polygon_work::PolygonWork,
     course: &crate::race::owner_course::Course,
     count: u32,
@@ -45,7 +46,7 @@ fn needs_clipping(
         bottom: poly.window.clip_screen[1].get(),
     };
     rc2k_core::scene::polygons::needs_clipping(count, &edges, |n| {
-        let record = crate::scene::polygon::entry(n)?.record.get();
+        let record = crate::scene::polygon::entry(polygon_work, n)?.record.get();
         if record == 0 {
             return Err(BadInput("an entry without its record"));
         }
@@ -66,6 +67,7 @@ fn needs_clipping(
 
 // Converted: `rc2k_core::scene::polygons`
 pub fn draw_object_polygon(
+    polygon_work: &'static crate::scene::polygon_store::PolygonWork,
     poly: &crate::scene::polygon_work::PolygonWork,
     race: &crate::race::owner::Race,
     object: &crate::scene::object_place::ObjectPlace,
@@ -79,11 +81,14 @@ pub fn draw_object_polygon(
     poly.polygon_next_record
         .set(crate::scene::polygon::pool_start());
     for (n, number) in first_list(count).into_iter().enumerate() {
-        crate::scene::polygon::list_cell(n).set(number);
+        crate::scene::polygon::list_cell(polygon_work, n).set(number);
     }
     poly.polygon_next_entry.set(count);
     step(Step::Project)?;
-    if drawn_whole(count, needs_clipping(poly, &race.course, count)?) {
+    if drawn_whole(
+        count,
+        needs_clipping(polygon_work, poly, &race.course, count)?,
+    ) {
         object
             .whole_polygon_count
             .set(object.whole_polygon_count.get().wrapping_add(1));
@@ -93,9 +98,7 @@ pub fn draw_object_polygon(
         .split_polygon_count
         .set(object.split_polygon_count.get().wrapping_add(1));
     // the first `count` entries kept from entry 64 (`fits`: at most 64)
-    let (entries, kept) = crate::scene::polygon_store::POLYGON_WORK
-        .entries
-        .split_at(64);
+    let (entries, kept) = polygon_work.entries.split_at(64);
     for (to, from) in kept.iter().zip(&entries[..count as usize]) {
         to.copy_from(from);
     }

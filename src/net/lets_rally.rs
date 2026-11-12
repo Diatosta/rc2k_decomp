@@ -52,6 +52,7 @@ pub fn lets_rally(o: Owners<'static>) -> Result<bool, Refused> {
         race,
         &sound_tables::ObjectVars::of(sound),
         sound,
+        o.audio,
         net,
         o.system,
     )?;
@@ -75,11 +76,11 @@ pub fn lets_rally(o: Owners<'static>) -> Result<bool, Refused> {
             break crate::net::lets_race::lets_race(o, &net.vars)?;
         }
     };
-    crate::race::race_end::tidy_everything_in(race, o)?;
+    crate::race::race_end::tidy_everything(race, o)?;
     crate::sound::stop_music::stop_music(o.audio, o.system);
     crate::platform::set_menu_mode_now();
     crate::menu::show_loading_picture::show_loading_picture_in(o.menus, o.gfx, o.system)?;
-    sound_tables::clear_race_sound_objects(sound)?;
+    sound_tables::clear_race_sound_objects(sound, o.audio, o.system)?;
     crate::sound::apply_settings::apply_settings(o)?;
     crate::scene::set_up_engine::set_up_engine_in(race, o.scene)?;
     crate::scene::set_up_front_end_scene::set_up_front_end_scene_in(o)?;

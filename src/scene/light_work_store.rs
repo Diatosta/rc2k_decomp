@@ -85,14 +85,6 @@ pub const END: usize = 0x62DB5C;
 
 const _: () = assert!(END - START == core::mem::size_of::<LightWork>());
 
-/// Where IDA 0x62DA44 is now (the piece's static).
-#[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(std::ptr::from_ref(
-        &crate::scene::owner::scene().lights.work,
-    ))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -101,19 +93,14 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&scene().lights.work, START, END);
+        crate::test_support::first_values::assert_block_starts_as_the_games(&scene().lights.work);
     }
 
     #[test]
     fn piece_has_its_home() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            piece_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
-        assert_eq!(offset_of!(LightWork, drawing_object), 0x62DA44 - START);
-        assert_eq!(offset_of!(LightWork, light_dot_factor), 0x62DAC0 - START);
-        assert_eq!(offset_of!(LightWork, fog_step), 0x62DAF0 - START);
-        assert_eq!(offset_of!(LightWork, ground_texture_s), 0x62DB08 - START);
+        assert_eq!(offset_of!(LightWork, drawing_object), 0x0);
+        assert_eq!(offset_of!(LightWork, light_dot_factor), 0x7c);
+        assert_eq!(offset_of!(LightWork, fog_step), 0xac);
+        assert_eq!(offset_of!(LightWork, ground_texture_s), 0xc4);
     }
 }

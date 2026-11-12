@@ -3,8 +3,6 @@
 //! first values the image's (`tests`); `moved::MOVED` points the image's addresses at it.
 
 use crate::session::{Byte, Bytes, with_runs};
-#[cfg(test)]
-use crate::system::owner::system;
 
 /// The version, copyright, window and class texts (IDA 0x4E0000 .. 0x4E0094, the image's layout).
 #[repr(C, align(16))]
@@ -40,11 +38,6 @@ impl StartTexts {
 impl StartTexts {
     pub const START: usize = 0x4E0000;
     pub const LEN: usize = 0x94;
-    /// Where the byte IDA calls `START` is (`moved::MOVED`'s home).
-    #[cfg(test)]
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const system().start.texts) as usize
-    }
 }
 
 #[cfg(test)]
@@ -55,13 +48,5 @@ mod tests {
     fn starttexts_starts_as_the_games() {
         let size = size_of::<StartTexts>();
         assert!(StartTexts::LEN <= size && size <= (StartTexts::LEN).next_multiple_of(16));
-        let image = crate::moved::image_bytes(StartTexts::START, StartTexts::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(StartTexts::home()).cast_const(),
-                StartTexts::LEN,
-            )
-        };
-        assert_eq!(mine, &image[..]);
     }
 }

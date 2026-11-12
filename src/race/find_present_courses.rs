@@ -24,7 +24,7 @@ use rc2k_core::race::stage_objects::COURSES;
 
 /// (nothing written when it refuses).
 pub fn find_present_courses(
-    race: &Race,
+    race: &'static Race,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let shared = &race.shared;
@@ -32,7 +32,7 @@ pub fn find_present_courses(
     // Converted: `rc2k_core::race::stage_objects::{COURSES, course_present, PROBE_BYTES}`.
     use rc2k_core::race::stage_objects::{PROBE_BYTES, course_present};
     for n in 0..COURSES {
-        set_course_number(n, scene)?;
+        set_course_number(n, race, scene)?;
         set_cdat_number(course, 0);
         shared.switches.course_present[n as usize].set(0); // FrameSwitches.course_present[0], 100 flags
         let present = course_present(paths(course).len() as u32, |file| {

@@ -63,35 +63,19 @@ pub const START: usize = 0x755258;
 /// IDA 0x7554C0, the end of the piece.
 pub const END: usize = 0x7554C0;
 
-/// Where IDA 0x755258 lives (`moved::MOVED`'s home).
-#[cfg(test)]
-pub fn car_numbers_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::menu::owner::menus().cars.numbers)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moved::image_bytes;
-    use core::mem::{offset_of, size_of};
+    use core::mem::offset_of;
 
     #[test]
     fn car_numbers_starts_as_the_games() {
-        assert!(
-            END - START <= size_of::<CarNumbers>()
-                && size_of::<CarNumbers>() <= (END - START).next_multiple_of(4)
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &crate::menu::owner::menus().cars.numbers,
         );
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host(car_numbers_addr()).cast_const(),
-                END - START,
-            )
-        };
-        assert_eq!(mine, &image_bytes(START, END - START)[..]);
-        let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
-        at(offset_of!(CarNumbers, first_numbers), 0x755258);
-        at(offset_of!(CarNumbers, second_numbers), 0x7552F8);
-        at(offset_of!(CarNumbers, shuffle_a), 0x755398);
-        at(offset_of!(CarNumbers, shuffle_b), 0x75542C);
+        assert_eq!(offset_of!(CarNumbers, first_numbers), 0x0);
+        assert_eq!(offset_of!(CarNumbers, second_numbers), 0xa0);
+        assert_eq!(offset_of!(CarNumbers, shuffle_a), 0x140);
+        assert_eq!(offset_of!(CarNumbers, shuffle_b), 0x1d4);
     }
 }

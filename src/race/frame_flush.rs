@@ -132,6 +132,7 @@ pub fn draw_view_backdrop(
     race: &Race,
     scene: &crate::scene::owner::Scene,
     view: &crate::race::view_scratch::ViewScratch,
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
 ) {
     let course = &race.course;
     view.quad.uv[0].set(0xF8_0000);
@@ -142,7 +143,7 @@ pub fn draw_view_backdrop(
     let top = view.polygon.window.view_offset[1].get();
     view.quad.corners[4].set(top);
     view.quad.corners[5].set(top.wrapping_add(view.polygon.window.view_size[1].get()));
-    let v = &crate::d3d::vertices_store::VERTICES.vertices;
+    let v = &buffer.vertices;
     let x0 = int_and_one(course, view.quad.corners[0].get(), false);
     v[0].x.set_bits(x0);
     v[3].x.set_bits(x0);
@@ -179,15 +180,24 @@ pub fn draw_view_backdrop(
     view.polygon.polygon_vertex_count.set(4);
     crate::scene::glow_render_states::glow_render_states();
     crate::scene::set_texture::set_texture(scene, scene.textures.kinds.kind_first_slots[192].get());
-    crate::d3d::draw_fan_unclipped::draw_fan_unclipped(&view.polygon);
+    crate::d3d::draw_fan_unclipped::draw_fan_unclipped(&view.polygon, buffer);
     crate::scene::depth_buffer_on::depth_buffer(true);
 }
 
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
-    use crate::race::asm_test::{Rng, Saved, at_each_control_word, lock, same};
+    use crate::race::asm_test::{Rng, at_each_control_word, lock, same};
     use crate::race::owner::race;
+
+    /// `numbers.one` as it was, put back when dropped.
+    struct KeptOne(u32);
+
+    impl Drop for KeptOne {
+        fn drop(&mut self) {
+            race().course.numbers.one.set_bits(self.0);
+        }
+    }
 
     // The original blocks, verbatim.
     pub(super) fn int_and_one_asm(i: u32, add: bool) -> u32 {
@@ -234,7 +244,7 @@ mod asm_reference {
     fn int_blocks_match() {
         let course = &race().course;
         let _l = lock();
-        let _saved = Saved::new(&[0x5C5D38]);
+        let _kept = KeptOne(race().course.numbers.one.bits());
         let mut r = Rng(5);
         at_each_control_word(|| {
             for _ in 0..20000 {

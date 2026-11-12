@@ -85,23 +85,17 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
+        crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::race::owner::RACE.course.level_grid,
-            START,
-            END,
         );
     }
 
     #[test]
-    fn piece_has_its_home() {
+    fn fields_are_at_the_games_offsets() {
         assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            piece_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
-        assert_eq!(offset_of!(LevelGrid, face_table_a), 0x63DC5C - START);
-        assert_eq!(offset_of!(LevelGrid, grid_span), 0x63E160 - START);
-        assert_eq!(offset_of!(LevelGrid, grid_z), 0x63E178 - START);
-        assert_eq!(offset_of!(LevelGrid, flare_place_x), 0x63F18C - START);
+        assert_eq!(offset_of!(LevelGrid, face_table_a), 0x0);
+        assert_eq!(offset_of!(LevelGrid, grid_span), 0x504);
+        assert_eq!(offset_of!(LevelGrid, grid_z), 0x51c);
+        assert_eq!(offset_of!(LevelGrid, flare_place_x), 0x1530);
     }
 }

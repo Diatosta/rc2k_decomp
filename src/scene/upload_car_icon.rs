@@ -84,11 +84,6 @@ impl IconUploadCell {
         }
         self.0.write(&bytes);
     }
-
-    #[cfg(test)]
-    pub fn addr(&self) -> u32 {
-        crate::pointers::GamePtr::to(self).addr()
-    }
 }
 
 impl IconUploadCell {
@@ -170,18 +165,11 @@ pub fn upload_car_icon(
 
 #[cfg(test)]
 mod block_tests {
-    use super::*;
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
+        crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::scene::owner::SCENE.icon_upload,
-            START,
-            START + STORED_LEN,
-        );
-        assert_eq!(
-            crate::moved::place(START),
-            crate::scene::owner::SCENE.icon_upload.addr() as usize
         );
     }
 }

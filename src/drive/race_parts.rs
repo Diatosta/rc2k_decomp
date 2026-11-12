@@ -27,7 +27,7 @@ pub fn take_key() {
 }
 
 /// `race::race_keys`.
-pub fn race_keys(race: &Race, o: crate::owners::Owners<'_>) -> Result<(), Refused> {
+pub fn race_keys(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     { crate::race::frame::race_keys(race, o) }?;
     Ok(())
 }
@@ -44,8 +44,17 @@ pub fn players_all_out(race: &Race, net: &crate::net::owner::Net) -> Result<bool
 }
 
 /// `race::stop_race_sounds` (0x45D28E): `race::reset_race_sounds`, its one call.
-pub fn stop_race_sounds(sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
-    crate::race::race_end::reset_race_sounds(&crate::race::race_end::SoundVars::game(), sound)
+pub fn stop_race_sounds(
+    sound: &crate::sound::owner::Sound,
+    audio: &crate::audio::owner::Audio,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
+    crate::race::race_end::reset_race_sounds(
+        &crate::race::race_end::SoundVars::game(),
+        sound,
+        audio,
+        system,
+    )
 }
 
 /// `race::wake_car_sounds` (its callers keep the registers round it).

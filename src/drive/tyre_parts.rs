@@ -7,7 +7,7 @@
 //!
 //! This file: the places, the quads' shared steps and the tests' frame.
 
-use crate::d3d::vertices_store::{VERTICES, Vertex};
+use crate::d3d::vertices_store::{PolygonVertices, Vertex};
 use crate::errors::Refused;
 
 use crate::math::x87_float::{int, ld, st, stf};
@@ -26,9 +26,9 @@ pub fn set_render_state(value: u32, state: u32) {
 
 /// The quads' fixed words (0x41DD68 .. / 0x41CA49 ..): z 0, rhw 1.0, the colour, the
 /// specular 0.
-pub fn quad_words(colour: u32) {
+pub fn quad_words(buffer: &PolygonVertices, colour: u32) {
     for k in 0..4 {
-        let v = &VERTICES.vertices[k];
+        let v = &buffer.vertices[k];
         v.z.set(0.0);
         v.rhw.set(1.0);
         v.colour.set(colour);
@@ -40,12 +40,17 @@ pub fn quad_words(colour: u32) {
 /// (x, y, w, h, whole numbers) times the panel's texel scale, and the corners scaled to
 /// the screen (width and height times the panel's two smaller scales, through the
 /// machine's scratch float).
-pub fn quad_tail(uv: [u32; 4], panel: &ViewerPanelBlock, system: &crate::system::owner::System) {
+pub fn quad_tail(
+    buffer: &PolygonVertices,
+    uv: [u32; 4],
+    panel: &ViewerPanelBlock,
+    system: &crate::system::owner::System,
+) {
     let session = &system.session;
     quad_tail_math_in(
         panel,
         uv,
-        &VERTICES.vertices[..4],
+        &buffer.vertices[..4],
         [session.screen.width.get(), session.screen.height.get()],
         &session.machine.scratch,
     );
@@ -99,8 +104,8 @@ fn quad_tail_math(rect: [u32; 4], vertices: &[Vertex], screen: [u32; 2], scratch
 }
 
 /// The draw (`d3d::draw_vertex_strip`, 0x41ADE1) of 4 vertices at `g_polygonVertices`.
-pub fn draw() -> Result<(), Refused> {
-    crate::d3d::draw_vertex_strip::draw_vertex_strip(&VERTICES.vertices, 4)?;
+pub fn draw(buffer: &PolygonVertices) -> Result<(), Refused> {
+    crate::d3d::draw_vertex_strip::draw_vertex_strip(&buffer.vertices, 4)?;
     Ok(())
 }
 

@@ -7,8 +7,14 @@ use crate::effects::pong::Pong;
 use crate::effects::windscreen_flakes_setup::setup_with;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 
-pub fn pong_setup(pong: &Pong, fl: &WindscreenFlakes, scene: &crate::scene::owner::Scene) {
+pub fn pong_setup(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
+    pong: &Pong,
+    fl: &WindscreenFlakes,
+    scene: &crate::scene::owner::Scene,
+) {
     setup_with(
+        buffer,
         fl,
         pong.rules
             .setup_places

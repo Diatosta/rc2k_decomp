@@ -47,6 +47,6 @@ pub fn arcade_level_end(
             crate::saves::list_car_numbers::list_car_numbers_in(menus).map_err(Refused::from)
         })?;
     }
-    crate::saves::save_game_data::save_in_game_in(entry.owners, entry.owners.saves)?;
+    crate::saves::save_game_data::save_in_game(entry.owners, entry.owners.saves)?;
     Ok(())
 }

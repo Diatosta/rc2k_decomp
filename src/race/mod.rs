@@ -1,7 +1,7 @@
 //! The race (part P): the stage's loading (`race::load_stage`, 0x444040) and, later, the
 //! race's run, ported bottom-up.
 
-#[cfg(all(test, target_arch = "x86"))]
+#[cfg(test)]
 pub(crate) mod asm_test;
 pub mod best_line;
 pub mod blit_map_tiles;

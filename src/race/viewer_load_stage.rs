@@ -39,7 +39,7 @@ fn settings(race: &Race) -> [(&Dword, &Dword); 5] {
     ]
 }
 
-pub fn viewer_load_stage(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
+pub fn viewer_load_stage(race: &'static Race, o: Owners<'static>) -> Result<(), Refused> {
     let (gfx, sound, scene) = (o.gfx, o.sound, o.scene);
     let shared = &race.shared;
     use crate::race::{race_end, race_shell, sound_tables, stage_free, stage_loading};
@@ -49,7 +49,7 @@ pub fn viewer_load_stage(race: &Race, o: Owners<'static>) -> Result<(), Refused>
         stage_free::render3d_tidy(race)?;
         stage_free::objects_tidy(race)?;
         // nullsub_6
-        race_end::release_textures();
+        race_end::release_textures(o.scene);
         race_shell::set_race_screen_mode();
 
         crate::menu::show_loading_picture::show_loading_picture_in(o.menus, o.gfx, o.system)?;
@@ -80,6 +80,7 @@ pub fn viewer_load_stage(race: &Race, o: Owners<'static>) -> Result<(), Refused>
             race,
             &sound_tables::ObjectVars::of(sound),
             sound,
+            o.audio,
             o.net,
             o.system,
         )?;
@@ -89,8 +90,8 @@ pub fn viewer_load_stage(race: &Race, o: Owners<'static>) -> Result<(), Refused>
             shared.replay_file.viewer_fonts_built.set(1);
         }
         crate::race::read_replay_header::read_replay_header(race);
-        { stage_loading::load_stage_in(race, o) }?;
-        race_end::reset_race_sounds(&race_end::SoundVars::game(), sound)?;
+        { stage_loading::load_stage(race, o) }?;
+        race_end::reset_race_sounds(&race_end::SoundVars::game(), sound, o.audio, o.system)?;
         crate::race::viewer_palettes::viewer_palettes(shared, scene, gfx)?;
         shared.replay_file.viewer_stage_loaded.set(1);
     }

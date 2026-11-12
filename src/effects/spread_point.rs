@@ -56,14 +56,6 @@ impl SpreadRandom {
     }
     pub const START: usize = 0x923004;
     pub const LEN: usize = 0x4;
-    #[cfg(test)]
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    #[cfg(test)]
-    pub fn home() -> usize {
-        crate::pointers::game_address(
-            &raw const crate::effects::owner::effects().paths.spread_random,
-        ) as usize
-    }
 }
 
 #[cfg(test)]
@@ -74,15 +66,16 @@ mod typed_tests {
     #[test]
     fn spread_random_starts_as_the_games() {
         assert_eq!(size_of::<SpreadRandom>(), SpreadRandom::LEN);
-        let image = crate::moved::image_bytes(SpreadRandom::START, SpreadRandom::LEN);
+        let image =
+            crate::test_support::first_values::bytes("effects.owner.EFFECTS.paths.spread_random/4");
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(SpreadRandom::home()).cast_const(),
+                (&raw const crate::effects::owner::effects().paths.spread_random).cast::<u8>(),
                 SpreadRandom::LEN,
             )
         };
         assert!(
-            mine == &image[..],
+            mine == image,
             "SPREAD_RANDOM starts differently from the image"
         );
     }

@@ -41,7 +41,10 @@ pub fn note_locked_item_3(
 
 /// `screens::note_locked_stage` (0x48ADCE): unless cheat 0 is on, with an item chosen other
 /// than 1 and 7 whose stage (`Arcade.levels_won[item - 2]`) is not open (1), the message box.
-pub fn note_locked_stage(menus: &Menus, gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
+pub fn note_locked_stage(
+    menus: &'static Menus,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), Refused> {
     let fault = crate::menu::event_flow::Fault::default();
     let note = rc2k_core::screens::locked::stage(
         menus.play.cheats.cheats.get(),
@@ -49,12 +52,9 @@ pub fn note_locked_stage(menus: &Menus, gfx: &crate::gfx::owner::Gfx) -> Result<
         |index| {
             // Bounded to the arcade's store, not the six bytes: item 0 reads before them.
             let at = (core::mem::offset_of!(Arcade, levels_won) as u32).wrapping_add(index);
-            fault.ok(crate::place::BytePlace::In(
-                &crate::menu::owner::menus().play.arcade,
-                at as usize,
-            )
-            .read_array::<1>("a stage\'s lock")
-            .map(|[b]| b))
+            fault.ok(crate::place::BytePlace::In(&menus.play.arcade, at as usize)
+                .read_array::<1>("a stage\'s lock")
+                .map(|[b]| b))
         },
     );
     fault.check()?;

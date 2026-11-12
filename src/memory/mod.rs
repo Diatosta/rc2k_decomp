@@ -129,19 +129,13 @@ pub fn with_figures(f: impl FnOnce(&mut rc2k_core::memory::Figures)) {
 
 #[cfg(test)]
 mod tests {
-    use super::state::*;
-    use crate::moved::image_bytes;
+    use crate::test_support::first_values::assert_store_starts_as_the_games;
 
     #[test]
     fn variables_start_as_the_games() {
         let _lock = crate::store::test_lock();
-        let d = image_bytes(0x4E0578, 20);
-        let word = |n: usize| u32::from_le_bytes(d[n * 4..n * 4 + 4].try_into().unwrap());
-        for (n, v) in [&MOST_HELD, &HELD, &TURNOVER, &OWN_HEAP, &OWN_HEAP_KB]
-            .iter()
-            .enumerate()
-        {
-            assert_eq!(word(n), v.get(), "dword {n}");
+        for name in ["MOST_HELD", "HELD", "TURNOVER", "OWN_HEAP", "OWN_HEAP_KB"] {
+            assert_store_starts_as_the_games(&format!("store:memory.state.{name}"));
         }
     }
 }

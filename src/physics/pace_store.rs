@@ -65,20 +65,16 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&race().physics.pace, START, END);
+        crate::test_support::first_values::assert_block_starts_as_the_games(&race().physics.pace);
     }
 
     #[test]
-    fn piece_has_its_home() {
+    fn fields_are_at_the_games_offsets() {
         assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            crate::moved::place(END - 1),
-            (piece_addr() + (END - START) as u32 - 1) as usize
-        );
-        assert_eq!(offset_of!(PaceNotes, group_count), 0x615E14 - START);
-        assert_eq!(offset_of!(PaceNotes, note_gaps), 0x618E18 - START);
-        assert_eq!(offset_of!(PaceNotes, group_checkpoints), 0x619E18 - START);
-        assert_eq!(offset_of!(PaceNotes, group_texts), 0x61AE18 - START);
-        assert_eq!(offset_of!(PaceNotes, text), 0x61BE18 - START);
+        assert_eq!(offset_of!(PaceNotes, group_count), 0x10dc);
+        assert_eq!(offset_of!(PaceNotes, note_gaps), 0x40e0);
+        assert_eq!(offset_of!(PaceNotes, group_checkpoints), 0x50e0);
+        assert_eq!(offset_of!(PaceNotes, group_texts), 0x60e0);
+        assert_eq!(offset_of!(PaceNotes, text), 0x70e0);
     }
 }

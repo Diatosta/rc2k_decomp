@@ -4,8 +4,6 @@
 //! `moved::MOVED` points the image's address at it.
 
 use crate::session::Bytes;
-#[cfg(test)]
-use crate::system::owner::system;
 
 /// The shared 64 KB scratch (IDA 0x93E8B0 .. 0x94E8B0, the image's layout).
 #[repr(C, align(16))]
@@ -45,11 +43,6 @@ impl Scratch {
         self.buffer.write_at(0, &bytes[..got as usize], what)?;
         Ok((got, ok))
     }
-    /// Where the byte IDA calls `START` is (`moved::MOVED`'s home).
-    #[cfg(test)]
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const system().work.files) as usize
-    }
 }
 
 #[cfg(test)]
@@ -60,13 +53,5 @@ mod tests {
     fn scratch_starts_as_the_games() {
         let size = size_of::<Scratch>();
         assert!(Scratch::LEN <= size && size <= (Scratch::LEN).next_multiple_of(16));
-        let image = crate::moved::image_bytes(Scratch::START, Scratch::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(Scratch::home()).cast_const(),
-                Scratch::LEN,
-            )
-        };
-        assert_eq!(mine, &image[..]);
     }
 }

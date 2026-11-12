@@ -82,12 +82,6 @@ impl Row {
         self.cell.is_some()
     }
 
-    /// Its cell's game address, when it has one.
-    #[cfg(test)]
-    pub fn cell_address(&self) -> Option<u32> {
-        self.cell.map(|cell| cell(&Owners::the()).address())
-    }
-
     /// A figure read through its field (`row_cells::car_cell`).
     pub const fn typed(
         name: &'static str,
@@ -110,7 +104,7 @@ impl Row {
     }
 
     /// The figure's 32 bits, none when they cannot be read.
-    fn value(&self, o: &Owners<'_>) -> Option<u32> {
+    fn value(&self, o: &Owners<'static>) -> Option<u32> {
         match self.cell {
             Some(cell) => Some(cell(o).raw()),
             None => value_at(self.at),
@@ -257,7 +251,7 @@ fn body(ui: &Ui, f: impl FnOnce()) {
 }
 
 /// The UI's frame.
-pub fn build(o: &Owners<'_>, ui: &Ui) {
+pub fn build(o: &Owners<'static>, ui: &Ui) {
     let race = o.race;
     if PROBES.load(Relaxed) {
         draw_probes(race, ui);
@@ -394,7 +388,7 @@ fn wanted_row(row: &Row, wanted: &str) -> bool {
 }
 
 /// A tab of groups, in as many columns as the width holds.
-fn display(ui: &Ui, o: &Owners<'_>, all: &'static [Group], filter: &std::sync::Mutex<String>) {
+fn display(ui: &Ui, o: &Owners<'static>, all: &'static [Group], filter: &std::sync::Mutex<String>) {
     let wanted = {
         let mut filter = filter
             .lock()
@@ -435,7 +429,7 @@ fn display(ui: &Ui, o: &Owners<'_>, all: &'static [Group], filter: &std::sync::M
 }
 
 /// A group's figures as a table.
-fn group_table(ui: &Ui, o: &Owners<'_>, group: &Group, wanted: &str) {
+fn group_table(ui: &Ui, o: &Owners<'static>, group: &Group, wanted: &str) {
     let flags = TableFlags::BORDERS | TableFlags::ROW_BG | TableFlags::RESIZABLE;
     let Some(_table) = ui.begin_table_with_flags(group.name, 4, flags) else {
         return;
@@ -621,7 +615,7 @@ fn take_readings(t: &mut Timings) {
 }
 
 /// The "Profiler" tab.
-fn profiler(o: &Owners<'_>, ui: &Ui) {
+fn profiler(o: &Owners<'static>, ui: &Ui) {
     let race = o.race;
     let course = &race.course;
     let session = &o.system.session;

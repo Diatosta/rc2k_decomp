@@ -46,12 +46,6 @@ pub const END: usize = 0xA8C180;
 
 const _: () = assert!(END - START == core::mem::size_of::<TextBuffers>());
 
-/// Where IDA 0xA8BB54 lives.
-#[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::moved::place(START) as u32
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -59,20 +53,12 @@ mod tests {
 
     #[test]
     fn piece_sits_on_the_buffers() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            crate::moved::place(END - 1),
-            (piece_addr() + (END - START) as u32 - 1) as usize
-        );
-        assert_eq!(offset_of!(TextBuffers, cells), 0xA8BC54 - START);
-        assert_eq!(offset_of!(TextBuffers, stage_heading), 0xA8BD54 - START);
-        assert_eq!(offset_of!(TextBuffers, caption), 0xA8BE54 - START);
-        assert_eq!(offset_of!(TextBuffers, title), 0xA8BF54 - START);
-        assert_eq!(offset_of!(TextBuffers, number_text), 0xA8C054 - START);
-        assert_eq!(
-            offset_of!(TextBuffers, stage_result_value),
-            0xA8C154 - START
-        );
-        assert_eq!(offset_of!(TextBuffers, page_numbers), 0xA8C158 - START);
+        assert_eq!(offset_of!(TextBuffers, cells), 0x100);
+        assert_eq!(offset_of!(TextBuffers, stage_heading), 0x200);
+        assert_eq!(offset_of!(TextBuffers, caption), 0x300);
+        assert_eq!(offset_of!(TextBuffers, title), 0x400);
+        assert_eq!(offset_of!(TextBuffers, number_text), 0x500);
+        assert_eq!(offset_of!(TextBuffers, stage_result_value), 0x600);
+        assert_eq!(offset_of!(TextBuffers, page_numbers), 0x604);
     }
 }

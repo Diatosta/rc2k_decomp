@@ -96,6 +96,7 @@ pub fn draw_batch(gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
 }
 
 pub fn windscreen_drops_frame(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
     frame: &Frame,
     masks: &Masks,
     drops: &WindscreenDrops,
@@ -111,7 +112,7 @@ pub fn windscreen_drops_frame(
         if setup.kind_floats.running.get() != 0 {
             crate::effects::windscreen_drops_drift::windscreen_drops_drift(frame, drops, effects)?;
         }
-        crate::effects::windscreen_drops_setup::windscreen_drops_setup(drops, scene);
+        crate::effects::windscreen_drops_setup::windscreen_drops_setup(buffer, drops, scene);
         drops.state.live.set_bits(0u32);
         for n in 0..ITEMS {
             let e = n * ITEM_LEN;

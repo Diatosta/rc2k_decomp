@@ -80,47 +80,31 @@ pub const START: usize = 0x7554C0;
 /// IDA 0x755525, the end of the piece.
 pub const END: usize = 0x755525;
 
-/// Where IDA 0x7554C0 lives (`moved::MOVED`'s home).
-#[cfg(test)]
-pub fn screen_flow_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::menu::owner::menus().screens.flow)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moved::image_bytes;
-    use core::mem::{offset_of, size_of};
+    use core::mem::offset_of;
 
     #[test]
     fn screen_flow_starts_as_the_games() {
-        assert!(
-            END - START <= size_of::<ScreenFlow>()
-                && size_of::<ScreenFlow>() <= (END - START).next_multiple_of(4)
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &crate::menu::owner::menus().screens.flow,
         );
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host(screen_flow_addr()).cast_const(),
-                END - START,
-            )
-        };
-        assert_eq!(mine, &image_bytes(START, END - START)[..]);
-        let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
-        at(offset_of!(ScreenFlow, start_section), 0x7554C0);
-        at(offset_of!(ScreenFlow, start_section_a8), 0x7554C4);
-        at(offset_of!(ScreenFlow, kept), 0x7554C8);
-        at(offset_of!(ScreenFlow, asking), 0x7554CC);
-        at(offset_of!(ScreenFlow, quiet), 0x7554D0);
-        at(offset_of!(ScreenFlow, enter_skips_name_entry), 0x7554D4);
-        at(offset_of!(ScreenFlow, car_list_kind), 0x7554D8);
-        at(offset_of!(ScreenFlow, left_service), 0x7554E4);
-        at(offset_of!(ScreenFlow, menu_sounds_volume), 0x7554E8);
-        at(offset_of!(ScreenFlow, turning), 0x7554EC);
-        at(offset_of!(ScreenFlow, shown_gearing), 0x7554F0);
-        at(offset_of!(ScreenFlow, unread_list), 0x7554F4);
-        at(offset_of!(ScreenFlow, draw_list), 0x7554F8);
-        at(offset_of!(ScreenFlow, overlay_list), 0x7554FC);
-        at(offset_of!(ScreenFlow, setup_list), 0x755500);
-        at(offset_of!(ScreenFlow, scene_list), 0x755504);
+        assert_eq!(offset_of!(ScreenFlow, start_section), 0x0);
+        assert_eq!(offset_of!(ScreenFlow, start_section_a8), 0x4);
+        assert_eq!(offset_of!(ScreenFlow, kept), 0x8);
+        assert_eq!(offset_of!(ScreenFlow, asking), 0xc);
+        assert_eq!(offset_of!(ScreenFlow, quiet), 0x10);
+        assert_eq!(offset_of!(ScreenFlow, enter_skips_name_entry), 0x14);
+        assert_eq!(offset_of!(ScreenFlow, car_list_kind), 0x18);
+        assert_eq!(offset_of!(ScreenFlow, left_service), 0x24);
+        assert_eq!(offset_of!(ScreenFlow, menu_sounds_volume), 0x28);
+        assert_eq!(offset_of!(ScreenFlow, turning), 0x2c);
+        assert_eq!(offset_of!(ScreenFlow, shown_gearing), 0x30);
+        assert_eq!(offset_of!(ScreenFlow, unread_list), 0x34);
+        assert_eq!(offset_of!(ScreenFlow, draw_list), 0x38);
+        assert_eq!(offset_of!(ScreenFlow, overlay_list), 0x3c);
+        assert_eq!(offset_of!(ScreenFlow, setup_list), 0x40);
+        assert_eq!(offset_of!(ScreenFlow, scene_list), 0x44);
     }
 }

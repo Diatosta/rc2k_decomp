@@ -53,13 +53,16 @@ fn copy_vertex(from: &Vertex, to: &Vertex) {
 /// The quad is the polygon vertices' first four (`g_polygonVertices`, every caller's);
 /// the original stepped its vertex offsets by 0x20 and masked them with 0x7F, here the
 /// vertex numbers wrap at 4.
-pub fn clip_quad(effects: &crate::effects::owner::Effects) -> Result<bool, Refused> {
+pub fn clip_quad(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
+    effects: &crate::effects::owner::Effects,
+) -> Result<bool, Refused> {
     {
         let settings: u32 = effects.setup.settings.is_set.get();
         if settings == 0 {
             return Err(BadInput("null marks settings").into());
         }
-        let q = &crate::d3d::vertices_store::VERTICES.vertices;
+        let q = &buffer.vertices;
         let marks = effects.settings()?;
         let mode = marks.marks_layout.get();
         if !(1..=4).contains(&mode) {
@@ -152,6 +155,9 @@ pub fn clip_quad(effects: &crate::effects::owner::Effects) -> Result<bool, Refus
 }
 
 /// `scene::draw_fan` (0x44EB32) of `g_polygonVertices` .
-pub fn draw_fan(scene: &crate::scene::owner::Scene) {
-    crate::scene::draw_fan::draw_fan(scene, crate::scene::polygon_work::front_end());
+pub fn draw_fan(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
+    scene: &crate::scene::owner::Scene,
+) {
+    crate::scene::draw_fan::draw_fan(scene, crate::scene::polygon_work::front_end(), buffer);
 }

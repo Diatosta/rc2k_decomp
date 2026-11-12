@@ -293,15 +293,19 @@ pub struct DrawCtx<'a> {
     /// The marks the faces' kinds pick: the car's while one is drawn (`race::draw_car`), none
     /// between cars, the menus' outside a race (`scene::car_marks`).
     pub marks: &'a crate::scene::car_marks::CarMarks,
+    /// The drawing part's scratch (`workers::PartScratch`): the vertex buffer, the polygon
+    /// work and the point records it draws with.
+    pub part: &'a crate::workers::PartScratch,
 }
 
 impl<'a> DrawCtx<'a> {
-    /// A view's drawing, cut at the far depth, with no car's marks.
+    /// A view's drawing on its drawing part's scratch (`part`), cut at the far depth, with no car's marks.
     pub fn new(
         race: &'a crate::race::owner::Race,
         scene: &'a crate::scene::owner::Scene,
         system: &'a crate::system::owner::System,
         view: &'a ViewScratch,
+        part: &'a crate::workers::PartScratch,
     ) -> Self {
         Self {
             race,
@@ -311,6 +315,7 @@ impl<'a> DrawCtx<'a> {
             clock: race.shared.physics_tables.scene_clock.get(),
             far_clip: true,
             marks: &crate::scene::car_marks::NONE,
+            part,
         }
     }
 }

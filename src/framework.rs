@@ -37,50 +37,6 @@ pub fn game_addr(rva: usize) -> u32 {
     }
 }
 
-/// Pointer to game memory at `rva` (the x86 reference tests).
-#[cfg(all(test, target_arch = "x86"))]
-pub fn game_ptr<T>(rva: usize) -> *mut T {
-    crate::pointers::host(game_addr(rva)).cast::<T>()
-}
-
-/// Reads a game global (the x86 reference tests).
-#[cfg(all(test, target_arch = "x86"))]
-pub fn game_read<T: Copy>(rva: usize) -> T {
-    let p = game_ptr::<T>(rva);
-    crate::pointers::check_or_end(
-        crate::pointers::game_address(p),
-        size_of::<T>(),
-        "a game global",
-    );
-    // SAFETY: inside one live region (checked above). Some game tables sit on odd addresses.
-    unsafe {
-        if p.is_aligned() {
-            p.read_volatile()
-        } else {
-            p.read_unaligned()
-        }
-    }
-}
-
-/// Writes a game global (the tests' setups).
-#[cfg(all(test, target_arch = "x86"))]
-pub fn game_write<T: Copy>(rva: usize, value: T) {
-    let p = game_ptr::<T>(rva);
-    crate::pointers::check_or_end(
-        crate::pointers::game_address(p),
-        size_of::<T>(),
-        "a game global",
-    );
-    // SAFETY: as the read's.
-    unsafe {
-        if p.is_aligned() {
-            p.write_volatile(value);
-        } else {
-            p.write_unaligned(value);
-        }
-    }
-}
-
 pub fn log(msg: &str) {
     if let Some(path) = LOG_PATH.get()
         && let Ok(mut f) = OpenOptions::new().create(true).append(true).open(path)

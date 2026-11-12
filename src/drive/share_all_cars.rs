@@ -17,10 +17,12 @@ use crate::race::effects_settings_store::CarEffects;
 use crate::race::mud::car_file_number;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
+use crate::sound::owner::Sound;
 use rc2k_core::drive::sharing;
 
 fn cars(
     shared: &RaceShared,
+    sound: &'static Sound,
 ) -> Result<
     [(
         usize,
@@ -31,18 +33,14 @@ fn cars(
 > {
     let records = shared.work.car_records_resolved()?;
     Ok(std::array::from_fn(|n| {
-        (
-            n,
-            records[n],
-            &crate::sound::owner::sound().race.sounds.objects[n],
-        )
+        (n, records[n], &sound.race.sounds.objects[n])
     }))
 }
 
 /// The refusals, worked out before anything is written.
-fn refusal(race: &Race) -> Result<Option<&'static str>, BadInput> {
+fn refusal(race: &Race, sound: &'static Sound) -> Result<Option<&'static str>, BadInput> {
     let shared = &race.shared;
-    for (block, _, _) in cars(shared)? {
+    for (block, _, _) in cars(shared, sound)? {
         if !shared.work.has_car_block(block) {
             return Ok(Some("a null car block or record"));
         }
@@ -60,17 +58,18 @@ fn refusal(race: &Race) -> Result<Option<&'static str>, BadInput> {
 // Converted: `rc2k_core::drive::sharing::{check_light_record, cars_shown}`.
 pub fn share_all_cars(
     race: &Race,
+    sound: &'static Sound,
     scene: &crate::scene::owner::Scene,
     view: crate::drive::set_listener::ListenerView<'_>,
 ) -> Result<(), Refused> {
-    if let Some(why) = refusal(race)? {
+    if let Some(why) = refusal(race, sound)? {
         return Err(BadInput(why).into());
     }
     // `set_listener` refuses before writing; nothing is written before it but the
     // lead car's values, which are kept again by the original.
     set_listener(race, scene, view)?;
     keep_lead_car_values(&race.frame);
-    for (n, (block, record, sound)) in cars(&race.shared)?.into_iter().enumerate() {
+    for (n, (block, record, sound)) in cars(&race.shared, sound)?.into_iter().enumerate() {
         race.shared.work.current_car.set(n as u32);
         share_car_state(race, race.shared.work.car_or_end(block), record, sound)?;
     }

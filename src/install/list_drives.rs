@@ -19,7 +19,10 @@ use rc2k_core::install::drives::{self, DriveMenu};
 /// The drive page's entry in the pages' table (`g_driveMenu`, 0x51D5F8, from 0x51D594).
 const DRIVE_ENTRY: usize = 25;
 
-pub fn list_drives(install: &'static crate::install::owner::Install, o: crate::owners::Owners<'_>) {
+pub fn list_drives(
+    install: &'static crate::install::owner::Install,
+    o: crate::owners::Owners<'static>,
+) {
     // Per letter from 'a', a pair of dwords: how often it was found and its free space.
     let drives = &install.run.drives;
     let mut letter = install.run.first_drive.get();

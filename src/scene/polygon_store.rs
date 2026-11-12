@@ -39,25 +39,6 @@ pub struct PolygonEntry {
 }
 
 impl PolygonEntry {
-    /// An entry of zeros (the x86 tests' own).
-    #[cfg(all(test, target_arch = "x86"))]
-    pub const fn zeroed() -> Self {
-        Self {
-            point: Dword::new(0),
-            record: Dword::new(0),
-            u: Dword::new(0),
-            v: Dword::new(0),
-            u2: Dword::new(0),
-            v2: Dword::new(0),
-            light: Dword::new(0),
-            lamp_light: Dword::new(0),
-            fog: Byte::new(0),
-            amount: Byte::new(0),
-            pad_22: Bytes::new([0; 2]),
-            work: Bytes::new([0; 32]),
-        }
-    }
-
     /// The dword at `offset` (a multiple of 4 below 0x44), for the callers that pick a
     /// field by an offset (the original's `[entry + reg]`).
     pub fn word(&self, offset: usize) -> u32 {
@@ -173,33 +154,9 @@ pub struct PolygonTables {
     pub object_materials: [ObjectMaterial; 1200],
 }
 
-/// The work, a field of `crate::race::owner::race().shared.buffers` for the game's own thread
-/// and one of `WORKER_COPIES` for each other drawing thread (`workers`).
-pub struct InBuffers;
-
-/// The drawing threads' copies of the work but the game's thread's.
-static WORKER_COPIES: [PolygonWork; crate::workers::COUNT - 1] =
+/// The other drawing parts' copies of the work (`workers::PartScratch`).
+pub(crate) static OTHER_COPIES: [PolygonWork; crate::workers::COUNT - 1] =
     [const { crate::pointers::cells_of_bytes([0u8; WORK_LEN]) }; crate::workers::COUNT - 1];
-
-impl core::ops::Deref for InBuffers {
-    type Target = PolygonWork;
-    #[inline]
-    fn deref(&self) -> &PolygonWork {
-        crate::workers::pick(&race().shared.buffers.polygon, &WORKER_COPIES)
-    }
-}
-
-#[cfg(test)]
-impl crate::workers::Copies for InBuffers {
-    fn copy(&self, n: usize) -> &(dyn crate::pointers::Store + Sync) {
-        match n {
-            0 => &race().shared.buffers.polygon,
-            n => &WORKER_COPIES[n - 1],
-        }
-    }
-}
-
-pub static POLYGON_WORK: InBuffers = InBuffers;
 
 /// The tables, a field of `crate::race::owner::race().shared.buffers`.
 pub struct TablesInBuffers;
@@ -225,12 +182,6 @@ const _: () = assert!(
     END - START == core::mem::size_of::<PolygonWork>() + core::mem::size_of::<PolygonTables>()
 );
 
-/// Where IDA 0x975510 is now.
-#[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::moved::place(START) as u32
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -238,18 +189,13 @@ mod tests {
 
     #[test]
     fn piece_sits_on_the_buffers() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            crate::moved::place(END - 1),
-            (piece_addr() + (END - START) as u32 - 1) as usize
-        );
         assert_eq!(core::mem::size_of::<PolygonEntry>(), 0x44);
         assert_eq!(offset_of!(PolygonEntry, fog), 0x20);
         assert_eq!(offset_of!(PolygonEntry, work), 0x24);
         assert_eq!(core::mem::size_of::<PolygonEntry>() * 64, 0x976610 - START);
-        assert_eq!(offset_of!(PolygonWork, list), 0x977710 - START);
-        assert_eq!(offset_of!(PolygonWork, old_list), 0x977810 - START);
-        assert_eq!(offset_of!(PolygonWork, record_pool), 0x977F10 - START);
+        assert_eq!(offset_of!(PolygonWork, list), 0x2200);
+        assert_eq!(offset_of!(PolygonWork, old_list), 0x2300);
+        assert_eq!(offset_of!(PolygonWork, record_pool), 0x2a00);
         assert_eq!(core::mem::size_of::<PolygonWork>(), 0x979F30 - START);
         assert_eq!(
             offset_of!(PolygonTables, object_materials),

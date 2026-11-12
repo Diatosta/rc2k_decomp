@@ -61,42 +61,26 @@ pub const START: usize = 0x758714;
 /// IDA 0x7587E8, the end of the piece.
 pub const END: usize = 0x7587E8;
 
-/// Where IDA 0x758714 lives (`moved::MOVED`'s home).
-#[cfg(test)]
-pub fn results_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::menu::owner::menus().play.results)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moved::image_bytes;
-    use core::mem::{offset_of, size_of};
+    use core::mem::offset_of;
 
     #[test]
     fn result_figures_starts_as_the_games() {
-        assert!(
-            END - START <= size_of::<Results>()
-                && size_of::<Results>() <= (END - START).next_multiple_of(4)
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &crate::menu::owner::menus().play.results,
         );
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host(results_addr()).cast_const(),
-                END - START,
-            )
-        };
-        assert_eq!(mine, &image_bytes(START, END - START)[..]);
-        let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
-        at(offset_of!(Results, round), 0x758714);
-        at(offset_of!(Results, group_titles), 0x758718);
-        at(offset_of!(Results, order), 0x758720);
-        at(offset_of!(Results, time_bonus), 0x758758);
-        at(offset_of!(Results, positions), 0x758768);
-        at(offset_of!(Results, points), 0x758778);
-        at(offset_of!(Results, extra), 0x758788);
-        at(offset_of!(Results, sums), 0x758798);
-        at(offset_of!(Results, before), 0x7587A8);
-        at(offset_of!(Results, totals), 0x7587B8);
-        at(offset_of!(Results, pairs), 0x7587C8);
+        assert_eq!(offset_of!(Results, round), 0x0);
+        assert_eq!(offset_of!(Results, group_titles), 0x4);
+        assert_eq!(offset_of!(Results, order), 0xc);
+        assert_eq!(offset_of!(Results, time_bonus), 0x44);
+        assert_eq!(offset_of!(Results, positions), 0x54);
+        assert_eq!(offset_of!(Results, points), 0x64);
+        assert_eq!(offset_of!(Results, extra), 0x74);
+        assert_eq!(offset_of!(Results, sums), 0x84);
+        assert_eq!(offset_of!(Results, before), 0x94);
+        assert_eq!(offset_of!(Results, totals), 0xa4);
+        assert_eq!(offset_of!(Results, pairs), 0xb4);
     }
 }

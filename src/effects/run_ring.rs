@@ -434,6 +434,7 @@ struct Sprite {
     reason = "the original's registers, the effects' groups and the owners"
 )]
 fn draw(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
     masks: &Masks,
     ring: &Ring,
     scene: &crate::scene::owner::Scene,
@@ -454,10 +455,10 @@ fn draw(
     {
         match place {
             3 => draw_subcell_sprite::draw_subcell_sprite(
-                masks, ring, scene, effects, cell, size, e, p, view,
+                buffer, masks, ring, scene, effects, cell, size, e, p, view,
             ),
             _ => draw_cell_sprite::draw_cell_sprite(
-                masks, ring, scene, effects, cell, angle, alpha, size, e, p, view,
+                buffer, masks, ring, scene, effects, cell, angle, alpha, size, e, p, view,
             ),
         }
     }
@@ -469,6 +470,7 @@ fn draw(
     reason = "the effects' groups, the owners and the view's fog"
 )]
 fn drift_kind(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
     masks: &Masks,
     ring: &Ring,
     e: u32,
@@ -491,6 +493,7 @@ fn drift_kind(
                 entry(ring, e)?.size,
             ];
             draw(
+                buffer,
                 masks,
                 ring,
                 scene,
@@ -532,6 +535,7 @@ fn drift_kind(
     reason = "the effects' groups, the owners and the view's fog"
 )]
 fn fading_kind(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
     masks: &Masks,
     ring: &Ring,
     e: u32,
@@ -566,6 +570,7 @@ fn fading_kind(
             };
             let size = whole(ring, size);
             draw(
+                buffer,
                 masks,
                 ring,
                 scene,
@@ -652,6 +657,7 @@ fn pull_toward(
     reason = "the effects' groups, the owners and the view's fog"
 )]
 fn boxed_kind(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
     masks: &Masks,
     ring: &Ring,
     e: u32,
@@ -677,6 +683,7 @@ fn boxed_kind(
         ring.work.whole.set(f as u32);
         let subcell = ((f as u32) & 3).wrapping_add(entry(ring, e)?.cell);
         draw(
+            buffer,
             masks,
             ring,
             scene,
@@ -705,6 +712,7 @@ fn boxed_kind(
 }
 
 pub fn run_ring(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
     masks: &Masks,
     ring: &Ring,
     scene: &crate::scene::owner::Scene,
@@ -725,6 +733,7 @@ pub fn run_ring(
             let next = entry(ring, e)?.next;
             let dies = match entry(ring, e)?.kind {
                 5 => drift_kind(
+                    buffer,
                     masks,
                     ring,
                     e,
@@ -739,6 +748,7 @@ pub fn run_ring(
                     view,
                 )?,
                 0xB => drift_kind(
+                    buffer,
                     masks,
                     ring,
                     e,
@@ -752,8 +762,19 @@ pub fn run_ring(
                     effects,
                     view,
                 )?,
-                6 => fading_kind(masks, ring, e, 6, &k6(&ring.kinds), scene, effects, view)?,
+                6 => fading_kind(
+                    buffer,
+                    masks,
+                    ring,
+                    e,
+                    6,
+                    &k6(&ring.kinds),
+                    scene,
+                    effects,
+                    view,
+                )?,
                 0x15 => fading_kind(
+                    buffer,
                     masks,
                     ring,
                     e,
@@ -763,9 +784,30 @@ pub fn run_ring(
                     effects,
                     view,
                 )?,
-                1 => fading_kind(masks, ring, e, 1, &k1(&ring.kinds), scene, effects, view)?,
-                0xD => fading_kind(masks, ring, e, 0xD, &kd(&ring.kinds), scene, effects, view)?,
+                1 => fading_kind(
+                    buffer,
+                    masks,
+                    ring,
+                    e,
+                    1,
+                    &k1(&ring.kinds),
+                    scene,
+                    effects,
+                    view,
+                )?,
+                0xD => fading_kind(
+                    buffer,
+                    masks,
+                    ring,
+                    e,
+                    0xD,
+                    &kd(&ring.kinds),
+                    scene,
+                    effects,
+                    view,
+                )?,
                 0x13 => fading_kind(
+                    buffer,
                     masks,
                     ring,
                     e,
@@ -776,6 +818,7 @@ pub fn run_ring(
                     view,
                 )?,
                 0x16 => fading_kind(
+                    buffer,
                     masks,
                     ring,
                     e,
@@ -786,6 +829,7 @@ pub fn run_ring(
                     view,
                 )?,
                 0x10 => boxed_kind(
+                    buffer,
                     masks,
                     ring,
                     e,
@@ -796,6 +840,7 @@ pub fn run_ring(
                     view,
                 )?,
                 0x11 => boxed_kind(
+                    buffer,
                     masks,
                     ring,
                     e,
@@ -1141,7 +1186,6 @@ impl RingKinds {
 
 #[cfg(test)]
 impl RingKinds {
-    pub const START: usize = 0x93A4DA;
     pub const LEN: usize = 0x9C;
 }
 
@@ -1162,41 +1206,32 @@ mod ring_kinds_tests {
         assert_eq!(size_of::<RingKinds>(), RingKinds::LEN);
         assert!(
             bytes(&effects().ring.kinds)
-                == crate::moved::image_bytes(RingKinds::START, RingKinds::LEN),
+                == crate::test_support::first_values::bytes("effects.run_ring.RING_KINDS"),
             "RING_KINDS starts differently from the image"
         );
-        assert_eq!(offset_of!(RingKinds, drift5), 0x93A4DA - RingKinds::START);
-        assert_eq!(offset_of!(RingKinds, drift_b), 0x93A4E6 - RingKinds::START);
-        assert_eq!(offset_of!(RingKinds, k6_damp), 0x93A4F2 - RingKinds::START);
-        assert_eq!(offset_of!(RingKinds, k6_pull), 0x93A4FE - RingKinds::START);
-        assert_eq!(offset_of!(RingKinds, k15_damp), 0x93A502 - RingKinds::START);
-        assert_eq!(offset_of!(RingKinds, k15_pull), 0x93A50E - RingKinds::START);
-        assert_eq!(offset_of!(RingKinds, k1_size), 0x93A512 - RingKinds::START);
-        assert_eq!(offset_of!(RingKinds, k1_damp), 0x93A516 - RingKinds::START);
-        assert_eq!(offset_of!(RingKinds, k1_pull), 0x93A522 - RingKinds::START);
-        assert_eq!(
-            offset_of!(RingKinds, near_less),
-            0x93A526 - RingKinds::START
-        );
-        assert_eq!(
-            offset_of!(RingKinds, near_scale),
-            0x93A52A - RingKinds::START
-        );
-        assert_eq!(
-            offset_of!(RingKinds, near_rate),
-            0x93A52E - RingKinds::START
-        );
-        assert_eq!(offset_of!(RingKinds, kd_gain), 0x93A532 - RingKinds::START);
-        assert_eq!(offset_of!(RingKinds, kd_damp), 0x93A536 - RingKinds::START);
-        assert_eq!(offset_of!(RingKinds, kd_pull), 0x93A542 - RingKinds::START);
-        assert_eq!(offset_of!(RingKinds, k13_damp), 0x93A546 - RingKinds::START);
-        assert_eq!(offset_of!(RingKinds, k13_gain), 0x93A552 - RingKinds::START);
-        assert_eq!(offset_of!(RingKinds, k16_damp), 0x93A556 - RingKinds::START);
-        assert_eq!(offset_of!(RingKinds, k16_gain), 0x93A562 - RingKinds::START);
-        assert_eq!(offset_of!(RingKinds, k10_gain), 0x93A566 - RingKinds::START);
-        assert_eq!(offset_of!(RingKinds, k11_gain), 0x93A56A - RingKinds::START);
-        assert_eq!(offset_of!(RingKinds, ribbon_a), 0x93A56E - RingKinds::START);
-        assert_eq!(offset_of!(RingKinds, ribbon_b), 0x93A572 - RingKinds::START);
+        assert_eq!(offset_of!(RingKinds, drift5), 0x0);
+        assert_eq!(offset_of!(RingKinds, drift_b), 0xc);
+        assert_eq!(offset_of!(RingKinds, k6_damp), 0x18);
+        assert_eq!(offset_of!(RingKinds, k6_pull), 0x24);
+        assert_eq!(offset_of!(RingKinds, k15_damp), 0x28);
+        assert_eq!(offset_of!(RingKinds, k15_pull), 0x34);
+        assert_eq!(offset_of!(RingKinds, k1_size), 0x38);
+        assert_eq!(offset_of!(RingKinds, k1_damp), 0x3c);
+        assert_eq!(offset_of!(RingKinds, k1_pull), 0x48);
+        assert_eq!(offset_of!(RingKinds, near_less), 0x4c);
+        assert_eq!(offset_of!(RingKinds, near_scale), 0x50);
+        assert_eq!(offset_of!(RingKinds, near_rate), 0x54);
+        assert_eq!(offset_of!(RingKinds, kd_gain), 0x58);
+        assert_eq!(offset_of!(RingKinds, kd_damp), 0x5c);
+        assert_eq!(offset_of!(RingKinds, kd_pull), 0x68);
+        assert_eq!(offset_of!(RingKinds, k13_damp), 0x6c);
+        assert_eq!(offset_of!(RingKinds, k13_gain), 0x78);
+        assert_eq!(offset_of!(RingKinds, k16_damp), 0x7c);
+        assert_eq!(offset_of!(RingKinds, k16_gain), 0x88);
+        assert_eq!(offset_of!(RingKinds, k10_gain), 0x8c);
+        assert_eq!(offset_of!(RingKinds, k11_gain), 0x90);
+        assert_eq!(offset_of!(RingKinds, ribbon_a), 0x94);
+        assert_eq!(offset_of!(RingKinds, ribbon_b), 0x98);
     }
 }
 

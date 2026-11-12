@@ -7,10 +7,14 @@ use crate::race::owner::Race;
 use crate::race::replay_viewer::Mode;
 
 /// One start in `mode`: the viewer, when there is a replay.
-pub fn replay_mode(race: &Race, mode: Mode) -> Result<(), Refused> {
+pub fn replay_mode(
+    race: &'static Race,
+    o: crate::owners::Owners<'static>,
+    mode: Mode,
+) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::viewer_flow::views_replay`.
     if rc2k_core::race::viewer_flow::views_replay(race.shared.replay_file.replay_closed.get()) {
-        crate::race::replay_viewer::replay_viewer(race, mode)?;
+        crate::race::replay_viewer::replay_viewer(race, o, mode)?;
     }
     Ok(())
 }

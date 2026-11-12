@@ -62,7 +62,7 @@ fn put_answer(race: &Race, net: &Net, answer: u32) -> Result<(), BadInput> {
 }
 
 pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
-    let (input, system, scene, sound, net) = (o.input, o.system, o.scene, o.sound, o.net);
+    let (input, system, net) = (o.input, o.system, o.net);
     let devices = &input.devices;
     for c in 0..8 {
         race.car_blocks().cars[c as usize].reset_marker.set(10);
@@ -154,7 +154,7 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
             }
             race_keys(race, o)?;
             let begun = crate::debug::timing::start();
-            { crate::drive::race_step::race_step(race, scene, input, sound, system, net) }?;
+            { crate::drive::race_step::race_step(o, race) }?;
             crate::debug::timing::stop(crate::debug::timing::Stage::Physics, begun);
             tyre_change(o)?;
             if players_all_out(race, net)? {

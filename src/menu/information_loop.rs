@@ -18,7 +18,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
     log_line(c"InfoScr: Start");
     entry.set_view(-156, 39, 0x140);
-    prepare_scene(entry.scene);
+    prepare_scene(entry);
     entry.set_clip_sides(-40, 760);
     screens.flow.turning.set(0x1u32);
     screens.state.carousel.menu.set(0x9u32);

@@ -26,14 +26,8 @@ const WORDS: [&std::ffi::CStr; 9] = [
 /// music (`game_music` with `Finish.no_place`, else `game_music_8`), `create_controls`, race init
 /// (`drive::race_init`) and `scene::restart_clock`; the starting values (`STARTS` with the clock,
 /// the blocks' +0xFB4 3 and +0xFB0 8, `LAST_STARTS`); "FINIS", a rule, a line break.
-#[cfg(debug_ui)]
-pub fn load_stage(race: &Race) -> Result<(), Refused> {
-    load_stage_in(race, crate::owners::boundary())
-}
-
-/// `load_stage` with the owners given.
-pub fn load_stage_in(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
-    let (system, gfx, input, scene) = (o.system, o.gfx, o.input, o.scene);
+pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    let (system, gfx, input) = (o.system, o.gfx, o.input);
     let indent = |by: i32| {
         crate::logfile::write_line::state::INDENT
             .atomic()
@@ -94,7 +88,7 @@ pub fn load_stage_in(race: &Race, o: crate::owners::Owners<'static>) -> Result<(
     indent(-3);
     log();
     indent(3);
-    crate::drive::race_init::race_init(race, system, o.sound, scene, o.effects, o.net)?;
+    crate::drive::race_init::race_init(o, race)?;
     crate::scene::restart_clock::restart_clock(
         &race.shared,
         crate::system::tick_count::tick_count(),

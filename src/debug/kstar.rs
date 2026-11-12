@@ -172,7 +172,7 @@ fn section(ui: &Ui, name: &str) -> bool {
 }
 
 /// The tab.
-pub fn tab(o: &Owners<'_>, ui: &Ui) {
+pub fn tab(o: &Owners<'static>, ui: &Ui) {
     let race = o.race;
     mode_choice(&race.shared, ui);
     if section(ui, "Car's faces by group (mode 5)") {
@@ -464,12 +464,12 @@ pub fn over_picture(ui: &Ui) {
 mod tests {
     use super::*;
 
-    /// The names are the image's table (16 bytes a view from IDA's 0x5EE2D5, space-padded).
+    /// The names are the game's table (16 bytes a view, space-padded).
     #[test]
     fn the_view_names_are_the_games() {
+        let table = crate::test_support::first_values::bytes("debug.kstar.VIEW_NAMES");
         for (view, name) in VIEW_NAMES.iter().enumerate() {
-            let image = crate::moved::image_bytes(0x5EE2D5 + 16 * view, 16);
-            let text: String = image
+            let text: String = table[16 * view..16 * view + 16]
                 .iter()
                 .take_while(|&&b| b != 0)
                 .map(|&b| char::from(b))

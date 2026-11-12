@@ -19,7 +19,6 @@ use crate::errors::Refused;
 use crate::framework::{LOG_PATH, log};
 use crate::install::outside::Game as Outside;
 use crate::owners::Owners;
-use crate::saves::owner::saves;
 use rc2k_core::fatal::Context;
 use std::path::Path;
 use std::sync::atomic::Ordering;
@@ -150,11 +149,11 @@ fn stack_returns(esp: usize) -> String {
 /// (0x4154B5 back into the main loop, which asks for the shutdown, logs "Leaving main
 /// loop..." and returns to `start`), the program ended as `start` ends it. The data is saved
 /// first, once the front end has its tables: before that a save would write blanks.
-pub fn leave_on_close() -> ! {
-    let saves = saves();
+pub fn leave_on_close(o: Owners<'static>) -> ! {
+    let saves = o.saves;
     let tables = &saves.best_times;
     if [tables.allocated.get(), tables.loaded.get()] == [1, 1]
-        && let Err(e) = crate::saves::save_game_data::save_in_game(saves)
+        && let Err(e) = crate::saves::save_game_data::save_in_game(o, saves)
     {
         log(&format!(
             "standalone: the game's data was not saved on closing: {e:?}"

@@ -47,29 +47,14 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
+        crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::gfx::owner::GFX.unchecked().png.header,
-            START,
-            START + LEN,
         );
     }
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(offset_of!(PngHeader, compression), 0xA8C19A - START);
-        assert_eq!(offset_of!(PngHeader, colour_type), 0xA8C1A0 - START);
-        assert_eq!(
-            crate::moved::place(START),
-            crate::gfx::owner::GFX.unchecked().png.header.width.addr() as usize
-        );
-        assert_eq!(
-            crate::moved::place(0xA8C1A0),
-            crate::gfx::owner::GFX
-                .unchecked()
-                .png
-                .header
-                .colour_type
-                .addr() as usize
-        );
+        assert_eq!(offset_of!(PngHeader, compression), 0xa);
+        assert_eq!(offset_of!(PngHeader, colour_type), 0x10);
     }
 }

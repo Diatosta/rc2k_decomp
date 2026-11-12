@@ -19,6 +19,7 @@ const NEAREST: i32 = 0x1000;
 // ---- Rust version ----
 
 pub fn clip_polygon_by_depth(
+    polygon_work: &'static crate::scene::polygon_store::PolygonWork,
     poly: &crate::scene::polygon_work::PolygonWork,
     race: &Race,
     scene: &crate::scene::owner::Scene,
@@ -26,17 +27,33 @@ pub fn clip_polygon_by_depth(
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), BadInput> {
     let course = &race.course;
-    let entries = listed_with_records(poly)?;
+    let entries = listed_with_records(polygon_work, poly)?;
     or_undone(|| {
         poly.depth_clipped.set(1u32);
         poly.clip_plane.set(NEAREST as u32);
-        let listed = clip_pass(poly, course, Some(entries), Edge::Depth(NEAREST), true, 0)?;
+        let listed = clip_pass(
+            polygon_work,
+            poly,
+            course,
+            Some(entries),
+            Edge::Depth(NEAREST),
+            true,
+            0,
+        )?;
         let far =
             far_clip && view.face.no_far_clip.get() == 0 && scene.draw_switches.far_on.get() != 0;
         if far && (poly.polygon_vertex_count.get() as i32).wrapping_sub(3) >= 0 {
             let farthest = view.polygon.window.clip_farthest.get() as i32;
             poly.clip_plane.set(farthest as u32);
-            clip_pass(poly, course, listed, Edge::Depth(farthest), false, 0)?;
+            clip_pass(
+                polygon_work,
+                poly,
+                course,
+                listed,
+                Edge::Depth(farthest),
+                false,
+                0,
+            )?;
         }
         Ok(())
     })

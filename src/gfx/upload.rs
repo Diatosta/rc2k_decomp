@@ -76,14 +76,6 @@ impl Upload {
     }
 }
 
-impl SurfaceDesc {
-    /// Where the description is (the tests).
-    #[cfg(test)]
-    pub fn addr(&self) -> u32 {
-        crate::pointers::game_address(std::ptr::from_ref::<SurfaceDesc>(self))
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -93,30 +85,13 @@ mod tests {
     #[test]
     fn first_values_are_the_games() {
         assert_eq!(size_of::<SurfaceDesc>(), 0x6C);
-        crate::gfx::first_values_are_the_games(&gfx().card.upload, START, START + LEN);
+        crate::test_support::first_values::assert_block_starts_as_the_games(&gfx().card.upload);
     }
 
     #[test]
     fn moved_knows_the_block() {
-        let card = &gfx().card;
         assert_eq!(offset_of!(SurfaceDesc, pitch), 0x10);
         assert_eq!(offset_of!(SurfaceDesc, pixels), 0x24);
-        assert_eq!(offset_of!(Upload, trying), 0x5ABA88 - START);
-        assert_eq!(
-            crate::moved::place(START),
-            card.upload.description.addr() as usize
-        );
-        assert_eq!(
-            crate::moved::place(0x5ABA28),
-            card.upload.description.pitch.addr() as usize
-        );
-        assert_eq!(
-            crate::moved::place(0x5ABA3C),
-            card.upload.description.pixels.addr() as usize
-        );
-        assert_eq!(
-            crate::moved::place(0x5ABA88),
-            card.upload.trying.addr() as usize
-        );
+        assert_eq!(offset_of!(Upload, trying), 0x70);
     }
 }

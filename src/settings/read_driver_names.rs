@@ -106,8 +106,6 @@ mod tests {
         assert_eq!(super::path(), b"var\\name.cfg");
     }
 
-    use crate::moved::image_bytes;
-
     #[test]
     fn a_name_slot_is_an_offset_inside_the_names_block() {
         // The first pool name's slot value is the pool's start, and the place it names is
@@ -119,13 +117,18 @@ mod tests {
 
     #[test]
     fn data_starts_as_the_games() {
-        assert_eq!(&image_bytes(0x529D98, 13)[..], &super::PATH[..]);
-        let key: Vec<u8> = (0..8).map(|i| strings().drivers.key.get(i)).collect();
-        assert_eq!(&image_bytes(0x529DA5, 8)[..], &key[..]);
-        assert!(
-            image_bytes(0x95ECF8, super::NAMES_LEN + super::POOL_ROOM)
-                .iter()
-                .all(|&b| b == 0)
+        assert_eq!(
+            crate::test_support::first_values::bytes("settings.read_driver_names.PATH"),
+            &super::PATH[..]
         );
+        let key: Vec<u8> = (0..8).map(|i| strings().drivers.key.get(i)).collect();
+        assert_eq!(
+            crate::test_support::first_values::bytes("strings.owner.STRINGS.drivers.key/8"),
+            &key[..]
+        );
+        let names =
+            crate::test_support::first_values::bytes("settings.read_driver_names.NAMES/4872");
+        assert_eq!(names.len(), super::NAMES_SIZE);
+        assert!(names.iter().all(|&b| b == 0));
     }
 }

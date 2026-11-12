@@ -256,40 +256,18 @@ mod kind5_set_tests {
         assert_eq!(size_of::<SlipSpraySet>(), SlipSpraySet::LEN);
         assert!(
             bytes(&crate::effects::owner::effects().particles.kind5_set)
-                == crate::moved::image_bytes(SlipSpraySet::START, SlipSpraySet::LEN),
+                == crate::test_support::first_values::bytes(
+                    "effects.owner.EFFECTS.particles.kind5_set/40"
+                ),
             "KIND5_SET starts differently from the image"
         );
-        assert_eq!(
-            offset_of!(SlipSpraySet, place_random),
-            0x93A23A - SlipSpraySet::START
-        );
-        assert_eq!(
-            offset_of!(SlipSpraySet, motion_x),
-            0x93A23E - SlipSpraySet::START
-        );
-        assert_eq!(
-            offset_of!(SlipSpraySet, motion_y),
-            0x93A242 - SlipSpraySet::START
-        );
-        assert_eq!(
-            offset_of!(SlipSpraySet, lift),
-            0x93A246 - SlipSpraySet::START
-        );
-        assert_eq!(
-            offset_of!(SlipSpraySet, motion_z),
-            0x93A24A - SlipSpraySet::START
-        );
-        assert_eq!(
-            offset_of!(SlipSpraySet, spread),
-            0x93A24E - SlipSpraySet::START
-        );
-        assert_eq!(
-            offset_of!(SlipSpraySet, roll_k),
-            0x93A252 - SlipSpraySet::START
-        );
-        assert_eq!(
-            offset_of!(SlipSpraySet, spin),
-            0x93A25E - SlipSpraySet::START
-        );
+        assert_eq!(offset_of!(SlipSpraySet, place_random), 0x0);
+        assert_eq!(offset_of!(SlipSpraySet, motion_x), 0x4);
+        assert_eq!(offset_of!(SlipSpraySet, motion_y), 0x8);
+        assert_eq!(offset_of!(SlipSpraySet, lift), 0xc);
+        assert_eq!(offset_of!(SlipSpraySet, motion_z), 0x10);
+        assert_eq!(offset_of!(SlipSpraySet, spread), 0x14);
+        assert_eq!(offset_of!(SlipSpraySet, roll_k), 0x18);
+        assert_eq!(offset_of!(SlipSpraySet, spin), 0x24);
     }
 }

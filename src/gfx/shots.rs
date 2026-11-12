@@ -45,30 +45,11 @@ pub fn on_byte(gfx: &crate::gfx::owner::Gfx) -> u8 {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
+        crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::gfx::owner::GFX.unchecked().shots,
-            START,
-            START + LEN,
-        );
-    }
-
-    #[test]
-    fn moved_knows_the_block() {
-        assert_eq!(
-            crate::moved::place(START),
-            crate::gfx::owner::GFX.unchecked().shots.on.addr() as usize
-        );
-        assert_eq!(
-            crate::moved::place(0x4F52B8),
-            crate::gfx::owner::GFX.unchecked().shots.locked_here.addr() as usize
-        );
-        assert_eq!(
-            crate::moved::place(0x4F52BC),
-            crate::gfx::owner::GFX.unchecked().shots.name.addr() as usize
         );
     }
 }

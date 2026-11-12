@@ -69,14 +69,6 @@ pub(crate) enum Home {
 }
 
 impl Home {
-    /// The home's bytes as a place bounded by them.
-    #[cfg(test)]
-    fn place(&self) -> crate::pointers::GamePtr {
-        match self {
-            Home::Store(store) => crate::pointers::GamePtr::of_store(*store),
-        }
-    }
-
     /// The home's first byte as a game address.
     fn address(&self) -> usize {
         match self {
@@ -2748,37 +2740,6 @@ pub(crate) const MOVED: &[Moved] = &[
     },
 ];
 
-/// The place IDA's address `ida` names (a table that keeps IDA's addresses as names, a
-/// debug page): in the home of the moved range holding it, bounded to that range. A name
-/// in no moved range is refused.
-#[cfg(test)]
-pub fn named(ida: usize) -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
-    let ranges = sorted();
-    let i = ranges.partition_point(|&(start, _, _)| start <= ida);
-    let &(start, end, home) = i
-        .checked_sub(1)
-        .and_then(|i| ranges.get(i))
-        .filter(|&&(_, end, _)| ida < end)
-        .ok_or(crate::errors::BadInput("an IDA name in no moved range"))?;
-    let m = MOVED
-        .iter()
-        .find(|m| m.ida == start)
-        .ok_or(crate::errors::BadInput("an IDA name in no moved range"))?;
-    debug_assert_eq!(m.home.address(), home);
-    Ok(m.home
-        .place()
-        .limited((end - start) as u32)
-        .offset((ida - start) as u32))
-}
-
-/// Where the variable at IDA address `ida` lives now: its new home if it moved, else its
-/// place in the image.
-#[cfg(test)]
-pub fn place(ida: usize) -> usize {
-    // `game_addr` answers a moved variable's home.
-    (game_addr(rva(ida))) as usize
-}
-
 /// Which 4 KiB pages of the image (by RVA) hold a byte of a moved range: `home_of_rva`'s
 /// fast path (most addresses are on no such page).
 #[cfg(test)]
@@ -2868,35 +2829,6 @@ pub fn home_range(addr: usize) -> Option<(usize, usize)> {
     (addr < end).then_some((home, end))
 }
 
-/// Every moved range's bytes, for a test that writes the game's variables and has to put
-/// them back (`restore`); hold `store::test_lock` around both.
-#[cfg(test)]
-pub fn snapshot() -> Vec<(usize, Vec<u8>)> {
-    sorted()
-        .iter()
-        .map(|&(start, end, home)| {
-            let bytes = unsafe {
-                std::slice::from_raw_parts(crate::pointers::host_at(home).cast_const(), end - start)
-            };
-            (home, bytes.to_vec())
-        })
-        .collect()
-}
-
-/// The bytes `snapshot` took, put back.
-#[cfg(test)]
-pub fn restore(snap: &[(usize, Vec<u8>)]) {
-    for (home, bytes) in snap {
-        unsafe {
-            std::ptr::copy_nonoverlapping(
-                bytes.as_ptr(),
-                crate::pointers::host_at(*home),
-                bytes.len(),
-            );
-        };
-    }
-}
-
 /// The new home of the byte at `rva` if it has left the image (`framework::game_addr`'s
 /// resolver).
 #[cfg(test)]
@@ -2911,32 +2843,8 @@ pub fn home_of_rva(rva: usize) -> Option<usize> {
     (ida < end).then(|| home + (ida - start))
 }
 
-/// Where a table's entry names (the tables keep IDA's addresses as names): IDA's `ida`, which must
-/// lie in `start .. start + len` (the moved piece it names), at its new home. A name off the piece
-/// is refused with `what`.
-#[cfg(test)]
-pub fn named_in(
-    ida: u32,
-    start: usize,
-    len: usize,
-    what: &'static str,
-) -> Result<u32, crate::errors::BadInput> {
-    let at = ida as usize;
-    if !(start..start + len).contains(&at) {
-        return Err(crate::errors::BadInput(what));
-    }
-    home_of_rva(at - IMAGE_BASE)
-        .map(|home| home as u32)
-        .ok_or(crate::errors::BadInput(what))
-}
-
 /// RAL.EXE's data as `tools/extract_image` packed it (decoupling step B): only the tests
 /// read it now, to check the moved constants and first values.
-#[cfg(test)]
-pub fn image_relocations() -> Vec<u32> {
-    tests::image_relocations()
-}
-
 #[cfg(test)]
 static IMAGE_DATA: &[u8] =
     include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/data/ral_image.bin"));

@@ -23,6 +23,7 @@ fn box_values(place: &[PlainFloat; 2], size: &[PlainFloat; 2]) -> [[u8; 10]; 4] 
 }
 
 pub fn run_pong(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
     frame: &Frame,
     pong: &Pong,
     fl: &WindscreenFlakes,
@@ -37,15 +38,29 @@ pub fn run_pong(
         {
             return Ok(());
         }
-        crate::effects::pong_setup::pong_setup(pong, fl, scene);
+        crate::effects::pong_setup::pong_setup(buffer, pong, fl, scene);
         move_pong_bat(pong);
         let steps = p.steps.get() as i32;
         for _ in 0..steps.max(0) {
             move_pong_ball(pong, effects);
         }
-        draw_pong_box(pong, fl, box_values(&p.ball, &p.ball_size), scene, effects);
-        draw_pong_box(pong, fl, box_values(&p.bat, &p.bat_size), scene, effects);
-        crate::effects::pong_score::pong_score(pong, fl, scene, effects)?;
+        draw_pong_box(
+            buffer,
+            pong,
+            fl,
+            box_values(&p.ball, &p.ball_size),
+            scene,
+            effects,
+        );
+        draw_pong_box(
+            buffer,
+            pong,
+            fl,
+            box_values(&p.bat, &p.bat_size),
+            scene,
+            effects,
+        );
+        crate::effects::pong_score::pong_score(buffer, pong, fl, scene, effects)?;
     }
     Ok(())
 }

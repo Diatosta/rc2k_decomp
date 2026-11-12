@@ -121,7 +121,7 @@ impl races::EventRaces for Game<'_> {
                 race.shared.state.settings.stage.set(self.pack.stage()?);
             }
             Step::Race { next } => {
-                crate::race::single_rally_race::single_rally_race(u32::from(next), 1)?;
+                crate::race::single_rally_race::single_rally_race(self.owners, u32::from(next), 1)?;
             }
             Step::ReloadFrontEnd => crate::menu::reload_front_end::reload_front_end(self.owners)?,
             Step::ClearServiceSpent => {

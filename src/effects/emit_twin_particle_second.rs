@@ -80,7 +80,9 @@ mod twenty_second_tuning_tests {
                 &crate::effects::owner::effects()
                     .particles
                     .twenty_second_tuning
-            ) == crate::moved::image_bytes(TwinSecondTuning::START, TwinTuning::LEN),
+            ) == crate::test_support::first_values::bytes(
+                "effects.owner.EFFECTS.particles.twenty_second_tuning/40"
+            ),
             "TWENTY_SECOND_TUNING starts differently from the image"
         );
     }

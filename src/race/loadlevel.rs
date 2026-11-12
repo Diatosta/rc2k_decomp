@@ -116,7 +116,10 @@ impl Steps<'_> {
 /// the callback `nullsub_8`; the crash matrix, the norms; without `Finish.no_place` checkpoints, pace
 /// notes, overlay; `marker_object` the object of kind 0x7A (else 0x79); `camera_last_frame`/`D4` 0;
 /// "finis".
-pub fn loadlevel_init(race: &Race, o: crate::owners::Owners<'_>) -> Result<(), Refused> {
+pub fn loadlevel_init(
+    race: &'static Race,
+    o: crate::owners::Owners<'static>,
+) -> Result<(), Refused> {
     let (scene, system, gfx) = (o.scene, o.system, o.gfx);
     use crate::race::level_init as level;
     use crate::race::stage_prefs;
@@ -158,7 +161,7 @@ pub fn loadlevel_init(race: &Race, o: crate::owners::Owners<'_>) -> Result<(), R
     s.log();
     s.indent(3);
     level::load_texture_info(&race.course, scene)?;
-    level::set_course_number(race.shared.vars.stage_number.get(), scene)?;
+    level::set_course_number(race.shared.vars.stage_number.get(), race, scene)?;
     s.progress(6)?;
     s.indent(-3);
     s.step(&mut || stage_prefs::load_prefs(race), Some(7))?;
@@ -192,7 +195,7 @@ pub fn loadlevel_init(race: &Race, o: crate::owners::Owners<'_>) -> Result<(), R
     race.shared.vars.bar_span[1].set(0x50); // RaceVars.bar_span[1]
     s.indent(-3);
     s.step(
-        &mut || crate::race::set_all_plates::set_all_plates(race, scene),
+        &mut || crate::race::set_all_plates::set_all_plates(race, gfx, o.net, scene),
         Some(0x50),
     )?;
     // loadgamemap.

@@ -530,18 +530,14 @@ mod shape_inputs_tests {
             .map(|i| unsafe { p.add(i).read() })
             .collect();
         assert!(
-            ours == crate::moved::image_bytes(ShapeInputs::START, ShapeInputs::LEN),
+            ours == crate::test_support::first_values::bytes(
+                "effects.owner.EFFECTS.windscreen_drops.inputs/60"
+            ),
             "SHAPE_INPUTS starts differently from the image"
         );
-        assert_eq!(
-            offset_of!(ShapeInputs, scratch),
-            0x764F40 - ShapeInputs::START
-        );
-        assert_eq!(
-            offset_of!(ShapeInputs, tilts),
-            0x764F60 - ShapeInputs::START
-        );
-        assert_eq!(offset_of!(ShapeInputs, ends), 0x764F6C - ShapeInputs::START);
+        assert_eq!(offset_of!(ShapeInputs, scratch), 0x0);
+        assert_eq!(offset_of!(ShapeInputs, tilts), 0x20);
+        assert_eq!(offset_of!(ShapeInputs, ends), 0x2c);
     }
 }
 
@@ -747,14 +743,6 @@ impl ShapeSetTuning {
 impl ShapeSetTuning {
     pub const START: usize = 0x89C724;
     pub const LEN: usize = 0x270;
-    #[cfg(test)]
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    #[cfg(test)]
-    pub fn home() -> usize {
-        crate::pointers::game_address(
-            &raw const crate::effects::owner::effects().windscreen_drops.tuning,
-        ) as usize
-    }
 }
 
 #[cfg(test)]
@@ -765,36 +753,23 @@ mod typed_tests {
     #[test]
     fn shape_set_tuning_starts_as_the_games() {
         assert_eq!(size_of::<ShapeSetTuning>(), ShapeSetTuning::LEN);
-        let image = crate::moved::image_bytes(ShapeSetTuning::START, ShapeSetTuning::LEN);
+        let image = crate::test_support::first_values::bytes(
+            "effects.owner.EFFECTS.windscreen_drops.tuning/624",
+        );
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(ShapeSetTuning::home()).cast_const(),
+                (&raw const crate::effects::owner::effects().windscreen_drops.tuning).cast::<u8>(),
                 ShapeSetTuning::LEN,
             )
         };
         assert!(
-            mine == &image[..],
+            mine == image,
             "SHAPE_SET_TUNING starts differently from the image"
         );
-        assert_eq!(
-            offset_of!(ShapeSetTuning, first_face_kind),
-            0x89C72C - ShapeSetTuning::START
-        );
-        assert_eq!(
-            offset_of!(ShapeSetTuning, end_a),
-            0x89C8C4 - ShapeSetTuning::START
-        );
-        assert_eq!(
-            offset_of!(ShapeSetTuning, set_ends),
-            0x89C96C - ShapeSetTuning::START
-        );
-        assert_eq!(
-            offset_of!(ShapeSetTuning, turn_angles),
-            0x89C974 - ShapeSetTuning::START
-        );
-        assert_eq!(
-            offset_of!(ShapeSetTuning, step_scales),
-            0x89C984 - ShapeSetTuning::START
-        );
+        assert_eq!(offset_of!(ShapeSetTuning, first_face_kind), 0x8);
+        assert_eq!(offset_of!(ShapeSetTuning, end_a), 0x1a0);
+        assert_eq!(offset_of!(ShapeSetTuning, set_ends), 0x248);
+        assert_eq!(offset_of!(ShapeSetTuning, turn_angles), 0x250);
+        assert_eq!(offset_of!(ShapeSetTuning, step_scales), 0x260);
     }
 }

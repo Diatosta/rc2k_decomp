@@ -141,68 +141,52 @@ pub const START: usize = 0x7559A4;
 /// IDA 0x755A4C, the end of the piece.
 pub const END: usize = 0x755A4C;
 
-/// Where IDA 0x7559A4 lives (`moved::MOVED`'s home).
-#[cfg(test)]
-pub fn draw_work_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::menu::owner::menus().screens.draw_work)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moved::image_bytes;
-    use core::mem::{offset_of, size_of};
+    use core::mem::offset_of;
 
     #[test]
     fn draw_work_starts_as_the_games() {
-        assert!(
-            END - START <= size_of::<DrawWork>()
-                && size_of::<DrawWork>() <= (END - START).next_multiple_of(4)
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &crate::menu::owner::menus().screens.draw_work,
         );
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host(draw_work_addr()).cast_const(),
-                END - START,
-            )
-        };
-        assert_eq!(mine, &image_bytes(START, END - START)[..]);
-        let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
-        at(offset_of!(DrawWork, blink), 0x7559A4);
-        at(offset_of!(DrawWork, cursor_on), 0x7559A8);
-        at(offset_of!(DrawWork, seconds), 0x7559AC);
-        at(offset_of!(DrawWork, scratch_b0), 0x7559B0);
-        at(offset_of!(DrawWork, scratch_b4), 0x7559B4);
-        at(offset_of!(DrawWork, scratch_b8), 0x7559B8);
-        at(offset_of!(DrawWork, first_player_time), 0x7559BC);
-        at(offset_of!(DrawWork, glyph), 0x7559C0);
-        at(offset_of!(DrawWork, scratch_c4), 0x7559C4);
-        at(offset_of!(DrawWork, dword_7559c8), 0x7559C8);
-        at(offset_of!(DrawWork, dword_7559cc), 0x7559CC);
-        at(offset_of!(DrawWork, drawing_highlighted_item), 0x7559D0);
-        at(offset_of!(DrawWork, overall_first_time), 0x7559D4);
-        at(offset_of!(DrawWork, middle), 0x7559D8);
-        at(offset_of!(DrawWork, slider_a_start), 0x7559DC);
-        at(offset_of!(DrawWork, slider_a_end), 0x7559E0);
-        at(offset_of!(DrawWork, slider_b_start), 0x7559E4);
-        at(offset_of!(DrawWork, slider_b_end), 0x7559E8);
-        at(offset_of!(DrawWork, figure), 0x7559EC);
-        at(offset_of!(DrawWork, hhmm), 0x7559F0);
-        at(offset_of!(DrawWork, scratch_f4), 0x7559F4);
-        at(offset_of!(DrawWork, work_f8), 0x7559F8);
-        at(offset_of!(DrawWork, work_fc), 0x7559FC);
-        at(offset_of!(DrawWork, scratch_00), 0x755A00);
-        at(offset_of!(DrawWork, scratch_04), 0x755A04);
-        at(offset_of!(DrawWork, scratch_08), 0x755A08);
-        at(offset_of!(DrawWork, scratch_0c), 0x755A0C);
-        at(offset_of!(DrawWork, marker_x), 0x755A18);
-        at(offset_of!(DrawWork, marker_y), 0x755A1C);
-        at(offset_of!(DrawWork, marker_end_a), 0x755A20);
-        at(offset_of!(DrawWork, marker_end_b), 0x755A24);
-        at(offset_of!(DrawWork, marker_end_c), 0x755A28);
-        at(offset_of!(DrawWork, marker_end_d), 0x755A2C);
-        at(offset_of!(DrawWork, dword_755a30), 0x755A30);
-        at(offset_of!(DrawWork, dword_755a34), 0x755A34);
-        at(offset_of!(DrawWork, action_mode), 0x755A38);
-        at(offset_of!(DrawWork, escape_pressed), 0x755A3C);
+        assert_eq!(offset_of!(DrawWork, blink), 0x0);
+        assert_eq!(offset_of!(DrawWork, cursor_on), 0x4);
+        assert_eq!(offset_of!(DrawWork, seconds), 0x8);
+        assert_eq!(offset_of!(DrawWork, scratch_b0), 0xc);
+        assert_eq!(offset_of!(DrawWork, scratch_b4), 0x10);
+        assert_eq!(offset_of!(DrawWork, scratch_b8), 0x14);
+        assert_eq!(offset_of!(DrawWork, first_player_time), 0x18);
+        assert_eq!(offset_of!(DrawWork, glyph), 0x1c);
+        assert_eq!(offset_of!(DrawWork, scratch_c4), 0x20);
+        assert_eq!(offset_of!(DrawWork, dword_7559c8), 0x24);
+        assert_eq!(offset_of!(DrawWork, dword_7559cc), 0x28);
+        assert_eq!(offset_of!(DrawWork, drawing_highlighted_item), 0x2c);
+        assert_eq!(offset_of!(DrawWork, overall_first_time), 0x30);
+        assert_eq!(offset_of!(DrawWork, middle), 0x34);
+        assert_eq!(offset_of!(DrawWork, slider_a_start), 0x38);
+        assert_eq!(offset_of!(DrawWork, slider_a_end), 0x3c);
+        assert_eq!(offset_of!(DrawWork, slider_b_start), 0x40);
+        assert_eq!(offset_of!(DrawWork, slider_b_end), 0x44);
+        assert_eq!(offset_of!(DrawWork, figure), 0x48);
+        assert_eq!(offset_of!(DrawWork, hhmm), 0x4c);
+        assert_eq!(offset_of!(DrawWork, scratch_f4), 0x50);
+        assert_eq!(offset_of!(DrawWork, work_f8), 0x54);
+        assert_eq!(offset_of!(DrawWork, work_fc), 0x58);
+        assert_eq!(offset_of!(DrawWork, scratch_00), 0x5c);
+        assert_eq!(offset_of!(DrawWork, scratch_04), 0x60);
+        assert_eq!(offset_of!(DrawWork, scratch_08), 0x64);
+        assert_eq!(offset_of!(DrawWork, scratch_0c), 0x68);
+        assert_eq!(offset_of!(DrawWork, marker_x), 0x74);
+        assert_eq!(offset_of!(DrawWork, marker_y), 0x78);
+        assert_eq!(offset_of!(DrawWork, marker_end_a), 0x7c);
+        assert_eq!(offset_of!(DrawWork, marker_end_b), 0x80);
+        assert_eq!(offset_of!(DrawWork, marker_end_c), 0x84);
+        assert_eq!(offset_of!(DrawWork, marker_end_d), 0x88);
+        assert_eq!(offset_of!(DrawWork, dword_755a30), 0x8c);
+        assert_eq!(offset_of!(DrawWork, dword_755a34), 0x90);
+        assert_eq!(offset_of!(DrawWork, action_mode), 0x94);
+        assert_eq!(offset_of!(DrawWork, escape_pressed), 0x98);
     }
 }

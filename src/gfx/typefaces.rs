@@ -210,12 +210,6 @@ impl FontObjects {
     }
 }
 
-#[cfg(test)]
-/// Where the block is (`moved::MOVED`'s home for IDA 0x51E3A4).
-pub fn home() -> usize {
-    crate::pointers::game_address(&raw const gfx().fonts.typefaces) as usize
-}
-
 /// A font of the block: its number (the object's place less the first's, in 0x20s).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct FontId(usize);
@@ -246,12 +240,6 @@ impl FontId {
     /// variable (`GameScreen::font_value`).
     pub const fn number(self) -> u32 {
         self.0 as u32
-    }
-
-    /// Where the object is (the tests').
-    #[cfg(test)]
-    pub fn addr(self) -> u32 {
-        crate::pointers::GamePtr::to(self.object()).addr()
     }
 
     /// IDA's address of the object (what the image's tables held).
@@ -416,7 +404,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&gfx().fonts.typefaces, START, START + LEN);
+        crate::test_support::first_values::assert_block_starts_as_the_games(&gfx().fonts.typefaces);
     }
 
     #[test]
@@ -424,11 +412,5 @@ mod tests {
         assert_eq!(offset_of!(FontObject, palette), 0x14);
         assert_eq!(offset_of!(FontObject, glyph_table), 0x18);
         assert_eq!(size_of::<FontObject>(), 0x20);
-        assert_eq!(crate::moved::place(START), home());
-        assert_eq!(
-            crate::moved::place(0x51EAB8),
-            gfx().fonts.typefaces.objects[56].palette.addr() as usize
-        );
-        assert_eq!(fonts::MEASURE.addr() as usize, home() + 0x51E824 - START);
     }
 }

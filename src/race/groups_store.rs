@@ -230,54 +230,38 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
+        use crate::test_support::first_values::{
+            assert_block_starts_as_the_games, assert_store_starts_as_the_games,
+        };
         let race = race();
-        let (a, b) = CARS_AND_REPLAY_RANGE;
-        crate::gfx::first_values_are_the_games(&race.replay.cars_and_replay, a, b);
-        let (a, b) = VIEWER_AND_KINDS_RANGE;
-        crate::gfx::first_values_are_the_games(&race.replay.viewer_and_kinds, a, b);
-        let (a, b) = LIGHTS_AND_GEAR_RANGE;
-        crate::gfx::first_values_are_the_games(&race.frame.lights_and_gear, a, b);
+        assert_block_starts_as_the_games(&race.replay.cars_and_replay);
+        assert_block_starts_as_the_games(&race.replay.viewer_and_kinds);
+        assert_block_starts_as_the_games(&race.frame.lights_and_gear);
         let (a, b) = VIEW_AND_RECORDS_RANGE;
         crate::gfx::first_values_are_the_games_but(&race.frame.view_and_records, a, b, |image| {
             for k in 0..52 {
-                let o = 0x606320 - a + 4 * k;
+                let o = offset_of!(ViewAndRecords, view_vars)
+                    + offset_of!(ViewVars, view_records)
+                    + 4 * k;
                 let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
                 image[o..o + 4]
                     .copy_from_slice(&crate::race::view_vars_store::view_ref(v).to_le_bytes());
             }
         });
-        let (a, b) = PANEL_AND_OVERLAY_RANGE;
-        crate::gfx::first_values_are_the_games(
-            &race.frame.panel_and_overlay.panel,
-            a,
-            race_panel_end(),
-        );
-        crate::gfx::first_values_are_the_games(
-            &race.frame.panel_and_overlay.overlay,
-            race_panel_end(),
-            b,
-        );
-    }
-
-    fn race_panel_end() -> usize {
-        crate::race::panel_store::END
+        // The panel and the overlay after it: one store from the panel's first byte.
+        assert_store_starts_as_the_games("store:race.groups_store.PANEL_TAIL");
     }
 
     #[test]
     fn groups_have_their_homes() {
-        for (start, home) in [
-            (CARS_AND_REPLAY_RANGE.0, cars_and_replay_home()),
-            (VIEWER_AND_KINDS_RANGE.0, viewer_and_kinds_home()),
-            (LIGHTS_AND_GEAR_RANGE.0, lights_and_gear_home()),
-            (PANEL_AND_OVERLAY_RANGE.0 + 2, panel_and_overlay_home() + 2),
-            (VIEW_AND_RECORDS_RANGE.0, view_and_records_home()),
+        for home in [
+            cars_and_replay_home(),
+            viewer_and_kinds_home(),
+            lights_and_gear_home(),
+            panel_and_overlay_home() + 2,
+            view_and_records_home(),
         ] {
             assert_eq!(home % 4, 0);
-            assert_eq!(crate::moved::place(start), home);
         }
-        assert_eq!(
-            crate::moved::place(0x5C562C),
-            viewer_and_kinds_home() + (0x5C562C - VIEWER_AND_KINDS_RANGE.0)
-        );
     }
 }

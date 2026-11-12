@@ -58,23 +58,17 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
+        crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::race::owner::RACE.course.flare_tables,
-            START,
-            END,
         );
     }
 
     #[test]
-    fn piece_has_its_home() {
+    fn fields_are_at_the_games_offsets() {
         assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            crate::moved::place(END - 1),
-            (piece_addr() + (END - START) as u32 - 1) as usize
-        );
-        assert_eq!(offset_of!(FlareTables, place_z), 0x63F98C - START);
-        assert_eq!(offset_of!(FlareTables, other_light), 0x63FD8C - START);
-        assert_eq!(offset_of!(FlareTables, size), 0x64018C - START);
-        assert_eq!(offset_of!(FlareTables, object_number), 0x64058C - START);
+        assert_eq!(offset_of!(FlareTables, place_z), 0x400);
+        assert_eq!(offset_of!(FlareTables, other_light), 0x800);
+        assert_eq!(offset_of!(FlareTables, size), 0xc00);
+        assert_eq!(offset_of!(FlareTables, object_number), 0x1000);
     }
 }

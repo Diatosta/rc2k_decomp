@@ -319,25 +319,17 @@ pub const END: usize = 0x75ACCC;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moved::image_bytes;
-    use core::mem::{offset_of, size_of};
+    use core::mem::offset_of;
 
     #[test]
     fn menu_state_starts_as_the_games() {
-        let size = size_of::<MenuState>();
-        assert!(END - START <= size && size <= (END - START).next_multiple_of(4));
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                (&raw const crate::menu::owner::menus().screens.state).cast::<u8>(),
-                END - START,
-            )
-        };
-        assert_eq!(mine, &image_bytes(START, END - START)[..]);
-        let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
-        at(offset_of!(MenuState, carousel), 0x75A658);
-        at(offset_of!(MenuState, service_ui), 0x75AA90);
-        at(offset_of!(MenuState, carousel_pictures), 0x75AAA8);
-        at(offset_of!(MenuState, menus), 0x75AAD8);
-        at(offset_of!(MenuState, driver_stats), 0x75AB58);
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &crate::menu::owner::menus().screens.state,
+        );
+        assert_eq!(offset_of!(MenuState, carousel), 0);
+        assert_eq!(offset_of!(MenuState, service_ui), 0x438);
+        assert_eq!(offset_of!(MenuState, carousel_pictures), 0x450);
+        assert_eq!(offset_of!(MenuState, menus), 0x480);
+        assert_eq!(offset_of!(MenuState, driver_stats), 0x500);
     }
 }

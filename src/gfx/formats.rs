@@ -66,42 +66,14 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
+        crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::gfx::owner::GFX.unchecked().pixel.formats,
-            START,
-            START + LEN,
         );
     }
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(offset_of!(Formats, scratch), 0x4F3FA8 - START);
-        assert_eq!(offset_of!(Formats, component_format), 0x4F3FAC - START);
-        assert_eq!(
-            crate::moved::place(START),
-            crate::gfx::owner::GFX.unchecked().pixel.formats.numbers[0]
-                .number
-                .addr() as usize
-        );
-        assert_eq!(
-            crate::moved::place(0x4F3FA8),
-            crate::gfx::owner::GFX
-                .unchecked()
-                .pixel
-                .formats
-                .scratch
-                .addr() as usize
-        );
-        assert_eq!(
-            crate::moved::place(0x4F3FAC),
-            (crate::pointers::game_address(
-                crate::gfx::owner::GFX
-                    .unchecked()
-                    .pixel
-                    .formats
-                    .component_format
-                    .as_ptr()
-            )) as usize
-        );
+        assert_eq!(offset_of!(Formats, scratch), 0x30);
+        assert_eq!(offset_of!(Formats, component_format), 0x34);
     }
 }

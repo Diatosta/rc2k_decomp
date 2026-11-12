@@ -308,6 +308,7 @@ impl Weather {
 
 #[cfg(test)]
 impl RainRules {
+    #[cfg(target_arch = "x86")]
     pub const START: usize = 0x8C5F91;
     pub const LEN: usize = 0x6C;
 }
@@ -389,28 +390,29 @@ pub mod tests {
         assert_eq!(size_of::<RainState>(), RainState::LEN);
         assert_eq!(size_of::<RainRules>(), RainRules::LEN);
         assert!(
-            bytes(&weather.rain) == crate::moved::image_bytes(RainState::START, RainState::LEN),
+            bytes(&weather.rain)
+                == crate::test_support::first_values::bytes(
+                    "effects.owner.EFFECTS.weather.rain/6736"
+                ),
             "RAIN starts differently from the image"
         );
         assert!(
             bytes(&weather.rain_rules)
-                == crate::moved::image_bytes(RainRules::START, RainRules::LEN),
+                == crate::test_support::first_values::bytes("effects.rain.RAIN_RULES"),
             "RAIN_RULES starts differently from the image"
         );
-        let s = RainState::START;
-        assert_eq!(offset_of!(RainState, motion), 0x8BC47D - s);
-        assert_eq!(offset_of!(RainState, moves), 0x8BC489 - s);
-        assert_eq!(offset_of!(RainState, last_views), 0x8BC4C5 - s);
-        assert_eq!(offset_of!(RainState, drops), 0x8BC50D - s);
-        assert_eq!(offset_of!(RainState, noise), 0x8BC511 - s);
-        assert_eq!(offset_of!(RainState, kept), 0x8BD111 - s);
-        assert_eq!(offset_of!(RainState, depth), 0x8BDD5D - s);
-        assert_eq!(offset_of!(RainState, matrix_copy), 0x8BDD89 - s);
-        assert_eq!(offset_of!(RainState, second), 0x8BDE49 - s);
-        let r = RainRules::START;
-        assert_eq!(offset_of!(RainRules, move_limit), 0x8C5FA1 - r);
-        assert_eq!(offset_of!(RainRules, drift_k), 0x8C5FB5 - r);
-        assert_eq!(offset_of!(RainRules, target_scale), 0x8C5FD1 - r);
-        assert_eq!(offset_of!(RainRules, half_width), 0x8C5FED - r);
+        assert_eq!(offset_of!(RainState, motion), 0x78);
+        assert_eq!(offset_of!(RainState, moves), 0x84);
+        assert_eq!(offset_of!(RainState, last_views), 0xc0);
+        assert_eq!(offset_of!(RainState, drops), 0x108);
+        assert_eq!(offset_of!(RainState, noise), 0x10c);
+        assert_eq!(offset_of!(RainState, kept), 0xd0c);
+        assert_eq!(offset_of!(RainState, depth), 0x1958);
+        assert_eq!(offset_of!(RainState, matrix_copy), 0x1984);
+        assert_eq!(offset_of!(RainState, second), 0x1a44);
+        assert_eq!(offset_of!(RainRules, move_limit), 0x10);
+        assert_eq!(offset_of!(RainRules, drift_k), 0x24);
+        assert_eq!(offset_of!(RainRules, target_scale), 0x40);
+        assert_eq!(offset_of!(RainRules, half_width), 0x5c);
     }
 }

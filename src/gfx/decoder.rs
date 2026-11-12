@@ -91,26 +91,15 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&gfx().pictures.decoder, START, START + LEN);
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &gfx().pictures.decoder,
+        );
     }
 
     #[test]
     fn moved_knows_the_block() {
-        let pictures = &gfx().pictures;
-        assert_eq!(offset_of!(Decoder, width), 0x519124 - START);
-        assert_eq!(offset_of!(Decoder, format), 0x519148 - START);
-        assert_eq!(offset_of!(Decoder, palette), 0x519154 - START);
-        assert_eq!(
-            crate::moved::place(START),
-            pictures.decoder.builder_flags.addr() as usize
-        );
-        assert_eq!(
-            crate::moved::place(0x519154),
-            (crate::pointers::game_address(pictures.decoder.palette.as_ptr())) as usize
-        );
-        assert_eq!(
-            crate::moved::place(0x519140),
-            pictures.decoder.pixels.addr() as usize
-        );
+        assert_eq!(offset_of!(Decoder, width), 0xc);
+        assert_eq!(offset_of!(Decoder, format), 0x30);
+        assert_eq!(offset_of!(Decoder, palette), 0x3c);
     }
 }

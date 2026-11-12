@@ -733,249 +733,124 @@ mod tests {
     use super::*;
     use core::mem::{offset_of, size_of};
 
-    /// The static's bytes (after `lead`) are the image's, its size the range's (with the
-    /// tail padding up to the struct's alignment: each range ends at a string's end, so no
-    /// read runs on into the next).
-    fn check(p: *const u8, size: usize, lead: usize, start: usize, len: usize) {
-        let end = lead + len;
+    /// The static's size is the range's (with the tail padding up to the struct's alignment:
+    /// each range ends at a string's end, so no read runs on into the next).
+    fn check_size(size: usize, len: usize) {
         assert!(
-            end <= size && size <= end.next_multiple_of(4),
-            "{start:#x}: size"
+            len <= size && size <= len.next_multiple_of(4),
+            "{len:#x}: size"
         );
-        let image = crate::moved::image_bytes(start, len);
-        for (i, &b) in image.iter().enumerate() {
-            let ours = unsafe { p.add(lead + i).read() };
-            assert_eq!(ours, b, "differs first at {:#x}", start + i);
-        }
     }
 
     #[test]
     fn start_as_the_games_image_and_keep_its_layout() {
-        // The vars' first values: no other test may be writing them meanwhile.
-        let _lock = crate::store::test_lock();
-        let vars = (&raw const crate::net::owner::NET_OWNER.vars).cast::<u8>();
-        // The stretches `NetVars` keeps (the runs between them are `NetMain`'s).
-        for (from, to) in [
-            (0x52A4B0, 0x52A4B4),
-            (0x52A508, 0x52AB70),
-            (0x52AC2C, 0x52AC3C),
-            (0x52ACE4, 0x52AD00),
-            (0x52AD64, 0x5AB419),
+        // The first values of these stores are checked by `every_store_starts_as_the_games`.
+        for (size, len) in [
+            (size_of::<EditVars>(), EditVars::LEN),
+            (size_of::<SetupVars>(), SetupVars::LEN),
+            (size_of::<AddressVars>(), AddressVars::LEN),
+            (size_of::<JoinedVars>(), JoinedVars::LEN),
         ] {
-            let image = crate::moved::image_bytes(from, to - from);
-            for (i, &b) in image.iter().enumerate() {
-                let ours = unsafe { vars.add(from - NetVars::START + i).read() };
-                assert_eq!(ours, b, "differs first at {:#x}", from + i);
-            }
+            check_size(size, len);
         }
-        let main = crate::net::owner::NET_OWNER.main.unchecked();
-        for (p, size, start, len) in [
-            (
-                (&raw const main.edit).cast::<u8>(),
-                size_of::<EditVars>(),
-                EditVars::START,
-                EditVars::LEN,
-            ),
-            (
-                (&raw const main.setup).cast::<u8>(),
-                size_of::<SetupVars>(),
-                SetupVars::START,
-                SetupVars::LEN,
-            ),
-            (
-                (&raw const main.address).cast::<u8>(),
-                size_of::<AddressVars>(),
-                AddressVars::START,
-                AddressVars::LEN,
-            ),
-            (
-                (&raw const main.joined).cast::<u8>(),
-                size_of::<JoinedVars>(),
-                JoinedVars::START,
-                JoinedVars::LEN,
-            ),
-        ] {
-            check(p, size, 0, start, len);
-        }
-        assert_eq!(offset_of!(NetVars, receive_done), 0x52A4B0 - NetVars::START);
-        assert_eq!(offset_of!(EditVars, edit_text), 0x52A4B4 - EditVars::START);
-        assert_eq!(offset_of!(EditVars, edited), 0x52A4B8 - EditVars::START);
-        assert_eq!(offset_of!(EditVars, edit_width), 0x52A4BC - EditVars::START);
-        assert_eq!(offset_of!(EditVars, edit_font), 0x52A4C0 - EditVars::START);
-        assert_eq!(offset_of!(EditVars, clock_a), 0x52A4C4 - EditVars::START);
-        assert_eq!(offset_of!(EditVars, chat_input), 0x52A4C8 - EditVars::START);
-        assert_eq!(offset_of!(NetVars, chat), 0x52A508 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, chat_line), 0x52A808 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, chat_text), 0x52A888 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, mode), 0x52A908 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, session), 0x52A910 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, sync), 0x52A914 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, sequence), 0x52A915 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, sync_answer), 0x52A916 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, receiving), 0x52A918 - NetVars::START);
-        assert_eq!(
-            offset_of!(NetVars, messages_taken),
-            0x52A91C - NetVars::START
-        );
-        assert_eq!(offset_of!(NetVars, player), 0x52A920 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, first_host), 0x52A924 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, memory), 0x52A928 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, receive_data), 0x52A968 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, send_buffer), 0x52AA68 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, event), 0x52AB68 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, mutex), 0x52AB6C - NetVars::START);
-        assert_eq!(
-            offset_of!(SetupVars, player_name),
-            0x52AB70 - SetupVars::START
-        );
-        assert_eq!(
-            offset_of!(SetupVars, machine_name),
-            0x52AB90 - SetupVars::START
-        );
-        assert_eq!(
-            offset_of!(SetupVars, most_players),
-            0x52ABD0 - SetupVars::START
-        );
-        assert_eq!(
-            offset_of!(SetupVars, session_password),
-            0x52ABD4 - SetupVars::START
-        );
-        assert_eq!(
-            offset_of!(SetupVars, host_address),
-            0x52ABE4 - SetupVars::START
-        );
-        assert_eq!(offset_of!(SetupVars, port), 0x52AC24 - SetupVars::START);
-        assert_eq!(offset_of!(SetupVars, car_item), 0x52AC28 - SetupVars::START);
-        assert_eq!(offset_of!(NetVars, stage_item), 0x52AC2C - NetVars::START);
-        assert_eq!(offset_of!(NetVars, show_gaps), 0x52AC30 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, connections), 0x52AC34 - NetVars::START);
-        assert_eq!(
-            offset_of!(NetVars, connection_table),
-            0x52AC38 - NetVars::START
-        );
-        assert_eq!(
-            offset_of!(AddressVars, elements),
-            0x52AC3C - AddressVars::START
-        );
-        assert_eq!(
-            offset_of!(AddressVars, address),
-            0x52AC40 - AddressVars::START
-        );
-        assert_eq!(
-            offset_of!(AddressVars, address_size),
-            0x52AC44 - AddressVars::START
-        );
-        assert_eq!(
-            offset_of!(AddressVars, element_table),
-            0x52AC48 - AddressVars::START
-        );
-        assert_eq!(
-            offset_of!(AddressVars, saved_connection),
-            0x52AC94 - AddressVars::START
-        );
-        assert_eq!(
-            offset_of!(AddressVars, saved_name),
-            0x52ACA4 - AddressVars::START
-        );
-        assert_eq!(offset_of!(NetVars, posting), 0x52ACE4 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, posted_call), 0x52ACE8 - NetVars::START);
-        assert_eq!(
-            offset_of!(NetVars, posted_result),
-            0x52ACEC - NetVars::START
-        );
-        assert_eq!(
-            offset_of!(NetVars, posted_answered),
-            0x52ACF0 - NetVars::START
-        );
-        assert_eq!(offset_of!(NetVars, sessions), 0x52ACF4 - NetVars::START);
-        assert_eq!(
-            offset_of!(NetVars, session_table),
-            0x52ACF8 - NetVars::START
-        );
-        assert_eq!(offset_of!(NetVars, session_open), 0x52ACFC - NetVars::START);
-        assert_eq!(offset_of!(JoinedVars, joined), 0x52AD00 - JoinedVars::START);
-        assert_eq!(
-            offset_of!(JoinedVars, joined_name),
-            0x52AD10 - JoinedVars::START
-        );
-        assert_eq!(
-            offset_of!(JoinedVars, joined_most),
-            0x52AD50 - JoinedVars::START
-        );
-        assert_eq!(
-            offset_of!(JoinedVars, joined_password),
-            0x52AD54 - JoinedVars::START
-        );
-        assert_eq!(offset_of!(NetVars, own), 0x52AD64 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, data_size), 0x52AD74 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, all_raced), 0x52AD78 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, race_over), 0x52AD7C - NetVars::START);
-        assert_eq!(offset_of!(NetVars, after_race), 0x52AD80 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, racing), 0x52AD84 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, sync_clock), 0x52AD88 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, sync_first), 0x52AD8C - NetVars::START);
-        assert_eq!(offset_of!(NetVars, synced), 0x52AD90 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, players), 0x52AD98 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, received), 0x52AD9C - NetVars::START);
-        assert_eq!(offset_of!(NetVars, sorted), 0x56AFFC - NetVars::START);
-        assert_eq!(offset_of!(NetVars, group_name), 0x5AB25C - NetVars::START);
-        assert_eq!(offset_of!(NetVars, player_id), 0x5AB270 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, send_to), 0x5AB274 - NetVars::START);
-        assert_eq!(
-            offset_of!(NetVars, received_from),
-            0x5AB278 - NetVars::START
-        );
-        assert_eq!(offset_of!(NetVars, received_to), 0x5AB27C - NetVars::START);
-        assert_eq!(
-            offset_of!(NetVars, received_size),
-            0x5AB280 - NetVars::START
-        );
-        assert_eq!(offset_of!(NetVars, dplay_2), 0x5AB284 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, dplay), 0x5AB288 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, lobby), 0x5AB28C - NetVars::START);
-        assert_eq!(offset_of!(NetVars, _gap_5ab290), 0x5AB290 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, dp_name), 0x5AB29C - NetVars::START);
-        assert_eq!(offset_of!(NetVars, session_desc), 0x5AB2AC - NetVars::START);
-        assert_eq!(offset_of!(NetVars, app_guid), 0x5AB300 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, iid_dplay4a), 0x5AB310 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, iid_lobby2a), 0x5AB320 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, clsid_dplay), 0x5AB330 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, clsid_lobby), 0x5AB340 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, sp_ipx), 0x5AB350 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, sp_tcpip), 0x5AB360 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, sp_serial), 0x5AB370 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, sp_modem), 0x5AB380 - NetVars::START);
-        assert_eq!(
-            offset_of!(NetVars, aid_total_size),
-            0x5AB390 - NetVars::START
-        );
-        assert_eq!(
-            offset_of!(NetVars, aid_service_provider),
-            0x5AB3A0 - NetVars::START
-        );
-        assert_eq!(offset_of!(NetVars, aid_inet), 0x5AB3E0 - NetVars::START);
-        assert_eq!(
-            offset_of!(NetVars, aid_inet_port),
-            0x5AB3F0 - NetVars::START
-        );
-        assert_eq!(
-            offset_of!(NetVars, chatzone_file),
-            0x5AB400 - NetVars::START
-        );
-        check(
-            (&raw const *crate::net::owner::NET_OWNER.button.unchecked()).cast::<u8>(),
-            size_of::<Button>(),
-            0,
-            Button::START,
-            Button::LEN,
-        );
-        assert_eq!(offset_of!(Button, text), 0x5AB490 - Button::START);
-        assert_eq!(offset_of!(Button, flags), 0x5AB494 - Button::START);
-        assert_eq!(offset_of!(Button, x), 0x5AB498 - Button::START);
-        assert_eq!(offset_of!(Button, y), 0x5AB49C - Button::START);
-        assert_eq!(offset_of!(Button, width), 0x5AB4A0 - Button::START);
-        assert_eq!(offset_of!(Button, tiles), 0x5AB4A4 - Button::START);
-        assert_eq!(offset_of!(Button, item), 0x5AB4A8 - Button::START);
+        assert_eq!(offset_of!(NetVars, receive_done), 0x0);
+        assert_eq!(offset_of!(EditVars, edit_text), 0x0);
+        assert_eq!(offset_of!(EditVars, edited), 0x4);
+        assert_eq!(offset_of!(EditVars, edit_width), 0x8);
+        assert_eq!(offset_of!(EditVars, edit_font), 0xc);
+        assert_eq!(offset_of!(EditVars, clock_a), 0x10);
+        assert_eq!(offset_of!(EditVars, chat_input), 0x14);
+        assert_eq!(offset_of!(NetVars, chat), 0x58);
+        assert_eq!(offset_of!(NetVars, chat_line), 0x358);
+        assert_eq!(offset_of!(NetVars, chat_text), 0x3d8);
+        assert_eq!(offset_of!(NetVars, mode), 0x458);
+        assert_eq!(offset_of!(NetVars, session), 0x460);
+        assert_eq!(offset_of!(NetVars, sync), 0x464);
+        assert_eq!(offset_of!(NetVars, sequence), 0x465);
+        assert_eq!(offset_of!(NetVars, sync_answer), 0x466);
+        assert_eq!(offset_of!(NetVars, receiving), 0x468);
+        assert_eq!(offset_of!(NetVars, messages_taken), 0x46c);
+        assert_eq!(offset_of!(NetVars, player), 0x470);
+        assert_eq!(offset_of!(NetVars, first_host), 0x474);
+        assert_eq!(offset_of!(NetVars, memory), 0x478);
+        assert_eq!(offset_of!(NetVars, receive_data), 0x4b8);
+        assert_eq!(offset_of!(NetVars, send_buffer), 0x5b8);
+        assert_eq!(offset_of!(NetVars, event), 0x6b8);
+        assert_eq!(offset_of!(NetVars, mutex), 0x6bc);
+        assert_eq!(offset_of!(SetupVars, player_name), 0x0);
+        assert_eq!(offset_of!(SetupVars, machine_name), 0x20);
+        assert_eq!(offset_of!(SetupVars, most_players), 0x60);
+        assert_eq!(offset_of!(SetupVars, session_password), 0x64);
+        assert_eq!(offset_of!(SetupVars, host_address), 0x74);
+        assert_eq!(offset_of!(SetupVars, port), 0xb4);
+        assert_eq!(offset_of!(SetupVars, car_item), 0xb8);
+        assert_eq!(offset_of!(NetVars, stage_item), 0x77c);
+        assert_eq!(offset_of!(NetVars, show_gaps), 0x780);
+        assert_eq!(offset_of!(NetVars, connections), 0x784);
+        assert_eq!(offset_of!(NetVars, connection_table), 0x788);
+        assert_eq!(offset_of!(AddressVars, elements), 0x0);
+        assert_eq!(offset_of!(AddressVars, address), 0x4);
+        assert_eq!(offset_of!(AddressVars, address_size), 0x8);
+        assert_eq!(offset_of!(AddressVars, element_table), 0xc);
+        assert_eq!(offset_of!(AddressVars, saved_connection), 0x58);
+        assert_eq!(offset_of!(AddressVars, saved_name), 0x68);
+        assert_eq!(offset_of!(NetVars, posting), 0x834);
+        assert_eq!(offset_of!(NetVars, posted_call), 0x838);
+        assert_eq!(offset_of!(NetVars, posted_result), 0x83c);
+        assert_eq!(offset_of!(NetVars, posted_answered), 0x840);
+        assert_eq!(offset_of!(NetVars, sessions), 0x844);
+        assert_eq!(offset_of!(NetVars, session_table), 0x848);
+        assert_eq!(offset_of!(NetVars, session_open), 0x84c);
+        assert_eq!(offset_of!(JoinedVars, joined), 0x0);
+        assert_eq!(offset_of!(JoinedVars, joined_name), 0x10);
+        assert_eq!(offset_of!(JoinedVars, joined_most), 0x50);
+        assert_eq!(offset_of!(JoinedVars, joined_password), 0x54);
+        assert_eq!(offset_of!(NetVars, own), 0x8b4);
+        assert_eq!(offset_of!(NetVars, data_size), 0x8c4);
+        assert_eq!(offset_of!(NetVars, all_raced), 0x8c8);
+        assert_eq!(offset_of!(NetVars, race_over), 0x8cc);
+        assert_eq!(offset_of!(NetVars, after_race), 0x8d0);
+        assert_eq!(offset_of!(NetVars, racing), 0x8d4);
+        assert_eq!(offset_of!(NetVars, sync_clock), 0x8d8);
+        assert_eq!(offset_of!(NetVars, sync_first), 0x8dc);
+        assert_eq!(offset_of!(NetVars, synced), 0x8e0);
+        assert_eq!(offset_of!(NetVars, players), 0x8e8);
+        assert_eq!(offset_of!(NetVars, received), 0x8ec);
+        assert_eq!(offset_of!(NetVars, sorted), 0x40b4c);
+        assert_eq!(offset_of!(NetVars, group_name), 0x80dac);
+        assert_eq!(offset_of!(NetVars, player_id), 0x80dc0);
+        assert_eq!(offset_of!(NetVars, send_to), 0x80dc4);
+        assert_eq!(offset_of!(NetVars, received_from), 0x80dc8);
+        assert_eq!(offset_of!(NetVars, received_to), 0x80dcc);
+        assert_eq!(offset_of!(NetVars, received_size), 0x80dd0);
+        assert_eq!(offset_of!(NetVars, dplay_2), 0x80dd4);
+        assert_eq!(offset_of!(NetVars, dplay), 0x80dd8);
+        assert_eq!(offset_of!(NetVars, lobby), 0x80ddc);
+        assert_eq!(offset_of!(NetVars, _gap_5ab290), 0x80de0);
+        assert_eq!(offset_of!(NetVars, dp_name), 0x80dec);
+        assert_eq!(offset_of!(NetVars, session_desc), 0x80dfc);
+        assert_eq!(offset_of!(NetVars, app_guid), 0x80e50);
+        assert_eq!(offset_of!(NetVars, iid_dplay4a), 0x80e60);
+        assert_eq!(offset_of!(NetVars, iid_lobby2a), 0x80e70);
+        assert_eq!(offset_of!(NetVars, clsid_dplay), 0x80e80);
+        assert_eq!(offset_of!(NetVars, clsid_lobby), 0x80e90);
+        assert_eq!(offset_of!(NetVars, sp_ipx), 0x80ea0);
+        assert_eq!(offset_of!(NetVars, sp_tcpip), 0x80eb0);
+        assert_eq!(offset_of!(NetVars, sp_serial), 0x80ec0);
+        assert_eq!(offset_of!(NetVars, sp_modem), 0x80ed0);
+        assert_eq!(offset_of!(NetVars, aid_total_size), 0x80ee0);
+        assert_eq!(offset_of!(NetVars, aid_service_provider), 0x80ef0);
+        assert_eq!(offset_of!(NetVars, aid_inet), 0x80f30);
+        assert_eq!(offset_of!(NetVars, aid_inet_port), 0x80f40);
+        assert_eq!(offset_of!(NetVars, chatzone_file), 0x80f50);
+        check_size(size_of::<Button>(), Button::LEN);
+        assert_eq!(offset_of!(Button, text), 0x0);
+        assert_eq!(offset_of!(Button, flags), 0x4);
+        assert_eq!(offset_of!(Button, x), 0x8);
+        assert_eq!(offset_of!(Button, y), 0xc);
+        assert_eq!(offset_of!(Button, width), 0x10);
+        assert_eq!(offset_of!(Button, tiles), 0x14);
+        assert_eq!(offset_of!(Button, item), 0x18);
         assert_eq!(size_of::<PlayerBlock>(), 0x804C);
         assert_eq!(size_of::<PlayerRecord>(), 16);
         assert_eq!(size_of::<DpName>(), 0x10);

@@ -86,7 +86,7 @@ pub const OWN: [(usize, usize); 23] = [
 /// groups the original reaches across (`race::groups_store`); then every other piece and a
 /// fourth group (batch Z); then the stores typed over the block's own bytes (batch AA). Their old
 /// places in the block are dead (`is_dead`).
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 pub const LEFT: [(usize, usize); 56] = [
     crate::race::groups_store::VIEWER_AND_KINDS_RANGE,
     crate::race::groups_store::LIGHTS_AND_GEAR_RANGE,
@@ -661,7 +661,7 @@ fn first_byte() -> *mut u8 {
 }
 
 /// Where IDA's address `ida` of the block is.
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 pub fn home(ida: usize) -> usize {
     vars::base() + (ida - vars::START)
 }
@@ -741,46 +741,15 @@ mod tests {
         assert_eq!(piece_of(0x5C56EC), "KIND_TABLES");
     }
 
-    #[test]
-    fn the_holes_are_the_moved_ranges() {
-        // Each gap between two own ranges is a chain of moved ranges (a hole, a left piece).
-        for w in OWN.windows(2) {
-            let (mut at, next) = (w[0].1, w[1].0);
-            while at < next {
-                let hole = crate::moved::MOVED.iter().find(|m| m.ida == at);
-                let Some(m) = hole else { panic!("{at:#x}") };
-                at = m.ida + m.len;
-            }
-            assert_eq!(at, next);
-        }
-        for &(start, end) in &LEFT {
-            assert!(
-                crate::moved::MOVED
-                    .iter()
-                    .any(|m| m.ida == start && m.len == end - start)
-            );
-        }
-    }
-
-    #[test]
-    fn the_left_places_are_dead() {
-        for &(start, end) in &LEFT {
-            assert!(is_dead(home(start) as u32));
-            assert!(is_dead((home(end) - 1) as u32));
-            assert!(!is_dead(crate::framework::game_addr(
-                crate::framework::rva(start)
-            )));
-        }
-        assert!(!is_dead(home(0x5BEC48) as u32));
-    }
-
     /// The texture kinds' names table (`off_64CD0C`, 39 dwords) is unread and holds the image's
     /// addresses of its names, which lie just after it.
     #[test]
     fn the_texture_kinds_names_are_unread() {
         let (start, end) = (0x64CD0C, 0x64CDA8);
         assert!(UNREAD.contains(&(start, end)));
-        let image = crate::moved::image_bytes(start, end - start);
+        let image =
+            crate::test_support::first_values::bytes("race.store.UNREAD.texture_kind_names");
+        assert_eq!(image.len(), end - start);
         for (n, word) in image.chunks(4).enumerate() {
             let name = u32::from_le_bytes(word.try_into().unwrap()) as usize;
             assert!((end..end + 0x100).contains(&name), "entry {n}");

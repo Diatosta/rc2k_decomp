@@ -269,12 +269,6 @@ impl Devices {
 pub const DEVICES_IDA: usize = 0x4F68D8;
 pub const DEVICES_LEN: usize = core::mem::size_of::<Devices>();
 
-/// Where the devices are (`moved::MOVED`'s home for IDA 0x4F68D8).
-#[cfg(test)]
-pub fn devices_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::input::owner::INPUT.devices)
-}
-
 impl Devices {
     /// `g_keysDown` and `g_keysNow` as one table of 0x100 bytes (the key table the device
     /// bindings read: a key code past 0x7F reads `g_keysNow`).
@@ -394,12 +388,6 @@ impl Keyboard {
 pub const KEYBOARD_IDA: usize = 0x4F7FD8;
 pub const KEYBOARD_LEN: usize = core::mem::size_of::<Keyboard>();
 
-/// Where the keyboard is (`moved::MOVED`'s home for IDA 0x4F7FD8).
-#[cfg(test)]
-pub fn keyboard_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::input::owner::INPUT.keyboard)
-}
-
 // ---- the mouse: 0x5C6924 .. 0x5C6948 ----
 
 /// The mouse's position, clicks and buttons.
@@ -439,12 +427,6 @@ impl Mouse {
 
 pub const MOUSE_IDA: usize = 0x5C6924;
 pub const MOUSE_LEN: usize = core::mem::size_of::<Mouse>();
-
-/// Where the mouse is (`moved::MOVED`'s home for IDA 0x5C6924).
-#[cfg(test)]
-pub fn mouse_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::input::owner::INPUT.mouse)
-}
 
 /// The force-feedback effects' clock, surface kinds and constants (IDA 0x518084 .. 0x5180f0, the image's layout).
 #[repr(C)]
@@ -512,107 +494,82 @@ impl ForceFeedback {
 impl ForceFeedback {
     pub const START: usize = 0x518084;
     pub const LEN: usize = 0x6c;
-
-    #[cfg(test)]
-    /// `moved::MOVED`'s home for `START`.
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::input::owner::INPUT.force_feedback) as usize
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moved::image_bytes;
+    use crate::test_support::first_values;
     use core::mem::offset_of;
 
-    fn bytes_of(addr: usize, len: usize) -> Vec<u8> {
-        (0..len)
-            .map(|i| unsafe {
-                crate::pointers::host_at(addr + i)
-                    .cast_const()
-                    .read_volatile()
-            })
-            .collect()
-    }
+    /// The game's devices block (a named read of `data/first_values.golden`) and its store.
+    const DEVICES_IMAGE: &str = "input.owner.INPUT.devices/5440";
+    const DEVICES_STORE: &str = "store:input.owner.INPUT.devices";
 
     #[test]
-    fn the_blocks_start_as_the_images_bytes() {
+    fn the_devices_start_as_the_games() {
+        // The two records' places and the effects' wanted GUIDs are handles where the game
+        // holds addresses: the golden bytes are made handles first.
         let _g = crate::store::test_lock();
-        for (ida, len, addr) in [
-            (DEVICES_IDA, DEVICES_LEN, devices_addr()),
-            (KEYBOARD_IDA, KEYBOARD_LEN, keyboard_addr()),
-            (MOUSE_IDA, MOUSE_LEN, mouse_addr()),
-        ] {
-            let mut image = image_bytes(ida, len);
-            if ida == DEVICES_IDA {
-                // The two records' places and the effects' wanted GUIDs are handles.
-                let devices = offset_of!(Devices, input_devices);
-                for r in 0..2 {
-                    let o = devices + 4 * r;
-                    let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
-                    assert_eq!(v as usize, 0x4F6EF0 + RECORD_LEN * r);
-                    image[o..o + 4].copy_from_slice(&(DEVICE_TAG | r as u32).to_le_bytes());
-                }
-                let records = offset_of!(Devices, records);
-                for r in 0..2 {
-                    for k in 0..EFFECTS {
-                        let o = records + RECORD_LEN * r + WANTED_AT + EFFECT_LEN * k;
-                        let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
-                        image[o..o + 4]
-                            .copy_from_slice(&crate::input::guids::guid_ref(v).to_le_bytes());
-                    }
-                }
-            }
-            assert!(bytes_of(addr as usize, len) == image, "{ida:X}");
+        let mut image = first_values::bytes(DEVICES_IMAGE).to_vec();
+        let devices = offset_of!(Devices, input_devices);
+        for r in 0..2 {
+            let o = devices + 4 * r;
+            let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
+            assert_eq!(
+                v as usize,
+                DEVICES_IDA + offset_of!(Devices, records) + RECORD_LEN * r
+            );
+            image[o..o + 4].copy_from_slice(&(DEVICE_TAG | r as u32).to_le_bytes());
         }
+        let records = offset_of!(Devices, records);
+        for r in 0..2 {
+            for k in 0..EFFECTS {
+                let o = records + RECORD_LEN * r + WANTED_AT + EFFECT_LEN * k;
+                let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
+                image[o..o + 4].copy_from_slice(&crate::input::guids::guid_ref(v).to_le_bytes());
+            }
+        }
+        assert!(first_values::store_bytes(DEVICES_STORE) == image);
     }
 
     #[test]
     fn the_blocks_keep_the_images_layout() {
-        assert_eq!(DEVICES_LEN, 0x4F7E18 - 0x4F68D8);
-        for (offset, ida) in [
-            (offset_of!(Devices, direct_input), 0x4F6904),
-            (offset_of!(Devices, new_joystick2), 0x4F6914),
-            (offset_of!(Devices, device_state), 0x4F6A28),
-            (offset_of!(Devices, joystick_caps), 0x4F6A78),
-            (offset_of!(Devices, dword_property), 0x4F6AA4),
-            (offset_of!(Devices, range_property), 0x4F6AB8),
-            (offset_of!(Devices, dead_key), 0x4F6AD0),
-            (offset_of!(Devices, keys_down), 0x4F6ADC),
-            (offset_of!(Devices, keys_now), 0x4F6B5C),
-            (offset_of!(Devices, keys_before), 0x4F6BDC),
-            (offset_of!(Devices, keys_pressed), 0x4F6CDC),
-            (offset_of!(Devices, key_repeat), 0x4F6D5C),
-            (offset_of!(Devices, mouse_word), 0x4F6DF0),
-            (offset_of!(Devices, effect_rows), 0x4F6E08),
-            (offset_of!(Devices, input_devices), 0x4F6EE8),
-            (offset_of!(Devices, records), 0x4F6EF0),
-            (offset_of!(Devices, controller_count), 0x4F78E0),
-            (offset_of!(Devices, controllers), 0x4F78E4),
-            (offset_of!(Devices, input_command), 0x4F7DE4),
-            (offset_of!(Devices, guids), 0x4F7DE8),
+        assert_eq!(DEVICES_LEN, 0x1540);
+        for (offset, games) in [
+            (offset_of!(Devices, direct_input), 0x2C),
+            (offset_of!(Devices, new_joystick2), 0x3C),
+            (offset_of!(Devices, device_state), 0x150),
+            (offset_of!(Devices, joystick_caps), 0x1A0),
+            (offset_of!(Devices, dword_property), 0x1CC),
+            (offset_of!(Devices, range_property), 0x1E0),
+            (offset_of!(Devices, dead_key), 0x1F8),
+            (offset_of!(Devices, keys_down), 0x204),
+            (offset_of!(Devices, keys_now), 0x284),
+            (offset_of!(Devices, keys_before), 0x304),
+            (offset_of!(Devices, keys_pressed), 0x404),
+            (offset_of!(Devices, key_repeat), 0x484),
+            (offset_of!(Devices, mouse_word), 0x518),
+            (offset_of!(Devices, effect_rows), 0x530),
+            (offset_of!(Devices, input_devices), 0x610),
+            (offset_of!(Devices, records), 0x618),
+            (offset_of!(Devices, controller_count), 0x1008),
+            (offset_of!(Devices, controllers), 0x100C),
+            (offset_of!(Devices, input_command), 0x150C),
+            (offset_of!(Devices, guids), 0x1510),
         ] {
-            assert_eq!(offset, ida - 0x4F68D8, "{ida:X}");
+            assert_eq!(offset, games);
         }
-        assert_eq!(KEYBOARD_LEN, 0x4F8294 - 0x4F7FD8);
-        assert_eq!(offset_of!(Keyboard, silent_keys), 0x4F7FF0 - 0x4F7FD8);
-        assert_eq!(offset_of!(Keyboard, compose), 0x4F8000 - 0x4F7FD8);
-        assert_eq!(offset_of!(Keyboard, plain), 0x4F806C - 0x4F7FD8);
-        assert_eq!(offset_of!(Keyboard, axes_rest), 0x4F8270 - 0x4F7FD8);
+        assert_eq!(KEYBOARD_LEN, 0x2BC);
+        assert_eq!(offset_of!(Keyboard, silent_keys), 0x18);
+        assert_eq!(offset_of!(Keyboard, compose), 0x28);
+        assert_eq!(offset_of!(Keyboard, plain), 0x94);
+        assert_eq!(offset_of!(Keyboard, axes_rest), 0x298);
         assert_eq!(MOUSE_LEN, 0x24);
     }
 
     #[test]
     fn force_feedback_starts_as_the_games() {
         assert_eq!(size_of::<ForceFeedback>(), ForceFeedback::LEN);
-        let image = crate::moved::image_bytes(ForceFeedback::START, ForceFeedback::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(ForceFeedback::home()).cast_const(),
-                ForceFeedback::LEN,
-            )
-        };
-        assert_eq!(mine, &image[..]);
     }
 }

@@ -14,7 +14,7 @@ pub use rc2k_core::sound::set_up::Step;
 
 /// One step of the settings run: a command sent, the music stopped, the race sounds
 /// loaded, or the queue waited for.
-pub fn run_step(step: Step, o: Owners<'_>) -> Result<(), crate::errors::Refused> {
+pub fn run_step(step: Step, o: Owners<'static>) -> Result<(), crate::errors::Refused> {
     match step {
         Step::StopMusic => crate::sound::stop_music::stop_music(o.audio, o.system),
         Step::Send(command) => crate::sound::senders::send(o.audio, command),
@@ -26,7 +26,7 @@ pub fn run_step(step: Step, o: Owners<'_>) -> Result<(), crate::errors::Refused>
     Ok(())
 }
 
-pub fn apply_settings(o: Owners<'_>) -> Result<(), crate::errors::Refused> {
+pub fn apply_settings(o: Owners<'static>) -> Result<(), crate::errors::Refused> {
     // Converted: `rc2k_core::sound::set_up::menus`.
     use rc2k_core::sound::set_up::{MENUS, menus};
 

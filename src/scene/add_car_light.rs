@@ -16,7 +16,7 @@
 //! The third times twice the first over 256, times the block's dword +0xABC over 256, held to
 //! 255, picks a colour from the table `LightTables.car_light_table[0]`, which is added to `g_lightColour` byte by
 //! byte without overflow. The x87's arithmetic in `X` (plain Rust; the
-//! original's instructions are `asm_reference` in the tests). Callers: `scene::add_car_lights`,
+//! original's instructions' results are recorded vectors in the tests (`data/vectors`)). Callers: `scene::add_car_lights`,
 //! twice. Takes the car's block as a typed reference.
 
 use crate::scene::vertex_light::plus;
@@ -153,110 +153,20 @@ pub fn add_car_light(
         .set(plus(colour, light.light_colour.get(), mmx));
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
-    use crate::scene::asm_test::{Kind, differential};
-
-    /// The original's instructions for `turned`.
-    unsafe fn turned_at_ref(w: *mut u8, m: *mut u8) {
-        unsafe {
-            core::arch::asm!(
-                "fild dword ptr [{w} + 8]",
-                "fild dword ptr [{w} + 4]",
-                "fild dword ptr [{w}]",
-                "fld dword ptr [{m}]",
-                "fmul st(0), st(1)",
-                "fld dword ptr [{m} + 0x10]",
-                "fmul st(0), st(3)",
-                "fld dword ptr [{m} + 0x20]",
-                "fmul st(0), st(5)",
-                "faddp st(1), st(0)",
-                "faddp st(1), st(0)",
-                "fadd dword ptr [{m} + 0x30]",
-                "fxch st(3)",
-                "fld dword ptr [{m} + 4]",
-                "fmul st(0), st(2)",
-                "fld dword ptr [{m} + 0x14]",
-                "fmul st(0), st(4)",
-                "fld dword ptr [{m} + 0x24]",
-                "fmul st(0), st(3)",
-                "faddp st(1), st(0)",
-                "faddp st(1), st(0)",
-                "fadd dword ptr [{m} + 0x34]",
-                "fxch st(3)",
-                "fld dword ptr [{m} + 8]",
-                "fmulp st(3), st(0)",
-                "fld dword ptr [{m} + 0x18]",
-                "fmulp st(1), st(0)",
-                "fld dword ptr [{m} + 0x28]",
-                "fmulp st(2), st(0)",
-                "faddp st(1), st(0)",
-                "faddp st(1), st(0)",
-                "fadd dword ptr [{m} + 0x38]",
-                "fxch st(2)",
-                "fistp dword ptr [{w} + 12]",
-                "fistp dword ptr [{w} + 16]",
-                "fistp dword ptr [{w} + 20]",
-                w = in(reg) w,
-                m = in(reg) m,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-    }
-
-    /// The original's instructions for `squares` (twice).
-    unsafe fn squares_twice_ref(v: *mut u8, o: *mut u8) {
-        unsafe {
-            core::arch::asm!(
-                "fild dword ptr [{v}]",
-                ".byte 0xD8, 0xC8", // fmul st, st
-                "fild dword ptr [{v} + 4]",
-                ".byte 0xD8, 0xC8",
-                ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fmul dword ptr [{v} + 8]",
-                "fmul dword ptr [{v} + 8]",
-                "fistp dword ptr [{o}]",
-                v = in(reg) v,
-                o = in(reg) o,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-    }
-
-    /// The original's instructions for `squares` (once).
-    unsafe fn squares_once_ref(v: *mut u8, o: *mut u8) {
-        unsafe {
-            core::arch::asm!(
-                "fild dword ptr [{v}]",
-                ".byte 0xD8, 0xC8",
-                "fild dword ptr [{v} + 4]",
-                ".byte 0xD8, 0xC8",
-                ".byte 0xDE, 0xC1",
-                "fmul dword ptr [{v} + 8]",
-                "fistp dword ptr [{o}]",
-                v = in(reg) v,
-                o = in(reg) o,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-    }
+    use crate::test_support::vectors::{Differential, Kind, differential};
 
     #[test]
     fn turned_matches_the_assembly() {
         // dwords 0 .. 3 the place, 3 .. 6 the result, 8 .. 23 the matrix
-        differential::<23>(
-            "add_car_light turned",
-            8000,
-            16,
-            [Kind::Exact; 23],
-            |rng, m| {
+        let test = Differential {
+            name: "scene.add_car_light.turned",
+            cases: 8000,
+            seed: 16,
+            kinds: [Kind::Exact; 23],
+            fill: &|rng, m| {
                 m.fill(0xAAAA_AAAA);
                 for d in m.iter_mut().take(3) {
                     *d = rng.int();
@@ -266,21 +176,21 @@ mod asm_reference {
                     *d = if moderate { rng.moderate() } else { rng.fl() };
                 }
             },
-            |base| unsafe { turned_at_ref(base, base.add(32)) },
-            |base| unsafe { turned_at(base, base.add(32)) },
-        );
+            plain: &|c| turned_at(c, &c[8..]),
+        };
+        differential(test);
     }
 
     #[test]
     fn squares_matches_the_assembly() {
         // dwords 0 .. 3 the two whole numbers and the factor, 3 the result of the first
         // way, 4 of the second
-        differential::<5>(
-            "add_car_light squares",
-            8000,
-            17,
-            [Kind::Exact; 5],
-            |rng, m| {
+        let test = Differential {
+            name: "scene.add_car_light.squares",
+            cases: 8000,
+            seed: 17,
+            kinds: [Kind::Exact; 5],
+            fill: &|rng, m| {
                 m[0] = rng.int();
                 m[1] = rng.int();
                 m[2] = if rng.below(2) == 0 {
@@ -291,14 +201,11 @@ mod asm_reference {
                 m[3] = 0xAAAA_AAAA;
                 m[4] = 0xAAAA_AAAA;
             },
-            |base| unsafe {
-                squares_twice_ref(base, base.add(12));
-                squares_once_ref(base, base.add(16));
+            plain: &|c| {
+                squares_twice(c, &c[3..]);
+                squares_once(c, &c[4..]);
             },
-            |base| unsafe {
-                squares_twice(base, base.add(12));
-                squares_once(base, base.add(16));
-            },
-        );
+        };
+        differential(test);
     }
 }

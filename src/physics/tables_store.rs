@@ -540,9 +540,6 @@ impl PhysicsTables {
 }
 
 impl PhysicsTables {
-    /// IDA's address of the first ground record (`PhysicsTables.surfaces[0].table`).
-    #[cfg(test)]
-    const SURFACES: usize = 0x613978;
     /// IDA's address of the first surface table (`g_surfaceTables`) and its length.
     const TABLES: usize = 0x613C78;
     const TABLES_LEN: usize = 104 * 4;
@@ -587,21 +584,17 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn tables_sit_on_the_race_block() {
+    fn fields_are_at_the_games_offsets() {
         let race = race();
         assert_eq!(tables_addr() % 4, 0);
-        assert_eq!(
-            tables_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
-        assert_eq!(offset_of!(PhysicsTables, scene_clock), 0x613830 - START);
-        assert_eq!(offset_of!(PhysicsTables, surfaces), 0x613978 - START);
-        assert_eq!(offset_of!(PhysicsTables, gravity), 0x613FC8 - START);
-        assert_eq!(offset_of!(PhysicsTables, gear_ratios), 0x6140BC - START);
-        assert_eq!(offset_of!(PhysicsTables, forces), 0x614770 - START);
-        assert_eq!(offset_of!(PhysicsTables, contacts), 0x614A50 - START);
-        assert_eq!(offset_of!(PhysicsTables, gear_count), 0x614C10 - START);
-        assert_eq!(offset_of!(PhysicsTables, pace_slot), 0x614D34 - START);
+        assert_eq!(offset_of!(PhysicsTables, scene_clock), 0x8);
+        assert_eq!(offset_of!(PhysicsTables, surfaces), 0x150);
+        assert_eq!(offset_of!(PhysicsTables, gravity), 0x7a0);
+        assert_eq!(offset_of!(PhysicsTables, gear_ratios), 0x894);
+        assert_eq!(offset_of!(PhysicsTables, forces), 0xf48);
+        assert_eq!(offset_of!(PhysicsTables, contacts), 0x1228);
+        assert_eq!(offset_of!(PhysicsTables, gear_count), 0x13e8);
+        assert_eq!(offset_of!(PhysicsTables, pace_slot), 0x150c);
         assert_eq!(race.shared.physics_tables.gravity.get(), 9.8);
         assert_eq!(race.shared.physics_tables.surfaces[1].slide_grip.get(), 1.0);
     }
@@ -610,8 +603,10 @@ mod tests {
     fn the_ground_records_name_their_tables_as_the_image_does() {
         let shared = &race().shared;
         for n in 0..16u32 {
-            let ida = PhysicsTables::SURFACES + 0x30 * n as usize;
-            let image = u32::from_le_bytes(crate::moved::image_bytes(ida, 4).try_into().unwrap());
+            let image = crate::test_support::first_values::dword(
+                "race.owner.RACE.shared.physics_tables.surfaces[0].table/768",
+                0xC * n as usize,
+            );
             // Kept as the image's name; resolved to the same table's place.
             assert_eq!(
                 shared.physics_tables.surfaces[n as usize].table.get(),
@@ -622,9 +617,5 @@ mod tests {
             assert!(slot.is_multiple_of(13) && slot < 104);
         }
         assert!(PhysicsTables::surface_table_index(16).is_err());
-        assert_eq!(
-            shared.physics_tables.contacts[0].force[0].addr(),
-            crate::framework::game_addr(crate::framework::rva(0x614A50))
-        );
     }
 }

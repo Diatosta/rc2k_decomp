@@ -64,6 +64,7 @@ fn point_turned(drops: &WindscreenDrops, p: &[PlainFloat; 3]) {
 }
 
 pub fn windscreen_drops_top(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
     frame: &Frame,
     masks: &Masks,
     drops: &WindscreenDrops,
@@ -104,7 +105,7 @@ pub fn windscreen_drops_top(
     }
     if drops.state.rate.bits() != 0 {
         crate::effects::windscreen_drops_frame::windscreen_drops_frame(
-            frame, masks, drops, scene, gfx, effects,
+            buffer, frame, masks, drops, scene, gfx, effects,
         )?;
         let at_now: u32 = drops.hex.buffer.get();
         if at_now != 0 {

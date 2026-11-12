@@ -212,24 +212,28 @@ mod tests {
         assert_eq!(size_of::<VectorSource>(), 0x1C);
         assert_eq!(size_of::<ViewSources>(), ViewSources::LEN);
         assert_eq!(size_of::<KeptView>(), KeptView::LEN);
-        let image = crate::moved::image_bytes;
         assert!(
-            bytes(&frame.view_sources) == image(ViewSources::START, ViewSources::LEN),
+            bytes(&frame.view_sources)
+                == crate::test_support::first_values::bytes(
+                    "effects.owner.EFFECTS.frame.view_sources/56"
+                ),
             "SOURCES starts differently from the image"
         );
         assert!(
-            bytes(&frame.kept_view) == image(KeptView::START, KeptView::LEN),
+            bytes(&frame.kept_view)
+                == crate::test_support::first_values::bytes(
+                    "effects.owner.EFFECTS.frame.kept_view/220"
+                ),
             "KEPT starts differently from the image"
         );
-        let k = KeptView::START;
-        assert_eq!(offset_of!(KeptView, first_angle), 0x76923E - k);
-        assert_eq!(offset_of!(KeptView, pushed), 0x76924E - k);
-        assert_eq!(offset_of!(KeptView, kept_a), 0x76926A - k);
-        assert_eq!(offset_of!(KeptView, last), 0x769296 - k);
-        assert_eq!(offset_of!(KeptView, kept_b), 0x7692A2 - k);
-        assert_eq!(offset_of!(KeptView, kept_c), 0x7692BE - k);
-        assert_eq!(offset_of!(KeptView, step), 0x7692EA - k);
-        assert_eq!(offset_of!(KeptView, vector), 0x769306 - k);
+        assert_eq!(offset_of!(KeptView, first_angle), 0x8);
+        assert_eq!(offset_of!(KeptView, pushed), 0x18);
+        assert_eq!(offset_of!(KeptView, kept_a), 0x34);
+        assert_eq!(offset_of!(KeptView, last), 0x60);
+        assert_eq!(offset_of!(KeptView, kept_b), 0x6c);
+        assert_eq!(offset_of!(KeptView, kept_c), 0x88);
+        assert_eq!(offset_of!(KeptView, step), 0xb4);
+        assert_eq!(offset_of!(KeptView, vector), 0xd0);
         assert_eq!(
             offset_of!(ViewSources, sources) + 0x1C,
             0x764FAC - ViewSources::START

@@ -101,34 +101,22 @@ pub const START: usize = 0x755170;
 /// IDA 0X755224, the end of the piece.
 pub const END: usize = 0x755224;
 
-/// Where IDA 0X755170 lives (`moved::MOVED`'s home).
-#[cfg(test)]
-pub fn controls_screen_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::screens::owner::SCREENS_OWNER.controls)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moved::image_bytes;
     use core::mem::{offset_of, size_of};
 
     #[test]
     fn controls_screen_starts_as_the_games() {
         assert!(END - START <= size_of::<ControlsScreen>());
         assert!(size_of::<ControlsScreen>() <= (END - START).next_multiple_of(4));
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host(controls_screen_addr()).cast_const(),
-                END - START,
-            )
-        };
-        assert_eq!(mine, &image_bytes(START, END - START)[..]);
-        let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
-        at(offset_of!(ControlsScreen, _table_755178), 0x755178);
-        at(offset_of!(ControlsScreen, history), 0x7551E4);
-        at(offset_of!(ControlsScreen, learning), 0x7551F4);
-        at(offset_of!(ControlsScreen, pad_names), 0x755200);
-        at(offset_of!(ControlsScreen, stick_names), 0x755212);
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &crate::screens::owner::SCREENS_OWNER.controls,
+        );
+        assert_eq!(offset_of!(ControlsScreen, _table_755178), 0x8);
+        assert_eq!(offset_of!(ControlsScreen, history), 0x74);
+        assert_eq!(offset_of!(ControlsScreen, learning), 0x84);
+        assert_eq!(offset_of!(ControlsScreen, pad_names), 0x90);
+        assert_eq!(offset_of!(ControlsScreen, stick_names), 0xa2);
     }
 }

@@ -352,24 +352,14 @@ mod first_tuning_tests {
         assert_eq!(size_of::<BurstTuning>(), BurstTuning::LEN);
         assert!(
             bytes(&crate::effects::owner::effects().particles.first_tuning)
-                == crate::moved::image_bytes(FirstTuning::START, BurstTuning::LEN),
+                == crate::test_support::first_values::bytes(
+                    "effects.owner.EFFECTS.particles.first_tuning/36"
+                ),
             "FIRST_TUNING starts differently from the image"
         );
-        assert_eq!(
-            offset_of!(BurstTuning, strength_k),
-            0x93A3D2 - FirstTuning::START
-        );
-        assert_eq!(
-            offset_of!(BurstTuning, first),
-            0x93A3D6 - FirstTuning::START
-        );
-        assert_eq!(
-            offset_of!(BurstTuning, blend_k),
-            0x93A3E2 - FirstTuning::START
-        );
-        assert_eq!(
-            offset_of!(BurstTuning, second),
-            0x93A3EA - FirstTuning::START
-        );
+        assert_eq!(offset_of!(BurstTuning, strength_k), 0x0);
+        assert_eq!(offset_of!(BurstTuning, first), 0x4);
+        assert_eq!(offset_of!(BurstTuning, blend_k), 0x10);
+        assert_eq!(offset_of!(BurstTuning, second), 0x18);
     }
 }

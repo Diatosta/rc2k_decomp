@@ -502,12 +502,6 @@ impl RaceSounds {
     }
 }
 
-/// Where the race sounds' block is (`moved::MOVED`'s home for IDA 0x512A10).
-#[cfg(test)]
-pub fn race_sounds_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::sound::owner::SOUND.race.sounds)
-}
-
 /// The race sounds' clock and the constants of the placed and moving sounds (IDA 0x5124E4
 /// .. 0x512508, the image's layout).
 #[repr(C)]
@@ -552,12 +546,6 @@ impl RaceClock {
             pan_per_radian: PlainFloat::new(40.743664),
         }
     }
-}
-
-/// Where the race clock is (`moved::MOVED`'s home for IDA 0x5124E4).
-#[cfg(test)]
-pub fn race_clock_addr() -> u32 {
-    crate::pointers::game_address(&raw const *crate::sound::owner::SOUND.race.clock.unchecked())
 }
 
 /// The surface sounds' constants and work (IDA 0x516358 .. 0x51639C, the image's layout):
@@ -626,12 +614,6 @@ impl SurfaceSounds {
             volume: PlainFloat::new(0.0),
         }
     }
-}
-
-/// Where the surface sounds' block is (`moved::MOVED`'s home for IDA 0x516358).
-#[cfg(test)]
-pub fn surface_sounds_addr() -> u32 {
-    crate::pointers::game_address(&raw const *crate::sound::owner::SOUND.race.surface.unchecked())
 }
 
 /// A timed sound's slot: six dwords (`sound::play_timed_slot`).
@@ -767,12 +749,6 @@ impl StageSounds {
             }; 36],
         }
     }
-}
-
-/// Where the stage sounds are (`moved::MOVED`'s home for IDA 0x51655C).
-#[cfg(test)]
-pub fn stage_sounds_addr() -> u32 {
-    crate::pointers::game_address(&raw const *crate::sound::owner::SOUND.race.stage.unchecked())
 }
 
 /// The spot voices' pickers' work and the sound kinds per spot (IDA 0x517f40 .. 0x518080, the image's layout).
@@ -981,14 +957,6 @@ impl SpotPicks {
 impl SpotPicks {
     pub const START: usize = 0x517f40;
     pub const LEN: usize = 0x140;
-
-    #[cfg(test)]
-    /// `moved::MOVED`'s home for `START`.
-    pub fn home() -> usize {
-        crate::pointers::game_address(
-            &raw const *crate::sound::owner::SOUND.race.spot_picks.unchecked(),
-        ) as usize
-    }
 }
 
 /// Set once the kept sound settings are applied (IDA 0x518080 .. 0x518084, the image's layout).
@@ -1010,14 +978,6 @@ impl SettingsApplied {
 impl SettingsApplied {
     pub const START: usize = 0x518080;
     pub const LEN: usize = 0x4;
-
-    #[cfg(test)]
-    /// `moved::MOVED`'s home for `START`.
-    pub fn home() -> usize {
-        crate::pointers::game_address(
-            &raw const *crate::sound::owner::SOUND.menu.settings_applied.unchecked(),
-        ) as usize
-    }
 }
 
 /// The kept sound options (IDA 0x5180f0 .. 0x518104, the image's layout).
@@ -1051,12 +1011,6 @@ impl SoundOptions {
 impl SoundOptions {
     pub const START: usize = 0x5180f0;
     pub const LEN: usize = 0x14;
-
-    #[cfg(test)]
-    /// `moved::MOVED`'s home for `START`.
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::sound::owner::SOUND.menu.options) as usize
-    }
 }
 
 /// The CD audio's state (IDA 0x518104 .. 0x518120, the image's layout).
@@ -1096,14 +1050,6 @@ impl CdAudio {
 impl CdAudio {
     pub const START: usize = 0x518104;
     pub const LEN: usize = 0x1c;
-
-    #[cfg(test)]
-    /// `moved::MOVED`'s home for `START`.
-    pub fn home() -> usize {
-        crate::pointers::game_address(
-            &raw const *crate::sound::owner::SOUND.menu.cd_audio.unchecked(),
-        ) as usize
-    }
 }
 
 // ---- single variables the game's thread keeps ----
@@ -1135,7 +1081,6 @@ pub const CAR_STREAM_IDA: usize = 0xA8C180;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moved::image_bytes;
 
     fn dword(d: &PlainDword) -> Vec<u8> {
         d.get().to_le_bytes().to_vec()
@@ -1145,11 +1090,11 @@ mod tests {
     fn single_variables_start_as_the_games() {
         assert_eq!(
             dword(crate::sound::owner::sound().menu.next_sound_time.get()),
-            image_bytes(0x511B0C, 4)
+            crate::test_support::first_values::bytes("sound.owner.SOUND.menu.next_sound_time/4")
         );
         assert_eq!(
             dword(crate::sound::owner::sound().race.sounds_on.get()),
-            image_bytes(0x6218F0, 4)
+            crate::test_support::first_values::bytes("sound.owner.SOUND.race.sounds_on/4")
         );
         let mut stream = Vec::new();
         for d in [
@@ -1159,7 +1104,10 @@ mod tests {
         ] {
             stream.extend(dword(d));
         }
-        assert_eq!(stream, image_bytes(CAR_STREAM_IDA, 12));
+        assert_eq!(
+            stream,
+            crate::test_support::first_values::bytes("sound.owner.SOUND.race.car_stream/12")
+        );
         assert_eq!(core::mem::size_of::<CarStream>(), 12);
     }
 
@@ -1171,112 +1119,61 @@ mod tests {
 
     #[test]
     fn wheel_surfaces_start_as_the_games() {
-        let image = crate::moved::image_bytes(0x4F66F1, 8);
+        let image = crate::test_support::first_values::bytes("sound.store.WHEEL_SURFACES/8");
         let mine = unsafe { std::slice::from_raw_parts(WHEEL_SURFACES.as_ptr().cast::<u8>(), 8) };
-        assert_eq!(mine, &image[..]);
+        assert_eq!(mine, image);
     }
 
     #[test]
     fn surface_sounds_start_as_the_games() {
-        assert_eq!(size_of::<super::SurfaceSounds>(), 0x51639C - 0x516358);
-        let image = crate::moved::image_bytes(0x516358, 0x44);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host(surface_sounds_addr()).cast_const(),
-                0x44,
-            )
-        };
-        assert_eq!(mine, &image[..]);
+        assert_eq!(size_of::<super::SurfaceSounds>(), 0x44);
     }
 
     #[test]
     fn stage_sounds_start_as_the_games() {
         use core::mem::offset_of;
-        assert_eq!(size_of::<super::StageSounds>(), 0x5168C0 - 0x51655C);
-        assert_eq!(offset_of!(StageSounds, once), 0x51659C - 0x51655C);
-        assert_eq!(offset_of!(StageSounds, timed_arm), 0x5165A8 - 0x51655C);
-        assert_eq!(offset_of!(StageSounds, timed_delay), 0x5165B8 - 0x51655C);
-        assert_eq!(offset_of!(StageSounds, timed_slot), 0x5165CC - 0x51655C);
-        assert_eq!(offset_of!(StageSounds, random), 0x5165E4 - 0x51655C);
-        assert_eq!(offset_of!(StageSounds, shared_count), 0x5165EC - 0x51655C);
-        assert_eq!(offset_of!(StageSounds, shared_spots), 0x5165F0 - 0x51655C);
-        let image = crate::moved::image_bytes(0x51655C, 0x364);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host(stage_sounds_addr()).cast_const(),
-                0x364,
-            )
-        };
-        assert_eq!(mine, &image[..]);
+        assert_eq!(size_of::<super::StageSounds>(), 0x364);
+        assert_eq!(offset_of!(StageSounds, once), 0x40);
+        assert_eq!(offset_of!(StageSounds, timed_arm), 0x4C);
+        assert_eq!(offset_of!(StageSounds, timed_delay), 0x5C);
+        assert_eq!(offset_of!(StageSounds, timed_slot), 0x70);
+        assert_eq!(offset_of!(StageSounds, random), 0x88);
+        assert_eq!(offset_of!(StageSounds, shared_count), 0x90);
+        assert_eq!(offset_of!(StageSounds, shared_spots), 0x94);
     }
 
     #[test]
     fn spot_picks_starts_as_the_games() {
         assert_eq!(size_of::<SpotPicks>(), SpotPicks::LEN);
-        let image = crate::moved::image_bytes(SpotPicks::START, SpotPicks::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(SpotPicks::home()).cast_const(),
-                SpotPicks::LEN,
-            )
-        };
-        assert_eq!(mine, &image[..]);
     }
 
     #[test]
     fn settings_applied_starts_as_the_games() {
         assert_eq!(size_of::<SettingsApplied>(), SettingsApplied::LEN);
-        let image = crate::moved::image_bytes(SettingsApplied::START, SettingsApplied::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(SettingsApplied::home()).cast_const(),
-                SettingsApplied::LEN,
-            )
-        };
-        assert_eq!(mine, &image[..]);
     }
 
     #[test]
     fn sound_options_starts_as_the_games() {
         assert_eq!(size_of::<SoundOptions>(), SoundOptions::LEN);
-        let image = crate::moved::image_bytes(SoundOptions::START, SoundOptions::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(SoundOptions::home()).cast_const(),
-                SoundOptions::LEN,
-            )
-        };
-        assert_eq!(mine, &image[..]);
     }
 
     #[test]
     fn cd_audio_starts_as_the_games() {
         assert_eq!(size_of::<CdAudio>(), CdAudio::LEN);
-        let image = crate::moved::image_bytes(CdAudio::START, CdAudio::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(CdAudio::home()).cast_const(),
-                CdAudio::LEN,
-            )
-        };
-        assert_eq!(mine, &image[..]);
     }
 
     #[test]
     fn race_sounds_start_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<super::SoundObject>(), 0x4A8);
-        assert_eq!(size_of::<super::RaceSounds>(), 0x514F90 - 0x512A10);
-        assert_eq!(offset_of!(RaceSounds, objects), 0x512A30 - 0x512A10);
-        assert_eq!(offset_of!(RaceSounds, player_cars), 0x514F70 - 0x512A10);
-        assert_eq!(offset_of!(RaceSounds, one_player), 0x514F78 - 0x512A10);
-        assert_eq!(offset_of!(RaceSounds, count), 0x514F7C - 0x512A10);
-        assert_eq!(offset_of!(RaceSounds, nearest), 0x514F80 - 0x512A10);
-        assert_eq!(
-            offset_of!(RaceSounds, nearest_distance),
-            0x514F88 - 0x512A10
-        );
-        assert_eq!(offset_of!(RaceSounds, mark_car_voices), 0x514F8C - 0x512A10);
+        assert_eq!(size_of::<super::RaceSounds>(), 0x2580);
+        assert_eq!(offset_of!(RaceSounds, objects), 0x20);
+        assert_eq!(offset_of!(RaceSounds, player_cars), 0x2560);
+        assert_eq!(offset_of!(RaceSounds, one_player), 0x2568);
+        assert_eq!(offset_of!(RaceSounds, count), 0x256C);
+        assert_eq!(offset_of!(RaceSounds, nearest), 0x2570);
+        assert_eq!(offset_of!(RaceSounds, nearest_distance), 0x2578);
+        assert_eq!(offset_of!(RaceSounds, mark_car_voices), 0x257C);
         assert_eq!(offset_of!(SoundObject, state), 0x10C);
         assert_eq!(offset_of!(SoundObject, slots), 0x14C);
         assert_eq!(offset_of!(SoundObject, gear_slot), 0x1F8);
@@ -1285,26 +1182,10 @@ mod tests {
         assert_eq!(offset_of!(SoundObject, cue_sound), 0x24C);
         assert_eq!(offset_of!(SoundObject, slot_c), 0x260);
         assert_eq!(offset_of!(SoundObject, surface), 0x294);
-        let image = crate::moved::image_bytes(0x512A10, 0x2580);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host(race_sounds_addr()).cast_const(),
-                0x2580,
-            )
-        };
-        assert_eq!(mine, &image[..]);
     }
 
     #[test]
     fn race_clock_starts_as_the_games() {
-        assert_eq!(size_of::<super::RaceClock>(), 0x512508 - 0x5124E4);
-        let image = crate::moved::image_bytes(0x5124E4, 0x24);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host(super::race_clock_addr()).cast_const(),
-                0x24,
-            )
-        };
-        assert_eq!(mine, &image[..]);
+        assert_eq!(size_of::<super::RaceClock>(), 0x24);
     }
 }

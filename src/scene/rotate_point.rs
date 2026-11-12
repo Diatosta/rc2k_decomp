@@ -64,48 +64,20 @@ pub(crate) fn turned(m: impl Base, [t2, t1, t0]: [X; 3]) -> [X; 3] {
     [t12, t22, t32]
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
-    use crate::scene::asm_test::{Kind, differential, put_t80};
-
-    /// The original's instructions.
-    unsafe fn rotate_ref(p: *mut u8, m: *mut u8, o: *mut u8) {
-        unsafe {
-            core::arch::asm!(
-                "fld tbyte ptr [{p} + 20]", "fld tbyte ptr [{p} + 10]", "fld tbyte ptr [{p}]",
-                "fld dword ptr [{m}]", ".byte 0xD8, 0xC9",
-                "fld dword ptr [{m} + 0x10]", ".byte 0xD8, 0xCB",
-                "fld dword ptr [{m} + 0x20]", ".byte 0xD8, 0xCD",
-                ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1", "fadd dword ptr [{m} + 0x30]", ".byte 0xD9, 0xCB",
-                "fld dword ptr [{m} + 4]", ".byte 0xD8, 0xCA",
-                "fld dword ptr [{m} + 0x14]", ".byte 0xD8, 0xCC",
-                "fld dword ptr [{m} + 0x24]", ".byte 0xD8, 0xCB",
-                ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1", "fadd dword ptr [{m} + 0x34]", ".byte 0xD9, 0xCB",
-                "fld dword ptr [{m} + 8]", ".byte 0xDE, 0xCB",
-                "fld dword ptr [{m} + 0x18]", ".byte 0xDE, 0xC9",
-                "fld dword ptr [{m} + 0x28]", ".byte 0xDE, 0xCA",
-                ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1", "fadd dword ptr [{m} + 0x38]", ".byte 0xD9, 0xCA",
-                "fstp tbyte ptr [{o}]", "fstp tbyte ptr [{o} + 10]", "fstp tbyte ptr [{o} + 20]",
-                p = in(reg) p,
-                m = in(reg) m,
-                o = in(reg) o,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-    }
+    use crate::test_support::vectors::{Differential, Kind, differential, put_t80};
 
     #[test]
     fn rotate_matches_the_assembly() {
         // bytes 0 .. 30 the point, 32 .. 92 the matrix (15 dwords), 96 .. 126 the result
-        differential::<32>(
-            "rotate_point",
-            6000,
-            2,
-            [Kind::Exact; 32],
-            |rng, m| {
+        let test = Differential {
+            name: "scene.rotate_point.rotate",
+            cases: 6000,
+            seed: 2,
+            kinds: [Kind::Exact; 32],
+            fill: &|rng, m| {
                 m.fill(0xAAAA_AAAA);
                 for k in 0..3 {
                     put_t80(m, 10 * k, rng.fl());
@@ -114,8 +86,8 @@ mod asm_reference {
                     *d = rng.fl();
                 }
             },
-            |base| unsafe { rotate_ref(base, base.add(32), base.add(96)) },
-            |base| unsafe { rotate(base, base.add(32), base.add(96)) },
-        );
+            plain: &|c| rotate(c, &c[8..], &c[24..]),
+        };
+        differential(test);
     }
 }

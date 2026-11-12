@@ -41,6 +41,7 @@ pub enum Step {
 }
 
 pub fn draw_clipped_polygon(
+    polygon_work: &'static crate::scene::polygon_store::PolygonWork,
     poly: &crate::scene::polygon_work::PolygonWork,
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
@@ -55,9 +56,9 @@ pub fn draw_clipped_polygon(
         poly.polygon_next_record
             .set(crate::scene::polygon::pool_start());
         for n in 0..count {
-            crate::scene::polygon::list_cell(n as usize).set(n);
+            crate::scene::polygon::list_cell(polygon_work, n as usize).set(n);
         }
-        crate::scene::polygon::list_cell(count as usize).set(0u32);
+        crate::scene::polygon::list_cell(polygon_work, count as usize).set(0u32);
         poly.polygon_next_entry.set(count);
         step(Step::Project)?;
         let outside: u32 = poly.polygon_outside_count.get();
@@ -90,25 +91,28 @@ pub fn draw_clipped_polygon_in_game(
     // The list stays as it is from the projection to the fog: listed once for the three.
     let mut entries = None;
     let poly = &ctx.view.polygon;
-    draw_clipped_polygon(poly, &mut |step| {
+    draw_clipped_polygon(ctx.part.polygon, poly, &mut |step| {
         match step {
             Step::Project => {
-                let listed = entries.insert(crate::scene::polygon::listed(poly)?);
+                let listed = entries.insert(crate::scene::polygon::listed(ctx.part.polygon, poly)?);
                 project_entries(poly, race, listed, scene, ctx.view)?;
             }
             Step::ScaleTextureCoordinates => match &entries {
                 Some(listed) if !listed.is_empty() => scale_entries(poly, listed)?,
-                _ => scale_texture_coordinates(poly)?,
+                _ => scale_texture_coordinates(ctx.part.polygon, poly)?,
             },
             Step::Fog => match entries.take() {
                 Some(listed) => fog_entries(&listed, ctx.view)?,
-                None => fog_polygon(ctx.view)?,
+                None => fog_polygon(ctx.part.polygon, ctx.view)?,
             },
-            Step::ClipByDepth => clip_polygon_by_depth(poly, race, scene, ctx.far_clip, ctx.view)?,
-            Step::ClipToScreen => clip_polygon_to_screen(poly, race)?,
+            Step::ClipByDepth => {
+                clip_polygon_by_depth(ctx.part.polygon, poly, race, scene, ctx.far_clip, ctx.view)?;
+            }
+            Step::ClipToScreen => clip_polygon_to_screen(ctx.part.polygon, poly, race)?,
             Step::Draw => {
                 draw_polygon(
                     poly,
+                    ctx.part,
                     race,
                     &ctx.view.face,
                     &mut Game,

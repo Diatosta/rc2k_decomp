@@ -23,7 +23,10 @@ pub fn file_len() -> usize {
 }
 
 /// True if the file was written.
-pub fn save_options(o: Owners<'_>, path: &dyn crate::pointers::Store) -> Result<bool, Refused> {
+pub fn save_options(
+    o: Owners<'static>,
+    path: &dyn crate::pointers::Store,
+) -> Result<bool, Refused> {
     let file = &o.system.work.files.buffer;
     let mut owned = Vec::new();
     for piece in pieces_of(o) {

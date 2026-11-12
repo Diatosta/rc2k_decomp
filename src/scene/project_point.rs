@@ -235,92 +235,20 @@ pub fn project_point(
     Ok(Projected { record })
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
-    use crate::scene::asm_test::{Kind, differential};
-
-    /// The original's instructions for `rotate`.
-    unsafe fn rotate_at_ref(p: *mut u8, m: *mut u8, o: *mut u8) {
-        unsafe {
-            core::arch::asm!(
-                "fild dword ptr [{p} + 8]", "fild dword ptr [{p} + 4]", "fild dword ptr [{p}]",
-                "fld dword ptr [{m}]", "fmul st(0), st(1)",
-                "fld dword ptr [{m} + 0x10]", "fmul st(0), st(3)",
-                "fld dword ptr [{m} + 0x20]", "fmul st(0), st(5)",
-                "faddp st(1), st(0)", "faddp st(1), st(0)",
-                "fadd dword ptr [{m} + 0x30]", "fxch st(3)",
-                "fld dword ptr [{m} + 4]", "fmul st(0), st(2)",
-                "fld dword ptr [{m} + 0x14]", "fmul st(0), st(4)",
-                "fld dword ptr [{m} + 0x24]", "fmul st(0), st(3)",
-                "faddp st(1), st(0)", "faddp st(1), st(0)",
-                "fadd dword ptr [{m} + 0x34]", "fxch st(3)",
-                "fld dword ptr [{m} + 8]", "fmulp st(3), st(0)",
-                "fld dword ptr [{m} + 0x18]", "fmulp st(1), st(0)",
-                "fld dword ptr [{m} + 0x28]", "fmulp st(2), st(0)",
-                "faddp st(1), st(0)", "faddp st(1), st(0)",
-                "fadd dword ptr [{m} + 0x38]", "fxch st(2)",
-                "fstp dword ptr [{o} + 0x10]", "fstp dword ptr [{o} + 0x14]",
-                "fstp dword ptr [{o} + 0x18]",
-                p = in(reg) p,
-                m = in(reg) m,
-                o = in(reg) o,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-    }
-
-    /// The original's instructions for `screen_flat`.
-    unsafe fn screen_flat_ref(o: *mut u8, v: *mut u8, w: *mut u8) {
-        unsafe {
-            core::arch::asm!(
-                "fld dword ptr [{o} + 0x10]", "fld dword ptr [{o} + 0x14]",
-                "fld dword ptr [{o} + 0x18]",
-                "fstp dword ptr [{w}]", "fild dword ptr [{v} + 12]", "fld1", "faddp st(1), st(0)",
-                "fld dword ptr [{v}]", ".byte 0xDE, 0xF1",
-                "fmul st(1), st(0)", "fmulp st(2), st(0)", "fchs",
-                "fadd dword ptr [{v} + 8]", "fxch st(1)", "fadd dword ptr [{v} + 4]",
-                "fstp dword ptr [{o} + 0xC]", "fstp dword ptr [{o} + 0x1C]",
-                o = in(reg) o,
-                v = in(reg) v,
-                w = in(reg) w,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-    }
-
-    /// The original's instructions for `screen_plain`.
-    unsafe fn screen_plain_ref(o: *mut u8, v: *mut u8) {
-        unsafe {
-            core::arch::asm!(
-                "fld dword ptr [{o} + 0x10]", "fld dword ptr [{o} + 0x14]",
-                "fld dword ptr [{o} + 0x18]",
-                "fld dword ptr [{v}]", ".byte 0xDE, 0xF1",
-                "fmul st(1), st(0)", "fmulp st(2), st(0)", "fchs",
-                "fadd dword ptr [{v} + 8]", "fxch st(1)", "fadd dword ptr [{v} + 4]",
-                "fstp dword ptr [{o} + 0xC]", "fstp dword ptr [{o} + 0x1C]",
-                o = in(reg) o,
-                v = in(reg) v,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-    }
+    use crate::test_support::vectors::{Differential, Kind, differential};
 
     #[test]
     fn rotate_matches_the_assembly() {
         // dwords 0 .. 3 the point, 4 .. 19 the matrix, 20 .. 28 the record
-        differential::<28>(
-            "project_point rotate",
-            8000,
-            13,
-            [Kind::Float; 28],
-            |rng, m| {
+        let test = Differential {
+            name: "scene.project_point.rotate",
+            cases: 8000,
+            seed: 13,
+            kinds: [Kind::Float; 28],
+            fill: &|rng, m| {
                 m.fill(0xAAAA_AAAA);
                 for d in m.iter_mut().take(3) {
                     *d = rng.int();
@@ -330,14 +258,14 @@ mod asm_reference {
                     *d = if moderate { rng.moderate() } else { rng.fl() };
                 }
             },
-            |base| unsafe { rotate_at_ref(base, base.add(16), base.add(80)) },
-            |base| unsafe { rotate_at(base, base.add(16), base.add(80)) },
-        );
+            plain: &|c| rotate_at(c, &c[4..], &c[20..]),
+        };
+        differential(test);
     }
 
     /// dwords 0 .. 4 the scale, centre x, centre y and whole number, 4 the checked word, 8 ..
     /// 16 the record (+0x10 .. +0x18 the place in the view).
-    fn screen_fill(rng: &mut crate::scene::asm_test::Rng, m: &mut [u32; 16]) {
+    fn screen_fill(rng: &mut crate::test_support::vectors::Rng, m: &mut [u32; 16]) {
         m.fill(0xAAAA_AAAA);
         let moderate = rng.below(2) == 0;
         for d in m.iter_mut().take(3) {
@@ -351,27 +279,27 @@ mod asm_reference {
 
     #[test]
     fn screen_flat_matches_the_assembly() {
-        differential::<16>(
-            "project_point flat",
-            8000,
-            14,
-            [Kind::Float; 16],
-            screen_fill,
-            |base| unsafe { screen_flat_ref(base.add(32), base, base.add(16)) },
-            |base| unsafe { screen_flat(base.add(32), base, base.add(16)) },
-        );
+        let test = Differential {
+            name: "scene.project_point.screen_flat",
+            cases: 8000,
+            seed: 14,
+            kinds: [Kind::Float; 16],
+            fill: &screen_fill,
+            plain: &|c| screen_flat(&c[8..], c, &c[4..]),
+        };
+        differential(test);
     }
 
     #[test]
     fn screen_plain_matches_the_assembly() {
-        differential::<16>(
-            "project_point not flat",
-            8000,
-            15,
-            [Kind::Float; 16],
-            screen_fill,
-            |base| unsafe { screen_plain_ref(base.add(32), base) },
-            |base| unsafe { screen_plain(base.add(32), base) },
-        );
+        let test = Differential {
+            name: "scene.project_point.screen_plain",
+            cases: 8000,
+            seed: 15,
+            kinds: [Kind::Float; 16],
+            fill: &screen_fill,
+            plain: &|c| screen_plain(&c[8..], c),
+        };
+        differential(test);
     }
 }

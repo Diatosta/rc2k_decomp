@@ -7,7 +7,6 @@
 //! scale 1 / the farthest depth, the quad's last cell 0.//!
 //! Caller: `effects::draw_frame`.
 
-use crate::d3d::vertices_store::VERTICES;
 use crate::session::read_bits;
 
 /// The render states set (value, state).
@@ -15,7 +14,11 @@ const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1,
 
 /// `scene::set_texture`, `scene::depth_buffer_on`,
 /// `scene::depth_test_off`, the render states (`scene::set_render_state`).
-pub fn begin_quads(effects: &crate::effects::owner::Effects, scene: &crate::scene::owner::Scene) {
+pub fn begin_quads(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
+    effects: &crate::effects::owner::Effects,
+    scene: &crate::scene::owner::Scene,
+) {
     let frame = &effects.frame;
     {
         crate::scene::set_texture::set_texture(
@@ -31,7 +34,7 @@ pub fn begin_quads(effects: &crate::effects::owner::Effects, scene: &crate::scen
         let [a, b, c, d]: [u32; 4] = read_bits(&frame.draw_frame.places);
         let uv = [(a, b), (c, b), (c, d), (a, d)];
         for (k, (u, v)) in uv.into_iter().enumerate() {
-            let at = &VERTICES.vertices[k];
+            let at = &buffer.vertices[k];
             at.rhw.set_bits(colour);
             at.colour.set(0xFFFF_FFFF);
             at.specular.set(0);

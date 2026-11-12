@@ -92,10 +92,7 @@ mod asm_reference {
             reference: |a| unsafe { ref_0(a[0], a[1]) },
             plain: |a| {
                 x87_1(
-                    unsafe {
-                        &*(crate::pointers::host_at(a[0])
-                            as *const crate::sound::store::SurfaceSounds)
-                    },
+                    unsafe { &*(a[0] as *const crate::sound::store::SurfaceSounds) },
                     &HostCell(a[1] + 8),
                 );
             },

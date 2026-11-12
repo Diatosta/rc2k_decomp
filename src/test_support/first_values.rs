@@ -76,6 +76,15 @@ pub fn bytes(key: &str) -> &'static [u8] {
         .unwrap_or_else(|| panic!("the first value {key} is held as a hash only"))
 }
 
+/// `mine` equals the bytes under `key` (compared by size and hash where only those are held).
+pub fn holds(key: &str, mine: &[u8]) -> bool {
+    let g = golden(key);
+    match &g.bytes {
+        Some(b) => mine == &b[..],
+        None => mine.len() == g.size && hash(mine) == g.hash,
+    }
+}
+
 /// Dword `n` (from 0) of the bytes frozen under `key`.
 pub fn dword(key: &str, n: usize) -> u32 {
     let b = bytes(key);
@@ -190,10 +199,12 @@ mod tests {
     ];
 
     /// The stores other tests change while they run without the lock (the allocator's
-    /// counts, the file search, the picture being decoded).
-    const CHANGED_BY_TESTS: [&str; 3] = [
+    /// counts, the file search, the files the game-file tests open, the picture being
+    /// decoded).
+    const CHANGED_BY_TESTS: [&str; 4] = [
         "store:memory.state.",
         "store:files.state.",
+        "store:system.owner.SYSTEM.work.files",
         "store:gfx.owner.GFX.pictures.picture",
     ];
 

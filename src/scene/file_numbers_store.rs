@@ -120,14 +120,6 @@ pub const END: usize = 0x60AF0C;
 
 const _: () = assert!(END - START == core::mem::size_of::<ObjectFileNumbers>());
 
-/// Where IDA 0x60AD20 is now (its own static).
-#[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(
-        &crate::scene::owner::SCENE.file_numbers,
-    ))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -135,23 +127,13 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
+        crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::scene::owner::SCENE.file_numbers,
-            START,
-            END,
         );
     }
 
     #[test]
     fn piece_has_its_home() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            piece_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
-        assert_eq!(
-            offset_of!(ObjectFileNumbers, object_ro3_number),
-            0x60AD24 - START
-        );
+        assert_eq!(offset_of!(ObjectFileNumbers, object_ro3_number), 0x4);
     }
 }

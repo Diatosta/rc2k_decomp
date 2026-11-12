@@ -58,7 +58,6 @@ impl Colours257 {
 
 #[cfg(test)]
 impl Colours257 {
-    pub const START: usize = 0x939DB2;
     pub const LEN: usize = 0x404;
 }
 
@@ -163,6 +162,7 @@ fn refusal(
 
 /// The streak step at e (see the header): whether the entry dies.
 fn streak(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
     view_matrix: &[crate::session::Float; 16],
     ring: &Ring,
     e: u32,
@@ -199,13 +199,14 @@ fn streak(
             &mut en.last_place[2]
         })?;
     }
-    VERTICES.vertices[0]
+    buffer.vertices[0]
         .specular
         .set(fog_at(fog, entry(ring, e)?.last_place[2].to_bits())?);
     let i = x87::int_times_to_int(entry(ring, e)?.life as i32, entry(ring, e)?.alpha_fade);
     ring.work.whole.set(i as u32);
     let colour = colour_at(&effects.masks, ring, i as usize, effects);
     crate::effects::draw_ribbon::draw_ribbon(
+        buffer,
         &effects.masks,
         0x20,
         i as u32,
@@ -222,6 +223,7 @@ fn move_on(ring: &Ring, e: u32, effects: &crate::effects::owner::Effects) {
 }
 
 pub fn run_ribbons(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
     ring: &Ring,
     scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
@@ -243,7 +245,7 @@ pub fn run_ribbons(
             // The settings' +0x60: the first car record's first word.
             if effects.settings()?.cars[0].streaks_on.get() != 0
                 && entry(ring, e)?.kind == STREAK
-                && streak(view_matrix, ring, e, scene, effects, fog)?
+                && streak(buffer, view_matrix, ring, e, scene, effects, fog)?
             {
                 ring.work.count.set(ring.work.count.get().wrapping_sub(1));
                 if e == ring.work.cursor.get() {
@@ -266,7 +268,6 @@ pub fn run_ribbons(
     Ok(())
 }
 
-use crate::d3d::vertices_store::VERTICES;
 use crate::effects::frame_state::DrawWork;
 use crate::math::x87_float as bh;
 use crate::math::x87_float::int;
@@ -918,6 +919,6 @@ mod colours_tests {
         let own: Vec<u8> = (0..Colours257::LEN)
             .map(|i| unsafe { p.add(i).read() })
             .collect();
-        assert!(own == crate::moved::image_bytes(Colours257::START, Colours257::LEN));
+        assert!(own == crate::test_support::first_values::bytes("effects.run_ribbons.COLOURS_257"));
     }
 }

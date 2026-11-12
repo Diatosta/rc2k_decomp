@@ -83,46 +83,30 @@ pub const START: usize = 0x755525;
 /// IDA 0x755595, the end of the piece.
 pub const END: usize = 0x755595;
 
-/// Where IDA 0x755525 lives (`moved::MOVED`'s home).
-#[cfg(test)]
-pub fn loop_flags_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::menu::owner::menus().screens.loop_flags)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moved::image_bytes;
-    use core::mem::{offset_of, size_of};
+    use core::mem::offset_of;
 
     #[test]
     fn loop_flags_starts_as_the_games() {
-        assert!(
-            END - START <= size_of::<LoopFlags>()
-                && size_of::<LoopFlags>() <= (END - START).next_multiple_of(4)
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &crate::menu::owner::menus().screens.loop_flags,
         );
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host(loop_flags_addr()).cast_const(),
-                END - START,
-            )
-        };
-        assert_eq!(mine, &image_bytes(START, END - START)[..]);
-        let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
-        at(offset_of!(LoopFlags, item), 0x755525);
-        at(offset_of!(LoopFlags, idle), 0x755551);
-        at(offset_of!(LoopFlags, idle_frames), 0x755555);
-        at(offset_of!(LoopFlags, event_left), 0x75555D);
-        at(offset_of!(LoopFlags, leave_screen), 0x755561);
-        at(offset_of!(LoopFlags, left_with_carry), 0x755565);
-        at(offset_of!(LoopFlags, ask_leave), 0x755569);
-        at(offset_of!(LoopFlags, text_length), 0x75556D);
-        at(offset_of!(LoopFlags, text_max), 0x755571);
-        at(offset_of!(LoopFlags, toggle), 0x755575);
-        at(offset_of!(LoopFlags, champ_row), 0x755579);
-        at(offset_of!(LoopFlags, options_loaded), 0x75557D);
-        at(offset_of!(LoopFlags, sprite_table), 0x755581);
-        at(offset_of!(LoopFlags, menu), 0x75558D);
-        at(offset_of!(LoopFlags, dword_755591), 0x755591);
+        assert_eq!(offset_of!(LoopFlags, item), 0x0);
+        assert_eq!(offset_of!(LoopFlags, idle), 0x2c);
+        assert_eq!(offset_of!(LoopFlags, idle_frames), 0x30);
+        assert_eq!(offset_of!(LoopFlags, event_left), 0x38);
+        assert_eq!(offset_of!(LoopFlags, leave_screen), 0x3c);
+        assert_eq!(offset_of!(LoopFlags, left_with_carry), 0x40);
+        assert_eq!(offset_of!(LoopFlags, ask_leave), 0x44);
+        assert_eq!(offset_of!(LoopFlags, text_length), 0x48);
+        assert_eq!(offset_of!(LoopFlags, text_max), 0x4c);
+        assert_eq!(offset_of!(LoopFlags, toggle), 0x50);
+        assert_eq!(offset_of!(LoopFlags, champ_row), 0x54);
+        assert_eq!(offset_of!(LoopFlags, options_loaded), 0x58);
+        assert_eq!(offset_of!(LoopFlags, sprite_table), 0x5c);
+        assert_eq!(offset_of!(LoopFlags, menu), 0x68);
+        assert_eq!(offset_of!(LoopFlags, dword_755591), 0x6c);
     }
 }

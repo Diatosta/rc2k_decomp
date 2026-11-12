@@ -58,26 +58,23 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&race().replay.replay_frames, START, END);
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &race().replay.replay_frames,
+        );
     }
 
     #[test]
-    fn piece_has_its_home() {
+    fn fields_are_at_the_games_offsets() {
         assert_eq!(
             piece_addr() % (core::mem::align_of::<ReplayFrames>()) as u32,
             0
         );
-        assert_eq!(piece_addr() as usize, crate::moved::place(START));
-        assert_eq!(
-            crate::moved::place(END - 1),
-            (piece_addr() + (END - START) as u32 - 1) as usize
-        );
 
-        assert_eq!(offset_of!(ReplayFrames, step_first), 0x6EF7CC - START);
-        assert_eq!(offset_of!(ReplayFrames, frame), 0x6EF7D8 - START);
-        assert_eq!(offset_of!(ReplayFrames, tenth), 0x6EF7DC - START);
-        assert_eq!(offset_of!(ReplayFrames, step_frame), 0x6EF7E4 - START);
-        assert_eq!(offset_of!(ReplayFrames, slots), 0x6EF7E8 - START);
-        assert_eq!(offset_of!(ReplayFrames, last_kept), 0x70F3E8 - START);
+        assert_eq!(offset_of!(ReplayFrames, step_first), 0x0);
+        assert_eq!(offset_of!(ReplayFrames, frame), 0xc);
+        assert_eq!(offset_of!(ReplayFrames, tenth), 0x10);
+        assert_eq!(offset_of!(ReplayFrames, step_frame), 0x18);
+        assert_eq!(offset_of!(ReplayFrames, slots), 0x1c);
+        assert_eq!(offset_of!(ReplayFrames, last_kept), 0x1fc1c);
     }
 }

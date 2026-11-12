@@ -46,14 +46,8 @@ fn indented(part: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused
 /// is reached only with two checkpoints or more.
 // Converted: `rc2k_core::drive::race_steps::{no_best_line, NO_BEST_LINE, SETTLING_STEPS,
 // LOG_INDENT}`.
-pub fn race_init(
-    race: &Race,
-    system: &crate::system::owner::System,
-    sound: &crate::sound::owner::Sound,
-    scene: &crate::scene::owner::Scene,
-    effects: &crate::effects::owner::Effects,
-    net: &crate::net::owner::Net,
-) -> Result<(), Refused> {
+pub fn race_init(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
+    let (sound, scene, effects, net) = (o.sound, o.scene, o.effects, o.net);
     let race_owner = race;
     log(c"RACEINIT : setbestline");
     indent_by(race_steps::LOG_INDENT);
@@ -96,17 +90,24 @@ pub fn race_init(
     log(c"RACEINIT : singlecarinit");
     indent_by(race_steps::LOG_INDENT);
     for _ in 0..race_steps::SETTLING_STEPS {
-        { crate::drive::race_cars_step::race_cars_step(race, system, sound, scene, net) }?;
+        { crate::drive::race_cars_step::race_cars_step(o, race) }?;
         race.effects_settings().other_marks_shown.set(1);
         {
             let view = crate::drive::set_listener::ListenerView::before_any_view(race);
-            crate::drive::share_all_cars::share_all_cars(race, scene, view)
+            crate::drive::share_all_cars::share_all_cars(race, sound, scene, view)
         }?;
         race.effects_settings().other_marks_shown.set(0);
         crate::effects::frame_marks::frame_marks(race, scene, effects)?;
         // No view of the race drawn yet (`EffectsView::before_any_view`).
         let view = crate::effects::run_frame::EffectsView::before_any_view(race);
-        crate::effects::run_frame::run_frame(race, scene, effects, view)?;
+        crate::effects::run_frame::run_frame(
+            crate::workers::game_scratch().vertices,
+            race,
+            scene,
+            effects,
+            sound,
+            view,
+        )?;
     }
     crate::race::race_init::clear_race_slots(&race.shared);
     indent_by(race_steps::LOG_INDENT.wrapping_neg());

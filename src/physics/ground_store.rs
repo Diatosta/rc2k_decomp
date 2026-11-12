@@ -143,24 +143,17 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&race().physics.ground, START, END);
+        crate::test_support::first_values::assert_block_starts_as_the_games(&race().physics.ground);
     }
 
     #[test]
-    fn piece_has_its_home() {
+    fn fields_are_at_the_games_offsets() {
         assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            piece_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
-        assert_eq!(offset_of!(GroundWork, frames_drawn), 0x63967C - START);
-        assert_eq!(
-            offset_of!(GroundWork, corner_x_differences),
-            0x639738 - START
-        );
-        assert_eq!(offset_of!(GroundWork, face_share_scale), 0x639768 - START);
-        assert_eq!(offset_of!(GroundWork, ground_x), 0x639824 - START);
-        assert_eq!(offset_of!(GroundWork, object_texture_set), 0x639954 - START);
-        assert_eq!(offset_of!(GroundWork, object_see_through), 0x639970 - START);
+        assert_eq!(offset_of!(GroundWork, frames_drawn), 0x0);
+        assert_eq!(offset_of!(GroundWork, corner_x_differences), 0xbc);
+        assert_eq!(offset_of!(GroundWork, face_share_scale), 0xec);
+        assert_eq!(offset_of!(GroundWork, ground_x), 0x1a8);
+        assert_eq!(offset_of!(GroundWork, object_texture_set), 0x2d8);
+        assert_eq!(offset_of!(GroundWork, object_see_through), 0x2f4);
     }
 }

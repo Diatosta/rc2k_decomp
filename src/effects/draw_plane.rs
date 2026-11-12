@@ -28,7 +28,6 @@ use crate::race::effects_settings_store::EffectsSettings;
 use crate::scene::cross_product3::cross;
 use crate::scene::vector3::normalise;
 
-use crate::d3d::vertices_store::VERTICES;
 /// Each vertex's texture place: the corner entry's word offsets (u, v).
 const UV_WORDS: [(u32, u32); 4] = [(0xC, 0xE), (8, 0xA), (0, 2), (4, 6)];
 
@@ -103,6 +102,7 @@ pub fn draw_plane(
     fl: &WindscreenFlakes,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
+    let buffer = ctx.part.vertices;
     let (race, scene) = (ctx.race, ctx.scene);
     use crate::scene::set_render_state::set_render_state;
     let m = effects.settings()?;
@@ -138,18 +138,18 @@ pub fn draw_plane(
     let word = |off: u32| u32::from(entry.words[off as usize / 2].get());
     let uv_k = effects.frame.draw_work.uv_k.get();
     for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
-        let vertex = &VERTICES.vertices[n];
+        let vertex = &buffer.vertices[n];
         vertex.u.set(x87::int_times(word(u) as i32, uv_k));
         vertex.v.set(x87::int_times(word(v) as i32, uv_k));
     }
     for n in 0..4 {
-        let vertex = &VERTICES.vertices[n];
+        let vertex = &buffer.vertices[n];
         vertex.u.set(x87::loaded(PLANE_TUNING.places[n][0]));
         vertex.v.set(x87::loaded(PLANE_TUNING.places[n][1]));
     }
     let light: u32 = ctx.view.light.view_light.get();
     for n in 0..4 {
-        VERTICES.vertices[n].colour.set(light);
+        buffer.vertices[n].colour.set(light);
     }
     for n in 0..4 {
         if (effects.kinds.plane_quad.corners[n][2].bits() as i32)
@@ -165,7 +165,7 @@ pub fn draw_plane(
     ];
     for n in 0..4 {
         let c = &effects.kinds.plane_quad.corners[n];
-        let vertex = &VERTICES.vertices[n];
+        let vertex = &buffer.vertices[n];
         vertex.x.set(c[0].get());
         vertex.y.set(c[1].get());
         let depth = c[2].get();
@@ -175,11 +175,11 @@ pub fn draw_plane(
     }
     for n in 0..4 {
         let depth = effects.kinds.plane_quad.corners[n][2].get();
-        VERTICES.vertices[n]
+        buffer.vertices[n]
             .rhw
             .set(x87::reciprocal_times(depth, PLANE_TUNING.rhw_k[n]));
     }
-    crate::effects::clip_quad::draw_fan(scene);
+    crate::effects::clip_quad::draw_fan(buffer, scene);
     crate::scene::depth_test_on::depth_test_on();
     Ok(())
 }

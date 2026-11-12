@@ -20,10 +20,6 @@ use crate::system::owner::System;
 
 // ---- game data ----
 
-/// IDA's address of the best times file's name.
-#[cfg(test)]
-pub const PATH_START: usize = 0x5295E4;
-
 /// `aVarHstDat`: the best times file's name.
 pub static PATH: [u8; 12] = *b"var\\hst.dat\0";
 /// The path's length without its NUL.
@@ -86,6 +82,9 @@ mod path_tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&PATH, PATH_START, PATH_START + 12);
+        assert_eq!(
+            crate::test_support::first_values::bytes("saves.load_best_times.PATH"),
+            &PATH
+        );
     }
 }

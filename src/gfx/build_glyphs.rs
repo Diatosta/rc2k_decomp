@@ -457,25 +457,15 @@ mod block_tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
+        crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::gfx::owner::GFX.unchecked().sheet,
-            START,
-            START + LEN,
         );
     }
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(offset_of!(SheetVars, table), 0x5195A4 - START);
-        assert_eq!(offset_of!(SheetVars, glyph_count), 0x5195B0 - START);
-        assert_eq!(offset_of!(SheetVars, pixel_size), 0x5195CC - START);
-        assert_eq!(
-            crate::moved::place(START),
-            crate::gfx::owner::GFX.unchecked().sheet.sheet_table.addr() as usize
-        );
-        assert_eq!(
-            crate::moved::place(0x5195D0),
-            crate::gfx::owner::GFX.unchecked().sheet.alpha_loaded.addr() as usize
-        );
+        assert_eq!(offset_of!(SheetVars, table), 0xc);
+        assert_eq!(offset_of!(SheetVars, glyph_count), 0x18);
+        assert_eq!(offset_of!(SheetVars, pixel_size), 0x34);
     }
 }

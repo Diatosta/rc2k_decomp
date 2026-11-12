@@ -69,46 +69,21 @@ mod marks_frame_tests {
             .map(|i| unsafe { p.add(i).read() })
             .collect();
         assert!(
-            ours == crate::moved::image_bytes(MarksFrame::START, MarksFrame::LEN),
+            ours == crate::test_support::first_values::bytes(
+                "effects.owner.EFFECTS.setup.frame/48"
+            ),
             "MARKS_FRAME starts differently from the image"
         );
-        assert_eq!(
-            offset_of!(MarksFrame, last_count),
-            0x765110 - MarksFrame::START
-        );
-        assert_eq!(
-            offset_of!(MarksFrame, frame_cycles),
-            0x765114 - MarksFrame::START
-        );
-        assert_eq!(
-            offset_of!(MarksFrame, empty_share),
-            0x765118 - MarksFrame::START
-        );
-        assert_eq!(
-            offset_of!(MarksFrame, ring_share),
-            0x76511C - MarksFrame::START
-        );
-        assert_eq!(
-            offset_of!(MarksFrame, whole_share),
-            0x765120 - MarksFrame::START
-        );
-        assert_eq!(
-            offset_of!(MarksFrame, quads_share),
-            0x765124 - MarksFrame::START
-        );
-        assert_eq!(
-            offset_of!(MarksFrame, step_share),
-            0x765128 - MarksFrame::START
-        );
-        assert_eq!(
-            offset_of!(MarksFrame, draw_share),
-            0x765134 - MarksFrame::START
-        );
-        assert_eq!(
-            offset_of!(MarksFrame, emit_side),
-            0x765138 - MarksFrame::START
-        );
-        assert_eq!(offset_of!(MarksFrame, steps), 0x76513C - MarksFrame::START);
+        assert_eq!(offset_of!(MarksFrame, last_count), 0x0);
+        assert_eq!(offset_of!(MarksFrame, frame_cycles), 0x4);
+        assert_eq!(offset_of!(MarksFrame, empty_share), 0x8);
+        assert_eq!(offset_of!(MarksFrame, ring_share), 0xc);
+        assert_eq!(offset_of!(MarksFrame, whole_share), 0x10);
+        assert_eq!(offset_of!(MarksFrame, quads_share), 0x14);
+        assert_eq!(offset_of!(MarksFrame, step_share), 0x18);
+        assert_eq!(offset_of!(MarksFrame, draw_share), 0x24);
+        assert_eq!(offset_of!(MarksFrame, emit_side), 0x28);
+        assert_eq!(offset_of!(MarksFrame, steps), 0x2c);
     }
 }
 
@@ -286,115 +261,39 @@ mod marks_floats_tests {
             .map(|i| unsafe { p.add(i).read() })
             .collect();
         assert!(
-            ours == crate::moved::image_bytes(MarksFloats::START, MarksFloats::LEN),
+            ours == crate::test_support::first_values::bytes(
+                "effects.owner.EFFECTS.setup.floats/248"
+            ),
             "MARKS_FLOATS starts differently from the image"
         );
-        assert_eq!(
-            offset_of!(MarksFloats, pull_limit),
-            0x765140 - MarksFloats::START
-        );
-        assert_eq!(
-            offset_of!(MarksFloats, burst_direction_k),
-            0x76514C - MarksFloats::START
-        );
-        assert_eq!(
-            offset_of!(MarksFloats, minus_eighth),
-            0x765150 - MarksFloats::START
-        );
-        assert_eq!(offset_of!(MarksFloats, half), 0x765158 - MarksFloats::START);
-        assert_eq!(
-            offset_of!(MarksFloats, twentieth),
-            0x76515C - MarksFloats::START
-        );
-        assert_eq!(
-            offset_of!(MarksFloats, fifth),
-            0x765164 - MarksFloats::START
-        );
-        assert_eq!(
-            offset_of!(MarksFloats, three_tenths),
-            0x765168 - MarksFloats::START
-        );
-        assert_eq!(offset_of!(MarksFloats, one), 0x76516C - MarksFloats::START);
-        assert_eq!(
-            offset_of!(MarksFloats, three),
-            0x765174 - MarksFloats::START
-        );
-        assert_eq!(
-            offset_of!(MarksFloats, sixteen),
-            0x76518C - MarksFloats::START
-        );
-        assert_eq!(
-            offset_of!(MarksFloats, thirty_two),
-            0x765190 - MarksFloats::START
-        );
-        assert_eq!(
-            offset_of!(MarksFloats, hundred_twenty_eight),
-            0x765198 - MarksFloats::START
-        );
-        assert_eq!(
-            offset_of!(MarksFloats, two_fifty_five),
-            0x76519C - MarksFloats::START
-        );
-        assert_eq!(
-            offset_of!(MarksFloats, two_fifty_six),
-            0x7651A0 - MarksFloats::START
-        );
-        assert_eq!(
-            offset_of!(MarksFloats, two_fifty_seven),
-            0x7651A4 - MarksFloats::START
-        );
-        assert_eq!(
-            offset_of!(MarksFloats, quarter),
-            0x7651BC - MarksFloats::START
-        );
-        assert_eq!(
-            offset_of!(MarksFloats, eighth),
-            0x7651C0 - MarksFloats::START
-        );
-        assert_eq!(
-            offset_of!(MarksFloats, sixteenth),
-            0x7651C4 - MarksFloats::START
-        );
-        assert_eq!(
-            offset_of!(MarksFloats, surface_edge),
-            0x7651C8 - MarksFloats::START
-        );
-        assert_eq!(
-            offset_of!(MarksFloats, surface_pixel),
-            0x7651CC - MarksFloats::START
-        );
-        assert_eq!(
-            offset_of!(MarksFloats, thirty_second),
-            0x7651D0 - MarksFloats::START
-        );
-        assert_eq!(
-            offset_of!(MarksFloats, particle_13_place_k),
-            0x7651D4 - MarksFloats::START
-        );
-        assert_eq!(
-            offset_of!(MarksFloats, fixed_16_scale),
-            0x7651DC - MarksFloats::START
-        );
-        assert_eq!(
-            offset_of!(MarksFloats, seven_hundred),
-            0x7651E4 - MarksFloats::START
-        );
-        assert_eq!(
-            offset_of!(MarksFloats, hundred),
-            0x7651E8 - MarksFloats::START
-        );
-        assert_eq!(
-            offset_of!(MarksFloats, two_thousand),
-            0x7651F0 - MarksFloats::START
-        );
-        assert_eq!(
-            offset_of!(MarksFloats, over_65536),
-            0x765214 - MarksFloats::START
-        );
-        assert_eq!(
-            offset_of!(MarksFloats, spread_scale),
-            0x76521C - MarksFloats::START
-        );
+        assert_eq!(offset_of!(MarksFloats, pull_limit), 0x0);
+        assert_eq!(offset_of!(MarksFloats, burst_direction_k), 0xc);
+        assert_eq!(offset_of!(MarksFloats, minus_eighth), 0x10);
+        assert_eq!(offset_of!(MarksFloats, half), 0x18);
+        assert_eq!(offset_of!(MarksFloats, twentieth), 0x1c);
+        assert_eq!(offset_of!(MarksFloats, fifth), 0x24);
+        assert_eq!(offset_of!(MarksFloats, three_tenths), 0x28);
+        assert_eq!(offset_of!(MarksFloats, one), 0x2c);
+        assert_eq!(offset_of!(MarksFloats, three), 0x34);
+        assert_eq!(offset_of!(MarksFloats, sixteen), 0x4c);
+        assert_eq!(offset_of!(MarksFloats, thirty_two), 0x50);
+        assert_eq!(offset_of!(MarksFloats, hundred_twenty_eight), 0x58);
+        assert_eq!(offset_of!(MarksFloats, two_fifty_five), 0x5c);
+        assert_eq!(offset_of!(MarksFloats, two_fifty_six), 0x60);
+        assert_eq!(offset_of!(MarksFloats, two_fifty_seven), 0x64);
+        assert_eq!(offset_of!(MarksFloats, quarter), 0x7c);
+        assert_eq!(offset_of!(MarksFloats, eighth), 0x80);
+        assert_eq!(offset_of!(MarksFloats, sixteenth), 0x84);
+        assert_eq!(offset_of!(MarksFloats, surface_edge), 0x88);
+        assert_eq!(offset_of!(MarksFloats, surface_pixel), 0x8c);
+        assert_eq!(offset_of!(MarksFloats, thirty_second), 0x90);
+        assert_eq!(offset_of!(MarksFloats, particle_13_place_k), 0x94);
+        assert_eq!(offset_of!(MarksFloats, fixed_16_scale), 0x9c);
+        assert_eq!(offset_of!(MarksFloats, seven_hundred), 0xa4);
+        assert_eq!(offset_of!(MarksFloats, hundred), 0xa8);
+        assert_eq!(offset_of!(MarksFloats, two_thousand), 0xb0);
+        assert_eq!(offset_of!(MarksFloats, over_65536), 0xd4);
+        assert_eq!(offset_of!(MarksFloats, spread_scale), 0xdc);
     }
 }
 
@@ -468,28 +367,15 @@ mod marks_kind_floats_tests {
             .map(|i| unsafe { p.add(i).read() })
             .collect();
         assert!(
-            ours == crate::moved::image_bytes(MarksKindFloats::START, MarksKindFloats::LEN),
+            ours == crate::test_support::first_values::bytes(
+                "effects.owner.EFFECTS.setup.kind_floats/108"
+            ),
             "MARKS_KIND_FLOATS starts differently from the image"
         );
-        assert_eq!(
-            offset_of!(MarksKindFloats, other),
-            0x765238 - MarksKindFloats::START
-        );
-        assert_eq!(
-            offset_of!(MarksKindFloats, fading),
-            0x76523C - MarksKindFloats::START
-        );
-        assert_eq!(
-            offset_of!(MarksKindFloats, kind_floats),
-            0x765240 - MarksKindFloats::START
-        );
-        assert_eq!(
-            offset_of!(MarksKindFloats, kind_float),
-            0x76529C - MarksKindFloats::START
-        );
-        assert_eq!(
-            offset_of!(MarksKindFloats, running),
-            0x7652A0 - MarksKindFloats::START
-        );
+        assert_eq!(offset_of!(MarksKindFloats, other), 0x0);
+        assert_eq!(offset_of!(MarksKindFloats, fading), 0x4);
+        assert_eq!(offset_of!(MarksKindFloats, kind_floats), 0x8);
+        assert_eq!(offset_of!(MarksKindFloats, kind_float), 0x64);
+        assert_eq!(offset_of!(MarksKindFloats, running), 0x68);
     }
 }

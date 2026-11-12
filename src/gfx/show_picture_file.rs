@@ -104,10 +104,6 @@ mod block_tests {
     #[test]
     fn first_value_is_the_games() {
         let pictures = &gfx().pictures;
-        crate::gfx::first_values_are_the_games(&pictures.showing, SHOWING_START, SHOWING_START + 4);
-        assert_eq!(
-            crate::moved::place(SHOWING_START),
-            pictures.showing.addr() as usize
-        );
+        crate::test_support::first_values::assert_block_starts_as_the_games(&pictures.showing);
     }
 }

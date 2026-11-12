@@ -3,7 +3,7 @@
 //! take their angle in st(0) and pop it.
 //!
 //! Plain Rust (the x87's arithmetic in `X`, `math/x87_float.rs`); the
-//! original's instructions are `asm_reference` in the tests.
+//! original's instructions' results are recorded vectors in the tests (`data/vectors`).
 
 use crate::errors::{BadInput, Refused};
 use crate::math::cells::{Cells, Off};
@@ -161,160 +161,64 @@ pub fn rounded_value(v: [u8; 10]) -> f32 {
     stf(from_f80(v))
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
-    use crate::scene::asm_test::{Kind, differential, put_t80};
-
-    /// The original's instructions for `turn_matrix3_x`.
-    unsafe fn turn_x_ref(a: *mut u8, m: *mut u8) {
-        unsafe {
-            core::arch::asm!(
-                "fld tbyte ptr [{a}]", "fsincos", "fld1", "fstp dword ptr [{m}]", "fldz",
-                "fst dword ptr [{m} + 4]", "fst dword ptr [{m} + 8]",
-                "fst dword ptr [{m} + 0xC]", "fstp dword ptr [{m} + 0x18]",
-                "fst dword ptr [{m} + 0x10]", "fstp dword ptr [{m} + 0x20]",
-                "fst dword ptr [{m} + 0x14]", "fchs", "fstp dword ptr [{m} + 0x1C]",
-                a = in(reg) a,
-                m = in(reg) m,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-    }
-
-    /// The original's instructions for `turn_matrix3_y`.
-    unsafe fn turn_y_ref(a: *mut u8, m: *mut u8) {
-        unsafe {
-            core::arch::asm!(
-                "fld tbyte ptr [{a}]", "fsincos", "fld1", "fstp dword ptr [{m} + 0x10]",
-                "fldz", "fst dword ptr [{m} + 4]", "fst dword ptr [{m} + 0xC]",
-                "fst dword ptr [{m} + 0x14]", "fstp dword ptr [{m} + 0x1C]",
-                "fst dword ptr [{m}]", "fstp dword ptr [{m} + 0x20]",
-                "fst dword ptr [{m} + 8]", "fchs", "fstp dword ptr [{m} + 0x18]",
-                a = in(reg) a,
-                m = in(reg) m,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-    }
-
-    /// The original's instructions for `turn_matrix3_z`.
-    unsafe fn turn_z_ref(a: *mut u8, m: *mut u8) {
-        unsafe {
-            core::arch::asm!(
-                "fld tbyte ptr [{a}]", "fsincos", "fld1", "fstp dword ptr [{m} + 0x20]",
-                "fldz", "fst dword ptr [{m} + 8]", "fst dword ptr [{m} + 0x14]",
-                "fst dword ptr [{m} + 0x18]", "fstp dword ptr [{m} + 0x1C]",
-                "fst dword ptr [{m}]", "fstp dword ptr [{m} + 0x10]",
-                "fst dword ptr [{m} + 4]", "fchs", "fstp dword ptr [{m} + 0xC]",
-                a = in(reg) a,
-                m = in(reg) m,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-    }
-
-    /// `extended`'s instructions.
-    unsafe fn extended_ref(f: *mut u8, o: *mut u8) {
-        unsafe {
-            core::arch::asm!(
-                "fld dword ptr [{f}]", "fstp tbyte ptr [{o}]",
-                f = in(reg) f,
-                o = in(reg) o,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-    }
-
-    /// `rounded`'s instructions.
-    unsafe fn rounded_ref(v: *mut u8, o: *mut u8) {
-        unsafe {
-            core::arch::asm!(
-                "fld tbyte ptr [{v}]", "fstp dword ptr [{o}]",
-                v = in(reg) v,
-                o = in(reg) o,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-    }
+    use crate::scene::x87_mem::Base;
+    use crate::test_support::vectors::{Differential, Kind, differential, put_t80};
 
     /// The angle (an 80-bit value, dwords 0 .. 3), then the nine floats at dword 4. The sine
     /// and cosine are libm's: one float ulp apart is allowed.
-    fn turn_test(name: &str, seed: u64, reference: unsafe fn(*mut u8, *mut u8), stores: Stores) {
-        differential::<13>(
+    fn turn_test(name: &str, seed: u64, stores: Stores) {
+        let test = Differential {
             name,
-            6000,
+            cases: 6000,
             seed,
-            [Kind::Ulp1; 13],
-            |rng, m| {
+            kinds: [Kind::Ulp1; 13],
+            fill: &|rng, m| {
                 m.fill(0xAAAA_AAAA);
                 put_t80(m, 0, rng.angle());
-                m[2] = 0;
+                m[2] &= 0xFFFF;
                 m[3..].fill(0xAAAA_AAAA);
             },
-            |base| unsafe { reference(base, base.add(12)) },
-            |base| unsafe {
-                let m: [crate::session::Dword; 9] = std::array::from_fn(|n| {
-                    crate::session::Dword::new(base.add(12 + 4 * n).cast::<u32>().read())
-                });
-                turn(stores, base.cast::<[u8; 10]>().read_unaligned(), &m);
-                for (n, c) in m.iter().enumerate() {
-                    base.add(12 + 4 * n).cast::<u32>().write(c.get());
-                }
-            },
-        );
+            plain: &|c| turn(stores, Base::tbyte(c, 0), &c[3..12]),
+        };
+        differential(test);
     }
 
     #[test]
     fn turn_x_matches_the_assembly() {
-        turn_test("turn_matrix3_x", 7, turn_x_ref, TURN_X);
+        turn_test("scene.matrix3.turn_x", 7, TURN_X);
     }
 
     #[test]
     fn turn_y_matches_the_assembly() {
-        turn_test("turn_matrix3_y", 8, turn_y_ref, TURN_Y);
+        turn_test("scene.matrix3.turn_y", 8, TURN_Y);
     }
 
     #[test]
     fn turn_z_matches_the_assembly() {
-        turn_test("turn_matrix3_z", 9, turn_z_ref, TURN_Z);
+        turn_test("scene.matrix3.turn_z", 9, TURN_Z);
     }
 
     #[test]
     fn extended_and_rounded_matches_the_assembly() {
         // a float, its 80-bit value, the 80-bit value rounded back
-        differential::<8>(
-            "extended and rounded",
-            8000,
-            10,
-            [Kind::Exact; 8],
-            |rng, m| {
+        let test = Differential {
+            name: "scene.matrix3.extended_and_rounded",
+            cases: 8000,
+            seed: 10,
+            kinds: [Kind::Exact; 8],
+            fill: &|rng, m| {
                 m.fill(0xAAAA_AAAA);
                 m[0] = rng.fl();
                 put_t80(m, 16, rng.fl());
             },
-            |base| unsafe {
-                extended_ref(base, base.add(4));
-                rounded_ref(base.add(16), base.add(28));
+            plain: &|c| {
+                Base::set_tbyte(c, 4, extended(c[0].get()));
+                c[7].set(rounded(Base::tbyte(c, 16)));
             },
-            |base| unsafe {
-                base.add(4)
-                    .cast::<[u8; 10]>()
-                    .write_unaligned(extended(base.cast::<u32>().read()));
-                base.add(28)
-                    .cast::<u32>()
-                    .write_unaligned(rounded(base.add(16).cast::<[u8; 10]>().read_unaligned()));
-            },
-        );
+        };
+        differential(test);
     }
 }

@@ -195,33 +195,22 @@ pub const START: usize = 0x747998;
 /// IDA 0x747AD8, the end of the piece.
 pub const END: usize = 0x747AD8;
 
-/// Where IDA 0x747998 lives (`moved::MOVED`'s home).
-#[cfg(test)]
-pub fn item_sprites_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::menu::owner::menus().panels.item_sprites)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moved::image_bytes;
     use core::mem::size_of;
 
     #[test]
     fn item_sprites_start_as_the_games() {
         assert_eq!(size_of::<ItemSprites>(), END - START);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host(item_sprites_addr()).cast_const(),
-                END - START,
-            )
-        };
-        assert_eq!(mine, &image_bytes(START, END - START)[..]);
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &crate::menu::owner::menus().panels.item_sprites,
+        );
     }
 
     #[test]
     fn a_sprite_cell_keeps_numbers_and_lists() {
-        let c = SpriteCell::at(0x7479AC);
+        let c = SpriteCell::at(START as u32 + 0x14);
         assert_eq!(c.get(), ItemSprite::List(1));
         assert_eq!(SpriteCell::at(2).get(), ItemSprite::Sprite(2));
         assert_eq!(

@@ -21,12 +21,6 @@ pub const ROW_TABLE_ROOM: u32 = 602;
 /// The table's length.
 pub const LEN: usize = 4 * ROW_TABLE_ROOM as usize;
 
-/// Where the table is (`moved::MOVED`'s home for IDA 0x4F3FC4).
-#[cfg(test)]
-pub fn home() -> usize {
-    (crate::pointers::game_address(gfx().drawing.row_table.as_ptr())) as usize
-}
-
 /// The address the table holds for a row.
 pub fn row_address(row: u32, gfx: &crate::gfx::owner::Gfx) -> u32 {
     match gfx.drawing.row_table.get(row as usize) {
@@ -69,15 +63,8 @@ mod block_tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&gfx().drawing.row_table, START, START + LEN);
-    }
-
-    #[test]
-    fn moved_knows_the_block() {
-        assert_eq!(crate::moved::place(START), home());
-        assert_eq!(
-            crate::moved::place(START + LEN - 4),
-            gfx().drawing.row_table[601].addr() as usize
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &gfx().drawing.row_table,
         );
     }
 }

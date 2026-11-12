@@ -10,7 +10,7 @@ use crate::errors::Refused;
 use crate::owners::Owners;
 use crate::screens::service_boxes::quad;
 
-pub fn draw_bottom_panel(o: Owners<'_>) -> Result<(), Refused> {
+pub fn draw_bottom_panel(o: Owners<'static>) -> Result<(), Refused> {
     let menus = o.menus;
     // The logic is in `rc2k_core::screens::panels::bottom_panel`.
     for a in

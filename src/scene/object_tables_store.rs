@@ -73,14 +73,6 @@ pub const END: usize = 0x5D0AE0;
 
 const _: () = assert!(END - START == core::mem::size_of::<ObjectTables>());
 
-/// Where IDA 0x5CCE7C is now (its own static).
-#[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(
-        &crate::scene::owner::scene().objects.tables,
-    ))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -89,22 +81,15 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&scene().objects.tables, START, END);
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &scene().objects.tables,
+        );
     }
 
     #[test]
     fn piece_has_its_home() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            piece_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
-        assert_eq!(
-            crate::moved::place(END - 1),
-            (piece_addr() + (END - START) as u32 - 1) as usize
-        );
-        assert_eq!(offset_of!(ObjectTables, slot_kinds), 0x5CCE7C - START);
-        assert_eq!(offset_of!(ObjectTables, d3d_drawing_on), 0x5CDA8C - START);
-        assert_eq!(offset_of!(ObjectTables, video_levels), 0x5CFAE0 - START);
+        assert_eq!(offset_of!(ObjectTables, slot_kinds), 0x0);
+        assert_eq!(offset_of!(ObjectTables, d3d_drawing_on), 0xc10);
+        assert_eq!(offset_of!(ObjectTables, video_levels), 0x2c64);
     }
 }

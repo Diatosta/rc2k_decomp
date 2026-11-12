@@ -53,13 +53,8 @@ mod tests {
     fn sealwork_starts_as_the_games() {
         let size = size_of::<SealWork>();
         assert!(12 + SealWork::LEN <= size && size <= (12 + SealWork::LEN).next_multiple_of(16));
-        let image = crate::moved::image_bytes(SealWork::START, SealWork::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(crate::moved::place(SealWork::START)).cast_const(),
-                SealWork::LEN,
-            )
-        };
-        assert_eq!(mine, &image[..]);
+        crate::test_support::first_values::assert_store_starts_as_the_games(
+            "store:race.owner.RACE.replay.seal_work",
+        );
     }
 }

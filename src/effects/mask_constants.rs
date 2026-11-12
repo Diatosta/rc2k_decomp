@@ -97,12 +97,6 @@ impl MaskConstants {
 impl MaskConstants {
     pub const START: usize = 0x89C994;
     pub const LEN: usize = 0x9C;
-    #[cfg(test)]
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    #[cfg(test)]
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const effects().setup.mask_constants) as usize
-    }
 }
 
 #[cfg(test)]
@@ -113,60 +107,29 @@ mod typed_tests {
     #[test]
     fn mask_constants_starts_as_the_games() {
         assert_eq!(size_of::<MaskConstants>(), MaskConstants::LEN);
-        let image = crate::moved::image_bytes(MaskConstants::START, MaskConstants::LEN);
+        let image = crate::test_support::first_values::bytes(
+            "effects.owner.EFFECTS.setup.mask_constants/156",
+        );
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(MaskConstants::home()).cast_const(),
+                (&raw const effects().setup.mask_constants).cast::<u8>(),
                 MaskConstants::LEN,
             )
         };
         assert!(
-            mine == &image[..],
+            mine == image,
             "MASK_CONSTANTS starts differently from the image"
         );
-        assert_eq!(
-            offset_of!(MaskConstants, rates),
-            0x89C99C - MaskConstants::START
-        );
-        assert_eq!(
-            offset_of!(MaskConstants, ones),
-            0x89C9A4 - MaskConstants::START
-        );
-        assert_eq!(
-            offset_of!(MaskConstants, ring_scales),
-            0x89C9B0 - MaskConstants::START
-        );
-        assert_eq!(
-            offset_of!(MaskConstants, row_add),
-            0x89C9BC - MaskConstants::START
-        );
-        assert_eq!(
-            offset_of!(MaskConstants, steps),
-            0x89C9C4 - MaskConstants::START
-        );
-        assert_eq!(
-            offset_of!(MaskConstants, corner_angles),
-            0x89C9CC - MaskConstants::START
-        );
-        assert_eq!(
-            offset_of!(MaskConstants, divisors),
-            0x89C9EC - MaskConstants::START
-        );
-        assert_eq!(
-            offset_of!(MaskConstants, flips),
-            0x89C9F4 - MaskConstants::START
-        );
-        assert_eq!(
-            offset_of!(MaskConstants, pair_scales),
-            0x89C9FC - MaskConstants::START
-        );
-        assert_eq!(
-            offset_of!(MaskConstants, pixel_constants),
-            0x89CA0C - MaskConstants::START
-        );
-        assert_eq!(
-            offset_of!(MaskConstants, row_lengths),
-            0x89CA24 - MaskConstants::START
-        );
+        assert_eq!(offset_of!(MaskConstants, rates), 0x8);
+        assert_eq!(offset_of!(MaskConstants, ones), 0x10);
+        assert_eq!(offset_of!(MaskConstants, ring_scales), 0x1c);
+        assert_eq!(offset_of!(MaskConstants, row_add), 0x28);
+        assert_eq!(offset_of!(MaskConstants, steps), 0x30);
+        assert_eq!(offset_of!(MaskConstants, corner_angles), 0x38);
+        assert_eq!(offset_of!(MaskConstants, divisors), 0x58);
+        assert_eq!(offset_of!(MaskConstants, flips), 0x60);
+        assert_eq!(offset_of!(MaskConstants, pair_scales), 0x68);
+        assert_eq!(offset_of!(MaskConstants, pixel_constants), 0x78);
+        assert_eq!(offset_of!(MaskConstants, row_lengths), 0x90);
     }
 }

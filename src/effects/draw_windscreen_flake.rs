@@ -15,12 +15,14 @@ use crate::effects::tuning::MarksKindFloats;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::session::read_bits;
 
-use crate::d3d::vertices_store::VERTICES;
 const FAR_ENOUGH: i32 = 0x4580_0000; // 4096.0
 
 /// The item's texture shift added to the places.
-fn shifted_places(item: &WindscreenFlakeItem) {
-    shifted_places_x87(item);
+fn shifted_places(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
+    item: &WindscreenFlakeItem,
+) {
+    shifted_places_x87(buffer, item);
 }
 
 /// The corners, from the two values on the x87 stack.
@@ -29,12 +31,17 @@ fn corners(fl: &WindscreenFlakes, v: &[[u8; 10]; 2]) {
 }
 
 /// The corners projected, and their depth.
-fn projected(fl: &WindscreenFlakes, effects: &crate::effects::owner::Effects) {
-    projected_x87(&effects.setup.kind_floats, &fl.tables);
+fn projected(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
+    fl: &WindscreenFlakes,
+    effects: &crate::effects::owner::Effects,
+) {
+    projected_x87(buffer, &effects.setup.kind_floats, &fl.tables);
 }
 
 /// Draws `item` in `colour`.
 pub fn draw_windscreen_flake(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
     fl: &WindscreenFlakes,
     item: &WindscreenFlakeItem,
     colour: u32,
@@ -44,19 +51,19 @@ pub fn draw_windscreen_flake(
 ) {
     let [a, pb, c, d]: [u32; 4] = read_bits(&fl.state.places);
     for (n, (u, v)) in [(a, pb), (c, pb), (c, d), (a, d)].into_iter().enumerate() {
-        VERTICES.vertices[n].u.set_bits(u);
-        VERTICES.vertices[n].v.set_bits(v);
+        buffer.vertices[n].u.set_bits(u);
+        buffer.vertices[n].v.set_bits(v);
     }
-    shifted_places(item);
+    shifted_places(buffer, item);
     corners(fl, &shares);
     if fl.tables.corners[0][2].bits() as i32 <= FAR_ENOUGH {
         return;
     }
-    projected(fl, effects);
+    projected(buffer, fl, effects);
     for n in 0..4 {
-        VERTICES.vertices[n].colour.set(colour);
+        buffer.vertices[n].colour.set(colour);
     }
-    crate::effects::clip_quad::draw_fan(scene);
+    crate::effects::clip_quad::draw_fan(buffer, scene);
 }
 
 use crate::effects::plain::{ld_cell, st_cell};
@@ -64,31 +71,34 @@ use crate::effects::windscreen_flakes_store::{WindscreenFlakeItem, WindscreenFla
 use crate::math::x87_float as bh;
 
 /// `shifted_places`'s x87 block as plain Rust on the x87 model (24 instructions), same order and memory places.
-fn shifted_places_x87(item: &WindscreenFlakeItem) {
+fn shifted_places_x87(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
+    item: &WindscreenFlakeItem,
+) {
     let t0 = ld_cell(&item.texture_u);
-    let t1 = t0 + ld_cell(&VERTICES.vertices[0].u);
-    st_cell(&VERTICES.vertices[0].u, t1);
+    let t1 = t0 + ld_cell(&buffer.vertices[0].u);
+    st_cell(&buffer.vertices[0].u, t1);
     let t2 = ld_cell(&item.texture_u);
-    let t3 = t2 + ld_cell(&VERTICES.vertices[1].u);
-    st_cell(&VERTICES.vertices[1].u, t3);
+    let t3 = t2 + ld_cell(&buffer.vertices[1].u);
+    st_cell(&buffer.vertices[1].u, t3);
     let t4 = ld_cell(&item.texture_u);
-    let t5 = t4 + ld_cell(&VERTICES.vertices[2].u);
-    st_cell(&VERTICES.vertices[2].u, t5);
+    let t5 = t4 + ld_cell(&buffer.vertices[2].u);
+    st_cell(&buffer.vertices[2].u, t5);
     let t6 = ld_cell(&item.texture_u);
-    let t7 = t6 + ld_cell(&VERTICES.vertices[3].u);
-    st_cell(&VERTICES.vertices[3].u, t7);
+    let t7 = t6 + ld_cell(&buffer.vertices[3].u);
+    st_cell(&buffer.vertices[3].u, t7);
     let t8 = ld_cell(&item.texture_v);
-    let t9 = t8 + ld_cell(&VERTICES.vertices[0].v);
-    st_cell(&VERTICES.vertices[0].v, t9);
+    let t9 = t8 + ld_cell(&buffer.vertices[0].v);
+    st_cell(&buffer.vertices[0].v, t9);
     let t10 = ld_cell(&item.texture_v);
-    let t11 = t10 + ld_cell(&VERTICES.vertices[1].v);
-    st_cell(&VERTICES.vertices[1].v, t11);
+    let t11 = t10 + ld_cell(&buffer.vertices[1].v);
+    st_cell(&buffer.vertices[1].v, t11);
     let t12 = ld_cell(&item.texture_v);
-    let t13 = t12 + ld_cell(&VERTICES.vertices[2].v);
-    st_cell(&VERTICES.vertices[2].v, t13);
+    let t13 = t12 + ld_cell(&buffer.vertices[2].v);
+    st_cell(&buffer.vertices[2].v, t13);
     let t14 = ld_cell(&item.texture_v);
-    let t15 = t14 + ld_cell(&VERTICES.vertices[3].v);
-    st_cell(&VERTICES.vertices[3].v, t15);
+    let t15 = t14 + ld_cell(&buffer.vertices[3].v);
+    st_cell(&buffer.vertices[3].v, t15);
 }
 
 /// `corners`'s x87 block as plain Rust on the x87 model (56 instructions), same order and memory places.
@@ -145,7 +155,11 @@ fn corners_x87(v: &[[u8; 10]; 2], sq: &WindscreenFlakeTables) {
 }
 
 /// `projected`'s x87 block as plain Rust on the x87 model (64 instructions), same order and memory places.
-fn projected_x87(k: &MarksKindFloats, sq: &WindscreenFlakeTables) {
+fn projected_x87(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
+    k: &MarksKindFloats,
+    sq: &WindscreenFlakeTables,
+) {
     let t0 = crate::math::x87_float::ld(
         crate::scene::polygon_work::front_end()
             .window
@@ -182,12 +196,12 @@ fn projected_x87(k: &MarksKindFloats, sq: &WindscreenFlakeTables) {
         + crate::math::x87_float::ld(
             crate::scene::polygon_work::front_end().window.view_centre[1].get(),
         );
-    st_cell(&VERTICES.vertices[0].y, t12);
+    st_cell(&buffer.vertices[0].y, t12);
     let t13 = t10
         + crate::math::x87_float::ld(
             crate::scene::polygon_work::front_end().window.view_centre[0].get(),
         );
-    st_cell(&VERTICES.vertices[0].x, t13);
+    st_cell(&buffer.vertices[0].x, t13);
     let t14 = sq.corners[1][1].ld();
     let t15 = t14 * t5;
     let t16 = t5 * sq.corners[1][0].ld();
@@ -196,12 +210,12 @@ fn projected_x87(k: &MarksKindFloats, sq: &WindscreenFlakeTables) {
         + crate::math::x87_float::ld(
             crate::scene::polygon_work::front_end().window.view_centre[1].get(),
         );
-    st_cell(&VERTICES.vertices[1].y, t18);
+    st_cell(&buffer.vertices[1].y, t18);
     let t19 = t16
         + crate::math::x87_float::ld(
             crate::scene::polygon_work::front_end().window.view_centre[0].get(),
         );
-    st_cell(&VERTICES.vertices[1].x, t19);
+    st_cell(&buffer.vertices[1].x, t19);
     let t20 = sq.corners[2][1].ld();
     let t21 = t20 * t3;
     let t22 = t3 * sq.corners[2][0].ld();
@@ -210,12 +224,12 @@ fn projected_x87(k: &MarksKindFloats, sq: &WindscreenFlakeTables) {
         + crate::math::x87_float::ld(
             crate::scene::polygon_work::front_end().window.view_centre[1].get(),
         );
-    st_cell(&VERTICES.vertices[2].y, t24);
+    st_cell(&buffer.vertices[2].y, t24);
     let t25 = t22
         + crate::math::x87_float::ld(
             crate::scene::polygon_work::front_end().window.view_centre[0].get(),
         );
-    st_cell(&VERTICES.vertices[2].x, t25);
+    st_cell(&buffer.vertices[2].x, t25);
     let t26 = sq.corners[3][1].ld();
     let t27 = t26 * t1;
     let t28 = t1 * sq.corners[3][0].ld();
@@ -224,12 +238,12 @@ fn projected_x87(k: &MarksKindFloats, sq: &WindscreenFlakeTables) {
         + crate::math::x87_float::ld(
             crate::scene::polygon_work::front_end().window.view_centre[1].get(),
         );
-    st_cell(&VERTICES.vertices[3].y, t30);
+    st_cell(&buffer.vertices[3].y, t30);
     let t31 = t28
         + crate::math::x87_float::ld(
             crate::scene::polygon_work::front_end().window.view_centre[0].get(),
         );
-    st_cell(&VERTICES.vertices[3].x, t31);
+    st_cell(&buffer.vertices[3].x, t31);
     let t32 = sq.corners[0][2].ld();
     let t33 = t32 + k.kind_float.ld();
     let t34 = t33 * sq.inverse.ld();
@@ -242,10 +256,10 @@ fn projected_x87(k: &MarksKindFloats, sq: &WindscreenFlakeTables) {
     let t41 = sq.corners[3][2].ld();
     let t42 = t41 + k.kind_float.ld();
     let t43 = t42 * sq.inverse.ld();
-    st_cell(&VERTICES.vertices[3].z, t43);
-    st_cell(&VERTICES.vertices[2].z, t40);
-    st_cell(&VERTICES.vertices[1].z, t37);
-    st_cell(&VERTICES.vertices[0].z, t34);
+    st_cell(&buffer.vertices[3].z, t43);
+    st_cell(&buffer.vertices[2].z, t40);
+    st_cell(&buffer.vertices[1].z, t37);
+    st_cell(&buffer.vertices[0].z, t34);
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -525,7 +539,7 @@ mod asm_differential {
                 staged(
                     b[1],
                     &[0x18, 0x1C, 0x38, 0x3C, 0x58, 0x5C, 0x78, 0x7C],
-                    || super::shifted_places_x87(&item),
+                    || super::shifted_places_x87(&crate::d3d::vertices_store::VERTICES, &item),
                 );
             },
         );
@@ -672,7 +686,13 @@ mod asm_differential {
                                     0x0, 0x4, 0x8, 0x20, 0x24, 0x28, 0x40, 0x44, 0x48, 0x60, 0x64,
                                     0x68,
                                 ],
-                                || super::projected_x87(k, sq),
+                                || {
+                                    super::projected_x87(
+                                        &crate::d3d::vertices_store::VERTICES,
+                                        k,
+                                        sq,
+                                    );
+                                },
                             );
                         },
                     );

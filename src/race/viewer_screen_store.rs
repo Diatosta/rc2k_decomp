@@ -297,17 +297,17 @@ mod tests {
             .iter()
             .map(crate::session::Dword::get)
             .collect();
-        for (k, ida) in [0x5C2CE8, 0x5C2CEB, 0x5C2CEF, 0x5C2CF3]
+        for (k, ida) in [TAIL, TAIL + 3, TAIL + 7, TAIL + 11]
             .into_iter()
             .enumerate()
         {
             for (n, c) in v.untyped_tail.iter().enumerate() {
                 c.set(0xA5A5_0000 | n as u32);
             }
-            let before: Vec<u8> = v.text_ptr(0x5C2CE8).read_bytes(24, "the tail").unwrap();
+            let before: Vec<u8> = v.text_ptr(TAIL).read_bytes(24, "the tail").unwrap();
             let value = 0x1122_3344 + k as u32;
             v.tail_write(ida, value);
-            let after: Vec<u8> = v.text_ptr(0x5C2CE8).read_bytes(24, "the tail").unwrap();
+            let after: Vec<u8> = v.text_ptr(TAIL).read_bytes(24, "the tail").unwrap();
             let mut want = before.clone();
             want[ida - TAIL..ida - TAIL + 4].copy_from_slice(&value.to_le_bytes());
             assert_eq!(after, want, "{ida:#x}");
@@ -321,10 +321,13 @@ mod tests {
     #[test]
     fn the_switch_tables_name_their_pictures_as_the_image_does() {
         let v = &*VIEWER_PANEL;
-        let name =
-            |ida: usize| u32::from_le_bytes(crate::moved::image_bytes(ida, 4).try_into().unwrap());
+        let name = |k: usize| {
+            crate::test_support::first_values::dword(
+                "race.owner.RACE.replay.viewer_and_kinds.viewer_panel.switch_pictures_a[0]/36",
+                k,
+            )
+        };
         for k in 0..9usize {
-            let ida = 0x5C2C70 + 4 * k;
             // The three tables hold two, four and three names, one run.
             let (table, n) = match k {
                 0..2 => (0, k),
@@ -336,10 +339,10 @@ mod tests {
                 1 => &v.switch_pictures_b[n],
                 _ => &v.switch_pictures_c[n],
             };
-            assert_eq!(cell.get(), name(ida));
+            assert_eq!(cell.get(), name(k));
             assert_eq!(
                 v.switch_picture(table, n as u32).unwrap(),
-                v.rectangle(name(ida) as usize).unwrap()
+                v.rectangle(name(k) as usize).unwrap()
             );
         }
         assert!(v.switch_picture(0, 9).is_err());
@@ -347,28 +350,12 @@ mod tests {
     }
 
     #[test]
-    fn piece_sits_on_the_race_block() {
+    fn fields_are_at_the_games_offsets() {
         assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            piece_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
-        assert_eq!(
-            offset_of!(ViewerPanelBlock, bar_frame_rect),
-            0x5C297C - START
-        );
-        assert_eq!(offset_of!(ViewerPanelBlock, mark_rect), 0x5C29DC - START);
-        assert_eq!(
-            offset_of!(ViewerPanelBlock, place_picture_rect),
-            0x5C2AEC - START
-        );
-        assert_eq!(
-            offset_of!(ViewerPanelBlock, reciprocal_width_800),
-            0x5C2C68 - START
-        );
-        assert_eq!(
-            offset_of!(ViewerPanelBlock, kept_patch_switches),
-            0x5C2C98 - START
-        );
+        assert_eq!(offset_of!(ViewerPanelBlock, bar_frame_rect), 0x60);
+        assert_eq!(offset_of!(ViewerPanelBlock, mark_rect), 0xc0);
+        assert_eq!(offset_of!(ViewerPanelBlock, place_picture_rect), 0x1d0);
+        assert_eq!(offset_of!(ViewerPanelBlock, reciprocal_width_800), 0x34c);
+        assert_eq!(offset_of!(ViewerPanelBlock, kept_patch_switches), 0x37c);
     }
 }

@@ -18,19 +18,22 @@ use crate::physics::split_tables_store::SplitTables;
 use crate::race::groups_store::PanelAndOverlay;
 use crate::race::owner_shared::RaceShared;
 use crate::session::Dword;
-use crate::strings::append_string_by_id::append_string_by_id;
-use crate::strings::owner::strings;
+use crate::strings::append_string_by_id::append_string_by_id_in;
 use rc2k_core::physics::splits::{RIVALS, gap, rank, scaled_time, split_scale};
 
 /// A name into `text` (eight blanks first), its first eight bytes into `to`.
-fn name(id: u32, to: &[Dword; 2]) -> Result<(), crate::errors::BadInput> {
-    let strings = strings();
+fn name(
+    o: crate::owners::Owners<'static>,
+    id: u32,
+    to: &[Dword; 2],
+) -> Result<(), crate::errors::BadInput> {
+    let strings = o.strings;
     let text = &strings.text.buffer.text;
     strings.text.buffer.text.set_u32(0, 0x2020_2020);
     strings.text.buffer.text.set_u32(4, 0x2020_2020);
     let mut written = 0u32;
     let mut refused = None;
-    append_string_by_id(id, &mut |bytes| {
+    append_string_by_id_in(o, id, &mut |bytes| {
         if let Err(e) = crate::pointers::Store::store(text, written as usize, bytes) {
             refused.get_or_insert(e);
         }
@@ -43,6 +46,7 @@ fn name(id: u32, to: &[Dword; 2]) -> Result<(), crate::errors::BadInput> {
 
 // Converted: `rc2k_core::physics::splits::{split_scale, scaled_time, rank, gap}`.
 pub fn rank_split_time(
+    o: crate::owners::Owners<'static>,
     split_tables: &SplitTables,
     panel_and_overlay: &PanelAndOverlay,
     shared: &RaceShared,
@@ -84,7 +88,7 @@ pub fn rank_split_time(
         shared.car.split_gaps[3].set(split_tables.rival_cars[c - 2].get());
         let id = split_tables.rival_names[c - 2].get();
         shared.car.split_gaps[5].set(id);
-        name(id, &panel_and_overlay.overlay.label_ahead)?;
+        name(o, id, &panel_and_overlay.overlay.label_ahead)?;
     }
     if c != RIVALS {
         // The one behind: rival c - 1.
@@ -92,7 +96,7 @@ pub fn rank_split_time(
         shared.car.split_gaps[4].set(split_tables.rival_cars[c - 1].get());
         let id = split_tables.rival_names[c - 1].get();
         shared.car.split_gaps[6].set(id);
-        name(id, &panel_and_overlay.overlay.label_behind)?;
+        name(o, id, &panel_and_overlay.overlay.label_behind)?;
     }
     Ok(())
 }

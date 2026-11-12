@@ -597,35 +597,29 @@ mod tests_picks {
     #[test]
     fn picks_starts_as_the_games() {
         assert_eq!(size_of::<MaskPicks>(), MaskPicks::LEN);
-        assert_eq!(offset_of!(MaskPicks, flags), 0x844604 - MaskPicks::START);
-        assert_eq!(offset_of!(MaskPicks, index), 0x84460C - MaskPicks::START);
-        assert_eq!(offset_of!(MaskPicks, table), 0x844610 - MaskPicks::START);
-        assert_eq!(offset_of!(MaskPicks, values), 0x844A10 - MaskPicks::START);
-        assert_eq!(offset_of!(MaskPicks, shapes), 0x844E10 - MaskPicks::START);
-        assert_eq!(offset_of!(MaskPicks, mask), 0x844E14 - MaskPicks::START);
-        assert_eq!(
-            offset_of!(MaskPicks, table_in_use),
-            0x844E18 - MaskPicks::START
-        );
-        assert_eq!(offset_of!(MaskPicks, corners), 0x844E1C - MaskPicks::START);
-        assert_eq!(offset_of!(MaskPicks, moving), 0x844E2C - MaskPicks::START);
-        assert_eq!(offset_of!(MaskPicks, next), 0x844E30 - MaskPicks::START);
-        assert_eq!(offset_of!(MaskPicks, masks), 0x844E34 - MaskPicks::START);
-        assert_eq!(
-            offset_of!(MaskPicks, pixel_table_a),
-            0x844E58 - MaskPicks::START
-        );
-        assert_eq!(
-            offset_of!(MaskPicks, pixel_table_b),
-            0x864E58 - MaskPicks::START
-        );
+        assert_eq!(offset_of!(MaskPicks, flags), 0x0);
+        assert_eq!(offset_of!(MaskPicks, index), 0x8);
+        assert_eq!(offset_of!(MaskPicks, table), 0xc);
+        assert_eq!(offset_of!(MaskPicks, values), 0x40c);
+        assert_eq!(offset_of!(MaskPicks, shapes), 0x80c);
+        assert_eq!(offset_of!(MaskPicks, mask), 0x810);
+        assert_eq!(offset_of!(MaskPicks, table_in_use), 0x814);
+        assert_eq!(offset_of!(MaskPicks, corners), 0x818);
+        assert_eq!(offset_of!(MaskPicks, moving), 0x828);
+        assert_eq!(offset_of!(MaskPicks, next), 0x82c);
+        assert_eq!(offset_of!(MaskPicks, masks), 0x830);
+        assert_eq!(offset_of!(MaskPicks, pixel_table_a), 0x854);
+        assert_eq!(offset_of!(MaskPicks, pixel_table_b), 0x20854);
         let p = core::ptr::addr_of!(crate::effects::owner::effects().windscreen_drops.picks)
             .cast::<u8>();
         let now: Vec<u8> = (0..MaskPicks::LEN)
             .map(|i| unsafe { p.add(i).read() })
             .collect();
         assert!(
-            now == crate::moved::image_bytes(MaskPicks::START, MaskPicks::LEN),
+            crate::test_support::first_values::holds(
+                "effects.owner.EFFECTS.windscreen_drops.picks/264280",
+                &now
+            ),
             "PICKS starts differently from the image"
         );
     }

@@ -74,82 +74,10 @@ fn adjugate3_x87(s: &[PlainFloat; 9], d: &[PlainFloat; 9]) {
     st_cell(&d[8], t44);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
-    //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
-
-    pub(super) fn adjugate3_x87(s: usize, d: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{s} + 0x10]",
-            "fmul dword ptr [{s} + 0x20]",
-            "fld dword ptr [{s} + 0x14]",
-            "fmul dword ptr [{s} + 0x1C]",
-            ".byte 0xDE, 0xE9",
-            "fstp dword ptr [{d} + 0x0]",
-            "fld dword ptr [{s} + 0x8]",
-            "fmul dword ptr [{s} + 0x1C]",
-            "fld dword ptr [{s} + 0x4]",
-            "fmul dword ptr [{s} + 0x20]",
-            ".byte 0xDE, 0xE9",
-            "fstp dword ptr [{d} + 0x4]",
-            "fld dword ptr [{s} + 0x4]",
-            "fmul dword ptr [{s} + 0x14]",
-            "fld dword ptr [{s} + 0x8]",
-            "fmul dword ptr [{s} + 0x10]",
-            ".byte 0xDE, 0xE9",
-            "fstp dword ptr [{d} + 0x8]",
-            "fld dword ptr [{s} + 0x14]",
-            "fmul dword ptr [{s} + 0x18]",
-            "fld dword ptr [{s} + 0xC]",
-            "fmul dword ptr [{s} + 0x20]",
-            ".byte 0xDE, 0xE9",
-            "fstp dword ptr [{d} + 0xC]",
-            "fld dword ptr [{s} + 0x0]",
-            "fmul dword ptr [{s} + 0x20]",
-            "fld dword ptr [{s} + 0x8]",
-            "fmul dword ptr [{s} + 0x18]",
-            ".byte 0xDE, 0xE9",
-            "fstp dword ptr [{d} + 0x10]",
-            "fld dword ptr [{s} + 0x8]",
-            "fmul dword ptr [{s} + 0xC]",
-            "fld dword ptr [{s} + 0x0]",
-            "fmul dword ptr [{s} + 0x14]",
-            ".byte 0xDE, 0xE9",
-            "fstp dword ptr [{d} + 0x14]",
-            "fld dword ptr [{s} + 0xC]",
-            "fmul dword ptr [{s} + 0x1C]",
-            "fld dword ptr [{s} + 0x10]",
-            "fmul dword ptr [{s} + 0x18]",
-            ".byte 0xDE, 0xE9",
-            "fstp dword ptr [{d} + 0x18]",
-            "fld dword ptr [{s} + 0x4]",
-            "fmul dword ptr [{s} + 0x18]",
-            "fld dword ptr [{s} + 0x0]",
-            "fmul dword ptr [{s} + 0x1C]",
-            ".byte 0xDE, 0xE9",
-            "fstp dword ptr [{d} + 0x1C]",
-            "fld dword ptr [{s} + 0x0]",
-            "fmul dword ptr [{s} + 0x10]",
-            "fld dword ptr [{s} + 0x4]",
-            "fmul dword ptr [{s} + 0xC]",
-            ".byte 0xDE, 0xE9",
-            "fstp dword ptr [{d} + 0x20]",
-            s = in(reg) s,
-            d = in(reg) d,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-}
-
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_differential {
-    use super::asm_reference as reference;
+#[cfg(test)]
+mod reference_vectors {
     use crate::effects::asm_test::Kind::*;
-    use crate::effects::asm_test::{Op, Spec, differential};
+    use crate::effects::asm_test::{Op, Spec, recorded};
     use crate::session::PlainFloat;
 
     /// Nine floats holding the test buffer's (at `at`) dwords.
@@ -213,14 +141,10 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::adjugate3_x87(b[0], b[1]),
-            |b| {
-                let (s, d) = (staged(b[0]), staged(b[1]));
-                super::adjugate3_x87(&s, &d);
-                put_back(b[1], &d);
-            },
-        );
+        recorded("effects.adjugate3.adjugate3_x87", &SPEC, |b| {
+            let (s, d) = (staged(b[0]), staged(b[1]));
+            super::adjugate3_x87(&s, &d);
+            put_back(b[1], &d);
+        });
     }
 }

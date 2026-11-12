@@ -48,7 +48,7 @@ pub fn draw_disc(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
         hud.block.fistp_scratch.set(t);
         for k in 0..SEGMENTS {
             for (n, e) in disc_triangle(k).into_iter().enumerate() {
-                disc_vertex(hud, e, &crate::d3d::vertices_store::VERTICES.vertices[n])?;
+                disc_vertex(hud, e, &pen.vertices.vertices[n])?;
             }
             crate::hud::add_triangle::add_triangle(frame, hud, pen)?;
         }
@@ -60,9 +60,8 @@ pub fn draw_disc(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
 
 /// `negated_times_times_to_int` over the test's operand buffers (`[v + 4 k]`, the result
 /// at `[o]`), for the comparison with the original's x87 run.
-#[cfg(all(test, target_arch = "x86"))]
-fn x87_1(v: usize, o: usize) {
-    use crate::scene::x87_mem::Base;
+#[cfg(test)]
+fn x87_1(v: impl crate::scene::x87_mem::Base, o: impl crate::scene::x87_mem::Base) {
     o.set_dword(
         0,
         negated_times_times_to_int(
@@ -73,13 +72,12 @@ fn x87_1(v: usize, o: usize) {
     );
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+    use crate::test_support::vectors::{Block, In, Operand, Out, sparse};
 
     // The original's instructions, one function per run.
-    reference!(ref_0(v, o) "fld dword ptr [{v}]", "fchs", "fmul dword ptr [{v} + 4]", "fmul dword ptr [{v} + 8]", "fistp dword ptr [{o}]");
 
     fn blocks() -> Vec<Block> {
         vec![Block {
@@ -95,13 +93,12 @@ mod asm_reference {
                 },
             ],
             ulps: 0,
-            reference: |a| unsafe { ref_0(a[0], a[1]) },
-            plain: |a| x87_1(a[0], a[1]),
+            plain: |a| x87_1(a[0].cells(), a[1].cells()),
         }]
     }
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse(&blocks(), 1200, 100);
+        sparse("hud.draw_disc", &blocks(), 1200, 100);
     }
 }

@@ -4,7 +4,7 @@
 //! (out) with the time gone since the fade started.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::menu::owner::Menus;
+use crate::owners::Owners;
 
 // system::tick_count
 const DIVIDE_BY_ZERO: FatalError = FatalError {
@@ -14,16 +14,16 @@ const DIVIDE_BY_ZERO: FatalError = FatalError {
 
 /// `screens::run_frame` with `menu::fade_frame` (0x4A1E60): the messages, then (unless
 /// quitting) the frame.
-fn frame(menus: &Menus) -> Result<(), Refused> {
-    match crate::platform::run_frame_now(|| crate::menu::fade_frame::fade_frame(menus)) {
+fn frame(o: Owners<'static>) -> Result<(), Refused> {
+    match crate::platform::run_frame_now(|| crate::menu::fade_frame::fade_frame(o)) {
         Some(made) => made.map(|_| ()),
         None => Ok(()),
     }
 }
 
 /// A fade: `out` the way.
-pub fn fade(menus: &Menus, out: bool) -> Result<(), Refused> {
-    let screens = &menus.screens;
+pub fn fade(o: Owners<'static>, out: bool) -> Result<(), Refused> {
+    let screens = &o.menus.screens;
     // The logic is in `rc2k_core::menu::fades` (`too_short`, `first_see`, `step`, `over`).
     use rc2k_core::menu::fades::{self, Stop};
     let length: u32 = screens.state.menus.fade_length.get();
@@ -40,7 +40,7 @@ pub fn fade(menus: &Menus, out: bool) -> Result<(), Refused> {
             out,
             screens.state.service_ui.fade_full.get(),
         ));
-        frame(menus)?;
+        frame(o)?;
         loop {
             let gone = crate::system::tick_count::tick_count()
                 .wrapping_sub(screens.state.menus.fade_start.get());
@@ -64,7 +64,7 @@ pub fn fade(menus: &Menus, out: bool) -> Result<(), Refused> {
                     return Err(BadInput("a fade's step of 0 ms: the original divides by 0").into());
                 }
             }
-            frame(menus)?;
+            frame(o)?;
             if fades::over(
                 screens.state.menus.fade_gone.get(),
                 screens.state.menus.fade_length.get(),

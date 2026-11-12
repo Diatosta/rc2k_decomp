@@ -4,6 +4,9 @@
 //! version the statics hold the buffer's bytes, and the bytes it leaves go back to the buffer
 //! (`store::test_lock` is held by `differential`).
 
+// reason: the blocks over the race block are still compared on i686 only, against its
+// assembly; on other targets only the recorded blocks use this harness.
+#![cfg_attr(not(target_arch = "x86"), allow(dead_code))]
 use crate::effects::store::START;
 
 /// A typed static and where its first byte is in the marks' block (IDA).

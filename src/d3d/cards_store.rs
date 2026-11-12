@@ -109,28 +109,16 @@ impl Cards3d {
 impl Cards3d {
     pub const START: usize = 0x5AB4B4;
     pub const LEN: usize = 0x564;
-    #[cfg(test)]
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        (crate::pointers::game_address(&raw const crate::d3d::owner::D3D.cards) + 4) as usize
-    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn cards3d_starts_as_the_games() {
-        let size = size_of::<Cards3d>();
-        assert!(4 + Cards3d::LEN <= size && size <= (4 + Cards3d::LEN).next_multiple_of(16));
-        let image = crate::moved::image_bytes(Cards3d::START, Cards3d::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(Cards3d::home()).cast_const(),
-                Cards3d::LEN,
-            )
-        };
-        assert_eq!(mine, &image[..]);
+        let _g = crate::store::test_lock();
+        crate::test_support::first_values::assert_store_starts_as_the_games(
+            "store:d3d.owner.D3D.cards",
+        );
     }
 }

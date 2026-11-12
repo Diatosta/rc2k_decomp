@@ -172,29 +172,23 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
+        crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::race::owner::RACE.course.stage_prefs,
-            START,
-            END,
         );
     }
 
     #[test]
-    fn piece_has_its_home() {
+    fn fields_are_at_the_games_offsets() {
         assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            piece_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
-        assert_eq!(offset_of!(StagePrefs, prefs_head), 0x608CB4 - START);
-        assert_eq!(offset_of!(StagePrefs, fog_colour), 0x6092CC - START);
-        assert_eq!(offset_of!(StagePrefs, fog_end), 0x60930C - START);
-        assert_eq!(offset_of!(StagePrefs, shadow_alpha), 0x609328 - START);
-        assert_eq!(offset_of!(StagePrefs, blit_cleared), 0x609344 - START);
-        assert_eq!(offset_of!(StagePrefs, fog_far), 0x609360 - START);
-        assert_eq!(offset_of!(StagePrefs, car_light_table), 0x60A564 - START);
-        assert_eq!(offset_of!(StagePrefs, object_tints), 0x60A880 - START);
-        assert_eq!(offset_of!(StagePrefs, fog_low_by_level), 0x60ACC4 - START);
-        assert_eq!(offset_of!(StagePrefs, surface_scale), 0x60AD18 - START);
+        assert_eq!(offset_of!(StagePrefs, prefs_head), 0x0);
+        assert_eq!(offset_of!(StagePrefs, fog_colour), 0x618);
+        assert_eq!(offset_of!(StagePrefs, fog_end), 0x658);
+        assert_eq!(offset_of!(StagePrefs, shadow_alpha), 0x674);
+        assert_eq!(offset_of!(StagePrefs, blit_cleared), 0x690);
+        assert_eq!(offset_of!(StagePrefs, fog_far), 0x6ac);
+        assert_eq!(offset_of!(StagePrefs, car_light_table), 0x18b0);
+        assert_eq!(offset_of!(StagePrefs, object_tints), 0x1bcc);
+        assert_eq!(offset_of!(StagePrefs, fog_low_by_level), 0x2010);
+        assert_eq!(offset_of!(StagePrefs, surface_scale), 0x2064);
     }
 }

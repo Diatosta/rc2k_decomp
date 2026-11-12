@@ -83,14 +83,16 @@ mod shape_tilt_tests {
             .map(|i| unsafe { p.add(i).read() })
             .collect();
         assert!(
-            ours == crate::moved::image_bytes(ShapeTilt::START, ShapeTilt::LEN),
+            ours == crate::test_support::first_values::bytes(
+                "effects.owner.EFFECTS.windscreen_drops.tilt/40"
+            ),
             "SHAPE_TILT starts differently from the image"
         );
-        assert_eq!(offset_of!(ShapeTilt, tilt), 0x811BC3 - ShapeTilt::START);
-        assert_eq!(offset_of!(ShapeTilt, sine), 0x811BC7 - ShapeTilt::START);
-        assert_eq!(offset_of!(ShapeTilt, cosine), 0x811BCB - ShapeTilt::START);
-        assert_eq!(offset_of!(ShapeTilt, length), 0x811BCF - ShapeTilt::START);
-        assert_eq!(offset_of!(ShapeTilt, unit), 0x811BD3 - ShapeTilt::START);
-        assert_eq!(offset_of!(ShapeTilt, point), 0x811BDF - ShapeTilt::START);
+        assert_eq!(offset_of!(ShapeTilt, tilt), 0x0);
+        assert_eq!(offset_of!(ShapeTilt, sine), 0x4);
+        assert_eq!(offset_of!(ShapeTilt, cosine), 0x8);
+        assert_eq!(offset_of!(ShapeTilt, length), 0xc);
+        assert_eq!(offset_of!(ShapeTilt, unit), 0x10);
+        assert_eq!(offset_of!(ShapeTilt, point), 0x1c);
     }
 }

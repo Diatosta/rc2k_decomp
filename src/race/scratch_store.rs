@@ -67,17 +67,13 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&race().frame.scratch, START, END);
+        crate::test_support::first_values::assert_block_starts_as_the_games(&race().frame.scratch);
     }
 
     #[test]
-    fn piece_has_its_home() {
+    fn fields_are_at_the_games_offsets() {
         assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            piece_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
-        assert_eq!(offset_of!(FrameScratch, tangent_scratch), 0x5C5F48 - START);
-        assert_eq!(offset_of!(FrameScratch, frame_pitch), 0x5C5FB0 - START);
+        assert_eq!(offset_of!(FrameScratch, tangent_scratch), 0x0);
+        assert_eq!(offset_of!(FrameScratch, frame_pitch), 0x68);
     }
 }

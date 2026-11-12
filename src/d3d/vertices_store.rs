@@ -2,7 +2,6 @@
 //! (`race::buffers_store`). The polygon about to be drawn stands in its first vertices
 //! (`DRAW.polygon_vertex_count` says how many).
 
-use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
 /// One `TLVertex` of IDA: a Direct3D transformed and lit vertex.
@@ -35,34 +34,27 @@ pub struct PolygonVertices {
     pub vertices: [Vertex; 64],
 }
 
-/// The piece, a field of `crate::race::owner::race().shared.buffers` for the game's own thread
-/// and one of `WORKER_COPIES` for each other drawing thread.
-pub struct InBuffers;
-
-/// The drawing threads' copies but the game's thread's (`workers`).
-static WORKER_COPIES: [PolygonVertices; crate::workers::COUNT - 1] =
+/// The other drawing parts' buffers (`workers::PartScratch`; part 0's is a field of
+/// `crate::race::owner::race().shared.buffers`).
+pub(crate) static OTHER_COPIES: [PolygonVertices; crate::workers::COUNT - 1] =
     [const { crate::pointers::cells_of_bytes([0u8; core::mem::size_of::<PolygonVertices>()]) };
         crate::workers::COUNT - 1];
 
-impl core::ops::Deref for InBuffers {
+/// The tests' way to the game's thread's buffer (part 0's, `workers::game_scratch`).
+#[cfg(all(test, target_arch = "x86"))]
+pub struct GameThreadVertices;
+
+#[cfg(all(test, target_arch = "x86"))]
+impl core::ops::Deref for GameThreadVertices {
     type Target = PolygonVertices;
-    #[inline]
     fn deref(&self) -> &PolygonVertices {
-        crate::workers::pick(&race().shared.buffers.vertices, &WORKER_COPIES)
+        crate::workers::game_scratch().vertices
     }
 }
 
-#[cfg(test)]
-impl crate::workers::Copies for InBuffers {
-    fn copy(&self, n: usize) -> &(dyn crate::pointers::Store + Sync) {
-        match n {
-            0 => &race().shared.buffers.vertices,
-            n => &WORKER_COPIES[n - 1],
-        }
-    }
-}
-
-pub static VERTICES: InBuffers = InBuffers;
+/// The game's thread's buffer, for the tests.
+#[cfg(all(test, target_arch = "x86"))]
+pub static VERTICES: GameThreadVertices = GameThreadVertices;
 
 /// IDA 0x9605A0, the first byte of the piece.
 pub const START: usize = 0x9605A0;
@@ -76,17 +68,8 @@ mod tests {
     use super::*;
     use core::mem::offset_of;
 
-    fn piece_addr() -> u32 {
-        crate::pointers::game_address(core::ptr::from_ref(&*VERTICES))
-    }
-
     #[test]
     fn piece_sits_on_the_buffers() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            crate::moved::place(END - 1),
-            (piece_addr() + (END - START) as u32 - 1) as usize
-        );
         assert_eq!(offset_of!(PolygonVertices, vertices), 0);
         assert_eq!(offset_of!(Vertex, colour), 0x10);
         assert_eq!(offset_of!(Vertex, v), 0x1C);

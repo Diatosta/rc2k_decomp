@@ -363,59 +363,34 @@ pub const START: usize = 0x758806;
 /// IDA 0x758B72, the end of the piece.
 pub const END: usize = 0x758B72;
 
-/// Where IDA 0x758806 lives (`moved::MOVED`'s home).
-#[cfg(test)]
-pub fn captions_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::menu::owner::menus().tables.captions)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::menu::owner::menus;
-    use crate::moved::image_bytes;
-    use core::mem::{offset_of, size_of};
+    use core::mem::offset_of;
 
     #[test]
     fn captions_starts_as_the_games() {
         let play = &menus().play;
-        assert!(
-            END - START <= size_of::<CaptionTables>()
-                && size_of::<CaptionTables>() <= (END - START).next_multiple_of(4)
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &crate::menu::owner::menus().tables.captions,
         );
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host(captions_addr()).cast_const(),
-                END - START,
-            )
-        };
-        assert_eq!(mine, &image_bytes(START, END - START)[..]);
-        let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
-        at(offset_of!(CaptionTables, left_by_key), 0x758806);
-        at(offset_of!(CaptionTables, dword_75880a), 0x75880A);
-        at(offset_of!(CaptionTables, shown_group), 0x75880E);
-        at(offset_of!(CaptionTables, shown_stage), 0x758812);
-        at(offset_of!(CaptionTables, nationalities), 0x758816);
-        at(offset_of!(CaptionTables, duel_labels), 0x7588D2);
-        at(offset_of!(CaptionTables, place_points), 0x75892A);
-        at(offset_of!(CaptionTables, place_pointers), 0x758982);
-        at(offset_of!(CaptionTables, sum_pointers), 0x758992);
-        at(offset_of!(CaptionTables, total_pointers), 0x7589A6);
-        at(offset_of!(CaptionTables, views), 0x7589BA);
-        at(offset_of!(CaptionTables, second_views), 0x7589DA);
-        at(offset_of!(CaptionTables, caption_lists), 0x758A12);
-        // The three pointer tables' entries are the image's addresses, names of the results'
-        // arrays: they resolve to what the image's address named.
-        let image = image_bytes(0x758982, 0x7589B6 - 0x758982);
-        for (table, from, positions) in [
-            (0x758982, 0, 0x758768),
-            (0x758992, 1, 0x758798),
-            (0x7589A6, 2, 0x7587B8),
-        ] {
+        assert_eq!(offset_of!(CaptionTables, left_by_key), 0x0);
+        assert_eq!(offset_of!(CaptionTables, dword_75880a), 0x4);
+        assert_eq!(offset_of!(CaptionTables, shown_group), 0x8);
+        assert_eq!(offset_of!(CaptionTables, shown_stage), 0xc);
+        assert_eq!(offset_of!(CaptionTables, nationalities), 0x10);
+        assert_eq!(offset_of!(CaptionTables, duel_labels), 0xcc);
+        assert_eq!(offset_of!(CaptionTables, place_points), 0x124);
+        assert_eq!(offset_of!(CaptionTables, place_pointers), 0x17c);
+        assert_eq!(offset_of!(CaptionTables, sum_pointers), 0x18c);
+        assert_eq!(offset_of!(CaptionTables, total_pointers), 0x1a0);
+        assert_eq!(offset_of!(CaptionTables, views), 0x1b4);
+        assert_eq!(offset_of!(CaptionTables, second_views), 0x1d4);
+        assert_eq!(offset_of!(CaptionTables, caption_lists), 0x20c);
+        // The three pointer tables' entries name the results' arrays.
+        for from in 0..3 {
             for k in 0..4 {
-                let at = table - 0x758982 + 4 * k;
-                let name = u32::from_le_bytes(image[at..at + 4].try_into().unwrap());
-                assert_eq!(name as usize, positions + 4 * k);
                 let resolved = [
                     CaptionTables::place_of,
                     CaptionTables::sum_of,

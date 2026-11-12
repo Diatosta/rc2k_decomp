@@ -174,10 +174,14 @@ pub fn load_texture_info(
 
 /// `race::set_course_number` (0x43944F): al's two digits (tens, units, as `div 10` of the low byte)
 /// into the nine path strings (the stage's files) that hold the course's number.
-pub fn set_course_number(eax: u32, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
+pub fn set_course_number(
+    eax: u32,
+    race: &'static Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::stage::two_digits`.
     let [tens, units] = rc2k_core::race::stage::two_digits(eax as u8);
-    for place in number_places(&crate::race::owner::race().course.level_paths) {
+    for place in number_places(&race.course.level_paths) {
         place.write(&[tens, units], "a path's course number")?;
     }
     for text in [

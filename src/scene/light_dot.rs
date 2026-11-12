@@ -9,7 +9,7 @@
 //! in the factor.
 //!
 //! Plain Rust (the x87's arithmetic in `X`, `math/x87_float.rs`); the
-//! original's instructions are `asm_reference` in the tests.
+//! original's instructions' results are recorded vectors in the tests (`data/vectors`).
 
 use crate::scene::x87_mem::{Base, cells, fistp, fld};
 
@@ -42,51 +42,28 @@ fn dot(v: impl Base, o: impl Base) {
     fistp(o, 0x0, t12);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
-    use crate::scene::asm_test::{Kind, differential};
-
-    /// The original's instructions.
-    unsafe fn dot_ref(v: *mut u8, o: *mut u8) {
-        unsafe {
-            core::arch::asm!(
-                "fld dword ptr [{v}]",
-                "fmul dword ptr [{v} + 12]",
-                "fld dword ptr [{v} + 4]",
-                "fmul dword ptr [{v} + 16]",
-                "fld dword ptr [{v} + 8]",
-                "fmul dword ptr [{v} + 20]",
-                ".byte 0xDE, 0xC1", // faddp st(1), st
-                ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fmul dword ptr [{v} + 24]",
-                "fistp dword ptr [{o}]",
-                v = in(reg) v,
-                o = in(reg) o,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-    }
+    use crate::test_support::vectors::{Differential, Kind, differential};
 
     #[test]
     fn light_dot_matches_the_assembly() {
         // seven floats, then the whole number
-        differential::<8>(
-            "light_dot",
-            8000,
-            3,
-            [Kind::Exact; 8],
-            |rng, m| {
+        let test = Differential {
+            name: "scene.light_dot.light_dot",
+            cases: 8000,
+            seed: 3,
+            kinds: [Kind::Exact; 8],
+            fill: &|rng, m| {
                 let moderate = rng.below(2) == 0;
                 for d in m.iter_mut().take(7) {
                     *d = if moderate { rng.moderate() } else { rng.fl() };
                 }
                 m[7] = 0xAAAA_AAAA;
             },
-            |base| unsafe { dot_ref(base, base.add(28)) },
-            |base| unsafe { dot(base, base.add(28)) },
-        );
+            plain: &|c| dot(c, &c[7..]),
+        };
+        differential(test);
     }
 }

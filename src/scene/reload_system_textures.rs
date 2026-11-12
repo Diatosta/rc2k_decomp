@@ -39,13 +39,7 @@ const TEXTS: [&std::ffi::CStr; 4] = [
 // ---- Rust version ----
 
 // Converted: `rc2k_core::scene::pictures::{kind_picture, read_size}`
-pub fn reload_system_textures(scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let o = crate::owners::boundary();
-    reload_system_textures_in(o.race, o.gfx, o.net, scene)
-}
-
-/// `reload_system_textures` for a caller that holds the owners.
-pub fn reload_system_textures_in(
+pub fn reload_system_textures(
     race: &'static crate::race::owner::Race,
     gfx: &crate::gfx::owner::Gfx,
     net: &crate::net::owner::Net,

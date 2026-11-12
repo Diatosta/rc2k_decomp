@@ -6,7 +6,6 @@
 //! Callers: `hud::add_scaled_sprite`, `hud::add_solid_quad`, `hud::add_sprite` (reached through
 //! code at 0x4B7163, 0x4B720F, 0x4B7266).
 
-use crate::d3d::vertices_store::VERTICES;
 use crate::errors::Refused;
 use crate::hud::owner::{Hud, Pen};
 use crate::race::owner_frame::Frame;
@@ -19,7 +18,7 @@ pub fn add_quad(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     let (a, b) = (hud.block.uv_scale_x.get(), hud.block.uv_scale_y.get());
     let (vertices, _, _) = quads::quad_vertices(&q, a, b);
     for (n, v) in vertices.into_iter().enumerate() {
-        let at = &VERTICES.vertices[n];
+        let at = &pen.vertices.vertices[n];
         at.x.set(v.x);
         at.y.set(v.y);
         at.colour.set(v.colour);

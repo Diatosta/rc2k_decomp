@@ -6,15 +6,12 @@ use crate::errors::Refused;
 
 /// `sound::race_turn` while the race's sounds are on: true when it ran.
 pub fn race_turn_if(
-    sound: &crate::sound::owner::Sound,
-    input: &crate::input::owner::Input,
-    audio: &crate::audio::owner::Audio,
-    system: &crate::system::owner::System,
+    o: crate::owners::Owners<'static>,
     race: &crate::race::owner::Race,
 ) -> Result<bool, Refused> {
-    if sound.race.sounds_on.get().get() == 0 {
+    if o.sound.race.sounds_on.get().get() == 0 {
         return Ok(false);
     }
-    crate::sound::race_turn::race_turn(sound, input, audio, system, race)?;
+    crate::sound::race_turn::race_turn(o, race)?;
     Ok(true)
 }

@@ -70,7 +70,7 @@ pub fn draw_highlighted(
 }
 
 /// The six calls in order.
-pub fn run(o: crate::owners::Owners<'_>) -> Result<(), crate::errors::Refused> {
+pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
     let (scene, race, menus, system) = (o.scene, o.race, o.menus, o.system);
     let scratch = crate::race::view_scratch::front_end();
     clear_depth_buffer(scene, system, &scratch.polygon);
@@ -80,7 +80,13 @@ pub fn run(o: crate::owners::Owners<'_>) -> Result<(), crate::errors::Refused> {
     load_slot_textures_in_game(&race.frame, scene)?;
     scene.lights.state.draw_mode.set(0u32);
     // The front end's 3D draws on a slot of its own (frame plan F4).
-    let ctx = crate::race::view_scratch::DrawCtx::new(race, scene, system, scratch);
+    let ctx = crate::race::view_scratch::DrawCtx::new(
+        race,
+        scene,
+        system,
+        scratch,
+        crate::workers::game_scratch(),
+    );
     let _held = ctx.view.matrices.hold(&race.frame.matrices);
     draw_highlighted(
         &race.shared,

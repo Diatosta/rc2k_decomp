@@ -52,12 +52,6 @@ impl ScreenMode {
 impl ScreenMode {
     pub const START: usize = 0x4F492C;
     pub const LEN: usize = 0x20;
-    #[cfg(test)]
-    /// Where the byte IDA calls `START` is (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        (crate::pointers::game_address(&raw const crate::gfx::owner::GFX.unchecked().display.mode)
-            + 12) as usize
-    }
 }
 
 /// The surface the screen is drawn on (IDA 0x4F4984 .. 0x4F49C8, the image's layout).
@@ -135,47 +129,24 @@ impl DrawSurface {
 impl DrawSurface {
     pub const START: usize = 0x4F4984;
     pub const LEN: usize = 0x44;
-    #[cfg(test)]
-    /// Where the byte IDA calls `START` is (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        (crate::pointers::game_address(&raw const crate::gfx::owner::gfx().drawing.draw_surface)
-            + 4) as usize
-    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn screenmode_starts_as_the_games() {
-        let size = size_of::<ScreenMode>();
-        assert!(
-            12 + ScreenMode::LEN <= size && size <= (12 + ScreenMode::LEN).next_multiple_of(16)
+        let _g = crate::store::test_lock();
+        crate::test_support::first_values::assert_store_starts_as_the_games(
+            "store:gfx.owner.GFX.display.mode",
         );
-        let image = crate::moved::image_bytes(ScreenMode::START, ScreenMode::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(ScreenMode::home()).cast_const(),
-                ScreenMode::LEN,
-            )
-        };
-        assert_eq!(mine, &image[..]);
     }
 
     #[test]
     fn drawsurface_starts_as_the_games() {
-        let size = size_of::<DrawSurface>();
-        assert!(
-            4 + DrawSurface::LEN <= size && size <= (4 + DrawSurface::LEN).next_multiple_of(16)
+        let _g = crate::store::test_lock();
+        crate::test_support::first_values::assert_store_starts_as_the_games(
+            "store:gfx.owner.GFX.drawing.draw_surface",
         );
-        let image = crate::moved::image_bytes(DrawSurface::START, DrawSurface::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(DrawSurface::home()).cast_const(),
-                DrawSurface::LEN,
-            )
-        };
-        assert_eq!(mine, &image[..]);
     }
 }

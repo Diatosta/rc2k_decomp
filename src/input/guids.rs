@@ -77,11 +77,6 @@ impl InputGuids {
 impl InputGuids {
     pub const START: usize = 0x4F7E18;
     pub const LEN: usize = 0x1C0;
-    #[cfg(test)]
-    /// Where the byte IDA calls `START` is (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        (crate::pointers::game_address(&raw const crate::input::owner::INPUT.guids) + 8) as usize
-    }
 }
 
 /// A GUID of these by handle: `GUID_TAG | n`, `n` its place from IDA's `START`.
@@ -140,13 +135,5 @@ mod tests {
     fn inputguids_starts_as_the_games() {
         let size = size_of::<InputGuids>();
         assert!(8 + InputGuids::LEN <= size && size <= (8 + InputGuids::LEN).next_multiple_of(16));
-        let image = crate::moved::image_bytes(InputGuids::START, InputGuids::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(InputGuids::home()).cast_const(),
-                InputGuids::LEN,
-            )
-        };
-        assert_eq!(mine, &image[..]);
     }
 }

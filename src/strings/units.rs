@@ -35,7 +35,7 @@ pub fn figure_bytes(figure: Figure) -> Result<Vec<u8>, BadInput> {
 mod tests {
     #[test]
     fn setting_starts_as_the_games() {
-        let d = crate::moved::image_bytes(0x51DE2C, 4);
+        let d = crate::test_support::first_values::bytes("strings.units.UNITS/4");
         assert_eq!(u32::from_le_bytes(d.try_into().unwrap()), super::units());
     }
 }

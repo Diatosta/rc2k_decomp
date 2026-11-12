@@ -5,13 +5,6 @@
 //! The converted `strings` functions have the ids as constants (`rc2k_core::strings`);
 //! nothing reads these.
 
-/// IDA's address of the tables.
-#[cfg(test)]
-pub const START: usize = 0x51EB84;
-/// Their length.
-#[cfg(test)]
-pub const LEN: usize = 0x2C;
-
 /// The label ids by table and units setting (read by nothing: kept for the test against the
 /// image).
 #[cfg(test)]
@@ -26,8 +19,10 @@ mod tests {
 
     #[test]
     fn values_are_the_games() {
-        let image = crate::moved::image_bytes(START, LEN);
         let ours: Vec<u8> = LABEL_IDS.iter().flat_map(|id| id.to_le_bytes()).collect();
-        assert_eq!(ours, image);
+        crate::test_support::first_values::assert_matches(
+            "strings.unit_labels.LABEL_IDS/44",
+            &ours,
+        );
     }
 }

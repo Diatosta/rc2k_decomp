@@ -6,7 +6,6 @@
 //! the farthest depth.//!
 //! Caller: `effects::run_windscreen_flakes`.
 
-use crate::d3d::vertices_store::VERTICES;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 
 use crate::math::x87;
@@ -21,12 +20,21 @@ const STATES: [(u32, u32); 7] = [
     (1, 0x1B),
 ];
 
-pub fn windscreen_flakes_setup(fl: &WindscreenFlakes, scene: &crate::scene::owner::Scene) {
-    setup_with(fl, read_bits(&fl.state.setup_places), scene);
+pub fn windscreen_flakes_setup(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
+    fl: &WindscreenFlakes,
+    scene: &crate::scene::owner::Scene,
+) {
+    setup_with(buffer, fl, read_bits(&fl.state.setup_places), scene);
 }
 
 /// The set-up with the texture places `places` (`effects::pong_setup` has its own).
-pub fn setup_with(fl: &WindscreenFlakes, places: [u32; 4], scene: &crate::scene::owner::Scene) {
+pub fn setup_with(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
+    fl: &WindscreenFlakes,
+    places: [u32; 4],
+    scene: &crate::scene::owner::Scene,
+) {
     use crate::scene::set_render_state::set_render_state;
     {
         crate::scene::depth_buffer_on::depth_buffer(true);
@@ -38,16 +46,16 @@ pub fn setup_with(fl: &WindscreenFlakes, places: [u32; 4], scene: &crate::scene:
             set_render_state(value, state);
         }
         for n in 0..4 {
-            VERTICES.vertices[n].rhw.set(x87::from_int(0x100));
+            buffer.vertices[n].rhw.set(x87::from_int(0x100));
         }
         for n in 0..4 {
-            VERTICES.vertices[n].colour.set(0xFFFF_FFFFu32);
-            VERTICES.vertices[n].specular.set(0xFF00_0000u32);
+            buffer.vertices[n].colour.set(0xFFFF_FFFFu32);
+            buffer.vertices[n].specular.set(0xFF00_0000u32);
         }
         let [a, b, c, d] = places;
         for (n, (u, v)) in [(a, b), (c, b), (c, d), (a, d)].into_iter().enumerate() {
-            VERTICES.vertices[n].u.set_bits(u);
-            VERTICES.vertices[n].v.set_bits(v);
+            buffer.vertices[n].u.set_bits(u);
+            buffer.vertices[n].v.set_bits(v);
         }
         crate::scene::polygon_work::front_end()
             .polygon_vertex_count

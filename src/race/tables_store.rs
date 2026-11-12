@@ -119,27 +119,17 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&race().shared.tables, START, END);
+        crate::test_support::first_values::assert_block_starts_as_the_games(&race().shared.tables);
     }
 
     #[test]
-    fn piece_has_its_home() {
+    fn fields_are_at_the_games_offsets() {
         assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            piece_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
-        assert_eq!(
-            offset_of!(RaceTables, stage_time_factors_last),
-            0x60463C - START
-        );
-        assert_eq!(offset_of!(RaceTables, time_percentages), 0x6046CC - START);
-        assert_eq!(
-            offset_of!(RaceTables, number_before_first),
-            0x605030 - START
-        );
-        assert_eq!(offset_of!(RaceTables, start_share), 0x6051AC - START);
-        assert_eq!(offset_of!(RaceTables, pace_start_b), 0x6051C8 - START);
-        assert_eq!(offset_of!(RaceTables, view_share), 0x605260 - START);
+        assert_eq!(offset_of!(RaceTables, stage_time_factors_last), 0x0);
+        assert_eq!(offset_of!(RaceTables, time_percentages), 0x90);
+        assert_eq!(offset_of!(RaceTables, number_before_first), 0x9f4);
+        assert_eq!(offset_of!(RaceTables, start_share), 0xb70);
+        assert_eq!(offset_of!(RaceTables, pace_start_b), 0xb8c);
+        assert_eq!(offset_of!(RaceTables, view_share), 0xc24);
     }
 }

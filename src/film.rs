@@ -458,8 +458,7 @@ fn decoded_sound(audio: &[u8], channels: usize) -> Result<Vec<i16>, String> {
 
 /// The Rust version (see the header) for the path at `path`: the zero flag it leaves
 /// (true: the film's end, false for a key or a film that does not play).
-pub fn play_film(path: &dyn crate::session::TextPlace) -> bool {
-    let o = crate::owners::boundary();
+pub fn play_film(o: crate::owners::Owners<'static>, path: &dyn crate::session::TextPlace) -> bool {
     let gfx_reports = &o.gfx.reports;
     let reports: u32 = gfx_reports.on.get();
     gfx_reports.on.set(0);
@@ -578,11 +577,14 @@ fn run(film: &mut Film, gfx: &Gfx, system: &System) -> u8 {
 
 /// `gfx::play_film` for its callers (the films' loop): nothing with the setting `nofmv`
 /// (the zero flag clear); else the film at `path`, true at its end.
-pub fn play_film_now(path: &dyn crate::session::TextPlace) -> bool {
+pub fn play_film_now(
+    o: crate::owners::Owners<'static>,
+    path: &dyn crate::session::TextPlace,
+) -> bool {
     if NO_FMV.get() != 0 {
         return false;
     }
-    play_film(path)
+    play_film(o, path)
 }
 
 #[cfg(test)]

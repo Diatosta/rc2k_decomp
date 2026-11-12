@@ -39,6 +39,8 @@ fn quad_input<'a>(
 pub struct Overlay<'a> {
     pub race: &'a Race,
     pub scratch: &'a ViewScratch,
+    /// The drawing part's scratch (the game's thread's: the overlays draw after the parts).
+    pub part: &'a crate::workers::PartScratch,
     pub system: &'a System,
     pub scene: &'a Scene,
     pub strips: &'a Strips,
@@ -68,6 +70,7 @@ fn quad(
     let Overlay {
         race,
         scratch,
+        part,
         system,
         scene,
         strips: strips_store,
@@ -89,6 +92,7 @@ fn quad(
     polygon.polygon_sides[1].set(0);
     crate::scene::draw_flat_quad::draw_flat_quad(
         polygon,
+        part,
         race,
         &scratch.face,
         course,

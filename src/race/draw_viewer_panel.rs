@@ -137,6 +137,7 @@ pub fn draw_viewer_panel(
             colour,
             race.viewer_panel(),
             system,
+            crate::workers::game_scratch().vertices,
         )
     };
     // `texture_rect`: the texture's rectangle; `screen_rect`: the screen's.

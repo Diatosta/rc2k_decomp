@@ -174,34 +174,24 @@ mod tests {
         0x52A0F4,
     ];
 
-    /// The game address of the made text `id`.
-    fn address(id: u32) -> u32 {
-        use crate::pointers::GamePtr;
-        let (holder, at) = match made_place(id).unwrap() {
-            MadeText::Notice(at) => (GamePtr::to(&crate::menu::owner::menus().panels.notice), at),
-            MadeText::Buffers(at) => (
-                GamePtr::to(&*crate::screens::text_buffers_store::TEXT_BUFFERS),
-                at,
-            ),
-            MadeText::DriveRows(at) => (
-                GamePtr::to(&crate::install::owner::install().drive_rows),
-                at,
-            ),
-            MadeText::Names(at) => (GamePtr::to(&crate::install::owner::install().names), at),
-            MadeText::Vars(at) => (GamePtr::to(&crate::install::owner::install().vars), at),
-        };
-        holder.offset(at as u32).addr()
+    /// IDA's address of the made text `id`: its holder's first byte in the image (the notice
+    /// text, the screens' text buffers, the drive rows, the installer's names and its
+    /// variables, the last starting a byte before its range) and the text's offset in it.
+    fn image_address(id: u32) -> usize {
+        match made_place(id).unwrap() {
+            MadeText::Notice(at) => 0x52A263 + at,
+            MadeText::Buffers(at) => crate::screens::text_buffers_store::START + at,
+            MadeText::DriveRows(at) => crate::install::store::DriveRows::START + at,
+            MadeText::Names(at) => crate::install::vars::InstallerNames::START + at,
+            MadeText::Vars(at) => crate::install::store::InstallVars::START - 1 + at,
+        }
     }
 
     #[test]
     fn made_texts_are_where_the_images_pointers_named() {
         for (n, &ida) in IMAGE_ADDRESSES.iter().enumerate() {
             let id = MADE_TEXT_IDS.start + n as u32;
-            assert_eq!(
-                address(id),
-                crate::moved::named(ida).unwrap().addr(),
-                "{id:#X}"
-            );
+            assert_eq!(image_address(id), ida, "{id:#X}");
         }
         let o = crate::owners::boundary();
         let (race, menus, install) = (o.race, o.menus, o.install);
@@ -211,11 +201,10 @@ mod tests {
 
     #[test]
     fn caption_is_id_0x1004() {
-        assert_eq!(
-            address(0x1004),
-            crate::screens::text_buffers_store::TEXT_BUFFERS
-                .caption
-                .addr()
-        );
+        assert!(matches!(
+            made_place(0x1004).unwrap(),
+            MadeText::Buffers(at)
+                if at == core::mem::offset_of!(crate::screens::text_buffers_store::TextBuffers, caption)
+        ));
     }
 }

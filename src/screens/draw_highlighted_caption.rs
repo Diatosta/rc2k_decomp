@@ -29,7 +29,7 @@ const CAPTION_LEN: usize = 0x100;
 const ITEMS: u32 = 32;
 
 pub fn draw_highlighted_caption(
-    o: Owners<'_>,
+    o: Owners<'static>,
     measured_at: u32,
     canvas: &mut dyn Canvas,
 ) -> Result<Option<bool>, Refused> {

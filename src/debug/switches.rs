@@ -25,7 +25,7 @@ fn tick(ui: &Ui, key: u32, name: &str, cell: &Dword, about: &str) {
 }
 
 /// The tab.
-pub fn tab(o: &Owners<'_>, ui: &Ui) {
+pub fn tab(o: &Owners<'static>, ui: &Ui) {
     let session = &o.system.session;
     let shared = &o.race.shared;
     let words = &shared.vars.settings_words;

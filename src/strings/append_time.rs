@@ -21,7 +21,7 @@ pub fn append_time(hundredths: u32, show_hours: bool) -> Vec<u8> {
 mod tests {
     #[test]
     fn switch_starts_as_the_games() {
-        let d = crate::moved::image_bytes(0x4E0148, 4);
+        let d = crate::test_support::first_values::bytes("strings.append_time.SHOW_HOURS/4");
         assert_eq!(
             u32::from_le_bytes(d.try_into().unwrap()),
             super::SHOW_HOURS.get()

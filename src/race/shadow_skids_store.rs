@@ -142,23 +142,21 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&race().frame.shadow_skids, START, END);
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &race().frame.shadow_skids,
+        );
     }
 
     #[test]
-    fn piece_has_its_home() {
+    fn fields_are_at_the_games_offsets() {
         assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            crate::moved::place(END - 1),
-            (piece_addr() + (END - START) as u32 - 1) as usize
-        );
-        assert_eq!(offset_of!(ShadowSkids, shadow_work), 0x643AA4 - START);
-        assert_eq!(offset_of!(ShadowSkids, farthest_length), 0x643AB8 - START);
-        assert_eq!(offset_of!(ShadowSkids, hull_count), 0x643ACC - START);
-        assert_eq!(offset_of!(ShadowSkids, skid_grip), 0x643AD0 - START);
-        assert_eq!(offset_of!(ShadowSkids, skid_links), 0x643AE8 - START);
-        assert_eq!(offset_of!(ShadowSkids, skid_turned), 0x645AE8 - START);
-        assert_eq!(offset_of!(ShadowSkids, skid_next), 0x645B10 - START);
-        assert_eq!(offset_of!(ShadowSkids, skid_points), 0x645B18 - START);
+        assert_eq!(offset_of!(ShadowSkids, shadow_work), 0x2000);
+        assert_eq!(offset_of!(ShadowSkids, farthest_length), 0x2014);
+        assert_eq!(offset_of!(ShadowSkids, hull_count), 0x2028);
+        assert_eq!(offset_of!(ShadowSkids, skid_grip), 0x202c);
+        assert_eq!(offset_of!(ShadowSkids, skid_links), 0x2044);
+        assert_eq!(offset_of!(ShadowSkids, skid_turned), 0x4044);
+        assert_eq!(offset_of!(ShadowSkids, skid_next), 0x406c);
+        assert_eq!(offset_of!(ShadowSkids, skid_points), 0x4074);
     }
 }

@@ -29,34 +29,31 @@ impl KeyboardTables {
 }
 
 #[cfg(test)]
-impl KeyboardTables {
-    pub const START: usize = 0x4F0DC8;
-    pub const LEN: usize = 0x226C;
-}
-
-#[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn keyboardtables_starts_as_the_games() {
         let strings = strings();
-        let image = crate::moved::image_bytes(KeyboardTables::START, KeyboardTables::LEN);
         let mut mine = Vec::new();
         mine.extend_from_slice(&strings.language.keyboard._gap_4f0dc8);
         mine.extend_from_slice(&strings.language.keyboard.nec_head);
         mine.extend_from_slice(&strings.language.keyboard.nec_layout);
-        assert_eq!(mine, image);
+        crate::test_support::first_values::assert_matches(
+            "strings.keyboard_tables.KEYBOARD_TABLES/8812",
+            &mine,
+        );
     }
 
     /// The NEC layout's pointers name the offsets `input::layouts` uses.
     #[test]
     fn the_nec_layouts_tables_are_where_the_store_says() {
-        let image = crate::moved::image_bytes(0x4F0E10, 0x14);
-        for (at, offset) in [(4, 0x14), (8, 0x94), (0x10, 0x114)] {
-            let name = u32::from_le_bytes(image[at..at + 4].try_into().unwrap());
-            assert_eq!(name as usize, 0x4F0E10 + offset);
+        let word = |n| {
+            crate::test_support::first_values::dword("strings.keyboard_tables.NEC_POINTERS/20", n)
+        };
+        for (n, offset) in [(1, 0x14), (2, 0x94), (4, 0x114)] {
+            assert_eq!(word(n) as usize, 0x4F0E10 + offset);
         }
-        assert_eq!(u32::from_le_bytes(image[0xC..0x10].try_into().unwrap()), 0);
+        assert_eq!(word(3), 0);
     }
 }

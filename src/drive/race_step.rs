@@ -9,14 +9,8 @@ use crate::errors::Refused;
 use crate::race::owner::Race;
 
 // Converted: `rc2k_core::drive::race_ticks::run_ticks`.
-pub fn race_step(
-    race: &Race,
-    scene: &crate::scene::owner::Scene,
-    input: &'static crate::input::owner::Input,
-    sound: &crate::sound::owner::Sound,
-    system: &crate::system::owner::System,
-    net: &crate::net::owner::Net,
-) -> Result<(), Refused> {
+pub fn race_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
+    let net = o.net;
     let _step = crate::write_watch::step("physics");
     crate::drive::race_clock_tick::race_clock_tick(&race.shared);
     if race.shared.physics_tables.debug[1].get() == 0 {
@@ -24,7 +18,7 @@ pub fn race_step(
             race.shared.physics_tables.race_tenths.get(),
             |ecx| {
                 crate::debug::timing::note_tick();
-                { crate::drive::race_tick::race_tick(race, system, sound, input, scene, net) }?;
+                { crate::drive::race_tick::race_tick(o, race) }?;
                 hash_if_asked(race);
                 let out = crate::race::frame::players_all_out(race, net)?;
                 Ok::<_, Refused>((out, ecx))

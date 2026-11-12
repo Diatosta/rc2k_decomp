@@ -45,38 +45,22 @@ pub const START: usize = 0x75523C;
 /// IDA 0x755258, the end of the piece.
 pub const END: usize = 0x755258;
 
-/// Where IDA 0x75523C lives (`moved::MOVED`'s home).
-#[cfg(test)]
-pub fn menu_pages_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::menu::owner::menus().tables.pages)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moved::image_bytes;
-    use core::mem::{offset_of, size_of};
+    use core::mem::offset_of;
 
     #[test]
     fn menu_pages_starts_as_the_games() {
-        assert!(
-            END - START <= size_of::<MenuPages>()
-                && size_of::<MenuPages>() <= (END - START).next_multiple_of(4)
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &crate::menu::owner::menus().tables.pages,
         );
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host(menu_pages_addr()).cast_const(),
-                END - START,
-            )
-        };
-        assert_eq!(mine, &image_bytes(START, END - START)[..]);
-        let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
-        at(offset_of!(MenuPages, save_page), 0x75523C);
-        at(offset_of!(MenuPages, scores_page), 0x755240);
-        at(offset_of!(MenuPages, setup_slot_page), 0x755244);
-        at(offset_of!(MenuPages, replay_page), 0x755248);
-        at(offset_of!(MenuPages, yes_no_answer), 0x75524C);
-        at(offset_of!(MenuPages, reset_times), 0x755250);
-        at(offset_of!(MenuPages, services), 0x755254);
+        assert_eq!(offset_of!(MenuPages, save_page), 0x0);
+        assert_eq!(offset_of!(MenuPages, scores_page), 0x4);
+        assert_eq!(offset_of!(MenuPages, setup_slot_page), 0x8);
+        assert_eq!(offset_of!(MenuPages, replay_page), 0xc);
+        assert_eq!(offset_of!(MenuPages, yes_no_answer), 0x10);
+        assert_eq!(offset_of!(MenuPages, reset_times), 0x14);
+        assert_eq!(offset_of!(MenuPages, services), 0x18);
     }
 }

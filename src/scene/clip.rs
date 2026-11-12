@@ -42,9 +42,10 @@ pub enum Edge {
 
 /// The polygon's entries, each with its record.
 pub fn listed_with_records(
+    polygon_work: &'static crate::scene::polygon_store::PolygonWork,
     poly: &crate::scene::polygon_work::PolygonWork,
 ) -> Result<crate::scene::polygon::Listed, BadInput> {
-    let entries = listed(poly)?;
+    let entries = listed(polygon_work, poly)?;
     if entries.is_empty() {
         return Err(BadInput("a polygon of no vertices"));
     }
@@ -81,6 +82,7 @@ fn put_bytes(w: &mut Work, at: usize, bytes: &[u8]) {
 /// what the screen's passes keep as the clip's kept mask. Returns the entry's number; the
 /// caller lists it and counts the next free entry on.
 fn cut(
+    polygon_work: &'static crate::scene::polygon_store::PolygonWork,
     poly: &crate::scene::polygon_work::PolygonWork,
     course: &crate::race::owner_course::Course,
     edge: Edge,
@@ -98,7 +100,7 @@ fn cut(
         return Err(BadInput("no pool of records"));
     }
     let mut made = crate::scene::point_records::get_in(Some(&poly.quad_vertices), record)?;
-    let new = crate::scene::polygon::entry(number as usize)?;
+    let new = crate::scene::polygon::entry(polygon_work, number as usize)?;
     let mut w: Work = [0; 0x51];
     for (entry, record_at, entry_at, bytes_at) in [
         (a, RECORD_A, ENTRY_A, BYTES_A),
@@ -180,6 +182,7 @@ fn cut(
 /// `listed_with_records` gives them, when the caller has them already. Returns them again
 /// when the pass kept every vertex (the list is as it was), else `None`.
 pub fn clip_pass(
+    polygon_work: &'static crate::scene::polygon_store::PolygonWork,
     poly: &crate::scene::polygon_work::PolygonWork,
     course: &crate::race::owner_course::Course,
     listed: Option<crate::scene::polygon::Listed>,
@@ -189,14 +192,14 @@ pub fn clip_pass(
 ) -> Result<Option<crate::scene::polygon::Listed>, BadInput> {
     let entries = match listed {
         Some(entries) => entries,
-        None => listed_with_records(poly)?,
+        None => listed_with_records(polygon_work, poly)?,
     };
     let count = entries.len();
     let numbers: smallvec::SmallVec<[u32; 32]> = (0..count)
-        .map(|n| crate::scene::polygon::list_cell(n).get())
+        .map(|n| crate::scene::polygon::list_cell(polygon_work, n).get())
         .collect();
     for (n, &number) in numbers.iter().chain([&numbers[0]]).enumerate() {
-        crate::scene::polygon::old_list_cell(n).set(number);
+        crate::scene::polygon::old_list_cell(polygon_work, n).set(number);
     }
     let (bound, coordinate) = match edge {
         Edge::X(at) => (f32::from_bits(at) as f64, 0xC),
@@ -221,12 +224,12 @@ pub fn clip_pass(
         let (a, b) = (entries[n], entries[(n + 1) % count]);
         let (a_inside, b_inside) = (insides[n], insides[(n + 1) % count]);
         if a_inside {
-            crate::scene::polygon::list_cell(out).set(numbers[n]);
+            crate::scene::polygon::list_cell(polygon_work, out).set(numbers[n]);
             out += 1;
         }
         if a_inside != b_inside {
-            let number = cut(poly, course, edge, a, b, mask)?;
-            crate::scene::polygon::list_cell(out).set(number);
+            let number = cut(polygon_work, poly, course, edge, a, b, mask)?;
+            crate::scene::polygon::list_cell(polygon_work, out).set(number);
             poly.polygon_next_entry.set(number + 1);
             out += 1;
         }

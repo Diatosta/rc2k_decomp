@@ -1521,14 +1521,6 @@ impl StageTables {
     }
 }
 
-#[cfg(test)]
-impl StageTables {
-    /// The track pack's head.
-    pub fn trak_pak(&self) -> u32 {
-        crate::pointers::game_address(&raw const self.trak_pak)
-    }
-}
-
 /// A record's bytes.
 pub const RECORD_LEN: u32 = 0xA4;
 
@@ -1684,14 +1676,8 @@ pub const START: usize = 0x734BC6;
 pub const END: usize = 0x73B674;
 
 #[cfg(test)]
-pub fn stage_tables_addr() -> u32 {
-    crate::pointers::game_address(&raw const system().records.stage_tables) + 2
-}
-
-#[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moved::image_bytes;
     use core::mem::{offset_of, size_of};
 
     #[test]
@@ -1699,43 +1685,39 @@ mod tests {
         // Other tests write the tables (and put them back) under the lock.
         let _g = crate::store::test_lock();
         assert_eq!(size_of::<StageTables>(), END - START + 2);
-        let at = |field: usize, ida: usize| assert_eq!(field, ida - START + 2, "{ida:#X}");
-        at(offset_of!(StageTables, result_tables), 0x7354FE);
-        at(offset_of!(StageTables, group_lists), 0x735512);
-        at(offset_of!(StageTables, level_tables), 0x73555A);
-        at(offset_of!(StageTables, championship), 0x735576);
-        at(offset_of!(StageTables, events), 0x737FC2);
-        at(offset_of!(StageTables, tail), 0x73B5C2);
-        assert_eq!(stage_tables_addr() as usize % 4, START % 4);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host(stage_tables_addr()).cast_const(),
-                END - START,
-            )
-        };
-        assert_eq!(mine, &image_bytes(START, END - START)[..]);
+        assert_eq!(offset_of!(StageTables, result_tables), 0x938 + 2);
+        assert_eq!(offset_of!(StageTables, group_lists), 0x94c + 2);
+        assert_eq!(offset_of!(StageTables, level_tables), 0x994 + 2);
+        assert_eq!(offset_of!(StageTables, championship), 0x9b0 + 2);
+        assert_eq!(offset_of!(StageTables, events), 0x33fc + 2);
+        assert_eq!(offset_of!(StageTables, tail), 0x69fc + 2);
+        crate::test_support::first_values::assert_store_starts_as_the_games(
+            "store:system.owner.SYSTEM.records.stage_tables",
+        );
     }
 
-    /// The lists' names are the image's addresses and resolve to what the image's address
-    /// named: the groups' lists by two steps, the levels' tables, the results' variables.
+    /// The lists' names resolve to the tables they name: the groups' lists by two steps (the
+    /// first group's list is the first of the lists, the others follow), the levels' tables,
+    /// the results' variables.
     #[test]
-    fn the_lists_resolve_to_what_the_image_named() {
+    fn the_lists_resolve_to_what_they_name() {
         let _g = crate::store::test_lock();
-        let image = image_bytes(0x7354FE, 0x735576 - 0x7354FE);
-        let word = |ida: usize| {
-            let at = ida - 0x7354FE;
-            u32::from_le_bytes(image[at..at + 4].try_into().unwrap()) as usize
-        };
-        let table = |name: usize| stage_tables_addr() + (name - START) as u32;
         let t = &system().records.stage_tables;
+        let table = |name: u32| t.place_of(name, "x").unwrap();
+        let entries: Vec<u32> = t
+            .group_list_a
+            .iter()
+            .chain(&t.group_list_b)
+            .map(Loose::get)
+            .collect();
+        let first = t.group_lists.iter().map(Loose::get).min().unwrap();
         for group in 0..4 {
-            let list = word(0x735512 + 4 * group);
+            let at = (t.group_lists[group].get() - first) as usize / 4;
             for sub in 0..6 {
-                let name = word(list + 4 * sub);
                 assert_eq!(
                     t.group_event_table(group as u32, sub as u32)
                         .map(RecordTable::addr),
-                    Ok(table(name)),
+                    Ok(table(entries[at + sub])),
                     "group {group} sub {sub}"
                 );
             }
@@ -1743,23 +1725,23 @@ mod tests {
             assert!(t.group_event_table(group as u32, 6).is_err());
         }
         // The groups' lists, one after the other: a read past the first runs into the next.
+        let at = (t.group_lists[1].get() - first) as usize / 4;
         assert_eq!(
             t.group_event_table(1, 7).map(RecordTable::addr),
-            Ok(table(word(0x73553E)))
+            Ok(table(entries[at + 7]))
         );
         assert!(t.group_event_table(4, 0).is_err());
         for level in 0..6 {
             assert_eq!(
                 t.level_table(level as u32).map(RecordTable::addr),
-                Ok(table(word(0x73555A + 4 * level)))
+                Ok(table(t.level_tables[level].get()))
             );
         }
         assert!(t.level_table(6).is_err() && t.level_table(7).is_err());
         for n in 0..4 {
-            let name = word(0x7354FE + 4 * n);
             assert_eq!(
                 t.result_table(n as u32),
-                Ok(name - crate::menu::champ_store::START)
+                Ok(t.result_tables[n].get() as usize - crate::menu::champ_store::START)
             );
         }
         assert!(t.result_table(4).is_err());
@@ -1813,44 +1795,18 @@ mod place_tests {
     use super::*;
 
     #[test]
-    fn the_names_resolve_where_named_in_put_them() {
+    fn the_names_resolve_to_places_in_the_tables() {
         let _g = crate::store::test_lock();
         let tables = &system().records.stage_tables;
         let mut names: Vec<u32> = tables.lists().map(Loose::get).collect();
         names.extend(tables.group_lists.iter().map(Loose::get));
-        let mut valid = 0;
-        for name in names {
-            let old = crate::moved::named_in(name, START, END - START, "x");
-            let new = tables.place_of(name, "x");
-            assert_eq!(old.is_ok(), new.is_ok(), "{name:#x}");
-            if let (Ok(old), Ok(new)) = (old, new) {
-                assert_eq!(old, new, "{name:#x}");
-                valid += 1;
-            }
-        }
+        let valid = names
+            .iter()
+            .filter(|&&name| tables.place_of(name, "x").is_ok())
+            .count();
         assert!(valid > 20);
         for n in 0..8 {
-            let champ = crate::menu::champ_store::START;
-            let old = tables
-                .result_tables
-                .get(n as usize)
-                .filter(|_| n < 4)
-                .map(|e| {
-                    crate::moved::named_in(
-                        e.get(),
-                        champ,
-                        crate::menu::champ_store::END - champ,
-                        "x",
-                    )
-                });
-            match (old, tables.result_table(n)) {
-                (Some(Ok(old)), Ok(new)) => {
-                    let view = crate::menu::champ_store::champ_view_addr();
-                    assert_eq!(old, view + new as u32, "result {n}");
-                }
-                (Some(Err(_)) | None, Err(_)) => {}
-                (old, new) => panic!("result {n}: {old:?} against {new:?}"),
-            }
+            assert_eq!(tables.result_table(n).is_ok(), n < 4, "result {n}");
         }
     }
 }

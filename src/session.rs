@@ -738,11 +738,6 @@ impl<const N: usize> PlainBytes<N> {
         &self.0
     }
 
-    #[cfg(test)]
-    pub fn addr(&self) -> u32 {
-        crate::pointers::game_address(self.as_ptr())
-    }
-
     pub fn get(&self, index: usize) -> u8 {
         self.0[index].get()
     }
@@ -1249,12 +1244,6 @@ impl Clocks {
 pub const CLOCKS_IDA: usize = 0x518998;
 pub const CLOCKS_LEN: usize = core::mem::size_of::<Clocks>();
 
-/// The address of a field or an array of cells, for code that is handed an address.
-#[cfg(test)]
-pub fn address_of<T: ?Sized>(field: &T) -> u32 {
-    crate::pointers::game_address(std::ptr::from_ref::<T>(field).cast::<u8>())
-}
-
 /// `N` bytes holding `runs` ((offset, bytes)) and zeros elsewhere.
 pub const fn with_runs<const N: usize>(runs: &[(usize, &[u8])]) -> [u8; N] {
     let mut out = [0u8; N];
@@ -1533,52 +1522,33 @@ unsafe impl<S: crate::pointers::Cells> crate::pointers::Store for Window<'_, S> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moved::image_bytes;
-
-    fn bytes_of<T>(block: &'static T) -> Vec<u8> {
-        let p = std::ptr::from_ref::<T>(block).cast::<u8>();
-        (0..core::mem::size_of::<T>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect()
-    }
+    use crate::test_support::first_values::assert_block_starts_as_the_games;
 
     #[test]
-    fn the_blocks_start_as_the_images_bytes() {
+    fn the_blocks_start_as_the_games() {
         let system = system();
-        assert_eq!(
-            bytes_of(&system.session.screen),
-            image_bytes(SCREEN_IDA, SCREEN_LEN)
-        );
-        assert_eq!(
-            bytes_of(&system.session.flags),
-            image_bytes(FLAGS_IDA, FLAGS_LEN)
-        );
-        assert_eq!(
-            bytes_of(&system.session.machine),
-            image_bytes(MACHINE_IDA, MACHINE_LEN)
-        );
-        assert_eq!(
-            bytes_of(&system.session.clocks),
-            image_bytes(CLOCKS_IDA, CLOCKS_LEN)
-        );
+        assert_block_starts_as_the_games(&system.session.screen);
+        assert_block_starts_as_the_games(&system.session.flags);
+        assert_block_starts_as_the_games(&system.session.machine);
+        assert_block_starts_as_the_games(&system.session.clocks);
     }
 
     #[test]
     fn the_blocks_keep_the_images_layout() {
         use core::mem::offset_of;
-        assert_eq!(SCREEN_LEN, 0x4F4984 - 0x4F494C);
-        assert_eq!(offset_of!(Screen, format), 0x4F496C - 0x4F494C);
-        assert_eq!(FLAGS_LEN, 0x51839C - 0x518370);
-        assert_eq!(offset_of!(WindowLoopState, quitting), 0x51837C - 0x518370);
-        assert_eq!(offset_of!(WindowLoopState, paused), 0x518398 - 0x518370);
-        assert_eq!(MACHINE_LEN, 0x5184A8 - 0x5183A8);
-        assert_eq!(offset_of!(Machine, scratch), 0x5183CC - 0x5183A8);
-        assert_eq!(offset_of!(Machine, cpu_vendor), 0x5183D8 - 0x5183A8);
-        assert_eq!(offset_of!(Machine, cpu_mhz), 0x5183E8 - 0x5183A8);
-        assert_eq!(offset_of!(Machine, found_3dnow), 0x518400 - 0x5183A8);
-        assert_eq!(offset_of!(Machine, version), 0x518408 - 0x5183A8);
-        assert_eq!(offset_of!(Machine, exception_resume), 0x51849C - 0x5183A8);
-        assert_eq!(offset_of!(Machine, window), 0x5184A4 - 0x5183A8);
+        assert_eq!(SCREEN_LEN, 0x38);
+        assert_eq!(offset_of!(Screen, format), 0x20);
+        assert_eq!(FLAGS_LEN, 0x2C);
+        assert_eq!(offset_of!(WindowLoopState, quitting), 0xC);
+        assert_eq!(offset_of!(WindowLoopState, paused), 0x28);
+        assert_eq!(MACHINE_LEN, 0x100);
+        assert_eq!(offset_of!(Machine, scratch), 0x24);
+        assert_eq!(offset_of!(Machine, cpu_vendor), 0x30);
+        assert_eq!(offset_of!(Machine, cpu_mhz), 0x40);
+        assert_eq!(offset_of!(Machine, found_3dnow), 0x58);
+        assert_eq!(offset_of!(Machine, version), 0x60);
+        assert_eq!(offset_of!(Machine, exception_resume), 0xF4);
+        assert_eq!(offset_of!(Machine, window), 0xFC);
         assert_eq!(CLOCKS_LEN, 12);
     }
 }

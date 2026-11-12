@@ -91,7 +91,7 @@ fn stage_refuses(
 /// `champ_view.switch_f8`, 0x19E / 0x19D by `switch_fc`, item 3 the record's +0x38), the stage
 /// line (string 0x481) and the caption string 0x4FC + `state.menus.caption_choice`. Refuses (before anything) no
 /// stage records; a record of another track pack is the original's fatal error.
-pub fn stage_options_texts(o: Owners<'_>) -> Result<(), Refused> {
+pub fn stage_options_texts(o: Owners<'static>) -> Result<(), Refused> {
     let menus = o.menus;
     let (a, b) = (
         menus.play.champ_view.switch_f8.get(),
@@ -124,7 +124,7 @@ pub fn stage_options_texts(o: Owners<'_>) -> Result<(), Refused> {
 /// points to the record's +0x38 (the original reads the table both ways: `notes/bugs.md`),
 /// then the stage line (string 0x482) for the chosen stage number of the event's stage table. Refuses (before anything) no stage records or no
 /// item table; another track pack is the original's fatal error.
-pub fn stage_choice_texts(o: Owners<'_>) -> Result<(), Refused> {
+pub fn stage_choice_texts(o: Owners<'static>) -> Result<(), Refused> {
     let menus = o.menus;
     let (a, b) = (
         menus.screens.event.stage_group.get(),

@@ -8,7 +8,7 @@
 use crate::owners::Owners;
 use crate::sound::apply_settings::run_step;
 
-pub fn set_up_race_sounds(o: Owners<'_>) -> Result<(), crate::errors::Refused> {
+pub fn set_up_race_sounds(o: Owners<'static>) -> Result<(), crate::errors::Refused> {
     // Converted: `rc2k_core::sound::set_up::race`.
     use rc2k_core::sound::set_up::{RACE, race};
     o.sound.menu.settings_applied.get().done.set(RACE);

@@ -11,15 +11,10 @@ use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
 use crate::race::trap::Trap;
 use crate::race::view_scratch::DrawCtx;
-use crate::scene::polygon_store::{POLYGON_WORK, PolygonEntry};
+use crate::scene::polygon_store::PolygonEntry;
 use crate::session::byte_of;
 use crate::session::{Dword, Float};
 use rc2k_core::race::faces::Face;
-
-#[cfg(all(test, target_arch = "x86"))]
-fn get(a: u32) -> Result<u32, BadInput> {
-    crate::pointers::GamePtr::new(a).read("a test's face, point or entry word")
-}
 
 /// The byte `n` of a byte table held as dwords; past it refused.
 fn table_byte(
@@ -69,12 +64,15 @@ pub fn face_corners(view: &crate::race::view_scratch::ViewScratch, face: &Face) 
     corners[3]
 }
 
-/// 0x4525F8: 1 when the face's triangle at `face + half` (half 0 or 4) faces the view
+/// 0x4525F8: 1 when the face's triangle at `face`'s `+half` (half 0 or 4) faces the view
 /// (its point +8 less the view's place, `view_place_f` .., dotted with its normal +0x18,
 /// +0x30, +0x38 above 0, or not a number; the original's x87 run), 0 outside a race.
-#[cfg(all(test, target_arch = "x86"))]
-fn face_turned_to_view(race: &Race, face: u32, half: u32) -> Result<u32, BadInput> {
-    let bytes = crate::pointers::GamePtr::new(face).read::<[u8; 64]>("a test's face")?;
+#[cfg(test)]
+fn face_turned_to_view(race: &Race, face: &[u32], half: u32) -> Result<u32, BadInput> {
+    let mut bytes = [0u8; 64];
+    for (b, w) in bytes.as_chunks_mut::<4>().0.iter_mut().zip(face) {
+        b.copy_from_slice(&w.to_le_bytes());
+    }
     turned_to_view(
         race,
         &Face(bytes),
@@ -188,10 +186,14 @@ pub fn face_materials(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), BadInput> {
 /// mark nothing reads: dropped), `g_polygonDrawn` 1.
 pub fn draw_marked_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     let (race, scene) = (ctx.race, ctx.scene);
-    crate::scene::scale_texture_coordinates::scale_texture_coordinates(&ctx.view.polygon)?;
-    crate::scene::fog_polygon::fog_polygon(ctx.view)?;
+    crate::scene::scale_texture_coordinates::scale_texture_coordinates(
+        ctx.part.polygon,
+        &ctx.view.polygon,
+    )?;
+    crate::scene::fog_polygon::fog_polygon(ctx.part.polygon, ctx.view)?;
     crate::scene::draw_polygon::draw_polygon_in_game(
         &ctx.view.polygon,
+        ctx.part,
         race,
         &ctx.view.face,
         scene,
@@ -276,6 +278,7 @@ pub fn clip_and_draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     use rc2k_core::race::face_drawing::draws_polygon;
     if ctx.view.polygon.polygon_outside_count.get() != 0 {
         crate::scene::clip_polygon_by_depth::clip_polygon_by_depth(
+            ctx.part.polygon,
             &ctx.view.polygon,
             race,
             scene,
@@ -286,12 +289,17 @@ pub fn clip_and_draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
             return Ok(());
         }
     }
-    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(&ctx.view.polygon, race)?;
+    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(
+        ctx.part.polygon,
+        &ctx.view.polygon,
+        race,
+    )?;
     if !draws_polygon(ctx.view.polygon.polygon_vertex_count.get()) {
         return Ok(());
     }
     crate::scene::draw_polygon::draw_polygon_in_game(
         &ctx.view.polygon,
+        ctx.part,
         race,
         &ctx.view.face,
         scene,
@@ -515,16 +523,24 @@ pub fn face_corners_to_new_points(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
 }
 
 /// The work table's entry `slot`.
-fn entry(slot: u32) -> &'static PolygonEntry {
-    &POLYGON_WORK.entries[slot as usize]
+fn entry(
+    polygon_work: &'static crate::scene::polygon_store::PolygonWork,
+    slot: u32,
+) -> &'static PolygonEntry {
+    &polygon_work.entries[slot as usize]
 }
 
 /// One polygon entry filled from one of the face's corners: +0 its point, +8 / +0xC the
 /// first texture's u, v, +0x10 / +0x14 the second's, +0x18 its colour, +0x1C its light,
 /// +0x21 its fog byte (`corner_alphas` ..).
-fn fill_entry(work: &FaceWork, slot: u32, corner: u32) -> Result<(), BadInput> {
+fn fill_entry(
+    polygon_work: &'static crate::scene::polygon_store::PolygonWork,
+    work: &FaceWork,
+    slot: u32,
+    corner: u32,
+) -> Result<(), BadInput> {
     {
-        let e = entry(slot);
+        let e = entry(polygon_work, slot);
         let c = corner as usize;
         e.point.set(work.corners[c].get());
         e.u.set(work.uv_a[2 * c].get());
@@ -539,19 +555,27 @@ fn fill_entry(work: &FaceWork, slot: u32, corner: u32) -> Result<(), BadInput> {
 }
 
 /// The light's third byte (bits 16 .. 23) of entry `slot`: the lamps' part.
-fn lamp_byte(slot: u32) -> Result<u8, BadInput> {
-    Ok(entry(slot).byte(0x1E))
+fn lamp_byte(
+    polygon_work: &'static crate::scene::polygon_store::PolygonWork,
+    slot: u32,
+) -> Result<u8, BadInput> {
+    Ok(entry(polygon_work, slot).byte(0x1E))
 }
 
 /// `g_polygonList` 0 .. count - 1 and a closing 0, `g_polygonVertexCount` count,
 /// `g_polygonNextEntry` `next`.
-fn plain_list(poly: &crate::scene::polygon_work::PolygonWork, count: u32, next: u32) {
+fn plain_list(
+    polygon_work: &'static crate::scene::polygon_store::PolygonWork,
+    poly: &crate::scene::polygon_work::PolygonWork,
+    count: u32,
+    next: u32,
+) {
     {
         poly.polygon_vertex_count.set(count);
         for k in 0..count {
-            crate::scene::polygon::list_cell(k as usize).set(k);
+            crate::scene::polygon::list_cell(polygon_work, k as usize).set(k);
         }
-        crate::scene::polygon::list_cell(count as usize).set(0);
+        crate::scene::polygon::list_cell(polygon_work, count as usize).set(0);
         poly.polygon_next_entry.set(next);
     }
 }
@@ -567,15 +591,21 @@ pub fn draw_whole_quad(ctx: &DrawCtx<'_>) -> Result<bool, Refused> {
     // screen_inside, inside}` (the roundings the x87's).
     use rc2k_core::race::face_drawing::{QUAD_ENTRIES, quad_by_outside, screen_inside};
     for (slot, corner) in QUAD_ENTRIES {
-        fill_entry(&ctx.view.face, slot, corner)?;
+        fill_entry(ctx.part.polygon, &ctx.view.face, slot, corner)?;
     }
     for s in 0..4 {
-        if lamp_byte(s)? != 0 {
+        if lamp_byte(ctx.part.polygon, s)? != 0 {
             return Ok(true);
         }
     }
-    plain_list(&ctx.view.polygon, 4, 4);
-    crate::scene::project_polygon::project_polygon(&ctx.view.polygon, race, scene, ctx.view)?;
+    plain_list(ctx.part.polygon, &ctx.view.polygon, 4, 4);
+    crate::scene::project_polygon::project_polygon(
+        ctx.part.polygon,
+        &ctx.view.polygon,
+        race,
+        scene,
+        ctx.view,
+    )?;
     if let Some(triangles) = quad_by_outside(ctx.view.polygon.polygon_outside_count.get()) {
         return Ok(triangles);
     }
@@ -590,7 +620,7 @@ pub fn draw_whole_quad(ctx: &DrawCtx<'_>) -> Result<bool, Refused> {
         rc2k_core::race::face_drawing::inside(n, low, high)
     };
     for slot in 0..4 {
-        let v = entry(slot).record.get();
+        let v = entry(ctx.part.polygon, slot).record.get();
         if !inside(
             crate::scene::point_records::vertex(&ctx.view.polygon.quad_vertices, v, 0xC),
             left,
@@ -619,7 +649,7 @@ pub fn draw_face_triangles(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     };
     if draws_first(ctx.view.face.turned[0].get()) {
         for (slot, corner) in FIRST_TRIANGLE {
-            fill_entry(&ctx.view.face, slot, corner)?;
+            fill_entry(ctx.part.polygon, &ctx.view.face, slot, corner)?;
         }
         ctx.view.polygon.polygon_vertex_count.set(3u32);
         draw_lit_triangle(ctx)?;
@@ -627,7 +657,7 @@ pub fn draw_face_triangles(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     let fourth: u32 = ctx.view.face.corners[3].get();
     if fourth != u32::MAX && draws_second(fourth, ctx.view.face.turned[1].get()) {
         for (slot, corner) in SECOND_TRIANGLE {
-            fill_entry(&ctx.view.face, slot, corner)?;
+            fill_entry(ctx.part.polygon, &ctx.view.face, slot, corner)?;
         }
         ctx.view.polygon.polygon_vertex_count.set(3u32);
         draw_lit_triangle(ctx)?;
@@ -783,7 +813,7 @@ pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     let mmx = crate::race::frame_draw::has_mmx(ctx.system);
     let mut lit = false;
     for s in 0..3 {
-        if lamp_byte(s)? != 0 {
+        if lamp_byte(ctx.part.polygon, s)? != 0 {
             lit = true;
             break;
         }
@@ -799,25 +829,35 @@ pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         .polygon_next_record
         .set(crate::scene::polygon::pool_start());
     plain_list(
+        ctx.part.polygon,
         &ctx.view.polygon,
         ctx.view.polygon.polygon_vertex_count.get(),
         6,
     );
-    crate::scene::project_polygon::project_polygon(&ctx.view.polygon, race, scene, ctx.view)?;
+    crate::scene::project_polygon::project_polygon(
+        ctx.part.polygon,
+        &ctx.view.polygon,
+        race,
+        scene,
+        ctx.view,
+    )?;
     if ctx.view.polygon.polygon_outside_count.get() == ctx.view.polygon.polygon_vertex_count.get() {
         return Ok(());
     }
-    crate::scene::scale_texture_coordinates::scale_texture_coordinates(&ctx.view.polygon)?;
-    crate::scene::fog_polygon::fog_polygon(ctx.view)?;
+    crate::scene::scale_texture_coordinates::scale_texture_coordinates(
+        ctx.part.polygon,
+        &ctx.view.polygon,
+    )?;
+    crate::scene::fog_polygon::fog_polygon(ctx.part.polygon, ctx.view)?;
     for k in 0..3 {
-        entry(3 + k)
+        entry(ctx.part.polygon, 3 + k)
             .record
             .set(crate::scene::point_records::of_quad(k));
     }
     for (k, (first, second)) in [(0u32, 1u32), (1, 2), (2, 0)].into_iter().enumerate() {
         let v = crate::scene::point_records::of_quad(k as u32);
-        let pa = entry(first).point.get();
-        let pb = entry(second).point.get();
+        let pa = entry(ctx.part.polygon, first).point.get();
+        let pb = entry(ctx.part.polygon, second).point.get();
         let (at_a, at_b) = (
             crate::race::scene_points::point_number(&race.course, pa)?,
             crate::race::scene_points::point_number(&race.course, pb)?,
@@ -838,13 +878,18 @@ pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         halfway_vertex(
             &race.course,
             &ctx.view.polygon.quad_vertices,
-            entry(first).record.get(),
-            entry(second).record.get(),
+            entry(ctx.part.polygon, first).record.get(),
+            entry(ctx.part.polygon, second).record.get(),
             v,
             &ctx.view.polygon.window,
         )?;
-        let to = entry(3 + k as u32);
-        halfway_entry(&race.course, entry(first), entry(second), to);
+        let to = entry(ctx.part.polygon, 3 + k as u32);
+        halfway_entry(
+            &race.course,
+            entry(ctx.part.polygon, first),
+            entry(ctx.part.polygon, second),
+            to,
+        );
         crate::race::frame_draw::light_colour_at(
             race,
             scene,
@@ -858,9 +903,9 @@ pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     }
     let mode5 = ctx.view.face.polygon_mode.get() == 5;
     for slot in 0..6 {
-        let e = entry(slot);
+        let e = entry(ctx.part.polygon, slot);
         if mode5 {
-            let fog = e.amount.get() as i32 - 2 * lamp_byte(slot)? as i32;
+            let fog = e.amount.get() as i32 - 2 * lamp_byte(ctx.part.polygon, slot)? as i32;
             e.amount.set(fog.max(0) as u8);
         }
         e.light
@@ -868,9 +913,9 @@ pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     }
     for list in [[0u32, 3, 5], [1, 4, 3], [2, 5, 4], [3, 4, 5]] {
         for (k, n) in list.iter().enumerate() {
-            crate::scene::polygon::list_cell(k).set(*n);
+            crate::scene::polygon::list_cell(ctx.part.polygon, k).set(*n);
         }
-        POLYGON_WORK.list[3].set(list[0]);
+        ctx.part.polygon.list[3].set(list[0]);
         ctx.view.polygon.polygon_vertex_count.set(3u32);
         ctx.view.polygon.polygon_next_entry.set(6u32);
         clip_and_draw_face(ctx)?;
@@ -1056,63 +1101,9 @@ pub fn draw_tinted_face(ctx: &DrawCtx<'_>, face: u32) -> Result<(), Refused> {
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
-    use crate::race::owner::race;
+    use crate::race::asm_test::{Rng, at_each_control_word, lock};
 
-    // The reference blocks read and write the test's own memory plainly.
-    fn get(a: u32) -> u32 {
-        super::get(a).expect("the test's memory is registered")
-    }
-    use crate::framework::{game_write, rva};
-    use crate::race::asm_test::{Rng, Saved, at_each_control_word, lock, same};
-
-    // The original functions, verbatim.
-    pub(super) unsafe fn face_turned_to_view_asm(face: u32, half: u32) -> u32 {
-        unsafe {
-            if crate::race::owner::race()
-                .shared
-                .switches
-                .scene_set_up
-                .get()
-                == 0
-            {
-                return 0;
-            }
-            let e = face + half;
-            let p = get(e + 8)
-                .wrapping_mul(12)
-                .wrapping_add(race().course.course.scene_points.get());
-            let status: u16;
-            let old = crate::race::store::OldPlaces::lay(&[0x6062a4, 0x6062a8, 0x6062ac]);
-            core::arch::asm!(
-                "fild dword ptr [{p}]",
-                "fsub dword ptr [{rc} + 0x2062A4]",
-                "fld dword ptr [{e} + 0x18]",
-                ".byte 0xDE, 0xC9",
-                "fild dword ptr [{p} + 4]",
-                "fsub dword ptr [{rc} + 0x2062A8]",
-                "fld dword ptr [{e} + 0x30]",
-                ".byte 0xDE, 0xC9",
-                "fild dword ptr [{p} + 8]",
-                "fsub dword ptr [{rc} + 0x2062AC]",
-                "fld dword ptr [{e} + 0x38]",
-                ".byte 0xDE, 0xC9",
-                ".byte 0xDE, 0xC1",
-                ".byte 0xDE, 0xC1",
-                ".byte 0xD9, 0xEE",
-                ".byte 0xDE, 0xD9",
-                "fnstsw ax",
-                rc = in(reg) crate::race::store::asm_base(),
-                p = in(reg) p,
-                e = in(reg) e,
-                out("ax") status,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-            drop(old);
-            u32::from(status & 0x0100 != 0)
-        }
-    }
+    // The original block, verbatim.
 
     pub(super) fn frame_of_asm(t: u32, f: u32, a: u32, b: u32) -> u32 {
         let (v, mut out) = ([t, f, a, b], 0u32);
@@ -1133,187 +1124,6 @@ mod asm_reference {
         out
     }
 
-    pub(super) unsafe fn halfway_vertex_asm(a: u32, b: u32, v: u32) {
-        let course = &race().course;
-        use crate::math::x87::below_or_unordered;
-        unsafe {
-            let old = crate::race::store::OldPlaces::lay(&[0x5c5e40]);
-            core::arch::asm!(
-                "fld dword ptr [{b} + 0x10]",
-                "fsub dword ptr [{a} + 0x10]",
-                "fmul dword ptr [{rc} + 0x1C5E40]",
-                "fadd dword ptr [{a} + 0x10]",
-                "fstp dword ptr [{v} + 0x10]",
-                "fld dword ptr [{b} + 0x14]",
-                "fsub dword ptr [{a} + 0x14]",
-                "fmul dword ptr [{rc} + 0x1C5E40]",
-                "fadd dword ptr [{a} + 0x14]",
-                "fstp dword ptr [{v} + 0x14]",
-                "fld dword ptr [{b} + 0x18]",
-                "fsub dword ptr [{a} + 0x18]",
-                "fmul dword ptr [{rc} + 0x1C5E40]",
-                "fadd dword ptr [{a} + 0x18]",
-                "fstp dword ptr [{v} + 0x18]",
-                rc = in(reg) crate::race::store::asm_base(),
-                a = in(reg) a,
-                b = in(reg) b,
-                v = in(reg) v,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-            drop(old);
-            crate::pointers::host(v + 0xC)
-                .cast::<u32>()
-                .write_unaligned(0);
-            crate::pointers::host(v + 0x1C)
-                .cast::<u32>()
-                .write_unaligned(0);
-            if below_or_unordered(get(v + 0x18), course.numbers.k4096_a.get()) {
-                return;
-            }
-            if course.stage_prefs.flat_depth.get() != 0 {
-                let old = crate::race::store::OldPlaces::lay(&[
-                    0x5ccd80, 0x62400c, 0x624088, 0x62409c, 0x6240a0,
-                ]);
-                core::arch::asm!(
-                    "fld dword ptr [{v} + 0x10]",
-                    "fld dword ptr [{v} + 0x14]",
-                    "fld dword ptr [{v} + 0x18]",
-                    "fstp dword ptr [{rc} + 0x22400C]",
-                    "fild dword ptr [{rc} + 0x1CCD80]",
-                    ".byte 0xD9, 0xE8",
-                    ".byte 0xDE, 0xC1",
-                    "fld dword ptr [{rc} + 0x224088]",
-                    ".byte 0xDE, 0xF1",
-                    ".byte 0xDC, 0xC9",
-                    ".byte 0xDE, 0xCA",
-                    ".byte 0xD9, 0xE0",
-                    "fadd dword ptr [{rc} + 0x2240A0]",
-                    ".byte 0xD9, 0xC9",
-                    "fadd dword ptr [{rc} + 0x22409C]",
-                    "fstp dword ptr [{v} + 0xC]",
-                    "fstp dword ptr [{v} + 0x1C]",
-                    rc = in(reg) crate::race::store::asm_base(),
-                    v = in(reg) v,
-                    out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                    out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                    options(nostack),
-                );
-                drop(old);
-            } else {
-                let old = crate::race::store::OldPlaces::lay(&[0x624088, 0x62409c, 0x6240a0]);
-                core::arch::asm!(
-                    "fld dword ptr [{v} + 0x10]",
-                    "fld dword ptr [{v} + 0x14]",
-                    "fld dword ptr [{v} + 0x18]",
-                    "fld dword ptr [{rc} + 0x224088]",
-                    ".byte 0xDE, 0xF1",
-                    ".byte 0xDC, 0xC9",
-                    ".byte 0xDE, 0xCA",
-                    ".byte 0xD9, 0xE0",
-                    "fadd dword ptr [{rc} + 0x2240A0]",
-                    ".byte 0xD9, 0xC9",
-                    "fadd dword ptr [{rc} + 0x22409C]",
-                    "fstp dword ptr [{v} + 0xC]",
-                    "fstp dword ptr [{v} + 0x1C]",
-                    rc = in(reg) crate::race::store::asm_base(),
-                    v = in(reg) v,
-                    out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                    out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                    options(nostack),
-                );
-                drop(old);
-            }
-        }
-    }
-
-    pub(super) unsafe fn halfway_entry_asm(first: u32, second: u32, to: u32) {
-        unsafe {
-            let old = crate::race::store::OldPlaces::lay(&[0x5c5e40]);
-            core::arch::asm!(
-                "fld dword ptr [{s} + 8]",
-                "fadd dword ptr [{f} + 8]",
-                "fmul dword ptr [{rc} + 0x1C5E40]",
-                "fstp dword ptr [{t} + 8]",
-                "fld dword ptr [{s} + 0xC]",
-                "fadd dword ptr [{f} + 0xC]",
-                "fmul dword ptr [{rc} + 0x1C5E40]",
-                "fstp dword ptr [{t} + 0xC]",
-                "fld dword ptr [{s} + 0x10]",
-                "fadd dword ptr [{f} + 0x10]",
-                "fmul dword ptr [{rc} + 0x1C5E40]",
-                "fstp dword ptr [{t} + 0x10]",
-                "fld dword ptr [{s} + 0x14]",
-                "fadd dword ptr [{f} + 0x14]",
-                "fmul dword ptr [{rc} + 0x1C5E40]",
-                "fstp dword ptr [{t} + 0x14]",
-                rc = in(reg) crate::race::store::asm_base(),
-                s = in(reg) second,
-                f = in(reg) first,
-                t = in(reg) to,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-            drop(old);
-            for o in [0x20u32, 0x21, 0x18, 0x19, 0x1A] {
-                let sum = crate::pointers::host(second + o).cast_const().read() as u32
-                    + crate::pointers::host(first + o).cast_const().read() as u32;
-                crate::pointers::host(to + o).write((sum >> 1) as u8);
-            }
-        }
-    }
-
-    fn same_all(a: &[u32], b: &[u32], what: &str) {
-        for (k, (x, y)) in a.iter().zip(b).enumerate() {
-            assert!(
-                same(*x, *y),
-                "{what}: word {k}: {x:#x} {y:#x} in {a:x?} {b:x?}"
-            );
-        }
-    }
-
-    #[test]
-    fn face_turned_to_view_matches() {
-        let race = crate::race::owner::race();
-        let _l = lock();
-        let _saved = Saved::new(&[0x621480, 0x5CCCC0, 0x6062A4, 0x6062A8, 0x6062AC]);
-        let mut r = Rng(11);
-        let mut points = [0u32; 12];
-        let mut face = [0u32; 0x20];
-        at_each_control_word(|| {
-            for _ in 0..20000 {
-                race.shared.switches.scene_set_up.set(r.below(8));
-                race.course
-                    .course
-                    .scene_points
-                    .set(crate::pointers::game_address(points.as_ptr()));
-                for a in [0x6062A4, 0x6062A8, 0x6062AC] {
-                    game_write(rva(a), r.float());
-                }
-                for q in points.iter_mut() {
-                    *q = r.int() as u32;
-                }
-                for q in face.iter_mut() {
-                    *q = r.float();
-                }
-                let half = if r.below(2) == 0 { 0 } else { 4 };
-                face[(half + 8) / 4] = r.below(4);
-                let at = crate::pointers::game_address(face.as_ptr());
-                let (_r1, _r2) = (
-                    crate::race::trap::test_region(&face),
-                    crate::race::trap::test_region(&points),
-                );
-                let want = unsafe { face_turned_to_view_asm(at, half as u32) };
-                let got = crate::race::scene_points::with_test_points(&points, || {
-                    face_turned_to_view(race, at, half as u32).unwrap()
-                });
-                assert_eq!(want, got, "{face:x?} {points:x?}");
-            }
-        });
-    }
-
     #[test]
     fn frame_of_matches() {
         let _l = lock();
@@ -1329,6 +1139,55 @@ mod asm_reference {
             }
         });
     }
+}
+
+/// The blocks that read the race's state against the original's outputs, recorded
+/// (`test_support::race_vectors`).
+#[cfg(test)]
+mod vector_tests {
+    use super::*;
+    use crate::race::asm_test::{Rng, at_each_control_word, lock, same};
+    use crate::race::owner::race;
+    use crate::test_support::race_vectors::{Kind, Vectors};
+    use crate::test_support::state::Snapshot;
+
+    #[test]
+    fn face_turned_to_view_is_the_originals() {
+        let race = race();
+        let _l = lock();
+        let kept = Snapshot::of(&[
+            "race.owner.RACE.shared.switches",
+            "race.owner.RACE.course.course",
+            "race.owner.RACE.frame.view_and_records",
+        ]);
+        let mut vectors = Vectors::open("race.course_faces.face_turned_to_view", Kind::Exact, 1);
+        let mut r = Rng(11);
+        let mut points = [0u32; 12];
+        let mut face = [0u32; 0x20];
+        let place = &race.frame.view_and_records.view_vars.view_place_f;
+        at_each_control_word(|| {
+            for _ in 0..20000 {
+                race.shared.switches.scene_set_up.set(r.below(8));
+                for cell in place {
+                    cell.set_bits(r.float());
+                }
+                for q in points.iter_mut() {
+                    *q = r.int() as u32;
+                }
+                for q in face.iter_mut() {
+                    *q = r.float();
+                }
+                let half = if r.below(2) == 0 { 0 } else { 4 };
+                face[(half + 8) / 4] = r.below(4);
+                let got = crate::race::scene_points::with_test_points(&points, || {
+                    face_turned_to_view(race, &face, half as u32).unwrap()
+                });
+                vectors.check(&[got], |a, b| a == b, || format!("{face:x?} {points:x?}"));
+            }
+        });
+        kept.restore();
+        vectors.finish();
+    }
 
     fn vertex(r: &mut Rng) -> [u32; 8] {
         let mut v = [0xAAAA_AAAAu32; 8];
@@ -1339,20 +1198,24 @@ mod asm_reference {
     }
 
     #[test]
-    fn halfway_vertex_matches() {
+    fn halfway_vertex_is_the_originals() {
         let drawing = &crate::scene::owner::scene().drawing;
         let course = &race().course;
         let _l = lock();
-        let _saved = Saved::new(&[
-            0x62400C, 0x5CCD80, 0x624088, 0x6240A0, 0x62409C, 0x60932C, 0x5C5E40, 0x5C5E18,
+        let kept = Snapshot::of(&[
+            "scene.owner.SCENE.drawing.scene",
+            "race.owner.RACE.course.course",
+            "race.owner.RACE.course.stage_prefs",
+            "race.owner.RACE.course.numbers",
         ]);
+        let mut vectors = Vectors::open("race.course_faces.halfway_vertex", Kind::Exact, 8);
         let mut r = Rng(13);
         let win = crate::scene::view_window::ViewWindow::new();
         at_each_control_word(|| {
             for n in 0..20000 {
                 course.stage_prefs.flat_depth.set((n % 2) as u32);
                 course.course.flat_depth.set(r.int() as u32);
-                // The assembly reads the old window; this code the window it is given.
+                // The original read the scene's window; this code the window it is given.
                 for (old, own) in [
                     (&drawing.scene.view_scale, &win.view_scale),
                     (&drawing.scene.view_centre[1], &win.view_centre[1]),
@@ -1374,42 +1237,33 @@ mod asm_reference {
                     0x4580_0000
                 });
                 let (a, b) = (vertex(&mut r), vertex(&mut r));
-                let (mut v1, mut v2) = (vertex(&mut r), [0u32; 8]);
-                v2.copy_from_slice(&v1);
-                let (_r1, _r2, _r3) = (
-                    crate::race::trap::test_region(&a),
-                    crate::race::trap::test_region(&b),
-                    crate::race::trap::test_region(&v1),
-                );
-                unsafe {
-                    halfway_vertex_asm(
-                        crate::pointers::game_address(a.as_ptr()),
-                        crate::pointers::game_address(b.as_ptr()),
-                        crate::pointers::game_address(v1.as_mut_ptr()),
-                    );
-                };
-                halfway_record(course, &a, &b, &mut v2, &win);
-                same_all(&v1, &v2, "vertex");
-                // The assembly's depth store to 0x62400C is not kept.
+                let from = vertex(&mut r);
+                let mut got = from;
+                halfway_record(course, &a, &b, &mut got, &win);
+                // The original's depth store to the scene's scratch is not kept.
+                vectors.check(&got, same, || format!("{a:x?} {b:x?} {from:x?}"));
             }
         });
+        kept.restore();
+        vectors.finish();
     }
 
     #[test]
-    fn halfway_entry_matches() {
+    fn halfway_entry_is_the_originals() {
         let course = &race().course;
         let _l = lock();
-        let _saved = Saved::new(&[0x5C5E40]);
+        let kept = Snapshot::of(&["race.owner.RACE.course.numbers"]);
+        let mut vectors = Vectors::open("race.course_faces.halfway_entry", Kind::Exact, 10);
         let mut r = Rng(14);
         at_each_control_word(|| {
             for _ in 0..20000 {
-                race().course.numbers.half.set_bits(if r.below(2) == 0 {
+                course.numbers.half.set_bits(if r.below(2) == 0 {
                     0x3F00_0000
                 } else {
                     r.float()
                 });
                 let entry = |r: &mut Rng| {
-                    let e = PolygonEntry::zeroed();
+                    let e = crate::pointers::cells_of_bytes::<PolygonEntry, 0x44>([0; 0x44]);
                     for k in 0..10 {
                         e.set_word(
                             4 * k,
@@ -1423,31 +1277,17 @@ mod asm_reference {
                     e
                 };
                 let (f, s) = (entry(&mut r), entry(&mut r));
-                let (t1, t2) = (PolygonEntry::zeroed(), PolygonEntry::zeroed());
+                let to = crate::pointers::cells_of_bytes::<PolygonEntry, 0x44>([0; 0x44]);
                 for k in 0..10 {
-                    t1.set_word(4 * k, 0xAAAA_AAAA);
-                    t2.set_word(4 * k, 0xAAAA_AAAA);
+                    to.set_word(4 * k, 0xAAAA_AAAA);
                 }
-                let at = |e: &PolygonEntry| {
-                    crate::pointers::game_address(std::ptr::from_ref::<PolygonEntry>(e))
-                };
-                let (_r1, _r2, _r3) = (
-                    crate::race::trap::test_region(std::slice::from_ref(&f)),
-                    crate::race::trap::test_region(std::slice::from_ref(&s)),
-                    crate::race::trap::test_region(std::slice::from_ref(&t1)),
-                );
-                unsafe { halfway_entry_asm(at(&f), at(&s), at(&t1)) };
-                halfway_entry(course, &f, &s, &t2);
-                // the bytes compare as they are, the floats as floats
-                for k in 0..10 {
-                    let (a, b) = (t1.word(4 * k), t2.word(4 * k));
-                    if (2..6).contains(&k) {
-                        assert!(same(a, b), "word {k}: {a:#x} {b:#x}");
-                    } else {
-                        assert_eq!(a, b, "word {k}");
-                    }
-                }
+                halfway_entry(course, &f, &s, &to);
+                let got: [u32; 10] = std::array::from_fn(|k| to.word(4 * k));
+                // The floats (words 2 .. 6) compare as floats, the bytes as they are.
+                vectors.check(&got, same, String::new);
             }
         });
+        kept.restore();
+        vectors.finish();
     }
 }

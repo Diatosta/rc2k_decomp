@@ -23,14 +23,6 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&gfx().drawing.thirds, START, START + TABLE_LEN);
-    }
-
-    #[test]
-    fn moved_knows_the_block() {
-        assert_eq!(
-            crate::moved::place(START),
-            gfx().drawing.thirds.addr() as usize
-        );
+        crate::test_support::first_values::assert_block_starts_as_the_games(&gfx().drawing.thirds);
     }
 }

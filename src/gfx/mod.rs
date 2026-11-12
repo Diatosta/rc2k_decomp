@@ -103,28 +103,9 @@ pub mod typefaces;
 pub mod upload;
 pub mod windscreen_drop_batch;
 
-/// The test of every typed block of this module: the static's bytes are the image's.
-#[cfg(test)]
-pub(crate) fn first_values_are_the_games<T>(block: &'static T, start: usize, end: usize) {
-    let _g = crate::store::test_lock();
-    let len = end - start;
-    let size = core::mem::size_of::<T>();
-    assert!(
-        len <= size && size <= len.next_multiple_of(4),
-        "the struct's size"
-    );
-    // Read in place: a copy of a big block would not fit the test thread's stack.
-    let mine =
-        unsafe { core::slice::from_raw_parts(std::ptr::from_ref::<T>(block).cast::<u8>(), len) };
-    let image = crate::moved::image_bytes(start, len);
-    assert!(
-        mine == &image[..],
-        "the block's bytes differ from the image's"
-    );
-}
-
-/// As `first_values_are_the_games`, the image's bytes first changed by `patch` (places
-/// that hold a handle where the image has an address).
+/// The test of a typed block of this module whose static's bytes are the image's first
+/// changed by `patch` (places that hold a handle where the image has an address). To be
+/// removed once no module calls it (`test_support::front` replaces it).
 #[cfg(test)]
 pub(crate) fn first_values_are_the_games_but<T>(
     block: &'static T,

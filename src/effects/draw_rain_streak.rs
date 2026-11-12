@@ -13,7 +13,6 @@
 //! (`math::x87_float`), in the original's order, over the game's variables. Refuses null marks
 //! settings (`clip_quad`'s refusal), before anything.
 
-use crate::d3d::vertices_store::VERTICES;
 use crate::effects::cell_x87::CellX87;
 use crate::effects::clip_quad::{clip_quad, draw_fan};
 use crate::effects::rain::{RainRules, RainState, Weather};
@@ -25,11 +24,12 @@ fn turn(weather: &Weather, p: &[[u8; 10]; 3]) {
 }
 
 /// Both ends projected and the quad's x, y and depth.
-fn project(weather: &Weather) {
-    project_x87(&weather.rain, &weather.rain_rules);
+fn project(buffer: &crate::d3d::vertices_store::PolygonVertices, weather: &Weather) {
+    project_x87(buffer, &weather.rain, &weather.rain_rules);
 }
 
 pub fn draw_rain_streak(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
     weather: &Weather,
     place: [[u8; 10]; 3],
     scene: &crate::scene::owner::Scene,
@@ -47,11 +47,11 @@ pub fn draw_rain_streak(
         {
             return Ok(());
         }
-        project(weather);
-        if clip_quad(effects)? {
+        project(buffer, weather);
+        if clip_quad(buffer, effects)? {
             return Ok(());
         }
-        draw_fan(scene);
+        draw_fan(buffer, scene);
         crate::scene::polygon_work::front_end()
             .polygon_vertex_count
             .set_bits(4u32);
@@ -125,7 +125,7 @@ fn turn_x87(p: &[[u8; 10]; 3], r: &RainState) {
 }
 
 /// `project`'s x87 block as plain Rust on the x87 model (85 instructions), same order and memory places.
-fn project_x87(r: &RainState, k: &RainRules) {
+fn project_x87(buffer: &crate::d3d::vertices_store::PolygonVertices, r: &RainState, k: &RainRules) {
     let t0 = r.second[2].ld();
     let t1 = bh::ld(
         crate::scene::polygon_work::front_end()
@@ -195,26 +195,26 @@ fn project_x87(r: &RainState, k: &RainRules) {
     r.depth_scale.st(t21);
     let t38 = r.second[2].ld();
     let t39 = t38 * r.depth_scale.ld();
-    st_cell(&VERTICES.vertices[0].z, t39);
-    st_cell(&VERTICES.vertices[1].z, t39);
-    st_cell(&VERTICES.vertices[2].z, t39);
-    st_cell(&VERTICES.vertices[3].z, t39);
+    st_cell(&buffer.vertices[0].z, t39);
+    st_cell(&buffer.vertices[1].z, t39);
+    st_cell(&buffer.vertices[2].z, t39);
+    st_cell(&buffer.vertices[3].z, t39);
     let t40 = r.ends[0][0].ld();
-    st_cell(&VERTICES.vertices[0].x, t40);
+    st_cell(&buffer.vertices[0].x, t40);
     let t41 = t40 - r.edge_a[0].ld();
-    st_cell(&VERTICES.vertices[1].x, t41);
+    st_cell(&buffer.vertices[1].x, t41);
     let t42 = r.ends[1][0].ld();
-    st_cell(&VERTICES.vertices[3].x, t42);
+    st_cell(&buffer.vertices[3].x, t42);
     let t43 = t42 - r.edge_b[0].ld();
-    st_cell(&VERTICES.vertices[2].x, t43);
+    st_cell(&buffer.vertices[2].x, t43);
     let t44 = r.ends[0][1].ld();
-    st_cell(&VERTICES.vertices[0].y, t44);
+    st_cell(&buffer.vertices[0].y, t44);
     let t45 = t44 - r.edge_a[1].ld();
-    st_cell(&VERTICES.vertices[1].y, t45);
+    st_cell(&buffer.vertices[1].y, t45);
     let t46 = r.ends[1][1].ld();
-    st_cell(&VERTICES.vertices[3].y, t46);
+    st_cell(&buffer.vertices[3].y, t46);
     let t47 = t46 - r.edge_b[1].ld();
-    st_cell(&VERTICES.vertices[2].y, t47);
+    st_cell(&buffer.vertices[2].y, t47);
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -593,7 +593,7 @@ mod asm_differential {
                         &[
                             0x0, 0x4, 0x8, 0x20, 0x24, 0x28, 0x40, 0x44, 0x48, 0x60, 0x64, 0x68,
                         ],
-                        || super::project_x87(r, k),
+                        || super::project_x87(&crate::d3d::vertices_store::VERTICES, r, k),
                     );
                 });
             },

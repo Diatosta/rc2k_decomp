@@ -417,9 +417,11 @@ pub fn quitting(system: &System) -> bool {
 
 /// `scene::prepare_menu_scene` (0x46F7FD). (It leaves esi the view's turn matrix: a screen
 /// whose carousel is set up after it hands that no list of cars.)
-pub fn prepare_scene(scene: &Scene) {
+pub fn prepare_scene(entry: &Entry) {
     crate::scene::prepare_menu_scene::prepare_menu_scene(
-        scene,
+        entry.owners.race,
+        entry.scene,
+        entry.owners.system,
         crate::race::view_scratch::front_end(),
     );
 }
@@ -543,7 +545,7 @@ impl Callee {
                     entry.system,
                 )?;
             }
-            Self::PrepareScene => prepare_scene(entry.scene),
+            Self::PrepareScene => prepare_scene(entry),
             Self::ApplyController => ci::apply_controller(menus, input)?,
             Self::ReleaseController => ci::release_controller(input),
             Self::DrawStageMap => crate::menu::stage_choice::draw_stage_map(entry.owners)?,
@@ -604,7 +606,9 @@ impl Callee {
                 menus,
                 entry.owners.saves,
                 &mut GameCanvas,
-                &mut |slot| crate::menu::edit_savegame_name::save_game(menus, slot),
+                &mut |slot| {
+                    crate::menu::edit_savegame_name::save_game(menus, entry.owners.saves, slot);
+                },
             )?,
             Self::EditReplayName => {
                 return crate::menu::edit_replay_name::edit_replay_name(
@@ -615,7 +619,7 @@ impl Callee {
                 );
             }
             Self::CheckCheatName => {
-                crate::menu::check_cheat_name::check_cheat_name(menus, entry.owners.race)?;
+                crate::menu::check_cheat_name::check_cheat_name(entry.owners)?;
             }
             // The way to look is the original's eax there, which the slideshow screen's set-up
             // leaves 0 or (after an action) a small number: always on.
@@ -867,7 +871,7 @@ impl ScreenHost for MenuHost<'_> {
     fn leave_on_close(&mut self) -> ! {
         // At once: a screen left as if chosen lets the flow behind it go on with what the
         // screen never set (a championship's next stage: a fatal error).
-        crate::standalone::leave_on_close()
+        crate::standalone::leave_on_close(self.entry.owners)
     }
 
     fn debug_serve(&mut self) -> Result<bool, Refused> {

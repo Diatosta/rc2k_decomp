@@ -459,72 +459,31 @@ impl SnowLight {
 mod tests {
     use super::*;
 
-    fn same<T>(v: &T, start: usize, len: usize) -> bool {
-        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
-        let mine: Vec<u8> = (0..size_of::<T>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect();
-        mine == crate::moved::image_bytes(start, len)
-    }
-
     #[test]
     fn the_tables_start_as_the_games() {
         let weather = &effects().weather;
         assert_eq!(size_of::<SnowTables>(), SnowTables::LEN);
         assert_eq!(size_of::<SnowCurve>(), SnowCurve::LEN);
-        assert!(
-            same(&weather.snow_tables, SnowTables::START, SnowTables::LEN),
-            "tables"
-        );
-        assert!(
-            same(&weather.snow_curve, SnowCurve::START, SnowCurve::LEN),
-            "curve"
-        );
+        crate::test_support::first_values::assert_block_starts_as_the_games(&weather.snow_tables);
+        crate::test_support::first_values::assert_block_starts_as_the_games(&weather.snow_curve);
         assert_eq!(size_of::<SnowState>(), SnowState::LEN);
         assert_eq!(size_of::<SnowCurveVars>(), SnowCurveVars::LEN);
         assert_eq!(size_of::<SnowLight>(), SnowLight::LEN);
-        assert!(
-            same(&weather.snow, SnowState::START, SnowState::LEN),
-            "state"
-        );
-        assert!(
-            same(&weather.snow_vars, SnowCurveVars::START, SnowCurveVars::LEN),
-            "vars"
-        );
-        assert!(
-            same(&weather.snow_light, SnowLight::START, SnowLight::LEN),
-            "light"
-        );
+        crate::test_support::first_values::assert_block_starts_as_the_games(&weather.snow);
+        crate::test_support::first_values::assert_block_starts_as_the_games(&weather.snow_vars);
+        crate::test_support::first_values::assert_block_starts_as_the_games(&weather.snow_light);
         assert_eq!(weather.snow.wide_turn[0][0].addr() % 16, 0);
-        assert_eq!(
-            offset_of!(SnowState, last_clock),
-            0x8D2150 - SnowState::START
-        );
-        assert_eq!(offset_of!(SnowState, fall), 0x8D2194 - SnowState::START);
-        assert_eq!(offset_of!(SnowState, flakes), 0x8D21A4 - SnowState::START);
-        assert_eq!(offset_of!(SnowState, turned), 0x8D22D4 - SnowState::START);
-        assert_eq!(
-            offset_of!(SnowCurveVars, records),
-            0x8DA430 - SnowCurveVars::START
-        );
-        assert_eq!(
-            offset_of!(SnowLight, fade_colours),
-            0x8DB464 - SnowLight::START
-        );
-        assert_eq!(
-            offset_of!(SnowLight, quad_first),
-            0x8DB508 - SnowLight::START
-        );
-        assert_eq!(offset_of!(SnowLight, v), 0x8DB550 - SnowLight::START);
+        assert_eq!(offset_of!(SnowState, last_clock), 0x150);
+        assert_eq!(offset_of!(SnowState, fall), 0x194);
+        assert_eq!(offset_of!(SnowState, flakes), 0x1a4);
+        assert_eq!(offset_of!(SnowState, turned), 0x2d4);
+        assert_eq!(offset_of!(SnowCurveVars, records), 0x20);
+        assert_eq!(offset_of!(SnowLight, fade_colours), 0x34);
+        assert_eq!(offset_of!(SnowLight, quad_first), 0xd8);
+        assert_eq!(offset_of!(SnowLight, v), 0x120);
         use core::mem::offset_of;
-        assert_eq!(
-            offset_of!(SnowTables, remainders),
-            0x8CC000 - SnowTables::START
-        );
-        assert_eq!(
-            offset_of!(SnowTables, spreads),
-            0x8D0000 - SnowTables::START
-        );
-        assert_eq!(offset_of!(SnowCurve, copy), 0x8D6310 - SnowCurve::START);
+        assert_eq!(offset_of!(SnowTables, remainders), 0x6000);
+        assert_eq!(offset_of!(SnowTables, spreads), 0xa000);
+        assert_eq!(offset_of!(SnowCurve, copy), 0x4000);
     }
 }

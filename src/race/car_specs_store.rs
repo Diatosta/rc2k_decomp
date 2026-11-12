@@ -95,17 +95,15 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&race().physics.car_specs, START, END);
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &race().physics.car_specs,
+        );
     }
 
     #[test]
-    fn piece_has_its_home() {
+    fn fields_are_at_the_games_offsets() {
         let physics = &race().physics;
         assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            piece_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
         assert_eq!(offset_of!(CarSpec, drive_kind), 0x18);
         assert_eq!(offset_of!(CarSpec, weights), 0x38);
         assert_eq!(offset_of!(CarSpec, scratch_value), 0x5C);

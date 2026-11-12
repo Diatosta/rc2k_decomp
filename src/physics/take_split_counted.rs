@@ -24,14 +24,15 @@ use rc2k_core::physics::progress::{
 
 // Converted: `rc2k_core::physics::progress::{split_due, finished_at}`.
 pub fn take_split_counted(
+    o: crate::owners::Owners<'static>,
     physics: &Physics,
     league: &League,
     frame_work: &FrameWork,
     panel_and_overlay: &PanelAndOverlay,
     shared: &RaceShared,
     car_blocks: &crate::race::blocks_store::CarBlocks,
-    sound: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {
+    let sound = o.sound;
     let physics_store = physics;
     if shared.work.current_car.get() != 0 {
         return Ok(());
@@ -45,6 +46,7 @@ pub fn take_split_counted(
     { keep_split_time(&shared.car, &physics.split_tables) }?;
     { flag_current_car_listed(frame_work, &shared.work, sound) }?;
     split_by_mode(
+        o,
         &physics.split_tables,
         league,
         panel_and_overlay,

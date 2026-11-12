@@ -82,15 +82,11 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_race_block() {
+    fn fields_are_at_the_games_offsets() {
         assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            piece_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
-        assert_eq!(offset_of!(ReplayWork, replay_tape), 0x7194BC - START);
-        assert_eq!(offset_of!(ReplayWork, header_kind_1), 0x719B28 - START);
-        assert_eq!(offset_of!(ReplayWork, header_start_place), 0x719B40 - START);
-        assert_eq!(offset_of!(ReplayWork, patches_in_header), 0x719C54 - START);
+        assert_eq!(offset_of!(ReplayWork, replay_tape), 0x0);
+        assert_eq!(offset_of!(ReplayWork, header_kind_1), 0x66c);
+        assert_eq!(offset_of!(ReplayWork, header_start_place), 0x684);
+        assert_eq!(offset_of!(ReplayWork, patches_in_header), 0x798);
     }
 }

@@ -6,6 +6,9 @@
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-pub fn replay_mode_2(race: &Race) -> Result<(), Refused> {
-    crate::race::replay_viewer::replay_viewer(race, crate::race::replay_viewer::Mode::Saved)
+pub fn replay_mode_2(
+    race: &'static Race,
+    o: crate::owners::Owners<'static>,
+) -> Result<(), Refused> {
+    crate::race::replay_viewer::replay_viewer(race, o, crate::race::replay_viewer::Mode::Saved)
 }

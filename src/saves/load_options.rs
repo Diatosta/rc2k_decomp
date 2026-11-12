@@ -15,8 +15,6 @@ use crate::files::read_file::read_file_to_store;
 use crate::menu::option_work_store::OptionWork;
 use crate::owners::Owners;
 use crate::pointers::{Cells, Store, load_cells, store_cells};
-#[cfg(test)]
-use crate::saves::owner::saves;
 use crate::saves::rebuild_car_lists::rebuild_car_lists;
 use crate::settings::TEXT_ROOM;
 use std::mem::offset_of;
@@ -28,18 +26,11 @@ pub const PATH_START: usize = 0x5295D8;
 
 #[cfg(test)]
 mod path_tests {
-    use super::*;
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
+        crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::saves::owner::SAVES.get().files.options_path,
-            PATH_START,
-            PATH_START + 12,
-        );
-        assert_eq!(
-            crate::moved::place(PATH_START),
-            saves().files.options_path.addr() as usize
         );
     }
 }
@@ -52,9 +43,6 @@ pub trait Held {
     fn size(&self) -> usize;
     fn load(&self, to: &mut [u8]) -> Result<(), BadInput>;
     fn store(&self, from: &[u8]) -> Result<(), BadInput>;
-    /// Its first byte (the tests check where the pieces are).
-    #[cfg(test)]
-    fn first(&self) -> *const u8;
 }
 
 impl<T: Cells> Held for T {
@@ -68,11 +56,6 @@ impl<T: Cells> Held for T {
 
     fn store(&self, from: &[u8]) -> Result<(), BadInput> {
         store_cells(self, 0, from)
-    }
-
-    #[cfg(test)]
-    fn first(&self) -> *const u8 {
-        std::ptr::from_ref(self).cast()
     }
 }
 
@@ -175,7 +158,7 @@ impl<'a> Piece<'a> {
 
 /// The file's pieces after its head, in order: (where each is, its length).
 #[rustfmt::skip]
-pub fn pieces_of(o: Owners<'_>) -> [Piece<'_>; 69] {
+pub fn pieces_of(o: Owners<'static>) -> [Piece<'static>; 69] {
     let race = o.race;
     let net = o.net;
     let audio = o.audio;
@@ -305,7 +288,7 @@ pub fn load_options(path: &dyn Store, places: &mut Places) -> Result<bool, Refus
     Ok(true)
 }
 
-pub fn load_game_options(o: Owners<'_>) -> Result<bool, Refused> {
+pub fn load_game_options(o: Owners<'static>) -> Result<bool, Refused> {
     let menus = o.menus;
     let pieces = pieces_of(o);
     load_options(
@@ -321,146 +304,37 @@ pub fn load_game_options(o: Owners<'_>) -> Result<bool, Refused> {
 
 #[cfg(test)]
 mod tests {
-    use crate::pointers::GamePtr;
     use crate::saves::owner::saves;
     #[test]
     fn kept_starts_as_the_games() {
-        let image = crate::moved::image_bytes(0x4F66DD, 20);
+        let image =
+            crate::test_support::first_values::bytes("saves.owner.SAVES.files.options_kept/20");
         let mine = unsafe {
             std::slice::from_raw_parts(saves().files.options_kept.as_ptr().cast::<u8>(), 20)
         };
-        assert_eq!(mine, &image[..]);
+        assert_eq!(mine, image);
     }
 
-    /// The IDA addresses and lengths of the pieces, as the original has them.
+    /// The lengths of the pieces, in the original's order.
     #[rustfmt::skip]
-    const OPTIONS: [(u32, usize); 69] = [
-        (0x518BB0, 0x4),
-        (0x4F4944, 0x4),
-        (0x4F4948, 0x4),
-        (0x4F50D0, 0x4),
-        (0x4F82C4, 0x4),
-        (0x4F82C8, 0x4),
-        (0x4F82D8, 0x4),
-        (0x5180F0, 0x4),
-        (0x5180F4, 0x4),
-        (0x5180F8, 0x4),
-        (0x5180FC, 0x4),
-        (0x518100, 0x4),
-        (0x52AB90, 0x40),
-        (0x52ABD0, 0x4),
-        (0x52ABE4, 0x40),
-        (0x52AC24, 0x4),
-        (0x52AC94, 0x10),
-        (0x51EBB0, 0x4),
-        (0x527834, 0x4),
-        (0x528500, 0x4),
-        (0x5BEC08, 0x20),
-        (0x5BEC28, 0x4),
-        (0x4F66DD, 0x4),
-        (0x4F66E1, 0x4),
-        (0x4F66E5, 0x4),
-        (0x4F66E9, 0x4),
-        (0x755A4C, 0x28C),
-        (0x755CD8, 0x28C),
-        (0x755F64, 0x28C),
-        (0x7561F0, 0x28C),
-        (0x755684, 0x4),
-        (0x755688, 0x4),
-        (0x75568C, 0x4),
-        (0x755690, 0x4),
-        (0x755694, 0x4),
-        (0x755698, 0x4),
-        (0x75569C, 0x4),
-        (0x7556A0, 0x4),
-        (0x755640, 0x2C),
-        (0x75566C, 0x18),
-        (0x755254, 0x4),
-        (0x7554C8, 0x4),
-        (0x75ACCC, 0x4),
-        (0x758800, 0x6),
-        (0x755258, 0xA0),
-        (0x7552F8, 0x50),
-        (0x735576, 0x2A48),
-        (0x739642, 0x47C),
-        (0x7391C2, 0x47C),
-        (0x738D42, 0x47C),
-        (0x7388C2, 0x47C),
-        (0x738442, 0x47C),
-        (0x737FC2, 0x47C),
-        (0x739AC2, 0x47C),
-        (0x739F42, 0x47C),
-        (0x73A3C2, 0x47C),
-        (0x73A842, 0x47C),
-        (0x73ACC2, 0x47C),
-        (0x73B142, 0x47C),
-        (0x742CB0, 0xC30),
-        (0x7438E0, 0xC30),
-        (0x744510, 0xC30),
-        (0x745140, 0xC30),
-        (0x745D70, 0xC30),
-        (0x7469A0, 0xC30),
-        (0x755784, 0x20),
-        (0x7557A4, 0x20),
-        (0x7557C4, 0x20),
-        (0x7557E4, 0x20),
-    ];
+    const OPTIONS: [usize; 69] = [0x4, 0x4, 0x4, 0x4, 0x4, 0x4, 0x4, 0x4, 0x4, 0x4, 0x4, 0x4, 0x40, 0x4, 0x40, 0x4, 0x10, 0x4, 0x4, 0x4, 0x20, 0x4, 0x4, 0x4, 0x4, 0x4, 0x28C, 0x28C, 0x28C, 0x28C, 0x4, 0x4, 0x4, 0x4, 0x4, 0x4, 0x4, 0x4, 0x2C, 0x18, 0x4, 0x4, 0x4, 0x6, 0xA0, 0x50, 0x2A48, 0x47C, 0x47C, 0x47C, 0x47C, 0x47C, 0x47C, 0x47C, 0x47C, 0x47C, 0x47C, 0x47C, 0x47C, 0xC30, 0xC30, 0xC30, 0xC30, 0xC30, 0xC30, 0x20, 0x20, 0x20, 0x20];
 
-    /// The options' pieces held in `audio::levels::Levels` (the original's option work at these
-    /// addresses): the master volume shown, the menu sounds' and the sounds' levels.
-    const AUDIO_LEVELS: [usize; 4] = [0x755684, 0x755694, 0x75569C, 0x7556A0];
-
-    /// Each piece is where its IDA address has gone, with its length, whole in one store.
+    /// Each piece has its length and lies whole in its field.
     #[test]
     fn pieces_are_the_options_places() {
         let pieces = super::pieces();
-        assert_eq!(
-            OPTIONS.iter().map(|&(_, len)| len).sum::<usize>(),
-            super::PIECES_LEN
-        );
-        for (n, (&(at, len), piece)) in OPTIONS.iter().zip(pieces.iter()).enumerate() {
-            let at = at as usize;
-            assert_eq!(piece.len(), len, "piece {n} ({at:#x}) has another length");
-            let (place, size) = match *piece {
+        assert_eq!(OPTIONS.iter().sum::<usize>(), super::PIECES_LEN);
+        for (n, (&len, piece)) in OPTIONS.iter().zip(pieces.iter()).enumerate() {
+            assert_eq!(piece.len(), len, "piece {n} has another length");
+            match *piece {
                 super::Piece::Field { store, offset, len } => {
-                    assert!(
-                        offset + len <= store.size(),
-                        "piece {n} ({at:#x}) leaves its field"
-                    );
-                    (GamePtr::of_store(store).offset(offset as u32), len)
+                    assert!(offset + len <= store.size(), "piece {n} leaves its field");
                 }
-                super::Piece::Held(field) => (
-                    GamePtr::new(crate::pointers::game_address(field.first())),
-                    field.size(),
-                ),
+                super::Piece::Held(field) => assert_eq!(field.size(), len, "piece {n}"),
                 super::Piece::HeldPart { field, offset, len } => {
-                    assert!(
-                        offset + len <= field.size(),
-                        "piece {n} ({at:#x}) leaves its field"
-                    );
-                    (
-                        GamePtr::new(crate::pointers::game_address(field.first()))
-                            .offset(offset as u32),
-                        len,
-                    )
+                    assert!(offset + len <= field.size(), "piece {n} leaves its field");
                 }
-            };
-            assert_eq!(size, len);
-            // The four audio levels live with the audio now, not in the menus' option work.
-            if AUDIO_LEVELS.contains(&at) {
-                continue;
             }
-            assert_eq!(
-                place.addr() as usize,
-                crate::moved::place(at),
-                "piece {n} ({at:#x}) is elsewhere"
-            );
-            let (start, end) = crate::pointers::region_of(place.addr()).expect("a store");
-            assert!(
-                place.addr() + len as u32 <= end,
-                "piece {n} ({at:#x}) leaves its store"
-            );
-            assert!(start <= place.addr());
         }
     }
 }

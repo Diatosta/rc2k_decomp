@@ -72,41 +72,19 @@ mod windscreen_drop_state_tests {
             .map(|i| unsafe { p.add(i).read() })
             .collect();
         assert!(
-            ours == crate::moved::image_bytes(WindscreenDropState::START, WindscreenDropState::LEN),
+            ours == crate::test_support::first_values::bytes(
+                "effects.owner.EFFECTS.windscreen_drops.state/96"
+            ),
             "WINDSCREEN_DROP_STATE starts differently from the image"
         );
-        assert_eq!(
-            offset_of!(WindscreenDropState, live),
-            0x814710 - WindscreenDropState::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropState, clock),
-            0x814714 - WindscreenDropState::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropState, facing),
-            0x814718 - WindscreenDropState::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropState, cell),
-            0x81471C - WindscreenDropState::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropState, frames),
-            0x814724 - WindscreenDropState::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropState, rate),
-            0x814728 - WindscreenDropState::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropState, spawn_rate),
-            0x81472C - WindscreenDropState::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropState, depth),
-            0x814734 - WindscreenDropState::START
-        );
+        assert_eq!(offset_of!(WindscreenDropState, live), 0x0);
+        assert_eq!(offset_of!(WindscreenDropState, clock), 0x4);
+        assert_eq!(offset_of!(WindscreenDropState, facing), 0x8);
+        assert_eq!(offset_of!(WindscreenDropState, cell), 0xc);
+        assert_eq!(offset_of!(WindscreenDropState, frames), 0x14);
+        assert_eq!(offset_of!(WindscreenDropState, rate), 0x18);
+        assert_eq!(offset_of!(WindscreenDropState, spawn_rate), 0x1c);
+        assert_eq!(offset_of!(WindscreenDropState, depth), 0x24);
     }
 }
 
@@ -252,68 +230,25 @@ mod windscreen_drop_work_tests {
             .map(|i| unsafe { p.add(i).read() })
             .collect();
         assert!(
-            ours == crate::moved::image_bytes(WindscreenDropWork::START, WindscreenDropWork::LEN),
+            ours == crate::test_support::first_values::bytes(
+                "effects.owner.EFFECTS.windscreen_drops.work/2584"
+            ),
             "WINDSCREEN_DROP_WORK starts differently from the image"
         );
-        assert_eq!(
-            offset_of!(WindscreenDropWork, drift),
-            0x814772 - WindscreenDropWork::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropWork, curve),
-            0x8147C2 - WindscreenDropWork::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropWork, radii),
-            0x814BC2 - WindscreenDropWork::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropWork, inverse),
-            0x814C02 - WindscreenDropWork::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropWork, shares),
-            0x814C06 - WindscreenDropWork::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropWork, place),
-            0x814C0E - WindscreenDropWork::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropWork, axes),
-            0x814C1A - WindscreenDropWork::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropWork, setup_axes),
-            0x814C6E - WindscreenDropWork::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropWork, screen),
-            0x814C9E - WindscreenDropWork::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropWork, cell),
-            0x814CAA - WindscreenDropWork::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropWork, corners),
-            0x814CB6 - WindscreenDropWork::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropWork, scaled),
-            0x814CFE - WindscreenDropWork::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropWork, points),
-            0x814F3E - WindscreenDropWork::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropWork, cursor),
-            0x81517E - WindscreenDropWork::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropWork, whole),
-            0x815182 - WindscreenDropWork::START
-        );
+        assert_eq!(offset_of!(WindscreenDropWork, drift), 0x0);
+        assert_eq!(offset_of!(WindscreenDropWork, curve), 0x50);
+        assert_eq!(offset_of!(WindscreenDropWork, radii), 0x450);
+        assert_eq!(offset_of!(WindscreenDropWork, inverse), 0x490);
+        assert_eq!(offset_of!(WindscreenDropWork, shares), 0x494);
+        assert_eq!(offset_of!(WindscreenDropWork, place), 0x49c);
+        assert_eq!(offset_of!(WindscreenDropWork, axes), 0x4a8);
+        assert_eq!(offset_of!(WindscreenDropWork, setup_axes), 0x4fc);
+        assert_eq!(offset_of!(WindscreenDropWork, screen), 0x52c);
+        assert_eq!(offset_of!(WindscreenDropWork, cell), 0x538);
+        assert_eq!(offset_of!(WindscreenDropWork, corners), 0x544);
+        assert_eq!(offset_of!(WindscreenDropWork, scaled), 0x58c);
+        assert_eq!(offset_of!(WindscreenDropWork, points), 0x7cc);
+        assert_eq!(offset_of!(WindscreenDropWork, cursor), 0xa0c);
+        assert_eq!(offset_of!(WindscreenDropWork, whole), 0xa10);
     }
 }

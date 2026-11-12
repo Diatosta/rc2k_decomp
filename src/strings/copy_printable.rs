@@ -53,7 +53,7 @@ pub fn printable(text: &impl Bytes, room: u32) -> Result<Vec<u8>, BadInput> {
 mod tests {
     #[test]
     fn switch_starts_as_the_games() {
-        let d = crate::moved::image_bytes(0x4E0144, 4);
+        let d = crate::test_support::first_values::bytes("strings.copy_printable.KEEP_CASE/4");
         assert_eq!(
             u32::from_le_bytes(d.try_into().unwrap()),
             super::KEEP_CASE.get()

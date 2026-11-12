@@ -109,29 +109,15 @@ impl ScreenChoices {
 impl ScreenChoices {
     pub const START: usize = 0x4F50C0;
     pub const LEN: usize = 0x130;
-    /// Where the byte IDA calls `START` is (`moved::MOVED`'s home).
-    #[cfg(test)]
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::gfx::owner::GFX.unchecked().display.choices)
-            as usize
-    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn screenchoices_starts_as_the_games() {
-        let size = size_of::<ScreenChoices>();
-        assert!(ScreenChoices::LEN <= size && size <= (ScreenChoices::LEN).next_multiple_of(16));
-        let image = crate::moved::image_bytes(ScreenChoices::START, ScreenChoices::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(ScreenChoices::home()).cast_const(),
-                ScreenChoices::LEN,
-            )
-        };
-        assert_eq!(mine, &image[..]);
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &crate::gfx::owner::GFX.unchecked().display.choices,
+        );
     }
 }

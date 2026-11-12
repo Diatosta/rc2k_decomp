@@ -139,19 +139,8 @@ mod block_tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&gfx().fonts.glyph_tables, START, START + LEN);
-    }
-
-    #[test]
-    fn moved_knows_the_block() {
-        let fonts = &gfx().fonts;
-        assert_eq!(
-            crate::moved::place(START),
-            fonts.glyph_tables.units.addr() as usize
-        );
-        assert_eq!(
-            crate::moved::place(0x51B984),
-            fonts.glyph_tables.memory.addr() as usize
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &gfx().fonts.glyph_tables,
         );
     }
 }

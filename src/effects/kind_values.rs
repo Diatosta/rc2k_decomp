@@ -167,9 +167,11 @@ mod marks_kind_tests {
             .map(|i| unsafe { p.add(i).read() })
             .collect();
         assert!(
-            ours == crate::moved::image_bytes(MarksKind::START, MarksKind::LEN),
+            ours == crate::test_support::first_values::bytes(
+                "effects.owner.EFFECTS.kinds.marks_kind/4"
+            ),
             "MARKS_KIND starts differently from the image"
         );
-        assert_eq!(offset_of!(MarksKind, kind), 0x769232 - MarksKind::START);
+        assert_eq!(offset_of!(MarksKind, kind), 0x0);
     }
 }

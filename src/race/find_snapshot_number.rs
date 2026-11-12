@@ -78,14 +78,6 @@ mod block_tests {
     #[test]
     fn first_value_is_the_games() {
         let replay = &race().replay;
-        crate::gfx::first_values_are_the_games(
-            &replay.snapshot,
-            SNAPSHOT_START,
-            SNAPSHOT_START + 26,
-        );
-        assert_eq!(
-            crate::moved::place(SNAPSHOT_START),
-            replay.snapshot.addr() as usize
-        );
+        crate::test_support::first_values::assert_block_starts_as_the_games(&replay.snapshot);
     }
 }

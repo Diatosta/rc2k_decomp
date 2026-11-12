@@ -179,14 +179,6 @@ pub const END: usize = 0x62423C;
 
 const _: () = assert!(END - START == core::mem::size_of::<SceneDraw>());
 
-/// Where IDA 0x623F80 is now (its own static).
-#[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(
-        &crate::scene::owner::scene().drawing.scene,
-    ))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -195,28 +187,20 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&scene().drawing.scene, START, END);
+        crate::test_support::first_values::assert_block_starts_as_the_games(&scene().drawing.scene);
     }
 
     #[test]
     fn piece_has_its_home() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            piece_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
-        assert_eq!(offset_of!(SceneDraw, clip_work), 0x623F80 - START);
-        assert_eq!(offset_of!(SceneDraw, camera_saved), 0x623FDC - START);
-        assert_eq!(offset_of!(SceneDraw, surface_point), 0x624040 - START);
-        assert_eq!(offset_of!(SceneDraw, view_centre), 0x62409C - START);
-        assert_eq!(offset_of!(SceneDraw, polygon_alpha), 0x6240D0 - START);
-        assert_eq!(
-            offset_of!(SceneDraw, polygon_outside_count),
-            0x6240F4 - START
-        );
-        assert_eq!(offset_of!(SceneDraw, depth_clipped), 0x624124 - START);
-        assert_eq!(offset_of!(SceneDraw, turn_z_work), 0x624158 - START);
-        assert_eq!(offset_of!(SceneDraw, clip_edges), 0x6241D4 - START);
-        assert_eq!(offset_of!(SceneDraw, fade_a), 0x624228 - START);
+        assert_eq!(offset_of!(SceneDraw, clip_work), 0x0);
+        assert_eq!(offset_of!(SceneDraw, camera_saved), 0x5c);
+        assert_eq!(offset_of!(SceneDraw, surface_point), 0xc0);
+        assert_eq!(offset_of!(SceneDraw, view_centre), 0x11c);
+        assert_eq!(offset_of!(SceneDraw, polygon_alpha), 0x150);
+        assert_eq!(offset_of!(SceneDraw, polygon_outside_count), 0x174);
+        assert_eq!(offset_of!(SceneDraw, depth_clipped), 0x1a4);
+        assert_eq!(offset_of!(SceneDraw, turn_z_work), 0x1d8);
+        assert_eq!(offset_of!(SceneDraw, clip_edges), 0x254);
+        assert_eq!(offset_of!(SceneDraw, fade_a), 0x2a8);
     }
 }

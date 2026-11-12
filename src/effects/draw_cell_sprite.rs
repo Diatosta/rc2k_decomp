@@ -21,8 +21,6 @@ use crate::effects::ring_store::RingWork;
 use crate::errors::{BadInput, Refused};
 use crate::scene::fog_at::fog_at;
 
-use crate::d3d::vertices_store::VERTICES;
-
 const CELLS: u32 = 0x41;
 const ANGLES: u32 = 0x1000;
 
@@ -38,8 +36,14 @@ fn turn(
 
 /// The square, turned, about the projected place. Gives a value the original keeps in a
 /// register: the draw work's `DrawWork.sprite_half[1]` cell between its two stores.
-fn square(k: u32, angle: u32, effects: &crate::effects::owner::Effects) -> u32 {
+fn square(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
+    k: u32,
+    angle: u32,
+    effects: &crate::effects::owner::Effects,
+) -> u32 {
     square_x87(
+        buffer,
         k as usize,
         angle as usize,
         &effects.frame.draw_work,
@@ -54,6 +58,7 @@ fn square(k: u32, angle: u32, effects: &crate::effects::owner::Effects) -> u32 {
     reason = "the original's five registers and the cell places, and now the two owners"
 )]
 pub fn draw_cell_sprite(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
     masks: &Masks,
     ring: &Ring,
     scene: &crate::scene::owner::Scene,
@@ -88,8 +93,8 @@ pub fn draw_cell_sprite(
     let fogged = fog_at(view.fog, ring.work.whole.get())?;
     let colour = (alpha & 0xFF00_0000) | crate::effects::ring_entries::entry(ring, entry)?.car_tag;
     for n in 0..4 {
-        VERTICES.vertices[n].specular.set(fogged);
-        VERTICES.vertices[n].colour.set(colour);
+        buffer.vertices[n].specular.set(fogged);
+        buffer.vertices[n].colour.set(colour);
     }
     effects.frame.draw_work.sprite_half[0].set_bits(size);
     let at = cell << 4;
@@ -99,14 +104,14 @@ pub fn draw_cell_sprite(
         .into_iter()
         .enumerate()
     {
-        VERTICES.vertices[n].u.set_bits(u);
-        VERTICES.vertices[n].v.set_bits(v);
+        buffer.vertices[n].u.set_bits(u);
+        buffer.vertices[n].v.set_bits(v);
     }
-    square(at, angle, effects);
-    if clip_quad(effects)? {
+    square(buffer, at, angle, effects);
+    if clip_quad(buffer, effects)? {
         return Ok(());
     }
-    draw_fan(scene);
+    draw_fan(buffer, scene);
     crate::scene::polygon_work::front_end()
         .polygon_vertex_count
         .set_bits(4u32);
@@ -177,7 +182,13 @@ fn slope_at(cs: &CornerSlopes, k: usize) -> &PlainFloat {
 /// adds to the corner slopes table (records of 0x24: it reads the float at that byte, whatever
 /// field it falls on: section 16), so that read goes through `slope_at`. `angle` is the
 /// sine table's cell (the original's `s` is four times it; the cosine is the cell 0x400 on).
-fn square_x87(k: usize, angle: usize, dw: &DrawWork, cs: &CornerSlopes) -> u32 {
+fn square_x87(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
+    k: usize,
+    angle: usize,
+    dw: &DrawWork,
+    cs: &CornerSlopes,
+) -> u32 {
     let t0 = crate::math::x87_float::ld(
         crate::scene::polygon_work::front_end()
             .window
@@ -187,10 +198,10 @@ fn square_x87(k: usize, angle: usize, dw: &DrawWork, cs: &CornerSlopes) -> u32 {
     let t1 = t0 / dw.turned[2].ld();
     let t2 = dw.turned[2].ld();
     let t3 = t2 * dw.z_k.ld();
-    st_cell(&VERTICES.vertices[0].z, t3);
-    st_cell(&VERTICES.vertices[1].z, t3);
-    st_cell(&VERTICES.vertices[2].z, t3);
-    st_cell(&VERTICES.vertices[3].z, t3);
+    st_cell(&buffer.vertices[0].z, t3);
+    st_cell(&buffer.vertices[1].z, t3);
+    st_cell(&buffer.vertices[2].z, t3);
+    st_cell(&buffer.vertices[3].z, t3);
     let t4 = bh::int(dw.sprite_half[0].bits() as i32);
     let t5 = t4 * t1;
     dw.sprite_half[0].st(t5);
@@ -231,25 +242,25 @@ fn square_x87(k: usize, angle: usize, dw: &DrawWork, cs: &CornerSlopes) -> u32 {
             crate::scene::polygon_work::front_end().window.view_centre[1].get(),
         );
     let t32 = t31 - dw.sprite_half[1].ld();
-    st_cell(&VERTICES.vertices[0].y, t32);
+    st_cell(&buffer.vertices[0].y, t32);
     let t33 = t31 - dw.sprite_half[3].ld();
-    st_cell(&VERTICES.vertices[1].y, t33);
+    st_cell(&buffer.vertices[1].y, t33);
     let t34 = t31 + dw.sprite_half[1].ld();
-    st_cell(&VERTICES.vertices[2].y, t34);
+    st_cell(&buffer.vertices[2].y, t34);
     let t35 = t31 + dw.sprite_half[3].ld();
-    st_cell(&VERTICES.vertices[3].y, t35);
+    st_cell(&buffer.vertices[3].y, t35);
     let t36 = t28
         + crate::math::x87_float::ld(
             crate::scene::polygon_work::front_end().window.view_centre[0].get(),
         );
     let t37 = t36 - dw.sprite_half[0].ld();
-    st_cell(&VERTICES.vertices[0].x, t37);
+    st_cell(&buffer.vertices[0].x, t37);
     let t38 = t36 - dw.sprite_half[2].ld();
-    st_cell(&VERTICES.vertices[1].x, t38);
+    st_cell(&buffer.vertices[1].x, t38);
     let t39 = t36 + dw.sprite_half[0].ld();
-    st_cell(&VERTICES.vertices[2].x, t39);
+    st_cell(&buffer.vertices[2].x, t39);
     let t40 = t36 + dw.sprite_half[2].ld();
-    st_cell(&VERTICES.vertices[3].x, t40);
+    st_cell(&buffer.vertices[3].x, t40);
     t9
 }
 
@@ -598,7 +609,15 @@ mod asm_differential {
                         let mut cells = vertices;
                         cells.push((sine(b[4] / 4), tables.wrapping_add(b[4])));
                         cells.push((cosine(b[4] / 4), tables.wrapping_add(b[4] + 0x1000)));
-                        staged(&cells, || super::square_x87(b[3], b[4] / 4, dw, cs))
+                        staged(&cells, || {
+                            super::square_x87(
+                                &crate::d3d::vertices_store::VERTICES,
+                                b[3],
+                                b[4] / 4,
+                                dw,
+                                cs,
+                            )
+                        })
                     })
                 })
             },

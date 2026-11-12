@@ -8,11 +8,11 @@
 //!
 //! Callers: the ring's update.
 
-use crate::d3d::vertices_store::VERTICES;
 use crate::math::x87;
 
 /// `colour` is the vertices' colour, `size` the half side.
 pub fn draw_particle(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
     view_matrix: &[crate::session::Float; 16],
     place: [[u8; 10]; 3],
     colour: u32,
@@ -40,7 +40,7 @@ pub fn draw_particle(
     ];
     let sq = x87::particle_square(a, b, c, k, size as i32);
     for n in 0..4 {
-        let v = &VERTICES.vertices[n];
+        let v = &buffer.vertices[n];
         v.colour.set(colour);
         v.z.set(sq[1]);
         v.x.set(sq[6 + n]);
@@ -48,5 +48,5 @@ pub fn draw_particle(
     }
     effects_frame.draw_work.half[0].set(sq[0]);
     effects_frame.draw_work.half[1].set(sq[0]);
-    crate::effects::clip_quad::draw_fan(scene);
+    crate::effects::clip_quad::draw_fan(buffer, scene);
 }

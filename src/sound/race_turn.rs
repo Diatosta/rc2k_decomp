@@ -13,16 +13,14 @@ use crate::errors::Refused;
 
 /// The race's sounds for the frame.
 pub fn race_turn(
-    sound: &crate::sound::owner::Sound,
-    input: &crate::input::owner::Input,
-    audio: &crate::audio::owner::Audio,
-    system: &crate::system::owner::System,
+    o: crate::owners::Owners<'static>,
     race: &crate::race::owner::Race,
 ) -> Result<(), Refused> {
+    let (sound, input, audio, system) = (o.sound, o.input, o.audio, o.system);
     if system.session.flags.quitting.is_set() {
         // The original's quit jump (into `system::main_loop`'s way out): the program
         // ended as `start` ends it.
-        crate::standalone::leave_on_close();
+        crate::standalone::leave_on_close(o);
     }
     if sound.race.clock.get().started.get() != 1 {
         return Ok(());

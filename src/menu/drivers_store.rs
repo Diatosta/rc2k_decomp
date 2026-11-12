@@ -584,31 +584,20 @@ pub const START: usize = 0x73B674;
 /// IDA 0x742C98, the end of the piece.
 pub const END: usize = 0x742C98;
 
-/// Where IDA 0x73B674 lives (`moved::MOVED`'s home).
-#[cfg(test)]
-pub fn drivers_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::menu::owner::menus().cars.drivers)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moved::image_bytes;
     use core::mem::{offset_of, size_of};
 
     #[test]
     fn drivers_start_as_the_games() {
         assert_eq!(size_of::<DriverTable>(), END - START);
-        assert_eq!(offset_of!(DriverTable, end), 0x741E84 - START);
-        assert_eq!(offset_of!(DriverTable, names), 0x741E88 - START);
+        assert_eq!(offset_of!(DriverTable, end), 0x6810);
+        assert_eq!(offset_of!(DriverTable, names), 0x6814);
         assert_eq!(offset_of!(Driver, condition), 0x2C);
         assert_eq!(offset_of!(Driver, results), 0x5C);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host(drivers_addr()).cast_const(),
-                END - START,
-            )
-        };
-        assert_eq!(mine, &image_bytes(START, END - START)[..]);
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &crate::menu::owner::menus().cars.drivers,
+        );
     }
 }

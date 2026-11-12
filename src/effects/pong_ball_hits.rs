@@ -95,79 +95,10 @@ fn new_way_x87(p: &PongState, r: &PongRules, length: u32) {
     p.difference[1].st(t14);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
-    //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
-
-    pub(super) fn centres_x87(mk: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{mk} + 0x3760]",
-            "fmul dword ptr [{mk} + 0x4286]",
-            "fadd dword ptr [{mk} + 0x3748]",
-            "fstp dword ptr [{mk} + 0x379C]",
-            "fld dword ptr [{mk} + 0x3764]",
-            "fmul dword ptr [{mk} + 0x428A]",
-            "fadd dword ptr [{mk} + 0x374C]",
-            "fstp dword ptr [{mk} + 0x37A0]",
-            "fld dword ptr [{mk} + 0x3790]",
-            "fmul dword ptr [{mk} + 0x428E]",
-            "fadd dword ptr [{mk} + 0x3778]",
-            "fstp dword ptr [{mk} + 0x37A8]",
-            "fld dword ptr [{mk} + 0x3794]",
-            "fmul dword ptr [{mk} + 0x4292]",
-            "fadd dword ptr [{mk} + 0x377C]",
-            "fstp dword ptr [{mk} + 0x37AC]",
-            "fld dword ptr [{mk} + 0x379C]",
-            "fsub dword ptr [{mk} + 0x37A8]",
-            "fstp dword ptr [{mk} + 0x37B4]",
-            "fld dword ptr [{mk} + 0x37A0]",
-            "fsub dword ptr [{mk} + 0x37AC]",
-            "fstp dword ptr [{mk} + 0x37B8]",
-            mk = in(reg) mk,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn new_way_x87(mk: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{mk} + 0x37B4]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{mk} + 0x37B8]",
-            ".byte 0xD8, 0xC8",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xFA",
-            "fdivr dword ptr [{mk} + 0x22C]",
-            "fld dword ptr [{mk} + 0x37B4]",
-            ".byte 0xD8, 0xC9",
-            "fstp dword ptr [{mk} + 0x37B4]",
-            "fld dword ptr [{mk} + 0x37B8]",
-            ".byte 0xDE, 0xC9",
-            "fstp dword ptr [{mk} + 0x37B8]",
-            "fld dword ptr [{mk} + 0x37B4]",
-            "fmul dword ptr [{mk} + 0x429A]",
-            "fstp dword ptr [{mk} + 0x37B4]",
-            "fld dword ptr [{mk} + 0x37B8]",
-            "fmul dword ptr [{mk} + 0x429E]",
-            "fstp dword ptr [{mk} + 0x37B8]",
-            mk = in(reg) mk,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-}
-
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_differential {
-    use super::asm_reference as reference;
+#[cfg(test)]
+mod reference_vectors {
     use crate::effects::asm_test::Kind::*;
-    use crate::effects::asm_test::{Op, Spec, differential};
+    use crate::effects::asm_test::{Op, Spec, recorded};
     use crate::effects::pong::{rules_at, state_at};
 
     #[test]
@@ -205,11 +136,9 @@ mod asm_differential {
             }],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::centres_x87(b[0]),
-            |b| super::centres_x87(state_at(b[0]), &rules_at(b[0])),
-        );
+        recorded("effects.pong_ball_hits.centres_x87", &SPEC, |b| {
+            super::centres_x87(state_at(b[0]), &rules_at(b[0]));
+        });
     }
 
     #[test]
@@ -229,15 +158,10 @@ mod asm_differential {
             }],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::new_way_x87(b[0]),
-            |b| {
-                let length = unsafe {
-                    (crate::pointers::host_at(b[0] + 0x22C) as *const u32).read_unaligned()
-                };
-                super::new_way_x87(state_at(b[0]), &rules_at(b[0]), length);
-            },
-        );
+        recorded("effects.pong_ball_hits.new_way_x87", &SPEC, |b| {
+            let length =
+                unsafe { (crate::pointers::host_at(b[0] + 0x22C) as *const u32).read_unaligned() };
+            super::new_way_x87(state_at(b[0]), &rules_at(b[0]), length);
+        });
     }
 }

@@ -12,14 +12,7 @@ use crate::errors::{FatalError, Refused};
 use crate::race::owner::Race;
 
 // Converted: `rc2k_core::drive::race_ticks::{tick_runs, NO_CAR_FATAL}`.
-pub fn race_tick(
-    race: &Race,
-    system: &crate::system::owner::System,
-    sound: &crate::sound::owner::Sound,
-    input: &crate::input::owner::Input,
-    scene: &crate::scene::owner::Scene,
-    net: &crate::net::owner::Net,
-) -> Result<(), Refused> {
+pub fn race_tick(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
     if race.car_blocks().cars[0].probe_count.get() == 0 {
         return Err(FatalError {
             code: rc2k_core::drive::race_ticks::NO_CAR_FATAL,
@@ -28,7 +21,7 @@ pub fn race_tick(
         .into());
     }
     if race.shared.switches.levers_on.get() == 0 {
-        return crate::drive::simple_car_step::simple_car_step(race, input, scene, net);
+        return crate::drive::simple_car_step::simple_car_step(race, o.input, o.scene, o.net);
     }
     race.shared
         .vars
@@ -40,5 +33,5 @@ pub fn race_tick(
     ) {
         return Ok(());
     }
-    crate::drive::replay_step::replay_step(race, system, sound, scene, input, net)
+    crate::drive::replay_step::replay_step(o, race)
 }

@@ -165,29 +165,15 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
+        crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::gfx::owner::GFX.unchecked().rescale,
-            START,
-            START + LEN,
         );
     }
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(offset_of!(Rescaler, step_x), 0x4F509C - START);
-        assert_eq!(offset_of!(Rescaler, rows_left), 0x4F50B8 - START);
-        assert_eq!(offset_of!(Rescaler, components), 0x4F50BC - START);
-        assert_eq!(
-            crate::moved::place(START),
-            crate::gfx::owner::GFX
-                .unchecked()
-                .rescale
-                .copy_memory
-                .addr() as usize
-        );
-        assert_eq!(
-            crate::moved::place(0x4F50BC),
-            crate::gfx::owner::GFX.unchecked().rescale.components.addr() as usize
-        );
+        assert_eq!(offset_of!(Rescaler, step_x), 0x40);
+        assert_eq!(offset_of!(Rescaler, rows_left), 0x5c);
+        assert_eq!(offset_of!(Rescaler, components), 0x60);
     }
 }

@@ -88,22 +88,17 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&race().frame.sound_spots, START, END);
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &race().frame.sound_spots,
+        );
     }
 
     #[test]
-    fn piece_has_its_home() {
+    fn fields_are_at_the_games_offsets() {
         assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            piece_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
-        assert_eq!(
-            offset_of!(SoundSpotBlock, work_vector_length),
-            0x6D18C8 - START
-        );
-        assert_eq!(offset_of!(SoundSpotBlock, flag_18e4), 0x6D18E4 - START);
-        assert_eq!(offset_of!(SoundSpotBlock, band_scale_0), 0x6D1ADC - START);
-        assert_eq!(offset_of!(SoundSpotBlock, sound_spots), 0x6D1AF4 - START);
+        assert_eq!(offset_of!(SoundSpotBlock, work_vector_length), 0x0);
+        assert_eq!(offset_of!(SoundSpotBlock, flag_18e4), 0x1c);
+        assert_eq!(offset_of!(SoundSpotBlock, band_scale_0), 0x214);
+        assert_eq!(offset_of!(SoundSpotBlock, sound_spots), 0x22c);
     }
 }

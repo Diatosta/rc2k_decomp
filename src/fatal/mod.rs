@@ -53,22 +53,16 @@ pub mod state {
 #[cfg(test)]
 mod tests {
     use super::state::*;
-    use crate::moved::image_bytes;
+    use crate::test_support::first_values::assert_store_starts_as_the_games;
 
     #[test]
     fn state_starts_as_the_games() {
-        let word = |ida| u32::from_le_bytes(image_bytes(ida, 4).try_into().unwrap());
-        assert_eq!(word(0x4F52A4), CODE.get());
-        assert_eq!(word(0x4F52A8), 0);
+        let _lock = crate::store::test_lock();
+        for name in [
+            "CODE", "W32", "REPORTED", "EXTRA", "TEMPLATE", "TEXT", "CAPTION",
+        ] {
+            assert_store_starts_as_the_games(&format!("store:fatal.state.{name}"));
+        }
         assert_eq!(message(), None);
-        assert_eq!(word(0x4E0598), W32.get());
-        assert_eq!(image_bytes(0x4F67BC, 1)[0], REPORTED.get());
-        assert_eq!(EXTRA.read().to_vec(), image_bytes(0x4F67BD, EXTRA_LEN));
-        assert_eq!(
-            TEMPLATE.read().to_vec(),
-            image_bytes(0x4F673A, TEMPLATE_LEN)
-        );
-        assert_eq!(TEXT.read().to_vec(), image_bytes(0x9526F8, TEXT_LEN));
-        assert_eq!(CAPTION.read().to_vec(), image_bytes(0x4F66FD, CAPTION_LEN));
     }
 }

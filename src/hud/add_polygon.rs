@@ -12,7 +12,6 @@
 //! Refuses a count of 0 (the original's loop would run on) or past 0x10, and a batch it would write
 //! past, before anything.
 
-use crate::d3d::vertices_store::VERTICES;
 use crate::errors::Refused;
 use crate::hud::owner::{Hud, Pen};
 use crate::race::owner_frame::Frame;
@@ -42,7 +41,7 @@ pub fn add_polygon(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
             hud.block.virtual_screen[1].get(),
         ];
         for n in 0..count as usize {
-            let v = &VERTICES.vertices[n];
+            let v = &pen.vertices.vertices[n];
             v.x.set(screen_scaled(v.x.get(), w, kx));
             v.y.set(screen_scaled(v.y.get(), h, ky));
         }
@@ -54,7 +53,7 @@ pub fn add_polygon(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
         }
         let vc = hud.block.vertex_count.get();
         crate::pointers::copy_between(
-            &VERTICES.vertices,
+            &pen.vertices.vertices,
             0,
             &hud.block.vertices,
             (vc * 0x20) as usize,

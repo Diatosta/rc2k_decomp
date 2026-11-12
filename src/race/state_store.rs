@@ -435,18 +435,11 @@ pub const END: usize = 0x75B340;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moved::image_bytes;
     use core::mem::{offset_of, size_of};
 
     #[test]
     fn race_state_starts_as_the_games() {
-        let _g = crate::store::test_lock();
-        let size = size_of::<RaceState>();
-        assert!(END - START <= size && size <= (END - START).next_multiple_of(4));
-        let mine = unsafe {
-            std::slice::from_raw_parts((&raw const race().shared.state).cast::<u8>(), END - START)
-        };
-        assert_eq!(mine, &image_bytes(START, END - START)[..]);
+        crate::test_support::first_values::assert_block_starts_as_the_games(&race().shared.state);
         let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
         at(offset_of!(RaceState, settings), 0x75ACCC);
         at(offset_of!(RaceState, results), 0x75AFF4);

@@ -284,7 +284,11 @@ impl flow::Game for Game<'_> {
             C::TimeTrialSelectStage => self.screen(&m::time_trial_select_stage_loop::SCREEN)?,
             C::TimeTrialService => m::time_trial_service::time_trial_service(menus, entry)?,
             C::Race { next, kind } => {
-                crate::race::single_rally_race::single_rally_race(u32::from(next), kind)?;
+                crate::race::single_rally_race::single_rally_race(
+                    self.owners,
+                    u32::from(next),
+                    kind,
+                )?;
             }
             C::StageResultLoop => self.screen(&m::stage_result_loop::SCREEN)?,
             C::TimeTrialResultsLoop => self.screen(&m::time_trial_results_loop::SCREEN)?,

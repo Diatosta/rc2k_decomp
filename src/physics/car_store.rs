@@ -627,27 +627,18 @@ const _: () = assert!(END - START == core::mem::size_of::<Car>());
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moved::image_bytes;
     use core::mem::offset_of;
 
     #[test]
     fn known_cars_are_the_records_their_addresses_name() {
-        use crate::race::blocks_store::{BLOCK_COUNT, block_addr};
-        let by_region = |at: u32| {
-            crate::pointers::GamePtr::new(at)
-                .record::<Car>("a test's car")
-                .ok()
-                .map(core::ptr::from_ref)
-        };
-        let at = crate::pointers::game_address(core::ptr::from_ref(
-            &crate::race::owner::race().shared.car,
-        ));
-        assert_eq!(Car::known(at).map(core::ptr::from_ref), by_region(at));
+        use crate::race::blocks_store::{BLOCK_COUNT, CAR_BLOCKS, block_addr};
+        let work = &crate::race::owner::race().shared.car;
+        let at = crate::pointers::game_address(core::ptr::from_ref(work));
+        assert!(Car::known(at).is_some_and(|car| core::ptr::eq(car, work)));
         for n in 0..BLOCK_COUNT {
             let at = block_addr(n);
-            assert_eq!(
-                Car::known(at).map(core::ptr::from_ref),
-                by_region(at),
+            assert!(
+                Car::known(at).is_some_and(|car| core::ptr::eq(car, &raw const CAR_BLOCKS.cars[n])),
                 "block {n}"
             );
             assert!(Car::known(at + 4).is_none(), "inside block {n}");
@@ -677,16 +668,10 @@ mod tests {
         let car_addr = || crate::pointers::game_address(core::ptr::from_ref(&shared_store.car));
         assert_eq!(car_addr() % 4, 0);
         assert_eq!(
-            car_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
-        assert_eq!(
             crate::pointers::game_address(&raw const shared_store.car.gear),
             car_addr() + 0x1D4
         );
-        let mine = unsafe {
-            std::slice::from_raw_parts(crate::pointers::host(car_addr()).cast_const(), END - START)
-        };
-        assert_eq!(mine, &image_bytes(START, END - START)[..]);
+        drop(_lock);
+        crate::test_support::first_values::assert_block_starts_as_the_games(&shared_store.car);
     }
 }

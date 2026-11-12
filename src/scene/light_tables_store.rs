@@ -43,14 +43,6 @@ pub const END: usize = 0x636588;
 
 const _: () = assert!(END - START == core::mem::size_of::<LightTables>());
 
-/// Where IDA 0x635118 is now.
-#[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(
-        &crate::scene::owner::SCENE.light_tables,
-    ))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -58,24 +50,17 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
+        crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::scene::owner::SCENE.light_tables,
-            START,
-            END,
         );
     }
 
     #[test]
     fn piece_has_its_home() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            crate::moved::place(END - 1),
-            (piece_addr() + (END - START) as u32 - 1) as usize
-        );
-        assert_eq!(offset_of!(LightTables, lamp_table_a), 0x635518 - START);
-        assert_eq!(offset_of!(LightTables, car_light_table), 0x635D18 - START);
-        assert_eq!(offset_of!(LightTables, lamp_table_c), 0x636118 - START);
-        assert_eq!(offset_of!(LightTables, view_mode), 0x636526 - START);
-        assert_eq!(offset_of!(LightTables, unknown_410), 0x636528 - START);
+        assert_eq!(offset_of!(LightTables, lamp_table_a), 0x400);
+        assert_eq!(offset_of!(LightTables, car_light_table), 0xc00);
+        assert_eq!(offset_of!(LightTables, lamp_table_c), 0x1000);
+        assert_eq!(offset_of!(LightTables, view_mode), 0x140e);
+        assert_eq!(offset_of!(LightTables, unknown_410), 0x1410);
     }
 }

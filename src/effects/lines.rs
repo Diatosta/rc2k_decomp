@@ -515,20 +515,16 @@ mod lines_work_tests {
         assert_eq!(size_of::<LinesWork>(), LinesWork::LEN);
         assert!(
             bytes(&crate::effects::owner::effects().paths.lines_work)
-                == crate::moved::image_bytes(LinesWork::START, LinesWork::LEN),
+                == crate::test_support::first_values::bytes(
+                    "effects.owner.EFFECTS.paths.lines_work/392"
+                ),
             "LINES_WORK starts differently from the image"
         );
-        assert_eq!(
-            offset_of!(LinesWork, block_start),
-            0x93C738 - LinesWork::START
-        );
-        assert_eq!(
-            offset_of!(LinesWork, difference),
-            0x93C870 - LinesWork::START
-        );
-        assert_eq!(offset_of!(LinesWork, current), 0x93C8A8 - LinesWork::START);
-        assert_eq!(offset_of!(LinesWork, every), 0x93C8B4 - LinesWork::START);
-        assert_eq!(offset_of!(LinesWork, shares), 0x93C8B8 - LinesWork::START);
-        assert_eq!(offset_of!(LinesWork, any), 0x93C8BC - LinesWork::START);
+        assert_eq!(offset_of!(LinesWork, block_start), 0x0);
+        assert_eq!(offset_of!(LinesWork, difference), 0x138);
+        assert_eq!(offset_of!(LinesWork, current), 0x170);
+        assert_eq!(offset_of!(LinesWork, every), 0x17c);
+        assert_eq!(offset_of!(LinesWork, shares), 0x180);
+        assert_eq!(offset_of!(LinesWork, any), 0x184);
     }
 }

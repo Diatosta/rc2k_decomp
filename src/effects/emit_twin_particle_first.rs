@@ -228,12 +228,14 @@ mod twin_state_tests {
         assert_eq!(size_of::<TwinState>(), TwinState::LEN);
         assert!(
             bytes(&crate::effects::owner::effects().particles.twin_state)
-                == crate::moved::image_bytes(TwinState::START, TwinState::LEN),
+                == crate::test_support::first_values::bytes(
+                    "effects.owner.EFFECTS.particles.twin_state/32"
+                ),
             "TWIN_STATE starts differently from the image"
         );
-        assert_eq!(offset_of!(TwinState, point), 0x93A1B6 - TwinState::START);
-        assert_eq!(offset_of!(TwinState, motion), 0x93A1C2 - TwinState::START);
-        assert_eq!(offset_of!(TwinState, level), 0x93A1CE - TwinState::START);
+        assert_eq!(offset_of!(TwinState, point), 0x0);
+        assert_eq!(offset_of!(TwinState, motion), 0xc);
+        assert_eq!(offset_of!(TwinState, level), 0x18);
     }
 }
 
@@ -306,32 +308,16 @@ mod nineteenth_tuning_tests {
         assert_eq!(size_of::<TwinTuning>(), TwinTuning::LEN);
         assert!(
             bytes(&crate::effects::owner::effects().particles.nineteenth_tuning)
-                == crate::moved::image_bytes(TwinFirstTuning::START, TwinTuning::LEN),
+                == crate::test_support::first_values::bytes(
+                    "effects.owner.EFFECTS.particles.nineteenth_tuning/40"
+                ),
             "NINETEENTH_TUNING starts differently from the image"
         );
-        assert_eq!(
-            offset_of!(TwinTuning, chance_random),
-            0x93A48A - TwinFirstTuning::START
-        );
-        assert_eq!(
-            offset_of!(TwinTuning, lift),
-            0x93A48E - TwinFirstTuning::START
-        );
-        assert_eq!(
-            offset_of!(TwinTuning, row_k),
-            0x93A492 - TwinFirstTuning::START
-        );
-        assert_eq!(
-            offset_of!(TwinTuning, spread),
-            0x93A49E - TwinFirstTuning::START
-        );
-        assert_eq!(
-            offset_of!(TwinTuning, motion_k),
-            0x93A4A2 - TwinFirstTuning::START
-        );
-        assert_eq!(
-            offset_of!(TwinTuning, spin_random),
-            0x93A4AE - TwinFirstTuning::START
-        );
+        assert_eq!(offset_of!(TwinTuning, chance_random), 0x0);
+        assert_eq!(offset_of!(TwinTuning, lift), 0x4);
+        assert_eq!(offset_of!(TwinTuning, row_k), 0x8);
+        assert_eq!(offset_of!(TwinTuning, spread), 0x14);
+        assert_eq!(offset_of!(TwinTuning, motion_k), 0x18);
+        assert_eq!(offset_of!(TwinTuning, spin_random), 0x24);
     }
 }

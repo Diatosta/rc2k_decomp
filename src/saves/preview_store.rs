@@ -43,32 +43,20 @@ pub const START: usize = 0x755144;
 /// IDA 0X755170, the end of the piece.
 pub const END: usize = 0x755170;
 
-/// Where IDA 0X755144 is (`moved::MOVED`'s home).
-#[cfg(test)]
-pub fn savegame_preview_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::saves::owner::SAVES.get().savegame_preview)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moved::image_bytes;
     use core::mem::{offset_of, size_of};
 
     #[test]
     fn savegame_preview_starts_as_the_games() {
         assert!(END - START <= size_of::<SavegamePreview>());
         assert!(size_of::<SavegamePreview>() <= (END - START).next_multiple_of(4));
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host(savegame_preview_addr()).cast_const(),
-                END - START,
-            )
-        };
-        assert_eq!(mine, &image_bytes(START, END - START)[..]);
-        let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
-        at(offset_of!(SavegamePreview, shown_slot), 0x755148);
-        at(offset_of!(SavegamePreview, saved), 0x755150);
-        at(offset_of!(SavegamePreview, saved_cars), 0x75516C);
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &crate::saves::owner::SAVES.get().savegame_preview,
+        );
+        assert_eq!(offset_of!(SavegamePreview, shown_slot), 0x4);
+        assert_eq!(offset_of!(SavegamePreview, saved), 0xc);
+        assert_eq!(offset_of!(SavegamePreview, saved_cars), 0x28);
     }
 }

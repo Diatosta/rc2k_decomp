@@ -431,7 +431,7 @@ impl Pong {
 
 /// A test buffer standing for the marks' block at `mk` (IDA 0x764F40): the court's state
 /// in it, as the x87 blocks' differential tests give it to the typed versions.
-#[cfg(all(test, target_arch = "x86"))]
+#[cfg(test)]
 pub fn state_at(mk: usize) -> &'static PongState {
     unsafe {
         &*(crate::pointers::host_at(
@@ -443,7 +443,7 @@ pub fn state_at(mk: usize) -> &'static PongState {
 
 /// The court's constants in the same buffer, copied out (they sit 2 bytes off a four in the
 /// image's addresses, so the buffer's copy of them is not aligned for the cells).
-#[cfg(all(test, target_arch = "x86"))]
+#[cfg(test)]
 pub fn rules_at(mk: usize) -> PongRules {
     unsafe {
         (crate::pointers::host_at(
@@ -769,43 +769,27 @@ mod state_tests {
     fn the_state_and_the_rules_start_as_the_games() {
         assert_eq!(size_of::<PongState>(), PongState::LEN);
         assert_eq!(size_of::<PongRules>(), PongRules::LEN);
-        let (s, r) = (PongState::START, PongRules::START);
         assert!(
-            bytes(&Pong::new().state) == crate::moved::image_bytes(s, PongState::LEN),
+            bytes(&Pong::new().state)
+                == crate::test_support::first_values::bytes("effects.owner.EFFECTS.pong.state/388"),
             "PONG starts differently from the image"
         );
         assert!(
-            bytes(&Pong::new().rules) == crate::moved::image_bytes(r, PongRules::LEN),
+            bytes(&Pong::new().rules)
+                == crate::test_support::first_values::bytes("effects.owner.EFFECTS.pong.rules/176"),
             "PONG_RULES starts differently from the image"
         );
         use core::mem::offset_of;
-        assert_eq!(offset_of!(PongState, ball), 0x768688 - s);
-        assert_eq!(offset_of!(PongState, bat), 0x7686B8 - s);
-        assert_eq!(offset_of!(PongState, difference), 0x7686F4 - s);
-        assert_eq!(offset_of!(PongState, steps), 0x768700 - s);
-        assert_eq!(offset_of!(PongState, digit_patterns), 0x768704 - s);
-        assert_eq!(offset_of!(PongState, best), 0x7687CC - s);
-        assert_eq!(offset_of!(PongState, digit_at), 0x7687D4 - s);
-        assert_eq!(offset_of!(PongRules, walls), 0x7691A6 - r);
-        assert_eq!(offset_of!(PongRules, cell_step), 0x7691FA - r);
-        assert_eq!(offset_of!(PongRules, near), 0x76921A - r);
-        assert_eq!(offset_of!(PongRules, setup_places), 0x769222 - r);
-    }
-
-    #[test]
-    fn moved_sends_the_addresses_to_the_statics() {
-        assert_eq!(
-            crate::moved::place(0x768688),
-            crate::effects::owner::effects().pong.state.ball[0].addr() as usize
-        );
-        assert_eq!(
-            crate::moved::place(0x76921A),
-            crate::effects::owner::effects().pong.rules.near.addr() as usize
-        );
-        assert_eq!(
-            crate::moved::place(0x7687DC),
-            (crate::effects::store::STORE.get().addr()
-                + (0x7687DC - crate::effects::store::START) as u32) as usize
-        );
+        assert_eq!(offset_of!(PongState, ball), 0x30);
+        assert_eq!(offset_of!(PongState, bat), 0x60);
+        assert_eq!(offset_of!(PongState, difference), 0x9c);
+        assert_eq!(offset_of!(PongState, steps), 0xa8);
+        assert_eq!(offset_of!(PongState, digit_patterns), 0xac);
+        assert_eq!(offset_of!(PongState, best), 0x174);
+        assert_eq!(offset_of!(PongState, digit_at), 0x17c);
+        assert_eq!(offset_of!(PongRules, walls), 0x24);
+        assert_eq!(offset_of!(PongRules, cell_step), 0x78);
+        assert_eq!(offset_of!(PongRules, near), 0x98);
+        assert_eq!(offset_of!(PongRules, setup_places), 0xa0);
     }
 }

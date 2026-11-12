@@ -3,6 +3,9 @@
 //! memory, at the default control word and at chop, and every place either one writes must
 //! hold the same bits afterwards.
 
+// reason: the blocks over the race block are still compared on i686 only, against its
+// assembly; on other targets only the recorded blocks use this harness.
+#![cfg_attr(not(target_arch = "x86"), allow(dead_code))]
 use crate::effects::store::START;
 use crate::math::x87;
 use crate::math::x87_float as bh;
@@ -226,6 +229,7 @@ const SIZE: fn(Kind) -> usize = |k| match k {
     Status => 2,
 };
 
+#[cfg(target_arch = "x86")]
 /// The race block's bytes at RVA `off`.
 fn block_get(off: usize, len: usize) -> Vec<u8> {
     crate::pointers::GamePtr::new(crate::framework::game_addr(off))
@@ -233,12 +237,14 @@ fn block_get(off: usize, len: usize) -> Vec<u8> {
         .unwrap()
 }
 
+#[cfg(target_arch = "x86")]
 fn block_put(off: usize, bytes: &[u8]) {
     crate::pointers::GamePtr::new(crate::framework::game_addr(off))
         .write_bytes(bytes, "a race block place")
         .unwrap();
 }
 
+#[cfg(target_arch = "x86")]
 /// The view window's fields the assembly reads in the scene draw store (IDA 0x623F80 ..) and the
 /// race view (`view_depth`, 0x63DC54), and their twins in the front end's window
 /// (`scene::view_window`), which the Rust versions read: (RVA, length, twin's game
@@ -284,6 +290,7 @@ fn window_twins() -> Vec<(usize, usize, u32)> {
     ]
 }
 
+#[cfg(target_arch = "x86")]
 /// Each listed write of the race block operands: its place and kind, and its bytes now.
 #[allow(clippy::type_complexity)] // reason: a test's one-off list
 fn block_outputs(spec: &Spec) -> Vec<((usize, Kind), Vec<u8>)> {
@@ -298,18 +305,22 @@ fn block_outputs(spec: &Spec) -> Vec<((usize, Kind), Vec<u8>)> {
     out
 }
 
+#[cfg(target_arch = "x86")]
 /// The race block's listed places as they were before a test (put back when it ends).
 struct PutBack(Vec<(usize, Vec<u8>)>);
 
+#[cfg(target_arch = "x86")]
 /// The front end's window as it was before a test (put back when it ends).
 struct WindowBack(crate::scene::view_window::ViewWindow);
 
+#[cfg(target_arch = "x86")]
 impl Drop for WindowBack {
     fn drop(&mut self) {
         crate::pointers::Cells::copy_from(&crate::scene::polygon_work::front_end().window, &self.0);
     }
 }
 
+#[cfg(target_arch = "x86")]
 impl Drop for PutBack {
     fn drop(&mut self) {
         for (off, b) in self.0.iter().rev() {
@@ -318,6 +329,7 @@ impl Drop for PutBack {
     }
 }
 
+#[cfg(target_arch = "x86")]
 /// Runs `reference` and `plain` (each given the operands: base addresses and indexes)
 /// over the same random memory, several thousand times at each of two control words.
 pub fn differential<R: PartialEq + std::fmt::Debug>(
@@ -491,5 +503,168 @@ pub fn differential<R: PartialEq + std::fmt::Debug>(
         }
     }
     x87::set_control_word(0x027F);
+    assert_eq!(failures, 0, "{failures} differences");
+}
+
+/// The recorded form of `differential` for blocks over test buffers only (no race block
+/// operand): `plain` compared on every target with the results recorded under `name` (see
+/// `test_support::vectors`): every listed write, the buffers' other bytes, the returned
+/// value's printed form.
+pub fn recorded<R: std::fmt::Debug>(name: &str, spec: &Spec, plain: impl Fn(&[usize]) -> R) {
+    use crate::test_support::vectors::Recorder;
+    run_recorded(Recorder::replay(name), spec, None, &plain);
+}
+
+/// Records `reference`'s results (the original's instructions) under `name` when
+/// `RC2K_RECORD_VECTORS=1`, then replays them as `recorded`.
+#[cfg(target_arch = "x86")]
+#[allow(dead_code)] // reason: kept for recording the blocks still compared on i686 only
+pub fn record<R: std::fmt::Debug>(
+    name: &str,
+    spec: &Spec,
+    reference: impl Fn(&[usize]) -> R,
+    plain: impl Fn(&[usize]) -> R,
+) {
+    use crate::test_support::vectors::Recorder;
+    if crate::test_support::vectors::recording() {
+        let printed = |v: &[usize]| format!("{:?}", reference(v));
+        run_recorded(Recorder::record(name), spec, Some(&printed), &plain);
+    }
+    recorded(name, spec, plain);
+}
+
+/// The original's instructions over the operands, returning their value's printed form.
+type Printed<'a> = &'a dyn Fn(&[usize]) -> String;
+
+fn run_recorded<R: std::fmt::Debug>(
+    mut file: crate::test_support::vectors::Recorder,
+    spec: &Spec,
+    reference: Option<Printed>,
+    plain: &dyn Fn(&[usize]) -> R,
+) {
+    assert!(
+        !spec
+            .operands
+            .iter()
+            .any(|op| matches!(op, Op::RaceBlock { .. })),
+        "a recorded block reads only its test buffers"
+    );
+    let _guard = crate::store::test_lock();
+    let mut rng = Rng(0x9E37_79B9_7F4A_7C15);
+    let mut failures = 0;
+    for cw in [0x027F, 0x0E7F] {
+        x87::set_control_word(cw);
+        for case in 0..3000 {
+            let mut start: Vec<Buf> = Vec::new();
+            let mut values = Vec::new();
+            for op in spec.operands {
+                match op {
+                    Op::Base { lo, hi, reads, .. } => {
+                        let mut buf = Buf::new(hi - lo);
+                        fill(&mut buf, *lo, reads, &mut rng, spec.sincos);
+                        start.push(buf);
+                        values.push(0);
+                    }
+                    Op::RaceBlock { .. } => unreachable!(),
+                    Op::Index(v) => {
+                        start.push(Buf::new(0));
+                        values.push(v[rng.below(v.len() as u64) as usize]);
+                    }
+                    Op::Float => {
+                        start.push(Buf::new(0));
+                        values.push(random_float(&mut rng, spec.sincos).to_bits() as usize);
+                    }
+                }
+            }
+            let before: Vec<u8> = start.iter().flat_map(|b| b.iter().copied()).collect();
+            file.input(&before);
+            for v in &values {
+                file.input(&(*v as u64).to_le_bytes());
+            }
+            // The operands' values: each buffer by game address, less its first offset.
+            let run = |bufs: &[Buf]| -> Vec<usize> {
+                spec.operands
+                    .iter()
+                    .enumerate()
+                    .map(|(j, op)| match op {
+                        Op::Base { lo, .. } => {
+                            (crate::pointers::game_address(bufs[j].as_ptr())
+                                .wrapping_sub(*lo as u32)) as usize
+                        }
+                        _ => values[j],
+                    })
+                    .collect()
+            };
+            let mut printed = None;
+            let expected = file.results(&before, || {
+                let refs = start.clone();
+                let _lent: Vec<crate::pointers::Lent> = refs
+                    .iter()
+                    .filter(|b| !b.is_empty())
+                    .map(|b| crate::pointers::Lent::new(b))
+                    .collect();
+                printed = Some(reference.expect("a reference to record")(&run(&refs)));
+                refs.iter().flat_map(|b| b.iter().copied()).collect()
+            });
+            let returned = file.result_bytes(|| printed.expect("a recorded value").into_bytes());
+            let pls = start.clone();
+            let got = {
+                let _lent: Vec<crate::pointers::Lent> = pls
+                    .iter()
+                    .filter(|b| !b.is_empty())
+                    .map(|b| crate::pointers::Lent::new(b))
+                    .collect();
+                format!("{:?}", plain(&run(&pls)))
+            };
+            if got.as_bytes() != returned {
+                failures += 1;
+                if failures < 10 {
+                    eprintln!(
+                        "case {case} cw {cw:#X}: returned {} and {got}",
+                        String::from_utf8_lossy(&returned)
+                    );
+                }
+            }
+            let mut at = 0;
+            for (j, op) in spec.operands.iter().enumerate() {
+                let len = pls[j].len();
+                let mut a = expected[at..at + len].to_vec();
+                at += len;
+                let Op::Base { lo, writes, .. } = op else {
+                    continue;
+                };
+                let b = &pls[j];
+                for &(off, kind) in *writes {
+                    let (o, n) = (off - lo, SIZE(kind));
+                    if !same(kind, &a[o..o + n], &b[o..o + n], spec.sincos) {
+                        failures += 1;
+                        if failures < 10 {
+                            eprintln!(
+                                "case {case} cw {cw:#X} operand {j} +{off:#X} {kind:?}: reference {:02X?} plain {:02X?}",
+                                &a[o..o + n],
+                                &b[o..o + n]
+                            );
+                        }
+                    }
+                    // equal from here on, so that what is left is the unlisted bytes
+                    a[o..o + n].copy_from_slice(&b[o..o + n]);
+                }
+                if a[..] != b[..] {
+                    failures += 1;
+                    if failures < 10 {
+                        let k = a.iter().zip(b.iter()).position(|(x, y)| x != y).unwrap();
+                        eprintln!(
+                            "case {case} cw {cw:#X} operand {j} +{:#X}: unlisted byte differs {:02X} {:02X}",
+                            lo + k,
+                            a[k],
+                            b[k]
+                        );
+                    }
+                }
+            }
+        }
+    }
+    x87::set_control_word(0x027F);
+    file.finish();
     assert_eq!(failures, 0, "{failures} differences");
 }

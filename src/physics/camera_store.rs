@@ -160,28 +160,22 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
+        crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::race::owner::race().physics.camera,
-            START,
-            END,
         );
     }
 
     #[test]
-    fn piece_has_its_home() {
+    fn fields_are_at_the_games_offsets() {
         assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            piece_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
-        assert_eq!(offset_of!(CameraWork, lights_path), 0x608B08 - START);
-        assert_eq!(offset_of!(CameraWork, camera_offset_x), 0x608B30 - START);
-        assert_eq!(offset_of!(CameraWork, view_a_heading), 0x608B5C - START);
-        assert_eq!(offset_of!(CameraWork, view_turn_x), 0x608B74 - START);
-        assert_eq!(offset_of!(CameraWork, view_b_offset), 0x608BB0 - START);
-        assert_eq!(offset_of!(CameraWork, view_share_roll), 0x608BEC - START);
-        assert_eq!(offset_of!(CameraWork, view_b_shares), 0x608C0C - START);
-        assert_eq!(offset_of!(CameraWork, ground_found), 0x608C40 - START);
-        assert_eq!(offset_of!(CameraWork, axle_height), 0x608C58 - START);
+        assert_eq!(offset_of!(CameraWork, lights_path), 0x0);
+        assert_eq!(offset_of!(CameraWork, camera_offset_x), 0x28);
+        assert_eq!(offset_of!(CameraWork, view_a_heading), 0x54);
+        assert_eq!(offset_of!(CameraWork, view_turn_x), 0x6c);
+        assert_eq!(offset_of!(CameraWork, view_b_offset), 0xa8);
+        assert_eq!(offset_of!(CameraWork, view_share_roll), 0xe4);
+        assert_eq!(offset_of!(CameraWork, view_b_shares), 0x104);
+        assert_eq!(offset_of!(CameraWork, ground_found), 0x138);
+        assert_eq!(offset_of!(CameraWork, axle_height), 0x150);
     }
 }

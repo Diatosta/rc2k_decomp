@@ -71,7 +71,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&effects().setup.work, START, END);
+        crate::test_support::first_values::assert_block_starts_as_the_games(&effects().setup.work);
     }
 
     #[test]
@@ -80,18 +80,13 @@ mod tests {
             piece_addr() % (core::mem::align_of::<MarksWork>()) as u32,
             0
         );
-        assert_eq!(piece_addr() as usize, crate::moved::place(START));
-        assert_eq!(
-            crate::moved::place(END - 1),
-            (piece_addr() + (END - START) as u32 - 1) as usize
-        );
 
-        assert_eq!(offset_of!(MarksWork, fpu_status), 0x71C814 - START);
-        assert_eq!(offset_of!(MarksWork, shake), 0x71C870 - START);
-        assert_eq!(offset_of!(MarksWork, scratch), 0x71C880 - START);
-        assert_eq!(offset_of!(MarksWork, seed), 0x71C8CC - START);
-        assert_eq!(offset_of!(MarksWork, sound_source), 0x71C8E2 - START);
-        assert_eq!(offset_of!(MarksWork, cosine_start), 0x71CA36 - START);
-        assert_eq!(offset_of!(MarksWork, cosine_half), 0x71CA3E - START);
+        assert_eq!(offset_of!(MarksWork, fpu_status), 0x0);
+        assert_eq!(offset_of!(MarksWork, shake), 0x5c);
+        assert_eq!(offset_of!(MarksWork, scratch), 0x6c);
+        assert_eq!(offset_of!(MarksWork, seed), 0xb8);
+        assert_eq!(offset_of!(MarksWork, sound_source), 0xce);
+        assert_eq!(offset_of!(MarksWork, cosine_start), 0x222);
+        assert_eq!(offset_of!(MarksWork, cosine_half), 0x22a);
     }
 }

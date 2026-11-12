@@ -16,6 +16,7 @@ use rc2k_core::physics::splits::{SplitFigure, split_figure};
 
 // Converted: `rc2k_core::physics::splits::split_figure`.
 pub fn split_by_mode(
+    o: crate::owners::Owners<'static>,
     split_tables: &SplitTables,
     league: &League,
     panel_and_overlay: &PanelAndOverlay,
@@ -27,7 +28,7 @@ pub fn split_by_mode(
             shared.car.split_gaps[0].set(car_blocks.cars[0].mode2_place.get());
             Ok(())
         }
-        SplitFigure::Rank => rank_split_time(split_tables, panel_and_overlay, shared),
+        SplitFigure::Rank => rank_split_time(o, split_tables, panel_and_overlay, shared),
         SplitFigure::Compare => {
             compare_split_times(league, &shared.work, &shared.state, &shared.car)
         }

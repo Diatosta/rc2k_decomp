@@ -95,12 +95,6 @@ impl DrawWork {
 impl DrawWork {
     pub const START: usize = 0x8EB871;
     pub const LEN: usize = 0x100;
-    #[cfg(test)]
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    #[cfg(test)]
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const effects().frame.draw_work) as usize
-    }
 }
 
 /// The marks' view heading, step and ribbon work (IDA 0x8F3975 .. 0x8F39CD).
@@ -158,12 +152,6 @@ impl ViewVars {
 impl ViewVars {
     pub const START: usize = 0x8F3975;
     pub const LEN: usize = 0x58;
-    #[cfg(test)]
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    #[cfg(test)]
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const effects().frame.view_vars) as usize
-    }
 }
 
 /// The marks' frame: profile mark and steps, turned points, view, quads and flare (IDA 0x91FF3E .. 0x91FFE2).
@@ -270,12 +258,6 @@ impl DrawFrame {
 impl DrawFrame {
     pub const START: usize = 0x91FF3E;
     pub const LEN: usize = 0xA4;
-    #[cfg(test)]
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    #[cfg(test)]
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const effects().frame.draw_frame) as usize
-    }
 }
 
 /// The lens flare's unit way and its parts' cells and sizes (IDA 0x92051E .. 0x9205F6).
@@ -364,12 +346,6 @@ impl FlareParts {
 impl FlareParts {
     pub const START: usize = 0x92051E;
     pub const LEN: usize = 0xD8;
-    #[cfg(test)]
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    #[cfg(test)]
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const effects().frame.flare_parts) as usize
-    }
 }
 
 /// The lens flare's constants (IDA 0x9206D2 .. 0x9206E6).
@@ -397,12 +373,6 @@ impl FlareScales {
 impl FlareScales {
     pub const START: usize = 0x9206D2;
     pub const LEN: usize = 0x14;
-    #[cfg(test)]
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    #[cfg(test)]
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const effects().frame.flare_scales) as usize
-    }
 }
 
 #[cfg(test)]
@@ -415,144 +385,113 @@ mod typed_tests {
         // Other tests write the work: read it while none runs.
         let _lock = crate::store::test_lock();
         assert_eq!(size_of::<DrawWork>(), DrawWork::LEN);
-        let image = crate::moved::image_bytes(DrawWork::START, DrawWork::LEN);
+        let image =
+            crate::test_support::first_values::bytes("effects.owner.EFFECTS.frame.draw_work/256");
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(DrawWork::home()).cast_const(),
+                (&raw const effects().frame.draw_work).cast::<u8>(),
                 DrawWork::LEN,
             )
         };
-        assert!(
-            mine == &image[..],
-            "DRAW_WORK starts differently from the image"
-        );
-        assert_eq!(offset_of!(DrawWork, half), 0x8EB8B5 - DrawWork::START);
-        assert_eq!(
-            offset_of!(DrawWork, sprite_half),
-            0x8EB8BD - DrawWork::START
-        );
-        assert_eq!(offset_of!(DrawWork, ends_scale), 0x8EB8CD - DrawWork::START);
-        assert_eq!(offset_of!(DrawWork, turned), 0x8EB8D5 - DrawWork::START);
-        assert_eq!(offset_of!(DrawWork, second), 0x8EB8E1 - DrawWork::START);
-        assert_eq!(offset_of!(DrawWork, sides), 0x8EB941 - DrawWork::START);
-        assert_eq!(offset_of!(DrawWork, step), 0x8EB951 - DrawWork::START);
-        assert_eq!(offset_of!(DrawWork, near), 0x8EB961 - DrawWork::START);
-        assert_eq!(offset_of!(DrawWork, uv_k), 0x8EB969 - DrawWork::START);
-        assert_eq!(offset_of!(DrawWork, z_k), 0x8EB96D - DrawWork::START);
+        assert!(mine == image, "DRAW_WORK starts differently from the image");
+        assert_eq!(offset_of!(DrawWork, half), 0x44);
+        assert_eq!(offset_of!(DrawWork, sprite_half), 0x4c);
+        assert_eq!(offset_of!(DrawWork, ends_scale), 0x5c);
+        assert_eq!(offset_of!(DrawWork, turned), 0x64);
+        assert_eq!(offset_of!(DrawWork, second), 0x70);
+        assert_eq!(offset_of!(DrawWork, sides), 0xd0);
+        assert_eq!(offset_of!(DrawWork, step), 0xe0);
+        assert_eq!(offset_of!(DrawWork, near), 0xf0);
+        assert_eq!(offset_of!(DrawWork, uv_k), 0xf8);
+        assert_eq!(offset_of!(DrawWork, z_k), 0xfc);
     }
 
     #[test]
     fn view_vars_starts_as_the_games() {
         assert_eq!(size_of::<ViewVars>(), ViewVars::LEN);
-        let image = crate::moved::image_bytes(ViewVars::START, ViewVars::LEN);
+        let image =
+            crate::test_support::first_values::bytes("effects.owner.EFFECTS.frame.view_vars/88");
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(ViewVars::home()).cast_const(),
+                (&raw const effects().frame.view_vars).cast::<u8>(),
                 ViewVars::LEN,
             )
         };
-        assert!(
-            mine == &image[..],
-            "VIEW_VARS starts differently from the image"
-        );
-        assert_eq!(offset_of!(ViewVars, step), 0x8F3979 - ViewVars::START);
-        assert_eq!(offset_of!(ViewVars, facing), 0x8F397D - ViewVars::START);
-        assert_eq!(offset_of!(ViewVars, cleared), 0x8F3981 - ViewVars::START);
-        assert_eq!(offset_of!(ViewVars, ribbon_way), 0x8F3985 - ViewVars::START);
-        assert_eq!(
-            offset_of!(ViewVars, first_end_half_width),
-            0x8F3991 - ViewVars::START
-        );
-        assert_eq!(
-            offset_of!(ViewVars, second_end_half_width),
-            0x8F399D - ViewVars::START
-        );
-        assert_eq!(
-            offset_of!(ViewVars, turned_points),
-            0x8F39A9 - ViewVars::START
-        );
+        assert!(mine == image, "VIEW_VARS starts differently from the image");
+        assert_eq!(offset_of!(ViewVars, step), 0x4);
+        assert_eq!(offset_of!(ViewVars, facing), 0x8);
+        assert_eq!(offset_of!(ViewVars, cleared), 0xc);
+        assert_eq!(offset_of!(ViewVars, ribbon_way), 0x10);
+        assert_eq!(offset_of!(ViewVars, first_end_half_width), 0x1c);
+        assert_eq!(offset_of!(ViewVars, second_end_half_width), 0x28);
+        assert_eq!(offset_of!(ViewVars, turned_points), 0x34);
     }
 
     #[test]
     fn marks_frame_starts_as_the_games() {
         assert_eq!(size_of::<DrawFrame>(), DrawFrame::LEN);
-        let image = crate::moved::image_bytes(DrawFrame::START, DrawFrame::LEN);
+        let image =
+            crate::test_support::first_values::bytes("effects.owner.EFFECTS.frame.draw_frame/164");
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(DrawFrame::home()).cast_const(),
+                (&raw const effects().frame.draw_frame).cast::<u8>(),
                 DrawFrame::LEN,
             )
         };
         assert!(
-            mine == &image[..],
+            mine == image,
             "DRAW_FRAME starts differently from the image"
         );
-        assert_eq!(
-            offset_of!(DrawFrame, profile_steps),
-            0x91FF42 - DrawFrame::START
-        );
-        assert_eq!(offset_of!(DrawFrame, points), 0x91FF4A - DrawFrame::START);
-        assert_eq!(
-            offset_of!(DrawFrame, last_source),
-            0x91FF6E - DrawFrame::START
-        );
-        assert_eq!(offset_of!(DrawFrame, level), 0x91FF7E - DrawFrame::START);
-        assert_eq!(offset_of!(DrawFrame, other), 0x91FF8A - DrawFrame::START);
-        assert_eq!(offset_of!(DrawFrame, times), 0x91FF9A - DrawFrame::START);
-        assert_eq!(offset_of!(DrawFrame, colour), 0x91FFA6 - DrawFrame::START);
-        assert_eq!(offset_of!(DrawFrame, places), 0x91FFAA - DrawFrame::START);
-        assert_eq!(offset_of!(DrawFrame, cleared), 0x91FFBA - DrawFrame::START);
-        assert_eq!(offset_of!(DrawFrame, last), 0x91FFBE - DrawFrame::START);
-        assert_eq!(
-            offset_of!(DrawFrame, flare_length),
-            0x91FFD6 - DrawFrame::START
-        );
-        assert_eq!(
-            offset_of!(DrawFrame, flare_way),
-            0x91FFDA - DrawFrame::START
-        );
+        assert_eq!(offset_of!(DrawFrame, profile_steps), 0x4);
+        assert_eq!(offset_of!(DrawFrame, points), 0xc);
+        assert_eq!(offset_of!(DrawFrame, last_source), 0x30);
+        assert_eq!(offset_of!(DrawFrame, level), 0x40);
+        assert_eq!(offset_of!(DrawFrame, other), 0x4c);
+        assert_eq!(offset_of!(DrawFrame, times), 0x5c);
+        assert_eq!(offset_of!(DrawFrame, colour), 0x68);
+        assert_eq!(offset_of!(DrawFrame, places), 0x6c);
+        assert_eq!(offset_of!(DrawFrame, cleared), 0x7c);
+        assert_eq!(offset_of!(DrawFrame, last), 0x80);
+        assert_eq!(offset_of!(DrawFrame, flare_length), 0x98);
+        assert_eq!(offset_of!(DrawFrame, flare_way), 0x9c);
     }
 
     #[test]
     fn flare_parts_starts_as_the_games() {
         assert_eq!(size_of::<FlareParts>(), FlareParts::LEN);
-        let image = crate::moved::image_bytes(FlareParts::START, FlareParts::LEN);
+        let image =
+            crate::test_support::first_values::bytes("effects.owner.EFFECTS.frame.flare_parts/216");
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(FlareParts::home()).cast_const(),
+                (&raw const effects().frame.flare_parts).cast::<u8>(),
                 FlareParts::LEN,
             )
         };
         assert!(
-            mine == &image[..],
+            mine == image,
             "FLARE_PARTS starts differently from the image"
         );
-        assert_eq!(offset_of!(FlareParts, corner), 0x92052A - FlareParts::START);
-        assert_eq!(offset_of!(FlareParts, unread), 0x92056E - FlareParts::START);
-        assert_eq!(offset_of!(FlareParts, size), 0x9205B2 - FlareParts::START);
+        assert_eq!(offset_of!(FlareParts, corner), 0xc);
+        assert_eq!(offset_of!(FlareParts, unread), 0x50);
+        assert_eq!(offset_of!(FlareParts, size), 0x94);
     }
 
     #[test]
     fn flare_scales_starts_as_the_games() {
         assert_eq!(size_of::<FlareScales>(), FlareScales::LEN);
-        let image = crate::moved::image_bytes(FlareScales::START, FlareScales::LEN);
+        let image =
+            crate::test_support::first_values::bytes("effects.owner.EFFECTS.frame.flare_scales/20");
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(FlareScales::home()).cast_const(),
+                (&raw const effects().frame.flare_scales).cast::<u8>(),
                 FlareScales::LEN,
             )
         };
         assert!(
-            mine == &image[..],
+            mine == image,
             "FLARE_SCALES starts differently from the image"
         );
-        assert_eq!(
-            offset_of!(FlareScales, size_k),
-            0x9206DA - FlareScales::START
-        );
-        assert_eq!(
-            offset_of!(FlareScales, scale),
-            0x9206DE - FlareScales::START
-        );
+        assert_eq!(offset_of!(FlareScales, size_k), 0x8);
+        assert_eq!(offset_of!(FlareScales, scale), 0xc);
     }
 }

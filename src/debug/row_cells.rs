@@ -8,19 +8,11 @@ use crate::session::{Dword, Float};
 pub trait Raw: Sync {
     /// Its 32 bits.
     fn raw(&self) -> u32;
-    /// Its game address.
-    #[cfg(test)]
-    fn address(&self) -> u32;
 }
 
 impl Raw for Dword {
     fn raw(&self) -> u32 {
         self.get()
-    }
-
-    #[cfg(test)]
-    fn address(&self) -> u32 {
-        crate::pointers::game_address(std::ptr::from_ref(self))
     }
 }
 
@@ -28,21 +20,11 @@ impl Raw for Float {
     fn raw(&self) -> u32 {
         self.bits()
     }
-
-    #[cfg(test)]
-    fn address(&self) -> u32 {
-        crate::pointers::game_address(std::ptr::from_ref(self))
-    }
 }
 
 impl Raw for crate::race::panel_store::Loose32 {
     fn raw(&self) -> u32 {
         self.get()
-    }
-
-    #[cfg(test)]
-    fn address(&self) -> u32 {
-        crate::pointers::game_address(std::ptr::from_ref(self))
     }
 }
 

@@ -116,6 +116,7 @@ fn refusal(
     reason = "the effects' groups and the owners"
 )]
 fn step(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
     frame: &Frame,
     view_matrix: &[crate::session::Float; 16],
     particles: &Particles,
@@ -240,6 +241,7 @@ fn step(
                 let alpha = particle(particles, e, 0x3C)? & 0xFF00_0000;
                 let colour = (TRAIL_PALETTE.colours[i as usize] & 0xFF_FFFF) | alpha;
                 draw_particle::draw_particle(
+                    buffer,
                     view_matrix,
                     place()?,
                     colour,
@@ -305,14 +307,27 @@ fn step(
                         size = size.wrapping_add(BIGGER);
                     }
                 }
-                draw_particle::draw_particle(view_matrix, place()?, colour, size, scene, effects);
+                draw_particle::draw_particle(
+                    buffer,
+                    view_matrix,
+                    place()?,
+                    colour,
+                    size,
+                    scene,
+                    effects,
+                );
             }
         }
     }
     Ok(false)
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the effects' groups, the owners and the vertex buffer"
+)]
 pub fn run_particles(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
     frame: &Frame,
     particles: &Particles,
     ring: &Ring,
@@ -329,7 +344,7 @@ pub fn run_particles(
         if marks.race_done.get() == 0 {
             return Ok(());
         }
-        crate::effects::set_quad_uvs::set_quad_uvs(effects);
+        crate::effects::set_quad_uvs::set_quad_uvs(buffer, effects);
         let mut e: u32 = ring.pool.free.get();
         let mut counter = ring.pool.used.get() as i32;
         loop {
@@ -351,6 +366,7 @@ pub fn run_particles(
                 dies = s == 0x100;
                 if !dies {
                     dies = step(
+                        buffer,
                         frame,
                         view.view_matrix,
                         particles,
@@ -478,7 +494,6 @@ pub static TRAIL_PALETTE: TrailColours = TrailColours {
 
 #[cfg(test)]
 impl TrailColours {
-    pub const START: usize = 0x922B38;
     pub const LEN: usize = 0x4A8;
 }
 
@@ -566,7 +581,7 @@ mod typed_tests {
     #[test]
     fn trail_colours_starts_as_the_games() {
         assert_eq!(size_of::<TrailColours>(), TrailColours::LEN);
-        let image = crate::moved::image_bytes(TrailColours::START, TrailColours::LEN);
+        let image = crate::test_support::first_values::bytes("effects.run_particles.TRAIL_PALETTE");
         let p = std::ptr::from_ref(&TRAIL_PALETTE).cast::<u8>();
         let mine: Vec<u8> = (0..TrailColours::LEN)
             .map(|i| unsafe { p.add(i).read() })
@@ -595,10 +610,12 @@ mod puff_work_tests {
         assert_eq!(size_of::<PuffWork>(), PuffWork::LEN);
         assert!(
             bytes(&crate::effects::owner::effects().particles.puff_work)
-                == crate::moved::image_bytes(PuffWork::START, PuffWork::LEN),
+                == crate::test_support::first_values::bytes(
+                    "effects.owner.EFFECTS.particles.puff_work/40"
+                ),
             "PUFF_WORK starts differently from the image"
         );
-        assert_eq!(offset_of!(PuffWork, puff), 0x93A600 - PuffWork::START);
+        assert_eq!(offset_of!(PuffWork, puff), 0x10);
     }
 }
 
@@ -658,13 +675,12 @@ mod burst_colours_tests {
         assert_eq!(size_of::<BurstColours>(), BurstColours::LEN);
         assert!(
             bytes(&effects().kinds.burst_colours)
-                == crate::moved::image_bytes(BurstColours::START, BurstColours::LEN),
+                == crate::test_support::first_values::bytes(
+                    "effects.owner.EFFECTS.kinds.burst_colours/8192"
+                ),
             "BURST_COLOURS starts differently from the image"
         );
-        assert_eq!(
-            offset_of!(BurstColours, table),
-            0x93A618 - BurstColours::START
-        );
+        assert_eq!(offset_of!(BurstColours, table), 0x0);
     }
 }
 
@@ -790,72 +806,26 @@ mod particle_tuning_tests {
         assert_eq!(size_of::<ParticleTuning>(), ParticleTuning::LEN);
         assert!(
             bytes(&effects().kinds.particle_tuning)
-                == crate::moved::image_bytes(ParticleTuning::START, ParticleTuning::LEN),
+                == crate::test_support::first_values::bytes(
+                    "effects.owner.EFFECTS.kinds.particle_tuning/176"
+                ),
             "PARTICLE_TUNING starts differently from the image"
         );
-        assert_eq!(
-            offset_of!(ParticleTuning, puff_x),
-            0x93C618 - ParticleTuning::START
-        );
-        assert_eq!(
-            offset_of!(ParticleTuning, puff_z),
-            0x93C624 - ParticleTuning::START
-        );
-        assert_eq!(
-            offset_of!(ParticleTuning, puff_y),
-            0x93C630 - ParticleTuning::START
-        );
-        assert_eq!(
-            offset_of!(ParticleTuning, puff_m),
-            0x93C63C - ParticleTuning::START
-        );
-        assert_eq!(
-            offset_of!(ParticleTuning, drift_lower),
-            0x93C644 - ParticleTuning::START
-        );
-        assert_eq!(
-            offset_of!(ParticleTuning, trail_random_k),
-            0x93C648 - ParticleTuning::START
-        );
-        assert_eq!(
-            offset_of!(ParticleTuning, trail_axes),
-            0x93C64C - ParticleTuning::START
-        );
-        assert_eq!(
-            offset_of!(ParticleTuning, trail_spread),
-            0x93C664 - ParticleTuning::START
-        );
-        assert_eq!(
-            offset_of!(ParticleTuning, trail_size_k),
-            0x93C668 - ParticleTuning::START
-        );
-        assert_eq!(
-            offset_of!(ParticleTuning, trail_life_k),
-            0x93C670 - ParticleTuning::START
-        );
-        assert_eq!(
-            offset_of!(ParticleTuning, burst_scale),
-            0x93C674 - ParticleTuning::START
-        );
-        assert_eq!(
-            offset_of!(ParticleTuning, burst_life),
-            0x93C67C - ParticleTuning::START
-        );
-        assert_eq!(
-            offset_of!(ParticleTuning, dust),
-            0x93C680 - ParticleTuning::START
-        );
-        assert_eq!(
-            offset_of!(ParticleTuning, trail),
-            0x93C68C - ParticleTuning::START
-        );
-        assert_eq!(
-            offset_of!(ParticleTuning, burst8),
-            0x93C694 - ParticleTuning::START
-        );
-        assert_eq!(
-            offset_of!(ParticleTuning, burst9),
-            0x93C6A8 - ParticleTuning::START
-        );
+        assert_eq!(offset_of!(ParticleTuning, puff_x), 0x0);
+        assert_eq!(offset_of!(ParticleTuning, puff_z), 0xc);
+        assert_eq!(offset_of!(ParticleTuning, puff_y), 0x18);
+        assert_eq!(offset_of!(ParticleTuning, puff_m), 0x24);
+        assert_eq!(offset_of!(ParticleTuning, drift_lower), 0x2c);
+        assert_eq!(offset_of!(ParticleTuning, trail_random_k), 0x30);
+        assert_eq!(offset_of!(ParticleTuning, trail_axes), 0x34);
+        assert_eq!(offset_of!(ParticleTuning, trail_spread), 0x4c);
+        assert_eq!(offset_of!(ParticleTuning, trail_size_k), 0x50);
+        assert_eq!(offset_of!(ParticleTuning, trail_life_k), 0x58);
+        assert_eq!(offset_of!(ParticleTuning, burst_scale), 0x5c);
+        assert_eq!(offset_of!(ParticleTuning, burst_life), 0x64);
+        assert_eq!(offset_of!(ParticleTuning, dust), 0x68);
+        assert_eq!(offset_of!(ParticleTuning, trail), 0x74);
+        assert_eq!(offset_of!(ParticleTuning, burst8), 0x7c);
+        assert_eq!(offset_of!(ParticleTuning, burst9), 0x90);
     }
 }

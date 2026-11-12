@@ -272,7 +272,7 @@ fn put(course: &Course, at: u32, v: u32) -> Result<(), BadInput> {
 /// `f` with the scene points `words` held (`COURSE.scene_points` at `base()`), the points and
 /// `COURSE.scene_points` as they were afterwards (the differential tests: the reference
 /// reads the same words at their address).
-#[cfg(all(test, target_arch = "x86"))]
+#[cfg(test)]
 pub fn with_test_points<R>(words: &[u32], f: impl FnOnce() -> R) -> R {
     let course = &race().course;
     let kept = POINTS.all().ok();

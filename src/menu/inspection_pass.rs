@@ -46,12 +46,12 @@ pub fn inspection_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
             .set(menus.screens.event.event_out.get().wrapping_add(1));
         crate::menu::inspection_screen::inspection_screen(entry.owners)?;
         crate::system::sleep::sleep(passes::SCREEN_PAUSE);
-        crate::menu::fade_in::fade_in(menus)?;
+        crate::menu::fade_in::fade_in(entry.owners)?;
         run_screen(&crate::menu::inspection_area_loop::SCREEN, entry)?;
         if menus.tables.pages.yes_no_answer.get() == 1 {
             return Ok(());
         }
-        crate::menu::fades::fade(menus, true)?;
+        crate::menu::fades::fade(entry.owners, true)?;
         crate::system::sleep::sleep(passes::INSPECTION_PAUSE);
     }
     if !passes::goes_on(

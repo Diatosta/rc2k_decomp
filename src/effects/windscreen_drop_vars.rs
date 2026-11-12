@@ -199,142 +199,43 @@ mod tests_hex {
     #[test]
     fn hex_starts_as_the_games() {
         assert_eq!(size_of::<WindscreenDropVars>(), WindscreenDropVars::LEN);
-        assert_eq!(
-            offset_of!(WindscreenDropVars, scale),
-            0x816192 - WindscreenDropVars::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropVars, place),
-            0x8161A2 - WindscreenDropVars::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropVars, started),
-            0x8161AE - WindscreenDropVars::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropVars, moved),
-            0x8161B2 - WindscreenDropVars::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropVars, spare),
-            0x8161B6 - WindscreenDropVars::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropVars, kept_place),
-            0x8161D6 - WindscreenDropVars::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropVars, kept_move),
-            0x8161E2 - WindscreenDropVars::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropVars, view_move),
-            0x8161EE - WindscreenDropVars::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropVars, move_change),
-            0x8161FA - WindscreenDropVars::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropVars, drift),
-            0x81621E - WindscreenDropVars::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropVars, ease),
-            0x81622A - WindscreenDropVars::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropVars, steps),
-            0x81622E - WindscreenDropVars::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropVars, buffer),
-            0x816232 - WindscreenDropVars::START
-        );
+        assert_eq!(offset_of!(WindscreenDropVars, scale), 0x0);
+        assert_eq!(offset_of!(WindscreenDropVars, place), 0x10);
+        assert_eq!(offset_of!(WindscreenDropVars, started), 0x1c);
+        assert_eq!(offset_of!(WindscreenDropVars, moved), 0x20);
+        assert_eq!(offset_of!(WindscreenDropVars, spare), 0x24);
+        assert_eq!(offset_of!(WindscreenDropVars, kept_place), 0x44);
+        assert_eq!(offset_of!(WindscreenDropVars, kept_move), 0x50);
+        assert_eq!(offset_of!(WindscreenDropVars, view_move), 0x5c);
+        assert_eq!(offset_of!(WindscreenDropVars, move_change), 0x68);
+        assert_eq!(offset_of!(WindscreenDropVars, drift), 0x8c);
+        assert_eq!(offset_of!(WindscreenDropVars, ease), 0x98);
+        assert_eq!(offset_of!(WindscreenDropVars, steps), 0x9c);
+        assert_eq!(offset_of!(WindscreenDropVars, buffer), 0xa0);
         assert_eq!(
             offset_of!(WindscreenDropVars, windscreen_flakes_cleared),
-            0x81623A - WindscreenDropVars::START
+            0xa8
         );
-        assert_eq!(
-            offset_of!(WindscreenDropVars, items),
-            0x81623E - WindscreenDropVars::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropVars, done),
-            0x82E23E - WindscreenDropVars::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropVars, factors),
-            0x82E242 - WindscreenDropVars::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropVars, curve_a),
-            0x82E25A - WindscreenDropVars::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropVars, curve_b),
-            0x82E25E - WindscreenDropVars::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropVars, step_c),
-            0x82E262 - WindscreenDropVars::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropVars, step_d),
-            0x82E266 - WindscreenDropVars::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropVars, top_k),
-            0x82E26A - WindscreenDropVars::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropVars, per_vertex),
-            0x82E27A - WindscreenDropVars::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropVars, axes_k),
-            0x82E286 - WindscreenDropVars::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropVars, side),
-            0x82E2A2 - WindscreenDropVars::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropVars, frame_k),
-            0x82E2A6 - WindscreenDropVars::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropVars, spawn_k),
-            0x82E2AA - WindscreenDropVars::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropVars, share_k),
-            0x82E2B2 - WindscreenDropVars::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropVars, random),
-            0x82E2B6 - WindscreenDropVars::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropVars, turn),
-            0x82E2C6 - WindscreenDropVars::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropVars, adjugate),
-            0x82E2F6 - WindscreenDropVars::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropVars, decay),
-            0x82E326 - WindscreenDropVars::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropVars, angle),
-            0x82E332 - WindscreenDropVars::START
-        );
-        assert_eq!(
-            offset_of!(WindscreenDropVars, result_k),
-            0x82E336 - WindscreenDropVars::START
-        );
+        assert_eq!(offset_of!(WindscreenDropVars, items), 0xac);
+        assert_eq!(offset_of!(WindscreenDropVars, done), 0x180ac);
+        assert_eq!(offset_of!(WindscreenDropVars, factors), 0x180b0);
+        assert_eq!(offset_of!(WindscreenDropVars, curve_a), 0x180c8);
+        assert_eq!(offset_of!(WindscreenDropVars, curve_b), 0x180cc);
+        assert_eq!(offset_of!(WindscreenDropVars, step_c), 0x180d0);
+        assert_eq!(offset_of!(WindscreenDropVars, step_d), 0x180d4);
+        assert_eq!(offset_of!(WindscreenDropVars, top_k), 0x180d8);
+        assert_eq!(offset_of!(WindscreenDropVars, per_vertex), 0x180e8);
+        assert_eq!(offset_of!(WindscreenDropVars, axes_k), 0x180f4);
+        assert_eq!(offset_of!(WindscreenDropVars, side), 0x18110);
+        assert_eq!(offset_of!(WindscreenDropVars, frame_k), 0x18114);
+        assert_eq!(offset_of!(WindscreenDropVars, spawn_k), 0x18118);
+        assert_eq!(offset_of!(WindscreenDropVars, share_k), 0x18120);
+        assert_eq!(offset_of!(WindscreenDropVars, random), 0x18124);
+        assert_eq!(offset_of!(WindscreenDropVars, turn), 0x18134);
+        assert_eq!(offset_of!(WindscreenDropVars, adjugate), 0x18164);
+        assert_eq!(offset_of!(WindscreenDropVars, decay), 0x18194);
+        assert_eq!(offset_of!(WindscreenDropVars, angle), 0x181a0);
+        assert_eq!(offset_of!(WindscreenDropVars, result_k), 0x181a4);
         // The x87 tests put their buffer's bytes in HEX for a while (`typed_sync::with_overlays`).
         let _lock = crate::store::test_lock();
         let p =
@@ -343,7 +244,10 @@ mod tests_hex {
             .map(|i| unsafe { p.add(i).read() })
             .collect();
         assert!(
-            now == crate::moved::image_bytes(WindscreenDropVars::START, WindscreenDropVars::LEN),
+            crate::test_support::first_values::holds(
+                "effects.owner.EFFECTS.windscreen_drops.hex/98736",
+                &now
+            ),
             "HEX starts differently from the image"
         );
     }

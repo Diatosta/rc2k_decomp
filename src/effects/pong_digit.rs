@@ -14,6 +14,7 @@ use crate::errors::Refused;
 /// `digit` is the digit.
 // Converted: `rc2k_core::effects::pong::{pattern, cells}`
 pub fn pong_digit(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
     pong: &Pong,
     fl: &WindscreenFlakes,
     digit: u32,
@@ -24,6 +25,7 @@ pub fn pong_digit(
     let first = core::pattern(digit)? as usize; // the digit's offset, 20 bytes a digit
     for (n, (col, row)) in core::cells().enumerate() {
         crate::effects::pong_cell::pong_cell(
+            buffer,
             pong,
             fl,
             pong.state.digit_patterns[first / 20][n].get(),

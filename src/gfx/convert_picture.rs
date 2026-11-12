@@ -128,12 +128,6 @@ pub fn convert_picture(
 }
 
 /// With the screen's bits and the surface format's converter as they stand.
-pub fn convert_picture_now() -> Result<CarryLeft, BadInput> {
-    let o = crate::owners::boundary();
-    convert_picture_now_in(o.gfx, o.system)
-}
-
-/// `convert_picture_now` for a caller that holds the owners.
 pub fn convert_picture_now_in(
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,

@@ -86,7 +86,7 @@ fn colours(course: &crate::race::owner_course::Course, dark_third: u32) {
 }
 
 /// The front end's scene set up.
-pub fn set_up_front_end_scene_in(o: crate::owners::Owners<'_>) -> Result<(), Refused> {
+pub fn set_up_front_end_scene_in(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (race, scene) = (o.race, o.scene);
     let shared = &race.shared;
     let frame = &race.frame;
@@ -145,7 +145,7 @@ pub fn set_up_front_end_scene_in(o: crate::owners::Owners<'_>) -> Result<(), Ref
         }
     }
     shared.vars.bar_function.set(SHOW_BAR);
-    crate::scene::reload_system_textures::reload_system_textures(scene)?;
+    crate::scene::reload_system_textures::reload_system_textures(race, o.gfx, o.net, scene)?;
     allocate_point_records_in_game(course)?;
     colours(course, 0);
     fill_scene_light_tables(race, scene)?;

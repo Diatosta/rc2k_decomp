@@ -215,32 +215,17 @@ mod tests {
             .map(|i| unsafe { p.add(i).read() })
             .collect();
         assert!(
-            bytes == crate::moved::image_bytes(SurfaceTables::START, SurfaceTables::LEN),
+            crate::test_support::first_values::holds(
+                "effects.owner.EFFECTS.masks.surface/17996",
+                &bytes
+            ),
             "SURFACE starts differently from the image"
         );
-        assert_eq!(
-            offset_of!(SurfaceTables, places),
-            0x935766 - SurfaceTables::START
-        );
-        assert_eq!(
-            offset_of!(SurfaceTables, lives_by_flags),
-            0x939B76 - SurfaceTables::START
-        );
-        assert_eq!(
-            offset_of!(SurfaceTables, lives_by_level),
-            0x939B86 - SurfaceTables::START
-        );
-        assert_eq!(
-            offset_of!(SurfaceTables, wheel_flags2),
-            0x939BAA - SurfaceTables::START
-        );
-        assert_eq!(
-            offset_of!(SurfaceTables, wheel_flags),
-            0x939BAE - SurfaceTables::START
-        );
-        assert_eq!(
-            offset_of!(SurfaceTables, colours),
-            0x939BB2 - SurfaceTables::START
-        );
+        assert_eq!(offset_of!(SurfaceTables, places), 0x0);
+        assert_eq!(offset_of!(SurfaceTables, lives_by_flags), 0x4410);
+        assert_eq!(offset_of!(SurfaceTables, lives_by_level), 0x4420);
+        assert_eq!(offset_of!(SurfaceTables, wheel_flags2), 0x4444);
+        assert_eq!(offset_of!(SurfaceTables, wheel_flags), 0x4448);
+        assert_eq!(offset_of!(SurfaceTables, colours), 0x444c);
     }
 }

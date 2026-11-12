@@ -923,18 +923,20 @@ mod spline_head_tests {
             .map(|i| unsafe { p.add(i).read() })
             .collect();
         assert!(
-            ours == crate::moved::image_bytes(SplineHead::START, SplineHead::LEN),
+            ours == crate::test_support::first_values::bytes(
+                "effects.owner.EFFECTS.paths.spline_head/3776"
+            ),
             "SPLINE_HEAD starts differently from the image"
         );
-        assert_eq!(offset_of!(SplineHead, points), 0x769312 - SplineHead::START);
-        assert_eq!(offset_of!(SplineHead, looks), 0x7694AA - SplineHead::START);
-        assert_eq!(offset_of!(SplineHead, found), 0x7695B2 - SplineHead::START);
-        assert_eq!(offset_of!(SplineHead, angle), 0x7695B6 - SplineHead::START);
-        assert_eq!(offset_of!(SplineHead, wave), 0x7695BA - SplineHead::START);
-        assert_eq!(offset_of!(SplineHead, shift), 0x7695BE - SplineHead::START);
-        assert_eq!(offset_of!(SplineHead, switch), 0x7695CA - SplineHead::START);
-        assert_eq!(offset_of!(SplineHead, made), 0x7695CE - SplineHead::START);
-        assert_eq!(offset_of!(SplineHead, file), 0x7695D2 - SplineHead::START);
+        assert_eq!(offset_of!(SplineHead, points), 0x0);
+        assert_eq!(offset_of!(SplineHead, looks), 0x198);
+        assert_eq!(offset_of!(SplineHead, found), 0x2a0);
+        assert_eq!(offset_of!(SplineHead, angle), 0x2a4);
+        assert_eq!(offset_of!(SplineHead, wave), 0x2a8);
+        assert_eq!(offset_of!(SplineHead, shift), 0x2ac);
+        assert_eq!(offset_of!(SplineHead, switch), 0x2b8);
+        assert_eq!(offset_of!(SplineHead, made), 0x2bc);
+        assert_eq!(offset_of!(SplineHead, file), 0x2c0);
     }
 }
 
@@ -1026,31 +1028,24 @@ mod spline_work_tests {
             .map(|i| unsafe { p.add(i).read() })
             .collect();
         assert!(
-            ours == crate::moved::image_bytes(SplineWork::START, SplineWork::LEN),
+            ours == crate::test_support::first_values::bytes(
+                "effects.owner.EFFECTS.paths.spline_work/6112"
+            ),
             "SPLINE_WORK starts differently from the image"
         );
-        assert_eq!(offset_of!(SplineWork, bend), 0x76A1D2 - SplineWork::START);
-        assert_eq!(offset_of!(SplineWork, object), 0x76A202 - SplineWork::START);
-        assert_eq!(offset_of!(SplineWork, place), 0x76A206 - SplineWork::START);
-        assert_eq!(offset_of!(SplineWork, offset), 0x76A20A - SplineWork::START);
-        assert_eq!(offset_of!(SplineWork, up), 0x76A216 - SplineWork::START);
-        assert_eq!(offset_of!(SplineWork, size), 0x76A222 - SplineWork::START);
-        assert_eq!(
-            offset_of!(SplineWork, turn_xy),
-            0x76A22E - SplineWork::START
-        );
-        assert_eq!(offset_of!(SplineWork, turn), 0x76A25E - SplineWork::START);
-        assert_eq!(offset_of!(SplineWork, turn_x), 0x76A28E - SplineWork::START);
-        assert_eq!(offset_of!(SplineWork, turn_y), 0x76A2BE - SplineWork::START);
-        assert_eq!(offset_of!(SplineWork, turn_z), 0x76A2EE - SplineWork::START);
-        assert_eq!(
-            offset_of!(SplineWork, ordered_ids),
-            0x76A31E - SplineWork::START
-        );
-        assert_eq!(
-            offset_of!(SplineWork, ordered_coords),
-            0x76A51E - SplineWork::START
-        );
+        assert_eq!(offset_of!(SplineWork, bend), 0x0);
+        assert_eq!(offset_of!(SplineWork, object), 0x30);
+        assert_eq!(offset_of!(SplineWork, place), 0x34);
+        assert_eq!(offset_of!(SplineWork, offset), 0x38);
+        assert_eq!(offset_of!(SplineWork, up), 0x44);
+        assert_eq!(offset_of!(SplineWork, size), 0x50);
+        assert_eq!(offset_of!(SplineWork, turn_xy), 0x5c);
+        assert_eq!(offset_of!(SplineWork, turn), 0x8c);
+        assert_eq!(offset_of!(SplineWork, turn_x), 0xbc);
+        assert_eq!(offset_of!(SplineWork, turn_y), 0xec);
+        assert_eq!(offset_of!(SplineWork, turn_z), 0x11c);
+        assert_eq!(offset_of!(SplineWork, ordered_ids), 0x14c);
+        assert_eq!(offset_of!(SplineWork, ordered_coords), 0x34c);
     }
 }
 
@@ -1323,13 +1318,16 @@ mod spline_tables_tests {
             .map(|i| unsafe { p.add(i).read() })
             .collect();
         assert!(
-            ours == crate::moved::image_bytes(SplineTables::START, SplineTables::LEN),
+            crate::test_support::first_values::holds(
+                "effects.owner.EFFECTS.paths.spline_tables/119296",
+                &ours
+            ),
             "SPLINE_TABLES starts differently from the image"
         );
-        assert_eq!(offset_of!(SplineTables, a), 0x76B9B2 - SplineTables::START);
-        assert_eq!(offset_of!(SplineTables, b), 0x772E32 - SplineTables::START);
-        assert_eq!(offset_of!(SplineTables, c), 0x77A2B2 - SplineTables::START);
-        assert_eq!(offset_of!(SplineTables, d), 0x781732 - SplineTables::START);
+        assert_eq!(offset_of!(SplineTables, a), 0x0);
+        assert_eq!(offset_of!(SplineTables, b), 0x7480);
+        assert_eq!(offset_of!(SplineTables, c), 0xe900);
+        assert_eq!(offset_of!(SplineTables, d), 0x15d80);
     }
 }
 
@@ -1562,21 +1560,14 @@ mod spline_kinds_tests {
             .map(|i| unsafe { p.add(i).read() })
             .collect();
         assert!(
-            ours == crate::moved::image_bytes(SplineKinds::START, SplineKinds::LEN),
+            ours == crate::test_support::first_values::bytes(
+                "effects.owner.EFFECTS.paths.spline_kinds/840"
+            ),
             "SPLINE_KINDS starts differently from the image"
         );
-        assert_eq!(
-            offset_of!(SplineKinds, chosen),
-            0x788BB2 - SplineKinds::START
-        );
-        assert_eq!(
-            offset_of!(SplineKinds, by_kind),
-            0x788BC6 - SplineKinds::START
-        );
-        assert_eq!(
-            offset_of!(SplineKinds, loaded),
-            0x788EF6 - SplineKinds::START
-        );
+        assert_eq!(offset_of!(SplineKinds, chosen), 0x0);
+        assert_eq!(offset_of!(SplineKinds, by_kind), 0x14);
+        assert_eq!(offset_of!(SplineKinds, loaded), 0x344);
     }
 }
 
@@ -1615,10 +1606,12 @@ mod spline_path_tests {
             .map(|i| unsafe { p.add(i).read() })
             .collect();
         assert!(
-            ours == crate::moved::image_bytes(SplinePath::START, SplinePath::LEN),
+            ours == crate::test_support::first_values::bytes(
+                "effects.owner.EFFECTS.paths.spline_path/19"
+            ),
             "SPLINE_PATH starts differently from the image"
         );
-        assert_eq!(offset_of!(SplinePath, path), 0x788EFA - SplinePath::START);
+        assert_eq!(offset_of!(SplinePath, path), 0x0);
     }
 }
 
@@ -1673,21 +1666,14 @@ mod spline_constants_tests {
             .map(|i| unsafe { p.add(i).read() })
             .collect();
         assert!(
-            ours == crate::moved::image_bytes(SplineConstants::START, SplineConstants::LEN),
+            ours == crate::test_support::first_values::bytes(
+                "effects.owner.EFFECTS.paths.spline_constants/92"
+            ),
             "SPLINE_CONSTANTS starts differently from the image"
         );
-        assert_eq!(
-            offset_of!(SplineConstants, wave_k),
-            0x788F0D - SplineConstants::START
-        );
-        assert_eq!(
-            offset_of!(SplineConstants, place_k),
-            0x788F19 - SplineConstants::START
-        );
-        assert_eq!(
-            offset_of!(SplineConstants, angles),
-            0x788F39 - SplineConstants::START
-        );
+        assert_eq!(offset_of!(SplineConstants, wave_k), 0x0);
+        assert_eq!(offset_of!(SplineConstants, place_k), 0xc);
+        assert_eq!(offset_of!(SplineConstants, angles), 0x2c);
     }
 }
 

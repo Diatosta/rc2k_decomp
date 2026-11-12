@@ -311,100 +311,21 @@ mod sse_tests {
     }
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
-    use crate::scene::asm_test::{Kind, differential};
-
-    /// The original's instructions for `moved`.
-    unsafe fn moved_at_ref(w: *mut u8) {
-        unsafe {
-            core::arch::asm!(
-                "fld dword ptr [{w}]",
-                "fild dword ptr [{w} + 12]",
-                "fild dword ptr [{w} + 24]",
-                ".byte 0xD8, 0xE1", // fsub st, st(1)
-                ".byte 0xD8, 0xCA", // fmul st, st(2)
-                ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fild dword ptr [{w} + 8]",
-                "fild dword ptr [{w} + 20]",
-                ".byte 0xD8, 0xE1", // fsub st, st(1)
-                ".byte 0xD8, 0xCB", // fmul st, st(3)
-                ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fild dword ptr [{w} + 4]",
-                "fild dword ptr [{w} + 16]",
-                ".byte 0xD8, 0xE1", // fsub st, st(1)
-                ".byte 0xD8, 0xCC", // fmul st, st(4)
-                ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fistp dword ptr [{w} + 28]",
-                "fistp dword ptr [{w} + 32]",
-                "fistp dword ptr [{w} + 36]",
-                "fstp dword ptr [{w} + 40]",
-                w = in(reg) w,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-    }
-
-    /// The original's instructions for `turn`.
-    unsafe fn turn_normal_ref(p: *mut u8, m: *mut u8, o: *mut u8) {
-        unsafe {
-            core::arch::asm!(
-                "fld dword ptr [{p} + 8]",
-                "fld dword ptr [{p} + 4]",
-                "fld dword ptr [{p}]",
-                "fld dword ptr [{m}]",
-                "fmul st(0), st(1)",
-                "fld dword ptr [{m} + 0x10]",
-                "fmul st(0), st(3)",
-                "fld dword ptr [{m} + 0x20]",
-                "fmul st(0), st(5)",
-                "faddp st(1), st(0)",
-                "faddp st(1), st(0)",
-                "fxch st(3)",
-                "fld dword ptr [{m} + 4]",
-                "fmul st(0), st(2)",
-                "fld dword ptr [{m} + 0x14]",
-                "fmul st(0), st(4)",
-                "fld dword ptr [{m} + 0x24]",
-                "fmul st(0), st(3)",
-                "faddp st(1), st(0)",
-                "faddp st(1), st(0)",
-                "fxch st(3)",
-                "fld dword ptr [{m} + 8]",
-                "fmulp st(3), st(0)",
-                "fld dword ptr [{m} + 0x18]",
-                "fmulp st(1), st(0)",
-                "fld dword ptr [{m} + 0x28]",
-                "fmulp st(2), st(0)",
-                "faddp st(1), st(0)",
-                "faddp st(1), st(0)",
-                "fxch st(2)",
-                "fstp dword ptr [{o} + 0x10]",
-                "fstp dword ptr [{o} + 0x14]",
-                "fstp dword ptr [{o} + 0x18]",
-                p = in(reg) p,
-                m = in(reg) m,
-                o = in(reg) o,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-    }
+    use crate::test_support::vectors::{Differential, Kind, differential};
 
     #[test]
     fn moved_matches_the_assembly() {
         // dword 0 the fraction, 1 .. 4 the point, 4 .. 7 the other, 7 .. 10 the whole numbers,
         // 10 the fraction as stored
-        differential::<11>(
-            "place_object_points moved",
-            8000,
-            18,
-            [Kind::Exact; 11],
-            |rng, m| {
+        let test = Differential {
+            name: "scene.place_object_points.moved",
+            cases: 8000,
+            seed: 18,
+            kinds: [Kind::Exact; 11],
+            fill: &|rng, m| {
                 m.fill(0xAAAA_AAAA);
                 m[0] = match rng.below(3) {
                     0 => rng.unit().to_bits(),
@@ -419,20 +340,20 @@ mod asm_reference {
                     };
                 }
             },
-            |base| unsafe { moved_at_ref(base) },
-            moved_at,
-        );
+            plain: &|c| moved_at(c),
+        };
+        differential(test);
     }
 
     #[test]
     fn turn_matches_the_assembly() {
         // dwords 0 .. 3 the normal, 4 .. 19 the matrix, 20 .. 28 the record
-        differential::<28>(
-            "place_object_points turn",
-            8000,
-            19,
-            [Kind::Exact; 28],
-            |rng, m| {
+        let test = Differential {
+            name: "scene.place_object_points.turn",
+            cases: 8000,
+            seed: 19,
+            kinds: [Kind::Exact; 28],
+            fill: &|rng, m| {
                 m.fill(0xAAAA_AAAA);
                 let moderate = rng.below(2) == 0;
                 for d in m.iter_mut().take(3) {
@@ -442,8 +363,8 @@ mod asm_reference {
                     *d = if moderate { rng.moderate() } else { rng.fl() };
                 }
             },
-            |base| unsafe { turn_normal_ref(base, base.add(16), base.add(80)) },
-            |base| unsafe { turn_normal(base, base.add(16), base.add(80)) },
-        );
+            plain: &|c| turn_normal(c, &c[4..], &c[20..]),
+        };
+        differential(test);
     }
 }

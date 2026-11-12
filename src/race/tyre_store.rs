@@ -171,11 +171,6 @@ impl TyreChange {
 impl TyreChange {
     pub const START: usize = 0x5BEAC0;
     pub const LEN: usize = 0x170;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    #[cfg(test)]
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const race().shared.tyre_change) as usize
-    }
 }
 
 #[cfg(test)]
@@ -186,13 +181,8 @@ mod tests {
     fn tyrechange_starts_as_the_games() {
         let size = size_of::<TyreChange>();
         assert!(TyreChange::LEN <= size && size <= (TyreChange::LEN).next_multiple_of(16));
-        let image = crate::moved::image_bytes(TyreChange::START, TyreChange::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(TyreChange::home()).cast_const(),
-                TyreChange::LEN,
-            )
-        };
-        assert_eq!(mine, &image[..]);
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &race().shared.tyre_change,
+        );
     }
 }

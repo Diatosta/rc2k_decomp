@@ -19,11 +19,7 @@
 
 use crate::effects::store_data::RUNS;
 use crate::errors::BadInput;
-#[cfg(test)]
-use crate::framework;
 use crate::session::{GameThread, PlainBytes};
-#[cfg(test)]
-use core::ops::Add;
 
 /// IDA's address of the block's first byte.
 pub const START: usize = 0x764F40;
@@ -53,14 +49,6 @@ const fn initial() -> Store {
         r += 1;
     }
     Store(PlainBytes::new(bytes), PlainBytes::new([0; TAIL]))
-}
-
-impl Store {
-    /// The block's first byte as a game address.
-    #[cfg(test)]
-    pub fn addr(&self) -> u32 {
-        crate::pointers::game_address(self.0.as_ptr())
-    }
 }
 
 /// The block (its first values are the image's bytes, `RUNS`).
@@ -295,84 +283,8 @@ pub const SEGS: &[(usize, usize)] = &[
 ];
 
 #[cfg(test)]
-const fn carved(ida: usize) -> bool {
-    let mut n = 0;
-    while n < CARVED.len() {
-        if CARVED[n].0 <= ida && ida < CARVED[n].1 {
-            return true;
-        }
-        n += 1;
-    }
-    false
-}
-
-/// A place in the block: the offset from its start.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(test)]
-pub struct Slot(usize);
-
-#[cfg(test)]
-impl Slot {
-    /// The place of IDA's address `ida`; one outside the block does not compile (a
-    /// constant) or stops the program.
-    pub const fn at(ida: usize) -> Slot {
-        assert!(
-            START <= ida && ida < END,
-            "not a variable of the marks' block"
-        );
-        assert!(!carved(ida), "a variable that left the marks' block");
-        Slot(ida - START)
-    }
-
-    /// The place's address.
-    pub fn address(self) -> usize {
-        (STORE.get().addr() + self.0 as u32) as usize
-    }
-}
-
-#[cfg(test)]
-impl Add<usize> for Slot {
-    type Output = Slot;
-    fn add(self, n: usize) -> Slot {
-        Slot(self.0.wrapping_add(n))
-    }
-}
-
-#[cfg(test)]
-impl Add<u32> for Slot {
-    type Output = Slot;
-    fn add(self, n: u32) -> Slot {
-        Slot(self.0.wrapping_add(n as usize))
-    }
-}
-
-#[cfg(test)]
-impl Add<i32> for Slot {
-    type Output = Slot;
-    fn add(self, n: i32) -> Slot {
-        Slot(self.0.wrapping_add(n as usize))
-    }
-}
-
-#[cfg(test)]
 mod tests {
     use super::*;
-    use crate::framework::IMAGE_BASE;
-
-    #[test]
-    fn first_values_are_the_games() {
-        // Read in place: a copy of the block would not fit the test thread's stack.
-        let first = unsafe { std::slice::from_raw_parts(STORE.get().0.as_ptr(), LEN) };
-        let image = crate::moved::image_bytes(START, LEN);
-        // The ranges that left the block have their own statics (and tests); what is left of the
-        // block holds the image's bytes.
-        for &(a, b) in SEGS {
-            assert!(
-                first[a - START..b - START] == image[a - START..b - START],
-                "the block's bytes at {a:#x} .. {b:#x} differ from the image's"
-            );
-        }
-    }
 
     #[test]
     fn segments_and_carved_ranges_partition_the_block() {
@@ -387,22 +299,5 @@ mod tests {
                 w[0].0, w[0].1
             );
         }
-    }
-
-    #[test]
-    fn moved_knows_the_block() {
-        assert_eq!(crate::moved::place(0x7652A8), Slot::at(0x7652A8).address());
-        assert_eq!(
-            crate::moved::place(0x764F7C),
-            (STORE.get().addr() + (0x764F7C - START) as u32) as usize
-        );
-        assert_eq!(
-            crate::moved::place(END),
-            framework::game_addr(END - IMAGE_BASE) as usize
-        );
-        assert_eq!(
-            crate::moved::place(START - 4),
-            framework::game_addr(START - 4 - IMAGE_BASE) as usize
-        );
     }
 }

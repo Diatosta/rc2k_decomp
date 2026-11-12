@@ -57,13 +57,8 @@ fn motion(
 }
 
 /// The steps. Each callee reads what it needs from memory.
-pub fn steps(
-    race: &Race,
-    system: &crate::system::owner::System,
-    sound: &crate::sound::owner::Sound,
-    scene: &crate::scene::owner::Scene,
-    net: &crate::net::owner::Net,
-) -> Result<(), Refused> {
+pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
+    let (system, sound, scene, net) = (o.system, o.sound, o.scene, o.net);
     let inputs = crate::physics::step_inputs::StepInputs::of(race);
     ph::stir_car_word::stir_car_word(&race.shared.car);
     ph::load_car_specs::load_car_specs(
@@ -83,7 +78,7 @@ pub fn steps(
     )?;
     ph::store_motion_length::store_motion_length(&race.shared.car);
     ph::set_handling::set_handling(&race.physics.damage, &race.course.numbers, &race.shared)?;
-    ph::race_timers::race_timers(race, sound)?;
+    ph::race_timers::race_timers(o, race)?;
     for cell in [
         &race.frame.sound_spots.sound_scratch_a,
         &race.frame.sound_spots.sound_scratch_b,
@@ -369,17 +364,11 @@ pub fn steps(
     Ok(())
 }
 
-pub fn car_physics_step(
-    race: &Race,
-    system: &crate::system::owner::System,
-    sound: &crate::sound::owner::Sound,
-    scene: &crate::scene::owner::Scene,
-    net: &crate::net::owner::Net,
-) -> Result<(), Refused> {
+pub fn car_physics_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
     if race.shared.work.current_car.get() > 7 {
         return Err(BadInput("a current car past 7 (dword_641680's room)").into());
     }
-    steps(race, system, sound, scene, net)
+    steps(o, race)
 }
 
 // ---- the arithmetic that was x87 assembly ----

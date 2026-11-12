@@ -118,7 +118,7 @@ pub fn read_command_line(
 /// Reads the program's own command line (`os::command_line`, for
 /// `GetCommandLineA`; kept as a region); `-v` shows the version and leaves through
 /// `start`'s exit path.
-pub fn read_own_command_line(o: crate::owners::Owners<'_>) -> Result<(), BadInput> {
+pub fn read_own_command_line(o: crate::owners::Owners<'static>) -> Result<(), BadInput> {
     let mut line = crate::os::command_line();
     line.push(0);
     let start = &o.system.start;

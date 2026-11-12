@@ -31,7 +31,7 @@ pub mod imgui_sdl {
     /// Nothing drawn.
     #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld has neither
     pub fn draw(
-        _owners: &crate::owners::Owners<'_>,
+        _owners: &crate::owners::Owners<'static>,
         _renderer: crate::ffi::sdl::Renderer,
         _window: crate::ffi::sdl::Window,
     ) {
@@ -52,8 +52,6 @@ pub mod overlay;
 pub mod players;
 #[cfg(debug_ui)]
 pub mod row_cells;
-#[cfg(all(debug_ui, test))]
-mod row_paths;
 pub mod screens;
 #[cfg(debug_ui)]
 pub mod switches;

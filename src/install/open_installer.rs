@@ -40,6 +40,7 @@ fn read<const N: usize>(
 pub fn open_installer(
     install: &'static crate::install::owner::Install,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     // The names' tables are Rust's, counted on the list as the game's blocks
     // were; the scan and cursors count names and bytes from 0.
@@ -78,8 +79,8 @@ pub fn open_installer(
         crate::text::blend_font::BLENDED_PALETTE.get(),
     );
     // gfx::load_picture: its carry is not read.
-    crate::gfx::load_picture::load_picture(&install.names.backdrop)?;
-    crate::gfx::convert_picture::convert_picture_now()?;
+    crate::gfx::load_picture::load_picture_with(&install.names.backdrop, gfx, system)?;
+    crate::gfx::convert_picture::convert_picture_now_in(gfx, system)?;
     gfx.pictures
         .picture
         .flags

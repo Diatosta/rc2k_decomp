@@ -15,62 +15,10 @@
 
 #![allow(unsafe_code)]
 
-#[cfg(all(test, target_arch = "x86"))]
-use crate::framework;
-
 /// A block's description: where its first byte now is.
 pub trait Block: Copy {
     /// The address of the byte IDA calls `START`.
     fn base() -> usize;
-}
-
-/// What `game_write` takes (the x86 reference tests): an RVA of the image, or a typed cell.
-#[cfg(all(test, target_arch = "x86"))]
-pub trait Where: Copy {
-    fn address(self) -> usize;
-}
-
-#[cfg(all(test, target_arch = "x86"))]
-impl Where for usize {
-    fn address(self) -> usize {
-        framework::game_addr(self) as usize
-    }
-}
-
-/// A typed cell is its own place: the helpers that take a variable by `Where`
-/// or `Ida` (`session.rs`) take the typed field as well, so a module's call sites move to fields one
-/// by one.
-macro_rules! typed_places {
-    ($($t:ty),*) => {$(
-        #[cfg(all(test, target_arch = "x86"))]
-        impl Where for &'static $t {
-            fn address(self) -> usize {
-                self.addr() as usize
-            }
-        }
-    )*};
-}
-
-typed_places!(crate::session::Dword, crate::session::Float);
-
-/// Pointer to the game's memory at `place`.
-#[cfg(all(test, target_arch = "x86"))]
-fn game_ptr<T>(place: impl Where) -> *mut T {
-    crate::pointers::host_at(place.address()).cast::<T>()
-}
-
-/// Writes a variable (`framework::game_write`, over a block or the image); only the x86
-/// reference tests use it.
-#[cfg(all(test, target_arch = "x86"))]
-pub fn game_write<T: Copy>(place: impl Where, value: T) {
-    let p = game_ptr::<T>(place);
-    crate::pointers::check_or_end(
-        crate::pointers::game_address(p),
-        size_of::<T>(),
-        "a game variable",
-    );
-    // SAFETY: inside one live region (checked above).
-    unsafe { crate::shared_memory::write(p, value) }
 }
 
 /// A range of a block's plain shared bytes as a store (`pointers::Store`): `len` bytes from

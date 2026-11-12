@@ -99,7 +99,7 @@ fn fatal(code: u32, message: &'static str) -> Refused {
 
 /// String `id` as the original builds it: in the text buffer. Returns its bytes.
 fn built(
-    o: crate::owners::Owners<'_>,
+    o: crate::owners::Owners<'static>,
     text: &Text,
     id: u32,
     with_nul: bool,
@@ -121,7 +121,7 @@ fn built(
 
 /// `strings::make_case_tables` (converted: `rc2k_core::strings::case::CaseTable::{for_language,
 /// plain_letters}`).
-fn make_case_tables(o: crate::owners::Owners<'_>) -> Result<(), BadInput> {
+fn make_case_tables(o: crate::owners::Owners<'static>) -> Result<(), BadInput> {
     let strings = o.strings;
     let lower = CaseTable::for_language(&built(o, &strings.text, 2, true)?)?;
     set_case_table(&lower.lower);
@@ -141,7 +141,7 @@ fn correct_lexicon() -> Result<(), BadInput> {
 
 /// `compile` stands for `strings::compile_lexicon`.
 pub fn load_language(
-    o: crate::owners::Owners<'_>,
+    o: crate::owners::Owners<'static>,
     compile: &mut dyn FnMut() -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     let (strings, install) = (o.strings, o.install);
@@ -209,26 +209,28 @@ pub fn load_language(
 
 #[cfg(test)]
 mod tests {
-    use crate::moved::image_bytes;
     use crate::strings::owner::strings;
+    use crate::test_support::first_values::bytes;
 
     #[test]
     fn first_values_are_the_games() {
         let strings = strings();
         assert_eq!(
-            image_bytes(0x4E075C, super::LOCALE_FILES.len()),
+            bytes("strings.load_language.LOCALE_FILES"),
             super::LOCALE_FILES
         );
         assert_eq!(
-            image_bytes(0x4E0784, super::KEYBOARD_FILES.len()),
+            bytes("strings.load_language.KEYBOARD_FILES"),
             super::KEYBOARD_FILES
         );
         assert_eq!(
-            image_bytes(0x4E0798, super::LOCALE_LEN),
+            bytes("strings.load_language.LOCALE/48"),
             strings.language.locale.read()
         );
         assert_eq!(
-            image_bytes(0x4F0CC8, 256),
+            crate::test_support::first_values::bytes(
+                "strings.owner.STRINGS.language.plain_letters/256"
+            ),
             strings.language.plain_letters.read()
         );
     }

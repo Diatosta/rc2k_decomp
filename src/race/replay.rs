@@ -62,25 +62,12 @@ mod block_tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&race().shared.replays, START, START + LEN);
+        crate::test_support::first_values::assert_block_starts_as_the_games(&race().shared.replays);
     }
 
     #[test]
-    fn moved_knows_the_block() {
-        let shared = &race().shared;
-        assert_eq!(offset_of!(Replays, names), 0x528934 - START);
-        assert_eq!(
-            crate::moved::place(START),
-            shared.replays.header.addr() as usize
-        );
-        assert_eq!(
-            crate::moved::place(0x528934),
-            shared.replays.names.addr() as usize
-        );
-        assert_eq!(
-            crate::moved::place(0x528510),
-            (shared.replays.header.addr() + 0xC) as usize
-        );
+    fn fields_are_at_the_games_offsets() {
+        assert_eq!(offset_of!(Replays, names), 0x430);
     }
 }
 
@@ -396,8 +383,7 @@ pub fn close_replay(race: &Race) -> Result<(), Refused> {
 /// (`seal_replay_header`) copied into it, the index "RCIB" cleared, the cursor, counts and length
 /// 0; `var\tmprpl` created; the header written. A failed open or write closes it
 /// (`race::close_replay`).
-pub fn open_replay(race: &Race) -> Result<(), Refused> {
-    let o = crate::owners::boundary();
+pub fn open_replay(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let shared = &race.shared;
     let replay = &race.replay;
     // Converted: `rc2k_core::race::replay::{replays_on, room_for_replay}` and the
@@ -517,17 +503,17 @@ mod seal_key_tests {
 
     #[test]
     fn seal_key_starts_as_the_games() {
-        assert_eq!(crate::moved::image_bytes(0x4F66F9, 4), [0; 4]);
+        assert_eq!(
+            crate::test_support::first_values::bytes("race.owner.RACE.replay.seal_key/4"),
+            [0; 4]
+        );
         assert_eq!(race().replay.seal_key.get(), 0);
     }
 
     #[test]
     fn sealed_header_sits_at_the_games_address() {
-        use crate::race::replay_work_store::{ReplayWork, START};
-        assert_eq!(
-            core::mem::offset_of!(ReplayWork, sealed_header),
-            0x719B54 - START
-        );
+        use crate::race::replay_work_store::ReplayWork;
+        assert_eq!(core::mem::offset_of!(ReplayWork, sealed_header), 0x698);
     }
 }
 
@@ -537,45 +523,55 @@ mod header_tests {
     use crate::race::owner::race;
     use crate::session::DwordLike;
 
-    /// The header's copies as the first typed-by-address version did them (IDA names).
-    const HEADER_MOVES: [(usize, usize, usize); 31] = [
-        (1, 0x719B81, 0x4E07A0),
-        (4, 0x719B59, 0x528510),
-        (1, 0x719B86, 0x75ACE8),
-        (1, 0x719B87, 0x75ACD4),
-        (1, 0x719B88, 0x75ACF0),
-        (1, 0x719B89, 0x75ACD8),
-        (1, 0x719B8A, 0x75AE1C),
-        (1, 0x719C8C, 0x75AE1C),
-        (1, 0x719B8B, 0x75AE24),
-        (4, 0x719B5D, 0x5BECAC),
-        (4, 0x719B82, 0x75870C),
-        (1, 0x719B94, 0x75AE2C),
-        (1, 0x719B95, 0x75AD30),
-        (1, 0x719B96, 0x75AD1C),
-        (1, 0x719B97, 0x75AD20),
-        (1, 0x719B98, 0x75AD2C),
-        (1, 0x719B99, 0x75AD24),
-        (1, 0x719B9A, 0x75AD28),
-        (1, 0x719B9B, 0x71C6D0),
-        (1, 0x719B9C, 0x71C6D4),
-        (1, 0x719B9D, 0x71C6D8),
-        (2, 0x719B9E, 0x71C6DC),
-        (4, 0x719BA0, 0x71C6E0),
-        (2, 0x719BA4, 0x71C6E4),
-        (2, 0x719BA6, 0x71C6E8),
-        (2, 0x719BA8, 0x71C6EC),
-        (2, 0x719BAA, 0x71C6F0),
-        (2, 0x719BAC, 0x71C6F4),
-        (2, 0x719BAE, 0x71C6F8),
-        (2, 0x719BB0, 0x71C6FC),
-        (2, 0x719BB2, 0x71C700),
+    /// The header's copies as the first by-address version did them: (bytes, the store and
+    /// offset written, the store and offset read).
+    const CARS: &str = "race.owner.RACE.replay.cars_and_replay";
+    const LOCALE: &str = "strings.owner.STRINGS.language.locale";
+    const REPLAYS: &str = "race.owner.RACE.shared.replays";
+    const REPLAY_FILE: &str = "race.owner.RACE.shared.replay_file";
+    const WORK: &str = "race.owner.RACE.shared.work";
+    const STATE: &str = "race.owner.RACE.shared.state";
+    const CHEATS: &str = "menu.owner.MENUS.play.cheats";
+    const HEADER_MOVES: [(usize, &str, usize, &str, usize); 31] = [
+        (1, CARS, 0xA795, LOCALE, 0x8),
+        (4, CARS, 0xA76D, REPLAYS, 0xC),
+        (1, CARS, 0xA79A, STATE, 0x1C),
+        (1, CARS, 0xA79B, STATE, 0x8),
+        (1, CARS, 0xA79C, STATE, 0x24),
+        (1, CARS, 0xA79D, STATE, 0xC),
+        (1, CARS, 0xA79E, STATE, 0x150),
+        (1, CARS, 0xA8A0, STATE, 0x150),
+        (1, CARS, 0xA79F, STATE, 0x158),
+        (4, CARS, 0xA771, REPLAY_FILE, 0x34),
+        (4, CARS, 0xA796, CHEATS, 0x134),
+        (1, CARS, 0xA7A8, STATE, 0x160),
+        (1, CARS, 0xA7A9, STATE, 0x64),
+        (1, CARS, 0xA7AA, STATE, 0x50),
+        (1, CARS, 0xA7AB, STATE, 0x54),
+        (1, CARS, 0xA7AC, STATE, 0x60),
+        (1, CARS, 0xA7AD, STATE, 0x58),
+        (1, CARS, 0xA7AE, STATE, 0x5C),
+        (1, CARS, 0xA7AF, WORK, 0x1718),
+        (1, CARS, 0xA7B0, WORK, 0x171C),
+        (1, CARS, 0xA7B1, WORK, 0x1720),
+        (2, CARS, 0xA7B2, WORK, 0x1724),
+        (4, CARS, 0xA7B4, WORK, 0x1728),
+        (2, CARS, 0xA7B8, WORK, 0x172C),
+        (2, CARS, 0xA7BA, WORK, 0x1730),
+        (2, CARS, 0xA7BC, WORK, 0x1734),
+        (2, CARS, 0xA7BE, WORK, 0x1738),
+        (2, CARS, 0xA7C0, WORK, 0x173C),
+        (2, CARS, 0xA7C2, WORK, 0x1740),
+        (2, CARS, 0xA7C4, WORK, 0x1744),
+        (2, CARS, 0xA7C6, WORK, 0x1748),
     ];
 
     fn old_copy() -> Result<(), BadInput> {
-        for &(size, to, from) in &HEADER_MOVES {
-            let (to, from) = (crate::moved::named(to)?, crate::moved::named(from)?);
-            from.copy_to(to, size, "the replay header")?;
+        use crate::test_support::state::store;
+        for &(size, to, to_at, from, from_at) in &HEADER_MOVES {
+            let mut bytes = vec![0; size];
+            store(from).load(from_at, &mut bytes)?;
+            store(to).store(to_at, &bytes)?;
         }
         Ok(())
     }

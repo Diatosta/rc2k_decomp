@@ -74,9 +74,11 @@ mod blend_work_tests {
         assert_eq!(size_of::<BlendWork>(), BlendWork::LEN);
         assert!(
             bytes(&effects().clipping.blend_work)
-                == crate::moved::image_bytes(BlendWork::START, BlendWork::LEN),
+                == crate::test_support::first_values::bytes(
+                    "effects.owner.EFFECTS.clipping.blend_work/4"
+                ),
             "BLEND_WORK starts differently from the image"
         );
-        assert_eq!(offset_of!(BlendWork, factor), 0x93C6C8 - BlendWork::START);
+        assert_eq!(offset_of!(BlendWork, factor), 0x0);
     }
 }

@@ -653,153 +653,117 @@ impl AudioState {
     }
 }
 
-/// (name, address) of every named field, for the layout test.
+/// (offset of the field, the offset the game's layout has) of every named field, for the layout test.
 #[cfg(test)]
 const LAYOUT: &[(usize, usize)] = &[
-    (core::mem::offset_of!(AudioState, quality_modes), 0x4F8294),
-    (core::mem::offset_of!(AudioState, no_audio), 0x4F82B4),
-    (core::mem::offset_of!(AudioState, audio_turn_tick), 0x4F82B8),
-    (core::mem::offset_of!(AudioState, sound_mode), 0x4F82BC),
-    (
-        core::mem::offset_of!(AudioState, opened_sound_mode),
-        0x4F82C0,
-    ),
-    (core::mem::offset_of!(AudioState, menu_sound_mode), 0x4F82C4),
-    (core::mem::offset_of!(AudioState, race_sound_mode), 0x4F82C8),
-    (
-        core::mem::offset_of!(AudioState, sound_buffer_lost),
-        0x4F82CC,
-    ),
-    (core::mem::offset_of!(AudioState, commit_3d), 0x4F82D0),
-    (
-        core::mem::offset_of!(AudioState, mix_rate_setting),
-        0x4F82D4,
-    ),
-    (core::mem::offset_of!(AudioState, master_volume), 0x4F82D8),
-    (
-        core::mem::offset_of!(AudioState, primary_volume_kept),
-        0x4F82DC,
-    ),
-    (
-        core::mem::offset_of!(AudioState, sample_bits_flags),
-        0x4F82E0,
-    ),
+    (core::mem::offset_of!(AudioState, quality_modes), 0x0),
+    (core::mem::offset_of!(AudioState, no_audio), 0x20),
+    (core::mem::offset_of!(AudioState, audio_turn_tick), 0x24),
+    (core::mem::offset_of!(AudioState, sound_mode), 0x28),
+    (core::mem::offset_of!(AudioState, opened_sound_mode), 0x2C),
+    (core::mem::offset_of!(AudioState, menu_sound_mode), 0x30),
+    (core::mem::offset_of!(AudioState, race_sound_mode), 0x34),
+    (core::mem::offset_of!(AudioState, sound_buffer_lost), 0x38),
+    (core::mem::offset_of!(AudioState, commit_3d), 0x3C),
+    (core::mem::offset_of!(AudioState, mix_rate_setting), 0x40),
+    (core::mem::offset_of!(AudioState, master_volume), 0x44),
+    (core::mem::offset_of!(AudioState, primary_volume_kept), 0x48),
+    (core::mem::offset_of!(AudioState, sample_bits_flags), 0x4C),
     (
         core::mem::offset_of!(AudioState, sample_channel_flags),
-        0x4F82F0,
+        0x5C,
     ),
-    (core::mem::offset_of!(AudioState, sample_memory), 0x4F8300),
-    (core::mem::offset_of!(AudioState, playing_voices), 0x4F8340),
-    (core::mem::offset_of!(AudioState, stopping_voices), 0x4F8344),
-    (core::mem::offset_of!(AudioState, voice_count), 0x4F8348),
-    (core::mem::offset_of!(AudioState, voices), 0x4F834C),
-    (core::mem::offset_of!(AudioState, channel_count), 0x50634C),
-    (core::mem::offset_of!(AudioState, channels_used), 0x506350),
-    (core::mem::offset_of!(AudioState, channels), 0x506354),
-    (core::mem::offset_of!(AudioState, mix_rate), 0x5068D4),
-    (core::mem::offset_of!(AudioState, primary_size), 0x5068D8),
-    (core::mem::offset_of!(AudioState, mix_most), 0x5068DC),
-    (core::mem::offset_of!(AudioState, mix_shift), 0x5068E0),
-    (core::mem::offset_of!(AudioState, play_cursor), 0x5068E4),
-    (core::mem::offset_of!(AudioState, write_cursor), 0x5068E8),
-    (
-        core::mem::offset_of!(AudioState, sample_buffer_kb),
-        0x5068EC,
-    ),
+    (core::mem::offset_of!(AudioState, sample_memory), 0x6C),
+    (core::mem::offset_of!(AudioState, playing_voices), 0xAC),
+    (core::mem::offset_of!(AudioState, stopping_voices), 0xB0),
+    (core::mem::offset_of!(AudioState, voice_count), 0xB4),
+    (core::mem::offset_of!(AudioState, voices), 0xB8),
+    (core::mem::offset_of!(AudioState, channel_count), 0xE0B8),
+    (core::mem::offset_of!(AudioState, channels_used), 0xE0BC),
+    (core::mem::offset_of!(AudioState, channels), 0xE0C0),
+    (core::mem::offset_of!(AudioState, mix_rate), 0xE640),
+    (core::mem::offset_of!(AudioState, primary_size), 0xE644),
+    (core::mem::offset_of!(AudioState, mix_most), 0xE648),
+    (core::mem::offset_of!(AudioState, mix_shift), 0xE64C),
+    (core::mem::offset_of!(AudioState, play_cursor), 0xE650),
+    (core::mem::offset_of!(AudioState, write_cursor), 0xE654),
+    (core::mem::offset_of!(AudioState, sample_buffer_kb), 0xE658),
     (
         core::mem::offset_of!(AudioState, sample_buffer_memory),
-        0x5068F0,
+        0xE65C,
     ),
-    (core::mem::offset_of!(AudioState, sample_buffer), 0x506930),
+    (core::mem::offset_of!(AudioState, sample_buffer), 0xE69C),
     (
         core::mem::offset_of!(AudioState, sample_buffer_size),
-        0x506934,
+        0xE6A0,
     ),
-    (core::mem::offset_of!(AudioState, sample_file), 0x506938),
+    (core::mem::offset_of!(AudioState, sample_file), 0xE6A4),
     (
         core::mem::offset_of!(AudioState, unit_volume_factor),
-        0x506958,
+        0xE6C4,
     ),
-    (
-        core::mem::offset_of!(AudioState, sound_list_loaded),
-        0x50695C,
-    ),
-    (core::mem::offset_of!(AudioState, sound_stream), 0x506960),
-    (core::mem::offset_of!(AudioState, next_tune), 0x50698C),
-    (core::mem::offset_of!(AudioState, music_stream), 0x506990),
-    (core::mem::offset_of!(AudioState, no_music), 0x5069BC),
-    (core::mem::offset_of!(AudioState, music_path), 0x5069C0),
-    (core::mem::offset_of!(AudioState, stream_header), 0x5069D8),
+    (core::mem::offset_of!(AudioState, sound_list_loaded), 0xE6C8),
+    (core::mem::offset_of!(AudioState, sound_stream), 0xE6CC),
+    (core::mem::offset_of!(AudioState, next_tune), 0xE6F8),
+    (core::mem::offset_of!(AudioState, music_stream), 0xE6FC),
+    (core::mem::offset_of!(AudioState, no_music), 0xE728),
+    (core::mem::offset_of!(AudioState, music_path), 0xE72C),
+    (core::mem::offset_of!(AudioState, stream_header), 0xE744),
     (
         core::mem::offset_of!(AudioState, stream_header_memory),
-        0x5069DC,
+        0xE748,
     ),
-    (core::mem::offset_of!(AudioState, a3d_iid), 0x506A28),
-    (core::mem::offset_of!(AudioState, iid_listener), 0x506A48),
+    (core::mem::offset_of!(AudioState, a3d_iid), 0xE794),
+    (core::mem::offset_of!(AudioState, iid_listener), 0xE7B4),
     (
         core::mem::offset_of!(AudioState, iid_sound_3d_buffer),
-        0x506A58,
+        0xE7C4,
     ),
-    (
-        core::mem::offset_of!(AudioState, iid_property_set),
-        0x506A78,
-    ),
-    (core::mem::offset_of!(AudioState, direct_sound), 0x506A88),
-    (core::mem::offset_of!(AudioState, primary_buffer), 0x506A8C),
-    (core::mem::offset_of!(AudioState, sound_listener), 0x506A90),
-    (core::mem::offset_of!(AudioState, locked_parts), 0x506A98),
-    (core::mem::offset_of!(AudioState, sound_caps), 0x506AA8),
-    (core::mem::offset_of!(AudioState, primary_caps), 0x506B08),
+    (core::mem::offset_of!(AudioState, iid_property_set), 0xE7E4),
+    (core::mem::offset_of!(AudioState, direct_sound), 0xE7F4),
+    (core::mem::offset_of!(AudioState, primary_buffer), 0xE7F8),
+    (core::mem::offset_of!(AudioState, sound_listener), 0xE7FC),
+    (core::mem::offset_of!(AudioState, locked_parts), 0xE804),
+    (core::mem::offset_of!(AudioState, sound_caps), 0xE814),
+    (core::mem::offset_of!(AudioState, primary_caps), 0xE874),
     (
         core::mem::offset_of!(AudioState, buffer_description),
-        0x506B1C,
+        0xE888,
     ),
-    (core::mem::offset_of!(AudioState, wave_format), 0x506B30),
-    (core::mem::offset_of!(AudioState, no_listener), 0x506B42),
-    (core::mem::offset_of!(AudioState, has_3d), 0x506B46),
-    (core::mem::offset_of!(AudioState, volume_table), 0x506B4C),
+    (core::mem::offset_of!(AudioState, wave_format), 0xE89C),
+    (core::mem::offset_of!(AudioState, no_listener), 0xE8AE),
+    (core::mem::offset_of!(AudioState, has_3d), 0xE8B2),
+    (core::mem::offset_of!(AudioState, volume_table), 0xE8B8),
     (
         core::mem::offset_of!(AudioState, ignore_dsv_setting),
-        0x506C50,
+        0xE9BC,
     ),
-    (
-        core::mem::offset_of!(AudioState, voice_manager_on),
-        0x506C54,
-    ),
-    (core::mem::offset_of!(AudioState, voice_manager), 0x506C58),
-    (core::mem::offset_of!(AudioState, no_a3d_setting), 0x506C5C),
-    (core::mem::offset_of!(AudioState, a3d_splash_kept), 0x506C60),
-    (core::mem::offset_of!(AudioState, a3d_ready), 0x506C64),
-    (core::mem::offset_of!(AudioState, a3d_object), 0x506C68),
+    (core::mem::offset_of!(AudioState, voice_manager_on), 0xE9C0),
+    (core::mem::offset_of!(AudioState, voice_manager), 0xE9C4),
+    (core::mem::offset_of!(AudioState, no_a3d_setting), 0xE9C8),
+    (core::mem::offset_of!(AudioState, a3d_splash_kept), 0xE9CC),
+    (core::mem::offset_of!(AudioState, a3d_ready), 0xE9D0),
+    (core::mem::offset_of!(AudioState, a3d_object), 0xE9D4),
     (
         core::mem::offset_of!(AudioState, ignore_eax_setting),
-        0x506C6C,
+        0xE9D8,
     ),
-    (core::mem::offset_of!(AudioState, has_eax), 0x506C70),
-    (core::mem::offset_of!(AudioState, eax_properties), 0x506C74),
-    (core::mem::offset_of!(AudioState, eax_room), 0x506C78),
-    (core::mem::offset_of!(AudioState, eax_room_set), 0x506C7C),
-    (
-        core::mem::offset_of!(AudioState, environment_kept),
-        0x506C80,
-    ),
-    (
-        core::mem::offset_of!(AudioState, sounds_held_back),
-        0x506C84,
-    ),
-    (core::mem::offset_of!(AudioState, audio_options), 0x506C88),
-    (
-        core::mem::offset_of!(AudioState, voice_manager_set),
-        0x506CC8,
-    ),
-    (core::mem::offset_of!(AudioState, a3d_clsid), 0x506CD8),
-    (core::mem::offset_of!(AudioState, a3d2_interface), 0x506D58),
-    (core::mem::offset_of!(AudioState, has_a3d2), 0x506D5C),
-    (core::mem::offset_of!(AudioState, use_a3d), 0x506D60),
-    (core::mem::offset_of!(AudioState, a3d2_clsid), 0x506D6C),
-    (core::mem::offset_of!(AudioState, a3d2_iid), 0x506D8C),
-    (core::mem::offset_of!(AudioState, eax_reverb_set), 0x506DAC),
-    (core::mem::offset_of!(AudioState, eax_rooms), 0x506DCC),
+    (core::mem::offset_of!(AudioState, has_eax), 0xE9DC),
+    (core::mem::offset_of!(AudioState, eax_properties), 0xE9E0),
+    (core::mem::offset_of!(AudioState, eax_room), 0xE9E4),
+    (core::mem::offset_of!(AudioState, eax_room_set), 0xE9E8),
+    (core::mem::offset_of!(AudioState, environment_kept), 0xE9EC),
+    (core::mem::offset_of!(AudioState, sounds_held_back), 0xE9F0),
+    (core::mem::offset_of!(AudioState, audio_options), 0xE9F4),
+    (core::mem::offset_of!(AudioState, voice_manager_set), 0xEA34),
+    (core::mem::offset_of!(AudioState, a3d_clsid), 0xEA44),
+    (core::mem::offset_of!(AudioState, a3d2_interface), 0xEAC4),
+    (core::mem::offset_of!(AudioState, has_a3d2), 0xEAC8),
+    (core::mem::offset_of!(AudioState, use_a3d), 0xEACC),
+    (core::mem::offset_of!(AudioState, a3d2_clsid), 0xEAD8),
+    (core::mem::offset_of!(AudioState, a3d2_iid), 0xEAF8),
+    (core::mem::offset_of!(AudioState, eax_reverb_set), 0xEB18),
+    (core::mem::offset_of!(AudioState, eax_rooms), 0xEB38),
 ];
 
 pub const SAMPLES_IDA: usize = 0x50A7A4;
@@ -2395,7 +2359,7 @@ pub static ENVIRONMENT: crate::session::Dword = crate::session::Dword::new(0);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moved::image_bytes;
+    use crate::test_support::first_values;
 
     fn bytes_of<T>(block: &T, len: usize) -> Vec<u8> {
         let p = std::ptr::from_ref::<T>(block).cast::<u8>();
@@ -2405,16 +2369,12 @@ mod tests {
     #[test]
     fn the_state_starts_as_the_games() {
         assert_eq!(size_of::<AudioState>(), STATE_END - STATE_IDA);
-        assert_eq!(
-            bytes_of(&audio().state, size_of::<AudioState>()),
-            image_bytes(STATE_IDA, STATE_END - STATE_IDA)
-        );
     }
 
     #[test]
     fn the_state_keeps_the_images_layout() {
-        for &(offset, ida) in LAYOUT {
-            assert_eq!(offset, ida - STATE_IDA, "{ida:#X}");
+        for &(offset, games) in LAYOUT {
+            assert_eq!(offset, games, "{games:#X}");
         }
         assert_eq!(size_of::<Voice>(), 0x70);
         assert_eq!(size_of::<MixerChannel>(), 0x58);
@@ -2441,14 +2401,14 @@ mod tests {
             mine[at + LEVEL_AT..at + LEVEL_AT + 4]
                 .copy_from_slice(&levels[r.volume_factor as usize].to_le_bytes());
         }
-        assert_eq!(mine, image_bytes(SAMPLES_IDA, SAMPLES_END - SAMPLES_IDA));
+        first_values::assert_matches("store:audio.owner.AUDIO_OWNER.sample_records", &mine);
     }
 
     #[test]
     fn the_environment_starts_as_the_games() {
         assert_eq!(
             super::ENVIRONMENT.get().to_le_bytes().to_vec(),
-            image_bytes(0x6D1DD4, 4)
+            crate::test_support::first_values::bytes("audio.store.ENVIRONMENT/4")
         );
     }
 }

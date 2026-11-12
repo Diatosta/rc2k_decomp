@@ -65,5 +65,12 @@ pub fn draw_viewer_item(
                 .wrapping_sub(install.pages.move_clock.get())
         },
     );
-    crate::drive::tyre_quad::tyre_quad(uv, &panel.item_place, colour, panel, system)
+    crate::drive::tyre_quad::tyre_quad(
+        uv,
+        &panel.item_place,
+        colour,
+        panel,
+        system,
+        crate::workers::game_scratch().vertices,
+    )
 }

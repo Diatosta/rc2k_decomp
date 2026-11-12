@@ -259,12 +259,6 @@ pub const START: usize = 0x755A4C;
 /// IDA 0x75648C, the end of the piece.
 pub const END: usize = 0x75648C;
 
-/// Where IDA 0x755A4C lives (`moved::MOVED`'s home).
-#[cfg(test)]
-pub fn players_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::menu::owner::menus().play.players)
-}
-
 /// Links each player's name to its player (the image's records held the old links). The
 /// table of the records' addresses (`g_players`) keeps the image's: nothing reads it, the
 /// players are reached by number.
@@ -277,29 +271,24 @@ pub fn point_players(menus: &crate::menu::owner::Menus) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moved::image_bytes;
     use core::mem::{offset_of, size_of};
 
     #[test]
     fn player_table_starts_as_the_games() {
-        assert!(
-            END - START <= size_of::<PlayerTable>()
-                && size_of::<PlayerTable>() <= (END - START).next_multiple_of(4)
-        );
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host(players_addr()).cast_const(),
+                (&raw const crate::menu::owner::menus().play.players).cast::<u8>(),
                 END - START,
             )
         };
         // The name words (+0x18) hold the player's number here, the name's address there.
-        let image = image_bytes(START, END - START);
+        let image = crate::test_support::first_values::bytes("menu.owner.MENUS.play.players/2624");
         let mut mine = mine.to_vec();
         for n in 0..4 {
             let at = n * size_of::<Player>() + 0x18;
             let word = |bytes: &[u8]| u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap());
             assert_eq!(word(&mine), n as u32 + 1);
-            assert_eq!(word(&image), 0x0075_5784 + 0x20 * n as u32);
+            assert_eq!(word(image), crate::menu::player_names::name_address(n));
             // The best-times entries get the name's address, where the pointer was.
             assert_eq!(
                 crate::menu::standings::name_address_of(
@@ -310,9 +299,8 @@ mod tests {
             mine[at..at + 4].copy_from_slice(&image[at..at + 4]);
         }
         assert_eq!(mine, image);
-        let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
-        at(offset_of!(PlayerTable, players), 0x755A4C);
+        assert_eq!(offset_of!(PlayerTable, players), 0);
         assert_eq!(size_of::<Player>(), 0x28c);
-        at(offset_of!(PlayerTable, pointers), 0x75647C);
+        assert_eq!(offset_of!(PlayerTable, pointers), 0xa30);
     }
 }

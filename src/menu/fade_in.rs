@@ -6,8 +6,8 @@
 //! original divides by 0), before anything.
 
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
+use crate::owners::Owners;
 
-pub fn fade_in(menus: &Menus) -> Result<(), Refused> {
-    crate::menu::fades::fade(menus, false)
+pub fn fade_in(o: Owners<'static>) -> Result<(), Refused> {
+    crate::menu::fades::fade(o, false)
 }

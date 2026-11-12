@@ -139,21 +139,19 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&crate::race::owner::RACE.course.course, START, END);
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &crate::race::owner::RACE.course.course,
+        );
     }
 
     #[test]
-    fn piece_has_its_home() {
+    fn fields_are_at_the_games_offsets() {
         assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            piece_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
-        assert_eq!(offset_of!(CourseWork, record_place), 0x5CCBF0 - START);
-        assert_eq!(offset_of!(CourseWork, face_light_bytes), 0x5CCC90 - START);
-        assert_eq!(offset_of!(CourseWork, scene_points), 0x5CCCC0 - START);
-        assert_eq!(offset_of!(CourseWork, course_face_count), 0x5CCD1C - START);
-        assert_eq!(offset_of!(CourseWork, place_x), 0x5CCDA0 - START);
-        assert_eq!(offset_of!(CourseWork, shine), 0x5CCE74 - START);
+        assert_eq!(offset_of!(CourseWork, record_place), 0x0);
+        assert_eq!(offset_of!(CourseWork, face_light_bytes), 0xa0);
+        assert_eq!(offset_of!(CourseWork, scene_points), 0xd0);
+        assert_eq!(offset_of!(CourseWork, course_face_count), 0x12c);
+        assert_eq!(offset_of!(CourseWork, place_x), 0x1b0);
+        assert_eq!(offset_of!(CourseWork, shine), 0x284);
     }
 }

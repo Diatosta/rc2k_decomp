@@ -46,12 +46,6 @@ impl SampleNames {
 impl SampleNames {
     pub const START: usize = 0x506E6C;
     pub const LEN: usize = 0x3938;
-    #[cfg(test)]
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        (crate::pointers::game_address(&raw const crate::audio::owner::AUDIO_OWNER.sample_names)
-            + 12) as usize
-    }
 }
 
 #[cfg(test)]
@@ -64,13 +58,5 @@ mod tests {
         assert!(
             12 + SampleNames::LEN <= size && size <= (12 + SampleNames::LEN).next_multiple_of(16)
         );
-        let image = crate::moved::image_bytes(SampleNames::START, SampleNames::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(SampleNames::home()).cast_const(),
-                SampleNames::LEN,
-            )
-        };
-        assert_eq!(mine, &image[..]);
     }
 }

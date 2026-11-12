@@ -41,24 +41,14 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
+        crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::gfx::owner::GFX.unchecked().strips,
-            START,
-            START + LEN,
         );
     }
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(offset_of!(Strips, tops), 0x6D1880 - START);
-        assert_eq!(offset_of!(Strips, lefts), 0x6D18B0 - START);
-        assert_eq!(
-            crate::moved::place(START),
-            crate::gfx::owner::GFX.unchecked().strips.sizes[0].addr() as usize
-        );
-        assert_eq!(
-            crate::moved::place(0x6D18B0),
-            crate::gfx::owner::GFX.unchecked().strips.lefts[0].addr() as usize
-        );
+        assert_eq!(offset_of!(Strips, tops), 0x10);
+        assert_eq!(offset_of!(Strips, lefts), 0x40);
     }
 }

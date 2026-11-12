@@ -6,9 +6,10 @@
 //! states' cache and the held matrix columns a part keeps are put back in the parts' order
 //! (frame plan F7: no drawing part writes a shared store).
 //!
-//! A scratch store each run makes for itself before reading is a `PerWorker<T>`: one copy per
-//! drawing thread, and code reaches the copy of the thread it runs on through `Deref`. Copy 0
-//! is the game's own thread's (and every thread's that is not a drawing one).
+//! The scratch stores each part makes for itself before reading (the polygon vertex buffer,
+//! the polygon work, the point records) are a `PartScratch`: one per part (`part_scratch`),
+//! handed to the part's drawing and passed down to what reaches them. Part 0's is the game's
+//! own thread's, what everything drawn outside the parts works on too (`game_scratch`).
 
 use crate::errors::{BadInput, Refused};
 use std::cell::Cell;
@@ -38,67 +39,69 @@ pub fn index() -> usize {
     INDEX.get()
 }
 
-/// A store with one copy per drawing thread (see the module's header), and one of the state
-/// the runs start from.
-pub struct PerWorker<T>([T; COUNT]);
-
-impl<T> PerWorker<T> {
-    pub const fn new(copies: [T; COUNT]) -> Self {
-        Self(copies)
-    }
-
-    /// Every copy (what is set up for all threads at once: a stage's records zeroed).
-    pub fn all(&self) -> &[T; COUNT] {
-        &self.0
-    }
+/// What a drawing part makes for itself before reading (see the module's header): neither
+/// copied in nor merged, each part's work on its own (the replays' every flush the same as on
+/// one thread).
+pub struct PartScratch {
+    /// The polygon vertex buffer (`d3d::vertices_store`).
+    pub vertices: &'static crate::d3d::vertices_store::PolygonVertices,
+    /// The polygon work: the entries, their lists, the clipper's pool
+    /// (`scene::polygon_store`).
+    pub polygon: &'static crate::scene::polygon_store::PolygonWork,
+    /// The point records, a cache of the points' projections (`scene::point_records`).
+    pub records: &'static crate::scene::point_records::Records,
 }
 
-impl<T> core::ops::Deref for PerWorker<T> {
-    type Target = T;
-    #[inline(always)]
-    fn deref(&self) -> &T {
-        // `index` is below `COUNT` (only `COUNT` drawing threads are given one).
-        &self.0[index()]
-    }
+/// The parts' scratch, part 0's in the stores' places in the race's buffers (the image's
+/// layout) and the game's own records, the others' their stores' other copies.
+static PARTS: [PartScratch; COUNT] = {
+    use crate::d3d::vertices_store::OTHER_COPIES as V;
+    use crate::scene::point_records::RECORDS as R;
+    use crate::scene::polygon_store::OTHER_COPIES as P;
+    let buffers = &crate::race::owner::RACE.shared.buffers;
+    [
+        PartScratch {
+            vertices: &buffers.vertices,
+            polygon: &buffers.polygon,
+            records: &R[0],
+        },
+        PartScratch {
+            vertices: &V[0],
+            polygon: &P[0],
+            records: &R[1],
+        },
+        PartScratch {
+            vertices: &V[1],
+            polygon: &P[1],
+            records: &R[2],
+        },
+        PartScratch {
+            vertices: &V[2],
+            polygon: &P[2],
+            records: &R[3],
+        },
+    ]
+};
+
+/// Part `n`'s scratch (below `COUNT`).
+pub fn part_scratch(n: usize) -> &'static PartScratch {
+    &PARTS[n]
 }
 
-/// The running thread's copy of a store kept as the game's own (`first`, in its place in a
-/// block with the image's layout) and the other drawing threads' (`others`).
-#[inline(always)]
-pub fn pick<'a, T>(first: &'a T, others: &'a [T; COUNT - 1]) -> &'a T {
-    match index() {
-        0 => first,
-        n => &others[n - 1],
-    }
+/// The game's own thread's scratch: part 0's, what everything drawn outside the parts (the
+/// overlays, the HUD, the front end) works on.
+pub fn game_scratch() -> &'static PartScratch {
+    debug_assert_eq!(index(), 0, "the game's scratch on a drawing part");
+    &PARTS[0]
 }
 
 // ---- the copies ----
 
-/// A store with one copy per drawing thread, reached by copy number (0 the game's own).
+/// The scratch stores' copies by part (0 the game's own), as stores.
 #[cfg(test)]
-pub trait Copies: Sync {
-    fn copy(&self, n: usize) -> &(dyn crate::pointers::Store + Sync);
-}
-
-#[cfg(test)]
-impl<T: crate::pointers::Store + Sync> Copies for PerWorker<T> {
-    fn copy(&self, n: usize) -> &(dyn crate::pointers::Store + Sync) {
-        &self.0[n]
-    }
-}
-
-/// The stores each run makes for itself before reading (neither copied in nor merged; the
-/// replays' every flush is the same as on one thread): the point records (a cache of the
-/// points' projections, each record named by its point, the frame's clear reaching every
-/// copy: `point_records::first_records_everywhere`), the vertex buffer and the polygon work.
-/// (The sort lists are each view's own: `race::view_scratch`.)
-#[cfg(test)]
-fn scratch_stores() -> [&'static dyn Copies; 3] {
-    [
-        crate::scene::point_records::copies(),
-        &crate::d3d::vertices_store::VERTICES,
-        &crate::scene::polygon_store::POLYGON_WORK,
-    ]
+fn scratch_stores(n: usize) -> [&'static (dyn crate::pointers::Store + Sync); 3] {
+    let p = &PARTS[n];
+    [p.records, p.vertices, p.polygon]
 }
 
 // ---- the runs ----
@@ -138,9 +141,9 @@ fn serial() -> bool {
 fn register_copies() {
     static DONE: OnceLock<()> = OnceLock::new();
     DONE.get_or_init(|| {
-        for s in scratch_stores() {
-            for n in 1..COUNT {
-                crate::pointers::register_store(s.copy(n));
+        for n in 1..COUNT {
+            for s in scratch_stores(n) {
+                crate::pointers::register_store(s);
             }
         }
     });
@@ -205,20 +208,26 @@ pub fn wait_for_earlier_runs() {
 /// the other, each on its own copy as on its own thread, so that what is drawn is the same
 /// however many threads draw.
 pub fn draw_beside(
-    first: impl Fn() -> Result<(), Refused> + Sync,
-    second: impl Fn() -> Result<(), Refused> + Sync,
+    first: impl Fn(&PartScratch) -> Result<(), Refused> + Sync,
+    second: impl Fn(&PartScratch) -> Result<(), Refused> + Sync,
     mut then: impl FnMut() -> Result<(), Refused>,
     mut then_second: impl FnMut() -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     draw_side_by_side(
         2,
-        |n| if n == 0 { first() } else { second() },
+        |n, scratch| {
+            if n == 0 {
+                first(scratch)
+            } else {
+                second(scratch)
+            }
+        },
         |n| if n == 0 { then() } else { then_second() },
     )
 }
 
-/// Parts 0 .. `k` (`part(n)`, at most `COUNT`) drawn beside each other as `draw_beside` draws
-/// two: the first on the game's thread, each other on a drawing thread, each from the working
+/// Parts 0 .. `k` (`part(n, scratch)`, at most `COUNT`, each on its own scratch) drawn beside
+/// each other as `draw_beside` draws two: the first on the game's thread, each other on a drawing thread, each from the working
 /// state as it is now; their drawing put together and their changes put back in their order.
 /// `after(n)` runs on the game's thread once part `n` is put back (part 0: once every part
 /// has ended), before the next is: what the drawing does there goes after part `n`'s, on the
@@ -226,7 +235,7 @@ pub fn draw_beside(
 /// has no copy per part, the cars' crumpled points, no part reads while it changes).
 pub fn draw_side_by_side(
     k: usize,
-    part: impl Fn(usize) -> Result<(), Refused> + Sync,
+    part: impl Fn(usize, &PartScratch) -> Result<(), Refused> + Sync,
     after: impl FnMut(usize) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     if k > COUNT {
@@ -258,7 +267,7 @@ pub fn players_beside() -> bool {
 fn draw_parts(
     pool: Option<&rayon::ThreadPool>,
     k: usize,
-    part: impl Fn(usize) -> Result<(), Refused> + Sync,
+    part: impl Fn(usize, &PartScratch) -> Result<(), Refused> + Sync,
     mut after: impl FnMut(usize) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     #[cfg(test)]
@@ -284,7 +293,7 @@ fn draw_parts(
         crate::write_watch::begin();
         crate::d3d::run_states::begin_run(&cache_start);
         crate::scene::view_matrices::begin_part(columns_start);
-        let result = part(n);
+        let result = part(n, part_scratch(n));
         let states = crate::d3d::run_states::end_run();
         let columns = crate::scene::view_matrices::end_part().unwrap_or(columns_start);
         #[cfg(feature = "write_watch")]
@@ -309,7 +318,7 @@ fn draw_parts(
     let first_run = || {
         IN_RUN.set(true);
         crate::race::scene_points::forget_own();
-        let result = part(0);
+        let result = part(0, part_scratch(0));
         IN_RUN.set(false);
         ended(0);
         result

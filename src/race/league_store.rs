@@ -51,18 +51,16 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&crate::race::owner::RACE.course.league, START, END);
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &crate::race::owner::RACE.course.league,
+        );
     }
 
     #[test]
-    fn piece_has_its_home() {
+    fn fields_are_at_the_games_offsets() {
         assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            crate::moved::place(END - 1),
-            (piece_addr() + (END - START) as u32 - 1) as usize
-        );
-        assert_eq!(offset_of!(League, rows), 0x604134 - START);
-        assert_eq!(offset_of!(League, car_time), 0x6043F8 - START);
-        assert_eq!(offset_of!(League, auto_setups), 0x6043FC - START);
+        assert_eq!(offset_of!(League, rows), 0x28);
+        assert_eq!(offset_of!(League, car_time), 0x2ec);
+        assert_eq!(offset_of!(League, auto_setups), 0x2f0);
     }
 }

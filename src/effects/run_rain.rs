@@ -29,7 +29,6 @@ use crate::math::x87;
 use crate::race::owner::Race;
 
 const MOST_DROPS: i32 = 0x100;
-use crate::d3d::vertices_store::VERTICES;
 const ENTRIES: u32 = 5;
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
@@ -57,6 +56,7 @@ fn keep_y(weather: &Weather, i: usize) {
 }
 
 pub fn run_rain(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
     race: &Race,
     weather: &Weather,
     scene: &crate::scene::owner::Scene,
@@ -97,7 +97,7 @@ pub fn run_rain(
         // 1132462080.0 that the handheld's GL clipped the streaks away by (`notes/bugs.md`).
         let rhw = weather.rain_rules.rhw;
         for (n, colour) in COLOURS.into_iter().enumerate() {
-            let v = &VERTICES.vertices[n];
+            let v = &buffer.vertices[n];
             v.rhw.set_bits(rhw);
             v.colour.set(colour);
             v.specular.set(0);
@@ -146,7 +146,9 @@ pub fn run_rain(
                 x87::int_80(y as i32, false),
                 x87::int_80(x as i32, false),
             ];
-            crate::effects::draw_rain_streak::draw_rain_streak(weather, place, scene, effects)?;
+            crate::effects::draw_rain_streak::draw_rain_streak(
+                buffer, weather, place, scene, effects,
+            )?;
             let marks = effects.settings()?;
             if marks.other_marks_shown.get() != 0 {
                 for (n, kept) in r.kept.iter().enumerate() {

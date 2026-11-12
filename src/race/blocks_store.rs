@@ -183,7 +183,6 @@ pub fn block_addr(n: usize) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moved::image_bytes;
     use core::mem::offset_of;
 
     #[test]
@@ -192,23 +191,10 @@ mod tests {
         assert_eq!(offset_of!(CarBlocks, unused_tail), 0x9EC0);
         assert_eq!(blocks_addr(replay) % 4, 0);
         assert_eq!(
-            blocks_addr(replay),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
-        assert_eq!(
             crate::pointers::game_address(&raw const CAR_BLOCKS.cars[1].gear),
             blocks_addr(replay) + 0xFE0 + 0x1D4
         );
-        assert_eq!(
-            block_addr(8),
-            crate::framework::game_addr(crate::framework::rva(START + 8 * 0xFE0))
-        );
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host(blocks_addr(replay)).cast_const(),
-                END - START,
-            )
-        };
-        assert_eq!(mine, &image_bytes(START, END - START)[..]);
+        // The first values: the store `race.owner.RACE.replay.cars_and_replay` they begin
+        // (`every_store_starts_as_the_games`).
     }
 }

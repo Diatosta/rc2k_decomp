@@ -72,29 +72,6 @@ pub(crate) fn same(a: u32, b: u32) -> bool {
     a == b || (f32::from_bits(a).is_nan() && f32::from_bits(b).is_nan())
 }
 
-/// The game's dwords (IDA addresses) as they were, put back when dropped.
-pub(crate) struct Saved(Vec<(usize, u32)>);
-
-impl Saved {
-    pub(crate) fn new(ida: &[usize]) -> Saved {
-        use crate::framework::{game_read, rva};
-        Saved(
-            ida.iter()
-                .map(|&a| (a, { game_read::<u32>(rva(a)) }))
-                .collect(),
-        )
-    }
-}
-
-impl Drop for Saved {
-    fn drop(&mut self) {
-        use crate::framework::{game_write, rva};
-        for &(a, v) in &self.0 {
-            game_write(rva(a), v);
-        }
-    }
-}
-
 /// Two floats' bits are within `ulps` units in the last place (same sign), or both NaN.
 pub(crate) fn within_ulps(a: u32, b: u32, ulps: u32) -> bool {
     if same(a, b) {

@@ -126,21 +126,27 @@ pub fn command(command: Command) {
 }
 
 /// `sound::wait_for_commands`: the queue run out (its ends of turn read no register).
-pub fn wait_for_commands() {
-    let o = crate::owners::boundary();
-    crate::sound::wait_for_commands::wait_in_game(o.audio, o.system);
+pub fn wait_for_commands(
+    audio: &crate::audio::owner::Audio,
+    system: &crate::system::owner::System,
+) {
+    crate::sound::wait_for_commands::wait_in_game(audio, system);
 }
 
 /// `race::reset_race_sounds` (0x40D378): the sound commands waited for, command 7 (with its end of
 /// turn), waited again, sounds held back, the race clock started; the eight race sound objects' 32
 /// fields reset (`OBJECT_VALUES`); eleven variables 0; the 0x48 voices' +0 0x1888FFFF and +0x14 -2;
 /// two more sound flags 0, the EAX environment 1.0; command 2 with the value 3; one more flag 0.
-pub fn reset_race_sounds(v: &SoundVars, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
-    let audio = crate::audio::owner::audio();
-    wait_for_commands();
+pub fn reset_race_sounds(
+    v: &SoundVars,
+    sound: &crate::sound::owner::Sound,
+    audio: &crate::audio::owner::Audio,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
+    wait_for_commands(audio, system);
     command(Command::StopAll);
     crate::sound::queue::send_with_eax(Command::EndOfTurn, Some(7));
-    wait_for_commands();
+    wait_for_commands(audio, system);
     crate::sound::hold_sounds_back::hold_sounds_back(audio);
     crate::sound::race_clock::start_race_clock(crate::system::tick_count::tick_count(), sound);
     for o in &sound.race.sounds.objects {
@@ -278,13 +284,7 @@ pub fn tidy_stage(race: &Race, effects: &Effects) -> Result<(), Refused> {
 /// `race::tidy_everything` (0x444AC7, "SHAUNTIDYEVERYTHING"): a line break, a rule, "START" (an
 /// empty indent), then each step with its word: the controls, the game mode, `tidy_stage`, the
 /// sounds (then `view_on` and the second view's flag 1); "finis", a rule, a line break.
-#[cfg(debug_ui)]
-pub fn tidy_everything(race: &Race) -> Result<(), Refused> {
-    tidy_everything_in(race, crate::owners::boundary())
-}
-
-/// `tidy_everything` with the owners given.
-pub fn tidy_everything_in(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+pub fn tidy_everything(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (input, sound) = (o.input, o.sound);
     let shared = &race.shared;
     let s = Tidy;
@@ -301,7 +301,7 @@ pub fn tidy_everything_in(race: &Race, o: crate::owners::Owners<'static>) -> Res
     s.step(EVERYTHING_WORDS[4], || tidy_stage(race, o.effects))?;
     s.log(EVERYTHING_WORDS[5]);
     s.indent(3);
-    reset_race_sounds(&SoundVars::game(), sound)?;
+    reset_race_sounds(&SoundVars::game(), sound, o.audio, o.system)?;
     shared.view.view_on[0].set(1u32);
     shared.view.view_on[1].set(1u32);
     s.indent(-3);
@@ -337,13 +337,13 @@ pub fn run_race(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     crate::race::race_cars::set_up_arcade_cars(race)?;
     race.shared.vars.settings_words[1].set(1u32);
     crate::race::race_shell::set_start_states(race)?;
-    crate::race::stage_loading::load_stage_in(race, o)?;
+    crate::race::stage_loading::load_stage(race, o)?;
     record_replay_header(race);
-    crate::race::replay::open_replay(race)?;
+    crate::race::replay::open_replay(race, o)?;
     race.shared.view.after_credits.set(0u32);
     crate::drive::play_race::play_race(race, o)?;
     crate::race::replay::close_replay(race)?;
-    tidy_everything_in(race, o)?;
+    tidy_everything(race, o)?;
     crate::race::settings_copy::copy_settings_out(race)?;
     Ok(())
 }
@@ -352,8 +352,7 @@ pub fn run_race(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
 
 /// `race::release_textures` (0x443396): `race::release_stage_textures`,
 /// `scene::reset_texture_tables`.
-pub fn release_textures() {
-    let scene = crate::scene::owner::scene();
+pub fn release_textures(scene: &crate::scene::owner::Scene) {
     crate::race::race_shell::release_stage_textures();
     crate::scene::reset_texture_tables::reset_texture_tables(scene);
 }
@@ -369,6 +368,6 @@ pub fn start_race(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
 pub fn race_from_menu(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     crate::race::stage_free::render3d_tidy(o.race)?;
     crate::race::stage_free::objects_tidy(o.race)?;
-    release_textures();
+    release_textures(o.scene);
     start_race(o)
 }

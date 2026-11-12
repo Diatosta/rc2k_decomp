@@ -11,7 +11,10 @@ use crate::errors::Refused;
 use crate::race::owner::Race;
 
 /// The Rust version (the original keeps every register: `pusha` / `popa`).
-pub fn set_up_lit_engine(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn set_up_lit_engine(
+    race: &'static Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     crate::scene::set_up_engine::set_up_engine_in(race, scene)?;
     crate::race::find_present_courses::find_present_courses(race, scene)?;
     // `g_lightLowest`, `g_lightHighest`, `g_lightLevel`, `g_lightStrength`,

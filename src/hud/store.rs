@@ -576,12 +576,6 @@ impl HudBlock {
     }
 }
 
-/// Where the block is (`moved::MOVED`'s home for IDA 0x75B940).
-#[cfg(test)]
-pub fn hud_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::hud::owner::HUD.unchecked().block)
-}
-
 /// A rectangle of the table, by its byte offset in the block (the record's numbers are not
 /// checked, as in the original: a number past the table reads on into the block's next
 /// fields, so the offset is bounded to the whole block).
@@ -614,34 +608,15 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        let _g = crate::store::test_lock();
         assert_eq!(size_of::<HudBlock>(), LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(crate::pointers::host(hud_addr()).cast_const(), LEN)
-        };
-        let image = crate::moved::image_bytes(START, LEN);
-        assert!(
-            mine == &image[..],
-            "the block's bytes differ from the image's"
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &crate::hud::owner::HUD.unchecked().block,
         );
     }
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(
-            crate::moved::place(0x75C060),
-            crate::hud::owner::HUD
-                .unchecked()
-                .block
-                .fistp_scratch
-                .addr() as usize
-        );
-        assert_eq!(crate::moved::place(START), hud_addr() as usize);
-        assert_eq!(core::mem::offset_of!(HudBlock, vertices), 0x75C324 - START);
-        assert_eq!(core::mem::offset_of!(HudBlock, indices), 0x764324 - START);
-        assert_eq!(
-            crate::hud::owner::HUD.unchecked().block.vertex_count.addr(),
-            hud_addr() + 0x764F24 - START as u32
-        );
+        assert_eq!(core::mem::offset_of!(HudBlock, vertices), 0x9e4);
+        assert_eq!(core::mem::offset_of!(HudBlock, indices), 0x89e4);
     }
 }

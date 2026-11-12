@@ -64,7 +64,7 @@ pub fn section_has_times(saves: &Saves, section: usize) -> bool {
 pub fn serve(o: Owners<'static>) -> Result<bool, Refused> {
     let screens = &o.menus.screens;
     #[cfg(debug_ui)]
-    if crate::debug::dev_front_end::serve()? {
+    if crate::debug::dev_front_end::serve(o)? {
         return Ok(true);
     }
     let wanted = WANTED.swap(0, Ordering::Relaxed);

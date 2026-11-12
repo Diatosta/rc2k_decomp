@@ -68,8 +68,7 @@ fn set_up(race: &Race) -> Result<(), BadInput> {
 }
 
 // Converted: `rc2k_core::drive::finish_routine`.
-pub fn finish_race(race: &Race) -> Result<(), Refused> {
-    let o = crate::owners::boundary();
+pub fn finish_race(race: &'static Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let race_owner = race;
     let replay = &race.replay;
     // The stage index is not checked against the seven (a read past them is the original's).
@@ -99,12 +98,12 @@ pub fn finish_race(race: &Race) -> Result<(), Refused> {
     log_text(c"[car1.ctd_carnum]");
     log_number(race.car_blocks().cars[0].start_slot_value.get());
     set_up(race)?;
-    crate::race::stage_loading::load_stage_in(race, o)?;
+    crate::race::stage_loading::load_stage(race, o)?;
     var(race, finish_routine::BEFORE_RUN).set(0);
     crate::drive::finish_run::finish_run(race, o)?;
     // `race::tidy_everything` takes no real input from `finish_run`'s leftover, which has
     // no reader: a scratch.
-    crate::race::race_end::tidy_everything_in(race, o)?;
+    crate::race::race_end::tidy_everything(race, o)?;
     for x in finish_routine::AFTER {
         var(race, x).set(0);
     }

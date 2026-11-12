@@ -463,41 +463,164 @@ pub fn read_settings(o: Owners<'static>) -> Result<(), BadInput> {
 #[cfg(test)]
 mod tests {
     use super::{ENTRIES, Owners, Target};
-    use crate::moved::image_bytes;
+
+    /// Where each setting's variable is: its store (a registry name) and the byte offset in
+    /// it. The game's table holds the variables' addresses; these are the places of them.
+    const PLACES: [(&str, &str, usize); 77] = [
+        ("notaskswitch", "system.owner.SYSTEM.session.flags", 0x14),
+        ("noprichange", "system.owner.SYSTEM.session.flags", 0x18),
+        ("ignoremmx", "system.owner.SYSTEM.session.machine", 0x4),
+        ("ignorekatmai", "system.owner.SYSTEM.session.machine", 0xc),
+        ("ignoreamdk3d", "system.owner.SYSTEM.session.machine", 0x14),
+        ("altmemenable", "memory.state.OWN_HEAP", 0x0),
+        ("altmemheapsize", "memory.state.OWN_HEAP_KB", 0x0),
+        ("noaudio", "audio.owner.AUDIO_OWNER.state", 0x20),
+        ("nosound", "audio.owner.AUDIO_OWNER.state", 0x20),
+        ("nocdaudio", "sound.owner.SOUND.menu.cd_audio", 0x0),
+        ("nomusic", "audio.owner.AUDIO_OWNER.state", 0xe728),
+        ("audiobasefreq", "audio.owner.AUDIO_OWNER.state", 0x40),
+        ("ignoreds3d", "audio.owner.AUDIO_OWNER.state", 0xe8ae),
+        ("ignoredsv", "audio.owner.AUDIO_OWNER.state", 0xe9bc),
+        ("ignoreeax", "audio.owner.AUDIO_OWNER.state", 0xe9d8),
+        ("ignorea3d", "audio.owner.AUDIO_OWNER.state", 0xe9c8),
+        ("wavheapsize", "audio.owner.AUDIO_OWNER.state", 0xe658),
+        ("bundleheapsize", "gfx.owner.GFX.fonts.glyph_tables", 0x0),
+        ("imageheapsize", "strings.owner.STRINGS.lexicon.memory", 0x0),
+        (
+            "gamegfxheapsize",
+            "gfx.owner.GFX.fonts.game_fonts_memory",
+            0x0,
+        ),
+        ("forcedx5", "d3d.owner.D3D.cards", 0x4a4),
+        ("forceno3dcard", "d3d.owner.D3D.cards", 0x498),
+        ("ignoreprimary", "d3d.owner.D3D.cards", 0x49c),
+        ("ignoresecondary", "d3d.owner.D3D.cards", 0x4a0),
+        ("agpmode", "d3d.owner.D3D.cards", 0x4a8),
+        ("force3dtrans", "d3d.owner.D3D.cards", 0x4c8),
+        ("force3dalpha", "d3d.owner.D3D.cards", 0x4d0),
+        ("force3dshadow", "d3d.owner.D3D.cards", 0x4cc),
+        ("force3dfogging", "d3d.owner.D3D.cards", 0x4d4),
+        (
+            "textflashmode",
+            "strings.owner.STRINGS.text.blend_mode",
+            0x0,
+        ),
+        ("videomodemain", "gfx.owner.GFX.display.mode", 0x18),
+        ("videomodegame", "gfx.owner.GFX.display.mode", 0x1c),
+        ("v3driverfix", "scene.owner.SCENE.drawing.scene", 0x2b8),
+        ("nopngdecode", "gfx.owner.GFX.png.setting", 0x0),
+        ("nojoy", "input.owner.INPUT.devices", 0x4),
+        ("joymode", "input.owner.INPUT.devices", 0x8),
+        ("joycode", "input.owner.INPUT.devices", 0xc),
+        ("joylowerdz", "input.owner.INPUT.devices", 0x10),
+        ("joyupperdz", "input.owner.INPUT.devices", 0x14),
+        ("noforcefeedback", "input.owner.INPUT.devices", 0x1c),
+        ("joyffgain", "input.owner.INPUT.devices", 0x20),
+        ("mergejoy", "input.owner.INPUT.devices", 0x24),
+        ("nonetwork", "net.owner.NET_OWNER.vars", 0x0),
+        ("inetport", "net.owner.NET_OWNER.main.setup", 0xb4),
+        ("screensnapshot", "gfx.owner.GFX.shots", 0x0),
+        ("framecounter", "race.owner.RACE.frame.counter", 0x0),
+        ("noreplay", "race.owner.RACE.shared.replay_file", 0x4),
+        ("replaykeys", "race.owner.RACE.shared.replay_file", 0x30),
+        ("logfile", "logfile.write_line.state.LEVEL", 0x0),
+        ("nofmv", "film.NO_FMV", 0x0),
+        ("key", "race.owner.RACE.replay.seal_work", 0x80),
+        ("allsecretcars", "menu.owner.MENUS.play.cheats", 0x138),
+        ("secretcar", "menu.owner.MENUS.play.cheats", 0x138),
+        ("usesavegamekeys", "saves.owner.SAVES.savegame_preview", 0x0),
+        ("sensiblesaving", "menu.owner.MENUS.screens.state", 0x480),
+        ("noprecipitation", "race.owner.RACE.shared.work", 0x1848),
+        ("seasoncode", "race.owner.RACE.shared.replay_file", 0x34),
+        (
+            "noautoneutral",
+            "race.owner.RACE.shared.physics_tables",
+            0x944,
+        ),
+        ("nonlinearsteering", "input.owner.INPUT.devices", 0x28),
+        (
+            "wrreplayenable",
+            "race.owner.RACE.replay.viewer_and_kinds",
+            0x3cf,
+        ),
+        (
+            "wrreplayrate",
+            "race.owner.RACE.replay.viewer_and_kinds",
+            0x3d3,
+        ),
+        ("alt2axcode", "input.owner.INPUT.devices", 0x18),
+        ("fizpatch", "race.owner.RACE.shared.work", 0x1718),
+        (
+            "patchmaxdrawdistance",
+            "race.owner.RACE.shared.work",
+            0x171c,
+        ),
+        ("patchstickygrass", "race.owner.RACE.shared.work", 0x1720),
+        ("patchgravity", "race.owner.RACE.shared.work", 0x1724),
+        ("patchdamages", "race.owner.RACE.shared.work", 0x1728),
+        ("patchbrakegrip", "race.owner.RACE.shared.work", 0x172c),
+        ("patchaccelgrip", "race.owner.RACE.shared.work", 0x1730),
+        ("patchslidegrip", "race.owner.RACE.shared.work", 0x1734),
+        ("patchgripgrass", "race.owner.RACE.shared.work", 0x1738),
+        ("patchgriptarmac", "race.owner.RACE.shared.work", 0x173c),
+        ("patchgripsnow", "race.owner.RACE.shared.work", 0x1740),
+        ("patchgripmud", "race.owner.RACE.shared.work", 0x1744),
+        ("patchgripgravel", "race.owner.RACE.shared.work", 0x1748),
+        (
+            "lexcontrol",
+            "strings.maybe_compile_lexicon.RECOMPILE_LEVEL",
+            0x0,
+        ),
+        ("sparksmode", "menu.owner.MENUS.screens.event", 0x18),
+    ];
 
     #[test]
-    fn targets_are_the_addresses() {
-        for (key, ida, target) in ENTRIES {
+    fn targets_are_the_variables_the_games_table_names() {
+        for (key, _, target) in ENTRIES {
             let name = String::from_utf8_lossy(key);
-            let here = crate::moved::place(ida as usize) as u32;
-            let cell = match target {
-                Target::Dword(cell) => crate::session::address_of(cell(Owners::the())),
-                Target::Loose(cell) => crate::session::address_of(cell(Owners::the())),
+            let cell: *const () = match target {
+                Target::Dword(cell) => std::ptr::from_ref(cell(Owners::the())).cast(),
+                Target::Loose(cell) => std::ptr::from_ref(cell(Owners::the())).cast(),
                 // Their cells are bytes of a tail: checked by writing, in the test below.
                 Target::Unaligned(_) => continue,
             };
-            assert_eq!(cell, here, "{name} at {ida:#X}");
+            let (_, store, offset) = PLACES
+                .iter()
+                .find(|(k, _, _)| k.as_bytes() == key)
+                .unwrap_or_else(|| panic!("no place for {name}"));
+            let first = crate::test_support::state::store(store).first().addr();
+            assert_eq!(cell.addr(), first + offset, "{name}");
         }
     }
 
     /// The two unaligned settings write the four bytes at their address (and only those).
     #[test]
     fn unaligned_targets_write_their_bytes() {
-        use crate::pointers::GamePtr;
+        use crate::test_support::state::{Snapshot, store};
         let _lock = crate::store::test_lock();
-        for (key, ida, target) in ENTRIES {
+        for (key, _, target) in ENTRIES {
             if !matches!(target, Target::Unaligned(_)) {
                 continue;
             }
-            let at = GamePtr::new(crate::moved::place(ida as usize) as u32);
-            let around = GamePtr::new(crate::moved::place(ida as usize - 4) as u32);
-            let before: u32 = at.read("the variable").unwrap();
-            let neighbours: Vec<u8> = around.read_bytes(12, "its neighbours").unwrap();
+            let (_, name, offset) = PLACES.iter().find(|(k, _, _)| k.as_bytes() == key).unwrap();
+            let snapshot = Snapshot::of(&[name]);
+            let store = store(name);
+            let read = |at: usize, len: usize| {
+                let mut bytes = vec![0; len];
+                store.load(at, &mut bytes).unwrap();
+                bytes
+            };
+            let neighbours = read(offset - 4, 12);
             target.set(Owners::the(), 0x0A0B_0C0D);
-            let after: u32 = at.read("the variable").unwrap();
-            let neighbours_after: Vec<u8> = around.read_bytes(12, "its neighbours").unwrap();
-            target.set(Owners::the(), before);
-            assert_eq!(after, 0x0A0B_0C0D, "{}", String::from_utf8_lossy(key));
+            let after = read(*offset, 4);
+            let neighbours_after = read(offset - 4, 12);
+            snapshot.restore();
+            assert_eq!(
+                after,
+                0x0A0B_0C0Du32.to_le_bytes(),
+                "{}",
+                String::from_utf8_lossy(key)
+            );
             assert_eq!(&neighbours[..4], &neighbours_after[..4]);
             assert_eq!(&neighbours[8..], &neighbours_after[8..]);
         }
@@ -506,11 +629,19 @@ mod tests {
     #[test]
     fn table_is_the_games() {
         let bytes = super::table_bytes();
-        assert_eq!(bytes, image_bytes(0x518C09, bytes.len()));
-        assert_eq!(bytes.len(), 0x5190F1 - 0x518C09);
-        assert_eq!(&image_bytes(0x5295CC, 12)[..], &super::PATH[..]);
+        crate::test_support::first_values::assert_matches(
+            "settings.read_settings.TABLE/1256",
+            &bytes,
+        );
+        assert_eq!(
+            crate::test_support::first_values::bytes("settings.read_settings.PATH"),
+            &super::PATH[..]
+        );
         // The empty key that ends the table.
-        assert_eq!(image_bytes(0x5190F1, 1), [0]);
+        assert_eq!(
+            crate::test_support::first_values::bytes("settings.read_settings.TABLE_END/1"),
+            [0]
+        );
     }
 
     #[test]

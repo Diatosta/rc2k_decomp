@@ -28,6 +28,6 @@ pub fn choose_stage(o: Owners<'static>, vars: &NetVars) -> Result<(), Refused> {
             race.shared.state.settings.direction.get() as u8,
         );
     }
-    crate::net::show_background::show_background(o.gfx, vars)?;
+    crate::net::show_background::show_background(o.gfx, o.system, vars)?;
     Ok(())
 }

@@ -6,7 +6,7 @@
 //! Caller: `physics::race_timers` (0x4367E3). Refuses what `set_flag_5165a4` refuses.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::physics::car_store::Car;
 use crate::physics::listed_car_flags::set_flag;
 use crate::race::frame_store::FrameWork;
@@ -18,6 +18,7 @@ pub fn start_go_notice(
     work: &RaceWork,
     car: &Car,
     sound: &crate::sound::owner::Sound,
+    menus: &Menus,
 ) -> Result<(), Refused> {
     let c = car;
     let facts = GoFacts {
@@ -25,7 +26,7 @@ pub fn start_go_notice(
         countdown: c.time_left.get(),
         gone: c.go_stand_timer.get(),
         finished: c.finish_flag.get(),
-        cheats: menus().play.cheats.cheats.get(),
+        cheats: menus.play.cheats.cheats.get(),
     };
     if !facts.go_due() {
         return Ok(());

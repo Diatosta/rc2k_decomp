@@ -30,7 +30,7 @@ fn before(entry: &Entry) -> Result<(), Refused> {
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
     entry.set_view(-160, -100, 0x100);
-    prepare_scene(entry.scene);
+    prepare_scene(entry);
     screens.flow.turning.set(0x1u32);
     screens.state.carousel.menu.set(0xBu32);
     carousel(None)?;

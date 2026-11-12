@@ -66,14 +66,10 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_race_block() {
+    fn fields_are_at_the_games_offsets() {
         assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            piece_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
-        assert_eq!(offset_of!(KindTables, unused_c8), 0x5C56EC - START);
-        assert_eq!(offset_of!(KindTables, known_object_kinds), 0x5C5790 - START);
-        assert_eq!(offset_of!(KindTables, kind_has_views), 0x5C5AC0 - START);
+        assert_eq!(offset_of!(KindTables, unused_c8), 0x0);
+        assert_eq!(offset_of!(KindTables, known_object_kinds), 0xa4);
+        assert_eq!(offset_of!(KindTables, kind_has_views), 0x3d4);
     }
 }

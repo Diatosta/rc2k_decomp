@@ -57,34 +57,18 @@ pub const START: usize = 0x755595;
 /// IDA 0x755640, the end of the piece.
 pub const END: usize = 0x755640;
 
-/// Where IDA 0x755595 lives (`moved::MOVED`'s home).
-#[cfg(test)]
-pub fn key_tables_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::menu::owner::menus().keys.tables)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moved::image_bytes;
-    use core::mem::{offset_of, size_of};
+    use core::mem::offset_of;
 
     #[test]
     fn key_tables_starts_as_the_games() {
-        assert!(
-            END - START <= size_of::<KeyTables>()
-                && size_of::<KeyTables>() <= (END - START).next_multiple_of(4)
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &crate::menu::owner::menus().keys.tables,
         );
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host(key_tables_addr()).cast_const(),
-                END - START,
-            )
-        };
-        assert_eq!(mine, &image_bytes(START, END - START)[..]);
-        let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
-        at(offset_of!(KeyTables, redefined_keys), 0x755595);
-        at(offset_of!(KeyTables, controls), 0x7555B1);
-        at(offset_of!(KeyTables, reserved_keys), 0x755621);
+        assert_eq!(offset_of!(KeyTables, redefined_keys), 0x0);
+        assert_eq!(offset_of!(KeyTables, controls), 0x1c);
+        assert_eq!(offset_of!(KeyTables, reserved_keys), 0x8c);
     }
 }

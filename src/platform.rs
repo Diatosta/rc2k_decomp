@@ -364,7 +364,7 @@ fn make_view(
 #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
 static GPU_VIEW: Mutex<(u64, Option<sdl::Texture>)> = Mutex::new((0, None));
 
-fn show_frame(o: &crate::owners::Owners<'_>, screen: &Screen) -> Result<(), &'static str> {
+fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(), &'static str> {
     let race = o.race;
     // The frame as XRGB8888: itself at 32 bits, else its 16-bit pixels widened.
     let bytes = (screen.bits / 8) as usize;

@@ -42,13 +42,6 @@ impl Converters {
     }
 }
 
-/// Where the block is (`moved::MOVED`'s home for IDA 0x4F51F0).
-#[cfg(test)]
-pub fn home() -> usize {
-    crate::pointers::game_address(&raw const crate::gfx::owner::GFX.unchecked().pixel.converters)
-        as usize
-}
-
 impl Converters {
     /// Mask number `n` (a qword).
     pub fn mask(&self, n: usize) -> u64 {
@@ -63,21 +56,14 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
+        crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::gfx::owner::GFX.unchecked().pixel.converters,
-            START,
-            START + LEN,
         );
     }
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(offset_of!(Converters, table), 0x4F5288 - START);
-        assert_eq!(crate::moved::place(START), home());
-        assert_eq!(
-            crate::moved::place(0x4F5288),
-            crate::gfx::owner::GFX.unchecked().pixel.converters.table[0].addr() as usize
-        );
+        assert_eq!(offset_of!(Converters, table), 0x98);
         assert_eq!(
             crate::gfx::owner::GFX.unchecked().pixel.converters.mask(1),
             0x00ff_00ff_00ff_00ff

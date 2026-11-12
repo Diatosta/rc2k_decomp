@@ -530,10 +530,6 @@ pub fn keep_second_picture(
     Ok(())
 }
 
-/// IDA's `Textures.kinds[0]`.
-#[cfg(test)]
-const KINDS_IDA: usize = 0x5ABAC0;
-
 #[cfg(test)]
 mod block_tests {
     use super::*;
@@ -541,36 +537,22 @@ mod block_tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games_but(
+        // The kinds are handles of the format records where the game has their addresses.
+        let kinds =
+            crate::test_support::first_values::bytes("gfx.owner.GFX.card.texture_tables.kinds/20");
+        crate::test_support::front::assert_block_starts_as_the_games_but(
             crate::gfx::owner::textures(),
-            START,
-            START + LEN,
-            |image| {
-                for k in 0..5 {
-                    let o = KINDS_IDA - START + 4 * k;
-                    let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
-                    image[o..o + 4].copy_from_slice(&format_ref(v).to_le_bytes());
-                }
-            },
+            |bytes| bytes[0x34..0x48].copy_from_slice(kinds),
         );
     }
 
     #[test]
     fn moved_knows_the_block() {
-        let card = &crate::gfx::owner::gfx().card;
-        assert_eq!(offset_of!(Textures, sizes), 0x5ABA98 - START);
-        assert_eq!(offset_of!(Textures, kinds), 0x5ABAC0 - START);
-        assert_eq!(offset_of!(Textures, descriptions), 0x5ABAD4 - START);
-        assert_eq!(offset_of!(Textures, video), 0x5ABC14 - START);
-        assert_eq!(offset_of!(Textures, system), 0x5B5218 - START);
+        assert_eq!(offset_of!(Textures, sizes), 0xc);
+        assert_eq!(offset_of!(Textures, kinds), 0x34);
+        assert_eq!(offset_of!(Textures, descriptions), 0x48);
+        assert_eq!(offset_of!(Textures, video), 0x188);
+        assert_eq!(offset_of!(Textures, system), 0x978c);
         assert_eq!(offset_of!(Pool, records), 4);
-        assert_eq!(
-            crate::moved::place(START),
-            card.texture_tables.alpha_kind.addr() as usize
-        );
-        assert_eq!(
-            crate::moved::place(0x5B521C),
-            (crate::pointers::game_address(card.texture_tables.system.records.as_ptr())) as usize
-        );
     }
 }

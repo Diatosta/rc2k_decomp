@@ -70,7 +70,7 @@ pub fn draw_object_face(
     crate::scene::object_faces::read_into(face as u32, &mut whole[..])?;
     let words = &whole;
     let fw = |at: usize| u32::from_le_bytes(words[at..at + 4].try_into().unwrap());
-    let entries = &crate::scene::polygon_store::POLYGON_WORK.entries;
+    let entries = &ctx.part.polygon.entries;
     let vertices = (0..count as usize).map(|n| (&entries[n], 0x10 + n * 0x10));
     let view_kind: u32 = light.view_kind.get();
     let shine: u32 = ctx.view.course.shine.get();
@@ -180,16 +180,18 @@ pub fn draw_object_face_in_game(
         ctx,
         face,
         &mut |step| match step {
-            Step::Draw => {
-                draw_object_polygon(&ctx.view.polygon, race, &ctx.view.object, &mut |step| {
-                    match step {
-                        draw_object_polygon::Step::Project => {
-                            project_polygon(&ctx.view.polygon, race, scene, ctx.view)
-                        }
-                        draw_object_polygon::Step::Draw => draw_clipped_polygon_in_game(ctx),
+            Step::Draw => draw_object_polygon(
+                ctx.part.polygon,
+                &ctx.view.polygon,
+                race,
+                &ctx.view.object,
+                &mut |step| match step {
+                    draw_object_polygon::Step::Project => {
+                        project_polygon(ctx.part.polygon, &ctx.view.polygon, race, scene, ctx.view)
                     }
-                })
-            }
+                    draw_object_polygon::Step::Draw => draw_clipped_polygon_in_game(ctx),
+                },
+            ),
             Step::DepthTestOff => {
                 Game.state(0xE, 0);
                 Ok(())

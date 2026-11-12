@@ -95,7 +95,7 @@ fn drawn_index(n: u32) -> u32 {
     rc2k_core::race::credits::drawn_place(next_random(), n)
 }
 
-pub fn set_up_credits_race(race: &Race, o: &crate::owners::Owners<'_>) -> Result<(), Refused> {
+pub fn set_up_credits_race(race: &Race, o: &crate::owners::Owners<'static>) -> Result<(), Refused> {
     let shared = &race.shared;
     // Converted: `rc2k_core::race::credits::drawn_place`.
     use rc2k_core::race::credits::{RACE_KINDS, RACE_STAGES};

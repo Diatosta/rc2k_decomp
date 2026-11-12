@@ -68,7 +68,7 @@ fn see_through(screens: &Screens) -> u32 {
 }
 
 /// A quad in the colour of the item being drawn, see-through.
-fn shade(o: Owners<'_>, x: u32, y: u32, w: u32, h: u32) -> Result<(), Refused> {
+fn shade(o: Owners<'static>, x: u32, y: u32, w: u32, h: u32) -> Result<(), Refused> {
     let screens = &o.menus.screens;
     quad(
         o,
@@ -82,7 +82,7 @@ fn shade(o: Owners<'_>, x: u32, y: u32, w: u32, h: u32) -> Result<(), Refused> {
 }
 
 /// A quad in the dark colour of the inside of a box, see-through.
-fn dark(o: Owners<'_>, x: u32, y: u32, w: u32, h: u32) -> Result<(), Refused> {
+fn dark(o: Owners<'static>, x: u32, y: u32, w: u32, h: u32) -> Result<(), Refused> {
     quad(o, x, y, w, h, DARK, see_through(&o.menus.screens))
 }
 
@@ -114,7 +114,12 @@ fn blinking_or_turned_over(screens: &Screens, item: u32) -> bool {
 
 /// A bar or panel: its filled box and the black outline round it, highlighted when the cursor
 /// is on `item`.
-fn panel(o: Owners<'_>, item: u32, [x, y, w, h]: [u32; 4], colour: u32) -> Result<(), Refused> {
+fn panel(
+    o: Owners<'static>,
+    item: u32,
+    [x, y, w, h]: [u32; 4],
+    colour: u32,
+) -> Result<(), Refused> {
     let screens = &o.menus.screens;
     quad(o, x, y, w, h, colour, see_through(screens))?;
     let outline = Outline::around(x, y, w, h);
@@ -131,7 +136,7 @@ fn column_x(item: u32) -> u32 {
 }
 
 /// One of the twelve small boxes, items 2 .. 0xD: a label cell and a wide cell.
-fn small_item(o: Owners<'_>, item: u32) -> Result<(), Refused> {
+fn small_item(o: Owners<'static>, item: u32) -> Result<(), Refused> {
     let menus = o.menus;
     let x = column_x(item);
     let y = 0x60 + 0x1D * ((item - 2) / 2);
@@ -152,7 +157,7 @@ fn small_item(o: Owners<'_>, item: u32) -> Result<(), Refused> {
 }
 
 /// A row of setup cells under a label, item 0xE (five cells) or 0xF (six cells).
-fn setup_row(o: Owners<'_>, item: u32) -> Result<(), Refused> {
+fn setup_row(o: Owners<'static>, item: u32) -> Result<(), Refused> {
     let menus = o.menus;
     let (cells, step, cell_w, label_h) = if item == 0xE {
         (5, 0x42, 0x40, 0x16)
@@ -196,7 +201,7 @@ fn setup_row(o: Owners<'_>, item: u32) -> Result<(), Refused> {
 }
 
 /// One of the four tall boxes, items 0x10 .. 0x13.
-fn tall_item(o: Owners<'_>, item: u32) -> Result<(), Refused> {
+fn tall_item(o: Owners<'static>, item: u32) -> Result<(), Refused> {
     let menus = o.menus;
     let x = column_x(item);
     let y = 0x17D + 0x38 * ((item - 0x10) / 2);
@@ -217,7 +222,7 @@ fn tall_item(o: Owners<'_>, item: u32) -> Result<(), Refused> {
 }
 
 /// The service area's boxes, in the order the original draws them.
-pub fn draw_service_boxes(o: Owners<'_>) -> Result<(), Refused> {
+pub fn draw_service_boxes(o: Owners<'static>) -> Result<(), Refused> {
     let menus = o.menus;
     for [x, y, w, h] in BACKDROP_BOXES {
         quad(

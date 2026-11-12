@@ -123,12 +123,6 @@ pub const START: usize = 0x755640;
 /// IDA 0x7556B4, the end of the piece.
 pub const END: usize = 0x7556B4;
 
-/// Where IDA 0x755640 lives (`moved::MOVED`'s home).
-#[cfg(test)]
-pub fn option_work_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::menu::owner::menus().screens.option_work)
-}
-
 impl OptionWork {
     /// Stores the six values of the sound page, in memory order: the audio quality, DS3D, EAX, A3D,
     /// Dolby and the channels (`screens::load_audio_settings`).
@@ -150,51 +144,41 @@ impl OptionWork {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moved::image_bytes;
-    use core::mem::{offset_of, size_of};
+    use core::mem::offset_of;
 
     #[test]
     fn option_work_starts_as_the_games() {
-        assert!(
-            END - START <= size_of::<OptionWork>()
-                && size_of::<OptionWork>() <= (END - START).next_multiple_of(4)
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &crate::menu::owner::menus().screens.option_work,
         );
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host(option_work_addr()).cast_const(),
-                END - START,
-            )
-        };
-        assert_eq!(mine, &image_bytes(START, END - START)[..]);
-        let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
-        at(offset_of!(OptionWork, switch_0), 0x755640);
-        at(offset_of!(OptionWork, switch_1), 0x755644);
-        at(offset_of!(OptionWork, mode_changed), 0x755648);
-        at(offset_of!(OptionWork, modes_switch), 0x75564C);
-        at(offset_of!(OptionWork, lens_flare), 0x755650);
-        at(offset_of!(OptionWork, unused_percent_a), 0x755654);
-        at(offset_of!(OptionWork, unused_percent_b), 0x755658);
-        at(offset_of!(OptionWork, reflections), 0x75565C);
-        at(offset_of!(OptionWork, car_shadows), 0x755660);
-        at(offset_of!(OptionWork, car_detail), 0x755664);
-        at(offset_of!(OptionWork, headlights), 0x755668);
-        at(offset_of!(OptionWork, audio_quality), 0x75566C);
-        at(offset_of!(OptionWork, ds3d), 0x755670);
-        at(offset_of!(OptionWork, eax), 0x755674);
-        at(offset_of!(OptionWork, a3d), 0x755678);
-        at(offset_of!(OptionWork, dolby), 0x75567C);
-        at(offset_of!(OptionWork, channels), 0x755680);
-        at(offset_of!(OptionWork, _gap_755684), 0x755684);
-        at(offset_of!(OptionWork, music_level), 0x755688);
-        at(offset_of!(OptionWork, other_volume), 0x75568C);
-        at(offset_of!(OptionWork, menu_sounds_c), 0x755690);
-        at(offset_of!(OptionWork, _gap_755694), 0x755694);
-        at(offset_of!(OptionWork, speech_level), 0x755698);
-        at(offset_of!(OptionWork, _gap_75569c), 0x75569C);
-        at(offset_of!(OptionWork, _gap_7556a0), 0x7556A0);
-        at(offset_of!(OptionWork, menu_sound), 0x7556A4);
-        at(offset_of!(OptionWork, typing), 0x7556A8);
-        at(offset_of!(OptionWork, redefining_key), 0x7556AC);
-        at(offset_of!(OptionWork, redefined_key_place), 0x7556B0);
+        assert_eq!(offset_of!(OptionWork, switch_0), 0x0);
+        assert_eq!(offset_of!(OptionWork, switch_1), 0x4);
+        assert_eq!(offset_of!(OptionWork, mode_changed), 0x8);
+        assert_eq!(offset_of!(OptionWork, modes_switch), 0xc);
+        assert_eq!(offset_of!(OptionWork, lens_flare), 0x10);
+        assert_eq!(offset_of!(OptionWork, unused_percent_a), 0x14);
+        assert_eq!(offset_of!(OptionWork, unused_percent_b), 0x18);
+        assert_eq!(offset_of!(OptionWork, reflections), 0x1c);
+        assert_eq!(offset_of!(OptionWork, car_shadows), 0x20);
+        assert_eq!(offset_of!(OptionWork, car_detail), 0x24);
+        assert_eq!(offset_of!(OptionWork, headlights), 0x28);
+        assert_eq!(offset_of!(OptionWork, audio_quality), 0x2c);
+        assert_eq!(offset_of!(OptionWork, ds3d), 0x30);
+        assert_eq!(offset_of!(OptionWork, eax), 0x34);
+        assert_eq!(offset_of!(OptionWork, a3d), 0x38);
+        assert_eq!(offset_of!(OptionWork, dolby), 0x3c);
+        assert_eq!(offset_of!(OptionWork, channels), 0x40);
+        assert_eq!(offset_of!(OptionWork, _gap_755684), 0x44);
+        assert_eq!(offset_of!(OptionWork, music_level), 0x48);
+        assert_eq!(offset_of!(OptionWork, other_volume), 0x4c);
+        assert_eq!(offset_of!(OptionWork, menu_sounds_c), 0x50);
+        assert_eq!(offset_of!(OptionWork, _gap_755694), 0x54);
+        assert_eq!(offset_of!(OptionWork, speech_level), 0x58);
+        assert_eq!(offset_of!(OptionWork, _gap_75569c), 0x5c);
+        assert_eq!(offset_of!(OptionWork, _gap_7556a0), 0x60);
+        assert_eq!(offset_of!(OptionWork, menu_sound), 0x64);
+        assert_eq!(offset_of!(OptionWork, typing), 0x68);
+        assert_eq!(offset_of!(OptionWork, redefining_key), 0x6c);
+        assert_eq!(offset_of!(OptionWork, redefined_key_place), 0x70);
     }
 }

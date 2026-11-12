@@ -38,7 +38,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     entry.front_end.window.view_offset[0].set(7u32);
     entry.front_end.window.view_offset[1].set(0xAu32);
     entry.front_end.window.view_zoom.set(0x100u32);
-    prepare_scene(entry.scene); // scene::prepare_menu_scene
+    prepare_scene(entry); // scene::prepare_menu_scene
     menus.screens.loop_flags.ask_leave.set(false);
     Callee::TakeKey.run(entry)?; // input::take_key
     menus.screens.draw_work.escape_pressed.set(false);

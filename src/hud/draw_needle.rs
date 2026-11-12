@@ -53,7 +53,7 @@ pub fn draw_needle(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     .into_iter()
     .enumerate()
     {
-        let vertex = &crate::d3d::vertices_store::VERTICES.vertices[n];
+        let vertex = &pen.vertices.vertices[n];
         let point = [extended(y), extended(x)].map(to_f64);
         crate::hud::turned_vertex::turned_vertex(hud, vertex, angle, point);
     }
@@ -77,18 +77,16 @@ fn turn_plain(a: [f32; 6]) -> u32 {
 }
 
 /// The runs over the test's operand buffers (`[a + 4 k]`, the result at `[o]`).
-#[cfg(all(test, target_arch = "x86"))]
-fn x87_1(a: usize, o: usize) {
-    use crate::scene::x87_mem::Base;
+#[cfg(test)]
+fn x87_1(a: impl crate::scene::x87_mem::Base, o: impl crate::scene::x87_mem::Base) {
     o.set_dword(
         0,
         turn_less(std::array::from_fn(|k| f32::from_bits(a.dword(4 * k)))),
     );
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-fn x87_2(a: usize, o: usize) {
-    use crate::scene::x87_mem::Base;
+#[cfg(test)]
+fn x87_2(a: impl crate::scene::x87_mem::Base, o: impl crate::scene::x87_mem::Base) {
     o.set_dword(
         0,
         turn_plain(std::array::from_fn(|k| {
@@ -101,14 +99,12 @@ fn x87_2(a: usize, o: usize) {
     );
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+    use crate::test_support::vectors::{Block, In, Operand, Out, sparse};
 
     // The original's instructions, one function per run.
-    reference!(ref_0(a, o) "fld dword ptr [{a}]", "fsub dword ptr [{a} + 4]", "fdiv dword ptr [{a} + 8]", "fadd dword ptr [{a} + 12]", "fmul dword ptr [{a} + 16]", "fmul dword ptr [{a} + 20]", "fistp dword ptr [{o}]");
-    reference!(ref_1(a, o) "fld dword ptr [{a}]", "fdiv dword ptr [{a} + 8]", "fadd dword ptr [{a} + 12]", "fmul dword ptr [{a} + 16]", "fmul dword ptr [{a} + 20]", "fistp dword ptr [{o}]");
 
     fn blocks() -> Vec<Block> {
         vec![
@@ -132,8 +128,7 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_0(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1]),
+                plain: |a| x87_1(a[0].cells(), a[1].cells()),
             },
             Block {
                 name: "draw_needle line 55",
@@ -154,14 +149,13 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_1(a[0], a[1]) },
-                plain: |a| x87_2(a[0], a[1]),
+                plain: |a| x87_2(a[0].cells(), a[1].cells()),
             },
         ]
     }
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse(&blocks(), 1200, 100);
+        sparse("hud.draw_needle", &blocks(), 1200, 100);
     }
 }

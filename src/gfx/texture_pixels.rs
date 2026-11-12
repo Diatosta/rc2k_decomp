@@ -126,26 +126,11 @@ pub fn halve_texture(
 
 #[cfg(test)]
 mod block_tests {
-    use super::*;
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
+        crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::gfx::owner::GFX.unchecked().grading,
-            START,
-            START + LEN,
-        );
-    }
-
-    #[test]
-    fn moved_knows_the_block() {
-        assert_eq!(
-            crate::moved::place(START),
-            crate::gfx::owner::GFX.unchecked().grading.reading.addr() as usize
-        );
-        assert_eq!(
-            crate::moved::place(0x4F4A30),
-            crate::gfx::owner::GFX.unchecked().grading.grades.addr() as usize
         );
     }
 }

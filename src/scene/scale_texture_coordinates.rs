@@ -18,12 +18,13 @@ use crate::scene::polygon::{Listed, listed};
 
 // Converted: `rc2k_core::scene::texture_coordinates`
 pub fn scale_texture_coordinates(
+    polygon_work: &'static crate::scene::polygon_store::PolygonWork,
     poly: &crate::scene::polygon_work::PolygonWork,
 ) -> Result<(), Refused> {
     if (poly.polygon_vertex_count.get() as i32) <= 0 {
         return Ok(());
     }
-    scale_entries(poly, &listed(poly)?)
+    scale_entries(poly, &listed(polygon_work, poly)?)
 }
 
 /// `scale_texture_coordinates` on the polygon's entries as listed (a polygon of some).

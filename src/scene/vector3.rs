@@ -2,7 +2,7 @@
 //! marks.
 //!
 //! Plain Rust (the x87's arithmetic in `X`, `math/x87_float.rs`); the
-//! original's instructions are `asm_reference` in the tests.
+//! original's instructions' results are recorded vectors in the tests (`data/vectors`).
 
 use crate::math::cells::{Cells, load};
 use crate::math::x87_float::{ONE, compare, ld, st};
@@ -87,120 +87,58 @@ pub fn angle_between_vectors(
     crate::scene::matrix3::extended(angle)
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
-    use crate::scene::asm_test::{Kind, differential};
-
-    /// The original's instructions for `normalise_vector3`.
-    unsafe fn normalise_ref(v: *mut u8) {
-        unsafe {
-            core::arch::asm!(
-                "fld dword ptr [{v}]", ".byte 0xD8, 0xC8",
-                "fld dword ptr [{v} + 4]", ".byte 0xD8, 0xC8",
-                "fld dword ptr [{v} + 8]", ".byte 0xD8, 0xC8",
-                ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1",
-                "fsqrt", "fld1", ".byte 0xDE, 0xF1",
-                "fld dword ptr [{v}]", ".byte 0xD8, 0xC9",
-                "fld dword ptr [{v} + 4]", ".byte 0xD8, 0xCA",
-                "fld dword ptr [{v} + 8]", ".byte 0xD8, 0xCB",
-                "fstp dword ptr [{v} + 8]", "fstp dword ptr [{v} + 4]", "fstp dword ptr [{v}]",
-                "fstp st(0)",
-                v = in(reg) v,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-    }
-
-    /// The original's instructions for `dot_product3`.
-    unsafe fn dot_ref(a: *mut u8, b: *mut u8, o: *mut u8) {
-        unsafe {
-            core::arch::asm!(
-                "fld dword ptr [{a}]", "fmul dword ptr [{b}]",
-                "fld dword ptr [{a} + 4]", "fmul dword ptr [{b} + 4]",
-                "fld dword ptr [{a} + 8]", "fmul dword ptr [{b} + 8]",
-                ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1",
-                "fstp tbyte ptr [{o}]",
-                a = in(reg) a,
-                b = in(reg) b,
-                o = in(reg) o,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-    }
-
-    /// The original's instructions for `cosine_against` (the status word is stored whole).
-    unsafe fn cosine_ref(a: *mut u8, b: *mut u8, s: *mut u8) {
-        unsafe {
-            core::arch::asm!(
-                "fld dword ptr [{a}]", "fcos", "fcomp dword ptr [{b}]", "fstsw word ptr [{s}]",
-                a = in(reg) a,
-                b = in(reg) b,
-                s = in(reg) s,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-    }
+    use crate::test_support::vectors::{Differential, Kind, differential};
 
     #[test]
     fn normalise_matches_the_assembly() {
-        differential::<3>(
-            "normalise_vector3",
-            8000,
-            4,
-            [Kind::Float; 3],
-            |rng, m| {
+        let test = Differential {
+            name: "scene.vector3.normalise",
+            cases: 8000,
+            seed: 4,
+            kinds: [Kind::Float; 3],
+            fill: &|rng, m| {
                 let moderate = rng.below(2) == 0;
                 for d in m.iter_mut() {
                     *d = if moderate { rng.moderate() } else { rng.fl() };
                 }
             },
-            |base| unsafe { normalise_ref(base) },
-            |base| {
-                use crate::scene::x87_mem::HostCell;
-                normalise(&[0, 4, 8].map(|k| HostCell(base as usize + k)));
-            },
-        );
+            plain: &|c| normalise(c),
+        };
+        differential(test);
     }
 
     #[test]
     fn dot_matches_the_assembly() {
         // a, b, the 80-bit result (3 dwords)
-        differential::<9>(
-            "dot_product3",
-            8000,
-            5,
-            [Kind::Exact; 9],
-            |rng, m| {
+        let test = Differential {
+            name: "scene.vector3.dot",
+            cases: 8000,
+            seed: 5,
+            kinds: [Kind::Exact; 9],
+            fill: &|rng, m| {
                 let moderate = rng.below(2) == 0;
                 for d in m.iter_mut().take(6) {
                     *d = if moderate { rng.moderate() } else { rng.fl() };
                 }
                 m[6..].fill(0xAAAA_AAAA);
             },
-            |base| unsafe { dot_ref(base, base.add(12), base.add(24)) },
-            |base| {
-                let at = crate::pointers::game_address(base) as usize;
-                dot(at, at + 12, at + 24);
-            },
-        );
+            plain: &|c| dot(c, &c[3..], &c[6..]),
+        };
+        differential(test);
     }
 
     #[test]
     fn cosine_matches_the_assembly() {
         // the angle, the float it is compared with (often the cosine itself), the status
-        differential::<3>(
-            "cosine_against",
-            8000,
-            6,
-            [Kind::Exact; 3],
-            |rng, m| {
+        let test = Differential {
+            name: "scene.vector3.cosine",
+            cases: 8000,
+            seed: 6,
+            kinds: [Kind::Exact; 3],
+            fill: &|rng, m| {
                 m[0] = rng.angle();
                 m[1] = match rng.below(3) {
                     0 => rc2k_core::math::portable::cos(f32::from_bits(m[0]) as f64) as f32,
@@ -210,17 +148,11 @@ mod asm_reference {
                 .to_bits();
                 m[2] = 0;
             },
-            |base| unsafe {
-                cosine_ref(base, base.add(4), base.add(8));
-                let s = base.add(8).cast::<u16>().read_unaligned() & 0x700;
-                base.add(8).cast::<u32>().write_unaligned(s as u32);
+            plain: &|c| {
+                cosine(c, &c[1..], &c[2..]);
+                c[2].set(c[2].get() & 0x700);
             },
-            |base| unsafe {
-                let at = crate::pointers::game_address(base) as usize;
-                cosine(at, at + 4, at + 8);
-                let s = base.add(8).cast::<u16>().read_unaligned() & 0x700;
-                base.add(8).cast::<u32>().write_unaligned(s as u32);
-            },
-        );
+        };
+        differential(test);
     }
 }

@@ -65,21 +65,12 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&gfx().drawing.blit, START, START + LEN);
+        crate::test_support::first_values::assert_block_starts_as_the_games(&gfx().drawing.blit);
     }
 
     #[test]
     fn moved_knows_the_block() {
-        let drawing = &gfx().drawing;
-        assert_eq!(offset_of!(Blitter, left_skip), 0x4F504C - START);
-        assert_eq!(offset_of!(Blitter, rows_left), 0x4F5058 - START);
-        assert_eq!(
-            crate::moved::place(START),
-            drawing.blit.clip.left.addr() as usize
-        );
-        assert_eq!(
-            crate::moved::place(0x4F5058),
-            drawing.blit.rows_left.addr() as usize
-        );
+        assert_eq!(offset_of!(Blitter, left_skip), 0x10);
+        assert_eq!(offset_of!(Blitter, rows_left), 0x1c);
     }
 }

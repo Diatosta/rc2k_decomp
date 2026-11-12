@@ -28,8 +28,6 @@ use crate::scene::rotate_point::rotate_point;
 use crate::scene::vector3::normalise;
 use crate::session::PlainFloat;
 
-use crate::d3d::vertices_store::VERTICES;
-
 /// A shadow's variables (the typed statics of `effects::kind_store`: the second shadow's,
 /// `effects::draw_overlays`'s, are set 1's, the first's set 2's) and its x87 blocks.
 pub struct Shadow<'a> {
@@ -110,6 +108,7 @@ pub fn draw_shadow_with(
     depth: bool,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
+    let buffer = ctx.part.vertices;
     let race = ctx.race;
     use crate::scene::set_render_state::set_render_state;
     let q = sh.quad;
@@ -169,7 +168,7 @@ pub fn draw_shadow_with(
     let word = |off: u32| u32::from(entry.words[off as usize / 2].get());
     let uv_k = effects.frame.draw_work.uv_k.get();
     for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
-        let vertex = &VERTICES.vertices[n];
+        let vertex = &buffer.vertices[n];
         vertex.u.set(x87::int_times(word(u) as i32, uv_k));
         vertex.v.set(x87::int_times(word(v) as i32, uv_k));
     }
@@ -178,7 +177,7 @@ pub fn draw_shadow_with(
     let (r, gr, bl) = (half(16), half(8), half(0));
     c = c.wrapping_add(r).wrapping_add(gr).wrapping_add(bl);
     for n in 0..4 {
-        VERTICES.vertices[n].colour.set(c);
+        buffer.vertices[n].colour.set(c);
     }
     for n in 0..4 {
         if (q.corners[n][2].bits() as i32) <= (race.course.numbers.k4096_a.bits() as i32) {
@@ -188,13 +187,13 @@ pub fn draw_shadow_with(
     projected_x87(sh);
     let z_k = effects.frame.draw_work.z_k.get();
     for n in 0..4 {
-        let vertex = &VERTICES.vertices[n];
+        let vertex = &buffer.vertices[n];
         vertex.x.set(q.corners[n][0].get());
         vertex.y.set(q.corners[n][1].get());
         let depth = x87::sub_mul(&q.corners[n][2], sh.consts.lifts[n], z_k);
         vertex.z.set(depth);
     }
-    crate::effects::clip_quad::draw_fan(ctx.scene);
+    crate::effects::clip_quad::draw_fan(buffer, ctx.scene);
     Ok(())
 }
 

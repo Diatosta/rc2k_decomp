@@ -34,6 +34,8 @@ pub fn hud() -> &'static Hud {
 #[derive(Clone, Copy)]
 pub struct Pen<'a> {
     pub polygons: &'a crate::scene::polygon_work::PolygonWork,
+    /// The vertex buffer (the game's thread's part's: the HUD draws after the parts).
+    pub vertices: &'a crate::d3d::vertices_store::PolygonVertices,
     pub system: &'a crate::system::owner::System,
     pub scene: &'a crate::scene::owner::Scene,
 }

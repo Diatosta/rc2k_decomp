@@ -19,7 +19,8 @@ use crate::physics::take_split_counted::take_split_counted;
 use crate::race::owner::Race;
 
 // Converted: `rc2k_core::physics::splits::{timer_rate, timer_run}`.
-pub fn race_timers(race: &Race, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
+pub fn race_timers(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
+    let sound = o.sound;
     let (physics, numbers, league) = (&race.physics, &race.course.numbers, &race.course.league);
     let (frame_work, panel_and_overlay) = (&race.frame.frame_work, &race.frame.panel_and_overlay);
     let (shared, car_blocks) = (&race.shared, race.car_blocks());
@@ -43,17 +44,18 @@ pub fn race_timers(race: &Race, sound: &crate::sound::owner::Sound) -> Result<()
     if run == TimerRun::Start {
         count_down_start(frame_work, &shared.work, &shared.car, sound)?;
         take_split_counted(
+            o,
             physics,
             league,
             frame_work,
             panel_and_overlay,
             shared,
             car_blocks,
-            sound,
         )?;
-        start_go_notice(frame_work, &shared.work, &shared.car, sound)?;
+        start_go_notice(frame_work, &shared.work, &shared.car, sound, o.menus)?;
     } else {
         take_split(
+            o,
             &physics.split_tables,
             league,
             panel_and_overlay,

@@ -65,36 +65,20 @@ pub const START: usize = 0x7585D8;
 /// IDA 0x758714, the end of the piece.
 pub const END: usize = 0x758714;
 
-/// Where IDA 0x7585D8 lives (`moved::MOVED`'s home).
-#[cfg(test)]
-pub fn cheats_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::menu::owner::menus().play.cheats)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moved::image_bytes;
-    use core::mem::{offset_of, size_of};
+    use core::mem::offset_of;
 
     #[test]
     fn cheat_vars_starts_as_the_games() {
-        assert!(
-            END - START <= size_of::<Cheats>()
-                && size_of::<Cheats>() <= (END - START).next_multiple_of(4)
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &crate::menu::owner::menus().play.cheats,
         );
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host(cheats_addr()).cast_const(),
-                END - START,
-            )
-        };
-        assert_eq!(mine, &image_bytes(START, END - START)[..]);
-        let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
-        at(offset_of!(Cheats, notice_due), 0x7585D8);
-        at(offset_of!(Cheats, kept_car), 0x7585DC);
-        at(offset_of!(Cheats, cheat_names), 0x7585E0);
-        at(offset_of!(Cheats, cheats), 0x75870C);
-        at(offset_of!(Cheats, all_secret_cars), 0x758710);
+        assert_eq!(offset_of!(Cheats, notice_due), 0x0);
+        assert_eq!(offset_of!(Cheats, kept_car), 0x4);
+        assert_eq!(offset_of!(Cheats, cheat_names), 0x8);
+        assert_eq!(offset_of!(Cheats, cheats), 0x134);
+        assert_eq!(offset_of!(Cheats, all_secret_cars), 0x138);
     }
 }
