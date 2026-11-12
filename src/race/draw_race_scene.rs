@@ -344,7 +344,8 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         .map(|l| &l.lit)
         .enumerate()
     {
-        if extra.get() != u32::MAX && scene.textures.kinds.kind_first_slots[220 + k].get() >= SLOTS
+        if extra.get() != u32::MAX
+            && scene.textures.kinds.get().kind_first_slots[220 + k].get() >= SLOTS
         {
             return Err(BadInput("a wanted texture's slot past g_slotWantedTextures").into());
         }
@@ -404,11 +405,13 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     scene
         .lights
         .work
+        .get()
         .marks_mask
         .set((race.course.stage_prefs.refresh_flags_a.get() & 2) >> 1);
     scene
         .lights
         .work
+        .get()
         .lamps_mask
         .set(race.course.stage_prefs.refresh_flags_b.get() & 1);
     race.frame
@@ -426,7 +429,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
                 .get(),
         );
     }
-    scene.objects.tables.d3d_drawing_on.set(1);
+    scene.objects.tables.get().d3d_drawing_on.set(1);
     // The frame's one sound turn (`sound::race_turn`, when 20 ms of the scene clock have
     // passed since the last): the original polled 28 places through the frame, but the clock
     // moves only here before (`restart_clock` above and in `show_frame` after the present),
@@ -481,21 +484,21 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     {
         let texture = extra.get();
         if texture != u32::MAX {
-            let slot = scene.textures.kinds.kind_first_slots[220 + k].get();
+            let slot = scene.textures.kinds.get().kind_first_slots[220 + k].get();
             crate::scene::texture_places_store::cell_at(
-                &scene.textures.places,
+                scene.textures.places.get(),
                 core::mem::offset_of!(
                     crate::scene::texture_places_store::TexturePlaces,
                     slot_wanted
                 ),
                 slot,
             )?
-            .set(texture.wrapping_add(scene.textures.kinds.kind_first_textures[220].get()));
+            .set(texture.wrapping_add(scene.textures.kinds.get().kind_first_textures[220].get()));
         }
     }
     crate::scene::map_texture_places::map_texture_places(scene);
     crate::scene::load_slot_textures::load_slot_textures_in_game(&race.frame, scene)?;
-    if race.replay.finish.no_place.get() == 0 {
+    if race.replay.finish.get().no_place.get() == 0 {
         crate::race::frame_draw::set_up_panel(race)?;
     }
     drop(before_views);
@@ -565,7 +568,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     for state in [0x11, 0x12] {
         set_render_state(part, 2, state);
     }
-    if !race.shared.work.in_credits.is_set() && race.replay.finish.no_place.get() == 0 {
+    if !race.shared.work.in_credits.is_set() && race.replay.finish.get().no_place.get() == 0 {
         crate::hud::overlay_pass::overlay_pass(o.hud, race, o.system, o.scene, o.gfx)?;
     }
     crate::race::skid_laying::lay_skidmarks_if_on(race)?;

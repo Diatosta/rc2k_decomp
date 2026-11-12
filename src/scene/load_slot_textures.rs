@@ -19,7 +19,8 @@ pub fn load_slot_textures(
     load: &mut dyn FnMut(u32) -> Result<(), BadInput>,
     scene: &crate::scene::owner::Scene,
 ) -> Result<u32, BadInput> {
-    let count = rc2k_core::scene::textures::slots_in_use(scene.textures.places.totals[2].get())?;
+    let count =
+        rc2k_core::scene::textures::slots_in_use(scene.textures.places.get().totals[2].get())?;
     for slot in 0..count {
         load(slot)?;
     }

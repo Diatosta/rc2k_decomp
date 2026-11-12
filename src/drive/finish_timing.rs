@@ -19,60 +19,57 @@ use crate::race::owner_replay::Replay;
 
 /// `time` = the clock less the start (`scratch`) over `thousand`.
 fn time(race: &Race, scene: &crate::scene::owner::Scene) {
-    race.replay.finish.time.set(stf(
+    race.replay.finish.get().time.set(stf(
         int(scene.drawing.scene.scratch.get() as i32) / ld(race.course.numbers.thousand.get())
     ));
 }
 
 /// The eased time between the two limits: t less ((t - a) / (b - a))^2 x ((b - a) x half).
 fn eased_middle(race: &Race) {
-    let q = (ld(race.replay.finish.time.get()) - ld(race.replay.finish.limit_a.get()))
-        / (ld(race.replay.finish.limit_b.get()) - ld(race.replay.finish.limit_a.get()));
+    let finish = race.replay.finish.get();
+    let q = (ld(finish.time.get()) - ld(finish.limit_a.get()))
+        / (ld(finish.limit_b.get()) - ld(finish.limit_a.get()));
     let square = q * q;
-    let span = (ld(race.replay.finish.limit_b.get()) - ld(race.replay.finish.limit_a.get()))
-        * ld(race.course.numbers.half.get());
+    let span =
+        (ld(finish.limit_b.get()) - ld(finish.limit_a.get())) * ld(race.course.numbers.half.get());
     let product = square * span;
-    race.replay
-        .finish
-        .eased
-        .set(stf(-product + ld(race.replay.finish.time.get())));
+    finish.eased.set(stf(-product + ld(finish.time.get())));
 }
 
 /// The eased time past the second limit: a + (b - a) x half.
 fn eased_end(race: &Race) {
-    let span = (ld(race.replay.finish.limit_b.get()) - ld(race.replay.finish.limit_a.get()))
-        * ld(race.course.numbers.half.get());
-    race.replay
-        .finish
-        .eased
-        .set(stf(span + ld(race.replay.finish.limit_a.get())));
+    let finish = race.replay.finish.get();
+    let span =
+        (ld(finish.limit_b.get()) - ld(finish.limit_a.get())) * ld(race.course.numbers.half.get());
+    finish.eased.set(stf(span + ld(finish.limit_a.get())));
 }
 
 /// The share between the last two limits: (t - c) / (d - c).
 fn share(replay: &Replay) {
-    let q = (ld(replay.finish.time.get()) - ld(replay.finish.limit_c.get()))
-        / (ld(replay.finish.limit_d.get()) - ld(replay.finish.limit_c.get()));
-    replay.finish.share.set(stf(q));
+    let finish = replay.finish.get();
+    let q = (ld(finish.time.get()) - ld(finish.limit_c.get()))
+        / (ld(finish.limit_d.get()) - ld(finish.limit_c.get()));
+    finish.share.set(stf(q));
 }
 
 /// The core from the clock's reading `now` (already in `g_sceneClock`).
 pub fn timing_from(race: &Race, now: u32, scene: &crate::scene::owner::Scene) {
-    let replay = &race.replay;
-    let since = now.wrapping_sub(replay.finish.start_clock.get());
+    let finish = race.replay.finish.get();
+    let since = now.wrapping_sub(finish.start_clock.get());
     scene.drawing.scene.scratch.set(since);
     time(race, scene);
-    if c0(replay.finish.time.get(), replay.finish.limit_a.get()) {
-        replay.finish.eased.set(loaded(&replay.finish.time));
-    } else if c0(replay.finish.time.get(), replay.finish.limit_b.get()) {
+    if c0(finish.time.get(), finish.limit_a.get()) {
+        finish.eased.set(loaded(&finish.time));
+    } else if c0(finish.time.get(), finish.limit_b.get()) {
         eased_middle(race);
     } else {
         eased_end(race);
     }
-    replay.finish.share.set(0.0);
-    let late = !c0(replay.finish.time.get(), replay.finish.limit_c.get());
+    finish.share.set(0.0);
+    let late = !c0(finish.time.get(), finish.limit_c.get());
     if race.shared.state.results.finished.get() != 0 && late {
-        replay.finish.share.set(1.0);
-        if c0(replay.finish.time.get(), replay.finish.limit_d.get()) {
+        finish.share.set(1.0);
+        if c0(finish.time.get(), finish.limit_d.get()) {
             share(&race.replay);
         }
     }

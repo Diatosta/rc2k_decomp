@@ -78,11 +78,8 @@ pub fn engine_sound(
         .scene
         .scratch
         .set(x87::loaded(&shared.car().engine_speed).to_bits());
-    let floor = shared.physics_tables.idle_engine_speed.bits();
-    let held = hold_low(
-        f32::from_bits(drawing.scene.scratch.get()),
-        f32::from_bits(floor),
-    );
+    let floor = shared.physics_tables.idle_engine_speed.get();
+    let held = hold_low(f32::from_bits(drawing.scene.scratch.get()), floor);
     drawing.scene.scratch.set(held.to_bits());
     drawing
         .scene

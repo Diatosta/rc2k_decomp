@@ -60,7 +60,7 @@ pub fn point_record(
     let record = crate::scene::point_records::of_scene_point(point);
     if crate::scene::point_records::field(ctx.part, record, 0)? != point {
         crate::scene::project_point::make_scene_record(
-            ctx.race, ctx.part, point, record, ctx.scene, ctx.view,
+            ctx.race, ctx.part, point, record, ctx.reads, ctx.view,
         )?;
     }
     Ok(record)
@@ -114,7 +114,7 @@ pub fn face_hidden(
     ctx.view.object.position[0].set(x as u32);
     let depth = crate::math::x87::add_to_int(
         crate::scene::point_records::field(ctx.part, record, 0x18)?,
-        race.course.level_grid.depth_shift.get(),
+        ctx.reads.level_grid.depth_shift.get(),
     );
     ctx.view.object.face_depth.set(depth as u32);
     Ok(hidden_by_depth(depth as u32, x as u32))
@@ -322,7 +322,7 @@ pub fn gather_visible_faces(ctx: &DrawCtx) -> Result<(), Refused> {
 /// flipped when any is set (0xA), or'd with bits 4 and 5 likewise (0x30).
 pub fn face_hide_mask(
     race: &Race,
-    scene: &crate::scene::owner::Scene,
+    reads: crate::workers::DrawReads<'_>,
     view: &crate::race::view_scratch::ViewScratch,
     part: &crate::workers::PartScratch,
 ) -> Result<(), Refused> {
@@ -334,7 +334,7 @@ pub fn face_hide_mask(
             engine_tables: &race.shared.buffers.engine_tables,
         },
         &view.car,
-        scene,
+        reads.draw_switches,
         &part.points,
     )?;
     let ground: u32 = view.car.probe_point_face[4].get();
@@ -406,13 +406,13 @@ pub fn mark_far_cells(
 /// anything) what `course_grid` would.
 pub fn prepare_course_view(
     race: &Race,
-    scene: &crate::scene::owner::Scene,
+    reads: crate::workers::DrawReads<'_>,
     view: &crate::race::view_scratch::ViewScratch,
     part: &crate::workers::PartScratch,
 ) -> Result<(), Refused> {
     let course = &race.course;
     check_course_grid(course)?;
-    face_hide_mask(race, scene, view, part)?;
+    face_hide_mask(race, reads, view, part)?;
     course_grid(race, &view.grid, &view.vars)?;
     if race.shared.switches.scene_set_up.get() == 0 {
         return Ok(());

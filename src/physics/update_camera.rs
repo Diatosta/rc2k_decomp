@@ -141,7 +141,7 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
         ))?
         .head
         .each_ref()
-        .map(crate::session::Dword::get);
+        .map(crate::session::PlainDword::get);
     x87_4(c.tables, c.numbers, c.view_records, &head);
     ViewVars::record(c.view_records, 3).angles[0].set(head[3]);
     ViewVars::record(c.view_records, 3).angles[0].set(head[7]);

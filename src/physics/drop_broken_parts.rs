@@ -21,7 +21,7 @@ pub fn drop_broken_parts(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     for (k, &bit) in BROKEN_BITS.iter().enumerate() {
-        if !broken_checked(k, || scene.lights.work.marks_mask.get() != 0) {
+        if !broken_checked(k, || scene.lights.work.get().marks_mask.get() != 0) {
             continue;
         }
         if !breaks(car.part_damage_limits[k].get(), || {

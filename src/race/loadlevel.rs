@@ -241,13 +241,14 @@ pub fn loadlevel_init(
     s.indent(3);
     level::reset_refresh();
     let flags: u32 = race.course.stage_prefs.refresh_flags_a.get();
-    scene.lights.work.marks_mask.set((flags & 2) >> 1);
+    scene.lights.work.get().marks_mask.set((flags & 2) >> 1);
     for car in &race.car_blocks().cars[..8] {
         car.lights_on.set(flags & 1);
     }
     scene
         .lights
         .work
+        .get()
         .lamps_mask
         .set(race.course.stage_prefs.refresh_flags_b.get() & 1);
     s.indent(-3);
@@ -300,7 +301,7 @@ pub fn loadlevel_init(
     crate::race::norms::store_norms(race, &mut |a, b, c| {
         crate::race::norms::face_normal(race, scene, a, b, c)
     })?;
-    if race.replay.finish.no_place.get() == 0 {
+    if race.replay.finish.get().no_place.get() == 0 {
         s.indent(-3);
         s.step(&mut || level::init_checkpoints(race), None)?;
         s.step(

@@ -51,7 +51,7 @@ fn unlock_refusing(
 ) -> Result<(), Refused> {
     lock(
         gfx,
-        scene.textures.kinds.kind_first_textures[211].get(),
+        scene.textures.kinds.get().kind_first_textures[211].get(),
         false,
     )?;
     Err(BadInput(why).into())
@@ -74,7 +74,7 @@ pub fn set_up_surface(
     let mut mask = crate::memory::owned::counted(&masks.list.list, MASK_BYTES)?;
     lock(
         gfx,
-        scene.textures.kinds.kind_first_textures[211].get(),
+        scene.textures.kinds.get().kind_first_textures[211].get(),
         true,
     )?;
     if gfx.drawing.draw_surface.width.get() < SIDE || gfx.drawing.draw_surface.height.get() < SIDE {
@@ -102,11 +102,11 @@ pub fn set_up_surface(
     }
     lock(
         gfx,
-        scene.textures.kinds.kind_first_textures[211].get(),
+        scene.textures.kinds.get().kind_first_textures[211].get(),
         false,
     )?;
     crate::scene::forget_slot_texture::forget_slot_texture(
-        scene.textures.kinds.kind_first_slots[211].get(),
+        scene.textures.kinds.get().kind_first_slots[211].get(),
         scene,
     )?;
     crate::memory::free_list::free_list(&masks.list.list)?;
@@ -116,11 +116,11 @@ pub fn set_up_surface(
     ring.work.cursor.set(1);
     ring.work.count.set(0);
 
-    let [eighth, edge, pixel, step]: [u32; 4] = [
-        setup.floats.eighth.bits(),
-        setup.floats.surface_edge.bits(),
-        setup.floats.surface_pixel.bits(),
-        setup.floats.thirty_second.bits(),
+    let [eighth, edge, pixel, step]: [f32; 4] = [
+        setup.floats.eighth.get(),
+        setup.floats.surface_edge.get(),
+        setup.floats.surface_pixel.get(),
+        setup.floats.thirty_second.get(),
     ];
     let places = &masks.surface.places;
     let end = size_of_val(places);

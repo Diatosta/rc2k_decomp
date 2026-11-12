@@ -33,13 +33,13 @@ pub fn load_changed_texture_picture(
     }
     let at = texture as usize;
     let Some(wanted) = rc2k_core::scene::pictures::changed_picture(
-        textures.places.wanted_pictures[at].get(),
-        || textures.places.loaded_pictures[at].get(),
+        textures.places.get().wanted_pictures[at].get(),
+        || textures.places.get().loaded_pictures[at].get(),
     ) else {
         return Ok(());
     };
     load(wanted, texture)?;
-    textures.places.loaded_pictures[at].set(wanted);
+    textures.places.get().loaded_pictures[at].set(wanted);
     Ok(())
 }
 

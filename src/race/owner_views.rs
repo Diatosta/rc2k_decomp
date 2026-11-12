@@ -34,7 +34,7 @@ impl Race {
 
     /// The gear figures.
     pub fn gear(&self) -> &GearFigures {
-        &self.frame.lights_and_gear.gear
+        &self.frame.lights_and_gear.get().gear
     }
 
     /// The replay's work area.
@@ -69,7 +69,7 @@ impl Race {
 
     /// The light records.
     pub fn light_records(&self) -> &LightRecords {
-        &self.frame.lights_and_gear.light_records
+        &self.frame.lights_and_gear.get().light_records
     }
 
     /// The engine tables.

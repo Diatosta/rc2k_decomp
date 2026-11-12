@@ -32,7 +32,7 @@ pub fn draw_glow(
         crate::scene::set_texture::set_texture(
             part,
             scene,
-            scene.textures.kinds.kind_first_slots[211].get(),
+            scene.textures.kinds.get().kind_first_slots[211].get(),
         );
         let place = [
             x87::add_80(&clipping.glow.place[2], &clipping.glow.offset[0]),

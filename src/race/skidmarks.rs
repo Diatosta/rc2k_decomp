@@ -88,12 +88,12 @@ fn turn_skid_point(
 ) -> Result<Turned, BadInput> {
     let race = ctx.race;
     {
-        let points = &race.frame.shadow_skids.skid_points;
+        let points = &ctx.reads.shadow_skids.skid_points;
         let at = n as usize * 0xC;
         if at + 0xC > 0x6000 {
             return Err(BadInput("a skidmark point past the table"));
         }
-        let lift = race.frame.shadow_skids.skid_lift.get();
+        let lift = ctx.reads.shadow_skids.skid_lift.get();
         use crate::math::x87_float::{int, ld, st};
         let point = [
             int(points.get_u32(at) as i32),
@@ -122,7 +122,6 @@ fn turn_skid_point(
 /// met with four vertices).
 pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
     let (race, scene) = (ctx.race, ctx.scene);
-    let frame = &race.frame;
     let mut views = u32::MAX;
     let mode: u32 = race.shared.vars.run_kind.get();
     if mode != 0 && mode != 2 {
@@ -156,7 +155,7 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
     let mut last: Option<(u32, Turned, Turned)> = None;
     for n in 0..0x400u32 {
         let link = |at: u32| -> Result<u16, BadInput> {
-            let table = &frame.shadow_skids.skid_links;
+            let table = &ctx.reads.shadow_skids.skid_links;
             let at = at as usize;
             if at + 2 <= size_of_val(table) {
                 Ok(u16::from_le_bytes([table.get(at), table.get(at + 1)]))
@@ -208,7 +207,7 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
             ctx.part,
             &ctx.view.polygon,
             race,
-            scene,
+            ctx.reads.draw_switches,
             ctx.far_clip,
             ctx.view,
         )?;
@@ -233,6 +232,7 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
                 race,
                 &ctx.view.face,
                 scene,
+                ctx.reads,
                 &ctx.system.session.screen,
             )?;
             ctx.view.face.polygon_mode.set(0u32);

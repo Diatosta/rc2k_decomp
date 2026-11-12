@@ -19,8 +19,8 @@ pub struct ViewPlace<'a> {
     pub place: &'a [PlainDword; 3],
     pub matrix: &'a [PlainFloat; 9],
     pub out: &'a [PlainDword; 3],
-    /// The height's bits, read when the view's variables are made (nothing writes it between).
-    pub height: u32,
+    /// The height, read when the view's variables are made (nothing writes it between).
+    pub height: f32,
     pub matrix_copy: &'a [PlainFloat; 9],
 }
 
@@ -33,7 +33,7 @@ pub fn first(weather: &Weather) -> ViewPlace<'_> {
         place: &rain.view_place,
         matrix: &rain.view_matrix,
         out: &rain.view,
-        height: rules.height.to_bits(),
+        height: rules.height,
         matrix_copy: &rain.matrix_copy,
     }
 }
@@ -54,7 +54,7 @@ pub fn place_view_with(v: &ViewPlace) -> Result<(), Refused> {
         let out = [
             x87::zero_less_int_plus_int(point[0], place[0]),
             x87::zero_less_int_plus_int(point[1], place[1]),
-            bh::to_int(bh::ld(v.height) - bh::int(point[2]) + bh::int(place[2])),
+            bh::to_int(bh::ld(v.height.to_bits()) - bh::int(point[2]) + bh::int(place[2])),
         ];
         for (cell, x) in v.out.iter().zip(out) {
             cell.set(x as u32);

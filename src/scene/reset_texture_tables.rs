@@ -9,13 +9,13 @@
 // ---- Rust version ----
 
 pub fn reset_texture_tables(scene: &crate::scene::owner::Scene) {
-    scene.textures.places.kind_slot_bytes.set(0); // TexturePlaces.kind_slot_bytes, cleared first
+    scene.textures.places.get().kind_slot_bytes.set(0); // TexturePlaces.kind_slot_bytes, cleared first
     // ObjectTables.video_levels[0], ObjectTables.system_levels[0], g_kindFirstSlots, g_kindFirstTextures: 0x1000 bytes each.
     for table in [
-        &scene.objects.tables.video_levels,
-        &scene.objects.tables.system_levels,
-        &scene.textures.kinds.kind_first_slots,
-        &scene.textures.kinds.kind_first_textures,
+        &scene.objects.tables.get().video_levels,
+        &scene.objects.tables.get().system_levels,
+        &scene.textures.kinds.get().kind_first_slots,
+        &scene.textures.kinds.get().kind_first_textures,
     ] {
         for cell in table {
             cell.set(u32::MAX);

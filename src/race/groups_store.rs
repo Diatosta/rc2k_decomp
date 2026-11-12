@@ -34,7 +34,7 @@ use crate::race::panel_store::Panel;
 use crate::race::replay_work_store::ReplayWork;
 use crate::race::view_vars_store::{ViewRecord, ViewVars};
 use crate::race::viewer_screen_store::ViewerPanelBlock;
-use crate::session::{Bytes, Dword};
+use crate::session::{Bytes, PlainDword};
 use core::mem::{offset_of, size_of};
 
 /// IDA 0x70F3EC .. 0x719FD8.
@@ -59,14 +59,16 @@ pub struct ViewerAndKinds {
     pub kind_tables: KindTables,
 }
 
-/// IDA 0x5C906C .. 0x5CC198.
+/// IDA 0x5C906C .. 0x5CC198. A drawing store (`session::DrawShared`): the light records and
+/// the dword between on plain cells; the gear figures, which the drawing reaches only by
+/// reading on past the records, on the physics' cells.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct LightsAndGear {
     /// +0x0 (0x5C906C): `race::light_records_store`.
     pub light_records: LightRecords,
     /// +0x28E8 (0x5CB954): a dword between them, by IDA address.
-    pub between: Dword,
+    pub between: PlainDword,
     /// +0x28EC (0x5CB958): `physics::gear_store`.
     pub gear: GearFigures,
 }
@@ -209,7 +211,7 @@ mod tests {
         let race = race();
         assert_block_starts_as_the_games(&race.replay.cars_and_replay);
         assert_block_starts_as_the_games(&race.replay.viewer_and_kinds);
-        assert_block_starts_as_the_games(&race.frame.lights_and_gear);
+        assert_block_starts_as_the_games(race.frame.lights_and_gear.get());
         crate::test_support::first_values::assert_block_starts_as_the_games_but(
             &race.frame.view_and_records,
             &[(
@@ -227,7 +229,7 @@ mod tests {
         for home in [
             core::ptr::from_ref(&race.replay.cars_and_replay).addr(),
             core::ptr::from_ref(&race.replay.viewer_and_kinds).addr(),
-            core::ptr::from_ref(&race.frame.lights_and_gear).addr(),
+            core::ptr::from_ref(race.frame.lights_and_gear.get()).addr(),
             core::ptr::from_ref(&race.frame.panel_and_overlay.panel).addr() + 2,
             core::ptr::from_ref(&race.frame.view_and_records).addr(),
         ] {

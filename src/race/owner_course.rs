@@ -10,7 +10,7 @@ use crate::race::level_paths_store::LevelPaths;
 use crate::race::lights_store::LightsData;
 use crate::race::numbers_store::Numbers;
 use crate::race::prefs_store::StagePrefs;
-use crate::session::GameThread;
+use crate::session::{DrawShared, GameThread};
 
 /// The race's course state (step 11, owned state: the stores move in as fields).
 pub struct Course {
@@ -18,8 +18,8 @@ pub struct Course {
     pub course: CourseWork,
     /// One copy: the drawing only reads it (frame plan F4).
     pub lists: CourseLists,
-    /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
-    pub level_grid: LevelGrid,
+    /// One copy, lent to the drawing parts (`workers::DrawReads`): no part writes it.
+    pub level_grid: DrawShared<LevelGrid>,
     /// One copy (frame plan F4): the drawing writes only what each view's fog set-up works
     /// out from the draw distance (`race::draw_distance_settings`), the same in every view.
     pub stage_prefs: StagePrefs,
@@ -41,7 +41,7 @@ impl Course {
         Course {
             course: CourseWork::new(),
             lists: CourseLists::new(),
-            level_grid: LevelGrid::new(),
+            level_grid: DrawShared::new(LevelGrid::new()),
             stage_prefs: StagePrefs::new(),
             numbers: Numbers::new(),
             main: GameThread::new(CourseMain {

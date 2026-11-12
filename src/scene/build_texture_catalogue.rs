@@ -87,7 +87,7 @@ fn run(
             }
             Step::Count(index) => {
                 let counter = crate::scene::texture_places_store::cell_at(
-                    &textures.places,
+                    textures.places.get(),
                     core::mem::offset_of!(
                         crate::scene::texture_places_store::TexturePlaces,
                         counters
@@ -108,7 +108,7 @@ fn run(
                 call(Call::CountNeeds)?;
             }
             Step::Unless(flag, inner) => {
-                if textures.places.step_flags[flag].get() == 0 && run(scene, inner, call)? {
+                if textures.places.get().step_flags[flag].get() == 0 && run(scene, inner, call)? {
                     return Ok(true);
                 }
             }
@@ -124,10 +124,10 @@ pub fn build_texture_catalogue(
     let textures = &scene.textures;
     // The original does this after the first two log lines and the count, which
     // touch neither.
-    for counter in &textures.places.counters {
+    for counter in &textures.places.get().counters {
         counter.set(0);
     }
-    for (n, flag) in textures.places.step_flags.iter().enumerate() {
+    for (n, flag) in textures.places.get().step_flags.iter().enumerate() {
         flag.set((n == 0) as u32);
     }
     if run(scene, &STEPS, call)? {

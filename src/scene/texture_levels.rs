@@ -62,7 +62,7 @@ const BLOCKS: [Block; 26] = [
 ];
 
 fn other(scene: &crate::scene::owner::Scene) -> bool {
-    scene.objects.tables.other_levels.get() != 0
+    scene.objects.tables.get().other_levels.get() != 0
 }
 
 const COUNT_TEXT_RVA: &std::ffi::CStr = c"NUM DIFFERENT CARS/OBJECTS/TEXTURE SETS "; // "NUM DIFFERENT CARS/OBJECTS/TEXTURE SETS "
@@ -86,7 +86,7 @@ pub fn init_texture_levels(race: &Race, o: crate::owners::Owners<'static>) -> Re
     crate::scene::reset_texture_tables::reset_texture_tables(scene);
     crate::logfile::log_write::log_nul(&COUNT_TEXT_RVA, false, 1);
     log_int(cars as i32, true, 1);
-    scene.objects.tables.other_levels.set(0);
+    scene.objects.tables.get().other_levels.set(0);
     crate::input::keys::update_input(o);
     let kinds: Vec<(KindSlots, Vec<u32>)> = BLOCKS
         .iter()
@@ -109,9 +109,9 @@ pub fn init_texture_levels(race: &Race, o: crate::owners::Owners<'static>) -> Re
         .collect();
     let set = with_cells(
         [
-            &scene.objects.tables.texture_tags,
-            &scene.objects.tables.system_levels,
-            &scene.objects.tables.video_levels,
+            &scene.objects.tables.get().texture_tags,
+            &scene.objects.tables.get().system_levels,
+            &scene.objects.tables.get().video_levels,
         ],
         |[tags, system, video]| {
             set_levels(
@@ -134,10 +134,11 @@ pub fn init_texture_levels(race: &Race, o: crate::owners::Owners<'static>) -> Re
         },
     )?;
     // `g_kindSlotBytes`: + 4 (or 1) a kind's slot.
-    scene.textures.places.kind_slot_bytes.set(
+    scene.textures.places.get().kind_slot_bytes.set(
         scene
             .textures
             .places
+            .get()
             .kind_slot_bytes
             .get()
             .wrapping_add(set.kind_slots_added),

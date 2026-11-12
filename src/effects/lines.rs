@@ -160,13 +160,15 @@ impl core::Blocks for GameBlocks<'_> {
         self.2
             .objects
             .slots
-            .slot_value(&self.2.objects.slots.face_counts, object as usize)
+            .get()
+            .slot_value(&self.2.objects.slots.get().face_counts, object as usize)
     }
     fn first_face(&self, object: u32) -> u32 {
         self.2
             .objects
             .slots
-            .slot_value(&self.2.objects.slots.first_face, object as usize)
+            .get()
+            .slot_value(&self.2.objects.slots.get().first_face, object as usize)
     }
 }
 
@@ -350,8 +352,8 @@ pub fn copy_block_points(
         let object = block.object.get();
         core::check_object(object)?;
         let to = block_points(paths, block.point_block.get())?;
-        let count = scene.objects.slots.point_counts[object as usize].get() as i32;
-        let first: u32 = scene.objects.slots.first_point[object as usize].get();
+        let count = scene.objects.slots.get().point_counts[object as usize].get() as i32;
+        let first: u32 = scene.objects.slots.get().first_point[object as usize].get();
         let mut from = first
             .wrapping_mul(12)
             .wrapping_add(course.lists.object_points.get());
@@ -385,10 +387,11 @@ pub fn set_up_blocks(
     for k in (0..count.max(0) as u32).rev() {
         let block = &marks.cars[k as usize];
         for cell in block.factors.iter().chain(&block.kept_factors) {
+            // All ones: the stored image the original fills the factors with (a NaN).
             cell.set_bits(u32::MAX);
         }
-        let points: u32 = scene.objects.slots.slot_value(
-            &scene.objects.slots.point_counts,
+        let points: u32 = scene.objects.slots.get().slot_value(
+            &scene.objects.slots.get().point_counts,
             block.object.get() as usize,
         );
         let bytes = points

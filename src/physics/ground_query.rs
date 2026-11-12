@@ -7,7 +7,7 @@
 use crate::physics::ground_probe_store::GroundProbe;
 use crate::physics::ground_store::GroundWork;
 use crate::race::course_store::CourseWork;
-use crate::session::{Dword, Float};
+use crate::session::{Dword, Float, PlainDword};
 
 /// The search's fields (the physics' names in brackets).
 #[derive(Clone, Copy)]
@@ -42,8 +42,8 @@ pub struct GroundQuery<'a> {
     pub share_t: &'a Dword,
     /// The edge test's 64-bit product (`GroundProbe.product`) and the caller's mark
     /// (`GroundProbe.settle_mark`, 0x40 or 0x80).
-    pub product: &'a [Dword; 2],
-    pub settle_mark: &'a Dword,
+    pub product: &'a [PlainDword; 2],
+    pub settle_mark: &'a PlainDword,
     /// The course work's search fields: the face tested (`ground_number`), the face found
     /// (`ground_slot`), its half (`ground_half`) and corners (`ground_corners`), the face
     /// tried first (`ground_face_last`).
@@ -117,8 +117,8 @@ pub struct GroundCells {
     plane_g: Float,
     share_s: Dword,
     share_t: Dword,
-    product: [Dword; 2],
-    settle_mark: Dword,
+    product: [PlainDword; 2],
+    settle_mark: PlainDword,
     number: Dword,
     slot: Dword,
     half: Dword,
@@ -151,8 +151,8 @@ impl GroundCells {
             plane_g: f(),
             share_s: d(),
             share_t: d(),
-            product: std::array::from_fn(|_| d()),
-            settle_mark: d(),
+            product: std::array::from_fn(|_| PlainDword::new(0)),
+            settle_mark: PlainDword::new(0),
             number: d(),
             slot: d(),
             half: d(),
@@ -199,7 +199,7 @@ impl GroundCells {
     }
 
     /// The edge test's product (`GroundQuery::product`).
-    pub fn product(&self) -> &[Dword; 2] {
+    pub fn product(&self) -> &[PlainDword; 2] {
         &self.product
     }
 

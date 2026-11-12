@@ -28,6 +28,6 @@ pub fn ground_search(
             ground_probe,
             &course.course,
         ),
-        scene,
+        scene.draw_switches.get(),
     )
 }

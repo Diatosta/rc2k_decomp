@@ -35,7 +35,7 @@ pub fn fill_light_tables(
         });
     // The plain colours are two (the light and the dark); the stage's are two (the dark one
     // and the lit).
-    let p = &scene.lights.work.plain_light_colours;
+    let p = &scene.lights.work.get().plain_light_colours;
     let ramp: [u32; 6] = if plain {
         std::array::from_fn(|k| p[k].get())
     } else {

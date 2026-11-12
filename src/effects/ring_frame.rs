@@ -42,7 +42,7 @@ pub fn ring_frame(
         crate::scene::set_texture::set_texture(
             part,
             scene,
-            scene.textures.kinds.kind_first_slots[211].get(),
+            scene.textures.kinds.get().kind_first_slots[211].get(),
         );
         crate::scene::depth_test_off::depth_test_off(part);
         // SurfaceTables.lives_by_level[8]: the ninth of `lives_by_level`.

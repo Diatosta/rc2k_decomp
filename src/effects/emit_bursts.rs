@@ -201,7 +201,7 @@ pub fn emit_bursts_with(
             let car = emitting_car(effects)?;
             let k = effects.setup.floats.burst_direction_k.get();
             let s = h.strength.get();
-            let scale = h.scaled.then(|| effects.setup.floats.half.bits());
+            let scale = h.scaled.then_some(&effects.setup.floats.half);
             let direction = [
                 x87::mul2(h.factors[0], s, k),
                 x87::times_less_abs_times(h.factors[1], s, scale, k),
@@ -253,7 +253,7 @@ pub fn emit_bursts_with(
                     let k4 = 4 * k as u32;
                     Ok(x87::less_plus_int_times(
                         &wheel.place[k4 as usize / 4],
-                        matrix_cell(m, 0x30 + k4)?,
+                        matrix_float(m, 0x30 + k4)?,
                         h.sides[k],
                         side as i32,
                     ))
@@ -270,8 +270,7 @@ pub fn emit_bursts_with(
                         pick as i32,
                         &effects.setup.floats.over_65536,
                         &effects.setup.floats.one,
-                    )
-                    .to_bits(),
+                    ),
                 )?;
                 slot.put(|en| &mut en.life, LIFE)?;
                 slot.put(

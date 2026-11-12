@@ -5,7 +5,7 @@
 // ---- Rust version ----
 
 pub fn clear_slot_kinds(scene: &crate::scene::owner::Scene) {
-    for kind in &scene.objects.tables.slot_kinds {
+    for kind in &scene.objects.tables.get().slot_kinds {
         kind.set(0);
     }
 }

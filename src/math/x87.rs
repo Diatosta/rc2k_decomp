@@ -443,7 +443,7 @@ pub fn lerp_scaled_less(
     b: impl Flt,
     m: impl Flt,
     n: impl Flt,
-    less: Option<u32>,
+    less: Option<impl Flt>,
 ) -> f32 {
     let a = a.bits();
     let b = b.bits();
@@ -451,7 +451,7 @@ pub fn lerp_scaled_less(
     let n = n.bits();
     let scaled = ((bh::ld(a) - bh::ld(b)) * bh::ld(m) + bh::ld(b)) * bh::ld(n);
     match less {
-        Some(less) => out(scaled - bh::ld(less)),
+        Some(less) => out(scaled - bh::ld(less.bits())),
         None => out(scaled),
     }
 }
@@ -752,12 +752,12 @@ pub fn pi_over(n: i32) -> u32 {
 }
 
 /// m - h cos(a [+ s]): `-cos(a [+ s]) h + m`.
-pub fn less_cosine(a: impl Flt, s: Option<u32>, h: impl Flt, m: impl Flt) -> f32 {
+pub fn less_cosine(a: impl Flt, s: Option<impl Flt>, h: impl Flt, m: impl Flt) -> f32 {
     let a = a.bits();
     let h = h.bits();
     let m = m.bits();
     let angle = match s {
-        Some(s) => bh::ld(a) + bh::ld(s),
+        Some(s) => bh::ld(a) + bh::ld(s.bits()),
         None => bh::ld(a),
     };
     out(-angle.cos() * bh::ld(h) + bh::ld(m))
@@ -1073,13 +1073,13 @@ pub fn blend_kept_abs_to_int(
 }
 
 /// `(f s - |s| [m]) k`.
-pub fn times_less_abs_times(f: impl Flt, s: impl Flt, m: Option<u32>, k: impl Flt) -> f32 {
+pub fn times_less_abs_times(f: impl Flt, s: impl Flt, m: Option<impl Flt>, k: impl Flt) -> f32 {
     let f = f.bits();
     let s = s.bits();
     let k = k.bits();
     let mut abs = bh::ld(s).abs();
     if let Some(m) = m {
-        abs *= bh::ld(m);
+        abs *= bh::ld(m.bits());
     }
     out((bh::ld(f) * bh::ld(s) - abs) * bh::ld(k))
 }
@@ -1097,7 +1097,7 @@ pub fn times_int_plus_times_80(
     a: impl Flt,
     b: impl Flt,
     i: i32,
-    c: Option<u32>,
+    c: Option<impl Flt>,
     s: impl Flt,
 ) -> [u8; 10] {
     let a = a.bits();
@@ -1105,7 +1105,7 @@ pub fn times_int_plus_times_80(
     let s = s.bits();
     let mut x = bh::ld(a) * bh::ld(b) * bh::int(i);
     if let Some(c) = c {
-        x += bh::ld(c);
+        x += bh::ld(c.bits());
     }
     bh::f80(x * bh::ld(s))
 }

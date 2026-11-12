@@ -132,7 +132,7 @@ pub fn windscreen_drops_top(
     crate::scene::set_texture::set_texture(
         crate::workers::game_scratch(),
         scene,
-        scene.textures.kinds.kind_first_slots[202].get(),
+        scene.textures.kinds.get().kind_first_slots[202].get(),
     );
     crate::scene::polygon_work::front_end()
         .polygon_vertex_count

@@ -9,7 +9,7 @@ use crate::physics::pace_store::PaceNotes;
 use crate::physics::split_tables_store::SplitTables;
 use crate::physics::store::DamageModel;
 use crate::race::car_specs_store::CarSpecs;
-use crate::session::GameThread;
+use crate::session::{DrawShared, GameThread};
 
 /// What only the game's thread reaches: the camera, the ground, the pace notes, the split
 /// tables, the damage model and the car specs (no drawing part, audio, key or network thread
@@ -40,8 +40,9 @@ impl PhysicsMain {
 pub struct Physics {
     /// One copy: the drawing's searches have their own (frame plan F4).
     pub contact: ContactWork,
-    /// One copy: the drawing's searches have their own (frame plan F4).
-    pub ground_probe: GroundProbe,
+    /// One copy, lent to the drawing parts (`workers::DrawReads`): the drawing's searches
+    /// have their own fields (frame plan F4) and read only its mark.
+    pub ground_probe: DrawShared<GroundProbe>,
     main: GameThread<PhysicsMain>,
 }
 
@@ -49,7 +50,7 @@ impl Physics {
     pub const fn new() -> Self {
         Physics {
             contact: ContactWork::new(),
-            ground_probe: GroundProbe::new(),
+            ground_probe: DrawShared::new(GroundProbe::new()),
             main: GameThread::new(PhysicsMain::new()),
         }
     }

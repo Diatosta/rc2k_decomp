@@ -13,9 +13,9 @@ pub fn look_up_texture(
     // Converted: `rc2k_core::scene::textures::look_up`.
     let found = rc2k_core::scene::textures::look_up(
         poly.texture_page.get(),
-        |p| scene.textures.places.place_slot[p].get(),
-        |k| scene.textures.kinds.kind_first_slots[k].get(),
-        || scene.textures.places.totals[2].get(),
+        |p| scene.textures.places.get().place_slot[p].get(),
+        |k| scene.textures.kinds.get().kind_first_slots[k].get(),
+        || scene.textures.places.get().totals[2].get(),
     );
     poly.polygon_texture.set(found.texture);
     found.last_number

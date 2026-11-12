@@ -100,6 +100,7 @@ pub fn steps(car: &Car, damage: &DamageModel) {
     // A wheel that has just touched down carries the dive's load.
     for wheel in 0..4 {
         damage.wheel_loads[wheel].set(0.0);
+        // Word tests: a squeeze of -0.0 counts as touching.
         if car.wheel_squeeze_last[wheel].bits() == 0 && car.wheel_squeeze[wheel].bits() != 0 {
             store(
                 &damage.wheel_loads[wheel],

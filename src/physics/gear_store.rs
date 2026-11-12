@@ -46,7 +46,7 @@ const _: () = assert!(END - START == core::mem::size_of::<GearFigures>());
 /// The piece's host address (the alignment checks).
 #[cfg(test)]
 pub fn piece_addr() -> usize {
-    core::ptr::from_ref(&race().frame.lights_and_gear.gear).addr()
+    core::ptr::from_ref(&race().frame.lights_and_gear.get().gear).addr()
 }
 
 #[cfg(test)]

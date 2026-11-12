@@ -6,8 +6,9 @@
 //! and the course work's `shine` (`g_shine`, 0x5CCE78), shared by every view in turn.
 
 use crate::race::course_store::CourseWork;
-use crate::race::level_grid_store::LevelGrid;
+use crate::race::level_grid_store::{LevelGrid, first_of};
 use crate::session::{Bytes, Dword};
+use core::mem::offset_of;
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -27,21 +28,13 @@ pub struct ViewCourse {
 impl ViewCourse {
     /// With the image's first values.
     pub const fn new() -> Self {
-        let LevelGrid {
-            face_table_a,
-            face_table_b,
-            face_table_c,
-            face_table_d,
-            view_value_kept,
-            ..
-        } = LevelGrid::new();
         let CourseWork { shine, .. } = CourseWork::new();
         Self {
-            face_table_a,
-            face_table_b,
-            face_table_c,
-            face_table_d,
-            view_value_kept,
+            face_table_a: first_of::<_, 0x100>(offset_of!(LevelGrid, face_table_a)),
+            face_table_b: first_of::<_, 0x100>(offset_of!(LevelGrid, face_table_b)),
+            face_table_c: first_of::<_, 0x100>(offset_of!(LevelGrid, face_table_c)),
+            face_table_d: first_of::<_, 0x100>(offset_of!(LevelGrid, face_table_d)),
+            view_value_kept: first_of::<_, 4>(offset_of!(LevelGrid, view_value_kept)),
             shine,
         }
     }

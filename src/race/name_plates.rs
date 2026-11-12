@@ -133,7 +133,11 @@ pub fn update_name_plates(
         frame.panel_and_overlay.overlay.kept_ahead[1].get(),
     ];
     if times_changed(now, kept) {
-        draw_time_plate(frame, textures.kinds.kind_first_textures[196].get(), gfx)?;
+        draw_time_plate(
+            frame,
+            textures.kinds.get().kind_first_textures[196].get(),
+            gfx,
+        )?;
         for (from, to) in [
             (
                 &frame.panel_and_overlay.overlay.label_behind[0],
@@ -165,7 +169,7 @@ pub fn update_name_plates(
             NameAsk::Id(_) => {
                 draw_plate_by_id(
                     so,
-                    textures.kinds.kind_first_textures[slot].get(),
+                    textures.kinds.get().kind_first_textures[slot].get(),
                     asked,
                     gfx,
                     strings,

@@ -102,7 +102,7 @@ pub fn cars_particles(effects: &Effects) -> Result<(), Refused> {
         }
         for k in 0..3 {
             car.steps[0][k].set(x87::sub(
-                matrix_cell(whole, 0x30 + 4 * k as u32)?,
+                matrix_float(whole, 0x30 + 4 * k as u32)?,
                 &car.last_place[k],
             ));
         }
@@ -117,7 +117,7 @@ pub fn cars_particles(effects: &Effects) -> Result<(), Refused> {
             ));
         }
         for k in 0..3 {
-            car.last_place[k].set_bits(matrix_cell(whole, 0x30 + 4 * k as u32)?);
+            car.last_place[k].set(matrix_float(whole, 0x30 + 4 * k as u32)?);
         }
         let [k1, k2, k3] = read_bits(&effects.kinds.emitter.rate_k);
         let one = effects.setup.floats.one.get();
@@ -133,9 +133,24 @@ pub fn cars_particles(effects: &Effects) -> Result<(), Refused> {
         let parts = car.parts(effects.car_blocks()?)?;
         let up = read_bits(&effects.kinds.emitter.up);
         let across = [
-            x87::product_difference(up[1], matrix_cell(parts, 8)?, up[2], matrix_cell(parts, 4)?),
-            x87::product_difference(up[2], matrix_cell(parts, 0)?, up[0], matrix_cell(parts, 8)?),
-            x87::product_difference(up[0], matrix_cell(parts, 4)?, up[1], matrix_cell(parts, 0)?),
+            x87::product_difference(
+                up[1],
+                matrix_float(parts, 8)?,
+                up[2],
+                matrix_float(parts, 4)?,
+            ),
+            x87::product_difference(
+                up[2],
+                matrix_float(parts, 0)?,
+                up[0],
+                matrix_float(parts, 8)?,
+            ),
+            x87::product_difference(
+                up[0],
+                matrix_float(parts, 4)?,
+                up[1],
+                matrix_float(parts, 0)?,
+            ),
         ];
         let across = x87::normalised3(across.map(f32::to_bits), one);
         let across = across.map(f32::to_bits);

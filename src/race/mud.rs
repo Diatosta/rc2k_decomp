@@ -117,13 +117,18 @@ pub fn sample_mud_colours(
 ) -> Result<(), Refused> {
     let textures = &scene.textures;
     // KindTextureTables.kind_first_textures[193] (`g_kindFirstTextures` + 0x304): the surface sampled.
-    crate::d3d::lock_texture::lock_texture_in(gfx, textures.kinds.kind_first_textures[193].get())?;
+    crate::d3d::lock_texture::lock_texture_in(
+        gfx,
+        textures.kinds.get().kind_first_textures[193].get(),
+    )?;
     // Converted: `rc2k_core::race::mud::sample_place`.
     for n in 0..rc2k_core::race::mud::SAMPLES {
         let (x, y) = rc2k_core::race::mud::sample_place(n);
         shared.vars.mud_colours[n as usize].set(mud_pixel(x, y, gfx, system)?);
     }
-    crate::d3d::unlock_texture::unlock_texture(textures.kinds.kind_first_textures[193].get())?;
+    crate::d3d::unlock_texture::unlock_texture(
+        textures.kinds.get().kind_first_textures[193].get(),
+    )?;
     Ok(())
 }
 

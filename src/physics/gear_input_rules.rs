@@ -17,75 +17,44 @@
 use crate::physics::car_store::Car;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::vars_store::RaceVars;
-use crate::session::Cell32;
 use rc2k_core::physics::gearbox::{GearCar, GearInputs};
 
-fn get(v: &[&dyn Cell32], k: usize) -> u32 {
-    v[k].bits()
-}
-
-fn put(v: &[&dyn Cell32], k: usize, x: u32) {
-    v[k].set_bits(x);
-}
-
-/// On the variables' cells `v`; what the rules change is written back.
+/// The rules change what they change; only the words that differ are written back.
 // Converted: `rc2k_core::physics::gearbox::GearInputs::apply_rules`.
-pub fn rules_at(v: &[&dyn Cell32]) {
-    let car = GearCar {
-        state: get(v, 0),
-        box_mode: get(v, 7),
-        timer: get(v, 9),
-        race_mode: get(v, 10),
-        switches: [get(v, 12), get(v, 13), get(v, 14)],
+pub fn gear_input_rules(car: &Car, tables: &PhysicsTables, vars: &RaceVars) {
+    let state = GearCar {
+        state: car.tyre_change_state.get(),
+        box_mode: car.gearbox_kind.get(),
+        timer: car.run_ticks.get(),
+        race_mode: vars.run_kind.get(),
+        switches: [
+            car.go_stand_timer.get(),
+            car.started_stand_timer.get(),
+            car.finish_flag.get(),
+        ],
     };
     let before = GearInputs {
-        w90: get(v, 11),
-        first: get(v, 3),
-        second: get(v, 4),
-        hold: get(v, 5),
-        wa0: get(v, 2),
-        wa4: get(v, 1),
-        joined: get(v, 8),
+        w90: tables.input_steer.get(),
+        first: tables.input_throttle.get(),
+        second: tables.input_brake.get(),
+        hold: tables.input_handbrake.get(),
+        wa0: tables.input_gear_up.get(),
+        wa4: tables.input_gear_down.get(),
+        joined: tables.input_gear_wanted.get(),
     };
-    let gear_before = get(v, 6);
+    let gear_before = car.gear.get();
     let (mut inputs, mut gear) = (before, gear_before);
-    inputs.apply_rules(&mut gear, &car);
-    for (k, now, was) in [
-        (11, inputs.w90, before.w90),
-        (3, inputs.first, before.first),
-        (4, inputs.second, before.second),
-        (5, inputs.hold, before.hold),
-        (2, inputs.wa0, before.wa0),
-        (1, inputs.wa4, before.wa4),
-        (8, inputs.joined, before.joined),
-        (6, gear, gear_before),
+    inputs.apply_rules(&mut gear, &state);
+    for (cell, now, was) in [
+        (&tables.input_steer, inputs.w90, before.w90),
+        (&tables.input_throttle, inputs.first, before.first),
+        (&tables.input_brake, inputs.second, before.second),
+        (&tables.input_handbrake, inputs.hold, before.hold),
+        (&tables.input_gear_up, inputs.wa0, before.wa0),
+        (&tables.input_gear_down, inputs.wa4, before.wa4),
+        (&tables.input_gear_wanted, inputs.joined, before.joined),
+        (&car.gear, gear, gear_before),
     ] {
-        if now != was {
-            put(v, k, now);
-        }
+        crate::physics::cells::set_changed(cell, was, now);
     }
-}
-
-fn game<'a>(car: &'a Car, tables: &'a PhysicsTables, vars: &'a RaceVars) -> Vec<&'a dyn Cell32> {
-    vec![
-        &car.tyre_change_state as &dyn Cell32,
-        &tables.input_gear_down,
-        &tables.input_gear_up,
-        &tables.input_throttle,
-        &tables.input_brake,
-        &tables.input_handbrake,
-        &car.gear,
-        &car.gearbox_kind,
-        &tables.input_gear_wanted,
-        &car.run_ticks,
-        &vars.run_kind,
-        &tables.input_steer,
-        &car.go_stand_timer,
-        &car.started_stand_timer,
-        &car.finish_flag,
-    ]
-}
-
-pub fn gear_input_rules(car: &Car, tables: &PhysicsTables, vars: &RaceVars) {
-    rules_at(&game(car, tables, vars));
 }

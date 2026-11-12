@@ -144,10 +144,10 @@ pub fn span_ring(
         masks.vars.ring_middle.set(middle);
         let mut angle = 0u32;
         masks.vars.ring_angle.set(angle);
-        let step = bh::st(bh::int(n).pi_over());
-        masks.vars.ring_step.set_bits(step);
+        let step = bh::stf(bh::int(n).pi_over());
+        masks.vars.ring_step.set(step);
         for k in 0..n as u32 {
-            let a1 = x87::less_cosine(angle, None, half, middle);
+            let a1 = x87::less_cosine(angle, None::<f32>, half, middle);
             let a2 = x87::less_cosine(angle, Some(step), half, middle);
             write_bits(&masks.vars.ring_angles, [a1.to_bits(), a2.to_bits()]);
             for (o, a) in [(0, a1), (8, a2)] {

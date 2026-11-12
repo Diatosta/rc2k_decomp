@@ -2,54 +2,56 @@
 //! the 16 lamps, the course grid's sizes and view cell, the 32 x 32 course grid (`g_courseGrid`), the far cell
 //! limit, the turned view position and depth shift, and the flares' place-x table.
 //! Used by `race::frame_draw`, `scene::add_point_lights`, `scene::draw_polygon`, `race::course_faces`, `hud::overlay_pass`.
-//! Names are readings unless IDA's.
+//! Plain cells: a drawing store (`session::DrawShared`), written on the game's thread between
+//! frames and read by the drawing parts through their `workers::DrawReads`. Names are readings
+//! unless IDA's.
 
-use crate::session::{Bytes, Dword, Float};
+use crate::session::{PlainBytes, PlainDword, PlainFloat};
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct LevelGrid {
     /// +0x0 (0x63DC5C): the first of four 256-byte tables `object_bytes` fills (`race::frame_draw` `FACE_TABLES`); used in place (`byte_63DC5C`); now each view's (`race::view_course::ViewCourse`); unused.
-    pub face_table_a: Bytes<256>,
+    pub face_table_a: PlainBytes<256>,
     /// +0x100 (0x63DD5C): the second face table (`byte_63DD5C`); now each view's (`race::view_course::ViewCourse`); unused.
-    pub face_table_b: Bytes<256>,
+    pub face_table_b: PlainBytes<256>,
     /// +0x200 (0x63DE5C): the third face table (`byte_63DE5C`); now each view's (`race::view_course::ViewCourse`); unused.
-    pub face_table_c: Bytes<256>,
+    pub face_table_c: PlainBytes<256>,
     /// +0x300 (0x63DF5C): the fourth face table (`byte_63DF5C`); now each view's (`race::view_course::ViewCourse`); unused.
-    pub face_table_d: Bytes<256>,
+    pub face_table_d: PlainBytes<256>,
     /// +0x400 (0x63E05C): `g_lamps`: 16 lamps of 0x10 bytes (`race::frame_draw`, `scene::add_point_lights`); IDA splits `dword_63E060` / `dword_63E064` out of it; now each view's (`race::lamp_work::LampWork`); unused.
-    pub lamps: [Dword; 64],
+    pub lamps: [PlainDword; 64],
     /// +0x500 (0x63E15C): the course grid's half size; now each view's (`race::view_grid`); unused.
-    pub grid_half: Dword,
+    pub grid_half: PlainDword,
     /// +0x504 (0x63E160): the course grid's span; now each view's (`race::view_grid`); unused.
-    pub grid_span: Dword,
+    pub grid_span: PlainDword,
     /// +0x508 (0x63E164): the polygon smoothing switch; now each view's
     /// (`scene::polygon_work`), this one not used.
-    pub smooth: Dword,
+    pub smooth: PlainDword,
     /// +0x50c (0x63E168): "plain" flag of the first triangle's texture set; now each view's
     /// (`scene::polygon_work`), this one not used.
-    pub plain_first: Dword,
+    pub plain_first: PlainDword,
     /// +0x510 (0x63E16C): "plain" flag of the second triangle's set; now each view's
     /// (`scene::polygon_work`), this one not used.
-    pub plain_second: Dword,
+    pub plain_second: PlainDword,
     /// +0x514 (0x63E170): the view value kept by `race::draw_mirror_view` (pushed and popped around it; `dword_63E170`); now each view's (`race::view_course::ViewCourse`); unused.
-    pub view_value_kept: Dword,
+    pub view_value_kept: PlainDword,
     /// +0x518 (0x63E174): grid cell x of the view, a refresh value; now each view's (`race::view_grid`); unused.
-    pub grid_x: Dword,
+    pub grid_x: PlainDword,
     /// +0x51c (0x63E178): grid cell z of the view, a refresh value; now each view's (`race::view_grid`); unused.
-    pub grid_z: Dword,
+    pub grid_z: PlainDword,
     /// +0x520 (0x63E17C): `g_courseGrid`: 32 x 32 course records; now each view's (`race::view_grid`); unused (`race::find_sound_spots`' reads past a view's grid go on into the fields after this one).
-    pub course_grid: [Dword; 1024],
+    pub course_grid: [PlainDword; 1024],
     /// +0x1520 (0x63F17C): `g_farCellLimit`: how many cells out are drawn; now a value in `race::frame_draw::prepare_course_view`; unused.
-    pub far_cell_limit: Dword,
+    pub far_cell_limit: PlainDword,
     /// +0x1524 (0x63F180): the view-turned x (`flt_63F180`), never read; unused.
-    pub turned_x: Float,
+    pub turned_x: PlainFloat,
     /// +0x1528 (0x63F184): the view-turned z (`flt_63F184`), never read; unused.
-    pub turned_z: Float,
+    pub turned_z: PlainFloat,
     /// +0x152c (0x63F188): the depth shift (`race::frame_draw`, `flt_63F188`).
-    pub depth_shift: Float,
+    pub depth_shift: PlainFloat,
     /// +0x1530 (0x63F18C): `dword_63F18C`: per-flare x place (`race::frame_draw` flare list, indexed by flare number; 0x400 bytes, a table of its own); now each view's (`race::lamp_work::LampWork`); unused.
-    pub flare_place_x: [Dword; 256],
+    pub flare_place_x: [PlainDword; 256],
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
@@ -62,6 +64,13 @@ impl LevelGrid {
     }
 }
 
+/// The image's first values of the `N` bytes at `offset` in the piece, as cells of another
+/// record: a view's own copy of a field the views no longer share (`race::view_grid`,
+/// `race::view_course`, `race::lamp_work`).
+pub const fn first_of<T: crate::cells::Cells, const N: usize>(offset: usize) -> T {
+    crate::cells::cells_of_bytes(crate::race::store::first_values::<N>(START + offset))
+}
+
 /// IDA 0x63DC5C, the first byte of the piece.
 pub const START: usize = 0x63DC5C;
 /// IDA 0x63F58C, the end of the piece.
@@ -72,7 +81,7 @@ const _: () = assert!(END - START == core::mem::size_of::<LevelGrid>());
 /// The piece's host address (the alignment checks).
 #[cfg(test)]
 pub fn piece_addr() -> usize {
-    core::ptr::from_ref(&crate::race::owner::RACE.course.level_grid).addr()
+    core::ptr::from_ref(crate::race::owner::RACE.course.level_grid.get()).addr()
 }
 
 #[cfg(test)]
@@ -83,7 +92,7 @@ mod tests {
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::race::owner::RACE.course.level_grid,
+            crate::race::owner::RACE.course.level_grid.get(),
         );
     }
 

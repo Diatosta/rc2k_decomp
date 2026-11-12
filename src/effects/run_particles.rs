@@ -170,6 +170,7 @@ fn step(
             )?;
             Ok(())
         };
+        // The tuning cell holds a whole number (the original loads it with `fild`), so its bits.
         let gain_int = |k: &crate::session::PlainFloat| -> Result<_, Refused> {
             let v = x87::int_times_int_plus_int(
                 k.bits() as i32,

@@ -43,7 +43,7 @@ pub fn fill_race_slot(
     slot.part.set(part);
     let i = |t: usize| {
         int_80(
-            scene.objects.slots.part_extents[t][part as usize].get() as i32,
+            scene.objects.slots.get().part_extents[t][part as usize].get() as i32,
             false,
         )
     };

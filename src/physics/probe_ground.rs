@@ -72,7 +72,7 @@ impl<'a> ProbeInputs<'a> {
 pub fn probe_ground_at(
     c: &ProbeInputs<'_>,
     car: &Car,
-    scene: &crate::scene::owner::Scene,
+    switches: &crate::scene::draw_switches_store::DrawSwitches,
     q: &GroundQuery<'_>,
     contact: &ContactWork,
     scratch: &crate::session::Dword,
@@ -85,14 +85,14 @@ pub fn probe_ground_at(
         return Err(BadInput("more than 0x40 probe points (the lists' room)").into());
     }
 
-    probe_points(c, car, n, scene, q, contact, scratch)
+    probe_points(c, car, n, switches, q, contact, scratch)
 }
 
 fn probe_points(
     c: &ProbeInputs<'_>,
     car: &Car,
     n: u32,
-    scene: &crate::scene::owner::Scene,
+    switches: &crate::scene::draw_switches_store::DrawSwitches,
     q: &GroundQuery<'_>,
     contact: &ContactWork,
     scratch: &crate::session::Dword,
@@ -141,7 +141,7 @@ fn probe_points(
         // a drawing's its own).
         q.last.set(car.probe_point_face[b as usize].get());
         q.settle_mark.set(0x80);
-        ground_search_at(c.course, q, scene)?;
+        ground_search_at(c.course, q, switches)?;
         work.probe_ground_height[i].set(0);
         if q.found.get() == 0 {
             contact.crossed_probe.set(b);
@@ -213,7 +213,7 @@ pub fn probe_ground(
     probe_ground_at(
         &ProbeInputs::of_ground(c),
         car,
-        scene,
+        scene.draw_switches.get(),
         &GroundQuery::of_physics(c.ground, c.probe, &c.course.course),
         c.contact,
         &scene.drawing.scene.scratch,
@@ -226,14 +226,14 @@ pub fn probe_ground(
 pub fn probe_ground_in_view(
     c: &ProbeInputs<'_>,
     car: &Car,
-    scene: &crate::scene::owner::Scene,
+    switches: &crate::scene::draw_switches_store::DrawSwitches,
     points: &crate::race::scene_points::OwnPoints,
 ) -> Result<(), Refused> {
     let ground = crate::physics::ground_query::GroundCells::new();
     probe_ground_at(
         c,
         car,
-        scene,
+        switches,
         &ground.query(points),
         &ContactWork::new(),
         &crate::session::Dword::new(0),

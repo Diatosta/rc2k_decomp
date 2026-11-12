@@ -62,8 +62,8 @@ pub fn start_car_on_line(
     ] {
         cell.set(checkpoint);
     }
-    lights.state.line_place.set(checkpoint);
-    lights.state.line_fraction.set(checkpoint);
+    lights.state.get().line_place.set(checkpoint);
+    lights.state.get().line_fraction.set(checkpoint);
     let share = start_places::start_share(
         start as i32,
         race.shared.tables().arcade_cars.get() as i32,

@@ -55,8 +55,8 @@ pub fn place_car_on_line(
     use rc2k_core::race::checkpoints::{lerp, line_neighbours};
     let count = count(shared)?;
     {
-        let (c, n) = line_neighbours(lights.state.line_place.get(), count)?;
-        let t: u32 = lights.state.line_fraction.get();
+        let (c, n) = line_neighbours(lights.state.get().line_place.get(), count)?;
+        let t: u32 = lights.state.get().line_fraction.get();
         let (face, a) = check_point(&shared.buffers.checkpoints, course, c)?;
         course.course.place_face.set(face);
         let (_, b) = check_point(&shared.buffers.checkpoints, course, n)?;

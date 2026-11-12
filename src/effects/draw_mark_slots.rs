@@ -72,7 +72,7 @@ pub fn draw_mark_slots(
     crate::scene::set_texture::set_texture(
         crate::workers::game_scratch(),
         scene,
-        scene.textures.kinds.kind_first_slots[202].get(),
+        scene.textures.kinds.get().kind_first_slots[202].get(),
     );
     for s in effects.blocks.slots.slots.iter().rev() {
         if (s.life.get() as i32) <= 0 {

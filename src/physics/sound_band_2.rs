@@ -9,7 +9,7 @@ use crate::physics::sound_bands::Twin;
 
 pub const TWIN: Twin = (
     0x45D097,
-    |c| c.car.speed.bits(),
-    |c| c.spots.contact_band_scale.bits(),
+    |c| c.car.speed.get(),
+    |c| c.spots.contact_band_scale.get(),
     10,
 );

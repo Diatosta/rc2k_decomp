@@ -138,7 +138,7 @@ fn model_field(lights: &LightRecords, model: u32, offset: u32) -> Result<u32, Ba
         .records
         .get(model as usize)
         .and_then(|record| record.groups.get((offset / 4) as usize))
-        .map(crate::session::Dword::get)
+        .map(crate::session::PlainDword::get)
         .ok_or(BadInput("a model's record"))
 }
 
@@ -274,11 +274,15 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
         .set(race.car_blocks().cars[car].mode_on.get());
     let model = car_view(car)?.car_kind.get();
     ctx.view.matrices.known_object.set(model);
-    set_group_masks(race.light_records(), &ctx.view.cars.group_masks, model)?;
+    set_group_masks(
+        &ctx.reads.lights_and_gear.light_records,
+        &ctx.view.cars.group_masks,
+        model,
+    )?;
     let switches = car_view(car)?.parts_present.get();
     let shown = shown_groups(&ctx.view.cars.group_masks, switches);
     ctx.view.cars.shown_groups.set(shown);
-    let field = |offset: u32| model_field(race.light_records(), model, offset);
+    let field = |offset: u32| model_field(&ctx.reads.lights_and_gear.light_records, model, offset);
     ctx.view.face.faded_bits.set(field(0x10)?);
     ctx.view.cars.group_masks[4].set(
         u32::MAX

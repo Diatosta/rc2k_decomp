@@ -185,11 +185,11 @@ pub fn share_sound_spots(race: &Race, sound: &crate::sound::owner::Sound) -> Res
 /// set each first 16 bytes `LIGHT_WORK.sse_fill` (`movntps`); `part` the drawing part clearing
 /// them (`scene::point_records::first_records_everywhere`).
 pub fn clear_point_records(
-    scene: &crate::scene::owner::Scene,
+    reads: crate::workers::DrawReads<'_>,
     part: &crate::workers::PartScratch,
 ) -> Result<(), BadInput> {
-    let pattern: [u32; 4] = crate::session::read_bits(&scene.lights.work.sse_fill);
-    let sse = scene.draw_switches.use_sse.get() != 0;
+    let pattern: [u32; 4] = crate::session::read_bits(&reads.light_work.sse_fill);
+    let sse = reads.draw_switches.use_sse.get() != 0;
     for record in crate::scene::point_records::first_records_everywhere(part, 0x1000)? {
         if sse {
             for (cell, v) in record.iter().zip(pattern) {
@@ -210,25 +210,24 @@ pub fn clear_point_records(
 /// the view's four face tables (`race::view_course`; the original's `LEVEL_GRID.face_table_a` ...)
 pub fn object_bytes(
     race: &Race,
-    scene: &crate::scene::owner::Scene,
+    reads: crate::workers::DrawReads<'_>,
     mine: &crate::race::view_course::ViewCourse,
 ) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::frame::object_bytes`.
     let kind = |n: u32| -> Result<u32, BadInput> {
-        scene
-            .textures
-            .places
+        reads
+            .texture_places
             .place_slot
             .get(n as usize)
-            .map(crate::session::Dword::get)
+            .map(crate::session::PlainDword::get)
             .ok_or(BadInput("an object kind past the kinds' table"))
     };
     for n in 0..0x100usize {
         let record = &race.polygon_tables().texture_infos[n].words[8..];
         let flags = record[3].get().to_le_bytes()[2];
         let record_kind = kind(record[0].get())?;
-        let face_kind = if scene.objects.slots.face_counts[n].get() != 0 {
-            let first = scene.objects.slots.first_face[n].get() as usize;
+        let face_kind = if reads.object_slots.face_counts[n].get() != 0 {
+            let first = reads.object_slots.first_face[n].get() as usize;
             let face = race
                 .faces()
                 .faces
@@ -665,13 +664,13 @@ pub fn set_up_panel(race: &Race) -> Result<(), Refused> {
 /// `race().frame.frame_work.flare_count` 0, then `race::object_bytes`.
 pub fn reset_lamps(ctx: &crate::race::view_scratch::DrawCtx) -> Result<(), BadInput> {
     let crate::race::view_scratch::DrawCtx {
-        race, scene, view, ..
+        race, view, reads, ..
     } = *ctx;
     view.lamps.lamp_count.set(0);
     view.lists.depth_entry_count.set(0);
     view.lists.sort_entry_count.set(0);
     view.lamps.flare_count.set(0);
-    object_bytes(race, scene, &view.course)
+    object_bytes(race, reads, &view.course)
 }
 
 /// `race::hold_to_limit` (0x4650A9): `value` held to `RACE_WORK.patch_settings` (unsigned).

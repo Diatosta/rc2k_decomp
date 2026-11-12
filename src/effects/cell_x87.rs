@@ -11,6 +11,8 @@ pub trait CellX87 {
     fn st(&self, x: X);
 }
 
+// Through the cell's bits: the x87 load and store move the exact image (a NaN's payload, a
+// signalling NaN's quiet bit as `x87_float` has it), which a Rust `f32` need not keep.
 impl<T: Cell32 + ?Sized> CellX87 for T {
     fn ld(&self) -> X {
         bh::ld(self.bits())

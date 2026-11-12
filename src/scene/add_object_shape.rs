@@ -110,7 +110,7 @@ fn shape(
     if points > MARKS || face_count > MARKS || normals > MARKS {
         return Err(BadInput("more points, faces or normals than can be marked"));
     }
-    let mask: u32 = scene.draw_switches.loading_group_mask.get();
+    let mask: u32 = scene.draw_switches.get().loading_group_mask.get();
     let slot: u32 = scene.object_work().loading_slot.get();
     let mut point_marks = vec![0u32; MARKS];
     let mut normal_marks = vec![0u32; MARKS];
@@ -198,10 +198,10 @@ fn room(
     let room = Room {
         slot: scene.object_work().loading_slot.get(),
         points: course.lists.object_points.get(),
-        point_count: scene.objects.tables.point_count.get(),
+        point_count: scene.objects.tables.get().point_count.get(),
         face_memory: course.lists.face_memory.get(),
         face_cursor: scene.object_work().face_cursor.get(),
-        face_count: scene.objects.tables.face_count.get(),
+        face_count: scene.objects.tables.get().face_count.get(),
     };
     if room.slot >= SLOTS || room.points == 0 || room.face_memory == 0 {
         return Err(BadInput(
@@ -251,9 +251,9 @@ pub fn add_object_shape(
     scene.object_work().shape_counts[3].set(shape.normals as u32);
     for n in 0..MARKS {
         let taken = shape.faces.get(n).is_some_and(|face| face.taken);
-        scene.textures.places.face_marks[n].set(taken as u32);
-        scene.textures.places.point_marks[n].set(shape.point_marks[n]);
-        scene.textures.places.normal_marks[n].set(shape.normal_marks[n]);
+        scene.textures.places.get().face_marks[n].set(taken as u32);
+        scene.textures.places.get().point_marks[n].set(shape.point_marks[n]);
+        scene.textures.places.get().normal_marks[n].set(shape.normal_marks[n]);
     }
 
     // The points.
@@ -262,8 +262,8 @@ pub fn add_object_shape(
         &scene.object_work().shape_firsts,
         &[first_point, first_face],
     );
-    scene.objects.slots.first_point[slot].set(first_point);
-    scene.objects.slots.first_face[slot].set(first_face);
+    scene.objects.slots.get().first_point[slot].set(first_point);
+    scene.objects.slots.get().first_face[slot].set(first_face);
     let kind: u32 = scene.object_work().loading_kind.get();
     let turned = (0x190..0x258).contains(&kind);
     let drop: u32 = race.shared.physics_tables.ground_drop.get();
@@ -293,14 +293,14 @@ pub fn add_object_shape(
         to = to.wrapping_add(12);
     }
     course.course.shape_radius.set(radius);
-    scene.objects.slots.radii[slot].set(radius);
-    scene.objects.slots.point_counts[slot].set(count - first_point);
+    scene.objects.slots.get().radii[slot].set(radius);
+    scene.objects.slots.get().point_counts[slot].set(count - first_point);
     let first_normal = count;
     scene.object_work().shape_firsts[2].set(first_normal);
 
     // The faces.
     let no_normals = shape.normals == 0;
-    let mut without: u32 = scene.objects.slots.no_normals.get();
+    let mut without: u32 = scene.objects.slots.get().no_normals.get();
     let (mut lowest, mut highest) = (u32::MAX, 0u32);
     let mut face_number = first_face;
     let mut out = (room.face_memory + room.face_cursor) as usize;
@@ -347,8 +347,8 @@ pub fn add_object_shape(
         face_number += 1;
     }
     crate::session::write_first(&scene.object_work().shape_counts[5..7], &[lowest, highest]);
-    scene.objects.slots.no_normals.set(without);
-    scene.objects.tables.face_count.set(face_number);
+    scene.objects.slots.get().no_normals.set(without);
+    scene.objects.tables.get().face_count.set(face_number);
     scene
         .object_work()
         .face_cursor
@@ -364,8 +364,8 @@ pub fn add_object_shape(
         count += 1;
         to = to.wrapping_add(12);
     }
-    scene.objects.tables.point_count.set(count);
-    scene.objects.slots.normal_counts[slot].set(count - first_normal);
-    scene.objects.slots.face_counts[slot].set(face_number - first_face);
+    scene.objects.tables.get().point_count.set(count);
+    scene.objects.slots.get().normal_counts[slot].set(count - first_normal);
+    scene.objects.slots.get().face_counts[slot].set(face_number - first_face);
     Ok(())
 }

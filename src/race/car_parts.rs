@@ -59,8 +59,8 @@ pub fn car_part_matrices(
     let on = p.lights_on.get();
     let s = mark_switches(&PartState {
         on,
-        marks_mask: scene.lights.work.marks_mask.get(),
-        lamps_mask: scene.lights.work.lamps_mask.get(),
+        marks_mask: scene.lights.work.get().marks_mask.get(),
+        lamps_mask: scene.lights.work.get().lamps_mask.get(),
         inside: p.brake.get(),
         mode: p.camera_view.get(),
         reversing: p.gear.get(),

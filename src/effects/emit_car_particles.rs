@@ -42,9 +42,9 @@ pub fn emit_car_particles(effects: &Effects, o: &'static CarEffects) -> Result<(
     place(3, 0).set(x);
     place(0, 0).set(left);
     place(2, 0).set(left);
-    let y = bh::st(bh::int(o.axles[3].get() as i32) * bh::ld(k[4]) - bh::ld(k[5]) - bh::ld(k[6]));
+    let y = bh::stf(bh::int(o.axles[3].get() as i32) * bh::ld(k[4]) - bh::ld(k[5]) - bh::ld(k[6]));
     for wheel in [1, 3, 0, 2] {
-        place(wheel, 1).set_bits(y);
+        place(wheel, 1).set(y);
     }
     effects.kinds.emitter.looks[0].set(x87::to_int(o.records[0].place[0].get().abs()) as u32);
     effects.kinds.emitter.looks[1].set(bh::to_int(

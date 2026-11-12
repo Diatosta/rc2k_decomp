@@ -15,7 +15,7 @@ use crate::effects::paths::Paths;
 use crate::effects::place_graded_points::place_graded_points;
 use crate::effects::splines::{SPLINE_LEN, Spline, place_shape_points as place_shape};
 use crate::errors::{BadInput, Refused};
-use crate::math::x87;
+use crate::math::x87::{self, Flt};
 
 const SPLINES: u32 = 8;
 
@@ -25,7 +25,7 @@ fn records(n: u32) -> [Spline; 4] {
 }
 
 /// `fld a; fmul k; fst` each of three (the first), `fmul k2; fstp` (the second).
-fn sizes(a: u32, k: u32, k2: u32) -> (u32, u32) {
+fn sizes(a: impl Flt + Copy, k: impl Flt + Copy, k2: impl Flt) -> (u32, u32) {
     let abc = x87::mul(a, k);
     let d = x87::mul2(a, k, k2);
     (abc.to_bits(), d.to_bits())
@@ -46,14 +46,10 @@ pub fn place_spline(
         return Err(BadInput("a spline number of 8 or more").into());
     }
     {
-        let k = paths
-            .spline_constants
-            .place_k
-            .each_ref()
-            .map(super::super::session::PlainFloat::bits);
+        let k = paths.spline_constants.place_k.each_ref();
         paths.spline_work.offset.set(n * SPLINE_LEN);
         let [a, b, c, d] = records(n);
-        let (abc, dsize) = sizes(marks.listener_scale.bits(), k[0], k[1]);
+        let (abc, dsize) = sizes(&marks.listener_scale, k[0], k[1]);
         for r in [a, b, c] {
             r.put(paths, 0x24, abc)?;
         }

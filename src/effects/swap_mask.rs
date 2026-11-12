@@ -40,7 +40,7 @@ pub fn swap_mask(
     masks.blocks.chosen.set(chosen as u32);
     lock(
         gfx,
-        scene.textures.kinds.kind_first_textures[202].get(),
+        scene.textures.kinds.get().kind_first_textures[202].get(),
         true,
     )?;
     // The width is the locked texture's (`g_surface` while it is locked), not the
@@ -50,7 +50,7 @@ pub fn swap_mask(
     if let Err(e) = masks::check_width(width) {
         lock(
             gfx,
-            scene.textures.kinds.kind_first_textures[202].get(),
+            scene.textures.kinds.get().kind_first_textures[202].get(),
             false,
         )?;
         masks.blocks.seen.set(kept[0]);
@@ -65,7 +65,7 @@ pub fn swap_mask(
     let Some(pixels) = pixels else {
         lock(
             gfx,
-            scene.textures.kinds.kind_first_textures[202].get(),
+            scene.textures.kinds.get().kind_first_textures[202].get(),
             false,
         )?;
         masks.blocks.seen.set(kept[0]);
@@ -77,11 +77,11 @@ pub fn swap_mask(
     }
     lock(
         gfx,
-        scene.textures.kinds.kind_first_textures[202].get(),
+        scene.textures.kinds.get().kind_first_textures[202].get(),
         false,
     )?;
     crate::scene::forget_slot_texture::forget_slot_texture(
-        scene.textures.kinds.kind_first_slots[202].get(),
+        scene.textures.kinds.get().kind_first_slots[202].get(),
         scene,
     )?;
     Ok(())

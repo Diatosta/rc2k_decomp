@@ -29,9 +29,10 @@ use crate::math::x87_float as bh;
 // ---- game data ----
 const OBJECTS: u32 = 0xFF;
 pub const MATERIAL_LEN: usize = 0x80;
-/// The state as the function works on it: the clock when last here (`phase_clock`), then
-/// the `phase_work` cells: the phase's length, the time into it, the phase. The
-/// `phase_lengths` table holds four bases, four random parts, and a 0.
+/// The phases' lengths: four bases, four random parts, and a 0. The original also stored them
+/// into `LightWork::phase_lengths` on each call, and the length, time and phase it worked out
+/// into `ObjectTables::phase_work`; nothing reads either, and the drawing parts write neither
+/// (every part reads those stores while they draw).
 const LENGTHS: [u32; 9] = [200, 400, 200, 400, 400, 400, 400, 400, 0];
 
 // ---- Rust version ----
@@ -56,7 +57,6 @@ fn step_shape(
     course: &crate::race::owner_course::Course,
     clock: u32,
     face: u32,
-    scene: &crate::scene::owner::Scene,
     fraction_out: &crate::session::Float,
 ) -> Result<(), BadInput> {
     use crate::race::course_places::{face_field, write_face_field};
@@ -67,7 +67,6 @@ fn step_shape(
         }))
     };
     let [mut last, mut time, mut length, mut phase] = read()?;
-    crate::session::write_bits(&scene.lights.work.phase_lengths, LENGTHS);
     if time.wrapping_add(clock.wrapping_sub(last).min(100)) >= length {
         // The phase advances: in the list's order, after the views before this one have
         // stepped the face (the mirror then finds the view's new state and does not advance
@@ -90,7 +89,6 @@ fn step_shape(
         _ => 0.0,
     };
     fraction_out.set(fraction);
-    crate::session::write_first(&scene.objects.slots.phase_work, &[length, time, phase]);
     let mut b = [0u8; 16];
     for (k, v) in [clock, time, length, phase].into_iter().enumerate() {
         b[4 * k..4 * k + 4].copy_from_slice(&v.to_le_bytes());
@@ -100,12 +98,12 @@ fn step_shape(
 }
 
 pub fn set_object_material(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), BadInput> {
-    let (race, scene) = (ctx.race, ctx.scene);
+    let race = ctx.race;
     let object: u32 = ctx.view.cars.object_number.get();
     if object >= OBJECTS {
         return Err(BadInput("an object's number past the tables"));
     }
-    let kind: u32 = scene.objects.tables.object_kind(object);
+    let kind: u32 = ctx.reads.object_tables.object_kind(object);
     let way = u32::from(crate::scene::polygon::material_run_byte(
         race.polygon_tables(),
         kind,
@@ -120,8 +118,8 @@ pub fn set_object_material(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
     ctx.view.cars.other_way_kind.set(way);
     if let (4, Some(state)) = (way, state) {
         let points: [u32; 2] = [
-            scene.objects.slots.first_point[object as usize].get(),
-            scene.objects.slots.first_point[object as usize + 1].get(),
+            ctx.reads.object_slots.first_point[object as usize].get(),
+            ctx.reads.object_slots.first_point[object as usize + 1].get(),
         ];
         ctx.view
             .object
@@ -131,17 +129,16 @@ pub fn set_object_material(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
             &race.course,
             ctx.clock,
             state,
-            scene,
             &ctx.view.object.move_fraction,
         )?;
     }
     ctx.view
         .object
         .first_face
-        .set(scene.objects.slots.first_face[object as usize].get());
+        .set(ctx.reads.object_slots.first_face[object as usize].get());
     ctx.view
         .object
         .face_count
-        .set(scene.objects.slots.face_counts[object as usize].get());
+        .set(ctx.reads.object_slots.face_counts[object as usize].get());
     Ok(())
 }

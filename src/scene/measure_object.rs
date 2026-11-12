@@ -28,12 +28,12 @@ fn points_of(
     if slot >= SLOTS {
         return Err(BadInput("an object's slot past the tables"));
     }
-    let count = objects.slots.point_counts[slot as usize].get();
+    let count = objects.slots.get().point_counts[slot as usize].get();
     let memory: u32 = course.lists.object_points.get();
     if count > MOST || (count != 0 && memory == 0) {
         return Err(BadInput("points without their memory, or too many"));
     }
-    let first = objects.slots.first_point[slot as usize].get();
+    let first = objects.slots.get().first_point[slot as usize].get();
     Ok((memory.wrapping_add(first.wrapping_mul(12)) as usize, count))
 }
 
@@ -55,9 +55,9 @@ pub fn measure_object(
         };
         let Some(m) = measure(&mut points) else {
             // The half extents are not touched for an object of no points.
-            crate::session::write_first(&scene.objects.slots.measures[..3], &[0u32; 3]);
+            crate::session::write_first(&scene.objects.slots.get().measures[..3], &[0u32; 3]);
             crate::session::write_first(
-                &scene.objects.slots.measures[6..],
+                &scene.objects.slots.get().measures[6..],
                 &[[LOWEST_START; 3], [HIGHEST_START; 3]].concat(),
             );
             return Ok(());
@@ -66,7 +66,7 @@ pub fn measure_object(
             crate::scene::object_points::set_point(at as u32 + 12 * n as u32, *p)?;
         }
         crate::session::write_first(
-            &scene.objects.slots.measures,
+            &scene.objects.slots.get().measures,
             &[m.middle, m.half, m.lowest, m.highest].concat(),
         );
         Ok(())

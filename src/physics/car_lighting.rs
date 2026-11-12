@@ -39,8 +39,8 @@ pub fn car_lighting(
     c.ground.ground_x.set(c.car.position[0].get());
     c.ground.ground_z.set(c.car.position[2].get());
     c.course.course.light_kept.set(c.car.light_level.get());
-    scene.lights.work.car_light_colour.set(0);
-    scene.lights.work.lamp_a_colour.set(0);
+    scene.lights.work.get().car_light_colour.set(0);
+    scene.lights.work.get().lamp_a_colour.set(0);
     c.course
         .course
         .ground_face_last
@@ -61,11 +61,13 @@ pub fn car_lighting(
     scene
         .lights
         .work
+        .get()
         .ground_texture_s
         .set(c.ground.share_s.get());
     scene
         .lights
         .work
+        .get()
         .ground_texture_t
         .set(c.ground.share_t.get());
     let face_byte = |offset| -> Result<u32, BadInput> {
@@ -98,7 +100,7 @@ pub fn car_lighting(
         return Err(BadInput("a light index past 0xFF").into());
     }
     let colour = scene.light_tables.get().light_table[light as usize].get();
-    scene.lights.work.car_light_colour.set(colour);
+    scene.lights.work.get().car_light_colour.set(colour);
     c.car.light_colour.set(colour);
     if face_byte(2)? & 4 == 0 {
         return Ok(());
@@ -107,12 +109,12 @@ pub fn car_lighting(
         (
             0x28u32,
             &scene.light_tables.get().lamp_table_a,
-            &scene.lights.work.lamp_a_colour,
+            &scene.lights.work.get().lamp_a_colour,
         ),
         (
             0x2C,
             &scene.light_tables.get().lamp_table_b,
-            &scene.lights.work.lamp_b_colour,
+            &scene.lights.work.get().lamp_b_colour,
         ),
     ] {
         for k in 0..4u32 {

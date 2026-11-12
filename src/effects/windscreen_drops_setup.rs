@@ -42,7 +42,7 @@ pub fn windscreen_drops_setup(
         crate::scene::set_texture::set_texture(
             part,
             scene,
-            scene.textures.places.place_slot[1999].get(),
+            scene.textures.places.get().place_slot[1999].get(),
         );
         for (value, state) in STATES {
             set_render_state(part, value, state);

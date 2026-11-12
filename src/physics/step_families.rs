@@ -215,7 +215,7 @@ impl<'a> StepInputs<'a> {
             replay_frames: self.replay_frames,
             checkpoints: &self.shared.buffers.checkpoints,
             kind_tables: &self.replay.viewer_and_kinds.kind_tables,
-            light_records: &self.frame.lights_and_gear.light_records,
+            light_records: &self.frame.lights_and_gear.get().light_records,
             ground: self.camera_ground(),
         }
     }
@@ -226,7 +226,7 @@ impl<'a> StepInputs<'a> {
             course: self.course,
             camera: self.physics.camera(),
             ground: self.physics.ground(),
-            probe: &self.physics.ground_probe,
+            probe: self.physics.ground_probe.get(),
         }
     }
 
@@ -251,7 +251,7 @@ impl<'a> StepInputs<'a> {
             course: self.course,
             contact: &self.physics.contact,
             ground: self.physics.ground(),
-            probe: &self.physics.ground_probe,
+            probe: self.physics.ground_probe.get(),
             engine_tables: &self.shared.buffers.engine_tables,
         }
     }
@@ -282,7 +282,7 @@ impl<'a> StepInputs<'a> {
             shared: self.shared,
             vars: self.vars,
             view: self.view,
-            finish: &self.replay.finish,
+            finish: self.replay.finish.get(),
             car_blocks: &self.replay.cars_and_replay.car_blocks,
             matrices: &self.frame.matrices,
             ground: self.ground(),
@@ -316,7 +316,7 @@ impl<'a> StepInputs<'a> {
             work: self.work,
             vars: self.vars,
             frame_work: &self.frame.frame_work,
-            finish: &self.replay.finish,
+            finish: self.replay.finish.get(),
             checkpoints: &self.shared.buffers.checkpoints,
         }
     }
@@ -326,7 +326,7 @@ impl<'a> StepInputs<'a> {
             car: self.car,
             course: self.course,
             ground: self.physics.ground(),
-            probe: &self.physics.ground_probe,
+            probe: self.physics.ground_probe.get(),
             vars: self.vars,
             polygon_tables: &self.shared.buffers.polygon_tables,
         }
@@ -353,7 +353,7 @@ impl<'a> StepInputs<'a> {
             work: self.work,
             matrices: &self.frame.matrices,
             ground: self.physics.ground(),
-            probe: &self.physics.ground_probe,
+            probe: self.physics.ground_probe.get(),
         }
     }
 }

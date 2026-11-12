@@ -34,8 +34,8 @@ use crate::scene::matrix3::extended;
 use crate::session::Float;
 
 /// |a| below |b|, or one of them not a number (`fld b; fabs; fld a; fabs; fcompp`, C0).
-fn abs_below(x: u32, y: u32) -> bool {
-    status_below(abs_status([x, y]))
+fn abs_below(x: impl x87::Flt, y: impl x87::Flt) -> bool {
+    status_below(abs_status([x.bits(), y.bits()]))
 }
 
 /// `fld from; fstp to`.
@@ -149,8 +149,8 @@ fn steps(
         throttle_drive_limit(car, physics_tables, &course.numbers, scene);
         hold_high(&physics_tables.drive_limits[1], &drawing.scene.scratch);
         let pick = if abs_below(
-            physics_tables.drive_limits[1].bits(),
-            physics_tables.drive_limits[0].bits(),
+            &physics_tables.drive_limits[1],
+            &physics_tables.drive_limits[0],
         ) {
             &physics_tables.drive_limits[0]
         } else {
@@ -173,11 +173,8 @@ fn steps(
         handbrake_step_for_b(car, physics_tables, &course.numbers);
         ease_zero(&car.drive_speed_b, &physics_tables.wheel_speed_step);
         if car.handbrake.get() != 0 {
-            let status = handbrake_stop_status([
-                car.drive_speed_a.bits(),
-                car.drive_speed_b.bits(),
-                course.numbers.one.bits(),
-            ]);
+            let status =
+                handbrake_stop_status(&car.drive_speed_a, &car.drive_speed_b, &course.numbers.one);
             if status_below(status) {
                 car.drive_speed_a.set(0.0);
                 car.drive_speed_b.set(0.0);
@@ -578,12 +575,12 @@ fn handbrake_step_for_b(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `status [s + 0] = status`
-fn handbrake_stop_status(v: [u32; 3]) -> u16 {
-    let t0 = ld(v[0]);
-    let t1 = ld(v[1]);
+fn handbrake_stop_status(a: impl x87::Flt, b: impl x87::Flt, limit: impl x87::Flt) -> u16 {
+    let t0 = ld(a.bits());
+    let t1 = ld(b.bits());
     let t2 = t0 + t1;
     let t3 = t2.abs();
-    let t4 = ld(v[2]);
+    let t4 = ld(limit.bits());
     compare(t3, t4)
 }
 
@@ -1203,7 +1200,10 @@ mod reference_vectors {
                     },
                 ],
                 ulps: 0,
-                plain: |a| a[1].set_word(0, handbrake_stop_status(*view(a[0], 0))),
+                plain: |a| {
+                    let v: [u32; 3] = *view(a[0], 0);
+                    a[1].set_word(0, handbrake_stop_status(v[0], v[1], v[2]));
+                },
             },
             Block {
                 name: "drive_wheels_step line 292",

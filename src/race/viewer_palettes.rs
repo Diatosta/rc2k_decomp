@@ -28,19 +28,19 @@ pub fn viewer_palettes(
     for (to, from) in [
         (
             &shared.replay_file().viewer_first_texture_a,
-            &textures.kinds.kind_first_textures[212],
+            &textures.kinds.get().kind_first_textures[212],
         ), // g_kindFirstTextures + 0x350
         (
             &shared.replay_file().viewer_list_texture,
-            &textures.kinds.kind_first_slots[212],
+            &textures.kinds.get().kind_first_slots[212],
         ), // g_kindFirstSlots + 0x350
         (
             &shared.replay_file().viewer_panel_texture,
-            &textures.kinds.kind_first_textures[201],
+            &textures.kinds.get().kind_first_textures[201],
         ), // g_kindFirstTextures + 0x324
         (
             &shared.replay_file().viewer_device_texture,
-            &textures.kinds.kind_first_slots[201],
+            &textures.kinds.get().kind_first_slots[201],
         ), // g_kindFirstSlots + 0x324
     ] {
         to.set(from.get());

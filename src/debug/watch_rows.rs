@@ -180,7 +180,7 @@ pub static GROUPS: &[Group] = &[
                 0x64BB64,
                 store_cell!(
                     crate::drive::finish_store::START,
-                    |o| o.race.replay.finish,
+                    |o| o.race.replay.finish.get(),
                     crate::drive::finish_store::Finish,
                     0x64bb64,
                     time
@@ -195,7 +195,7 @@ pub static GROUPS: &[Group] = &[
                 0x64BB68,
                 store_cell!(
                     crate::drive::finish_store::START,
-                    |o| o.race.replay.finish,
+                    |o| o.race.replay.finish.get(),
                     crate::drive::finish_store::Finish,
                     0x64bb68,
                     eased
@@ -3160,7 +3160,7 @@ pub static GROUPS: &[Group] = &[
                 0x645B14,
                 store_cell!(
                     crate::race::shadow_skids_store::START,
-                    |o| o.race.frame.shadow_skids,
+                    |o| o.race.frame.shadow_skids.get(),
                     crate::race::shadow_skids_store::ShadowSkids,
                     0x645b14,
                     skid_cars
@@ -3175,7 +3175,7 @@ pub static GROUPS: &[Group] = &[
                 0x645B10,
                 store_cell!(
                     crate::race::shadow_skids_store::START,
-                    |o| o.race.frame.shadow_skids,
+                    |o| o.race.frame.shadow_skids.get(),
                     crate::race::shadow_skids_store::ShadowSkids,
                     0x645b10,
                     skid_next
@@ -3190,7 +3190,7 @@ pub static GROUPS: &[Group] = &[
                 0x643AD0,
                 store_cell!(
                     crate::race::shadow_skids_store::START,
-                    |o| o.race.frame.shadow_skids,
+                    |o| o.race.frame.shadow_skids.get(),
                     crate::race::shadow_skids_store::ShadowSkids,
                     0x643ad0,
                     skid_grip
@@ -3348,7 +3348,7 @@ pub static GROUPS: &[Group] = &[
                 "lightxs1",
                 Shown::Whole,
                 0x63F18C,
-                indexed_cell!(|o| o.race.course.level_grid, flare_place_x[0]),
+                indexed_cell!(|o| o.race.course.level_grid.get(), flare_place_x[0]),
                 false,
                 (0, 0),
             ),
@@ -3488,7 +3488,7 @@ pub static GROUPS: &[Group] = &[
                 "vidcar0a",
                 Shown::Whole,
                 0x5D1EE8,
-                indexed_cell!(|o| o.scene.textures.kinds, kind_first_slots[256]),
+                indexed_cell!(|o| o.scene.textures.kinds.get(), kind_first_slots[256]),
                 false,
                 (0, 0),
             ),
@@ -3497,7 +3497,7 @@ pub static GROUPS: &[Group] = &[
                 "vidcar0b",
                 Shown::Whole,
                 0x5D1EEC,
-                indexed_cell!(|o| o.scene.textures.kinds, kind_first_slots[257]),
+                indexed_cell!(|o| o.scene.textures.kinds.get(), kind_first_slots[257]),
                 false,
                 (0, 0),
             ),
@@ -3506,7 +3506,7 @@ pub static GROUPS: &[Group] = &[
                 "vidcar0c",
                 Shown::Whole,
                 0x5D1EF0,
-                indexed_cell!(|o| o.scene.textures.kinds, kind_first_slots[258]),
+                indexed_cell!(|o| o.scene.textures.kinds.get(), kind_first_slots[258]),
                 false,
                 (0, 0),
             ),
@@ -3515,7 +3515,7 @@ pub static GROUPS: &[Group] = &[
                 "vidcar0d",
                 Shown::Whole,
                 0x5D1EF4,
-                indexed_cell!(|o| o.scene.textures.kinds, kind_first_slots[259]),
+                indexed_cell!(|o| o.scene.textures.kinds.get(), kind_first_slots[259]),
                 false,
                 (0, 0),
             ),
@@ -3526,7 +3526,7 @@ pub static GROUPS: &[Group] = &[
                 0x6365E4,
                 store_cell!(
                     crate::scene::light_store::START,
-                    |o| o.scene.lights.state,
+                    |o| o.scene.lights.state.get(),
                     crate::scene::light_store::LightState,
                     0x6365e4,
                     line_place

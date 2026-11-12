@@ -25,6 +25,6 @@ pub fn kind_is_hidden(
     Ok(rc2k_core::scene::kinds::kind_is_hidden(
         settings,
         object,
-        |n| scene.objects.tables.object_kind(n as u32),
+        |n| scene.objects.tables.get().object_kind(n as u32),
     )?)
 }

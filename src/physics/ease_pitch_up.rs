@@ -8,26 +8,13 @@
 
 use crate::physics::camera_store::CameraWork;
 use crate::physics::car_store::Car;
-use crate::session::Cell32;
 use rc2k_core::physics::easing::ease_up;
-
-fn game<'a>(car: &'a Car, camera: &'a CameraWork) -> Vec<&'a dyn Cell32> {
-    vec![
-        &camera.pitch_ceiling as &dyn Cell32,
-        &car.camera_pitch,
-        &camera.pitch_step,
-    ]
-}
 
 /// On the variables' cells.
 // Converted: `rc2k_core::physics::easing::ease_up`.
-fn core(v: &[&dyn Cell32]) {
-    let mut value = v[1].bits();
-    let step = ease_up(&mut value, v[0].bits());
-    v[2].set_bits(step);
-    v[1].set_bits(value);
-}
-
 pub fn ease_pitch_up(car: &Car, camera: &CameraWork) {
-    core(&game(car, camera));
+    let mut value = car.camera_pitch.get();
+    let step = ease_up(&mut value, camera.pitch_ceiling.get());
+    camera.pitch_step.set(step);
+    car.camera_pitch.set(value);
 }

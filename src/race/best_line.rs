@@ -737,8 +737,8 @@ pub fn build_best_line(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
         }
         text(RULE_RVA[1], true);
         // `line_place`, `line_fraction`
-        lights.state.line_place.set(0);
-        lights.state.line_fraction.set(0);
+        lights.state.get().line_place.set(0);
+        lights.state.get().line_fraction.set(0);
     }
     Ok(())
 }

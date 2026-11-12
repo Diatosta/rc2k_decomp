@@ -81,7 +81,7 @@ pub fn flush_batch(
         set_texture(
             part,
             scene,
-            scene.textures.kinds.kind_first_slots[135].get(),
+            scene.textures.kinds.get().kind_first_slots[135].get(),
         );
     }
     for (value, state) in STATES {
@@ -141,7 +141,7 @@ fn int_over_two(
 /// (`d3d::draw_fan_unclipped`), then the depth buffer on.
 pub fn draw_view_backdrop(
     race: &Race,
-    scene: &crate::scene::owner::Scene,
+    reads: crate::workers::DrawReads<'_>,
     view: &crate::race::view_scratch::ViewScratch,
     part: &crate::workers::PartScratch,
 ) {
@@ -191,10 +191,10 @@ pub fn draw_view_backdrop(
     // mirror's backdrop is drawn on the mirror's part, frame plan F7).
     view.polygon.polygon_vertex_count.set(4);
     crate::scene::glow_render_states::glow_render_states(part);
-    crate::scene::set_texture::set_texture(
+    crate::scene::set_texture::set_texture_with(
         part,
-        scene,
-        scene.textures.kinds.kind_first_slots[192].get(),
+        reads.object_tables,
+        reads.kind_textures.kind_first_slots[192].get(),
     );
     crate::d3d::draw_fan_unclipped::draw_fan_unclipped(part, &view.polygon, buffer);
     crate::scene::depth_buffer_on::depth_buffer(part, true);

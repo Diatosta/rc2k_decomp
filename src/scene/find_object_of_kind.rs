@@ -8,5 +8,8 @@
 /// `scene::find_object_of_kind` (see the header).
 pub fn find_object_of_kind(kind: u32, scene: &crate::scene::owner::Scene) -> u32 {
     // Converted: `rc2k_core::scene::kinds::first_of_kind`.
-    rc2k_core::scene::kinds::first_of_kind(|n| scene.objects.tables.object_kind(n as u32), kind)
+    rc2k_core::scene::kinds::first_of_kind(
+        |n| scene.objects.tables.get().object_kind(n as u32),
+        kind,
+    )
 }

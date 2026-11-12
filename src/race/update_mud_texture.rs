@@ -66,7 +66,9 @@ pub fn update_mud_texture(
     let n = texture_and_mud(&race.shared)?;
     let k = n as usize;
     crate::scene::forget_slot_texture::forget_slot_texture(
-        textures.kinds.kind_first_slots[256].get().wrapping_add(n),
+        textures.kinds.get().kind_first_slots[256]
+            .get()
+            .wrapping_add(n),
         scene,
     )?;
     frame.panel_and_overlay.panel.texture_changes.set(
@@ -77,7 +79,7 @@ pub fn update_mud_texture(
             .get()
             .wrapping_add(0x1_0000),
     );
-    let texture = textures.kinds.kind_first_textures[256]
+    let texture = textures.kinds.get().kind_first_textures[256]
         .get()
         .wrapping_add(n);
     race.shared.vars.mud_locked.set(texture);

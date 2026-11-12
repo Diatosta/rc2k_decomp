@@ -136,12 +136,12 @@ fn screen_plain(view: [f32; 3], s: Screen) -> [u32; 2] {
 pub fn record_offset(
     course: &crate::race::owner_course::Course,
     point: u32,
-    scene: &crate::scene::owner::Scene,
+    reads: crate::workers::DrawReads<'_>,
 ) -> Result<u32, FatalError> {
     use rc2k_core::scene::projection::TooHigh;
     rc2k_core::scene::projection::record_offset(
         point,
-        scene.objects.tables.point_count.get(),
+        reads.object_tables.point_count.get(),
         course.course.scene_point_count.get(),
     )
     .map_err(|e| match e {
@@ -163,7 +163,7 @@ pub(crate) fn make_scene_record(
     part: &crate::workers::PartScratch,
     point: u32,
     record: u32,
-    scene: &crate::scene::owner::Scene,
+    reads: crate::workers::DrawReads<'_>,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), BadInput> {
     let points: u32 = race.course.course.scene_points.get();
@@ -196,7 +196,7 @@ pub(crate) fn make_scene_record(
             &crate::session::Dword::new(0),
         );
     }
-    if scene.lights.state.draw_mode.get() == 1 {
+    if reads.light_state.draw_mode.get() == 1 {
         r[6] = x87::sub(r[6], LOWERED_BY.to_bits()).to_bits();
     }
     point_records::set(part, record, r)?;
@@ -207,17 +207,17 @@ pub fn project_point(
     race: &Race,
     part: &crate::workers::PartScratch,
     point: u32,
-    scene: &crate::scene::owner::Scene,
+    reads: crate::workers::DrawReads<'_>,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<Projected, Refused> {
     let course = &race.course;
-    let offset = record_offset(course, point, scene)?;
+    let offset = record_offset(course, point, reads)?;
     if !point_records::held(course) {
         return Err(BadInput("no records for the points").into());
     }
     let record = point_records::at_offset(offset);
     if (point as i32) >= 0 && point_records::field(part, record, 0)? != point {
-        make_scene_record(race, part, point, record, scene, view)?;
+        make_scene_record(race, part, point, record, reads, view)?;
     }
     Ok(Projected { record })
 }

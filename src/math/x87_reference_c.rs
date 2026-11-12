@@ -2504,7 +2504,7 @@ mod tests {
                 |&(i, sse)| {
                     let mut o = [0xAAAA_AAAAu32; 8];
                     {
-                        x87::face_shares(&i, &mut o, sse);
+                        x87::face_shares_bits(&i, &mut o, sse);
                     };
                     o
                 },

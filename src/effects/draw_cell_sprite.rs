@@ -278,16 +278,7 @@ mod reference_vectors {
     use crate::effects::ring_store::RingWork;
     use crate::scene::engine_tables_store::{cosine, sine};
 
-    /// The vertex float at byte `off` of the vertices (x, y or z of a vertex).
-    fn vertex_cell(off: usize) -> &'static crate::session::Float {
-        let v = &crate::d3d::vertices_store::VERTICES.vertices[off / 32];
-        match off % 32 {
-            0x0 => &v.x,
-            0x4 => &v.y,
-            0x8 => &v.z,
-            _ => panic!("not a tested vertex field"),
-        }
-    }
+    use crate::effects::asm_test::vertex_cell;
 
     /// Runs `f` with each cell holding the test buffer's dword at its address; what `f`
     /// leaves goes back to the buffer, the cells as they were.

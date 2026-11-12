@@ -788,9 +788,9 @@ fn profiler(o: &Owners<'static>, ui: &Ui) {
             (
                 "Game uses",
                 names([
-                    ("MMX", Some(o.scene.draw_switches.use_mmx.get())),
-                    ("3DNow!", Some(o.scene.draw_switches.use_3dnow.get())),
-                    ("SSE", Some(o.scene.draw_switches.use_sse.get())),
+                    ("MMX", Some(o.scene.draw_switches.get().use_mmx.get())),
+                    ("3DNow!", Some(o.scene.draw_switches.get().use_3dnow.get())),
+                    ("SSE", Some(o.scene.draw_switches.get().use_sse.get())),
                 ]),
             ),
             (

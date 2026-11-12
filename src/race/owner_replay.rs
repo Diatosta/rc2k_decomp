@@ -6,12 +6,13 @@ use crate::race::groups_store::{CarsAndReplay, ViewerAndKinds};
 use crate::race::replay_path::LAST_RACE_LEN;
 use crate::race::seal_store::SealWork;
 use crate::race::viewer_state_store::ReplayViewBlock;
-use crate::session::{GameThread, PlainBytes, PlainDword, with_runs};
+use crate::session::{DrawShared, GameThread, PlainBytes, PlainDword, with_runs};
 
 /// The race's replay state (step 11, owned state: the stores move in as fields).
 pub struct Replay {
-    /// 0x64BB18 .. 0x64BB88 (`drive::finish_store`).
-    pub finish: Finish,
+    /// 0x64BB18 .. 0x64BB88 (`drive::finish_store`); lent to the drawing parts
+    /// (`workers::DrawReads`): no part writes it.
+    pub finish: DrawShared<Finish>,
     /// `aVarTmprpl`: the last race's replay file's name (`race::replay_path`).
     pub last_race: [u8; LAST_RACE_LEN],
     /// The cars' blocks and the replay's work (`race::groups_store`).
@@ -33,7 +34,7 @@ struct ReplayMain {
 impl Replay {
     pub const fn new() -> Self {
         Replay {
-            finish: Finish::new(),
+            finish: DrawShared::new(Finish::new()),
             last_race: with_runs(&[(0, b"var\\tmprpl\0")]),
             cars_and_replay: CarsAndReplay::new(),
             viewer_and_kinds: ViewerAndKinds::new(),

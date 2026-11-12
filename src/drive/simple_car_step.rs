@@ -67,7 +67,7 @@ pub fn simple_car_step(
         .set(race.course.course.place_z.get());
     {
         crate::physics::find_ground::find_ground(
-            &race.physics.ground_probe,
+            race.physics.ground_probe.get(),
             race.physics.ground(),
             &race.course,
             scene,

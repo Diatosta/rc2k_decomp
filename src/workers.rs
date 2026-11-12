@@ -172,13 +172,44 @@ impl Drop for DrawScope {
 /// a part reads them through `reads`.
 pub struct Lent<'s> {
     light_tables: crate::session::PhaseRead<'s, crate::scene::light_tables_store::LightTables>,
+    // The scene's other drawing stores.
+    light_work: crate::session::PhaseRead<'s, crate::scene::light_work_store::LightWork>,
+    draw_switches: crate::session::PhaseRead<'s, crate::scene::draw_switches_store::DrawSwitches>,
+    object_tables: crate::session::PhaseRead<'s, crate::scene::object_tables_store::ObjectTables>,
+    object_slots: crate::session::PhaseRead<'s, crate::scene::object_slots_store::ObjectTables>,
+    kind_textures:
+        crate::session::PhaseRead<'s, crate::scene::kind_texture_store::KindTextureTables>,
+    texture_places:
+        crate::session::PhaseRead<'s, crate::scene::texture_places_store::TexturePlaces>,
+    light_state: crate::session::PhaseRead<'s, crate::scene::light_store::LightState>,
+    // The race's stores.
+    level_grid: crate::session::PhaseRead<'s, crate::race::level_grid_store::LevelGrid>,
+    ground_probe: crate::session::PhaseRead<'s, crate::physics::ground_probe_store::GroundProbe>,
+    shadow_skids: crate::session::PhaseRead<'s, crate::race::shadow_skids_store::ShadowSkids>,
+    lights_and_gear: crate::session::PhaseRead<'s, crate::race::groups_store::LightsAndGear>,
+    finish: crate::session::PhaseRead<'s, crate::drive::finish_store::Finish>,
 }
 
 impl<'s> Lent<'s> {
     fn new(scope: &'s DrawScope, scene: &'s crate::scene::owner::Scene) -> Self {
         use crate::session::PhaseRead;
+        let race = crate::race::owner::race();
         Self {
             light_tables: PhaseRead::lend(&scene.light_tables, scope),
+            // The scene's other drawing stores.
+            light_work: PhaseRead::lend(&scene.lights.work, scope),
+            draw_switches: PhaseRead::lend(&scene.draw_switches, scope),
+            object_tables: PhaseRead::lend(&scene.objects.tables, scope),
+            object_slots: PhaseRead::lend(&scene.objects.slots, scope),
+            kind_textures: PhaseRead::lend(&scene.textures.kinds, scope),
+            texture_places: PhaseRead::lend(&scene.textures.places, scope),
+            light_state: PhaseRead::lend(&scene.lights.state, scope),
+            // The race's stores.
+            level_grid: PhaseRead::lend(&race.course.level_grid, scope),
+            ground_probe: PhaseRead::lend(&race.physics.ground_probe, scope),
+            shadow_skids: PhaseRead::lend(&race.frame.shadow_skids, scope),
+            lights_and_gear: PhaseRead::lend(&race.frame.lights_and_gear, scope),
+            finish: PhaseRead::lend(&race.replay.finish, scope),
         }
     }
 
@@ -186,6 +217,20 @@ impl<'s> Lent<'s> {
     fn reads(&self) -> DrawReads<'_> {
         DrawReads {
             light_tables: &self.light_tables,
+            // The scene's other drawing stores.
+            light_work: &self.light_work,
+            draw_switches: &self.draw_switches,
+            object_tables: &self.object_tables,
+            object_slots: &self.object_slots,
+            kind_textures: &self.kind_textures,
+            texture_places: &self.texture_places,
+            light_state: &self.light_state,
+            // The race's stores.
+            level_grid: &self.level_grid,
+            ground_probe: &self.ground_probe,
+            shadow_skids: &self.shadow_skids,
+            lights_and_gear: &self.lights_and_gear,
+            finish: &self.finish,
         }
     }
 }
@@ -197,14 +242,56 @@ impl<'s> Lent<'s> {
 pub struct DrawReads<'a> {
     /// The lighting's colour tables (`scene::owner::Scene::light_tables`).
     pub light_tables: &'a crate::scene::light_tables_store::LightTables,
+    // The scene's other drawing stores.
+    /// The lights' work variables (`scene::owner::Lights::work`).
+    pub light_work: &'a crate::scene::light_work_store::LightWork,
+    /// The draw switches (`scene::owner::Scene::draw_switches`).
+    pub draw_switches: &'a crate::scene::draw_switches_store::DrawSwitches,
+    /// The object tables (`scene::owner::Objects::tables`).
+    pub object_tables: &'a crate::scene::object_tables_store::ObjectTables,
+    /// The object slots (`scene::owner::Objects::slots`).
+    pub object_slots: &'a crate::scene::object_slots_store::ObjectTables,
+    /// The kinds' texture tables (`scene::owner::Textures::kinds`).
+    pub kind_textures: &'a crate::scene::kind_texture_store::KindTextureTables,
+    /// The texture places (`scene::owner::Textures::places`).
+    pub texture_places: &'a crate::scene::texture_places_store::TexturePlaces,
+    /// The light state (`scene::owner::Lights::state`).
+    pub light_state: &'a crate::scene::light_store::LightState,
+    // The race's stores (`race::owner::Race`).
+    /// The level grid's depth shift (`race::owner_course::Course::level_grid`).
+    pub level_grid: &'a crate::race::level_grid_store::LevelGrid,
+    /// The ground probe's mark (`race::owner_physics::Physics::ground_probe`).
+    pub ground_probe: &'a crate::physics::ground_probe_store::GroundProbe,
+    /// The skid marks' links and points (`race::owner_frame::Frame::shadow_skids`).
+    pub shadow_skids: &'a crate::race::shadow_skids_store::ShadowSkids,
+    /// The models' light records and the gear figures after them
+    /// (`race::owner_frame::Frame::lights_and_gear`).
+    pub lights_and_gear: &'a crate::race::groups_store::LightsAndGear,
+    /// The finish routine's variables (`race::owner_replay::Replay::finish`).
+    pub finish: &'a crate::drive::finish_store::Finish,
 }
 
 impl<'a> DrawReads<'a> {
     /// The stores from their owners: on the game's thread, outside a drawing scope (the
     /// views drawn one after another, the overlays, the menus' objects).
     pub fn on_game_thread(scene: &'a crate::scene::owner::Scene) -> Self {
+        let race = crate::race::owner::race();
         Self {
             light_tables: scene.light_tables.get(),
+            // The scene's other drawing stores.
+            light_work: scene.lights.work.get(),
+            draw_switches: scene.draw_switches.get(),
+            object_tables: scene.objects.tables.get(),
+            object_slots: scene.objects.slots.get(),
+            kind_textures: scene.textures.kinds.get(),
+            texture_places: scene.textures.places.get(),
+            light_state: scene.lights.state.get(),
+            // The race's stores.
+            level_grid: race.course.level_grid.get(),
+            ground_probe: race.physics.ground_probe.get(),
+            shadow_skids: race.frame.shadow_skids.get(),
+            lights_and_gear: race.frame.lights_and_gear.get(),
+            finish: race.replay.finish.get(),
         }
     }
 }

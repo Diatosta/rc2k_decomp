@@ -40,7 +40,7 @@ pub fn draw_mirror_view(
     reads: crate::workers::DrawReads<'_>,
 ) -> Result<Option<crate::race::draw_view_scene::ViewOutput>, Refused> {
     view.take_vars(race);
-    if race.replay.finish.no_place.get() != 0
+    if reads.finish.no_place.get() != 0
         || race.shared.work.in_credits.is_set()
         || (race.shared.switches.scene_set_up.get() == 0 && !always())
     {
@@ -57,7 +57,7 @@ pub fn draw_mirror_view(
     let drawn = (|| {
         crate::race::frame_views::mirror_view_window(race, scene, system, view, part)?;
         view.polygon.window.view_depth[1].set(view.course.view_value_kept.get());
-        crate::race::frame_flush::draw_view_backdrop(race, scene, view, part);
+        crate::race::frame_flush::draw_view_backdrop(race, reads, view, part);
         crate::race::draw_view_scene::draw_view_scene(
             race, scene, system, net, input, view, part, reads,
         )

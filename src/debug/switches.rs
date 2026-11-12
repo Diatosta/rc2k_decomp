@@ -39,7 +39,7 @@ pub fn tab(o: &Owners<'static>, ui: &Ui) {
     );
     ui.text_disabled("2: dword_6218E0: nothing reads it");
     // Key 3: the switch masked with what the processor has.
-    let use_ = &o.scene.draw_switches;
+    let use_ = o.scene.draw_switches.get();
     let mut on = EXTENSIONS.load(Relaxed) != 0;
     if ui.checkbox("3: Processor's extensions", &mut on) {
         let v = u32::from(on);

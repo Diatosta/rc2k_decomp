@@ -1,11 +1,13 @@
 //! The models' light records, 0x5C906C .. 0x5CB954: `g_lightRecords`, 34 records of 0x134 bytes
 //! (IDA struct `ModelRecord`), one per model (car) kind: its axle figures, the groups'
 //! numbers and the lights' data (`race::copy_lights_data` lays the last in from `ldata`).
-//! Names are readings unless IDA's.
+//! Plain cells: part of a drawing store (`race::groups_store::LightsAndGear`), written on the
+//! game's thread at a stage's load and read by the drawing parts. Names are readings unless
+//! IDA's.
 
 #[cfg(test)]
 use crate::race::owner::race;
-use crate::session::Dword;
+use crate::session::PlainDword;
 
 /// One model's record (IDA struct `ModelRecord`, 0x134 bytes).
 #[repr(C)]
@@ -13,16 +15,16 @@ use crate::session::Dword;
 pub struct LightRecord {
     /// +0x0: `field_0`: eleven dwords (read at +0xC, +0x10 .. +0x28 by `physics::update_camera`,
     /// `race::car_draw`, `drive::share_car_state`).
-    pub head: [Dword; 11],
+    pub head: [PlainDword; 11],
     /// +0x2C: `axles`: the five axle values (`race::car_parts`) and the six listener figures
     /// from +0x40 (`drive::set_listener`).
-    pub axles: [Dword; 11],
+    pub axles: [PlainDword; 11],
     /// +0x58: `groups`: the group numbers of the model's parts (`scene::load_object`,
     /// `scene::list_object_face`, `effects::init_mark_step`, `race::car_draw`).
-    pub groups: [Dword; 19],
+    pub groups: [PlainDword; 19],
     /// +0xA4: `lights`: 0x90 bytes of the lights' data (`race::copy_lights_data`,
     /// `race::frame_draw`).
-    pub lights: [Dword; 36],
+    pub lights: [PlainDword; 36],
 }
 
 const _: () = assert!(core::mem::size_of::<LightRecord>() == 0x134);
@@ -51,7 +53,7 @@ impl LightRecords {
             None => self.records[index as usize]
                 .groups
                 .get(group)
-                .map(crate::session::Dword::get)
+                .map(crate::session::PlainDword::get)
                 .ok_or(crate::errors::BadInput(PAST)),
             Some(0) => {
                 // The groups start 0x58 into the record; the one dword between the records
@@ -78,7 +80,7 @@ pub struct InGroup;
 impl core::ops::Deref for InGroup {
     type Target = LightRecords;
     fn deref(&self) -> &LightRecords {
-        &race().frame.lights_and_gear.light_records
+        &race().frame.lights_and_gear.get().light_records
     }
 }
 
@@ -95,7 +97,7 @@ const _: () = assert!(END - START == core::mem::size_of::<LightRecords>());
 /// The piece's host address (the alignment checks).
 #[cfg(test)]
 pub fn piece_addr() -> usize {
-    core::ptr::from_ref(&race().frame.lights_and_gear.light_records).addr()
+    core::ptr::from_ref(&race().frame.lights_and_gear.get().light_records).addr()
 }
 
 #[cfg(test)]
@@ -118,12 +120,12 @@ mod tests {
     #[test]
     fn a_record_past_the_last_reads_on_into_the_gear_figures_and_no_further() {
         // The longest read: a group number of the kind past the 34 (load_object).
-        let gear = &race().frame.lights_and_gear.gear;
+        let gear = &race().frame.lights_and_gear.get().gear;
         assert!(LIGHT_RECORDS.group_at(gear, 34, 0x3C).is_ok());
         assert_eq!(
             LIGHT_RECORDS.group_at(gear, 34, 0).ok(),
             Some(
-                race().frame.lights_and_gear.gear.test_speeds[7]
+                race().frame.lights_and_gear.get().gear.test_speeds[7]
                     .get()
                     .to_bits()
             )

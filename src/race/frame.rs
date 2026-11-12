@@ -192,11 +192,11 @@ pub fn tyre_change(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     shared
         .tyre_change()
         .texture
-        .set(textures.kinds.kind_first_textures[599].get());
+        .set(textures.kinds.get().kind_first_textures[599].get());
     shared
         .tyre_change()
         .device_texture
-        .set(textures.kinds.kind_first_slots[599].get());
+        .set(textures.kinds.get().kind_first_slots[599].get());
     if car.parts_present.get() & 0x1E != 0x1E
         && car.tyre_change_state.get() == 0
         && car.stopped_steps.get() >= 0x12C

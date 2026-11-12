@@ -77,7 +77,7 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
     indent(-3);
     log();
     indent(3);
-    if race.replay.finish.no_place.get() != 0 {
+    if race.replay.finish.get().no_place.get() != 0 {
         crate::race::music::game_music(&race.shared, o);
     } else {
         crate::race::music::game_music_8(o);

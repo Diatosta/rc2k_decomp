@@ -24,8 +24,8 @@ pub fn load_slot_texture(
     let textures = &scene.textures;
     let Some(wanted) = rc2k_core::scene::textures::slot_load(
         slot,
-        || textures.places.slot_wanted[slot as usize].get(),
-        || textures.places.slot_loaded[slot as usize].get(),
+        || textures.places.get().slot_wanted[slot as usize].get(),
+        || textures.places.get().slot_loaded[slot as usize].get(),
     )?
     else {
         return Ok(());
@@ -35,7 +35,7 @@ pub fn load_slot_texture(
         .frame_work
         .kind_textures_done
         .set(frame.frame_work.kind_textures_done.get().wrapping_add(1));
-    textures.places.slot_loaded[slot as usize].set(wanted);
+    textures.places.get().slot_loaded[slot as usize].set(wanted);
     Ok(())
 }
 

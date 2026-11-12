@@ -80,6 +80,7 @@ pub fn draw_view_scene(
             race,
             &view.face,
             scene,
+            reads,
             &system.session.screen,
             view,
         )?;
@@ -95,14 +96,14 @@ pub fn draw_view_scene(
         view.polygon.view_mirrored.get() != 0,
         view.drawn_view(race),
     )?;
-    clear_point_records(scene, part)?;
+    clear_point_records(reads, part)?;
     set_up_fog(race, &view.fog, &view.polygon, &view.car, part)?;
     camera_view(race, scene, system, &view.matrices, view)?;
     draw_sky(&ctx)?;
     view_light(&ctx, crate::race::frame_draw::has_mmx(system))?;
     reset_lamps(&ctx)?;
     // (The original's 0 into `g_viewLamps`, 0x63DB6C: read by nothing.)
-    prepare_course_view(race, scene, view, part)?;
+    prepare_course_view(race, reads, view, part)?;
     gather_visible_faces(&ctx)?;
     let environment = eax_environment(race, &part.points, &view.grid)?;
     gather_lamps(&ctx)?;

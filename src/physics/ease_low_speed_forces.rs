@@ -11,46 +11,23 @@ use crate::math::x87::abs_compare;
 use crate::math::x87_float as bh;
 use crate::physics::car_store::Car;
 use crate::physics::tables_store::PhysicsTables;
-use crate::session::Cell32;
 
-fn at(a: &dyn Cell32) -> u32 {
-    a.bits()
-}
-
-fn put(a: &dyn Cell32, v: u32) {
-    a.set_bits(v);
-}
-
-/// The core: the factor, the speed and the two forces at these places.
-pub fn ease_low_speed_forces_at(
-    tables: &PhysicsTables,
-    factor: &dyn Cell32,
-    speed: &dyn Cell32,
-    forces: [&dyn Cell32; 2],
-) {
-    put(factor, 0x3F80_0000);
-    let limit = tables.low_speed_limit.bits();
-    if abs_compare(at(speed), limit) & 0x100 == 0 {
+/// The factor, the speed and the two forces; the exact version, for
+/// `physics::drive_wheels_step`.
+pub fn ease_low_speed_forces(car: &Car, tables: &PhysicsTables) {
+    let factor = &tables.low_speed_share;
+    let speed = &car.local_velocity[2];
+    factor.set(1.0);
+    let limit = &tables.low_speed_limit;
+    if abs_compare(speed, limit) & 0x100 == 0 {
         return;
     }
-    put(
-        factor,
-        bh::st(
-            (bh::ld(at(speed)).abs() / bh::ld(limit) + tables.low_speed_add.ld())
-                * tables.low_speed_scale.ld(),
-        ),
-    );
-    for f in forces {
-        put(f, x87::mul(at(f), at(factor)).to_bits());
+    // The product is rounded to a float where it is stored (`fstp`).
+    factor.set_bits(bh::st(
+        (bh::ld(speed.bits()).abs() / bh::ld(limit.bits()) + tables.low_speed_add.ld())
+            * tables.low_speed_scale.ld(),
+    ));
+    for f in &tables.drive_forces {
+        f.set(x87::mul(f, factor));
     }
-}
-
-/// The exact version, for `physics::drive_wheels_step`.
-pub fn ease_low_speed_forces(car: &Car, tables: &PhysicsTables) {
-    ease_low_speed_forces_at(
-        tables,
-        &tables.low_speed_share,
-        &car.local_velocity[2],
-        [&tables.drive_forces[0], &tables.drive_forces[1]],
-    );
 }

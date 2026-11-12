@@ -275,9 +275,9 @@ pub fn make_noise_curve(
     for (cell, &v) in weather.snow_curve.copy.iter().zip(&copy) {
         cell.set(v as u32);
     }
-    let (spread_scale, spread_base): (u32, u32) = (
-        weather.snow_light.spread_scale.bits(),
-        weather.snow_light.spread_base.bits(),
+    let (spread_scale, spread_base): (f32, f32) = (
+        weather.snow_light.spread_scale.get(),
+        weather.snow_light.spread_base.get(),
     );
     let t = core::random_tables(w.seed, divisors);
     for (cells, table) in weather.snow_tables.randoms.iter().zip(&t.randoms) {

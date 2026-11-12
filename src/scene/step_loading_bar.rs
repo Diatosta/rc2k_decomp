@@ -29,7 +29,7 @@ fn ends(shared: &RaceShared) -> rc2k_core::scene::loading::BarEnds {
 /// The progress, or None where it is left as it is. Converted:
 /// `rc2k_core::scene::loading::BarEnds::progress`.
 fn progress(shared: &RaceShared, scene: &Scene, done: u32) -> Option<u32> {
-    let textures: u32 = scene.textures.places.totals[3].get();
+    let textures: u32 = scene.textures.places.get().totals[3].get();
     ends(shared).progress(done, textures)
 }
 

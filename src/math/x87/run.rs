@@ -42,12 +42,58 @@ pub fn plane_height(a: i32, b: i32, c: i32, f: impl Flt, g: impl Flt) -> i32 {
     to_int(p + (q + c))
 }
 
+/// What a face's shares are worked out from: the corners' differences from the first corner,
+/// whole numbers along x and along z, and the scale (`Numbers.k65536`).
+pub struct FaceDifferences<S: Flt> {
+    pub x: [i32; 3],
+    pub z: [i32; 3],
+    pub scale: S,
+}
+
+/// What `face_shares` leaves: the three cross products, the two quotients with the whole
+/// numbers they give times the scale, and with `sse` the reciprocal that was used.
+pub struct FaceShares {
+    pub share_a: f32,
+    pub share_b: f32,
+    pub share_c: f32,
+    pub plane_f: f32,
+    pub share_s: i32,
+    pub plane_g: f32,
+    pub share_t: i32,
+    pub share_scale: Option<f32>,
+}
+
+/// `face_shares_bits` on typed values.
+pub fn face_shares<S: Flt>(d: &FaceDifferences<S>, sse: bool) -> FaceShares {
+    let i = [
+        d.x[0] as u32,
+        d.x[1] as u32,
+        d.x[2] as u32,
+        d.z[0] as u32,
+        d.z[1] as u32,
+        d.z[2] as u32,
+        d.scale.bits(),
+    ];
+    let mut o = [0u32; 8];
+    face_shares_bits(&i, &mut o, sse);
+    FaceShares {
+        share_a: f32::from_bits(o[0]),
+        share_b: f32::from_bits(o[1]),
+        share_c: f32::from_bits(o[2]),
+        plane_f: f32::from_bits(o[3]),
+        share_s: o[4] as i32,
+        plane_g: f32::from_bits(o[5]),
+        share_t: o[6] as i32,
+        share_scale: sse.then(|| f32::from_bits(o[7])),
+    }
+}
+
 /// `physics::face_shares`' floating point part, the original's operations in its order.
 /// `i`: the differences d738, d73C, d740, d750, d754, d758 (whole numbers) and the scale
 /// `Numbers.k65536` (bits) at [6]. `o` gets f764, f75C, f760, f810, i800, f814, i804, and with
 /// `sse` f768 (`rcpss` of f764) at [7]. (`rcpss` is the SSE approximation, from the tables
 /// of `arch::rcpss`: the processors' own results differ.)
-pub fn face_shares(i: &[u32; 7], o: &mut [u32; 8], sse: bool) {
+pub fn face_shares_bits(i: &[u32; 7], o: &mut [u32; 8], sse: bool) {
     let n = |k: usize| int(i[k] as i32);
     let scale = ld(i[6]);
     // The three cross products, each stored as a float.

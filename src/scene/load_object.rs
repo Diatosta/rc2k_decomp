@@ -158,7 +158,7 @@ pub fn load_object(
     if slot >= SLOTS {
         return Err(crate::errors::BadInput("an object's slot past the tables").into());
     }
-    scene.objects.tables.object_kinds[slot as usize].set(kind);
+    scene.objects.tables.get().object_kinds[slot as usize].set(kind);
     set_object_file_names(scene, kind)?;
     let name = scene.file_numbers().object_ro3_number.get();
     // The file read is the `.ro3` one, whatever the name's last character was.
@@ -188,14 +188,14 @@ pub fn load_object(
         shape(scene, race, u32::MAX)?;
         return check(race, scene);
     }
-    scene.draw_switches.loading_group_mask.set(u32::MAX);
+    scene.draw_switches.get().loading_group_mask.set(u32::MAX);
     let known = find_object_kind(race, kind);
     race.frame.matrices.known_object.set(known);
     // The kind's light record, from its groups; a kind none of the known ones takes the place
     // after the 34 records, which reads on into the gear figures (`group_at`).
     for part in &PARTS {
         let group = race.light_records().group_at(
-            &race.frame.lights_and_gear.gear,
+            &race.frame.lights_and_gear.get().gear,
             known,
             part.group as u32,
         )?;
@@ -231,9 +231,10 @@ pub fn load_object(
                 scene.object_work().loading_slot.set(slot);
                 shape(scene, race, mask(course, at))?;
                 measure_object(&race.course, scene)?;
-                let measures: [u32; 6] = crate::session::read_first(&scene.objects.slots.measures);
+                let measures: [u32; 6] =
+                    crate::session::read_first(&scene.objects.slots.get().measures);
                 for (table, &measure) in measures.iter().enumerate() {
-                    scene.objects.slots.part_extents[table][slot as usize].set(measure);
+                    scene.objects.slots.get().part_extents[table][slot as usize].set(measure);
                 }
             }
         }
@@ -250,7 +251,7 @@ fn shape(
     race: &crate::race::owner::Race,
     mask: u32,
 ) -> Result<(), Refused> {
-    scene.draw_switches.loading_group_mask.set(mask);
+    scene.draw_switches.get().loading_group_mask.set(mask);
     Ok({ add_object_shape(race, scene) }?)
 }
 
@@ -263,12 +264,18 @@ fn check(
     if scene.object_work().face_cursor.get() > course.lists.face_memory_room.get() {
         return Err(NO_FACE_MEMORY.into());
     }
-    if scene.objects.tables.point_count.get().wrapping_mul(12)
+    if scene
+        .objects
+        .tables
+        .get()
+        .point_count
+        .get()
+        .wrapping_mul(12)
         > course.lists.object_points_room.get()
     {
         return Err(NO_POINT_MEMORY.into());
     }
-    if scene.objects.tables.face_count.get() >= FACES {
+    if scene.objects.tables.get().face_count.get() >= FACES {
         return Err(NO_FACE_ROOM.into());
     }
     Ok(())

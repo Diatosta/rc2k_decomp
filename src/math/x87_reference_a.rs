@@ -1383,7 +1383,7 @@ fn float_arithmetic() {
         diff!(g, "lerp_scaled_less", EXACT, a = f, b = f, m = f, n = f, l = f;
             lerp_scaled_less(a, b, m, n, Some(l)), plain::lerp_scaled_less(a, b, m, n, Some(l)));
         diff!(g, "lerp_scaled_less (none)", EXACT, a = f, b = f, m = f, n = f;
-            lerp_scaled_less(a, b, m, n, None), plain::lerp_scaled_less(a, b, m, n, None));
+            lerp_scaled_less(a, b, m, n, None), plain::lerp_scaled_less(a, b, m, n, None::<u32>));
         diff!(g, "negated_sub", EXACT, a = f, b = f; negated_sub(a, b), plain::negated_sub(a, b));
         diff!(g, "int_times_plus", EXACT, a = i, b = f, c = f; int_times_plus(a, b, c), plain::int_times_plus(a, b, c));
         diff!(g, "int_less_int", EXACT, a = i, b = i; int_less_int(a, b), plain::int_less_int(a, b));
@@ -1517,7 +1517,7 @@ fn trigonometry() {
         diff!(g, "less_cosine", Tol::trig(fl(a) + fl(s)).times(fl(h)), a = fa, s = fa, h = f, m = f;
             less_cosine(a, Some(s), h, m), plain::less_cosine(a, Some(s), h, m));
         diff!(g, "less_cosine (none)", Tol::trig(fl(a)).times(fl(h)), a = fa, h = f, m = f;
-            less_cosine(a, None, h, m), plain::less_cosine(a, None, h, m));
+            less_cosine(a, None, h, m), plain::less_cosine(a, None::<u32>, h, m));
         diff!(g, "sine", Tol::trig(fl(a)), a = fa; sine(a), plain::sine(a));
         diff!(g, "cosine", Tol::trig(fl(a)), a = fa; cosine(a, false), plain::cosine(a, false));
         diff!(g, "cosine (negate)", Tol::trig(fl(a)), a = fa; cosine(a, true), plain::cosine(a, true));

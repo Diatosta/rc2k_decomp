@@ -22,12 +22,12 @@ pub fn assign_menu_textures(
     // Converted: `rc2k_core::scene::textures::menu_textures`.
     let wanted = rc2k_core::scene::textures::menu_textures(
         read_all(&tables.lists.carousel_textures),
-        textures.kinds.kind_first_slots[KIND].get(),
-        textures.kinds.kind_first_textures[KIND].get(),
+        textures.kinds.get().kind_first_slots[KIND].get(),
+        textures.kinds.get().kind_first_textures[KIND].get(),
     )?;
     for (slot, texture) in wanted {
         crate::scene::texture_places_store::cell_at(
-            &textures.places,
+            textures.places.get(),
             core::mem::offset_of!(
                 crate::scene::texture_places_store::TexturePlaces,
                 slot_wanted

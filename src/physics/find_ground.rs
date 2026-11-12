@@ -28,7 +28,7 @@ pub fn find_ground(
 pub fn find_ground_with(
     course: &Course,
     q: &crate::physics::ground_query::GroundQuery<'_>,
-    scene: &crate::scene::owner::Scene,
+    switches: &crate::scene::draw_switches_store::DrawSwitches,
 ) -> Result<bool, Refused> {
-    crate::physics::ground::ground_search_at(course, q, scene)
+    crate::physics::ground::ground_search_at(course, q, switches)
 }

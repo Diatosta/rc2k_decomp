@@ -136,9 +136,9 @@ pub fn emit_particle_1(
         if under {
             return Ok(());
         }
-        let one: u32 = effects.setup.floats.one.bits();
+        let one = effects.setup.floats.one.get();
         if x87::compare_status(kept, one) != 0x100 {
-            ring.work.whole.set(one);
+            ring.work.whole.set(one.to_bits());
         }
         let strength: u32 = ring.work.whole.get();
         let life = x87::times_plus_to_int(strength, life_k(effects)[0], life_k(effects)[1]);
@@ -207,7 +207,7 @@ pub fn emit_particle_1(
         slot.put(|en| &mut en.angle, r.rotate_right(6) & 0xFFF)?;
         slot.put(|en| &mut en.cell, flags & 0x3F)?;
         slot.put(|en| &mut en.life, life as u32)?;
-        slot.put(|en| &mut en.alpha_fade, x87::over_int(fade, life).to_bits())?;
+        slot.put(|en| &mut en.alpha_fade, x87::over_int(fade, life))?;
         slot.put(|en| &mut en.alpha, fade.to_bits())?;
         slot.put(|en| &mut en.car, effects.kinds.emitter.car.get())?;
         slot.put(|en| &mut en.size_goal, SIZE)?;

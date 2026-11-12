@@ -14,7 +14,7 @@ use crate::race::scratch_store::FrameScratch;
 use crate::race::shadow_skids_store::ShadowSkids;
 use crate::race::sound_spots_store::SoundSpotBlock;
 use crate::race::text_state_store::TextState;
-use crate::session::GameThread;
+use crate::session::{DrawShared, GameThread};
 
 /// The race's frame state (step 11, owned state: the stores move in as fields). The view
 /// variables, the panel and the overlay are fields of `view_and_records` and
@@ -25,13 +25,15 @@ pub struct Frame {
     /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7;
     /// the held columns are each part's own, `scene::view_matrices::Held`).
     pub matrices: SceneMatrices,
-    /// One copy: the drawing only reads it (frame plan F4).
-    pub shadow_skids: ShadowSkids,
+    /// One copy, lent to the drawing parts (`workers::DrawReads`): the drawing only reads it
+    /// (frame plan F4).
+    pub shadow_skids: DrawShared<ShadowSkids>,
     pub panel_and_overlay: PanelAndOverlay,
     /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
     /// Each view draws on its own view variables (`ViewScratch::vars`).
     pub view_and_records: ViewAndRecords,
-    pub lights_and_gear: LightsAndGear,
+    /// One copy, lent to the drawing parts (`workers::DrawReads`): no part writes it.
+    pub lights_and_gear: DrawShared<LightsAndGear>,
     main: GameThread<FrameMain>,
 }
 
@@ -54,10 +56,10 @@ impl Frame {
         Frame {
             frame_work: FrameWork::new(),
             matrices: SceneMatrices::new(),
-            shadow_skids: ShadowSkids::new(),
+            shadow_skids: DrawShared::new(ShadowSkids::new()),
             panel_and_overlay: PanelAndOverlay::new(),
             view_and_records: ViewAndRecords::new(),
-            lights_and_gear: LightsAndGear::new(),
+            lights_and_gear: DrawShared::new(LightsAndGear::new()),
             main: GameThread::new(FrameMain {
                 scratch: FrameScratch::new(),
                 counter: FrameCounter::new(),

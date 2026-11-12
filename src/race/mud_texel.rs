@@ -13,7 +13,7 @@ use crate::race::mud::mud_pixel;
 /// The texel's place on the texture, or None when it is skipped (an odd place halved).
 pub fn texel_place(x: u32, y: u32, scene: &crate::scene::owner::Scene) -> Option<(u32, u32)> {
     // Converted: `rc2k_core::race::mud::texel_place`.
-    rc2k_core::race::mud::texel_place(x, y, scene.objects.tables.system_levels[256].get())
+    rc2k_core::race::mud::texel_place(x, y, scene.objects.tables.get().system_levels[256].get())
 }
 
 /// Eax as it leaves it.

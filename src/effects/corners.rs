@@ -66,14 +66,14 @@ fn turns(
     (
         smooth_pair(
             k,
-            setup.mask_constants.corner_angles[starts[0]].bits(),
+            setup.mask_constants.corner_angles[starts[0]].get(),
             b,
             effects,
         )
         .1,
         smooth_pair(
             k,
-            setup.mask_constants.corner_angles[starts[1]].bits(),
+            setup.mask_constants.corner_angles[starts[1]].get(),
             b,
             effects,
         )
@@ -117,7 +117,7 @@ pub fn make_corners(
                 let first = smooth_steps(
                     drops,
                     k,
-                    effects.setup.mask_constants.corner_angles[starts[0]].bits(),
+                    effects.setup.mask_constants.corner_angles[starts[0]].get(),
                     end.get(),
                     effects,
                 )
@@ -125,7 +125,7 @@ pub fn make_corners(
                 let second = smooth_steps(
                     drops,
                     k,
-                    effects.setup.mask_constants.corner_angles[starts[1]].bits(),
+                    effects.setup.mask_constants.corner_angles[starts[1]].get(),
                     end.get(),
                     effects,
                 )

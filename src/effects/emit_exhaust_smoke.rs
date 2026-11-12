@@ -86,7 +86,7 @@ pub fn emit_exhaust_smoke(
     ring.work.whole.set(s.to_bits());
     let motion: [f32; 3] = crate::effects::try_from_fn(|k| {
         Ok(x87::mul2(
-            matrix_cell(cells, 0x20 + 4 * k as u32)?,
+            matrix_float(cells, 0x20 + 4 * k as u32)?,
             s,
             &particles.kind13_set.motion_k[k],
         ))
@@ -112,9 +112,9 @@ pub fn emit_exhaust_smoke(
     slot.put(|en| &mut en.life, LIFE)?;
     slot.put(
         |en| &mut en.alpha_fade,
-        bh::st(
+        f32::from_bits(bh::st(
             bh::ld(s) * bh::ld(effects.setup.floats.two_fifty_seven.get()) / bh::int(LIFE as i32),
-        ),
+        )),
     )?;
     slot.put(
         |en| &mut en.alpha,

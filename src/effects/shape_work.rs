@@ -49,6 +49,7 @@ impl MarkShapes {
     /// `other` copied over this one, field by field (`memory::move_bytes` of the 0xAB8
     /// bytes).
     pub fn copy_from(&self, other: &MarkShapes) {
+        // Bit-exact copy of 32-bit cells, whatever float or whole number they hold.
         fn cells<C: crate::session::Cell32>(to: &[C], from: &[C]) {
             for (t, f) in to.iter().zip(from) {
                 t.set_bits(f.bits());

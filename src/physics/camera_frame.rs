@@ -18,18 +18,18 @@ use crate::race::owner_shared::RaceShared;
 
 // Converted: `rc2k_core::physics::camera_view::shakes` (the x87 steps stay).
 fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    scene.lights.state.camera_shake_listener.set(0.0);
-    scene.lights.state.camera_shake_y.set(0);
+    scene.lights.state.get().camera_shake_listener.set(0.0);
+    scene.lights.state.get().camera_shake_y.set(0);
     if rc2k_core::physics::camera_view::shakes(c.car.camera_view.get(), c.car.all_wheels_off.get())
     {
         x87_1(c.shared, scene);
         hold_high(
-            &scene.lights.state.camera_shake_y,
+            &scene.lights.state.get().camera_shake_y,
             &c.tables.camera_frame_limit,
         );
         negate(&c.tables.camera_frame_limit);
         hold_low(
-            &scene.lights.state.camera_shake_y,
+            &scene.lights.state.get().camera_shake_y,
             &c.tables.camera_frame_limit,
         );
         negate(&c.tables.camera_frame_limit);
@@ -40,8 +40,8 @@ fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(),
             .set(crate::math::next_random::next_random());
         x87_2(c.numbers, scene);
         if c.split_tables.still.get() != 0 {
-            scene.lights.state.camera_shake_y.set(0);
-            scene.lights.state.camera_shake_listener.set(0.0);
+            scene.lights.state.get().camera_shake_y.set(0);
+            scene.lights.state.get().camera_shake_listener.set(0.0);
         }
     }
     crate::physics::update_camera::steps(c, scene)
@@ -63,7 +63,7 @@ fn x87_1(shared: &RaceShared, scene: &crate::scene::owner::Scene) {
     let t0 = shared.car().vertical_speed_change.ld();
     let t1 = shared.physics_tables.camera_frame_scale.ld();
     let t2 = t0 * t1;
-    scene.lights.state.camera_shake_y.st(t2);
+    scene.lights.state.get().camera_shake_y.st(t2);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -77,9 +77,9 @@ fn x87_2(numbers: &Numbers, scene: &crate::scene::owner::Scene) {
     let t4 = t2 / t3;
     let t5 = numbers.three.ld();
     let t6 = t4 * t5;
-    let t7 = scene.lights.state.camera_shake_y.ld();
+    let t7 = scene.lights.state.get().camera_shake_y.ld();
     let t8 = t6 * t7;
-    scene.lights.state.camera_shake_listener.st(t8);
+    scene.lights.state.get().camera_shake_listener.st(t8);
 }
 
 #[cfg(test)]

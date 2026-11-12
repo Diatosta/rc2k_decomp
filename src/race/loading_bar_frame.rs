@@ -79,7 +79,7 @@ fn frame(
     {
         return Ok(());
     }
-    scene.lights.state.scene_state.set(FRAME_MARK);
+    scene.lights.state.get().scene_state.set(FRAME_MARK);
     if session.flags.quitting.is_set() {
         return Ok(());
     }

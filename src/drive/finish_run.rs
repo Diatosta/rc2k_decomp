@@ -22,7 +22,7 @@ use crate::race::owner::Race;
 /// race block at `rc`.
 fn lift_car(race: &Race) {
     race.car_blocks().cars[0].position[1].set(to_int(
-        ld(race.replay.finish.car_lift.get()) * ld(race.course.numbers.k65536.get())
+        ld(race.replay.finish.get().car_lift.get()) * ld(race.course.numbers.k65536.get())
             + int(race.car_blocks().cars[0].position[1].get() as i32),
     ) as u32);
 }
@@ -46,6 +46,7 @@ pub fn finish_run(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), 
     restart_clock(race);
     race.replay
         .finish
+        .get()
         .start_clock
         .set(race.shared.physics_tables.scene_clock.get());
     loop {
@@ -57,8 +58,8 @@ pub fn finish_run(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), 
             return Err(BadInput("a finish length past the table's two").into());
         }
         if !c0(
-            race.replay.finish.time.get(),
-            race.replay.finish.finish_lengths[n as usize].get(),
+            race.replay.finish.get().time.get(),
+            race.replay.finish.get().finish_lengths[n as usize].get(),
         ) {
             break;
         }

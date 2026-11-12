@@ -6,35 +6,15 @@
 
 use crate::physics::car_store::Car;
 use crate::physics::tables_store::PhysicsTables;
-use crate::session::Cell32;
 
-fn core(v: &[&dyn Cell32]) {
-    if v[0].bits() != 0 {
+/// Bit copies of floats into words.
+pub fn keep_motion_vectors(car: &Car, tables: &PhysicsTables) {
+    if tables.contact_step.get() != 0 {
         return;
     }
-    for k in 0..6 {
-        v[k + 7].set_bits(v[k + 1].bits());
+    let kept = &tables.kept_vectors;
+    for k in 0..3 {
+        kept[k].set(car.velocity[k].bits());
+        kept[4 + k].set(car.spin[k].bits());
     }
-}
-
-fn game<'a>(car: &'a Car, tables: &'a PhysicsTables) -> Vec<&'a dyn Cell32> {
-    vec![
-        &tables.contact_step as &dyn Cell32,
-        &car.velocity[0],
-        &car.velocity[1],
-        &car.velocity[2],
-        &car.spin[0],
-        &car.spin[1],
-        &car.spin[2],
-        &tables.kept_vectors[0],
-        &tables.kept_vectors[1],
-        &tables.kept_vectors[2],
-        &tables.kept_vectors[4],
-        &tables.kept_vectors[5],
-        &tables.kept_vectors[6],
-    ]
-}
-
-pub fn keep_motion_vectors(car: &Car, tables: &PhysicsTables) {
-    core(&game(car, tables));
 }

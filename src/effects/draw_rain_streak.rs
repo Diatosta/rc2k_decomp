@@ -222,41 +222,10 @@ fn project_x87(buffer: &crate::d3d::vertices_store::PolygonVertices, r: &RainSta
 
 #[cfg(test)]
 mod reference_vectors {
-    use crate::d3d::vertices_store::VERTICES;
     use crate::effects::asm_test::Kind::*;
+    use crate::effects::asm_test::staged_vertices as staged;
     use crate::effects::asm_test::{Op, Spec, recorded_writes};
     use crate::effects::rain::tests::with_state_at;
-
-    /// The vertex float at byte `off` of the vertices (x, y or z of a vertex).
-    fn vertex_cell(off: usize) -> &'static crate::session::Float {
-        let v = &VERTICES.vertices[off / 32];
-        match off % 32 {
-            0x0 => &v.x,
-            0x4 => &v.y,
-            0x8 => &v.z,
-            _ => panic!("not a tested vertex field"),
-        }
-    }
-
-    /// Runs `f` with the vertex floats at `offsets` holding the test buffer's (at `at`)
-    /// bytes; what `f` leaves goes back to the buffer, the vertices as they were.
-    fn staged<R>(
-        at: crate::effects::asm_test::Operand,
-        offsets: &[usize],
-        f: impl FnOnce() -> R,
-    ) -> R {
-        let host = |off: usize| (at + off).host().cast::<u32>();
-        let saved: Vec<u32> = offsets.iter().map(|&o| vertex_cell(o).bits()).collect();
-        for &o in offsets {
-            vertex_cell(o).set_bits(unsafe { host(o).read_unaligned() });
-        }
-        let out = f();
-        for (&o, &old) in offsets.iter().zip(&saved) {
-            unsafe { host(o).write_unaligned(vertex_cell(o).bits()) };
-            vertex_cell(o).set_bits(old);
-        }
-        out
-    }
 
     /// The three ten-byte values at `at` of the test buffer.
     fn values(at: crate::effects::asm_test::Operand) -> [[u8; 10]; 3] {

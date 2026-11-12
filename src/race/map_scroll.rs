@@ -25,7 +25,7 @@ pub fn map_tiles(
     let one_view = net.vars.session.get() != 0;
     // The car is read only for both views.
     let slot = picture_slot(
-        scene.textures.kinds.kind_first_textures[198].get(),
+        scene.textures.kinds.get().kind_first_textures[198].get(),
         one_view,
         if one_view { 0 } else { car_number },
     );

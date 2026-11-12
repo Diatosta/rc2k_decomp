@@ -25,7 +25,10 @@ pub fn reset_car_on_line(
     ] {
         cell.set(nearest);
     }
-    for cell in [&lights.state.line_place, &lights.state.line_fraction] {
+    for cell in [
+        &lights.state.get().line_place,
+        &lights.state.get().line_fraction,
+    ] {
         cell.set(nearest);
     }
     crate::race::start_place::place_car_on_line(c.shared, c.course, scene)?;

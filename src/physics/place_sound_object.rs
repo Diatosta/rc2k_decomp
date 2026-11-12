@@ -27,7 +27,7 @@ pub fn place_sound_object(
     let trap = crate::physics::cells::Trap::new();
     let sound = object_sound(
         contact.face_object.get(),
-        |thing| scene.objects.tables.object_kind(thing),
+        |thing| scene.objects.tables.get().object_kind(thing),
         |kind| {
             // The material's byte +0x24 (the low byte of its tenth word).
             trap.keep(

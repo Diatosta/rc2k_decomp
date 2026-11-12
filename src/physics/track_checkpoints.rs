@@ -28,7 +28,7 @@ pub fn track_checkpoints(
     }?;
     check_tracked(checkpoint, c.car.splits_passed.get())?;
     c.car.checkpoint.set(checkpoint);
-    scene.lights.state.line_place.set(checkpoint);
+    scene.lights.state.get().line_place.set(checkpoint);
     {
         crate::physics::checkpoint_offset::checkpoint_offset(
             &c.shared.buffers.engine_tables,

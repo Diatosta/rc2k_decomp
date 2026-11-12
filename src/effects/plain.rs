@@ -5,6 +5,9 @@
 use crate::effects::owner::effects;
 use crate::math::x87_float::{self as bh, X};
 
+// The three cell helpers go by bits: the x87 loads and stores the exact image, `ldi_cell`
+// reads a whole number held in the cell.
+
 /// `fld dword ptr` of a float cell (a typed record's field).
 pub(crate) fn ld_cell(cell: &impl crate::session::Cell32) -> X {
     bh::ld(cell.bits())

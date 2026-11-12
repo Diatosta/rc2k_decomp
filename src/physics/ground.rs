@@ -29,7 +29,7 @@ fn record_faces(course: &Course, record: u32) -> Result<(u32, u32), BadInput> {
 pub fn face_shares_at(
     course: &Course,
     q: &GroundQuery<'_>,
-    scene: &crate::scene::owner::Scene,
+    switches: &crate::scene::draw_switches_store::DrawSwitches,
 ) -> Result<(), Refused> {
     let mut corner = [[0u32; 3]; 3];
     for (k, c) in corner.iter_mut().enumerate() {
@@ -54,27 +54,24 @@ pub fn face_shares_at(
     for &(cell, value) in &d {
         cell.set(value);
     }
-    let sse = scene.draw_switches.use_sse.get() != 0;
-    let i = [
-        d[0].1,
-        d[1].1,
-        d[2].1,
-        d[3].1,
-        d[4].1,
-        d[5].1,
-        course.numbers.k65536.bits(),
-    ];
-    let mut o = [0u32; 8];
-    crate::math::x87::face_shares(&i, &mut o, sse);
-    q.share_a.set_bits(o[0]);
-    q.share_b.set_bits(o[1]);
-    q.share_c.set_bits(o[2]);
-    q.plane_f.set_bits(o[3]);
-    q.share_s.set(o[4]);
-    q.plane_g.set_bits(o[5]);
-    q.share_t.set(o[6]);
-    if sse {
-        q.share_scale.set_bits(o[7]);
+    let sse = switches.use_sse.get() != 0;
+    let shares = crate::math::x87::face_shares(
+        &crate::math::x87::FaceDifferences {
+            x: [d[0].1 as i32, d[1].1 as i32, d[2].1 as i32],
+            z: [d[3].1 as i32, d[4].1 as i32, d[5].1 as i32],
+            scale: &course.numbers.k65536,
+        },
+        sse,
+    );
+    q.share_a.set(shares.share_a);
+    q.share_b.set(shares.share_b);
+    q.share_c.set(shares.share_c);
+    q.plane_f.set(shares.plane_f);
+    q.share_s.set(shares.share_s as u32);
+    q.plane_g.set(shares.plane_g);
+    q.share_t.set(shares.share_t as u32);
+    if let Some(scale) = shares.share_scale {
+        q.share_scale.set(scale);
     }
     Ok(())
 }
@@ -93,7 +90,7 @@ pub fn face_under_point_at(
     course: &Course,
     q: &GroundQuery<'_>,
     number: u32,
-    scene: &crate::scene::owner::Scene,
+    switches: &crate::scene::draw_switches_store::DrawSwitches,
 ) -> Result<bool, Refused> {
     if let Some(why) = face_refusal(course, number) {
         return Err(BadInput(why).into());
@@ -134,7 +131,7 @@ pub fn face_under_point_at(
         q.corner_numbers[k].set(corner);
         q.face_corners[k].set(corner);
     }
-    face_shares_at(course, q, scene)?;
+    face_shares_at(course, q, switches)?;
     q.done.set(1);
     plane_height(q);
     Ok(true)
@@ -165,14 +162,14 @@ pub fn search_record_faces_at(
     course: &Course,
     q: &GroundQuery<'_>,
     record: u32,
-    scene: &crate::scene::owner::Scene,
+    switches: &crate::scene::draw_switches_store::DrawSwitches,
 ) -> Result<bool, Refused> {
     if let Some(why) = record_refusal(course, record) {
         return Err(BadInput(why).into());
     }
     let (first, last) = record_faces(course, record)?;
     let (found, _) = ground_search::search_faces(first, last, |number| {
-        face_under_point_at(course, q, number, scene)
+        face_under_point_at(course, q, number, switches)
     })?;
     Ok(found)
 }
@@ -186,13 +183,13 @@ pub fn search_cell_at(
     q: &GroundQuery<'_>,
     x: u32,
     z: u32,
-    scene: &crate::scene::owner::Scene,
+    switches: &crate::scene::draw_switches_store::DrawSwitches,
 ) -> Result<bool, Refused> {
     let (key, _) = ground_search::cell_key(x, z);
     let Some(record) = find_course_record(course, key)? else {
         return Ok(false);
     };
-    search_record_faces_at(course, q, record, scene)
+    search_record_faces_at(course, q, record, switches)
 }
 
 /// `physics::try_last_face` (0x441E0C): the saved last face (`last_face`); when it is a face (not -1,
@@ -201,13 +198,13 @@ pub fn search_cell_at(
 pub fn try_last_face_at(
     course: &Course,
     q: &GroundQuery<'_>,
-    scene: &crate::scene::owner::Scene,
+    switches: &crate::scene::draw_switches_store::DrawSwitches,
 ) -> Result<bool, Refused> {
     let last = q.last.get();
     if ground_search::last_face(last, course.course.course_face_count.get()).is_none() {
         return Ok(false);
     }
-    face_under_point_at(course, q, last, scene)
+    face_under_point_at(course, q, last, switches)
 }
 
 /// `physics::ground_search` (0x441E2F), inside `pusha` / `popa`: `try_last_face`; else
@@ -217,15 +214,15 @@ pub fn try_last_face_at(
 pub fn ground_search_at(
     course: &Course,
     q: &GroundQuery<'_>,
-    scene: &crate::scene::owner::Scene,
+    switches: &crate::scene::draw_switches_store::DrawSwitches,
 ) -> Result<bool, Refused> {
     let found = ground_search::ground_search(
-        || try_last_face_at(course, q, scene),
+        || try_last_face_at(course, q, switches),
         || {
             q.slot.set(ground_search::NO_FACE);
         },
         || (q.x.get(), q.z.get()),
-        |x, z| search_cell_at(course, q, x, z, scene),
+        |x, z| search_cell_at(course, q, x, z, switches),
     )?;
     q.found.set(u32::from(found));
     Ok(found)

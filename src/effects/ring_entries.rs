@@ -18,8 +18,8 @@ pub const ENTRY_LEN: u32 = 0x94;
 /// The block's bytes, as counted.
 pub const RING_BYTES: u32 = 0x2_5000;
 
-/// One ring entry: 37 dwords with the offsets of the original's record (a float is kept as its
-/// bits, as the x87 blocks load and store them). The three-axis fields are arrays x, y, z.
+/// One ring entry: 37 dwords with the offsets of the original's record (the size, alpha and
+/// pull fields stay dwords: kinds differ in whether they hold a float or a whole number). The three-axis fields are arrays x, y, z.
 /// Fields no code reads or writes by name are `unknown_<offset>`.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -54,7 +54,7 @@ pub struct Entry {
     pub cell: u32,
     /// 0x5C: How fast the sprite's cell advances with its life (read by the draw of kinds
     /// 0x10, 0x11; no emitter writes it, so it is 0 as the ring takes it).
-    pub cell_rate: u32,
+    pub cell_rate: f32,
     /// 0x60: The sprite's size.
     pub size: u32,
     /// 0x64: Kind 1's size factor (a float): the size grows by it times `k1_size`; pulled
@@ -69,7 +69,7 @@ pub struct Entry {
     /// 0x74: The sprite's alpha.
     pub alpha: u32,
     /// 0x78: How much of the alpha goes a tick.
-    pub alpha_fade: u32,
+    pub alpha_fade: f32,
     /// 0x7C: The limits the object's box extents are tested against (kinds 6, 0x15, 0x10,
     /// 0x11); no emitter writes them, so they are 0 as the ring takes it.
     pub box_limit: [u32; 2],
@@ -106,14 +106,14 @@ impl Entry {
             self.angle,
             self.angle_rate,
             self.cell,
-            self.cell_rate,
+            self.cell_rate.to_bits(),
             self.size,
             self.size_factor.to_bits(),
             self.car,
             self.car_pace,
             self.size_goal,
             self.alpha,
-            self.alpha_fade,
+            self.alpha_fade.to_bits(),
         ]);
         push(&self.box_limit);
         push(&[self.life, self.unused_88, self.unused_8c, self.car_tag]);
@@ -137,14 +137,14 @@ impl Entry {
             angle: w[20],
             angle_rate: w[21],
             cell: w[22],
-            cell_rate: w[23],
+            cell_rate: f32::from_bits(w[23]),
             size: w[24],
             size_factor: f32::from_bits(w[25]),
             car: w[26],
             car_pace: w[27],
             size_goal: w[28],
             alpha: w[29],
-            alpha_fade: w[30],
+            alpha_fade: f32::from_bits(w[30]),
             box_limit: [w[31], w[32]],
             life: w[33],
             unused_88: w[34],

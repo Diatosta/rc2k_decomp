@@ -117,8 +117,8 @@ pub fn emit_slip_spray_with(
         if let Some(why) = refusal(effects, set, wheel)? {
             return Err(BadInput(why).into());
         }
-        let strength = x87::loaded(&wheel.local_velocity_z).to_bits() & 0x7FFF_FFFF;
-        kinds.emitter.strength.set_bits(strength);
+        let strength = x87::loaded(&wheel.local_velocity_z).abs();
+        kinds.emitter.strength.set(strength);
         if !emits(set, wheel)? || next_entry(ring)?.is_none() {
             return Ok(());
         }
@@ -142,11 +142,11 @@ pub fn emit_slip_spray_with(
                 let k = 4 * k as u32;
                 x87::pair_sum_less(
                     a,
-                    matrix_cell(m, k)?,
+                    matrix_float(m, k)?,
                     b,
-                    matrix_cell(m, 0x20 + k)?,
+                    matrix_float(m, 0x20 + k)?,
                     &wheel.place[k as usize / 4],
-                    matrix_cell(m, 0x30 + k)?,
+                    matrix_float(m, 0x30 + k)?,
                 )
             })
         })?;
@@ -156,9 +156,9 @@ pub fn emit_slip_spray_with(
         slot.put(|en| &mut en.place[0], place[0])?;
         let motion: [[u8; 10]; 3] = crate::effects::try_from_fn(|k| {
             Ok({
-                let lift = (k == 1).then(|| set.lift.bits());
+                let lift = (k == 1).then_some(&set.lift);
                 x87::times_int_plus_times_80(
-                    matrix_cell(m, 4 * k as u32)?,
+                    matrix_float(m, 4 * k as u32)?,
                     set.motion_k[k],
                     sign,
                     lift,
@@ -173,7 +173,7 @@ pub fn emit_slip_spray_with(
         let speed = wheel.local_velocity_z.get();
         // (Motion z first, then y, then x.)
         for (n, moved) in moved.into_iter().enumerate() {
-            let row = matrix_cell(m, 0x28 - 4 * n as u32)?;
+            let row = matrix_float(m, 0x28 - 4 * n as u32)?;
             slot.put(
                 |en| &mut en.motion[2 - n],
                 x87::product_plus(row, set.roll_k[n], speed, rounded_value(moved)),

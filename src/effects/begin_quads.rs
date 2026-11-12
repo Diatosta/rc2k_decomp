@@ -25,7 +25,7 @@ pub fn begin_quads(
         crate::scene::set_texture::set_texture(
             part,
             scene,
-            scene.textures.kinds.kind_first_slots[202].get(),
+            scene.textures.kinds.get().kind_first_slots[202].get(),
         );
         crate::scene::depth_buffer_on::depth_buffer(part, true);
         crate::scene::depth_test_off::depth_test_off(part);

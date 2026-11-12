@@ -211,6 +211,7 @@ pub fn draw_marked_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         race,
         &ctx.view.face,
         scene,
+        ctx.reads,
         &ctx.system.session.screen,
     )?;
     ctx.view.polygon.polygon_drawn.set(1u32);
@@ -296,7 +297,7 @@ pub fn clip_and_draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
             ctx.part,
             &ctx.view.polygon,
             race,
-            scene,
+            ctx.reads.draw_switches,
             ctx.far_clip,
             ctx.view,
         )?;
@@ -318,6 +319,7 @@ pub fn clip_and_draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         race,
         &ctx.view.face,
         scene,
+        ctx.reads,
         &ctx.system.session.screen,
     )?;
     ctx.view.polygon.polygon_drawn.set(1u32);
@@ -611,7 +613,7 @@ fn plain_list(
 /// `clip_edges` .. less one; each vertex's x and y rounded, compared by the sign of the
 /// difference); nothing when all are outside; else the quad drawn (`race::draw_marked_face`).
 pub fn draw_whole_quad(ctx: &DrawCtx<'_>) -> Result<bool, Refused> {
-    let (race, scene) = (ctx.race, ctx.scene);
+    let race = ctx.race;
     // Converted: `rc2k_core::race::face_drawing::{QUAD_ENTRIES, quad_by_outside,
     // screen_inside, inside}` (the roundings the x87's).
     use rc2k_core::race::face_drawing::{QUAD_ENTRIES, quad_by_outside, screen_inside};
@@ -628,7 +630,7 @@ pub fn draw_whole_quad(ctx: &DrawCtx<'_>) -> Result<bool, Refused> {
         ctx.part,
         &ctx.view.polygon,
         race,
-        scene,
+        ctx.reads,
         ctx.view,
     )?;
     if let Some(triangles) = quad_by_outside(ctx.view.polygon.polygon_outside_count.get()) {
@@ -846,7 +848,7 @@ fn halfway_entry(course: &Course, first: &PolygonEntry, second: &PolygonEntry, t
 /// 4), (3, 4, 5) each clipped and drawn (`race::clip_and_draw_face`). Refuses (before anything) no
 /// points, or what `light_colour_at` refuses.
 pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
-    let (race, scene) = (ctx.race, ctx.scene);
+    let race = ctx.race;
     use crate::race::frame_draw::add_colours;
     let mmx = crate::race::frame_draw::has_mmx(ctx.system);
     let mut lit = false;
@@ -876,7 +878,7 @@ pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         ctx.part,
         &ctx.view.polygon,
         race,
-        scene,
+        ctx.reads,
         ctx.view,
     )?;
     if ctx.view.polygon.polygon_outside_count.get() == ctx.view.polygon.polygon_vertex_count.get() {

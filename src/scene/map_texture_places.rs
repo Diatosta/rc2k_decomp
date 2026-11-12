@@ -16,9 +16,9 @@ pub fn map_texture_places(scene: &crate::scene::owner::Scene) {
     // Converted: `rc2k_core::scene::textures::map_places`.
     with_cells(
         [
-            &textures.places.slot_wanted,
-            &textures.places.wanted_pictures,
-            &textures.places.place_slot,
+            &textures.places.get().slot_wanted,
+            &textures.places.get().wanted_pictures,
+            &textures.places.get().place_slot,
         ],
         |[wanted, pictures, places]| {
             rc2k_core::scene::textures::map_places(wanted, pictures, places)

@@ -49,11 +49,11 @@ pub fn reload_system_textures(
 ) -> Result<(), Refused> {
     let gfx_grading = &gfx.grading;
     let course = &race.course;
-    let textures: u32 = scene.textures.places.totals[3].get();
+    let textures: u32 = scene.textures.places.get().totals[3].get();
     if textures == 0 || textures > TEXTURES {
         return Err(BadInput("no system textures, or more than the table has").into());
     }
-    let first = |kind: u32| scene.textures.kinds.kind_first_textures[kind as usize].get();
+    let first = |kind: u32| scene.textures.kinds.get().kind_first_textures[kind as usize].get();
     if (0..KINDS).any(|kind| first(kind) != u32::MAX && first(kind) >= TEXTURES) {
         return Err(BadInput("a kind's first texture past the pictures' table").into());
     }
@@ -64,8 +64,8 @@ pub fn reload_system_textures(
         if texture == u32::MAX {
             continue;
         }
-        let picture = kind_picture(scene.textures.places.kind_pictures[kind as usize].get());
-        scene.textures.places.wanted_pictures[texture as usize].set(picture);
+        let picture = kind_picture(scene.textures.places.get().kind_pictures[kind as usize].get());
+        scene.textures.places.get().wanted_pictures[texture as usize].set(picture);
     }
     let size = [
         course.stage_prefs.scene_size_a.get(),
@@ -73,7 +73,7 @@ pub fn reload_system_textures(
     ];
     for texture in 0..textures {
         gfx_grading.reading.set(1u32);
-        let wanted = scene.textures.places.wanted_pictures[texture as usize].get();
+        let wanted = scene.textures.places.get().wanted_pictures[texture as usize].get();
         let [scale, saturation] = read_size(wanted, size);
         let grading = &gfx_grading;
         grading.scale.set(scale);

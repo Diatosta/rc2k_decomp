@@ -40,7 +40,7 @@ pub fn object_hits_car(
     c.tables
         .object_hits
         .set(c.tables.object_hits.get().wrapping_add(1));
-    let count = objects.slots.point_counts[number as usize].get();
+    let count = objects.slots.get().point_counts[number as usize].get();
     // With no points the original skips to `clc` before it sets the result register; the
     // points' table is read only when there are some.
     let points = if count == 0 {
@@ -50,7 +50,7 @@ pub fn object_hits_car(
     };
     let refused = std::cell::Cell::new(None::<Refused>);
     let walk = contacts::walk_points(
-        objects.slots.first_point[number as usize].get(),
+        objects.slots.get().first_point[number as usize].get(),
         count,
         points,
         0,

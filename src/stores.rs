@@ -931,7 +931,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.frame.lights_and_gear",
-            &crate::race::owner::RACE.frame.lights_and_gear,
+            on_game(crate::race::owner::RACE.frame.lights_and_gear.get()),
         ),
         listed!(
             "race.owner.RACE.replay.cars_and_replay",
@@ -963,7 +963,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.physics.ground_probe",
-            &crate::race::owner::RACE.physics.ground_probe,
+            on_game(crate::race::owner::RACE.physics.ground_probe.get()),
         ),
         listed!(
             "race.owner.RACE.frame.panel_clock",
@@ -971,7 +971,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "scene.owner.SCENE.objects.slots",
-            &crate::scene::owner::SCENE.objects.slots,
+            on_game(crate::scene::owner::SCENE.objects.slots.get()),
         ),
         listed!(
             "scene.owner.SCENE.light_tables",
@@ -987,11 +987,11 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.frame.shadow_skids",
-            &crate::race::owner::RACE.frame.shadow_skids,
+            on_game(crate::race::owner::RACE.frame.shadow_skids.get()),
         ),
         listed!(
             "race.owner.RACE.replay.finish",
-            &crate::race::owner::RACE.replay.finish,
+            on_game(crate::race::owner::RACE.replay.finish.get()),
         ),
         listed!(
             "race.owner.RACE.shared.replay_file",
@@ -1023,11 +1023,11 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "scene.owner.SCENE.objects.tables",
-            &crate::scene::owner::SCENE.objects.tables,
+            on_game(crate::scene::owner::SCENE.objects.tables.get()),
         ),
         listed!(
             "scene.owner.SCENE.textures.places",
-            &crate::scene::owner::SCENE.textures.places,
+            on_game(crate::scene::owner::SCENE.textures.places.get()),
         ),
         listed!(
             "race.owner.RACE.frame.matrices",
@@ -1067,7 +1067,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "scene.owner.SCENE.lights.state",
-            &crate::scene::owner::SCENE.lights.state,
+            on_game(crate::scene::owner::SCENE.lights.state.get()),
         ),
         listed!(
             "race.owner.RACE.shared.view",
@@ -1075,7 +1075,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.course.level_grid",
-            &crate::race::owner::RACE.course.level_grid,
+            on_game(crate::race::owner::RACE.course.level_grid.get()),
         ),
         listed!(
             "race.owner.RACE.frame.frame_work",
@@ -1115,7 +1115,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "scene.owner.SCENE.textures.kinds",
-            &crate::scene::owner::SCENE.textures.kinds,
+            on_game(crate::scene::owner::SCENE.textures.kinds.get()),
         ),
         listed!(
             "race.owner.RACE.frame.counter",
@@ -1127,11 +1127,11 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "scene.owner.SCENE.draw_switches",
-            &crate::scene::owner::SCENE.draw_switches,
+            on_game(crate::scene::owner::SCENE.draw_switches.get()),
         ),
         listed!(
             "scene.owner.SCENE.lights.work",
-            &crate::scene::owner::SCENE.lights.work,
+            on_game(crate::scene::owner::SCENE.lights.work.get()),
         ),
         listed!(
             "scene.owner.SCENE.drawing.object_work",

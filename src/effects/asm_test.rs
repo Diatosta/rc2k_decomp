@@ -716,3 +716,36 @@ fn run_writes<R: std::fmt::Debug>(
     file.finish();
     assert_eq!(failures, 0, "{failures} differences");
 }
+
+/// The vertex float at byte `off` of the vertices (x, y, z, u or v of a vertex).
+#[cfg(test)]
+pub fn vertex_cell(off: usize) -> &'static crate::session::Float {
+    let v = &crate::d3d::vertices_store::VERTICES.vertices[off / 32];
+    match off % 32 {
+        0x0 => &v.x,
+        0x4 => &v.y,
+        0x8 => &v.z,
+        0x18 => &v.u,
+        0x1C => &v.v,
+        _ => panic!("not a tested vertex field"),
+    }
+}
+
+/// Runs `f` with the vertex floats at `offsets` holding the test buffer's (at `at`) bytes;
+/// what `f` leaves goes back to the buffer, the vertices as they were. The copies go by bits
+/// on purpose: they are bit-exact whatever the float, where a float moved through the x87
+/// (32-bit builds) would quiet a signalling NaN.
+#[cfg(test)]
+pub fn staged_vertices<R>(at: Operand, offsets: &[usize], f: impl FnOnce() -> R) -> R {
+    let host = |off: usize| (at + off).host().cast::<u32>();
+    let saved: Vec<u32> = offsets.iter().map(|&o| vertex_cell(o).bits()).collect();
+    for &o in offsets {
+        vertex_cell(o).set_bits(unsafe { host(o).read_unaligned() });
+    }
+    let out = f();
+    for (&o, &old) in offsets.iter().zip(&saved) {
+        unsafe { host(o).write_unaligned(vertex_cell(o).bits()) };
+        vertex_cell(o).set_bits(old);
+    }
+    out
+}

@@ -83,7 +83,7 @@ pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refus
     assign_menu_textures(&menus.tables, scene)?;
     map_texture_places(scene);
     load_slot_textures_in_game(&race.frame, scene)?;
-    scene.lights.state.draw_mode.set(0u32);
+    scene.lights.state.get().draw_mode.set(0u32);
     // The front end's 3D draws on a slot of its own (frame plan F4).
     let ctx = crate::race::view_scratch::DrawCtx::new(
         race,

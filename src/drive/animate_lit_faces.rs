@@ -136,7 +136,7 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
             race.physics.contact.lit_face_distance.set(d);
             let step = pace(d);
             race.physics.contact.lit_face_pace.set(step);
-            let kind_of: u32 = scene.objects.tables.object_kind(object as u32);
+            let kind_of: u32 = scene.objects.tables.get().object_kind(object as u32);
             // The material's byte +0x1C (the low byte of its eighth word).
             let kind = race
                 .polygon_tables()
@@ -211,7 +211,7 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                         .ground_face_last
                         .set(race.car_blocks().cars[0].probe_point_face[4].get());
                     crate::physics::find_ground::find_ground(
-                        &race.physics.ground_probe,
+                        race.physics.ground_probe.get(),
                         race.physics.ground(),
                         &race.course,
                         scene,

@@ -33,7 +33,7 @@ pub use rc2k_core::scene::shown::Way;
 // Converted: `rc2k_core::scene::shown::texture_set`
 fn texture_set(
     race: &crate::race::owner::Race,
-    scene: &crate::scene::owner::Scene,
+    reads: crate::workers::DrawReads<'_>,
     cars: &crate::race::car_draw_state::CarDrawState,
 ) -> Result<(u32, u32), Refused> {
     let shared = &race.shared;
@@ -43,7 +43,7 @@ fn texture_set(
         let t = rc2k_core::scene::shown::texture_set(
             object,
             race.course.numbers.in_race.is_set(),
-            |object| scene.objects.tables.object_kind(object),
+            |object| reads.object_tables.object_kind(object),
             |car| {
                 shared
                     .work
@@ -66,14 +66,14 @@ fn texture_set(
 pub fn draw_scene_object(
     race: &crate::race::owner::Race,
     draw: &mut dyn FnMut(Way) -> Result<(), Refused>,
-    scene: &crate::scene::owner::Scene,
+    reads: crate::workers::DrawReads<'_>,
     cars: &crate::race::car_draw_state::CarDrawState,
     place: &crate::scene::object_place::ObjectPlace,
 ) -> Result<(), Refused> {
-    let (set, object) = texture_set(race, scene, cars)?;
+    let (set, object) = texture_set(race, reads, cars)?;
     place.texture_set.set(set);
-    let faces: u32 = scene.objects.slots.face_counts[object as usize].get();
-    match rc2k_core::scene::shown::way(faces, scene.lights.state.draw_mode.get()) {
+    let faces: u32 = reads.object_slots.face_counts[object as usize].get();
+    match rc2k_core::scene::shown::way(faces, reads.light_state.draw_mode.get()) {
         Some(way) => draw(way),
         None => Ok(()),
     }
@@ -87,7 +87,7 @@ pub fn draw_scene_object_in_game(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     description: Option<crate::scene::draw_described_object::Description<'_>>,
 ) -> Result<(), Refused> {
-    let (race, scene, system) = (ctx.race, ctx.scene, ctx.system);
+    let (race, system) = (ctx.race, ctx.system);
     draw_scene_object(
         race,
         &mut |way| match way {
@@ -104,7 +104,7 @@ pub fn draw_scene_object_in_game(
                 };
                 draw_shown_object(
                     race,
-                    scene,
+                    ctx.reads,
                     &mut || draw_object_in_game(ctx, system),
                     &ctx.view.cars,
                     &ctx.view.object,
@@ -115,7 +115,7 @@ pub fn draw_scene_object_in_game(
                 crate::scene::draw_described_object::draw_described_object(ctx, description)
             }
         },
-        scene,
+        ctx.reads,
         &ctx.view.cars,
         &ctx.view.object,
     )

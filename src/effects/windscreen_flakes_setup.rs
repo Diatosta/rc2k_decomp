@@ -46,7 +46,7 @@ pub fn setup_with(
         crate::scene::set_texture::set_texture(
             crate::workers::game_scratch(),
             scene,
-            scene.textures.kinds.kind_first_slots[202].get(),
+            scene.textures.kinds.get().kind_first_slots[202].get(),
         );
         for (value, state) in STATES {
             set_render_state(crate::workers::game_scratch(), value, state);

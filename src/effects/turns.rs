@@ -40,16 +40,16 @@ pub fn scale_rows3(rows: &[PlainFloat; 9], effects: &crate::effects::owner::Effe
 pub fn smooth_steps(
     drops: &WindscreenDrops,
     n: u32,
-    a: u32,
+    a: f32,
     b: u32,
     effects: &crate::effects::owner::Effects,
 ) -> (u32, u32) {
-    drops.inputs.scratch.set(a);
-    effects.setup.work.scratch.set(a);
+    drops.inputs.scratch.set(a.to_bits());
+    effects.setup.work.scratch.set(a.to_bits());
     smooth_pair(n, a, b, effects)
 }
 /// `smooth_steps`' two results from step n, a and b, writing nothing.
-pub fn smooth_pair(n: u32, a: u32, b: u32, effects: &crate::effects::owner::Effects) -> (u32, u32) {
+pub fn smooth_pair(n: u32, a: f32, b: u32, effects: &crate::effects::owner::Effects) -> (u32, u32) {
     let setup = &effects.setup;
     {
         let t = x87::sub_mul(b, a, &setup.mask_constants.ease);

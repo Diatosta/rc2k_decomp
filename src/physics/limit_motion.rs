@@ -44,6 +44,7 @@ pub fn limit_motion(car: &Car, tables: &PhysicsTables, scene: &crate::scene::own
     let drawing = &scene.drawing;
     let mut bad = false;
     for k in 0..3usize {
+        // An integer test on the float's exponent bits (infinity or not a number).
         let ecx = car.velocity[k].bits() & 0x7F80_0000;
         if ecx == 0x7F80_0000 {
             bad = true;

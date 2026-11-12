@@ -17,13 +17,13 @@ type Total = (&'static std::ffi::CStr, fn(&Scene) -> u32);
 const TOTALS: [Total; 4] = [
     // "total points", g_objectPointCount
     (c"total points", |scene| {
-        scene.objects.tables.point_count.get()
+        scene.objects.tables.get().point_count.get()
     }),
     (c"total pointmem", |scene| {
         scene.object_work().point_memory_total.get()
     }),
     (c"total faces", |scene| {
-        scene.objects.tables.face_count.get()
+        scene.objects.tables.get().face_count.get()
     }),
     (c"total facemem", |scene| {
         scene.object_work().face_memory_total.get()

@@ -84,7 +84,7 @@ pub fn steps(
         FaceObject::Object(object) => object,
     };
     c.contact.face_object.set(object);
-    let kind = scene.objects.tables.object_kind(object);
+    let kind = scene.objects.tables.get().object_kind(object);
     if let Err(e) = contacts::check_material(kind) {
         crate::framework::log(&format!(
             "physics::face_contact: face {}: object {object}, kind {kind:#x}, car {} at {:?}",
@@ -134,7 +134,7 @@ pub fn steps(
         let distance = int_hypot(dx as i32, dz as i32) as u32;
         scene.drawing.scene.scratch.set(distance);
         let (reach, _) = contacts::reach(
-            scene.objects.slots.radii[c.contact.face_object.get() as usize].get(),
+            scene.objects.slots.get().radii[c.contact.face_object.get() as usize].get(),
             scene.object_work().size.get(),
         );
         if contacts::out_of_reach(reach, distance) {

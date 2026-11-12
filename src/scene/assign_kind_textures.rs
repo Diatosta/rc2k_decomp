@@ -16,9 +16,9 @@ pub fn assign_kind_textures(scene: &crate::scene::owner::Scene) -> Result<(), Ba
     // Converted: `rc2k_core::scene::textures::assign_kind_textures`.
     with_cells(
         [
-            &scene_textures.kinds.kind_first_slots,
-            &scene_textures.kinds.kind_first_textures,
-            &scene_textures.places.slot_wanted,
+            &scene_textures.kinds.get().kind_first_slots,
+            &scene_textures.kinds.get().kind_first_textures,
+            &scene_textures.places.get().slot_wanted,
         ],
         |[slots, textures, wanted]| {
             rc2k_core::scene::textures::assign_kind_textures(slots, textures, wanted)

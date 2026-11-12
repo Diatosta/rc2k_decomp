@@ -10,8 +10,9 @@
 //! sound spots read.
 
 use crate::errors::BadInput;
-use crate::race::level_grid_store::LevelGrid;
+use crate::race::level_grid_store::{LevelGrid, first_of};
 use crate::session::Dword;
+use core::mem::offset_of;
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -32,20 +33,12 @@ pub struct ViewGrid {
 impl ViewGrid {
     /// With the image's first values.
     pub const fn new() -> Self {
-        let LevelGrid {
-            grid_half,
-            grid_span,
-            grid_x,
-            grid_z,
-            course_grid,
-            ..
-        } = LevelGrid::new();
         Self {
-            cells: course_grid,
-            half: grid_half,
-            span: grid_span,
-            x: grid_x,
-            z: grid_z,
+            cells: first_of::<_, 0x1000>(offset_of!(LevelGrid, course_grid)),
+            half: first_of::<_, 4>(offset_of!(LevelGrid, grid_half)),
+            span: first_of::<_, 4>(offset_of!(LevelGrid, grid_span)),
+            x: first_of::<_, 4>(offset_of!(LevelGrid, grid_x)),
+            z: first_of::<_, 4>(offset_of!(LevelGrid, grid_z)),
         }
     }
 

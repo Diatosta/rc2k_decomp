@@ -65,7 +65,7 @@ fn down(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> Result<Shift, R
     };
     car.gear.set(to);
     revs(car, tables, numbers)?;
-    if !below(car.engine_speed.bits(), tables.rev_limit.bits()) {
+    if !below(&car.engine_speed, &tables.rev_limit) {
         car.gear.set(car.gear.get().wrapping_add(1));
         revs(car, tables, numbers)?;
         car.gear_change_hold.set(shifts::HOLD);

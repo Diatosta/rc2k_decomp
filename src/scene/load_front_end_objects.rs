@@ -22,19 +22,24 @@ pub fn load_front_end_objects(
 ) -> Result<(), Refused> {
     let course = &race.course;
     reset_objects(course, scene)?;
-    scene.objects.slots.texture_count.set(0);
-    scene.objects.slots.no_normals.set(0);
+    scene.objects.slots.get().texture_count.set(0);
+    scene.objects.slots.get().no_normals.set(0);
     for slot in 0..SLOTS {
-        let kind: u32 = scene.objects.tables.slot_kinds[slot as usize].get();
+        let kind: u32 = scene.objects.tables.get().slot_kinds[slot as usize].get();
         scene.object_work().loading_kind.set(kind);
         scene.object_work().loading_slot.set(slot);
         load_object(scene, race)?;
     }
     let cursor: u32 = scene.object_work().face_cursor.get();
-    scene
-        .object_work()
-        .point_memory_total
-        .set(scene.objects.tables.point_count.get().wrapping_mul(12));
+    scene.object_work().point_memory_total.set(
+        scene
+            .objects
+            .tables
+            .get()
+            .point_count
+            .get()
+            .wrapping_mul(12),
+    );
     scene.object_work().face_memory_total.set(cursor);
     Ok(())
 }

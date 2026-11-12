@@ -38,7 +38,8 @@ fn blocks(effects: &crate::effects::owner::Effects) -> Result<Vec<&'static CarEf
     })
 }
 
-/// Whether a block's factors differ from its kept ones.
+/// Whether a block's factors differ from its kept ones (compared by bits, as the original's
+/// integer compare: a NaN or a signed zero counts as it is stored).
 fn changed(b: &CarEffects) -> bool {
     b.factors
         .iter()
@@ -55,7 +56,8 @@ fn points(course: &Course, scene: &Scene, b: &CarEffects) -> Result<(u32, u32, i
                 12 * scene
                     .objects
                     .slots
-                    .slot_value(&scene.objects.slots.first_point, id as usize),
+                    .get()
+                    .slot_value(&scene.objects.slots.get().first_point, id as usize),
             )
         };
         let (a, c) = (b.object.get(), b.second_object.get());
@@ -65,7 +67,8 @@ fn points(course: &Course, scene: &Scene, b: &CarEffects) -> Result<(u32, u32, i
             scene
                 .objects
                 .slots
-                .slot_value(&scene.objects.slots.point_counts, a as usize) as i32,
+                .get()
+                .slot_value(&scene.objects.slots.get().point_counts, a as usize) as i32,
         )
     })
 }

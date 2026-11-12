@@ -223,7 +223,7 @@ pub fn turn_all_shapes(
                     n,
                     smooth_pair(
                         step.get(),
-                        drops.tuning.turn_angles[a].bits(),
+                        drops.tuning.turn_angles[a].get(),
                         b.get(),
                         effects,
                     ),
@@ -239,7 +239,7 @@ pub fn turn_all_shapes(
                     smooth_steps(
                         drops,
                         step.get(),
-                        drops.tuning.turn_angles[a].bits(),
+                        drops.tuning.turn_angles[a].get(),
                         b.get(),
                         effects,
                     ),
@@ -275,8 +275,8 @@ fn shape_set_checks(
     if object >= 0x100 {
         return Err(BadInput("an object past 0xFF").into());
     }
-    let first: u32 = scene.objects.slots.first_face[object as usize].get();
-    let faces: u32 = scene.objects.slots.face_counts[object as usize].get();
+    let first: u32 = scene.objects.slots.get().first_face[object as usize].get();
+    let faces: u32 = scene.objects.slots.get().face_counts[object as usize].get();
     if (faces as i32) < 0 || first.checked_add(faces).is_none_or(|end| end > FACES) {
         return Err(BadInput("an object's faces past g_faces").into());
     }
@@ -315,13 +315,14 @@ pub fn make_shape_set(
         return Err(BadInput("a shape set past the 33 held (the game makes at most 19)").into());
     }
     let work = &drops.shape_work.work;
+    let ends: [u32; 4] = read_bits(&drops.inputs.ends);
     let inputs: [u32; 6] = [
         drops.inputs.tilts[0].get(),
         drops.inputs.tilts[1].get(),
-        drops.inputs.ends[0].bits(),
-        drops.inputs.ends[1].bits(),
-        drops.inputs.ends[2].bits(),
-        drops.inputs.ends[3].bits(),
+        ends[0],
+        ends[1],
+        ends[2],
+        ends[3],
     ];
     let scales: [u32; 4] = read_bits(&drops.tuning.step_scales);
     // 0x884FC4 .. : a, b (0x764F6C, _74), c, d (_70, _78) scaled, the tilts, two zeros.
@@ -340,12 +341,12 @@ pub fn make_shape_set(
         list.count.set(0);
     }
     let object = object as usize;
-    let first: u32 = scene.objects.slots.first_face[object].get();
+    let first: u32 = scene.objects.slots.get().first_face[object].get();
     drops
         .shape_work
         .first_point
-        .set(scene.objects.slots.first_point[object].get());
-    let faces: u32 = scene.objects.slots.face_counts[object].get();
+        .set(scene.objects.slots.get().first_point[object].get());
+    let faces: u32 = scene.objects.slots.get().face_counts[object].get();
     let kinds: [u32; 2] = read_bits(&drops.tuning.face_kinds);
     for f in first..first + faces {
         let face: u32 = crate::scene::objects::face_cell(faces_table, f as usize).get();

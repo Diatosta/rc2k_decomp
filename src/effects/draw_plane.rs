@@ -135,7 +135,7 @@ pub fn draw_plane(
     crate::scene::set_texture::set_texture(
         ctx.part,
         scene,
-        scene.textures.kinds.kind_first_slots[202].get(),
+        scene.textures.kinds.get().kind_first_slots[202].get(),
     );
     plane_corners(fl, effects);
     let entry = &effects.blocks.corners.corners[corner as usize];

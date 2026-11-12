@@ -57,16 +57,6 @@ impl FloatView for PlainDword {
     }
 }
 
-/// The untyped cell lists some of the physics' steps still take.
-impl FloatView for dyn crate::session::Cell32 + '_ {
-    fn float(&self) -> f32 {
-        f32::from_bits(self.bits())
-    }
-    fn set_float(&self, x: f32) {
-        self.set_bits(x.to_bits());
-    }
-}
-
 impl<T: FloatView + ?Sized> FloatView for &T {
     fn float(&self) -> f32 {
         (**self).float()

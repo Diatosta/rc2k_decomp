@@ -57,8 +57,7 @@ pub fn draw_object(step: &mut dyn FnMut(Step) -> Result<(), Refused>) -> Result<
 /// `scene::place_object_points_any` (0x45BDE1). The 3DNow way (0x45BF89) is not ported:
 /// a refusal ends the program.
 fn place_object_points_any(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
-    let scene = ctx.scene;
-    let draw_switches = &scene.draw_switches;
+    let draw_switches = ctx.reads.draw_switches;
     if draw_switches.use_3dnow.get() != 0 {
         return Err(BadInput("the 3DNow way of placing points is not ported").into());
     }

@@ -82,7 +82,7 @@ pub fn set_up_car_points(
 ) -> Result<(), Refused> {
     let slot = 11 + slot as usize;
     {
-        let count = scene.objects.slots.point_counts[slot].get();
+        let count = scene.objects.slots.get().point_counts[slot].get();
         if count != 0 {
             if count > MOST_CONVERTED {
                 return Err(BadInput("more than 0x40 collision points").into());
@@ -93,7 +93,7 @@ pub fn set_up_car_points(
                     BadInput("one collision point: the original returns through edi").into(),
                 );
             }
-            let first = scene.objects.slots.first_point[slot].get();
+            let first = scene.objects.slots.get().first_point[slot].get();
             let points = first
                 .wrapping_mul(12)
                 .wrapping_add(race.course.lists.object_points.get());
@@ -179,10 +179,10 @@ pub fn set_object_kinds(race: &Race, scene: &crate::scene::owner::Scene) -> Resu
             Some(cell) => cell.get(),
             None => course.stage_prefs.fixed_kinds[n as usize - n_defaults].get(),
         };
-        scene.objects.tables.slot_kinds[n as usize].set(default);
+        scene.objects.tables.get().slot_kinds[n as usize].set(default);
     }
     // `ObjectTables.slot_kinds[64]` = `kept_kind`.
-    scene.objects.tables.slot_kinds[64].set(race.shared.switches.kept_kind.get());
+    scene.objects.tables.get().slot_kinds[64].set(race.shared.switches.kept_kind.get());
     let cars: u32 = race.shared.view.race_cars.get();
     if cars == 0 {
         return Ok(());
@@ -197,7 +197,7 @@ pub fn set_object_kinds(race: &Race, scene: &crate::scene::owner::Scene) -> Resu
                 CarKind::Table11 => car_table(&race.kind_tables().kind_11_table, car),
                 CarKind::Table10 => car_table(&race.kind_tables().kind_10_table, car),
             };
-            scene.objects.tables.slot_kinds[(slots + slot) as usize].set(k);
+            scene.objects.tables.get().slot_kinds[(slots + slot) as usize].set(k);
         }
         slots += CAR_SLOT_STEP;
     }
@@ -218,9 +218,9 @@ pub fn reload_objects(race: &Race, scene: &crate::scene::owner::Scene) -> Result
     log(c"LOAD OBJECTS - START", true);
     set_object_kinds(race, scene)?;
     log(c"total points", false);
-    log_number(scene.objects.tables.point_count.get(), false);
+    log_number(scene.objects.tables.get().point_count.get(), false);
     log(c"total polys", false);
-    log_number(scene.objects.tables.face_count.get(), false);
+    log_number(scene.objects.tables.get().face_count.get(), false);
     log(c"facemem used", false);
     log_number(scene.object_work().face_cursor.get(), true);
     log(c"LOAD OBJECTS - FINIS", true);

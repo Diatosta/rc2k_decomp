@@ -107,7 +107,7 @@ pub fn emit_body_contact_particles(
             slot.put(|en| &mut en.car, effects.kinds.emitter.car.get())?;
             slot.put(
                 |en| &mut en.alpha_fade,
-                x87::over_int(&effects.setup.floats.two_fifty_seven, LIFE as i32).to_bits(),
+                x87::over_int(&effects.setup.floats.two_fifty_seven, LIFE as i32),
             )?;
         }
     }

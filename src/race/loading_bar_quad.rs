@@ -34,6 +34,7 @@ pub fn loading_bar_quad(
         race,
         &scratch.face,
         scene,
+        crate::workers::DrawReads::on_game_thread(scene),
         &session.screen,
         scratch,
     )

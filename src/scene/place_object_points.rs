@@ -93,18 +93,17 @@ struct Object {
 
 fn object(
     race: &crate::race::owner::Race,
-    scene: &crate::scene::owner::Scene,
+    object_slots: &crate::scene::object_slots_store::ObjectTables,
     cars: &crate::race::car_draw_state::CarDrawState,
 ) -> Result<Object, BadInput> {
-    let objects = &scene.objects;
     let number: u32 = cars.object_number.get();
     if number >= OBJECTS {
         return Err(BadInput("an object's number past the tables"));
     }
     let object = Object {
-        first: objects.slots.first_point[number as usize].get(),
-        points: objects.slots.point_counts[number as usize].get() as i32,
-        normals: objects.slots.normal_counts[number as usize].get() as i32,
+        first: object_slots.first_point[number as usize].get(),
+        points: object_slots.point_counts[number as usize].get() as i32,
+        normals: object_slots.normal_counts[number as usize].get() as i32,
         table: race.course.lists.object_points.get(),
     };
     if object.points <= 0 && object.normals > 0 {
@@ -120,7 +119,7 @@ fn object(
 /// leaves in the registers its one caller's callers never read (`draw_object`).
 pub fn place_object_points(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
     let race = ctx.race;
-    let object = object(race, ctx.scene, &ctx.view.cars)?;
+    let object = object(race, ctx.reads.object_slots, &ctx.view.cars)?;
     if object.points <= 0 {
         return Ok(());
     }
@@ -194,7 +193,7 @@ pub fn place_object_points_sse(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
 ) -> Result<(), Refused> {
     let race = ctx.race;
-    let object = object(race, ctx.scene, &ctx.view.cars)?;
+    let object = object(race, ctx.reads.object_slots, &ctx.view.cars)?;
     let m: [f32; 16] = std::array::from_fn(|n| ctx.view.matrices.made_object_matrix[n].get());
     let mut number = object.first;
     let mut from = object.table.wrapping_add(object.first.wrapping_mul(12));

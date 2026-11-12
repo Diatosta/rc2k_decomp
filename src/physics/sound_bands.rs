@@ -19,13 +19,13 @@ use rc2k_core::physics::sound_bands::sound_band;
 /// One twin: (address, value, factor, step).
 pub type Twin = (
     usize,
-    fn(&SoundInputs<'_>) -> u32,
-    fn(&SoundInputs<'_>) -> u32,
+    fn(&SoundInputs<'_>) -> f32,
+    fn(&SoundInputs<'_>) -> f32,
     u32,
 );
 
 /// The exact x87 version on the value and the factor, the scratch keeps the number of `fistp`.
-pub fn band_at(value: u32, factor: u32, scratch: &PlainDword, step: u32) -> u32 {
+pub fn band_at(value: f32, factor: f32, scratch: &PlainDword, step: u32) -> u32 {
     let n = x87::mul_to_int(value, factor) as u32;
     scratch.set(n);
     let mut b = n.wrapping_sub(step);
@@ -45,8 +45,8 @@ pub fn band_value(c: &SoundInputs<'_>, twin: Twin) -> u32 {
 
 /// The converted version (`rc2k_core::physics::sound_bands`, plain floats).
 // Converted: `rc2k_core::physics::sound_bands::sound_band`.
-pub fn band_at_plain(value: u32, factor: u32, scratch: &PlainDword, step: u32) -> u32 {
-    let (n, b) = sound_band(f32::from_bits(value), f32::from_bits(factor), step);
+pub fn band_at_plain(value: f32, factor: f32, scratch: &PlainDword, step: u32) -> u32 {
+    let (n, b) = sound_band(value, factor, step);
     scratch.set(n as u32);
     b
 }

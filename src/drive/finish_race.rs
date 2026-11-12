@@ -21,9 +21,25 @@ fn log_number(v: u32) {
     crate::logfile::log_int::log_int(v as i32, true, 1);
 }
 
+/// A variable's place: a cell of the race's shared state, or of the finish routine's own
+/// variables (a drawing store's plain cells).
+enum Place<'a> {
+    Shared(&'a Dword),
+    Finish(&'a crate::session::PlainDword),
+}
+
+impl Place<'_> {
+    fn set(&self, value: u32) {
+        match self {
+            Place::Shared(cell) => cell.set(value),
+            Place::Finish(cell) => cell.set(value),
+        }
+    }
+}
+
 /// A variable's place.
-fn var(race: &Race, v: Var) -> &Dword {
-    match v {
+fn var(race: &Race, v: Var) -> Place<'_> {
+    Place::Shared(match v {
         Var::D60101C => &race.physics.split_tables().arcade_kind,
         Var::D621514 => &race.shared.switches.editor_mode,
         Var::D623854 => &race.shared.vars.direction,
@@ -40,13 +56,13 @@ fn var(race: &Race, v: Var) -> &Dword {
         Var::D621890 => &race.shared.switches.view_marks_on,
         Var::D6238CC => &race.shared.vars.race_level,
         Var::D6238D0 => &race.shared.vars.race_stage,
-        Var::D64BB18 => &race.replay.finish.no_place,
+        Var::D64BB18 => return Place::Finish(&race.replay.finish.get().no_place),
         Var::D5C2F88 => &race.effects_settings().race_done,
         // View record 6's first two angles (the finish camera's).
         Var::D606744 => &race.frame.view_and_records.records[6].angles[0],
         Var::D606748 => &race.frame.view_and_records.records[6].angles[1],
         Var::D63DB84 => &race.shared.view.after_credits,
-    }
+    })
 }
 
 /// The settings for the routine (0x4591B0 .. 0x4592FA).
@@ -77,8 +93,8 @@ pub fn finish_race(race: &'static Race, o: crate::owners::Owners<'static>) -> Re
         .vars
         .stage_number
         .set(crate::session::read_on_in(
-            &replay.finish,
-            &replay.finish.finish_stages,
+            replay.finish.get(),
+            &replay.finish.get().finish_stages,
             race_owner.shared.state.results.stage_index.get() as usize,
             "the finish stages",
         )?);

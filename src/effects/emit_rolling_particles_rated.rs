@@ -103,9 +103,9 @@ pub fn emit_rolling_particles_rated(
             let k = 4 * k as u32;
             Ok(x87::pair_sum_80(
                 a,
-                matrix_cell(m, k)?,
+                matrix_float(m, k)?,
                 b,
-                matrix_cell(m, 0x20 + k)?,
+                matrix_float(m, 0x20 + k)?,
                 &wheel.place[k as usize / 4],
             ))
         })?;
@@ -150,7 +150,7 @@ pub fn emit_rolling_particles_rated(
         slot.put(|en| &mut en.life, LIFE)?;
         slot.put(
             |en| &mut en.alpha_fade,
-            x87::over_int(&effects.setup.floats.two_fifty_seven, LIFE as i32).to_bits(),
+            x87::over_int(&effects.setup.floats.two_fifty_seven, LIFE as i32),
         )?;
         slot.put(
             |en| &mut en.alpha,

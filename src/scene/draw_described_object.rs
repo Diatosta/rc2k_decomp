@@ -108,7 +108,6 @@ fn draw_description(
     let race = ctx.race;
     let course = &race.course;
     let shared = &race.shared;
-    let scene = ctx.scene;
     let head = read(8)?;
     let object = head[1] as u32;
     let place = u32::from_le_bytes([head[4], head[5], head[6], head[7]]);
@@ -203,7 +202,7 @@ fn draw_description(
     crate::race::frame_draw::place_object_matrix(ctx)?;
     ctx.view.light.light_kind.set(2u32);
     let object: u32 = ctx.view.cars.object_number.get();
-    let kind: u32 = scene.objects.tables.object_kind(object);
+    let kind: u32 = ctx.reads.object_tables.object_kind(object);
     if crate::scene::polygon::material_run_byte(race.polygon_tables(), kind, 0x1F)? != 0 {
         ctx.view.light.light_kind.set(1u32);
     }

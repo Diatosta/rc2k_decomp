@@ -38,11 +38,11 @@ pub fn update(
         }
         wanted[n] = crate::menu::cars_store::description(record)?.get().car;
     }
-    let first_slot: u32 = scene_textures.kinds.kind_first_slots[KIND].get();
+    let first_slot: u32 = scene_textures.kinds.get().kind_first_slots[KIND].get();
     if first_slot.checked_add(32).is_none_or(|end| end > SLOTS) {
         return Err(BadInput("the pictures' slots lie past the table"));
     }
-    let first_texture: u32 = scene_textures.kinds.kind_first_textures[KIND].get();
+    let first_texture: u32 = scene_textures.kinds.get().kind_first_textures[KIND].get();
     write_all(&menus.screens.state.carousel_pictures.shown, wanted);
 
     // Converted: `rc2k_core::scene::carousel::{keep_held, picture_textures}`.
@@ -54,7 +54,7 @@ pub fn update(
     write_all(&menus.screens.state.carousel_pictures.held, held);
     let textures = rc2k_core::scene::carousel::picture_textures(held, first_texture);
     for (n, texture) in textures.into_iter().enumerate() {
-        scene_textures.places.slot_wanted[first_slot as usize + n].set(texture);
+        scene_textures.places.get().slot_wanted[first_slot as usize + n].set(texture);
     }
     let _ = record;
     Ok(())

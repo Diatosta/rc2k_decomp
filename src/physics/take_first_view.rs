@@ -70,15 +70,15 @@ pub fn take_figures(s: &ViewRecord, floats: [&[Float; 3]; 3], dwords: [&Dword; 2
 fn x87_1(camera: &CameraWork, offset: [u32; 3], scene: &crate::scene::owner::Scene) {
     let lights = &scene.lights;
     let t0 = ld(offset[0]);
-    let t1 = lights.state.camera_shake_x.ld();
+    let t1 = lights.state.get().camera_shake_x.ld();
     let t2 = t0 + t1;
     camera.view_a_offset[0].st(t2);
     let t3 = ld(offset[1]);
-    let t4 = lights.state.camera_shake_y.ld();
+    let t4 = lights.state.get().camera_shake_y.ld();
     let t5 = t3 + t4;
     camera.view_a_offset[1].st(t5);
     let t6 = ld(offset[2]);
-    let t7 = lights.state.camera_shake_z.ld();
+    let t7 = lights.state.get().camera_shake_z.ld();
     let t8 = t6 + t7;
     camera.view_a_offset[2].st(t8);
 }

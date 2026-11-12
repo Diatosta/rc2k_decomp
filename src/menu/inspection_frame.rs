@@ -26,7 +26,7 @@ pub fn inspection_frame(
     copy_picture(o.gfx, o.system)?;
     run_listed(o, &o.menus.screens.flow.draw_list)?;
     unlock_surface(o.gfx);
-    o.scene.lights.state.scene_state.set(4);
+    o.scene.lights.state.get().scene_state.set(4);
     crate::scene::begin_scene::begin_scene(o.race, o.d3d, crate::workers::game_scratch());
     run_listed(o, &o.menus.screens.flow.scene_list)?;
     crate::scene::end_scene::end_scene(o.d3d);

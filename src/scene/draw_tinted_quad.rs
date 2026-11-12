@@ -93,6 +93,7 @@ pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
             race,
             &ctx.view.face,
             scene,
+            ctx.reads,
             &ctx.system.session.screen,
         )?;
         ctx.view.face.polygon_mode.set(0);

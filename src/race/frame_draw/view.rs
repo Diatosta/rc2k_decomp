@@ -495,12 +495,12 @@ pub fn camera_view(
 /// ..), the view's sun (`ViewSun`) on the screen and its size (256
 /// less half its distance from the centre, at least 0).
 pub fn draw_sky(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
-    let (race, scene) = (ctx.race, ctx.scene);
+    let race = ctx.race;
     fetch_view_value(race, &ctx.view.polygon.sun, ctx.view.drawn_view(race))?;
     // Not left from the previous view's last object (the original's slip, fixed:
     // `wiki/Fixed-bugs.md`).
     ctx.view.light.other_light.set(0);
-    let mode: u32 = scene.lights.state.draw_mode.get();
+    let mode: u32 = ctx.reads.light_state.draw_mode.get();
     if mode == 1 || mode == 2 {
         return Ok(());
     }

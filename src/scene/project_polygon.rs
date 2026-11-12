@@ -24,11 +24,11 @@ pub fn project_polygon(
     part: &crate::workers::PartScratch,
     poly: &crate::scene::polygon_work::PolygonWork,
     race: &Race,
-    scene: &crate::scene::owner::Scene,
+    reads: crate::workers::DrawReads<'_>,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
     let polygon_work = part.polygon;
-    project_entries(part, poly, race, &listed(polygon_work, poly)?, scene, view)
+    project_entries(part, poly, race, &listed(polygon_work, poly)?, reads, view)
 }
 
 /// `project_polygon` on the polygon's entries as listed.
@@ -37,7 +37,7 @@ pub fn project_entries(
     poly: &crate::scene::polygon_work::PolygonWork,
     race: &Race,
     entries: &Listed,
-    scene: &crate::scene::owner::Scene,
+    reads: crate::workers::DrawReads<'_>,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
     let course = &race.course;
@@ -55,7 +55,7 @@ pub fn project_entries(
     let far = view.polygon.window.farthest.get();
     let mut outside = 0u32;
     for entry in entries {
-        let point = project_point(race, part, entry.point.get(), scene, view)?;
+        let point = project_point(race, part, entry.point.get(), reads, view)?;
         entry.record.set(point.record);
         let depth = f32::from_bits(crate::scene::point_records::field(
             part,

@@ -56,26 +56,26 @@ impl rc2k_core::scene::textures::TextureMemory for GameMemory<'_> {
     fn level(&self, video: bool, texture: u32) -> u32 {
         let objects = &self.scene.objects;
         let table = if video {
-            &objects.tables.video_levels
+            &objects.tables.get().video_levels
         } else {
-            &objects.tables.system_levels
+            &objects.tables.get().system_levels
         };
         table[texture as usize].get()
     }
     fn size(&self, level: u32) -> u32 {
-        level_size(&self.scene.objects.tables, level as usize)
+        level_size(self.scene.objects.tables.get(), level as usize)
     }
     fn mips(&self) -> u32 {
         self.shared.vars.mip_setting.get()
     }
     fn level_mips(&self, level: u32) -> u32 {
-        self.scene.objects.tables.level_mips[level as usize].get()
+        self.scene.objects.tables.get().level_mips[level as usize].get()
     }
     fn forget_kinds(&mut self) {
         let textures = &self.scene.textures;
         for table in [
-            &textures.kinds.kind_first_slots,
-            &textures.kinds.kind_first_textures,
+            &textures.kinds.get().kind_first_slots,
+            &textures.kinds.get().kind_first_textures,
         ] {
             for cell in &table[..TEXTURES] {
                 cell.set(u32::MAX);
@@ -84,16 +84,16 @@ impl rc2k_core::scene::textures::TextureMemory for GameMemory<'_> {
     }
     fn set_asked(&mut self, asked: [u32; 2]) {
         let textures = &self.scene.textures;
-        textures.kinds.video_memory_asked.set(asked[0]);
-        textures.kinds.system_memory_asked.set(asked[1]);
+        textures.kinds.get().video_memory_asked.set(asked[0]);
+        textures.kinds.get().system_memory_asked.set(asked[1]);
     }
     fn set_first_slot(&mut self, texture: u32, slot: u32) {
-        self.scene.textures.kinds.kind_first_slots[texture as usize].set(slot);
+        self.scene.textures.kinds.get().kind_first_slots[texture as usize].set(slot);
     }
     fn set_first_texture(&mut self, texture: u32, first: u32) -> Result<(), Invalid> {
         let textures = &self.scene.textures;
         cell_at(
-            &textures.places,
+            textures.places.get(),
             core::mem::offset_of!(
                 crate::scene::texture_places_store::TexturePlaces,
                 texture_of
@@ -102,7 +102,7 @@ impl rc2k_core::scene::textures::TextureMemory for GameMemory<'_> {
         )
         .map_err(|e| Invalid(e.0))?
         .set(texture);
-        textures.kinds.kind_first_textures[texture as usize].set(first);
+        textures.kinds.get().kind_first_textures[texture as usize].set(first);
         Ok(())
     }
 }

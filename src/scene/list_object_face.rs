@@ -52,7 +52,7 @@ struct GameFace<'a>(
     &'a crate::race::car_draw_state::CarDrawState,
     &'a crate::physics::car_store::Car,
     &'a crate::race::view_vars_store::ViewVars,
-    &'a crate::scene::owner::Scene,
+    crate::workers::DrawReads<'a>,
 );
 
 impl FaceWorld for GameFace<'_> {
@@ -63,7 +63,7 @@ impl FaceWorld for GameFace<'_> {
         self.4.object_number.get()
     }
     fn object_kind(&self, object: u32) -> u32 {
-        self.7.objects.tables.object_kind(object)
+        self.7.object_tables.object_kind(object)
     }
     fn known_kind(&self, place: usize) -> u32 {
         self.0.kind_tables().known_object_kinds[place].get()
@@ -95,7 +95,7 @@ impl FaceWorld for GameFace<'_> {
         self.0.shared.switches.mask_kind.get()
     }
     fn group_table(&self, group: u32) -> u32 {
-        let draw_switches = &self.7.draw_switches;
+        let draw_switches = self.7.draw_switches;
         // The table is typed by its first dword only.
         self.1.keep(crate::session::read_on_in(
             draw_switches,
@@ -114,7 +114,7 @@ impl FaceWorld for GameFace<'_> {
         self.4.group_masks[17].get()
     }
     fn lone_group_on(&self) -> u32 {
-        self.7.lights.work.marks_mask.get()
+        self.7.light_work.marks_mask.get()
     }
     fn groups_which(&self) -> u32 {
         self.4.groups_which.get()
@@ -184,7 +184,7 @@ pub fn list_object_face(
         &ctx.view.cars,
         &ctx.view.car,
         &ctx.view.vars,
-        ctx.scene,
+        ctx.reads,
     );
     let answer = dropped(&mut world, bytes);
     world.1.finish()?;

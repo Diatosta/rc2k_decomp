@@ -108,11 +108,7 @@ pub fn emit_twin(
         return Ok(());
     }
     masks.surface.wheel_flags.set(set.flags);
-    let motion = [
-        object.motion[0].bits(),
-        object.motion[1].bits(),
-        object.motion[2].bits(),
-    ];
+    let motion: [u32; 3] = crate::session::read_bits(&object.motion);
     crate::session::write_bits(&particles.twin_state.motion, motion);
     if next_entry(ring)?.is_none() {
         return Ok(());
@@ -167,7 +163,7 @@ pub fn emit_twin(
     slot.put(|en| &mut en.life, life)?;
     slot.put(
         |en| &mut en.alpha_fade,
-        x87::over_int(&effects.setup.floats.two_fifty_seven, life as i32).to_bits(),
+        x87::over_int(&effects.setup.floats.two_fifty_seven, life as i32),
     )?;
     slot.put(
         |en| &mut en.alpha,

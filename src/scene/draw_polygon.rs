@@ -249,7 +249,7 @@ fn place(
     part: &crate::workers::PartScratch,
     quad: &[crate::session::Dword; 32],
     race: &crate::race::owner::Race,
-    scene: &crate::scene::owner::Scene,
+    reads: crate::workers::DrawReads<'_>,
     entries: &[Listed],
     mirrored: bool,
     window: &crate::scene::view_window::ViewWindow,
@@ -260,7 +260,7 @@ fn place(
         window.view_offset_float[1].get(),
     );
     let depth_factor = window.one_over_farthest.get();
-    let sse = scene.draw_switches.use_sse.get() != 0;
+    let sse = reads.draw_switches.use_sse.get() != 0;
     let mirror_at = window.view_centre[0].get();
     for (n, &(_, entry)) in entries.iter().enumerate() {
         let vertex = entry.record.get();
@@ -313,19 +313,19 @@ fn copy_set(buffer: &PolygonVertices, entries: &[Listed], set: Set) {
 fn choose_texture(
     poly: &crate::scene::polygon_work::PolygonWork,
     outside: &mut dyn Outside,
-    scene: &crate::scene::owner::Scene,
+    reads: crate::workers::DrawReads<'_>,
 ) {
     let smooth = poly.smooth.get() == 1;
     outside.state(3, if smooth { 3 } else { 1 });
     let number: u32 = poly.texture_page.get();
-    let loaded: u32 = scene.textures.places.totals[2].get();
+    let loaded: u32 = reads.texture_places.totals[2].get();
     let texture = match number {
         u32::MAX => None,
         0x8000_0000.. => {
             let number = number & 0x7FFF_FFFF;
-            (number < 0xFA0).then(|| scene.textures.places.place_slot[number as usize].get())
+            (number < 0xFA0).then(|| reads.texture_places.place_slot[number as usize].get())
         }
-        _ => (number < 0x400).then(|| scene.textures.kinds.kind_first_slots[number as usize].get()),
+        _ => (number < 0x400).then(|| reads.kind_textures.kind_first_slots[number as usize].get()),
     };
     let texture = texture.filter(|&texture: &u32| texture < loaded);
     poly.polygon_texture.set(texture.unwrap_or(NO_TEXTURE));
@@ -398,6 +398,10 @@ fn shade(
     }
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the polygon's work, the part's scratch, the owners and the part's reads"
+)]
 pub fn draw_polygon(
     poly: &crate::scene::polygon_work::PolygonWork,
     part: &crate::workers::PartScratch,
@@ -405,6 +409,7 @@ pub fn draw_polygon(
     face: &crate::race::face_work::FaceWork,
     outside: &mut dyn Outside,
     scene: &crate::scene::owner::Scene,
+    reads: crate::workers::DrawReads<'_>,
     screen: &crate::session::Screen,
 ) -> Result<(), BadInput> {
     let count: u32 = poly.polygon_vertex_count.get();
@@ -439,7 +444,7 @@ pub fn draw_polygon(
         part,
         &poly.quad_vertices,
         race,
-        scene,
+        reads,
         &entries,
         mirrored,
         &poly.window,
@@ -461,7 +466,7 @@ pub fn draw_polygon(
         }
         poly.texture_page.set(FADE_TEXTURE);
         face.polygon_mode.set(7u32);
-        choose_texture(poly, outside, scene);
+        choose_texture(poly, outside, reads);
         for (state, value) in [(0x15, 4), (0x13, 5), (0x14, 6), (0x1B, 1), (0x1C, 0)] {
             outside.state(state, value);
         }
@@ -469,7 +474,7 @@ pub fn draw_polygon(
             poly,
             buffer,
             outside,
-            scene.objects.tables.d3d_drawing_on.get() != 0,
+            reads.object_tables.d3d_drawing_on.get() != 0,
             screen,
         );
         poly.texture_page.set(texture);
@@ -478,7 +483,7 @@ pub fn draw_polygon(
 
     // The mode, with its fallbacks.
     let mut mode: u32 = face.polygon_mode.get();
-    if mode == 3 && scene.draw_switches.clears_switch.get() != 0 {
+    if mode == 3 && reads.draw_switches.clears_switch.get() != 0 {
         clear_a_switch(race.polygon_tables(), poly, face, &entries)?;
     }
     if matches!(mode, 3..=5) {
@@ -510,7 +515,7 @@ pub fn draw_polygon(
             if pass.no_depth {
                 outside.state(0x0E, 0);
             }
-            choose_texture(poly, outside, scene);
+            choose_texture(poly, outside, reads);
             for &(state, value) in pass.states {
                 outside.state(state, value);
             }
@@ -518,7 +523,7 @@ pub fn draw_polygon(
                 poly,
                 buffer,
                 outside,
-                scene.objects.tables.d3d_drawing_on.get() != 0,
+                reads.object_tables.d3d_drawing_on.get() != 0,
                 screen,
             );
             if pass.as_mode.is_some() {
@@ -579,7 +584,17 @@ pub fn draw_polygon_in_game(
     race: &Race,
     face: &crate::race::face_work::FaceWork,
     scene: &crate::scene::owner::Scene,
+    reads: crate::workers::DrawReads<'_>,
     screen: &crate::session::Screen,
 ) -> Result<(), BadInput> {
-    draw_polygon(poly, part, race, face, &mut Game(part), scene, screen)
+    draw_polygon(
+        poly,
+        part,
+        race,
+        face,
+        &mut Game(part),
+        scene,
+        reads,
+        screen,
+    )
 }

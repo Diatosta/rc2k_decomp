@@ -18,7 +18,7 @@ pub fn clear_depth_buffer(
     polygons: &crate::scene::polygon_work::PolygonWork,
 ) {
     let session = &system.session;
-    if scene.objects.tables.d3d_drawing_on.get() == 0 {
+    if scene.objects.tables.get().d3d_drawing_on.get() == 0 {
         return;
     }
     let (width, height): (u32, u32) = (session.screen.width.get(), session.screen.height.get());

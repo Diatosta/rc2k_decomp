@@ -218,7 +218,7 @@ pub fn copy_mirror_picture(
     use rc2k_core::race::view_steps::{PictureCopy, copy_picture};
     let (from, to) = (
         scene.drawing.scene.mirror_picture.get(),
-        scene.textures.kinds.kind_first_textures[200].get(),
+        scene.textures.kinds.get().kind_first_textures[200].get(),
     );
     if lock_texture_in(gfx, from)?.carry {
         return Ok(());
@@ -327,7 +327,7 @@ pub fn forget_view_textures(
     let trap = Trap::new();
     let field = |b: usize, word: fn(&Car) -> u32| word(&race.car_blocks().cars[b]);
     // (the switch, the slot's variable) of each.
-    let slot_of = |n: usize| &textures.kinds.kind_first_slots[n];
+    let slot_of = |n: usize| &textures.kinds.get().kind_first_slots[n];
     let source = |f: Forget| match f {
         Forget::Changing(v) => (
             field(blocks[v], |car| car.map_redrawn.get()),
@@ -358,7 +358,7 @@ pub fn forget_view_textures(
         .map(|(_, slot)| slot.get())
         .collect();
     if mirror {
-        slots.push(textures.kinds.kind_first_textures[200].get());
+        slots.push(textures.kinds.get().kind_first_textures[200].get());
     }
     trap.finish()?;
     check_slots(&slots)?;
@@ -395,7 +395,7 @@ pub fn forget_view_textures(
         .set(frame.frame_work.view_textures_forgotten.get() | MIRROR_BIT);
     if !uploaded {
         copy_mirror_picture(frame, scene, system, gfx)?;
-        forget_slot_texture(textures.kinds.kind_first_textures[200].get(), scene)?;
+        forget_slot_texture(textures.kinds.get().kind_first_textures[200].get(), scene)?;
     } else {
         // The platform's upload (then the slot forgotten): through the game, with the picture
         // and the slot.
@@ -467,7 +467,7 @@ pub fn clear_view_depth(
     poly: &crate::scene::polygon_work::PolygonWork,
 ) {
     let session = &system.session;
-    if scene.objects.tables.d3d_drawing_on.get() == 0 {
+    if scene.objects.tables.get().d3d_drawing_on.get() == 0 {
         return;
     }
     poly.cleared_rectangle[0].set(0);
@@ -521,10 +521,10 @@ pub fn draw_own_car(
     // `race::draw_car_shined` reads only the car's block.
     crate::race::car_draw::draw_car_shined(ctx, car)?;
     ctx.view.cars.group_mask.set(u32::MAX);
-    crate::scene::set_texture::set_texture(
+    crate::scene::set_texture::set_texture_with(
         ctx.part,
-        scene,
-        scene.textures.kinds.kind_first_slots[202].get(),
+        ctx.reads.object_tables,
+        ctx.reads.kind_textures.kind_first_slots[202].get(),
     );
     crate::scene::set_render_state::set_render_state(ctx.part, 2, 0x14);
     crate::scene::polygon_work::front_end()

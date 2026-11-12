@@ -44,7 +44,7 @@ pub fn load_hud_car_icons(
     let shared = &race.shared;
     let vars = &net.vars;
     use rc2k_core::scene::car_icons;
-    let texture: u32 = scene.textures.kinds.kind_first_textures[193].get();
+    let texture: u32 = scene.textures.kinds.get().kind_first_textures[193].get();
     if texture == u32::MAX {
         return Ok(());
     }
@@ -70,8 +70,8 @@ pub fn load_hud_car_icons(
                 sheet: scene.file_numbers().text_at(NAMES[names]),
                 alpha_sheet: scene.file_numbers().text_at(NAMES[names + 1]),
                 texture,
-                sheet_x: scene.textures.places.car_icon_sheet_x[number as usize].get(),
-                sheet_y: scene.textures.places.car_icon_sheet_y[number as usize].get(),
+                sheet_x: scene.textures.places.get().car_icon_sheet_x[number as usize].get(),
+                sheet_y: scene.textures.places.get().car_icon_sheet_y[number as usize].get(),
                 target_x: car_icons::COLUMN,
                 target_y,
             },

@@ -23,10 +23,13 @@ fn totals(scene: &crate::scene::owner::Scene) -> Result<[u32; 4], BadInput> {
     let objects = &scene.objects;
     // Converted: `rc2k_core::scene::textures::count_needs`.
     let (totals, _) = crate::scene::textures::with_cells(
-        [&objects.tables.system_levels, &objects.tables.video_levels],
+        [
+            &objects.tables.get().system_levels,
+            &objects.tables.get().video_levels,
+        ],
         |[system, video]| {
             rc2k_core::scene::textures::count_needs(system, video, |level| {
-                crate::scene::try_allocate_textures::level_size(&objects.tables, level)
+                crate::scene::try_allocate_textures::level_size(objects.tables.get(), level)
             })
         },
     )?;
@@ -39,7 +42,7 @@ pub fn count_texture_needs(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
     let totals = totals(scene)?;
-    for (cell, total) in scene.textures.places.totals.iter().zip(totals) {
+    for (cell, total) in scene.textures.places.get().totals.iter().zip(totals) {
         cell.set(total);
     }
     log(Ok(c"VID"), false);

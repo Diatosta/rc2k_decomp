@@ -9,9 +9,10 @@
 //! 0x641590), which nothing read.
 
 use crate::race::frame_store::FrameWork;
-use crate::race::level_grid_store::LevelGrid;
+use crate::race::level_grid_store::{LevelGrid, first_of};
 use crate::race::view_store::RaceView;
 use crate::session::Dword;
+use core::mem::offset_of;
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -35,11 +36,6 @@ pub struct LampWork {
 impl LampWork {
     /// With the image's first values.
     pub const fn new() -> Self {
-        let LevelGrid {
-            lamps,
-            flare_place_x,
-            ..
-        } = LevelGrid::new();
         let RaceView {
             lamps_wanted,
             lamp_count,
@@ -47,8 +43,8 @@ impl LampWork {
         } = RaceView::new();
         let FrameWork { flare_count, .. } = FrameWork::new();
         Self {
-            lamps,
-            flare_place_x,
+            lamps: first_of::<_, 0x100>(offset_of!(LevelGrid, lamps)),
+            flare_place_x: first_of::<_, 0x400>(offset_of!(LevelGrid, flare_place_x)),
             flares: crate::race::flares_store::FlareTables::new(),
             lamps_wanted,
             lamp_count,

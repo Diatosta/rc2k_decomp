@@ -22,8 +22,9 @@ use crate::session::{DrawShared, GameThread};
 
 /// The scene's state.
 pub struct Scene {
-    /// One copy: the drawing only reads it (frame plan F4).
-    pub draw_switches: DrawSwitches,
+    /// Written between frames, read by the drawing parts through their reads
+    /// (`workers::DrawReads`).
+    pub draw_switches: DrawShared<DrawSwitches>,
     /// Written between frames, read by the drawing parts through their reads
     /// (`workers::DrawReads`).
     pub light_tables: DrawShared<LightTables>,
@@ -67,50 +68,52 @@ pub struct Drawing {
 
 /// The light state and the lights' work variables.
 pub struct Lights {
-    /// The light state (`LIGHT_STATE`).
-    /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
-    pub state: LightState,
-    /// The lights' work variables (`LIGHT_WORK`).
-    /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
-    pub work: LightWork,
+    /// The light state (`LIGHT_STATE`): written between frames, read by the drawing parts
+    /// through their reads (`workers::DrawReads`).
+    pub state: DrawShared<LightState>,
+    /// The lights' work variables (`LIGHT_WORK`): written between frames, read by the drawing
+    /// parts through their reads (`workers::DrawReads`).
+    pub work: DrawShared<LightWork>,
 }
 
 /// The object tables: the slots and the kinds' tables.
 pub struct Objects {
-    /// The object slots (`OBJECT_SLOTS`).
-    /// One copy (the listed faces are each object drawing's own since frame plan F4).
-    pub slots: ObjectSlots,
-    /// The object tables (`OBJECT_TABLES`).
-    /// One copy (the car marks are each car drawing's own since frame plan F4: `scene::car_marks`).
-    pub tables: ObjectTables,
+    /// The object slots (`OBJECT_SLOTS`): written between frames, read by the drawing parts
+    /// through their reads (`workers::DrawReads`).
+    pub slots: DrawShared<ObjectSlots>,
+    /// The object tables (`OBJECT_TABLES`): written between frames, read by the drawing parts
+    /// through their reads (`workers::DrawReads`).
+    pub tables: DrawShared<ObjectTables>,
 }
 
 /// The texture places and the kinds' texture tables.
 pub struct Textures {
-    /// The texture places (`TEXTURE_PLACES`).
-    pub places: TexturePlaces,
-    /// The kinds' texture tables (`KIND_TEXTURES`).
-    pub kinds: KindTextureTables,
+    /// The texture places (`TEXTURE_PLACES`): written between frames, read by the drawing parts
+    /// through their reads (`workers::DrawReads`).
+    pub places: DrawShared<TexturePlaces>,
+    /// The kinds' texture tables (`KIND_TEXTURES`): written between frames, read by the drawing parts
+    /// through their reads (`workers::DrawReads`).
+    pub kinds: DrawShared<KindTextureTables>,
 }
 
 /// The one instance. Reached through `scene()`; `moved` registers its stores' places.
 pub static SCENE: Scene = Scene {
-    draw_switches: DrawSwitches::new(),
+    draw_switches: DrawShared::new(DrawSwitches::new()),
     light_tables: DrawShared::new(LightTables::new()),
     drawing: Drawing {
         scene: SceneDraw::new(),
     },
     lights: Lights {
-        state: LightState::new(),
-        work: LightWork::new(),
+        state: DrawShared::new(LightState::new()),
+        work: DrawShared::new(LightWork::new()),
     },
     objects: Objects {
-        slots: ObjectSlots::new(),
-        tables: ObjectTables::new(),
+        slots: DrawShared::new(ObjectSlots::new()),
+        tables: DrawShared::new(ObjectTables::new()),
     },
     textures: Textures {
-        places: TexturePlaces::new(),
-        kinds: KindTextureTables::new(),
+        places: DrawShared::new(TexturePlaces::new()),
+        kinds: DrawShared::new(KindTextureTables::new()),
     },
     main: GameThread::new(SceneMain {
         file_numbers: ObjectFileNumbers::new(),

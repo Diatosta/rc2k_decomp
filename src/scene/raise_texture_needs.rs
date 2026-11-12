@@ -15,9 +15,9 @@ pub fn raise_texture_needs(level: u32, tag: u32, scene: &crate::scene::owner::Sc
     // Converted: `rc2k_core::scene::textures::Needs::raise`.
     crate::scene::textures::with_cells(
         [
-            &objects.tables.texture_tags,
-            &objects.tables.system_levels,
-            &objects.tables.video_levels,
+            &objects.tables.get().texture_tags,
+            &objects.tables.get().system_levels,
+            &objects.tables.get().video_levels,
         ],
         |[tags, system, video]| {
             rc2k_core::scene::textures::Needs {

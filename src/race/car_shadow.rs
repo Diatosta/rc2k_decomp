@@ -11,6 +11,7 @@
 use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::Car;
+use crate::physics::ground_probe_store::GroundProbe;
 use crate::physics::ground_query::{GroundCells, GroundQuery};
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
@@ -92,11 +93,11 @@ impl ShadowWork {
     }
 
     /// The ground search on the shadow's own fields, the scene points through `points`; the
-    /// caller's mark (`settle_mark`), which the search only reads, is the physics' as the last
-    /// search there left it.
-    fn query<'a>(&'a self, race: &'a Race, points: &'a OwnPoints) -> GroundQuery<'a> {
+    /// caller's mark (`settle_mark`), which the search only reads, is the physics' (`probe`)
+    /// as the last search there left it.
+    fn query<'a>(&'a self, probe: &'a GroundProbe, points: &'a OwnPoints) -> GroundQuery<'a> {
         GroundQuery {
-            settle_mark: &race.physics.ground_probe.settle_mark,
+            settle_mark: &probe.settle_mark,
             ..self.search.query(points)
         }
     }
@@ -556,19 +557,21 @@ fn raise_onto_face(
     polygon_work: &'static crate::scene::polygon_store::PolygonWork,
     points: &OwnPoints,
     race: &Race,
+    probe: &GroundProbe,
     work: &ShadowWork,
     index: u32,
+    switches: &crate::scene::draw_switches_store::DrawSwitches,
 ) -> Result<(), Refused> {
     use crate::physics::ground::face_shares_at;
     let p = work_entry(polygon_work, index)?.point.get();
-    let q = work.query(race, points);
+    let q = work.query(probe, points);
     for k in 0..3 {
         q.corner_numbers[k].set(work.face_corners[k].get());
     }
     let (x, z) = point_xz(&race.course, points, p)?;
     q.x.set(x);
     q.z.set(z);
-    face_shares_at(&race.course, &q, crate::scene::owner::scene())?;
+    face_shares_at(&race.course, &q, switches)?;
     crate::physics::plane_height::plane_height(&q);
     put_point_word(
         &race.course,
@@ -639,15 +642,17 @@ pub fn shadow_on_face(
             ctx.part.polygon,
             &ctx.part.points,
             race,
+            ctx.reads.ground_probe,
             work,
             read_on_in(ctx.part.polygon, list, k as usize, "the polygon list")?,
+            ctx.reads.draw_switches,
         )?;
     }
     crate::scene::project_polygon::project_polygon(
         ctx.part,
         &ctx.view.polygon,
         race,
-        scene,
+        ctx.reads,
         ctx.view,
     )?;
     crate::scene::fog_polygon::fog_polygon(ctx.part, ctx.view)?;
@@ -664,7 +669,7 @@ pub fn shadow_on_face(
             ctx.part,
             &ctx.view.polygon,
             race,
-            scene,
+            ctx.reads.draw_switches,
             ctx.far_clip,
             ctx.view,
         )?;
@@ -691,6 +696,7 @@ pub fn shadow_on_face(
         race,
         &ctx.view.face,
         scene,
+        ctx.reads,
         &ctx.system.session.screen,
     )?;
     ctx.view.polygon.polygon_drawn.set(1u32);
@@ -803,10 +809,12 @@ fn angle_of(at: &ShadowPoint) -> u32 {
 /// 0x40.
 pub fn shadow_points(
     race: &Race,
+    probe: &GroundProbe,
     points: &OwnPoints,
     work: &ShadowWork,
     car: &Car,
     sun: u32,
+    switches: &crate::scene::draw_switches_store::DrawSwitches,
 ) -> Result<(), Refused> {
     use crate::math::x87::mul_to_int;
     use crate::math::x87::{below_or_unordered, to_tbyte};
@@ -814,11 +822,11 @@ pub fn shadow_points(
     if count == 0 || count > 0x40 {
         return Err(BadInput("no shadow corners or more than 0x40").into());
     }
-    let q = work.query(race, points);
+    let q = work.query(probe, points);
     q.x.set(car.position[0].get());
     q.z.set(car.position[2].get());
     q.last.set(car.probe_point_face[4].get());
-    crate::physics::find_ground::find_ground_with(&race.course, &q, crate::scene::owner::scene())?;
+    crate::physics::find_ground::find_ground_with(&race.course, &q, switches)?;
     work.farthest_length.set(-1.0f32);
     work.ground.set(q.height.get());
     let sun = sun.max(0x10);
@@ -891,7 +899,15 @@ pub fn cast_car_shadow(
     if !casts(work.point_count.get()) {
         return Ok(());
     }
-    shadow_points(race, &ctx.part.points, work, car, sun)?;
+    shadow_points(
+        race,
+        ctx.reads.ground_probe,
+        &ctx.part.points,
+        work,
+        car,
+        sun,
+        ctx.reads.draw_switches,
+    )?;
     shadow_angles(race, work)?;
     shadow_hull(work)?;
     if !hull_drawn(work.hull_count.get()) {

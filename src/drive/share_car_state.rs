@@ -42,7 +42,7 @@ type RecordWord = fn(&CarEffects) -> &Dword;
 /// A float field of a car block.
 type BlockFloat = fn(&Car) -> &Float;
 /// A field of a light record.
-type LightField = fn(&LightRecord) -> &Dword;
+type LightField = fn(&LightRecord) -> &crate::session::PlainDword;
 
 /// A field of a car block moved into the same kind of field of the effects' record: a whole
 /// number (a surface kind, flags) or a float.

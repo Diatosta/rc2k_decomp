@@ -52,9 +52,9 @@ pub fn draw_object_face(
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
-    let (race, scene) = (ctx.race, ctx.scene);
+    let race = ctx.race;
     let (work, light, object) = (&ctx.view.face, &ctx.view.light, &ctx.view.object);
-    if scene.lights.state.draw_mode.get() != 0 {
+    if ctx.reads.light_state.draw_mode.get() != 0 {
         return Ok(());
     }
     if face == 0 {
@@ -140,7 +140,7 @@ pub fn draw_object_face(
             cached_reflection_coordinates(
                 race,
                 ctx.part,
-                ctx.scene,
+                ctx.reads.draw_switches,
                 object,
                 &ctx.view.matrices,
                 ctx.view,
@@ -190,7 +190,7 @@ pub fn draw_object_face_in_game(
     face: usize,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
-    let (race, scene) = (ctx.race, ctx.scene);
+    let race = ctx.race;
     draw_object_face(
         ctx,
         face,
@@ -202,7 +202,7 @@ pub fn draw_object_face_in_game(
                 &ctx.view.object,
                 &mut |step| match step {
                     draw_object_polygon::Step::Project => {
-                        project_polygon(ctx.part, &ctx.view.polygon, race, scene, ctx.view)
+                        project_polygon(ctx.part, &ctx.view.polygon, race, ctx.reads, ctx.view)
                     }
                     draw_object_polygon::Step::Draw => draw_clipped_polygon_in_game(ctx),
                 },

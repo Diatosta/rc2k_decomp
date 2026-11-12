@@ -142,12 +142,17 @@ pub fn draw_race_slots(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(
 /// or more drawn with the depth buffer off (`g_polygonMode` 0, switches -1, 1, 0; `g_polygonDrawn`
 /// 1); the colour back to 0xFFFFFF. Refuses what the clip refuses (after the entries are set: never
 /// seen with four vertices).
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the polygon's work, the part's scratch, the owners and the part's reads"
+)]
 pub fn draw_screen_quad(
     poly: &crate::scene::polygon_work::PolygonWork,
     part: &crate::workers::PartScratch,
     race: &Race,
     face: &crate::race::face_work::FaceWork,
     scene: &crate::scene::owner::Scene,
+    reads: crate::workers::DrawReads<'_>,
     screen: &crate::session::Screen,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
@@ -194,7 +199,9 @@ pub fn draw_screen_quad(
         face.polygon_mode.set(0u32);
         poly.polygon_sides[0].set(1u32);
         poly.polygon_sides[1].set(0u32);
-        crate::scene::draw_polygon::draw_polygon_in_game(poly, part, race, face, scene, screen)?;
+        crate::scene::draw_polygon::draw_polygon_in_game(
+            poly, part, race, face, scene, reads, screen,
+        )?;
         face.polygon_mode.set(0u32);
         poly.polygon_drawn.set(1u32);
         crate::scene::depth_buffer_on::depth_buffer(part, true);
@@ -206,12 +213,17 @@ pub fn draw_screen_quad(
 /// `race::draw_view_tint` (0x456092): the whole view (0 .. `DRAW.view_size`, 0 ..
 /// `DRAW.view_size[1]`) as a screen quad in 0x204080 (`RACE_VARS.quad_colour`), switches -1, 1, 0,
 /// by `draw_screen_quad`.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the polygon's work, the part's scratch, the owners and the part's reads"
+)]
 pub fn draw_view_tint(
     poly: &crate::scene::polygon_work::PolygonWork,
     part: &crate::workers::PartScratch,
     race: &Race,
     face: &crate::race::face_work::FaceWork,
     scene: &crate::scene::owner::Scene,
+    reads: crate::workers::DrawReads<'_>,
     screen: &crate::session::Screen,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
@@ -224,7 +236,7 @@ pub fn draw_view_tint(
     poly.polygon_textures[0].set(u32::MAX);
     poly.polygon_sides[0].set(1u32);
     poly.polygon_sides[1].set(0u32);
-    draw_screen_quad(poly, part, race, face, scene, screen, view)
+    draw_screen_quad(poly, part, race, face, scene, reads, screen, view)
 }
 
 /// `race::add_car_depth_entry` (0x4574A0): the place (+0x134 .., into `OBJECT_WORK.place` ..) of
@@ -361,10 +373,8 @@ pub(super) fn light_pair(
     if right != u32::MAX {
         ctx.view.cars.light_right.set(byte(right)?);
     }
-    let [x, y, z]: [u32; 3] = crate::cells::load_value(
-        &race.frame.lights_and_gear,
-        record.wrapping_add(at) as usize,
-    )?;
+    let [x, y, z]: [u32; 3] =
+        crate::cells::load_value(ctx.reads.lights_and_gear, record.wrapping_add(at) as usize)?;
     if x | y | z == 0 {
         return Ok(());
     }
@@ -381,9 +391,7 @@ pub(super) fn light_pair(
 /// `race::car_light_flares` (0x457036): the lights of the car block at `car` as flares. Refuses
 /// (before anything) a flare list or depth list without room for the 24 flares a car can give.
 pub fn car_light_flares(ctx: &DrawCtx, car: usize) -> Result<(), Refused> {
-    let DrawCtx {
-        race, scene, view, ..
-    } = *ctx;
+    let DrawCtx { race, view, .. } = *ctx;
     if view.lists.depth_entry_count.get() > SORT_MAX - 24 {
         return Err(BadInput("the depth list has no room for a car's flares").into());
     }
@@ -436,7 +444,8 @@ pub fn car_light_flares(ctx: &DrawCtx, car: usize) -> Result<(), Refused> {
     ctx.view.light.other_light.set(0x0060_6060u32);
     let pair = |at: u32, left: u32, right: u32| light_pair(ctx, car, record, at, left, right);
     pair(0xA4, 0xAC0, 0xAC1)?;
-    if scene.lights.work.marks_mask.get() != 0 && ctx.view.cars.parts_present.get() >> 9 & 1 != 0 {
+    if ctx.reads.light_work.marks_mask.get() != 0 && ctx.view.cars.parts_present.get() >> 9 & 1 != 0
+    {
         pair(0xB0, 0xACA, 0xACB)?;
         pair(0xBC, 0xACC, 0xACD)?;
         pair(0xC8, 0xACE, 0xACF)?;
@@ -539,7 +548,7 @@ pub(super) fn scale_object_turn(ctx: &DrawCtx) -> Result<(), BadInput> {
 /// `OBJECT_WORK.described_cleared[2]` again round `OBJECT_WORK.described_cleared`; then scaled by
 /// `OBJECT_WORK.size` / 16.
 pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), BadInput> {
-    let (race, scene) = (ctx.race, ctx.scene);
+    let race = ctx.race;
     let frame = &race.frame;
     use crate::scene::matrix::{
         multiply_matrices, set_light_direction, set_turn_x, set_turn_y, set_turn_z_16,
@@ -562,7 +571,7 @@ pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
         &ctx.view.matrices.view_turn_matrix,
         &ctx.view.light,
     );
-    if scene.lights.state.light_turn_off.get() == 0 {
+    if ctx.reads.light_state.light_turn_off.get() == 0 {
         set_turn_y(
             race.engine_tables(),
             &ctx.view.matrices.turn_y_matrix,
@@ -590,7 +599,7 @@ pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
         return Ok(());
     }
     let number = ctx.view.cars.object_number.get();
-    let kind = scene.objects.tables.object_kind(number);
+    let kind = ctx.reads.object_tables.object_kind(number);
     let material = race
         .polygon_tables()
         .object_materials

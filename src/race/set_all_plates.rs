@@ -33,7 +33,7 @@ pub fn set_all_plates(
     };
     let cars: u32 = shared.view.race_cars.get();
     check_picture_cars(cars)?;
-    let pictures = &scene.textures.places.kind_pictures;
+    let pictures = &scene.textures.places.get().kind_pictures;
     let prefs = &course.stage_prefs;
     for (kind, dwords) in PREF_PIECES {
         // The prefs' picture lists (`PREF_PIECES`' kinds) lie one after the other (`picture_lists_a`,

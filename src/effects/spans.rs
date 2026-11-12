@@ -149,7 +149,7 @@ fn sorted(mut t: [u32; 6]) -> ([u32; 6], u16) {
 
 /// A triangle's two halves' edge pairs after sorting, and the split x (the x87 set as the
 /// triangle sets it).
-fn halves(t: &[u32; 6]) -> ([[u32; 6]; 2], u32) {
+fn halves(t: &[u32; 6]) -> ([[u32; 6]; 2], f32) {
     let [x0, y0, x1, y1, x2, y2] = *t;
     let split = x87::split_x(y0, y1, y2, x0, x2);
     (
@@ -157,7 +157,7 @@ fn halves(t: &[u32; 6]) -> ([[u32; 6]; 2], u32) {
             [y0, y1, x0, x0, x1, split.to_bits()],
             [y1, y2, x1, split.to_bits(), x2, x2],
         ],
-        split.to_bits(),
+        split,
     )
 }
 
@@ -224,7 +224,7 @@ pub fn span_triangle(
         masks.vars.runs.set(runs + 16);
         run_put(masks, runs, cursor)?;
         let mut to = cursor;
-        masks.vars.split.set_bits(split);
+        masks.vars.split.set(split);
         for half in halves {
             write_bits(&masks.vars.edge, half);
             to = span_edges(masks, to, effects)?;

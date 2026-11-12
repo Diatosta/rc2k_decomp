@@ -136,8 +136,8 @@ static KEPT: Mutex<usize> = Mutex::new(0);
 
 /// The game's own cell of group `g`'s entry in the car's face table (`g_groupTable` is the
 /// first of a table the face code indexes by group, on past its one named cell).
-fn group_cell(scene: &Scene, g: usize) -> &Dword {
-    let switches = &scene.draw_switches;
+fn group_cell(scene: &Scene, g: usize) -> &crate::session::PlainDword {
+    let switches = scene.draw_switches.get();
     match g.checked_sub(1) {
         None => &switches.group_table,
         Some(k) => &switches.unknown_38[k],

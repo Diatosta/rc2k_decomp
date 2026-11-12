@@ -21,7 +21,7 @@
 //! is read, and the draws' own refusals for an entry that may be drawn.
 
 use crate::effects::cell_x87::CellX87;
-use crate::effects::emitters::matrix_cell;
+use crate::effects::emitters::matrix_float;
 use crate::effects::mask_store::Masks;
 #[cfg(test)]
 use crate::effects::owner::effects;
@@ -261,9 +261,9 @@ fn on_object(
     Ok({
         let m = entry_car(ring, e, effects)?.whole(effects.car_blocks()?)?;
         [
-            x87::add_80(entry(ring, e)?.place[0], matrix_cell(m, 0x30)?),
-            x87::add_80(entry(ring, e)?.place[1], matrix_cell(m, 0x34)?),
-            x87::add_80(entry(ring, e)?.place[2], matrix_cell(m, 0x38)?),
+            x87::add_80(entry(ring, e)?.place[0], matrix_float(m, 0x30)?),
+            x87::add_80(entry(ring, e)?.place[1], matrix_float(m, 0x34)?),
+            x87::add_80(entry(ring, e)?.place[2], matrix_float(m, 0x38)?),
         ]
     })
 }
@@ -409,7 +409,10 @@ fn fade(ring: &Ring, e: u32, effects: &crate::effects::owner::Effects) -> Result
         set(
             ring,
             e,
-            bh::st(bh::ld(entry(ring, e)?.alpha) - bh::ld(entry(ring, e)?.alpha_fade) * bh::int(t)),
+            bh::st(
+                bh::ld(entry(ring, e)?.alpha)
+                    - bh::ld(entry(ring, e)?.alpha_fade.to_bits()) * bh::int(t),
+            ),
             |en| &mut en.alpha,
         )?;
     }
@@ -694,7 +697,7 @@ fn boxed_kind(
         let f = bh::to_int(
             bh::int(entry(ring, e)?.life as i32)
                 * bh::ld(effects.setup.floats.twentieth.get())
-                * bh::ld(entry(ring, e)?.cell_rate),
+                * bh::ld(entry(ring, e)?.cell_rate.to_bits()),
         );
         ring.work.whole.set(f as u32);
         let subcell = ((f as u32) & 3).wrapping_add(entry(ring, e)?.cell);

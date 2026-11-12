@@ -22,7 +22,7 @@ pub fn clip_polygon_by_depth(
     part: &crate::workers::PartScratch,
     poly: &crate::scene::polygon_work::PolygonWork,
     race: &Race,
-    scene: &crate::scene::owner::Scene,
+    switches: &crate::scene::draw_switches_store::DrawSwitches,
     far_clip: bool,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), BadInput> {
@@ -41,8 +41,7 @@ pub fn clip_polygon_by_depth(
             true,
             0,
         )?;
-        let far =
-            far_clip && view.face.no_far_clip.get() == 0 && scene.draw_switches.far_on.get() != 0;
+        let far = far_clip && view.face.no_far_clip.get() == 0 && switches.far_on.get() != 0;
         if far && (poly.polygon_vertex_count.get() as i32).wrapping_sub(3) >= 0 {
             let farthest = view.polygon.window.clip_farthest.get() as i32;
             poly.clip_plane.set(farthest as u32);

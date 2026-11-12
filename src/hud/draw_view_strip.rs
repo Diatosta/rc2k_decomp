@@ -97,6 +97,7 @@ fn quad(
         &scratch.face,
         course,
         scene,
+        crate::workers::DrawReads::on_game_thread(scene),
         screen,
         scratch,
     )

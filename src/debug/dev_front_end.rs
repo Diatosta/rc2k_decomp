@@ -190,7 +190,7 @@ fn finish_sequence(o: Owners<'static>) -> Result<(), Refused> {
         let car = s.car.load(Relaxed);
         race.course.numbers.replay_mode.set(1);
         let results = &race.shared.state.results;
-        race.replay.finish.no_place.set(1);
+        race.replay.finish.get().no_place.set(1);
         results
             .stage_index
             .set(s.course.load(Relaxed).saturating_sub(1).min(5));
@@ -198,7 +198,7 @@ fn finish_sequence(o: Owners<'static>) -> Result<(), Refused> {
         results.finish_player.set(0x45);
         results.finished.set(car & 1);
         let result = crate::drive::finish_race::finish_race(race, o);
-        race.replay.finish.no_place.set(0);
+        race.replay.finish.get().no_place.set(0);
         result
     })
 }

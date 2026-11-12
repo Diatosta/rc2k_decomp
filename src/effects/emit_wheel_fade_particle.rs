@@ -135,9 +135,9 @@ pub fn emit_wheel_fade_particle(
                 let k = 4 * k as u32;
                 x87::pair_sum_80(
                     a,
-                    matrix_cell(m, k)?,
+                    matrix_float(m, k)?,
                     b,
-                    matrix_cell(m, 0x20 + k)?,
+                    matrix_float(m, 0x20 + k)?,
                     &wheel.place[k as usize / 4],
                 )
             })
@@ -187,7 +187,7 @@ pub fn emit_wheel_fade_particle(
         slot.put(|en| &mut en.life, life)?;
         slot.put(
             |en| &mut en.alpha_fade,
-            x87::over_int(&effects.setup.floats.two_fifty_seven, life as i32).to_bits(),
+            x87::over_int(&effects.setup.floats.two_fifty_seven, life as i32),
         )?;
         slot.put(
             |en| &mut en.alpha,
