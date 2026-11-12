@@ -57,12 +57,7 @@ pub fn settings_loop_in(o: crate::owners::Owners<'static>) -> Result<(), Refused
                         break;
                     }
                     if install.pages.choice.get() == 0 {
-                        crate::net::settings_link::settings_link(
-                            install,
-                            net,
-                            system,
-                            o.race.viewer_panel(),
-                        )?;
+                        crate::net::settings_link::settings_link(o, o.race.viewer_panel())?;
                         install.pages.choice.set(0);
                     } else {
                         crate::net::begin_setting_edit::begin_setting_edit(net, install)?;
@@ -70,7 +65,7 @@ pub fn settings_loop_in(o: crate::owners::Owners<'static>) -> Result<(), Refused
                     moved = true;
                 }
                 1 => break,
-                key => other_key(key)?,
+                key => other_key(o, key)?,
             }
         }
         if moved {

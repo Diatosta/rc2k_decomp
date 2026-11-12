@@ -9,7 +9,10 @@
 use crate::errors::{BadInput, Refused};
 
 /// The players' cars' cue queues played.
-pub fn play_cue_queues(sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
+pub fn play_cue_queues(
+    sound: &crate::sound::owner::Sound,
+    audio: &crate::audio::owner::Audio,
+) -> Result<(), Refused> {
     if sound.race.sounds.count.get() == 0 {
         return Ok(());
     }
@@ -26,6 +29,7 @@ pub fn play_cue_queues(sound: &crate::sound::owner::Sound) -> Result<(), Refused
         crate::sound::play_cue_queue::play_cue_queue(
             crate::sound::store::SoundObject::number(n)?,
             sound,
+            audio,
         )?;
     }
     Ok(())

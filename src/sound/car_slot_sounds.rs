@@ -16,6 +16,8 @@ use rc2k_core::sound::engine::{computers, placed_slots};
 pub fn car_slot_sounds(
     so: &crate::sound::store::SoundObject,
     request: &SoundRequest,
+    sound: &crate::sound::owner::Sound,
+    audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::sound::engine` (`computers`, `placed_slots`).
     if computers(so.sound_offset.get()) {
@@ -28,8 +30,8 @@ pub fn car_slot_sounds(
     };
     place(&so.place);
     for at in placed_slots(so.view_flag.get() == 0) {
-        crate::sound::play_timed_slot::play_timed_slot(so.slot_at(at), request)?;
+        crate::sound::play_timed_slot::play_timed_slot(so.slot_at(at), request, sound, audio)?;
     }
     place(&so.place_b);
-    crate::sound::play_timed_slot::play_timed_slot(&so.slot_b, request)
+    crate::sound::play_timed_slot::play_timed_slot(&so.slot_b, request, sound, audio)
 }

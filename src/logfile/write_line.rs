@@ -129,11 +129,11 @@ pub fn acquire() {
 
 #[cfg(test)]
 mod tests {
-    use crate::moved::image_bytes;
+    use crate::test_support::first_values::bytes;
 
     #[test]
     fn modes_are_the_games() {
-        let mode = image_bytes(0x4E06EA + 0x40, 12);
+        let mode = bytes("logfile.write_line.LOG_MODE");
         let word = |n: usize| u32::from_le_bytes(mode[n..n + 4].try_into().unwrap());
         assert_eq!(
             [word(0), word(4), word(8)],
@@ -143,13 +143,13 @@ mod tests {
                 super::MODE_SHARE
             ]
         );
-        assert_eq!(image_bytes(0x4E00A8, 0x10), super::LOG_PATH);
+        assert_eq!(bytes("logfile.write_line.LOG_PATH"), super::LOG_PATH);
     }
 
     #[test]
     fn state_starts_as_the_games() {
         use super::state::*;
-        let d = image_bytes(0x4E0094, 0x14);
+        let d = bytes("logfile.write_line.state.ENABLED/20");
         let word = |n: usize| u32::from_le_bytes(d[n..n + 4].try_into().unwrap());
         assert_eq!(word(0) as i32, (ENABLED.get() as i32));
         assert_eq!(word(4), LEVEL.get());

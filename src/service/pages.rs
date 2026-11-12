@@ -32,7 +32,7 @@ use crate::service::{
     step_tyre_down, step_tyre_up, toggle_gear_ratio_change, toggle_ride_height_change,
     toggle_suspension_stiffness_change, toggle_tyre_change,
 };
-use crate::system::owner::system;
+use crate::system::owner::System;
 use rc2k_core::menu::player::SetupField;
 
 pub const KEY_CONFIRM: u8 = 0x1C;
@@ -104,7 +104,7 @@ fn player(menus: &Menus) -> Result<crate::menu::standings::PlayerCell<'_>, BadIn
 }
 
 /// The key, with the clock noted and the value stepped if it was an arrow. 0 = no key.
-fn key_and_step(menus: &Menus, down: Stepper, up: Stepper) -> Result<u8, Refused> {
+fn key_and_step(menus: &Menus, system: &System, down: Stepper, up: Stepper) -> Result<u8, Refused> {
     // Converted: `rc2k_core::service::setups::page_key`.
     use rc2k_core::service::setups::{PageKey, page_key};
     let key = take_key();
@@ -116,7 +116,7 @@ fn key_and_step(menus: &Menus, down: Stepper, up: Stepper) -> Result<u8, Refused
         .play
         .champ_view
         .last_key_time
-        .set(system().session.clocks.frame.get());
+        .set(system.session.clocks.frame.get());
     match action {
         PageKey::Down => {
             step(menus, down)?;
@@ -129,10 +129,10 @@ fn key_and_step(menus: &Menus, down: Stepper, up: Stepper) -> Result<u8, Refused
     Ok(key)
 }
 
-pub fn simple_page(menus: &Menus, page: SimplePage) -> Result<(), Refused> {
+pub fn simple_page(menus: &Menus, system: &System, page: SimplePage) -> Result<(), Refused> {
     // Nothing may be written before it is known that nothing will be refused.
     player(menus)?;
-    if { key_and_step(menus, page.down, page.up) }? == KEY_CONFIRM {
+    if { key_and_step(menus, system, page.down, page.up) }? == KEY_CONFIRM {
         leave_edit_mode(&menus.screens);
     }
     Ok(())
@@ -140,7 +140,12 @@ pub fn simple_page(menus: &Menus, page: SimplePage) -> Result<(), Refused> {
 
 /// `confirm`: act as if the confirm key had been pressed, without taking a key (the callers
 /// outside the key handler pass the page-end value 1 for this).
-pub fn change_page(menus: &Menus, page: ChangePage, confirm: bool) -> Result<(), Refused> {
+pub fn change_page(
+    menus: &Menus,
+    system: &System,
+    page: ChangePage,
+    confirm: bool,
+) -> Result<(), Refused> {
     let (screens, tables) = (&menus.screens, &menus.tables);
     // Everything the steps below could refuse is checked first, so that an error never
     // leaves half of the work done.
@@ -157,7 +162,7 @@ pub fn change_page(menus: &Menus, page: ChangePage, confirm: bool) -> Result<(),
         None => None,
     };
 
-    if !confirm && key_and_step(menus, page.down, page.up)? != KEY_CONFIRM {
+    if !confirm && key_and_step(menus, system, page.down, page.up)? != KEY_CONFIRM {
         return update_repair_total(menus);
     }
 

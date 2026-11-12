@@ -576,13 +576,17 @@ impl Callee {
                 entry.owners.gfx,
                 entry.system,
             )?,
-            Self::GoBack => crate::menu::go_back::go_back(),
+            Self::GoBack => crate::menu::go_back::go_back(menus),
             Self::MarkStageChoice => crate::menu::mark_stage_choice::mark_stage_choice(play),
             Self::EditPlayerName => {
                 crate::menu::edit_player_name::edit_player_name(menus, screens, &mut GameCanvas)?;
             }
             Self::EditSetupName => {
-                crate::service::edit_setup_name::edit_setup_name(menus, &mut GameCanvas)?;
+                crate::service::edit_setup_name::edit_setup_name(
+                    menus,
+                    entry.owners.service,
+                    &mut GameCanvas,
+                )?;
             }
             Self::EditSavegameName => crate::menu::edit_savegame_name::edit_savegame_name(
                 menus,
@@ -592,7 +596,9 @@ impl Callee {
             Self::EditReplayName => {
                 return crate::menu::edit_replay_name::edit_replay_name(menus, &mut GameCanvas);
             }
-            Self::CheckCheatName => crate::menu::check_cheat_name::check_cheat_name(menus)?,
+            Self::CheckCheatName => {
+                crate::menu::check_cheat_name::check_cheat_name(menus, entry.owners.race)?;
+            }
             // The way to look is the original's eax there, which the slideshow screen's set-up
             // leaves 0 or (after an action) a small number: always on.
             Self::LoadSlideshowPicture => {
@@ -798,7 +804,7 @@ impl ScreenHost for MenuHost<'_> {
     fn draw_set_up_frame(&mut self) -> Result<(), Refused> {
         let menus = self.entry.menus;
         crate::menu::draw_frame::draw_frame(self.entry.owners, self.menu)?;
-        update_blink(menus);
+        update_blink(menus, self.entry.system);
         Ok(())
     }
 
@@ -829,7 +835,7 @@ impl ScreenHost for MenuHost<'_> {
     }
 
     fn update_blink(&mut self) {
-        update_blink(self.entry.menus);
+        update_blink(self.entry.menus, self.entry.system);
     }
 
     fn escape_flag(&self) -> bool {
@@ -977,7 +983,7 @@ pub fn screen_loop(_screens: &Screens, screen: &Screen, entry: &Entry) -> Result
 pub fn confirm_leaving(o: Owners<'_>) -> Result<u32, Refused> {
     let mut asked = Ok(());
     let answer = {
-        crate::menu::confirm_leaving::confirm_leaving(&mut || {
+        crate::menu::confirm_leaving::confirm_leaving(o.menus, &mut || {
             if o.system.session.flags.quitting.is_set() {
                 // The window was closed: leaving is the answer. (The original asked; the
                 // question left at once on the switch with no answer, and the screen asked

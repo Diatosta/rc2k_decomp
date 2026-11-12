@@ -35,7 +35,11 @@ pub fn open(flags: u32, name: &[u8]) -> u32 {
 pub fn posted_open_host() -> u32 {
     open(OPEN_CREATE, &net().setup().machine_name.read())
 }
-pub fn host_session(net: &Net, panel: &ViewerPanelBlock) -> Result<bool, Refused> {
+pub fn host_session(
+    net: &Net,
+    system: &crate::system::owner::System,
+    panel: &ViewerPanelBlock,
+) -> Result<bool, Refused> {
     log_bytes(&panel.text(texts::NET_HOST), false, 2);
     log_bytes(&net.setup().machine_name.read(), true, 2);
     if net.vars.dplay.get() == 0 {
@@ -58,6 +62,7 @@ pub fn host_session(net: &Net, panel: &ViewerPanelBlock) -> Result<bool, Refused
     put_bytes(&desc.user, &net.setup().session_password.read());
     finish(
         net,
+        system,
         panel,
         posted_open_host,
         crate::net::create_group::create_group,
@@ -70,12 +75,13 @@ pub fn host_session(net: &Net, panel: &ViewerPanelBlock) -> Result<bool, Refused
 /// joined) and the text numbered `done` logged. Shared with `net::join_session`. Whether all of it worked.
 pub fn finish(
     net: &Net,
+    system: &crate::system::owner::System,
     panel: &ViewerPanelBlock,
     posted: fn() -> u32,
     then: fn(&crate::net::store::NetVars) -> Result<bool, Refused>,
     done: usize,
 ) -> Result<bool, Refused> {
-    let result = posted_or_called(net, posted);
+    let result = posted_or_called(net, system, posted);
     log_bytes(&panel.text(texts::NET_OPEN), false, 2);
     log_hex(result, true);
     crate::system::restore_window::restore_window();

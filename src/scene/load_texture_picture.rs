@@ -131,11 +131,11 @@ pub fn load_texture_picture(
 /// With the game's log, files and loading.
 pub fn load_texture_picture_in_game(
     race: &'static crate::race::owner::Race,
+    gfx: &crate::gfx::owner::Gfx,
     number: u32,
     texture: u32,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let gfx = crate::gfx::owner::gfx();
     let mut refused = None;
     load_texture_picture(
         race,

@@ -21,6 +21,7 @@ pub fn speed_sound(
     kind: u32,
     request: &SoundRequest,
     owner: &crate::sound::owner::Sound,
+    audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     if computers(so.sound_offset.get()) {
         return Ok(());
@@ -34,7 +35,7 @@ pub fn speed_sound(
         || so.countdown.get(),
         || so.flag_ac.get(),
     ) {
-        return crate::sound::turn_parts::stop(request);
+        return crate::sound::turn_parts::stop(request, audio);
     }
     fill_pitch_and_volume(
         so,
@@ -47,7 +48,7 @@ pub fn speed_sound(
     for (cell, place) in request.place.iter().zip(&so.place) {
         cell.set(place.bits());
     }
-    crate::sound::turn_parts::placed(request)
+    crate::sound::turn_parts::placed(request, owner, audio)
 }
 
 #[cfg(all(test, target_arch = "x86"))]

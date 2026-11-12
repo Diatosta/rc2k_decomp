@@ -10,13 +10,13 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 use crate::records::stages_store::{Holder, RecordRef};
-use crate::system::owner::system;
+use crate::system::owner::System;
 
 /// The current record (`g_recordTable`, `section`, `index`), refused past the table.
-fn current_record() -> Result<RecordRef, BadInput> {
-    let table = system().records.stage_tables.championship();
-    let section: u32 = SECTION_RVA.get();
-    let index: u32 = INDEX_RVA.get();
+fn current_record(menus: &Menus, system: &System) -> Result<RecordRef, BadInput> {
+    let table = system.records.stage_tables.championship();
+    let section: u32 = menus.screens.event.section.get();
+    let index: u32 = menus.screens.event.index.get();
     if section >= 64
         || index >= 64
         || !crate::records::find_record::has_section(table, section, 600)?
@@ -26,12 +26,12 @@ fn current_record() -> Result<RecordRef, BadInput> {
     crate::records::find_record::find_record_in(table, index as i32, section)
 }
 
-pub fn keep_record_best(menus: &Menus) -> Result<(), Refused> {
+pub fn keep_record_best(menus: &Menus, system: &System) -> Result<(), Refused> {
     let players = counted_players(menus)?;
     if any_unnamed(&players)? {
         return Err(BadInput("a player without a name").into());
     }
-    let record = current_record()?;
+    let record = current_record(menus, system)?;
     // The logic is in `rc2k_core::menu::bests::takes_record`.
     use rc2k_core::menu::bests;
     let record = record.record()?;

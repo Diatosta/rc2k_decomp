@@ -19,8 +19,9 @@ use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::drivers_store::{Driver, IN_EVENT};
 use crate::menu::owner::{Menus, Screens};
 use crate::menu::standings::*;
+use crate::race::owner::Race;
 use crate::records::stages_store::RecordRef;
-use crate::system::owner::system;
+use crate::system::owner::System;
 
 use crate::menu::scale_stage_times::{held_section, scaled};
 
@@ -57,16 +58,20 @@ fn any_in_class(drivers: &[Driver], c: u32) -> bool {
 }
 
 /// The current record (see `standings::current_event`'s checks).
-pub fn record(screens: &Screens) -> Result<RecordRef, BadInput> {
+pub fn record(screens: &Screens, system: &System) -> Result<RecordRef, BadInput> {
     current_event(screens)?;
-    let table = system().records.stage_tables.championship();
-    let (section, index): (u32, u32) = (SECTION_RVA.get(), INDEX_RVA.get());
+    let table = system.records.stage_tables.championship();
+    let (section, index): (u32, u32) = (screens.event.section.get(), screens.event.index.get());
     crate::records::find_record::find_record_in(table, index as i32, section)
 }
 
 /// What is refused for the record `rec` (or its fatal error), before
 /// anything: the class count, the drivers and the pack entry's length.
-pub fn check(menus: &Menus, rec: RecordRef) -> Result<(u32, &'_ [Driver], u32), Refused> {
+pub fn check<'a>(
+    menus: &'a Menus,
+    race: &Race,
+    rec: RecordRef,
+) -> Result<(u32, &'a [Driver], u32), Refused> {
     let screens = &menus.screens;
     let classes: u32 = screens.event.classes.get();
     if classes == 0 || classes > 0x100 {
@@ -74,7 +79,7 @@ pub fn check(menus: &Menus, rec: RecordRef) -> Result<(u32, &'_ [Driver], u32), 
     }
     let drivers = drivers(menus)?;
     let times = rec.record()?.class_times();
-    let (times, _) = scaled(times, held_section());
+    let (times, _) = scaled(race, times, held_section(screens));
     let length = crate::records::trakpak_entry::track_of(rec)?.length()?;
     if length.wrapping_mul(100) == 0 {
         return Err(DIVIDE_BY_ZERO.into());
@@ -103,11 +108,10 @@ pub fn check(menus: &Menus, rec: RecordRef) -> Result<(u32, &'_ [Driver], u32), 
     Ok((classes, drivers, length))
 }
 
-pub fn calc_cpu_times(menus: &Menus) -> Result<(), Refused> {
+pub fn calc_cpu_times(menus: &Menus, system: &System, race: &Race) -> Result<(), Refused> {
     let screens = &menus.screens;
-    let race = crate::race::owner::race();
-    let rec = record(screens)?;
-    let (classes, drivers, length) = check(menus, rec)?;
+    let rec = record(screens, system)?;
+    let (classes, drivers, length) = check(menus, race, rec)?;
     crate::logfile::log_write::log_nul(&TEXTS_RVA[0], true, 1);
     for (k, t) in rec.record()?.class_times().into_iter().enumerate() {
         screens.state.menus.class_times[k].set(t);

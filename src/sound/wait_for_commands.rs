@@ -24,7 +24,7 @@ impl Parts for Game {
     }
 
     fn pending(&mut self) -> bool {
-        pending()
+        pending(crate::audio::owner::audio())
     }
 
     fn sleep_a_millisecond(&mut self) {

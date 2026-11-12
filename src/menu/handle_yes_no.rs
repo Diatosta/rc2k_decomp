@@ -10,14 +10,15 @@ use crate::errors::BadInput;
 use crate::input::yes_no_for_key::yes_no_for_key;
 use crate::input::yes_no_key::{NO, YES};
 use crate::menu::leaving::{question, with_question};
+use crate::menu::owner::Menus;
 
-pub fn handle_yes_no(eax: u32) -> Result<(), BadInput> {
+pub fn handle_yes_no(menus: &Menus, eax: u32) -> Result<(), BadInput> {
     // The logic is in `rc2k_core::menu::leaving::Question::answer_key`.
     // A gamepad's button (not the original's), taken with the key it sent. Only Back answers:
     // this screen does not leave on Escape. Enter is a key like the keyboard's, and chooses
     // the item that is lit, yes or no.
     let pad = crate::input::menu_pad::take_answer();
-    if !question().asks() {
+    if !question(menus).asks() {
         return Ok(());
     }
     let answer = match pad {
@@ -29,6 +30,6 @@ pub fn handle_yes_no(eax: u32) -> Result<(), BadInput> {
         NO => Some(false),
         _ => None,
     };
-    with_question(|q, l| q.answer_key(l, said));
+    with_question(menus, |q, l| q.answer_key(l, said));
     Ok(())
 }

@@ -32,11 +32,11 @@ pub fn race_turn(
         crate::platform_timing::note_sound_turn();
         use crate::sound::*;
         mark_car_voices::mark_car_voices(sound, race)?;
-        car_sounds_all::car_sounds_all(sound, race, system)?;
-        play_cue_queues::play_cue_queues(sound)?;
+        car_sounds_all::car_sounds_all(sound, race, system, audio)?;
+        play_cue_queues::play_cue_queues(sound, audio)?;
         stage_sounds::stage_sounds(sound, audio, system)?;
-        spot_sounds::spot_sounds(sound, audio)?;
-        send_end_of_turn::send_end_of_turn();
+        spot_sounds::spot_sounds(sound, audio, system)?;
+        send_end_of_turn::send_end_of_turn(audio);
     }
     crate::input::step_effects_clock::step_effects_clock(input)
 }

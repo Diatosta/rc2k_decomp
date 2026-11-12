@@ -93,7 +93,11 @@ impl races::EventRaces for Game<'_> {
         let screens = &menus.screens;
         self.fault.check()?;
         match s {
-            Step::CpuTimes => crate::menu::calc_cpu_times::calc_cpu_times(self.menus)?,
+            Step::CpuTimes => crate::menu::calc_cpu_times::calc_cpu_times(
+                self.menus,
+                self.owners.system,
+                self.owners.race,
+            )?,
             Step::ResetPlayerTimes => {
                 crate::menu::reset_player_times::reset_player_times(menus)?;
             }
@@ -185,8 +189,8 @@ pub fn run_event_races(o: Owners<'_>) -> Result<(), Refused> {
         return Err(BadInput("a player of the event's mode missing").into());
     }
     let reset_only = { menus.tables.pages.reset_times.get() } == 1;
-    let rec = crate::menu::calc_cpu_times::record(screens)?;
-    crate::menu::calc_cpu_times::check(menus, rec)?;
+    let rec = crate::menu::calc_cpu_times::record(screens, o.system)?;
+    crate::menu::calc_cpu_times::check(menus, o.race, rec)?;
     let pack = crate::records::trakpak_entry::track_of(rec)?;
     let mut game = Game {
         menus,

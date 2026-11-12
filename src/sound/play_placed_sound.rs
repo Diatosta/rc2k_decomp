@@ -59,6 +59,7 @@ fn angle_and_place(y: u32, x: u32, per_angle: u32, centre: u32) -> (u32, u32) {
 pub fn play_placed_sound(
     request: &SoundRequest,
     mode: u32,
+    owner: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), BadInput> {
     // Converted: `rc2k_core::sound::placed` (`played`, `sample_of`, `volume`,
@@ -78,7 +79,7 @@ pub fn play_placed_sound(
             request.volume_factor.bits(),
         ));
         request.volume.set(volume);
-        let clock = crate::sound::owner::sound().race.clock.get();
+        let clock = owner.race.clock.get();
         let (angle, place) = angle_and_place(
             request.place[2].get(),
             request.place[0].get(),
@@ -100,16 +101,23 @@ pub fn play_placed_sound(
     }
     let rate = product_to_int(request.pitch.get(), request.pitch_factor.bits());
     request.pitch.set(rate);
-    crate::sound::play_sound::play_sound(sound, volume_sent, rate, [pan, place_b, place_c]);
+    crate::sound::play_sound::play_sound_in(
+        audio,
+        sound,
+        volume_sent,
+        rate,
+        [pan, place_b, place_c],
+    );
     Ok(())
 }
 
 /// In the game.
 pub fn play_placed_sound_in_game(
     request: &SoundRequest,
+    sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), BadInput> {
-    play_placed_sound(request, audio.state.sound_mode.get(), audio)
+    play_placed_sound(request, audio.state.sound_mode.get(), sound, audio)
 }
 
 // ---- the arithmetic that was x87 assembly ----

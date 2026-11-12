@@ -38,15 +38,12 @@ impl Folders for Windows {
         crate::install::make_folders::walk(at)
     }
 
-    fn room(folder: &[u8]) -> Room {
+    fn room(folder: &[u8], system: &crate::system::owner::System) -> Room {
         if folder.starts_with(b"\\\\") {
             return Room::Unmeasured;
         }
         let letter = folder.first().copied().unwrap_or(0) as u32;
-        match crate::files::drive_free_space_kb::drive_free_space_kb(
-            crate::system::owner::system(),
-            letter,
-        ) {
+        match crate::files::drive_free_space_kb::drive_free_space_kb(system, letter) {
             Some(kb) => Room::Kb(kb),
             None => Room::Unreadable,
         }

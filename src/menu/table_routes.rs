@@ -181,7 +181,7 @@ pub fn item_fn(o: Owners<'_>, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
             Ok(())
         }
         ItemFn::LearnBinding(button) => {
-            learn_bindings::learn_binding(u32::from(button));
+            learn_bindings::learn_binding(o.screens, u32::from(button));
             Ok(())
         }
         ItemFn::PlayerCarSpecs(n) => {
@@ -225,8 +225,8 @@ pub fn item_fn(o: Owners<'_>, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
         ),
         ItemFn::RaisePlayer48 => player_actions::raise_strength(menus),
         ItemFn::LowerPlayer48 => player_actions::lower_strength(menus),
-        ItemFn::BeginGearRatioEdit => begin_edits::begin_edit(begin_edits::GEAR_RATIO),
-        ItemFn::BeginTyreEdit => begin_edits::begin_edit(begin_edits::TYRE),
+        ItemFn::BeginGearRatioEdit => begin_edits::begin_edit(menus, begin_edits::GEAR_RATIO),
+        ItemFn::BeginTyreEdit => begin_edits::begin_edit(menus, begin_edits::TYRE),
         ItemFn::OpenSteeringBox => {
             item_actions::open_service_box(&menus.screens, 3);
             Ok(())
@@ -235,9 +235,9 @@ pub fn item_fn(o: Owners<'_>, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
             item_actions::open_service_box(&menus.screens, 4);
             Ok(())
         }
-        ItemFn::BeginRideHeightEdit => begin_edits::begin_edit(begin_edits::RIDE_HEIGHT),
+        ItemFn::BeginRideHeightEdit => begin_edits::begin_edit(menus, begin_edits::RIDE_HEIGHT),
         ItemFn::BeginSuspensionStiffnessEdit => {
-            begin_edits::begin_edit(begin_edits::SUSPENSION_STIFFNESS)
+            begin_edits::begin_edit(menus, begin_edits::SUSPENSION_STIFFNESS)
         }
         ItemFn::ToggleRepairChoice => toggle_repair_choice::toggle_repair_choice(menus).map(|_| ()),
         ItemFn::NextScoresPage => {
@@ -267,7 +267,9 @@ pub fn item_fn(o: Owners<'_>, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
         ItemFn::LoadChampionshipTableLoop => load_championship_table_loop::run(o),
         ItemFn::SaveSetupLoop => save_setup_loop::run(o),
         ItemFn::BeginSetupName => Ok(begin_setup_name::begin_setup_name(menus)?),
-        ItemFn::LoadSetupSlot => load_setup_slot::load_setup_slot(menus).map(|_| ()),
+        ItemFn::LoadSetupSlot => {
+            load_setup_slot::load_setup_slot(menus, o.service, o.system).map(|_| ())
+        }
         ItemFn::NextSetupPage => {
             next_setup_page::next_setup_page(menus);
             Ok(())
@@ -305,7 +307,7 @@ pub fn item_fn(o: Owners<'_>, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
         ItemFn::ToggleCaptionChoice => {
             player_actions::toggle_caption_choice(&menus.screens).map_err(Into::into)
         }
-        ItemFn::ShowIntro => item_actions::show_intro(),
+        ItemFn::ShowIntro => item_actions::show_intro(o),
         ItemFn::RaiseSensitivity => raise_sensitivity::raise_sensitivity(menus).map(|_| ()),
         ItemFn::LowerSensitivity => lower_sensitivity::lower_sensitivity(menus).map(|_| ()),
         ItemFn::NextColourA => step_items::colour(&menus.tables, start_pick_a(menus), true),
@@ -314,11 +316,11 @@ pub fn item_fn(o: Owners<'_>, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
         ItemFn::PreviousColourB => step_items::colour(&menus.tables, start_pick_b(menus), false),
         ItemFn::Nothing => Ok(()),
         ItemFn::GoBack => {
-            go_back::go_back();
+            go_back::go_back(menus);
             Ok(())
         }
         ItemFn::LeaveWithCarry => {
-            player_actions::leave_with_carry();
+            player_actions::leave_with_carry(menus);
             Ok(())
         }
         ItemFn::NextStageLoop => next_stage_loop::run(o),
@@ -357,7 +359,7 @@ pub fn item_fn(o: Owners<'_>, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
         }
         ItemFn::InGameOptionsLoop => in_game_options_loop::run(o),
         ItemFn::AskToLeave => {
-            ask_to_leave::ask_to_leave();
+            ask_to_leave::ask_to_leave(menus);
             Ok(())
         }
         ItemFn::LoadChampionshipLoop => load_championship_loop::run(o),
@@ -367,16 +369,16 @@ pub fn item_fn(o: Owners<'_>, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
         ItemFn::SimpleSelectPlayersLoop => simple_select_players_loop::run(o),
         ItemFn::SwitchStageGroup => switch_stage_group::run(o),
         ItemFn::NextStageSub => {
-            stage_choice::next_stage_sub(&mut || stage_choice::draw_stage_map(o))
+            stage_choice::next_stage_sub(menus, &mut || stage_choice::draw_stage_map(o))
         }
         ItemFn::PreviousStageSub => {
-            stage_choice::previous_stage_sub(&mut || stage_choice::draw_stage_map(o))
+            stage_choice::previous_stage_sub(menus, &mut || stage_choice::draw_stage_map(o))
         }
         ItemFn::NextStageNumber => {
-            stage_choice::next_stage_number(&mut || stage_choice::draw_stage_map(o))
+            stage_choice::next_stage_number(menus, &mut || stage_choice::draw_stage_map(o))
         }
         ItemFn::PreviousStageNumber => {
-            stage_choice::previous_stage_number(&mut || stage_choice::draw_stage_map(o))
+            stage_choice::previous_stage_number(menus, &mut || stage_choice::draw_stage_map(o))
         }
         ItemFn::ArcadeSelectLevelLoop => arcade_select_level_loop::run(o),
         ItemFn::StartArcade => item_actions::start_arcade(o),
@@ -463,7 +465,7 @@ pub fn screen_fn(o: Owners<'_>, f: ScreenFn) -> Result<(), Refused> {
         ScreenFn::PickPlayer3 => page_settings::pick_player(menus, 2).map(|_| ()),
         ScreenFn::PickPlayer4 => page_settings::pick_player(menus, 3).map(|_| ()),
         ScreenFn::LearnAxis => controller::learn_axis(menus, o.input),
-        ScreenFn::HandleEditKeys => handle_edit_keys::handle_edit_keys(menus).map(|_| ()),
+        ScreenFn::HandleEditKeys => handle_edit_keys::handle_edit_keys(menus, o.system).map(|_| ()),
         ScreenFn::BestScoresCaption => {
             best_scores::best_scores_caption(menus, o.race.text_buffers()).map(|_| ())
         }
@@ -487,7 +489,7 @@ pub fn screen_fn(o: Owners<'_>, f: ScreenFn) -> Result<(), Refused> {
             draw_load_setup_list::draw_load_setup_list(menus, &mut GameCanvas).map(|_| ())
         }
         ScreenFn::DrawReplaySlotNames => {
-            draw_replay_slot_names::draw_replay_slot_names(&mut GameCanvas).map(|_| ())
+            draw_replay_slot_names::draw_replay_slot_names(menus, &mut GameCanvas).map(|_| ())
         }
         ScreenFn::DrawPlayerDetails => draw_player_details::draw_player_page(
             menus,
@@ -610,9 +612,9 @@ pub fn screen_fn(o: Owners<'_>, f: ScreenFn) -> Result<(), Refused> {
         ScreenFn::DrawStageResults => {
             stage_results::draw_stage_results(o, &mut GameCanvas).map(|_| ())
         }
-        ScreenFn::DrawHighlightedObject => draw_highlighted_object::run(),
-        ScreenFn::DrawMainMenuObjects => draw_main_menu_objects::run(),
-        ScreenFn::DrawCarObject => draw_car_object::run(),
+        ScreenFn::DrawHighlightedObject => draw_highlighted_object::run(o),
+        ScreenFn::DrawMainMenuObjects => draw_main_menu_objects::run(o),
+        ScreenFn::DrawCarObject => draw_car_object::run(o),
         ScreenFn::ClearChoiceMarks => Ok(clear_choice_marks::clear_choice_marks(&menus.screens)?),
         ScreenFn::DrawServiceBoxes => draw_service_boxes::draw_service_boxes(menus),
         ScreenFn::DrawBottomPanel => draw_bottom_panel::draw_bottom_panel(menus),

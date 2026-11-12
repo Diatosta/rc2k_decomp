@@ -61,6 +61,8 @@ mod stores;
 mod strings;
 mod sync;
 mod system;
+#[cfg(test)]
+mod test_support;
 mod text;
 mod threading;
 #[cfg(target_os = "emscripten")]

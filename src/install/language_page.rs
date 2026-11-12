@@ -16,6 +16,7 @@ use rc2k_core::install::pages;
 /// `state` which call of the list action this is (0 the start, negative the end), `list` the page's.
 pub fn language_page(
     install: &'static crate::install::owner::Install,
+    o: crate::owners::Owners<'static>,
     state: u32,
     list: ListMenu,
 ) -> Result<(), Refused> {
@@ -35,7 +36,7 @@ pub fn language_page(
         let answer = install.pages.list_answer.get() as u32;
         if answer != 0 {
             crate::install::choose_language::choose_language(install, answer)?;
-            load_language()?;
+            load_language(o)?;
         }
     }
     // hide the items past the languages

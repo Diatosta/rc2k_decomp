@@ -40,7 +40,7 @@ pub fn set_mode(audio: &Audio, mode: u32) -> Result<bool, Refused> {
         [caps.get_u32(0x3C), caps.get_u32(0x40)],
     );
     audio.state.channel_count.set(channels);
-    let ok = !sd::reopen_sound(&audio.state)? && crate::audio::primary::make_primary(&audio.state)?;
+    let ok = !sd::reopen_sound(&audio.state)? && crate::audio::primary::make_primary(audio)?;
     if ok {
         open_way(audio, audio.state.sound_mode.get())?;
         crate::system::sleep::sleep(1000);

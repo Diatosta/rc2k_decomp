@@ -20,8 +20,7 @@ use crate::scene::map_texture_places::map_texture_places;
 
 /// Its seven calls in order. Of what the calls leave in the original's registers one value is
 /// read: the slots-in-use count the textures' loading leaves (the row place of a lone entry).
-pub fn run() -> Result<(), crate::errors::Refused> {
-    let o = crate::owners::boundary();
+pub fn run(o: crate::owners::Owners<'_>) -> Result<(), crate::errors::Refused> {
     let (scene, race, menus, system) = (o.scene, o.race, o.menus, o.system);
     let scratch = crate::race::view_scratch::front_end();
     clear_depth_buffer(scene, system, &scratch.polygon);

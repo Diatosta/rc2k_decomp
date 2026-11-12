@@ -6,11 +6,12 @@
 //! before leaving). Rust callers run its `entry` (`routes.rs`).
 
 use crate::menu::leaving::with_question;
+use crate::menu::owner::Menus;
 
 /// `ask` puts the question (its screen); the answer (`g_yesNoAnswer`, 1 yes).
-pub fn confirm_leaving(ask: &mut dyn FnMut()) -> u32 {
+pub fn confirm_leaving(menus: &Menus, ask: &mut dyn FnMut()) -> u32 {
     // The logic is in `rc2k_core::menu::leaving::Question` (`begin`, `confirm`).
-    with_question(|q, _| q.begin());
+    with_question(menus, |q, _| q.begin());
     ask();
-    with_question(rc2k_core::menu::leaving::Question::confirm)
+    with_question(menus, rc2k_core::menu::leaving::Question::confirm)
 }

@@ -18,7 +18,6 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::list_handle::ListMenu;
 use crate::place::BytePlace;
-use crate::system::owner::system;
 
 // ---- the variables (IDA addresses) ----
 
@@ -271,15 +270,18 @@ pub fn pump() {
 }
 
 /// A frame of the installer's for `screens::run_frame`: its carry.
-pub type Frame = fn() -> Result<bool, Refused>;
+pub type Frame<'a> = &'a dyn Fn() -> Result<bool, Refused>;
 
 /// `screens::run_frame` (0x405A71): the window's messages, then (unless quitting) the
 /// frame; the carry it leaves (the frame's, else clear).
-pub fn run_frame(frame: Option<Frame>) -> Result<bool, Refused> {
+pub fn run_frame(
+    system: &crate::system::owner::System,
+    frame: Option<Frame<'_>>,
+) -> Result<bool, Refused> {
     // The platform's run_frame with no frame of its own: the window's messages only.
     crate::platform::run_frame_now(|| ());
     match frame {
-        Some(frame) if !system().session.flags.quitting.is_set() => frame(),
+        Some(frame) if !system.session.flags.quitting.is_set() => frame(),
         _ => Ok(false),
     }
 }
@@ -377,8 +379,7 @@ pub fn components_to_pixels(
 }
 
 /// `strings::load_language` (0x40331F).
-pub fn load_language() -> Result<(), Refused> {
-    let o = crate::owners::boundary();
+pub fn load_language(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     crate::strings::load_language::load_language(o, &mut || {
         crate::strings::compile_lexicon::compile_lexicon(o.strings, o.system)
     })
@@ -433,7 +434,7 @@ pub fn page_action(
 ) -> Result<(), Refused> {
     use crate::install as i;
     match place {
-        0x414199 => i::language_page::language_page(install, state, list)?,
+        0x414199 => i::language_page::language_page(install, o, state, list)?,
         0x4141EF => i::mark_main_page::mark_main_page(install, list),
         0x41422B => i::mode_page::mode_page(install, state),
         0x41425E => i::drive_page::drive_page(install, state, list),
@@ -442,7 +443,7 @@ pub fn page_action(
         0x41432F => i::dxsetup_page::dxsetup_page(install, state),
         0x414347 => i::finish_page::finish_page(install, state),
         0x4130CD => logged("install", i::install_files::install_files(install, o))?,
-        0x4134DF => logged("uninstall", i::uninstall::uninstall(install))?,
+        0x4134DF => logged("uninstall", i::uninstall::uninstall(install, o.system))?,
         0x413629 => i::open_installed::open_installed(install)?,
         0x413650 => i::ask_registration::ask_registration(install),
         0x41675B => i::install_clio::install_clio(install, o.system)?,

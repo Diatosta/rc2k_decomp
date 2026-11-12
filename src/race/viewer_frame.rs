@@ -20,7 +20,7 @@ use crate::session::Dword;
 /// Whether the frame was lost.
 pub fn viewer_frame() -> Result<bool, Refused> {
     let o = crate::owners::boundary();
-    let (system, gfx, input, race) = (o.system, o.gfx, o.input, o.race);
+    let (system, gfx, race) = (o.system, o.gfx, o.race);
     let replay = &race.replay;
     if race.shared.replay_file.replay_at_end.is_set() {
         crate::gfx::clear_back_surface::clear_back_surface(gfx, system)?;
@@ -29,9 +29,7 @@ pub fn viewer_frame() -> Result<bool, Refused> {
     crate::platform_3d::begin_layer();
     if !race.shared.replay_file.replay_at_end.is_set() {
         crate::drive::replay_frame_marks::replay_frame_marks(race)?;
-        crate::race::show_replay_still::show_replay_still(
-            race, input, system, o.scene, o.sound, o.net,
-        )?;
+        crate::race::show_replay_still::show_replay_still(race, o)?;
     }
     if replay.replay_view.snapshot_asked.get() == 1 {
         replay.replay_view.snapshot_asked.set(0);

@@ -7,11 +7,10 @@
 //! Callers: the actions of the four controller pages' items (0x749C70 ..).
 //! The controller pages' items run `learn_binding(n)` (`menu::table_routes`).
 
-use crate::screens::owner::screens;
+use crate::screens::owner::ScreensOwner;
 
 /// Control `control` learns from now.
-pub fn learn_binding(control: u32) {
-    let screens = screens();
+pub fn learn_binding(screens: &ScreensOwner, control: u32) {
     // The logic is in `rc2k_core::input::devices::Learning`.
     let l = rc2k_core::input::devices::Learning::start(
         control,

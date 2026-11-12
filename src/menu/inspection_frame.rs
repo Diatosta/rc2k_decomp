@@ -11,22 +11,9 @@
 //! The surface and the showing are the platform's, as in `frame_callback`.
 
 use crate::errors::Refused;
-use crate::menu::fn_list::ListCell;
 use crate::menu::frame_callback::{copy_picture, draw_menu, lock_failed, run_listed};
 use crate::owners::Owners;
 use crate::platform::{show_frame_now, unlock_surface};
-
-const DRAW_LIST: &ListCell = &crate::menu::owner::MENUS.unchecked().screens.flow.draw_list; // g_drawList
-const SCENE_LIST: &ListCell = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .flow
-    .scene_list; // g_sceneList
-const OVERLAY_LIST: &ListCell = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .flow
-    .overlay_list; // g_overlayList
 
 /// Whether the frame of `menu` was made.
 pub fn inspection_frame(
@@ -37,17 +24,17 @@ pub fn inspection_frame(
         return Ok(false);
     }
     copy_picture()?;
-    run_listed(o, DRAW_LIST)?;
+    run_listed(o, &o.menus.screens.flow.draw_list)?;
     unlock_surface();
     o.scene.lights.state.scene_state.set_bits(4u32);
     crate::scene::begin_scene::begin_scene();
-    run_listed(o, SCENE_LIST)?;
+    run_listed(o, &o.menus.screens.flow.scene_list)?;
     crate::scene::end_scene::end_scene();
     if lock_failed() {
         return Ok(false);
     }
     draw_menu(o.menus, menu)?;
-    run_listed(o, OVERLAY_LIST)?;
+    run_listed(o, &o.menus.screens.flow.overlay_list)?;
     unlock_surface();
     Ok(show_frame_now())
 }

@@ -3,13 +3,13 @@
 //!
 //! Three callers.
 
-use crate::system::owner::system;
+use crate::system::owner::System;
 use crate::system::tick_count::tick_count;
 
 // ---- game data ----
 
-pub fn update_frame_clock() -> u32 {
+pub fn update_frame_clock(system: &System) -> u32 {
     let now = tick_count();
-    system().session.clocks.frame.set(now);
+    system.session.clocks.frame.set(now);
     now
 }

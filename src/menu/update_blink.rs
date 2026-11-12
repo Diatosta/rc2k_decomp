@@ -14,7 +14,7 @@
 //! 179 callers.
 use crate::menu::owner::Menus;
 use crate::menu::update_frame_clock::update_frame_clock;
-use crate::system::owner::system;
+use crate::system::owner::System;
 
 // ---- game data ----
 
@@ -22,20 +22,20 @@ use crate::system::owner::system;
 pub use rc2k_core::menu::blink::blink_states;
 
 /// What the three variables should be for the clock the game holds now.
-fn states_now(menus: &Menus) -> (bool, bool, bool) {
+fn states_now(menus: &Menus, system: &System) -> (bool, bool, bool) {
     blink_states(
-        system().session.clocks.frame.get(),
+        system.session.clocks.frame.get(),
         menus.play.champ_view.last_key_time.get(),
         menus.play.champ_view.cursor_time.get(),
         menus.screens.option_work.redefining_key.is_set(),
     )
 }
 
-pub fn update_blink(menus: &Menus) {
+pub fn update_blink(menus: &Menus, system: &System) {
     let screens = &menus.screens;
-    update_frame_clock();
+    update_frame_clock(system);
     {
-        let (blink, cursor_on, idle) = states_now(menus);
+        let (blink, cursor_on, idle) = states_now(menus, system);
         screens.draw_work.blink.set(blink);
         screens.draw_work.cursor_on.set(cursor_on);
         screens.loop_flags.idle.set(idle);

@@ -31,7 +31,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
-use crate::scene::owner::scene;
 const SLOTS: u32 = 0x400;
 
 /// The two view blocks, or the refusal.
@@ -110,7 +109,7 @@ fn view_rest(o: Owners<'_>, car: usize, blit: bool) -> Result<(), Refused> {
         crate::debug::imgui_sdl::view_drawn(&o.race.frame);
     }
     if blit {
-        crate::d3d::copy_screen_to_texture::copy_screen_to_texture(&o.race.frame);
+        crate::d3d::copy_screen_to_texture::copy_screen_to_texture(&o.race.frame, o.scene);
     }
     let ctx = crate::race::view_scratch::DrawCtx::new(o.race, o.scene, o.system, view);
     crate::race::draw_view_overlays::draw_view_overlays(
@@ -270,13 +269,9 @@ fn draw_players_beside(
 }
 
 /// Draws the race frame (see the header).
-pub fn draw_race_scene(
-    race: &Race,
-    input: &crate::input::owner::Input,
-    system: &crate::system::owner::System,
-) -> Result<(), Refused> {
+pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    let (input, system, scene) = (o.input, o.system, o.scene);
     let session = &system.session;
-    let scene = scene();
     let owners = Owners {
         race,
         scene,
@@ -302,7 +297,7 @@ pub fn draw_race_scene(
             return Err(BadInput("a wanted texture's slot past g_slotWantedTextures").into());
         }
     }
-    crate::drive::choose_shown_cars::choose_shown_cars(race)?;
+    crate::drive::choose_shown_cars::choose_shown_cars_in(race, o.net)?;
     crate::session::write_bits(&race.shared.view.view_cleared, [0u32; 0x20]);
     for (flags, block) in race
         .frame
@@ -417,7 +412,7 @@ pub fn draw_race_scene(
     // mirrors only read them (the original set them again at each view's fog).
     crate::race::frame_draw::draw_distance_settings(&race.course);
     crate::race::car_parts::ready_car_parts(race, scene)?;
-    crate::race::map_scroll::scroll_maps(race, scene)?;
+    crate::race::map_scroll::scroll_maps(race, scene, o.net)?;
     race.frame.panel_and_overlay.panel.texture_changes.set(0);
     crate::race::frame_views::forget_view_textures(race, scene, input, system)?;
     crate::race::mud_frame::mud_frame(race, scene)?;
@@ -506,16 +501,16 @@ pub fn draw_race_scene(
     use crate::race::frame_flush::{flush_batch, plain, textured};
     flush_batch(&race.frame, &plain(&race.frame), false)?;
     flush_batch(&race.frame, &textured(&race.frame), true)?;
-    crate::race::frame_draw::share_sound_spots(race)?;
+    crate::race::frame_draw::share_sound_spots(race, o.sound)?;
     crate::race::frame_draw::wake_part_sounds(race)?;
     for state in [0x11, 0x12] {
         set_render_state(2, state);
     }
     if !race.shared.work.in_credits.is_set() && race.replay.finish.no_place.get() == 0 {
-        crate::hud::overlay_pass::overlay_pass(crate::hud::owner::hud(), race)?;
+        crate::hud::overlay_pass::overlay_pass(o.hud, race)?;
     }
     crate::race::skid_laying::lay_skidmarks_if_on(race)?;
-    crate::race::name_plates::update_name_plates(race, scene)?;
+    crate::race::name_plates::update_name_plates(race, scene, o.gfx, o.strings)?;
     if race.course.numbers.replay_mode.get() != 2 {
         crate::drive::tyre_change_screen::tyre_change_screen(race, input, system)?;
     }

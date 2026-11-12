@@ -192,14 +192,6 @@ pub fn with_kept_name<R>(play: &Play, f: impl FnOnce(&mut [u8; NAME_LEN]) -> R) 
     r
 }
 
-pub const PLAYER_COUNT_RVA: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .event
-    .player_count;
-pub const SECTION_RVA: &PlainDword = &crate::menu::owner::MENUS.unchecked().screens.event.section; // section
-pub const INDEX_RVA: &PlainDword = &crate::menu::owner::MENUS.unchecked().screens.event.index; // index
-
 /// The players `0 .. Event.player_count` (the original's `do .. while`): refused at 0, past 4 or
 /// with one missing.
 pub fn counted_players(menus: &Menus) -> Result<Vec<PlayerCell<'_>>, BadInput> {

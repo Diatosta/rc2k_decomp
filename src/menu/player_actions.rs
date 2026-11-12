@@ -122,9 +122,9 @@ pub fn toggle_caption_choice(screens: &Screens) -> Result<(), BadInput> {
         .write_at(0, &text, "the caption")
 }
 
-pub fn leave_with_carry() {
+pub fn leave_with_carry(menus: &Menus) {
     // The logic is in `rc2k_core::menu::leaving::Leaving::leave_with_carry`.
-    crate::menu::leaving::with_leaving(rc2k_core::menu::leaving::Leaving::leave_with_carry);
+    crate::menu::leaving::with_leaving(menus, rc2k_core::menu::leaving::Leaving::leave_with_carry);
 }
 
 /// `menu::player_N_car_specs`: the car specifications screen with player `n` the current

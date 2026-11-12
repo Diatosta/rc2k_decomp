@@ -66,7 +66,7 @@ fn message(
     y: u32,
 ) -> Result<(), Refused> {
     crate::platform_events::hold_quit(false);
-    run_frame(None)?;
+    run_frame(system, None)?;
     if lock() {
         crate::install::draw_string_list::draw_string_list(table, 0, y)?;
         unlock();
@@ -138,7 +138,7 @@ pub fn install_files(
     // The room where it goes, by the system's rules (`install::folders`; the original
     // reads the drive's, not a network path's).
     let folder = BytePlace::from(&install.paths.installed).text("the install folder")?;
-    match <i::folders::Native as i::folders::Folders>::room(&folder) {
+    match <i::folders::Native as i::folders::Folders>::room(&folder, o.system) {
         i::folders::Room::Unreadable => return bad_path(),
         i::folders::Room::Kb(free)
             if free < install.run.room_needed.get() && install.run.ignore_room.get() != 1 =>
@@ -157,7 +157,7 @@ pub fn install_files(
     crate::files::is_cd_drive::is_cd_drive(rb(&install.paths.game_dir));
     // A close during the copy waits for its end (the progress still shown).
     crate::platform_events::hold_quit(true);
-    run_frame(Some(|| copying_frame(crate::install::owner::install())))?;
+    run_frame(o.system, Some(&|| copying_frame(install)))?;
     // the folders
     if install.run.dir_count.get() != 0 {
         for n in 0..install.run.dir_count.get() {
@@ -183,11 +183,11 @@ pub fn install_files(
             )? {
                 return message(o.system, &error_messages(install), 0);
             }
-            if run_frame(Some(|| {
-                let o = crate::owners::boundary();
-                progress_frame(o.install, o.strings, o.gfx)
-            }))? {
-                run_frame(Some(|| copying_frame(crate::install::owner::install())))?;
+            if run_frame(
+                o.system,
+                Some(&|| progress_frame(o.install, o.strings, o.gfx)),
+            )? {
+                run_frame(o.system, Some(&|| copying_frame(install)))?;
             }
             if take_key() == 1 {
                 return message(o.system, &install.pages.msg_cancel.each_ref(), 0xFFFF_FFCE);

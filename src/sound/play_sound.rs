@@ -7,16 +7,15 @@
 //! place values are the sound's place and the pan is 0.
 //! 14 callers.
 
-use crate::audio::owner::audio;
-use crate::sound::queue::send_command;
+use crate::audio::owner::{Audio, audio};
+use crate::sound::queue::send_command_in;
 use rc2k_core::audio::commands::{Command, Start};
 
 // ---- game data ----
 
 /// `sound` at `volume` and `rate`; `place` is the pan in its first value, or in the 3D
 /// modes the sound's place (three floats' bits).
-pub fn play_sound(sound: u32, volume: u32, rate: u32, place: [u32; 3]) {
-    let audio = audio();
+pub fn play_sound_in(audio: &Audio, sound: u32, volume: u32, rate: u32, place: [u32; 3]) {
     let (held_back, mode) = (
         audio.state.sounds_held_back.get(),
         audio.state.sound_mode.get(),
@@ -25,12 +24,20 @@ pub fn play_sound(sound: u32, volume: u32, rate: u32, place: [u32; 3]) {
     if let Some([place_a, pan, place_b, place_c]) =
         rc2k_core::sound::senders::sound_place(held_back, mode, place)
     {
-        send_command(Command::Start(Start {
-            sound_word: sound,
-            volume,
-            pan,
-            frequency: rate,
-            place: [place_a, place_b, place_c],
-        }));
+        send_command_in(
+            audio,
+            Command::Start(Start {
+                sound_word: sound,
+                volume,
+                pan,
+                frequency: rate,
+                place: [place_a, place_b, place_c],
+            }),
+        );
     }
+}
+
+/// `play_sound_in` for the callers outside the sound module.
+pub fn play_sound(sound: u32, volume: u32, rate: u32, place: [u32; 3]) {
+    play_sound_in(audio(), sound, volume, rate, place);
 }

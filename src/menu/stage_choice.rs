@@ -3,25 +3,11 @@
 //! drawing the map again.
 
 use crate::errors::{FatalError, Refused};
+use crate::menu::owner::Menus;
 use crate::owners::Owners;
 use crate::screens::draw_stage_records::selection_in;
 use crate::session::PlainDword;
 
-pub const GROUP_RVA: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .event
-    .stage_group; // 0 or 1
-pub const SUB_RVA: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .event
-    .stage_sub; // 0 .. 5
-pub const NUMBER_RVA: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .event
-    .stage_number; // 1 .. 6
 const MAP_SPRITE: u32 = 0xA0;
 /// The map that cannot be loaded: no message.
 const NO_MAP: FatalError = FatalError {
@@ -106,41 +92,41 @@ fn step(cell: &PlainDword, next: impl Fn(u32) -> u32, draw: Draw) -> Result<(), 
 }
 
 /// `menu::switch_stage_group`: the group 0 <-> 1.
-pub fn switch_stage_group(draw: Draw) -> Result<(), Refused> {
-    step(GROUP_RVA, |g| g ^ 1, draw)
+pub fn switch_stage_group(menus: &Menus, draw: Draw) -> Result<(), Refused> {
+    step(&menus.screens.event.stage_group, |g| g ^ 1, draw)
 }
 
 /// `menu::next_stage_sub`: 5 or more (unsigned) to 0, else on.
-pub fn next_stage_sub(draw: Draw) -> Result<(), Refused> {
+pub fn next_stage_sub(menus: &Menus, draw: Draw) -> Result<(), Refused> {
     step(
-        SUB_RVA,
+        &menus.screens.event.stage_sub,
         |s| rc2k_core::menu::steps::stage_sub(s, true),
         draw,
     )
 }
 
 /// `menu::previous_stage_sub`: below 1 (signed) to 5, else back.
-pub fn previous_stage_sub(draw: Draw) -> Result<(), Refused> {
+pub fn previous_stage_sub(menus: &Menus, draw: Draw) -> Result<(), Refused> {
     step(
-        SUB_RVA,
+        &menus.screens.event.stage_sub,
         |s| rc2k_core::menu::steps::stage_sub(s, false),
         draw,
     )
 }
 
 /// `menu::next_stage_number`: 6 or more (unsigned) to 1, else on.
-pub fn next_stage_number(draw: Draw) -> Result<(), Refused> {
+pub fn next_stage_number(menus: &Menus, draw: Draw) -> Result<(), Refused> {
     step(
-        NUMBER_RVA,
+        &menus.screens.event.stage_number,
         |n| rc2k_core::menu::steps::stage_number(n, true),
         draw,
     )
 }
 
 /// `menu::previous_stage_number`: below 2 (signed) to 6, else back one.
-pub fn previous_stage_number(draw: Draw) -> Result<(), Refused> {
+pub fn previous_stage_number(menus: &Menus, draw: Draw) -> Result<(), Refused> {
     step(
-        NUMBER_RVA,
+        &menus.screens.event.stage_number,
         |n| rc2k_core::menu::steps::stage_number(n, false),
         draw,
     )

@@ -198,7 +198,7 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
                 install.pages.choice.set(u32::MAX);
                 return Ok(install.pages.choice.get());
             } else {
-                other_key(key)?;
+                other_key(o, key)?;
             }
         }
         if moved {

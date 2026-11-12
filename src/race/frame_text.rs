@@ -1,9 +1,7 @@
 //! The race frame's texts (`race::show_frame`'s): the frame rate and the credits
 //! that roll over the race (`in_credits`), also used by the credits' screen.
 
-use crate::audio::owner::audio;
 use crate::errors::Refused;
-use crate::gfx::owner::gfx;
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
 use crate::race::trap::Trap;
@@ -14,7 +12,11 @@ use crate::text::draw_text::{Canvas, draw_text_at};
 /// `race::draw_frame_rate` (0x4562B2): `text_mode` 2; the frame rate (`frame_rate`, rounded; the
 /// original stored it in `g_scratch`, which nothing read), when not 0 and `show` is set,
 /// drawn at (0x190, 4) in the font at 0x51DE90 as "fps: n" (its size; built in the text buffer).
-pub fn draw_frame_rate(race: &Race, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_frame_rate(
+    race: &Race,
+    canvas: &mut dyn Canvas,
+    gfx: &'static crate::gfx::owner::Gfx,
+) -> Result<(), Refused> {
     let frame = &race.frame;
     // Converted: `rc2k_core::race::frame_rate::{shown_rate, fps_text}`.
     use rc2k_core::race::frame_rate::{fps_text, shown_rate};
@@ -27,7 +29,7 @@ pub fn draw_frame_rate(race: &Race, canvas: &mut dyn Canvas) -> Result<(), Refus
     let bytes = fps_text(rate);
     t.write_at(0, &bytes, "the frame rate's text")?;
     draw_text_at(
-        &gfx().fonts.font_block.menu_fonts[3],
+        &gfx.fonts.font_block.menu_fonts[3],
         &bytes,
         0x190,
         4,
@@ -157,6 +159,7 @@ pub fn roll_credits(
     canvas: &mut dyn Canvas,
     sound: &mut dyn FnMut(),
     system: &crate::system::owner::System,
+    audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     let session = &system.session;
     // Converted: `rc2k_core::race::credits::{start_top, lay_out, catch_up, rolled_off}`.
@@ -208,7 +211,7 @@ pub fn roll_credits(
     );
     frame.credits.top.set(top);
     frame.credits.clock.set(clock);
-    if !rolled_off(below, audio().state.music_stream.get().playing) {
+    if !rolled_off(below, audio.state.music_stream.get().playing) {
         return Ok(());
     }
     frame.credits.done.set(1);

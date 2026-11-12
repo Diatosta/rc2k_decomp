@@ -45,7 +45,7 @@ pub fn start(audio: &Audio) -> Result<bool, Refused> {
         audio.state.a3d_splash_kept.set(audio.state.a3d_ready.get());
         let flags = || audio.state.sound_caps.get_u32(4);
         if sd::read_caps(&audio.state)? && flags() & CAPS_EMULATED == 0 {
-            crate::audio::primary::make_primary(&audio.state)?;
+            crate::audio::primary::make_primary(audio)?;
             let has_3d = (audio.state.sound_mode.get() & 0x10_0000 != 0) as u32;
             audio.state.has_3d.set(has_3d);
             crate::audio::mixer_set_up::open_way(audio, audio.state.sound_mode.get())?;

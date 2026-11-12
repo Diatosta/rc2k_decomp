@@ -15,14 +15,17 @@ use crate::strings::compile_lexicon::compile_lexicon;
 /// (`dword_4E0758` in IDA, 0 unless set; set through `crate::moved::place`).
 pub static RECOMPILE_LEVEL: crate::session::Dword = crate::session::Dword::new(0);
 
-pub fn maybe_compile_lexicon() -> Result<(), Refused> {
+pub fn maybe_compile_lexicon(
+    input: &crate::input::owner::Input,
+    strings: &crate::strings::owner::Strings,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     let level = RECOMPILE_LEVEL.get();
     // `input`'s key states (key 0x4E).
-    let o = crate::owners::boundary();
-    let key = o.input.devices.keys_down.get(0x4E);
+    let key = input.devices.keys_down.get(0x4E);
     // Converted: `rc2k_core::strings::lexicon::recompile_wanted`.
     if rc2k_core::strings::lexicon::recompile_wanted(level, key) {
-        compile_lexicon(o.strings, o.system)?;
+        compile_lexicon(strings, system)?;
     }
     Ok(())
 }

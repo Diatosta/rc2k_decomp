@@ -48,14 +48,22 @@ pub fn posted_enum_sessions() -> u32 {
 
 /// The piece `code` made: posted to the receiving thread (`net::post_call`) while
 /// `g_netPosting` is 1, else called here.
-pub fn posted_or_called(net: &Net, code: fn() -> u32) -> u32 {
+pub fn posted_or_called(
+    net: &Net,
+    system: &crate::system::owner::System,
+    code: fn() -> u32,
+) -> u32 {
     if net.vars.posting.get() == 1 {
-        crate::net::post_call::post_call(net, code)
+        crate::net::post_call::post_call(net, system, code)
     } else {
         code()
     }
 }
-pub fn find_sessions(net: &Net, panel: &ViewerPanelBlock) -> Result<bool, Refused> {
+pub fn find_sessions(
+    net: &Net,
+    system: &crate::system::owner::System,
+    panel: &ViewerPanelBlock,
+) -> Result<bool, Refused> {
     let vars = &net.vars;
     log_bytes(&panel.text(texts::NET_FIND_SESSIONS), true, 2);
     if vars.dplay.get() == 0 {
@@ -64,7 +72,7 @@ pub fn find_sessions(net: &Net, panel: &ViewerPanelBlock) -> Result<bool, Refuse
     vars.sessions.set(0);
     zeroed_description(&net.vars)?;
     put_bytes(&vars.session_desc.application, &vars.app_guid.read());
-    let result = posted_or_called(net, posted_enum_sessions);
+    let result = posted_or_called(net, system, posted_enum_sessions);
     crate::system::restore_window::restore_window();
     Ok(result == 0 || result == CONNECTING)
 }

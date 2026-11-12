@@ -29,7 +29,11 @@ const _: () = assert!(offset_of!(RaceCar, keys) - offset_of!(RaceCar, controller
 
 /// The device `record` set up from the controls of `car`, from its `controller` on (see the
 /// header).
-pub fn set_up_device(record: &InputDevice, car: &RaceCar) -> Result<(), Refused> {
+pub fn set_up_device(
+    input: &crate::input::owner::Input,
+    record: &InputDevice,
+    car: &RaceCar,
+) -> Result<(), Refused> {
     // The controls' words by their offset from `controller` (a quarter of it the index).
     let words: [&Dword; 21] = [
         &car.controller,
@@ -82,7 +86,7 @@ pub fn set_up_device(record: &InputDevice, car: &RaceCar) -> Result<(), Refused>
         record
             .kind
             .set(rc2k_core::input::devices::device_kind(kind));
-        crate::input::acquire_device::acquire_device(crate::input::owner::input(), record)?;
+        crate::input::acquire_device::acquire_device(input, record)?;
     }
     // Converted: `rc2k_core::input::devices::binding` over `DEVICE_BINDINGS`.
     for (binding, (key, controls_word, _)) in record

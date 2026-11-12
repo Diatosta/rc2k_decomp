@@ -47,8 +47,8 @@ fn end_name(name: crate::place::BytePlace) -> Result<(), BadInput> {
 /// Returns the carry flag.
 pub fn edit_replay_name(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     // Everything that could be refused, before the key is taken.
-    let name = replay_name()?;
-    let other_name = savegame_name()?;
+    let name = replay_name(menus)?;
+    let other_name = savegame_name(menus)?;
     if !(0..NAME_LEN as i32).contains(&length()) {
         return Err(BadInput("text length outside the name").into());
     }

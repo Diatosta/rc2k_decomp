@@ -30,7 +30,7 @@ pub fn install_from_command(
         let language = install.run.given_language.get();
         if (language as i32) > 0 {
             crate::install::choose_language::choose_language(install, language)?;
-            load_language()?;
+            load_language(o)?;
         }
     }
     logged(

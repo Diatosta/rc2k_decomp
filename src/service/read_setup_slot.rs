@@ -64,7 +64,7 @@ pub fn slot_name(slot: u32) -> crate::place::BytePlace {
 // ---- Rust version ----
 
 /// True if the slot's file was read and accepted.
-pub fn read_setup_slot(service: &'static Service, slot: u32) -> Result<bool, Refused> {
+pub fn read_setup_slot(service: &Service, slot: u32) -> Result<bool, Refused> {
     if slot >= SLOT_COUNT {
         return Err(BadInput("slot past the name table").into());
     }
@@ -79,8 +79,9 @@ pub fn read_setup_slot(service: &'static Service, slot: u32) -> Result<bool, Ref
         let name = rc2k_core::saves::kept::setup_name(&file.read());
         match name {
             Some(name) if read.ok => {
-                crate::place::BytePlace::In(&service.set_ups.names, slot as usize * NAME_LEN)
-                    .write(&name[..NAME_LEN], "a setup's name")?;
+                for (k, &v) in name[..NAME_LEN].iter().enumerate() {
+                    service.set_ups.names.set(slot as usize * NAME_LEN + k, v);
+                }
                 Ok(true)
             }
             _ => Ok(false),

@@ -41,7 +41,16 @@ const TEXTS: [&std::ffi::CStr; 4] = [
 // Converted: `rc2k_core::scene::pictures::{kind_picture, read_size}`
 pub fn reload_system_textures(scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let o = crate::owners::boundary();
-    let (gfx, race) = (o.gfx, o.race);
+    reload_system_textures_in(o.race, o.gfx, o.net, scene)
+}
+
+/// `reload_system_textures` for a caller that holds the owners.
+pub fn reload_system_textures_in(
+    race: &'static crate::race::owner::Race,
+    gfx: &crate::gfx::owner::Gfx,
+    net: &crate::net::owner::Net,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let gfx_grading = &gfx.grading;
     let course = &race.course;
     let textures: u32 = scene.textures.places.totals[3].get();
@@ -73,14 +82,14 @@ pub fn reload_system_textures(scene: &crate::scene::owner::Scene) -> Result<(), 
         let grading = &gfx_grading;
         grading.scale.set(scale);
         grading.saturation.set(saturation);
-        load_changed_texture_picture_in_game(race, texture, scene)?;
+        load_changed_texture_picture_in_game(race, gfx, texture, scene)?;
         step_loading_bar(race, scene, texture)?;
     }
     let grading = &gfx_grading;
     grading.reading.set(0u32);
     grading.scale.set(0x100);
     grading.saturation.set(0x100);
-    load_hud_car_icons(scene, race, o.net)?;
+    load_hud_car_icons(scene, race, net, gfx)?;
     crate::logfile::log_write::log_nul(&TEXTS[2], true, 1);
     crate::logfile::log_write::log_nul(&TEXTS[3], true, 1);
     Ok(())

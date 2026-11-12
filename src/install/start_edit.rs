@@ -10,7 +10,7 @@ use crate::menu::list_handle::ListItem;
 pub fn start_edit(install: &'static crate::install::owner::Install, item: ListItem) {
     let record = item.edit_field();
     let text = item.text();
-    let most = crate::install::folders::field_most(text, record.most());
+    let most = crate::install::folders::field_most(install, text, record.most());
     // Converted: `rc2k_core::install::edits::start_edit`, on the text's `most` + 2 bytes.
     let mut words = text
         .read(most as usize + 2, "an edited text")

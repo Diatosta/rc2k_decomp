@@ -24,6 +24,7 @@ use crate::sound::sample_duration::sample_duration;
 pub fn play_cue_queue(
     so: &crate::sound::store::SoundObject,
     sound: &crate::sound::owner::Sound,
+    audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     use rc2k_core::sound::cars::{CueQueue, CueTurn, OWN, cue_turn};
     let in_use = so.in_use.get() == 1;
@@ -37,7 +38,7 @@ pub fn play_cue_queue(
         &mut queue,
         in_use,
         clock,
-        |sound| Ok(sample_duration(sound, OWN)?),
+        |sound| Ok(sample_duration(audio, sound, OWN)?),
         |queue, _| {
             // The first cue taken out (`drop_cue` at place 0).
             crate::sound::drop_cue::write_words(q, queue.to_words())?;
@@ -52,7 +53,7 @@ pub fn play_cue_queue(
     }
     crate::sound::drop_cue::write_words(q, queue.to_words())?;
     if let CueTurn::Play { sound } = turn {
-        crate::sound::turn_parts::play(sound, OWN, OWN, [0; 3]);
+        crate::sound::play_sound::play_sound_in(audio, sound, OWN, OWN, [0; 3]);
     }
     Ok(())
 }

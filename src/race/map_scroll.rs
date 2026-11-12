@@ -6,7 +6,6 @@
 //! the picture.
 
 use crate::errors::{BadInput, Refused};
-use crate::net::owner::net;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
 
@@ -17,11 +16,12 @@ pub fn map_tiles(
     car: &Car,
     car_number: u32,
     scene: &crate::scene::owner::Scene,
+    net: &crate::net::owner::Net,
 ) -> Result<(), Refused> {
     let frame = &race.frame;
     // Converted: `rc2k_core::race::map::{first_tile, picture_slot}`.
     use rc2k_core::race::map::{first_tile, picture_slot};
-    let one_view = net().vars.session.get() != 0;
+    let one_view = net.vars.session.get() != 0;
     // The car is read only for both views.
     let slot = picture_slot(
         scene.textures.kinds.kind_first_textures[198].get(),
@@ -58,6 +58,7 @@ pub fn scroll_map(
     car: &Car,
     car_number: u32,
     scene: &crate::scene::owner::Scene,
+    net: &crate::net::owner::Net,
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::map::{on_map, pixel, well_inside, centred_corner,
     // picture_place}`.
@@ -93,7 +94,7 @@ pub fn scroll_map(
     if !(well_inside(dx) && well_inside(dy)) {
         corner_x.set(centred_corner(x));
         corner_y.set(centred_corner(y));
-        map_tiles(race, car, car_number, scene)?;
+        map_tiles(race, car, car_number, scene, net)?;
         car.map_redrawn.set(1);
     }
     car.map_picture_place[0].set(picture_place(corner_x.get(), map_x.get()));
@@ -105,10 +106,14 @@ pub fn scroll_map(
 /// loaded it into the work copy and stored it back whole): with `session` the third view car
 /// only (`race::load_car_c` / `store_car_c`), else the first and, unless `views` is 1, the
 /// second. Refuses (before anything) a view car without its block, or what `scroll_map` refuses.
-pub fn scroll_maps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn scroll_maps(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    net: &crate::net::owner::Net,
+) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::map::scrolled_views`.
     use crate::race::frame::view_car;
-    let third_only = net().vars.session.get() != 0;
+    let third_only = net.vars.session.get() != 0;
     // The player count is read only without the third view.
     let views = rc2k_core::race::map::scrolled_views(
         third_only,
@@ -131,7 +136,7 @@ pub fn scroll_maps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<()
             .shared
             .work
             .block_car((n & 7) as usize, "a view car's block")?;
-        scroll_map(race, car, n, scene)?;
+        scroll_map(race, car, n, scene, net)?;
     }
     Ok(())
 }

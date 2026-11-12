@@ -18,6 +18,7 @@ pub fn throttle_sound(
     kind: u32,
     request: &SoundRequest,
     sound: &crate::sound::owner::Sound,
+    audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     if computers(so.sound_offset.get()) {
         return Ok(());
@@ -33,6 +34,7 @@ pub fn throttle_sound(
         EnginePlace::Behind,
         request,
         sound,
+        audio,
     )
 }
 

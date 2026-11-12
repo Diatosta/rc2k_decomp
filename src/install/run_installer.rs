@@ -22,8 +22,10 @@ use crate::place::BytePlace;
 
 const FONT_BE: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BOX_TEXT;
 
-pub fn run_installer(install: &'static crate::install::owner::Install) -> Result<(), Refused> {
-    let o = crate::owners::boundary();
+pub fn run_installer(
+    install: &'static crate::install::owner::Install,
+    o: crate::owners::Owners<'static>,
+) -> Result<(), Refused> {
     let (gfx, system) = (o.gfx, o.system);
     use crate::install as i;
     crate::platform_events::keep_running_after_close();
@@ -79,7 +81,7 @@ pub fn run_installer(install: &'static crate::install::owner::Install) -> Result
             i::read_record::read_record(system, &install.texts.record_path.text()[..])?;
             crate::files::state::set_directory_byte(0, 0);
             set_cd(&install.paths.game_dir);
-            load_language()?;
+            load_language(o)?;
         }
         let pages = if install.run.updating.get() == 1 {
             crate::install::page_records::PageEntry::update_run()

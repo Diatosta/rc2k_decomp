@@ -158,19 +158,14 @@ pub fn fetch_view_value(
 /// `race().frame.sound_spots.sound_spot_count`, and that many 0x14-byte spots copied from 0x6D1AF4
 /// to 0x5165F0 (read by the sound side, `sound::match_spot_voices`). Refuses (before anything) more
 /// than 36 (past both tables).
-pub fn share_sound_spots(race: &Race) -> Result<(), Refused> {
+pub fn share_sound_spots(race: &Race, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     let frame = &race.frame;
     // Converted: `rc2k_core::race::view::shared_spot_bytes`.
     let n: u32 = frame.sound_spots.sound_spot_count.get();
     let bytes = rc2k_core::race::view::shared_spot_bytes(n)?;
-    crate::sound::owner::sound()
-        .race
-        .stage
-        .get()
-        .shared_count
-        .set(n);
+    sound.race.stage.get().shared_count.set(n);
     let from = frame.sound_spots.sound_spots.chunks(5);
-    for (spot, d) in crate::sound::owner::sound()
+    for (spot, d) in sound
         .race
         .stage
         .get()
@@ -279,7 +274,7 @@ pub(super) fn panel_half(race: &Race, car: usize, first: bool) -> Result<(), Bad
         (shown_cells!(panel.view_b), &panel.distance[1])
     };
     // The shown engine speed is the drawing's own (`race::car_parts`), in the block.
-    let whole = shown_whole(CAR_BLOCKS.cars[car].shown_engine_speed.get());
+    let whole = shown_whole(race.car_blocks().cars[car].shown_engine_speed.get());
     let car = car_view(car)?;
     cells[0].set(whole as u32);
     cells[1].set(car.engine_sound_speed_int.get());
@@ -477,7 +472,7 @@ pub fn panel_motion_plain(race: &Race) -> Result<(), BadInput> {
             (1, &race.frame.panel_and_overlay.panel.view_b.motion),
         ] {
             let b = race.shared.view.view_number(view)?;
-            let car = &CAR_BLOCKS.cars[b];
+            let car = &race.car_blocks().cars[b];
             out[0].set(motion(car.map_picture_place[0].get() as i32, half, small).to_bits());
             out[1].set(motion(car.map_picture_place[1].get() as i32, half, small).to_bits());
             let turn = heading_turn(car_view(b)?.car_heading.get());

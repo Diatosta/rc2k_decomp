@@ -23,7 +23,7 @@ use crate::menu::restore_text::restore_text;
 use crate::menu::text_entry::set_length;
 use crate::service::backspace_setup_name::{backspace_setup_name, entry};
 use crate::service::load_setup_slot::highlighted_slot;
-use crate::service::owner::service;
+use crate::service::owner::Service;
 use crate::service::state::current_player;
 use crate::service::write_setup_slot::write_setup_slot;
 use crate::strings::append_string_by_id::push_string;
@@ -57,7 +57,11 @@ fn end_name(screens: &Screens, name: crate::place::BytePlace) -> Result<(), BadI
     put_char(name, screens.loop_flags.text_length.get() as i32, 0)
 }
 
-pub fn edit_setup_name(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn edit_setup_name(
+    menus: &Menus,
+    service: &Service,
+    canvas: &mut dyn Canvas,
+) -> Result<(), Refused> {
     let screens = &menus.screens;
     // Everything that could be refused, before the key is taken.
     let (name, _) = entry(menus)?;
@@ -86,7 +90,7 @@ pub fn edit_setup_name(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Ref
             }
             screens.option_work.typing.set(false);
             end_name(screens, name)?;
-            write_setup_slot(menus, service(), slot)?;
+            write_setup_slot(menus, service, slot)?;
             end_name(screens, name)?;
             screens.option_work.typing.set(false);
             return Ok(());

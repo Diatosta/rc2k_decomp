@@ -121,7 +121,11 @@ pub fn try_allocate_textures(
 }
 
 /// With the game's log and the game's allocation.
-pub fn try_allocate_textures_in_game(shared: &RaceShared, scene: &Scene) -> Result<bool, BadInput> {
+pub fn try_allocate_textures_in_game(
+    shared: &RaceShared,
+    scene: &Scene,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<bool, BadInput> {
     try_allocate_textures(shared, scene, &mut |call| {
         match call {
             Call::Text(text, newline) => crate::logfile::log_write::log_nul(&text, newline, 1),
@@ -135,6 +139,7 @@ pub fn try_allocate_textures_in_game(shared: &RaceShared, scene: &Scene) -> Resu
                     ask.level,
                     ask.pixel_kind,
                     ask.mips,
+                    gfx,
                 );
                 return Some(if ask.video { video } else { system });
             }

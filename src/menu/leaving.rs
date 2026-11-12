@@ -1,10 +1,10 @@
 //! The game's leaving switches and yes/no question as `rc2k_core::menu::leaving`'s
 //! `Leaving` and `Question`: read, changed, written back whole.
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use rc2k_core::menu::leaving::{Leaving, Question};
 
-pub fn leaving() -> Leaving {
-    let screens = &menus().screens;
+pub fn leaving(menus: &Menus) -> Leaving {
+    let screens = &menus.screens;
     let flags = &screens.loop_flags;
     Leaving {
         event_left: flags.event_left.is_set(),
@@ -15,8 +15,8 @@ pub fn leaving() -> Leaving {
     }
 }
 
-pub fn put_leaving(l: &Leaving) {
-    let screens = &menus().screens;
+pub fn put_leaving(menus: &Menus, l: &Leaving) {
+    let screens = &menus.screens;
     let flags = &screens.loop_flags;
     flags.event_left.set(l.event_left);
     flags.leave_screen.set(l.leave_screen);
@@ -25,8 +25,7 @@ pub fn put_leaving(l: &Leaving) {
     screens.draw_work.scratch_0c.set(l.scratch_0c);
 }
 
-pub fn question() -> Question {
-    let menus = menus();
+pub fn question(menus: &Menus) -> Question {
     Question {
         asking: menus.screens.flow.asking.is_set(),
         answer: menus.tables.pages.yes_no_answer.get(),
@@ -34,26 +33,25 @@ pub fn question() -> Question {
     }
 }
 
-pub fn put_question(q: &Question) {
-    let menus = menus();
+pub fn put_question(menus: &Menus, q: &Question) {
     menus.screens.flow.asking.set(q.asking);
     menus.tables.pages.yes_no_answer.set(q.answer);
     menus.tables.captions.left_by_key.set(q.answered);
 }
 
 /// The switches changed by `f`.
-pub fn with_leaving<R>(f: impl FnOnce(&mut Leaving) -> R) -> R {
-    let mut l = leaving();
+pub fn with_leaving<R>(menus: &Menus, f: impl FnOnce(&mut Leaving) -> R) -> R {
+    let mut l = leaving(menus);
     let r = f(&mut l);
-    put_leaving(&l);
+    put_leaving(menus, &l);
     r
 }
 
 /// The question and the switches changed by `f`.
-pub fn with_question<R>(f: impl FnOnce(&mut Question, &mut Leaving) -> R) -> R {
-    let (mut q, mut l) = (question(), leaving());
+pub fn with_question<R>(menus: &Menus, f: impl FnOnce(&mut Question, &mut Leaving) -> R) -> R {
+    let (mut q, mut l) = (question(menus), leaving(menus));
     let r = f(&mut q, &mut l);
-    put_question(&q);
-    put_leaving(&l);
+    put_question(menus, &q);
+    put_leaving(menus, &l);
     r
 }

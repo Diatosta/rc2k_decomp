@@ -8,9 +8,10 @@ use crate::errors::Refused;
 use crate::net::owner::Net;
 pub fn joining(
     net: &Net,
+    system: &crate::system::owner::System,
     panel: &crate::race::viewer_screen_store::ViewerPanelBlock,
     session: u32,
 ) -> Result<bool, Refused> {
     crate::net::connecting::status(0x153)?;
-    crate::net::join_session::join_session(net, panel, session)
+    crate::net::join_session::join_session(net, system, panel, session)
 }

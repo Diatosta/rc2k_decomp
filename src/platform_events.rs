@@ -3,8 +3,6 @@
 
 use crate::ffi::sdl;
 use crate::framework::log;
-use crate::input::owner::input;
-use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::system::owner::system;
 use sdl3_sys::everything::*;
@@ -139,9 +137,8 @@ fn end_if_not_left() {
 
 /// SDL's events: the window's closing, and the keys the menus take.
 pub fn pump() {
-    let input = input();
-    let system = system();
-    let course = &race().course;
+    let o = crate::owners::boundary();
+    let (input, system, course) = (o.input, o.system, &o.race.course);
     restore_if_asked();
     #[cfg(feature = "remote")]
     crate::remote::poll(course);
@@ -175,7 +172,7 @@ pub fn pump() {
                     input.devices.set_key_state(key, 0);
                 }
             }
-            Event::Pad { button, down } => pad_button(course, input, button, down),
+            Event::Pad { button, down } => pad_button(course, input, system, button, down),
             Event::Other => {}
         }
     }
@@ -195,9 +192,17 @@ fn lock_menu_pad() -> std::sync::MutexGuard<'static, crate::input::menu_pad::Men
 }
 
 /// A gamepad's button, for the menus.
+#[cfg_attr(
+    not(all(target_os = "linux", target_arch = "aarch64")),
+    allow(
+        unused_variables,
+        reason = "only the handheld's way out sets the quit switch"
+    )
+)]
 fn pad_button(
     course: &Course,
     input: &crate::input::owner::Input,
+    system: &crate::system::owner::System,
     button: SDL_GamepadButton,
     down: bool,
 ) {
@@ -211,7 +216,7 @@ fn pad_button(
             GUIDE.store(down, Relaxed);
         } else if button == SDL_GAMEPAD_BUTTON_START && down && GUIDE.load(Relaxed) {
             log("platform: MENU + START: the quit switch is set");
-            system().session.flags.quitting.set(true);
+            system.session.flags.quitting.set(true);
             end_if_not_left();
             return;
         }

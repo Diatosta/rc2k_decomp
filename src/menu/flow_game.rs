@@ -8,10 +8,9 @@ use crate::menu::lists_store::CarList;
 use crate::menu::owner::Menus;
 use crate::menu::screen_loop::{Entry, Screen, run_screen};
 use crate::menu::standings::Which;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::records::stages_store::RecordRef;
 use crate::session::DwordLike;
-use crate::system::owner::system;
 use rc2k_core::menu::flow::{self, Picture, Var};
 use rc2k_core::menu::leaving::Switch;
 
@@ -76,8 +75,7 @@ enum Place<'a> {
     Record(u32),
 }
 
-fn place(menus: &Menus, v: Var) -> Place<'_> {
-    let race = race();
+fn place<'a>(menus: &'a Menus, race: &'a Race, v: Var) -> Place<'a> {
     use Place::Cell;
     match v {
         Var::Answer => Cell(&menus.tables.pages.yes_no_answer),
@@ -137,7 +135,7 @@ impl flow::Game for Game<'_> {
     type Error = Refused;
 
     fn get(&mut self, v: Var) -> u32 {
-        match place(self.menus, v) {
+        match place(self.menus, self.owners.race, v) {
             Place::Cell(cell) => cell.get(),
             Place::Player(n, field) => *field.of(&mut player(self.menus, n).get()),
             Place::Record(offset) => self.fault.ok(self
@@ -148,7 +146,7 @@ impl flow::Game for Game<'_> {
     }
 
     fn set(&mut self, v: Var, value: u32) {
-        match place(self.menus, v) {
+        match place(self.menus, self.owners.race, v) {
             Place::Cell(cell) => cell.set(value),
             Place::Player(n, field) => player(self.menus, n).update(|q| *field.of(q) = value),
             // The flows only read the record.
@@ -191,7 +189,7 @@ impl flow::Game for Game<'_> {
             C::A8Welcome => m::a8_welcome::a8_welcome(self.owners)?,
             C::FindRecord { section, index } => {
                 use crate::records::find_record::{find_record_in, has_section};
-                let table = system().records.stage_tables.championship();
+                let table = self.owners.system.records.stage_tables.championship();
                 // The original has no end-of-table check: a section past the table's
                 // is refused.
                 if !has_section(table, section, 600)? {
@@ -225,7 +223,11 @@ impl flow::Game for Game<'_> {
             C::ChampionshipStandingsReview => {
                 self.screen(&m::championship_standings_review_loop::SCREEN)?;
             }
-            C::WalkSectionRecords => m::walk_section_records::walk_section_records(menus)?,
+            C::WalkSectionRecords => m::walk_section_records::walk_section_records(
+                menus,
+                self.owners.system,
+                self.owners.race,
+            )?,
             C::StandingsAFromAll => m::standings_a_from_all::standings_a_from_all(menus)?,
             C::ClassRallyResultsPass => {
                 m::class_rally_results_pass::class_rally_results_pass(menus, entry)?;
@@ -245,7 +247,7 @@ impl flow::Game for Game<'_> {
             C::ShowOverallStageResults => {
                 m::show_overall_stage_results::show_overall_stage_results(menus, entry)?;
             }
-            C::KeepRecordBest => m::keep_record_best::keep_record_best(menus)?,
+            C::KeepRecordBest => m::keep_record_best::keep_record_best(menus, self.owners.system)?,
             C::RecordEntriesPass => m::record_entries_pass::record_entries_pass(menus)?,
             C::BestTimesLoop => self.screen(&m::best_times_loop::SCREEN)?,
             C::InspectionPass => m::inspection_pass::inspection_pass(menus, entry)?,

@@ -24,6 +24,7 @@ use rc2k_core::net::screens::{self, ListKey};
 fn refresh(
     install: &crate::install::owner::Install,
     net: &Net,
+    system: &System,
     panel: &ViewerPanelBlock,
 ) -> Result<bool, Refused> {
     let listed = net.vars.sessions.get();
@@ -35,7 +36,7 @@ fn refresh(
     }
     let posting = net.vars.posting.get();
     net.vars.posting.set(0);
-    let found = crate::net::find_sessions::find_sessions(net, panel)?;
+    let found = crate::net::find_sessions::find_sessions(net, system, panel)?;
     net.vars.posting.set(posting);
     if !found {
         return Ok(false);
@@ -71,11 +72,10 @@ fn refresh(
     Ok(true)
 }
 pub fn choose_session(
-    install: &'static crate::install::owner::Install,
-    net: &Net,
-    system: &System,
+    o: crate::owners::Owners<'static>,
     panel: &ViewerPanelBlock,
 ) -> Result<u32, Refused> {
+    let (install, net, system) = (o.install, o.net, o.system);
     let now = system.session.clocks.key_ticks.get();
     install.pages.move_clock.set(now);
     install.pages.key_clock.set(now);
@@ -93,7 +93,7 @@ pub fn choose_session(
             >= 0
         {
             net.edit().clock_a.set(tick);
-            if !refresh(install, net, panel)? {
+            if !refresh(install, net, system, panel)? {
                 install.pages.choice.set(0xFFFF_FFFE);
                 return Ok(install.pages.choice.get());
             }
@@ -114,7 +114,7 @@ pub fn choose_session(
         } else if ListKey::of(key) == ListKey::Escape {
             break;
         } else {
-            other_key(key)?;
+            other_key(o, key)?;
         }
         if system.session.flags.quitting.is_set() {
             break;

@@ -792,8 +792,8 @@ pub fn allocate_textures_for(
     sizes: u32,
     kind: u32,
     mips: u32,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> (u32, u32) {
-    let gfx = crate::gfx::owner::gfx();
     match allocate_textures_now(video, system, sizes, kind, mips, gfx) {
         Ok(first) => first,
         Err(e) => {

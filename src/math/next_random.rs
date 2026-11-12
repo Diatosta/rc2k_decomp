@@ -116,9 +116,8 @@ pub fn seed_streams() {
 mod tests {
     #[test]
     fn state_starts_as_the_games() {
-        let d = crate::moved::image_bytes(0x4E0140, 4);
         assert_eq!(
-            u32::from_le_bytes(d.try_into().unwrap()),
+            crate::test_support::first_values::dword("math.next_random.STATE/4", 0),
             super::STATE.get()
         );
     }

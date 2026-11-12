@@ -249,13 +249,16 @@ mod asm_reference {
 
 #[cfg(test)]
 mod tests {
-    use crate::moved::image_bytes;
+    use crate::test_support::first_values::dword;
 
     #[test]
     fn constants_are_the_games() {
-        let word = |at: usize| u32::from_le_bytes(image_bytes(at, 4).try_into().unwrap());
-        assert_eq!(word(0x71C3C8), super::SEGMENT_ZERO);
-        assert_eq!(word(0x5C5D90), super::ZERO);
-        assert_eq!(word(0x5C5D38), super::ONE);
+        let word = |key: &str| dword(key, 0);
+        assert_eq!(
+            word("race.owner.RACE.shared.work.segment_work_unused[17]/4"),
+            super::SEGMENT_ZERO
+        );
+        assert_eq!(word("race.owner.RACE.course.numbers.zero/4"), super::ZERO);
+        assert_eq!(word("race.owner.RACE.course.numbers.one/4"), super::ONE);
     }
 }

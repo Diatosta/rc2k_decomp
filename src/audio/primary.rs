@@ -68,8 +68,9 @@ pub fn open_listener(state: &AudioState, has_fpu: u32) -> Result<bool, Refused> 
 /// past 0x40 becomes `volume_index` of the kept one; it is shown and set
 /// (`set_master_volume`, place 12); in 3D `open_listener` (place 13), whose failure
 /// takes 3D out of the mode.
-pub fn make_primary(state: &AudioState) -> Result<bool, Refused> {
+pub fn make_primary(audio: &crate::audio::owner::Audio) -> Result<bool, Refused> {
     use crate::audio::make_buffer::BufferDescription;
+    let state = &audio.state;
     if crate::audio::buffer_settings::a3d(state) {
         return Ok(true);
     }
@@ -104,10 +105,7 @@ pub fn make_primary(state: &AudioState) -> Result<bool, Refused> {
     if stored {
         state.master_volume.set(volume);
     }
-    crate::audio::owner::audio()
-        .levels
-        .master_volume_shown
-        .set(volume);
+    audio.levels.master_volume_shown.set(volume);
     crate::audio::set_master_volume::set_master_volume(state, volume);
     if state.sound_mode.get() & MODE_3D != 0 && !crate::audio::sound_device::open_listener(state)? {
         state.sound_mode.set(without_3d(state.sound_mode.get()));

@@ -9,31 +9,32 @@
 //! reads none of them (a stop is the sound and a volume of 0:
 //! `rc2k_core::audio::voices::plan`), so they are 0.
 
+use crate::audio::owner::Audio;
 use crate::errors::Refused;
+use crate::sound::owner::Sound;
 use crate::sound::sets_store::SoundRequest;
 
 /// The request (`g_raceSoundRequest`), the sound command's words.
-pub fn request() -> &'static SoundRequest {
-    &crate::sound::owner::sound().race.sets.request
+pub fn request(sound: &Sound) -> &SoundRequest {
+    &sound.race.sets.request
 }
 
 pub use crate::sound::play_sound::play_sound as play;
 
 /// `sound::stop_sound`: the request's sound stopped unless it has bit 0x8000.
-pub fn stop(request: &SoundRequest) -> Result<(), Refused> {
-    crate::sound::stop_sound::stop_sound(request);
+pub fn stop(request: &SoundRequest, audio: &Audio) -> Result<(), Refused> {
+    crate::sound::stop_sound::stop_sound(request, audio);
     Ok(())
 }
 
 /// `sound::play_placed_sound` with the request.
-pub fn placed(request: &SoundRequest) -> Result<(), Refused> {
-    let audio = crate::audio::owner::audio();
+pub fn placed(request: &SoundRequest, sound: &Sound, audio: &Audio) -> Result<(), Refused> {
     Ok(crate::sound::play_placed_sound::play_placed_sound_in_game(
-        request, audio,
+        request, sound, audio,
     )?)
 }
 
 /// `sound::step_race_clock`: true when a turn is due (the original's carry clear).
-pub fn step_clock(sound: &crate::sound::owner::Sound) -> bool {
+pub fn step_clock(sound: &Sound) -> bool {
     crate::sound::race_clock::step_race_clock(crate::system::tick_count::tick_count(), sound)
 }

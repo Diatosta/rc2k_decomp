@@ -20,7 +20,7 @@ pub fn race_frame(
     o: crate::owners::Owners<'static>,
     eax: u32,
 ) -> Result<u32, Refused> {
-    let (input, system) = (o.input, o.system);
+    let system = o.system;
     let mut eax = eax;
     crate::platform::pump_messages_now();
     if system.session.flags.quitting.is_set() {
@@ -35,7 +35,7 @@ pub fn race_frame(
         crate::scene::begin_scene::begin_scene();
         {
             let _step = crate::write_watch::step("draw");
-            crate::race::draw_race_scene::draw_race_scene(race, input, system)
+            crate::race::draw_race_scene::draw_race_scene(race, o)
         }?;
         crate::scene::end_scene::end_scene();
         stop(Stage::Scene, begun);
@@ -46,7 +46,7 @@ pub fn race_frame(
         crate::remote::shot_frame_drawn(race);
         let shown = {
             let _step = crate::write_watch::step("show");
-            crate::race::show_frame::show_frame(race, system, o.scene)
+            crate::race::show_frame::show_frame(race, o)
         }?;
         eax = shown.eax;
         if !shown.lost {

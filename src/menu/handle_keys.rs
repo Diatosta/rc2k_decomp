@@ -52,7 +52,7 @@ pub fn handle_keys(o: Owners<'_>, eax: u32) -> Result<Pressed, Refused> {
         return Ok(nothing);
     }
     let eax = eax & !0xFF | key as u32;
-    handle_yes_no(eax)?;
+    handle_yes_no(menus, eax)?;
     let action = keys::action(key, || menus.play.cheats.cheats.get());
     match action {
         Action::Ignored => return Ok(nothing),

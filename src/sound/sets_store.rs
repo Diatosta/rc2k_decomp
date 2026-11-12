@@ -898,12 +898,12 @@ impl CueLists {
 }
 
 /// A list of dwords inside a block of bytes, read by position and bounded to the block.
-pub struct ListIn<const N: usize> {
-    bytes: &'static PlainBytes<N>,
+pub struct ListIn<'a, const N: usize> {
+    bytes: &'a PlainBytes<N>,
     from: usize,
 }
 
-impl<const N: usize> ListIn<N> {
+impl<const N: usize> ListIn<'_, N> {
     /// Entry `k`; refused past the block (a list there has no end).
     pub fn get(&self, k: usize) -> Result<u32, crate::errors::BadInput> {
         k.checked_mul(4)
@@ -918,7 +918,7 @@ impl<const N: usize> ListIn<N> {
 
 impl CueLists {
     /// Cue `cue`'s list of sounds, in the lists after the table (each ends in -1 inside them).
-    pub fn list(cue: u32) -> Result<ListIn<836>, crate::errors::BadInput> {
+    pub fn list(cue: u32) -> Result<ListIn<'static, 836>, crate::errors::BadInput> {
         let lists = crate::sound::owner::sound().race.cue_lists.get();
         let cell = lists
             .table
@@ -1597,8 +1597,8 @@ impl SurfaceSets {
 impl SurfaceSets {
     /// Surface sound set `n`'s list: the flag, then its sounds (nine dwords for a set of eight,
     /// five for a set of four; the sets follow one another in the lists).
-    pub fn set(n: usize) -> Result<ListIn<392>, crate::errors::BadInput> {
-        let sets = crate::sound::owner::sound().race.surface_sets.get();
+    pub fn set(&self, n: usize) -> Result<ListIn<'_, 392>, crate::errors::BadInput> {
+        let sets = self;
         let cell = sets.sets.get(n).ok_or(crate::errors::BadInput(
             "a surface sound set past the table",
         ))?;
@@ -3347,7 +3347,12 @@ mod tests {
     #[test]
     fn surfacesets_starts_as_the_games() {
         for n in 0..14 {
-            let set = SurfaceSets::set(n).unwrap();
+            let set = crate::sound::owner::sound()
+                .race
+                .surface_sets
+                .get()
+                .set(n)
+                .unwrap();
             // A set of eight (flag 1) holds nine dwords, a set of four five, inside the lists.
             let dwords = if set.get(0).unwrap() == 1 { 9 } else { 5 };
             assert!(set.get(dwords - 1).is_ok(), "{n}");

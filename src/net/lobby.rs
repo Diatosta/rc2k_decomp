@@ -126,11 +126,11 @@ pub fn list_key() -> Result<u8, Refused> {
 }
 
 /// A list screen's other keys: a screenshot (R, when they are on), the lexicon.
-pub fn other_key(key: u8) -> Result<(), Refused> {
+pub fn other_key(o: crate::owners::Owners<'static>, key: u8) -> Result<(), Refused> {
     if crate::gfx::shots::on() != 0 && key == 0x52 {
         crate::gfx::take_screenshot::take_screenshot()?;
     }
-    crate::strings::maybe_compile_lexicon::maybe_compile_lexicon()
+    crate::strings::maybe_compile_lexicon::maybe_compile_lexicon(o.input, o.strings, o.system)
 }
 
 /// `gfx::lock_surface`: whether it is locked (the original's carry clear).

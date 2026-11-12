@@ -13,11 +13,9 @@
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
 use crate::menu::player::PLAYERS;
-use crate::session::PlainDword;
 use rc2k_core::menu::event::KEEPS_SETUP;
 use rc2k_core::menu::player::Player;
 
-const CURRENT_PLAYER: &PlainDword = crate::menu::take_shown_car::CURRENT_PLAYER_RVA;
 pub fn begin_event(menus: &Menus) -> Result<(), Refused> {
     let drivers = crate::menu::standings::drivers(menus)?;
     menus.tables.pages.services.set(0u32);
@@ -29,7 +27,7 @@ pub fn begin_event(menus: &Menus) -> Result<(), Refused> {
     menus.screens.event.event_goes_on.set(1u32);
     menus.screens.event.event_out.set(0u32);
     for n in 0..PLAYERS {
-        CURRENT_PLAYER.set(n);
+        menus.screens.event.current_player.set(n);
         let p = crate::menu::standings::player(menus, n);
         p.update(Player::begin);
         crate::service::repair_parts::repair_car_in(menus)?;

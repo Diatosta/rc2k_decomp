@@ -138,7 +138,7 @@ fn view(race: &Race, o: Owners<'static>, mode: Mode) -> Result<(), Refused> {
     find_snapshot_number::find_snapshot_number(&race.replay)?;
     viewer_load_stage::viewer_load_stage(race, o)?;
     let list = ListMenu::of(crate::place::BytePlace::in_store(
-        &crate::race::owner::race().replay.replay_view,
+        &o.race.replay.replay_view,
         core::mem::offset_of!(ReplayViewBlock, viewer_list),
     ));
     race.shared.replay_file.viewer_sound.set(0);

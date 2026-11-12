@@ -18,6 +18,8 @@ use crate::sound::sets_store::SoundRequest;
 pub fn car_gear_sounds(
     so: &crate::sound::store::SoundObject,
     request: &SoundRequest,
+    sound: &crate::sound::owner::Sound,
+    audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     if so.state.get() == 3 {
         return Ok(());
@@ -33,13 +35,13 @@ pub fn car_gear_sounds(
         cell.set(v.to_bits());
     }
     for slot in &so.slots[5..] {
-        crate::sound::play_timed_slot::play_timed_slot(slot, request)?;
+        crate::sound::play_timed_slot::play_timed_slot(slot, request, sound, audio)?;
     }
     let factor = &request.pitch_factor;
     let kept = factor.get();
     let pitch = gear_pitch(kept, so.gear_pitch.get());
     factor.set(pitch);
-    crate::sound::play_timed_slot::play_timed_slot(&so.gear_slot, request)?;
+    crate::sound::play_timed_slot::play_timed_slot(&so.gear_slot, request, sound, audio)?;
     factor.set(kept);
     Ok(())
 }

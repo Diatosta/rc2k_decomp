@@ -19,19 +19,6 @@ use crate::platform::{lock_surface, show_frame_now, unlock_surface};
 use crate::text::draw_text::GameCanvas;
 use rc2k_core::menu::notice;
 
-// ---- game data ----
-
-const DRAW_LIST: &ListCell = &crate::menu::owner::MENUS.unchecked().screens.flow.draw_list; // g_drawList
-const SCENE_LIST: &ListCell = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .flow
-    .scene_list; // g_sceneList
-const OVERLAY_LIST: &ListCell = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .flow
-    .overlay_list; // g_overlayList
 const NOTICE_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::NOTICE;
 
 /// Runs the functions of the list `list` points at (the original keeps the registers
@@ -73,16 +60,16 @@ pub fn frame_callback(
     }
     copy_picture()?;
     draw_menu(menus, menu)?;
-    run_listed(o, DRAW_LIST)?;
+    run_listed(o, &o.menus.screens.flow.draw_list)?;
     unlock_surface();
     o.scene.lights.state.scene_state.set_bits(4u32);
     crate::scene::begin_scene::begin_scene();
-    run_listed(o, SCENE_LIST)?;
+    run_listed(o, &o.menus.screens.flow.scene_list)?;
     crate::scene::end_scene::end_scene();
     if lock_failed() {
         return Ok(false);
     }
-    run_listed(o, OVERLAY_LIST)?;
+    run_listed(o, &o.menus.screens.flow.overlay_list)?;
     // The logic is in `rc2k_core::menu::notice::drawn_now`.
     if notice::drawn_now(crate::strings::load_language::notice_kind(), || {
         play.cheats.notice_due.get()

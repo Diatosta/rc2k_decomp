@@ -41,7 +41,7 @@ fn owner<'a>(
 pub fn award_stage_points(menus: &Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
     let classes: u32 = screens.event.classes.get();
-    let section: u32 = SECTION_RVA.get();
+    let section: u32 = screens.event.section.get();
     if classes == 0 || classes > 0x100 || section > 5 {
         return Err(BadInput("a class count of 0 or past 0x100, or a section past 5").into());
     }

@@ -19,6 +19,7 @@ pub fn revs_sound(
     kind: u32,
     request: &SoundRequest,
     sound: &crate::sound::owner::Sound,
+    audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     let object = so.sound_offset.get();
     let set = if computers(object) {
@@ -29,7 +30,15 @@ pub fn revs_sound(
     request
         .sound
         .set(revs_sound_number(object, set.sound.get()));
-    send_engine_sound(so, set, &so.revs_input, EnginePlace::Ahead, request, sound)
+    send_engine_sound(
+        so,
+        set,
+        &so.revs_input,
+        EnginePlace::Ahead,
+        request,
+        sound,
+        audio,
+    )
 }
 
 /// Which side of the car the engine sound is heard: the car's place plus its motion, or
@@ -52,9 +61,10 @@ pub fn send_engine_sound(
     side: EnginePlace,
     request: &SoundRequest,
     sound: &crate::sound::owner::Sound,
+    audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     if revs_stopped(so.state.get()) {
-        return crate::sound::turn_parts::stop(request);
+        return crate::sound::turn_parts::stop(request, audio);
     }
     fill_request(
         so,
@@ -64,7 +74,7 @@ pub fn send_engine_sound(
         sound.race.surface.get(),
         request,
     );
-    crate::sound::turn_parts::placed(request)
+    crate::sound::turn_parts::placed(request, sound, audio)
 }
 
 /// The request's pitch, volume and place for the engine sound.

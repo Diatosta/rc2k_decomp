@@ -8,8 +8,9 @@ use crate::errors::Refused;
 use crate::net::owner::Net;
 pub fn hosting(
     net: &Net,
+    system: &crate::system::owner::System,
     panel: &crate::race::viewer_screen_store::ViewerPanelBlock,
 ) -> Result<bool, Refused> {
     crate::net::connecting::status(0x151)?;
-    crate::net::host_session::host_session(net, panel)
+    crate::net::host_session::host_session(net, system, panel)
 }

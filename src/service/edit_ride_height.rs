@@ -4,10 +4,12 @@
 //! What confirming does, and what is refused, is in `pages.rs` (`change_page`).
 
 use crate::errors::Refused;
+use crate::menu::owner::Menus;
 use crate::service::pages::{RIDE_HEIGHT, change_page};
+use crate::system::owner::System;
 
 // ---- Rust version ----
 
-pub fn edit_ride_height(confirm: bool) -> Result<(), Refused> {
-    change_page(crate::menu::owner::menus(), RIDE_HEIGHT, confirm)
+pub fn edit_ride_height(menus: &Menus, system: &System, confirm: bool) -> Result<(), Refused> {
+    change_page(menus, system, RIDE_HEIGHT, confirm)
 }

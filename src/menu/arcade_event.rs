@@ -105,7 +105,9 @@ impl arcade::Arcade for Game<'_> {
             Step::SelectCarLoop => self.screen(&m::select_car_loop::SCREEN)?,
             Step::TakeShownCar => m::take_shown_car::take_shown_car(menus, self.cars)?,
             Step::NextStageLoop => self.screen(&m::arcade_next_stage_loop::SCREEN)?,
-            Step::TakeStageBest => a::take_arcade_stage_best(play)?,
+            Step::TakeStageBest => {
+                a::take_arcade_stage_best(play, self.owners.system, self.owners.race)?;
+            }
             Step::RepairCar => crate::service::repair_parts::repair_car_in(menus)?,
             // From 0 (the original clears eax for the repair just before).
             Step::Race => crate::race::single_rally_race::single_rally_race(0, 2)?,
@@ -121,9 +123,9 @@ impl arcade::Arcade for Game<'_> {
                     .level_table(play.arcade.level.get())?;
                 a::keep_arcade_stage_best(menus, level.row(play.arcade.stage.get())?)?;
             }
-            Step::CheckStageTime => a::check_arcade_stage_time(menus)?,
-            Step::ClearTimeMarks => a::clear_arcade_time_marks(play)?,
-            Step::EnterStageTime => a::enter_arcade_stage_time(menus)?,
+            Step::CheckStageTime => a::check_arcade_stage_time(menus, self.owners.system)?,
+            Step::ClearTimeMarks => a::clear_arcade_time_marks(play, self.owners.system)?,
+            Step::EnterStageTime => a::enter_arcade_stage_time(menus, self.owners.system)?,
             Step::BestTimesLoop => self.screen(&m::arcade_best_times_loop::SCREEN)?,
             Step::CheckLevelScore => a::check_arcade_level_score(menus)?,
             Step::ClearScoreMarks => a::clear_arcade_score_marks(play)?,

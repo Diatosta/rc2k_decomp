@@ -21,11 +21,12 @@ use crate::scene::build_texture_catalogue::build_texture_catalogue_in_game;
 pub fn set_up_textures(
     shared: &RaceShared,
     scene: &crate::scene::owner::Scene,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     let drawing = &scene.drawing;
-    build_texture_catalogue_in_game(shared, scene)?;
+    build_texture_catalogue_in_game(shared, scene, gfx)?;
     drawing.scene.mirror_picture.set(0u32);
-    let (_, system) = crate::platform_3d::allocate_textures_for(0, 1, 3, 4, 0);
+    let (_, system) = crate::platform_3d::allocate_textures_for(0, 1, 3, 4, 0, gfx);
     drawing.scene.mirror_picture.set(system);
     Ok(())
 }

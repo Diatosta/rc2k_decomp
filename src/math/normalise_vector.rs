@@ -149,7 +149,9 @@ mod tests {
 
     #[test]
     fn nothing_is_the_games() {
-        let d = crate::moved::image_bytes(0x5C5D90, 4);
-        assert_eq!(u32::from_le_bytes(d.try_into().unwrap()), super::NOTHING);
+        assert_eq!(
+            crate::test_support::first_values::dword("race.owner.RACE.course.numbers.zero/4", 0),
+            super::NOTHING
+        );
     }
 }

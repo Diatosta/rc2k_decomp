@@ -104,7 +104,7 @@ pub fn set_up_front_end_scene_in(o: crate::owners::Owners<'_>) -> Result<(), Ref
             scene.objects.tables.texture_tags[texture].set(tag);
         }
     }
-    crate::scene::set_up_textures::set_up_textures(shared, scene)?;
+    crate::scene::set_up_textures::set_up_textures(shared, scene, o.gfx)?;
     set_up_object_memory(course, scene)?;
     clear_slot_kinds(scene);
     colours(course, 0);

@@ -1,0 +1,17 @@
+# The named reads frozen in data/first_values.golden: `<key> <IDA address> <length>` (hex).
+# A key is the store's registry name, the field path and `/<length>` where a store holds the
+# address (`freeze.sh names`), else the Rust item the tests compare (module path, dots).
+# Stores of the registry are frozen whole without being listed here.
+
+# math
+math.next_random.STATE/4                                0x4E0140 4
+race.owner.RACE.shared.work.segment_work_unused[17]/4   0x71C3C8 4
+race.owner.RACE.course.numbers.zero/4                   0x5C5D90 4
+race.owner.RACE.course.numbers.one/4                    0x5C5D38 4
+
+# logfile
+system.owner.SYSTEM.start.texts.version/28              0x4E0000 0x1C
+system.owner.SYSTEM.start.texts.second_text/1           0x4E0077 1
+logfile.write_line.LOG_MODE                             0x4E072A 0xC
+logfile.write_line.LOG_PATH                             0x4E00A8 0x10
+logfile.write_line.state.ENABLED/20                     0x4E0094 0x14

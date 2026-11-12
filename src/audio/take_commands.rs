@@ -15,7 +15,7 @@ pub fn take_commands(audio: &Audio) -> Result<(), Refused> {
     use crate::audio::stream_commands::{music_command, stream_command};
     use rc2k_core::audio::commands::{Command, SoundList};
     loop {
-        let Some(command) = crate::sound::queue::locked().front() else {
+        let Some(command) = crate::sound::queue::locked(audio).front() else {
             return Ok(());
         };
         match command {
@@ -56,7 +56,7 @@ pub fn take_commands(audio: &Audio) -> Result<(), Refused> {
             } => music_command(&audio.state, tune, next, volume as i32, action)?,
             Command::EndOfTurn => {}
         }
-        crate::sound::queue::locked().pop();
+        crate::sound::queue::locked(audio).pop();
         if command == Command::EndOfTurn {
             return Ok(());
         }

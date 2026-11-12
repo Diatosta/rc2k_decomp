@@ -20,6 +20,8 @@ use crate::sound::sets_store::SoundRequest;
 pub fn car_cue_sound(
     so: &crate::sound::store::SoundObject,
     request: &SoundRequest,
+    owner: &crate::sound::owner::Sound,
+    audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     use rc2k_core::sound::cars::{OneOff, from_int, one_off};
     let mut waiting = so.cue_sound.get();
@@ -28,8 +30,8 @@ pub fn car_cue_sound(
         so.cue_volume.get(),
         LEAST,
         STOP_QUIET,
-        |sound| record(sound).map(|_| ()),
-        sample_settings,
+        |sample| record(audio, sample).map(|_| ()),
+        |sample, volume, rate| sample_settings(audio, sample, volume, rate),
     )?;
     let (sound, turn) = taken;
     if turn == OneOff::Nothing {
@@ -39,14 +41,14 @@ pub fn car_cue_sound(
     request.sound.set(sound);
     match turn {
         OneOff::Nothing | OneOff::Quiet { .. } => Ok(()),
-        OneOff::Stop { .. } => crate::sound::turn_parts::stop(request),
+        OneOff::Stop { .. } => crate::sound::turn_parts::stop(request, audio),
         OneOff::Play { volume, rate } => {
             request.volume.set(from_int(volume as i32));
             request.pitch.set(from_int(rate as i32));
             for (cell, place) in request.place.iter().zip(&so.cue_place) {
                 cell.set(place.bits());
             }
-            crate::sound::turn_parts::placed(request)
+            crate::sound::turn_parts::placed(request, owner, audio)
         }
     }
 }

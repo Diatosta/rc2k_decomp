@@ -17,22 +17,23 @@ pub fn car_sounds(
     sound: &crate::sound::owner::Sound,
     race: &crate::race::owner::Race,
     system: &crate::system::owner::System,
+    audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     if n > 7 {
         return Err(BadInput("a car's sound object past 7").into());
     }
     let so = crate::sound::store::SoundObject::number(n)?;
-    let request = crate::sound::turn_parts::request();
+    let request = crate::sound::turn_parts::request(sound);
     let kind = crate::sound::car_engine_state::car_engine_state(so, sound, race, system)?;
     request.pitch_factor.set(so.pitch_factor.get());
     request.volume_factor.set(so.volume_factor.get());
     use crate::sound::*;
-    revs_sound::revs_sound(so, kind, request, sound)?;
-    throttle_sound::throttle_sound(so, kind, request, sound)?;
-    speed_sound::speed_sound(so, kind, request, sound)?;
-    surface_sounds::surface_sounds(so, request, sound, system)?;
-    car_slot_sounds::car_slot_sounds(so, request)?;
-    car_hit_sound::car_hit_sound(so, request)?;
-    car_cue_sound::car_cue_sound(so, request)?;
-    car_gear_sounds::car_gear_sounds(so, request)
+    revs_sound::revs_sound(so, kind, request, sound, audio)?;
+    throttle_sound::throttle_sound(so, kind, request, sound, audio)?;
+    speed_sound::speed_sound(so, kind, request, sound, audio)?;
+    surface_sounds::surface_sounds(so, request, sound, system, audio)?;
+    car_slot_sounds::car_slot_sounds(so, request, sound, audio)?;
+    car_hit_sound::car_hit_sound(so, request, sound, audio)?;
+    car_cue_sound::car_cue_sound(so, request, sound, audio)?;
+    car_gear_sounds::car_gear_sounds(so, request, sound, audio)
 }

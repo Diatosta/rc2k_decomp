@@ -18,6 +18,8 @@ use crate::sound::sets_store::SoundRequest;
 pub fn play_timed_slot(
     slot: &crate::sound::store::SoundSlot,
     request: &SoundRequest,
+    sound: &crate::sound::owner::Sound,
+    audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     use rc2k_core::sound::cars::{SlotTurn, TimedSlot, from_int, slot_turn};
     let mut s = TimedSlot {
@@ -28,8 +30,13 @@ pub fn play_timed_slot(
         volume: slot.volume.get(),
         rate: slot.rate.get(),
     };
-    let clock = crate::sound::owner::sound().race.clock.get().last.get();
-    let turn = slot_turn(&mut s, clock, sample_settings, sample_duration)?;
+    let clock = sound.race.clock.get().last.get();
+    let turn = slot_turn(
+        &mut s,
+        clock,
+        |sample, volume, rate| sample_settings(audio, sample, volume, rate),
+        |sample, rate| sample_duration(audio, sample, rate),
+    )?;
     slot.sound.set(s.sound);
     slot.start.set(s.start);
     slot.playing.set(s.playing);
@@ -42,7 +49,7 @@ pub fn play_timed_slot(
             request.sound.set(s.sound);
             request.volume.set(from_int(volume as i32));
             request.pitch.set(from_int(rate as i32));
-            crate::sound::turn_parts::placed(request)
+            crate::sound::turn_parts::placed(request, sound, audio)
         }
     }
 }

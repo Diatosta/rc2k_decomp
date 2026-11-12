@@ -37,7 +37,7 @@ fn owner<'a>(
 pub fn award_overall_points(menus: &Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
     {
-        let section: u32 = SECTION_RVA.get();
+        let section: u32 = screens.event.section.get();
         if section > 5 {
             return Err(BadInput("a section past 5").into());
         }

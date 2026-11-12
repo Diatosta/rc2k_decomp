@@ -15,7 +15,6 @@
 //! `session` set (it would write past `listed_car_sounds`'s eight).
 
 use crate::errors::Refused;
-use crate::net::owner::net;
 use crate::race::owner::Race;
 use crate::session::Dword;
 use rc2k_core::drive::shown_cars::{ShownCars, ShownSetup};
@@ -78,10 +77,6 @@ fn game<'a>(race: &'a Race, net: &'a crate::net::owner::Net) -> Vec<&'a Dword> {
     ];
     cells.extend(race.frame.frame_work.listed_car_sounds.iter());
     cells
-}
-
-pub fn choose_shown_cars(race: &Race) -> Result<(), Refused> {
-    choose_shown_cars_in(race, net())
 }
 
 /// `choose_shown_cars` with the network's owner given.

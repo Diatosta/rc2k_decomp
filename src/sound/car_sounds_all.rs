@@ -24,6 +24,7 @@ pub fn car_sounds_all(
     sound: &crate::sound::owner::Sound,
     race: &crate::race::owner::Race,
     system: &crate::system::owner::System,
+    audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     let count = sound.race.sounds.count.get();
     if count == 0 {
@@ -41,7 +42,7 @@ pub fn car_sounds_all(
             continue;
         }
         if o.sound_offset.get() as i32 >= 0 {
-            crate::sound::car_sounds::car_sounds(n, sound, race, system)?;
+            crate::sound::car_sounds::car_sounds(n, sound, race, system, audio)?;
             continue;
         }
         x87_1(o, &sound.race.sounds);
@@ -64,7 +65,7 @@ pub fn car_sounds_all(
         let o = SoundObject::number(n)?;
         let kept = o.sound_offset.get();
         o.sound_offset.set(mark);
-        crate::sound::car_sounds::car_sounds(n, sound, race, system)?;
+        crate::sound::car_sounds::car_sounds(n, sound, race, system, audio)?;
         o.sound_offset.set(kept);
     }
     Ok(())

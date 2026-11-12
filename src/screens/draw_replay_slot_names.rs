@@ -8,7 +8,7 @@
 //! (0x758BCE, 0x758BD6). The menus and draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
-use crate::menu::name_lists::REPLAY_PAGE_RVA;
+use crate::menu::owner::Menus;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -18,9 +18,9 @@ use crate::text::draw_text::Canvas;
 // `draw_work.figure`: a work variable, here the row counter
 
 // FontObjects.objects[41].first_char
-pub fn draw_replay_slot_names(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_replay_slot_names(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // The logic is in `rc2k_core::screens::slot_lists::names`.
-    let page = REPLAY_PAGE_RVA.get();
+    let page = menus.tables.pages.replay_page.get();
     rc2k_core::screens::slot_lists::names(
         &mut crate::screens::game_screen::SlotScreen::new(canvas),
         &rc2k_core::screens::slot_lists::REPLAYS,

@@ -13,7 +13,7 @@ use crate::menu::text_entry::begin_logged;
 
 /// `log` = false leaves the log lines out.
 pub fn begin_savegame_name(menus: &Menus, log: bool) -> Result<(), BadInput> {
-    let name = savegame_name()?;
+    let name = savegame_name(menus)?;
     // The logic is in `rc2k_core::menu::text_entry::Entry::begin` (through `begin_logged`).
     begin_logged(menus, name, log)
 }

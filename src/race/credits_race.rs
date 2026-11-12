@@ -42,6 +42,7 @@ pub fn credits_race(race: &Race) -> Result<(), Refused> {
         &mut crate::text::draw_text::GameCanvas,
         &mut crate::race::frame_text::credits_tune,
         o.system,
+        o.audio,
     )?;
     race.shared.view.after_credits.set(0);
     crate::drive::play_race::play_race(race, o)?;

@@ -4,6 +4,7 @@
 //! the code that reads `savedata\savegame\svgameNN` and `savedata\replay\replayNN` into them.
 
 use crate::errors::BadInput;
+use crate::menu::owner::Menus;
 use crate::place::BytePlace;
 use crate::race::owner::race;
 use crate::saves::owner::saves;
@@ -13,18 +14,12 @@ use crate::session::PlainDword;
 pub const NAME_LEN: usize = 0x20;
 const NAMES: u32 = 100;
 
-pub const SAVEGAME_PAGE_RVA: &PlainDword =
-    &crate::menu::owner::MENUS.unchecked().tables.pages.save_page;
 const SAVEGAMES_PER_PAGE: u32 = 10;
 
-pub const REPLAY_PAGE_RVA: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .tables
-    .pages
-    .replay_page;
 const REPLAYS_PER_PAGE: u32 = 20;
 
 fn highlighted(
+    menus: &Menus,
     names: &'static dyn crate::place::Run,
     page: &PlainDword,
     per_page: u32,
@@ -32,7 +27,7 @@ fn highlighted(
     let index = page
         .get()
         .wrapping_mul(per_page)
-        .wrapping_add(menu_item())
+        .wrapping_add(menu_item(menus))
         .wrapping_sub(1);
     if index >= NAMES {
         return Err(BadInput("highlighted name past the list"));
@@ -41,19 +36,21 @@ fn highlighted(
 }
 
 /// The name of the highlighted saved game.
-pub fn savegame_name() -> Result<BytePlace, BadInput> {
+pub fn savegame_name(menus: &Menus) -> Result<BytePlace, BadInput> {
     highlighted(
+        menus,
         &saves().save_games.names,
-        SAVEGAME_PAGE_RVA,
+        &menus.tables.pages.save_page,
         SAVEGAMES_PER_PAGE,
     )
 }
 
 /// The name of the highlighted replay.
-pub fn replay_name() -> Result<BytePlace, BadInput> {
+pub fn replay_name(menus: &Menus) -> Result<BytePlace, BadInput> {
     highlighted(
+        menus,
         &race().shared.replays.names,
-        REPLAY_PAGE_RVA,
+        &menus.tables.pages.replay_page,
         REPLAYS_PER_PAGE,
     )
 }

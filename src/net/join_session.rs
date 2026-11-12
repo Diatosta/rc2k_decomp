@@ -24,7 +24,12 @@ pub fn posted_open_join() -> u32 {
 fn join_group(vars: &crate::net::store::NetVars) -> Result<bool, Refused> {
     Ok(crate::net::join_group::join_group(vars))
 }
-pub fn join_session(net: &Net, panel: &ViewerPanelBlock, number: u32) -> Result<bool, Refused> {
+pub fn join_session(
+    net: &Net,
+    system: &crate::system::owner::System,
+    panel: &ViewerPanelBlock,
+    number: u32,
+) -> Result<bool, Refused> {
     log_bytes(&panel.text(texts::NET_JOIN_SESSION), false, 2);
     log_int_nl(number, 1);
     if net.vars.dplay.get() == 0 {
@@ -46,6 +51,7 @@ pub fn join_session(net: &Net, panel: &ViewerPanelBlock, number: u32) -> Result<
     put_bytes(&net.vars.session_desc.instance, &net.joined().joined.read());
     finish(
         net,
+        system,
         panel,
         posted_open_join,
         join_group,

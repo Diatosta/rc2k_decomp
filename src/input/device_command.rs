@@ -59,6 +59,7 @@ pub fn device_command(
                 EndEffects => crate::input::end_effects::end_effects(input)?,
                 Tick => crate::input::input_tick::input_tick(input, sound)?,
                 SetUp(n) => crate::input::set_up_device::set_up_device(
+                    input,
                     device(&input.devices, n)?,
                     &race.shared.state.settings.cars[n],
                 )?,

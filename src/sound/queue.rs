@@ -2,7 +2,7 @@
 //! queue a `Command`, the audio thread's `audio::take_commands` takes them oldest first. A
 //! command counts as waiting until the audio thread has acted on it.
 
-use crate::audio::owner::audio;
+use crate::audio::owner::{Audio, audio};
 use rc2k_core::audio::commands::{Command, Queue};
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
@@ -10,33 +10,42 @@ use std::sync::{Mutex, MutexGuard, PoisonError};
 pub const END_OF_TURN: Command = Command::EndOfTurn;
 
 /// The queue, locked for a moment.
-pub fn locked() -> MutexGuard<'static, Queue> {
-    queue().lock().unwrap_or_else(PoisonError::into_inner)
-}
-
-fn queue() -> &'static Mutex<Queue> {
-    &audio().commands
+pub fn locked(audio: &Audio) -> MutexGuard<'_, Queue> {
+    audio
+        .commands
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
 }
 
 /// `sound::send_command` (0x409C45). Without audio the queue is emptied and nothing is
 /// queued; a full queue takes nothing.
+pub fn send_command_in(audio: &Audio, command: Command) {
+    send_with_eax_in(audio, command, None);
+}
+
+/// `send_command_in` for the callers outside the sound module.
 pub fn send_command(command: Command) {
-    send_with_eax(command, None);
+    send_command_in(audio(), command);
 }
 
 /// `send_command`, for a sender whose first word the audio thread does not read: only the
 /// sound hash records it (a held race's commands are compared turn by turn through it).
-pub fn send_with_eax(command: Command, first_word: Option<u32>) {
+pub fn send_with_eax_in(audio: &Audio, command: Command, first_word: Option<u32>) {
     let (number, mut registers) = command.record_words();
     if let Some(word) = first_word {
         registers[0] = word;
     }
     hash_if_asked(number, registers);
-    if audio().state.no_audio.is_set() {
-        locked().clear();
+    if audio.state.no_audio.is_set() {
+        locked(audio).clear();
     } else {
-        locked().send(command);
+        locked(audio).send(command);
     }
+}
+
+/// `send_with_eax_in` for the callers outside the sound module.
+pub fn send_with_eax(command: Command, first_word: Option<u32>) {
+    send_with_eax_in(audio(), command, first_word);
 }
 
 /// With `RC2K_SOUND_HASH` (a check, as `RC2K_FAN_HASH` for the drawing): the commands of each
@@ -72,9 +81,9 @@ fn hash_if_asked(command: u32, registers: [u32; 7]) {
 }
 
 /// 0x409C01: true if commands are still waiting. Without audio the queue is emptied.
-pub fn pending() -> bool {
-    let mut queue = locked();
-    if audio().state.no_audio.is_set() {
+pub fn pending(audio: &Audio) -> bool {
+    let mut queue = locked(audio);
+    if audio.state.no_audio.is_set() {
         queue.clear();
     }
     !queue.is_empty()

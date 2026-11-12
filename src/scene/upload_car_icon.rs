@@ -112,8 +112,11 @@ pub struct CarIcon<'a> {
 // ---- Rust version ----
 
 /// The Rust version. The original keeps every register.
-pub fn upload_car_icon(upload: &IconUploadCell, icon: &CarIcon<'_>) -> Result<(), Refused> {
-    let gfx = crate::gfx::owner::gfx();
+pub fn upload_car_icon(
+    upload: &IconUploadCell,
+    icon: &CarIcon<'_>,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), Refused> {
     let texture = icon.texture;
     let record = Record::of(texture)?;
     upload.set(IconUpload {

@@ -70,8 +70,7 @@ pub fn draw_highlighted(
 }
 
 /// The six calls in order.
-pub fn run() -> Result<(), crate::errors::Refused> {
-    let o = crate::owners::boundary();
+pub fn run(o: crate::owners::Owners<'_>) -> Result<(), crate::errors::Refused> {
     let (scene, race, menus, system) = (o.scene, o.race, o.menus, o.system);
     let scratch = crate::race::view_scratch::front_end();
     clear_depth_buffer(scene, system, &scratch.polygon);

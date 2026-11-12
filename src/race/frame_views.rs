@@ -4,7 +4,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::gfx::owner::gfx;
 use crate::physics::car_store::Car;
-use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::effects_settings_store::EFFECTS_SETTINGS;
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
@@ -323,7 +322,7 @@ pub fn forget_view_textures(
     };
     let blocks = [first, second];
     let trap = Trap::new();
-    let field = |b: usize, word: fn(&Car) -> u32| word(&CAR_BLOCKS.cars[b]);
+    let field = |b: usize, word: fn(&Car) -> u32| word(&race.car_blocks().cars[b]);
     // (the switch, the slot's variable) of each.
     let slot_of = |n: usize| &textures.kinds.kind_first_slots[n];
     let source = |f: Forget| match f {
@@ -380,7 +379,7 @@ pub fn forget_view_textures(
             .view_textures_forgotten
             .set(frame.frame_work.view_textures_forgotten.get() | bit);
         if let Forget::Counted(v) = f {
-            let counter = &CAR_BLOCKS.cars[blocks[v]].notice_counter;
+            let counter = &race.car_blocks().cars[blocks[v]].notice_counter;
             counter.set(counter.get().wrapping_sub(1));
         }
     }

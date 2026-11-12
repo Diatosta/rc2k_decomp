@@ -85,7 +85,7 @@ fn idle(entry: &Entry) -> Result<Flow, Refused> {
     crate::menu::play_films::play_films(entry.owners, true)?;
     log("menu::main_menu_loop: `menu::play_films` has come back");
     menus.screens.loop_flags.idle.set(false);
-    update_blink(menus);
+    update_blink(menus, system);
     let now = system.session.clocks.frame.get();
     menus.play.champ_view.last_key_time.set(now);
     system.session.clocks.setup_time.set(now);

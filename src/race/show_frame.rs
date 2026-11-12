@@ -17,11 +17,8 @@ pub struct Shown {
     pub eax: u32,
 }
 
-pub fn show_frame(
-    race: &Race,
-    system: &crate::system::owner::System,
-    scene: &crate::scene::owner::Scene,
-) -> Result<Shown, Refused> {
+pub fn show_frame(race: &Race, o: crate::owners::Owners<'static>) -> Result<Shown, Refused> {
+    let (system, scene) = (o.system, o.scene);
     let frame = &race.frame;
     let (locked, kept) = crate::scene::lock_frame::lock_frame(race);
     if locked < 1 {
@@ -37,9 +34,16 @@ pub fn show_frame(
             &mut crate::text::draw_text::GameCanvas,
             &mut crate::race::frame_text::credits_tune,
             system,
+            o.audio,
         )?;
     }
-    { crate::race::frame_text::draw_frame_rate(race, &mut crate::text::draw_text::GameCanvas) }?;
+    {
+        crate::race::frame_text::draw_frame_rate(
+            race,
+            &mut crate::text::draw_text::GameCanvas,
+            o.gfx,
+        )
+    }?;
     // `scene::unlock_frame` leaves 0 as the leftover value (its carry is `present_frame`'s next).
     crate::scene::unlock_frame::unlock_frame(&race.frame);
     if !crate::scene::present_frame::present_frame() {

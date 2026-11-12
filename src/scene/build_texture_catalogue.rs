@@ -142,6 +142,7 @@ pub fn build_texture_catalogue(
 pub fn build_texture_catalogue_in_game(
     shared: &crate::race::owner_shared::RaceShared,
     scene: &crate::scene::owner::Scene,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     build_texture_catalogue(
         &mut |call| {
@@ -151,8 +152,8 @@ pub fn build_texture_catalogue_in_game(
                 Call::Raise { level, tag } => {
                     raise_texture_needs(level, tag, scene);
                 }
-                Call::Try => return Ok(try_allocate_textures_in_game(shared, scene)?),
-                Call::Release => crate::platform_3d::release_textures(),
+                Call::Try => return Ok(try_allocate_textures_in_game(shared, scene, gfx)?),
+                Call::Release => crate::platform_3d::release_all_textures(gfx),
                 Call::CountNeeds => {
                     count_texture_needs_in_game(scene)?;
                 }

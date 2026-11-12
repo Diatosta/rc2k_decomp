@@ -83,7 +83,7 @@ pub fn edit_key(
 ) -> Result<EditOutcome, Refused> {
     let text = item.text();
     let record = item.edit_field();
-    let most = crate::install::folders::field_most(text, record.most()) as u32;
+    let most = crate::install::folders::field_most(install, text, record.most()) as u32;
     let plain = |key_word| EditOutcome {
         key_word,
         plain_edit: true,
@@ -162,7 +162,7 @@ pub fn edit_key(
         &text_with_nul(text),
         most.wrapping_add(measure_limit(text)?).wrapping_add(1),
     )?;
-    let widest = crate::install::folders::field_width(text, record.width());
+    let widest = crate::install::folders::field_width(install, text, record.width());
     if edits::too_wide(width, widest) {
         backspace();
     }

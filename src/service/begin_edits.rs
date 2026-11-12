@@ -9,7 +9,7 @@
 //! past it).
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::service::setup_values::setup_item;
 use crate::service::state::{flagged_item, repair_flag_in};
 
@@ -24,8 +24,7 @@ pub struct Edit {
 }
 
 /// The Rust version (see the header).
-pub fn begin_edit(e: Edit) -> Result<(), Refused> {
-    let menus = menus();
+pub fn begin_edit(menus: &Menus, e: Edit) -> Result<(), Refused> {
     let screens = &menus.screens;
     let item = flagged_item(screens)?;
 

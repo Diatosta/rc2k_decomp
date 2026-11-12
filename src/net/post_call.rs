@@ -15,13 +15,13 @@
 
 use crate::net::owner::Net;
 use crate::net::store::NetVars;
-use crate::system::owner::system;
+use crate::system::owner::System;
 use std::sync::Mutex;
 use std::sync::atomic::Ordering;
 
 /// The call posted, while `g_netPostedCall` is 1.
 static POSTED: Mutex<Option<fn() -> u32>> = Mutex::new(None);
-pub fn post_call(net: &Net, code: fn() -> u32) -> u32 {
+pub fn post_call(net: &Net, system: &System, code: fn() -> u32) -> u32 {
     if net.vars.posting.get() == 1 {
         *POSTED
             .lock()
@@ -34,7 +34,7 @@ pub fn post_call(net: &Net, code: fn() -> u32) -> u32 {
             }
             crate::system::sleep::sleep(100);
             crate::platform::pump_messages_now();
-            if system().session.flags.quitting.is_set() {
+            if system.session.flags.quitting.is_set() {
                 break;
             }
         }

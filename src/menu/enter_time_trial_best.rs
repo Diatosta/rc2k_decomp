@@ -15,13 +15,7 @@ use crate::errors::Refused;
 use crate::menu::event_flow::*;
 use crate::menu::owner::Menus;
 use crate::menu::standings::name_address_of;
-use crate::session::PlainDword;
 
-const STAGE_SLOT: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .draw_work
-    .figure;
 // hhmm
 pub fn enter_time_trial_best(
     menus: &Menus,
@@ -33,7 +27,7 @@ pub fn enter_time_trial_best(
     let p = current_player(menus)?;
     let name = name_address_of(&p.get())?;
     let slot = record.record()?.event_slot();
-    set(STAGE_SLOT, slot);
+    set(&menus.screens.draw_work.figure, slot);
     let cheats = menus.play.cheats.cheats.get();
     let sealed = crate::menu::sealed_player_time::sealed_player_time(menus, slot)?;
     // The logic is in `rc2k_core::saves::entries::BestTime::enter`, then `rank_time_trial_best`.

@@ -10,11 +10,15 @@
 use crate::errors::BadInput;
 use crate::sound::sample_settings::{loaded, record};
 
-pub fn sample_duration(sample: u32, rate: u32) -> Result<u32, BadInput> {
+pub fn sample_duration(
+    audio: &crate::audio::owner::Audio,
+    sample: u32,
+    rate: u32,
+) -> Result<u32, BadInput> {
     // Converted: `rc2k_core::audio::samples::duration_ms`.
-    let record = record(sample)?;
+    let record = record(audio, sample)?;
     Ok(rc2k_core::audio::samples::duration_ms(
         rate,
-        loaded(&record).as_ref(),
+        loaded(audio, &record).as_ref(),
     )?)
 }

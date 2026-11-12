@@ -51,7 +51,7 @@ pub fn service_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
             }
             crate::menu::inspection_screen::inspection_screen(entry.owners)?;
             crate::system::sleep::sleep(passes::SCREEN_PAUSE);
-            crate::menu::fade_in::fade_in(screens)?;
+            crate::menu::fade_in::fade_in(menus)?;
             crate::system::sleep::sleep(passes::FADE_PAUSE);
             menus.screens.state.driver_stats.repair_time.set(0);
             crate::menu::driver_stats::driver_stats(menus, screens)?;
@@ -82,7 +82,10 @@ pub fn service_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
             let spent = passes::spent(menus.screens.state.driver_stats.money.get());
             p.update(|q| q.service_spent = spent);
         }
-        if !passes::goes_on(menus.screens.event.event_out.get(), PLAYER_COUNT_RVA.get()) {
+        if !passes::goes_on(
+            menus.screens.event.event_out.get(),
+            menus.screens.event.player_count.get(),
+        ) {
             menus.screens.event.event_goes_on.set(0u32);
         }
     }

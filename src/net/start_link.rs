@@ -41,7 +41,7 @@ enum Way {
 }
 
 fn link(o: Owners<'static>) -> Result<Way, Refused> {
-    let (install, net) = (o.install, o.net);
+    let net = o.net;
     let panel = o.race.viewer_panel();
     let vars = &net.vars;
     use crate::net::*;
@@ -51,7 +51,7 @@ fn link(o: Owners<'static>) -> Result<Way, Refused> {
     let connection = match find_saved_connection::find_saved_connection(net)? {
         Some(saved) => saved,
         None => {
-            let chosen = choose_connection::choose_connection(install, net, o.system)?;
+            let chosen = choose_connection::choose_connection(o)?;
             if (chosen as i32) < 0 {
                 return Ok(Way::End);
             }
@@ -66,22 +66,22 @@ fn link(o: Owners<'static>) -> Result<Way, Refused> {
         vars.own
             .head
             .set(PlayerRecord::STATE, vars.own.state() | 0x10);
-        return Ok(if hosting::hosting(net, panel)? {
+        return Ok(if hosting::hosting(net, o.system, panel)? {
             Way::On
         } else {
             Way::Message(NO_SESSION)
         });
     }
-    if !find_sessions::find_sessions(net, panel)? {
+    if !find_sessions::find_sessions(net, o.system, panel)? {
         return Ok(Way::Message(NO_SESSION));
     }
-    let session = choose_session::choose_session(install, net, o.system, panel)?;
+    let session = choose_session::choose_session(o, panel)?;
     // Escape (a negative choice) sets the carry as a failure does, so it shows the
     // message too (the original's slip, `notes/bugs.md`).
     if (session as i32) < 0 {
         return Ok(Way::Message(NO_SESSION));
     }
-    Ok(if joining::joining(net, panel, session)? {
+    Ok(if joining::joining(net, o.system, panel, session)? {
         Way::On
     } else {
         Way::Message(NO_SESSION)

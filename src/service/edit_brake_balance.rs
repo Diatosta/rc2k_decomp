@@ -6,9 +6,10 @@
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
 use crate::service::pages::{BRAKE_BALANCE, simple_page};
+use crate::system::owner::System;
 
 // ---- Rust version ----
 
-pub fn edit_brake_balance(menus: &Menus) -> Result<(), Refused> {
-    simple_page(menus, BRAKE_BALANCE)
+pub fn edit_brake_balance(menus: &Menus, system: &System) -> Result<(), Refused> {
+    simple_page(menus, system, BRAKE_BALANCE)
 }

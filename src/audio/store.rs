@@ -921,8 +921,12 @@ pub const fn level_code(ida: u32) -> u32 {
 }
 
 /// The level a record's `volume_factor` names (`level_code`; 0 is no level).
-pub fn volume_level(state: &AudioState, code: u32) -> Result<&Dword, crate::errors::BadInput> {
-    let levels = &crate::audio::owner::audio().levels;
+pub fn volume_level(
+    audio: &crate::audio::owner::Audio,
+    code: u32,
+) -> Result<&Dword, crate::errors::BadInput> {
+    let state = &audio.state;
+    let levels = &audio.levels;
     Ok(match code {
         1 => &state.unit_volume_factor,
         2 => &levels.menu_sounds_a,

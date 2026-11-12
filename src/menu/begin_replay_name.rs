@@ -14,7 +14,7 @@ use crate::menu::text_entry::begin_logged;
 
 /// `log` = false leaves the log lines out.
 pub fn begin_replay_name(menus: &Menus, log: bool) -> Result<(), BadInput> {
-    let name = replay_name()?;
+    let name = replay_name(menus)?;
     if log {
         // aGetrepsaveslot
         crate::logfile::log_write::log_nul(c"getrepsaveslotname result=", false, 1);

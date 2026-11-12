@@ -12,39 +12,47 @@ use crate::errors::Refused;
 use crate::menu::event_flow::Fault;
 use crate::menu::owner::Menus;
 use crate::menu::standings::*;
+use crate::race::owner::Race;
 use crate::records::stages_store::RecordRef;
-use crate::system::owner::system;
+use crate::system::owner::System;
 use rc2k_core::menu::section_walk::Step;
 
 /// The record at `index` of the current section.
-fn record_at(index: u32) -> Result<RecordRef, crate::errors::BadInput> {
-    let table = system().records.stage_tables.championship();
-    let section: u32 = SECTION_RVA.get();
+fn record_at(
+    menus: &Menus,
+    system: &System,
+    index: u32,
+) -> Result<RecordRef, crate::errors::BadInput> {
+    let table = system.records.stage_tables.championship();
+    let section: u32 = menus.screens.event.section.get();
     crate::records::find_record::find_record_in(table, index as i32, section)
 }
 
 /// The records the walk visits from `index`, with their steps, checked.
-fn walk(menus: &Menus) -> Result<Vec<(u32, Step)>, Refused> {
+fn walk(menus: &Menus, system: &System, race: &Race) -> Result<Vec<(u32, Step)>, Refused> {
     let screens = &menus.screens;
     current_event(screens)?;
     counted_players(menus)?;
     drivers(menus)?;
-    let index: u32 = INDEX_RVA.get();
+    let index: u32 = menus.screens.event.index.get();
     // The logic is in `rc2k_core::menu::section_walk::walk`.
     let fault = Fault::default();
     let walked = rc2k_core::menu::section_walk::walk(
         index,
-        |i| fault.ok(record_at(i).map(RecordRef::tag)),
-        |i| crate::menu::calc_cpu_times::check(menus, record_at(i)?).map(|_| ()),
+        |i| fault.ok(record_at(menus, system, i).map(RecordRef::tag)),
+        |i| {
+            crate::menu::calc_cpu_times::check(menus, race, record_at(menus, system, i)?)
+                .map(|_| ())
+        },
     );
     fault.check()?;
     walked
 }
 
-pub fn walk_section_records(menus: &Menus) -> Result<(), Refused> {
+pub fn walk_section_records(menus: &Menus, system: &System, race: &Race) -> Result<(), Refused> {
     let screens = &menus.screens;
     use crate::menu::{reset_driver_condition as rdc, reset_player_totals as rpt};
-    let records = walk(menus)?;
+    let records = walk(menus, system, race)?;
     for (_, step) in records {
         if !step.goes_on() {
             if step == Step::Ended {
@@ -54,7 +62,7 @@ pub fn walk_section_records(menus: &Menus) -> Result<(), Refused> {
         }
         match step {
             Step::CpuTimes => {
-                crate::menu::calc_cpu_times::calc_cpu_times(menus)?;
+                crate::menu::calc_cpu_times::calc_cpu_times(menus, system, race)?;
             }
             Step::Condition => {
                 rdc::reset_driver_condition(menus)?;
@@ -64,7 +72,10 @@ pub fn walk_section_records(menus: &Menus) -> Result<(), Refused> {
         if let Some(first) = step.first() {
             screens.event.cpu_spread_first.set(first);
         }
-        INDEX_RVA.set(INDEX_RVA.get().wrapping_add(1));
+        screens
+            .event
+            .index
+            .set(menus.screens.event.index.get().wrapping_add(1));
         screens
             .event
             .stages_done

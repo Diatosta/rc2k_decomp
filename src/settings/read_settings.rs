@@ -27,7 +27,7 @@ enum Target {
     Loose(fn(Owners<'static>) -> &'static Loose),
     /// A dword that straddles two cells of its store's untyped tail: the store's own
     /// setter writes the four bytes (`race::viewer_screen_store`'s).
-    Unaligned(fn(u32)),
+    Unaligned(fn(Owners<'static>, u32)),
 }
 
 impl Target {
@@ -36,7 +36,7 @@ impl Target {
         match self {
             Target::Dword(cell) => cell(o).set_bits(number),
             Target::Loose(cell) => cell(o).set(number),
-            Target::Unaligned(set) => set(number),
+            Target::Unaligned(set) => set(o, number),
         }
     }
 }
@@ -67,13 +67,13 @@ macro_rules! loose {
 }
 
 /// `wrreplayenable`: `ViewerAndKinds.viewer_panel.untyped_tail[0]` (unaligned, in the viewer panel's tail).
-fn set_developer_keys(number: u32) {
-    crate::race::viewer_screen_store::VIEWER_PANEL.set_developer_keys(number);
+fn set_developer_keys(o: Owners<'static>, number: u32) {
+    o.race.viewer_panel().set_developer_keys(number);
 }
 
 /// `wrreplayrate`: `ViewerAndKinds.viewer_panel.untyped_tail[1]` (unaligned, in the viewer panel's tail).
-fn set_picture_rate(number: u32) {
-    crate::race::viewer_screen_store::VIEWER_PANEL.set_picture_rate(number);
+fn set_picture_rate(o: Owners<'static>, number: u32) {
+    o.race.viewer_panel().set_picture_rate(number);
 }
 
 /// "var\ral.cfg" (0x5295CC in the image).
@@ -318,12 +318,7 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"noautoneutral",
         0x61416C,
-        dword!(_o =>
-            crate::race::owner::RACE
-                .shared
-                .physics_tables
-                .no_auto_neutral
-        ),
+        dword!(o => o.race.shared.physics_tables.no_auto_neutral),
     ),
     (
         b"nonlinearsteering",

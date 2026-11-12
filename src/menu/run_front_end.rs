@@ -29,7 +29,7 @@ pub fn run_front_end(o: Owners<'_>) -> Result<(), Refused> {
         .levels
         .master_volume_shown
         .set(audio.state.master_volume.get());
-    crate::menu::drop_missing_controllers::drop_missing_controllers(menus)?;
+    crate::menu::drop_missing_controllers::drop_missing_controllers(menus, o.input)?;
     crate::gfx::build_fonts::build_fonts_in(gfx, o.system, o.strings)?;
     // The films, with eax 0 (the game's start).
     crate::menu::play_films::play_films(o, false)?;

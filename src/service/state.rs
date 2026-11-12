@@ -2,7 +2,7 @@
 
 use crate::errors::BadInput;
 use crate::menu::owner::Menus;
-use crate::menu::owner::{Screens, Tables, menus};
+use crate::menu::owner::{Screens, Tables};
 use crate::session::{read_all, write_all};
 use crate::system::checked_reads::refuse;
 
@@ -32,8 +32,8 @@ pub fn edit_mode(menus: &Menus) -> bool {
     menus.screens.state.service_ui.box_shown.is_set()
 }
 
-pub fn menu_item() -> u32 {
-    menus().screens.loop_flags.item.get()
+pub fn menu_item(menus: &Menus) -> u32 {
+    menus.screens.loop_flags.item.get()
 }
 
 pub fn blink_on(menus: &Menus) -> bool {

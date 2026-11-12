@@ -6,8 +6,8 @@
 //! original divides by 0), before anything.
 
 use crate::errors::Refused;
-use crate::menu::owner::Screens;
+use crate::menu::owner::Menus;
 
-pub fn fade_in(screens: &Screens) -> Result<(), Refused> {
-    crate::menu::fades::fade(screens, false)
+pub fn fade_in(menus: &Menus) -> Result<(), Refused> {
+    crate::menu::fades::fade(menus, false)
 }

@@ -51,7 +51,8 @@ pub fn measure_pieces(
                 let record = item.edit_field();
                 let font_height =
                     InstallerPages::kind_font(7 + 8 * record.font_kind() as u32) as u32;
-                let width = crate::install::folders::field_width(item.text(), record.width());
+                let width =
+                    crate::install::folders::field_width(install, item.text(), record.width());
                 (width as u32, font_height)
             }
             Way::Text => {

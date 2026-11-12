@@ -75,7 +75,7 @@ fn load_and_run(o: Owners<'_>) -> Result<(), Refused> {
     menus.screens.event.event_out.set(0u32);
     if !read_savegame_slot_in(saves, slot)? {
         crate::sound::play_menu_sound::play_menu_sound_in_game(UNREADABLE_SOUND);
-        go_back::go_back();
+        go_back::go_back(menus);
         return Ok(());
     }
 
@@ -89,7 +89,7 @@ fn load_and_run(o: Owners<'_>) -> Result<(), Refused> {
     if saves.savegame_preview.use_savegame_keys.get() == 0 {
         crate::saves::keep_player_settings::keep_player_settings(menus, file, cursor)?;
     }
-    crate::menu::drop_missing_controllers::drop_missing_controllers(menus)?;
+    crate::menu::drop_missing_controllers::drop_missing_controllers(menus, o.input)?;
 
     for car in cars {
         let name = car.get().name_number;
@@ -136,7 +136,7 @@ fn load_and_run(o: Owners<'_>) -> Result<(), Refused> {
             .index
             .set(menus.screens.event.index.get().wrapping_add(1)),
         Resume::Over => {
-            go_back::go_back();
+            go_back::go_back(menus);
             return Ok(());
         }
         Resume::Corrupt => {
@@ -154,6 +154,6 @@ fn load_and_run(o: Owners<'_>) -> Result<(), Refused> {
     } else {
         crate::menu::run_championship::run_championship_in(o)?;
     }
-    go_back::go_back();
+    go_back::go_back(menus);
     Ok(())
 }

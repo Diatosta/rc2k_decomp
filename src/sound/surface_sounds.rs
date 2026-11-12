@@ -34,6 +34,7 @@ fn one(
     second: usize,
     sound: &crate::sound::owner::Sound,
     system: &System,
+    audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::sound::surfaces` (`wheel`, `quieter`, `set_pair`).
     let (first, _) = surfaces::wheel(
@@ -56,8 +57,12 @@ fn one(
         sound.race.stage.get().surface_sets[n as usize].get()
     })
     .map_err(BadInput::from)?;
-    let set = crate::sound::sets_store::SurfaceSets::set(second + 2 * pair as usize)?;
-    crate::sound::surface_sound::surface_sound(o, set, request)
+    let set = sound
+        .race
+        .surface_sets
+        .get()
+        .set(second + 2 * pair as usize)?;
+    crate::sound::surface_sound::surface_sound(o, set, request, sound, audio)
 }
 
 /// The wheels' surface sounds of object `so`, through `request`.
@@ -66,11 +71,12 @@ pub fn surface_sounds(
     request: &SoundRequest,
     sound: &crate::sound::owner::Sound,
     system: &System,
+    audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     x87_3(so, sound.race.surface.get());
-    one(so, request, 0, sound, system)?;
+    one(so, request, 0, sound, system, audio)?;
     x87_4(so, sound.race.surface.get());
-    one(so, request, 1, sound, system)
+    one(so, request, 1, sound, system, audio)
 }
 
 // ---- the arithmetic that was x87 assembly ----

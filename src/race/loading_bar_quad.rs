@@ -8,7 +8,11 @@
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-pub fn loading_bar_quad(race: &Race, system: &crate::system::owner::System) -> Result<(), Refused> {
+pub fn loading_bar_quad(
+    race: &Race,
+    system: &crate::system::owner::System,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let shared = &race.shared;
     let session = &system.session;
     // Converted: `rc2k_core::race::loading::loading_bar`.
@@ -28,7 +32,7 @@ pub fn loading_bar_quad(race: &Race, system: &crate::system::owner::System) -> R
         polygon,
         race,
         &scratch.face,
-        crate::scene::owner::scene(),
+        scene,
         &session.screen,
         scratch,
     )

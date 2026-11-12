@@ -19,8 +19,8 @@ fn refill_failed(state: &AudioState, n: usize) -> Result<bool, Refused> {
 }
 
 /// `audio::make_primary` on the game's variables: true when it failed (the carry).
-pub fn make_primary_failed(state: &AudioState) -> Result<bool, Refused> {
-    Ok(!crate::audio::primary::make_primary(state)?)
+pub fn make_primary_failed(audio: &Audio) -> Result<bool, Refused> {
+    Ok(!crate::audio::primary::make_primary(audio)?)
 }
 
 /// What `restore_buffer` leaves: the carry, and the status and the `Restore` result where it changes them.
@@ -125,5 +125,5 @@ pub fn close_primary_mixer(audio: &Audio) -> Result<bool, Refused> {
     crate::audio::sound_device::release_primary(state);
     let ds = state.direct_sound.get();
     crate::platform_sound::set_cooperative_level(ds, system().session.machine.window.get(), 3);
-    make_primary_failed(state)
+    make_primary_failed(audio)
 }

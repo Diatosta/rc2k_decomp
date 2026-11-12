@@ -107,7 +107,7 @@ impl Folders for Unix {
         Ok(made.is_ok())
     }
 
-    fn room(folder: &[u8]) -> Room {
+    fn room(folder: &[u8], _system: &crate::system::owner::System) -> Room {
         let full = crate::files::host_path(folder);
         let mut at: &Path = &full;
         while !at.is_dir() {
@@ -164,7 +164,7 @@ mod tests {
         assert!(Unix::bad_name(b"/opt/a\\b/").unwrap());
         assert!(Unix::bad_name(b"opt/").unwrap());
         assert!(matches!(
-            Unix::room(b"/no/such/folder/at/all/"),
+            Unix::room(b"/no/such/folder/at/all/", crate::system::owner::system()),
             Room::Kb(_)
         ));
     }

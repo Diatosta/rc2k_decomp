@@ -7,7 +7,9 @@
 
 // ---- game data ----
 
-pub fn go_back() {
+use crate::menu::owner::Menus;
+
+pub fn go_back(menus: &Menus) {
     // The logic is in `rc2k_core::menu::leaving::Leaving::go_back`.
-    crate::menu::leaving::with_leaving(rc2k_core::menu::leaving::Leaving::go_back);
+    crate::menu::leaving::with_leaving(menus, rc2k_core::menu::leaving::Leaving::go_back);
 }

@@ -8,20 +8,18 @@
 //! Caller: `menu::calc_cpu_times`. Logs through `logfile::` (level 1).
 use crate::errors::Refused;
 use crate::menu::owner::Screens;
-use crate::menu::standings::*;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::records::stages_store::RecordRef;
 use crate::session::{read_all, write_all};
 
 const TEXTS_RVA: [&std::ffi::CStr; 4] = [c"stage times info", c"a7x", c"a8x", c"times a8-a5"];
 /// The section held to 0 .. 5.
-pub fn held_section() -> u32 {
-    rc2k_core::menu::stage_scale::held_section(SECTION_RVA.get() as i32)
+pub fn held_section(screens: &Screens) -> u32 {
+    rc2k_core::menu::stage_scale::held_section(screens.event.section.get() as i32)
 }
 
 /// The four times as scaled (see the header), and the two factors.
-pub fn scaled(times: [u32; 4], section: u32) -> ([u32; 4], [u32; 2]) {
-    let race = race();
+pub fn scaled(race: &Race, times: [u32; 4], section: u32) -> ([u32; 4], [u32; 2]) {
     // The two factor tables: six entries each.
     let s = section as usize;
     let f: [u32; 2] = [
@@ -42,9 +40,9 @@ pub fn scale_stage_times(
     race: &crate::race::owner::Race,
 ) -> Result<(), Refused> {
     use crate::logfile::{log_float::log_float, log_int::log_int};
-    let section = held_section();
+    let section = held_section(screens);
     let times: [u32; 4] = read_all(&screens.state.menus.class_times);
-    let (times, f) = scaled(times, section);
+    let (times, f) = scaled(race, times, section);
     race.shared.work.stage_time_scales[0].set_bits(f[0]);
     race.shared.work.stage_time_scales[1].set_bits(f[1]);
     write_all(&screens.state.menus.class_times, times);

@@ -43,8 +43,8 @@ fn log_line(text: &std::ffi::CStr) {
 }
 
 /// The way out: the program asked to quit, "Leaving main loop...".
-fn quit_and_leave() -> Result<(), Refused> {
-    crate::threading::request_quit::request_quit_logged()?;
+fn quit_and_leave(system: &crate::system::owner::System) -> Result<(), Refused> {
+    crate::threading::request_quit::request_quit_logged(system)?;
     log_line(c"Leaving main loop...");
     Ok(())
 }
@@ -81,8 +81,8 @@ pub fn main_loop(o: Owners<'static>) -> Result<(), Refused> {
         || crate::install::portable::is_source_folder()
         || install.run.updating.get() == 1
     {
-        crate::install::run_installer::run_installer(install)?;
-        return quit_and_leave();
+        crate::install::run_installer::run_installer(install, o)?;
+        return quit_and_leave(o.system);
     }
     if install.run.installing.get() != 1 {
         crate::install::runs_from_source::source_against_directory(
@@ -111,7 +111,7 @@ pub fn main_loop(o: Owners<'static>) -> Result<(), Refused> {
     }
     crate::saves::save_game_data::save_in_game(saves)?;
     crate::saves::free_best_times::free_in_game(saves)?;
-    quit_and_leave()
+    quit_and_leave(o.system)
 }
 
 /// The main loop, logged on the way in and out.

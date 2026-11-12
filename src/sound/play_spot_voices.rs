@@ -25,11 +25,11 @@ use rc2k_core::sound::spot_voices::{Played, REQUEST_FROM, end_time, going_on, pl
 pub fn play_spot_voices(
     request: &SoundRequest,
     audio: &crate::audio::owner::Audio,
-    sound: &crate::sound::owner::Sound,
+    owner: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {
-    let clock = sound.race.clock.get().last.get();
+    let clock = owner.race.clock.get().last.get();
     for n in 0..VOICE_COUNT {
-        let v = voice(n, sound);
+        let v = voice(n, owner);
         if vw(v, 4)? != 1 {
             continue;
         }
@@ -51,13 +51,13 @@ pub fn play_spot_voices(
         match kind {
             Played::Start => {
                 set(v, 0x24, 0)?;
-                let (volume, rate) = sample_settings(sound, OWN, OWN)?;
+                let (volume, rate) = sample_settings(audio, sound, OWN, OWN)?;
                 set(v, 0x3C, from_int(volume as i32).to_bits())?;
                 set(v, 0x38, from_int(rate as i32).to_bits())?;
                 set(
                     v,
                     0x34,
-                    end_time(sample_duration(sound, rate)?, clock, vw(v, 0x30)?),
+                    end_time(sample_duration(audio, sound, rate)?, clock, vw(v, 0x30)?),
                 )?;
                 set(v, 0x28, 1)?;
             }
@@ -77,10 +77,10 @@ pub fn play_spot_voices(
                 .set_word(to, vw(v, from)?)
                 .ok_or(BadInput("a request word past its ten"))?;
         }
-        crate::sound::turn_parts::placed(request)?;
+        crate::sound::turn_parts::placed(request, owner, audio)?;
         if time_up(clock, vw(v, 0x34)?) {
             request.sound.set(vw(v, 0x14)?);
-            crate::sound::turn_parts::stop(request)?;
+            crate::sound::turn_parts::stop(request, audio)?;
             set(v, 0x28, 0)?;
         }
     }

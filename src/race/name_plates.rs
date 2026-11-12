@@ -5,17 +5,20 @@
 //! slot), 2 unlock (the slot), 3 a text (font, text, x, y).
 
 use crate::errors::Refused;
-use crate::gfx::owner::gfx;
+use crate::gfx::owner::Gfx;
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
-use crate::strings::owner::strings;
+use crate::strings::owner::Strings;
 
 /// `race::draw_name_plate` (0x45B695): slot `slot`'s surface, locked and unlocked
 /// (`d3d::lock_texture`, nothing when it fails): three lines' height cleared, text `text` drawn
 /// three times in the name font (box 0x168 wide) at x 4, -0x74, -0xEC and y 0, a line, two lines (a
 /// long name wrapped over the plate's three rows).
-pub fn draw_name_plate(slot: u32, text: impl Into<crate::place::BytePlace>) -> Result<(), Refused> {
-    let gfx = crate::gfx::owner::gfx();
+pub fn draw_name_plate(
+    slot: u32,
+    text: impl Into<crate::place::BytePlace>,
+    gfx: &Gfx,
+) -> Result<(), Refused> {
     let fonts = &gfx.fonts;
     let text = text.into();
     use crate::d3d::{lock_texture::lock_texture, unlock_texture::unlock_texture};
@@ -36,8 +39,13 @@ pub fn draw_name_plate(slot: u32, text: impl Into<crate::place::BytePlace>) -> R
 
 /// `race::draw_plate_by_id` (0x41B2D4): string id `id` into the text buffer (`text`, with its NUL)
 /// and drawn on slot `slot`'s plate (`draw_name_plate`).
-pub fn draw_plate_by_id(slot: u32, id: u32) -> Result<(), Refused> {
-    let text = &strings().text;
+pub fn draw_plate_by_id(
+    slot: u32,
+    id: u32,
+    gfx: &Gfx,
+    strings: &'static Strings,
+) -> Result<(), Refused> {
+    let text = &strings.text;
     let mut cursor = 0usize;
     crate::strings::append_string_by_id::append_string_by_id(id, &mut |bytes| {
         for (k, &b) in bytes.iter().enumerate() {
@@ -46,15 +54,14 @@ pub fn draw_plate_by_id(slot: u32, id: u32) -> Result<(), Refused> {
         cursor += bytes.len();
     })?;
     text.buffer.text.set(cursor, 0);
-    draw_name_plate(slot, &text.buffer.text)
+    draw_name_plate(slot, &text.buffer.text, gfx)
 }
 
 /// `race::draw_time_plate` (0x45B70A): slot `slot`'s surface, locked and unlocked as
 /// `draw_name_plate`'s, below the name's three lines: two lines and three rows cleared, the texts
 /// at `label_behind` and `label_ahead` in the time font (box 0x80 wide) at x 4, y three and four
 /// lines.
-pub fn draw_time_plate(frame: &Frame, slot: u32) -> Result<(), Refused> {
-    let gfx = gfx();
+pub fn draw_time_plate(frame: &Frame, slot: u32, gfx: &Gfx) -> Result<(), Refused> {
     use crate::d3d::{lock_texture::lock_texture, unlock_texture::unlock_texture};
     if lock_texture(slot)?.carry {
         return Ok(());
@@ -91,10 +98,16 @@ pub fn draw_time_plate(frame: &Frame, slot: u32) -> Result<(), Refused> {
 /// `label_ahead`) differ from their last copies (`kept_behind` / `kept_ahead`): the time plate
 /// drawn (`race::draw_time_plate`, slot `KindTextureTables.kind_first_textures[196]`), the copies made and both views' cars'
 /// +0x720 1. Then for each view (slots `KindTextureTables.kind_first_textures[196]` / `KindTextureTables.kind_first_textures[197]`) with a name asked for at
-/// its car's +0x71C: drawn by string id below 0x10000 (`race::draw_plate_by_id`) or as a text
-/// pointer (`race::draw_name_plate`), into +0x724, +0x71C 0, +0x720 and +0x728 1. Refuses (before
-/// anything) a null view block.
-pub fn update_name_plates(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+/// its car's +0x71C: drawn by string id below 0x10000 (`race::draw_plate_by_id`), into +0x724,
+/// +0x71C 0, +0x720 and +0x728 1. Refuses (before anything) a null view block; and a word from
+/// 0x10000 up (the original's text pointer for `race::draw_name_plate`), which no writer of
+/// +0x71C gives.
+pub fn update_name_plates(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    gfx: &Gfx,
+    strings: &'static Strings,
+) -> Result<(), Refused> {
     let frame = &race.frame;
     let shared = &race.shared;
     let textures = &scene.textures;
@@ -118,7 +131,7 @@ pub fn update_name_plates(race: &Race, scene: &crate::scene::owner::Scene) -> Re
         frame.panel_and_overlay.overlay.kept_ahead[1].get(),
     ];
     if times_changed(now, kept) {
-        draw_time_plate(frame, textures.kinds.kind_first_textures[196].get())?;
+        draw_time_plate(frame, textures.kinds.kind_first_textures[196].get(), gfx)?;
         for (from, to) in [
             (
                 &frame.panel_and_overlay.overlay.label_behind[0],
@@ -148,10 +161,20 @@ pub fn update_name_plates(race: &Race, scene: &crate::scene::owner::Scene) -> Re
         match NameAsk::of(asked) {
             NameAsk::Nothing => continue,
             NameAsk::Id(_) => {
-                draw_plate_by_id(textures.kinds.kind_first_textures[slot].get(), asked)?;
+                draw_plate_by_id(
+                    textures.kinds.kind_first_textures[slot].get(),
+                    asked,
+                    gfx,
+                    strings,
+                )?;
             }
             NameAsk::Text(_) => {
-                draw_name_plate(textures.kinds.kind_first_textures[slot].get(), asked)?;
+                // Every writer of +0x71C gives a string id: the notices' constants, the view
+                // keys' counters, the race state's 0xCA.
+                return Err(crate::errors::BadInput(
+                    "a name plate asked for by a text's address (no writer gives one)",
+                )
+                .into());
             }
         }
         // The store takes the name asked for.

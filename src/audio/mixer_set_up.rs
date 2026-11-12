@@ -29,7 +29,7 @@ pub fn set_up_primary_mixer(audio: &Audio) -> Result<bool, Refused> {
         system().session.machine.window.get(),
         WRITE_PRIMARY,
     ) != 0
-        || crate::audio::primary::make_primary(&audio.state).map(|made| !made)?
+        || crate::audio::primary::make_primary(audio).map(|made| !made)?
     {
         return failed();
     }

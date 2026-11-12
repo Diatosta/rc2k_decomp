@@ -83,8 +83,7 @@ pub fn draw_shown_car(
 }
 
 /// Nothing on a page other than the first, else its six calls in order.
-pub fn run() -> Result<(), crate::errors::Refused> {
-    let o = crate::owners::boundary();
+pub fn run(o: crate::owners::Owners<'_>) -> Result<(), crate::errors::Refused> {
     let (scene, race, menus, system) = (o.scene, o.race, o.menus, o.system);
     if menus.screens.event.car_page.get() != 0 {
         return Ok(());

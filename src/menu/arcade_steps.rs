@@ -49,26 +49,24 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
 use crate::menu::owner::Play;
 use crate::menu::standings::{name_address_of, name_of, name_player, with_kept_name};
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::records::stages_store::{Holder, RecordRef};
 use crate::session::{PlainDword, read_all, write_all};
-use crate::system::owner::system;
+use crate::system::owner::System;
 use rc2k_core::menu::{bests, standings};
 
-const SCORE: &PlainDword = &crate::menu::owner::MENUS.unchecked().play.results.totals[0];
-const SCORE_1: &PlainDword = &crate::menu::owner::MENUS.unchecked().play.results.totals[1];
 // hhmm
 const CARS_LEN: u32 = 0x28;
 const SHOWN_LIST_LEN: u32 = 0x30;
 
 /// The stage's record: the level's table row for the stage.
-fn stage_record(play: &Play) -> Result<RecordRef, Refused> {
+fn stage_record(play: &Play, system: &System) -> Result<RecordRef, Refused> {
     let (level, stage) = (play.arcade.level.get(), play.arcade.stage.get());
     if level > 5 || stage > 6 {
         return Err(BadInput("an arcade level past 5 or stage past 6").into());
     }
     Ok(crate::records::stages_store::row(
-        system().records.stage_tables.level_table(level)?,
+        system.records.stage_tables.level_table(level)?,
         stage,
     )?)
 }
@@ -77,9 +75,10 @@ fn stage_record(play: &Play) -> Result<RecordRef, Refused> {
 /// table or a course past it.
 fn with_course_times<R>(
     play: &Play,
+    system: &System,
     f: impl FnOnce(&mut rc2k_core::saves::entries::Times) -> R,
 ) -> Result<R, Refused> {
-    let course = stage_record(play)?.record()?.event_slot() as usize;
+    let course = stage_record(play, system)?.record()?.event_slot() as usize;
     Ok(crate::saves::best_times::COURSE_TIMES
         .with(|t| t.stages.get_mut(course).map(f))?
         .ok_or(BadInput("a course past the best times"))?)
@@ -131,14 +130,17 @@ pub fn check_arcade_level_score(menus: &Menus) -> Result<(), Refused> {
     Ok(())
 }
 
-pub fn check_arcade_stage_time(menus: &Menus) -> Result<(), Refused> {
+pub fn check_arcade_stage_time(menus: &Menus, system: &System) -> Result<(), Refused> {
     let screens = &menus.screens;
-    with_course_times(&menus.play, |_| ())?;
+    with_course_times(&menus.play, system, |_| ())?;
     let (_, player) = current(menus)?;
     let time = player.get().time;
     screens.event.player_time.set(time);
     // The logic is in `rc2k_core::menu::bests::makes_time`.
-    if bests::makes_time(time, with_course_times(&menus.play, |ten| ten[9].head.key)?) {
+    if bests::makes_time(
+        time,
+        with_course_times(&menus.play, system, |ten| ten[9].head.key)?,
+    ) {
         screens.event.time_qualifies.set(1);
     }
     Ok(())
@@ -167,9 +169,9 @@ fn new_best(
     })
 }
 
-pub fn enter_arcade_stage_time(menus: &Menus) -> Result<(), Refused> {
-    let record = stage_record(&menus.play)?;
-    with_course_times(&menus.play, |_| ())?;
+pub fn enter_arcade_stage_time(menus: &Menus, system: &System) -> Result<(), Refused> {
+    let record = stage_record(&menus.play, system)?;
+    with_course_times(&menus.play, system, |_| ())?;
     let (_, player) = current(menus)?;
     name_player(&player.get())?;
     let course = record.record()?.event_slot();
@@ -184,7 +186,7 @@ pub fn enter_arcade_stage_time(menus: &Menus) -> Result<(), Refused> {
         Some(seal),
         Some(player.get().best_line),
     )?;
-    with_course_times(&menus.play, |ten| {
+    with_course_times(&menus.play, system, |ten| {
         ten[9].enter(&best);
         with_kept_name(&menus.play, |kept| {
             rc2k_core::saves::entries::sort_arcade_times(ten, kept);
@@ -198,7 +200,7 @@ pub fn enter_arcade_level_score(menus: &Menus) -> Result<(), Refused> {
     let (n, player) = current(menus)?;
     name_player(&player.get())?;
     // The logic is in `rc2k_core::saves::entries` (`Entry::enter`, `sort_level_scores`).
-    let score = (if n == 1 { SCORE_1 } else { SCORE }).get();
+    let score = menus.play.results.totals[usize::from(n == 1)].get();
     let best = new_best(player, score, None, None)?;
     with_level_scores(&menus.play, |ten| {
         ten[9].enter(&best);
@@ -232,16 +234,16 @@ pub fn clear_arcade_score_marks(play: &Play) -> Result<(), Refused> {
     Ok(())
 }
 
-pub fn clear_arcade_time_marks(play: &Play) -> Result<(), Refused> {
+pub fn clear_arcade_time_marks(play: &Play, system: &System) -> Result<(), Refused> {
     // The logic is in `rc2k_core::saves::entries::clear_marks`.
-    with_course_times(play, rc2k_core::saves::entries::clear_marks)?;
+    with_course_times(play, system, rc2k_core::saves::entries::clear_marks)?;
     Ok(())
 }
 
-pub fn take_arcade_stage_best(play: &Play) -> Result<(), Refused> {
+pub fn take_arcade_stage_best(play: &Play, system: &System, race: &Race) -> Result<(), Refused> {
     // The logic is in `rc2k_core::saves::entries::BestTime::line`.
-    let line = with_course_times(play, |ten| ten[0].line())?;
-    race().shared.state.results.results[0].data.write(&line);
+    let line = with_course_times(play, system, |ten| ten[0].line())?;
+    race.shared.state.results.results[0].data.write(&line);
     Ok(())
 }
 

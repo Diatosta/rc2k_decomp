@@ -111,11 +111,17 @@ pub fn start_log() -> Result<(), BadInput> {
 
 #[cfg(test)]
 mod tests {
-    use crate::moved::image_bytes;
+    use crate::test_support::first_values::bytes;
 
     #[test]
     fn texts_are_the_games() {
-        assert_eq!(image_bytes(0x4E0000, super::VERSION.len()), super::VERSION);
-        assert_eq!(image_bytes(0x4E0077, 1), super::SECOND_TEXT);
+        assert_eq!(
+            bytes("system.owner.SYSTEM.start.texts.version/28"),
+            super::VERSION
+        );
+        assert_eq!(
+            bytes("system.owner.SYSTEM.start.texts.second_text/1"),
+            super::SECOND_TEXT
+        );
     }
 }

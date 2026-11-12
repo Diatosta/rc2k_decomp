@@ -156,7 +156,7 @@ pub fn fill_voice(
         sound_mode & 0x1_0000 != 0,
         // The record's level (`audio::store::VolumeLevel`).
         |factor| {
-            crate::audio::store::volume_level(&audio.state, factor)
+            crate::audio::store::volume_level(audio, factor)
                 .map(super::super::session::Dword::get)
                 .unwrap_or_else(|e| {
                     failed.set(failed.get().or(Some(e)));

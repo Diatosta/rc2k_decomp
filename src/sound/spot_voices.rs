@@ -12,7 +12,6 @@
 
 use crate::errors::BadInput;
 use crate::session::PlainDword;
-use crate::system::owner::system;
 
 pub const VOICE_COUNT: u32 = 0x48;
 pub const MOST_SPOTS: u32 = 36;
@@ -80,6 +79,7 @@ pub fn store_picks(
     sound: &crate::sound::owner::Sound,
     picks: &rc2k_core::sound::spot_voices::Picks,
     trail: &rc2k_core::sound::spot_voices::Trail,
+    system: &crate::system::owner::System,
 ) {
     let work = sound.race.spot_picks.get();
     work.pick_playing.set(voice_or_0(picks.playing));
@@ -88,6 +88,6 @@ pub fn store_picks(
     work.pick_next_distance.set(picks.next_distance);
     work.pick_next.set(voice_or_0(picks.next));
     if let Some(d) = trail.last_distance {
-        system().session.machine.scratch.set(d);
+        system.session.machine.scratch.set(d);
     }
 }

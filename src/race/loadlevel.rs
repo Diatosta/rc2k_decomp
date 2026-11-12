@@ -168,7 +168,7 @@ pub fn loadlevel_init(race: &Race, o: crate::owners::Owners<'_>) -> Result<(), R
         Some(0xA),
     )?;
     s.step(
-        &mut || crate::scene::set_up_textures::set_up_textures(&race.shared, scene),
+        &mut || crate::scene::set_up_textures::set_up_textures(&race.shared, scene, o.gfx),
         Some(0xE),
     )?;
     s.step(&mut || level::build_texture_infos(&race.course), Some(0xF))?;

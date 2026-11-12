@@ -21,19 +21,20 @@ use crate::service::edit_gear_ratio::edit_gear_ratio;
 use crate::service::edit_ride_height::edit_ride_height;
 use crate::service::edit_suspension_stiffness::edit_suspension_stiffness;
 use crate::service::edit_tyre::edit_tyre;
-use crate::service::owner::service;
+use crate::service::owner::Service;
 use crate::service::pages::{
     BRAKE_BALANCE, ChangePage, GEAR_RATIO, RIDE_HEIGHT, STEERING_SENSITIVITY, SUSPENSION_STIFFNESS,
     TYRE,
 };
 use crate::service::read_setup_slot::{SLOT_COUNT, read_setup_slot};
 use crate::service::state::{ITEM_COUNT, current_player, marks_ended, repair_flag_in};
+use crate::system::owner::System;
 
 // ---- game data ----
 
 /// The slot the highlighted menu item stands for.
 /// A change page's editor (`confirm` its argument).
-type Editor = fn(bool) -> Result<(), Refused>;
+type Editor = fn(&Menus, &System, bool) -> Result<(), Refused>;
 
 pub fn highlighted_slot(menus: &Menus) -> u32 {
     // Converted: `rc2k_core::service::setups::highlighted_slot`.
@@ -45,7 +46,7 @@ pub fn highlighted_slot(menus: &Menus) -> u32 {
 
 // ---- Rust version ----
 
-pub fn load_setup_slot(menus: &Menus) -> Result<(), Refused> {
+pub fn load_setup_slot(menus: &Menus, service: &Service, system: &System) -> Result<(), Refused> {
     let (screens, tables) = (&menus.screens, &menus.tables);
     let slot = highlighted_slot(menus);
     let Some(player) = current_player(menus) else {
@@ -58,7 +59,6 @@ pub fn load_setup_slot(menus: &Menus) -> Result<(), Refused> {
         return Err(BadInput("a flag table has lost its end mark").into());
     }
 
-    let service = service();
     if !read_setup_slot(service, slot)? {
         return Ok(());
     }
@@ -95,11 +95,11 @@ pub fn load_setup_slot(menus: &Menus) -> Result<(), Refused> {
         };
         if change.change.chosen(menus).get() != change.change.installed(menus).get() {
             screens.loop_flags.item.set(change.item);
-            edit(true)?;
+            edit(menus, system, true)?;
         }
     }
     screens.loop_flags.item.set(highlighted);
-    go_back::go_back();
+    go_back::go_back(menus);
     Ok(())
 }
 

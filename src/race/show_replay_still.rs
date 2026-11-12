@@ -29,14 +29,8 @@ fn load_frame(race: &Race) {
     );
 }
 
-pub fn show_replay_still(
-    race: &Race,
-    input: &crate::input::owner::Input,
-    system: &crate::system::owner::System,
-    scene: &crate::scene::owner::Scene,
-    sound: &crate::sound::owner::Sound,
-    net: &crate::net::owner::Net,
-) -> Result<(), Refused> {
+pub fn show_replay_still(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    let (input, system, scene, sound, net) = (o.input, o.system, o.scene, o.sound, o.net);
     use crate::drive::*;
     if !(1..=8).contains(&race.shared.view.race_cars.get()) {
         return Err(BadInput("a cars' count of 0 or past 8").into());
@@ -87,7 +81,7 @@ pub fn show_replay_still(
     let kept = race.shared.vars.scene_switch.get();
     race.shared.vars.scene_switch.set(1);
     // The scene (it reads no register).
-    crate::race::draw_race_scene::draw_race_scene(race, input, system)?;
+    crate::race::draw_race_scene::draw_race_scene(race, o)?;
     race.shared.vars.scene_switch.set(kept);
     race.frame.frame_work.drawing.set(0);
     race.frame.frame_work.replay_still_on.set(0);

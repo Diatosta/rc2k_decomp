@@ -15,7 +15,7 @@
 //! pointers: `first_voice`, `source`, `next_copy`, `next`, a channel's `voice`, the lists),
 //! never by an address.
 
-use crate::audio::owner::{Audio, audio};
+use crate::audio::owner::Audio;
 use crate::audio::store::{AudioState, SampleRecords};
 use crate::session::Shared;
 
@@ -57,12 +57,6 @@ fn sample_place(records: &SampleRecords, number: u32) -> &Shared<SampleRecord> {
         );
     };
     r
-}
-
-/// The voice of id `id` (its place in `g_voices` + 1), as it is now. Entry point: the sound
-/// commands' side asks for a voice without the owner.
-pub fn voice(id: u32) -> Voice {
-    voice_of(&audio().state, id)
 }
 
 /// The voice of id `id`, as it is now.

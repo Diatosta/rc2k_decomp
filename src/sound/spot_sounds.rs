@@ -13,14 +13,15 @@ use crate::errors::Refused;
 pub fn spot_sounds(
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
-    let request = crate::sound::turn_parts::request();
+    let request = crate::sound::turn_parts::request(sound);
     use crate::sound::*;
     match_spot_voices::match_spot_voices(sound)?;
-    free_spot_voices::free_spot_voices(request, sound)?;
+    free_spot_voices::free_spot_voices(request, sound, audio)?;
     spot_voice_distances::spot_voice_distances(sound)?;
-    merge_spot_voices_all::merge_spot_voices_all(sound)?;
-    thin_spot_voices_all::thin_spot_voices_all(sound)?;
+    merge_spot_voices_all::merge_spot_voices_all(sound, system)?;
+    thin_spot_voices_all::thin_spot_voices_all(sound, system)?;
     exclusive_spot_voices::exclusive_spot_voices(sound);
     repeat_spot_voices::repeat_spot_voices(sound)?;
     play_spot_voices::play_spot_voices(request, audio, sound)

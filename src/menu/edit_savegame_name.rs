@@ -20,7 +20,6 @@ use crate::menu::backspace_savegame_name::backspace_savegame_name;
 use crate::menu::clear_text::clear_text;
 use crate::menu::name_lists::{NAME_LEN, savegame_name};
 use crate::menu::owner::Menus;
-use crate::menu::owner::Tables;
 use crate::menu::restore_text::restore_text;
 use crate::menu::text_entry::{length, set_length};
 use crate::saves::write_savegame_slot::write_savegame_slot;
@@ -39,13 +38,14 @@ fn end_name(name: crate::place::BytePlace) -> Result<(), BadInput> {
 }
 
 /// The slot of the highlighted saved game: `page * 10 + item - 1`.
-fn highlighted_slot(tables: &Tables) -> u32 {
-    tables
+fn highlighted_slot(menus: &Menus) -> u32 {
+    menus
+        .tables
         .pages
         .save_page
         .get()
         .wrapping_mul(10)
-        .wrapping_add(menu_item())
+        .wrapping_add(menu_item(menus))
         .wrapping_sub(1)
 }
 
@@ -66,7 +66,7 @@ pub fn edit_savegame_name(
 ) -> Result<(), Refused> {
     let screens = &menus.screens;
     // Everything that could be refused, before the key is taken.
-    let name = savegame_name()?;
+    let name = savegame_name(menus)?;
     if !(0..NAME_LEN as i32).contains(&length()) {
         return Err(BadInput("text length outside the name").into());
     }
@@ -91,7 +91,7 @@ pub fn edit_savegame_name(
             }
             screens.option_work.typing.set(false);
             end_name(name)?;
-            save(highlighted_slot(&menus.tables));
+            save(highlighted_slot(menus));
             end_name(name)?;
             screens.option_work.typing.set(false);
             return Ok(());

@@ -35,8 +35,10 @@ pub fn stage_sounds(
     audio: &crate::audio::owner::Audio,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
-    use crate::sound::turn_parts::play;
-    let request = crate::sound::turn_parts::request();
+    let play = |sound, volume, rate, place| {
+        crate::sound::play_sound::play_sound_in(audio, sound, volume, rate, place);
+    };
+    let request = crate::sound::turn_parts::request(sound);
     let stage = sound.race.stage.get();
     request.pitch_factor.set(1.0);
     request.volume_factor.set(1.0);
@@ -66,7 +68,7 @@ pub fn stage_sounds(
         for (cell, place) in request.place.iter().zip(&stage.timed_place) {
             cell.set(place.bits());
         }
-        crate::sound::play_timed_slot::play_timed_slot(&stage.timed_slot, request)?;
+        crate::sound::play_timed_slot::play_timed_slot(&stage.timed_slot, request, sound, audio)?;
     }
     play(
         0x1C5,

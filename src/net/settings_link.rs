@@ -5,17 +5,14 @@
 //! Caller: `net::settings_loop`. Long-running (a list screen).
 
 use crate::errors::Refused;
-use crate::net::owner::Net;
 use crate::race::viewer_screen_store::ViewerPanelBlock;
-use crate::system::owner::System;
 pub fn settings_link(
-    install: &'static crate::install::owner::Install,
-    net: &Net,
-    system: &System,
+    o: crate::owners::Owners<'static>,
     panel: &ViewerPanelBlock,
 ) -> Result<(), Refused> {
+    let (net, system) = (o.net, o.system);
     if crate::net::find_connections::find_connections(&net.vars, panel)? {
-        let chosen = crate::net::choose_connection::choose_connection(install, net, system)?;
+        let chosen = crate::net::choose_connection::choose_connection(o)?;
         if (chosen as i32) >= 0 {
             crate::net::keep_connection::keep_connection(net, chosen)?;
         }

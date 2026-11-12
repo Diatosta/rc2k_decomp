@@ -86,7 +86,10 @@ fn remove_whole(folder: &std::path::Path) {
     crate::framework::log(&format!("install: \"{}\": {now}", folder.display()));
 }
 
-pub fn uninstall(install: &'static crate::install::owner::Install) -> Result<(), Refused> {
+pub fn uninstall(
+    install: &'static crate::install::owner::Install,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     use crate::install as i;
     if install.names.status.get() == 0 || install.names.source.get(0) == 0 {
         return Ok(());
@@ -94,7 +97,7 @@ pub fn uninstall(install: &'static crate::install::owner::Install) -> Result<(),
     install.names.status.set(0x80);
     i::write_registry::write_registry(install, &mut crate::install::portable::Portable)?;
     // the "removing" frame
-    run_frame(None)?;
+    run_frame(system, None)?;
     if lock() {
         copy_picture()?;
         i::draw_string_list::draw_string_list(&install.pages.remove_strings.each_ref(), 0, 0)?;

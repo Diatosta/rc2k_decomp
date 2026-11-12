@@ -21,8 +21,10 @@ use rc2k_core::sound::surfaces;
 /// Object `o`'s sound of the surface's sound `set`, through `request`.
 pub fn surface_sound(
     o: &crate::sound::store::SoundObject,
-    set: ListIn<392>,
+    set: ListIn<'_, 392>,
     request: &SoundRequest,
+    owner: &crate::sound::owner::Sound,
+    audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::sound::surfaces::pick`.
     let eight = set.get(0)? == 1;
@@ -36,25 +38,22 @@ pub fn surface_sound(
     };
     // The set is a list of dwords inside the sets' lists, read by position (no record of its own).
     let sound = set.get(1 + n as usize)?;
-    record(sound)?;
+    record(audio, sound)?;
     if sound != playing.get() {
         let old = playing.get();
         playing.set(sound);
         request.sound.set(old);
-        crate::sound::turn_parts::stop(request)?;
+        crate::sound::turn_parts::stop(request, audio)?;
     }
     let sound = playing.get();
     request.sound.set(sound);
-    let (_, rate) = sample_settings(sound, OWN, OWN)?;
+    let (_, rate) = sample_settings(audio, sound, OWN, OWN)?;
     request.pitch.set(from_int(rate as i32).to_bits());
-    x87_1(
-        crate::sound::owner::sound().race.surface.get(),
-        &request.volume,
-    );
+    x87_1(owner.race.surface.get(), &request.volume);
     for (cell, place) in request.place.iter().zip(&o.place) {
         cell.set(place.bits());
     }
-    crate::sound::turn_parts::placed(request)
+    crate::sound::turn_parts::placed(request, owner, audio)
 }
 
 // ---- the arithmetic that was x87 assembly ----
