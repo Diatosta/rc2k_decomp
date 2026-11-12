@@ -3,8 +3,6 @@
 //! and `impact_octant_marks`[slot]` moved towards 1 by `contact_depth` / `sixty_four` held to 0 .. 1
 //! (through `scratch`): a + (1 - a) share. What the eight are is a reading at best.
 //!
-//! Returns: the slot (when reached)
-//!
 //! Caller: `physics::car_physics_step` (0x43B99A), every physics step.
 
 use crate::math::x87;
@@ -13,59 +11,34 @@ use crate::physics::car_store::Car;
 use crate::physics::flow::{FloatView, ZERO_BITS as ZERO};
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
-use crate::session::Cell32;
-
-/// On the variables' cells `v`.
-pub fn blend_at(tables: &PhysicsTables, numbers: &Numbers, v: &[&dyn Cell32]) {
-    let get = |k: usize| v[k].float();
-    let put = |k: usize, x: f32| v[k].set_float(x);
-    let less = |a: f32, b: f32| compare_full(a, b) & 0x100 != 0;
-    if less(get(0), tables.wheel_load_limit.get()) {
-        return;
-    }
-    let zero = f32::from_bits(ZERO);
-    let one = numbers.one.get();
-    let mut slot = 0;
-    for (k, add) in [(1, 4), (2, 2), (3, 1)] {
-        if less(get(k), zero) {
-            slot += add;
-        }
-    }
-    put(4, x87::div(get(0), &numbers.sixty_four));
-    if less(get(4), zero) {
-        put(4, x87::loaded(zero));
-    }
-    if !less(get(4), one) {
-        put(4, x87::loaded(one));
-    }
-    let slot = 5 + slot;
-    put(slot, toward_one(get(slot), get(4)));
-}
-
-fn game<'a>(car: &'a Car, scene: &'a crate::scene::owner::Scene) -> Vec<&'a dyn Cell32> {
-    vec![
-        &car.contact_depth as &dyn Cell32,
-        &car.contact_point[0],
-        &car.contact_point[1],
-        &car.contact_point[2],
-        &scene.drawing.scene.scratch,
-        &car.impact_octant_marks[0],
-        &car.impact_octant_marks[1],
-        &car.impact_octant_marks[2],
-        &car.impact_octant_marks[3],
-        &car.impact_octant_marks[4],
-        &car.impact_octant_marks[5],
-        &car.impact_octant_marks[6],
-        &car.impact_octant_marks[7],
-    ]
-}
-
-/// The exact version, for `physics::car_physics_step`.
+/// The blend of this step.
 pub fn blend_wheel_load(
     car: &Car,
     tables: &PhysicsTables,
     numbers: &Numbers,
     scene: &crate::scene::owner::Scene,
 ) {
-    blend_at(tables, numbers, &game(car, scene));
+    let depth = &car.contact_depth;
+    let share = &scene.drawing.scene.scratch;
+    let less = |a: f32, b: f32| compare_full(a, b) & 0x100 != 0;
+    if less(depth.get(), tables.wheel_load_limit.get()) {
+        return;
+    }
+    let zero = f32::from_bits(ZERO);
+    let one = numbers.one.get();
+    let mut slot = 0;
+    for (k, add) in [(0, 4), (1, 2), (2, 1)] {
+        if less(car.contact_point[k].get(), zero) {
+            slot += add;
+        }
+    }
+    share.set_float(x87::div(depth.get(), &numbers.sixty_four));
+    if less(share.float(), zero) {
+        share.set_float(x87::loaded(zero));
+    }
+    if !less(share.float(), one) {
+        share.set_float(x87::loaded(one));
+    }
+    let mark = &car.impact_octant_marks[slot];
+    mark.set(toward_one(mark.get(), share.float()));
 }

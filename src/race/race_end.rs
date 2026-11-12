@@ -278,7 +278,7 @@ pub fn tidy_stage(
         .view_and_records
         .view_vars
         .view_scale
-        .set_bits(race.shared.vars.kept_scale.get());
+        .set(race.shared.vars.kept_scale.get());
     s.indent(-3);
     s.log(STAGE_WORDS[9]);
     Ok(())

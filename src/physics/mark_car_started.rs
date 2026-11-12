@@ -4,26 +4,16 @@
 //! Caller: `physics::race_timers` (four calls).
 
 use crate::physics::car_store::Car;
-use crate::session::Cell32;
 use rc2k_core::physics::start::CarStart;
 
-fn game(car: &Car) -> Vec<&dyn Cell32> {
-    vec![&car.started_stand_timer as &dyn Cell32, &car.damage_failed]
-}
-
-/// On the variables' cells.
 // Converted: `rc2k_core::physics::start::CarStart::mark_started`.
-fn core(v: &[&dyn Cell32]) {
+pub fn mark_car_started(car: &Car) {
     let was = CarStart {
-        started: v[0].bits(),
-        moving: v[1].bits(),
+        started: car.started_stand_timer.get(),
+        moving: car.damage_failed.get(),
         ..CarStart::default()
     };
     let mut c = was;
     c.mark_started();
-    crate::physics::cells::set_changed(v[0], was.started, c.started);
-}
-
-pub fn mark_car_started(car: &Car) {
-    core(&game(car));
+    crate::physics::cells::set_changed(&car.started_stand_timer, was.started, c.started);
 }

@@ -39,7 +39,7 @@ fn rate(
             .kind21_set
             .rate_k
             .each_ref()
-            .map(super::super::session::PlainFloat::bits);
+            .map(super::super::session::PlainFloat::get);
         x87::speed_rate_to_int(
             &wheel.driven_speed,
             k1,

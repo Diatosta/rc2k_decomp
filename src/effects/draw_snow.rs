@@ -47,11 +47,13 @@ fn square(buffer: &crate::d3d::vertices_store::PolygonVertices, weather: &Weathe
         &weather.snow,
         &weather.snow_light,
     );
+    // The scratch holds four vertices' records, eight dwords each.
     for (vertex, w) in buffer.vertices.iter().zip(w.as_chunks::<8>().0) {
-        vertex.x.set_bits(w[0]);
-        vertex.y.set_bits(w[1]);
-        vertex.z.set_bits(w[2]);
-        vertex.u.set_bits(w[6]);
+        let w = w.map(f32::from_bits);
+        vertex.x.set(w[0]);
+        vertex.y.set(w[1]);
+        vertex.z.set(w[2]);
+        vertex.u.set(w[6]);
     }
 }
 
@@ -139,21 +141,16 @@ pub fn draw_snow(
                     }
                 }
                 square(buffer, weather, 4 * k);
-                let [top, bottom] = snow_light
-                    .v
-                    .each_ref()
-                    .map(super::super::session::PlainDword::get);
+                let [top, bottom] = snow_light.v.each_ref().map(crate::session::PlainFloat::get);
                 for n in 0..4 {
-                    buffer.vertices[n]
-                        .v
-                        .set_bits(if n < 2 { top } else { bottom });
+                    buffer.vertices[n].v.set(if n < 2 { top } else { bottom });
                 }
                 if !clip_quad(buffer, effects)? {
                     draw_fan(buffer, scene);
                     snow.drawn.set(snow.drawn.get().wrapping_add(1));
                     crate::scene::polygon_work::front_end()
                         .polygon_vertex_count
-                        .set_bits(4u32);
+                        .set(4);
                 }
             }
         }

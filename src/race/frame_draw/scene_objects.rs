@@ -172,7 +172,7 @@ pub fn draw_screen_quad(
         let v = &poly.quad_vertices[8 * k..8 * k + 8];
         v[3].set(x.to_bits());
         v[7].set(y.to_bits());
-        v[6].set(course.numbers.k4096_b.bits());
+        v[6].set(course.numbers.k4096_b.get().to_bits());
     }
     for e in entries {
         e.point.set(u32::MAX);

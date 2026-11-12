@@ -33,14 +33,28 @@ use crate::physics::axis_turn_matrix::axis_turn_matrix;
 use crate::physics::step_families::SlotInputs;
 use crate::race::work_store::{RaceSlot, RaceWork};
 use crate::scene::matrix::multiply_matrices;
-use crate::scene::matrix3::rounded;
+use crate::scene::matrix3::rounded_value;
 use crate::scene::view_matrix::{square_matrix, unit_vector};
-use crate::session::Cell32;
+use crate::session::{Dword, Float};
 
-/// `from`'s first cells into `to`'s.
-fn copy<A: Cell32, B: Cell32>(from: &[A], to: &[B]) {
+/// A place (three whole numbers) copied.
+fn copy_place(from: &[Dword; 3], to: &[Dword; 3]) {
     for (t, f) in to.iter().zip(from) {
-        t.set_bits(f.bits());
+        t.set(f.get());
+    }
+}
+
+/// A matrix's floats copied.
+fn copy_matrix(from: &[Float; 16], to: &[Float; 16]) {
+    for (t, f) in to.iter().zip(from) {
+        t.set(f.get());
+    }
+}
+
+/// The first rows of one of the race work's matrices (floats held in dwords) into a matrix.
+fn copy_held_matrix(from: &[Dword], to: &[Float; 16]) {
+    for (t, f) in to.iter().zip(from) {
+        t.set(f32::from_bits(f.get()));
     }
 }
 
@@ -64,21 +78,22 @@ pub fn move_slot(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let drawing = &scene.drawing;
-    let dt = c.tables.step_time.bits();
-    let k65536 = c.numbers.k65536.bits();
-    copy(&s.place, &c.work.slot_place);
+    let dt = c.tables.step_time.get();
+    let k65536 = c.numbers.k65536.get();
+    copy_place(&s.place, &c.work.slot_place);
     s.spin_length
-        .set_bits(rounded(crate::physics::vector_length::vector_length(
+        .set(rounded_value(crate::physics::vector_length::vector_length(
             &s.spin,
         )));
-    if s.spin_length.bits() != 0 {
+    // Tested as a dword: any bit set (a NaN too) means a spin.
+    if s.spin_length.get().to_bits() != 0 {
         // From the spin's length on: two dwords past the slot, as the original has it (the
         // next slot's first two, or what follows the table).
         let first = core::mem::offset_of!(RaceWork, race_slots)
             + number * core::mem::size_of::<RaceSlot>()
             + core::mem::offset_of!(RaceSlot, spin_length);
         let past = |k: usize| crate::race::checkpoints_store::run_on(c.work, first, k).get();
-        let axis = SpinAxis([s.spin_length.bits(), past(1), past(2)]);
+        let axis = SpinAxis([s.spin_length.get().to_bits(), past(1), past(2)]);
         unit_vector(c.course, &axis, &c.course.lists.spin_axis);
         c.course.lists.spin_angle.set(x87::mul(&s.spin_length, dt));
         axis_turn_matrix(c.course, &c.course.lists.turn_matrix);
@@ -88,7 +103,7 @@ pub fn move_slot(
             &c.course.lists.turn_matrix,
             &c.matrices.turned_matrix,
         );
-        copy(&c.matrices.turned_matrix, &s.matrix);
+        copy_matrix(&c.matrices.turned_matrix, &s.matrix);
     }
     for k in [1, 0, 2] {
         let d = mul2_to_int(&s.motion[k], dt, k65536) as u32;
@@ -103,7 +118,7 @@ pub fn move_slot(
     crate::physics::find_ground::find_ground(c.probe, c.ground, c.course, scene)?;
     let face: u32 = c.course.course.ground_slot.get();
     if face == u32::MAX {
-        copy(&c.work.slot_place, &s.place);
+        copy_place(&c.work.slot_place, &s.place);
         for cell in s.motion.iter().chain(&s.spin) {
             cell.set(0.0);
         }
@@ -115,7 +130,7 @@ pub fn move_slot(
         return Ok(());
     }
     s.place[1].set(height);
-    let half = c.numbers.half.bits();
+    let half = c.numbers.half.get();
     s.motion[0].set(x87::mul(&s.motion[0], half));
     s.motion[1].set(negated(mul(&s.motion[1], half)));
     s.motion[2].set(x87::mul(&s.motion[2], half));
@@ -123,10 +138,10 @@ pub fn move_slot(
         cell.set(negated(mul(cell, half)));
     }
     if abs_compare(&s.motion[1], &c.numbers.one) & 0x100 != 0 {
-        copy(&c.work.part_matrix_flat[..12], &s.matrix);
+        copy_held_matrix(&c.work.part_matrix_flat[..12], &s.matrix);
         let n = s.part.get() % 20;
         if (n.wrapping_sub(5) as i32) >= 0 && (n.wrapping_sub(9) as i32) < 0 {
-            copy(&c.work.part_matrix_still[..12], &s.matrix);
+            copy_held_matrix(&c.work.part_matrix_still[..12], &s.matrix);
             return Ok(());
         }
     }

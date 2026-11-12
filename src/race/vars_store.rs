@@ -19,7 +19,7 @@ pub struct RaceVars {
     /// +0x8 (0x6235F0): `drive::pause_until_key`'s wait (0x1E, counted down).
     pub pause_wait: Dword,
     /// +0xc (0x6235F4): put back into `dword_606294` at the race's end (`race::race_end`).
-    pub kept_scale: Dword,
+    pub kept_scale: Float,
     /// +0x10 (0x6235F8): the race's tick count (`drive::race_tick`).
     pub race_ticks: Dword,
     /// +0x14 (0x6235FC): each car's tyres (the players' `settings.cars[n].tyre`); the car's gravel

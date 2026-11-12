@@ -88,8 +88,10 @@ pub fn draw_cell_sprite(
         return Err(BadInput("no marks settings").into());
     }
     turn(view.view_matrix, ring, &place, effects);
-    if effects.frame.draw_work.turned[2].bits() as i32 <= effects.frame.draw_work.near.bits() as i32
-    {
+    if crate::math::x87::bits_at_or_below(
+        effects.frame.draw_work.turned[2].get(),
+        effects.frame.draw_work.near.get(),
+    ) {
         return Ok(());
     }
     let fogged = fog_at(view.fog, ring.work.whole.get())?;
@@ -98,16 +100,16 @@ pub fn draw_cell_sprite(
         buffer.vertices[n].specular.set(fogged);
         buffer.vertices[n].colour.set(colour);
     }
-    effects.frame.draw_work.sprite_half[0].set_bits(size);
+    effects.frame.draw_work.sprite_half[0].set(size);
     let at = cell << 4;
-    let place = |n: usize| masks.surface.places.get_u32(at as usize + 4 * n);
+    let place = |n: usize| f32::from_bits(masks.surface.places.get_u32(at as usize + 4 * n));
     let [u0, v0, u1, v1] = [place(0), place(1), place(2), place(3)];
     for (n, (u, v)) in [(u0, v0), (u1, v0), (u1, v1), (u0, v1)]
         .into_iter()
         .enumerate()
     {
-        buffer.vertices[n].u.set_bits(u);
-        buffer.vertices[n].v.set_bits(v);
+        buffer.vertices[n].u.set(u);
+        buffer.vertices[n].v.set(v);
     }
     square(view.engine_tables, buffer, at, angle, effects);
     if clip_quad(buffer, effects)? {
@@ -116,7 +118,7 @@ pub fn draw_cell_sprite(
     draw_fan(buffer, scene);
     crate::scene::polygon_work::front_end()
         .polygon_vertex_count
-        .set_bits(4u32);
+        .set(4);
     Ok(())
 }
 
@@ -166,7 +168,7 @@ fn turn_x87(
     let t29 = t28 + view_matrix[14].ld();
     dw.turned[0].st(t11);
     dw.turned[1].st(t20);
-    w.whole.set_bits(bh::to_int(t29) as u32);
+    w.whole.set(bh::to_int(t29) as u32);
     dw.turned[2].st(t29);
 }
 
@@ -205,16 +207,16 @@ fn square_x87(
     st_cell(&buffer.vertices[1].z, t3);
     st_cell(&buffer.vertices[2].z, t3);
     st_cell(&buffer.vertices[3].z, t3);
-    let t4 = bh::int(dw.sprite_half[0].bits() as i32);
+    let t4 = bh::int(dw.sprite_half[0].get() as i32);
     let t5 = t4 * t1;
     dw.sprite_half[0].st(t5);
     let t6 = t5 * ld_cell(slope_at(cs, k));
     dw.sprite_half[1].st(t6);
-    let t7 = dw.sprite_half[0].bits();
+    let t7 = dw.sprite_half[0].get();
     let t8 = t7 ^ 0x80000000;
-    dw.sprite_half[3].set_bits(t8);
-    let t9 = dw.sprite_half[1].bits();
-    dw.sprite_half[2].set_bits(t9);
+    dw.sprite_half[3].set(t8);
+    let t9 = dw.sprite_half[1].get();
+    dw.sprite_half[2].set(t9);
     let t10 = dw.sprite_half[0].ld();
     let t11 = dw.sprite_half[1].ld();
     let t12 = t11 * ld_cell(cosine(engine_tables, angle));

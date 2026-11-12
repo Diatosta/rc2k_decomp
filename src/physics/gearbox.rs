@@ -19,10 +19,10 @@ use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 use std::cmp::Ordering;
 
-/// C0 of comparing `a` with `b`: below, or unordered.
-pub fn below(a: u32, b: u32) -> bool {
+/// C0 of comparing `a` with `b`: below, or unordered (each a float or its bits).
+pub fn below(a: impl crate::math::x87::Flt, b: impl crate::math::x87::Flt) -> bool {
     !matches!(
-        f32::from_bits(a).partial_cmp(&f32::from_bits(b)),
+        f32::from_bits(a.bits()).partial_cmp(&f32::from_bits(b.bits())),
         Some(Ordering::Greater | Ordering::Equal)
     )
 }

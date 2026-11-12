@@ -248,8 +248,8 @@ pub struct WindscreenFlakeState {
     pub length_divisors: [PlainFloat; 2],
     /// 0x8BC1AA: `flt_8BC1AA`: the rate times it must come to a whole number above 0 for the windscreen flakes to run (65536.0).
     pub share: PlainFloat,
-    /// 0x8BC1AE: `dword_8BC1AE` .. `dword_8BC1BA`: the texture places of a drawn flake (u a, u c, v b, v d as floats' bits; `effects::draw_windscreen_flake`).
-    pub places: [PlainDword; 4],
+    /// 0x8BC1AE: `dword_8BC1AE` .. `dword_8BC1BA`: the texture places of a drawn flake (u a, u c, v b, v d; `effects::draw_windscreen_flake`).
+    pub places: [PlainFloat; 4],
     /// 0x8BC1BE: `flt_8BC1BE` .. `flt_8BC1CA`: 4096.0 four times (the port does not read them).
     pub unread_floats: [PlainFloat; 4],
     /// 0x8BC1CE: `dword_8BC1CE` .. `dword_8BC1DA`: 0, 0.5, 0.99999, 0.99999 (the port does not read them).
@@ -261,9 +261,9 @@ pub struct WindscreenFlakeState {
     /// 0x8BC20E: `dword_8BC20E`: 256.0 (the port does not read it).
     pub unread_rhw: PlainDword,
     /// 0x8BC212: `dword_8BC212` .. `dword_8BC21E`: the texture places `effects::windscreen_flakes_setup` puts on the vertices.
-    pub setup_places: [PlainDword; 4],
+    pub setup_places: [PlainFloat; 4],
     /// 0x8BC222: `dword_8BC222` .. `dword_8BC22E`: the texture places `effects::run_windscreen_flakes` puts on the vertices.
-    pub run_places: [PlainDword; 4],
+    pub run_places: [PlainFloat; 4],
     /// 0x8BC232: `dword_8BC232`: the age over which a flake fades (16).
     pub fade: PlainDword,
     /// 0x8BC236: `flt_8BC236`: 1024.0, what a flake's z is taken from (`effects::run_windscreen_flakes`).
@@ -298,10 +298,10 @@ impl WindscreenFlakeState {
             length_divisors: [PlainFloat::new(2048.0), PlainFloat::new(1024.0)],
             share: PlainFloat::new(65536.0),
             places: [
-                PlainDword::new(0x3B000000),
-                PlainDword::new(0x3B000000),
-                PlainDword::new(0x3D840000),
-                PlainDword::new(0x3D840000),
+                PlainFloat::new(0.001953125),
+                PlainFloat::new(0.001953125),
+                PlainFloat::new(0.064453125),
+                PlainFloat::new(0.064453125),
             ],
             unread_floats: [
                 PlainFloat::new(16384.0),
@@ -326,16 +326,16 @@ impl WindscreenFlakeState {
             halves: [const { PlainFloat::new(0.5) }; 6],
             unread_rhw: PlainDword::new(0x43800000),
             setup_places: [
-                PlainDword::new(0x3DE80000),
-                PlainDword::new(0x3D000000),
-                PlainDword::new(0x3E7C0000),
-                PlainDword::new(0x3E280000),
+                PlainFloat::new(0.11328125),
+                PlainFloat::new(0.03125),
+                PlainFloat::new(0.24609375),
+                PlainFloat::new(0.1640625),
             ],
             run_places: [
-                PlainDword::new(0x3B000000),
-                PlainDword::new(0x3B000000),
-                PlainDword::new(0x3D840000),
-                PlainDword::new(0x3D840000),
+                PlainFloat::new(0.001953125),
+                PlainFloat::new(0.001953125),
+                PlainFloat::new(0.064453125),
+                PlainFloat::new(0.064453125),
             ],
             fade: PlainDword::new(0x10),
             far: PlainFloat::new(1024.0),

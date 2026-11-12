@@ -45,11 +45,11 @@ fn distance(
     let drawing = &scene.drawing;
     let word = |k: usize| point[k] as i32;
     let dx = word(0).wrapping_sub(ground.ground_x.get() as i32);
-    drawing.scene.scratch.set_bits(dx as u32);
-    let first = int(drawing.scene.scratch.bits() as i32);
+    drawing.scene.scratch.set(dx as u32);
+    let first = int(dx);
     let dz = word(2).wrapping_sub(ground.ground_z.get() as i32);
-    drawing.scene.scratch.set_bits(dz as u32);
-    let second = int(drawing.scene.scratch.bits() as i32);
+    drawing.scene.scratch.set(dz as u32);
+    let second = int(dz);
     tables
         .split_point_distance
         .st((first * first + second * second).sqrt() * numbers.one_over_65536.ld());
@@ -67,17 +67,15 @@ fn angle(
     let drawing = &scene.drawing;
     let word = |k: usize| point[k] as i32;
     let dx = (ground.ground_x.get() as i32).wrapping_sub(word(0));
-    drawing.scene.scratch.set_bits(dx as u32);
-    let y = int(drawing.scene.scratch.bits() as i32);
+    drawing.scene.scratch.set(dx as u32);
+    let y = int(dx);
     let dz = (ground.ground_z.get() as i32).wrapping_sub(word(2));
-    drawing.scene.scratch.set_bits(dz as u32);
-    let x = int(drawing.scene.scratch.bits() as i32);
+    drawing.scene.scratch.set(dz as u32);
+    let x = int(dz);
     let turns = y.atan2_over_pi(x) * numbers.half.ld() * numbers.k65536.ld();
-    drawing.scene.scratch.set_bits(to_int(turns) as u32);
-    drawing
-        .scene
-        .scratch
-        .set_bits(drawing.scene.scratch.bits() & 0xFFFF);
+    let turns = to_int(turns) as u32;
+    drawing.scene.scratch.set(turns);
+    drawing.scene.scratch.set(turns & 0xFFFF);
 }
 
 /// The split's checkpoint and its face's first point's number, refused or fatal as said.

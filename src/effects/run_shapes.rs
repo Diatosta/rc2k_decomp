@@ -40,7 +40,7 @@ pub fn run_shapes(
             drops
                 .picks
                 .next
-                .set((r & 0xFF).wrapping_add(shared.physics_tables.scene_clock.bits()));
+                .set((r & 0xFF).wrapping_add(shared.physics_tables.scene_clock.get()));
             let mask = marks.mask_number.get();
             if mask >= MASK_COUNT {
                 return Err(BadInput("a mask number past dword_844E34's 9").into());

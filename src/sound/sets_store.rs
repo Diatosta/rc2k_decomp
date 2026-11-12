@@ -119,7 +119,7 @@ pub struct SoundRequest {
     /// +8: the volume, a float, then (without 3D) the whole number sent.
     pub volume: Dword,
     /// +0xC .. +0x14: where the sound is, three floats.
-    pub place: [Dword; 3],
+    pub place: [Float; 3],
     /// +0x18: without 3D, the angle (`fpatan` of +0x14 over +0xC).
     pub angle: Dword,
     /// +0x1C: without 3D, the place between left and right (a whole number).
@@ -798,7 +798,7 @@ impl RaceSoundSets {
                 sound: Dword::new(0),
                 pitch: Dword::new(0),
                 volume: Dword::new(0),
-                place: [Dword::new(0), Dword::new(0), Dword::new(0)],
+                place: [Float::new(0.0), Float::new(0.0), Float::new(0.0)],
                 angle: Dword::new(0),
                 pan: Dword::new(0),
                 pitch_factor: Float::new(0.0),

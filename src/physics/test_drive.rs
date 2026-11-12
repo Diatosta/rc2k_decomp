@@ -38,25 +38,25 @@ pub fn test_drive(
     )?;
     // The figures kept round the run: the drive speeds, the car's speed, the gear, the
     // engine, the gearbox kind.
-    let kept = [
-        shared.car().drive_speed_a.bits(),
-        shared.car().drive_speed_b.bits(),
-        shared.car().local_velocity[2].bits(),
-        shared.car().gear.bits(),
-        shared.car().engine_speed.bits(),
-        shared.car().gearbox_kind.bits(),
-    ];
+    let kept = (
+        shared.car().drive_speed_a.get(),
+        shared.car().drive_speed_b.get(),
+        shared.car().local_velocity[2].get(),
+        shared.car().gear.get(),
+        shared.car().engine_speed.get(),
+        shared.car().gearbox_kind.get(),
+    );
     shared
         .car()
         .engine_power_factor
         .set(gear.test_power_factor.get());
     test_drive_run::test_drive_run(course, shared, gear, scene)?;
-    let [a, b, speed, gear, engine, kind] = kept;
-    shared.car().drive_speed_a.set_bits(a);
-    shared.car().drive_speed_b.set_bits(b);
-    shared.car().local_velocity[2].set_bits(speed);
-    shared.car().gear.set_bits(gear);
-    shared.car().engine_speed.set_bits(engine);
-    shared.car().gearbox_kind.set_bits(kind);
+    let (a, b, speed, gear, engine, kind) = kept;
+    shared.car().drive_speed_a.set(a);
+    shared.car().drive_speed_b.set(b);
+    shared.car().local_velocity[2].set(speed);
+    shared.car().gear.set(gear);
+    shared.car().engine_speed.set(engine);
+    shared.car().gearbox_kind.set(kind);
     Ok(())
 }

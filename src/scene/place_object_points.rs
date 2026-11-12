@@ -187,14 +187,14 @@ pub fn place_object_points(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
         r[3] = 0;
         r[7] = 0;
         if f32::from_bits(r[6]) >= NEAR {
-            let v = [
-                ctx.view.polygon.window.view_scale.bits(),
-                ctx.view.polygon.window.view_centre[0].bits(),
-                ctx.view.polygon.window.view_centre[1].bits(),
-                race.course.course.flat_depth.get(),
-            ];
             let flat = race.course.stage_prefs.flat_depth.get() != 0;
-            to_screen(&mut r, &v, flat, &crate::session::Dword::new(0));
+            to_screen(
+                &mut r,
+                &ctx.view.polygon.window,
+                race.course.course.flat_depth.get(),
+                flat,
+                &crate::session::Dword::new(0),
+            );
         }
         point_records::set(ctx.part, record, r)?;
         from = from.wrapping_add(12);
@@ -246,14 +246,14 @@ pub fn place_object_points_sse(
         r[3] = 0;
         r[7] = 0;
         if f32::from_bits(r[6]) >= NEAR {
-            let v = [
-                ctx.view.polygon.window.view_scale.bits(),
-                ctx.view.polygon.window.view_centre[0].bits(),
-                ctx.view.polygon.window.view_centre[1].bits(),
-                race.course.course.flat_depth.get(),
-            ];
             let flat = race.course.stage_prefs.flat_depth.get() != 0;
-            to_screen(&mut r, &v, flat, &crate::session::Dword::new(0));
+            to_screen(
+                &mut r,
+                &ctx.view.polygon.window,
+                race.course.course.flat_depth.get(),
+                flat,
+                &crate::session::Dword::new(0),
+            );
         }
         point_records::set(ctx.part, record, r)?;
         from = from.wrapping_add(12);

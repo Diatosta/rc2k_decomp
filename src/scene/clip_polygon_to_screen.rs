@@ -77,10 +77,10 @@ pub fn clip_polygon_to_screen(
     or_undone(|| {
         let mut listed = Some(entries);
         for (bit, edge, inside_past) in [
-            (1, Edge::X(poly.window.clip_screen[2].bits()), true),
-            (2, Edge::X(poly.window.clip_screen[3].bits()), false),
-            (4, Edge::Y(poly.window.clip_screen[0].bits()), true),
-            (8, Edge::Y(poly.window.clip_screen[1].bits()), false),
+            (1, Edge::X(poly.window.clip_screen[2].get()), true),
+            (2, Edge::X(poly.window.clip_screen[3].get()), false),
+            (4, Edge::Y(poly.window.clip_screen[0].get()), true),
+            (8, Edge::Y(poly.window.clip_screen[1].get()), false),
         ] {
             if mask & bit != 0 {
                 listed = clip_pass(part, poly, course, listed, edge, inside_past, mask)?;

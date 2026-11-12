@@ -468,7 +468,7 @@ pub fn surface_shares(race: &Race) -> Result<(), Refused> {
     }
     {
         for share in &shared.vars.surface_shares {
-            share.set_bits(0u32);
+            share.set(0.0);
         }
         let faces: u32 = course.course.course_face_count.get();
         let byte = |info: u32, offset: u32| -> Result<u32, BadInput> {

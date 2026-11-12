@@ -25,20 +25,11 @@ pub fn draw_particle(
     for (n, v) in turned.into_iter().enumerate() {
         effects_frame.draw_work.turned[n].set(v);
     }
-    let [a, b, c] = turned;
-    if (c.to_bits() as i32) <= effects_frame.draw_work.near.bits() as i32 {
+    if x87::bits_at_or_below(turned[2], effects_frame.draw_work.near.get()) {
         return;
     }
-    let k = [
-        crate::scene::polygon_work::front_end()
-            .window
-            .view_scale
-            .bits(),
-        crate::scene::polygon_work::front_end().window.view_centre[0].bits(),
-        crate::scene::polygon_work::front_end().window.view_centre[1].bits(),
-        effects_frame.draw_work.z_k.bits(),
-    ];
-    let sq = x87::particle_square(a, b, c, k, size as i32);
+    let k = effects_frame.draw_work.view_k();
+    let sq = x87::particle_square_floats(turned, k, size as i32);
     for n in 0..4 {
         let v = &buffer.vertices[n];
         v.colour.set(colour);

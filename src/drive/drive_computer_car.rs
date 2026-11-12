@@ -85,11 +85,11 @@ fn flat_way(from: &[Dword], to: &[Dword], out: &[Float]) {
 fn normalised(race: &Race, scene: &crate::scene::owner::Scene, from: &[Float], to: &[Float]) {
     let w = &race.frame.scratch().work_vector;
     for k in 0..3 {
-        w[k].set(from[k].bits());
+        w[k].set(from[k].get().to_bits());
     }
     normalise_work_vector(&race.course.numbers, race.frame.scratch(), scene);
     for k in 0..3 {
-        to[k].set_bits(w[k].get());
+        to[k].set(f32::from_bits(w[k].get()));
     }
 }
 

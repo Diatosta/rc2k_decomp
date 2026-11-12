@@ -169,7 +169,7 @@ trait Effects {
     /// Eight hex digits and a line break (`log_hex8`).
     fn hex8(&mut self, value: u32);
     /// A float with two decimals and a line break (`log_float`).
-    fn float(&mut self, bits: u32);
+    fn float(&mut self, value: f32);
     /// `race::clear_player_absences` (0x449D44).
     fn clear_player_absences(&mut self, race: &Race);
     /// `race::copy_league_table` (0x4650B7).
@@ -191,8 +191,8 @@ impl Effects for GameEffects {
     fn hex8(&mut self, value: u32) {
         crate::logfile::log_hex8::log_hex8(value, true, 1);
     }
-    fn float(&mut self, bits: u32) {
-        crate::logfile::log_float::log_float(f32::from_bits(bits), 2, true, 1);
+    fn float(&mut self, value: f32) {
+        crate::logfile::log_float::log_float(value, 2, true, 1);
     }
     fn clear_player_absences(&mut self, race: &Race) {
         crate::race::race_shell::clear_player_absences(race);
@@ -237,11 +237,11 @@ fn log_cars(race: &Race, fx: &mut impl Effects) {
         logged_int(fx, &label("shauntyretype1"), c.tyre_kind.get());
         for ((gauge, _), name) in GAUGES.iter().zip(GAUGE_NAMES) {
             fx.text(&label(name), false);
-            fx.float(gauge(c).bits());
+            fx.float(gauge(c).get());
         }
         for (n, mark) in c.impact_octant_marks.iter().enumerate() {
             fx.text(&label(&format!("caroctdamage{n}")), false);
-            fx.float(mark.bits());
+            fx.float(mark.get());
         }
         // The original jumps over car 2's lines unless the race has exactly two players.
         if car == 0 && shared.view.players.get() != 2 {
@@ -383,7 +383,7 @@ fn copy_in(race: &Race, gfx: &Gfx, fx: &mut impl Effects) -> Result<(), Refused>
             gauge(c).set(x87::from_int(setting(&settings.cars[car]).get() as i32));
         }
         for (mark, saved) in c.impact_octant_marks.iter().zip(result_marks(shared, car)) {
-            mark.set_bits(saved.get());
+            mark.set(f32::from_bits(saved.get()));
         }
     }
 
@@ -437,7 +437,7 @@ fn copy_out(race: &Race, fx: &mut impl Effects) -> Result<(), Refused> {
                 setting(&settings.cars[car]).set(x87::to_int(gauge(c)) as u32);
             }
             for (mark, saved) in c.impact_octant_marks.iter().zip(result_marks(shared, car)) {
-                saved.set(mark.bits());
+                saved.set(mark.get().to_bits());
             }
         }
         fx.store_results_by_mode(race);
@@ -613,8 +613,8 @@ mod tests {
         fn hex8(&mut self, value: u32) {
             self.0.push(format!("hex8 {value:08X}"));
         }
-        fn float(&mut self, bits: u32) {
-            self.0.push(format!("float {bits:08X}"));
+        fn float(&mut self, value: f32) {
+            self.0.push(format!("float {:08X}", value.to_bits()));
         }
         fn clear_player_absences(&mut self, _: &Race) {
             self.0.push("call clear_player_absences".into());
@@ -706,13 +706,8 @@ mod tests {
         let race = race();
         let mut rng = Rng(0x9E37_79B9_7F4A_7C15);
         let scale = &race.course.numbers.brake_scale;
-        let scale_kept = scale.bits();
-        let scales = [
-            scale_kept,
-            2.56f32.to_bits(),
-            1.0f32.to_bits(),
-            3.7f32.to_bits(),
-        ];
+        let scale_kept = scale.get();
+        let scales = [scale_kept, 2.56, 1.0, 3.7];
         let in_steps = old_machine::graham_to_shaun();
         let out_steps = old_machine::shaun_to_graham();
         for (copy_in, steps) in [(true, &in_steps), (false, &out_steps)] {
@@ -723,7 +718,7 @@ mod tests {
                 for c in &cells {
                     c.set(rng.word());
                 }
-                scale.set_bits(scales[round % scales.len()]);
+                scale.set(scales[round % scales.len()]);
                 let start = snapshot(&cells);
                 branches[0] += u32::from(race.shared.view.players.get() == 2);
                 branches[1] += u32::from(race.shared.replay_file().hold_car_revs.get() != 0);
@@ -753,6 +748,6 @@ mod tests {
             assert!(branches[1] > 30 || copy_in, "a replay shown");
             restore(&cells, &kept);
         }
-        scale.set_bits(scale_kept);
+        scale.set(scale_kept);
     }
 }

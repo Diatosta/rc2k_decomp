@@ -33,7 +33,7 @@ pub fn spawn_windscreen_drop(
 ) -> Result<(), Refused> {
     let items = &drops.hex.items;
     let walk = walk_to_free(
-        drops.work.cursor.bits(),
+        drops.work.cursor.get(),
         ITEMS,
         ITEM_LEN,
         |at| items.get_u32(at as usize) == 0,
@@ -50,7 +50,7 @@ pub fn spawn_windscreen_drop(
             put(o, 0);
         }
     }
-    drops.work.cursor.set_bits(walk.cursor);
+    drops.work.cursor.set(walk.cursor);
     Ok(())
 }
 
@@ -120,7 +120,7 @@ pub fn windscreen_drops_step(masks: &Masks, drops: &WindscreenDrops) -> Result<(
         expire_windscreen_drops(masks, drops)?;
         let latest = drops.picks.index.get().wrapping_add(drops.hex.steps.get());
         drops.picks.index.set(latest & 0xFF);
-        drops.state.clock.set_bits(latest & 0xFF);
+        drops.state.clock.set(latest & 0xFF);
     }
     Ok(())
 }

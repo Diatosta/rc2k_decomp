@@ -20,7 +20,7 @@ fn centres(pong: &Pong) {
 
 /// The original's 0x4B81A4 .. 0x4B81FE: the difference made one long, scaled.
 fn new_way(pong: &Pong, effects: &crate::effects::owner::Effects) {
-    new_way_x87(&pong.state, &pong.rules, effects.setup.floats.one.bits());
+    new_way_x87(&pong.state, &pong.rules, effects.setup.floats.one.get());
 }
 
 pub fn pong_ball_hits(pong: &Pong, effects: &crate::effects::owner::Effects) {
@@ -35,7 +35,8 @@ pub fn pong_ball_hits(pong: &Pong, effects: &crate::effects::owner::Effects) {
         p.ball[n].set(x87::sub(&p.ball[n], &p.ball_way[n]));
     }
     centres(pong);
-    if p.difference[0].bits() == 0 {
+    let across = p.difference[0].get();
+    if across == 0.0 && across.is_sign_positive() {
         p.difference[0].set(x87::sub(&p.difference[0], &pong.rules.nudge));
     }
     new_way(pong, effects);
@@ -73,7 +74,7 @@ fn centres_x87(p: &PongState, r: &PongRules) {
 
 /// `new_way`'s x87 block as plain Rust on the x87 model (19 instructions), same order and
 /// memory places; `length` the bits of `MarksFloats.one`.
-fn new_way_x87(p: &PongState, r: &PongRules, length: u32) {
+fn new_way_x87(p: &PongState, r: &PongRules, length: f32) {
     let t0 = p.difference[0].ld();
     let t1 = t0 * t0;
     let t2 = p.difference[1].ld();
@@ -159,7 +160,8 @@ mod reference_vectors {
             sincos: false,
         };
         recorded("effects.pong_ball_hits.new_way_x87", &SPEC, |b| {
-            let length = unsafe { ((b[0] + 0x22C).host() as *const u32).read_unaligned() };
+            let length =
+                f32::from_bits(unsafe { ((b[0] + 0x22C).host() as *const u32).read_unaligned() });
             super::new_way_x87(state_at(b[0]), &rules_at(b[0]), length);
         });
     }

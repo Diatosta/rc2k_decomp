@@ -12,7 +12,7 @@ use crate::math::x87::{ext_times, ints_diff_80};
 use crate::race::matrices_store::SceneMatrices;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
-use crate::scene::matrix3::rounded;
+use crate::scene::matrix3::rounded_value;
 use crate::scene::rotate_point::rotate_point;
 use crate::session::Dword;
 
@@ -31,9 +31,9 @@ pub fn place_car_sound(
         d(&shared.car().position[2], &shared.car().camera_position[2]),
     ];
     let out = rotate_point(crate::race::heard_turn::turn(matrices), p);
-    let k = numbers.one_over_65536.bits();
+    let k = numbers.one_over_65536.get();
     for (n, e) in out.iter().enumerate() {
-        so.place_b[n].set_bits(rounded(ext_times(*e, k)));
+        so.place_b[n].set(rounded_value(ext_times(*e, k)));
     }
     so.new_revs.set(1);
     Ok(())

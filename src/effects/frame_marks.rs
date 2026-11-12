@@ -48,12 +48,8 @@ pub fn frame_marks(
         let (start, _) = rdtsc();
         let (now, _) = rdtsc();
         let last: u32 = effects.setup.frame.last_count.get();
-        effects.setup.frame.last_count.set_bits(now);
-        effects
-            .setup
-            .frame
-            .frame_cycles
-            .set_bits(now.wrapping_sub(last));
+        effects.setup.frame.last_count.set(now);
+        effects.setup.frame.frame_cycles.set(now.wrapping_sub(last));
         for (from, to) in copies(effects, marks) {
             to.set(from.get());
         }
@@ -76,7 +72,7 @@ pub fn frame_marks(
         let (end, _) = rdtsc();
         let share = x87::int_over_int_times(
             end.wrapping_sub(start) as i32,
-            effects.setup.frame.frame_cycles.bits() as i32,
+            effects.setup.frame.frame_cycles.get() as i32,
             FRAME_K.share_k,
         );
         effects.setup.frame.step_share.set(share);

@@ -72,7 +72,7 @@ fn pace(effects: &Effects, wheel: &MarkRecord) -> Result<Pace, Refused> {
                 strength: None,
             });
         }
-        let [k1, k2, least] = strength_k(effects).map(super::super::session::PlainFloat::bits);
+        let [k1, k2, least] = strength_k(effects).map(super::super::session::PlainFloat::get);
         let (kept, status) = x87::abs_blend_compare(
             &wheel.local_velocity_x,
             k1,
@@ -153,7 +153,7 @@ pub fn emit_particle_1(
         let car = emitting_car(effects)?;
         let m = car.whole(effects.car_blocks()?)?;
         let side = (next_c5(&particles.kind1_set.side_random) & 0x3FFF) as i32 - 0x2000;
-        effects.setup.frame.emit_side.set_bits(side as u32);
+        effects.setup.frame.emit_side.set(side as u32);
         let place: [[u8; 10]; 3] = crate::effects::try_from_fn(|k| {
             Ok(x87::plus_int_times_80(
                 &wheel.place[k],

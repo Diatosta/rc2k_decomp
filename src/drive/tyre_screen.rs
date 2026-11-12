@@ -10,7 +10,7 @@
 use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
 use crate::race::owner::Race;
-use crate::session::read_all;
+use crate::session::PlainDword;
 use rc2k_core::drive::tyre_screen::{layout, wheel_place};
 
 const STATES: [(u32, u32); 11] = [
@@ -67,17 +67,25 @@ pub fn tyre_screen(
     for (value, state) in STATES {
         set_render_state(value, state);
     }
-    crate::drive::tyre_quad::tyre_quad_cells(
-        &shared.tyre_change().panel_texture,
-        &shared.tyre_change().panel,
+    crate::drive::tyre_quad::quad_of(
+        shared
+            .tyre_change()
+            .panel_texture
+            .each_ref()
+            .map(PlainDword::get),
+        shared.tyre_change().panel.each_ref().map(PlainDword::get),
         0xFF_FFFF,
         race.viewer_panel(),
         system,
         crate::workers::game_scratch().vertices,
     )?;
-    crate::drive::tyre_quad::tyre_quad_cells(
-        &shared.tyre_change().wheel_texture,
-        &shared.tyre_change().wheel,
+    crate::drive::tyre_quad::quad_of(
+        shared
+            .tyre_change()
+            .wheel_texture
+            .each_ref()
+            .map(PlainDword::get),
+        shared.tyre_change().wheel.each_ref().map(PlainDword::get),
         0xFF_FFFF,
         race.viewer_panel(),
         system,
@@ -85,7 +93,11 @@ pub fn tyre_screen(
     )?;
     crate::drive::tyre_turned_quad::tyre_turned_quad(
         shared,
-        read_all(&shared.tyre_change().turning_texture),
+        shared
+            .tyre_change()
+            .turning_texture
+            .each_ref()
+            .map(PlainDword::get),
         &shared.tyre_change().turning_rect,
         0xFF_FFFF,
         device,

@@ -49,7 +49,7 @@ fn down(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> Result<Shift, R
     wheels(car, tables)?;
     car.gear.set(car.gear.get().wrapping_sub(1));
     revs(car, tables, numbers)?;
-    if below(car.engine_speed.bits(), tables.rev_limit.bits()) {
+    if below(car.engine_speed.get(), tables.rev_limit.get()) {
         settle(car, tables);
         return Ok(Shift::Done);
     }
@@ -68,10 +68,10 @@ fn tests(
     let drawing = &scene.drawing;
     // `revs_from_speed` leaves the gear it reads in the same place.
     let gear = car.gear.get();
-    let kept = car.engine_speed.bits();
+    let kept = car.engine_speed.get();
     revs_speed(car, tables)?;
     drawing.scene.scratch.set(over_top(car));
-    car.engine_speed.set_bits(kept);
+    car.engine_speed.set(kept);
     shifts::auto_tests(
         gear,
         || car.all_wheels_off.get() != 0,
@@ -79,13 +79,13 @@ fn tests(
         || {
             !below(
                 drawing.scene.scratch.get(),
-                gear_figures.shift_up_point.bits(),
+                gear_figures.shift_up_point.get(),
             )
         },
         || {
             !below(
-                car.local_velocity[2].bits(),
-                tables.auto_gear_speed_down.bits(),
+                car.local_velocity[2].get(),
+                tables.auto_gear_speed_down.get(),
             )
         },
         || {
@@ -105,18 +105,13 @@ fn tests(
                 return Ok(false);
             }
             let point = if shifts::down_point_clutch(car.brake.get()) {
-                gear_figures.shift_down_clutch_point.bits()
+                gear_figures.shift_down_clutch_point.get()
             } else {
-                gear_figures.shift_down_point.bits()
+                gear_figures.shift_down_point.get()
             };
             Ok(below(drawing.scene.scratch.get(), point))
         },
-        || {
-            below(
-                car.local_velocity[2].bits(),
-                tables.auto_gear_speed_up.bits(),
-            )
-        },
+        || below(car.local_velocity[2].get(), tables.auto_gear_speed_up.get()),
     )
 }
 
@@ -134,7 +129,7 @@ pub fn auto_gearbox(
         if bit(car, car.gear.get())? {
             break 'first Shift::Neutral;
         }
-        if car.gear.get() != 0 && below(car.engine_speed.bits(), tables.idle_engine_speed.bits()) {
+        if car.gear.get() != 0 && below(car.engine_speed.get(), tables.idle_engine_speed.get()) {
             break 'first Shift::Neutral;
         }
         if car.gear.get() == 0 {

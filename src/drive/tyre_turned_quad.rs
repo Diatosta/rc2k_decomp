@@ -14,41 +14,35 @@ use crate::input::types::InputDevice;
 use crate::math::x87_float::{int, ld, stf};
 use crate::race::owner_shared::RaceShared;
 use crate::race::tyre_store::TyreChange;
-use crate::session::Dword;
+use crate::session::{Dword, PlainFloat};
 
 /// The turn's arithmetic: `ty` the tyre change's variables (the constants and results), `e`
 /// the input device, `d` the rectangle (floats), `v` the vertices, `t` the scratch float
 /// holding 2 pi.
-fn turn(
-    ty: &TyreChange,
-    e: &InputDevice,
-    d: &[impl crate::session::Cell32; 4],
-    v: &[Vertex],
-    t: &Dword,
-) {
+fn turn(ty: &TyreChange, e: &InputDevice, d: &[PlainFloat; 4], v: &[Vertex], t: &Dword) {
     let angle = int(e.gauge.get() as i32) * ld(ty.gauge_unit.get()) * ld(t.get());
     let (sin, cos) = angle.sin_cos();
     ty.turn_cos.set(stf(cos));
     ty.turn_sin.set(stf(sin));
     ty.half_h_sin
-        .set(stf(ld(d[3].bits()) * ld(ty.turn_sin.get())));
+        .set(stf(ld(d[3].get()) * ld(ty.turn_sin.get())));
     ty.neg_half_h_cos
-        .set(stf(-(ld(d[3].bits()) * ld(ty.turn_cos.get()))));
+        .set(stf(-(ld(d[3].get()) * ld(ty.turn_cos.get()))));
     ty.half_w_cos
-        .set(stf(ld(d[2].bits()) * ld(ty.turn_cos.get())));
+        .set(stf(ld(d[2].get()) * ld(ty.turn_cos.get())));
     ty.half_w_sin
-        .set(stf(ld(d[2].bits()) * ld(ty.turn_sin.get())));
+        .set(stf(ld(d[2].get()) * ld(ty.turn_sin.get())));
     let (wheel_x, wheel_y) = (int(ty.wheel[0].get() as i32), int(ty.wheel[1].get() as i32));
-    let x = -ld(ty.half_w_cos.get()) + ld(d[0].bits()) + wheel_x;
+    let x = -ld(ty.half_w_cos.get()) + ld(d[0].get()) + wheel_x;
     v[2].x.set(stf(x));
     v[0].x.set(stf(x + ld(ty.half_h_sin.get())));
-    let x = ld(ty.half_w_cos.get()) + ld(d[0].bits()) + wheel_x;
+    let x = ld(ty.half_w_cos.get()) + ld(d[0].get()) + wheel_x;
     v[3].x.set(stf(x));
     v[1].x.set(stf(x + ld(ty.half_h_sin.get())));
-    let y = -ld(ty.half_w_sin.get()) + ld(d[1].bits()) + wheel_y;
+    let y = -ld(ty.half_w_sin.get()) + ld(d[1].get()) + wheel_y;
     v[2].y.set(stf(y));
     v[0].y.set(stf(y + ld(ty.neg_half_h_cos.get())));
-    let y = ld(ty.half_w_sin.get()) + ld(d[1].bits()) + wheel_y;
+    let y = ld(ty.half_w_sin.get()) + ld(d[1].get()) + wheel_y;
     v[3].y.set(stf(y));
     v[1].y.set(stf(y + ld(ty.neg_half_h_cos.get())));
 }
@@ -62,7 +56,7 @@ fn turn(
 pub fn tyre_turned_quad(
     shared: &RaceShared,
     uv: [u32; 4],
-    rect: &[impl crate::session::Cell32; 4],
+    rect: &[PlainFloat; 4],
     colour: u32,
     device: &InputDevice,
     system: &crate::system::owner::System,
@@ -176,7 +170,7 @@ mod reference_vectors {
                     turn(
                         &ty_b,
                         &*e_b.as_ptr().cast::<InputDevice>(),
-                        &*d_b.as_ptr().cast::<[crate::session::Float; 4]>(),
+                        &*d_b.as_ptr().cast::<[PlainFloat; 4]>(),
                         &*v_b.as_ptr().cast::<[Vertex; 4]>(),
                         &*t_b.as_ptr().cast::<Dword>(),
                     );

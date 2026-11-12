@@ -85,17 +85,17 @@ pub enum InSight {
 /// A corner in sight: its depth (a float's bits) not negative (sign bit clear), and |x|
 /// below the near limit, or |x| times the slope below the depth (each "below" true when
 /// unordered, as `fcomp` / `jb`). Exact in `f64`: the product of two floats is.
-pub fn corner_in_sight(depth: u32, x: u32, near: u32, slope: u32) -> Option<InSight> {
+pub fn corner_in_sight(depth: u32, x: u32, near: f32, slope: f32) -> Option<InSight> {
     if depth & 0x8000_0000 != 0 {
         return None;
     }
     use crate::physics::x87::below;
     let f = |b: u32| f32::from_bits(b) as f64;
     let x = f(x & 0x7FFF_FFFF);
-    if below(x, f(near)) {
+    if below(x, near as f64) {
         return Some(InSight::Near);
     }
-    if below(x * f(slope), f(depth)) {
+    if below(x * slope as f64, f(depth)) {
         return Some(InSight::Slope);
     }
     None
@@ -164,13 +164,13 @@ pub struct ScreenCorner {
     pub y: u32,
 }
 
-/// The screen's clip edges (`clip_screen`: top, bottom, left, right; floats' bits).
+/// The screen's clip edges (`clip_screen`: top, bottom, left, right).
 #[derive(Clone, Copy, Debug)]
 pub struct ScreenEdges {
-    pub top: u32,
-    pub bottom: u32,
-    pub left: u32,
-    pub right: u32,
+    pub top: f32,
+    pub bottom: f32,
+    pub left: f32,
+    pub right: f32,
 }
 
 /// Whether a face whose polygons all lie within its corners' hull leaves nothing on the
@@ -197,10 +197,10 @@ pub fn off_screen(corners: &[ScreenCorner], edges: ScreenEdges, near: f32) -> bo
         if x.is_nan() || y.is_nan() {
             return false;
         }
-        past[0] &= y < f(edges.top);
-        past[1] &= y > f(edges.bottom);
-        past[2] &= x < f(edges.left);
-        past[3] &= x > f(edges.right);
+        past[0] &= y < edges.top as f64;
+        past[1] &= y > edges.bottom as f64;
+        past[2] &= x < edges.left as f64;
+        past[3] &= x > edges.right as f64;
     }
     !corners.is_empty() && past.contains(&true)
 }
@@ -211,10 +211,10 @@ mod tests {
     fn a_face_off_the_screen_only_when_wholly_past_one_edge() {
         let b = |v: f32| v.to_bits();
         let e = ScreenEdges {
-            top: b(0.0),
-            bottom: b(100.0),
-            left: b(0.0),
-            right: b(200.0),
+            top: 0.0,
+            bottom: 100.0,
+            left: 0.0,
+            right: 200.0,
         };
         let c = |d: f32, x: f32, y: f32| ScreenCorner {
             depth: b(d),
@@ -307,23 +307,23 @@ mod tests {
     #[test]
     fn corners_in_sight() {
         let b = |v: f32| v.to_bits();
-        assert_eq!(corner_in_sight(b(-1.0), b(0.0), b(1.0), b(1.0)), None);
-        assert_eq!(corner_in_sight(b(-0.0), b(0.0), b(1.0), b(1.0)), None);
+        assert_eq!(corner_in_sight(b(-1.0), b(0.0), 1.0, 1.0), None);
+        assert_eq!(corner_in_sight(b(-0.0), b(0.0), 1.0, 1.0), None);
         assert_eq!(
-            corner_in_sight(b(5.0), b(-0.5), b(1.0), b(1.0)),
+            corner_in_sight(b(5.0), b(-0.5), 1.0, 1.0),
             Some(InSight::Near)
         );
         assert_eq!(
-            corner_in_sight(b(5.0), b(2.0), b(1.0), b(2.0)),
+            corner_in_sight(b(5.0), b(2.0), 1.0, 2.0),
             Some(InSight::Slope)
         );
-        assert_eq!(corner_in_sight(b(4.0), b(2.0), b(1.0), b(2.0)), None);
+        assert_eq!(corner_in_sight(b(4.0), b(2.0), 1.0, 2.0), None);
         assert_eq!(
-            corner_in_sight(b(4.0), f32::NAN.to_bits(), b(1.0), b(2.0)),
+            corner_in_sight(b(4.0), f32::NAN.to_bits(), 1.0, 2.0),
             Some(InSight::Near)
         );
         assert_eq!(
-            corner_in_sight(f32::NAN.to_bits() & 0x7FFF_FFFF, b(2.0), b(1.0), b(2.0)),
+            corner_in_sight(f32::NAN.to_bits() & 0x7FFF_FFFF, b(2.0), 1.0, 2.0),
             Some(InSight::Slope)
         );
     }

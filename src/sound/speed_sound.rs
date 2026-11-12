@@ -46,7 +46,7 @@ pub fn speed_sound(
         request,
     );
     for (cell, place) in request.place.iter().zip(&so.place) {
-        cell.set(place.bits());
+        cell.set(place.get());
     }
     crate::sound::turn_parts::placed(request, owner, audio)
 }

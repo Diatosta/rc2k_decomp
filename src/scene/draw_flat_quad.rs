@@ -52,8 +52,8 @@ pub fn draw_flat_quad(
         &view.quad.corners[5],
     ]
     .map(float);
-    let v = |n: usize, o: usize, x: u32| {
-        poly.quad_vertices[8 * n + o / 4].set(x);
+    let v = |n: usize, o: usize, x: f32| {
+        poly.quad_vertices[8 * n + o / 4].set(x.to_bits());
     };
     for (n, x, y) in [
         (0, left, top),
@@ -61,10 +61,10 @@ pub fn draw_flat_quad(
         (2, right, bottom),
         (3, left, bottom),
     ] {
-        v(n, 0xC, x.to_bits());
-        v(n, 0x1C, y.to_bits());
+        v(n, 0xC, x);
+        v(n, 0x1C, y);
     }
-    let depth: u32 = course.numbers.k4096_b.bits();
+    let depth = course.numbers.k4096_b.get();
     for n in 0..4 {
         v(n, 0x18, depth);
     }

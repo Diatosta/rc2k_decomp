@@ -79,12 +79,12 @@ pub fn multiply_matrices(
     for column in 0..3 {
         for row in 0..4 {
             // `x87::row_times_column`: a's row times b's column, p1 + (p2 + p3).
-            let p = |k: usize| bh::ld(a.bits(row * 4 + k)) * bh::ld(b.bits(k * 4 + column));
+            let p = |k: usize| bh::ld(a.float(row * 4 + k)) * bh::ld(b.float(k * 4 + column));
             let (p1, p2, p3) = (p(0), p(1), p(2));
-            out.set_bits(row * 4 + column, bh::st(p1 + (p2 + p3)));
+            out.set_float(row * 4 + column, bh::stf(p1 + (p2 + p3)));
         }
-        let sum = bh::ld(b.bits(12 + column)) + bh::ld(out.bits(12 + column));
-        out.set_bits(12 + column, bh::st(sum));
+        let sum = bh::ld(b.float(12 + column)) + bh::ld(out.float(12 + column));
+        out.set_float(12 + column, bh::stf(sum));
     }
 }
 
@@ -99,8 +99,8 @@ pub fn copy_matrix_with_place(
         out.set_bits(n, from.bits(n));
     }
     for n in 12..15 {
-        let sum = bh::ld(other.bits(n)) + bh::ld(out.bits(n));
-        out.set_bits(n, bh::st(sum));
+        let sum = bh::ld(other.float(n)) + bh::ld(out.float(n));
+        out.set_float(n, bh::stf(sum));
     }
 }
 

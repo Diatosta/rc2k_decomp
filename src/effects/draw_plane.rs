@@ -156,16 +156,17 @@ pub fn draw_plane(
         buffer.vertices[n].colour.set(light);
     }
     for n in 0..4 {
-        if (effects.kinds.plane_quad.corners[n][2].bits() as i32)
-            <= (race.course.numbers.k4096_a.bits() as i32)
-        {
+        if x87::bits_at_or_below(
+            effects.kinds.plane_quad.corners[n][2].get(),
+            race.course.numbers.k4096_a.get(),
+        ) {
             return Ok(());
         }
     }
     plane_projected(effects);
-    let [kind, z_k]: [u32; 2] = [
-        effects.setup.kind_floats.kind_float.bits(),
-        effects.frame.draw_work.z_k.bits(),
+    let [kind, z_k] = [
+        effects.setup.kind_floats.kind_float.get(),
+        effects.frame.draw_work.z_k.get(),
     ];
     for n in 0..4 {
         let c = &effects.kinds.plane_quad.corners[n];

@@ -10,6 +10,14 @@ pub trait Cells {
     fn bits(&self, n: usize) -> u32;
     /// Cell `n` set to `bits`.
     fn set_bits(&self, n: usize, bits: u32);
+    /// Cell `n` as the float it holds.
+    fn float(&self, n: usize) -> f32 {
+        f32::from_bits(self.bits(n))
+    }
+    /// Cell `n` set to the float `value`.
+    fn set_float(&self, n: usize, value: f32) {
+        self.set_bits(n, value.to_bits());
+    }
     /// How many cells there are (unbounded for a run at an address).
     fn count(&self) -> usize {
         usize::MAX

@@ -35,31 +35,49 @@ use crate::sound::store::SoundObject;
 use rc2k_core::drive::sharing;
 
 use crate::race::light_records_store::LightRecord;
-use crate::session::Cell32;
+use crate::session::Float;
 
-/// A field of a car block, picked out of the block.
-type BlockField = fn(&Car) -> &dyn Cell32;
-/// A field of the effects' car record.
-type RecordField = fn(&CarEffects) -> &dyn Cell32;
+/// A whole-number field of the effects' car record.
+type RecordWord = fn(&CarEffects) -> &Dword;
+/// A float field of a car block.
+type BlockFloat = fn(&Car) -> &Float;
 /// A field of a light record.
 type LightField = fn(&LightRecord) -> &Dword;
+
+/// A field of a car block moved into the same kind of field of the effects' record: a whole
+/// number (a surface kind, flags) or a float.
+#[derive(Clone, Copy)]
+enum Move {
+    Word(RecordWord, fn(&Car) -> &Dword),
+    Float(fn(&CarEffects) -> &Float, BlockFloat),
+}
+
+impl Move {
+    /// The block's field into the record's.
+    fn apply(self, o: &CarEffects, car: &Car) {
+        match self {
+            Move::Word(r, b) => r(o).set(b(car).get()),
+            Move::Float(r, b) => r(o).set(b(car).get()),
+        }
+    }
+}
 
 /// The field `$field` of the effects' record number `$i` (the four wheels, then the body 4).
 macro_rules! rec {
     ($i:expr, $field:ident) => {
-        (|o: &CarEffects| &o.records[$i].$field) as RecordField
+        |o: &CarEffects| &o.records[$i].$field
     };
 }
 
 /// A car block's array field `$field` at `$i`.
 macro_rules! blk {
     ($field:ident [$i:expr]) => {
-        (|c: &Car| &c.$field[$i]) as BlockField
+        |c: &Car| &c.$field[$i]
     };
 }
 
 /// The light record's (record field, light record field) moves.
-const LIGHT_MOVES: [(RecordField, LightField); 4] = [
+const LIGHT_MOVES: [(RecordWord, LightField); 4] = [
     (|o| &o.axles[2], |l| &l.axles[2]),
     (|o| &o.axles[3], |l| &l.axles[3]),
     (|o| &o.axles[0], |l| &l.axles[0]),
@@ -68,51 +86,51 @@ const LIGHT_MOVES: [(RecordField, LightField); 4] = [
 
 /// (record field, block field) moves in the original's order, after the light record: the
 /// four wheels' flags, second flags, flags and second flags under the wheel, and chances.
-const MOVES_A: [(RecordField, BlockField); 20] = [
-    (rec!(0, flags), blk!(wheel_cell_a_byte18[0])),
-    (rec!(1, flags), blk!(wheel_cell_a_byte18[1])),
-    (rec!(2, flags), blk!(wheel_cell_a_byte18[2])),
-    (rec!(3, flags), blk!(wheel_cell_a_byte18[3])),
-    (rec!(0, flags2), blk!(wheel_cell_a_byte14[0])),
-    (rec!(1, flags2), blk!(wheel_cell_a_byte14[1])),
-    (rec!(2, flags2), blk!(wheel_cell_a_byte14[2])),
-    (rec!(3, flags2), blk!(wheel_cell_a_byte14[3])),
-    (rec!(0, under_flags), blk!(wheel_cell_b_byte18[0])),
-    (rec!(1, under_flags), blk!(wheel_cell_b_byte18[1])),
-    (rec!(2, under_flags), blk!(wheel_cell_b_byte18[2])),
-    (rec!(3, under_flags), blk!(wheel_cell_b_byte18[3])),
-    (rec!(0, under_flags2), blk!(wheel_cell_b_byte14[0])),
-    (rec!(1, under_flags2), blk!(wheel_cell_b_byte14[1])),
-    (rec!(2, under_flags2), blk!(wheel_cell_b_byte14[2])),
-    (rec!(3, under_flags2), blk!(wheel_cell_b_byte14[3])),
-    (rec!(0, chance), blk!(wheel_surface_blend[0])),
-    (rec!(1, chance), blk!(wheel_surface_blend[1])),
-    (rec!(2, chance), blk!(wheel_surface_blend[2])),
-    (rec!(3, chance), blk!(wheel_surface_blend[3])),
+const MOVES_A: [Move; 20] = [
+    Move::Word(rec!(0, flags), blk!(wheel_cell_a_byte18[0])),
+    Move::Word(rec!(1, flags), blk!(wheel_cell_a_byte18[1])),
+    Move::Word(rec!(2, flags), blk!(wheel_cell_a_byte18[2])),
+    Move::Word(rec!(3, flags), blk!(wheel_cell_a_byte18[3])),
+    Move::Word(rec!(0, flags2), blk!(wheel_cell_a_byte14[0])),
+    Move::Word(rec!(1, flags2), blk!(wheel_cell_a_byte14[1])),
+    Move::Word(rec!(2, flags2), blk!(wheel_cell_a_byte14[2])),
+    Move::Word(rec!(3, flags2), blk!(wheel_cell_a_byte14[3])),
+    Move::Word(rec!(0, under_flags), blk!(wheel_cell_b_byte18[0])),
+    Move::Word(rec!(1, under_flags), blk!(wheel_cell_b_byte18[1])),
+    Move::Word(rec!(2, under_flags), blk!(wheel_cell_b_byte18[2])),
+    Move::Word(rec!(3, under_flags), blk!(wheel_cell_b_byte18[3])),
+    Move::Word(rec!(0, under_flags2), blk!(wheel_cell_b_byte14[0])),
+    Move::Word(rec!(1, under_flags2), blk!(wheel_cell_b_byte14[1])),
+    Move::Word(rec!(2, under_flags2), blk!(wheel_cell_b_byte14[2])),
+    Move::Word(rec!(3, under_flags2), blk!(wheel_cell_b_byte14[3])),
+    Move::Float(rec!(0, chance), blk!(wheel_surface_blend[0])),
+    Move::Float(rec!(1, chance), blk!(wheel_surface_blend[1])),
+    Move::Float(rec!(2, chance), blk!(wheel_surface_blend[2])),
+    Move::Float(rec!(3, chance), blk!(wheel_surface_blend[3])),
 ];
 
 /// The wheels' sums: (the two wheel records they go to, the block's driven speed that is
 /// their first figure). Each record gets the speed, the local velocity's x, 0 and its z.
-const QUADS: [([usize; 2], BlockField); 2] = [
+const QUADS: [([usize; 2], BlockFloat); 2] = [
     ([0, 1], |c| &c.drive_speed_a),
     ([2, 3], |c| &c.drive_speed_b),
 ];
 
 /// The four wheel records' surface kind (from the block's `wheel_surface_a`), each cleared by
 /// its switch.
-const WHEELS: [RecordField; 4] = [rec!(0, kind), rec!(1, kind), rec!(2, kind), rec!(3, kind)];
+const WHEELS: [RecordWord; 4] = [rec!(0, kind), rec!(1, kind), rec!(2, kind), rec!(3, kind)];
 
 /// With `contact_found` set: (body record field, block field) moves.
-const MOVES_B: [(RecordField, BlockField); 9] = [
-    (rec!(4, flags), blk!(wheel_cell_a_byte18[4])),
-    (rec!(4, flags2), blk!(wheel_cell_a_byte14[4])),
-    (rec!(4, under_flags), blk!(wheel_cell_b_byte18[4])),
-    (rec!(4, under_flags2), blk!(wheel_cell_b_byte14[4])),
-    (rec!(4, chance), blk!(wheel_surface_blend[4])),
-    (rec!(4, kind), blk!(wheel_surface_a[4])),
-    (rec!(4, under_kind), blk!(wheel_surface_b[4])),
-    (rec!(4, local_velocity_x), blk!(velocity[0])),
-    (rec!(4, local_velocity_z), blk!(velocity[2])),
+const MOVES_B: [Move; 9] = [
+    Move::Word(rec!(4, flags), blk!(wheel_cell_a_byte18[4])),
+    Move::Word(rec!(4, flags2), blk!(wheel_cell_a_byte14[4])),
+    Move::Word(rec!(4, under_flags), blk!(wheel_cell_b_byte18[4])),
+    Move::Word(rec!(4, under_flags2), blk!(wheel_cell_b_byte14[4])),
+    Move::Float(rec!(4, chance), blk!(wheel_surface_blend[4])),
+    Move::Word(rec!(4, kind), blk!(wheel_surface_a[4])),
+    Move::Word(rec!(4, under_kind), blk!(wheel_surface_b[4])),
+    Move::Float(rec!(4, local_velocity_x), blk!(velocity[0])),
+    Move::Float(rec!(4, local_velocity_z), blk!(velocity[2])),
 ];
 
 /// The dword at `offset` of the block, for the offsets the core's tables give (bounded by the
@@ -162,30 +180,30 @@ pub fn share_car_state_at(
     o.tag.set(car.light_colour.get());
     let light = &race.light_records().records[n as usize];
     for (r, l) in LIGHT_MOVES {
-        r(o).set_bits(l(light).get());
+        r(o).set(l(light).get());
     }
     o.set_block(race.shared.car_blocks.handle_of(car));
     o.engine_speed.set(x87::loaded(&car.engine_speed));
     o.model.set(n);
-    for (r, b) in MOVES_A {
-        r(o).set_bits(b(car).bits());
+    for m in MOVES_A {
+        m.apply(o, car);
     }
     for (records, first) in QUADS {
         let (a, bb, c) = (
-            first(car).bits(),
+            first(car).get(),
             car.local_velocity[0].get(),
             car.local_velocity[2].get(),
         );
         for wheel in records {
             let w = &o.records[wheel];
-            w.driven_speed.set_bits(a);
+            w.driven_speed.set(a);
             w.local_velocity_x.set(bb);
             w.local_velocity_y.set(0);
             w.local_velocity_z.set(c);
         }
     }
     for (k, r) in WHEELS.into_iter().enumerate() {
-        r(o).set_bits(car.wheel_surface_a[k].get());
+        r(o).set(car.wheel_surface_a[k].get());
     }
     for (k, r) in WHEELS.into_iter().enumerate() {
         if sharing::wheel_cleared(
@@ -193,7 +211,7 @@ pub fn share_car_state_at(
             car.parts_present.get(),
             k as u32,
         ) {
-            r(o).set_bits(0);
+            r(o).set(0);
         }
     }
     o.records[4].kind.set(0);
@@ -204,8 +222,8 @@ pub fn share_car_state_at(
     }
     o.morph_start.set(zero.to_bits());
     if car.contact_found.get() != 0 {
-        for (r, b) in MOVES_B {
-            r(o).set_bits(b(car).bits());
+        for m in MOVES_B {
+            m.apply(o, car);
         }
         for (cell, v) in o.records[4].place.iter().zip([
             &car.contact_point_x,
@@ -214,7 +232,9 @@ pub fn share_car_state_at(
         ]) {
             cell.set(x87::from_int(v.get() as i32));
         }
-        o.records[4].size.set_bits(car.contact_value.get());
+        o.records[4]
+            .size
+            .set(f32::from_bits(car.contact_value.get()));
     }
     for (cell, mark) in o.factors.iter().zip(&car.impact_octant_marks) {
         cell.set(mark.get());
@@ -259,12 +279,30 @@ mod tests {
     use crate::race::effects_settings_store::EFFECTS_SETTINGS;
     use crate::race::light_records_store::LIGHT_RECORDS;
 
-    fn rec_off(o: &CarEffects, f: RecordField) -> usize {
-        core::ptr::from_ref(f(o)).cast::<u8>().addr() - core::ptr::from_ref(o).addr()
+    fn rec_off(o: &CarEffects, f: RecordWord) -> usize {
+        core::ptr::from_ref(f(o)).addr() - core::ptr::from_ref(o).addr()
     }
 
-    fn blk_off(c: &Car, f: BlockField) -> usize {
-        core::ptr::from_ref(f(c)).cast::<u8>().addr() - core::ptr::from_ref(c).addr()
+    fn blk_off(c: &Car, f: BlockFloat) -> usize {
+        core::ptr::from_ref(f(c)).addr() - core::ptr::from_ref(c).addr()
+    }
+
+    /// A move's (record field, block field) offsets.
+    fn move_offs(o: &CarEffects, c: &Car, m: Move) -> (usize, usize) {
+        let (r, b) = match m {
+            Move::Word(r, b) => (
+                core::ptr::from_ref(r(o)).addr(),
+                core::ptr::from_ref(b(c)).addr(),
+            ),
+            Move::Float(r, b) => (
+                core::ptr::from_ref(r(o)).addr(),
+                core::ptr::from_ref(b(c)).addr(),
+            ),
+        };
+        (
+            r - core::ptr::from_ref(o).addr(),
+            b - core::ptr::from_ref(c).addr(),
+        )
     }
 
     #[test]
@@ -300,8 +338,8 @@ mod tests {
             (0x198, 0x9B4),
             (0x1E0, 0x9B8),
         ];
-        for ((r, b), (ro, bo)) in MOVES_A.into_iter().zip(moves_a) {
-            assert_eq!((rec_off(o, r), blk_off(car, b)), (ro, bo));
+        for (m, offs) in MOVES_A.into_iter().zip(moves_a) {
+            assert_eq!(move_offs(o, car, m), offs);
         }
         let quads = [
             ([0xE0, 0xE4, 0xE8, 0xEC], 0x1B8),
@@ -335,8 +373,8 @@ mod tests {
             (0x204, 0x198),
             (0x20C, 0x1A0),
         ];
-        for ((r, b), (ro, bo)) in MOVES_B.into_iter().zip(moves_b) {
-            assert_eq!((rec_off(o, r), blk_off(car, b)), (ro, bo));
+        for (m, offs) in MOVES_B.into_iter().zip(moves_b) {
+            assert_eq!(move_offs(o, car, m), offs);
         }
         assert_eq!(rec_off(o, rec!(4, kind)), 0x210);
         assert_eq!(rec_off(o, rec!(4, under_kind)), 0x21C);

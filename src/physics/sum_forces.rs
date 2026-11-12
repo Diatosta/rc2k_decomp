@@ -8,51 +8,19 @@
 
 use crate::math::x87::sum_over;
 use crate::physics::tables_store::PhysicsTables;
-use crate::session::Cell32;
-
-/// On the variables' cells `v`.
-pub fn sum_at(tables: &PhysicsTables, v: &[&dyn Cell32]) {
-    let get = |k: usize| v[k].bits();
-    let put = |k: usize, x: u32| v[k].set_bits(x);
-    let g: u32 = tables.gravity.bits();
-    let dt: u32 = tables.step_time.bits();
-    put(13, sum_over(&[get(0)], &[g, dt]).to_bits());
-    put(14, sum_over(&[get(1)], &[g, dt]).to_bits());
-    put(15, sum_over(&[get(2), get(3)], &[g, dt]).to_bits());
-    put(
-        16,
-        sum_over(&[get(4), get(5), get(6), get(7)], &[g]).to_bits(),
-    );
-    put(
-        17,
-        sum_over(&[get(8), get(9), get(10), get(11), get(12)], &[g]).to_bits(),
-    );
-}
-
-fn game(tables: &PhysicsTables) -> Vec<&dyn Cell32> {
-    vec![
-        &tables.drive_slip[0] as &dyn Cell32,
-        &tables.drive_slip[1],
-        &tables.axle_slips[0],
-        &tables.axle_slips[1],
-        &tables.forces[6].force[1],
-        &tables.forces[7].force[1],
-        &tables.forces[8].force[1],
-        &tables.forces[9].force[1],
-        &tables.forces[0].force[1],
-        &tables.forces[1].force[1],
-        &tables.forces[2].force[1],
-        &tables.forces[3].force[1],
-        &tables.forces[4].force[1],
-        &tables.force_sums[0],
-        &tables.force_sums[1],
-        &tables.force_sums[2],
-        &tables.force_sums[3],
-        &tables.force_sums[4],
-    ]
-}
 
 /// The exact x87 version, for `physics::car_physics_step`.
 pub fn sum_forces(tables: &PhysicsTables) {
-    sum_at(tables, &game(tables));
+    let g = tables.gravity.get();
+    let dt = tables.step_time.get();
+    let up = |k: usize| tables.forces[k].force[1].get();
+    let sums = &tables.force_sums;
+    sums[0].set(sum_over(&[tables.drive_slip[0].get()], &[g, dt]));
+    sums[1].set(sum_over(&[tables.drive_slip[1].get()], &[g, dt]));
+    sums[2].set(sum_over(
+        &[tables.axle_slips[0].get(), tables.axle_slips[1].get()],
+        &[g, dt],
+    ));
+    sums[3].set(sum_over(&[up(6), up(7), up(8), up(9)], &[g]));
+    sums[4].set(sum_over(&[up(0), up(1), up(2), up(3), up(4)], &[g]));
 }

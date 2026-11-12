@@ -23,7 +23,7 @@ use crate::physics::car_store::Car;
 use crate::race::matrices_store::SceneMatrices;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
-use crate::scene::matrix3::{extended, rounded};
+use crate::scene::matrix3::{extended, rounded_value};
 use crate::scene::rotate_point::rotate_point;
 use crate::session::Dword;
 
@@ -86,7 +86,7 @@ pub fn car_sound_state(
     let out = rotate_point(m, place);
     let k = numbers.one_over_65536.bits();
     for (i, e) in out.iter().enumerate() {
-        so.place[i].set_bits(rounded(ext_times(*e, k)));
+        so.place[i].set(rounded_value(ext_times(*e, k)));
     }
     let out = rotate_point(
         m,
@@ -97,7 +97,7 @@ pub fn car_sound_state(
         ],
     );
     for (i, e) in out.iter().enumerate() {
-        so.motion[i].set_bits(rounded(*e));
+        so.motion[i].set(rounded_value(*e));
     }
     Ok(())
 }

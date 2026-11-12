@@ -36,7 +36,7 @@ pub struct DrawWork {
     /// 0x8EB95D: `dword_8EB95D`: Not named: 4 bytes (a gap, or unreferenced data).
     pub _gap_8eb95d: PlainBytes<4>,
     /// 0x8EB961: `dword_8EB961`: a depth at or below it (compared as a signed whole number of the float's bits) is not drawn.
-    pub near: PlainDword,
+    pub near: PlainFloat,
     /// 0x8EB965: Not named: 4 bytes (a gap, or unreferenced data).
     pub _gap_8eb965: PlainBytes<4>,
     /// 0x8EB969: `flt_8EB969`: 1 / 65536, what a cell's words are multiplied by to make texture places.
@@ -84,11 +84,25 @@ impl DrawWork {
                 PlainFloat::new(0.0),
             ],
             _gap_8eb95d: PlainBytes::new([0; 4]),
-            near: PlainDword::new(0x47800000),
+            near: PlainFloat::new(65536.0),
             _gap_8eb965: PlainBytes::new([0x00, 0x00, 0x80, 0x3B]),
             uv_k: PlainFloat::new(0.000015258789),
             z_k: PlainFloat::new(0.0),
         }
+    }
+}
+
+impl DrawWork {
+    /// What a sprite's square is projected by: the view's scale and centre (the front end's
+    /// view window) and the depth scale.
+    pub fn view_k(&self) -> [f32; 4] {
+        let window = &crate::scene::polygon_work::front_end().window;
+        [
+            window.view_scale.get(),
+            window.view_centre[0].get(),
+            window.view_centre[1].get(),
+            self.z_k.get(),
+        ]
     }
 }
 
@@ -178,10 +192,10 @@ pub struct DrawFrame {
     pub times: [PlainFloat; 2],
     /// 0x91FFA2: `dword_91FFA2`: Not named: 4 bytes (a gap, or unreferenced data).
     pub _gap_91ffa2: PlainBytes<4>,
-    /// 0x91FFA6: `dword_91FFA6`: the quads' vertex colour (`effects::begin_quads`).
-    pub colour: PlainDword,
+    /// 0x91FFA6: `dword_91FFA6`: the quads' vertices' rhw, 256 (`effects::begin_quads`).
+    pub rhw: PlainFloat,
     /// 0x91FFAA: `dword_91FFAA` .. `dword_91FFB6`: the quads' texture places (u a, u c, v b, v d).
-    pub places: [PlainDword; 4],
+    pub places: [PlainFloat; 4],
     /// 0x91FFBA: `dword_91FFBA`: 0, set by `effects::begin_quads`.
     pub cleared: PlainDword,
     /// 0x91FFBE: `flt_91FFBE` ..: the view's place at the last frame (`effects::view_motion`).
@@ -233,12 +247,12 @@ impl DrawFrame {
             _gap_91ff96: PlainBytes::new([0; 4]),
             times: [PlainFloat::new(100.0), PlainFloat::new(100.0)],
             _gap_91ffa2: PlainBytes::new([0; 4]),
-            colour: PlainDword::new(0x43800000),
+            rhw: PlainFloat::new(256.0),
             places: [
-                PlainDword::new(0x3B000000),
-                PlainDword::new(0x3B000000),
-                PlainDword::new(0x3EEDCCCD),
-                PlainDword::new(0x3EEDCCCD),
+                PlainFloat::new(0.001953125),
+                PlainFloat::new(0.001953125),
+                PlainFloat::new(0.46445313),
+                PlainFloat::new(0.46445313),
             ],
             cleared: PlainDword::new(0x0),
             last: [
@@ -448,7 +462,7 @@ mod typed_tests {
         assert_eq!(offset_of!(DrawFrame, level), 0x40);
         assert_eq!(offset_of!(DrawFrame, other), 0x4c);
         assert_eq!(offset_of!(DrawFrame, times), 0x5c);
-        assert_eq!(offset_of!(DrawFrame, colour), 0x68);
+        assert_eq!(offset_of!(DrawFrame, rhw), 0x68);
         assert_eq!(offset_of!(DrawFrame, places), 0x6c);
         assert_eq!(offset_of!(DrawFrame, cleared), 0x7c);
         assert_eq!(offset_of!(DrawFrame, last), 0x80);

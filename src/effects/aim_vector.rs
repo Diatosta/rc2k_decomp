@@ -12,18 +12,18 @@ use crate::math::x87_float as bh;
 
 pub fn aim_vector(effects: &crate::effects::owner::Effects) {
     let k = &effects.frame.kept_view;
-    let v: [u32; 3] = std::array::from_fn(|n| {
+    let v: [f32; 3] = std::array::from_fn(|n| {
         // Per axis: (negated, less, plus, plus).
-        bh::st(
+        bh::stf(
             -bh::ld(k.kept_b.scaled[n].get()) - bh::ld(k.kept_a.scaled[n].get())
                 + bh::ld(k.kept_c.scaled[n].get())
                 + bh::ld(k.step[n].get()),
         )
     });
     for (to, v) in k.vector.iter().zip(v) {
-        to.set_bits(v);
+        to.set(v);
     }
-    let (unit, length) = x87::unit_and_length(v);
+    let (unit, length) = x87::unit_and_length(v.map(f32::to_bits));
     k.length.set(length);
     for (to, u) in k.unit.iter().zip(unit) {
         to.set(u);

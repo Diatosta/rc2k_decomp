@@ -405,7 +405,7 @@ pub fn run_particles(
             }
             e = next;
         }
-        if effects.setup.frame.steps.bits() & 7 != 0 {
+        if effects.setup.frame.steps.get() & 7 != 0 {
             return Ok(());
         }
         sound.race.stage.get().random[0].set(1);

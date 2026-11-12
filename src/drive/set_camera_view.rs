@@ -25,7 +25,7 @@ pub fn set_view_at(car: &Car, step: &Dword) -> Result<(), BadInput> {
     v.take_wanted(step.get());
     car.camera_view.set(v.view);
     car.camera_switch_active.set(v.held);
-    car.camera_switch_share.set_bits(v.w69c);
+    car.camera_switch_share.set(v.switch_share);
     car.camera_switch_length.set(v.w698);
     car.camera_switch_clock.set(v.taken_at);
     Ok(())

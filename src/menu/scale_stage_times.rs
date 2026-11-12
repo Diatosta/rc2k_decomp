@@ -19,16 +19,16 @@ pub fn held_section(screens: &Screens) -> u32 {
 }
 
 /// The four times as scaled (see the header), and the two factors.
-pub fn scaled(race: &Race, times: [u32; 4], section: u32) -> ([u32; 4], [u32; 2]) {
+pub fn scaled(race: &Race, times: [u32; 4], section: u32) -> ([u32; 4], [f32; 2]) {
     // The two factor tables: six entries each.
     let s = section as usize;
-    let f: [u32; 2] = [
-        race.shared.tables().stage_time_factors_last[s].bits(),
-        race.shared.tables().stage_time_factors_first[s].bits(),
+    let f: [f32; 2] = [
+        race.shared.tables().stage_time_factors_last[s].get(),
+        race.shared.tables().stage_time_factors_first[s].get(),
     ];
     // The logic is in `rc2k_core::menu::stage_scale` (exact at the game's precisions for times
     // below 2^29; its header).
-    let out = rc2k_core::menu::stage_scale::scale_times(times, f.map(f32::from_bits));
+    let out = rc2k_core::menu::stage_scale::scale_times(times, f);
     (out, f)
 }
 
@@ -43,17 +43,17 @@ pub fn scale_stage_times(
     let section = held_section(screens);
     let times: [u32; 4] = read_all(&screens.state.menus.class_times);
     let (times, f) = scaled(race, times, section);
-    race.shared.work.stage_time_scales[0].set_bits(f[0]);
-    race.shared.work.stage_time_scales[1].set_bits(f[1]);
+    race.shared.work.stage_time_scales[0].set(f[0]);
+    race.shared.work.stage_time_scales[1].set(f[1]);
     write_all(&screens.state.menus.class_times, times);
     let text = |n: usize| &TEXTS_RVA[n];
     crate::logfile::log_write::log_nul(text(0), false, 1);
     log_int(section as i32, false, 1);
     log_int(record.record()?.number() as i32, false, 1);
     crate::logfile::log_write::log_nul(text(1), false, 1);
-    log_float(f32::from_bits(f[0]), 2, false, 1);
+    log_float(f[0], 2, false, 1);
     crate::logfile::log_write::log_nul(text(2), false, 1);
-    log_float(f32::from_bits(f[1]), 2, false, 1);
+    log_float(f[1], 2, false, 1);
     crate::logfile::log_write::log_nul(text(3), false, 1);
     for (k, &t) in times.iter().enumerate() {
         log_int(t as i32, k == 3, 1);

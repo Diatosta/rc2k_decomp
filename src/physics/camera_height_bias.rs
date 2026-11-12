@@ -72,7 +72,7 @@ fn x87_3(numbers: &Numbers, view_and_records: &ViewAndRecords, scene: &crate::sc
     let t2 = t0 * t1;
     let t3 = view_and_records.view_vars.camera_bias_scale.ld();
     let t4 = t2 * t3;
-    drawing.scene.scratch.set_bits(to_int(t4) as u32);
+    drawing.scene.scratch.set(to_int(t4) as u32);
 }
 
 #[cfg(test)]

@@ -7,7 +7,7 @@
 //! and the place, and is played. Refuses a null object, and a kind wanted but null.
 
 use crate::errors::Refused;
-use crate::math::x87_float::{X, ld, st};
+use crate::math::x87_float::{X, ld, st, stf};
 use crate::session::{Float, PlainDword, PlainFloat};
 use crate::sound::sets_store::{SoundRequest, SoundSet};
 use crate::sound::store::{SoundObject, SurfaceSounds};
@@ -97,7 +97,7 @@ pub(super) fn fill_request(
     for n in 0..3 {
         let place = ld(so.place[n].get());
         let motion = ld(so.motion[n].get());
-        request.place[n].set_bits(st(match side {
+        request.place[n].set(stf(match side {
             EnginePlace::Ahead => place + motion,
             EnginePlace::Behind => place - motion,
         }));
@@ -118,13 +118,13 @@ pub fn fill_pitch_and_volume(
 ) {
     request
         .pitch
-        .set_bits(st(linear(pitch_input, &set.pitch_scale, &set.pitch_low)));
+        .set(st(linear(pitch_input, &set.pitch_scale, &set.pitch_low)));
     let volume = linear(volume_input, &set.volume_scale, &set.volume_low);
     if so.view_flag.get() == 0 {
         // On the road the surface's gain scales the volume, before it is rounded.
-        request.volume.set_bits(st(volume * ld(gain.get())));
+        request.volume.set(st(volume * ld(gain.get())));
     } else {
-        request.volume.set_bits(st(volume));
+        request.volume.set(st(volume));
     }
 }
 

@@ -13,16 +13,17 @@
 use crate::errors::Refused;
 use crate::physics::car_store::Car;
 use crate::physics::flag_result::FlagResult;
+use crate::session::Dword;
 use rc2k_core::physics::gearbox::GearBits;
 
 /// The gear bits in the dword at `bits`.
-pub fn bits_at(bits: &dyn crate::session::Cell32) -> GearBits {
-    GearBits(bits.bits())
+pub fn bits_at(bits: &Dword) -> GearBits {
+    GearBits(bits.get())
 }
 
 /// On the dword at `bits`.
 // Converted: `rc2k_core::physics::gearbox::GearBits::test`.
-pub fn gear_bit_at(bits: &dyn crate::session::Cell32, gear: u32) -> Result<FlagResult, Refused> {
+pub fn gear_bit_at(bits: &Dword, gear: u32) -> Result<FlagResult, Refused> {
     let t = { bits_at(bits) }.test(gear)?;
     Ok(FlagResult {
         eax: t.bit,

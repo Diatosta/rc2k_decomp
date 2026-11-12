@@ -31,7 +31,7 @@ pub struct KindSet<'a> {
     /// Out: `extra`.
     pub extra: &'a PlainFloat,
     /// `divisor` copied here too (the first set only).
-    pub divisor_copy: Option<&'a PlainDword>,
+    pub divisor_copy: Option<&'a PlainFloat>,
 }
 
 pub fn first(effects: &Effects) -> KindSet<'_> {
@@ -88,14 +88,14 @@ pub fn set_kind_values(k: &KindSet<'_>, effects: &Effects) -> Result<(), Refused
     let q = k.quad;
     let c = k.consts;
     let [size, divisor, low, high, start, middle, end, spread, extra] =
-        k.values.map(|table| table[n].to_bits());
+        k.values.map(|table| table[n]);
     let count = k.count[n];
     q.corner.set(count);
     let (scaled, ratio) = x87::mul_and_div(size, c.size_k, divisor);
     q.size.set(scaled);
     q.ratio.set(ratio);
-    q.low.set_bits(low);
-    q.high.set_bits(high);
+    q.low.set(low);
+    q.high.set(high);
     q.start.set(x87::mul(start, c.start_k));
     q.step.set(bh::stf(
         (bh::ld(middle) - bh::ld(start)) / bh::ld(low) * bh::ld(c.step_k),
@@ -127,7 +127,7 @@ pub fn set_kind_values(k: &KindSet<'_>, effects: &Effects) -> Result<(), Refused
     q.sides[0][0].set_bits(triple(2, 0));
     q.sides[0][1].set_bits(triple(2, 1));
     q.sides[0][2].set_bits(triple(2, 2));
-    q.sides[1][0].set_bits(0);
+    q.sides[1][0].set(0.0);
     q.sides[1][1].set(x87::sub(triple(0, 1), triple(1, 1)));
     q.sides[1][2].set(x87::negated(x87::sub(triple(0, 0), triple(1, 0))));
     Ok(())

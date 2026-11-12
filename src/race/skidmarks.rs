@@ -327,9 +327,9 @@ mod vector_tests {
                     (&drawing.scene.view_centre[1], &win.view_centre[1]),
                     (&drawing.scene.view_centre[0], &win.view_centre[0]),
                 ] {
-                    let value = r.float();
-                    old.set_bits(value);
-                    own.set_bits(value);
+                    let value = f32::from_bits(r.float());
+                    old.set(value);
+                    own.set(value);
                 }
                 drawing.scene.scratch.set(0xAAAA_AAAAu32);
                 let mut a = [0xAAAA_AAAAu32; 8];

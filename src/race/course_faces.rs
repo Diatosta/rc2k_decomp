@@ -336,8 +336,8 @@ pub fn face_out_of_view(ctx: &DrawCtx<'_>) -> Result<bool, Refused> {
     // Converted: `rc2k_core::race::face_drawing::corner_in_sight` (exact in `f64`).
     use rc2k_core::race::face_drawing::{InSight, corner_in_sight};
     crate::race::frame_draw::points_there(course)?;
-    let near: u32 = shared.view.near.bits();
-    let slope: u32 = shared.view.slope.bits();
+    let near = shared.view.near.get();
+    let slope = shared.view.slope.get();
     for k in 0..4 {
         let n: u32 = ctx.view.face.corners[k].get();
         if k == 3 && n == u32::MAX {
@@ -388,10 +388,10 @@ fn face_off_screen(ctx: &DrawCtx<'_>) -> Result<bool, Refused> {
     }
     let clip = &ctx.view.polygon.window.clip_screen;
     let edges = ScreenEdges {
-        top: clip[0].bits(),
-        bottom: clip[1].bits(),
-        left: clip[2].bits(),
-        right: clip[3].bits(),
+        top: clip[0].get(),
+        bottom: clip[1].get(),
+        left: clip[2].get(),
+        right: clip[3].get(),
     };
     Ok(off_screen(
         &corners[..n],
@@ -1197,7 +1197,7 @@ mod vector_tests {
             for _ in 0..20000 {
                 race.shared.switches.scene_set_up.set(r.below(8));
                 for cell in place {
-                    cell.set_bits(r.float());
+                    cell.set(f32::from_bits(r.float()));
                 }
                 for q in points.iter_mut() {
                     *q = r.int() as u32;
@@ -1249,20 +1249,20 @@ mod vector_tests {
                     (&drawing.scene.view_centre[1], &win.view_centre[1]),
                     (&drawing.scene.view_centre[0], &win.view_centre[0]),
                 ] {
-                    let value = r.float();
-                    old.set_bits(value);
-                    own.set_bits(value);
+                    let value = f32::from_bits(r.float());
+                    old.set(value);
+                    own.set(value);
                 }
-                course.numbers.half.set_bits(if r.below(2) == 0 {
-                    0x3F00_0000
+                course.numbers.half.set(if r.below(2) == 0 {
+                    0.5
                 } else {
-                    r.float()
+                    f32::from_bits(r.float())
                 });
                 // mostly a depth the projection takes
-                course.numbers.k4096_a.set_bits(if r.below(4) == 0 {
-                    r.float()
+                course.numbers.k4096_a.set(if r.below(4) == 0 {
+                    f32::from_bits(r.float())
                 } else {
-                    0x4580_0000
+                    4096.0
                 });
                 let (a, b) = (vertex(&mut r), vertex(&mut r));
                 let from = vertex(&mut r);
@@ -1285,10 +1285,10 @@ mod vector_tests {
         let mut r = Rng(14);
         at_each_control_word(|| {
             for _ in 0..20000 {
-                course.numbers.half.set_bits(if r.below(2) == 0 {
-                    0x3F00_0000
+                course.numbers.half.set(if r.below(2) == 0 {
+                    0.5
                 } else {
-                    r.float()
+                    f32::from_bits(r.float())
                 });
                 let entry = |r: &mut Rng| {
                     let e = crate::cells::cells_of_bytes::<PolygonEntry, 0x44>([0; 0x44]);

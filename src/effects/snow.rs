@@ -349,9 +349,9 @@ pub struct SnowLight {
     /// 0x8DB518: `flt_8DB518` ..: its way before it is turned.
     pub light_source_way: [PlainFloat; 3],
     /// 0x8DB524: `dword_8DB524`: the vertices' rhw.
-    pub rhw: PlainDword,
+    pub rhw: PlainFloat,
     /// 0x8DB528: `dword_8DB528` ..: the quad's texture places (u0, v0, u1, v1).
-    pub uv: [PlainDword; 4],
+    pub uv: [PlainFloat; 4],
     /// 0x8DB538: `flt_8DB538`: what the clock's step is multiplied by for the fall.
     pub fall_k: PlainFloat,
     /// 0x8DB53C: `flt_8DB53C`: the view's height (`effects::place_snow_view`).
@@ -363,7 +363,7 @@ pub struct SnowLight {
     /// 0x8DB54C: `flt_8DB54C`: added to a flake's u.
     pub u_offset: PlainFloat,
     /// 0x8DB550: `dword_8DB550`, `dword_8DB554`: the top and bottom v of a flake.
-    pub v: [PlainDword; 2],
+    pub v: [PlainFloat; 2],
 }
 
 impl SnowLight {
@@ -433,19 +433,19 @@ impl SnowLight {
                 PlainFloat::new(0.0),
                 PlainFloat::new(0.0),
             ],
-            rhw: PlainDword::new(0x43800000),
+            rhw: PlainFloat::new(256.0),
             uv: [
-                PlainDword::new(0x3B000000),
-                PlainDword::new(0x3B000000),
-                PlainDword::new(0x3D840000),
-                PlainDword::new(0x3D840000),
+                PlainFloat::new(0.001953125),
+                PlainFloat::new(0.001953125),
+                PlainFloat::new(0.064453125),
+                PlainFloat::new(0.064453125),
             ],
             fall_k: PlainFloat::new(-160.0),
             height: PlainFloat::new(524288.0),
             _gap_8db540: PlainBytes::new([0x00, 0xC0, 0xC1, 0x45, 0x00, 0x00, 0x00, 0x00]),
             side: PlainFloat::new(6200.0),
             u_offset: PlainFloat::new(0.0625),
-            v: [PlainDword::new(0x3B000000), PlainDword::new(0x3D840000)],
+            v: [PlainFloat::new(0.001953125), PlainFloat::new(0.064453125)],
         }
     }
 }

@@ -5,20 +5,20 @@
 //! original's instructions' results are recorded vectors in the tests (`data/vectors`).
 
 use crate::math::cells::{Cells, load};
-use crate::math::x87_float::{ONE, compare, ld, st};
+use crate::math::x87_float::{ONE, compare, ld, stf};
 use crate::scene::x87_mem::{Base, cells, fld, fnstsw, fstp80};
 
 /// `scene::normalise_vector3` (0x4654EA): the three floats each times 1 over their
 /// length (the root of the squares, the last two added first).
 pub fn normalise(v: &(impl Cells + ?Sized)) {
-    let f = |k| ld(v.bits(k));
+    let f = |k| ld(v.float(k));
     let (x, y, z) = (f(0), f(1), f(2));
     let length = (x * x + (y * y + z * z)).sqrt();
     let t10 = ONE / length;
     let (x, y, z) = (f(0) * t10, f(1) * t10, f(2) * t10);
-    v.set_bits(2, st(z));
-    v.set_bits(1, st(y));
-    v.set_bits(0, st(x));
+    v.set_float(2, stf(z));
+    v.set_float(1, stf(y));
+    v.set_float(0, stf(x));
 }
 
 /// `scene::dot_product3` (0x46553C): the dot product x x' + (y y' + z z'), unrounded.

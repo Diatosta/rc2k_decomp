@@ -26,15 +26,15 @@ use rc2k_core::sound::placed::{self, MODE_3D};
 // ---- the x87's arithmetic, with the original's instructions ----
 
 /// `fld a; fmul b; fmul c; fistp`.
-fn product3_to_int(a: u32, b: u32, c: u32) -> u32 {
-    let (v, mut out) = ([a, b, c], [0u32]);
+fn product3_to_int(a: u32, b: u32, c: f32) -> u32 {
+    let (v, mut out) = ([a, b, c.to_bits()], [0u32]);
     x87_1(&v[..], cells(&mut out));
     out[0]
 }
 
 /// `fld a; fmul b; fistp`.
-pub fn product_to_int(a: u32, b: u32) -> u32 {
-    let (v, mut out) = ([a, b], [0u32]);
+pub fn product_to_int(a: u32, b: f32) -> u32 {
+    let (v, mut out) = ([a, b.to_bits()], [0u32]);
     x87_2(&v[..], cells(&mut out));
     out[0]
 }
@@ -48,8 +48,16 @@ fn to_int(a: u32) -> u32 {
 
 /// `fld y; fld x; fpatan; fst angle; fabs; fmul per_angle; fsubr centre; fistp`: the
 /// angle's bits and the whole number.
-fn angle_and_place(y: u32, x: u32, per_angle: u32, centre: u32) -> (u32, u32) {
-    let (v, mut out) = ([y, x, per_angle, centre], [0u32; 2]);
+fn angle_and_place(y: f32, x: f32, per_angle: f32, centre: f32) -> (u32, u32) {
+    let (v, mut out) = (
+        [
+            y.to_bits(),
+            x.to_bits(),
+            per_angle.to_bits(),
+            centre.to_bits(),
+        ],
+        [0u32; 2],
+    );
     x87_4(&v[..], cells(&mut out));
     (out[0], out[1])
 }
@@ -76,30 +84,30 @@ pub fn play_placed_sound(
         let volume = placed::volume(product3_to_int(
             request.volume.get(),
             factor,
-            request.volume_factor.bits(),
+            request.volume_factor.get(),
         ));
         request.volume.set(volume);
         let clock = owner.race.clock.get();
         let (angle, place) = angle_and_place(
             request.place[2].get(),
             request.place[0].get(),
-            clock.pan_per_radian.bits(),
-            clock.pan_centre.bits(),
+            clock.pan_per_radian.get(),
+            clock.pan_centre.get(),
         );
         request.angle.set(angle);
         request.pan.set(place);
-        let place = placed::place(place, request.place[0].get(), angle, mode);
+        let place = placed::place(place, request.place[0].bits(), angle, mode);
         // Outside 3D `play_sound` sends no place beyond the pan, so the other two values are 0.
         (volume_sent, pan, place_b, place_c) = (volume, place, 0, 0);
     } else {
         (volume_sent, pan, place_b, place_c) = (
             to_int(request.volume.get()),
-            request.place[0].get(),
-            request.place[1].get(),
-            request.place[2].get(),
+            request.place[0].bits(),
+            request.place[1].bits(),
+            request.place[2].bits(),
         );
     }
-    let rate = product_to_int(request.pitch.get(), request.pitch_factor.bits());
+    let rate = product_to_int(request.pitch.get(), request.pitch_factor.get());
     request.pitch.set(rate);
     crate::sound::play_sound::play_sound_in(
         audio,

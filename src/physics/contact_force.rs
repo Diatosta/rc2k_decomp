@@ -242,9 +242,9 @@ fn x87_4(contact: &ContactWork) {
 /// `ext [o + 0] = ([contact_normal_factor] * int [contact_step]) / int [contact_steps]`
 fn x87_5(contact: &ContactWork, tables: &PhysicsTables) -> [u8; 10] {
     let t0 = contact.contact_normal_factor.ld();
-    let t1 = int(tables.contact_step.bits() as i32);
+    let t1 = int(tables.contact_step.get() as i32);
     let t2 = t0 * t1;
-    let t3 = int(tables.contact_steps.bits() as i32);
+    let t3 = int(tables.contact_steps.get() as i32);
     let t4 = t2 / t3;
     f80(t4)
 }

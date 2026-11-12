@@ -7,7 +7,7 @@
 //! scale 1 / the farthest depth, the quad's last cell 0.//!
 //! Caller: `effects::draw_frame`.
 
-use crate::session::read_bits;
+use crate::session::PlainFloat;
 
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
@@ -32,20 +32,20 @@ pub fn begin_quads(
         for (value, state) in STATES {
             crate::scene::set_render_state::set_render_state(part, value, state);
         }
-        let colour: u32 = frame.draw_frame.colour.get();
-        let [a, b, c, d]: [u32; 4] = read_bits(&frame.draw_frame.places);
+        let rhw = frame.draw_frame.rhw.get();
+        let [a, b, c, d] = frame.draw_frame.places.each_ref().map(PlainFloat::get);
         let uv = [(a, b), (c, b), (c, d), (a, d)];
         for (k, (u, v)) in uv.into_iter().enumerate() {
             let at = &buffer.vertices[k];
-            at.rhw.set_bits(colour);
+            at.rhw.set(rhw);
             at.colour.set(0xFFFF_FFFF);
             at.specular.set(0);
-            at.u.set_bits(u);
-            at.v.set_bits(v);
+            at.u.set(u);
+            at.v.set(v);
         }
         crate::scene::polygon_work::front_end()
             .polygon_vertex_count
-            .set_bits(4u32);
+            .set(4);
         frame.draw_work.z_k.set(crate::math::x87::reciprocal(
             &crate::scene::polygon_work::front_end().window.farthest,
         ));

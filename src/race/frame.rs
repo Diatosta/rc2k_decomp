@@ -217,7 +217,7 @@ pub fn tyre_change(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
         let bits = car.parts_present.get();
         car.parts_present.set(bits | 1 << bit);
         if bits & 1 << bit == 0 {
-            car.tyre_wears[bit - 1].set_bits(0);
+            car.tyre_wears[bit - 1].set(0.0);
         }
     }
     Ok(())

@@ -18,12 +18,12 @@ use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::scene::matrix3::extended;
-use crate::session::read_bits;
+use crate::session::PlainFloat;
 
 const LIFE: i32 = 0xFA0;
 
 /// `fld k; fsub z`, kept extended.
-fn less(k: u32, z: u32) -> [u8; 10] {
+fn less(k: f32, z: f32) -> [u8; 10] {
     less_x87(k, z)
 }
 
@@ -64,10 +64,10 @@ fn run(
     let setup = &effects.setup;
     {
         crate::effects::windscreen_flakes_setup::windscreen_flakes_setup(buffer, fl, scene);
-        let [a, b, c, d]: [u32; 4] = read_bits(&fl.state.run_places);
+        let [a, b, c, d] = fl.state.run_places.each_ref().map(PlainFloat::get);
         for (n, (u, v)) in [(a, b), (c, b), (c, d), (a, d)].into_iter().enumerate() {
-            buffer.vertices[n].u.set_bits(u);
-            buffer.vertices[n].v.set_bits(v);
+            buffer.vertices[n].u.set(u);
+            buffer.vertices[n].v.set(v);
         }
         if setup.kind_floats.running.get() != 0 {
             windscreen_flakes_spawn(shared, drops, fl, effects)?;
@@ -96,7 +96,7 @@ fn run(
                 x87::int_over_int_to_int(item.age.get() as i32, fl.state.fade.get() as i32) as u32;
             let colour = ((!alpha) << 24) | (view_light & 0xFF_FFFF);
             let values = [
-                less(fl.state.far.bits(), item.place[1].bits()),
+                less(fl.state.far.get(), item.place[1].get()),
                 extended(item.place[0].get()),
             ];
             crate::effects::draw_windscreen_flake::draw_windscreen_flake(
@@ -112,7 +112,7 @@ use crate::math::x87_float as bh;
 
 /// `less`'s x87 block as plain Rust on the x87 model (3 instructions), same order: the two
 /// floats `v[0]` and `v[1]`, the difference as ten bytes.
-fn less_x87(k: u32, z: u32) -> [u8; 10] {
+fn less_x87(k: f32, z: f32) -> [u8; 10] {
     let t0 = bh::ld(k);
     let t1 = t0 - bh::ld(z);
     bh::f80(t1)
@@ -144,7 +144,7 @@ mod reference_vectors {
         };
         recorded("effects.run_windscreen_flakes.less_x87", &SPEC, |b| {
             let word = |off: usize| unsafe { (b[0] + off).host().cast::<u32>().read_unaligned() };
-            let out = super::less_x87(word(0), word(4));
+            let out = super::less_x87(f32::from_bits(word(0)), f32::from_bits(word(4)));
             for (i, byte) in out.into_iter().enumerate() {
                 unsafe { (b[1] + i).host().write(byte) };
             }

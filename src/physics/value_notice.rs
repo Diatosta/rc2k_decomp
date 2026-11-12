@@ -7,36 +7,22 @@
 //! Caller: `physics::car_physics_step` (0x43B9AE), its last call, every physics step.
 
 use crate::physics::car_store::Car;
-use crate::session::Cell32;
+use crate::physics::cells::set_changed;
 use rc2k_core::physics::notices::Notice;
 
 // Converted: `rc2k_core::physics::notices::Notice::value_notice`.
-fn core(v: &[&dyn Cell32]) {
+pub fn value_notice(car: &Car) {
     let was = Notice {
-        shown: v[1].bits(),
-        last: v[2].bits(),
-        id: v[3].bits(),
-        time: v[4].bits(),
+        shown: car.notice_shown.get(),
+        last: car.notice_last.get(),
+        id: car.notice_id.get(),
+        time: car.notice_time.get(),
         ..Notice::default()
     };
     let mut n = was;
-    n.value_notice(v[0].bits());
-    crate::physics::cells::set_changed(v[3], was.id, n.id);
-    crate::physics::cells::set_changed(v[4], was.time, n.time);
-    crate::physics::cells::set_changed(v[1], was.shown, n.shown);
-    crate::physics::cells::set_changed(v[2], was.last, n.last);
-}
-
-fn game(car: &Car) -> Vec<&dyn Cell32> {
-    vec![
-        &car.turned_steps as &dyn Cell32,
-        &car.notice_shown,
-        &car.notice_last,
-        &car.notice_id,
-        &car.notice_time,
-    ]
-}
-
-pub fn value_notice(car: &Car) {
-    core(&game(car));
+    n.value_notice(car.turned_steps.get());
+    set_changed(&car.notice_id, was.id, n.id);
+    set_changed(&car.notice_time, was.time, n.time);
+    set_changed(&car.notice_shown, was.shown, n.shown);
+    set_changed(&car.notice_last, was.last, n.last);
 }

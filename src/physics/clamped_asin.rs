@@ -7,18 +7,18 @@
 //! Callers: `physics::matrix_angles` (twice), unowned code at 0x42119E.
 
 use crate::math::x87::clamped_asin_80;
-use crate::session::Cell32;
+use crate::session::{Dword, Float};
 
 // `scratch`
 // `one`, 1.0
 
 /// The scratch float and the limit in `scratch`, `limit` (both written, in that order, as the
 /// original does).
-pub fn clamped_asin_at(x: [u8; 10], scratch: &dyn Cell32, limit: &dyn Cell32) -> [u8; 10] {
-    let mut s = scratch.bits();
-    let mut l = limit.bits();
+pub fn clamped_asin_at(x: [u8; 10], scratch: &Dword, limit: &Float) -> [u8; 10] {
+    let mut s = scratch.get();
+    let mut l = limit.get().to_bits();
     let out = clamped_asin_80(x, &mut s, &mut l);
-    scratch.set_bits(s);
-    limit.set_bits(l);
+    scratch.set(s);
+    limit.set(f32::from_bits(l));
     out
 }

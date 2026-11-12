@@ -17,19 +17,19 @@ use crate::physics::gearing::{GearPlaces, revs_from_wheels_at};
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
-use crate::session::Cell32;
+use crate::session::Dword;
 
 /// The switches and the scratch: the game's or a test's.
 #[derive(Clone, Copy)]
 pub struct SettlePlaces<'a> {
     /// `front_wheels_off`: settle the first driven speed (in neutral).
-    pub first: &'a dyn Cell32,
+    pub first: &'a Dword,
     /// `rear_wheels_off`: settle the second.
-    pub second: &'a dyn Cell32,
+    pub second: &'a Dword,
     /// `brake`: the big step.
-    pub fast: &'a dyn Cell32,
-    /// `scratch`.
-    pub scratch: &'a dyn Cell32,
+    pub fast: &'a Dword,
+    /// `scratch`: the step is stored there (a dword holding the float's bits).
+    pub scratch: &'a Dword,
 }
 
 impl<'a> SettlePlaces<'a> {
@@ -44,23 +44,22 @@ impl<'a> SettlePlaces<'a> {
 }
 
 /// One speed `v` toward 0 by the step `step`.
-fn settle(v: &dyn Cell32, step: &dyn Cell32) {
+fn settle(v: &(impl FloatView + ?Sized), step: f32) {
     let x = v.float();
     if x == 0.0 || x.is_nan() {
         return;
     }
     if x < 0.0 {
-        let y = x87::add(v, step);
+        let y = x87::add(x, step);
         v.set_float(y);
-        if f32::from_bits(y.to_bits()) >= 0.0 {
-            v.set_bits(0);
+        if y >= 0.0 {
+            v.set_float(0.0);
         }
     } else {
-        let y = x87::sub(v, step);
+        let y = x87::sub(x, step);
         v.set_float(y);
-        let y = f32::from_bits(y.to_bits());
         if y < 0.0 || y.is_nan() {
-            v.set_bits(0);
+            v.set_float(0.0);
         }
     }
 }
@@ -77,19 +76,21 @@ pub fn settle_drive_speeds_at(
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
     let step = || {
-        if s.fast.bits() != 0 {
-            tables.settle_fast_step.bits()
+        if s.fast.is_set() {
+            tables.settle_fast_step.get()
         } else {
-            tables.settle_slow_step.bits()
+            tables.settle_slow_step.get()
         }
     };
-    if s.first.bits() != 0 && gear == 0 {
-        s.scratch.set_bits(step());
-        settle(g.drive_speed, s.scratch);
+    if s.first.is_set() && gear == 0 {
+        let step = step();
+        s.scratch.set(step.to_bits());
+        settle(g.drive_speed, step);
     }
-    if s.second.bits() != 0 {
-        s.scratch.set_bits(step());
-        settle(g.drive_speed_b, s.scratch);
+    if s.second.is_set() {
+        let step = step();
+        s.scratch.set(step.to_bits());
+        settle(g.drive_speed_b, step);
     }
     if gear != 0 {
         return revs_from_wheels_at(numbers, g);

@@ -87,8 +87,8 @@ pub fn trail_particles(
                 .wrapping_mul(0x9D)
                 .wrapping_add(0x47);
             effects.setup.work.seed.set(s);
-            let k1 = effects.frame.draw_work.uv_k.bits();
-            let k2 = effects.kinds.particle_tuning.trail_random_k.bits();
+            let k1 = effects.frame.draw_work.uv_k.get();
+            let k2 = effects.kinds.particle_tuning.trail_random_k.get();
             ring.pool.burst_radius.set(bh::stf(
                 bh::int((s & 0xFFFF) as i32) * bh::ld(k1) * bh::ld(k2),
             ));
@@ -133,7 +133,7 @@ pub fn trail_particles(
                 .particle_tuning
                 .trail_size_k
                 .each_ref()
-                .map(super::super::session::PlainFloat::bits);
+                .map(super::super::session::PlainFloat::get);
             put(
                 0x38,
                 x87::times_plus_to_int(a, particle(particles, p, 0x2C)?, b) as u32,

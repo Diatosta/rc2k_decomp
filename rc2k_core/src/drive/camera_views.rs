@@ -4,7 +4,7 @@
 //! own views (`kind_has_views`) and with one player; 7 and above are the fixed replay cameras.
 
 /// The block's view fields (+0x684 .. +0x69C).
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct CameraView {
     /// +0x684: the view shown.
     pub view: u32,
@@ -16,8 +16,8 @@ pub struct CameraView {
     pub held: u32,
     /// +0x698.
     pub w698: u32,
-    /// +0x69C.
-    pub w69c: u32,
+    /// +0x69C: the share of the switch to the view made (a float).
+    pub switch_share: f32,
 }
 
 /// The views (0 .. 6); 2 and 3 only for cars that have them.
@@ -31,7 +31,7 @@ impl CameraView {
     pub fn take_wanted(&mut self, step: u32) -> u32 {
         self.view = self.wanted;
         self.held = 0;
-        self.w69c = 0;
+        self.switch_share = 0.0;
         self.w698 = 0;
         self.taken_at = step;
         step

@@ -136,7 +136,7 @@ pub fn cars_particles(effects: &Effects) -> Result<(), Refused> {
         car.rate.set(rate as u32);
         if car.reset_wait.get() != 0 {
             for cell in &car.motion {
-                cell.set_bits(0);
+                cell.set(0.0);
             }
             car.pace.set(0);
         }

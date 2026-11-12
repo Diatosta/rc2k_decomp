@@ -12,14 +12,11 @@ use crate::errors::Refused;
 use crate::physics::car_store::Car;
 use crate::physics::gear_bit::bits_at;
 use crate::physics::tables_store::PhysicsTables;
+use crate::session::Dword;
 
 /// On the bits at `bits` and the count `count`.
 // Converted: `rc2k_core::physics::gearbox::GearBits::higher_free`.
-pub fn higher_free_gear_at(
-    bits: &dyn crate::session::Cell32,
-    count: u32,
-    gear: u32,
-) -> Result<Option<u32>, Refused> {
+pub fn higher_free_gear_at(bits: &Dword, count: u32, gear: u32) -> Result<Option<u32>, Refused> {
     let s = { bits_at(bits) }.higher_free(gear, count)?;
     Ok(s.found.then_some(s.gear))
 }
@@ -29,5 +26,5 @@ pub fn higher_free_gear(
     tables: &PhysicsTables,
     gear: u32,
 ) -> Result<Option<u32>, Refused> {
-    higher_free_gear_at(&car.lost_gear_bits, tables.gear_count.bits(), gear)
+    higher_free_gear_at(&car.lost_gear_bits, tables.gear_count.get(), gear)
 }

@@ -51,7 +51,7 @@ pub fn surface_sound(
     request.pitch.set(from_int(rate as i32).to_bits());
     x87_1(owner.race.surface.get(), &request.volume);
     for (cell, place) in request.place.iter().zip(&o.place) {
-        cell.set(place.bits());
+        cell.set(place.get());
     }
     crate::sound::turn_parts::placed(request, owner, audio)
 }

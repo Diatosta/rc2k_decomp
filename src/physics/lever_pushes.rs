@@ -20,9 +20,9 @@ use crate::race::switches_store::FrameSwitches;
 use std::cmp::Ordering;
 
 /// `fld limit; fld share; fcompp` and its C0: share below limit, or unordered.
-fn below(share: u32, limit: u32) -> bool {
+fn below(share: f32, limit: f32) -> bool {
     !matches!(
-        f32::from_bits(share).partial_cmp(&f32::from_bits(limit)),
+        share.partial_cmp(&limit),
         Some(Ordering::Greater | Ordering::Equal)
     )
 }
@@ -49,14 +49,14 @@ pub fn lever_pushes(
         &car.grip_forces[2],
         ZERO,
     );
-    physics_tables.lever_share_start.set_bits(share);
+    physics_tables.lever_share_start.set(f32::from_bits(share));
     if zero {
         return;
     }
-    if below(physics_tables.lever_share_start.bits(), ZERO) {
+    if below(physics_tables.lever_share_start.get(), f32::from_bits(ZERO)) {
         physics_tables.lever_share_start.set(x87::loaded(ZERO));
     }
-    if !below(physics_tables.lever_share_start.bits(), numbers.one.bits()) {
+    if !below(physics_tables.lever_share_start.get(), numbers.one.get()) {
         physics_tables
             .lever_share_start
             .set(x87::loaded(&numbers.one));

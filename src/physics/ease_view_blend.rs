@@ -65,7 +65,7 @@ fn x87_2(c: &CameraInputs<'_>) {
     let t14 = c.numbers.k65536.ld();
     let t15 = t13 * t14;
     let t16 = -t15;
-    c.camera.camera_offset_z.set_bits(to_int(t16) as u32);
+    c.camera.camera_offset_z.set(to_int(t16) as u32);
 }
 
 #[cfg(test)]

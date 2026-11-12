@@ -17,7 +17,7 @@ use crate::physics::step_families::SoundInputs;
 use crate::race::frame_store::FrameWork;
 use crate::race::matrices_store::SceneMatrices;
 use crate::race::numbers_store::Numbers;
-use crate::scene::matrix3::rounded;
+use crate::scene::matrix3::rounded_value;
 use crate::scene::rotate_point::rotate_point;
 use crate::session::{Dword, Float};
 use crate::sound::store::SoundObject;
@@ -62,7 +62,7 @@ pub fn place(
     );
     let k = numbers.one_over_65536.bits();
     for (cell, e) in into.iter().zip(&out) {
-        cell.set_bits(rounded(ext_times(*e, k)));
+        cell.set(rounded_value(ext_times(*e, k)));
     }
 }
 

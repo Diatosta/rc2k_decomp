@@ -84,7 +84,7 @@ pub fn face_shares(i: &[u32; 7], o: &mut [u32; 8], sse: bool) {
 pub fn less_plus_less_product_80(
     a: impl Flt,
     b: impl Flt,
-    c: Option<u32>,
+    c: Option<impl Flt>,
     d: impl Flt,
     e: impl Flt,
 ) -> [u8; 10] {
@@ -94,7 +94,7 @@ pub fn less_plus_less_product_80(
     let e = e.bits();
     let mut x = ld(a) - ld(b);
     if let Some(c) = c {
-        x += ld(c);
+        x += ld(c.bits());
     }
     f80(x - ld(d) * ld(e))
 }
@@ -106,13 +106,13 @@ pub fn int_times_times_over_to_int(i: i32, a: u32, b: u32, c: u32) -> i32 {
 }
 
 /// `(a a k + c) g` and its negative, each rounded to a float.
-pub fn square_times_plus_times(a: impl Flt, k: impl Flt, c: impl Flt, g: impl Flt) -> (u32, u32) {
+pub fn square_times_plus_times(a: impl Flt, k: impl Flt, c: impl Flt, g: impl Flt) -> (f32, f32) {
     let a = a.bits();
     let k = k.bits();
     let c = c.bits();
     let g = g.bits();
     let x = (ld(a) * ld(a) * ld(k) + ld(c)) * ld(g);
-    (st(x), st(-x))
+    (out(x), out(-x))
 }
 
 /// The compare of `a` with `b`: the status word's C0 .. C3 (0x4700).
@@ -124,10 +124,10 @@ pub fn compare_full(a: impl Flt, b: impl Flt) -> u16 {
 
 /// 1 less the products of the terms, `acc = 1; acc -= (a b) c` for each (a, b, c),
 /// unrounded (80 bits; every step has 53 bits, so the carry between the terms is exact).
-pub fn one_less_products(terms: &[[u32; 3]]) -> [u8; 10] {
+pub fn one_less_products<T: Flt>(terms: &[[T; 3]]) -> [u8; 10] {
     let mut acc = ONE;
     for t in terms {
-        acc -= ld(t[0]) * ld(t[1]) * ld(t[2]);
+        acc -= ld(t[0].bits()) * ld(t[1].bits()) * ld(t[2].bits());
     }
     f80(acc)
 }
@@ -141,7 +141,8 @@ pub fn ext_times(e: [u8; 10], k: impl Flt) -> [u8; 10] {
 /// A ramp through (t0, t1) .. (t2, t3) as the original reads it: below t0 (or no number)
 /// t1; not below t2, t3; t2 - t0 equal to `zero` (or no number), t1; else
 /// `(x - t0) / (t2 - t0) (t3 - t1) + t1`. Rounded to a float (the `fstp`).
-pub fn ramp(x: impl Flt, t: [u32; 4], zero: impl Flt) -> f32 {
+pub fn ramp<T: Flt>(x: impl Flt, t: [T; 4], zero: impl Flt) -> f32 {
+    let t = t.map(|v| v.bits());
     let x = x.bits();
     let zero = zero.bits();
     if compare_full(x, t[0]) & 0x100 != 0 {
@@ -297,13 +298,13 @@ pub fn ext_div2(e: [u8; 10], a: impl Flt, b: impl Flt) -> f32 {
 }
 
 /// The terms' sum over the divisors: `t0 + t1 + ..`, then `/ d0 / d1 ..`, as a float.
-pub fn sum_over(terms: &[u32], divisors: &[u32]) -> f32 {
-    let mut acc = ld(terms[0]);
-    for &t in &terms[1..] {
-        acc += ld(t);
+pub fn sum_over<T: Flt, D: Flt>(terms: &[T], divisors: &[D]) -> f32 {
+    let mut acc = ld(terms[0].bits());
+    for t in &terms[1..] {
+        acc += ld(t.bits());
     }
-    for &d in divisors {
-        acc /= ld(d);
+    for d in divisors {
+        acc /= ld(d.bits());
     }
     out(acc)
 }
@@ -459,7 +460,8 @@ pub fn neg_mul2(a: u32, b: u32, c: u32) -> u32 {
 }
 
 /// `(((a - b) + c) + (x - d) e) f` as a whole number (`v` = a, b, c, x, d, e, f).
-pub fn wheel_int(v: [u32; 7]) -> i32 {
+pub fn wheel_int<T: Flt>(v: [T; 7]) -> i32 {
+    let v = v.map(|x| x.bits());
     let p = ld(v[0]) - ld(v[1]) + ld(v[2]);
     let q = (ld(v[3]) - ld(v[4])) * ld(v[5]);
     to_int((p + q) * ld(v[6]))

@@ -18,7 +18,7 @@ fn vectors(effects: &crate::effects::owner::Effects) -> [&[PlainFloat; 3]; 3] {
 /// One turn: for each kept vector, its (`b`, `a`) = (`a` s + `b` c, `a` c - `b` s) by the
 /// stored sine and cosine `sc` (`x87::turn_yz` with y the `b` field, z the `a`).
 fn turn_kept(a: usize, b: usize, sc: &[PlainFloat; 2], effects: &crate::effects::owner::Effects) {
-    let (s, c) = (sc[0].bits(), sc[1].bits());
+    let (s, c) = (sc[0].get(), sc[1].get());
     for v in vectors(effects) {
         let (nb, na) = x87::turn_yz(v[b].get(), v[a].get(), s, c);
         v[b].set(nb);

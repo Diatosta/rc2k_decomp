@@ -80,19 +80,19 @@ pub fn run_snow(
         }
         let rhw = l.rhw.get();
         let light = view.light | 0xFF00_0000;
-        let [u0, v0, u1, v1] = l.uv.each_ref().map(super::super::session::PlainDword::get);
+        let [u0, v0, u1, v1] = l.uv.each_ref().map(crate::session::PlainFloat::get);
         let uv = [(u0, v0), (u1, v0), (u1, v1), (u0, v1)];
         for (n, (u, v)) in uv.into_iter().enumerate() {
             let at = &buffer.vertices[n];
-            at.rhw.set_bits(rhw);
+            at.rhw.set(rhw);
             at.colour.set(light);
             at.specular.set(0u32);
-            at.u.set_bits(u);
-            at.v.set_bits(v);
+            at.u.set(u);
+            at.v.set(v);
         }
         crate::scene::polygon_work::front_end()
             .polygon_vertex_count
-            .set_bits(4u32);
+            .set(4);
         let inverse = x87::reciprocal(&crate::scene::polygon_work::front_end().window.farthest);
         for r in &s.inverses {
             r.set(inverse);
@@ -117,12 +117,12 @@ pub fn run_snow(
                 s.wide_turn[n][m].set(v.get());
             }
         }
-        let focal: u32 = crate::scene::polygon_work::front_end()
+        let focal = crate::scene::polygon_work::front_end()
             .window
             .view_scale
-            .bits();
+            .get();
         for m in 0..4 {
-            s.wide_focal[m].set_bits(focal);
+            s.wide_focal[m].set(focal);
         }
         crate::effects::draw_snow::draw_snow(buffer, weather, scene, effects)?;
         crate::scene::depth_test_on::depth_test_on(part);

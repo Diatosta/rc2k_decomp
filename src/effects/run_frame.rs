@@ -40,7 +40,7 @@ fn share(at: usize, start: u32, effects: &crate::effects::owner::Effects) {
     let took = rdtsc().wrapping_sub(start) as i32;
     to.set(x87::int_over_int_times(
         took,
-        effects.setup.frame.frame_cycles.bits() as i32,
+        effects.setup.frame.frame_cycles.get() as i32,
         FRAME_K.times[at],
     ));
 }
@@ -62,7 +62,7 @@ impl<'a> EffectsView<'a> {
         Self {
             fog: &view.fog,
             view_matrix: &view.matrices.view_matrix,
-            light: view.light.view_light.bits(),
+            light: view.light.view_light.get(),
             engine_tables: race.engine_tables(),
         }
     }
@@ -76,7 +76,7 @@ impl<'a> EffectsView<'a> {
         Self {
             fog: &front_end.fog,
             view_matrix: &race.frame.matrices.view_matrix,
-            light: front_end.light.view_light.bits(),
+            light: front_end.light.view_light.get(),
             engine_tables: race.engine_tables(),
         }
     }

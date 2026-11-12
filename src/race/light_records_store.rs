@@ -122,7 +122,11 @@ mod tests {
         assert!(LIGHT_RECORDS.group_at(gear, 34, 0x3C).is_ok());
         assert_eq!(
             LIGHT_RECORDS.group_at(gear, 34, 0).ok(),
-            Some(race().frame.lights_and_gear.gear.test_speeds[7].bits())
+            Some(
+                race().frame.lights_and_gear.gear.test_speeds[7]
+                    .get()
+                    .to_bits()
+            )
         );
         assert!(LIGHT_RECORDS.group_at(gear, 35, 0).is_err());
         assert!(LIGHT_RECORDS.group_at(gear, 1, 0x1000).is_err());

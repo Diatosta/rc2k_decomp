@@ -13,7 +13,7 @@ use crate::physics::car_store::Car;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
-use crate::session::{Cell32, Dword};
+use crate::session::{Dword, Float};
 
 /// The eight car blocks (fixed; `g_carBlocks` lists them), 0xFE0 apart.
 /// Player n's (0, 1) kind, tyre and colours word: `car_kinds[n]`, `car_tyres[n]`,
@@ -25,33 +25,47 @@ fn player_kinds(shared: &RaceShared, n: usize) -> [&Dword; 3] {
 /// The text the digits are read from (`car_data_text`, 0x708 bytes).
 pub const TEXT_LEN: usize = 0x708;
 
-/// A selector of one 32-bit field of a car block (a `Dword` or a `Float`).
-type Field = fn(&Car) -> &dyn Cell32;
+/// A selector of one 32-bit field of a car block: a whole number or a float.
+#[derive(Clone, Copy)]
+enum Field {
+    Word(fn(&Car) -> &Dword),
+    Float(fn(&Car) -> &Float),
+}
+
+impl Field {
+    /// Stores `v` into the field of `car` (a float field takes the float whose bits `v` is).
+    fn set(self, car: &Car, v: u32) {
+        match self {
+            Field::Word(field) => field(car).set(v),
+            Field::Float(field) => field(car).set(f32::from_bits(v)),
+        }
+    }
+}
 
 /// The block fields `reset_block` sets to 0, in the original's order.
 const CLEARED: [Field; 22] = [
-    |c| &c.view_covered,
-    |c| &c.splits_recorded,
-    |c| &c.stage_time,
-    |c| &c.finish_flag,
-    |c| &c.go_stand_timer,
-    |c| &c.started_stand_timer,
-    |c| &c.damage_failed,
-    |c| &c.checkpoint,
-    |c| &c.brake_heat[0],
-    |c| &c.brake_heat[1],
-    |c| &c.damper_wear[0],
-    |c| &c.damper_wear[1],
-    |c| &c.engine_heat,
-    |c| &c.brake_fade,
-    |c| &c.handbrake_failed,
-    |c| &c.electrical_failures[0],
-    |c| &c.electrical_failures[1],
-    |c| &c.electrical_failures[2],
-    |c| &c.electrical_failures[3],
-    |c| &c.electrical_failures[4],
-    |c| &c.electrical_failures[5],
-    |c| &c.electrical_failures[6],
+    Field::Word(|c| &c.view_covered),
+    Field::Word(|c| &c.splits_recorded),
+    Field::Word(|c| &c.stage_time),
+    Field::Word(|c| &c.finish_flag),
+    Field::Word(|c| &c.go_stand_timer),
+    Field::Word(|c| &c.started_stand_timer),
+    Field::Word(|c| &c.damage_failed),
+    Field::Word(|c| &c.checkpoint),
+    Field::Float(|c| &c.brake_heat[0]),
+    Field::Float(|c| &c.brake_heat[1]),
+    Field::Float(|c| &c.damper_wear[0]),
+    Field::Float(|c| &c.damper_wear[1]),
+    Field::Float(|c| &c.engine_heat),
+    Field::Float(|c| &c.brake_fade),
+    Field::Word(|c| &c.handbrake_failed),
+    Field::Word(|c| &c.electrical_failures[0]),
+    Field::Word(|c| &c.electrical_failures[1]),
+    Field::Word(|c| &c.electrical_failures[2]),
+    Field::Word(|c| &c.electrical_failures[3]),
+    Field::Word(|c| &c.electrical_failures[4]),
+    Field::Word(|c| &c.electrical_failures[5]),
+    Field::Word(|c| &c.electrical_failures[6]),
 ];
 
 /// What `race::reset_car_blocks` writes into car block `n` (field, value, in order):
@@ -59,10 +73,10 @@ const CLEARED: [Field; 22] = [
 /// fields 0, `gearbox_kind` (+0x38) 1, `time_left` (+0x8C) the stage's number
 /// (`stage_numbers`) x 100.
 fn reset_block(n: u32, cars: u32, number: u32) -> Vec<(Field, u32)> {
-    let mut writes: Vec<(Field, u32)> = vec![(|c| &c.driver_kind, (n < cars) as u32)];
+    let mut writes: Vec<(Field, u32)> = vec![(Field::Word(|c| &c.driver_kind), (n < cars) as u32)];
     writes.extend(CLEARED.iter().map(|&field| (field, 0)));
-    writes.push((|c| &c.gearbox_kind, 1));
-    writes.push((|c| &c.time_left, number.wrapping_mul(100)));
+    writes.push((Field::Word(|c| &c.gearbox_kind), 1));
+    writes.push((Field::Word(|c| &c.time_left), number.wrapping_mul(100)));
     writes
 }
 
@@ -78,7 +92,7 @@ pub fn reset_car_blocks(race: &Race) -> Result<(), BadInput> {
         for n in 0..BLOCK_COUNT {
             let car = shared.race_car(n as usize)?;
             for (field, v) in reset_block(n, cars, physics.split_tables().stage_numbers[0].get()) {
-                field(car).set_bits(v);
+                field.set(car, v);
             }
         }
         for n in 0..BLOCK_COUNT as usize {
@@ -496,11 +510,15 @@ pub fn set_up_mode_2_cars(race: &Race) -> Result<(), Refused> {
     race.shared
         .tables()
         .start_share_last
-        .set_bits(by_rally(&race.shared.tables().start_share_last_by_rally)?);
+        .set(f32::from_bits(by_rally(
+            &race.shared.tables().start_share_last_by_rally,
+        )?));
     race.shared
         .tables()
         .start_share_first
-        .set_bits(by_rally(&race.shared.tables().start_share_first_by_rally)?);
+        .set(f32::from_bits(by_rally(
+            &race.shared.tables().start_share_first_by_rally,
+        )?));
     // Converted: `rc2k_core::race::cars::{arcade_start_is_last, arcade_number,
     // arcade_type_draw, arcade_swap_draw}`.
     use crate::scene::next_noise::next_noise;
@@ -593,12 +611,12 @@ pub fn set_up_mode_2_cars(race: &Race) -> Result<(), Refused> {
 
 /// What `race::set_up_cars` writes into both players' blocks first (field, value).
 const PLAYER_RESETS: [(Field, u32); 6] = [
-    (|c| &c.top_speed, 0),
-    (|c| &c.split_gaps[0], u32::MAX),
-    (|c| &c.split_gaps[2], u32::MAX),
-    (|c| &c.split_gaps[1], u32::MAX),
-    (|c| &c.split_gaps[4], u32::MAX),
-    (|c| &c.split_gaps[3], u32::MAX),
+    (Field::Float(|c| &c.top_speed), 0),
+    (Field::Word(|c| &c.split_gaps[0]), u32::MAX),
+    (Field::Word(|c| &c.split_gaps[2]), u32::MAX),
+    (Field::Word(|c| &c.split_gaps[1]), u32::MAX),
+    (Field::Word(|c| &c.split_gaps[4]), u32::MAX),
+    (Field::Word(|c| &c.split_gaps[3]), u32::MAX),
 ];
 
 /// `race::set_up_cars` (0x43603C): race init's "cars": "gamemode" and `run_kind` logged; both
@@ -616,7 +634,7 @@ pub fn set_up_cars(
     use rc2k_core::race::cars::{CarsStep, cars_steps};
     for n in 0..2 {
         for (field, v) in PLAYER_RESETS {
-            field(race.shared.race_car(n as usize)?).set_bits(v);
+            field.set(race.shared.race_car(n as usize)?, v);
         }
     }
     for &step in cars_steps(race.shared.vars.run_kind.get()) {
@@ -750,7 +768,11 @@ mod tests {
 
     fn offset_of(field: Field) -> usize {
         let car = &CAR_BLOCKS.cars[0];
-        core::ptr::from_ref(field(car)).cast::<u8>() as usize - core::ptr::from_ref(car) as usize
+        let at = match field {
+            Field::Word(field) => core::ptr::from_ref(field(car)).cast::<u8>(),
+            Field::Float(field) => core::ptr::from_ref(field(car)).cast::<u8>(),
+        };
+        at as usize - core::ptr::from_ref(car) as usize
     }
 
     /// Every selector sits where the core's old table of byte offsets had it.

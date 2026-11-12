@@ -42,7 +42,7 @@ pub fn set_wheel_weights(
     for w in wheels {
         turn_by_inverse(car, &w.force);
     }
-    let plus = x87::loaded(1.0f32.to_bits());
+    let plus = x87::loaded(1.0f32);
     let minus = x87::negated(plus);
     // The wheels' points: x and z of +1 or -1 (0x2C, 0x6C, 0x14, 0x34 plus; 0x0C, 0x4C,
     // 0x54, 0x74 minus).

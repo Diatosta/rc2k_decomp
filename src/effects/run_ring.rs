@@ -431,7 +431,7 @@ fn outside_and_away(
             return Ok(false);
         }
         facing(ring, car, effects);
-        (ring.work.facing.bits() as i32) <= 0
+        crate::math::x87::bits_at_or_below(ring.work.facing.get(), 0.0)
     })
 }
 
@@ -654,11 +654,11 @@ fn pull_toward(
             return Ok(());
         }
         pull_facing(ring, car, &length, effects);
-        if (ring.work.facing.bits() as i32) <= 0 {
+        if crate::math::x87::bits_at_or_below(ring.work.facing.get(), 0.0) {
             return Ok(());
         }
         pull_strength(ring, e, car, effects);
-        if (ring.work.whole.get() as i32) > (setup.floats.pull_limit.bits() as i32) {
+        if (ring.work.whole.get() as i32) > (setup.floats.pull_limit.get() as i32) {
             set(ring, e, x87::loaded(&setup.floats.fixed_16_scale), |en| {
                 &mut en.size_factor
             })?;
@@ -948,9 +948,9 @@ fn box_x87(
     let t31 = t30 + t28;
     let t32 = t26 + t31;
     let t33 = t16.abs();
-    w.extent[0].set_bits(bh::to_int(t33) as u32);
+    w.extent[0].set(bh::to_int(t33) as u32);
     let t34 = t32.abs();
-    w.extent[1].set_bits(bh::to_int(t34) as u32);
+    w.extent[1].set(bh::to_int(t34) as u32);
 }
 
 /// `facing`'s x87 block as plain Rust on the x87 model (28 instructions), same order and memory places.
@@ -1078,7 +1078,7 @@ fn pull_strength_x87(
     let t9 = t6 * t8;
     let t10 = t9 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
     let t11 = t10 + ld(ring, e, |en| en.size_factor);
-    w.whole.set_bits(bh::to_int(t11) as u32);
+    w.whole.set(bh::to_int(t11) as u32);
     st(ring, e, t11, |en| &mut en.size_factor);
 }
 
@@ -1112,9 +1112,9 @@ fn box_place_x87(ring: &Ring, w: &RingWork, e: u32, car: &CarEffects) {
     let t25 = t24 + t22;
     let t26 = t20 + t25;
     let t27 = t10.abs();
-    w.extent[0].set_bits(bh::to_int(t27) as u32);
+    w.extent[0].set(bh::to_int(t27) as u32);
     let t28 = t26.abs();
-    w.extent[1].set_bits(bh::to_int(t28) as u32);
+    w.extent[1].set(bh::to_int(t28) as u32);
 }
 
 /// The ring kinds' constants (`run_ring`, and the ribbons' two) (IDA 0x93A4DA .. 0x93A576).

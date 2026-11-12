@@ -12,21 +12,20 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::physics::car_store::Car;
-use crate::physics::flow::FloatView;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
-use crate::session::{Cell32, Float};
+use crate::session::{Dword, Float};
 
 /// The variables: the car's work copy's and the ratio table (gear -1 first).
 #[derive(Clone, Copy)]
 pub struct GearPlaces<'a> {
-    pub gear: &'a dyn Cell32,
-    pub engine_speed: &'a dyn Cell32,
-    pub drive_speed: &'a dyn Cell32,
-    pub drive_speed_b: &'a dyn Cell32,
-    pub drive_kind: &'a dyn Cell32,
+    pub gear: &'a Dword,
+    pub engine_speed: &'a Float,
+    pub drive_speed: &'a Float,
+    pub drive_speed_b: &'a Float,
+    pub drive_kind: &'a Dword,
     pub ratios: &'a [Float; 9],
-    pub speed: &'a dyn Cell32,
+    pub speed: &'a Float,
 }
 
 impl<'a> GearPlaces<'a> {
@@ -44,15 +43,15 @@ impl<'a> GearPlaces<'a> {
 }
 
 /// The gear (None for neutral) and its ratio; refused outside the ratio table (-1 ..= 7).
-fn gear_ratio(p: &GearPlaces<'_>) -> Result<Option<(u32, u32)>, Refused> {
-    let gear = p.gear.bits();
+fn gear_ratio(p: &GearPlaces<'_>) -> Result<Option<(u32, f32)>, Refused> {
+    let gear = p.gear.get();
     if gear == 0 {
         return Ok(None);
     }
     if !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
-    Ok(Some((gear, p.ratios[(gear as i32 + 1) as usize].bits())))
+    Ok(Some((gear, p.ratios[(gear as i32 + 1) as usize].get())))
 }
 
 /// `physics::revs_from_wheels` (0x43C0C9): in gear, engine speed = the driven speed (with
@@ -61,12 +60,12 @@ pub fn revs_from_wheels_at(numbers: &Numbers, p: &GearPlaces<'_>) -> Result<(), 
     let Some((_, ratio)) = gear_ratio(p)? else {
         return Ok(());
     };
-    let speed = if p.drive_kind.bits() == 1 {
-        bh::st((p.drive_speed.ld() + p.drive_speed_b.ld()) * numbers.half.ld() / bh::ld(ratio))
+    let speed = if p.drive_kind.get() == 1 {
+        bh::stf((p.drive_speed.ld() + p.drive_speed_b.ld()) * numbers.half.ld() / bh::ld(ratio))
     } else {
-        x87::div(p.drive_speed, ratio).to_bits()
+        x87::div(p.drive_speed.get(), ratio)
     };
-    p.engine_speed.set_bits(speed);
+    p.engine_speed.set(speed);
     Ok(())
 }
 
@@ -77,10 +76,10 @@ pub fn wheels_from_revs_at(p: &GearPlaces<'_>) -> Result<(), Refused> {
     let Some((_, ratio)) = gear_ratio(p)? else {
         return Ok(());
     };
-    let speed = x87::mul(p.engine_speed, ratio);
-    p.drive_speed.set_float(speed);
-    if p.drive_kind.bits() == 1 {
-        p.drive_speed_b.set_float(x87::loaded(speed));
+    let speed = x87::mul(p.engine_speed.get(), ratio);
+    p.drive_speed.set(speed);
+    if p.drive_kind.get() == 1 {
+        p.drive_speed_b.set(x87::loaded(speed));
     }
     Ok(())
 }
@@ -91,6 +90,6 @@ pub fn revs_from_speed_at(p: &GearPlaces<'_>) -> Result<(), Refused> {
     let Some((_, ratio)) = gear_ratio(p)? else {
         return Ok(());
     };
-    p.engine_speed.set_float(x87::div(p.speed, ratio));
+    p.engine_speed.set(x87::div(p.speed.get(), ratio));
     Ok(())
 }

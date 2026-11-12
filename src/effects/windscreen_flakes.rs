@@ -58,7 +58,7 @@ pub fn spawn_windscreen_flake(
         &fl.state.tile_offset_k[1],
     ));
     e.texture_v.set(x87::loaded(&fl.state.tile_offset_k[2]));
-    e.born.set(shared.physics_tables.scene_clock.bits());
+    e.born.set(shared.physics_tables.scene_clock.get());
     e.age.set(0);
     Ok(k)
 }
@@ -122,7 +122,7 @@ pub fn windscreen_flakes_step(
                 .index
                 .set(steps::next_step(drops.picks.index.get()));
         }
-        drops.state.clock.set_bits(drops.picks.index.get());
+        drops.state.clock.set(drops.picks.index.get());
     }
     Ok(())
 }

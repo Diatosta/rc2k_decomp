@@ -54,17 +54,17 @@ pub fn windscreen_drops_setup(
             buffer.vertices[n].colour.set(0xFFFF_FFFFu32);
             buffer.vertices[n].specular.set(0xFF00_0000u32);
         }
-        let side: u32 = drops.hex.side.get();
-        for (n, (u, v)) in [(0, 0), (side, 0), (side, side), (0, side)]
+        let side = drops.hex.side.get();
+        for (n, (u, v)) in [(0.0, 0.0), (side, 0.0), (side, side), (0.0, side)]
             .into_iter()
             .enumerate()
         {
-            buffer.vertices[n].u.set_bits(u);
-            buffer.vertices[n].v.set_bits(v);
+            buffer.vertices[n].u.set(u);
+            buffer.vertices[n].v.set(v);
         }
         crate::scene::polygon_work::front_end()
             .polygon_vertex_count
-            .set_bits(6u32);
+            .set(6);
         drops.work.inverse.set(x87::reciprocal(
             &crate::scene::polygon_work::front_end().window.farthest,
         ));

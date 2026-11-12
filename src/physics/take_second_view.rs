@@ -14,7 +14,6 @@ use crate::math::x87_float::ld;
 use crate::physics::camera_store::CameraWork;
 use crate::physics::car_store::Car;
 use crate::race::view_vars_store::ViewRecord;
-use crate::session::Cell32;
 
 /// The exact version, for `physics::update_camera`: `s` the view's record.
 pub fn take_second_view(
@@ -24,9 +23,15 @@ pub fn take_second_view(
     scene: &crate::scene::owner::Scene,
 ) {
     x87_1(camera, s.offset_bits(), scene);
-    for (x, v) in copies(camera).iter().zip(s.taken()) {
-        x.set_bits(v);
-    }
+    crate::physics::take_first_view::take_figures(
+        s,
+        [
+            &camera.view_b_turn,
+            &camera.view_b_point,
+            &camera.view_b_shares,
+        ],
+        [&camera.view_b_aux, &camera.view_b_aux_2],
+    );
     camera.view_b_heading.set(car.car_heading.get());
     let (mut eax, mut ebx) = (car.car_pitch.get(), car.car_roll.get());
     if !matches!(car.camera_blend_view.get(), 1..=3) {
@@ -35,24 +40,6 @@ pub fn take_second_view(
     }
     camera.view_b_pitch.set(eax);
     camera.view_b_roll.set(ebx);
-}
-
-/// Where the record's +0x10 .. +0x38 go.
-fn copies(camera: &CameraWork) -> [&'_ dyn Cell32; 11] {
-    let w = camera;
-    [
-        &w.view_b_turn[0],
-        &w.view_b_turn[1],
-        &w.view_b_turn[2],
-        &w.view_b_point[0],
-        &w.view_b_point[1],
-        &w.view_b_point[2],
-        &w.view_b_shares[0],
-        &w.view_b_shares[1],
-        &w.view_b_shares[2],
-        &w.view_b_aux,
-        &w.view_b_aux_2,
-    ]
 }
 
 // ---- the arithmetic that was x87 assembly ----

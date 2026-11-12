@@ -9,7 +9,7 @@
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 
 use crate::math::x87;
-use crate::session::read_bits;
+use crate::session::PlainFloat;
 const STATES: [(u32, u32); 7] = [
     (2, 0x11),
     (2, 0x12),
@@ -25,14 +25,19 @@ pub fn windscreen_flakes_setup(
     fl: &WindscreenFlakes,
     scene: &crate::scene::owner::Scene,
 ) {
-    setup_with(buffer, fl, read_bits(&fl.state.setup_places), scene);
+    setup_with(
+        buffer,
+        fl,
+        fl.state.setup_places.each_ref().map(PlainFloat::get),
+        scene,
+    );
 }
 
 /// The set-up with the texture places `places` (`effects::pong_setup` has its own).
 pub fn setup_with(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     fl: &WindscreenFlakes,
-    places: [u32; 4],
+    places: [f32; 4],
     scene: &crate::scene::owner::Scene,
 ) {
     use crate::scene::set_render_state::set_render_state;
@@ -55,12 +60,12 @@ pub fn setup_with(
         }
         let [a, b, c, d] = places;
         for (n, (u, v)) in [(a, b), (c, b), (c, d), (a, d)].into_iter().enumerate() {
-            buffer.vertices[n].u.set_bits(u);
-            buffer.vertices[n].v.set_bits(v);
+            buffer.vertices[n].u.set(u);
+            buffer.vertices[n].v.set(v);
         }
         crate::scene::polygon_work::front_end()
             .polygon_vertex_count
-            .set_bits(4u32);
+            .set(4);
         fl.tables.inverse.set(x87::reciprocal(
             &crate::scene::polygon_work::front_end().window.farthest,
         ));

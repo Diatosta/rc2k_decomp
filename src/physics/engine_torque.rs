@@ -12,15 +12,15 @@
 use crate::effects::cell_x87::CellX87;
 use crate::math::x87;
 use crate::math::x87::{lerp_table, trunc_mul_to_int};
-use crate::physics::flow::ZERO_BITS as ZERO;
+use crate::physics::flow::{FloatView, ZERO_BITS as ZERO};
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
 use std::cmp::Ordering;
 
-/// C0 of comparing `a` with `b`: below, or unordered.
-pub fn below(a: u32, b: u32) -> bool {
+/// C0 of comparing `a` with `b`: below, or unordered (each a float or its bits).
+pub fn below(a: impl crate::math::x87::Flt, b: impl crate::math::x87::Flt) -> bool {
     !matches!(
-        f32::from_bits(a).partial_cmp(&f32::from_bits(b)),
+        f32::from_bits(a.bits()).partial_cmp(&f32::from_bits(b.bits())),
         Some(Ordering::Greater | Ordering::Equal)
     )
 }
@@ -34,21 +34,18 @@ pub fn engine_torque(course: &Course, shared: &RaceShared, scene: &crate::scene:
         &shared_store.car().engine_speed,
         &shared_store.car().engine_speed_limit,
     );
-    drawing.scene.scratch.set(s.to_bits());
-    if below(s.to_bits(), course.numbers.one.bits()) && !below(s.to_bits(), ZERO) {
-        let i = trunc_mul_to_int(s, course.numbers.eight.bits()) as u32;
+    drawing.scene.scratch.set_float(s);
+    if below(s, course.numbers.one.get()) && !below(s, ZERO) {
+        let i = trunc_mul_to_int(s, course.numbers.eight.get()) as u32;
         drawing.scene.work_dword.set(i);
         let k = i as usize;
-        shared_store.physics_tables.engine_force.set_bits(
-            lerp_table(
-                s,
-                &shared_store.physics_tables.torque_curve[k],
-                &shared_store.physics_tables.torque_curve[k + 1],
-                shared_store.physics_tables.spec_torque[k].get(),
-                shared_store.physics_tables.spec_torque[k + 1].get(),
-            )
-            .to_bits(),
-        );
+        shared_store.physics_tables.engine_force.set(lerp_table(
+            s,
+            &shared_store.physics_tables.torque_curve[k],
+            &shared_store.physics_tables.torque_curve[k + 1],
+            shared_store.physics_tables.spec_torque[k].get(),
+            shared_store.physics_tables.spec_torque[k + 1].get(),
+        ));
     } else {
         shared_store.physics_tables.engine_force.set(x87::loaded(
             shared_store.physics_tables.spec_torque[0].get(),

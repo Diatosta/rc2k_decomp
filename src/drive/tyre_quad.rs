@@ -11,7 +11,7 @@ use crate::d3d::vertices_store::PolygonVertices;
 use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
 use crate::race::viewer_screen_store::ViewerPanelBlock;
-use crate::session::{Cell32, Dword, read_all};
+use crate::session::Dword;
 use rc2k_core::drive::tyre_screen::quad_corners;
 
 /// The texture rectangle at `uv`, the screen rectangle `rect`, the colour `colour`; For the
@@ -24,24 +24,19 @@ pub fn tyre_quad(
     system: &crate::system::owner::System,
     buffer: &PolygonVertices,
 ) -> Result<(), Refused> {
-    let rect = read_all(rect);
-    quad_of(uv, rect, colour, panel, system, buffer)
+    quad_of(
+        uv,
+        rect.each_ref().map(Dword::get),
+        colour,
+        panel,
+        system,
+        buffer,
+    )
 }
 
-/// `tyre_quad` on rectangles held as cells.
+/// `tyre_quad` on the rectangles' values.
 // Converted: `rc2k_core::drive::tyre_screen::quad_corners` (the shared tail stays x87).
-pub fn tyre_quad_cells(
-    uv: &[impl Cell32; 4],
-    rect: &[impl Cell32; 4],
-    colour: u32,
-    panel: &ViewerPanelBlock,
-    system: &crate::system::owner::System,
-    buffer: &PolygonVertices,
-) -> Result<(), Refused> {
-    quad_of(read_all(uv), read_all(rect), colour, panel, system, buffer)
-}
-
-fn quad_of(
+pub fn quad_of(
     uv: [u32; 4],
     rect: [u32; 4],
     colour: u32,

@@ -14,7 +14,7 @@ use crate::physics::step_families::SoundInputs;
 
 /// The exact version, for `physics::wall_push_back` and `physics::wall_edge_contact`.
 pub fn place_sound_e1(c: &SoundInputs<'_>) -> Result<(), Refused> {
-    if !listed(c.frame_work, c.work.current_car.bits())? {
+    if !listed(c.frame_work, c.work.current_car.get())? {
         return Ok(());
     }
     let b = band_value(c, TWIN);

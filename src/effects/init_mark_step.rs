@@ -28,9 +28,9 @@ pub fn init_mark_step(
         // In a network race `g_players` is 1 but this machine's car may be any: every car's
         // record is needed, or a joined machine's own has no marks (the original's slip).
         let count: u32 = if net.vars.session.get() == 1 {
-            race.shared.view.race_cars.bits()
+            race.shared.view.race_cars.get()
         } else {
-            race.shared.view.players.bits()
+            race.shared.view.players.get()
         };
         let records = race.shared.car_records()?;
         // `check_cars` holds the count to 8 before `record` is asked.
@@ -42,15 +42,13 @@ pub fn init_mark_step(
         // The one object the effects' shapes are made from: the player's car (the original's
         // fixed 0x50 is the first car, not a joined machine's).
         let own = race.shared.own_car_number(net.vars.session.get()) as u32;
-        race.effects_settings()
-            .first_object
-            .set_bits(0x50 + 0x14 * own);
-        race.effects_settings().object_count.set_bits(1u32);
+        race.effects_settings().first_object.set(0x50 + 0x14 * own);
+        race.effects_settings().object_count.set(1);
         let file = crate::race::mud::car_file_number(
             race.kind_tables(),
-            race.shared.own_car(net.vars.session.get()).car_kind.bits(),
+            race.shared.own_car(net.vars.session.get()).car_kind.get(),
         );
-        race.effects_settings().mark_car_file_number.set_bits(file);
+        race.effects_settings().mark_car_file_number.set(file);
         for n in 0..count {
             let kind = race.shared.race_car_or_end(n as usize).car_kind.get() as i32;
             // Rows of 0x134 bytes, from the sixth group of the kind's light record on, run on

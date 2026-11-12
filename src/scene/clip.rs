@@ -32,10 +32,10 @@ const BYTES: [usize; 5] = [0x18, 0x19, 0x1A, 0x20, 0x21];
 /// The edge a pass clips against.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Edge {
-    /// A screen x, as a float's bits.
-    X(u32),
+    /// A screen x.
+    X(f32),
     /// A screen y.
-    Y(u32),
+    Y(f32),
     /// A depth, the whole number kept in the clip's work.
     Depth(i32),
 }
@@ -126,12 +126,12 @@ fn cut(
     match edge {
         Edge::X(at) => {
             poly.clip_kept_mask.set(mask);
-            w[OUT_1 / 4] = at;
+            w[OUT_1 / 4] = at.to_bits();
             cut_at_x(&mut w);
         }
         Edge::Y(at) => {
             poly.clip_kept_mask.set(mask);
-            w[OUT_1 / 4 + 1] = at;
+            w[OUT_1 / 4 + 1] = at.to_bits();
             cut_at_y(&mut w);
         }
         Edge::Depth(_) => {
@@ -139,16 +139,11 @@ fn cut(
             // Onto the screen, as `scene::project_point` does it.
             let mut point = [0u32; 8];
             point[4..7].copy_from_slice(&w[OUT_1 / 4 + 2..OUT_1 / 4 + 5]);
-            let v = [
-                poly.window.view_scale.bits(),
-                poly.window.view_centre[0].bits(),
-                poly.window.view_centre[1].bits(),
-                course.course.flat_depth.get(),
-            ];
             let flat = course.stage_prefs.flat_depth.get() != 0;
             to_screen(
                 &mut point,
-                &v,
+                &poly.window,
+                course.course.flat_depth.get(),
                 flat,
                 &crate::scene::x87_mem::cells(&mut w)[CHECKED / 4..],
             );
@@ -207,8 +202,8 @@ pub fn clip_pass(
         crate::scene::polygon::old_list_cell(polygon_work, n).set(number);
     }
     let (bound, coordinate) = match edge {
-        Edge::X(at) => (f32::from_bits(at) as f64, 0xC),
-        Edge::Y(at) => (f32::from_bits(at) as f64, 0x1C),
+        Edge::X(at) => (f64::from(at), 0xC),
+        Edge::Y(at) => (f64::from(at), 0x1C),
         Edge::Depth(at) => (at as f64, 0x18),
     };
     let inside = |entry: &PolygonEntry| {

@@ -69,14 +69,14 @@ pub fn clip_quad(
             return Ok(false);
         }
         let (edge, coord, other, below) = EDGES[mode as usize - 1];
-        let line: u32 = effects.clipping.clip.edges[edge].bits();
-        // The test of vertex k: inside.
+        let line = effects.clipping.clip.edges[edge].get();
+        // The test of vertex k: inside (the floats compared by their bits).
         let t = |k: usize| -> bool {
-            let v = coord(&q[k]).bits() as i32;
+            let v = coord(&q[k]).get();
             if below {
-                line as i32 >= v
+                x87::bits_at_or_below(v, line)
             } else {
-                v >= line as i32
+                x87::bits_at_or_below(line, v)
             }
         };
         let (esi, edi);
@@ -126,13 +126,13 @@ pub fn clip_quad(
         for (inside, outside) in [(esi, c), (edi, d)] {
             let (s, o) = (&q[inside], &q[outside]);
             let pairs = [
-                [other(s).bits(), other(o).bits()],
-                [s.u.bits(), o.u.bits()],
-                [s.v.bits(), o.v.bits()],
+                [other(s).get(), other(o).get()],
+                [s.u.get(), o.u.get()],
+                [s.v.get(), o.v.get()],
             ];
-            let v = x87::clip_lerp3(line, coord(o), coord(s), pairs);
+            let v = x87::clip_lerp3_floats(line, coord(o).get(), coord(s).get(), pairs);
             let w = &work[built];
-            coord(w).set_bits(line);
+            coord(w).set(line);
             other(w).set(v[0]);
             w.u.set(v[1]);
             w.v.set(v[2]);
@@ -148,7 +148,7 @@ pub fn clip_quad(
         let count = built as u32;
         crate::scene::polygon_work::front_end()
             .polygon_vertex_count
-            .set_bits(count);
+            .set(count);
         effects.clipping.glow.clip_count.set(count);
     }
     Ok(false)

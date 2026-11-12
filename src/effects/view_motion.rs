@@ -13,7 +13,7 @@ use crate::errors::Refused;
 use crate::math::cells::load;
 use crate::math::x87;
 use crate::race::owner_frame::Frame;
-use crate::scene::matrix3::{extended, rounded};
+use crate::scene::matrix3::{extended, rounded_value};
 use crate::scene::rotate_point::rotate_point;
 use crate::scene::vector3::{dot_product3, normalise};
 use crate::session::PlainFloat;
@@ -37,10 +37,13 @@ pub fn view_motion(frame: &Frame, effects: &crate::effects::owner::Effects) -> R
         .frame
         .view_vars
         .facing
-        .set_bits(rounded(dot_product3(load(&local[..3]), load(&local[3..]))));
+        .set(rounded_value(dot_product3(
+            load(&local[..3]),
+            load(&local[3..]),
+        )));
     let place = rotate_point(m, zero);
     for (k, p) in place.iter().enumerate() {
-        effects.frame.draw_frame.last[k].set_bits(rounded(*p));
+        effects.frame.draw_frame.last[k].set(rounded_value(*p));
     }
     let ticks: i32 = effects.setup.clock.frame_ticks.get() as i32;
     for k in 0..3 {

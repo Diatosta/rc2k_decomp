@@ -97,7 +97,19 @@ fn rotate_at(p: impl Base, m: impl Base, o: impl Base) {
 
 /// The record's place on the screen from its place in the view. `v`: the scale, the
 /// centre's x and y, and the whole number the flat depth is made from.
-pub(crate) fn to_screen(record: &mut [u32], v: &[u32; 4], flat: bool, checked: impl Base) {
+pub(crate) fn to_screen(
+    record: &mut [u32],
+    window: &crate::scene::view_window::ViewWindow,
+    flat_depth: u32,
+    flat: bool,
+    checked: impl Base,
+) {
+    let v = [
+        window.view_scale.bits(),
+        window.view_centre[0].bits(),
+        window.view_centre[1].bits(),
+        flat_depth,
+    ];
     if flat {
         screen_flat(cells(record), &v[..], checked);
     } else {
@@ -201,15 +213,15 @@ pub(crate) fn make_scene_record(
     r[3] = 0;
     r[7] = 0;
     if f32::from_bits(r[6]) >= NEAR {
-        let v = [
-            view.polygon.window.view_scale.bits(),
-            view.polygon.window.view_centre[0].bits(),
-            view.polygon.window.view_centre[1].bits(),
-            race.course.course.flat_depth.get(),
-        ];
         let flat = race.course.stage_prefs.flat_depth.get() != 0;
         // The depth it stores is a work value nothing reads.
-        to_screen(&mut r, &v, flat, &crate::session::Dword::new(0));
+        to_screen(
+            &mut r,
+            &view.polygon.window,
+            race.course.course.flat_depth.get(),
+            flat,
+            &crate::session::Dword::new(0),
+        );
     }
     if scene.lights.state.draw_mode.get() == 1 {
         r[6] = x87::sub(r[6], LOWERED_BY.to_bits()).to_bits();

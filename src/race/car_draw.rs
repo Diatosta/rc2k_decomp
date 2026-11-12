@@ -587,10 +587,10 @@ mod vector_tests {
         let race = race();
         [
             race.frame.frame_work.car_depth.get(),
-            race.shared.work.car_nearness.bits(),
+            race.shared.work.car_nearness.get().to_bits(),
             race.course.course.shine.get(),
-            race.course.numbers.zero.bits(),
-            race.course.numbers.one.bits(),
+            race.course.numbers.zero.get().to_bits(),
+            race.course.numbers.one.get().to_bits(),
         ]
     }
 
@@ -602,16 +602,17 @@ mod vector_tests {
             .frame_work
             .car_depth
             .set((r.int() as u32) & 0x3F_FFFF);
-        race.shared.work.car_nearness.set_bits(r.float());
+        race.shared.work.car_nearness.set(f32::from_bits(r.float()));
         race.course.course.shine.set(r.int() as u32);
-        race.course
-            .numbers
-            .zero
-            .set_bits(if r.below(4) == 0 { r.float() } else { 0 });
-        race.course.numbers.one.set_bits(if r.below(4) == 0 {
-            r.float()
+        race.course.numbers.zero.set(if r.below(4) == 0 {
+            f32::from_bits(r.float())
         } else {
-            0x3F80_0000
+            0.0
+        });
+        race.course.numbers.one.set(if r.below(4) == 0 {
+            f32::from_bits(r.float())
+        } else {
+            1.0
         });
     }
 

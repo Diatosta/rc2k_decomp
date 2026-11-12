@@ -8,7 +8,7 @@
 
 use crate::race::draw_view_scene::ViewOutput;
 use crate::race::owner::Race;
-use crate::session::Dword;
+use crate::session::{Dword, Float};
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -16,9 +16,9 @@ pub struct SceneHandOff {
     /// 1 when the mirror was drawn this frame (its full window follows: `race::draw_race_scene`).
     mirror_drawn: Dword,
     /// `SceneMatrices.lit_matrix`.
-    lit: [Dword; 16],
+    lit: [Float; 16],
     /// `SceneMatrices.made_object_matrix`.
-    made: [Dword; 16],
+    made: [Float; 16],
     /// The view's output (`ViewOutput`), applied by the game's thread: the EAX weight and the
     /// block and value for `store_view_value`, each with a word saying it is there.
     environment: [Dword; 2],
@@ -31,8 +31,8 @@ impl SceneHandOff {
     pub const fn new() -> Self {
         Self {
             mirror_drawn: Dword::new(0),
-            lit: [const { Dword::new(0) }; 16],
-            made: [const { Dword::new(0) }; 16],
+            lit: [const { Float::new(0.0) }; 16],
+            made: [const { Float::new(0.0) }; 16],
             environment: [const { Dword::new(0) }; 2],
             view_value: [const { Dword::new(0) }; 3],
             view_matrices: Dword::new(0),
@@ -78,7 +78,7 @@ impl SceneHandOff {
         for (kept, n) in [(&self.lit, 1), (&self.made, 2)] {
             let now = crate::scene::view_matrices::current_matrix(m, part, n);
             for (cell, v) in kept.iter().zip(now) {
-                cell.set(v);
+                cell.set(f32::from_bits(v));
             }
         }
     }
@@ -91,7 +91,7 @@ impl SceneHandOff {
             .zip([&m.lit_matrix, &m.made_object_matrix])
         {
             for (cell, v) in kept.iter().zip(now) {
-                v.set_bits(cell.get());
+                v.set(cell.get());
             }
         }
     }

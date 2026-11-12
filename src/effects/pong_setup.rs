@@ -19,7 +19,7 @@ pub fn pong_setup(
         pong.rules
             .setup_places
             .each_ref()
-            .map(super::super::session::PlainFloat::bits),
+            .map(crate::session::PlainFloat::get),
         scene,
     );
 }

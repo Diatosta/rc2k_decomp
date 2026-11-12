@@ -36,7 +36,7 @@ pub fn multiply_matrices3(
 /// `math::x87::row_times_column` for 3 x 3 matrices: `a`'s first three cells times `b`'s
 /// cells 0, 3 and 6, p1 + (p2 + p3).
 pub(crate) fn row_times_column_3(a: &(impl Cells + ?Sized), b: &(impl Cells + ?Sized)) -> u32 {
-    let p = |k: usize| ld(a.bits(k)) * ld(b.bits(3 * k));
+    let p = |k: usize| ld(a.float(k)) * ld(b.float(3 * k));
     let (p1, p2, p3) = (p(0), p(1), p(2));
     st(p1 + (p2 + p3))
 }
@@ -52,7 +52,7 @@ pub(crate) fn turn_int_point(
 ) {
     let int = |k: usize| bh::int(from.bits(3 * n + k) as i32);
     let (x, y, z) = (int(0), int(1), int(2));
-    let c = |k: usize| ld(m.bits(k));
+    let c = |k: usize| ld(m.float(k));
     let first = x * c(0) + (y * c(1) + z * c(2));
     to.set_bits(3 * n, bh::to_int(first) as u32);
     let second = x * c(3) + (y * c(4) + z * c(5));
@@ -142,7 +142,7 @@ fn turn(stores: Stores, angle: [u8; 10], m: &(impl Cells + ?Sized)) {
         -sine,
     ];
     for (cell, value) in stores.into_iter().zip(values) {
-        m.set_bits(cell, st(value));
+        m.set_float(cell, stf(value));
     }
 }
 

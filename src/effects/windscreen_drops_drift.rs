@@ -51,7 +51,7 @@ pub fn windscreen_drops_drift(
     let m = effects.settings()?;
     let marks = effects.settings()?;
     for n in 0..3 {
-        drops.tilt.point[n].set_bits(0);
+        drops.tilt.point[n].set(0.0);
     }
     let first: u32 = drops.hex.started.get();
     drops.hex.started.set(1);
@@ -62,9 +62,9 @@ pub fn windscreen_drops_drift(
             view_moved(drops, m, effects);
             let view = &frame.matrices.view_place;
             for col in 0..3usize {
-                let v = [view[col].bits(), view[4 + col].bits(), view[8 + col].bits()];
+                let v = [view[col].get(), view[4 + col].get(), view[8 + col].get()];
                 for (k, x) in v.into_iter().enumerate() {
-                    drops.hex.turn[3 * col + k].set_bits(x);
+                    drops.hex.turn[3 * col + k].set(x);
                 }
             }
             adjugate3(&drops.hex.turn, &drops.hex.adjugate);
@@ -78,14 +78,14 @@ pub fn windscreen_drops_drift(
         move_kept(drops, m, effects);
     }
     for (k, v) in [
-        marks.listener_car_place[0].bits(),
-        marks.listener_car_place[1].bits(),
-        marks.listener_car_place[2].bits(),
+        marks.listener_car_place[0].get(),
+        marks.listener_car_place[1].get(),
+        marks.listener_car_place[2].get(),
     ]
     .into_iter()
     .enumerate()
     {
-        drops.hex.kept_place[k].set_bits(v);
+        drops.hex.kept_place[k].set(v);
     }
     Ok(())
 }

@@ -66,8 +66,7 @@ pub fn object_turn_matrix(
     }
     let figure = work.size.get();
     drawing.scene.scratch.set(figure);
-    let sixteen = 16.0f32.to_bits();
-    let share = ext_div2(int_80(figure as i32, false), sixteen, 0x3F80_0000);
+    let share = ext_div2(int_80(figure as i32, false), 16.0f32, 1.0f32);
     drawing.scene.scratch.set(share.to_bits());
     for cell in out {
         cell.set(x87::mul(cell, share));

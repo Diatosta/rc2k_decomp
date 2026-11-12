@@ -14,7 +14,7 @@ use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::owner::Race;
-use crate::scene::matrix3::{extended, rounded};
+use crate::scene::matrix3::{extended, rounded_value};
 use crate::scene::rotate_point::rotate_point;
 use crate::session::{PlainFloat, read_bits};
 const CORNERS_FROM: u32 = 0x1C_2000;
@@ -55,7 +55,7 @@ pub fn draw_frame(
         let p: [u32; 3] = read_bits(&effects.frame.draw_frame.points[n]);
         let turned = rotate_point(m, [extended(p[2]), extended(p[1]), extended(p[0])]);
         for (k, v) in turned.iter().enumerate() {
-            effects.frame.view_vars.turned_points[n][k].set_bits(rounded(*v));
+            effects.frame.view_vars.turned_points[n][k].set(rounded_value(*v));
         }
     }
     let corners = crate::race::course_places::info_bytes(CORNERS_FROM, CORNERS_LEN as usize)?;
@@ -85,7 +85,7 @@ pub fn draw_frame(
     let times = times(effects);
     let start = rdtsc();
     begin_quads::begin_quads(buffer, effects, scene);
-    let frame = effects.setup.frame.frame_cycles.bits() as i32;
+    let frame = effects.setup.frame.frame_cycles.get() as i32;
     let took = rdtsc().wrapping_sub(start) as i32;
     times[0]
         .1

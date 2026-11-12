@@ -13,9 +13,9 @@
 use crate::effects::cell_x87::CellX87;
 use crate::effects::tuning::MarksKindFloats;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
-use crate::session::read_bits;
+use crate::session::PlainFloat;
 
-const FAR_ENOUGH: i32 = 0x4580_0000; // 4096.0
+const FAR_ENOUGH: f32 = 4096.0;
 
 /// The item's texture shift added to the places.
 fn shifted_places(
@@ -49,14 +49,14 @@ pub fn draw_windscreen_flake(
     scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
 ) {
-    let [a, pb, c, d]: [u32; 4] = read_bits(&fl.state.places);
+    let [a, pb, c, d] = fl.state.places.each_ref().map(PlainFloat::get);
     for (n, (u, v)) in [(a, pb), (c, pb), (c, d), (a, d)].into_iter().enumerate() {
-        buffer.vertices[n].u.set_bits(u);
-        buffer.vertices[n].v.set_bits(v);
+        buffer.vertices[n].u.set(u);
+        buffer.vertices[n].v.set(v);
     }
     shifted_places(buffer, item);
     corners(fl, &shares);
-    if fl.tables.corners[0][2].bits() as i32 <= FAR_ENOUGH {
+    if crate::math::x87::bits_at_or_below(fl.tables.corners[0][2].get(), FAR_ENOUGH) {
         return;
     }
     projected(buffer, fl, effects);

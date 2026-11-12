@@ -158,8 +158,8 @@ pub fn one_less_int_ratio(a: i32, b: i32) -> u32 {
 
 /// `rcpss xmm0, a; mulss xmm0, b` (`rcpss` an SSE approximation, from the tables of
 /// `arch::rcpss`: the processors' own results differ).
-pub fn rcpss_times(a: u32, b: u32) -> u32 {
-    (crate::arch::rcpss(f32::from_bits(a)) * f32::from_bits(b)).to_bits()
+pub fn rcpss_times(a: impl Flt, b: impl Flt) -> f32 {
+    crate::arch::rcpss(f32::from_bits(a.bits())) * f32::from_bits(b.bits())
 }
 
 /// A row of one matrix times a column of another: `a[0] b[0] + (a[1] b[4] + a[2] b[8])`,
@@ -1813,4 +1813,35 @@ pub fn int_over_int_to_int(a: i32, b: i32) -> i32 {
 #[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
 pub fn sum3_times(a: u32, b: u32, c: u32, k: u32) -> u32 {
     bh::st((bh::ld(a) + bh::ld(b) + bh::ld(c)) * bh::ld(k))
+}
+
+/// Two floats compared as the game's integer `cmp` of their bits: whether `a`'s bits, as a
+/// signed whole number, are at or below `b`'s (for two floats of which `b` is not negative:
+/// `a <= b`, a negative `a` always below; no NaN or zero sign treated apart).
+pub fn bits_at_or_below(a: f32, b: f32) -> bool {
+    (a.to_bits() as i32) <= (b.to_bits() as i32)
+}
+
+/// `turned_sprite` on floats: the view's `[focal, cx, cy, zk]` and the results as floats (the
+/// same stores).
+pub fn turned_sprite_floats(
+    place: [f32; 3],
+    k: [f32; 4],
+    size: i32,
+    sin: f32,
+    cos: f32,
+) -> [f32; 14] {
+    let [a, b, c] = place;
+    turned_sprite(a, b, c, k.map(f32::to_bits), size, sin, cos).map(f32::from_bits)
+}
+
+/// `particle_square` on floats: the place, the view's `[focal, cx, cy, zk]`.
+pub fn particle_square_floats(place: [f32; 3], k: [f32; 4], size: i32) -> [f32; 10] {
+    let [a, b, c] = place;
+    particle_square(a, b, c, k.map(f32::to_bits), size)
+}
+
+/// `clip_lerp3` with the pairs as floats.
+pub fn clip_lerp3_floats(m: f32, fc: f32, fs: f32, pairs: [[f32; 2]; 3]) -> [f32; 3] {
+    clip_lerp3(m, fc, fs, pairs.map(|pair| pair.map(f32::to_bits)))
 }

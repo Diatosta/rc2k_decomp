@@ -146,8 +146,8 @@ fn share_out_speeds(car: &Car, contact: &ContactWork, s: &[Float; 3]) {
 /// times the push scale.
 fn push_apart(car: &Car, contact: &ContactWork, numbers: &Numbers, d: &[Dword; 3]) {
     for (k, other) in d.iter().enumerate() {
-        let t0 = int(car.position[k].bits() as i32);
-        let t1 = int(other.bits() as i32);
+        let t0 = int(car.position[k].get() as i32);
+        let t1 = int(other.get() as i32);
         let t2 = t0 - t1;
         let t3 = numbers.k65536.ld();
         let t4 = t2 / t3;

@@ -119,13 +119,13 @@ pub fn reset_car_motion(
     settle_car(c, scene)?;
     crate::race::start_place::invert_car_matrix(c.course, c.car, scene);
     for v in &shared.car().velocity {
-        v.set_bits(0);
+        v.set(0.0);
     }
-    shared.car().local_velocity[0].set_bits(0x3F80_0000);
-    shared.car().local_velocity[1].set_bits(0);
-    shared.car().local_velocity[2].set_bits(0);
+    shared.car().local_velocity[0].set(1.0);
+    shared.car().local_velocity[1].set(0.0);
+    shared.car().local_velocity[2].set(0.0);
     for v in &shared.car().spin {
-        v.set_bits(0);
+        v.set(0.0);
     }
     let heading = shared.car().car_heading.get();
     physics.camera().start_heading.set(heading);
@@ -137,12 +137,12 @@ pub fn reset_car_motion(
     physics.camera().start_roll.set(roll);
     shared.car().camera_roll_turn.set(roll);
     shared.car().stuck_count.set(0);
-    shared.car().drive_speed_a.set_bits(0);
-    shared.car().drive_speed_b.set_bits(0);
+    shared.car().drive_speed_a.set(0.0);
+    shared.car().drive_speed_b.set(0.0);
     shared.car().gear.set(0);
-    shared.car().eased_yaw_spin.set_bits(0);
-    shared.car().grip_force_sum.set_bits(0);
-    shared.car().speed.set_bits(0);
+    shared.car().eased_yaw_spin.set(0.0);
+    shared.car().grip_force_sum.set(0.0);
+    shared.car().speed.set(0.0);
     shared.car().wall_hit_timer.set(0);
     let pending = shared.car().camera_view_return.get();
     if pending != 0 {
@@ -188,7 +188,7 @@ pub fn start_car(
     c.car.map_corner[0].set(0x8000_0000);
     c.car.map_corner[1].set(0x8000_0000);
     c.car.engine_sound_revs.set(0);
-    c.car.engine_speed.set_bits(0);
+    c.car.engine_speed.set(0.0);
     c.car.gear.set(0);
     zero(&[
         &c.car.steering,

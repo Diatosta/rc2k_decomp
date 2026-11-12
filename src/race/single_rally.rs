@@ -943,8 +943,8 @@ mod vector_tests {
                     }
                     RESULT.set(c.result.unwrap_or(kept));
                     RESULT_2.set(c.result_2.unwrap_or(kept_2));
-                    OUTCOME_CURRENT.secs.set_bits(c.secs);
-                    OUTCOME_FIRST.secs.set_bits(c.secs_2);
+                    OUTCOME_CURRENT.secs.set(f32::from_bits(c.secs));
+                    OUTCOME_FIRST.secs.set(f32::from_bits(c.secs_2));
                 }
                 9 => {
                     if let Some(s) = c.switch_after {

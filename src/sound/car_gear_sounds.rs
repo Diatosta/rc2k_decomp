@@ -32,7 +32,7 @@ pub fn car_gear_sounds(
         so.motion.each_ref().map(super::super::session::Float::get),
     );
     for (cell, v) in request.place.iter().zip(place) {
-        cell.set(v.to_bits());
+        cell.set(v);
     }
     for slot in &so.slots[5..] {
         crate::sound::play_timed_slot::play_timed_slot(slot, request, sound, audio)?;

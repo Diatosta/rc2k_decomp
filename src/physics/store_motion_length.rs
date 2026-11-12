@@ -8,10 +8,10 @@
 
 use crate::physics::car_store::Car;
 use crate::physics::vector_length::vector_length;
-use crate::scene::matrix3::rounded;
+use crate::scene::matrix3::rounded_value;
 
 /// The exact version, for `physics::car_physics_step` and `physics::keep_motion_vectors`: the
 /// length of the car's motion.
 pub fn store_motion_length(car: &Car) {
-    car.speed.set_bits(rounded(vector_length(&car.velocity)));
+    car.speed.set(rounded_value(vector_length(&car.velocity)));
 }

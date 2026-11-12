@@ -18,6 +18,7 @@ use crate::effects::cell_x87::CellX87;
 use crate::effects::clip_quad::{clip_quad, draw_fan};
 use crate::effects::mask_store::Masks;
 use crate::errors::{BadInput, Refused};
+use crate::math::x87;
 
 const CELLS: u32 = 0x41;
 
@@ -53,26 +54,27 @@ pub fn draw_ribbon(
         if effects.setup.settings.is_set.get() == 0 {
             return Err(BadInput("no marks settings").into());
         }
+        // A whole number in the float cell (`ribbon` loads it with `fild`).
         effects.frame.draw_work.half[0].set_bits(width >> 1);
         let colour = (alpha << 24) | colour;
         for n in 0..4 {
             buffer.vertices[n].colour.set(colour);
         }
         let at = cell << 4;
-        let place = |n: usize| masks.surface.places.get_u32(at as usize + 4 * n);
+        let place = |n: usize| f32::from_bits(masks.surface.places.get_u32(at as usize + 4 * n));
         let [u0, v0, u1, v1] = [place(0), place(1), place(2), place(3)];
         for (n, (u, v)) in [(u0, v0), (u1, v0), (u1, v1), (u0, v1)]
             .into_iter()
             .enumerate()
         {
-            buffer.vertices[n].u.set_bits(u);
-            buffer.vertices[n].v.set_bits(v);
+            buffer.vertices[n].u.set(u);
+            buffer.vertices[n].v.set(v);
         }
         for depth in [
-            effects.frame.draw_work.turned[2].bits(),
-            effects.frame.draw_work.second[2].bits(),
+            effects.frame.draw_work.turned[2].get(),
+            effects.frame.draw_work.second[2].get(),
         ] {
-            if depth as i32 <= effects.frame.draw_work.near.bits() as i32 {
+            if x87::bits_at_or_below(depth, effects.frame.draw_work.near.get()) {
                 return Ok(());
             }
         }
@@ -83,7 +85,7 @@ pub fn draw_ribbon(
         draw_fan(buffer, scene);
         crate::scene::polygon_work::front_end()
             .polygon_vertex_count
-            .set_bits(4u32);
+            .set(4);
     }
     Ok(())
 }

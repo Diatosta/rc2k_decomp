@@ -11,12 +11,12 @@
 //! Caller: `physics::damage_step`.
 
 use crate::physics::car_store::Car;
-use crate::physics::damage_model::{ONE, store, value, whole};
+use crate::physics::damage_model::{store, value, whole};
 use crate::physics::flow::{
     abs_below_or_unordered, below_or_unordered, equal_or_unordered, hold_high, hold_low, table_lerp,
 };
 use crate::physics::store::DamageModel;
-use crate::session::Cell32;
+use crate::session::Float;
 use core::cmp::Ordering;
 
 /// The damage model's figures for this step.
@@ -66,7 +66,7 @@ pub fn steps(car: &Car, damage: &DamageModel) {
     hold_high(&damage.scratch, speed_range);
     finish_shares(damage);
     if car.all_wheels_off.get() == 0 {
-        damage.wheels_down.set_bits(ONE);
+        damage.wheels_down.set(1.0);
     }
     damage.brake_share.set(0.0);
     if !abs_below_or_unordered(&car.local_velocity[2], &damage.grade_high)
@@ -77,22 +77,22 @@ pub fn steps(car: &Car, damage: &DamageModel) {
     // 1 when the engine's speed is above the limit times `DamageModel.engine_limit_factor`.
     damage
         .engine_over_limit
-        .set_bits(if engine_over_limit(car, damage) {
-            ONE
+        .set(if engine_over_limit(car, damage) {
+            1.0
         } else {
-            0
+            0.0
         });
-    damage.gear_changed.set_bits(car.gear_changed.get());
-    damage.gear.set_bits(car.gear.get());
-    damage.tyre_kind.set_bits(car.tyre_kind.get());
+    damage.gear_changed.set(car.gear_changed.get());
+    damage.gear.set(car.gear.get());
+    damage.tyre_kind.set(car.tyre_kind.get());
     let surface = car.wheel_surface_a[4].get();
-    damage.surface.set_bits(surface);
+    damage.surface.set(surface);
     damage.on_surface_5.set(0.0);
     if surface == 5 {
-        damage.on_surface_5.set_bits(ONE);
+        damage.on_surface_5.set(1.0);
     }
     damage.surface_blend.set(car.surface_blend.get());
-    damage.hit_side.set_bits(side_hit(car, damage));
+    damage.hit_side.set(side_hit(car, damage));
     hit_size_and_dive(car, damage);
     hold_low(&damage.scratch, &damage.gauge_low);
     hold_high(&damage.scratch, &damage.dive_top);
@@ -142,7 +142,7 @@ fn scale_car_figures(car: &Car, m: &DamageModel) {
 
 /// A wheel's stiffness: the stiffness share times the top of the gauge, less the lerp of its
 /// suspension damage.
-fn wheel_stiffness_from_share(m: &DamageModel, lerp: &impl Cell32, stiffness: &impl Cell32) {
+fn wheel_stiffness_from_share(m: &DamageModel, lerp: &Float, stiffness: &Float) {
     store(
         stiffness,
         value(&m.stiffness_share) * value(&m.gauge_top) - value(lerp),
@@ -150,7 +150,7 @@ fn wheel_stiffness_from_share(m: &DamageModel, lerp: &impl Cell32, stiffness: &i
 }
 
 /// A wheel's ride height: the ride height share times the top of the gauge.
-fn wheel_ride_height_from_share(m: &DamageModel, ride_height: &impl Cell32) {
+fn wheel_ride_height_from_share(m: &DamageModel, ride_height: &Float) {
     store(
         ride_height,
         value(&m.ride_height_share) * value(&m.gauge_top),
@@ -158,7 +158,7 @@ fn wheel_ride_height_from_share(m: &DamageModel, ride_height: &impl Cell32) {
 }
 
 /// A worn-out wheel: full stiffness, no ride height.
-fn fail_wheel(m: &DamageModel, stiffness: &impl Cell32, ride_height: &impl Cell32) {
+fn fail_wheel(m: &DamageModel, stiffness: &Float, ride_height: &Float) {
     store(stiffness, value(&m.gauge_top));
     store(ride_height, value(&m.gauge_low));
 }
@@ -177,7 +177,11 @@ fn means_and_engine_speed(car: &Car, m: &DamageModel) {
         &car.stiffness_mean,
         (value(s0) + value(s1) + value(s2) + value(s3)) * quarter,
     );
-    store(&m.drive_kind, value(&car.drive_kind));
+    // The car's whole number goes through the x87 as a float (`fld` / `fstp`).
+    store(
+        &m.drive_kind,
+        f64::from(f32::from_bits(car.drive_kind.get())),
+    );
     store(&m.scratch, value(&car.engine_speed).abs());
 }
 
@@ -223,9 +227,9 @@ fn drive_a_slip_step(car: &Car, m: &DamageModel) {
 fn drive_extrapolation_step(
     car: &Car,
     m: &DamageModel,
-    share: &impl Cell32,
-    drive_speed: &impl Cell32,
-    carried: &impl Cell32,
+    share: &Float,
+    drive_speed: &Float,
+    carried: &Float,
 ) {
     store(share, value(&m.scratch) / value(&m.speed_range));
     store(
@@ -728,7 +732,7 @@ mod reference_vectors {
                     writes: &[(0x35B3F4, Out::F)],
                 }],
                 ulps: 0,
-                plain: |a| dm(a[0]).wheels_down.set_bits(ONE),
+                plain: |a| dm(a[0]).wheels_down.set(1.0),
             },
             Block {
                 name: "damage_factors line 268",

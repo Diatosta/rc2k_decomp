@@ -93,17 +93,19 @@ pub fn windscreen_drops_top(
         .work
         .shares
         .each_ref()
-        .map(super::super::session::PlainFloat::bits);
+        .map(super::super::session::PlainFloat::get);
     for n in 0..POINTS as usize {
         let (p, o) = (3 * n, 3 * n);
         drops.work.scaled[o].set(x87::mul(&drops.work.points[p], kx));
         drops.work.scaled[o + 1].set(x87::mul(&drops.work.points[p + 1], ky));
-        drops.work.scaled[o + 2].set_bits(0);
+        drops.work.scaled[o + 2].set(0.0);
     }
     for p in drops.work.scaled.as_chunks::<3>().0 {
         point_turned(drops, p);
     }
-    if drops.state.rate.bits() != 0 {
+    let rate = drops.state.rate.get();
+    // Any rate but +0 (the bits tested).
+    if rate != 0.0 || rate.is_sign_negative() {
         crate::effects::windscreen_drops_frame::windscreen_drops_frame(
             buffer, frame, masks, drops, scene, gfx, effects,
         )?;
@@ -134,7 +136,7 @@ pub fn windscreen_drops_top(
     );
     crate::scene::polygon_work::front_end()
         .polygon_vertex_count
-        .set_bits(4u32);
+        .set(4);
     Ok(())
 }
 

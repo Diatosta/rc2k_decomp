@@ -38,7 +38,7 @@ use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::physics::ground::*;
 use crate::physics::ground_query::GroundQuery;
 use crate::physics::step_families::GroundInputs;
-use crate::scene::matrix3::{extended, rounded};
+use crate::scene::matrix3::{extended, rounded_value};
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::physics::ground;
 
@@ -97,21 +97,22 @@ fn probe_points(
     contact: &ContactWork,
     scratch: &crate::session::Dword,
 ) -> Result<(), Refused> {
-    let k65536 = c.numbers.k65536.bits();
+    let k65536 = c.numbers.k65536.get();
     contact.crossed_probe.set(u32::MAX);
     for b in 0..n {
         let i = b as usize;
         let work = contact;
-        let z = car.probe_point_z[b as usize].bits();
-        let y = car.probe_point_y[b as usize].bits();
+        let z = car.probe_point_z[i].get();
+        let y = car.probe_point_y[i].get();
         let y = if b < 4 {
+            // The point's height goes through the scratch dword (a float's bits).
             scratch.set(x87::loaded(y).to_bits());
             let add;
             (add, _) = ground::wheel_lifted(car.parts_present.get(), b);
             less_plus_less_product_80(
                 &car.probe_point_y[6],
                 &c.tables.handling[2],
-                add.then(|| c.tables.probe_lift.bits()),
+                add.then(|| c.tables.probe_lift.get()),
                 &c.tables.probe_share,
                 &c.tables.handling[3],
             )
@@ -120,12 +121,12 @@ fn probe_points(
         };
         let x = extended(car.probe_point_x[b as usize].get());
         let out = rotate_point(&car.crash_matrix, [x, y, extended(z)]);
-        let (ox, oy, oz) = (rounded(out[0]), rounded(out[1]), rounded(out[2]));
-        contact.probe_turned_x_last.set_bits(ox);
-        work.probe_turned_x[i].set_bits(ox);
-        work.probe_turned_y[i].set_bits(oy);
-        contact.probe_turned_z_last.set_bits(oz);
-        work.probe_turned_z[i].set_bits(oz);
+        let [ox, oy, oz] = out.map(rounded_value);
+        contact.probe_turned_x_last.set(ox);
+        work.probe_turned_x[i].set(ox);
+        work.probe_turned_y[i].set(oy);
+        contact.probe_turned_z_last.set(oz);
+        work.probe_turned_z[i].set(oz);
         for (v, place, list) in [
             (ox, &car.position[0], &work.probe_x[i]),
             (oy, &car.position[1], &work.probe_y[i]),

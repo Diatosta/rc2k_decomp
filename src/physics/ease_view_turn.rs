@@ -65,10 +65,10 @@ pub fn ease_view_turn(
 /// `int [scratch] = int [scratch] * [s + 0]`
 fn x87_1(s: &impl Cell32, scene: &crate::scene::owner::Scene) {
     let drawing = &scene.drawing;
-    let t0 = int(drawing.scene.scratch.bits() as i32);
+    let t0 = int(drawing.scene.scratch.get() as i32);
     let t1 = s.ld();
     let t2 = t0 * t1;
-    drawing.scene.scratch.set_bits(to_int(t2) as u32);
+    drawing.scene.scratch.set(to_int(t2) as u32);
 }
 
 #[cfg(test)]

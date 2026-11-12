@@ -80,7 +80,7 @@ pub fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
             }
             None => {
                 race.frame.panel_and_overlay.panel.overlay_parts.set(1);
-                race.frame.panel_and_overlay.overlay.overlay_part_miles[0].set_bits(ONE);
+                race.frame.panel_and_overlay.overlay.overlay_part_miles[0].set(1.0);
                 race.frame.panel_and_overlay.panel.overlay_miles.set(ONE);
                 race.frame.panel_and_overlay.overlay.overlay_part_kinds_a[0].set(0);
                 race.frame.panel_and_overlay.overlay.overlay_part_kinds_b[0].set(0);

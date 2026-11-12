@@ -61,23 +61,23 @@ pub fn unit_vector(
 ) -> u32 {
     // `x87::length`: sqrt(x x + (y y + z z)).
     let (x, y, z) = (
-        bh::ld(from.bits(0)),
-        bh::ld(from.bits(1)),
-        bh::ld(from.bits(2)),
+        bh::ld(from.float(0)),
+        bh::ld(from.float(1)),
+        bh::ld(from.float(2)),
     );
     let length = bh::st((x * x + (y * y + z * z)).sqrt());
     if x87::equal_or_unordered(length, course.numbers.zero.get()) {
         for n in 0..3 {
-            out.set_bits(n, 0);
+            out.set_float(n, 0.0);
         }
         return length;
     }
     for n in 0..3 {
-        out.set_bits(n, x87::div(from.bits(n), length).to_bits());
+        out.set_float(n, x87::div(from.float(n), length));
     }
     for n in 0..3 {
         if out.bits(n) == 0x8000_0000 {
-            out.set_bits(n, 0);
+            out.set_float(n, 0.0);
         }
     }
     length
@@ -90,11 +90,12 @@ pub fn cross_product(
     c: &(impl Cells + ?Sized),
     out: &(impl Cells + ?Sized),
 ) {
-    let part =
-        |x: usize, y: usize| x87::product_difference(c.bits(x), b.bits(y), b.bits(x), c.bits(y));
-    out.set_bits(0, part(2, 1).to_bits());
-    out.set_bits(1, part(0, 2).to_bits());
-    out.set_bits(2, part(1, 0).to_bits());
+    let part = |x: usize, y: usize| {
+        x87::product_difference(c.float(x), b.float(y), b.float(x), c.float(y))
+    };
+    out.set_float(0, part(2, 1));
+    out.set_float(1, part(0, 2));
+    out.set_float(2, part(1, 0));
 }
 
 /// `scene::square_matrix` (0x420E94): a turning's three rows made one long and at right
@@ -122,9 +123,9 @@ pub fn invert_turn(
     from: &(impl Cells + ?Sized),
     out: &(impl Cells + ?Sized),
 ) -> u32 {
-    let mut m = [0u32; 9];
+    let mut m = [0f32; 9];
     for (n, value) in m.iter_mut().enumerate() {
-        *value = x87::loaded(from.bits((n / 3) * 4 + n % 3)).to_bits();
+        *value = x87::loaded(from.float((n / 3) * 4 + n % 3));
     }
     let [a, b, c, d, e, f, g, h, i] = m;
     let plain = x87::product_difference;
@@ -141,7 +142,7 @@ pub fn invert_turn(
         plain(a, e, b, d),
     ];
     for (n, value) in made.into_iter().enumerate() {
-        out.set_bits((n / 3) * 4 + n % 3, x87::loaded(value).to_bits());
+        out.set_float((n / 3) * 4 + n % 3, x87::loaded(value));
     }
     square_matrix(course, out)
 }

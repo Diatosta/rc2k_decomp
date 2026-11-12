@@ -28,15 +28,15 @@ pub fn race_timers(o: crate::owners::Owners<'static>, race: &Race) -> Result<(),
     shared.physics_tables.weight.set(1.0f32);
     let finished = shared.car().finish_flag.get() != 0;
     let factor = if finished {
-        physics.split_tables().timer_factor.bits()
+        physics.split_tables().timer_factor.get()
     } else {
-        0
+        0.0
     };
     shared
         .physics_tables
         .weight
-        .set(timer_rate(finished, f32::from_bits(factor)));
-    let run = timer_run(shared.vars.run_kind.bits());
+        .set(timer_rate(finished, factor));
+    let run = timer_run(shared.vars.run_kind.get());
     if run == TimerRun::None {
         return Ok(());
     }

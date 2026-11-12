@@ -69,7 +69,7 @@ pub fn wheel_springs(
         damping.set(x87::sub_mul(
             q,
             drawing.scene.work_dword.get(),
-            ph.handling[5].bits(),
+            &ph.handling[5],
         ));
         if below(damping.get(), 0.0) {
             damping.set(x87::mul(damping, &ph.handling[0]));
@@ -84,13 +84,13 @@ pub fn wheel_springs(
     }
     for k in 0..4 {
         let v = wheel_int([
-            car_blocks.cars[0].probe_point_y[6].bits(),
-            ph.handling[2].bits(),
-            ph.spring_share.bits(),
-            c.wheel_squeeze[k].bits(),
-            ph.probe_share.bits(),
-            ph.handling[3].bits(),
-            numbers.k65536.bits(),
+            car_blocks.cars[0].probe_point_y[6].get(),
+            ph.handling[2].get(),
+            ph.spring_share.get(),
+            c.wheel_squeeze[k].get(),
+            ph.probe_share.get(),
+            ph.handling[3].get(),
+            numbers.k65536.get(),
         ]);
         c.wheel_spring_force[k].set(v as u32);
     }

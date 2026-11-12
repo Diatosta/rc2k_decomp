@@ -78,7 +78,7 @@ fn face_checkpoint(
     let second = shared.car().position[2].get().wrapping_sub(coordinate(2));
     let angle = crate::scene::angle_between::angle_of(course, first, second);
     // `scene::angle_between` left the angle in `g_scratch`.
-    scene.drawing.scene.scratch.set_bits(angle);
+    scene.drawing.scene.scratch.set(angle);
     shared.car().camera_heading.set(angle << 16);
     true
 }

@@ -208,26 +208,19 @@ fn steps(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), 
         .wrapping_add(c.tables.hard_ground[2].get())
         .wrapping_add(c.tables.hard_ground[3].get());
     c.car.hard_ground_count.set(hard);
-    let below = |a: u32, b: u32| {
-        !matches!(
-            f32::from_bits(a).partial_cmp(&f32::from_bits(b)),
-            Some(Ordering::Greater | Ordering::Equal)
-        )
-    };
-    let mut least = if below(
-        c.tables.point_grips[0].bits(),
-        c.tables.point_grips[1].bits(),
-    ) {
-        c.tables.point_grips[0].bits()
+    let below =
+        |a: f32, b: f32| !matches!(a.partial_cmp(&b), Some(Ordering::Greater | Ordering::Equal));
+    let mut least = if below(c.tables.point_grips[0].get(), c.tables.point_grips[1].get()) {
+        c.tables.point_grips[0].get()
     } else {
-        c.tables.point_grips[1].bits()
+        c.tables.point_grips[1].get()
     };
     c.car.ground_bump_scale.set(crate::math::x87::loaded(least));
     for k in &c.tables.point_grips[2..5] {
-        least = if below(c.car.ground_bump_scale.bits(), k.bits()) {
-            c.car.ground_bump_scale.bits()
+        least = if below(c.car.ground_bump_scale.get(), k.get()) {
+            c.car.ground_bump_scale.get()
         } else {
-            k.bits()
+            k.get()
         };
         c.car.ground_bump_scale.set(crate::math::x87::loaded(least));
     }
@@ -252,7 +245,7 @@ fn x87_1(course: &Course, t: &[Float; 64], c: usize, scene: &crate::scene::owner
     let t0 = t[c].ld();
     let t1 = course.numbers.k65536.ld();
     let t2 = t0 * t1;
-    scene.drawing.scene.scratch.set_bits(to_int(t2) as u32);
+    scene.drawing.scene.scratch.set(to_int(t2) as u32);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -266,13 +259,13 @@ fn x87_2(
     scene: &crate::scene::owner::Scene,
 ) {
     let drawing = &scene.drawing;
-    let t0 = int(drawing.scene.surface_point[1].bits() as i32);
+    let t0 = int(drawing.scene.surface_point[1].get() as i32);
     let t1 = contact.probe_share_u[c].ld();
     let t2 = t0 * t1;
-    let t3 = int(drawing.scene.surface_point[2].bits() as i32);
+    let t3 = int(drawing.scene.surface_point[2].get() as i32);
     let t4 = contact.probe_share_v[c].ld();
     let t5 = t3 * t4;
-    let t6 = int(drawing.scene.surface_point[0].bits() as i32);
+    let t6 = int(drawing.scene.surface_point[0].get() as i32);
     let t7 = t5 + t6;
     let t8 = t2 + t7;
     let t9 = numbers.k256.ld();
@@ -468,7 +461,7 @@ fn x87_7(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) {
     let t17 = drawing.scene.surface_point[1].ld();
     let t18 = drawing.scene.surface_point[0].ld();
     let t19 = t17 - t18;
-    let t20 = int(c.car.suspension_stiffness.bits() as i32);
+    let t20 = int(c.car.suspension_stiffness.get() as i32);
     let t21 = c.numbers.k256.ld();
     let t22 = t20 / t21;
     let t23 = t19 * t22;

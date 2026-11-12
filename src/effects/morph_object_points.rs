@@ -22,7 +22,7 @@ use crate::race::effects_settings_store::CarEffects;
 use crate::race::owner_course::Course;
 use crate::scene::objects::SLOTS;
 use crate::scene::owner::Scene;
-use crate::session::{PlainBytes, PlainDword};
+use crate::session::{PlainBytes, PlainDword, PlainFloat};
 
 const MOST_CARS: i32 = 8;
 
@@ -133,8 +133,8 @@ pub fn morph_object_points(
             }
             b.morph_kept.set(0xFFFF_FFFF);
             for k in 0..8 {
-                let v = b.factors[k].bits();
-                b.kept_factors[k].set_bits(v);
+                let v = b.factors[k].get();
+                b.kept_factors[k].set(v);
                 paths.morph_work.kept[k].set(v);
             }
             let (a, c, n) = points(course, scene, b)?;
@@ -163,7 +163,7 @@ pub struct MorphWork {
     /// 0x93C6D0: Not named: 4 bytes (a gap, or unreferenced data)
     pub _gap_93c6d0: PlainBytes<4>,
     /// 0x93C6D4: `dword_93C6D4` .. `dword_93C6F0`: the factors kept
-    pub kept: [PlainDword; 8],
+    pub kept: [PlainFloat; 8],
 }
 
 impl MorphWork {
@@ -173,14 +173,14 @@ impl MorphWork {
             taken: PlainDword::new(0x0),
             _gap_93c6d0: PlainBytes::new([0; 4]),
             kept: [
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
             ],
         }
     }

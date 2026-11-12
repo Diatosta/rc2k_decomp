@@ -76,21 +76,21 @@ pub fn burst_particles(
         sound.race.stage.get().random[1].set(1);
         let s = next_seed(effects);
         let r = s & 0xFFFF;
-        let m = effects.frame.draw_work.uv_k.bits();
+        let m = effects.frame.draw_work.uv_k.get();
         let [c, k] = effects
             .kinds
             .particle_tuning
             .burst_scale
             .each_ref()
-            .map(super::super::session::PlainFloat::bits);
+            .map(super::super::session::PlainFloat::get);
         let radius = bh::st((bh::int(r as i32) * bh::ld(m) + bh::ld(c)) * bh::ld(k));
         ring.pool.burst_radius.set_bits(radius);
         ring.pool.kind.set((s & 7) * 0x400);
         ring.pool.nine.set((s.rotate_right(16) & 1) + 8);
         let sine =
-            |n: u32| crate::scene::engine_tables_store::sine(engine_tables, n as usize).bits();
+            |n: u32| crate::scene::engine_tables_store::sine(engine_tables, n as usize).get();
         let cosine =
-            |n: u32| crate::scene::engine_tables_store::cosine(engine_tables, n as usize).bits();
+            |n: u32| crate::scene::engine_tables_store::cosine(engine_tables, n as usize).get();
         for _ in 0..ENTRIES {
             let used: u32 = ring.pool.used.get();
             if used == FULL {

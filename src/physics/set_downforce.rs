@@ -19,7 +19,7 @@ pub fn set_downforce(car: &Car, tables: &PhysicsTables) {
         &tables.downforce_spec,
         &tables.gravity,
     );
-    tables.downforce.set_bits(load);
-    tables.forces[4].force[1].set_bits(negative);
+    tables.downforce.set(load);
+    tables.forces[4].force[1].set(negative);
     tables.forces[4].point[2].set(-1.0f32);
 }

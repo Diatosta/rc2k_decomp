@@ -48,13 +48,13 @@ pub fn draw_pong_box(
         .rules
         .box_places
         .each_ref()
-        .map(super::super::session::PlainFloat::bits);
+        .map(crate::session::PlainFloat::get);
     for (n, (u, w)) in [(pa, pb), (pc, pb), (pc, pd), (pa, pd)]
         .into_iter()
         .enumerate()
     {
-        buffer.vertices[n].u.set_bits(u);
-        buffer.vertices[n].v.set_bits(w);
+        buffer.vertices[n].u.set(u);
+        buffer.vertices[n].v.set(w);
     }
     corners(pong, fl, &v);
     if x87::compare_status(&fl.tables.corners[0][2], &pong.rules.near) == 0x100 {

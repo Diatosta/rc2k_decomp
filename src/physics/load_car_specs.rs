@@ -34,11 +34,8 @@ use rc2k_core::physics::car_specs::{OWN_FIGURES_FROM, check_drive, gear_count, r
 use std::cmp::Ordering;
 
 /// `a` is below `b`, or one of them is not a number.
-fn below(a: u32, b: u32) -> bool {
-    !matches!(
-        f32::from_bits(a).partial_cmp(&f32::from_bits(b)),
-        Some(Ordering::Greater | Ordering::Equal)
-    )
+fn below(a: f32, b: f32) -> bool {
+    !matches!(a.partial_cmp(&b), Some(Ordering::Greater | Ordering::Equal))
 }
 
 /// The record of the work car's kind (`record_of` holds it to the last).
@@ -79,15 +76,12 @@ pub fn load_car_specs(
     car.drive_kind.set(drive);
     // 0x4214A7 .. 0x421543
     load_figures_and_shift_points(car, physics_tables, &course.numbers, gear_figures, spec);
-    if below(
-        car.engine_speed_limit.bits(),
-        course.numbers.thousand.bits(),
-    ) {
+    if below(car.engine_speed_limit.get(), course.numbers.thousand.get()) {
         car.engine_speed_limit
             .set(x87::loaded(&course.numbers.thousand));
     }
     for figure in &gear_figures.figures {
-        if below(figure.bits(), course.numbers.eight.bits()) {
+        if below(figure.get(), course.numbers.eight.get()) {
             figure.set(x87::loaded(&course.numbers.eight));
         }
     }
@@ -100,13 +94,13 @@ pub fn load_car_specs(
     }
     physics_tables
         .spec_grip
-        .set_bits(physics_tables.spec_default_ba0.get());
+        .set(physics_tables.spec_default_ba0.get());
     physics_tables
         .spec_grip_b
-        .set_bits(physics_tables.spec_default_ba4.get());
+        .set(physics_tables.spec_default_ba4.get());
     physics_tables
         .spec_wheel
-        .set_bits(physics_tables.spec_default_ba8.get());
+        .set(physics_tables.spec_default_ba8.get());
     // 0x421794 .. 0x4217B2
     scale_record_grips(physics_tables, spec);
     scene.drawing.scene.scratch.set(spec.scratch_value.get());
@@ -187,19 +181,19 @@ fn scale_record_ratios(tables: &PhysicsTables, numbers: &Numbers, s: &CarSpec) {
     let t2 = t0 * t1;
     let t3 = numbers.thousand.ld();
     let t4 = t2 / t3;
-    tables.spec_ints[0].set_bits(to_int(t4) as u32);
+    tables.spec_ints[0].set(to_int(t4) as u32);
     let t5 = int(s.whole_figures[1].get() as i32);
     let t6 = numbers.k65536.ld();
     let t7 = t5 * t6;
     let t8 = numbers.thousand.ld();
     let t9 = t7 / t8;
-    tables.spec_ints[1].set_bits(to_int(t9) as u32);
+    tables.spec_ints[1].set(to_int(t9) as u32);
     let t10 = int(s.whole_figures[2].get() as i32);
     let t11 = numbers.k65536.ld();
     let t12 = t10 * t11;
     let t13 = numbers.thousand.ld();
     let t14 = t12 / t13;
-    tables.spec_ints[2].set_bits(to_int(t14) as u32);
+    tables.spec_ints[2].set(to_int(t14) as u32);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -208,24 +202,24 @@ fn scale_record_ratios(tables: &PhysicsTables, numbers: &Numbers, s: &CarSpec) {
 /// `int [rc + 0x214BC4] = (int [rc + 0x213F08] * [k65536]) / [thousand]`
 /// `int [rc + 0x214BC8] = (int [rc + 0x213F0C] * [k65536]) / [thousand]`
 fn scale_default_ratios(tables: &PhysicsTables, numbers: &Numbers) {
-    let t0 = int(tables.spec_default_bc0[0].bits() as i32);
+    let t0 = int(tables.spec_default_bc0[0].get() as i32);
     let t1 = numbers.k65536.ld();
     let t2 = t0 * t1;
     let t3 = numbers.thousand.ld();
     let t4 = t2 / t3;
-    tables.spec_ints[0].set_bits(to_int(t4) as u32);
-    let t5 = int(tables.spec_default_bc0[1].bits() as i32);
+    tables.spec_ints[0].set(to_int(t4) as u32);
+    let t5 = int(tables.spec_default_bc0[1].get() as i32);
     let t6 = numbers.k65536.ld();
     let t7 = t5 * t6;
     let t8 = numbers.thousand.ld();
     let t9 = t7 / t8;
-    tables.spec_ints[1].set_bits(to_int(t9) as u32);
-    let t10 = int(tables.spec_default_bc0[2].bits() as i32);
+    tables.spec_ints[1].set(to_int(t9) as u32);
+    let t10 = int(tables.spec_default_bc0[2].get() as i32);
     let t11 = numbers.k65536.ld();
     let t12 = t10 * t11;
     let t13 = numbers.thousand.ld();
     let t14 = t12 / t13;
-    tables.spec_ints[2].set_bits(to_int(t14) as u32);
+    tables.spec_ints[2].set(to_int(t14) as u32);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables

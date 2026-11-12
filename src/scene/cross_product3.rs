@@ -11,15 +11,15 @@
 //! (`math/x87_float.rs`); the original's instructions' results are recorded vectors in the tests (`data/vectors`).
 
 use crate::math::cells::Cells;
-use crate::math::x87_float::{ld, st};
+use crate::math::x87_float::{ld, stf};
 
 /// The Rust version: the three products-differences, each stored as made (`fld; fmul; fld; fmul; fsubp; fstp`):
 /// an output over an input is read back as the original does.
 pub fn cross(a: &(impl Cells + ?Sized), b: &(impl Cells + ?Sized), o: &(impl Cells + ?Sized)) {
-    let (a, b) = (|k| ld(a.bits(k)), |k| ld(b.bits(k)));
-    o.set_bits(0, st(a(1) * b(2) - a(2) * b(1)));
-    o.set_bits(1, st(a(2) * b(0) - a(0) * b(2)));
-    o.set_bits(2, st(a(0) * b(1) - a(1) * b(0)));
+    let (a, b) = (|k| ld(a.float(k)), |k| ld(b.float(k)));
+    o.set_float(0, stf(a(1) * b(2) - a(2) * b(1)));
+    o.set_float(1, stf(a(2) * b(0) - a(0) * b(2)));
+    o.set_float(2, stf(a(0) * b(1) - a(1) * b(0)));
 }
 
 #[cfg(test)]

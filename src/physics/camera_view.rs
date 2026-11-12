@@ -53,7 +53,7 @@ pub fn share_done(
 /// `[view_share] = int [scratch] / int [s + 0x3C]` (`s + 0x3C` the record's
 /// `change_time`, passed by value)
 fn x87_1(shared: &RaceShared, change_time: u32, scene: &crate::scene::owner::Scene) {
-    let t0 = int(scene.drawing.scene.scratch.bits() as i32);
+    let t0 = int(scene.drawing.scene.scratch.get() as i32);
     let t1 = int(change_time as i32);
     let t2 = t0 / t1;
     shared.tables().view_share.st(t2);

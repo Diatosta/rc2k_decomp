@@ -25,7 +25,7 @@ use crate::physics::step_families::ContactInputs;
 use crate::physics::turn_by_heading::turn_by_heading;
 use crate::physics::vector_length::vector_length;
 use crate::race::numbers_store::Numbers;
-use crate::scene::matrix3::rounded;
+use crate::scene::matrix3::rounded_value;
 use rc2k_core::physics::contacts;
 
 /// Whether the point `point` (its three whole numbers, read by the caller) of the object of course
@@ -79,7 +79,7 @@ pub fn point_hits_car(c: &ContactInputs<'_>, point: [u32; 3], face: u32) -> Resu
         x87_3(c.contact, c.numbers, c.car);
         contact
             .contact_speed_length
-            .set_bits(rounded(vector_length(&c.car.velocity)));
+            .set(rounded_value(vector_length(&c.car.velocity)));
         if let Some(hit) = rc2k_core::physics::walls::raised_hit(
             contact.contact_speed_length.get(),
             c.car.contact_depth.get(),
@@ -100,15 +100,15 @@ pub fn point_hits_car(c: &ContactInputs<'_>, point: [u32; 3], face: u32) -> Resu
 /// `[rc + 0x2D3B7C] = int [rc + 0x2D3B50] / [k65536]`
 /// `[rc + 0x2D3B80] = int [rc + 0x2D3B54] / [k65536]`
 fn x87_1(contact: &ContactWork, numbers: &Numbers) {
-    let t0 = int(contact.object_point_offset[0].bits() as i32);
+    let t0 = int(contact.object_point_offset[0].get() as i32);
     let t1 = numbers.k65536.ld();
     let t2 = t0 / t1;
     contact.object_point_scaled[0].st(t2);
-    let t3 = int(contact.object_point_offset[1].bits() as i32);
+    let t3 = int(contact.object_point_offset[1].get() as i32);
     let t4 = numbers.k65536.ld();
     let t5 = t3 / t4;
     contact.object_point_scaled[1].st(t5);
-    let t6 = int(contact.object_point_offset[2].bits() as i32);
+    let t6 = int(contact.object_point_offset[2].get() as i32);
     let t7 = numbers.k65536.ld();
     let t8 = t6 / t7;
     contact.object_point_scaled[2].st(t8);

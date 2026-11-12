@@ -66,7 +66,7 @@ pub fn load_edges(
     }
     let marks = effects.settings()?;
     marks.light_point_a_negated[0].set(SETTING_VALUE);
-    let kind = clamped(effects.kinds.marks_kind.kind.bits());
+    let kind = clamped(effects.kinds.marks_kind.kind.get());
     masks
         .edge_settings
         .path
@@ -99,7 +99,7 @@ pub fn load_edges(
     for (k, p) in pixels.as_chunks::<4>().0.iter().enumerate() {
         masks.edge_mask.mask.set(k, !(p[0] | p[1] | p[2] | p[3]));
     }
-    let float = masks.kind_boxes.kind_floats[kind as usize].bits();
+    let float = masks.kind_boxes.kind_floats[kind as usize].get();
     drops
         .tilt
         .tilt
@@ -134,7 +134,7 @@ pub fn load_kind_data(
     {
         let marks = effects.settings()?;
         let kind = marks.mark_car_file_number.get();
-        effects.kinds.marks_kind.kind.set_bits(kind);
+        effects.kinds.marks_kind.kind.set(kind);
         load_edges(race, masks, drops, RESUME, scene, gfx, effects, system)?;
         crate::effects::splines::load_splines(
             &race.course,

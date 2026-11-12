@@ -25,8 +25,8 @@ pub struct PongState {
     pub ball_size: [PlainFloat; 2],
     /// 0x7686A8: Not named: 4 bytes (a gap, or unreferenced data).
     pub _gap_7686a8: PlainBytes<4>,
-    /// 0x7686AC: `dword_7686AC`, `dword_7686B0`: the bat's place before the move (kept as bits; put back when the bat overlaps the ball).
-    pub saved_bat: [PlainDword; 2],
+    /// 0x7686AC: `dword_7686AC`, `dword_7686B0`: the bat's place before the move (put back when the bat overlaps the ball).
+    pub saved_bat: [PlainFloat; 2],
     /// 0x7686B4: Not named: 4 bytes (a gap, or unreferenced data).
     pub _gap_7686b4: PlainBytes<4>,
     /// 0x7686B8: `g_pongBat`, `flt_7686BC`: the bat's place (x, y).
@@ -71,7 +71,7 @@ impl PongState {
             _gap_76869c: PlainBytes::new([0; 4]),
             ball_size: [PlainFloat::new(0.0), PlainFloat::new(0.0)],
             _gap_7686a8: PlainBytes::new([0; 4]),
-            saved_bat: [PlainDword::new(0x0), PlainDword::new(0x0)],
+            saved_bat: [PlainFloat::new(0.0), PlainFloat::new(0.0)],
             _gap_7686b4: PlainBytes::new([0; 4]),
             bat: [PlainFloat::new(0.0), PlainFloat::new(0.0)],
             _gap_7686c0: PlainBytes::new([0; 16]),
@@ -458,23 +458,23 @@ pub fn rules_at(mk: crate::effects::asm_test::Operand) -> PongRules {
 }
 
 /// `fld a; fadd b; fcomp c; fstsw ax; and eax, 700h`.
-pub fn sum_compare(a: u32, b: u32, c: u32) -> u32 {
+pub fn sum_compare(a: f32, b: f32, c: f32) -> u32 {
     u32::from(sum_status(a, b, c)) & 0x700
 }
 
 /// `fld x; fld k; fsub w [; fsub m]; fcompp; fstsw ax; and eax, 700h` (`m` with `Some`).
-pub fn less_compare(x: u32, k: u32, w: u32, m: Option<u32>) -> u32 {
+pub fn less_compare(x: f32, k: f32, w: f32, m: Option<f32>) -> u32 {
     u32::from(less_status(x, k, w, m)) & 0x700
 }
 
 /// `fld a; fadd b; fcomp c; fnstsw`: a + b against c, the status word's condition bits.
-fn sum_status(a: u32, b: u32, c: u32) -> u16 {
+fn sum_status(a: f32, b: f32, c: f32) -> u16 {
     bh::compare(bh::ld(a) + bh::ld(b), bh::ld(c))
 }
 
 /// `fld x; fld k; fsub w [; fsub m]; fcompp; fnstsw`: k - w [- m] against x, the status
 /// word's condition bits.
-fn less_status(x: u32, k: u32, w: u32, m: Option<u32>) -> u16 {
+fn less_status(x: f32, k: f32, w: f32, m: Option<f32>) -> u16 {
     let mut t = bh::ld(k) - bh::ld(w);
     if let Some(m) = m {
         t -= bh::ld(m);
@@ -499,7 +499,7 @@ pub fn court(pong: &Pong) -> rc2k_core::effects::pong::Court {
         ball: pair(&p.ball),
         way: pair(&p.ball_way),
         ball_size: pair(&p.ball_size),
-        saved_bat: p.saved_bat.each_ref().map(PlainDword::get),
+        saved_bat: pair(&p.saved_bat).map(f32::to_bits),
         bat: pair(&p.bat),
         bat_size: pair(&p.bat_size),
         ball_centre: pair(&p.ball_centre),
@@ -532,8 +532,7 @@ pub fn put_court(
             put_pair(r, v);
         }
     }
-    p.saved_bat[0].set(c.saved_bat[0]);
-    p.saved_bat[1].set(c.saved_bat[1]);
+    put_pair(&p.saved_bat, c.saved_bat.map(f32::from_bits));
     p.steps.set(c.steps);
     p.hits.set(c.hits);
 }
@@ -579,7 +578,7 @@ pub fn overlap(pong: &Pong) -> (bool, u32) {
     ];
     let mut s = 0;
     for (a, b, c) in tests {
-        s = sum_compare(a.bits(), b.bits(), c.bits());
+        s = sum_compare(a.get(), b.get(), c.get());
         if s == 0x100 {
             return (false, s);
         }
@@ -596,8 +595,8 @@ mod reference_vectors {
     use crate::scene::x87_mem::Base;
 
     /// The float at `base + off` of a test buffer.
-    fn at(base: Operand, off: usize) -> u32 {
-        base.dword(off)
+    fn at(base: Operand, off: usize) -> f32 {
+        f32::from_bits(base.dword(off))
     }
 
     /// The status word written as `fnstsw` does.

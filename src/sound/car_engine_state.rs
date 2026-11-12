@@ -19,7 +19,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::from_int;
-use crate::math::x87_float::{X, int, ld, st, stf};
+use crate::math::x87_float::{X, int, ld, stf};
 use crate::race::owner::Race;
 use crate::sound::sets_store::KindRecord;
 use crate::sound::store::{RaceClock, SoundObject, SurfaceSounds};
@@ -157,8 +157,9 @@ pub fn car_engine_state(
     readings(&mut object, clock, change);
     store(so, &before, &object);
     revs_input(so, record);
-    so.throttle_input
-        .set_bits(over_256(from_int(so.throttle.get() as i32).to_bits()));
+    so.throttle_input.set(f32::from_bits(over_256(
+        from_int(so.throttle.get() as i32).to_bits(),
+    )));
     speed_input(so, sound.race.surface.get());
     let before = load(so);
     let mut object = before;
@@ -168,9 +169,9 @@ pub fn car_engine_state(
         gear_pitch(so, low, system);
     }
     distance_and_approach(so, sound.race.clock.get());
-    so.volume_factor.set_bits(0);
+    so.volume_factor.set(0.0);
     ease_pitch_factor(so, sound.race.clock.get(), sound.race.surface.get());
-    so.volume_factor.set_bits(0x3F80_0000);
+    so.volume_factor.set(1.0);
     if so.distance.bits() as i32 > 0x3F80_0000 {
         volume_factor_by_distance(so);
     }
@@ -199,14 +200,14 @@ fn speed_input(so: &SoundObject, surface: &SurfaceSounds) {
 /// scratch dword and left 0.75 there.
 fn gear_pitch(so: &SoundObject, low: u32, system: &System) {
     system.session.machine.scratch.set(low);
-    let bits = gear_pitch_bits(low);
+    let pitch = gear_pitch_value(low);
     system.session.machine.scratch.set(GEAR_PITCH_BASE);
-    so.gear_pitch.set_bits(bits);
+    so.gear_pitch.set(pitch);
 }
 
-/// The pitch's bits: `low * (1 / 60) + 0.75`, rounded to a float.
-fn gear_pitch_bits(low: u32) -> u32 {
-    st(int(low as i32) * ld(GEAR_PITCH_PER_STEP) + ld(GEAR_PITCH_BASE))
+/// The pitch: `low * (1 / 60) + 0.75`, rounded to a float.
+fn gear_pitch_value(low: u32) -> f32 {
+    stf(int(low as i32) * ld(GEAR_PITCH_PER_STEP) + ld(GEAR_PITCH_BASE))
 }
 
 /// 1 / 60 as a float.
@@ -367,7 +368,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     let low = HostCell(a[0]).bits();
-                    HostCell(a[1] + 0x210).set_bits(gear_pitch_bits(low));
+                    HostCell(a[1] + 0x210).set_bits(gear_pitch_value(low).to_bits());
                 },
             },
             Block {

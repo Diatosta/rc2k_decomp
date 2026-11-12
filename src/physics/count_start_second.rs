@@ -8,35 +8,21 @@
 //! Caller: `physics::race_timers` (four calls).
 
 use crate::physics::car_store::Car;
-use crate::session::Cell32;
 use rc2k_core::physics::start::CarStart;
 
-fn game(car: &Car) -> Vec<&dyn Cell32> {
-    vec![
-        &car.tyre_change_state as &dyn Cell32,
-        &car.false_start_count,
-        &car.run_ticks,
-        &car.finish_flag,
-        &car.stage_time,
-    ]
-}
-
-/// On the variables' cells.
 // Converted: `rc2k_core::physics::start::CarStart::count_start_second`.
-fn core(v: &[&dyn Cell32]) {
+pub fn count_start_second(car: &Car) {
     let was = CarStart {
-        state: v[0].bits(),
-        count: v[1].bits(),
-        timer: v[2].bits(),
-        finished: v[3].bits(),
-        time: v[4].bits(),
+        state: car.tyre_change_state.get(),
+        count: car.false_start_count.get(),
+        timer: car.run_ticks.get(),
+        finished: car.finish_flag.get(),
+        time: car.stage_time.get(),
         ..CarStart::default()
     };
     let mut c = was;
     c.count_start_second();
-    crate::physics::cells::set_changed(v[4], was.time, c.time);
-}
-
-pub fn count_start_second(car: &Car) {
-    core(&game(car));
+    if c.time != was.time {
+        car.stage_time.set(c.time);
+    }
 }

@@ -233,7 +233,7 @@ pub fn emit_bursts_with(
                 slot.put(|en| &mut en.motion[0], rounded_value(out[2]))?;
                 let r = next_c5(&set.tuning.randoms(n)[2]);
                 let size = (r.rotate_right(8) & h.size.0) + h.size.1;
-                effects.setup.frame.emit_side.set_bits(size);
+                effects.setup.frame.emit_side.set(size);
                 slot.put(|en| &mut en.size, x87::from_int(size as i32).to_bits())?;
                 slot.put(
                     |en| &mut en.cell,
@@ -248,7 +248,7 @@ pub fn emit_bursts_with(
                 }
                 let m = car.whole(effects.car_blocks()?)?;
                 let side = (r.rotate_right(8) & 0x3FFF).wrapping_sub(0x2000);
-                effects.setup.frame.emit_side.set_bits(side);
+                effects.setup.frame.emit_side.set(side);
                 let place: [f32; 3] = crate::effects::try_from_fn(|k| {
                     let k4 = 4 * k as u32;
                     Ok(x87::less_plus_int_times(

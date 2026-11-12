@@ -12,14 +12,15 @@ use crate::errors::Refused;
 use crate::physics::car_store::Car;
 use crate::physics::gear_bit::bits_at;
 use crate::race::numbers_store::Numbers;
+use crate::session::{Dword, Float};
 
 /// On the word +0x2B8, the word +0x3F4 and the gear bits at these places.
 // Converted: `rc2k_core::physics::gearbox::allowed_gear`.
 pub fn allowed_gear_at(
     numbers: &Numbers,
-    locked: &dyn crate::session::Cell32,
-    open: &dyn crate::session::Cell32,
-    bits: &dyn crate::session::Cell32,
+    locked: &Float,
+    open: &Float,
+    bits: &Dword,
     eax: u32,
 ) -> Result<u32, Refused> {
     let locked = locked.bits() == numbers.hundred.bits();

@@ -68,10 +68,10 @@ fn span_ring_quad(
         ];
         write_bits(&masks.vars.ring_turns, turns.map(f32::to_bits));
         let (r1, r2, cx, cy) = (
-            s.radii[0].bits(),
-            s.radii[1].bits(),
-            s.middle[0].bits(),
-            s.middle[1].bits(),
+            s.radii[0].get(),
+            s.radii[1].get(),
+            s.middle[0].get(),
+            s.middle[1].get(),
         );
         let [s1, c1, s2, c2] = turns;
         write_bits(

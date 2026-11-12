@@ -14,56 +14,30 @@ use crate::physics::dot_product::dot_product;
 use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::physics::tables_store::PhysicsTables;
 use crate::physics::vector_length::vector_length;
-use crate::scene::matrix3::rounded;
-use crate::session::Cell32;
-
-/// On the variables' cells `v`.
-pub fn stall_at(tables: &PhysicsTables, v: &[&dyn Cell32]) {
-    let get = |k: usize| v[k].bits();
-    let put = |k: usize, x: u32| v[k].set_bits(x);
-    put(3, rounded(vector_length(&v[0..3])));
-    let zero: u32 = ZERO;
-    if compare_full(get(3), zero) & 0x4000 == 0 {
-        put(
-            7,
-            ext_div2(dot_product(&v[4..7], &v[0..3]), get(3), get(3)).to_bits(),
-        );
-    }
-    if abs_compare(get(3), &tables.stall_speed) & 0x100 != 0 {
-        return;
-    }
-    if compare_full(get(7), &tables.stall_share) & 0x100 == 0 {
-        return;
-    }
-    if get(8) != 0 {
-        return;
-    }
-    put(9, 0);
-    put(10, 0);
-    put(11, 0);
-}
-
-fn game<'a>(
-    car: &'a Car,
-    tables: &'a PhysicsTables,
-    scene: &'a crate::scene::owner::Scene,
-) -> Vec<&'a dyn Cell32> {
-    vec![
-        &tables.kept_motion[0] as &dyn Cell32,
-        &tables.kept_motion[1],
-        &tables.kept_motion[2],
-        &scene.drawing.scene.scratch,
-        &car.local_velocity[0],
-        &car.local_velocity[1],
-        &car.local_velocity[2],
-        &tables.stall_figure,
-        &tables.no_auto_neutral,
-        &car.gear,
-        &car.drive_speed_a,
-        &car.drive_speed_b,
-    ]
-}
+use crate::scene::matrix3::rounded_value;
 
 pub fn stall_when_still(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner::Scene) {
-    stall_at(tables, &game(car, tables, scene));
+    let kept = &tables.kept_motion;
+    // The length goes through the scene's scratch dword (a float's bits).
+    let length = rounded_value(vector_length(kept));
+    scene.drawing.scene.scratch.set(length.to_bits());
+    if compare_full(length, ZERO) & 0x4000 == 0 {
+        tables.stall_figure.set(ext_div2(
+            dot_product(&car.local_velocity, kept),
+            length,
+            length,
+        ));
+    }
+    if abs_compare(length, &tables.stall_speed) & 0x100 != 0 {
+        return;
+    }
+    if compare_full(&tables.stall_figure, &tables.stall_share) & 0x100 == 0 {
+        return;
+    }
+    if tables.no_auto_neutral.get() != 0 {
+        return;
+    }
+    car.gear.set(0);
+    car.drive_speed_a.set(0.0);
+    car.drive_speed_b.set(0.0);
 }

@@ -23,6 +23,7 @@ use crate::physics::car_store::Car;
 use crate::physics::contact_force::contact_force;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::dot_product::dot_product;
+use crate::physics::flow::FloatView;
 use crate::physics::flow::hold_high;
 use crate::physics::lowest_body_point::lowest_body_point;
 use crate::physics::place_sound_e5::place_sound_e5;
@@ -31,7 +32,7 @@ use crate::physics::step_families::ContactInputs;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_course::Course;
-use crate::scene::matrix3::{extended, rounded};
+use crate::scene::matrix3::{extended, rounded_value};
 use crate::scene::rotate_point::rotate_point;
 use crate::session::Float;
 use rc2k_core::physics::contacts;
@@ -109,15 +110,12 @@ fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<()
         )
     };
     for (k, e) in up.iter().enumerate() {
-        c.contact.crash_car_up[k].set_bits(rounded(*e));
+        c.contact.crash_car_up[k].set(rounded_value(*e));
     }
-    c.contact.crash_up_dot.set_bits(
-        neg_rounded(dot_product(
-            &c.contact.crash_car_up,
-            &c.contact.contact_normal,
-        ))
-        .to_bits(),
-    );
+    c.contact.crash_up_dot.set_float(neg_rounded(dot_product(
+        &c.contact.crash_car_up,
+        &c.contact.contact_normal,
+    )));
     x87_1(c.contact, c.tables, c.numbers);
     contact_force(
         c.contact,
@@ -129,7 +127,7 @@ fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<()
     );
     { place_sound_e5(&c.sound) }?;
     for k in 0..3 {
-        c.contact.ground_force[k].set(c.tables.forces[21].force[k].bits());
+        c.contact.ground_force[k].set_float(c.tables.forces[21].force[k].get());
     }
     for cell in &c.tables.forces[21].point {
         cell.set(0.0);
@@ -137,7 +135,7 @@ fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<()
     x87_2(c.contact, c.car, c.numbers);
     hold_high(&c.contact.crash_ground_scale, &c.numbers.one);
     c.car.spin[1].set(mul(&c.contact.crash_ground_scale, &c.car.spin[1]));
-    c.car.contact_value.set(c.contact.contact_value.bits());
+    c.car.contact_value.set_float(c.contact.contact_value.get());
     Ok(())
 }
 

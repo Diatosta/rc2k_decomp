@@ -52,7 +52,7 @@ pub struct MarkSlots {
     /// 0x9351FC: Not named: 248 bytes (a gap, or unreferenced data).
     pub _gap_9351fc: PlainBytes<248>,
     /// 0x9352F4: `dword_9352F4` ..: the slot's point turned, then its projected place (z, y, x; then x, y).
-    pub work: [PlainDword; 3],
+    pub work: [PlainFloat; 3],
 }
 
 impl MarkSlots {
@@ -87,7 +87,11 @@ impl MarkSlots {
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             ]),
-            work: [PlainDword::new(0), PlainDword::new(0), PlainDword::new(0)],
+            work: [
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+            ],
         }
     }
 }

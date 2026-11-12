@@ -50,7 +50,7 @@ pub fn fill_race_slot(
     let out = rotate_point(&car.crash_matrix, [i(0), i(1), i(2)]);
     for (k, e) in out.iter().enumerate() {
         let n = ext_to_int(*e) as u32;
-        scene.object_work().object_position[k].set_bits(n);
+        scene.object_work().object_position[k].set(n);
         slot.place[k].set(n.wrapping_add(car.position[k].get()));
     }
     slot.car_word.set(car.probe_point_face[4].get());

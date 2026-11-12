@@ -38,7 +38,7 @@ use crate::race::matrices_store::SceneMatrices;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::switches_store::FrameSwitches;
-use crate::scene::matrix3::rounded;
+use crate::scene::matrix3::rounded_value;
 
 /// The motion: moved, spun, levered, the inverse matrix, the angles.
 fn motion(
@@ -223,7 +223,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
     race.shared
         .physics_tables
         .top_speed
-        .set_bits(rounded(ph::vector_length::vector_length(
+        .set(rounded_value(ph::vector_length::vector_length(
             &race.shared.car().velocity,
         )));
     // 0x43B851: the contacts' rounds.

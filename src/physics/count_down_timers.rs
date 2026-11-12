@@ -9,69 +9,48 @@
 //! specification's run).
 
 use crate::physics::car_store::Car;
-use crate::physics::flow::FloatView;
 use crate::race::vars_store::RaceVars;
-use crate::session::Cell32;
 use rc2k_core::physics::motion::{StepCounters, StepFacts, count_down};
 
+/// One compare and copy of floats: the same at any precision.
 // Converted: `rc2k_core::physics::motion::count_down`.
-pub fn count_at(v: &[&dyn Cell32]) {
-    let get = |k: usize| v[k].bits();
-    let put = |k: usize, x: u32| v[k].set_bits(x);
+pub fn count_down_timers(car: &Car, vars: &RaceVars) {
     let mut c = StepCounters {
-        first: [get(0), get(1)],
-        standing: get(9),
-        running: get(10),
-        later: [get(11), get(12), get(15)],
-        highest: v[14].float(),
+        first: [car.light_hold_steps.get(), car.value_jump_steps.get()],
+        standing: car.stopped_steps.get(),
+        running: car.tyre_change_state.get(),
+        later: [
+            car.wall_hit_timer.get(),
+            car.drive_cut_steps.get(),
+            car.hit_cooldown.get(),
+        ],
+        highest: car.top_speed.get(),
     };
     let facts = StepFacts {
-        steps: get(2),
-        switches: [get(3), get(4), get(5)],
-        mode: get(6),
-        bits: get(7),
-        gear: get(8),
-        figure: v[13].float(),
+        steps: car.run_ticks.get(),
+        switches: [
+            car.finish_flag.get(),
+            car.go_stand_timer.get(),
+            car.started_stand_timer.get(),
+        ],
+        mode: vars.run_kind.get(),
+        bits: car.parts_present.get(),
+        gear: car.gear.get(),
+        figure: car.engine_speed_scaled.get(),
     };
     count_down(&mut c, &facts);
-    for (k, x) in [
-        (0, c.first[0]),
-        (1, c.first[1]),
-        (9, c.standing),
-        (10, c.running),
-        (11, c.later[0]),
-        (12, c.later[1]),
-        (15, c.later[2]),
+    for (cell, x) in [
+        (&car.light_hold_steps, c.first[0]),
+        (&car.value_jump_steps, c.first[1]),
+        (&car.stopped_steps, c.standing),
+        (&car.tyre_change_state, c.running),
+        (&car.wall_hit_timer, c.later[0]),
+        (&car.drive_cut_steps, c.later[1]),
+        (&car.hit_cooldown, c.later[2]),
     ] {
-        if get(k) != x {
-            put(k, x);
+        if cell.get() != x {
+            cell.set(x);
         }
     }
-    v[14].set_float(c.highest);
-}
-
-fn game<'a>(car: &'a Car, vars: &'a RaceVars) -> Vec<&'a dyn Cell32> {
-    vec![
-        &car.light_hold_steps as &dyn Cell32,
-        &car.value_jump_steps,
-        &car.run_ticks,
-        &car.finish_flag,
-        &car.go_stand_timer,
-        &car.started_stand_timer,
-        &vars.run_kind,
-        &car.parts_present,
-        &car.gear,
-        &car.stopped_steps,
-        &car.tyre_change_state,
-        &car.wall_hit_timer,
-        &car.drive_cut_steps,
-        &car.engine_speed_scaled,
-        &car.top_speed,
-        &car.hit_cooldown,
-    ]
-}
-
-/// One compare and copy of floats: the same at any precision.
-pub fn count_down_timers(car: &Car, vars: &RaceVars) {
-    count_at(&game(car, vars));
+    car.top_speed.set(c.highest);
 }

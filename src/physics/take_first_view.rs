@@ -16,6 +16,7 @@ use crate::physics::camera_view::record;
 use crate::physics::car_store::Car;
 use crate::race::groups_store::ViewAndRecords;
 use crate::race::view_vars_store::ViewRecord;
+use crate::session::{Dword, Float};
 
 /// The exact version, for `physics::update_camera`: `s` the view's record.
 pub fn take_first_view(
@@ -26,9 +27,15 @@ pub fn take_first_view(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), crate::errors::BadInput> {
     x87_1(camera, s.offset_bits(), scene);
-    for (put, v) in copies().iter().zip(s.taken()) {
-        put(camera, v);
-    }
+    take_figures(
+        s,
+        [
+            &camera.view_a_turn,
+            &camera.view_a_point,
+            &camera.view_a_shares,
+        ],
+        [&camera.view_a_aux, &camera.view_a_aux_2],
+    );
     camera.view_a_heading.set(car.car_heading.get());
     let (mut eax, mut ebx) = (car.car_pitch.get(), car.car_roll.get());
     if record(view_records, car)?.halve_tilt.get() != 0 {
@@ -40,23 +47,16 @@ pub fn take_first_view(
     Ok(())
 }
 
-/// Where the record's +0x10 .. +0x38 go (the statics deref at run time, so a function).
-fn copies() -> [fn(&CameraWork, u32); 11] {
-    [
-        |camera, v| camera.view_a_turn[0].set_bits(v),
-        |camera, v| camera.view_a_turn[1].set_bits(v),
-        |camera, v| camera.view_a_turn[2].set_bits(v),
-        |camera, v| camera.view_a_point[0].set_bits(v),
-        |camera, v| camera.view_a_point[1].set_bits(v),
-        |camera, v| camera.view_a_point[2].set_bits(v),
-        |camera, v| camera.view_a_shares[0].set_bits(v),
-        |camera, v| camera.view_a_shares[1].set_bits(v),
-        |camera, v| camera.view_a_shares[2].set_bits(v),
-        |camera, v| camera.view_a_aux.set(v),
-        |camera, v| {
-            camera.view_a_aux_2.set(v);
-        },
-    ]
+/// The record's +0x10 .. +0x38 into a view: three vectors of floats (held in the record's
+/// dwords), then two dwords.
+pub fn take_figures(s: &ViewRecord, floats: [&[Float; 3]; 3], dwords: [&Dword; 2]) {
+    let v = s.taken();
+    for (n, cell) in floats.into_iter().flatten().enumerate() {
+        cell.set(f32::from_bits(v[n]));
+    }
+    for (n, cell) in dwords.into_iter().enumerate() {
+        cell.set(v[9 + n]);
+    }
 }
 
 // ---- the arithmetic that was x87 assembly ----

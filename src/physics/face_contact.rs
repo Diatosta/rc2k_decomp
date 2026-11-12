@@ -165,7 +165,7 @@ pub fn steps(
     negate(&c.scratch.work_vector[1]);
     negate(&c.scratch.work_vector[2]);
     if compare_80(vector_length(&c.scratch.work_vector), ZERO) & 0x4000 != 0 {
-        fill_cells(&c.scratch.work_vector, 0);
+        fill_cells(&c.scratch.work_vector, 0.0);
     }
     c.scratch.work_vector[1].set(0);
     normalise_work_vector(c.numbers, c.scratch, scene);
@@ -192,14 +192,14 @@ pub fn steps(
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [face_angle] = (atan2(int [object_point_offset], int [rc + 0x2D3B54]) * [k256]) * [one_over_two_pi]`
 fn x87_1(contact: &ContactWork, numbers: &Numbers) {
-    let t0 = int(contact.object_point_offset[0].bits() as i32);
-    let t1 = int(contact.object_point_offset[2].bits() as i32);
+    let t0 = int(contact.object_point_offset[0].get() as i32);
+    let t1 = int(contact.object_point_offset[2].get() as i32);
     let t2 = t0.atan2(t1);
     let t3 = numbers.k256.ld();
     let t4 = t2 * t3;
     let t5 = numbers.one_over_two_pi.ld();
     let t6 = t4 * t5;
-    contact.face_angle.set_bits(to_int(t6) as u32);
+    contact.face_angle.set(to_int(t6) as u32);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -220,7 +220,7 @@ fn x87_2(contact: &ContactWork, car: &Car, numbers: &Numbers) {
     let t8 = t7.sqrt();
     let t9 = numbers.k65536.ld();
     let t10 = t8 * t9;
-    contact.face_speed.set_bits(to_int(t10) as u32);
+    contact.face_speed.set(to_int(t10) as u32);
     let t11 = int(contact.contact_point[0].bits() as i32);
     let t12 = numbers.k65536.ld();
     let t13 = t11 / t12;

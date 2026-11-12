@@ -198,16 +198,16 @@ pub struct PhysicsTables {
     pub torque_share_c: Dword,
     /// +0x6d0 (0x613EF8): 0x1000 (`physics::crash_contact`).
     pub crash_depth: Dword,
-    /// +0x6d4 (0x613EFC): 2.4's bits, copied into 0x614BA0 (`physics::load_car_specs`).
-    pub spec_default_ba0: Dword,
-    /// +0x6d8 (0x613F00): 0.5's bits, copied into 0x614BA4.
-    pub spec_default_ba4: Dword,
+    /// +0x6d4 (0x613EFC): 2.4, copied into 0x614BA0 (`physics::load_car_specs`).
+    pub spec_default_ba0: Float,
+    /// +0x6d8 (0x613F00): 0.5, copied into 0x614BA4.
+    pub spec_default_ba4: Float,
     /// +0x6dc (0x613F04): 0x76C, 0x640, 0x384, scaled into 0x614BC0 .. (`physics::load_car_specs`).
     pub spec_default_bc0: [Dword; 3],
     /// +0x6e8 (0x613F10): 0.85 (`physics::load_car_specs`).
     pub spec_scale_1b8: Float,
-    /// +0x6ec (0x613F14): 4.0's bits, copied into 0x614BA8.
-    pub spec_default_ba8: Dword,
+    /// +0x6ec (0x613F14): 4.0, copied into 0x614BA8.
+    pub spec_default_ba8: Float,
     /// +0x6f0 (0x613F18): 0.95 (`physics::auto_gearbox`).
     pub auto_gear_engine_share: Float,
     /// +0x6f4 (0x613F1C): `physics::set_handling`'s (lo, hi) pairs for 0x614BF0, 0x614C0C, 0x614C08.
@@ -321,8 +321,9 @@ pub struct PhysicsTables {
     pub wheels_driven: Dword,
     /// +0x910 (0x614138): the car's vertical speed kept (`physics::car_physics_step`).
     pub vertical_speed: Float,
-    /// +0x914 (0x61413C): `physics::pick_start_gear`'s.
-    pub start_gear_figures: [Dword; 3],
+    /// +0x914 (0x61413C): `physics::pick_start_gear`'s: 100, 0, the engine speed it began
+    /// with.
+    pub start_gear_figures: [Float; 3],
     /// +0x920 (0x614148): steps since a contact (`physics::car_physics_step`, `physics::apply_contact_torques`).
     pub contact_step: Dword,
     /// +0x924 (0x61414C): 10: the contact steps' limit.

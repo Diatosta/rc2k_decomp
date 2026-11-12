@@ -118,7 +118,7 @@ pub fn gate(
     k: &[crate::session::PlainFloat; 4],
 ) -> Result<Gate, Refused> {
     Ok({
-        let [k1, k2, k3, k4] = k.each_ref().map(super::super::session::PlainFloat::bits);
+        let [k1, k2, k3, k4] = k.each_ref().map(super::super::session::PlainFloat::get);
         let rate = x87::rate_to_int(a, b, k1, k2, k3, &effects.setup.floats.one, k4);
         gate_with(wheel, object, rate)?
     })
@@ -150,7 +150,9 @@ pub fn gate_with(
         }
         // `xor edx, edx; idiv`: the dividend the unsigned total.
         let rest = (total as i64 % limit as i32 as i64) as u32;
-        let moving = wheel.local_velocity_x.bits() != 0 || wheel.local_velocity_z.bits() != 0;
+        // Moving unless both are +0 (the bits tested).
+        let still = |v: f32| v == 0.0 && v.is_sign_positive();
+        let moving = !still(wheel.local_velocity_x.get()) || !still(wheel.local_velocity_z.get());
         Gate {
             rate,
             count: Some(rest),

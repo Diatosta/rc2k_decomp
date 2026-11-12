@@ -173,7 +173,7 @@ pub fn share_sound_spots(race: &Race, sound: &crate::sound::owner::Sound) -> Res
     {
         spot.id.set(d[0].get());
         for (p, c) in spot.place.iter().zip(&d[1..4]) {
-            p.set_bits(c.get());
+            p.set(f32::from_bits(c.get()));
         }
         spot.kind.set(d[4].get());
     }

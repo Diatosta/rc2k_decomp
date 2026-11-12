@@ -14,7 +14,7 @@
 use crate::effects::clip_quad::{clip_quad, draw_fan};
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::scene::matrix3::rounded;
+use crate::scene::matrix3::rounded_value;
 
 const ANGLES: u32 = 0x1000;
 
@@ -38,43 +38,35 @@ pub fn draw_turned_sprite(
         return Err(BadInput("an angle past the sine tables").into());
     }
     {
-        let [a, b, c] = place.map(rounded);
+        let place = place.map(rounded_value);
+        let near = effects.frame.draw_work.near.get();
         // clip_quad's refusal (no settings) before anything is written.
-        if (c as i32) > effects.frame.draw_work.near.bits() as i32
-            && effects.setup.settings.is_set.get() == 0
-        {
+        if !x87::bits_at_or_below(place[2], near) && effects.setup.settings.is_set.get() == 0 {
             return Err(BadInput("no marks settings").into());
         }
-        for (n, v) in [a, b, c].into_iter().enumerate() {
-            effects.frame.draw_work.turned[n].set_bits(v);
+        for (n, v) in place.into_iter().enumerate() {
+            effects.frame.draw_work.turned[n].set(v);
         }
-        if (c as i32) <= effects.frame.draw_work.near.bits() as i32 {
+        if x87::bits_at_or_below(place[2], near) {
             return Ok(());
         }
         let colour = colour | 0xFF_FFFF;
-        let k = [
-            crate::scene::polygon_work::front_end()
-                .window
-                .view_scale
-                .bits(),
-            crate::scene::polygon_work::front_end().window.view_centre[0].bits(),
-            crate::scene::polygon_work::front_end().window.view_centre[1].bits(),
-            effects.frame.draw_work.z_k.bits(),
-        ];
-        let sin = crate::scene::engine_tables_store::sine(engine_tables, angle as usize).bits();
-        let cos = crate::scene::engine_tables_store::cosine(engine_tables, angle as usize).bits();
-        let sq = x87::turned_sprite(a, b, c, k, size as i32, sin, cos);
+        let k = effects.frame.draw_work.view_k();
+        let sin = crate::scene::engine_tables_store::sine(engine_tables, angle as usize).get();
+        let cos = crate::scene::engine_tables_store::cosine(engine_tables, angle as usize).get();
+        let sq = x87::turned_sprite_floats(place, k, size as i32, sin, cos);
         for n in 0..4 {
             let v = &buffer.vertices[n];
             v.colour.set(colour);
             v.u.set(x87::loaded(SPRITE_UV.uv[2 * n]));
             v.v.set(x87::loaded(SPRITE_UV.uv[2 * n + 1]));
-            v.z.set_bits(sq[1]);
-            v.x.set_bits(sq[10 + n]);
-            v.y.set_bits(sq[6 + n]);
+            v.z.set(sq[1]);
+            v.x.set(sq[10 + n]);
+            v.y.set(sq[6 + n]);
         }
+        // The half sides as floats in the cells that hold whole numbers for the other sprites.
         for (n, v) in sq[2..6].iter().enumerate() {
-            effects.frame.draw_work.sprite_half[n].set_bits(*v);
+            effects.frame.draw_work.sprite_half[n].set(v.to_bits());
         }
         if clip_quad(buffer, effects)? {
             return Ok(());
@@ -82,7 +74,7 @@ pub fn draw_turned_sprite(
         draw_fan(buffer, scene);
         crate::scene::polygon_work::front_end()
             .polygon_vertex_count
-            .set_bits(4u32);
+            .set(4);
     }
     Ok(())
 }

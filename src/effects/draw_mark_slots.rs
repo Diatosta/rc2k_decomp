@@ -26,7 +26,7 @@ use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::owner::Race;
-use crate::scene::matrix3::{extended, rounded};
+use crate::scene::matrix3::{extended, rounded_value};
 use crate::scene::rotate_point::rotate_point;
 use crate::session::read_on_in;
 /// Each vertex's texture place: the corner entry's word offsets (u, v).
@@ -92,13 +92,14 @@ pub fn draw_mark_slots(
                 "a spline point",
             )
         };
-        let [a, b, c] = [at(0)? ^ 0x8000_0000, at(1)?, at(2)?];
+        let at = |n: usize| at(n).map(f32::from_bits);
+        let [a, b, c] = [-at(0)?, at(1)?, at(2)?];
         let k4 = effects
             .blocks
             .slot_tuning
             .place_k
             .each_ref()
-            .map(super::super::session::PlainFloat::bits);
+            .map(crate::session::PlainFloat::get);
         let z = x87::mul(c, k4[0]);
         let y = x87::sub_mul(b, k4[1], k4[2]);
         let x = x87::mul(a, k4[3]);
@@ -107,7 +108,7 @@ pub fn draw_mark_slots(
             [extended(z), extended(y), extended(x)],
         );
         let twice = rotate_point(view.view_matrix, once);
-        let [z, y, x] = twice.map(rounded);
+        let [z, y, x] = twice.map(rounded_value);
         for (n, v) in [z, y, x].into_iter().enumerate() {
             effects.blocks.slots.work[n].set(v);
         }
@@ -130,24 +131,25 @@ pub fn draw_mark_slots(
         for n in 0..4 {
             buffer.vertices[n].colour.set(0xFFFF_FFFFu32);
         }
-        if (x as i32) <= (race.course.numbers.k4096_a.bits() as i32) {
+        if x87::bits_at_or_below(x, race.course.numbers.k4096_a.get()) {
             continue;
         }
         let [px, py, half] = x87::slot_project(
             crate::scene::polygon_work::front_end()
                 .window
                 .view_scale
-                .bits(),
+                .get(),
             x,
             z,
             &crate::scene::polygon_work::front_end().window.view_centre[0],
             y,
             &crate::scene::polygon_work::front_end().window.view_centre[1],
             &effects.blocks.slots.slots[0].size,
-        );
+        )
+        .map(f32::from_bits);
         effects.blocks.slots.work[0].set(px);
         effects.blocks.slots.work[1].set(py);
-        effects.blocks.slot_tuning.half.set_bits(half);
+        effects.blocks.slot_tuning.half.set(half);
         let corners = [
             (x87::sub(px, half), x87::sub(py, half)),
             (x87::add(px, half), x87::sub(py, half)),

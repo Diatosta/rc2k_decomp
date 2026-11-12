@@ -132,7 +132,7 @@ pub fn set_up_car_points(
                     // The original goes through `scratch` for each `fild`.
                     let c = crate::scene::object_points::word(p + 4 * k as u32)?;
                     scene.drawing.scene.scratch.set(c);
-                    list[n as usize].set_bits(rc2k_core::race::cars::point_float(c, scale));
+                    list[n as usize].set(rc2k_core::race::cars::point_float(c, scale));
                 }
             }
             race.physics.contact.car_point_count.set(count);

@@ -250,7 +250,7 @@ impl<E: Effects> Machine<StepOperand> for Game<'_, E> {
         Ok(())
     }
     fn float(&mut self, v: u32) -> Result<(), Refused> {
-        self.fx.float(v);
+        self.fx.float(f32::from_bits(v));
         Ok(())
     }
     fn call(&mut self, a: StepOperand) -> Result<(), Refused> {

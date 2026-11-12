@@ -26,7 +26,7 @@ use crate::math::x87::{compare_full, ext_times, one_less_products, ramp};
 use crate::math::x87_float as bh;
 use crate::physics::car_store::Car;
 use crate::physics::store::DamageModel;
-use crate::scene::matrix3::rounded;
+use crate::scene::matrix3::rounded_value;
 use crate::session::{Dword, Float};
 
 /// The ramps in order: (destination, figure, table).
@@ -209,32 +209,32 @@ pub fn rate_damage(car: &Car, damage: &DamageModel) {
             v.set(x87::loaded(&d.grade_high));
         }
     };
-    let k = d.grade_k.bits();
+    let k = d.grade_k.get();
     let mut e = one_less_products(&[
-        [c.engine_damage.bits(), k, d.figures[7].bits()],
-        [c.exhaust_damage.bits(), k, d.figures[8].bits()],
+        [c.engine_damage.get(), k, d.figures[7].get()],
+        [c.exhaust_damage.get(), k, d.figures[8].get()],
     ]);
     if d.drive_kind.bits() != 0 && !less(&c.turbo_damage, &d.gauge_top) {
-        e = ext_times(e, d.wear_rates[10].bits());
+        e = ext_times(e, d.wear_rates[10].get());
     }
-    c.engine_power_factor.set_bits(rounded(e));
+    c.engine_power_factor.set(rounded_value(e));
     hold(&c.engine_power_factor);
     for (out, a, b) in [
         (&c.brake_efficiency[0], &c.brake_heat[0], &c.brake_wear_a),
         (&c.brake_efficiency[1], &c.brake_heat[1], &c.brake_wear_b),
     ] {
         let e = one_less_products(&[
-            [a.bits(), k, d.figures[10].bits()],
-            [b.bits(), k, d.figures[9].bits()],
-            [c.brake_fade.bits(), k, d.figures[11].bits()],
-            [d.surface_blend.bits(), k, d.figures[12].bits()],
+            [a.get(), k, d.figures[10].get()],
+            [b.get(), k, d.figures[9].get()],
+            [c.brake_fade.get(), k, d.figures[11].get()],
+            [d.surface_blend.get(), k, d.figures[12].get()],
         ]);
-        out.set_bits(rounded(e));
+        out.set(rounded_value(e));
         hold(out);
     }
-    let table_of = |t: &[Float; 4]| [t[0].bits(), t[1].bits(), t[2].bits(), t[3].bits()];
+    let table_of = |t: &[Float; 4]| [t[0].get(), t[1].get(), t[2].get(), t[3].get()];
     for (out, x, t) in ramps_a(car, damage) {
-        out.set(ramp(x.bits(), table_of(t), d.gauge_low.bits()));
+        out.set(ramp(x.get(), table_of(t), d.gauge_low.get()));
     }
     for (out, x) in [
         (&c.drive_efficiency[0], &d.front_tyre_wear),
@@ -244,15 +244,12 @@ pub fn rate_damage(car: &Car, damage: &DamageModel) {
             .set(ramp(x, table_of(&d.lerp_tables[5]), &d.gauge_low));
         out.st(d.brake_balance_complement.ld() * bh::ld(k) * bh::ld(k) * out.ld());
     }
-    c.steering_efficiency.set_bits(
-        ramp(
-            &c.steering_damage,
-            table_of(&d.lerp_tables[6]),
-            &d.gauge_low,
-        )
-        .to_bits(),
-    );
-    let efficiency = c.steering_efficiency.bits();
+    c.steering_efficiency.set(ramp(
+        &c.steering_damage,
+        table_of(&d.lerp_tables[6]),
+        &d.gauge_low,
+    ));
+    let efficiency = c.steering_efficiency.get();
     c.steering_efficiency.set(x87::mul(efficiency, efficiency));
     for (out, x, t) in ramps_c(car, damage) {
         out.set(ramp(x, table_of(t), &d.gauge_low));

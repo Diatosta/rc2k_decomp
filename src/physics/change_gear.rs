@@ -12,17 +12,17 @@ use crate::physics::gear_bit::gear_bit_at;
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at, wheels_from_revs_at};
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
-use crate::session::Cell32;
+use crate::session::Dword;
 use rc2k_core::physics::gear_shifts::Change;
 
 /// The other places: the asked gear, the gear bits, the two words set.
 #[derive(Clone, Copy)]
 pub struct ChangePlaces<'a> {
-    pub wanted: &'a dyn Cell32,
+    pub wanted: &'a Dword,
     /// By address: `bt` on memory, its bit number past the first dword.
-    pub bits: &'a dyn Cell32,
-    pub changed: &'a dyn Cell32,
-    pub pending: &'a dyn Cell32,
+    pub bits: &'a Dword,
+    pub changed: &'a Dword,
+    pub pending: &'a Dword,
 }
 
 impl<'a> ChangePlaces<'a> {
@@ -51,24 +51,24 @@ pub fn change_gear_at(
     gp: &GearPlaces<'_>,
     c: &ChangePlaces<'_>,
 ) -> Result<(), Refused> {
-    let gear = gp.gear.bits();
-    let w = c.wanted.bits();
+    let gear = gp.gear.get();
+    let w = c.wanted.get();
     let way = rc2k_core::physics::gear_shifts::change(gear, w);
     if way == Change::Same {
         return Ok(());
     }
     let mark = || {
-        c.changed.set_bits(1);
-        c.pending.set_bits(1);
+        c.changed.set(1);
+        c.pending.set(1);
     };
     let neutral = || {
-        gp.gear.set_bits(0);
+        gp.gear.set(0);
         mark();
         Ok(())
     };
     if way == Change::FromNeutral {
         ratio_gear(w)?;
-        gp.gear.set_bits(w);
+        gp.gear.set(w);
         wheels_from_revs_at(gp)?;
         mark();
         return Ok(());
@@ -83,7 +83,7 @@ pub fn change_gear_at(
     ratio_gear(gear)?;
     ratio_gear(w)?;
     wheels_from_revs_at(gp)?;
-    gp.gear.set_bits(w);
+    gp.gear.set(w);
     revs_from_wheels_at(numbers, gp)?;
     mark();
     Ok(())

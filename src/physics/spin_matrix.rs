@@ -17,7 +17,7 @@ use crate::physics::vector_length::vector_length;
 use crate::race::matrices_store::SceneMatrices;
 use crate::race::owner_course::Course;
 use crate::scene::matrix::multiply_matrices;
-use crate::scene::matrix3::rounded;
+use crate::scene::matrix3::rounded_value;
 use crate::scene::view_matrix::{square_matrix, unit_vector};
 
 pub fn spin_matrix(
@@ -27,8 +27,9 @@ pub fn spin_matrix(
     car: &Car,
     scene: &crate::scene::owner::Scene,
 ) {
-    car.spin_length.set_bits(rounded(vector_length(&car.spin)));
-    if car.spin_length.bits() != 0 {
+    car.spin_length.set(rounded_value(vector_length(&car.spin)));
+    // Tested as a dword: any bit set (a NaN too) means a spin.
+    if car.spin_length.get().to_bits() != 0 {
         let lists = &course.lists;
         let turn = &lists.turn_matrix;
         let turned = &matrices.turned_matrix;
@@ -46,5 +47,5 @@ pub fn spin_matrix(
     // `scene::square_matrix` left its last length in `g_scratch` (the ones before are
     // written over by it).
     let length = square_matrix(course, &car.crash_matrix);
-    scene.drawing.scene.scratch.set_bits(length);
+    scene.drawing.scene.scratch.set(length);
 }

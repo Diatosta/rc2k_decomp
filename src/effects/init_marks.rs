@@ -16,7 +16,7 @@ use crate::race::owner::Race;
 const KIND_FLOATS: u32 = 0x17;
 const KINDS: u32 = rc2k_core::effects::kind_values::KINDS;
 /// 18240.0, the value of most of the table's kinds: the kinds past it get it (section 16).
-const KIND_FLOAT_PAST: u32 = 0x468E_8000;
+const KIND_FLOAT_PAST: f32 = 18240.0;
 
 /// `seed` the seed (eax). The original took the settings'
 /// address in esi; the race hands its one record (`race::effects_settings_store`), so none is
@@ -63,7 +63,7 @@ pub fn init_marks(
             r.set(1);
         }
         setup::tick_clock(&race.shared, effects)?;
-        effects.setup.frame.steps.set_bits(0u32);
+        effects.setup.frame.steps.set(0);
         let less = effects.setup.floats.one.get();
         for (n, side) in [&system.session.screen.width, &system.session.screen.height]
             .into_iter()
@@ -79,11 +79,11 @@ pub fn init_marks(
         // 0x17 .. 0x21 (the next variables: `g_marksKindFloat` itself, a 0/1 flag, 9, ..),
         // so those cars' marks lose their depth bias.
         let float = if kind < KIND_FLOATS {
-            effects.setup.kind_floats.kind_floats[kind as usize].bits()
+            effects.setup.kind_floats.kind_floats[kind as usize].get()
         } else {
             KIND_FLOAT_PAST
         };
-        effects.setup.kind_floats.kind_float.set_bits(float);
+        effects.setup.kind_floats.kind_float.set(float);
     }
     Ok(())
 }

@@ -16,8 +16,8 @@ pub fn engine_torque_or_cut(
     scene: &crate::scene::owner::Scene,
 ) {
     if !below(
-        shared.car().engine_speed.bits(),
-        shared.car().engine_speed_limit.bits(),
+        shared.car().engine_speed.get(),
+        shared.car().engine_speed_limit.get(),
     ) {
         shared.car().rev_cut_count.set(5);
     } else if shared.car().rev_cut_count.get() != 0 {

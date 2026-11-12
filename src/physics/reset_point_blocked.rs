@@ -11,34 +11,21 @@
 
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::vars_store::RaceVars;
-use crate::session::Cell32;
 use rc2k_core::physics::line_places;
 
-fn at(a: &dyn Cell32) -> u32 {
-    a.bits()
-}
-
-/// The candidate and count read at `candidate`, `count`; `block` the car block tried. Returns
-/// the carry (blocked).
+/// Whether the reset candidate (`reset_candidate`) is blocked for the car block `block`
+/// (the checkpoint count read only when asked). Returns the carry (blocked).
 // Converted: `rc2k_core::physics::line_places::reset_point_blocked`.
-pub fn reset_point_blocked_at(
-    candidate: &dyn Cell32,
-    count: &dyn Cell32,
-    block: &crate::physics::car_store::Car,
-) -> bool {
-    line_places::reset_point_blocked(
-        block.driver_kind.get(),
-        at(candidate),
-        || at(count),
-        || block.reset_checkpoint.get(),
-    )
-    .carry()
-}
-
 pub fn reset_point_blocked(
     tables: &PhysicsTables,
     vars: &RaceVars,
     block: &crate::physics::car_store::Car,
 ) -> bool {
-    reset_point_blocked_at(&tables.reset_candidate, &vars.checkpoint_count, block)
+    line_places::reset_point_blocked(
+        block.driver_kind.get(),
+        tables.reset_candidate.get(),
+        || vars.checkpoint_count.get(),
+        || block.reset_checkpoint.get(),
+    )
+    .carry()
 }

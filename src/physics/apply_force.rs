@@ -11,11 +11,12 @@
 
 use crate::math::x87;
 use crate::physics::car_store::Car;
+use crate::physics::flow::FloatView;
 use crate::physics::scale_vector::scale_vector;
 use crate::physics::tables_store::ForceRecord;
 use crate::physics::tables_store::PhysicsTables;
 use crate::physics::turn_by_car_matrix::turn_by_car_matrix;
-use crate::scene::matrix3::{extended, rounded};
+use crate::scene::matrix3::{extended, rounded, rounded_value};
 use crate::scene::rotate_point::rotate_point;
 
 /// The exact version, for `physics::apply_forces`: `rec` on the car block `car`.
@@ -27,9 +28,9 @@ pub fn apply_force(
 ) {
     let work = &tables.push_record;
     for (k, w) in work[..3].iter().enumerate() {
-        w.set_bits(rec.force[k].bits());
+        w.set_float(rec.force[k].get());
     }
-    let dt = extended(tables.step_time.bits());
+    let dt = extended(tables.step_time.get());
     scale_vector(work, dt);
     scene.drawing.scene.scratch.set(rounded(dt));
     // The work car's matrix (`g_crashMatrix`), whichever block it is: the original's.
@@ -40,6 +41,6 @@ pub fn apply_force(
     let p = car.velocity.each_ref().map(|v| extended(v.get()));
     let out = rotate_point(&car.car_inverse_matrix, p);
     for (l, e) in car.local_velocity.iter().zip(out) {
-        l.set_bits(rounded(e));
+        l.set(rounded_value(e));
     }
 }

@@ -82,7 +82,7 @@ pub fn windscreen_flakes_frame(
         masks,
         drops,
         fl,
-        ctx.view.light.view_light.bits(),
+        ctx.view.light.view_light.get(),
         effects,
         scene,
         &ctx.race.shared,

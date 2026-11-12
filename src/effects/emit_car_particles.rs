@@ -22,7 +22,7 @@ use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::race::effects_settings_store::CarEffects;
-use crate::scene::matrix3::{extended, rounded};
+use crate::scene::matrix3::{extended, rounded_value};
 use crate::scene::rotate_point::rotate_point;
 use crate::session::{read_bits, write_bits};
 
@@ -46,8 +46,7 @@ pub fn emit_car_particles(effects: &Effects, o: &'static CarEffects) -> Result<(
     for wheel in [1, 3, 0, 2] {
         place(wheel, 1).set_bits(y);
     }
-    effects.kinds.emitter.looks[0]
-        .set(x87::to_int(o.records[0].place[0].bits() & 0x7FFF_FFFF) as u32);
+    effects.kinds.emitter.looks[0].set(x87::to_int(o.records[0].place[0].get().abs()) as u32);
     effects.kinds.emitter.looks[1].set(bh::to_int(
         (bh::ld(o.records[0].place[2].get()).abs() + bh::ld(o.records[2].place[2].get()).abs())
             * bh::ld(effects.setup.floats.half.get()),
@@ -64,7 +63,7 @@ pub fn emit_car_particles(effects: &Effects, o: &'static CarEffects) -> Result<(
             ],
         );
         for (cell, v) in at.iter().zip(turned) {
-            cell.set_bits(rounded(v));
+            cell.set(rounded_value(v));
         }
     }
     for n in 0..4 {

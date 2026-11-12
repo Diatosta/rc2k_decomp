@@ -16,9 +16,9 @@ use crate::effects::pong_ball_hits::pong_ball_hits;
 use crate::math::x87;
 use crate::session::PlainFloat;
 
-/// The court's limits (`PongRules::walls`), as bits.
-fn limit(pong: &Pong, n: usize) -> u32 {
-    pong.rules.walls[n].bits()
+/// The court's limits (`PongRules::walls`).
+fn limit(pong: &Pong, n: usize) -> f32 {
+    pong.rules.walls[n].get()
 }
 
 pub fn move_pong_ball(pong: &Pong, effects: &crate::effects::owner::Effects) {
@@ -28,15 +28,15 @@ pub fn move_pong_ball(pong: &Pong, effects: &crate::effects::owner::Effects) {
         p.ball[n].set(x87::add(&p.ball[n], &p.ball_way[n]));
     }
     pong_ball_hits(pong, effects);
-    let flip = |r: &PlainFloat| r.set_bits(r.bits() ^ 0x8000_0000);
+    let flip = |r: &PlainFloat| r.set(-r.get());
     if x87::compare_status(&p.ball[0], limit(0)) != 0 {
         p.ball[0].set(x87::loaded(limit(1)));
         flip(&p.ball_way[0]);
     }
     let hit = pong::less_compare(
-        p.ball[0].bits(),
+        p.ball[0].get(),
         limit(2),
-        p.ball_size[0].bits(),
+        p.ball_size[0].get(),
         Some(limit(3)),
     );
     if hit != 0 {
@@ -46,7 +46,7 @@ pub fn move_pong_ball(pong: &Pong, effects: &crate::effects::owner::Effects) {
         p.ball[1].set(x87::loaded(limit(5)));
         flip(&p.ball_way[1]);
     }
-    let hit = pong::less_compare(p.ball[1].bits(), limit(6), p.ball_size[1].bits(), None);
+    let hit = pong::less_compare(p.ball[1].get(), limit(6), p.ball_size[1].get(), None);
     if hit != 0 {
         p.ball[1].set(x87::sub(limit(7), &p.ball_size[1]));
         flip(&p.ball_way[1]);

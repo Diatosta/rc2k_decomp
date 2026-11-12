@@ -62,7 +62,7 @@ use crate::menu::update_blink::update_blink;
 use crate::owners::Owners;
 use crate::race::owner::Race;
 use crate::scene::owner::Scene;
-use crate::session::{Cell32, DwordLike, FlagLike};
+use crate::session::{DwordLike, FlagLike, Float};
 use crate::sound::owner::Sound;
 use crate::system::owner::System;
 pub use rc2k_core::menu::keys::MenuSound;
@@ -110,7 +110,7 @@ pub enum Step {
     Sound(MenuSound),
     /// Writes a scene variable.
     WriteScene(fn(&Scene) -> &dyn DwordLike, u32),
-    WriteSceneF32(fn(&Scene) -> &dyn Cell32, f32),
+    WriteSceneF32(fn(&Scene) -> &Float, f32),
     /// Writes a variable of the front end's object lighting.
     WriteLight(
         fn(&crate::scene::object_light::ObjectLight) -> &dyn DwordLike,
@@ -718,7 +718,7 @@ fn run(steps: &[Step], entry: &Entry) -> Result<Flow, Refused> {
             Step::WriteObject(variable, value) => {
                 variable(&crate::race::view_scratch::front_end().object).set(value);
             }
-            Step::WriteSceneF32(variable, value) => variable(entry.scene).set_bits(value.to_bits()),
+            Step::WriteSceneF32(variable, value) => variable(entry.scene).set(value),
             Step::WriteLight(variable, value) => {
                 variable(&crate::race::view_scratch::front_end().light).set(value);
             }

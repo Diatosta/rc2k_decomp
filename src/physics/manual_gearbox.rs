@@ -116,10 +116,10 @@ fn start_line(
         return Ok(Shift::Done);
     }
     if shifts::forward(gear) {
-        let kept = car.engine_speed.bits();
+        let kept = car.engine_speed.get();
         revs_speed(car, tables)?;
         drawing.scene.scratch.set(over_top(car));
-        car.engine_speed.set_bits(kept);
+        car.engine_speed.set(kept);
         if !below(
             drawing.scene.scratch.get(),
             gear_figures.shift_up_point.bits(),

@@ -46,7 +46,7 @@ pub fn car_cue_sound(
             request.volume.set(from_int(volume as i32));
             request.pitch.set(from_int(rate as i32));
             for (cell, place) in request.place.iter().zip(&so.cue_place) {
-                cell.set(place.bits());
+                cell.set(place.get());
             }
             crate::sound::turn_parts::placed(request, owner, audio)
         }

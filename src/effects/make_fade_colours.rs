@@ -25,9 +25,9 @@ pub fn make_fade_colours(
         for (cell, v) in l.fade_inverses.iter().zip(inverses) {
             cell.set(v);
         }
-        l.fade_step.set_bits(0);
+        l.fade_step.set(0.0);
         for n in 0..FADES {
-            let step = l.fade_step.bits();
+            let step = l.fade_step.get();
             let inverses = l.fade_inverses.each_ref().map(|d| d.get() as i32);
             let scaled = inverses.map(|v| x87::int_times_to_int(v, step));
             for (cell, v) in l.fade_scaled.iter().zip(scaled) {

@@ -116,7 +116,7 @@ pub fn windscreen_drops_frame(
             crate::effects::windscreen_drops_drift::windscreen_drops_drift(frame, drops, effects)?;
         }
         crate::effects::windscreen_drops_setup::windscreen_drops_setup(buffer, drops, scene);
-        drops.state.live.set_bits(0u32);
+        drops.state.live.set(0);
         for n in 0..ITEMS {
             let e = n * ITEM_LEN;
             if get(drops, e) != 1 {
@@ -144,7 +144,8 @@ pub fn windscreen_drops_frame(
                 continue;
             }
             sprite_depth(drops);
-            if (drops.work.cell[2].bits() as i32) < 0x4580_0000 {
+            // The depth's bits below 4096.0's.
+            if !crate::math::x87::bits_at_or_below(4096.0, drops.work.cell[2].get()) {
                 continue;
             }
             let inverse_depth = sprite_corners(drops, shape.wrapping_mul(0x48));
@@ -206,8 +207,8 @@ fn ld_record(offset: usize, gfx: &crate::gfx::owner::Gfx) -> bh::X {
 /// depth, which is `cell[2]` too). Same order and rounding as the original's x87 block.
 fn sprite_depth_x87(drops: &WindscreenDrops) {
     let work = &drops.work;
-    let x = bh::int(work.whole[0].bits() as i32);
-    let z = ld_cell(&drops.hex.frame_k) - bh::int(work.whole[1].bits() as i32);
+    let x = bh::int(work.whole[0].get() as i32);
+    let z = ld_cell(&drops.hex.frame_k) - bh::int(work.whole[1].get() as i32);
     let z = z * work.shares[1].ld();
     let x = x * work.shares[0].ld();
     // Output i: x times the first axes row, z times the second, plus the view's place. The

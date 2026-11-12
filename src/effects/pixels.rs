@@ -128,7 +128,9 @@ pub fn map_pixel(
             );
         }
         setup.work.seed.set(seed);
-        let k: u32 = setup.mask_constants.pixel_constants[half.constants + 2].bits();
+        let k = setup.mask_constants.pixel_constants[half.constants + 2]
+            .get()
+            .to_bits();
         let y = x87::random_step(
             r as i32,
             [shake, c, px, ends[0], rise.to_bits(), ends[1], k],

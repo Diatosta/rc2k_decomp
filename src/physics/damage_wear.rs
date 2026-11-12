@@ -14,13 +14,13 @@ use crate::physics::damage_gauges::raise;
 use crate::physics::damage_model::{store, value};
 use crate::physics::flow::{hold_low, table_lerp};
 use crate::physics::store::DamageModel;
-use crate::session::Cell32;
+use crate::session::Float;
 use core::mem::offset_of;
 
 /// The wear of this step: the gauges raised or lowered by their rates times the shares,
 /// the lerps of the speed shares, and the hit figures.
 pub fn steps(car: &Car, damage: &DamageModel) {
-    damage.clock.set_bits(car.noise_word.get());
+    damage.clock.set(car.noise_word.get());
     table_lerp(
         &damage.engine_speed_share,
         &damage.lerp_tables[0],
@@ -122,7 +122,7 @@ pub fn steps(car: &Car, damage: &DamageModel) {
     // surface from `DamageModel.wear_first_columns`: the first column, then the second). The original reads
     // the second at the first column's pair instead of the surface's (fixed: see
     // wiki/Fixed-bugs.md); its weight, `surface_blend`, is 0 on every shipped stage.
-    let row = damage.tyre_kind.bits() << 6;
+    let row = damage.tyre_kind.get() << 6;
     // The original runs on through the store, whatever the columns hold.
     let at = |field: usize, n: u32| (field as u32).wrapping_add(n);
     let read = |at: u32| {
@@ -130,24 +130,18 @@ pub fn steps(car: &Car, damage: &DamageModel) {
             .unwrap_or_else(|e| crate::fatal::raise::end("a car block's field", e))
     };
     let wear = offset_of!(DamageModel, wear_table);
-    let pair = (damage.surface.bits() & 0xF).wrapping_mul(8);
+    let pair = (damage.surface.get() & 0xF).wrapping_mul(8);
     let column = read(at(offset_of!(DamageModel, wear_first_columns), pair));
     let first = read(at(wear, row.wrapping_add(column.wrapping_mul(4))));
     let column = read(at(offset_of!(DamageModel, wear_second_columns), pair));
     let second = read(at(wear, row.wrapping_add(column.wrapping_mul(4))));
-    blend_wear_figures(first, damage, second);
+    blend_wear_figures(first as i32, damage, second as i32);
 }
 
 // ---- the arithmetic ----
 
 /// `to = rate * share * wear_step + from`.
-fn add_wear(
-    m: &DamageModel,
-    rate: &impl Cell32,
-    share: &impl Cell32,
-    from: &impl Cell32,
-    to: &impl Cell32,
-) {
+fn add_wear(m: &DamageModel, rate: &Float, share: &Float, from: &Float, to: &Float) {
     store(
         to,
         value(rate) * value(share) * value(&m.wear_step) + value(from),
@@ -155,18 +149,12 @@ fn add_wear(
 }
 
 /// `to = from - rate * wear_step`.
-fn subtract_rate(m: &DamageModel, rate: &impl Cell32, from: &impl Cell32, to: &impl Cell32) {
+fn subtract_rate(m: &DamageModel, rate: &Float, from: &Float, to: &Float) {
     store(to, -(value(rate) * value(&m.wear_step)) + value(from));
 }
 
 /// `to = from - rate * share * wear_step`.
-fn subtract_wear(
-    m: &DamageModel,
-    rate: &impl Cell32,
-    share: &impl Cell32,
-    from: &impl Cell32,
-    to: &impl Cell32,
-) {
+fn subtract_wear(m: &DamageModel, rate: &Float, share: &Float, from: &Float, to: &Float) {
     store(
         to,
         -(value(rate) * value(share) * value(&m.wear_step)) + value(from),
@@ -182,7 +170,7 @@ fn lerp_gap(m: &DamageModel) {
 }
 
 /// `to = from * from`.
-fn square_into(from: &impl Cell32, to: &impl Cell32) {
+fn square_into(from: &Float, to: &Float) {
     let x = value(from);
     store(to, x * x);
 }
@@ -206,11 +194,11 @@ fn hit_figures(m: &DamageModel) {
 }
 
 /// The wear figure: the two table figures blended by `surface_blend`, times the scale.
-fn blend_wear_figures(first: u32, m: &DamageModel, second: u32) {
+fn blend_wear_figures(first: i32, m: &DamageModel, second: i32) {
     let blend = value(&m.surface_blend);
     store(
         &m.wear_figure,
-        (f64::from(first as i32) * (1.0 - blend) + f64::from(second as i32) * blend)
+        (f64::from(first) * (1.0 - blend) + f64::from(second) * blend)
             * value(&m.wear_figure_scale),
     );
 }
@@ -227,7 +215,7 @@ mod reference_vectors {
                 as *const DamageModel)
         }
     }
-    use crate::scene::x87_mem::HostCell;
+    use crate::scene::x87_mem::view;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse_at};
 
     fn blocks() -> Vec<Block> {
@@ -634,7 +622,7 @@ mod reference_vectors {
                 ],
                 ulps: 0,
                 plain: |a| {
-                    blend_wear_figures(HostCell(a[0]).bits(), dm(a[1]), HostCell(a[2]).bits());
+                    blend_wear_figures(*view::<i32>(a[0], 0), dm(a[1]), *view::<i32>(a[2], 0));
                 },
             },
         ]
@@ -736,7 +724,7 @@ mod plain_matches_x87 {
             },
             |s| {
                 let (f, g) = (s.damage.figures[1].bits(), s.damage.figures[2].bits());
-                blend_wear_figures(f, &s.damage, g);
+                blend_wear_figures(f as i32, &s.damage, g as i32);
             },
         );
     }

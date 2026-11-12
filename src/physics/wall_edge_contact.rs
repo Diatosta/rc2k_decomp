@@ -140,7 +140,7 @@ fn x87_1(numbers: &Numbers, d: [u32; 2], scene: &crate::scene::owner::Scene) {
     let t4 = t2 * t3;
     let t5 = numbers.k65536.ld();
     let t6 = t4 * t5;
-    scene.drawing.scene.scratch.set_bits(to_int(t6) as u32);
+    scene.drawing.scene.scratch.set(to_int(t6) as u32);
 }
 
 #[cfg(test)]

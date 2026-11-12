@@ -12,19 +12,19 @@ use crate::errors::Refused;
 pub fn inspection_screen(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let scene = o.scene;
     let front_end = crate::scene::polygon_work::front_end();
-    front_end.window.view_offset[0].set_bits(0u32);
-    front_end.window.view_offset[1].set_bits(0u32);
-    front_end.window.view_zoom.set_bits(0x100u32);
+    front_end.window.view_offset[0].set(0);
+    front_end.window.view_offset[1].set(0);
+    front_end.window.view_zoom.set(0x100);
     crate::scene::prepare_menu_scene::prepare_menu_scene(
         o.race,
         scene,
         o.system,
         crate::race::view_scratch::front_end(),
     );
-    front_end.window.clip_edges[2].set_bits(0u32);
-    front_end.window.clip_edges[3].set_bits(0x320u32);
-    front_end.window.clip_screen[2].set_bits(0.0f32.to_bits());
-    front_end.window.clip_screen[3].set_bits(800.0f32.to_bits());
+    front_end.window.clip_edges[2].set(0);
+    front_end.window.clip_edges[3].set(0x320);
+    front_end.window.clip_screen[2].set(0.0);
+    front_end.window.clip_screen[3].set(800.0);
     crate::service::load_background::load_background_in(o.menus, o.gfx, o.system)?;
     crate::gfx::copy_picture_to_surface::copy_picture_to_surface(
         &mut crate::gfx::copy_picture_to_surface::GameSurface(o.gfx, o.system),

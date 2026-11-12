@@ -17,6 +17,7 @@ use crate::effects::cell_x87::CellX87;
 use crate::effects::clip_quad::{clip_quad, draw_fan};
 use crate::effects::rain::{RainRules, RainState, Weather};
 use crate::errors::{BadInput, Refused};
+use crate::math::x87;
 
 /// The point scaled and turned, and the last place.
 fn turn(weather: &Weather, p: &[[u8; 10]; 3]) {
@@ -41,9 +42,11 @@ pub fn draw_rain_streak(
             return Err(BadInput("no marks settings").into());
         }
         turn(weather, &place);
-        if rain.depth.bits() as i32 <= 0x2_0000
+        // The depths compared by their bits: 0x20000 is a tiny subnormal (the original's
+        // whole number), 0x48000000 is 131072.
+        if x87::bits_at_or_below(rain.depth.get(), f32::from_bits(0x2_0000))
             || rain.drawn.get() == 0
-            || rain.second[2].bits() as i32 <= 0x4800_0000
+            || x87::bits_at_or_below(rain.second[2].get(), 131_072.0)
         {
             return Ok(());
         }
@@ -54,7 +57,7 @@ pub fn draw_rain_streak(
         draw_fan(buffer, scene);
         crate::scene::polygon_work::front_end()
             .polygon_vertex_count
-            .set_bits(4u32);
+            .set(4);
     }
     Ok(())
 }

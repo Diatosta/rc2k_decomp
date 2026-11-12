@@ -26,25 +26,26 @@ use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::splash_mud::{LAST_SPLASHED, splash_mud};
 use crate::race::throw_mud_texel::{LAST_THROWN, throw_mud_texel};
-use crate::session::{Cell32, Dword, Float};
+use crate::session::{Dword, Float};
 
 /// `fld dword [f]; fistp dword [t]`.
-fn round_units(f: &impl Cell32, t: &impl Cell32) {
-    t.set_bits(to_int(f.ld()) as u32);
+fn round_units(f: &Float, t: &Dword) {
+    t.set(to_int(f.ld()) as u32);
 }
 
 /// `fld dword [a]; fisub dword [u]; fstp dword [a]`.
-fn subtract_units(a: &impl Cell32, u: &impl Cell32) {
-    a.st(a.ld() - int(u.bits() as i32));
+fn subtract_units(a: &Float, u: &Dword) {
+    a.st(a.ld() - int(u.get() as i32));
 }
 
 /// `fld [from]; fistp [to]`, then `fld zero; fld [to]; fcompp` and, with C0, `fld zero;
-/// fstp [to]`: the units of a float count, negatives 0 (as the original, by bits).
+/// fstp [to]`: the units of a float count, negatives 0 (as the original: the whole number's
+/// bits compared as a float).
 fn whole_units(course: &Course, from: &Float, to: &Dword) -> i32 {
     round_units(from, to);
-    let zero: u32 = course.numbers.zero.bits();
+    let zero = course.numbers.zero.get();
     if c0(to.get(), zero) {
-        to.set(zero);
+        to.set(zero.to_bits());
     }
     to.get() as i32
 }
@@ -173,8 +174,8 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     round_units(
-                        &crate::scene::x87_mem::HostCell(a[0]),
-                        &crate::scene::x87_mem::HostCell(a[1]),
+                        crate::scene::x87_mem::view::<Float>(a[0], 0),
+                        crate::scene::x87_mem::view::<Dword>(a[1], 0),
                     );
                 },
             },
@@ -193,8 +194,8 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     subtract_units(
-                        &crate::scene::x87_mem::HostCell(a[0]),
-                        &crate::scene::x87_mem::HostCell(a[1]),
+                        crate::scene::x87_mem::view::<Float>(a[0], 0),
+                        crate::scene::x87_mem::view::<Dword>(a[1], 0),
                     );
                 },
             },

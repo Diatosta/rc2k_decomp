@@ -15,10 +15,10 @@ use crate::physics::damage_model::{store, value};
 use crate::physics::flow::{below_or_unordered, c0};
 use crate::physics::store::DamageModel;
 use crate::race::work_store::RaceWork;
-use crate::session::{Cell32, Float};
+use crate::session::Float;
 
 /// `Car.gear_wear[1][gear]` (the gear -1 .. 7 as the original indexes it, `gear_wear` by gear + 1).
-fn gear_gauge(car: &Car, gear: u32) -> &Float {
+fn gear_gauge(car: &Car, gear: i32) -> &Float {
     car.gear_wear
         .get(gear.wrapping_add(1) as usize)
         .unwrap_or_else(|| {
@@ -80,7 +80,7 @@ pub fn steps(car: &Car, damage: &DamageModel, work: &RaceWork) {
             g,
         );
     });
-    let gear = damage.gear.bits();
+    let gear = damage.gear.get() as i32;
     let gauge = gear_gauge(car, gear);
     let factor = damage
         .gear_factors
@@ -187,19 +187,19 @@ pub fn steps(car: &Car, damage: &DamageModel, work: &RaceWork) {
             );
         });
     }
-    if damage.gear_changed.bits() == 0x1 {
+    if damage.gear_changed.get() as i32 == 1 {
         add_rate_to_clutch(car, &damage.gauge_rates[16]);
     }
-    if damage.gear_changed.bits() == 0xFFFFFFFF {
+    if damage.gear_changed.get() as i32 == -1 {
         add_rate_to_clutch(car, &damage.gauge_rates[17]);
     }
-    let gear = damage.gear.bits();
-    if damage.gear_changed.bits() == 0x1 {
+    let gear = damage.gear.get() as i32;
+    if damage.gear_changed.get() as i32 == 1 {
         let gauge = gear_gauge(car, gear);
         add_rate_to_gauge(gauge, &damage.gauge_rates[18]);
     }
-    let gear = damage.gear.bits();
-    if damage.gear_changed.bits() == 0xFFFFFFFF {
+    let gear = damage.gear.get() as i32;
+    if damage.gear_changed.get() as i32 == -1 {
         let gauge = gear_gauge(car, gear);
         add_rate_to_gauge(gauge, &damage.gauge_rates[19]);
     }
@@ -329,7 +329,7 @@ pub fn steps(car: &Car, damage: &DamageModel, work: &RaceWork) {
     });
     gauge_totals(car, damage);
     if damage.drive_kind.bits() == 0 {
-        car.turbo_damage.set_bits(0x0);
+        car.turbo_damage.set(0.0);
     }
 }
 
@@ -337,7 +337,7 @@ pub fn steps(car: &Car, damage: &DamageModel, work: &RaceWork) {
 /// side it landed on: `side` is 0 .. 3 for the hit figure 1 .. 4, and none for any other.
 fn side_hit_wear(car: &Car, damage: &DamageModel, work: &RaceWork) {
     scale_hit_size(work, damage);
-    let hit = damage.hit_side.bits();
+    let hit = damage.hit_side.get();
     let side = (1..=4).contains(&hit).then(|| hit as usize - 1);
     let wear = |gauge: &Float, figure: usize| {
         raise(damage, gauge, |g| {
@@ -356,7 +356,7 @@ fn side_hit_wear(car: &Car, damage: &DamageModel, work: &RaceWork) {
     for gauge in &car.gear_wear {
         wear(gauge, 20);
     }
-    let gauge = gear_gauge(car, damage.gear.bits());
+    let gauge = gear_gauge(car, damage.gear.get() as i32);
     add_hit_to_gear_gauge(damage, gauge);
     hold_at(damage, gauge);
     if let Some(side) = side {
@@ -384,18 +384,18 @@ pub(super) fn raise(damage: &DamageModel, gauge: &Float, step: impl FnOnce(&Floa
 // ---- the arithmetic ----
 
 /// `to = rate * step + from`.
-fn add_product(rate: &impl Cell32, step: &impl Cell32, from: &impl Cell32, to: &impl Cell32) {
+fn add_product(rate: &Float, step: &Float, from: &Float, to: &Float) {
     store(to, value(rate) * value(step) + value(from));
 }
 
 /// `to = rate * a * b * gauge_step + from`.
 fn add_scaled_triple(
     m: &DamageModel,
-    rate: &impl Cell32,
-    a: &impl Cell32,
-    b: &impl Cell32,
-    from: &impl Cell32,
-    to: &impl Cell32,
+    rate: &Float,
+    a: &Float,
+    b: &Float,
+    from: &Float,
+    to: &Float,
 ) {
     store(
         to,
@@ -405,7 +405,7 @@ fn add_scaled_triple(
 
 /// The gear's gauge raised by the engine's speed share times the wear rate, a hundredth
 /// and the gear's factor.
-fn gear_wear_from_speed(m: &DamageModel, factor: &impl Cell32, gauge: &impl Cell32) {
+fn gear_wear_from_speed(m: &DamageModel, factor: &Float, gauge: &Float) {
     store(
         gauge,
         value(&m.engine_speed_share)
@@ -434,13 +434,7 @@ fn brake_wear_step(car: &Car, m: &DamageModel) {
 }
 
 /// `to = rate * a * b + from`.
-fn add_triple_product(
-    rate: &impl Cell32,
-    a: &impl Cell32,
-    b: &impl Cell32,
-    from: &impl Cell32,
-    to: &impl Cell32,
-) {
+fn add_triple_product(rate: &Float, a: &Float, b: &Float, from: &Float, to: &Float) {
     store(to, value(rate) * value(a) * value(b) + value(from));
 }
 
@@ -455,7 +449,7 @@ fn part_hit_figures(m: &DamageModel) {
 }
 
 /// The two tyre wear rates times the given factors.
-fn scale_part_hit_figures(m: &DamageModel, front: &impl Cell32, rear: &impl Cell32) {
+fn scale_part_hit_figures(m: &DamageModel, front: &Float, rear: &Float) {
     store(
         &m.front_tyre_wear_rate,
         value(&m.front_tyre_wear_rate) * value(front),
@@ -476,12 +470,12 @@ fn engine_damage_carry(car: &Car, m: &DamageModel) {
 }
 
 /// The clutch's damage plus a rate.
-fn add_rate_to_clutch(car: &Car, rate: &impl Cell32) {
+fn add_rate_to_clutch(car: &Car, rate: &Float) {
     store(&car.clutch_damage, value(&car.clutch_damage) + value(rate));
 }
 
 /// A gauge plus a rate.
-fn add_rate_to_gauge(gauge: &impl Cell32, rate: &impl Cell32) {
+fn add_rate_to_gauge(gauge: &Float, rate: &Float) {
     store(gauge, value(gauge) + value(rate));
 }
 
@@ -494,7 +488,7 @@ fn scale_hit_size(work: &RaceWork, m: &DamageModel) {
 }
 
 /// The gear's gauge plus the size of the hit times the gear's hit figure.
-fn add_hit_to_gear_gauge(m: &DamageModel, gauge: &impl Cell32) {
+fn add_hit_to_gear_gauge(m: &DamageModel, gauge: &Float) {
     store(
         gauge,
         value(&m.hit_size) * value(&m.figures[21]) + value(gauge),
@@ -561,7 +555,7 @@ fn gauge_totals(car: &Car, m: &DamageModel) {
 mod reference_vectors {
     use super::*;
     use crate::race::owner::race;
-    use crate::scene::x87_mem::HostCell;
+    use crate::scene::x87_mem::view;
 
     /// The damage model as the test's buffer holds it (the buffer's base plus the RVA of
     /// 0x75B340).
@@ -995,7 +989,9 @@ mod reference_vectors {
                     },
                 ],
                 ulps: 0,
-                plain: |a| gear_wear_from_speed(dm(a[0]), &HostCell(a[1]), &HostCell(a[2])),
+                plain: |a| {
+                    gear_wear_from_speed(dm(a[0]), view::<Float>(a[1], 0), view::<Float>(a[2], 0));
+                },
             },
             Block {
                 name: "damage_gauges line 239",
@@ -1239,7 +1235,13 @@ mod reference_vectors {
                     },
                 ],
                 ulps: 0,
-                plain: |a| scale_part_hit_figures(dm(a[0]), &HostCell(a[1]), &HostCell(a[2])),
+                plain: |a| {
+                    scale_part_hit_figures(
+                        dm(a[0]),
+                        view::<Float>(a[1], 0),
+                        view::<Float>(a[2], 0),
+                    );
+                },
             },
             Block {
                 name: "damage_gauges line 365",
@@ -1460,7 +1462,7 @@ mod reference_vectors {
                     },
                 ],
                 ulps: 0,
-                plain: |a| add_rate_to_gauge(&HostCell(a[0]), &dm(a[1]).gauge_rates[18]),
+                plain: |a| add_rate_to_gauge(view::<Float>(a[0], 0), &dm(a[1]).gauge_rates[18]),
             },
             Block {
                 name: "damage_gauges line 486",
@@ -1475,7 +1477,7 @@ mod reference_vectors {
                     },
                 ],
                 ulps: 0,
-                plain: |a| add_rate_to_gauge(&HostCell(a[0]), &dm(a[1]).gauge_rates[19]),
+                plain: |a| add_rate_to_gauge(view::<Float>(a[0], 0), &dm(a[1]).gauge_rates[19]),
             },
             Block {
                 name: "damage_gauges line 493",
@@ -2494,7 +2496,7 @@ mod reference_vectors {
                     },
                 ],
                 ulps: 0,
-                plain: |a| add_hit_to_gear_gauge(dm(a[0]), &HostCell(a[1])),
+                plain: |a| add_hit_to_gear_gauge(dm(a[0]), view::<Float>(a[1], 0)),
             },
             Block {
                 name: "damage_gauges line 991",

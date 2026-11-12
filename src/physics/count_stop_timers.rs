@@ -8,38 +8,28 @@
 //! Caller: `physics::race_timers` (four calls).
 
 use crate::physics::car_store::Car;
-use crate::physics::flow::FloatView;
 use crate::race::numbers_store::Numbers;
-use crate::session::Cell32;
+use crate::session::Dword;
 use rc2k_core::physics::motion::stop_timers;
 
-/// The core on the variables' cells (a compare of floats only: the same at any
-/// precision).
+/// The stand timers and the finish flag counted on while the car stands (a compare of
+/// floats only: the same at any precision).
 // Converted: `rc2k_core::physics::motion::stop_timers`.
-pub fn count_stop_timers_at(numbers: &Numbers, v: &[&dyn Cell32]) {
+pub fn count_stop_timers(car: &Car, numbers: &Numbers) {
     let one = numbers.one.get();
-    let mut counters = [v[0].bits(), v[1].bits(), v[2].bits()];
-    let result = stop_timers(&mut counters, v[3].float(), one);
-    for (k, c) in counters.iter().enumerate() {
-        if *c != v[k].bits() {
-            v[k].set_bits(*c);
+    let cells = [
+        &car.started_stand_timer,
+        &car.go_stand_timer,
+        &car.finish_flag,
+    ];
+    let mut counters = cells.map(Dword::get);
+    let result = stop_timers(&mut counters, car.speed.get(), one);
+    for (cell, c) in cells.iter().zip(counters) {
+        if c != cell.get() {
+            cell.set(c);
         }
     }
     if let Some(result) = result {
-        v[4].set_bits(result);
+        car.stop_state.set(result);
     }
-}
-
-fn game(car: &Car) -> Vec<&dyn Cell32> {
-    vec![
-        &car.started_stand_timer as &dyn Cell32,
-        &car.go_stand_timer,
-        &car.finish_flag,
-        &car.speed,
-        &car.stop_state,
-    ]
-}
-
-pub fn count_stop_timers(car: &Car, numbers: &Numbers) {
-    count_stop_timers_at(numbers, &game(car));
 }

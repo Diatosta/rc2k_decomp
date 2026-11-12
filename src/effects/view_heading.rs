@@ -9,7 +9,7 @@
 
 use crate::math::x87;
 use crate::race::owner_frame::Frame;
-use crate::scene::matrix3::rounded;
+use crate::scene::matrix3::rounded_value;
 use crate::scene::vector3::angle_between_vectors;
 use crate::session::write_bits;
 
@@ -21,13 +21,13 @@ pub fn view_heading(frame: &Frame, effects: &crate::effects::owner::Effects) {
         &effects_frame.draw_frame.level,
         [x.to_bits(), 0, z.to_bits()],
     );
-    let mut heading = rounded(angle_between_vectors(
+    let mut heading = rounded_value(angle_between_vectors(
         &effects_frame.draw_frame.level,
         &effects_frame.draw_frame.other,
         &effects.setup.work,
     ));
     if !effects_frame.draw_frame.level[0].get().is_sign_negative() {
-        heading = x87::two_pi_less(heading).to_bits();
+        heading = x87::two_pi_less(heading.to_bits());
     }
-    effects_frame.view_vars.heading.set_bits(heading);
+    effects_frame.view_vars.heading.set(heading);
 }

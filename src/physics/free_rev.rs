@@ -47,23 +47,22 @@ pub fn free_rev(
         scene,
     );
     let (e, drag) = (
-        shared.car().engine_speed.bits(),
+        shared.car().engine_speed.get(),
         scene.drawing.scene.scratch.get(),
     );
-    let x = f32::from_bits(e);
-    if x == 0.0 || x.is_nan() {
+    if e == 0.0 || e.is_nan() {
         return;
     }
-    if x < 0.0 {
+    if e < 0.0 {
         let y = x87::add(e, drag);
         shared.car().engine_speed.set(y);
-        if !below(y.to_bits(), 0) {
+        if !below(y, 0.0) {
             shared.car().engine_speed.set(0.0);
         }
     } else {
         let y = x87::sub(e, drag);
         shared.car().engine_speed.set(y);
-        if below(y.to_bits(), 0) {
+        if below(y, 0.0) {
             shared.car().engine_speed.set(0.0);
         }
     }
@@ -90,7 +89,7 @@ fn x87_1(
     let t4 = t2 / t3;
     let t5 = numbers.k10000.ld();
     let t6 = t4 / t5;
-    let t7 = int(car.throttle.bits() as i32);
+    let t7 = int(car.throttle.get() as i32);
     let t8 = t6 * t7;
     let t9 = numbers.k256.ld();
     let t10 = t8 / t9;

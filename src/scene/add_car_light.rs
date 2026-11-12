@@ -72,8 +72,8 @@ fn turned_at(w: impl Base, m: impl Base) {
 }
 
 /// `fild a; fmul st, st; fild b; fmul st, st; faddp; fmul k` (once or twice) `; fistp`.
-fn squares(a: u32, b: u32, factor: u32, twice: bool) -> u32 {
-    let (v, mut out) = ([a, b, factor], [0u32]);
+fn squares(a: u32, b: u32, factor: f32, twice: bool) -> u32 {
+    let (v, mut out) = ([a, b, factor.to_bits()], [0u32]);
     if twice {
         squares_twice(&v[..], cells(&mut out));
     } else {
@@ -138,7 +138,7 @@ pub fn add_car_light(
     let seen = turned(from, &matrix);
     crate::session::write_bits(&light.turned_light, seen);
     let [x, y, z] = seen;
-    let factor: u32 = course.numbers.one_over_65536.bits();
+    let factor = course.numbers.one_over_65536.get();
     let ahead = squares(z.wrapping_sub(0x20_0000), x.wrapping_add(x), factor, true);
     let cone = held(0x100i32.wrapping_sub((ahead >> 2) as i32));
     // The original also worked out a second sum of squares, stored to `g_scratch` and

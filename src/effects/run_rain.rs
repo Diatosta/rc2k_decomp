@@ -99,15 +99,15 @@ pub fn run_rain(
         let rhw = weather.rain_rules.rhw;
         for (n, colour) in COLOURS.into_iter().enumerate() {
             let v = &buffer.vertices[n];
-            v.rhw.set_bits(rhw);
+            v.rhw.set(rhw);
             v.colour.set(colour);
             v.specular.set(0);
-            v.u.set_bits(0);
-            v.v.set_bits(0);
+            v.u.set(0.0);
+            v.v.set(0.0);
         }
         crate::scene::polygon_work::front_end()
             .polygon_vertex_count
-            .set_bits(4u32);
+            .set(4);
         if setup.kind_floats.running.get() != 0 {
             crate::effects::drift_offsets::drift_offsets(race, weather, effects);
         }

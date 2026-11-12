@@ -25,7 +25,7 @@ pub fn car_slot_sounds(
     }
     let place = |from: &[crate::session::Float; 3]| {
         for (cell, f) in request.place.iter().zip(from) {
-            cell.set(f.bits());
+            cell.set(f.get());
         }
     };
     place(&so.place);

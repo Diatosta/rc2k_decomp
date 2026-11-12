@@ -7,45 +7,25 @@ use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::session::{PlainBytes, PlainDword, PlainFloat, write_bits};
-
-/// One variable of a kind's tables: a typed cell.
-pub enum Var<'a> {
-    Dword(&'a PlainDword),
-    Float(&'a PlainFloat),
-}
-
-impl Var<'_> {
-    fn bits(&self) -> u32 {
-        match self {
-            Var::Dword(d) => d.get(),
-            Var::Float(f) => f.bits(),
-        }
-    }
-
-    fn set_bits(&self, v: u32) {
-        match self {
-            Var::Dword(d) => d.set(v),
-            Var::Float(f) => f.set_bits(v),
-        }
-    }
-}
+use crate::session::{PlainBytes, PlainDword, PlainFloat};
 
 /// One kind's tables.
 pub struct Shapes<'a> {
-    pub done: Var<'a>,
+    /// The once-only mark: 0, or where the set-up goes on once done.
+    pub done: &'a PlainDword,
     /// The items (`ITEMS` of `item_len` bytes).
     pub items: &'a PlainBytes<0x18000>,
     pub item_len: u32,
     pub curve: &'a [PlainFloat; CURVE as usize],
-    pub curve_a: Var<'a>,
-    pub curve_b: Var<'a>,
+    pub curve_a: &'a PlainFloat,
+    pub curve_b: &'a PlainFloat,
     pub radii: &'a [PlainFloat],
     /// The circles' points, three floats a point, `sides` points a circle.
     pub points: &'a [PlainFloat],
     pub sides: u32,
-    pub step_c: Var<'a>,
-    pub step_d: Var<'a>,
+    /// The circles' angle step is `pi / step_c * step_d`.
+    pub step_c: &'a PlainDword,
+    pub step_d: &'a PlainFloat,
 }
 
 pub const ITEMS: u32 = 0x800;
@@ -56,17 +36,17 @@ const RADII: u32 = 8;
 impl<'a> Shapes<'a> {
     pub fn windscreen_drops(drops: &'a WindscreenDrops) -> Self {
         Shapes {
-            done: Var::Dword(&drops.hex.done), // g_marksWindscreenDropsDone
-            items: &drops.hex.items,           // g_marksWindscreenDropItems
+            done: &drops.hex.done,   // g_marksWindscreenDropsDone
+            items: &drops.hex.items, // g_marksWindscreenDropItems
             item_len: 0x30,
-            curve: &drops.work.curve, // g_marksWindscreenDropCurve
-            curve_a: Var::Float(&drops.hex.curve_a), // WindscreenDropVars.curve_a
-            curve_b: Var::Float(&drops.hex.curve_b), // WindscreenDropVars.curve_b
-            radii: &drops.work.radii, // WindscreenDropWork.radii[0]
-            points: &drops.work.points, // g_marksWindscreenDropPoints
+            curve: &drops.work.curve,    // g_marksWindscreenDropCurve
+            curve_a: &drops.hex.curve_a, // WindscreenDropVars.curve_a
+            curve_b: &drops.hex.curve_b, // WindscreenDropVars.curve_b
+            radii: &drops.work.radii,    // WindscreenDropWork.radii[0]
+            points: &drops.work.points,  // g_marksWindscreenDropPoints
             sides: 6,
-            step_c: Var::Dword(&drops.hex.step_c), // WindscreenDropVars.step_c
-            step_d: Var::Float(&drops.hex.step_d), // WindscreenDropVars.step_d
+            step_c: &drops.hex.step_c, // WindscreenDropVars.step_c
+            step_d: &drops.hex.step_d, // WindscreenDropVars.step_d
         }
     }
 }
@@ -85,7 +65,6 @@ mod squares {
 
     use crate::errors::{BadInput, Refused};
     use crate::math::x87;
-    use crate::session::write_bits;
 
     pub const SIDES: usize = 4;
 
@@ -111,15 +90,13 @@ mod squares {
     pub fn make_plain(fl: &WindscreenFlakes) {
         use rc2k_core::effects::shapes as core;
         clear_items(fl);
-        let f = |bits: u32| f32::from_bits(bits);
-        let curve = core::curve(
-            f(fl.state.curve_ends[0].bits()),
-            f(fl.state.curve_ends[1].bits()),
-        );
-        write_bits(&fl.tables.curve, curve.map(f32::to_bits));
-        let (c, d): (i32, f32) = (fl.state.steps.get() as i32, f(fl.state.step_angle.bits()));
+        let curve = core::curve(fl.state.curve_ends[0].get(), fl.state.curve_ends[1].get());
+        for (cell, v) in fl.tables.curve.iter().zip(curve) {
+            cell.set(v);
+        }
+        let (c, d): (i32, f32) = (fl.state.steps.get() as i32, fl.state.step_angle.get());
         for n in 0..RADII as usize {
-            let r = f(fl.tables.radii[n].bits());
+            let r = fl.tables.radii[n].get();
             for (k, [x, y]) in core::circle(r, SIDES as u32, c, d).into_iter().enumerate() {
                 fl.tables.points[n][k][0].set(x);
                 fl.tables.points[n][k][1].set(y);
@@ -130,18 +107,18 @@ mod squares {
     /// The items cleared, the curve, the circles.
     pub fn make(fl: &WindscreenFlakes) {
         clear_items(fl);
-        let (a, b) = (fl.state.curve_ends[0].bits(), fl.state.curve_ends[1].bits());
+        let (a, b) = (fl.state.curve_ends[0].get(), fl.state.curve_ends[1].get());
         for n in 0..CURVE as usize {
             let i = 8 * n as i32;
             fl.tables.curve[n].set(x87::circle_curve(i, a, b, i < 0x400));
         }
         for n in 0..RADII as usize {
             super::circle_cells(
-                fl.tables.radii[n].bits(),
+                fl.tables.radii[n].get(),
                 fl.tables.points[n].as_flattened(),
                 SIDES as u32,
-                fl.state.steps.get(),
-                fl.state.step_angle.bits(),
+                fl.state.steps.get() as i32,
+                fl.state.step_angle.get(),
             );
         }
     }
@@ -163,7 +140,7 @@ impl<'a> Shapes<'a> {
     /// The once-only mark: refuses one neither 0 nor `resume`; true when not yet done.
     fn first(&self, resume: u32) -> Result<bool, Refused> {
         use rc2k_core::effects::waves::{Mark, mark};
-        match mark(self.done.bits(), resume) {
+        match mark(self.done.get(), resume) {
             Mark::Elsewhere => {
                 Err(BadInput("a shapes' mark neither 0 nor where it goes on").into())
             }
@@ -190,10 +167,11 @@ impl<'a> Shapes<'a> {
     fn make_plain(&self) -> Result<(), Refused> {
         use rc2k_core::effects::shapes as core;
         self.clear_items()?;
-        let f = |r: &Var| f32::from_bits(r.bits());
-        let curve = core::curve(f(&self.curve_a), f(&self.curve_b));
-        write_bits(self.curve, curve.map(f32::to_bits));
-        let (c, d): (i32, f32) = (self.step_c.bits() as i32, f(&self.step_d));
+        let curve = core::curve(self.curve_a.get(), self.curve_b.get());
+        for (cell, v) in self.curve.iter().zip(curve) {
+            cell.set(v);
+        }
+        let (c, d): (i32, f32) = (self.step_c.get() as i32, self.step_d.get());
         for n in 0..RADII as usize {
             let r = self.radii[n].get();
             let to = self.circle(n);
@@ -208,33 +186,32 @@ impl<'a> Shapes<'a> {
     /// The items cleared, the curve, the circles.
     fn make(&self) -> Result<(), Refused> {
         self.clear_items()?;
-        let (a, b): (u32, u32) = (self.curve_a.bits(), self.curve_b.bits());
+        let (a, b) = (self.curve_a.get(), self.curve_b.get());
         for n in 0..CURVE as usize {
             let i = 8 * n as i32;
             self.curve[n].set(x87::circle_curve(i, a, b, i < 0x400));
         }
         for n in 0..RADII as usize {
             circle_cells(
-                self.radii[n].bits(),
+                self.radii[n].get(),
                 self.circle(n),
                 self.sides,
-                self.step_c.bits(),
-                self.step_d.bits(),
+                self.step_c.get() as i32,
+                self.step_d.get(),
             );
         }
         Ok(())
     }
 }
 
-/// `x87::circle_points` on cells: radius `r` (bits), `out` three floats a point (the
-/// third left alone), the angle's step `pi / c * d`.
-fn circle_cells(r: u32, out: &[PlainFloat], count: u32, c: u32, d: u32) {
+/// `x87::circle_points` on cells: radius `r`, `out` three floats a point (the third left
+/// alone), the angle's step `pi / c * d`.
+fn circle_cells(r: f32, out: &[PlainFloat], count: u32, c: i32, d: f32) {
     let mut buf = [0f32; 3 * 6];
     let buf = &mut buf[..out.len()];
     for (b, f) in buf.iter_mut().zip(out) {
         *b = f.get();
     }
-    let c = c as i32;
     x87::circle_points(r, buf, count, c, d);
     for (f, &b) in out.iter().zip(buf.iter()) {
         f.set(b);
@@ -257,20 +234,20 @@ fn windscreen_drops_with(
         let shapes = Shapes::windscreen_drops(drops);
         if shapes.first(resume)? {
             for (to, by) in scaled(drops).iter() {
-                let v: u32 = to.bits();
+                let v = to.get();
                 let v = if plain {
                     let by: Vec<f32> = by.iter().map(|b| b.get()).collect();
-                    rc2k_core::effects::shapes::scaled(f32::from_bits(v), &by).to_bits()
+                    rc2k_core::effects::shapes::scaled(v, &by)
                 } else {
                     match by.as_slice() {
-                        [b] => x87::mul(v, b).to_bits(),
-                        [b, c] => x87::mul2(v, b, c).to_bits(),
+                        [b] => x87::mul(v, *b),
+                        [b, c] => x87::mul2(v, *b, *c),
                         _ => unreachable!(),
                     }
                 };
-                to.set_bits(v);
+                to.set(v);
             }
-            shapes.done.set_bits(resume);
+            shapes.done.set(resume);
         }
         if plain {
             shapes.make_plain()?;
@@ -290,7 +267,7 @@ fn windscreen_drops_with(
                 at += 6;
             }
         }
-        let value: u32 = effects.setup.floats.two_fifty_six.bits();
+        let value = effects.setup.floats.two_fifty_six.get().to_bits();
         for n in 0..FANS as usize {
             for part in 0..6 {
                 let p = 0xC0 * n + 0x20 * part;

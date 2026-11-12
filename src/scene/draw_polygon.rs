@@ -255,9 +255,9 @@ fn place(
     window: &crate::scene::view_window::ViewWindow,
 ) {
     let buffer = part.vertices;
-    let (x_offset, y_offset): (u32, u32) = (
-        window.view_offset_float[0].bits(),
-        window.view_offset_float[1].bits(),
+    let (x_offset, y_offset) = (
+        window.view_offset_float[0].get(),
+        window.view_offset_float[1].get(),
     );
     let depth_factor = window.one_over_farthest.get();
     let sse = scene.draw_switches.use_sse.get() != 0;
@@ -278,14 +278,13 @@ fn place(
             y_offset,
         ));
         out.z.set(depth);
-        out.rhw.set_bits(if sse {
+        out.rhw.set(if sse {
             x87::rcpss_times(
                 crate::scene::point_records::vertex(part, quad, vertex, 0x18),
-                race.course.numbers.k65536.bits(),
+                race.course.numbers.k65536.get(),
             )
         } else {
             x87::reciprocal_times(depth, race.frame.panel_and_overlay.overlay.w_factor.get())
-                .to_bits()
         });
         if mirrored && entries.len() > 2 {
             x = x87::mirrored(x, mirror_at, x_offset);
@@ -457,8 +456,8 @@ pub fn draw_polygon(
             out.colour
                 .set(faded(from, 0x10, by) & 0xFF_FFFF | alpha << 24);
             out.specular.set(0xFF00_0000);
-            out.u.set_bits(uv[0]);
-            out.v.set_bits(uv[1]);
+            out.u.set(f32::from_bits(uv[0]));
+            out.v.set(f32::from_bits(uv[1]));
         }
         poly.texture_page.set(FADE_TEXTURE);
         face.polygon_mode.set(7u32);

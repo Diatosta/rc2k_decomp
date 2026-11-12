@@ -19,7 +19,7 @@ use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87::ext_to_int;
-use crate::math::x87_float::st;
+use crate::math::x87_float::stf;
 use crate::math::x87_float::to_int;
 use crate::physics::car_sound_state::car_sound_state;
 use crate::physics::car_store::Car;
@@ -50,7 +50,7 @@ fn run_at(car: &Car, numbers: &Numbers) {
     } else {
         speed
     };
-    car.engine_sound_speed_int.set_bits(to_int(scaled) as u32);
+    car.engine_sound_speed_int.set(to_int(scaled) as u32);
     let (z, x, y) = (
         car.velocity[2].ld(),
         car.velocity[0].ld(),
@@ -58,7 +58,7 @@ fn run_at(car: &Car, numbers: &Numbers) {
     );
     let sum = z * z + (x * x + y * y);
     car.sound_speed
-        .set_bits(st(sum.sqrt() * numbers.two_and_a_quarter.ld()));
+        .set(stf(sum.sqrt() * numbers.two_and_a_quarter.ld()));
 }
 
 // Converted: `rc2k_core::physics::engine::ease_revs` and `x87::hold_low` (the speed figures

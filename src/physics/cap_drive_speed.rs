@@ -8,66 +8,35 @@
 use crate::math::x87;
 use crate::math::x87::over_abs_plus_minus;
 use crate::physics::car_store::Car;
+use crate::physics::flow::FloatView;
 use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::physics::tables_store::PhysicsTables;
-use crate::session::Cell32;
 use std::cmp::Ordering;
 
 /// C0 of comparing `a` with `b`: below, or unordered.
-fn below(a: u32, b: u32) -> bool {
-    !matches!(
-        f32::from_bits(a).partial_cmp(&f32::from_bits(b)),
-        Some(Ordering::Greater | Ordering::Equal)
-    )
+fn below(a: f32, b: f32) -> bool {
+    !matches!(a.partial_cmp(&b), Some(Ordering::Greater | Ordering::Equal))
 }
 
-fn at(a: &dyn Cell32) -> u32 {
-    a.bits()
-}
-
-fn put(a: &dyn Cell32, v: u32) {
-    a.set_bits(v);
-}
-
-/// The places: the allowance, the speed, the scratch, the drive speed.
-pub type CapPlaces<'a> = [&'a dyn Cell32; 4];
-
-/// The core.
-pub fn cap_drive_speed_at(tables: &PhysicsTables, v: CapPlaces<'_>) {
-    let zero = ZERO;
-    put(
-        v[0],
-        over_abs_plus_minus(
-            &tables.drive_speed_cap,
-            at(v[1]),
-            &tables.drive_speed_cap_a,
-            &tables.drive_speed_cap_b,
-        )
-        .to_bits(),
-    );
-    if below(at(v[0]), zero) {
-        put(v[0], x87::loaded(zero).to_bits());
-    }
-    put(v[2], x87::add(at(v[0]), at(v[1])).to_bits());
-    if !below(at(v[3]), at(v[2])) {
-        put(v[3], x87::loaded(at(v[2])).to_bits());
-    }
-}
-
-fn game<'a>(
-    car: &'a Car,
-    tables: &'a PhysicsTables,
-    scene: &'a crate::scene::owner::Scene,
-) -> CapPlaces<'a> {
-    [
-        &tables.drive_speed_figure,
-        &car.local_velocity[2],
-        &scene.drawing.scene.scratch,
-        &car.drive_speed_a,
-    ]
-}
-
-/// The exact version, for `physics::drive_wheels_step`.
+/// The cap of this step: the allowance over the forward speed, the speed plus it (in the
+/// scratch cell), and the first drive speed held to that.
 pub fn cap_drive_speed(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner::Scene) {
-    cap_drive_speed_at(tables, game(car, tables, scene));
+    let allowance = &tables.drive_speed_figure;
+    let speed = &car.local_velocity[2];
+    let scratch = &scene.drawing.scene.scratch;
+    let drive_speed = &car.drive_speed_a;
+    let zero = f32::from_bits(ZERO);
+    allowance.set(over_abs_plus_minus(
+        &tables.drive_speed_cap,
+        speed.get(),
+        &tables.drive_speed_cap_a,
+        &tables.drive_speed_cap_b,
+    ));
+    if below(allowance.get(), zero) {
+        allowance.set(x87::loaded(zero));
+    }
+    scratch.set_float(x87::add(allowance.get(), speed.get()));
+    if !below(drive_speed.get(), scratch.float()) {
+        drive_speed.set(x87::loaded(scratch.float()));
+    }
 }

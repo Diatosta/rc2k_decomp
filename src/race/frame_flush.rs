@@ -116,11 +116,11 @@ pub fn flush_batch(
 }
 
 /// `fild i; fadd/fsub one; fstp`.
-fn int_and_one(course: &Course, i: u32, add: bool) -> u32 {
-    use crate::math::x87_float::{int, st};
+fn int_and_one(course: &Course, i: u32, add: bool) -> f32 {
+    use crate::math::x87_float::{int, stf};
     let one = course.numbers.one.ld();
     let i = int(i as i32);
-    st(if add { i + one } else { i - one })
+    stf(if add { i + one } else { i - one })
 }
 
 /// `fild i; fdiv a; fdiv b; fstp`.
@@ -128,9 +128,9 @@ fn int_over_two(
     i: u32,
     a: impl crate::math::x87_float::Loadable,
     b: impl crate::math::x87_float::Loadable,
-) -> u32 {
-    use crate::math::x87_float::{int, ld, st};
-    st(int(i as i32) / ld(a) / ld(b))
+) -> f32 {
+    use crate::math::x87_float::{int, ld, stf};
+    stf(int(i as i32) / ld(a) / ld(b))
 }
 
 /// `race::draw_view_backdrop` (0x4651E6): a quad over the view window (`view_offset` .., one pixel
@@ -157,23 +157,23 @@ pub fn draw_view_backdrop(
     view.quad.corners[5].set(top.wrapping_add(view.polygon.window.view_size[1].get()));
     let v = &buffer.vertices;
     let x0 = int_and_one(course, view.quad.corners[0].get(), false);
-    v[0].x.set_bits(x0);
-    v[3].x.set_bits(x0);
+    v[0].x.set(x0);
+    v[3].x.set(x0);
     let x1 = int_and_one(course, view.quad.corners[1].get(), true);
-    v[1].x.set_bits(x1);
-    v[2].x.set_bits(x1);
+    v[1].x.set(x1);
+    v[2].x.set(x1);
     let y0 = int_and_one(course, view.quad.corners[4].get(), false);
-    v[0].y.set_bits(y0);
-    v[1].y.set_bits(y0);
+    v[0].y.set(y0);
+    v[1].y.set(y0);
     let y1 = int_and_one(course, view.quad.corners[5].get(), true);
-    v[2].y.set_bits(y1);
-    v[3].y.set_bits(y1);
+    v[2].y.set(y1);
+    v[3].y.set(y1);
     let (a, b) = (course.numbers.k256.get(), course.numbers.k65536.get());
     for vertex in &v[..4] {
-        vertex.u.set_bits(int_over_two(view.quad.uv[0].get(), a, b));
+        vertex.u.set(int_over_two(view.quad.uv[0].get(), a, b));
     }
     for vertex in &v[..4] {
-        vertex.v.set_bits(int_over_two(view.quad.uv[4].get(), a, b));
+        vertex.v.set(int_over_two(view.quad.uv[4].get(), a, b));
     }
     for vertex in &v[..4] {
         vertex.colour.set(0xFF00_0000);
@@ -183,8 +183,8 @@ pub fn draw_view_backdrop(
     // against the view's); 0 here, so that the backdrop does not hang on what was drawn
     // before it (frame plan F7: the mirror drawn on a thread of its own).
     for vertex in &v[..4] {
-        vertex.z.set_bits(0);
-        vertex.rhw.set_bits(0);
+        vertex.z.set(0.0);
+        vertex.rhw.set(0.0);
         vertex.specular.set(0);
     }
     // The count in the view's own polygon work (the original's is the one shared; the
@@ -208,11 +208,11 @@ mod reference_vectors {
     use crate::test_support::vectors::{Recorder, word};
 
     /// `numbers.one` as it was, put back when dropped.
-    struct KeptOne(u32);
+    struct KeptOne(f32);
 
     impl Drop for KeptOne {
         fn drop(&mut self) {
-            race().course.numbers.one.set_bits(self.0);
+            race().course.numbers.one.set(self.0);
         }
     }
 
@@ -222,30 +222,30 @@ mod reference_vectors {
     fn int_blocks_match() {
         let course = &race().course;
         let _l = lock();
-        let _kept = KeptOne(race().course.numbers.one.bits());
+        let _kept = KeptOne(race().course.numbers.one.get());
         let mut r = Rng(5);
         let mut file = Recorder::replay("race.frame_flush.int_blocks");
         at_each_control_word(|| {
             for _ in 0..20000 {
-                race().course.numbers.one.set_bits(r.float());
+                race().course.numbers.one.set(f32::from_bits(r.float()));
                 let (i, a, b) = (r.int() as u32, r.float(), r.float());
                 for add in [false, true] {
                     file.input(
                         &[
                             i.to_le_bytes(),
-                            race().course.numbers.one.bits().to_le_bytes(),
+                            race().course.numbers.one.get().to_le_bytes(),
                         ]
                         .concat(),
                     );
                     let want = word(&mut file);
-                    let got = int_and_one(course, i, add);
+                    let got = int_and_one(course, i, add).to_bits();
                     assert!(same(want, got), "{i} {add}: {want:#x} {got:#x}");
                 }
                 for w in [i, a, b] {
                     file.input(&w.to_le_bytes());
                 }
                 let want = word(&mut file);
-                let got = int_over_two(i, a, b);
+                let got = int_over_two(i, a, b).to_bits();
                 assert!(same(want, got), "{i} {a:#x} {b:#x}: {want:#x} {got:#x}");
             }
         });

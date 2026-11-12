@@ -49,7 +49,7 @@ pub fn car_collisions(
             physics.other_car_block.set(work.car_handle(car as usize));
             // A `g_carBlocks` entry of the eight, not null (both checked above).
             let block = c.contact.shared.race_car_or_end(car as usize);
-            if block.driver_kind.bits() == 0 {
+            if block.driver_kind.get() == 0 {
                 continue;
             }
             let place = [0usize, 1, 2].map(|k| {
@@ -59,7 +59,7 @@ pub fn car_collisions(
             });
             set_place(&c.matrices.placed_matrix, place);
             // `scene::set_place` left the z in `g_scratch`.
-            scene.drawing.scene.scratch.set_bits(place[2]);
+            scene.drawing.scene.scratch.set(place[2]);
             multiply_matrices(
                 &car_now.crash_matrix,
                 &c.matrices.placed_matrix,

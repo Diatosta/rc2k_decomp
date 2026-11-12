@@ -11,33 +11,14 @@ use crate::physics::car_store::Car;
 use crate::physics::flow::{FloatView, ZERO_BITS as ZERO};
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
-use crate::session::Cell32;
-
-/// On the variables' cells `v`.
-pub fn drag_at(tables: &PhysicsTables, numbers: &Numbers, v: &[&dyn Cell32]) {
-    let get = |k: usize| v[k].float();
-    let put = |k: usize, x: f32| v[k].set_float(x);
+/// The drag of this step against each of the car's three motions.
+pub fn air_drag(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
     let (k, d, zero) = (&tables.air_drag, &numbers.k10000, ZERO);
     for i in 0..3 {
-        put(3 + i, square_times_over(get(i), k, d));
-        let a = abs_of(get(3 + i));
-        let below = compare_full(get(i), zero) & 0x100 != 0;
-        put(3 + i, if below { a } else { x87::negated(a) });
+        let (motion, force) = (&car.local_velocity[i], &tables.forces[5].force[i]);
+        force.set_float(square_times_over(motion.get(), k, d));
+        let a = abs_of(force.float());
+        let below = compare_full(motion.get(), zero) & 0x100 != 0;
+        force.set_float(if below { a } else { x87::negated(a) });
     }
-}
-
-fn game<'a>(car: &'a Car, tables: &'a PhysicsTables) -> Vec<&'a dyn Cell32> {
-    vec![
-        &car.local_velocity[0] as &dyn Cell32,
-        &car.local_velocity[1],
-        &car.local_velocity[2],
-        &tables.forces[5].force[0],
-        &tables.forces[5].force[1],
-        &tables.forces[5].force[2],
-    ]
-}
-
-/// The exact version, for `physics::car_physics_step`.
-pub fn air_drag(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
-    drag_at(tables, numbers, &game(car, tables));
 }

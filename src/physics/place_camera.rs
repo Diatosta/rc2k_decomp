@@ -18,7 +18,6 @@ use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
 use crate::race::view_vars_store::ViewVars;
 use crate::scene::engine_tables_store::EngineTables;
-use crate::session::Cell32;
 use rc2k_core::physics::camera_place::{SECOND_RECORD_MODE, add_offset};
 
 /// The turns: `math::rotate_point_about_y_ebx`, `_ecx` and `rotate_point_about_y`, exact or plain.
@@ -158,10 +157,10 @@ pub fn place_camera(
             &camera.view_turn_y,
             &camera.view_turn_z,
         ];
-        let parts = turns.map(|turn| view_turn_part(turn, numbers));
+        let parts = turns.map(|turn| view_turn_part(turn.get() as i32, numbers));
         let turned =
             { crate::scene::rotate_point::rotate_point(&shared.car().crash_matrix, parts) };
-        let k = numbers.k65536.bits();
+        let k = numbers.k65536.get();
         turned.map(|e| crate::math::x87::ext_to_int(crate::math::x87::ext_times(e, k)))
     };
     place_with(
@@ -185,8 +184,8 @@ pub fn place_camera(
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `ext [o + 0] = int [v + 0] / [k65536]`; the value is `o`'s ten bytes.
-fn view_turn_part(v: &impl Cell32, numbers: &Numbers) -> [u8; 10] {
-    let t0 = int(v.bits() as i32);
+fn view_turn_part(v: i32, numbers: &Numbers) -> [u8; 10] {
+    let t0 = int(v);
     let t1 = ld(numbers.k65536.get());
     let t2 = t0 / t1;
     f80(t2)
@@ -195,7 +194,7 @@ fn view_turn_part(v: &impl Cell32, numbers: &Numbers) -> [u8; 10] {
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::scene::x87_mem::{Base, HostCell};
+    use crate::scene::x87_mem::{Base, view};
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
@@ -219,7 +218,10 @@ mod reference_vectors {
             plain: |a| {
                 a[2].set_tbyte(
                     0,
-                    view_turn_part(&HostCell(a[0]), &crate::race::owner::race().course.numbers),
+                    view_turn_part(
+                        view::<crate::session::Dword>(a[0], 0).get() as i32,
+                        &crate::race::owner::race().course.numbers,
+                    ),
                 );
             },
         }]

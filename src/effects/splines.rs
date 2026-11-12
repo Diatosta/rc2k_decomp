@@ -282,7 +282,7 @@ pub fn gather_spline_points(
             return Err(BadInput("an object's faces past g_faces").into());
         }
         s.put(paths, COUNT, 0)?;
-        paths.spline_head.found.set_bits(0u32);
+        paths.spline_head.found.set(0);
         for f in first..first + faces {
             let face: u32 = crate::scene::objects::face_cell(faces_table, f as usize).get();
             if (crate::scene::object_faces::byte(face + 7)? & 0x1F) as u32 == kind {
@@ -559,7 +559,9 @@ fn spline_checks(
         return Err(BadInput("an object's faces past g_faces").into());
     }
     for n in 0..12 {
-        crate::scene::matrix3::turnable(&negated(paths.spline_constants.angles[n].bits()))?;
+        crate::scene::matrix3::turnable(&negated(
+            paths.spline_constants.angles[n].get().to_bits(),
+        ))?;
     }
     Ok(())
 }
@@ -581,8 +583,8 @@ pub fn make_spline(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     {
-        paths.spline_work.object.set_bits(object);
-        let place = paths.spline_work.place.bits() as i32;
+        paths.spline_work.object.set(object);
+        let place = paths.spline_work.place.get() as i32;
         if place >= 8 {
             return Ok(());
         }
@@ -591,7 +593,7 @@ pub fn make_spline(
         }
         spline_checks(paths, object, scene)?;
         let offset = place as u32 * SPLINE_LEN;
-        paths.spline_work.offset.set_bits(offset);
+        paths.spline_work.offset.set(offset);
         for t in 0..4 {
             let record = Spline::record(t, place as u32);
             gather_spline_points(
@@ -600,7 +602,7 @@ pub fn make_spline(
                 paths,
                 record,
                 object,
-                paths.spline_kinds.chosen[1 + t].bits(),
+                paths.spline_kinds.chosen[1 + t].get(),
                 scene,
             )?;
             bound_spline_points(paths, work, record)?;
@@ -634,7 +636,7 @@ pub fn make_spline(
                 }
             }
         }
-        paths.spline_work.place.set_bits(place as u32 + 1);
+        paths.spline_work.place.set(place as u32 + 1);
     }
     Ok(())
 }
@@ -683,17 +685,17 @@ pub fn load_splines(
             &crate::files::cstring(&paths.spline_path.path, "a spline file's path")?,
             &paths.spline_head.file,
         )?;
-        paths.spline_kinds.loaded.set_bits(resume);
+        paths.spline_kinds.loaded.set(resume);
     }
     for n in 0..5 {
-        let v = paths.spline_kinds.by_kind[(n * KINDS + kind) as usize].bits();
+        let v = paths.spline_kinds.by_kind[(n * KINDS + kind) as usize].get();
         paths.spline_kinds.chosen[n as usize].set(v);
     }
-    paths.spline_work.place.set_bits(0u32);
+    paths.spline_work.place.set(0);
     for o in objects {
         make_spline(course, faces_table, paths, &effects.setup.work, o, scene)?;
     }
-    paths.spline_head.made.set_bits(0u32);
+    paths.spline_head.made.set(0);
     Ok(())
 }
 
@@ -1689,8 +1691,9 @@ impl SplineHead {
         match i {
             0..66 => self.looks[i].get(),
             66 => self.found.get(),
-            67 => self.angle.bits(),
-            68 => self.wave.bits(),
+            // Floats read as dwords, past the table.
+            67 => self.angle.get().to_bits(),
+            68 => self.wave.get().to_bits(),
             _ => panic!("the looks table is read at most up to `wave`"),
         }
     }

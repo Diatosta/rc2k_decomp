@@ -148,8 +148,11 @@ pub fn draw_viewer_panel(
     let (first, second) = switch_lights(camera_5);
     let white = 0x00FF_FFFF;
     let quad = |colour: u32| {
-        crate::drive::tyre_quad::tyre_quad_cells(
-            &race.viewer_panel().texture_rect,
+        crate::drive::tyre_quad::tyre_quad(
+            race.viewer_panel()
+                .texture_rect
+                .each_ref()
+                .map(crate::session::Dword::get),
             &race.viewer_panel().screen_rect,
             colour,
             race.viewer_panel(),

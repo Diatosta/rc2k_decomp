@@ -38,9 +38,9 @@ use crate::race::course_store::CourseWork;
 use crate::race::groups_store::ViewAndRecords;
 use crate::race::numbers_store::Numbers;
 use crate::race::view_vars_store::ViewVars;
-use crate::scene::matrix3::rounded;
+use crate::scene::matrix3::rounded_value;
 
-use crate::session::Cell32;
+use crate::session::{Dword, Float};
 use rc2k_core::physics::camera_view;
 
 /// The fixed camera (the second chunk, 0x4380E9 ..): `second` the second tables.
@@ -106,13 +106,12 @@ fn fixed_camera(
     let w = [dx, dy, dz];
     x87_2(c.numbers, c.view_records, w);
     scene.drawing.scene.scratch.set(dz);
-    c.view_records.view_vars.camera_distance.set_bits(rounded({
+    c.view_records.view_vars.camera_distance.set(rounded_value({
         crate::physics::vector_length::vector_length(&c.view_records.view_vars.camera_vector)
     }));
     c.car.camera_zoom.set(c.camera.camera_zoom_kept.get());
     if record(c.view_records, c.car)?.fixed_zoom.get() != 0 {
-        c.car.camera_zoom.set_bits(0x180);
-        x87_3(c.car, c.numbers, c.view_records);
+        x87_3(c.car, c.numbers, c.view_records, 0x180);
         hold_low(&c.car.camera_zoom, &c.numbers.k384);
     }
     c.car.camera_roll_turn.set(0);
@@ -208,7 +207,7 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
     x87_6(c.camera, c.car);
     // The offsets and turns: (to, from b, from a) each a + (b - a) x share, x 65536.
     let (work, offset_turns) = (&c.camera, &c.car.camera_offset_turns);
-    let rows: [(&dyn Cell32, &dyn Cell32, &dyn Cell32); 9] = [
+    let rows: [(&Dword, &Float, &Float); 9] = [
         (
             &work.camera_offset_x,
             &work.view_b_offset[0],
@@ -304,7 +303,7 @@ fn x87_1(car: &Car, numbers: &Numbers, v: [u32; 3]) {
     let t6 = t4 * t5;
     let t7 = numbers.one_over_two_pi.ld();
     let t8 = t6 * t7;
-    car.camera_heading.set_bits(to_int(t8) as u32);
+    car.camera_heading.set(to_int(t8) as u32);
     let t9 = int(v[2] as i32);
     let t10 = int(v[0] as i32);
     let t11 = t10 * t10;
@@ -319,7 +318,7 @@ fn x87_1(car: &Car, numbers: &Numbers, v: [u32; 3]) {
     let t20 = t18 * t19;
     let t21 = numbers.one_over_two_pi.ld();
     let t22 = t20 * t21;
-    car.camera_pitch.set_bits(to_int(t22) as u32);
+    car.camera_pitch.set(to_int(t22) as u32);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -345,8 +344,8 @@ fn x87_2(numbers: &Numbers, view_records: &ViewAndRecords, v: [u32; 3]) {
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[camera_zoom] = (int [camera_zoom] * [camera_distance]) / [five]`
-fn x87_3(car: &Car, numbers: &Numbers, view_records: &ViewAndRecords) {
-    let t0 = int(car.camera_zoom.bits() as i32);
+fn x87_3(car: &Car, numbers: &Numbers, view_records: &ViewAndRecords, zoom: i32) {
+    let t0 = int(zoom);
     let t1 = view_records.view_vars.camera_distance.ld();
     let t2 = t0 * t1;
     let t3 = numbers.five.ld();
@@ -405,10 +404,10 @@ fn x87_4(tables: &PhysicsTables, numbers: &Numbers, view_records: &ViewAndRecord
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[camera_switch_share] = (int [step_clock] - int [camera_switch_clock]) / int [camera_switch_length]`
 fn x87_5(car: &Car) {
-    let t0 = int(car.step_clock.bits() as i32);
-    let t1 = int(car.camera_switch_clock.bits() as i32);
+    let t0 = int(car.step_clock.get() as i32);
+    let t1 = int(car.camera_switch_clock.get() as i32);
     let t2 = t0 - t1;
-    let t3 = int(car.camera_switch_length.bits() as i32);
+    let t3 = int(car.camera_switch_length.get() as i32);
     let t4 = t2 / t3;
     car.camera_switch_share.st(t4);
 }
@@ -419,36 +418,36 @@ fn x87_5(car: &Car) {
 /// `int [start_heading] = ((int [view_b_heading] - int [view_a_heading]) * [camera_switch_share]) + int [view_a_heading]`
 /// `int [start_roll] = ((int [view_b_roll] - int [view_a_roll]) * [camera_switch_share]) + int [view_a_roll]`
 fn x87_6(camera: &CameraWork, car: &Car) {
-    let t0 = int(camera.view_b_pitch.bits() as i32);
-    let t1 = int(camera.view_a_pitch.bits() as i32);
+    let t0 = int(camera.view_b_pitch.get() as i32);
+    let t1 = int(camera.view_a_pitch.get() as i32);
     let t2 = t0 - t1;
     let t3 = car.camera_switch_share.ld();
     let t4 = t2 * t3;
-    let t5 = int(camera.view_a_pitch.bits() as i32);
+    let t5 = int(camera.view_a_pitch.get() as i32);
     let t6 = t4 + t5;
-    camera.start_pitch.set_bits(to_int(t6) as u32);
-    let t7 = int(camera.view_b_heading.bits() as i32);
-    let t8 = int(camera.view_a_heading.bits() as i32);
+    camera.start_pitch.set(to_int(t6) as u32);
+    let t7 = int(camera.view_b_heading.get() as i32);
+    let t8 = int(camera.view_a_heading.get() as i32);
     let t9 = t7 - t8;
     let t10 = car.camera_switch_share.ld();
     let t11 = t9 * t10;
-    let t12 = int(camera.view_a_heading.bits() as i32);
+    let t12 = int(camera.view_a_heading.get() as i32);
     let t13 = t11 + t12;
-    camera.start_heading.set_bits(to_int(t13) as u32);
-    let t14 = int(camera.view_b_roll.bits() as i32);
-    let t15 = int(camera.view_a_roll.bits() as i32);
+    camera.start_heading.set(to_int(t13) as u32);
+    let t14 = int(camera.view_b_roll.get() as i32);
+    let t15 = int(camera.view_a_roll.get() as i32);
     let t16 = t14 - t15;
     let t17 = car.camera_switch_share.ld();
     let t18 = t16 * t17;
-    let t19 = int(camera.view_a_roll.bits() as i32);
+    let t19 = int(camera.view_a_roll.get() as i32);
     let t20 = t18 + t19;
-    camera.start_roll.set_bits(to_int(t20) as u32);
+    camera.start_roll.set(to_int(t20) as u32);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [t + 0] = ((([x + 0] - [y + 0]) * [camera_switch_share]) + [y + 0]) * [k65536]`
-fn x87_7(car: &Car, numbers: &Numbers, x: &dyn Cell32, y: &dyn Cell32, t: &dyn Cell32) {
+fn x87_7(car: &Car, numbers: &Numbers, x: &Float, y: &Float, t: &Dword) {
     let t0 = x.ld();
     let t1 = y.ld();
     let t2 = t0 - t1;
@@ -458,14 +457,14 @@ fn x87_7(car: &Car, numbers: &Numbers, x: &dyn Cell32, y: &dyn Cell32, t: &dyn C
     let t6 = t4 + t5;
     let t7 = numbers.k65536.ld();
     let t8 = t6 * t7;
-    t.set_bits(to_int(t8) as u32);
+    t.set(to_int(t8) as u32);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[camera_zoom] = int [view_blend_aux_2]`
 fn x87_8(camera: &CameraWork, car: &Car) {
-    let t0 = int(camera.view_blend_aux_2.bits() as i32);
+    let t0 = int(camera.view_blend_aux_2.get() as i32);
     car.camera_zoom.st(t0);
 }
 
@@ -473,16 +472,16 @@ fn x87_8(camera: &CameraWork, car: &Car) {
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// (a long formula: checked by the tests' `reference_vectors`)
 fn x87_9(camera: &CameraWork, course_work: &CourseWork) {
-    let t0 = int(camera.camera_offset_x.bits() as i32);
+    let t0 = int(camera.camera_offset_x.get() as i32);
     let t1 = t0 * t0;
-    let t2 = int(camera.camera_offset_y.bits() as i32);
+    let t2 = int(camera.camera_offset_y.get() as i32);
     let t3 = t2 * t2;
-    let t4 = int(camera.camera_offset_z.bits() as i32);
+    let t4 = int(camera.camera_offset_z.get() as i32);
     let t5 = t4 * t4;
     let t6 = t3 + t5;
     let t7 = t1 + t6;
     let t8 = t7.sqrt();
-    course_work.flat_depth.set_bits(to_int(t8) as u32);
+    course_work.flat_depth.set(to_int(t8) as u32);
 }
 
 #[cfg(test)]
@@ -538,10 +537,13 @@ mod reference_vectors {
                 }],
                 ulps: 0,
                 plain: |_| {
+                    let car = crate::race::owner::race().shared.car();
+                    // The block reads the zoom as a whole number (the 384 the step puts there).
                     x87_3(
-                        crate::race::owner::race().shared.car(),
+                        car,
                         &crate::race::owner::race().course.numbers,
                         &crate::race::owner::race().frame.view_and_records,
+                        car.camera_zoom.get().to_bits() as i32,
                     );
                 },
             },
@@ -639,13 +641,12 @@ mod reference_vectors {
                 ],
                 ulps: 0,
                 plain: |a| {
-                    use crate::scene::x87_mem::HostCell;
                     x87_7(
                         race().shared.car(),
                         &race().course.numbers,
-                        &HostCell(a[0]),
-                        &HostCell(a[1]),
-                        &HostCell(a[3]),
+                        view(a[0], 0),
+                        view(a[1], 0),
+                        view(a[3], 0),
                     );
                 },
             },

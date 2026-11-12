@@ -66,7 +66,7 @@ pub fn stage_sounds(
     }
     if slot {
         for (cell, place) in request.place.iter().zip(&stage.timed_place) {
-            cell.set(place.bits());
+            cell.set(place.get());
         }
         crate::sound::play_timed_slot::play_timed_slot(&stage.timed_slot, request, sound, audio)?;
     }

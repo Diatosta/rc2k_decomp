@@ -132,10 +132,10 @@ pub fn draw_flat_triangle(part: &crate::workers::PartScratch, scene: &crate::sce
     for vertex in &buffer.vertices[..3] {
         vertex.x.set(1.0f32);
         vertex.y.set(1.0f32);
-        vertex.z.set_bits(0);
-        vertex.u.set_bits(0);
-        vertex.v.set_bits(0);
-        vertex.rhw.set_bits(0);
+        vertex.z.set(0.0);
+        vertex.u.set(0.0);
+        vertex.v.set(0.0);
+        vertex.rhw.set(0.0);
         vertex.specular.set(0);
     }
     crate::scene::polygon_work::front_end()
@@ -540,9 +540,9 @@ fn int_over_times(
     i: u32,
     a: impl crate::math::x87_float::Loadable,
     b: impl crate::math::x87_float::Loadable,
-) -> u32 {
-    use crate::math::x87_float::{int, ld, st};
-    st(int(i as i32) / ld(a) * ld(b))
+) -> f32 {
+    use crate::math::x87_float::{int, ld, stf};
+    stf(int(i as i32) / ld(a) * ld(b))
 }
 
 /// `race::run_view_marks` (0x456336): with the marks on (`view_marks_on`): which views' marks
@@ -605,16 +605,16 @@ pub fn run_view_marks(
     }
     race.shared.car_record(view as usize)?.streaks_on.set(1);
     let centre = (
-        ctx.view.polygon.window.view_centre[0].bits(),
-        ctx.view.polygon.window.view_centre[1].bits(),
+        ctx.view.polygon.window.view_centre[0].get(),
+        ctx.view.polygon.window.view_centre[1].get(),
     );
     let n = race.frame.frame_work.view_layouts[layout_at as usize].get() as usize;
-    ctx.view.polygon.window.view_centre[0].set_bits(int_over_times(
+    ctx.view.polygon.window.view_centre[0].set(int_over_times(
         session.screen.width.get(),
         race.course.numbers.k800.get(),
         race.frame.frame_work.view_scale_x[n].get(),
     ));
-    ctx.view.polygon.window.view_centre[1].set_bits(int_over_times(
+    ctx.view.polygon.window.view_centre[1].set(int_over_times(
         session.screen.height.get(),
         race.course.numbers.k600.get(),
         race.frame.frame_work.view_scale_y[n].get(),
@@ -635,8 +635,8 @@ pub fn run_view_marks(
             Ok(())
         }
     });
-    ctx.view.polygon.window.view_centre[1].set_bits(centre.1);
-    ctx.view.polygon.window.view_centre[0].set_bits(centre.0);
+    ctx.view.polygon.window.view_centre[1].set(centre.1);
+    ctx.view.polygon.window.view_centre[0].set(centre.0);
     done
 }
 
@@ -670,7 +670,7 @@ mod reference_vectors {
                     file.input(&w.to_le_bytes());
                 }
                 let want = word(&mut file);
-                let got = int_over_times(i, a, b);
+                let got = int_over_times(i, a, b).to_bits();
                 assert!(same(want, got), "{i} {a:#x} {b:#x}: {want:#x} {got:#x}");
             }
         });

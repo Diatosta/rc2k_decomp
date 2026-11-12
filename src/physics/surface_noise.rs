@@ -8,7 +8,6 @@
 //! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::math::x87::{ext_div2, int_80};
-use crate::physics::flow::FloatView;
 use crate::race::frame_draw::sample_noise;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
@@ -53,10 +52,10 @@ pub fn surface_noise(
         shared.car().surface_noise_second.set(second);
         let floor = rough_floor(second, stage_prefs.surface_floor.get());
         scene.drawing.scene.scratch.set(floor);
-        shared.car().surface_blend.set_float(ext_div2(
+        shared.car().surface_blend.set(ext_div2(
             int_80(floor as i32, false),
             &numbers.k256,
-            0x3F80_0000,
+            1.0f32,
         ));
         if stage_prefs.noise_pick.get() != 0 {
             shared.car().surface_noise_a.set(0);

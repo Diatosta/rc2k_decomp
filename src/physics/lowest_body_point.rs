@@ -11,55 +11,33 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::physics::car_store::Car;
 use crate::physics::contact_store::ContactWork;
-use crate::physics::flow::FloatView;
 use crate::race::numbers_store::Numbers;
-use crate::session::Cell32;
 
-/// On the variables' cells `v`.
-pub fn lowest_at(numbers: &Numbers, v: &[&dyn Cell32]) -> Result<(), Refused> {
-    let get = |k: usize| v[k].bits();
-    let put = |k: usize, x: u32| v[k].set_bits(x);
-    let n = get(0);
-    if n > 0x40 {
-        return Err(BadInput("more than 0x40 probe points (the depths' room)").into());
-    }
-    if n > 4 {
-        put(1, 0x64_0000);
-        put(2, u32::MAX);
-        for k in 4..n {
-            let depth = get(4 + k as usize);
-            if (depth.wrapping_sub(get(1)) as i32) < 0 {
-                put(1, depth);
-                put(2, k);
-            }
-        }
-    }
-    v[3].set_float(x87::int_over(get(1) as i32, &numbers.k65536));
-    Ok(())
-}
-
-/// The addresses: the count, the lowest, its number, the share, then the 0x40 depths.
-fn game<'a>(car: &'a Car, contact: &'a ContactWork) -> Vec<&'a dyn Cell32> {
-    let mut v = vec![
-        &car.probe_count as &dyn Cell32,
-        &contact.lowest_depth,
-        &contact.lowest_point,
-        &contact.wheel_share,
-    ];
-    v.extend(
-        contact.probe_height[..0x40]
-            .iter()
-            .map(|c| c as &dyn Cell32),
-    );
-    v
-}
-
-/// The exact version, for `physics::feel_ground`, `ground_contact`, `find_clear_place`,
-/// `crash_contact`.
+/// The lowest of the probe points past the first four (its depth and number), and the
+/// wheels' share from its depth.
 pub fn lowest_body_point(
     car: &Car,
     numbers: &Numbers,
     contact: &ContactWork,
 ) -> Result<(), Refused> {
-    lowest_at(numbers, &game(car, contact))
+    let n = car.probe_count.get();
+    if n > 0x40 {
+        return Err(BadInput("more than 0x40 probe points (the depths' room)").into());
+    }
+    let (lowest, number) = (&contact.lowest_depth, &contact.lowest_point);
+    if n > 4 {
+        lowest.set(0x64_0000);
+        number.set(u32::MAX);
+        for k in 4..n {
+            let depth = contact.probe_height[k as usize].get();
+            if (depth.wrapping_sub(lowest.get()) as i32) < 0 {
+                lowest.set(depth);
+                number.set(k);
+            }
+        }
+    }
+    contact
+        .wheel_share
+        .set(x87::int_over(lowest.get() as i32, &numbers.k65536));
+    Ok(())
 }

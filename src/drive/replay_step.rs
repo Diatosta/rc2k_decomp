@@ -65,8 +65,8 @@ pub fn replay_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(),
     crate::drive::keep_replay_frame::keep_replay_frame(race)?;
     crate::drive::play_replay_frame::play_replay_frame(race, o.system)?;
     if race_steps::skids_restart(
-        race.car_blocks().cars[0].step_clock.bits(),
-        race.car_blocks().cars[0].previous_step_clock.bits(),
+        race.car_blocks().cars[0].step_clock.get(),
+        race.car_blocks().cars[0].previous_step_clock.get(),
     ) {
         crate::race::stage_prefs::init_skidmarks(race)?;
     }

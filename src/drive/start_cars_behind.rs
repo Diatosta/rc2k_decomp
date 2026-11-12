@@ -83,7 +83,7 @@ fn put_car(
     slot: &Dword,
     number: &Dword,
     dist: u32,
-    speed: u32,
+    speed: f32,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     number.set(start);
@@ -92,7 +92,7 @@ fn put_car(
     race.shared.work.current_car.set(car);
     slot.set(car);
     crate::drive::load_car::load_car(&race.shared)?;
-    race.shared.tables().start_speed.set_bits(speed);
+    race.shared.tables().start_speed.set(speed);
     crate::drive::start_car_on_line::start_car_on_line(race, dist, scene)?;
     crate::drive::store_car::store_car(&race.shared)?;
     Ok(())
@@ -139,7 +139,7 @@ pub fn start_cars_behind(race: &Race, scene: &crate::scene::owner::Scene) -> Res
                 slot,
                 &lead.pace_starts[0],
                 dist.get(),
-                0,
+                0.0,
                 scene,
             )?;
         }
@@ -182,7 +182,7 @@ pub fn start_cars_behind(race: &Race, scene: &crate::scene::owner::Scene) -> Res
                     &lead.pace_cars[1],
                     &lead.pace_starts[1],
                     race.shared.tables().pace_back_gap.get().wrapping_neg(),
-                    course.numbers.twenty.bits(),
+                    course.numbers.twenty.get(),
                     scene,
                 )?;
                 lead.mode2_behind
@@ -234,7 +234,7 @@ pub fn start_cars_behind(race: &Race, scene: &crate::scene::owner::Scene) -> Res
             &lead.pace_cars[0],
             &lead.pace_starts[0],
             race.shared.tables().pace_back_gap.get(),
-            course.numbers.twenty.bits(),
+            course.numbers.twenty.get(),
             scene,
         )?;
         lead.mode2_behind
@@ -295,7 +295,7 @@ pub fn start_cars_behind(race: &Race, scene: &crate::scene::owner::Scene) -> Res
         }
     }
     for car in &race.car_blocks().cars[..4] {
-        car.pace_push.set_bits(0);
+        car.pace_push.set(0.0);
     }
     let first = car(&race.shared, lead.pace_cars[0].get())?;
     let second = car(&race.shared, lead.pace_cars[1].get())?;
@@ -304,12 +304,11 @@ pub fn start_cars_behind(race: &Race, scene: &crate::scene::owner::Scene) -> Res
     let Some(push) = push_apart(apart) else {
         return Ok(());
     };
-    first.pace_push.set_bits(push);
-    second.pace_push.set_bits(push.wrapping_neg());
+    // The original stores the whole numbers first and turns each into its float in place
+    // (the two cars differ: a gap of 0 pushes nothing).
     let k = race.shared.tables().pace_push_scale.get();
-    for b in [first, second] {
-        b.pace_push
-            .set(x87::int_times(b.pace_push.bits() as i32, k));
+    for (b, push) in [(first, push), (second, push.wrapping_neg())] {
+        b.pace_push.set(x87::int_times(push as i32, k));
     }
     Ok(())
 }

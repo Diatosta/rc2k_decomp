@@ -20,12 +20,8 @@ use crate::race::owner_shared::RaceShared;
 use crate::session::Dword;
 
 /// `fild dword [from]; fmul dword [by]; fistp dword [to]`.
-fn scale(
-    from: &impl crate::session::Cell32,
-    by: &impl crate::session::Cell32,
-    to: &impl crate::session::Cell32,
-) {
-    to.set_bits(to_int(int(from.bits() as i32) * by.ld()) as u32);
+fn scale(from: &Dword, by: &crate::session::Float, to: &Dword) {
+    to.set(to_int(int(from.get() as i32) * by.ld()) as u32);
 }
 
 const LEFT: u32 = 0xE000_0000;

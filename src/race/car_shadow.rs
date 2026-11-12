@@ -150,7 +150,7 @@ pub fn shadow_angles(race: &Race, work: &ShadowWork) -> Result<(), Refused> {
         there.set(a);
     }
     let first = records[0].angle.get();
-    work.first_angle.set_bits(first);
+    work.first_angle.set(f32::from_bits(first));
     let zero = race.course.numbers.zero.get();
     let unit = race.course.numbers.k65536.get();
     for k in 0..count {
@@ -305,12 +305,12 @@ fn crossing_block(
     ea: &PolygonEntry,
     eb: &PolygonEntry,
 ) -> Result<(), BadInput> {
-    use crate::math::x87_float::{int, ld, st, to_int};
+    use crate::math::x87_float::{int, ld, stf, to_int};
     let word = |n: usize| int(work.crossing[n].get() as i32);
     let first = word(11) * word(8) - word(10) * word(9);
     let second = word(13) * word(8) - word(12) * word(9);
-    let share = st(-(first / (second - first)));
-    work.search.plane_f().set_bits(share);
+    let share = stf(-(first / (second - first)));
+    work.search.plane_f().set(share);
     let share = ld(share);
     // a + (b - a) x share
     let whole = |k: u32| -> Result<i32, BadInput> {
@@ -324,9 +324,9 @@ fn crossing_block(
     };
     poly.clip_work[2].set_bits(whole(0)? as u32);
     poly.clip_work[4].set_bits(whole(2)? as u32);
-    let float = |a: &Dword, b: &Dword| st(ld(a.get()) + (ld(b.get()) - ld(a.get())) * share);
-    poly.clip_work[10].set_bits(float(&ea.u2, &eb.u2));
-    poly.clip_work[11].set_bits(float(&ea.v2, &eb.v2));
+    let float = |a: &Dword, b: &Dword| stf(ld(a.get()) + (ld(b.get()) - ld(a.get())) * share);
+    poly.clip_work[10].set(float(&ea.u2, &eb.u2));
+    poly.clip_work[11].set(float(&ea.v2, &eb.v2));
     let byte = |a: &Byte, b: &Byte| {
         let (a, b) = (int(a.get().into()), int(b.get().into()));
         to_int(a + (b - a) * share) as u32
@@ -399,8 +399,8 @@ fn edge_crossing(
     )?;
     ed.point.set(n);
     work.next_point.set(n.wrapping_add(1));
-    ed.u2.set(ctx.view.polygon.clip_work[10].bits());
-    ed.v2.set(ctx.view.polygon.clip_work[11].bits());
+    ed.u2.set(ctx.view.polygon.clip_work[10].get().to_bits());
+    ed.v2.set(ctx.view.polygon.clip_work[11].get().to_bits());
     ed.amount.set(rd(&ctx.view.polygon.crossing_amount) as u8);
     ed.fog.set(rd(&ctx.view.polygon.clip_out_words[0]) as u8);
     Ok(())
@@ -1167,7 +1167,7 @@ mod vector_tests {
                 // The inputs, `plane_f` (kept in the shadow's own search fields) and the
                 // view's work the block writes.
                 let mut got = inputs.to_vec();
-                got.push(work.search.plane_f().bits());
+                got.push(work.search.plane_f().get().to_bits());
                 for k in [2, 4, 10, 11] {
                     got.push(poly.clip_work[k].bits());
                 }
@@ -1212,7 +1212,11 @@ mod vector_tests {
                     zeroed: Dword::new(0),
                     carried_words: [Dword::new(0), Dword::new(0)],
                 };
-                let got = [work.slant_x.bits(), work.slant_z.bits(), angle_of(&point)];
+                let got = [
+                    work.slant_x.get().to_bits(),
+                    work.slant_z.get().to_bits(),
+                    angle_of(&point),
+                ];
                 vectors.check(
                     &got,
                     |a, b| within_ulps(a, b, 1),

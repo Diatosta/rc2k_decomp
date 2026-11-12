@@ -21,8 +21,11 @@ use crate::scene::x87_mem::{Base, cells, fistp, fld, fstp};
 // ---- Rust version ----
 
 /// `fld a; fmul half; fadd half; fmul scale_a; fmul scale_b; fistp`.
-fn coordinate(a: u32, half: u32, scales: [u32; 2]) -> i32 {
-    let (v, mut out) = ([a, half, scales[0], scales[1]], [0u32]);
+fn coordinate(a: u32, half: f32, scales: [f32; 2]) -> i32 {
+    let (v, mut out) = (
+        [a, half.to_bits(), scales[0].to_bits(), scales[1].to_bits()],
+        [0u32],
+    );
     coordinate_at(&v[..], cells(&mut out));
     out[0] as i32
 }
@@ -83,10 +86,10 @@ pub fn reflection_coordinates(
     );
     normalise_vector(race, scene, &m.work_vector)?;
     let looks: [u32; 3] = crate::session::read_first(&m.work_vector);
-    let half: u32 = race.course.numbers.half.bits();
+    let half = race.course.numbers.half.get();
     let scales = [
-        race.course.numbers.k65536.bits(),
-        race.course.numbers.k256.bits(),
+        race.course.numbers.k65536.get(),
+        race.course.numbers.k256.get(),
     ];
     crate::session::write_bits(
         &object.reflection_coordinates,

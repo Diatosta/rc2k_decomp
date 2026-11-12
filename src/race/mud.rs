@@ -97,8 +97,8 @@ pub fn clear_mud_state(shared: &RaceShared) {
     v.mud_frames.set(0);
     v.mud_texture.set(0);
     for k in 0..4 {
-        v.mud_thrown_in[k].set_bits(0);
-        v.mud_splashes_in[k].set_bits(0);
+        v.mud_thrown_in[k].set(0.0);
+        v.mud_splashes_in[k].set(0.0);
         v.mud_thrown_counts[k].set(0);
         v.mud_splash_counts[k].set(0);
     }

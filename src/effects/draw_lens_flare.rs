@@ -42,8 +42,8 @@ pub fn draw_lens_flare(
         return Err(BadInput("a flare corner past g_marksCorners").into());
     }
     let [cx, cy] = [
-        crate::scene::polygon_work::front_end().window.view_centre[0].bits(),
-        crate::scene::polygon_work::front_end().window.view_centre[1].bits(),
+        crate::scene::polygon_work::front_end().window.view_centre[0].get(),
+        crate::scene::polygon_work::front_end().window.view_centre[1].get(),
     ];
     let dx = x87::sub(marks.listener_figures[1].get(), cx);
     let dy = -x87::sub(marks.listener_figures[2].get(), cy);
@@ -51,7 +51,7 @@ pub fn draw_lens_flare(
     effects.frame.draw_frame.flare_way[1].set(dy);
     effects.frame.flare_parts.unit[0].set(x87::loaded(dx));
     effects.frame.flare_parts.unit[1].set(x87::loaded(dy));
-    effects.frame.flare_parts.unit[2].set_bits(0);
+    effects.frame.flare_parts.unit[2].set(0.0);
     crate::scene::vector3::normalise(&effects.frame.flare_parts.unit);
     let length = crate::math::x87::float_hypot(dx, dy);
     effects.frame.draw_frame.flare_length.set(length);

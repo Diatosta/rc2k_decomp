@@ -31,7 +31,7 @@ pub fn drift_offsets(race: &Race, weather: &Weather, effects: &crate::effects::o
             .shared
             .physics_tables
             .scene_clock
-            .bits()
+            .get()
             .wrapping_sub(r.drift_since.get());
         if since >= r.drift_wait.get() {
             let s = next_seed(effects);
@@ -41,7 +41,7 @@ pub fn drift_offsets(race: &Race, weather: &Weather, effects: &crate::effects::o
             r.drift_target[2].set(x87::int_times(y as i32, k.target_scale[1]));
             r.drift_wait.set(((s >> 24) + 0x40) * 5);
             r.drift_since
-                .set(race.shared.physics_tables.scene_clock.bits());
+                .set(race.shared.physics_tables.scene_clock.get());
             let s = next_seed(effects);
             r.drift_halves[0].set((s & 0xFFFF) << 8);
             r.drift_halves[2].set((s >> 16) << 8);

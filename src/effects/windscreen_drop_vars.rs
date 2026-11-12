@@ -65,7 +65,7 @@ pub struct WindscreenDropVars {
     /// 0x82E29E: Not named: 4 bytes (a gap, or unreferenced data).
     pub _gap_82e29e: PlainBytes<4>,
     /// 0x82E2A2: `dword_82E2A2`: the texture square's side
-    pub side: PlainDword,
+    pub side: PlainFloat,
     /// 0x82E2A6: `flt_82E2A6`: a constant of `windscreen_drops_frame`
     pub frame_k: PlainFloat,
     /// 0x82E2AA: `flt_82E2AA`, `flt_82E2AE`: constants of `windscreen_drops_spawn`
@@ -141,7 +141,7 @@ impl WindscreenDropVars {
             _gap_82e27e: PlainBytes::new([0x00, 0x00, 0x80, 0x46, 0x00, 0x00, 0x80, 0x46]),
             axes_k: [const { PlainFloat::new(0.5) }; 6],
             _gap_82e29e: PlainBytes::new([0x00, 0x00, 0x80, 0x43]),
-            side: PlainDword::new(0x3F000000),
+            side: PlainFloat::new(0.5),
             frame_k: PlainFloat::new(1024.0),
             spawn_k: [PlainFloat::new(0.1), PlainFloat::new(0.0)],
             share_k: PlainFloat::new(65536.0),

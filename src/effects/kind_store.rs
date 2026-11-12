@@ -637,7 +637,7 @@ pub struct KindExtras1 {
     /// +0x0: the kind's `extra` times `extra_k` (`flt_933E70`), the lift along the up
     pub extra: PlainFloat,
     /// +0x4: `divisor` copied (`dword_933E74`; the first set only)
-    pub divisor_copy: PlainDword,
+    pub divisor_copy: PlainFloat,
     /// +0x8: Not named: 4 bytes (a gap, or unreferenced data).
     pub _gap_8: PlainBytes<4>,
 }
@@ -647,7 +647,7 @@ impl KindExtras1 {
     pub const fn new() -> Self {
         Self {
             extra: PlainFloat::new(0.0),
-            divisor_copy: PlainDword::new(0x0),
+            divisor_copy: PlainFloat::new(0.0),
             _gap_8: PlainBytes::new([0x00, 0x00, 0x80, 0x47]),
         }
     }

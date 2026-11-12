@@ -62,5 +62,5 @@ pub(crate) fn st80_at(bytes: &impl crate::session::ByteBuffer, offset: usize, x:
 /// `MARKS_WORK.fpu_status` (its high half kept).
 pub(crate) fn set_status(status: u16) {
     let s = &effects().setup.work.fpu_status;
-    s.set_bits((s.bits() & 0xFFFF_0000) | u32::from(status));
+    s.set((s.get() & 0xFFFF_0000) | u32::from(status));
 }

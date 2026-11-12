@@ -13,7 +13,7 @@
 use crate::effects::clip_quad::{clip_quad, draw_fan};
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::scene::matrix3::rounded;
+use crate::scene::matrix3::rounded_value;
 
 const CORNERS: u32 = 0x100;
 /// Each vertex's texture place: the corner entry's word offsets (u, v).
@@ -65,9 +65,9 @@ pub fn draw_flare_part(
             vertex.u.set(x87::int_times(word(u) as i32, uv_k));
             vertex.v.set(x87::int_times(word(v) as i32, uv_k));
         }
-        let [cx, cy] = centre.map(rounded);
-        buffer.vertices[4].x.set_bits(cx);
-        buffer.vertices[4].y.set_bits(cy);
+        let [cx, cy] = centre.map(rounded_value);
+        buffer.vertices[4].x.set(cx);
+        buffer.vertices[4].y.set(cy);
         let across = abs16(word(4), word(0));
         let along = abs16(word(0xA), word(2));
         let ratio = x87::int_ratio(along as i32, across as i32);
@@ -86,9 +86,8 @@ pub fn draw_flare_part(
             (x87::sub(width, sw), x87::sub(height, sh)),
             (x87::sub(0, sw), x87::sub(height, sh)),
         ];
-        let sin: u32 = crate::scene::engine_tables_store::sine(engine_tables, turn as usize).bits();
-        let cos: u32 =
-            crate::scene::engine_tables_store::cosine(engine_tables, turn as usize).bits();
+        let sin = crate::scene::engine_tables_store::sine(engine_tables, turn as usize).get();
+        let cos = crate::scene::engine_tables_store::cosine(engine_tables, turn as usize).get();
         let depth = x87::mul(&effects.frame.draw_work.near, &effects.frame.draw_work.z_k);
         for (n, (x, y)) in corners.into_iter().enumerate() {
             let vertex = &buffer.vertices[n];

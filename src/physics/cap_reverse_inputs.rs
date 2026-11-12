@@ -6,49 +6,29 @@
 //! Caller: `physics::drive_wheels_step` (0x43E519).
 
 use crate::physics::car_store::Car;
-use crate::physics::flow::FloatView;
 use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
-use crate::session::Cell32;
 use rc2k_core::physics::drive_forces::cap_reverse;
 
-fn at(a: &dyn Cell32) -> u32 {
-    a.bits()
-}
-
-/// The converted version (`rc2k_core::physics::drive_forces`) on the gear, the speed and
-/// the two values at these places.
-// Converted: `rc2k_core::physics::drive_forces::cap_reverse`.
-pub fn cap_reverse_inputs_at(
-    numbers: &Numbers,
-    gear: &dyn Cell32,
-    speed: &dyn Cell32,
-    values: [&dyn Cell32; 2],
-) {
-    if at(gear) != u32::MAX {
+/// The converted version (`rc2k_core::physics::drive_forces::cap_reverse`) on the gear,
+/// the forward speed and the two wheel slips; compares and copies of floats only, the same
+/// at any precision.
+pub fn cap_reverse_inputs(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
+    let gear = car.gear.get();
+    if gear != u32::MAX {
         return; // the speed and the values not read, as the original
     }
-    let f = |a: &dyn Cell32| f32::from_bits(at(a));
+    let values = &tables.wheel_slips;
     let zero = f32::from_bits(ZERO);
     let cap = numbers.two.get();
-    let Some(held) = cap_reverse(at(gear), f(speed), zero, [f(values[0]), f(values[1])], cap)
-    else {
+    let speed = car.local_velocity[2].get();
+    let Some(held) = cap_reverse(gear, speed, zero, [values[0].get(), values[1].get()], cap) else {
         return;
     };
     for (v, h) in values.iter().zip(held) {
-        if at(*v) != h.to_bits() {
-            v.set_float(h);
+        if v.get().to_bits() != h.to_bits() {
+            v.set(h);
         }
     }
-}
-
-/// Compares and copies of floats only: the same at any precision.
-pub fn cap_reverse_inputs(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
-    cap_reverse_inputs_at(
-        numbers,
-        &car.gear,
-        &car.local_velocity[2],
-        [&tables.wheel_slips[0], &tables.wheel_slips[1]],
-    );
 }

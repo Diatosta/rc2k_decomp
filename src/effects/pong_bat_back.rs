@@ -12,7 +12,7 @@ pub fn pong_bat_back(pong: &Pong) {
     let (over, _) = pong::overlap(pong);
     if over {
         let p = &pong.state;
-        p.bat[0].set_bits(p.saved_bat[0].get());
-        p.bat[1].set_bits(p.saved_bat[1].get());
+        p.bat[0].set(p.saved_bat[0].get());
+        p.bat[1].set(p.saved_bat[1].get());
     }
 }

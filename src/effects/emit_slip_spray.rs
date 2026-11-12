@@ -88,7 +88,7 @@ pub fn refusal(
 /// Whether the wheel's +0x18 passes the set's test.
 fn emits(set: &JitterSet<'_>, wheel: &MarkRecord) -> Result<bool, Refused> {
     Ok({
-        let speed = wheel.local_velocity_z.bits() & 0x7FFF_FFFF;
+        let speed = wheel.local_velocity_z.get().abs();
         if set.over_one {
             x87::to_int(speed) > 1
         } else {
@@ -170,7 +170,7 @@ pub fn emit_slip_spray_with(
             [extended(set.spread.get()), motion[2], motion[1], motion[0]],
             effects,
         );
-        let speed = wheel.local_velocity_z.bits();
+        let speed = wheel.local_velocity_z.get();
         // (Motion z first, then y, then x.)
         for (n, moved) in moved.into_iter().enumerate() {
             let row = matrix_cell(m, 0x28 - 4 * n as u32)?;

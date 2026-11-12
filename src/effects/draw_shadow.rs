@@ -23,7 +23,7 @@ use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::scene::cross_product3::cross;
-use crate::scene::matrix3::{Axis, extended, rounded, turn_matrix3, turnable};
+use crate::scene::matrix3::{Axis, extended, rounded_value, turn_matrix3, turnable};
 use crate::scene::rotate_point::rotate_point;
 use crate::scene::vector3::normalise;
 use crate::session::PlainFloat;
@@ -68,8 +68,8 @@ fn angle(sh: &Shadow, effects: &crate::effects::owner::Effects) -> Result<[u8; 1
     Ok({
         let marks = effects.settings()?;
         let split = sh.quad.low.get();
-        let v = (sh.field)(marks).bits();
-        if (split as i32) <= v as i32 {
+        let v = (sh.field)(marks).get();
+        if x87::bits_at_or_below(split, v) {
             x87::less_times_plus_negated_80(v, split, &sh.quad.slope, &sh.quad.middle)
         } else {
             x87::times_plus_negated_80(v, &sh.quad.step, &sh.quad.start)
@@ -158,10 +158,10 @@ pub fn draw_shadow_with(
     corners_in_x87(sh);
     let view = &race.frame.matrices.listener_matrix;
     for n in 0..4 {
-        let p: [u32; 3] = std::array::from_fn(|k| q.corners[n][k].bits());
+        let p: [f32; 3] = std::array::from_fn(|k| q.corners[n][k].get());
         let turned = rotate_point(view, p.map(extended));
         for (k, v) in turned.into_iter().enumerate() {
-            q.corners[n][k].set_bits(rounded(v));
+            q.corners[n][k].set(rounded_value(v));
         }
     }
     let entry = &effects.blocks.corners.corners[corner as usize]; // under 0x100, checked before
@@ -180,7 +180,7 @@ pub fn draw_shadow_with(
         buffer.vertices[n].colour.set(c);
     }
     for n in 0..4 {
-        if (q.corners[n][2].bits() as i32) <= (race.course.numbers.k4096_a.bits() as i32) {
+        if x87::bits_at_or_below(q.corners[n][2].get(), race.course.numbers.k4096_a.get()) {
             return Ok(());
         }
     }

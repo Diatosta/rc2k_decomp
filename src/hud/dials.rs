@@ -11,7 +11,7 @@ use crate::hud::owner::{Hud, Pen};
 use crate::hud::store::HudBlock;
 use crate::race::owner_frame::Frame;
 use crate::race::panel_store::{Loose32, Panel};
-use crate::session::{Cell32, PlainFloat};
+use crate::session::PlainFloat;
 
 /// A layout's own variables of a dial, in the order its set-up copies them.
 type Vars = fn(&HudBlock) -> &[PlainFloat];
@@ -90,18 +90,18 @@ pub static NEEDLE_2B: NeedleStyle = NeedleStyle {
     lifted_centre: false,
 };
 
-/// Copies a variable's bits to another cell.
-fn copy(from: &dyn Cell32, to: &dyn Cell32) {
-    to.set_bits(from.bits());
+/// Copies a variable's value to another cell.
+fn copy(from: &PlainFloat, to: &PlainFloat) {
+    to.set(from.get());
 }
 
 /// The disc's set-up: the shape's variables filled from the panel and the style.
 fn set_up_disc(frame: &Frame, hud: &Hud, style: &DiscStyle) {
     let own = (style.vars)(&hud.block);
     let [u, v, turn] = (style.shift)(&frame.panel_and_overlay.panel);
-    hud.block.disc_texture_shift[0].set_bits(u.get());
-    hud.block.disc_texture_shift[1].set_bits(v.get());
-    hud.block.disc_turn.set_bits(turn.get());
+    hud.block.disc_texture_shift[0].set(f32::from_bits(u.get()));
+    hud.block.disc_texture_shift[1].set(f32::from_bits(v.get()));
+    hud.block.disc_turn.set(f32::from_bits(turn.get()));
     copy(&own[0], &hud.block.disc_size);
     copy(&own[1], &hud.block.disc_texture_scale);
     copy(&own[2], &hud.block.disc_centre[0]);

@@ -23,6 +23,7 @@ use crate::math::x87_float::compare;
 use crate::math::x87_float::int;
 use crate::math::x87_float::ld;
 use crate::physics::car_store::Car;
+use crate::physics::flow::FloatView;
 use crate::physics::flow::{ZERO_BITS as ZERO, c0, ease_zero, hold_high, hold_low, hold_low_bits};
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at};
 use crate::physics::tables_store::PhysicsTables;
@@ -30,7 +31,7 @@ use crate::race::numbers_store::Numbers;
 use crate::race::owner_course::Course;
 use crate::race::vars_store::RaceVars;
 use crate::scene::matrix3::extended;
-use crate::session::{Cell32, Float};
+use crate::session::Float;
 
 /// |a| below |b|, or one of them not a number (`fld b; fabs; fld a; fabs; fcompp`, C0).
 fn abs_below(x: u32, y: u32) -> bool {
@@ -244,7 +245,7 @@ fn steps(
             },
         );
         // 0x43E707: the car-frame side speed eased by the side grip.
-        drawing.scene.scratch.set(car.local_velocity[0].bits());
+        drawing.scene.scratch.set_float(car.local_velocity[0].get());
         ease_zero(&drawing.scene.scratch, &physics_tables.drive_limits[2]);
         side_slip_forces(car, physics_tables, &course.numbers, scene);
         store_loaded(&physics_tables.slip_limit, &physics_tables.drive_limits[0]);
@@ -306,7 +307,7 @@ pub fn drive_wheels_step(
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[t + 0] = -(|[v + 0]| - [one])`
-fn one_less_abs(course: &Course, v: &dyn Cell32, t: &dyn Cell32) {
+fn one_less_abs(course: &Course, v: &Float, t: &Float) {
     let t0 = v.ld();
     let t1 = t0.abs();
     let t2 = course.numbers.one.ld();
@@ -329,7 +330,7 @@ fn abs_status(v: [u32; 2]) -> u16 {
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[r + 0] = ([d + 0] - [rc + 0x31A184]) / [spec_wheel]`
-fn slip_ratio(car: &Car, tables: &PhysicsTables, d: &dyn Cell32, r: &dyn Cell32) {
+fn slip_ratio(car: &Car, tables: &PhysicsTables, d: &Float, r: &Float) {
     let t0 = d.ld();
     let t1 = car.local_velocity[2].ld();
     let t2 = t0 - t1;
@@ -346,10 +347,10 @@ fn slip_ratio(car: &Car, tables: &PhysicsTables, d: &dyn Cell32, r: &dyn Cell32)
 fn apply_slip_to_drive(
     tables: &PhysicsTables,
     numbers: &Numbers,
-    d: &dyn Cell32,
-    s: &dyn Cell32,
-    f1: &dyn Cell32,
-    f2: &dyn Cell32,
+    d: &Float,
+    s: &Float,
+    f1: &Float,
+    f2: &Float,
 ) {
     let t0 = d.ld();
     let t1 = tables.spec_wheel.ld();
@@ -371,7 +372,7 @@ fn apply_slip_to_drive(
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[r + 0] = |(([d + 0] - [rc + 0x31A184]) / [spec_wheel])|`
-fn slip_ratio_size(car: &Car, tables: &PhysicsTables, d: &dyn Cell32, r: &dyn Cell32) {
+fn slip_ratio_size(car: &Car, tables: &PhysicsTables, d: &Float, r: &Float) {
     let t0 = d.ld();
     let t1 = car.local_velocity[2].ld();
     let t2 = t0 - t1;
@@ -456,7 +457,7 @@ fn throttle_drive_limit(
     scene: &crate::scene::owner::Scene,
 ) {
     let drawing = &scene.drawing;
-    let t0 = int(drawing.scene.scratch.bits() as i32);
+    let t0 = int(drawing.scene.scratch.get() as i32);
     let t1 = numbers.k256.ld();
     let t2 = t0 / t1;
     let t3 = car.local_velocity[0].ld();
@@ -523,7 +524,7 @@ fn brake_step_for_a(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
     let t2 = t0 - t1;
     let t3 = tables.spec_drive[1].ld();
     let t4 = t2 * t3;
-    let t5 = int(car.brake.bits() as i32);
+    let t5 = int(car.brake.get() as i32);
     let t6 = t4 * t5;
     let t7 = numbers.k256.ld();
     let t8 = t6 / t7;
@@ -543,7 +544,7 @@ fn brake_step_for_b(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
     let t0 = tables.handling[1].ld();
     let t1 = tables.spec_drive[1].ld();
     let t2 = t0 * t1;
-    let t3 = int(car.brake.bits() as i32);
+    let t3 = int(car.brake.get() as i32);
     let t4 = t2 * t3;
     let t5 = numbers.k256.ld();
     let t6 = t4 / t5;
@@ -561,7 +562,7 @@ fn brake_step_for_b(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
 /// `[wheel_speed_step] = (((([spec_drive] * int [handbrake]) / [k256]) * [step_time]) * [spec_wheel]) * [weight]`
 fn handbrake_step_for_b(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
     let t0 = tables.spec_drive[0].ld();
-    let t1 = int(car.handbrake.bits() as i32);
+    let t1 = int(car.handbrake.get() as i32);
     let t2 = t0 * t1;
     let t3 = numbers.k256.ld();
     let t4 = t2 / t3;
@@ -855,8 +856,8 @@ mod reference_vectors {
                 plain: |a| {
                     one_less_abs(
                         &crate::race::owner::race().course,
-                        &crate::scene::x87_mem::HostCell(a[0]),
-                        &crate::scene::x87_mem::HostCell(a[2]),
+                        view::<Float>(a[0], 0),
+                        view::<Float>(a[2], 0),
                     );
                 },
             },
@@ -896,8 +897,8 @@ mod reference_vectors {
                     slip_ratio(
                         race().shared.car(),
                         &race().shared.physics_tables,
-                        &crate::scene::x87_mem::HostCell(a[0]),
-                        &crate::scene::x87_mem::HostCell(a[2]),
+                        view::<Float>(a[0], 0),
+                        view::<Float>(a[2], 0),
                     );
                 },
             },
@@ -932,14 +933,13 @@ mod reference_vectors {
                 ],
                 ulps: 0,
                 plain: |a| {
-                    use crate::scene::x87_mem::HostCell as H;
                     apply_slip_to_drive(
                         &race().shared.physics_tables,
                         &race().course.numbers,
-                        &H(a[0]),
-                        &H(a[2]),
-                        &H(a[3]),
-                        &H(a[4]),
+                        view::<Float>(a[0], 0),
+                        view::<Float>(a[2], 0),
+                        view::<Float>(a[3], 0),
+                        view::<Float>(a[4], 0),
                     );
                 },
             },
@@ -964,8 +964,8 @@ mod reference_vectors {
                     slip_ratio_size(
                         race().shared.car(),
                         &race().shared.physics_tables,
-                        &crate::scene::x87_mem::HostCell(a[0]),
-                        &crate::scene::x87_mem::HostCell(a[2]),
+                        view::<Float>(a[0], 0),
+                        view::<Float>(a[2], 0),
                     );
                 },
             },

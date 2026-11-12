@@ -22,7 +22,7 @@ use crate::errors::{BadInput, Refused};
 use crate::input::store::ForceFeedback;
 use crate::input::types::InputDevice;
 use crate::math::x87::mul_to_int;
-use crate::math::x87_float::{ld, st, to_int};
+use crate::math::x87_float::{Loadable, ld, st, to_int};
 use crate::system::owner::System;
 
 /// The force feedback effects of a device's record (its six slots).
@@ -56,13 +56,20 @@ impl Requests<'_> {
 const KIND_COUNT: u32 = 16;
 
 /// `fld a; fsub b; fmul c; fistp`.
-fn sub_mul_to_int(a: u32, b: u32, c: u32) -> i32 {
+fn sub_mul_to_int(a: impl Loadable, b: impl Loadable, c: impl Loadable) -> i32 {
     to_int((ld(a) - ld(b)) * ld(c))
 }
 
 /// `fld y; fld x; fpatan; fst angle; fabs; fmul s; fsubr full; fmul d; fmul tenth;
 /// fistp`: (the angle's bits, the knock).
-fn knock(y: u32, x: u32, s: u32, full: u32, d: u32, tenth: u32) -> (u32, i32) {
+fn knock(
+    y: u32,
+    x: u32,
+    s: impl Loadable,
+    full: impl Loadable,
+    d: u32,
+    tenth: impl Loadable,
+) -> (u32, i32) {
     let angle = ld(y).atan2(ld(x));
     let knock = (ld(full) - angle.abs() * ld(s)) * ld(d) * ld(tenth);
     (st(angle), to_int(knock))
@@ -88,13 +95,10 @@ fn update_car_effects_with(
         last_strength: 0,
     };
     o.flag_ac.set(view.front_wheels_off.get());
-    let ten = effects.effect_ten.bits();
+    let ten = effects.effect_ten.get();
     o.effect_in[0].set(mul_to_int(&view.local_velocity[0], ten) as u32);
-    o.effect_in[1].set(sub_mul_to_int(
-        view.drive_speed_a.bits(),
-        view.local_velocity[2].bits(),
-        ten,
-    ) as u32);
+    o.effect_in[1]
+        .set(sub_mul_to_int(view.drive_speed_a.get(), view.local_velocity[2].get(), ten) as u32);
     o.effect_in[2].set(mul_to_int(&view.local_velocity[0], ten) as u32);
     o.effect_in[3].set(mul_to_int(&view.local_velocity[2], ten) as u32);
     // The knock's force from its inputs (angle from y = `knock_in[2]`, x = `knock_in[0]`).
@@ -102,10 +106,10 @@ fn update_car_effects_with(
         let (angle, force) = knock(
             o.knock_in[2].get(),
             o.knock_in[0].get(),
-            effects.effect_angle_scale.bits(),
-            effects.effect_full.bits(),
+            effects.effect_angle_scale.get(),
+            effects.effect_full.get(),
             o.knock_in[3].get(),
-            effects.effect_tenth.bits(),
+            effects.effect_tenth.get(),
         );
         scratch.set(angle);
         o.knock.set(force as u32);

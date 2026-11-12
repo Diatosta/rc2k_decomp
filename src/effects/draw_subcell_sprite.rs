@@ -68,8 +68,10 @@ pub fn draw_subcell_sprite(
         return Err(BadInput("no marks settings").into());
     }
     turn(view.view_matrix, ring, &place, effects);
-    if effects.frame.draw_work.turned[2].bits() as i32 <= effects.frame.draw_work.near.bits() as i32
-    {
+    if crate::math::x87::bits_at_or_below(
+        effects.frame.draw_work.turned[2].get(),
+        effects.frame.draw_work.near.get(),
+    ) {
         return Ok(());
     }
     let fogged = fog_at(view.fog, ring.work.whole.get())?;
@@ -78,16 +80,16 @@ pub fn draw_subcell_sprite(
         buffer.vertices[n].specular.set(fogged);
         buffer.vertices[n].colour.set(colour);
     }
-    effects.frame.draw_work.half[0].set_bits(size);
+    effects.frame.draw_work.half[0].set(f32::from_bits(size));
     let at = subcell << 4;
-    let place = |n: usize| masks.surface.word(0x400 + at as usize + 4 * n);
+    let place = |n: usize| f32::from_bits(masks.surface.word(0x400 + at as usize + 4 * n));
     let [u0, v0, u1, v1] = [place(0), place(1), place(2), place(3)];
     for (n, (u, v)) in [(u0, v0), (u1, v0), (u1, v1), (u0, v1)]
         .into_iter()
         .enumerate()
     {
-        buffer.vertices[n].u.set_bits(u);
-        buffer.vertices[n].v.set_bits(v);
+        buffer.vertices[n].u.set(u);
+        buffer.vertices[n].v.set(v);
     }
     square(buffer, effects);
     if clip_quad(buffer, effects)? {
@@ -96,7 +98,7 @@ pub fn draw_subcell_sprite(
     draw_fan(buffer, scene);
     crate::scene::polygon_work::front_end()
         .polygon_vertex_count
-        .set_bits(4u32);
+        .set(4);
     Ok(())
 }
 
@@ -144,7 +146,7 @@ fn turn_x87(
     let t29 = t28 + view_matrix[14].ld();
     dw.turned[0].st(t11);
     dw.turned[1].st(t20);
-    w.whole.set_bits(bh::to_int(t29) as u32);
+    w.whole.set(bh::to_int(t29) as u32);
     dw.turned[2].st(t29);
 }
 

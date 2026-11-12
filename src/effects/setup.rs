@@ -114,7 +114,7 @@ pub fn make_wave_tables(paths: &Paths) -> Result<(), Refused> {
     if done != 0 {
         return Err(BadInput("the wave tables' mark is neither 0 nor nullsub_23").into());
     }
-    let (scale, less) = (paths.wave.scale.bits(), paths.wave.less.bits());
+    let (scale, less) = (paths.wave.scale.get(), paths.wave.less.get());
     for level in paths
         .wave_levels
         .levels
@@ -230,8 +230,8 @@ pub fn make_noise_curve(
     }
     // The roundings follow the x87's control word: the x87's.
     let (scale, damp) = (
-        weather.snow_light.curve_scale.bits(),
-        weather.snow_light.curve_damp.bits(),
+        weather.snow_light.curve_scale.get(),
+        weather.snow_light.curve_damp.get(),
     );
     let w = core::walk(
         weather.snow_vars.curve_vars[5].get(),
@@ -247,7 +247,7 @@ pub fn make_noise_curve(
         .snow_light
         .smooth_weights
         .each_ref()
-        .map(super::super::session::PlainFloat::bits);
+        .map(super::super::session::PlainFloat::get);
     for _ in 0..core::SMOOTHINGS {
         core::smooth(&mut curve, &mut copy, |a, b, c| {
             x87::weighted3_to_int(a, b, c, weights[0], weights[1], weights[2])
@@ -319,9 +319,9 @@ pub fn make_noise_curve(
         (&weather.snow.quad_b, &centre[0]),
         (&weather.snow.quad_c, &centre[1]),
     ] {
-        let v: u32 = from.bits();
+        let v = from.get();
         for cell in quad {
-            cell.set_bits(v);
+            cell.set(v);
         }
     }
     Ok(())

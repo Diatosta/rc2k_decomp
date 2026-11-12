@@ -20,7 +20,7 @@ use crate::physics::step_families::ContactInputs;
 use crate::race::owner_course::Course;
 
 use crate::math::next_random::next_random;
-use crate::physics::flow::{c0, p};
+use crate::physics::flow::c0;
 use crate::physics::place_sound_object::place_sound_object;
 use rc2k_core::drive::lit_faces::{LIST_ROOM, Touch, fall_mark, lucky, touch};
 
@@ -56,7 +56,7 @@ pub fn touch_face(
         return Err(BadInput("g_litFaceCount past 0x100 (the list's room)").into());
     }
     (|| -> Result<(), crate::errors::Refused> {
-        p(&c.contact.lit_faces[count as usize], number);
+        c.contact.lit_faces[count as usize].set(number);
         let kind = c.contact.contact_kind.get();
         match touch(kind) {
             Touch::MarkIfFast => {

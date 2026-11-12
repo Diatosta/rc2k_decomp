@@ -155,17 +155,34 @@ mod reference_vectors {
     use crate::race::viewer_screen_store::VIEWER_PANEL;
     use crate::test_support::vectors::{Recorder, word};
 
+    /// The five constants.
+    fn constants() -> [f32; 5] {
+        let tyre = race().shared.tyre_change();
+        [
+            tyre.time_base.get(),
+            tyre.time_scale.get(),
+            tyre.gauge_unit.get(),
+            tyre.log_two_ten.get(),
+            VIEWER_PANEL.one.get(),
+        ]
+    }
+
+    /// The five constants set.
+    fn set_constants(v: [f32; 5]) {
+        let tyre = race().shared.tyre_change();
+        tyre.time_base.set(v[0]);
+        tyre.time_scale.set(v[1]);
+        tyre.gauge_unit.set(v[2]);
+        tyre.log_two_ten.set(v[3]);
+        VIEWER_PANEL.one.set(v[4]);
+    }
+
     /// The five constants as they were, put back when dropped.
-    struct Kept([u32; 5]);
+    struct Kept([f32; 5]);
 
     impl Drop for Kept {
         fn drop(&mut self) {
-            let shared = &race().shared;
-            shared.tyre_change().time_base.set_bits(self.0[0]);
-            shared.tyre_change().time_scale.set_bits(self.0[1]);
-            shared.tyre_change().gauge_unit.set_bits(self.0[2]);
-            shared.tyre_change().log_two_ten.set_bits(self.0[3]);
-            VIEWER_PANEL.one.set_bits(self.0[4]);
+            set_constants(self.0);
         }
     }
 
@@ -174,15 +191,8 @@ mod reference_vectors {
     /// and libm's disagree at the last bit and the sum falls on a whole number; counted.
     #[test]
     fn press_time_matches() {
-        let shared = &race().shared;
         let _l = lock();
-        let _kept = Kept([
-            shared.tyre_change().time_base.bits(),
-            shared.tyre_change().time_scale.bits(),
-            shared.tyre_change().gauge_unit.bits(),
-            shared.tyre_change().log_two_ten.bits(),
-            VIEWER_PANEL.one.bits(),
-        ]);
+        let _kept = Kept(constants());
         let mut r = Rng(31);
         let mut file = Recorder::replay("race.tyre_change_gauge.press_time");
         let mut off = 0;
@@ -190,25 +200,15 @@ mod reference_vectors {
         at_each_control_word(|| {
             for n in 0..20000u32 {
                 if n >= 8000 {
-                    shared.tyre_change().time_base.set_bits(r.float());
-                    shared.tyre_change().time_scale.set_bits(r.float());
-                    shared.tyre_change().gauge_unit.set_bits(r.float());
-                    shared.tyre_change().log_two_ten.set_bits(r.float());
-                    VIEWER_PANEL.one.set_bits(r.float());
+                    set_constants(std::array::from_fn(|_| f32::from_bits(r.float())));
                 }
                 let s = if n < 8000 {
                     (n * 8 % 0x10000) as i32
                 } else {
                     r.int()
                 };
-                let constants = [
-                    shared.tyre_change().time_base.bits(),
-                    shared.tyre_change().time_scale.bits(),
-                    shared.tyre_change().gauge_unit.bits(),
-                    shared.tyre_change().log_two_ten.bits(),
-                    VIEWER_PANEL.one.bits(),
-                ];
-                for w in constants.iter().chain(&[s as u32]) {
+                let inputs = constants().map(f32::to_bits);
+                for w in inputs.iter().chain(&[s as u32]) {
                     file.input(&w.to_le_bytes());
                 }
                 let (want, got) = (word(&mut file) as i32, press_time(race(), s));

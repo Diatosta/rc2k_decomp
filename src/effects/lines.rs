@@ -354,7 +354,7 @@ pub fn copy_block_points(
         let first: u32 = scene.objects.slots.first_point[object as usize].get();
         let mut from = first
             .wrapping_mul(12)
-            .wrapping_add(course.lists.object_points.bits());
+            .wrapping_add(course.lists.object_points.get());
         for n in 0..count.max(0) as usize {
             let point = crate::scene::object_points::point(from)?;
             to.with(|t| t.get_mut(n).map(|p| *p = point))?

@@ -312,8 +312,8 @@ pub type PointLists = [[u32; 0x40]; 3];
 
 /// `race::set_up_car_points`: a point's place (16.16) as a float (`fild` / `fdiv` by
 /// 65536 / `fstp`: one rounding).
-pub fn point_float(whole: u32, scale: f32) -> u32 {
-    ((whole as i32 as f64 / scale as f64) as f32).to_bits()
+pub fn point_float(whole: u32, scale: f32) -> f32 {
+    (whole as i32 as f64 / scale as f64) as f32
 }
 
 /// `race::set_up_car_points`: points 4 .. 0x3D moved two on (from the last down), the
@@ -551,8 +551,11 @@ mod tests {
 
     #[test]
     fn collision_points() {
-        assert_eq!(point_float(0x18000, 65536.0), 1.5f32.to_bits());
-        assert_eq!(point_float(0xFFFF_0000, 65536.0), (-1.0f32).to_bits());
+        assert_eq!(point_float(0x18000, 65536.0).to_bits(), 1.5f32.to_bits());
+        assert_eq!(
+            point_float(0xFFFF_0000, 65536.0).to_bits(),
+            (-1.0f32).to_bits()
+        );
         let mut l: PointLists = [[0; 0x40]; 3];
         for (k, list) in l.iter_mut().enumerate() {
             for (n, v) in list.iter_mut().enumerate() {

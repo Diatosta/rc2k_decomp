@@ -77,8 +77,8 @@ fn stopped(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
         let uv = uv
             .first_chunk::<4>()
             .ok_or(BadInput("a texture rectangle of fewer than four"))?;
-        crate::drive::tyre_quad::tyre_quad_cells(
-            uv,
+        crate::drive::tyre_quad::tyre_quad(
+            uv.each_ref().map(Dword::get),
             rect,
             colour,
             race.viewer_panel(),

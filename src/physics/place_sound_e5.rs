@@ -14,7 +14,7 @@ use rc2k_core::physics::sound_places::{SECOND, SOUND_E5};
 
 // Converted: `rc2k_core::physics::sound_places`.
 pub fn place_sound_e5(c: &SoundInputs<'_>) -> Result<(), Refused> {
-    if !listed(c.frame_work, c.work.current_car.bits())? {
+    if !listed(c.frame_work, c.work.current_car.get())? {
         return Ok(());
     }
     let b = band_value_plain(c, TWIN);
