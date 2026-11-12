@@ -76,7 +76,7 @@ pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
     crate::scene::polygon::list_cell(ctx.part.polygon, 4).set(0);
     ctx.view.polygon.polygon_next_entry.set(4);
     crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(
-        ctx.part.polygon,
+        ctx.part,
         &ctx.view.polygon,
         race,
     )?;

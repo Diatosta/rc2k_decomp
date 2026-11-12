@@ -78,88 +78,11 @@ fn scale_axes_x87(sq: &WindscreenFlakeTables, ss: &WindscreenFlakeState) {
     }
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
-    //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
-
-    pub(super) fn scale_axes_x87(mk: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{mk} + 0x137FDA]",
-            "fmul dword ptr [{mk} + 0x137F8A]",
-            "fstp dword ptr [{mk} + 0x137FFE]",
-            "fld dword ptr [{mk} + 0x137FDE]",
-            "fmul dword ptr [{mk} + 0x137F8A]",
-            "fstp dword ptr [{mk} + 0x138002]",
-            "fld dword ptr [{mk} + 0x137FE2]",
-            "fmul dword ptr [{mk} + 0x137F8A]",
-            "fstp dword ptr [{mk} + 0x138006]",
-            "fld dword ptr [{mk} + 0x137FE6]",
-            "fmul dword ptr [{mk} + 0x137F8A]",
-            "fstp dword ptr [{mk} + 0x13800A]",
-            "fld dword ptr [{mk} + 0x137FEA]",
-            "fmul dword ptr [{mk} + 0x137F8A]",
-            "fstp dword ptr [{mk} + 0x13800E]",
-            "fld dword ptr [{mk} + 0x137FEE]",
-            "fmul dword ptr [{mk} + 0x137F8A]",
-            "fstp dword ptr [{mk} + 0x138012]",
-            "fld dword ptr [{mk} + 0x137FDA]",
-            "fmul dword ptr [{mk} + 0x137FAE]",
-            "fmul dword ptr [{mk} + 0x15729E]",
-            "fstp dword ptr [{mk} + 0x13802E]",
-            "fld dword ptr [{mk} + 0x137FDE]",
-            "fmul dword ptr [{mk} + 0x137FAE]",
-            "fmul dword ptr [{mk} + 0x1572A2]",
-            "fstp dword ptr [{mk} + 0x138032]",
-            "fld dword ptr [{mk} + 0x137FE2]",
-            "fmul dword ptr [{mk} + 0x137FAE]",
-            "fmul dword ptr [{mk} + 0x1572A6]",
-            "fstp dword ptr [{mk} + 0x138036]",
-            "fld dword ptr [{mk} + 0x137FE6]",
-            "fmul dword ptr [{mk} + 0x137FB2]",
-            "fmul dword ptr [{mk} + 0x1572AA]",
-            "fstp dword ptr [{mk} + 0x13803A]",
-            "fld dword ptr [{mk} + 0x137FEA]",
-            "fmul dword ptr [{mk} + 0x137FB2]",
-            "fmul dword ptr [{mk} + 0x1572AE]",
-            "fstp dword ptr [{mk} + 0x13803E]",
-            "fld dword ptr [{mk} + 0x137FEE]",
-            "fmul dword ptr [{mk} + 0x137FB2]",
-            "fmul dword ptr [{mk} + 0x1572B2]",
-            "fstp dword ptr [{mk} + 0x138042]",
-            "fld dword ptr [{mk} + 0x137FFE]",
-            "fmul dword ptr [{mk} + 0x1572B6]",
-            "fstp dword ptr [{mk} + 0x138016]",
-            "fld dword ptr [{mk} + 0x138002]",
-            "fmul dword ptr [{mk} + 0x1572BA]",
-            "fstp dword ptr [{mk} + 0x13801A]",
-            "fld dword ptr [{mk} + 0x138006]",
-            "fmul dword ptr [{mk} + 0x1572BE]",
-            "fstp dword ptr [{mk} + 0x13801E]",
-            "fld dword ptr [{mk} + 0x13800A]",
-            "fmul dword ptr [{mk} + 0x1572C2]",
-            "fstp dword ptr [{mk} + 0x138022]",
-            "fld dword ptr [{mk} + 0x13800E]",
-            "fmul dword ptr [{mk} + 0x1572C6]",
-            "fstp dword ptr [{mk} + 0x138026]",
-            "fld dword ptr [{mk} + 0x138012]",
-            "fmul dword ptr [{mk} + 0x1572CA]",
-            "fstp dword ptr [{mk} + 0x13802A]",
-            mk = in(reg) mk,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-}
-
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_differential {
-    use super::asm_reference as reference;
+#[cfg(test)]
+mod reference_vectors {
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::with_copy;
-    use crate::effects::asm_test::{Op, Spec, differential};
+    use crate::effects::asm_test::{Op, Spec, recorded_writes};
     use crate::effects::windscreen_flakes_store::{WindscreenFlakeState, WindscreenFlakeTables};
 
     #[test]
@@ -220,16 +143,12 @@ mod asm_differential {
             }],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::scale_axes_x87(b[0]),
-            |b| {
-                with_copy::<WindscreenFlakeTables, _>(b[0], WindscreenFlakeTables::START, |sq| {
-                    with_copy::<WindscreenFlakeState, _>(b[0], WindscreenFlakeState::START, |ss| {
-                        super::scale_axes_x87(sq, ss);
-                    });
+        recorded_writes("effects.scale_axes.scale_axes_x87", &SPEC, |b| {
+            with_copy::<WindscreenFlakeTables, _>(b[0], WindscreenFlakeTables::START, |sq| {
+                with_copy::<WindscreenFlakeState, _>(b[0], WindscreenFlakeState::START, |ss| {
+                    super::scale_axes_x87(sq, ss);
                 });
-            },
-        );
+            });
+        });
     }
 }

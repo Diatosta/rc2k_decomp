@@ -557,8 +557,8 @@ fn gauge_totals(car: &Car, m: &DamageModel) {
     );
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
     use crate::race::owner::race;
     use crate::scene::x87_mem::HostCell;
@@ -566,122 +566,12 @@ mod asm_reference {
     /// The damage model as the test's buffer holds it (the buffer's base plus the RVA of
     /// 0x75B340).
     fn dm(base: usize) -> &'static DamageModel {
-        unsafe { &*(crate::pointers::host_at(base + 0x35B340) as *const DamageModel) }
+        unsafe {
+            &*(crate::test_support::vectors::block_vectors::at(base + 0x35B340)
+                as *const DamageModel)
+        }
     }
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse_at};
-
-    // The original's instructions, one function per run.
-    reference!(ref_0(m, rc) "fld dword ptr [{m} + 0x35B5D0]", "fmul dword ptr [{m} + 0x35B38C]", "fadd dword ptr [{rc} + 0x31A290]", "fstp dword ptr [{rc} + 0x31A290]");
-    reference!(ref_1(m, rc) "fld dword ptr [{m} + 0x35B5D4]", "fmul dword ptr [{m} + 0x35B38C]", "fadd dword ptr [{rc} + 0x31A294]", "fstp dword ptr [{rc} + 0x31A294]");
-    reference!(ref_2(m, rc) "fld dword ptr [{m} + 0x35B5D8]", "fmul dword ptr [{m} + 0x35B38C]", "fadd dword ptr [{rc} + 0x31A29C]", "fstp dword ptr [{rc} + 0x31A29C]");
-    reference!(ref_3(m, rc) "fld dword ptr [{m} + 0x35B5DC]", "fmul dword ptr [{m} + 0x35B38C]", "fadd dword ptr [{rc} + 0x31A2A0]", "fstp dword ptr [{rc} + 0x31A2A0]");
-    reference!(ref_4(m, rc) "fld dword ptr [{m} + 0x35B5E0]", "fmul dword ptr [{m} + 0x35B38C]", "fadd dword ptr [{rc} + 0x31A2A4]", "fstp dword ptr [{rc} + 0x31A2A4]");
-    reference!(ref_5(m, rc) "fld dword ptr [{m} + 0x35B5E4]", "fmul dword ptr [{m} + 0x35B38C]", "fadd dword ptr [{rc} + 0x31A2E8]", "fstp dword ptr [{rc} + 0x31A2E8]");
-    reference!(ref_6(m, rc) "fld dword ptr [{m} + 0x35B5E8]", "fmul dword ptr [{m} + 0x35B38C]", "fadd dword ptr [{rc} + 0x31A2EC]", "fstp dword ptr [{rc} + 0x31A2EC]");
-    reference!(ref_7(m, rc) "fld dword ptr [{m} + 0x35B5E8]", "fmul dword ptr [{m} + 0x35B38C]", "fadd dword ptr [{rc} + 0x31A2F0]", "fstp dword ptr [{rc} + 0x31A2F0]");
-    reference!(ref_8(m, rc) "fld dword ptr [{m} + 0x35B5E8]", "fmul dword ptr [{m} + 0x35B38C]", "fadd dword ptr [{rc} + 0x31A2F4]", "fstp dword ptr [{rc} + 0x31A2F4]");
-    reference!(ref_9(m, rc) "fld dword ptr [{m} + 0x35B5E8]", "fmul dword ptr [{m} + 0x35B38C]", "fadd dword ptr [{rc} + 0x31A2F8]", "fstp dword ptr [{rc} + 0x31A2F8]");
-    reference!(ref_10(m, rc) "fld dword ptr [{m} + 0x35B5E8]", "fmul dword ptr [{m} + 0x35B38C]", "fadd dword ptr [{rc} + 0x31A2FC]", "fstp dword ptr [{rc} + 0x31A2FC]");
-    reference!(ref_11(m, rc) "fld dword ptr [{m} + 0x35B5E8]", "fmul dword ptr [{m} + 0x35B38C]", "fadd dword ptr [{rc} + 0x31A300]", "fstp dword ptr [{rc} + 0x31A300]");
-    reference!(ref_12(m, rc) "fld dword ptr [{m} + 0x35B5EC]", "fmul dword ptr [{m} + 0x35B38C]", "fadd dword ptr [{rc} + 0x31A308]", "fstp dword ptr [{rc} + 0x31A308]");
-    reference!(ref_13(m, rc) "fld dword ptr [{m} + 0x35B5F0]", "fmul dword ptr [{m} + 0x35B38C]", "fadd dword ptr [{rc} + 0x31A30C]", "fstp dword ptr [{rc} + 0x31A30C]");
-    reference!(ref_14(m, rc) "fld dword ptr [{m} + 0x35B5F0]", "fmul dword ptr [{m} + 0x35B38C]", "fadd dword ptr [{rc} + 0x31A310]", "fstp dword ptr [{rc} + 0x31A310]");
-    reference!(ref_15(m, rc) "fld dword ptr [{m} + 0x35B5F0]", "fmul dword ptr [{m} + 0x35B38C]", "fadd dword ptr [{rc} + 0x31A314]", "fstp dword ptr [{rc} + 0x31A314]");
-    reference!(ref_16(m, rc) "fld dword ptr [{m} + 0x35B5F0]", "fmul dword ptr [{m} + 0x35B38C]", "fadd dword ptr [{rc} + 0x31A318]", "fstp dword ptr [{rc} + 0x31A318]");
-    reference!(ref_17(m, rc) "fld dword ptr [{m} + 0x35B5A4]", "fmul dword ptr [{m} + 0x35B3C0]", "fmul dword ptr [{m} + 0x35B398]", "fmul dword ptr [{m} + 0x35B38C]", "fadd dword ptr [{rc} + 0x31A298]", "fstp dword ptr [{rc} + 0x31A298]");
-    reference!(ref_18(m, t, v) "fld dword ptr [{m} + 0x35B398]", "fmul dword ptr [{m} + 0x35B5A8]", "fmul dword ptr [{m} + 0x35B370]", "fmul dword ptr [{t}]", "fadd dword ptr [{v}]", "fstp dword ptr [{v}]");
-    reference!(ref_19(m, rc) ".byte 0xD9, 0xE8", "fsub dword ptr [{m} + 0x35B400]", "fstp dword ptr [{m} + 0x35B43C]", "fld dword ptr [{m} + 0x35B5F4]", "fmul dword ptr [{m} + 0x35B400]", "fmul dword ptr [{m} + 0x35B3B0]", "fmul dword ptr [{m} + 0x35B38C]", "fadd dword ptr [{rc} + 0x31A320]", "fstp dword ptr [{rc} + 0x31A320]");
-    reference!(ref_20(m, rc) "fld dword ptr [{m} + 0x35B5F4]", "fmul dword ptr [{m} + 0x35B43C]", "fmul dword ptr [{m} + 0x35B3B0]", "fmul dword ptr [{m} + 0x35B38C]", "fadd dword ptr [{rc} + 0x31A324]", "fstp dword ptr [{rc} + 0x31A324]");
-    reference!(ref_21(m, rc) "fld dword ptr [{m} + 0x35B5F8]", "fmul dword ptr [{m} + 0x35B3B4]", "fmul dword ptr [{m} + 0x35B38C]", "fadd dword ptr [{rc} + 0x31A2E8]", "fstp dword ptr [{rc} + 0x31A2E8]");
-    reference!(ref_22(m, rc) "fld dword ptr [{m} + 0x35B5FC]", "fmul dword ptr [{m} + 0x35B3B4]", "fmul dword ptr [{m} + 0x35B38C]", "fadd dword ptr [{rc} + 0x31A2EC]", "fstp dword ptr [{rc} + 0x31A2EC]");
-    reference!(ref_23(m, rc) "fld dword ptr [{m} + 0x35B5FC]", "fmul dword ptr [{m} + 0x35B3B4]", "fmul dword ptr [{m} + 0x35B38C]", "fadd dword ptr [{rc} + 0x31A2F0]", "fstp dword ptr [{rc} + 0x31A2F0]");
-    reference!(ref_24(m, rc) "fld dword ptr [{m} + 0x35B5FC]", "fmul dword ptr [{m} + 0x35B3B4]", "fmul dword ptr [{m} + 0x35B38C]", "fadd dword ptr [{rc} + 0x31A2F4]", "fstp dword ptr [{rc} + 0x31A2F4]");
-    reference!(ref_25(m, rc) "fld dword ptr [{m} + 0x35B5FC]", "fmul dword ptr [{m} + 0x35B3B4]", "fmul dword ptr [{m} + 0x35B38C]", "fadd dword ptr [{rc} + 0x31A2F8]", "fstp dword ptr [{rc} + 0x31A2F8]");
-    reference!(ref_26(m, rc) "fld dword ptr [{m} + 0x35B5FC]", "fmul dword ptr [{m} + 0x35B3B4]", "fmul dword ptr [{m} + 0x35B38C]", "fadd dword ptr [{rc} + 0x31A2FC]", "fstp dword ptr [{rc} + 0x31A2FC]");
-    reference!(ref_27(m, rc) "fld dword ptr [{m} + 0x35B5FC]", "fmul dword ptr [{m} + 0x35B3B4]", "fmul dword ptr [{m} + 0x35B38C]", "fadd dword ptr [{rc} + 0x31A300]", "fstp dword ptr [{rc} + 0x31A300]");
-    reference!(ref_28(m) "fld dword ptr [{m} + 0x35B39C]", "fld dword ptr [{m} + 0x35B484]", "fmul dword ptr [{m} + 0x35B380]", ".byte 0xDE, 0xF9", "fmul dword ptr [{m} + 0x35B34C]", "fmul dword ptr [{m} + 0x35B3F4]", "fst dword ptr [{m} + 0x35B488]", "fstp dword ptr [{m} + 0x35B48C]");
-    reference!(ref_29(m, t, u) "fld dword ptr [{m} + 0x35B488]", "fmul dword ptr [{t}]", "fstp dword ptr [{m} + 0x35B488]", "fld dword ptr [{m} + 0x35B48C]", "fmul dword ptr [{u}]", "fstp dword ptr [{m} + 0x35B48C]");
-    reference!(ref_30(m, rc) "fld dword ptr [{m} + 0x35B46C]", "fmul dword ptr [{m} + 0x35B488]", "fmul dword ptr [{m} + 0x35B370]", "fadd dword ptr [{rc} + 0x31A32C]", "fstp dword ptr [{rc} + 0x31A32C]");
-    reference!(ref_31(m, rc) "fld dword ptr [{m} + 0x35B46C]", "fmul dword ptr [{m} + 0x35B488]", "fmul dword ptr [{m} + 0x35B370]", "fadd dword ptr [{rc} + 0x31A330]", "fstp dword ptr [{rc} + 0x31A330]");
-    reference!(ref_32(m, rc) "fld dword ptr [{m} + 0x35B470]", "fmul dword ptr [{m} + 0x35B48C]", "fmul dword ptr [{m} + 0x35B370]", "fadd dword ptr [{rc} + 0x31A334]", "fstp dword ptr [{rc} + 0x31A334]");
-    reference!(ref_33(m, rc) "fld dword ptr [{m} + 0x35B470]", "fmul dword ptr [{m} + 0x35B48C]", "fmul dword ptr [{m} + 0x35B370]", "fadd dword ptr [{rc} + 0x31A338]", "fstp dword ptr [{rc} + 0x31A338]");
-    reference!(ref_34(m, rc) "fld dword ptr [{m} + 0x35B45C]", "fmul dword ptr [{m} + 0x35B604]", "fmul dword ptr [{m} + 0x35B370]", "fadd dword ptr [{rc} + 0x31A290]", "fstp dword ptr [{rc} + 0x31A290]");
-    reference!(ref_35(m, rc) "fld dword ptr [{m} + 0x35B45C]", "fmul dword ptr [{m} + 0x35B600]", "fmul dword ptr [{m} + 0x35B370]", "fadd dword ptr [{rc} + 0x31A29C]", "fstp dword ptr [{rc} + 0x31A29C]");
-    reference!(ref_36(rc, m) "fld dword ptr [{rc} + 0x31A28C]", "fmul dword ptr [{m} + 0x35B608]", "fmul dword ptr [{m} + 0x35B370]", "fadd dword ptr [{rc} + 0x31A290]", "fstp dword ptr [{rc} + 0x31A290]");
-    reference!(ref_37(m, rc) "fld dword ptr [{m} + 0x35B464]", "fmul dword ptr [{m} + 0x35B60C]", "fmul dword ptr [{m} + 0x35B370]", "fadd dword ptr [{rc} + 0x31A29C]", "fstp dword ptr [{rc} + 0x31A29C]");
-    reference!(ref_38(rc, m) "fld dword ptr [{rc} + 0x31A2A0]", "fadd dword ptr [{m} + 0x35B610]", "fstp dword ptr [{rc} + 0x31A2A0]");
-    reference!(ref_39(rc, m) "fld dword ptr [{rc} + 0x31A2A0]", "fadd dword ptr [{m} + 0x35B614]", "fstp dword ptr [{rc} + 0x31A2A0]");
-    reference!(ref_40(v, m) "fld dword ptr [{v}]", "fadd dword ptr [{m} + 0x35B618]", "fstp dword ptr [{v}]");
-    reference!(ref_41(v, m) "fld dword ptr [{v}]", "fadd dword ptr [{m} + 0x35B61C]", "fstp dword ptr [{v}]");
-    reference!(ref_42(m, rc) "fld dword ptr [{m} + 0x35B450]", "fmul dword ptr [{m} + 0x35B670]", "fmul dword ptr [{m} + 0x35B370]", "fadd dword ptr [{rc} + 0x31A2D0]", "fstp dword ptr [{rc} + 0x31A2D0]");
-    reference!(ref_43(m, rc) "fld dword ptr [{m} + 0x35B450]", "fmul dword ptr [{m} + 0x35B670]", "fmul dword ptr [{m} + 0x35B370]", "fadd dword ptr [{rc} + 0x31A2D4]", "fstp dword ptr [{rc} + 0x31A2D4]");
-    reference!(ref_44(m, rc) "fld dword ptr [{m} + 0x35B450]", "fmul dword ptr [{m} + 0x35B670]", "fmul dword ptr [{m} + 0x35B370]", "fadd dword ptr [{rc} + 0x31A2D8]", "fstp dword ptr [{rc} + 0x31A2D8]");
-    reference!(ref_45(m, rc) "fld dword ptr [{m} + 0x35B450]", "fmul dword ptr [{m} + 0x35B670]", "fmul dword ptr [{m} + 0x35B370]", "fadd dword ptr [{rc} + 0x31A2DC]", "fstp dword ptr [{rc} + 0x31A2DC]");
-    reference!(ref_46(m, rc) "fld dword ptr [{m} + 0x35B458]", "fmul dword ptr [{m} + 0x35B678]", "fmul dword ptr [{m} + 0x35B370]", "fadd dword ptr [{rc} + 0x31A30C]", "fstp dword ptr [{rc} + 0x31A30C]");
-    reference!(ref_47(m, rc) "fld dword ptr [{m} + 0x35B458]", "fmul dword ptr [{m} + 0x35B678]", "fmul dword ptr [{m} + 0x35B370]", "fadd dword ptr [{rc} + 0x31A310]", "fstp dword ptr [{rc} + 0x31A310]");
-    reference!(ref_48(m, rc) "fld dword ptr [{m} + 0x35B458]", "fmul dword ptr [{m} + 0x35B678]", "fmul dword ptr [{m} + 0x35B370]", "fadd dword ptr [{rc} + 0x31A314]", "fstp dword ptr [{rc} + 0x31A314]");
-    reference!(ref_49(m, rc) "fld dword ptr [{m} + 0x35B458]", "fmul dword ptr [{m} + 0x35B678]", "fmul dword ptr [{m} + 0x35B370]", "fadd dword ptr [{rc} + 0x31A318]", "fstp dword ptr [{rc} + 0x31A318]");
-    reference!(ref_50(m, rc) "fld dword ptr [{m} + 0x35B454]", "fmul dword ptr [{m} + 0x35B67C]", "fmul dword ptr [{m} + 0x35B370]", "fadd dword ptr [{rc} + 0x31A2E0]", "fstp dword ptr [{rc} + 0x31A2E0]");
-    reference!(ref_51(m, rc) "fld dword ptr [{m} + 0x35B454]", "fmul dword ptr [{m} + 0x35B680]", "fmul dword ptr [{m} + 0x35B370]", "fadd dword ptr [{rc} + 0x31A308]", "fstp dword ptr [{rc} + 0x31A308]");
-    reference!(ref_52(m, rc) "fld dword ptr [{m} + 0x35B454]", "fmul dword ptr [{m} + 0x35B684]", "fmul dword ptr [{m} + 0x35B370]", "fadd dword ptr [{rc} + 0x31A290]", "fstp dword ptr [{rc} + 0x31A290]");
-    reference!(ref_53(m, rc) "fld dword ptr [{m} + 0x35B454]", "fmul dword ptr [{m} + 0x35B688]", "fmul dword ptr [{m} + 0x35B370]", "fadd dword ptr [{rc} + 0x31A294]", "fstp dword ptr [{rc} + 0x31A294]");
-    reference!(ref_54(m, rc) "fld dword ptr [{m} + 0x35B454]", "fmul dword ptr [{m} + 0x35B68C]", "fmul dword ptr [{m} + 0x35B370]", "fadd dword ptr [{rc} + 0x31A2A8]", "fstp dword ptr [{rc} + 0x31A2A8]");
-    reference!(ref_55(m, rc) "fld dword ptr [{m} + 0x35B454]", "fmul dword ptr [{m} + 0x35B68C]", "fmul dword ptr [{m} + 0x35B370]", "fadd dword ptr [{rc} + 0x31A2B0]", "fstp dword ptr [{rc} + 0x31A2B0]");
-    reference!(ref_56(m, rc) "fld dword ptr [{m} + 0x35B454]", "fmul dword ptr [{m} + 0x35B68C]", "fmul dword ptr [{m} + 0x35B370]", "fadd dword ptr [{rc} + 0x31A2B4]", "fstp dword ptr [{rc} + 0x31A2B4]");
-    reference!(ref_57(m, rc) "fld dword ptr [{m} + 0x35B454]", "fmul dword ptr [{m} + 0x35B68C]", "fmul dword ptr [{m} + 0x35B370]", "fadd dword ptr [{rc} + 0x31A2B8]", "fstp dword ptr [{rc} + 0x31A2B8]");
-    reference!(ref_58(m, rc) "fld dword ptr [{m} + 0x35B454]", "fmul dword ptr [{m} + 0x35B68C]", "fmul dword ptr [{m} + 0x35B370]", "fadd dword ptr [{rc} + 0x31A2BC]", "fstp dword ptr [{rc} + 0x31A2BC]");
-    reference!(ref_59(m, rc) "fld dword ptr [{m} + 0x35B454]", "fmul dword ptr [{m} + 0x35B68C]", "fmul dword ptr [{m} + 0x35B370]", "fadd dword ptr [{rc} + 0x31A2C0]", "fstp dword ptr [{rc} + 0x31A2C0]");
-    reference!(ref_60(m, rc) "fld dword ptr [{m} + 0x35B454]", "fmul dword ptr [{m} + 0x35B68C]", "fmul dword ptr [{m} + 0x35B370]", "fadd dword ptr [{rc} + 0x31A2C4]", "fstp dword ptr [{rc} + 0x31A2C4]");
-    reference!(ref_61(m, rc) "fld dword ptr [{m} + 0x35B454]", "fmul dword ptr [{m} + 0x35B68C]", "fmul dword ptr [{m} + 0x35B370]", "fadd dword ptr [{rc} + 0x31A2C8]", "fstp dword ptr [{rc} + 0x31A2C8]");
-    reference!(ref_62(m, rc) "fld dword ptr [{m} + 0x35B454]", "fmul dword ptr [{m} + 0x35B690]", "fmul dword ptr [{m} + 0x35B370]", "fadd dword ptr [{rc} + 0x31A2A4]", "fstp dword ptr [{rc} + 0x31A2A4]");
-    reference!(ref_63(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6AC]", "fadd dword ptr [{rc} + 0x31A2E0]", "fstp dword ptr [{rc} + 0x31A2E0]");
-    reference!(ref_64(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{rc} + 0x31C708]", "fstp dword ptr [{m} + 0x35B3C8]");
-    reference!(ref_65(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6D8]", "fadd dword ptr [{rc} + 0x31A2EC]", "fstp dword ptr [{rc} + 0x31A2EC]");
-    reference!(ref_66(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6D8]", "fadd dword ptr [{rc} + 0x31A2F0]", "fstp dword ptr [{rc} + 0x31A2F0]");
-    reference!(ref_67(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6D8]", "fadd dword ptr [{rc} + 0x31A2F4]", "fstp dword ptr [{rc} + 0x31A2F4]");
-    reference!(ref_68(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6D8]", "fadd dword ptr [{rc} + 0x31A2F8]", "fstp dword ptr [{rc} + 0x31A2F8]");
-    reference!(ref_69(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6DC]", "fadd dword ptr [{rc} + 0x31A2FC]", "fstp dword ptr [{rc} + 0x31A2FC]");
-    reference!(ref_70(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6DC]", "fadd dword ptr [{rc} + 0x31A2FC]", "fstp dword ptr [{rc} + 0x31A2FC]");
-    reference!(ref_71(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6DC]", "fadd dword ptr [{rc} + 0x31A300]", "fstp dword ptr [{rc} + 0x31A300]");
-    reference!(ref_72(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6DC]", "fadd dword ptr [{rc} + 0x31A300]", "fstp dword ptr [{rc} + 0x31A300]");
-    reference!(ref_73(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6D4]", "fadd dword ptr [{rc} + 0x31A308]", "fstp dword ptr [{rc} + 0x31A308]");
-    reference!(ref_74(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6D0]", "fadd dword ptr [{rc} + 0x31A2E8]", "fstp dword ptr [{rc} + 0x31A2E8]");
-    reference!(ref_75(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6BC]", "fadd dword ptr [{rc} + 0x31A298]", "fstp dword ptr [{rc} + 0x31A298]");
-    reference!(ref_76(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6C0]", "fadd dword ptr [{rc} + 0x31A2A0]", "fstp dword ptr [{rc} + 0x31A2A0]");
-    reference!(ref_77(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6C4]", "fadd dword ptr [{rc} + 0x31A2A4]", "fstp dword ptr [{rc} + 0x31A2A4]");
-    reference!(ref_78(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6C8]", "fadd dword ptr [{rc} + 0x31A2A8]", "fstp dword ptr [{rc} + 0x31A2A8]");
-    reference!(ref_79(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6C8]", "fadd dword ptr [{rc} + 0x31A2AC]", "fstp dword ptr [{rc} + 0x31A2AC]");
-    reference!(ref_80(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6C8]", "fadd dword ptr [{rc} + 0x31A2B0]", "fstp dword ptr [{rc} + 0x31A2B0]");
-    reference!(ref_81(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6C8]", "fadd dword ptr [{rc} + 0x31A2B4]", "fstp dword ptr [{rc} + 0x31A2B4]");
-    reference!(ref_82(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6C8]", "fadd dword ptr [{rc} + 0x31A2B8]", "fstp dword ptr [{rc} + 0x31A2B8]");
-    reference!(ref_83(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6C8]", "fadd dword ptr [{rc} + 0x31A2BC]", "fstp dword ptr [{rc} + 0x31A2BC]");
-    reference!(ref_84(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6C8]", "fadd dword ptr [{rc} + 0x31A2C0]", "fstp dword ptr [{rc} + 0x31A2C0]");
-    reference!(ref_85(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6C8]", "fadd dword ptr [{rc} + 0x31A2C4]", "fstp dword ptr [{rc} + 0x31A2C4]");
-    reference!(ref_86(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6C8]", "fadd dword ptr [{rc} + 0x31A2C8]", "fstp dword ptr [{rc} + 0x31A2C8]");
-    reference!(ref_87(m, v) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6CC]", "fadd dword ptr [{v}]", "fstp dword ptr [{v}]");
-    reference!(ref_88(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6E8]", "fadd dword ptr [{rc} + 0x31A2D0]", "fstp dword ptr [{rc} + 0x31A2D0]");
-    reference!(ref_89(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6E8]", "fadd dword ptr [{rc} + 0x31A2D4]", "fstp dword ptr [{rc} + 0x31A2D4]");
-    reference!(ref_90(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6E8]", "fadd dword ptr [{rc} + 0x31A2D8]", "fstp dword ptr [{rc} + 0x31A2D8]");
-    reference!(ref_91(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6E8]", "fadd dword ptr [{rc} + 0x31A2DC]", "fstp dword ptr [{rc} + 0x31A2DC]");
-    reference!(ref_92(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6F0]", "fadd dword ptr [{rc} + 0x31A30C]", "fstp dword ptr [{rc} + 0x31A30C]");
-    reference!(ref_93(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6F0]", "fadd dword ptr [{rc} + 0x31A310]", "fstp dword ptr [{rc} + 0x31A310]");
-    reference!(ref_94(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6F0]", "fadd dword ptr [{rc} + 0x31A314]", "fstp dword ptr [{rc} + 0x31A314]");
-    reference!(ref_95(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6F0]", "fadd dword ptr [{rc} + 0x31A318]", "fstp dword ptr [{rc} + 0x31A318]");
-    reference!(ref_96(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6E4]", "fadd dword ptr [{rc} + 0x31A29C]", "fstp dword ptr [{rc} + 0x31A29C]");
-    reference!(ref_97(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6E4]", "fadd dword ptr [{rc} + 0x31A29C]", "fstp dword ptr [{rc} + 0x31A29C]");
-    reference!(ref_98(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6E0]", "fadd dword ptr [{rc} + 0x31A290]", "fstp dword ptr [{rc} + 0x31A290]");
-    reference!(ref_99(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6E0]", "fadd dword ptr [{rc} + 0x31A290]", "fstp dword ptr [{rc} + 0x31A290]");
-    reference!(ref_100(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6EC]", "fadd dword ptr [{rc} + 0x31A320]", "fstp dword ptr [{rc} + 0x31A320]");
-    reference!(ref_101(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6EC]", "fadd dword ptr [{rc} + 0x31A320]", "fstp dword ptr [{rc} + 0x31A320]");
-    reference!(ref_102(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6EC]", "fadd dword ptr [{rc} + 0x31A324]", "fstp dword ptr [{rc} + 0x31A324]");
-    reference!(ref_103(m, rc) "fld dword ptr [{m} + 0x35B3C8]", "fmul dword ptr [{m} + 0x35B6EC]", "fadd dword ptr [{rc} + 0x31A324]", "fstp dword ptr [{rc} + 0x31A324]");
-    reference!(ref_104(m, rc) "fld dword ptr [{m} + 0x35B3CC]", "fmul dword ptr [{m} + 0x35B6B0]", "fmul dword ptr [{m} + 0x35B370]", "fadd dword ptr [{rc} + 0x31A30C]", "fstp dword ptr [{rc} + 0x31A30C]");
-    reference!(ref_105(m, rc) "fld dword ptr [{m} + 0x35B3D0]", "fmul dword ptr [{m} + 0x35B6B0]", "fmul dword ptr [{m} + 0x35B370]", "fadd dword ptr [{rc} + 0x31A310]", "fstp dword ptr [{rc} + 0x31A310]");
-    reference!(ref_106(m, rc) "fld dword ptr [{m} + 0x35B3D4]", "fmul dword ptr [{m} + 0x35B6B0]", "fmul dword ptr [{m} + 0x35B370]", "fadd dword ptr [{rc} + 0x31A314]", "fstp dword ptr [{rc} + 0x31A314]");
-    reference!(ref_107(m, rc) "fld dword ptr [{m} + 0x35B3D8]", "fmul dword ptr [{m} + 0x35B6B0]", "fmul dword ptr [{m} + 0x35B370]", "fadd dword ptr [{rc} + 0x31A318]", "fstp dword ptr [{rc} + 0x31A318]");
-    reference!(ref_108(m, rc) "fld dword ptr [{m} + 0x35B3DC]", "fmul dword ptr [{m} + 0x35B6B4]", "fmul dword ptr [{m} + 0x35B370]", "fadd dword ptr [{rc} + 0x31A294]", "fstp dword ptr [{rc} + 0x31A294]");
-    reference!(ref_109(m, rc) "fld dword ptr [{m} + 0x35B3DC]", "fmul dword ptr [{m} + 0x35B6B8]", "fmul dword ptr [{m} + 0x35B370]", "fadd dword ptr [{rc} + 0x31A308]", "fstp dword ptr [{rc} + 0x31A308]");
-    reference!(ref_110(rc, m) "fld dword ptr [{rc} + 0x31A2EC]", "fadd dword ptr [{rc} + 0x31A2F0]", "fadd dword ptr [{rc} + 0x31A2F4]", "fadd dword ptr [{rc} + 0x31A2F8]", "fadd dword ptr [{rc} + 0x31A300]", "fadd dword ptr [{rc} + 0x31A2FC]", "fdiv dword ptr [{m} + 0x35B344]", "fstp dword ptr [{rc} + 0x31A304]", "fld dword ptr [{rc} + 0x31A320]", "fadd dword ptr [{rc} + 0x31A324]", "fmul dword ptr [{m} + 0x35B360]", "fstp dword ptr [{rc} + 0x31A328]", "fld dword ptr [{rc} + 0x31A32C]", "fadd dword ptr [{rc} + 0x31A330]", "fmul dword ptr [{m} + 0x35B360]", "fstp dword ptr [{m} + 0x35B440]", "fld dword ptr [{rc} + 0x31A334]", "fadd dword ptr [{rc} + 0x31A338]", "fmul dword ptr [{m} + 0x35B360]", "fstp dword ptr [{m} + 0x35B444]", "fld dword ptr [{m} + 0x35B440]", "fadd dword ptr [{m} + 0x35B444]", "fmul dword ptr [{m} + 0x35B360]", "fstp dword ptr [{rc} + 0x31A33C]", "fld dword ptr [{rc} + 0x31A2A8]", "fadd dword ptr [{rc} + 0x31A2B0]", "fadd dword ptr [{rc} + 0x31A2B4]", "fadd dword ptr [{rc} + 0x31A2B8]", "fadd dword ptr [{rc} + 0x31A2BC]", "fadd dword ptr [{rc} + 0x31A2C0]", "fadd dword ptr [{rc} + 0x31A2C4]", "fadd dword ptr [{rc} + 0x31A2C8]", "fmul dword ptr [{m} + 0x35B360]", "fmul dword ptr [{m} + 0x35B360]", "fmul dword ptr [{m} + 0x35B360]", "fstp dword ptr [{rc} + 0x31A2CC]", "fld dword ptr [{rc} + 0x31A2D0]", "fadd dword ptr [{rc} + 0x31A2D4]", "fadd dword ptr [{rc} + 0x31A2D8]", "fadd dword ptr [{rc} + 0x31A2DC]", "fadd dword ptr [{rc} + 0x31A2E0]", "fadd dword ptr [{rc} + 0x31A2E0]", "fadd dword ptr [{rc} + 0x31A2E0]", "fadd dword ptr [{rc} + 0x31A2E0]", "fadd dword ptr [{rc} + 0x31A2E0]", "fadd dword ptr [{rc} + 0x31A2E0]", "fmul dword ptr [{m} + 0x35B368]", "fstp dword ptr [{rc} + 0x31A2E4]", "fld dword ptr [{rc} + 0x31A30C]", "fadd dword ptr [{rc} + 0x31A310]", "fadd dword ptr [{rc} + 0x31A314]", "fadd dword ptr [{rc} + 0x31A318]", "fmul dword ptr [{m} + 0x35B364]", "fstp dword ptr [{rc} + 0x31A31C]", "fld dword ptr [{rc} + 0x31A420]", "fadd dword ptr [{rc} + 0x31A424]", "fadd dword ptr [{rc} + 0x31A428]", "fadd dword ptr [{rc} + 0x31A42C]", "fmul dword ptr [{m} + 0x35B364]", "fstp dword ptr [{rc} + 0x31A430]");
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse_at};
 
     fn blocks() -> Vec<Block> {
         vec![
@@ -698,7 +588,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_0(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).gauge_rates[0],
@@ -721,7 +610,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_1(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).gauge_rates[1],
@@ -744,7 +632,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_2(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).gauge_rates[2],
@@ -767,7 +654,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_3(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).gauge_rates[3],
@@ -790,7 +676,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_4(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).gauge_rates[4],
@@ -813,7 +698,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_5(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).gauge_rates[5],
@@ -836,7 +720,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_6(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).gauge_rates[6],
@@ -859,7 +742,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_7(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).gauge_rates[6],
@@ -882,7 +764,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_8(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).gauge_rates[6],
@@ -905,7 +786,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_9(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).gauge_rates[6],
@@ -928,7 +808,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_10(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).gauge_rates[6],
@@ -951,7 +830,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_11(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).gauge_rates[6],
@@ -974,7 +852,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_12(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).gauge_rates[7],
@@ -997,7 +874,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_13(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).gauge_rates[8],
@@ -1020,7 +896,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_14(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).gauge_rates[8],
@@ -1043,7 +918,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_15(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).gauge_rates[8],
@@ -1066,7 +940,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_16(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).gauge_rates[8],
@@ -1094,7 +967,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_17(a[0], a[1]) },
                 plain: |a| {
                     add_scaled_triple(
                         dm(a[0]),
@@ -1123,7 +995,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_18(a[0], a[1], a[2]) },
                 plain: |a| gear_wear_from_speed(dm(a[0]), &HostCell(a[1]), &HostCell(a[2])),
             },
             Block {
@@ -1144,7 +1015,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_19(a[0], a[1]) },
                 plain: |a| brake_wear_step(&race().shared.car, dm(a[0])),
             },
             Block {
@@ -1165,7 +1035,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_20(a[0], a[1]) },
                 plain: |a| {
                     add_scaled_triple(
                         dm(a[0]),
@@ -1190,7 +1059,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_21(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).gauge_rates[10],
@@ -1214,7 +1082,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_22(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).gauge_rates[11],
@@ -1238,7 +1105,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_23(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).gauge_rates[11],
@@ -1262,7 +1128,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_24(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).gauge_rates[11],
@@ -1286,7 +1151,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_25(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).gauge_rates[11],
@@ -1310,7 +1174,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_26(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).gauge_rates[11],
@@ -1334,7 +1197,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_27(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).gauge_rates[11],
@@ -1358,7 +1220,6 @@ mod asm_reference {
                     writes: &[(0x35B488, Out::F), (0x35B48C, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_28(a[0]) },
                 plain: |a| part_hit_figures(dm(a[0])),
             },
             Block {
@@ -1378,7 +1239,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_29(a[0], a[1], a[2]) },
                 plain: |a| scale_part_hit_figures(dm(a[0]), &HostCell(a[1]), &HostCell(a[2])),
             },
             Block {
@@ -1394,7 +1254,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_30(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).front_slip_wear_factor,
@@ -1418,7 +1277,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_31(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).front_slip_wear_factor,
@@ -1442,7 +1300,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_32(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).rear_slip_wear_factor,
@@ -1466,7 +1323,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_33(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).rear_slip_wear_factor,
@@ -1490,7 +1346,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_34(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).engine_speed_wear_factor,
@@ -1514,7 +1369,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_35(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).engine_speed_wear_factor,
@@ -1538,7 +1392,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_36(a[0], a[1]) },
                 plain: |a| engine_damage_carry(&race().shared.car, dm(a[1])),
             },
             Block {
@@ -1554,7 +1407,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_37(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).overheat_excess,
@@ -1578,7 +1430,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_38(a[0], a[1]) },
                 plain: |a| add_rate_to_clutch(&race().shared.car, &dm(a[1]).gauge_rates[16]),
             },
             Block {
@@ -1594,7 +1445,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_39(a[0], a[1]) },
                 plain: |a| add_rate_to_clutch(&race().shared.car, &dm(a[1]).gauge_rates[17]),
             },
             Block {
@@ -1610,7 +1460,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_40(a[0], a[1]) },
                 plain: |a| add_rate_to_gauge(&HostCell(a[0]), &dm(a[1]).gauge_rates[18]),
             },
             Block {
@@ -1626,7 +1475,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_41(a[0], a[1]) },
                 plain: |a| add_rate_to_gauge(&HostCell(a[0]), &dm(a[1]).gauge_rates[19]),
             },
             Block {
@@ -1642,7 +1490,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_42(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).roughness_wear_base,
@@ -1666,7 +1513,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_43(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).roughness_wear_base,
@@ -1690,7 +1536,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_44(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).roughness_wear_base,
@@ -1714,7 +1559,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_45(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).roughness_wear_base,
@@ -1738,7 +1582,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_46(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).suspension_roughness_wear,
@@ -1762,7 +1605,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_47(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).suspension_roughness_wear,
@@ -1786,7 +1628,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_48(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).suspension_roughness_wear,
@@ -1810,7 +1651,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_49(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).suspension_roughness_wear,
@@ -1834,7 +1674,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_50(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).body_roughness_wear,
@@ -1858,7 +1697,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_51(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).body_roughness_wear,
@@ -1882,7 +1720,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_52(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).body_roughness_wear,
@@ -1906,7 +1743,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_53(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).body_roughness_wear,
@@ -1930,7 +1766,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_54(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).body_roughness_wear,
@@ -1954,7 +1789,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_55(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).body_roughness_wear,
@@ -1978,7 +1812,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_56(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).body_roughness_wear,
@@ -2002,7 +1835,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_57(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).body_roughness_wear,
@@ -2026,7 +1858,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_58(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).body_roughness_wear,
@@ -2050,7 +1881,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_59(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).body_roughness_wear,
@@ -2074,7 +1904,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_60(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).body_roughness_wear,
@@ -2098,7 +1927,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_61(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).body_roughness_wear,
@@ -2122,7 +1950,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_62(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).body_roughness_wear,
@@ -2146,7 +1973,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_63(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -2169,7 +1995,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_64(a[0], a[1]) },
                 plain: |a| scale_hit_size(&race().shared.work, dm(a[0])),
             },
             Block {
@@ -2185,7 +2010,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_65(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -2208,7 +2032,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_66(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -2231,7 +2054,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_67(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -2254,7 +2076,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_68(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -2277,7 +2098,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_69(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -2300,7 +2120,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_70(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -2323,7 +2142,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_71(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -2346,7 +2164,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_72(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -2369,7 +2186,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_73(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -2392,7 +2208,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_74(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -2415,7 +2230,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_75(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -2438,7 +2252,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_76(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -2461,7 +2274,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_77(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -2484,7 +2296,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_78(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -2507,7 +2318,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_79(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -2530,7 +2340,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_80(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -2553,7 +2362,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_81(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -2576,7 +2384,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_82(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -2599,7 +2406,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_83(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -2622,7 +2428,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_84(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -2645,7 +2450,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_85(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -2668,7 +2472,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_86(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -2691,7 +2494,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_87(a[0], a[1]) },
                 plain: |a| add_hit_to_gear_gauge(dm(a[0]), &HostCell(a[1])),
             },
             Block {
@@ -2707,7 +2509,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_88(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -2730,7 +2531,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_89(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -2753,7 +2553,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_90(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -2776,7 +2575,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_91(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -2799,7 +2597,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_92(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -2822,7 +2619,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_93(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -2845,7 +2641,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_94(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -2868,7 +2663,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_95(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -2891,7 +2685,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_96(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -2914,7 +2707,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_97(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -2937,7 +2729,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_98(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -2960,7 +2751,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_99(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -2983,7 +2773,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_100(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -3006,7 +2795,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_101(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -3029,7 +2817,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_102(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -3052,7 +2839,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_103(a[0], a[1]) },
                 plain: |a| {
                     add_product(
                         &dm(a[0]).hit_size,
@@ -3075,7 +2861,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_104(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).wheel_loads[0],
@@ -3099,7 +2884,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_105(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).wheel_loads[1],
@@ -3123,7 +2907,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_106(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).wheel_loads[2],
@@ -3147,7 +2930,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_107(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).wheel_loads[3],
@@ -3171,7 +2953,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_108(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).wheel_load_mean,
@@ -3195,7 +2976,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_109(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).wheel_load_mean,
@@ -3268,7 +3048,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_110(a[0], a[1]) },
                 plain: |a| gauge_totals(&race().shared.car, dm(a[1])),
             },
         ]
@@ -3277,7 +3056,7 @@ mod asm_reference {
     #[test]
     fn x87_blocks_matches_the_assembly() {
         // The plain code rounds to nearest, as the game always runs the damage model.
-        sparse_at(&blocks(), 1200, 100, &[0x027F]);
+        sparse_at("physics.damage_gauges", &blocks(), 900, 100, &[0x027F]);
     }
 }
 

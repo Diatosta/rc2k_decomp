@@ -22,14 +22,16 @@ const TABLE_LEN: u32 = crate::scene::fog::TABLE_LEN as u32;
 // ---- Rust version ----
 
 pub fn fog_polygon(
-    polygon_work: &'static crate::scene::polygon_store::PolygonWork,
+    part: &crate::workers::PartScratch,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
-    fog_entries(&listed(polygon_work, &view.polygon)?, view)
+    let polygon_work = part.polygon;
+    fog_entries(part, &listed(polygon_work, &view.polygon)?, view)
 }
 
 /// `fog_polygon` on the polygon's entries as listed.
 pub fn fog_entries(
+    part: &crate::workers::PartScratch,
     entries: &Listed,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
@@ -48,6 +50,7 @@ pub fn fog_entries(
     for entry in entries {
         let record = entry.record.get();
         let depth = x87::to_int(crate::scene::point_records::vertex(
+            part,
             &view.polygon.quad_vertices,
             record,
             0x18,

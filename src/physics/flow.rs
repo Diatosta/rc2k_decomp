@@ -189,16 +189,12 @@ pub fn fill_cells<A: crate::session::Cell32>(to: &[A], v: u32) {
     }
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
     use crate::scene::x87_mem::{Base, HostCell, view};
     use crate::session::Cell32;
-
-    // The original's instructions, one function per run.
-    reference!(ref_0(t, z, s) "fld dword ptr [{t} + 8]", "fsub dword ptr [{t}]", "fcomp dword ptr [{z}]", "fnstsw word ptr [{s}]");
-    reference!(ref_1(x, t, o) "fld dword ptr [{x}]", "fsub dword ptr [{t}]", "fld dword ptr [{t} + 8]", "fsub dword ptr [{t}]", ".byte 0xDE, 0xF9", "fld dword ptr [{t} + 0xC]", "fsub dword ptr [{t} + 4]", ".byte 0xDE, 0xC9", "fadd dword ptr [{t} + 4]", "fstp dword ptr [{o}]");
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
         vec![
@@ -219,7 +215,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
                 plain: |a| a[2].set_word(0, x87_1(view(a[0], 0), HostCell(a[1]).bits())),
             },
             Block {
@@ -239,7 +234,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_1(a[0], a[1], a[2]) },
                 plain: |a| HostCell(a[2]).set_bits(x87_2(HostCell(a[0]).bits(), view(a[1], 0))),
             },
         ]
@@ -247,6 +241,6 @@ mod asm_reference {
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse(&blocks(), 1200, 100);
+        sparse("physics.flow", &blocks(), 1200, 100);
     }
 }

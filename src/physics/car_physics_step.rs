@@ -390,14 +390,11 @@ fn x87_1(race: &Race) {
     race.shared.car.vertical_speed_change.st(t7);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
     use crate::race::owner::race;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
-
-    // The original's instructions, one function per run.
-    reference!(ref_0(rc) "fld dword ptr [{rc} + 0x31A190]", "fadd dword ptr [{rc} + 0x31A194]", "fmul dword ptr [{rc} + 0x1C5E40]", "fstp dword ptr [{rc} + 0x31A198]", "fld dword ptr [{rc} + 0x31A174]", "fsub dword ptr [{rc} + 0x214138]", "fstp dword ptr [{rc} + 0x31A8E4]");
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
         vec![Block {
@@ -413,13 +410,12 @@ mod asm_reference {
                 writes: &[(0x31A198, Out::F), (0x31A8E4, Out::F)],
             }],
             ulps: 0,
-            reference: |a| unsafe { ref_0(a[0]) },
             plain: |_| x87_1(race()),
         }]
     }
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse(&blocks(), 1200, 100);
+        sparse("physics.car_physics_step", &blocks(), 1200, 100);
     }
 }

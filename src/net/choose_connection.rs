@@ -46,7 +46,7 @@ pub fn choose_connection(o: crate::owners::Owners<'static>) -> Result<u32, Refus
             .pages
             .frame_clock
             .set(system.session.clocks.key_ticks.get());
-        let key = list_key()?;
+        let key = list_key(install)?;
         if list_move(install, key, vars.connections.get()) {
             install
                 .pages

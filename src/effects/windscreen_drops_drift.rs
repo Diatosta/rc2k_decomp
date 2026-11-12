@@ -221,187 +221,11 @@ fn move_kept_x87(drops: &WindscreenDrops, m: &EffectsSettings, c: &MarksClock) {
     st_cell(&drops.hex.kept_move[0], t2);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
-    //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
-
-    pub(super) fn view_moved_x87(mk: usize, s: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{s} + 0x26AC]",
-            "fsub dword ptr [{mk} + 0xB1296]",
-            "fmul dword ptr [{mk} + 0xA0]",
-            "fld dword ptr [{s} + 0x26B0]",
-            "fsub dword ptr [{mk} + 0xB129A]",
-            "fmul dword ptr [{mk} + 0xA0]",
-            "fld dword ptr [{s} + 0x26B4]",
-            "fsub dword ptr [{mk} + 0xB129E]",
-            "fmul dword ptr [{mk} + 0xA0]",
-            "fstp dword ptr [{mk} + 0xB12B6]",
-            "fstp dword ptr [{mk} + 0xB12B2]",
-            "fstp dword ptr [{mk} + 0xB12AE]",
-            "fld dword ptr [{mk} + 0xB12AE]",
-            "fsub dword ptr [{mk} + 0xB12A2]",
-            "fld dword ptr [{mk} + 0xB12B2]",
-            "fsub dword ptr [{mk} + 0xB12A6]",
-            "fld dword ptr [{mk} + 0xB12B6]",
-            "fsub dword ptr [{mk} + 0xB12AA]",
-            "fstp dword ptr [{mk} + 0xB12C2]",
-            "fstp dword ptr [{mk} + 0xB12BE]",
-            "fstp dword ptr [{mk} + 0xB12BA]",
-            "fld dword ptr [{mk} + 0xB12A2]",
-            "fmul dword ptr [{mk} + 0xC93E6]",
-            "fadd dword ptr [{mk} + 0xB12BA]",
-            "fstp dword ptr [{mk} + 0xB12BA]",
-            "fld dword ptr [{mk} + 0xB12A6]",
-            "fmul dword ptr [{mk} + 0xC93EA]",
-            "fadd dword ptr [{mk} + 0xB12BE]",
-            "fstp dword ptr [{mk} + 0xB12BE]",
-            "fld dword ptr [{mk} + 0xB12AA]",
-            "fmul dword ptr [{mk} + 0xC93EE]",
-            "fadd dword ptr [{mk} + 0xB12C2]",
-            "fstp dword ptr [{mk} + 0xB12C2]",
-            mk = in(reg) mk,
-            s = in(reg) s,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn drift_turned_x87(mk: usize, m: usize, t: usize, l: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{mk} + 0xB12C2]",
-            "fld dword ptr [{mk} + 0xB12BE]",
-            "fld dword ptr [{mk} + 0xB12BA]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{m} + 0x0]",
-            ".byte 0xD9, 0xC2",
-            "fmul dword ptr [{m} + 0x4]",
-            ".byte 0xD9, 0xC4",
-            "fmul dword ptr [{m} + 0x8]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{t} + 0x0]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{m} + 0xC]",
-            ".byte 0xD9, 0xC2",
-            "fmul dword ptr [{m} + 0x10]",
-            ".byte 0xD9, 0xC4",
-            "fmul dword ptr [{m} + 0x14]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{t} + 0x4]",
-            "fmul dword ptr [{m} + 0x18]",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{m} + 0x1C]",
-            ".byte 0xD9, 0xCA",
-            "fmul dword ptr [{m} + 0x20]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fld dword ptr [{t} + 0x4]",
-            "fld dword ptr [{t} + 0x0]",
-            "fstp tbyte ptr [{l}]",
-            "fstp tbyte ptr [{l} + 10]",
-            "fstp tbyte ptr [{l} + 20]",
-            mk = in(reg) mk,
-            m = in(reg) m,
-            t = in(reg) t,
-            l = in(reg) l,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn drift_back_x87(mk: usize, m: usize, t: usize, l: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld tbyte ptr [{l} + 20]",
-            "fld tbyte ptr [{l} + 10]",
-            "fld tbyte ptr [{l}]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{m} + 0x0]",
-            ".byte 0xD9, 0xC2",
-            "fmul dword ptr [{m} + 0x4]",
-            ".byte 0xD9, 0xC4",
-            "fmul dword ptr [{m} + 0x8]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{t} + 0x0]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{m} + 0xC]",
-            ".byte 0xD9, 0xC2",
-            "fmul dword ptr [{m} + 0x10]",
-            ".byte 0xD9, 0xC4",
-            "fmul dword ptr [{m} + 0x14]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{t} + 0x4]",
-            "fmul dword ptr [{m} + 0x18]",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{m} + 0x1C]",
-            ".byte 0xD9, 0xCA",
-            "fmul dword ptr [{m} + 0x20]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fld dword ptr [{t} + 0x4]",
-            "fld dword ptr [{t} + 0x0]",
-            ".byte 0xD9, 0xE0",
-            "fst dword ptr [{mk} + 0xB12DE]",
-            "fmul dword ptr [{mk} + 0xC93F6]",
-            "fstp dword ptr [{mk} + 0xACC9F]",
-            "fst dword ptr [{mk} + 0xB12E2]",
-            "fmul dword ptr [{mk} + 0xC93FA]",
-            "fstp dword ptr [{mk} + 0xACCA3]",
-            "fst dword ptr [{mk} + 0xB12E6]",
-            "fmul dword ptr [{mk} + 0xC93FE]",
-            "fstp dword ptr [{mk} + 0xACCA7]",
-            mk = in(reg) mk,
-            m = in(reg) m,
-            t = in(reg) t,
-            l = in(reg) l,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn move_kept_x87(mk: usize, s: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{s} + 0x26AC]",
-            "fsub dword ptr [{mk} + 0xB1296]",
-            "fmul dword ptr [{mk} + 0xA0]",
-            "fld dword ptr [{s} + 0x26B0]",
-            "fsub dword ptr [{mk} + 0xB129A]",
-            "fmul dword ptr [{mk} + 0xA0]",
-            "fld dword ptr [{s} + 0x26B4]",
-            "fsub dword ptr [{mk} + 0xB129E]",
-            "fmul dword ptr [{mk} + 0xA0]",
-            "fstp dword ptr [{mk} + 0xB12AA]",
-            "fstp dword ptr [{mk} + 0xB12A6]",
-            "fstp dword ptr [{mk} + 0xB12A2]",
-            mk = in(reg) mk,
-            s = in(reg) s,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-}
-
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_differential {
-    use super::asm_reference as reference;
+#[cfg(test)]
+mod reference_vectors {
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::with_settings;
-    use crate::effects::asm_test::{Op, Spec, differential};
+    use crate::effects::asm_test::{Op, Spec, recorded_writes};
     use crate::effects::tilt_shape::ShapeTilt;
     use crate::effects::typed_sync::{overlay, with_overlays};
     use crate::effects::windscreen_drop_vars::WindscreenDropVars;
@@ -498,9 +322,9 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
+        recorded_writes(
+            "effects.windscreen_drops_drift.view_moved_x87",
             &SPEC,
-            |b| reference::view_moved_x87(b[0], b[1]),
             |b| {
                 hex(b[0], || {
                     with_settings(b[1], |m| {
@@ -556,9 +380,9 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
+        recorded_writes(
+            "effects.windscreen_drops_drift.drift_turned_x87",
             &SPEC,
-            |b| reference::drift_turned_x87(b[0], b[1], b[2], b[3]),
             |b| {
                 hex(b[0], || {
                     let (m, temps, l) = (floats::<9>(b[1]), floats::<2>(b[2]), kept(b[3]));
@@ -623,9 +447,9 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
+        recorded_writes(
+            "effects.windscreen_drops_drift.drift_back_x87",
             &SPEC,
-            |b| reference::drift_back_x87(b[0], b[1], b[2], b[3]),
             |b| {
                 with_overlays(
                     b[0],
@@ -673,20 +497,16 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::move_kept_x87(b[0], b[1]),
-            |b| {
-                hex(b[0], || {
-                    with_settings(b[1], |m| {
-                        super::move_kept_x87(
-                            &crate::effects::owner::effects().windscreen_drops,
-                            m,
-                            crate::effects::setup::clock_at(b[0]),
-                        );
-                    });
+        recorded_writes("effects.windscreen_drops_drift.move_kept_x87", &SPEC, |b| {
+            hex(b[0], || {
+                with_settings(b[1], |m| {
+                    super::move_kept_x87(
+                        &crate::effects::owner::effects().windscreen_drops,
+                        m,
+                        crate::effects::setup::clock_at(b[0]),
+                    );
                 });
-            },
-        );
+            });
+        });
     }
 }

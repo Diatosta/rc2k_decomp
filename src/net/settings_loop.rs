@@ -31,7 +31,7 @@ pub fn settings_loop(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
             .pages
             .frame_clock
             .set(system.session.clocks.key_ticks.get());
-        let key = list_key()?;
+        let key = list_key(install)?;
         let mut moved = false;
         if net.edit().edited.get() != u32::MAX {
             crate::net::setting_key::setting_key(install, net, key)?;

@@ -171,7 +171,7 @@ trait Effects {
     /// A float with two decimals and a line break (`log_float`).
     fn float(&mut self, bits: u32);
     /// `race::clear_player_absences` (0x449D44).
-    fn clear_player_absences(&mut self);
+    fn clear_player_absences(&mut self, race: &Race);
     /// `race::copy_league_table` (0x4650B7).
     fn copy_league_table(&mut self, race: &Race) -> Result<(), Refused>;
     /// `race::store_results_by_mode` (0x449957).
@@ -194,8 +194,8 @@ impl Effects for GameEffects {
     fn float(&mut self, bits: u32) {
         crate::logfile::log_float::log_float(f32::from_bits(bits), 2, true, 1);
     }
-    fn clear_player_absences(&mut self) {
-        crate::race::race_shell::clear_player_absences();
+    fn clear_player_absences(&mut self, race: &Race) {
+        crate::race::race_shell::clear_player_absences(race);
     }
     fn copy_league_table(&mut self, race: &Race) -> Result<(), Refused> {
         Ok(crate::race::race_shell::copy_league_table(race)?)
@@ -396,7 +396,7 @@ fn copy_in(race: &Race, gfx: &Gfx, fx: &mut impl Effects) -> Result<(), Refused>
 
     log_cars(race, fx);
 
-    fx.clear_player_absences();
+    fx.clear_player_absences(race);
     for car in 0..2 {
         race.car_blocks().cars[car]
             .stop_state
@@ -612,7 +612,7 @@ mod tests {
         fn float(&mut self, bits: u32) {
             self.0.push(format!("float {bits:08X}"));
         }
-        fn clear_player_absences(&mut self) {
+        fn clear_player_absences(&mut self, _: &Race) {
             self.0.push("call clear_player_absences".into());
         }
         fn copy_league_table(&mut self, _: &Race) -> Result<(), Refused> {

@@ -147,15 +147,10 @@ fn x87_3(contact: &ContactWork, numbers: &Numbers, car: &Car) {
     car.contact_point[2].st(t6);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
-
-    // The original's instructions, one function per run.
-    reference!(ref_0(rc) "fild dword ptr [{rc} + 0x2D3B4C]", "fdiv dword ptr [{rc} + 0x1C5D98]", "fstp dword ptr [{rc} + 0x2D3B78]", "fild dword ptr [{rc} + 0x2D3B50]", "fdiv dword ptr [{rc} + 0x1C5D98]", "fstp dword ptr [{rc} + 0x2D3B7C]", "fild dword ptr [{rc} + 0x2D3B54]", "fdiv dword ptr [{rc} + 0x1C5D98]", "fstp dword ptr [{rc} + 0x2D3B80]");
-    reference!(ref_1(rc) "fld dword ptr [{rc} + 0x2D3B58]", "fmul dword ptr [{rc} + 0x1C5D98]", "fistp dword ptr [{rc} + 0x2D3090]", "fld dword ptr [{rc} + 0x2D3B5C]", "fmul dword ptr [{rc} + 0x1C5D98]", "fistp dword ptr [{rc} + 0x2D3094]", "fld dword ptr [{rc} + 0x2D3B60]", "fmul dword ptr [{rc} + 0x1C5D98]", "fistp dword ptr [{rc} + 0x2D3098]");
-    reference!(ref_2(rc) "fild dword ptr [{rc} + 0x2D3090]", "fdiv dword ptr [{rc} + 0x1C5D98]", "fstp dword ptr [{rc} + 0x31A1FC]", ".byte 0xD9, 0xEE", "fstp dword ptr [{rc} + 0x31A200]", "fild dword ptr [{rc} + 0x2D3098]", "fdiv dword ptr [{rc} + 0x1C5D98]", "fstp dword ptr [{rc} + 0x31A204]");
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
         vec![
@@ -171,7 +166,6 @@ mod asm_reference {
                     writes: &[(0x2D3B78, Out::F), (0x2D3B7C, Out::F), (0x2D3B80, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_0(a[0]) },
                 plain: |_| {
                     x87_1(
                         &crate::race::owner::race().physics.contact,
@@ -191,7 +185,6 @@ mod asm_reference {
                     writes: &[(0x2D3090, Out::I), (0x2D3094, Out::I), (0x2D3098, Out::I)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_1(a[0]) },
                 plain: |_| {
                     x87_2(
                         &crate::race::owner::race().physics.contact,
@@ -206,7 +199,6 @@ mod asm_reference {
                     writes: &[(0x31A1FC, Out::F), (0x31A200, Out::F), (0x31A204, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_2(a[0]) },
                 plain: |_| {
                     x87_3(
                         &crate::race::owner::race().physics.contact,
@@ -220,6 +212,6 @@ mod asm_reference {
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse(&blocks(), 1200, 100);
+        sparse("physics.point_hits_car", &blocks(), 1200, 100);
     }
 }

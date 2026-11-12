@@ -152,7 +152,7 @@ pub fn crash_contact(
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// (a long formula: see the instructions in the tests' `asm_reference`)
+/// (a long formula: checked by the tests' `reference_vectors`)
 fn x87_1(contact: &ContactWork, tables: &PhysicsTables, numbers: &Numbers) {
     let t0 = contact.crash_up_dot.ld();
     let t1 = numbers.one.ld();
@@ -184,14 +184,10 @@ fn x87_2(contact: &ContactWork, car: &Car, numbers: &Numbers) {
     contact.crash_ground_scale.st(t4);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
-
-    // The original's instructions, one function per run.
-    reference!(ref_0(rc) "fld dword ptr [{rc} + 0x2D31D0]", "fadd dword ptr [{rc} + 0x1C5D38]", "fdiv dword ptr [{rc} + 0x1C5D3C]", "fadd dword ptr [{rc} + 0x1C5D3C]", "fmul dword ptr [{rc} + 0x213FC8]", "fmul dword ptr [{rc} + 0x21388C]", "fmul dword ptr [{rc} + 0x214294]", "fmul dword ptr [{rc} + 0x214170]", "fstp dword ptr [{rc} + 0x2D3100]");
-    reference!(ref_1(rc) "fld dword ptr [{rc} + 0x31A0A0]", "fadd dword ptr [{rc} + 0x1C5D60]", "fdiv dword ptr [{rc} + 0x1C5D60]", "fstp dword ptr [{rc} + 0x2D3014]");
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
         vec![
@@ -210,7 +206,6 @@ mod asm_reference {
                     writes: &[(0x2D3100, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_0(a[0]) },
                 plain: |_| {
                     x87_1(
                         &crate::race::owner::race().physics.contact,
@@ -226,7 +221,6 @@ mod asm_reference {
                     writes: &[(0x2D3014, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_1(a[0]) },
                 plain: |_| {
                     x87_2(
                         &crate::race::owner::race().physics.contact,
@@ -240,6 +234,6 @@ mod asm_reference {
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse(&blocks(), 1200, 100);
+        sparse("physics.crash_contact", &blocks(), 1200, 100);
     }
 }

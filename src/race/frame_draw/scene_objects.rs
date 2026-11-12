@@ -189,7 +189,7 @@ pub fn draw_screen_quad(
     }
     part.polygon.list[4].set(0u32);
     poly.polygon_next_entry.set(4u32);
-    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(part.polygon, poly, race)?;
+    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(part, poly, race)?;
     if poly.polygon_vertex_count.get() >= 3 {
         crate::scene::depth_buffer_on::depth_buffer(false);
         poly.polygon_textures[0].set(u32::MAX);

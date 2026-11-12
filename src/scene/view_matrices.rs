@@ -84,6 +84,7 @@ pub struct ViewMatrices {
 pub struct Held<'a> {
     view: &'a ViewMatrices,
     store: &'a SceneMatrices,
+    part: &'a crate::workers::PartScratch,
 }
 
 /// The fourth columns of the turned, lit and made-object matrices, in that order.
@@ -110,15 +111,47 @@ fn write_columns(c: &Columns, to: [&[Float; 16]; 3]) {
     }
 }
 
-thread_local! {
-    /// The running part's columns, if the thread is drawing a part other than the first.
-    static OWN: std::cell::Cell<Option<Columns>> = const { std::cell::Cell::new(None) };
+/// A drawing part's own columns (`workers::PartScratch::columns`): set while a part other
+/// than the first is drawn, none otherwise.
+pub struct OwnColumns(std::sync::Mutex<Option<Columns>>);
+
+impl OwnColumns {
+    pub const fn new() -> Self {
+        Self(std::sync::Mutex::new(None))
+    }
+
+    fn get(&self) -> Option<Columns> {
+        *self
+            .0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    fn set(&self, c: Option<Columns>) -> Option<Columns> {
+        std::mem::replace(
+            &mut *self
+                .0
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+            c,
+        )
+    }
 }
 
-/// Matrix `m` (0 turned, 1 lit, 2 made-object) as this thread's part has it: the store's
-/// first three columns, the fourth the part's own (`OWN`) in a part other than the first.
-pub fn current_matrix(store: &SceneMatrices, m: usize) -> [u32; 16] {
-    let c = OWN.get();
+impl Default for OwnColumns {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Matrix `m` (0 turned, 1 lit, 2 made-object) as `part` has it: the store's first three
+/// columns, the fourth the part's own in a part other than the first.
+pub fn current_matrix(
+    store: &SceneMatrices,
+    part: &crate::workers::PartScratch,
+    m: usize,
+) -> [u32; 16] {
+    let c = part.columns.get();
     std::array::from_fn(|cell| match (c, CELLS.iter().position(|&k| k == cell)) {
         (Some(c), Some(row)) => c.0[m * 4 + row],
         _ => held(store)[m][cell].bits(),
@@ -130,14 +163,14 @@ pub fn columns(store: &SceneMatrices) -> Columns {
     read_columns(held(store))
 }
 
-/// A part begins on this thread, its columns `start`.
-pub fn begin_part(start: Columns) {
-    OWN.set(Some(start));
+/// Part `part` (not the first) begins, its columns `start`.
+pub fn begin_part(part: &crate::workers::PartScratch, start: Columns) {
+    part.columns.set(Some(start));
 }
 
-/// The part on this thread is over: the columns it leaves.
-pub fn end_part() -> Option<Columns> {
-    OWN.take()
+/// Part `part` is over: the columns it leaves.
+pub fn end_part(part: &crate::workers::PartScratch) -> Option<Columns> {
+    part.columns.set(None)
 }
 
 /// A part's columns `left` into the store where they differ from `start` (as the copies'
@@ -152,20 +185,28 @@ pub fn merge_columns(store: &SceneMatrices, start: &Columns, left: &Columns) {
 }
 
 impl ViewMatrices {
-    /// The shared turned, lit and made-object matrices' fourth columns taken into the view's
-    /// until the returned hold is dropped.
-    pub fn hold<'a>(&'a self, store: &'a SceneMatrices) -> Held<'a> {
-        let c = OWN.get().unwrap_or_else(|| columns(store));
+    /// The shared turned, lit and made-object matrices' fourth columns (`part`'s own in a
+    /// part other than the first) taken into the view's until the returned hold is dropped.
+    pub fn hold<'a>(
+        &'a self,
+        store: &'a SceneMatrices,
+        part: &'a crate::workers::PartScratch,
+    ) -> Held<'a> {
+        let c = part.columns.get().unwrap_or_else(|| columns(store));
         write_columns(&c, view_held(self));
-        Held { view: self, store }
+        Held {
+            view: self,
+            store,
+            part,
+        }
     }
 }
 
 impl Drop for Held<'_> {
     fn drop(&mut self) {
         let c = read_columns(view_held(self.view));
-        if OWN.get().is_some() {
-            OWN.set(Some(c));
+        if self.part.columns.get().is_some() {
+            self.part.columns.set(Some(c));
         } else {
             write_columns(&c, held(self.store));
         }

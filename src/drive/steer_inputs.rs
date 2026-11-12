@@ -163,26 +163,12 @@ pub fn steer_inputs(race: &Race, scene: &crate::scene::owner::Scene) {
     }
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
     use crate::race::owner::race;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
     use crate::scene::owner::scene;
-
-    // The original's instructions, one function per run.
-    reference!(ref_key(rc)
-        "fild dword ptr [{rc} + 0x22400C]",
-        "fmul dword ptr [{rc} + 0x214C0C]",
-        "fistp dword ptr [{rc} + 0x22400C]");
-    reference!(ref_device(rc)
-        "fild dword ptr [{rc} + 0x22400C]",
-        "fmul dword ptr [{rc} + 0x214C08]",
-        "fistp dword ptr [{rc} + 0x22400C]");
-    reference!(ref_trim(rc)
-        "fild dword ptr [{rc} + 0x22400C]",
-        "fmul dword ptr [{rc} + 0x31A3E0]",
-        "fistp dword ptr [{rc} + 0x31A1E0]");
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
         vec![
@@ -193,7 +179,6 @@ mod asm_reference {
                     writes: &[(0x22400C, Out::I)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_key(a[0]) },
                 plain: |_| {
                     let drawing = &scene().drawing;
                     scale(
@@ -210,7 +195,6 @@ mod asm_reference {
                     writes: &[(0x22400C, Out::I)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_device(a[0]) },
                 plain: |_| {
                     let drawing = &scene().drawing;
                     scale(
@@ -227,7 +211,6 @@ mod asm_reference {
                     writes: &[(0x31A1E0, Out::I)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_trim(a[0]) },
                 plain: |_| {
                     let drawing = &scene().drawing;
                     scale(
@@ -242,6 +225,6 @@ mod asm_reference {
 
     #[test]
     fn steer_inputs_matches_the_assembly() {
-        sparse(&blocks(), 4000, 203);
+        sparse("drive.steer_inputs", &blocks(), 4000, 203);
     }
 }

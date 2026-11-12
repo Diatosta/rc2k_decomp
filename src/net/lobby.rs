@@ -125,14 +125,14 @@ pub fn run_frame<T>(frame: impl FnOnce() -> Result<T, Refused>) -> Result<(), Re
 }
 
 /// `menu::list_take_key`: the key.
-pub fn list_key() -> Result<u8, Refused> {
-    Ok(crate::menu::list_take_key::list_take_key())
+pub fn list_key(install: &crate::install::owner::Install) -> Result<u8, Refused> {
+    Ok(crate::menu::list_take_key::list_take_key(install))
 }
 
 /// A list screen's other keys: a screenshot (R, when they are on), the lexicon.
 pub fn other_key(o: crate::owners::Owners<'static>, key: u8) -> Result<(), Refused> {
-    if crate::gfx::shots::on() != 0 && key == 0x52 {
-        crate::gfx::take_screenshot::take_screenshot()?;
+    if o.gfx.shots.on.get() != 0 && key == 0x52 {
+        crate::gfx::take_screenshot::take_screenshot(o.gfx)?;
     }
     crate::strings::maybe_compile_lexicon::maybe_compile_lexicon(o.input, o.strings, o.system)
 }

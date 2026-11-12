@@ -13,7 +13,7 @@
 //! the other wheel of the pair). Then the same from the floats at +0xC (+0x290 = their sum x 64, the volume
 //! their sum x 0.1, the surface into `dword_4F66F5`, x 0.1 on 7 and 8) with the sets
 //! of `off_5163A0`. The x87 code is plain Rust over `X` (`math/x87_float.rs`; the original's instructions
-//! are `asm_reference` in the tests; `Machine.scratch` is the scratch dword for the constants). One caller, `sound::car_sounds`.
+//! are recorded in the tests' `reference_vectors`; `Machine.scratch` is the scratch dword for the constants). One caller, `sound::car_sounds`.
 //! Refuses a null object, a surface past the 16 of `StageSounds.surface_sets[0]` and a set
 //! past the seven pairs: what was written is put back (a sound already sent stays).
 
@@ -111,7 +111,7 @@ fn x87_2(sf: &crate::sound::store::SurfaceSounds, t: impl Base) {
 /// `[sf + 0x3C] = (((0 + [bx + 0x4C]) + [bx + 0x60]) - [bx + 0x74]) - [bx + 0x88]`
 /// `int [bx + 0x284] = ((([bx + 0x44] + [bx + 0x58]) + [bx + 0x6C]) + [bx + 0x80]) * [sf + 0xC]`
 /// `int [bx + 0x28C] = ((([bx + 0x4C] + [bx + 0x60]) + [bx + 0x74]) + [bx + 0x88]) * [sf + 0x10]`
-/// (a long formula: see the instructions in the tests' `asm_reference`)
+/// (a long formula: checked by the tests' `reference_vectors`)
 fn x87_3(bx: &crate::sound::store::SoundObject, sf: &crate::sound::store::SurfaceSounds) {
     let t0 = X(0.0);
     let t1 = ld(bx.voices[0].share_b.get());
@@ -224,16 +224,10 @@ fn x87_4(bx: &crate::sound::store::SoundObject, sf: &crate::sound::store::Surfac
     sf.volume.set(stf(t35));
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
-
-    // The original's instructions, one function per run.
-    reference!(ref_0(sf, t) "fld dword ptr [{sf} + 0x40]", "mov dword ptr [{t}], 0x3E800000", "fmul dword ptr [{t}]", "fstp dword ptr [{sf} + 0x40]");
-    reference!(ref_1(sf, t) "fld dword ptr [{sf} + 0x40]", "mov dword ptr [{t}], 0x3DCCCCCD", "fmul dword ptr [{t}]", "fstp dword ptr [{sf} + 0x40]");
-    reference!(ref_2(bx, sf) ".byte 0xD9, 0xEE", "fsub dword ptr [{bx} + 0x4C]", "fadd dword ptr [{bx} + 0x60]", "fsub dword ptr [{bx} + 0x74]", "fadd dword ptr [{bx} + 0x88]", "fstp dword ptr [{sf} + 0x34]", ".byte 0xD9, 0xEE", "fadd dword ptr [{bx} + 0x4C]", "fadd dword ptr [{bx} + 0x60]", "fsub dword ptr [{bx} + 0x74]", "fsub dword ptr [{bx} + 0x88]", "fstp dword ptr [{sf} + 0x3c]", "fld dword ptr [{bx} + 0x44]", "fadd dword ptr [{bx} + 0x58]", "fadd dword ptr [{bx} + 0x6C]", "fadd dword ptr [{bx} + 0x80]", "fmul dword ptr [{sf} + 0xc]", "fistp dword ptr [{bx} + 0x284]", "fld dword ptr [{bx} + 0x4C]", "fadd dword ptr [{bx} + 0x60]", "fadd dword ptr [{bx} + 0x74]", "fadd dword ptr [{bx} + 0x88]", "fmul dword ptr [{sf} + 0x10]", "fistp dword ptr [{bx} + 0x28C]", ".byte 0xD9, 0xEE", "fld dword ptr [{bx} + 0x44]", "fmul dword ptr [{bx} + 0x4C]", ".byte 0xDE, 0xC1", "fld dword ptr [{bx} + 0x58]", "fmul dword ptr [{bx} + 0x60]", ".byte 0xDE, 0xC1", "fld dword ptr [{bx} + 0x6C]", "fmul dword ptr [{bx} + 0x74]", ".byte 0xDE, 0xC1", "fld dword ptr [{bx} + 0x80]", "fmul dword ptr [{bx} + 0x88]", ".byte 0xDE, 0xC1", "fmul dword ptr [{sf} + 0x4]", "fstp dword ptr [{sf} + 0x40]");
-    reference!(ref_3(bx, sf) ".byte 0xD9, 0xEE", "fsub dword ptr [{bx} + 0x50]", "fadd dword ptr [{bx} + 0x64]", "fsub dword ptr [{bx} + 0x78]", "fadd dword ptr [{bx} + 0x8C]", "fstp dword ptr [{sf} + 0x34]", ".byte 0xD9, 0xEE", "fadd dword ptr [{bx} + 0x50]", "fadd dword ptr [{bx} + 0x64]", "fsub dword ptr [{bx} + 0x78]", "fsub dword ptr [{bx} + 0x8C]", "fstp dword ptr [{sf} + 0x3c]", "fld dword ptr [{bx} + 0x50]", "fadd dword ptr [{bx} + 0x64]", "fadd dword ptr [{bx} + 0x78]", "fadd dword ptr [{bx} + 0x8C]", "fmul dword ptr [{sf} + 0x10]", "fistp dword ptr [{bx} + 0x290]", "fld dword ptr [{bx} + 0x50]", "fadd dword ptr [{bx} + 0x64]", "fadd dword ptr [{bx} + 0x78]", "fadd dword ptr [{bx} + 0x8C]", "fmul dword ptr [{sf} + 0x4]", "fstp dword ptr [{sf} + 0x40]");
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
         vec![
@@ -250,10 +244,12 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_0(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        unsafe { &*(a[0] as *const crate::sound::store::SurfaceSounds) },
+                        unsafe {
+                            &*(crate::test_support::vectors::block_vectors::at(a[0])
+                                as *const crate::sound::store::SurfaceSounds)
+                        },
                         a[1],
                     );
                 },
@@ -271,10 +267,12 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_1(a[0], a[1]) },
                 plain: |a| {
                     x87_2(
-                        unsafe { &*(a[0] as *const crate::sound::store::SurfaceSounds) },
+                        unsafe {
+                            &*(crate::test_support::vectors::block_vectors::at(a[0])
+                                as *const crate::sound::store::SurfaceSounds)
+                        },
                         a[1],
                     );
                 },
@@ -301,11 +299,16 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_2(a[0], a[1]) },
                 plain: |a| {
                     x87_3(
-                        unsafe { &*(a[0] as *const crate::sound::store::SoundObject) },
-                        unsafe { &*(a[1] as *const crate::sound::store::SurfaceSounds) },
+                        unsafe {
+                            &*(crate::test_support::vectors::block_vectors::at(a[0])
+                                as *const crate::sound::store::SoundObject)
+                        },
+                        unsafe {
+                            &*(crate::test_support::vectors::block_vectors::at(a[1])
+                                as *const crate::sound::store::SurfaceSounds)
+                        },
                     );
                 },
             },
@@ -322,11 +325,16 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_3(a[0], a[1]) },
                 plain: |a| {
                     x87_4(
-                        unsafe { &*(a[0] as *const crate::sound::store::SoundObject) },
-                        unsafe { &*(a[1] as *const crate::sound::store::SurfaceSounds) },
+                        unsafe {
+                            &*(crate::test_support::vectors::block_vectors::at(a[0])
+                                as *const crate::sound::store::SoundObject)
+                        },
+                        unsafe {
+                            &*(crate::test_support::vectors::block_vectors::at(a[1])
+                                as *const crate::sound::store::SurfaceSounds)
+                        },
                     );
                 },
             },
@@ -335,6 +343,6 @@ mod asm_reference {
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse(&blocks(), 1200, 100);
+        sparse("sound.surface_sounds", &blocks(), 1200, 100);
     }
 }

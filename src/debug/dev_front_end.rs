@@ -135,7 +135,7 @@ fn round_a_race(
     stage_free::objects_tidy(race)?;
     race_end::release_textures(o.scene);
     shared.switches.mask_kind.set(0);
-    race_shell::clear_player_absences();
+    race_shell::clear_player_absences(race);
     f()?;
     step(o, Call::StopMusic)?;
     step(o, Call::SetMenuScreenMode)?;
@@ -171,7 +171,7 @@ fn test_course(o: Owners<'static>) -> Result<(), Refused> {
         crate::race::settings_copy::copy_settings_in(race, o.gfx)?;
         set_up_race(race)?;
         crate::race::race_cars::set_up_arcade_cars(race)?;
-        race_shell::set_start_states(race)?;
+        race_shell::set_start_states(race, &o.net.vars)?;
         stage_loading::load_stage(race, o)?;
         race_end::record_replay_header(race);
         replay::open_replay(race, o)?;

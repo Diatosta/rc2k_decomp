@@ -82,15 +82,11 @@ fn x87_2(numbers: &Numbers, scene: &crate::scene::owner::Scene) {
     scene.lights.state.camera_shake_listener.st(t8);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
     use crate::race::owner::race;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
-
-    // The original's instructions, one function per run.
-    reference!(ref_0(rc) "fld dword ptr [{rc} + 0x31A8E4]", "fmul dword ptr [{rc} + 0x214098]", "fstp dword ptr [{rc} + 0x23763C]");
-    reference!(ref_1(rc) "fild dword ptr [{rc} + 0x22400C]", "fdiv dword ptr [{rc} + 0x1C5D98]", "fdiv dword ptr [{rc} + 0x1C5E28]", "fmul dword ptr [{rc} + 0x1C5D40]", "fmul dword ptr [{rc} + 0x23763C]", "fstp dword ptr [{rc} + 0x237644]");
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
         vec![
@@ -101,7 +97,6 @@ mod asm_reference {
                     writes: &[(0x23763C, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_0(a[0]) },
                 plain: |_| x87_1(&race().shared, crate::scene::owner::scene()),
             },
             Block {
@@ -117,7 +112,6 @@ mod asm_reference {
                     writes: &[(0x237644, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_1(a[0]) },
                 plain: |_| {
                     x87_2(
                         &crate::race::owner::race().course.numbers,
@@ -130,6 +124,6 @@ mod asm_reference {
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse(&blocks(), 1200, 100);
+        sparse("physics.camera_frame", &blocks(), 1200, 100);
     }
 }

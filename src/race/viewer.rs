@@ -11,6 +11,7 @@
 
 use crate::errors::BadInput;
 use crate::math::cells::Cells;
+use crate::race::owner::Race;
 
 // ---- the replay being viewed ----
 
@@ -34,8 +35,8 @@ impl CameraByte {
         CameraByte(self.0.wrapping_add(n.wrapping_mul(8)))
     }
 
-    pub fn read(self, what: &'static str) -> Result<u8, BadInput> {
-        let buffers = &crate::race::viewer_buffers_store::VIEWER_BUFFERS;
+    pub fn read(self, race: &Race, what: &'static str) -> Result<u8, BadInput> {
+        let buffers = race.viewer_buffers();
         match self.0 {
             u32::MAX => Ok(buffers.block[BLOCK_LAST].get().to_le_bytes()[3]),
             n if (n as usize) < TABLE_LEN => Ok(buffers.block_cameras.get(n as usize)),
@@ -43,8 +44,8 @@ impl CameraByte {
         }
     }
 
-    pub fn write(self, value: u8, what: &'static str) -> Result<(), BadInput> {
-        let buffers = &crate::race::viewer_buffers_store::VIEWER_BUFFERS;
+    pub fn write(self, race: &Race, value: u8, what: &'static str) -> Result<(), BadInput> {
+        let buffers = race.viewer_buffers();
         match self.0 {
             u32::MAX => {
                 let mut bytes = buffers.block[BLOCK_LAST].get().to_le_bytes();
@@ -66,8 +67,8 @@ const BLOCK_LAST: usize = 0xA03;
 
 /// The byte `offset` on from the first block's cameras (8 bytes a block; the original does not
 /// check the offset).
-pub fn camera_byte_at(offset: usize) -> Result<u8, BadInput> {
-    camera_byte(offset as u32).read("a replay camera byte")
+pub fn camera_byte_at(race: &Race, offset: usize) -> Result<u8, BadInput> {
+    camera_byte(offset as u32).read(race, "a replay camera byte")
 }
 
 // ---- the list menu (`menu::list_*`) ----

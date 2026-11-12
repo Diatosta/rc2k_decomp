@@ -21,17 +21,19 @@ use crate::scene::project_point::{NEAR, project_point};
 // ---- Rust version ----
 
 pub fn project_polygon(
-    polygon_work: &'static crate::scene::polygon_store::PolygonWork,
+    part: &crate::workers::PartScratch,
     poly: &crate::scene::polygon_work::PolygonWork,
     race: &Race,
     scene: &crate::scene::owner::Scene,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
-    project_entries(poly, race, &listed(polygon_work, poly)?, scene, view)
+    let polygon_work = part.polygon;
+    project_entries(part, poly, race, &listed(polygon_work, poly)?, scene, view)
 }
 
 /// `project_polygon` on the polygon's entries as listed.
 pub fn project_entries(
+    part: &crate::workers::PartScratch,
     poly: &crate::scene::polygon_work::PolygonWork,
     race: &Race,
     entries: &Listed,
@@ -53,9 +55,13 @@ pub fn project_entries(
     let far = view.polygon.window.farthest.get();
     let mut outside = 0u32;
     for entry in entries {
-        let point = project_point(race, entry.point.get(), scene, view)?;
+        let point = project_point(race, part, entry.point.get(), scene, view)?;
         entry.record.set(point.record);
-        let depth = f32::from_bits(crate::scene::point_records::field(point.record, 0x18)?);
+        let depth = f32::from_bits(crate::scene::point_records::field(
+            part,
+            point.record,
+            0x18,
+        )?);
         // Two compares, each taking "no number" for "below".
         let near = depth
             .partial_cmp(&NEAR)

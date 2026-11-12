@@ -28,18 +28,22 @@ pub fn track_checkpoints(
     check_tracked(checkpoint, c.car.splits_passed.get())?;
     c.car.checkpoint.set(checkpoint);
     scene.lights.state.line_place.set(checkpoint);
-    { crate::physics::checkpoint_offset::checkpoint_offset(c.course, c.vars, c.car) }?;
+    {
+        crate::physics::checkpoint_offset::checkpoint_offset(c.course, c.vars, c.checkpoints, c.car)
+    }?;
     crate::physics::off_line_warnings::off_line_warnings(
         c.frame_work,
         c.work,
         &c.shared.replay_file,
         c.tables,
+        c.checkpoints,
         c.car,
         sound,
     )?;
-    let next = crate::race::checkpoints_store::check_count(c.car.checkpoint.get() as usize)
-        .get()
-        .wrapping_sub(1);
+    let next =
+        crate::race::checkpoints_store::check_count(c.checkpoints, c.car.checkpoint.get() as usize)
+            .get()
+            .wrapping_sub(1);
     if at_split_end(next.wrapping_add(1), c.car.splits_passed.get()) {
         c.car.reset_checkpoint.set(c.car.checkpoint.get());
     }

@@ -29,6 +29,7 @@ pub fn mark_viewer_items(
         clip_blocks: race.viewer_buffers().clip_blocks.get(),
         undo_blocks: race.viewer_buffers().undo_blocks.get(),
         camera: crate::race::viewer::camera_byte_at(
+            race,
             5usize.wrapping_add(block.wrapping_mul(8) as usize),
         )?,
         one_player: race.replay_work().header_one_player.get() == 1,

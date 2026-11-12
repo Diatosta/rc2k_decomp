@@ -8,7 +8,7 @@
 //!
 //! The x87 run is the arithmetic of the original's instructions over the game's variables
 //! (from IDA), in plain Rust over `X` (`math/x87_float.rs`); the instructions are
-//! `asm_reference` in the tests.
+//! recorded in the tests' `reference_vectors`.
 //!
 //! Returns: the gap's step, the sound object (`gear_change_sound`)
 //!
@@ -97,34 +97,11 @@ pub fn engine_sound(
     gear_change_sound(&shared.car)
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
     use crate::race::owner::race;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
-
-    reference!(ref_0(rc)
-        "fld dword ptr [{rc} + 0x31A184]",
-        "fmul dword ptr [{rc} + 0x1C5D00]",
-        "fstp dword ptr [{rc} + 0x31AEE0]",
-        "fld dword ptr [{rc} + 0x31AEE0]",
-        "test dword ptr [{rc} + 0x31A1F8], 0x100",
-        "jz 2f",
-        "fmul dword ptr [{rc} + 0x1C5E08]",
-        "2:",
-        "fistp dword ptr [{rc} + 0x31AA88]",
-        "fld dword ptr [{rc} + 0x31A178]",
-        ".byte 0xD8, 0xC8",
-        "fld dword ptr [{rc} + 0x31A170]",
-        ".byte 0xD8, 0xC8",
-        "fld dword ptr [{rc} + 0x31A174]",
-        ".byte 0xD8, 0xC8",
-        ".byte 0xDE, 0xC1",
-        ".byte 0xDE, 0xC1",
-        ".byte 0xD9, 0xFA",
-        "fmul dword ptr [{rc} + 0x1C5D00]",
-        "fstp dword ptr [{rc} + 0x31A26C]"
-    );
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     #[test]
     fn run_matches_the_assembly() {
@@ -143,9 +120,8 @@ mod asm_reference {
                 writes: &[(0x31AEE0, Out::F), (0x31AA88, Out::I), (0x31A26C, Out::F)],
             }],
             ulps: 0,
-            reference: |a| unsafe { ref_0(a[0]) },
             plain: |_| run_at(&race().shared.car, &race().course.numbers),
         }];
-        sparse(&blocks, 4000, 200);
+        sparse("physics.engine_sound", &blocks, 4000, 200);
     }
 }

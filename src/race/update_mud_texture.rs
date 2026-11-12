@@ -147,17 +147,12 @@ pub fn update_mud_texture(
     Ok(())
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     // The original's instructions.
-    reference!(ref_round(f, t) "fld dword ptr [{f}]", "fistp dword ptr [{t}]");
-    reference!(ref_subtract(a, u)
-        "fld dword ptr [{a}]",
-        "fisub dword ptr [{u}]",
-        "fstp dword ptr [{a}]");
 
     #[test]
     fn mud_texture_matches_the_assembly() {
@@ -175,7 +170,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_round(a[0], a[1]) },
                 plain: |a| {
                     round_units(
                         &crate::scene::x87_mem::HostCell(a[0]),
@@ -196,7 +190,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_subtract(a[0], a[1]) },
                 plain: |a| {
                     subtract_units(
                         &crate::scene::x87_mem::HostCell(a[0]),
@@ -205,6 +198,6 @@ mod asm_reference {
                 },
             },
         ];
-        sparse(&blocks, 5000, 207);
+        sparse("race.update_mud_texture", &blocks, 5000, 207);
     }
 }

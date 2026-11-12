@@ -166,7 +166,7 @@ fn view(race: &'static Race, o: Owners<'static>, mode: Mode) -> Result<(), Refus
             .frame_clock
             .set(session.clocks.key_ticks.get());
         install.pages.choice_before.set(install.pages.choice.get());
-        let mut key = crate::menu::list_take_key::list_take_key();
+        let mut key = crate::menu::list_take_key::list_take_key(install);
         if session.flags.quitting.is_set() {
             return Ok(());
         }
@@ -238,8 +238,8 @@ fn stopped_key(
     key: u8,
 ) -> Result<Next, Refused> {
     let install = o.install;
-    if crate::gfx::shots::on() != 0 && key == 0x52 {
-        crate::gfx::take_screenshot::take_screenshot()?;
+    if o.gfx.shots.on.get() != 0 && key == 0x52 {
+        crate::gfx::take_screenshot::take_screenshot(o.gfx)?;
     }
     if race.viewer_buffers().camera_edit.get() != 0 {
         return Ok(match key {
@@ -250,7 +250,7 @@ fn stopped_key(
             _ => Next::Sound,
         });
     }
-    if crate::menu::list_step::list_step(key, Some(ReplayViewBlock::key_table()?), list)? {
+    if crate::menu::list_step::list_step(install, key, Some(ReplayViewBlock::key_table()?), list)? {
         return Ok(Next::Mark);
     }
     if key == 0x1C {
@@ -290,7 +290,7 @@ fn mark(
     use crate::menu::list_item_unusable::list_item_unusable;
     crate::race::mark_viewer_items::mark_viewer_items(race, list)?;
     'tail: {
-        if !list_item_unusable(list) {
+        if !list_item_unusable(install, list) {
             break 'tail;
         }
         'reset: {
@@ -300,19 +300,20 @@ fn mark(
             // On the way it went while it cannot be chosen.
             loop {
                 if !crate::menu::list_step::list_step(
+                    install,
                     key,
                     Some(ReplayViewBlock::key_table()?),
                     list,
                 )? {
                     break;
                 }
-                if !list_item_unusable(list) {
+                if !list_item_unusable(install, list) {
                     break 'tail;
                 }
             }
             // Else back where it was.
             install.pages.choice.set(install.pages.choice_before.get());
-            if !list_item_unusable(list) {
+            if !list_item_unusable(install, list) {
                 return Ok(());
             }
         }

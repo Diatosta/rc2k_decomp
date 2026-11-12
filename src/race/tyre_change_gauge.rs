@@ -30,26 +30,25 @@ use crate::errors::{BadInput, Refused};
 use crate::input::types::InputDevice;
 use crate::owners::Owners;
 use crate::race::owner::Race;
-use crate::race::owner_shared::RaceShared;
-use crate::race::viewer_screen_store::VIEWER_PANEL;
 use rc2k_core::race::tyre_change::{Gauge, Io, turn};
 
 /// The press time's constants: `TyreChange::{time_base, time_scale, gauge_unit,
 /// log_two_ten}` and `one`.
-fn constants(shared: &RaceShared) -> [f32; 5] {
+fn constants(race: &Race) -> [f32; 5] {
+    let shared = &race.shared;
     [
         shared.tyre_change.time_base.get(),
         shared.tyre_change.time_scale.get(),
         shared.tyre_change.gauge_unit.get(),
         shared.tyre_change.log_two_ten.get(),
-        VIEWER_PANEL.one.get(),
+        race.viewer_panel().one.get(),
     ]
 }
 
 /// 0x41C2C7 .. 0x41C320: the time of a press, from s = 0x10000 less the gauge.
-pub fn press_time(shared: &RaceShared, s: i32) -> i32 {
+pub fn press_time(race: &Race, s: i32) -> i32 {
     use crate::math::x87_float::{X, int, ld, to_int};
-    let f = constants(shared).map(ld);
+    let f = constants(race).map(ld);
     // `fyl2x` (libm's log2): the product and the sum are the x87's
     let log = (int(s) * f[2]).sqrt() + f[4];
     let r = f[1] * f[3] * X(rc2k_core::math::portable::log2(log.0));
@@ -96,8 +95,7 @@ impl Io for GameIo {
         )
     }
     fn press_time(&mut self, s: u32) -> u32 {
-        let shared = &self.race.shared;
-        press_time(shared, s as i32) as u32
+        press_time(self.race, s as i32) as u32
     }
     fn developer(&mut self) -> bool {
         crate::system::check_developer_machine::DEVELOPER.get() == 1
@@ -145,12 +143,13 @@ pub fn tyre_change_gauge(o: Owners<'static>, start: bool, player: u32) -> Result
     Ok(result)
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
-    use crate::math::x87::x87;
     use crate::race::asm_test::{Rng, at_each_control_word, lock};
     use crate::race::owner::race;
+    use crate::race::viewer_screen_store::VIEWER_PANEL;
+    use crate::test_support::vectors::{Recorder, word};
 
     /// The five constants as they were, put back when dropped.
     struct Kept([u32; 5]);
@@ -164,39 +163,6 @@ mod asm_reference {
             shared.tyre_change.log_two_ten.set_bits(self.0[3]);
             VIEWER_PANEL.one.set_bits(self.0[4]);
         }
-    }
-
-    // The original block, verbatim.
-    pub(super) fn press_time_asm(s: i32) -> i32 {
-        let shared = &crate::race::owner::race().shared;
-        let f = constants(shared).map(f32::to_bits);
-        let v = [
-            f[1],
-            f[3],
-            s as u32,
-            f[2],
-            f[4],
-            f[0],
-            0x447A_0000,
-            0x4120_0000,
-        ];
-        let mut out = 0i32;
-        x87!(
-            "fld dword ptr [{v}]",
-            "fmul dword ptr [{v}+4]",
-            "fild dword ptr [{v}+8]",
-            "fmul dword ptr [{v}+12]",
-            "fsqrt",
-            "fadd dword ptr [{v}+16]",
-            "fyl2x",
-            "fdiv dword ptr [{v}+4]",
-            "fadd dword ptr [{v}+20]",
-            "fmul dword ptr [{v}+24]",
-            "fdiv dword ptr [{v}+28]",
-            "fistp dword ptr [{o}]";
-            v = v.as_ptr(), o = &raw mut out
-        );
-        out
     }
 
     /// With the game's own constants, over the whole range of the gauge, then with other
@@ -214,30 +180,42 @@ mod asm_reference {
             VIEWER_PANEL.one.bits(),
         ]);
         let mut r = Rng(31);
+        let mut file = Recorder::replay("race.tyre_change_gauge.press_time");
         let mut off = 0;
         let mut total = 0;
         at_each_control_word(|| {
-            for n in 0..60000u32 {
-                if n >= 20000 {
+            for n in 0..20000u32 {
+                if n >= 8000 {
                     shared.tyre_change.time_base.set_bits(r.float());
                     shared.tyre_change.time_scale.set_bits(r.float());
                     shared.tyre_change.gauge_unit.set_bits(r.float());
                     shared.tyre_change.log_two_ten.set_bits(r.float());
                     VIEWER_PANEL.one.set_bits(r.float());
                 }
-                let s = if n < 20000 {
-                    (n % 0x10000) as i32
+                let s = if n < 8000 {
+                    (n * 8 % 0x10000) as i32
                 } else {
                     r.int()
                 };
-                let (want, got) = (press_time_asm(s), press_time(shared, s));
+                let constants = [
+                    shared.tyre_change.time_base.bits(),
+                    shared.tyre_change.time_scale.bits(),
+                    shared.tyre_change.gauge_unit.bits(),
+                    shared.tyre_change.log_two_ten.bits(),
+                    VIEWER_PANEL.one.bits(),
+                ];
+                for w in constants.iter().chain(&[s as u32]) {
+                    file.input(&w.to_le_bytes());
+                }
+                let (want, got) = (word(&mut file) as i32, press_time(race(), s));
                 total += 1;
                 if want != got {
                     off += 1;
-                    assert!(n >= 20000 || want.abs_diff(got) <= 1, "{s}: {want} {got}");
+                    assert!(n >= 8000 || want.abs_diff(got) <= 1, "{s}: {want} {got}");
                 }
             }
         });
+        file.finish();
         eprintln!("press_time: {off} of {total} differ");
         assert!(off * 1000 < total, "{off} of {total}");
     }

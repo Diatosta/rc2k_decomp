@@ -135,8 +135,8 @@ pub fn viewer_action(
             let block = replay.replay_view.replay_block.get();
             if block != race.shared.replay_file.index_block_count.get() {
                 let at = crate::race::viewer::camera_byte(byte.wrapping_add(block.wrapping_mul(8)));
-                let old: u8 = at.read("a replay block's camera byte")?;
-                at.write(old ^ 1, "a replay block's camera byte")?;
+                let old: u8 = at.read(race, "a replay block's camera byte")?;
+                at.write(race, old ^ 1, "a replay block's camera byte")?;
                 crate::race::spread_camera::spread_camera(race, at, old)?;
             }
         }
@@ -178,9 +178,9 @@ fn cycle_byte(race: &Race, byte: usize) -> Result<(), Refused> {
         return Ok(());
     }
     let at = crate::race::viewer::camera_byte((byte as u32).wrapping_add(block.wrapping_mul(8)));
-    let old: u8 = at.read("a replay block's camera byte")?;
+    let old: u8 = at.read(race, "a replay block's camera byte")?;
     let dl = rc2k_core::race::viewer::next_byte(byte as u32, old);
-    at.write(dl, "a replay block's camera byte")?;
+    at.write(race, dl, "a replay block's camera byte")?;
     crate::race::spread_camera::spread_camera(race, at, old)
 }
 

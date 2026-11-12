@@ -31,11 +31,12 @@ pub enum Step {
 
 /// `scene::needs_clipping` on the work table's records.
 fn needs_clipping(
-    polygon_work: &'static crate::scene::polygon_store::PolygonWork,
+    part: &crate::workers::PartScratch,
     poly: &crate::scene::polygon_work::PolygonWork,
     course: &crate::race::owner_course::Course,
     count: u32,
 ) -> Result<bool, BadInput> {
+    let polygon_work = part.polygon;
     use rc2k_core::scene::polygons::{Edges, Vertex};
     if (count as i32).wrapping_sub(3) < 0 {
         return Ok(false);
@@ -52,6 +53,7 @@ fn needs_clipping(
         }
         let value = |at: u32| {
             f32::from_bits(crate::scene::point_records::vertex(
+                part,
                 &poly.quad_vertices,
                 record,
                 at,
@@ -67,12 +69,13 @@ fn needs_clipping(
 
 // Converted: `rc2k_core::scene::polygons`
 pub fn draw_object_polygon(
-    polygon_work: &'static crate::scene::polygon_store::PolygonWork,
+    part: &crate::workers::PartScratch,
     poly: &crate::scene::polygon_work::PolygonWork,
     race: &crate::race::owner::Race,
     object: &crate::scene::object_place::ObjectPlace,
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
+    let polygon_work = part.polygon;
     use rc2k_core::scene::polygons::{drawn_whole, fan, first_list, fits};
     let count: u32 = poly.polygon_vertex_count.get();
     if !fits(count) {
@@ -85,10 +88,7 @@ pub fn draw_object_polygon(
     }
     poly.polygon_next_entry.set(count);
     step(Step::Project)?;
-    if drawn_whole(
-        count,
-        needs_clipping(polygon_work, poly, &race.course, count)?,
-    ) {
+    if drawn_whole(count, needs_clipping(part, poly, &race.course, count)?) {
         object
             .whole_polygon_count
             .set(object.whole_polygon_count.get().wrapping_add(1));

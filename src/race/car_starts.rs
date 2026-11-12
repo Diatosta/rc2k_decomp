@@ -230,7 +230,11 @@ pub fn start_car(
         return Err(BadInput("a nearest checkpoint past the lists").into());
     }
     let checks = rc2k_core::race::start::start_checks(
-        crate::race::checkpoints_store::check_count(nearest as usize).get(),
+        crate::race::checkpoints_store::check_count(
+            &c.shared.buffers.checkpoints,
+            nearest as usize,
+        )
+        .get(),
     );
     c.car.splits_passed.set(checks);
     c.car.splits_recorded.set(checks);

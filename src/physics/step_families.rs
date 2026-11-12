@@ -156,6 +156,7 @@ pub struct CheckpointInputs<'a> {
     pub vars: &'a RaceVars,
     pub frame_work: &'a FrameWork,
     pub finish: &'a Finish,
+    pub checkpoints: &'a crate::race::checkpoints_store::Checkpoints,
 }
 
 /// What the car's lighting reads: the car, the course's faces, the ground search and probe,
@@ -315,6 +316,7 @@ impl<'a> StepInputs<'a> {
             vars: self.vars,
             frame_work: &self.frame.frame_work,
             finish: &self.replay.finish,
+            checkpoints: &self.shared.buffers.checkpoints,
         }
     }
 

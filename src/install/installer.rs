@@ -386,18 +386,19 @@ pub fn load_language(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
 }
 
 /// `menu::list_take_key` (0x41469A): the key (0: none).
-pub fn list_take_key() -> Result<u8, Refused> {
-    Ok(crate::menu::list_take_key::list_take_key())
+pub fn list_take_key(install: &crate::install::owner::Install) -> Result<u8, Refused> {
+    Ok(crate::menu::list_take_key::list_take_key(install))
 }
 
 /// `menu::list_step` (0x414A55): `key` moving the highlight of `list` by the neighbours
 /// table `table`; whether it moved (the original's zero).
 pub fn list_step(
+    install: &crate::install::owner::Install,
     key: u32,
     table: Option<crate::place::BytePlace>,
     list: ListMenu,
 ) -> Result<bool, crate::errors::BadInput> {
-    crate::menu::list_step::list_step(key as u8, table, list)
+    crate::menu::list_step::list_step(install, key as u8, table, list)
 }
 
 /// `menu::list_clear_marks` (0x414AC9).
@@ -406,8 +407,8 @@ pub fn list_clear_marks(list: ListMenu) {
 }
 
 /// `menu::list_item_unusable` (0x414C1B): whether the highlighted item cannot be chosen.
-pub fn list_item_unusable(list: ListMenu) -> bool {
-    crate::menu::list_item_unusable::list_item_unusable(list)
+pub fn list_item_unusable(install: &crate::install::owner::Install, list: ListMenu) -> bool {
+    crate::menu::list_item_unusable::list_item_unusable(install, list)
 }
 
 /// Whether the standalone's install or uninstall ended, logged.

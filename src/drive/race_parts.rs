@@ -50,7 +50,7 @@ pub fn stop_race_sounds(
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     crate::race::race_end::reset_race_sounds(
-        &crate::race::race_end::SoundVars::game(),
+        &crate::race::race_end::SoundVars::game(sound),
         sound,
         audio,
         system,

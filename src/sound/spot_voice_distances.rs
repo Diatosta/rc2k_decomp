@@ -95,21 +95,16 @@ fn x87_3(bx: &[impl Cell32; 20]) {
     bx[0x4C / 4].set_bits(st(t2));
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
     use crate::scene::x87_mem::HostCell;
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     /// A test buffer as a voice's twenty cells.
     fn voice_at(at: usize) -> [HostCell; 20] {
         std::array::from_fn(|k| HostCell(at + 4 * k))
     }
-
-    // The original's instructions, one function per run.
-    reference!(ref_0(bx, ck) "fld dword ptr [{bx} + 0x40]", "fld dword ptr [{bx} + 0x8]", "fmul dword ptr [{bx} + 0x8]", "fld dword ptr [{bx} + 0xC]", "fmul dword ptr [{bx} + 0xC]", "fld dword ptr [{bx} + 0x10]", "fmul dword ptr [{bx} + 0x10]", ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1", ".byte 0xD9, 0xFA", "fst dword ptr [{bx} + 0x40]", ".byte 0xDE, 0xE9", "fmul dword ptr [{ck} + 8]", "fstp dword ptr [{bx} + 0x44]");
-    reference!(ref_1(bx, ck, sf) "fld dword ptr [{bx} + 0x44]", "fadd dword ptr [{ck} + 0x14]", "fmul dword ptr [{ck} + 0x18]", "fsub dword ptr [{bx} + 0x48]", "fmul dword ptr [{sf} + 0x8]", "fadd dword ptr [{bx} + 0x48]", "fstp dword ptr [{bx} + 0x48]");
-    reference!(ref_2(bx) ".byte 0xD9, 0xE8", "fdiv dword ptr [{bx} + 0x40]", "fstp dword ptr [{bx} + 0x4C]");
 
     fn blocks() -> Vec<Block> {
         vec![
@@ -126,10 +121,10 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_0(a[0], a[1]) },
                 plain: |a| {
                     x87_1(&voice_at(a[0]), unsafe {
-                        &*(a[1] as *const crate::sound::store::RaceClock)
+                        &*(crate::test_support::vectors::block_vectors::at(a[1])
+                            as *const crate::sound::store::RaceClock)
                     });
                 },
             },
@@ -150,12 +145,17 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_1(a[0], a[1], a[2]) },
                 plain: |a| {
                     x87_2(
                         &voice_at(a[0]),
-                        unsafe { &*(a[1] as *const crate::sound::store::RaceClock) },
-                        unsafe { &*(a[2] as *const crate::sound::store::SurfaceSounds) },
+                        unsafe {
+                            &*(crate::test_support::vectors::block_vectors::at(a[1])
+                                as *const crate::sound::store::RaceClock)
+                        },
+                        unsafe {
+                            &*(crate::test_support::vectors::block_vectors::at(a[2])
+                                as *const crate::sound::store::SurfaceSounds)
+                        },
                     );
                 },
             },
@@ -166,7 +166,6 @@ mod asm_reference {
                     writes: &[(0x4C, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_2(a[0]) },
                 plain: |a| x87_3(&voice_at(a[0])),
             },
         ]
@@ -174,6 +173,6 @@ mod asm_reference {
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse(&blocks(), 1200, 100);
+        sparse("sound.spot_voice_distances", &blocks(), 1200, 100);
     }
 }

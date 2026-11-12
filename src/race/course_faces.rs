@@ -190,7 +190,7 @@ pub fn draw_marked_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         ctx.part.polygon,
         &ctx.view.polygon,
     )?;
-    crate::scene::fog_polygon::fog_polygon(ctx.part.polygon, ctx.view)?;
+    crate::scene::fog_polygon::fog_polygon(ctx.part, ctx.view)?;
     crate::scene::draw_polygon::draw_polygon_in_game(
         &ctx.view.polygon,
         ctx.part,
@@ -278,7 +278,7 @@ pub fn clip_and_draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     use rc2k_core::race::face_drawing::draws_polygon;
     if ctx.view.polygon.polygon_outside_count.get() != 0 {
         crate::scene::clip_polygon_by_depth::clip_polygon_by_depth(
-            ctx.part.polygon,
+            ctx.part,
             &ctx.view.polygon,
             race,
             scene,
@@ -290,7 +290,7 @@ pub fn clip_and_draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         }
     }
     crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(
-        ctx.part.polygon,
+        ctx.part,
         &ctx.view.polygon,
         race,
     )?;
@@ -329,11 +329,11 @@ pub fn face_out_of_view(ctx: &DrawCtx<'_>) -> Result<bool, Refused> {
             break;
         }
         let record = crate::race::frame_draw::point_record(ctx, n)?;
-        let depth = crate::scene::point_records::field(record, 0x18)?;
+        let depth = crate::scene::point_records::field(ctx.part, record, 0x18)?;
         if depth & 0x8000_0000 != 0 {
             continue;
         }
-        let x = crate::scene::point_records::field(record, 0x10)?;
+        let x = crate::scene::point_records::field(ctx.part, record, 0x10)?;
         match corner_in_sight(depth, x, near, slope) {
             Some(InSight::Near) => {
                 return Ok(false);
@@ -363,7 +363,7 @@ fn face_off_screen(ctx: &DrawCtx<'_>) -> Result<bool, Refused> {
             break;
         }
         let record = crate::race::frame_draw::point_record(ctx, point)?;
-        let at = |offset| crate::scene::point_records::field(record, offset);
+        let at = |offset| crate::scene::point_records::field(ctx.part, record, offset);
         corners[n] = ScreenCorner {
             depth: at(0x18)?,
             x: at(0xC)?,
@@ -509,6 +509,7 @@ pub fn face_corners_to_new_points(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         let (marked, copies) = rc2k_core::race::faces::new_points(count, corners);
         for n in marked {
             crate::scene::point_records::put_field(
+                ctx.part,
                 crate::scene::point_records::at_offset(n << 5),
                 0,
                 u32::MAX,
@@ -600,7 +601,7 @@ pub fn draw_whole_quad(ctx: &DrawCtx<'_>) -> Result<bool, Refused> {
     }
     plain_list(ctx.part.polygon, &ctx.view.polygon, 4, 4);
     crate::scene::project_polygon::project_polygon(
-        ctx.part.polygon,
+        ctx.part,
         &ctx.view.polygon,
         race,
         scene,
@@ -622,11 +623,11 @@ pub fn draw_whole_quad(ctx: &DrawCtx<'_>) -> Result<bool, Refused> {
     for slot in 0..4 {
         let v = entry(ctx.part.polygon, slot).record.get();
         if !inside(
-            crate::scene::point_records::vertex(&ctx.view.polygon.quad_vertices, v, 0xC),
+            crate::scene::point_records::vertex(ctx.part, &ctx.view.polygon.quad_vertices, v, 0xC),
             left,
             right,
         ) || !inside(
-            crate::scene::point_records::vertex(&ctx.view.polygon.quad_vertices, v, 0x1C),
+            crate::scene::point_records::vertex(ctx.part, &ctx.view.polygon.quad_vertices, v, 0x1C),
             top,
             bottom,
         ) {
@@ -741,6 +742,7 @@ pub fn draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
 /// the original's store of the depth to `scratch` is not kept; centre `view_centre`, the next).
 fn halfway_vertex(
     course: &Course,
+    part: &crate::workers::PartScratch,
     quad: &[crate::session::Dword; 32],
     a: u32,
     b: u32,
@@ -749,15 +751,15 @@ fn halfway_vertex(
 ) -> Result<(), BadInput> {
     use crate::scene::point_records::{get_in, set_in};
     let quad = Some(quad);
-    let mut made = get_in(quad, v)?;
+    let mut made = get_in(part, quad, v)?;
     halfway_record(
         course,
-        &get_in(quad, a)?,
-        &get_in(quad, b)?,
+        &get_in(part, quad, a)?,
+        &get_in(part, quad, b)?,
         &mut made,
         window,
     );
-    set_in(quad, v, made)
+    set_in(part, quad, v, made)
 }
 
 /// `halfway_vertex` on the records themselves (`a`, `b` point records of any kind).
@@ -835,7 +837,7 @@ pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         6,
     );
     crate::scene::project_polygon::project_polygon(
-        ctx.part.polygon,
+        ctx.part,
         &ctx.view.polygon,
         race,
         scene,
@@ -848,7 +850,7 @@ pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         ctx.part.polygon,
         &ctx.view.polygon,
     )?;
-    crate::scene::fog_polygon::fog_polygon(ctx.part.polygon, ctx.view)?;
+    crate::scene::fog_polygon::fog_polygon(ctx.part, ctx.view)?;
     for k in 0..3 {
         entry(ctx.part.polygon, 3 + k)
             .record
@@ -868,6 +870,7 @@ pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
             let m = ((b.wrapping_sub(a) as i32) >> 1) as u32;
             let m = m.wrapping_add(a);
             crate::scene::point_records::put_field_in(
+                ctx.part,
                 Some(&ctx.view.polygon.quad_vertices),
                 v,
                 o,
@@ -877,6 +880,7 @@ pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         }
         halfway_vertex(
             &race.course,
+            ctx.part,
             &ctx.view.polygon.quad_vertices,
             entry(ctx.part.polygon, first).record.get(),
             entry(ctx.part.polygon, second).record.get(),
@@ -1098,46 +1102,33 @@ pub fn draw_tinted_face(ctx: &DrawCtx<'_>, face: u32) -> Result<(), Refused> {
     done
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
     use crate::race::asm_test::{Rng, at_each_control_word, lock};
+    use crate::test_support::vectors::{Recorder, word};
 
     // The original block, verbatim.
-
-    pub(super) fn frame_of_asm(t: u32, f: u32, a: u32, b: u32) -> u32 {
-        let (v, mut out) = ([t, f, a, b], 0u32);
-        unsafe {
-            core::arch::asm!(
-                "fild dword ptr [{v}]",
-                "fmul dword ptr [{v} + 4]",
-                "fmul dword ptr [{v} + 8]",
-                "fmul dword ptr [{v} + 12]",
-                "fistp dword ptr [{o}]",
-                v = in(reg) v.as_ptr(),
-                o = in(reg) &raw mut out,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-        out
-    }
 
     #[test]
     fn frame_of_matches() {
         let _l = lock();
         let mut r = Rng(12);
+        let mut file = Recorder::replay("race.course_faces.frame_of");
         at_each_control_word(|| {
             for _ in 0..20000 {
                 let (t, f, a, b) = (r.int() as u32, r.float(), r.float(), r.float());
+                for w in [t, f, a, b] {
+                    file.input(&w.to_le_bytes());
+                }
                 assert_eq!(
-                    frame_of_asm(t, f, a, b),
+                    word(&mut file),
                     frame_of(t, f, a, b),
                     "{t} {f:#x} {a:#x} {b:#x}"
                 );
             }
         });
+        file.finish();
     }
 }
 

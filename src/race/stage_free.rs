@@ -4,7 +4,6 @@
 //! pointers 0.
 
 use crate::errors::{BadInput, Refused};
-use crate::gfx::owner::gfx;
 use crate::memory::MemoryList;
 use crate::race::owner::Race;
 
@@ -84,17 +83,19 @@ pub const MUD: Freeing = Freeing {
     cleared: &[|race| race.shared.vars.mud.set(0)],
     given_back: || crate::race::mud::MUD.give_back(),
 };
+
 /// `race::free_game_fonts` (0x41B2BC; `pusha` / `popa`, not counted).
-pub const FONTS: Freeing = Freeing {
-    // g_gameFontMemory
-    list: |_| &gfx().fonts.game_fonts_memory.memory,
-    counted: false,
+pub fn free_game_fonts(gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
+    let l = &gfx.fonts.game_fonts_memory.memory; // g_gameFontMemory
+    let list = crate::pointers::load_value::<MemoryList>(l, 0)?;
+    if list.head != 0 {
+        return Err(BadInput("a memory list holding a block").into());
+    }
+    crate::memory::free_list::free_list(l)?;
     // g_gameFontGlyphs
-    cleared: &[|_| {
-        gfx().fonts.font_block.game_fonts[0].update(|f| f.glyph_table = 0);
-    }],
-    given_back: || {},
-};
+    gfx.fonts.font_block.game_fonts[0].update(|f| f.glyph_table = 0);
+    Ok(())
+}
 
 /// The freeing: the count down by the list's total (`counted`), `free_list`, the pointers 0.
 /// Refuses, before anything, a list with a block (`free_list` refuses it).

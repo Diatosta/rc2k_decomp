@@ -56,13 +56,14 @@ fn held(value: i32, low: i32, high: i32) -> i32 {
 /// The normal's place in the view to the light's work variables, the colour set to 0.
 fn set_normal(
     course: &crate::race::owner_course::Course,
+    part: &crate::workers::PartScratch,
     number: u32,
     light: &crate::scene::object_light::ObjectLight,
 ) -> Result<(), BadInput> {
     if !crate::scene::point_records::held(course) {
         return Err(BadInput("no records for the points"));
     }
-    let place = crate::scene::reading::PointRecords::new(course)?.place(number)?;
+    let place = crate::scene::reading::PointRecords::new(course, part)?.place(number)?;
     light.light_colour.set(0u32);
     crate::session::write_bits(&light.light_dot_point, place);
     Ok(())
@@ -104,6 +105,7 @@ fn table_place(
 /// The lit colour, also left in `light_colour`.
 fn lit(
     course: &crate::race::owner_course::Course,
+    part: &crate::workers::PartScratch,
     scene: &crate::scene::owner::Scene,
     number: u32,
     mmx: bool,
@@ -111,7 +113,7 @@ fn lit(
     object: &crate::scene::object_place::ObjectPlace,
 ) -> Result<u32, BadInput> {
     // The checks first, on a copy of what they would write.
-    let place = set_normal(course, number, light).and_then(|()| table_place(light, object));
+    let place = set_normal(course, part, number, light).and_then(|()| table_place(light, object));
     let place = place?;
     let colour = plus(
         scene.light_tables.light_table[place].get(),
@@ -148,6 +150,7 @@ fn blend(
 
 pub fn vertex_light(
     race: &crate::race::owner::Race,
+    part: &crate::workers::PartScratch,
     number: u32,
     scene: &crate::scene::owner::Scene,
     light: &crate::scene::object_light::ObjectLight,
@@ -161,7 +164,7 @@ pub fn vertex_light(
         // The lit colour added to nothing: it only makes the bytes the right ones.
         return Ok(plus(
             0,
-            lit(course, scene, number, mmx, light, object)?,
+            lit(course, part, scene, number, mmx, light, object)?,
             mmx,
         ));
     }
@@ -173,7 +176,11 @@ pub fn vertex_light(
     let added: u32 = light.light_added.get();
     match kind {
         2 | 5 => Ok(plus(
-            plus(0, lit(course, scene, number, mmx, light, object)?, mmx),
+            plus(
+                0,
+                lit(course, part, scene, number, mmx, light, object)?,
+                mmx,
+            ),
             added,
             mmx,
         )),
@@ -189,7 +196,7 @@ pub fn vertex_light(
             ))
         }
         3 => {
-            set_normal(course, number, light)?;
+            set_normal(course, part, number, light)?;
             // `set_normal` has just set the colour to 0.
             let colour = plus(plus(light.car_light.get(), 0, mmx), added, mmx);
             light.light_colour.set(colour);

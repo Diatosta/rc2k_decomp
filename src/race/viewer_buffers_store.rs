@@ -5,6 +5,7 @@
 //! Names are readings unless IDA's.
 
 use crate::errors::BadInput;
+#[cfg(test)]
 use crate::race::owner::race;
 use crate::session::{Bytes, Dword};
 
@@ -46,8 +47,10 @@ pub struct ViewerBuffers {
 }
 
 /// The piece, a field of `crate::race::owner::race().shared.buffers`.
+#[cfg(test)]
 pub struct InBuffers;
 
+#[cfg(test)]
 impl core::ops::Deref for InBuffers {
     type Target = ViewerBuffers;
     fn deref(&self) -> &ViewerBuffers {
@@ -55,6 +58,7 @@ impl core::ops::Deref for InBuffers {
     }
 }
 
+#[cfg(test)]
 pub static VIEWER_BUFFERS: InBuffers = InBuffers;
 
 /// The replay block's bytes (0x2810).

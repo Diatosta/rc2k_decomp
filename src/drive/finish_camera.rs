@@ -43,32 +43,11 @@ pub fn finish_camera(replay: &Replay) {
     last_line(replay);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
     use crate::race::owner::race;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
-
-    // The original's instructions, one function per run.
-    reference!(ref_lines(rc)
-        "fld dword ptr [{rc} + 0x24BB68]",
-        "fmul dword ptr [{rc} + 0x24BB4C]",
-        "fstp dword ptr [{rc} + 0x206748]",
-        "fld dword ptr [{rc} + 0x24BB68]",
-        "fmul dword ptr [{rc} + 0x24BB5C]",
-        "fadd dword ptr [{rc} + 0x24BB54]",
-        "fld dword ptr [{rc} + 0x24BB6C]",
-        "fmul dword ptr [{rc} + 0x24BB7C]",
-        ".byte 0xDE, 0xC1", // faddp st(1), st
-        "fstp dword ptr [{rc} + 0x206730]",
-        "fld dword ptr [{rc} + 0x24BB68]",
-        "fmul dword ptr [{rc} + 0x24BB58]",
-        "fadd dword ptr [{rc} + 0x24BB50]",
-        "fstp dword ptr [{rc} + 0x206734]");
-    reference!(ref_last(rc)
-        "fld dword ptr [{rc} + 0x24BB6C]",
-        "fmul dword ptr [{rc} + 0x24BB78]",
-        "fstp dword ptr [{rc} + 0x206744]");
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
         vec![
@@ -88,7 +67,6 @@ mod asm_reference {
                     writes: &[(0x206748, Out::F), (0x206730, Out::F), (0x206734, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_lines(a[0]) },
                 plain: |_| lines(&race().replay),
             },
             Block {
@@ -98,7 +76,6 @@ mod asm_reference {
                     writes: &[(0x206744, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_last(a[0]) },
                 plain: |_| last_line(&race().replay),
             },
         ]
@@ -106,6 +83,6 @@ mod asm_reference {
 
     #[test]
     fn finish_camera_matches_the_assembly() {
-        sparse(&blocks(), 3000, 201);
+        sparse("drive.finish_camera", &blocks(), 3000, 201);
     }
 }

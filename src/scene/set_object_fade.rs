@@ -60,7 +60,7 @@ pub fn set_object_fade(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(
         (false, _) => 0,
         (true, None) => return Err(BadInput("no records for the points")),
         (true, Some(record)) => {
-            if field(record, 0)? != place && race.course.course.scene_points.get() == 0 {
+            if field(ctx.part, record, 0)? != place && race.course.course.scene_points.get() == 0 {
                 return Err(BadInput("no points"));
             }
             record
@@ -74,11 +74,11 @@ pub fn set_object_fade(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(
     if !needs_record {
         return Ok(());
     }
-    if field(record, 0)? != place {
-        make_scene_record(ctx.race, place, record, ctx.scene, ctx.view)?;
+    if field(ctx.part, record, 0)? != place {
+        make_scene_record(ctx.race, ctx.part, place, record, ctx.scene, ctx.view)?;
     }
-    ctx.view.object.position[0].set(x87::to_int(field(record, 0x10)?) as u32);
-    let depth = x87::to_int(field(record, 0x18)?);
+    ctx.view.object.position[0].set(x87::to_int(field(ctx.part, record, 0x10)?) as u32);
+    let depth = x87::to_int(field(ctx.part, record, 0x18)?);
     ctx.view.object.position[2].set(depth as u32);
     let near = ((distance << 16) as i32).wrapping_sub(depth);
     if near >= 0 {

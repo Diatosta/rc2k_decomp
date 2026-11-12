@@ -9,7 +9,7 @@
 //!
 //! The x87 compares are the arithmetic of the original's instructions over the game's
 //! variables (from IDA), in plain Rust over `X` (`math/x87_float.rs`); the instructions are
-//! `asm_reference` in the tests.
+//! recorded in the tests' `reference_vectors`.
 //!
 //! Callers: `physics::car_physics_step` (twice), `physics::find_clear_place`.
 
@@ -85,37 +85,10 @@ pub fn limit_motion(car: &Car, tables: &PhysicsTables, scene: &crate::scene::own
     }
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference_eax, sparse};
-
-    reference_eax!(ref_0(v, l)
-        "fld dword ptr [{l}]",
-        "fld dword ptr [{v}]",
-        ".byte 0xDE, 0xD9",
-        "fnstsw ax",
-        "shr ah, 1",
-        "jb 2f",
-        "fld dword ptr [{l}]",
-        "fstp dword ptr [{v}]",
-        "2:",
-        "fld dword ptr [{l}]",
-        ".byte 0xD9, 0xE0",
-        "fstp dword ptr [{l}]",
-        "fld dword ptr [{l}]",
-        "fld dword ptr [{v}]",
-        ".byte 0xDE, 0xD9",
-        "fnstsw ax",
-        "shr ah, 1",
-        "jnb 3f",
-        "fld dword ptr [{l}]",
-        "fstp dword ptr [{v}]",
-        "3:",
-        "fld dword ptr [{l}]",
-        ".byte 0xD9, 0xE0",
-        "fstp dword ptr [{l}]"
-    );
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     #[test]
     fn hold_matches_the_assembly() {
@@ -132,7 +105,6 @@ mod asm_reference {
                 },
             ],
             ulps: 0,
-            reference: |a| unsafe { ref_0(a[0], a[1]) },
             plain: |a| {
                 hold(
                     &crate::scene::x87_mem::HostCell(a[0]),
@@ -140,6 +112,6 @@ mod asm_reference {
                 );
             },
         }];
-        sparse(&blocks, 6000, 201);
+        sparse("physics.limit_motion", &blocks, 6000, 201);
     }
 }

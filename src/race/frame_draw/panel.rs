@@ -185,11 +185,15 @@ pub fn share_sound_spots(race: &Race, sound: &crate::sound::owner::Sound) -> Res
 
 /// `race::clear_point_records` (0x4500FF), on its variables: the
 /// 0x1000 point records of 0x20 bytes at `g_pointRecords`: each first dword -1, or with `g_useSse`
-/// set each first 16 bytes `LIGHT_WORK.sse_fill` (`movntps`).
-pub fn clear_point_records(scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
+/// set each first 16 bytes `LIGHT_WORK.sse_fill` (`movntps`); `part` the drawing part clearing
+/// them (`scene::point_records::first_records_everywhere`).
+pub fn clear_point_records(
+    scene: &crate::scene::owner::Scene,
+    part: &crate::workers::PartScratch,
+) -> Result<(), BadInput> {
     let pattern: [u32; 4] = crate::session::read_bits(&scene.lights.work.sse_fill);
     let sse = scene.draw_switches.use_sse.get() != 0;
-    for record in crate::scene::point_records::first_records_everywhere(0x1000)? {
+    for record in crate::scene::point_records::first_records_everywhere(part, 0x1000)? {
         if sse {
             for (cell, v) in record.iter().zip(pattern) {
                 cell.set(v);
@@ -279,7 +283,8 @@ pub(super) fn panel_half(race: &Race, car: usize, first: bool) -> Result<(), Bad
     cells[0].set(whole as u32);
     cells[1].set(car.engine_sound_speed_int.get());
     cells[2].set(car.gear.get());
-    let at = |n: u32| crate::race::checkpoints_store::distance(n as usize).get();
+    let at =
+        |n: u32| crate::race::checkpoints_store::distance(race.checkpoints(), n as usize).get();
     let from: u32 = race.physics.split_tables.checkpoints[0].get();
     let d = travelled(at(car.checkpoint.get()), at(from));
     let (unit, miles) = (

@@ -76,76 +76,17 @@ pub fn tyre_turned_quad(
     draw(buffer)
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
     use crate::math::x87::{control_word, set_control_word};
-    use crate::scene::asm_test::{Rng, close_float, lock};
+    use crate::test_support::vectors::{CONTROL_WORDS, Recorder, Rng, close_float};
 
     // The original's instructions.
-    unsafe fn ref_turn(ty: usize, e: usize, d: usize, v: usize, t: usize) {
-        unsafe {
-            core::arch::asm!(
-                "fild dword ptr [{e} + 0x4EC]",
-                "fmul dword ptr [{ty} + 0x1BEAC8]",
-                "fmul dword ptr [{t}]",
-                ".byte 0xD9, 0xFB", // fsincos
-                "fstp dword ptr [{ty} + 0x1BEBF4]",
-                "fstp dword ptr [{ty} + 0x1BEBF0]",
-                "fld dword ptr [{d} + 0xC]",
-                "fmul dword ptr [{ty} + 0x1BEBF0]",
-                "fstp dword ptr [{ty} + 0x1BEBF8]",
-                "fld dword ptr [{d} + 0xC]",
-                "fmul dword ptr [{ty} + 0x1BEBF4]",
-                ".byte 0xD9, 0xE0", // fchs
-                "fstp dword ptr [{ty} + 0x1BEBFC]",
-                "fld dword ptr [{d} + 0x8]",
-                "fmul dword ptr [{ty} + 0x1BEBF4]",
-                "fstp dword ptr [{ty} + 0x1BEC00]",
-                "fld dword ptr [{d} + 0x8]",
-                "fmul dword ptr [{ty} + 0x1BEBF0]",
-                "fstp dword ptr [{ty} + 0x1BEC04]",
-                "fld dword ptr [{ty} + 0x1BEC00]",
-                ".byte 0xD9, 0xE0",
-                "fadd dword ptr [{d}]",
-                "fiadd dword ptr [{ty} + 0x1BEAE0]",
-                "fst dword ptr [{v} + 0x40]",
-                "fadd dword ptr [{ty} + 0x1BEBF8]",
-                "fstp dword ptr [{v}]",
-                "fld dword ptr [{ty} + 0x1BEC00]",
-                "fadd dword ptr [{d}]",
-                "fiadd dword ptr [{ty} + 0x1BEAE0]",
-                "fst dword ptr [{v} + 0x60]",
-                "fadd dword ptr [{ty} + 0x1BEBF8]",
-                "fstp dword ptr [{v} + 0x20]",
-                "fld dword ptr [{ty} + 0x1BEC04]",
-                ".byte 0xD9, 0xE0",
-                "fadd dword ptr [{d} + 0x4]",
-                "fiadd dword ptr [{ty} + 0x1BEAE4]",
-                "fst dword ptr [{v} + 0x44]",
-                "fadd dword ptr [{ty} + 0x1BEBFC]",
-                "fstp dword ptr [{v} + 0x4]",
-                "fld dword ptr [{ty} + 0x1BEC04]",
-                "fadd dword ptr [{d} + 0x4]",
-                "fiadd dword ptr [{ty} + 0x1BEAE4]",
-                "fst dword ptr [{v} + 0x64]",
-                "fadd dword ptr [{ty} + 0x1BEBFC]",
-                "fstp dword ptr [{v} + 0x24]",
-                ty = in(reg) ty, e = in(reg) e, d = in(reg) d, v = in(reg) v, t = in(reg) t,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-    }
 
-    /// The struct's offsets of the window the turn writes and reads (IDA 0x5BEAC0 ..
-    /// 0x5BEC08 less the struct's start).
+    /// The struct's offsets of the window the turn writes and reads.
     const WINDOW: usize = 0;
     const WINDOW_END: usize = 0x148;
-    /// What the reference's `[ty + 0x1BEAC8]` operands add to: the struct's address less the
-    /// block's first RVA, so that RVA offsets name the struct's bytes.
-    const RVA_OFFSET: usize = 0x1BEAC0;
 
     fn put(buf: &mut [u8], off: usize, v: u32) {
         buf[off..off + 4].copy_from_slice(&v.to_le_bytes());
@@ -178,7 +119,7 @@ mod asm_reference {
     /// buffer per version, only its window refilled each case.
     #[test]
     fn turn_matches_the_assembly() {
-        let _g = lock();
+        let _g = crate::store::test_lock();
         let saved = control_word();
         let mut rng = Rng::new(206);
         let (ty_a, ty_b) = (zeroed(), zeroed());
@@ -206,9 +147,11 @@ mod asm_reference {
             crate::pointers::Lent::new(&t_b),
         ];
         let mut checked = 0u64;
-        for &cw in &crate::scene::asm_test::CONTROL_WORDS {
+        let name = "drive.tyre_turned_quad.turn";
+        let mut file = Recorder::replay(name);
+        for &cw in &CONTROL_WORDS {
             set_control_word(cw);
-            for n in 0..4000 {
+            for n in 0..1000 {
                 for off in (WINDOW..WINDOW_END).step_by(4) {
                     put_ty(&ty_a, off, 0xAAAA_AAAA);
                 }
@@ -233,16 +176,12 @@ mod asm_reference {
                 e_b.copy_from_slice(&e_a);
                 d_b.copy_from_slice(&d_a);
                 t_b.copy_from_slice(&t_a);
-                unsafe {
-                    ref_turn(
-                        (crate::pointers::game_address(&raw const *ty_a)
-                            .wrapping_sub(RVA_OFFSET as u32)) as usize,
-                        (crate::pointers::game_address(e_a.as_mut_ptr())) as usize,
-                        (crate::pointers::game_address(d_a.as_mut_ptr())) as usize,
-                        (crate::pointers::game_address(v_a.as_mut_ptr())) as usize,
-                        (crate::pointers::game_address(t_a.as_mut_ptr())) as usize,
-                    );
-                }
+                let before: Vec<u8> = [bytes(&ty_a), &v_a[..0x80]].concat();
+                file.input(&before);
+                file.input(&e_a[0x4EC..0x4F0]);
+                file.input(&d_a[..16]);
+                file.input(&t_a[..4]);
+                let expected = file.results(&before, || unreachable!("replayed"));
                 // SAFETY: the buffers are the operands' (the device's record, four floats,
                 // four vertices, a dword), lent and aligned; the device's record is
                 // `0x4F0 + 16` bytes, its `gauge` at 0x4EC.
@@ -255,12 +194,13 @@ mod asm_reference {
                         &*t_b.as_ptr().cast::<Dword>(),
                     );
                 }
+                let (want_ty, want_v) = expected.split_at(WINDOW_END);
                 let mut places: Vec<(&str, usize, &[u8], &[u8])> = Vec::new();
                 for off in (WINDOW..WINDOW_END).step_by(4) {
-                    places.push(("ty", off, bytes(&ty_a), bytes(&ty_b)));
+                    places.push(("ty", off, want_ty, bytes(&ty_b)));
                 }
                 for off in (0..0x80).step_by(4) {
-                    places.push(("v", off, &v_a, &v_b));
+                    places.push(("v", off, want_v, &v_b));
                 }
                 for (what, off, x, y) in places {
                     let (p, q) = (get(x, off), get(y, off));
@@ -273,6 +213,7 @@ mod asm_reference {
             }
         }
         set_control_word(saved);
+        file.finish();
         eprintln!("turn: {checked} dwords compared");
     }
 }

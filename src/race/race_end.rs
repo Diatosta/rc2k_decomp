@@ -138,7 +138,7 @@ pub fn wait_for_commands(
 /// fields reset (`OBJECT_VALUES`); eleven variables 0; the 0x48 voices' +0 0x1888FFFF and +0x14 -2;
 /// two more sound flags 0, the EAX environment 1.0; command 2 with the value 3; one more flag 0.
 pub fn reset_race_sounds(
-    v: &SoundVars,
+    v: &SoundVars<'_>,
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
     system: &crate::system::owner::System,
@@ -166,14 +166,14 @@ pub fn reset_race_sounds(
 
 /// Where `reset_race_sounds` finds the voices (the game's,
 /// or a test's: the audio thread reads the game's).
-pub struct SoundVars {
-    pub voices: &'static [[crate::session::PlainDword; 20]; 72],
+pub struct SoundVars<'a> {
+    pub voices: &'a [[crate::session::PlainDword; 20]; 72],
 }
 
-impl SoundVars {
-    pub fn game() -> Self {
+impl<'a> SoundVars<'a> {
+    pub fn game(sound: &'a crate::sound::owner::Sound) -> Self {
         Self {
-            voices: &crate::sound::owner::sound().race.spot_voices.get().voices,
+            voices: &sound.race.spot_voices.get().voices,
         }
     }
 }
@@ -242,9 +242,13 @@ impl Tidy {
 /// round it: the mud, the point records, the marks' tidy (the log off), the fonts, the map, the
 /// textures, the course's two memories, the objects (then `g_inRace` 0, `view_scale`
 /// `kept_scale`); "finis".
-pub fn tidy_stage(race: &Race, effects: &Effects) -> Result<(), Refused> {
+pub fn tidy_stage(
+    race: &Race,
+    effects: &Effects,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), Refused> {
     use crate::race::stage_free::{
-        COURSE, COURSE_2, FONTS, MUD, OBJECT_POINTS, POINT_RECORDS, free,
+        COURSE, COURSE_2, MUD, OBJECT_POINTS, POINT_RECORDS, free, free_game_fonts,
     };
     let s = Tidy;
     s.step(STAGE_WORDS[0], || free(race, &MUD))?;
@@ -257,7 +261,7 @@ pub fn tidy_stage(race: &Race, effects: &Effects) -> Result<(), Refused> {
     crate::effects::tidy_marks::tidy_marks(effects)?;
     crate::logfile::write_line::state::ENABLED.set(enabled);
     s.indent(-3);
-    s.step(STAGE_WORDS[3], || free(race, &FONTS))?;
+    s.step(STAGE_WORDS[3], || free_game_fonts(gfx))?;
     s.step(STAGE_WORDS[4], || {
         crate::race::game_map::free_game_map(race)
     })?;
@@ -298,10 +302,10 @@ pub fn tidy_everything(race: &Race, o: crate::owners::Owners<'static>) -> Result
         Ok(())
     })?;
     s.step(EVERYTHING_WORDS[3], || Ok(()))?;
-    s.step(EVERYTHING_WORDS[4], || tidy_stage(race, o.effects))?;
+    s.step(EVERYTHING_WORDS[4], || tidy_stage(race, o.effects, o.gfx))?;
     s.log(EVERYTHING_WORDS[5]);
     s.indent(3);
-    reset_race_sounds(&SoundVars::game(), sound, o.audio, o.system)?;
+    reset_race_sounds(&SoundVars::game(sound), sound, o.audio, o.system)?;
     shared.view.view_on[0].set(1u32);
     shared.view.view_on[1].set(1u32);
     s.indent(-3);
@@ -336,7 +340,7 @@ pub fn run_race(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     crate::race::settings_copy::copy_settings_in(race, o.gfx)?;
     crate::race::race_cars::set_up_arcade_cars(race)?;
     race.shared.vars.settings_words[1].set(1u32);
-    crate::race::race_shell::set_start_states(race)?;
+    crate::race::race_shell::set_start_states(race, &o.net.vars)?;
     crate::race::stage_loading::load_stage(race, o)?;
     record_replay_header(race);
     crate::race::replay::open_replay(race, o)?;

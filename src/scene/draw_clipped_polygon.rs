@@ -95,20 +95,20 @@ pub fn draw_clipped_polygon_in_game(
         match step {
             Step::Project => {
                 let listed = entries.insert(crate::scene::polygon::listed(ctx.part.polygon, poly)?);
-                project_entries(poly, race, listed, scene, ctx.view)?;
+                project_entries(ctx.part, poly, race, listed, scene, ctx.view)?;
             }
             Step::ScaleTextureCoordinates => match &entries {
                 Some(listed) if !listed.is_empty() => scale_entries(poly, listed)?,
                 _ => scale_texture_coordinates(ctx.part.polygon, poly)?,
             },
             Step::Fog => match entries.take() {
-                Some(listed) => fog_entries(&listed, ctx.view)?,
-                None => fog_polygon(ctx.part.polygon, ctx.view)?,
+                Some(listed) => fog_entries(ctx.part, &listed, ctx.view)?,
+                None => fog_polygon(ctx.part, ctx.view)?,
             },
             Step::ClipByDepth => {
-                clip_polygon_by_depth(ctx.part.polygon, poly, race, scene, ctx.far_clip, ctx.view)?;
+                clip_polygon_by_depth(ctx.part, poly, race, scene, ctx.far_clip, ctx.view)?;
             }
-            Step::ClipToScreen => clip_polygon_to_screen(ctx.part.polygon, poly, race)?,
+            Step::ClipToScreen => clip_polygon_to_screen(ctx.part, poly, race)?,
             Step::Draw => {
                 draw_polygon(
                     poly,

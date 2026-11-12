@@ -42,9 +42,9 @@ pub fn checkpoint_colours(
     // Converted: `rc2k_core::race::frame::checkpoint_colours`.
     {
         let n: u32 = car.checkpoint.get();
-        let face = crate::race::checkpoints_store::face(n as usize).get();
+        let face = crate::race::checkpoints_store::face(race.checkpoints(), n as usize).get();
         let byte: u8 = face_field(&race.course, face, 0x10)?;
-        let along = crate::race::checkpoints_store::angle(n as usize).get();
+        let along = crate::race::checkpoints_store::angle(race.checkpoints(), n as usize).get();
         let c = rc2k_core::race::frame::checkpoint_colours(byte, along, car.car_heading.get());
         Ok(c.level)
     }
@@ -58,9 +58,9 @@ pub fn point_record(
     point: u32,
 ) -> Result<u32, Refused> {
     let record = crate::scene::point_records::of_scene_point(point);
-    if crate::scene::point_records::field(record, 0)? != point {
+    if crate::scene::point_records::field(ctx.part, record, 0)? != point {
         crate::scene::project_point::make_scene_record(
-            ctx.race, point, record, ctx.scene, ctx.view,
+            ctx.race, ctx.part, point, record, ctx.scene, ctx.view,
         )?;
     }
     Ok(record)
@@ -110,10 +110,10 @@ pub fn face_hidden(
     }
     points_there(&race.course)?;
     let record = point_record(ctx, face.point(0))?;
-    let x = bh::to_int(bh::ld(crate::scene::point_records::field(record, 0x10)?).abs());
+    let x = bh::to_int(bh::ld(crate::scene::point_records::field(ctx.part, record, 0x10)?).abs());
     ctx.view.object.position[0].set(x as u32);
     let depth = crate::math::x87::add_to_int(
-        crate::scene::point_records::field(record, 0x18)?,
+        crate::scene::point_records::field(ctx.part, record, 0x18)?,
         race.course.level_grid.depth_shift.get(),
     );
     ctx.view.object.face_depth.set(depth as u32);
@@ -133,7 +133,7 @@ pub fn face_depth(ctx: &crate::race::view_scratch::DrawCtx<'_>, face: u32) -> Re
     points_there(course)?;
     let depth = |k: u32| -> Result<u32, Refused> {
         let record = point_record(ctx, face_field(&ctx.race.course, face, 4 + 4 * k)?)?;
-        Ok(crate::scene::point_records::field(record, 0x18)?)
+        Ok(crate::scene::point_records::field(ctx.part, record, 0x18)?)
     };
     // Converted: `rc2k_core::race::faces::{depth_by, deeper, average_key, depth_key}`;
     // the roundings and the sum the x87's.
@@ -151,7 +151,7 @@ pub fn face_depth(ctx: &crate::race::view_scratch::DrawCtx<'_>, face: u32) -> Re
     let key = match by {
         DepthBy::First => {
             let record = point_record(ctx, face_field(&ctx.race.course, face, 4)?)?;
-            to_int(crate::scene::point_records::field(record, 0x18)?) as u32
+            to_int(crate::scene::point_records::field(ctx.part, record, 0x18)?) as u32
         }
         DepthBy::Deepest => {
             let mut key = to_int(depth(0)?) as u32;

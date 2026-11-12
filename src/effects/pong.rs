@@ -586,67 +586,10 @@ pub fn overlap(pong: &Pong) -> (bool, u32) {
 
 use crate::math::x87_float as bh;
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
-    //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
-
-    pub(super) fn sum_compare_x87(v: usize, s: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{v}]",
-            "fadd dword ptr [{v} + 4]",
-            "fcomp dword ptr [{v} + 8]",
-            "fnstsw word ptr [{s}]",
-            v = in(reg) v,
-            s = in(reg) s,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn less_compare_x87_1(v: usize, s: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{v}]",
-            "fld dword ptr [{v} + 4]",
-            "fsub dword ptr [{v} + 8]",
-            "fsub dword ptr [{v} + 12]",
-            "fcompp",
-            "fnstsw word ptr [{s}]",
-            v = in(reg) v,
-            s = in(reg) s,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn less_compare_x87_2(v: usize, s: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{v}]",
-            "fld dword ptr [{v} + 4]",
-            "fsub dword ptr [{v} + 8]",
-            "fcompp",
-            "fnstsw word ptr [{s}]",
-            v = in(reg) v,
-            s = in(reg) s,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-}
-
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_differential {
-    use super::asm_reference as reference;
+#[cfg(test)]
+mod reference_vectors {
     use crate::effects::asm_test::Kind::*;
-    use crate::effects::asm_test::{Op, Spec, differential};
+    use crate::effects::asm_test::{Op, Spec, recorded_writes};
     use crate::pointers::{read_or_end, write_or_end};
 
     /// The float at `base + off` of a test buffer.
@@ -678,16 +621,12 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::sum_compare_x87(b[0], b[1]),
-            |b| {
-                put(
-                    b[1],
-                    super::sum_status(at(b[0], 0), at(b[0], 4), at(b[0], 8)),
-                );
-            },
-        );
+        recorded_writes("effects.pong.sum_compare_x87", &SPEC, |b| {
+            put(
+                b[1],
+                super::sum_status(at(b[0], 0), at(b[0], 4), at(b[0], 8)),
+            );
+        });
     }
 
     #[test]
@@ -709,17 +648,13 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::less_compare_x87_1(b[0], b[1]),
-            |b| {
-                let m = Some(at(b[0], 0xC));
-                put(
-                    b[1],
-                    super::less_status(at(b[0], 0), at(b[0], 4), at(b[0], 8), m),
-                );
-            },
-        );
+        recorded_writes("effects.pong.less_compare_x87_1", &SPEC, |b| {
+            let m = Some(at(b[0], 0xC));
+            put(
+                b[1],
+                super::less_status(at(b[0], 0), at(b[0], 4), at(b[0], 8), m),
+            );
+        });
     }
 
     #[test]
@@ -741,16 +676,12 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::less_compare_x87_2(b[0], b[1]),
-            |b| {
-                put(
-                    b[1],
-                    super::less_status(at(b[0], 0), at(b[0], 4), at(b[0], 8), None),
-                );
-            },
-        );
+        recorded_writes("effects.pong.less_compare_x87_2", &SPEC, |b| {
+            put(
+                b[1],
+                super::less_status(at(b[0], 0), at(b[0], 4), at(b[0], 8), None),
+            );
+        });
     }
 }
 

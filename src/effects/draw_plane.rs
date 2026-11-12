@@ -60,7 +60,7 @@ pub static PLANE_TUNING: PlaneTuning = PlaneTuning {
     rhw_k: [256.0_f32; 4],
 };
 
-#[cfg(all(test, target_arch = "x86"))]
+#[cfg(test)]
 impl PlaneTuning {
     pub const START: usize = 0x934F30;
 }
@@ -401,240 +401,13 @@ fn plane_projected_x87(q: &QuadWork) {
     q.corners[3][1].st(t27);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
-    //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
-
-    pub(super) fn plane_axes_x87(mk: usize, s: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fild dword ptr [{s} + 0x2740]",
-            "fmul dword ptr [{mk} + 0x1CFFF0]",
-            "fstp dword ptr [{mk} + 0x137AF4]",
-            "fild dword ptr [{s} + 0x2720]",
-            "fild dword ptr [{s} + 0x2724]",
-            "fild dword ptr [{s} + 0x2728]",
-            "fstp dword ptr [{mk} + 0x137FBE]",
-            "fstp dword ptr [{mk} + 0x137FBA]",
-            "fstp dword ptr [{mk} + 0x137FB6]",
-            "fild dword ptr [{s} + 0x272C]",
-            "fisub dword ptr [{s} + 0x2720]",
-            "fstp dword ptr [{mk} + 0x137FDA]",
-            "fild dword ptr [{s} + 0x2730]",
-            "fisub dword ptr [{s} + 0x2724]",
-            "fstp dword ptr [{mk} + 0x137FDE]",
-            "fild dword ptr [{s} + 0x2734]",
-            "fisub dword ptr [{s} + 0x2728]",
-            "fstp dword ptr [{mk} + 0x137FE2]",
-            "fld dword ptr [{mk} + 0x137FDA]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{mk} + 0x137FDE]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{mk} + 0x137FE2]",
-            ".byte 0xD8, 0xC8",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xFA",
-            "fdiv dword ptr [{mk} + 0x1CFFF4]",
-            "fstp dword ptr [{mk} + 0x137FAE]",
-            mk = in(reg) mk,
-            s = in(reg) s,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn plane_up_x87(mk: usize, s: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fild dword ptr [{s} + 0x2708]",
-            "fisub dword ptr [{s} + 0x2720]",
-            "fstp dword ptr [{mk} + 0x137FE6]",
-            "fild dword ptr [{s} + 0x270C]",
-            "fisub dword ptr [{s} + 0x2724]",
-            "fstp dword ptr [{mk} + 0x137FEA]",
-            "fild dword ptr [{s} + 0x2710]",
-            "fisub dword ptr [{s} + 0x2728]",
-            "fstp dword ptr [{mk} + 0x137FEE]",
-            "fld dword ptr [{mk} + 0x137FE6]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{mk} + 0x137FEA]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{mk} + 0x137FEE]",
-            ".byte 0xD8, 0xC8",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xFA",
-            "fdiv dword ptr [{mk} + 0x1CFFF8]",
-            "fstp dword ptr [{mk} + 0x137FB2]",
-            mk = in(reg) mk,
-            s = in(reg) s,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn plane_place_x87(mk: usize, s: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fild dword ptr [{s} + 0x2720]",
-            "fstp dword ptr [{mk} + 0xB1262]",
-            "fild dword ptr [{s} + 0x2724]",
-            "fstp dword ptr [{mk} + 0xB1266]",
-            "fild dword ptr [{s} + 0x2728]",
-            "fstp dword ptr [{mk} + 0xB126A]",
-            mk = in(reg) mk,
-            s = in(reg) s,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn plane_facing_x87(mk: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{mk} + 0xB1262]",
-            "fmul dword ptr [{mk} + 0x137FF2]",
-            "fld dword ptr [{mk} + 0xB1266]",
-            "fmul dword ptr [{mk} + 0x137FF6]",
-            "fld dword ptr [{mk} + 0xB126A]",
-            "fmul dword ptr [{mk} + 0x137FFA]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{mk} + 0xAF7D8]",
-            mk = in(reg) mk,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn plane_corners_x87(mk: usize) {
-        unsafe {
-            core::arch::asm!(
-                    ".byte 0xD9, 0xEE",
-            ".byte 0xD9, 0xEE",
-            "fmul dword ptr [{mk} + 0x137FB2]",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{mk} + 0x137FAE]",
-            ".byte 0xD9, 0xC9",
-            ".byte 0xD9, 0xC1",
-            "fmul dword ptr [{mk} + 0x137FDA]",
-            ".byte 0xD9, 0xC1",
-            "fmul dword ptr [{mk} + 0x137FE6]",
-            ".byte 0xDE, 0xC1",
-            "fadd dword ptr [{mk} + 0x137FB6]",
-            "fstp dword ptr [{mk} + 0x1CFD7C]",
-            ".byte 0xD9, 0xC1",
-            "fmul dword ptr [{mk} + 0x137FDE]",
-            ".byte 0xD9, 0xC1",
-            "fmul dword ptr [{mk} + 0x137FEA]",
-            ".byte 0xDE, 0xC1",
-            "fadd dword ptr [{mk} + 0x137FBA]",
-            "fstp dword ptr [{mk} + 0x1CFD80]",
-            "fmul dword ptr [{mk} + 0x137FEE]",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{mk} + 0x137FE2]",
-            ".byte 0xDE, 0xC1",
-            "fadd dword ptr [{mk} + 0x137FBE]",
-            "fstp dword ptr [{mk} + 0x1CFD84]",
-            "fld dword ptr [{mk} + 0x1CFD7C]",
-            "fadd dword ptr [{mk} + 0x13803A]",
-            "fst dword ptr [{mk} + 0x1CFD58]",
-            "fadd dword ptr [{mk} + 0x13802E]",
-            "fst dword ptr [{mk} + 0x1CFD64]",
-            "fsub dword ptr [{mk} + 0x13803A]",
-            "fstp dword ptr [{mk} + 0x1CFD70]",
-            "fld dword ptr [{mk} + 0x1CFD80]",
-            "fadd dword ptr [{mk} + 0x13803E]",
-            "fst dword ptr [{mk} + 0x1CFD5C]",
-            "fadd dword ptr [{mk} + 0x138032]",
-            "fst dword ptr [{mk} + 0x1CFD68]",
-            "fsub dword ptr [{mk} + 0x13803E]",
-            "fstp dword ptr [{mk} + 0x1CFD74]",
-            "fld dword ptr [{mk} + 0x1CFD84]",
-            "fadd dword ptr [{mk} + 0x138042]",
-            "fst dword ptr [{mk} + 0x1CFD60]",
-            "fadd dword ptr [{mk} + 0x138036]",
-            "fst dword ptr [{mk} + 0x1CFD6C]",
-            "fsub dword ptr [{mk} + 0x138042]",
-            "fstp dword ptr [{mk} + 0x1CFD78]",
-            mk = in(reg) mk,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn plane_projected_x87(rc: usize, mk: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{rc} + 0x224088]",
-            "fdiv dword ptr [{mk} + 0x1CFD60]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{mk} + 0x1CFD58]",
-            "fadd dword ptr [{rc} + 0x22409C]",
-            "fstp dword ptr [{mk} + 0x1CFD58]",
-            "fmul dword ptr [{mk} + 0x1CFD5C]",
-            ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{rc} + 0x2240A0]",
-            "fstp dword ptr [{mk} + 0x1CFD5C]",
-            "fld dword ptr [{rc} + 0x224088]",
-            "fdiv dword ptr [{mk} + 0x1CFD6C]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{mk} + 0x1CFD64]",
-            "fadd dword ptr [{rc} + 0x22409C]",
-            "fstp dword ptr [{mk} + 0x1CFD64]",
-            "fmul dword ptr [{mk} + 0x1CFD68]",
-            ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{rc} + 0x2240A0]",
-            "fstp dword ptr [{mk} + 0x1CFD68]",
-            "fld dword ptr [{rc} + 0x224088]",
-            "fdiv dword ptr [{mk} + 0x1CFD78]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{mk} + 0x1CFD70]",
-            "fadd dword ptr [{rc} + 0x22409C]",
-            "fstp dword ptr [{mk} + 0x1CFD70]",
-            "fmul dword ptr [{mk} + 0x1CFD74]",
-            ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{rc} + 0x2240A0]",
-            "fstp dword ptr [{mk} + 0x1CFD74]",
-            "fld dword ptr [{rc} + 0x224088]",
-            "fdiv dword ptr [{mk} + 0x1CFD84]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{mk} + 0x1CFD7C]",
-            "fadd dword ptr [{rc} + 0x22409C]",
-            "fstp dword ptr [{mk} + 0x1CFD7C]",
-            "fmul dword ptr [{mk} + 0x1CFD80]",
-            ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{rc} + 0x2240A0]",
-            "fstp dword ptr [{mk} + 0x1CFD80]",
-            rc = in(reg) rc,
-            mk = in(reg) mk,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-}
-
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_differential {
-    use super::asm_reference as reference;
+#[cfg(test)]
+mod reference_vectors {
     use super::{PlaneTuning, QuadWork};
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::with_copy;
     use crate::effects::asm_test::with_settings;
-    use crate::effects::asm_test::{Op, Spec, differential};
+    use crate::effects::asm_test::{Op, Spec, recorded_writes};
     use crate::effects::typed_sync::{overlay, with_overlays};
     use crate::effects::windscreen_drop_state::WindscreenDropState;
     use crate::effects::windscreen_drop_vars::WindscreenDropVars;
@@ -682,23 +455,15 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::plane_axes_x87(b[0], b[1]),
-            |b| {
-                with_copy::<WindscreenFlakeTiming, _>(b[0], WindscreenFlakeTiming::START, |sti| {
-                    with_copy::<WindscreenFlakeTables, _>(
-                        b[0],
-                        WindscreenFlakeTables::START,
-                        |sq| {
-                            with_copy::<PlaneTuning, _>(b[0], PlaneTuning::START, |pt| {
-                                with_settings(b[1], |m| super::plane_axes_x87(m, sti, sq, pt));
-                            });
-                        },
-                    );
+        recorded_writes("effects.draw_plane.plane_axes_x87", &SPEC, |b| {
+            with_copy::<WindscreenFlakeTiming, _>(b[0], WindscreenFlakeTiming::START, |sti| {
+                with_copy::<WindscreenFlakeTables, _>(b[0], WindscreenFlakeTables::START, |sq| {
+                    with_copy::<PlaneTuning, _>(b[0], PlaneTuning::START, |pt| {
+                        with_settings(b[1], |m| super::plane_axes_x87(m, sti, sq, pt));
+                    });
                 });
-            },
-        );
+            });
+        });
     }
 
     #[test]
@@ -737,17 +502,13 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::plane_up_x87(b[0], b[1]),
-            |b| {
-                with_copy::<WindscreenFlakeTables, _>(b[0], WindscreenFlakeTables::START, |sq| {
-                    with_copy::<PlaneTuning, _>(b[0], PlaneTuning::START, |pt| {
-                        with_settings(b[1], |m| super::plane_up_x87(m, sq, pt));
-                    });
+        recorded_writes("effects.draw_plane.plane_up_x87", &SPEC, |b| {
+            with_copy::<WindscreenFlakeTables, _>(b[0], WindscreenFlakeTables::START, |sq| {
+                with_copy::<PlaneTuning, _>(b[0], PlaneTuning::START, |pt| {
+                    with_settings(b[1], |m| super::plane_up_x87(m, sq, pt));
                 });
-            },
-        );
+            });
+        });
     }
 
     #[test]
@@ -769,27 +530,23 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::plane_place_x87(b[0], b[1]),
-            |b| {
-                with_overlays(
-                    b[0],
-                    &[overlay(
-                        &crate::effects::owner::effects().windscreen_drops.hex,
-                        WindscreenDropVars::START,
-                    )],
-                    || {
-                        with_settings(b[1], |m| {
-                            super::plane_place_x87(
-                                &crate::effects::owner::effects().windscreen_drops,
-                                m,
-                            );
-                        });
-                    },
-                );
-            },
-        );
+        recorded_writes("effects.draw_plane.plane_place_x87", &SPEC, |b| {
+            with_overlays(
+                b[0],
+                &[overlay(
+                    &crate::effects::owner::effects().windscreen_drops.hex,
+                    WindscreenDropVars::START,
+                )],
+                || {
+                    with_settings(b[1], |m| {
+                        super::plane_place_x87(
+                            &crate::effects::owner::effects().windscreen_drops,
+                            m,
+                        );
+                    });
+                },
+            );
+        });
     }
 
     #[test]
@@ -810,37 +567,33 @@ mod asm_differential {
             }],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::plane_facing_x87(b[0]),
-            |b| {
-                with_overlays(
-                    b[0],
-                    &[
-                        overlay(
-                            &crate::effects::owner::effects().windscreen_drops.state,
-                            WindscreenDropState::START,
-                        ),
-                        overlay(
-                            &crate::effects::owner::effects().windscreen_drops.hex,
-                            WindscreenDropVars::START,
-                        ),
-                    ],
-                    || {
-                        with_copy::<WindscreenFlakeTables, _>(
-                            b[0],
-                            WindscreenFlakeTables::START,
-                            |m| {
-                                super::plane_facing_x87(
-                                    &crate::effects::owner::effects().windscreen_drops,
-                                    m,
-                                );
-                            },
-                        );
-                    },
-                );
-            },
-        );
+        recorded_writes("effects.draw_plane.plane_facing_x87", &SPEC, |b| {
+            with_overlays(
+                b[0],
+                &[
+                    overlay(
+                        &crate::effects::owner::effects().windscreen_drops.state,
+                        WindscreenDropState::START,
+                    ),
+                    overlay(
+                        &crate::effects::owner::effects().windscreen_drops.hex,
+                        WindscreenDropVars::START,
+                    ),
+                ],
+                || {
+                    with_copy::<WindscreenFlakeTables, _>(
+                        b[0],
+                        WindscreenFlakeTables::START,
+                        |m| {
+                            super::plane_facing_x87(
+                                &crate::effects::owner::effects().windscreen_drops,
+                                m,
+                            );
+                        },
+                    );
+                },
+            );
+        });
     }
 
     #[test]
@@ -888,15 +641,11 @@ mod asm_differential {
             }],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::plane_corners_x87(b[0]),
-            |b| {
-                with_copy::<WindscreenFlakeTables, _>(b[0], WindscreenFlakeTables::START, |sq| {
-                    with_copy::<QuadWork, _>(b[0], 0x934BD0, |q| super::plane_corners_x87(sq, q));
-                });
-            },
-        );
+        recorded_writes("effects.draw_plane.plane_corners_x87", &SPEC, |b| {
+            with_copy::<WindscreenFlakeTables, _>(b[0], WindscreenFlakeTables::START, |sq| {
+                with_copy::<QuadWork, _>(b[0], 0x934BD0, |q| super::plane_corners_x87(sq, q));
+            });
+        });
     }
 
     #[test]
@@ -938,14 +687,10 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::plane_projected_x87(b[0], b[1]),
-            |b| {
-                with_copy::<QuadWork, _>(b[1], 0x934BD0, |q| {
-                    super::plane_projected_x87(q);
-                });
-            },
-        );
+        recorded_writes("effects.draw_plane.plane_projected_x87", &SPEC, |b| {
+            with_copy::<QuadWork, _>(b[1], 0x934BD0, |q| {
+                super::plane_projected_x87(q);
+            });
+        });
     }
 }

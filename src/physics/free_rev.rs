@@ -5,7 +5,7 @@
 //! (not past it; at 0 or unordered left alone).
 //!
 //! The x87 run is plain Rust over `X` (`math/x87_float.rs`) over the game's variables; the
-//! original's instructions (from IDA) are `asm_reference` in the tests.
+//! original's instructions (from IDA) are recorded in the tests' `reference_vectors`.
 //!
 //! Callers: `physics::free_rev_in_neutral`, `physics::free_rev_clutch`.
 
@@ -111,14 +111,11 @@ fn x87_1(
     scene.drawing.scene.scratch.st(t22);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
     use crate::race::owner::race;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
-
-    // The original's instructions, one function per run.
-    reference!(ref_0(rc) "fld dword ptr [{rc} + 0x214740]", "fmul dword ptr [{rc} + 0x1CB968]", "fdiv dword ptr [{rc} + 0x2140C0]", "fdiv dword ptr [{rc} + 0x1C5E34]", "fild dword ptr [{rc} + 0x31A610]", ".byte 0xDE, 0xC9", "fdiv dword ptr [{rc} + 0x1C5E2C]", "fstp dword ptr [{rc} + 0x214750]", "fld dword ptr [{rc} + 0x214750]", "fmul dword ptr [{rc} + 0x21388C]", "fdiv dword ptr [{rc} + 0x2140C0]", "fadd dword ptr [{rc} + 0x31A1B0]", "fstp dword ptr [{rc} + 0x31A1B0]", "fld dword ptr [{rc} + 0x31A1B0]", "fmul dword ptr [{rc} + 0x213FD8]", "fadd dword ptr [{rc} + 0x213FD4]", "fstp dword ptr [{rc} + 0x22400C]");
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
         vec![Block {
@@ -140,7 +137,6 @@ mod asm_reference {
                 writes: &[(0x214750, Out::F), (0x22400C, Out::F), (0x31A1B0, Out::F)],
             }],
             ulps: 0,
-            reference: |a| unsafe { ref_0(a[0]) },
             plain: |_| {
                 x87_1(
                     &race().course.numbers,
@@ -155,6 +151,6 @@ mod asm_reference {
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse(&blocks(), 1200, 100);
+        sparse("physics.free_rev", &blocks(), 1200, 100);
     }
 }

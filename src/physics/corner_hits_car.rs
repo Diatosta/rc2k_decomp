@@ -62,14 +62,11 @@ fn x87_1(numbers: &Numbers, e: &[u8; 10], o: &impl Cell32) {
     o.st(t2);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
     use crate::scene::x87_mem::{HostCell, view};
-
-    // The original's instructions, one function per run.
-    reference!(ref_0(e, rc, o) "fld tbyte ptr [{e}]", "fdiv dword ptr [{rc} + 0x1C5D98]", "fstp dword ptr [{o}]");
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
         vec![Block {
@@ -89,7 +86,6 @@ mod asm_reference {
                 },
             ],
             ulps: 0,
-            reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
             plain: |a| {
                 x87_1(
                     &crate::race::owner::race().course.numbers,
@@ -102,6 +98,6 @@ mod asm_reference {
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse(&blocks(), 1200, 100);
+        sparse("physics.corner_hits_car", &blocks(), 1200, 100);
     }
 }

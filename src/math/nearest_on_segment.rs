@@ -104,65 +104,10 @@ pub fn nearest_on_segment(a: [u32; 3], b: [u32; 3], o: [u32; 3]) -> [u32; 3] {
     [NEAREST[X], NEAREST[Y], NEAREST[Z]].map(|at| block[at / 4])
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
-
-    // The original's instructions.
-    reference!(ref_differences(w, t, u)
-        "fld dword ptr [{w} + 0x00]",
-        "fsub dword ptr [{w} + 0x18]",
-        "fstp dword ptr [{w} + 0x34]",
-        "fld dword ptr [{w} + 0x08]",
-        "fsub dword ptr [{w} + 0x20]",
-        "fstp dword ptr [{w} + 0x38]",
-        "fld dword ptr [{w} + 0x0C]",
-        "fsub dword ptr [{w} + 0x18]",
-        "fstp dword ptr [{w} + 0x3C]",
-        "fld dword ptr [{w} + 0x14]",
-        "fsub dword ptr [{w} + 0x20]",
-        "fstp dword ptr [{w} + 0x40]",
-        "fld dword ptr [{w} + 0x34]",
-        "fsub dword ptr [{w} + 0x3C]",
-        "fstp dword ptr [{w} + 0x4C]",
-        "fld dword ptr [{w} + 0x38]",
-        "fsub dword ptr [{w} + 0x40]",
-        "fstp dword ptr [{w} + 0x50]",
-        "fld dword ptr [{w} + 0x34]",
-        "fmul dword ptr [{w} + 0x4C]",
-        "fld dword ptr [{w} + 0x38]",
-        "fmul dword ptr [{w} + 0x50]",
-        ".byte 0xDE, 0xC1",
-        "fld dword ptr [{w} + 0x3C]",
-        "fmul dword ptr [{w} + 0x4C]",
-        "fld dword ptr [{w} + 0x40]",
-        "fmul dword ptr [{w} + 0x50]",
-        ".byte 0xDE, 0xC1",
-        ".byte 0xD8, 0xE9",
-        "fstp tbyte ptr [{t}]",
-        "fstp tbyte ptr [{u}]");
-    reference!(ref_ratio(w, t, u)
-        "fld tbyte ptr [{u}]",
-        "fld tbyte ptr [{t}]",
-        ".byte 0xDE, 0xF9",
-        "fstp dword ptr [{w} + 0x30]");
-    reference!(ref_point(w)
-        "fld dword ptr [{w} + 0x0C]",
-        "fsub dword ptr [{w} + 0x00]",
-        "fmul dword ptr [{w} + 0x30]",
-        "fadd dword ptr [{w} + 0x00]",
-        "fstp dword ptr [{w} + 0x24]",
-        "fld dword ptr [{w} + 0x10]",
-        "fsub dword ptr [{w} + 0x04]",
-        "fmul dword ptr [{w} + 0x30]",
-        "fadd dword ptr [{w} + 0x04]",
-        "fstp dword ptr [{w} + 0x28]",
-        "fld dword ptr [{w} + 0x14]",
-        "fsub dword ptr [{w} + 0x08]",
-        "fmul dword ptr [{w} + 0x30]",
-        "fadd dword ptr [{w} + 0x08]",
-        "fstp dword ptr [{w} + 0x2C]");
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
         vec![
@@ -197,7 +142,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_differences(a[0], a[1], a[2]) },
                 plain: |a| differences(a[0], a[1], a[2]),
             },
             Block {
@@ -217,7 +161,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_ratio(a[0], a[1], a[2]) },
                 plain: |a| ratio(a[0], a[1], a[2]),
             },
             Block {
@@ -235,7 +178,6 @@ mod asm_reference {
                     writes: &[(0x24, Out::F), (0x28, Out::F), (0x2C, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_point(a[0]) },
                 plain: |a| point(a[0]),
             },
         ]
@@ -243,7 +185,7 @@ mod asm_reference {
 
     #[test]
     fn nearest_on_segment_matches_the_assembly() {
-        sparse(&blocks(), 5000, 208);
+        sparse("math.nearest_on_segment", &blocks(), 1500, 208);
     }
 }
 

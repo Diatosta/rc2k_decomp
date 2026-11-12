@@ -311,10 +311,10 @@ pub(crate) fn fld(base: impl Base, off: usize) -> X {
 }
 
 /// A test buffer's dword as a cell (checked in one live region, as `fld`).
-#[cfg(all(test, target_arch = "x86"))]
+#[cfg(test)]
 pub(crate) struct HostCell(pub usize);
 
-#[cfg(all(test, target_arch = "x86"))]
+#[cfg(test)]
 impl crate::session::Cell32 for HostCell {
     fn bits(&self) -> u32 {
         by_address::load(self.0, 0)
@@ -325,9 +325,9 @@ impl crate::session::Cell32 for HostCell {
 }
 
 /// The `T` at `off` bytes into a test buffer at `base` (the plain versions' typed operands).
-#[cfg(all(test, target_arch = "x86"))]
+#[cfg(test)]
 pub(crate) fn view<T>(base: usize, off: usize) -> &'static T {
-    // SAFETY: the buffer is lent for the run (`asm_test`), aligned for its cells.
+    // SAFETY: the buffer is lent for the run (`block_vectors`), aligned for its cells.
     unsafe { &*(crate::pointers::host_at(base + off) as *const T) }
 }
 

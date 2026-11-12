@@ -211,7 +211,7 @@ pub fn loadlevel_init(
     s.progress(0x5A)?;
     s.indent(-3);
     s.step(
-        &mut || crate::gfx::build_game_fonts::build_game_fonts_in_game(gfx, system),
+        &mut || crate::gfx::build_game_fonts::build_game_fonts_in_game(gfx, system, o.strings),
         Some(0x5C),
     )?;
     // init mark, with the log off.
@@ -281,7 +281,7 @@ pub fn loadlevel_init(
     s.log();
     s.indent(3);
     crate::race::norms::store_norms(race, &mut |a, b, c| {
-        crate::race::norms::face_normal(race, a, b, c)
+        crate::race::norms::face_normal(race, scene, a, b, c)
     })?;
     if race.replay.finish.no_place.get() == 0 {
         s.indent(-3);

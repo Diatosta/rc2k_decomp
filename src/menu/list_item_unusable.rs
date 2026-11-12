@@ -7,10 +7,7 @@
 use crate::menu::list_handle::ListMenu;
 
 /// Carry.
-pub fn list_item_unusable(list: ListMenu) -> bool {
+pub fn list_item_unusable(install: &crate::install::owner::Install, list: ListMenu) -> bool {
     // The logic is in `rc2k_core::menu::list_menu::unusable`.
-    rc2k_core::menu::list_menu::unusable(
-        list.item(crate::install::owner::install().pages.choice.get())
-            .first(),
-    )
+    rc2k_core::menu::list_menu::unusable(list.item(install.pages.choice.get()).first())
 }

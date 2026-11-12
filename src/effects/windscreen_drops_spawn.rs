@@ -79,47 +79,11 @@ fn rate_x87(drops: &WindscreenDrops, kv: &KeptView) {
     crate::effects::plain::set_status(bh::compare(t13, ld_cell(&drops.hex.spawn_k[1])));
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
-    //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
-
-    pub(super) fn rate_x87(rc: usize, mk: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{mk} + 0x42FE]",
-            "fadd dword ptr [{mk} + 0xACC83]",
-            ".byte 0xD9, 0xFE",
-            "fmul dword ptr [{mk} + 0xAF7E8]",
-            "fstp dword ptr [{mk} + 0xAF7EC]",
-            "fld dword ptr [{mk} + 0xAF7E8]",
-            "fmul dword ptr [{mk} + 0xACCA7]",
-            ".byte 0xD9, 0xE0",
-            "fld dword ptr [{mk} + 0x42FE]",
-            "fadd dword ptr [{mk} + 0xACC83]",
-            ".byte 0xD9, 0xFF",
-            ".byte 0xDE, 0xC9",
-            "fmul dword ptr [{mk} + 0xC936A]",
-            "fadd dword ptr [{mk} + 0xAF7EC]",
-            "fstp dword ptr [{mk} + 0xAF7EC]",
-            "fld dword ptr [{mk} + 0xAF7EC]",
-            "fcomp dword ptr [{mk} + 0xC936E]",
-            "fstsw word ptr [{rc} + 0x31C814]",
-            rc = in(reg) rc,
-            mk = in(reg) mk,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-}
-
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_differential {
-    use super::asm_reference as reference;
+#[cfg(test)]
+mod reference_vectors {
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::with_copy;
-    use crate::effects::asm_test::{Op, Spec, differential};
+    use crate::effects::asm_test::{Op, Spec, recorded_writes};
     use crate::effects::tilt_shape::ShapeTilt;
     use crate::effects::typed_sync::{overlay, with_overlays};
     use crate::effects::view_vectors::KeptView;
@@ -151,31 +115,27 @@ mod asm_differential {
             ],
             sincos: true,
         };
-        differential(
-            &SPEC,
-            |b| reference::rate_x87(b[0], b[1]),
-            |b| {
-                with_copy(b[1], KeptView::START, |kv| {
-                    with_overlays(
-                        b[1],
-                        &[
-                            overlay(
-                                &crate::effects::owner::effects().windscreen_drops.tilt,
-                                ShapeTilt::START,
-                            ),
-                            overlay(
-                                &crate::effects::owner::effects().windscreen_drops.state,
-                                WindscreenDropState::START,
-                            ),
-                            overlay(
-                                &crate::effects::owner::effects().windscreen_drops.hex,
-                                WindscreenDropVars::START,
-                            ),
-                        ],
-                        || super::rate_x87(&crate::effects::owner::effects().windscreen_drops, kv),
-                    );
-                });
-            },
-        );
+        recorded_writes("effects.windscreen_drops_spawn.rate_x87", &SPEC, |b| {
+            with_copy(b[1], KeptView::START, |kv| {
+                with_overlays(
+                    b[1],
+                    &[
+                        overlay(
+                            &crate::effects::owner::effects().windscreen_drops.tilt,
+                            ShapeTilt::START,
+                        ),
+                        overlay(
+                            &crate::effects::owner::effects().windscreen_drops.state,
+                            WindscreenDropState::START,
+                        ),
+                        overlay(
+                            &crate::effects::owner::effects().windscreen_drops.hex,
+                            WindscreenDropVars::START,
+                        ),
+                    ],
+                    || super::rate_x87(&crate::effects::owner::effects().windscreen_drops, kv),
+                );
+            });
+        });
     }
 }

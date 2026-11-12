@@ -427,7 +427,7 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
     }
 
     fn bar(&mut self, bar: rc2k_core::screens::screen::Bar) -> Result<(), Refused> {
-        use crate::gfx::blit_bar::{Bar, blit_bar};
+        use crate::gfx::blit_bar::{Bar, blit_bar_in};
         Bar {
             x: bar.x,
             y: bar.y,
@@ -436,9 +436,11 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
             end_glyph: bar.end_glyph,
             percent: bar.percent,
         }
-        .write();
+        .write_in(self.owners.gfx);
         let canvas = &mut *self.canvas;
-        blit_bar(&mut |call| canvas.blit_glyph(call))
+        blit_bar_in(self.owners.gfx, self.owners.menus, &mut |call| {
+            canvas.blit_glyph(call)
+        })
     }
 
     fn blend(&mut self, since_key: u32, a: F, b: F) -> Result<(), Refused> {

@@ -87,7 +87,9 @@ impl Game {
         let mut flags = StepAnswer::default();
         match s {
             Step::StopMusic => crate::sound::stop_music::stop_music(o.audio, o.system),
-            Step::Step4059F4 => crate::gfx::clear_front_surface::clear_front_surface()?,
+            Step::Step4059F4 => {
+                crate::gfx::clear_front_surface::clear_front_surface(o.gfx, o.system)?;
+            }
             Step::TakeKey => {
                 flags.zero = crate::input::take_key::take_key() == 0;
             }
@@ -119,7 +121,7 @@ impl Game {
             // does; the original's films kept the quit answer of the last race left by
             // the quit question, and its demonstration ended at its first frame.
             Step::Demonstration => {
-                crate::race::race_shell::clear_player_absences();
+                crate::race::race_shell::clear_player_absences(race);
                 crate::race::credits_race::credits_race(race, o)?;
             }
             Step::Step409B76 => crate::sound::let_sounds_play::let_sounds_play_in(o.audio),

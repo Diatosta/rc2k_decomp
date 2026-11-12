@@ -50,6 +50,9 @@ pub struct PartScratch {
     pub polygon: &'static crate::scene::polygon_store::PolygonWork,
     /// The point records, a cache of the points' projections (`scene::point_records`).
     pub records: &'static crate::scene::point_records::Records,
+    /// The held matrix columns while a part other than the first is drawn
+    /// (`scene::view_matrices::Held`), from the list's start.
+    pub columns: crate::scene::view_matrices::OwnColumns,
 }
 
 /// The parts' scratch, part 0's in the stores' places in the race's buffers (the image's
@@ -64,21 +67,25 @@ static PARTS: [PartScratch; COUNT] = {
             vertices: &buffers.vertices,
             polygon: &buffers.polygon,
             records: &R[0],
+            columns: crate::scene::view_matrices::OwnColumns::new(),
         },
         PartScratch {
             vertices: &V[0],
             polygon: &P[0],
             records: &R[1],
+            columns: crate::scene::view_matrices::OwnColumns::new(),
         },
         PartScratch {
             vertices: &V[1],
             polygon: &P[1],
             records: &R[2],
+            columns: crate::scene::view_matrices::OwnColumns::new(),
         },
         PartScratch {
             vertices: &V[2],
             polygon: &P[2],
             records: &R[3],
+            columns: crate::scene::view_matrices::OwnColumns::new(),
         },
     ]
 };
@@ -292,10 +299,11 @@ fn draw_parts(
         #[cfg(feature = "write_watch")]
         crate::write_watch::begin();
         crate::d3d::run_states::begin_run(&cache_start);
-        crate::scene::view_matrices::begin_part(columns_start);
-        let result = part(n, part_scratch(n));
+        let scratch = part_scratch(n);
+        crate::scene::view_matrices::begin_part(scratch, columns_start);
+        let result = part(n, scratch);
         let states = crate::d3d::run_states::end_run();
-        let columns = crate::scene::view_matrices::end_part().unwrap_or(columns_start);
+        let columns = crate::scene::view_matrices::end_part(scratch).unwrap_or(columns_start);
         #[cfg(feature = "write_watch")]
         WATCHED
             .lock()

@@ -262,199 +262,12 @@ fn projected_x87(
     st_cell(&buffer.vertices[0].z, t34);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
-    //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
-
-    pub(super) fn shifted_places_x87(s: usize, p: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{s} + 0xC]",
-            "fadd dword ptr [{p} + 0x18]",
-            "fstp dword ptr [{p} + 0x18]",
-            "fld dword ptr [{s} + 0xC]",
-            "fadd dword ptr [{p} + 0x38]",
-            "fstp dword ptr [{p} + 0x38]",
-            "fld dword ptr [{s} + 0xC]",
-            "fadd dword ptr [{p} + 0x58]",
-            "fstp dword ptr [{p} + 0x58]",
-            "fld dword ptr [{s} + 0xC]",
-            "fadd dword ptr [{p} + 0x78]",
-            "fstp dword ptr [{p} + 0x78]",
-            "fld dword ptr [{s} + 0x10]",
-            "fadd dword ptr [{p} + 0x1C]",
-            "fstp dword ptr [{p} + 0x1C]",
-            "fld dword ptr [{s} + 0x10]",
-            "fadd dword ptr [{p} + 0x3C]",
-            "fstp dword ptr [{p} + 0x3C]",
-            "fld dword ptr [{s} + 0x10]",
-            "fadd dword ptr [{p} + 0x5C]",
-            "fstp dword ptr [{p} + 0x5C]",
-            "fld dword ptr [{s} + 0x10]",
-            "fadd dword ptr [{p} + 0x7C]",
-            "fstp dword ptr [{p} + 0x7C]",
-            s = in(reg) s,
-            p = in(reg) p,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn corners_x87(mk: usize, v: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld tbyte ptr [{v} + 10]",
-            "fld tbyte ptr [{v}]",
-            "fmul dword ptr [{mk} + 0x137FB2]",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{mk} + 0x137FAE]",
-            ".byte 0xD9, 0xC9",
-            ".byte 0xD9, 0xC1",
-            "fmul dword ptr [{mk} + 0x137FDA]",
-            ".byte 0xD9, 0xC1",
-            "fmul dword ptr [{mk} + 0x137FE6]",
-            ".byte 0xDE, 0xC1",
-            "fadd dword ptr [{mk} + 0x137FB6]",
-            "fstp dword ptr [{mk} + 0x138052]",
-            ".byte 0xD9, 0xC1",
-            "fmul dword ptr [{mk} + 0x137FDE]",
-            ".byte 0xD9, 0xC1",
-            "fmul dword ptr [{mk} + 0x137FEA]",
-            ".byte 0xDE, 0xC1",
-            "fadd dword ptr [{mk} + 0x137FBA]",
-            "fstp dword ptr [{mk} + 0x138056]",
-            "fmul dword ptr [{mk} + 0x137FEE]",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{mk} + 0x137FE2]",
-            ".byte 0xDE, 0xC1",
-            "fadd dword ptr [{mk} + 0x137FBE]",
-            "fstp dword ptr [{mk} + 0x13805A]",
-            "fld dword ptr [{mk} + 0x138052]",
-            "fsub dword ptr [{mk} + 0x138016]",
-            "fsub dword ptr [{mk} + 0x138022]",
-            "fst dword ptr [{mk} + 0x138052]",
-            "fadd dword ptr [{mk} + 0x13800A]",
-            "fst dword ptr [{mk} + 0x13805E]",
-            "fadd dword ptr [{mk} + 0x137FFE]",
-            "fst dword ptr [{mk} + 0x13806A]",
-            "fsub dword ptr [{mk} + 0x13800A]",
-            "fstp dword ptr [{mk} + 0x138076]",
-            "fld dword ptr [{mk} + 0x138056]",
-            "fsub dword ptr [{mk} + 0x13801A]",
-            "fsub dword ptr [{mk} + 0x138026]",
-            "fst dword ptr [{mk} + 0x138056]",
-            "fadd dword ptr [{mk} + 0x13800E]",
-            "fst dword ptr [{mk} + 0x138062]",
-            "fadd dword ptr [{mk} + 0x138002]",
-            "fst dword ptr [{mk} + 0x13806E]",
-            "fsub dword ptr [{mk} + 0x13800E]",
-            "fstp dword ptr [{mk} + 0x13807A]",
-            "fld dword ptr [{mk} + 0x13805A]",
-            "fsub dword ptr [{mk} + 0x13801E]",
-            "fsub dword ptr [{mk} + 0x13802A]",
-            "fst dword ptr [{mk} + 0x13805A]",
-            "fadd dword ptr [{mk} + 0x138012]",
-            "fst dword ptr [{mk} + 0x138066]",
-            "fadd dword ptr [{mk} + 0x138006]",
-            "fst dword ptr [{mk} + 0x138072]",
-            "fsub dword ptr [{mk} + 0x138012]",
-            "fstp dword ptr [{mk} + 0x13807E]",
-            mk = in(reg) mk,
-            v = in(reg) v,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn projected_x87(rc: usize, mk: usize, p: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{rc} + 0x224088]",
-            "fdiv dword ptr [{mk} + 0x13807E]",
-            "fld dword ptr [{rc} + 0x224088]",
-            "fdiv dword ptr [{mk} + 0x138072]",
-            "fld dword ptr [{rc} + 0x224088]",
-            "fdiv dword ptr [{mk} + 0x138066]",
-            "fld dword ptr [{rc} + 0x224088]",
-            "fdiv dword ptr [{mk} + 0x13805A]",
-            "fld dword ptr [{mk} + 0x138056]",
-            ".byte 0xD8, 0xC9",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{mk} + 0x138052]",
-            ".byte 0xD9, 0xC9",
-            ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{rc} + 0x2240A0]",
-            "fstp dword ptr [{p} + 0x4]",
-            "fadd dword ptr [{rc} + 0x22409C]",
-            "fstp dword ptr [{p} + 0x0]",
-            "fld dword ptr [{mk} + 0x138062]",
-            ".byte 0xD8, 0xC9",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{mk} + 0x13805E]",
-            ".byte 0xD9, 0xC9",
-            ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{rc} + 0x2240A0]",
-            "fstp dword ptr [{p} + 0x24]",
-            "fadd dword ptr [{rc} + 0x22409C]",
-            "fstp dword ptr [{p} + 0x20]",
-            "fld dword ptr [{mk} + 0x13806E]",
-            ".byte 0xD8, 0xC9",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{mk} + 0x13806A]",
-            ".byte 0xD9, 0xC9",
-            ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{rc} + 0x2240A0]",
-            "fstp dword ptr [{p} + 0x44]",
-            "fadd dword ptr [{rc} + 0x22409C]",
-            "fstp dword ptr [{p} + 0x40]",
-            "fld dword ptr [{mk} + 0x13807A]",
-            ".byte 0xD8, 0xC9",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{mk} + 0x138076]",
-            ".byte 0xD9, 0xC9",
-            ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{rc} + 0x2240A0]",
-            "fstp dword ptr [{p} + 0x64]",
-            "fadd dword ptr [{rc} + 0x22409C]",
-            "fstp dword ptr [{p} + 0x60]",
-            "fld dword ptr [{mk} + 0x13805A]",
-            "fadd dword ptr [{mk} + 0x35C]",
-            "fmul dword ptr [{mk} + 0x137FAA]",
-            "fld dword ptr [{mk} + 0x138066]",
-            "fadd dword ptr [{mk} + 0x35C]",
-            "fmul dword ptr [{mk} + 0x137FAA]",
-            "fld dword ptr [{mk} + 0x138072]",
-            "fadd dword ptr [{mk} + 0x35C]",
-            "fmul dword ptr [{mk} + 0x137FAA]",
-            "fld dword ptr [{mk} + 0x13807E]",
-            "fadd dword ptr [{mk} + 0x35C]",
-            "fmul dword ptr [{mk} + 0x137FAA]",
-            "fstp dword ptr [{p} + 0x68]",
-            "fstp dword ptr [{p} + 0x48]",
-            "fstp dword ptr [{p} + 0x28]",
-            "fstp dword ptr [{p} + 0x8]",
-            rc = in(reg) rc,
-            mk = in(reg) mk,
-            p = in(reg) p,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-}
-
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_differential {
-    use super::asm_reference as reference;
+#[cfg(test)]
+mod reference_vectors {
     use crate::d3d::vertices_store::VERTICES;
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::with_copy;
-    use crate::effects::asm_test::{Op, Spec, differential};
+    use crate::effects::asm_test::{Op, Spec, recorded_writes};
     use crate::effects::tuning::MarksKindFloats;
     use crate::effects::windscreen_flakes_store::{WindscreenFlakeItem, WindscreenFlakeTables};
 
@@ -524,9 +337,9 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
+        recorded_writes(
+            "effects.draw_windscreen_flake.shifted_places_x87",
             &SPEC,
-            |b| reference::shifted_places_x87(b[0], b[1]),
             |b| {
                 let word = |off: usize| unsafe {
                     crate::pointers::host_at(b[0] + off)
@@ -604,20 +417,16 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::corners_x87(b[0], b[1]),
-            |b| {
-                with_copy::<WindscreenFlakeTables, _>(b[0], WindscreenFlakeTables::START, |sq| {
-                    let v: [[u8; 10]; 2] = std::array::from_fn(|n| {
-                        std::array::from_fn(|i| unsafe {
-                            crate::pointers::host_at(b[1] + 10 * n + i).read()
-                        })
-                    });
-                    super::corners_x87(&v, sq);
+        recorded_writes("effects.draw_windscreen_flake.corners_x87", &SPEC, |b| {
+            with_copy::<WindscreenFlakeTables, _>(b[0], WindscreenFlakeTables::START, |sq| {
+                let v: [[u8; 10]; 2] = std::array::from_fn(|n| {
+                    std::array::from_fn(|i| unsafe {
+                        crate::pointers::host_at(b[1] + 10 * n + i).read()
+                    })
                 });
-            },
-        );
+                super::corners_x87(&v, sq);
+            });
+        });
     }
 
     #[test]
@@ -671,33 +480,20 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::projected_x87(b[0], b[1], b[2]),
-            |b| {
-                with_copy::<MarksKindFloats, _>(b[1], MarksKindFloats::START, |k| {
-                    with_copy::<WindscreenFlakeTables, _>(
-                        b[1],
-                        WindscreenFlakeTables::START,
-                        |sq| {
-                            staged(
-                                b[2],
-                                &[
-                                    0x0, 0x4, 0x8, 0x20, 0x24, 0x28, 0x40, 0x44, 0x48, 0x60, 0x64,
-                                    0x68,
-                                ],
-                                || {
-                                    super::projected_x87(
-                                        &crate::d3d::vertices_store::VERTICES,
-                                        k,
-                                        sq,
-                                    );
-                                },
-                            );
+        recorded_writes("effects.draw_windscreen_flake.projected_x87", &SPEC, |b| {
+            with_copy::<MarksKindFloats, _>(b[1], MarksKindFloats::START, |k| {
+                with_copy::<WindscreenFlakeTables, _>(b[1], WindscreenFlakeTables::START, |sq| {
+                    staged(
+                        b[2],
+                        &[
+                            0x0, 0x4, 0x8, 0x20, 0x24, 0x28, 0x40, 0x44, 0x48, 0x60, 0x64, 0x68,
+                        ],
+                        || {
+                            super::projected_x87(&crate::d3d::vertices_store::VERTICES, k, sq);
                         },
                     );
                 });
-            },
-        );
+            });
+        });
     }
 }

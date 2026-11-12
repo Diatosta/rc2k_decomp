@@ -215,39 +215,20 @@ fn blend_wear_figures(first: u32, m: &DamageModel, second: u32) {
     );
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
 
     /// The damage model as the test's buffer holds it (the buffer's base plus the RVA of
     /// 0x75B340).
     fn dm(base: usize) -> &'static DamageModel {
-        unsafe { &*(crate::pointers::host_at(base + 0x35B340) as *const DamageModel) }
+        unsafe {
+            &*(crate::test_support::vectors::block_vectors::at(base + 0x35B340)
+                as *const DamageModel)
+        }
     }
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse_at};
     use crate::scene::x87_mem::HostCell;
-
-    // The original's instructions, one function per run.
-    reference!(ref_0(m, rc) "fld dword ptr [{m} + 0x35B584]", "fmul dword ptr [{m} + 0x35B3B0]", "fmul dword ptr [{m} + 0x35B390]", "fadd dword ptr [{rc} + 0x31A284]", "fstp dword ptr [{rc} + 0x31A284]");
-    reference!(ref_1(m, rc) "fld dword ptr [{m} + 0x35B584]", "fmul dword ptr [{m} + 0x35B3B0]", "fmul dword ptr [{m} + 0x35B390]", "fadd dword ptr [{rc} + 0x31A288]", "fstp dword ptr [{rc} + 0x31A288]");
-    reference!(ref_2(m, rc) "fld dword ptr [{m} + 0x35B588]", "fmul dword ptr [{m} + 0x35B390]", ".byte 0xD9, 0xE0", "fadd dword ptr [{rc} + 0x31A284]", "fstp dword ptr [{rc} + 0x31A284]");
-    reference!(ref_3(m, rc) "fld dword ptr [{m} + 0x35B588]", "fmul dword ptr [{m} + 0x35B390]", ".byte 0xD9, 0xE0", "fadd dword ptr [{rc} + 0x31A288]", "fstp dword ptr [{rc} + 0x31A288]");
-    reference!(ref_4(m, rc) "fld dword ptr [{m} + 0x35B58C]", "fmul dword ptr [{m} + 0x35B3A8]", "fmul dword ptr [{m} + 0x35B390]", "fadd dword ptr [{rc} + 0x31A27C]", "fstp dword ptr [{rc} + 0x31A27C]");
-    reference!(ref_5(m, rc) "fld dword ptr [{m} + 0x35B58C]", "fmul dword ptr [{m} + 0x35B3AC]", "fmul dword ptr [{m} + 0x35B390]", "fadd dword ptr [{rc} + 0x31A280]", "fstp dword ptr [{rc} + 0x31A280]");
-    reference!(ref_6(m, rc) "fld dword ptr [{m} + 0x35B590]", "fmul dword ptr [{m} + 0x35B390]", ".byte 0xD9, 0xE0", "fadd dword ptr [{rc} + 0x31A27C]", "fstp dword ptr [{rc} + 0x31A27C]");
-    reference!(ref_7(m, rc) "fld dword ptr [{m} + 0x35B590]", "fmul dword ptr [{m} + 0x35B390]", ".byte 0xD9, 0xE0", "fadd dword ptr [{rc} + 0x31A280]", "fstp dword ptr [{rc} + 0x31A280]");
-    reference!(ref_8(m, rc) "fld dword ptr [{m} + 0x35B594]", "fmul dword ptr [{m} + 0x35B3B4]", "fmul dword ptr [{m} + 0x35B390]", "fadd dword ptr [{rc} + 0x31A278]", "fstp dword ptr [{rc} + 0x31A278]");
-    reference!(ref_9(m, rc) "fld dword ptr [{m} + 0x35B598]", "fmul dword ptr [{m} + 0x35B390]", ".byte 0xD9, 0xE0", "fadd dword ptr [{rc} + 0x31A278]", "fstp dword ptr [{rc} + 0x31A278]");
-    reference!(ref_10(m, rc) "fld dword ptr [{m} + 0x35B59C]", "fmul dword ptr [{m} + 0x35B3B0]", "fmul dword ptr [{m} + 0x35B390]", ".byte 0xD9, 0xE0", "fadd dword ptr [{rc} + 0x31A278]", "fstp dword ptr [{rc} + 0x31A278]");
-    reference!(ref_11(m) "fld dword ptr [{m} + 0x35B398]", "fsub dword ptr [{m} + 0x35B460]", "fstp dword ptr [{m} + 0x35B464]");
-    reference!(ref_12(m, rc) "fld dword ptr [{m} + 0x35B578]", "fmul dword ptr [{m} + 0x35B464]", "fmul dword ptr [{m} + 0x35B390]", "fadd dword ptr [{rc} + 0x31A28C]", "fstp dword ptr [{rc} + 0x31A28C]");
-    reference!(ref_13(m, rc) "fld dword ptr [{m} + 0x35B57C]", "fmul dword ptr [{m} + 0x35B390]", ".byte 0xD9, 0xE0", "fadd dword ptr [{rc} + 0x31A28C]", "fstp dword ptr [{rc} + 0x31A28C]");
-    reference!(ref_14(m, rc) "fld dword ptr [{m} + 0x35B580]", "fmul dword ptr [{m} + 0x35B39C]", "fmul dword ptr [{m} + 0x35B390]", ".byte 0xD9, 0xE0", "fadd dword ptr [{rc} + 0x31A28C]", "fstp dword ptr [{rc} + 0x31A28C]");
-    reference!(ref_15(m) "fld dword ptr [{m} + 0x35B44C]", ".byte 0xD8, 0xC8", "fstp dword ptr [{m} + 0x35B44C]");
-    reference!(ref_16(m) "fld dword ptr [{m} + 0x35B448]", ".byte 0xD8, 0xC8", "fstp dword ptr [{m} + 0x35B448]");
-    reference!(ref_17(m) "fld dword ptr [{m} + 0x35B468]", ".byte 0xD8, 0xC8", "fstp dword ptr [{m} + 0x35B468]");
-    reference!(ref_18(m) "fld dword ptr [{m} + 0x35B3E0]", "fmul dword ptr [{m} + 0x35B39C]", "fmul dword ptr [{m} + 0x35B6F8]", "fmul dword ptr [{m} + 0x35B44C]", "fmul dword ptr [{m} + 0x35B468]", "fmul dword ptr [{m} + 0x35B3F4]", "fstp dword ptr [{m} + 0x35B454]", "fld dword ptr [{m} + 0x35B3E0]", "fmul dword ptr [{m} + 0x35B39C]", "fmul dword ptr [{m} + 0x35B6F8]", "fmul dword ptr [{m} + 0x35B3F4]", "fst dword ptr [{m} + 0x35B450]", "fmul dword ptr [{m} + 0x35B448]", "fstp dword ptr [{m} + 0x35B458]");
-    reference!(ref_19(f, m, s) "fild dword ptr [{f}]", ".byte 0xD9, 0xE8", "fsub dword ptr [{m} + 0x35B3F0]", ".byte 0xDE, 0xC9", "fild dword ptr [{s}]", "fld dword ptr [{m} + 0x35B3F0]", ".byte 0xDE, 0xC9", ".byte 0xDE, 0xC1", "fmul dword ptr [{m} + 0x35B8BC]", "fstp dword ptr [{m} + 0x35B484]");
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse_at};
 
     fn blocks() -> Vec<Block> {
         vec![
@@ -264,7 +245,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_0(a[0], a[1]) },
                 plain: |a| {
                     add_wear(
                         dm(a[0]),
@@ -288,7 +268,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_1(a[0], a[1]) },
                 plain: |a| {
                     add_wear(
                         dm(a[0]),
@@ -312,7 +291,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_2(a[0], a[1]) },
                 plain: |a| {
                     subtract_rate(
                         dm(a[0]),
@@ -335,7 +313,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_3(a[0], a[1]) },
                 plain: |a| {
                     subtract_rate(
                         dm(a[0]),
@@ -358,7 +335,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_4(a[0], a[1]) },
                 plain: |a| {
                     add_wear(
                         dm(a[0]),
@@ -382,7 +358,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_5(a[0], a[1]) },
                 plain: |a| {
                     add_wear(
                         dm(a[0]),
@@ -406,7 +381,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_6(a[0], a[1]) },
                 plain: |a| {
                     subtract_rate(
                         dm(a[0]),
@@ -429,7 +403,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_7(a[0], a[1]) },
                 plain: |a| {
                     subtract_rate(
                         dm(a[0]),
@@ -452,7 +425,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_8(a[0], a[1]) },
                 plain: |a| {
                     add_wear(
                         dm(a[0]),
@@ -476,7 +448,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_9(a[0], a[1]) },
                 plain: |a| {
                     subtract_rate(
                         dm(a[0]),
@@ -499,7 +470,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_10(a[0], a[1]) },
                 plain: |a| {
                     subtract_wear(
                         dm(a[0]),
@@ -517,7 +487,6 @@ mod asm_reference {
                     writes: &[(0x35B464, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_11(a[0]) },
                 plain: |a| lerp_gap(dm(a[0])),
             },
             Block {
@@ -533,7 +502,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_12(a[0], a[1]) },
                 plain: |a| {
                     add_wear(
                         dm(a[0]),
@@ -557,7 +525,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_13(a[0], a[1]) },
                 plain: |a| {
                     subtract_rate(
                         dm(a[0]),
@@ -580,7 +547,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_14(a[0], a[1]) },
                 plain: |a| {
                     subtract_wear(
                         dm(a[0]),
@@ -598,7 +564,6 @@ mod asm_reference {
                     writes: &[(0x35B44C, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_15(a[0]) },
                 plain: |a| {
                     square_into(
                         &dm(a[0]).stiffness_body_factor,
@@ -613,7 +578,6 @@ mod asm_reference {
                     writes: &[(0x35B448, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_16(a[0]) },
                 plain: |a| {
                     square_into(
                         &dm(a[0]).stiffness_suspension_factor,
@@ -628,7 +592,6 @@ mod asm_reference {
                     writes: &[(0x35B468, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_17(a[0]) },
                 plain: |a| {
                     square_into(
                         &dm(a[0]).ride_height_body_factor,
@@ -651,7 +614,6 @@ mod asm_reference {
                     writes: &[(0x35B450, Out::F), (0x35B454, Out::F), (0x35B458, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_18(a[0]) },
                 plain: |a| hit_figures(dm(a[0])),
             },
             Block {
@@ -671,7 +633,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_19(a[0], a[1], a[2]) },
                 plain: |a| {
                     blend_wear_figures(HostCell(a[0]).bits(), dm(a[1]), HostCell(a[2]).bits());
                 },
@@ -682,7 +643,7 @@ mod asm_reference {
     #[test]
     fn x87_blocks_matches_the_assembly() {
         // The plain code rounds to nearest, as the game always runs the damage model.
-        sparse_at(&blocks(), 1200, 100, &[0x027F]);
+        sparse_at("physics.damage_wear", &blocks(), 1200, 100, &[0x027F]);
     }
 }
 

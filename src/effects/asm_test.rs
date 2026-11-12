@@ -1,11 +1,8 @@
-//! The differential tests of the marks' converted x87 blocks: each block's original assembly
-//! (kept in the file's `asm_reference`) and its plain Rust version run over the same random
-//! memory, at the default control word and at chop, and every place either one writes must
-//! hold the same bits afterwards.
+//! The tests of the marks' converted x87 blocks: each block's plain Rust version runs over
+//! random memory, at the default control word and at chop, and every place the original's
+//! assembly wrote (recorded once on i686, `test_support::vectors`) must hold the same bits
+//! afterwards.
 
-// reason: the blocks over the race block are still compared on i686 only, against its
-// assembly; on other targets only the recorded blocks use this harness.
-#![cfg_attr(not(target_arch = "x86"), allow(dead_code))]
 use crate::effects::store::START;
 use crate::math::x87;
 use crate::math::x87_float as bh;
@@ -229,317 +226,17 @@ const SIZE: fn(Kind) -> usize = |k| match k {
     Status => 2,
 };
 
-#[cfg(target_arch = "x86")]
-/// The race block's bytes at RVA `off`.
-fn block_get(off: usize, len: usize) -> Vec<u8> {
-    crate::pointers::GamePtr::new(crate::framework::game_addr(off))
-        .read_bytes(len, "a race block place")
-        .unwrap()
-}
-
-#[cfg(target_arch = "x86")]
-fn block_put(off: usize, bytes: &[u8]) {
-    crate::pointers::GamePtr::new(crate::framework::game_addr(off))
-        .write_bytes(bytes, "a race block place")
-        .unwrap();
-}
-
-#[cfg(target_arch = "x86")]
-/// The view window's fields the assembly reads in the scene draw store (IDA 0x623F80 ..) and the
-/// race view (`view_depth`, 0x63DC54), and their twins in the front end's window
-/// (`scene::view_window`), which the Rust versions read: (RVA, length, twin's game
-/// address).
-fn window_twins() -> Vec<(usize, usize, u32)> {
-    use crate::race::view_store::RaceView;
-    use crate::scene::draw_store::SceneDraw;
-    use core::mem::{offset_of, size_of_val};
-    let w = &crate::scene::polygon_work::front_end().window;
-    let twin =
-        |ida: usize, len: usize, cell: *const u8| (ida, len, crate::pointers::game_address(cell));
-    macro_rules! scene_field {
-        ($f:ident) => {
-            twin(
-                0x223F80 + offset_of!(SceneDraw, $f),
-                size_of_val(&w.$f),
-                core::ptr::from_ref(&w.$f).cast(),
-            )
-        };
-    }
-    vec![
-        scene_field!(view_offset),
-        scene_field!(view_zoom),
-        scene_field!(unknown_104),
-        scene_field!(view_scale),
-        scene_field!(view_size),
-        scene_field!(view_middle),
-        scene_field!(view_centre),
-        scene_field!(farthest),
-        scene_field!(one_over_farthest),
-        scene_field!(farthest_scaled),
-        scene_field!(clip_edges),
-        scene_field!(clip_screen),
-        scene_field!(view_offset_float),
-        scene_field!(faces_done),
-        scene_field!(depth_divisor),
-        scene_field!(clip_farthest),
-        twin(
-            0x23D9B8 + offset_of!(RaceView, view_depth),
-            size_of_val(&w.view_depth),
-            core::ptr::from_ref(&w.view_depth).cast(),
-        ),
-    ]
-}
-
-#[cfg(target_arch = "x86")]
-/// Each listed write of the race block operands: its place and kind, and its bytes now.
-#[allow(clippy::type_complexity)] // reason: a test's one-off list
-fn block_outputs(spec: &Spec) -> Vec<((usize, Kind), Vec<u8>)> {
-    let mut out = Vec::new();
-    for op in spec.operands {
-        if let Op::RaceBlock { writes, .. } = op {
-            for &(off, kind) in *writes {
-                out.push(((off, kind), block_get(off, SIZE(kind))));
-            }
-        }
-    }
-    out
-}
-
-#[cfg(target_arch = "x86")]
-/// The race block's listed places as they were before a test (put back when it ends).
-struct PutBack(Vec<(usize, Vec<u8>)>);
-
-#[cfg(target_arch = "x86")]
-/// The front end's window as it was before a test (put back when it ends).
-struct WindowBack(crate::scene::view_window::ViewWindow);
-
-#[cfg(target_arch = "x86")]
-impl Drop for WindowBack {
-    fn drop(&mut self) {
-        crate::pointers::Cells::copy_from(&crate::scene::polygon_work::front_end().window, &self.0);
-    }
-}
-
-#[cfg(target_arch = "x86")]
-impl Drop for PutBack {
-    fn drop(&mut self) {
-        for (off, b) in self.0.iter().rev() {
-            block_put(*off, b);
-        }
-    }
-}
-
-#[cfg(target_arch = "x86")]
-/// Runs `reference` and `plain` (each given the operands: base addresses and indexes)
-/// over the same random memory, several thousand times at each of two control words.
-pub fn differential<R: PartialEq + std::fmt::Debug>(
-    spec: &Spec,
-    reference: impl Fn(&[usize]) -> R,
-    plain: impl Fn(&[usize]) -> R,
-) {
-    // The tests write the control word and the statics: one at a time, with every test of
-    // the statics (`store::test_lock`).
-    let _guard = crate::store::test_lock();
-    let mut rng = Rng(0x9E37_79B9_7F4A_7C15);
-    let mut failures = 0;
-    let mut saved = Vec::new();
-    for op in spec.operands {
-        if let Op::RaceBlock { reads, writes, .. } = op {
-            for &(off, kind) in reads.iter().chain(writes.iter()) {
-                saved.push((off, block_get(off, SIZE(kind))));
-            }
-        }
-    }
-    let _put_back = PutBack(saved);
-    // The front end's window, which the laid inputs' twins overwrite, put back at the end.
-    let window = crate::scene::view_window::ViewWindow::new();
-    crate::pointers::Cells::copy_from(&window, &crate::scene::polygon_work::front_end().window);
-    let _window_back = WindowBack(window);
-    // The race block's places the reference reads or writes (IDA's addresses), laid into
-    // their old places around it (`race::store::OldPlaces`).
-    let old_places: Vec<usize> = spec
-        .operands
-        .iter()
-        .filter_map(|op| match op {
-            Op::RaceBlock { reads, writes, .. } => Some(reads.iter().chain(writes.iter())),
-            _ => None,
-        })
-        .flatten()
-        .map(|&(off, _)| off + 0x400000)
-        .collect();
-    for cw in [0x027F, 0x0E7F] {
-        x87::set_control_word(cw);
-        for case in 0..3000 {
-            let mut refs: Vec<Buf> = Vec::new();
-            let mut values = Vec::new();
-            for op in spec.operands {
-                match op {
-                    Op::Base { lo, hi, reads, .. } => {
-                        let mut buf = Buf::new(hi - lo);
-                        fill(&mut buf, *lo, reads, &mut rng, spec.sincos);
-                        refs.push(buf);
-                        values.push(0);
-                    }
-                    Op::RaceBlock { .. } => {
-                        refs.push(Buf::new(0));
-                        values.push(crate::race::store::asm_base() as usize);
-                    }
-                    Op::Index(v) => {
-                        refs.push(Buf::new(0));
-                        values.push(v[rng.below(v.len() as u64) as usize]);
-                    }
-                    Op::Float => {
-                        refs.push(Buf::new(0));
-                        values.push(random_float(&mut rng, spec.sincos).to_bits() as usize);
-                    }
-                }
-            }
-            let mut pls = refs.clone();
-            let mut ref_vals = values.clone();
-            let mut pl_vals = values;
-            for (j, op) in spec.operands.iter().enumerate() {
-                if let Op::Base { lo, .. } = op {
-                    ref_vals[j] = (crate::pointers::game_address(refs[j].as_ptr())
-                        .wrapping_sub((*lo) as u32)) as usize;
-                    pl_vals[j] = (crate::pointers::game_address(pls[j].as_ptr())
-                        .wrapping_sub((*lo) as u32)) as usize;
-                }
-            }
-            // The buffers lent while the versions run: their operands are checked as game memory.
-            let _lent: Vec<crate::pointers::Lent> = refs
-                .iter()
-                .chain(pls.iter())
-                .filter(|b| !b.is_empty())
-                .map(|b| crate::pointers::Lent::new(b))
-                .collect();
-            // the race block's places: random inputs, the outputs marked, each run from them
-            let mut block_in: Vec<(usize, Vec<u8>)> = Vec::new();
-            for op in spec.operands {
-                if let Op::RaceBlock { reads, writes, .. } = op {
-                    for &(off, kind) in *reads {
-                        let mut b = vec![0u8; SIZE(kind)];
-                        fill(&mut b, off, &[(off, kind)], &mut rng, spec.sincos);
-                        block_in.push((off, b));
-                    }
-                    for &(off, kind) in *writes {
-                        block_in.push((off, vec![0xAA; SIZE(kind)]));
-                    }
-                }
-            }
-            let twins = window_twins();
-            let lay = || {
-                for (off, b) in &block_in {
-                    block_put(*off, b);
-                }
-                // What the assembly reads of the window, the Rust versions read in its twin.
-                for &(ida, len, twin) in &twins {
-                    let bytes = block_get(ida, len);
-                    crate::pointers::GamePtr::new(twin)
-                        .write_bytes(&bytes, "the front end's window")
-                        .unwrap();
-                }
-            };
-            lay();
-            let got_ref = crate::race::store::in_old_places(&old_places, || reference(&ref_vals));
-            let ref_out = block_outputs(spec);
-            lay();
-            let got_plain = plain(&pl_vals);
-            let plain_out = block_outputs(spec);
-            for ((off, kind), a) in &ref_out {
-                let b = &plain_out
-                    .iter()
-                    .find(|(p, _)| p == &(*off, *kind))
-                    .unwrap()
-                    .1;
-                if !same(*kind, a, b, spec.sincos) {
-                    failures += 1;
-                    if failures < 10 {
-                        eprintln!(
-                            "case {case} cw {cw:#X} race block +{off:#X} {kind:?}: reference {a:02X?} plain {b:02X?}"
-                        );
-                    }
-                }
-            }
-            if got_ref != got_plain {
-                failures += 1;
-                if failures < 10 {
-                    eprintln!("case {case} cw {cw:#X}: returned {got_ref:?} and {got_plain:?}");
-                }
-            }
-            for (j, op) in spec.operands.iter().enumerate() {
-                let Op::Base { lo, writes, .. } = op else {
-                    continue;
-                };
-                let (a, b) = (&mut refs[j], &mut pls[j]);
-                for &(off, kind) in *writes {
-                    let (at, n) = (off - lo, SIZE(kind));
-                    if !same(kind, &a[at..at + n], &b[at..at + n], spec.sincos) {
-                        failures += 1;
-                        if failures < 10 {
-                            eprintln!(
-                                "case {case} cw {cw:#X} operand {j} +{off:#X} {kind:?}: reference {:02X?} plain {:02X?}",
-                                &a[at..at + n],
-                                &b[at..at + n]
-                            );
-                        }
-                    }
-                    // equal from here on, so that what is left is the unlisted bytes
-                    let copy = b[at..at + n].to_vec();
-                    a[at..at + n].copy_from_slice(&copy);
-                }
-                if a != b {
-                    failures += 1;
-                    if failures < 10 {
-                        let k = a.iter().zip(b.iter()).position(|(x, y)| x != y).unwrap();
-                        eprintln!(
-                            "case {case} cw {cw:#X} operand {j} +{:#X}: unlisted byte differs {:02X} {:02X}",
-                            lo + k,
-                            a[k],
-                            b[k]
-                        );
-                    }
-                }
-            }
-        }
-    }
-    x87::set_control_word(0x027F);
-    assert_eq!(failures, 0, "{failures} differences");
-}
-
-/// The recorded form of `differential` for blocks over test buffers only (no race block
-/// operand): `plain` compared on every target with the results recorded under `name` (see
-/// `test_support::vectors`): every listed write, the buffers' other bytes, the returned
-/// value's printed form.
+/// A block over test buffers only (no race block operand): `plain` compared with the results
+/// the original's instructions made, recorded under `name` (see `test_support::vectors`):
+/// every listed write, the buffers' other bytes, the returned value's printed form.
 pub fn recorded<R: std::fmt::Debug>(name: &str, spec: &Spec, plain: impl Fn(&[usize]) -> R) {
     use crate::test_support::vectors::Recorder;
-    run_recorded(Recorder::replay(name), spec, None, &plain);
+    run_recorded(Recorder::replay(name), spec, &plain);
 }
-
-/// Records `reference`'s results (the original's instructions) under `name` when
-/// `RC2K_RECORD_VECTORS=1`, then replays them as `recorded`.
-#[cfg(target_arch = "x86")]
-#[allow(dead_code)] // reason: kept for recording the blocks still compared on i686 only
-pub fn record<R: std::fmt::Debug>(
-    name: &str,
-    spec: &Spec,
-    reference: impl Fn(&[usize]) -> R,
-    plain: impl Fn(&[usize]) -> R,
-) {
-    use crate::test_support::vectors::Recorder;
-    if crate::test_support::vectors::recording() {
-        let printed = |v: &[usize]| format!("{:?}", reference(v));
-        run_recorded(Recorder::record(name), spec, Some(&printed), &plain);
-    }
-    recorded(name, spec, plain);
-}
-
-/// The original's instructions over the operands, returning their value's printed form.
-type Printed<'a> = &'a dyn Fn(&[usize]) -> String;
 
 fn run_recorded<R: std::fmt::Debug>(
     mut file: crate::test_support::vectors::Recorder,
     spec: &Spec,
-    reference: Option<Printed>,
     plain: &dyn Fn(&[usize]) -> R,
 ) {
     assert!(
@@ -595,18 +292,9 @@ fn run_recorded<R: std::fmt::Debug>(
                     })
                     .collect()
             };
-            let mut printed = None;
-            let expected = file.results(&before, || {
-                let refs = start.clone();
-                let _lent: Vec<crate::pointers::Lent> = refs
-                    .iter()
-                    .filter(|b| !b.is_empty())
-                    .map(|b| crate::pointers::Lent::new(b))
-                    .collect();
-                printed = Some(reference.expect("a reference to record")(&run(&refs)));
-                refs.iter().flat_map(|b| b.iter().copied()).collect()
-            });
-            let returned = file.result_bytes(|| printed.expect("a recorded value").into_bytes());
+            // Replaying: the results are the file's.
+            let expected = file.results(&before, || unreachable!("vectors are replayed"));
+            let returned = file.result_bytes(|| unreachable!("vectors are replayed"));
             let pls = start.clone();
             let got = {
                 let _lent: Vec<crate::pointers::Lent> = pls
@@ -658,6 +346,237 @@ fn run_recorded<R: std::fmt::Debug>(
                             lo + k,
                             a[k],
                             b[k]
+                        );
+                    }
+                }
+            }
+        }
+    }
+    x87::set_control_word(0x027F);
+    file.finish();
+    assert_eq!(failures, 0, "{failures} differences");
+}
+
+// ---- the sparse vectors: only the listed writes are recorded ----
+
+/// Race-block places the blocks read or write, as the typed cells that hold them (what the
+/// Rust versions read), by the place's offset in the race block.
+fn race_cell(off: usize) -> &'static dyn crate::session::Cell32 {
+    let w = &crate::scene::polygon_work::front_end().window;
+    let m = &crate::race::owner::race().frame.matrices;
+    match off {
+        0x224088 => &w.view_scale,
+        0x22409C => &w.view_centre[0],
+        0x2240A0 => &w.view_centre[1],
+        0x2241C8 => &w.farthest,
+        0x31C814 => &crate::effects::owner::effects().setup.work.fpu_status,
+        0x1EA2CC..0x1EA30C if off.is_multiple_of(4) => &m.view_matrix[(off - 0x1EA2CC) / 4],
+        0x1EA3CC..0x1EA40C if off.is_multiple_of(4) => &m.view_place[(off - 0x1EA3CC) / 4],
+        _ => panic!("race block place {off:#X} has no typed cell in the effects tests"),
+    }
+}
+
+fn lay_race_place(off: usize, bytes: &[u8]) {
+    let c = race_cell(off);
+    match bytes.len() {
+        4 => c.set_bits(u32::from_le_bytes(bytes.try_into().unwrap())),
+        2 => c.set_bits(
+            (c.bits() & 0xFFFF_0000) | u32::from(u16::from_le_bytes(bytes.try_into().unwrap())),
+        ),
+        n => panic!("race block place of {n} bytes"),
+    }
+}
+
+fn read_race_place(off: usize, len: usize) -> Vec<u8> {
+    let bits = race_cell(off).bits();
+    bits.to_le_bytes()[..len].to_vec()
+}
+
+/// What a race block operand's places must hold before and after: the cells hold what the
+/// test left there, so a test puts them back (the front end's window and the matrices are
+/// shared statics).
+struct CellsBack(Vec<(usize, u32)>);
+
+impl Drop for CellsBack {
+    fn drop(&mut self) {
+        for &(off, bits) in &self.0 {
+            race_cell(off).set_bits(bits);
+        }
+    }
+}
+
+/// A block over test buffers and race block places: `plain` compared with the results the
+/// original's instructions made, recorded under `name` (see `test_support::vectors`): every
+/// listed write (the buffers' and the race block's) and the returned value's printed form.
+/// The inputs are laid into the typed cells of the places (`race_cell`); the bytes outside
+/// the listed writes must be left as they were.
+pub fn recorded_writes<R: std::fmt::Debug>(name: &str, spec: &Spec, plain: impl Fn(&[usize]) -> R) {
+    use crate::test_support::vectors::Recorder;
+    run_writes(Recorder::replay(name), spec, &plain);
+}
+
+fn run_writes<R: std::fmt::Debug>(
+    mut file: crate::test_support::vectors::Recorder,
+    spec: &Spec,
+    plain: &dyn Fn(&[usize]) -> R,
+) {
+    let _guard = crate::store::test_lock();
+    let mut rng = Rng(0x9E37_79B9_7F4A_7C15);
+    let mut failures = 0;
+    // The race block places any operand lists: put back when the test ends.
+    let mut places: Vec<usize> = Vec::new();
+    for op in spec.operands {
+        if let Op::RaceBlock { reads, writes } = op {
+            places.extend(reads.iter().chain(writes.iter()).map(|&(o, _)| o));
+        }
+    }
+    let _back = CellsBack(places.iter().map(|&o| (o, race_cell(o).bits())).collect());
+    for cw in [0x027F, 0x0E7F] {
+        x87::set_control_word(cw);
+        for case in 0..3000 {
+            let mut start: Vec<Buf> = Vec::new();
+            let mut values = Vec::new();
+            let mut block_in: Vec<(usize, Vec<u8>)> = Vec::new();
+            for op in spec.operands {
+                match op {
+                    Op::Base { lo, hi, reads, .. } => {
+                        let mut buf = Buf::new(hi - lo);
+                        fill(&mut buf, *lo, reads, &mut rng, spec.sincos);
+                        start.push(buf);
+                        values.push(0);
+                    }
+                    Op::RaceBlock { reads, writes } => {
+                        start.push(Buf::new(0));
+                        values.push(0);
+                        for &(off, kind) in reads.iter() {
+                            let mut b = vec![0u8; SIZE(kind)];
+                            fill(&mut b, off, &[(off, kind)], &mut rng, spec.sincos);
+                            block_in.push((off, b));
+                        }
+                        for &(off, kind) in writes.iter() {
+                            block_in.push((off, vec![0xAA; SIZE(kind)]));
+                        }
+                    }
+                    Op::Index(v) => {
+                        start.push(Buf::new(0));
+                        values.push(v[rng.below(v.len() as u64) as usize]);
+                    }
+                    Op::Float => {
+                        start.push(Buf::new(0));
+                        values.push(random_float(&mut rng, spec.sincos).to_bits() as usize);
+                    }
+                }
+            }
+            // The buffers' other bytes are all 0xAA: the places filled are the input.
+            for (op, buf) in spec.operands.iter().zip(&start) {
+                if let Op::Base { lo, reads, .. } = op {
+                    for &(off, kind) in *reads {
+                        file.input(&buf[off - lo..off - lo + SIZE(kind)]);
+                    }
+                }
+            }
+            for v in &values {
+                file.input(&(*v as u64).to_le_bytes());
+            }
+            for (_, b) in &block_in {
+                file.input(b);
+            }
+            // The listed writes: (operand, offset in the operand or the place, kind).
+            let writes: Vec<(usize, usize, Kind)> = spec
+                .operands
+                .iter()
+                .enumerate()
+                .flat_map(|(j, op)| -> Vec<(usize, usize, Kind)> {
+                    match op {
+                        Op::Base { lo, writes, .. } => {
+                            writes.iter().map(|&(o, k)| (j, o - lo, k)).collect()
+                        }
+                        Op::RaceBlock { writes, .. } => {
+                            writes.iter().map(|&(o, k)| (j, o, k)).collect()
+                        }
+                        _ => Vec::new(),
+                    }
+                })
+                .collect();
+            // Each write's bytes before the block ran.
+            let before: Vec<u8> = writes
+                .iter()
+                .flat_map(|&(j, o, k)| match spec.operands[j] {
+                    Op::RaceBlock { .. } => vec![0xAA; SIZE(k)],
+                    _ => start[j][o..o + SIZE(k)].to_vec(),
+                })
+                .collect();
+            let run = |bufs: &[Buf]| -> Vec<usize> {
+                spec.operands
+                    .iter()
+                    .enumerate()
+                    .map(|(j, op)| match op {
+                        Op::Base { lo, .. } => {
+                            (crate::pointers::game_address(bufs[j].as_ptr())
+                                .wrapping_sub(*lo as u32)) as usize
+                        }
+                        _ => values[j],
+                    })
+                    .collect()
+            };
+            // Replaying: the results are the file's.
+            let expected = file.results(&before, || unreachable!("vectors are replayed"));
+            let returned = file.result_bytes(|| unreachable!("vectors are replayed"));
+            // The Rust version over the same inputs.
+            for (off, b) in &block_in {
+                lay_race_place(*off, b);
+            }
+            let pls = start.clone();
+            let got = {
+                let _lent: Vec<crate::pointers::Lent> = pls
+                    .iter()
+                    .filter(|b| !b.is_empty())
+                    .map(|b| crate::pointers::Lent::new(b))
+                    .collect();
+                format!("{:?}", plain(&run(&pls)))
+            };
+            if got.as_bytes() != returned {
+                failures += 1;
+                if failures < 10 {
+                    eprintln!(
+                        "case {case} cw {cw:#X}: returned {} and {got}",
+                        String::from_utf8_lossy(&returned)
+                    );
+                }
+            }
+            let mut at = 0;
+            for &(j, o, k) in &writes {
+                let n = SIZE(k);
+                let a = &expected[at..at + n];
+                at += n;
+                let b = match spec.operands[j] {
+                    Op::RaceBlock { .. } => read_race_place(o, n),
+                    _ => pls[j][o..o + n].to_vec(),
+                };
+                if !same(k, a, &b, spec.sincos) {
+                    failures += 1;
+                    if failures < 10 {
+                        eprintln!(
+                            "case {case} cw {cw:#X} operand {j} +{o:#X} {k:?}: reference {a:02X?} plain {b:02X?}"
+                        );
+                    }
+                }
+                // equal from here on, so that what is left is the unlisted bytes
+            }
+            for (j, b) in pls.iter().enumerate() {
+                let mut a = start[j].to_vec();
+                for &(wj, o, k) in &writes {
+                    if wj == j && !b.is_empty() {
+                        a[o..o + SIZE(k)].copy_from_slice(&b[o..o + SIZE(k)]);
+                    }
+                }
+                if a[..] != b[..] {
+                    failures += 1;
+                    if failures < 10 {
+                        let k = a.iter().zip(b.iter()).position(|(x, y)| x != y).unwrap();
+                        eprintln!(
+                            "case {case} cw {cw:#X} operand {j} +{k:#X}: unlisted byte differs {:02X} {:02X}",
+                            a[k], b[k]
                         );
                     }
                 }

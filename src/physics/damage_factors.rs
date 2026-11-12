@@ -304,8 +304,8 @@ fn blend_wheel_loads(m: &DamageModel) {
     }
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
     use crate::effects::cell_x87::CellX87;
     use crate::math::x87_float::compare;
@@ -322,40 +322,13 @@ mod asm_reference {
     /// The damage model as the test's buffer holds it (the buffer's base plus the RVA of
     /// 0x75B340).
     fn dm(base: usize) -> &'static DamageModel {
-        unsafe { &*(crate::pointers::host_at(base + 0x35B340) as *const DamageModel) }
+        unsafe {
+            &*(crate::test_support::vectors::block_vectors::at(base + 0x35B340)
+                as *const DamageModel)
+        }
     }
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse_at};
     use crate::scene::x87_mem::Base;
-
-    // The original's instructions, one function per run.
-    reference!(ref_0(rc, m) "fild dword ptr [{rc} + 0x31A008]", "fdiv dword ptr [{m} + 0x35B35C]", "fstp dword ptr [{m} + 0x35B3F8]", "fild dword ptr [{rc} + 0x31A00C]", "fdiv dword ptr [{m} + 0x35B35C]", "fstp dword ptr [{m} + 0x35B3FC]", "fild dword ptr [{rc} + 0x319FF8]", "fdiv dword ptr [{m} + 0x35B35C]", "fstp dword ptr [{m} + 0x35B400]");
-    reference!(ref_1(m, rc) "fld dword ptr [{m} + 0x35B3FC]", "fmul dword ptr [{m} + 0x35B34C]", "fsub dword ptr [{m} + 0x35B474]", "fstp dword ptr [{rc} + 0x31A420]");
-    reference!(ref_2(m, rc) "fld dword ptr [{m} + 0x35B3F8]", "fmul dword ptr [{m} + 0x35B34C]", "fstp dword ptr [{rc} + 0x31A410]");
-    reference!(ref_3(m, rc) "fld dword ptr [{m} + 0x35B34C]", "fstp dword ptr [{rc} + 0x31A420]", "fld dword ptr [{m} + 0x35B350]", "fstp dword ptr [{rc} + 0x31A410]");
-    reference!(ref_4(m, rc) "fld dword ptr [{m} + 0x35B3FC]", "fmul dword ptr [{m} + 0x35B34C]", "fsub dword ptr [{m} + 0x35B478]", "fstp dword ptr [{rc} + 0x31A424]");
-    reference!(ref_5(m, rc) "fld dword ptr [{m} + 0x35B3F8]", "fmul dword ptr [{m} + 0x35B34C]", "fstp dword ptr [{rc} + 0x31A414]");
-    reference!(ref_6(m, rc) "fld dword ptr [{m} + 0x35B34C]", "fstp dword ptr [{rc} + 0x31A424]", "fld dword ptr [{m} + 0x35B350]", "fstp dword ptr [{rc} + 0x31A414]");
-    reference!(ref_7(m, rc) "fld dword ptr [{m} + 0x35B3FC]", "fmul dword ptr [{m} + 0x35B34C]", "fsub dword ptr [{m} + 0x35B47C]", "fstp dword ptr [{rc} + 0x31A428]");
-    reference!(ref_8(m, rc) "fld dword ptr [{m} + 0x35B3F8]", "fmul dword ptr [{m} + 0x35B34C]", "fstp dword ptr [{rc} + 0x31A418]");
-    reference!(ref_9(m, rc) "fld dword ptr [{m} + 0x35B34C]", "fstp dword ptr [{rc} + 0x31A428]", "fld dword ptr [{m} + 0x35B350]", "fstp dword ptr [{rc} + 0x31A418]");
-    reference!(ref_10(m, rc) "fld dword ptr [{m} + 0x35B3FC]", "fmul dword ptr [{m} + 0x35B34C]", "fsub dword ptr [{m} + 0x35B480]", "fstp dword ptr [{rc} + 0x31A42C]");
-    reference!(ref_11(m, rc) "fld dword ptr [{m} + 0x35B3F8]", "fmul dword ptr [{m} + 0x35B34C]", "fstp dword ptr [{rc} + 0x31A41C]");
-    reference!(ref_12(m, rc) "fld dword ptr [{m} + 0x35B34C]", "fstp dword ptr [{rc} + 0x31A42C]", "fld dword ptr [{m} + 0x35B350]", "fstp dword ptr [{rc} + 0x31A41C]");
-    reference!(ref_13(rc, m) "fld dword ptr [{rc} + 0x31A410]", "fadd dword ptr [{rc} + 0x31A414]", "fadd dword ptr [{rc} + 0x31A418]", "fadd dword ptr [{rc} + 0x31A41C]", "fmul dword ptr [{m} + 0x35B364]", "fstp dword ptr [{rc} + 0x31A434]", "fld dword ptr [{rc} + 0x31A420]", "fadd dword ptr [{rc} + 0x31A424]", "fadd dword ptr [{rc} + 0x31A428]", "fadd dword ptr [{rc} + 0x31A42C]", "fmul dword ptr [{m} + 0x35B364]", "fstp dword ptr [{rc} + 0x31A430]", "fld dword ptr [{rc} + 0x31A018]", "fstp dword ptr [{m} + 0x35B3E4]", "fld dword ptr [{rc} + 0x31A1B0]", ".byte 0xD9, 0xE1", "fstp dword ptr [{m} + 0x35B36C]");
-    reference!(ref_14(m, rc) "fld dword ptr [{m} + 0x35B36C]", "fdiv dword ptr [{rc} + 0x31A1B4]", "fmul dword ptr [{m} + 0x35B34C]", "fstp dword ptr [{m} + 0x35B398]", "fld dword ptr [{rc} + 0x31A184]", ".byte 0xD9, 0xE1", "fstp dword ptr [{m} + 0x35B36C]");
-    reference!(ref_15(m, rc) "fld dword ptr [{m} + 0x35B36C]", "fdiv dword ptr [{m} + 0x35B378]", "fmul dword ptr [{m} + 0x35B34C]", "fstp dword ptr [{m} + 0x35B39C]", "fld dword ptr [{rc} + 0x31A930]", "fstp dword ptr [{m} + 0x35B3E0]", "fld dword ptr [{rc} + 0x31A184]", "fsub dword ptr [{rc} + 0x31A190]", ".byte 0xD9, 0xE1", "fstp dword ptr [{m} + 0x35B36C]");
-    reference!(ref_16(m, rc) "fld dword ptr [{m} + 0x35B36C]", "fdiv dword ptr [{m} + 0x35B378]", "fstp dword ptr [{m} + 0x35B3A0]", "fld dword ptr [{rc} + 0x31A184]", "fsub dword ptr [{rc} + 0x31A194]", ".byte 0xD9, 0xE1", "fstp dword ptr [{m} + 0x35B36C]");
-    reference!(ref_17(m, rc) "fld dword ptr [{m} + 0x35B36C]", "fdiv dword ptr [{m} + 0x35B378]", "fstp dword ptr [{m} + 0x35B3A4]", "fld dword ptr [{rc} + 0x31A190]", "fsub dword ptr [{rc} + 0x31A184]", "fmul dword ptr [{m} + 0x35B6F4]", "fadd dword ptr [{rc} + 0x31A190]", ".byte 0xD9, 0xE1", "fstp dword ptr [{m} + 0x35B36C]");
-    reference!(ref_18(m, rc) "fld dword ptr [{m} + 0x35B36C]", "fdiv dword ptr [{m} + 0x35B378]", "fstp dword ptr [{m} + 0x35B3A8]", "fld dword ptr [{rc} + 0x31A194]", "fsub dword ptr [{rc} + 0x31A184]", "fmul dword ptr [{m} + 0x35B6F4]", "fadd dword ptr [{rc} + 0x31A194]", ".byte 0xD9, 0xE1", "fstp dword ptr [{m} + 0x35B36C]");
-    reference!(ref_19(m) "fld dword ptr [{m} + 0x35B36C]", "fdiv dword ptr [{m} + 0x35B378]", "fstp dword ptr [{m} + 0x35B3AC]", ".byte 0xD9, 0xEE", "fstp dword ptr [{m} + 0x35B3F4]");
-    reference!(ref_20(m) ".byte 0xD9, 0xE8", "fstp dword ptr [{m} + 0x35B3F4]");
-    reference!(ref_21(m) ".byte 0xD9, 0xEE", "fstp dword ptr [{m} + 0x35B3B0]");
-    reference!(ref_22(rc, m) "fild dword ptr [{rc} + 0x31A614]", "fdiv dword ptr [{m} + 0x35B35C]", "fstp dword ptr [{m} + 0x35B3B0]");
-    reference!(ref_23(rc, m, s) "fld dword ptr [{rc} + 0x31A1B4]", "fmul dword ptr [{m} + 0x35B37C]", "fcomp dword ptr [{rc} + 0x31A1B0]", "fnstsw word ptr [{s}]");
-    reference!(ref_24(m) ".byte 0xD9, 0xEE", "fstp dword ptr [{m} + 0x35B3B4]");
-    reference!(ref_25(rc, m) "fld dword ptr [{rc} + 0x31A208]", "fmul dword ptr [{rc} + 0x31A208]", "fdiv dword ptr [{m} + 0x35B394]", "fdiv dword ptr [{m} + 0x35B378]", "fstp dword ptr [{m} + 0x35B3C8]", "fld dword ptr [{rc} + 0x31A180]", ".byte 0xD9, 0xE0", "fsub dword ptr [{m} + 0x35B624]", "fstp dword ptr [{m} + 0x35B36C]");
-    reference!(ref_26(m) "fld dword ptr [{m} + 0x35B36C]", ".byte 0xD8, 0xC8", "fmul dword ptr [{m} + 0x35B620]", "fstp dword ptr [{m} + 0x35B36C]");
-    reference!(ref_27(m) "fld dword ptr [{m} + 0x35B3CC]", "fadd dword ptr [{m} + 0x35B3D0]", "fadd dword ptr [{m} + 0x35B3D4]", "fadd dword ptr [{m} + 0x35B3D8]", "fmul dword ptr [{m} + 0x35B364]", "fstp dword ptr [{m} + 0x35B3DC]", "fld dword ptr [{m} + 0x35B3DC]", "fmul dword ptr [{m} + 0x35B360]", "fstp dword ptr [{m} + 0x35B36C]", "fld dword ptr [{m} + 0x35B3CC]", "fmul dword ptr [{m} + 0x35B360]", "fadd dword ptr [{m} + 0x35B36C]", "fstp dword ptr [{m} + 0x35B3CC]", "fld dword ptr [{m} + 0x35B3D0]", "fmul dword ptr [{m} + 0x35B360]", "fadd dword ptr [{m} + 0x35B36C]", "fstp dword ptr [{m} + 0x35B3D0]", "fld dword ptr [{m} + 0x35B3D4]", "fmul dword ptr [{m} + 0x35B360]", "fadd dword ptr [{m} + 0x35B36C]", "fstp dword ptr [{m} + 0x35B3D4]", "fld dword ptr [{m} + 0x35B3D8]", "fmul dword ptr [{m} + 0x35B360]", "fadd dword ptr [{m} + 0x35B36C]", "fstp dword ptr [{m} + 0x35B3D8]");
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse_at};
 
     fn blocks() -> Vec<Block> {
         vec![
@@ -372,7 +345,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_0(a[0], a[1]) },
                 plain: |a| scale_car_figures(&race().shared.car, dm(a[1])),
             },
             Block {
@@ -388,7 +360,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_1(a[0], a[1]) },
                 plain: |a| {
                     wheel_stiffness_from_share(
                         dm(a[0]),
@@ -410,7 +381,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_2(a[0], a[1]) },
                 plain: |a| {
                     wheel_ride_height_from_share(
                         dm(a[0]),
@@ -431,7 +401,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_3(a[0], a[1]) },
                 plain: |a| {
                     fail_wheel(
                         dm(a[0]),
@@ -453,7 +422,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_4(a[0], a[1]) },
                 plain: |a| {
                     wheel_stiffness_from_share(
                         dm(a[0]),
@@ -475,7 +443,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_5(a[0], a[1]) },
                 plain: |a| {
                     wheel_ride_height_from_share(
                         dm(a[0]),
@@ -496,7 +463,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_6(a[0], a[1]) },
                 plain: |a| {
                     fail_wheel(
                         dm(a[0]),
@@ -518,7 +484,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_7(a[0], a[1]) },
                 plain: |a| {
                     wheel_stiffness_from_share(
                         dm(a[0]),
@@ -540,7 +505,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_8(a[0], a[1]) },
                 plain: |a| {
                     wheel_ride_height_from_share(
                         dm(a[0]),
@@ -561,7 +525,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_9(a[0], a[1]) },
                 plain: |a| {
                     fail_wheel(
                         dm(a[0]),
@@ -583,7 +546,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_10(a[0], a[1]) },
                 plain: |a| {
                     wheel_stiffness_from_share(
                         dm(a[0]),
@@ -605,7 +567,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_11(a[0], a[1]) },
                 plain: |a| {
                     wheel_ride_height_from_share(
                         dm(a[0]),
@@ -626,7 +587,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_12(a[0], a[1]) },
                 plain: |a| {
                     fail_wheel(
                         dm(a[0]),
@@ -659,7 +619,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_13(a[0], a[1]) },
                 plain: |a| means_and_engine_speed(&race().shared.car, dm(a[1])),
             },
             Block {
@@ -675,7 +634,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_14(a[0], a[1]) },
                 plain: |a| engine_speed_share_step(&race().shared.car, dm(a[0])),
             },
             Block {
@@ -691,7 +649,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_15(a[0], a[1]) },
                 plain: |a| speed_share_step(&race().shared.car, dm(a[0])),
             },
             Block {
@@ -707,7 +664,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_16(a[0], a[1]) },
                 plain: |a| drive_a_slip_step(&race().shared.car, dm(a[0])),
             },
             Block {
@@ -723,7 +679,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_17(a[0], a[1]) },
                 plain: |a| {
                     drive_extrapolation_step(
                         &race().shared.car,
@@ -747,7 +702,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_18(a[0], a[1]) },
                 plain: |a| {
                     drive_extrapolation_step(
                         &race().shared.car,
@@ -765,7 +719,6 @@ mod asm_reference {
                     writes: &[(0x35B3AC, Out::F), (0x35B3F4, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_19(a[0]) },
                 plain: |a| finish_shares(dm(a[0])),
             },
             Block {
@@ -775,7 +728,6 @@ mod asm_reference {
                     writes: &[(0x35B3F4, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_20(a[0]) },
                 plain: |a| dm(a[0]).wheels_down.set_bits(ONE),
             },
             Block {
@@ -785,7 +737,6 @@ mod asm_reference {
                     writes: &[(0x35B3B0, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_21(a[0]) },
                 plain: |a| dm(a[0]).brake_share.set(0.0),
             },
             Block {
@@ -801,7 +752,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_22(a[0], a[1]) },
                 plain: |a| brake_share_step(&race().shared.car, dm(a[1])),
             },
             Block {
@@ -821,7 +771,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_23(a[0], a[1], a[2]) },
                 plain: |a| a[2].set_word(0, over_limit_status(&race().shared.car, dm(a[1]))),
             },
             Block {
@@ -831,7 +780,6 @@ mod asm_reference {
                     writes: &[(0x35B3B4, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_24(a[0]) },
                 plain: |a| dm(a[0]).on_surface_5.set(0.0),
             },
             Block {
@@ -847,7 +795,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_25(a[0], a[1]) },
                 plain: |a| hit_size_and_dive(&race().shared.car, dm(a[1])),
             },
             Block {
@@ -857,7 +804,6 @@ mod asm_reference {
                     writes: &[(0x35B36C, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_26(a[0]) },
                 plain: |a| square_dive(dm(a[0])),
             },
             Block {
@@ -883,7 +829,6 @@ mod asm_reference {
                     ],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_27(a[0]) },
                 plain: |a| blend_wheel_loads(dm(a[0])),
             },
         ]
@@ -892,7 +837,7 @@ mod asm_reference {
     #[test]
     fn x87_blocks_matches_the_assembly() {
         // The plain code rounds to nearest, as the game always runs the damage model.
-        sparse_at(&blocks(), 1200, 100, &[0x027F]);
+        sparse_at("physics.damage_factors", &blocks(), 1200, 100, &[0x027F]);
     }
 }
 

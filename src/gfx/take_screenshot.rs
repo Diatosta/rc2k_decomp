@@ -49,8 +49,7 @@ impl rc2k_core::gfx::screenshot::Shooting for Shot<'_> {
         Ok(())
     }
 }
-pub fn take_screenshot() -> Result<(), Refused> {
-    let gfx = crate::gfx::owner::gfx();
+pub fn take_screenshot(gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
     // Converted: `rc2k_core::gfx::screenshot::take_screenshot`.
     rc2k_core::gfx::screenshot::take_screenshot(&mut Shot { gfx })
 }

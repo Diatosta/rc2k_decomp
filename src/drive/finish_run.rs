@@ -79,18 +79,11 @@ pub fn finish_run(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), 
     Ok(())
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
     use crate::race::owner::race;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
-
-    // The original's instructions.
-    reference!(ref_lift(rc)
-        "fld dword ptr [{rc} + 0x24BB38]",
-        "fmul dword ptr [{rc} + 0x1C5D98]",
-        "fiadd dword ptr [{rc} + 0x30F524]",
-        "fistp dword ptr [{rc} + 0x30F524]");
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     #[test]
     fn finish_run_matches_the_assembly() {
@@ -101,9 +94,8 @@ mod asm_reference {
                 writes: &[(0x30F524, Out::I)],
             }],
             ulps: 0,
-            reference: |a| unsafe { ref_lift(a[0]) },
             plain: |_| lift_car(race()),
         }];
-        sparse(&blocks, 4000, 204);
+        sparse("drive.finish_run", &blocks, 4000, 204);
     }
 }

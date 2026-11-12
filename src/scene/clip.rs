@@ -82,7 +82,7 @@ fn put_bytes(w: &mut Work, at: usize, bytes: &[u8]) {
 /// what the screen's passes keep as the clip's kept mask. Returns the entry's number; the
 /// caller lists it and counts the next free entry on.
 fn cut(
-    polygon_work: &'static crate::scene::polygon_store::PolygonWork,
+    part: &crate::workers::PartScratch,
     poly: &crate::scene::polygon_work::PolygonWork,
     course: &crate::race::owner_course::Course,
     edge: Edge,
@@ -90,6 +90,7 @@ fn cut(
     b: &PolygonEntry,
     mask: u32,
 ) -> Result<u32, BadInput> {
+    let polygon_work = part.polygon;
     let number: u32 = poly.polygon_next_entry.get();
     if number >= ENTRIES {
         return Err(BadInput("no entry left for a new vertex"));
@@ -99,15 +100,18 @@ fn cut(
     if record == 0 {
         return Err(BadInput("no pool of records"));
     }
-    let mut made = crate::scene::point_records::get_in(Some(&poly.quad_vertices), record)?;
+    let mut made = crate::scene::point_records::get_in(part, Some(&poly.quad_vertices), record)?;
     let new = crate::scene::polygon::entry(polygon_work, number as usize)?;
     let mut w: Work = [0; 0x51];
     for (entry, record_at, entry_at, bytes_at) in [
         (a, RECORD_A, ENTRY_A, BYTES_A),
         (b, RECORD_B, ENTRY_B, BYTES_B),
     ] {
-        let from =
-            crate::scene::point_records::vertex_bytes(&poly.quad_vertices, entry.record.get())?;
+        let from = crate::scene::point_records::vertex_bytes(
+            part,
+            &poly.quad_vertices,
+            entry.record.get(),
+        )?;
         put_bytes(&mut w, record_at, &from[..RECORD_LEN]);
         put_bytes(&mut w, entry_at, &entry.bytes()[..ENTRY_LEN]);
         for (k, at) in BYTES.into_iter().enumerate() {
@@ -164,7 +168,7 @@ fn cut(
     made[4..7].copy_from_slice(&out_1[2..5]);
     made[3] = out_1[0];
     made[7] = out_1[1];
-    crate::scene::point_records::set_in(Some(&poly.quad_vertices), record, made)?;
+    crate::scene::point_records::set_in(part, Some(&poly.quad_vertices), record, made)?;
     for k in 0..4 {
         new.set_word(8 + k * 4, out_1[8 + k]);
     }
@@ -182,7 +186,7 @@ fn cut(
 /// `listed_with_records` gives them, when the caller has them already. Returns them again
 /// when the pass kept every vertex (the list is as it was), else `None`.
 pub fn clip_pass(
-    polygon_work: &'static crate::scene::polygon_store::PolygonWork,
+    part: &crate::workers::PartScratch,
     poly: &crate::scene::polygon_work::PolygonWork,
     course: &crate::race::owner_course::Course,
     listed: Option<crate::scene::polygon::Listed>,
@@ -190,6 +194,7 @@ pub fn clip_pass(
     inside_past: bool,
     mask: u32,
 ) -> Result<Option<crate::scene::polygon::Listed>, BadInput> {
+    let polygon_work = part.polygon;
     let entries = match listed {
         Some(entries) => entries,
         None => listed_with_records(polygon_work, poly)?,
@@ -208,6 +213,7 @@ pub fn clip_pass(
     };
     let inside = |entry: &PolygonEntry| {
         let value = f32::from_bits(crate::scene::point_records::vertex(
+            part,
             &poly.quad_vertices,
             entry.record.get(),
             coordinate,
@@ -228,7 +234,7 @@ pub fn clip_pass(
             out += 1;
         }
         if a_inside != b_inside {
-            let number = cut(polygon_work, poly, course, edge, a, b, mask)?;
+            let number = cut(part, poly, course, edge, a, b, mask)?;
             crate::scene::polygon::list_cell(polygon_work, out).set(number);
             poly.polygon_next_entry.set(number + 1);
             out += 1;

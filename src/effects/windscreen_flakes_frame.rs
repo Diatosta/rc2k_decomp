@@ -188,129 +188,12 @@ fn frame_facing_x87(drops: &WindscreenDrops, sq: &WindscreenFlakeTables) {
     drops.state.facing.st(t7);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
-    //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
-
-    pub(super) fn frame_axes_x87(mk: usize, s: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fild dword ptr [{s} + 0x2740]",
-            "fmul dword ptr [{mk} + 0x15725E]",
-            "fstp dword ptr [{mk} + 0x137AF4]",
-            "fild dword ptr [{s} + 0x2720]",
-            "fild dword ptr [{s} + 0x2724]",
-            "fild dword ptr [{s} + 0x2728]",
-            "fstp dword ptr [{mk} + 0x137FBE]",
-            "fstp dword ptr [{mk} + 0x137FBA]",
-            "fstp dword ptr [{mk} + 0x137FB6]",
-            "fild dword ptr [{s} + 0x272C]",
-            "fisub dword ptr [{s} + 0x2720]",
-            "fstp dword ptr [{mk} + 0x137FDA]",
-            "fild dword ptr [{s} + 0x2730]",
-            "fisub dword ptr [{s} + 0x2724]",
-            "fstp dword ptr [{mk} + 0x137FDE]",
-            "fild dword ptr [{s} + 0x2734]",
-            "fisub dword ptr [{s} + 0x2728]",
-            "fstp dword ptr [{mk} + 0x137FE2]",
-            "fld dword ptr [{mk} + 0x137FDA]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{mk} + 0x137FDE]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{mk} + 0x137FE2]",
-            ".byte 0xD8, 0xC8",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xFA",
-            "fdiv dword ptr [{mk} + 0x157262]",
-            "fstp dword ptr [{mk} + 0x137FAE]",
-            mk = in(reg) mk,
-            s = in(reg) s,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn frame_up_x87(mk: usize, s: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fild dword ptr [{s} + 0x2708]",
-            "fisub dword ptr [{s} + 0x2720]",
-            "fstp dword ptr [{mk} + 0x137FE6]",
-            "fild dword ptr [{s} + 0x270C]",
-            "fisub dword ptr [{s} + 0x2724]",
-            "fstp dword ptr [{mk} + 0x137FEA]",
-            "fild dword ptr [{s} + 0x2710]",
-            "fisub dword ptr [{s} + 0x2728]",
-            "fstp dword ptr [{mk} + 0x137FEE]",
-            "fld dword ptr [{mk} + 0x137FE6]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{mk} + 0x137FEA]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{mk} + 0x137FEE]",
-            ".byte 0xD8, 0xC8",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xFA",
-            "fdiv dword ptr [{mk} + 0x157266]",
-            "fstp dword ptr [{mk} + 0x137FB2]",
-            mk = in(reg) mk,
-            s = in(reg) s,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn frame_place_x87(mk: usize, s: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fild dword ptr [{s} + 0x2720]",
-            "fstp dword ptr [{mk} + 0xB1262]",
-            "fild dword ptr [{s} + 0x2724]",
-            "fstp dword ptr [{mk} + 0xB1266]",
-            "fild dword ptr [{s} + 0x2728]",
-            "fstp dword ptr [{mk} + 0xB126A]",
-            mk = in(reg) mk,
-            s = in(reg) s,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn frame_facing_x87(mk: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{mk} + 0xB1262]",
-            "fmul dword ptr [{mk} + 0x137FF2]",
-            "fld dword ptr [{mk} + 0xB1266]",
-            "fmul dword ptr [{mk} + 0x137FF6]",
-            "fld dword ptr [{mk} + 0xB126A]",
-            "fmul dword ptr [{mk} + 0x137FFA]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{mk} + 0xAF7D8]",
-            mk = in(reg) mk,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-}
-
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_differential {
-    use super::asm_reference as reference;
+#[cfg(test)]
+mod reference_vectors {
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::with_copy;
     use crate::effects::asm_test::with_settings;
-    use crate::effects::asm_test::{Op, Spec, differential};
+    use crate::effects::asm_test::{Op, Spec, recorded_writes};
     use crate::effects::typed_sync::{overlay, with_overlays};
     use crate::effects::windscreen_drop_state::WindscreenDropState;
     use crate::effects::windscreen_drop_vars::WindscreenDropVars;
@@ -360,9 +243,9 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
+        recorded_writes(
+            "effects.windscreen_flakes_frame.frame_axes_x87",
             &SPEC,
-            |b| reference::frame_axes_x87(b[0], b[1]),
             |b| {
                 with_copy::<WindscreenFlakeTiming, _>(b[0], WindscreenFlakeTiming::START, |sti| {
                     with_copy::<WindscreenFlakeTables, _>(
@@ -417,17 +300,13 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::frame_up_x87(b[0], b[1]),
-            |b| {
-                with_copy::<WindscreenFlakeTables, _>(b[0], WindscreenFlakeTables::START, |sq| {
-                    with_copy::<WindscreenFlakeState, _>(b[0], WindscreenFlakeState::START, |ss| {
-                        with_settings(b[1], |m| super::frame_up_x87(m, sq, ss));
-                    });
+        recorded_writes("effects.windscreen_flakes_frame.frame_up_x87", &SPEC, |b| {
+            with_copy::<WindscreenFlakeTables, _>(b[0], WindscreenFlakeTables::START, |sq| {
+                with_copy::<WindscreenFlakeState, _>(b[0], WindscreenFlakeState::START, |ss| {
+                    with_settings(b[1], |m| super::frame_up_x87(m, sq, ss));
                 });
-            },
-        );
+            });
+        });
     }
 
     #[test]
@@ -449,9 +328,9 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
+        recorded_writes(
+            "effects.windscreen_flakes_frame.frame_place_x87",
             &SPEC,
-            |b| reference::frame_place_x87(b[0], b[1]),
             |b| {
                 with_overlays(
                     b[0],
@@ -490,9 +369,9 @@ mod asm_differential {
             }],
             sincos: false,
         };
-        differential(
+        recorded_writes(
+            "effects.windscreen_flakes_frame.frame_facing_x87",
             &SPEC,
-            |b| reference::frame_facing_x87(b[0]),
             |b| {
                 with_overlays(
                     b[0],

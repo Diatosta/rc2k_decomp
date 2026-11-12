@@ -109,7 +109,7 @@ pub fn restart_race_sounds(
 ) -> Result<(), Refused> {
     use crate::race::race_end::{SoundVars, reset_race_sounds, wait_for_commands};
     wait_for_commands(audio, system);
-    reset_race_sounds(&SoundVars::game(), sound, audio, system)?;
+    reset_race_sounds(&SoundVars::game(sound), sound, audio, system)?;
     crate::sound::let_sounds_play::let_sounds_play();
     sound.race.clock.get().started.set(1);
     Ok(())
@@ -123,7 +123,7 @@ pub fn silence_race_sounds(
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     use crate::race::race_end::{SoundVars, command, reset_race_sounds, wait_for_commands};
-    reset_race_sounds(&SoundVars::game(), sound, audio, system)?;
+    reset_race_sounds(&SoundVars::game(sound), sound, audio, system)?;
     command(rc2k_core::audio::commands::Command::Free);
     wait_for_commands(audio, system);
     Ok(())

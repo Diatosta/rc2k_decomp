@@ -5,16 +5,15 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::cells::copy_cells;
-use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::owner::Race;
-use crate::race::owner_shared::RaceShared;
 use crate::scene::matrix::{multiply_matrices, set_place, set_turn_x, set_turn_y};
 use crate::session::Float;
 
 /// The five axle values (`rc2k_core::race::car_parts::axles`) from the model's record
 /// (`LightsAndGear.light_records.records[0].axles[0]` .. of its 0x134-byte record) and the lift.
-fn axles(shared: &RaceShared, model: u32) -> Result<Option<[u32; 5]>, BadInput> {
-    let axles = &LIGHT_RECORDS
+fn axles(race: &Race, model: u32) -> Result<Option<[u32; 5]>, BadInput> {
+    let axles = &race
+        .light_records()
         .records
         .get(model as usize)
         .ok_or(BadInput("a car model past the 34 records"))?
@@ -22,7 +21,7 @@ fn axles(shared: &RaceShared, model: u32) -> Result<Option<[u32; 5]>, BadInput> 
     let record: [u32; 5] = std::array::from_fn(|k| axles[k].get());
     Ok(rc2k_core::race::car_parts::axles(
         record,
-        shared.physics_tables.ground_drop.get(),
+        race.shared.physics_tables.ground_drop.get(),
     ))
 }
 
@@ -49,7 +48,7 @@ pub fn car_part_matrices(
     // the marks), `p` the car as the drawing sees it (`race::frame_view`).
     let c = race.shared.work.car(car)?;
     let p = crate::race::frame_view::car(race.shared.work.block_number(car)?)?;
-    let Some(ax) = axles(&race.shared, p.car_kind.get())? else {
+    let Some(ax) = axles(race, p.car_kind.get())? else {
         return Err(BadInput("a car model whose axle scaling would fault").into());
     };
     let shown = &c.shown_engine_speed;

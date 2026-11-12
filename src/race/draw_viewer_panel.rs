@@ -94,6 +94,7 @@ pub fn draw_viewer_panel(
     let mut y = 0x32;
     for byte in 0..2usize {
         let camera = camera_name(crate::race::viewer::camera_byte_at(
+            race,
             byte.wrapping_add(8 * replay.replay_view.replay_block.get() as usize),
         )?);
         let id = race.viewer_panel().camera_name(camera as usize);
@@ -126,6 +127,7 @@ pub fn draw_viewer_panel(
     crate::d3d::set_texture::set_texture(shared.replay_file.viewer_device_texture.get());
     // The quads.
     let camera_5 = crate::race::viewer::camera_byte_at(
+        race,
         5usize.wrapping_add(8 * replay.replay_view.replay_block.get() as usize),
     )?;
     let (first, second) = switch_lights(camera_5);

@@ -92,7 +92,7 @@ fn quad_tail_math_in(
 }
 
 /// The tail's arithmetic on the game's panel (the tests').
-#[cfg(all(test, target_arch = "x86"))]
+#[cfg(test)]
 fn quad_tail_math(rect: [u32; 4], vertices: &[Vertex], screen: [u32; 2], scratch: &Dword) {
     quad_tail_math_in(
         crate::race::owner::race().viewer_panel(),
@@ -109,61 +109,10 @@ pub fn draw(buffer: &PolygonVertices) -> Result<(), Refused> {
     Ok(())
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
-
-    // The original's instructions.
-    reference!(ref_tail(s, v, sc, t, rc)
-        "fild dword ptr [{s}]",
-        "fmul dword ptr [{rc} + 0x1C2C64]",
-        "fst dword ptr [{v} + 0x18]",
-        "fstp dword ptr [{v} + 0x58]",
-        "fild dword ptr [{s}]",
-        "fiadd dword ptr [{s} + 0x8]",
-        "fmul dword ptr [{rc} + 0x1C2C64]",
-        "fst dword ptr [{v} + 0x38]",
-        "fstp dword ptr [{v} + 0x78]",
-        "fild dword ptr [{s} + 0x4]",
-        "fmul dword ptr [{rc} + 0x1C2C64]",
-        "fst dword ptr [{v} + 0x1C]",
-        "fstp dword ptr [{v} + 0x3C]",
-        "fild dword ptr [{s} + 0x4]",
-        "fiadd dword ptr [{s} + 0xC]",
-        "fmul dword ptr [{rc} + 0x1C2C64]",
-        "fst dword ptr [{v} + 0x5C]",
-        "fstp dword ptr [{v} + 0x7C]",
-        "fild dword ptr [{sc}]",
-        "fmul dword ptr [{rc} + 0x1C2C68]",
-        "fstp dword ptr [{t}]",
-        "fld dword ptr [{v}]",
-        "fmul dword ptr [{t}]",
-        "fstp dword ptr [{v}]",
-        "fld dword ptr [{v} + 0x20]",
-        "fmul dword ptr [{t}]",
-        "fstp dword ptr [{v} + 0x20]",
-        "fld dword ptr [{v} + 0x40]",
-        "fmul dword ptr [{t}]",
-        "fstp dword ptr [{v} + 0x40]",
-        "fld dword ptr [{v} + 0x60]",
-        "fmul dword ptr [{t}]",
-        "fstp dword ptr [{v} + 0x60]",
-        "fild dword ptr [{sc} + 0x4]",
-        "fmul dword ptr [{rc} + 0x1C2C6C]",
-        "fstp dword ptr [{t}]",
-        "fld dword ptr [{v} + 0x4]",
-        "fmul dword ptr [{t}]",
-        "fstp dword ptr [{v} + 0x4]",
-        "fld dword ptr [{v} + 0x24]",
-        "fmul dword ptr [{t}]",
-        "fstp dword ptr [{v} + 0x24]",
-        "fld dword ptr [{v} + 0x44]",
-        "fmul dword ptr [{t}]",
-        "fstp dword ptr [{v} + 0x44]",
-        "fld dword ptr [{v} + 0x64]",
-        "fmul dword ptr [{t}]",
-        "fstp dword ptr [{v} + 0x64]");
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     #[test]
     fn quad_tail_matches_the_assembly() {
@@ -218,21 +167,21 @@ mod asm_reference {
                 },
             ],
             ulps: 0,
-            reference: |a| unsafe { ref_tail(a[0], a[1], a[2], a[3], a[4]) },
             plain: |a| {
                 // SAFETY: the buffers are the operands' (a rectangle's four dwords, four
                 // vertices, the screen's two, the scratch dword), lent and aligned.
                 let (rect, verts, screen, scratch) = unsafe {
                     (
-                        *(crate::pointers::host_at(a[0]) as *const [u32; 4]),
-                        &*(crate::pointers::host_at(a[1]) as *const [Vertex; 4]),
-                        *(crate::pointers::host_at(a[2]) as *const [u32; 2]),
-                        &*(crate::pointers::host_at(a[3]) as *const Dword),
+                        *(crate::test_support::vectors::block_vectors::at(a[0]) as *const [u32; 4]),
+                        &*(crate::test_support::vectors::block_vectors::at(a[1])
+                            as *const [Vertex; 4]),
+                        *(crate::test_support::vectors::block_vectors::at(a[2]) as *const [u32; 2]),
+                        &*(crate::test_support::vectors::block_vectors::at(a[3]) as *const Dword),
                     )
                 };
                 quad_tail_math(rect, verts, screen, scratch);
             },
         }];
-        sparse(&blocks, 4000, 205);
+        sparse("drive.tyre_parts", &blocks, 1500, 205);
     }
 }

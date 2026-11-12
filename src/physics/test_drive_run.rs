@@ -124,8 +124,8 @@ fn x87_1(tables: &PhysicsTables, numbers: &Numbers, r: &Float) {
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[scratch] = -(((([drive_speed_a] * [drive_speed_a]) * [air_drag]) / [k10000]) + [rolling_drag])`
-/// (a long formula: see the instructions in the tests' `asm_reference`)
-/// (a long formula: see the instructions in the tests' `asm_reference`)
+/// (a long formula: checked by the tests' `reference_vectors`)
+/// (a long formula: checked by the tests' `reference_vectors`)
 fn x87_2(car: &Car, tables: &PhysicsTables, numbers: &Numbers, scene: &crate::scene::owner::Scene) {
     let t0 = car.drive_speed_a.ld();
     let t1 = t0 * t0;
@@ -167,17 +167,12 @@ fn x87_3(car: &Car, numbers: &Numbers) {
     GEAR.test_marks[1].st(t8);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
     use crate::race::owner::race;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
     use crate::scene::x87_mem::view;
-
-    // The original's instructions, one function per run.
-    reference!(ref_0(rc, r) "fld dword ptr [{rc} + 0x214748]", "fmul dword ptr [{rc} + 0x1CB968]", "fdiv dword ptr [{r}]", "fdiv dword ptr [{rc} + 0x1C5E34]", "fstp dword ptr [{rc} + 0x214750]");
-    reference!(ref_1(rc) "fld dword ptr [{rc} + 0x31A190]", ".byte 0xD8, 0xC8", "fmul dword ptr [{rc} + 0x213FCC]", "fdiv dword ptr [{rc} + 0x1C5E34]", "fadd dword ptr [{rc} + 0x213FD0]", ".byte 0xD9, 0xE0", "fst dword ptr [{rc} + 0x22400C]", "fadd dword ptr [{rc} + 0x214750]", "fmul dword ptr [{rc} + 0x21388C]", "fadd dword ptr [{rc} + 0x31A190]", "fst dword ptr [{rc} + 0x31A190]", "fstp dword ptr [{rc} + 0x31A194]");
-    reference!(ref_2(rc) "fld dword ptr [{rc} + 0x31A190]", "fmul dword ptr [{rc} + 0x1C5D00]", "fstp dword ptr [{rc} + 0x1CB984]", "fild dword ptr [{rc} + 0x1CB97C]", "fdiv dword ptr [{rc} + 0x1C5D14]", "fstp dword ptr [{rc} + 0x1CB97C]", "fild dword ptr [{rc} + 0x1CB980]", "fdiv dword ptr [{rc} + 0x1C5D14]", "fstp dword ptr [{rc} + 0x1CB980]");
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
         vec![
@@ -194,7 +189,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_0(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
                         &race().shared.physics_tables,
@@ -217,7 +211,6 @@ mod asm_reference {
                     writes: &[(0x22400C, Out::F), (0x31A190, Out::F), (0x31A194, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_1(a[0]) },
                 plain: |_| {
                     x87_2(
                         &race().shared.car,
@@ -240,7 +233,6 @@ mod asm_reference {
                     writes: &[(0x1CB97C, Out::F), (0x1CB980, Out::F), (0x1CB984, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_2(a[0]) },
                 plain: |_| x87_3(&race().shared.car, &race().course.numbers),
             },
         ]
@@ -248,6 +240,6 @@ mod asm_reference {
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse(&blocks(), 1200, 100);
+        sparse("physics.test_drive_run", &blocks(), 1200, 100);
     }
 }

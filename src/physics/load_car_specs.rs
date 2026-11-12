@@ -11,7 +11,7 @@
 //! it + 100 into `stall_engine_speed`.
 //!
 //! The x87 runs are plain Rust over `X` (`math/x87_float.rs`), the original's instructions
-//! (from IDA) being `asm_reference` in the tests; the compares and the integer
+//! (from IDA) being recorded in the tests' `reference_vectors`; the compares and the integer
 //! steps in Rust.
 //!
 //! Callers: `physics::car_physics_step` (0x43B63A), `physics::test_drive`. Refuses (before
@@ -262,11 +262,11 @@ fn set_rev_limits(tables: &PhysicsTables, numbers: &Numbers, k: usize) {
     tables.stall_engine_speed.st(t2);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
     use crate::race::owner::race;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     /// A record with the bytes `from .. to` of the test buffer at `base` (the rest zero):
     /// the buffers hold only the offsets the run reads.
@@ -275,7 +275,7 @@ mod asm_reference {
         let spec: Box<CarSpec> = Box::new(unsafe { std::mem::zeroed() });
         unsafe {
             std::ptr::copy_nonoverlapping(
-                crate::pointers::host_at(base + from),
+                crate::test_support::vectors::block_vectors::at(base + from),
                 std::ptr::from_ref::<CarSpec>(&spec)
                     .cast::<u8>()
                     .cast_mut()
@@ -285,13 +285,6 @@ mod asm_reference {
         }
         spec
     }
-
-    // The original's instructions, one function per run.
-    reference!(ref_0(s, rc) "fild dword ptr [{s} + 0x64]", "fstp dword ptr [{rc} + 0x1CB96C]", "fild dword ptr [{s} + 0x68]", "fstp dword ptr [{rc} + 0x1CB970]", "fild dword ptr [{s} + 0x6C]", "fstp dword ptr [{rc} + 0x1CB974]", "fild dword ptr [{s} + 0x70]", "fstp dword ptr [{rc} + 0x1CB978]", "fild dword ptr [{s} + 0x74]", "fstp dword ptr [{rc} + 0x31A1B4]", "fld dword ptr [{rc} + 0x213F10]", "fstp dword ptr [{rc} + 0x31A1B8]", "fld dword ptr [{s} + 0xA4]", "fst dword ptr [{rc} + 0x1CB958]", "fmul dword ptr [{rc} + 0x213E88]", "fstp dword ptr [{rc} + 0x1CB964]", "fld dword ptr [{s} + 0xA8]", "fadd dword ptr [{rc} + 0x1C5DDC]", "fstp dword ptr [{rc} + 0x1CB95C]", "fld dword ptr [{s} + 0xAC]", "fadd dword ptr [{rc} + 0x1C5DDC]", "fstp dword ptr [{rc} + 0x1CB960]", "fild dword ptr [{s} + 0x78]", "fmul dword ptr [{rc} + 0x213EB8]", "fdiv dword ptr [{rc} + 0x31A1B4]", "fstp dword ptr [{rc} + 0x1CB968]", "fld dword ptr [{rc} + 0x31A1B4]", "fmul dword ptr [{rc} + 0x213FE4]", "fstp dword ptr [{rc} + 0x214104]");
-    reference!(ref_1(s, rc) "fild dword ptr [{s} + 0x40]", "fmul dword ptr [{rc} + 0x1C5D98]", "fdiv dword ptr [{rc} + 0x1C5D18]", "fistp dword ptr [{rc} + 0x214BC0]", "fild dword ptr [{s} + 0x44]", "fmul dword ptr [{rc} + 0x1C5D98]", "fdiv dword ptr [{rc} + 0x1C5D18]", "fistp dword ptr [{rc} + 0x214BC4]", "fild dword ptr [{s} + 0x48]", "fmul dword ptr [{rc} + 0x1C5D98]", "fdiv dword ptr [{rc} + 0x1C5D18]", "fistp dword ptr [{rc} + 0x214BC8]");
-    reference!(ref_2(rc) "fild dword ptr [{rc} + 0x213F04]", "fmul dword ptr [{rc} + 0x1C5D98]", "fdiv dword ptr [{rc} + 0x1C5D18]", "fistp dword ptr [{rc} + 0x214BC0]", "fild dword ptr [{rc} + 0x213F08]", "fmul dword ptr [{rc} + 0x1C5D98]", "fdiv dword ptr [{rc} + 0x1C5D18]", "fistp dword ptr [{rc} + 0x214BC4]", "fild dword ptr [{rc} + 0x213F0C]", "fmul dword ptr [{rc} + 0x1C5D98]", "fdiv dword ptr [{rc} + 0x1C5D18]", "fistp dword ptr [{rc} + 0x214BC8]");
-    reference!(ref_3(s, rc) "fld dword ptr [{s} + 0x38]", "fmul dword ptr [{rc} + 0x213FC8]", "fstp dword ptr [{rc} + 0x214BAC]", "fld dword ptr [{s} + 0x3C]", "fmul dword ptr [{rc} + 0x213FC8]", "fstp dword ptr [{rc} + 0x214BB0]");
-    reference!(ref_4(rc, k) "fld dword ptr [{rc} + {k}*4 + 0x213FB8]", "fst dword ptr [{rc} + 0x2140F8]", "fadd dword ptr [{rc} + 0x1C5D14]", "fstp dword ptr [{rc} + 0x2140FC]");
 
     fn blocks() -> Vec<Block> {
         vec![
@@ -338,7 +331,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_0(a[0], a[1]) },
                 plain: |a| {
                     load_figures_and_shift_points(
                         &race().shared.car,
@@ -362,7 +354,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_1(a[0], a[1]) },
                 plain: |a| {
                     scale_record_ratios(
                         &race().shared.physics_tables,
@@ -384,7 +375,6 @@ mod asm_reference {
                     writes: &[(0x214BC0, Out::I), (0x214BC4, Out::I), (0x214BC8, Out::I)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_2(a[0]) },
                 plain: |_| {
                     scale_default_ratios(&race().shared.physics_tables, &race().course.numbers);
                 },
@@ -402,7 +392,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_3(a[0], a[1]) },
                 plain: |a| {
                     scale_record_grips(&race().shared.physics_tables, &spec_at(a[0], 0x38, 0x40));
                 },
@@ -417,7 +406,6 @@ mod asm_reference {
                     Operand::Value(0),
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_4(a[0], a[1]) },
                 plain: |a| {
                     set_rev_limits(&race().shared.physics_tables, &race().course.numbers, a[1]);
                 },
@@ -432,7 +420,6 @@ mod asm_reference {
                     Operand::Value(1),
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_4(a[0], a[1]) },
                 plain: |a| {
                     set_rev_limits(&race().shared.physics_tables, &race().course.numbers, a[1]);
                 },
@@ -447,7 +434,6 @@ mod asm_reference {
                     Operand::Value(2),
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_4(a[0], a[1]) },
                 plain: |a| {
                     set_rev_limits(&race().shared.physics_tables, &race().course.numbers, a[1]);
                 },
@@ -457,6 +443,6 @@ mod asm_reference {
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse(&blocks(), 1200, 100);
+        sparse("physics.load_car_specs", &blocks(), 1200, 100);
     }
 }

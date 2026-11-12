@@ -68,15 +68,11 @@ fn x87_2(c: &CameraInputs<'_>) {
     c.camera.camera_offset_z.set_bits(to_int(t16) as u32);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
     use crate::race::owner::race;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
-
-    // The original's instructions, one function per run.
-    reference!(ref_0(rc) ".byte 0xD9, 0xE8", "fsub dword ptr [{rc} + 0x205260]", "fstp dword ptr [{rc} + 0x205260]");
-    reference!(ref_1(rc) "fld dword ptr [{rc} + 0x208B24]", "fsub dword ptr [{rc} + 0x208B20]", "fmul dword ptr [{rc} + 0x205260]", "fadd dword ptr [{rc} + 0x208B20]", "fstp dword ptr [{rc} + 0x31A6A0]", "fld dword ptr [{rc} + 0x208B2C]", "fsub dword ptr [{rc} + 0x208B28]", "fmul dword ptr [{rc} + 0x205260]", "fadd dword ptr [{rc} + 0x208B28]", "fmul dword ptr [{rc} + 0x1C5D98]", ".byte 0xD9, 0xE0", "fistp dword ptr [{rc} + 0x208B38]");
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
         vec![
@@ -87,7 +83,6 @@ mod asm_reference {
                     writes: &[(0x205260, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_0(a[0]) },
                 plain: |_| x87_1(&race().shared),
             },
             Block {
@@ -104,7 +99,6 @@ mod asm_reference {
                     writes: &[(0x208B38, Out::I), (0x31A6A0, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_1(a[0]) },
                 plain: |_| {
                     x87_2(
                         &crate::physics::step_inputs::StepInputs::of(crate::race::owner::race())
@@ -117,6 +111,6 @@ mod asm_reference {
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse(&blocks(), 1200, 100);
+        sparse("physics.ease_view_blend", &blocks(), 1200, 100);
     }
 }

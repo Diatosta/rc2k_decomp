@@ -3,6 +3,7 @@
 //! face count, its angle, its distance, its map place and its nearest replay cameras, then
 //! the two replay camera lists. Names are readings unless IDA's.
 
+#[cfg(test)]
 use crate::race::owner::race;
 use crate::session::Dword;
 
@@ -36,8 +37,10 @@ pub struct Checkpoints {
 }
 
 /// The piece, a field of `crate::race::owner::race().shared.buffers`.
+#[cfg(test)]
 pub struct InBuffers;
 
+#[cfg(test)]
 impl core::ops::Deref for InBuffers {
     type Target = Checkpoints;
     fn deref(&self) -> &Checkpoints {
@@ -45,6 +48,7 @@ impl core::ops::Deref for InBuffers {
     }
 }
 
+#[cfg(test)]
 pub static CHECKPOINTS: InBuffers = InBuffers;
 
 /// Cell `n` of the table `table` that is the field at byte `field` of `record`. The
@@ -83,11 +87,11 @@ pub fn run_on<T: crate::pointers::Cells>(record: &T, field: usize, n: usize) -> 
 
 /// Cell `n` of the field `$field` of the checkpoint tables (`cell_in`).
 macro_rules! checkpoint_cell {
-    ($field:ident, $skip:expr, $n:expr) => {{
+    ($table:expr, $field:ident, $skip:expr, $n:expr) => {{
         use core::mem::offset_of;
         cell_in(
-            &CHECKPOINTS.$field[$skip..],
-            &*CHECKPOINTS,
+            &$table.$field[$skip..],
+            $table,
             offset_of!(Checkpoints, $field) + 4 * $skip,
             $n,
         )
@@ -95,34 +99,34 @@ macro_rules! checkpoint_cell {
 }
 
 /// Checkpoint `n`'s face cell (`g_checkpointFaces[n]`).
-pub fn face(n: usize) -> &'static Dword {
-    checkpoint_cell!(checkpoint_faces, 0, n)
+pub fn face(table: &Checkpoints, n: usize) -> &Dword {
+    checkpoint_cell!(table, checkpoint_faces, 0, n)
 }
 
 /// Checkpoint `n`'s angle cell, as the readers index it: `Buffers.checkpoints.angles[2][n]`, 8 bytes into
 /// `g_checkpointAngles`.
-pub fn angle(n: usize) -> &'static Dword {
-    checkpoint_cell!(angles, 2, n)
+pub fn angle(table: &Checkpoints, n: usize) -> &Dword {
+    checkpoint_cell!(table, angles, 2, n)
 }
 
 /// Checkpoint `n`'s distance cell (`g_checkpointDistances[n]`).
-pub fn distance(n: usize) -> &'static Dword {
-    checkpoint_cell!(distances, 0, n)
+pub fn distance(table: &Checkpoints, n: usize) -> &Dword {
+    checkpoint_cell!(table, distances, 0, n)
 }
 
 /// Checkpoint `n`'s map x (`g_mapX[n]`).
-pub fn map_x(n: usize) -> &'static Dword {
-    checkpoint_cell!(map_x, 0, n)
+pub fn map_x(table: &Checkpoints, n: usize) -> &Dword {
+    checkpoint_cell!(table, map_x, 0, n)
 }
 
 /// Checkpoint `n`'s map y (`g_mapY[n]`).
-pub fn map_y(n: usize) -> &'static Dword {
-    checkpoint_cell!(map_y, 0, n)
+pub fn map_y(table: &Checkpoints, n: usize) -> &Dword {
+    checkpoint_cell!(table, map_y, 0, n)
 }
 
 /// How many faces checkpoint `n`'s kind has (`g_checkCounts[n]`).
-pub fn check_count(n: usize) -> &'static Dword {
-    checkpoint_cell!(check_counts, 0, n)
+pub fn check_count(table: &Checkpoints, n: usize) -> &Dword {
+    checkpoint_cell!(table, check_counts, 0, n)
 }
 
 /// IDA 0x9E3738, the first byte of the piece.
@@ -141,18 +145,18 @@ mod tests {
     fn a_cell_past_a_table_is_the_next_fields_first() {
         let table = &CHECKPOINTS.distances;
         assert!(std::ptr::eq(
-            distance(table.len()),
+            distance(&CHECKPOINTS, table.len()),
             &raw const CHECKPOINTS.map_x[0]
         ));
         assert!(std::ptr::eq(
-            map_x(table.len() + 1),
+            map_x(&CHECKPOINTS, table.len() + 1),
             &raw const CHECKPOINTS.map_y[1]
         ));
         assert!(std::ptr::eq(
-            check_count(5144),
+            check_count(&CHECKPOINTS, 5144),
             &raw const CHECKPOINTS.angles[0]
         ));
-        assert!(std::ptr::eq(distance(3), &raw const table[3]));
+        assert!(std::ptr::eq(distance(&CHECKPOINTS, 3), &raw const table[3]));
     }
 
     #[test]

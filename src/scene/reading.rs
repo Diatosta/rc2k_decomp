@@ -41,22 +41,27 @@ impl Reading {
 }
 
 /// The objects' point records (`scene::point_records`, 0x1000 + (n & 0xFFF) for a point or
-/// normal number `n`; +0x10 its place, three words).
-pub struct PointRecords;
+/// normal number `n`; +0x10 its place, three words), the drawing part's.
+pub struct PointRecords<'a> {
+    part: &'a crate::workers::PartScratch,
+}
 
-impl PointRecords {
-    /// Refused when the records are not taken.
-    pub fn new(course: &crate::race::owner_course::Course) -> Result<Self, BadInput> {
+impl<'a> PointRecords<'a> {
+    /// `part`'s records; refused when the records are not taken.
+    pub fn new(
+        course: &crate::race::owner_course::Course,
+        part: &'a crate::workers::PartScratch,
+    ) -> Result<Self, BadInput> {
         if !crate::scene::point_records::held(course) {
             return Err(BadInput("no records for the points"));
         }
-        Ok(Self)
+        Ok(Self { part })
     }
 
     /// The place of point or normal `number`.
     pub fn place(&self, number: u32) -> Result<[u32; 3], BadInput> {
         use crate::scene::point_records::{get, of_object_point};
-        let r = get(of_object_point(number))?;
+        let r = get(self.part, of_object_point(number))?;
         Ok([r[4], r[5], r[6]])
     }
 }

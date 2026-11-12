@@ -51,17 +51,15 @@ pub fn speed_sound(
     crate::sound::turn_parts::placed(request, owner, audio)
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
     use crate::sound::sets_store::SoundSet;
 
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
     use crate::scene::x87_mem::view;
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     // The original's instructions: the pitch, the volume (on the road: times the surface's gain).
-    reference!(ref_off(bx, bp, si) "fld dword ptr [{bx} + 0x108]", "fmul dword ptr [{bp} + 0x18]", "fadd dword ptr [{bp} + 0x10]", "fstp dword ptr [{si} + 0x4]", "fld dword ptr [{bx} + 0x108]", "fmul dword ptr [{bp} + 0x24]", "fadd dword ptr [{bp} + 0x1C]", "fstp dword ptr [{si} + 0x8]");
-    reference!(ref_on(bx, bp, sf, si) "fld dword ptr [{bx} + 0x108]", "fmul dword ptr [{bp} + 0x18]", "fadd dword ptr [{bp} + 0x10]", "fstp dword ptr [{si} + 0x4]", "fld dword ptr [{bx} + 0x108]", "fmul dword ptr [{bp} + 0x24]", "fadd dword ptr [{bp} + 0x1C]", "fmul dword ptr [{sf} + 0x24]", "fstp dword ptr [{si} + 0x8]");
     fn blocks() -> Vec<Block> {
         vec![
             Block {
@@ -81,7 +79,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_off(a[0], a[1], a[2]) },
                 plain: |a| {
                     let bx = view::<SoundObject>(a[0], 0);
                     let set = view::<SoundSet>(a[1], 0);
@@ -112,7 +109,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_on(a[0], a[1], a[2], a[3]) },
                 plain: |a| {
                     let bx = view::<SoundObject>(a[0], 0);
                     let set = view::<SoundSet>(a[1], 0);
@@ -127,6 +123,6 @@ mod asm_reference {
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse(&blocks(), 1200, 100);
+        sparse("sound.speed_sound", &blocks(), 1200, 100);
     }
 }

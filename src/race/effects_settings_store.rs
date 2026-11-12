@@ -351,7 +351,7 @@ pub fn car_or_none(handle: u32) -> Option<&'static CarEffects> {
 
 impl CarEffects {
     /// A record of zeros (for the tests' stand-in cars).
-    #[cfg(all(test, target_arch = "x86"))]
+    #[cfg(test)]
     pub fn zeroed() -> Self {
         // SAFETY: the record is plain atomics, all zero a valid value.
         unsafe { std::mem::zeroed() }

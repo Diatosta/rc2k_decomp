@@ -1,6 +1,5 @@
 //! The race's shell (`race::single_rally_race`, `single_rally`'s race, and `race::run_race`): what runs round a stage's loading and its run. Here its small leaves.
-use crate::net::owner::net;
-use crate::race::blocks_store::CAR_BLOCKS;
+use crate::net::store::NetVars;
 use crate::race::owner::Race;
 use crate::race::owner_physics::Physics;
 use crate::race::owner_shared::RaceShared;
@@ -15,9 +14,9 @@ pub fn release_controls(input: &crate::input::owner::Input) {
 }
 
 /// `race::clear_player_absences` (0x449D44): the eight blocks' +0xB0 0.
-pub fn clear_player_absences() {
+pub fn clear_player_absences(race: &Race) {
     // Each car block's +0xB0: the player absent.
-    for car in &CAR_BLOCKS.cars[..8] {
+    for car in &race.car_blocks().cars[..8] {
         car.stop_state.set(0);
     }
 }
@@ -48,8 +47,7 @@ pub fn index_of_kind(shared: &RaceShared, kind: u32) -> Result<u32, BadInput> {
 
 /// `race::set_race_screen_mode` (0x404830): `gfx::set_screen_mode` (the platform's) with
 /// `g_raceScreenMode`.
-pub fn set_race_screen_mode() {
-    let gfx = crate::gfx::owner::gfx();
+pub fn set_race_screen_mode(gfx: &crate::gfx::owner::Gfx) {
     crate::platform::set_mode_now(gfx.display.mode.race_mode.get(), gfx);
 }
 
@@ -143,9 +141,8 @@ fn settle_state(view: &Dword) {
 /// first car's kind is not flagged or there are two players, the first two blocks' +0x684 2 or 3
 /// made 4. it keeps the rest). Refuses, with `session` 1, a chosen car past 7 (the original
 /// reads past the tables), before anything.
-pub fn set_start_states(race: &Race) -> Result<(), Refused> {
+pub fn set_start_states(race: &Race, vars: &NetVars) -> Result<(), Refused> {
     let shared = &race.shared;
-    let vars = &net().vars;
     let frame = &race.frame;
     let physics = &race.physics;
     // Converted: `rc2k_core::race::cars::{start_record, start_state_value, held_split,

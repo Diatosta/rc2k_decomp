@@ -91,13 +91,10 @@ fn x87_1(si: &SoundObject, df: &crate::sound::store::RaceSounds) {
     df.nearest_distance.set(stf(t10));
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
-
-    // The original's instructions, one function per run.
-    reference!(ref_0(si, df) "fld dword ptr [{si} + 0x2C]", "fmul dword ptr [{si} + 0x2C]", "fld dword ptr [{si} + 0x30]", "fmul dword ptr [{si} + 0x30]", "fld dword ptr [{si} + 0x34]", "fmul dword ptr [{si} + 0x34]", ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1", "fstp dword ptr [{df} + 0x2578]");
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
         vec![Block {
@@ -113,17 +110,23 @@ mod asm_reference {
                 },
             ],
             ulps: 0,
-            reference: |a| unsafe { ref_0(a[0], a[1]) },
             plain: |a| {
-                x87_1(unsafe { &*(a[0] as *const SoundObject) }, unsafe {
-                    &*(a[1] as *const crate::sound::store::RaceSounds)
-                });
+                x87_1(
+                    unsafe {
+                        &*(crate::test_support::vectors::block_vectors::at(a[0])
+                            as *const SoundObject)
+                    },
+                    unsafe {
+                        &*(crate::test_support::vectors::block_vectors::at(a[1])
+                            as *const crate::sound::store::RaceSounds)
+                    },
+                );
             },
         }]
     }
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse(&blocks(), 1200, 100);
+        sparse("sound.car_sounds_all", &blocks(), 1200, 100);
     }
 }

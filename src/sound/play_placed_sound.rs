@@ -12,7 +12,7 @@
 //! Then +4 = +4 x +0x20 as a whole number, and `sound::play_sound` with the sound, the
 //! volume, the place (3D: the three floats) and the rate +4.
 //! The x87's arithmetic is plain Rust over `X` (`math/x87_float.rs`), rounding as the control
-//! word says; the original's instructions are `asm_reference` in the tests.
+//! word says; the original's instructions are recorded in the tests' `reference_vectors`.
 //! Eight callers (the race's sounds).
 //! Refuses, without 3D, a sound past the 0x1CD sample records.
 
@@ -169,16 +169,10 @@ fn x87_4(v: impl Base, o: impl Base) {
     fistp(o, 4, t7);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
-
-    // The original's instructions, one function per run.
-    reference!(ref_0(v, o) "fld dword ptr [{v}]", "fmul dword ptr [{v} + 4]", "fmul dword ptr [{v} + 8]", "fistp dword ptr [{o}]");
-    reference!(ref_1(v, o) "fld dword ptr [{v}]", "fmul dword ptr [{v} + 4]", "fistp dword ptr [{o}]");
-    reference!(ref_2(a, o) "fld dword ptr [{a}]", "fistp dword ptr [{o}]");
-    reference!(ref_3(v, o) "fld dword ptr [{v}]", "fld dword ptr [{v} + 4]", "fpatan", "fst dword ptr [{o}]", "fabs", "fmul dword ptr [{v} + 8]", "fsubr dword ptr [{v} + 12]", "fistp dword ptr [{o} + 4]");
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
         vec![
@@ -195,7 +189,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_0(a[0], a[1]) },
                 plain: |a| x87_1(a[0], a[1]),
             },
             Block {
@@ -211,7 +204,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_1(a[0], a[1]) },
                 plain: |a| x87_2(a[0], a[1]),
             },
             Block {
@@ -227,7 +219,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_2(a[0], a[1]) },
                 plain: |a| x87_3(a[0], a[1]),
             },
             Block {
@@ -243,7 +234,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 1,
-                reference: |a| unsafe { ref_3(a[0], a[1]) },
                 plain: |a| x87_4(a[0], a[1]),
             },
         ]
@@ -251,6 +241,6 @@ mod asm_reference {
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse(&blocks(), 1200, 100);
+        sparse("sound.play_placed_sound", &blocks(), 1200, 100);
     }
 }

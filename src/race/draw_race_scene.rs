@@ -91,7 +91,7 @@ fn view_scene(
     let output =
         crate::race::draw_view_scene::draw_view_scene(o.race, o.scene, o.system, view, part)?;
     view.hand_off.keep_output(output);
-    view.hand_off.keep(o.race);
+    view.hand_off.keep(o.race, part);
     Ok(())
 }
 
@@ -301,7 +301,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     use crate::scene::set_render_state::set_render_state;
     use crate::sound::race_sound_tick::race_sound_tick;
     let before_views = crate::write_watch::step("before_views");
-    let _cars = crate::race::frame_view::Held::take();
+    let _cars = crate::race::frame_view::Held::take(race);
     let blocks = view_blocks(&race.shared)?;
     for (k, extra) in race
         .frame
@@ -434,7 +434,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     crate::race::car_parts::ready_car_parts(race, scene)?;
     crate::race::map_scroll::scroll_maps(race, scene, o.net, o.gfx)?;
     race.frame.panel_and_overlay.panel.texture_changes.set(0);
-    crate::race::frame_views::forget_view_textures(race, scene, input, system)?;
+    crate::race::frame_views::forget_view_textures(race, scene, input, system, o.gfx)?;
     crate::race::mud_frame::mud_frame(race, scene, o.gfx)?;
     race.frame.frame_work.kind_textures_done.set(0);
     crate::scene::assign_kind_textures::assign_kind_textures(scene)?;

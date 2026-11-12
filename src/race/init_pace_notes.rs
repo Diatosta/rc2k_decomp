@@ -12,12 +12,13 @@
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
-use crate::race::pace_notes::{Course, Machine};
+use crate::race::pace_notes::{Course, GameStage, Machine};
 
 /// On a course.
 pub fn init_pace_notes_on(race: &Race, course: Course) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::pace_notes::Notes::init`.
-    let mut m = Machine::load(race, course)?;
+    let stage = GameStage(race);
+    let mut m = Machine::load(race, course, &stage)?;
     m.init()?;
     m.commit(race)?;
     Ok(())
@@ -25,5 +26,5 @@ pub fn init_pace_notes_on(race: &Race, course: Course) -> Result<(), Refused> {
 
 /// On the game's course.
 pub fn init_pace_notes(race: &Race) -> Result<(), Refused> {
-    init_pace_notes_on(race, crate::race::pace_notes::game_course(&race.shared))
+    init_pace_notes_on(race, crate::race::pace_notes::game_course(race))
 }

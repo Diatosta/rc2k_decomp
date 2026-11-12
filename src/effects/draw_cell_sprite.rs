@@ -264,161 +264,10 @@ fn square_x87(
     t9
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
-    //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
-
-    pub(super) fn turn_x87(rc: usize, mk: usize, p: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld tbyte ptr [{p} + 20]",
-            "fld tbyte ptr [{p} + 10]",
-            "fld tbyte ptr [{p}]",
-            "fld dword ptr [{rc} + 0x1EA2CC]",
-            ".byte 0xD8, 0xC9",
-            "fld dword ptr [{rc} + 0x1EA2DC]",
-            ".byte 0xD8, 0xCB",
-            "fld dword ptr [{rc} + 0x1EA2EC]",
-            ".byte 0xD8, 0xCD",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fadd dword ptr [{rc} + 0x1EA2FC]",
-            ".byte 0xD9, 0xCB",
-            "fld dword ptr [{rc} + 0x1EA2D0]",
-            ".byte 0xD8, 0xCA",
-            "fld dword ptr [{rc} + 0x1EA2E0]",
-            ".byte 0xD8, 0xCC",
-            "fld dword ptr [{rc} + 0x1EA2F0]",
-            ".byte 0xD8, 0xCB",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fadd dword ptr [{rc} + 0x1EA300]",
-            ".byte 0xD9, 0xCB",
-            "fld dword ptr [{rc} + 0x1EA2D4]",
-            ".byte 0xDE, 0xCB",
-            "fld dword ptr [{rc} + 0x1EA2E4]",
-            ".byte 0xDE, 0xC9",
-            "fld dword ptr [{rc} + 0x1EA2F4]",
-            ".byte 0xDE, 0xCA",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fadd dword ptr [{rc} + 0x1EA304]",
-            ".byte 0xD9, 0xCA",
-            "fstp dword ptr [{mk} + 0x186995]",
-            "fstp dword ptr [{mk} + 0x186999]",
-            "fist dword ptr [{mk} + 0x1D0780]",
-            "fstp dword ptr [{mk} + 0x18699D]",
-            rc = in(reg) rc,
-            mk = in(reg) mk,
-            p = in(reg) p,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn square_x87(rc: usize, bf: usize, mk: usize, k: usize, s: usize) -> u32 {
-        let result: u32;
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{rc} + 0x224088]",
-            "fdiv dword ptr [{mk} + 0x18699D]",
-            "fld dword ptr [{mk} + 0x18699D]",
-            "fmul dword ptr [{mk} + 0x186A2D]",
-            "fst dword ptr [{bf} + 0x5605A8]",
-            "fst dword ptr [{bf} + 0x5605C8]",
-            "fst dword ptr [{bf} + 0x5605E8]",
-            "fstp dword ptr [{bf} + 0x560608]",
-            "fild dword ptr [{mk} + 0x18697D]",
-            ".byte 0xD8, 0xC9",
-            "fst dword ptr [{mk} + 0x18697D]",
-            "fmul dword ptr [{mk} + {k} + 0x1BB7F4]",
-            "fstp dword ptr [{mk} + 0x186981]",
-            "mov {t}, dword ptr [{mk} + 0x18697D]",
-            "xor {t}, 0x80000000",
-            "mov dword ptr [{mk} + 0x186989], {t}",
-            "mov {t}, dword ptr [{mk} + 0x186981]",
-            "mov dword ptr [{mk} + 0x186985], {t}",
-            "fld dword ptr [{mk} + 0x18697D]",
-            "fld dword ptr [{mk} + 0x186981]",
-            ".byte 0xD9, 0xC1",
-            ".byte 0xD9, 0xC1",
-            "fmul dword ptr [{bf} + {s} + 0x624AE4]",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{bf} + {s} + 0x623AE4]",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{mk} + 0x18697D]",
-            ".byte 0xD9, 0xE0",
-            "fmul dword ptr [{bf} + {s} + 0x623AE4]",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{bf} + {s} + 0x624AE4]",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{mk} + 0x186981]",
-            "fld dword ptr [{mk} + 0x186985]",
-            "fld dword ptr [{mk} + 0x186989]",
-            ".byte 0xD9, 0xC1",
-            ".byte 0xD9, 0xC1",
-            "fmul dword ptr [{bf} + {s} + 0x624AE4]",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{bf} + {s} + 0x623AE4]",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{mk} + 0x186985]",
-            ".byte 0xD9, 0xE0",
-            "fmul dword ptr [{bf} + {s} + 0x623AE4]",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{bf} + {s} + 0x624AE4]",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{mk} + 0x186989]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{mk} + 0x186995]",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{mk} + 0x186999]",
-            ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{rc} + 0x2240A0]",
-            ".byte 0xD9, 0xC0",
-            "fsub dword ptr [{mk} + 0x186981]",
-            "fstp dword ptr [{bf} + 0x5605A4]",
-            ".byte 0xD9, 0xC0",
-            "fsub dword ptr [{mk} + 0x186989]",
-            "fstp dword ptr [{bf} + 0x5605C4]",
-            ".byte 0xD9, 0xC0",
-            "fadd dword ptr [{mk} + 0x186981]",
-            "fstp dword ptr [{bf} + 0x5605E4]",
-            "fadd dword ptr [{mk} + 0x186989]",
-            "fstp dword ptr [{bf} + 0x560604]",
-            "fadd dword ptr [{rc} + 0x22409C]",
-            ".byte 0xD9, 0xC0",
-            "fsub dword ptr [{mk} + 0x18697D]",
-            "fstp dword ptr [{bf} + 0x5605A0]",
-            ".byte 0xD9, 0xC0",
-            "fsub dword ptr [{mk} + 0x186985]",
-            "fstp dword ptr [{bf} + 0x5605C0]",
-            ".byte 0xD9, 0xC0",
-            "fadd dword ptr [{mk} + 0x18697D]",
-            "fstp dword ptr [{bf} + 0x5605E0]",
-            "fadd dword ptr [{mk} + 0x186985]",
-            "fstp dword ptr [{bf} + 0x560600]",
-            rc = in(reg) rc,
-            bf = in(reg) bf,
-            mk = in(reg) mk,
-            k = in(reg) k,
-            s = in(reg) s,
-            t = out(reg) result,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-        result
-    }
-}
-
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_differential {
-    use super::asm_reference as reference;
+#[cfg(test)]
+mod reference_vectors {
     use crate::effects::asm_test::Kind::*;
-    use crate::effects::asm_test::{Op, Spec, differential, with_copy};
+    use crate::effects::asm_test::{Op, Spec, recorded_writes, with_copy};
     use crate::effects::blocks::CornerSlopes;
     use crate::effects::frame_state::DrawWork;
     use crate::effects::ring_store::RingWork;
@@ -499,22 +348,18 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::turn_x87(b[0], b[1], b[2]),
-            |b| {
-                with_copy(b[1], RingWork::START, |w| {
-                    with_copy::<DrawWork, _>(b[1], DrawWork::START, |dw| {
-                        super::turn_x87(
-                            &crate::race::owner::race().frame.matrices.view_matrix,
-                            &values(b[2]),
-                            w,
-                            dw,
-                        );
-                    });
+        recorded_writes("effects.draw_cell_sprite.turn_x87", &SPEC, |b| {
+            with_copy(b[1], RingWork::START, |w| {
+                with_copy::<DrawWork, _>(b[1], DrawWork::START, |dw| {
+                    super::turn_x87(
+                        &crate::race::owner::race().frame.matrices.view_matrix,
+                        &values(b[2]),
+                        w,
+                        dw,
+                    );
                 });
-            },
-        );
+            });
+        });
     }
 
     #[test]
@@ -588,39 +433,35 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::square_x87(b[0], b[1], b[2], b[3], b[4]),
-            |b| {
-                with_copy::<DrawWork, _>(b[2], DrawWork::START, |dw| {
-                    with_copy::<CornerSlopes, _>(b[2], CornerSlopes::START, |cs| {
-                        let vertices: Vec<(&dyn crate::session::Cell32, usize)> = [
-                            0x0, 0x4, 0x8, 0x20, 0x24, 0x28, 0x40, 0x44, 0x48, 0x60, 0x64, 0x68,
-                        ]
-                        .into_iter()
-                        .map(|o| {
-                            (
-                                vertex_cell(o) as &dyn crate::session::Cell32,
-                                b[1].wrapping_add(0x5605A0 + o),
-                            )
-                        })
-                        .collect();
-                        let tables = b[1].wrapping_add(0x623AE4);
-                        let mut cells = vertices;
-                        cells.push((sine(b[4] / 4), tables.wrapping_add(b[4])));
-                        cells.push((cosine(b[4] / 4), tables.wrapping_add(b[4] + 0x1000)));
-                        staged(&cells, || {
-                            super::square_x87(
-                                &crate::d3d::vertices_store::VERTICES,
-                                b[3],
-                                b[4] / 4,
-                                dw,
-                                cs,
-                            )
-                        })
+        recorded_writes("effects.draw_cell_sprite.square_x87", &SPEC, |b| {
+            with_copy::<DrawWork, _>(b[2], DrawWork::START, |dw| {
+                with_copy::<CornerSlopes, _>(b[2], CornerSlopes::START, |cs| {
+                    let vertices: Vec<(&dyn crate::session::Cell32, usize)> = [
+                        0x0, 0x4, 0x8, 0x20, 0x24, 0x28, 0x40, 0x44, 0x48, 0x60, 0x64, 0x68,
+                    ]
+                    .into_iter()
+                    .map(|o| {
+                        (
+                            vertex_cell(o) as &dyn crate::session::Cell32,
+                            b[1].wrapping_add(0x5605A0 + o),
+                        )
+                    })
+                    .collect();
+                    let tables = b[1].wrapping_add(0x623AE4);
+                    let mut cells = vertices;
+                    cells.push((sine(b[4] / 4), tables.wrapping_add(b[4])));
+                    cells.push((cosine(b[4] / 4), tables.wrapping_add(b[4] + 0x1000)));
+                    staged(&cells, || {
+                        super::square_x87(
+                            &crate::d3d::vertices_store::VERTICES,
+                            b[3],
+                            b[4] / 4,
+                            dw,
+                            cs,
+                        )
                     })
                 })
-            },
-        );
+            })
+        });
     }
 }

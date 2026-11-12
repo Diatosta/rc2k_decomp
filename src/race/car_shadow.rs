@@ -582,6 +582,7 @@ pub fn shadow_on_face(
     let mut at = (scene_points & 0xFFF) * 0x20;
     for _ in 0..0x40 {
         crate::scene::point_records::put_field(
+            ctx.part,
             crate::scene::point_records::at_offset(at),
             0,
             u32::MAX,
@@ -602,13 +603,13 @@ pub fn shadow_on_face(
         )?;
     }
     crate::scene::project_polygon::project_polygon(
-        ctx.part.polygon,
+        ctx.part,
         &ctx.view.polygon,
         race,
         scene,
         ctx.view,
     )?;
-    crate::scene::fog_polygon::fog_polygon(ctx.part.polygon, ctx.view)?;
+    crate::scene::fog_polygon::fog_polygon(ctx.part, ctx.view)?;
     ctx.view
         .polygon
         .polygon_next_record
@@ -619,7 +620,7 @@ pub fn shadow_on_face(
             return Ok(());
         }
         crate::scene::clip_polygon_by_depth::clip_polygon_by_depth(
-            ctx.part.polygon,
+            ctx.part,
             &ctx.view.polygon,
             race,
             scene,
@@ -631,7 +632,7 @@ pub fn shadow_on_face(
         }
     }
     crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(
-        ctx.part.polygon,
+        ctx.part,
         &ctx.view.polygon,
         race,
     )?;
@@ -903,102 +904,18 @@ pub fn cast_car_shadows(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
     Ok(())
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
 
-    // The original blocks, verbatim.
-    pub(super) fn two_pi_plus_asm(v: u32) -> u32 {
-        let (x, mut out) = ([v], 0u32);
-        unsafe {
-            core::arch::asm!(
-                "fldpi",
-                ".byte 0xD8, 0xC0",
-                "fadd dword ptr [{x}]",
-                "fstp dword ptr [{o}]",
-                x = in(reg) x.as_ptr(),
-                o = in(reg) &raw mut out,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-        out
-    }
-
-    pub(super) fn tbyte_to_float_asm(t: [u8; 10]) -> u32 {
-        let mut out = 0u32;
-        unsafe {
-            core::arch::asm!(
-                "fld tbyte ptr [{t}]",
-                "fstp dword ptr [{o}]",
-                t = in(reg) t.as_ptr(),
-                o = in(reg) &raw mut out,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-        out
-    }
-
-    pub(super) fn lifted_asm(y: u32, lift: u32, slant: u32, base: u32) -> u32 {
-        let (v, mut out) = ([y, lift, slant, base], 0u32);
-        unsafe {
-            core::arch::asm!(
-                "fld dword ptr [{v}]",
-                "fadd dword ptr [{v} + 4]",
-                "fmul dword ptr [{v} + 8]",
-                "fadd dword ptr [{v} + 12]",
-                "fstp dword ptr [{o}]",
-                v = in(reg) v.as_ptr(),
-                o = in(reg) &raw mut out,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-        out
-    }
-
-    pub(super) unsafe fn circle_place_asm(e: u32, k: u32, n: u32, radius: u32, unit: u32) {
-        let v = [k, n, radius, unit];
-        unsafe {
-            core::arch::asm!(
-                "fild dword ptr [{v}]",
-                "fild dword ptr [{v} + 4]",
-                ".byte 0xDE, 0xF9",
-                "fldpi",
-                ".byte 0xDE, 0xC9",
-                ".byte 0xD8, 0xC0",
-                "fsincos",
-                "fmul dword ptr [{v} + 8]",
-                "fadd dword ptr [{v} + 8]",
-                "fistp dword ptr [{e} + 0x10]",
-                "fmul dword ptr [{v} + 8]",
-                "fadd dword ptr [{v} + 8]",
-                "fistp dword ptr [{e} + 0x14]",
-                "fild dword ptr [{e} + 0x10]",
-                "fdiv dword ptr [{v} + 12]",
-                "fstp dword ptr [{e} + 0x10]",
-                "fild dword ptr [{e} + 0x14]",
-                "fdiv dword ptr [{v} + 12]",
-                "fstp dword ptr [{e} + 0x14]",
-                v = in(reg) v.as_ptr(),
-                e = in(reg) e,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-    }
-
     use crate::race::asm_test::{Rng, at_each_control_word, lock, same};
+    use crate::test_support::vectors::{Recorder, word, words};
 
     #[test]
     fn two_pi_plus_matches() {
         let _l = lock();
         let mut r = Rng(21);
+        let mut file = Recorder::replay("race.car_shadow.two_pi_plus");
         at_each_control_word(|| {
             for n in 0..40000 {
                 let v = if n % 2 == 0 {
@@ -1007,37 +924,49 @@ mod asm_reference {
                 } else {
                     r.float()
                 };
-                let (want, got) = (two_pi_plus_asm(v), two_pi_plus(v));
+                file.input(&v.to_le_bytes());
+                let (want, got) = (word(&mut file), two_pi_plus(v));
                 assert!(same(want, got), "{v:#x}: {want:#x} {got:#x}");
             }
         });
+        file.finish();
     }
 
     #[test]
     fn float_blocks_match() {
         let _l = lock();
         let mut r = Rng(22);
+        let mut file = Recorder::replay("race.car_shadow.float_blocks");
         at_each_control_word(|| {
             for _ in 0..20000 {
                 let t = crate::math::x87_float::f80(crate::math::x87_float::X(
                     f64::from(f32::from_bits(r.float())) * f64::from(f32::from_bits(r.float())),
                 ));
-                let (want, got) = (tbyte_to_float_asm(t), tbyte_to_float(t));
+                file.input(&t);
+                let (want, got) = (word(&mut file), tbyte_to_float(t));
                 assert!(same(want, got), "{t:x?}: {want:#x} {got:#x}");
                 let (y, l, sl, b) = (r.float(), r.float(), r.float(), r.float());
-                let (want, got) = (lifted_asm(y, l, sl, b), lifted(y, l, sl, b));
+                file.input(
+                    &[y, l, sl, b]
+                        .iter()
+                        .flat_map(|w| w.to_le_bytes())
+                        .collect::<Vec<u8>>(),
+                );
+                let (want, got) = (word(&mut file), lifted(y, l, sl, b));
                 assert!(
                     same(want, got),
                     "{y:#x} {l:#x} {sl:#x} {b:#x}: {want:#x} {got:#x}"
                 );
             }
         });
+        file.finish();
     }
 
     #[test]
     fn circle_place_matches() {
         let _l = lock();
         let mut r = Rng(23);
+        let mut file = Recorder::replay("race.car_shadow.circle_place");
         let mut worst = 0;
         at_each_control_word(|| {
             for _ in 0..20000 {
@@ -1045,33 +974,30 @@ mod asm_reference {
                 let k = r.below(n);
                 let radius = r.float();
                 let unit = r.float();
-                let mut a = [0xAAAA_AAAAu32; 17];
+                file.input(
+                    &[k, n, radius, unit]
+                        .iter()
+                        .flat_map(|w| w.to_le_bytes())
+                        .collect::<Vec<u8>>(),
+                );
                 let entry = super::vector_tests::entry_of([0xAAAA_AAAA; 17]);
                 let cells = crate::pointers::dwords_in::<_, 17>(&entry, 0);
-                unsafe {
-                    circle_place_asm(
-                        crate::pointers::game_address(a.as_mut_ptr()),
-                        k,
-                        n,
-                        radius,
-                        unit,
-                    );
-                }
+                // The original writes the entry's dwords 4 and 5 only.
+                let a: [u32; 2] = words(&mut file);
                 circle_place(&entry, k, n, radius, unit);
                 let b: [u32; 17] = std::array::from_fn(|w| cells[w].get());
-                for w in [4, 5] {
+                for (w, &want) in [4, 5].iter().zip(&a) {
+                    let got = b[*w];
                     assert!(
-                        same(a[w], b[w]),
-                        "{k}/{n} {radius:#x} {unit:#x}: {:#x} {:#x}",
-                        a[w],
-                        b[w]
+                        same(want, got),
+                        "{k}/{n} {radius:#x} {unit:#x}: {want:#x} {got:#x}"
                     );
-                    worst = worst.max(a[w].abs_diff(b[w]));
+                    worst = worst.max(want.abs_diff(got));
                 }
-                assert_eq!(a[..4], b[..4]);
-                assert_eq!(a[6..], b[6..]);
+                assert!(b[..4].iter().chain(&b[6..]).all(|&x| x == 0xAAAA_AAAA));
             }
         });
+        file.finish();
         eprintln!("circle_place: worst difference {worst} ulps");
     }
 }

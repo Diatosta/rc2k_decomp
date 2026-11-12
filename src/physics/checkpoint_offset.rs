@@ -17,7 +17,12 @@ use rc2k_core::physics::progress::checkpoint_ahead;
 
 // Converted: `rc2k_core::physics::progress::checkpoint_ahead` (the turn stays
 // `math::rotate_point_about_y`'s).
-pub fn checkpoint_offset(course: &Course, vars: &RaceVars, car: &Car) -> Result<(), Refused> {
+pub fn checkpoint_offset(
+    course: &Course,
+    vars: &RaceVars,
+    checkpoints: &crate::race::checkpoints_store::Checkpoints,
+    car: &Car,
+) -> Result<(), Refused> {
     let course_store = course;
     let c = car.checkpoint.get();
     if checkpoint_ahead(c, vars.checkpoint_count.get())?.is_none() {
@@ -28,8 +33,8 @@ pub fn checkpoint_offset(course: &Course, vars: &RaceVars, car: &Car) -> Result<
     if course_store.course.course_faces.get() == 0 || course_store.course.scene_points.get() == 0 {
         return Err(BadInput("no course faces or points").into());
     }
-    let angle = crate::race::checkpoints_store::angle(c as usize).get();
-    let face = crate::race::checkpoints_store::face(c as usize).get();
+    let angle = crate::race::checkpoints_store::angle(checkpoints, c as usize).get();
+    let face = crate::race::checkpoints_store::face(checkpoints, c as usize).get();
     let point = crate::race::course_places::face_field::<u32>(course, face, 4)?;
     let x = car.position[0]
         .get()

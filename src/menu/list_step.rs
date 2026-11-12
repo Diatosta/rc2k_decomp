@@ -16,6 +16,7 @@ use rc2k_core::menu::list_menu::{MOVES, Step, step};
 /// `table` (ebx; None for none): whether it moved (the zero flag the original leaves; its
 /// carry and ecx no caller reads).
 pub fn list_step(
+    install: &crate::install::owner::Install,
     key: u8,
     table: Option<BytePlace>,
     list: crate::menu::list_handle::ListMenu,
@@ -25,7 +26,7 @@ pub fn list_step(
     if !MOVES.contains(&key) {
         return Ok(false);
     }
-    let pages = &crate::install::owner::install().pages;
+    let pages = &install.pages;
     let ecx = pages.choice.get();
     let fault = crate::menu::event_flow::Fault::default();
     // Asked only with a table (`step` is told whether there is one).

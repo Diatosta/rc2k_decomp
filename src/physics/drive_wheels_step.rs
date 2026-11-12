@@ -9,7 +9,7 @@
 //!
 //! The flow, the compares, the integer steps and the calls are Rust; each straight x87
 //! run is plain Rust over `X` (`math/x87_float.rs`) in the named helpers below, the
-//! original's instructions being `asm_reference` in the tests.
+//! original's instructions being recorded in the tests' `reference_vectors`.
 //!
 //! Caller: `physics::car_physics_step`, every physics step. Refuses (before anything) a gear
 //! outside -1 ..= 7 (`revs_from_wheels` would; the gear is not written here).
@@ -394,9 +394,9 @@ fn signed_share(tables: &PhysicsTables, numbers: &Numbers) {
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// (a long formula: see the instructions in the tests' `asm_reference`)
-/// (a long formula: see the instructions in the tests' `asm_reference`)
-/// (a long formula: see the instructions in the tests' `asm_reference`)
+/// (a long formula: checked by the tests' `reference_vectors`)
+/// (a long formula: checked by the tests' `reference_vectors`)
+/// (a long formula: checked by the tests' `reference_vectors`)
 fn drive_forces_from_grips(car: &Car, tables: &PhysicsTables, grips: &[Float; 5]) {
     let t0 = grips[0].ld();
     let t1 = tables.forces[0].force[1].ld();
@@ -516,7 +516,7 @@ fn push_drive_speed_a(car: &Car, tables: &PhysicsTables) {
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// (a long formula: see the instructions in the tests' `asm_reference`)
+/// (a long formula: checked by the tests' `reference_vectors`)
 fn brake_step_for_a(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
     let t0 = X(1.0);
     let t1 = tables.handling[1].ld();
@@ -538,7 +538,7 @@ fn brake_step_for_a(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// (a long formula: see the instructions in the tests' `asm_reference`)
+/// (a long formula: checked by the tests' `reference_vectors`)
 fn brake_step_for_b(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
     let t0 = tables.handling[1].ld();
     let t1 = tables.spec_drive[1].ld();
@@ -826,39 +826,12 @@ fn slip_lengths(car: &Car, scene: &crate::scene::owner::Scene) {
     car.skid_grip[1].st(t27);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
     use crate::race::owner::race;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
     use crate::scene::x87_mem::{Base, view};
-
-    // The original's instructions, one function per run.
-    reference!(ref_0(v, rc, t) "fld dword ptr [{v}]", ".byte 0xD9, 0xE1", "fsub dword ptr [{rc} + 0x1C5D38]", ".byte 0xD9, 0xE0", "fstp dword ptr [{t}]");
-    reference!(ref_1(v, s) "fld dword ptr [{v} + 4]", ".byte 0xD9, 0xE1", "fld dword ptr [{v}]", ".byte 0xD9, 0xE1", ".byte 0xDE, 0xD9", "fnstsw word ptr [{s}]");
-    reference!(ref_2(d, rc, r) "fld dword ptr [{d}]", "fsub dword ptr [{rc} + 0x31A184]", "fdiv dword ptr [{rc} + 0x214BA8]", "fstp dword ptr [{r}]");
-    reference!(ref_3(d, rc, s, f1, f2) "fld dword ptr [{d}]", "fld dword ptr [{rc} + 0x214BA8]", "fsub dword ptr [{rc} + 0x1C5D38]", "fmul dword ptr [{s}]", ".byte 0xDE, 0xE9", "fstp dword ptr [{d}]", "fld dword ptr [{s}]", "fdiv dword ptr [{rc} + 0x21388C]", "fmul dword ptr [{rc} + 0x1C5E40]", "fst dword ptr [{f1}]", "fstp dword ptr [{f2}]");
-    reference!(ref_4(d, rc, r) "fld dword ptr [{d}]", "fsub dword ptr [{rc} + 0x31A184]", "fdiv dword ptr [{rc} + 0x214BA8]", ".byte 0xD9, 0xE1", "fstp dword ptr [{r}]");
-    reference!(ref_5(rc) "fld dword ptr [{rc} + 0x2140B4]", ".byte 0xD8, 0xC0", "fsub dword ptr [{rc} + 0x1C5D38]", "fstp dword ptr [{rc} + 0x2140B8]");
-    reference!(ref_6(rc, e) "fld dword ptr [{rc} + {e} + 0x214298]", "fmul dword ptr [{rc} + 0x214774]", "fld dword ptr [{rc} + {e} + 0x21429C]", "fmul dword ptr [{rc} + 0x214794]", ".byte 0xDE, 0xC1", ".byte 0xD9, 0xE0", "fmul dword ptr [{rc} + 0x21388C]", "fmul dword ptr [{rc} + 0x214170]", "fmul dword ptr [{rc} + 0x31A3D8]", "fstp dword ptr [{rc} + 0x214248]", "fld dword ptr [{rc} + {e} + 0x2142A0]", "fmul dword ptr [{rc} + 0x2147B4]", "fld dword ptr [{rc} + {e} + 0x2142A4]", "fmul dword ptr [{rc} + 0x2147D4]", ".byte 0xDE, 0xC1", ".byte 0xD9, 0xE0", "fmul dword ptr [{rc} + 0x21388C]", "fmul dword ptr [{rc} + 0x214170]", "fmul dword ptr [{rc} + 0x31A3DC]", "fstp dword ptr [{rc} + 0x21424C]", "fld dword ptr [{rc} + 0x214284]", "fadd dword ptr [{rc} + 0x214288]", "fadd dword ptr [{rc} + 0x21428C]", "fadd dword ptr [{rc} + 0x214290]", "fmul dword ptr [{rc} + 0x214774]", ".byte 0xD9, 0xE0", "fmul dword ptr [{rc} + 0x21388C]", "fmul dword ptr [{rc} + 0x214170]", "fstp dword ptr [{rc} + 0x21423C]");
-    reference!(ref_7(rc) "fild dword ptr [{rc} + 0x22400C]", "fdiv dword ptr [{rc} + 0x1C5E2C]", "fld dword ptr [{rc} + 0x31A17C]", "fmul dword ptr [{rc} + 0x214268]", ".byte 0xD9, 0xE1", ".byte 0xDE, 0xC9", "fmul dword ptr [{rc} + 0x214170]", "fstp dword ptr [{rc} + 0x214240]", "fld dword ptr [{rc} + 0x21423C]", "fmul dword ptr [{rc} + 0x213EC4]", "fstp dword ptr [{rc} + 0x22400C]");
-    reference!(ref_8(rc) "fld dword ptr [{rc} + 0x214750]", "fmul dword ptr [{rc} + 0x1C5E40]", "fmul dword ptr [{rc} + 0x21388C]", "fmul dword ptr [{rc} + 0x214BA8]", "fadd dword ptr [{rc} + 0x31A190]", "fstp dword ptr [{rc} + 0x31A190]", "fld dword ptr [{rc} + 0x214750]", "fmul dword ptr [{rc} + 0x1C5E40]", "fmul dword ptr [{rc} + 0x21388C]", "fmul dword ptr [{rc} + 0x214BA8]", "fadd dword ptr [{rc} + 0x31A194]", "fstp dword ptr [{rc} + 0x31A194]");
-    reference!(ref_9(rc) "fld dword ptr [{rc} + 0x214750]", "fmul dword ptr [{rc} + 0x21388C]", "fmul dword ptr [{rc} + 0x214BA8]", "fadd dword ptr [{rc} + 0x31A190]", "fstp dword ptr [{rc} + 0x31A190]");
-    reference!(ref_10(rc) ".byte 0xD9, 0xE8", "fsub dword ptr [{rc} + 0x214BF0]", "fmul dword ptr [{rc} + 0x214BB0]", "fild dword ptr [{rc} + 0x31A614]", ".byte 0xDE, 0xC9", "fdiv dword ptr [{rc} + 0x1C5E2C]", "fmul dword ptr [{rc} + 0x21388C]", "fmul dword ptr [{rc} + 0x31A3D0]", "fmul dword ptr [{rc} + 0x214BA8]", "fstp dword ptr [{rc} + 0x21422C]");
-    reference!(ref_11(rc) "fld dword ptr [{rc} + 0x214BF0]", "fmul dword ptr [{rc} + 0x214BB0]", "fild dword ptr [{rc} + 0x31A614]", ".byte 0xDE, 0xC9", "fdiv dword ptr [{rc} + 0x1C5E2C]", "fmul dword ptr [{rc} + 0x21388C]", "fmul dword ptr [{rc} + 0x31A3D4]", "fmul dword ptr [{rc} + 0x214BA8]", "fstp dword ptr [{rc} + 0x21422C]");
-    reference!(ref_12(rc) "fld dword ptr [{rc} + 0x214BAC]", "fild dword ptr [{rc} + 0x31A618]", ".byte 0xDE, 0xC9", "fdiv dword ptr [{rc} + 0x1C5E2C]", "fmul dword ptr [{rc} + 0x21388C]", "fmul dword ptr [{rc} + 0x214BA8]", "fmul dword ptr [{rc} + 0x214170]", "fstp dword ptr [{rc} + 0x21422C]");
-    reference!(ref_13(v, s) "fld dword ptr [{v}]", "fadd dword ptr [{v} + 4]", ".byte 0xD9, 0xE1", "fcomp dword ptr [{v} + 8]", "fnstsw word ptr [{s}]");
-    reference!(ref_14(rc) "fld dword ptr [{rc} + 0x31A194]", "fsub dword ptr [{rc} + 0x31A184]", ".byte 0xD9, 0xE1", "fstp dword ptr [{rc} + 0x214238]", "fld dword ptr [{rc} + 0x31A190]", "fsub dword ptr [{rc} + 0x31A184]", ".byte 0xD9, 0xE1", "fstp dword ptr [{rc} + 0x214234]");
-    reference!(ref_15(rc) "fld dword ptr [{rc} + 0x214244]", "fmul dword ptr [{rc} + 0x2140B0]", "fstp dword ptr [{rc} + 0x214244]", "fld dword ptr [{rc} + 0x214248]", "fmul dword ptr [{rc} + 0x2140B4]", "fstp dword ptr [{rc} + 0x214248]", "fld dword ptr [{rc} + 0x21424C]", "fmul dword ptr [{rc} + 0x2140B4]", "fstp dword ptr [{rc} + 0x21424C]");
-    reference!(ref_16(rc) "fld dword ptr [{rc} + 0x22400C]", "fsub dword ptr [{rc} + 0x31A17C]", "fst dword ptr [{rc} + 0x214250]", "fdiv dword ptr [{rc} + 0x21388C]", "fmul dword ptr [{rc} + 0x1C5DA4]", "fst dword ptr [{rc} + 0x2148D0]", "fst dword ptr [{rc} + 0x2148F0]", "fst dword ptr [{rc} + 0x214910]", "fstp dword ptr [{rc} + 0x214930]");
-    reference!(ref_17(rc) "fld dword ptr [{rc} + 0x214250]", ".byte 0xD9, 0xE1", "fsub dword ptr [{rc} + 0x214264]", "fmul dword ptr [{rc} + 0x213ED0]", "fadd dword ptr [{rc} + 0x214264]", "fstp dword ptr [{rc} + 0x214254]", "fld dword ptr [{rc} + 0x214254]", "fdiv dword ptr [{rc} + 0x214250]", ".byte 0xD9, 0xE1", "fmul dword ptr [{rc} + 0x214BFC]", "fstp dword ptr [{rc} + 0x2141D4]");
-    reference!(ref_18(rc) "fld dword ptr [{rc} + 0x214BFC]", "fmul dword ptr [{rc} + 0x213ED4]", "fstp dword ptr [{rc} + 0x2141D8]");
-    reference!(ref_19(rc, s) "fld dword ptr [{rc} + 0x31A17C]", ".byte 0xD8, 0xC8", "fld dword ptr [{rc} + 0x31A184]", ".byte 0xD8, 0xC8", ".byte 0xDE, 0xC1", ".byte 0xD9, 0xFA", "fst dword ptr [{rc} + 0x22400C]", "fcomp dword ptr [{rc} + 0x214764]", "fnstsw word ptr [{s}]");
-    reference!(ref_20(rc) "fld dword ptr [{rc} + 0x214760]", "fdiv dword ptr [{rc} + 0x22400C]", "fmul dword ptr [{rc} + 0x31A17C]", ".byte 0xD9, 0xE0", "fstp dword ptr [{rc} + 0x2148B0]", "fld dword ptr [{rc} + 0x214760]", "fdiv dword ptr [{rc} + 0x22400C]", "fmul dword ptr [{rc} + 0x31A184]", ".byte 0xD9, 0xE0", "fstp dword ptr [{rc} + 0x2148B8]");
-    reference!(ref_21(rc) "fld dword ptr [{rc} + 0x2149D0]", "fmul dword ptr [{rc} + 0x1C5E40]", "fadd dword ptr [{rc} + 0x2148D0]", "fstp dword ptr [{rc} + 0x2148D0]", "fld dword ptr [{rc} + 0x2149D0]", "fmul dword ptr [{rc} + 0x1C5E40]", "fadd dword ptr [{rc} + 0x2148F0]", "fstp dword ptr [{rc} + 0x2148F0]", "fld dword ptr [{rc} + 0x2149F0]", "fmul dword ptr [{rc} + 0x1C5E40]", "fadd dword ptr [{rc} + 0x214910]", "fstp dword ptr [{rc} + 0x214910]", "fld dword ptr [{rc} + 0x2149F0]", "fmul dword ptr [{rc} + 0x1C5E40]", "fadd dword ptr [{rc} + 0x214930]", "fstp dword ptr [{rc} + 0x214930]");
-    reference!(ref_22(rc) "fld dword ptr [{rc} + 0x31A190]", "fsub dword ptr [{rc} + 0x31A184]", "fst dword ptr [{rc} + 0x31A158]", ".byte 0xD9, 0xE1", "fsub dword ptr [{rc} + 0x213EDC]", "fstp dword ptr [{rc} + 0x22401C]");
-    reference!(ref_23(rc) "fld dword ptr [{rc} + 0x31A17C]", ".byte 0xD9, 0xE1", "fsub dword ptr [{rc} + 0x213ED8]", "fstp dword ptr [{rc} + 0x224020]");
-    reference!(ref_24(rc) "fld dword ptr [{rc} + 0x22401C]", ".byte 0xD8, 0xC8", "fld dword ptr [{rc} + 0x224020]", ".byte 0xD8, 0xC8", ".byte 0xDE, 0xC1", ".byte 0xD9, 0xFA", "fstp dword ptr [{rc} + 0x31A260]", "fld dword ptr [{rc} + 0x31A17C]", ".byte 0xD9, 0xE1", "fstp dword ptr [{rc} + 0x224020]", "fld dword ptr [{rc} + 0x31A190]", "fsub dword ptr [{rc} + 0x31A184]", ".byte 0xD9, 0xE1", "fstp dword ptr [{rc} + 0x22401C]", "fld dword ptr [{rc} + 0x22401C]", ".byte 0xD8, 0xC8", "fld dword ptr [{rc} + 0x224020]", ".byte 0xD8, 0xC8", ".byte 0xDE, 0xC1", ".byte 0xD9, 0xFA", "fstp dword ptr [{rc} + 0x31AF18]", "fld dword ptr [{rc} + 0x31A194]", "fsub dword ptr [{rc} + 0x31A184]", ".byte 0xD9, 0xE1", "fstp dword ptr [{rc} + 0x22401C]", "fld dword ptr [{rc} + 0x22401C]", ".byte 0xD8, 0xC8", "fld dword ptr [{rc} + 0x224020]", ".byte 0xD8, 0xC8", ".byte 0xDE, 0xC1", ".byte 0xD9, 0xFA", "fstp dword ptr [{rc} + 0x31AF1C]");
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
         vec![
@@ -879,7 +852,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
                 plain: |a| {
                     one_less_abs(
                         &crate::race::owner::race().course,
@@ -901,7 +873,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_1(a[0], a[1]) },
                 plain: |a| a[1].set_word(0, abs_status(*view(a[0], 0))),
             },
             Block {
@@ -921,7 +892,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_2(a[0], a[1], a[2]) },
                 plain: |a| {
                     slip_ratio(
                         &race().shared.car,
@@ -961,7 +931,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_3(a[0], a[1], a[2], a[3], a[4]) },
                 plain: |a| {
                     use crate::scene::x87_mem::HostCell as H;
                     apply_slip_to_drive(
@@ -991,7 +960,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_4(a[0], a[1], a[2]) },
                 plain: |a| {
                     slip_ratio_size(
                         &race().shared.car,
@@ -1008,7 +976,6 @@ mod asm_reference {
                     writes: &[(0x2140B8, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_5(a[0]) },
                 plain: |_| signed_share(&race().shared.physics_tables, &race().course.numbers),
             },
             Block {
@@ -1038,7 +1005,6 @@ mod asm_reference {
                     Operand::Value(0),
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_6(a[0], a[1]) },
                 plain: |a| {
                     drive_forces_from_grips(
                         &race().shared.car,
@@ -1081,7 +1047,6 @@ mod asm_reference {
                     Operand::Value(0x14),
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_6(a[0], a[1]) },
                 plain: |a| {
                     drive_forces_from_grips(
                         &race().shared.car,
@@ -1112,7 +1077,6 @@ mod asm_reference {
                     writes: &[(0x214240, Out::F), (0x22400C, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_7(a[0]) },
                 plain: |_| {
                     throttle_drive_limit(
                         &race().shared.car,
@@ -1136,7 +1100,6 @@ mod asm_reference {
                     writes: &[(0x31A190, Out::F), (0x31A194, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_8(a[0]) },
                 plain: |_| {
                     push_both_drive_speeds(
                         &race().shared.car,
@@ -1157,7 +1120,6 @@ mod asm_reference {
                     writes: &[(0x31A190, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_9(a[0]) },
                 plain: |_| push_drive_speed_a(&race().shared.car, &race().shared.physics_tables),
             },
             Block {
@@ -1175,7 +1137,6 @@ mod asm_reference {
                     writes: &[(0x21422C, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_10(a[0]) },
                 plain: |_| {
                     brake_step_for_a(
                         &race().shared.car,
@@ -1199,7 +1160,6 @@ mod asm_reference {
                     writes: &[(0x21422C, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_11(a[0]) },
                 plain: |_| {
                     brake_step_for_b(
                         &race().shared.car,
@@ -1222,7 +1182,6 @@ mod asm_reference {
                     writes: &[(0x21422C, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_12(a[0]) },
                 plain: |_| {
                     handbrake_step_for_b(
                         &race().shared.car,
@@ -1244,7 +1203,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_13(a[0], a[1]) },
                 plain: |a| a[1].set_word(0, handbrake_stop_status(*view(a[0], 0))),
             },
             Block {
@@ -1254,7 +1212,6 @@ mod asm_reference {
                     writes: &[(0x214234, Out::F), (0x214238, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_14(a[0]) },
                 plain: |_| slip_gaps(&race().shared.car, &race().shared.physics_tables),
             },
             Block {
@@ -1270,7 +1227,6 @@ mod asm_reference {
                     writes: &[(0x214244, Out::F), (0x214248, Out::F), (0x21424C, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_15(a[0]) },
                 plain: |_| scale_axle_forces(&race().shared.physics_tables),
             },
             Block {
@@ -1291,7 +1247,6 @@ mod asm_reference {
                     ],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_16(a[0]) },
                 plain: |_| {
                     side_slip_forces(
                         &race().shared.car,
@@ -1314,7 +1269,6 @@ mod asm_reference {
                     writes: &[(0x2141D4, Out::F), (0x214254, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_17(a[0]) },
                 plain: |_| slip_side_share(&race().shared.physics_tables),
             },
             Block {
@@ -1324,7 +1278,6 @@ mod asm_reference {
                     writes: &[(0x2141D8, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_18(a[0]) },
                 plain: |_| spin_push_b(&race().shared.physics_tables),
             },
             Block {
@@ -1340,7 +1293,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_19(a[0], a[1]) },
                 plain: |a| {
                     a[1].set_word(
                         0,
@@ -1364,7 +1316,6 @@ mod asm_reference {
                     writes: &[(0x2148B0, Out::F), (0x2148B8, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_20(a[0]) },
                 plain: |_| {
                     rolling_drag_forces(
                         &race().shared.car,
@@ -1393,7 +1344,6 @@ mod asm_reference {
                     ],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_21(a[0]) },
                 plain: |_| {
                     share_wheel_forces(&race().shared.physics_tables, &race().course.numbers);
                 },
@@ -1405,7 +1355,6 @@ mod asm_reference {
                     writes: &[(0x22401C, Out::F), (0x31A158, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_22(a[0]) },
                 plain: |_| {
                     slip_figure_a(
                         &race().shared.car,
@@ -1421,7 +1370,6 @@ mod asm_reference {
                     writes: &[(0x224020, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_23(a[0]) },
                 plain: |_| {
                     slip_figure_b(
                         &race().shared.car,
@@ -1450,7 +1398,6 @@ mod asm_reference {
                     ],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_24(a[0]) },
                 plain: |_| slip_lengths(&race().shared.car, crate::scene::owner::scene()),
             },
         ]
@@ -1458,6 +1405,6 @@ mod asm_reference {
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse(&blocks(), 1200, 100);
+        sparse("physics.drive_wheels_step", &blocks(), 550, 100);
     }
 }

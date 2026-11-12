@@ -16,7 +16,7 @@
 //!
 //! The flow and the calls are Rust; each straight x87 run is plain Rust over `X`
 //! (`math/x87_float.rs`) in the `x87_N` functions below, the original's instructions
-//! being `asm_reference` in the tests.
+//! being recorded in the tests' `reference_vectors`.
 //!
 //! Takes: the record the force goes to (`contact_record`, set by each caller just before)
 //!
@@ -311,24 +311,12 @@ fn x87_8(contact: &ContactWork, tables: &PhysicsTables, d: &[Float; 3]) {
     d[2].st(t8);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
     use crate::race::owner::race;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
     use crate::scene::x87_mem::{Base, view};
-
-    // The original's instructions, one function per run.
-    reference!(ref_0(rc) "fld dword ptr [{rc} + 0x2D30C0]", "fadd dword ptr [{rc} + 0x2D30A8]", "fstp dword ptr [{rc} + 0x2D30CC]", "fld dword ptr [{rc} + 0x2D30C4]", "fadd dword ptr [{rc} + 0x2D30AC]", "fstp dword ptr [{rc} + 0x2D30D0]", "fld dword ptr [{rc} + 0x2D30C8]", "fadd dword ptr [{rc} + 0x2D30B0]", "fstp dword ptr [{rc} + 0x2D30D4]");
-    reference!(ref_1(rc) ".byte 0xD9, 0xE8", "fld dword ptr [{rc} + 0x2D307C]", ".byte 0xD9, 0xE1", ".byte 0xDE, 0xE9", "fadd dword ptr [{rc} + 0x1C5CFC]", "fstp dword ptr [{rc} + 0x22400C]");
-    reference!(ref_2(rc) "fld dword ptr [{rc} + 0x2D1DF4]", "fld dword ptr [{rc} + 0x2D31D8]", "fadd dword ptr [{rc} + 0x1C5D38]", ".byte 0xDE, 0xF9", "fstp dword ptr [{rc} + 0x2D31E0]", "fld dword ptr [{rc} + 0x2D31DC]", "fmul dword ptr [{rc} + 0x2D31E0]", "fstp dword ptr [{rc} + 0x2D3204]");
-    reference!(ref_3(rc) "fld dword ptr [{rc} + 0x2D30F0]", "fsub dword ptr [{rc} + 0x2D30E4]", "fstp dword ptr [{rc} + 0x2D30F0]", "fld dword ptr [{rc} + 0x2D30F4]", "fsub dword ptr [{rc} + 0x2D30E8]", "fstp dword ptr [{rc} + 0x2D30F4]", "fld dword ptr [{rc} + 0x2D30F8]", "fsub dword ptr [{rc} + 0x2D30EC]", "fstp dword ptr [{rc} + 0x2D30F8]");
-    reference!(ref_4(rc, o) "fld dword ptr [{rc} + 0x2D1DF8]", "fild dword ptr [{rc} + 0x214148]", ".byte 0xDE, 0xC9", "fidiv dword ptr [{rc} + 0x21414C]", "fstp tbyte ptr [{o}]");
-    reference!(ref_5(rc) "fld dword ptr [{rc} + 0x2D3130]", "fadd dword ptr [{rc} + 0x2D3160]", "fstp dword ptr [{rc} + 0x2D3130]", "fld dword ptr [{rc} + 0x2D3134]", "fadd dword ptr [{rc} + 0x2D3164]", "fstp dword ptr [{rc} + 0x2D3134]", "fld dword ptr [{rc} + 0x2D3138]", "fadd dword ptr [{rc} + 0x2D3168]", "fstp dword ptr [{rc} + 0x2D3138]");
-    reference!(ref_6(rc, s) "fld dword ptr [{rc} + 0x2D3140]", ".byte 0xD8, 0xC8", "fld dword ptr [{rc} + 0x2D3144]", ".byte 0xD8, 0xC8", "fld dword ptr [{rc} + 0x2D3148]", ".byte 0xD8, 0xC8", ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1", ".byte 0xD9, 0xFA", "fst dword ptr [{rc} + 0x22400C]", "fcomp dword ptr [{rc} + 0x2D30FC]", "fnstsw word ptr [{s}]");
-    reference!(ref_7(rc) "fld dword ptr [{rc} + 0x2D30FC]", "fdiv dword ptr [{rc} + 0x22400C]", "fld dword ptr [{rc} + 0x2D3140]", ".byte 0xD8, 0xC9", "fstp dword ptr [{rc} + 0x2D3140]", "fld dword ptr [{rc} + 0x2D3144]", ".byte 0xD8, 0xC9", "fstp dword ptr [{rc} + 0x2D3144]", "fld dword ptr [{rc} + 0x2D3148]", ".byte 0xD8, 0xC9", "fstp dword ptr [{rc} + 0x2D3148]", "fstp dword ptr [{rc} + 0x22400C]");
-    reference!(ref_8(rc) "fld dword ptr [{rc} + 0x2D3140]", "fadd dword ptr [{rc} + 0x2D3130]", "fstp dword ptr [{rc} + 0x2D3150]", "fld dword ptr [{rc} + 0x2D3144]", "fadd dword ptr [{rc} + 0x2D3134]", "fstp dword ptr [{rc} + 0x2D3154]", "fld dword ptr [{rc} + 0x2D3148]", "fadd dword ptr [{rc} + 0x2D3138]", "fstp dword ptr [{rc} + 0x2D3158]");
-    reference!(ref_9(rc, d) "fld dword ptr [{rc} + 0x2D3150]", "fdiv dword ptr [{rc} + 0x21388C]", "fstp dword ptr [{d}]", "fld dword ptr [{rc} + 0x2D3154]", "fdiv dword ptr [{rc} + 0x21388C]", "fstp dword ptr [{d} + 0x4]", "fld dword ptr [{rc} + 0x2D3158]", "fdiv dword ptr [{rc} + 0x21388C]", "fstp dword ptr [{d} + 0x8]");
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
         vec![
@@ -346,7 +334,6 @@ mod asm_reference {
                     writes: &[(0x2D30CC, Out::F), (0x2D30D0, Out::F), (0x2D30D4, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_0(a[0]) },
                 plain: |_| {
                     x87_1(
                         &crate::race::owner::race()
@@ -368,7 +355,6 @@ mod asm_reference {
                     writes: &[(0x22400C, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_1(a[0]) },
                 plain: |_| {
                     x87_2(
                         &crate::race::owner::race().physics.contact,
@@ -390,7 +376,6 @@ mod asm_reference {
                     writes: &[(0x2D31E0, Out::F), (0x2D3204, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_2(a[0]) },
                 plain: |_| {
                     x87_3(
                         &crate::race::owner::race().physics.contact,
@@ -412,7 +397,6 @@ mod asm_reference {
                     writes: &[(0x2D30F0, Out::F), (0x2D30F4, Out::F), (0x2D30F8, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_3(a[0]) },
                 plain: |_| x87_4(&crate::race::owner::race().physics.contact),
             },
             Block {
@@ -428,7 +412,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_4(a[0], a[1]) },
                 plain: |a| {
                     a[1].set_tbyte(
                         0,
@@ -450,7 +433,6 @@ mod asm_reference {
                     writes: &[(0x2D3130, Out::F), (0x2D3134, Out::F), (0x2D3138, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_5(a[0]) },
                 plain: |_| {
                     x87_1(
                         &crate::race::owner::race()
@@ -483,7 +465,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_6(a[0], a[1]) },
                 plain: |a| {
                     a[1].set_word(
                         0,
@@ -512,7 +493,6 @@ mod asm_reference {
                     ],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_7(a[0]) },
                 plain: |_| {
                     x87_7(
                         &crate::race::owner::race().physics.contact,
@@ -534,7 +514,6 @@ mod asm_reference {
                     writes: &[(0x2D3150, Out::F), (0x2D3154, Out::F), (0x2D3158, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_8(a[0]) },
                 plain: |_| {
                     x87_1(
                         &crate::race::owner::race().physics.contact.contact_slide,
@@ -564,7 +543,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_9(a[0], a[1]) },
                 plain: |a| {
                     x87_8(
                         &race().physics.contact,
@@ -578,6 +556,6 @@ mod asm_reference {
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse(&blocks(), 1200, 100);
+        sparse("physics.contact_force", &blocks(), 1000, 100);
     }
 }

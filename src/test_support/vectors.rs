@@ -811,3 +811,326 @@ fn run_sparse(
     }
     file.finish();
 }
+
+// ---- blocks over the race block's places (lane t5rest) ----
+
+/// Blocks that read and write places of the race block (by their offsets from its start) and
+/// of buffers of the test's own, the Rust version run on the typed stores: the original's
+/// results recorded once, replayed against `plain`.
+pub mod block_vectors {
+    use super::{CONTROL_WORDS, Recorder, Restore, Rng, close_float, put_t80};
+    use crate::math::x87::{control_word, set_control_word};
+
+    pub use super::{In, Out};
+
+    /// An operand of a block: the memory a register addresses (the places read and written,
+    /// as offsets from it) or a value (an index).
+    pub enum Operand {
+        Buffer {
+            reads: &'static [(usize, In)],
+            writes: &'static [(usize, Out)],
+        },
+        Value(usize),
+        /// The race block itself: the places are offsets from its start, read and written
+        /// where the typed stores see them; put back after the block's cases.
+        RaceBlock {
+            reads: &'static [(usize, In)],
+            writes: &'static [(usize, Out)],
+        },
+        /// The tail of the image that held the race's buffers, as `RaceBlock`.
+        Buffers {
+            reads: &'static [(usize, In)],
+            writes: &'static [(usize, Out)],
+        },
+    }
+
+    type Places = (&'static [(usize, In)], &'static [(usize, Out)]);
+
+    impl Operand {
+        fn places(&self) -> Option<Places> {
+            match *self {
+                Operand::Buffer { reads, writes }
+                | Operand::RaceBlock { reads, writes }
+                | Operand::Buffers { reads, writes } => Some((reads, writes)),
+                Operand::Value(_) => None,
+            }
+        }
+    }
+
+    /// A block: its operands, how many float ulps apart a result may be (a transcendental's:
+    /// libm's, not the x87's) and the Rust version, given the operands' values.
+    pub struct Block {
+        pub name: &'static str,
+        pub operands: Vec<Operand>,
+        pub ulps: i64,
+        pub plain: fn(&[usize]),
+    }
+
+    /// The memory at an operand's value (a buffer's or the race block's address) as the
+    /// Rust versions' test closures reach it: the one place the tests turn such a value
+    /// into a pointer.
+    pub fn at(address: usize) -> *mut u8 {
+        crate::pointers::host_at(address)
+    }
+
+    /// An operand's memory: a buffer of the test's, or the race block at its offsets.
+    enum Mem {
+        Buffer(Vec<u8>),
+        Block,
+        None,
+    }
+
+    fn block_at(off: usize) -> u32 {
+        crate::framework::game_addr(off)
+    }
+
+    impl Mem {
+        fn get(&self, off: usize, len: usize) -> Vec<u8> {
+            match self {
+                Mem::Buffer(v) => v[off..off + len].to_vec(),
+                Mem::Block => crate::pointers::GamePtr::new(block_at(off))
+                    .read_bytes(len, "a race block place")
+                    .unwrap(),
+                Mem::None => Vec::new(),
+            }
+        }
+
+        fn put(&mut self, off: usize, bytes: &[u8]) {
+            match self {
+                Mem::Buffer(v) => v[off..off + bytes.len()].copy_from_slice(bytes),
+                Mem::Block => crate::pointers::GamePtr::new(block_at(off))
+                    .write_bytes(bytes, "a race block place")
+                    .unwrap(),
+                Mem::None => {}
+            }
+        }
+    }
+
+    fn width_in(k: In) -> usize {
+        match k {
+            In::T => 10,
+            _ => 4,
+        }
+    }
+
+    fn width_out(k: Out) -> usize {
+        match k {
+            Out::T => 10,
+            Out::H => 2,
+            _ => 4,
+        }
+    }
+
+    /// The race block's places put back (also when a comparison fails).
+    struct PutBack(Vec<(usize, Vec<u8>)>);
+
+    impl Drop for PutBack {
+        fn drop(&mut self) {
+            for (off, bytes) in self.0.iter().rev() {
+                Mem::Block.put(*off, bytes);
+            }
+        }
+    }
+
+    /// Replays the vectors `name`: each block `cases` times at every control word on seeded
+    /// random inputs at the places it reads, the Rust version compared at every place it
+    /// writes with the original's results (floats within the block's ulps or both NaN,
+    /// whole numbers and 80-bit values bit for bit, the status words' condition bits).
+    pub fn sparse(name: &str, blocks: &[Block], cases: u32, seed: u64) {
+        sparse_at(name, blocks, cases, seed, &CONTROL_WORDS);
+    }
+
+    /// `sparse` at the control words `words` only.
+    pub fn sparse_at(name: &str, blocks: &[Block], cases: u32, seed: u64, words: &[u16]) {
+        run(Recorder::replay(name), blocks, cases, seed, words);
+    }
+
+    fn run(mut file: Recorder, blocks: &[Block], cases: u32, seed: u64, words: &[u16]) {
+        let _g = crate::store::test_lock();
+        let _restore = Restore(control_word());
+        let mut rng = Rng::new(seed);
+        const SIMPLE: [f32; 5] = [0.0, -0.0, 1.0, -1.0, 0.5];
+        for &cw in words {
+            set_control_word(cw);
+            for block in blocks {
+                let mut buffers: Vec<Mem> = Vec::new();
+                let mut args: Vec<usize> = Vec::new();
+                let mut lents: Vec<crate::pointers::Lent> = Vec::new();
+                // the race block's places as they were, put back after the cases
+                let mut saved: Vec<(usize, Vec<u8>)> = Vec::new();
+                for o in &block.operands {
+                    match o {
+                        Operand::Buffer { reads, writes } => {
+                            let end = reads
+                                .iter()
+                                .map(|&(off, k)| off + width_in(k))
+                                .chain(writes.iter().map(|&(off, k)| off + width_out(k)))
+                                .max()
+                                .unwrap_or(0);
+                            let v = vec![0u8; end + 16];
+                            // Lent while the block runs: its operands are checked as game memory.
+                            let lent = crate::pointers::Lent::new(&v);
+                            args.push(lent.addr() as usize);
+                            lents.push(lent);
+                            buffers.push(Mem::Buffer(v));
+                        }
+                        Operand::RaceBlock { reads, writes }
+                        | Operand::Buffers { reads, writes } => {
+                            args.push(match o {
+                                Operand::Buffers { .. } => crate::race::buffers_store::home()
+                                    .wrapping_sub(crate::framework::rva(
+                                        crate::race::buffers_store::START,
+                                    )),
+                                _ => crate::race::store::asm_base() as usize,
+                            });
+                            let places = reads
+                                .iter()
+                                .map(|&(off, k)| (off, width_in(k)))
+                                .chain(writes.iter().map(|&(off, k)| (off, width_out(k))));
+                            saved.extend(places.map(|(off, len)| (off, Mem::Block.get(off, len))));
+                            buffers.push(Mem::Block);
+                        }
+                        Operand::Value(x) => {
+                            args.push(*x);
+                            buffers.push(Mem::None);
+                        }
+                    }
+                }
+                let _put_back = PutBack(saved);
+                // the places written, as (operand, offset, kind)
+                let mut places: Vec<(usize, usize, Out)> = Vec::new();
+                for (n, o) in block.operands.iter().enumerate() {
+                    if let Some((_, writes)) = o.places() {
+                        places.extend(writes.iter().map(|&(off, k)| (n, off, k)));
+                    }
+                }
+                let read_out = |buffers: &Vec<Mem>| -> Vec<u8> {
+                    places
+                        .iter()
+                        .flat_map(|&(n, off, k)| buffers[n].get(off, width_out(k)))
+                        .collect()
+                };
+                let (mut nans, mut floats) = (0u32, 0u32);
+                for case in 0..cases {
+                    let moderate = rng.below(2) == 0;
+                    let simple = rng.below(8) == 0;
+                    for (o, buf) in block.operands.iter().zip(buffers.iter_mut()) {
+                        let Some((reads, writes)) = o.places() else {
+                            continue;
+                        };
+                        for &(off, k) in writes.iter() {
+                            buf.put(off, &[0xAA; 10][..width_out(k)]);
+                        }
+                        for &(off, k) in reads.iter() {
+                            match k {
+                                In::F => {
+                                    let bits = if simple {
+                                        SIMPLE[rng.below(5) as usize].to_bits()
+                                    } else if moderate {
+                                        rng.moderate()
+                                    } else {
+                                        rng.fl()
+                                    };
+                                    buf.put(off, &bits.to_le_bytes());
+                                }
+                                In::I => {
+                                    let v = if simple {
+                                        rng.below(3) as u32
+                                    } else {
+                                        rng.int()
+                                    };
+                                    buf.put(off, &v.to_le_bytes());
+                                }
+                                In::T => {
+                                    let bits = if moderate { rng.moderate() } else { rng.fl() };
+                                    let mut m = [0u32; 3];
+                                    put_t80(&mut m, 0, bits);
+                                    let bytes: Vec<u8> =
+                                        m.iter().flat_map(|d| d.to_le_bytes()).collect();
+                                    buf.put(off, &bytes[..10]);
+                                }
+                            }
+                        }
+                    }
+                    // the inputs: every place the block reads or writes, kept to run it twice
+                    let mut touched: Vec<(usize, usize, Vec<u8>)> = Vec::new();
+                    for (n, o) in block.operands.iter().enumerate() {
+                        if let Some((reads, writes)) = o.places() {
+                            for &(off, k) in reads.iter() {
+                                touched.push((n, off, buffers[n].get(off, width_in(k))));
+                            }
+                            for &(off, k) in writes.iter() {
+                                touched.push((n, off, buffers[n].get(off, width_out(k))));
+                            }
+                        }
+                    }
+                    for (_, _, bytes) in &touched {
+                        file.input(bytes);
+                    }
+                    let before = read_out(&buffers);
+                    let expected = file.results(&before, || unreachable!("replayed"));
+                    (block.plain)(&args);
+                    let made = read_out(&buffers);
+                    let mut at = 0;
+                    for &(n, off, kind) in &places {
+                        let len = width_out(kind);
+                        let (a, b) = (&expected[at..at + len], &made[at..at + len]);
+                        at += len;
+                        let ok = match kind {
+                            Out::F => {
+                                let (x, y) = (
+                                    u32::from_le_bytes(a.try_into().unwrap()),
+                                    u32::from_le_bytes(b.try_into().unwrap()),
+                                );
+                                floats += 1;
+                                nans += u32::from(f32::from_bits(x).is_nan());
+                                close_float(x, y, block.ulps)
+                            }
+                            Out::I | Out::T => a == b,
+                            Out::H => {
+                                let (x, y) = (
+                                    u16::from_le_bytes(a.try_into().unwrap()),
+                                    u16::from_le_bytes(b.try_into().unwrap()),
+                                );
+                                x & 0x4700 == y & 0x4700
+                            }
+                        };
+                        assert!(
+                            ok,
+                            "{}: control word {cw:#06X}, case {case}, operand {n} offset {off:#X}: reference {a:02X?}, plain {b:02X?}",
+                            block.name
+                        );
+                    }
+                }
+                // results that are all NaN compare equal whatever they are
+                assert!(
+                    nans * 4 <= floats * 3,
+                    "{}: {nans} of {floats} compared floats are NaN",
+                    block.name
+                );
+            }
+        }
+        file.finish();
+    }
+}
+
+// ---- single words (lane t5rest) ----
+
+/// A case's result word, read from the file.
+pub fn word(file: &mut Recorder) -> u32 {
+    let bytes = file.results(&[0; 4], || unreachable!("replayed"));
+    u32::from_le_bytes(bytes.try_into().unwrap())
+}
+
+/// A case's result words.
+pub fn words<const N: usize>(file: &mut Recorder) -> [u32; N] {
+    let bytes = file.results(&[0; 4].repeat(N), || unreachable!("replayed"));
+    std::array::from_fn(|k| u32::from_le_bytes(bytes[4 * k..4 * k + 4].try_into().unwrap()))
+}
+
+/// A case's result bytes.
+pub fn bytes<const N: usize>(file: &mut Recorder) -> [u8; N] {
+    file.results(&[0; N], || unreachable!("replayed"))
+        .try_into()
+        .unwrap()
+}

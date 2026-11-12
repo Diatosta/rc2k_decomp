@@ -157,13 +157,14 @@ pub fn build_game_fonts(
 pub fn build_game_fonts_in_game(
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
+    strings: &crate::strings::owner::Strings,
 ) -> Result<(), Refused> {
     build_game_fonts(
         &gfx.sheet,
         &gfx.fonts.font_block.game_fonts[3].palette,
         gfx,
         system,
-        crate::strings::owner::strings(),
+        strings,
     )
 }
 

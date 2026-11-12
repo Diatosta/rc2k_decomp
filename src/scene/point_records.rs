@@ -28,17 +28,10 @@ pub type Record = [u32; 8];
 pub type Records = [[Dword; 8]; COUNT as usize];
 
 /// The records, one set per drawing part (`workers::PartScratch`): a record is a part's own
-/// projection, made again by another part that needs it.
+/// projection, made again by another part that needs it. Every reader below is handed the
+/// part's scratch.
 pub(crate) static RECORDS: [Records; crate::workers::COUNT] =
     [const { [const { [const { Dword::new(0) }; 8] }; COUNT as usize] }; crate::workers::COUNT];
-
-/// The scratch of the drawing part running on this thread (`workers::part_scratch`): the
-/// records and the clipper's pool it reaches. (Not yet handed down from the part: the
-/// records' readers are the polygon code's every step.)
-#[inline]
-fn running_part() -> &'static crate::workers::PartScratch {
-    crate::workers::part_scratch(crate::workers::index())
-}
 
 /// Whether the records are taken.
 static TAKEN: AtomicBool = AtomicBool::new(false);
@@ -66,19 +59,20 @@ pub fn give_back() {
 
 /// The first `n` records' cells in every drawing thread's copy (copy 0 first): a clear
 /// of the records reaches them all, so no copy keeps a record of an earlier frame. While
-/// views are drawn beside each other (`workers::draw_beside`) only the running thread's
-/// copy: the other view's are its own, being drawn.
-pub fn first_records_everywhere(
+/// views are drawn beside each other (`workers::draw_beside`) only `part`'s copy (the
+/// drawing part clearing them): the other view's are its own, being drawn.
+pub fn first_records_everywhere<'a>(
+    part: &'a crate::workers::PartScratch,
     n: usize,
-) -> Result<impl Iterator<Item = &'static [Dword; 8]>, BadInput> {
+) -> Result<impl Iterator<Item = &'a [Dword; 8]>, BadInput> {
     if !TAKEN.load(Ordering::Relaxed) {
         return Err(BadInput("no point records"));
     }
     if n > COUNT as usize {
         return Err(BadInput("a point record past the block"));
     }
-    let copies: &'static [_] = if crate::workers::beside() {
-        std::slice::from_ref(running_part().records)
+    let copies: &'a [_] = if crate::workers::beside() {
+        std::slice::from_ref(part.records)
     } else {
         &RECORDS
     };
@@ -124,32 +118,40 @@ pub fn of_pool(k: u32) -> u32 {
     POOL_FIRST + k
 }
 
-/// The cells of record `r`, of whichever kind; `quad` is the view's quad vertices
-/// (`PolygonWork::quad_vertices`), `None` outside a view's drawing (a quad record is then
-/// refused).
+/// The cells of record `r` in `part`'s records, of whichever kind; `quad` is the view's quad
+/// vertices (`PolygonWork::quad_vertices`), `None` outside a view's drawing (a quad record is
+/// then refused).
 #[inline]
-fn cells(r: u32, quad: Option<&[Dword; 32]>) -> Result<&[Dword; 8], BadInput> {
+fn cells<'a>(
+    part: &'a crate::workers::PartScratch,
+    r: u32,
+    quad: Option<&'a [Dword; 32]>,
+) -> Result<&'a [Dword; 8], BadInput> {
     if r > COUNT {
-        return far_cells(r, quad);
+        return far_cells(part, r, quad);
     }
     if !TAKEN.load(Ordering::Relaxed) {
         return Err(BadInput("no point records"));
     }
     (r as usize)
         .checked_sub(1)
-        .and_then(|k| running_part().records.get(k))
+        .and_then(|k| part.records.get(k))
         .ok_or(BadInput("a point record past the block"))
 }
 
-/// The cells of a quad vertex's or a pool record.
-fn far_cells<'a>(r: u32, quad: Option<&'a [Dword; 32]>) -> Result<&'a [Dword; 8], BadInput> {
+/// The cells of a quad vertex's or a pool record (`part`'s pool).
+fn far_cells<'a>(
+    part: &'a crate::workers::PartScratch,
+    r: u32,
+    quad: Option<&'a [Dword; 32]>,
+) -> Result<&'a [Dword; 8], BadInput> {
     let (all, k): (&'a [Dword], u32) = match r {
         _ if (QUAD_FIRST..POOL_FIRST).contains(&r) => (
             quad.ok_or(BadInput("a quad vertex outside a view's drawing"))?,
             r - QUAD_FIRST,
         ),
         _ if (POOL_FIRST..POOL_FIRST + POOL).contains(&r) => {
-            (&running_part().polygon.record_pool, r - POOL_FIRST)
+            (&part.polygon.record_pool, r - POOL_FIRST)
         }
         _ => return Err(BadInput("a point record past the records")),
     };
@@ -169,29 +171,38 @@ fn cell(cells: &[Dword; 8], offset: u32) -> Result<&Dword, BadInput> {
     Err(BadInput("a field past a point record"))
 }
 
-/// Record `r`; refused for none or one past the records.
+/// Record `r` of `part`'s records; refused for none or one past the records.
 #[inline]
-pub fn get(r: u32) -> Result<Record, BadInput> {
-    get_in(None, r)
+pub fn get(part: &crate::workers::PartScratch, r: u32) -> Result<Record, BadInput> {
+    get_in(part, None, r)
 }
 
 /// `get` with the view's quad vertices (`PolygonWork::quad_vertices`).
 #[inline]
-pub fn get_in(quad: Option<&[Dword; 32]>, r: u32) -> Result<Record, BadInput> {
-    let cells = cells(r, quad)?;
+pub fn get_in(
+    part: &crate::workers::PartScratch,
+    quad: Option<&[Dword; 32]>,
+    r: u32,
+) -> Result<Record, BadInput> {
+    let cells = cells(part, r, quad)?;
     Ok(std::array::from_fn(|k| cells[k].get()))
 }
 
 /// Record `r` set to `record`; refused as `get`.
 #[inline]
-pub fn set(r: u32, record: Record) -> Result<(), BadInput> {
-    set_in(None, r, record)
+pub fn set(part: &crate::workers::PartScratch, r: u32, record: Record) -> Result<(), BadInput> {
+    set_in(part, None, r, record)
 }
 
 /// `set` with the view's quad vertices.
 #[inline]
-pub fn set_in(quad: Option<&[Dword; 32]>, r: u32, record: Record) -> Result<(), BadInput> {
-    for (cell, v) in cells(r, quad)?.iter().zip(record) {
+pub fn set_in(
+    part: &crate::workers::PartScratch,
+    quad: Option<&[Dword; 32]>,
+    r: u32,
+    record: Record,
+) -> Result<(), BadInput> {
+    for (cell, v) in cells(part, r, quad)?.iter().zip(record) {
         cell.set(v);
     }
     Ok(())
@@ -199,31 +210,42 @@ pub fn set_in(quad: Option<&[Dword; 32]>, r: u32, record: Record) -> Result<(), 
 
 /// The dword at `offset` of record `r`; refused for an offset past the record.
 #[inline]
-pub fn field(r: u32, offset: u32) -> Result<u32, BadInput> {
-    field_in(None, r, offset)
+pub fn field(part: &crate::workers::PartScratch, r: u32, offset: u32) -> Result<u32, BadInput> {
+    field_in(part, None, r, offset)
 }
 
 /// `field` with the view's quad vertices.
 #[inline]
-pub fn field_in(quad: Option<&[Dword; 32]>, r: u32, offset: u32) -> Result<u32, BadInput> {
-    Ok(cell(cells(r, quad)?, offset)?.get())
+pub fn field_in(
+    part: &crate::workers::PartScratch,
+    quad: Option<&[Dword; 32]>,
+    r: u32,
+    offset: u32,
+) -> Result<u32, BadInput> {
+    Ok(cell(cells(part, r, quad)?, offset)?.get())
 }
 
 /// The dword at `offset` of record `r` set to `v`; refused as `field`.
 #[inline]
-pub fn put_field(r: u32, offset: u32, v: u32) -> Result<(), BadInput> {
-    put_field_in(None, r, offset, v)
+pub fn put_field(
+    part: &crate::workers::PartScratch,
+    r: u32,
+    offset: u32,
+    v: u32,
+) -> Result<(), BadInput> {
+    put_field_in(part, None, r, offset, v)
 }
 
 /// `put_field` with the view's quad vertices.
 #[inline]
 pub fn put_field_in(
+    part: &crate::workers::PartScratch,
     quad: Option<&[Dword; 32]>,
     r: u32,
     offset: u32,
     v: u32,
 ) -> Result<(), BadInput> {
-    cell(cells(r, quad)?, offset)?.set(v);
+    cell(cells(part, r, quad)?, offset)?.set(v);
     Ok(())
 }
 
@@ -231,14 +253,18 @@ pub fn put_field_in(
 /// original's read of a wrong address went wrong (the polygon code's reads cannot carry
 /// one).
 #[inline]
-pub fn vertex(quad: &[Dword; 32], v: u32, offset: u32) -> u32 {
-    field_in(Some(quad), v, offset)
+pub fn vertex(part: &crate::workers::PartScratch, quad: &[Dword; 32], v: u32, offset: u32) -> u32 {
+    field_in(part, Some(quad), v, offset)
         .unwrap_or_else(|e| crate::fatal::raise::end("a point record", e))
 }
 
 /// A polygon vertex's whole record (as `vertex`), its bytes.
-pub fn vertex_bytes(quad: &[Dword; 32], v: u32) -> Result<[u8; 32], BadInput> {
-    let record = get_in(Some(quad), v)?;
+pub fn vertex_bytes(
+    part: &crate::workers::PartScratch,
+    quad: &[Dword; 32],
+    v: u32,
+) -> Result<[u8; 32], BadInput> {
+    let record = get_in(part, Some(quad), v)?;
     Ok(std::array::from_fn(|n| record[n / 4].to_le_bytes()[n % 4]))
 }
 
@@ -258,25 +284,26 @@ mod tests {
         assert_eq!(at_offset(0x20 * 5), of_scene_point(0x1005));
         assert_eq!(of_object_point(3), at_offset(0x20 * 0x1003));
         let quad = [const { Dword::new(0) }; 32];
-        put_field(of_scene_point(7), 0x18, 42).unwrap();
-        assert_eq!(vertex(&quad, of_scene_point(7), 0x18), 42);
-        assert_eq!(get(8).unwrap()[6], 42);
-        assert!(get(0).is_err());
-        assert!(field(1, 0x20).is_err() && field(1, 2).is_err());
+        let part = crate::workers::game_scratch();
+        put_field(part, of_scene_point(7), 0x18, 42).unwrap();
+        assert_eq!(vertex(part, &quad, of_scene_point(7), 0x18), 42);
+        assert_eq!(get(part, 8).unwrap()[6], 42);
+        assert!(get(part, 0).is_err());
+        assert!(field(part, 1, 0x20).is_err() && field(part, 1, 2).is_err());
         // after the point records the quad vertices, then the clipper's pool, by their cells
         assert_eq!((of_quad(0), of_pool(0)), (COUNT + 1, COUNT + 1 + QUADS));
-        let pool = &crate::workers::game_scratch().polygon.record_pool;
+        let pool = &part.polygon.record_pool;
         let (kept_quad, kept_pool) = (
-            get_in(Some(&quad), of_quad(3)).unwrap(),
-            get(of_pool(POOL - 1)).unwrap(),
+            get_in(part, Some(&quad), of_quad(3)).unwrap(),
+            get(part, of_pool(POOL - 1)).unwrap(),
         );
-        put_field_in(Some(&quad), of_quad(3), 0x1C, 7).unwrap();
-        put_field(of_pool(POOL - 1), 0, 9).unwrap();
+        put_field_in(part, Some(&quad), of_quad(3), 0x1C, 7).unwrap();
+        put_field(part, of_pool(POOL - 1), 0, 9).unwrap();
         assert_eq!((quad[31].get(), pool[0x800].get()), (7, 9));
-        set_in(Some(&quad), of_quad(3), kept_quad).unwrap();
-        assert!(get(of_quad(0)).is_err());
-        set(of_pool(POOL - 1), kept_pool).unwrap();
-        assert!(get(of_pool(POOL)).is_err() && get(0x1_0000).is_err());
+        set_in(part, Some(&quad), of_quad(3), kept_quad).unwrap();
+        assert!(get(part, of_quad(0)).is_err());
+        set(part, of_pool(POOL - 1), kept_pool).unwrap();
+        assert!(get(part, of_pool(POOL)).is_err() && get(part, 0x1_0000).is_err());
         give_back();
         course.lists.point_records.set(kept);
         crate::memory::with_figures(|f| *f = figures);

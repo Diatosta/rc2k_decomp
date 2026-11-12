@@ -73,10 +73,10 @@ impl SceneHandOff {
 
     /// The scene's values kept (at its end; the matrices' fourth columns the part's own,
     /// `scene::view_matrices::current_matrix`).
-    pub fn keep(&self, race: &Race) {
+    pub fn keep(&self, race: &Race, part: &crate::workers::PartScratch) {
         let m = &race.frame.matrices;
         for (kept, n) in [(&self.lit, 1), (&self.made, 2)] {
-            let now = crate::scene::view_matrices::current_matrix(m, n);
+            let now = crate::scene::view_matrices::current_matrix(m, part, n);
             for (cell, v) in kept.iter().zip(now) {
                 cell.set(v);
             }

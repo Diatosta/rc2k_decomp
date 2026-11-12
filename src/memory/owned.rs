@@ -110,7 +110,7 @@ impl<T> Owned<T> {
     }
 
     /// The value set without counting it: the 32-bit build's tests of code that reads it.
-    #[cfg(all(test, target_arch = "x86"))]
+    #[cfg(test)]
     pub fn set(&self, value: T) {
         *self.lock() = Some(Box::new(value));
     }

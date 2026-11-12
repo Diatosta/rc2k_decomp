@@ -21,7 +21,7 @@
 //!
 //! `record_offset` is the core's (`rc2k_core::scene::projection`); the arithmetic is the
 //! x87's, in plain Rust over `X` (`math/x87_float.rs`), as the original's instructions
-//! are kept as `asm_reference` in the tests.
+//! are kept as recorded in the tests' `reference_vectors`.
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::math::x87;
@@ -175,6 +175,7 @@ pub struct Projected {
 /// A scene point's record made anew (the same code as in `project_point`): the point through the view's matrix and onto the screen.
 pub(crate) fn make_scene_record(
     race: &Race,
+    part: &crate::workers::PartScratch,
     point: u32,
     record: u32,
     scene: &crate::scene::owner::Scene,
@@ -185,7 +186,7 @@ pub(crate) fn make_scene_record(
         return Err(BadInput("no points"));
     }
     // Made on a copy of the record (`scene::point_records`), then stored.
-    let mut r = point_records::get(record)?;
+    let mut r = point_records::get(part, record)?;
     r[0] = point;
     let place = crate::race::scene_points::point_number(&race.course, point)?;
     rotate(
@@ -213,12 +214,13 @@ pub(crate) fn make_scene_record(
     if scene.lights.state.draw_mode.get() == 1 {
         r[6] = x87::sub(r[6], LOWERED_BY.to_bits()).to_bits();
     }
-    point_records::set(record, r)?;
+    point_records::set(part, record, r)?;
     Ok(())
 }
 
 pub fn project_point(
     race: &Race,
+    part: &crate::workers::PartScratch,
     point: u32,
     scene: &crate::scene::owner::Scene,
     view: &crate::race::view_scratch::ViewScratch,
@@ -229,8 +231,8 @@ pub fn project_point(
         return Err(BadInput("no records for the points").into());
     }
     let record = point_records::at_offset(offset);
-    if (point as i32) >= 0 && point_records::field(record, 0)? != point {
-        make_scene_record(race, point, record, scene, view)?;
+    if (point as i32) >= 0 && point_records::field(part, record, 0)? != point {
+        make_scene_record(race, part, point, record, scene, view)?;
     }
     Ok(Projected { record })
 }

@@ -8,13 +8,13 @@
 //! Callers: `race::replay_viewer`.
 
 /// The key, 0 for none.
-pub fn list_take_key() -> u8 {
+pub fn list_take_key(install: &crate::install::owner::Install) -> u8 {
     let key = crate::input::take_key::take_key();
     if key == 0 {
         crate::system::sleep::sleep(1);
     } else {
         // The logic is in `rc2k_core::menu::list_menu::repeats`.
-        let pages = &crate::install::owner::install().pages;
+        let pages = &install.pages;
         let repeated = key == pages.last_key.get();
         let (mut frame, mut moved) = (0, 0);
         if repeated {

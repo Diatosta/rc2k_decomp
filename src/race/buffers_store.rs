@@ -76,7 +76,7 @@ impl Buffers {
 }
 
 /// Where IDA 0x960000 is now (the static): the scene's x87 tests' buffer operands.
-#[cfg(all(test, target_arch = "x86"))]
+#[cfg(test)]
 pub fn home() -> usize {
     crate::pointers::game_address(core::ptr::from_ref(&race().shared.buffers)) as usize
 }

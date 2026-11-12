@@ -3,7 +3,7 @@
 //!
 //! Plain Rust: the x87's arithmetic in `X` (`math/x87_float.rs`), the point
 //! and the result as 80-bit values (exact for what `X` holds). The original's instructions
-//! are `asm_reference` in the tests. Refuses a null matrix.
+//! are recorded in the tests' `reference_vectors`. Refuses a null matrix.
 
 use crate::math::cells::{Cells, load};
 use crate::math::x87_float::X;

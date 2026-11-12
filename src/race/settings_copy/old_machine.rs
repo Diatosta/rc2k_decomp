@@ -255,7 +255,7 @@ impl<E: Effects> Machine<StepOperand> for Game<'_, E> {
     }
     fn call(&mut self, a: StepOperand) -> Result<(), Refused> {
         match routine_of(a) {
-            Routine::ClearPlayerAbsences => self.fx.clear_player_absences(),
+            Routine::ClearPlayerAbsences => self.fx.clear_player_absences(self.race),
             Routine::CopyLeagueTable => self.fx.copy_league_table(self.race)?,
             Routine::StoreResultsByMode => self.fx.store_results_by_mode(self.race),
         }

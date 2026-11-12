@@ -2,9 +2,7 @@
 //! overlays, the first car loaded.
 
 use crate::errors::{BadInput, Refused};
-use crate::gfx::owner::gfx;
 use crate::physics::car_store::Car;
-use crate::race::effects_settings_store::EFFECTS_SETTINGS;
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
 use crate::race::owner_shared::RaceShared;
@@ -214,8 +212,9 @@ pub fn copy_mirror_picture(
     frame: &Frame,
     scene: &crate::scene::owner::Scene,
     system: &crate::system::owner::System,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
-    let gfx_drawing = &gfx().drawing;
+    let gfx_drawing = &gfx.drawing;
     // Converted: `rc2k_core::race::view_steps::copy_picture` (the last pixel's bits carried
     // from pixel to pixel as the original's; the formats' conversions the gfx module's).
     use crate::d3d::{lock_texture::lock_texture, unlock_texture::unlock_texture};
@@ -310,6 +309,7 @@ pub fn forget_view_textures(
     scene: &crate::scene::owner::Scene,
     input: &crate::input::owner::Input,
     system: &crate::system::owner::System,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     let frame = &race.frame;
     let shared = &race.shared;
@@ -394,7 +394,7 @@ pub fn forget_view_textures(
         .view_textures_forgotten
         .set(frame.frame_work.view_textures_forgotten.get() | MIRROR_BIT);
     if !uploaded {
-        copy_mirror_picture(frame, scene, system)?;
+        copy_mirror_picture(frame, scene, system, gfx)?;
         forget_slot_texture(textures.kinds.kind_first_textures[200].get(), scene)?;
     } else {
         // The platform's upload (then the slot forgotten): through the game, with the picture
@@ -574,14 +574,13 @@ pub fn run_view_marks(
         race.shared.vars.scene_switch.get(),
         race.physics.split_tables.still.get(),
     );
-    EFFECTS_SETTINGS.other_marks_shown.set(other);
-    EFFECTS_SETTINGS.own_marks_shown.set(own);
+    race.effects_settings().other_marks_shown.set(other);
+    race.effects_settings().own_marks_shown.set(own);
     let layout_at = layout_index(view, race.shared.vars.split.get());
     let layout = race.frame.frame_work.view_layouts[layout_at as usize].get();
-    EFFECTS_SETTINGS.marks_layout.set(layout);
+    race.effects_settings().marks_layout.set(layout);
     crate::math::cells::copy_cells(
-        &crate::race::blocks_store::CAR_BLOCKS.cars[race.shared.view.view_number(view as usize)?]
-            .whole_matrix,
+        &race.car_blocks().cars[race.shared.view.view_number(view as usize)?].whole_matrix,
         &race.frame.matrices.view_place,
         16,
     );
@@ -650,37 +649,28 @@ pub fn clear_viewport_unless_held(
     }
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
     use crate::race::asm_test::{Rng, at_each_control_word, lock, same};
-
-    /// The original block.
-    fn int_over_times_asm(i: u32, a: u32, b: u32) -> u32 {
-        let (v, mut out) = ([i, a, b], 0u32);
-        unsafe {
-            core::arch::asm!(
-                "fild dword ptr [{v}]", "fdiv dword ptr [{v} + 4]", "fmul dword ptr [{v} + 8]",
-                "fstp dword ptr [{o}]",
-                v = in(reg) v.as_ptr(), o = in(reg) &raw mut out,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-        out
-    }
+    use crate::test_support::vectors::{Recorder, word};
 
     #[test]
     fn int_over_times_matches() {
         let _l = lock();
         let mut r = Rng(1);
+        let mut file = Recorder::replay("race.frame_views.int_over_times");
         at_each_control_word(|| {
             for _ in 0..20000 {
                 let (i, a, b) = (r.int() as u32, r.float(), r.float());
-                let (want, got) = (int_over_times_asm(i, a, b), int_over_times(i, a, b));
+                for w in [i, a, b] {
+                    file.input(&w.to_le_bytes());
+                }
+                let want = word(&mut file);
+                let got = int_over_times(i, a, b);
                 assert!(same(want, got), "{i} {a:#x} {b:#x}: {want:#x} {got:#x}");
             }
         });
+        file.finish();
     }
 }

@@ -161,7 +161,7 @@ pub fn read_car_controls(
     {
         race_owner.shared.work.driver_start_blend.set(1.0f32);
     }
-    drive_computer_car(race)?;
+    drive_computer_car(race, scene)?;
     let (ph, w) = (&race_owner.shared.physics_tables, &race_owner.shared.work);
     for (to, from) in [
         (&ph.input_steer, &w.driver_steer),

@@ -87,7 +87,7 @@ pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refus
         scratch,
         crate::workers::game_scratch(),
     );
-    let _held = ctx.view.matrices.hold(&race.frame.matrices);
+    let _held = ctx.view.matrices.hold(&race.frame.matrices, ctx.part);
     draw_highlighted(
         &race.shared,
         menus,

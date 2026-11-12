@@ -74,7 +74,7 @@ pub fn run_page(
         }
         i::mark_page::mark_page(install, list);
         let mut steps = 0;
-        while list_item_unusable(list) {
+        while list_item_unusable(install, list) {
             steps += 1;
             if steps > round {
                 return Err(NO_CHOICE.into());
@@ -105,7 +105,7 @@ pub fn run_page(
                 .set(system.session.clocks.key_ticks.get());
             install.pages.choice_before.set(install.pages.choice.get());
             // The key, as the callees leave it (`install::edit_key` changes it).
-            let mut key = list_take_key()? as u32;
+            let mut key = list_take_key(install)? as u32;
             if system.session.flags.quitting.is_set() {
                 break 'page;
             }
@@ -121,7 +121,7 @@ pub fn run_page(
                             took = key_action(install, keys, key, list)?;
                         }
                     }
-                    let moved = took || list_step(key, list.neighbours(), list)?;
+                    let moved = took || list_step(install, key, list.neighbours(), list)?;
                     if moved {
                         install
                             .pages
@@ -131,7 +131,7 @@ pub fn run_page(
                     list_clear_marks(list);
                     tell(install, o, list, 1)?;
                     i::mark_page::mark_page(install, list);
-                    if !list_item_unusable(list) {
+                    if !list_item_unusable(install, list) {
                         break;
                     }
                     let arrow = matches!(key as u8, 0x66 | 0x6B | 0x68 | 0x69);
@@ -158,7 +158,7 @@ pub fn run_page(
                                 install.pages.choice.set(0);
                             }
                         }
-                        if !list_item_unusable(list) {
+                        if !list_item_unusable(install, list) {
                             break;
                         }
                         steps += 1;
@@ -172,7 +172,7 @@ pub fn run_page(
                 list_clear_marks(list);
                 tell(install, o, list, 1)?;
                 i::mark_page::mark_page(install, list);
-                if list_item_unusable(list) {
+                if list_item_unusable(install, list) {
                     let arrow = matches!(key as u8, 0x66 | 0x6B | 0x68 | 0x69);
                     if arrow && install.pages.choice.get() != install.pages.choice_before.get() {
                         return Err(BadInput("an arrow that is no key").into());
@@ -184,7 +184,7 @@ pub fn run_page(
                         if count == c {
                             install.pages.choice.set(0);
                         }
-                        if !list_item_unusable(list) {
+                        if !list_item_unusable(install, list) {
                             break;
                         }
                         steps += 1;

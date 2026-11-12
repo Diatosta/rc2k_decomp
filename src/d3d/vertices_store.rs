@@ -41,10 +41,10 @@ pub(crate) static OTHER_COPIES: [PolygonVertices; crate::workers::COUNT - 1] =
         crate::workers::COUNT - 1];
 
 /// The tests' way to the game's thread's buffer (part 0's, `workers::game_scratch`).
-#[cfg(all(test, target_arch = "x86"))]
+#[cfg(test)]
 pub struct GameThreadVertices;
 
-#[cfg(all(test, target_arch = "x86"))]
+#[cfg(test)]
 impl core::ops::Deref for GameThreadVertices {
     type Target = PolygonVertices;
     fn deref(&self) -> &PolygonVertices {
@@ -53,7 +53,7 @@ impl core::ops::Deref for GameThreadVertices {
 }
 
 /// The game's thread's buffer, for the tests.
-#[cfg(all(test, target_arch = "x86"))]
+#[cfg(test)]
 pub static VERTICES: GameThreadVertices = GameThreadVertices;
 
 /// IDA 0x9605A0, the first byte of the piece.

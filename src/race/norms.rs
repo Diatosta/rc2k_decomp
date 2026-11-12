@@ -9,12 +9,15 @@ use crate::race::numbers_store::Numbers;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::scratch_store::FrameScratch;
-use crate::scene::owner::scene;
 
 /// `race::normalise_work_vector` (0x41FC4D): `g_workVector` made one long by its 80-bit length
 /// (`math::x87::normalise_in_place`); a length equal to 0 makes it 0; -0.0 parts become 0. The
 /// length rounded into `scratch`.
-pub fn normalise_work_vector(numbers: &Numbers, scratch: &FrameScratch) {
+pub fn normalise_work_vector(
+    numbers: &Numbers,
+    scratch: &FrameScratch,
+    scene: &crate::scene::owner::Scene,
+) {
     let mut v = scratch
         .work_vector
         .each_ref()
@@ -24,7 +27,7 @@ pub fn normalise_work_vector(numbers: &Numbers, scratch: &FrameScratch) {
     for (cell, &bits) in scratch.work_vector[..3].iter().zip(&v) {
         cell.set(bits);
     }
-    scene().drawing.scene.scratch.set(length.to_bits());
+    scene.drawing.scene.scratch.set(length.to_bits());
     for part in &scratch.work_vector[..3] {
         if zero || part.get() == 0x8000_0000 {
             part.set(0u32);
@@ -35,7 +38,13 @@ pub fn normalise_work_vector(numbers: &Numbers, scratch: &FrameScratch) {
 /// `race::face_normal` (0x422144): the points `a`, `b`, `c` of `g_scenePoints` kept, the
 /// differences b - a and c - a (whole numbers), their cross product into `g_workVector` (each part
 /// as `math::x87::int_product_difference`), normalised.
-pub fn face_normal(race: &Race, a: u32, b: u32, c: u32) -> Result<(), BadInput> {
+pub fn face_normal(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    a: u32,
+    b: u32,
+    c: u32,
+) -> Result<(), BadInput> {
     {
         let point = |n: u32| -> Result<[i32; 3], BadInput> {
             Ok(crate::race::scene_points::point_number(&race.course, n)?.map(|v| v as i32))
@@ -63,7 +72,7 @@ pub fn face_normal(race: &Race, a: u32, b: u32, c: u32) -> Result<(), BadInput> 
         ]
         .map(f32::to_bits);
         crate::session::write_first(&race.frame.scratch.work_vector, &normal);
-        normalise_work_vector(&race.course.numbers, &race.frame.scratch);
+        normalise_work_vector(&race.course.numbers, &race.frame.scratch, scene);
     }
     Ok(())
 }

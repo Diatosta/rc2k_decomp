@@ -286,7 +286,7 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [camera_heading] = ((atan2(int [v + 0], int [v + 4]) * [k65536]) * [k4096]) * [one_over_two_pi]`
-/// (a long formula: see the instructions in the tests' `asm_reference`)
+/// (a long formula: checked by the tests' `reference_vectors`)
 fn x87_1(car: &Car, numbers: &Numbers, v: [u32; 3]) {
     let t0 = int(v[0] as i32);
     let t1 = int(v[1] as i32);
@@ -464,7 +464,7 @@ fn x87_8(camera: &CameraWork, car: &Car) {
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// (a long formula: see the instructions in the tests' `asm_reference`)
+/// (a long formula: checked by the tests' `reference_vectors`)
 fn x87_9(camera: &CameraWork, course_work: &CourseWork) {
     let t0 = int(camera.camera_offset_x.bits() as i32);
     let t1 = t0 * t0;
@@ -478,23 +478,12 @@ fn x87_9(camera: &CameraWork, course_work: &CourseWork) {
     course_work.flat_depth.set_bits(to_int(t8) as u32);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
     use crate::race::owner::race;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
     use crate::scene::x87_mem::view;
-
-    // The original's instructions, one function per run.
-    reference!(ref_0(v, rc) "fild dword ptr [{v}]", "fild dword ptr [{v} + 4]", ".byte 0xD9, 0xF3", "fmul dword ptr [{rc} + 0x1C5D98]", "fmul dword ptr [{rc} + 0x1C5E28]", "fmul dword ptr [{rc} + 0x1C5DD4]", "fistp dword ptr [{rc} + 0x31A688]", "fild dword ptr [{v} + 8]", "fild dword ptr [{v}]", ".byte 0xD8, 0xC8", "fild dword ptr [{v} + 4]", ".byte 0xD8, 0xC8", ".byte 0xDE, 0xC1", ".byte 0xD9, 0xFA", ".byte 0xD9, 0xF3", "fmul dword ptr [{rc} + 0x1C5D98]", "fmul dword ptr [{rc} + 0x1C5E28]", "fmul dword ptr [{rc} + 0x1C5DD4]", "fistp dword ptr [{rc} + 0x31A690]");
-    reference!(ref_1(v, rc) "fild dword ptr [{v}]", "fdiv dword ptr [{rc} + 0x1C5D98]", "fstp dword ptr [{rc} + 0x2062D8]", "fild dword ptr [{v} + 4]", "fdiv dword ptr [{rc} + 0x1C5D98]", "fstp dword ptr [{rc} + 0x2062DC]", "fild dword ptr [{v} + 8]", "fdiv dword ptr [{rc} + 0x1C5D98]", "fstp dword ptr [{rc} + 0x2062E0]");
-    reference!(ref_2(rc) "fild dword ptr [{rc} + 0x31A6A0]", "fmul dword ptr [{rc} + 0x20631C]", "fdiv dword ptr [{rc} + 0x1C5D48]", "fstp dword ptr [{rc} + 0x31A6A0]");
-    reference!(ref_3(d, rc) "fild dword ptr [{d}]", "fmul dword ptr [{rc} + 0x1C5DA0]", "fstp dword ptr [{rc} + 0x2065C8]", "fild dword ptr [{d} + 0x4]", "fmul dword ptr [{rc} + 0x1C5DA0]", "fsub dword ptr [{rc} + 0x213FC0]", "fstp dword ptr [{rc} + 0x2065CC]", "fild dword ptr [{d} + 0x8]", "fmul dword ptr [{rc} + 0x1C5DA0]", "fstp dword ptr [{rc} + 0x2065D0]", "fild dword ptr [{d} + 0x10]", "fmul dword ptr [{rc} + 0x1C5DA0]", "fstp dword ptr [{rc} + 0x206624]", "fild dword ptr [{d} + 0x14]", "fmul dword ptr [{rc} + 0x1C5DA0]", "fsub dword ptr [{rc} + 0x213FC0]", "fstp dword ptr [{rc} + 0x206628]", "fild dword ptr [{d} + 0x18]", "fmul dword ptr [{rc} + 0x1C5DA0]", "fstp dword ptr [{rc} + 0x20662C]", "fld dword ptr [{d} + 0x24]", "fstp dword ptr [{rc} + 0x206570]", "fild dword ptr [{d} + 0x20]", "fmul dword ptr [{rc} + 0x1C5DA0]", "fstp dword ptr [{rc} + 0x206574]");
-    reference!(ref_4(rc) "fild dword ptr [{rc} + 0x319FE0]", "fisub dword ptr [{rc} + 0x31A668]", "fidiv dword ptr [{rc} + 0x31A670]", "fstp dword ptr [{rc} + 0x31A674]");
-    reference!(ref_5(rc) "fild dword ptr [{rc} + 0x208B70]", "fisub dword ptr [{rc} + 0x208B64]", "fmul dword ptr [{rc} + 0x31A674]", "fiadd dword ptr [{rc} + 0x208B64]", "fistp dword ptr [{rc} + 0x208B58]", "fild dword ptr [{rc} + 0x208B68]", "fisub dword ptr [{rc} + 0x208B5C]", "fmul dword ptr [{rc} + 0x31A674]", "fiadd dword ptr [{rc} + 0x208B5C]", "fistp dword ptr [{rc} + 0x208B50]", "fild dword ptr [{rc} + 0x208B6C]", "fisub dword ptr [{rc} + 0x208B60]", "fmul dword ptr [{rc} + 0x31A674]", "fiadd dword ptr [{rc} + 0x208B60]", "fistp dword ptr [{rc} + 0x208B54]");
-    reference!(ref_6(x, y, rc, t) "fld dword ptr [{x}]", "fsub dword ptr [{y}]", "fmul dword ptr [{rc} + 0x31A674]", "fadd dword ptr [{y}]", "fmul dword ptr [{rc} + 0x1C5D98]", "fistp dword ptr [{t}]");
-    reference!(ref_7(rc) "fild dword ptr [{rc} + 0x208BF0]", "fstp dword ptr [{rc} + 0x31A6A0]");
-    reference!(ref_8(rc) "fild dword ptr [{rc} + 0x208B30]", ".byte 0xD8, 0xC8", "fild dword ptr [{rc} + 0x208B34]", ".byte 0xD8, 0xC8", "fild dword ptr [{rc} + 0x208B38]", ".byte 0xD8, 0xC8", ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1", ".byte 0xD9, 0xFA", "fistp dword ptr [{rc} + 0x1CCD80]");
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
         vec![
@@ -511,7 +500,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_0(a[0], a[1]) },
                 plain: |a| x87_1(&race().shared.car, &race().course.numbers, *view(a[0], 0)),
             },
             Block {
@@ -527,7 +515,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_1(a[0], a[1]) },
                 plain: |a| {
                     x87_2(
                         &crate::race::owner::race().course.numbers,
@@ -543,7 +530,6 @@ mod asm_reference {
                     writes: &[(0x31A6A0, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_2(a[0]) },
                 plain: |_| {
                     x87_3(
                         &crate::race::owner::race().shared.car,
@@ -583,7 +569,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_3(a[0], a[1]) },
                 plain: |a| {
                     x87_4(
                         &race().shared.physics_tables,
@@ -605,7 +590,6 @@ mod asm_reference {
                     writes: &[(0x31A674, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_4(a[0]) },
                 plain: |_| x87_5(&race().shared.car),
             },
             Block {
@@ -623,7 +607,6 @@ mod asm_reference {
                     writes: &[(0x208B50, Out::I), (0x208B54, Out::I), (0x208B58, Out::I)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_5(a[0]) },
                 plain: |_| x87_6(&race().physics.camera, &race().shared.car),
             },
             Block {
@@ -647,7 +630,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_6(a[0], a[1], a[2], a[3]) },
                 plain: |a| {
                     use crate::scene::x87_mem::HostCell;
                     x87_7(
@@ -666,7 +648,6 @@ mod asm_reference {
                     writes: &[(0x31A6A0, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_7(a[0]) },
                 plain: |_| x87_8(&race().physics.camera, &race().shared.car),
             },
             Block {
@@ -676,7 +657,6 @@ mod asm_reference {
                     writes: &[(0x1CCD80, Out::I)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_8(a[0]) },
                 plain: |_| {
                     x87_9(
                         &crate::race::owner::race().physics.camera,
@@ -689,6 +669,6 @@ mod asm_reference {
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse(&blocks(), 1200, 100);
+        sparse("physics.update_camera", &blocks(), 1200, 100);
     }
 }

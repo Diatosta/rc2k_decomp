@@ -55,6 +55,7 @@ fn negated_at(a: impl Base, o: impl Base) {
 
 pub fn reflection_coordinates(
     race: &crate::race::owner::Race,
+    part: &crate::workers::PartScratch,
     scene: &crate::scene::owner::Scene,
     object: &crate::scene::object_place::ObjectPlace,
     m: &crate::scene::view_matrices::ViewMatrices,
@@ -62,7 +63,7 @@ pub fn reflection_coordinates(
     if !crate::scene::point_records::held(&race.course) {
         return Err(BadInput("no records for the points"));
     }
-    let table = crate::scene::reading::PointRecords::new(&race.course)?;
+    let table = crate::scene::reading::PointRecords::new(&race.course, part)?;
     let normal = table.place(object.reflection_normal_number.get())?;
     let point = table.place(object.reflection_point_number.get().wrapping_neg())?;
     crate::session::write_bits(&m.reflect_vector, normal);

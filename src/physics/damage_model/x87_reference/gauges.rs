@@ -204,8 +204,8 @@ pub fn add_hit_to_gear_gauge(m: &DamageModel, v: &impl Cell32) {
 /// `[m + 0x35B440] = ([tyre_wears] + [rc + 0x31A330]) * [m + 0x35B360]`
 /// `[m + 0x35B444] = ([rc + 0x31A334] + [rc + 0x31A338]) * [m + 0x35B360]`
 /// `[tyre_wear] = ([m + 0x35B440] + [m + 0x35B444]) * [m + 0x35B360]`
-/// (a long formula: see the instructions in the tests' `asm_reference`)
-/// (a long formula: see the instructions in the tests' `asm_reference`)
+/// (a long formula: checked by the tests' `reference_vectors`)
+/// (a long formula: checked by the tests' `reference_vectors`)
 /// `[overall_suspension_damage] = ((([suspension_damage] + [rc + 0x31A310]) + [rc + 0x31A314]) + [rc + 0x31A318]) * [m + 0x35B364]`
 /// `[stiffness_mean] = ((([wheel_stiffness] + [rc + 0x31A424]) + [rc + 0x31A428]) + [rc + 0x31A42C]) * [m + 0x35B364]`
 pub fn gauge_totals(car: &Car, m: &DamageModel) {

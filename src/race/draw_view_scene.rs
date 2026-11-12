@@ -54,7 +54,7 @@ pub fn draw_view_scene(
     use crate::race::frame_draw::*;
     view.begin();
     let ctx = DrawCtx::new(race, scene, system, view, part);
-    let _held = view.matrices.hold(&race.frame.matrices);
+    let _held = view.matrices.hold(&race.frame.matrices, part);
     // The shine from the stage's, as the frame's first view has it: the original left each
     // later view the previous one's last car's (a slip fixed: `wiki/Fixed-bugs.md`).
     view.course
@@ -88,7 +88,7 @@ pub fn draw_view_scene(
         view.polygon.view_mirrored.get() != 0,
         view.drawn_view(race),
     )?;
-    clear_point_records(scene)?;
+    clear_point_records(scene, part)?;
     set_up_fog(race, &view.fog, &view.polygon, &view.car)?;
     camera_view(race, scene, system, &view.matrices, view)?;
     draw_sky(&ctx)?;

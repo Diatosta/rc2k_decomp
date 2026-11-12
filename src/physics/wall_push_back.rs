@@ -26,7 +26,7 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
     if compare_80(vector_length(&work), ZERO) & 0x4000 != 0 {
         fill_cells(work, 0);
     }
-    normalise_work_vector(c.numbers, c.scratch);
+    normalise_work_vector(c.numbers, c.scratch, scene);
     copy_cells(&c.contact.contact_normal, work);
     copy_cells(&c.contact.contact_car_speed, &c.car.velocity);
     copy_cells(&c.contact.contact_turn_speed, &c.car.spin);

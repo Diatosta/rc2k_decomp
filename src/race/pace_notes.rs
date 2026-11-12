@@ -25,9 +25,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
-use crate::race::owner::race;
 use crate::race::owner_physics::Physics;
-use crate::race::owner_shared::RaceShared;
 use rc2k_core::race::pace_notes::{IMAGE_LEN, Notes, Stage};
 
 /// Where the course is (`rc2k_core::race::pace_notes::Course`).
@@ -37,7 +35,8 @@ pub type Course = rc2k_core::race::pace_notes::Course;
 /// offsets into it, face n at 0x40 n, read by number in `face_byte`) and the checkpoints'
 /// count. Without the table (the walk runs only after `race::load_level` has taken it) the
 /// window is empty and a face read refused.
-pub fn game_course(shared: &RaceShared) -> Course {
+pub fn game_course(race: &Race) -> Course {
+    let shared = &race.shared;
     let len = if crate::race::course_places::held() {
         crate::race::course_places::FACES
             .len()
@@ -56,34 +55,29 @@ pub fn game_course(shared: &RaceShared) -> Course {
 static REFUSED: std::sync::Mutex<Option<BadInput>> = std::sync::Mutex::new(None);
 
 /// The game's stage, as the walk asks it: the faces by offset into their table.
-pub struct GameStage;
+pub struct GameStage<'a>(pub &'a Race);
 
-static STAGE: GameStage = GameStage;
-
-impl Stage for GameStage {
+impl Stage for GameStage<'_> {
     fn checkpoint_face(&self, k: u32) -> u32 {
-        crate::race::checkpoints_store::face(k as usize).get()
+        crate::race::checkpoints_store::face(self.0.checkpoints(), k as usize).get()
     }
     fn distance(&self, k: u32) -> u32 {
-        crate::race::checkpoints_store::distance(k as usize).get()
+        crate::race::checkpoints_store::distance(self.0.checkpoints(), k as usize).get()
     }
     fn angle(&self, k: u32) -> u32 {
-        crate::race::checkpoints_store::angle(k as usize).get()
+        crate::race::checkpoints_store::angle(self.0.checkpoints(), k as usize).get()
     }
     fn slot_offset(&self, slot: u32) -> u32 {
-        race().shared.physics_tables.pace_slot_offsets[slot as usize].get() // PhysicsTables.pace_slot_offsets[0]: each slot's byte in the face
+        self.0.shared.physics_tables.pace_slot_offsets[slot as usize].get() // PhysicsTables.pace_slot_offsets[0]: each slot's byte in the face
     }
     fn word(&self, tens: u32) -> u8 {
-        race().physics.pace.distance_words.get(tens as usize)
+        self.0.physics.pace.distance_words.get(tens as usize)
     }
     fn face_byte(&self, at: u32) -> u8 {
         // The core asks only inside the course's window; a refusal here is kept for
         // `Machine::init` (the core's trait answers a byte).
-        let read = crate::race::course_places::face_field::<u8>(
-            &crate::race::owner::race().course,
-            at / 0x40,
-            at % 0x40,
-        );
+        let read =
+            crate::race::course_places::face_field::<u8>(&self.0.course, at / 0x40, at % 0x40);
         match read {
             Ok(b) => b,
             Err(e) => {
@@ -98,16 +92,16 @@ impl Stage for GameStage {
 
 /// The core's machine on the game's slot and tables. Converted:
 /// `rc2k_core::race::pace_notes::Notes`.
-pub struct Machine(Notes<'static, GameStage>);
+pub struct Machine<'a>(Notes<'a, GameStage<'a>>);
 
-impl std::ops::Deref for Machine {
-    type Target = Notes<'static, GameStage>;
+impl<'a> std::ops::Deref for Machine<'a> {
+    type Target = Notes<'a, GameStage<'a>>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl std::ops::DerefMut for Machine {
+impl std::ops::DerefMut for Machine<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
@@ -165,8 +159,8 @@ fn tables(pace: &crate::physics::pace_store::PaceNotes) -> [&[crate::session::Dw
     ]
 }
 
-impl Machine {
-    pub fn load(race: &Race, course: Course) -> Result<Self, BadInput> {
+impl<'a> Machine<'a> {
+    pub fn load(race: &Race, course: Course, stage: &'a GameStage<'a>) -> Result<Self, BadInput> {
         let physics = &race.physics;
         if let Ok(mut held) = REFUSED.lock() {
             *held = None;
@@ -175,7 +169,7 @@ impl Machine {
             race.shared.physics_tables.pace_slot.get(),
             image(physics),
             course,
-            &STAGE,
+            stage,
         )))
     }
 

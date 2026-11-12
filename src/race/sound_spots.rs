@@ -155,35 +155,18 @@ pub fn find_sound_spots(
     }
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
     use crate::math::x87_float::{X, f80};
     use crate::race::asm_test::{Rng, at_each_control_word, lock, same};
-
-    /// The original block.
-    fn scaled_asm(t: [u8; 10], k: u32) -> u32 {
-        let (v, mut out) = ([k], 0u32);
-        unsafe {
-            core::arch::asm!(
-                "fld tbyte ptr [{t}]",
-                "fmul dword ptr [{v}]",
-                "fstp dword ptr [{o}]",
-                t = in(reg) t.as_ptr(),
-                v = in(reg) v.as_ptr(),
-                o = in(reg) &raw mut out,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-        out
-    }
+    use crate::test_support::vectors::{Recorder, word};
 
     #[test]
     fn scaled_matches() {
         let _l = lock();
         let mut r = Rng(2);
+        let mut file = Recorder::replay("race.sound_spots.scaled");
         at_each_control_word(|| {
             for _ in 0..20000 {
                 // the places are whole numbers or floats, held exactly (`int_80`)
@@ -194,9 +177,13 @@ mod asm_reference {
                 };
                 let t = f80(X(v));
                 let k = r.float();
-                let (want, got) = (scaled_asm(t, k), scaled(t, k));
+                file.input(&t);
+                file.input(&k.to_le_bytes());
+                let want = word(&mut file);
+                let got = scaled(t, k);
                 assert!(same(want, got), "{v} {k:#x}: {want:#x} {got:#x}");
             }
         });
+        file.finish();
     }
 }

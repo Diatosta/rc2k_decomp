@@ -223,104 +223,10 @@ fn keep_y_x87(i: usize, r: &RainState) {
     }
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
-    //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
-
-    pub(super) fn box_moved_x87(mk: usize, e: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fild dword ptr [{mk} + 0x158E3D]",
-            "fisub dword ptr [{mk} + {e} + 0x157585]",
-            "fmul dword ptr [{mk} + 0x161055]",
-            "fstp dword ptr [{mk} + {e} + 0x157549]",
-            "fild dword ptr [{mk} + 0x158E41]",
-            "fiadd dword ptr [{mk} + 0x1575C5]",
-            "fisub dword ptr [{mk} + {e} + 0x157589]",
-            "fmul dword ptr [{mk} + 0x161059]",
-            "fstp dword ptr [{mk} + {e} + 0x15754D]",
-            "fild dword ptr [{mk} + 0x158E45]",
-            "fisub dword ptr [{mk} + {e} + 0x15758D]",
-            "fmul dword ptr [{mk} + 0x16105D]",
-            "fstp dword ptr [{mk} + {e} + 0x157551]",
-            mk = in(reg) mk,
-            e = in(reg) e,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn move_length_x87(rc: usize, mk: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{mk} + 0x15753D]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{mk} + 0x157541]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{mk} + 0x157545]",
-            ".byte 0xD8, 0xC8",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xFA",
-            "fst dword ptr [{mk} + 0x158E1D]",
-            "fcomp dword ptr [{mk} + 0x161061]",
-            "fstsw word ptr [{rc} + 0x31C814]",
-            rc = in(reg) rc,
-            mk = in(reg) mk,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn move_held_x87(mk: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{mk} + 0x158E1D]",
-            "fdivr dword ptr [{mk} + 0x161065]",
-            ".byte 0xD9, 0xC0",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{mk} + 0x15753D]",
-            "fmul dword ptr [{mk} + 0x161069]",
-            "fstp dword ptr [{mk} + 0x15753D]",
-            "fmul dword ptr [{mk} + 0x157541]",
-            "fmul dword ptr [{mk} + 0x16106D]",
-            "fstp dword ptr [{mk} + 0x157541]",
-            "fmul dword ptr [{mk} + 0x157545]",
-            "fmul dword ptr [{mk} + 0x161071]",
-            "fstp dword ptr [{mk} + 0x157545]",
-            mk = in(reg) mk,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn keep_y_x87(mk: usize, e: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fild dword ptr [{mk} + 0x158E41]",
-            "fiadd dword ptr [{mk} + 0x1575C5]",
-            "fistp dword ptr [{mk} + {e} + 0x157589]",
-            mk = in(reg) mk,
-            e = in(reg) e,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-}
-
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_differential {
-    use super::asm_reference as reference;
+#[cfg(test)]
+mod reference_vectors {
     use crate::effects::asm_test::Kind::*;
-    use crate::effects::asm_test::{Op, Spec, differential};
+    use crate::effects::asm_test::{Op, Spec, recorded_writes};
     use crate::effects::rain::tests::with_state_at;
 
     #[test]
@@ -363,6 +269,12 @@ mod asm_differential {
                         (0x157561, F32),
                         (0x157565, F32),
                         (0x157569, F32),
+                        (0x15756D, F32),
+                        (0x157571, F32),
+                        (0x157575, F32),
+                        (0x157579, F32),
+                        (0x15757D, F32),
+                        (0x157581, F32),
                         (0x157585, F32),
                         (0x157589, F32),
                         (0x15758D, F32),
@@ -375,11 +287,9 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::box_moved_x87(b[0], b[1]),
-            |b| with_state_at(b[0], |r, k| super::box_moved_x87(b[1] / 12, r, k)),
-        );
+        recorded_writes("effects.run_rain.box_moved_x87", &SPEC, |b| {
+            with_state_at(b[0], |r, k| super::box_moved_x87(b[1] / 12, r, k));
+        });
     }
 
     #[test]
@@ -404,11 +314,9 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::move_length_x87(b[0], b[1]),
-            |b| with_state_at(b[1], super::move_length_x87),
-        );
+        recorded_writes("effects.run_rain.move_length_x87", &SPEC, |b| {
+            with_state_at(b[1], super::move_length_x87);
+        });
     }
 
     #[test]
@@ -431,11 +339,9 @@ mod asm_differential {
             }],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::move_held_x87(b[0]),
-            |b| with_state_at(b[0], super::move_held_x87),
-        );
+        recorded_writes("effects.run_rain.move_held_x87", &SPEC, |b| {
+            with_state_at(b[0], super::move_held_x87);
+        });
     }
 
     #[test]
@@ -450,6 +356,8 @@ mod asm_differential {
                         (0x157589, I32),
                         (0x157595, I32),
                         (0x1575A1, I32),
+                        (0x1575AD, I32),
+                        (0x1575B9, I32),
                         (0x1575C5, I32),
                         (0x157601, I32),
                     ],
@@ -458,10 +366,8 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::keep_y_x87(b[0], b[1]),
-            |b| with_state_at(b[0], |r, _| super::keep_y_x87(b[1] / 12, r)),
-        );
+        recorded_writes("effects.run_rain.keep_y_x87", &SPEC, |b| {
+            with_state_at(b[0], |r, _| super::keep_y_x87(b[1] / 12, r));
+        });
     }
 }

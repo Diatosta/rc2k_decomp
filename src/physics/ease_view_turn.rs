@@ -71,14 +71,11 @@ fn x87_1(s: &impl Cell32, scene: &crate::scene::owner::Scene) {
     drawing.scene.scratch.set_bits(to_int(t2) as u32);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
     use crate::scene::x87_mem::HostCell;
-
-    // The original's instructions, one function per run.
-    reference!(ref_0(rc, s) "fild dword ptr [{rc} + 0x22400C]", "fmul dword ptr [{s}]", "fistp dword ptr [{rc} + 0x22400C]");
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
         vec![Block {
@@ -94,13 +91,12 @@ mod asm_reference {
                 },
             ],
             ulps: 0,
-            reference: |a| unsafe { ref_0(a[0], a[1]) },
             plain: |a| x87_1(&HostCell(a[1]), crate::scene::owner::scene()),
         }]
     }
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse(&blocks(), 1200, 100);
+        sparse("physics.ease_view_turn", &blocks(), 1200, 100);
     }
 }

@@ -16,8 +16,9 @@ use crate::race::owner_replay::Replay;
 use crate::race::viewer_state_store::{ReplayViewBlock, ViewerPicture};
 use crate::session::Dword;
 
-fn camera_byte(replay: &Replay, byte: usize) -> Result<u32, BadInput> {
+fn camera_byte(race: &Race, replay: &Replay, byte: usize) -> Result<u32, BadInput> {
     Ok(crate::race::viewer::camera_byte_at(
+        race,
         byte.wrapping_add(8 * replay.replay_view.replay_block.get() as usize),
     )? as u32)
 }
@@ -39,11 +40,11 @@ pub fn draw_viewer_item(
     let uv = match ReplayViewBlock::item_picture(index)? {
         ViewerPicture::Rectangle(ida) => panel.rectangle(ida)?,
         ViewerPicture::Switch(0) => {
-            let n = camera_byte(replay, switch_byte(byte(1)) as usize)?;
+            let n = camera_byte(race, replay, switch_byte(byte(1)) as usize)?;
             panel.switch_picture(0, n)?
         }
-        ViewerPicture::Switch(1) => panel.switch_picture(1, camera_byte(replay, 5)?)?,
-        ViewerPicture::Switch(_) => panel.switch_picture(2, camera_byte(replay, 4)?)?,
+        ViewerPicture::Switch(1) => panel.switch_picture(1, camera_byte(race, replay, 5)?)?,
+        ViewerPicture::Switch(_) => panel.switch_picture(2, camera_byte(race, replay, 4)?)?,
     };
     let bytes = ReplayViewBlock::item_place(index)?.read_array::<16>("a viewer item's place")?;
     let place: [u32; 4] =

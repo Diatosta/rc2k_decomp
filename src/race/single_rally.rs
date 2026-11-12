@@ -545,7 +545,7 @@ pub fn step(o: crate::owners::Owners<'static>, call: Call) -> Result<(), Refused
     match call {
         Call::CopyRallyTimes => crate::race::rally::copy_rally_times(o.system, o.menus)?,
         Call::StopMusic => crate::sound::stop_music::stop_music(o.audio, o.system),
-        Call::SetRaceScreenMode => crate::race::race_shell::set_race_screen_mode(),
+        Call::SetRaceScreenMode => crate::race::race_shell::set_race_screen_mode(o.gfx),
         Call::ShowLoadingPicture => {
             crate::menu::show_loading_picture::show_loading_picture_in(o.menus, o.gfx, o.system)?;
         }

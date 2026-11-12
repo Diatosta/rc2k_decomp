@@ -291,20 +291,12 @@ mod tests {
     }
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
     use crate::scene::x87_mem::HostCell;
     use crate::session::Cell32;
-
-    // The original's instructions, one function per run.
-    reference!(ref_0(bx, di) "fild dword ptr [{bx} + 0x14]", "fsub dword ptr [{di} + 0x4]", "fmul dword ptr [{di} + 0xC]", "fstp dword ptr [{bx} + 0x100]");
-    reference!(ref_1(bx, sf) "fld dword ptr [{bx} + 0x1C]", ".byte 0xD9, 0xE1", "fmul dword ptr [{sf} + 0x18]", "fstp dword ptr [{bx} + 0x108]");
-    reference!(ref_2(t, bx) "fild dword ptr [{t}]", "mov dword ptr [{t}], 0x3C888889", "fmul dword ptr [{t}]", "mov dword ptr [{t}], 0x3F400000", "fadd dword ptr [{t}]", "fstp dword ptr [{bx} + 0x210]");
-    reference!(ref_3(bx, ck) "fld dword ptr [{bx} + 0x134]", "fld dword ptr [{bx} + 0x2C]", "fmul dword ptr [{bx} + 0x2C]", "fld dword ptr [{bx} + 0x30]", "fmul dword ptr [{bx} + 0x30]", "fld dword ptr [{bx} + 0x34]", "fmul dword ptr [{bx} + 0x34]", ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1", ".byte 0xD9, 0xFA", "fst dword ptr [{bx} + 0x134]", ".byte 0xDE, 0xE9", "fmul dword ptr [{ck} + 8]", "fstp dword ptr [{bx} + 0x138]");
-    reference!(ref_4(bx, ck, sf) "fld dword ptr [{bx} + 0x138]", "fadd dword ptr [{ck} + 0x14]", "fmul dword ptr [{ck} + 0x18]", "fsub dword ptr [{bx} + 0x13C]", "fmul dword ptr [{sf} + 0x8]", "fadd dword ptr [{bx} + 0x13C]", "fstp dword ptr [{bx} + 0x13C]");
-    reference!(ref_5(bx) ".byte 0xD9, 0xE8", "fdiv dword ptr [{bx} + 0x134]", "fstp dword ptr [{bx} + 0x140]");
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
         vec![
@@ -321,11 +313,16 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_0(a[0], a[1]) },
                 plain: |a| {
                     revs_input(
-                        unsafe { &*(a[0] as *const crate::sound::store::SoundObject) },
-                        unsafe { &*(a[1] as *const crate::sound::sets_store::KindRecord) },
+                        unsafe {
+                            &*(crate::test_support::vectors::block_vectors::at(a[0])
+                                as *const crate::sound::store::SoundObject)
+                        },
+                        unsafe {
+                            &*(crate::test_support::vectors::block_vectors::at(a[1])
+                                as *const crate::sound::sets_store::KindRecord)
+                        },
                     );
                 },
             },
@@ -342,11 +339,16 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_1(a[0], a[1]) },
                 plain: |a| {
                     speed_input(
-                        unsafe { &*(a[0] as *const crate::sound::store::SoundObject) },
-                        unsafe { &*(a[1] as *const crate::sound::store::SurfaceSounds) },
+                        unsafe {
+                            &*(crate::test_support::vectors::block_vectors::at(a[0])
+                                as *const crate::sound::store::SoundObject)
+                        },
+                        unsafe {
+                            &*(crate::test_support::vectors::block_vectors::at(a[1])
+                                as *const crate::sound::store::SurfaceSounds)
+                        },
                     );
                 },
             },
@@ -363,7 +365,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_2(a[0], a[1]) },
                 plain: |a| {
                     let low = HostCell(a[0]).bits();
                     HostCell(a[1] + 0x210).set_bits(gear_pitch_bits(low));
@@ -382,11 +383,16 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_3(a[0], a[1]) },
                 plain: |a| {
                     distance_and_approach(
-                        unsafe { &*(a[0] as *const crate::sound::store::SoundObject) },
-                        unsafe { &*(a[1] as *const crate::sound::store::RaceClock) },
+                        unsafe {
+                            &*(crate::test_support::vectors::block_vectors::at(a[0])
+                                as *const crate::sound::store::SoundObject)
+                        },
+                        unsafe {
+                            &*(crate::test_support::vectors::block_vectors::at(a[1])
+                                as *const crate::sound::store::RaceClock)
+                        },
                     );
                 },
             },
@@ -407,12 +413,20 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_4(a[0], a[1], a[2]) },
                 plain: |a| {
                     ease_pitch_factor(
-                        unsafe { &*(a[0] as *const crate::sound::store::SoundObject) },
-                        unsafe { &*(a[1] as *const crate::sound::store::RaceClock) },
-                        unsafe { &*(a[2] as *const crate::sound::store::SurfaceSounds) },
+                        unsafe {
+                            &*(crate::test_support::vectors::block_vectors::at(a[0])
+                                as *const crate::sound::store::SoundObject)
+                        },
+                        unsafe {
+                            &*(crate::test_support::vectors::block_vectors::at(a[1])
+                                as *const crate::sound::store::RaceClock)
+                        },
+                        unsafe {
+                            &*(crate::test_support::vectors::block_vectors::at(a[2])
+                                as *const crate::sound::store::SurfaceSounds)
+                        },
                     );
                 },
             },
@@ -423,10 +437,10 @@ mod asm_reference {
                     writes: &[(0x140, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_5(a[0]) },
                 plain: |a| {
                     volume_factor_by_distance(unsafe {
-                        &*(a[0] as *const crate::sound::store::SoundObject)
+                        &*(crate::test_support::vectors::block_vectors::at(a[0])
+                            as *const crate::sound::store::SoundObject)
                     });
                 },
             },
@@ -435,6 +449,6 @@ mod asm_reference {
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse(&blocks(), 1200, 100);
+        sparse("sound.car_engine_state", &blocks(), 1200, 100);
     }
 }

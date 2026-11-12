@@ -61,7 +61,7 @@ pub fn page_key(
         (key, false)
     };
     if crate::gfx::shots::on_byte(gfx) != 0 && key as u8 == items::SCREENSHOT_KEY {
-        crate::gfx::take_screenshot::take_screenshot()?;
+        crate::gfx::take_screenshot::take_screenshot(gfx)?;
     }
     Ok((key, took(install, plain_edit)))
 }

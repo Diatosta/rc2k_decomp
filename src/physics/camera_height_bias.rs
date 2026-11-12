@@ -75,15 +75,10 @@ fn x87_3(numbers: &Numbers, view_and_records: &ViewAndRecords, scene: &crate::sc
     drawing.scene.scratch.set_bits(to_int(t4) as u32);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
-
-    // The original's instructions, one function per run.
-    reference!(ref_0(rc) "fld dword ptr [{rc} + 0x20631C]", "fdiv dword ptr [{rc} + 0x206290]", "fstp dword ptr [{rc} + 0x22400C]");
-    reference!(ref_1(rc) ".byte 0xD9, 0xE8", "fsub dword ptr [{rc} + 0x22400C]", "fstp dword ptr [{rc} + 0x22400C]");
-    reference!(ref_2(rc) "fld dword ptr [{rc} + 0x22400C]", "fmul dword ptr [{rc} + 0x1C5D98]", "fmul dword ptr [{rc} + 0x20628C]", "fistp dword ptr [{rc} + 0x22400C]");
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
         vec![
@@ -94,7 +89,6 @@ mod asm_reference {
                     writes: &[(0x22400C, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_0(a[0]) },
                 plain: |_| {
                     x87_1(
                         &crate::race::owner::race().frame.view_and_records,
@@ -109,7 +103,6 @@ mod asm_reference {
                     writes: &[(0x22400C, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_1(a[0]) },
                 plain: |_| x87_2(crate::scene::owner::scene()),
             },
             Block {
@@ -119,7 +112,6 @@ mod asm_reference {
                     writes: &[(0x22400C, Out::I)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_2(a[0]) },
                 plain: |_| {
                     x87_3(
                         &crate::race::owner::race().course.numbers,
@@ -133,6 +125,6 @@ mod asm_reference {
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse(&blocks(), 1200, 100);
+        sparse("physics.camera_height_bias", &blocks(), 1200, 100);
     }
 }

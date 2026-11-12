@@ -256,7 +256,7 @@ fn read_alpha_sheet(
                 backdrop: 0,
                 transparent: 0,
                 convert: &mut convert,
-                pixels: &mut RowTable::new(pixels),
+                pixels: &mut RowTable::new(pixels, gfx),
                 soften: false,
             };
             if sheet.width == 0 {
@@ -356,7 +356,7 @@ pub fn build_glyphs(
                 backdrop: 0,
                 transparent: 0,
                 convert: &mut convert,
-                pixels: &mut RowTable::new(pixels),
+                pixels: &mut RowTable::new(pixels, gfx),
                 soften,
             })
         })?;
@@ -406,7 +406,7 @@ pub fn build_glyphs(
                 backdrop,
                 transparent,
                 convert: &mut convert,
-                pixels: &mut RowTable::new(pixels),
+                pixels: &mut RowTable::new(pixels, gfx),
                 soften,
             }
             .glyphs()

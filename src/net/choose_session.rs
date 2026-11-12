@@ -102,7 +102,7 @@ pub fn choose_session(
             .pages
             .frame_clock
             .set(system.session.clocks.key_ticks.get());
-        let key = list_key()?;
+        let key = list_key(install)?;
         let any = net.vars.sessions.get() != 0;
         if any && list_move(install, key, net.vars.sessions.get()) {
             install

@@ -235,162 +235,11 @@ fn point_turned_x87(drops: &WindscreenDrops, p: &[PlainFloat; 3]) {
     st_cell(&p[2], t10);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
-    //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
-
-    pub(super) fn frame_axes_x87(mk: usize, s: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{mk} + 0xC932A]",
-            "fimul dword ptr [{mk} + 0x90]",
-            "fstp dword ptr [{mk} + 0xB12EA]",
-            "fild dword ptr [{s} + 0x2738]",
-            "fmul dword ptr [{mk} + 0xC932E]",
-            "fstp dword ptr [{mk} + 0xAF7E8]",
-            "fild dword ptr [{s} + 0x2720]",
-            "fild dword ptr [{s} + 0x2724]",
-            "fild dword ptr [{s} + 0x2728]",
-            "fstp dword ptr [{mk} + 0xAFCD6]",
-            "fstp dword ptr [{mk} + 0xAFCD2]",
-            "fstp dword ptr [{mk} + 0xAFCCE]",
-            "fild dword ptr [{s} + 0x272C]",
-            "fisub dword ptr [{s} + 0x2720]",
-            "fstp dword ptr [{mk} + 0xAFCDA]",
-            "fild dword ptr [{s} + 0x2730]",
-            "fisub dword ptr [{s} + 0x2724]",
-            "fstp dword ptr [{mk} + 0xAFCDE]",
-            "fild dword ptr [{s} + 0x2734]",
-            "fisub dword ptr [{s} + 0x2728]",
-            "fstp dword ptr [{mk} + 0xAFCE2]",
-            "fld dword ptr [{mk} + 0xAFCDA]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{mk} + 0xAFCDE]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{mk} + 0xAFCE2]",
-            ".byte 0xD8, 0xC8",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xFA",
-            "fdiv dword ptr [{mk} + 0xC9332]",
-            "fstp dword ptr [{mk} + 0xAFCC6]",
-            mk = in(reg) mk,
-            s = in(reg) s,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn frame_up_x87(mk: usize, s: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fild dword ptr [{s} + 0x2708]",
-            "fisub dword ptr [{s} + 0x2720]",
-            "fstp dword ptr [{mk} + 0xAFCE6]",
-            "fild dword ptr [{s} + 0x270C]",
-            "fisub dword ptr [{s} + 0x2724]",
-            "fstp dword ptr [{mk} + 0xAFCEA]",
-            "fild dword ptr [{s} + 0x2710]",
-            "fisub dword ptr [{s} + 0x2728]",
-            "fstp dword ptr [{mk} + 0xAFCEE]",
-            "fld dword ptr [{mk} + 0xAFCE6]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{mk} + 0xAFCEA]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{mk} + 0xAFCEE]",
-            ".byte 0xD8, 0xC8",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xFA",
-            "fdiv dword ptr [{mk} + 0xC9336]",
-            "fstp dword ptr [{mk} + 0xAFCCA]",
-            mk = in(reg) mk,
-            s = in(reg) s,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn frame_place_x87(mk: usize, s: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fild dword ptr [{s} + 0x2720]",
-            "fstp dword ptr [{mk} + 0xB1262]",
-            "fild dword ptr [{s} + 0x2724]",
-            "fstp dword ptr [{mk} + 0xB1266]",
-            "fild dword ptr [{s} + 0x2728]",
-            "fstp dword ptr [{mk} + 0xB126A]",
-            mk = in(reg) mk,
-            s = in(reg) s,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn frame_facing_x87(mk: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{mk} + 0xB1262]",
-            "fmul dword ptr [{mk} + 0xAFCF2]",
-            "fld dword ptr [{mk} + 0xB1266]",
-            "fmul dword ptr [{mk} + 0xAFCF6]",
-            "fld dword ptr [{mk} + 0xB126A]",
-            "fmul dword ptr [{mk} + 0xAFCFA]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{mk} + 0xAF7D8]",
-            mk = in(reg) mk,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn point_turned_x87(mk: usize, p: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{p} + 0x0]",
-            "fld dword ptr [{p} + 0x4]",
-            ".byte 0xD9, 0xC1",
-            "fmul dword ptr [{mk} + 0xAFCDA]",
-            ".byte 0xD9, 0xC1",
-            "fmul dword ptr [{mk} + 0xAFCE6]",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{p} + 0x0]",
-            ".byte 0xD9, 0xC1",
-            "fmul dword ptr [{mk} + 0xAFCDE]",
-            ".byte 0xD9, 0xC1",
-            "fmul dword ptr [{mk} + 0xAFCEA]",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{p} + 0x4]",
-            "fmul dword ptr [{mk} + 0xAFCEE]",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{mk} + 0xAFCE2]",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{p} + 0x8]",
-            mk = in(reg) mk,
-            p = in(reg) p,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-}
-
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_differential {
-    use super::asm_reference as reference;
+#[cfg(test)]
+mod reference_vectors {
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::with_settings;
-    use crate::effects::asm_test::{Op, Spec, differential};
+    use crate::effects::asm_test::{Op, Spec, recorded_writes};
     use crate::effects::typed_sync::{overlay, with_overlays};
     use crate::effects::windscreen_drop_state::{WindscreenDropState, WindscreenDropWork};
     use crate::effects::windscreen_drop_vars::WindscreenDropVars;
@@ -441,38 +290,34 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::frame_axes_x87(b[0], b[1]),
-            |b| {
-                with_overlays(
-                    b[0],
-                    &[
-                        overlay(
-                            &crate::effects::owner::effects().windscreen_drops.state,
-                            WindscreenDropState::START,
-                        ),
-                        overlay(
-                            &crate::effects::owner::effects().windscreen_drops.work,
-                            WindscreenDropWork::START,
-                        ),
-                        overlay(
-                            &crate::effects::owner::effects().windscreen_drops.hex,
-                            WindscreenDropVars::START,
-                        ),
-                    ],
-                    || {
-                        with_settings(b[1], |m| {
-                            super::frame_axes_x87(
-                                &crate::effects::owner::effects().windscreen_drops,
-                                m,
-                                crate::effects::setup::clock_at(b[0]),
-                            );
-                        });
-                    },
-                );
-            },
-        );
+        recorded_writes("effects.windscreen_drops_top.frame_axes_x87", &SPEC, |b| {
+            with_overlays(
+                b[0],
+                &[
+                    overlay(
+                        &crate::effects::owner::effects().windscreen_drops.state,
+                        WindscreenDropState::START,
+                    ),
+                    overlay(
+                        &crate::effects::owner::effects().windscreen_drops.work,
+                        WindscreenDropWork::START,
+                    ),
+                    overlay(
+                        &crate::effects::owner::effects().windscreen_drops.hex,
+                        WindscreenDropVars::START,
+                    ),
+                ],
+                || {
+                    with_settings(b[1], |m| {
+                        super::frame_axes_x87(
+                            &crate::effects::owner::effects().windscreen_drops,
+                            m,
+                            crate::effects::setup::clock_at(b[0]),
+                        );
+                    });
+                },
+            );
+        });
     }
 
     #[test]
@@ -511,33 +356,26 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::frame_up_x87(b[0], b[1]),
-            |b| {
-                with_overlays(
-                    b[0],
-                    &[
-                        overlay(
-                            &crate::effects::owner::effects().windscreen_drops.work,
-                            WindscreenDropWork::START,
-                        ),
-                        overlay(
-                            &crate::effects::owner::effects().windscreen_drops.hex,
-                            WindscreenDropVars::START,
-                        ),
-                    ],
-                    || {
-                        with_settings(b[1], |m| {
-                            super::frame_up_x87(
-                                &crate::effects::owner::effects().windscreen_drops,
-                                m,
-                            );
-                        });
-                    },
-                );
-            },
-        );
+        recorded_writes("effects.windscreen_drops_top.frame_up_x87", &SPEC, |b| {
+            with_overlays(
+                b[0],
+                &[
+                    overlay(
+                        &crate::effects::owner::effects().windscreen_drops.work,
+                        WindscreenDropWork::START,
+                    ),
+                    overlay(
+                        &crate::effects::owner::effects().windscreen_drops.hex,
+                        WindscreenDropVars::START,
+                    ),
+                ],
+                || {
+                    with_settings(b[1], |m| {
+                        super::frame_up_x87(&crate::effects::owner::effects().windscreen_drops, m);
+                    });
+                },
+            );
+        });
     }
 
     #[test]
@@ -559,27 +397,23 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::frame_place_x87(b[0], b[1]),
-            |b| {
-                with_overlays(
-                    b[0],
-                    &[overlay(
-                        &crate::effects::owner::effects().windscreen_drops.hex,
-                        WindscreenDropVars::START,
-                    )],
-                    || {
-                        with_settings(b[1], |m| {
-                            super::frame_place_x87(
-                                &crate::effects::owner::effects().windscreen_drops,
-                                m,
-                            );
-                        });
-                    },
-                );
-            },
-        );
+        recorded_writes("effects.windscreen_drops_top.frame_place_x87", &SPEC, |b| {
+            with_overlays(
+                b[0],
+                &[overlay(
+                    &crate::effects::owner::effects().windscreen_drops.hex,
+                    WindscreenDropVars::START,
+                )],
+                || {
+                    with_settings(b[1], |m| {
+                        super::frame_place_x87(
+                            &crate::effects::owner::effects().windscreen_drops,
+                            m,
+                        );
+                    });
+                },
+            );
+        });
     }
 
     #[test]
@@ -600,9 +434,9 @@ mod asm_differential {
             }],
             sincos: false,
         };
-        differential(
+        recorded_writes(
+            "effects.windscreen_drops_top.frame_facing_x87",
             &SPEC,
-            |b| reference::frame_facing_x87(b[0]),
             |b| {
                 with_overlays(
                     b[0],
@@ -652,9 +486,9 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
+        recorded_writes(
+            "effects.windscreen_drops_top.point_turned_x87",
             &SPEC,
-            |b| reference::point_turned_x87(b[0], b[1]),
             |b| {
                 with_overlays(
                     b[0],

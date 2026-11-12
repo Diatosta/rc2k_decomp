@@ -46,7 +46,7 @@ pub fn lets_rally(o: Owners<'static>) -> Result<bool, Refused> {
     };
     net.vars.first_host.set(first);
     crate::sound::stop_music::stop_music(o.audio, o.system);
-    crate::race::race_shell::set_race_screen_mode();
+    crate::race::race_shell::set_race_screen_mode(o.gfx);
     crate::menu::show_loading_picture::show_loading_picture_in(o.menus, o.gfx, o.system)?;
     sound_tables::set_up_race_sound_objects(
         race,
@@ -71,7 +71,7 @@ pub fn lets_rally(o: Owners<'static>) -> Result<bool, Refused> {
             break (1, 1);
         }
         if crate::net::race_wait::race_wait(net)? != 0 {
-            crate::gfx::clear_front_surface::clear_front_surface()?;
+            crate::gfx::clear_front_surface::clear_front_surface(o.gfx, o.system)?;
             crate::net::copy_received::copy_received(&net.vars)?;
             break crate::net::lets_race::lets_race(o, &net.vars)?;
         }

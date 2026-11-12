@@ -513,671 +513,9 @@ fn projected_x87(s: &Shadow) {
     s.quad.corners[3][1].st(t27);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
-    //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
-
-    pub(super) fn light_turned_x87(mk: usize, m: usize, t: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{mk} + 0x1CFC74]",
-            "fld dword ptr [{mk} + 0x1CFC78]",
-            "fld dword ptr [{mk} + 0x1CFC7C]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{m} + 0x0]",
-            ".byte 0xD9, 0xC2",
-            "fmul dword ptr [{m} + 0x4]",
-            ".byte 0xD9, 0xC4",
-            "fmul dword ptr [{m} + 0x8]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{t} + 0x0]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{m} + 0xC]",
-            ".byte 0xD9, 0xC2",
-            "fmul dword ptr [{m} + 0x10]",
-            ".byte 0xD9, 0xC4",
-            "fmul dword ptr [{m} + 0x14]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{t} + 0x4]",
-            "fmul dword ptr [{m} + 0x18]",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{m} + 0x1C]",
-            ".byte 0xD9, 0xCA",
-            "fmul dword ptr [{m} + 0x20]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fld dword ptr [{t} + 0x4]",
-            "fld dword ptr [{t} + 0x0]",
-            "fstp dword ptr [{mk} + 0x1CEFA0]",
-            "fstp dword ptr [{mk} + 0x1CEFA4]",
-            "fstp dword ptr [{mk} + 0x1CEFA8]",
-            mk = in(reg) mk,
-            m = in(reg) m,
-            t = in(reg) t,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn second_turned_x87(mk: usize, m: usize, t: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{mk} + 0x1CEFA8]",
-            "fld dword ptr [{mk} + 0x1CEFA4]",
-            "fld dword ptr [{mk} + 0x1CEFA0]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{m} + 0x0]",
-            ".byte 0xD9, 0xC2",
-            "fmul dword ptr [{m} + 0x4]",
-            ".byte 0xD9, 0xC4",
-            "fmul dword ptr [{m} + 0x8]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{t} + 0x0]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{m} + 0xC]",
-            ".byte 0xD9, 0xC2",
-            "fmul dword ptr [{m} + 0x10]",
-            ".byte 0xD9, 0xC4",
-            "fmul dword ptr [{m} + 0x14]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{t} + 0x4]",
-            "fmul dword ptr [{m} + 0x18]",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{m} + 0x1C]",
-            ".byte 0xD9, 0xCA",
-            "fmul dword ptr [{m} + 0x20]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fld dword ptr [{t} + 0x4]",
-            "fld dword ptr [{t} + 0x0]",
-            "fstp dword ptr [{mk} + 0x1CF00C]",
-            "fstp dword ptr [{mk} + 0x1CF010]",
-            "fstp dword ptr [{mk} + 0x1CF014]",
-            mk = in(reg) mk,
-            m = in(reg) m,
-            t = in(reg) t,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn corners_x87(mk: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{mk} + 0x1CF000]",
-            "fmul dword ptr [{mk} + 0x1CF028]",
-            "fstp dword ptr [{mk} + 0x1CF000]",
-            "fld dword ptr [{mk} + 0x1CF004]",
-            "fmul dword ptr [{mk} + 0x1CF028]",
-            "fstp dword ptr [{mk} + 0x1CF004]",
-            "fld dword ptr [{mk} + 0x1CF008]",
-            "fmul dword ptr [{mk} + 0x1CF028]",
-            "fstp dword ptr [{mk} + 0x1CF008]",
-            "fld dword ptr [{mk} + 0x1CF00C]",
-            "fmul dword ptr [{mk} + 0x1CF02C]",
-            "fstp dword ptr [{mk} + 0x1CF00C]",
-            "fld dword ptr [{mk} + 0x1CF010]",
-            "fmul dword ptr [{mk} + 0x1CF02C]",
-            "fstp dword ptr [{mk} + 0x1CF010]",
-            "fld dword ptr [{mk} + 0x1CF014]",
-            "fmul dword ptr [{mk} + 0x1CF02C]",
-            "fstp dword ptr [{mk} + 0x1CF014]",
-            "fld dword ptr [{mk} + 0x1CEF90]",
-            "fsub dword ptr [{mk} + 0x1CF000]",
-            "fstp dword ptr [{mk} + 0x1CF058]",
-            "fld dword ptr [{mk} + 0x1CEF94]",
-            "fsub dword ptr [{mk} + 0x1CF004]",
-            "fstp dword ptr [{mk} + 0x1CF05C]",
-            "fld dword ptr [{mk} + 0x1CEF98]",
-            "fsub dword ptr [{mk} + 0x1CF008]",
-            "fstp dword ptr [{mk} + 0x1CF060]",
-            "fld dword ptr [{mk} + 0x1CEF90]",
-            "fadd dword ptr [{mk} + 0x1CF000]",
-            "fstp dword ptr [{mk} + 0x1CF064]",
-            "fld dword ptr [{mk} + 0x1CEF94]",
-            "fadd dword ptr [{mk} + 0x1CF004]",
-            "fstp dword ptr [{mk} + 0x1CF068]",
-            "fld dword ptr [{mk} + 0x1CEF98]",
-            "fadd dword ptr [{mk} + 0x1CF008]",
-            "fstp dword ptr [{mk} + 0x1CF06C]",
-            "fld dword ptr [{mk} + 0x1CEF90]",
-            "fadd dword ptr [{mk} + 0x1CF000]",
-            "fadd dword ptr [{mk} + 0x1CF00C]",
-            "fstp dword ptr [{mk} + 0x1CF070]",
-            "fld dword ptr [{mk} + 0x1CEF94]",
-            "fadd dword ptr [{mk} + 0x1CF004]",
-            "fadd dword ptr [{mk} + 0x1CF010]",
-            "fstp dword ptr [{mk} + 0x1CF074]",
-            "fld dword ptr [{mk} + 0x1CEF98]",
-            "fadd dword ptr [{mk} + 0x1CF008]",
-            "fadd dword ptr [{mk} + 0x1CF014]",
-            "fstp dword ptr [{mk} + 0x1CF078]",
-            "fld dword ptr [{mk} + 0x1CEF90]",
-            "fsub dword ptr [{mk} + 0x1CF000]",
-            "fadd dword ptr [{mk} + 0x1CF00C]",
-            "fstp dword ptr [{mk} + 0x1CF07C]",
-            "fld dword ptr [{mk} + 0x1CEF94]",
-            "fsub dword ptr [{mk} + 0x1CF004]",
-            "fadd dword ptr [{mk} + 0x1CF010]",
-            "fstp dword ptr [{mk} + 0x1CF080]",
-            "fld dword ptr [{mk} + 0x1CEF98]",
-            "fsub dword ptr [{mk} + 0x1CF008]",
-            "fadd dword ptr [{mk} + 0x1CF014]",
-            "fstp dword ptr [{mk} + 0x1CF084]",
-            "fld dword ptr [{mk} + 0x1CEFB0]",
-            "fmul dword ptr [{mk} + 0x1CFC38]",
-            "fadd dword ptr [{mk} + 0x1CF058]",
-            "fstp dword ptr [{mk} + 0x1CF058]",
-            "fld dword ptr [{mk} + 0x1CEFBC]",
-            "fmul dword ptr [{mk} + 0x1CFC38]",
-            "fadd dword ptr [{mk} + 0x1CF05C]",
-            "fstp dword ptr [{mk} + 0x1CF05C]",
-            "fld dword ptr [{mk} + 0x1CEFC8]",
-            "fmul dword ptr [{mk} + 0x1CFC38]",
-            "fadd dword ptr [{mk} + 0x1CF060]",
-            "fstp dword ptr [{mk} + 0x1CF060]",
-            "fld dword ptr [{mk} + 0x1CEFB0]",
-            "fmul dword ptr [{mk} + 0x1CFC38]",
-            "fadd dword ptr [{mk} + 0x1CF064]",
-            "fstp dword ptr [{mk} + 0x1CF064]",
-            "fld dword ptr [{mk} + 0x1CEFBC]",
-            "fmul dword ptr [{mk} + 0x1CFC38]",
-            "fadd dword ptr [{mk} + 0x1CF068]",
-            "fstp dword ptr [{mk} + 0x1CF068]",
-            "fld dword ptr [{mk} + 0x1CEFC8]",
-            "fmul dword ptr [{mk} + 0x1CFC38]",
-            "fadd dword ptr [{mk} + 0x1CF06C]",
-            "fstp dword ptr [{mk} + 0x1CF06C]",
-            "fld dword ptr [{mk} + 0x1CEFB0]",
-            "fmul dword ptr [{mk} + 0x1CFC38]",
-            "fadd dword ptr [{mk} + 0x1CF070]",
-            "fstp dword ptr [{mk} + 0x1CF070]",
-            "fld dword ptr [{mk} + 0x1CEFBC]",
-            "fmul dword ptr [{mk} + 0x1CFC38]",
-            "fadd dword ptr [{mk} + 0x1CF074]",
-            "fstp dword ptr [{mk} + 0x1CF074]",
-            "fld dword ptr [{mk} + 0x1CEFC8]",
-            "fmul dword ptr [{mk} + 0x1CFC38]",
-            "fadd dword ptr [{mk} + 0x1CF078]",
-            "fstp dword ptr [{mk} + 0x1CF078]",
-            "fld dword ptr [{mk} + 0x1CEFB0]",
-            "fmul dword ptr [{mk} + 0x1CFC38]",
-            "fadd dword ptr [{mk} + 0x1CF07C]",
-            "fstp dword ptr [{mk} + 0x1CF07C]",
-            "fld dword ptr [{mk} + 0x1CEFBC]",
-            "fmul dword ptr [{mk} + 0x1CFC38]",
-            "fadd dword ptr [{mk} + 0x1CF080]",
-            "fstp dword ptr [{mk} + 0x1CF080]",
-            "fld dword ptr [{mk} + 0x1CEFC8]",
-            "fmul dword ptr [{mk} + 0x1CFC38]",
-            "fadd dword ptr [{mk} + 0x1CF084]",
-            "fstp dword ptr [{mk} + 0x1CF084]",
-            "fld dword ptr [{mk} + 0x1CF070]",
-            "fsub dword ptr [{mk} + 0x1CF064]",
-            "fstp dword ptr [{mk} + 0x1CF04C]",
-            "fld dword ptr [{mk} + 0x1CF074]",
-            "fsub dword ptr [{mk} + 0x1CF068]",
-            "fstp dword ptr [{mk} + 0x1CF050]",
-            "fld dword ptr [{mk} + 0x1CF078]",
-            "fsub dword ptr [{mk} + 0x1CF06C]",
-            "fstp dword ptr [{mk} + 0x1CF054]",
-            mk = in(reg) mk,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn corners_in_x87(mk: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{mk} + 0x1CF04C]",
-            "fmul dword ptr [{mk} + 0x1CF048]",
-            "fstp dword ptr [{mk} + 0x1CF04C]",
-            "fld dword ptr [{mk} + 0x1CF050]",
-            "fmul dword ptr [{mk} + 0x1CF048]",
-            "fstp dword ptr [{mk} + 0x1CF050]",
-            "fld dword ptr [{mk} + 0x1CF054]",
-            "fmul dword ptr [{mk} + 0x1CF048]",
-            "fstp dword ptr [{mk} + 0x1CF054]",
-            "fld dword ptr [{mk} + 0x1CF058]",
-            "fsub dword ptr [{mk} + 0x1CF04C]",
-            "fstp dword ptr [{mk} + 0x1CF058]",
-            "fld dword ptr [{mk} + 0x1CF05C]",
-            "fsub dword ptr [{mk} + 0x1CF050]",
-            "fstp dword ptr [{mk} + 0x1CF05C]",
-            "fld dword ptr [{mk} + 0x1CF060]",
-            "fsub dword ptr [{mk} + 0x1CF054]",
-            "fstp dword ptr [{mk} + 0x1CF060]",
-            "fld dword ptr [{mk} + 0x1CF064]",
-            "fsub dword ptr [{mk} + 0x1CF04C]",
-            "fstp dword ptr [{mk} + 0x1CF064]",
-            "fld dword ptr [{mk} + 0x1CF068]",
-            "fsub dword ptr [{mk} + 0x1CF050]",
-            "fstp dword ptr [{mk} + 0x1CF068]",
-            "fld dword ptr [{mk} + 0x1CF06C]",
-            "fsub dword ptr [{mk} + 0x1CF054]",
-            "fstp dword ptr [{mk} + 0x1CF06C]",
-            "fld dword ptr [{mk} + 0x1CF070]",
-            "fsub dword ptr [{mk} + 0x1CF04C]",
-            "fstp dword ptr [{mk} + 0x1CF070]",
-            "fld dword ptr [{mk} + 0x1CF074]",
-            "fsub dword ptr [{mk} + 0x1CF050]",
-            "fstp dword ptr [{mk} + 0x1CF074]",
-            "fld dword ptr [{mk} + 0x1CF078]",
-            "fsub dword ptr [{mk} + 0x1CF054]",
-            "fstp dword ptr [{mk} + 0x1CF078]",
-            "fld dword ptr [{mk} + 0x1CF07C]",
-            "fsub dword ptr [{mk} + 0x1CF04C]",
-            "fstp dword ptr [{mk} + 0x1CF07C]",
-            "fld dword ptr [{mk} + 0x1CF080]",
-            "fsub dword ptr [{mk} + 0x1CF050]",
-            "fstp dword ptr [{mk} + 0x1CF080]",
-            "fld dword ptr [{mk} + 0x1CF084]",
-            "fsub dword ptr [{mk} + 0x1CF054]",
-            "fstp dword ptr [{mk} + 0x1CF084]",
-            mk = in(reg) mk,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn projected_x87(rc: usize, mk: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{rc} + 0x224088]",
-            "fdiv dword ptr [{mk} + 0x1CF060]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{mk} + 0x1CF058]",
-            "fadd dword ptr [{rc} + 0x22409C]",
-            "fstp dword ptr [{mk} + 0x1CF058]",
-            "fmul dword ptr [{mk} + 0x1CF05C]",
-            ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{rc} + 0x2240A0]",
-            "fstp dword ptr [{mk} + 0x1CF05C]",
-            "fld dword ptr [{rc} + 0x224088]",
-            "fdiv dword ptr [{mk} + 0x1CF06C]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{mk} + 0x1CF064]",
-            "fadd dword ptr [{rc} + 0x22409C]",
-            "fstp dword ptr [{mk} + 0x1CF064]",
-            "fmul dword ptr [{mk} + 0x1CF068]",
-            ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{rc} + 0x2240A0]",
-            "fstp dword ptr [{mk} + 0x1CF068]",
-            "fld dword ptr [{rc} + 0x224088]",
-            "fdiv dword ptr [{mk} + 0x1CF078]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{mk} + 0x1CF070]",
-            "fadd dword ptr [{rc} + 0x22409C]",
-            "fstp dword ptr [{mk} + 0x1CF070]",
-            "fmul dword ptr [{mk} + 0x1CF074]",
-            ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{rc} + 0x2240A0]",
-            "fstp dword ptr [{mk} + 0x1CF074]",
-            "fld dword ptr [{rc} + 0x224088]",
-            "fdiv dword ptr [{mk} + 0x1CF084]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{mk} + 0x1CF07C]",
-            "fadd dword ptr [{rc} + 0x22409C]",
-            "fstp dword ptr [{mk} + 0x1CF07C]",
-            "fmul dword ptr [{mk} + 0x1CF080]",
-            ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{rc} + 0x2240A0]",
-            "fstp dword ptr [{mk} + 0x1CF080]",
-            rc = in(reg) rc,
-            mk = in(reg) mk,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn light_turned_2_x87(mk: usize, m: usize, t: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{mk} + 0x1CEF74]",
-            "fld dword ptr [{mk} + 0x1CEF78]",
-            "fld dword ptr [{mk} + 0x1CEF7C]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{m} + 0x0]",
-            ".byte 0xD9, 0xC2",
-            "fmul dword ptr [{m} + 0x4]",
-            ".byte 0xD9, 0xC4",
-            "fmul dword ptr [{m} + 0x8]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{t} + 0x0]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{m} + 0xC]",
-            ".byte 0xD9, 0xC2",
-            "fmul dword ptr [{m} + 0x10]",
-            ".byte 0xD9, 0xC4",
-            "fmul dword ptr [{m} + 0x14]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{t} + 0x4]",
-            "fmul dword ptr [{m} + 0x18]",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{m} + 0x1C]",
-            ".byte 0xD9, 0xCA",
-            "fmul dword ptr [{m} + 0x20]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fld dword ptr [{t} + 0x4]",
-            "fld dword ptr [{t} + 0x0]",
-            "fstp dword ptr [{mk} + 0x1CE284]",
-            "fstp dword ptr [{mk} + 0x1CE288]",
-            "fstp dword ptr [{mk} + 0x1CE28C]",
-            mk = in(reg) mk,
-            m = in(reg) m,
-            t = in(reg) t,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn second_turned_2_x87(mk: usize, m: usize, t: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{mk} + 0x1CE28C]",
-            "fld dword ptr [{mk} + 0x1CE288]",
-            "fld dword ptr [{mk} + 0x1CE284]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{m} + 0x0]",
-            ".byte 0xD9, 0xC2",
-            "fmul dword ptr [{m} + 0x4]",
-            ".byte 0xD9, 0xC4",
-            "fmul dword ptr [{m} + 0x8]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{t} + 0x0]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{m} + 0xC]",
-            ".byte 0xD9, 0xC2",
-            "fmul dword ptr [{m} + 0x10]",
-            ".byte 0xD9, 0xC4",
-            "fmul dword ptr [{m} + 0x14]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{t} + 0x4]",
-            "fmul dword ptr [{m} + 0x18]",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{m} + 0x1C]",
-            ".byte 0xD9, 0xCA",
-            "fmul dword ptr [{m} + 0x20]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fld dword ptr [{t} + 0x4]",
-            "fld dword ptr [{t} + 0x0]",
-            "fstp dword ptr [{mk} + 0x1CE2F0]",
-            "fstp dword ptr [{mk} + 0x1CE2F4]",
-            "fstp dword ptr [{mk} + 0x1CE2F8]",
-            mk = in(reg) mk,
-            m = in(reg) m,
-            t = in(reg) t,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn corners_2_x87(mk: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{mk} + 0x1CE2E4]",
-            "fmul dword ptr [{mk} + 0x1CE30C]",
-            "fstp dword ptr [{mk} + 0x1CE2E4]",
-            "fld dword ptr [{mk} + 0x1CE2E8]",
-            "fmul dword ptr [{mk} + 0x1CE30C]",
-            "fstp dword ptr [{mk} + 0x1CE2E8]",
-            "fld dword ptr [{mk} + 0x1CE2EC]",
-            "fmul dword ptr [{mk} + 0x1CE30C]",
-            "fstp dword ptr [{mk} + 0x1CE2EC]",
-            "fld dword ptr [{mk} + 0x1CE2F0]",
-            "fmul dword ptr [{mk} + 0x1CE310]",
-            "fstp dword ptr [{mk} + 0x1CE2F0]",
-            "fld dword ptr [{mk} + 0x1CE2F4]",
-            "fmul dword ptr [{mk} + 0x1CE310]",
-            "fstp dword ptr [{mk} + 0x1CE2F4]",
-            "fld dword ptr [{mk} + 0x1CE2F8]",
-            "fmul dword ptr [{mk} + 0x1CE310]",
-            "fstp dword ptr [{mk} + 0x1CE2F8]",
-            "fld dword ptr [{mk} + 0x1CE274]",
-            "fsub dword ptr [{mk} + 0x1CE2E4]",
-            "fstp dword ptr [{mk} + 0x1CE33C]",
-            "fld dword ptr [{mk} + 0x1CE278]",
-            "fsub dword ptr [{mk} + 0x1CE2E8]",
-            "fstp dword ptr [{mk} + 0x1CE340]",
-            "fld dword ptr [{mk} + 0x1CE27C]",
-            "fsub dword ptr [{mk} + 0x1CE2EC]",
-            "fstp dword ptr [{mk} + 0x1CE344]",
-            "fld dword ptr [{mk} + 0x1CE274]",
-            "fadd dword ptr [{mk} + 0x1CE2E4]",
-            "fstp dword ptr [{mk} + 0x1CE348]",
-            "fld dword ptr [{mk} + 0x1CE278]",
-            "fadd dword ptr [{mk} + 0x1CE2E8]",
-            "fstp dword ptr [{mk} + 0x1CE34C]",
-            "fld dword ptr [{mk} + 0x1CE27C]",
-            "fadd dword ptr [{mk} + 0x1CE2EC]",
-            "fstp dword ptr [{mk} + 0x1CE350]",
-            "fld dword ptr [{mk} + 0x1CE274]",
-            "fadd dword ptr [{mk} + 0x1CE2E4]",
-            "fadd dword ptr [{mk} + 0x1CE2F0]",
-            "fstp dword ptr [{mk} + 0x1CE354]",
-            "fld dword ptr [{mk} + 0x1CE278]",
-            "fadd dword ptr [{mk} + 0x1CE2E8]",
-            "fadd dword ptr [{mk} + 0x1CE2F4]",
-            "fstp dword ptr [{mk} + 0x1CE358]",
-            "fld dword ptr [{mk} + 0x1CE27C]",
-            "fadd dword ptr [{mk} + 0x1CE2EC]",
-            "fadd dword ptr [{mk} + 0x1CE2F8]",
-            "fstp dword ptr [{mk} + 0x1CE35C]",
-            "fld dword ptr [{mk} + 0x1CE274]",
-            "fsub dword ptr [{mk} + 0x1CE2E4]",
-            "fadd dword ptr [{mk} + 0x1CE2F0]",
-            "fstp dword ptr [{mk} + 0x1CE360]",
-            "fld dword ptr [{mk} + 0x1CE278]",
-            "fsub dword ptr [{mk} + 0x1CE2E8]",
-            "fadd dword ptr [{mk} + 0x1CE2F4]",
-            "fstp dword ptr [{mk} + 0x1CE364]",
-            "fld dword ptr [{mk} + 0x1CE27C]",
-            "fsub dword ptr [{mk} + 0x1CE2EC]",
-            "fadd dword ptr [{mk} + 0x1CE2F8]",
-            "fstp dword ptr [{mk} + 0x1CE368]",
-            "fld dword ptr [{mk} + 0x1CE294]",
-            "fmul dword ptr [{mk} + 0x1CEF30]",
-            "fadd dword ptr [{mk} + 0x1CE33C]",
-            "fstp dword ptr [{mk} + 0x1CE33C]",
-            "fld dword ptr [{mk} + 0x1CE2A0]",
-            "fmul dword ptr [{mk} + 0x1CEF30]",
-            "fadd dword ptr [{mk} + 0x1CE340]",
-            "fstp dword ptr [{mk} + 0x1CE340]",
-            "fld dword ptr [{mk} + 0x1CE2AC]",
-            "fmul dword ptr [{mk} + 0x1CEF30]",
-            "fadd dword ptr [{mk} + 0x1CE344]",
-            "fstp dword ptr [{mk} + 0x1CE344]",
-            "fld dword ptr [{mk} + 0x1CE294]",
-            "fmul dword ptr [{mk} + 0x1CEF30]",
-            "fadd dword ptr [{mk} + 0x1CE348]",
-            "fstp dword ptr [{mk} + 0x1CE348]",
-            "fld dword ptr [{mk} + 0x1CE2A0]",
-            "fmul dword ptr [{mk} + 0x1CEF30]",
-            "fadd dword ptr [{mk} + 0x1CE34C]",
-            "fstp dword ptr [{mk} + 0x1CE34C]",
-            "fld dword ptr [{mk} + 0x1CE2AC]",
-            "fmul dword ptr [{mk} + 0x1CEF30]",
-            "fadd dword ptr [{mk} + 0x1CE350]",
-            "fstp dword ptr [{mk} + 0x1CE350]",
-            "fld dword ptr [{mk} + 0x1CE294]",
-            "fmul dword ptr [{mk} + 0x1CEF30]",
-            "fadd dword ptr [{mk} + 0x1CE354]",
-            "fstp dword ptr [{mk} + 0x1CE354]",
-            "fld dword ptr [{mk} + 0x1CE2A0]",
-            "fmul dword ptr [{mk} + 0x1CEF30]",
-            "fadd dword ptr [{mk} + 0x1CE358]",
-            "fstp dword ptr [{mk} + 0x1CE358]",
-            "fld dword ptr [{mk} + 0x1CE2AC]",
-            "fmul dword ptr [{mk} + 0x1CEF30]",
-            "fadd dword ptr [{mk} + 0x1CE35C]",
-            "fstp dword ptr [{mk} + 0x1CE35C]",
-            "fld dword ptr [{mk} + 0x1CE294]",
-            "fmul dword ptr [{mk} + 0x1CEF30]",
-            "fadd dword ptr [{mk} + 0x1CE360]",
-            "fstp dword ptr [{mk} + 0x1CE360]",
-            "fld dword ptr [{mk} + 0x1CE2A0]",
-            "fmul dword ptr [{mk} + 0x1CEF30]",
-            "fadd dword ptr [{mk} + 0x1CE364]",
-            "fstp dword ptr [{mk} + 0x1CE364]",
-            "fld dword ptr [{mk} + 0x1CE2AC]",
-            "fmul dword ptr [{mk} + 0x1CEF30]",
-            "fadd dword ptr [{mk} + 0x1CE368]",
-            "fstp dword ptr [{mk} + 0x1CE368]",
-            "fld dword ptr [{mk} + 0x1CE354]",
-            "fsub dword ptr [{mk} + 0x1CE348]",
-            "fstp dword ptr [{mk} + 0x1CE330]",
-            "fld dword ptr [{mk} + 0x1CE358]",
-            "fsub dword ptr [{mk} + 0x1CE34C]",
-            "fstp dword ptr [{mk} + 0x1CE334]",
-            "fld dword ptr [{mk} + 0x1CE35C]",
-            "fsub dword ptr [{mk} + 0x1CE350]",
-            "fstp dword ptr [{mk} + 0x1CE338]",
-            mk = in(reg) mk,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn corners_in_2_x87(mk: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{mk} + 0x1CE330]",
-            "fmul dword ptr [{mk} + 0x1CE32C]",
-            "fstp dword ptr [{mk} + 0x1CE330]",
-            "fld dword ptr [{mk} + 0x1CE334]",
-            "fmul dword ptr [{mk} + 0x1CE32C]",
-            "fstp dword ptr [{mk} + 0x1CE334]",
-            "fld dword ptr [{mk} + 0x1CE338]",
-            "fmul dword ptr [{mk} + 0x1CE32C]",
-            "fstp dword ptr [{mk} + 0x1CE338]",
-            "fld dword ptr [{mk} + 0x1CE33C]",
-            "fsub dword ptr [{mk} + 0x1CE330]",
-            "fstp dword ptr [{mk} + 0x1CE33C]",
-            "fld dword ptr [{mk} + 0x1CE340]",
-            "fsub dword ptr [{mk} + 0x1CE334]",
-            "fstp dword ptr [{mk} + 0x1CE340]",
-            "fld dword ptr [{mk} + 0x1CE344]",
-            "fsub dword ptr [{mk} + 0x1CE338]",
-            "fstp dword ptr [{mk} + 0x1CE344]",
-            "fld dword ptr [{mk} + 0x1CE348]",
-            "fsub dword ptr [{mk} + 0x1CE330]",
-            "fstp dword ptr [{mk} + 0x1CE348]",
-            "fld dword ptr [{mk} + 0x1CE34C]",
-            "fsub dword ptr [{mk} + 0x1CE334]",
-            "fstp dword ptr [{mk} + 0x1CE34C]",
-            "fld dword ptr [{mk} + 0x1CE350]",
-            "fsub dword ptr [{mk} + 0x1CE338]",
-            "fstp dword ptr [{mk} + 0x1CE350]",
-            "fld dword ptr [{mk} + 0x1CE354]",
-            "fsub dword ptr [{mk} + 0x1CE330]",
-            "fstp dword ptr [{mk} + 0x1CE354]",
-            "fld dword ptr [{mk} + 0x1CE358]",
-            "fsub dword ptr [{mk} + 0x1CE334]",
-            "fstp dword ptr [{mk} + 0x1CE358]",
-            "fld dword ptr [{mk} + 0x1CE35C]",
-            "fsub dword ptr [{mk} + 0x1CE338]",
-            "fstp dword ptr [{mk} + 0x1CE35C]",
-            "fld dword ptr [{mk} + 0x1CE360]",
-            "fsub dword ptr [{mk} + 0x1CE330]",
-            "fstp dword ptr [{mk} + 0x1CE360]",
-            "fld dword ptr [{mk} + 0x1CE364]",
-            "fsub dword ptr [{mk} + 0x1CE334]",
-            "fstp dword ptr [{mk} + 0x1CE364]",
-            "fld dword ptr [{mk} + 0x1CE368]",
-            "fsub dword ptr [{mk} + 0x1CE338]",
-            "fstp dword ptr [{mk} + 0x1CE368]",
-            mk = in(reg) mk,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn projected_2_x87(rc: usize, mk: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{rc} + 0x224088]",
-            "fdiv dword ptr [{mk} + 0x1CE344]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{mk} + 0x1CE33C]",
-            "fadd dword ptr [{rc} + 0x22409C]",
-            "fstp dword ptr [{mk} + 0x1CE33C]",
-            "fmul dword ptr [{mk} + 0x1CE340]",
-            ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{rc} + 0x2240A0]",
-            "fstp dword ptr [{mk} + 0x1CE340]",
-            "fld dword ptr [{rc} + 0x224088]",
-            "fdiv dword ptr [{mk} + 0x1CE350]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{mk} + 0x1CE348]",
-            "fadd dword ptr [{rc} + 0x22409C]",
-            "fstp dword ptr [{mk} + 0x1CE348]",
-            "fmul dword ptr [{mk} + 0x1CE34C]",
-            ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{rc} + 0x2240A0]",
-            "fstp dword ptr [{mk} + 0x1CE34C]",
-            "fld dword ptr [{rc} + 0x224088]",
-            "fdiv dword ptr [{mk} + 0x1CE35C]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{mk} + 0x1CE354]",
-            "fadd dword ptr [{rc} + 0x22409C]",
-            "fstp dword ptr [{mk} + 0x1CE354]",
-            "fmul dword ptr [{mk} + 0x1CE358]",
-            ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{rc} + 0x2240A0]",
-            "fstp dword ptr [{mk} + 0x1CE358]",
-            "fld dword ptr [{rc} + 0x224088]",
-            "fdiv dword ptr [{mk} + 0x1CE368]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{mk} + 0x1CE360]",
-            "fadd dword ptr [{rc} + 0x22409C]",
-            "fstp dword ptr [{mk} + 0x1CE360]",
-            "fmul dword ptr [{mk} + 0x1CE364]",
-            ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{rc} + 0x2240A0]",
-            "fstp dword ptr [{mk} + 0x1CE364]",
-            rc = in(reg) rc,
-            mk = in(reg) mk,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-}
-
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_differential {
+#[cfg(test)]
+mod reference_vectors {
     use super::Shadow;
-    use super::asm_reference as reference;
     use crate::effects::asm_test::with_copy;
     use crate::effects::kind_store::{KindConsts, QuadWork};
     use crate::effects::store::START;
@@ -1216,7 +554,7 @@ mod asm_differential {
         });
     }
     use crate::effects::asm_test::Kind::*;
-    use crate::effects::asm_test::{Op, Spec, differential};
+    use crate::effects::asm_test::{Op, Spec, recorded_writes};
 
     #[test]
     fn light_turned_x87_matches() {
@@ -1253,15 +591,11 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::light_turned_x87(b[0], b[1], b[2]),
-            |b| {
-                with_shadow(b[0], SET_2, |s| {
-                    with_matrix(b[1], b[2], |m, t| super::light_turned_x87(s, m, t));
-                });
-            },
-        );
+        recorded_writes("effects.draw_shadow.light_turned_x87", &SPEC, |b| {
+            with_shadow(b[0], SET_2, |s| {
+                with_matrix(b[1], b[2], |m, t| super::light_turned_x87(s, m, t));
+            });
+        });
     }
 
     #[test]
@@ -1299,15 +633,11 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::second_turned_x87(b[0], b[1], b[2]),
-            |b| {
-                with_shadow(b[0], SET_2, |s| {
-                    with_matrix(b[1], b[2], |m, t| super::second_turned_x87(s, m, t));
-                });
-            },
-        );
+        recorded_writes("effects.draw_shadow.second_turned_x87", &SPEC, |b| {
+            with_shadow(b[0], SET_2, |s| {
+                with_matrix(b[1], b[2], |m, t| super::second_turned_x87(s, m, t));
+            });
+        });
     }
 
     #[test]
@@ -1371,11 +701,9 @@ mod asm_differential {
             }],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::corners_x87(b[0]),
-            |b| with_shadow(b[0], SET_2, super::corners_x87),
-        );
+        recorded_writes("effects.draw_shadow.corners_x87", &SPEC, |b| {
+            with_shadow(b[0], SET_2, super::corners_x87);
+        });
     }
 
     #[test]
@@ -1422,11 +750,9 @@ mod asm_differential {
             }],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::corners_in_x87(b[0]),
-            |b| with_shadow(b[0], SET_2, super::corners_in_x87),
-        );
+        recorded_writes("effects.draw_shadow.corners_in_x87", &SPEC, |b| {
+            with_shadow(b[0], SET_2, super::corners_in_x87);
+        });
     }
 
     #[test]
@@ -1468,15 +794,11 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::projected_x87(b[0], b[1]),
-            |b| {
-                with_shadow(b[1], SET_2, |s| {
-                    super::projected_x87(s);
-                });
-            },
-        );
+        recorded_writes("effects.draw_shadow.projected_x87", &SPEC, |b| {
+            with_shadow(b[1], SET_2, |s| {
+                super::projected_x87(s);
+            });
+        });
     }
 
     #[test]
@@ -1514,15 +836,11 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::light_turned_2_x87(b[0], b[1], b[2]),
-            |b| {
-                with_shadow(b[0], SET_1, |s| {
-                    with_matrix(b[1], b[2], |m, t| super::light_turned_x87(s, m, t));
-                });
-            },
-        );
+        recorded_writes("effects.draw_shadow.light_turned_2_x87", &SPEC, |b| {
+            with_shadow(b[0], SET_1, |s| {
+                with_matrix(b[1], b[2], |m, t| super::light_turned_x87(s, m, t));
+            });
+        });
     }
 
     #[test]
@@ -1560,15 +878,11 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::second_turned_2_x87(b[0], b[1], b[2]),
-            |b| {
-                with_shadow(b[0], SET_1, |s| {
-                    with_matrix(b[1], b[2], |m, t| super::second_turned_x87(s, m, t));
-                });
-            },
-        );
+        recorded_writes("effects.draw_shadow.second_turned_2_x87", &SPEC, |b| {
+            with_shadow(b[0], SET_1, |s| {
+                with_matrix(b[1], b[2], |m, t| super::second_turned_x87(s, m, t));
+            });
+        });
     }
 
     #[test]
@@ -1632,11 +946,9 @@ mod asm_differential {
             }],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::corners_2_x87(b[0]),
-            |b| with_shadow(b[0], SET_1, super::corners_x87),
-        );
+        recorded_writes("effects.draw_shadow.corners_2_x87", &SPEC, |b| {
+            with_shadow(b[0], SET_1, super::corners_x87);
+        });
     }
 
     #[test]
@@ -1683,11 +995,9 @@ mod asm_differential {
             }],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::corners_in_2_x87(b[0]),
-            |b| with_shadow(b[0], SET_1, super::corners_in_x87),
-        );
+        recorded_writes("effects.draw_shadow.corners_in_2_x87", &SPEC, |b| {
+            with_shadow(b[0], SET_1, super::corners_in_x87);
+        });
     }
 
     #[test]
@@ -1729,14 +1039,10 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::projected_2_x87(b[0], b[1]),
-            |b| {
-                with_shadow(b[1], SET_1, |s| {
-                    super::projected_x87(s);
-                });
-            },
-        );
+        recorded_writes("effects.draw_shadow.projected_2_x87", &SPEC, |b| {
+            with_shadow(b[1], SET_1, |s| {
+                super::projected_x87(s);
+            });
+        });
     }
 }

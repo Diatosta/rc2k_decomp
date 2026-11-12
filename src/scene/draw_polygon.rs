@@ -208,6 +208,7 @@ fn entries(
 
 /// The sun's hit test.
 fn hit_test(
+    part: &crate::workers::PartScratch,
     quad: &[crate::session::Dword; 32],
     sun: &crate::scene::polygon_work::ViewSun,
     entries: &[Listed],
@@ -224,8 +225,12 @@ fn hit_test(
         let corner = |(_, entry): Listed| {
             let vertex = entry.record.get();
             [
-                x87::to_int(crate::scene::point_records::vertex(quad, vertex, 0x0C)),
-                x87::to_int(crate::scene::point_records::vertex(quad, vertex, 0x1C)),
+                x87::to_int(crate::scene::point_records::vertex(
+                    part, quad, vertex, 0x0C,
+                )),
+                x87::to_int(crate::scene::point_records::vertex(
+                    part, quad, vertex, 0x1C,
+                )),
             ]
         };
         let (from, to) = (corner(entries[n]), corner(entries[(n + 1) % entries.len()]));
@@ -241,7 +246,7 @@ fn hit_test(
 
 /// The positions into the vertex buffer, mirrored for a mirrored view.
 fn place(
-    buffer: &PolygonVertices,
+    part: &crate::workers::PartScratch,
     quad: &[crate::session::Dword; 32],
     race: &crate::race::owner::Race,
     scene: &crate::scene::owner::Scene,
@@ -249,6 +254,7 @@ fn place(
     mirrored: bool,
     window: &crate::scene::view_window::ViewWindow,
 ) {
+    let buffer = part.vertices;
     let (x_offset, y_offset): (u32, u32) = (
         window.view_offset_float[0].bits(),
         window.view_offset_float[1].bits(),
@@ -260,21 +266,21 @@ fn place(
         let vertex = entry.record.get();
         let out = out(buffer, n);
         let mut x = x87::add(
-            crate::scene::point_records::vertex(quad, vertex, 0x0C),
+            crate::scene::point_records::vertex(part, quad, vertex, 0x0C),
             x_offset,
         );
         let depth = x87::mul(
-            crate::scene::point_records::vertex(quad, vertex, 0x18),
+            crate::scene::point_records::vertex(part, quad, vertex, 0x18),
             depth_factor,
         );
         out.y.set(x87::add(
-            crate::scene::point_records::vertex(quad, vertex, 0x1C),
+            crate::scene::point_records::vertex(part, quad, vertex, 0x1C),
             y_offset,
         ));
         out.z.set(depth);
         out.rhw.set_bits(if sse {
             x87::rcpss_times(
-                crate::scene::point_records::vertex(quad, vertex, 0x18),
+                crate::scene::point_records::vertex(part, quad, vertex, 0x18),
                 race.course.numbers.k65536.bits(),
             )
         } else {
@@ -414,7 +420,7 @@ pub fn draw_polygon(
     }
     let mut entries = entries(part.polygon, count)?;
     // Nothing has been written up to here.
-    hit_test(&poly.quad_vertices, &poly.sun, &entries);
+    hit_test(part, &poly.quad_vertices, &poly.sun, &entries);
     let kept: [u32; 3] = [
         poly.polygon_sides[0].get(),
         poly.polygon_sides[1].get(),
@@ -430,7 +436,7 @@ pub fn draw_polygon(
         }
     }
     place(
-        buffer,
+        part,
         &poly.quad_vertices,
         race,
         scene,

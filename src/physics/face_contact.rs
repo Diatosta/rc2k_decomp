@@ -158,7 +158,7 @@ pub fn steps(
         fill_cells(&c.scratch.work_vector, 0);
     }
     c.scratch.work_vector[1].set(0);
-    normalise_work_vector(c.numbers, c.scratch);
+    normalise_work_vector(c.numbers, c.scratch, scene);
     copy_cells(&c.contact.contact_normal, &c.scratch.work_vector);
     copy_cells(&c.contact.contact_car_speed, &c.car.velocity);
     copy_cells(&c.contact.contact_turn_speed, &c.car.spin);
@@ -194,7 +194,7 @@ fn x87_1(contact: &ContactWork, numbers: &Numbers) {
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// (a long formula: see the instructions in the tests' `asm_reference`)
+/// (a long formula: checked by the tests' `reference_vectors`)
 /// `[object_point_turned] = int [contact_point] / [k65536]`
 /// `[rc + 0x2D3B5C] = int [rc + 0x2D3094] / [k65536]`
 /// `[rc + 0x2D3B60] = int [rc + 0x2D3098] / [k65536]`
@@ -225,14 +225,10 @@ fn x87_2(contact: &ContactWork, car: &Car, numbers: &Numbers) {
     contact.object_point_turned[2].st(t19);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
-
-    // The original's instructions, one function per run.
-    reference!(ref_0(rc) "fild dword ptr [{rc} + 0x2D3B4C]", "fild dword ptr [{rc} + 0x2D3B54]", ".byte 0xD9, 0xF3", "fmul dword ptr [{rc} + 0x1C5E2C]", "fmul dword ptr [{rc} + 0x1C5DD4]", "fistp dword ptr [{rc} + 0x2D3B70]");
-    reference!(ref_1(rc) "fld dword ptr [{rc} + 0x31A170]", ".byte 0xD8, 0xC8", "fld dword ptr [{rc} + 0x31A178]", ".byte 0xD8, 0xC8", "fld dword ptr [{rc} + 0x31A174]", ".byte 0xD8, 0xC8", ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1", ".byte 0xD9, 0xFA", "fmul dword ptr [{rc} + 0x1C5D98]", "fistp dword ptr [{rc} + 0x2D3B74]", "fild dword ptr [{rc} + 0x2D3090]", "fdiv dword ptr [{rc} + 0x1C5D98]", "fstp dword ptr [{rc} + 0x2D3B58]", "fild dword ptr [{rc} + 0x2D3094]", "fdiv dword ptr [{rc} + 0x1C5D98]", "fstp dword ptr [{rc} + 0x2D3B5C]", "fild dword ptr [{rc} + 0x2D3098]", "fdiv dword ptr [{rc} + 0x1C5D98]", "fstp dword ptr [{rc} + 0x2D3B60]");
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
         vec![
@@ -248,7 +244,6 @@ mod asm_reference {
                     writes: &[(0x2D3B70, Out::I)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_0(a[0]) },
                 plain: |_| {
                     x87_1(
                         &crate::race::owner::race().physics.contact,
@@ -276,7 +271,6 @@ mod asm_reference {
                     ],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_1(a[0]) },
                 plain: |_| {
                     x87_2(
                         &crate::race::owner::race().physics.contact,
@@ -290,6 +284,6 @@ mod asm_reference {
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse(&blocks(), 1200, 100);
+        sparse("physics.face_contact", &blocks(), 1200, 100);
     }
 }

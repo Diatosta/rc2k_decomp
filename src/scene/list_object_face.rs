@@ -203,7 +203,7 @@ pub fn list_object_face(
     }
     ctx.view.polygon.polygon_vertex_count.set(count);
     ctx.view.polygon.face_sort_key.set(0u32);
-    face_sort_key(&ctx.view.polygon, &race.course, face, count)?;
+    face_sort_key(&ctx.view.polygon, ctx.part, &race.course, face, count)?;
     // The original's room was 0x1000 entries but its list 0x400 long, the rest written over
     // the next tables (fixed: `wiki/Fixed-bugs.md`).
     let key = listed_key(bytes, ctx.view.polygon.face_sort_key.get());

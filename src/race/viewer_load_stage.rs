@@ -50,7 +50,7 @@ pub fn viewer_load_stage(race: &'static Race, o: Owners<'static>) -> Result<(), 
         stage_free::objects_tidy(race)?;
         // nullsub_6
         race_end::release_textures(o.scene);
-        race_shell::set_race_screen_mode();
+        race_shell::set_race_screen_mode(gfx);
 
         crate::menu::show_loading_picture::show_loading_picture_in(o.menus, o.gfx, o.system)?;
         for (to, from) in settings(race) {
@@ -91,7 +91,7 @@ pub fn viewer_load_stage(race: &'static Race, o: Owners<'static>) -> Result<(), 
         }
         crate::race::read_replay_header::read_replay_header(race);
         { stage_loading::load_stage(race, o) }?;
-        race_end::reset_race_sounds(&race_end::SoundVars::game(), sound, o.audio, o.system)?;
+        race_end::reset_race_sounds(&race_end::SoundVars::game(sound), sound, o.audio, o.system)?;
         crate::race::viewer_palettes::viewer_palettes(shared, scene, gfx)?;
         shared.replay_file.viewer_stage_loaded.set(1);
     }

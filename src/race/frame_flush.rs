@@ -184,11 +184,12 @@ pub fn draw_view_backdrop(
     crate::scene::depth_buffer_on::depth_buffer(true);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
     use crate::race::asm_test::{Rng, at_each_control_word, lock, same};
     use crate::race::owner::race;
+    use crate::test_support::vectors::{Recorder, word};
 
     /// `numbers.one` as it was, put back when dropped.
     struct KeptOne(u32);
@@ -200,45 +201,6 @@ mod asm_reference {
     }
 
     // The original blocks, verbatim.
-    pub(super) fn int_and_one_asm(i: u32, add: bool) -> u32 {
-        let mut out = 0u32;
-        let v = [i, race().course.numbers.one.bits()];
-        unsafe {
-            if add {
-                core::arch::asm!(
-                    "fild dword ptr [{v}]", "fadd dword ptr [{v} + 4]", "fstp dword ptr [{o}]",
-                    v = in(reg) v.as_ptr(), o = in(reg) &raw mut out,
-                    out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                    out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                    options(nostack),
-                );
-            } else {
-                core::arch::asm!(
-                    "fild dword ptr [{v}]", "fsub dword ptr [{v} + 4]", "fstp dword ptr [{o}]",
-                    v = in(reg) v.as_ptr(), o = in(reg) &raw mut out,
-                    out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                    out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                    options(nostack),
-                );
-            }
-        }
-        out
-    }
-
-    pub(super) fn int_over_two_asm(i: u32, a: u32, b: u32) -> u32 {
-        let (v, mut out) = ([i, a, b], 0u32);
-        unsafe {
-            core::arch::asm!(
-                "fild dword ptr [{v}]", "fdiv dword ptr [{v} + 4]", "fdiv dword ptr [{v} + 8]",
-                "fstp dword ptr [{o}]",
-                v = in(reg) v.as_ptr(), o = in(reg) &raw mut out,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-        out
-    }
 
     #[test]
     fn int_blocks_match() {
@@ -246,17 +208,31 @@ mod asm_reference {
         let _l = lock();
         let _kept = KeptOne(race().course.numbers.one.bits());
         let mut r = Rng(5);
+        let mut file = Recorder::replay("race.frame_flush.int_blocks");
         at_each_control_word(|| {
             for _ in 0..20000 {
                 race().course.numbers.one.set_bits(r.float());
                 let (i, a, b) = (r.int() as u32, r.float(), r.float());
                 for add in [false, true] {
-                    let (want, got) = (int_and_one_asm(i, add), int_and_one(course, i, add));
+                    file.input(
+                        &[
+                            i.to_le_bytes(),
+                            race().course.numbers.one.bits().to_le_bytes(),
+                        ]
+                        .concat(),
+                    );
+                    let want = word(&mut file);
+                    let got = int_and_one(course, i, add);
                     assert!(same(want, got), "{i} {add}: {want:#x} {got:#x}");
                 }
-                let (want, got) = (int_over_two_asm(i, a, b), int_over_two(i, a, b));
+                for w in [i, a, b] {
+                    file.input(&w.to_le_bytes());
+                }
+                let want = word(&mut file);
+                let got = int_over_two(i, a, b);
                 assert!(same(want, got), "{i} {a:#x} {b:#x}: {want:#x} {got:#x}");
             }
         });
+        file.finish();
     }
 }

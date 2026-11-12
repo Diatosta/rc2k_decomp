@@ -12,6 +12,7 @@ use crate::errors::BadInput;
 use crate::physics::car_store::Car;
 use crate::pointers::Cells;
 use crate::race::blocks_store::BLOCK_COUNT;
+use crate::race::owner::Race;
 use crate::session::{Dword, Float};
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -116,24 +117,24 @@ static HELD: AtomicBool = AtomicBool::new(false);
 
 /// The snapshot held while it lives: `take` at its making, `release` when dropped (on every
 /// way out of the drawing).
-pub struct Held;
+pub struct Held<'a>(&'a Race);
 
-impl Held {
-    pub fn take() -> Self {
-        take();
-        Held
+impl<'a> Held<'a> {
+    pub fn take(race: &'a Race) -> Self {
+        take(race);
+        Held(race)
     }
 }
 
-impl Drop for Held {
+impl Drop for Held<'_> {
     fn drop(&mut self) {
-        release();
+        release(self.0);
     }
 }
 
 /// The snapshot of every car block (on the game's thread, before any view is drawn).
-fn take() {
-    let blocks = &crate::race::blocks_store::CAR_BLOCKS.cars;
+fn take(race: &Race) {
+    let blocks = &race.car_blocks().cars;
     for (view, car) in CARS.iter().zip(blocks) {
         view.take(car);
     }
@@ -142,13 +143,13 @@ fn take() {
 
 /// The drawing is over: the snapshot no longer read (and, with `RC2K_FRAME_VIEW_CHECK`, compared
 /// with the blocks).
-fn release() {
+fn release(race: &Race) {
     HELD.store(false, Ordering::Release);
     static CHECK: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     if !*CHECK.get_or_init(|| std::env::var_os("RC2K_FRAME_VIEW_CHECK").is_some()) {
         return;
     }
-    let blocks = &crate::race::blocks_store::CAR_BLOCKS.cars;
+    let blocks = &race.car_blocks().cars;
     for (n, (view, car)) in CARS.iter().zip(blocks).enumerate() {
         let changed = view.changed(car);
         if !changed.is_empty() {

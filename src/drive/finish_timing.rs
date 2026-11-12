@@ -90,44 +90,11 @@ pub fn finish_timing(race: &Race, scene: &crate::scene::owner::Scene) {
     timing_from(race, now, scene);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
     use crate::race::owner::race;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
-
-    // The original's instructions, one function per run.
-    reference!(ref_time(rc)
-        "fild dword ptr [{rc} + 0x22400C]",
-        "fdiv dword ptr [{rc} + 0x1C5D18]",
-        "fstp dword ptr [{rc} + 0x24BB64]");
-    reference!(ref_middle(rc)
-        "fld dword ptr [{rc} + 0x24BB64]",
-        "fsub dword ptr [{rc} + 0x24BB44]",
-        "fld dword ptr [{rc} + 0x24BB48]",
-        "fsub dword ptr [{rc} + 0x24BB44]",
-        ".byte 0xDE, 0xF9", // fdivp st(1), st
-        ".byte 0xD8, 0xC8", // fmul st, st
-        "fld dword ptr [{rc} + 0x24BB48]",
-        "fsub dword ptr [{rc} + 0x24BB44]",
-        "fmul dword ptr [{rc} + 0x1C5E40]",
-        ".byte 0xDE, 0xC9", // fmulp st(1), st
-        ".byte 0xD9, 0xE0", // fchs
-        "fadd dword ptr [{rc} + 0x24BB64]",
-        "fstp dword ptr [{rc} + 0x24BB68]");
-    reference!(ref_end(rc)
-        "fld dword ptr [{rc} + 0x24BB48]",
-        "fsub dword ptr [{rc} + 0x24BB44]",
-        "fmul dword ptr [{rc} + 0x1C5E40]",
-        "fadd dword ptr [{rc} + 0x24BB44]",
-        "fstp dword ptr [{rc} + 0x24BB68]");
-    reference!(ref_share(rc)
-        "fld dword ptr [{rc} + 0x24BB64]",
-        "fsub dword ptr [{rc} + 0x24BB70]",
-        "fld dword ptr [{rc} + 0x24BB74]",
-        "fsub dword ptr [{rc} + 0x24BB70]",
-        ".byte 0xDE, 0xF9", // fdivp st(1), st
-        "fstp dword ptr [{rc} + 0x24BB6C]");
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
         vec![
@@ -138,7 +105,6 @@ mod asm_reference {
                     writes: &[(0x24BB64, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_time(a[0]) },
                 plain: |_| time(race(), crate::scene::owner::scene()),
             },
             Block {
@@ -153,7 +119,6 @@ mod asm_reference {
                     writes: &[(0x24BB68, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_middle(a[0]) },
                 plain: |_| eased_middle(race()),
             },
             Block {
@@ -163,7 +128,6 @@ mod asm_reference {
                     writes: &[(0x24BB68, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_end(a[0]) },
                 plain: |_| eased_end(race()),
             },
             Block {
@@ -173,7 +137,6 @@ mod asm_reference {
                     writes: &[(0x24BB6C, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_share(a[0]) },
                 plain: |_| share(&race().replay),
             },
         ]
@@ -181,6 +144,6 @@ mod asm_reference {
 
     #[test]
     fn finish_timing_matches_the_assembly() {
-        sparse(&blocks(), 3000, 202);
+        sparse("drive.finish_timing", &blocks(), 3000, 202);
     }
 }

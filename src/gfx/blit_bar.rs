@@ -8,9 +8,9 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::gfx::blit_glyph::BlitCall;
-use crate::gfx::owner::{Gfx, gfx};
+use crate::gfx::owner::Gfx;
 use crate::gfx::surface::clip_in;
-use crate::menu::owner::{Menus, menus};
+use crate::menu::owner::Menus;
 
 // ---- game data ----
 
@@ -38,10 +38,6 @@ impl Bar {
             end_glyph: drawing.bar.end_glyph.get(),
             percent: drawing.bar.percent.get() as i32,
         }
-    }
-
-    pub fn write(&self) {
-        self.write_in(gfx());
     }
 
     /// Puts the bar in the bar globals.
@@ -109,11 +105,6 @@ impl Bar {
 }
 
 /// The bar described by the bar globals. Converted: `rc2k_core::gfx::bars::bar`.
-pub fn blit_bar(blit: Blit) -> Result<(), Refused> {
-    blit_bar_in(gfx(), menus(), blit)
-}
-
-/// `blit_bar` for a caller that holds the owners.
 pub fn blit_bar_in(gfx: &Gfx, menus: &Menus, blit: Blit) -> Result<(), Refused> {
     rc2k_core::gfx::bars::bar(&mut GameBar { blit, gfx, menus }, &Bar::read(gfx).core())
 }

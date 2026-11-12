@@ -66,14 +66,11 @@ fn x87_1(sf: &crate::sound::store::SurfaceSounds, volume: &impl Cell32) {
     volume.set_bits(st(t0));
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
     use crate::scene::x87_mem::HostCell;
-
-    // The original's instructions, one function per run.
-    reference!(ref_0(sf, si) "fld dword ptr [{sf} + 0x40]", "fstp dword ptr [{si} + 0x8]");
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
         vec![Block {
@@ -89,10 +86,12 @@ mod asm_reference {
                 },
             ],
             ulps: 0,
-            reference: |a| unsafe { ref_0(a[0], a[1]) },
             plain: |a| {
                 x87_1(
-                    unsafe { &*(a[0] as *const crate::sound::store::SurfaceSounds) },
+                    unsafe {
+                        &*(crate::test_support::vectors::block_vectors::at(a[0])
+                            as *const crate::sound::store::SurfaceSounds)
+                    },
                     &HostCell(a[1] + 8),
                 );
             },
@@ -101,6 +100,6 @@ mod asm_reference {
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse(&blocks(), 1200, 100);
+        sparse("sound.surface_sound", &blocks(), 1200, 100);
     }
 }

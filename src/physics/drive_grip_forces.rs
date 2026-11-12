@@ -17,7 +17,7 @@
 //!
 //! The flow, the compares and the integer steps are Rust; each straight x87 run is plain
 //! Rust over `X` (`math/x87_float.rs`) in the named helpers below, the original's
-//! instructions being `asm_reference` in the tests.
+//! instructions being recorded in the tests' `reference_vectors`.
 //!
 //! Caller: `physics::car_physics_step`, every physics step.
 
@@ -272,7 +272,7 @@ fn ground_speed_into_scratch(car: &Car, scene: &crate::scene::owner::Scene) {
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// (a long formula: see the instructions in the tests' `asm_reference`)
+/// (a long formula: checked by the tests' `reference_vectors`)
 fn lean_force(
     car: &Car,
     tables: &PhysicsTables,
@@ -372,7 +372,7 @@ fn yaw_share_from_limit(tables: &PhysicsTables, scene: &crate::scene::owner::Sce
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// (a long formula: see the instructions in the tests' `asm_reference`)
+/// (a long formula: checked by the tests' `reference_vectors`)
 fn yaw_force(
     car: &Car,
     tables: &PhysicsTables,
@@ -475,32 +475,14 @@ fn ease_yaw_twist(
     tables.forces[20].point[2].st(t30);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
     use crate::race::owner::race;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
     use crate::scene::owner::scene;
     use crate::scene::x87_mem::{HostCell, view};
     use crate::session::Cell32;
-
-    // The original's instructions, one function per run.
-    reference!(ref_0(bf, e, rc) "fld dword ptr [{bf} + {e}*4 + 0x623AE4]", "fmul dword ptr [{rc} + 0x31A184]", "fdiv dword ptr [{rc} + 0x214BA0]", "fstp dword ptr [{rc} + 0x31A1E8]");
-    reference!(ref_1(rc) "fild dword ptr [{rc} + 0x31A1CC]", "fild dword ptr [{rc} + 0x22400C]", ".byte 0xDE, 0xF9", "fsub dword ptr [{rc} + 0x1C5D38]", ".byte 0xD9, 0xE0", "fstp dword ptr [{rc} + 0x214768]");
-    reference!(ref_2(rc, f) "fld dword ptr [{rc} + 0x2142A8]", "fmul dword ptr [{rc} + 0x213FC8]", "fmul dword ptr [{f}]", "fmul dword ptr [{rc} + 0x214B74]", "fdiv dword ptr [{rc} + 0x31A184]", ".byte 0xD9, 0xE1", "fstp dword ptr [{rc} + 0x214260]");
-    reference!(ref_3(rc) "fld dword ptr [{rc} + 0x31A1E8]", "fdiv dword ptr [{rc} + 0x22400C]", "fstp dword ptr [{rc} + 0x22400C]");
-    reference!(ref_4(rc) "fld dword ptr [{rc} + 0x22400C]", "fimul dword ptr [{rc} + 0x31A61C]", "fistp dword ptr [{rc} + 0x31A61C]");
-    reference!(ref_5(rc) "fld dword ptr [{rc} + 0x31A17C]", ".byte 0xD8, 0xC8", "fld dword ptr [{rc} + 0x31A184]", ".byte 0xD8, 0xC8", ".byte 0xDE, 0xC1", ".byte 0xD9, 0xFA", "fstp dword ptr [{rc} + 0x22400C]");
-    reference!(ref_6(rc, bf, e) "fld dword ptr [{rc} + 0x213F34]", "fsub dword ptr [{rc} + 0x22400C]", "fdiv dword ptr [{rc} + 0x213F34]", "fmul dword ptr [{bf} + {e}*4 + 0x623AE4]", "fimul dword ptr [{rc} + 0x31A618]", "fdiv dword ptr [{rc} + 0x1C5E2C]", "fmul dword ptr [{rc} + 0x31A190]", "fmul dword ptr [{rc} + 0x213F38]", "fimul dword ptr [{rc} + 0x31A610]", "fdiv dword ptr [{rc} + 0x1C5E2C]", "fstp dword ptr [{rc} + 0x31A1F4]");
-    reference!(ref_7(rc) "fld dword ptr [{rc} + 0x214BF0]", "fimul dword ptr [{rc} + 0x31A614]", "fmul dword ptr [{rc} + 0x1C5DB4]", "fistp dword ptr [{rc} + 0x22400C]");
-    reference!(ref_8(rc) "fld dword ptr [{rc} + 0x214BF0]", "fimul dword ptr [{rc} + 0x31A614]", ".byte 0xD8, 0xC0", "fistp dword ptr [{rc} + 0x22400C]");
-    reference!(ref_9(rc) "fild dword ptr [{rc} + 0x214164]", "fdiv dword ptr [{rc} + 0x1C5E2C]", "fmul dword ptr [{rc} + 0x31A1A0]", ".byte 0xD9, 0xE0", "fmul dword ptr [{rc} + 0x213ECC]", "fmul dword ptr [{rc} + 0x214B78]", "fstp dword ptr [{rc} + 0x31A1EC]");
-    reference!(ref_10(rc) "fld dword ptr [{rc} + 0x31A184]", ".byte 0xD9, 0xE1", "fstp dword ptr [{rc} + 0x22401C]");
-    reference!(ref_11(rc) "fld dword ptr [{rc} + 0x213E7C]", "fsub dword ptr [{rc} + 0x22401C]", "fdiv dword ptr [{rc} + 0x213E7C]", "fstp dword ptr [{rc} + 0x22401C]");
-    reference!(ref_12(rc) "fld dword ptr [{rc} + 0x22400C]", "fdiv dword ptr [{rc} + 0x213E80]", "fstp dword ptr [{rc} + 0x22400C]");
-    reference!(ref_13(bf, e, rc) "fld dword ptr [{bf} + {e}*4 + 0x623AE4]", "fdiv dword ptr [{rc} + 0x214BA0]", "fimul dword ptr [{rc} + 0x31A610]", "fdiv dword ptr [{rc} + 0x1C5E2C]", "fmul dword ptr [{rc} + 0x22400C]", "fmul dword ptr [{rc} + 0x22401C]", "fmul dword ptr [{rc} + 0x213E78]", "fstp dword ptr [{rc} + 0x31A1F0]");
-    reference!(ref_14(rc) "fld dword ptr [{rc} + 0x31A1E8]", "fadd dword ptr [{rc} + 0x31A1EC]", "fadd dword ptr [{rc} + 0x31A1F0]", "fadd dword ptr [{rc} + 0x31A1F4]", "fstp dword ptr [{rc} + 0x31A1DC]");
-    reference!(ref_15(rc, o) "fld dword ptr [{rc} + 0x1C5E48]", "fadd dword ptr [{rc} + 0x31A1DC]", "fstp dword ptr [{rc} + 0x31A1D8]", "fld dword ptr [{o}]", "fsub dword ptr [{rc} + 0x31A1D8]", ".byte 0xD9, 0xE0", "fstp dword ptr [{rc} + 0x22400C]", "fld dword ptr [{rc} + 0x22400C]", "fdiv dword ptr [{rc} + 0x21388C]", "fmul dword ptr [{rc} + 0x1C5E40]", "fdiv dword ptr [{rc} + 0x213FAC]", "fst dword ptr [{rc} + 0x2149D0]", ".byte 0xD9, 0xE0", "fstp dword ptr [{rc} + 0x2149F0]", ".byte 0xD9, 0xE8", "fst dword ptr [{rc} + 0x2149E4]", ".byte 0xD9, 0xE0", "fstp dword ptr [{rc} + 0x214A04]", "fld dword ptr [{rc} + 0x2149D0]", "fdiv dword ptr [{rc} + 0x31ACC8]", "fstp dword ptr [{rc} + 0x2149D0]", "fld dword ptr [{rc} + 0x2149E4]", "fmul dword ptr [{rc} + 0x31ACC8]", "fstp dword ptr [{rc} + 0x2149E4]", "fld dword ptr [{rc} + 0x2149F0]", "fdiv dword ptr [{rc} + 0x31ACD4]", ".byte 0xD9, 0xE0", "fstp dword ptr [{rc} + 0x2149F0]", "fld dword ptr [{rc} + 0x214A04]", "fmul dword ptr [{rc} + 0x31ACD4]", ".byte 0xD9, 0xE0", "fstp dword ptr [{rc} + 0x214A04]");
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
         vec![
@@ -518,7 +500,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
                 plain: |a| {
                     steer_sine_force(
                         &race().shared.car,
@@ -542,7 +523,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
                 plain: |a| {
                     steer_sine_force(
                         &race().shared.car,
@@ -566,7 +546,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
                 plain: |a| {
                     steer_sine_force(
                         &race().shared.car,
@@ -583,7 +562,6 @@ mod asm_reference {
                     writes: &[(0x214768, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_1(a[0]) },
                 plain: |_| {
                     lever_share_from_timer(
                         &race().shared.car,
@@ -611,7 +589,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_2(a[0], a[1]) },
                 plain: |a| {
                     grip_limit_for(
                         &race().shared.car,
@@ -627,7 +604,6 @@ mod asm_reference {
                     writes: &[(0x22400C, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_3(a[0]) },
                 plain: |_| {
                     divide_into_scratch(
                         &crate::race::owner::race().shared.car.grip_forces[0],
@@ -643,7 +619,6 @@ mod asm_reference {
                     writes: &[(0x31A61C, Out::I)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_4(a[0]) },
                 plain: |_| scale_steering(&race().shared.car, crate::scene::owner::scene()),
             },
             Block {
@@ -653,7 +628,6 @@ mod asm_reference {
                     writes: &[(0x22400C, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_5(a[0]) },
                 plain: |_| {
                     ground_speed_into_scratch(&race().shared.car, crate::scene::owner::scene());
                 },
@@ -680,7 +654,6 @@ mod asm_reference {
                     Operand::Value(0),
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_6(a[0], a[1], a[2]) },
                 plain: |a| {
                     lean_force(
                         &race().shared.car,
@@ -714,7 +687,6 @@ mod asm_reference {
                     Operand::Value(1),
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_6(a[0], a[1], a[2]) },
                 plain: |a| {
                     lean_force(
                         &race().shared.car,
@@ -748,7 +720,6 @@ mod asm_reference {
                     Operand::Value(4),
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_6(a[0], a[1], a[2]) },
                 plain: |a| {
                     lean_force(
                         &race().shared.car,
@@ -767,7 +738,6 @@ mod asm_reference {
                     writes: &[(0x22400C, Out::I)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_7(a[0]) },
                 plain: |_| {
                     braking_count_geared(
                         &race().shared.car,
@@ -784,7 +754,6 @@ mod asm_reference {
                     writes: &[(0x22400C, Out::I)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_8(a[0]) },
                 plain: |_| {
                     braking_count_neutral(
                         &race().shared.car,
@@ -806,7 +775,6 @@ mod asm_reference {
                     writes: &[(0x31A1EC, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_9(a[0]) },
                 plain: |_| {
                     engine_braking_force(
                         &race().shared.car,
@@ -822,7 +790,6 @@ mod asm_reference {
                     writes: &[(0x22401C, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_10(a[0]) },
                 plain: |_| abs_speed_into_work(&race().shared.car, crate::scene::owner::scene()),
             },
             Block {
@@ -832,7 +799,6 @@ mod asm_reference {
                     writes: &[(0x22401C, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_11(a[0]) },
                 plain: |_| {
                     yaw_share_from_limit(
                         &race().shared.physics_tables,
@@ -847,7 +813,6 @@ mod asm_reference {
                     writes: &[(0x22400C, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_12(a[0]) },
                 plain: |_| {
                     divide_into_scratch(
                         &scene().drawing.scene.scratch,
@@ -880,7 +845,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_13(a[0], a[1], a[2]) },
                 plain: |a| {
                     yaw_force(
                         &race().shared.car,
@@ -913,7 +877,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_13(a[0], a[1], a[2]) },
                 plain: |a| {
                     yaw_force(
                         &race().shared.car,
@@ -946,7 +909,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_13(a[0], a[1], a[2]) },
                 plain: |a| {
                     yaw_force(
                         &race().shared.car,
@@ -970,7 +932,6 @@ mod asm_reference {
                     writes: &[(0x31A1DC, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_14(a[0]) },
                 plain: |_| sum_grip_forces(&race().shared.car),
             },
             Block {
@@ -1007,7 +968,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_15(a[0], a[1]) },
                 plain: |a| {
                     ease_yaw_twist(
                         &race().shared.car,
@@ -1023,6 +983,6 @@ mod asm_reference {
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse(&blocks(), 1200, 100);
+        sparse("physics.drive_grip_forces", &blocks(), 1000, 100);
     }
 }

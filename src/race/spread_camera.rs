@@ -17,7 +17,7 @@ pub fn spread_camera(race: &Race, byte: CameraByte, old: u8) -> Result<(), Refus
     let replay = &race.replay;
     // The camera bytes of the following blocks, 8 bytes apart (a stride over bytes).
     let at = |n: u32| byte.blocks_on(n);
-    let dl = byte.read("a replay camera byte")?;
+    let dl = byte.read(race, "a replay camera byte")?;
     let count = race
         .shared
         .replay_file
@@ -27,11 +27,11 @@ pub fn spread_camera(race: &Race, byte: CameraByte, old: u8) -> Result<(), Refus
     // Converted: `rc2k_core::race::viewer::spread` (how far it goes, first).
     let trap = Trap::new();
     let s = rc2k_core::race::viewer::spread(count, old, |n| {
-        trap.keep_read(at(n).read("a replay camera byte"))
+        trap.keep_read(at(n).read(race, "a replay camera byte"))
     })?;
     trap.finish()?;
     for n in 1..=s.taken {
-        at(n).write(dl, "a replay camera byte")?;
+        at(n).write(race, dl, "a replay camera byte")?;
     }
     Ok(())
 }

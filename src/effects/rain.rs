@@ -308,7 +308,6 @@ impl Weather {
 
 #[cfg(test)]
 impl RainRules {
-    #[cfg(target_arch = "x86")]
     pub const START: usize = 0x8C5F91;
     pub const LEN: usize = 0x6C;
 }
@@ -328,7 +327,6 @@ pub mod tests {
     /// Runs `f` on the rain's variables in a test buffer standing for the marks' block at
     /// `mk` (IDA 0x764F40); the buffer's bytes are copied out for `f` (the image's address
     /// of the state is not aligned) and put back.
-    #[cfg(target_arch = "x86")]
     pub fn with_state_at<R>(mk: usize, f: impl FnOnce(&RainState, &RainRules) -> R) -> R {
         let state = crate::pointers::host_at(
             mk.wrapping_add(RainState::START)
@@ -371,7 +369,6 @@ pub mod tests {
     }
 
     /// A heap copy of the (possibly unaligned) value at `from`, never on the stack.
-    #[cfg(target_arch = "x86")]
     unsafe fn boxed_copy<T>(from: *const T) -> Box<T> {
         let mut b = Box::<T>::new_uninit();
         unsafe {

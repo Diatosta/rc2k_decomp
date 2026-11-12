@@ -108,7 +108,7 @@ pub fn draw_object_face(
     let (face_kind, face_unlit): (u32, u32) = (work.face_kind.get(), work.face_unlit.get());
     let lit = view_kind != 4
         && (face_kind == 0x1C || (face_kind != 5 && (face_kind < 0xA || face_unlit == 0)));
-    let table = crate::scene::reading::PointRecords::new(&race.course)?;
+    let table = crate::scene::reading::PointRecords::new(&race.course, ctx.part)?;
     for (entry, vertex) in vertices.clone() {
         let point = fw(vertex);
         entry.point.set(point.wrapping_neg());
@@ -116,7 +116,15 @@ pub fn draw_object_face(
         entry.u.set(fw(vertex + 4));
         entry.v.set(fw(vertex + 8));
         let light = if lit {
-            vertex_light(race, fw(vertex + 0xC), scene, light, object, system)?
+            vertex_light(
+                race,
+                ctx.part,
+                fw(vertex + 0xC),
+                scene,
+                light,
+                object,
+                system,
+            )?
         } else {
             0x00FF_FFFF
         };
@@ -129,7 +137,14 @@ pub fn draw_object_face(
             object
                 .reflection_point_number
                 .set(fw(vertex).wrapping_neg());
-            cached_reflection_coordinates(race, ctx.scene, object, &ctx.view.matrices, ctx.view)?;
+            cached_reflection_coordinates(
+                race,
+                ctx.part,
+                ctx.scene,
+                object,
+                &ctx.view.matrices,
+                ctx.view,
+            )?;
             let coordinates: [u32; 2] = crate::session::read_bits(&object.reflection_coordinates);
             entry.u2.set(coordinates[0]);
             entry.v2.set(coordinates[1]);
@@ -181,13 +196,13 @@ pub fn draw_object_face_in_game(
         face,
         &mut |step| match step {
             Step::Draw => draw_object_polygon(
-                ctx.part.polygon,
+                ctx.part,
                 &ctx.view.polygon,
                 race,
                 &ctx.view.object,
                 &mut |step| match step {
                     draw_object_polygon::Step::Project => {
-                        project_polygon(ctx.part.polygon, &ctx.view.polygon, race, scene, ctx.view)
+                        project_polygon(ctx.part, &ctx.view.polygon, race, scene, ctx.view)
                     }
                     draw_object_polygon::Step::Draw => draw_clipped_polygon_in_game(ctx),
                 },

@@ -13,13 +13,13 @@
 //! the menus), by address (`net::lobby`'s `CLEAR_FRONT`, the typed tables).
 
 use crate::errors::{BadInput, Refused};
-use crate::gfx::owner::gfx;
+use crate::gfx::owner::Gfx;
+use crate::system::owner::System;
 
 /// In the standalone the lock fails, so only the
 /// checks are made.
-pub fn clear_front_surface() -> Result<(), Refused> {
-    let system = crate::system::owner::system();
-    if gfx().drawing.surfaces.front.is_set() && system.session.screen.height.get() == 0 {
+pub fn clear_front_surface(gfx: &Gfx, system: &System) -> Result<(), Refused> {
+    if gfx.drawing.surfaces.front.is_set() && system.session.screen.height.get() == 0 {
         return Err(BadInput("a screen height of 0 (2^32 rows)").into());
     }
     Ok(())

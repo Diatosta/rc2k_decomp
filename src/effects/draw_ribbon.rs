@@ -192,124 +192,12 @@ fn ribbon_x87(buffer: &crate::d3d::vertices_store::PolygonVertices, dw: &DrawWor
     st_cell(&buffer.vertices[3].z, t62);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
-    //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
-
-    pub(super) fn ribbon_x87(rc: usize, bf: usize, mk: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{rc} + 0x224088]",
-            "fdiv dword ptr [{mk} + 0x18699D]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{mk} + 0x186995]",
-            ".byte 0xD9, 0xC1",
-            "fmul dword ptr [{mk} + 0x186999]",
-            ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{rc} + 0x2240A0]",
-            "fstp dword ptr [{mk} + 0x186999]",
-            "fadd dword ptr [{rc} + 0x22409C]",
-            "fstp dword ptr [{mk} + 0x186995]",
-            "fstp dword ptr [{mk} + 0x18698D]",
-            "fld dword ptr [{rc} + 0x224088]",
-            "fdiv dword ptr [{mk} + 0x1869A9]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{mk} + 0x1869A1]",
-            ".byte 0xD9, 0xC1",
-            "fmul dword ptr [{mk} + 0x1869A5]",
-            ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{rc} + 0x2240A0]",
-            "fstp dword ptr [{mk} + 0x1869A5]",
-            "fadd dword ptr [{rc} + 0x22409C]",
-            "fstp dword ptr [{mk} + 0x1869A1]",
-            "fstp dword ptr [{mk} + 0x186991]",
-            "fld dword ptr [{mk} + 0x1869A1]",
-            "fsub dword ptr [{mk} + 0x186995]",
-            "fstp dword ptr [{mk} + 0x18EA45]",
-            "fld dword ptr [{mk} + 0x1869A5]",
-            "fsub dword ptr [{mk} + 0x186999]",
-            "fstp dword ptr [{mk} + 0x18EA49]",
-            "fld dword ptr [{mk} + 0x18EA45]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{mk} + 0x18EA49]",
-            ".byte 0xD8, 0xC8",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xFA",
-            ".byte 0xD9, 0xE8",
-            ".byte 0xDE, 0xF1",
-            "fld dword ptr [{mk} + 0x18EA45]",
-            "fld dword ptr [{mk} + 0x18EA49]",
-            ".byte 0xD8, 0xCA",
-            "fstp dword ptr [{mk} + 0x18EA45]",
-            ".byte 0xDE, 0xC9",
-            ".byte 0xD9, 0xE0",
-            "fstp dword ptr [{mk} + 0x18EA49]",
-            "fld dword ptr [{mk} + 0x18EA45]",
-            "fimul dword ptr [{mk} + 0x186975]",
-            "fmul dword ptr [{mk} + 0x18698D]",
-            "fstp dword ptr [{mk} + 0x18EA51]",
-            "fld dword ptr [{mk} + 0x18EA49]",
-            "fimul dword ptr [{mk} + 0x186975]",
-            "fmul dword ptr [{mk} + 0x18698D]",
-            "fstp dword ptr [{mk} + 0x18EA55]",
-            "fld dword ptr [{mk} + 0x18EA45]",
-            "fimul dword ptr [{mk} + 0x186975]",
-            "fmul dword ptr [{mk} + 0x186991]",
-            "fstp dword ptr [{mk} + 0x18EA5D]",
-            "fld dword ptr [{mk} + 0x18EA49]",
-            "fimul dword ptr [{mk} + 0x186975]",
-            "fmul dword ptr [{mk} + 0x186991]",
-            "fstp dword ptr [{mk} + 0x18EA61]",
-            "fld dword ptr [{mk} + 0x186995]",
-            "fsub dword ptr [{mk} + 0x18EA51]",
-            "fstp dword ptr [{bf} + 0x5605A0]",
-            "fld dword ptr [{mk} + 0x186999]",
-            "fsub dword ptr [{mk} + 0x18EA55]",
-            "fstp dword ptr [{bf} + 0x5605A4]",
-            "fld dword ptr [{mk} + 0x186995]",
-            "fadd dword ptr [{mk} + 0x18EA51]",
-            "fstp dword ptr [{bf} + 0x5605C0]",
-            "fld dword ptr [{mk} + 0x186999]",
-            "fadd dword ptr [{mk} + 0x18EA55]",
-            "fstp dword ptr [{bf} + 0x5605C4]",
-            "fld dword ptr [{mk} + 0x1869A1]",
-            "fadd dword ptr [{mk} + 0x18EA5D]",
-            "fstp dword ptr [{bf} + 0x5605E0]",
-            "fld dword ptr [{mk} + 0x1869A5]",
-            "fadd dword ptr [{mk} + 0x18EA61]",
-            "fstp dword ptr [{bf} + 0x5605E4]",
-            "fld dword ptr [{mk} + 0x1869A1]",
-            "fsub dword ptr [{mk} + 0x18EA5D]",
-            "fstp dword ptr [{bf} + 0x560600]",
-            "fld dword ptr [{mk} + 0x1869A5]",
-            "fsub dword ptr [{mk} + 0x18EA61]",
-            "fstp dword ptr [{bf} + 0x560604]",
-            "fld dword ptr [{mk} + 0x18699D]",
-            "fmul dword ptr [{mk} + 0x186A2D]",
-            "fst dword ptr [{bf} + 0x5605A8]",
-            "fstp dword ptr [{bf} + 0x5605C8]",
-            "fld dword ptr [{mk} + 0x1869A9]",
-            "fmul dword ptr [{mk} + 0x186A2D]",
-            "fst dword ptr [{bf} + 0x5605E8]",
-            "fstp dword ptr [{bf} + 0x560608]",
-            rc = in(reg) rc,
-            bf = in(reg) bf,
-            mk = in(reg) mk,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-}
-
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_differential {
-    use super::asm_reference as reference;
+#[cfg(test)]
+mod reference_vectors {
     use crate::d3d::vertices_store::VERTICES;
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::with_copy;
-    use crate::effects::asm_test::{Op, Spec, differential};
+    use crate::effects::asm_test::{Op, Spec, recorded_writes};
     use crate::effects::frame_state::{DrawWork, ViewVars};
 
     /// The vertex float at byte `off` of the vertices (x, y or z of a vertex).
@@ -405,22 +293,18 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::ribbon_x87(b[0], b[1], b[2]),
-            |b| {
-                with_copy::<DrawWork, _>(b[2], DrawWork::START, |dw| {
-                    with_copy::<ViewVars, _>(b[2], ViewVars::START, |vv| {
-                        staged(
-                            b[1].wrapping_add(0x5605A0),
-                            &[
-                                0x0, 0x4, 0x8, 0x20, 0x24, 0x28, 0x40, 0x44, 0x48, 0x60, 0x64, 0x68,
-                            ],
-                            || super::ribbon_x87(&crate::d3d::vertices_store::VERTICES, dw, vv),
-                        );
-                    });
+        recorded_writes("effects.draw_ribbon.ribbon_x87", &SPEC, |b| {
+            with_copy::<DrawWork, _>(b[2], DrawWork::START, |dw| {
+                with_copy::<ViewVars, _>(b[2], ViewVars::START, |vv| {
+                    staged(
+                        b[1].wrapping_add(0x5605A0),
+                        &[
+                            0x0, 0x4, 0x8, 0x20, 0x24, 0x28, 0x40, 0x44, 0x48, 0x60, 0x64, 0x68,
+                        ],
+                        || super::ribbon_x87(&crate::d3d::vertices_store::VERTICES, dw, vv),
+                    );
                 });
-            },
-        );
+            });
+        });
     }
 }

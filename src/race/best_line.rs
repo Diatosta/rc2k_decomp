@@ -27,8 +27,8 @@ fn face_field<T: crate::race::course_places::Whole>(
 }
 
 /// Checkpoint n's face (its number).
-fn check_face(n: u32) -> u32 {
-    crate::race::checkpoints_store::face(n as usize).get()
+fn check_face(shared: &RaceShared, n: u32) -> u32 {
+    crate::race::checkpoints_store::face(&shared.buffers.checkpoints, n as usize).get()
 }
 
 fn count(shared: &RaceShared) -> Result<u32, Refused> {
@@ -84,7 +84,7 @@ pub fn next_map_anchor(
     let anchor = rc2k_core::race::checkpoints::next_map_anchor(from, n, |c| {
         trap.keep_read(crate::race::course_places::face_number(
             course,
-            check_face(c),
+            check_face(shared, c),
         ))
         .map_place()
             != (0, 0)
@@ -112,13 +112,13 @@ pub fn count_checks(course: &Course, shared: &RaceShared) -> Result<(), Refused>
     let counts = rc2k_core::race::checkpoints::check_counts(n, |k| {
         trap.keep_read(crate::race::course_places::face_number(
             course,
-            check_face(k),
+            check_face(shared, k),
         ))
         .check()
     });
     trap.finish()?;
     for (k, &c) in counts.iter().enumerate() {
-        crate::race::checkpoints_store::check_count(k).set(c);
+        crate::race::checkpoints_store::check_count(&shared.buffers.checkpoints, k).set(c);
     }
     Ok(())
 }
@@ -268,12 +268,13 @@ pub fn checkpoint_angles(race: &Race, scene: &crate::scene::owner::Scene) -> Res
             n,
             |b| {
                 let (half, scale) = scales.unwrap();
-                let Ok(p) =
-                    point_of(&race.course, check_face(b - 1)).inspect_err(|e| trap.keep(*e))
+                let Ok(p) = point_of(&race.course, check_face(&race.shared, b - 1))
+                    .inspect_err(|e| trap.keep(*e))
                 else {
                     return 0;
                 };
-                let Ok(q) = point_of(&race.course, check_face(b)).inspect_err(|e| trap.keep(*e))
+                let Ok(q) = point_of(&race.course, check_face(&race.shared, b))
+                    .inspect_err(|e| trap.keep(*e))
                 else {
                     return 0;
                 };
@@ -328,14 +329,14 @@ pub fn checkpoint_distances(
         }
         // Converted: `rc2k_core::race::best_line::distances`.
         let sums = rc2k_core::race::best_line::distances(last, |k| {
-            let a = match point_of(course, check_face(k + 1)) {
+            let a = match point_of(course, check_face(shared, k + 1)) {
                 Ok(a) => a,
                 Err(e) => {
                     trap.keep(e);
                     return 0;
                 }
             };
-            let b = match point_of(course, check_face(k)) {
+            let b = match point_of(course, check_face(shared, k)) {
                 Ok(b) => b,
                 Err(e) => {
                     trap.keep(e);
@@ -394,7 +395,7 @@ pub fn replay_cameras(race: &Race, set: &Cameras) -> Result<(), Refused> {
             return Ok(());
         }
         for c in 0..n {
-            let p = point_of(&race.course, check_face(c))?;
+            let p = point_of(&race.course, check_face(&race.shared, c))?;
             let from = [
                 crate::race::scene_points::point_word(&race.course, p, 0)?,
                 crate::race::scene_points::point_word(&race.course, p, 2)?,
@@ -460,7 +461,7 @@ pub fn surface_shares(race: &Race) -> Result<(), Refused> {
             Ok(())
         };
         for e in 0..n {
-            let named: u32 = face_field(&race.course, check_face(e), 0x3C)?;
+            let named: u32 = face_field(&race.course, check_face(&race.shared, e), 0x3C)?;
             if named >= faces {
                 continue;
             }
@@ -524,7 +525,7 @@ pub fn map_segment(race: &Race, scene: &crate::scene::owner::Scene) -> Result<()
             return Err(BadInput("map anchors past the lists").into());
         }
         let anchor = |n: u32| {
-            let f = check_face(n);
+            let f = check_face(&race.shared, n);
             let (x, y) = crate::race::course_places::face_number(&race.course, f)?.map_place();
             let place = [(x as u32) << 14, ((y as u32) << 14).wrapping_neg()];
             let p = point_of(&race.course, f)?;
@@ -571,7 +572,7 @@ pub fn map_segment(race: &Race, scene: &crate::scene::owner::Scene) -> Result<()
         let mut e = a;
         loop {
             // The point's number rides along as `rotate_point_about_y`'s y.
-            let number = point_of(&race.course, check_face(e))?;
+            let number = point_of(&race.course, check_face(&race.shared, e))?;
             let p = [
                 crate::race::scene_points::point_word(&race.course, number, 0)?,
                 crate::race::scene_points::point_word(&race.course, number, 2)?,

@@ -85,7 +85,7 @@ pub fn draw_flat_quad(
     crate::scene::polygon::list_cell(part.polygon, 4).set(0);
     poly.polygon_next_entry.set(4);
     crate::scene::scale_texture_coordinates::scale_texture_coordinates(part.polygon, poly)?;
-    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(part.polygon, poly, race)?;
+    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(part, poly, race)?;
     if poly.polygon_vertex_count.get() >= 3 {
         face.polygon_mode.set(6);
         poly.polygon_sides[0].set(1);

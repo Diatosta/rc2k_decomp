@@ -151,15 +151,11 @@ fn x87_2(numbers: &Numbers, car: &Car, o: &crate::sound::store::SoundObject) {
     o.voices[3].share_a.st(t4);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
     use crate::race::owner::race;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
-
-    // The original's instructions, one function per run.
-    reference!(ref_0(rc) "fld dword ptr [{rc} + 0x31A260]", "fdiv dword ptr [{rc} + 0x213EE0]", "fstp dword ptr [{rc} + 0x31A264]", ".byte 0xD9, 0xE8", "fstp dword ptr [{rc} + 0x31A268]");
-    reference!(ref_1(rc, o) "fld dword ptr [{rc} + 0x31A268]", "fst dword ptr [{o} + 0x4C]", "fst dword ptr [{o} + 0x60]", "fst dword ptr [{o} + 0x74]", "fstp dword ptr [{o} + 0x88]", "fld dword ptr [{rc} + 0x31A264]", "fmul dword ptr [{rc} + 0x1C5E2C]", "fst dword ptr [{o} + 0x50]", "fst dword ptr [{o} + 0x64]", "fst dword ptr [{o} + 0x78]", "fstp dword ptr [{o} + 0x8C]", "fld dword ptr [{rc} + 0x31A26C]", "fst dword ptr [{o} + 0x44]", "fst dword ptr [{o} + 0x58]", "fst dword ptr [{o} + 0x6C]", "fstp dword ptr [{o} + 0x80]");
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
         vec![
@@ -170,7 +166,6 @@ mod asm_reference {
                     writes: &[(0x31A264, Out::F), (0x31A268, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_0(a[0]) },
                 plain: |_| x87_1(&race().shared),
             },
             Block {
@@ -204,10 +199,9 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_1(a[0], a[1]) },
                 plain: |a| {
                     x87_2(&race().course.numbers, &race().shared.car, unsafe {
-                        &*(crate::pointers::host_at(a[1])
+                        &*(crate::test_support::vectors::block_vectors::at(a[1])
                             as *const crate::sound::store::SoundObject)
                     });
                 },
@@ -217,6 +211,6 @@ mod asm_reference {
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse(&blocks(), 1200, 100);
+        sparse("physics.car_sound_state", &blocks(), 1200, 100);
     }
 }

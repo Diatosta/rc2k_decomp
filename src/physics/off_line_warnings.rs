@@ -56,6 +56,7 @@ pub fn off_line_warnings(
     work: &RaceWork,
     replay_file: &ReplayFileBlock,
     physics_tables: &PhysicsTables,
+    checkpoints: &crate::race::checkpoints_store::Checkpoints,
     car: &Car,
     sound: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {
@@ -75,7 +76,7 @@ pub fn off_line_warnings(
     w.count_turned(
         spread(
             car.car_heading.get(),
-            crate::race::checkpoints_store::angle(cp as usize).get(),
+            crate::race::checkpoints_store::angle(checkpoints, cp as usize).get(),
         ),
         physics_tables.off_line_word.get(),
     );

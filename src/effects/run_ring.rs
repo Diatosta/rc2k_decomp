@@ -1235,275 +1235,10 @@ mod ring_kinds_tests {
     }
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
-    //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
-
-    pub(super) fn box_x87(mk: usize, e: usize, p: usize, m: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{e} + 0x10]",
-            "fsub dword ptr [{p} + 0x30]",
-            "fstp dword ptr [{mk} + 0x1D07D8]",
-            "fld dword ptr [{e} + 0x14]",
-            "fsub dword ptr [{p} + 0x34]",
-            "fstp dword ptr [{mk} + 0x1D07DC]",
-            "fld dword ptr [{e} + 0x18]",
-            "fsub dword ptr [{p} + 0x38]",
-            "fstp dword ptr [{mk} + 0x1D07E0]",
-            "fld dword ptr [{mk} + 0x1D07E0]",
-            "fld dword ptr [{mk} + 0x1D07DC]",
-            "fld dword ptr [{mk} + 0x1D07D8]",
-            "fld dword ptr [{m} + 0x0]",
-            ".byte 0xD8, 0xC9",
-            "fld dword ptr [{m} + 0x10]",
-            ".byte 0xD8, 0xCB",
-            "fld dword ptr [{m} + 0x20]",
-            ".byte 0xD8, 0xCD",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xCB",
-            "fld dword ptr [{m} + 0x4]",
-            ".byte 0xD8, 0xCA",
-            "fld dword ptr [{m} + 0x14]",
-            ".byte 0xD8, 0xCC",
-            "fld dword ptr [{m} + 0x24]",
-            ".byte 0xD8, 0xCB",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xCB",
-            "fld dword ptr [{m} + 0x8]",
-            ".byte 0xDE, 0xCB",
-            "fld dword ptr [{m} + 0x18]",
-            ".byte 0xDE, 0xC9",
-            "fld dword ptr [{m} + 0x28]",
-            ".byte 0xDE, 0xCA",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xCA",
-            ".byte 0xD9, 0xE1",
-            "fistp dword ptr [{mk} + 0x1D0740]",
-            ".byte 0xDD, 0xC0",
-            ".byte 0xD9, 0xF7",
-            ".byte 0xD9, 0xE1",
-            "fistp dword ptr [{mk} + 0x1D0744]",
-            mk = in(reg) mk,
-            e = in(reg) e,
-            p = in(reg) p,
-            m = in(reg) m,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn facing_x87(mk: usize, o: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{mk} + 0x1D07D8]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{mk} + 0x1D07DC]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{mk} + 0x1D07E0]",
-            ".byte 0xD8, 0xC8",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xFA",
-            "fdivr dword ptr [{mk} + 0x22C]",
-            "fld dword ptr [{mk} + 0x1D07D8]",
-            ".byte 0xD8, 0xC9",
-            "fstp dword ptr [{mk} + 0x1D07D8]",
-            "fld dword ptr [{mk} + 0x1D07DC]",
-            ".byte 0xD8, 0xC9",
-            "fstp dword ptr [{mk} + 0x1D07DC]",
-            "fld dword ptr [{mk} + 0x1D07E0]",
-            ".byte 0xDE, 0xC9",
-            "fstp dword ptr [{mk} + 0x1D07E0]",
-            "fld dword ptr [{mk} + 0x1D07D8]",
-            "fmul dword ptr [{o} + 0x4C]",
-            "fld dword ptr [{mk} + 0x1D07DC]",
-            "fmul dword ptr [{o} + 0x50]",
-            "fld dword ptr [{mk} + 0x1D07E0]",
-            "fmul dword ptr [{o} + 0x54]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{mk} + 0x1D0774]",
-            mk = in(reg) mk,
-            o = in(reg) o,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn pull_length_x87(mk: usize, e: usize, p: usize, l: usize, rk: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{e} + 0x10]",
-            "fsub dword ptr [{p} + 0x30]",
-            "fstp dword ptr [{mk} + 0x1D07D8]",
-            "fld dword ptr [{e} + 0x14]",
-            "fsub dword ptr [{p} + 0x34]",
-            "fstp dword ptr [{mk} + 0x1D07DC]",
-            "fld dword ptr [{e} + 0x18]",
-            "fsub dword ptr [{p} + 0x38]",
-            "fstp dword ptr [{mk} + 0x1D07E0]",
-            "fld dword ptr [{mk} + 0x1D07D8]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{mk} + 0x1D07DC]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{mk} + 0x1D07E0]",
-            ".byte 0xD8, 0xC8",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xFA",
-            ".byte 0xD9, 0xC0",
-            "fsub dword ptr [{rk} + 0x4C]",
-            "fstp dword ptr [{mk} + 0x1D077C]",
-            "fstp tbyte ptr [{l}]",
-            mk = in(reg) mk,
-            e = in(reg) e,
-            p = in(reg) p,
-            l = in(reg) l,
-            rk = in(reg) rk,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn pull_facing_x87(mk: usize, o: usize, l: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld tbyte ptr [{l}]",
-            "fdivr dword ptr [{mk} + 0x22C]",
-            "fld dword ptr [{mk} + 0x1D07D8]",
-            ".byte 0xD8, 0xC9",
-            "fstp dword ptr [{mk} + 0x1D07D8]",
-            "fld dword ptr [{mk} + 0x1D07DC]",
-            ".byte 0xD8, 0xC9",
-            "fstp dword ptr [{mk} + 0x1D07DC]",
-            "fld dword ptr [{mk} + 0x1D07E0]",
-            ".byte 0xDE, 0xC9",
-            "fstp dword ptr [{mk} + 0x1D07E0]",
-            "fild dword ptr [{o} + 0x88]",
-            "fdivr dword ptr [{mk} + 0x22C]",
-            "fld dword ptr [{o} + 0x4C]",
-            ".byte 0xD8, 0xC9",
-            "fstp dword ptr [{mk} + 0x1D07E4]",
-            "fld dword ptr [{o} + 0x50]",
-            ".byte 0xD8, 0xC9",
-            "fstp dword ptr [{mk} + 0x1D07E8]",
-            "fld dword ptr [{o} + 0x54]",
-            ".byte 0xDE, 0xC9",
-            "fstp dword ptr [{mk} + 0x1D07EC]",
-            "fld dword ptr [{mk} + 0x1D07D8]",
-            "fmul dword ptr [{mk} + 0x1D07E4]",
-            "fld dword ptr [{mk} + 0x1D07DC]",
-            "fmul dword ptr [{mk} + 0x1D07E8]",
-            "fld dword ptr [{mk} + 0x1D07E0]",
-            "fmul dword ptr [{mk} + 0x1D07EC]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xE0",
-            "fstp dword ptr [{mk} + 0x1D0774]",
-            mk = in(reg) mk,
-            o = in(reg) o,
-            l = in(reg) l,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn pull_strength_x87(mk: usize, e: usize, o: usize, rk: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fild dword ptr [{o} + 0x88]",
-            "fmul dword ptr [{rk} + 0x50]",
-            "fadd dword ptr [{mk} + 0x22C]",
-            "fdivr dword ptr [{mk} + 0x22C]",
-            "fsubr dword ptr [{mk} + 0x22C]",
-            "fstp dword ptr [{mk} + 0x1D0780]",
-            "fld dword ptr [{mk} + 0x29C]",
-            "fsub dword ptr [{e} + 0x64]",
-            "fld dword ptr [{rk} + 0x54]",
-            "fmul dword ptr [{mk} + 0x1D0780]",
-            ".byte 0xDE, 0xC9",
-            "fimul dword ptr [{mk} + 0x90]",
-            "fadd dword ptr [{e} + 0x64]",
-            "fist dword ptr [{mk} + 0x1D0780]",
-            "fstp dword ptr [{e} + 0x64]",
-            mk = in(reg) mk,
-            e = in(reg) e,
-            o = in(reg) o,
-            rk = in(reg) rk,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn box_place_x87(mk: usize, e: usize, m: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{e} + 0x18]",
-            "fld dword ptr [{e} + 0x14]",
-            "fld dword ptr [{e} + 0x10]",
-            "fld dword ptr [{m} + 0x0]",
-            ".byte 0xD8, 0xC9",
-            "fld dword ptr [{m} + 0x10]",
-            ".byte 0xD8, 0xCB",
-            "fld dword ptr [{m} + 0x20]",
-            ".byte 0xD8, 0xCD",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xCB",
-            "fld dword ptr [{m} + 0x4]",
-            ".byte 0xD8, 0xCA",
-            "fld dword ptr [{m} + 0x14]",
-            ".byte 0xD8, 0xCC",
-            "fld dword ptr [{m} + 0x24]",
-            ".byte 0xD8, 0xCB",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xCB",
-            "fld dword ptr [{m} + 0x8]",
-            ".byte 0xDE, 0xCB",
-            "fld dword ptr [{m} + 0x18]",
-            ".byte 0xDE, 0xC9",
-            "fld dword ptr [{m} + 0x28]",
-            ".byte 0xDE, 0xCA",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xCA",
-            ".byte 0xD9, 0xE1",
-            "fistp dword ptr [{mk} + 0x1D0740]",
-            ".byte 0xDD, 0xC0",
-            ".byte 0xD9, 0xF7",
-            ".byte 0xD9, 0xE1",
-            "fistp dword ptr [{mk} + 0x1D0744]",
-            mk = in(reg) mk,
-            e = in(reg) e,
-            m = in(reg) m,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-}
-
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_differential {
-    use super::asm_reference as reference;
+#[cfg(test)]
+mod reference_vectors {
     use crate::effects::asm_test::Kind::*;
-    use crate::effects::asm_test::{Op, Spec, differential, with_copy};
+    use crate::effects::asm_test::{Op, Spec, recorded_writes, with_copy};
     use crate::effects::owner::effects;
     use crate::effects::ring_store::RingWork;
     use crate::effects::tuning::MarksFloats;
@@ -1594,17 +1329,13 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::box_x87(b[0], b[1], b[2], b[3]),
-            |b| {
-                with_copy(b[0], RingWork::START, |w| {
-                    crate::effects::ring_entries::with_entry_at(ring, b[1], 0x10, 0x1C, |e| {
-                        super::box_x87(ring, w, e, &whole_at(b[2]), &car_matrix(b[3]));
-                    });
+        recorded_writes("effects.run_ring.box_x87", &SPEC, |b| {
+            with_copy(b[0], RingWork::START, |w| {
+                crate::effects::ring_entries::with_entry_at(ring, b[1], 0x10, 0x1C, |e| {
+                    super::box_x87(ring, w, e, &whole_at(b[2]), &car_matrix(b[3]));
                 });
-            },
-        );
+            });
+        });
     }
 
     #[test]
@@ -1636,18 +1367,14 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::facing_x87(b[0], b[1]),
-            |b| {
-                with_copy(b[0], MarksFloats::START, |f| {
-                    with_copy(b[0], RingWork::START, |w| {
-                        let car = car_with(b[1], 0, &[0x4C, 0x50, 0x54]);
-                        super::facing_x87(&car, f, w);
-                    });
+        recorded_writes("effects.run_ring.facing_x87", &SPEC, |b| {
+            with_copy(b[0], MarksFloats::START, |f| {
+                with_copy(b[0], RingWork::START, |w| {
+                    let car = car_with(b[1], 0, &[0x4C, 0x50, 0x54]);
+                    super::facing_x87(&car, f, w);
                 });
-            },
-        );
+            });
+        });
     }
 
     #[test]
@@ -1693,26 +1420,22 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::pull_length_x87(b[0], b[1], b[2], b[3], b[4]),
-            |b| {
-                with_copy(b[0], RingWork::START, |w| {
-                    crate::effects::ring_entries::with_entry_at(ring, b[1], 0x10, 0x1C, |e| {
-                        let mut length = [0xAA; 10];
-                        let kinds = super::RingKinds {
-                            near_less: f32::from_bits(word(b[4] + 0x4C)),
-                            ..crate::effects::owner::effects().ring.kinds
-                        };
-                        super::pull_length_x87(ring, e, &whole_at(b[2]), &mut length, w, &kinds);
-                        unsafe {
-                            crate::pointers::host_at(b[3])
-                                .copy_from_nonoverlapping(length.as_ptr(), 10);
-                        }
-                    });
+        recorded_writes("effects.run_ring.pull_length_x87", &SPEC, |b| {
+            with_copy(b[0], RingWork::START, |w| {
+                crate::effects::ring_entries::with_entry_at(ring, b[1], 0x10, 0x1C, |e| {
+                    let mut length = [0xAA; 10];
+                    let kinds = super::RingKinds {
+                        near_less: f32::from_bits(word(b[4] + 0x4C)),
+                        ..crate::effects::owner::effects().ring.kinds
+                    };
+                    super::pull_length_x87(ring, e, &whole_at(b[2]), &mut length, w, &kinds);
+                    unsafe {
+                        crate::pointers::host_at(b[3])
+                            .copy_from_nonoverlapping(length.as_ptr(), 10);
+                    }
                 });
-            },
-        );
+            });
+        });
     }
 
     #[test]
@@ -1756,21 +1479,17 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::pull_facing_x87(b[0], b[1], b[2]),
-            |b| {
-                with_copy(b[0], MarksFloats::START, |f| {
-                    with_copy(b[0], RingWork::START, |w| {
-                        let car = car_with(b[1], 0, &[0x4C, 0x50, 0x54, 0x88]);
-                        let length: [u8; 10] = std::array::from_fn(|i| unsafe {
-                            crate::pointers::host_at(b[2] + i).read()
-                        });
-                        super::pull_facing_x87(&car, &length, f, w);
+        recorded_writes("effects.run_ring.pull_facing_x87", &SPEC, |b| {
+            with_copy(b[0], MarksFloats::START, |f| {
+                with_copy(b[0], RingWork::START, |w| {
+                    let car = car_with(b[1], 0, &[0x4C, 0x50, 0x54, 0x88]);
+                    let length: [u8; 10] = std::array::from_fn(|i| unsafe {
+                        crate::pointers::host_at(b[2] + i).read()
                     });
+                    super::pull_facing_x87(&car, &length, f, w);
                 });
-            },
-        );
+            });
+        });
     }
 
     #[test]
@@ -1805,33 +1524,29 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::pull_strength_x87(b[0], b[1], b[2], b[3]),
-            |b| {
-                with_copy(b[0], MarksFloats::START, |f| {
-                    with_copy(b[0], RingWork::START, |w| {
-                        crate::effects::ring_entries::with_entry_at(ring, b[1], 0x64, 0x68, |e| {
-                            let car = car_with(b[2], 0, &[0x88]);
-                            let kinds = super::RingKinds {
-                                near_scale: f32::from_bits(word(b[3] + 0x50)),
-                                near_rate: f32::from_bits(word(b[3] + 0x54)),
-                                ..crate::effects::owner::effects().ring.kinds
-                            };
-                            super::pull_strength_x87(
-                                ring,
-                                e,
-                                &car,
-                                crate::effects::setup::clock_at(b[0]),
-                                f,
-                                w,
-                                &kinds,
-                            );
-                        });
+        recorded_writes("effects.run_ring.pull_strength_x87", &SPEC, |b| {
+            with_copy(b[0], MarksFloats::START, |f| {
+                with_copy(b[0], RingWork::START, |w| {
+                    crate::effects::ring_entries::with_entry_at(ring, b[1], 0x64, 0x68, |e| {
+                        let car = car_with(b[2], 0, &[0x88]);
+                        let kinds = super::RingKinds {
+                            near_scale: f32::from_bits(word(b[3] + 0x50)),
+                            near_rate: f32::from_bits(word(b[3] + 0x54)),
+                            ..crate::effects::owner::effects().ring.kinds
+                        };
+                        super::pull_strength_x87(
+                            ring,
+                            e,
+                            &car,
+                            crate::effects::setup::clock_at(b[0]),
+                            f,
+                            w,
+                            &kinds,
+                        );
                     });
                 });
-            },
-        );
+            });
+        });
     }
 
     #[test]
@@ -1870,16 +1585,12 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::box_place_x87(b[0], b[1], b[2]),
-            |b| {
-                with_copy(b[0], RingWork::START, |w| {
-                    crate::effects::ring_entries::with_entry_at(ring, b[1], 0x10, 0x1C, |e| {
-                        super::box_place_x87(ring, w, e, &car_matrix(b[2]));
-                    });
+        recorded_writes("effects.run_ring.box_place_x87", &SPEC, |b| {
+            with_copy(b[0], RingWork::START, |w| {
+                crate::effects::ring_entries::with_entry_at(ring, b[1], 0x10, 0x1C, |e| {
+                    super::box_place_x87(ring, w, e, &car_matrix(b[2]));
                 });
-            },
-        );
+            });
+        });
     }
 }

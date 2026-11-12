@@ -222,60 +222,19 @@ pub fn update_car_effects(
     )
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
-    use crate::scene::asm_test::{Kind, differential};
-
-    /// `fld a; fsub b; fmul c; fistp`, the original's instructions over `v` (3 dwords) and
-    /// the result at dword 3.
-    unsafe fn ref_sub_mul(p: *mut u8) {
-        unsafe {
-            core::arch::asm!(
-                "fld dword ptr [{v}]",
-                "fsub dword ptr [{v} + 4]",
-                "fmul dword ptr [{v} + 8]",
-                "fistp dword ptr [{o}]",
-                v = in(reg) p,
-                o = in(reg) p.add(12),
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-    }
-
-    /// The knock's instructions over `v` (6 dwords), the angle at dword 6, the knock at 7.
-    unsafe fn ref_knock(p: *mut u8) {
-        unsafe {
-            core::arch::asm!(
-                "fld dword ptr [{v}]",
-                "fld dword ptr [{v} + 4]",
-                "fpatan",
-                "fst dword ptr [{o}]",
-                "fabs",
-                "fmul dword ptr [{v} + 8]",
-                "fsubr dword ptr [{v} + 12]",
-                "fmul dword ptr [{v} + 16]",
-                "fmul dword ptr [{v} + 20]",
-                "fistp dword ptr [{o} + 4]",
-                v = in(reg) p,
-                o = in(reg) p.add(24),
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-    }
+    use crate::test_support::vectors::{Differential, Kind, differential};
 
     #[test]
     fn sub_mul_to_int_matches_the_assembly() {
-        differential(
-            "sub_mul_to_int",
-            6000,
-            209,
-            [Kind::Exact; 4],
-            |rng, m| {
+        let test = Differential {
+            name: "input.update_car_effects.sub_mul_to_int",
+            cases: 6000,
+            seed: 209,
+            kinds: [Kind::Exact; 4],
+            fill: &|rng, m| {
                 for d in &mut m[..3] {
                     *d = if rng.below(2) == 0 {
                         rng.moderate()
@@ -285,39 +244,34 @@ mod asm_reference {
                 }
                 m[3] = 0xAAAA_AAAA;
             },
-            |p| unsafe { ref_sub_mul(p) },
-            |p| unsafe {
-                let m = p.cast::<u32>();
-                m.add(3)
-                    .write(sub_mul_to_int(m.read(), m.add(1).read(), m.add(2).read()) as u32);
-            },
-        );
+            plain: &|c| c[3].set(sub_mul_to_int(c[0].get(), c[1].get(), c[2].get()) as u32),
+        };
+        differential(test);
     }
 
     #[test]
     fn knock_matches_the_assembly() {
         let mut kinds = [Kind::Exact; 8];
         kinds[6] = Kind::Ulp1;
-        differential(
-            "knock",
-            6000,
-            210,
+        let test = Differential {
+            name: "input.update_car_effects.knock",
+            cases: 6000,
+            seed: 210,
             kinds,
-            |rng, m| {
+            fill: &|rng, m| {
                 for d in &mut m[..6] {
                     *d = rng.moderate();
                 }
                 m[6] = 0xAAAA_AAAA;
                 m[7] = 0xAAAA_AAAA;
             },
-            |p| unsafe { ref_knock(p) },
-            |p| unsafe {
-                let m = p.cast::<u32>();
-                let v: Vec<u32> = (0..6).map(|k| m.add(k).read()).collect();
+            plain: &|c| {
+                let v: Vec<u32> = c[..6].iter().map(std::cell::Cell::get).collect();
                 let (angle, force) = knock(v[0], v[1], v[2], v[3], v[4], v[5]);
-                m.add(6).write(angle);
-                m.add(7).write(force as u32);
+                c[6].set(angle);
+                c[7].set(force as u32);
             },
-        );
+        };
+        differential(test);
     }
 }

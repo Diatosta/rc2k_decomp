@@ -281,160 +281,11 @@ fn square_x87(vt: impl Base, i: usize, t: &SnowTables, s: &SnowState, l: &SnowLi
     st(vt, 0x58, t18);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
-    //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
-
-    pub(super) fn turn_x87(mk: usize, v: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fild dword ptr [{v}]",
-            "fild dword ptr [{v} + 4]",
-            "fild dword ptr [{v} + 8]",
-            ".byte 0xD9, 0xC1",
-            "fmul dword ptr [{mk} + 0x16D2E0]",
-            ".byte 0xD9, 0xC3",
-            "fmul dword ptr [{mk} + 0x16D2EC]",
-            ".byte 0xD9, 0xC2",
-            "fmul dword ptr [{mk} + 0x16D2F8]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fiadd dword ptr [{mk} + 0x16D2C8]",
-            "fstp dword ptr [{mk} + 0x16D394]",
-            ".byte 0xD9, 0xC1",
-            "fmul dword ptr [{mk} + 0x16D2E4]",
-            ".byte 0xD9, 0xC3",
-            "fmul dword ptr [{mk} + 0x16D2F0]",
-            ".byte 0xD9, 0xC2",
-            "fmul dword ptr [{mk} + 0x16D2FC]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fiadd dword ptr [{mk} + 0x16D2CC]",
-            "fstp dword ptr [{mk} + 0x16D398]",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{mk} + 0x16D2E8]",
-            ".byte 0xD9, 0xCA",
-            "fmul dword ptr [{mk} + 0x16D2F4]",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{mk} + 0x16D300]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fiadd dword ptr [{mk} + 0x16D2D0]",
-            "fist dword ptr [{mk} + 0x16D2B4]",
-            "fstp dword ptr [{mk} + 0x16D39C]",
-            mk = in(reg) mk,
-            v = in(reg) v,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn fade_x87(mk: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{mk} + 0x16D394]",
-            "fsub dword ptr [{mk} + 0x1764F0]",
-            "fst dword ptr [{mk} + 0x176508]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{mk} + 0x16D398]",
-            "fsub dword ptr [{mk} + 0x1764F4]",
-            "fst dword ptr [{mk} + 0x17650C]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{mk} + 0x16D39C]",
-            "fsub dword ptr [{mk} + 0x1764F8]",
-            "fst dword ptr [{mk} + 0x176510]",
-            ".byte 0xD8, 0xC8",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xFA",
-            "fdivr dword ptr [{mk} + 0x22C]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{mk} + 0x176508]",
-            "fst dword ptr [{mk} + 0x176514]",
-            "fmul dword ptr [{mk} + 0x1764FC]",
-            ".byte 0xD9, 0xC1",
-            "fmul dword ptr [{mk} + 0x17650C]",
-            "fst dword ptr [{mk} + 0x176518]",
-            "fmul dword ptr [{mk} + 0x176500]",
-            ".byte 0xD9, 0xCA",
-            "fmul dword ptr [{mk} + 0x176510]",
-            "fst dword ptr [{mk} + 0x17651C]",
-            "fmul dword ptr [{mk} + 0x176504]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fst dword ptr [{mk} + 0x176588]",
-            ".byte 0xD8, 0xC8",
-            "fmul dword ptr [{mk} + 0x24C]",
-            "fistp dword ptr [{mk} + 0x176520]",
-            mk = in(reg) mk,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn square_x87(rc: usize, bf: usize, mk: usize, i: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{mk} + 0x16D39C]",
-            "fdivr dword ptr [{rc} + 0x224088]",
-            "fst dword ptr [{mk} + 0x16D2B4]",
-            "fld dword ptr [{mk} + 0x16D398]",
-            ".byte 0xD8, 0xC9",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{mk} + 0x16D394]",
-            ".byte 0xD9, 0xC9",
-            ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{rc} + 0x2240A0]",
-            "fstp dword ptr [{bf} + 0x5605A4]",
-            "fadd dword ptr [{rc} + 0x22409C]",
-            "fstp dword ptr [{bf} + 0x5605A0]",
-            "fld dword ptr [{mk} + 0x176608]",
-            "fmul dword ptr [{mk} + 0x16D2B4]",
-            "fld dword ptr [{bf} + 0x5605A0]",
-            ".byte 0xD8, 0xC1",
-            "fst dword ptr [{bf} + 0x5605C0]",
-            "fst dword ptr [{bf} + 0x5605E0]",
-            ".byte 0xD8, 0xE1",
-            "fstp dword ptr [{bf} + 0x560600]",
-            "fld dword ptr [{bf} + 0x5605A4]",
-            "fst dword ptr [{bf} + 0x5605C4]",
-            ".byte 0xDE, 0xC1",
-            "fst dword ptr [{bf} + 0x5605E4]",
-            "fstp dword ptr [{bf} + 0x560604]",
-            "fld dword ptr [{mk} + 0x16D39C]",
-            "fmul dword ptr [{mk} + 0x16D2B8]",
-            "fst dword ptr [{bf} + 0x5605A8]",
-            "fst dword ptr [{bf} + 0x5605C8]",
-            "fst dword ptr [{bf} + 0x5605E8]",
-            "fstp dword ptr [{bf} + 0x560608]",
-            "fld dword ptr [{mk} + {i} + 0x16B0C0]",
-            "fst dword ptr [{bf} + 0x5605B8]",
-            "fst dword ptr [{bf} + 0x560618]",
-            "fadd dword ptr [{mk} + 0x17660C]",
-            "fst dword ptr [{bf} + 0x5605D8]",
-            "fstp dword ptr [{bf} + 0x5605F8]",
-            rc = in(reg) rc,
-            bf = in(reg) bf,
-            mk = in(reg) mk,
-            i = in(reg) i,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-}
-
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_differential {
-    use super::asm_reference as reference;
+#[cfg(test)]
+mod reference_vectors {
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::with_copy;
-    use crate::effects::asm_test::{Op, Spec, differential};
+    use crate::effects::asm_test::{Op, Spec, recorded_writes};
     use crate::effects::snow::{SnowLight, SnowState, SnowTables};
     use crate::effects::tuning::MarksFloats;
 
@@ -475,11 +326,9 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::turn_x87(b[0], b[1]),
-            |b| with_copy(b[0], SnowState::START, |s| super::turn_x87(b[1], s)),
-        );
+        recorded_writes("effects.draw_snow.turn_x87", &SPEC, |b| {
+            with_copy(b[0], SnowState::START, |s| super::turn_x87(b[1], s));
+        });
     }
 
     #[test]
@@ -517,17 +366,13 @@ mod asm_differential {
             }],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::fade_x87(b[0]),
-            |b| {
-                with_copy(b[0], SnowState::START, |s| {
-                    with_copy(b[0], SnowLight::START, |l| {
-                        with_copy(b[0], MarksFloats::START, |f| super::fade_x87(s, l, f));
-                    });
+        recorded_writes("effects.draw_snow.fade_x87", &SPEC, |b| {
+            with_copy(b[0], SnowState::START, |s| {
+                with_copy(b[0], SnowLight::START, |l| {
+                    with_copy(b[0], MarksFloats::START, |f| super::fade_x87(s, l, f));
                 });
-            },
-        );
+            });
+        });
     }
 
     #[test]
@@ -584,18 +429,14 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::square_x87(b[0], b[1], b[2], b[3]),
-            |b| {
-                with_copy(b[2], SnowTables::START, |t| {
-                    with_copy(b[2], SnowState::START, |s| {
-                        with_copy(b[2], SnowLight::START, |l| {
-                            super::square_x87(b[1].wrapping_add(0x5605A0), b[3], t, s, l);
-                        });
+        recorded_writes("effects.draw_snow.square_x87", &SPEC, |b| {
+            with_copy(b[2], SnowTables::START, |t| {
+                with_copy(b[2], SnowState::START, |s| {
+                    with_copy(b[2], SnowLight::START, |l| {
+                        super::square_x87(b[1].wrapping_add(0x5605A0), b[3], t, s, l);
                     });
                 });
-            },
-        );
+            });
+        });
     }
 }

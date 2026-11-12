@@ -155,7 +155,7 @@ pub fn update_input_in(input: &Input, race: &Race, shot: Screenshot) -> (u32, u3
 
 /// In the game: `gfx::take_screenshot`'s Rust version.
 pub fn game_screenshot() {
-    if let Err(e) = crate::gfx::take_screenshot::take_screenshot() {
+    if let Err(e) = crate::gfx::take_screenshot::take_screenshot(crate::gfx::owner::gfx()) {
         crate::fatal::raise::refused("gfx::take_screenshot", e);
     }
 }

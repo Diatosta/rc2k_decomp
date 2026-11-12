@@ -225,7 +225,7 @@ pub fn st<T: bh::Stored>(ring: &Ring, e: u32, x: X, field: impl FnOnce(&mut Entr
 
 /// `f` on entry 1 of a test ring holding the bytes `lo .. hi` of the game's memory at
 /// `base` (the differential tests' operand), the bytes copied back after it.
-#[cfg(all(test, target_arch = "x86"))]
+#[cfg(test)]
 pub fn with_entry_at<R>(ring: &Ring, base: usize, lo: u32, hi: u32, f: impl FnOnce(u32) -> R) -> R {
     use crate::pointers::GamePtr;
     let kept = ring.entries.with(std::mem::take).ok();

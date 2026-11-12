@@ -170,7 +170,7 @@ pub fn place_object_points(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
     for _ in 0..object.points {
         // Made on a copy of the record (`scene::point_records`), then stored.
         let record = point_records::of_object_point(number);
-        let mut r = point_records::get(record)?;
+        let mut r = point_records::get(ctx.part, record)?;
         r[0] = number;
         let point = if move_by != 0 {
             moved(race, from as usize, move_by, fraction)?;
@@ -196,17 +196,17 @@ pub fn place_object_points(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
             let flat = race.course.stage_prefs.flat_depth.get() != 0;
             to_screen(&mut r, &v, flat, &crate::session::Dword::new(0));
         }
-        point_records::set(record, r)?;
+        point_records::set(ctx.part, record, r)?;
         from = from.wrapping_add(12);
         number = number.wrapping_add(1);
     }
     for _ in 0..object.normals.max(0) {
         let record = point_records::of_object_point(number);
-        let mut r = point_records::get(record)?;
+        let mut r = point_records::get(ctx.part, record)?;
         r[0] = number;
         let normal = crate::scene::object_points::point(from)?;
         turn(&normal, &matrix, &mut r);
-        point_records::set(record, r)?;
+        point_records::set(ctx.part, record, r)?;
         from = from.wrapping_add(12);
         number = number.wrapping_add(1);
     }
@@ -236,7 +236,7 @@ pub fn place_object_points_sse(
     let mut from = object.table.wrapping_add(object.first.wrapping_mul(12));
     for _ in 0..object.points.max(0) {
         let record = point_records::of_object_point(number);
-        let mut r = point_records::get(record)?;
+        let mut r = point_records::get(ctx.part, record)?;
         r[0] = number;
         let point = crate::scene::object_points::point(from)?;
         // The whole numbers rounded to floats.
@@ -255,18 +255,18 @@ pub fn place_object_points_sse(
             let flat = race.course.stage_prefs.flat_depth.get() != 0;
             to_screen(&mut r, &v, flat, &crate::session::Dword::new(0));
         }
-        point_records::set(record, r)?;
+        point_records::set(ctx.part, record, r)?;
         from = from.wrapping_add(12);
         number = number.wrapping_add(1);
     }
     let normal = |from: u32, number: u32| -> Result<(), Refused> {
         let record = point_records::of_object_point(number);
-        let mut r = point_records::get(record)?;
+        let mut r = point_records::get(ctx.part, record)?;
         r[0] = number;
         let n = crate::scene::object_points::point(from)?;
         let lanes = sse_lanes(n.map(f32::from_bits), &m, false);
         r[4..8].copy_from_slice(&lanes);
-        point_records::set(record, r)?;
+        point_records::set(ctx.part, record, r)?;
         Ok(())
     };
     for _ in 0..object.normals.max(0) {

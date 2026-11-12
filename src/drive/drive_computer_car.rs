@@ -43,12 +43,12 @@ use rc2k_core::drive::computer_driver as driver;
 /// it (through `lea`, `sub` and `shr 2`).
 fn held(
     shared: &RaceShared,
-    table: fn(usize) -> &'static crate::session::Dword,
+    table: fn(&crate::race::checkpoints_store::Checkpoints, usize) -> &crate::session::Dword,
     n: u32,
     k: u32,
 ) -> u32 {
     let i = driver::held_index(n, k, shared.vars.checkpoint_count.get());
-    table(i as usize).get()
+    table(&shared.buffers.checkpoints, i as usize).get()
 }
 
 /// A checkpoint face's first point: (x, z).
@@ -72,12 +72,12 @@ fn flat_way(from: &[Dword], to: &[Dword], out: &[Float]) {
 
 /// Through `g_workVector` and `race::normalise_work_vector`: the vector `from` made one
 /// long into `to`.
-fn normalised(race: &Race, from: &[Float], to: &[Float]) {
+fn normalised(race: &Race, scene: &crate::scene::owner::Scene, from: &[Float], to: &[Float]) {
     let w = &race.frame.scratch.work_vector;
     for k in 0..3 {
         w[k].set(from[k].bits());
     }
-    normalise_work_vector(&race.course.numbers, &race.frame.scratch);
+    normalise_work_vector(&race.course.numbers, &race.frame.scratch, scene);
     for k in 0..3 {
         to[k].set_bits(w[k].get());
     }
@@ -93,7 +93,7 @@ fn slot_point(points: &[Dword; 40], slot: u32) -> Result<&[Dword], BadInput> {
 }
 
 // Converted: `rc2k_core::drive::computer_driver` (the x87 steps stay).
-pub fn drive_computer_car(race: &Race) -> Result<(), Refused> {
+pub fn drive_computer_car(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let course = &race.course;
     let reaches = race.shared.car.run_ticks.get() >= driver::FIRST_STEP
         && compare_full(
@@ -259,6 +259,7 @@ pub fn drive_computer_car(race: &Race) -> Result<(), Refused> {
     );
     normalised(
         race,
+        scene,
         &race.shared.work.driver_flat,
         &race.shared.work.driver_flat_unit,
     );
@@ -269,6 +270,7 @@ pub fn drive_computer_car(race: &Race) -> Result<(), Refused> {
     );
     normalised(
         race,
+        scene,
         &race.shared.work.driver_ahead,
         &race.shared.work.driver_ahead,
     );
@@ -305,6 +307,7 @@ pub fn drive_computer_car(race: &Race) -> Result<(), Refused> {
     );
     normalised(
         race,
+        scene,
         &race.shared.work.driver_way,
         &race.shared.work.driver_way_unit,
     );

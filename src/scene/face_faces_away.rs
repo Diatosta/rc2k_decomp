@@ -97,7 +97,7 @@ pub fn face_faces_away(
         .ok_or(BadInput("a face of too many vertices"))?;
     crate::scene::object_faces::array::<0x10>(last)?;
     let point = |n: u32| crate::scene::object_faces::word(face as u32 + 0x10 + n * 0x10);
-    let table = crate::scene::reading::PointRecords::new(&ctx.race.course)?;
+    let table = crate::scene::reading::PointRecords::new(&ctx.race.course, ctx.part)?;
     for n in 2..count {
         // The original looks at each triangle's numbers as it comes to it.
         let points = [point(0)?, point(n - 1)?, point(n)?];

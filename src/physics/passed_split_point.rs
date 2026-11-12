@@ -11,7 +11,7 @@
 //!
 //! The x87 runs (with the integer steps between) are the arithmetic of the original's
 //! instructions, in plain Rust over `X` (`math/x87_float.rs`); the instructions are
-//! `asm_reference` in the tests.
+//! recorded in the tests' `reference_vectors`.
 //!
 //! Caller: `physics::track_checkpoints`. Raises fatal error 0x80601843 where the original
 //! does. Refuses (before anything) a split past 0x40, a checkpoint past 0x1418, no faces or
@@ -81,11 +81,16 @@ fn angle(
 }
 
 /// The split's checkpoint and its face's first point's number, refused or fatal as said.
-fn point(split_tables: &SplitTables, course: &Course, car: &Car) -> Result<(u32, u32), Refused> {
+fn point(
+    split_tables: &SplitTables,
+    course: &Course,
+    checkpoints: &crate::race::checkpoints_store::Checkpoints,
+    car: &Car,
+) -> Result<(u32, u32), Refused> {
     let split = car.splits_passed.get();
     let cp =
         progress::check_split_point(split, || split_tables.checkpoints[1 + split as usize].get())?;
-    let face = crate::race::checkpoints_store::face(cp as usize).get();
+    let face = crate::race::checkpoints_store::face(checkpoints, cp as usize).get();
     if !progress::face_known(face, course.course.course_face_count.get()) {
         return Err(FatalError {
             code: progress::SEGMENT_FATAL,
@@ -111,7 +116,7 @@ pub fn passed_split_point(
     if c.finish.no_place.get() != 0 {
         return Ok(false);
     }
-    let (cp, pt) = point(&c.physics.split_tables, c.course, c.car)?;
+    let (cp, pt) = point(&c.physics.split_tables, c.course, c.checkpoints, c.car)?;
     // The point read from `race::scene_points`; the x87 runs read a copy.
     let pt = crate::race::scene_points::point_number(c.course, pt)?;
     c.physics.ground.ground_x.set(c.car.position[0].get());
@@ -130,56 +135,21 @@ pub fn passed_split_point(
     angle(c.numbers, &c.physics.ground, pt, scene);
     let car_angle = scene.drawing.scene.scratch.get() << 16;
     c.tables.split_word.set(car_angle);
-    let heading = crate::race::checkpoints_store::angle(cp as usize).get();
+    let heading = crate::race::checkpoints_store::angle(c.checkpoints, cp as usize).get();
     c.tables.split_heading.set(heading);
     let (carry, _) = progress::passed_point(car_angle, heading);
     Ok(carry)
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
 
     /// The point in a test's operand buffer.
     fn point_at(s: usize) -> [u32; 3] {
         crate::pointers::read_or_end(s as u32, "a split point")
     }
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference_eax, sparse};
-
-    reference_eax!(distance_ref(rc, s)
-        "mov eax, [{s}]",
-        "sub eax, [{rc} + 0x239824]",
-        "mov [{rc} + 0x22400C], eax",
-        "fild dword ptr [{rc} + 0x22400C]",
-        ".byte 0xD8, 0xC8",
-        "mov eax, [{s} + 8]",
-        "sub eax, [{rc} + 0x23982C]",
-        "mov [{rc} + 0x22400C], eax",
-        "fild dword ptr [{rc} + 0x22400C]",
-        ".byte 0xD8, 0xC8",
-        ".byte 0xDE, 0xC1",
-        ".byte 0xD9, 0xFA",
-        "fmul dword ptr [{rc} + 0x1C5DA0]",
-        "fstp dword ptr [{rc} + 0x214D04]"
-    );
-
-    reference_eax!(angle_ref(rc, s)
-        "mov eax, [{rc} + 0x239824]",
-        "sub eax, [{s}]",
-        "mov [{rc} + 0x22400C], eax",
-        "fild dword ptr [{rc} + 0x22400C]",
-        "mov eax, [{rc} + 0x23982C]",
-        "sub eax, [{s} + 8]",
-        "mov [{rc} + 0x22400C], eax",
-        "fild dword ptr [{rc} + 0x22400C]",
-        ".byte 0xD9, 0xF3",
-        ".byte 0xD9, 0xEB",
-        ".byte 0xDE, 0xF9",
-        "fmul dword ptr [{rc} + 0x1C5E40]",
-        "fmul dword ptr [{rc} + 0x1C5D98]",
-        "fistp dword ptr [{rc} + 0x22400C]",
-        "and dword ptr [{rc} + 0x22400C], 0xFFFF"
-    );
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     #[test]
     fn distance_and_angle_match_the_assembly() {
@@ -197,7 +167,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { distance_ref(a[0], a[1]) },
                 plain: |a| {
                     distance(
                         &crate::race::owner::race().shared.physics_tables,
@@ -226,7 +195,6 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { angle_ref(a[0], a[1]) },
                 plain: |a| {
                     angle(
                         &crate::race::owner::race().course.numbers,
@@ -237,6 +205,6 @@ mod asm_reference {
                 },
             },
         ];
-        sparse(&blocks, 6000, 202);
+        sparse("physics.passed_split_point", &blocks, 6000, 202);
     }
 }

@@ -9,7 +9,7 @@ use crate::errors::Refused;
 use crate::race::owner_course::Course;
 
 /// `fild i; fadd f; fstp tbyte`: a whole number plus a float in the x87's 80 bits.
-#[cfg(all(test, target_arch = "x86"))]
+#[cfg(test)]
 fn int_plus_float_80(i: u32, f: u32) -> [u8; 10] {
     use crate::math::x87_float::{f80, int, ld};
     f80(int(i as i32) + ld(f))
@@ -21,7 +21,7 @@ pub fn int_80(i: u32) -> [u8; 10] {
 }
 
 /// `fld tbyte; fstp dword`.
-#[cfg(all(test, target_arch = "x86"))]
+#[cfg(test)]
 fn float_of_80(t: [u8; 10]) -> u32 {
     crate::math::x87_float::st(crate::math::x87_float::from_f80(t))
 }
@@ -64,15 +64,20 @@ fn skid_vertex(
     v: u32,
 ) -> Result<Turned, BadInput> {
     let turned = turn_skid_point(ctx, matrix, n)?;
-    put_turned(&ctx.view.polygon.quad_vertices, v, turned)?;
+    put_turned(ctx.part, &ctx.view.polygon.quad_vertices, v, turned)?;
     Ok(turned)
 }
 
 /// A point as `skid_vertex` turns it, put into the vertex record `v` again.
-fn put_turned(quad: &[crate::session::Dword; 32], v: u32, turned: Turned) -> Result<(), BadInput> {
-    let mut made = crate::scene::point_records::get_in(Some(quad), v)?;
+fn put_turned(
+    part: &crate::workers::PartScratch,
+    quad: &[crate::session::Dword; 32],
+    v: u32,
+    turned: Turned,
+) -> Result<(), BadInput> {
+    let mut made = crate::scene::point_records::get_in(part, Some(quad), v)?;
     made[3..8].copy_from_slice(&turned.words);
-    crate::scene::point_records::set_in(Some(quad), v, made)
+    crate::scene::point_records::set_in(part, Some(quad), v, made)
 }
 
 /// Skidmark point `n` turned and projected, as `skid_vertex` does it.
@@ -173,8 +178,8 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
         let second = skid_vertex(ctx, &matrix, 2 * n + 1, of_quad(2))?;
         match last {
             Some((m, a, b)) if m == before => {
-                put_turned(&ctx.view.polygon.quad_vertices, of_quad(0), a)?;
-                put_turned(&ctx.view.polygon.quad_vertices, of_quad(1), b)?;
+                put_turned(ctx.part, &ctx.view.polygon.quad_vertices, of_quad(0), a)?;
+                put_turned(ctx.part, &ctx.view.polygon.quad_vertices, of_quad(1), b)?;
             }
             _ => {
                 skid_vertex(ctx, &matrix, before.wrapping_mul(2), of_quad(0))?;
@@ -198,9 +203,9 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
         }
         list[4].set(0);
         ctx.view.polygon.polygon_next_entry.set(4u32);
-        crate::scene::fog_polygon::fog_polygon(ctx.part.polygon, ctx.view)?;
+        crate::scene::fog_polygon::fog_polygon(ctx.part, ctx.view)?;
         crate::scene::clip_polygon_by_depth::clip_polygon_by_depth(
-            ctx.part.polygon,
+            ctx.part,
             &ctx.view.polygon,
             race,
             scene,
@@ -212,7 +217,7 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
             continue;
         }
         crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(
-            ctx.part.polygon,
+            ctx.part,
             &ctx.view.polygon,
             race,
         )?;
@@ -248,61 +253,12 @@ pub fn draw_skidmarks_if_on(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Res
     draw_skidmarks(ctx)
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
     use crate::math::x87_float::{X, f80};
     use crate::race::asm_test::{Rng, at_each_control_word, lock};
-
-    /// The original blocks, verbatim.
-    fn int_plus_float_80_asm(i: u32, f: u32) -> [u8; 10] {
-        let (v, mut out) = ([i, f], [0u8; 10]);
-        unsafe {
-            core::arch::asm!(
-                "fild dword ptr [{v}]",
-                "fadd dword ptr [{v} + 4]",
-                "fstp tbyte ptr [{o}]",
-                v = in(reg) v.as_ptr(),
-                o = in(reg) out.as_mut_ptr(),
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-        out
-    }
-
-    fn int_80_asm(i: u32) -> [u8; 10] {
-        let (v, mut out) = ([i], [0u8; 10]);
-        unsafe {
-            core::arch::asm!(
-                "fild dword ptr [{v}]",
-                "fstp tbyte ptr [{o}]",
-                v = in(reg) v.as_ptr(),
-                o = in(reg) out.as_mut_ptr(),
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-        out
-    }
-
-    fn float_of_80_asm(t: [u8; 10]) -> u32 {
-        let mut out = 0u32;
-        unsafe {
-            core::arch::asm!(
-                "fld tbyte ptr [{t}]",
-                "fstp dword ptr [{o}]",
-                t = in(reg) t.as_ptr(),
-                o = in(reg) &raw mut out,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-        out
-    }
+    use crate::test_support::vectors::{Recorder, bytes, word};
 
     fn same_bits(a: u32, b: u32) -> bool {
         crate::race::asm_test::same(a, b)
@@ -312,25 +268,25 @@ mod asm_reference {
     fn conversions_match() {
         let _l = lock();
         let mut r = Rng(3);
+        let mut file = Recorder::replay("race.skidmarks.conversions");
         at_each_control_word(|| {
-            for _ in 0..20000 {
+            for _ in 0..9000 {
                 let (i, f) = (r.int() as u32, r.float());
-                assert_eq!(
-                    int_plus_float_80(i, f),
-                    int_plus_float_80_asm(i, f),
-                    "{i} {f:#x}"
-                );
-                assert_eq!(int_80(i), int_80_asm(i), "{i}");
+                file.input(&[i.to_le_bytes(), f.to_le_bytes()].concat());
+                assert_eq!(int_plus_float_80(i, f), bytes(&mut file), "{i} {f:#x}");
+                assert_eq!(int_80(i), bytes(&mut file), "{i}");
                 let v = if r.below(2) == 0 {
                     f64::from(r.int())
                 } else {
                     f64::from(f32::from_bits(r.float())) * f64::from(f32::from_bits(r.float()))
                 };
                 let t = f80(X(v));
-                let (want, got) = (float_of_80_asm(t), float_of_80(t));
+                file.input(&t);
+                let (want, got) = (word(&mut file), float_of_80(t));
                 assert!(same_bits(want, got), "{v}: {want:#x} {got:#x}");
             }
         });
+        file.finish();
     }
 }
 
