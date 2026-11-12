@@ -6,6 +6,7 @@ use super::*;
 use crate::audio::owner::audio;
 use crate::effects::owner::effects;
 use crate::menu::owner::menus;
+use crate::pointers::{GamePtr, map, register};
 use crate::race::owner::race;
 use crate::scene::owner::scene;
 use crate::shared_memory;

@@ -16,8 +16,9 @@ use rc2k_core::gfx::picture_size as sizes;
 /// width and height, and whether the reading failed. `path` is `None` for no picture to read.
 pub fn read_texture_picture(
     path: Option<&dyn TextPlace>,
+    gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<(u32, u32, u32, bool), Refused> {
-    let gfx = crate::gfx::owner::gfx();
     let pictures = &gfx.pictures;
     let buffer = pictures.picture.buffer.get();
     // Converted: `rc2k_core::gfx::picture_size` (`TEXTURE`, `TEXTURE_FILLED`).
@@ -31,7 +32,7 @@ pub fn read_texture_picture(
     .ok_or(BadInput("a picture buffer shorter than a texture"))?;
     let failed = match path {
         None => false,
-        Some(path) if read_picture_file(path, gfx)? => {
+        Some(path) if read_picture_file(path, gfx, system)? => {
             return Ok((
                 pictures.decoder.pixels.get(),
                 pictures.decoder.width.get(),

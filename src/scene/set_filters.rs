@@ -13,10 +13,10 @@ use crate::scene::set_render_state::set_render_state;
 // ---- Rust version ----
 
 // Converted: `rc2k_core::scene::render_states::filters`
-pub fn set_filters(race: &Race) {
+pub fn set_filters(race: &Race, part: &crate::workers::PartScratch) {
     {
         for s in rc2k_core::scene::render_states::filters(race.shared.vars.mip_setting.get()) {
-            set_render_state(s.value, s.state);
+            set_render_state(part, s.value, s.state);
         }
     }
 }

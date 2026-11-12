@@ -16,7 +16,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::gfx::load_picture::load_picture_with;
 use crate::gfx::picture::{Buffer, take, with_buffer};
-use crate::gfx::read_picture_file::read_picture_file_in;
+use crate::gfx::read_picture_file::read_picture_file;
 use crate::memory::free_list::free_list;
 
 const MEMORY: u32 = 0x1D4C00 + 0xC80;
@@ -48,7 +48,7 @@ pub fn load_picture_with_overlay_in(
         pictures.picture.buffer.get(),
     ];
     pictures.picture.buffer.set(overlay);
-    let read = read_picture_file_in(overlay_path, gfx, system);
+    let read = read_picture_file(overlay_path, gfx, system);
     pictures.picture.width.set(kept[0]);
     pictures.picture.height.set(kept[1]);
     pictures.picture.row_bytes.set(kept[2]);

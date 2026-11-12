@@ -88,6 +88,7 @@ pub fn run_frame(
     sound: &crate::sound::owner::Sound,
     view: EffectsView<'_>,
 ) -> Result<(), Refused> {
+    let part = crate::workers::game_scratch();
     let gfx = crate::gfx::owner::gfx();
     use crate::effects::*;
     use crate::scene::set_render_state::set_render_state;
@@ -98,7 +99,7 @@ pub fn run_frame(
         setup::tick_clock(&race.shared, effects)?;
         let whole = rdtsc();
         for (value, state) in STATES {
-            set_render_state(value, state);
+            set_render_state(part, value, state);
         }
         run_rain::run_rain(buffer, race, weather, scene, effects)?;
         run_snow::run_snow(buffer, race, weather, scene, effects, view)?;
@@ -117,9 +118,9 @@ pub fn run_frame(
             view,
         )?;
         share(1, start, effects);
-        set_render_state(2, 0x14);
+        set_render_state(part, 2, 0x14);
         flare_frame::flare_frame(buffer, paths, scene, effects)?;
-        set_render_state(1, 3);
+        set_render_state(part, 1, 3);
         draw_mark_slots::draw_mark_slots(buffer, race, paths, scene, effects, view)?;
         run_particles::run_particles(
             buffer,
@@ -134,8 +135,8 @@ pub fn run_frame(
         share(2, whole, effects);
         stage_record::stage_record(&race.frame)?;
         draw_glow::draw_glow(buffer, scene, effects)?;
-        crate::scene::depth_buffer_on::depth_buffer(true);
-        crate::scene::depth_test_on::depth_test_on();
+        crate::scene::depth_buffer_on::depth_buffer(part, true);
+        crate::scene::depth_test_on::depth_test_on(part);
     }
     Ok(())
 }

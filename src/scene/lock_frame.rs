@@ -13,7 +13,7 @@ use crate::race::owner::Race;
 /// locked flag after the lock (1 when locked; otherwise the frame is lost) and that value.
 pub fn lock_frame(race: &Race, gfx: &Gfx) -> (u32, u32) {
     let drawing = &gfx.drawing;
-    let locked = crate::platform::lock_surface();
+    let locked = crate::platform::lock_surface(gfx);
     {
         race.frame
             .scratch

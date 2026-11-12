@@ -58,8 +58,12 @@ pub fn stop_race_sounds(
 }
 
 /// `race::wake_car_sounds` (its callers keep the registers round it).
-pub fn wake_car_sounds(race: &Race, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
-    crate::race::sounds::wake_car_sounds(race, sound)?;
+pub fn wake_car_sounds(
+    race: &Race,
+    sound: &crate::sound::owner::Sound,
+    audio: &crate::audio::owner::Audio,
+) -> Result<(), Refused> {
+    crate::race::sounds::wake_car_sounds(race, sound, audio)?;
     Ok(())
 }
 

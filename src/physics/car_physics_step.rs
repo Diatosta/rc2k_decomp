@@ -309,8 +309,8 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
         &race.course.numbers,
         scene,
     );
-    ph::track_checkpoints::track_checkpoints(&inputs.checkpoints(), scene, sound)?;
-    ph::pace_notes_step::pace_notes_step(&inputs.checkpoints(), scene, sound)?;
+    ph::track_checkpoints::track_checkpoints(&inputs.checkpoints(), scene, sound, o.audio)?;
+    ph::pace_notes_step::pace_notes_step(&inputs.checkpoints(), scene, sound, o.audio)?;
     ph::count_down_notice::count_down_notice(&race.shared.car);
     ph::accumulate_mud::accumulate_mud(
         &race.shared.car,

@@ -44,14 +44,14 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let vars = &net.vars;
     // Converted: `rc2k_core::net::screens` (`shown_time`, `flag_sprite`, `car_sprite`,
     // `NO_TIME`, `lobby_buttons`), the ready bit and no time of `rc2k_core::net::players`.
-    if !lock_surface() {
+    if !lock_surface(o.gfx) {
         return Ok(());
     }
     if vars.players.get() > 8 {
         return Err(BadInput("more than eight players").into());
     }
     copy_picture()?;
-    let mut canvas = GameCanvas;
+    let mut canvas = GameCanvas::new(o.gfx);
     let mut y = 0x6F;
     for (id, x) in [(0x15F, 0x21A), (0x160, 0x2C0)] {
         crate::text::draw_string_by_id::draw_string_by_id_at(
@@ -73,7 +73,13 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
         for n in 0..vars.players.get() {
             let block = &vars.sorted[n as usize];
             let mut x = 0x18;
-            blit(screens::flag_sprite(block.record.head.get(3)), x, y)?;
+            blit(
+                screens::flag_sprite(block.record.head.get(3)),
+                x,
+                y,
+                o.gfx,
+                o.menus,
+            )?;
             x += 0x28;
             let name = store_text(
                 strings,
@@ -86,7 +92,13 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
             };
             crate::text::draw_text::draw_text_at(font, &name, x as i32, y as i32, &mut canvas)?;
             x += 0x14A;
-            blit(screens::car_sprite(block.record.head.get(1)), x, y + 1)?;
+            blit(
+                screens::car_sprite(block.record.head.get(1)),
+                x,
+                y + 1,
+                o.gfx,
+                o.menus,
+            )?;
             x += 0x48;
             use crate::strings::append_time::SHOW_HOURS; // g_timeShowHours
             use std::sync::atomic::Ordering::Relaxed;
@@ -117,6 +129,7 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
                         &text.buffer.text.read(),
                         x,
                         y,
+                        o.gfx,
                     )
                 }?;
             }
@@ -132,6 +145,7 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
                     &text.buffer.text.read(),
                     x,
                     total_y,
+                    o.gfx,
                 )
             }?;
             SHOW_HOURS.set(kept_hours);
@@ -160,7 +174,9 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
             .enumerate()
     {
         if shown {
-            x = crate::net::lobby_button::lobby_button(net, install, id, item, x, 0x223)?;
+            x = crate::net::lobby_button::lobby_button(
+                net, install, id, item, x, 0x223, o.gfx, o.menus,
+            )?;
         }
         if n != 3 {
             item += 1;
@@ -173,9 +189,10 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
             0x320,
             7,
             crate::gfx::rect::Palette::Held(gfx.fonts.font_block.palettes.get()),
+            gfx,
         );
     }
-    crate::platform::unlock_surface();
+    crate::platform::unlock_surface(o.gfx);
     crate::platform::show_frame_now();
     Ok(())
 }

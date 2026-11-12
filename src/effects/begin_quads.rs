@@ -19,16 +19,18 @@ pub fn begin_quads(
     effects: &crate::effects::owner::Effects,
     scene: &crate::scene::owner::Scene,
 ) {
+    let part = crate::workers::game_scratch();
     let frame = &effects.frame;
     {
         crate::scene::set_texture::set_texture(
+            part,
             scene,
             scene.textures.kinds.kind_first_slots[202].get(),
         );
-        crate::scene::depth_buffer_on::depth_buffer(true);
-        crate::scene::depth_test_off::depth_test_off();
+        crate::scene::depth_buffer_on::depth_buffer(part, true);
+        crate::scene::depth_test_off::depth_test_off(part);
         for (value, state) in STATES {
-            crate::scene::set_render_state::set_render_state(value, state);
+            crate::scene::set_render_state::set_render_state(part, value, state);
         }
         let colour: u32 = frame.draw_frame.colour.get();
         let [a, b, c, d]: [u32; 4] = read_bits(&frame.draw_frame.places);

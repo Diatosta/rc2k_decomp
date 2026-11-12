@@ -182,9 +182,9 @@ pub fn blit_glyph_on_surface(
     x: i32,
     y: i32,
     palette: Option<u32>,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
-    let gfx = crate::gfx::owner::gfx();
-    let surface = surface();
+    let surface = surface(gfx);
     let record = glyph_record(&surface, table, glyph)?;
     let mut scratch = read_scratch(gfx);
     let target = surface.target.ok_or(NO_SURFACE)?;
@@ -199,7 +199,7 @@ pub fn blit_glyph_on_surface(
             y,
             palette,
             &surface,
-            &clip(),
+            &clip(gfx),
             &mut scratch,
             &mut |offset, bytes| match target {
                 Target::Locked(_) => {
@@ -234,37 +234,27 @@ pub struct BlitCall {
 }
 
 impl BlitCall {
-    /// A call made now, with the clip rectangle as the game has it at this moment: glyph
-    /// `glyph` of a font's table with its palette.
-    pub fn glyph(glyph: u32, x: i32, y: i32, palette: u32, table: u32) -> Self {
+    /// A call made now, with the clip rectangle's right edge as the canvas has it at this
+    /// moment: glyph `glyph` of a font's table with its palette.
+    pub fn glyph(glyph: u32, x: i32, y: i32, palette: u32, table: u32, clip_right: i32) -> Self {
         Self {
             glyph,
             x,
             y,
             palette: Some(palette),
             table,
-            clip_right: clip().right,
+            clip_right,
         }
     }
 
-    /// Sprite `glyph` of the sprite table (`g_spriteTable`), made now.
-    pub fn sprite(glyph: u32, x: i32, y: i32) -> Self {
-        Self::sprite_in(
-            crate::gfx::owner::gfx(),
-            crate::menu::owner::menus(),
-            glyph,
-            x,
-            y,
-        )
-    }
-
-    /// `sprite` for a caller that holds the owners.
-    pub fn sprite_in(
-        gfx: &crate::gfx::owner::Gfx,
+    /// Sprite `glyph` of the sprite table (`g_spriteTable`), made now with the clip
+    /// rectangle's right edge `clip_right`.
+    pub fn sprite(
         menus: &crate::menu::owner::Menus,
         glyph: u32,
         x: i32,
         y: i32,
+        clip_right: i32,
     ) -> Self {
         Self {
             glyph,
@@ -272,7 +262,7 @@ impl BlitCall {
             y,
             palette: None,
             table: crate::gfx::blit_marker_pair::sprite_table(menus),
-            clip_right: crate::gfx::surface::clip_in(gfx).right,
+            clip_right,
         }
     }
 }

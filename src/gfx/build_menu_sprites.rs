@@ -29,15 +29,15 @@ pub fn build_menu_sprites(
     build_glyphs(vars, &crate::gfx::texts::MBUTS, list, gfx, strings)?;
     sprite_table.set(vars.table.get());
     end_glyph_tables(strings)?;
-    all_direct_colour(vars.table.get())
+    all_direct_colour(vars.table.get(), gfx)
 }
 
 /// Refuses a sprite table with a record whose pixels go through a palette: the sprites are
 /// drawn with none (`gfx::blit_glyph::BlitCall::sprite`; the original hands them leftover
 /// values it never reads).
-fn all_direct_colour(table: u32) -> Result<(), Refused> {
+fn all_direct_colour(table: u32, gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
     use rc2k_core::strings::bytes::Bytes as _;
-    let surface = crate::gfx::surface::surface();
+    let surface = crate::gfx::surface::surface(gfx);
     let records = crate::gfx::glyph_store::bytes(table, "the menus' sprite table")?;
     let count = records.u32_le(0).unwrap_or(0) / 4;
     for glyph in 0..count {

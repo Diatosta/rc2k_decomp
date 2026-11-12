@@ -68,7 +68,11 @@ pub fn object_hits_car(
                 c.contact.object_offset[k].set(ext_to_int(*e) as u32);
             }
             // `point` is the scene point's number (from `face_contact`).
-            let place = match crate::race::scene_points::point_number(c.course, point) {
+            let place = match crate::race::scene_points::point_number(
+                c.course,
+                &crate::race::scene_points::NO_OWN,
+                point,
+            ) {
                 Ok(p) => p,
                 Err(e) => {
                     refused.set(Some(e.into()));

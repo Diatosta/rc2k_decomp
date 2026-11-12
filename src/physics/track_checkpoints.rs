@@ -18,6 +18,7 @@ pub fn track_checkpoints(
     c: &CheckpointInputs<'_>,
     scene: &crate::scene::owner::Scene,
     sound: &crate::sound::owner::Sound,
+    audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     let physics_store = c.physics;
     let checkpoint = {
@@ -39,6 +40,7 @@ pub fn track_checkpoints(
         c.checkpoints,
         c.car,
         sound,
+        audio,
     )?;
     let next =
         crate::race::checkpoints_store::check_count(c.checkpoints, c.car.checkpoint.get() as usize)

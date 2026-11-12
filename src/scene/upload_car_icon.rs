@@ -111,6 +111,7 @@ pub fn upload_car_icon(
     upload: &IconUploadCell,
     icon: &CarIcon<'_>,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let texture = icon.texture;
     let record = Record::of(texture)?;
@@ -120,8 +121,8 @@ pub fn upload_car_icon(
         target_y: icon.target_y,
         piece: [icon.sheet_x, icon.sheet_y, 0x52, 0x2A],
     });
-    keep_second_picture(&record, Some(&icon.alpha_sheet))?;
-    let (pixels, width, height, _) = read_texture_picture(Some(&icon.sheet))?;
+    keep_second_picture(&record, Some(&icon.alpha_sheet), gfx, system)?;
+    let (pixels, width, height, _) = read_texture_picture(Some(&icon.sheet), gfx, system)?;
     ready_picture(&record, pixels, width, height, gfx)?;
     let across = halvings_apart(
         gfx,

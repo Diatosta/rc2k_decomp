@@ -14,7 +14,7 @@ from count_unsafe import strip_tests
 ACCESSORS = ['race', 'system', 'scene', 'd3d', 'sound', 'audio', 'input', 'net', 'gfx',
              'menus', 'effects', 'install', 'saves', 'service', 'strings', 'screens', 'hud']
 ZST = ['CAR_BLOCKS', 'VIEWER_PANEL', 'VIEWER_BUFFERS', 'GEAR', 'REPLAY_WORK',
-       'EFFECTS_SETTINGS', 'FACES', 'KIND_TABLES', 'CHECKPOINTS', 'TEXT_BUFFERS',
+       'EFFECTS_SETTINGS', 'KIND_TABLES', 'CHECKPOINTS', 'TEXT_BUFFERS',
        'LIGHT_RECORDS', 'ENGINE_TABLES', 'POLYGON_TABLES', 'VERTICES', 'POLYGON_WORK']
 STATICS = ['RACE', 'SYSTEM', 'SCENE', 'D3D', 'SOUND', 'AUDIO_OWNER', 'INPUT', 'NET_OWNER',
            'GFX', 'MENUS', 'EFFECTS', 'INSTALL', 'SAVES', 'SERVICE', 'STRINGS',

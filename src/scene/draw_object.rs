@@ -85,6 +85,7 @@ pub fn draw_object_in_game(
             Step::Points => place_object_points_any(ctx)?,
             Step::List => {
                 list_object_faces(
+                    ctx.race.faces(),
                     &ctx.view.object,
                     &ctx.view.face,
                     &mut faces,
@@ -94,6 +95,7 @@ pub fn draw_object_in_game(
             Step::Sort => sort_listed_faces(&mut faces)?,
             Step::Faces => {
                 draw_object_faces(
+                    ctx.race.faces(),
                     &ctx.view.polygon,
                     &ctx.view.object,
                     &ctx.view.face,

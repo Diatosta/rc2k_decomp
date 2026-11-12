@@ -19,7 +19,7 @@ pub fn request(sound: &Sound) -> &SoundRequest {
     &sound.race.sets.request
 }
 
-pub use crate::sound::play_sound::play_sound as play;
+pub use crate::sound::play_sound::play_sound_in as play;
 
 /// `sound::stop_sound`: the request's sound stopped unless it has bit 0x8000.
 pub fn stop(request: &SoundRequest, audio: &Audio) -> Result<(), Refused> {

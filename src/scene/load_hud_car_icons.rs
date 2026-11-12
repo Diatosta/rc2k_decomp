@@ -39,6 +39,7 @@ pub fn load_hud_car_icons(
     race: &crate::race::owner::Race,
     net: &crate::net::owner::Net,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let shared = &race.shared;
     let vars = &net.vars;
@@ -76,6 +77,7 @@ pub fn load_hud_car_icons(
                 target_y,
             },
             gfx,
+            system,
         )?;
     }
     Ok(())

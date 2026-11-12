@@ -47,7 +47,9 @@ pub fn edge_normal(
     scene: &crate::scene::owner::Scene,
 ) -> Result<[u32; 4], Refused> {
     let drawing = &scene.drawing;
-    let rd = |n: u32, k: u32| crate::race::scene_points::point_word(course, n, k);
+    let rd = |n: u32, k: u32| {
+        crate::race::scene_points::point_word(course, &crate::race::scene_points::NO_OWN, n, k)
+    };
     physics_tables.edge_points[0].set(rd(first, 0)?);
     physics_tables.edge_points[1].set(rd(first, 2)?);
     physics_tables.edge_points[2].set(rd(second, 0)?);

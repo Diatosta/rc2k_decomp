@@ -57,6 +57,7 @@ impl LoadVars {
 /// The original's `loadlevel_init`, step by step.
 struct Steps<'a> {
     race: &'a Race,
+    o: crate::owners::Owners<'static>,
     v: LoadVars,
     word: usize,
 }
@@ -85,7 +86,12 @@ impl Steps<'_> {
         if shared.vars.bar_function.get() != self.v.bar {
             return Err(BadInput("the loading bar's callback is not the loading bar").into());
         }
-        crate::race::loading_bar_frame::loading_bar_frame(race)
+        crate::race::loading_bar_frame::loading_bar_frame(
+            race,
+            self.o.system,
+            self.o.scene,
+            self.o.gfx,
+        )
     }
 
     /// A step's usual frame: the word, the indent in, the call, the mark, the indent out.
@@ -124,7 +130,12 @@ pub fn loadlevel_init(
     use crate::race::level_init as level;
     use crate::race::stage_prefs;
     let v = LoadVars::game();
-    let mut s = Steps { race, v, word: 0 };
+    let mut s = Steps {
+        race,
+        o,
+        v,
+        word: 0,
+    };
     s.log();
     s.indent(3);
     race.frame.map.use_packed.set(1u32);
@@ -195,7 +206,7 @@ pub fn loadlevel_init(
     race.shared.vars.bar_span[1].set(0x50); // RaceVars.bar_span[1]
     s.indent(-3);
     s.step(
-        &mut || crate::race::set_all_plates::set_all_plates(race, gfx, o.net, scene),
+        &mut || crate::race::set_all_plates::set_all_plates(race, system, gfx, o.net, scene),
         Some(0x50),
     )?;
     // loadgamemap.

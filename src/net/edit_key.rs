@@ -19,7 +19,12 @@ use crate::pointers::{StoreBytes, copy_between, store_value};
 use crate::text::draw_text::GameCanvas;
 use crate::text::measure_text::measure_text_at;
 use rc2k_core::net::editing::{self, EditKey};
-pub fn edit_key(net: &Net, install: &Install, key: u8) -> Result<bool, Refused> {
+pub fn edit_key(
+    net: &Net,
+    install: &Install,
+    key: u8,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<bool, Refused> {
     // Converted: `rc2k_core::net::editing` (`EditKey`, `last_char`, `takes`,
     // `end_for_char`, `too_wide`).
     if net.edit().edited.get() != editing::NOT_EDITING {
@@ -60,7 +65,7 @@ pub fn edit_key(net: &Net, install: &Install, key: u8) -> Result<bool, Refused> 
                             net.edit().edit_font.get(),
                             &shown,
                             at as i32,
-                            &mut GameCanvas,
+                            &mut GameCanvas::new(gfx),
                         )
                     }?
                     .width;

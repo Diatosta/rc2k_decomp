@@ -75,6 +75,7 @@ pub fn draw_stage_map(o: Owners<'static>) -> Result<(), Refused> {
         0,
         0,
         None,
+        o.gfx,
     )?;
     Ok(())
 }

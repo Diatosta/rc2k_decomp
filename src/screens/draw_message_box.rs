@@ -29,7 +29,7 @@ pub fn draw_message_box(
     use crate::gfx::rect::{Palette, fill_rect, frame_rect};
     use crate::text::draw_string_by_id::draw_string_by_id_at;
     use crate::text::measure_string_by_id::measure_string_by_id_at;
-    let bits = crate::gfx::surface::surface().bits_per_pixel;
+    let bits = crate::gfx::surface::surface(gfx).bits_per_pixel;
     if bits != 16 && bits != 32 {
         return Err(BadInput("a message box on a surface of neither 16 nor 32 bits").into());
     }
@@ -56,8 +56,8 @@ pub fn draw_message_box(
     BOX[1].set(b.rect[1]);
     let rect = crate::gfx::rect::rect_of(&BOX);
     let palettes = Palette::Held(gfx.fonts.font_block.palettes.get());
-    fill_rect(rect, FILL, palettes)?;
-    frame_rect(rect, 0, 0, FRAME, palettes);
+    fill_rect(rect, FILL, palettes, gfx)?;
+    frame_rect(rect, 0, 0, FRAME, palettes, gfx);
     draw_string_by_id_at(STRING, font, b.text_x, b.text_y, canvas)?;
     Ok(())
 }

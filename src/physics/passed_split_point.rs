@@ -118,7 +118,8 @@ pub fn passed_split_point(
     }
     let (cp, pt) = point(&c.physics.split_tables, c.course, c.checkpoints, c.car)?;
     // The point read from `race::scene_points`; the x87 runs read a copy.
-    let pt = crate::race::scene_points::point_number(c.course, pt)?;
+    let pt =
+        crate::race::scene_points::point_number(c.course, &crate::race::scene_points::NO_OWN, pt)?;
     c.physics.ground.ground_x.set(c.car.position[0].get());
     c.physics.ground.ground_z.set(c.car.position[2].get());
     distance(c.tables, c.numbers, &c.physics.ground, pt, scene);

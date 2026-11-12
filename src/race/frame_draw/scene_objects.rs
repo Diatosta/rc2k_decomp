@@ -2,9 +2,7 @@
 
 use super::*;
 use crate::errors::{BadInput, Refused};
-use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::frame_view::car as car_view;
-use crate::race::kind_store::KIND_TABLES;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use crate::race::view_scratch::DrawCtx;
@@ -191,7 +189,7 @@ pub fn draw_screen_quad(
     poly.polygon_next_entry.set(4u32);
     crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(part, poly, race)?;
     if poly.polygon_vertex_count.get() >= 3 {
-        crate::scene::depth_buffer_on::depth_buffer(false);
+        crate::scene::depth_buffer_on::depth_buffer(part, false);
         poly.polygon_textures[0].set(u32::MAX);
         face.polygon_mode.set(0u32);
         poly.polygon_sides[0].set(1u32);
@@ -199,7 +197,7 @@ pub fn draw_screen_quad(
         crate::scene::draw_polygon::draw_polygon_in_game(poly, part, race, face, scene, screen)?;
         face.polygon_mode.set(0u32);
         poly.polygon_drawn.set(1u32);
-        crate::scene::depth_buffer_on::depth_buffer(true);
+        crate::scene::depth_buffer_on::depth_buffer(part, true);
     }
     poly.polygon_colour.set(0x00FF_FFFFu32);
     Ok(())
@@ -347,7 +345,7 @@ pub(super) fn light_pair(
 ) -> Result<(), BadInput> {
     let race = ctx.race;
     // The bytes are the block's part switches (+0xAC0 ..).
-    let switches = &CAR_BLOCKS.cars[car].part_switches;
+    let switches = &race.car_blocks().cars[car].part_switches;
     let byte = |o: u32| -> Result<u32, BadInput> {
         let n = o.wrapping_sub(PART_SWITCHES) as usize;
         if n >= switches.atomics().len() {
@@ -410,7 +408,7 @@ pub fn car_light_flares(ctx: &DrawCtx, car: usize) -> Result<(), Refused> {
         return Ok(());
     }
     let kind = car_view(car)?.car_kind.get();
-    let valid = kind < 0x22 && KIND_TABLES.kind_shows_parts[kind as usize].get() != 0;
+    let valid = kind < 0x22 && race.kind_tables().kind_shows_parts[kind as usize].get() != 0;
     if valid {
         if !crate::math::x87::below_or_unordered(
             car_view(car)?.electrics_damage.get(),
@@ -425,8 +423,8 @@ pub fn car_light_flares(ctx: &DrawCtx, car: usize) -> Result<(), Refused> {
         // A second test of the same kind follows; its error branch (a log line) is
         // never reached.
     }
-    // 0x41F4E1: the kind held to 0 ..= 0x21 (by sign), through `KIND_TABLES.kind_light_records`.
-    let index = KIND_TABLES.kind_light_records[(kind as i32).clamp(0, 0x21) as usize].get();
+    // 0x41F4E1: the kind held to 0 ..= 0x21 (by sign), through the kind tables' `kind_light_records`.
+    let index = race.kind_tables().kind_light_records[(kind as i32).clamp(0, 0x21) as usize].get();
     // The index is not bounded: the original reads on past the 34 records into the gear
     // figures (the group `lights_and_gear` bounds the read).
     let record = (core::mem::offset_of!(crate::race::groups_store::LightsAndGear, light_records)
@@ -729,7 +727,8 @@ pub fn draw_lamp_flare(
 ) -> Result<(), Refused> {
     let race = ctx.race;
     let edi = lights::own_lamp(&ctx.view.lamps, lamp)?;
-    let [x, y, z] = crate::race::scene_points::point_number(&race.course, edi[0].get())?;
+    let [x, y, z] =
+        crate::race::scene_points::point_number(&race.course, &ctx.part.points, edi[0].get())?;
     ctx.view.object.place[0].set(x);
     ctx.view.object.place[1].set(y);
     ctx.view.object.place[2].set(z);

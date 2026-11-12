@@ -52,6 +52,9 @@ pub struct GroundQuery<'a> {
     pub half: &'a Dword,
     pub face_corners: &'a [Dword; 3],
     pub last: &'a Dword,
+    /// The scene points the search reads the faces' corners through: a drawing part's own
+    /// past the count in the drawing (`race::scene_points::OwnPoints`).
+    pub points: &'a crate::race::scene_points::OwnPoints,
 }
 
 impl<'a> GroundQuery<'a> {
@@ -85,6 +88,7 @@ impl<'a> GroundQuery<'a> {
             half: &c.ground_half,
             face_corners: &c.ground_corners,
             last: &c.ground_face_last,
+            points: &crate::race::scene_points::NO_OWN,
         }
     }
 }
@@ -157,8 +161,11 @@ impl GroundCells {
         }
     }
 
-    /// The query on these cells.
-    pub fn query(&self) -> GroundQuery<'_> {
+    /// The query on these cells, reading the scene points through `points`.
+    pub fn query<'a>(
+        &'a self,
+        points: &'a crate::race::scene_points::OwnPoints,
+    ) -> GroundQuery<'a> {
         GroundQuery {
             x: &self.x,
             z: &self.z,
@@ -187,6 +194,17 @@ impl GroundCells {
             half: &self.half,
             face_corners: &self.face_corners,
             last: &self.last,
+            points,
         }
+    }
+
+    /// The edge test's product (`GroundQuery::product`).
+    pub fn product(&self) -> &[Dword; 2] {
+        &self.product
+    }
+
+    /// The share kept in `plane_f` (`GroundQuery::plane_f`).
+    pub fn plane_f(&self) -> &Float {
+        &self.plane_f
     }
 }

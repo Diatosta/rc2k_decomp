@@ -23,7 +23,11 @@ const SIDE: u32 = 0x100;
 const CELLS: u32 = 0x40;
 /// `gfx::read_picture_file` at 256 x 256 (the picture's sizes kept round it): whether it
 /// was read.
-fn read(path: &PlainBytes<21>, gfx: &crate::gfx::owner::Gfx) -> Result<bool, Refused> {
+fn read(
+    path: &PlainBytes<21>,
+    gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
+) -> Result<bool, Refused> {
     let sizes: [u32; 3] = [
         gfx.pictures.picture.width.get(),
         gfx.pictures.picture.height.get(),
@@ -32,7 +36,7 @@ fn read(path: &PlainBytes<21>, gfx: &crate::gfx::owner::Gfx) -> Result<bool, Ref
     gfx.pictures.picture.width.set(SIDE);
     gfx.pictures.picture.height.set(SIDE);
     gfx.pictures.picture.row_bytes.set(0xFFFF_FFFEu32);
-    let read = crate::gfx::read_picture_file::read_picture_file(path, gfx);
+    let read = crate::gfx::read_picture_file::read_picture_file(path, gfx, system);
     gfx.pictures.picture.width.set(sizes[0]);
     gfx.pictures.picture.height.set(sizes[1]);
     gfx.pictures.picture.row_bytes.set(sizes[2]);
@@ -54,6 +58,7 @@ pub fn set_up_surface(
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
     effects: &crate::effects::owner::Effects,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let setup = &effects.setup;
     // The mask's copy is Rust's memory (phase 12), counted on the list as the game's
@@ -63,7 +68,7 @@ pub fn set_up_surface(
     if gfx.drawing.draw_surface.width.get() < SIDE || gfx.drawing.draw_surface.height.get() < SIDE {
         return unlock_refusing("a surface under 256 x 256", scene);
     }
-    if !read(&ring.names.surfmask, gfx)? {
+    if !read(&ring.names.surfmask, gfx, system)? {
         return unlock_refusing("surfmask.pcx was not read", scene);
     }
     mask[..4 * PIXELS as usize].copy_from_slice(&crate::gfx::picture::read_bytes(
@@ -71,7 +76,7 @@ pub fn set_up_surface(
         0,
         4 * PIXELS as usize,
     )?);
-    if !read(&ring.names.surfdata, gfx)? {
+    if !read(&ring.names.surfdata, gfx, system)? {
         return unlock_refusing("surfdata.pcx was not read", scene);
     }
     let picture =

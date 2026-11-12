@@ -35,7 +35,13 @@ fn progress(shared: &RaceShared, scene: &Scene, done: u32) -> Option<u32> {
 
 /// `done` of the system textures are done. The loading bar's function is one of the two the
 /// loading puts there: `race::loading_bar_frame` or the empty function after it.
-pub fn step_loading_bar(race: &Race, scene: &Scene, done: u32) -> Result<(), Refused> {
+pub fn step_loading_bar(
+    race: &Race,
+    system: &crate::system::owner::System,
+    gfx: &crate::gfx::owner::Gfx,
+    scene: &Scene,
+    done: u32,
+) -> Result<(), Refused> {
     let shared = &race.shared;
     let show: u32 = shared.vars.bar_function.get();
     if show == 0 {
@@ -45,7 +51,7 @@ pub fn step_loading_bar(race: &Race, scene: &Scene, done: u32) -> Result<(), Ref
         shared.vars.bar_share.set(progress);
     }
     if show == BAR {
-        crate::race::loading_bar_frame::loading_bar_frame(race)
+        crate::race::loading_bar_frame::loading_bar_frame(race, system, scene, gfx)
     } else if show == NOTHING {
         Ok(())
     } else {

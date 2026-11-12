@@ -263,6 +263,7 @@ pub fn reset_pong(pong: &crate::effects::pong::Pong, effects: &crate::effects::o
 /// faces past `g_faces`.
 pub fn gather_spline_points(
     course: &Course,
+    faces_table: &crate::scene::faces_store::Faces,
     paths: &Paths,
     s: Spline,
     object: u32,
@@ -283,7 +284,7 @@ pub fn gather_spline_points(
         s.put(paths, COUNT, 0)?;
         paths.spline_head.found.set_bits(0u32);
         for f in first..first + faces {
-            let face: u32 = crate::scene::objects::face_cell(f as usize).get();
+            let face: u32 = crate::scene::objects::face_cell(faces_table, f as usize).get();
             if (crate::scene::object_faces::byte(face + 7)? & 0x1F) as u32 == kind {
                 paths
                     .spline_head
@@ -573,6 +574,7 @@ fn spline_checks(
 /// `g_faces`, an angle `fsincos` cannot take, before writing anything else.
 pub fn make_spline(
     course: &Course,
+    faces_table: &crate::scene::faces_store::Faces,
     paths: &Paths,
     work: &crate::effects::work_store::MarksWork,
     object: u32,
@@ -594,6 +596,7 @@ pub fn make_spline(
             let record = Spline::record(t, place as u32);
             gather_spline_points(
                 course,
+                faces_table,
                 paths,
                 record,
                 object,
@@ -648,6 +651,7 @@ const MOST_OBJECTS: u32 = (0x2708 - 0x26BC) / 4;
 /// writing anything.
 pub fn load_splines(
     course: &Course,
+    faces_table: &crate::scene::faces_store::Faces,
     paths: &Paths,
     resume: u32,
     scene: &crate::scene::owner::Scene,
@@ -687,7 +691,7 @@ pub fn load_splines(
     }
     paths.spline_work.place.set_bits(0u32);
     for o in objects {
-        make_spline(course, paths, &effects.setup.work, o, scene)?;
+        make_spline(course, faces_table, paths, &effects.setup.work, o, scene)?;
     }
     paths.spline_head.made.set_bits(0u32);
     Ok(())

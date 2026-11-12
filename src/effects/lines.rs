@@ -197,6 +197,7 @@ fn measured(
 // stay x87: its `finit` between)
 pub fn measure_lines(
     course: &Course,
+    faces_table: &crate::scene::faces_store::Faces,
     paths: &Paths,
     scene: &Scene,
     effects: &crate::effects::owner::Effects,
@@ -231,8 +232,10 @@ pub fn measure_lines(
                 block.kind_counts[n].set(0);
             }
             for n in 0..(faces as i32).max(0) as u32 {
-                let from: u32 = crate::scene::objects::face_cell((first_a + n) as usize).get();
-                let to: u32 = crate::scene::objects::face_cell((first_b + n) as usize).get();
+                let from: u32 =
+                    crate::scene::objects::face_cell(faces_table, (first_a + n) as usize).get();
+                let to: u32 =
+                    crate::scene::objects::face_cell(faces_table, (first_b + n) as usize).get();
                 if crate::scene::object_faces::byte(from + 6)? == 0x1C {
                     let kind = crate::scene::object_faces::byte(from + 0xB)? as u32;
                     if (1..=6).contains(&kind) {
@@ -273,6 +276,7 @@ pub fn measure_lines(
 // Converted: `rc2k_core::effects::lines::{measured, block_at}`
 pub fn measure_starting_sums(
     course: &Course,
+    faces_table: &crate::scene::faces_store::Faces,
     paths: &Paths,
     scene: &Scene,
     effects: &crate::effects::owner::Effects,
@@ -280,7 +284,7 @@ pub fn measure_starting_sums(
     measured(scene, effects, true)?;
     paths.lines_work.every.set(1u32);
     paths.lines_work.shares.set(0u32);
-    measure_lines(course, paths, scene, effects)?;
+    measure_lines(course, faces_table, paths, scene, effects)?;
     let marks = effects.settings()?;
     let count = marks.cars_copy.get() as i32;
     for k in (0..count.max(0) as u32).rev() {
@@ -364,12 +368,13 @@ pub fn copy_block_points(
 // Converted: `rc2k_core::effects::lines::{measured, block_at}`
 pub fn set_up_blocks(
     course: &Course,
+    faces_table: &crate::scene::faces_store::Faces,
     paths: &Paths,
     scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     measured(scene, effects, true)?;
-    measure_starting_sums(course, paths, scene, effects)?;
+    measure_starting_sums(course, faces_table, paths, scene, effects)?;
     let marks = effects.settings()?;
     let count = marks.cars_copy.get() as i32;
     for k in (0..count.max(0) as u32).rev() {

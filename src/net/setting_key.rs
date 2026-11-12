@@ -14,8 +14,13 @@ use crate::net::owner::Net;
 use rc2k_core::net::chat;
 
 /// The key `key` for the setting being edited.
-pub fn setting_key(install: &'static Install, net: &'static Net, key: u8) -> Result<(), Refused> {
-    if !crate::net::edit_key::edit_key(net, install, key)? {
+pub fn setting_key(
+    install: &'static Install,
+    net: &'static Net,
+    key: u8,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), Refused> {
+    if !crate::net::edit_key::edit_key(net, install, key, gfx)? {
         return Ok(());
     }
     // Converted: `rc2k_core::net::chat` (`NAME`, `MOST_PLAYERS`, `most_players`).

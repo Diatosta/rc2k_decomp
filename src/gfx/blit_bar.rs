@@ -9,7 +9,7 @@
 use crate::errors::{FatalError, Refused};
 use crate::gfx::blit_glyph::BlitCall;
 use crate::gfx::owner::Gfx;
-use crate::gfx::surface::clip_in;
+use crate::gfx::surface::clip;
 use crate::menu::owner::Menus;
 
 // ---- game data ----
@@ -71,10 +71,16 @@ pub struct GameBar<'a> {
 impl rc2k_core::gfx::bars::BarCanvas for GameBar<'_> {
     type Error = Refused;
     fn sprite(&mut self, glyph: u32, x: i32, y: i32) -> Result<(), Refused> {
-        (self.blit)(BlitCall::sprite_in(self.gfx, self.menus, glyph, x, y))
+        (self.blit)(BlitCall::sprite(
+            self.menus,
+            glyph,
+            x,
+            y,
+            clip(self.gfx).right,
+        ))
     }
     fn clip_right(&mut self) -> i32 {
-        clip_in(self.gfx).right
+        clip(self.gfx).right
     }
     fn set_clip_right(&mut self, x: i32) {
         self.gfx.drawing.blit.clip.right.set(x as u32);

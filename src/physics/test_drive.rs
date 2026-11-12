@@ -8,7 +8,7 @@
 //! (everything written put back).
 
 use crate::errors::Refused;
-use crate::physics::gear_store::GEAR;
+use crate::physics::gear_store::GearFigures;
 use crate::physics::test_drive_run;
 use crate::race::car_specs_store::CarSpecs;
 use crate::race::owner_course::Course;
@@ -18,6 +18,7 @@ pub fn test_drive(
     car_specs: &CarSpecs,
     course: &Course,
     shared: &RaceShared,
+    gear: &GearFigures,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     crate::physics::load_car_specs::load_car_specs(
@@ -25,14 +26,14 @@ pub fn test_drive(
         course,
         &shared.physics_tables,
         &shared.car,
-        &GEAR,
+        gear,
         scene,
     )?;
     crate::physics::make_gear_ratios::make_gear_ratios(
         &shared.car,
         &shared.physics_tables,
         &course.numbers,
-        &GEAR,
+        gear,
         scene,
     )?;
     // The figures kept round the run: the drive speeds, the car's speed, the gear, the
@@ -48,8 +49,8 @@ pub fn test_drive(
     shared
         .car
         .engine_power_factor
-        .set(GEAR.test_power_factor.get());
-    test_drive_run::test_drive_run(course, shared, scene)?;
+        .set(gear.test_power_factor.get());
+    test_drive_run::test_drive_run(course, shared, gear, scene)?;
     let [a, b, speed, gear, engine, kind] = kept;
     shared.car.drive_speed_a.set_bits(a);
     shared.car.drive_speed_b.set_bits(b);

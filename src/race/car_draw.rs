@@ -7,10 +7,9 @@
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
-use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::car_draw_state::CarDrawState;
 use crate::race::frame_view::car as car_view;
-use crate::race::light_records_store::LIGHT_RECORDS;
+use crate::race::light_records_store::LightRecords;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::view_vars_store::ViewVars;
@@ -134,8 +133,8 @@ pub fn car_number_textures(
 
 /// The group number at byte `offset` of model `model`'s groups (the original does not
 /// bound the model: one past the 34 records is refused).
-fn model_field(model: u32, offset: u32) -> Result<u32, BadInput> {
-    LIGHT_RECORDS
+fn model_field(lights: &LightRecords, model: u32, offset: u32) -> Result<u32, BadInput> {
+    lights
         .records
         .get(model as usize)
         .and_then(|record| record.groups.get((offset / 4) as usize))
@@ -144,8 +143,8 @@ fn model_field(model: u32, offset: u32) -> Result<u32, BadInput> {
 }
 
 /// The model's bit at +`offset` of its groups (`LightsAndGear.light_records.records[0].groups[0]` ..): 1 << it, 0 for -1.
-fn model_bit(model: u32, offset: u32) -> Result<u32, BadInput> {
-    let c = model_field(model, offset)?;
+fn model_bit(lights: &LightRecords, model: u32, offset: u32) -> Result<u32, BadInput> {
+    let c = model_field(lights, model, offset)?;
     Ok(if c == u32::MAX { 0 } else { 1u32 << (c & 31) })
 }
 
@@ -184,12 +183,16 @@ const PART_SWITCHES: [(u32, usize); 7] = [
 ];
 
 /// The course's group masks from the model's part groups (an unknown model is refused).
-fn set_group_masks(masks: &[crate::session::Dword; 18], model: u32) -> Result<(), BadInput> {
+fn set_group_masks(
+    lights: &LightRecords,
+    masks: &[crate::session::Dword; 18],
+    model: u32,
+) -> Result<(), BadInput> {
     for (to, group) in BODY_GROUPS {
-        masks[to].set(model_bit(model, group as u32 * 4)?);
+        masks[to].set(model_bit(lights, model, group as u32 * 4)?);
     }
     let (slot, group) = LAMPS;
-    let mut lamps = model_bit(model, group as u32 * 4)?;
+    let mut lamps = model_bit(lights, model, group as u32 * 4)?;
     if lamps != 0 {
         for (models, bits) in EXTRA_LAMP_BITS {
             if models.contains(&model) {
@@ -199,7 +202,7 @@ fn set_group_masks(masks: &[crate::session::Dword; 18], model: u32) -> Result<()
     }
     masks[slot].set(lamps);
     for (to, group) in OTHER_GROUPS {
-        masks[to].set(model_bit(model, group as u32 * 4)?);
+        masks[to].set(model_bit(lights, model, group as u32 * 4)?);
     }
     Ok(())
 }
@@ -244,7 +247,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
         ..*ctx
     };
     let [p0, p1, p2, p3] = part_matrices(&ctx.view.cars);
-    let c = &CAR_BLOCKS.cars[car];
+    let c = &race.car_blocks().cars[car];
     let kept = &c.part_matrices;
     for (from, to) in [
         &kept[..16],
@@ -268,14 +271,14 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
     ctx.view
         .cars
         .groups_which
-        .set(CAR_BLOCKS.cars[car].mode_on.get());
+        .set(race.car_blocks().cars[car].mode_on.get());
     let model = car_view(car)?.car_kind.get();
     ctx.view.matrices.known_object.set(model);
-    set_group_masks(&ctx.view.cars.group_masks, model)?;
+    set_group_masks(race.light_records(), &ctx.view.cars.group_masks, model)?;
     let switches = car_view(car)?.parts_present.get();
     let shown = shown_groups(&ctx.view.cars.group_masks, switches);
     ctx.view.cars.shown_groups.set(shown);
-    let field = |offset: u32| model_field(model, offset);
+    let field = |offset: u32| model_field(race.light_records(), model, offset);
     ctx.view.face.faded_bits.set(field(0x10)?);
     ctx.view.cars.group_masks[4].set(
         u32::MAX

@@ -11,7 +11,8 @@ pub fn joining(
     system: &crate::system::owner::System,
     panel: &crate::race::viewer_screen_store::ViewerPanelBlock,
     session: u32,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<bool, Refused> {
-    crate::net::connecting::status(0x153)?;
+    crate::net::connecting::status(0x153, gfx)?;
     crate::net::join_session::join_session(net, system, panel, session)
 }

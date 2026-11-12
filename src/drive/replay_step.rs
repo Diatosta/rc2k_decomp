@@ -83,7 +83,7 @@ pub fn replay_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(),
     crate::drive::animate_stage::animate_stage(race, scene)?;
     crate::drive::race_mode_cars::race_mode_cars(race, scene)?;
     crate::drive::duel_sound_levels::duel_sound_levels(race, sound);
-    crate::drive::countdown_beeps::countdown_beeps(race)?;
+    crate::drive::countdown_beeps::countdown_beeps(race, o.audio)?;
     crate::drive::two_car_order::two_car_order(race)?;
     crate::drive::hold_count_tick::hold_count_tick(&race.shared);
     crate::drive::flush_replay_if::flush_replay_if(race)?;

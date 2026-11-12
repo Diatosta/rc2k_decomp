@@ -138,7 +138,7 @@ pub fn build_game_fonts(
         // Converted: `rc2k_core::gfx::pixels::brighter`.
         let brighter = rc2k_core::gfx::pixels::brighter(gfx.pictures.decoder.palette[n].get());
         gfx.pictures.decoder.palette[n].set(brighter);
-        pixels.extend_from_slice(&components_to_pixel(&layout, brighter).to_le_bytes());
+        pixels.extend_from_slice(&components_to_pixel(&layout, brighter, gfx).to_le_bytes());
     }
     crate::gfx::glyph_store::write_bytes(to, 0, &pixels, "the second palette's pixels")?;
 

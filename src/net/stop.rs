@@ -10,8 +10,9 @@
 
 use crate::errors::Refused;
 use crate::net::store::NetVars;
+use crate::race::viewer_screen_store::ViewerPanelBlock;
 use crate::system::owner::System;
-pub fn stop(vars: &NetVars, system: &System) -> Result<(), Refused> {
+pub fn stop(vars: &NetVars, system: &System, panel: &ViewerPanelBlock) -> Result<(), Refused> {
     vars.session.set(0);
     while vars.receiving.get() != 0 {
         crate::system::sleep::sleep(1);
@@ -20,5 +21,5 @@ pub fn stop(vars: &NetVars, system: &System) -> Result<(), Refused> {
             break;
         }
     }
-    crate::net::destroy_connection::destroy_connection(vars)
+    crate::net::destroy_connection::destroy_connection(vars, panel)
 }

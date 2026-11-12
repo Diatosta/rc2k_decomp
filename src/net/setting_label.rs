@@ -17,7 +17,9 @@ pub fn setting_label(
     string: u32,
     item: u32,
     y: u32,
+    gfx: &crate::gfx::owner::Gfx,
+    menus: &crate::menu::owner::Menus,
 ) -> Result<u32, Refused> {
-    draw_button(net, install, string, 0, 0x190, y, item)?;
+    draw_button(net, install, string, 0, 0x190, y, item, gfx, menus)?;
     Ok(y.wrapping_add(0x20))
 }

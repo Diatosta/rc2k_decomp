@@ -45,7 +45,7 @@ pub fn show_picture_file(
     // `rescaled`).
     crate::gfx::picture::set_size(&gfx.pictures, sizes::READ);
     // A refused picture is not read, as `read_picture_file`'s callers by address see it.
-    let read = match crate::gfx::read_picture_file::read_picture_file_in(path, gfx, system) {
+    let read = match crate::gfx::read_picture_file::read_picture_file(path, gfx, system) {
         Ok(read) => read,
         Err(Refused::BadInput(_)) => false,
         Err(e) => return Err(e),
@@ -69,13 +69,13 @@ pub fn show_picture_file(
                 LOADING_FONT,
                 0x316,
                 0x2F,
-                &mut crate::text::draw_text::GameCanvas,
+                &mut crate::text::draw_text::GameCanvas::new(gfx),
             )?;
         }
         if sizes::rescaled(gfx.pictures.decoder.width.get(), width) {
             for _ in 0..pages {
                 // `cmp g_surfaceLocked, 1`'s carry: not locked.
-                if lock_surface() < 1 {
+                if lock_surface(gfx) < 1 {
                     return Ok(());
                 }
                 crate::gfx::rescale_to_surface::rescale_to_surface(
@@ -83,7 +83,7 @@ pub fn show_picture_file(
                     &gfx.drawing.draw_surface,
                     gfx,
                 )?;
-                unlock_surface();
+                unlock_surface(gfx);
                 show_frame_now();
             }
             return Ok(());

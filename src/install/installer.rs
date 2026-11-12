@@ -250,13 +250,13 @@ pub fn take_key() -> u8 {
 
 /// `gfx::lock_surface` (0x4058AD): whether the surface is locked (the original's carry
 /// clear).
-pub fn lock() -> bool {
-    crate::platform::lock_surface() >= 1
+pub fn lock(gfx: &crate::gfx::owner::Gfx) -> bool {
+    crate::platform::lock_surface(gfx) >= 1
 }
 
 /// `gfx::unlock_surface` (0x405949).
-pub fn unlock() {
-    crate::platform::unlock_surface();
+pub fn unlock(gfx: &crate::gfx::owner::Gfx) {
+    crate::platform::unlock_surface(gfx);
 }
 
 /// `gfx::show_frame` (0x4057D1): whether it was shown (the original's carry clear).
@@ -302,6 +302,7 @@ pub fn draw_string(
     font: crate::gfx::typefaces::FontId,
     x: u32,
     y: u32,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     use crate::text::draw_text::GameCanvas;
     crate::text::draw_string_by_id::draw_string_by_id_at(
@@ -309,7 +310,7 @@ pub fn draw_string(
         font,
         x as i32,
         y as i32,
-        &mut GameCanvas,
+        &mut GameCanvas::new(gfx),
     )?;
     Ok(())
 }
@@ -321,11 +322,18 @@ pub fn draw_text(
     text: &(impl rc2k_core::strings::bytes::Bytes + ?Sized),
     x: u32,
     y: u32,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     use crate::text::draw_text::GameCanvas;
     let at = font.object();
     let mut copy = at.get();
-    crate::text::draw_text::draw_text(&mut copy, text, x as i32, y as i32, &mut GameCanvas)?;
+    crate::text::draw_text::draw_text(
+        &mut copy,
+        text,
+        x as i32,
+        y as i32,
+        &mut GameCanvas::new(gfx),
+    )?;
     if copy != at.get() {
         at.set(copy);
     }
@@ -337,9 +345,12 @@ pub fn measure_text(
     font: crate::gfx::typefaces::FontId,
     text: &(impl rc2k_core::strings::bytes::Bytes + ?Sized),
     x: u32,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(u32, u32), Refused> {
     use crate::text::draw_text::GameCanvas;
-    let m = { crate::text::measure_text::measure_text_at(font, text, x as i32, &mut GameCanvas) }?;
+    let m = {
+        crate::text::measure_text::measure_text_at(font, text, x as i32, &mut GameCanvas::new(gfx))
+    }?;
     Ok((m.width, m.outcome.y as u32))
 }
 
@@ -348,6 +359,7 @@ pub fn measure_string(
     id: u32,
     font: crate::gfx::typefaces::FontId,
     x: u32,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(u32, u32), Refused> {
     use crate::text::draw_text::GameCanvas;
     let m = {
@@ -355,7 +367,7 @@ pub fn measure_string(
             id,
             font,
             x as i32,
-            &mut GameCanvas,
+            &mut GameCanvas::new(gfx),
         )
     }?;
     Ok((m.width, m.outcome.y as u32))
@@ -366,6 +378,7 @@ pub fn measure_string(
 pub fn components_to_pixels(
     from: &[crate::session::PlainDword; 256],
     to: &[crate::session::PlainDword; 256],
+    gfx: &crate::gfx::owner::Gfx,
 ) {
     let what = "a pixel format";
     let format = crate::gfx::pixel_format::surface_format()
@@ -374,6 +387,7 @@ pub fn components_to_pixels(
         to.set(crate::gfx::components_to_pixel::components_to_pixel(
             &format,
             from.get(),
+            gfx,
         ));
     }
 }
@@ -444,10 +458,13 @@ pub fn page_action(
         0x41432F => i::dxsetup_page::dxsetup_page(install, state),
         0x414347 => i::finish_page::finish_page(install, state),
         0x4130CD => logged("install", i::install_files::install_files(install, o))?,
-        0x4134DF => logged("uninstall", i::uninstall::uninstall(install, o.system))?,
+        0x4134DF => logged(
+            "uninstall",
+            i::uninstall::uninstall(install, o.system, o.gfx),
+        )?,
         0x413629 => i::open_installed::open_installed(install)?,
         0x413650 => i::ask_registration::ask_registration(install),
-        0x41675B => i::install_clio::install_clio(install, o.system)?,
+        0x41675B => i::install_clio::install_clio(install, o.system, o.gfx)?,
         _ => return Err(BadInput("a list action that is not one of the installer's").into()),
     }
     Ok(())

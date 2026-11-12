@@ -1,5 +1,6 @@
 //! The replay viewer's screen (IDA 0x5C291C .. 0x5C2FE4; phase 7, typed): the cameras' text ids, the bar, buttons, marks and place rectangles (scratch ones written each frame), the quad scale floats, the picture switches, the replay patch switches kept, the frame-picture recording state (three dwords at odd addresses), the NET and display text strings between 0x5C2CF7 and 0x5C2F81 (left as unknown bytes), the view marks' state and the listener place and turn. Names are readings unless IDA's.
 
+#[cfg(test)]
 use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
@@ -80,8 +81,10 @@ pub struct ViewerPanelBlock {
 
 /// The piece: a field of `VIEWER_AND_KINDS` since 2026-10-29 (it left the race
 /// block with its group, phase 13).
+#[cfg(test)]
 pub struct InGroup;
 
+#[cfg(test)]
 impl core::ops::Deref for InGroup {
     type Target = ViewerPanelBlock;
     fn deref(&self) -> &ViewerPanelBlock {
@@ -89,6 +92,7 @@ impl core::ops::Deref for InGroup {
     }
 }
 
+#[cfg(test)]
 pub static VIEWER_PANEL: InGroup = InGroup;
 
 /// IDA 0x5C2CE8, the first byte of `untyped_tail`: the untyped tail with the viewer's texts and

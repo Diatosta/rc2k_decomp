@@ -300,6 +300,7 @@ fn shape_set_checks(
 /// 0xFF or faces past `g_faces`, a tilt `fsincos` cannot take, before writing.
 pub fn make_shape_set(
     course: &Course,
+    faces_table: &crate::scene::faces_store::Faces,
     drops: &WindscreenDrops,
     object: u32,
     scene: &crate::scene::owner::Scene,
@@ -347,7 +348,7 @@ pub fn make_shape_set(
     let faces: u32 = scene.objects.slots.face_counts[object].get();
     let kinds: [u32; 2] = read_bits(&drops.tuning.face_kinds);
     for f in first..first + faces {
-        let face: u32 = crate::scene::objects::face_cell(f as usize).get();
+        let face: u32 = crate::scene::objects::face_cell(faces_table, f as usize).get();
         let kind = crate::scene::object_faces::byte(face + 7)?;
         if kind == kinds[0] as u8 {
             collect_points(&PointList::a(drops), face)?;
@@ -419,6 +420,7 @@ pub fn make_shape_set(
 /// objects, what `make_shape_set` refuses for any of them, before writing.
 pub fn make_shape_sets(
     course: &Course,
+    faces_table: &crate::scene::faces_store::Faces,
     drops: &WindscreenDrops,
     scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
@@ -473,7 +475,7 @@ pub fn make_shape_sets(
         for o in objects {
             write_bits(&drops.inputs.tilts, tilts);
             write_bits(&drops.inputs.ends, ends);
-            make_shape_set(course, drops, o, scene)?;
+            make_shape_set(course, faces_table, drops, o, scene)?;
         }
     }
     Ok(())

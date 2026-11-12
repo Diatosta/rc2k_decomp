@@ -72,7 +72,7 @@ pub fn pause_until_key(race: &Race, o: crate::owners::Owners<'static>) -> Result
         race.car_blocks().cars[c as usize].notice_last.set(0);
     }
     shared.vars.scene_switch.set(0);
-    wake_car_sounds(race, o.sound)?;
+    wake_car_sounds(race, o.sound, o.audio)?;
     take_key();
     race.car_blocks().cars[0].input_keys.set(0);
     Ok(())

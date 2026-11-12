@@ -15,7 +15,7 @@ fn show(
     if note.show {
         crate::screens::draw_message_box::draw_message_box(
             0,
-            &mut crate::text::draw_text::GameCanvas,
+            &mut crate::text::draw_text::GameCanvas::new(gfx),
             gfx,
         )?;
     }

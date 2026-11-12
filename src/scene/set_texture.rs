@@ -6,9 +6,9 @@
 
 use crate::scene::owner::Scene;
 
-/// `d3d::set_texture` with the texture, unless the switch is 0.
-pub fn set_texture(scene: &Scene, texture: u32) {
+/// `d3d::set_texture` with the texture (drawing part `part`'s), unless the switch is 0.
+pub fn set_texture(part: &crate::workers::PartScratch, scene: &Scene, texture: u32) {
     if scene.objects.tables.d3d_drawing_on.get() != 0 {
-        crate::d3d::set_texture::set_texture(texture);
+        crate::d3d::set_texture::set_texture(part, texture);
     }
 }

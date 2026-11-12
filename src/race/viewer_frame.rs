@@ -25,7 +25,7 @@ pub fn viewer_frame(o: Owners<'static>) -> Result<bool, Refused> {
         crate::gfx::clear_back_surface::clear_back_surface(gfx, system)?;
     }
     // `d3d::begin_scene` cannot fail (its carry is clear).
-    crate::platform_3d::begin_layer();
+    crate::platform_3d::begin_layer(crate::workers::game_scratch());
     if !race.shared.replay_file.replay_at_end.is_set() {
         crate::drive::replay_frame_marks::replay_frame_marks(race)?;
         crate::race::show_replay_still::show_replay_still(race, o)?;
@@ -52,9 +52,10 @@ fn stopped(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
     let shared = &race.shared;
     // Converted: `rc2k_core::race::viewer_flow::{LIST_STATES, bar_places, mark_x, place_x}`.
     use rc2k_core::race::viewer_flow::{LIST_STATES, bar_places, mark_x, place_x};
-    crate::d3d::set_texture::set_texture(shared.replay_file.viewer_list_texture.get());
+    let part = crate::workers::game_scratch();
+    crate::d3d::set_texture::set_texture(part, shared.replay_file.viewer_list_texture.get());
     for (value, state) in LIST_STATES {
-        crate::d3d::set_render_state::set_render_state(value, state);
+        crate::d3d::set_render_state::set_render_state(part, value, state);
     }
     // The list's item count: the byte at +1 of its first dword.
     let items = (replay.replay_view.viewer_list[0].get() >> 8) as u8;

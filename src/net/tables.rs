@@ -169,8 +169,13 @@ mod tests {
         // short name).
         let guid: [u8; 16] = std::array::from_fn(|k| k as u8 + 1);
         let data = vec![7u8; 5];
-        let found =
-            crate::net::connection_found::connection_found(&guid, &data, b"Test Link\0").unwrap();
+        let found = crate::net::connection_found::connection_found(
+            crate::race::owner::race().viewer_panel(),
+            &guid,
+            &data,
+            b"Test Link\0",
+        )
+        .unwrap();
         assert_eq!(found, 1);
         assert_eq!(net.vars.connections.get(), 1);
         let (name, provider, copied) =

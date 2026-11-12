@@ -62,6 +62,7 @@ pub fn run_rain(
     scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
+    let part = crate::workers::game_scratch();
     let setup = &effects.setup;
     use crate::scene::set_render_state::set_render_state;
     let r = &weather.rain;
@@ -87,12 +88,12 @@ pub fn run_rain(
             r.view_place[n].set(marks.listener_place[n].get());
         }
         crate::effects::place_rain_view::place_rain_view(weather)?;
-        crate::scene::depth_buffer_on::depth_buffer(false);
+        crate::scene::depth_buffer_on::depth_buffer(part, false);
         for (value, state) in STATES {
-            set_render_state(value, state);
+            set_render_state(part, value, state);
         }
         // What `clear_texture` returns is read by nothing here.
-        crate::scene::clear_texture::clear_texture(scene);
+        crate::scene::clear_texture::clear_texture(part, scene);
         // Not the original's: it loaded 256.0's bits as a whole number (`fild`), an rhw of
         // 1132462080.0 that the handheld's GL clipped the streaks away by (`notes/bugs.md`).
         let rhw = weather.rain_rules.rhw;

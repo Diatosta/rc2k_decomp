@@ -4,7 +4,7 @@
 //! `g_blitVisibleWidth`, `g_blitTopSkip`, `g_blitRowsLeft`.
 
 use crate::errors::Refused;
-use crate::gfx::owner::gfx;
+use crate::gfx::owner::Gfx;
 use crate::gfx::surface::{clip, surface};
 
 // Converted: `rc2k_core::gfx::raster`; here the clip and surface are read from the game, and
@@ -14,8 +14,8 @@ fn set(a: &crate::session::PlainDword, v: i32) {
     a.set(v as u32);
 }
 
-fn core_clip() -> rc2k_core::gfx::raster::Clip {
-    let c = clip();
+fn core_clip(gfx: &Gfx) -> rc2k_core::gfx::raster::Clip {
+    let c = clip(gfx);
     rc2k_core::gfx::raster::Clip {
         left: c.left,
         right: c.right,
@@ -24,8 +24,8 @@ fn core_clip() -> rc2k_core::gfx::raster::Clip {
     }
 }
 
-fn core_surface() -> rc2k_core::gfx::raster::Surface {
-    let s = surface();
+fn core_surface(gfx: &Gfx) -> rc2k_core::gfx::raster::Surface {
+    let s = surface(gfx);
     rc2k_core::gfx::raster::Surface {
         bits: s.bits_per_pixel,
         bytes_per_pixel: s.bytes_per_pixel,
@@ -61,8 +61,8 @@ impl Palette<'_> {
 }
 
 /// The plan's work variables, then its pixels in colour `colour`.
-fn carry_out(plan: &rc2k_core::gfx::raster::Plan, colour: u32, palette: Palette<'_>) {
-    let drawing = &gfx().drawing;
+fn carry_out(plan: &rc2k_core::gfx::raster::Plan, colour: u32, palette: Palette<'_>, gfx: &Gfx) {
+    let drawing = &gfx.drawing;
     let w = plan.work;
     for (at, value) in [
         (&drawing.blit.left_skip, w.left_skip),
@@ -74,12 +74,12 @@ fn carry_out(plan: &rc2k_core::gfx::raster::Plan, colour: u32, palette: Palette<
             set(at, v);
         }
     }
-    let Some(target) = surface().target else {
+    let Some(target) = surface(gfx).target else {
         crate::fatal::raise::end("gfx::rect", crate::errors::BadInput("no surface"))
     };
     for &offset in &plan.pixels {
         let bytes = pixel(plan.bits, colour, palette);
-        if let Err(e) = crate::gfx::surface::write(target, offset as u32, &bytes) {
+        if let Err(e) = crate::gfx::surface::write(target, offset as u32, &bytes, gfx) {
             crate::fatal::raise::end("gfx::rect", e)
         }
     }
@@ -111,23 +111,28 @@ pub fn rect_in(bytes: &impl crate::session::ByteBuffer) -> [i32; 4] {
 /// test skips the fill: `notes/bugs.md`). Refuses (before anything) other depths: on 8 bits
 /// the original fills with the byte and then once more with dwords past the rectangle's
 /// rows.
-pub fn fill_rect(rect: [i32; 4], colour: u32, palette: Palette<'_>) -> Result<(), Refused> {
-    let plan = rc2k_core::gfx::raster::fill(rect, &core_clip(), &core_surface())?;
-    carry_out(&plan, colour, palette);
+pub fn fill_rect(
+    rect: [i32; 4],
+    colour: u32,
+    palette: Palette<'_>,
+    gfx: &Gfx,
+) -> Result<(), Refused> {
+    let plan = rc2k_core::gfx::raster::fill(rect, &core_clip(gfx), &core_surface(gfx))?;
+    carry_out(&plan, colour, palette, gfx);
     Ok(())
 }
 
 /// `gfx::draw_hline` (0x406710): `length` pixels from (x, y) rightwards, clipped (the left
 /// clip as the original: what is cut is -x, right only for a left edge of 0).
-pub fn draw_hline(x: i32, y: i32, length: i32, colour: u32, palette: Palette<'_>) {
-    let plan = rc2k_core::gfx::raster::hline(x, y, length, &core_clip(), &core_surface());
-    carry_out(&plan, colour, palette);
+pub fn draw_hline(x: i32, y: i32, length: i32, colour: u32, palette: Palette<'_>, gfx: &Gfx) {
+    let plan = rc2k_core::gfx::raster::hline(x, y, length, &core_clip(gfx), &core_surface(gfx));
+    carry_out(&plan, colour, palette, gfx);
 }
 
 /// `gfx::frame_rect` (0x4066DF): the rectangle's outline moved by (dx, dy): the top and
 /// bottom rows (`draw_hline`), then the left and right columns between them (`draw_vline`).
-pub fn frame_rect(rect: [i32; 4], dx: i32, dy: i32, colour: u32, palette: Palette<'_>) {
-    for plan in rc2k_core::gfx::raster::frame(rect, dx, dy, &core_clip(), &core_surface()) {
-        carry_out(&plan, colour, palette);
+pub fn frame_rect(rect: [i32; 4], dx: i32, dy: i32, colour: u32, palette: Palette<'_>, gfx: &Gfx) {
+    for plan in rc2k_core::gfx::raster::frame(rect, dx, dy, &core_clip(gfx), &core_surface(gfx)) {
+        carry_out(&plan, colour, palette, gfx);
     }
 }

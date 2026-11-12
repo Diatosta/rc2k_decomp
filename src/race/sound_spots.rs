@@ -91,7 +91,11 @@ pub fn face_sound_spot(race: &Race, view: &ViewMatrices, face_number: u32) -> Re
         let point = f.point(0);
         put(0, point)?;
         let place = spot_place(
-            crate::race::scene_points::point_number(&race.course, point)?,
+            crate::race::scene_points::point_number(
+                &race.course,
+                &crate::race::scene_points::NO_OWN,
+                point,
+            )?,
             [f.dword_at(0x30), f.dword_at(0x34), f.dword_at(0x38)],
         );
         let t = { crate::scene::rotate_point::rotate_point(&view.view_matrix, place.map(int_80)) };

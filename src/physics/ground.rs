@@ -33,7 +33,7 @@ pub fn face_shares_at(
 ) -> Result<(), Refused> {
     let mut corner = [[0u32; 3]; 3];
     for (k, c) in corner.iter_mut().enumerate() {
-        *c = crate::race::scene_points::point_number(course, q.corner_numbers[k].get())?;
+        *c = crate::race::scene_points::point_number(course, q.points, q.corner_numbers[k].get())?;
         for (n, &v) in c.iter().enumerate() {
             q.corners[3 * k + n].set(v);
         }

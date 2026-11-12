@@ -505,13 +505,15 @@ pub fn halvings_apart(
 pub fn keep_second_picture(
     record: &Record,
     path: Option<&dyn crate::session::TextPlace>,
+    gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     if !record.keeps_alpha() {
         return Ok(());
     }
     let kept = match path {
         None => None,
-        Some(path) => match read_texture_picture(Some(path))? {
+        Some(path) => match read_texture_picture(Some(path), gfx, system)? {
             (_, _, _, true) => None,
             found => Some(found),
         },

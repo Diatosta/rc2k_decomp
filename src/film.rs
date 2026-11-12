@@ -559,9 +559,9 @@ fn run(film: &mut Film, gfx: &Gfx, system: &System) -> u8 {
         }
         shown += 1;
         // (`gfx::lock_surface` leaves the carry clear for a locked surface, 1.)
-        if crate::platform::lock_surface() >= 1 {
+        if crate::platform::lock_surface(gfx) >= 1 {
             blit(&next, gfx, system);
-            crate::platform::unlock_surface();
+            crate::platform::unlock_surface(gfx);
         }
         last = Some(next);
         crate::platform::show_frame_now();

@@ -2,7 +2,7 @@
 //! queue a `Command`, the audio thread's `audio::take_commands` takes them oldest first. A
 //! command counts as waiting until the audio thread has acted on it.
 
-use crate::audio::owner::{Audio, audio};
+use crate::audio::owner::Audio;
 use rc2k_core::audio::commands::{Command, Queue};
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
@@ -23,11 +23,6 @@ pub fn send_command_in(audio: &Audio, command: Command) {
     send_with_eax_in(audio, command, None);
 }
 
-/// `send_command_in` for the callers outside the sound module.
-pub fn send_command(command: Command) {
-    send_command_in(audio(), command);
-}
-
 /// `send_command`, for a sender whose first word the audio thread does not read: only the
 /// sound hash records it (a held race's commands are compared turn by turn through it).
 pub fn send_with_eax_in(audio: &Audio, command: Command, first_word: Option<u32>) {
@@ -41,11 +36,6 @@ pub fn send_with_eax_in(audio: &Audio, command: Command, first_word: Option<u32>
     } else {
         locked(audio).send(command);
     }
-}
-
-/// `send_with_eax_in` for the callers outside the sound module.
-pub fn send_with_eax(command: Command, first_word: Option<u32>) {
-    send_with_eax_in(audio(), command, first_word);
 }
 
 /// With `RC2K_SOUND_HASH` (a check, as `RC2K_FAN_HASH` for the drawing): the commands of each

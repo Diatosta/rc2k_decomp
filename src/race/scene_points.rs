@@ -8,8 +8,10 @@
 //! `copy_point`). `COURSE.scene_points` is `base()` while they are held (0 otherwise; a handle of `race::course_places`, which no host memory backs): the number's
 //! byte is 12 n from it, and any other value of `COURSE.scene_points` reads nothing.
 //!
-//! The points past the count are scratch: each drawing thread (`workers`) has its own,
-//! taken from the shared ones as they are when it first reaches them in a run (`TAIL`).
+//! The points past the count are scratch: each drawing part (`workers::PartScratch`) has its
+//! own while it is drawn in a run of a list drawn by several parts, taken from the shared ones
+//! as they are when it first reaches them in the run (`OwnPoints`). A reader names the own
+//! points it reads through; outside the parts that is `NO_OWN`, the shared points throughout.
 
 use crate::errors::BadInput;
 use crate::race::owner::race;
@@ -27,28 +29,65 @@ pub static POINTS: crate::memory::shared_table::SharedTable =
         "no scene points",
     );
 
-thread_local! {
-    /// A drawing thread's own points past the count, from the count on (see the header).
-    static TAIL: std::cell::RefCell<Vec<u8>> = const { std::cell::RefCell::new(Vec::new()) };
+/// A drawing part's own points past the count (`workers::PartScratch::points`): kept from
+/// the count on while the part is drawn in a run of a list drawn by several parts (the game's
+/// thread's first part too), none otherwise (see the header).
+pub struct OwnPoints {
+    /// Whether the part is being drawn in a run.
+    in_run: std::sync::atomic::AtomicBool,
+    /// Its points from the count on, as far as it has reached them in the run.
+    tail: std::sync::Mutex<Vec<u8>>,
 }
 
-/// The byte from which the running thread's points are its own: the count's in a run of a
-/// list drawn by several threads (the game's thread's run too), none otherwise.
-fn own_from() -> usize {
-    if !crate::workers::in_run() {
-        return usize::MAX;
+impl OwnPoints {
+    pub const fn new() -> Self {
+        Self {
+            in_run: std::sync::atomic::AtomicBool::new(false),
+            tail: std::sync::Mutex::new(Vec::new()),
+        }
     }
-    (race().course.course.scene_point_count.get() as usize).saturating_mul(12)
+
+    /// A run begins: the part's own points forgotten, its first reach takes them from the
+    /// shared ones.
+    pub fn begin_run(&self) {
+        self.tail
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clear();
+        self.in_run
+            .store(true, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// The run is over: the shared points read again.
+    pub fn end_run(&self) {
+        self.in_run
+            .store(false, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// The byte from which the points are these own ones: the count's in a run, none
+    /// otherwise.
+    fn own_from(&self) -> usize {
+        if !self.in_run.load(std::sync::atomic::Ordering::Relaxed) {
+            return usize::MAX;
+        }
+        (race().course.course.scene_point_count.get() as usize).saturating_mul(12)
+    }
 }
 
-/// A drawing thread's own points forgotten: its next run takes them from the shared ones.
-pub fn forget_own() {
-    TAIL.with_borrow_mut(Vec::clear);
+impl Default for OwnPoints {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
-/// `f` on the running thread's own bytes `from .. from + len` (`own` being `own_from`,
-/// `from` at least `own`); `None` past the points.
+/// No own points: the shared ones throughout, what everything outside the drawing parts
+/// reads (the physics, the map, the best line, the debug pages).
+pub static NO_OWN: OwnPoints = OwnPoints::new();
+
+/// `f` on `points`' own bytes `from .. from + len` (`own` being their `own_from`, `from` at
+/// least `own`); `None` past the points.
 fn with_own<R>(
+    points: &OwnPoints,
     own: usize,
     from: usize,
     len: usize,
@@ -59,21 +98,24 @@ fn with_own<R>(
         return Ok(None);
     };
     let (start, end) = (from - own, end - own);
-    TAIL.with_borrow_mut(|tail| {
-        if tail.len() < end {
-            let had = tail.len();
-            tail.resize(end, 0);
-            if POINTS.read(own + had, &mut tail[had..])?.is_none() {
-                return Ok(None);
-            }
+    let mut tail = points
+        .tail
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if tail.len() < end {
+        let had = tail.len();
+        tail.resize(end, 0);
+        if POINTS.read(own + had, &mut tail[had..])?.is_none() {
+            return Ok(None);
         }
-        Ok(Some(f(&mut tail[start..end])))
-    })
+    }
+    Ok(Some(f(&mut tail[start..end])))
 }
 
-/// `into`'s length of the points' bytes from byte `start`; `None` past the points.
-fn read_at(start: usize, into: &mut [u8]) -> Result<Option<()>, BadInput> {
-    let own = own_from();
+/// `into`'s length of the points' bytes from byte `start` (through `points`); `None` past
+/// the points.
+fn read_at(points: &OwnPoints, start: usize, into: &mut [u8]) -> Result<Option<()>, BadInput> {
+    let own = points.own_from();
     let end = start.saturating_add(into.len());
     if end <= own {
         return POINTS.read(start, into);
@@ -83,12 +125,15 @@ fn read_at(start: usize, into: &mut [u8]) -> Result<Option<()>, BadInput> {
     if POINTS.read(start, shared)?.is_none() {
         return Ok(None);
     }
-    with_own(own, start + split, mine.len(), |t| mine.copy_from_slice(t))
+    with_own(points, own, start + split, mine.len(), |t| {
+        mine.copy_from_slice(t);
+    })
 }
 
-/// `data` written into the points from byte `start`; `None` (nothing written) past them.
-fn write_at(start: usize, data: &[u8]) -> Result<Option<()>, BadInput> {
-    let own = own_from();
+/// `data` written into the points from byte `start` (through `points`); `None` (nothing
+/// written) past them.
+fn write_at(points: &OwnPoints, start: usize, data: &[u8]) -> Result<Option<()>, BadInput> {
+    let own = points.own_from();
     let end = start.saturating_add(data.len());
     if end <= own {
         return POINTS.write(start, data);
@@ -101,7 +146,9 @@ fn write_at(start: usize, data: &[u8]) -> Result<Option<()>, BadInput> {
     if POINTS.write(start, shared)?.is_none() {
         return Ok(None);
     }
-    with_own(own, start + split, mine.len(), |t| t.copy_from_slice(mine))
+    with_own(points, own, start + split, mine.len(), |t| {
+        t.copy_from_slice(mine);
+    })
 }
 
 /// Whether the points are held.
@@ -156,7 +203,7 @@ fn outside(
 /// the faces right before the points (`CourseLayout`: records, faces, points), so those
 /// bytes are the last face's tail, read from the faces.
 #[track_caller]
-fn bytes(at: u32, len: usize) -> Result<Vec<u8>, BadInput> {
+fn bytes(points: &OwnPoints, at: u32, len: usize) -> Result<Vec<u8>, BadInput> {
     let caller = std::panic::Location::caller();
     let before = base().wrapping_sub(at) as usize;
     if at < base() && len <= before && before <= 12 {
@@ -170,7 +217,7 @@ fn bytes(at: u32, len: usize) -> Result<Vec<u8>, BadInput> {
     }
     let mut to = vec![0; len];
     range(at, len)
-        .map(|r| read_at(r.start, &mut to))
+        .map(|r| read_at(points, r.start, &mut to))
         .transpose()?
         .flatten()
         .map(|()| to)
@@ -180,30 +227,30 @@ fn bytes(at: u32, len: usize) -> Result<Vec<u8>, BadInput> {
 /// The `N` bytes at place `at`, refused as `bytes`, without a heap copy.
 #[track_caller]
 #[inline]
-fn array<const N: usize>(at: u32) -> Result<[u8; N], BadInput> {
+fn array<const N: usize>(points: &OwnPoints, at: u32) -> Result<[u8; N], BadInput> {
     let caller = std::panic::Location::caller();
     if at < base() {
         let mut to = [0; N];
-        to.copy_from_slice(&bytes(at, N)?);
+        to.copy_from_slice(&bytes(points, at, N)?);
         return Ok(to);
     }
     let start = (at - base()) as usize;
     let mut to = [0; N];
-    read_at(start, &mut to)?
+    read_at(points, start, &mut to)?
         .map(|()| to)
         .ok_or_else(|| outside("a read outside the scene points", at, N, caller))
 }
 
 /// The dword at place `at`.
 #[track_caller]
-fn word(at: u32) -> Result<u32, BadInput> {
-    array(at).map(u32::from_le_bytes)
+fn word(points: &OwnPoints, at: u32) -> Result<u32, BadInput> {
+    array(points, at).map(u32::from_le_bytes)
 }
 
 /// The three dwords of the point at place `at`.
 #[track_caller]
-fn point(at: u32) -> Result<[u32; 3], BadInput> {
-    let b: [u8; 12] = array(at)?;
+fn point(points: &OwnPoints, at: u32) -> Result<[u32; 3], BadInput> {
+    let b: [u8; 12] = array(points, at)?;
     Ok(std::array::from_fn(|k| {
         u32::from_le_bytes([b[4 * k], b[4 * k + 1], b[4 * k + 2], b[4 * k + 3]])
     }))
@@ -215,39 +262,50 @@ fn place(course: &Course, n: u32) -> u32 {
         .wrapping_add(course.course.scene_points.get())
 }
 
-/// Point `n`'s x, y and z (point -1 as `bytes` reads it).
+/// Point `n`'s x, y and z (point -1 as `bytes` reads it), through `points`.
 #[track_caller]
-pub fn point_number(course: &Course, n: u32) -> Result<[u32; 3], BadInput> {
-    point(place(course, n))
+pub fn point_number(course: &Course, points: &OwnPoints, n: u32) -> Result<[u32; 3], BadInput> {
+    point(points, place(course, n))
 }
 
 /// Point `n`'s x and z, read as one point.
 #[track_caller]
-pub fn point_xz(course: &Course, n: u32) -> Result<(u32, u32), BadInput> {
-    point_number(course, n).map(|[x, _, z]| (x, z))
+pub fn point_xz(course: &Course, points: &OwnPoints, n: u32) -> Result<(u32, u32), BadInput> {
+    point_number(course, points, n).map(|[x, _, z]| (x, z))
 }
 
 /// Point `from` copied over point `to` (as `bytes` reads `from`).
 #[track_caller]
-pub fn copy_point(course: &Course, from: u32, to: u32) -> Result<(), BadInput> {
-    write(course, place(course, to), &bytes(place(course, from), 12)?)
+pub fn copy_point(course: &Course, points: &OwnPoints, from: u32, to: u32) -> Result<(), BadInput> {
+    write(
+        course,
+        points,
+        place(course, to),
+        &bytes(points, place(course, from), 12)?,
+    )
 }
 
 /// Coordinate `k` (0 x, 1 y, 2 z) of point `n`.
 #[track_caller]
-pub fn point_word(course: &Course, n: u32, k: u32) -> Result<u32, BadInput> {
-    word(place(course, n).wrapping_add(4 * k))
+pub fn point_word(course: &Course, points: &OwnPoints, n: u32, k: u32) -> Result<u32, BadInput> {
+    word(points, place(course, n).wrapping_add(4 * k))
 }
 
 /// Coordinate `k` (0 x, 1 y, 2 z) of point `n` set to `v`.
 #[track_caller]
-pub fn put_point_word(course: &Course, n: u32, k: u32, v: u32) -> Result<(), BadInput> {
-    put(course, place(course, n).wrapping_add(4 * k), v)
+pub fn put_point_word(
+    course: &Course,
+    points: &OwnPoints,
+    n: u32,
+    k: u32,
+    v: u32,
+) -> Result<(), BadInput> {
+    put(course, points, place(course, n).wrapping_add(4 * k), v)
 }
 
 /// `data` written at place `at`; refused outside the points.
 #[track_caller]
-fn write(course: &Course, at: u32, data: &[u8]) -> Result<(), BadInput> {
+fn write(course: &Course, points: &OwnPoints, at: u32, data: &[u8]) -> Result<(), BadInput> {
     let caller = std::panic::Location::caller();
     // The points below the count are the course's own (the ones past it are copies made
     // while drawing): a change to them is noted.
@@ -256,17 +314,17 @@ fn write(course: &Course, at: u32, data: &[u8]) -> Result<(), BadInput> {
     let start = range(at, data.len()).ok_or_else(refused)?.start;
     if start < counted {
         let mut was = vec![0; data.len()];
-        if read_at(start, &mut was)?.is_some() && was != data {
+        if read_at(points, start, &mut was)?.is_some() && was != data {
             crate::race::course_places::first_points_changed();
         }
     }
-    write_at(start, data)?.ok_or_else(refused)
+    write_at(points, start, data)?.ok_or_else(refused)
 }
 
 /// The dword at place `at` set to `v`.
 #[track_caller]
-fn put(course: &Course, at: u32, v: u32) -> Result<(), BadInput> {
-    write(course, at, &v.to_le_bytes())
+fn put(course: &Course, points: &OwnPoints, at: u32, v: u32) -> Result<(), BadInput> {
+    write(course, points, at, &v.to_le_bytes())
 }
 
 /// `f` with the scene points `words` held (`COURSE.scene_points` at `base()`), the points and

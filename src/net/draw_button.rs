@@ -50,6 +50,10 @@ pub fn item_font(
         plain
     }
 }
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the button's string, flags, place and item, and the owners"
+)]
 pub fn draw_button(
     net: &Net,
     install: &Install,
@@ -58,6 +62,8 @@ pub fn draw_button(
     x: u32,
     y: u32,
     item: u32,
+    gfx: &crate::gfx::owner::Gfx,
+    menus: &crate::menu::owner::Menus,
 ) -> Result<(), Refused> {
     use crate::text::draw_text::GameCanvas;
     net.button.get().text.set(string);
@@ -69,7 +75,7 @@ pub fn draw_button(
         string,
         PALETTE,
         x as i32,
-        &mut GameCanvas,
+        &mut GameCanvas::new(gfx),
     )?;
     net.button.get().width.set(measured.width);
     // Converted: `rc2k_core::net::screens` (`button`, `item_lit`, `button_font`).
@@ -83,7 +89,7 @@ pub fn draw_button(
         net.button.get().x.set(place.text_x);
     }
     let blit = |glyph: u32, at: u32| -> Result<(), Refused> {
-        crate::net::lobby::blit(glyph, at, net.button.get().y.get())
+        crate::net::lobby::blit(glyph, at, net.button.get().y.get(), gfx, menus)
     };
     let mut left = place.left;
     blit(screens::LEFT_END, left)?;
@@ -123,7 +129,7 @@ pub fn draw_button(
         font,
         net.button.get().x.get() as i32,
         net.button.get().y.get() as i32,
-        &mut GameCanvas,
+        &mut GameCanvas::new(gfx),
     )?;
     Ok(())
 }

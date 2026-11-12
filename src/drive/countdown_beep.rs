@@ -16,7 +16,12 @@ use rc2k_core::drive::countdown::{self, Beep};
 
 /// The car block `block`, the second into `to`.
 // Converted: `rc2k_core::drive::countdown::countdown_beep`.
-pub fn countdown_beep(race: &Race, block: &Car, to: &Loose32) -> Result<(), Refused> {
+pub fn countdown_beep(
+    race: &Race,
+    block: &Car,
+    to: &Loose32,
+    audio: &crate::audio::owner::Audio,
+) -> Result<(), Refused> {
     let beep = countdown::countdown_beep(
         block.false_start_count.get(),
         block.driver_kind.get(),
@@ -35,7 +40,7 @@ pub fn countdown_beep(race: &Race, block: &Car, to: &Loose32) -> Result<(), Refu
     if cue {
         let sound = race.frame.panel_and_overlay.overlay.countdown_sounds[second as usize].get(); // dword_6D1818, the cue is only for 0 .. SECONDS
         race.shared.physics_tables.countdown_sound.set(sound);
-        crate::drive::countdown_cue::countdown_cue(race, sound)?;
+        crate::drive::countdown_cue::countdown_cue(race, sound, audio)?;
     }
     Ok(())
 }

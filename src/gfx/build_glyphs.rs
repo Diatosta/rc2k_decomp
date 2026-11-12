@@ -338,7 +338,7 @@ pub fn build_glyphs(
         )?;
 
         let mut convert = |components: u32| match &format {
-            Some(format) => components_to_pixel(format, components),
+            Some(format) => components_to_pixel(format, components, gfx),
             None => components,
         };
         let (width, height) = (pictures.decoder.width.get(), pictures.decoder.height.get());

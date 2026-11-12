@@ -11,7 +11,6 @@ use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
 use crate::race::trap::Trap;
-use crate::scene::owner::scene;
 use crate::session::Dword;
 
 /// The entries `g_checkpointFaces` and the lists after it have room for.
@@ -280,6 +279,7 @@ pub fn checkpoint_angles(race: &Race, scene: &crate::scene::owner::Scene) -> Res
                 };
                 let w = |n: u32, k: u32| match crate::race::scene_points::point_word(
                     &race.course,
+                    &crate::race::scene_points::NO_OWN,
                     n,
                     k,
                 ) {
@@ -343,7 +343,12 @@ pub fn checkpoint_distances(
                     return 0;
                 }
             };
-            let w = |n: u32, k: u32| match crate::race::scene_points::point_word(course, n, k) {
+            let w = |n: u32, k: u32| match crate::race::scene_points::point_word(
+                course,
+                &crate::race::scene_points::NO_OWN,
+                n,
+                k,
+            ) {
                 Ok(v) => v,
                 Err(e) => {
                     trap.keep(e);
@@ -370,7 +375,11 @@ pub fn checkpoint_distances(
 /// set's kind (first byte 0xFF) listed (0x400 at most); with any, each checkpoint's nearest of them
 /// (x and z of their first points, the length rounded; the last of the nearest when two are as
 /// near). Refuses no faces or 0x100000 or more.
-pub fn replay_cameras(race: &Race, set: &Cameras) -> Result<(), Refused> {
+pub fn replay_cameras(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    set: &Cameras,
+) -> Result<(), Refused> {
     let course = &race.course;
     let shared = &race.shared;
     let n = count(shared)?;
@@ -397,8 +406,18 @@ pub fn replay_cameras(race: &Race, set: &Cameras) -> Result<(), Refused> {
         for c in 0..n {
             let p = point_of(&race.course, check_face(&race.shared, c))?;
             let from = [
-                crate::race::scene_points::point_word(&race.course, p, 0)?,
-                crate::race::scene_points::point_word(&race.course, p, 2)?,
+                crate::race::scene_points::point_word(
+                    &race.course,
+                    &crate::race::scene_points::NO_OWN,
+                    p,
+                    0,
+                )?,
+                crate::race::scene_points::point_word(
+                    &race.course,
+                    &crate::race::scene_points::NO_OWN,
+                    p,
+                    2,
+                )?,
             ];
             crate::session::write_bits(&shared.vars.line_from, from);
             let nearest = rc2k_core::race::best_line::nearest_camera(m, |e| {
@@ -411,6 +430,7 @@ pub fn replay_cameras(race: &Race, set: &Cameras) -> Result<(), Refused> {
                 };
                 let w = |n: u32, k: u32| match crate::race::scene_points::point_word(
                     &race.course,
+                    &crate::race::scene_points::NO_OWN,
                     n,
                     k,
                 ) {
@@ -422,7 +442,7 @@ pub fn replay_cameras(race: &Race, set: &Cameras) -> Result<(), Refused> {
                 };
                 let dz = w(q, 2).wrapping_sub(from[1]);
                 let d = x87::int_hypot(w(q, 0).wrapping_sub(from[0]) as i32, dz as i32) as u32;
-                scene().drawing.scene.scratch.set(d);
+                scene.drawing.scene.scratch.set(d);
                 d
             });
             trap.finish()?;
@@ -532,8 +552,18 @@ pub fn map_segment(race: &Race, scene: &crate::scene::owner::Scene) -> Result<()
             Ok::<_, BadInput>((
                 place,
                 [
-                    crate::race::scene_points::point_word(&race.course, p, 0)?,
-                    crate::race::scene_points::point_word(&race.course, p, 2)?,
+                    crate::race::scene_points::point_word(
+                        &race.course,
+                        &crate::race::scene_points::NO_OWN,
+                        p,
+                        0,
+                    )?,
+                    crate::race::scene_points::point_word(
+                        &race.course,
+                        &crate::race::scene_points::NO_OWN,
+                        p,
+                        2,
+                    )?,
                 ],
             ))
         };
@@ -574,8 +604,18 @@ pub fn map_segment(race: &Race, scene: &crate::scene::owner::Scene) -> Result<()
             // The point's number rides along as `rotate_point_about_y`'s y.
             let number = point_of(&race.course, check_face(&race.shared, e))?;
             let p = [
-                crate::race::scene_points::point_word(&race.course, number, 0)?,
-                crate::race::scene_points::point_word(&race.course, number, 2)?,
+                crate::race::scene_points::point_word(
+                    &race.course,
+                    &crate::race::scene_points::NO_OWN,
+                    number,
+                    0,
+                )?,
+                crate::race::scene_points::point_word(
+                    &race.course,
+                    &crate::race::scene_points::NO_OWN,
+                    number,
+                    2,
+                )?,
             ];
             work(shared, 0xCC).set(p[0]);
             work(shared, 0xD0).set(p[1]);
@@ -677,8 +717,8 @@ pub fn build_best_line(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
                     3 => {} // `nullsub_7`
                     4 => checkpoint_distances(race, scene)?,
                     5 => map_checkpoints(race, scene)?,
-                    6 => replay_cameras(race, &cameras()[0])?,
-                    _ => replay_cameras(race, &cameras()[1])?,
+                    6 => replay_cameras(race, scene, &cameras()[0])?,
+                    _ => replay_cameras(race, scene, &cameras()[1])?,
                 }
             }
             surface_shares(race)?;

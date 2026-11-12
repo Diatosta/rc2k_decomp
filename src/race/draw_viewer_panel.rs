@@ -51,7 +51,13 @@ pub fn draw_viewer_panel(
     // A string of the game's texts drawn with a font at (x, y).
     let string =
         |id: u32, font: crate::gfx::typefaces::FontId, x: i32, y: i32| -> Result<(), Refused> {
-            crate::text::draw_string_by_id::draw_string_by_id_at(id, font, x, y, &mut GameCanvas)?;
+            crate::text::draw_string_by_id::draw_string_by_id_at(
+                id,
+                font,
+                x,
+                y,
+                &mut GameCanvas::new(gfx),
+            )?;
             Ok(())
         };
     // The text buffer drawn with a font at (x, y).
@@ -63,7 +69,7 @@ pub fn draw_viewer_panel(
             &crate::pointers::StoreBytes(&text_stores.buffer.text),
             x,
             y,
-            &mut GameCanvas,
+            &mut GameCanvas::new(gfx),
         )?;
         if copy != font.get() {
             font.set(copy);
@@ -124,7 +130,10 @@ pub fn draw_viewer_panel(
         shared.replay_file.viewer_panel_texture.get(),
         shared.replay_file.viewer_device_texture.get(),
     );
-    crate::d3d::set_texture::set_texture(shared.replay_file.viewer_device_texture.get());
+    crate::d3d::set_texture::set_texture(
+        crate::workers::game_scratch(),
+        shared.replay_file.viewer_device_texture.get(),
+    );
     // The quads.
     let camera_5 = crate::race::viewer::camera_byte_at(
         race,

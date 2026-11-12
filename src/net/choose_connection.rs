@@ -41,7 +41,7 @@ pub fn choose_connection(o: crate::owners::Owners<'static>) -> Result<u32, Refus
     install.pages.choice_before.set(0);
     install.pages.choice.set(0);
     loop {
-        run_frame(|| crate::net::connections_frame::connections_frame(net, install))?;
+        run_frame(|| crate::net::connections_frame::connections_frame(net, install, o.gfx))?;
         install
             .pages
             .frame_clock

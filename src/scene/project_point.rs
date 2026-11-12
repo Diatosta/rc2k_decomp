@@ -188,7 +188,7 @@ pub(crate) fn make_scene_record(
     // Made on a copy of the record (`scene::point_records`), then stored.
     let mut r = point_records::get(part, record)?;
     r[0] = point;
-    let place = crate::race::scene_points::point_number(&race.course, point)?;
+    let place = crate::race::scene_points::point_number(&race.course, &part.points, point)?;
     rotate(
         &place,
         &view

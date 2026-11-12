@@ -15,14 +15,19 @@ use crate::errors::Refused;
 use crate::net::lobby::log_bytes;
 use crate::net::owner::net;
 use crate::net::tables::{copy_printable_into, with_connection};
-use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
+use crate::race::viewer_screen_store::{ViewerPanelBlock, texts};
 use rc2k_core::net::lists;
 
 /// The provider's GUID, the connection's address, its
 /// short name.
-pub fn connection_found(guid: &[u8; 16], data: &[u8], short: &[u8]) -> Result<u32, Refused> {
+pub fn connection_found(
+    panel: &ViewerPanelBlock,
+    guid: &[u8; 16],
+    data: &[u8],
+    short: &[u8],
+) -> Result<u32, Refused> {
     let vars = &net().vars;
-    log_bytes(&VIEWER_PANEL.text(texts::NET_FOUND), false, 2);
+    log_bytes(&panel.text(texts::NET_FOUND), false, 2);
     log_bytes(short, true, 2);
     if crate::strings::load_language::notice_kind() == lists::LEAVES_OUT_PROVIDERS
         && [&vars.sp_serial, &vars.sp_modem]
@@ -48,6 +53,6 @@ pub fn connection_found(guid: &[u8; 16], data: &[u8], short: &[u8]) -> Result<u3
 
 pub fn callback(guid: &[u8; 16], data: &[u8], short: &[u8], _flags: u32, _context: u32) -> u32 {
     crate::net::lobby::callback_entry("net::connection_found", 0x4186E5, || {
-        connection_found(guid, data, short)
+        connection_found(crate::race::owner::race().viewer_panel(), guid, data, short)
     })
 }

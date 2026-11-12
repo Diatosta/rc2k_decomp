@@ -316,7 +316,7 @@ pub fn add_object_shape(
         }
     };
     for face in shape.faces.iter().filter(|face| face.taken) {
-        crate::scene::objects::face_cell(face_number as usize).set(out as u32);
+        crate::scene::objects::face_cell(race.faces(), face_number as usize).set(out as u32);
         let len = 0x10 + face.vertices * 0x10;
         let source =
             crate::scene::objects::file().read_at(face.at, len, "a face of an object's file")?;

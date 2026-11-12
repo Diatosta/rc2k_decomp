@@ -18,7 +18,7 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87_float::int;
 use crate::physics::car_store::Car;
 use crate::physics::flow::c0;
-use crate::physics::gear_store::GEAR;
+use crate::physics::gear_store::GearFigures;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_course::Course;
@@ -31,11 +31,12 @@ pub const STEPS: u32 = 0x1388;
 fn step(
     course: &Course,
     shared: &RaceShared,
+    figures: &GearFigures,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     shared.car.local_velocity[2].set(crate::math::x87::loaded(&shared.car.drive_speed_a));
     crate::physics::count_down_timers::count_down_timers(&shared.car, &shared.vars);
-    crate::physics::gearbox_step::gearbox_step(&course.numbers, shared, &GEAR, scene)?;
+    crate::physics::gearbox_step::gearbox_step(&course.numbers, shared, figures, scene)?;
     crate::physics::engine_torque::engine_torque(course, shared, scene);
     let gear = shared.car.gear.get();
     if !(-1..=7).contains(&(gear as i32)) {
@@ -43,6 +44,7 @@ fn step(
     }
     x87_1(
         &shared.physics_tables,
+        figures,
         &course.numbers,
         &shared.physics_tables.gear_ratios[gear.wrapping_add(1) as usize],
     );
@@ -66,9 +68,10 @@ fn step(
 fn steps(
     course: &Course,
     shared: &RaceShared,
+    figures: &GearFigures,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    for mark in &GEAR.test_marks {
+    for mark in &figures.test_marks {
         mark.set(0);
     }
     shared.car.drive_speed_a.set(0.0);
@@ -77,32 +80,37 @@ fn steps(
     shared.car.gear.set(1);
     shared.car.gearbox_kind.set(1);
     for n in 0..STEPS {
-        step(course, shared, scene)?;
-        if GEAR.test_marks[0].get() == 0 && !c0(&shared.car.drive_speed_a, &GEAR.test_limits[0]) {
-            GEAR.test_marks[0].set(n);
+        step(course, shared, figures, scene)?;
+        if figures.test_marks[0].get() == 0
+            && !c0(&shared.car.drive_speed_a, &figures.test_limits[0])
+        {
+            figures.test_marks[0].set(n);
         }
-        if GEAR.test_marks[1].get() == 0 && !c0(&shared.car.drive_speed_a, &GEAR.test_limits[1]) {
-            GEAR.test_marks[1].set(n);
+        if figures.test_marks[1].get() == 0
+            && !c0(&shared.car.drive_speed_a, &figures.test_limits[1])
+        {
+            figures.test_marks[1].set(n);
         }
         if n % 20 == 0 {
             let slot = (n / 20) as usize;
-            GEAR.test_speeds[slot].set(crate::math::x87::mul(
+            figures.test_speeds[slot].set(crate::math::x87::mul(
                 &shared.car.drive_speed_a,
                 &course.numbers.two_and_a_quarter,
             ));
-            GEAR.test_gears[slot].set(shared.car.gear.get());
+            figures.test_gears[slot].set(shared.car.gear.get());
         }
     }
-    x87_3(&shared.car, &course.numbers);
+    x87_3(&shared.car, figures, &course.numbers);
     Ok(())
 }
 
 pub fn test_drive_run(
     course: &Course,
     shared: &RaceShared,
+    figures: &GearFigures,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    steps(course, shared, scene)
+    steps(course, shared, figures, scene)
 }
 
 // ---- the arithmetic that was x87 assembly ----
@@ -110,9 +118,9 @@ pub fn test_drive_run(
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[drive_torque] = (([engine_force] * [drive_torque_figure]) / [r + 0]) / [k10000]`
-fn x87_1(tables: &PhysicsTables, numbers: &Numbers, r: &Float) {
+fn x87_1(tables: &PhysicsTables, figures: &GearFigures, numbers: &Numbers, r: &Float) {
     let t0 = tables.engine_force.ld();
-    let t1 = GEAR.drive_torque_figure.ld();
+    let t1 = figures.drive_torque_figure.ld();
     let t2 = t0 * t1;
     let t3 = r.ld();
     let t4 = t2 / t3;
@@ -152,19 +160,19 @@ fn x87_2(car: &Car, tables: &PhysicsTables, numbers: &Numbers, scene: &crate::sc
 /// `[rc + 0x1CB984] = [drive_speed_a] * [two_and_a_quarter]`
 /// `[test_marks] = int [test_marks] / [hundred]`
 /// `[rc + 0x1CB980] = int [rc + 0x1CB980] / [hundred]`
-fn x87_3(car: &Car, numbers: &Numbers) {
+fn x87_3(car: &Car, figures: &GearFigures, numbers: &Numbers) {
     let t0 = car.drive_speed_a.ld();
     let t1 = numbers.two_and_a_quarter.ld();
     let t2 = t0 * t1;
-    GEAR.test_marks[2].st(t2);
-    let t3 = int(GEAR.test_marks[0].bits() as i32);
+    figures.test_marks[2].st(t2);
+    let t3 = int(figures.test_marks[0].bits() as i32);
     let t4 = numbers.hundred.ld();
     let t5 = t3 / t4;
-    GEAR.test_marks[0].st(t5);
-    let t6 = int(GEAR.test_marks[1].bits() as i32);
+    figures.test_marks[0].st(t5);
+    let t6 = int(figures.test_marks[1].bits() as i32);
     let t7 = numbers.hundred.ld();
     let t8 = t6 / t7;
-    GEAR.test_marks[1].st(t8);
+    figures.test_marks[1].st(t8);
 }
 
 #[cfg(test)]
@@ -192,6 +200,7 @@ mod reference_vectors {
                 plain: |a| {
                     x87_1(
                         &race().shared.physics_tables,
+                        race().gear(),
                         &race().course.numbers,
                         view(a[1], 0),
                     );
@@ -233,7 +242,7 @@ mod reference_vectors {
                     writes: &[(0x1CB97C, Out::F), (0x1CB980, Out::F), (0x1CB984, Out::F)],
                 }],
                 ulps: 0,
-                plain: |_| x87_3(&race().shared.car, &race().course.numbers),
+                plain: |_| x87_3(&race().shared.car, race().gear(), &race().course.numbers),
             },
         ]
     }

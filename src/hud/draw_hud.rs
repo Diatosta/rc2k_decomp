@@ -23,7 +23,7 @@ pub fn draw_hud(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
             batch::Layout::One => layout_1::layout_1(frame, hud, pen)?,
             batch::Layout::Two => layout_2::layout_2(frame, hud, pen)?,
         }
-        flush_batch::flush_batch(hud);
+        flush_batch::flush_batch(pen.part, hud);
     }
     Ok(())
 }

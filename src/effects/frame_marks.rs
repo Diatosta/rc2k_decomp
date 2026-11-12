@@ -59,7 +59,13 @@ pub fn frame_marks(
         }
         effects.setup.clock.settings_copies[0].set(marks.fresh_marks_flags[1].get());
         scale_vectors_by::scale_vectors_by(effects);
-        morph_object_points::morph_object_points(course, &effects.paths, scene, effects)?;
+        morph_object_points::morph_object_points(
+            course,
+            race.faces(),
+            &effects.paths,
+            scene,
+            effects,
+        )?;
         view_frame::view_frame(shared, effects)?;
         marks.fresh_marks_flags[1].set(0);
         effects

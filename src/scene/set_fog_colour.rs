@@ -8,8 +8,12 @@
 //! `d3d_set_fog_colour`).
 
 // Converted: `rc2k_core::scene::render_states::fog_colour`
-pub fn set_fog_colour(colour: u32, poly: &crate::scene::polygon_work::PolygonWork) {
+pub fn set_fog_colour(
+    colour: u32,
+    poly: &crate::scene::polygon_work::PolygonWork,
+    part: &crate::workers::PartScratch,
+) {
     poly.fade_from.set(colour);
     let s = rc2k_core::scene::render_states::fog_colour(colour);
-    crate::d3d::set_render_state::set_render_state(s.value, s.state);
+    crate::d3d::set_render_state::set_render_state(part, s.value, s.state);
 }

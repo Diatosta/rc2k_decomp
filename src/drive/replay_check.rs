@@ -113,7 +113,7 @@ pub fn compare_frame(race: &Race) -> Result<(), BadInput> {
     }
     let mut differing = 0;
     for (piece, offset, n) in start_layout() {
-        let (ours, ours_at) = crate::drive::save_replay_cars::piece_place(&race.shared, piece);
+        let (ours, ours_at) = crate::drive::save_replay_cars::piece_place(race, piece);
         for k in 0..n as u32 {
             let (now, kept) = (
                 crate::pointers::load_value::<u32>(ours, ours_at + 4 * k as usize)?,

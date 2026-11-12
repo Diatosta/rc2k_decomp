@@ -47,7 +47,8 @@ pub fn call_in_game(o: Owners<'static>, call: Call) -> Result<(), Refused> {
         Call::Background => load_car_background(o.menus, &mut |path| {
             crate::menu::load_background::load_background_in(
                 &path,
-                &mut GameCanvas,
+                &mut GameCanvas::new(o.gfx),
+                o.menus,
                 o.gfx,
                 o.system,
             )?;

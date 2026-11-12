@@ -14,14 +14,14 @@ use crate::math::x87_float::{int, ld, st, stf};
 use crate::race::viewer_screen_store::ViewerPanelBlock;
 use crate::session::Dword;
 
-/// `d3d::set_texture` (0x41ACF5).
+/// `d3d::set_texture` (0x41ACF5), on the game's thread (the tyre change is drawn there).
 pub fn set_texture(texture: u32) {
-    crate::d3d::set_texture::set_texture(texture);
+    crate::d3d::set_texture::set_texture(crate::workers::game_scratch(), texture);
 }
 
-/// `d3d::set_render_state` (0x41AB5B).
+/// `d3d::set_render_state` (0x41AB5B), on the game's thread.
 pub fn set_render_state(value: u32, state: u32) {
-    crate::d3d::set_render_state::set_render_state(value, state);
+    crate::d3d::set_render_state::set_render_state(crate::workers::game_scratch(), value, state);
 }
 
 /// The quads' fixed words (0x41DD68 .. / 0x41CA49 ..): z 0, rhw 1.0, the colour, the
@@ -105,7 +105,11 @@ fn quad_tail_math(rect: [u32; 4], vertices: &[Vertex], screen: [u32; 2], scratch
 
 /// The draw (`d3d::draw_vertex_strip`, 0x41ADE1) of 4 vertices at `g_polygonVertices`.
 pub fn draw(buffer: &PolygonVertices) -> Result<(), Refused> {
-    crate::d3d::draw_vertex_strip::draw_vertex_strip(&buffer.vertices, 4)?;
+    crate::d3d::draw_vertex_strip::draw_vertex_strip(
+        crate::workers::game_scratch(),
+        &buffer.vertices,
+        4,
+    )?;
     Ok(())
 }
 

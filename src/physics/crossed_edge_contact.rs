@@ -65,10 +65,18 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
     let face = c.contact.crossed_figures[4].get();
     for j in 0..4u32 {
         let point = crate::race::course_places::face_field::<u32>(c.course, face, 4 + 4 * j)?;
-        c.contact.crossed_corners[2 * j as usize]
-            .set(crate::race::scene_points::point_word(c.course, point, 0)?);
-        c.contact.crossed_corners[2 * j as usize + 1]
-            .set(crate::race::scene_points::point_word(c.course, point, 2)?);
+        c.contact.crossed_corners[2 * j as usize].set(crate::race::scene_points::point_word(
+            c.course,
+            &crate::race::scene_points::NO_OWN,
+            point,
+            0,
+        )?);
+        c.contact.crossed_corners[2 * j as usize + 1].set(crate::race::scene_points::point_word(
+            c.course,
+            &crate::race::scene_points::NO_OWN,
+            point,
+            2,
+        )?);
     }
     let corner = |j: usize| {
         (

@@ -45,13 +45,13 @@ impl PictureSurface for GameSurface<'_> {
     }
     fn lock(&mut self) -> bool {
         // `cmp g_surfaceLocked, 1`'s carry clear: locked.
-        crate::platform::lock_surface() >= 1
+        crate::platform::lock_surface(self.0) >= 1
     }
     fn unlock(&mut self) {
-        crate::platform::unlock_surface();
+        crate::platform::unlock_surface(self.0);
     }
     fn pixels(&self) -> u32 {
-        crate::gfx::surface::handle()
+        crate::gfx::surface::handle(self.0)
             .unwrap_or_else(|e| crate::fatal::raise::end("gfx::copy_picture_to_surface", e))
     }
     fn rows(&self) -> u32 {

@@ -55,8 +55,18 @@ fn held(
 fn face_point(course: &Course, face: u32) -> Result<(u32, u32), BadInput> {
     let point = crate::race::course_places::face_field::<u32>(course, face, 4)?;
     Ok((
-        crate::race::scene_points::point_word(course, point, 0)?,
-        crate::race::scene_points::point_word(course, point, 2)?,
+        crate::race::scene_points::point_word(
+            course,
+            &crate::race::scene_points::NO_OWN,
+            point,
+            0,
+        )?,
+        crate::race::scene_points::point_word(
+            course,
+            &crate::race::scene_points::NO_OWN,
+            point,
+            2,
+        )?,
     ))
 }
 

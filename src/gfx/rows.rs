@@ -9,7 +9,6 @@
 
 use crate::errors::BadInput;
 use crate::gfx::locked_pixels::Place;
-use crate::gfx::owner::gfx;
 
 /// The rows of a locked surface or texture.
 #[derive(Clone, Debug)]
@@ -32,10 +31,10 @@ impl Rows {
 
     /// The drawing surface's (`DRAW_SURFACE`: its pixels, pitch and height); refused while
     /// the picture buffer is the surface (`gfx::surface::handle`).
-    pub fn surface() -> Result<Self, BadInput> {
-        let drawing = &gfx().drawing;
+    pub fn surface(gfx: &crate::gfx::owner::Gfx) -> Result<Self, BadInput> {
+        let drawing = &gfx.drawing;
         Ok(Self::new(
-            crate::gfx::surface::handle()?,
+            crate::gfx::surface::handle(gfx)?,
             drawing.draw_surface.pitch.get(),
             drawing.draw_surface.height.get(),
         ))
@@ -89,7 +88,7 @@ pub fn clear_surface_rows(
     let drawing = &gfx.drawing;
     let dwords = drawing.draw_surface.row_dwords.get();
     let surface = Rows::new(
-        crate::gfx::surface::handle()?,
+        crate::gfx::surface::handle(gfx)?,
         (4 * dwords).wrapping_add(drawing.draw_surface.row_gap.get()),
         drawing.draw_surface.height.get(),
     );

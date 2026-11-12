@@ -19,12 +19,13 @@ pub fn cue_listed_car_sound(
     work: &RaceWork,
     cue: u32,
     sound: &crate::sound::owner::Sound,
+    audio: &crate::audio::owner::Audio,
 ) -> Result<u32, Refused> {
     let (entry, listed) = listed_entry(work.current_car.get(), |car| {
         frame_work.listed_car_sounds[car as usize].get()
     })?;
     if listed {
-        crate::physics::cue_car_sound::cue_car_sound(entry, cue, sound)?;
+        crate::physics::cue_car_sound::cue_car_sound(entry, cue, sound, audio)?;
     }
     Ok(entry)
 }

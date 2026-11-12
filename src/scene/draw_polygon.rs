@@ -539,15 +539,18 @@ pub fn draw_polygon(
     Ok(())
 }
 
-/// The game's Direct3D layer and log.
-pub struct Game;
+/// The game's Direct3D layer and log, for drawing part `.0`.
+pub struct Game<'a>(pub &'a crate::workers::PartScratch);
 
-impl submit_polygon::Outside for Game {
+impl submit_polygon::Outside for Game<'_> {
+    fn texture(&self) -> u32 {
+        submit_polygon::Game(self.0).texture()
+    }
     fn set_texture(&mut self, texture: u32) {
-        submit_polygon::Game.set_texture(texture);
+        submit_polygon::Game(self.0).set_texture(texture);
     }
     fn draw_fan(&mut self, vertices: &[crate::d3d::Vertex]) -> u32 {
-        submit_polygon::Game.draw_fan(vertices)
+        submit_polygon::Game(self.0).draw_fan(vertices)
     }
     fn bad_vertex(
         &mut self,
@@ -555,16 +558,16 @@ impl submit_polygon::Outside for Game {
         buffer: &PolygonVertices,
         screen: &crate::session::Screen,
     ) {
-        submit_polygon::Game.bad_vertex(poly, buffer, screen);
+        submit_polygon::Game(self.0).bad_vertex(poly, buffer, screen);
     }
     fn not_drawn(&mut self, result: u32) {
-        submit_polygon::Game.not_drawn(result);
+        submit_polygon::Game(self.0).not_drawn(result);
     }
 }
 
-impl Outside for Game {
+impl Outside for Game<'_> {
     fn state(&mut self, state: u32, value: u32) {
-        crate::d3d::set_render_state::set_render_state(value, state);
+        crate::d3d::set_render_state::set_render_state(self.0, value, state);
     }
 }
 
@@ -578,5 +581,5 @@ pub fn draw_polygon_in_game(
     scene: &crate::scene::owner::Scene,
     screen: &crate::session::Screen,
 ) -> Result<(), BadInput> {
-    draw_polygon(poly, part, race, face, &mut Game, scene, screen)
+    draw_polygon(poly, part, race, face, &mut Game(part), scene, screen)
 }

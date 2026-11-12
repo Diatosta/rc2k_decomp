@@ -27,8 +27,8 @@ pub fn run_listed(o: Owners<'static>, list: &ListCell) -> Result<(), Refused> {
 }
 
 /// `gfx::lock_surface`'s carry: the surface could not be locked.
-pub fn lock_failed() -> bool {
-    lock_surface() < 1
+pub fn lock_failed(gfx: &crate::gfx::owner::Gfx) -> bool {
+    lock_surface(gfx) < 1
 }
 
 /// `gfx::copy_picture_to_surface` (0x4060E3): the background.
@@ -46,7 +46,7 @@ pub fn draw_menu(
     o: Owners<'static>,
     menu: crate::menu::menus_store::MenuId,
 ) -> Result<(), Refused> {
-    crate::menu::draw_menu::draw_menu(o, menu, &mut GameCanvas)
+    crate::menu::draw_menu::draw_menu(o, menu, &mut GameCanvas::new(o.gfx))
 }
 
 /// `menu` is edi at entry. Returns whether the
@@ -57,18 +57,18 @@ pub fn frame_callback(
 ) -> Result<bool, Refused> {
     let menus = o.menus;
     let play = &menus.play;
-    if lock_failed() {
+    if lock_failed(o.gfx) {
         return Ok(false);
     }
     copy_picture()?;
     draw_menu(o, menu)?;
     run_listed(o, &o.menus.screens.flow.draw_list)?;
-    unlock_surface();
+    unlock_surface(o.gfx);
     o.scene.lights.state.scene_state.set_bits(4u32);
-    crate::scene::begin_scene::begin_scene(o.race);
+    crate::scene::begin_scene::begin_scene(o.race, crate::workers::game_scratch());
     run_listed(o, &o.menus.screens.flow.scene_list)?;
     crate::scene::end_scene::end_scene();
-    if lock_failed() {
+    if lock_failed(o.gfx) {
         return Ok(false);
     }
     run_listed(o, &o.menus.screens.flow.overlay_list)?;
@@ -83,9 +83,9 @@ pub fn frame_callback(
             NOTICE_FONT,
             notice::AT.0 as i32,
             notice::AT.1 as i32,
-            &mut GameCanvas,
+            &mut GameCanvas::new(o.gfx),
         )?;
     }
-    unlock_surface();
+    unlock_surface(o.gfx);
     Ok(show_frame_now())
 }

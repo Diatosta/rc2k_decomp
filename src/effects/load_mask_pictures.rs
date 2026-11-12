@@ -29,7 +29,11 @@ const ROWS: u32 = 0x7E;
 /// `gfx::read_picture_file` at 256 x 128 (the picture's sizes kept round it); refused
 /// when not read (the original then counts 0x1FFFFFFF down and leaves with its stack one
 /// off).
-fn read(path: &dyn crate::session::TextPlace, gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
+fn read(
+    path: &dyn crate::session::TextPlace,
+    gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     path.text("a mask picture's path")?;
     let sizes: [u32; 3] = [
         gfx.pictures.picture.width.get(),
@@ -39,7 +43,7 @@ fn read(path: &dyn crate::session::TextPlace, gfx: &crate::gfx::owner::Gfx) -> R
     gfx.pictures.picture.width.set(0x100u32);
     gfx.pictures.picture.height.set(0x80u32);
     gfx.pictures.picture.row_bytes.set(0xFFFF_FFFEu32);
-    let read = crate::gfx::read_picture_file::read_picture_file(path, gfx);
+    let read = crate::gfx::read_picture_file::read_picture_file(path, gfx, system);
     gfx.pictures.picture.width.set(sizes[0]);
     gfx.pictures.picture.height.set(sizes[1]);
     gfx.pictures.picture.row_bytes.set(sizes[2]);
@@ -80,10 +84,11 @@ fn mask(
     copy: &mut [u8],
     width: u32,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     {
         // A file path (text up to its NUL) at a byte offset in the paths.
-        read(&masks.picture_copy.paths.text_from(path), gfx)?;
+        read(&masks.picture_copy.paths.text_from(path), gfx, system)?;
         copy[..4 * COPIED as usize].copy_from_slice(&crate::gfx::picture::read_bytes(
             gfx.pictures.picture.buffer.get(),
             0,
@@ -96,6 +101,7 @@ fn mask(
                 .names
                 .text_from(masks.ground_names.ground_path.get() as usize),
             gfx,
+            system,
         )?;
         for y in 0..ROWS {
             for x in 0..width.max(1) {
@@ -121,6 +127,7 @@ pub fn load_mask_pictures(
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
     effects: &crate::effects::owner::Effects,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let ground: i32 = masks.ground_names.ground.get() as i32;
     if ground >= NAMES {
@@ -167,8 +174,24 @@ pub fn load_mask_pictures(
         masks.picture_copy.paths.set(d, digits[0]);
         masks.picture_copy.paths.set(d + 1, digits[1]);
     }
-    mask(masks, MASK_PATH_AT, Mask::Plain, &mut copy, width, gfx)?;
-    mask(masks, BMASK_PATH_AT, Mask::Bordered, &mut copy, width, gfx)?;
+    mask(
+        masks,
+        MASK_PATH_AT,
+        Mask::Plain,
+        &mut copy,
+        width,
+        gfx,
+        system,
+    )?;
+    mask(
+        masks,
+        BMASK_PATH_AT,
+        Mask::Bordered,
+        &mut copy,
+        width,
+        gfx,
+        system,
+    )?;
     lock(scene.textures.kinds.kind_first_textures[202].get(), false)?;
     crate::scene::forget_slot_texture::forget_slot_texture(
         scene.textures.kinds.kind_first_slots[202].get(),

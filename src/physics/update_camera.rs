@@ -76,8 +76,13 @@ fn fixed_camera(
         .unwrap_or_else(|e| crate::fatal::raise::end("a checkpoint face", e));
     for k in 0..3 {
         c.car.camera_position[k as usize].set(
-            crate::race::scene_points::point_word(c.course, point, k)
-                .unwrap_or_else(|e| crate::fatal::raise::end("a scene point", e)),
+            crate::race::scene_points::point_word(
+                c.course,
+                &crate::race::scene_points::NO_OWN,
+                point,
+                k,
+            )
+            .unwrap_or_else(|e| crate::fatal::raise::end("a scene point", e)),
         );
     }
     crate::physics::camera_height_bias::camera_height_bias(

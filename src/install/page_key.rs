@@ -33,7 +33,7 @@ pub fn page_key(
     let kind = item.kind();
     let edited = items::takes_every_key(kind, || item.edit_field().flags() & 1 != 0);
     let (key, plain_edit) = if edited {
-        let outcome = i::edit_key::edit_key(install, key, item)?;
+        let outcome = i::edit_key::edit_key(install, key, item, gfx)?;
         (outcome.key_word, outcome.plain_edit)
     } else {
         let taken = match way {

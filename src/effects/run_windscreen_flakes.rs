@@ -103,7 +103,7 @@ fn run(
                 buffer, fl, item, colour, values, scene, effects,
             );
         }
-        crate::scene::depth_buffer_on::depth_buffer(true);
+        crate::scene::depth_buffer_on::depth_buffer(crate::workers::game_scratch(), true);
     }
     Ok(())
 }

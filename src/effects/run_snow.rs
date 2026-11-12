@@ -42,6 +42,7 @@ pub fn run_snow(
     effects: &crate::effects::owner::Effects,
     view: crate::effects::run_frame::EffectsView<'_>,
 ) -> Result<(), Refused> {
+    let part = crate::workers::game_scratch();
     let frame = &race.frame;
     use crate::scene::set_render_state::set_render_state;
     let (s, l) = (&weather.snow, &weather.snow_light);
@@ -68,13 +69,14 @@ pub fn run_snow(
         }
         crate::effects::place_snow_view::place_snow_view(weather)?;
         crate::scene::set_texture::set_texture(
+            part,
             scene,
             scene.textures.kinds.kind_first_slots[202].get(),
         );
-        crate::scene::depth_buffer_on::depth_buffer(true);
-        crate::scene::depth_test_off::depth_test_off();
+        crate::scene::depth_buffer_on::depth_buffer(part, true);
+        crate::scene::depth_test_off::depth_test_off(part);
         for (value, state) in STATES {
-            set_render_state(value, state);
+            set_render_state(part, value, state);
         }
         let rhw = l.rhw.get();
         let light = view.light | 0xFF00_0000;
@@ -123,7 +125,7 @@ pub fn run_snow(
             s.wide_focal[m].set_bits(focal);
         }
         crate::effects::draw_snow::draw_snow(buffer, weather, scene, effects)?;
-        crate::scene::depth_test_on::depth_test_on();
+        crate::scene::depth_test_on::depth_test_on(part);
     }
     Ok(())
 }

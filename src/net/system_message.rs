@@ -17,7 +17,10 @@ use crate::net::store::PlayerRecord;
 use rc2k_core::net::players::{A_PLAYER, System, made_host};
 
 /// The message is in `crate::net::owner::net().vars.receive_data`.
-pub fn system_message(vars: &NetVars) -> Result<(), Refused> {
+pub fn system_message(
+    vars: &NetVars,
+    panel: &crate::race::viewer_screen_store::ViewerPanelBlock,
+) -> Result<(), Refused> {
     let get = |at: usize| vars.receive_data.get_u32(at);
     let kind = get(0);
     // Converted: `rc2k_core::net::players` (`System`, `made_host`).
@@ -33,7 +36,7 @@ pub fn system_message(vars: &NetVars) -> Result<(), Refused> {
                 );
             }
         }
-        System::SessionLost => destroy_connection(vars)?,
+        System::SessionLost => destroy_connection(vars, panel)?,
         System::Host => {
             vars.own
                 .head

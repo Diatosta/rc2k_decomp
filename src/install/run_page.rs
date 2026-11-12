@@ -87,16 +87,16 @@ pub fn run_page(
                 install.pages.choice.set(0);
             }
         }
-        i::show_backdrop::show_backdrop(system)?;
+        i::show_backdrop::show_backdrop(system, o.gfx)?;
         loop {
             i::lay_out_pieces::lay_out_pieces(install, list)?;
-            i::measure_pieces::measure_pieces(install, strings)?;
+            i::measure_pieces::measure_pieces(install, strings, o.gfx)?;
             i::place_pieces::place_pieces(install)?;
             run_frame(system, None)?;
-            if lock() {
+            if lock(o.gfx) {
                 copy_picture()?;
-                i::draw_pieces::draw_pieces(install, strings)?;
-                unlock();
+                i::draw_pieces::draw_pieces(install, strings, o.gfx)?;
+                unlock(o.gfx);
                 show();
             }
             install
@@ -198,7 +198,7 @@ pub fn run_page(
                 break;
             }
         }
-        i::show_backdrop::show_backdrop(system)?;
+        i::show_backdrop::show_backdrop(system, o.gfx)?;
         tell(install, o, list, u32::MAX)?;
     }
     if count != 0 {

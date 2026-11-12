@@ -125,7 +125,13 @@ pub fn draw_service_area(
                 blit_bar_in(gfx, menus, &mut |call| canvas.blit_glyph(call))?;
             }
             AreaStep::Sprite(glyph, x, y) => {
-                canvas.blit_glyph(BlitCall::sprite_in(gfx, menus, glyph, x, y))?;
+                canvas.blit_glyph(BlitCall::sprite(
+                    menus,
+                    glyph,
+                    x,
+                    y,
+                    crate::gfx::surface::clip(gfx).right,
+                ))?;
             }
         }
     }

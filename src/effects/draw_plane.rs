@@ -128,11 +128,15 @@ pub fn draw_plane(
     if corner >= 0x100 {
         return Err(BadInput("a plane corner past g_marksCorners").into());
     }
-    crate::scene::depth_test_off::depth_test_off();
+    crate::scene::depth_test_off::depth_test_off(ctx.part);
     for state in [0x11, 0x12] {
-        set_render_state(2, state);
+        set_render_state(ctx.part, 2, state);
     }
-    crate::scene::set_texture::set_texture(scene, scene.textures.kinds.kind_first_slots[202].get());
+    crate::scene::set_texture::set_texture(
+        ctx.part,
+        scene,
+        scene.textures.kinds.kind_first_slots[202].get(),
+    );
     plane_corners(fl, effects);
     let entry = &effects.blocks.corners.corners[corner as usize];
     let word = |off: u32| u32::from(entry.words[off as usize / 2].get());
@@ -180,7 +184,7 @@ pub fn draw_plane(
             .set(x87::reciprocal_times(depth, PLANE_TUNING.rhw_k[n]));
     }
     crate::effects::clip_quad::draw_fan(buffer, scene);
-    crate::scene::depth_test_on::depth_test_on();
+    crate::scene::depth_test_on::depth_test_on(ctx.part);
     Ok(())
 }
 

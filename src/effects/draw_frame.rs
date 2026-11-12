@@ -95,6 +95,6 @@ pub fn draw_frame(
     times[1]
         .1
         .set(x87::int_over_int_times(took, frame, times[1].0));
-    crate::scene::depth_test_on::depth_test_on();
+    crate::scene::depth_test_on::depth_test_on(crate::workers::game_scratch());
     Ok(())
 }

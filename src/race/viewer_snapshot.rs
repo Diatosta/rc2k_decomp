@@ -26,13 +26,13 @@ pub fn viewer_snapshot(replay: &Replay, gfx: &crate::gfx::owner::Gfx) -> Result<
         .write_at(DIGITS_AT, &next, what)
         .unwrap_or_else(|e| crate::fatal::raise::end(what, e));
     // `cmp g_surfaceLocked, 1`'s carry: not locked.
-    if crate::platform::lock_surface() >= 1 {
+    if crate::platform::lock_surface(gfx) >= 1 {
         crate::gfx::write_screen_pcx::write_screen_pcx(
             &gfx.shots,
             Some(&replay.snapshot.text()),
             gfx,
         )?;
-        crate::platform::unlock_surface();
+        crate::platform::unlock_surface(gfx);
     }
     Ok(())
 }

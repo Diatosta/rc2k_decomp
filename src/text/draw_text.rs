@@ -28,13 +28,23 @@ pub trait Canvas {
     /// The kerning row table the canvas keeps.
     fn kerning(&self) -> State;
     fn set_kerning(&mut self, kerning: State);
+    /// The clip rectangle's right edge now (a glyph's call notes it).
+    fn clip_right(&self) -> i32;
     fn blit_glyph(&mut self, call: BlitCall) -> Result<(), Refused>;
 }
 
 /// The game's own kerning table and surface.
-pub struct GameCanvas;
+pub struct GameCanvas<'a> {
+    gfx: &'a crate::gfx::owner::Gfx,
+}
 
-impl Canvas for GameCanvas {
+impl<'a> GameCanvas<'a> {
+    pub fn new(gfx: &'a crate::gfx::owner::Gfx) -> Self {
+        Self { gfx }
+    }
+}
+
+impl Canvas for GameCanvas<'_> {
     fn keeps_font_changes(&self) -> bool {
         true
     }
@@ -48,8 +58,11 @@ impl Canvas for GameCanvas {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = kerning;
     }
+    fn clip_right(&self) -> i32 {
+        crate::gfx::surface::clip(self.gfx).right
+    }
     fn blit_glyph(&mut self, c: BlitCall) -> Result<(), Refused> {
-        blit_glyph_on_surface(c.glyph, c.table, c.x, c.y, c.palette)
+        blit_glyph_on_surface(c.glyph, c.table, c.x, c.y, c.palette, self.gfx)
     }
 }
 
@@ -102,7 +115,14 @@ impl rc2k_core::text::Canvas for Adapt<'_> {
         &mut self.kerning
     }
     fn blit(&mut self, font: &Font, glyph: u32, x: i32, y: i32) -> Result<(), AdaptError> {
-        let call = BlitCall::glyph(glyph, x, y, font.palette, font.glyph_table);
+        let call = BlitCall::glyph(
+            glyph,
+            x,
+            y,
+            font.palette,
+            font.glyph_table,
+            self.canvas.clip_right(),
+        );
         { self.canvas.blit_glyph(call) }.map_err(AdaptError::Refused)
     }
 }

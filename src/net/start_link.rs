@@ -59,14 +59,14 @@ fn link(o: Owners<'static>) -> Result<Way, Refused> {
         }
     };
     keep_connection::keep_connection(net, connection)?;
-    if !connecting::connecting(net, panel, connection)? {
+    if !connecting::connecting(net, panel, connection, o.gfx)? {
         return Ok(Way::Message(NO_CONNECTION));
     }
     if vars.mode.get() == 1 {
         vars.own
             .head
             .set(PlayerRecord::STATE, vars.own.state() | 0x10);
-        return Ok(if hosting::hosting(net, o.system, panel)? {
+        return Ok(if hosting::hosting(net, o.system, panel, o.gfx)? {
             Way::On
         } else {
             Way::Message(NO_SESSION)
@@ -81,7 +81,7 @@ fn link(o: Owners<'static>) -> Result<Way, Refused> {
     if (session as i32) < 0 {
         return Ok(Way::Message(NO_SESSION));
     }
-    Ok(if joining::joining(net, o.system, panel, session)? {
+    Ok(if joining::joining(net, o.system, panel, session, o.gfx)? {
         Way::On
     } else {
         Way::Message(NO_SESSION)
@@ -100,7 +100,7 @@ pub fn start_link(o: crate::owners::Owners<'static>, mode: u32) -> Result<(), Re
     fill_own_player::fill_own_player(race, net, menus, &menus.play.names.player_names.read())?;
     show_background::show_background(o.gfx, o.system, &net.vars)?;
     match link(o)? {
-        Way::Message(n) => show_message::show_message(n)?,
+        Way::Message(n) => show_message::show_message(n, o.gfx)?,
         Way::End => {}
         Way::On => {
             vars.session.set(1);
@@ -128,7 +128,7 @@ pub fn start_link(o: crate::owners::Owners<'static>, mode: u32) -> Result<(), Re
         }
     }
     log_bytes(&race.viewer_panel().text(texts::NET_STOPPING_LINK), true, 2);
-    stopping::stopping(&net.vars, o.system, o.gfx)?;
+    stopping::stopping(&net.vars, o.system, o.gfx, race.viewer_panel())?;
     crate::sound::play_tune_3::play_tune_3(o.sound, o.audio, o.system);
     Ok(())
 }

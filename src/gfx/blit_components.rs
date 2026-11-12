@@ -25,7 +25,7 @@ pub struct Target {
 pub fn game_target(gfx: &crate::gfx::owner::Gfx) -> Result<Target, BadInput> {
     let drawing = &gfx.drawing;
     Ok(Target {
-        rows: crate::gfx::rows::Rows::surface()?,
+        rows: crate::gfx::rows::Rows::surface(gfx)?,
         bytes_per_pixel: drawing.draw_surface.bytes_per_pixel.get(),
         // `g_surface.format`: the address of the surface's `PixelFormat`.
         format: drawing.draw_surface.format.get(),

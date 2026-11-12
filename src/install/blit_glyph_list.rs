@@ -13,7 +13,13 @@ use rc2k_core::install::layout;
 
 /// The records of `table` blitted at (x, y) on, from the glyph table `glyphs`. An empty table
 /// is refused.
-pub fn blit_glyph_list(table: &[GlyphRecord], x: u32, y: u32, glyphs: u32) -> Result<(), Refused> {
+pub fn blit_glyph_list(
+    table: &[GlyphRecord],
+    x: u32,
+    y: u32,
+    glyphs: u32,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), Refused> {
     // Converted: `rc2k_core::install::layout` (`list_records`, `list_place`).
     for (record, _) in table.iter().zip(layout::list_records(table.len() as u32)?) {
         let (x, y) = layout::list_place(record.dx.get(), record.dy.get(), x, y);
@@ -24,6 +30,7 @@ pub fn blit_glyph_list(table: &[GlyphRecord], x: u32, y: u32, glyphs: u32) -> Re
             x as i32,
             y as i32,
             Some(palette(PageLink::from_raw(record.palette.get()))),
+            gfx,
         )?;
     }
     Ok(())

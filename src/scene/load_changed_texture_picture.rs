@@ -48,10 +48,13 @@ pub fn load_changed_texture_picture_in_game(
     gfx: &crate::gfx::owner::Gfx,
     texture: u32,
     scene: &crate::scene::owner::Scene,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     load_changed_texture_picture(
         texture,
-        &mut |picture, texture| load_texture_picture_in_game(race, gfx, picture, texture, scene),
+        &mut |picture, texture| {
+            load_texture_picture_in_game(race, gfx, picture, texture, scene, system)
+        },
         scene,
     )
 }

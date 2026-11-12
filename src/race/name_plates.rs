@@ -31,7 +31,7 @@ pub fn draw_name_plate(
     crate::gfx::rows::clear_surface_rows(0, name_rows(line), gfx)?;
     fonts.font_block.game_fonts[2].update(|f| f.box_width = NAME_BOX);
     for (x, y) in name_places(line) {
-        draw_text_in_game(&fonts.font_block.game_fonts[2], text, x, y)?;
+        draw_text_in_game(&fonts.font_block.game_fonts[2], text, x, y, gfx)?;
     }
     unlock_texture(slot)?;
     Ok(())
@@ -88,7 +88,7 @@ pub fn draw_time_plate(frame: &Frame, slot: u32, gfx: &Gfx) -> Result<(), Refuse
             .flat_map(|d| d.get().to_le_bytes())
             .collect();
         gfx.fonts.font_block.game_fonts[3].update(|f| f.box_width = TIME_BOX);
-        draw_bytes_in_game(&gfx.fonts.font_block.game_fonts[3], &text, x, y)?;
+        draw_bytes_in_game(&gfx.fonts.font_block.game_fonts[3], &text, x, y, gfx)?;
     }
     unlock_texture(slot)?;
     Ok(())
@@ -194,8 +194,9 @@ pub fn draw_text_in_game(
     text: impl Into<crate::place::BytePlace>,
     x: u32,
     y: u32,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<bool, Refused> {
-    draw_bytes_in_game(font, &text.into().bytes("a name plate's text")?, x, y)
+    draw_bytes_in_game(font, &text.into().bytes("a name plate's text")?, x, y, gfx)
 }
 
 /// As `draw_text_in_game`, the text's bytes in hand.
@@ -204,6 +205,7 @@ pub fn draw_bytes_in_game(
     text: &(impl rc2k_core::strings::bytes::Bytes + ?Sized),
     x: u32,
     y: u32,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<bool, Refused> {
     use crate::text::draw_text::GameCanvas;
     let mut copy = font.get();
@@ -212,7 +214,7 @@ pub fn draw_bytes_in_game(
         text,
         x as i32,
         y as i32,
-        &mut GameCanvas,
+        &mut GameCanvas::new(gfx),
     )?;
     if copy != font.get() {
         font.set(copy);

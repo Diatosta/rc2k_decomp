@@ -42,7 +42,7 @@ impl Effects {
         if self.setup.settings.is_set.get() == 0 {
             return Err(BadInput("no marks settings"));
         }
-        Ok(&crate::race::effects_settings_store::EFFECTS_SETTINGS)
+        Ok(crate::race::owner::race().effects_settings())
     }
 }
 

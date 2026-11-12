@@ -89,6 +89,7 @@ fn remove_whole(folder: &std::path::Path) {
 pub fn uninstall(
     install: &'static crate::install::owner::Install,
     system: &crate::system::owner::System,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     use crate::install as i;
     if install.names.status.get() == 0 || install.names.source.get(0) == 0 {
@@ -98,10 +99,10 @@ pub fn uninstall(
     i::write_registry::write_registry(install, &mut crate::install::portable::Portable)?;
     // the "removing" frame
     run_frame(system, None)?;
-    if lock() {
+    if lock(gfx) {
         copy_picture()?;
-        i::draw_string_list::draw_string_list(&install.pages.remove_strings.each_ref(), 0, 0)?;
-        unlock();
+        i::draw_string_list::draw_string_list(&install.pages.remove_strings.each_ref(), 0, 0, gfx)?;
+        unlock(gfx);
         show();
     }
     normalise(&install.names.source, &install.paths.installed)?;

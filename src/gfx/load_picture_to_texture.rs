@@ -20,10 +20,12 @@ pub fn load_picture_to_texture(
     second: Option<&dyn TextPlace>,
     texture: u32,
     upload: &mut dyn FnMut(u32, u32, u32, u32) -> Result<(), Refused>,
+    gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let record = Record::of(texture)?;
-    keep_second_picture(&record, second)?;
-    let (pixels, width, height, _) = read_texture_picture(path)?;
+    keep_second_picture(&record, second, gfx, system)?;
+    let (pixels, width, height, _) = read_texture_picture(path, gfx, system)?;
     upload(texture, pixels, width, height)
 }
 
@@ -33,6 +35,7 @@ pub fn load_picture_to_texture_in_game(
     second: Option<&dyn TextPlace>,
     texture: u32,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     load_picture_to_texture(
         path,
@@ -41,6 +44,8 @@ pub fn load_picture_to_texture_in_game(
         &mut |texture, pixels, width, height| {
             upload_texture_picture(texture, pixels, width, height, &mut GameSurfaces(gfx), gfx)
         },
+        gfx,
+        system,
     )
 }
 

@@ -17,5 +17,5 @@ pub fn settings_link(
             crate::net::keep_connection::keep_connection(net, chosen)?;
         }
     }
-    crate::net::stop::stop(&net.vars, system)
+    crate::net::stop::stop(&net.vars, system, panel)
 }

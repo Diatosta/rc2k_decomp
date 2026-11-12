@@ -29,8 +29,8 @@ pub fn edge_side(
     let point = (q.x.get(), q.z.get());
     let scene = |n: u32| -> Result<(u32, u32), crate::errors::BadInput> {
         Ok((
-            crate::race::scene_points::point_word(course, n, 0)?,
-            crate::race::scene_points::point_word(course, n, 2)?,
+            crate::race::scene_points::point_word(course, q.points, n, 0)?,
+            crate::race::scene_points::point_word(course, q.points, n, 2)?,
         ))
     };
     Ok(match faces::edge_side(point, scene(from)?, scene(to)?) {

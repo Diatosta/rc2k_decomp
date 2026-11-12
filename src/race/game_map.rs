@@ -124,8 +124,15 @@ fn take_format(
 
 /// A pixel of 24-bit components (the dword read: its top byte replaced) added to the bytes
 /// going into the tiles.
-fn store_pixel(out: &mut Vec<u8>, bytes: u32, format: &PixelFormat, components: u32) {
-    let pixel = crate::gfx::components_to_pixel::components_to_pixel(format, components | OPAQUE);
+fn store_pixel(
+    out: &mut Vec<u8>,
+    bytes: u32,
+    format: &PixelFormat,
+    components: u32,
+    gfx: &crate::gfx::owner::Gfx,
+) {
+    let pixel =
+        crate::gfx::components_to_pixel::components_to_pixel(format, components | OPAQUE, gfx);
     if bytes == 2 {
         out.extend_from_slice(&(pixel as u16).to_le_bytes());
     } else {
@@ -227,7 +234,7 @@ pub fn load_packed_game_map(
         .map
         .black
         .set(crate::gfx::components_to_pixel::components_to_pixel(
-            &format, OPAQUE,
+            &format, OPAQUE, gfx,
         ));
     take_tiles(frame)?;
     frame.map.tile_count.set(0u32);
@@ -291,7 +298,13 @@ pub fn load_packed_game_map(
                 .read_at(0, got as usize + 1, "the map's pixels")?;
             let mut chunk = Vec::new();
             for k in 0..got / 3 {
-                store_pixel(&mut chunk, bytes, &format, dword_in(&data, 3 * k as usize)?);
+                store_pixel(
+                    &mut chunk,
+                    bytes,
+                    &format,
+                    dword_in(&data, 3 * k as usize)?,
+                    gfx,
+                );
             }
             put_pixels(out, &chunk)?;
             out += chunk.len();
@@ -410,7 +423,7 @@ pub fn load_game_map(
         put_table(&table)?;
         let marked = table.iter().filter(|&&v| v != Tile::None).count() as u32;
         take_pixels(frame, (marked << 8).wrapping_mul(bytes))?;
-        if !crate::gfx::read_picture_file::read_picture_file(picture, gfx)? {
+        if !crate::gfx::read_picture_file::read_picture_file(picture, gfx, system)? {
             return Ok(());
         }
         frame.map.tile_count.set(0u32);
@@ -436,6 +449,7 @@ pub fn load_game_map(
                                     bytes,
                                     &format,
                                     dword(sheet, from + 4 * k)?,
+                                    gfx,
                                 );
                             }
                             from = from.wrapping_add(row);
@@ -450,7 +464,7 @@ pub fn load_game_map(
             .map
             .black
             .set(crate::gfx::components_to_pixel::components_to_pixel(
-                &format, OPAQUE,
+                &format, OPAQUE, gfx,
             ));
         Ok(())
     })();

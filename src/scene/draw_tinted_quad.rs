@@ -81,7 +81,7 @@ pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
         race,
     )?;
     if ctx.view.polygon.polygon_vertex_count.get() >= 3 {
-        crate::scene::depth_buffer_on::depth_buffer(false);
+        crate::scene::depth_buffer_on::depth_buffer(ctx.part, false);
         ctx.view.face.polygon_mode.set(3);
         ctx.view.polygon.polygon_textures[0].set(0xFFFF_FFFF);
         ctx.view.polygon.polygon_textures[1].set(0xFFFF_FFFF);
@@ -97,7 +97,7 @@ pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
         )?;
         ctx.view.face.polygon_mode.set(0);
         ctx.view.polygon.polygon_drawn.set(1);
-        crate::scene::depth_buffer_on::depth_buffer(true);
+        crate::scene::depth_buffer_on::depth_buffer(ctx.part, true);
     }
     ctx.view.polygon.polygon_colour.set(0xFF_FFFF);
     Ok(())

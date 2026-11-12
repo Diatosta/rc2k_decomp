@@ -29,6 +29,8 @@ const DRAWTRI_TEXT: &std::ffi::CStr = c"drawtri"; // "drawtri"
 
 /// What the function asks of the code around it.
 pub trait Outside {
+    /// The texture set last (`d3d::render_cache`).
+    fn texture(&self) -> u32;
     /// `d3d::set_texture`.
     fn set_texture(&mut self, texture: u32);
     /// `d3d::draw_fan_unclipped`: Direct3D's result.
@@ -71,7 +73,7 @@ pub fn submit_polygon(
         }
     } else {
         let texture = if texture >= TEXTURES { 0 } else { texture };
-        if texture != crate::d3d::render_cache::texture() && device_on {
+        if texture != outside.texture() && device_on {
             outside.set_texture(texture);
         }
     }
@@ -88,16 +90,19 @@ pub fn submit_polygon(
     }
 }
 
-/// The game's Direct3D layer and log.
-pub struct Game;
+/// The game's Direct3D layer and log, for drawing part `.0`.
+pub struct Game<'a>(pub &'a crate::workers::PartScratch);
 
-impl Outside for Game {
+impl Outside for Game<'_> {
+    fn texture(&self) -> u32 {
+        crate::d3d::render_cache::texture(self.0)
+    }
     fn set_texture(&mut self, texture: u32) {
-        crate::d3d::set_texture::set_texture(texture);
+        crate::d3d::set_texture::set_texture(self.0, texture);
     }
     fn draw_fan(&mut self, vertices: &[Vertex]) -> u32 {
         // `d3d::draw_fan_unclipped`: its result is always 0.
-        crate::platform_3d::draw_fan(vertices);
+        crate::platform_3d::draw_fan(self.0, vertices);
         0
     }
     fn bad_vertex(

@@ -14,10 +14,10 @@ use crate::scene::set_render_state::set_render_state;
 const STATES: [(u32, u32); 5] = [(4, 0x15), (1, 0x1C), (5, 0x13), (6, 0x14), (1, 0x1B)];
 
 /// The 3D part of a frame begun. The layer's beginning cannot fail.
-pub fn begin_scene(race: &crate::race::owner::Race) {
-    crate::platform_3d::begin_layer();
-    set_filters(race);
+pub fn begin_scene(race: &crate::race::owner::Race, part: &crate::workers::PartScratch) {
+    crate::platform_3d::begin_layer(part);
+    set_filters(race, part);
     for (value, state) in STATES {
-        set_render_state(value, state);
+        set_render_state(part, value, state);
     }
 }

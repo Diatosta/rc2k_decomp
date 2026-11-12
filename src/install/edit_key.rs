@@ -81,6 +81,7 @@ pub fn edit_key(
     install: &'static crate::install::owner::Install,
     key: u32,
     item: ListItem,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<EditOutcome, Refused> {
     let text = item.text();
     let record = item.edit_field();
@@ -162,6 +163,7 @@ pub fn edit_key(
         edit_font(install, record)?,
         &text_with_nul(text),
         most.wrapping_add(measure_limit(text)?).wrapping_add(1),
+        gfx,
     )?;
     let widest = crate::install::folders::field_width(install, text, record.width());
     if edits::too_wide(width, widest) {

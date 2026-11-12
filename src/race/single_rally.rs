@@ -560,7 +560,7 @@ pub fn step(o: crate::owners::Owners<'static>, call: Call) -> Result<(), Refused
         Call::SetUpRaceSounds => crate::sound::set_up_race_sounds::set_up_race_sounds(o)?,
         Call::RaceFromMenu => crate::race::race_end::race_from_menu(o)?,
         Call::SetMenuScreenMode => {
-            crate::platform::set_menu_mode_now();
+            crate::platform::set_menu_mode_now(o.gfx);
         }
         Call::ClearRaceSoundObjects => {
             crate::race::sound_tables::clear_race_sound_objects(sound, o.audio, o.system)?;

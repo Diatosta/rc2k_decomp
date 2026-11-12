@@ -55,7 +55,7 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
         )?;
     }
     race.replay.replay_frames.last_kept.set(u32::MAX);
-    crate::race::sounds::wake_car_sounds(race, o.sound)?;
+    crate::race::sounds::wake_car_sounds(race, o.sound, o.audio)?;
     indent(-3);
     log();
     indent(3);

@@ -26,7 +26,7 @@ pub fn load_jade(path: &[u8], gfx: &crate::gfx::owner::Gfx) -> Result<(), Refuse
     fonts
         .jade
         .colour
-        .set(components_to_pixel(&surface_format()?, JADE_COLOUR));
+        .set(components_to_pixel(&surface_format()?, JADE_COLOUR, gfx));
     Ok(())
 }
 

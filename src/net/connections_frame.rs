@@ -25,12 +25,13 @@ pub fn list_frame(
     title: u32,
     count: &crate::session::Dword,
     name: impl Fn(u32) -> Result<[u8; 0x40], Refused>,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
-    if !lock_surface() {
+    if !lock_surface(gfx) {
         return Ok(());
     }
     copy_picture()?;
-    draw_string(title, STATUS_FONT, 0x316, 0x6F)?;
+    draw_string(title, STATUS_FONT, 0x316, 0x6F, gfx)?;
     let mut y: u32 = 0x6F + 0x2C;
     // Converted: `rc2k_core::net::screens` (`LIST_ROWS`, `listed`, `blink_lit`).
     let pages = &install.pages;
@@ -54,18 +55,23 @@ pub fn list_frame(
             &text,
             0x190,
             at as i32,
-            &mut crate::text::draw_text::GameCanvas,
+            &mut crate::text::draw_text::GameCanvas::new(gfx),
         )?;
     }
-    crate::platform::unlock_surface();
+    crate::platform::unlock_surface(gfx);
     crate::platform::show_frame_now();
     Ok(())
 }
-pub fn connections_frame(net: &Net, install: &Install) -> Result<(), Refused> {
+pub fn connections_frame(
+    net: &Net,
+    install: &Install,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), Refused> {
     list_frame(
         install,
         screens::CONNECTIONS_TITLE,
         &net.vars.connections,
         |n| crate::net::tables::with_connection(&net.vars, n, |c| c.name),
+        gfx,
     )
 }

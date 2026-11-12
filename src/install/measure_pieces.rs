@@ -27,6 +27,7 @@ fn font_of(
 pub fn measure_pieces(
     install: &'static crate::install::owner::Install,
     strings: &'static Strings,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     let count = piece_count(install);
     if count == 0 {
@@ -48,7 +49,7 @@ pub fn measure_pieces(
             Way::String { font_kind } => {
                 let font =
                     InstallerPages::kind_font(install, pieces::measure_colour_at(font_kind)) as u32;
-                measure_string(piece.text_id() as u32, font_of(install, font)?, left)?
+                measure_string(piece.text_id() as u32, font_of(install, font)?, left, gfx)?
             }
             Way::Edit => {
                 let item = piece.item();
@@ -72,7 +73,7 @@ pub fn measure_pieces(
                 let kind = item.font_kind() as u32;
                 let font =
                     InstallerPages::kind_font(install, pieces::measure_colour_at(kind)) as u32;
-                measure_text(font_of(install, font)?, &text, left)?
+                measure_text(font_of(install, font)?, &text, left, gfx)?
             }
             Way::Action => {
                 let the_box = BoxRecord::linked(piece.item().box_link());

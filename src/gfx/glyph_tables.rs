@@ -115,7 +115,7 @@ pub fn palette_to_pixels(to: u32, gfx: &crate::gfx::owner::Gfx) -> Result<(), Ba
     let mut pixels = Vec::with_capacity(256 * 4);
     for entry in 0..256 {
         let components: u32 = pictures.decoder.palette[entry].get();
-        pixels.extend_from_slice(&components_to_pixel(&format, components).to_le_bytes());
+        pixels.extend_from_slice(&components_to_pixel(&format, components, gfx).to_le_bytes());
     }
     crate::gfx::glyph_store::write_bytes(to, 0, &pixels, "a palette's pixels")
 }

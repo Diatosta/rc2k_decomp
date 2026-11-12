@@ -5,6 +5,7 @@
 mod address_map;
 mod arch;
 mod audio;
+mod cells;
 mod d3d;
 mod debug;
 mod drive;

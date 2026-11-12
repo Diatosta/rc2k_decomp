@@ -148,7 +148,7 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
         let key = list_key(install)?;
         let mut moved = false;
         if net.edit().edited.get() != u32::MAX {
-            crate::net::chat_key::chat_key(net, install, key)?;
+            crate::net::chat_key::chat_key(net, install, key, o.gfx)?;
         } else {
             let ready = net.vars.own.state() & 1 != 0;
             if !ready && key == 0x69 {

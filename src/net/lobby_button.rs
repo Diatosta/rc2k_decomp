@@ -15,6 +15,10 @@ use rc2k_core::net::screens;
 
 /// The button `string` for item `item` at (`x`, `y`); returns the next
 /// button's x.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the button's string, item and place, and the owners"
+)]
 pub fn lobby_button(
     net: &Net,
     install: &Install,
@@ -22,9 +26,11 @@ pub fn lobby_button(
     item: u32,
     x: u32,
     y: u32,
+    gfx: &crate::gfx::owner::Gfx,
+    menus: &crate::menu::owner::Menus,
 ) -> Result<u32, Refused> {
     // Converted: `rc2k_core::net::screens` (`lobby_button_flags`, `next_button_x`).
     let flags = screens::lobby_button_flags(net.vars.own.state(), item, net.vars.after_race.get());
-    draw_button(net, install, string, flags, x, y, item)?;
+    draw_button(net, install, string, flags, x, y, item, gfx, menus)?;
     Ok(screens::next_button_x(x, net.button.get().width.get()))
 }

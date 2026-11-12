@@ -43,7 +43,7 @@ pub fn init_marks(
         effects.setup.settings.is_set.set(1);
         effects.setup.work.seed.set(seed);
         effects.setup.clock.started.set(0);
-        edges::load_kind_data(course, effects, scene, gfx)?;
+        edges::load_kind_data(race, effects, scene, gfx, system)?;
         setup::make_wave_tables(paths)?;
         profiles::make_profiles(course, paths, profiles::RESUME, effects)?;
         setup::seed_noise(weather, effects);
@@ -51,11 +51,11 @@ pub fn init_marks(
         blocks::allocate_places(effects)?;
         kind_values::set_kind_values(&kind_values::first(effects), effects)?;
         kind_values::set_kind_values(&kind_values::second(effects), effects)?;
-        load_mask_pictures::load_mask_pictures(masks, scene, gfx, effects)?;
+        load_mask_pictures::load_mask_pictures(masks, scene, gfx, effects, system)?;
         setup::clear_slots(effects);
-        set_up_surface::set_up_surface(ring, masks, scene, gfx, effects)?;
+        set_up_surface::set_up_surface(ring, masks, scene, gfx, effects, system)?;
         blocks::allocate_ring(&effects.particles, ring)?;
-        lines::set_up_blocks(course, paths, scene, effects)?;
+        lines::set_up_blocks(course, race.faces(), paths, scene, effects)?;
         marks.fresh_marks_flags[1].set(1);
         for r in &effects.setup.clock.settings_copies {
             r.set(1);

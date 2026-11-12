@@ -17,6 +17,7 @@ pub fn draw_time_text(
     text: &(impl rc2k_core::strings::bytes::Bytes + ?Sized),
     x: u32,
     y: u32,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     use crate::text::draw_text::GameCanvas;
     let font = font.into().object();
@@ -34,7 +35,7 @@ pub fn draw_time_text(
             &[chars.byte(i).unwrap_or(0), 0],
             x as i32,
             y as i32,
-            &mut GameCanvas,
+            &mut GameCanvas::new(gfx),
         )?;
         if copy != font.get() {
             font.set(copy);

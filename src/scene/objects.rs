@@ -8,11 +8,11 @@
 pub const SLOTS: u32 = 0x100;
 /// The face table's cell `n` (the callers hold `n` to `FACES`, but for what the original
 /// leaves unchecked).
-pub fn face_cell(n: usize) -> &'static crate::session::Dword {
-    use crate::scene::faces_store::{FACES, Faces};
+pub fn face_cell(faces: &crate::scene::faces_store::Faces, n: usize) -> &crate::session::Dword {
+    use crate::scene::faces_store::Faces;
     crate::race::checkpoints_store::cell_in(
-        &FACES.faces,
-        &*FACES,
+        &faces.faces,
+        faces,
         core::mem::offset_of!(Faces, faces),
         n,
     )

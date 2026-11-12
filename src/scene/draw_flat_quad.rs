@@ -90,10 +90,10 @@ pub fn draw_flat_quad(
         face.polygon_mode.set(6);
         poly.polygon_sides[0].set(1);
         poly.polygon_sides[1].set(0);
-        crate::scene::depth_buffer_on::depth_buffer(false);
+        crate::scene::depth_buffer_on::depth_buffer(part, false);
         crate::scene::draw_polygon::draw_polygon_in_game(poly, part, race, face, scene, screen)?;
         poly.polygon_drawn.set(1);
-        crate::scene::depth_buffer_on::depth_buffer(true);
+        crate::scene::depth_buffer_on::depth_buffer(part, true);
     }
     poly.polygon_colour.set(0xFF_FFFF);
     Ok(())

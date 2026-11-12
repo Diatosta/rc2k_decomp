@@ -41,7 +41,10 @@ pub fn receive_thread() -> Result<(), Refused> {
                 if !zero {
                     vars.receiving.set(1);
                     if vars.session.get() == 1 {
-                        crate::net::take_messages::take_messages(net)?;
+                        crate::net::take_messages::take_messages(
+                            net,
+                            crate::race::owner::race().viewer_panel(),
+                        )?;
                     }
                 }
                 vars.receiving.set(0);

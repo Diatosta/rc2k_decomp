@@ -128,13 +128,13 @@ pub fn upload_texture_picture(
             let row: Vec<u8> = match bytes {
                 2 => (0..width)
                     .flat_map(|_| {
-                        (components_to_pixel(&format, source.next().unwrap_or(0)) as u16)
+                        (components_to_pixel(&format, source.next().unwrap_or(0), gfx) as u16)
                             .to_le_bytes()
                     })
                     .collect(),
                 4 => (0..width)
                     .flat_map(|_| {
-                        components_to_pixel(&format, source.next().unwrap_or(0)).to_le_bytes()
+                        components_to_pixel(&format, source.next().unwrap_or(0), gfx).to_le_bytes()
                     })
                     .collect(),
                 _ => return Err(fatal(0x80A1_8775)),

@@ -422,7 +422,7 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
     }
 
     fn sprite(&mut self, glyph: u32, x: i32, y: i32) -> Result<(), Refused> {
-        let call = BlitCall::sprite(glyph, x, y);
+        let call = BlitCall::sprite(self.menus, glyph, x, y, self.canvas.clip_right());
         self.canvas.blit_glyph(call)
     }
 

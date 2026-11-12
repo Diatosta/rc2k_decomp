@@ -362,7 +362,12 @@ fn lights(race: &Race, ui: &Ui) {
 fn checkpoint_place(race: &Race, n: usize) -> Option<[i32; 3]> {
     let face = race.checkpoints().checkpoint_faces.get(n)?.get();
     let point = crate::race::course_places::face_field::<u32>(&race.course, face, 4).ok()?;
-    let place = crate::race::scene_points::point_number(&race.course, point).ok()?;
+    let place = crate::race::scene_points::point_number(
+        &race.course,
+        &crate::race::scene_points::NO_OWN,
+        point,
+    )
+    .ok()?;
     Some(place.map(|v| v as i32))
 }
 

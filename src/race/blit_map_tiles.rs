@@ -35,7 +35,7 @@ pub fn blit_map_tiles(
     let (bytes, pitch, pixels) = (
         drawing.draw_surface.bytes_per_pixel.get(),
         drawing.draw_surface.pitch.get(),
-        crate::gfx::surface::handle()?,
+        crate::gfx::surface::handle(gfx)?,
     );
     let tiles = u32::from(GAME_MAP.is_taken());
     if let Err(e) = check_tiles(pixels, tiles, any_inside(first_x, first_y)) {

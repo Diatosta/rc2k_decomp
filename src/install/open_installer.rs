@@ -77,6 +77,7 @@ pub fn open_installer(
     components_to_pixels(
         crate::text::blend_font::BLENDED_PALETTE.get(),
         crate::text::blend_font::BLENDED_PALETTE.get(),
+        gfx,
     );
     // gfx::load_picture: its carry is not read.
     crate::gfx::load_picture::load_picture_with(&install.names.backdrop, gfx, system)?;
@@ -86,9 +87,9 @@ pub fn open_installer(
         .flags
         .set(gfx.display.mode.mode_flags.get() & 0xFFF);
     crate::gfx::picture_as_surface::picture_as_surface(gfx)?;
-    draw_string(0x94, FONT_94, 0x316, 0x2F)?;
-    draw_string(0x1000, FONT_1000, 0x320, 0x24B)?;
-    draw_string(0x1002, FONT_1002, 0, 0x24B)?;
+    draw_string(0x94, FONT_94, 0x316, 0x2F, gfx)?;
+    draw_string(0x1000, FONT_1000, 0x320, 0x24B, gfx)?;
+    draw_string(0x1002, FONT_1002, 0, 0x24B, gfx)?;
     copy_picture()?;
     show();
     Ok(())

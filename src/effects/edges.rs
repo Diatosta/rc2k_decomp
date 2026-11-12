@@ -7,7 +7,6 @@ use crate::effects::owner::Effects;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::race::owner_course::Course;
 use crate::race::panel_store::Loose32;
 use crate::session::{PlainBytes, PlainDword, PlainFloat, read_bits};
 
@@ -32,14 +31,19 @@ fn clamped(kind: u32) -> u32 {
 /// `set_up_windscreen_drops`, `set_up_windscreen_flakes` (and `nullsub_17`). Refuses a mark neither 0 nor
 /// `resume`, before writing; a picture that is not read (the original then counts
 /// 0x1FFFFFFF down and leaves with its stack one off), after the path is written.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the edges' inputs and the owners they are read from"
+)]
 pub fn load_edges(
-    course: &Course,
+    race: &crate::race::owner::Race,
     masks: &Masks,
     drops: &WindscreenDrops,
     resume: u32,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
     effects: &crate::effects::owner::Effects,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let done: u32 = masks.edge_settings.done.get();
     if done != 0 && done != resume {
@@ -79,7 +83,8 @@ pub fn load_edges(
     gfx.pictures.picture.width.set(0x100u32);
     gfx.pictures.picture.height.set(0x80u32);
     gfx.pictures.picture.row_bytes.set(0xFFFF_FFFEu32);
-    let read = crate::gfx::read_picture_file::read_picture_file(&masks.edge_settings.path, gfx);
+    let read =
+        crate::gfx::read_picture_file::read_picture_file(&masks.edge_settings.path, gfx, system);
     gfx.pictures.picture.width.set(sizes[0]);
     gfx.pictures.picture.height.set(sizes[1]);
     gfx.pictures.picture.row_bytes.set(sizes[2]);
@@ -99,7 +104,7 @@ pub fn load_edges(
         .tilt
         .tilt
         .set(x87::mul(float, masks.edge_settings.tilt_scale.get()));
-    crate::effects::masks::make_masks(course, masks, drops, scene, effects)?;
+    crate::effects::masks::make_masks(&race.course, race.faces(), masks, drops, scene, effects)?;
     crate::effects::shapes::set_up_windscreen_drops(
         drops,
         crate::effects::shapes::WINDSCREEN_DROPS_RESUME,
@@ -119,19 +124,21 @@ pub fn load_edges(
 /// +0x26A8; `nullsub_1` (twice, between them), `load_edges`, `load_splines`. Refuses as
 /// its steps do.
 pub fn load_kind_data(
-    course: &Course,
+    race: &crate::race::owner::Race,
     effects: &Effects,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let (masks, drops) = (&effects.masks, &effects.windscreen_drops);
     {
         let marks = effects.settings()?;
         let kind = marks.mark_car_file_number.get();
         effects.kinds.marks_kind.kind.set_bits(kind);
-        load_edges(course, masks, drops, RESUME, scene, gfx, effects)?;
+        load_edges(race, masks, drops, RESUME, scene, gfx, effects, system)?;
         crate::effects::splines::load_splines(
-            course,
+            &race.course,
+            race.faces(),
             &effects.paths,
             crate::effects::splines::RESUME,
             scene,

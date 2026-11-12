@@ -69,7 +69,14 @@ fn build_text(
 
 /// The rectangle at `texture_rect` filled with colour 0 (`gfx::fill_rect`, palette
 /// `palette`).
-fn fill(race: &Race, x: u32, y: u32, width: u32, height: u32) -> Result<(), Refused> {
+fn fill(
+    race: &Race,
+    x: u32,
+    y: u32,
+    width: u32,
+    height: u32,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), Refused> {
     let panel = race.viewer_panel();
     for (cell, v) in panel.texture_rect.iter().zip([x, y, width, height]) {
         cell.set(v);
@@ -78,6 +85,7 @@ fn fill(race: &Race, x: u32, y: u32, width: u32, height: u32) -> Result<(), Refu
         crate::gfx::rect::rect_of(&panel.texture_rect),
         0,
         crate::gfx::rect::Palette::Of(&race.shared.tyre_change.palette),
+        gfx,
     )
 }
 
@@ -87,8 +95,9 @@ fn text(
     text: impl Into<crate::place::BytePlace>,
     x: u32,
     y: u32,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
-    { crate::race::name_plates::draw_text_in_game(font, text, x, y) }?;
+    { crate::race::name_plates::draw_text_in_game(font, text, x, y, gfx) }?;
     Ok(())
 }
 
@@ -102,11 +111,11 @@ fn three_times(
     let text_stores = &strings.text;
     gfx.fonts.font_block.game_fonts[2].update(|f| f.box_width = 0x168);
     let (mut x, mut y) = (x, y);
-    text(font(gfx), &text_stores.buffer.text, x, y)?;
+    text(font(gfx), &text_stores.buffer.text, x, y, gfx)?;
     for _ in 0..2 {
         x = x.wrapping_sub(0x78);
         y = y.wrapping_add(line(gfx));
-        text(font(gfx), &text_stores.buffer.text, x, y)?;
+        text(font(gfx), &text_stores.buffer.text, x, y, gfx)?;
     }
     Ok(())
 }
@@ -150,7 +159,7 @@ pub fn draw_tyre_change(
                     font,
                     x as i32,
                     y as i32,
-                    &mut crate::text::draw_text::GameCanvas,
+                    &mut crate::text::draw_text::GameCanvas::new(gfx),
                 )?;
                 if n == 0 {
                     set_clip(&gfx.drawing.blit.clip.left, 0x80);
@@ -158,13 +167,19 @@ pub fn draw_tyre_change(
             }
         }
         set_clip(&gfx.drawing.blit.clip.left, 0x80);
-        fill(race, 0x80, 0x32, 0x80, 0x4B)?;
+        fill(race, 0x80, 0x32, 0x80, 0x4B, gfx)?;
         { build_text(strings, 0x12E, Some(shared.tyre_change.record.get())) }?;
         three_times(gfx, strings, 0x84, 0x32)?;
         set_clip(&gfx.drawing.blit.clip.left, 0);
-        fill(race, 0, 0x99, 0x100, 0x19)?;
+        fill(race, 0, 0x99, 0x100, 0x19, gfx)?;
         gfx.fonts.font_block.game_fonts[2].update(|f| f.box_width = 0xF8);
-        text(font(gfx), &race.shared.tyre_change.record_name, 4, 0x99)?;
+        text(
+            font(gfx),
+            &race.shared.tyre_change.record_name,
+            4,
+            0x99,
+            gfx,
+        )?;
         let x = if shared.tyre_change.player.get() == 0 {
             set_clip(&gfx.drawing.blit.clip.right, 0x7F);
             0
@@ -172,7 +187,7 @@ pub fn draw_tyre_change(
             set_clip(&gfx.drawing.blit.clip.left, 0x80);
             0x80
         };
-        fill(race, x, 0xB2, 0x80, 0x4B)?;
+        fill(race, x, 0xB2, 0x80, 0x4B, gfx)?;
         if device.stage.get() == 1 {
             let time = device.clock.get();
             { build_text(strings, 0x12D, Some(time)) }?;

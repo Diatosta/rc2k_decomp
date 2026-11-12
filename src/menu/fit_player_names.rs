@@ -24,7 +24,11 @@ use rc2k_core::menu::text_entry;
 const LONGEST: usize = 0x1000;
 
 /// `menu::fit_name` (0x411474). Returns the width of the name as it is left.
-pub fn fit_name(menus: &'static Menus, player: usize) -> Result<u32, Refused> {
+pub fn fit_name(
+    menus: &'static Menus,
+    player: usize,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<u32, Refused> {
     let at = NameAt::of(player);
     let mut name = at.tail(menus);
     let Some(len) = (0..LONGEST).find(|&n| name.get(n) == Some(&0)) else {
@@ -35,13 +39,16 @@ pub fn fit_name(menus: &'static Menus, player: usize) -> Result<u32, Refused> {
     text_entry::fit_name(len, |len| -> Result<u32, Refused> {
         at.add(len as u32).place(menus).write(&[0], "a name")?;
         name[len] = 0;
-        Ok({ measure_text_at(font, &name, 0, &mut GameCanvas) }?.width)
+        Ok({ measure_text_at(font, &name, 0, &mut GameCanvas::new(gfx)) }?.width)
     })
 }
 
-pub fn fit_player_names(menus: &'static Menus) -> Result<(), Refused> {
+pub fn fit_player_names(
+    menus: &'static Menus,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), Refused> {
     for player in 0..PLAYERS {
-        fit_name(menus, player)?;
+        fit_name(menus, player, gfx)?;
     }
     Ok(())
 }

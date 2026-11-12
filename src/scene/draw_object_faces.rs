@@ -20,6 +20,7 @@ const FACES: u32 = 0xC000;
 // ---- Rust version ----
 
 pub fn draw_object_faces(
+    faces_table: &crate::scene::faces_store::Faces,
     poly: &crate::scene::polygon_work::PolygonWork,
     object: &crate::scene::object_place::ObjectPlace,
     work: &crate::race::face_work::FaceWork,
@@ -36,7 +37,7 @@ pub fn draw_object_faces(
         if number >= FACES {
             return Err(BadInput("a face's number past the table").into());
         }
-        let face = crate::scene::objects::face_cell(number as usize).get() as usize;
+        let face = crate::scene::objects::face_cell(faces_table, number as usize).get() as usize;
         if face == 0 {
             return Err(BadInput("a face that is not there").into());
         }

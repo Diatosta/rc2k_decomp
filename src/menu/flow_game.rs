@@ -345,8 +345,9 @@ impl flow::Game for Game<'_> {
             C::RunFrame => {
                 // `screens::run_frame` with `menu::picture_frame` (whether the frame was
                 // made is not looked at).
-                if let Some(made) = crate::platform::run_frame_now(m::picture_frame::picture_frame)
-                {
+                if let Some(made) = crate::platform::run_frame_now(|| {
+                    m::picture_frame::picture_frame(self.owners.gfx)
+                }) {
                     made?;
                 }
             }

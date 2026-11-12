@@ -124,11 +124,11 @@ pub fn draw_shadow_with(
     let temps = [const { PlainFloat::new(0.0) }; 2];
 
     if depth {
-        crate::scene::depth_buffer_on::depth_buffer(true);
-        crate::scene::depth_test_on::depth_test_on();
+        crate::scene::depth_buffer_on::depth_buffer(ctx.part, true);
+        crate::scene::depth_test_on::depth_test_on(ctx.part);
     }
     for (value, state) in STATES {
-        set_render_state(value, state);
+        set_render_state(ctx.part, value, state);
     }
     for n in 0..2 {
         for k in 0..3 {

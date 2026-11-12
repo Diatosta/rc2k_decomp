@@ -159,5 +159,10 @@ pub fn draw_fan(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     scene: &crate::scene::owner::Scene,
 ) {
-    crate::scene::draw_fan::draw_fan(scene, crate::scene::polygon_work::front_end(), buffer);
+    crate::scene::draw_fan::draw_fan(
+        crate::workers::game_scratch(),
+        scene,
+        crate::scene::polygon_work::front_end(),
+        buffer,
+    );
 }

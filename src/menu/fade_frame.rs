@@ -11,7 +11,7 @@ use crate::owners::Owners;
 /// `picture_frame`, with the fade's overlay drawn in a scene between the unlock and the
 /// showing (`scene::begin_scene` never sets the carry).
 pub fn fade_frame(o: Owners<'static>) -> Result<bool, Refused> {
-    if crate::platform::lock_surface() < 1 {
+    if crate::platform::lock_surface(o.gfx) < 1 {
         return Ok(false);
     }
     {
@@ -19,8 +19,8 @@ pub fn fade_frame(o: Owners<'static>) -> Result<bool, Refused> {
             &mut crate::gfx::copy_picture_to_surface::GameSurface(o.gfx),
         )
     }?;
-    crate::platform::unlock_surface();
-    crate::scene::begin_scene::begin_scene(o.race);
+    crate::platform::unlock_surface(o.gfx);
+    crate::scene::begin_scene::begin_scene(o.race, crate::workers::game_scratch());
     crate::screens::draw_fade_overlay::draw_fade_overlay(o)?;
     crate::scene::end_scene::end_scene();
     Ok(crate::platform::show_frame_now())

@@ -22,7 +22,7 @@ use rc2k_core::net::screens;
 /// `screens::run_frame` by `net::settings_loop`.
 pub fn settings_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (net, install) = (o.net, o.install);
-    if !lock_surface() {
+    if !lock_surface(o.gfx) {
         return Ok(());
     }
     copy_picture()?;
@@ -42,7 +42,7 @@ pub fn settings_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> 
     .enumerate()
     {
         let item = item as u32;
-        y = setting_label(net, install, label, item, y)?;
+        y = setting_label(net, install, label, item, y, o.gfx, o.menus)?;
         y = match value {
             Value::Number(n) => draw_number_value(o, n, item, y)?,
             Value::Text(text) => {
@@ -58,7 +58,7 @@ pub fn settings_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> 
             0x16F,
             PALETTE,
             0x190,
-            &mut GameCanvas,
+            &mut GameCanvas::new(o.gfx),
         )
     }?;
     let width = measured.width;
@@ -67,7 +67,7 @@ pub fn settings_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> 
     let mut at = screens::LAST_ITEM_RIGHT;
     let mut piece = |glyph: u32, step: u32| -> Result<(), Refused> {
         at = at.wrapping_sub(step);
-        blit(glyph, at, 0x21D)
+        blit(glyph, at, 0x21D, o.gfx, o.menus)
     };
     piece(screens::RIGHT_END, screens::END_WIDTH)?;
     // Counted down with `dec` / `jnz`: at least once.
@@ -80,8 +80,8 @@ pub fn settings_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> 
         }
     }
     piece(screens::LEFT_END, screens::END_WIDTH)?;
-    draw_centred_item(net, install, 0x16F, 4, text_x, 0x21D)?;
-    crate::platform::unlock_surface();
+    draw_centred_item(net, install, 0x16F, 4, text_x, 0x21D, o.gfx)?;
+    crate::platform::unlock_surface(o.gfx);
     crate::platform::show_frame_now();
     Ok(())
 }

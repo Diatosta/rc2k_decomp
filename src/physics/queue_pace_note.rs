@@ -28,6 +28,10 @@ const WORDS: [&std::ffi::CStr; 4] = [c"!!! invalid pace data", c"data", c"ecx", 
 /// The pace notes of checkpoint `checkpoint` , each cued
 /// (`physics::cue_listed_car_sound_last`) and queued (`physics::queue_listed_event`).
 // Converted: `rc2k_core::physics::pace_calls::{find_group, code, text_place}`.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the race's tables the note reads, and the owners"
+)]
 pub fn queue_pace_note(
     physics: &Physics,
     frame_work: &FrameWork,
@@ -36,6 +40,7 @@ pub fn queue_pace_note(
     car: &Car,
     checkpoint: u32,
     sound: &crate::sound::owner::Sound,
+    audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     let physics_store = physics;
     use crate::logfile::log_int::log_int;
@@ -68,7 +73,7 @@ pub fn queue_pace_note(
             }
             Code::Call => {
                 crate::physics::cue_listed_car_sound_last::cue_listed_car_sound_last(
-                    frame_work, work, byte, sound,
+                    frame_work, work, byte, sound, audio,
                 )?;
                 {
                     crate::physics::queue_listed_event::queue_listed_event(

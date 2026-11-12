@@ -79,8 +79,10 @@ impl LightRecords {
 
 /// The piece: a field of `Frame::lights_and_gear` since 2026-10-29 (it left the race
 /// block with its group, phase 13).
+#[cfg(test)]
 pub struct InGroup;
 
+#[cfg(test)]
 impl core::ops::Deref for InGroup {
     type Target = LightRecords;
     fn deref(&self) -> &LightRecords {
@@ -88,6 +90,7 @@ impl core::ops::Deref for InGroup {
     }
 }
 
+#[cfg(test)]
 pub static LIGHT_RECORDS: InGroup = InGroup;
 
 /// IDA 0x5C906C, the first byte of the piece.

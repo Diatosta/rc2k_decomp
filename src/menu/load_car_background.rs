@@ -57,7 +57,7 @@ pub fn load_car_background_in_game(
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     load_car_background(menus, &mut |path| {
-        load_background_in(&path, &mut GameCanvas, gfx, system)?;
+        load_background_in(&path, &mut GameCanvas::new(gfx), menus, gfx, system)?;
         Ok(false)
     })
 }

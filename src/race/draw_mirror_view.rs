@@ -48,9 +48,9 @@ pub fn draw_mirror_view(
     let saved = view.vars.view_scale.get();
     view.vars.view_scale.set(race.course.numbers.k256.get());
     let drawn = (|| {
-        crate::race::frame_views::mirror_view_window(race, scene, system, view)?;
+        crate::race::frame_views::mirror_view_window(race, scene, system, view, part)?;
         view.polygon.window.view_depth[1].set(view.course.view_value_kept.get());
-        crate::race::frame_flush::draw_view_backdrop(race, scene, view, part.vertices);
+        crate::race::frame_flush::draw_view_backdrop(race, scene, view, part);
         crate::race::draw_view_scene::draw_view_scene(race, scene, system, view, part)
     })();
     view.vars.view_scale.set(saved);

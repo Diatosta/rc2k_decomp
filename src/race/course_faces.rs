@@ -29,13 +29,13 @@ fn table_byte(
 
 /// `race::face_depth_test_off` (0x452358): with no texture animation (`texture_a` 0) and
 /// `g_polygonMode` 4, the depth test off and `depth_test` 1.
-pub fn face_depth_test_off(face: &FaceWork) {
+pub fn face_depth_test_off(face: &FaceWork, part: &crate::workers::PartScratch) {
     {
         // Converted: `rc2k_core::race::faces::depth_test_off`.
         if !rc2k_core::race::faces::depth_test_off(face.texture_a.get(), face.polygon_mode.get()) {
             return;
         }
-        crate::scene::depth_test_off::depth_test_off();
+        crate::scene::depth_test_off::depth_test_off(part);
         face.depth_test.set(1u32);
     }
 }
@@ -43,11 +43,11 @@ pub fn face_depth_test_off(face: &FaceWork) {
 /// `race::face_depth_test_on` (0x45237A): depth writing back on when `face_depth_test_off` turned
 /// it off (`depth_test` set), then `depth_test` 0. Fixed: the original's test is the wrong way
 /// round (on only when it was not turned off), `wiki/Fixed-bugs.md`.
-pub fn face_depth_test_on(face: &FaceWork) {
+pub fn face_depth_test_on(face: &FaceWork, part: &crate::workers::PartScratch) {
     {
         // Converted: `rc2k_core::race::faces::depth_test_on`.
         if rc2k_core::race::faces::depth_test_on(face.depth_test.get()) {
-            crate::scene::depth_test_on::depth_test_on();
+            crate::scene::depth_test_on::depth_test_on(part);
         }
         face.depth_test.set(0u32);
     }
@@ -75,6 +75,7 @@ fn face_turned_to_view(race: &Race, face: &[u32], half: u32) -> Result<u32, BadI
     }
     turned_to_view(
         race,
+        &crate::race::scene_points::NO_OWN,
         &Face(bytes),
         (half / 4) as usize,
         &race.frame.view_and_records.view_vars.view_place_f,
@@ -85,6 +86,7 @@ fn face_turned_to_view(race: &Race, face: &[u32], half: u32) -> Result<u32, BadI
 /// `place`: the view's place as floats (`ViewScratch::vars`).
 fn turned_to_view(
     race: &Race,
+    points: &crate::race::scene_points::OwnPoints,
     f: &Face,
     triangle: usize,
     place: &[Float; 3],
@@ -96,7 +98,7 @@ fn turned_to_view(
         }
         let p = f.point(1 + triangle);
         let normal = f.normal(triangle);
-        let at = crate::race::scene_points::point_number(&race.course, p)?;
+        let at = crate::race::scene_points::point_number(&race.course, points, p)?;
         let along = |k: usize, view_at: &Float, normal: u32| -> Result<_, BadInput> {
             Ok((int(at[k] as i32) - view_at.ld()) * ld(normal))
         };
@@ -115,10 +117,22 @@ fn turned_to_view(
 pub fn face_sides(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), BadInput> {
     let (race, work) = (ctx.race, &ctx.view.face);
     {
-        work.turned[0].set(turned_to_view(race, face, 0, &ctx.view.vars.view_place_f)?);
+        work.turned[0].set(turned_to_view(
+            race,
+            &ctx.part.points,
+            face,
+            0,
+            &ctx.view.vars.view_place_f,
+        )?);
         work.turned[1].set(1u32);
         if work.corners[3].get() != u32::MAX {
-            work.turned[1].set(turned_to_view(race, face, 1, &ctx.view.vars.view_place_f)?);
+            work.turned[1].set(turned_to_view(
+                race,
+                &ctx.part.points,
+                face,
+                1,
+                &ctx.view.vars.view_place_f,
+            )?);
         }
     }
     Ok(())
@@ -222,13 +236,14 @@ fn point_light(ctx: &DrawCtx<'_>, n: u32) -> Result<u32, Refused> {
     if n == u32::MAX {
         return Ok(0);
     }
-    let [x, y, z] = crate::race::scene_points::point_number(&race.course, n)?;
+    let [x, y, z] = crate::race::scene_points::point_number(&race.course, &ctx.part.points, n)?;
     ctx.view.light.lit_place[0].set(x);
     ctx.view.light.lit_place[1].set(y);
     ctx.view.light.lit_place[2].set(z);
     crate::race::frame_draw::light_colour_at(
         race,
         scene,
+        &ctx.part.points,
         &ctx.view.lamps,
         &ctx.view.light,
         ctx.view.drawn_view(race),
@@ -456,6 +471,7 @@ fn info_bytes<const N: usize>(texture: u32, offset: u32) -> Result<[u8; N], BadI
 /// corner read even when it is -1: `notes/bugs.md`).
 pub fn face_texture_coordinates(
     course: &Course,
+    points: &crate::race::scene_points::OwnPoints,
     shared: &RaceShared,
     work: &FaceWork,
     set: &TextureSet<'_>,
@@ -480,7 +496,7 @@ pub fn face_texture_coordinates(
         let trap = Trap::new();
         let c = texture_coordinates(texture_info, pairs, |k| {
             let n: u32 = work.corners[k].get();
-            crate::race::scene_points::point_xz(course, n).unwrap_or_else(|e| {
+            crate::race::scene_points::point_xz(course, points, n).unwrap_or_else(|e| {
                 trap.keep(e);
                 (0, 0)
             })
@@ -516,7 +532,7 @@ pub fn face_corners_to_new_points(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
             )?;
         }
         for (k, (from, to)) in copies.into_iter().enumerate() {
-            crate::race::scene_points::copy_point(course, from, to)?;
+            crate::race::scene_points::copy_point(course, &ctx.part.points, from, to)?;
             work.corners[k].set(to);
         }
         Ok(())
@@ -720,18 +736,30 @@ pub fn draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     }
     face_switches(&ctx.view.polygon, &ctx.view.face);
     if ctx.view.face.texture_a.get() != 0 {
-        face_texture_coordinates(&race.course, &race.shared, &ctx.view.face, &first_set(ctx))?;
+        face_texture_coordinates(
+            &race.course,
+            &ctx.part.points,
+            &race.shared,
+            &ctx.view.face,
+            &first_set(ctx),
+        )?;
     }
     ctx.view.face.polygon_mode.set(PLAIN_MODE);
     if second != 0 {
         ctx.view.face.polygon_mode.set(face_mode(second, picked));
         trap.finish()?;
-        face_texture_coordinates(&race.course, &race.shared, &ctx.view.face, &second_set(ctx))?;
+        face_texture_coordinates(
+            &race.course,
+            &ctx.part.points,
+            &race.shared,
+            &ctx.view.face,
+            &second_set(ctx),
+        )?;
     }
     face_lights(ctx)?;
-    face_depth_test_off(&ctx.view.face);
+    face_depth_test_off(&ctx.view.face, ctx.part);
     draw_face_polygons(ctx)?;
-    face_depth_test_on(&ctx.view.face);
+    face_depth_test_on(&ctx.view.face, ctx.part);
     Ok(())
 }
 
@@ -861,8 +889,8 @@ pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         let pa = entry(ctx.part.polygon, first).point.get();
         let pb = entry(ctx.part.polygon, second).point.get();
         let (at_a, at_b) = (
-            crate::race::scene_points::point_number(&race.course, pa)?,
-            crate::race::scene_points::point_number(&race.course, pb)?,
+            crate::race::scene_points::point_number(&race.course, &ctx.part.points, pa)?,
+            crate::race::scene_points::point_number(&race.course, &ctx.part.points, pb)?,
         );
         for (n, lit) in ctx.view.light.lit_place.iter().enumerate() {
             let o = 4 * n as u32;
@@ -897,6 +925,7 @@ pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         crate::race::frame_draw::light_colour_at(
             race,
             scene,
+            &ctx.part.points,
             &ctx.view.lamps,
             &ctx.view.light,
             ctx.view.drawn_view(race),

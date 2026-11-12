@@ -25,18 +25,18 @@ pub fn put_surface_pixel(
     if components != 0 && format == 0 {
         return Err(BadInput("no surface format").into());
     }
-    if crate::gfx::surface::handle()? == 0 {
+    if crate::gfx::surface::handle(gfx)? == 0 {
         return Err(BadInput("no surface").into());
     }
     let pixel = if components == 0 {
         0
     } else {
-        components_to_pixel(&crate::gfx::pixel_format::layout(format)?, components)
+        components_to_pixel(&crate::gfx::pixel_format::layout(format)?, components, gfx)
     };
     // Converted: `rc2k_core::gfx::picture_size::pixel_place` (row y at y x the pitch).
     let (at, wide) =
         rc2k_core::gfx::picture_size::pixel_place(drawing.draw_surface.bits_per_pixel.get(), x);
-    let place = crate::gfx::rows::Rows::surface()?.at(y, at)?;
+    let place = crate::gfx::rows::Rows::surface(gfx)?.at(y, at)?;
     if wide == 2 {
         place.write(pixel as u16, "a surface's pixel")?;
     } else {

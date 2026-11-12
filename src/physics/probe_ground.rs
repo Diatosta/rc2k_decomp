@@ -200,18 +200,19 @@ pub fn probe_ground(
 
 /// The same for the drawing (`race::face_hide_mask`): its ground search, its probe lists and
 /// its work values on fields of its own, not the physics' work and `g_scratch` (nothing the
-/// drawing does reads them after).
+/// drawing does reads them after), the scene points through the drawing part's `points`.
 pub fn probe_ground_in_view(
     c: &GroundInputs<'_>,
     car: &Car,
     scene: &crate::scene::owner::Scene,
+    points: &crate::race::scene_points::OwnPoints,
 ) -> Result<(), Refused> {
     let ground = crate::physics::ground_query::GroundCells::new();
     probe_ground_at(
         c,
         car,
         scene,
-        &ground.query(),
+        &ground.query(points),
         &ContactWork::new(),
         &crate::session::Dword::new(0),
     )

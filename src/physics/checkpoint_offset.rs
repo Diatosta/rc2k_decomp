@@ -38,10 +38,20 @@ pub fn checkpoint_offset(
     let point = crate::race::course_places::face_field::<u32>(course, face, 4)?;
     let x = car.position[0]
         .get()
-        .wrapping_sub(crate::race::scene_points::point_word(course, point, 0)?);
+        .wrapping_sub(crate::race::scene_points::point_word(
+            course,
+            &crate::race::scene_points::NO_OWN,
+            point,
+            0,
+        )?);
     let z = car.position[2]
         .get()
-        .wrapping_sub(crate::race::scene_points::point_word(course, point, 2)?);
+        .wrapping_sub(crate::race::scene_points::point_word(
+            course,
+            &crate::race::scene_points::NO_OWN,
+            point,
+            2,
+        )?);
     let [x2, _, z2, _] =
         rotate_point_about_y(x as i32, point as i32, z as i32, angle.wrapping_neg());
     car.checkpoint_offset[0].set(x2);

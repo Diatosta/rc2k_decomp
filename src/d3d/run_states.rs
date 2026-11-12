@@ -8,10 +8,11 @@
 //! when the runs are joined, its fans before that point get the value the earlier runs
 //! left (`patch`), and the states it set go into the store whatever their value (`carry`).
 
-use std::cell::RefCell;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering::Relaxed};
 
 use crate::render::{Command, STATES};
+use crate::workers::PartScratch;
 
 type States = [u32; STATES];
 
@@ -23,46 +24,67 @@ pub struct RunStates {
     left: crate::d3d::render_cache::Cache,
 }
 
-struct Current {
+/// A drawing part's run under way (`workers::PartScratch::run`): where it first set each
+/// state. Only a part other than the first has one; only the thread drawing it reaches it
+/// while it is under way.
+pub struct OwnRun {
+    on: AtomicBool,
     /// The noted commands' count as the run began.
-    base: usize,
-    first_set: [usize; STATES],
+    base: AtomicUsize,
+    first_set: [AtomicUsize; STATES],
 }
 
-thread_local! {
-    static CURRENT: RefCell<Option<Current>> = const { RefCell::new(None) };
-}
-
-/// A run begins on this thread, its cache starting as `start`.
-pub fn begin_run(start: &crate::d3d::render_cache::Cache) {
-    crate::d3d::render_cache::begin(start);
-    let base = crate::platform_3d::noted_len();
-    CURRENT.set(Some(Current {
-        base,
-        first_set: [usize::MAX; STATES],
-    }));
-}
-
-/// The run on this thread is over: where it set its states.
-pub fn end_run() -> RunStates {
-    let first_set = CURRENT.take().map_or([usize::MAX; STATES], |c| c.first_set);
-    RunStates {
-        first_set,
-        left: crate::d3d::render_cache::end(),
+impl OwnRun {
+    pub const fn new() -> Self {
+        Self {
+            on: AtomicBool::new(false),
+            base: AtomicUsize::new(0),
+            first_set: [const { AtomicUsize::new(usize::MAX) }; STATES],
+        }
     }
 }
 
-/// `state` set (whatever its value, and whether it changed or not) in the run on this
-/// thread, if one is under way.
-pub fn note_set(state: usize) {
-    CURRENT.with_borrow_mut(|c| {
-        if let Some(c) = c
-            && state < STATES
-            && c.first_set[state] == usize::MAX
-        {
-            c.first_set[state] = crate::platform_3d::noted_len().saturating_sub(c.base);
-        }
-    });
+impl Default for OwnRun {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Part `part`'s run begins on this thread, its cache starting as `start`.
+pub fn begin_run(part: &PartScratch, start: &crate::d3d::render_cache::Cache) {
+    crate::d3d::render_cache::begin(part, start);
+    let run = &part.run;
+    run.base.store(crate::platform_3d::noted_len(), Relaxed);
+    for f in &run.first_set {
+        f.store(usize::MAX, Relaxed);
+    }
+    run.on.store(true, Relaxed);
+}
+
+/// Part `part`'s run is over: where it set its states.
+pub fn end_run(part: &PartScratch) -> RunStates {
+    let run = &part.run;
+    let first_set = if run.on.swap(false, Relaxed) {
+        std::array::from_fn(|i| run.first_set[i].load(Relaxed))
+    } else {
+        [usize::MAX; STATES]
+    };
+    RunStates {
+        first_set,
+        left: crate::d3d::render_cache::end(part),
+    }
+}
+
+/// `state` set (whatever its value, and whether it changed or not) in `part`'s run, if one is
+/// under way.
+pub fn note_set(part: &PartScratch, state: usize) {
+    let run = &part.run;
+    if run.on.load(Relaxed) && state < STATES && run.first_set[state].load(Relaxed) == usize::MAX {
+        run.first_set[state].store(
+            crate::platform_3d::noted_len().saturating_sub(run.base.load(Relaxed)),
+            Relaxed,
+        );
+    }
 }
 
 /// The run's fans before its own setting of a state given `carried`'s value of it (the
@@ -98,23 +120,28 @@ pub fn patch(noted: &mut [Command], run: &RunStates, carried: &[u32; STATES]) {
     }
 }
 
-/// The states a run set, as it left them, into the store, and its texture if it changed
-/// from `start`'s.
-pub fn carry(run: &RunStates, start: &crate::d3d::render_cache::Cache) {
+/// The states a run set, as it left them, into the store `cards`, and its texture if it
+/// changed from `start`'s.
+pub fn carry(
+    cards: &crate::d3d::cards_store::Cards3d,
+    run: &RunStates,
+    start: &crate::d3d::render_cache::Cache,
+) {
     for (i, &f) in run.first_set.iter().enumerate() {
         if f != usize::MAX {
             crate::d3d::render_cache::put_kept(
+                cards,
                 i,
                 crate::d3d::render_cache::left_kept(&run.left, i),
             );
         }
     }
-    crate::d3d::render_cache::merge_texture(&run.left, start);
+    crate::d3d::render_cache::merge_texture(cards, &run.left, start);
 }
 
-/// The store's states now: what the runs merged so far left.
-pub fn carried() -> [u32; STATES] {
-    crate::d3d::render_cache::all_kept()
+/// The store's (`cards`) states now: what the runs merged so far left.
+pub fn carried(cards: &crate::d3d::cards_store::Cards3d) -> [u32; STATES] {
+    crate::d3d::render_cache::stored_kept(cards)
 }
 
 #[cfg(test)]
@@ -140,7 +167,7 @@ mod tests {
         first_set[14] = 2; // set before the third fan
         let run = RunStates {
             first_set,
-            left: crate::d3d::render_cache::current(),
+            left: crate::d3d::render_cache::current(&crate::d3d::owner::D3D.cards),
         };
         let mut carried = [1; STATES];
         carried[14] = 0;

@@ -19,17 +19,11 @@
 //! objects whose methods note their arguments.
 
 use crate::errors::Refused;
-use crate::session::PlainDword;
 use crate::session::{Bytes, Dword};
 use rc2k_core::fatal::Context;
 
 // ---- game data (IDA addresses) ----
 
-pub const SPRITES: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .loop_flags
-    .sprite_table; // g_spriteTable
 pub const PALETTE: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::MEASURE_23;
 pub const FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEADING_23;
 
@@ -73,8 +67,21 @@ pub fn store_text(
 /// `gfx::blit_glyph` of the sprite `glyph` of the sprite table (`g_spriteTable`) at (`x`,
 /// `y`). (The original hands each the palette the blit before left, which the sprites, direct
 /// colour, never look at.)
-pub fn blit(glyph: u32, x: u32, y: u32) -> Result<(), Refused> {
-    crate::gfx::blit_glyph::blit_glyph_on_surface(glyph, SPRITES.get(), x as i32, y as i32, None)
+pub fn blit(
+    glyph: u32,
+    x: u32,
+    y: u32,
+    gfx: &crate::gfx::owner::Gfx,
+    menus: &crate::menu::owner::Menus,
+) -> Result<(), Refused> {
+    crate::gfx::blit_glyph::blit_glyph_on_surface(
+        glyph,
+        crate::gfx::blit_marker_pair::sprite_table(menus),
+        x as i32,
+        y as i32,
+        None,
+        gfx,
+    )
 }
 
 /// `logfile::log_write_l<level>[_nl]` on a text in hand (up to its NUL or its end).
@@ -138,8 +145,8 @@ pub fn other_key(o: crate::owners::Owners<'static>, key: u8) -> Result<(), Refus
 }
 
 /// `gfx::lock_surface`: whether it is locked (the original's carry clear).
-pub fn lock_surface() -> bool {
-    crate::platform::lock_surface() >= 1
+pub fn lock_surface(gfx: &crate::gfx::owner::Gfx) -> bool {
+    crate::platform::lock_surface(gfx) >= 1
 }
 
 /// `gfx::copy_picture_to_surface`.
@@ -158,13 +165,14 @@ pub fn draw_string(
     font: crate::gfx::typefaces::FontId,
     x: u32,
     y: u32,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     crate::text::draw_string_by_id::draw_string_by_id_at(
         id,
         font,
         x as i32,
         y as i32,
-        &mut crate::text::draw_text::GameCanvas,
+        &mut crate::text::draw_text::GameCanvas::new(gfx),
     )?;
     Ok(())
 }

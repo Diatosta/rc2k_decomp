@@ -85,7 +85,7 @@ pub fn choose_session(
         .clock_a
         .set(crate::system::tick_count::tick_count());
     loop {
-        run_frame(|| crate::net::sessions_frame::sessions_frame(net, install))?;
+        run_frame(|| crate::net::sessions_frame::sessions_frame(net, install, o.gfx))?;
         let tick = crate::system::tick_count::tick_count();
         if (tick
             .wrapping_sub(net.edit().clock_a.get())

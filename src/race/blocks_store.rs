@@ -27,8 +27,10 @@ const _: () = assert!(core::mem::size_of::<CarBlocks>() == 0xA0D0);
 /// its group, phase 13). One copy: no drawing part writes it (each view draws its own car,
 /// `ViewScratch::car`; the view's value for its block is stored by the game's thread,
 /// `ViewOutput::store_view_value`; the write watch's carried census, frame plan F7).
+#[cfg(test)]
 pub struct InGroup;
 
+#[cfg(test)]
 impl core::ops::Deref for InGroup {
     type Target = CarBlocks;
     #[inline]
@@ -37,6 +39,7 @@ impl core::ops::Deref for InGroup {
     }
 }
 
+#[cfg(test)]
 pub static CAR_BLOCKS: InGroup = InGroup;
 
 /// IDA 0x70F3EC, the first byte of the piece.
@@ -109,7 +112,12 @@ pub fn block_of(handle: u32) -> u32 {
 
 /// The handle of the block `car`; a car that is none of the blocks ends the program.
 pub fn handle_of_car(car: &Car) -> u32 {
-    match CAR_BLOCKS.cars.iter().position(|c| core::ptr::eq(c, car)) {
+    match race()
+        .car_blocks()
+        .cars
+        .iter()
+        .position(|c| core::ptr::eq(c, car))
+    {
         Some(n) => BLOCK_TAG | n as u32,
         None => crate::fatal::raise::end(
             "race::blocks_store::handle_of_car",
@@ -138,7 +146,7 @@ pub fn own_car_number() -> usize {
 /// The block a handle names, none for 0; a value naming no block ends the program (as
 /// `block_of`).
 pub fn car_of(handle: u32) -> Option<&'static Car> {
-    (block_of(handle) != 0).then(|| &CAR_BLOCKS.cars[(handle ^ BLOCK_TAG) as usize])
+    (block_of(handle) != 0).then(|| &race().car_blocks().cars[(handle ^ BLOCK_TAG) as usize])
 }
 
 /// The number of the block a handle names; refused for 0 (the address version found no car
@@ -170,7 +178,7 @@ const _: () = assert!(
 
 /// `own_car_number`'s block.
 pub fn own_car() -> &'static Car {
-    &CAR_BLOCKS.cars[own_car_number()]
+    &race().car_blocks().cars[own_car_number()]
 }
 
 /// Where block `n` is now; `n` unchecked, as the game's `0x70F3EC + 0xFE0 n` (an address

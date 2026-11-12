@@ -136,7 +136,8 @@ fn draw_description(
     let desc = read(0x3C)?;
     let byte = |o: u32| desc[o as usize] as u32;
     let get = |o: usize| u32::from_le_bytes(desc[o..o + 4].try_into().unwrap());
-    let at: [u32; 3] = crate::race::scene_points::point_number(&race.course, place)?;
+    let at: [u32; 3] =
+        crate::race::scene_points::point_number(&race.course, &ctx.part.points, place)?;
     ctx.view.object.place[0].set(at[0].wrapping_add(get(0x30)));
     ctx.view.object.place[1].set(at[1].wrapping_add(get(0x34)));
     ctx.view.object.place[2].set(at[2].wrapping_add(get(0x38)));

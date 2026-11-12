@@ -42,6 +42,12 @@ pub fn draw_setting_value(
             plain
         }
     };
-    crate::text::draw_text::draw_text_at(FONT, &shown, 0x190, y as i32, &mut GameCanvas)?;
+    crate::text::draw_text::draw_text_at(
+        FONT,
+        &shown,
+        0x190,
+        y as i32,
+        &mut GameCanvas::new(o.gfx),
+    )?;
     Ok(y.wrapping_add(0x1E))
 }

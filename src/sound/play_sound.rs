@@ -7,7 +7,7 @@
 //! place values are the sound's place and the pan is 0.
 //! 14 callers.
 
-use crate::audio::owner::{Audio, audio};
+use crate::audio::owner::Audio;
 use crate::sound::queue::send_command_in;
 use rc2k_core::audio::commands::{Command, Start};
 
@@ -35,9 +35,4 @@ pub fn play_sound_in(audio: &Audio, sound: u32, volume: u32, rate: u32, place: [
             }),
         );
     }
-}
-
-/// `play_sound_in` for the callers outside the sound module.
-pub fn play_sound(sound: u32, volume: u32, rate: u32, place: [u32; 3]) {
-    play_sound_in(audio(), sound, volume, rate, place);
 }

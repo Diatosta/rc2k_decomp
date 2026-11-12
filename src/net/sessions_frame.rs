@@ -9,11 +9,19 @@ use crate::errors::Refused;
 use crate::install::owner::Install;
 use crate::net::connections_frame::list_frame;
 use crate::net::owner::Net;
-pub fn sessions_frame(net: &Net, install: &Install) -> Result<(), Refused> {
+pub fn sessions_frame(
+    net: &Net,
+    install: &Install,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), Refused> {
     let vars = &net.vars;
     // Converted: `rc2k_core::net::screens::sessions_title`.
     let title = rc2k_core::net::screens::sessions_title(vars.sessions.get());
-    list_frame(install, title, &vars.sessions, |n| {
-        crate::net::tables::with_session(vars, n, |s| s.name)
-    })
+    list_frame(
+        install,
+        title,
+        &vars.sessions,
+        |n| crate::net::tables::with_session(vars, n, |s| s.name),
+        gfx,
+    )
 }

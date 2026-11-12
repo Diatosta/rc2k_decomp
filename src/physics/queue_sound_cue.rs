@@ -46,7 +46,12 @@ fn dword(q: &CueQueue, i: u32) -> Result<&Dword, BadInput> {
 /// no caller reads (both callers keep theirs); the sound it stops on the way (a queue
 /// begun again) goes as a volume of 0, of which the audio thread reads only the sound.
 // Converted: `rc2k_core::physics::sound_queue::{check_cue, place, sounds}`.
-pub fn queue_sound_cue(first: bool, cue: u32, object: &SoundObject) -> Result<(), Refused> {
+pub fn queue_sound_cue(
+    first: bool,
+    cue: u32,
+    object: &SoundObject,
+    audio: &crate::audio::owner::Audio,
+) -> Result<(), Refused> {
     check_cue(cue)?;
     let q = &object.cue_queue;
     let count = q.count.get();
@@ -58,7 +63,7 @@ pub fn queue_sound_cue(first: bool, cue: u32, object: &SoundObject) -> Result<()
         CuePlacement::First { count } => {
             // The playing sound: the first cue's sound at its place (+0x18 + place x 4).
             let playing = dword(q, q.place.get().wrapping_add(6))?.get();
-            crate::sound::turn_parts::play(playing, 0, 0, [0; 3]);
+            crate::sound::turn_parts::play(audio, playing, 0, 0, [0; 3]);
             q.place.set(u32::MAX);
             // The entries moved up one, from the last dword down (`std`, `rep movsd`).
             let n = count.wrapping_mul(ENTRY_DWORDS);

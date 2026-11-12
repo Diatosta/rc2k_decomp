@@ -116,11 +116,21 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                 break 'face count_down(&mut bytes);
             }
             let point_number = at(&race.course, f, 4)?;
-            let dx = crate::race::scene_points::point_word(&race.course, point_number, 0)?
-                .wrapping_sub(race.car_blocks().cars[0].position[0].get());
+            let dx = crate::race::scene_points::point_word(
+                &race.course,
+                &crate::race::scene_points::NO_OWN,
+                point_number,
+                0,
+            )?
+            .wrapping_sub(race.car_blocks().cars[0].position[0].get());
             scene.drawing.scene.scratch.set(dx);
-            let dz = crate::race::scene_points::point_word(&race.course, point_number, 2)?
-                .wrapping_sub(race.car_blocks().cars[0].position[2].get());
+            let dz = crate::race::scene_points::point_word(
+                &race.course,
+                &crate::race::scene_points::NO_OWN,
+                point_number,
+                2,
+            )?
+            .wrapping_sub(race.car_blocks().cars[0].position[2].get());
             scene.drawing.scene.scratch.set(dz);
             let d = crate::math::x87::int_hypot(dx as i32, dz as i32) as u32;
             race.physics.contact.lit_face_distance.set(d);
@@ -178,12 +188,22 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                     )?;
                     let p = at(&race.course, f, 4)?;
                     race.physics.ground.ground_x.set(
-                        crate::race::scene_points::point_word(&race.course, p, 0)?
-                            .wrapping_add(at(&race.course, f, 0x30)?),
+                        crate::race::scene_points::point_word(
+                            &race.course,
+                            &crate::race::scene_points::NO_OWN,
+                            p,
+                            0,
+                        )?
+                        .wrapping_add(at(&race.course, f, 0x30)?),
                     );
                     race.physics.ground.ground_z.set(
-                        crate::race::scene_points::point_word(&race.course, p, 2)?
-                            .wrapping_add(at(&race.course, f, 0x38)?),
+                        crate::race::scene_points::point_word(
+                            &race.course,
+                            &crate::race::scene_points::NO_OWN,
+                            p,
+                            2,
+                        )?
+                        .wrapping_add(at(&race.course, f, 0x38)?),
                     );
                     race.course
                         .course
@@ -200,7 +220,12 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                         f,
                         0x34,
                         race.physics.ground.ground_height.get().wrapping_sub(
-                            crate::race::scene_points::point_word(&race.course, p, 1)?,
+                            crate::race::scene_points::point_word(
+                                &race.course,
+                                &crate::race::scene_points::NO_OWN,
+                                p,
+                                1,
+                            )?,
                         ),
                     )?;
                     if race.course.course.ground_slot.get() == u32::MAX {

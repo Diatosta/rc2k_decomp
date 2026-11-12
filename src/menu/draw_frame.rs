@@ -21,11 +21,11 @@ pub fn draw_frame(
         return Ok(());
     }
     copy_picture()?;
-    if lock_failed() {
+    if lock_failed(o.gfx) {
         return Ok(());
     }
     draw_menu(o, menu)?;
     crate::menu::run_draw_list::run_draw_list(o)?;
-    crate::platform::unlock_surface();
+    crate::platform::unlock_surface(o.gfx);
     Ok(())
 }

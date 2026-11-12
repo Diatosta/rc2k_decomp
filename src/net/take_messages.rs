@@ -60,7 +60,10 @@ fn get8(vars: &NetVars, at: usize) -> Result<u8, BadInput> {
 fn after_first(vars: &NetVars, length: usize) -> Result<Vec<u8>, BadInput> {
     vars.receive_data.read_at(1, length, "a received message")
 }
-pub fn take_messages(net: &Net) -> Result<(), Refused> {
+pub fn take_messages(
+    net: &Net,
+    panel: &crate::race::viewer_screen_store::ViewerPanelBlock,
+) -> Result<(), Refused> {
     if net.vars.players.get() > MOST_PLAYERS {
         return Err(BadInput("take_messages: more than 16 players").into());
     }
@@ -73,7 +76,7 @@ pub fn take_messages(net: &Net) -> Result<(), Refused> {
             .messages_taken
             .set(net.vars.messages_taken.get().wrapping_add(1));
         if m.from == 0 {
-            system_message(&net.vars)?;
+            system_message(&net.vars, panel)?;
             continue;
         }
         // The sender among the players (the first compared even with none).

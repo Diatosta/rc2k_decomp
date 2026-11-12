@@ -176,6 +176,7 @@ pub fn work_put(masks: &Masks, at: u32, v: u32) -> Result<(), BadInput> {
 /// frees with its own).
 pub fn make_masks(
     course: &Course,
+    faces_table: &crate::scene::faces_store::Faces,
     masks: &Masks,
     drops: &WindscreenDrops,
     scene: &crate::scene::owner::Scene,
@@ -188,7 +189,7 @@ pub fn make_masks(
     masks
         .work
         .take(list, WORK_LEN, vec![0; WORK_LEN as usize / 4])?;
-    crate::effects::shape_points::make_shape_sets(course, drops, scene, effects)?;
+    crate::effects::shape_points::make_shape_sets(course, faces_table, drops, scene, effects)?;
     crate::effects::corners::make_corners(masks, drops, effects)?;
     reset_mask_cursor(masks);
     for (n, (shape, angles)) in masks.vars.shapes.iter().zip(ring_angles).enumerate() {

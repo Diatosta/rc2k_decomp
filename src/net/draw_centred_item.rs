@@ -22,6 +22,7 @@ pub fn draw_centred_item(
     item: u32,
     x: u32,
     y: u32,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<u32, Refused> {
     // Converted: `rc2k_core::net::screens::item_lit` (in `item_font`).
     let font = item_font(net, install, item, PLAIN, LIT);
@@ -31,7 +32,7 @@ pub fn draw_centred_item(
         font,
         x as i32,
         y as i32,
-        &mut GameCanvas,
+        &mut GameCanvas::new(gfx),
     )?;
     Ok(next)
 }

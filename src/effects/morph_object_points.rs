@@ -112,6 +112,7 @@ fn refusal(
 
 pub fn morph_object_points(
     course: &Course,
+    faces_table: &crate::scene::faces_store::Faces,
     paths: &Paths,
     scene: &Scene,
     effects: &crate::effects::owner::Effects,
@@ -143,7 +144,7 @@ pub fn morph_object_points(
                 }
             }
         }
-        measure_lines(course, paths, scene, effects)?;
+        measure_lines(course, faces_table, paths, scene, effects)?;
     }
     Ok(())
 }

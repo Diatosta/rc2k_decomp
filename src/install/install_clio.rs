@@ -113,11 +113,12 @@ fn work(
 pub fn install_clio(
     install: &'static crate::install::owner::Install,
     system: &crate::system::owner::System,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
-    if lock() {
+    if lock(gfx) {
         copy_picture()?;
-        draw_string(0xBE, FONT_BE, 0x1A9, 0x113)?;
-        unlock();
+        draw_string(0xBE, FONT_BE, 0x1A9, 0x113, gfx)?;
+        unlock(gfx);
         show();
         sleep(1000);
     }

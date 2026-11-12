@@ -70,6 +70,6 @@ pub fn picture_as_surface(gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
         std::sync::atomic::Ordering::Relaxed,
     );
     s.row_gap.set(block[9]);
-    set_clip([s.x.get(), s.y.get(), s.width.get(), s.height.get()]);
+    set_clip([s.x.get(), s.y.get(), s.width.get(), s.height.get()], gfx);
     Ok(())
 }

@@ -19,6 +19,10 @@ pub fn scene_point_hits_car(c: &ContactInputs<'_>, face: u32) -> Result<(bool, u
         .scene_point_hits
         .set(c.tables.scene_point_hits.get().wrapping_add(1));
     fill_cells(&c.contact.object_offset, 0);
-    let place = crate::race::scene_points::point_number(c.course, number)?;
+    let place = crate::race::scene_points::point_number(
+        c.course,
+        &crate::race::scene_points::NO_OWN,
+        number,
+    )?;
     Ok(({ point_hits_car(c, place, face) }?, number))
 }

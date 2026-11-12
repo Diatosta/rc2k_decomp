@@ -55,6 +55,7 @@ pub fn mirror_view_window(
     scene: &crate::scene::owner::Scene,
     system: &crate::system::owner::System,
     view: &crate::race::view_scratch::ViewScratch,
+    part: &crate::workers::PartScratch,
 ) -> Result<(), Refused> {
     let (fog, poly, car, vars) = (&view.fog, &view.polygon, &view.car, &view.vars);
     let drawn_view = view.drawn_view(race);
@@ -115,7 +116,7 @@ pub fn mirror_view_window(
         vars,
         MIRROR_REACH,
     );
-    crate::race::frame_draw::set_up_fog(race, fog, poly, car)?;
+    crate::race::frame_draw::set_up_fog(race, fog, poly, car, part)?;
     // (The original's 0 into `g_drawMode`: see `full_view_window`.)
     poly.view_mirrored.set(1);
     Ok(())
@@ -124,10 +125,8 @@ pub fn mirror_view_window(
 /// `race::draw_flat_triangle` (0x455912): three vertices at (1, 1, 0) with texture 0, 0,
 /// colour 0 (the original's `fld1` / `fldz` stores), `g_polygonVertexCount` 3, drawn
 /// (`scene::draw_fan`). Every register kept.
-pub fn draw_flat_triangle(
-    buffer: &crate::d3d::vertices_store::PolygonVertices,
-    scene: &crate::scene::owner::Scene,
-) {
+pub fn draw_flat_triangle(part: &crate::workers::PartScratch, scene: &crate::scene::owner::Scene) {
+    let buffer = part.vertices;
     // 1.0 at x, y of each of the three vertices; 0.0 at the rest of their floats (z, rhw,
     // u, v) and the specular.
     for vertex in &buffer.vertices[..3] {
@@ -142,7 +141,7 @@ pub fn draw_flat_triangle(
     crate::scene::polygon_work::front_end()
         .polygon_vertex_count
         .set(3);
-    crate::scene::draw_fan::draw_fan(scene, crate::scene::polygon_work::front_end(), buffer);
+    crate::scene::draw_fan::draw_fan(part, scene, crate::scene::polygon_work::front_end(), buffer);
 }
 
 /// The marks' shadow refusals (`effects::draw_shadow`'s first and second shadows), checked
@@ -227,11 +226,11 @@ pub fn copy_mirror_picture(
         return Ok(());
     }
     // The surfaces' pixels by handle (kept, never read back).
-    let from_pixels = crate::gfx::surface::handle()?;
+    let from_pixels = crate::gfx::surface::handle(gfx)?;
     frame.frame_work.view_kept[0].set(from_pixels);
     let ebp = gfx_drawing.draw_surface.pitch.get();
     if !lock_texture(to)?.carry {
-        let to_pixels = crate::gfx::surface::handle()?;
+        let to_pixels = crate::gfx::surface::handle(gfx)?;
         frame.frame_work.view_kept[1].set(to_pixels);
         let format = gfx_drawing.draw_surface.format.get();
         if format == 0 {
@@ -253,6 +252,7 @@ pub fn copy_mirror_picture(
             format,
             from: crate::gfx::locked_pixels::Place::start(from_pixels),
             to: crate::gfx::locked_pixels::Place::start(to_pixels),
+            gfx,
         };
         // What the first pixel's high half is under: the destination's slot, as the lock was
         // given it.
@@ -271,6 +271,8 @@ struct GameSurfaces<'a> {
     /// The pixels read and the pixels written, reached by offset from their start.
     from: crate::gfx::locked_pixels::Place,
     to: crate::gfx::locked_pixels::Place,
+    /// The graphics owner (a pixel's conversion leaves its scratch bytes there).
+    gfx: &'a crate::gfx::owner::Gfx,
 }
 
 impl rc2k_core::race::view_steps::Surfaces for GameSurfaces<'_> {
@@ -290,7 +292,7 @@ impl rc2k_core::race::view_steps::Surfaces for GameSurfaces<'_> {
         crate::gfx::pixel_to_components::pixel_to_components(self.screen, pixel)
     }
     fn pixel(&mut self, components: u32) -> u32 {
-        crate::gfx::components_to_pixel::components_to_pixel(self.format, components)
+        crate::gfx::components_to_pixel::components_to_pixel(self.format, components, self.gfx)
     }
 }
 
@@ -514,13 +516,17 @@ pub fn draw_own_car(
     );
     if clears {
         clear_view_depth(scene, system, &ctx.view.polygon);
-        crate::scene::depth_buffer_on::depth_buffer(true);
+        crate::scene::depth_buffer_on::depth_buffer(ctx.part, true);
     }
     // `race::draw_car_shined` reads only the car's block.
     crate::race::car_draw::draw_car_shined(ctx, car)?;
     ctx.view.cars.group_mask.set(u32::MAX);
-    crate::scene::set_texture::set_texture(scene, scene.textures.kinds.kind_first_slots[202].get());
-    crate::scene::set_render_state::set_render_state(2, 0x14);
+    crate::scene::set_texture::set_texture(
+        ctx.part,
+        scene,
+        scene.textures.kinds.kind_first_slots[202].get(),
+    );
+    crate::scene::set_render_state::set_render_state(ctx.part, 2, 0x14);
     crate::scene::polygon_work::front_end()
         .polygon_vertex_count
         .set(4);

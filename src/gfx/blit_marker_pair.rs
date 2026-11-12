@@ -7,6 +7,7 @@
 
 use crate::gfx::blit_glyph::BlitCall;
 use crate::gfx::owner::Gfx;
+use crate::gfx::surface::clip;
 use crate::menu::owner::Menus;
 use crate::records::stages_store::Record;
 
@@ -23,8 +24,8 @@ pub fn sprite_table(menus: &Menus) -> u32 {
 pub fn marker_calls(gfx: &Gfx, menus: &Menus, record: &Record) -> [BlitCall; 2] {
     let [(x0, y0), (x1, y1)] = record.markers();
     [
-        BlitCall::sprite_in(gfx, menus, FIRST_GLYPH, x0, y0),
-        BlitCall::sprite_in(gfx, menus, SECOND_GLYPH, x1, y1),
+        BlitCall::sprite(menus, FIRST_GLYPH, x0, y0, clip(gfx).right),
+        BlitCall::sprite(menus, SECOND_GLYPH, x1, y1, clip(gfx).right),
     ]
 }
 

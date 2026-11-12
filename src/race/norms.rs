@@ -47,7 +47,12 @@ pub fn face_normal(
 ) -> Result<(), BadInput> {
     {
         let point = |n: u32| -> Result<[i32; 3], BadInput> {
-            Ok(crate::race::scene_points::point_number(&race.course, n)?.map(|v| v as i32))
+            Ok(crate::race::scene_points::point_number(
+                &race.course,
+                &crate::race::scene_points::NO_OWN,
+                n,
+            )?
+            .map(|v| v as i32))
         };
         let (a, b, c) = (point(a)?, point(b)?, point(c)?);
         let d = [

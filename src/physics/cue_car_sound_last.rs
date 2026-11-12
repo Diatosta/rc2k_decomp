@@ -17,6 +17,7 @@ pub fn cue_car_sound_last(
     which: u32,
     cue: u32,
     sound: &crate::sound::owner::Sound,
+    audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     let failed = std::cell::Cell::new(None);
     let found = cue_object(
@@ -37,5 +38,10 @@ pub fn cue_car_sound_last(
     let Some(car) = found else {
         return Ok(());
     };
-    crate::physics::queue_sound_cue::queue_sound_cue(false, cue, SoundObject::of(sound, car)?)
+    crate::physics::queue_sound_cue::queue_sound_cue(
+        false,
+        cue,
+        SoundObject::of(sound, car)?,
+        audio,
+    )
 }

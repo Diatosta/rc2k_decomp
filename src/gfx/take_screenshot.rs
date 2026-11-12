@@ -35,7 +35,7 @@ impl rc2k_core::gfx::screenshot::Shooting for Shot<'_> {
     }
     fn lock(&mut self) -> Result<bool, Refused> {
         // `cmp g_surfaceLocked, 1`'s carry: not locked.
-        Ok(crate::platform::lock_surface() < 1)
+        Ok(crate::platform::lock_surface(self.gfx) < 1)
     }
     fn write(&mut self) -> Result<(), Refused> {
         if let Some(screen) = crate::platform_3d::screen() {
@@ -45,7 +45,7 @@ impl rc2k_core::gfx::screenshot::Shooting for Shot<'_> {
         Ok(())
     }
     fn unlock(&mut self) -> Result<(), Refused> {
-        crate::platform::unlock_surface();
+        crate::platform::unlock_surface(self.gfx);
         Ok(())
     }
 }

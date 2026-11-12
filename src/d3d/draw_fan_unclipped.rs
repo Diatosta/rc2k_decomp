@@ -49,9 +49,10 @@ pub fn polygon(
 
 /// The fan drawn: Direct3D's result, always 0 here.
 pub fn draw_fan_unclipped(
+    part: &crate::workers::PartScratch,
     poly: &crate::scene::polygon_work::PolygonWork,
     buffer: &PolygonVertices,
 ) -> u32 {
-    crate::platform_3d::draw_fan(&polygon(poly, buffer));
+    crate::platform_3d::draw_fan(part, &polygon(poly, buffer));
     0
 }

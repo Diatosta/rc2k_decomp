@@ -305,8 +305,10 @@ pub const END: usize = 0x5C56EC;
 const _: () = assert!(END - START == core::mem::size_of::<EffectsSettings>());
 
 /// The record: a field of `VIEWER_AND_KINDS`.
+#[cfg(test)]
 pub struct InGroup;
 
+#[cfg(test)]
 impl core::ops::Deref for InGroup {
     type Target = EffectsSettings;
     fn deref(&self) -> &EffectsSettings {
@@ -314,6 +316,7 @@ impl core::ops::Deref for InGroup {
     }
 }
 
+#[cfg(test)]
 pub static EFFECTS_SETTINGS: InGroup = InGroup;
 
 /// The part of each car record the lines, the point morphs and the tidy-up work on (the
@@ -335,7 +338,7 @@ pub const fn car_handle(n: usize) -> u32 {
 /// the records would have read elsewhere in the original).
 pub fn car(handle: u32) -> &'static CarEffects {
     let n = (handle ^ CAR_TAG) as usize;
-    match EFFECTS_SETTINGS.cars.get(n) {
+    match race().effects_settings().cars.get(n) {
         Some(car) if handle & !0xFF == CAR_TAG => car,
         _ => crate::fatal::raise::end(
             "race::effects_settings_store::car",

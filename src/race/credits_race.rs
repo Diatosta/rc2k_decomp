@@ -38,7 +38,7 @@ pub fn credits_race(race: &'static Race, o: crate::owners::Owners<'static>) -> R
     crate::race::frame_text::roll_credits(
         frame,
         0,
-        &mut crate::text::draw_text::GameCanvas,
+        &mut crate::text::draw_text::GameCanvas::new(o.gfx),
         &mut || crate::race::frame_text::credits_tune(o),
         o.system,
         o.audio,

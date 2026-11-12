@@ -37,13 +37,14 @@ pub fn setup_with(
 ) {
     use crate::scene::set_render_state::set_render_state;
     {
-        crate::scene::depth_buffer_on::depth_buffer(true);
+        crate::scene::depth_buffer_on::depth_buffer(crate::workers::game_scratch(), true);
         crate::scene::set_texture::set_texture(
+            crate::workers::game_scratch(),
             scene,
             scene.textures.kinds.kind_first_slots[202].get(),
         );
         for (value, state) in STATES {
-            set_render_state(value, state);
+            set_render_state(crate::workers::game_scratch(), value, state);
         }
         for n in 0..4 {
             buffer.vertices[n].rhw.set(x87::from_int(0x100));

@@ -19,15 +19,17 @@ pub fn draw_glow(
     scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
+    let part = crate::workers::game_scratch();
     let clipping = &effects.clipping;
     {
         if clipping.glow.off.get() == 1 {
             return Ok(());
         }
         for (value, state) in STATES {
-            crate::scene::set_render_state::set_render_state(value, state);
+            crate::scene::set_render_state::set_render_state(part, value, state);
         }
         crate::scene::set_texture::set_texture(
+            part,
             scene,
             scene.textures.kinds.kind_first_slots[211].get(),
         );

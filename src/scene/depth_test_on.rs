@@ -5,6 +5,6 @@
 
 use crate::scene::set_render_state::set_render_state;
 
-pub fn depth_test_on() {
-    set_render_state(1, 0xE);
+pub fn depth_test_on(part: &crate::workers::PartScratch) {
+    set_render_state(part, 1, 0xE);
 }

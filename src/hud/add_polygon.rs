@@ -46,10 +46,10 @@ pub fn add_polygon(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
             v.y.set(screen_scaled(v.y.get(), h, ky));
         }
         if flushes {
-            crate::hud::flush_batch::flush_batch(hud);
+            crate::hud::flush_batch::flush_batch(pen.part, hud);
             frame.panel_and_overlay.panel.shown_texture.set(texture);
             hud.block.batch_texture.set(texture);
-            crate::hud::set_batch_texture::set_batch_texture(frame, pen.scene)?;
+            crate::hud::set_batch_texture::set_batch_texture(pen.part, frame, pen.scene)?;
         }
         let vc = hud.block.vertex_count.get();
         crate::pointers::copy_between(

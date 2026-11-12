@@ -6,7 +6,7 @@
 //! `gfx::picture_as_surface`, by its number (`ON_PICTURE`, `DRAW_SURFACE.pixels` 0 then).
 
 use crate::errors::BadInput;
-use crate::gfx::owner::gfx;
+use crate::gfx::owner::Gfx;
 use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
 
 /// The picture buffer's number while it is the surface (`gfx::picture_as_surface`), else 0.
@@ -22,10 +22,10 @@ pub enum Target {
 }
 
 /// The surface now; `None` for none (the original's null `g_surface.pixels`).
-pub fn target() -> Option<Target> {
+pub fn target(gfx: &Gfx) -> Option<Target> {
     match (
         ON_PICTURE.load(Relaxed),
-        gfx().drawing.draw_surface.pixels.get(),
+        gfx.drawing.draw_surface.pixels.get(),
     ) {
         (0, 0) => None,
         (0, a) => Some(Target::Locked(a)),
@@ -35,8 +35,8 @@ pub fn target() -> Option<Target> {
 
 /// The surface's pixels' handle (`gfx::locked_pixels`; 0 for none), for code that only ever draws on
 /// the screen or a texture: refused while the picture buffer is the surface.
-pub fn handle() -> Result<u32, BadInput> {
-    match target() {
+pub fn handle(gfx: &Gfx) -> Result<u32, BadInput> {
+    match target(gfx) {
         Some(Target::Picture(_)) => Err(BadInput(
             "the picture buffer as the surface of code that draws on the screen only",
         )),
@@ -52,8 +52,8 @@ pub fn on_address() {
 
 /// `bytes` written at `offset` from the target's start; refused past its rows (pitch x height)
 /// or its memory.
-pub fn write(target: Target, offset: u32, bytes: &[u8]) -> Result<(), BadInput> {
-    let drawing = &gfx().drawing;
+pub fn write(target: Target, offset: u32, bytes: &[u8], gfx: &Gfx) -> Result<(), BadInput> {
+    let drawing = &gfx.drawing;
     match target {
         Target::Locked(a) => crate::gfx::rows::Rows::new(
             a,
@@ -85,22 +85,17 @@ pub struct Clip {
     pub bottom: i32,
 }
 
-pub fn surface() -> Surface {
-    let drawing = &gfx().drawing;
+pub fn surface(gfx: &Gfx) -> Surface {
+    let drawing = &gfx.drawing;
     Surface {
-        target: target(),
+        target: target(gfx),
         pitch: drawing.draw_surface.pitch.get() as i32,
         bytes_per_pixel: drawing.draw_surface.bytes_per_pixel.get() as i32,
         bits_per_pixel: drawing.draw_surface.bits_per_pixel.get(),
     }
 }
 
-pub fn clip() -> Clip {
-    clip_in(gfx())
-}
-
-/// `clip` for a caller that holds the owner.
-pub fn clip_in(gfx: &crate::gfx::owner::Gfx) -> Clip {
+pub fn clip(gfx: &Gfx) -> Clip {
     let drawing = &gfx.drawing;
     Clip {
         left: drawing.blit.clip.left.get() as i32,
@@ -117,7 +112,8 @@ mod target_tests {
 
     #[test]
     fn the_picture_is_a_target_by_number() {
-        let drawing = &gfx().drawing;
+        let gfx = crate::gfx::owner::gfx();
+        let drawing = &gfx.drawing;
         let _lock = crate::store::test_lock();
         let figures = crate::memory::figures();
         let kept = (ON_PICTURE.load(Relaxed), drawing.draw_surface.pixels.get());
@@ -126,12 +122,12 @@ mod target_tests {
         let n = take(Buffer::Overlay, list, 0x100).unwrap();
         ON_PICTURE.store(n, Relaxed);
         drawing.draw_surface.pixels.set(0);
-        assert_eq!(target(), Some(Target::Picture(n)));
-        assert!(handle().is_err(), "screen-only code refuses the picture");
-        write(target().unwrap(), 8, &[9, 8, 7]).unwrap();
+        assert_eq!(target(gfx), Some(Target::Picture(n)));
+        assert!(handle(gfx).is_err(), "screen-only code refuses the picture");
+        write(target(gfx).unwrap(), 8, &[9, 8, 7], gfx).unwrap();
         assert_eq!(read_bytes(n, 8, 3).unwrap(), [9, 8, 7]);
         on_address();
-        assert_eq!(target(), None);
+        assert_eq!(target(gfx), None);
         give_back(Buffer::Overlay);
         ON_PICTURE.store(kept.0, Relaxed);
         drawing.draw_surface.pixels.set(kept.1);

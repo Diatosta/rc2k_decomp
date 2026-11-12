@@ -168,7 +168,7 @@ impl finish::Finish for Game<'_> {
                 crate::sound::stop_music::stop_music(self.owners.audio, self.owners.system);
             }
             Step::MenuScreenMode => {
-                crate::platform::set_menu_mode_now();
+                crate::platform::set_menu_mode_now(self.owners.gfx);
             }
             Step::SetUpEngine => {
                 crate::scene::set_up_engine::set_up_engine_in(race, self.owners.scene)?;

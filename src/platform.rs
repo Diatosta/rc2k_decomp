@@ -27,7 +27,6 @@
 use crate::ffi::sdl;
 use crate::framework::log;
 use crate::gfx::describe_format::describe_format;
-use crate::gfx::owner::gfx;
 use crate::gfx::set_clip::set_clip;
 use crate::system::owner::system;
 use std::sync::Mutex;
@@ -279,8 +278,7 @@ pub fn set_mode_now(mode: u32, gfx: &crate::gfx::owner::Gfx) -> bool {
 
 /// `gfx::set_menu_screen_mode`: `gfx::set_screen_mode` with the menus' mode; false (and
 /// logged) if it cannot be.
-pub fn set_menu_mode_now() -> bool {
-    let gfx = crate::gfx::owner::gfx();
+pub fn set_menu_mode_now(gfx: &crate::gfx::owner::Gfx) -> bool {
     // The 3D drawing noted so far, before the screen is shown, written or changed.
     crate::platform_3d::flush();
     let mode = gfx.display.mode.menu_mode.get();
@@ -295,9 +293,8 @@ pub fn set_menu_mode_now() -> bool {
 
 /// `gfx::lock_surface`: the surface locked for drawing (unless quitting or there is no
 /// screen); the locked flag is 1 after it.
-pub fn lock_surface() -> u32 {
+pub fn lock_surface(gfx: &crate::gfx::owner::Gfx) -> u32 {
     let system = system();
-    let gfx = gfx();
     // The 3D drawing noted so far, before the screen is shown, written or changed.
     crate::platform_3d::flush();
     let have = SCREEN.lock().is_ok_and(|screen| screen.is_some());
@@ -320,15 +317,15 @@ pub fn lock_surface() -> u32 {
         s.pixels.set(gfx.drawing.draw_surface.present_pixels.get());
         crate::gfx::surface::on_address();
         s.row_gap.set(pitch.wrapping_sub(row_bytes));
-        set_clip([s.x.get(), s.y.get(), s.width.get(), s.height.get()]);
+        set_clip([s.x.get(), s.y.get(), s.width.get(), s.height.get()], gfx);
     }
     gfx.locked.surface.get()
 }
 
 /// `gfx::unlock_surface`: the surface unlocked if it was locked; the locked flag before it
 /// (1: it was) is returned.
-pub fn unlock_surface() -> u32 {
-    let gfx_locked = &gfx().locked;
+pub fn unlock_surface(gfx: &crate::gfx::owner::Gfx) -> u32 {
+    let gfx_locked = &gfx.locked;
     let locked: u32 = gfx_locked.surface.get();
     if locked == 1 {
         gfx_locked.surface.set(0);

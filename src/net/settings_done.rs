@@ -29,5 +29,5 @@ pub fn settings_done(
             zero(&net.address().saved_name, 0x40)?;
         }
     }
-    crate::net::stop::stop(vars, system)
+    crate::net::stop::stop(vars, system, panel)
 }

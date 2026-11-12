@@ -66,7 +66,7 @@ pub fn viewer_palettes(
                         .map_err(|_| BadInput("a font palette"))?,
                 ),
                 |c| crate::gfx::pixel_to_components::pixel_to_components(&screen, c),
-                |p| crate::gfx::components_to_pixel::components_to_pixel(&texture, p),
+                |p| crate::gfx::components_to_pixel::components_to_pixel(&texture, p, gfx),
             );
             crate::gfx::glyph_store::write_bytes(
                 crate::gfx::glyph_store::VIEWER_PALETTE,

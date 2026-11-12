@@ -164,7 +164,10 @@ pub fn draw_button(
         align,
         sprites,
         borrowed,
-        &mut |glyph, x, y| canvas.blit_glyph(BlitCall::sprite(glyph, x, y)),
+        &mut |glyph, x, y| {
+            let call = BlitCall::sprite(menus, glyph, x, y, canvas.clip_right());
+            canvas.blit_glyph(call)
+        },
     );
     work.x.set(end as u32);
     match drawn {

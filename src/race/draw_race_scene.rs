@@ -181,7 +181,7 @@ fn view_drawn(o: Owners<'_>, car: usize, mirror: bool) -> Result<(), Refused> {
             &crate::scene::polygon_work::front_end().window,
         );
     }
-    output.store_view_value()?;
+    output.store_view_value(o.race)?;
     if car == 0 && !mirror {
         output.publish_environment();
     }
@@ -298,6 +298,8 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         sound: o.sound,
     };
     let frame = &race.frame;
+    // Drawn outside the views' parts: on the game's thread's part.
+    let part = crate::workers::game_scratch();
     use crate::scene::set_render_state::set_render_state;
     use crate::sound::race_sound_tick::race_sound_tick;
     let before_views = crate::write_watch::step("before_views");
@@ -404,9 +406,9 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     crate::debug::timing::stop(crate::debug::timing::Stage::SoundTick, begun);
     // `g_shine` from `shine_from`: each view's from it now (`race::draw_view_scene`).
     // pusha; pushf .. popf; popa
-    crate::scene::set_filters::set_filters(race);
+    crate::scene::set_filters::set_filters(race, part);
     for (value, state) in [(4, 0x15), (1, 0x1C), (5, 0x13), (6, 0x14), (1, 0x1B)] {
-        set_render_state(value, state);
+        set_render_state(part, value, state);
     }
     race.physics
         .ground
@@ -519,12 +521,12 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     let _step = crate::write_watch::step("after_views");
     crate::race::frame_views::load_first_car(&race.shared)?;
     use crate::race::frame_flush::{flush_batch, plain, textured};
-    flush_batch(&race.frame, &plain(&race.frame), false)?;
-    flush_batch(&race.frame, &textured(&race.frame), true)?;
+    flush_batch(o.scene, part, &race.frame, &plain(&race.frame), false)?;
+    flush_batch(o.scene, part, &race.frame, &textured(&race.frame), true)?;
     crate::race::frame_draw::share_sound_spots(race, o.sound)?;
     crate::race::frame_draw::wake_part_sounds(race)?;
     for state in [0x11, 0x12] {
-        set_render_state(2, state);
+        set_render_state(part, 2, state);
     }
     if !race.shared.work.in_credits.is_set() && race.replay.finish.no_place.get() == 0 {
         crate::hud::overlay_pass::overlay_pass(o.hud, race, o.system, o.scene, o.gfx)?;

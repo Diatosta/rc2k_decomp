@@ -45,7 +45,7 @@ pub fn progress_frame(
     let width = bar_width(install)?;
     let mut carry = false;
     for _ in 0..2 {
-        if !lock() {
+        if !lock(gfx) {
             carry = true;
             continue;
         }
@@ -54,6 +54,7 @@ pub fn progress_frame(
             crate::gfx::rect::rect_in(&install.pages.bar),
             0,
             crate::gfx::rect::Palette::Of(crate::text::blend_font::BLENDED_PALETTE.get()),
+            gfx,
         )?;
         let x = install.pages.bar.get_u32(0);
         let kept_clip: u32 = drawing.blit.clip.right.get();
@@ -67,6 +68,7 @@ pub fn progress_frame(
             0,
             0,
             install.run.bar_glyphs.get(),
+            gfx,
         )?;
         drawing.blit.clip.right.set(kept_clip);
         let mut text = crate::strings::append_percent::append_percent(width >> 2);
@@ -81,23 +83,32 @@ pub fn progress_frame(
             &text,
             x.wrapping_add(0xC8),
             install.pages.bar.get_u32(4).wrapping_add(2),
+            gfx,
         )?;
-        unlock();
+        unlock(gfx);
         carry = !show();
     }
     Ok(carry)
 }
 
 /// The copying frame: its carry (the last lock's or show's).
-pub fn copying_frame(install: &'static crate::install::owner::Install) -> Result<bool, Refused> {
+pub fn copying_frame(
+    install: &'static crate::install::owner::Install,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<bool, Refused> {
     let mut carry = false;
     for _ in 0..2 {
-        if !lock() {
+        if !lock(gfx) {
             carry = true;
             continue;
         }
         copy_picture()?;
-        crate::install::draw_string_list::draw_string_list(&install.pages.texts.each_ref(), 0, 0)?;
+        crate::install::draw_string_list::draw_string_list(
+            &install.pages.texts.each_ref(),
+            0,
+            0,
+            gfx,
+        )?;
         // gfx::frame_rect: colour 0x2A
         crate::gfx::rect::frame_rect(
             crate::gfx::rect::rect_in(&install.pages.frame),
@@ -105,8 +116,9 @@ pub fn copying_frame(install: &'static crate::install::owner::Install) -> Result
             0,
             0x2A,
             crate::gfx::rect::Palette::Of(crate::text::blend_font::BLENDED_PALETTE.get()),
+            gfx,
         );
-        unlock();
+        unlock(gfx);
         carry = !show();
     }
     Ok(carry)

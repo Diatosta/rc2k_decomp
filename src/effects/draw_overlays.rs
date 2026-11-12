@@ -45,10 +45,10 @@ pub fn draw_overlays(
         return Err(e);
     }
     {
-        crate::scene::depth_buffer_on::depth_buffer(true);
-        crate::scene::depth_test_on::depth_test_on();
+        crate::scene::depth_buffer_on::depth_buffer(ctx.part, true);
+        crate::scene::depth_test_on::depth_test_on(ctx.part);
         for (value, state) in STATES {
-            set_render_state(value, state);
+            set_render_state(ctx.part, value, state);
         }
         let fl = &effects.windscreen_flakes;
         crate::effects::draw_plane::draw_plane(ctx, drops, fl, effects)?;

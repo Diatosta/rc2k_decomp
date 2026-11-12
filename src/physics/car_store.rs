@@ -588,14 +588,13 @@ impl Car {
     pub fn known(address: u32) -> Option<&'static Car> {
         let shared_store = &crate::race::owner::race().shared;
 
-        use crate::race::blocks_store::CAR_BLOCKS;
         static HOME: std::sync::OnceLock<u32> = std::sync::OnceLock::new();
         let &car = HOME
             .get_or_init(|| crate::pointers::game_address(core::ptr::from_ref(&shared_store.car)));
         if address == car {
             return Some(&shared_store.car);
         }
-        Self::block_number(address).map(|n| &CAR_BLOCKS.cars[n])
+        Self::block_number(address).map(|n| &crate::race::owner::race().car_blocks().cars[n])
     }
 
     /// The number of the car block whose first byte is at `address` (none for the work car or

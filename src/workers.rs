@@ -21,16 +21,6 @@ pub const COUNT: usize = 4;
 thread_local! {
     /// The running thread's copy: 0 unless it is one of the drawing threads.
     static INDEX: Cell<usize> = const { Cell::new(0) };
-    /// Whether the thread is drawing a run of a list drawn by several threads.
-    static IN_RUN: Cell<bool> = const { Cell::new(false) };
-}
-
-/// Whether the running thread is drawing a run of a list drawn by several threads (the
-/// game's thread drawing the first run included): what is each run's own then is the
-/// thread's (`race::scene_points`' points past the count).
-#[inline]
-pub fn in_run() -> bool {
-    IN_RUN.get()
 }
 
 /// The running thread's copy number.
@@ -53,6 +43,14 @@ pub struct PartScratch {
     /// The held matrix columns while a part other than the first is drawn
     /// (`scene::view_matrices::Held`), from the list's start.
     pub columns: crate::scene::view_matrices::OwnColumns,
+    /// The scene points past the count while the part is drawn in a run
+    /// (`race::scene_points::OwnPoints`).
+    pub points: crate::race::scene_points::OwnPoints,
+    /// The render states' and the current texture's cache while a part other than the first
+    /// is drawn (`d3d::render_cache::OwnCache`; part 0's is never begun: the store's own).
+    pub cache: crate::d3d::render_cache::OwnCache,
+    /// Where such a part first set each state (`d3d::run_states::OwnRun`).
+    pub run: crate::d3d::run_states::OwnRun,
 }
 
 /// The parts' scratch, part 0's in the stores' places in the race's buffers (the image's
@@ -62,30 +60,44 @@ static PARTS: [PartScratch; COUNT] = {
     use crate::scene::point_records::RECORDS as R;
     use crate::scene::polygon_store::OTHER_COPIES as P;
     let buffers = &crate::race::owner::RACE.shared.buffers;
+    // The render states' and the texture's store every part's cache is over.
+    let cards = &crate::d3d::owner::D3D.cards;
     [
         PartScratch {
             vertices: &buffers.vertices,
             polygon: &buffers.polygon,
             records: &R[0],
             columns: crate::scene::view_matrices::OwnColumns::new(),
+            points: crate::race::scene_points::OwnPoints::new(),
+            cache: crate::d3d::render_cache::OwnCache::new(cards),
+            run: crate::d3d::run_states::OwnRun::new(),
         },
         PartScratch {
             vertices: &V[0],
             polygon: &P[0],
             records: &R[1],
             columns: crate::scene::view_matrices::OwnColumns::new(),
+            points: crate::race::scene_points::OwnPoints::new(),
+            cache: crate::d3d::render_cache::OwnCache::new(cards),
+            run: crate::d3d::run_states::OwnRun::new(),
         },
         PartScratch {
             vertices: &V[1],
             polygon: &P[1],
             records: &R[2],
             columns: crate::scene::view_matrices::OwnColumns::new(),
+            points: crate::race::scene_points::OwnPoints::new(),
+            cache: crate::d3d::render_cache::OwnCache::new(cards),
+            run: crate::d3d::run_states::OwnRun::new(),
         },
         PartScratch {
             vertices: &V[2],
             polygon: &P[2],
             records: &R[3],
             columns: crate::scene::view_matrices::OwnColumns::new(),
+            points: crate::race::scene_points::OwnPoints::new(),
+            cache: crate::d3d::render_cache::OwnCache::new(cards),
+            run: crate::d3d::run_states::OwnRun::new(),
         },
     ]
 };
@@ -282,7 +294,8 @@ fn draw_parts(
     // One after another on the game's thread without a pool or with `RC2K_DRAW_SERIAL`.
     let pool = pool.filter(|_| !serial());
     // The render states' cache as the list began, what each other part starts from.
-    let cache_start = crate::d3d::render_cache::current();
+    let cards = part_scratch(0).cache.store();
+    let cache_start = crate::d3d::render_cache::current(cards);
     // The held matrix columns likewise (`scene::view_matrices::Held`).
     let matrices = &crate::race::owner::race().frame.matrices;
     let columns_start = crate::scene::view_matrices::columns(matrices);
@@ -293,16 +306,15 @@ fn draw_parts(
     // Run `n` of the others, on the thread it is called on: its noted drawing from `from` on.
     let other = |n: usize, from: usize| {
         INDEX.set(n);
-        IN_RUN.set(true);
+        let scratch = part_scratch(n);
+        scratch.points.begin_run();
         crate::math::x87::set_control_word(control);
-        crate::race::scene_points::forget_own();
         #[cfg(feature = "write_watch")]
         crate::write_watch::begin();
-        crate::d3d::run_states::begin_run(&cache_start);
-        let scratch = part_scratch(n);
+        crate::d3d::run_states::begin_run(scratch, &cache_start);
         crate::scene::view_matrices::begin_part(scratch, columns_start);
         let result = part(n, scratch);
-        let states = crate::d3d::run_states::end_run();
+        let states = crate::d3d::run_states::end_run(scratch);
         let columns = crate::scene::view_matrices::end_part(scratch).unwrap_or(columns_start);
         #[cfg(feature = "write_watch")]
         WATCHED
@@ -310,7 +322,7 @@ fn draw_parts(
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .push(crate::write_watch::end());
         ended(n);
-        IN_RUN.set(false);
+        scratch.points.end_run();
         let noted = crate::platform_3d::take_noted_from(from);
         INDEX.set(0);
         OtherRun {
@@ -324,10 +336,10 @@ fn draw_parts(
     crate::write_watch::begin();
     // Run 0, on the game's thread.
     let first_run = || {
-        IN_RUN.set(true);
-        crate::race::scene_points::forget_own();
-        let result = part(0, part_scratch(0));
-        IN_RUN.set(false);
+        let scratch = part_scratch(0);
+        scratch.points.begin_run();
+        let result = part(0, scratch);
+        scratch.points.end_run();
         ended(0);
         result
     };
@@ -389,10 +401,10 @@ fn draw_parts(
     for (n, mut run) in others.into_iter().enumerate() {
         result = result.and(run.result);
         // Its fans before it set a state draw with what the earlier runs left.
-        let carried = crate::d3d::run_states::carried();
+        let carried = crate::d3d::run_states::carried(cards);
         crate::d3d::run_states::patch(&mut run.noted, &run.states, &carried);
         crate::platform_3d::put_noted(run.noted);
-        crate::d3d::run_states::carry(&run.states, &cache_start);
+        crate::d3d::run_states::carry(cards, &run.states, &cache_start);
         crate::scene::view_matrices::merge_columns(matrices, &columns_start, &run.columns);
         if result.is_ok() {
             // What it draws takes the merged states.

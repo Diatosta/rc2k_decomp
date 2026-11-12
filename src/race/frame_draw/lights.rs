@@ -98,7 +98,7 @@ pub(super) fn own_lamp(
 pub(super) fn add_lamp_entry(ctx: &DrawCtx, lamp: u32) -> Result<(), BadInput> {
     let DrawCtx { view, .. } = *ctx;
     let point = own_lamp(&view.lamps, lamp)?[0].get();
-    let place = crate::race::scene_points::point_number(&ctx.race.course, point)?;
+    let place = crate::race::scene_points::point_number(&ctx.race.course, &ctx.part.points, point)?;
     let turned = &view.object.place;
     for (cell, &v) in turned.iter().zip(&place) {
         cell.set(v);
@@ -264,6 +264,7 @@ pub(super) fn car_lights_on_point(
 /// `g_lightColour`.
 pub(super) fn lamp_lights_on_point(
     course: &Course,
+    points: &crate::race::scene_points::OwnPoints,
     lamps: &crate::race::lamp_work::LampWork,
     object_light: &crate::scene::object_light::ObjectLight,
     mmx: bool,
@@ -283,7 +284,7 @@ pub(super) fn lamp_lights_on_point(
             let tint = lamp[2].get();
             object_light.lamp_tint.set(tint);
             let point = lamp[0].get();
-            let at = crate::race::scene_points::point_number(course, point)?;
+            let at = crate::race::scene_points::point_number(course, points, point)?;
             let d: [u32; 3] = std::array::from_fn(|k| at[k].wrapping_sub(place[k].get()));
             let [distance, _, _] = crate::scene::approximate_distance::approximate_distance(d);
             let (grey, _) = rc2k_core::race::lights::lamp_grey(distance, strength);
@@ -318,6 +319,7 @@ pub fn check_light_colour(
 pub fn light_colour_at(
     race: &Race,
     scene: &crate::scene::owner::Scene,
+    points: &crate::race::scene_points::OwnPoints,
     lamps: &crate::race::lamp_work::LampWork,
     object_light: &crate::scene::object_light::ObjectLight,
     drawn_view: u32,
@@ -329,7 +331,7 @@ pub fn light_colour_at(
     check_light_colour(&race.shared, lamps)?;
     object_light.light_colour.set(0u32);
     car_lights_on_point(race, scene, object_light, drawn_view, mmx)?;
-    lamp_lights_on_point(&race.course, lamps, object_light, mmx)?;
+    lamp_lights_on_point(&race.course, points, lamps, object_light, mmx)?;
     Ok(())
 }
 
@@ -338,22 +340,25 @@ pub fn light_colour_at(
 /// view's car's light colour plus the light (`add_colours`). The original added
 /// `LIGHT_WORK.view_light_base`, the light colour of the last car the previous view drew (a slip
 /// fixed: the views' order showed in the snowflakes' tint; `wiki/Fixed-bugs.md`).
-pub fn view_light(
-    race: &Race,
-    scene: &crate::scene::owner::Scene,
-    lamps: &crate::race::lamp_work::LampWork,
-    object_light: &crate::scene::object_light::ObjectLight,
-    car: &crate::physics::car_store::Car,
-    drawn_view: u32,
-    mmx: bool,
-) -> Result<(), Refused> {
+pub fn view_light(ctx: &DrawCtx<'_>, mmx: bool) -> Result<(), Refused> {
+    let (race, scene, view) = (ctx.race, ctx.scene, ctx.view);
+    let (lamps, object_light, car) = (&view.lamps, &view.light, &view.car);
+    let drawn_view = view.drawn_view(race);
     // Converted: `rc2k_core::race::lights::add_colours` (through `light_colour_at`'s).
     check_light_colour(&race.shared, lamps)?;
     crate::session::write_bits(
         &object_light.lit_place,
         crate::session::read_bits(&car.position),
     );
-    light_colour_at(race, scene, lamps, object_light, drawn_view, mmx)?;
+    light_colour_at(
+        race,
+        scene,
+        &ctx.part.points,
+        lamps,
+        object_light,
+        drawn_view,
+        mmx,
+    )?;
     let light: u32 = object_light.light_colour.get();
     object_light
         .view_light

@@ -34,7 +34,7 @@ pub fn settings_loop(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
         let key = list_key(install)?;
         let mut moved = false;
         if net.edit().edited.get() != u32::MAX {
-            crate::net::setting_key::setting_key(install, net, key)?;
+            crate::net::setting_key::setting_key(install, net, key, o.gfx)?;
         } else {
             match key {
                 0x66 => {

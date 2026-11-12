@@ -15,6 +15,7 @@ use crate::errors::Refused;
 
 // Converted: `rc2k_core::scene::objects::object_faces`
 pub fn list_object_faces(
+    faces_table: &crate::scene::faces_store::Faces,
     object: &crate::scene::object_place::ObjectPlace,
     work: &crate::race::face_work::FaceWork,
     faces_list: &mut crate::scene::face_list::FaceList,
@@ -24,7 +25,7 @@ pub fn list_object_faces(
         let (first, count): (u32, u32) = (object.first_face.get(), object.face_count.get());
         // Every face is looked up before anything is written.
         let faces = rc2k_core::scene::objects::object_faces(first, count, |number| {
-            crate::scene::objects::face_cell(number as usize).get()
+            crate::scene::objects::face_cell(faces_table, number as usize).get()
         })?;
         faces_list.clear();
         // (The original's -1 into `g_faceMark`, 0x62361C: read by nothing.)

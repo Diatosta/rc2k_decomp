@@ -20,15 +20,15 @@ pub fn draw_view_overlays(
     if ctx.view.car.view_covered.get() != 0 {
         return Ok(());
     }
-    overlay_states();
-    crate::scene::set_render_state::set_render_state(3, 3);
+    overlay_states(ctx.part);
+    crate::scene::set_render_state::set_render_state(ctx.part, 3, 3);
     let begun = crate::debug::timing::start();
     crate::race::frame_views::run_view_marks(ctx, system, sound, effects)?;
     crate::debug::timing::stop(crate::debug::timing::Stage::Effects, begun);
-    overlay_states();
-    draw_flat_triangle(ctx.part.vertices, ctx.scene);
-    crate::scene::depth_buffer_on::depth_buffer(true);
-    set_filters(race);
+    overlay_states(ctx.part);
+    draw_flat_triangle(ctx.part, ctx.scene);
+    crate::scene::depth_buffer_on::depth_buffer(ctx.part, true);
+    set_filters(race, ctx.part);
     {
         // Not around the view's marks: they run `drive::set_listener`, on the shared store.
         let _held = ctx.view.matrices.hold(&race.frame.matrices, ctx.part);
@@ -42,6 +42,6 @@ pub fn draw_view_overlays(
         )?;
     }
     draw_screen_tint(ctx, &ctx.view.fog)?;
-    set_filters(race);
+    set_filters(race, ctx.part);
     Ok(())
 }

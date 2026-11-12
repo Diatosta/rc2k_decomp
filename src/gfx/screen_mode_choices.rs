@@ -170,7 +170,7 @@ pub fn screen_mode_choices_in(
             if worked {
                 crate::gfx::keep_race_screen_mode::keep_race_screen_mode(gfx, mode)?;
             }
-            crate::platform::set_menu_mode_now();
+            crate::platform::set_menu_mode_now(gfx);
             if !worked {
                 return failed();
             }

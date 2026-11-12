@@ -64,12 +64,13 @@ fn message(
     system: &crate::system::owner::System,
     table: &[&StringRecord],
     y: u32,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     crate::platform_events::hold_quit(false);
     run_frame(system, None)?;
-    if lock() {
-        crate::install::draw_string_list::draw_string_list(table, 0, y)?;
-        unlock();
+    if lock(gfx) {
+        crate::install::draw_string_list::draw_string_list(table, 0, y, gfx)?;
+        unlock(gfx);
         show();
     }
     sleep(500);
@@ -88,8 +89,11 @@ fn message(
 }
 
 /// The installer's page frames (`screens::run_frame` runs them).
-fn copying_frame(install: &'static crate::install::owner::Install) -> Result<bool, Refused> {
-    crate::install::install_frames::copying_frame(install)
+fn copying_frame(
+    install: &'static crate::install::owner::Install,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<bool, Refused> {
+    crate::install::install_frames::copying_frame(install, gfx)
 }
 
 fn progress_frame(
@@ -157,13 +161,13 @@ pub fn install_files(
     crate::files::is_cd_drive::is_cd_drive(rb(&install.paths.game_dir));
     // A close during the copy waits for its end (the progress still shown).
     crate::platform_events::hold_quit(true);
-    run_frame(o.system, Some(&|| copying_frame(install)))?;
+    run_frame(o.system, Some(&|| copying_frame(install, o.gfx)))?;
     // the folders
     if install.run.dir_count.get() != 0 {
         for n in 0..install.run.dir_count.get() {
             build(installed(install), path_b(install), &FOLDERS, n)?;
             if !i::make_folders::make_folders(&install.paths.path_b)? {
-                return message(o.system, &error_messages(install), 0);
+                return message(o.system, &error_messages(install), 0, o.gfx);
             }
         }
         set_cd(&install.paths.game_dir);
@@ -181,16 +185,21 @@ pub fn install_files(
                 &install.paths.path_a,
                 &install.paths.path_b,
             )? {
-                return message(o.system, &error_messages(install), 0);
+                return message(o.system, &error_messages(install), 0, o.gfx);
             }
             if run_frame(
                 o.system,
                 Some(&|| progress_frame(o.install, o.strings, o.gfx)),
             )? {
-                run_frame(o.system, Some(&|| copying_frame(install)))?;
+                run_frame(o.system, Some(&|| copying_frame(install, o.gfx)))?;
             }
             if take_key() == 1 {
-                return message(o.system, &install.pages.msg_cancel.each_ref(), 0xFFFF_FFCE);
+                return message(
+                    o.system,
+                    &install.pages.msg_cancel.each_ref(),
+                    0xFFFF_FFCE,
+                    o.gfx,
+                );
             }
             n = n.wrapping_add(1);
             if n == install.run.file_count.get() {
@@ -202,7 +211,7 @@ pub fn install_files(
     // record write is the error message.
     set_cd(&install.paths.installed);
     if !i::write_record::write_record(install, o.strings)? {
-        return message(o.system, &error_messages(install), 0);
+        return message(o.system, &error_messages(install), 0, o.gfx);
     }
     if crate::files::state::directory_byte(1) != 0 {
         // readme.txt then manual.pdf

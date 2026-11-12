@@ -35,9 +35,9 @@ impl ViewOutput {
     }
 
     /// The view's value into its block (`race::store_view_value`).
-    pub fn store_view_value(self) -> Result<(), Refused> {
+    pub fn store_view_value(self, race: &Race) -> Result<(), Refused> {
         match self.view_value {
-            Some((block, value)) => crate::race::frame_draw::store_view_value(block, value),
+            Some((block, value)) => crate::race::frame_draw::store_view_value(race, block, value),
             None => Ok(()),
         }
     }
@@ -89,23 +89,15 @@ pub fn draw_view_scene(
         view.drawn_view(race),
     )?;
     clear_point_records(scene, part)?;
-    set_up_fog(race, &view.fog, &view.polygon, &view.car)?;
+    set_up_fog(race, &view.fog, &view.polygon, &view.car, part)?;
     camera_view(race, scene, system, &view.matrices, view)?;
     draw_sky(&ctx)?;
-    view_light(
-        race,
-        scene,
-        &view.lamps,
-        &view.light,
-        &view.car,
-        view.drawn_view(race),
-        crate::race::frame_draw::has_mmx(system),
-    )?;
+    view_light(&ctx, crate::race::frame_draw::has_mmx(system))?;
     reset_lamps(&ctx)?;
     // (The original's 0 into `g_viewLamps`, 0x63DB6C: read by nothing.)
-    prepare_course_view(race, scene, view)?;
+    prepare_course_view(race, scene, view, part)?;
     gather_visible_faces(&ctx)?;
-    let environment = eax_environment(race, &view.grid)?;
+    let environment = eax_environment(race, &part.points, &view.grid)?;
     gather_lamps(&ctx)?;
     lamps_wanted(&race.shared, &view.lamps)?;
     sort_entries(&lists.sort_entry_count, lists.sort_entries())?;

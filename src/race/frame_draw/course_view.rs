@@ -324,11 +324,13 @@ pub fn face_hide_mask(
     race: &Race,
     scene: &crate::scene::owner::Scene,
     view: &crate::race::view_scratch::ViewScratch,
+    part: &crate::workers::PartScratch,
 ) -> Result<(), Refused> {
     crate::physics::probe_ground::probe_ground_in_view(
         &crate::physics::step_inputs::StepInputs::of(race).ground(),
         &view.car,
         scene,
+        &part.points,
     )?;
     let ground: u32 = view.car.probe_point_face[4].get();
     if ground == u32::MAX {
@@ -397,10 +399,11 @@ pub fn prepare_course_view(
     race: &Race,
     scene: &crate::scene::owner::Scene,
     view: &crate::race::view_scratch::ViewScratch,
+    part: &crate::workers::PartScratch,
 ) -> Result<(), Refused> {
     let course = &race.course;
     check_course_grid(course)?;
-    face_hide_mask(race, scene, view)?;
+    face_hide_mask(race, scene, view, part)?;
     course_grid(race, &view.grid, &view.vars)?;
     if race.shared.switches.scene_set_up.get() == 0 {
         return Ok(());

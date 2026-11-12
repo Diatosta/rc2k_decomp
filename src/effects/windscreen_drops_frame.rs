@@ -91,7 +91,10 @@ fn refusal(
 
 /// The batch's draw (`d3d::draw_marks_windscreen_drops`; its result unread).
 pub fn draw_batch(gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
-    crate::d3d::draw_marks_windscreen_drops::draw_marks_windscreen_drops(gfx);
+    crate::d3d::draw_marks_windscreen_drops::draw_marks_windscreen_drops(
+        crate::workers::game_scratch(),
+        gfx,
+    );
     Ok(())
 }
 

@@ -115,12 +115,22 @@ pub fn steps(
         if !contacts::tries_points(c.contact.contact_kind.get()) {
             return Ok(());
         }
-        let dx = crate::race::scene_points::point_word(c.course, point, 0)?
-            .wrapping_add(face_dword(0x30)?)
-            .wrapping_sub(c.car.position[0].get());
-        let dz = crate::race::scene_points::point_word(c.course, point, 2)?
-            .wrapping_add(face_dword(0x38)?)
-            .wrapping_sub(c.car.position[2].get());
+        let dx = crate::race::scene_points::point_word(
+            c.course,
+            &crate::race::scene_points::NO_OWN,
+            point,
+            0,
+        )?
+        .wrapping_add(face_dword(0x30)?)
+        .wrapping_sub(c.car.position[0].get());
+        let dz = crate::race::scene_points::point_word(
+            c.course,
+            &crate::race::scene_points::NO_OWN,
+            point,
+            2,
+        )?
+        .wrapping_add(face_dword(0x38)?)
+        .wrapping_sub(c.car.position[2].get());
         let distance = int_hypot(dx as i32, dz as i32) as u32;
         scene.drawing.scene.scratch.set(distance);
         let (reach, _) = contacts::reach(

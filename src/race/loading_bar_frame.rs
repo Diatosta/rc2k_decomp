@@ -34,7 +34,12 @@ pub fn shown() -> (u64, u64) {
 }
 
 /// Timed.
-pub fn loading_bar_frame(race: &Race) -> Result<(), Refused> {
+pub fn loading_bar_frame(
+    race: &Race,
+    system: &crate::system::owner::System,
+    scene: &crate::scene::owner::Scene,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), Refused> {
     use std::sync::atomic::Ordering::Relaxed;
     // Not the original's: some 30 frames a second at most, and the last. Every step's frame
     // was 3/4 of a load (882 ms of 1231).
@@ -51,15 +56,18 @@ pub fn loading_bar_frame(race: &Race) -> Result<(), Refused> {
         }
         *last = Some(begun);
     }
-    let result = frame(race);
+    let result = frame(race, system, scene, gfx);
     FRAMES[0].fetch_add(1, Relaxed);
     FRAMES[1].fetch_add(begun.elapsed().as_micros() as u64, Relaxed);
     result
 }
 
-fn frame(race: &Race) -> Result<(), Refused> {
-    let system = crate::system::owner::system();
-    let scene = crate::scene::owner::scene();
+fn frame(
+    race: &Race,
+    system: &crate::system::owner::System,
+    scene: &crate::scene::owner::Scene,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), Refused> {
     let session = &system.session;
     let shared = &race.shared;
     // Converted: `rc2k_core::race::loading::{FRAME_MARK, frame_tried}`.
@@ -78,17 +86,17 @@ fn frame(race: &Race) -> Result<(), Refused> {
         if active == 0 || !frame_tried(active, session.flags.lost.get()) {
             break 'frame false;
         }
-        begin_scene::begin_scene(race);
+        begin_scene::begin_scene(race, crate::workers::game_scratch());
         let framed: u32 = shared.switches.editor_mode.get();
         shared.switches.editor_mode.set(0u32);
         choose_view_window::choose_view_window(race, scene, system);
         shared.switches.editor_mode.set(framed);
         crate::race::loading_bar_quad::loading_bar_quad(race, system, scene)?;
         end_scene::end_scene();
-        if lock_frame::lock_frame(race, crate::gfx::owner::gfx()).0 < 1 {
+        if lock_frame::lock_frame(race, gfx).0 < 1 {
             break 'frame false;
         }
-        unlock_frame::unlock_frame(&race.frame);
+        unlock_frame::unlock_frame(&race.frame, gfx);
         present_frame::present_frame()
     };
     if drawn || session.flags.quitting.is_set() {

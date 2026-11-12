@@ -540,7 +540,8 @@ impl Callee {
             Self::LoadBackground(path) => {
                 crate::menu::load_background::load_background_in(
                     path(menus),
-                    &mut GameCanvas,
+                    &mut GameCanvas::new(entry.owners.gfx),
+                    menus,
                     entry.owners.gfx,
                     entry.system,
                 )?;
@@ -593,19 +594,23 @@ impl Callee {
             Self::GoBack => crate::menu::go_back::go_back(menus),
             Self::MarkStageChoice => crate::menu::mark_stage_choice::mark_stage_choice(play),
             Self::EditPlayerName => {
-                crate::menu::edit_player_name::edit_player_name(menus, screens, &mut GameCanvas)?;
+                crate::menu::edit_player_name::edit_player_name(
+                    menus,
+                    screens,
+                    &mut GameCanvas::new(entry.owners.gfx),
+                )?;
             }
             Self::EditSetupName => {
                 crate::service::edit_setup_name::edit_setup_name(
                     menus,
                     entry.owners.service,
-                    &mut GameCanvas,
+                    &mut GameCanvas::new(entry.owners.gfx),
                 )?;
             }
             Self::EditSavegameName => crate::menu::edit_savegame_name::edit_savegame_name(
                 menus,
                 entry.owners.saves,
-                &mut GameCanvas,
+                &mut GameCanvas::new(entry.owners.gfx),
                 &mut |slot| {
                     crate::menu::edit_savegame_name::save_game(menus, entry.owners.saves, slot);
                 },
@@ -615,7 +620,7 @@ impl Callee {
                     menus,
                     entry.owners.saves,
                     entry.owners.race,
-                    &mut GameCanvas,
+                    &mut GameCanvas::new(entry.owners.gfx),
                 );
             }
             Self::CheckCheatName => {

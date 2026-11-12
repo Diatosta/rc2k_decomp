@@ -208,12 +208,13 @@ macro_rules! results_page_entry {
             pub fn draw(
                 menus: &crate::menu::owner::Menus,
                 system: &crate::system::owner::System,
+                gfx: &crate::gfx::owner::Gfx,
             ) -> Result<(), Refused> {
                 draw_results_page(
                     menus,
                     system,
                     &$page,
-                    &mut crate::text::draw_text::GameCanvas,
+                    &mut crate::text::draw_text::GameCanvas::new(gfx),
                 )
             }
         }

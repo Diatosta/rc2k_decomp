@@ -32,6 +32,7 @@ fn colour(install: &crate::install::owner::Install, marks: u8, kind: u32) -> u32
 pub fn draw_pieces(
     install: &'static crate::install::owner::Install,
     strings: &'static Strings,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     let count = piece_count(install);
     if count == 0 {
@@ -49,6 +50,7 @@ pub fn draw_pieces(
                     font(install, colour(install, first, font_kind))?,
                     x,
                     y,
+                    gfx,
                 )?;
             }
             Way::Edit => {
@@ -66,7 +68,7 @@ pub fn draw_pieces(
                     text.push(0);
                     store_text(&strings.text.buffer.text, &text);
                 }
-                draw_text(edit_font, &text, x, y)?;
+                draw_text(edit_font, &text, x, y, gfx)?;
             }
             Way::Text => {
                 let item = piece.item();
@@ -83,6 +85,7 @@ pub fn draw_pieces(
                     &text,
                     x,
                     y,
+                    gfx,
                 )?;
             }
             Way::Action => draw_action(piece.item().data())?,

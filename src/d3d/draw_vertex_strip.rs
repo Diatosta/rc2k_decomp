@@ -32,11 +32,15 @@ fn vertices(at: &dyn Store, count: u32) -> Result<Vec<Vertex>, BadInput> {
 }
 
 /// The strip of `count` vertices at `at` drawn: Direct3D's result, always 0 here.
-pub fn draw_vertex_strip(at: &dyn Store, count: u32) -> Result<u32, BadInput> {
+pub fn draw_vertex_strip(
+    part: &crate::workers::PartScratch,
+    at: &dyn Store,
+    count: u32,
+) -> Result<u32, BadInput> {
     let vertices = vertices(at, count)?;
     let swallowed = note(|| Call::Fan(vertices.clone()));
     if !swallowed {
-        crate::platform_3d::draw_strip(&vertices);
+        crate::platform_3d::draw_strip(part, &vertices);
     }
     Ok(0)
 }

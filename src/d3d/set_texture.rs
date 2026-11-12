@@ -8,7 +8,8 @@
 //! Platform: the original always runs, here it is only noted. In the standalone
 //! program, and for a recording that swallows, the number is kept and nothing more.
 
-/// The texture polygons are drawn with from now on (the standalone keeps its number).
-pub fn set_texture(texture: u32) {
-    crate::d3d::render_cache::set_texture(texture);
+/// The texture drawing part `part`'s polygons are drawn with from now on (the standalone keeps
+/// its number).
+pub fn set_texture(part: &crate::workers::PartScratch, texture: u32) {
+    crate::d3d::render_cache::set_texture(part, texture);
 }

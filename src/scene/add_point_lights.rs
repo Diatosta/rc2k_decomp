@@ -53,8 +53,13 @@ pub fn add_point_lights(
             colour,
         }
     });
-    let at =
-        |point: u32| reading.keep(crate::race::scene_points::point_number(&race.course, point));
+    let at = |point: u32| {
+        reading.keep(crate::race::scene_points::point_number(
+            &race.course,
+            &ctx.part.points,
+            point,
+        ))
+    };
     let out = lamps::add_point_lights(list, place, at, ctx.view.light.light_colour.get(), mmx);
     reading.finish()?;
     for (to, value) in [

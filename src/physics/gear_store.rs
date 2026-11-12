@@ -3,6 +3,7 @@
 //! marks and samples (`physics::test_drive_run`, `physics::test_drive`).
 //! Names are readings unless IDA's.
 
+#[cfg(test)]
 use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
@@ -34,19 +35,6 @@ pub struct GearFigures {
     /// +0x83c (0x5CC194): a busy flag the game sets around its copy of the "demof" file (guards the copy hook against re-entry); no port code names it.
     pub demo_copy_busy: Dword,
 }
-
-/// The piece: a field of `Frame::lights_and_gear` since 2026-10-29 (it left the race
-/// block with its group, phase 13).
-pub struct InGroup;
-
-impl core::ops::Deref for InGroup {
-    type Target = GearFigures;
-    fn deref(&self) -> &GearFigures {
-        &race().frame.lights_and_gear.gear
-    }
-}
-
-pub static GEAR: InGroup = InGroup;
 
 /// IDA 0x5CB958, the first byte of the piece.
 pub const START: usize = 0x5CB958;

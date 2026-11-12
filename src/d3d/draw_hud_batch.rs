@@ -8,13 +8,14 @@
 //! each triangle (`platform_3d::draw_triangles`) and the result is 0.
 
 /// Draws the HUD's batch.
-pub fn draw_hud_batch(hud: &crate::hud::owner::Hud) {
+pub fn draw_hud_batch(part: &crate::workers::PartScratch, hud: &crate::hud::owner::Hud) {
     // The vertices and indices are the HUD block's (`hud::store`); the original's two
     // pointers to them are not kept.
     let past = |what: &str| -> ! {
         crate::fatal::raise::end(what, crate::errors::BadInput("past the HUD's batch"))
     };
     crate::platform_3d::draw_triangles(
+        part,
         hud.block.vertex_count.get(),
         hud.block.index_count.get(),
         |n| {

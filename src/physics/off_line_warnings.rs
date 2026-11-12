@@ -51,6 +51,10 @@ fn store(car: &Car, w: &Warnings) {
 
 /// The steps.
 // Converted: `rc2k_core::physics::progress::{Warnings, off_line, cue_due}`.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the race's tables the warnings read, and the owners"
+)]
 pub fn off_line_warnings(
     frame_work: &FrameWork,
     work: &RaceWork,
@@ -59,6 +63,7 @@ pub fn off_line_warnings(
     checkpoints: &crate::race::checkpoints_store::Checkpoints,
     car: &Car,
     sound: &crate::sound::owner::Sound,
+    audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     if car.finish_flag.get() != 0 || car.go_stand_timer.get() != 0 {
         return Ok(());
@@ -91,7 +96,7 @@ pub fn off_line_warnings(
         if let Some(next) = cue_due(count.get(), time.get()) {
             time.set(next);
             crate::physics::cue_listed_car_sound::cue_listed_car_sound(
-                frame_work, work, cue, sound,
+                frame_work, work, cue, sound, audio,
             )?;
         }
     }

@@ -46,7 +46,11 @@ pub fn classify_controller(
 /// 0x200 or 0x100; else the controller read and classified. Space (key 0x39) stops it with
 /// nothing; anything found goes to the player's +0x50 + 4 x (control - 1). The original keeps
 /// every register. Refuses (before anything) a player without its record.
-pub fn learn_axis(menus: &Menus, input: &Input) -> Result<(), Refused> {
+pub fn learn_axis(
+    menus: &Menus,
+    input: &Input,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), Refused> {
     let controls = &screens_owner().controls;
     let screens = &menus.screens;
     if controls.learning.get() != 1 {
@@ -77,7 +81,7 @@ pub fn learn_axis(menus: &Menus, input: &Input) -> Result<(), Refused> {
             crate::gfx::typefaces::fonts::LIST,
             0x1B8,
             item.fixed().alignment_or_text_y,
-            &mut crate::text::draw_text::GameCanvas,
+            &mut crate::text::draw_text::GameCanvas::new(gfx),
         )?;
     }
     let mut take = true;

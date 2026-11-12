@@ -78,7 +78,7 @@ pub fn lets_rally(o: Owners<'static>) -> Result<bool, Refused> {
     };
     crate::race::race_end::tidy_everything(race, o)?;
     crate::sound::stop_music::stop_music(o.audio, o.system);
-    crate::platform::set_menu_mode_now();
+    crate::platform::set_menu_mode_now(o.gfx);
     crate::menu::show_loading_picture::show_loading_picture_in(o.menus, o.gfx, o.system)?;
     sound_tables::clear_race_sound_objects(sound, o.audio, o.system)?;
     crate::sound::apply_settings::apply_settings(o)?;

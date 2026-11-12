@@ -1,7 +1,6 @@
 //! The object faces and the two sort lists (IDA 0x9A3730 .. 0x9E3738, in the image's
 //! zeroed tail `race::buffers_store`). Names are readings unless IDA's.
 
-use crate::race::owner::race;
 use crate::session::Dword;
 
 #[repr(C)]
@@ -25,18 +24,6 @@ pub struct SortLists {
     /// +0x10000 (0x9E3730): two dwords (`dword_9E3730`, `dword_9E3734`) after the sort entries; nothing reads or writes them (an overrun space, probably).
     pub unknown_40000: [Dword; 2],
 }
-
-/// The piece, a field of `crate::race::owner::race().shared.buffers`.
-pub struct InBuffers;
-
-impl core::ops::Deref for InBuffers {
-    type Target = Faces;
-    fn deref(&self) -> &Faces {
-        &race().shared.buffers.faces
-    }
-}
-
-pub static FACES: InBuffers = InBuffers;
 
 /// IDA 0x9A3730, the first byte of the piece.
 pub const START: usize = 0x9A3730;

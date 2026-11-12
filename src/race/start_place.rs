@@ -37,7 +37,7 @@ fn check_point(
 
 /// Coordinate `k` of scene point `n`.
 fn get(course: &Course, n: u32, k: u32) -> Result<u32, BadInput> {
-    crate::race::scene_points::point_word(course, n, k)
+    crate::race::scene_points::point_word(course, &crate::race::scene_points::NO_OWN, n, k)
 }
 
 /// `race::place_car_on_line` (0x44666F): checkpoint `line_place` (held below `g_checkpointCount`)

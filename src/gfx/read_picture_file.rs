@@ -26,14 +26,6 @@ pub const PNG_SETTING_START: usize = 0x51B97C;
 pub fn read_picture_file(
     path: &dyn crate::session::TextPlace,
     gfx: &crate::gfx::owner::Gfx,
-) -> Result<bool, Refused> {
-    read_picture_file_in(path, gfx, crate::system::owner::system())
-}
-
-/// `read_picture_file` for a caller that holds the system.
-pub fn read_picture_file_in(
-    path: &dyn crate::session::TextPlace,
-    gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<bool, Refused> {
     use rc2k_core::gfx::loading::{Reader, ending, reader};

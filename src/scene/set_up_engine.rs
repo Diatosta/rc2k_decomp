@@ -18,6 +18,7 @@ pub fn set_up_engine_in(race: &Race, scene: &Scene) -> Result<(), Refused> {
         &race.physics.car_specs,
         &race.course,
         &race.shared,
+        race.gear(),
         scene,
     )
 }

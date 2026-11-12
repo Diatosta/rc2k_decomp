@@ -121,10 +121,6 @@ fn clear_stage_flags(sound: &crate::sound::owner::Sound) {
     }
 }
 
-pub fn command(command: Command) {
-    crate::sound::queue::send_command(command);
-}
-
 /// `sound::wait_for_commands`: the queue run out (its ends of turn read no register).
 pub fn wait_for_commands(
     audio: &crate::audio::owner::Audio,
@@ -144,8 +140,8 @@ pub fn reset_race_sounds(
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     wait_for_commands(audio, system);
-    command(Command::StopAll);
-    crate::sound::queue::send_with_eax(Command::EndOfTurn, Some(7));
+    crate::sound::queue::send_command_in(audio, Command::StopAll);
+    crate::sound::queue::send_with_eax_in(audio, Command::EndOfTurn, Some(7));
     wait_for_commands(audio, system);
     crate::sound::hold_sounds_back::hold_sounds_back(audio);
     crate::sound::race_clock::start_race_clock(crate::system::tick_count::tick_count(), sound);
@@ -159,7 +155,7 @@ pub fn reset_race_sounds(
     }
     sound.race.stage.get().shared_count.set(0);
     crate::audio::store::ENVIRONMENT.set(0x3F80_0000u32);
-    command(Command::Room(3));
+    crate::sound::queue::send_command_in(audio, Command::Room(3));
     sound.race.clock.get().started.set(0);
     Ok(())
 }

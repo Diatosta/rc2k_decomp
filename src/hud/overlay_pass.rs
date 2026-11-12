@@ -42,8 +42,9 @@ pub fn overlay_pass(
         .panel
         .players
         .set(shown_layout(&race.shared));
-    depth_buffer(false);
-    crate::hud::overlay_states::overlay_states();
+    let part = crate::workers::game_scratch();
+    depth_buffer(part, false);
+    crate::hud::overlay_states::overlay_states(part);
     let kept: [u32; 2] = [
         race.frame.panel_and_overlay.panel.hud_flags[0].get(),
         race.frame.panel_and_overlay.panel.hud_flags[1].get(),
@@ -59,10 +60,10 @@ pub fn overlay_pass(
     }
     let scratch = crate::race::view_scratch::front_end();
     let polygons = &scratch.polygon;
-    let part = crate::workers::game_scratch();
     let pen = Pen {
         polygons,
         vertices: part.vertices,
+        part,
         system,
         scene,
     };
@@ -70,9 +71,9 @@ pub fn overlay_pass(
     race.frame.panel_and_overlay.panel.hud_flags[1].set(kept[1]);
     race.frame.panel_and_overlay.panel.hud_flags[0].set(kept[0]);
     done?;
-    depth_buffer(true);
+    depth_buffer(part, true);
     crate::scene::full_view_window::full_view_window(race, scene, system);
-    crate::scene::set_render_state::set_render_state(3, 3);
+    crate::scene::set_render_state::set_render_state(part, 3, 3);
     // Read by the next frame's first view (`view_scratch::filter_input`) and the menus.
     polygons.plain_first.set(1);
     polygons.plain_second.set(1);
@@ -84,7 +85,7 @@ pub fn overlay_pass(
         scene,
         strips: &gfx.strips,
     })?;
-    depth_buffer(false);
-    crate::scene::set_filters::set_filters(race);
+    depth_buffer(part, false);
+    crate::scene::set_filters::set_filters(race, part);
     Ok(())
 }

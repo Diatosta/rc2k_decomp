@@ -34,6 +34,7 @@ pub fn binding_text(
     controls: &crate::screens::controls_store::ControlsScreen,
     player: crate::menu::standings::PlayerCell,
     n: u32,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<Vec<u8>, Refused> {
     let b = rc2k_core::screens::controls::Binding {
         binding: player.get().binding(n as usize),
@@ -44,7 +45,7 @@ pub fn binding_text(
             0
         },
     };
-    let mut canvas = crate::text::draw_text::GameCanvas;
+    let mut canvas = crate::text::draw_text::GameCanvas::new(gfx);
     let mut s = ControlsScreen::new(&mut canvas);
     Ok(rc2k_core::screens::controls::binding_text(
         &mut s,
@@ -59,6 +60,7 @@ pub fn draw_control_bindings(
     menus: &Menus,
     screens: &ScreensOwner,
     canvas: &mut dyn Canvas,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<bool, Refused> {
     let controls = &screens.controls;
     let Some(player) = crate::menu::player::player(menus, menus.screens.event.current_player.get())
@@ -69,7 +71,7 @@ pub fn draw_control_bindings(
     let row: u32 = controls.learned.get();
     let mut texts: [Vec<u8>; 10] = Default::default();
     for (n, text) in texts.iter_mut().enumerate() {
-        *text = binding_text(controls, player, n as u32)?;
+        *text = binding_text(controls, player, n as u32, gfx)?;
     }
     // The logic is in `rc2k_core::screens::controls::control_bindings`.
     let learnt = (learning == 1 && (1..=10).contains(&row)).then(|| row as usize - 1);

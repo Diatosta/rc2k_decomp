@@ -115,7 +115,7 @@ pub fn draw_clipped_polygon_in_game(
                     ctx.part,
                     race,
                     &ctx.view.face,
-                    &mut Game,
+                    &mut Game(ctx.part),
                     scene,
                     &ctx.system.session.screen,
                 )?;

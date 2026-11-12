@@ -67,7 +67,7 @@ fn face_checkpoint(
     let point = crate::race::course_places::face_field::<u32>(course, face, 4)
         .unwrap_or_else(|e| crate::fatal::raise::end("a checkpoint face", e));
     let coordinate = |k| {
-        crate::race::scene_points::point_word(course, point, k)
+        crate::race::scene_points::point_word(course, &crate::race::scene_points::NO_OWN, point, k)
             .unwrap_or_else(|e| crate::fatal::raise::end("a scene point", e))
     };
     let first = shared.car.position[0].get().wrapping_sub(coordinate(0));

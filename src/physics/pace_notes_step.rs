@@ -37,6 +37,7 @@ pub fn pace_notes_step(
     c: &CheckpointInputs<'_>,
     scene: &crate::scene::owner::Scene,
     sound: &crate::sound::owner::Sound,
+    audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     let (physics, numbers, frame_work) = (c.physics, c.numbers, &c.frame_work);
     let (work, vars, replay_file) = (c.work, c.vars, &c.shared.replay_file);
@@ -74,6 +75,7 @@ pub fn pace_notes_step(
                 car,
                 checkpoint,
                 sound,
+                audio,
             )?;
             if checkpoint >= target {
                 break;

@@ -69,7 +69,7 @@ pub fn main_loop(o: Owners<'static>) -> Result<(), Refused> {
             break;
         }
     }
-    crate::platform::set_menu_mode_now();
+    crate::platform::set_menu_mode_now(gfx);
     crate::sound::apply_settings::apply_settings(o)?;
     crate::gfx::load_jade::load_jade_in_game(gfx)?;
     crate::menu::build_notice::build_notice(menus, o.strings);

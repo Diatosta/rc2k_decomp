@@ -511,7 +511,7 @@ fn run_main_loop(o: Owners<'static>, r: &Context) {
 /// SDL's (`SDL_DOES`).
 fn shut_down(o: Owners<'static>, r: &Context) {
     rust("net::shut_down");
-    if let Err(e) = crate::net::shut_down::shut_down(o.net, o.system) {
+    if let Err(e) = crate::net::shut_down::shut_down(o.net, o.system, o.race.viewer_panel()) {
         refused("net::shut_down", e, r);
     }
     rust("gfx::free_picture_buffer");

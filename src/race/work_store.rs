@@ -220,11 +220,11 @@ impl RaceWork {
     /// Car `n`'s block as a car: `trap::car_at(self.car_block(n))` without the round trip
     /// through an address (the drawing asks for it per face).
     pub fn car(&self, n: usize) -> Result<&'static crate::physics::car_store::Car, BadInput> {
-        use crate::race::blocks_store::{BLOCK_COUNT, BLOCK_TAG, CAR_BLOCKS};
+        use crate::race::blocks_store::{BLOCK_COUNT, BLOCK_TAG};
         if let Some(cell) = self.car_blocks.get(n) {
             let k = (cell.get() ^ BLOCK_TAG) as usize;
             if k < BLOCK_COUNT {
-                return Ok(&CAR_BLOCKS.cars[k]);
+                return Ok(&crate::race::owner::race().car_blocks().cars[k]);
             }
         }
         crate::race::trap::car_at(self.car_block(n))
@@ -306,7 +306,7 @@ impl RaceWork {
         {
             return Err(BadInput("a car record off the view marks' records"));
         }
-        Ok(&crate::race::effects_settings_store::EFFECTS_SETTINGS.cars
+        Ok(&crate::race::owner::race().effects_settings().cars
             [off / crate::race::effects_settings_store::CAR_LEN])
     }
 

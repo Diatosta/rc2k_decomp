@@ -18,6 +18,7 @@ use crate::race::owner::Race;
 /// `race::set_all_plates` (see the header).
 pub fn set_all_plates(
     race: &'static Race,
+    system: &crate::system::owner::System,
     gfx: &crate::gfx::owner::Gfx,
     net: &crate::net::owner::Net,
     scene: &crate::scene::owner::Scene,
@@ -59,7 +60,7 @@ pub fn set_all_plates(
             at += 1;
         }
     }
-    crate::scene::reload_system_textures::reload_system_textures(race, gfx, net, scene)?;
+    crate::scene::reload_system_textures::reload_system_textures(race, system, gfx, net, scene)?;
     crate::scene::reload_slot_textures::reload_slot_textures(&race.frame, scene)?;
     Ok(())
 }

@@ -30,6 +30,12 @@ pub fn chat_input_line(
         plain.push(0);
         plain
     };
-    crate::text::draw_text::draw_text_at(CHAT_FONT, &shown, 0xA, y as i32, &mut GameCanvas)?;
+    crate::text::draw_text::draw_text_at(
+        CHAT_FONT,
+        &shown,
+        0xA,
+        y as i32,
+        &mut GameCanvas::new(o.gfx),
+    )?;
     Ok(y.wrapping_add(0x1E))
 }

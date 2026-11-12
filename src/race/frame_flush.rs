@@ -6,7 +6,6 @@ use crate::errors::Refused;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::owner_frame::Frame;
-use crate::scene::owner::scene;
 use crate::session::Dword;
 
 /// The render states both batches set: (value, state).
@@ -19,7 +18,7 @@ pub struct Batch<'a> {
     pub word: &'a Dword,
     /// The platform's draw on the batch's vertices and indices (0x41ADF5, its result),
     /// given their counts.
-    pub draw: fn(&Frame, u32, u32) -> u32,
+    pub draw: fn(&crate::workers::PartScratch, &Frame, u32, u32) -> u32,
     pub kept: &'a Dword,
     pub blend: u32,
     pub text: &'static std::ffi::CStr,
@@ -30,8 +29,9 @@ pub fn plain(frame: &Frame) -> Batch<'_> {
     Batch {
         count: &frame.draw_batches.plain_count,
         word: &frame.draw_batches.plain_word,
-        draw: |frame, vertices, indices| {
+        draw: |part, frame, vertices, indices| {
             crate::platform_3d::draw_indexed(
+                part,
                 &frame.draw_batches.plain_vertices,
                 vertices,
                 &frame.draw_batches.plain_indices,
@@ -49,8 +49,9 @@ pub fn textured(frame: &Frame) -> Batch<'_> {
     Batch {
         count: &frame.draw_batches.textured_count,
         word: &frame.draw_batches.textured_word,
-        draw: |frame, vertices, indices| {
+        draw: |part, frame, vertices, indices| {
             crate::platform_3d::draw_indexed(
+                part,
                 &frame.draw_batches.textured_vertices,
                 vertices,
                 &frame.draw_batches.textured_indices,
@@ -67,15 +68,24 @@ pub fn textured(frame: &Frame) -> Batch<'_> {
 /// `KindTextureTables.kind_first_slots[135]` (`scene::set_texture`); the render states; with triangles in the batch (its count
 /// also into its kept count) the second looks up its texture (`scene::look_up_texture`) and sets it
 /// inside `pusha`; the draw, a failure logged as "drawtri" and its code (level 1); the count and
-/// word 0.
-pub fn flush_batch(frame: &Frame, b: &Batch, textured: bool) -> Result<(), Refused> {
-    let scene = scene();
+/// word 0. In drawing part `part`'s render states.
+pub fn flush_batch(
+    scene: &crate::scene::owner::Scene,
+    part: &crate::workers::PartScratch,
+    frame: &Frame,
+    b: &Batch,
+    textured: bool,
+) -> Result<(), Refused> {
     use crate::scene::{set_render_state::set_render_state, set_texture::set_texture};
     if !textured {
-        set_texture(scene, scene.textures.kinds.kind_first_slots[135].get());
+        set_texture(
+            part,
+            scene,
+            scene.textures.kinds.kind_first_slots[135].get(),
+        );
     }
     for (value, state) in STATES {
-        set_render_state(if state == 0x14 { b.blend } else { value }, state);
+        set_render_state(part, if state == 0x14 { b.blend } else { value }, state);
     }
     let count = b.count.get();
     b.kept.set(count);
@@ -87,13 +97,14 @@ pub fn flush_batch(frame: &Frame, b: &Batch, textured: bool) -> Result<(), Refus
                 scene,
             );
             set_texture(
+                part,
                 scene,
                 crate::scene::polygon_work::front_end()
                     .polygon_texture
                     .get(),
             );
         }
-        let result = (b.draw)(frame, b.word.get(), count);
+        let result = (b.draw)(part, frame, b.word.get(), count);
         if result != 0 {
             crate::logfile::log_write::log_nul(&b.text, false, 1);
             crate::logfile::log_hex8::log_hex8(result, false, 1);
@@ -132,8 +143,9 @@ pub fn draw_view_backdrop(
     race: &Race,
     scene: &crate::scene::owner::Scene,
     view: &crate::race::view_scratch::ViewScratch,
-    buffer: &crate::d3d::vertices_store::PolygonVertices,
+    part: &crate::workers::PartScratch,
 ) {
+    let buffer = part.vertices;
     let course = &race.course;
     view.quad.uv[0].set(0xF8_0000);
     view.quad.uv[4].set(0x8_0000);
@@ -178,10 +190,14 @@ pub fn draw_view_backdrop(
     // The count in the view's own polygon work (the original's is the one shared; the
     // mirror's backdrop is drawn on the mirror's part, frame plan F7).
     view.polygon.polygon_vertex_count.set(4);
-    crate::scene::glow_render_states::glow_render_states();
-    crate::scene::set_texture::set_texture(scene, scene.textures.kinds.kind_first_slots[192].get());
-    crate::d3d::draw_fan_unclipped::draw_fan_unclipped(&view.polygon, buffer);
-    crate::scene::depth_buffer_on::depth_buffer(true);
+    crate::scene::glow_render_states::glow_render_states(part);
+    crate::scene::set_texture::set_texture(
+        part,
+        scene,
+        scene.textures.kinds.kind_first_slots[192].get(),
+    );
+    crate::d3d::draw_fan_unclipped::draw_fan_unclipped(part, &view.polygon, buffer);
+    crate::scene::depth_buffer_on::depth_buffer(part, true);
 }
 
 #[cfg(test)]

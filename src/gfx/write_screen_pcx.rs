@@ -76,7 +76,7 @@ pub fn write_screen_pcx(
 /// The rows; false when a write failed. Converted: `rc2k_core::gfx::pcx::screen_planes` and
 /// `encode_line`; the planes are left in the game's buffer, as the original leaves them.
 fn rows(stream: &mut Stream, gfx: &crate::gfx::owner::Gfx) -> Result<bool, Refused> {
-    let rows = crate::gfx::rows::Rows::surface()?;
+    let rows = crate::gfx::rows::Rows::surface(gfx)?;
     // The block's byte count after the header (0x80), as the original's register has it.
     let mut eax: u32 = 0x80;
     let width = gfx.drawing.draw_surface.width.get();

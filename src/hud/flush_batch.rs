@@ -5,11 +5,11 @@
 //! Callers: `hud::draw_hud` (the HUD's end), `hud::add_polygon`.
 
 // Converted: `rc2k_core::hud::batch::flush_due`
-pub fn flush_batch(hud: &Hud) {
+pub fn flush_batch(part: &crate::workers::PartScratch, hud: &Hud) {
     if !rc2k_core::hud::batch::flush_due(hud.block.index_count.get()) {
         return;
     }
-    crate::d3d::draw_hud_batch::draw_hud_batch(hud);
+    crate::d3d::draw_hud_batch::draw_hud_batch(part, hud);
     hud.block.vertex_count.set(0);
     hud.block.index_count.set(0);
 }

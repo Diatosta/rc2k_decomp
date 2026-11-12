@@ -126,6 +126,7 @@ pub fn set_up_fog(
     fog: &crate::scene::fog::Fog,
     poly: &crate::scene::polygon_work::PolygonWork,
     car: &crate::physics::car_store::Car,
+    part: &crate::workers::PartScratch,
 ) -> Result<(), Refused> {
     let course = &race.course;
     let length = poly.window.view_depth[1].get().wrapping_shl(3);
@@ -143,6 +144,7 @@ pub fn set_up_fog(
     crate::scene::set_fog_colour::set_fog_colour(
         rc2k_core::race::view::device_fog_colour(fog.colour.get()),
         poly,
+        part,
     );
     Ok(())
 }
@@ -498,14 +500,14 @@ pub fn draw_sky(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refu
     ctx.view.light.light_turns[0].set(0);
     ctx.view.light.light_turns[1].set(0);
     ctx.view.face.no_far_clip.set(1);
-    crate::scene::glow_render_states::glow_render_states();
+    crate::scene::glow_render_states::glow_render_states(ctx.part);
     ctx.view.light.light_kind.set(0u32);
     // The matrix pointer is where the matrix's copy leaves it: past `g_madeObjectMatrix`.
     crate::scene::draw_scene_object::draw_scene_object_in_game(
         ctx,
         Some(Description::Cells(&ctx.view.matrices.object_matrix_slots)),
     )?;
-    crate::scene::depth_buffer_on::depth_buffer(true);
+    crate::scene::depth_buffer_on::depth_buffer(ctx.part, true);
     ctx.view.light.view_kind.set(0);
     ctx.view.face.no_far_clip.set(0);
     place_sun(ctx, ctx.system)

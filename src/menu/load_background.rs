@@ -27,6 +27,7 @@ const FRAME_SPRITE: u32 = 0xA0;
 pub fn load_background_in(
     path: &dyn crate::session::TextPlace,
     canvas: &mut dyn Canvas,
+    menus: &crate::menu::owner::Menus,
     gfx: &Gfx,
     system: &System,
 ) -> Result<(), Refused> {
@@ -38,6 +39,7 @@ pub fn load_background_in(
         .flags
         .set(gfx.display.mode.mode_flags.get() & 0xFFF);
     picture_as_surface(gfx)?;
-    { canvas.blit_glyph(BlitCall::sprite(FRAME_SPRITE, 0, 0)) }?;
+    let call = BlitCall::sprite(menus, FRAME_SPRITE, 0, 0, canvas.clip_right());
+    { canvas.blit_glyph(call) }?;
     Ok(())
 }

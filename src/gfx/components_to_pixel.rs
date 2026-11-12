@@ -12,17 +12,17 @@
 //! 30 call sites, among them the per-pixel loops that scale and convert pictures. Refuses a
 //! null format.
 
-use crate::gfx::owner::gfx;
+use crate::gfx::owner::Gfx;
 use crate::gfx::pixel_format::PixelFormat;
 
 /// The pixel, and what is left in the scratch bytes if they are used (converted:
 /// `rc2k_core::gfx::pixels::pack`).
 pub use rc2k_core::gfx::pixels::pack as packed;
 
-pub fn components_to_pixel(format: &PixelFormat, components: u32) -> u32 {
+pub fn components_to_pixel(format: &PixelFormat, components: u32, gfx: &Gfx) -> u32 {
     let (pixel, scratch) = packed(format, components);
     if let Some(scratch) = scratch {
-        gfx().pixel.formats.scratch.write(&scratch);
+        gfx.pixel.formats.scratch.write(&scratch);
     }
     pixel
 }

@@ -20,21 +20,21 @@ pub fn inspection_frame(
     o: Owners<'static>,
     menu: crate::menu::menus_store::MenuId,
 ) -> Result<bool, Refused> {
-    if lock_failed() {
+    if lock_failed(o.gfx) {
         return Ok(false);
     }
     copy_picture()?;
     run_listed(o, &o.menus.screens.flow.draw_list)?;
-    unlock_surface();
+    unlock_surface(o.gfx);
     o.scene.lights.state.scene_state.set_bits(4u32);
-    crate::scene::begin_scene::begin_scene(o.race);
+    crate::scene::begin_scene::begin_scene(o.race, crate::workers::game_scratch());
     run_listed(o, &o.menus.screens.flow.scene_list)?;
     crate::scene::end_scene::end_scene();
-    if lock_failed() {
+    if lock_failed(o.gfx) {
         return Ok(false);
     }
     draw_menu(o, menu)?;
     run_listed(o, &o.menus.screens.flow.overlay_list)?;
-    unlock_surface();
+    unlock_surface(o.gfx);
     Ok(show_frame_now())
 }

@@ -1,12 +1,10 @@
 //! The race panel: the HUD values, the start lights and the sound spots shared with the audio side.
 
 use crate::errors::{BadInput, Refused};
-use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::frame_view::car as car_view;
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
 use crate::race::owner_shared::RaceShared;
-use crate::scene::faces_store::FACES;
 use crate::session::Dword;
 
 /// `race::car_label` (0x45B1B7): the panel's seven-byte label " CAR nn" for the neighbouring car,
@@ -137,8 +135,8 @@ pub fn view_value(
 }
 
 /// The value into the view's block +0xFB8 (`view_value`).
-pub fn store_view_value(block: usize, value: u32) -> Result<(), Refused> {
-    CAR_BLOCKS.cars[block].eased_target.set(value);
+pub fn store_view_value(race: &Race, block: usize, value: u32) -> Result<(), Refused> {
+    race.car_blocks().cars[block].eased_target.set(value);
     Ok(())
 }
 
@@ -212,6 +210,7 @@ pub fn clear_point_records(
 /// `OBJECT_SLOTS.first_face` in `g_faces`) the kinds' byte of the first face's +4 word. Outputs:
 /// the view's four face tables (`race::view_course`; the original's `LEVEL_GRID.face_table_a` ...)
 pub fn object_bytes(
+    race: &Race,
     scene: &crate::scene::owner::Scene,
     mine: &crate::race::view_course::ViewCourse,
 ) -> Result<(), BadInput> {
@@ -231,7 +230,8 @@ pub fn object_bytes(
         let record_kind = kind(record[0].get())?;
         let face_kind = if scene.objects.slots.face_counts[n].get() != 0 {
             let first = scene.objects.slots.first_face[n].get() as usize;
-            let face = FACES
+            let face = race
+                .faces()
                 .faces
                 .get(first)
                 .ok_or(BadInput("an object's first face past the faces"))?
@@ -665,12 +665,14 @@ pub fn set_up_panel(race: &Race) -> Result<(), Refused> {
 /// `race::reset_lamps` (0x45487A): `g_lampCount`, the view's two sort lists' counts and
 /// `race().frame.frame_work.flare_count` 0, then `race::object_bytes`.
 pub fn reset_lamps(ctx: &crate::race::view_scratch::DrawCtx) -> Result<(), BadInput> {
-    let crate::race::view_scratch::DrawCtx { scene, view, .. } = *ctx;
+    let crate::race::view_scratch::DrawCtx {
+        race, scene, view, ..
+    } = *ctx;
     view.lamps.lamp_count.set(0);
     view.lists.depth_entry_count.set(0);
     view.lists.sort_entry_count.set(0);
     view.lamps.flare_count.set(0);
-    object_bytes(scene, &view.course)
+    object_bytes(race, scene, &view.course)
 }
 
 /// `race::hold_to_limit` (0x4650A9): `value` held to `RACE_WORK.patch_settings` (unsigned).

@@ -168,8 +168,11 @@ mod tests {
         std::fs::write(&name, &file).unwrap();
         let mut path = [0u8; 64];
         path[..name.len()].copy_from_slice(name.as_bytes());
-        let read =
-            crate::gfx::read_picture_file::read_picture_file(&path, crate::gfx::owner::gfx());
+        let read = crate::gfx::read_picture_file::read_picture_file(
+            &path,
+            crate::gfx::owner::gfx(),
+            crate::system::owner::system(),
+        );
         std::fs::remove_file(&name).unwrap();
         assert!(read.unwrap(), "the picture was read");
         let palette: [u32; 256] = pictures.decoder.palette();

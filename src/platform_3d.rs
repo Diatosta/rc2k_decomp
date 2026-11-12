@@ -33,7 +33,7 @@ use crate::d3d::owner::d3d;
 use crate::errors::FatalError;
 use crate::framework::log;
 use crate::gfx::texture_upload::TextureFormat;
-use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
+use crate::race::viewer_screen_store::texts;
 use crate::render::{Command, STATES, Target, TextureId, TextureNote};
 use rc2k_core::fatal::Context;
 use std::sync::Mutex;
@@ -392,13 +392,13 @@ pub fn flush() {
 /// the next flush.
 /// A triangle strip (`D3DPT_TRIANGLESTRIP`): triangle n of vertices n, n + 1, n + 2, every
 /// second one's first two swapped so that all keep the strip's winding (as Direct3D does).
-pub fn draw_strip(vertices: &[crate::rasteriser::Vertex]) {
+pub fn draw_strip(part: &crate::workers::PartScratch, vertices: &[crate::rasteriser::Vertex]) {
     for n in 0..vertices.len().saturating_sub(2) {
         let (a, b, c) = (vertices[n], vertices[n + 1], vertices[n + 2]);
         if n % 2 == 0 {
-            draw_fan(&[a, b, c]);
+            draw_fan(part, &[a, b, c]);
         } else {
-            draw_fan(&[b, a, c]);
+            draw_fan(part, &[b, a, c]);
         }
     }
 }
@@ -406,17 +406,18 @@ pub fn draw_strip(vertices: &[crate::rasteriser::Vertex]) {
 /// The time noting fans (`draw_fan`), in microseconds.
 pub static NOTE_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
-pub fn draw_fan(vertices: &[crate::rasteriser::Vertex]) {
+/// A fan drawn by drawing part `part` (with its render states and texture).
+pub fn draw_fan(part: &crate::workers::PartScratch, vertices: &[crate::rasteriser::Vertex]) {
     // Timed only where something shows it: a look at the clock for every fan shows in a profile.
     if cfg!(debug_ui) {
         let noting = std::time::Instant::now();
-        note_fan(vertices);
+        note_fan(part, vertices);
         NOTE_MICROS.fetch_add(
             noting.elapsed().as_micros() as u64,
             std::sync::atomic::Ordering::Relaxed,
         );
     } else {
-        note_fan(vertices);
+        note_fan(part, vertices);
     }
 }
 
@@ -425,11 +426,11 @@ pub fn forget_states() {
     PENDING.with_borrow_mut(|p| p.states = None);
 }
 
-fn note_fan(vertices: &[crate::rasteriser::Vertex]) {
+fn note_fan(part: &crate::workers::PartScratch, vertices: &[crate::rasteriser::Vertex]) {
     if vertices.len() < 3 {
         return;
     }
-    let current: u32 = crate::d3d::render_cache::texture();
+    let current: u32 = crate::d3d::render_cache::texture(part);
     let record = (current < MOST)
         .then(|| record_at(1, current).get())
         .filter(|r| r.format != 0);
@@ -467,9 +468,9 @@ fn note_fan(vertices: &[crate::rasteriser::Vertex]) {
         }),
         vertices: vertices.into(),
         states: std::sync::Arc::clone(
-            pending
-                .states
-                .get_or_insert_with(|| std::sync::Arc::new(crate::d3d::render_cache::all_kept())),
+            pending.states.get_or_insert_with(|| {
+                std::sync::Arc::new(crate::d3d::render_cache::all_kept(part))
+            }),
         ),
         bounds,
     });
@@ -600,6 +601,7 @@ pub fn copy_screen_to_system_texture(number: u32) {
 /// `index(k)` the `k`-th index. An index past the vertices ends the list (Direct3D would
 /// have refused the call).
 pub fn draw_triangles(
+    part: &crate::workers::PartScratch,
     vertex_count: u32,
     index_count: u32,
     vertex: impl Fn(u16) -> crate::d3d::Vertex,
@@ -610,13 +612,14 @@ pub fn draw_triangles(
         if corners.iter().any(|&n| u32::from(n) >= vertex_count) {
             return;
         }
-        draw_fan(&corners.map(&vertex));
+        draw_fan(part, &corners.map(&vertex));
     }
 }
 
 /// `draw_triangles` on a batch's own buffers. A count past them ends the game (the
 /// original read on into what follows).
 pub fn draw_indexed_bytes(
+    part: &crate::workers::PartScratch,
     vertices: &impl crate::session::ByteBuffer,
     vertex_room: usize,
     vertex_count: u32,
@@ -629,6 +632,7 @@ pub fn draw_indexed_bytes(
         crate::fatal::raise::end(what, crate::errors::BadInput("past its batch's buffer"))
     };
     draw_triangles(
+        part,
         vertex_count,
         index_count,
         |n| {
@@ -651,12 +655,13 @@ pub fn draw_indexed_bytes(
 /// `draw_triangles` (DrawIndexedPrimitive, type 4, flags 0x1C). Returns Direct3D's result:
 /// 0, drawn.
 pub fn draw_indexed<const V: usize, const I: usize>(
+    part: &crate::workers::PartScratch,
     vertices: &crate::session::Bytes<V>,
     vertex_count: u32,
     indices: &crate::session::Bytes<I>,
     index_count: u32,
 ) -> u32 {
-    draw_indexed_bytes(vertices, V, vertex_count, indices, I, index_count);
+    draw_indexed_bytes(part, vertices, V, vertex_count, indices, I, index_count);
     0
 }
 
@@ -863,7 +868,9 @@ pub fn release_textures() {
 /// `gfx::set_screen_mode` does first).
 pub fn release_all_textures(gfx: &crate::gfx::owner::Gfx) {
     flush();
-    let text = VIEWER_PANEL.text(texts::SVM_RELEASE_TEXTURES);
+    let text = crate::race::owner::race()
+        .viewer_panel()
+        .text(texts::SVM_RELEASE_TEXTURES);
     crate::logfile::write_line::log_text(&text, true, 2);
     release_pool(1, gfx);
     release_pool(0, gfx);
@@ -927,19 +934,19 @@ const BEGIN_STATES: [(u32, u32); 12] = [
 ];
 
 /// `d3d::begin_scene` for Rust callers: the layer's states at a scene's beginning, no
-/// texture set. It cannot fail.
-pub fn begin_layer() {
+/// texture set (in drawing part `part`'s cache). It cannot fail.
+pub fn begin_layer(part: &crate::workers::PartScratch) {
     let d3d = d3d();
     d3d.cards.in_scene.set(1u32);
     for (value, state) in BEGIN_STATES
         .into_iter()
         .chain([(d3d.cards.fog_state.get(), 0x1A)])
     {
-        crate::d3d::set_render_state::set_render_state(value, state);
+        crate::d3d::set_render_state::set_render_state(part, value, state);
     }
     // No texture is the current one, then none is set.
-    crate::d3d::render_cache::set_texture(0xFFFF_FC44u32);
-    crate::d3d::set_texture::set_texture(NO_TEXTURE);
+    crate::d3d::render_cache::set_texture(part, 0xFFFF_FC44u32);
+    crate::d3d::set_texture::set_texture(part, NO_TEXTURE);
 }
 
 /// `d3d::end_scene` for Rust callers: true when a scene was open and is ended.

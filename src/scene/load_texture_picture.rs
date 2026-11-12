@@ -135,6 +135,7 @@ pub fn load_texture_picture_in_game(
     number: u32,
     texture: u32,
     scene: &crate::scene::owner::Scene,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let mut refused = None;
     load_texture_picture(
@@ -157,9 +158,13 @@ pub fn load_texture_picture_in_game(
                     }
                 }
                 Call::Load(name, second, texture) => {
-                    if let Err(e) =
-                        load_picture_to_texture_in_game(Some(&name), Some(&second), texture, gfx)
-                    {
+                    if let Err(e) = load_picture_to_texture_in_game(
+                        Some(&name),
+                        Some(&second),
+                        texture,
+                        gfx,
+                        system,
+                    ) {
                         refused.get_or_insert(e);
                     }
                 }

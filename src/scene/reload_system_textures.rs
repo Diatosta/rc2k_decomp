@@ -41,6 +41,7 @@ const TEXTS: [&std::ffi::CStr; 4] = [
 // Converted: `rc2k_core::scene::pictures::{kind_picture, read_size}`
 pub fn reload_system_textures(
     race: &'static crate::race::owner::Race,
+    system: &crate::system::owner::System,
     gfx: &crate::gfx::owner::Gfx,
     net: &crate::net::owner::Net,
     scene: &crate::scene::owner::Scene,
@@ -76,14 +77,14 @@ pub fn reload_system_textures(
         let grading = &gfx_grading;
         grading.scale.set(scale);
         grading.saturation.set(saturation);
-        load_changed_texture_picture_in_game(race, gfx, texture, scene)?;
-        step_loading_bar(race, scene, texture)?;
+        load_changed_texture_picture_in_game(race, gfx, texture, scene, system)?;
+        step_loading_bar(race, system, gfx, scene, texture)?;
     }
     let grading = &gfx_grading;
     grading.reading.set(0u32);
     grading.scale.set(0x100);
     grading.saturation.set(0x100);
-    load_hud_car_icons(scene, race, net, gfx)?;
+    load_hud_car_icons(scene, race, net, gfx, system)?;
     crate::logfile::log_write::log_nul(&TEXTS[2], true, 1);
     crate::logfile::log_write::log_nul(&TEXTS[3], true, 1);
     Ok(())

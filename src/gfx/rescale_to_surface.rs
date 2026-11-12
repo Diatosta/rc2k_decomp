@@ -67,7 +67,7 @@ pub fn rescale_to_surface(
                 for (part, &byte) in parts.iter().enumerate() {
                     rescaler.components.set(part, byte);
                 }
-                let pixel = components_to_pixel(&format, rescaler.components.get_u32(0));
+                let pixel = components_to_pixel(&format, rescaler.components.get_u32(0), gfx);
                 if words {
                     out.write_or_end(pixel as u16, "the surface");
                     out.advance(2);

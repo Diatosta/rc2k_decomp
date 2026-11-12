@@ -208,11 +208,11 @@ pub fn draw_object_face_in_game(
                 },
             ),
             Step::DepthTestOff => {
-                Game.state(0xE, 0);
+                Game(ctx.part).state(0xE, 0);
                 Ok(())
             }
             Step::DepthTestOn => {
-                Game.state(0xE, 1);
+                Game(ctx.part).state(0xE, 1);
                 Ok(())
             }
         },
