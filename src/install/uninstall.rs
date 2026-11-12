@@ -90,7 +90,7 @@ pub fn uninstall(
     so: crate::strings::append_string_by_id::StringOwners<'static>,
     install: &'static crate::install::owner::Install,
     system: &crate::system::owner::System,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     use crate::install as i;
     if install.names.status.get() == 0 || install.names.source.get(0) == 0 {

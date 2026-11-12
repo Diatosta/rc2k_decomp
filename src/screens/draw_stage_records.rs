@@ -48,7 +48,10 @@ pub fn selection_in(menus: &Menus, system: &System) -> Result<Option<Selection>,
     let group: u32 = screens.event.stage_group.get();
     let index: u32 = screens.event.stage_number.get();
     let sub: u32 = screens.event.stage_sub.get();
-    let table = system.records.stage_tables.group_event_table(group, sub)?;
+    let table = system
+        .records()
+        .stage_tables
+        .group_event_table(group, sub)?;
     Ok(Some(Selection {
         group,
         sub,

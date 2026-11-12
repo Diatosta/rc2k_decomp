@@ -12,7 +12,7 @@ use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_bytes;
 use crate::files::read_file::read_file_into;
 use crate::service::owner::Service;
-use crate::session::{Bytes, PlainDword};
+use crate::session::{PlainBytes, PlainDword};
 
 // ---- game data ----
 
@@ -25,9 +25,9 @@ pub const NAME_LEN: usize = 0x20;
 #[derive(rc2k_derive::Cells)]
 pub struct SetUps {
     /// `dword_527838`: the head of a set-up file as it is read or written.
-    pub file: Bytes<SETUP_FILE_LEN>,
+    pub file: PlainBytes<SETUP_FILE_LEN>,
     /// `byte_527880`: the set-ups' names, 100 of 0x20 bytes.
-    pub names: Bytes<{ SLOT_COUNT as usize * NAME_LEN }>,
+    pub names: PlainBytes<{ SLOT_COUNT as usize * NAME_LEN }>,
     /// `dword_528500`: a value the options file keeps; nothing else reads it.
     pub kept: PlainDword,
 }
@@ -36,16 +36,16 @@ pub struct SetUps {
 impl SetUps {
     pub const fn new() -> Self {
         SetUps {
-            file: Bytes::new([0; SETUP_FILE_LEN]),
-            names: Bytes::new([0; SLOT_COUNT as usize * NAME_LEN]),
+            file: PlainBytes::new([0; SETUP_FILE_LEN]),
+            names: PlainBytes::new([0; SLOT_COUNT as usize * NAME_LEN]),
             kept: PlainDword::new(0),
         }
     }
 }
 
 /// `aSavedataCarset`: the set-up file's name, the number's two digits last.
-pub const fn template() -> Bytes<27> {
-    Bytes::new(*b"savedata\\carsetup\\carset00\0")
+pub const fn template() -> PlainBytes<27> {
+    PlainBytes::new(*b"savedata\\carsetup\\carset00\0")
 }
 
 // "CRSU"

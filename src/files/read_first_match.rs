@@ -34,7 +34,7 @@ pub fn first_match_read(
         let name = crate::files::search::found_name();
         let joined = rc2k_core::files::io::match_path(pattern, &name);
         system
-            .work
+            .work()
             .files
             .buffer
             .write_at(0, &joined, "the scratch buffer")?;

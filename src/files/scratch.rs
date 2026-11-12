@@ -2,20 +2,20 @@
 //! packing, the map's read buffer, the installer's pages, the PNG decoder's info), out of
 //! RAL.EXE's image. `#[repr(C)]` struct of a byte buffer.
 
-use crate::session::Bytes;
+use crate::session::PlainBytes;
 
 /// The shared 64 KB scratch (IDA 0x93E8B0 .. 0x94E8B0, the image's layout).
 #[repr(C, align(16))]
 #[derive(rc2k_derive::Cells)]
 pub struct Scratch {
     /// 0x93E8B0: `g_pngInfo`: scratch space (0x10000 bytes), used by whoever needs a buffer for a moment.
-    pub buffer: Bytes<65536>,
+    pub buffer: PlainBytes<65536>,
 }
 
 impl Scratch {
     pub const fn new() -> Self {
         Scratch {
-            buffer: Bytes::new([0; 65536]),
+            buffer: PlainBytes::new([0; 65536]),
         }
     }
 }

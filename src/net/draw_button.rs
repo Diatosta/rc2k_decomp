@@ -63,7 +63,7 @@ pub fn draw_button(
     x: u32,
     y: u32,
     item: u32,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
     menus: &crate::menu::owner::Menus,
 ) -> Result<(), Refused> {
     use crate::text::draw_text::GameCanvas;

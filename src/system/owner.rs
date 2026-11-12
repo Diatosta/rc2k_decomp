@@ -4,7 +4,7 @@
 use crate::files::scratch::Scratch as FileScratch;
 use crate::logfile::numeric::SCRATCH_LEN;
 use crate::records::stages_store::StageTables;
-use crate::session::{Bytes, Clocks, Machine, Screen, WindowLoopState};
+use crate::session::{Clocks, GameThread, Machine, PlainBytes, Screen, WindowLoopState};
 use crate::system::keep_start_time::KEPT_LEN;
 use crate::system::load_game_data::RunCount;
 use crate::system::read_command_line::CommandLine;
@@ -34,7 +34,7 @@ impl Session {
 /// the command line.
 pub struct Start {
     /// The nine bytes of the start's moment (`keep_start_time`).
-    pub kept: Bytes<KEPT_LEN>,
+    pub kept: PlainBytes<KEPT_LEN>,
     pub run_count: RunCount,
     pub error_mode: ErrorMode,
     pub texts: StartTexts,
@@ -44,7 +44,7 @@ pub struct Start {
 impl Start {
     pub const fn new() -> Self {
         Start {
-            kept: Bytes::new([0; KEPT_LEN]),
+            kept: PlainBytes::new([0; KEPT_LEN]),
             run_count: RunCount::new(),
             error_mode: ErrorMode::new(),
             texts: StartTexts::new(),
@@ -58,14 +58,14 @@ pub struct Work {
     /// `files::scratch::SCRATCH` before the owner.
     pub files: FileScratch,
     /// `logfile::numeric::SCRATCH` before the owner: where a number's text is made.
-    pub numbers: Bytes<SCRATCH_LEN>,
+    pub numbers: PlainBytes<SCRATCH_LEN>,
 }
 
 impl Work {
     pub const fn new() -> Self {
         Work {
             files: FileScratch::new(),
-            numbers: Bytes::new([0; SCRATCH_LEN]),
+            numbers: PlainBytes::new([0; SCRATCH_LEN]),
         }
     }
 }
@@ -83,20 +83,53 @@ impl Records {
     }
 }
 
-/// The program-wide state.
-pub struct System {
-    pub session: Session,
+/// What only the game's thread reaches: the start-up's keeps, the scratch areas and the
+/// record tables (the audio, key and network threads and the drawing parts touch none).
+pub struct SystemMain {
     pub start: Start,
     pub work: Work,
     pub records: Records,
 }
 
-/// The one instance. Reached through `system()`; `moved` registers its stores' places.
+impl SystemMain {
+    pub const fn new() -> Self {
+        SystemMain {
+            start: Start::new(),
+            work: Work::new(),
+            records: Records::new(),
+        }
+    }
+}
+
+/// The program-wide state.
+pub struct System {
+    /// Read by other threads (the flags, the clocks' key ticks, the machine's window) or by
+    /// the drawing parts (the screen, the MMX flag): atomic cells.
+    pub session: Session,
+    main: GameThread<SystemMain>,
+}
+
+impl System {
+    /// What the start-up keeps.
+    pub fn start(&self) -> &Start {
+        &self.main.get().start
+    }
+
+    /// The scratch areas.
+    pub fn work(&self) -> &Work {
+        &self.main.get().work
+    }
+
+    /// The stage and rally record tables.
+    pub fn records(&self) -> &Records {
+        &self.main.get().records
+    }
+}
+
+/// The one instance. Reached through `system()`.
 pub static SYSTEM: System = System {
     session: Session::new(),
-    start: Start::new(),
-    work: Work::new(),
-    records: Records::new(),
+    main: GameThread::new(SystemMain::new()),
 };
 
 /// The program-wide state; pass it down where a function reaches it more than once.

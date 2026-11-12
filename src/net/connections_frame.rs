@@ -26,7 +26,7 @@ pub fn list_frame(
     title: u32,
     count: &crate::session::Dword,
     name: impl Fn(u32) -> Result<[u8; 0x40], Refused>,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     if !lock_surface(gfx, system) {
@@ -51,7 +51,7 @@ pub fn list_frame(
         let mut text = crate::net::tables::name_text(&name(item)?)?;
         text.push(0);
         let at = y;
-        y = y.wrapping_add(font.object().line_height.get());
+        y = y.wrapping_add(font.object(&gfx.fonts.typefaces).line_height.get());
         crate::text::draw_text::draw_text_at(
             font,
             &text,
@@ -68,7 +68,7 @@ pub fn connections_frame(
     so: crate::strings::append_string_by_id::StringOwners<'static>,
     net: &Net,
     install: &Install,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     list_frame(

@@ -23,6 +23,8 @@ use rc2k_core::strings::bytes::Bytes;
 
 /// What drawing text needs from outside: the kerning row table and the blitter.
 pub trait Canvas {
+    /// The typefaces a font number is resolved against.
+    fn typefaces(&self) -> &'static crate::gfx::typefaces::FontObjects;
     /// False for a canvas that only predicts: font objects in game memory are then left alone.
     fn keeps_font_changes(&self) -> bool;
     /// The kerning row table the canvas keeps.
@@ -34,17 +36,20 @@ pub trait Canvas {
 }
 
 /// The game's own kerning table and surface.
-pub struct GameCanvas<'a> {
-    gfx: &'a crate::gfx::owner::Gfx,
+pub struct GameCanvas {
+    gfx: &'static crate::gfx::owner::Gfx,
 }
 
-impl<'a> GameCanvas<'a> {
-    pub fn new(gfx: &'a crate::gfx::owner::Gfx) -> Self {
+impl GameCanvas {
+    pub fn new(gfx: &'static crate::gfx::owner::Gfx) -> Self {
         Self { gfx }
     }
 }
 
-impl Canvas for GameCanvas<'_> {
+impl Canvas for GameCanvas {
+    fn typefaces(&self) -> &'static crate::gfx::typefaces::FontObjects {
+        &self.gfx.fonts.typefaces
+    }
     fn keeps_font_changes(&self) -> bool {
         true
     }
@@ -173,7 +178,7 @@ pub fn draw_text_at(
     y: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<Outcome, Refused> {
-    let font = font.into().object();
+    let font = font.into().object(canvas.typefaces());
     let before = font.get();
     let mut copy = before;
     let out = draw_text(&mut copy, text, x, y, canvas)?;

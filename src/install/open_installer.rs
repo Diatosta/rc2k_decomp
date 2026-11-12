@@ -40,7 +40,7 @@ fn read<const N: usize>(
 pub fn open_installer(
     so: crate::strings::append_string_by_id::StringOwners<'static>,
     install: &'static crate::install::owner::Install,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     // The names' tables are Rust's, counted on the list as the game's blocks

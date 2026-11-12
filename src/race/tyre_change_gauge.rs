@@ -99,7 +99,10 @@ impl Io for GameIo {
         press_time(self.race, s as i32) as u32
     }
     fn developer(&mut self) -> bool {
-        crate::system::check_developer_machine::DEVELOPER.get() == 1
+        crate::system::check_developer_machine::DEVELOPER
+            .get()
+            .get()
+            == 1
     }
     fn record(&mut self) -> u32 {
         self.race.shared.tyre_change.record.get()

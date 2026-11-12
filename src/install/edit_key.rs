@@ -79,7 +79,7 @@ pub fn edit_key(
     install: &'static crate::install::owner::Install,
     key: u32,
     item: ListItem,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<EditOutcome, Refused> {
     let text = item.text();
     let record = item.edit_field();

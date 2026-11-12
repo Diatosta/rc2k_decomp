@@ -20,7 +20,7 @@ pub fn pack_runs(
     // The end mark is the first byte of a dword 0.
     packed.extend_from_slice(&[0, 0, 0]);
     system
-        .work
+        .work()
         .files
         .buffer
         .write_at(0, &packed, "the packed bytes")?;

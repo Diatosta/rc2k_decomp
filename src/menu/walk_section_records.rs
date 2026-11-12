@@ -23,7 +23,7 @@ fn record_at(
     system: &System,
     index: u32,
 ) -> Result<RecordRef, crate::errors::BadInput> {
-    let table = system.records.stage_tables.championship();
+    let table = system.records().stage_tables.championship();
     let section: u32 = menus.screens.event.section.get();
     crate::records::find_record::find_record_in(table, index as i32, section)
 }

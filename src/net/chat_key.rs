@@ -16,7 +16,7 @@ pub fn chat_key(
     net: &Net,
     install: &Install,
     key: u8,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     let vars = &net.vars;
     if !crate::net::edit_key::edit_key(input, net, install, key, gfx)? {

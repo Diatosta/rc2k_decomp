@@ -68,7 +68,7 @@ pub fn draw_savegame_details(
         let index = saves.savegame_preview.saved[2].get() as i32;
         let section = saves.savegame_preview.saved[3].get();
         let a8_mode = saves.savegame_preview.saved[5].get() == 0x13;
-        let table = system.records.stage_tables.championship();
+        let table = system.records().stage_tables.championship();
         let title = Title {
             a8_mode,
             section: if a8_mode {

@@ -114,7 +114,7 @@ pub fn install_clio(
     so: crate::strings::append_string_by_id::StringOwners<'static>,
     install: &'static crate::install::owner::Install,
     system: &crate::system::owner::System,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     if lock(gfx, system) {
         copy_picture(gfx, system)?;

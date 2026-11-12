@@ -237,7 +237,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "system.owner.SYSTEM.work.numbers",
-            &crate::system::owner::SYSTEM.work.numbers,
+            on_game(&crate::system::owner::SYSTEM.work().numbers),
         ),
         listed!(
             "logfile.start_log.FREE_SPACE_KB",
@@ -246,7 +246,7 @@ fn listed_stores() -> Vec<Listed> {
         listed!("math.next_random.STATE", &crate::math::next_random::STATE),
         listed!(
             "system.owner.SYSTEM.start.kept",
-            &crate::system::owner::SYSTEM.start.kept,
+            on_game(&crate::system::owner::SYSTEM.start().kept),
         ),
         listed!(
             "strings.copy_printable.KEEP_CASE",
@@ -254,15 +254,15 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "strings.append_time.SHOW_HOURS",
-            &crate::strings::append_time::SHOW_HOURS,
+            on_game(crate::strings::append_time::SHOW_HOURS.get()),
         ),
         listed!(
             "strings.format_seal_code.SEAL_TEXT",
-            &crate::strings::format_seal_code::SEAL_TEXT,
+            on_game(crate::strings::format_seal_code::SEAL_TEXT.get()),
         ),
         listed!(
             "strings.maybe_compile_lexicon.RECOMPILE_LEVEL",
-            &crate::strings::maybe_compile_lexicon::RECOMPILE_LEVEL,
+            on_game(crate::strings::maybe_compile_lexicon::RECOMPILE_LEVEL.get()),
         ),
         listed!(
             "strings.owner.STRINGS.language.locale",
@@ -270,7 +270,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "strings.string_table.LEXICON",
-            &crate::strings::string_table::LEXICON,
+            on_game(crate::strings::string_table::LEXICON.get()),
         ),
         listed!("strings.same_text.LOWER", &crate::strings::same_text::LOWER),
         listed!(
@@ -281,7 +281,10 @@ fn listed_stores() -> Vec<Listed> {
             "strings.owner.STRINGS.lexicon.empty_message",
             on_game(&crate::strings::owner::STRINGS.get().lexicon.empty_message),
         ),
-        listed!("strings.units.UNITS", &crate::strings::units::UNITS),
+        listed!(
+            "strings.units.UNITS",
+            on_game(crate::strings::units::UNITS.get())
+        ),
         listed!(
             "strings.owner.STRINGS.lexicon.work",
             on_game(&crate::strings::owner::STRINGS.get().lexicon.work),
@@ -292,7 +295,7 @@ fn listed_stores() -> Vec<Listed> {
         listed!("memory.state.OWN_HEAP", &crate::memory::state::OWN_HEAP),
         listed!(
             "memory.state.OWN_HEAP_KB",
-            &crate::memory::state::OWN_HEAP_KB,
+            on_game(crate::memory::state::OWN_HEAP_KB.get()),
         ),
         listed!(
             "strings.owner.STRINGS.drivers.key",
@@ -539,7 +542,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "screens.draw_message_box.BOX",
-            &crate::screens::draw_message_box::BOX,
+            on_game(crate::screens::draw_message_box::BOX.get()),
         ),
         listed!(
             "race.owner.RACE.frame.credits",
@@ -547,7 +550,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "system.check_developer_machine.DEVELOPER",
-            &crate::system::check_developer_machine::DEVELOPER,
+            on_game(crate::system::check_developer_machine::DEVELOPER.get()),
         ),
         listed!(
             "gfx.owner.GFX.card.texture_tables",
@@ -609,7 +612,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "sound.store.WHEEL_SURFACES",
-            &crate::sound::store::WHEEL_SURFACES,
+            on_game(crate::sound::store::WHEEL_SURFACES.get()),
         ),
         listed!(
             "race.owner.RACE.replay.seal_key",
@@ -657,9 +660,12 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "input.owner.INPUT.keyboard",
-            &crate::input::owner::INPUT.keyboard,
+            on_game(crate::input::owner::INPUT.keyboard()),
         ),
-        listed!("input.owner.INPUT.mouse", &crate::input::owner::INPUT.mouse),
+        listed!(
+            "input.owner.INPUT.mouse",
+            on_game(crate::input::owner::INPUT.mouse()),
+        ),
         listed!(
             "sound.owner.SOUND.menu.next_sound_time",
             on_game(crate::sound::owner::SOUND.menu.next_sound_time.get()),
@@ -760,7 +766,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "system.owner.SYSTEM.records.stage_tables",
-            record_tail(&crate::system::owner::SYSTEM.records.stage_tables, 2),
+            on_game_tail(&crate::system::owner::SYSTEM.records().stage_tables, 2),
         ),
         listed!(
             "menu.owner.MENUS.cars.drivers",
@@ -797,11 +803,11 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "system.owner.SYSTEM.start.error_mode",
-            &crate::system::owner::SYSTEM.start.error_mode,
+            on_game(&crate::system::owner::SYSTEM.start().error_mode),
         ),
         listed!(
             "system.owner.SYSTEM.start.texts",
-            &crate::system::owner::SYSTEM.start.texts,
+            on_game(&crate::system::owner::SYSTEM.start().texts),
             0x94,
         ),
         listed!(
@@ -863,7 +869,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "system.owner.SYSTEM.start.run_count",
-            &crate::system::owner::SYSTEM.start.run_count,
+            on_game(&crate::system::owner::SYSTEM.start().run_count),
         ),
         listed!(
             "install.owner.INSTALL.sku",
@@ -875,7 +881,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "system.owner.SYSTEM.work.files",
-            &crate::system::owner::SYSTEM.work.files,
+            on_game(&crate::system::owner::SYSTEM.work().files),
         ),
         listed!(
             "gfx.owner.GFX.display.mode",

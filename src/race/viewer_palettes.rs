@@ -20,7 +20,7 @@ const PALETTES: [crate::gfx::typefaces::FontId; 6] = {
 pub fn viewer_palettes(
     shared: &RaceShared,
     scene: &crate::scene::owner::Scene,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<(), BadInput> {
     let textures = &scene.textures;
@@ -46,7 +46,7 @@ pub fn viewer_palettes(
         to.set(from.get());
     }
     for font in PALETTES {
-        font.object()
+        font.object(&gfx.fonts.typefaces)
             .palette
             .set(crate::gfx::glyph_store::VIEWER_PALETTE);
     }

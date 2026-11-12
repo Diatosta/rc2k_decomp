@@ -13,7 +13,7 @@ pub fn sessions_frame(
     so: crate::strings::append_string_by_id::StringOwners<'static>,
     net: &Net,
     install: &Install,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let vars = &net.vars;

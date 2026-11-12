@@ -6,7 +6,8 @@
 //! it.) One caller, `start`, which calls it directly.
 
 /// `g_developerMachine` (`dword_529D94` in IDA): 1 on a computer called "andrew".
-pub static DEVELOPER: crate::session::Dword = crate::session::Dword::new(0);
+pub static DEVELOPER: crate::session::GameThread<crate::session::PlainDword> =
+    crate::session::GameThread::new(crate::session::PlainDword::new(0));
 
 const NAME_ROOM: u32 = 0x40;
 
@@ -18,7 +19,7 @@ pub fn computer_name() -> Option<Vec<u8>> {
     Some(name)
 }
 pub fn check_developer_machine(strings: &crate::strings::owner::Strings) {
-    DEVELOPER.set(0);
+    DEVELOPER.get().set(0);
     let text = &strings.text.buffer.text;
     if let Some(name) = computer_name() {
         text.write_at(0, &name, "the computer's name")
@@ -27,7 +28,7 @@ pub fn check_developer_machine(strings: &crate::strings::owner::Strings) {
     // Converted: `rc2k_core::system::machine::developer`.
     let (yes, _) = rc2k_core::system::machine::developer(core::array::from_fn(|n| text.get(n)));
     if yes {
-        DEVELOPER.set(1);
+        DEVELOPER.get().set(1);
     }
 }
 
@@ -37,6 +38,6 @@ mod developer_tests {
 
     #[test]
     fn first_value_is_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(&DEVELOPER);
+        crate::test_support::first_values::assert_block_starts_as_the_games(DEVELOPER.get());
     }
 }

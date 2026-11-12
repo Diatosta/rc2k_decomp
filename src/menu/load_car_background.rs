@@ -53,7 +53,7 @@ pub fn load_car_background(
 /// In the game: the background through `menu::load_background` (its carry is never set).
 pub fn load_car_background_in_game(
     menus: &Menus,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     load_car_background(menus, &mut |path| {

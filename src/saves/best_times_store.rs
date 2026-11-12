@@ -8,7 +8,7 @@
 //! `allocate_best_times` walks the switches and the pairs as one run of dwords from
 //! `allocated` (`vars()`).
 
-use crate::session::{Bytes, PlainDword};
+use crate::session::{PlainBytes, PlainDword};
 
 /// Where one table is: its address (the game's; 0 since the tables are typed)
 /// and its size in bytes.
@@ -32,9 +32,9 @@ impl TablePlace {
 #[derive(rc2k_derive::Cells)]
 pub struct BestTimes {
     /// `g_bestTimesMemory` (0x7475D0): the memory list (a `MemoryList`).
-    pub memory: Bytes<16>,
+    pub memory: PlainBytes<16>,
     /// 0x7475E0 .. 0x747610: nothing reads or writes them (a gap).
-    pub _gap_10: Bytes<0x30>,
+    pub _gap_10: PlainBytes<0x30>,
     /// `g_bestTimesAllocated` (0x747610): 1 once the memory is taken.
     pub allocated: PlainDword,
     /// `g_bestTimesLoaded` (0x747614): 1 once the tables hold times (the file's or made up).
@@ -47,8 +47,8 @@ impl BestTimes {
     /// The first values (the image's), for the saves' owner.
     pub const fn new() -> Self {
         BestTimes {
-            memory: Bytes::new([0; 16]),
-            _gap_10: Bytes::new([0; 0x30]),
+            memory: PlainBytes::new([0; 16]),
+            _gap_10: PlainBytes::new([0; 0x30]),
             allocated: PlainDword::new(0),
             loaded: PlainDword::new(0),
             tables: [const { TablePlace::new() }; 9],
@@ -56,7 +56,7 @@ impl BestTimes {
     }
 
     /// The memory list.
-    pub fn list(&self) -> &Bytes<16> {
+    pub fn list(&self) -> &PlainBytes<16> {
         &self.memory
     }
 }
@@ -84,7 +84,7 @@ pub struct TimeEntry {
     /// +0x1C: the group (the driver's class).
     pub group: PlainDword,
     /// +0x20: the name, NUL-ended.
-    pub name: Bytes<0x20>,
+    pub name: PlainBytes<0x20>,
     /// +0x40: 1 for a player's time.
     pub is_player: PlainDword,
     /// +0x44: a figure.
@@ -117,7 +117,7 @@ impl TimeEntry {
             stage_time: PlainDword::new(w[5]),
             rally_time: PlainDword::new(w[6]),
             group: PlainDword::new(w[7]),
-            name: Bytes::new(name),
+            name: PlainBytes::new(name),
             is_player: PlainDword::new(w[8]),
             figure: PlainDword::new(w[9]),
             unread_48: [PlainDword::new(w[10]), PlainDword::new(w[11])],

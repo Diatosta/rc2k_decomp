@@ -44,7 +44,7 @@ const PALETTE_ENTRIES: u32 = 15;
 
 pub fn blend_font(
     strings: &Strings,
-    gfx: &Gfx,
+    gfx: &'static Gfx,
     system: &crate::system::owner::System,
     time: u32,
     half_pulse: u32,
@@ -58,11 +58,11 @@ pub fn blend_font(
     let (from, to) = if from_a { (a, b) } else { (b, a) };
     // The original reads the palettes after the copy, so if the second font is the
     // blended font itself, its palette is by then the first one's.
-    let from_font = from.object().get();
+    let from_font = from.object(&gfx.fonts.typefaces).get();
     let to_palette = if to.is_blended() {
         from_font.palette
     } else {
-        to.object().get().palette
+        to.object(&gfx.fonts.typefaces).get().palette
     };
     if mode != 0 && (from_font.palette == 0 || to_palette == 0) {
         return Err(BadInput("a font without a palette"));

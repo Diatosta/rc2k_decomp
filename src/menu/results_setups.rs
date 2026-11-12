@@ -74,7 +74,7 @@ pub fn rank(menus: &Menus, by_totals: bool) -> Result<(), Refused> {
 
 /// The stage record's +0x34, the time the bonus is counted from.
 fn stage_time(screens: &Screens, system: &System) -> Result<u32, Refused> {
-    let records = system.records.stage_tables.group_event_table(
+    let records = system.records().stage_tables.group_event_table(
         screens.event.stage_group.get(),
         screens.event.stage_sub.get(),
     )?;

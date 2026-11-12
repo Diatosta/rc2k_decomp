@@ -17,7 +17,7 @@ use crate::net::store::NetVars;
 pub const TITLE_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEAD;
 pub fn show_background(
     so: crate::strings::append_string_by_id::StringOwners<'static>,
-    gfx: &Gfx,
+    gfx: &'static Gfx,
     system: &crate::system::owner::System,
     vars: &NetVars,
 ) -> Result<(), Refused> {

@@ -1,6 +1,7 @@
 //! The savegame preview's variables, with the image's layout (IDA 0x755144 .. 0x755170):
-//! the `usesavegamekeys` setting, the slot shown and the saved game's figures the preview and details screens draw. A `#[repr(C)]` struct of atomic cells with
-//! the image's layout, one static.
+//! the `usesavegamekeys` setting, the slot shown and the saved game's figures the preview
+//! and details screens draw. A `#[repr(C)]` struct of plain cells (only the game thread
+//! reaches it) with the image's layout, one static.
 
 use crate::session::PlainDword;
 

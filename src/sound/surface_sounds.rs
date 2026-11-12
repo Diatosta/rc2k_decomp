@@ -45,7 +45,7 @@ fn one(
     if second == 0 {
         o.surface.set(surface);
     }
-    WHEEL_SURFACES[second].set(surface);
+    WHEEL_SURFACES.get()[second].set(surface);
     if surfaces::quieter(surface) {
         if second == 0 {
             x87_1(sound.race.surface.get(), &system.session.machine.scratch);

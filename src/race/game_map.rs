@@ -222,7 +222,7 @@ pub fn load_packed_game_map(
     system: &crate::system::owner::System,
     gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
-    let work = &system.work;
+    let work = &system.work();
     use crate::files::handle::{close, open_by_mode};
     let (bytes, format) = take_format(frame, gfx)?;
     frame

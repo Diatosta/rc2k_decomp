@@ -13,14 +13,15 @@ use crate::strings::compile_lexicon::compile_lexicon;
 
 /// 1 or more (signed) to recompile on the key: a `var\\ral.cfg` setting
 /// (`dword_4E0758` in IDA, 0 unless set).
-pub static RECOMPILE_LEVEL: crate::session::Dword = crate::session::Dword::new(0);
+pub static RECOMPILE_LEVEL: crate::session::GameThread<crate::session::PlainDword> =
+    crate::session::GameThread::new(crate::session::PlainDword::new(0));
 
 pub fn maybe_compile_lexicon(
     input: &crate::input::owner::Input,
     strings: &crate::strings::owner::Strings,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
-    let level = RECOMPILE_LEVEL.get();
+    let level = RECOMPILE_LEVEL.get().get();
     // `input`'s key states (key 0x4E).
     let key = input.devices.keys_down.get(0x4E);
     // Converted: `rc2k_core::strings::lexicon::recompile_wanted`.
@@ -39,7 +40,7 @@ mod tests {
         );
         assert_eq!(
             u32::from_le_bytes(d.try_into().unwrap()),
-            super::RECOMPILE_LEVEL.get()
+            super::RECOMPILE_LEVEL.get().get()
         );
     }
 }

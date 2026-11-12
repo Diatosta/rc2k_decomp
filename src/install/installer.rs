@@ -304,7 +304,7 @@ pub fn draw_string(
     font: crate::gfx::typefaces::FontId,
     x: u32,
     y: u32,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     use crate::text::draw_text::GameCanvas;
     crate::text::draw_string_by_id::draw_string_by_id_at(
@@ -325,10 +325,10 @@ pub fn draw_text(
     text: &(impl rc2k_core::strings::bytes::Bytes + ?Sized),
     x: u32,
     y: u32,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     use crate::text::draw_text::GameCanvas;
-    let at = font.object();
+    let at = font.object(&gfx.fonts.typefaces);
     let mut copy = at.get();
     crate::text::draw_text::draw_text(
         &mut copy,
@@ -348,7 +348,7 @@ pub fn measure_text(
     font: crate::gfx::typefaces::FontId,
     text: &(impl rc2k_core::strings::bytes::Bytes + ?Sized),
     x: u32,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<(u32, u32), Refused> {
     use crate::text::draw_text::GameCanvas;
     let m = {
@@ -363,7 +363,7 @@ pub fn measure_string(
     id: u32,
     font: crate::gfx::typefaces::FontId,
     x: u32,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<(u32, u32), Refused> {
     use crate::text::draw_text::GameCanvas;
     let m = {

@@ -33,7 +33,7 @@ pub fn draw_pieces(
     so: crate::strings::append_string_by_id::StringOwners<'static>,
     install: &'static crate::install::owner::Install,
     strings: &'static Strings,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     let count = piece_count(install);
     if count == 0 {

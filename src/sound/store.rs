@@ -19,13 +19,14 @@
 //! game thread's.
 
 use crate::race::owner::race;
-use crate::session::{Dword, Float, PlainDword, PlainFloat, PlainWord};
+use crate::session::{Dword, Float, GameThread, PlainDword, PlainFloat, PlainWord};
 
 /// `g_wheelSurfaceA`, `g_wheelSurfaceB` (IDA 0x4F66F1, 0x4F66F5): the surfaces of the wheels
 /// the first and the second of a car's two sounds follow (`sound::surface_sounds`). Kept apart
 /// from the dwords around them: the save file's four before
 /// (`saves::owner::Files::options_kept`), the race record's seal key after (`race::replay::SEAL_KEY`).
-pub static WHEEL_SURFACES: [Dword; 2] = [Dword::new(0), Dword::new(0)];
+pub static WHEEL_SURFACES: GameThread<[PlainDword; 2]> =
+    GameThread::new([PlainDword::new(0), PlainDword::new(0)]);
 
 /// One cue of a car's queue: eight dwords.
 #[repr(C)]
@@ -1117,7 +1118,11 @@ mod tests {
     #[test]
     fn wheel_surfaces_start_as_the_games() {
         let image = crate::test_support::first_values::bytes("sound.store.WHEEL_SURFACES/8");
-        let mine = unsafe { std::slice::from_raw_parts(WHEEL_SURFACES.as_ptr().cast::<u8>(), 8) };
+        let mine: Vec<u8> = WHEEL_SURFACES
+            .get()
+            .iter()
+            .flat_map(|cell| cell.get().to_le_bytes())
+            .collect();
         assert_eq!(mine, image);
     }
 

@@ -96,7 +96,7 @@ fn text(
     text: impl Into<crate::place::BytePlace>,
     x: u32,
     y: u32,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     { crate::race::name_plates::draw_text_in_game(font, text, x, y, gfx) }?;
     Ok(())
@@ -104,7 +104,7 @@ fn text(
 
 /// The text buffer drawn three times, each 0x78 to the left and a line down.
 fn three_times(
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
     strings: &'static crate::strings::owner::Strings,
     x: u32,
     y: u32,

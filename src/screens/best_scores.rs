@@ -276,7 +276,7 @@ pub struct StageTimes {
 
 fn champ_records(menus: &Menus, system: &System) -> Result<RecordTable, BadInput> {
     let screens = &menus.screens;
-    system.records.stage_tables.group_event_table(
+    system.records().stage_tables.group_event_table(
         screens.event.stage_group.get(),
         screens.event.stage_sub.get(),
     )
@@ -292,7 +292,7 @@ fn champ_table(menus: &Menus) -> &'static StageTable {
 
 fn rally_records(menus: &Menus, system: &System) -> Result<RecordTable, BadInput> {
     system
-        .records
+        .records()
         .stage_tables
         .level_table(menus.play.arcade.level.get())
 }
@@ -443,7 +443,7 @@ pub fn record_at(
     index: u32,
 ) -> Result<RecordRef, crate::errors::BadInput> {
     crate::records::find_record::find_record_in(
-        system.records.stage_tables.championship(),
+        system.records().stage_tables.championship(),
         index as i32,
         menus.screens.event.section.get(),
     )
@@ -452,7 +452,7 @@ pub fn record_at(
 /// Whether the record table has the section (the look-up has no end): for the refusals.
 pub fn section_there(menus: &Menus, system: &System) -> Result<bool, crate::errors::BadInput> {
     crate::records::find_record::has_section(
-        system.records.stage_tables.championship(),
+        system.records().stage_tables.championship(),
         menus.screens.event.section.get(),
         0x400,
     )

@@ -4,9 +4,9 @@
 //!
 //! One caller, `start`'s way out (0x401116, also the short one), which calls it directly.
 pub fn restore_error_mode(system: &crate::system::owner::System) {
-    if system.start.error_mode.changed.get() != 1 {
+    if system.start().error_mode.changed.get() != 1 {
         return;
     }
-    system.start.error_mode.changed.set(0);
-    crate::os::set_error_mode(system.start.error_mode.mode.get());
+    system.start().error_mode.changed.set(0);
+    crate::os::set_error_mode(system.start().error_mode.mode.get());
 }

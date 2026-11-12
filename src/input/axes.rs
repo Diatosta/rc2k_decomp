@@ -40,7 +40,7 @@ pub fn axis_moved(eax: u32, input: &crate::input::owner::Input) -> Result<Moved,
     let now: [u32; 6] = std::array::from_fn(|n| input.devices.device_state[n].get());
     if eax == 0 {
         crate::system::sleep::sleep(250);
-        for (rest, now) in input.keyboard.axes_rest.iter().zip(now) {
+        for (rest, now) in input.keyboard().axes_rest.iter().zip(now) {
             rest.set(now);
         }
         return Ok(Moved { carry: true, eax });
@@ -54,7 +54,7 @@ pub fn axis_moved(eax: u32, input: &crate::input::owner::Input) -> Result<Moved,
         .ok_or(BadInput("a controller's axes past the table"))?
         .axis_bits
         .get();
-    let rest: [u32; 6] = std::array::from_fn(|n| input.keyboard.axes_rest[n].get());
+    let rest: [u32; 6] = std::array::from_fn(|n| input.keyboard().axes_rest[n].get());
     Ok(
         match rc2k_core::input::devices::axis_moved(&now, &rest, axes) {
             Ok(axis) => Moved {

@@ -189,7 +189,7 @@ impl flow::Game for Game<'_> {
             C::A8Welcome => m::a8_welcome::a8_welcome(self.owners)?,
             C::FindRecord { section, index } => {
                 use crate::records::find_record::{find_record_in, has_section};
-                let table = self.owners.system.records.stage_tables.championship();
+                let table = self.owners.system.records().stage_tables.championship();
                 // The original has no end-of-table check: a section past the table's
                 // is refused.
                 if !has_section(table, section, 600)? {

@@ -77,14 +77,14 @@ fn typed(input: &Input, eax: u32, for_text: bool) -> Result<u32, BadInput> {
     let layout = layouts
         .layout(which)
         .ok_or(BadInput("no keyboard layout"))?;
-    let silent_keys: Vec<u8> = crate::session::read_all(&input.keyboard.silent_keys)
+    let silent_keys: Vec<u8> = crate::session::read_all(&input.keyboard().silent_keys)
         .iter()
         .flat_map(|dword| dword.to_le_bytes())
         .collect();
     let typed = keyboard::key_to_char(
         key,
         &layout.tables()?,
-        &input.keyboard.compose.read(),
+        &input.keyboard().compose.read(),
         &silent_keys,
         down(LEFT_SHIFT) || down(RIGHT_SHIFT),
         down(ALT_GR),

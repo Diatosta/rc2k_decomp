@@ -36,7 +36,7 @@ pub fn rally_times_places(
     {
         let kind = screens.event.stage_group.get();
         let stages = system
-            .records
+            .records()
             .stage_tables
             .group_event_table(kind, screens.event.stage_sub.get())?;
         let stage = crate::records::stages_store::row(stages, screens.event.stage_number.get())?;

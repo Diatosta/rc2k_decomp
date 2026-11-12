@@ -27,7 +27,7 @@ const LONGEST: usize = 0x1000;
 pub fn fit_name(
     menus: &'static Menus,
     player: usize,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<u32, Refused> {
     let at = NameAt::of(player);
     let mut name = at.tail(menus);
@@ -35,7 +35,7 @@ pub fn fit_name(
         return Err(BadInput("a name without its end").into());
     };
     // The logic is in `rc2k_core::menu::text_entry::fit_name`.
-    let font = crate::text::measure_text::only_measures(MEASURING_FONT)?;
+    let font = crate::text::measure_text::only_measures(MEASURING_FONT, &gfx.fonts.typefaces)?;
     text_entry::fit_name(len, |len| -> Result<u32, Refused> {
         at.add(len as u32).place(menus).write(&[0], "a name")?;
         name[len] = 0;
@@ -45,7 +45,7 @@ pub fn fit_name(
 
 pub fn fit_player_names(
     menus: &'static Menus,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     for player in 0..PLAYERS {
         fit_name(menus, player, gfx)?;

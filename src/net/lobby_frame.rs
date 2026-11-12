@@ -102,8 +102,8 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
             )?;
             x += 0x48;
             use crate::strings::append_time::SHOW_HOURS; // g_timeShowHours
-            use std::sync::atomic::Ordering::Relaxed;
-            let kept_hours = SHOW_HOURS.atomic().swap(1, Relaxed);
+            let kept_hours = SHOW_HOURS.get().get();
+            SHOW_HOURS.get().set(1);
             let time = block.record.race_time.get();
             // The total is drawn at the y the drawing before it leaves: the text's,
             // font offset included, when there is no time (the original's slip).
@@ -149,8 +149,8 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
                     o.gfx,
                 )
             }?;
-            SHOW_HOURS.set(kept_hours);
-            y = y.wrapping_add(NAME_FONT.object().line_height.get());
+            SHOW_HOURS.get().set(kept_hours);
+            y = y.wrapping_add(NAME_FONT.object(&o.gfx.fonts.typefaces).line_height.get());
         }
     }
     y = 0x158;
@@ -165,7 +165,13 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
         )
     }?;
     crate::net::unlock_received::unlock_received(&net.vars);
-    y = y.wrapping_add(CHAT_FONT.object().line_height.get().wrapping_mul(8));
+    y = y.wrapping_add(
+        CHAT_FONT
+            .object(&o.gfx.fonts.typefaces)
+            .line_height
+            .get()
+            .wrapping_mul(8),
+    );
     crate::net::chat_input_line::chat_input_line(o, &net.edit().chat_input.text(), 3, y)?;
     let mut x = 0x310;
     let mut item = 0;

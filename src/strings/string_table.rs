@@ -120,17 +120,17 @@ pub fn driver_name_slot(
 
 /// Where `strings::compile_lexicon` puts the table, and its room (`g_lexicon` in IDA, 0x4E07F8 .. the keyboard file at 0x4F07C8).
 pub const LEXICON_ROOM: usize = rc2k_core::strings::lexicon::TABLE_ROOM;
-pub static LEXICON: crate::session::Bytes<LEXICON_ROOM> =
-    crate::session::Bytes::new([0; LEXICON_ROOM]);
+pub static LEXICON: crate::session::GameThread<crate::session::PlainBytes<LEXICON_ROOM>> =
+    crate::session::GameThread::new(crate::session::PlainBytes::new([0; LEXICON_ROOM]));
 
 /// The lexicon's room, all of it.
 pub fn lexicon_bytes() -> Result<Vec<u8>, BadInput> {
-    LEXICON.read_at(0, LEXICON_ROOM, "the lexicon's room")
+    LEXICON.get().read_at(0, LEXICON_ROOM, "the lexicon's room")
 }
 
 /// `table` written from the start of the lexicon's room.
 pub fn write_lexicon(table: &[u8]) -> Result<(), BadInput> {
-    LEXICON.write_at(0, table, "the lexicon's room")
+    LEXICON.get().write_at(0, table, "the lexicon's room")
 }
 
 /// The finished table as the core reads it: a copy of the lexicon's room, made once its bytes

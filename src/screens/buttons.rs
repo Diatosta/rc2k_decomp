@@ -211,9 +211,10 @@ pub fn draw_text_button(
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
     let menus = o.menus;
-    let font = crate::text::measure_text::only_measures(crate::gfx::typefaces::FontId::at(
-        item.fixed().measuring_font.ral() as usize,
-    ))?;
+    let font = crate::text::measure_text::only_measures(
+        crate::gfx::typefaces::FontId::at(item.fixed().measuring_font.ral() as usize),
+        &o.gfx.fonts.typefaces,
+    )?;
     let measured = measure_string_by_id_at(
         crate::strings::append_string_by_id::StringOwners::of(o),
         item.string.get(),

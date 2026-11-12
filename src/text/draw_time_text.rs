@@ -17,10 +17,10 @@ pub fn draw_time_text(
     text: &(impl rc2k_core::strings::bytes::Bytes + ?Sized),
     x: u32,
     y: u32,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     use crate::text::draw_text::GameCanvas;
-    let font = font.into().object();
+    let font = font.into().object(&gfx.fonts.typefaces);
     let mut x = x;
     // Converted: `rc2k_core::text::time_text_widths`.
     let chars = text;

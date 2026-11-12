@@ -26,7 +26,7 @@
 
 use crate::errors::BadInput;
 use crate::input::types::{Controller, InputDevice};
-use crate::session::{Byte, Bytes, Dword, Float};
+use crate::session::{Byte, Bytes, Dword, Float, PlainBytes, PlainDword};
 
 // ---- first values, from the image (`store_data.rs`) ----
 
@@ -71,6 +71,24 @@ const fn dwords<const N: usize>(runs: Runs, at: usize) -> [Dword; N] {
 
 const fn bytes<const N: usize>(runs: Runs, at: usize) -> Bytes<N> {
     Bytes::new(init::<N>(runs, at))
+}
+
+const fn plain_dword(runs: Runs, at: usize) -> PlainDword {
+    PlainDword::new(u32::from_le_bytes(init::<4>(runs, at)))
+}
+
+const fn plain_dwords<const N: usize>(runs: Runs, at: usize) -> [PlainDword; N] {
+    let mut out = [const { PlainDword::new(0) }; N];
+    let mut k = 0;
+    while k < N {
+        out[k] = plain_dword(runs, at + 4 * k);
+        k += 1;
+    }
+    out
+}
+
+const fn plain_bytes<const N: usize>(runs: Runs, at: usize) -> PlainBytes<N> {
+    PlainBytes::new(init::<N>(runs, at))
 }
 
 const fn byte(runs: Runs, at: usize) -> Byte {
@@ -345,26 +363,26 @@ pub fn device_of(devices: &Devices, handle: u32) -> Option<&InputDevice> {
 #[derive(rc2k_derive::Cells)]
 pub struct Keyboard {
     /// `g_yesNoKeyGiven`: 1 = the key comes from the caller.
-    pub yes_no_key_given: Dword,
+    pub yes_no_key_given: PlainDword,
     /// `unk_4F7FDC`: the built-in layout's five pointers (nothing reads them: `input::layouts`
     /// copies the tables below).
-    pub _built_in_layout: [Dword; 5],
+    pub _built_in_layout: [PlainDword; 5],
     /// `dword_4F7FF0`: one bit per key; the keys set type nothing.
-    pub silent_keys: [Dword; 4],
+    pub silent_keys: [PlainDword; 4],
     /// `unk_4F8000`: the dead keys' list {dead key, base, plain result, shifted result}.
-    pub compose: Bytes<0x6C>,
+    pub compose: PlainBytes<0x6C>,
     /// 0x4F806C: the built-in layout's plain table.
-    pub plain: Bytes<0x80>,
+    pub plain: PlainBytes<0x80>,
     /// 0x4F80EC: its shifted table.
-    pub shifted: Bytes<0x80>,
+    pub shifted: PlainBytes<0x80>,
     /// 0x4F816C .. 0x4F826C: its key names' table.
-    pub key_names: Bytes<0x100>,
+    pub key_names: PlainBytes<0x100>,
     /// `dword_4F826C`.
-    pub _unused_826c: Dword,
+    pub _unused_826c: PlainDword,
     /// `unk_4F8270`: the axes' rest values (6 dwords, taken by `input::axis_moved`).
-    pub axes_rest: [Dword; 6],
+    pub axes_rest: [PlainDword; 6],
     /// 0x4F8288 .. 0x4F8294.
-    pub _tail: Bytes<0xC>,
+    pub _tail: PlainBytes<0xC>,
 }
 
 impl Keyboard {
@@ -372,16 +390,16 @@ impl Keyboard {
         {
             use crate::input::store_data::KEYBOARD_RUNS as R;
             Keyboard {
-                yes_no_key_given: dword(R, 0x0),
-                _built_in_layout: dwords(R, 0x4),
-                silent_keys: dwords(R, 0x18),
-                compose: bytes(R, 0x28),
-                plain: bytes(R, 0x94),
-                shifted: bytes(R, 0x114),
-                key_names: bytes(R, 0x194),
-                _unused_826c: dword(R, 0x294),
-                axes_rest: dwords(R, 0x298),
-                _tail: bytes(R, 0x2B0),
+                yes_no_key_given: plain_dword(R, 0x0),
+                _built_in_layout: plain_dwords(R, 0x4),
+                silent_keys: plain_dwords(R, 0x18),
+                compose: plain_bytes(R, 0x28),
+                plain: plain_bytes(R, 0x94),
+                shifted: plain_bytes(R, 0x114),
+                key_names: plain_bytes(R, 0x194),
+                _unused_826c: plain_dword(R, 0x294),
+                axes_rest: plain_dwords(R, 0x298),
+                _tail: plain_bytes(R, 0x2B0),
             }
         }
     }
@@ -399,32 +417,32 @@ pub const KEYBOARD_LEN: usize = core::mem::size_of::<Keyboard>();
 #[derive(rc2k_derive::Cells)]
 pub struct Mouse {
     /// `g_mouseX`, `g_mouseY` (signed).
-    pub x: Dword,
-    pub y: Dword,
+    pub x: PlainDword,
+    pub y: PlainDword,
     /// `g_lastMouseX`, `g_lastMouseY`: last frame's.
-    pub last_x: Dword,
-    pub last_y: Dword,
+    pub last_x: PlainDword,
+    pub last_y: PlainDword,
     /// `g_leftClick`, `g_rightClick`.
-    pub left_click: Dword,
-    pub right_click: Dword,
+    pub left_click: PlainDword,
+    pub right_click: PlainDword,
     /// `g_mouseButtons`: the buttons' bits; `g_leftButton` (bit 0), `g_rightButton` (bit 1).
-    pub buttons: Dword,
-    pub left_button: Dword,
-    pub right_button: Dword,
+    pub buttons: PlainDword,
+    pub left_button: PlainDword,
+    pub right_button: PlainDword,
 }
 
 impl Mouse {
     pub const fn new() -> Self {
         Mouse {
-            x: Dword::new(0),
-            y: Dword::new(0),
-            last_x: Dword::new(0),
-            last_y: Dword::new(0),
-            left_click: Dword::new(0),
-            right_click: Dword::new(0),
-            buttons: Dword::new(0),
-            left_button: Dword::new(0),
-            right_button: Dword::new(0),
+            x: PlainDword::new(0),
+            y: PlainDword::new(0),
+            last_x: PlainDword::new(0),
+            last_y: PlainDword::new(0),
+            left_click: PlainDword::new(0),
+            right_click: PlainDword::new(0),
+            buttons: PlainDword::new(0),
+            left_button: PlainDword::new(0),
+            right_button: PlainDword::new(0),
         }
     }
 }

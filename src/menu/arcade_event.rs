@@ -118,7 +118,7 @@ impl arcade::Arcade for Game<'_> {
                 let level = self
                     .owners
                     .system
-                    .records
+                    .records()
                     .stage_tables
                     .level_table(play.arcade.level.get())?;
                 a::keep_arcade_stage_best(menus, level.row(play.arcade.stage.get())?)?;

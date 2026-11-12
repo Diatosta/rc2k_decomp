@@ -34,7 +34,7 @@ const LOADING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts
 pub fn show_picture_file(
     so: crate::strings::append_string_by_id::StringOwners<'static>,
     path: &dyn crate::session::TextPlace,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     pump_messages_now();

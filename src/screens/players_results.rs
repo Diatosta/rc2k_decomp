@@ -137,7 +137,7 @@ pub fn draw_players_results(
             base,
             stage,
             speeds,
-        } = prepare(o, menus, layout, &system.records.stage_tables)?;
+        } = prepare(o, menus, layout, &system.records().stage_tables)?;
         let mut rows = Vec::new();
         for (row, (p, speed)) in players.iter().zip(speeds).enumerate() {
             rows.push(Row {

@@ -13,7 +13,7 @@ use crate::net::lobby::run_frame;
 pub fn show_message(
     so: crate::strings::append_string_by_id::StringOwners<'static>,
     message: u32,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     run_frame(system, || {

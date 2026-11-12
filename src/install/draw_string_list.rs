@@ -17,7 +17,7 @@ pub fn draw_string_list(
     table: &[&StringRecord],
     x: u32,
     y: u32,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::install::layout` (`list_records`, `list_place`).
     for (record, _) in table.iter().zip(layout::list_records(table.len() as u32)?) {

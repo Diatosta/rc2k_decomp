@@ -39,7 +39,7 @@ fn bar_width(install: &'static crate::install::owner::Install) -> Result<u32, Re
 pub fn progress_frame(
     install: &'static crate::install::owner::Install,
     strings: &crate::strings::owner::Strings,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<bool, Refused> {
     let drawing = &gfx.drawing;
@@ -96,7 +96,7 @@ pub fn progress_frame(
 pub fn copying_frame(
     so: crate::strings::append_string_by_id::StringOwners<'static>,
     install: &'static crate::install::owner::Install,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<bool, Refused> {
     let mut carry = false;

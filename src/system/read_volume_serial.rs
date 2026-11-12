@@ -24,7 +24,7 @@ pub fn read_volume_serial(system: &crate::system::owner::System) {
     // matters here).
     rc2k_core::system::machine::volume_registers(&mut info);
     system
-        .work
+        .work()
         .files
         .buffer
         .write_at(0, &info, "the scratch buffer")

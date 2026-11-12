@@ -22,7 +22,7 @@ const CHUNK: u32 = 0x1_0000;
 /// The paths without their NULs.
 pub fn copy_file(system: &System, from: &[u8], to: &[u8]) -> Result<bool, BadInput> {
     let mut buffer = system
-        .work
+        .work()
         .files
         .buffer
         .read_at(0, CHUNK as usize, "the scratch buffer")?;
@@ -33,7 +33,7 @@ pub fn copy_file(system: &System, from: &[u8], to: &[u8]) -> Result<bool, BadInp
         &mut buffer,
     )?;
     system
-        .work
+        .work()
         .files
         .buffer
         .write_at(0, &buffer, "the scratch buffer")?;

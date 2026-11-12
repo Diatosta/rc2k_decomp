@@ -18,7 +18,7 @@ pub fn string_frame(
     font: crate::gfx::typefaces::FontId,
     x: u32,
     y: u32,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     if !lock_surface(gfx, system) {
@@ -34,7 +34,7 @@ pub fn string_frame_locked(
     font: crate::gfx::typefaces::FontId,
     x: u32,
     y: u32,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     copy_picture(gfx, system)?;
@@ -46,7 +46,7 @@ pub fn string_frame_locked(
 pub fn message_frame(
     so: crate::strings::append_string_by_id::StringOwners<'static>,
     message: u32,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     string_frame(so, message, FONT_B, 0x190, 0x12C, gfx, system)

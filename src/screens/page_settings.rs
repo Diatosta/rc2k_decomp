@@ -111,7 +111,7 @@ pub fn stage_options_texts(o: Owners<'static>) -> Result<(), Refused> {
         menus.tables.captions.shown_group.get(),
     );
     let text = o.race.text_buffers();
-    let stages = &o.system.records.stage_tables;
+    let stages = &o.system.records().stage_tables;
     stage_refuses(stages, a, b)?;
     // The logic is in `rc2k_core::screens::page_values` (the items and the caption).
     use rc2k_core::screens::page_values::{stage_options_caption, stage_options_items};
@@ -150,7 +150,7 @@ pub fn stage_choice_texts(o: Owners<'static>) -> Result<(), Refused> {
         menus.screens.event.stage_sub.get(),
     );
     let text = o.race.text_buffers();
-    let stages = &o.system.records.stage_tables;
+    let stages = &o.system.records().stage_tables;
     stage_refuses(stages, a, b)?;
     // Item 1 of the "menu" the head points to (the labels: the slip in `notes/bugs.md`).
     let item_1 = crate::menu::menus_store::labels_slot(

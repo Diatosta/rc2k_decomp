@@ -10,7 +10,7 @@ pub fn stopping(
     so: crate::strings::append_string_by_id::StringOwners<'static>,
     vars: &NetVars,
     system: &crate::system::owner::System,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
     panel: &crate::race::viewer_screen_store::ViewerPanelBlock,
 ) -> Result<(), Refused> {
     if vars.session.get() == 1 {

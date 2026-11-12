@@ -40,7 +40,7 @@ pub fn draw_clock_fixed_pitch_at(
     y: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<(bool, bool), Refused> {
-    let font = font.into().object();
+    let font = font.into().object(canvas.typefaces());
     let before = font.get();
     let mut copy = before;
     let too_wide = draw_clock_fixed_pitch(&mut copy, text, x, y, canvas)?;

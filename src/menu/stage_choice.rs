@@ -32,12 +32,12 @@ pub fn draw_stage_map(o: Owners<'static>) -> Result<(), Refused> {
         2 => {
             let table: u32 = menus.play.arcade.level.get();
             crate::records::stages_store::row(
-                system.records.stage_tables.level_table(table)?,
+                system.records().stage_tables.level_table(table)?,
                 menus.play.arcade.stage.get(),
             )?
         }
         3 => crate::records::find_record::find_record_in(
-            system.records.stage_tables.championship(),
+            system.records().stage_tables.championship(),
             menus.screens.event.index.get() as i32,
             menus.screens.event.section.get(),
         )?,

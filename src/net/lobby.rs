@@ -176,7 +176,7 @@ pub fn draw_string(
     font: crate::gfx::typefaces::FontId,
     x: u32,
     y: u32,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     crate::text::draw_string_by_id::draw_string_by_id_at(
         so,

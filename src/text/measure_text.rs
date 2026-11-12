@@ -55,8 +55,9 @@ pub fn measure_text(
 /// whatever x its caller left measure from 0. A font in another mode would draw the text.
 pub fn only_measures(
     font: crate::gfx::typefaces::FontId,
+    typefaces: &'static crate::gfx::typefaces::FontObjects,
 ) -> Result<FontRef, crate::errors::BadInput> {
-    if font.object().mode.get() != rc2k_core::text::MODE_MEASURE {
+    if font.object(typefaces).mode.get() != rc2k_core::text::MODE_MEASURE {
         return Err(crate::errors::BadInput("a measuring font that draws"));
     }
     Ok(font.into())
@@ -70,7 +71,7 @@ pub fn measure_text_at(
     x: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<Measured, Refused> {
-    let font = font.into().object();
+    let font = font.into().object(canvas.typefaces());
     let mut copy = font.get();
     let measured = measure_text(&mut copy, text, x, canvas)?;
     if canvas.keeps_font_changes() {

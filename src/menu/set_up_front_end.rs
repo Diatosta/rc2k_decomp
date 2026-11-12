@@ -27,7 +27,7 @@ use crate::system::owner::System;
 /// (IDA 0x739642, 0x7391C2, 0x738D42, 0x7388C2, 0x738442, 0x737FC2, then 0x739AC2 ..
 /// 0x73B142), in the original's order.
 fn record_tables(system: &System) -> [crate::records::stages_store::RecordTable; 13] {
-    let t = &system.records.stage_tables;
+    let t = &system.records().stage_tables;
     let mut all = [t.championship(); 13];
     for (n, k) in [5, 4, 3, 2, 1, 0, 6, 7, 8, 9, 10, 11]
         .into_iter()
@@ -72,7 +72,7 @@ pub fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused
         .set(menus.screens.option_work.other_volume.get());
     allocate_best_times::allocate_best_times(
         best_times,
-        system.records.stage_tables.championship(),
+        system.records().stage_tables.championship(),
     )?;
     // Every table is typed now (`saves::best_times`): none is copied; the summary's
     // variable says it is there, for the race's rivals.

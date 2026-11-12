@@ -7,10 +7,11 @@
 // ---- game data ----
 
 /// 1 = always write the hours (`g_timeShowHours`, 0x4E0148, 0 at the start). The network's lobby sets it for a while.
-pub static SHOW_HOURS: crate::session::Dword = crate::session::Dword::new(0);
+pub static SHOW_HOURS: crate::session::GameThread<crate::session::PlainDword> =
+    crate::session::GameThread::new(crate::session::PlainDword::new(0));
 
 pub fn show_hours() -> bool {
-    SHOW_HOURS.get() == 1
+    SHOW_HOURS.get().get() == 1
 }
 
 pub fn append_time(hundredths: u32, show_hours: bool) -> Vec<u8> {
@@ -24,7 +25,7 @@ mod tests {
         let d = crate::test_support::first_values::bytes("strings.append_time.SHOW_HOURS/4");
         assert_eq!(
             u32::from_le_bytes(d.try_into().unwrap()),
-            super::SHOW_HOURS.get()
+            super::SHOW_HOURS.get().get()
         );
     }
 }

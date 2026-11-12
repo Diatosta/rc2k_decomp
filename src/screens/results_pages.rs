@@ -208,7 +208,7 @@ macro_rules! results_page_entry {
             pub fn draw(
                 o: crate::owners::Owners<'static>,
                 system: &crate::system::owner::System,
-                gfx: &crate::gfx::owner::Gfx,
+                gfx: &'static crate::gfx::owner::Gfx,
             ) -> Result<(), Refused> {
                 draw_results_page(
                     o,

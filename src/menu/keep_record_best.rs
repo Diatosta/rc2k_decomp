@@ -14,7 +14,7 @@ use crate::system::owner::System;
 
 /// The current record (`g_recordTable`, `section`, `index`), refused past the table.
 fn current_record(menus: &Menus, system: &System) -> Result<RecordRef, BadInput> {
-    let table = system.records.stage_tables.championship();
+    let table = system.records().stage_tables.championship();
     let section: u32 = menus.screens.event.section.get();
     let index: u32 = menus.screens.event.index.get();
     if section >= 64

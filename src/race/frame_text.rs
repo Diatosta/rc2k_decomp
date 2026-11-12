@@ -189,6 +189,7 @@ pub fn roll_credits(
     // refused at its end.
     let mut at = 0usize;
     let trap = Trap::new();
+    let typefaces = canvas.typefaces();
     let (lines, below) = lay_out(
         || {
             let v = frame.credits.script.get(at).map(Word::get);
@@ -197,7 +198,7 @@ pub fn roll_credits(
         },
         width,
         frame.credits.top.get() as i32,
-        |f| font_of(f).object().line_height.get() as i32,
+        |f| font_of(f).object(typefaces).line_height.get() as i32,
     );
     trap.finish()?;
     for line in lines {

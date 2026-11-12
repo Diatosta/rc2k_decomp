@@ -24,7 +24,7 @@ const FONT_E: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::PANE
 pub fn draw_viewer_panel(
     so: crate::strings::append_string_by_id::StringOwners<'static>,
     race: &Race,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
     strings: &crate::strings::owner::Strings,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
@@ -64,7 +64,7 @@ pub fn draw_viewer_panel(
         };
     // The text buffer drawn with a font at (x, y).
     let text = |font: crate::gfx::typefaces::FontId, x: i32, y: i32| -> Result<(), Refused> {
-        let font = font.object();
+        let font = font.object(&gfx.fonts.typefaces);
         let mut copy = font.get();
         crate::text::draw_text_keep_regs::draw_text_keep_regs(
             &mut copy,

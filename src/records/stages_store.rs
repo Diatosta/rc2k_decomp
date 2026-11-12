@@ -15,7 +15,7 @@
 
 use crate::errors::BadInput;
 use crate::screens::game_screen::Held;
-use crate::session::{Bytes, Loose};
+use crate::session::{PlainBytes, PlainLoose};
 use crate::system::owner::system;
 
 /// A record (0xA4 bytes, IDA's `Record`): +0 the tag (0 a stage, 3 or 4 a rally's end, -1
@@ -24,7 +24,7 @@ use crate::system::owner::system;
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Record {
-    pub words: [Loose; 41],
+    pub words: [PlainLoose; 41],
 }
 
 /// A record's two record holders: the stage's fastest (+0x30 speed, +0x54 name, +0x74
@@ -162,15 +162,15 @@ impl Record {
         }
         self.words
             .get(at as usize / 4)
-            .map(Loose::get)
+            .map(PlainLoose::get)
             .ok_or(BadInput("a record's field past its end"))
     }
 
     const fn new(v: [u32; 41]) -> Self {
-        let mut words = [const { Loose::new(0) }; 41];
+        let mut words = [const { PlainLoose::new(0) }; 41];
         let mut k = 0;
         while k < 41 {
-            words[k] = Loose::new(v[k]);
+            words[k] = PlainLoose::new(v[k]);
             k += 1;
         }
         Self { words }
@@ -184,7 +184,7 @@ const _: () = assert!(core::mem::size_of::<Record>() == 0xA4);
 #[derive(rc2k_derive::Cells)]
 pub struct EventRecords {
     pub records: [Record; 7],
-    pub end: Loose,
+    pub end: PlainLoose,
 }
 
 /// A track's entry in the track pack (0x40 bytes; fields read from `screens::stage_panel`,
@@ -194,31 +194,31 @@ pub struct EventRecords {
 pub struct TrackEntry {
     /// +0x00: the track's name (a string id; also the first word `race::single_rally`
     /// checks for the pack's closing -1).
-    pub name: Loose,
+    pub name: PlainLoose,
     /// +0x04: 0 in all 36 entries and read by no code (probably a spare word between the name and the duration).
-    pub unread_zero_04: Loose,
+    pub unread_zero_04: PlainLoose,
     /// +0x08: the index into `MENU_LISTS.durations`.
-    pub duration: Loose,
+    pub duration: PlainLoose,
     /// +0x0C: the stage's length.
-    pub length: Loose,
+    pub length: PlainLoose,
     /// +0x10: the description's string id.
-    pub description: Loose,
+    pub description: PlainLoose,
     /// +0x14: the weather.
-    pub weather: Loose,
+    pub weather: PlainLoose,
     /// +0x18: 1 in all 36 entries and read by no code (probably a spare word after the weather).
-    pub unread_one_18: Loose,
+    pub unread_one_18: PlainLoose,
     /// +0x1C: the temperature (signed).
-    pub temperature: Loose,
+    pub temperature: PlainLoose,
     /// +0x20: the wind.
-    pub wind: Loose,
+    pub wind: PlainLoose,
     /// +0x24 .. +0x30: the four surfaces.
-    pub surfaces: [Loose; 4],
+    pub surfaces: [PlainLoose; 4],
     /// +0x34: the stage number (what `race::single_rally` looks the entry up by).
-    pub stage: Loose,
+    pub stage: PlainLoose,
     /// +0x38: the stage's number on the panel.
-    pub number: Loose,
+    pub number: PlainLoose,
     /// +0x3C: 1 when the number's label is the singular.
-    pub number_label_one: Loose,
+    pub number_label_one: PlainLoose,
 }
 
 const _: () = assert!(core::mem::size_of::<TrackEntry>() == 0x40);
@@ -231,24 +231,24 @@ const _: () = assert!(core::mem::offset_of!(TrackEntry, number_label_one) == 0x3
 
 const fn track(v: [u32; 16]) -> TrackEntry {
     TrackEntry {
-        name: Loose::new(v[0]),
-        unread_zero_04: Loose::new(v[1]),
-        duration: Loose::new(v[2]),
-        length: Loose::new(v[3]),
-        description: Loose::new(v[4]),
-        weather: Loose::new(v[5]),
-        unread_one_18: Loose::new(v[6]),
-        temperature: Loose::new(v[7]),
-        wind: Loose::new(v[8]),
+        name: PlainLoose::new(v[0]),
+        unread_zero_04: PlainLoose::new(v[1]),
+        duration: PlainLoose::new(v[2]),
+        length: PlainLoose::new(v[3]),
+        description: PlainLoose::new(v[4]),
+        weather: PlainLoose::new(v[5]),
+        unread_one_18: PlainLoose::new(v[6]),
+        temperature: PlainLoose::new(v[7]),
+        wind: PlainLoose::new(v[8]),
         surfaces: [
-            Loose::new(v[9]),
-            Loose::new(v[10]),
-            Loose::new(v[11]),
-            Loose::new(v[12]),
+            PlainLoose::new(v[9]),
+            PlainLoose::new(v[10]),
+            PlainLoose::new(v[11]),
+            PlainLoose::new(v[12]),
         ],
-        stage: Loose::new(v[13]),
-        number: Loose::new(v[14]),
-        number_label_one: Loose::new(v[15]),
+        stage: PlainLoose::new(v[13]),
+        number: PlainLoose::new(v[14]),
+        number_label_one: PlainLoose::new(v[15]),
     }
 }
 
@@ -257,13 +257,13 @@ const fn track(v: [u32; 16]) -> TrackEntry {
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct TrakPak {
-    pub link: Loose,
-    pub pack_id: Loose,
+    pub link: PlainLoose,
+    pub pack_id: PlainLoose,
     /// "Track Pack 1".
-    pub name: Bytes<0x28>,
-    pub count: Loose,
+    pub name: PlainBytes<0x28>,
+    pub count: PlainLoose,
     pub tracks: [TrackEntry; 36],
-    pub end: Loose,
+    pub end: PlainLoose,
 }
 
 /// Aligned to 4 (its cells are bytes) so that the lead does its work.
@@ -271,41 +271,41 @@ pub struct TrakPak {
 #[derive(rc2k_derive::Cells)]
 pub struct StageTables {
     /// Not in the image: two bytes so that each address keeps its alignment mod 4.
-    pub _lead: Bytes<2>,
+    pub _lead: PlainBytes<2>,
     /// `g_trakPakHeader` (0x734BC6).
     pub trak_pak: TrakPak,
     /// `off_7354FE` (0x7354FE): the stage results' four tables and a -1
     /// (`screens::stage_results`): names (`result_table`).
-    pub result_tables: [Loose; 5],
+    pub result_tables: [PlainLoose; 5],
     /// `off_735512`: per stage group, its list of event tables (names: `group_event_table`).
-    pub group_lists: [Loose; 4],
+    pub group_lists: [PlainLoose; 4],
     /// `off_735522`, `off_73553E`: two of those lists (six event tables and a -1).
-    pub group_list_a: [Loose; 7],
-    pub group_list_b: [Loose; 7],
+    pub group_list_a: [PlainLoose; 7],
+    pub group_list_b: [PlainLoose; 7],
     /// `off_73555A`: per arcade level (and the championship's stages), an event table (names:
     /// `level_table`).
-    pub level_tables: [Loose; 7],
+    pub level_tables: [PlainLoose; 7],
     /// `g_recordTable` (0x735576): the championship's records.
     pub championship: [Record; 66],
-    pub championship_end: Loose,
+    pub championship_end: PlainLoose,
     /// 0x737FC2 ..: the events' tables, 0x480 apart.
     pub events: [EventRecords; 12],
     /// 0x73B5C2 .. 0x73B674.
-    pub tail: Bytes<0xB2>,
+    pub tail: PlainBytes<0xB2>,
 }
 
 impl StageTables {
     pub const fn new() -> Self {
         StageTables {
-            _lead: Bytes::new([0; 2]),
+            _lead: PlainBytes::new([0; 2]),
             trak_pak: TrakPak {
-                link: Loose::new(0x0),
-                pack_id: Loose::new(0x0),
-                name: Bytes::new([
+                link: PlainLoose::new(0x0),
+                pack_id: PlainLoose::new(0x0),
+                name: PlainBytes::new([
                     84, 114, 97, 99, 107, 32, 80, 97, 99, 107, 32, 49, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 ]),
-                count: Loose::new(0x24),
+                count: PlainLoose::new(0x24),
                 tracks: [
                     track([
                         0x3e8, 0x0, 0x0, 0x4b0, 0x40c, 0x4b6, 0x1, 0xd, 0xc, 0x0, 0x5f, 0x5, 0x0,
@@ -452,47 +452,47 @@ impl StageTables {
                         0x1a, 0x5f, 0x1,
                     ]),
                 ],
-                end: Loose::new(0xffffffff),
+                end: PlainLoose::new(0xffffffff),
             },
             result_tables: [
-                Loose::new(0x7556d8),
-                Loose::new(0x7556e0),
-                Loose::new(0x7556e8),
-                Loose::new(0x7556e4),
-                Loose::new(0xffffffff),
+                PlainLoose::new(0x7556d8),
+                PlainLoose::new(0x7556e0),
+                PlainLoose::new(0x7556e8),
+                PlainLoose::new(0x7556e4),
+                PlainLoose::new(0xffffffff),
             ],
             group_lists: [
-                Loose::new(0x73553e),
-                Loose::new(0x735522),
-                Loose::new(0x73553e),
-                Loose::new(0x735522),
+                PlainLoose::new(0x73553e),
+                PlainLoose::new(0x735522),
+                PlainLoose::new(0x73553e),
+                PlainLoose::new(0x735522),
             ],
             group_list_a: [
-                Loose::new(0x739642),
-                Loose::new(0x7391c2),
-                Loose::new(0x738d42),
-                Loose::new(0x7388c2),
-                Loose::new(0x738442),
-                Loose::new(0x737fc2),
-                Loose::new(0xffffffff),
+                PlainLoose::new(0x739642),
+                PlainLoose::new(0x7391c2),
+                PlainLoose::new(0x738d42),
+                PlainLoose::new(0x7388c2),
+                PlainLoose::new(0x738442),
+                PlainLoose::new(0x737fc2),
+                PlainLoose::new(0xffffffff),
             ],
             group_list_b: [
-                Loose::new(0x739ac2),
-                Loose::new(0x739f42),
-                Loose::new(0x73a3c2),
-                Loose::new(0x73a842),
-                Loose::new(0x73acc2),
-                Loose::new(0x73b142),
-                Loose::new(0xffffffff),
+                PlainLoose::new(0x739ac2),
+                PlainLoose::new(0x739f42),
+                PlainLoose::new(0x73a3c2),
+                PlainLoose::new(0x73a842),
+                PlainLoose::new(0x73acc2),
+                PlainLoose::new(0x73b142),
+                PlainLoose::new(0xffffffff),
             ],
             level_tables: [
-                Loose::new(0x739642),
-                Loose::new(0x7391c2),
-                Loose::new(0x738d42),
-                Loose::new(0x7388c2),
-                Loose::new(0x738442),
-                Loose::new(0x737fc2),
-                Loose::new(0xffffffff),
+                PlainLoose::new(0x739642),
+                PlainLoose::new(0x7391c2),
+                PlainLoose::new(0x738d42),
+                PlainLoose::new(0x7388c2),
+                PlainLoose::new(0x738442),
+                PlainLoose::new(0x737fc2),
+                PlainLoose::new(0xffffffff),
             ],
             championship: [
                 Record::new([
@@ -839,7 +839,7 @@ impl StageTables {
                     0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
                 ]),
             ],
-            championship_end: Loose::new(0xffffffff),
+            championship_end: PlainLoose::new(0xffffffff),
             events: [
                 EventRecords {
                     records: [
@@ -886,7 +886,7 @@ impl StageTables {
                             0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
                         ]),
                     ],
-                    end: Loose::new(0xffffffff),
+                    end: PlainLoose::new(0xffffffff),
                 },
                 EventRecords {
                     records: [
@@ -933,7 +933,7 @@ impl StageTables {
                             0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
                         ]),
                     ],
-                    end: Loose::new(0xffffffff),
+                    end: PlainLoose::new(0xffffffff),
                 },
                 EventRecords {
                     records: [
@@ -980,7 +980,7 @@ impl StageTables {
                             0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
                         ]),
                     ],
-                    end: Loose::new(0xffffffff),
+                    end: PlainLoose::new(0xffffffff),
                 },
                 EventRecords {
                     records: [
@@ -1027,7 +1027,7 @@ impl StageTables {
                             0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
                         ]),
                     ],
-                    end: Loose::new(0xffffffff),
+                    end: PlainLoose::new(0xffffffff),
                 },
                 EventRecords {
                     records: [
@@ -1074,7 +1074,7 @@ impl StageTables {
                             0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
                         ]),
                     ],
-                    end: Loose::new(0xffffffff),
+                    end: PlainLoose::new(0xffffffff),
                 },
                 EventRecords {
                     records: [
@@ -1121,7 +1121,7 @@ impl StageTables {
                             0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
                         ]),
                     ],
-                    end: Loose::new(0xffffffff),
+                    end: PlainLoose::new(0xffffffff),
                 },
                 EventRecords {
                     records: [
@@ -1168,7 +1168,7 @@ impl StageTables {
                             0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
                         ]),
                     ],
-                    end: Loose::new(0xffffffff),
+                    end: PlainLoose::new(0xffffffff),
                 },
                 EventRecords {
                     records: [
@@ -1215,7 +1215,7 @@ impl StageTables {
                             0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
                         ]),
                     ],
-                    end: Loose::new(0xffffffff),
+                    end: PlainLoose::new(0xffffffff),
                 },
                 EventRecords {
                     records: [
@@ -1262,7 +1262,7 @@ impl StageTables {
                             0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
                         ]),
                     ],
-                    end: Loose::new(0xffffffff),
+                    end: PlainLoose::new(0xffffffff),
                 },
                 EventRecords {
                     records: [
@@ -1309,7 +1309,7 @@ impl StageTables {
                             0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
                         ]),
                     ],
-                    end: Loose::new(0xffffffff),
+                    end: PlainLoose::new(0xffffffff),
                 },
                 EventRecords {
                     records: [
@@ -1356,7 +1356,7 @@ impl StageTables {
                             0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
                         ]),
                     ],
-                    end: Loose::new(0xffffffff),
+                    end: PlainLoose::new(0xffffffff),
                 },
                 EventRecords {
                     records: [
@@ -1403,10 +1403,10 @@ impl StageTables {
                             0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
                         ]),
                     ],
-                    end: Loose::new(0xffffffff),
+                    end: PlainLoose::new(0xffffffff),
                 },
             ],
-            tail: Bytes::new([
+            tail: PlainBytes::new([
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 100, 0, 0, 0, 100, 0, 0, 0,
                 100, 0, 0, 0, 100, 0, 0, 0, 100, 0, 0, 0, 100, 0, 0, 0, 100, 0, 0, 0, 100, 0, 0, 0,
@@ -1435,7 +1435,7 @@ impl StageTables {
     /// The lists after `off_735512`, one after the other as the image has them: the two
     /// groups' (`off_735522`, `off_73553E`) and the arcade levels' (`off_73555A`), seven
     /// dwords each.
-    fn lists(&self) -> impl Iterator<Item = &Loose> {
+    fn lists(&self) -> impl Iterator<Item = &PlainLoose> {
         self.group_list_a
             .iter()
             .chain(&self.group_list_b)
@@ -1537,23 +1537,23 @@ impl RecordTable {
     pub fn rows(self) -> &'static [Record] {
         let system = system();
         match self {
-            RecordTable::Championship => &system.records.stage_tables.championship,
-            RecordTable::Event(k) => &system.records.stage_tables.events[k].records,
+            RecordTable::Championship => &system.records().stage_tables.championship,
+            RecordTable::Event(k) => &system.records().stage_tables.events[k].records,
         }
     }
 
-    fn end(self) -> &'static Loose {
+    fn end(self) -> &'static PlainLoose {
         let system = system();
         match self {
-            RecordTable::Championship => &system.records.stage_tables.championship_end,
-            RecordTable::Event(k) => &system.records.stage_tables.events[k].end,
+            RecordTable::Championship => &system.records().stage_tables.championship_end,
+            RecordTable::Event(k) => &system.records().stage_tables.events[k].end,
         }
     }
 
     /// Its first row's byte offset in the stage tables.
     #[cfg(test)]
     pub fn table_offset(self) -> usize {
-        self.rows().as_ptr().addr() - core::ptr::from_ref(&system().records.stage_tables).addr()
+        self.rows().as_ptr().addr() - core::ptr::from_ref(&system().records().stage_tables).addr()
     }
 
     /// Its title string: its first record's name (+0x38).
@@ -1629,7 +1629,7 @@ impl RecordRef {
             RecordTable::Championship,
             offset_of!(StageTables, championship),
         ))
-        .chain((0..system().records.stage_tables.events.len()).map(|k| {
+        .chain((0..system().records().stage_tables.events.len()).map(|k| {
             (
                 RecordTable::Event(k),
                 offset_of!(StageTables, events) + k * size_of::<EventRecords>(),
@@ -1689,15 +1689,15 @@ mod tests {
     #[test]
     fn the_lists_resolve_to_what_they_name() {
         let _g = crate::test_support::test_lock();
-        let t = &system().records.stage_tables;
+        let t = &system().records().stage_tables;
         let table = |name: u32| t.offset_of_name(name, "x").unwrap();
         let entries: Vec<u32> = t
             .group_list_a
             .iter()
             .chain(&t.group_list_b)
-            .map(Loose::get)
+            .map(PlainLoose::get)
             .collect();
-        let first = t.group_lists.iter().map(Loose::get).min().unwrap();
+        let first = t.group_lists.iter().map(PlainLoose::get).min().unwrap();
         for group in 0..4 {
             let at = (t.group_lists[group].get() - first) as usize / 4;
             for sub in 0..6 {
@@ -1784,9 +1784,9 @@ mod place_tests {
     #[test]
     fn the_names_resolve_to_places_in_the_tables() {
         let _g = crate::test_support::test_lock();
-        let tables = &system().records.stage_tables;
-        let mut names: Vec<u32> = tables.lists().map(Loose::get).collect();
-        names.extend(tables.group_lists.iter().map(Loose::get));
+        let tables = &system().records().stage_tables;
+        let mut names: Vec<u32> = tables.lists().map(PlainLoose::get).collect();
+        names.extend(tables.group_lists.iter().map(PlainLoose::get));
         let valid = names
             .iter()
             .filter(|&&name| tables.offset_of_name(name, "x").is_ok())

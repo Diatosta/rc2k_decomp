@@ -65,7 +65,7 @@ fn message(
     system: &crate::system::owner::System,
     table: &[&StringRecord],
     y: u32,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     crate::platform_events::hold_quit(system, false);
     run_frame(system, None)?;
@@ -93,7 +93,7 @@ fn message(
 fn copying_frame(
     so: crate::strings::append_string_by_id::StringOwners<'static>,
     install: &'static crate::install::owner::Install,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<bool, Refused> {
     crate::install::install_frames::copying_frame(so, install, gfx, system)
@@ -102,7 +102,7 @@ fn copying_frame(
 fn progress_frame(
     install: &'static crate::install::owner::Install,
     strings: &crate::strings::owner::Strings,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<bool, Refused> {
     crate::install::install_frames::progress_frame(install, strings, gfx, system)

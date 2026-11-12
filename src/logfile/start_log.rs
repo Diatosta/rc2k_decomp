@@ -65,7 +65,7 @@ pub fn start_log(system: &System) -> Result<(), BadInput> {
     let version_at = core::mem::offset_of!(crate::session::Machine, version);
     // The date in the numbers' scratch buffer, as the original makes it (the log's
     // lock is not held: no thread logs yet).
-    let date = write_date_text(system, &system.work.numbers)?;
+    let date = write_date_text(system, &system.work().numbers)?;
     // `Buffer` (0x4E0558), written and read here only: a local.
     let memory = crate::os::memory();
     let free = free_space_kb();

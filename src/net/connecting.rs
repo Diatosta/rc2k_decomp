@@ -18,7 +18,7 @@ pub const STATUS_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fo
 pub fn status(
     so: crate::strings::append_string_by_id::StringOwners<'static>,
     id: u32,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     run_frame(system, || Ok::<(), Refused>(()))?;
@@ -34,7 +34,7 @@ pub fn connecting(
     net: &Net,
     panel: &ViewerPanelBlock,
     connection: u32,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<bool, Refused> {
     status(so, 0x14F, gfx, system)?;

@@ -4,7 +4,7 @@
 //!
 //! One caller, `start` (0x401035). The Win32 call is made from Rust.
 
-use crate::session::Dword;
+use crate::session::PlainDword;
 use crate::system::owner::System;
 
 // ---- game data ----
@@ -14,8 +14,8 @@ const FAIL_CRITICAL_ERRORS: u32 = 1;
 
 pub fn set_error_mode(system: &System) {
     let was = crate::os::set_error_mode(FAIL_CRITICAL_ERRORS);
-    system.start.error_mode.mode.set(was);
-    system.start.error_mode.changed.set(1);
+    system.start().error_mode.mode.set(was);
+    system.start().error_mode.changed.set(1);
 }
 
 /// The error mode kept and whether it was set (IDA 0x4E059C .. 0x4E05A4, the image's layout).
@@ -23,16 +23,16 @@ pub fn set_error_mode(system: &System) {
 #[derive(rc2k_derive::Cells)]
 pub struct ErrorMode {
     /// 0x4E059C: `g_errorModeSet`: 1 after `set_error_mode` set the mode.
-    pub changed: Dword,
+    pub changed: PlainDword,
     /// 0x4E05A0: `uMode`: the mode before.
-    pub mode: Dword,
+    pub mode: PlainDword,
 }
 
 impl ErrorMode {
     pub const fn new() -> Self {
         ErrorMode {
-            changed: Dword::new(0x0),
-            mode: Dword::new(0x0),
+            changed: PlainDword::new(0x0),
+            mode: PlainDword::new(0x0),
         }
     }
 }

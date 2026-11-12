@@ -20,7 +20,7 @@
 //! looked at by the owner. `start` calls it directly.
 
 use crate::errors::BadInput;
-use crate::session::{Cell32, Dword};
+use crate::session::{Cell32, PlainDword};
 use crate::system::owner::Start;
 
 // ---- game data ----
@@ -121,7 +121,7 @@ pub fn read_command_line(
 pub fn read_own_command_line(o: crate::owners::Owners<'static>) -> Result<(), BadInput> {
     let mut line = crate::os::command_line();
     line.push(0);
-    let start = &o.system.start;
+    let start = o.system.start();
     if read_command_line(start, o.install, o.d3d, o.audio, &line)? == Asked::Version {
         show_version_and_leave(start);
     }
@@ -132,13 +132,13 @@ pub fn read_own_command_line(o: crate::owners::Owners<'static>) -> Result<(), Ba
 /// its place and length; nothing reads the place).
 pub struct CommandLine {
     /// Its length (`dword_518BAC`).
-    pub program_len: Dword,
+    pub program_len: PlainDword,
 }
 
 impl CommandLine {
     pub const fn new() -> Self {
         CommandLine {
-            program_len: Dword::new(0x0),
+            program_len: PlainDword::new(0x0),
         }
     }
 }

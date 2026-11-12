@@ -33,7 +33,7 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::read_first_match::read_first_match;
 use crate::input::layouts::layouts;
-use crate::session::Bytes;
+use crate::session::{GameThread, PlainBytes};
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::owner::Text;
 use crate::strings::same_text::set_case_table;
@@ -86,7 +86,8 @@ pub const PLAIN_LETTERS_INIT: [u8; 256] = [
 /// (`rc2k_core::input::layouts`).
 const KEYBOARD_LEN: usize = rc2k_core::input::layouts::FILE_LEN;
 /// Where the file is read to (the layouts own the result).
-static KEYBOARD_BUFFER: Bytes<KEYBOARD_LEN> = Bytes::new([0; KEYBOARD_LEN]);
+static KEYBOARD_BUFFER: GameThread<PlainBytes<KEYBOARD_LEN>> =
+    GameThread::new(PlainBytes::new([0; KEYBOARD_LEN]));
 
 fn fatal(code: u32, message: &'static str) -> Refused {
     FatalError { code, message }.into()
@@ -165,12 +166,12 @@ pub fn load_language(
     }
 
     // Read over the block the last load left (a shorter file leaves its tail).
-    KEYBOARD_BUFFER.write(&layouts().file_bytes());
-    let mut keyboard = KEYBOARD_BUFFER.read();
+    KEYBOARD_BUFFER.get().write(&layouts().file_bytes());
+    let mut keyboard = KEYBOARD_BUFFER.get().read();
     let found = read_first_match(o.system, KEYBOARD_FILES, &mut keyboard, 0)?;
-    KEYBOARD_BUFFER.write(&keyboard);
+    KEYBOARD_BUFFER.get().write(&keyboard);
     if found.is_some() {
-        let keyboard = KEYBOARD_BUFFER.read();
+        let keyboard = KEYBOARD_BUFFER.get().read();
         if &keyboard[..4] != b"KEYB" {
             return Err(fatal(0x80E3_83A2, ""));
         }

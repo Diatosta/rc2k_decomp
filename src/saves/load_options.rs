@@ -166,7 +166,7 @@ pub fn pieces_of(o: Owners<'static>) -> [Piece<'static>; 69] {
 
     let names = |n: usize| Piece::part(&menus.play.names.player_names, 0x20 * n, 0x20);
     [
-        Piece::whole(&system.start.run_count.runs),                            // how many times the game was run
+        Piece::whole(&system.start().run_count.runs),                            // how many times the game was run
         Piece::whole(&display.mode.menu_mode),                     // the menus' screen mode
         Piece::whole(&display.mode.race_mode),                     // the race's screen mode
         Piece::whole(&display.choices.mipmapping),                 // mipmapping, off or on
@@ -212,19 +212,19 @@ pub fn pieces_of(o: Owners<'static>) -> [Piece<'static>; 69] {
         Piece::part(&menus.play.arcade.levels_won, 0, 0x6),                    // the arcade levels won, a byte each
         Piece::whole(&menus.cars.numbers.first_numbers),                // the first list of car numbers
         Piece::part(&menus.cars.numbers.second_numbers, 0, 0x50),         // the second list of car numbers, 20 entries
-        Piece::whole(&system.records.stage_tables.championship),              // the championship's records
-        Piece::whole(&system.records.stage_tables.events[5].records),          // the events' record tables, in the file's order
-        Piece::whole(&system.records.stage_tables.events[4].records),
-        Piece::whole(&system.records.stage_tables.events[3].records),
-        Piece::whole(&system.records.stage_tables.events[2].records),
-        Piece::whole(&system.records.stage_tables.events[1].records),
-        Piece::whole(&system.records.stage_tables.events[0].records),
-        Piece::whole(&system.records.stage_tables.events[6].records),
-        Piece::whole(&system.records.stage_tables.events[7].records),
-        Piece::whole(&system.records.stage_tables.events[8].records),
-        Piece::whole(&system.records.stage_tables.events[9].records),
-        Piece::whole(&system.records.stage_tables.events[10].records),
-        Piece::whole(&system.records.stage_tables.events[11].records),
+        Piece::whole(&system.records().stage_tables.championship),              // the championship's records
+        Piece::whole(&system.records().stage_tables.events[5].records),          // the events' record tables, in the file's order
+        Piece::whole(&system.records().stage_tables.events[4].records),
+        Piece::whole(&system.records().stage_tables.events[3].records),
+        Piece::whole(&system.records().stage_tables.events[2].records),
+        Piece::whole(&system.records().stage_tables.events[1].records),
+        Piece::whole(&system.records().stage_tables.events[0].records),
+        Piece::whole(&system.records().stage_tables.events[6].records),
+        Piece::whole(&system.records().stage_tables.events[7].records),
+        Piece::whole(&system.records().stage_tables.events[8].records),
+        Piece::whole(&system.records().stage_tables.events[9].records),
+        Piece::whole(&system.records().stage_tables.events[10].records),
+        Piece::whole(&system.records().stage_tables.events[11].records),
         Piece::held(&saves.rally_times.rallies[0]),                  // the six rallies' best times
         Piece::held(&saves.rally_times.rallies[1]),
         Piece::held(&saves.rally_times.rallies[2]),
@@ -247,7 +247,7 @@ pub fn pieces() -> [Piece<'static>; 69] {
 /// Where the function works: the game's own places, or a test's.
 pub struct Places<'a> {
     /// The buffer the file is read into.
-    pub file: &'a crate::session::Bytes<65536>,
+    pub file: &'a crate::session::PlainBytes<65536>,
     pub loaded: &'a dyn crate::session::FlagLike,
     pub pieces: &'a [Piece<'a>],
     pub rebuild_car_lists: &'a mut dyn FnMut() -> Result<(), BadInput>,
@@ -291,7 +291,7 @@ pub fn load_game_options(o: Owners<'static>) -> Result<bool, Refused> {
     load_options(
         &o.saves.files.options_path,
         &mut Places {
-            file: &o.system.work.files.buffer,
+            file: &o.system.work().files.buffer,
             loaded: &menus.screens.loop_flags.options_loaded,
             pieces: &pieces,
             rebuild_car_lists: &mut || rebuild_car_lists(menus),

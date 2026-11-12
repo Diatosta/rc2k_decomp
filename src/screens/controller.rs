@@ -48,7 +48,7 @@ pub fn classify_controller(
 pub fn learn_axis(
     o: crate::owners::Owners<'static>,
     input: &Input,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     let menus = o.menus;
     let controls = &o.screens.controls;

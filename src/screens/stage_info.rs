@@ -16,7 +16,7 @@ pub fn stage_record_in(
     play: &Play,
 ) -> Result<RecordRef, BadInput> {
     let base = system
-        .records
+        .records()
         .stage_tables
         .level_table(play.arcade.level.get())?;
     crate::records::stages_store::row(base, play.arcade.stage.get())

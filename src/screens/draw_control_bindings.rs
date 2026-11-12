@@ -34,7 +34,7 @@ pub fn binding_text(
     controls: &crate::screens::controls_store::ControlsScreen,
     player: crate::menu::standings::PlayerCell,
     n: u32,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<Vec<u8>, Refused> {
     let b = rc2k_core::screens::controls::Binding {
         binding: player.get().binding(n as usize),
@@ -60,7 +60,7 @@ pub fn draw_control_bindings(
     o: crate::owners::Owners<'static>,
     screens: &ScreensOwner,
     canvas: &mut dyn Canvas,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<bool, Refused> {
     let menus = o.menus;
     let controls = &screens.controls;

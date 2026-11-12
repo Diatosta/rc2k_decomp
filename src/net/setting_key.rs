@@ -20,7 +20,7 @@ pub fn setting_key(
     install: &'static Install,
     net: &'static Net,
     key: u8,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     if !crate::net::edit_key::edit_key(input, net, install, key, gfx)? {
         return Ok(());

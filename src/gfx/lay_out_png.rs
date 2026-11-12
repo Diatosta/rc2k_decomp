@@ -42,7 +42,7 @@ pub fn lay_out_png(
     pictures.decoder.pixels.set(pictures.picture.buffer.get());
     // Neither is null: both are the game's own tables.
     palette_to_dwords(
-        &system.work.files.buffer,
+        &system.work().files.buffer,
         offset_of!(PngInfo, palette),
         &pictures.decoder.palette,
     )?;

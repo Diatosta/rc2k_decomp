@@ -17,7 +17,7 @@ use crate::strings::owner::Strings;
 pub fn draw_name_plate(
     slot: u32,
     text: impl Into<crate::place::BytePlace>,
-    gfx: &Gfx,
+    gfx: &'static Gfx,
 ) -> Result<(), Refused> {
     let fonts = &gfx.fonts;
     let text = text.into();
@@ -43,7 +43,7 @@ pub fn draw_plate_by_id(
     so: crate::strings::append_string_by_id::StringOwners<'static>,
     slot: u32,
     id: u32,
-    gfx: &Gfx,
+    gfx: &'static Gfx,
     strings: &'static Strings,
 ) -> Result<(), Refused> {
     let text = &strings.text;
@@ -62,7 +62,7 @@ pub fn draw_plate_by_id(
 /// `draw_name_plate`'s, below the name's three lines: two lines and three rows cleared, the texts
 /// at `label_behind` and `label_ahead` in the time font (box 0x80 wide) at x 4, y three and four
 /// lines.
-pub fn draw_time_plate(frame: &Frame, slot: u32, gfx: &Gfx) -> Result<(), Refused> {
+pub fn draw_time_plate(frame: &Frame, slot: u32, gfx: &'static Gfx) -> Result<(), Refused> {
     use crate::d3d::{lock_texture::lock_texture_in, unlock_texture::unlock_texture};
     if lock_texture_in(gfx, slot)?.carry {
         return Ok(());
@@ -107,7 +107,7 @@ pub fn update_name_plates(
     so: crate::strings::append_string_by_id::StringOwners<'static>,
     race: &Race,
     scene: &crate::scene::owner::Scene,
-    gfx: &Gfx,
+    gfx: &'static Gfx,
     strings: &'static Strings,
 ) -> Result<(), Refused> {
     let frame = &race.frame;
@@ -197,7 +197,7 @@ pub fn draw_text_in_game(
     text: impl Into<crate::place::BytePlace>,
     x: u32,
     y: u32,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<bool, Refused> {
     draw_bytes_in_game(font, &text.into().bytes("a name plate's text")?, x, y, gfx)
 }
@@ -208,7 +208,7 @@ pub fn draw_bytes_in_game(
     text: &(impl rc2k_core::strings::bytes::Bytes + ?Sized),
     x: u32,
     y: u32,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<bool, Refused> {
     use crate::text::draw_text::GameCanvas;
     let mut copy = font.get();

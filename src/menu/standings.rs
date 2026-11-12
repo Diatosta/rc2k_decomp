@@ -210,7 +210,7 @@ pub fn counted_players(menus: &Menus) -> Result<Vec<PlayerCell<'_>>, BadInput> {
 /// in the stages' best times (`saves::best_times::STAGE_TIMES`); refused past the table's
 /// sections, with no table, or past it.
 pub fn current_event(screens: &Screens, system: &System) -> Result<usize, BadInput> {
-    let table = system.records.stage_tables.championship();
+    let table = system.records().stage_tables.championship();
     let section: u32 = screens.event.section.get();
     let index: u32 = screens.event.index.get();
     if section >= 64

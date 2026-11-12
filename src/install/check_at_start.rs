@@ -80,7 +80,7 @@ pub fn check_at_start(
         put(len, &program)?;
         if outside.file_exists(&scratch_text()?)? {
             // "patch6: ", then the version from the blank before its `(`.
-            let version = system.start.texts.version.text();
+            let version = system.start().texts.version.text();
             let from = (1..version.len())
                 .find(|&n| version[n] == b'(')
                 .ok_or(BadInput("a version text without a ("))?

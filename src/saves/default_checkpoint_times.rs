@@ -33,7 +33,7 @@ pub fn default_checkpoint_times(
     let screens = &menus.screens;
     // Converted: `rc2k_core::saves::defaults::championship_times`.
     {
-        let records_at = system.records.stage_tables.championship();
+        let records_at = system.records().stage_tables.championship();
         let stages = count_stages(records_at)?;
         let count = records(records_at)?;
         let table = &crate::saves::best_times::TIME_TRIAL_TIMES;

@@ -40,12 +40,12 @@ pub fn unpack_mouse(devices: &Devices) -> (u32, i32, i32) {
 /// gives.
 pub fn take_mouse(input: &Input) -> (u32, i32, i32) {
     let (buttons, x, y) = unpack_mouse(&input.devices);
-    input.mouse.x.set(x as u32);
-    input.mouse.y.set(y as u32);
+    input.mouse().x.set(x as u32);
+    input.mouse().y.set(y as u32);
     let [all, left, right] = rc2k_core::input::frame::buttons(buttons);
-    input.mouse.buttons.set(all);
-    input.mouse.left_button.set(left);
-    input.mouse.right_button.set(right);
+    input.mouse().buttons.set(all);
+    input.mouse().left_button.set(left);
+    input.mouse().right_button.set(right);
     (buttons, x, y)
 }
 
@@ -61,8 +61,8 @@ pub fn copy_keys(devices: &Devices) {
 /// bytes) as keys 0x73 and 0x74; `g_rightButton`, which it returns.
 pub fn buttons_to_keys(input: &Input) -> u32 {
     let (left, right) = (
-        input.mouse.left_button.get(),
-        input.mouse.right_button.get(),
+        input.mouse().left_button.get(),
+        input.mouse().right_button.get(),
     );
     let mut t = tables(&input.devices);
     t.buttons_to_keys(left, right);
@@ -94,8 +94,8 @@ pub fn repeat_keys(devices: &Devices) {
 /// 0x73 and 0x74 pressed (low bits); the right one is returned.
 pub fn take_mouse_clicks(input: &Input) -> u32 {
     let clicks = tables(&input.devices).clicks();
-    input.mouse.left_click.set(clicks[0]);
-    input.mouse.right_click.set(clicks[1]);
+    input.mouse().left_click.set(clicks[0]);
+    input.mouse().right_click.set(clicks[1]);
     clicks[1]
 }
 
@@ -136,10 +136,10 @@ pub fn update_input(o: Owners<'static>) -> (u32, u32) {
 
 /// `update_input` with the owners it works on.
 pub fn update_input_in(input: &Input, race: &Race, shots_on: u32, shot: Screenshot) -> (u32, u32) {
-    input.mouse.last_x.set(input.mouse.x.get());
-    input.mouse.last_y.set(input.mouse.y.get());
-    input.mouse.left_click.set(0);
-    input.mouse.right_click.set(0);
+    input.mouse().last_x.set(input.mouse().x.get());
+    input.mouse().last_y.set(input.mouse().y.get());
+    input.mouse().left_click.set(0);
+    input.mouse().right_click.set(0);
     input.devices.keys_pressed.write(&[0u8; KEYS_LEN]);
     take_mouse(input);
     copy_keys(&input.devices);

@@ -61,7 +61,7 @@ pub fn draw_duel_result(
     if p1.get().name_player().is_none() || p2.get().name_player().is_none() {
         return Err(BadInput("player 1 or 2 without a name").into());
     }
-    let (base, record) = records(screens, &system.records.stage_tables)?;
+    let (base, record) = records(screens, &system.records().stage_tables)?;
     let stage = crate::screens::page_settings::stage_line_bytes(
         crate::strings::append_string_by_id::StringOwners::of(o),
         0x482,

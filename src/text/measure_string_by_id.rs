@@ -38,7 +38,7 @@ pub fn measure_string_by_id_at(
     x: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<Measured, Refused> {
-    let font = font.into().object();
+    let font = font.into().object(canvas.typefaces());
     let mut copy = font.get();
     let measured = measure_string_by_id(so, id, &mut copy, x, text_at(so.strings), canvas)?;
     if canvas.keeps_font_changes() {

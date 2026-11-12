@@ -97,7 +97,7 @@ pub fn draw_stage_results(o: Owners<'static>, canvas: &mut dyn Canvas) -> Result
     let menus = o.menus;
     let play = &menus.play;
     let menu = menus.screens.loop_flags.menu.get().ok();
-    let stages = &o.system.records.stage_tables;
+    let stages = &o.system.records().stage_tables;
     let (base, record) = records(menus, stages)?;
     let table = times_table(play, stages)?;
     let (Some(table), Some(menu)) = (table, menu) else {
@@ -207,7 +207,7 @@ pub fn draw_stage_results(o: Owners<'static>, canvas: &mut dyn Canvas) -> Result
         seal_fault.ok(crate::strings::format_seal_code::format_seal_code(
             o.race, a, b,
         ));
-        let text = crate::strings::format_seal_code::SEAL_TEXT.read();
+        let text = crate::strings::format_seal_code::SEAL_TEXT.get().read();
         seal_fault
             .ok(crate::strings::text_length::nul_at(&text).map(|len| text[..len as usize].to_vec()))
     };

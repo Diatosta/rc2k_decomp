@@ -127,15 +127,15 @@ pub fn test_processor(
     // Converted: `rc2k_core::system::processor::test`.
     let mut put = |v: Var, value: u32| {
         if v == Var::FpuWord {
-            system.work.files.buffer.set(0, value as u8);
-            system.work.files.buffer.set(1, (value >> 8) as u8);
+            system.work().files.buffer.set(0, value as u8);
+            system.work().files.buffer.set(1, (value >> 8) as u8);
         } else {
             cell(&system.session.machine, v).set(value);
         }
     };
     let get = |v: Var| {
         if v == Var::FpuWord {
-            system.work.files.buffer.get_u32(0)
+            system.work().files.buffer.get_u32(0)
         } else {
             cell(&system.session.machine, v).get()
         }

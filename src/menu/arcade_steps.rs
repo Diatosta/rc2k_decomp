@@ -66,7 +66,7 @@ fn stage_record(play: &Play, system: &System) -> Result<RecordRef, Refused> {
         return Err(BadInput("an arcade level past 5 or stage past 6").into());
     }
     Ok(crate::records::stages_store::row(
-        system.records.stage_tables.level_table(level)?,
+        system.records().stage_tables.level_table(level)?,
         stage,
     )?)
 }

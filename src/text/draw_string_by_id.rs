@@ -50,7 +50,7 @@ pub fn draw_string_by_id_at(
     y: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<Outcome, Refused> {
-    let font = font.into().object();
+    let font = font.into().object(canvas.typefaces());
     let before = font.get();
     let mut copy = before;
     let out = draw_string_by_id(o, id, &mut copy, x, y, text_at(o.strings), canvas)?;

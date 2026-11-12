@@ -8,7 +8,6 @@
 //! (0 at x as given, 2 centred, 3 right-aligned or fixed pitch, 4 measuring), its line
 //! height (+8) the size of the sheet it was built from (10, 21, 23, 27, 13).
 
-use crate::gfx::owner::gfx;
 use crate::session::{PlainByte, PlainDword};
 use rc2k_core::text::Font;
 
@@ -226,8 +225,8 @@ impl FontId {
             .map(|off| Self(off / 0x20))
     }
 
-    pub fn object(self) -> &'static FontObject {
-        &gfx().fonts.typefaces.objects[self.0]
+    pub fn object(self, typefaces: &'static FontObjects) -> &'static FontObject {
+        &typefaces.objects[self.0]
     }
 
     /// The font's number in the block, as the screens' core keeps a font in a work
@@ -272,9 +271,9 @@ impl From<FontId> for FontRef {
 
 impl FontRef {
     /// The font object.
-    pub fn object(self) -> &'static FontObject {
+    pub fn object(self, typefaces: &'static FontObjects) -> &'static FontObject {
         match self {
-            FontRef::Typeface(id) => id.object(),
+            FontRef::Typeface(id) => id.object(typefaces),
             FontRef::Blended => crate::text::blend_font::BLENDED_FONT.get(),
             FontRef::Stored(object) => object,
         }
@@ -398,7 +397,9 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(&gfx().fonts.typefaces);
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &crate::gfx::owner::gfx().fonts.typefaces,
+        );
     }
 
     #[test]

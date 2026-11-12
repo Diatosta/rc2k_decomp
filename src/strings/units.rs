@@ -6,15 +6,16 @@ pub use rc2k_core::math::units::{Figure, Units};
 /// 0 = imperial (Fahrenheit, miles) and non-zero = metric (`g_isImperialUnits`, 0x51DE2C, 0 at the start). Set by the
 /// language (`load_language`) and player 1's choice (`menu::take_player1_units`,
 /// `menu::options_loop`).
-pub static UNITS: crate::session::Dword = crate::session::Dword::new(0);
+pub static UNITS: crate::session::GameThread<crate::session::PlainDword> =
+    crate::session::GameThread::new(crate::session::PlainDword::new(0));
 
 /// 0 = imperial, non-zero = metric. The game stores Celsius and miles.
 pub fn units() -> u32 {
-    UNITS.get()
+    UNITS.get().get()
 }
 
 pub fn set_units(units: u32) {
-    UNITS.set(units);
+    UNITS.get().set(units);
 }
 
 /// The setting as the core's `Units`; refused past 1 (the label tables have two entries).

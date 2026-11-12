@@ -12,17 +12,18 @@
 //! `gfx::fill_rect` refuses (a surface of neither 16 nor 32 bits), before anything.
 
 use crate::errors::{BadInput, Refused};
+use crate::session::{GameThread, PlainDword};
 use crate::text::draw_text::Canvas;
 use rc2k_core::screens::message_box::{FILL, FRAME, STRING, layout};
 
 /// `dword_52983C` .. `dword_529848`: the box's rectangle (left, top, width, height).
-pub static BOX: [crate::session::Dword; 4] = [const { crate::session::Dword::new(0) }; 4];
+pub static BOX: GameThread<[PlainDword; 4]> = GameThread::new([const { PlainDword::new(0) }; 4]);
 
 pub fn draw_message_box(
     o: crate::owners::Owners<'static>,
     x: i32,
     canvas: &mut dyn Canvas,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     use crate::gfx::rect::{Palette, fill_rect, frame_rect};
     use crate::text::draw_string_by_id::draw_string_by_id_at;
@@ -50,15 +51,16 @@ pub fn draw_message_box(
         sw,
         sh,
         crate::gfx::typefaces::fonts::BOX_TEXT
-            .object()
+            .object(&gfx.fonts.typefaces)
             .line_height
             .get(),
     );
-    BOX[2].set(b.rect[2]);
-    BOX[3].set(b.rect[3]);
-    BOX[0].set(b.rect[0]);
-    BOX[1].set(b.rect[1]);
-    let rect = crate::gfx::rect::rect_of(&BOX);
+    let cells = BOX.get();
+    cells[2].set(b.rect[2]);
+    cells[3].set(b.rect[3]);
+    cells[0].set(b.rect[0]);
+    cells[1].set(b.rect[1]);
+    let rect = cells.each_ref().map(|c| c.get() as i32);
     let palettes = Palette::Held(gfx.fonts.font_block.palettes.get());
     fill_rect(rect, FILL, palettes, gfx)?;
     frame_rect(rect, 0, 0, FRAME, palettes, gfx);
@@ -79,6 +81,6 @@ mod box_tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(&BOX);
+        crate::test_support::first_values::assert_block_starts_as_the_games(BOX.get());
     }
 }

@@ -13,13 +13,13 @@ use crate::system::owner::System;
 /// not read. Refuses what `read_file` refuses.
 pub fn read_text(system: &System, path: &[u8]) -> Result<Option<Vec<u8>>, BadInput> {
     {
-        let read = read_file_to_store(path, &system.work.files.buffer, TEXT_ROOM, 0)?;
+        let read = read_file_to_store(path, &system.work().files.buffer, TEXT_ROOM, 0)?;
         // Converted: `rc2k_core::files::settings::text_read`.
         let Some(bytes) = rc2k_core::files::settings::text_read(read.ok, read.bytes_read) else {
             return Ok(None);
         };
         // The text up to its NUL.
-        let buffer = &system.work.files.buffer;
+        let buffer = &system.work().files.buffer;
         buffer.write_at(bytes as usize, &[0u8], "the settings text's end")?;
         Ok(Some(buffer.read().to_vec()))
     }

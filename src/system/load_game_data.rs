@@ -26,7 +26,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::name_lists::NAME_LEN;
 use crate::owners::Owners;
-use crate::session::Dword;
+use crate::session::PlainDword;
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::copy_printable::printable_from;
 
@@ -115,7 +115,7 @@ fn number_empty_names(
 }
 
 pub fn load_game_data(o: Owners<'static>, outside: Outside) -> Result<(), Refused> {
-    let start = &o.system.start;
+    let start = &o.system.start();
     let race = o.race;
     let net = o.net;
     let play = &o.menus.play;
@@ -302,13 +302,13 @@ pub fn load_in_game(o: Owners<'static>) -> Result<(), Refused> {
 #[derive(rc2k_derive::Cells)]
 pub struct RunCount {
     /// 0x518BB0: `g_runCount`: the game's runs counted (`system::load_game_data`; the save file keeps it).
-    pub runs: Dword,
+    pub runs: PlainDword,
 }
 
 impl RunCount {
     pub const fn new() -> Self {
         RunCount {
-            runs: Dword::new(0x0),
+            runs: PlainDword::new(0x0),
         }
     }
 }

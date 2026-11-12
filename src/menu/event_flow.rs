@@ -111,7 +111,7 @@ pub fn stage_record(menus: &Menus, system: &System) -> Result<RecordRef, BadInpu
         return Err(BadInput("a stage kind past the event stage tables' four"));
     }
     let stages = system
-        .records
+        .records()
         .stage_tables
         .group_event_table(kind, event.stage_sub.get())?;
     crate::records::stages_store::row(stages, event.stage_number.get())

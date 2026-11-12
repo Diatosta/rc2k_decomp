@@ -115,7 +115,7 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"altmemheapsize",
         0x4E0588,
-        dword!(_o => crate::memory::state::OWN_HEAP_KB),
+        dword!(_o => *crate::memory::state::OWN_HEAP_KB.get()),
     ),
     (b"noaudio", 0x4F82B4, dword!(o => o.audio.state.no_audio)),
     (b"nosound", 0x4F82B4, dword!(o => o.audio.state.no_audio)),
@@ -408,7 +408,7 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"lexcontrol",
         0x4E0758,
-        dword!(_o => crate::strings::maybe_compile_lexicon::RECOMPILE_LEVEL),
+        dword!(_o => *crate::strings::maybe_compile_lexicon::RECOMPILE_LEVEL.get()),
     ),
     (
         b"sparksmode",

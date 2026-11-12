@@ -45,12 +45,12 @@ pub fn load_game_best_times(saves: &Saves, system: &System) -> Result<bool, Refu
     let best_times = &saves.best_times;
     allocate_best_times(
         best_times,
-        system.records.stage_tables.championship(), // g_recordTable
+        system.records().stage_tables.championship(), // g_recordTable
     )?;
     let Some(file) = open_by_mode(&PATH[..PATH_LEN], 0)? else {
         return Ok(false);
     };
-    let scratch = &system.work.files.buffer;
+    let scratch = &system.work().files.buffer;
     if !read_or_close(file, scratch, HEAD_LEN)? {
         return Ok(false);
     }

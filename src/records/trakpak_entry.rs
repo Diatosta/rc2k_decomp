@@ -16,7 +16,7 @@ use crate::system::owner::system;
 // ---- game data ----
 
 pub fn loaded_pack_id() -> u32 {
-    system().records.stage_tables.trak_pak.pack_id.get()
+    system().records().stage_tables.trak_pak.pack_id.get()
 }
 
 /// What the original reports when a record belongs to another track pack.
@@ -68,7 +68,7 @@ pub enum Track {
 /// The dword at byte `at` of the stage tables, past the pack.
 pub fn run_on(at: usize) -> Result<u32, BadInput> {
     let mut bytes = [0; 4];
-    crate::cells::load_cells(&system().records.stage_tables, at, &mut bytes)?;
+    crate::cells::load_cells(&system().records().stage_tables, at, &mut bytes)?;
     Ok(u32::from_le_bytes(bytes))
 }
 
@@ -103,7 +103,7 @@ pub fn track_of(record: RecordRef) -> Result<Track, Refused> {
     let at = record_entry(record)?;
     let index = record.record()?.track() as usize;
     Ok(
-        match system().records.stage_tables.trak_pak.tracks.get(index) {
+        match system().records().stage_tables.trak_pak.tracks.get(index) {
             Some(entry) => Track::InPack(entry),
             None => Track::RunOn(at),
         },

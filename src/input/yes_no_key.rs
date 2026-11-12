@@ -64,7 +64,7 @@ pub fn yes_no_key(
     if !has_layout() {
         return Err(BadInput("no keyboard layout"));
     }
-    let eax = if input.keyboard.yes_no_key_given.get() == 1 {
+    let eax = if input.keyboard().yes_no_key_given.get() == 1 {
         given
     } else {
         take_key() as u32

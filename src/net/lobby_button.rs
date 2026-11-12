@@ -27,7 +27,7 @@ pub fn lobby_button(
     item: u32,
     x: u32,
     y: u32,
-    gfx: &crate::gfx::owner::Gfx,
+    gfx: &'static crate::gfx::owner::Gfx,
     menus: &crate::menu::owner::Menus,
 ) -> Result<u32, Refused> {
     // Converted: `rc2k_core::net::screens` (`lobby_button_flags`, `next_button_x`).

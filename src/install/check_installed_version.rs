@@ -41,7 +41,7 @@ pub fn check_installed_version(
         return Ok(());
     }
     system
-        .work
+        .work()
         .files
         .buffer
         .write(&[0; crate::files::scratch::Scratch::LEN]);
@@ -49,7 +49,7 @@ pub fn check_installed_version(
     // image). files::open_by_mode, mode 0.
     let program = crate::install::run_after_exit::RC2K;
     if let Some(file) = crate::files::handle::open_by_mode(program, 0)? {
-        let buffer = &system.work.files.buffer;
+        let buffer = &system.work().files.buffer;
         loop {
             // the previous tail carried to the front (`rep movsd`, 0x40 dwords)
             for n in 0..0x100 {
@@ -65,7 +65,7 @@ pub fn check_installed_version(
             // to its NUL, inside its 91 bytes).
             let scanned =
                 buffer.read_at(0, crate::files::scratch::Scratch::LEN, "the scan buffer")?;
-            let copyright = system.start.texts.copyright.read();
+            let copyright = system.start().texts.copyright.read();
             if let Scan::Stopped { same, .. } = version::scan(&scanned[..], &copyright[..])? {
                 if same {
                     install.run.same_version.set(1);

@@ -92,9 +92,9 @@ impl Layouts {
     /// The start of `load_language`: the built-in layout, in mode 1.
     pub fn use_built_in(&mut self, input: &Input) {
         self.built_in = Layout::simple(
-            &input.keyboard.plain.read(),
-            &input.keyboard.shifted.read(),
-            &input.keyboard.key_names.read(),
+            &input.keyboard().plain.read(),
+            &input.keyboard().shifted.read(),
+            &input.keyboard().key_names.read(),
         );
         self.current = Current::BuiltIn;
         self.mode = 1;
@@ -160,9 +160,9 @@ mod tests {
         assert_eq!(word(KEYBOARD_POINTERS, 2), KEYBOARD_IDA + 0x114);
         assert_eq!(word(KEYBOARD_POINTERS, 3), 0);
         assert_eq!(word(KEYBOARD_POINTERS, 4), KEYBOARD_IDA + 0x194);
-        assert_eq!(input.keyboard.plain.read().len(), 0x80);
-        assert_eq!(input.keyboard.shifted.read().len(), 0x80);
-        assert_eq!(input.keyboard.key_names.read().len(), 0x100);
+        assert_eq!(input.keyboard().plain.read().len(), 0x80);
+        assert_eq!(input.keyboard().shifted.read().len(), 0x80);
+        assert_eq!(input.keyboard().key_names.read().len(), 0x100);
     }
 
     #[test]

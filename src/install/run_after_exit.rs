@@ -70,7 +70,7 @@ pub fn run_after_exit(
         && switch(5) != 1
         && switch(3) == 1
         && from_cd == 1
-        && system.start.command_line.program_len.get() >= ROOM
+        && system.start().command_line.program_len.get() >= ROOM
     {
         return Err(BadInput("a command line's program of 0x100 bytes or more").into());
     }

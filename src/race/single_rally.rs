@@ -397,7 +397,7 @@ fn single_rally(
 
     // The stage's entry in the track list: the tracks, then the pack's closing -1.
     let stage = settings.stage.get();
-    let pack = &system.records.stage_tables.trak_pak;
+    let pack = &system.records().stage_tables.trak_pak;
     let mut at = 0;
     let entry = loop {
         let entry = pack
@@ -975,7 +975,7 @@ mod vector_tests {
         current().set(c.current);
         // The track list: the stage's number in its entry; -1 at the start of the entry the
         // list ends at.
-        let tracks = &system().records.stage_tables.trak_pak.tracks;
+        let tracks = &system().records().stage_tables.trak_pak.tracks;
         for (k, track) in tracks.iter().take(6).enumerate() {
             let mut id = rng.next();
             if id == c.stage {

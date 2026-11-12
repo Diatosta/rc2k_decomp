@@ -27,7 +27,7 @@
 use crate::errors::BadInput;
 use crate::gfx::owner::Png;
 use crate::gfx::picture::PICTURE_DWORDS;
-use crate::session::Bytes;
+use crate::session::PlainBytes;
 
 // ---- game data ----
 
@@ -41,7 +41,7 @@ pub fn decode_png(
     png: &Png,
     file: &[u8],
     pixels: u32,
-    info: &Bytes<65536>,
+    info: &PlainBytes<65536>,
 ) -> Result<u32, BadInput> {
     use rc2k_core::gfx::png;
     if pixels == 0 {
