@@ -4,12 +4,12 @@
 //!
 //! Caller: `drive::keep_replay_frame`.
 
-use crate::cells::{Cells, copy_cells};
+use crate::cells::store_cells;
+use crate::drive::replay_state::gather;
 use crate::race::blocks_store::REPLAY_STATE_OFFSET;
-use crate::race::groups_store::CarsAndReplay;
 use crate::race::owner::Race;
 use crate::race::work_store::RaceWork;
-use rc2k_core::drive::replay_frames::{StartPiece, start_layout};
+use rc2k_core::drive::replay_frames::StartPiece;
 
 /// Where a piece of the starting state is now: a car's block, the race slots (`g_raceSlots`) or
 /// `replay_extra` (its 0x400 bytes run on through the computer driver's fields: bounded to
@@ -26,67 +26,23 @@ pub fn piece_place(race: &Race, piece: StartPiece) -> (&dyn crate::cells::Store,
     }
 }
 
-/// Copies `n` dwords between a piece of the starting state and its place: a car's block, the
-/// race slots (`g_raceSlots`) or `replay_extra` (its 0x400 bytes run on through the computer
-/// driver's fields: bounded to the race work). `offset` is the dword where the piece begins in
-/// the state (`CARS_AND_REPLAY` from car block 8); `save` copies the piece into the state,
-/// else the state back into the piece.
-pub fn copy_piece(race: &Race, piece: StartPiece, offset: usize, n: usize, save: bool) {
-    let shared = &race.shared;
-    let state = (
-        race.replay.cars_and_replay.get(),
-        REPLAY_STATE_OFFSET + 4 * offset,
-    );
-    let len = 4 * n;
-    match piece {
-        StartPiece::Car(k) => {
-            copy_between((&race.car_blocks().cars[k as usize], 0), state, len, save);
-        }
-        StartPiece::RaceSlots => copy_between(
-            (
-                shared.work.get(),
-                core::mem::offset_of!(RaceWork, race_slots),
-            ),
-            state,
-            len,
-            save,
-        ),
-        StartPiece::Extra => copy_between(
-            (
-                shared.work.get(),
-                core::mem::offset_of!(RaceWork, replay_extra),
-            ),
-            state,
-            len,
-            save,
-        ),
-    }
-}
-
-/// `len` bytes from `piece` to `state` when `save`, else back.
-fn copy_between<P: Cells>(
-    piece: (&P, usize),
-    state: (&CarsAndReplay, usize),
-    len: usize,
-    save: bool,
-) {
-    if save {
-        copy_cells(piece, state, len);
-    } else {
-        copy_cells(state, piece, len);
-    }
-}
-
-// Converted: `rc2k_core::drive::replay_frames::start_layout`.
+/// The replay's starting state gathered from the four car blocks, the race slots and
+/// `replay_extra`'s run, field by field (`drive::replay_state`), and put in the replay's frame.
 pub fn save_replay_cars(race: &Race) {
-    for (piece, offset, n) in start_layout() {
-        copy_piece(race, piece, offset, n, true);
-    }
+    let frame = gather(&race.car_blocks().cars, race.shared.work.get());
+    store_cells(
+        race.replay.cars_and_replay.get(),
+        REPLAY_STATE_OFFSET,
+        &frame.start_bytes(),
+    )
+    .expect("the starting state inside the replay's frame");
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::race::groups_store::CarsAndReplay;
+    use rc2k_core::drive::replay_frames::start_layout;
 
     #[test]
     fn every_piece_fits_its_place() {

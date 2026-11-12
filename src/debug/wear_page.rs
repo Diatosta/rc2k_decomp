@@ -24,24 +24,3 @@ pub const SURFACES: [&[u8]; 16] = [
     b"null",
     b"null",
 ];
-
-/// The dword at IDA's address `ida` in the race block's own bytes; None when it is not there
-/// (shown as such: the UI does not end the game).
-pub fn value_at(ida: usize) -> Option<u32> {
-    crate::race::store::block_dword(ida)
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn every_place_is_a_variable_of_the_image() {
-        // Each figure is a field of its own or is read from the race block's bytes.
-        let groups = crate::debug::display_rows::GROUPS.iter();
-        for group in groups.chain(crate::debug::watch_rows::GROUPS) {
-            for row in group.rows {
-                let at = row.at();
-                assert!(row.is_typed() || super::value_at(at).is_some(), "{at:#x}");
-            }
-        }
-    }
-}

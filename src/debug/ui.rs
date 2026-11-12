@@ -18,7 +18,7 @@
 use crate::debug::row_cells::Raw;
 use crate::debug::switches::EXTENSIONS;
 use crate::debug::timing::STAGES;
-use crate::debug::wear_page::{SURFACES, value_at};
+use crate::debug::wear_page::SURFACES;
 use crate::owners::Owners;
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
@@ -44,44 +44,13 @@ pub struct Row {
     label: &'static str,
     shown: Shown,
     at: usize,
-    /// The figure's cell; none: it is read through its IDA address.
-    cell: Option<for<'a> fn(&Owners<'a>) -> &'a dyn Raw>,
+    /// The figure's cell.
+    cell: for<'a> fn(&Owners<'a>) -> &'a dyn Raw,
     bar: bool,
     place: (u32, u32),
 }
 
 impl Row {
-    /// Its place (IDA's address).
-    #[cfg(test)]
-    pub fn at(&self) -> usize {
-        self.at
-    }
-
-    pub const fn new(
-        name: &'static str,
-        label: &'static str,
-        shown: Shown,
-        at: usize,
-        bar: bool,
-        place: (u32, u32),
-    ) -> Self {
-        Self {
-            name,
-            label,
-            shown,
-            at,
-            cell: None,
-            bar,
-            place,
-        }
-    }
-
-    /// Whether it is read through its field.
-    #[cfg(test)]
-    pub fn is_typed(&self) -> bool {
-        self.cell.is_some()
-    }
-
     /// A figure read through its field (`row_cells::car_cell`).
     pub const fn typed(
         name: &'static str,
@@ -97,18 +66,15 @@ impl Row {
             label,
             shown,
             at,
-            cell: Some(cell),
+            cell,
             bar,
             place,
         }
     }
 
-    /// The figure's 32 bits, none when they cannot be read.
-    fn value(&self, o: &Owners<'static>) -> Option<u32> {
-        match self.cell {
-            Some(cell) => Some(cell(o).raw()),
-            None => value_at(self.at),
-        }
+    /// The figure's 32 bits.
+    fn value(&self, o: &Owners<'static>) -> u32 {
+        (self.cell)(o).raw()
     }
 }
 
@@ -368,15 +334,13 @@ fn screens(saves: &crate::saves::owner::Saves, ui: &Ui) {
 }
 
 /// A figure's text.
-fn figure(value: Option<u32>, shown: Shown) -> String {
-    match (value, shown) {
-        (None, _) => "?".to_owned(),
-        (Some(v), Shown::Whole) => format!("{}", v as i32),
-        (Some(v), Shown::Float) => format!("{:.3}", f32::from_bits(v)),
-        (Some(v), Shown::Hex) => format!("{v:08x}"),
-        (Some(v), Shown::Surface) => {
-            String::from_utf8_lossy(SURFACES[(v & 0xF) as usize]).into_owned()
-        }
+fn figure(value: u32, shown: Shown) -> String {
+    let v = value;
+    match shown {
+        Shown::Whole => format!("{}", v as i32),
+        Shown::Float => format!("{:.3}", f32::from_bits(v)),
+        Shown::Hex => format!("{v:08x}"),
+        Shown::Surface => String::from_utf8_lossy(SURFACES[(v & 0xF) as usize]).into_owned(),
     }
 }
 
@@ -456,7 +420,7 @@ fn group_table(ui: &Ui, o: &Owners<'static>, group: &Group, wanted: &str) {
         ui.text(figure(value, row.shown));
         ui.table_next_column();
         if row.bar {
-            let v = value.map_or(0.0, f32::from_bits);
+            let v = f32::from_bits(value);
             let _id = ui.push_id(row.at);
             ui.progress_bar(v / 100.0)
                 .size([-1.0, 0.0])
@@ -466,7 +430,7 @@ fn group_table(ui: &Ui, o: &Owners<'static>, group: &Group, wanted: &str) {
         ui.table_next_column();
         ui.text_disabled(row.label);
         if ui.is_item_hovered() {
-            let hex = value.map_or("?".to_owned(), |v| format!("{v:08x}"));
+            let hex = format!("{value:08x}");
             ui.tooltip_text(if row.place == (0, 0) {
                 format!("IDA {:#08x}; {hex}", row.at)
             } else {
@@ -795,7 +759,7 @@ fn profiler(o: &Owners<'static>, ui: &Ui) {
             ),
             (
                 "Developers' extensions switch",
-                figure(Some(EXTENSIONS.load(Relaxed)), Shown::Whole),
+                figure(EXTENSIONS.load(Relaxed), Shown::Whole),
             ),
         ],
     );

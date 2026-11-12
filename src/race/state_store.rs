@@ -426,13 +426,11 @@ impl RaceState {
     }
 }
 
-/// IDA 0X75ACCC, the first byte of the piece.
-#[cfg(any(test, debug_ui))]
-pub const START: usize = 0x75ACCC;
-
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const START: usize = 0x75ACCC;
     use core::mem::{offset_of, size_of};
 
     #[test]

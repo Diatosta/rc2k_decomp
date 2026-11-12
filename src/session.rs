@@ -1328,8 +1328,6 @@ impl WindowLoopState {
     }
 }
 
-#[cfg(debug_ui)]
-pub const FLAGS_IDA: usize = 0x518370;
 #[cfg(test)]
 pub const FLAGS_LEN: usize = core::mem::size_of::<WindowLoopState>();
 

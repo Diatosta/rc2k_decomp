@@ -232,7 +232,7 @@ fn in_game(o: Owners<'static>, call: Call) -> Result<u32, Refused> {
     let menus = o.menus;
     match call {
         Call::LoadOptions => {
-            crate::saves::load_options::load_game_options(o)?;
+            crate::saves::options_files::load(o)?;
         }
         Call::LoadBestTimes => {
             crate::saves::load_best_times::load_game_best_times(o.saves, o.system)?;

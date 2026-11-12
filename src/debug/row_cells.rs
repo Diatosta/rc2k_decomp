@@ -1,6 +1,5 @@
 //! Rows of the debug pages read through the field they show, not through an IDA address: the
-//! field is checked at compile time against the address the row's tooltip names. The rows are
-//! rewritten to these by `tools/debug_pages/typed_rows.py`.
+//! row's IDA address is only its label and identity.
 
 use crate::session::{Dword, Float, PlainDword, PlainFloat};
 
@@ -40,29 +39,15 @@ impl Raw for crate::session::PlainLoose {
     }
 }
 
-/// The cell of field `$field` of car block `$block` (or of its element `$i`), whose IDA
-/// address is `$at`: a compile error when the field is not there.
+/// The cell of field `$field` of car block `$block` (or of its element `$i`).
 macro_rules! car_cell {
-    ($block:literal, $field:ident, $at:literal) => {{
-        const _: () = assert!(
-            crate::race::blocks_store::START
-                + $block * crate::race::blocks_store::BLOCK_LEN
-                + core::mem::offset_of!(crate::physics::car_store::Car, $field)
-                == $at
-        );
+    ($block:literal, $field:ident) => {{
         fn cell<'a>(o: &$crate::owners::Owners<'a>) -> &'a dyn $crate::debug::row_cells::Raw {
             &o.race.car_blocks().cars[$block].$field
         }
         cell
     }};
-    ($block:literal, $field:ident[$i:literal], $at:literal) => {{
-        const _: () = assert!(
-            crate::race::blocks_store::START
-                + $block * crate::race::blocks_store::BLOCK_LEN
-                + core::mem::offset_of!(crate::physics::car_store::Car, $field)
-                + $i * 4
-                == $at
-        );
+    ($block:literal, $field:ident[$i:literal]) => {{
         fn cell<'a>(o: &$crate::owners::Owners<'a>) -> &'a dyn $crate::debug::row_cells::Raw {
             &o.race.car_blocks().cars[$block].$field[$i]
         }
@@ -71,19 +56,15 @@ macro_rules! car_cell {
 }
 pub(super) use car_cell;
 
-/// The cell `$home` (a store of one cell) whose IDA address is `$at`; `$ida` is where the
-/// store's moved range starts.
+/// The cell `$home` (a store of one cell), or its field at path `$field`.
 macro_rules! store_cell {
-    ($ida:expr, |$o:ident| $home:expr, $at:literal) => {{
-        const _: () = assert!($ida == $at);
+    (|$o:ident| $home:expr) => {{
         fn cell<'a>($o: &$crate::owners::Owners<'a>) -> &'a dyn $crate::debug::row_cells::Raw {
             &$home
         }
         cell
     }};
-    // A path without indices into a record of type `$ty`: checked at compile time.
-    ($ida:expr, |$o:ident| $home:expr, $ty:ty, $at:literal, $($field:tt)+) => {{
-        const _: () = assert!($ida + core::mem::offset_of!($ty, $($field)+) == $at);
+    (|$o:ident| $home:expr, $($field:tt)+) => {{
         fn cell<'a>($o: &$crate::owners::Owners<'a>) -> &'a dyn $crate::debug::row_cells::Raw {
             &$home.$($field)+
         }
@@ -92,8 +73,7 @@ macro_rules! store_cell {
 }
 pub(super) use store_cell;
 
-/// The cell at path `$field` (with indices) of the store `$home`: its address is checked
-/// against `$at` by `row_paths::typed_rows_are_where_their_addresses_say`.
+/// The cell at path `$field` (with indices) of the store `$home`.
 macro_rules! indexed_cell {
     (|$o:ident| $home:expr, $($field:tt)+) => {{
         fn cell<'a>($o: &$crate::owners::Owners<'a>) -> &'a dyn $crate::debug::row_cells::Raw {

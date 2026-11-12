@@ -17,6 +17,7 @@ pub mod math;
 pub mod memory;
 pub mod menu;
 pub mod net;
+pub mod options;
 pub mod physics;
 pub mod race;
 pub mod saves;

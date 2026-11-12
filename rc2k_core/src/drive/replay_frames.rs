@@ -132,6 +132,99 @@ pub fn start_layout() -> impl Iterator<Item = (StartPiece, usize, usize)> {
     })
 }
 
+/// The dwords of the loose parts (`g_raceSlots`: eight of 0x1E dwords) in the starting state.
+pub const SLOT_DWORDS: usize = 0xF0;
+/// The dwords of the computer driver's state in the starting state.
+pub const EXTRA_DWORDS: usize = 0x100;
+/// The dwords of the tape: a hundred tenths of 16 bytes.
+pub const TAPE_DWORDS: usize = 400;
+/// A replay frame as the file holds it (0x2810 bytes): the starting state, then the tape.
+pub const FRAME_DWORDS: usize = START_DWORDS + TAPE_DWORDS;
+pub const FRAME_BYTES: usize = 4 * FRAME_DWORDS;
+
+/// One frame of a replay file, field by field at the file's offsets (the byte format is the
+/// 1999 game's and never changes; little-endian dwords):
+/// - dword 0: the four cars' first `CAR_DWORDS` dwords each, one after another;
+/// - then the loose parts, `SLOT_DWORDS`;
+/// - then the computer driver's state, `EXTRA_DWORDS`;
+/// - then the tape, `TAPE_DWORDS`: the inputs of each tenth, 16 bytes, 8 for each of two cars.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct ReplayFrame {
+    pub cars: [[u32; CAR_DWORDS]; 4],
+    pub race_slots: [u32; SLOT_DWORDS],
+    pub extra: [u32; EXTRA_DWORDS],
+    pub tape: [u32; TAPE_DWORDS],
+}
+
+impl ReplayFrame {
+    pub const fn new() -> Self {
+        ReplayFrame {
+            cars: [[0; CAR_DWORDS]; 4],
+            race_slots: [0; SLOT_DWORDS],
+            extra: [0; EXTRA_DWORDS],
+            tape: [0; TAPE_DWORDS],
+        }
+    }
+
+    /// The frame from the file's bytes; none unless exactly `FRAME_BYTES`.
+    pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
+        if bytes.len() != FRAME_BYTES {
+            return None;
+        }
+        let mut dwords = bytes
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|d| u32::from_le_bytes(*d));
+        let mut frame = Self::new();
+        for car in &mut frame.cars {
+            car.fill_with(|| dwords.next().unwrap_or(0));
+        }
+        frame.race_slots.fill_with(|| dwords.next().unwrap_or(0));
+        frame.extra.fill_with(|| dwords.next().unwrap_or(0));
+        frame.tape.fill_with(|| dwords.next().unwrap_or(0));
+        Some(frame)
+    }
+
+    /// The file's bytes of the frame.
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut out = self.start_bytes();
+        out.extend(self.tape.iter().flat_map(|d| d.to_le_bytes()));
+        out
+    }
+
+    /// The bytes of the starting state alone (`START_DWORDS` dwords): the file's frame
+    /// without its tape.
+    pub fn start_bytes(&self) -> Vec<u8> {
+        let mut out = Vec::with_capacity(FRAME_BYTES);
+        let dwords = self
+            .cars
+            .iter()
+            .flatten()
+            .chain(&self.race_slots)
+            .chain(&self.extra);
+        out.extend(dwords.flat_map(|d| d.to_le_bytes()));
+        out
+    }
+
+    /// The starting state from its bytes (`START_DWORDS` dwords), the tape zero; none unless
+    /// exactly that many.
+    pub fn from_start_bytes(bytes: &[u8]) -> Option<Self> {
+        if bytes.len() != 4 * START_DWORDS {
+            return None;
+        }
+        let mut whole = bytes.to_vec();
+        whole.resize(FRAME_BYTES, 0);
+        Self::from_bytes(&whole)
+    }
+}
+
+impl Default for ReplayFrame {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -167,5 +260,36 @@ mod tests {
         assert_eq!(records_inputs(RECORDING, 1, || 2), Some(true));
         assert_eq!(records_inputs(RECORDING, 2, || 2), Some(false));
         assert_eq!(marks_offset(0x2000_0001), 8);
+    }
+
+    #[test]
+    fn frame_round_trips_byte_exact() {
+        let bytes: Vec<u8> = (0..FRAME_BYTES as u32)
+            .map(|n| (n.wrapping_mul(2654435761) >> 13) as u8)
+            .collect();
+        let frame = ReplayFrame::from_bytes(&bytes).unwrap();
+        assert_eq!(frame.to_bytes(), bytes);
+        assert_eq!(frame.start_bytes(), bytes[..4 * START_DWORDS]);
+        assert_eq!(ReplayFrame::from_bytes(&bytes[1..]), None);
+        let start = ReplayFrame::from_start_bytes(&bytes[..4 * START_DWORDS]).unwrap();
+        assert_eq!(start.cars, frame.cars);
+        assert_eq!(start.extra, frame.extra);
+        assert_eq!(start.tape, [0; TAPE_DWORDS]);
+    }
+
+    #[test]
+    fn frame_fields_sit_at_the_files_offsets() {
+        let mut bytes = vec![0u8; FRAME_BYTES];
+        let mark = |dword: usize| 4 * dword;
+        bytes[mark(CAR_DWORDS)] = 1; // the second car's first dword
+        bytes[mark(4 * CAR_DWORDS)] = 2; // the first loose part
+        bytes[mark(4 * CAR_DWORDS + SLOT_DWORDS)] = 3; // the driver's state
+        bytes[mark(START_DWORDS)] = 4; // the tape
+        let frame = ReplayFrame::from_bytes(&bytes).unwrap();
+        assert_eq!(frame.cars[1][0], 1);
+        assert_eq!(frame.race_slots[0], 2);
+        assert_eq!(frame.extra[0], 3);
+        assert_eq!(frame.tape[0], 4);
+        assert_eq!(FRAME_BYTES, 0x2810);
     }
 }

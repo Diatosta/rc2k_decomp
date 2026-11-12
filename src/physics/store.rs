@@ -643,13 +643,11 @@ impl DamageModel {
     }
 }
 
-/// IDA 0X75B340, the first byte of the piece.
-#[cfg(any(test, debug_ui))]
-pub const START: usize = 0x75B340;
-
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const START: usize = 0x75B340;
     use crate::race::owner::race;
     use core::mem::offset_of;
 

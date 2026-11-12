@@ -65,6 +65,7 @@ pub mod replay_check;
 pub mod replay_clock_tick;
 pub mod replay_frame_marks;
 pub mod replay_frames_store;
+pub mod replay_state;
 pub mod replay_step;
 pub mod reset_request;
 pub mod save_replay_cars;

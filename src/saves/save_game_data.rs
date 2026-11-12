@@ -27,7 +27,7 @@ pub fn save_game_data(
 pub fn save_in_game(o: Owners<'static>, saves: &Saves) -> Result<bool, Refused> {
     save_game_data(
         o.menus,
-        &mut || crate::saves::save_options::save_options(o, &saves.files.options_path),
+        &mut || crate::saves::options_files::save(o),
         &mut || crate::saves::save_best_times::in_game(saves, o.system),
     )
 }
