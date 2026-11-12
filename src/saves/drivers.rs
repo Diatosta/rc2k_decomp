@@ -12,15 +12,17 @@ const MOST_NAME_ENTRIES: u32 = 0x400;
 pub const NAME_ROOM: usize = 0x20;
 
 /// A driver's record, by number.
-pub struct Driver(&'static crate::menu::drivers_store::Driver);
+pub struct Driver<'a>(&'a crate::menu::drivers_store::Driver);
 
-impl Driver {
+impl Driver<'static> {
     pub fn number(number: u32) -> Result<Self, BadInput> {
         Self::of(crate::owners::boundary().menus, number)
     }
+}
 
+impl<'a> Driver<'a> {
     /// The record of driver `number` among `menus`' drivers.
-    pub fn of(menus: &'static Menus, number: u32) -> Result<Self, BadInput> {
+    pub fn of(menus: &'a Menus, number: u32) -> Result<Self, BadInput> {
         if number >= DRIVERS {
             return Err(BadInput("a driver past the 180"));
         }

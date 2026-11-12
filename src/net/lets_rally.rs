@@ -50,7 +50,7 @@ pub fn lets_rally(o: Owners<'static>) -> Result<bool, Refused> {
     crate::menu::show_loading_picture::show_loading_picture(o.menus)?;
     sound_tables::set_up_race_sound_objects(race, &sound_tables::ObjectVars::game(), sound)?;
     crate::sound::set_up_race_sounds::set_up_race_sounds(sound)?;
-    crate::net::set_up_race::set_up_race(race, &net.vars)?;
+    crate::net::set_up_race::set_up_race(race, &net.vars, o)?;
     let tick = crate::system::tick_count::tick_count();
     net.edit().clock_a.set(tick);
     net.vars.sync_clock.set(tick);
@@ -69,7 +69,7 @@ pub fn lets_rally(o: Owners<'static>) -> Result<bool, Refused> {
             break crate::net::lets_race::lets_race(o, &net.vars)?;
         }
     };
-    crate::race::race_end::tidy_everything(race)?;
+    crate::race::race_end::tidy_everything_in(race, o)?;
     crate::sound::stop_music::stop_music();
     crate::platform::set_menu_mode_now();
     crate::menu::show_loading_picture::show_loading_picture(o.menus)?;

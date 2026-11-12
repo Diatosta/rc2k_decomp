@@ -26,8 +26,13 @@ const WORDS: [&std::ffi::CStr; 9] = [
 /// music (`game_music` with `Finish.no_place`, else `game_music_8`), `create_controls`, race init
 /// (`drive::race_init`) and `scene::restart_clock`; the starting values (`STARTS` with the clock,
 /// the blocks' +0xFB4 3 and +0xFB0 8, `LAST_STARTS`); "FINIS", a rule, a line break.
+#[cfg(debug_ui)]
 pub fn load_stage(race: &Race) -> Result<(), Refused> {
-    let o = crate::owners::boundary();
+    load_stage_in(race, crate::owners::boundary())
+}
+
+/// `load_stage` with the owners given.
+pub fn load_stage_in(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (system, gfx, input, scene) = (o.system, o.gfx, o.input, o.scene);
     let indent = |by: i32| {
         crate::logfile::write_line::state::INDENT
@@ -56,7 +61,7 @@ pub fn load_stage(race: &Race) -> Result<(), Refused> {
         )?;
     }
     race.replay.replay_frames.last_kept.set(u32::MAX);
-    crate::race::sounds::wake_car_sounds(race)?;
+    crate::race::sounds::wake_car_sounds(race, o.sound)?;
     indent(-3);
     log();
     indent(3);
@@ -64,9 +69,9 @@ pub fn load_stage(race: &Race) -> Result<(), Refused> {
     STAGE_LOADING.store(true, std::sync::atomic::Ordering::Relaxed);
     crate::race::heard_turn::forget();
     #[cfg(feature = "remote")]
-    crate::remote::race_loading();
+    crate::remote::race_loading(o.effects);
     let begun = std::time::Instant::now();
-    crate::race::loadlevel::loadlevel_init(race, scene, system)?;
+    crate::race::loadlevel::loadlevel_init(race, o)?;
     STAGE_LOADING.store(false, std::sync::atomic::Ordering::Relaxed);
     let (shown, micros) = crate::race::loading_bar_frame::shown();
     crate::framework::log(&format!(
@@ -89,7 +94,7 @@ pub fn load_stage(race: &Race) -> Result<(), Refused> {
     indent(-3);
     log();
     indent(3);
-    crate::drive::race_init::race_init(race, scene)?;
+    crate::drive::race_init::race_init(race, system, o.sound, scene, o.effects, o.net)?;
     crate::scene::restart_clock::restart_clock(
         &race.shared,
         crate::system::tick_count::tick_count(),

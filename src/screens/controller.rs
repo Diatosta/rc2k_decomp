@@ -5,7 +5,7 @@
 //! direction the player moves, into the player's +0x50 table.
 
 use crate::errors::{BadInput, Refused};
-use crate::input::owner::input;
+use crate::input::owner::Input;
 use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
 use crate::screens::controls_store::ControlsScreen;
@@ -46,8 +46,7 @@ pub fn classify_controller(
 /// 0x200 or 0x100; else the controller read and classified. Space (key 0x39) stops it with
 /// nothing; anything found goes to the player's +0x50 + 4 x (control - 1). The original keeps
 /// every register. Refuses (before anything) a player without its record.
-pub fn learn_axis(menus: &Menus) -> Result<(), Refused> {
-    let input = crate::input::owner::input();
+pub fn learn_axis(menus: &Menus, input: &Input) -> Result<(), Refused> {
     let controls = &screens_owner().controls;
     let screens = &menus.screens;
     if controls.learning.get() != 1 {
@@ -116,15 +115,16 @@ pub fn learn_axis(menus: &Menus) -> Result<(), Refused> {
 }
 
 /// What the controller page reads: refused before anything.
-pub fn controller_page_refuses(
-    menus: &Menus,
-) -> Result<crate::menu::standings::PlayerCell<'_>, Refused> {
+pub fn controller_page_refuses<'m>(
+    menus: &'m Menus,
+    input: &Input,
+) -> Result<crate::menu::standings::PlayerCell<'m>, Refused> {
     let Some(player) = crate::menu::player::player(menus, menus.screens.event.current_player.get())
     else {
         return Err(crate::errors::BadInput("no current player record").into());
     };
     let device = player.get().controller;
-    if device != 0 && input().devices.device(0).is_none() {
+    if device != 0 && input.devices.device(0).is_none() {
         return Err(crate::errors::BadInput("no input device").into());
     }
     Ok(player)
@@ -143,13 +143,13 @@ pub fn controller_page_refuses(
 /// 0x80701010.
 pub fn draw_controller_page(
     menus: &Menus,
+    input: &Input,
     canvas: &mut dyn crate::text::draw_text::Canvas,
 ) -> Result<(), Refused> {
-    let input = crate::input::owner::input();
     // The logic is in `rc2k_core::screens::controller_page::controller_page`.
     use rc2k_core::screens::controller_page::{Controller, Font, Work, controller_page};
     {
-        let player = controller_page_refuses(menus)?;
+        let player = controller_page_refuses(menus, input)?;
         let p = player.get();
         let device = p.controller;
         use crate::screens::game_screen::HeldText;

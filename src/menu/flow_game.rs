@@ -313,7 +313,10 @@ impl flow::Game for Game<'_> {
             C::StopStream => crate::sound::stop_stream::stop_stream(),
             C::ConvertPicture => {
                 // Whether it worked is not looked at.
-                crate::gfx::convert_picture::convert_picture_now()?;
+                crate::gfx::convert_picture::convert_picture_now_in(
+                    self.owners.gfx,
+                    self.owners.system,
+                )?;
             }
             C::RunFrame => {
                 // `screens::run_frame` with `menu::picture_frame` (whether the frame was
@@ -343,9 +346,12 @@ impl flow::Game for Game<'_> {
             Picture::Championship => &texts.mob_welc_png,
             Picture::A8 => &texts.a8_welc_png,
         };
-        let failed = crate::gfx::load_picture_with_overlay::load_picture_with_overlay(
+        let failed = crate::gfx::load_picture_with_overlay::load_picture_with_overlay_in(
             picture,
             &texts.titlebar_png,
+            self.owners.gfx,
+            self.owners.system,
+            self.owners.strings,
         )?;
         Ok(!failed)
     }

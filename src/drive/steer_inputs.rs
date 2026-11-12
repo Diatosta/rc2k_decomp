@@ -80,8 +80,7 @@ fn steer(shared: &RaceShared, cell: &Dword, step: u32) {
 
 /// (the exact one, for `drive::simple_car_step`, `drive::replay_step` and
 /// `race::step_replay_cars`).
-pub fn steer_inputs(race: &Race) {
-    let scene = crate::scene::owner::scene();
+pub fn steer_inputs(race: &Race, scene: &crate::scene::owner::Scene) {
     let race_owner = race;
     let drawing = &scene.drawing;
     let course = &race_owner.course;

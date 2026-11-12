@@ -30,9 +30,9 @@ pub fn run_front_end(o: Owners<'_>) -> Result<(), Refused> {
         .master_volume_shown
         .set(audio.state.master_volume.get());
     crate::menu::drop_missing_controllers::drop_missing_controllers(menus)?;
-    crate::gfx::build_fonts::build_fonts(gfx)?;
+    crate::gfx::build_fonts::build_fonts_in(gfx, o.system, o.strings)?;
     // The films, with eax 0 (the game's start).
-    crate::menu::play_films::play_films(false)?;
+    crate::menu::play_films::play_films(o, false)?;
     crate::logfile::log_write::log_nul(STARTING_RVA, true, 1);
     run_screen(&crate::menu::main_menu_loop::SCREEN, &Entry::new(o))?;
     crate::logfile::log_write::log_nul(FINISHED_RVA, true, 1);
@@ -40,7 +40,7 @@ pub fn run_front_end(o: Owners<'_>) -> Result<(), Refused> {
         crate::logfile::log_write::log_nul(line, true, 1);
     })?;
     crate::gfx::free_fonts::free_fonts(&fonts.glyph_tables.memory, &fonts.font_block.palettes)?;
-    crate::saves::list_car_numbers::list_car_numbers()?;
+    crate::saves::list_car_numbers::list_car_numbers_in(menus)?;
     log("menu::run_front_end: done");
     Ok(())
 }

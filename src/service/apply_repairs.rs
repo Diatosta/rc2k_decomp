@@ -26,6 +26,7 @@
 //! real frames. Called from 0x48E0FD and 0x4A16AB. Refuses a missing player.
 
 use crate::errors::{BadInput, Refused};
+use crate::owners::Owners;
 use crate::service::pages::{GEAR_RATIO, RIDE_HEIGHT, SUSPENSION_STIFFNESS, TYRE};
 use crate::service::reset_tyre_wear::reset_tyre_wear;
 use crate::service::state::{current_player, repair_flag_in, set_repair_flag};
@@ -50,7 +51,7 @@ pub trait Driver {
 
 /// The game's own.
 pub struct GameDriver<'a> {
-    menus: &'a Menus,
+    o: Owners<'a>,
 }
 
 impl Driver for GameDriver<'_> {
@@ -60,7 +61,7 @@ impl Driver for GameDriver<'_> {
     /// `screens::run_frame` with the service area's frame (`screens::service_area_frame`).
     fn frame(&mut self) {
         let ran = crate::platform::run_frame_now(|| {
-            crate::screens::service_area_frame::service_area_frame(self.menus)
+            crate::screens::service_area_frame::service_area_frame(self.o)
         });
         if let Some(Err(e)) = ran {
             crate::menu::table_calls::refused(
@@ -153,6 +154,13 @@ pub fn apply_repairs(menus: &Menus, driver: &mut dyn Driver) -> Result<(), Refus
 
 /// For Rust callers: the repairs with the game's clock, frames and sleep. A refusal is the
 /// caller's.
+pub fn apply_repairs_in_game_in(o: Owners<'_>) -> Result<(), Refused> {
+    apply_repairs(o.menus, &mut GameDriver { o })
+}
+
+/// `apply_repairs_in_game_in` for the menus' passes that hold no `Owners` yet.
 pub fn apply_repairs_in_game(menus: &Menus) -> Result<(), Refused> {
-    apply_repairs(menus, &mut GameDriver { menus })
+    let o = crate::owners::boundary();
+    debug_assert!(std::ptr::eq(o.menus, menus));
+    apply_repairs_in_game_in(o)
 }

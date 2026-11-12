@@ -14,14 +14,17 @@ use crate::screens::car_caption::put_string;
 const TITLE_LEN: usize = 0x100;
 const PAGES: u32 = 4;
 
-pub fn car_page_title(menus: &Menus) -> Result<(), Refused> {
+pub fn car_page_title(
+    menus: &Menus,
+    text: &crate::screens::text_buffers_store::TextBuffers,
+) -> Result<(), Refused> {
     let page: u32 = menus.screens.event.car_page.get();
     if page >= PAGES {
         return Err(BadInput("a page past the four").into());
     }
     put_string(
         menus.tables.lists.car_page_titles[page as usize].get(),
-        &crate::screens::text_buffers_store::TEXT_BUFFERS.title,
+        &text.title,
         TITLE_LEN,
     )
 }

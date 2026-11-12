@@ -44,6 +44,7 @@ pub fn path() -> &'static [u8] {
 pub fn read_driver_names(
     menus: &Menus,
     strings: &crate::strings::owner::Strings,
+    system: &crate::system::owner::System,
     path: &[u8],
 ) -> Result<(), BadInput> {
     let cars = &menus.cars;
@@ -51,7 +52,7 @@ pub fn read_driver_names(
     // anything is written. The key the original makes in place (`aName000`) is left as
     // its last one, "name179".
     {
-        let Some(text) = read_text(path)? else {
+        let Some(text) = read_text(system, path)? else {
             return Ok(());
         };
         let entries = rc2k_core::files::settings::driver_names(

@@ -23,7 +23,7 @@ use crate::errors::{BadInput, FatalError, Refused};
 use crate::install::outside::Outside;
 use crate::install::runs_from_source::{scratch_bytes, scratch_put, scratch_text};
 use crate::session::Dword;
-use crate::system::owner::system;
+use crate::system::owner::System;
 
 const PATH_ROOM: usize = 0x100;
 
@@ -42,6 +42,7 @@ pub fn set_script_entry(install: &'static crate::install::owner::Install, text_i
 /// `no_audio` is the sound's switch.
 pub fn check_at_start(
     install: &'static crate::install::owner::Install,
+    system: &System,
     outside: &mut dyn Outside,
     no_audio: &Dword,
 ) -> Result<(), Refused> {
@@ -78,7 +79,7 @@ pub fn check_at_start(
         put(len, &program)?;
         if outside.file_exists(&scratch_text()?)? {
             // "patch6: ", then the version from the blank before its `(`.
-            let version = system().start.texts.version.text();
+            let version = system.start.texts.version.text();
             let from = (1..version.len())
                 .find(|&n| version[n] == b'(')
                 .ok_or(BadInput("a version text without a ("))?

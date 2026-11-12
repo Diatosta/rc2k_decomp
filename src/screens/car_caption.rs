@@ -30,11 +30,10 @@ pub fn put_string(
     Ok(())
 }
 
-pub fn car_caption(menus: &Menus) -> Result<(), Refused> {
+pub fn car_caption(
+    menus: &Menus,
+    text: &crate::screens::text_buffers_store::TextBuffers,
+) -> Result<(), Refused> {
     let id = read(shown_description(menus)?)?.name;
-    put_string(
-        id,
-        &crate::screens::text_buffers_store::TEXT_BUFFERS.caption,
-        CAPTION_LEN,
-    )
+    put_string(id, &text.caption, CAPTION_LEN)
 }

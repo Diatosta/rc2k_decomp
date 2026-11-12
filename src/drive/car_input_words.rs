@@ -8,12 +8,15 @@
 //! anything) a current car past 7, and what `device_axes` refuses.
 
 use crate::errors::Refused;
-use crate::net::owner::net;
 use crate::race::owner::Race;
 
 // Converted: `rc2k_core::drive::inputs::{check_car, device_words, replay_words}`.
-pub fn car_input_words(race: &Race, input: &crate::input::owner::Input) -> Result<(), Refused> {
-    let vars = &net().vars;
+pub fn car_input_words(
+    race: &Race,
+    input: &crate::input::owner::Input,
+    net: &crate::net::owner::Net,
+) -> Result<(), Refused> {
+    let vars = &net.vars;
     let race_owner = race;
     let frame = &race.frame;
     use rc2k_core::drive::inputs::{NO_DEVICE, ReplayWords, check_car, device_words, replay_words};

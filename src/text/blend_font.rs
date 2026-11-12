@@ -13,11 +13,11 @@
 
 use crate::errors::BadInput;
 use crate::gfx::blend_palette::blend_palette;
-use crate::gfx::owner::gfx;
+use crate::gfx::owner::{Gfx, gfx};
 use crate::gfx::pixel_format::surface_format;
 use crate::gfx::typefaces::{FontObject, FontRef};
 use crate::session::{GameThread, PlainDword};
-use crate::strings::owner::strings;
+use crate::strings::owner::{Strings, strings};
 use crate::text::font::Font;
 
 // ---- game data ----
@@ -48,8 +48,20 @@ pub fn blend_font(
     a: impl Into<FontRef>,
     b: impl Into<FontRef>,
 ) -> Result<(), BadInput> {
+    blend_font_in(strings(), gfx(), time, half_pulse, a, b)
+}
+
+/// `blend_font` with the owners it works on.
+pub fn blend_font_in(
+    strings: &Strings,
+    gfx: &Gfx,
+    time: u32,
+    half_pulse: u32,
+    a: impl Into<FontRef>,
+    b: impl Into<FontRef>,
+) -> Result<(), BadInput> {
     let (a, b) = (a.into(), b.into());
-    let mode: u32 = strings().text.blend_mode.get();
+    let mode: u32 = strings.text.blend_mode.get();
     // Converted: `rc2k_core::text::pulse`.
     let (from_a, t) = rc2k_core::text::pulse(time, half_pulse, mode == 2);
     let (from, to) = if from_a { (a, b) } else { (b, a) };
@@ -69,7 +81,7 @@ pub fn blend_font(
         return Ok(());
     }
     blend_palette(
-        &gfx().pixel.formats,
+        &gfx.pixel.formats,
         from_font.palette,
         to_palette,
         crate::gfx::glyph_store::BLENDED_PLACE,

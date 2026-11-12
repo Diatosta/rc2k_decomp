@@ -29,7 +29,9 @@ pub fn viewer_frame() -> Result<bool, Refused> {
     crate::platform_3d::begin_layer();
     if !race.shared.replay_file.replay_at_end.is_set() {
         crate::drive::replay_frame_marks::replay_frame_marks(race)?;
-        crate::race::show_replay_still::show_replay_still(race, input, system, o.scene)?;
+        crate::race::show_replay_still::show_replay_still(
+            race, input, system, o.scene, o.sound, o.net,
+        )?;
     }
     if replay.replay_view.snapshot_asked.get() == 1 {
         replay.replay_view.snapshot_asked.set(0);
@@ -47,7 +49,7 @@ pub fn viewer_frame() -> Result<bool, Refused> {
 }
 
 /// The list, the bar and the panel (stopped).
-fn stopped(race: &Race, o: Owners<'_>) -> Result<(), Refused> {
+fn stopped(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
     let install = o.install;
     let replay = &race.replay;
     let shared = &race.shared;

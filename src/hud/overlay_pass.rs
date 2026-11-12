@@ -55,7 +55,11 @@ pub fn overlay_pass(hud: &Hud, race: &Race) -> Result<(), Refused> {
     let (system, scene) = (o.system, o.scene);
     let scratch = crate::race::view_scratch::front_end();
     let polygons = &scratch.polygon;
-    let pen = Pen { polygons, system };
+    let pen = Pen {
+        polygons,
+        system,
+        scene,
+    };
     let done = crate::hud::draw_hud::draw_hud(&race.frame, hud, pen);
     race.frame.panel_and_overlay.panel.hud_flags[1].set(kept[1]);
     race.frame.panel_and_overlay.panel.hud_flags[0].set(kept[0]);

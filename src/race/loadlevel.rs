@@ -3,7 +3,6 @@
 //! loading bar moved on (the step's mark, then the callback `race::loading_bar_frame`, called with the mark).
 //! The pace notes are set up by `race::init_pace_notes`. A step's refusal is the function's.
 
-use crate::effects::owner::effects;
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
 use crate::scene::file_numbers_store::texts;
@@ -117,12 +116,8 @@ impl Steps<'_> {
 /// the callback `nullsub_8`; the crash matrix, the norms; without `Finish.no_place` checkpoints, pace
 /// notes, overlay; `marker_object` the object of kind 0x7A (else 0x79); `camera_last_frame`/`D4` 0;
 /// "finis".
-pub fn loadlevel_init(
-    race: &Race,
-    scene: &crate::scene::owner::Scene,
-    system: &crate::system::owner::System,
-) -> Result<(), Refused> {
-    let gfx = crate::gfx::owner::gfx();
+pub fn loadlevel_init(race: &Race, o: crate::owners::Owners<'_>) -> Result<(), Refused> {
+    let (scene, system, gfx) = (o.scene, o.system, o.gfx);
     use crate::race::level_init as level;
     use crate::race::stage_prefs;
     let v = LoadVars::game();
@@ -221,8 +216,7 @@ pub fn loadlevel_init(
     let enabled = crate::logfile::write_line::state::ENABLED
         .atomic()
         .swap(0, std::sync::atomic::Ordering::Relaxed);
-    let effects = effects();
-    crate::effects::init_mark_step::init_mark_step(race, effects, scene, gfx)?;
+    crate::effects::init_mark_step::init_mark_step(race, o.effects, scene, gfx, system, o.net)?;
     crate::logfile::write_line::state::ENABLED.set(enabled);
     s.progress(0x5E)?;
     s.indent(-3);

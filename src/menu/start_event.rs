@@ -57,7 +57,7 @@ impl starters::Event for Game<'_> {
         use crate::menu as m;
         use starters::Call as C;
         match c {
-            C::RepairCar => crate::service::repair_parts::repair_car()?,
+            C::RepairCar => crate::service::repair_parts::repair_car_in(self.menus)?,
             C::BeginEvent => m::begin_event::begin_event(self.menus)?,
             C::ResetDrivers => m::reset_drivers::reset_drivers(self.menus)?,
             C::ResetDriverCondition => {

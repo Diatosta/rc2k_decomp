@@ -13,10 +13,11 @@
 use crate::errors::Refused;
 use crate::gfx::blit_glyph::BlitCall;
 
-use crate::gfx::convert_picture::convert_picture_now;
-use crate::gfx::load_picture::load_picture;
-use crate::gfx::owner::gfx;
+use crate::gfx::convert_picture::convert_picture_now_in;
+use crate::gfx::load_picture::load_picture_with;
+use crate::gfx::owner::Gfx;
 use crate::gfx::picture_as_surface::picture_as_surface;
+use crate::system::owner::System;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -27,10 +28,20 @@ pub fn load_background(
     path: &dyn crate::session::TextPlace,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    let gfx = gfx();
+    let o = crate::owners::boundary();
+    load_background_in(path, canvas, o.gfx, o.system)
+}
+
+/// `load_background` for a caller that holds the owners.
+pub fn load_background_in(
+    path: &dyn crate::session::TextPlace,
+    canvas: &mut dyn Canvas,
+    gfx: &Gfx,
+    system: &System,
+) -> Result<(), Refused> {
     // Whether the file was read is not looked at.
-    load_picture(path)?;
-    convert_picture_now()?;
+    load_picture_with(path, gfx, system)?;
+    convert_picture_now_in(gfx, system)?;
     gfx.pictures
         .picture
         .flags

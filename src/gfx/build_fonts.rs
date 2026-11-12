@@ -261,6 +261,12 @@ fn hung_value(gfx: &Gfx, variable: Source, plus: u32) -> u32 {
 }
 
 pub fn build_fonts(gfx: &Gfx) -> Result<(), Refused> {
+    let o = crate::owners::boundary();
+    build_fonts_in(gfx, o.system, o.strings)
+}
+
+/// `build_fonts` for a caller that holds the owners.
+pub fn build_fonts_in(gfx: &Gfx, system: &System, strings: &Strings) -> Result<(), Refused> {
     if gfx.fonts.font_block.palettes.is_set() {
         return Err(FatalError {
             code: 0x80A4_8020,
@@ -268,8 +274,7 @@ pub fn build_fonts(gfx: &Gfx) -> Result<(), Refused> {
         }
         .into());
     }
-    let o = crate::owners::boundary();
-    tables(gfx, o.system, o.strings)?;
+    tables(gfx, system, strings)?;
     for (font, field, variable, plus) in HUNG {
         let object = &gfx.fonts.typefaces.objects[font];
         let value = hung_value(gfx, variable, plus);

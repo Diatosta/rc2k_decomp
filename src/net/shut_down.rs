@@ -7,11 +7,12 @@
 //! original's other, 0x4104F2, is not reached). Refuses what `net::stop` refuses.
 
 use crate::errors::Refused;
+use crate::net::owner::Net;
+use crate::system::owner::System;
 use std::sync::atomic::Ordering;
-pub fn shut_down() -> Result<(), Refused> {
-    let o = crate::owners::boundary();
-    let vars = &o.net.vars;
-    crate::net::stop::stop(vars, o.system)?;
+pub fn shut_down(net: &Net, system: &System) -> Result<(), Refused> {
+    let vars = &net.vars;
+    crate::net::stop::stop(vars, system)?;
     for cell in [&vars.mutex, &vars.event] {
         let handle = cell.atomic().swap(0, Ordering::SeqCst);
         if handle != 0 {

@@ -20,7 +20,7 @@ use crate::logfile::write_line::level;
 use crate::memory::MemoryList;
 use crate::memory::free_list::free_list;
 use crate::session::PlainDword;
-use crate::strings::owner::{Lexicon, strings};
+use crate::strings::owner::Lexicon;
 use rc2k_core::strings::lexicon::{Compiled, compile};
 
 // ---- game data ----
@@ -118,14 +118,17 @@ fn report(why: &str) {
 /// does not load or does not compile is the original's fatal error: one that fails the
 /// compiler is reported in the log first. Memory and table overflows, which the original
 /// reports as 0x80E1801x / 2x, are 0x80E18051 here.
-pub fn compiled(lexicon: &Lexicon) -> Result<Compiled, FatalError> {
+pub fn compiled(
+    lexicon: &Lexicon,
+    system: &crate::system::owner::System,
+) -> Result<Compiled, FatalError> {
     let memory = lexicon.memory.kilobytes.get().wrapping_mul(0x400);
     if memory < FILE_ROOM {
         report("the lexicon's memory is smaller than the file may be");
         return Err(NOT_CREATED);
     }
     let mut text = vec![0u8; FILE_ROOM as usize];
-    let read = read_first_match(PATTERN, &mut text, 0)
+    let read = read_first_match(system, PATTERN, &mut text, 0)
         .ok()
         .flatten()
         .ok_or(NOT_LOADED)?;
@@ -165,11 +168,13 @@ fn line(text: &[u8], newline: bool) {
     crate::logfile::log_write::log_nul(text, newline, 1);
 }
 
-pub fn compile_lexicon() -> Result<(), Refused> {
-    let strings = strings();
+pub fn compile_lexicon(
+    strings: &crate::strings::owner::Strings,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     {
         line(b"Compiling lexicon...\0", true);
-        let compiled = compiled(&strings.lexicon)?;
+        let compiled = compiled(&strings.lexicon, system)?;
         strings.lexicon.work.write(&[0; WORK_LEN]);
         // The original's memory, for the game's memory figures: counted and given back
         // (nothing is put in it: the lexicon is built in Rust's memory).

@@ -278,8 +278,13 @@ pub fn tidy_stage(race: &Race, effects: &Effects) -> Result<(), Refused> {
 /// `race::tidy_everything` (0x444AC7, "SHAUNTIDYEVERYTHING"): a line break, a rule, "START" (an
 /// empty indent), then each step with its word: the controls, the game mode, `tidy_stage`, the
 /// sounds (then `view_on` and the second view's flag 1); "finis", a rule, a line break.
+#[cfg(debug_ui)]
 pub fn tidy_everything(race: &Race) -> Result<(), Refused> {
-    let o = crate::owners::boundary();
+    tidy_everything_in(race, crate::owners::boundary())
+}
+
+/// `tidy_everything` with the owners given.
+pub fn tidy_everything_in(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (input, sound) = (o.input, o.sound);
     let shared = &race.shared;
     let s = Tidy;
@@ -332,13 +337,13 @@ pub fn run_race(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     crate::race::race_cars::set_up_arcade_cars(race)?;
     race.shared.vars.settings_words[1].set(1u32);
     crate::race::race_shell::set_start_states(race)?;
-    crate::race::stage_loading::load_stage(race)?;
+    crate::race::stage_loading::load_stage_in(race, o)?;
     record_replay_header(race);
     crate::race::replay::open_replay(race)?;
     race.shared.view.after_credits.set(0u32);
     crate::drive::play_race::play_race(race, o)?;
     crate::race::replay::close_replay(race)?;
-    tidy_everything(race)?;
+    tidy_everything_in(race, o)?;
     crate::race::settings_copy::copy_settings_out(race)?;
     Ok(())
 }

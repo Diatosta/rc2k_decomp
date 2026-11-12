@@ -10,16 +10,17 @@
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
-use crate::system::owner::system;
 
 const RESTORE: usize = 0x405B10; // 0x405B10: the surfaces restored (the platform's)
 
 /// Takes and returns the value the frame's calls leave on (the original's register); only
 /// `drive::quit_question` reads it.
-pub fn race_frame(race: &Race, eax: u32) -> Result<u32, Refused> {
-    let input = crate::input::owner::input();
-    let system = system();
-
+pub fn race_frame(
+    race: &Race,
+    o: crate::owners::Owners<'static>,
+    eax: u32,
+) -> Result<u32, Refused> {
+    let (input, system) = (o.input, o.system);
     let mut eax = eax;
     crate::platform::pump_messages_now();
     if system.session.flags.quitting.is_set() {
@@ -40,12 +41,12 @@ pub fn race_frame(race: &Race, eax: u32) -> Result<u32, Refused> {
         stop(Stage::Scene, begun);
         // The original's sound tick here (tick 0x12) never found a turn due: the frame's one
         // is in `draw_race_scene`.
-        { crate::race::replay_screenshot::replay_screenshot() }?;
+        { crate::race::replay_screenshot::replay_screenshot(race, o.gfx) }?;
         #[cfg(feature = "remote")]
-        crate::remote::shot_frame_drawn();
+        crate::remote::shot_frame_drawn(race);
         let shown = {
             let _step = crate::write_watch::step("show");
-            crate::race::show_frame::show_frame(race)
+            crate::race::show_frame::show_frame(race, system, o.scene)
         }?;
         eax = shown.eax;
         if !shown.lost {

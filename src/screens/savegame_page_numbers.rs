@@ -14,11 +14,14 @@ use crate::menu::owner::Menus;
 // ---- game data ----
 
 /// A number with a 0 before it under 10.
-pub fn savegame_page_numbers(menus: &Menus) -> Result<(), Refused> {
+pub fn savegame_page_numbers(
+    menus: &Menus,
+    text: &crate::screens::text_buffers_store::TextBuffers,
+) -> Result<(), Refused> {
     // The logic is in `rc2k_core::screens::captions::savegame_numbers`.
     let page = menus.tables.pages.save_page.get();
     let (caption, numbers) = rc2k_core::screens::captions::savegame_numbers(page)?;
-    let buffers = &crate::screens::text_buffers_store::TEXT_BUFFERS;
+    let buffers = text;
     buffers.caption.write_at(0, &caption, "the caption")?;
     for (n, text) in numbers.iter().enumerate() {
         let mut cell = text.to_vec();

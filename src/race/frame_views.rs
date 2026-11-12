@@ -616,10 +616,12 @@ pub fn run_view_marks(
         race.frame.frame_work.view_scale_y[n].get(),
     ));
     // Neither reads a register nor leaves one read after it (0x456464, 0x456472).
-    let done = crate::effects::frame_marks::frame_marks(race, effects).and_then(|_| {
+    let done = crate::effects::frame_marks::frame_marks(race, scene, effects).and_then(|_| {
         if race.frame.frame_work.drawing.get() == 0 {
             crate::effects::run_frame::run_frame(
                 race,
+                scene,
+                effects,
                 crate::effects::run_frame::EffectsView::of(ctx.view),
             )
         } else {

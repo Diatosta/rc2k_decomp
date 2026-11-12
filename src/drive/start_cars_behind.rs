@@ -108,8 +108,7 @@ fn clear_car(shared: &RaceShared, car: u32) -> Result<(), Refused> {
 }
 
 // Converted: `rc2k_core::drive::pace_cars` (the rules; the moves and calls stay here).
-pub fn start_cars_behind(race: &Race) -> Result<(), Refused> {
-    let scene = crate::scene::owner::scene();
+pub fn start_cars_behind(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let course = &race.course;
     if let Some(why) = refusal(race)? {
         return Err(BadInput(why).into());

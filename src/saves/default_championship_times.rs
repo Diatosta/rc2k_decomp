@@ -14,23 +14,28 @@
 //! (a refusal now leaves nothing written).
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::owner::Menus;
+use crate::race::owner::Race;
 use crate::saves::allocate_best_times::count_stages;
 use crate::saves::default_times::*;
 use crate::saves::owner::Saves;
+use crate::system::owner::System;
 use rc2k_core::saves::defaults::{Championship, RALLIES, championship_times};
 
 // ---- game data ----
 
 pub fn default_championship_times(
-    saves: &'static Saves,
+    menus: &Menus,
+    race: &Race,
+    system: &System,
+    saves: &Saves,
     ebp: u32,
     log: Log,
 ) -> Result<(), Refused> {
-    let o = crate::owners::boundary();
-    let screens = &o.menus.screens;
+    let screens = &menus.screens;
     // Converted: `rc2k_core::saves::defaults::championship_times`.
     {
-        let records_at = o.system.records.stage_tables.championship();
+        let records_at = system.records.stage_tables.championship();
         let stages = count_stages(records_at)?;
         let count = records(records_at)?;
         let table = &crate::saves::best_times::STAGE_TIMES;
@@ -47,17 +52,13 @@ pub fn default_championship_times(
             tables.push(Target::Rally(saves.rally_times.table(rally)?));
         }
         let filled = championship_times(
-            &mut GameSource {
-                log,
-                menus: o.menus,
-                race: o.race,
-            },
+            &mut GameSource { log, menus, race },
             &records,
             Championship::Times { stage: ebp },
             present,
             with_checkpoints(screens),
         )?;
-        apply(screens, o.race, &filled, &tables)?;
+        apply(screens, race, &filled, &tables)?;
         Ok(())
     }
 }

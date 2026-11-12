@@ -22,30 +22,29 @@ pub fn current(menus: &Menus) -> Result<&'_ crate::session::Shared<Player>, Refu
         .ok_or(BadInput("a current player past the four"))?)
 }
 
-pub fn gearing_text(menus: &Menus) -> Result<(), Refused> {
+pub fn gearing_text(
+    menus: &Menus,
+    text: &crate::screens::text_buffers_store::TextBuffers,
+) -> Result<(), Refused> {
     let value = current(menus)?.get().gearing;
-    put_string(
-        FIRST_STRING.wrapping_add(value),
-        &crate::screens::text_buffers_store::TEXT_BUFFERS.title,
-        TEXT_LEN,
-    )?;
+    put_string(FIRST_STRING.wrapping_add(value), &text.title, TEXT_LEN)?;
     menus.screens.flow.shown_gearing.set(value);
     Ok(())
 }
 
 /// `menu::next_gearing` / `menu::previous_gearing`: `ScreenFlow.shown_gearing` on (past 2 to 0) or back
 /// (below 0 to 2, both signed), the current player's `gearing` it, and its text.
-pub fn step_gearing(menus: &Menus, on: bool) -> Result<(), Refused> {
+pub fn step_gearing(
+    menus: &Menus,
+    text: &crate::screens::text_buffers_store::TextBuffers,
+    on: bool,
+) -> Result<(), Refused> {
     let screens = &menus.screens;
     let p = current(menus)?;
     let kept = screens.flow.shown_gearing.get() as i32;
     // The logic is in `rc2k_core::screens::captions::step_gearing`.
     let value = rc2k_core::screens::captions::step_gearing(kept, on);
-    put_string(
-        FIRST_STRING.wrapping_add(value),
-        &crate::screens::text_buffers_store::TEXT_BUFFERS.title,
-        TEXT_LEN,
-    )?;
+    put_string(FIRST_STRING.wrapping_add(value), &text.title, TEXT_LEN)?;
     screens.flow.shown_gearing.set(value);
     p.update(|p| p.gearing = value);
     Ok(())

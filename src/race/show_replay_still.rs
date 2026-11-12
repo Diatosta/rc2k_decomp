@@ -34,6 +34,8 @@ pub fn show_replay_still(
     input: &crate::input::owner::Input,
     system: &crate::system::owner::System,
     scene: &crate::scene::owner::Scene,
+    sound: &crate::sound::owner::Sound,
+    net: &crate::net::owner::Net,
 ) -> Result<(), Refused> {
     use crate::drive::*;
     if !(1..=8).contains(&race.shared.view.race_cars.get()) {
@@ -50,11 +52,11 @@ pub fn show_replay_still(
             .replay_frames
             .step_block
             .set(race.replay.replay_view.replay_block.get());
-        crate::race::step_replay_cars::step_replay_cars(race, input, scene)?;
+        crate::race::step_replay_cars::step_replay_cars(race, input, system, sound, scene, net)?;
     }
     if race.replay.replay_view.replay_frame.get() == 0 {
         race.replay.replay_frames.step_first.set(1);
-        crate::race::step_replay_cars::step_replay_cars(race, input, scene)?;
+        crate::race::step_replay_cars::step_replay_cars(race, input, system, sound, scene, net)?;
         race.replay.replay_frames.step_first.set(0);
         load_frame(race);
         load_replay_cars::load_replay_cars(race);

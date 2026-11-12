@@ -5,8 +5,9 @@
 
 use crate::errors::Refused;
 use crate::menu::load_car_background::load_car_background;
-use crate::menu::load_slideshow_picture::load_slideshow_picture_in_game;
+use crate::menu::load_slideshow_picture::load_slideshow_picture_in;
 use crate::menu::owner::Menus;
+use crate::owners::Owners;
 use crate::sound::play_car_stream::play_car_stream;
 use crate::text::draw_text::GameCanvas;
 
@@ -41,17 +42,18 @@ pub fn press(
 }
 
 /// The game's: each call goes to the Rust function.
-pub fn call_in_game(
-    menus: &Menus,
-    call: Call,
-    sound: &crate::sound::owner::Sound,
-) -> Result<(), Refused> {
+pub fn call_in_game(o: Owners<'_>, call: Call) -> Result<(), Refused> {
     match call {
-        Call::Background => load_car_background(menus, &mut |path| {
-            crate::menu::load_background::load_background(&path, &mut GameCanvas)?;
+        Call::Background => load_car_background(o.menus, &mut |path| {
+            crate::menu::load_background::load_background_in(
+                &path,
+                &mut GameCanvas,
+                o.gfx,
+                o.system,
+            )?;
             Ok(false)
         }),
-        Call::Stream => play_car_stream(&mut crate::sound::start_stream::start_stream, sound),
-        Call::Picture(way) => load_slideshow_picture_in_game(menus, way),
+        Call::Stream => play_car_stream(&mut crate::sound::start_stream::start_stream, o.sound),
+        Call::Picture(way) => load_slideshow_picture_in(o, way),
     }
 }

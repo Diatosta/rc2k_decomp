@@ -209,11 +209,11 @@ impl RaceWork {
         if let Some(cell) = self.car_blocks.get(n) {
             return crate::race::blocks_store::block_of(cell.get());
         }
+        // On through the work's own bytes, as far as their end.
         let what = "a car block's pointer";
-        crate::pointers::GamePtr::to(&self.car_blocks)
-            .unbounded()
-            .offset((4 * n) as u32)
-            .read(what)
+        let at = core::mem::offset_of!(RaceWork, car_blocks).wrapping_add(n.wrapping_mul(4));
+        crate::place::BytePlace::in_store(&crate::race::owner::RACE.shared.work, at)
+            .read_dword(what)
             .unwrap_or_else(|e| crate::fatal::raise::end(what, e))
     }
 

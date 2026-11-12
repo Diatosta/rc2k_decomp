@@ -61,13 +61,8 @@ fn put_answer(race: &Race, net: &Net, answer: u32) -> Result<(), BadInput> {
     Ok(())
 }
 
-pub fn race_loop(
-    race: &Race,
-    input: &'static crate::input::owner::Input,
-    system: &crate::system::owner::System,
-    scene: &crate::scene::owner::Scene,
-    net: &Net,
-) -> Result<(), Refused> {
+pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    let (input, system, scene, sound, net) = (o.input, o.system, o.scene, o.sound, o.net);
     let devices = &input.devices;
     for c in 0..8 {
         race.car_blocks().cars[c as usize].reset_marker.set(10);
@@ -132,7 +127,7 @@ pub fn race_loop(
                 }
             }
             if devices.keys_pressed.get(1) != 0 {
-                let answer = { crate::drive::quit_question::quit_question(race, input) }?;
+                let answer = { crate::drive::quit_question::quit_question(race, o) }?;
                 if answer == 0 {
                     break false;
                 }
@@ -157,12 +152,12 @@ pub fn race_loop(
             if system.session.flags.paused.get() != 0 {
                 break true;
             }
-            race_keys(race)?;
+            race_keys(race, o)?;
             let begun = crate::debug::timing::start();
-            { crate::drive::race_step::race_step(race, scene) }?;
+            { crate::drive::race_step::race_step(race, scene, input, sound, system, net) }?;
             crate::debug::timing::stop(crate::debug::timing::Stage::Physics, begun);
-            tyre_change(race, input, system)?;
-            if players_all_out(race)? {
+            tyre_change(race, input, system, scene)?;
+            if players_all_out(race, net)? {
                 if race.shared.work.in_credits.is_set() {
                     crate::framework::log(&format!(
                         "drive::race_loop: the credits race ends: every player out, frame {}",
@@ -171,7 +166,7 @@ pub fn race_loop(
                 }
                 return Ok(());
             }
-            race_frame(race)?;
+            race_frame(race, o)?;
         };
         if !paused {
             continue;
@@ -180,7 +175,7 @@ pub fn race_loop(
         if net.vars.session.get() != 0 {
             net_player_car(net, &race.shared)?.input_keys.set(0);
         } else {
-            { crate::drive::pause_until_key::pause_until_key(race, input, system) }?;
+            { crate::drive::pause_until_key::pause_until_key(race, o) }?;
         }
         system.session.flags.paused.set(0);
     }

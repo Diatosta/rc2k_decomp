@@ -87,7 +87,10 @@ pub fn main_loop(o: Owners<'static>) -> Result<(), Refused> {
     if install.run.installing.get() != 1 {
         crate::install::runs_from_source::source_against_directory(
             install,
-            &mut crate::install::outside::Game,
+            &mut crate::install::outside::Game {
+                install,
+                system: o.system,
+            },
         )?;
     }
     install.run.installing.set(0);

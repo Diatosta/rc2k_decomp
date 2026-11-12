@@ -80,12 +80,15 @@ impl<'a> EffectsView<'a> {
 }
 
 /// For `view`.
-pub fn run_frame(race: &Race, view: EffectsView<'_>) -> Result<(), Refused> {
+pub fn run_frame(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    effects: &crate::effects::owner::Effects,
+    view: EffectsView<'_>,
+) -> Result<(), Refused> {
     let gfx = crate::gfx::owner::gfx();
-    let scene = crate::scene::owner::scene();
     use crate::effects::*;
     use crate::scene::set_render_state::set_render_state;
-    let effects = owner::effects();
     let (weather, particles, ring) = (&effects.weather, &effects.particles, &effects.ring);
     let paths = &effects.paths;
     {

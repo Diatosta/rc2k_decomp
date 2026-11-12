@@ -9,16 +9,24 @@
 //! Converted: `rc2k_core::saves::defaults::stage_times` (a refusal now leaves nothing written).
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::owner::Menus;
+use crate::race::owner::Race;
 use crate::saves::default_times::*;
+use crate::system::owner::System;
 use rc2k_core::saves::defaults::stage_times;
 
 // ---- game data ----
 
 const TABLES: usize = 6;
 
-pub fn default_stage_times(ebp: u32, log: Log) -> Result<(), Refused> {
-    let o = crate::owners::boundary();
-    let screens = &o.menus.screens;
+pub fn default_stage_times(
+    menus: &Menus,
+    race: &Race,
+    system: &System,
+    ebp: u32,
+    log: Log,
+) -> Result<(), Refused> {
+    let screens = &menus.screens;
     // Converted: `rc2k_core::saves::defaults::stage_times`.
     {
         let table = &crate::saves::best_times::COURSE_TIMES;
@@ -27,7 +35,7 @@ pub fn default_stage_times(ebp: u32, log: Log) -> Result<(), Refused> {
         }
         let mut tables = Vec::new();
         for n in 0..TABLES {
-            let records = o.system.records.stage_tables.level_table(n as u32)?;
+            let records = system.records.stage_tables.level_table(n as u32)?;
             let six = (0..6u32)
                 .map(|stage| read_record(records.row(stage + 1)?))
                 .collect::<Result<Vec<_>, _>>()?;
@@ -37,16 +45,12 @@ pub fn default_stage_times(ebp: u32, log: Log) -> Result<(), Refused> {
             );
         }
         let filled = stage_times(
-            &mut GameSource {
-                log,
-                menus: o.menus,
-                race: o.race,
-            },
+            &mut GameSource { log, menus, race },
             &tables,
             Some(ebp),
             with_checkpoints(screens),
         )?;
-        apply(screens, o.race, &filled, &[Target::Stages(table)])?;
+        apply(screens, race, &filled, &[Target::Stages(table)])?;
         Ok(())
     }
 }

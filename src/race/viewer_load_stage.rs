@@ -39,12 +39,12 @@ fn settings(race: &Race) -> [(&Dword, &Dword); 5] {
     ]
 }
 
-pub fn viewer_load_stage(race: &Race, o: Owners<'_>) -> Result<(), Refused> {
+pub fn viewer_load_stage(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
     let (gfx, sound, scene) = (o.gfx, o.sound, o.scene);
     let shared = &race.shared;
     use crate::race::{race_end, race_shell, sound_tables, stage_free, stage_loading};
     #[cfg(feature = "remote")]
-    crate::remote::shots_loading();
+    crate::remote::shots_loading(race, o.effects);
     if shared.replay_file.replay_open.is_set() {
         stage_free::render3d_tidy(race)?;
         stage_free::objects_tidy(race)?;
@@ -83,7 +83,7 @@ pub fn viewer_load_stage(race: &Race, o: Owners<'_>) -> Result<(), Refused> {
             shared.replay_file.viewer_fonts_built.set(1);
         }
         crate::race::read_replay_header::read_replay_header(race);
-        { stage_loading::load_stage(race) }?;
+        { stage_loading::load_stage_in(race, o) }?;
         race_end::reset_race_sounds(&race_end::SoundVars::game(), sound)?;
         crate::race::viewer_palettes::viewer_palettes(shared, scene, gfx)?;
         shared.replay_file.viewer_stage_loaded.set(1);

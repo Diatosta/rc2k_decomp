@@ -106,7 +106,7 @@ impl arcade::Arcade for Game<'_> {
             Step::TakeShownCar => m::take_shown_car::take_shown_car(menus, self.cars)?,
             Step::NextStageLoop => self.screen(&m::arcade_next_stage_loop::SCREEN)?,
             Step::TakeStageBest => a::take_arcade_stage_best(play)?,
-            Step::RepairCar => crate::service::repair_parts::repair_car()?,
+            Step::RepairCar => crate::service::repair_parts::repair_car_in(menus)?,
             // From 0 (the original clears eax for the repair just before).
             Step::Race => crate::race::single_rally_race::single_rally_race(0, 2)?,
             Step::ScoreStage => a::score_arcade_stage(menus)?,

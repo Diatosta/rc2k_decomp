@@ -16,11 +16,12 @@
 use crate::errors::Refused;
 use crate::files::file_exists::file_exists;
 use crate::files::numbered_path::numbered_path_bytes;
-use crate::gfx::convert_picture::convert_picture_now;
-use crate::gfx::load_picture::load_picture;
-use crate::gfx::load_picture_with_overlay::load_picture_with_overlay;
+use crate::gfx::convert_picture::convert_picture_now_in;
+use crate::gfx::load_picture::load_picture_with;
+use crate::gfx::load_picture_with_overlay::load_picture_with_overlay_in;
 use crate::menu::load_car_background::shown_car;
 use crate::menu::owner::Menus;
+use crate::owners::Owners;
 
 // ---- game data ----
 
@@ -79,11 +80,20 @@ pub fn load_slideshow_picture(
 }
 
 /// With the game's own steps for what it calls.
-pub fn load_slideshow_picture_in_game(menus: &Menus, way: u32) -> Result<(), Refused> {
-    load_slideshow_picture(menus, way, &mut |step| match step {
-        Step::Overlay(path, over) => load_picture_with_overlay(&MirroredPath::new(path), over),
-        Step::Load(path) => load_picture(path).map(|_| false),
-        Step::Convert => convert_picture_now().map(|_| false).map_err(Into::into),
+pub fn load_slideshow_picture_in_game(_menus: &Menus, way: u32) -> Result<(), Refused> {
+    load_slideshow_picture_in(crate::owners::boundary(), way)
+}
+
+/// `load_slideshow_picture_in_game` for a caller that holds the owners.
+pub fn load_slideshow_picture_in(o: Owners<'_>, way: u32) -> Result<(), Refused> {
+    load_slideshow_picture(o.menus, way, &mut |step| match step {
+        Step::Overlay(path, over) => {
+            load_picture_with_overlay_in(&MirroredPath::new(path), over, o.gfx, o.system, o.strings)
+        }
+        Step::Load(path) => load_picture_with(path, o.gfx, o.system).map(|_| false),
+        Step::Convert => convert_picture_now_in(o.gfx, o.system)
+            .map(|_| false)
+            .map_err(Into::into),
     })
 }
 

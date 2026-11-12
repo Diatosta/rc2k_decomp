@@ -14,7 +14,6 @@
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
-use crate::saves::owner::saves;
 use crate::saves::read_savegame_slot::read_savegame_slot;
 use crate::screens::draw_empty_savegame::draw_empty_savegame;
 use crate::screens::draw_savegame_details::draw_savegame_details;
@@ -23,8 +22,12 @@ use crate::text::draw_text::Canvas;
 // ---- game data ----
 
 /// Returns the carry flag of the panel drawn.
-pub fn draw_savegame_preview(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
-    let savegame_preview = &saves().savegame_preview;
+pub fn draw_savegame_preview(
+    menus: &Menus,
+    saves: &crate::saves::owner::Saves,
+    canvas: &mut dyn Canvas,
+) -> Result<bool, Refused> {
+    let savegame_preview = &saves.savegame_preview;
     let tables = &menus.tables;
     // The logic is in `rc2k_core::screens::savegame_preview::preview` (the slot); the panels
     // are converted in their own functions.

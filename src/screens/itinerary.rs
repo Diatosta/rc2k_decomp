@@ -25,10 +25,13 @@ const INVALID_STAGE: FatalError = FatalError {
 /// number, and its time; tags 3 and 4 end the list, any other is fatal error 0x8070D91A
 /// "Invalid Stage ID". Refuses (before anything) a section past the
 /// table.
-pub fn draw_itinerary(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_itinerary(
+    menus: &Menus,
+    system: &crate::system::owner::System,
+    canvas: &mut dyn Canvas,
+) -> Result<(), Refused> {
     // The logic is in `rc2k_core::screens::itinerary`.
     use rc2k_core::screens::itinerary::Row;
-    let system = crate::system::owner::system();
     {
         if !section_there(menus, system)? {
             return Err(crate::errors::BadInput("a section past the record table").into());

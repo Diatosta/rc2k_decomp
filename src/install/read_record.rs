@@ -14,9 +14,9 @@ use rc2k_core::install::config;
 
 // ---- game data ----
 
-pub fn read_record(path: &[u8]) -> Result<(), BadInput> {
+pub fn read_record(system: &crate::system::owner::System, path: &[u8]) -> Result<(), BadInput> {
     {
-        let Some(text) = read_text(path)? else {
+        let Some(text) = read_text(system, path)? else {
             return Ok(());
         };
         // Converted: `rc2k_core::install::config::read_record` (the keys as its constants).

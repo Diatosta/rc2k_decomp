@@ -21,7 +21,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::install::runs_from_source::{scratch_put, scratch_text};
-use crate::system::owner::system;
 use rc2k_core::files::paths;
 
 const ROOM: u32 = 0x100;
@@ -38,7 +37,10 @@ fn set_cd(path: &[u8]) -> bool {
 fn run(command: &[u8]) {
     crate::install::shortcuts::run_program(&crate::files::host_path(command));
 }
-pub fn run_after_exit(install: &'static crate::install::owner::Install) -> Result<(), Refused> {
+pub fn run_after_exit(
+    install: &'static crate::install::owner::Install,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     let run_vars = &install.run;
     // `g_addStartItems` .. `g_runRegistration`.
     let switch = |n: u32| {
@@ -68,7 +70,7 @@ pub fn run_after_exit(install: &'static crate::install::owner::Install) -> Resul
         && switch(5) != 1
         && switch(3) == 1
         && from_cd == 1
-        && system().start.command_line.program_len.get() >= ROOM
+        && system.start.command_line.program_len.get() >= ROOM
     {
         return Err(BadInput("a command line's program of 0x100 bytes or more").into());
     }

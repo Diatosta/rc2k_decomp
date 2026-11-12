@@ -16,13 +16,17 @@ pub fn sealed_value(time: u32, cheats: u32, patch_switch: u32) -> u32 {
 pub use rc2k_core::files::records::seal_block as block;
 
 /// `time` and the block's three bytes in; the sealed block's two dwords out.
-pub fn seal_time(time: u32, bytes: [u8; 3]) -> [u32; 2] {
-    let o = crate::owners::boundary();
-    let replay = &o.race.replay;
+pub fn seal_time(
+    menus: &crate::menu::owner::Menus,
+    race: &crate::race::owner::Race,
+    time: u32,
+    bytes: [u8; 3],
+) -> [u32; 2] {
+    let replay = &race.replay;
     let value = sealed_value(
         time,
-        o.menus.play.cheats.cheats.get(),
-        o.race.shared.work.patch_switch.bits(),
+        menus.play.cheats.cheats.get(),
+        race.shared.work.patch_switch.bits(),
     );
     let bytes = block(value, bytes);
     let [b0, b1, b2, b3, b4, b5, b6, b7] = bytes;

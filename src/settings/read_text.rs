@@ -7,12 +7,11 @@
 use crate::errors::BadInput;
 use crate::files::read_file::read_file_to_store;
 use crate::settings::TEXT_ROOM;
-use crate::system::owner::system;
+use crate::system::owner::System;
 
 /// The scratch block with the text (NUL-terminated) at its start, or None if the file was
 /// not read. Refuses what `read_file` refuses.
-pub fn read_text(path: &[u8]) -> Result<Option<Vec<u8>>, BadInput> {
-    let system = system();
+pub fn read_text(system: &System, path: &[u8]) -> Result<Option<Vec<u8>>, BadInput> {
     {
         let read = read_file_to_store(path, &system.work.files.buffer, TEXT_ROOM, 0)?;
         // Converted: `rc2k_core::files::settings::text_read`.

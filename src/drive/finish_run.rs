@@ -27,12 +27,8 @@ fn lift_car(race: &Race) {
     ) as u32);
 }
 
-pub fn finish_run(
-    race: &Race,
-    scene: &crate::scene::owner::Scene,
-    sound: &crate::sound::owner::Sound,
-    input: &crate::input::owner::Input,
-) -> Result<(), Refused> {
+pub fn finish_run(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    let (scene, sound, input) = (o.scene, o.sound, o.input);
     lift_car(race);
     restart_clock(race);
     race.frame
@@ -78,7 +74,7 @@ pub fn finish_run(
             scene,
         )?;
         crate::drive::store_first_car::store_first_car(&race.shared)?;
-        race_frame(race)?;
+        race_frame(race, o)?;
     }
     Ok(())
 }

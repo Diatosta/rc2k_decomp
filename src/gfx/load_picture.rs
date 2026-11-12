@@ -26,7 +26,7 @@ pub fn load_picture(path: &dyn crate::session::TextPlace) -> Result<bool, Refuse
     load_picture_with(path, o.gfx, o.system)
 }
 
-/// As `load_picture`, with the owners it reaches.
+/// `load_picture` for a caller that holds the owners.
 pub fn load_picture_with(
     path: &dyn crate::session::TextPlace,
     gfx: &crate::gfx::owner::Gfx,

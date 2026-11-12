@@ -82,7 +82,7 @@ fn idle(entry: &Entry) -> Result<Flow, Refused> {
     }
     log("menu::main_menu_loop: idle, `menu::play_films` is called");
     // `menu::play_films` with mode 1.
-    crate::menu::play_films::play_films(true)?;
+    crate::menu::play_films::play_films(entry.owners, true)?;
     log("menu::main_menu_loop: `menu::play_films` has come back");
     menus.screens.loop_flags.idle.set(false);
     update_blink(menus);

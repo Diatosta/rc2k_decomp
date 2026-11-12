@@ -26,7 +26,7 @@
 //! the record's room (16 modes: the original would write over the constants after the record) and a size's
 //! place of 0x1000 or more when made (the original reads that far past the list).
 
-use crate::d3d::owner::d3d;
+use crate::d3d::owner::{D3d, d3d};
 use crate::errors::{BadInput, Refused};
 use crate::framework::CarryZeroFlags;
 use crate::gfx::modes::Modes;
@@ -106,6 +106,15 @@ fn modes_of(display: &Display, kind: u32) -> Option<Vec<usize>> {
 /// With `try_choice` (true) the choice tried, else the list made
 /// again; the flags it leaves (see the header).
 pub fn screen_mode_choices(display: &Display, try_choice: bool) -> Result<CarryZeroFlags, Refused> {
+    screen_mode_choices_in(display, d3d(), try_choice)
+}
+
+/// `screen_mode_choices` for a caller that holds the owners.
+pub fn screen_mode_choices_in(
+    display: &Display,
+    d3d: &D3d,
+    try_choice: bool,
+) -> Result<CarryZeroFlags, Refused> {
     // Converted: `rc2k_core::gfx::mode_choices`.
     let failed = || {
         Ok(CarryZeroFlags {
@@ -156,7 +165,7 @@ pub fn screen_mode_choices(display: &Display, try_choice: bool) -> Result<CarryZ
             );
             let tried = crate::gfx::try_screen_mode::try_screen_mode(display, mode)?;
             let worked =
-                !tried.carry && mc::kept(display.choices.mipmapping.get(), d3d().cards.mips.get());
+                !tried.carry && mc::kept(display.choices.mipmapping.get(), d3d.cards.mips.get());
             if worked {
                 crate::gfx::keep_race_screen_mode::keep_race_screen_mode(display, mode)?;
             }
@@ -170,7 +179,7 @@ pub fn screen_mode_choices(display: &Display, try_choice: bool) -> Result<CarryZ
                 zero: mode == 0,
             });
         }
-        return rebuild(display, current, modes);
+        return rebuild(display, d3d, current, modes);
     }
     display.choices.card.set(kind);
     display.choices.has_primary.set(display.cards.primary.get());
@@ -178,12 +187,13 @@ pub fn screen_mode_choices(display: &Display, try_choice: bool) -> Result<CarryZ
         .choices
         .has_secondary
         .set(display.cards.secondary.get());
-    rebuild(display, display.mode.race_mode.get(), modes)
+    rebuild(display, d3d, display.mode.race_mode.get(), modes)
 }
 
 /// The list made again, `current` the mode kept.
 fn rebuild(
     display: &Display,
+    d3d: &D3d,
     current: u32,
     modes: Option<Vec<usize>>,
 ) -> Result<CarryZeroFlags, Refused> {
@@ -220,7 +230,7 @@ fn rebuild(
             .set(display.choices.resolutions.get() + 1);
         listed.push(l.mode);
     }
-    display.choices.mip_limit.set(d3d().cards.mips.get());
+    display.choices.mip_limit.set(d3d.cards.mips.get());
     display.choices.listed.set(1);
     display
         .choices

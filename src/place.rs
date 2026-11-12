@@ -56,6 +56,7 @@ impl From<u32> for BytePlace {
     }
 }
 
+#[cfg(test)]
 impl From<GamePtr> for BytePlace {
     fn from(at: GamePtr) -> Self {
         BytePlace::At(at)

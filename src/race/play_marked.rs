@@ -19,30 +19,24 @@ use rc2k_core::race::viewer_flow::Play;
 /// `play.end`. The start read's carry is not looked at.
 pub fn play_tail(
     race: &Race,
-    input: &crate::input::owner::Input,
-    sound: &crate::sound::owner::Sound,
+    o: crate::owners::Owners<'static>,
     play: Play,
 ) -> Result<(), Refused> {
     let replay = &race.replay;
     replay.replay_view.play_end.set(play.end);
     race.shared.replay_file.viewer_stopped.set(false);
     { crate::drive::read_replay_frame::read_replay_frame(race, play.from, play.frame) }?;
-    crate::race::play_replay_range::play_replay_range(race, sound, input)?;
+    crate::race::play_replay_range::play_replay_range(race, o)?;
     replay.replay_view.play_from_here.set(0);
     Ok(())
 }
 
 /// `play_marked`.
-pub fn play_marked(
-    race: &Race,
-    input: &crate::input::owner::Input,
-    sound: &crate::sound::owner::Sound,
-) -> Result<(), Refused> {
+pub fn play_marked(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::viewer_flow::marked_play`.
     play_tail(
         race,
-        input,
-        sound,
+        o,
         rc2k_core::race::viewer_flow::marked_play(
             race.viewer_buffers().mark_in.get(),
             race.viewer_buffers().mark_out.get(),
@@ -51,17 +45,12 @@ pub fn play_marked(
 }
 
 /// `play_from_here`.
-pub fn play_from_here(
-    race: &Race,
-    input: &crate::input::owner::Input,
-    sound: &crate::sound::owner::Sound,
-) -> Result<(), Refused> {
+pub fn play_from_here(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let replay = &race.replay;
     // Converted: `rc2k_core::race::viewer_flow::play_from_here`.
     play_tail(
         race,
-        input,
-        sound,
+        o,
         rc2k_core::race::viewer_flow::play_from_here(
             replay.replay_view.replay_block.get(),
             replay.replay_view.replay_frame.get(),

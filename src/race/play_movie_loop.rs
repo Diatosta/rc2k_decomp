@@ -26,7 +26,8 @@ fn log_number(n: u32) {
     crate::logfile::log_int::log_int(n as i32, true, 1);
 }
 
-pub fn play_movie_loop(race: &Race, input: &crate::input::owner::Input) -> Result<(), Refused> {
+pub fn play_movie_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    let input = o.input;
     use crate::drive::race_parts;
     crate::race::stage_prefs::init_skidmarks(race)?;
     log_text(TEXTS[0], false);
@@ -45,8 +46,8 @@ pub fn play_movie_loop(race: &Race, input: &crate::input::owner::Input) -> Resul
         if input.devices.keys_pressed.get(1) != 0 {
             break;
         }
-        { crate::drive::race_step::race_step(race, crate::scene::owner::scene()) }?;
-        race_parts::race_frame(race)?;
+        { crate::drive::race_step::race_step(race, o.scene, input, o.sound, o.system, o.net) }?;
+        race_parts::race_frame(race, o)?;
         if race.replay.replay_view.replay_block.get() == race.replay.replay_view.play_end.get() {
             break;
         }

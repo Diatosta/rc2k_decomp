@@ -44,14 +44,19 @@ pub struct Selection {
 
 /// None while the tables are not there; the original then reads through a null pointer.
 pub fn selection(menus: &Menus) -> Result<Option<Selection>, BadInput> {
+    selection_in(menus, system())
+}
+
+/// `selection` on the given system tables.
+pub fn selection_in(
+    menus: &Menus,
+    system: &crate::system::owner::System,
+) -> Result<Option<Selection>, BadInput> {
     let screens = &menus.screens;
     let group: u32 = screens.event.stage_group.get();
     let index: u32 = screens.event.stage_number.get();
     let sub: u32 = screens.event.stage_sub.get();
-    let table = system()
-        .records
-        .stage_tables
-        .group_event_table(group, sub)?;
+    let table = system.records.stage_tables.group_event_table(group, sub)?;
     Ok(Some(Selection {
         group,
         sub,

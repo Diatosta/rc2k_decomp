@@ -36,7 +36,7 @@ use crate::owners::Owners;
 use crate::race::owner::Race;
 
 /// Whether the action is one. `action` the action.
-pub fn viewer_action(race: &Race, o: Owners<'_>, action: u32) -> Result<bool, Refused> {
+pub fn viewer_action(race: &Race, o: Owners<'static>, action: u32) -> Result<bool, Refused> {
     let replay = &race.replay;
     // Converted: `rc2k_core::race::viewer::{Action, goto_block, frame_back, frame_on,
     // mark_in_here, mark_out_here}`.
@@ -96,13 +96,13 @@ pub fn viewer_action(race: &Race, o: Owners<'_>, action: u32) -> Result<bool, Re
             if from_here {
                 replay.replay_view.play_from_here.set(1);
             }
-            crate::race::play_marked::play_from_here(race, o.input, o.sound)?;
+            crate::race::play_marked::play_from_here(race, o)?;
         }
-        Action::PlayMarked => crate::race::play_marked::play_marked(race, o.input, o.sound)?,
+        Action::PlayMarked => crate::race::play_marked::play_marked(race, o)?,
         Action::PlayAgain => loop {
             replay.replay_view.replay_block.set(0);
             replay.replay_view.replay_frame.set(0);
-            crate::race::play_marked::play_from_here(race, o.input, o.sound)?;
+            crate::race::play_marked::play_from_here(race, o)?;
             if replay.replay_view.key_after_play.get() != 0 {
                 break;
             }
@@ -148,7 +148,7 @@ pub fn viewer_action(race: &Race, o: Owners<'_>, action: u32) -> Result<bool, Re
         Action::EndEdit => race.viewer_buffers().camera_edit.set(0),
         Action::Pictures { time } => {
             crate::race::start_frame_pictures::start_frame_pictures(race, time)?;
-            crate::race::play_marked::play_marked(race, o.input, o.sound)?;
+            crate::race::play_marked::play_marked(race, o)?;
             crate::race::stop_frame_pictures::stop_frame_pictures(race);
         }
     }
@@ -252,7 +252,7 @@ fn paste(race: &Race) -> Result<(), Refused> {
 }
 
 /// 0x14: another replay chosen to view.
-fn another_replay(race: &Race, o: Owners<'_>) -> Result<(), Refused> {
+fn another_replay(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
     let replay = &race.replay;
     let shared = &race.shared;
     if replay.replay_view.last_race_viewed.is_set() {
@@ -278,7 +278,7 @@ fn another_replay(race: &Race, o: Owners<'_>) -> Result<(), Refused> {
 }
 
 /// 0x15, 0x16: saved back into its slot (`back`, a slot below 100) or into one chosen.
-fn save(race: &Race, o: Owners<'_>, back: bool) -> Result<(), Refused> {
+fn save(race: &Race, o: Owners<'static>, back: bool) -> Result<(), Refused> {
     let replay = &race.replay;
     let shared = &race.shared;
     if shared.replay_file.index_block_count.get() == 0 {

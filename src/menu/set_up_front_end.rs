@@ -19,7 +19,6 @@
 
 use crate::errors::Refused;
 use crate::saves::default_times::to_the_log;
-use crate::saves::owner::saves;
 use crate::system::owner::System;
 
 // ---- game data ----
@@ -45,7 +44,7 @@ fn record_tables(system: &System) -> [crate::records::stages_store::RecordTable;
 /// where a measuring starts, which a width does not depend on. The stage passed is 0.
 pub fn set_up_front_end(o: crate::owners::Owners<'_>) -> Result<(), Refused> {
     let (menus, sound, system, gfx) = (o.menus, o.sound, o.system, o.gfx);
-    let saves = saves();
+    let (race, saves) = (o.race, o.saves);
     let best_times = &saves.best_times;
     let stage = 0;
     use crate::saves::{
@@ -57,8 +56,8 @@ pub fn set_up_front_end(o: crate::owners::Owners<'_>) -> Result<(), Refused> {
         crate::menu::add_clio_car::add_clio_car(menus)?;
     }
     crate::menu::link_player_names::link_player_names(menus)?;
-    crate::menu::show_loading_picture::show_loading_picture(menus)?;
-    crate::gfx::build_menu_sprites::build_menu_sprites_in_game(gfx, system)?;
+    crate::menu::show_loading_picture::show_loading_picture_in(menus, gfx, system)?;
+    crate::gfx::build_menu_sprites::build_menu_sprites_in_game(gfx, system, menus, o.strings)?;
     crate::menu::fit_player_names::fit_player_names()?;
     // The two dwords: the music volumes, then the tables' copies.
     sound
@@ -84,17 +83,36 @@ pub fn set_up_front_end(o: crate::owners::Owners<'_>) -> Result<(), Refused> {
         .set(u32::from(crate::saves::best_times::SUMMARY.is_taken()));
     if best_times.loaded.get() != 1 {
         menus.screens.draw_work.scratch_0c.set(0u32);
-        default_best_scores::default_best_scores()?;
+        default_best_scores::default_best_scores(menus, race)?;
         menus.screens.draw_work.scratch_0c.set(0u32);
-        default_championship_times::default_championship_times(saves, stage, &mut to_the_log)?;
+        default_championship_times::default_championship_times(
+            menus,
+            race,
+            system,
+            saves,
+            stage,
+            &mut to_the_log,
+        )?;
         menus.screens.draw_work.scratch_0c.set(1u32);
-        default_checkpoint_times::default_checkpoint_times(stage, &mut to_the_log)?;
+        default_checkpoint_times::default_checkpoint_times(
+            menus,
+            race,
+            system,
+            stage,
+            &mut to_the_log,
+        )?;
         menus.screens.draw_work.scratch_0c.set(0u32);
-        default_class_times::default_class_times()?;
+        default_class_times::default_class_times(menus, race)?;
         menus.screens.draw_work.scratch_0c.set(0u32);
-        default_stage_times::default_stage_times(stage, &mut to_the_log)?;
+        default_stage_times::default_stage_times(menus, race, system, stage, &mut to_the_log)?;
         menus.screens.draw_work.scratch_0c.set(0u32);
-        default_stage_times_alt::default_stage_times_alt(stage, &mut to_the_log)?;
+        default_stage_times_alt::default_stage_times_alt(
+            menus,
+            race,
+            system,
+            stage,
+            &mut to_the_log,
+        )?;
         best_times.loaded.set(1);
     }
     if !menus.screens.loop_flags.options_loaded.is_set() {

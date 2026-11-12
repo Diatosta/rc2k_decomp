@@ -103,7 +103,7 @@ pub fn replay_viewer(race: &Race, mode: Mode) -> Result<(), Refused> {
 }
 
 /// Up to the end.
-fn view(race: &Race, o: Owners<'_>, mode: Mode) -> Result<(), Refused> {
+fn view(race: &Race, o: Owners<'static>, mode: Mode) -> Result<(), Refused> {
     let (system, install) = (o.system, o.install);
     let devices = &o.input.devices;
     let session = &system.session;
@@ -221,7 +221,7 @@ fn view(race: &Race, o: Owners<'_>, mode: Mode) -> Result<(), Refused> {
 }
 
 /// An action done: the items are marked again after one that is an action.
-fn action_next(race: &Race, o: Owners<'_>, action: u32) -> Result<Next, Refused> {
+fn action_next(race: &Race, o: Owners<'static>, action: u32) -> Result<Next, Refused> {
     Ok(
         if crate::race::viewer_action::viewer_action(race, o, action)? {
             Next::Mark
@@ -232,7 +232,7 @@ fn action_next(race: &Race, o: Owners<'_>, action: u32) -> Result<Next, Refused>
 }
 
 /// A key while stopped (0x41D139 ..): where it leads.
-fn stopped_key(race: &Race, o: Owners<'_>, list: ListMenu, key: u8) -> Result<Next, Refused> {
+fn stopped_key(race: &Race, o: Owners<'static>, list: ListMenu, key: u8) -> Result<Next, Refused> {
     let install = o.install;
     if crate::gfx::shots::on() != 0 && key == 0x52 {
         crate::gfx::take_screenshot::take_screenshot()?;

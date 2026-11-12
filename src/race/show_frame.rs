@@ -17,9 +17,11 @@ pub struct Shown {
     pub eax: u32,
 }
 
-pub fn show_frame(race: &Race) -> Result<Shown, Refused> {
-    let system = crate::system::owner::system();
-    let scene = crate::scene::owner::scene();
+pub fn show_frame(
+    race: &Race,
+    system: &crate::system::owner::System,
+    scene: &crate::scene::owner::Scene,
+) -> Result<Shown, Refused> {
     let frame = &race.frame;
     let (locked, kept) = crate::scene::lock_frame::lock_frame(race);
     if locked < 1 {

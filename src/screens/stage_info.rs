@@ -14,7 +14,15 @@ use crate::text::draw_text::Canvas;
 
 /// The page's stage record.
 pub fn stage_record(play: &Play) -> Result<RecordRef, BadInput> {
-    let base = system()
+    stage_record_in(system(), play)
+}
+
+/// `stage_record` on the system's tables.
+pub fn stage_record_in(
+    system: &crate::system::owner::System,
+    play: &Play,
+) -> Result<RecordRef, BadInput> {
+    let base = system
         .records
         .stage_tables
         .level_table(play.arcade.level.get())?;
@@ -76,16 +84,20 @@ pub fn draw_stage_best_and_fastest(
 /// `RaceState.settings.rivals`'s second dword), then `draw_stage_best_and_fastest` on its times
 /// (`g_courseBestTimes`, the stage the record's +0x3C). Refuses (before anything) no
 /// stage record or times table.
-pub fn draw_rally_stage_info(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_rally_stage_info(
+    menus: &Menus,
+    system: &crate::system::owner::System,
+    canvas: &mut dyn Canvas,
+) -> Result<(), Refused> {
     let play = &menus.play;
     let tables = &menus.tables;
     use crate::screens::best_scores::{RALLY_STAGE_TIMES, draw_times_heading};
-    let record = stage_record(play)?;
+    let record = stage_record_in(system, play)?;
     let course_times = &crate::saves::best_times::COURSE_TIMES;
     if !course_times.is_taken() {
         return Err(BadInput("no stage record or times table").into());
     }
-    draw_times_heading(menus, &RALLY_STAGE_TIMES, canvas)?;
+    draw_times_heading(menus, system, &RALLY_STAGE_TIMES, canvas)?;
     // the two headings in `FontObjects.objects[14].first_char` here (the other stage pages: `FontObjects.objects[17].first_char`)
     crate::screens::stage_panel::draw_stage_body_in(
         tables,

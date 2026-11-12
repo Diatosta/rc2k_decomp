@@ -20,7 +20,6 @@ use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
 use crate::menu::owner::Tables;
 use crate::records::stages_store::{RecordRef, RecordTable};
-use crate::system::owner::system;
 use crate::text::draw_text::Canvas;
 
 /// The stage's section's first record and the stage's record (the event's stage table for
@@ -47,7 +46,11 @@ fn label(tables: &Tables, v: u32) -> Result<u32, Refused> {
     Ok(tables.captions.duel_labels[v as usize - 1].get())
 }
 
-pub fn draw_duel_result(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_duel_result(
+    menus: &Menus,
+    system: &crate::system::owner::System,
+    canvas: &mut dyn Canvas,
+) -> Result<(), Refused> {
     let play = &menus.play;
     let screens = &menus.screens;
     let tables = &menus.tables;
@@ -58,7 +61,7 @@ pub fn draw_duel_result(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Re
     if p1.get().name_player().is_none() || p2.get().name_player().is_none() {
         return Err(BadInput("player 1 or 2 without a name").into());
     }
-    let (base, record) = records(screens, &system().records.stage_tables)?;
+    let (base, record) = records(screens, &system.records.stage_tables)?;
     let stage = crate::screens::page_settings::stage_line_bytes(0x482, record)?;
     if stage.len() > 0x100 {
         return Err(BadInput("a stage line past the line buffer").into());

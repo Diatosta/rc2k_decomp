@@ -365,32 +365,40 @@ fn read_command_line_and_install_state(o: Owners<'static>, r: &Context) {
         finish("fatal error 0x900010FF, FPU is required", 1);
     }
     rust("system::read_command_line");
-    if let Err(why) = crate::system::read_command_line::read_own_command_line(system) {
+    if let Err(why) = crate::system::read_command_line::read_own_command_line(o) {
         refused("system::read_command_line", why.into(), r);
     }
+    let mut outside = Outside {
+        install: o.install,
+        system,
+    };
     rust("install::check_clio_disc");
-    if let Err(e) = crate::install::check_clio_disc::check_clio_disc(o.install, &mut Outside) {
+    if let Err(e) = crate::install::check_clio_disc::check_clio_disc(o.install, &mut outside) {
         refused("install::check_clio_disc", e, r);
     }
     rust("install::check_at_start");
     let no_audio = &o.audio.state.no_audio;
     if let Err(e) =
-        crate::install::check_at_start::check_at_start(o.install, &mut Outside, no_audio)
+        crate::install::check_at_start::check_at_start(o.install, system, &mut outside, no_audio)
     {
         refused("install::check_at_start", e, r);
     }
     rust("system::check_developer_machine");
     crate::system::check_developer_machine::check_developer_machine(o.strings);
     rust("install::read_languages");
-    if let Err(e) =
-        crate::install::read_languages::read_languages(o.install, &o.install.names.lang_cfg.text())
-            .map_err(Refused::from)
+    if let Err(e) = crate::install::read_languages::read_languages(
+        o.install,
+        o.system,
+        &o.install.names.lang_cfg.text(),
+    )
+    .map_err(Refused::from)
     {
         refused("install::read_languages", e, r);
     }
     rust("install::read_record");
-    if let Err(e) = crate::install::read_record::read_record(&o.install.texts.record_path.text())
-        .map_err(Refused::from)
+    if let Err(e) =
+        crate::install::read_record::read_record(o.system, &o.install.texts.record_path.text())
+            .map_err(Refused::from)
     {
         refused("install::read_record", e, r);
     }
@@ -400,8 +408,8 @@ fn read_command_line_and_install_state(o: Owners<'static>, r: &Context) {
 /// check that no other copy of the game runs.
 fn load_language_and_game_data(o: Owners<'static>, r: &Context) {
     rust("strings::load_language");
-    let compile = &mut || crate::strings::compile_lexicon::compile_lexicon();
-    if let Err(e) = crate::strings::load_language::load_language(compile) {
+    let compile = &mut || crate::strings::compile_lexicon::compile_lexicon(o.strings, o.system);
+    if let Err(e) = crate::strings::load_language::load_language(o, compile) {
         refused("strings::load_language", e, r);
     }
     rust("system::load_game_data");
@@ -433,7 +441,7 @@ fn probe_display(o: Owners<'static>, r: &Context) {
 /// The network's set-up, the game's threads and the audio thread's commands.
 fn start_workers(o: Owners<'static>, r: &Context) {
     rust("net::set_up");
-    if let Err(e) = crate::net::set_up::set_up() {
+    if let Err(e) = crate::net::set_up::set_up(o.net) {
         refused("net::set_up", e, r);
     }
     rust("system::set_priority_class");
@@ -496,7 +504,7 @@ fn run_main_loop(o: Owners<'static>, r: &Context) {
 /// SDL's (`SDL_DOES`).
 fn shut_down(o: Owners<'static>, r: &Context) {
     rust("net::shut_down");
-    if let Err(e) = crate::net::shut_down::shut_down() {
+    if let Err(e) = crate::net::shut_down::shut_down(o.net, o.system) {
         refused("net::shut_down", e, r);
     }
     rust("gfx::free_picture_buffer");
@@ -506,7 +514,7 @@ fn shut_down(o: Owners<'static>, r: &Context) {
     rust("system::set_priority_class");
     crate::system::set_priority_class::set_priority_class(o.system, 0x20);
     rust("install::run_after_exit");
-    if let Err(e) = crate::install::run_after_exit::run_after_exit(o.install) {
+    if let Err(e) = crate::install::run_after_exit::run_after_exit(o.install, o.system) {
         refused("install::run_after_exit", e, r);
     }
     rust("system::restore_error_mode");

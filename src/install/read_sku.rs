@@ -16,9 +16,10 @@ use rc2k_core::install::config;
 
 pub fn read_sku(
     install: &'static crate::install::owner::Install,
+    system: &crate::system::owner::System,
     path: &[u8],
 ) -> Result<(), BadInput> {
-    let Some(text) = read_text(path)? else {
+    let Some(text) = read_text(system, path)? else {
         return Ok(());
     };
     // Converted: `rc2k_core::install::config::read_sku` (the key as its constant).

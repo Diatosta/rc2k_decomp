@@ -12,8 +12,8 @@
 //! own layout. The readers are `input::key_to_char`, `append_key_name`, `yes_no_key` and the
 //! name editors.
 
-use crate::input::owner::input;
-use crate::strings::owner::strings;
+use crate::input::owner::Input;
+use crate::strings::owner::Strings;
 use rc2k_core::input::layouts::{FILE_LEN, File, Layout, Picked};
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
@@ -90,8 +90,7 @@ impl Layouts {
     }
 
     /// The start of `load_language`: the built-in layout, in mode 1.
-    pub fn use_built_in(&mut self) {
-        let input = input();
+    pub fn use_built_in(&mut self, input: &Input) {
         self.built_in = Layout::simple(
             &input.keyboard.plain.read(),
             &input.keyboard.shifted.read(),
@@ -121,8 +120,7 @@ impl Layouts {
     }
 
     /// Keyboard type 2: the NEC keyboard's head (its mode) and layout take the file's place.
-    pub fn use_nec(&mut self) {
-        let strings = strings();
+    pub fn use_nec(&mut self, strings: &Strings) {
         let tables = strings.language.keyboard.nec_layout;
         let (plain, shifted, names, end) = NEC_TABLES;
         self.nec = Layout::simple(
@@ -140,8 +138,10 @@ impl Layouts {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::input::owner::input;
     use crate::input::store::KEYBOARD_IDA;
     use crate::moved::image_bytes;
+    use crate::strings::owner::strings;
 
     fn word(bytes: &[u8], at: usize) -> usize {
         u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap()) as usize

@@ -129,14 +129,16 @@ fn correct_lexicon() -> Result<(), BadInput> {
 }
 
 /// `compile` stands for `strings::compile_lexicon`.
-pub fn load_language(compile: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused> {
-    let o = crate::owners::boundary();
+pub fn load_language(
+    o: crate::owners::Owners<'_>,
+    compile: &mut dyn FnMut() -> Result<(), Refused>,
+) -> Result<(), Refused> {
     let (strings, install) = (o.strings, o.install);
     compile()?;
-    layouts().use_built_in();
+    layouts().use_built_in(o.input);
 
     let mut locale = strings.language.locale.read();
-    let found = read_first_match(LOCALE_FILES, &mut locale, 0)?;
+    let found = read_first_match(o.system, LOCALE_FILES, &mut locale, 0)?;
     strings.language.locale.write(&locale);
     if found.is_none() {
         return Err(fatal(0x80E3_8381, ""));
@@ -155,7 +157,7 @@ pub fn load_language(compile: &mut dyn FnMut() -> Result<(), Refused>) -> Result
     // Read over the block the last load left (a shorter file leaves its tail).
     KEYBOARD_BUFFER.write(&layouts().file_bytes());
     let mut keyboard = KEYBOARD_BUFFER.read();
-    let found = read_first_match(KEYBOARD_FILES, &mut keyboard, 0)?;
+    let found = read_first_match(o.system, KEYBOARD_FILES, &mut keyboard, 0)?;
     KEYBOARD_BUFFER.write(&keyboard);
     if found.is_some() {
         let keyboard = KEYBOARD_BUFFER.read();
@@ -171,7 +173,7 @@ pub fn load_language(compile: &mut dyn FnMut() -> Result<(), Refused>) -> Result
 
     // 0x403462: the NEC keyboard's head (its layout mode) and layout.
     if o.system.session.machine.keyboard_type.get() == 2 {
-        layouts().use_nec();
+        layouts().use_nec(strings);
         install.run.first_drive.set(0x61u32);
     }
 

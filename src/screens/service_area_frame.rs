@@ -11,14 +11,15 @@
 
 use crate::errors::Refused;
 use crate::framework::CarryZeroFlags;
-use crate::menu::owner::Menus;
+use crate::owners::Owners;
 use crate::platform::{lock_surface, show_frame_now, unlock_surface};
 
 /// The flags it leaves (the registers are kept). The
 /// lock's carry is `cmp g_surfaceLocked, 1`'s (its zero clear then). On a frame not shown
 /// (quitting) the zero flag was what the call's way back left, nothing meaningful: clear
 /// here. On the way through, the show's eax is the 0 the scene's begin left: zero set.
-pub fn service_area_frame(menus: &Menus) -> Result<CarryZeroFlags, Refused> {
+pub fn service_area_frame(o: Owners<'_>) -> Result<CarryZeroFlags, Refused> {
+    let menus = o.menus;
     use crate::screens::{draw_service_area, draw_service_boxes};
     const FAILED: CarryZeroFlags = CarryZeroFlags {
         carry: true,
@@ -37,7 +38,7 @@ pub fn service_area_frame(menus: &Menus) -> Result<CarryZeroFlags, Refused> {
     if lock_surface() < 1 {
         return Ok(FAILED);
     }
-    draw_service_area::draw_service_area(menus, &mut crate::text::draw_text::GameCanvas)?;
+    draw_service_area::draw_service_area(menus, o.race, &mut crate::text::draw_text::GameCanvas)?;
     unlock_surface();
     if !show_frame_now() {
         return Ok(FAILED);

@@ -15,7 +15,6 @@ use crate::menu::owner::Play;
 use crate::menu::owner::Screens;
 use crate::records::stages_store::{RecordRef, RecordTable};
 use crate::session::DwordLike;
-use crate::system::owner::system;
 use crate::text::draw_text::Canvas;
 
 pub use rc2k_core::screens::players_results::{Layout, WITH_POINTS, WITHOUT_POINTS};
@@ -116,6 +115,7 @@ fn prepare<'a>(
 /// first, before anything is drawn).
 pub fn draw_players_results(
     menus: &Menus,
+    system: &crate::system::owner::System,
     layout: &Layout,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
@@ -126,7 +126,7 @@ pub fn draw_players_results(
             base,
             stage,
             speeds,
-        } = prepare(menus, layout, &system().records.stage_tables)?;
+        } = prepare(menus, layout, &system.records.stage_tables)?;
         let mut rows = Vec::new();
         for (row, (p, speed)) in players.iter().zip(speeds).enumerate() {
             rows.push(Row {

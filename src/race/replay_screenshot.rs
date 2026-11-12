@@ -13,9 +13,11 @@
 use crate::errors::Refused;
 use crate::pointers::Store;
 
-pub fn replay_screenshot() -> Result<(), Refused> {
-    let o = crate::owners::boundary();
-    let (gfx, panel) = (o.gfx, o.race.viewer_panel());
+pub fn replay_screenshot(
+    race: &crate::race::owner::Race,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), Refused> {
+    let panel = race.viewer_panel();
     if panel.replay_recording.get() != 1 {
         return Ok(());
     }

@@ -12,21 +12,22 @@
 //! Converted: `rc2k_core::saves::defaults::class_times`, `rc2k_core::saves::entries::fill_made_up`.
 
 use crate::errors::Refused;
+use crate::menu::owner::Menus;
+use crate::race::owner::Race;
 use crate::saves::best_times::LEVEL_SCORES;
 use crate::saves::default_times::{GameSource, to_nowhere};
 use rc2k_core::saves::defaults::class_times;
 
 // ---- game data ----
 
-pub fn default_class_times() -> Result<(), Refused> {
+pub fn default_class_times(menus: &Menus, race: &Race) -> Result<(), Refused> {
     if !LEVEL_SCORES.is_taken() {
         return Err(crate::errors::BadInput("no table").into());
     }
-    let o = crate::owners::boundary();
     let entries = class_times(&mut GameSource {
         log: &mut to_nowhere,
-        menus: o.menus,
-        race: o.race,
+        menus,
+        race,
     })?;
     LEVEL_SCORES.with(|t| rc2k_core::saves::entries::fill_made_up(t, &entries))?;
     Ok(())

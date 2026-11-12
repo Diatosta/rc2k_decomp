@@ -475,7 +475,8 @@ fn outside(addr: u32, len: usize, what: &str) -> BadInput {
 ///
 /// One made from a field (`to`) also keeps that field's ends: going outside them is refused, so an
 /// overrun inside a store is seen, which a region's check is not (a chat message over the
-/// network's mode). `unbounded` marks the places the original reads on.
+/// network's mode). A place the original reads on past a field is a store's bytes
+/// (`place::BytePlace::in_store`).
 #[derive(Clone, Copy, Debug)]
 pub struct GamePtr {
     at: u32,
@@ -489,9 +490,11 @@ impl PartialEq for GamePtr {
     }
 }
 
+#[cfg(test)]
 impl Eq for GamePtr {}
 
 /// By the address, as `PartialEq` (a place's field ends do not make it another place).
+#[cfg(test)]
 impl std::hash::Hash for GamePtr {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.at.hash(state);
@@ -504,11 +507,6 @@ impl GamePtr {
             at: addr,
             field: (0, 0),
         }
-    }
-
-    /// The same address, free of its field's ends: where the original runs on past a field.
-    pub const fn unbounded(self) -> Self {
-        Self::new(self.at)
     }
 
     /// The game address of a field of Rust's game state (a store's cell, buffer or place).
@@ -581,6 +579,7 @@ impl GamePtr {
     }
 
     /// The `T` written at the address, when all of it lies in one region.
+    #[cfg(test)]
     #[track_caller]
     pub fn write<T: Plain>(self, value: T, what: &str) -> Result<(), BadInput> {
         let backing = self.check(size_of::<T>(), what)?;

@@ -16,7 +16,11 @@ use crate::menu::owner::Menus;
 use crate::screens::best_scores::{STAGE_TIMES, draw_times_heading};
 use crate::text::draw_text::Canvas;
 
-pub fn draw_player_stage_result(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_player_stage_result(
+    menus: &Menus,
+    system: &crate::system::owner::System,
+    canvas: &mut dyn Canvas,
+) -> Result<(), Refused> {
     let player = crate::menu::player_settings::current(menus)?.get();
     let name = crate::screens::game_screen::player_name_of(crate::menu::player_name::name(menus)?);
     let top_speed = player.figure;
@@ -26,7 +30,7 @@ pub fn draw_player_stage_result(menus: &Menus, canvas: &mut dyn Canvas) -> Resul
         crate::strings::units::units(),
     )?;
     speed.push(0);
-    (STAGE_TIMES.records)(menus)?;
+    (STAGE_TIMES.records)(menus, system)?;
     // The logic is in `rc2k_core::screens::player_result::stage_result`.
     use crate::screens::game_screen::PlayerResultScreen;
     speed.pop();
@@ -39,7 +43,7 @@ pub fn draw_player_stage_result(menus: &Menus, canvas: &mut dyn Canvas) -> Resul
     };
     rc2k_core::screens::player_result::stage_result(
         &mut PlayerResultScreen::new(canvas),
-        &mut |s: &mut PlayerResultScreen| draw_times_heading(menus, &STAGE_TIMES, s.canvas),
+        &mut |s: &mut PlayerResultScreen| draw_times_heading(menus, system, &STAGE_TIMES, s.canvas),
         &p,
         crate::strings::append_time::show_hours(),
     )?;

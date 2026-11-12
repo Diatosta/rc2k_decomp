@@ -14,7 +14,10 @@ const TEXT_LEN: usize = 0x100;
 const FIRST_STRING: u32 = 0x191;
 const SECOND_STRING: u32 = 0x170;
 
-pub fn player_number_text(menus: &Menus) -> Result<(), Refused> {
+pub fn player_number_text(
+    menus: &Menus,
+    buffers: &crate::screens::text_buffers_store::TextBuffers,
+) -> Result<(), Refused> {
     let n: u32 = menus.screens.event.current_player.get();
     let mut text = Vec::new();
     let mut emit = |bytes: &[u8]| text.extend_from_slice(bytes);
@@ -24,8 +27,6 @@ pub fn player_number_text(menus: &Menus) -> Result<(), Refused> {
     append_string_by_id(SECOND_STRING, &mut emit)?;
     // The logic is in `rc2k_core::screens::captions::fit`.
     let text = rc2k_core::screens::captions::fit(text, TEXT_LEN)?;
-    crate::screens::text_buffers_store::TEXT_BUFFERS
-        .number_text
-        .write_at(0, &text, "the number text")?;
+    buffers.number_text.write_at(0, &text, "the number text")?;
     Ok(())
 }

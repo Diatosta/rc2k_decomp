@@ -11,7 +11,6 @@ use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::owner::Race;
-use crate::system::owner::system;
 
 /// The table's entries; the kinds go to 0x21 (the other kinds' tables have 0x22).
 const KIND_FLOATS: u32 = 0x17;
@@ -28,9 +27,9 @@ pub fn init_marks(
     seed: u32,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let course = &race.course;
-    let system = system();
     use crate::effects::*;
     let (ring, masks) = (&effects.ring, &effects.masks);
     let weather = &effects.weather;

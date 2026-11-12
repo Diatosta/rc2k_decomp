@@ -12,6 +12,10 @@ use crate::menu::owner::Menus;
 use crate::screens::players_results::{WITH_POINTS, draw_players_results};
 use crate::text::draw_text::Canvas;
 
-pub fn draw(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    draw_players_results(menus, &WITH_POINTS, canvas)
+pub fn draw(
+    menus: &Menus,
+    system: &crate::system::owner::System,
+    canvas: &mut dyn Canvas,
+) -> Result<(), Refused> {
+    draw_players_results(menus, system, &WITH_POINTS, canvas)
 }

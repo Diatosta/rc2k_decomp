@@ -21,10 +21,13 @@ use rc2k_core::drive::race_steps;
 /// One car's step (inside `pusha` / `popa`: nothing it leaves in the registers goes out).
 fn car_step(
     race: &Race,
+    system: &crate::system::owner::System,
+    sound: &crate::sound::owner::Sound,
     scene: &crate::scene::owner::Scene,
     input: &crate::input::owner::Input,
+    net: &crate::net::owner::Net,
 ) -> Result<(), Refused> {
-    crate::drive::car_input_words::car_input_words(race, input)?;
+    crate::drive::car_input_words::car_input_words(race, input, net)?;
     crate::drive::record_inputs_if::record_inputs_if(race)?;
     crate::drive::play_inputs_if::play_inputs_if(race)?;
     let slot = race_steps::block_slot(race.shared.work.current_car.get());
@@ -34,16 +37,16 @@ fn car_step(
         .set(race.shared.work.car_block(slot as usize));
     crate::drive::load_car::load_car(&race.shared)?;
     if race.shared.car.driver_kind.get() != 0 {
-        crate::drive::read_car_controls::read_car_controls(race)?;
+        crate::drive::read_car_controls::read_car_controls(race, net, scene)?;
         crate::physics::gear_input_rules::gear_input_rules(
             &race.shared.car,
             &race.shared.physics_tables,
             &race.shared.vars,
         );
-        crate::drive::steer_inputs::steer_inputs(race);
+        crate::drive::steer_inputs::steer_inputs(race, scene);
         crate::drive::pedal_inputs::pedal_inputs(race);
         crate::drive::reset_request::reset_request(race, scene)?;
-        crate::physics::car_physics_step::car_physics_step(race)?;
+        crate::physics::car_physics_step::car_physics_step(race, system, sound, scene)?;
         crate::net::race_step::race_step(race)?;
     }
     race.shared
@@ -62,13 +65,15 @@ fn car_step(
 // skids_restart}`.
 pub fn replay_step(
     race: &Race,
+    system: &crate::system::owner::System,
     sound: &crate::sound::owner::Sound,
     scene: &crate::scene::owner::Scene,
     input: &crate::input::owner::Input,
+    net: &crate::net::owner::Net,
 ) -> Result<(), Refused> {
     let shared = &race.shared;
     race_steps::check_cars(shared.view.race_cars.get())?;
-    crate::drive::choose_shown_cars::choose_shown_cars(race)?;
+    crate::drive::choose_shown_cars::choose_shown_cars_in(race, net)?;
     crate::drive::keep_replay_frame::keep_replay_frame(race)?;
     crate::drive::play_replay_frame::play_replay_frame(race)?;
     if race_steps::skids_restart(
@@ -84,11 +89,11 @@ pub fn replay_step(
         || shared.work.current_car.get(),
         || shared.view.race_cars.get(),
         |n| shared.work.current_car.set(n),
-        || car_step(race, scene, input),
+        || car_step(race, system, sound, scene, input, net),
     )?;
     crate::drive::replay_check::note(race)?;
     crate::drive::animate_stage::animate_stage(race, scene)?;
-    crate::drive::race_mode_cars::race_mode_cars(race)?;
+    crate::drive::race_mode_cars::race_mode_cars(race, scene)?;
     crate::drive::duel_sound_levels::duel_sound_levels(race, sound);
     crate::drive::countdown_beeps::countdown_beeps(race)?;
     crate::drive::two_car_order::two_car_order(race)?;

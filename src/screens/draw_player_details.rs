@@ -25,7 +25,6 @@
 //! switches it first). The menus and draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::{BadInput, Refused};
-use crate::input::owner::input;
 use crate::menu::owner::Menus;
 use crate::menu::player::Player;
 use crate::text::draw_text::Canvas;
@@ -64,6 +63,7 @@ fn string(table: &[impl crate::session::Cell32], index: u32, count: u32) -> Resu
 
 pub fn draw_player_page(
     menus: &Menus,
+    input: &crate::input::owner::Input,
     layout: Layout,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
@@ -99,7 +99,7 @@ pub fn draw_player_page(
     };
     let details = rc2k_core::screens::player_details::Details {
         controller_item: layout.controller_item,
-        controllers: input().devices.controller_count.get() != 0,
+        controllers: input.devices.controller_count.get() != 0,
         name: crate::screens::game_screen::player_name_of(crate::menu::player_names::name_of(
             &player,
         )?),

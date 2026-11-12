@@ -5,7 +5,6 @@
 //! both 0 every frame): the freeze is kept here and put back by `input::end_frame`
 //! (`words`); the page stays 0 (the original's pages are the UI's tabs now).
 
-use crate::input::owner::input;
 use core::sync::atomic::{AtomicU32, Ordering};
 
 /// The keys (scan codes in `g_keysNow` / `g_keysPressed`): Ctrl, F11, F12.
@@ -40,8 +39,7 @@ pub fn toggle_ui() {
 /// Ctrl down, F11 pressed the UI shown or hidden, F12 pressed the race frozen or going; and
 /// both taken out of `g_keysDown` (the bindings read it), `g_keysNow` and `g_keysPressed`,
 /// so that the game does not see them (F12 is its map).
-pub fn take_keys() {
-    let devices = &input().devices;
+pub fn take_keys(devices: &crate::input::store::Devices) {
     if devices.keys_now.get(CONTROL_KEY) == 0 {
         return;
     }

@@ -18,10 +18,11 @@ use rc2k_core::drive::race_ticks;
 // Converted: `rc2k_core::drive::race_ticks::{best_frame, keeps_frame, quit_notice,
 // quit_answer}`.
 /// The answer: 0 to race on.
-pub fn quit_question(race: &Race, input: &crate::input::owner::Input) -> Result<u32, Refused> {
+pub fn quit_question(race: &Race, o: crate::owners::Owners<'static>) -> Result<u32, Refused> {
+    let input = o.input;
     let shared = &race.shared;
     let replay = &race.replay;
-    stop_race_sounds()?;
+    stop_race_sounds(o.sound)?;
     // A button from before the question answers nothing.
     crate::input::menu_pad::take_answer();
     shared.vars.scene_switch.set(1);
@@ -54,7 +55,7 @@ pub fn quit_question(race: &Race, input: &crate::input::owner::Input) -> Result<
             shared.vars.no_replay.get() != 0,
         ) {
             Some(answer) => break answer,
-            None => eax = crate::drive::race_frame::race_frame(race, eax)?,
+            None => eax = crate::drive::race_frame::race_frame(race, o, eax)?,
         }
     };
     for c in 0..8 {
@@ -64,7 +65,7 @@ pub fn quit_question(race: &Race, input: &crate::input::owner::Input) -> Result<
         }
     }
     shared.vars.scene_switch.set(0);
-    wake_car_sounds(race)?;
+    wake_car_sounds(race, o.sound)?;
     for c in 0..8 {
         race.car_blocks().cars[c as usize].input_keys.set(0);
     }

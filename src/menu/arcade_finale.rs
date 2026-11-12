@@ -12,15 +12,11 @@
 //! one before left. Refuses (before anything) a missing player 0.
 
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
-use crate::menu::owner::Play;
+use crate::owners::Owners;
 
-pub fn arcade_finale(
-    menus: &Menus,
-    play: &Play,
-    sound: &crate::sound::owner::Sound,
-    race: &crate::race::owner::Race,
-) -> Result<(), Refused> {
+pub fn arcade_finale(o: Owners<'_>) -> Result<(), Refused> {
+    let (menus, sound, race) = (o.menus, o.sound, o.race);
+    let play = &menus.play;
     let first = play.players.players[0].get();
     race.shared
         .state
@@ -48,7 +44,7 @@ pub fn arcade_finale(
         sound,
     )?;
     crate::sound::set_up_race_sounds::set_up_race_sounds(sound)?;
-    crate::menu::show_loading_picture::show_loading_picture(menus)?;
+    crate::menu::show_loading_picture::show_loading_picture_in(menus, o.gfx, o.system)?;
     crate::race::stage_free::render3d_tidy(race)?;
     crate::race::stage_free::objects_tidy(race)?;
     // `nullsub_6`.
@@ -56,10 +52,10 @@ pub fn arcade_finale(
     crate::drive::finish_race_0::finish_race_0(race)?;
     crate::sound::stop_music::stop_music();
     crate::platform::set_menu_mode_now();
-    crate::menu::show_loading_picture::show_loading_picture(menus)?;
-    crate::scene::set_up_engine::set_up_engine()?;
+    crate::menu::show_loading_picture::show_loading_picture_in(menus, o.gfx, o.system)?;
+    crate::scene::set_up_engine::set_up_engine_in(race, o.scene)?;
     crate::scene::set_up_front_end_scene::set_up_front_end_scene()?;
-    crate::scene::set_up_engine::set_up_engine()?;
+    crate::scene::set_up_engine::set_up_engine_in(race, o.scene)?;
     crate::sound::stop_music::stop_music();
     crate::sound::play_tune_3::play_tune_3();
     // The pending key taken (eax 0).

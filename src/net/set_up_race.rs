@@ -45,7 +45,11 @@ enum Count {
     LocalPlayer,
     Kind(usize),
 }
-pub fn set_up_race(race: &Race, vars: &NetVars) -> Result<(), Refused> {
+pub fn set_up_race(
+    race: &Race,
+    vars: &NetVars,
+    o: crate::owners::Owners<'static>,
+) -> Result<(), Refused> {
     // Converted: `rc2k_core::net::record` (`race_players`, `seat`).
     let players = record::race_players(vars.players.get())?;
     race.shared.view.local_car.set(vars.player.get());
@@ -93,7 +97,7 @@ pub fn set_up_race(race: &Race, vars: &NetVars) -> Result<(), Refused> {
         };
         log_int_nl(value, 1);
     }
-    { crate::race::stage_loading::load_stage(race) }?;
+    { crate::race::stage_loading::load_stage_in(race, o) }?;
     log_bytes(COMPLETE.to_bytes(), true, 1);
     log_bytes(RULE_2.to_bytes(), true, 1);
     Ok(())

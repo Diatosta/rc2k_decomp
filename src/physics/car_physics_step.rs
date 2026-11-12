@@ -57,11 +57,13 @@ fn motion(
 }
 
 /// The steps. Each callee reads what it needs from memory.
-pub fn steps(race: &Race) -> Result<(), Refused> {
+pub fn steps(
+    race: &Race,
+    system: &crate::system::owner::System,
+    sound: &crate::sound::owner::Sound,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let inputs = crate::physics::step_inputs::StepInputs::of(race);
-    let system = crate::system::owner::system();
-    let sound = crate::sound::owner::sound();
-    let scene = crate::scene::owner::scene();
     ph::stir_car_word::stir_car_word(&race.shared.car);
     ph::load_car_specs::load_car_specs(
         &race.physics.car_specs,
@@ -366,11 +368,16 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     Ok(())
 }
 
-pub fn car_physics_step(race: &Race) -> Result<(), Refused> {
+pub fn car_physics_step(
+    race: &Race,
+    system: &crate::system::owner::System,
+    sound: &crate::sound::owner::Sound,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     if race.shared.work.current_car.get() > 7 {
         return Err(BadInput("a current car past 7 (dword_641680's room)").into());
     }
-    steps(race)
+    steps(race, system, sound, scene)
 }
 
 // ---- the arithmetic that was x87 assembly ----

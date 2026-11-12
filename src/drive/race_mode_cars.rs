@@ -9,9 +9,9 @@ use crate::errors::Refused;
 use crate::race::owner::Race;
 
 /// `drive::start_cars_behind` in mode 2.
-pub fn race_mode_cars(race: &Race) -> Result<(), Refused> {
+pub fn race_mode_cars(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     if race.shared.vars.run_kind.get() == 2 {
-        { crate::drive::start_cars_behind::start_cars_behind(race) }?;
+        { crate::drive::start_cars_behind::start_cars_behind(race, scene) }?;
     }
     Ok(())
 }

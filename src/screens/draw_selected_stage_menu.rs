@@ -18,8 +18,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
 use crate::menu::owner::Play;
-use crate::race::owner::race;
-use crate::screens::draw_stage_records::selection;
+use crate::screens::draw_stage_records::{selection, selection_in};
 use crate::screens::stage_panel::{
     build_second_heading, draw_records_for_group, draw_stage_body, menu_item_id, table_dword_at,
 };
@@ -38,12 +37,17 @@ pub fn menu_titles(menus: &Menus, play: &Play) -> Result<Option<(u32, u32)>, Bad
 
 /// Returns the carry flag. Refuses a missing selection or menu: the original reads or writes
 /// through null.
-pub fn draw_selected_stage_menu(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+pub fn draw_selected_stage_menu(
+    menus: &Menus,
+    system: &crate::system::owner::System,
+    race: &crate::race::owner::Race,
+    canvas: &mut dyn Canvas,
+) -> Result<bool, Refused> {
     let play = &menus.play;
     let screens = &menus.screens;
     let tables = &menus.tables;
     let (Some(sel), Some((group_title, table_title))) =
-        (selection(menus)?, menu_titles(menus, play)?)
+        (selection_in(menus, system)?, menu_titles(menus, play)?)
     else {
         return Err(
             BadInput("no record table is selected: the original reads through null").into(),
@@ -53,7 +57,7 @@ pub fn draw_selected_stage_menu(menus: &Menus, canvas: &mut dyn Canvas) -> Resul
         return Err(BadInput("there is no current menu: the original writes through null").into());
     };
     item_0.set(group_title);
-    race().shared.state.settings.direction.set(sel.group);
+    race.shared.state.settings.direction.set(sel.group);
     item_1.set(table_title);
 
     build_second_heading(sel.record)?;

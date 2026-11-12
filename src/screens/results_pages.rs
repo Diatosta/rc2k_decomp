@@ -103,10 +103,10 @@ pub const OVERALL_STAGE: Page = Page {
 /// Draws one page.
 pub fn draw_results_page(
     menus: &Menus,
+    system: &crate::system::owner::System,
     page: &Page,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    let system = crate::system::owner::system();
     let class = menus.screens.event.class.get();
     if !section_there(menus, system)? {
         return Err(BadInput("a section past the record table").into());
@@ -205,8 +205,16 @@ macro_rules! results_page_entry {
         pub mod $module {
             use super::*;
             /// Run by the typed tables (`menu::table_calls`).
-            pub fn draw(menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
-                draw_results_page(menus, &$page, &mut crate::text::draw_text::GameCanvas)
+            pub fn draw(
+                menus: &crate::menu::owner::Menus,
+                system: &crate::system::owner::System,
+            ) -> Result<(), Refused> {
+                draw_results_page(
+                    menus,
+                    system,
+                    &$page,
+                    &mut crate::text::draw_text::GameCanvas,
+                )
             }
         }
     };

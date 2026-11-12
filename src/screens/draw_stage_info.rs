@@ -24,7 +24,7 @@ use crate::screens::draw_stage_heading::draw_stage_heading;
 use crate::screens::stage_panel::{
     TITLE_FONT, draw_records_from, draw_stage_body, label, table_dword_at,
 };
-use crate::system::owner::{System, system};
+use crate::system::owner::System;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -62,10 +62,13 @@ pub fn event_title(menus: &Menus, system: &System) -> Result<u32, crate::errors:
 
 /// Returns the carry flag of `draw_stage_records`. The errors are those of the functions it
 /// uses: the track pack lookup, the blitter, the formatters and the record rows.
-pub fn draw_stage_info(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+pub fn draw_stage_info(
+    menus: &Menus,
+    system: &crate::system::owner::System,
+    canvas: &mut dyn Canvas,
+) -> Result<bool, Refused> {
     let screens = &menus.screens;
     let tables = &menus.tables;
-    let system = system();
     label(
         canvas,
         event_title(menus, system)?,

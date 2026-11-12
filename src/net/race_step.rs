@@ -8,11 +8,15 @@
 //! physics).
 
 use crate::errors::Refused;
-use crate::net::owner::net;
+use crate::net::owner::{Net, net};
 use crate::net::{apply_received, follow_remote, send_turn};
 use crate::race::owner::Race;
 pub fn race_step(race: &Race) -> Result<(), Refused> {
-    let net = net();
+    race_step_in(race, net())
+}
+
+/// `race_step` with the network's owner.
+pub fn race_step_in(race: &Race, net: &Net) -> Result<(), Refused> {
     let vars = &net.vars;
     if vars.session.get() == 0 {
         return Ok(());

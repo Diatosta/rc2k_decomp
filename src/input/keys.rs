@@ -10,7 +10,7 @@
 use crate::input::owner::{Input, input};
 use crate::input::store::Devices;
 use crate::input::store::KEYS as KEYS_LEN;
-use crate::race::owner::race;
+use crate::race::owner::{Race, race};
 
 const SCREENSHOT_KEY: u32 = rc2k_core::input::frame::SCREENSHOT_KEY as u32; // Devices.keys_now
 
@@ -112,19 +112,12 @@ pub fn screenshot_if_key(devices: &Devices, shot: Screenshot) {
 
 /// `input::end_frame` (0x43AA91): with `g_screenshotsOn`, `check` (`screenshot_if_key`);
 /// then `PhysicsTables.debug[0]` and `PhysicsTables.debug[1]` 0. Every register preserved.
-pub fn end_frame(check: Screenshot) {
+pub fn end_frame(race: &Race, check: Screenshot) {
     // Converted: `rc2k_core::input::frame::end_frame`.
     let left = rc2k_core::input::frame::end_frame(crate::gfx::shots::on(), check);
     // Not the original's 0s once the debug overlay's keys are used (`debug::overlay`).
     let kept = crate::debug::overlay::words();
-    for ((cell, value), kept) in race()
-        .shared
-        .physics_tables
-        .debug
-        .iter()
-        .zip(left)
-        .zip(kept)
-    {
+    for ((cell, value), kept) in race.shared.physics_tables.debug.iter().zip(left).zip(kept) {
         cell.set(value | kept);
     }
 }
@@ -135,7 +128,11 @@ pub fn end_frame(check: Screenshot) {
 /// `find_pressed_keys`, `repeat_keys`, `take_mouse_clicks`, `end_frame`. The right click
 /// and the last key dword are returned.
 pub fn update_input(shot: Screenshot) -> (u32, u32) {
-    let input = input();
+    update_input_in(input(), race(), shot)
+}
+
+/// `update_input` with the owners it works on.
+pub fn update_input_in(input: &Input, race: &Race, shot: Screenshot) -> (u32, u32) {
     input.mouse.last_x.set(input.mouse.x.get());
     input.mouse.last_y.set(input.mouse.y.get());
     input.mouse.left_click.set(0);
@@ -151,8 +148,8 @@ pub fn update_input(shot: Screenshot) -> (u32, u32) {
     repeat_keys(&input.devices);
     let right = take_mouse_clicks(input);
     // Not the original's: the debug overlay's keys, taken from the game (`debug::overlay`).
-    crate::debug::overlay::take_keys();
-    end_frame(&mut || screenshot_if_key(&input.devices, &mut *shot));
+    crate::debug::overlay::take_keys(&input.devices);
+    end_frame(race, &mut || screenshot_if_key(&input.devices, &mut *shot));
     (right, edx)
 }
 

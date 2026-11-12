@@ -17,8 +17,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
-use crate::race::owner::race;
-use crate::screens::draw_stage_records::selection;
+use crate::screens::draw_stage_records::selection_in;
 use crate::screens::stage_panel::{
     TITLE_FONT, build_second_heading, draw_records_for_group, draw_stage_body, label,
     table_dword_at,
@@ -33,9 +32,14 @@ const TABLE_TITLE_Y: i32 = 0x94;
 const HEADING_Y: i32 = 0xB1;
 
 /// Returns the carry flag. Refuses a missing selection: the original reads through null.
-pub fn draw_time_trial_stage_info(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+pub fn draw_time_trial_stage_info(
+    menus: &Menus,
+    system: &crate::system::owner::System,
+    race: &crate::race::owner::Race,
+    canvas: &mut dyn Canvas,
+) -> Result<bool, Refused> {
     let tables = &menus.tables;
-    let Some(sel) = selection(menus)? else {
+    let Some(sel) = selection_in(menus, system)? else {
         return Err(
             BadInput("no record table is selected: the original reads through null").into(),
         );
@@ -51,7 +55,7 @@ pub fn draw_time_trial_stage_info(menus: &Menus, canvas: &mut dyn Canvas) -> Res
         TITLE_X,
         GROUP_TITLE_Y,
     )?;
-    race().shared.state.settings.direction.set(sel.group);
+    race.shared.state.settings.direction.set(sel.group);
     label(
         canvas,
         sel.table.title()?,

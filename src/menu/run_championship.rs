@@ -120,11 +120,6 @@ pub fn run_event(o: crate::owners::Owners<'_>, a8: bool) -> Result<(), Refused> 
     Game::new(o).run(|g| rc2k_core::menu::championship::run(g, a8))
 }
 
-/// The entry for callers outside the menus (`saves::load_savegame`).
-pub fn run_championship(_menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
-    run_championship_in(crate::owners::boundary())
-}
-
 pub fn run_championship_in(o: crate::owners::Owners<'_>) -> Result<(), Refused> {
     run_event(o, false)
 }

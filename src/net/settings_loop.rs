@@ -14,8 +14,12 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::{list_key, other_key, run_frame};
+/// For the table of item functions, which holds no owners.
 pub fn settings_loop() -> Result<(), Refused> {
-    let o = crate::owners::boundary();
+    settings_loop_in(crate::owners::boundary())
+}
+
+pub fn settings_loop_in(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (install, net, system) = (o.install, o.net, o.system);
     let vars = &net.vars;
     vars.mode.set(0);

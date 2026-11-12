@@ -11,7 +11,7 @@
 //! One caller, `start`.
 
 use crate::errors::{FatalError, Refused};
-use crate::net::owner::net;
+use crate::net::owner::Net;
 use crate::strings::load_language::notice_kind;
 use crate::threading::create_event::{create_event, handle_flags};
 use crate::threading::create_mutex::create_mutex;
@@ -24,8 +24,7 @@ const NO_MUTEX: FatalError = FatalError {
     code: 0x8016_8502,
     message: "",
 };
-pub fn set_up() -> Result<(), Refused> {
-    let net = net();
+pub fn set_up(net: &Net) -> Result<(), Refused> {
     let vars = &net.vars;
     if notice_kind() == 2 && net.setup().most_players.get() as i32 > 4 {
         net.setup().most_players.set(4);

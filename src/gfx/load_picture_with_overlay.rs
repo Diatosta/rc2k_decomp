@@ -27,12 +27,22 @@ pub fn load_picture_with_overlay(
     overlay_path: &dyn crate::session::TextPlace,
 ) -> Result<bool, Refused> {
     let o = crate::owners::boundary();
-    let gfx = o.gfx;
+    load_picture_with_overlay_in(path, overlay_path, o.gfx, o.system, o.strings)
+}
+
+/// `load_picture_with_overlay` for a caller that holds the owners.
+pub fn load_picture_with_overlay_in(
+    path: &dyn crate::session::TextPlace,
+    overlay_path: &dyn crate::session::TextPlace,
+    gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
+    strings: &crate::strings::owner::Strings,
+) -> Result<bool, Refused> {
     let pictures = &gfx.pictures;
-    if !load_picture_with(path, gfx, o.system)? {
+    if !load_picture_with(path, gfx, system)? {
         return Ok(true);
     }
-    let list = &o.strings.lexicon.memory.memory;
+    let list = &strings.lexicon.memory.memory;
     // The overlay's buffer is Rust's (`gfx::picture`), counted on the list as
     // the game's block was, given back with it.
     let free = || -> Result<(), Refused> {

@@ -9,7 +9,6 @@
 //! (`net::lobby_calls`).
 
 use crate::errors::Refused;
-use crate::input::owner::input;
 use crate::strings::compile_lexicon::compile_lexicon;
 
 /// 1 or more (signed) to recompile on the key: a `var\\ral.cfg` setting
@@ -19,10 +18,11 @@ pub static RECOMPILE_LEVEL: crate::session::Dword = crate::session::Dword::new(0
 pub fn maybe_compile_lexicon() -> Result<(), Refused> {
     let level = RECOMPILE_LEVEL.get();
     // `input`'s key states (key 0x4E).
-    let key = input().devices.keys_down.get(0x4E);
+    let o = crate::owners::boundary();
+    let key = o.input.devices.keys_down.get(0x4E);
     // Converted: `rc2k_core::strings::lexicon::recompile_wanted`.
     if rc2k_core::strings::lexicon::recompile_wanted(level, key) {
-        compile_lexicon()?;
+        compile_lexicon(o.strings, o.system)?;
     }
     Ok(())
 }

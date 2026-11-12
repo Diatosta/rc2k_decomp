@@ -11,14 +11,14 @@ const IN_TEXT: &std::ffi::CStr = c"shaunplayrendermovie - in"; // "shaunplayrend
 const OUT_TEXT: &std::ffi::CStr = c"shaunplayrendermovie - out"; // "shaunplayrendermovie - out"
 
 /// Its caller reads none it leaves.
-pub fn play_movie(race: &Race, input: &crate::input::owner::Input) -> Result<(), Refused> {
+pub fn play_movie(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     crate::logfile::log_write::log_nul(&IN_TEXT, false, 1);
     crate::drive::race_parts::restart_clock(race);
     race.shared
         .physics_tables
         .race_clock_base
         .set(race.shared.physics_tables.scene_clock.get());
-    crate::race::play_movie_loop::play_movie_loop(race, input)?;
+    crate::race::play_movie_loop::play_movie_loop(race, o)?;
     crate::logfile::log_write::log_nul(&OUT_TEXT, true, 1);
     Ok(())
 }

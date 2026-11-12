@@ -19,8 +19,6 @@
 //! Refuses a word for `-i` of 0x100 bytes or more. The `-v` part cannot be run in a test: it was
 //! looked at by the owner. `start` calls it directly.
 
-use crate::audio::owner::audio;
-use crate::d3d::owner::d3d;
 use crate::errors::BadInput;
 use crate::session::{Cell32, Dword};
 use crate::system::owner::Start;
@@ -69,9 +67,13 @@ pub fn show_version_and_leave(start: &Start) -> ! {
 
 /// Reads a command line (its text with the NUL; kept for the program's
 /// life, as the game keeps a pointer into it).
-pub fn read_command_line(start: &Start, line: &[u8]) -> Result<Asked, BadInput> {
-    let install = crate::install::owner::install();
-    let d3d = d3d();
+pub fn read_command_line(
+    start: &Start,
+    install: &crate::install::owner::Install,
+    d3d: &crate::d3d::owner::D3d,
+    audio: &crate::audio::owner::Audio,
+    line: &[u8],
+) -> Result<Asked, BadInput> {
     // Converted: `rc2k_core::system::command_line::read`, the whole line read before
     // anything is written (a refused `-i` word now leaves nothing written).
     let sw = rc2k_core::system::command_line::read(line)?;
@@ -79,7 +81,7 @@ pub fn read_command_line(start: &Start, line: &[u8]) -> Result<Asked, BadInput> 
     for (on, cell) in [
         (sw.u, &install.run.updating as &dyn Cell32),
         (sw.installing, &install.run.installing),
-        (sw.no_audio, &audio().state.no_audio),
+        (sw.no_audio, &audio.state.no_audio),
     ] {
         if on {
             cell.set_bits(1u32);
@@ -116,11 +118,11 @@ pub fn read_command_line(start: &Start, line: &[u8]) -> Result<Asked, BadInput> 
 /// Reads the program's own command line (`os::command_line`, for
 /// `GetCommandLineA`; kept as a region); `-v` shows the version and leaves through
 /// `start`'s exit path.
-pub fn read_own_command_line(system: &crate::system::owner::System) -> Result<(), BadInput> {
+pub fn read_own_command_line(o: crate::owners::Owners<'_>) -> Result<(), BadInput> {
     let mut line = crate::os::command_line();
     line.push(0);
-    let start = &system.start;
-    if read_command_line(start, &line)? == Asked::Version {
+    let start = &o.system.start;
+    if read_command_line(start, o.install, o.d3d, o.audio, &line)? == Asked::Version {
         show_version_and_leave(start);
     }
     Ok(())

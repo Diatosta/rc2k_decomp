@@ -25,10 +25,13 @@ use crate::text::draw_text::Canvas;
 // ---- game data ----
 
 /// Returns the carry flag of `draw_stage_records`.
-pub fn draw_service_stage_info(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+pub fn draw_service_stage_info(
+    menus: &Menus,
+    system: &crate::system::owner::System,
+    canvas: &mut dyn Canvas,
+) -> Result<bool, Refused> {
     let screens = &menus.screens;
     let tables = &menus.tables;
-    let system = crate::system::owner::system();
     label(
         canvas,
         event_title(menus, system)?,

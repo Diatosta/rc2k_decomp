@@ -5,6 +5,7 @@
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
+use crate::owners::Owners;
 use crate::saves::owner::Saves;
 
 /// The two parts, each saying whether it wrote its file. Returns what the second said.
@@ -24,7 +25,11 @@ pub fn save_game_data(
 /// flags (carry: not written) are read by neither of its callers (`system::main_loop`,
 /// `menu::arcade_level_end`).
 pub fn save_in_game(saves: &Saves) -> Result<bool, Refused> {
-    let o = crate::owners::boundary();
+    save_in_game_in(crate::owners::boundary(), saves)
+}
+
+/// `save_in_game` for a caller that holds the owners.
+pub fn save_in_game_in(o: Owners<'_>, saves: &Saves) -> Result<bool, Refused> {
     save_game_data(
         o.menus,
         &mut || crate::saves::save_options::save_options(o, &saves.files.options_path),

@@ -31,11 +31,6 @@ fn lists(menus: &Menus) -> [(&[PlainDword], &[PlainDword]); 2] {
     ]
 }
 
-/// `list_car_numbers_in` on the game's menus.
-pub fn list_car_numbers() -> Result<(), BadInput> {
-    list_car_numbers_in(crate::owners::boundary().menus)
-}
-
 pub fn list_car_numbers_in(menus: &Menus) -> Result<(), BadInput> {
     let lists = lists(menus);
     // Converted: `rc2k_core::saves::cars::numbers`, both lists worked out before either is

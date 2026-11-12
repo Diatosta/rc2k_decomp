@@ -28,7 +28,6 @@
 
 use crate::audio::owner::AUDIO_OWNER;
 use crate::errors::Refused;
-use crate::gfx::owner::gfx;
 use crate::menu::owner::MENUS;
 use crate::owners::Owners;
 use crate::race::settings_copy::{StepOperand, var};
@@ -99,7 +98,8 @@ fn set(x: StepOperand, v: i32) {
 }
 
 pub fn option_item(item: Item) -> Result<(), Refused> {
-    let audio = crate::audio::owner::audio();
+    let o = crate::owners::boundary();
+    let audio = o.audio;
     // The logic is in `rc2k_core::menu::steps` (`flip`, `quality`, `volume`, `counter`,
     // `previous_mode`).
     use rc2k_core::menu::steps;
@@ -119,7 +119,7 @@ pub fn option_item(item: Item) -> Result<(), Refused> {
             set(v, steps::flip(get(v) as u32) as i32);
             set(other, steps::flip(get(other) as u32) as i32);
             // `gfx::screen_mode_choices` with eax 0; its flags are read by no caller.
-            crate::gfx::screen_mode_choices::screen_mode_choices(&gfx().display, false)?;
+            crate::gfx::screen_mode_choices::screen_mode_choices_in(&o.gfx.display, o.d3d, false)?;
         }
         Kind::SwitchAudio => {
             set(v, steps::flip(get(v) as u32) as i32);

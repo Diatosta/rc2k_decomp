@@ -8,10 +8,11 @@
 
 use crate::errors::Refused;
 use crate::menu::frame_callback::{copy_picture, draw_menu, lock_failed};
-use crate::menu::owner::Menus;
+use crate::owners::Owners;
 
 /// `menu` is edi at entry.
-pub fn draw_frame(menus: &Menus, menu: crate::menu::menus_store::MenuId) -> Result<(), Refused> {
+pub fn draw_frame(o: Owners<'_>, menu: crate::menu::menus_store::MenuId) -> Result<(), Refused> {
+    let menus = o.menus;
     menus.screens.loop_flags.menu.set(menu);
     if crate::menu::screen_loop::quitting() {
         return Ok(());
@@ -21,7 +22,7 @@ pub fn draw_frame(menus: &Menus, menu: crate::menu::menus_store::MenuId) -> Resu
         return Ok(());
     }
     draw_menu(menus, menu)?;
-    crate::menu::run_draw_list::run_draw_list(menus)?;
+    crate::menu::run_draw_list::run_draw_list(o)?;
     crate::platform::unlock_surface();
     Ok(())
 }

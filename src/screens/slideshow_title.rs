@@ -10,10 +10,8 @@ use crate::screens::car_caption::put_string;
 const TITLE_LEN: usize = 0x100;
 const TITLE: u32 = 0x33D;
 
-pub fn slideshow_title() -> Result<(), Refused> {
-    put_string(
-        TITLE,
-        &crate::screens::text_buffers_store::TEXT_BUFFERS.title,
-        TITLE_LEN,
-    )
+pub fn slideshow_title(
+    text: &crate::screens::text_buffers_store::TextBuffers,
+) -> Result<(), Refused> {
+    put_string(TITLE, &text.title, TITLE_LEN)
 }

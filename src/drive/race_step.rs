@@ -9,19 +9,24 @@ use crate::errors::Refused;
 use crate::race::owner::Race;
 
 // Converted: `rc2k_core::drive::race_ticks::run_ticks`.
-pub fn race_step(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn race_step(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    input: &'static crate::input::owner::Input,
+    sound: &crate::sound::owner::Sound,
+    system: &crate::system::owner::System,
+    net: &crate::net::owner::Net,
+) -> Result<(), Refused> {
     let _step = crate::write_watch::step("physics");
-    let input = crate::input::owner::input();
-    let sound = crate::sound::owner::sound();
     crate::drive::race_clock_tick::race_clock_tick(&race.shared);
     if race.shared.physics_tables.debug[1].get() == 0 {
         rc2k_core::drive::race_ticks::run_ticks(
             race.shared.physics_tables.race_tenths.get(),
             |ecx| {
                 crate::debug::timing::note_tick();
-                { crate::drive::race_tick::race_tick(race, sound, input, scene) }?;
+                { crate::drive::race_tick::race_tick(race, system, sound, input, scene, net) }?;
                 hash_if_asked(race);
-                let out = crate::race::frame::players_all_out(race)?;
+                let out = crate::race::frame::players_all_out(race, net)?;
                 Ok::<_, Refused>((out, ecx))
             },
         )?;

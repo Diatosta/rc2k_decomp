@@ -14,7 +14,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
 use crate::menu::owner::Tables;
-use crate::screens::draw_stage_records::selection;
+use crate::screens::draw_stage_records::selection_in;
 use crate::screens::stage_panel::{build_second_heading, table_dword_at};
 use rc2k_core::menu::items::{ITEM_LEN, MENU_HEAD_LEN};
 
@@ -28,9 +28,12 @@ fn item_1_place(tables: &Tables) -> Result<Option<usize>, BadInput> {
     )
 }
 
-pub fn set_stage_choice_titles(menus: &Menus) -> Result<(), Refused> {
+pub fn set_stage_choice_titles(
+    menus: &Menus,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     let tables = &menus.tables;
-    let s = selection(menus)?.ok_or(BadInput(
+    let s = selection_in(menus, system)?.ok_or(BadInput(
         "no stage tables for the choice: the original reads through null",
     ))?;
     let Some(item_1) = item_1_place(tables)? else {

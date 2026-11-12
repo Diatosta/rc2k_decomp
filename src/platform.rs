@@ -29,7 +29,6 @@ use crate::framework::log;
 use crate::gfx::describe_format::describe_format;
 use crate::gfx::owner::gfx;
 use crate::gfx::set_clip::set_clip;
-use crate::race::owner::Race;
 use crate::system::owner::system;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
@@ -365,7 +364,8 @@ fn make_view(
 #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
 static GPU_VIEW: Mutex<(u64, Option<sdl::Texture>)> = Mutex::new((0, None));
 
-fn show_frame(race: &Race, screen: &Screen) -> Result<(), &'static str> {
+fn show_frame(o: &crate::owners::Owners<'_>, screen: &Screen) -> Result<(), &'static str> {
+    let race = o.race;
     // The frame as XRGB8888: itself at 32 bits, else its 16-bit pixels widened.
     let bytes = (screen.bits / 8) as usize;
     let converted;
@@ -432,7 +432,7 @@ fn show_frame(race: &Race, screen: &Screen) -> Result<(), &'static str> {
             renderer.draw_whole(&screen.texture);
         }
         // Not the original's: the debug UI over the frame.
-        crate::debug::imgui_sdl::draw(race, renderer, screen.window);
+        crate::debug::imgui_sdl::draw(o, renderer, screen.window);
         renderer.present();
         Ok(())
     }
@@ -474,7 +474,6 @@ pub fn screen_pixels() -> u64 {
 pub fn show_frame_now() -> bool {
     let o = crate::owners::boundary();
     let drawing = &o.gfx.drawing;
-    let race = o.race;
     // The 3D drawing noted so far, before the screen is shown, written or changed.
     crate::platform_3d::flush();
     {
@@ -494,7 +493,7 @@ pub fn show_frame_now() -> bool {
             #[cfg(feature = "remote")]
             let shot = crate::remote::shot_wanted().then(|| screen.pixels.to_vec());
             let showing = std::time::Instant::now();
-            let shown_ok = show_frame(race, screen);
+            let shown_ok = show_frame(&o, screen);
             crate::platform_timing::SHOW_MICROS.fetch_add(
                 showing.elapsed().as_micros() as u64,
                 std::sync::atomic::Ordering::Relaxed,

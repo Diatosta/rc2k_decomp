@@ -20,6 +20,8 @@ pub fn sealed_player_time(menus: &Menus, byte: u32) -> Result<[u32; 2], Refused>
     let p = player(menus, n);
     let sealed = {
         crate::records::seal_time::seal_time(
+            menus,
+            race(),
             p.get().time,
             [
                 p.get().car_number as u8,

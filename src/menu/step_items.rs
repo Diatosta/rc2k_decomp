@@ -30,9 +30,10 @@ pub fn colour(tables: &Tables, colour: StartPick, forward: bool) -> Result<(), R
 pub fn car_button(
     menus: &Menus,
     button: Which,
-    sound: &crate::sound::owner::Sound,
+    _sound: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {
-    press(menus, button, &mut |call| call_in_game(menus, call, sound))
+    let o = crate::owners::boundary();
+    press(menus, button, &mut |call| call_in_game(o, call))
 }
 
 /// The saved games' list one page on (`menu::next_savegame_page`, 0x46D407): adds 1 to

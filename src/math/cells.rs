@@ -112,7 +112,8 @@ impl Cells for At {
 }
 
 /// The cells at a checked game pointer: dword `n` at `+4 n`, inside the pointer's own field
-/// when it has one (a pointer made `unbounded` runs on, as the original does).
+/// when it has one (tests only).
+#[cfg(test)]
 impl Cells for crate::pointers::GamePtr {
     fn bits(&self, n: usize) -> u32 {
         let what = "a helper's cell";

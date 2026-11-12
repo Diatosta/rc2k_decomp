@@ -31,9 +31,9 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::go_back;
 use crate::menu::owner::Menus;
+use crate::owners::Owners;
 use crate::pointers::Store;
 use crate::saves::gather_savegame::{CAR_LEN, RECORDS_LEN, cars, head};
-use crate::saves::owner::saves;
 use crate::saves::read_savegame_slot::read_savegame_slot_in;
 use crate::saves::write_savegame_slot::SLOTS;
 use rc2k_core::saves::savegame::{A8_MODE, CORRUPT, Resume, resume};
@@ -57,12 +57,17 @@ fn highlighted_slot(menus: &Menus) -> u32 {
 
 /// The players' own records and names come back when
 /// the loaded championship is over or left (`menu::own_settings`; not the original's).
-pub fn load_savegame(menus: &Menus) -> Result<(), Refused> {
-    crate::menu::own_settings::around_championship(menus, || load_and_run(menus))
+pub fn load_savegame(_menus: &Menus) -> Result<(), Refused> {
+    load_savegame_in(crate::owners::boundary())
 }
 
-fn load_and_run(menus: &Menus) -> Result<(), Refused> {
-    let saves = saves();
+/// `load_savegame` for a caller that holds the owners.
+pub fn load_savegame_in(o: Owners<'static>) -> Result<(), Refused> {
+    crate::menu::own_settings::around_championship(o.menus, || load_and_run(o))
+}
+
+fn load_and_run(o: Owners<'static>) -> Result<(), Refused> {
+    let (menus, saves) = (o.menus, o.saves);
     let slot = highlighted_slot(menus);
     if slot >= SLOTS {
         return Err(BadInput("slot past the name list").into());
@@ -150,9 +155,9 @@ fn load_and_run(menus: &Menus) -> Result<(), Refused> {
     menus.screens.event.continuing_save.set(1u32);
     crate::menu::link_player_names::link_player_names(menus)?;
     if menus.play.champ_view.event_mode.get() == A8_MODE {
-        crate::menu::run_a8_championship::run_a8_championship(menus)?;
+        crate::menu::run_a8_championship::run_a8_championship_in(o)?;
     } else {
-        crate::menu::run_championship::run_championship(menus)?;
+        crate::menu::run_championship::run_championship_in(o)?;
     }
     go_back::go_back();
     Ok(())

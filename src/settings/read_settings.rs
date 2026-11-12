@@ -459,7 +459,7 @@ pub fn apply_settings(o: Owners<'static>, text: &[u8]) -> Result<(), BadInput> {
 }
 
 pub fn read_settings(o: Owners<'static>) -> Result<(), BadInput> {
-    match read_text(&PATH[..PATH.len() - 1])? {
+    match read_text(o.system, &PATH[..PATH.len() - 1])? {
         Some(text) => apply_settings(o, &text),
         None => Ok(()),
     }

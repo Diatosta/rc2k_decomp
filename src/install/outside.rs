@@ -16,10 +16,7 @@ pub trait Outside {
     /// A line for the game's log.
     fn log(&mut self, text: &[u8]);
     /// `install::read_registry`.
-    fn read_registry(&mut self) {
-        let install = crate::install::owner::install();
-        crate::install::read_registry::read_registry_here(install);
-    }
+    fn read_registry(&mut self);
     // The same for the game and for a test:
     /// `install::normalise_path`: the path as written (with its NUL), None when not taken.
     fn normalise_path(&mut self, path: &[u8]) -> Result<Option<Vec<u8>>, BadInput> {
@@ -39,9 +36,13 @@ pub trait Outside {
     }
 }
 
-pub struct Game;
+/// The outside world as the game has it: the installer's texts and the system's files.
+pub struct Game<'a> {
+    pub install: &'static crate::install::owner::Install,
+    pub system: &'a crate::system::owner::System,
+}
 
-impl Outside for Game {
+impl Outside for Game<'_> {
     fn file_exists(&mut self, path: &[u8]) -> Result<bool, BadInput> {
         crate::files::file_exists::file_exists(path)
     }
@@ -54,9 +55,12 @@ impl Outside for Game {
         crate::files::directories::set_current_directory(path)
     }
 
+    fn read_registry(&mut self) {
+        crate::install::read_registry::read_registry_here(self.install);
+    }
+
     fn read_record(&mut self) -> Result<(), BadInput> {
-        let install = crate::install::owner::install();
-        read_record(&install.texts.record_path.text()[..])
+        read_record(self.system, &self.install.texts.record_path.text()[..])
     }
 
     fn log(&mut self, text: &[u8]) {

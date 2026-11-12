@@ -559,10 +559,12 @@ impl PlainDword {
     }
 
     /// Its place, for code that is handed an address (a Windows call, an `fild`).
+    #[cfg(test)]
     pub fn as_ptr(&self) -> *mut u32 {
         self.0.as_ptr()
     }
 
+    #[cfg(test)]
     pub fn addr(&self) -> u32 {
         crate::pointers::game_address(self.as_ptr())
     }
@@ -1452,6 +1454,7 @@ impl<B: ByteBuffer> TextPlace for TextFrom<'_, B> {
     }
 }
 
+#[cfg(test)]
 impl TextPlace for crate::pointers::GamePtr {
     fn text(&self, what: &str) -> Result<Vec<u8>, crate::errors::BadInput> {
         crate::files::cstring_at(*self, what)

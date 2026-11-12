@@ -677,10 +677,10 @@ fn set_lists(menus: &Menus, screens: &Screens, screen: &Screen, lists: &[List]) 
 /// (unless quitting) the frame, with the menu and the carried palette and x. Neither
 /// changes a carried value (the callbacks keep every register; the carry they leave is
 /// read by nothing).
-fn run_frame(menus: &Menus, callback: FrameRoutine, menu: MenuId) -> Result<(), Refused> {
+fn run_frame(o: Owners<'_>, callback: FrameRoutine, menu: MenuId) -> Result<(), Refused> {
     let frame = || match callback {
-        FrameRoutine::Menu => crate::menu::frame_callback::frame_callback(menus, menu),
-        FrameRoutine::Inspection => crate::menu::inspection_frame::inspection_frame(menus, menu),
+        FrameRoutine::Menu => crate::menu::frame_callback::frame_callback(o, menu),
+        FrameRoutine::Inspection => crate::menu::inspection_frame::inspection_frame(o, menu),
     };
     match crate::platform::run_frame_now(frame) {
         Some(made) => made.map(|_| ()),
@@ -756,7 +756,7 @@ impl ScreenHost for MenuHost<'_> {
         for list in self.screen.lists {
             let table = (list.table)(menus);
             if list.run {
-                run_list(menus, table)?;
+                run_list(self.entry.owners, table)?;
             }
             (list.pointer)(menus).set(table);
         }
@@ -773,7 +773,7 @@ impl ScreenHost for MenuHost<'_> {
 
     fn draw_set_up_frame(&mut self) -> Result<(), Refused> {
         let menus = self.entry.menus;
-        crate::menu::draw_frame::draw_frame(menus, self.menu)?;
+        crate::menu::draw_frame::draw_frame(self.entry.owners, self.menu)?;
         update_blink(menus);
         Ok(())
     }
@@ -801,7 +801,7 @@ impl ScreenHost for MenuHost<'_> {
         } else {
             frames.later_callback.unwrap_or(frames.callback)
         };
-        run_frame(self.entry.menus, callback, self.menu)
+        run_frame(self.entry.owners, callback, self.menu)
     }
 
     fn update_blink(&mut self) {

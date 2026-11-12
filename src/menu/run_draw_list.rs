@@ -5,11 +5,11 @@
 //! entries. Rust callers run its `entry` (`routes.rs`).
 
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
 use crate::menu::run_list::run_list;
+use crate::owners::Owners;
 
 // ---- game data ----
 
-pub fn run_draw_list(menus: &Menus) -> Result<(), Refused> {
-    run_list(menus, menus.screens.flow.draw_list.get()?)
+pub fn run_draw_list(o: Owners<'_>) -> Result<(), Refused> {
+    run_list(o, o.menus.screens.flow.draw_list.get()?)
 }

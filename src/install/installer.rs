@@ -373,8 +373,9 @@ pub fn components_to_pixels(
 
 /// `strings::load_language` (0x40331F).
 pub fn load_language() -> Result<(), Refused> {
-    crate::strings::load_language::load_language(&mut || {
-        crate::strings::compile_lexicon::compile_lexicon()
+    let o = crate::owners::boundary();
+    crate::strings::load_language::load_language(o, &mut || {
+        crate::strings::compile_lexicon::compile_lexicon(o.strings, o.system)
     })
 }
 

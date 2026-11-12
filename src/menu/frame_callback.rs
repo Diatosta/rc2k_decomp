@@ -14,8 +14,8 @@
 use crate::errors::Refused;
 use crate::menu::fn_list::ListCell;
 use crate::menu::owner::Menus;
+use crate::owners::Owners;
 use crate::platform::{lock_surface, show_frame_now, unlock_surface};
-use crate::scene::owner::scene;
 use crate::text::draw_text::GameCanvas;
 use rc2k_core::menu::notice;
 
@@ -36,8 +36,8 @@ const NOTICE_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts:
 
 /// Runs the functions of the list `list` points at (the original keeps the registers
 /// around each of the scene list's; its functions take none either way).
-pub fn run_listed(menus: &Menus, list: &ListCell) -> Result<(), Refused> {
-    crate::menu::run_list::run_list(menus, list.get()?)
+pub fn run_listed(o: Owners<'_>, list: &ListCell) -> Result<(), Refused> {
+    crate::menu::run_list::run_list(o, list.get()?)
 }
 
 /// `gfx::lock_surface`'s carry: the surface could not be locked.
@@ -63,25 +63,26 @@ pub fn draw_menu(menus: &Menus, menu: crate::menu::menus_store::MenuId) -> Resul
 /// `menu` is edi at entry. Returns whether the
 /// frame was made (the original's clear carry).
 pub fn frame_callback(
-    menus: &Menus,
+    o: Owners<'_>,
     menu: crate::menu::menus_store::MenuId,
 ) -> Result<bool, Refused> {
+    let menus = o.menus;
     let play = &menus.play;
     if lock_failed() {
         return Ok(false);
     }
     copy_picture()?;
     draw_menu(menus, menu)?;
-    run_listed(menus, DRAW_LIST)?;
+    run_listed(o, DRAW_LIST)?;
     unlock_surface();
-    scene().lights.state.scene_state.set_bits(4u32);
+    o.scene.lights.state.scene_state.set_bits(4u32);
     crate::scene::begin_scene::begin_scene();
-    run_listed(menus, SCENE_LIST)?;
+    run_listed(o, SCENE_LIST)?;
     crate::scene::end_scene::end_scene();
     if lock_failed() {
         return Ok(false);
     }
-    run_listed(menus, OVERLAY_LIST)?;
+    run_listed(o, OVERLAY_LIST)?;
     // The logic is in `rc2k_core::menu::notice::drawn_now`.
     if notice::drawn_now(crate::strings::load_language::notice_kind(), || {
         play.cheats.notice_due.get()

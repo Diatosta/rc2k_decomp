@@ -1,8 +1,8 @@
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-pub fn race_frame(race: &Race) -> Result<(), Refused> {
-    crate::drive::race_frame::race_frame(race, 0)?;
+pub fn race_frame(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    crate::drive::race_frame::race_frame(race, o, 0)?;
     Ok(())
 }
 
@@ -27,8 +27,8 @@ pub fn take_key() {
 }
 
 /// `race::race_keys`.
-pub fn race_keys(race: &Race) -> Result<(), Refused> {
-    { crate::race::frame::race_keys(race) }?;
+pub fn race_keys(race: &Race, o: crate::owners::Owners<'_>) -> Result<(), Refused> {
+    { crate::race::frame::race_keys(race, o) }?;
     Ok(())
 }
 
@@ -37,25 +37,25 @@ pub fn tyre_change(
     race: &Race,
     input: &'static crate::input::owner::Input,
     system: &crate::system::owner::System,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    crate::race::frame::tyre_change(race, input, system)?;
+    crate::race::frame::tyre_change(race, input, system, scene)?;
     Ok(())
 }
 
 /// `race::players_all_out`: the CF.
-pub fn players_all_out(race: &Race) -> Result<bool, Refused> {
-    crate::race::frame::players_all_out(race)
+pub fn players_all_out(race: &Race, net: &crate::net::owner::Net) -> Result<bool, Refused> {
+    crate::race::frame::players_all_out(race, net)
 }
 
 /// `race::stop_race_sounds` (0x45D28E): `race::reset_race_sounds`, its one call.
-pub fn stop_race_sounds() -> Result<(), Refused> {
-    let sound = crate::sound::owner::sound();
+pub fn stop_race_sounds(sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     crate::race::race_end::reset_race_sounds(&crate::race::race_end::SoundVars::game(), sound)
 }
 
 /// `race::wake_car_sounds` (its callers keep the registers round it).
-pub fn wake_car_sounds(race: &Race) -> Result<(), Refused> {
-    crate::race::sounds::wake_car_sounds(race)?;
+pub fn wake_car_sounds(race: &Race, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
+    crate::race::sounds::wake_car_sounds(race, sound)?;
     Ok(())
 }
 

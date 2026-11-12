@@ -220,11 +220,12 @@ fn in_game(o: Owners<'static>, call: Call) -> Result<u32, Refused> {
         }
         Call::ReadSettings => crate::settings::read_settings::read_settings(o)?,
         Call::ReadSku => {
-            crate::install::read_sku::read_sku(o.install, &o.install.sku.path.text())?;
+            crate::install::read_sku::read_sku(o.install, o.system, &o.install.sku.path.text())?;
         }
         Call::ReadDriverNames => crate::settings::read_driver_names::read_driver_names(
             menus,
             o.strings,
+            o.system,
             crate::settings::read_driver_names::path(),
         )?,
         Call::ApplyPatches => crate::physics::apply_patches::apply_patches(

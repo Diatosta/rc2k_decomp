@@ -7,7 +7,7 @@
 //! before anything.
 
 use crate::errors::Refused;
-use crate::gfx::owner::{Gfx, gfx};
+use crate::gfx::owner::Gfx;
 use crate::menu::disable_item::disable_item;
 use crate::menu::enable_item::enable_item;
 use crate::menu::owner::Menus;
@@ -47,8 +47,11 @@ const NAMES: [Name; 8] = [
     ),
 ];
 
-pub fn draw_graphics_settings(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let gfx = gfx();
+pub fn draw_graphics_settings(
+    menus: &Menus,
+    gfx: &crate::gfx::owner::Gfx,
+    canvas: &mut dyn Canvas,
+) -> Result<(), Refused> {
     let display = &gfx.display;
     // The logic is in `rc2k_core::screens::settings_pages::{graphics_item, graphics}`.
     use crate::screens::game_screen::SettingsScreen;

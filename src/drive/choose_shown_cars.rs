@@ -61,7 +61,7 @@ pub fn choose_at(v: &[&Dword]) -> Result<(), Refused> {
 }
 
 /// The variables' addresses, in the order the core uses them.
-fn game(race: &Race) -> Vec<&Dword> {
+fn game<'a>(race: &'a Race, net: &'a crate::net::owner::Net) -> Vec<&'a Dword> {
     let shared = &race.shared;
     let mut cells: Vec<&Dword> = vec![
         &shared.view.view_cars[0],
@@ -71,7 +71,7 @@ fn game(race: &Race) -> Vec<&Dword> {
         &race.course.numbers.replay_mode,
         &shared.view.view_switch,
         &shared.vars.split,
-        &net().vars.session, // NetVars.session: in the network's variables
+        &net.vars.session, // NetVars.session: in the network's variables
         &shared.view.local_car,
         &shared.view.view_blocks[0],
         &shared.view.view_blocks[1],
@@ -81,5 +81,10 @@ fn game(race: &Race) -> Vec<&Dword> {
 }
 
 pub fn choose_shown_cars(race: &Race) -> Result<(), Refused> {
-    choose_at(&game(race))
+    choose_shown_cars_in(race, net())
+}
+
+/// `choose_shown_cars` with the network's owner given.
+pub fn choose_shown_cars_in(race: &Race, net: &crate::net::owner::Net) -> Result<(), Refused> {
+    choose_at(&game(race, net))
 }

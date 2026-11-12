@@ -22,10 +22,9 @@
 //! (`shots_loading`, `shot_frame_drawn`), and the random numbers start from one state, so the
 //! picture is the same from run to run (the picture check, `scratchpad/shots.sh`).
 
-use crate::effects::owner::effects;
 use crate::ffi::sdl_input;
 use crate::owners::Owners;
-use crate::race::owner::{Race, race};
+use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use sdl3_sys::everything::*;
 use std::io::Write;
@@ -238,7 +237,7 @@ static PROGRESS: std::sync::Mutex<(u32, u32, u32)> = std::sync::Mutex::new((0, 0
 /// reset key (`RESET_KEY`) while it holds it, after `STALLED_STEPS` without progress (the
 /// computer's own reversing does not always free a car, and its fourth switch, which
 /// would ask for more, is read by nothing).
-pub fn autodrive_keys(checkpoint: u32) -> u32 {
+pub fn autodrive_keys(race: &Race, checkpoint: u32) -> u32 {
     let mut p = PROGRESS
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -254,7 +253,7 @@ pub fn autodrive_keys(checkpoint: u32) -> u32 {
         if *held == 0 {
             crate::framework::log(&format!(
                 "remote: the reset key let go at checkpoint {checkpoint} (stage time {})",
-                race().shared.car.stage_time.get()
+                race.shared.car.stage_time.get()
             ));
         }
         return rc2k_core::drive::controls::RESET_KEY;
@@ -444,15 +443,14 @@ pub fn shots_on() -> bool {
 /// replay's cameras, some sounds) from one state: the menus before took a number of them
 /// that depends on the timing (the effects' generator builds the snow's tables at load).
 /// The viewer then plays at once (`shots_on`): no frame waits for a key.
-pub fn shots_loading() {
+pub fn shots_loading(race: &Race, effects: &crate::effects::owner::Effects) {
     if !shots_on() {
         return;
     }
-    let race = race();
     let panel = race.viewer_panel();
     panel.pictures_started.set_bits(1u32);
     panel.picture_clock.set(0x10000);
-    reseed();
+    reseed(effects);
     // The scene's clock as the menus left it (their time on screen) is the snow's first
     // step's start: the held clock's from here.
     race.shared.physics_tables.scene_clock.set(0x10000u32);
@@ -480,11 +478,11 @@ pub fn held_race() -> bool {
 /// numbers from one state (the menus before took a number of them that depends on the
 /// timing), the computer at the players' wheels (`drive on`), the clock free until the first
 /// frame.
-pub fn race_loading() {
+pub fn race_loading(effects: &crate::effects::owner::Effects) {
     if !held_race() {
         return;
     }
-    reseed();
+    reseed(effects);
     AUTODRIVE.store(true, std::sync::atomic::Ordering::Relaxed);
     HELD_CLOCK.store(0, std::sync::atomic::Ordering::Relaxed);
 }
@@ -496,16 +494,15 @@ pub fn held_clock() -> Option<u32> {
 }
 
 /// Both random generators (the game's and the effects' `g_marksSeed`) from one state.
-fn reseed() {
+fn reseed(effects: &crate::effects::owner::Effects) {
     crate::math::next_random::with_random(|r| r.state = 0x1234_5678);
     crate::math::next_random::seed_streams();
-    effects().setup.work.seed.set(0x8765_4321);
+    effects.setup.work.seed.set(0x8765_4321);
 }
 
 /// A race frame drawn (`drive::race_frame`): the held clock 10 ms on, unless the game is
 /// recording pictures itself (`race::replay_screenshot` moves it then).
-pub fn shot_frame_drawn() {
-    let race = race();
+pub fn shot_frame_drawn(race: &Race) {
     if held_race() && race.course.numbers.in_race.is_set() {
         use std::sync::atomic::Ordering::Relaxed;
         let held = HELD_CLOCK.load(Relaxed);

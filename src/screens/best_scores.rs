@@ -14,7 +14,7 @@ use crate::screens::game_screen::GameScreen;
 use crate::screens::game_screen::{Held, HeldText};
 use crate::session::DwordLike;
 use crate::session::PlainDword;
-use crate::system::owner::{System, system};
+use crate::system::owner::System;
 use crate::text::draw_text::Canvas;
 use rc2k_core::screens::best_scores::{Row, Rows};
 
@@ -217,7 +217,10 @@ pub fn draw_best_scores_page(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(
 
 /// `screens::best_scores_caption` (0x46D128): the caption (`g_captionText`) string
 /// from the page's entry of the caption list and its NUL.
-pub fn best_scores_caption(menus: &Menus) -> Result<(), Refused> {
+pub fn best_scores_caption(
+    menus: &Menus,
+    text: &crate::screens::text_buffers_store::TextBuffers,
+) -> Result<(), Refused> {
     let tables = &menus.tables;
     // The logic is in `rc2k_core::screens::captions::fit` (through `car_caption::put_string`); refused
     // where the original writes past the caption's 0x100 bytes.
@@ -227,30 +230,32 @@ pub fn best_scores_caption(menus: &Menus) -> Result<(), Refused> {
         scores_page(menus).get() as usize,
         "best scores: a game value",
     )?;
-    crate::screens::car_caption::put_string(
-        id,
-        &crate::screens::text_buffers_store::TEXT_BUFFERS.caption,
-        0x100,
-    )
+    crate::screens::car_caption::put_string(id, &text.caption, 0x100)
 }
 
 /// `screens::replay_range_caption` (0x470501): the caption "n-m", n = `pages.replay_page` x 20,
 /// m = n + 19 (`strings::append_u32`, `append_minus`).
 pub fn replay_range_caption(menus: &Menus) -> Result<(), BadInput> {
+    replay_range_caption_in(menus, crate::race::owner::race().text_buffers())
+}
+
+/// `replay_range_caption` into the given text buffers.
+pub fn replay_range_caption_in(
+    menus: &Menus,
+    text: &crate::screens::text_buffers_store::TextBuffers,
+) -> Result<(), BadInput> {
     // The logic is in `rc2k_core::screens::best_scores::range_caption`.
     let mut bytes =
         rc2k_core::screens::best_scores::range_caption(menus.tables.pages.replay_page.get());
     bytes.push(0);
-    crate::screens::text_buffers_store::TEXT_BUFFERS
-        .caption
-        .write_at(0, &bytes, "the caption")
+    text.caption.write_at(0, &bytes, "the caption")
 }
 
 /// A stage times page: where its stage record is and which table holds its times.
 pub struct StageTimes {
     /// The stage record's table (the records 0xA4 bytes; +0x38 the stage's name string, +0x3C
     /// its times' number) and the record's number.
-    pub records: fn(&Menus) -> Result<RecordTable, BadInput>,
+    pub records: fn(&Menus, &System) -> Result<RecordTable, BadInput>,
     pub record: fn(&Menus) -> &dyn DwordLike,
     /// The times' table (ten for each stage; the record's +0x3C the stage).
     pub table: fn(&Menus) -> &StageTable,
@@ -259,9 +264,9 @@ pub struct StageTimes {
     pub rally: bool,
 }
 
-fn champ_records(menus: &Menus) -> Result<RecordTable, BadInput> {
+fn champ_records(menus: &Menus, system: &System) -> Result<RecordTable, BadInput> {
     let screens = &menus.screens;
-    system().records.stage_tables.group_event_table(
+    system.records.stage_tables.group_event_table(
         screens.event.stage_group.get(),
         screens.event.stage_sub.get(),
     )
@@ -275,8 +280,8 @@ fn champ_table(menus: &Menus) -> &'static StageTable {
     }
 }
 
-fn rally_records(menus: &Menus) -> Result<RecordTable, BadInput> {
-    system()
+fn rally_records(menus: &Menus, system: &System) -> Result<RecordTable, BadInput> {
+    system
         .records
         .stage_tables
         .level_table(menus.play.arcade.level.get())
@@ -307,12 +312,13 @@ pub const RALLY_STAGE_TIMES: StageTimes = StageTimes {
 /// Refuses (before anything) no stage records.
 pub fn draw_times_heading(
     menus: &Menus,
+    system: &System,
     p: &StageTimes,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
     // The logic is in `rc2k_core::screens::best_scores::heading`.
     {
-        let base = (p.records)(menus)?;
+        let base = (p.records)(menus, system)?;
         let id = base.title()?;
         let record = base.row((p.record)(menus).get())?;
         let line = || -> Result<Vec<u8>, Refused> { stage_line_without_nul(0x482, record) };
@@ -339,15 +345,16 @@ fn stage_line_without_nul(id: u32, record: RecordRef) -> Result<Vec<u8>, Refused
 /// records or no times table.
 pub fn draw_stage_times(
     menus: &Menus,
+    system: &System,
     p: &StageTimes,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    let base = (p.records)(menus)?;
+    let base = (p.records)(menus, system)?;
     let table = (p.table)(menus);
     if !table.is_taken() {
         return Err(BadInput("no times table").into());
     }
-    draw_times_heading(menus, p, canvas)?;
+    draw_times_heading(menus, system, p, canvas)?;
     let group = base.row((p.record)(menus).get())?.record()?.event_slot();
     let keep = if p.rally { Keep::Below4 } else { Keep::Nothing };
     draw_time_rows(table, group as usize, keep, canvas)?;
@@ -466,8 +473,11 @@ pub fn draw_record_heading(
 /// name +0x54, the flag's sprite +0x78, the speed +0x30 with its unit; a list that ended early
 /// leaves it out: `notes/bugs.md`). Refuses (before anything) a section
 /// the table has not, no times table, and what `strings::append_speed` refuses.
-pub fn draw_record_times(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let system = system();
+pub fn draw_record_times(
+    menus: &Menus,
+    system: &System,
+    canvas: &mut dyn Canvas,
+) -> Result<(), Refused> {
     let times = &crate::saves::best_times::STAGE_TIMES;
     let (true, true) = (section_there(menus, system)?, times.is_taken()) else {
         return Err(BadInput("a section past the record table, or no times table").into());

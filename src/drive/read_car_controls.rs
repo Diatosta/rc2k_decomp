@@ -20,7 +20,6 @@ use crate::drive::next_camera_view::next_view_at;
 use crate::drive::start_blend::start_blend;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::net::owner::net;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use rc2k_core::drive::controls::{FLIP_BIT, VIEW_BIT, computer_drives, flipped, read_keys};
@@ -41,7 +40,11 @@ fn computer(shared: &RaceShared) -> bool {
 
 /// `r` as the original leaves it.
 // Converted: `rc2k_core::drive::controls::{read_keys, computer_drives, flipped}`.
-pub fn read_car_controls(race: &Race) -> Result<(), Refused> {
+pub fn read_car_controls(
+    race: &Race,
+    net: &crate::net::owner::Net,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let race_owner = race;
 
     let course = &race.course;
@@ -118,7 +121,7 @@ pub fn read_car_controls(race: &Race) -> Result<(), Refused> {
         .physics_tables
         .input_gear_down
         .set(keys.down);
-    let replay = net().vars.session.get() != 0;
+    let replay = net.vars.session.get() != 0;
     if replay || race_owner.shared.work.current_car.get() < race_owner.shared.view.players.get() {
         if pressed & FLIP_BIT != 0 {
             race_owner
@@ -144,7 +147,7 @@ pub fn read_car_controls(race: &Race) -> Result<(), Refused> {
         .work
         .driver_slot
         .set(race_owner.shared.work.current_car.get());
-    start_blend(race);
+    start_blend(race, scene);
     race_owner
         .shared
         .work
@@ -176,7 +179,8 @@ pub fn read_car_controls(race: &Race) -> Result<(), Refused> {
     if crate::remote::autodrive()
         && race_owner.shared.work.current_car.get() < race_owner.shared.view.players.get()
     {
-        let keys = crate::remote::autodrive_keys(race_owner.shared.car.checkpoint.get());
+        let keys =
+            crate::remote::autodrive_keys(race_owner, race_owner.shared.car.checkpoint.get());
         if keys != 0 {
             // Off the throttle and on the brake while the key is held, as a player would:
             // the reset needs the car slow throughout.

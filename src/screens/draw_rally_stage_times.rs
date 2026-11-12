@@ -9,6 +9,10 @@ use crate::menu::owner::Menus;
 use crate::screens::best_scores::*;
 use crate::text::draw_text::Canvas;
 
-pub fn draw(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    draw_stage_times(menus, &RALLY_STAGE_TIMES, canvas)
+pub fn draw(
+    menus: &Menus,
+    system: &crate::system::owner::System,
+    canvas: &mut dyn Canvas,
+) -> Result<(), Refused> {
+    draw_stage_times(menus, system, &RALLY_STAGE_TIMES, canvas)
 }

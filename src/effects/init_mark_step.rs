@@ -20,12 +20,14 @@ pub fn init_mark_step(
     effects: &Effects,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
+    net: &crate::net::owner::Net,
 ) -> Result<(), Refused> {
     use rc2k_core::effects::race;
     {
         // In a network race `g_players` is 1 but this machine's car may be any: every car's
         // record is needed, or a joined machine's own has no marks (the original's slip).
-        let count: u32 = if crate::net::owner::net().vars.session.get() == 1 {
+        let count: u32 = if net.vars.session.get() == 1 {
             race.shared.view.race_cars.bits()
         } else {
             race.shared.view.players.bits()
@@ -72,7 +74,7 @@ pub fn init_mark_step(
             }
         }
         // The file number is also `init_marks`' seed.
-        crate::effects::init_marks::init_marks(race, effects, file, scene, gfx)?;
+        crate::effects::init_marks::init_marks(race, effects, file, scene, gfx, system)?;
     }
     Ok(())
 }

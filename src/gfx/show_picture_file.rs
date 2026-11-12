@@ -89,7 +89,7 @@ pub fn show_picture_file(
             return Ok(());
         }
     }
-    crate::gfx::convert_picture::convert_picture_now()?;
+    crate::gfx::convert_picture::convert_picture_now_in(gfx, system)?;
     for _ in 0..pages {
         copy_picture_to_surface(&mut GameSurface)?;
         show_frame_now();

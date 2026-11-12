@@ -21,8 +21,7 @@
 use crate::errors::Refused;
 use crate::framework::log;
 use crate::menu::owner::Panels;
-use crate::menu::owner::menus;
-use crate::system::owner::system;
+use crate::owners::Owners;
 use rc2k_core::menu::films::{self, Film, Step, StepAnswer};
 
 // ---- game data ----
@@ -61,8 +60,9 @@ impl Films {
 /// The game for `rc2k_core::menu::films`: the settings and the steps.
 /// A step that refuses ends the films: its error is kept (`failed`), every step after it
 /// does nothing and answers "a key was pressed", and `play_films` returns the error.
-struct Game {
+struct Game<'a> {
     failed: Option<Refused>,
+    owners: Owners<'a>,
 }
 
 fn film(panels: &Panels, f: Film) -> &dyn crate::session::TextPlace {
@@ -79,10 +79,11 @@ fn play(path: &dyn crate::session::TextPlace) -> bool {
     crate::film::play_film_now(path)
 }
 
-impl Game {
+impl Game<'_> {
     fn run(&mut self, s: Step) -> Result<StepAnswer, Refused> {
-        let scene = crate::scene::owner::scene();
-        let panels = &menus().panels;
+        let o = self.owners;
+        let (scene, race) = (o.scene, o.race);
+        let panels = &o.menus.panels;
         let mut flags = StepAnswer::default();
         match s {
             Step::StopMusic => crate::sound::stop_music::stop_music(),
@@ -97,15 +98,12 @@ impl Game {
                 flags.zero = play(film(panels, f.unwrap_or(Film::AlLogo)));
             }
             Step::LitEngine => {
-                crate::scene::set_up_lit_engine::set_up_lit_engine(
-                    crate::race::owner::race(),
-                    scene,
-                )?;
+                crate::scene::set_up_lit_engine::set_up_lit_engine(race, scene)?;
             }
             Step::Render3dTidy => {
-                crate::race::stage_free::render3d_tidy(crate::race::owner::race())?;
+                crate::race::stage_free::render3d_tidy(race)?;
             }
-            Step::ObjectsTidy => crate::race::stage_free::objects_tidy(crate::race::owner::race())?,
+            Step::ObjectsTidy => crate::race::stage_free::objects_tidy(race)?,
             // `nullsub_6`.
             Step::Nothing => {}
             Step::ReleaseTextures => crate::race::race_end::release_textures(),
@@ -122,10 +120,10 @@ impl Game {
             // the quit question, and its demonstration ended at its first frame.
             Step::Demonstration => {
                 crate::race::race_shell::clear_player_absences();
-                crate::race::credits_race::credits_race(crate::race::owner::race())?;
+                crate::race::credits_race::credits_race(race)?;
             }
             Step::Step409B76 => crate::sound::let_sounds_play::let_sounds_play(),
-            Step::SetUpEngine => crate::scene::set_up_engine::set_up_engine()?,
+            Step::SetUpEngine => crate::scene::set_up_engine::set_up_engine_in(race, scene)?,
             Step::FrontEndScene => crate::scene::set_up_front_end_scene::set_up_front_end_scene()?,
             Step::Tune3 => crate::sound::play_tune_3::play_tune_3(),
         }
@@ -134,13 +132,13 @@ impl Game {
     }
 }
 
-impl films::Films for Game {
+impl films::Films for Game<'_> {
     fn no_fmv(&mut self) -> bool {
         crate::film::NO_FMV.get() != 0
     }
 
     fn screen_bits(&mut self) -> u32 {
-        system().session.screen.bits.get()
+        self.owners.system.session.screen.bits.get()
     }
 
     fn step(&mut self, s: Step) -> StepAnswer {
@@ -165,12 +163,15 @@ impl films::Films for Game {
 }
 
 /// `idle`: from the main menu when it has stood idle, else the game's start.
-pub fn play_films(idle: bool) -> Result<(), Refused> {
+pub fn play_films(o: Owners<'_>, idle: bool) -> Result<(), Refused> {
     log(&format!(
         "menu::play_films: runs (mode {})",
         u32::from(idle)
     ));
-    let mut game = Game { failed: None };
+    let mut game = Game {
+        failed: None,
+        owners: o,
+    };
     // The logic is in `rc2k_core::menu::films::play_films`.
     films::play_films(&mut game, idle);
     log("menu::play_films: done");
@@ -186,7 +187,7 @@ mod films_tests {
 
     #[test]
     fn first_values_are_the_games() {
-        let panels = &menus().panels;
+        let panels = &crate::menu::owner::menus().panels;
         crate::gfx::first_values_are_the_games(&panels.films, FILMS_START, FILMS_START + FILMS_LEN);
         assert_eq!(
             crate::moved::place(0x52980B),

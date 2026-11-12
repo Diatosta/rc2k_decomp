@@ -15,7 +15,10 @@ use crate::race::owner::Race;
 pub fn step_replay_cars(
     race: &Race,
     input: &crate::input::owner::Input,
+    system: &crate::system::owner::System,
+    sound: &crate::sound::owner::Sound,
     scene: &crate::scene::owner::Scene,
+    net: &crate::net::owner::Net,
 ) -> Result<(), Refused> {
     let shared = &race.shared;
     use crate::drive::*;
@@ -25,10 +28,10 @@ pub fn step_replay_cars(
         RUN_STEPS, RunStep, car_block, car_runs, check_replay_cars, next_car,
     };
     check_replay_cars(shared.view.race_cars.get())?;
-    choose_shown_cars::choose_shown_cars(race)?;
+    choose_shown_cars::choose_shown_cars_in(race, net)?;
     shared.work.current_car.set(0);
     loop {
-        car_input_words::car_input_words(race, input)?;
+        car_input_words::car_input_words(race, input, net)?;
         play_inputs::play_inputs(race)?;
         shared.work.work_block.set(
             shared
@@ -39,18 +42,20 @@ pub fn step_replay_cars(
         if car_runs(shared.car.driver_kind.get()) {
             for step in RUN_STEPS {
                 match step {
-                    RunStep::Controls => read_car_controls::read_car_controls(race)?,
+                    RunStep::Controls => read_car_controls::read_car_controls(race, net, scene)?,
                     RunStep::GearRules => crate::physics::gear_input_rules::gear_input_rules(
                         &race.shared.car,
                         &race.shared.physics_tables,
                         &race.shared.vars,
                     ),
-                    RunStep::Steering => steer_inputs::steer_inputs(race),
+                    RunStep::Steering => steer_inputs::steer_inputs(race, scene),
                     RunStep::Pedals => pedal_inputs::pedal_inputs(race),
                     RunStep::ResetKey => {
                         reset_request::reset_request(race, scene)?;
                     }
-                    RunStep::Physics => crate::physics::car_physics_step::car_physics_step(race)?,
+                    RunStep::Physics => crate::physics::car_physics_step::car_physics_step(
+                        race, system, sound, scene,
+                    )?,
                 }
             }
             for clock in [&shared.car.step_clock, &shared.car.run_ticks] {
@@ -64,5 +69,5 @@ pub fn step_replay_cars(
             break;
         }
     }
-    race_mode_cars::race_mode_cars(race)
+    race_mode_cars::race_mode_cars(race, scene)
 }

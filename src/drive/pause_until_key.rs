@@ -25,17 +25,14 @@ fn any_ending_key(input: &crate::input::owner::Input) -> u32 {
 }
 
 // Converted: `rc2k_core::drive::race_ticks::{ends_pause, held_wait}`.
-pub fn pause_until_key(
-    race: &Race,
-    input: &crate::input::owner::Input,
-    system: &crate::system::owner::System,
-) -> Result<(), Refused> {
+pub fn pause_until_key(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    let (input, system) = (o.input, o.system);
     let shared = &race.shared;
     shared.vars.hold_count.set(0x19);
     for _ in 0..5 {
         take_key();
     }
-    stop_race_sounds()?;
+    stop_race_sounds(o.sound)?;
     shared.vars.scene_switch.set(1);
     for c in 0..2 {
         race.car_blocks().cars[c as usize].notice_id.set(0xCB);
@@ -53,7 +50,7 @@ pub fn pause_until_key(
             }
         }
         take_key();
-        race_frame(race)?;
+        race_frame(race, o)?;
         if system.session.flags.window_active.get() == 0 {
             hold = true;
             continue;
@@ -64,7 +61,7 @@ pub fn pause_until_key(
             shared.vars.pause_wait.set(shared.vars.pause_wait.get() - 1);
             continue;
         }
-        race_keys(race)?;
+        race_keys(race, o)?;
         if any_ending_key(input) != 0 {
             break;
         }
@@ -75,7 +72,7 @@ pub fn pause_until_key(
         race.car_blocks().cars[c as usize].notice_last.set(0);
     }
     shared.vars.scene_switch.set(0);
-    wake_car_sounds(race)?;
+    wake_car_sounds(race, o.sound)?;
     take_key();
     race.car_blocks().cars[0].input_keys.set(0);
     Ok(())

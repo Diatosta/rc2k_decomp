@@ -16,7 +16,7 @@
 //! its `entry` (`menu::table_calls`).
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::Menus;
+use crate::owners::Owners;
 use crate::text::draw_string_by_id::string_text;
 use crate::text::draw_text::Canvas;
 
@@ -29,10 +29,11 @@ const CAPTION_LEN: usize = 0x100;
 const ITEMS: u32 = 32;
 
 pub fn draw_highlighted_caption(
-    menus: &Menus,
+    o: Owners<'_>,
     measured_at: u32,
     canvas: &mut dyn Canvas,
 ) -> Result<Option<bool>, Refused> {
+    let menus = o.menus;
     let menu: u32 = menus.screens.state.carousel.menu.get();
     let Some(&list) = LISTS.get(menu as usize) else {
         return Ok(None);
@@ -46,7 +47,6 @@ pub fn draw_highlighted_caption(
     if caption.len() > CAPTION_LEN {
         return Err(BadInput("a caption longer than its place").into());
     }
-    let o = crate::owners::boundary();
     o.race
         .text_buffers()
         .caption

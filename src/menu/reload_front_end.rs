@@ -9,9 +9,10 @@ use crate::menu::owner::Menus;
 
 pub fn reload_front_end(menus: &Menus) -> Result<(), Refused> {
     if { menus.play.arcade.scene_let_go.get() } == 1 {
-        crate::scene::set_up_engine::set_up_engine()?;
+        let o = crate::owners::boundary();
+        crate::scene::set_up_engine::set_up_engine_in(o.race, o.scene)?;
         crate::scene::set_up_front_end_scene::set_up_front_end_scene()?;
-        crate::scene::set_up_engine::set_up_engine()?;
+        crate::scene::set_up_engine::set_up_engine_in(o.race, o.scene)?;
     }
     Ok(())
 }

@@ -49,8 +49,8 @@ pub fn to_nowhere(_: Piece) {}
 /// numbers, its drivers, its checkpoint counts and its log (or none).
 pub struct GameSource<'a> {
     pub log: Log<'a>,
-    pub menus: &'static Menus,
-    pub race: &'static Race,
+    pub menus: &'a Menus,
+    pub race: &'a Race,
 }
 
 impl rc2k_core::saves::defaults::Source for GameSource<'_> {
@@ -109,9 +109,9 @@ pub fn read_record(record: RecordRef) -> Result<Record, BadInput> {
 /// Where a function of the time tables writes: a typed stage table, or the game's memory
 /// (a rally's table, `RALLY_TIMES`).
 #[derive(Clone, Copy)]
-pub enum Target {
+pub enum Target<'a> {
     Stages(&'static crate::memory::owned::Owned<rc2k_core::saves::entries::StageTimes>),
-    Rally(&'static [crate::saves::best_times_store::TimeEntry; 20]),
+    Rally(&'a [crate::saves::best_times_store::TimeEntry; 20]),
 }
 
 /// Writes what a function of the time tables worked out: its blocks into `tables` (the
@@ -121,7 +121,7 @@ pub fn apply(
     screens: &Screens,
     race: &Race,
     filled: &Filled,
-    tables: &[Target],
+    tables: &[Target<'_>],
 ) -> Result<(), BadInput> {
     {
         for block in &filled.blocks {

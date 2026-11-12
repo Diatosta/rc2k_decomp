@@ -13,7 +13,7 @@ use crate::errors::BadInput;
 use crate::files::read_file::{ReadResult, read_file_into};
 use crate::files::resolve_path::resolve;
 use crate::files::state::{SKIPPED_ATTRIBUTES, set_last_file_path};
-use crate::system::owner::system;
+use crate::system::owner::System;
 
 // ---- game data ----
 
@@ -21,11 +21,11 @@ use crate::system::owner::system;
 /// (without its NUL) read into `into` (what the file does not reach over kept, as the
 /// game's buffer). Refuses what `resolve_path` and `read_file` refuse.
 pub fn first_match_read(
+    system: &System,
     pattern: &[u8],
     into: &mut [u8],
     offset: u32,
 ) -> Result<Option<ReadResult>, BadInput> {
-    let system = system();
     let resolved = resolve(pattern)?;
     set_last_file_path(Some(&resolved));
     let found = crate::files::search::first(&resolved, SKIPPED_ATTRIBUTES.get());
@@ -52,10 +52,11 @@ pub fn first_match_read(
 
 /// For Rust callers: the bytes read, or None if nothing matched or the reading failed.
 pub fn read_first_match(
+    system: &System,
     pattern: &[u8],
     into: &mut [u8],
     offset: u32,
 ) -> Result<Option<u32>, BadInput> {
-    let read = first_match_read(pattern, into, offset)?;
+    let read = first_match_read(system, pattern, into, offset)?;
     Ok(read.filter(|read| read.ok).and_then(|read| read.bytes_read))
 }

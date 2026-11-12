@@ -14,7 +14,7 @@ use crate::errors::Refused;
 use crate::owners::Owners;
 use crate::race::owner::Race;
 
-pub fn viewer_tidy_stage(race: &Race, o: Owners<'_>) -> Result<(), Refused> {
+pub fn viewer_tidy_stage(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
     let shared = &race.shared;
     // Converted: `rc2k_core::race::viewer_flow::{tidies, TIDY_FIRST, frees_fonts,
     // TIDY_AFTER}` (the fonts' switch read after the first steps, as the original).
@@ -36,14 +36,14 @@ pub fn viewer_tidy_stage(race: &Race, o: Owners<'_>) -> Result<(), Refused> {
 
 fn run(
     race: &Race,
-    o: Owners<'_>,
+    o: Owners<'static>,
     step: rc2k_core::race::viewer_flow::TidyStep,
 ) -> Result<(), Refused> {
     let fonts = &o.gfx.fonts;
     use crate::race::{race_end, sound_tables};
     use rc2k_core::race::viewer_flow::TidyStep;
     match step {
-        TidyStep::TidyEverything => race_end::tidy_everything(race)?,
+        TidyStep::TidyEverything => race_end::tidy_everything_in(race, o)?,
         TidyStep::MenuScreenMode => {
             crate::platform::set_menu_mode_now();
         }

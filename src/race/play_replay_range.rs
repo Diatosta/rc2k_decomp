@@ -10,18 +10,15 @@
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-pub fn play_replay_range(
-    race: &Race,
-    sound: &crate::sound::owner::Sound,
-    input: &crate::input::owner::Input,
-) -> Result<(), Refused> {
+pub fn play_replay_range(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    let sound = o.sound;
     let replay = &race.replay;
     use crate::race::race_end;
     crate::drive::replay_frame_marks::replay_frame_marks(race)?;
     if race.viewer_panel().replay_recording.get() != 1 {
         crate::race::sounds::start_race_sounds(sound)?;
     }
-    crate::race::play_movie::play_movie(race, input)?;
+    crate::race::play_movie::play_movie(race, o)?;
     race_end::reset_race_sounds(&race_end::SoundVars::game(), sound)?;
     // The key taken: its low byte only.
     let key = crate::input::take_key::take_key() as u32 & 0xFF;

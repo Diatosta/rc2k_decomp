@@ -11,7 +11,6 @@ use crate::errors::Refused;
 use crate::gfx::build_glyphs::{SheetVars, build_glyphs};
 use crate::gfx::glyph_builder::RUN_LENGTHS;
 use crate::gfx::glyph_tables::{begin_glyph_table, begin_glyph_tables, end_glyph_tables};
-use crate::menu::owner::menus;
 
 // ---- game data ----
 
@@ -56,12 +55,14 @@ fn all_direct_colour(table: u32) -> Result<(), Refused> {
 pub fn build_menu_sprites_in_game(
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
+    menus: &crate::menu::owner::Menus,
+    strings: &crate::strings::owner::Strings,
 ) -> Result<(), Refused> {
     build_menu_sprites(
         &gfx.sheet,
-        &menus().screens.loop_flags.sprite_table,
+        &menus.screens.loop_flags.sprite_table,
         gfx,
         system,
-        crate::strings::owner::strings(),
+        strings,
     )
 }

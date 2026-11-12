@@ -3,17 +3,15 @@
 //! its leaves.
 
 use crate::errors::Refused;
-use crate::net::owner::net;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
-use crate::scene::owner::scene;
 
 /// `race::players_all_out` (0x445506): carry when every player is out (+0xB0 not 0): the chosen
 /// car's with `session` 1, else each of the `players` players'. Refuses, before anything,
 /// a chosen car past 7 or more than 8 players (the original reads past the table).
-pub fn players_all_out(race: &Race) -> Result<bool, Refused> {
-    let vars = &net().vars;
+pub fn players_all_out(race: &Race, net: &crate::net::owner::Net) -> Result<bool, Refused> {
+    let vars = &net.vars;
     let shared = &race.shared;
     // Converted: `rc2k_core::race::cars::players_all_out`.
     use rc2k_core::race::cars::{Players, players_all_out};
@@ -94,13 +92,12 @@ fn pressed(devices: &crate::input::store::Devices, key: usize) -> bool {
 }
 
 /// `race::race_keys` (0x43A649): the race's view and sound keys (see its header).
-pub fn race_keys(race: &Race) -> Result<(), Refused> {
-    let o = crate::owners::boundary();
+pub fn race_keys(race: &Race, o: crate::owners::Owners<'_>) -> Result<(), Refused> {
     let (audio, sound) = (o.audio, o.sound);
     let devices = &o.input.devices;
     let state = &audio.state;
     let shared = &race.shared;
-    crate::drive::choose_shown_cars::choose_shown_cars(race)?;
+    crate::drive::choose_shown_cars::choose_shown_cars_in(race, o.net)?;
     let second = devices.keys_now.get(VIEW_MODE_KEY) != 0;
     let view = shared.view.view_car_or_end(usize::from(second));
     // Converted: `rc2k_core::race::keys::{first_key, split_flip, volume_key,
@@ -190,9 +187,10 @@ pub fn tyre_change(
     race: &Race,
     input: &'static crate::input::owner::Input,
     system: &crate::system::owner::System,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let shared = &race.shared;
-    let textures = &scene().textures;
+    let textures = &scene.textures;
     use crate::race::tyre_change_gauge::tyre_change_gauge;
     let car = &race.car_blocks().cars[0];
     shared

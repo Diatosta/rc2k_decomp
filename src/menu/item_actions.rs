@@ -24,7 +24,7 @@ use crate::menu::screen_loop::{Entry, run_screen};
 
 /// `menu::show_intro`: the films (idle mode), then back.
 pub fn show_intro() -> Result<(), Refused> {
-    crate::menu::play_films::play_films(true)?;
+    crate::menu::play_films::play_films(crate::owners::boundary(), true)?;
     crate::menu::go_back::go_back();
     Ok(())
 }
