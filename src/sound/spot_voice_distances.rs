@@ -98,7 +98,9 @@ fn x87_3(bx: &[impl Cell32; 20]) {
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::scene::x87_mem::HostCell;
+    use crate::scene::x87_mem::{HostCell, view};
+    use crate::sound::asm_layout::{Laid, with_laid};
+    use crate::sound::store::SurfaceSounds;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     /// A test buffer as a voice's twenty cells.
@@ -122,10 +124,10 @@ mod reference_vectors {
                 ],
                 ulps: 0,
                 plain: |a| {
-                    x87_1(&voice_at(a[0]), unsafe {
-                        &*(crate::test_support::vectors::block_vectors::at(a[1])
-                            as *const crate::sound::store::RaceClock)
-                    });
+                    x87_1(
+                        &voice_at(a[0]),
+                        view::<crate::sound::store::RaceClock>(a[1], 0),
+                    );
                 },
             },
             Block {
@@ -139,24 +141,16 @@ mod reference_vectors {
                         reads: &[(0x14, In::F), (0x18, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::Sized {
+                        len: SurfaceSounds::EXTENT,
                         reads: &[(8, In::F)],
                         writes: &[],
                     },
                 ],
                 ulps: 0,
                 plain: |a| {
-                    x87_2(
-                        &voice_at(a[0]),
-                        unsafe {
-                            &*(crate::test_support::vectors::block_vectors::at(a[1])
-                                as *const crate::sound::store::RaceClock)
-                        },
-                        unsafe {
-                            &*(crate::test_support::vectors::block_vectors::at(a[2])
-                                as *const crate::sound::store::SurfaceSounds)
-                        },
-                    );
+                    let clock = view::<crate::sound::store::RaceClock>(a[1], 0);
+                    with_laid::<SurfaceSounds, _>(a[2], |sf| x87_2(&voice_at(a[0]), clock, sf));
                 },
             },
             Block {

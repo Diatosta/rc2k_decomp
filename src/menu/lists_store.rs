@@ -3,7 +3,7 @@
 //! cells with the image's layout, one static. Its
 //! last field is a 22-byte string: the struct is padded to a multiple of 4.
 
-use crate::audio::names_store::SampleNames;
+use crate::audio::names_store::NameList;
 use crate::menu::cars_store::car_cell;
 use crate::menu::owner::Menus;
 use crate::menu::owner::Tables;
@@ -166,10 +166,10 @@ const fn stage_speech_row(n: usize) -> usize {
 }
 
 /// The `n`th rally speech name (33 bytes each) among the settings page's speech names, from
-/// the one 0xB4 bytes into them, as `audio::store::name_key` has it (a place in `SampleNames`).
+/// the one 0xB4 bytes into them, as `audio::store::name_key` has it (a name's key).
 const fn name_ref(n: usize) -> PlainDword {
     assert!(n < 6);
-    PlainDword::new((offset_of!(SampleNames, menu_speech_st1) + 0xB4 + 33 * n) as u32)
+    PlainDword::new(NameList::MenuSpeech.first_key() + 0xB4 + 33 * n as u32)
 }
 
 /// A repair time's number + 1 in `MENU_STATE`'s repair times (the original kept its address;

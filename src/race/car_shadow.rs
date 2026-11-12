@@ -17,15 +17,15 @@ use crate::race::owner_course::CourseReads;
 use crate::race::scene_points::{OwnPoints, point_word, point_xz, put_point_word};
 use crate::race::shadow_skids_store::ShadowPoint;
 use crate::race::trap::Trap;
+use crate::scene::polygon::{list_cell, old_list_cell};
 use crate::scene::polygon_store::PolygonEntry;
-use crate::session::{Byte, Dword, Float, copy_on_in, read_on_in, write_on_in};
+use crate::session::{Byte, Dword, Float};
 
 /// The shadow's working state: what `cast_car_shadows` writes and reads within itself, one
 /// for each call, given down to its parts. The original kept it in the race block
 /// (`g_shadowPoints` and after at 0x641AA4 .. 0x643ACC, `g_shadowPointCount` and its
 /// neighbours at 0x641928 .. 0x641AA0), left from view to view; nothing else read it, and
-/// each call wrote every value before reading it. `#[repr(C)]` for the list's copy into
-/// the polygon list (`copy_on_in`).
+/// each call wrote every value before reading it.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ShadowWork {
@@ -429,37 +429,21 @@ fn clip_to_edge(
     work.edge[3].set(tz);
     work.edge[0].set(fx);
     work.edge[1].set(fz);
-    // The list and the old list (0x40 entries each, back to back in the part's polygon
-    // work) are not held to their length: a cut that adds crossings past 0x40 runs on
-    // from the list into the old list, and from the old list into the work after it, as
-    // the original; refused past the part's polygon work.
-    let (list, old) = (&ctx.part.polygon.list, &ctx.part.polygon.old_list);
-    copy_on_in(
-        (ctx.part.polygon, list),
-        (ctx.part.polygon, old),
-        count as usize,
-        "the polygon list",
-    )?;
-    write_on_in(
-        ctx.part.polygon,
-        old,
-        count as usize,
-        list[0].get(),
-        "the old polygon list",
-    )?;
+    // The polygon list holds 0x40 numbers and the old list follows it: a cut that adds
+    // crossings past 0x40 runs on from the list into the old list, and from the old list
+    // into the gap after it, as the original (`list_cell` names the three fields). A hull of
+    // at most 0x40 points cut by three edges adds at most as many again as it holds each time.
+    let polygon = ctx.part.polygon;
+    for k in 0..count as usize {
+        old_list_cell(polygon, k).set(list_cell(polygon, k).get());
+    }
+    old_list_cell(polygon, count as usize).set(list_cell(polygon, 0).get());
     // Converted: `rc2k_core::race::shadow::clip_by_edge`.
     let mut added = 0u32;
     let trap = Trap::new();
     rc2k_core::race::shadow::clip_by_edge(
         count,
-        |k| {
-            read_on_in(ctx.part.polygon, old, k as usize, "the old polygon list").unwrap_or_else(
-                |err| {
-                    trap.keep(err);
-                    0
-                },
-            )
-        },
+        |k| old_list_cell(polygon, k as usize).get(),
         |e| {
             let entry = match work_entry(ctx.part.polygon, e) {
                 Ok(x) => x.point.get(),
@@ -494,15 +478,7 @@ fn clip_to_edge(
             next
         },
         |e| {
-            if let Err(err) = write_on_in(
-                ctx.part.polygon,
-                list,
-                added as usize,
-                e,
-                "the polygon list",
-            ) {
-                trap.keep(err);
-            }
+            list_cell(polygon, added as usize).set(e);
             added += 1;
         },
     );
@@ -601,21 +577,12 @@ pub fn shadow_on_face(
         return Err(BadInput("a shadow list past 0x40").into());
     }
     ctx.view.polygon.polygon_drawn.set(0u32);
-    let list = &ctx.part.polygon.list;
-    copy_on_in(
-        (work, &work.list),
-        (ctx.part.polygon, list),
-        count as usize,
-        "the shadow list",
-    )?;
+    let polygon = ctx.part.polygon;
+    for k in 0..count as usize {
+        list_cell(polygon, k).set(work.list[k].get());
+    }
     ctx.view.polygon.polygon_vertex_count.set(count);
-    write_on_in(
-        ctx.part.polygon,
-        list,
-        count as usize,
-        work.list[0].get(),
-        "the polygon list",
-    )?;
+    list_cell(polygon, count as usize).set(work.list[0].get());
     ctx.view.polygon.polygon_next_entry.set(0x20u32);
     let scene_points: u32 = ctx.reads.course_work.scene_point_count.get();
     work.next_point.set(scene_points.wrapping_add(0x30));
@@ -642,7 +609,7 @@ pub fn shadow_on_face(
             &ctx.part.points,
             ctx.reads,
             work,
-            read_on_in(ctx.part.polygon, list, k as usize, "the polygon list")?,
+            list_cell(ctx.part.polygon, k as usize).get(),
         )?;
     }
     crate::scene::project_polygon::project_polygon(

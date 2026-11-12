@@ -1,10 +1,9 @@
 //! The championship pages' rows and the event's tables, out of RAL.EXE's image (IDA 0x7556B4 ..
 //! 0x755784): the rows shown, the key clock, the event's mode and the addresses of
-//! the best-times and standings tables. A `#[repr(C)]` struct with the image's layout, one static;
-//! The tables' addresses are the game's allocations
-//! (`saves::allocate_best_times`).
+//! the best-times and standings tables. One static; the tables' addresses are the game's
+//! allocations (`saves::allocate_best_times`).
 
-use crate::session::{PlainBytes, PlainDword, with_runs};
+use crate::session::PlainDword;
 
 /// The rows, the key clock and the tables' addresses (IDA 0x7556B4 .. 0x755784).
 #[repr(C)]
@@ -22,8 +21,6 @@ pub struct ChampView {
     pub last_key_time: PlainDword,
     /// `dword_7556C8`: What the cursor's blink counts from.
     pub cursor_time: PlainDword,
-    /// Unreferenced bytes (IDA 0x7556CC .. 0x7556D0).
-    pub _gap_7556cc: PlainBytes<4>,
     /// `g_eventMode`: The event's mode: 2, 3 or 0x13.
     pub event_mode: PlainDword,
     /// `g_bestScores`: held the best scores' table; the table is typed now
@@ -60,8 +57,6 @@ pub struct ChampView {
     pub switch_fc: PlainDword,
     /// `dword_755700`: 2 a championship's, 3 a record's (`menu::stage_choice`).
     pub stage_mode: PlainDword,
-    /// Unreferenced bytes (IDA 0x755704 .. 0x755784).
-    pub _gap_755704: PlainBytes<128>,
 }
 
 /// First values the image's (`tests::champ_view_starts_as_the_games`).
@@ -74,7 +69,6 @@ impl ChampView {
             ranked_player: PlainDword::new(0x1),
             last_key_time: PlainDword::new(0x0),
             cursor_time: PlainDword::new(0x0),
-            _gap_7556cc: PlainBytes::new(with_runs::<4>(&[(0x0, &[0x01])])),
             event_mode: PlainDword::new(0x2),
             best_scores: PlainDword::new(0),
             stage_best_times: PlainDword::new(0),
@@ -88,44 +82,56 @@ impl ChampView {
             switch_f8: PlainDword::new(0x1),
             switch_fc: PlainDword::new(0x1),
             stage_mode: PlainDword::new(0x1),
-            _gap_755704: PlainBytes::new([0; 128]),
         }
     }
 }
 
-/// IDA 0x7556B4, the first byte of the piece.
-pub const START: usize = 0x7556B4;
-/// IDA 0x755784, the end of the piece.
-pub const END: usize = 0x755784;
+/// The variables of the view that held a best-times table (the list the stage pages go
+/// through, `StageTables::result_tables`, names them by their address in the game's data); the
+/// tables are typed now (`saves::best_times`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TimesVariable {
+    /// `ChampView.stage_best_times`.
+    StageTimes,
+    /// `ChampView.course_best_times`.
+    CourseTimes,
+    /// `ChampView.time_trial_best_times`.
+    TimeTrialTimes,
+    /// `ChampView.stage_best_times_alt`.
+    StageTimesAlt,
+}
+
+impl TimesVariable {
+    /// The variable the game's name `name` (the variable's address in the game's data, as the
+    /// stage tables' list holds it) stands for.
+    pub const fn named(name: u32) -> Option<TimesVariable> {
+        match name {
+            0x7556D8 => Some(TimesVariable::StageTimes),
+            0x7556E0 => Some(TimesVariable::CourseTimes),
+            0x7556E8 => Some(TimesVariable::TimeTrialTimes),
+            0x7556E4 => Some(TimesVariable::StageTimesAlt),
+            _ => None,
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn champ_view_starts_as_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::menu::owner::menus().play.champ_view,
         );
-        assert_eq!(offset_of!(ChampView, count), 0x0);
-        assert_eq!(offset_of!(ChampView, first_row), 0x4);
-        assert_eq!(offset_of!(ChampView, row_end), 0x8);
-        assert_eq!(offset_of!(ChampView, ranked_player), 0xc);
-        assert_eq!(offset_of!(ChampView, last_key_time), 0x10);
-        assert_eq!(offset_of!(ChampView, cursor_time), 0x14);
-        assert_eq!(offset_of!(ChampView, event_mode), 0x1c);
-        assert_eq!(offset_of!(ChampView, best_scores), 0x20);
-        assert_eq!(offset_of!(ChampView, stage_best_times), 0x24);
-        assert_eq!(offset_of!(ChampView, level_best_scores), 0x28);
-        assert_eq!(offset_of!(ChampView, course_best_times), 0x2c);
-        assert_eq!(offset_of!(ChampView, stage_best_times_alt), 0x30);
-        assert_eq!(offset_of!(ChampView, time_trial_best_times), 0x34);
-        assert_eq!(offset_of!(ChampView, ranked_times), 0x38);
-        assert_eq!(offset_of!(ChampView, champ_history), 0x3c);
-        assert_eq!(offset_of!(ChampView, summary), 0x40);
-        assert_eq!(offset_of!(ChampView, switch_f8), 0x44);
-        assert_eq!(offset_of!(ChampView, switch_fc), 0x48);
-        assert_eq!(offset_of!(ChampView, stage_mode), 0x4c);
+        assert_eq!(
+            TimesVariable::named(0x7556D8),
+            Some(TimesVariable::StageTimes)
+        );
+        assert_eq!(
+            TimesVariable::named(0x7556E4),
+            Some(TimesVariable::StageTimesAlt)
+        );
+        assert_eq!(TimesVariable::named(0x7556DC), None);
     }
 }

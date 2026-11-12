@@ -59,13 +59,13 @@ pub struct GameStage<'a>(pub &'a Race);
 
 impl Stage for GameStage<'_> {
     fn checkpoint_face(&self, k: u32) -> u32 {
-        crate::race::checkpoints_store::face(self.0.checkpoints(), k as usize).get()
+        crate::race::checkpoints_store::face_run_on(self.0.checkpoints(), k as usize).get()
     }
     fn distance(&self, k: u32) -> u32 {
-        crate::race::checkpoints_store::distance(self.0.checkpoints(), k as usize).get()
+        crate::race::checkpoints_store::distance_run_on(self.0.checkpoints(), k as usize).get()
     }
     fn angle(&self, k: u32) -> u32 {
-        crate::race::checkpoints_store::angle(self.0.checkpoints(), k as usize).get()
+        crate::race::checkpoints_store::angle_run_on(self.0.checkpoints(), k as usize).get()
     }
     fn slot_offset(&self, slot: u32) -> u32 {
         self.0.shared.physics_tables.get().pace_slot_offsets[slot as usize].get() // PhysicsTables.pace_slot_offsets[0]: each slot's byte in the face

@@ -105,15 +105,15 @@ pub fn load_texture_picture(
             call(Call::Text(b"carnum".to_vec()));
             call(Call::Number(car));
             call(Call::Text(b"grav".to_vec()));
-            // Eight cars' gravel switches; a car past them (the race's cars are at most
-            // eight) reads on, as the original.
-            let tyres = &shared.vars.get().car_tyres;
-            let gravel = crate::session::read_on_in(
-                shared.vars.get(),
-                tyres,
-                car as usize,
-                "a car's tyre switch",
-            )?;
+            // Eight cars' gravel switches; the car is under the race's cars, which every
+            // write holds to eight (`init_texture_levels` holds them again at each stage).
+            let gravel = shared
+                .vars
+                .get()
+                .car_tyres
+                .get(car as usize)
+                .map(crate::session::PlainDword::get)
+                .ok_or(BadInput("a car past the eight tyre switches"))?;
             call(Call::Number(gravel));
             if takes_gravel(gravel) && call(Call::Exists(folders(course)[GRAVEL].0)) {
                 gravel_chosen = true;

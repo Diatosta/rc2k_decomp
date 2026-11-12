@@ -136,7 +136,7 @@ pub struct PolygonWork {
     pub list: [Dword; 64],
     /// +0x2300 (0x977810): `g_polygonOldList`: the list before a clip (`scene::clip`, `race::car_shadow`).
     pub old_list: [Dword; 64],
-    /// +0x2400 (0x977910): 0x600 bytes between the old list and the record pool; nothing reads or writes them (a gap).
+    /// +0x2400 (0x977910): 0x600 bytes between the old list and the record pool: a polygon of more than 128 vertices lists on into them (`scene::polygon::list_cell`).
     pub unknown_2400: [Dword; 0x180],
     /// +0x2a00 (0x977F10): `g_polygonRecordPool`: the point records a clip makes, 0x2020 bytes (`scene::clip`, `scene::draw_flat_quad`).
     pub record_pool: [Dword; 0x808],

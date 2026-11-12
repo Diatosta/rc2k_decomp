@@ -333,7 +333,7 @@ pub(super) const PART_SWITCHES: u32 = 0xAC0;
 pub(super) fn light_pair(
     ctx: &DrawCtx,
     car: usize,
-    record: u32,
+    record: usize,
     at: u32,
     left: u32,
     right: u32,
@@ -355,8 +355,20 @@ pub(super) fn light_pair(
     if right != u32::MAX {
         ctx.view.cars.light_right.set(byte(right)?);
     }
-    let [x, y, z]: [u32; 3] =
-        crate::cells::load_value(ctx.reads.lights_and_gear, record.wrapping_add(at) as usize)?;
+    let lights = &ctx
+        .reads
+        .lights_and_gear
+        .light_records
+        .records
+        .get(record)
+        .ok_or(BadInput("a light record past the 34 models'"))?
+        .lights;
+    // `at` counts from the record's start; the lights lie from +0xA4 and every pair is inside.
+    let first = (at as usize).wrapping_sub(0xA4) / 4;
+    let [x, y, z]: [u32; 3] = match lights.get(first..first.wrapping_add(3)) {
+        Some([x, y, z]) => [x.get(), y.get(), z.get()],
+        _ => return Err(BadInput("a light pair outside the record's lights")),
+    };
     if x | y | z == 0 {
         return Ok(());
     }
@@ -415,11 +427,8 @@ pub fn car_light_flares(ctx: &DrawCtx, car: usize) -> Result<(), Refused> {
     }
     // 0x41F4E1: the kind held to 0 ..= 0x21 (by sign), through the kind tables' `kind_light_records`.
     let index = race.kind_tables().kind_light_records[(kind as i32).clamp(0, 0x21) as usize].get();
-    // The index is not bounded: the original reads on past the 34 records into the gear
-    // figures (the group `lights_and_gear` bounds the read).
-    let record = (core::mem::offset_of!(crate::race::groups_store::LightsAndGear, light_records)
-        as u32)
-        .wrapping_add(index.wrapping_mul(0x134));
+    // The table is the image's and nothing writes it: its entries are 0 .. 33, the 34 records'.
+    let record = index as usize;
     ctx.view.light.view_kind.set(1u32);
     ctx.view.light.light_kind.set(3u32);
     ctx.view.object.size.set(2u32);

@@ -145,15 +145,14 @@ impl<'a> ObjectVars<'a> {
     }
 }
 
-/// An object's set-up: the 0x68 bytes from +0x2C (the place, the motion and the four
-/// wheel records) and 24 fields cleared (0) or set (1).
+/// An object's set-up: the place, the motion and the four wheel records cleared, and the
+/// fields after them cleared (0) or set (1).
 fn set_up_object(o: &crate::sound::store::SoundObject) {
     for f in o.place.iter().chain(&o.motion) {
         f.set(0.0);
     }
     for v in &o.voices {
         v.share_a.set(0.0);
-        v._gap_4.set(0);
         v.share_b.set(0.0);
         v.share_c.set(0.0);
         v.surface.set(0);
@@ -190,7 +189,7 @@ fn set_up_object(o: &crate::sound::store::SoundObject) {
 /// mode 2 with `RaceSounds.mark_car_voices` 1), the players' objects (`RaceSounds.player_cars[0]` 0 or the chosen car
 /// `NetVars.player` with `NetVars.session` 1, which also gives the count `NetVars.players`; `RaceSounds.player_cars[1]`
 /// 1); each object's first dword -1 .. -8; the players' objects their number, kind and setting;
-/// each object's 0x68 bytes from +0x2C and 24 fields reset; `TyreChange.drawn` 0;
+/// each object's place, motion and wheel records and 24 fields reset; `TyreChange.drawn` 0;
 /// `restart_race_sounds`. Refuses, before anything, a chosen car past 7 (the original reads past
 /// the table)
 pub fn set_up_race_sound_objects(

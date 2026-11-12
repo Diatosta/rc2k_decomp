@@ -75,9 +75,9 @@ pub fn scroll_map(
     let [corner_x, corner_y] = &car.map_corner;
     let [map_x, map_y] = &car.map_place;
     let n = car.checkpoint.get();
-    map_x.set(crate::race::checkpoints_store::map_x(race.checkpoints(), n as usize).get());
-    map_y.set(crate::race::checkpoints_store::map_y(race.checkpoints(), n as usize).get());
-    let face = crate::race::checkpoints_store::face(race.checkpoints(), n as usize).get();
+    map_x.set(crate::race::checkpoints_store::map_x_run_on(race.checkpoints(), n as usize).get());
+    map_y.set(crate::race::checkpoints_store::map_y_run_on(race.checkpoints(), n as usize).get());
+    let face = crate::race::checkpoints_store::face_run_on(race.checkpoints(), n as usize).get();
     let point = crate::race::course_places::face_number(race.course.reads(), face)?.point(0);
     let px = crate::race::scene_points::point_word(
         race.course.reads(),

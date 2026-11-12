@@ -227,6 +227,8 @@ fn x87_4(bx: &crate::sound::store::SoundObject, sf: &crate::sound::store::Surfac
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
+    use crate::sound::asm_layout::{Laid, with_laid};
+    use crate::sound::store::{SoundObject, SurfaceSounds};
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
@@ -234,7 +236,8 @@ mod reference_vectors {
             Block {
                 name: "surface_sounds line 62",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::Sized {
+                        len: SurfaceSounds::EXTENT,
                         reads: &[(0x40, In::F)],
                         writes: &[(0x40, Out::F)],
                     },
@@ -245,19 +248,14 @@ mod reference_vectors {
                 ],
                 ulps: 0,
                 plain: |a| {
-                    x87_1(
-                        unsafe {
-                            &*(crate::test_support::vectors::block_vectors::at(a[0])
-                                as *const crate::sound::store::SurfaceSounds)
-                        },
-                        a[1],
-                    );
+                    with_laid::<SurfaceSounds, _>(a[0], |sf| x87_1(sf, a[1]));
                 },
             },
             Block {
                 name: "surface_sounds line 70",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::Sized {
+                        len: SurfaceSounds::EXTENT,
                         reads: &[(0x40, In::F)],
                         writes: &[(0x40, Out::F)],
                     },
@@ -268,19 +266,14 @@ mod reference_vectors {
                 ],
                 ulps: 0,
                 plain: |a| {
-                    x87_2(
-                        unsafe {
-                            &*(crate::test_support::vectors::block_vectors::at(a[0])
-                                as *const crate::sound::store::SurfaceSounds)
-                        },
-                        a[1],
-                    );
+                    with_laid::<SurfaceSounds, _>(a[0], |sf| x87_2(sf, a[1]));
                 },
             },
             Block {
                 name: "surface_sounds line 92",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::Sized {
+                        len: SoundObject::EXTENT,
                         reads: &[
                             (0x44, In::F),
                             (0x4C, In::F),
@@ -293,49 +286,38 @@ mod reference_vectors {
                         ],
                         writes: &[(0x284, Out::I), (0x28C, Out::I)],
                     },
-                    Operand::Buffer {
+                    Operand::Sized {
+                        len: SurfaceSounds::EXTENT,
                         reads: &[(4, In::F), (0xC, In::F), (0x10, In::F)],
                         writes: &[(0x34, Out::F), (0x3C, Out::F), (0x40, Out::F)],
                     },
                 ],
                 ulps: 0,
                 plain: |a| {
-                    x87_3(
-                        unsafe {
-                            &*(crate::test_support::vectors::block_vectors::at(a[0])
-                                as *const crate::sound::store::SoundObject)
-                        },
-                        unsafe {
-                            &*(crate::test_support::vectors::block_vectors::at(a[1])
-                                as *const crate::sound::store::SurfaceSounds)
-                        },
-                    );
+                    with_laid::<SoundObject, _>(a[0], |so| {
+                        with_laid::<SurfaceSounds, _>(a[1], |sf| x87_3(so, sf));
+                    });
                 },
             },
             Block {
                 name: "surface_sounds line 135",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::Sized {
+                        len: SoundObject::EXTENT,
                         reads: &[(0x50, In::F), (0x64, In::F), (0x78, In::F), (0x8C, In::F)],
                         writes: &[(0x290, Out::I)],
                     },
-                    Operand::Buffer {
+                    Operand::Sized {
+                        len: SurfaceSounds::EXTENT,
                         reads: &[(4, In::F), (0x10, In::F)],
                         writes: &[(0x34, Out::F), (0x3C, Out::F), (0x40, Out::F)],
                     },
                 ],
                 ulps: 0,
                 plain: |a| {
-                    x87_4(
-                        unsafe {
-                            &*(crate::test_support::vectors::block_vectors::at(a[0])
-                                as *const crate::sound::store::SoundObject)
-                        },
-                        unsafe {
-                            &*(crate::test_support::vectors::block_vectors::at(a[1])
-                                as *const crate::sound::store::SurfaceSounds)
-                        },
-                    );
+                    with_laid::<SoundObject, _>(a[0], |so| {
+                        with_laid::<SurfaceSounds, _>(a[1], |sf| x87_4(so, sf));
+                    });
                 },
             },
         ]

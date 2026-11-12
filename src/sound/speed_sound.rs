@@ -54,7 +54,9 @@ pub fn speed_sound(
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
+    use crate::sound::asm_layout::{Laid, with_laid};
     use crate::sound::sets_store::SoundSet;
+    use crate::sound::store::{SoundObject, SurfaceSounds};
 
     use crate::scene::x87_mem::view;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
@@ -65,7 +67,8 @@ mod reference_vectors {
             Block {
                 name: "speed_sound, view flag 1",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::Sized {
+                        len: SoundObject::EXTENT,
                         reads: &[(0xc, In::I), (0x108, In::F)],
                         writes: &[],
                     },
@@ -80,18 +83,27 @@ mod reference_vectors {
                 ],
                 ulps: 0,
                 plain: |a| {
-                    let bx = view::<SoundObject>(a[0], 0);
-                    let set = view::<SoundSet>(a[1], 0);
-                    bx.view_flag.set(1);
-                    let request = view::<SoundRequest>(a[2], 0);
-                    let gain = &&crate::sound::owner::sound().race.surface.get().speed_gain;
-                    fill_pitch_and_volume(bx, set, &bx.speed_input, &bx.speed_input, gain, request);
+                    with_laid::<SoundObject, _>(a[0], |bx| {
+                        let set = view::<SoundSet>(a[1], 0);
+                        bx.view_flag.set(1);
+                        let request = view::<SoundRequest>(a[2], 0);
+                        let gain = &&crate::sound::owner::sound().race.surface.get().speed_gain;
+                        fill_pitch_and_volume(
+                            bx,
+                            set,
+                            &bx.speed_input,
+                            &bx.speed_input,
+                            gain,
+                            request,
+                        );
+                    });
                 },
             },
             Block {
                 name: "speed_sound, view flag 0",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::Sized {
+                        len: SoundObject::EXTENT,
                         reads: &[(0xc, In::I), (0x108, In::F)],
                         writes: &[],
                     },
@@ -99,7 +111,8 @@ mod reference_vectors {
                         reads: &[(0x10, In::F), (0x18, In::F), (0x1C, In::F), (0x24, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::Sized {
+                        len: SurfaceSounds::EXTENT,
                         reads: &[(0x24, In::F)],
                         writes: &[],
                     },
@@ -110,12 +123,22 @@ mod reference_vectors {
                 ],
                 ulps: 0,
                 plain: |a| {
-                    let bx = view::<SoundObject>(a[0], 0);
-                    let set = view::<SoundSet>(a[1], 0);
-                    bx.view_flag.set(0);
-                    let request = view::<SoundRequest>(a[3], 0);
-                    let gain = &view::<crate::sound::store::SurfaceSounds>(a[2], 0).speed_gain;
-                    fill_pitch_and_volume(bx, set, &bx.speed_input, &bx.speed_input, gain, request);
+                    with_laid::<SoundObject, _>(a[0], |bx| {
+                        with_laid::<SurfaceSounds, _>(a[2], |sf| {
+                            let set = view::<SoundSet>(a[1], 0);
+                            bx.view_flag.set(0);
+                            let request = view::<SoundRequest>(a[3], 0);
+                            let gain = &sf.speed_gain;
+                            fill_pitch_and_volume(
+                                bx,
+                                set,
+                                &bx.speed_input,
+                                &bx.speed_input,
+                                gain,
+                                request,
+                            );
+                        });
+                    });
                 },
             },
         ]

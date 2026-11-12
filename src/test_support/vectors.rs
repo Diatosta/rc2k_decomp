@@ -830,6 +830,13 @@ pub mod block_vectors {
             reads: &'static [(usize, In)],
             writes: &'static [(usize, Out)],
         },
+        /// A buffer of at least `len` bytes, for a record the Rust version holds in its own
+        /// layout (`sound::asm_layout`): it reads the whole 1999 extent from the buffer.
+        Sized {
+            len: usize,
+            reads: &'static [(usize, In)],
+            writes: &'static [(usize, Out)],
+        },
         Value(usize),
         /// The race block itself: the places are offsets from its start, read and written
         /// where the typed stores see them; put back after the block's cases.
@@ -850,6 +857,7 @@ pub mod block_vectors {
         fn places(&self) -> Option<Places> {
             match *self {
                 Operand::Buffer { reads, writes }
+                | Operand::Sized { reads, writes, .. }
                 | Operand::RaceBlock { reads, writes }
                 | Operand::Buffers { reads, writes } => Some((reads, writes)),
                 Operand::Value(_) => None,
@@ -972,6 +980,17 @@ pub mod block_vectors {
                                 .max()
                                 .unwrap_or(0);
                             let v = vec![0u8; end + 16];
+                            args.push(v.as_ptr() as usize);
+                            buffers.push(Mem::Buffer(v));
+                        }
+                        Operand::Sized { len, reads, writes } => {
+                            let end = reads
+                                .iter()
+                                .map(|&(off, k)| off + width_in(k))
+                                .chain(writes.iter().map(|&(off, k)| off + width_out(k)))
+                                .max()
+                                .unwrap_or(0);
+                            let v = vec![0u8; end.max(*len) + 16];
                             args.push(v.as_ptr() as usize);
                             buffers.push(Mem::Buffer(v));
                         }

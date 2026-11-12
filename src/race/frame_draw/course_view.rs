@@ -43,9 +43,11 @@ pub fn checkpoint_colours(
     // Converted: `rc2k_core::race::frame::checkpoint_colours`.
     {
         let n: u32 = car.checkpoint.get();
-        let face = crate::race::checkpoints_store::face(race.checkpoints(), n as usize).get();
+        let face =
+            crate::race::checkpoints_store::face_run_on(race.checkpoints(), n as usize).get();
         let byte: u8 = face_field(course, face, 0x10)?;
-        let along = crate::race::checkpoints_store::angle(race.checkpoints(), n as usize).get();
+        let along =
+            crate::race::checkpoints_store::angle_run_on(race.checkpoints(), n as usize).get();
         let c = rc2k_core::race::frame::checkpoint_colours(byte, along, car.car_heading.get());
         Ok(c.level)
     }

@@ -158,6 +158,7 @@ fn x87_2(numbers: &Numbers, car: &Car, o: &crate::sound::store::SoundObject) {
 mod reference_vectors {
     use super::*;
     use crate::race::owner::race;
+    use crate::sound::asm_layout::{Laid, with_laid};
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
@@ -183,7 +184,8 @@ mod reference_vectors {
                         ],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::Sized {
+                        len: crate::sound::store::SoundObject::EXTENT,
                         reads: &[],
                         writes: &[
                             (0x44, Out::F),
@@ -203,9 +205,8 @@ mod reference_vectors {
                 ],
                 ulps: 0,
                 plain: |a| {
-                    x87_2(race().course.numbers.get(), race().shared.car(), unsafe {
-                        &*(crate::test_support::vectors::block_vectors::at(a[1])
-                            as *const crate::sound::store::SoundObject)
+                    with_laid::<crate::sound::store::SoundObject, _>(a[1], |so| {
+                        x87_2(race().course.numbers.get(), race().shared.car(), so);
                     });
                 },
             },

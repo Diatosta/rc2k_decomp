@@ -324,8 +324,7 @@ impl flow::Game for Game<'_> {
             C::SingleRallyReview => self.screen(&m::single_rally_review_loop::SCREEN)?,
             C::StartStream { channel } => {
                 // ";3files\%speech\rally\rally0.wav"
-                use crate::audio::names_store::SampleNames;
-                let name = core::mem::offset_of!(SampleNames, rally_speech) as u32;
+                let name = crate::audio::names_store::NameList::RallySpeech.first_key();
                 crate::sound::start_stream::start_stream(
                     self.owners.audio,
                     self.owners.system,

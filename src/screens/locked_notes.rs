@@ -2,7 +2,9 @@
 //! open ().
 
 use crate::errors::Refused;
-use crate::menu::arcade_store::Arcade;
+
+/// The index of item 0 (`item - 2`, wrapping): two bytes before the levels won.
+const NOT_IN_TABLE: u32 = u32::MAX - 1;
 
 /// A note's box put up (converted: `rc2k_core::screens::locked`). The original's x for the
 /// box only reaches the measuring of the text, in a font in measure mode: it changes
@@ -44,11 +46,17 @@ pub fn note_locked_stage(o: crate::owners::Owners<'static>) -> Result<(), Refuse
         menus.play.cheats.cheats.get(),
         menus.screens.loop_flags.item.get(),
         |index| {
-            // Bounded to the arcade's store, not the six bytes: item 0 reads before them.
-            let at = (core::mem::offset_of!(Arcade, levels_won) as u32).wrapping_add(index);
-            fault.ok(crate::place::BytePlace::In(&menus.play.arcade, at as usize)
-                .read_array::<1>("a stage\'s lock")
-                .map(|[b]| b))
+            // The screen has eight items: item n is the stage `levels_won[n - 2]`, items 1 and
+            // 7 are not asked about. Item 0 (index -2) lies before the table, where the
+            // original reads two of the four unreferenced bytes in front of it, which nothing
+            // writes: not open.
+            match index {
+                0..8 => menus.play.arcade.levels_won.get(index as usize),
+                NOT_IN_TABLE => 0,
+                _ => fault.ok(Err(crate::errors::BadInput(
+                    "a stage's lock past the table",
+                ))),
+            }
         },
     );
     fault.check()?;

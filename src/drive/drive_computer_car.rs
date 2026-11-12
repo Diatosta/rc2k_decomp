@@ -146,7 +146,12 @@ pub fn drive_computer_car(race: &Race, scene: &crate::scene::owner::Scene) -> Re
     race.shared.work.get().driver_point_now.set(slot << 4);
     race.shared.work.get().driver_point_then.set(slot << 4);
     let n = race.shared.car().checkpoint.get();
-    let f = held(&race.shared, crate::race::checkpoints_store::face, n, 2);
+    let f = held(
+        &race.shared,
+        crate::race::checkpoints_store::face_run_on,
+        n,
+        2,
+    );
     let (b1, b2) = crate::race::course_places::face_number(race.course.reads(), f)?.bends();
     let (b1, b2) = (u32::from(b1), u32::from(b2));
     race.shared.work.get().driver_bend_a.set(b1);
@@ -171,13 +176,13 @@ pub fn drive_computer_car(race: &Race, scene: &crate::scene::owner::Scene) -> Re
     let turn = driver::turn(
         held(
             &race.shared,
-            crate::race::checkpoints_store::angle,
+            crate::race::checkpoints_store::angle_run_on,
             n,
             first,
         ),
         held(
             &race.shared,
-            crate::race::checkpoints_store::angle,
+            crate::race::checkpoints_store::angle_run_on,
             n,
             second,
         ),
@@ -204,8 +209,18 @@ pub fn drive_computer_car(race: &Race, scene: &crate::scene::owner::Scene) -> Re
         race.shared.work.get().driver_bend_turn[edx as usize].set(0);
     }
     let bend = driver::table_entry(
-        held(&race.shared, crate::race::checkpoints_store::angle, n, 0),
-        held(&race.shared, crate::race::checkpoints_store::angle, n, 4),
+        held(
+            &race.shared,
+            crate::race::checkpoints_store::angle_run_on,
+            n,
+            0,
+        ),
+        held(
+            &race.shared,
+            crate::race::checkpoints_store::angle_run_on,
+            n,
+            4,
+        ),
     );
     if driver::tight(bend) {
         race.shared.work.get().driver_aim.set(1);
@@ -262,7 +277,12 @@ pub fn drive_computer_car(race: &Race, scene: &crate::scene::owner::Scene) -> Re
         .set(x87::loaded(&race.shared.work.get().bend_speeds[k as usize])); // RaceWork.bend_speeds[0], 0x20 of them
     let (x, z) = face_point(
         &race.course,
-        held(&race.shared, crate::race::checkpoints_store::face, n, 0),
+        held(
+            &race.shared,
+            crate::race::checkpoints_store::face_run_on,
+            n,
+            0,
+        ),
     )?;
     race.shared.work.get().driver_from[0].set(x);
     race.shared.work.get().driver_from[2].set(z);
@@ -278,7 +298,12 @@ pub fn drive_computer_car(race: &Race, scene: &crate::scene::owner::Scene) -> Re
     );
     let (x, z) = face_point(
         &race.course,
-        held(&race.shared, crate::race::checkpoints_store::face, n, aim),
+        held(
+            &race.shared,
+            crate::race::checkpoints_store::face_run_on,
+            n,
+            aim,
+        ),
     )?;
     race.shared.work.get().driver_to[0].set(x);
     race.shared.work.get().driver_to[2].set(z);

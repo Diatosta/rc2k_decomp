@@ -70,13 +70,16 @@ fn x87_1(sf: &crate::sound::store::SurfaceSounds, volume: &impl Cell32) {
 mod reference_vectors {
     use super::*;
     use crate::scene::x87_mem::HostCell;
+    use crate::sound::asm_layout::{Laid, with_laid};
+    use crate::sound::store::SurfaceSounds;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
         vec![Block {
             name: "surface_sound line 52",
             operands: vec![
-                Operand::Buffer {
+                Operand::Sized {
+                    len: SurfaceSounds::EXTENT,
                     reads: &[(0x40, In::F)],
                     writes: &[],
                 },
@@ -87,13 +90,7 @@ mod reference_vectors {
             ],
             ulps: 0,
             plain: |a| {
-                x87_1(
-                    unsafe {
-                        &*(crate::test_support::vectors::block_vectors::at(a[0])
-                            as *const crate::sound::store::SurfaceSounds)
-                    },
-                    &HostCell(a[1] + 8),
-                );
+                with_laid::<SurfaceSounds, _>(a[0], |sf| x87_1(sf, &HostCell(a[1] + 8)));
             },
         }]
     }

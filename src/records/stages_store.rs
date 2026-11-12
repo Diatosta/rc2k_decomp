@@ -1475,23 +1475,21 @@ impl StageTables {
         event_table_named(self, entry.get())
     }
 
-    /// `off_7354FE[n]`: the variable that holds best-times table `n` (the list's four,
-    /// `menu::champ_store::ChampView`'s), as its byte offset in the view; refused for a place
-    /// past the four.
-    pub fn result_table(&self, n: u32) -> Result<usize, BadInput> {
+    /// `off_7354FE[n]`: the variable that holds best-times table `n` (the list's four, in
+    /// `menu::champ_store::ChampView`); refused for a place past the four, and for an entry
+    /// that names none of the four.
+    pub fn result_table(
+        &self,
+        n: u32,
+    ) -> Result<crate::menu::champ_store::TimesVariable, BadInput> {
         let entry = self
             .result_tables
             .get(n as usize)
             .filter(|_| n < 4)
             .ok_or(BadInput("a results table past off_7354FE's four"))?;
-        use crate::menu::champ_store as champ;
-        let name = entry.get() as usize;
-        if !(champ::START..champ::END).contains(&name) {
-            return Err(BadInput(
-                "a results table's variable off the championship's",
-            ));
-        }
-        Ok(name - champ::START)
+        crate::menu::champ_store::TimesVariable::named(entry.get()).ok_or(BadInput(
+            "a times table list entry that names no best times variable",
+        ))
     }
 
     /// Where the name `name` (an address in the game's layout of these tables) is in these
@@ -1729,7 +1727,9 @@ mod tests {
         for n in 0..4 {
             assert_eq!(
                 t.result_table(n as u32),
-                Ok(t.result_tables[n].get() as usize - crate::menu::champ_store::START)
+                crate::menu::champ_store::TimesVariable::named(t.result_tables[n].get()).ok_or(
+                    BadInput("a times table list entry that names no best times variable")
+                )
             );
         }
         assert!(t.result_table(4).is_err());

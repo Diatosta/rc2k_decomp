@@ -160,7 +160,6 @@ fn driven_car<'a>(race: &'a Race, course: &Course) -> &'a crate::physics::car_st
 
 fn state(o: &Owners<'static>, course: &Course) -> String {
     let race = o.race;
-    use crate::race::checkpoints_store::{map_x, map_y};
     let screens = &o.menus.screens;
     #[allow(non_snake_case)]
     let CAR = driven_car(race, course);
@@ -185,10 +184,10 @@ fn state(o: &Owners<'static>, course: &Course) -> String {
         at,
         CAR.map_place[0].get() as i32,
         CAR.map_place[1].get() as i32,
-        map_x(race.checkpoints(), ahead).get() as i32,
-        map_y(race.checkpoints(), ahead).get() as i32,
-        map_x(race.checkpoints(), near).get() as i32,
-        map_y(race.checkpoints(), near).get() as i32,
+        race.checkpoints().map_x[ahead].get() as i32,
+        race.checkpoints().map_y[ahead].get() as i32,
+        race.checkpoints().map_x[near].get() as i32,
+        race.checkpoints().map_y[near].get() as i32,
         o.audio.state.channels_used.get(),
         crate::platform_sound::LAST_PEAK.swap(0, std::sync::atomic::Ordering::Relaxed),
         CAR.car_heading.get() as i32,

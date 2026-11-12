@@ -420,12 +420,24 @@ pub fn set_car_times(race: &Race, scene: &crate::scene::owner::Scene) -> Result<
         number(count, false);
         text(w(1), false);
         number(level, false);
-        let percentage = crate::session::read_on_in(
-            race.shared.tables(),
-            &race.shared.tables().time_percentages,
-            level as usize,
-            "the time percentages",
-        )?;
+        // The index is a stage's place in its rally plus 6 per level of the rally: at most 37
+        // (`rally_of`: the stages 0x2F and 0x30 of the last-but-one rally give 36 and 37), and
+        // a stage below the first rally's wraps far past the table. The table holds 36, and
+        // the two after it read the first two kind time factors' bits, as the original.
+        let tables = race.shared.tables();
+        let percentage = match level.checked_sub(36) {
+            None => tables
+                .time_percentages
+                .get(level as usize)
+                .map(crate::session::PlainDword::get),
+            Some(k) => tables
+                .kind_time_factors
+                .get(k as usize)
+                .map(crate::session::PlainFloat::bits),
+        };
+        let percentage = percentage.filter(|_| level <= 37).ok_or(BadInput(
+            "a difficulty index past the time percentages and the factors after them",
+        ))?;
         text(w(2), false);
         number(percentage, false);
         scene.drawing.scene.get().scratch.set(percentage);

@@ -19,7 +19,7 @@
 //! object, a kind of 0x22 or more and a list of names that does not hold 95 of at most 0x100
 //! bytes.
 
-use crate::audio::names_store::SampleNames;
+use crate::audio::names_store::{NameList, SampleNames};
 use crate::errors::BadInput;
 use crate::race::owner::Race;
 use crate::session::Dword;
@@ -94,10 +94,11 @@ pub fn load_race_sounds(
     use rc2k_core::sound::race::{Set, Voice, sets, voices};
     // The lists by name key (`audio::store::name_key`: their places in the names).
     let list = |v: Voice| {
-        (match v {
-            Voice::Male => core::mem::offset_of!(SampleNames, male_speech),
-            Voice::Female => core::mem::offset_of!(SampleNames, female_speech),
-        }) as u32
+        match v {
+            Voice::Male => NameList::MaleSpeech,
+            Voice::Female => NameList::FemaleSpeech,
+        }
+        .first_key()
     };
     let (a, b) = voices(
         crate::sound::store::SoundObject::of(sound, first)?

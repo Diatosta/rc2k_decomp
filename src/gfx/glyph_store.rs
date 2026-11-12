@@ -46,10 +46,14 @@ pub const SHEET_PLACE: u32 = 18 << 10;
 const TABLE_FIRST: u32 = 19 << 10;
 /// The jade font's glyph table; the glyph tables end below it.
 pub const JADE: u32 = 0xA000;
-/// The jade font's colour, 0x1400 bytes on in `JadeFont`.
-pub const JADE_COLOUR: u32 = JADE + 0x1400;
-/// `JadeFont`'s bytes from the glyph table to the end of the record.
-const JADE_LEN: u32 = 0x1400 + 4 + 21 + 3;
+/// The jade font's colour: the glyph table's room (`JADE_GLYPHS`) on.
+pub const JADE_COLOUR: u32 = JADE + JADE_GLYPHS as u32;
+/// The jade font's glyph table: the bytes of `JadeFont.glyphs`.
+const JADE_GLYPHS: usize = 0x1400;
+/// The jade font's file name's length.
+const JADE_NAME: usize = 21;
+/// The bytes of `JadeFont` from the glyph table to the end of the file name.
+const JADE_LEN: u32 = (JADE_GLYPHS + 4 + JADE_NAME) as u32;
 
 struct Held {
     /// The list it is counted on (`give_back`'s key); none for the store's own palettes.
@@ -147,7 +151,7 @@ pub fn give_back(list: usize) {
     }
 }
 
-/// Where in the jade font's record `place` is, if it names a byte of it.
+/// Where in the jade font's fields `place` is, if it names a byte of it.
 fn jade_offset(place: u32) -> Option<usize> {
     (JADE..JADE + JADE_LEN)
         .contains(&place)
@@ -195,14 +199,17 @@ fn cell_palette_byte(cells: &[crate::session::PlainDword; 256], at: usize) -> Op
     Some(cell.get().to_le_bytes()[at % 4])
 }
 
-/// Byte `at` of the jade font's record (the glyph table, the colour, the file name and the
-/// padding), read from its cells.
+/// Byte `at` of the jade font's fields in the order the original keeps them (the glyph table,
+/// the colour, the file name), read from the cells. A glyph read from the file's offsets runs
+/// on from the table into the colour and the name, as in the original; what follows the name
+/// there is other data, so the read ends.
 fn jade_byte(jade: &JadeFont, at: usize) -> Option<u8> {
+    let colour = JADE_GLYPHS;
+    let name = colour + 4;
     match at {
-        0..0x1400 => Some(jade.glyphs.get(at)),
-        0x1400..0x1404 => Some(jade.colour.get().to_le_bytes()[at - 0x1400]),
-        0x1404..0x1419 => Some(jade.name.get(at - 0x1404)),
-        0x1419..0x141C => Some(jade._tail.get(at - 0x1419)),
+        _ if at < colour => Some(jade.glyphs.get(at)),
+        _ if at < name => Some(jade.colour.get().to_le_bytes()[at - colour]),
+        _ if at < name + JADE_NAME => Some(jade.name.get(at - name)),
         _ => None,
     }
 }
@@ -211,7 +218,7 @@ fn jade_byte(jade: &JadeFont, at: usize) -> Option<u8> {
 #[derive(Clone)]
 pub enum Glyphs<'a> {
     Held(Arc<Vec<u8>>, usize),
-    /// From this offset in the jade font's record, read from its cells.
+    /// From this offset in the jade font's fields, read from its cells.
     Jade(&'a JadeFont, usize),
     /// From this offset in a palette held in cells.
     Cells(CellPalette, &'a [crate::session::PlainDword; 256], usize),
@@ -346,6 +353,12 @@ mod tests {
         assert_eq!(colour, fonts.jade.colour.get().to_le_bytes());
         assert_eq!(table.byte(0), Some(fonts.jade.glyphs.get(0)));
         assert_eq!(table.byte(0x1400), Some(colour[0]));
+        assert_eq!(table.byte(0x1404), Some(fonts.jade.name.get(0)));
+        assert_eq!(
+            table.byte(JADE_LEN as usize - 1),
+            Some(fonts.jade.name.get(20))
+        );
+        assert_eq!(table.byte(JADE_LEN as usize), None);
         assert!(write_bytes(fonts, JADE_COLOUR, 0, &[1], "the jade colour").is_err());
         assert!(bytes(fonts, JADE + JADE_LEN, "past the jade font").is_err());
     }

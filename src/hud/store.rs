@@ -7,17 +7,10 @@
 //! `indices`) read or write it. The image keeps the two pointers (0x764F2C, 0x764F30) the
 //! original's batch drawer followed; nothing reads them now.
 //!
-//! One `#[repr(C)]` struct with the image's layout (`HudBlock`, the static `HUD`); the first
-//! values are the image's (`tests::first_values_are_the_games`).
+//! One struct (`HudBlock`, the static `HUD`); the first values are the image's
+//! (`tests::first_values_are_the_games`).
 
 use crate::session::{PlainDword, PlainFloat, PlainWord};
-
-/// IDA's address of the block's first byte.
-#[cfg(test)]
-pub const START: usize = 0x75B940;
-/// The block's length.
-#[cfg(test)]
-pub const LEN: usize = 0x764F2C - START;
 
 /// The HUD's quad record (`g_hudQuad`, 14 dwords): what `add_quad` makes four vertices of.
 #[repr(C)]
@@ -35,12 +28,6 @@ pub struct HudQuad {
     /// `rc2k_core::hud::quads::sprite_places` numbers them 6 .. 13).
     pub places: [PlainDword; 8],
 }
-
-const _: () = {
-    assert!(core::mem::size_of::<HudQuad>() == 14 * 4);
-    assert!(core::mem::offset_of!(HudQuad, colour) == 5 * 4);
-    assert!(core::mem::offset_of!(HudQuad, places) == 6 * 4);
-};
 
 impl HudQuad {
     const fn new() -> Self {
@@ -146,7 +133,7 @@ impl Vertex {
     }
 }
 
-/// The HUD's variables (IDA 0x75B940 .. 0x764F2C, the image's layout).
+/// The HUD's variables (IDA 0x75B940 .. 0x764F2C).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct HudBlock {
@@ -577,47 +564,46 @@ impl HudBlock {
     }
 }
 
-/// A rectangle of the table, by its byte offset in the block (the record's numbers are not
-/// checked, as in the original: a number past the table reads on into the block's next
-/// fields, so the offset is bounded to the whole block).
+/// A rectangle of the table, by its number. Every number the drawers pass lies in the table:
+/// the layouts' fixed ones (at most 0x5F), the needle's sign (0x5E or 0x60), the stage panel's
+/// (0x29 .. 0x3F), the time digits (a digit at most 9 over the panel's base, 0xC, 0x18 or 2),
+/// the signs (0x4C .. 0x5B: the value is masked) and the gear (0x41 over the gear, which
+/// physics holds to -1 ..= 7: every gear change refuses one outside, and the table takes any
+/// from -0x41 to 0x1F). The original does not check, and reads on into the fields after the
+/// table for a number past it; that is refused.
 #[derive(Clone, Copy)]
 pub struct RectAt(u32);
 
 impl RectAt {
     /// Rectangle `n` of the table.
     pub fn number(n: u32) -> RectAt {
-        RectAt::offset(n.wrapping_mul(0x10))
-    }
-
-    /// The place `offset` bytes into the rectangles.
-    pub fn offset(offset: u32) -> RectAt {
-        RectAt((core::mem::offset_of!(HudBlock, rects) as u32).wrapping_add(offset))
+        RectAt(n)
     }
 
     /// Its left, top, width and height.
     pub fn read(self, hud: &crate::hud::owner::Hud) -> Result<[u32; 4], crate::errors::Refused> {
-        let at = self.0 as usize;
-        crate::effects::try_from_fn(|n| {
-            Ok(crate::cells::load_value::<u32>(&hud.block, at + 4 * n)?)
-        })
+        let rect = hud
+            .block
+            .rects
+            .get(self.0 as usize)
+            .ok_or(crate::errors::BadInput(
+                "a HUD sprite's rectangle past the rectangle table",
+            ))?;
+        Ok([
+            rect.left.get(),
+            rect.top.get(),
+            rect.width.get(),
+            rect.height.get(),
+        ])
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn first_values_are_the_games() {
-        assert_eq!(size_of::<HudBlock>(), LEN);
         crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::hud::owner::HUD.get().block,
         );
-    }
-
-    #[test]
-    fn moved_knows_the_block() {
-        assert_eq!(core::mem::offset_of!(HudBlock, vertices), 0x9e4);
-        assert_eq!(core::mem::offset_of!(HudBlock, indices), 0x89e4);
     }
 }

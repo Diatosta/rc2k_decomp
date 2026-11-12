@@ -601,70 +601,40 @@ pub struct SampleRecords {
     pub records: [Shared<SampleRecord>; SAMPLE_COUNT],
 }
 
-/// A record's `data_key`: its file's name by place in
-/// `names_store::SAMPLE_NAMES` (the original kept the name's address; 0: none). The key is
+/// A record's `data_key`: its file's name by position in the five lists of
+/// `names_store::SampleNames` (the original kept the name's address; 0: none). The key is
 /// also what voices sharing a sample are matched by.
 pub const fn name_key(ida: u32) -> u32 {
-    use crate::audio::names_store::SampleNames;
+    use crate::audio::names_store::{FIRST_IDA, FIRST_KEY, POOL_LEN};
     if ida == 0 {
         return 0;
     }
     let at = ida as usize;
-    assert!(SampleNames::START <= at && at < SampleNames::START + SampleNames::LEN);
-    (at - SampleNames::START + NAMES_LEAD) as u32
+    assert!(FIRST_IDA as usize <= at && at < FIRST_IDA as usize + POOL_LEN);
+    (at - FIRST_IDA as usize) as u32 + FIRST_KEY
 }
 
-/// The bytes `SampleNames` has before IDA's `START` (its `_lead`).
-const NAMES_LEAD: usize = 12;
-
-/// The name of `key` in `names`, read to its NUL inside the field that holds it: the last name
-/// of every field ends in a NUL, so a name never runs on into the next field.
+/// The name of `key` in `names`, read to its NUL inside the list that holds it: the last name
+/// of every list ends in a NUL, so a name never runs on into the next list.
 pub fn name_in(
     names: &crate::audio::names_store::SampleNames,
     key: u32,
 ) -> Result<Vec<u8>, crate::errors::BadInput> {
-    use crate::audio::names_store::SampleNames;
-    use core::mem::offset_of;
+    use crate::audio::names_store::NameList;
     let key = key as usize;
-    // Each field: where it starts in the names, its length, a byte of it.
-    type Field<'a> = (usize, usize, &'a dyn Fn(usize) -> u8);
-    let fields: [Field; 5] = [
-        (
-            offset_of!(SampleNames, effects),
-            names.effects.atomics().len(),
-            &|i| names.effects.get(i),
-        ),
-        (
-            offset_of!(SampleNames, male_speech),
-            names.male_speech.atomics().len(),
-            &|i| names.male_speech.get(i),
-        ),
-        (
-            offset_of!(SampleNames, female_speech),
-            names.female_speech.atomics().len(),
-            &|i| names.female_speech.get(i),
-        ),
-        (
-            offset_of!(SampleNames, rally_speech),
-            names.rally_speech.atomics().len(),
-            &|i| names.rally_speech.get(i),
-        ),
-        (
-            offset_of!(SampleNames, menu_speech_st1),
-            names.menu_speech_st1.atomics().len(),
-            &|i| names.menu_speech_st1.get(i),
-        ),
-    ];
-    let Some((start, len, byte)) = fields
-        .into_iter()
-        .find(|&(start, len, _)| (start..start + len).contains(&key))
-    else {
+    let Some((list, start)) = NameList::ALL.into_iter().find_map(|list| {
+        let start = list.first_key() as usize;
+        (start..start + list.len())
+            .contains(&key)
+            .then_some((list, start))
+    }) else {
         return Err(crate::errors::BadInput(
             "a sample record's name key off the names",
         ));
     };
+    let len = list.len();
     let text: Vec<u8> = (key - start..len)
-        .map(byte)
+        .map(|at| names.byte(list, at))
         .take_while(|&b| b != 0)
         .collect();
     if key - start + text.len() == len {
@@ -2203,8 +2173,8 @@ mod tests {
             let key = if r.data_key == 0 {
                 0
             } else {
-                (r.data_key as usize - NAMES_LEAD + crate::audio::names_store::SampleNames::START)
-                    as u32
+                r.data_key - crate::audio::names_store::FIRST_KEY
+                    + crate::audio::names_store::FIRST_IDA
             };
             let at = n * RECORD_LEN;
             mine[at + KEY_AT..at + KEY_AT + 4].copy_from_slice(&key.to_le_bytes());

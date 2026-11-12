@@ -635,7 +635,6 @@ fn listed_stores() -> Vec<Listed> {
         listed!(
             "menu.owner.MENUS.play.arcade",
             on_game(&crate::menu::owner::MENUS.get().play.arcade),
-            0x1e,
         ),
         listed!(
             "menu.owner.MENUS.tables.captions",
@@ -829,8 +828,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "audio.owner.AUDIO_OWNER.sample_names",
-            record_tail(&crate::audio::owner::AUDIO_OWNER.sample_names, 12),
-            0x3938,
+            &crate::audio::owner::AUDIO_OWNER.sample_names,
         ),
         listed!(
             "gfx.owner.GFX.display.choices",
@@ -838,7 +836,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "gfx.owner.GFX.fonts.jade",
-            on_game_tail(&crate::gfx::owner::GFX.get().fonts.jade, 4),
+            on_game(&crate::gfx::owner::GFX.get().fonts.jade),
             0x1419,
         ),
         listed!(

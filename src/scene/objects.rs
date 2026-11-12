@@ -6,16 +6,16 @@
 //! memory.
 
 pub const SLOTS: u32 = 0x100;
-/// The face table's cell `n` (the callers hold `n` to `FACES`, but for what the original
-/// leaves unchecked).
+/// The face table's cell `n`. Every caller holds `n` below `FACES` (the object slots' face
+/// ranges are checked against it where they are read, and written only by `add_object_shape`
+/// within it), so a cell past the table is refused.
 pub fn face_cell(faces: &crate::scene::faces_store::Faces, n: usize) -> &crate::session::Dword {
-    use crate::scene::faces_store::Faces;
-    crate::race::checkpoints_store::cell_in(
-        &faces.faces,
-        faces,
-        core::mem::offset_of!(Faces, faces),
-        n,
-    )
+    faces.faces.get(n).unwrap_or_else(|| {
+        crate::fatal::raise::end(
+            "a face number past g_faces",
+            crate::errors::BadInput("a face number past g_faces"),
+        )
+    })
 }
 pub const FACES: u32 = 0xC000;
 /// The file as read: +4 points, +8 faces, +0xC normals, +0x2C the points.

@@ -242,61 +242,11 @@ fn volume_factor_by_distance(so: &SoundObject) {
 }
 
 #[cfg(test)]
-mod tests {
-    /// The engine's dwords sit where the core's offsets had them in the sound object.
-    #[test]
-    fn the_engine_words_sit_where_the_offsets_were() {
-        use crate::session::Dword;
-        let o = crate::sound::store::SoundObject::of(crate::sound::owner::sound(), 0).unwrap();
-        let base = core::ptr::from_ref(o).addr();
-        let at = |cell: &Dword| (core::ptr::from_ref(cell).addr() - base) as u32;
-        let found = [
-            at(&o.new_revs),
-            at(&o.revs),
-            at(&o.throttle),
-            at(&o.gear_event),
-            at(&o.no_gear),
-            at(&o.reading_times[0]),
-            at(&o.reading_times[1]),
-            at(&o.reading_revs[0]),
-            at(&o.reading_revs[1]),
-            at(&o.gear),
-            at(&o.last_gear),
-            at(&o.gear_notice),
-            at(&o.countdown),
-            at(&o.drop_latched),
-            at(&o.last_direction),
-            at(&o.state),
-            at(&o.last_state),
-            at(&o.smooth_throttle),
-            at(&o.throttle_lead),
-            at(&o.turns_up),
-            at(&o.direction),
-            at(&o.turns_down),
-            at(&o.slots[5].sound),
-            at(&o.slots[5].start),
-            at(&o.slots[6].start),
-            at(&o.slots[6].playing),
-            at(&o.slots[6].volume),
-            at(&o.backfire_wait),
-            at(&o.gear_slot.start),
-        ];
-        assert_eq!(
-            found,
-            [
-                0x10, 0x14, 0x18, 0x20, 0x24, 0x94, 0x98, 0x9C, 0xA0, 0xE8, 0xEC, 0xF0, 0xF4, 0xF8,
-                0xFC, 0x10C, 0x110, 0x118, 0x11C, 0x128, 0x12C, 0x130, 0x1C4, 0x1C8, 0x1E0, 0x1E4,
-                0x1EC, 0x1F4, 0x1FC
-            ]
-        );
-    }
-}
-
-#[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::scene::x87_mem::HostCell;
+    use crate::scene::x87_mem::{HostCell, view};
     use crate::session::Cell32;
+    use crate::sound::asm_layout::{Laid, with_laid};
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
@@ -304,7 +254,8 @@ mod reference_vectors {
             Block {
                 name: "revs_input",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::Sized {
+                        len: SoundObject::EXTENT,
                         reads: &[(0x14, In::I)],
                         writes: &[(0x100, Out::F)],
                     },
@@ -315,42 +266,29 @@ mod reference_vectors {
                 ],
                 ulps: 0,
                 plain: |a| {
-                    revs_input(
-                        unsafe {
-                            &*(crate::test_support::vectors::block_vectors::at(a[0])
-                                as *const crate::sound::store::SoundObject)
-                        },
-                        unsafe {
-                            &*(crate::test_support::vectors::block_vectors::at(a[1])
-                                as *const crate::sound::sets_store::KindRecord)
-                        },
-                    );
+                    let kind = view::<crate::sound::sets_store::KindRecord>(a[1], 0);
+                    with_laid::<SoundObject, _>(a[0], |so| revs_input(so, kind));
                 },
             },
             Block {
                 name: "speed_input",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::Sized {
+                        len: SoundObject::EXTENT,
                         reads: &[(0x1C, In::F)],
                         writes: &[(0x108, Out::F)],
                     },
-                    Operand::Buffer {
+                    Operand::Sized {
+                        len: SurfaceSounds::EXTENT,
                         reads: &[(0x18, In::F)],
                         writes: &[],
                     },
                 ],
                 ulps: 0,
                 plain: |a| {
-                    speed_input(
-                        unsafe {
-                            &*(crate::test_support::vectors::block_vectors::at(a[0])
-                                as *const crate::sound::store::SoundObject)
-                        },
-                        unsafe {
-                            &*(crate::test_support::vectors::block_vectors::at(a[1])
-                                as *const crate::sound::store::SurfaceSounds)
-                        },
-                    );
+                    with_laid::<SoundObject, _>(a[0], |so| {
+                        with_laid::<SurfaceSounds, _>(a[1], |sf| speed_input(so, sf));
+                    });
                 },
             },
             Block {
@@ -374,7 +312,8 @@ mod reference_vectors {
             Block {
                 name: "distance_and_approach",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::Sized {
+                        len: SoundObject::EXTENT,
                         reads: &[(0x2C, In::F), (0x30, In::F), (0x34, In::F), (0x134, In::F)],
                         writes: &[(0x134, Out::F), (0x138, Out::F)],
                     },
@@ -385,22 +324,15 @@ mod reference_vectors {
                 ],
                 ulps: 0,
                 plain: |a| {
-                    distance_and_approach(
-                        unsafe {
-                            &*(crate::test_support::vectors::block_vectors::at(a[0])
-                                as *const crate::sound::store::SoundObject)
-                        },
-                        unsafe {
-                            &*(crate::test_support::vectors::block_vectors::at(a[1])
-                                as *const crate::sound::store::RaceClock)
-                        },
-                    );
+                    let clock = view::<RaceClock>(a[1], 0);
+                    with_laid::<SoundObject, _>(a[0], |so| distance_and_approach(so, clock));
                 },
             },
             Block {
                 name: "ease_pitch_factor",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::Sized {
+                        len: SoundObject::EXTENT,
                         reads: &[(0x138, In::F), (0x13C, In::F)],
                         writes: &[(0x13C, Out::F)],
                     },
@@ -408,41 +340,30 @@ mod reference_vectors {
                         reads: &[(0x14, In::F), (0x18, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::Sized {
+                        len: SurfaceSounds::EXTENT,
                         reads: &[(8, In::F)],
                         writes: &[],
                     },
                 ],
                 ulps: 0,
                 plain: |a| {
-                    ease_pitch_factor(
-                        unsafe {
-                            &*(crate::test_support::vectors::block_vectors::at(a[0])
-                                as *const crate::sound::store::SoundObject)
-                        },
-                        unsafe {
-                            &*(crate::test_support::vectors::block_vectors::at(a[1])
-                                as *const crate::sound::store::RaceClock)
-                        },
-                        unsafe {
-                            &*(crate::test_support::vectors::block_vectors::at(a[2])
-                                as *const crate::sound::store::SurfaceSounds)
-                        },
-                    );
+                    let clock = view::<RaceClock>(a[1], 0);
+                    with_laid::<SoundObject, _>(a[0], |so| {
+                        with_laid::<SurfaceSounds, _>(a[2], |sf| ease_pitch_factor(so, clock, sf));
+                    });
                 },
             },
             Block {
                 name: "volume_factor_by_distance",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::Sized {
+                    len: SoundObject::EXTENT,
                     reads: &[(0x134, In::F)],
                     writes: &[(0x140, Out::F)],
                 }],
                 ulps: 0,
                 plain: |a| {
-                    volume_factor_by_distance(unsafe {
-                        &*(crate::test_support::vectors::block_vectors::at(a[0])
-                            as *const crate::sound::store::SoundObject)
-                    });
+                    with_laid::<SoundObject, _>(a[0], volume_factor_by_distance);
                 },
             },
         ]

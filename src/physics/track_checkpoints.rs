@@ -48,10 +48,12 @@ pub fn track_checkpoints(
         sound,
         audio,
     )?;
-    let next =
-        crate::race::checkpoints_store::check_count(c.checkpoints, c.car.checkpoint.get() as usize)
-            .get()
-            .wrapping_sub(1);
+    let next = crate::race::checkpoints_store::check_count_run_on(
+        c.checkpoints,
+        c.car.checkpoint.get() as usize,
+    )
+    .get()
+    .wrapping_sub(1);
     if at_split_end(next.wrapping_add(1), c.car.splits_passed.get()) {
         c.car.reset_checkpoint.set(c.car.checkpoint.get());
     }

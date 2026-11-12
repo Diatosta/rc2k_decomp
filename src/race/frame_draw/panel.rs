@@ -323,8 +323,9 @@ pub(super) fn panel_half(race: &Race, car: usize, first: bool) -> Result<(), Bad
     cells[0].set(whole as u32);
     cells[1].set(car.engine_sound_speed_int.get());
     cells[2].set(car.gear.get());
-    let at =
-        |n: u32| crate::race::checkpoints_store::distance(race.checkpoints(), n as usize).get();
+    let at = |n: u32| {
+        crate::race::checkpoints_store::distance_run_on(race.checkpoints(), n as usize).get()
+    };
     let from: u32 = race.physics.split_tables().checkpoints[0].get();
     let d = travelled(at(car.checkpoint.get()), at(from));
     let (unit, miles) = (

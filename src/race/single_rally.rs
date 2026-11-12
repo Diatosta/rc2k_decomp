@@ -595,7 +595,11 @@ mod vector_tests {
         ("menu.owner.MENUS.play.players", 0x7A4, 0x28C),
         ("menu.owner.MENUS.play.players", 0xA30, 0x10),
         ("menu.owner.MENUS.play.arcade", 0x0, 0x4),
-        ("menu.owner.MENUS.play.champ_view", 0x40, 0x4),
+        (
+            "menu.owner.MENUS.play.champ_view",
+            core::mem::offset_of!(crate::menu::champ_store::ChampView, summary),
+            0x4,
+        ),
         ("race.owner.RACE.replay.viewer_and_kinds", 0x6B4, 0x4),
         ("race.owner.RACE.shared.state", 0x4, 0x4),
         ("race.owner.RACE.shared.state", 0x8, 0x4),

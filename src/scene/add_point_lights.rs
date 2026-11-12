@@ -34,14 +34,17 @@ pub fn add_point_lights(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
     let place: [u32; 3] = crate::session::read_bits(&ctx.view.light.lit_place);
     let reading = crate::scene::reading::Reading::new();
     let list = (0..lamps as usize).map(|n| {
-        // The list holds 16 lamps, the refusal allows `MOST`: read by address.
+        // The list holds 16 lamps, the refusal allows `MOST`; the only write of the count
+        // is a 0 (`race::frame_draw::panel`), so more than 16 is never met.
         let [point, strength, colour] = [0, 1, 2].map(|k| {
-            reading.keep(crate::session::read_on_in(
-                &ctx.view.lamps,
-                &ctx.view.lamps.lamps,
-                4 * n + k,
-                "a lamp of the level",
-            ))
+            reading.keep(
+                ctx.view
+                    .lamps
+                    .lamps
+                    .get(4 * n + k)
+                    .map(crate::session::Dword::get)
+                    .ok_or(BadInput("more lamps than the 16 of the level")),
+            )
         });
         Lamp {
             point,

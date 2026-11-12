@@ -161,11 +161,13 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
         let link = |at: u32| -> Result<u16, BadInput> {
             let table = &ctx.reads.shadow_skids.skid_links;
             let at = at as usize;
+            // A link is -1 (the table's start values) or a point of the ring: the links are
+            // written only by `init_skidmarks` and `add_skid_point`, which refuses one outside
+            // the 0x400 points, so `before * 8 + 6` ends inside the table's 0x2000 bytes.
             if at + 2 <= size_of_val(table) {
                 Ok(u16::from_le_bytes([table.get(at), table.get(at + 1)]))
             } else {
-                // past the table, by address, as the original reads on
-                crate::cells::load_value::<u16>(table, at)
+                Err(BadInput("a skid link past the links' table"))
             }
         };
         let before = link(8 * n)? as i16 as i32 as u32;

@@ -96,13 +96,18 @@ impl FaceWorld for GameFace<'_> {
     }
     fn group_table(&self, group: u32) -> u32 {
         let draw_switches = self.7.draw_switches;
-        // The table is typed by its first dword only.
-        self.1.keep(crate::session::read_on_in(
-            draw_switches,
-            std::slice::from_ref(&draw_switches.group_table),
-            group as usize,
-            "the groups' table",
-        ))
+        // The table is the group word and the 71 cells after it (the developers' front end's
+        // switches); a face's group is its byte & 0x1F.
+        let cell = match group.checked_sub(1) {
+            None => Some(&draw_switches.group_table),
+            Some(k) => draw_switches.unknown_38.get(k as usize),
+        };
+        self.1.keep(
+            cell.map(crate::session::PlainDword::get)
+                .ok_or(crate::errors::BadInput(
+                    "a face's group past the groups' table",
+                )),
+        )
     }
     fn no_second_mask(&self) -> u32 {
         self.5.camera_switch_active.get()

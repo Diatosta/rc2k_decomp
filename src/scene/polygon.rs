@@ -15,25 +15,27 @@ pub fn entry(work: &'static PolygonWork, n: usize) -> Result<&'static PolygonEnt
         .ok_or(BadInput("a polygon entry past the work table"))
 }
 
-/// The list's cell `n` (the original's list has room for `MOST` numbers, more than the
-/// field: the cells after it are the old list's).
+/// The list's cell `n`. The original keeps the list with room for 64 numbers, and a
+/// polygon of more vertices (up to `MOST`, or a clip's up to twice that) goes on into the
+/// old list's place and the gap after it, which the old list's cells share.
 pub fn list_cell(work: &'static PolygonWork, n: usize) -> &'static Dword {
-    crate::race::checkpoints_store::cell_in(
-        &work.list,
-        work,
-        core::mem::offset_of!(PolygonWork, list),
-        n,
-    )
+    let after_list = n.wrapping_sub(work.list.len());
+    let after_old = after_list.wrapping_sub(work.old_list.len());
+    work.list
+        .get(n)
+        .or_else(|| work.old_list.get(after_list))
+        .or_else(|| work.unknown_2400.get(after_old))
+        .unwrap_or_else(|| {
+            crate::fatal::raise::end(
+                "a polygon list cell past the lists",
+                BadInput("a polygon list cell past the lists"),
+            )
+        })
 }
 
-/// The list kept before a clip, cell `n` (as `list_cell`).
+/// The list kept before a clip, cell `n`: the list's cell 64 + `n` (as `list_cell`).
 pub fn old_list_cell(work: &'static PolygonWork, n: usize) -> &'static Dword {
-    crate::race::checkpoints_store::cell_in(
-        &work.old_list,
-        work,
-        core::mem::offset_of!(PolygonWork, old_list),
-        n,
-    )
+    list_cell(work, work.list.len() + n)
 }
 
 /// The first record of the pool the clip makes its records in (`g_polygonNextRecord`

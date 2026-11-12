@@ -37,28 +37,14 @@ fn times_table<'a>(
     if play.champ_view.switch_fc.get() == 1 {
         n += 2;
     }
-    let p = stages.result_table(n)?;
-    use crate::menu::champ_store::ChampView;
+    use crate::menu::champ_store::TimesVariable;
     use crate::saves::best_times as b;
-    use core::mem::offset_of;
-    let (_, table) = [
-        (offset_of!(ChampView, stage_best_times), &b::STAGE_TIMES),
-        (offset_of!(ChampView, course_best_times), &b::COURSE_TIMES),
-        (
-            offset_of!(ChampView, time_trial_best_times),
-            &b::TIME_TRIAL_TIMES,
-        ),
-        (
-            offset_of!(ChampView, stage_best_times_alt),
-            &b::STAGE_TIMES_ALT,
-        ),
-    ]
-    .into_iter()
-    // The entry names one of the variables by its place in the view.
-    .find(|(at, _)| *at == p)
-    .ok_or(BadInput(
-        "a times table list entry that names no best times variable",
-    ))?;
+    let table = match stages.result_table(n)? {
+        TimesVariable::StageTimes => &b::STAGE_TIMES,
+        TimesVariable::CourseTimes => &b::COURSE_TIMES,
+        TimesVariable::TimeTrialTimes => &b::TIME_TRIAL_TIMES,
+        TimesVariable::StageTimesAlt => &b::STAGE_TIMES_ALT,
+    };
     Ok(table.is_taken().then_some(table))
 }
 

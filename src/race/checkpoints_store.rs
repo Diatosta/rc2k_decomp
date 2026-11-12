@@ -85,7 +85,8 @@ pub fn run_on<T: crate::cells::Cells>(record: &T, field: usize, n: usize) -> &Dw
     })
 }
 
-/// Cell `n` of the field `$field` of the checkpoint tables (`cell_in`).
+/// Cell `n` of the field `$field` of the checkpoint tables, run on through the fields
+/// after it (`cell_in`).
 macro_rules! checkpoint_cell {
     ($table:expr, $field:ident, $skip:expr, $n:expr) => {{
         use core::mem::offset_of;
@@ -98,34 +99,66 @@ macro_rules! checkpoint_cell {
     }};
 }
 
-/// Checkpoint `n`'s face cell (`g_checkpointFaces[n]`).
+/// Cell `n` of the table `table`, which the callers hold below `MOST_CHECKS` (0x1418): inside
+/// every one of the tables. A number past the table ends the program.
+fn in_table(table: &[Dword], n: usize) -> &Dword {
+    table.get(n).unwrap_or_else(|| {
+        crate::fatal::raise::end(
+            "a checkpoint number past its table",
+            crate::errors::BadInput("a checkpoint number past its table"),
+        )
+    })
+}
+
+// Each table has two readers. The plain one is for a checkpoint number the caller has held
+// below `MOST_CHECKS` (the line's building, the nearest-checkpoint search, the start places):
+// it stays in the table. The `_run_on` one is for a car's own checkpoint (`Car.checkpoint`,
+// which a replay frame puts in from the file, plus the look-aheads added to it): the original
+// reads on through the tables after the field.
+
+/// Checkpoint `n`'s face cell (`g_checkpointFaces[n]`), `n` below `MOST_CHECKS`.
 pub fn face(table: &Checkpoints, n: usize) -> &Dword {
+    in_table(&table.checkpoint_faces, n)
+}
+
+/// Checkpoint `n`'s face cell, run on past the table.
+pub fn face_run_on(table: &Checkpoints, n: usize) -> &Dword {
     checkpoint_cell!(table, checkpoint_faces, 0, n)
 }
 
-/// Checkpoint `n`'s angle cell, as the readers index it: `Buffers.checkpoints.angles[2][n]`, 8 bytes into
-/// `g_checkpointAngles`.
+/// Checkpoint `n`'s angle cell, as the readers index it: `Buffers.checkpoints.angles[2][n]`, 8
+/// bytes into `g_checkpointAngles`; `n` below `MOST_CHECKS`.
 pub fn angle(table: &Checkpoints, n: usize) -> &Dword {
+    in_table(&table.angles[2..], n)
+}
+
+/// Checkpoint `n`'s angle cell, run on past the table.
+pub fn angle_run_on(table: &Checkpoints, n: usize) -> &Dword {
     checkpoint_cell!(table, angles, 2, n)
 }
 
-/// Checkpoint `n`'s distance cell (`g_checkpointDistances[n]`).
-pub fn distance(table: &Checkpoints, n: usize) -> &Dword {
+/// Checkpoint `n`'s distance cell, run on past the table.
+pub fn distance_run_on(table: &Checkpoints, n: usize) -> &Dword {
     checkpoint_cell!(table, distances, 0, n)
 }
 
-/// Checkpoint `n`'s map x (`g_mapX[n]`).
-pub fn map_x(table: &Checkpoints, n: usize) -> &Dword {
+/// Checkpoint `n`'s map x (`g_mapX[n]`), run on past the table.
+pub fn map_x_run_on(table: &Checkpoints, n: usize) -> &Dword {
     checkpoint_cell!(table, map_x, 0, n)
 }
 
-/// Checkpoint `n`'s map y (`g_mapY[n]`).
-pub fn map_y(table: &Checkpoints, n: usize) -> &Dword {
+/// Checkpoint `n`'s map y (`g_mapY[n]`), run on past the table.
+pub fn map_y_run_on(table: &Checkpoints, n: usize) -> &Dword {
     checkpoint_cell!(table, map_y, 0, n)
 }
 
-/// How many faces checkpoint `n`'s kind has (`g_checkCounts[n]`).
+/// How many faces checkpoint `n`'s kind has (`g_checkCounts[n]`), `n` below `MOST_CHECKS`.
 pub fn check_count(table: &Checkpoints, n: usize) -> &Dword {
+    in_table(&table.check_counts, n)
+}
+
+/// How many faces checkpoint `n`'s kind has, run on past the table.
+pub fn check_count_run_on(table: &Checkpoints, n: usize) -> &Dword {
     checkpoint_cell!(table, check_counts, 0, n)
 }
 
@@ -145,18 +178,21 @@ mod tests {
     fn a_cell_past_a_table_is_the_next_fields_first() {
         let table = &CHECKPOINTS.distances;
         assert!(std::ptr::eq(
-            distance(&CHECKPOINTS, table.len()),
+            distance_run_on(&CHECKPOINTS, table.len()),
             &raw const CHECKPOINTS.map_x[0]
         ));
         assert!(std::ptr::eq(
-            map_x(&CHECKPOINTS, table.len() + 1),
+            map_x_run_on(&CHECKPOINTS, table.len() + 1),
             &raw const CHECKPOINTS.map_y[1]
         ));
         assert!(std::ptr::eq(
-            check_count(&CHECKPOINTS, 5144),
+            check_count_run_on(&CHECKPOINTS, 5144),
             &raw const CHECKPOINTS.angles[0]
         ));
-        assert!(std::ptr::eq(distance(&CHECKPOINTS, 3), &raw const table[3]));
+        assert!(std::ptr::eq(
+            distance_run_on(&CHECKPOINTS, 3),
+            &raw const table[3]
+        ));
     }
 
     #[test]

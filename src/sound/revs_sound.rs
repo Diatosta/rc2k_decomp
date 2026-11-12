@@ -137,6 +137,8 @@ fn linear(input: &Float, slope: &PlainDword, start: &PlainDword) -> X {
 mod reference_vectors {
     use super::*;
     use crate::scene::x87_mem::view;
+    use crate::sound::asm_layout::{Laid, with_laid};
+    use crate::sound::store::{SoundObject, SurfaceSounds};
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     // The original's instructions: the pitch, the volume (on the road: times the surface's gain), the place.
@@ -145,7 +147,8 @@ mod reference_vectors {
             Block {
                 name: "revs_sound, view flag 1",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::Sized {
+                        len: SoundObject::EXTENT,
                         reads: &[
                             (0xc, In::I),
                             (0x2c, In::F),
@@ -175,24 +178,26 @@ mod reference_vectors {
                 ],
                 ulps: 0,
                 plain: |a| {
-                    let bx = view::<crate::sound::store::SoundObject>(a[0], 0);
-                    let set = view::<SoundSet>(a[1], 0);
-                    bx.view_flag.set(1);
-                    let request = view::<SoundRequest>(a[2], 0);
-                    fill_request(
-                        bx,
-                        set,
-                        &bx.revs_input,
-                        EnginePlace::Ahead,
-                        crate::sound::owner::sound().race.surface.get(),
-                        request,
-                    );
+                    with_laid::<SoundObject, _>(a[0], |bx| {
+                        let set = view::<SoundSet>(a[1], 0);
+                        bx.view_flag.set(1);
+                        let request = view::<SoundRequest>(a[2], 0);
+                        fill_request(
+                            bx,
+                            set,
+                            &bx.revs_input,
+                            EnginePlace::Ahead,
+                            crate::sound::owner::sound().race.surface.get(),
+                            request,
+                        );
+                    });
                 },
             },
             Block {
                 name: "revs_sound, view flag 0",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::Sized {
+                        len: SoundObject::EXTENT,
                         reads: &[
                             (0xc, In::I),
                             (0x2c, In::F),
@@ -209,7 +214,8 @@ mod reference_vectors {
                         reads: &[(0x10, In::F), (0x18, In::F), (0x1C, In::F), (0x24, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::Sized {
+                        len: SurfaceSounds::EXTENT,
                         reads: &[(0x28, In::F)],
                         writes: &[],
                     },
@@ -226,18 +232,14 @@ mod reference_vectors {
                 ],
                 ulps: 0,
                 plain: |a| {
-                    let bx = view::<crate::sound::store::SoundObject>(a[0], 0);
-                    let set = view::<SoundSet>(a[1], 0);
-                    bx.view_flag.set(0);
-                    let request = view::<SoundRequest>(a[3], 0);
-                    fill_request(
-                        bx,
-                        set,
-                        &bx.revs_input,
-                        EnginePlace::Ahead,
-                        view::<crate::sound::store::SurfaceSounds>(a[2], 0),
-                        request,
-                    );
+                    with_laid::<SoundObject, _>(a[0], |bx| {
+                        with_laid::<SurfaceSounds, _>(a[2], |sf| {
+                            let set = view::<SoundSet>(a[1], 0);
+                            bx.view_flag.set(0);
+                            let request = view::<SoundRequest>(a[3], 0);
+                            fill_request(bx, set, &bx.revs_input, EnginePlace::Ahead, sf, request);
+                        });
+                    });
                 },
             },
         ]

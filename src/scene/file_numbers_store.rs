@@ -115,12 +115,16 @@ impl ObjectFileNumbers {
 
 impl crate::session::TextPlace for PathText<'_> {
     fn text(&self, _what: &str) -> Result<Vec<u8>, crate::errors::BadInput> {
-        let mut rest = vec![0; TEXTS_LEN - self.from];
-        crate::cells::load_cells(self.numbers, TEXTS_AT + self.from, &mut rest)?;
-        match rest.iter().position(|&c| c == 0) {
-            Some(n) => Ok(rest[..n].to_vec()),
-            None => Err(crate::errors::BadInput("a text with no end in its buffer")),
+        let table = &self.numbers.path_texts;
+        let mut text = Vec::new();
+        for n in self.from..TEXTS_LEN {
+            match crate::session::byte_of(table, n) {
+                Some(0) => return Ok(text),
+                Some(c) => text.push(c),
+                None => break,
+            }
         }
+        Err(crate::errors::BadInput("a text with no end in its buffer"))
     }
 
     fn write_text_at(
@@ -133,12 +137,17 @@ impl crate::session::TextPlace for PathText<'_> {
         if from.saturating_add(bytes.len()) > TEXTS_LEN {
             return Err(crate::errors::BadInput("a write past the path texts"));
         }
-        crate::cells::store_cells(self.numbers, TEXTS_AT + from, bytes)
+        for (n, &byte) in (from..).zip(bytes) {
+            let cell = &self.numbers.path_texts[n / 4];
+            let mut word = cell.get().to_le_bytes();
+            word[n % 4] = byte;
+            cell.set(u32::from_le_bytes(word));
+        }
+        Ok(())
     }
 }
 
-/// `path_texts`' place in the piece and its length in bytes.
-const TEXTS_AT: usize = core::mem::offset_of!(ObjectFileNumbers, path_texts);
+/// The length of `path_texts` in bytes.
 const TEXTS_LEN: usize = 4 * 116;
 
 /// The path buffer whole: each text with its end byte at its byte offset, zero elsewhere.
