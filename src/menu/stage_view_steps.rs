@@ -29,6 +29,7 @@ use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::event_flow::Fault;
 use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
+use crate::owners::Owners;
 use crate::records::find_record::{find_record_in, has_section};
 use crate::records::stages_store::RecordRef;
 use crate::system::owner::system;
@@ -126,7 +127,8 @@ pub fn play_rally_speech(menus: &Menus) -> Result<(), Refused> {
 
 /// `menu::load_welcome_picture`: the section's welcome picture under the title bar,
 /// converted; not loaded: the fatal error 0x80712345.
-pub fn load_welcome_picture(menus: &Menus) -> Result<(), Refused> {
+pub fn load_welcome_picture(o: Owners<'_>) -> Result<(), Refused> {
+    let menus = o.menus;
     let section = small_section(menus)?;
     // The logic is in `rc2k_core::menu::stage_screens::welcome`.
     let table: &[crate::session::PlainDword] =
@@ -140,9 +142,12 @@ pub fn load_welcome_picture(menus: &Menus) -> Result<(), Refused> {
         section as usize,
         "a welcome picture",
     )?)?;
-    if crate::gfx::load_picture_with_overlay::load_picture_with_overlay(
+    if crate::gfx::load_picture_with_overlay::load_picture_with_overlay_in(
         &path,
         &menus.tables.texts.titlebar_png,
+        o.gfx,
+        o.system,
+        o.strings,
     )? {
         return Err(FatalError {
             code: 0x8071_2345,
@@ -150,17 +155,14 @@ pub fn load_welcome_picture(menus: &Menus) -> Result<(), Refused> {
         }
         .into());
     }
-    crate::gfx::convert_picture::convert_picture_now()?;
+    crate::gfx::convert_picture::convert_picture_now_in(o.gfx, o.system)?;
     Ok(())
 }
 
 /// `menu::previous_stage_page` (`up` false) / `next_stage_page`: the page stepped, the
 /// stage's map drawn and its speech played.
-pub fn step_stage_page(
-    menus: &Menus,
-    up: bool,
-    sound: &crate::sound::owner::Sound,
-) -> Result<(), Refused> {
+pub fn step_stage_page(o: Owners<'_>, up: bool) -> Result<(), Refused> {
+    let (menus, sound) = (o.menus, o.sound);
     let screens = &menus.screens;
     let (page, pages) = (
         screens.event.stage_page.get(),
@@ -173,7 +175,7 @@ pub fn step_stage_page(
         .event
         .index
         .set(screens.event.first_page_stage.get().wrapping_add(page));
-    crate::menu::stage_choice::draw_stage_map(menus)?;
+    crate::menu::stage_choice::draw_stage_map(o)?;
     play_stage_speech(menus, sound)
 }
 

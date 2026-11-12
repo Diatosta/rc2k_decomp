@@ -771,15 +771,15 @@ pub fn stage_sounds_addr() -> u32 {
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SpotPicks {
-    /// `g_spotPickPlaying`: the pickers' work (`sound::merge_spot_voices`): the playing voice (an address).
+    /// `g_spotPickPlaying`: the pickers' work (`sound::merge_spot_voices`): the playing voice (its number + 1, 0 none).
     pub pick_playing: PlainDword,
     /// `g_spotPickNearestDistance`: the nearest's distance.
     pub pick_nearest_distance: PlainDword,
-    /// `g_spotPickNearest`: the nearest voice (an address).
+    /// `g_spotPickNearest`: the nearest voice (as `pick_playing`).
     pub pick_nearest: PlainDword,
     /// `g_spotPickNextDistance`: the next's distance.
     pub pick_next_distance: PlainDword,
-    /// `g_spotPickNext`: the next voice (an address).
+    /// `g_spotPickNext`: the next voice (as `pick_playing`).
     pub pick_next: PlainDword,
     /// `g_spotKindSounds` (`dword_517F54`): a spot kind's sound, 22 of them (kind 0 unused).
     pub kind_sounds: [PlainDword; 22],

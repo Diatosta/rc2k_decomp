@@ -67,7 +67,7 @@ pub fn run_script(
                 if op == 3 {
                     i::list_files::list_files(install, &install.paths.script_path)?;
                 } else {
-                    i::list_folder_tree::list_folder_tree(&install.paths.script_path)?;
+                    i::list_folder_tree::list_folder_tree(install, &install.paths.script_path)?;
                 }
                 end = stack
                     .pop()

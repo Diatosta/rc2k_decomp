@@ -32,12 +32,13 @@ const NO_CHOICE: BadInput = BadInput("a page whose every item cannot be chosen")
 /// The list's action (+8) told where the page is.
 fn tell(
     install: &'static crate::install::owner::Install,
+    o: crate::owners::Owners<'static>,
     list: ListMenu,
     state: u32,
 ) -> Result<(), Refused> {
     let action = list.action();
     if action != 0 {
-        page_action(install, action, state, list)?;
+        page_action(install, o, action, state, list)?;
     }
     Ok(())
 }
@@ -45,12 +46,11 @@ fn tell(
 /// The page of `list` run until it is left; its answer.
 pub fn run_page(
     install: &'static crate::install::owner::Install,
-    strings: &'static crate::strings::owner::Strings,
-    system: &crate::system::owner::System,
-    gfx: &crate::gfx::owner::Gfx,
+    o: crate::owners::Owners<'static>,
     list: ListMenu,
 ) -> Result<u32, Refused> {
     use crate::install as i;
+    let (strings, system, gfx) = (o.strings, o.system, o.gfx);
     install.pages.list_answer.set(1);
     install.pages.list_leave.set(0);
     install
@@ -67,7 +67,7 @@ pub fn run_page(
     if count != 0 {
         list_clear_marks(list);
     }
-    tell(install, list, 0)?;
+    tell(install, o, list, 0)?;
     'page: {
         if list.flags() & 0xC0 != 0 {
             break 'page;
@@ -129,7 +129,7 @@ pub fn run_page(
                             .set(install.pages.frame_clock.get());
                     }
                     list_clear_marks(list);
-                    tell(install, list, 1)?;
+                    tell(install, o, list, 1)?;
                     i::mark_page::mark_page(install, list);
                     if !list_item_unusable(list) {
                         break;
@@ -170,7 +170,7 @@ pub fn run_page(
                 }
             } else {
                 list_clear_marks(list);
-                tell(install, list, 1)?;
+                tell(install, o, list, 1)?;
                 i::mark_page::mark_page(install, list);
                 if list_item_unusable(list) {
                     let arrow = matches!(key as u8, 0x66 | 0x6B | 0x68 | 0x69);
@@ -199,7 +199,7 @@ pub fn run_page(
             }
         }
         i::show_backdrop::show_backdrop()?;
-        tell(install, list, u32::MAX)?;
+        tell(install, o, list, u32::MAX)?;
     }
     if count != 0 {
         list_clear_marks(list);

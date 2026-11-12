@@ -9,8 +9,8 @@ use crate::errors::Refused;
 
 /// Whether the copy and the showing worked is not looked at (the original's carries are
 /// not).
-pub fn inspection_screen() -> Result<(), Refused> {
-    let scene = crate::scene::owner::scene();
+pub fn inspection_screen(o: crate::owners::Owners<'_>) -> Result<(), Refused> {
+    let scene = o.scene;
     let front_end = crate::scene::polygon_work::front_end();
     front_end.window.view_offset[0].set_bits(0u32);
     front_end.window.view_offset[1].set_bits(0u32);
@@ -23,7 +23,7 @@ pub fn inspection_screen() -> Result<(), Refused> {
     front_end.window.clip_edges[3].set_bits(0x320u32);
     front_end.window.clip_screen[2].set_bits(0.0f32.to_bits());
     front_end.window.clip_screen[3].set_bits(800.0f32.to_bits());
-    crate::service::load_background::load_background()?;
+    crate::service::load_background::load_background_in(o.menus, o.gfx, o.system)?;
     crate::gfx::copy_picture_to_surface::copy_picture_to_surface(
         &mut crate::gfx::copy_picture_to_surface::GameSurface,
     )?;

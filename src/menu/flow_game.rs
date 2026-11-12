@@ -6,22 +6,14 @@ use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::event_flow::*;
 use crate::menu::lists_store::CarList;
 use crate::menu::owner::Menus;
-use crate::menu::run_championship as champ;
 use crate::menu::screen_loop::{Entry, Screen, run_screen};
 use crate::menu::standings::Which;
 use crate::race::owner::race;
 use crate::records::stages_store::RecordRef;
 use crate::session::DwordLike;
-use crate::session::PlainDword;
 use crate::system::owner::system;
 use rc2k_core::menu::flow::{self, Picture, Var};
 use rc2k_core::menu::leaving::Switch;
-
-pub const SPEECH_CHANNEL: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .option_work
-    .speech_level;
 
 pub struct Game<'a> {
     /// The menus' owner.
@@ -88,42 +80,42 @@ fn place(menus: &Menus, v: Var) -> Place<'_> {
     let race = race();
     use Place::Cell;
     match v {
-        Var::Answer => Cell(ANSWER),
-        Var::PlayerCount => Cell(PLAYER_COUNT),
-        Var::EventMode => Cell(EVENT_MODE),
-        Var::EventType => Cell(EVENT_TYPE),
-        Var::Mode => Cell(MODE),
-        Var::Current => Cell(CURRENT),
-        Var::Round => Cell(ROUND),
-        Var::Qualifies => Cell(crate::menu::time_trial_qualifies::QUALIFIES),
-        Var::ServiceDue => Cell(champ::SERVICE_DUE),
+        Var::Answer => Cell(&menus.tables.pages.yes_no_answer),
+        Var::PlayerCount => Cell(&menus.screens.event.player_count),
+        Var::EventMode => Cell(&menus.screens.event.event_kind),
+        Var::EventType => Cell(&menus.screens.event.event_type),
+        Var::Mode => Cell(&menus.play.champ_view.event_mode),
+        Var::Current => Cell(&menus.screens.event.current_player),
+        Var::Round => Cell(&menus.play.results.round),
+        Var::Qualifies => Cell(&menus.screens.event.time_qualifies),
+        Var::ServiceDue => Cell(&menus.screens.event.service_due),
         Var::RaceResult => Cell(&race.shared.state.results.results[0].result),
         Var::RaceResult2 => Cell(&race.shared.state.results.results[1].result),
-        Var::CarListKind => Cell(CAR_LIST_KIND),
-        Var::Cheats => Cell(CHEATS),
+        Var::CarListKind => Cell(&menus.screens.flow.car_list_kind),
+        Var::Cheats => Cell(&menus.play.cheats.cheats),
         Var::Cleared(k) => Cell(&menus.play.results.before[k as usize]),
         Var::PlayerTime(n) => Place::Player(n, PlayerField::Time),
         Var::PlayerEntry(n) => Place::Player(n, PlayerField::Entry),
-        Var::Continuing => Cell(CONTINUING),
-        Var::StagesDone => Cell(champ::STAGES_DONE),
-        Var::ResetTimes => Cell(champ::RESET_TIMES),
-        Var::Services => Cell(champ::SERVICES),
+        Var::Continuing => Cell(&menus.screens.event.continuing_save),
+        Var::StagesDone => Cell(&menus.screens.event.stages_done),
+        Var::ResetTimes => Cell(&menus.tables.pages.reset_times),
+        Var::Services => Cell(&menus.tables.pages.services),
         Var::ModeAB40 => Cell(&menus.screens.state.menus.class_mode),
-        Var::StartSection { a8: false } => Cell(champ::START_SECTION),
-        Var::StartSection { a8: true } => Cell(champ::START_SECTION_A8),
-        Var::ServiceTime => Cell(champ::SERVICE_TIME),
-        Var::ServiceRecordC => Cell(champ::SERVICE_RECORD_C),
-        Var::CpuSpreadFirst => Cell(champ::CPU_SPREAD_FIRST),
-        Var::ServiceNext => Cell(champ::SERVICE_NEXT),
-        Var::TheEnd => Cell(champ::THE_END),
-        Var::GoesOn => Cell(champ::GOES_ON),
-        Var::Section => Cell(SECTION),
-        Var::Index => Cell(INDEX),
-        Var::WelcomeFigure => Cell(champ::WELCOME_FIGURE),
-        Var::Welcomed => Cell(champ::WELCOMED),
+        Var::StartSection { a8: false } => Cell(&menus.screens.flow.start_section),
+        Var::StartSection { a8: true } => Cell(&menus.screens.flow.start_section_a8),
+        Var::ServiceTime => Cell(&menus.screens.event.service_minutes),
+        Var::ServiceRecordC => Cell(&menus.screens.event.service_record_c),
+        Var::CpuSpreadFirst => Cell(&menus.screens.event.cpu_spread_first),
+        Var::ServiceNext => Cell(&menus.screens.event.service_next),
+        Var::TheEnd => Cell(&menus.screens.event.championship_end),
+        Var::GoesOn => Cell(&menus.screens.event.event_goes_on),
+        Var::Section => Cell(&menus.screens.event.section),
+        Var::Index => Cell(&menus.screens.event.index),
+        Var::WelcomeFigure => Cell(&menus.screens.event.welcome_figure),
+        Var::Welcomed => Cell(&menus.screens.event.welcomed),
         Var::ReviewKind => Cell(&menus.screens.state.menus.review_kind),
         Var::Record(offset) => Place::Record(offset),
-        Var::SpeechChannel => Cell(SPEECH_CHANNEL),
+        Var::SpeechChannel => Cell(&menus.screens.option_work.speech_level),
     }
 }
 
@@ -229,7 +221,7 @@ impl flow::Game for Game<'_> {
             C::ShowChampionshipStandings => {
                 m::show_championship_standings::show_championship_standings(menus, entry)?;
             }
-            C::SectionFinish => m::section_finish::section_finish(self.menus)?,
+            C::SectionFinish => m::section_finish::section_finish(self.owners)?,
             C::ChampionshipStandingsReview => {
                 self.screen(&m::championship_standings_review_loop::SCREEN)?;
             }
@@ -245,7 +237,7 @@ impl flow::Game for Game<'_> {
             C::ShowOverallRallyResults => {
                 m::show_overall_rally_results::show_overall_rally_results(menus, entry)?;
             }
-            C::RunEventRaces => m::run_event_races::run_event_races(menus)?,
+            C::RunEventRaces => m::run_event_races::run_event_races(self.owners)?,
             C::AddPlayerTimes => m::add_player_times::add_player_times(menus)?,
             C::ClassStageResultsPass => {
                 m::class_stage_results_pass::class_stage_results_pass(menus, entry)?;
@@ -263,7 +255,7 @@ impl flow::Game for Game<'_> {
             C::ChampionshipRacesReview => {
                 self.screen(&m::championship_races_review_loop::SCREEN)?;
             }
-            C::ChampionshipFinish => m::championship_finish::championship_finish(self.menus)?,
+            C::ChampionshipFinish => m::championship_finish::championship_finish(self.owners)?,
             C::ClearScoreMarks => m::clear_score_marks::clear_score_marks()?,
             C::BestClassScores => m::best_class_scores::best_class_scores(menus, entry)?,
             C::BestOverallScores => m::best_overall_scores::best_overall_scores(menus, entry)?,
@@ -273,8 +265,8 @@ impl flow::Game for Game<'_> {
                 m::in_game_options_items::hide_in_game_options(menus, players)?;
             }
             C::ResetPlayerTimes => m::reset_player_times::reset_player_times(menus)?,
-            C::ReloadFrontEnd => m::reload_front_end::reload_front_end(menus)?,
-            C::RepairCar => crate::service::repair_parts::repair_car()?,
+            C::ReloadFrontEnd => m::reload_front_end::reload_front_end(self.owners)?,
+            C::RepairCar => crate::service::repair_parts::repair_car_in(menus)?,
             C::CheatCarList => {
                 if let Some(list) = m::cheat_car_list::cheat_car_list(menus) {
                     self.cars = Some(list);
@@ -297,10 +289,16 @@ impl flow::Game for Game<'_> {
             C::SingleRallyOverallResults => {
                 self.screen(&m::single_rally_overall_results_loop::SCREEN)?;
             }
-            C::KeepStageBest => m::keep_stage_best::keep_stage_best(menus)?,
-            C::TimeTrialQualifies => m::time_trial_qualifies::time_trial_qualifies(menus)?,
-            C::ClearTimeTrialMarks => m::clear_time_trial_marks::clear_time_trial_marks()?,
-            C::EnterTimeTrialBest => m::enter_time_trial_best::enter_time_trial_best(menus)?,
+            C::KeepStageBest => m::keep_stage_best::keep_stage_best(menus, self.owners.system)?,
+            C::TimeTrialQualifies => {
+                m::time_trial_qualifies::time_trial_qualifies(menus, self.owners.system)?;
+            }
+            C::ClearTimeTrialMarks => {
+                m::clear_time_trial_marks::clear_time_trial_marks(menus, self.owners.system)?;
+            }
+            C::EnterTimeTrialBest => {
+                m::enter_time_trial_best::enter_time_trial_best(menus, self.owners.system)?;
+            }
             C::TimeTrialBestTimesLoop => self.screen(&m::time_trial_best_times_loop::SCREEN)?,
             C::SingleRallyReview => self.screen(&m::single_rally_review_loop::SCREEN)?,
             C::StartStream { channel } => {

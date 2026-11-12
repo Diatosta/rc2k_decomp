@@ -131,9 +131,9 @@ fn record_at(pool: usize, number: u32) -> &'static crate::gfx::texture_upload::R
 struct Level {
     /// Which level this is, for the noted fans and the GPU's caches.
     id: TextureId,
-    /// The pixels, a region while the level lives (locked, the game's code writes them by
-    /// address: `pointers`).
-    pixels: std::sync::Arc<crate::pointers::LentBytes>,
+    /// The pixels, named by the surface's handle while the level lives (locked, the game's
+    /// code writes them through it: `gfx::locked_pixels`).
+    pixels: std::sync::Arc<crate::pointers::PoolBytes>,
     pitch: u32,
 }
 
@@ -141,7 +141,7 @@ impl Level {
     /// The level made at `surface` of `bytes`, `pitch` bytes a row; its pixels named by the
     /// surface's handle (`gfx::locked_pixels`).
     fn new(id: TextureId, surface: usize, pitch: u32, bytes: Vec<u8>) -> Self {
-        let pixels = std::sync::Arc::new(crate::pointers::LentBytes::from_vec(bytes));
+        let pixels = std::sync::Arc::new(crate::pointers::PoolBytes::from_vec(bytes));
         crate::gfx::locked_pixels::register(crate::gfx::locked_pixels::level(surface), &pixels);
         Self { id, pixels, pitch }
     }
@@ -513,12 +513,18 @@ fn level_of(pending: &mut Pending, surface: usize) -> Option<(TextureId, usize, 
     level
 }
 
-/// The texture format at `format`: the description a handle names, else (a kind read past
-/// the table) a number read through the game's memory.
+/// The texture format a record's or a kind's handle names. The textures are made with
+/// kinds 2 .. 4 only (`allocate_textures`' callers), whose entries are always handles
+/// (`describe_texture_formats`, the first values), and a record's format is one of those
+/// or 0, which the fans and the screen's copy test first. One that names none ends the
+/// program, as the original's read there would go wrong.
 fn format_at(format: u32) -> TextureFormat {
     match crate::gfx::owner::textures().description(format) {
         Some(d) => d.get(),
-        None => crate::pointers::read_or_end::<TextureFormat>(format, "a texture format"),
+        None => crate::fatal::raise::end(
+            "a texture format",
+            crate::errors::BadInput("a texture format's handle that names none"),
+        ),
     }
 }
 

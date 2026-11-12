@@ -21,7 +21,7 @@
 //!
 //! Where the time goes: `platform_timing`.
 
-// Not FFI: `LentBytes::slice` (the frame's pixels, lent to the game) is a memory primitive.
+// Not FFI: `PoolBytes::slice` (the frame's pixels, read in place) is a memory primitive.
 #![allow(unsafe_code)]
 
 use crate::ffi::sdl;
@@ -38,8 +38,7 @@ use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 // ---- the screen ----
 
 pub(crate) struct Screen {
-    /// The pixels a region while the screen lives (the game's code draws on them by
-    /// address: `pointers`). (Declared first: fields drop in order, and the region must go before the memory does.)
+    /// The game's window.
     pub(crate) window: sdl::Window,
     /// The window's renderer (`SDL_Renderer`: the frame goes up as a texture, the
     /// debug UI drawn over it) and the frame's texture (XRGB8888, the screen's size).
@@ -50,7 +49,8 @@ pub(crate) struct Screen {
     width: usize,
     height: usize,
     bits: u32,
-    pixels: std::sync::Arc<crate::pointers::LentBytes>,
+    /// The pixels the game draws on, named by `locked_pixels::SCREEN` while the screen lives.
+    pixels: std::sync::Arc<crate::pointers::PoolBytes>,
 }
 
 pub(crate) static SCREEN: Mutex<Option<Screen>> = Mutex::new(None);
@@ -232,7 +232,7 @@ fn set_screen_mode(mode: u32, gfx: &crate::gfx::owner::Gfx) -> Result<(), String
         // The texture made above is dropped (destroyed) with `texture`.
         return Err(why);
     }
-    let pixels = std::sync::Arc::new(crate::pointers::LentBytes::from_vec(vec![
+    let pixels = std::sync::Arc::new(crate::pointers::PoolBytes::from_vec(vec![
         0u8;
         (bytes * width * height)
             as usize

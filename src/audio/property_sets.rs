@@ -44,7 +44,8 @@ impl<'a> Opening<'a> {
 
 /// What `audio::make_buffer` hands the openings to read the 3D buffer through (the original's
 /// ebx, read as the address of a dword). Only the voice manager's call gives the 3D buffer; the
-/// other values are the game's bug (`notes/bugs.md`), read as the original reads them.
+/// other values are the game's bug (`notes/bugs.md`): a record's is read as the original reads
+/// it, a number refused.
 #[derive(Clone, Copy)]
 pub enum Holder<'a> {
     /// `audio::load_sounds`'s sample record: its first dword, the record's `number`, is read.
@@ -52,22 +53,21 @@ pub enum Holder<'a> {
     /// The voice of this id's `buffer_3d` (stored before the openings).
     Buffer3d(u32),
     /// A number held as an address: the caller's sound mode (`audio::start`) or the voice's
-    /// frequency after the create path. Below 0x10000 it is refused; above, read where it
-    /// points.
-    Value(u32),
+    /// frequency after the create path (`audiobasefreq` or a sample's). It names nothing the
+    /// game holds and is refused.
+    Value,
 }
 
 impl Holder<'_> {
-    /// The dword the original reads through the holder; refuses a number below 0x10000 (no
-    /// pointer).
+    /// The dword the original reads through the holder; refuses a number (`Value`): the
+    /// original reads where it points, which is no place of the game's.
     fn read(self, state: &AudioState) -> Result<u32, Refused> {
         match self {
             Holder::Record(record) => Ok(record.get().number),
             Holder::Buffer3d(voice) => Ok(crate::audio::voices::voice_of(state, voice).buffer_3d),
-            Holder::Value(value) if value < 0x1_0000 => {
+            Holder::Value => {
                 Err(BadInput("the holder value is no 3D buffer (make_buffer's EAX bug)").into())
             }
-            Holder::Value(value) => Ok(crate::audio::voices::read(value)),
         }
     }
 }

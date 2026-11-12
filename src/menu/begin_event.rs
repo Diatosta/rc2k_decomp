@@ -32,7 +32,7 @@ pub fn begin_event(menus: &Menus) -> Result<(), Refused> {
         CURRENT_PLAYER.set(n);
         let p = crate::menu::standings::player(menus, n);
         p.update(Player::begin);
-        crate::service::repair_parts::repair_car()?;
+        crate::service::repair_parts::repair_car_in(menus)?;
         if menus.play.champ_view.event_mode.get() != KEEPS_SETUP {
             p.update(Player::default_setup);
         }

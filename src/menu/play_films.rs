@@ -124,7 +124,9 @@ impl Game<'_> {
             }
             Step::Step409B76 => crate::sound::let_sounds_play::let_sounds_play(),
             Step::SetUpEngine => crate::scene::set_up_engine::set_up_engine_in(race, scene)?,
-            Step::FrontEndScene => crate::scene::set_up_front_end_scene::set_up_front_end_scene()?,
+            Step::FrontEndScene => {
+                crate::scene::set_up_front_end_scene::set_up_front_end_scene_in(o)?;
+            }
             Step::Tune3 => crate::sound::play_tune_3::play_tune_3(),
         }
 

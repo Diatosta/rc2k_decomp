@@ -32,6 +32,7 @@ static RECORDS: crate::workers::PerWorker<[[Dword; 8]; COUNT as usize]> =
         [const { [const { [const { Dword::new(0) }; 8] }; COUNT as usize] }; crate::workers::COUNT],
     );
 /// The records' copies (`workers`).
+#[cfg(test)]
 pub fn copies() -> &'static dyn crate::workers::Copies {
     &RECORDS
 }

@@ -27,7 +27,7 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::name_lists::NAME_LEN;
 use crate::owners::Owners;
 use crate::session::Dword;
-use crate::strings::append_string_by_id::push_string;
+use crate::strings::append_string_by_id::push_string_in;
 use crate::strings::copy_printable::printable_from;
 
 // ---- game data ----
@@ -71,6 +71,7 @@ pub type Outside<'a> = &'a mut dyn FnMut(Call) -> Result<u32, Refused>;
 
 /// The string and what follows it, with a NUL, at `to`.
 fn default_name(
+    o: Owners<'_>,
     to: &impl crate::session::ByteBuffer,
     at: usize,
     room: usize,
@@ -78,7 +79,7 @@ fn default_name(
     after: &[u8],
 ) -> Result<(), BadInput> {
     let mut string = Vec::new();
-    push_string(&mut string, id)?;
+    push_string_in(o, &mut string, id)?;
     let name = rc2k_core::system::game_data::default_name(&string, after, room)
         .ok_or(BadInput("a default name longer than its place"))?;
     to.write_bytes_at(at, &name, "a default name")?;
@@ -86,12 +87,16 @@ fn default_name(
 }
 
 /// A list of 100 names: every empty one becomes the string and the slot's number.
-fn number_empty_names(names: &impl crate::session::ByteBuffer, id: u32) -> Result<(), BadInput> {
+fn number_empty_names(
+    o: Owners<'_>,
+    names: &impl crate::session::ByteBuffer,
+    id: u32,
+) -> Result<(), BadInput> {
     for slot in 0..SLOTS {
         let name = slot as usize * NAME_LEN;
         if names.get_byte(name) == 0 {
             let mut string = Vec::new();
-            push_string(&mut string, id)?;
+            push_string_in(o, &mut string, id)?;
             let bytes = rc2k_core::system::game_data::slot_name(&string, slot, NAME_LEN)
                 .ok_or(BadInput("a default name longer than its place"))?;
             // The name bytes at their slot in the names buffer.
@@ -141,6 +146,7 @@ pub fn load_game_data(o: Owners<'static>, outside: Outside) -> Result<(), Refuse
             }
         }
         default_name(
+            o,
             &play.names.player_names,
             player * NAME_LEN,
             NAME_LEN,
@@ -156,6 +162,7 @@ pub fn load_game_data(o: Owners<'static>, outside: Outside) -> Result<(), Refuse
         field.write_at(0, &bytes, "a printable name")?;
         if net.setup().machine_name.get(0) == 0 {
             default_name(
+                o,
                 &net.setup().machine_name,
                 0,
                 MACHINE_NAME_ROOM,
@@ -170,7 +177,7 @@ pub fn load_game_data(o: Owners<'static>, outside: Outside) -> Result<(), Refuse
         let end = loop {
             let drawn = outside(Call::RandomBelow(DRIVER_NAME_IDS.1))?;
             let mut name = Vec::new();
-            push_string(&mut name, DRIVER_NAME_IDS.0.wrapping_add(drawn))?;
+            push_string_in(o, &mut name, DRIVER_NAME_IDS.0.wrapping_add(drawn))?;
             if name.len() >= NAME_LEN {
                 return Err(BadInput("a driver's name longer than its place").into());
             }
@@ -195,15 +202,15 @@ pub fn load_game_data(o: Owners<'static>, outside: Outside) -> Result<(), Refuse
     for slot in 0..SLOTS {
         outside(Call::ReadSavegameSlot(slot))?;
     }
-    number_empty_names(&o.saves.save_games.names, SAVEGAME_NAME_ID)?;
+    number_empty_names(o, &o.saves.save_games.names, SAVEGAME_NAME_ID)?;
     for slot in 0..SLOTS {
         outside(Call::ReadReplaySlot(slot))?;
     }
-    number_empty_names(&race.shared.replays.names, REPLAY_NAME_ID)?;
+    number_empty_names(o, &race.shared.replays.names, REPLAY_NAME_ID)?;
     for slot in 0..SLOTS {
         outside(Call::ReadSetupSlot(slot))?;
     }
-    number_empty_names(&o.service.set_ups.names, SETUP_NAME_ID)?;
+    number_empty_names(o, &o.service.set_ups.names, SETUP_NAME_ID)?;
     Ok(())
 }
 

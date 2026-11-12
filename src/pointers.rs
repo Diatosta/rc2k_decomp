@@ -30,10 +30,13 @@ use std::sync::atomic::{AtomicU8, AtomicU16, AtomicU32, Ordering::Relaxed};
 
 pub mod pool;
 
+pub use pool::PoolBytes;
+
 /// The blocks taken from the system: start -> length.
 static BLOCKS: RwLock<BTreeMap<u32, u32>> = RwLock::new(BTreeMap::new());
 
 /// A block taken from the system (`len` bytes from `start`, header included).
+#[cfg(test)]
 pub fn register(start: u32, len: u32) {
     if let Ok(mut blocks) = BLOCKS.write() {
         blocks.insert(start, len);
@@ -41,6 +44,7 @@ pub fn register(start: u32, len: u32) {
 }
 
 /// A block given back.
+#[cfg(test)]
 pub fn unregister(start: u32) {
     if let Ok(mut blocks) = BLOCKS.write() {
         blocks.remove(&start);
@@ -88,15 +92,14 @@ impl std::fmt::Debug for Backing {
     }
 }
 
-/// The pool's blocks lent to the game, by their game address: each a store of its own.
-static POOL_HOMES: RwLock<BTreeMap<u32, &'static pool::PoolBlock>> = RwLock::new(BTreeMap::new());
-
 /// Stores that are regions of their own, by their game address: the drawing threads' copies
 /// of the drawing's state (`workers`; copy 0 is the store's home, `moved`).
+#[cfg(test)]
 static STORE_HOMES: RwLock<BTreeMap<u32, &'static (dyn Store + Sync)>> =
     RwLock::new(BTreeMap::new());
 
 /// `store` a region of its own, reached through its cells as a moved store's home is.
+#[cfg(test)]
 pub fn register_store(store: &'static (dyn Store + Sync)) {
     let at = game_address(store.first());
     if let Ok(mut homes) = STORE_HOMES.write() {
@@ -107,9 +110,7 @@ pub fn register_store(store: &'static (dyn Store + Sync)) {
 
 /// The backing of the region that starts at `start`.
 fn backing_of(start: u32) -> Backing {
-    if let Some(&block) = POOL_HOMES.read().ok().as_ref().and_then(|h| h.get(&start)) {
-        return Backing::Store(block, start);
-    }
+    #[cfg(test)]
     if let Some(&store) = STORE_HOMES.read().ok().as_ref().and_then(|h| h.get(&start)) {
         return Backing::Store(store, start);
     }
@@ -336,6 +337,7 @@ pub fn game_address(p: impl HostPointer) -> u32 {
 
 /// A game range for `len` bytes of host memory at `p` (no region: the memory is reached
 /// by address only, as the game's reserved image): its game address.
+#[cfg(test)]
 pub fn map(p: impl HostPointer, len: usize) -> u32 {
     crate::address_map::map(p.exposed(), len)
 }
@@ -349,26 +351,8 @@ pub fn lend(p: impl HostPointer, len: usize) -> u32 {
     at
 }
 
-/// A block of the pool lent to the game until `forget_block`: a game range over the whole
-/// block, a region of `len` bytes from its start, the block its store. Its game address.
-pub fn lend_block(block: &'static pool::PoolBlock, len: usize) -> u32 {
-    let at = map(block.as_ptr(), block.len());
-    if let Ok(mut homes) = POOL_HOMES.write() {
-        homes.insert(at, block);
-    }
-    register(at, len as u32);
-    at
-}
-
-/// A lent block given back: its region, its store and its game range; the block, for the
-/// pool (None for an address `lend_block` did not hand out).
-pub fn forget_block(at: u32) -> Option<&'static pool::PoolBlock> {
-    let block = POOL_HOMES.write().ok()?.remove(&at)?;
-    forget(at);
-    Some(block)
-}
-
 /// Lent memory given back: its region and its game range.
+#[cfg(test)]
 pub fn forget(at: u32) {
     unregister(at);
     crate::address_map::unmap(at);
@@ -510,6 +494,7 @@ impl GamePtr {
     }
 
     /// The game address of a field of Rust's game state (a store's cell, buffer or place).
+    #[cfg(test)]
     pub fn to<T: ?Sized>(field: &T) -> Self {
         let at = game_address(std::ptr::from_ref::<T>(field).cast::<u8>());
         Self {
@@ -519,6 +504,7 @@ impl GamePtr {
     }
 
     /// A store's bytes as a place bounded by them.
+    #[cfg(test)]
     pub fn of_store(store: &dyn Store) -> Self {
         let at = game_address(store.first());
         Self {
@@ -527,6 +513,7 @@ impl GamePtr {
         }
     }
 
+    #[cfg(test)]
     pub const fn addr(self) -> u32 {
         self.at
     }
@@ -571,6 +558,7 @@ impl GamePtr {
     /// The `T` at the address (unaligned, as the game's data may be), when all of it lies in
     /// one region.
     #[track_caller]
+    #[cfg(test)]
     pub fn read<T: Plain>(self, what: &str) -> Result<T, BadInput> {
         let backing = self.check(size_of::<T>(), what)?;
         let mut value = zeroed::<T>();
@@ -1826,6 +1814,7 @@ fn note_by_address(_addr: u32, _backing: Backing, _len: usize, _write: bool) {
 /// A checked read where the caller has no way to carry a refusal (generated step code, a
 /// core's closure): outside its region the program ends naming it (`fatal::raise::end`).
 #[track_caller]
+#[cfg(test)]
 pub fn read_or_end<T: Plain>(addr: u32, what: &str) -> T {
     GamePtr::new(addr)
         .read(what)
@@ -1841,126 +1830,8 @@ pub fn write_or_end<T: Plain>(addr: u32, value: T, what: &str) {
     }
 }
 
-/// Bytes owned here and reached by game address, for reading and for writing: a region for as
-/// long as they live. They are held by a raw pointer, so a write by address is allowed
-/// (a `Vec` lent through `&[u8]` gives read permission only, which Miri rejects).
-pub struct LentBytes {
-    block: &'static pool::PoolBlock,
-    len: usize,
-    game: u32,
-}
-
-impl LentBytes {
-    pub fn from_vec(bytes: Vec<u8>) -> Self {
-        let block = pool::take(bytes.len());
-        Store::store(block, 0, &bytes)
-            .unwrap_or_else(|e| crate::fatal::raise::end("pointers::LentBytes", e));
-        Self {
-            block,
-            len: bytes.len(),
-            game: lend_block(block, bytes.len()),
-        }
-    }
-
-    pub fn len(&self) -> usize {
-        self.len
-    }
-
-    /// `len` bytes from byte `offset`; a read past the bytes' end is refused.
-    pub fn read_at(&self, offset: u32, len: usize, what: &str) -> Result<Vec<u8>, BadInput> {
-        let end = (offset as usize)
-            .checked_add(len)
-            .filter(|&e| e <= self.len);
-        if end.is_none() {
-            log(&format!(
-                "pointers: {what}: {len} bytes at offset {offset:#x}, past the {:#x} bytes",
-                self.len
-            ));
-            return Err(BadInput("past the end of a field"));
-        }
-        let mut bytes = vec![0; len];
-        Store::load(self.block, offset as usize, &mut bytes)?;
-        Ok(bytes)
-    }
-
-    /// `data` written from byte `offset`; a write past the bytes' end is refused.
-    pub fn write_at(&self, offset: u32, data: &[u8], what: &str) -> Result<(), BadInput> {
-        let end = (offset as usize)
-            .checked_add(data.len())
-            .filter(|&e| e <= self.len);
-        if end.is_none() {
-            log(&format!(
-                "pointers: {what}: {} bytes at offset {offset:#x}, past the {:#x} bytes",
-                data.len(),
-                self.len
-            ));
-            return Err(BadInput("past the end of a field"));
-        }
-        Store::store(self.block, offset as usize, data)
-    }
-
-    /// The `T` at byte `offset`; a read past the bytes' end is refused.
-    pub fn read_value<T: Plain>(&self, offset: u32, what: &str) -> Result<T, BadInput> {
-        self.within(offset, size_of::<T>(), what)?;
-        let mut value = zeroed::<T>();
-        Store::load(self.block, offset as usize, bytes_mut(&mut value))?;
-        Ok(value)
-    }
-
-    /// `value` written at byte `offset`; a write past the bytes' end is refused.
-    pub fn write_value<T: Plain>(&self, offset: u32, value: T, what: &str) -> Result<(), BadInput> {
-        self.within(offset, size_of::<T>(), what)?;
-        Store::store(self.block, offset as usize, bytes_of(&value))
-    }
-
-    /// Whether `len` bytes from `offset` lie inside the bytes.
-    fn within(&self, offset: u32, len: usize, what: &str) -> Result<(), BadInput> {
-        if (offset as usize)
-            .checked_add(len)
-            .is_some_and(|e| e <= self.len)
-        {
-            return Ok(());
-        }
-        log(&format!(
-            "pointers: {what}: {len} bytes at offset {offset:#x}, past the {:#x} bytes",
-            self.len
-        ));
-        Err(BadInput("past the end of a field"))
-    }
-
-    /// A copy of the bytes.
-    pub fn to_vec(&self) -> Vec<u8> {
-        let mut bytes = vec![0; self.len];
-        Store::load(self.block, 0, &mut bytes)
-            .unwrap_or_else(|e| crate::fatal::raise::end("pointers::LentBytes", e));
-        bytes
-    }
-
-    /// The bytes' first byte, for a slice of them written in place.
-    pub fn as_mut_ptr(&self) -> *mut u8 {
-        self.block.as_ptr()
-    }
-
-    /// The bytes in place.
-    ///
-    /// # Safety
-    /// Nothing may write them while the slice lives.
-    pub unsafe fn slice(&self) -> &[u8] {
-        // SAFETY: the block holds `len` bytes; unwritten meanwhile (the caller's promise).
-        unsafe { std::slice::from_raw_parts(self.block.as_ptr(), self.len) }
-    }
-}
-
-impl Drop for LentBytes {
-    fn drop(&mut self) {
-        if let Some(block) = forget_block(self.game) {
-            pool::give_back(block);
-        }
-    }
-}
-
 /// A Rust buffer lent to code that reads by the game's addresses: a region while the guard
-/// lives; code that writes needs `LentBytes` or a pointer taken from `as_mut_ptr`. Take the guard before the address is handed on, and drop
+/// lives; code that writes needs a pointer taken from `as_mut_ptr`. Take the guard before the address is handed on, and drop
 /// it before the buffer: a struct holding both declares the guard first (fields drop in
 /// order; freed memory still a region is memory the game may reach, and memory the heap
 /// hands out again inside a stale range, which made a test flaky).
@@ -1997,8 +1868,8 @@ mod tests {
 
     #[test]
     fn reads_answer_inside_a_region_only() {
-        // On the heap: the stack is a region of its own. Lent with write permission, as
-        // `LentBytes` lends (reads are atomics, which need it).
+        // On the heap: the stack is a region of its own. Lent with write permission
+        // (reads are atomics, which need it).
         let block = Box::into_raw(Box::new([7u8; 64]));
         let start = map(block, 64);
         register(start, 64);

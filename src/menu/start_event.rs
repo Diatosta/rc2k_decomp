@@ -19,8 +19,6 @@ use crate::session::PlainDword;
 use rc2k_core::menu::leaving::Switch;
 use rc2k_core::menu::starters;
 
-const REPAIR_SET: &PlainDword = &crate::menu::owner::MENUS.unchecked().cars.table.last_car; // 0xF
-
 pub struct Starter {
     /// The championship and the seats (see `rc2k_core::menu::starters`).
     pub kind: starters::Starter,
@@ -38,11 +36,11 @@ impl starters::Event for Game<'_> {
     type Error = Refused;
 
     fn get(&mut self, v: starters::Var) -> u32 {
-        get(var(v))
+        get(var(self.menus, v))
     }
 
     fn set(&mut self, v: starters::Var, value: u32) {
-        set(var(v), value);
+        set(var(self.menus, v), value);
     }
 
     fn flag(&mut self, s: Switch) -> bool {
@@ -85,18 +83,19 @@ impl starters::Event for Game<'_> {
     }
 }
 
-fn var(v: starters::Var) -> &'static PlainDword {
+fn var(menus: &crate::menu::owner::Menus, v: starters::Var) -> &PlainDword {
     use starters::Var as V;
+    let event = &menus.screens.event;
     match v {
-        V::EventType => EVENT_TYPE,
-        V::RepairSet => REPAIR_SET,
-        V::PlayerCount => PLAYER_COUNT,
-        V::Index => INDEX,
-        V::Section => SECTION,
-        V::StagesDone => crate::menu::run_championship::STAGES_DONE,
-        V::Continuing => CONTINUING,
-        V::Current => CURRENT,
-        V::EventMode => EVENT_MODE,
+        V::EventType => &event.event_type,
+        V::RepairSet => &menus.cars.table.last_car, // 0xF
+        V::PlayerCount => &event.player_count,
+        V::Index => &event.index,
+        V::Section => &event.section,
+        V::StagesDone => &event.stages_done,
+        V::Continuing => &event.continuing_save,
+        V::Current => &event.current_player,
+        V::EventMode => &event.event_kind,
     }
 }
 

@@ -44,9 +44,10 @@ pub fn draw_time_trial_stage_select(
     let play = &menus.play;
     let screens = &menus.screens;
     let tables = &menus.tables;
-    let (Some(sel), Some((group_title, table_title))) =
-        (selection_in(menus, system)?, menu_titles(menus, play)?)
-    else {
+    let (Some(sel), Some((group_title, table_title))) = (
+        selection_in(menus, system)?,
+        menu_titles(menus, system, play)?,
+    ) else {
         return Err(
             BadInput("no record table is selected: the original reads through null").into(),
         );

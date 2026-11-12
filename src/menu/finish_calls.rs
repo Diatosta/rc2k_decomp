@@ -1,7 +1,8 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::Fault;
 use crate::menu::owner::Menus;
-use crate::race::owner::race;
+use crate::owners::Owners;
+use crate::race::owner::Race;
 use crate::session::DwordLike;
 use rc2k_core::menu::finish::{self, Racer, Step, Var};
 
@@ -10,6 +11,7 @@ use rc2k_core::menu::finish::{self, Racer, Step, Var};
 /// edi) the racer fields are read through: a player's.
 pub struct Game<'a> {
     menus: &'a Menus,
+    owners: Owners<'a>,
     pub racer: RacerAt<'a>,
     /// A refused read or write of the core's variables (checked at each step and at the end).
     fault: Fault,
@@ -18,11 +20,12 @@ pub struct Game<'a> {
 impl<'a> Game<'a> {
     /// Runs a flow on a new game; a refused read or write of its variables ends it.
     pub fn run(
-        menus: &'a Menus,
+        o: Owners<'a>,
         flow: impl FnOnce(&mut Game<'a>) -> Result<(), Refused>,
     ) -> Result<(), Refused> {
         let mut game = Game {
-            menus,
+            menus: o.menus,
+            owners: o,
             racer: RacerAt::None,
             fault: Fault::default(),
         };
@@ -59,8 +62,7 @@ impl Game<'_> {
 }
 
 /// The variables that are in static cells.
-fn cell(menus: &Menus, v: Var) -> Option<&'_ dyn DwordLike> {
-    let race = race();
+fn cell<'a>(menus: &'a Menus, race: &'a Race, v: Var) -> Option<&'a dyn DwordLike> {
     Some(match v {
         Var::On => &race.shared.state.results.finished,
         Var::Kept => &race.shared.state.settings.kept,
@@ -82,7 +84,7 @@ impl finish::Finish for Game<'_> {
         let menus = self.menus;
         match v {
             Var::RacerNumber | Var::RacerCar => self.racer_get(v),
-            _ => match cell(menus, v) {
+            _ => match cell(menus, self.owners.race, v) {
                 Some(cell) => cell.get(),
                 None => unreachable!("the racer's fields are not at an address"),
             },
@@ -93,7 +95,7 @@ impl finish::Finish for Game<'_> {
         let menus = self.menus;
         match v {
             Var::RacerNumber | Var::RacerCar => self.fault.ok(Err(RACER_SET)),
-            _ => match cell(menus, v) {
+            _ => match cell(menus, self.owners.race, v) {
                 Some(cell) => cell.set(value),
                 None => unreachable!("the racer's fields are not at an address"),
             },
@@ -133,34 +135,42 @@ impl finish::Finish for Game<'_> {
     /// The original leaves the value in eax for the key taken at the end, which replaces
     /// its low byte and is not read: nothing to keep.
     fn step(&mut self, s: Step) -> Result<(), Refused> {
-        let sound = crate::sound::owner::sound();
+        let (sound, race) = (self.owners.sound, self.owners.race);
         self.fault.check()?;
         match s {
             Step::RaceSoundObjects => crate::race::sound_tables::set_up_race_sound_objects(
-                crate::race::owner::race(),
+                race,
                 &crate::race::sound_tables::ObjectVars::game(),
                 sound,
             )?,
             Step::RaceSounds => crate::sound::set_up_race_sounds::set_up_race_sounds(sound)?,
             Step::LoadingPicture => {
-                crate::menu::show_loading_picture::show_loading_picture(self.menus)?;
+                crate::menu::show_loading_picture::show_loading_picture_in(
+                    self.menus,
+                    self.owners.gfx,
+                    self.owners.system,
+                )?;
             }
             Step::Render3dTidy => {
-                crate::race::stage_free::render3d_tidy(crate::race::owner::race())?;
+                crate::race::stage_free::render3d_tidy(race)?;
             }
-            Step::ObjectsTidy => crate::race::stage_free::objects_tidy(crate::race::owner::race())?,
+            Step::ObjectsTidy => crate::race::stage_free::objects_tidy(race)?,
             // `nullsub_6`.
             Step::Nothing => {}
             Step::ReleaseTextures => crate::race::race_end::release_textures(),
             Step::FinishRace => {
-                crate::drive::finish_race_0::finish_race_0(crate::race::owner::race())?;
+                crate::drive::finish_race_0::finish_race_0(race)?;
             }
             Step::StopMusic => crate::sound::stop_music::stop_music(),
             Step::MenuScreenMode => {
                 crate::platform::set_menu_mode_now();
             }
-            Step::SetUpEngine => crate::scene::set_up_engine::set_up_engine()?,
-            Step::FrontEndScene => crate::scene::set_up_front_end_scene::set_up_front_end_scene()?,
+            Step::SetUpEngine => {
+                crate::scene::set_up_engine::set_up_engine_in(race, self.owners.scene)?;
+            }
+            Step::FrontEndScene => {
+                crate::scene::set_up_front_end_scene::set_up_front_end_scene_in(self.owners)?;
+            }
             Step::Tune3 => crate::sound::play_tune_3::play_tune_3(),
             Step::TakeKey => {
                 crate::input::take_key::take_key();

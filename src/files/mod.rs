@@ -89,6 +89,7 @@ pub fn cstring(
 
 /// The text at `at` up to its NUL (not included), read inside one allocation: a text with
 /// no NUL before its allocation's end is refused.
+#[cfg(test)]
 #[track_caller]
 pub fn cstring_at(
     at: crate::pointers::GamePtr,

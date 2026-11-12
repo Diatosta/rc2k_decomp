@@ -39,7 +39,10 @@ enum Stop {
     Straight,
 }
 
-fn work(install: &'static crate::install::owner::Install) -> Result<Stop, Refused> {
+fn work(
+    install: &'static crate::install::owner::Install,
+    system: &crate::system::owner::System,
+) -> Result<Stop, Refused> {
     use crate::install as i;
     if !normalise(&install.paths.path_a, &install.paths.game_dir)?
         || !normalise(&install.paths.path_b, &install.paths.installed)?
@@ -91,6 +94,7 @@ fn work(install: &'static crate::install::owner::Install) -> Result<Stop, Refuse
             // A failed copy stops the install as Escape does.
             if !i::copy_counted::copy_counted(
                 install,
+                system,
                 &install.paths.path_a,
                 &install.paths.path_b,
             )? || take_key() == 1
@@ -106,7 +110,10 @@ fn work(install: &'static crate::install::owner::Install) -> Result<Stop, Refuse
     Ok(Stop::SetBack)
 }
 
-pub fn install_clio(install: &'static crate::install::owner::Install) -> Result<(), Refused> {
+pub fn install_clio(
+    install: &'static crate::install::owner::Install,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     if lock() {
         copy_picture()?;
         draw_string(0xBE, FONT_BE, 0x1A9, 0x113)?;
@@ -114,7 +121,7 @@ pub fn install_clio(install: &'static crate::install::owner::Install) -> Result<
         show();
         sleep(1000);
     }
-    if let Stop::SetBack = work(install)? {
+    if let Stop::SetBack = work(install, system)? {
         set_cd(&install.paths.installed);
     }
     install.run.installing.set(0);

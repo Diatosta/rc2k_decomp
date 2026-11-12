@@ -19,7 +19,7 @@ use rc2k_core::install::drives::{self, DriveMenu};
 /// The drive page's entry in the pages' table (`g_driveMenu`, 0x51D5F8, from 0x51D594).
 const DRIVE_ENTRY: usize = 25;
 
-pub fn list_drives(install: &'static crate::install::owner::Install) {
+pub fn list_drives(install: &'static crate::install::owner::Install, o: crate::owners::Owners<'_>) {
     // Per letter from 'a', a pair of dwords: how often it was found and its free space.
     let drives = &install.run.drives;
     let mut letter = install.run.first_drive.get();
@@ -28,7 +28,8 @@ pub fn list_drives(install: &'static crate::install::owner::Install) {
         // `menu`, `items`).
         let kind = crate::files::drive_type::drive_type(letter as u8);
         if drives::offered(kind)
-            && let Some(free) = crate::files::drive_free_space_kb::drive_free_space_kb(letter)
+            && let Some(free) =
+                crate::files::drive_free_space_kb::drive_free_space_kb(o.system, letter)
         {
             // The first letter is 'a' or 'c', the last 'z': inside the 26 pairs.
             let slot = 2 * (letter - b'a' as u32) as usize;
@@ -57,9 +58,13 @@ pub fn list_drives(install: &'static crate::install::owner::Install) {
         let free = drives::free(drives[slot + 1].get());
         let mut unit = Vec::new();
         crate::menu::event_flow::refuse_here(
-            crate::strings::append_string_by_id::append_string_by_id(free.unit, &mut |bytes| {
-                unit.extend_from_slice(bytes);
-            }),
+            crate::strings::append_string_by_id::append_string_by_id_in(
+                o,
+                free.unit,
+                &mut |bytes| {
+                    unit.extend_from_slice(bytes);
+                },
+            ),
             "install::list_drives: a string",
         );
         // the original writes the letter, skips a byte, then the rest

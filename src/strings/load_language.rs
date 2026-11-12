@@ -34,8 +34,8 @@ use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::read_first_match::read_first_match;
 use crate::input::layouts::layouts;
 use crate::session::Bytes;
-use crate::strings::append_string_by_id::push_string;
-use crate::strings::owner::{Strings, Text, strings};
+use crate::strings::append_string_by_id::push_string_in;
+use crate::strings::owner::{Text, strings};
 use crate::strings::same_text::set_case_table;
 use rc2k_core::strings::case::CaseTable;
 use rc2k_core::strings::language::Locale;
@@ -93,9 +93,14 @@ fn fatal(code: u32, message: &'static str) -> Refused {
 }
 
 /// String `id` as the original builds it: in the text buffer. Returns its bytes.
-fn built(text: &Text, id: u32, with_nul: bool) -> Result<Vec<u8>, BadInput> {
+fn built(
+    o: crate::owners::Owners<'_>,
+    text: &Text,
+    id: u32,
+    with_nul: bool,
+) -> Result<Vec<u8>, BadInput> {
     let mut bytes = Vec::new();
-    push_string(&mut bytes, id)?;
+    push_string_in(o, &mut bytes, id)?;
     if bytes.len() >= 0x100 {
         return Err(BadInput(
             "a string of the language's set-up longer than expected",
@@ -111,10 +116,11 @@ fn built(text: &Text, id: u32, with_nul: bool) -> Result<Vec<u8>, BadInput> {
 
 /// `strings::make_case_tables` (converted: `rc2k_core::strings::case::CaseTable::{for_language,
 /// plain_letters}`).
-fn make_case_tables(strings: &Strings) -> Result<(), BadInput> {
-    let lower = CaseTable::for_language(&built(&strings.text, 2, true)?)?;
+fn make_case_tables(o: crate::owners::Owners<'_>) -> Result<(), BadInput> {
+    let strings = o.strings;
+    let lower = CaseTable::for_language(&built(o, &strings.text, 2, true)?)?;
     set_case_table(&lower.lower);
-    let plain = lower.plain_letters(&built(&strings.text, 3, true)?);
+    let plain = lower.plain_letters(&built(o, &strings.text, 3, true)?);
     strings.language.plain_letters.write(&plain.lower);
     Ok(())
 }
@@ -169,7 +175,7 @@ pub fn load_language(
         layouts().use_file(rc2k_core::input::layouts::parse(&keyboard)?);
     }
 
-    make_case_tables(strings)?;
+    make_case_tables(o)?;
 
     // 0x403462: the NEC keyboard's head (its layout mode) and layout.
     if o.system.session.machine.keyboard_type.get() == 2 {

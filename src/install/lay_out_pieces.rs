@@ -20,9 +20,9 @@ use crate::menu::list_handle::{ListItem, ListMenu};
 use rc2k_core::install::pieces::{self, Item, LayoutError, ListSource, Owner};
 
 /// A page's list, read where the original reads it.
-struct GameList(ListMenu);
+struct GameList<'a>(ListMenu, &'a crate::install::owner::Install);
 
-impl ListSource for GameList {
+impl ListSource for GameList<'_> {
     fn flags(&self) -> u8 {
         self.0.flags()
     }
@@ -44,7 +44,7 @@ impl ListSource for GameList {
         self.0.item(k).choices().word(c)
     }
     fn text_font(&self, font: u8) -> u8 {
-        let install = crate::install::owner::install();
+        let install = self.1;
         install.pages.kind_fonts.get(4 + 8 * font as usize)
     }
 }
@@ -54,7 +54,7 @@ pub fn lay_out_pieces(
     list: ListMenu,
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::install::pieces::lay_out`; the pieces written here.
-    let made = match pieces::lay_out(&GameList(list)) {
+    let made = match pieces::lay_out(&GameList(list, install)) {
         Ok(made) => made,
         Err(LayoutError::UnknownKind) => return Err(fatal(pieces::UNKNOWN_KIND)),
         Err(LayoutError::TooMany) => {

@@ -4,7 +4,7 @@
 //! `rc2k_core::service::car`.
 
 use crate::errors::BadInput;
-use crate::menu::owner::{Menus, menus};
+use crate::menu::owner::Menus;
 use crate::service::state::current_player;
 use rc2k_core::menu::player::Player;
 
@@ -26,9 +26,4 @@ pub fn with_player(menus: &Menus, f: impl FnOnce(&mut Player)) -> Result<(), Bad
 pub fn repair_car_in(menus: &Menus) -> Result<(), BadInput> {
     // Converted: `rc2k_core::service::car` (`Player::repair_car`).
     with_player(menus, Player::repair_car)
-}
-
-/// `repair_car_in` for the callers that hold no menus yet.
-pub fn repair_car() -> Result<(), BadInput> {
-    repair_car_in(menus())
 }

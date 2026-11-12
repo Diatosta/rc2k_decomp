@@ -8,6 +8,7 @@ use crate::menu::option_steps::{StartPick, step_start_pick};
 use crate::menu::owner::Menus;
 use crate::menu::owner::Tables;
 use crate::menu::player_settings::current;
+use crate::owners::Owners;
 use rc2k_core::menu::player::{Setting, stepped};
 
 /// The current player's `setting` (nationality, view, second view, race number) one step on
@@ -21,19 +22,14 @@ pub fn player_setting(menus: &Menus, setting: Setting, forward: bool) -> Result<
 }
 
 /// An options page's colour pick one step on or back.
-pub fn colour(tables: &Tables, colour: StartPick, forward: bool) -> Result<(), Refused> {
+pub fn colour(tables: &Tables, colour: StartPick<'_>, forward: bool) -> Result<(), Refused> {
     step_start_pick(tables, colour, forward);
     Ok(())
 }
 
 /// A button of the car specification (the car, its page, the slideshow's car or picture).
-pub fn car_button(
-    menus: &Menus,
-    button: Which,
-    _sound: &crate::sound::owner::Sound,
-) -> Result<(), Refused> {
-    let o = crate::owners::boundary();
-    press(menus, button, &mut |call| call_in_game(o, call))
+pub fn car_button(o: Owners<'_>, button: Which) -> Result<(), Refused> {
+    press(o.menus, button, &mut |call| call_in_game(o, call))
 }
 
 /// The saved games' list one page on (`menu::next_savegame_page`, 0x46D407): adds 1 to

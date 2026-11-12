@@ -33,8 +33,14 @@ pub fn run_step(
 }
 
 pub fn apply_settings() -> Result<(), crate::errors::Refused> {
-    let sound = crate::sound::owner::sound();
-    let audio = audio();
+    apply_settings_in(crate::sound::owner::sound(), audio())
+}
+
+/// `apply_settings` for a caller that holds the owners.
+pub fn apply_settings_in(
+    sound: &crate::sound::owner::Sound,
+    audio: &crate::audio::owner::Audio,
+) -> Result<(), crate::errors::Refused> {
     // Converted: `rc2k_core::sound::set_up::menus`.
     use rc2k_core::sound::set_up::{MENUS, menus};
 

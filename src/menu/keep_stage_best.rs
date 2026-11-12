@@ -14,9 +14,12 @@ use crate::menu::owner::Menus;
 use crate::menu::standings::name_player;
 use crate::records::stages_store::Holder;
 
-pub fn keep_stage_best(menus: &Menus) -> Result<(), Refused> {
+pub fn keep_stage_best(
+    menus: &Menus,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     use rc2k_core::menu::bests;
-    let record = stage_record()?;
+    let record = stage_record(menus, system)?;
     let p = current_player(menus)?;
     // The logic is in `rc2k_core::menu::bests::takes_record`.
     let figure = p.get().figure;

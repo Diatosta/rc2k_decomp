@@ -63,7 +63,7 @@ pub fn start(audio: &Audio) -> Result<bool, Refused> {
             crate::audio::make_buffer::make_buffer(
                 &audio.state,
                 voice,
-                crate::audio::property_sets::Holder::Value(MENU_MODE),
+                crate::audio::property_sets::Holder::Value,
             )?;
             crate::audio::release_eax::release_eax(&audio.state);
             crate::audio::release_voice_manager::release_voice_manager(&audio.state);

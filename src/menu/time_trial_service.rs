@@ -18,42 +18,21 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::*;
 use crate::menu::owner::Menus;
 use crate::menu::screen_loop::{Entry, run_screen};
-use crate::session::PlainDword;
-
-const SERVICE_TIME: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .event
-    .service_minutes;
-const GOES_ON: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .event
-    .event_goes_on;
-const OUT: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .event
-    .event_out;
-const DUE: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .event
-    .service_due;
 
 pub fn time_trial_service(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
     let screens = &menus.screens;
+    let event = &screens.event;
     // The logic is in `rc2k_core::menu::passes` (the minutes, the pauses, who is out,
     // `goes_on`).
     use rc2k_core::menu::passes;
     crate::menu::standings::counted_players(menus)?;
-    set(SERVICE_TIME, passes::TIME_TRIAL_MINUTES);
-    set(GOES_ON, 1);
+    set(&event.service_minutes, passes::TIME_TRIAL_MINUTES);
+    set(&event.event_goes_on, 1);
     let mut current = 0;
     'all: {
         loop {
-            set(CURRENT, current);
-            { crate::menu::inspection_screen::inspection_screen() }?;
+            set(&event.current_player, current);
+            { crate::menu::inspection_screen::inspection_screen(entry.owners) }?;
             crate::system::sleep::sleep(passes::SCREEN_PAUSE);
             crate::menu::fade_in::fade_in(screens)?;
             crate::system::sleep::sleep(passes::FADE_PAUSE);
@@ -61,13 +40,13 @@ pub fn time_trial_service(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
             { crate::menu::driver_stats::driver_stats(menus, screens) }?;
             screens.state.menus.service_flag.set(false);
             { run_screen(&crate::service::service_area_loop::SCREEN, entry) }?;
-            if yes() {
+            if yes(menus) {
                 break 'all;
             }
-            { crate::service::apply_repairs::apply_repairs_in_game(menus) }?;
+            { crate::service::apply_repairs::apply_repairs_in_game_in(entry.owners) }?;
             crate::menu::set_player_entry_kind::set_player_entry_kind(menus)?;
             // The current player as the screens leave it (the original reads it again).
-            let serviced = get(CURRENT);
+            let serviced = get(&event.current_player);
             if serviced >= 4 {
                 return Err(BadInput("a current player past the four").into());
             }
@@ -75,20 +54,20 @@ pub fn time_trial_service(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
             if passes::is_out(record.get().entry) {
                 crate::menu::inspection_faults::inspection_faults(menus)?;
                 { run_screen(&crate::menu::inspection_area_loop::SCREEN, entry) }?;
-                if yes() {
+                if yes(menus) {
                     break 'all;
                 }
-                inc(OUT);
+                inc(&event.event_out);
             }
             current += 1;
-            if current == get(PLAYER_COUNT) {
+            if current == get(&event.player_count) {
                 break;
             }
         }
-        if !passes::goes_on(get(OUT), get(PLAYER_COUNT)) {
-            set(GOES_ON, 0);
+        if !passes::goes_on(get(&event.event_out), get(&event.player_count)) {
+            set(&event.event_goes_on, 0);
         }
     }
-    set(DUE, 0);
+    set(&event.service_due, 0);
     Ok(())
 }

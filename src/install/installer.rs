@@ -205,8 +205,13 @@ pub fn normalise(path: impl Into<BytePlace>, to: impl Into<BytePlace>) -> Result
 }
 
 /// `files::copy_file` (0x402C28): whether it worked.
-pub fn copy_file(from: impl Into<BytePlace>, to: impl Into<BytePlace>) -> Result<bool, Refused> {
-    Ok(crate::files::copy_file::copy_file(
+pub fn copy_file(
+    system: &crate::system::owner::System,
+    from: impl Into<BytePlace>,
+    to: impl Into<BytePlace>,
+) -> Result<bool, Refused> {
+    Ok(crate::files::copy_file::copy_file_in(
+        system,
         &from.into().text("a file to copy")?,
         &to.into().text("a copy's path")?,
     )?)
@@ -421,6 +426,7 @@ pub fn logged(what: &str, done: Result<(), Refused>) -> Result<(), Refused> {
 /// disc's install) and the registration.
 pub fn page_action(
     install: &'static crate::install::owner::Install,
+    o: crate::owners::Owners<'static>,
     place: u32,
     state: u32,
     list: ListMenu,
@@ -435,11 +441,11 @@ pub fn page_action(
         0x4142F5 => i::folder_page::folder_page(install, state, list),
         0x41432F => i::dxsetup_page::dxsetup_page(install, state),
         0x414347 => i::finish_page::finish_page(install, state),
-        0x4130CD => logged("install", i::install_files::install_files(install))?,
+        0x4130CD => logged("install", i::install_files::install_files(install, o))?,
         0x4134DF => logged("uninstall", i::uninstall::uninstall(install))?,
         0x413629 => i::open_installed::open_installed(install)?,
         0x413650 => i::ask_registration::ask_registration(install),
-        0x41675B => i::install_clio::install_clio(install)?,
+        0x41675B => i::install_clio::install_clio(install, o.system)?,
         _ => return Err(BadInput("a list action that is not one of the installer's").into()),
     }
     Ok(())

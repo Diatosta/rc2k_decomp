@@ -44,7 +44,7 @@ pub fn inspection_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
             .event
             .event_out
             .set(menus.screens.event.event_out.get().wrapping_add(1));
-        crate::menu::inspection_screen::inspection_screen()?;
+        crate::menu::inspection_screen::inspection_screen(entry.owners)?;
         crate::system::sleep::sleep(passes::SCREEN_PAUSE);
         crate::menu::fade_in::fade_in(screens)?;
         run_screen(&crate::menu::inspection_area_loop::SCREEN, entry)?;

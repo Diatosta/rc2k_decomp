@@ -157,10 +157,3 @@ pub fn apply_repairs(menus: &Menus, driver: &mut dyn Driver) -> Result<(), Refus
 pub fn apply_repairs_in_game_in(o: Owners<'_>) -> Result<(), Refused> {
     apply_repairs(o.menus, &mut GameDriver { o })
 }
-
-/// `apply_repairs_in_game_in` for the menus' passes that hold no `Owners` yet.
-pub fn apply_repairs_in_game(menus: &Menus) -> Result<(), Refused> {
-    let o = crate::owners::boundary();
-    debug_assert!(std::ptr::eq(o.menus, menus));
-    apply_repairs_in_game_in(o)
-}

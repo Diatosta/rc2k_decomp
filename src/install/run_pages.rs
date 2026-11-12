@@ -13,11 +13,10 @@ use rc2k_core::install::pages;
 /// The pages from the entry `first` on.
 pub fn run_pages(
     install: &'static crate::install::owner::Install,
-    strings: &'static crate::strings::owner::Strings,
-    system: &crate::system::owner::System,
-    gfx: &crate::gfx::owner::Gfx,
+    o: crate::owners::Owners<'static>,
     first: PageEntry,
 ) -> Result<(), Refused> {
+    let system = o.system;
     let mut entry = first;
     // The entry before, and the passed-over pages' ways (`pass_over`).
     let (mut prev, mut passed) = (None, Vec::new());
@@ -27,7 +26,7 @@ pub fn run_pages(
             (prev, entry) = (Some(entry), next);
             continue;
         }
-        let answer = crate::install::run_page::run_page(install, strings, system, gfx, list)?;
+        let answer = crate::install::run_page::run_page(install, o, list)?;
         // Converted: `rc2k_core::install::pages` (`resets_highlight`, `next_entry_at`).
         if pages::resets_highlight(answer) {
             list.set_highlight(0);

@@ -23,7 +23,7 @@
 //! first input device record; for `raise_controller_sensitivity` an edi below 0x10000.
 
 use crate::errors::{BadInput, Refused};
-use crate::input::owner::input;
+use crate::input::owner::Input;
 use crate::input::request_device_release::request_device_release;
 use crate::input::request_device_setup::request_device_setup;
 use crate::menu::owner::Menus;
@@ -34,37 +34,36 @@ fn player(menus: &Menus) -> Result<PlayerCell<'_>, Refused> {
     current(menus)
 }
 
-fn count() -> u32 {
-    input().devices.controller_count.get()
+fn count(input: &Input) -> u32 {
+    input.devices.controller_count.get()
 }
 
 /// Whether the set-up would ask for the device; refused without a record to ask with.
-fn would_apply(controller: u32) -> Result<bool, Refused> {
-    let applies = rc2k_core::menu::steps::listed(controller, count());
-    if applies && input().devices.device(0).is_none() {
+fn would_apply(input: &Input, controller: u32) -> Result<bool, Refused> {
+    let applies = rc2k_core::menu::steps::listed(controller, count(input));
+    if applies && input.devices.device(0).is_none() {
         return Err(BadInput("no first input device record").into());
     }
     Ok(applies)
 }
 
 /// `menu::apply_controller`.
-pub fn apply_controller(menus: &Menus) -> Result<(), Refused> {
+pub fn apply_controller(menus: &Menus, input: &Input) -> Result<(), Refused> {
     let p = player(menus)?;
     let c = p.get().controller;
-    if would_apply(c)? {
-        set_up_device(p, c)?;
+    if would_apply(input, c)? {
+        set_up_device(input, p, c)?;
     }
     Ok(())
 }
 
 /// `menu::release_controller`.
-pub fn release_controller(input: &crate::input::owner::Input) {
+pub fn release_controller(input: &Input) {
     request_device_release(input);
 }
 
 /// The device's set-up with the player's sensitivity and pedal axes.
-fn set_up_device(p: PlayerCell, c: u32) -> Result<(), Refused> {
-    let input = crate::input::owner::input();
+fn set_up_device(input: &Input, p: PlayerCell, c: u32) -> Result<(), Refused> {
     let q = p.get();
     let axes = u32::from_le_bytes(q.axis_codes);
     { request_device_setup(c - 1, q.sensitivity_level, axes, 0, 0, input) }?;
@@ -72,51 +71,54 @@ fn set_up_device(p: PlayerCell, c: u32) -> Result<(), Refused> {
 }
 
 /// The release for 0, else the set-up; refused (before anything) as the set-up is.
-fn choose(p: PlayerCell, c: u32) -> Result<(), Refused> {
-    let input = crate::input::owner::input();
-    let applies = if c == 0 { false } else { would_apply(c)? };
+fn choose(input: &Input, p: PlayerCell, c: u32) -> Result<(), Refused> {
+    let applies = if c == 0 {
+        false
+    } else {
+        would_apply(input, c)?
+    };
     p.update(|q| q.controller = c);
     if c == 0 {
         release_controller(input);
     } else if applies {
-        set_up_device(p, c)?;
+        set_up_device(input, p, c)?;
     }
     Ok(())
 }
 
 /// `menu::next_controller`.
-pub fn next_controller(menus: &Menus) -> Result<(), Refused> {
+pub fn next_controller(menus: &Menus, input: &Input) -> Result<(), Refused> {
     let p = player(menus)?;
-    let c = rc2k_core::menu::steps::next_controller(p.get().controller, count());
-    choose(p, c)
+    let c = rc2k_core::menu::steps::next_controller(p.get().controller, count(input));
+    choose(input, p, c)
 }
 
 /// `menu::previous_controller`.
-pub fn previous_controller(menus: &Menus) -> Result<(), Refused> {
+pub fn previous_controller(menus: &Menus, input: &Input) -> Result<(), Refused> {
     let p = player(menus)?;
-    let c = rc2k_core::menu::steps::previous_controller(p.get().controller, count());
-    choose(p, c)
+    let c = rc2k_core::menu::steps::previous_controller(p.get().controller, count(input));
+    choose(input, p, c)
 }
 
 /// The sensitivity to `value` and the set-up, refused (before anything) as the set-up is.
-fn set_sensitivity(p: PlayerCell, value: u32) -> Result<(), Refused> {
+fn set_sensitivity(input: &Input, p: PlayerCell, value: u32) -> Result<(), Refused> {
     let c = p.get().controller;
-    let applies = would_apply(c)?;
+    let applies = would_apply(input, c)?;
     p.update(|q| q.sensitivity_level = value);
     if applies {
-        set_up_device(p, c)?;
+        set_up_device(input, p, c)?;
     }
     Ok(())
 }
 
 /// `menu::lower_controller_sensitivity`.
-pub fn lower_controller_sensitivity(menus: &Menus) -> Result<(), Refused> {
+pub fn lower_controller_sensitivity(menus: &Menus, input: &Input) -> Result<(), Refused> {
     // The logic is in `rc2k_core::menu::steps::lower_sensitivity`.
     let p = player(menus)?;
     if let Some(s) =
         rc2k_core::menu::steps::lower_sensitivity(p.get().controller, p.get().sensitivity_level)
     {
-        { set_sensitivity(p, s) }?;
+        { set_sensitivity(input, p, s) }?;
     }
     Ok(())
 }
@@ -124,14 +126,18 @@ pub fn lower_controller_sensitivity(menus: &Menus) -> Result<(), Refused> {
 /// `menu::raise_controller_sensitivity`; `edi` is the caller's.
 /// `gate` is the dword at +0x2C of what edi points at: a key's item (its left link) or an
 /// action's menu (its first item's down link).
-pub fn raise_controller_sensitivity(menus: &Menus, gate: u32) -> Result<(), Refused> {
+pub fn raise_controller_sensitivity(
+    menus: &Menus,
+    input: &Input,
+    gate: u32,
+) -> Result<(), Refused> {
     if gate == 0 {
         return Ok(());
     }
     // The logic is in `rc2k_core::menu::steps::raise_sensitivity`.
     let p = player(menus)?;
     if let Some(s) = rc2k_core::menu::steps::raise_sensitivity(p.get().sensitivity_level) {
-        { set_sensitivity(p, s) }?;
+        { set_sensitivity(input, p, s) }?;
     }
     Ok(())
 }

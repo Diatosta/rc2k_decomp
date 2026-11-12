@@ -75,10 +75,12 @@ pub fn pick<'a, T>(first: &'a T, others: &'a [T; COUNT - 1]) -> &'a T {
 // ---- the copies ----
 
 /// A store with one copy per drawing thread, reached by copy number (0 the game's own).
+#[cfg(test)]
 pub trait Copies: Sync {
     fn copy(&self, n: usize) -> &(dyn crate::pointers::Store + Sync);
 }
 
+#[cfg(test)]
 impl<T: crate::pointers::Store + Sync> Copies for PerWorker<T> {
     fn copy(&self, n: usize) -> &(dyn crate::pointers::Store + Sync) {
         &self.0[n]
@@ -90,6 +92,7 @@ impl<T: crate::pointers::Store + Sync> Copies for PerWorker<T> {
 /// points' projections, each record named by its point, the frame's clear reaching every
 /// copy: `point_records::first_records_everywhere`), the vertex buffer and the polygon work.
 /// (The sort lists are each view's own: `race::view_scratch`.)
+#[cfg(test)]
 fn scratch_stores() -> [&'static dyn Copies; 3] {
     [
         crate::scene::point_records::copies(),
@@ -129,7 +132,9 @@ fn serial() -> bool {
 }
 
 /// The copies made regions as copy 0 (the store's home) is, once: a place in them named by
-/// its game address is read through their cells.
+/// its game address is read through their cells (the tests' by-address reads; the program
+/// names no place in them by address).
+#[cfg(test)]
 fn register_copies() {
     static DONE: OnceLock<()> = OnceLock::new();
     DONE.get_or_init(|| {
@@ -256,6 +261,7 @@ fn draw_parts(
     part: impl Fn(usize) -> Result<(), Refused> + Sync,
     mut after: impl FnMut(usize) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
+    #[cfg(test)]
     register_copies();
     // One after another on the game's thread without a pool or with `RC2K_DRAW_SERIAL`.
     let pool = pool.filter(|_| !serial());

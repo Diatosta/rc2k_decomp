@@ -80,11 +80,6 @@ pub fn load_slideshow_picture(
 }
 
 /// With the game's own steps for what it calls.
-pub fn load_slideshow_picture_in_game(_menus: &Menus, way: u32) -> Result<(), Refused> {
-    load_slideshow_picture_in(crate::owners::boundary(), way)
-}
-
-/// `load_slideshow_picture_in_game` for a caller that holds the owners.
 pub fn load_slideshow_picture_in(o: Owners<'_>, way: u32) -> Result<(), Refused> {
     load_slideshow_picture(o.menus, way, &mut |step| match step {
         Step::Overlay(path, over) => {

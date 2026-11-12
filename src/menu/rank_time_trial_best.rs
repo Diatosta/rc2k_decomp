@@ -10,13 +10,15 @@
 
 use crate::errors::Refused;
 use crate::menu::event_flow::*;
-use crate::menu::owner::Play;
 
 // g_keptPlayerName
-pub fn rank_time_trial_best(play: &Play) -> Result<(), Refused> {
+pub fn rank_time_trial_best(
+    menus: &crate::menu::owner::Menus,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     // The logic is in `rc2k_core::saves::entries::rank_time_trial`.
-    Ok(with_stage_times(|list| {
-        crate::menu::standings::with_kept_name(play, |kept| {
+    Ok(with_stage_times(menus, system, |list| {
+        crate::menu::standings::with_kept_name(&menus.play, |kept| {
             rc2k_core::saves::entries::rank_time_trial(list, kept);
         });
     })?)

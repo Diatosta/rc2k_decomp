@@ -25,6 +25,7 @@ pub fn call_key(o: Owners<'_>, function: ItemFn, item: &MenuItem) -> Result<(), 
         ItemFn::RaiseControllerSensitivity => {
             crate::menu::controller_items::raise_controller_sensitivity(
                 o.menus,
+                o.input,
                 item.fixed().links[2],
             )
         }

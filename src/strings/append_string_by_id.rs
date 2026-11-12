@@ -16,8 +16,16 @@ pub const AFTER_VARIABLE_TEXT: u32 = 0x8000_0000;
 
 /// `emit` receives each run of bytes to append. Returns the value the original leaves in its result register.
 pub fn append_string_by_id(id: u32, emit: &mut impl FnMut(&[u8])) -> Result<u32, BadInput> {
+    append_string_by_id_in(crate::owners::boundary(), id, emit)
+}
+
+/// `append_string_by_id` for a caller that holds the owners.
+pub fn append_string_by_id_in(
+    o: crate::owners::Owners<'_>,
+    id: u32,
+    emit: &mut impl FnMut(&[u8]),
+) -> Result<u32, BadInput> {
     // Converted: `rc2k_core::strings::table::Source`.
-    let o = crate::owners::boundary();
     let fault = crate::menu::event_flow::Fault::default();
     let source = Source::of(id, || fault.ok(driver_name_slot(o.strings, id)) != 0);
     fault.check()?;
@@ -44,5 +52,15 @@ pub fn append_string_by_id(id: u32, emit: &mut impl FnMut(&[u8])) -> Result<u32,
 /// Appends the text of string `id` to `out`.
 pub fn push_string(out: &mut Vec<u8>, id: u32) -> Result<(), BadInput> {
     append_string_by_id(id, &mut |bytes| out.extend_from_slice(bytes))?;
+    Ok(())
+}
+
+/// `push_string` for a caller that holds the owners.
+pub fn push_string_in(
+    o: crate::owners::Owners<'_>,
+    out: &mut Vec<u8>,
+    id: u32,
+) -> Result<(), BadInput> {
+    append_string_by_id_in(o, id, &mut |bytes| out.extend_from_slice(bytes))?;
     Ok(())
 }

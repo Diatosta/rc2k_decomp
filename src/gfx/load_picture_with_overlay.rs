@@ -22,15 +22,6 @@ use crate::memory::free_list::free_list;
 const MEMORY: u32 = 0x1D4C00 + 0xC80;
 
 /// Returns the carry: true if the picture could not be read.
-pub fn load_picture_with_overlay(
-    path: &dyn crate::session::TextPlace,
-    overlay_path: &dyn crate::session::TextPlace,
-) -> Result<bool, Refused> {
-    let o = crate::owners::boundary();
-    load_picture_with_overlay_in(path, overlay_path, o.gfx, o.system, o.strings)
-}
-
-/// `load_picture_with_overlay` for a caller that holds the owners.
 pub fn load_picture_with_overlay_in(
     path: &dyn crate::session::TextPlace,
     overlay_path: &dyn crate::session::TextPlace,

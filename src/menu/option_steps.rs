@@ -22,8 +22,8 @@
 use crate::audio::names_store::SampleNames;
 use crate::errors::Refused;
 use crate::gfx::owner::Gfx;
-use crate::menu::owner::Screens;
 use crate::menu::owner::Tables;
+use crate::menu::owner::{Menus, Screens};
 use crate::owners::Owners;
 use crate::session::{DwordLike, PlainDword};
 
@@ -92,42 +92,30 @@ pub fn step_texture_setting(screens: &Screens, up: bool, race: &crate::race::own
 
 /// One of the two start-section picks (IDA's "colour" choices): (its number, the table, where the pick goes).
 #[derive(Clone, Copy)]
-pub struct StartPick {
-    pub number: &'static PlainDword,
+pub struct StartPick<'a> {
+    pub number: &'a PlainDword,
     /// The table of the pictures' string ids, in `CAPTIONS.caption_lists`, from `table_at`.
     pub table_at: usize,
-    pub pick: &'static PlainDword,
+    pub pick: &'a PlainDword,
 }
 
-pub const START_PICK_A: StartPick = StartPick {
-    number: &crate::menu::owner::MENUS
-        .unchecked()
-        .screens
-        .flow
-        .start_section,
-    table_at: 21,
-    pick: &crate::menu::owner::MENUS
-        .unchecked()
-        .tables
-        .captions
-        .caption_lists[7],
-};
-pub const START_PICK_B: StartPick = StartPick {
-    number: &crate::menu::owner::MENUS
-        .unchecked()
-        .screens
-        .flow
-        .start_section_a8,
-    table_at: 13,
-    pick: &crate::menu::owner::MENUS
-        .unchecked()
-        .tables
-        .captions
-        .caption_lists[8],
-};
+pub fn start_pick_a(menus: &Menus) -> StartPick<'_> {
+    StartPick {
+        number: &menus.screens.flow.start_section,
+        table_at: 21,
+        pick: &menus.tables.captions.caption_lists[7],
+    }
+}
+pub fn start_pick_b(menus: &Menus) -> StartPick<'_> {
+    StartPick {
+        number: &menus.screens.flow.start_section_a8,
+        table_at: 13,
+        pick: &menus.tables.captions.caption_lists[8],
+    }
+}
 
 /// `menu::next_colour_a` and the three others.
-pub fn step_start_pick(tables: &Tables, c: StartPick, up: bool) {
+pub fn step_start_pick(tables: &Tables, c: StartPick<'_>, up: bool) {
     // The logic is in `rc2k_core::menu::steps::colour`.
     let n = rc2k_core::menu::steps::colour(c.number.get() as i32, up);
     c.number.set(n as u32);
@@ -146,66 +134,30 @@ pub fn step_start_pick(tables: &Tables, c: StartPick, up: bool) {
 // ---- the advanced audio page's choices ----
 
 /// (the work value, its place among `g_audioOptions`' six choices and six applied).
-const CHOICES: [(&PlainDword, usize); 6] = [
-    (
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .screens
-            .option_work
-            .audio_quality,
-        0,
-    ), // quality
-    (
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .screens
-            .option_work
-            .channels,
-        1,
-    ), // channels
-    (
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .screens
-            .option_work
-            .dolby,
-        5,
-    ), // Dolby
-    (
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .screens
-            .option_work
-            .a3d,
-        4,
-    ), // A3D
-    (
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .screens
-            .option_work
-            .eax,
-        3,
-    ), // EAX
-    (
-        &crate::menu::owner::MENUS
-            .unchecked()
-            .screens
-            .option_work
-            .ds3d,
-        2,
-    ), // DS3D
-];
+fn choices(menus: &Menus) -> [(&PlainDword, usize); 6] {
+    let work = &menus.screens.option_work;
+    [
+        (&work.audio_quality, 0), // quality
+        (&work.channels, 1),      // channels
+        (&work.dolby, 5),         // Dolby
+        (&work.a3d, 4),           // A3D
+        (&work.eax, 3),           // EAX
+        (&work.ds3d, 2),          // DS3D
+    ]
+}
 /// `menu::apply_audio_choices`.
-pub fn apply_audio_choices(audio: &crate::audio::owner::Audio) -> Result<(), Refused> {
-    for (work, n) in CHOICES {
+pub fn apply_audio_choices(
+    menus: &Menus,
+    audio: &crate::audio::owner::Audio,
+) -> Result<(), Refused> {
+    for (work, n) in choices(menus) {
         let value = work.get();
         audio.state.audio_options.update(|o| o.choice[n] = value);
     }
     // `audio::choose_modes` with the game's log (the original's eax there, the last
     // value copied, is read by none of it).
     crate::audio::choose_modes::in_game(&mut crate::audio::choose_modes::real_log)?;
-    for (work, n) in CHOICES {
+    for (work, n) in choices(menus) {
         work.set(audio.state.audio_options.get().applied[n]);
     }
 

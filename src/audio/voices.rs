@@ -24,11 +24,6 @@ pub use rc2k_core::audio::voices::{SAMPLES, VOICES};
 // The records, voices and channels and their constants: `rc2k_core::audio::voices`.
 pub use rc2k_core::audio::voices::{LOADED, MODE_3D, MixerChannel, SampleRecord, Voice};
 
-/// A dword at an address (a number `audio::make_buffer` hands the openings as a pointer).
-pub fn read(at: u32) -> u32 {
-    crate::pointers::read_or_end::<u32>(at, "audio::voices's operand")
-}
-
 /// An id's place in a pool of `len`: ids are the place + 1 (0 is
 /// none, as a null pointer was). 0, or one past the pool, ends the program.
 fn place_of(id: u32, len: usize, what: &'static str) -> usize {

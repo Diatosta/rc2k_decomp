@@ -43,12 +43,12 @@ pub fn run_installer(install: &'static crate::install::owner::Install) -> Result
     // From the command line: the install, and on past the pages (`jmp loc_412EDC`).
     let from_command = install.run.from_command.get() == 1;
     if from_command {
-        i::install_from_command::install_from_command(install)?;
+        i::install_from_command::install_from_command(install, o)?;
     } else {
         if !normalise(&install.texts.base_b, &install.paths.game_dir)? {
             return Err(fatal(0x80AF_8101));
         }
-        i::list_drives::list_drives(install);
+        i::list_drives::list_drives(install, o);
         let mut typed = Vec::new();
         push_string_by_id(&mut typed, 0x9F);
         push_string_by_id(&mut typed, 0xA0);
@@ -86,7 +86,7 @@ pub fn run_installer(install: &'static crate::install::owner::Install) -> Result
         } else {
             crate::install::page_records::PageEntry::normal_run()
         };
-        i::run_pages::run_pages(install, o.strings, system, gfx, pages)?;
+        i::run_pages::run_pages(install, o, pages)?;
     }
     if install.run.installing.get() == 1 && install.vars.running_from_cd.get() == 1 && lock() {
         copy_picture()?;

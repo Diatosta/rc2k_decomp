@@ -15,7 +15,7 @@ use crate::errors::Refused;
 use crate::menu::finish_calls::Game;
 use rc2k_core::menu::finish;
 
-pub fn championship_finish(menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
+pub fn championship_finish(o: crate::owners::Owners<'_>) -> Result<(), Refused> {
     // The logic is in `rc2k_core::menu::finish::championship_finish`.
-    Game::run(menus, finish::championship_finish)
+    Game::run(o, finish::championship_finish)
 }

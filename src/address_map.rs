@@ -175,6 +175,7 @@ fn image() -> Range {
 /// A game range for `len` bytes of host memory from `host` (its game address returned): the
 /// range that holds them if there is one; else a new one, after taking off the stale ranges
 /// they overlap (memory given back and taken again).
+#[cfg(test)]
 pub fn map(host: usize, len: usize) -> u32 {
     if IDENTITY {
         return host as u32;
@@ -242,6 +243,7 @@ fn map_range(host: usize, len: usize) -> Range {
 }
 
 /// The range made at game address `game` taken off (its memory given back).
+#[cfg(test)]
 pub fn unmap(game: u32) {
     if IDENTITY {
         return;

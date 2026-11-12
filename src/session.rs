@@ -1250,6 +1250,7 @@ pub const CLOCKS_IDA: usize = 0x518998;
 pub const CLOCKS_LEN: usize = core::mem::size_of::<Clocks>();
 
 /// The address of a field or an array of cells, for code that is handed an address.
+#[cfg(test)]
 pub fn address_of<T: ?Sized>(field: &T) -> u32 {
     crate::pointers::game_address(std::ptr::from_ref::<T>(field).cast::<u8>())
 }

@@ -9,12 +9,15 @@
 //! four or missing, and a car past the table.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 
 /// The Rust version (see the header). The conversion's carry (fatal error 0x80712435) is
 /// never set by `gfx::convert_picture`'s Rust version, which refuses instead.
-pub fn load_background() -> Result<(), Refused> {
-    let menus = menus();
+pub fn load_background_in(
+    menus: &Menus,
+    gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     let Some(player) = crate::menu::player::player(menus, menus.screens.event.current_player.get())
     else {
         return Err(BadInput("no current player (or one past the four)").into());
@@ -24,7 +27,7 @@ pub fn load_background() -> Result<(), Refused> {
         rc2k_core::service::car::background(player.get().car_number).map_err(BadInput::from)?;
     let path =
         crate::menu::texts_store::text_at(menus.tables.lists.service_pictures[car as usize].get())?;
-    crate::gfx::load_picture::load_picture(&path)?;
-    crate::gfx::convert_picture::convert_picture_now()?;
+    crate::gfx::load_picture::load_picture_with(&path, gfx, system)?;
+    crate::gfx::convert_picture::convert_picture_now_in(gfx, system)?;
     Ok(())
 }

@@ -15,11 +15,7 @@
 //! `screens::run_frame` for `net::lobby_loop`.
 
 use crate::errors::{BadInput, Refused};
-use crate::gfx::owner::Gfx;
-use crate::install::owner::Install;
 use crate::net::lobby::{FONT, blit, copy_picture, lock_surface, push_id, store_text};
-use crate::net::owner::Net;
-use crate::strings::owner::Strings;
 use crate::text::draw_text::GameCanvas;
 use rc2k_core::net::players::{self, READY};
 use rc2k_core::net::screens;
@@ -42,12 +38,8 @@ fn time_text(time: u32, gaps: bool, first: u32) -> Vec<u8> {
 
 /// Called through
 /// `screens::run_frame` by `net::lobby_loop`.
-pub fn lobby_frame(
-    net: &'static Net,
-    install: &Install,
-    strings: &Strings,
-    gfx: &Gfx,
-) -> Result<(), Refused> {
+pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    let (net, install, strings, gfx) = (o.net, o.install, o.strings, o.gfx);
     let text = &strings.text;
     let vars = &net.vars;
     // Converted: `rc2k_core::net::screens` (`shown_time`, `flag_sprite`, `car_sprite`,
@@ -83,7 +75,10 @@ pub fn lobby_frame(
             let mut x = 0x18;
             blit(screens::flag_sprite(block.record.head.get(3)), x, y)?;
             x += 0x28;
-            let name = store_text(crate::place::BytePlace::from(&block.name).text("a text")?)?;
+            let name = store_text(
+                strings,
+                crate::place::BytePlace::from(&block.name).text("a text")?,
+            )?;
             let font = if block.record.state() & READY != 0 {
                 READY_FONT
             } else {
@@ -102,8 +97,8 @@ pub fn lobby_frame(
             let mut total_y = y;
             if time == players::NO_TIME {
                 let mut none = Vec::new();
-                push_id(&mut none, screens::NO_TIME)?;
-                let none = store_text(none)?;
+                push_id(o, &mut none, screens::NO_TIME)?;
+                let none = store_text(strings, none)?;
                 let out = {
                     crate::text::draw_text::draw_text_at(
                         NAME_FONT,
@@ -115,7 +110,7 @@ pub fn lobby_frame(
                 }?;
                 total_y = out.y as u32;
             } else {
-                store_text(time_text(time, gaps, first_time))?;
+                store_text(strings, time_text(time, gaps, first_time))?;
                 {
                     crate::text::draw_time_text::draw_time_text(
                         FONT,
@@ -127,11 +122,10 @@ pub fn lobby_frame(
             }
             x += 0xA5;
             let timed = time != players::NO_TIME;
-            store_text(time_text(
-                block.record.total.get(),
-                gaps && timed,
-                first_total,
-            ))?;
+            store_text(
+                strings,
+                time_text(block.record.total.get(), gaps && timed, first_total),
+            )?;
             {
                 crate::text::draw_time_text::draw_time_text(
                     FONT,
@@ -157,7 +151,7 @@ pub fn lobby_frame(
     }?;
     crate::net::unlock_received::unlock_received(&net.vars);
     y = y.wrapping_add(CHAT_FONT.object().line_height.get().wrapping_mul(8));
-    crate::net::chat_input_line::chat_input_line(net, &net.edit().chat_input.text(), 3, y)?;
+    crate::net::chat_input_line::chat_input_line(o, &net.edit().chat_input.text(), 3, y)?;
     let mut x = 0x310;
     let mut item = 0;
     for (n, (id, shown)) in

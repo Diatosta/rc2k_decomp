@@ -54,7 +54,7 @@ pub fn arcade_finale(o: Owners<'_>) -> Result<(), Refused> {
     crate::platform::set_menu_mode_now();
     crate::menu::show_loading_picture::show_loading_picture_in(menus, o.gfx, o.system)?;
     crate::scene::set_up_engine::set_up_engine_in(race, o.scene)?;
-    crate::scene::set_up_front_end_scene::set_up_front_end_scene()?;
+    crate::scene::set_up_front_end_scene::set_up_front_end_scene_in(o)?;
     crate::scene::set_up_engine::set_up_engine_in(race, o.scene)?;
     crate::sound::stop_music::stop_music();
     crate::sound::play_tune_3::play_tune_3();

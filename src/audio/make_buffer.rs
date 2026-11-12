@@ -80,7 +80,7 @@ pub fn make_buffer(state: &AudioState, at: u32, holder: Holder) -> Result<bool, 
             }
         }
         if !made {
-            holder = Holder::Value(v.frequency);
+            holder = Holder::Value;
             describe_wave_format(state, v.format, v.frequency)?;
             // Converted: `rc2k_core::audio::voices::buffer_flags`.
             let flags = rc2k_core::audio::voices::buffer_flags(mode, v.flags);

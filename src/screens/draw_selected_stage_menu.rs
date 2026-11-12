@@ -18,15 +18,19 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
 use crate::menu::owner::Play;
-use crate::screens::draw_stage_records::{selection, selection_in};
+use crate::screens::draw_stage_records::selection_in;
 use crate::screens::stage_panel::{
     build_second_heading, draw_records_for_group, draw_stage_body, menu_item_id, table_dword_at,
 };
 use crate::text::draw_text::Canvas;
 
 /// The string ids this function gives menu items 0 and 1: the group's and the table's titles.
-pub fn menu_titles(menus: &Menus, play: &Play) -> Result<Option<(u32, u32)>, BadInput> {
-    let Some(sel) = selection(menus)? else {
+pub fn menu_titles(
+    menus: &Menus,
+    system: &crate::system::owner::System,
+    play: &Play,
+) -> Result<Option<(u32, u32)>, BadInput> {
+    let Some(sel) = selection_in(menus, system)? else {
         return Ok(None);
     };
     Ok(Some((
@@ -46,9 +50,10 @@ pub fn draw_selected_stage_menu(
     let play = &menus.play;
     let screens = &menus.screens;
     let tables = &menus.tables;
-    let (Some(sel), Some((group_title, table_title))) =
-        (selection_in(menus, system)?, menu_titles(menus, play)?)
-    else {
+    let (Some(sel), Some((group_title, table_title))) = (
+        selection_in(menus, system)?,
+        menu_titles(menus, system, play)?,
+    ) else {
         return Err(
             BadInput("no record table is selected: the original reads through null").into(),
         );

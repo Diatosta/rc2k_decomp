@@ -41,8 +41,7 @@ pub trait Registry {
 
 /// A query's answers into the type and the size, and its data to `put`, as the registry
 /// writes them.
-fn take(q: &Query, put: impl FnOnce(&[u8])) {
-    let install = crate::install::owner::install();
+fn take(install: &crate::install::owner::Install, q: &Query, put: impl FnOnce(&[u8])) {
     if let Some(kind) = q.kind {
         install.names.reg_type.set(kind);
     }
@@ -66,7 +65,7 @@ pub fn read_registry(
     'values: {
         names.source_size.set(1);
         let q = registry.query(key, &names.status_name.text(), 1);
-        take(&q, |d| {
+        take(install, &q, |d| {
             if let Some(&first) = d.first() {
                 names.status.set(first);
             }
@@ -79,7 +78,7 @@ pub fn read_registry(
         }
         names.source_size.set(SOURCE_ROOM);
         let q = registry.query(key, &names.source_name.text(), SOURCE_ROOM);
-        take(&q, |d| {
+        take(install, &q, |d| {
             for (k, &b) in d.iter().enumerate().take(SOURCE_ROOM as usize) {
                 names.source.set(k, b);
             }

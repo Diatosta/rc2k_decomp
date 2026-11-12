@@ -14,14 +14,18 @@
 //! Refuses (before anything) what `open_by_mode` refuses (a resolved path past its buffer).
 
 use crate::errors::BadInput;
-use crate::system::owner::system;
+use crate::system::owner::{System, system};
 
 const CHUNK: u32 = 0x1_0000;
 
 /// Whether it was all done.
 /// The paths without their NULs.
 pub fn copy_file(from: &[u8], to: &[u8]) -> Result<bool, BadInput> {
-    let system = system();
+    copy_file_in(system(), from, to)
+}
+
+/// `copy_file` on the system the caller holds.
+pub fn copy_file_in(system: &System, from: &[u8], to: &[u8]) -> Result<bool, BadInput> {
     let mut buffer = system
         .work
         .files

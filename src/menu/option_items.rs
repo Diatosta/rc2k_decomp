@@ -97,14 +97,13 @@ fn set(x: StepOperand, v: i32) {
     x.set(v as u32);
 }
 
-pub fn option_item(item: Item) -> Result<(), Refused> {
-    let o = crate::owners::boundary();
+pub fn option_item(o: Owners<'_>, item: Item) -> Result<(), Refused> {
     let audio = o.audio;
     // The logic is in `rc2k_core::menu::steps` (`flip`, `quality`, `volume`, `counter`,
     // `previous_mode`).
     use rc2k_core::menu::steps;
     let v = item.var;
-    let apply_audio = || crate::menu::option_steps::apply_audio_choices(audio);
+    let apply_audio = || crate::menu::option_steps::apply_audio_choices(o.menus, audio);
     match item.kind {
         Kind::Switch => set(v, steps::flip(get(v) as u32) as i32),
         Kind::SwitchCopy { other, flip } => {
@@ -157,8 +156,8 @@ macro_rules! option_item {
             const ITEM: Item = $item;
 
             /// Run by the typed tables (`menu::table_calls`).
-            pub fn run() -> Result<(), crate::errors::Refused> {
-                option_item(ITEM)
+            pub fn run(o: Owners<'_>) -> Result<(), crate::errors::Refused> {
+                option_item(o, ITEM)
             }
         }
     };
@@ -248,12 +247,12 @@ pub fn volume(o: Owners<'_>, which: VolumeKind, up: bool) -> Result<(), Refused>
             return Ok(());
         }
     };
-    option_item(item)
+    option_item(o, item)
 }
 
 /// `ItemFn::OptionSwitch(which)`: the switch flipped; the visual ones also flip or copy
 /// the setting the game reads, the audio ones apply the audio choices.
-pub fn switch(which: OptionSwitch) -> Result<(), Refused> {
+pub fn switch(o: Owners<'_>, which: OptionSwitch) -> Result<(), Refused> {
     let copy = |other: StepOperand| Kind::SwitchCopy { other, flip: false };
     let flip = |other: StepOperand| Kind::SwitchCopy { other, flip: true };
     let (var, kind) = match which {
@@ -317,20 +316,23 @@ pub fn switch(which: OptionSwitch) -> Result<(), Refused> {
             Kind::SwitchAudio,
         ),
     };
-    option_item(Item { var, kind })
+    option_item(o, Item { var, kind })
 }
 
 /// `ItemFn::StageCounter { which, up }`: the stage group (0 .. 5) or the stage in its group
 /// (1 .. 6) shown by the stage pages, one less or one more, past an end the other end.
-pub fn stage_counter(which: StageCounter, up: bool) -> Result<(), Refused> {
+pub fn stage_counter(o: Owners<'_>, which: StageCounter, up: bool) -> Result<(), Refused> {
     let (var, low, high) = match which {
         StageCounter::Group => (var!(MENUS.get().tables.captions.shown_group), 0, 5),
         StageCounter::InGroup => (var!(MENUS.get().tables.captions.shown_stage), 1, 6),
     };
-    option_item(Item {
-        var,
-        kind: Kind::Counter { up, low, high },
-    })
+    option_item(
+        o,
+        Item {
+            var,
+            kind: Kind::Counter { up, low, high },
+        },
+    )
 }
 
 // ---- the visual and advanced sound pages' remaining items ----

@@ -103,9 +103,28 @@ impl BytePlace {
         BytePlace::Store(store, at)
     }
 
-    /// Whether both places start at the same byte.
+    /// Whether both places start at the same byte: the same byte of the same memory (a
+    /// buffer's byte is its record's at the buffer's offset); a game address is the same
+    /// place only as the same address.
     pub fn same_place(self, other: BytePlace) -> bool {
-        self.game_ptr() == other.game_ptr()
+        match (self, other) {
+            (BytePlace::At(a), BytePlace::At(b)) => a == b,
+            (BytePlace::At(_), _) | (_, BytePlace::At(_)) => false,
+            (a, b) => a.first_byte() == b.first_byte(),
+        }
+    }
+
+    /// The byte of memory a buffer's or a record's place starts at (a buffer must hold at
+    /// least its first byte); none for a game address.
+    fn first_byte(self) -> Option<*const u8> {
+        match self {
+            BytePlace::In(b, at) => {
+                Self::inside(b, at, 1).unwrap_or_else(|e| crate::fatal::raise::end("place", e));
+                Some(core::ptr::from_ref(b).cast::<u8>().wrapping_add(at))
+            }
+            BytePlace::Store(s, at) => Some(s.first().wrapping_add(at)),
+            BytePlace::At(_) => None,
+        }
     }
 
     /// The dword here.
@@ -191,7 +210,18 @@ impl BytePlace {
                     .ok_or(BadInput("a text without its end in its buffer"))?;
                 Ok((at..end).map(|k| b.get(k)).collect())
             }
-            BytePlace::At(a) => crate::files::cstring_at(a, what),
+            BytePlace::At(a) => {
+                use rc2k_core::strings::bytes::Bytes as _;
+                let bytes = a.bytes(what)?;
+                let mut text = Vec::new();
+                loop {
+                    match bytes.byte(text.len()) {
+                        Some(0) => return Ok(text),
+                        Some(b) => text.push(b),
+                        None => return Err(BadInput("a text with no end in its allocation")),
+                    }
+                }
+            }
             BytePlace::Store(s, at) => {
                 let mut text = Vec::new();
                 for k in at..s.size() {
@@ -223,6 +253,7 @@ impl BytePlace {
 
     /// The place as a checked game pointer: bounded by its buffer (`In`, which must hold
     /// at least its first byte), or a game address's region (`At`).
+    #[cfg(test)]
     pub fn game_ptr(self) -> GamePtr {
         match self {
             BytePlace::In(b, at) => {

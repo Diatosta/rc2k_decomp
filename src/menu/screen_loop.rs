@@ -536,12 +536,17 @@ impl Callee {
             Self::NoOp => {}
             // Its carry is never set.
             Self::LoadBackground(path) => {
-                crate::menu::load_background::load_background(path(menus), &mut GameCanvas)?;
+                crate::menu::load_background::load_background_in(
+                    path(menus),
+                    &mut GameCanvas,
+                    entry.owners.gfx,
+                    entry.system,
+                )?;
             }
             Self::PrepareScene => prepare_scene(entry.scene),
-            Self::ApplyController => ci::apply_controller(menus)?,
+            Self::ApplyController => ci::apply_controller(menus, input)?,
             Self::ReleaseController => ci::release_controller(input),
-            Self::DrawStageMap => crate::menu::stage_choice::draw_stage_map(menus)?,
+            Self::DrawStageMap => crate::menu::stage_choice::draw_stage_map(entry.owners)?,
             Self::StopStream => crate::sound::stop_stream::stop_stream(),
             Self::PlayTune4 => crate::sound::play_tune_4::play_tune_4(),
             Self::PlayTune9 => crate::sound::play_tune_9::play_tune_9(),
@@ -565,8 +570,12 @@ impl Callee {
             Self::CountStagePages => v::count_stage_pages(screens)?,
             Self::PlayStageSpeech => v::play_stage_speech(menus, sound)?,
             Self::PlayRallySpeech => v::play_rally_speech(menus)?,
-            Self::LoadWelcomePicture => v::load_welcome_picture(menus)?,
-            Self::LoadServiceBackground => crate::service::load_background::load_background()?,
+            Self::LoadWelcomePicture => v::load_welcome_picture(entry.owners)?,
+            Self::LoadServiceBackground => crate::service::load_background::load_background_in(
+                menus,
+                entry.owners.gfx,
+                entry.system,
+            )?,
             Self::GoBack => crate::menu::go_back::go_back(),
             Self::MarkStageChoice => crate::menu::mark_stage_choice::mark_stage_choice(play),
             Self::EditPlayerName => {
@@ -587,20 +596,35 @@ impl Callee {
             // The way to look is the original's eax there, which the slideshow screen's set-up
             // leaves 0 or (after an action) a small number: always on.
             Self::LoadSlideshowPicture => {
-                crate::menu::load_slideshow_picture::load_slideshow_picture_in_game(menus, 0)?;
+                crate::menu::load_slideshow_picture::load_slideshow_picture_in(entry.owners, 0)?;
             }
             // Its carry is never set.
             Self::LoadCarBackground => {
-                crate::menu::load_car_background::load_car_background_in_game(menus)?;
+                crate::menu::load_car_background::load_car_background_in_game(
+                    menus,
+                    entry.owners.gfx,
+                    entry.system,
+                )?;
             }
             Self::LoadPicture(path) => {
-                return Ok(!crate::gfx::load_picture::load_picture(path(menus))?);
+                return Ok(!crate::gfx::load_picture::load_picture_with(
+                    path(menus),
+                    entry.owners.gfx,
+                    entry.system,
+                )?);
             }
-            Self::ConvertPicture => return Ok(crate::gfx::convert_picture::convert_picture_now()?),
+            Self::ConvertPicture => {
+                return Ok(crate::gfx::convert_picture::convert_picture_now_in(
+                    entry.owners.gfx,
+                    entry.system,
+                )?);
+            }
             Self::SetUpFrontEnd => crate::menu::set_up_front_end::set_up_front_end(entry.owners)?,
-            Self::SetUpEngine => crate::scene::set_up_engine::set_up_engine()?,
+            Self::SetUpEngine => {
+                crate::scene::set_up_engine::set_up_engine_in(entry.race, entry.scene)?;
+            }
             Self::SetUpFrontEndScene => {
-                crate::scene::set_up_front_end_scene::set_up_front_end_scene()?;
+                crate::scene::set_up_front_end_scene::set_up_front_end_scene_in(entry.owners)?;
             }
         }
         Ok(false)

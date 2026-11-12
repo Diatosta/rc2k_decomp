@@ -3,11 +3,9 @@
 //! drawing the map again.
 
 use crate::errors::{FatalError, Refused};
-use crate::gfx::owner::gfx;
-use crate::menu::owner::Menus;
-use crate::screens::draw_stage_records::selection;
+use crate::owners::Owners;
+use crate::screens::draw_stage_records::selection_in;
 use crate::session::PlainDword;
-use crate::system::owner::system;
 
 pub const GROUP_RVA: &PlainDword = &crate::menu::owner::MENUS
     .unchecked()
@@ -37,12 +35,11 @@ const NO_MAP: FatalError = FatalError {
 /// `MenuLists.map_overlays[0][+0x3C]`; `ukmap.png` loaded with it (the carry: fatal error 0x80712345),
 /// converted, `g_pictureFlags` = `g_screenModeFlags` & 0xFFF, made the surface, sprite 0xA0
 /// at (0, 0). Refuses a choice without its tables (the original reads through null).
-pub fn draw_stage_map(menus: &Menus) -> Result<(), Refused> {
-    let system = system();
-    let gfx = gfx();
+pub fn draw_stage_map(o: Owners<'_>) -> Result<(), Refused> {
+    let (menus, system, gfx) = (o.menus, o.system, o.gfx);
     use crate::gfx::blit_glyph::blit_glyph_on_surface;
-    use crate::gfx::convert_picture::convert_picture_now;
-    use crate::gfx::load_picture_with_overlay::load_picture_with_overlay;
+    use crate::gfx::convert_picture::convert_picture_now_in;
+    use crate::gfx::load_picture_with_overlay::load_picture_with_overlay_in;
     use crate::gfx::picture_as_surface::picture_as_surface;
     let mode: u32 = menus.play.champ_view.stage_mode.get();
     let record = match mode {
@@ -59,7 +56,7 @@ pub fn draw_stage_map(menus: &Menus) -> Result<(), Refused> {
             menus.screens.event.section.get(),
         )?,
         _ => {
-            let s = selection(menus)?.ok_or(crate::errors::BadInput(
+            let s = selection_in(menus, system)?.ok_or(crate::errors::BadInput(
                 "no stage tables for the choice: the original reads through null",
             ))?;
             crate::records::stages_store::row(s.table, menus.screens.event.stage_number.get())?
@@ -71,10 +68,16 @@ pub fn draw_stage_map(menus: &Menus) -> Result<(), Refused> {
         record.record()?.event_slot() as usize,
         "a map overlay",
     )?)?;
-    if load_picture_with_overlay(&menus.tables.texts.ukmap_png, &overlay)? {
+    if load_picture_with_overlay_in(
+        &menus.tables.texts.ukmap_png,
+        &overlay,
+        gfx,
+        system,
+        o.strings,
+    )? {
         return Err(NO_MAP.into());
     }
-    convert_picture_now()?;
+    convert_picture_now_in(gfx, system)?;
     gfx.pictures
         .picture
         .flags

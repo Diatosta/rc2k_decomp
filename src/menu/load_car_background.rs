@@ -9,7 +9,7 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::menu::car_description::{read, shown_description};
-use crate::menu::load_background::load_background;
+use crate::menu::load_background::load_background_in;
 use crate::menu::owner::Menus;
 use crate::text::draw_text::GameCanvas;
 
@@ -51,9 +51,13 @@ pub fn load_car_background(
 }
 
 /// In the game: the background through `menu::load_background` (its carry is never set).
-pub fn load_car_background_in_game(menus: &Menus) -> Result<(), Refused> {
+pub fn load_car_background_in_game(
+    menus: &Menus,
+    gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     load_car_background(menus, &mut |path| {
-        load_background(&path, &mut GameCanvas)?;
+        load_background_in(&path, &mut GameCanvas, gfx, system)?;
         Ok(false)
     })
 }

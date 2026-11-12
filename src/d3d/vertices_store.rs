@@ -52,6 +52,7 @@ impl core::ops::Deref for InBuffers {
     }
 }
 
+#[cfg(test)]
 impl crate::workers::Copies for InBuffers {
     fn copy(&self, n: usize) -> &(dyn crate::pointers::Store + Sync) {
         match n {

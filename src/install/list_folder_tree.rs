@@ -127,8 +127,10 @@ fn walk(
 
 /// `folder` and every folder under it added to the folders' table, their files to
 /// the files'.
-pub fn list_folder_tree(folder: impl Into<crate::place::BytePlace>) -> Result<(), Refused> {
-    let install = crate::install::owner::install();
+pub fn list_folder_tree(
+    install: &'static crate::install::owner::Install,
+    folder: impl Into<crate::place::BytePlace>,
+) -> Result<(), Refused> {
     let folder = folder.into();
     use crate::files::state::SKIPPED_ATTRIBUTES;
     let saved_skip = SKIPPED_ATTRIBUTES.get();
@@ -178,7 +180,7 @@ mod tests {
             d.set(0);
         }
         let path_region = crate::pointers::Lent::new(&path);
-        super::list_folder_tree(path_region.addr()).unwrap();
+        super::list_folder_tree(crate::install::owner::install(), path_region.addr()).unwrap();
         drop(path_region);
         let joined = |parts: &[&str]| {
             let mut p = root.clone();

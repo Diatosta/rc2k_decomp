@@ -100,9 +100,11 @@ fn progress_frame(
     crate::install::install_frames::progress_frame(install, strings, gfx)
 }
 
-pub fn install_files(install: &'static crate::install::owner::Install) -> Result<(), Refused> {
+pub fn install_files(
+    install: &'static crate::install::owner::Install,
+    o: crate::owners::Owners<'static>,
+) -> Result<(), Refused> {
     use crate::install as i;
-    let o = crate::owners::boundary();
     install.names.status.set(0x80);
     i::write_registry::write_registry(install, &mut crate::install::portable::Portable)?;
     normalise(&install.paths.game_dir, &install.paths.game_dir)?;
@@ -175,6 +177,7 @@ pub fn install_files(install: &'static crate::install::owner::Install) -> Result
             // 0x413242: a failed copy is the error message.
             if !i::copy_counted::copy_counted(
                 install,
+                o.system,
                 &install.paths.path_a,
                 &install.paths.path_b,
             )? {
@@ -218,7 +221,7 @@ pub fn install_files(install: &'static crate::install::owner::Install) -> Result
             path.push(0);
             store_text(&install.paths.path_a, &path);
             // Not looked at (0x413435, 0x413463).
-            i::copy_counted::copy_counted(install, &install.paths.path_a, base)?;
+            i::copy_counted::copy_counted(install, o.system, &install.paths.path_a, base)?;
         }
     }
     crate::platform_events::hold_quit(false);

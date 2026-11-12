@@ -57,16 +57,11 @@ fn highlighted_slot(menus: &Menus) -> u32 {
 
 /// The players' own records and names come back when
 /// the loaded championship is over or left (`menu::own_settings`; not the original's).
-pub fn load_savegame(_menus: &Menus) -> Result<(), Refused> {
-    load_savegame_in(crate::owners::boundary())
-}
-
-/// `load_savegame` for a caller that holds the owners.
-pub fn load_savegame_in(o: Owners<'static>) -> Result<(), Refused> {
+pub fn load_savegame(o: Owners<'_>) -> Result<(), Refused> {
     crate::menu::own_settings::around_championship(o.menus, || load_and_run(o))
 }
 
-fn load_and_run(o: Owners<'static>) -> Result<(), Refused> {
+fn load_and_run(o: Owners<'_>) -> Result<(), Refused> {
     let (menus, saves) = (o.menus, o.saves);
     let slot = highlighted_slot(menus);
     if slot >= SLOTS {

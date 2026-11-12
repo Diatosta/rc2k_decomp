@@ -49,7 +49,7 @@ pub fn service_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
             if !passes::serviced(kind, || menus.screens.event.service_due.get()) {
                 continue;
             }
-            crate::menu::inspection_screen::inspection_screen()?;
+            crate::menu::inspection_screen::inspection_screen(entry.owners)?;
             crate::system::sleep::sleep(passes::SCREEN_PAUSE);
             crate::menu::fade_in::fade_in(screens)?;
             crate::system::sleep::sleep(passes::FADE_PAUSE);
@@ -65,7 +65,7 @@ pub fn service_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
             if menus.tables.pages.yes_no_answer.get() == 1 {
                 break 'all;
             }
-            crate::service::apply_repairs::apply_repairs_in_game(menus)?;
+            crate::service::apply_repairs::apply_repairs_in_game_in(entry.owners)?;
             crate::menu::set_player_entry_kind::set_player_entry_kind(menus)?;
             if passes::is_out(p.get().entry) {
                 crate::menu::inspection_faults::inspection_faults(menus)?;

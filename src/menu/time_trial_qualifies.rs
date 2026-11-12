@@ -10,35 +10,22 @@
 use crate::errors::Refused;
 use crate::menu::event_flow::*;
 use crate::menu::owner::Menus;
-use crate::session::{PlainDword, PlainFlag};
 
-pub const QUALIFIES: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .event
-    .time_qualifies;
-pub const TIME: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .event
-    .player_time;
-pub const ANY_QUALIFIED: &PlainFlag = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .event
-    .any_time_qualified;
-
-pub fn time_trial_qualifies(menus: &Menus) -> Result<(), Refused> {
-    stage_times()?;
+pub fn time_trial_qualifies(
+    menus: &Menus,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
+    stage_times(menus, system)?;
     let p = current_player(menus)?;
-    set(QUALIFIES, 0);
+    let event = &menus.screens.event;
+    set(&event.time_qualifies, 0);
     let time = p.get().time;
-    set(TIME, time);
+    set(&event.player_time, time);
     // The logic is in `rc2k_core::menu::bests::makes_time`.
-    let best = with_stage_times(|ten| ten[9].head.key)?;
+    let best = with_stage_times(menus, system, |ten| ten[9].head.key)?;
     if rc2k_core::menu::bests::makes_time(time, best) {
-        set(QUALIFIES, 1);
-        ANY_QUALIFIED.set(true);
+        set(&event.time_qualifies, 1);
+        event.any_time_qualified.set(true);
     }
     Ok(())
 }

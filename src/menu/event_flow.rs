@@ -10,7 +10,7 @@ use crate::owners::Owners;
 use crate::records::stages_store::RecordRef;
 use crate::session::FlagLike;
 use crate::session::PlainDword;
-use crate::system::owner::system;
+use crate::system::owner::System;
 use rc2k_core::menu::leaving::Switch;
 
 /// A game variable.
@@ -59,37 +59,6 @@ pub fn refuse_here<T>(r: Result<T, BadInput>, at: &str) -> T {
 
 // ---- the variables ----
 
-pub const ANSWER: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .tables
-    .pages
-    .yes_no_answer; // g_yesNoAnswer
-pub const CURRENT: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .event
-    .current_player; // the current player
-pub const PLAYER_COUNT: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .event
-    .player_count;
-pub const EVENT_MODE: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .event
-    .event_kind; // 9 .. 0x18, `menu::run_event_races`
-pub const EVENT_TYPE: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .event
-    .event_type; // 3 time trial, 4, 5 the championships
-pub const MODE: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .play
-    .champ_view
-    .event_mode; // g_eventMode: 2, 3, 0x13
-
 /// The variable of a leaving switch.
 pub fn switch_cell<'a>(o: Owners<'a>, s: Switch) -> &'a dyn FlagLike {
     let screens = &o.menus.screens;
@@ -106,36 +75,19 @@ pub fn switch_cell<'a>(o: Owners<'a>, s: Switch) -> &'a dyn FlagLike {
         Switch::RallyDone => &screens.state.menus.rally_done,
     }
 }
-pub const CONTINUING: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .event
-    .continuing_save; // 1 when a saved game goes on
-pub const INDEX: &PlainDword = &crate::menu::owner::MENUS.unchecked().screens.event.index; // index
-pub const SECTION: &PlainDword = &crate::menu::owner::MENUS.unchecked().screens.event.section; // section
-pub const CHEATS: &PlainDword = &crate::menu::owner::MENUS.unchecked().play.cheats.cheats; // g_cheats
-pub const ROUND: &PlainDword = &crate::menu::owner::MENUS.unchecked().play.results.round; // the rounds of a multi-player event
-
-/// The car lists: `MenuLists.cars_championship[0]` (the championship's), `MenuLists.a8_championship_cars[0]` (the A8 championship's),
-/// `MenuLists.cars_first[0]` / `MenuLists.cars_second[0]` (by `ScreenFlow.car_list_kind`), `MenuLists.cheat_cars[0]` (with cheat bit 1).
-pub const CAR_LIST_KIND: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .flow
-    .car_list_kind; // 1 picks the first list
 
 /// Player `n`'s record (`g_players`).
 pub fn player(menus: &Menus, n: u32) -> crate::menu::standings::PlayerCell<'_> {
     &menus.play.players.players[n as usize]
 }
 
-pub fn yes() -> bool {
-    get(ANSWER) == 1
+pub fn yes(menus: &Menus) -> bool {
+    menus.tables.pages.yes_no_answer.get() == 1
 }
 
 /// The current player's record, refused past the four.
 pub fn current_player(menus: &Menus) -> Result<crate::menu::standings::PlayerCell<'_>, BadInput> {
-    let n = get(CURRENT);
+    let n = menus.screens.event.current_player.get();
     if n >= 4 {
         return Err(BadInput("a current player past the four"));
     }
@@ -143,21 +95,6 @@ pub fn current_player(menus: &Menus) -> Result<crate::menu::standings::PlayerCel
 }
 
 /// The stage chosen: `off_735512[Event.stage_group][Event.stage_sub]` + `Event.stage_number` x 0xA4.
-pub const STAGE_KIND: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .event
-    .stage_group;
-pub const STAGE_SUB: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .event
-    .stage_sub;
-pub const STAGE_NUMBER: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .event
-    .stage_number;
 const KINDS: u32 = 4;
 /// The stages' best times: `g_stageBestTimesAlt` (kind 1) or `ChampView.time_trial_best_times`, ten for each
 /// stage (the record's +0x3C).
@@ -167,23 +104,27 @@ pub const TIMES_OTHER: &StageTable = &crate::saves::best_times::TIME_TRIAL_TIMES
 
 /// The chosen stage's record; refused for a kind past the table's four or a null pointer
 /// on the way (the original reads through it).
-pub fn stage_record() -> Result<RecordRef, BadInput> {
-    let kind = get(STAGE_KIND);
+pub fn stage_record(menus: &Menus, system: &System) -> Result<RecordRef, BadInput> {
+    let event = &menus.screens.event;
+    let kind = event.stage_group.get();
     if kind >= KINDS {
         return Err(BadInput("a stage kind past the event stage tables' four"));
     }
-    let stages = system()
+    let stages = system
         .records
         .stage_tables
-        .group_event_table(kind, get(STAGE_SUB))?;
-    crate::records::stages_store::row(stages, get(STAGE_NUMBER))
+        .group_event_table(kind, event.stage_sub.get())?;
+    crate::records::stages_store::row(stages, event.stage_number.get())
 }
 
 /// The chosen stage's best times: its table and its place there; refused as
 /// `stage_record`, or with no table or a stage past it.
-pub fn stage_times() -> Result<(&'static StageTable, usize), BadInput> {
-    let record = stage_record()?;
-    let table = if get(STAGE_KIND) == 1 {
+pub fn stage_times(
+    menus: &Menus,
+    system: &System,
+) -> Result<(&'static StageTable, usize), BadInput> {
+    let record = stage_record(menus, system)?;
+    let table = if menus.screens.event.stage_group.get() == 1 {
         TIMES_ONE
     } else {
         TIMES_OTHER
@@ -197,8 +138,10 @@ pub fn stage_times() -> Result<(&'static StageTable, usize), BadInput> {
 
 /// `f` on the chosen stage's ten best times; refused as `stage_times`.
 pub fn with_stage_times<R>(
+    menus: &Menus,
+    system: &System,
     f: impl FnOnce(&mut rc2k_core::saves::entries::Times) -> R,
 ) -> Result<R, BadInput> {
-    let (table, stage) = stage_times()?;
+    let (table, stage) = stage_times(menus, system)?;
     table.with(|t| f(&mut t.stages[stage]))
 }

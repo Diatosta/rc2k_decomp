@@ -24,15 +24,6 @@ use crate::text::draw_text::Canvas;
 
 const FRAME_SPRITE: u32 = 0xA0;
 
-pub fn load_background(
-    path: &dyn crate::session::TextPlace,
-    canvas: &mut dyn Canvas,
-) -> Result<(), Refused> {
-    let o = crate::owners::boundary();
-    load_background_in(path, canvas, o.gfx, o.system)
-}
-
-/// `load_background` for a caller that holds the owners.
 pub fn load_background_in(
     path: &dyn crate::session::TextPlace,
     canvas: &mut dyn Canvas,

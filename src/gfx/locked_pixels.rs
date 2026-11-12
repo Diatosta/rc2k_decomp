@@ -10,7 +10,7 @@
 //! those of an address outside every allocation were.
 
 use crate::errors::BadInput;
-use crate::pointers::{LentBytes, Plain};
+use crate::pointers::{Plain, PoolBytes};
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, Weak};
 
@@ -22,16 +22,16 @@ pub const fn level(surface: usize) -> u32 {
     2 + surface as u32
 }
 
-static HELD: Mutex<BTreeMap<u32, Weak<LentBytes>>> = Mutex::new(BTreeMap::new());
+static HELD: Mutex<BTreeMap<u32, Weak<PoolBytes>>> = Mutex::new(BTreeMap::new());
 
 /// `bytes` named by `handle`, for as long as they live.
-pub fn register(handle: u32, bytes: &Arc<LentBytes>) {
+pub fn register(handle: u32, bytes: &Arc<PoolBytes>) {
     HELD.lock().unwrap().insert(handle, Arc::downgrade(bytes));
 }
 
 /// The bytes `handle` names; `None` for none (0), for a handle never registered, or for
 /// bytes that are gone.
-pub fn bytes_of(handle: u32) -> Option<Arc<LentBytes>> {
+pub fn bytes_of(handle: u32) -> Option<Arc<PoolBytes>> {
     HELD.lock().unwrap().get(&handle)?.upgrade()
 }
 
@@ -39,7 +39,7 @@ pub fn bytes_of(handle: u32) -> Option<Arc<LentBytes>> {
 /// offset the reachable bytes end at.
 #[derive(Clone)]
 pub struct Place {
-    bytes: Option<Arc<LentBytes>>,
+    bytes: Option<Arc<PoolBytes>>,
     at: u32,
     end: u32,
 }
@@ -82,7 +82,7 @@ impl Place {
     }
 
     /// The bytes, when `len` from this place lie inside what is reachable.
-    fn check(&self, at: u32, len: usize, what: &str) -> Result<&LentBytes, BadInput> {
+    fn check(&self, at: u32, len: usize, what: &str) -> Result<&PoolBytes, BadInput> {
         let Some(bytes) = &self.bytes else {
             crate::framework::log(&format!(
                 "pixels: {what}: {len} bytes of surface pixels that are not there"

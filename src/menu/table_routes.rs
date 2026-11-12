@@ -39,7 +39,7 @@ use crate::menu::option_items::{
     self, next_audio_quality, previous_audio_quality, previous_screen_mode,
 };
 use crate::menu::option_steps::{
-    START_PICK_A, START_PICK_B, next_screen_mode, step_texture_setting,
+    next_screen_mode, start_pick_a, start_pick_b, step_texture_setting,
 };
 use crate::menu::options_loop;
 use crate::menu::player;
@@ -170,13 +170,12 @@ use rc2k_core::menu::tables::{ItemFn, ScreenFn};
 pub fn item_fn(o: Owners<'_>, f: ItemFn, c: &table_calls::ItemCall) -> Result<(), Refused> {
     let menus = o.menus;
     let race = o.race;
-    let sound = o.sound;
     match f {
         ItemFn::StepSetting { setting, up } => step_items::player_setting(menus, setting, up),
         ItemFn::Toggle(setting) => step_items::player_setting(menus, setting, true),
         ItemFn::Volume { which, up } => option_items::volume(o, which, up),
-        ItemFn::OptionSwitch(which) => option_items::switch(which),
-        ItemFn::StageCounter { which, up } => option_items::stage_counter(which, up),
+        ItemFn::OptionSwitch(which) => option_items::switch(o, which),
+        ItemFn::StageCounter { which, up } => option_items::stage_counter(o, which, up),
         ItemFn::ChooseKey(row) => {
             choose_key::choose_key(&menus.screens, u32::from(row));
             Ok(())
@@ -195,30 +194,29 @@ pub fn item_fn(o: Owners<'_>, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
         ItemFn::FlipGearing => Ok(flip_gearing::flip_gearing(&menus.screens)?),
         ItemFn::NextGearing => gearing_text::step_gearing(menus, o.race.text_buffers(), true),
         ItemFn::PreviousGearing => gearing_text::step_gearing(menus, o.race.text_buffers(), false),
-        ItemFn::PreviousCar => step_items::car_button(menus, Which::PreviousCar, sound),
-        ItemFn::NextCar => step_items::car_button(menus, Which::NextCar, sound),
-        ItemFn::PreviousSlideshowCar => {
-            step_items::car_button(menus, Which::PreviousSlideshowCar, sound)
+        ItemFn::PreviousCar => step_items::car_button(o, Which::PreviousCar),
+        ItemFn::NextCar => step_items::car_button(o, Which::NextCar),
+        ItemFn::PreviousSlideshowCar => step_items::car_button(o, Which::PreviousSlideshowCar),
+        ItemFn::NextSlideshowCar => step_items::car_button(o, Which::NextSlideshowCar),
+        ItemFn::PreviousCarPage => step_items::car_button(o, Which::PreviousPage),
+        ItemFn::NextCarPage => step_items::car_button(o, Which::NextPage),
+        ItemFn::PreviousSlideshowPicture => step_items::car_button(o, Which::PreviousPicture),
+        ItemFn::NextSlideshowPicture => step_items::car_button(o, Which::NextPicture),
+        ItemFn::NextController => controller_items::next_controller(menus, o.input).map(|_| ()),
+        ItemFn::PreviousController => {
+            controller_items::previous_controller(menus, o.input).map(|_| ())
         }
-        ItemFn::NextSlideshowCar => step_items::car_button(menus, Which::NextSlideshowCar, sound),
-        ItemFn::PreviousCarPage => step_items::car_button(menus, Which::PreviousPage, sound),
-        ItemFn::NextCarPage => step_items::car_button(menus, Which::NextPage, sound),
-        ItemFn::PreviousSlideshowPicture => {
-            step_items::car_button(menus, Which::PreviousPicture, sound)
-        }
-        ItemFn::NextSlideshowPicture => step_items::car_button(menus, Which::NextPicture, sound),
-        ItemFn::NextController => controller_items::next_controller(menus).map(|_| ()),
-        ItemFn::PreviousController => controller_items::previous_controller(menus).map(|_| ()),
         ItemFn::KeepPlayerKeys => player_actions::keep_player_keys(menus),
         ItemFn::LowerPlayer40 => player_actions::lower_end_zone(menus),
         ItemFn::RaiseDeadZoneA => controller_items::raise_dead_zone(menus, false),
         ItemFn::LowerPlayer44 => player_actions::lower_centre_dead_zone(menus),
         ItemFn::RaiseDeadZoneB => controller_items::raise_dead_zone(menus, true),
         ItemFn::LowerControllerSensitivity => {
-            controller_items::lower_controller_sensitivity(menus).map(|_| ())
+            controller_items::lower_controller_sensitivity(menus, o.input).map(|_| ())
         }
         ItemFn::RaiseControllerSensitivity => controller_items::raise_controller_sensitivity(
             menus,
+            o.input,
             c.menu
                 .ok_or(BadInput("no menu (the original reads +0x2C of edi)"))?
                 .items()[0]
@@ -265,7 +263,7 @@ pub fn item_fn(o: Owners<'_>, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
             player_actions::next_replay_range(menus, &menus.tables).map_err(Into::into)
         }
         ItemFn::BeginSavegameName => Ok(begin_savegame_name::begin_savegame_name(menus, true)?),
-        ItemFn::LoadSavegame => load_savegame::load_savegame(menus),
+        ItemFn::LoadSavegame => load_savegame::load_savegame(o),
         ItemFn::LoadChampionshipTableLoop => load_championship_table_loop::run(o),
         ItemFn::SaveSetupLoop => save_setup_loop::run(o),
         ItemFn::BeginSetupName => Ok(begin_setup_name::begin_setup_name(menus)?),
@@ -279,9 +277,9 @@ pub fn item_fn(o: Owners<'_>, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
             flip_yes_no::flip_yes_no(&menus.tables);
             Ok(())
         }
-        ItemFn::PreviousStagePage => stage_view_steps::step_stage_page(menus, false, sound),
-        ItemFn::NextStagePage => stage_view_steps::step_stage_page(menus, true, sound),
-        ItemFn::PreviousScreenMode => previous_screen_mode::run(),
+        ItemFn::PreviousStagePage => stage_view_steps::step_stage_page(o, false),
+        ItemFn::NextStagePage => stage_view_steps::step_stage_page(o, true),
+        ItemFn::PreviousScreenMode => previous_screen_mode::run(o),
         ItemFn::NextScreenMode => {
             next_screen_mode(&menus.screens, o.gfx);
             Ok(())
@@ -294,8 +292,8 @@ pub fn item_fn(o: Owners<'_>, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
             step_texture_setting(&menus.screens, true, race);
             Ok(())
         }
-        ItemFn::NextAudioQuality => next_audio_quality::run(),
-        ItemFn::PreviousAudioQuality => previous_audio_quality::run(),
+        ItemFn::NextAudioQuality => next_audio_quality::run(o),
+        ItemFn::PreviousAudioQuality => previous_audio_quality::run(o),
         ItemFn::ViewStageDetails => {
             item_actions::view_stage_details(&menus.screens, &Entry::new(o))
         }
@@ -310,10 +308,10 @@ pub fn item_fn(o: Owners<'_>, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
         ItemFn::ShowIntro => item_actions::show_intro(),
         ItemFn::RaiseSensitivity => raise_sensitivity::raise_sensitivity(menus).map(|_| ()),
         ItemFn::LowerSensitivity => lower_sensitivity::lower_sensitivity(menus).map(|_| ()),
-        ItemFn::NextColourA => step_items::colour(&menus.tables, START_PICK_A, true),
-        ItemFn::PreviousColourA => step_items::colour(&menus.tables, START_PICK_A, false),
-        ItemFn::NextColourB => step_items::colour(&menus.tables, START_PICK_B, true),
-        ItemFn::PreviousColourB => step_items::colour(&menus.tables, START_PICK_B, false),
+        ItemFn::NextColourA => step_items::colour(&menus.tables, start_pick_a(menus), true),
+        ItemFn::PreviousColourA => step_items::colour(&menus.tables, start_pick_a(menus), false),
+        ItemFn::NextColourB => step_items::colour(&menus.tables, start_pick_b(menus), true),
+        ItemFn::PreviousColourB => step_items::colour(&menus.tables, start_pick_b(menus), false),
         ItemFn::Nothing => Ok(()),
         ItemFn::GoBack => {
             go_back::go_back();
@@ -367,18 +365,18 @@ pub fn item_fn(o: Owners<'_>, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
         ItemFn::VisualOptionsLoop => visual_options_loop::run(o),
         ItemFn::AdvancedAudioLoop => advanced_audio_loop::run(o),
         ItemFn::SimpleSelectPlayersLoop => simple_select_players_loop::run(o),
-        ItemFn::SwitchStageGroup => switch_stage_group::run(menus),
+        ItemFn::SwitchStageGroup => switch_stage_group::run(o),
         ItemFn::NextStageSub => {
-            stage_choice::next_stage_sub(&mut || stage_choice::draw_stage_map(menus))
+            stage_choice::next_stage_sub(&mut || stage_choice::draw_stage_map(o))
         }
         ItemFn::PreviousStageSub => {
-            stage_choice::previous_stage_sub(&mut || stage_choice::draw_stage_map(menus))
+            stage_choice::previous_stage_sub(&mut || stage_choice::draw_stage_map(o))
         }
         ItemFn::NextStageNumber => {
-            stage_choice::next_stage_number(&mut || stage_choice::draw_stage_map(menus))
+            stage_choice::next_stage_number(&mut || stage_choice::draw_stage_map(o))
         }
         ItemFn::PreviousStageNumber => {
-            stage_choice::previous_stage_number(&mut || stage_choice::draw_stage_map(menus))
+            stage_choice::previous_stage_number(&mut || stage_choice::draw_stage_map(o))
         }
         ItemFn::ArcadeSelectLevelLoop => arcade_select_level_loop::run(o),
         ItemFn::StartArcade => item_actions::start_arcade(o),

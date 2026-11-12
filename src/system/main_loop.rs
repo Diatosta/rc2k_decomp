@@ -70,7 +70,7 @@ pub fn main_loop(o: Owners<'static>) -> Result<(), Refused> {
         }
     }
     crate::platform::set_menu_mode_now();
-    crate::sound::apply_settings::apply_settings()?;
+    crate::sound::apply_settings::apply_settings_in(sound, o.audio)?;
     crate::gfx::load_jade::load_jade_in_game(gfx)?;
     crate::menu::build_notice::build_notice(menus);
     // The standalone in the download folder installs from it (`install::portable`); and

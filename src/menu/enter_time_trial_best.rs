@@ -23,16 +23,18 @@ const STAGE_SLOT: &PlainDword = &crate::menu::owner::MENUS
     .draw_work
     .figure;
 // hhmm
-pub fn enter_time_trial_best(menus: &Menus) -> Result<(), Refused> {
-    let play = &menus.play;
+pub fn enter_time_trial_best(
+    menus: &Menus,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     use rc2k_core::menu::bests;
-    let record = stage_record()?;
-    stage_times()?; // a stage the tables do not give: refused
+    let record = stage_record(menus, system)?;
+    stage_times(menus, system)?; // a stage the tables do not give: refused
     let p = current_player(menus)?;
     let name = name_address_of(&p.get())?;
     let slot = record.record()?.event_slot();
     set(STAGE_SLOT, slot);
-    let cheats = get(CHEATS);
+    let cheats = menus.play.cheats.cheats.get();
     let sealed = crate::menu::sealed_player_time::sealed_player_time(menus, slot)?;
     // The logic is in `rc2k_core::saves::entries::BestTime::enter`, then `rank_time_trial_best`.
     use crate::menu::standings::name_of;
@@ -48,6 +50,6 @@ pub fn enter_time_trial_best(menus: &Menus) -> Result<(), Refused> {
         seal: Some(bests::Seal { cheats, sealed }),
         line: Some(p.get().best_line),
     };
-    with_stage_times(|list| list[9].enter(&best))?;
-    crate::menu::rank_time_trial_best::rank_time_trial_best(play)
+    with_stage_times(menus, system, |list| list[9].enter(&best))?;
+    crate::menu::rank_time_trial_best::rank_time_trial_best(menus, system)
 }

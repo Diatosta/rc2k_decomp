@@ -29,28 +29,16 @@ use crate::menu::drivers_store::{Driver, IN_EVENT};
 use crate::menu::event_flow::Fault;
 use crate::menu::owner::Menus;
 use crate::menu::standings::*;
-use crate::race::owner::race;
+use crate::owners::Owners;
+use crate::race::owner::Race;
 use crate::session::DwordLike;
-use crate::session::PlainDword;
 use rc2k_core::menu::event_races::{self as races, PICKED, Step, Var};
-
-const GOES_ON: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .event
-    .event_goes_on;
-const CHEATS: &PlainDword = &crate::menu::owner::MENUS.unchecked().play.cheats.cheats; // g_cheats
-const KEPT: &PlainDword = &crate::menu::owner::MENUS.unchecked().screens.flow.kept;
-const CURRENT: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .event
-    .current_player;
 
 /// The game for `rc2k_core::menu::event_races`: the variables at their addresses, the
 /// steps, the race and the front end.
 struct Game<'a> {
     menus: &'a Menus,
+    owners: Owners<'a>,
     /// The walked drivers.
     drivers: &'a [Driver],
     /// The stage's track pack entry.
@@ -75,17 +63,16 @@ impl<'a> Game<'a> {
 }
 
 /// The variables that are in the physics block.
-fn cell(v: Var) -> &'static dyn DwordLike {
-    let race = race();
+fn cell<'a>(menus: &'a Menus, race: &'a Race, v: Var) -> &'a dyn DwordLike {
     match v {
         Var::CheatSwitch => &race.shared.state.settings.direction,
         Var::RaceKept => &race.shared.state.settings.kept,
         Var::Result => &race.shared.state.results.results[0].result,
         Var::Result2 => &race.shared.state.results.results[1].result,
-        Var::GoesOn => GOES_ON,
-        Var::Cheats => CHEATS,
-        Var::Kept => KEPT,
-        Var::Current => CURRENT,
+        Var::GoesOn => &menus.screens.event.event_goes_on,
+        Var::Cheats => &menus.play.cheats.cheats, // g_cheats
+        Var::Kept => &menus.screens.flow.kept,
+        Var::Current => &menus.screens.event.current_player,
     }
 }
 
@@ -93,15 +80,15 @@ impl races::EventRaces for Game<'_> {
     type Error = Refused;
 
     fn get(&mut self, v: Var) -> u32 {
-        cell(v).get()
+        cell(self.menus, self.owners.race, v).get()
     }
 
     fn set(&mut self, v: Var, value: u32) {
-        cell(v).set(value);
+        cell(self.menus, self.owners.race, v).set(value);
     }
 
     fn step(&mut self, s: Step) -> Result<(), Refused> {
-        let race = race();
+        let race = self.owners.race;
         let menus = self.menus;
         let screens = &menus.screens;
         self.fault.check()?;
@@ -132,7 +119,7 @@ impl races::EventRaces for Game<'_> {
             Step::Race { next } => {
                 crate::race::single_rally_race::single_rally_race(u32::from(next), 1)?;
             }
-            Step::ReloadFrontEnd => crate::menu::reload_front_end::reload_front_end(menus)?,
+            Step::ReloadFrontEnd => crate::menu::reload_front_end::reload_front_end(self.owners)?,
             Step::ClearServiceSpent => {
                 crate::menu::clear_service_spent::clear_service_spent(menus)?;
             }
@@ -178,7 +165,8 @@ impl races::EventRaces for Game<'_> {
     }
 }
 
-pub fn run_event_races(menus: &Menus) -> Result<(), Refused> {
+pub fn run_event_races(o: Owners<'_>) -> Result<(), Refused> {
+    let menus = o.menus;
     let screens = &menus.screens;
     let drivers = drivers(menus)?;
     let few_running = drivers.len() < PICKED as usize
@@ -202,6 +190,7 @@ pub fn run_event_races(menus: &Menus) -> Result<(), Refused> {
     let pack = crate::records::trakpak_entry::track_of(rec)?;
     let mut game = Game {
         menus,
+        owners: o,
         drivers,
         pack,
         asked: None,

@@ -86,13 +86,17 @@ fn colours(course: &crate::race::owner_course::Course, dark_third: u32) {
 }
 
 pub fn set_up_front_end_scene() -> Result<(), Refused> {
-    let o = crate::owners::boundary();
+    set_up_front_end_scene_in(crate::owners::boundary())
+}
+
+/// `set_up_front_end_scene` for a caller that holds the owners.
+pub fn set_up_front_end_scene_in(o: crate::owners::Owners<'_>) -> Result<(), Refused> {
     let (race, scene) = (o.race, o.scene);
     let shared = &race.shared;
     let frame = &race.frame;
     let course = &race.course;
     crate::session::write_bits(&shared.vars.bar_span, [0u32, 100]);
-    crate::menu::show_loading_picture::show_loading_picture(o.menus)?;
+    crate::menu::show_loading_picture::show_loading_picture_in(o.menus, o.gfx, o.system)?;
     reset_texture_tables(scene);
     for (count, first, levels, tag) in NEEDS {
         for texture in first..first + count {

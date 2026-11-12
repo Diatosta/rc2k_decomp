@@ -14,6 +14,7 @@ use crate::install::installer::{load_language, logged, normalise, set_cd, set_me
 
 pub fn install_from_command(
     install: &'static crate::install::owner::Install,
+    o: crate::owners::Owners<'static>,
 ) -> Result<(), Refused> {
     if !set_cd(&install.paths.game_dir)
         || !normalise(&install.texts.base_b, &install.paths.game_dir)?
@@ -34,6 +35,6 @@ pub fn install_from_command(
     }
     logged(
         "install",
-        crate::install::install_files::install_files(install),
+        crate::install::install_files::install_files(install, o),
     )
 }

@@ -21,7 +21,6 @@
 use crate::errors::Refused;
 use crate::session::PlainDword;
 use crate::session::{Bytes, Dword};
-use crate::strings::owner::strings;
 use rc2k_core::fatal::Context;
 
 // ---- game data (IDA addresses) ----
@@ -50,21 +49,20 @@ pub fn movsb(
 }
 
 /// `strings::append_string_by_id`: the string `id` added to the text being built.
-pub fn push_id(text: &mut Vec<u8>, id: u32) -> Result<(), Refused> {
-    crate::strings::append_string_by_id::push_string(text, id)?;
+pub fn push_id(o: crate::owners::Owners<'_>, text: &mut Vec<u8>, id: u32) -> Result<(), Refused> {
+    crate::strings::append_string_by_id::push_string_in(o, text, id)?;
     Ok(())
 }
 
 /// The text a line is built as (`text` up to its NUL), stored with its NUL at the start of
 /// the game's text buffer, where the original builds it; the text with its NUL, to be
 /// drawn or measured as a value.
-pub fn store_text(mut text: Vec<u8>) -> Result<Vec<u8>, Refused> {
+pub fn store_text(
+    strings: &crate::strings::owner::Strings,
+    mut text: Vec<u8>,
+) -> Result<Vec<u8>, Refused> {
     text.push(0);
-    strings()
-        .text
-        .buffer
-        .text
-        .write_at(0, &text, "a text line")?;
+    strings.text.buffer.text.write_at(0, &text, "a text line")?;
     Ok(text)
 }
 

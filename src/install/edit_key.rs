@@ -48,10 +48,13 @@ fn past_nul(text: BytePlace) -> u32 {
 
 /// Where the text lies in its record, the base of the limit the measure takes (the width a
 /// measuring font finds does not depend on it).
-fn measure_limit(text: BytePlace) -> u32 {
+fn measure_limit(text: BytePlace) -> Result<u32, crate::errors::BadInput> {
     match text {
-        BytePlace::Store(_, at) | BytePlace::In(_, at) => at as u32,
-        BytePlace::At(at) => at.addr(),
+        BytePlace::Store(_, at) | BytePlace::In(_, at) => Ok(at as u32),
+        // An edit item's text is always in the installer's pages or paths.
+        BytePlace::At(_) => Err(crate::errors::BadInput(
+            "an edit item's text outside the installer's data",
+        )),
     }
 }
 
@@ -157,7 +160,7 @@ pub fn edit_key(
     let (width, _) = measure_text(
         edit_font(record)?,
         &text_with_nul(text),
-        most.wrapping_add(measure_limit(text)).wrapping_add(1),
+        most.wrapping_add(measure_limit(text)?).wrapping_add(1),
     )?;
     let widest = crate::install::folders::field_width(text, record.width());
     if edits::too_wide(width, widest) {

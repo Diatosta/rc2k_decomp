@@ -12,6 +12,7 @@ use crate::install::installer::copy_file;
 /// Clio's stop on it). A failed copy is seen by the callers.
 pub fn copy_counted(
     install: &'static crate::install::owner::Install,
+    system: &crate::system::owner::System,
     from: impl Into<crate::place::BytePlace>,
     to: impl Into<crate::place::BytePlace>,
 ) -> Result<bool, Refused> {
@@ -19,5 +20,5 @@ pub fn copy_counted(
         .run
         .files_copied
         .set(install.run.files_copied.get().wrapping_add(1));
-    copy_file(from.into(), to.into())
+    copy_file(system, from.into(), to.into())
 }
