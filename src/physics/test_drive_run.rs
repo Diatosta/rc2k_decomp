@@ -170,11 +170,11 @@ fn x87_3(car: &Car, figures: &GearFigures, numbers: &Numbers) {
     let t1 = numbers.two_and_a_quarter.ld();
     let t2 = t0 * t1;
     figures.test_marks[2].st(t2);
-    let t3 = int(figures.test_marks[0].bits() as i32);
+    let t3 = int(crate::physics::flow::whole(&figures.test_marks[0]));
     let t4 = numbers.hundred.ld();
     let t5 = t3 / t4;
     figures.test_marks[0].st(t5);
-    let t6 = int(figures.test_marks[1].bits() as i32);
+    let t6 = int(crate::physics::flow::whole(&figures.test_marks[1]));
     let t7 = numbers.hundred.ld();
     let t8 = t6 / t7;
     figures.test_marks[1].st(t8);

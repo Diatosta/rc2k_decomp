@@ -283,7 +283,7 @@ fn inside_edge(
     q.x.set(x);
     q.z.set(z);
     use crate::math::x87_float::{X, compare, int};
-    let word = |d: &crate::session::Dword| int(d.get() as i32);
+    let word = |d: &dyn crate::session::DwordLike| int(d.get() as i32);
     let (x, z) = (q.x, q.z);
     let c = &work.edge;
     let first = (word(x) - word(&c[0])) * (word(&c[3]) - word(&c[1]));

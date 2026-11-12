@@ -1,11 +1,13 @@
 //! The frame and object work, first part (IDA 0x621480 .. 0x6218B0; phase 7, typed): the light and view switches, the object being drawn (number, material, fade, face flags, group mask), the frame-rate clock, the courses found, and a few race flags. `#[repr(C)]` with the image layout over the race block bytes. Names are readings unless IDA's.
 
+use crate::cells::ZeroCells;
+
 #[cfg(test)]
 use crate::race::owner::race;
 use crate::session::{PlainDword, PlainFloat};
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct FrameSwitches {
     /// +0x0 (0x621480): `dword_621480`: the 3D scene is set up for drawing through the light tables: written 1 only, by `scene::set_up_front_end_scene` (twice), `race::stage_loading` and, for the length of `scene::fill_light_tables`, `scene::fill_scene_light_tables` (IDA writers 0x475027, 0x475BF0, 0x444213, 0x4433B3/C2; none writes 0). So it is 1 whenever a scene is drawn, front end or race, and its 0 branches (`scene::vertex_light`, `scene::draw_object_face`, `scene::choose_view_window`, `race::course_faces`, `race::draw_mirror_view`, the plain light ramp of `fill_light_tables`) are never taken in play. Not "the mirror on" nor "in a race".
     pub scene_set_up: PlainDword,
@@ -68,7 +70,154 @@ pub struct FrameSwitches {
 impl FrameSwitches {
     /// The piece, with the image's first values.
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        Self {
+            intro_film_text: {
+                let mut a: [PlainDword; 22] = ZeroCells::ZERO;
+                a[10] = PlainDword::new(0x656C6966);
+                a[11] = PlainDword::new(0x6D665C73);
+                a[12] = PlainDword::new(0x6E695C76);
+                a[13] = PlainDword::new(0x2E6F7274);
+                a[14] = PlainDword::new(0x697661);
+                a
+            },
+            unused_74: [PlainDword::new(0), PlainDword::new(0x445E38D5)],
+            group_mask: PlainDword::new(0xFFFFFFFF),
+            dev_front_end_choices: [
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(0x2A),
+                PlainDword::new(0),
+                PlainDword::new(0),
+            ],
+            unused_3c8: [
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(2),
+                PlainDword::new(0),
+            ],
+            unused_3f4: [
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(1),
+                PlainDword::new(0),
+            ],
+            levers_on: PlainDword::new(1),
+            unused_408: [PlainDword::new(1), PlainDword::new(0)],
+            view_marks_on: PlainDword::new(1),
+            unknown_414: [
+                PlainDword::new(1),
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(1),
+                PlainDword::new(0),
+                PlainDword::new(0),
+            ],
+            ..ZeroCells::ZERO
+        }
     }
 }
 

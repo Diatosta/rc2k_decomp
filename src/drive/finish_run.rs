@@ -50,7 +50,7 @@ pub fn finish_run(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), 
         .start_clock
         .set(race.shared.physics_tables.get().scene_clock.get());
     loop {
-        sound.race.sounds.objects[0].revs.set(0);
+        sound.race.sounds.get().objects[0].revs.set(0);
         input_update(o);
         crate::drive::finish_timing::finish_timing(race, scene);
         let n = race.shared.state.results.finished.get();

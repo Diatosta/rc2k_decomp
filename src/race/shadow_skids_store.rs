@@ -9,6 +9,8 @@
 //! (`ShadowPoint`) are the shadow's own work's (`race::car_shadow::ShadowWork`). Names are
 //! readings unless IDA's.
 
+use crate::cells::ZeroCells;
+
 #[cfg(test)]
 use crate::race::owner::race;
 use crate::session::{Dword, PlainBytes, PlainDword, PlainFloat};
@@ -16,7 +18,7 @@ use crate::session::{Dword, PlainBytes, PlainDword, PlainFloat};
 /// One shadow point (0x20 bytes): the corner of the car's shadow, first as floats, then
 /// as whole numbers (`race::car_shadow`).
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ShadowPoint {
     /// +0x0: x.
     pub x: Dword,
@@ -66,7 +68,7 @@ impl ShadowPoint {
 }
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ShadowSkids {
     /// +0x0 (0x641AA4): `g_shadowPoints`: the shadow's points, 0x100 records of 0x20 bytes (`ShadowPoint`: x, y, z, angle, length, ...; 0x40 at most) and the hull's records after (`race::car_shadow`), held as bytes. Unused since the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
     pub shadow_points: PlainBytes<0x2000>,
@@ -121,7 +123,11 @@ pub struct ShadowSkids {
 /// The piece, with the image's first values.
 impl ShadowSkids {
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        Self {
+            skid_grip: PlainFloat::new(8.0),
+            skid_lift: PlainFloat::new(4096.0),
+            ..ZeroCells::ZERO
+        }
     }
 }
 

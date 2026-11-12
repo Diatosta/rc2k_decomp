@@ -82,7 +82,7 @@ fn copy_player_settings(p: &Player, state: &RaceState) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::race::state_store::RaceSettings;
+    use crate::race::state_store::{RaceSettings, SettingsHead};
     use std::mem::{offset_of, size_of};
 
     /// The original's dword copies by offset: (the settings' offset from
@@ -199,7 +199,9 @@ mod tests {
         let whole: &dyn crate::cells::Store = &shared.state;
         let mut before = vec![0; size_of::<RaceState>()];
         whole.load(0, &mut before).unwrap();
-        let first = offset_of!(RaceState, settings) + offset_of!(RaceSettings, car_kind_current);
+        let first = offset_of!(RaceState, settings)
+            + offset_of!(RaceSettings, inline)
+            + offset_of!(SettingsHead, car_kind_current);
         // The offset copy, on the bytes as they were.
         let mut expected = before.clone();
         for &(to, from) in &DWORDS {

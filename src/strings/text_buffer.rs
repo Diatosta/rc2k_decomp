@@ -1,7 +1,7 @@
 //! The strings' text buffer (`strings::text_from_ids` and the screens that build a line
 //! there), out of RAL.EXE's image, typed. `#[repr(C)]` struct of a byte buffer.
 
-use crate::session::{Bytes, PlainBytes};
+use crate::session::PlainBytes;
 
 /// The strings' text buffer (IDA 0x93E430 .. 0x93E830, the image's layout).
 #[repr(C, align(16))]
@@ -16,7 +16,7 @@ pub struct TextBuffer {
 #[derive(Clone, Copy)]
 pub enum TextBuf {
     Text(&'static PlainBytes<1024>),
-    Line(&'static Bytes<0x100>),
+    Line(&'static PlainBytes<0x100>),
 }
 
 impl TextBuf {

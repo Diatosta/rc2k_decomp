@@ -151,7 +151,7 @@ pub fn reset_race_sounds(
     wait_for_commands(audio, system);
     crate::sound::hold_sounds_back::hold_sounds_back(audio);
     crate::sound::race_clock::start_race_clock(crate::system::tick_count::tick_count(), sound);
-    for o in &sound.race.sounds.objects {
+    for o in &sound.race.sounds.get().objects {
         reset_object(o);
     }
     clear_stage_flags(sound);

@@ -19,8 +19,7 @@ use crate::race::matrices_store::SceneMatrices;
 use crate::race::numbers_store::Numbers;
 use crate::scene::matrix3::rounded_value;
 use crate::scene::rotate_point::rotate_point;
-use crate::session::PlainDword;
-use crate::session::{Dword, Float};
+use crate::session::{PlainDword, PlainFloat};
 use crate::sound::store::SoundObject;
 use rc2k_core::physics::sound_places::{FIRST, PLAY, SECOND, Slot};
 
@@ -43,7 +42,7 @@ pub fn place(
     numbers: &Numbers,
     matrices: &SceneMatrices,
     car: &Car,
-    into: &[Float; 3],
+    into: &[PlainFloat; 3],
     offset: Option<[u32; 3]>,
 ) {
     // The original's own steps (`fild` the offset, `fiadd` the car's, `fisub` the
@@ -73,7 +72,7 @@ pub fn place_plain(
     numbers: &Numbers,
     matrices: &SceneMatrices,
     car: &Car,
-    into: &[Float; 3],
+    into: &[PlainFloat; 3],
     offset: Option<[u32; 3]>,
 ) {
     let whole = |x: &[PlainDword; 3]| [0, 1, 2].map(|k| x[k].get() as i32);
@@ -91,7 +90,10 @@ pub fn place_plain(
 
 /// The object's one-off sound slot that `slot` (the core's offsets) names: the sound, its
 /// band (the volume) and its place. Any other slot is refused.
-fn one_off(o: &SoundObject, slot: Slot) -> Result<(&Dword, &Dword, &[Float; 3]), BadInput> {
+fn one_off(
+    o: &SoundObject,
+    slot: Slot,
+) -> Result<(&PlainDword, &PlainDword, &[PlainFloat; 3]), BadInput> {
     match slot {
         FIRST => Ok((&o.hit_sound, &o.hit_volume, &o.hit_place)),
         SECOND => Ok((&o.cue_sound, &o.cue_volume, &o.cue_place)),

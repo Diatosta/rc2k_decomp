@@ -3,10 +3,12 @@
 //! marks and samples (`physics::test_drive_run`, `physics::test_drive`).
 //! Names are readings unless IDA's.
 
+use crate::cells::ZeroCells;
+use crate::race::first_cells::floats;
 use crate::session::{Dword, Float};
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct GearFigures {
     /// +0x0 (0x5CB958): `flt_5CB958`: the engine figure above which the gearbox shifts up (`physics::auto_gearbox`, `physics::manual_gearbox`, `physics::pick_start_gear`).
     pub shift_up_point: Float,
@@ -34,9 +36,13 @@ pub struct GearFigures {
     pub demo_copy_busy: Dword,
 }
 
-/// IDA 0x5CB958, the first byte of the piece.
-pub const START: usize = 0x5CB958;
-/// IDA 0x5CC198, the end of the piece.
-pub const END: usize = 0x5CC198;
-
-const _: () = assert!(END - START == core::mem::size_of::<GearFigures>());
+impl GearFigures {
+    /// The gear figures as the game starts: the test drive's speed limits and power factor.
+    pub const fn new() -> Self {
+        GearFigures {
+            test_limits: floats([26.822428, 44.70405]),
+            test_power_factor: Float::new(1.0),
+            ..ZeroCells::ZERO
+        }
+    }
+}

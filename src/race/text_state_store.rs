@@ -5,12 +5,14 @@
 //! drawers only). `race::draw_frame_rate` sets the number to 2 each frame; the port's debug
 //! overlay (`debug::ui`) reads none of the three, so they are written and never read here.
 
+use crate::cells::ZeroCells;
+
 #[cfg(test)]
 use crate::race::owner::race;
 use crate::session::PlainDword;
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct TextState {
     /// +0x0 (0x5C6604): `dword_5C6604`: the original's debug drawing colour number (read by its fill-rectangle and glyph drawers); `race::draw_frame_rate` sets it to 2 before the frame-rate text. Nothing in the port reads it.
     pub text_mode: PlainDword,
@@ -27,7 +29,7 @@ pub struct TextState {
 /// The piece, with the image's first values.
 impl TextState {
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        Self::ZERO
     }
 }
 

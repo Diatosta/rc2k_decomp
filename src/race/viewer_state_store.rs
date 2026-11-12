@@ -1,5 +1,7 @@
 //! The replay writer's and the viewer's state (IDA 0x5C2518 .. 0x5C2714; phase 7, typed): the padding frame, the file offset and frames in the block, the replay block and frame, the play end and the viewer's switches, then the viewer's list (header and 26 items of 16 bytes). `#[repr(C)]` with the image's layout, over the race block's bytes. The list's pointers are relocated addresses into the untyped rectangles and key table at 0x5C2714 .. 0x5C291C. Names are readings unless IDA's.
 
+use crate::cells::ZeroCells;
+
 use crate::place::BytePlace;
 #[cfg(test)]
 use crate::race::owner::race;
@@ -7,7 +9,7 @@ use crate::race::owner_replay::Replay;
 use crate::session::{PlainDword, PlainFlag};
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ReplayViewBlock {
     /// +0x0 (0x5C2518): the 16-byte frame that pads a block's end, zeros (`race::replay`, `race::add_replay_frame`).
     pub pad_frame: [PlainDword; 4],
@@ -47,15 +49,152 @@ pub struct ReplayViewBlock {
 /// The piece, with the image's first values.
 impl ReplayViewBlock {
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        Self {
+            replay_block: PlainDword::new(0xFFFFFFFF),
+            viewer_list: [
+                PlainDword::new(0x1A00),
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(0x5C2714),
+                PlainDword::new(0),
+                PlainDword::new(1),
+                PlainDword::new(0x5C277C),
+                PlainDword::new(0),
+                PlainDword::new(0x5C2A2C),
+                PlainDword::new(0x101),
+                PlainDword::new(0x5C278C),
+                PlainDword::new(0),
+                PlainDword::new(0x5C2A4C),
+                PlainDword::new(0x201),
+                PlainDword::new(0x5C279C),
+                PlainDword::new(0),
+                PlainDword::new(0x5C2A6C),
+                PlainDword::new(0x301),
+                PlainDword::new(0x5C27AC),
+                PlainDword::new(0),
+                PlainDword::new(0x5C2A8C),
+                PlainDword::new(0x401),
+                PlainDword::new(0x5C27BC),
+                PlainDword::new(0),
+                PlainDword::new(0x5C2AAC),
+                PlainDword::new(0x501),
+                PlainDword::new(0x5C27CC),
+                PlainDword::new(0),
+                PlainDword::new(0x5C2ADC),
+                PlainDword::new(0x601),
+                PlainDword::new(0x5C27DC),
+                PlainDword::new(0),
+                PlainDword::new(0x5C2AEC),
+                PlainDword::new(0x701),
+                PlainDword::new(0x5C27EC),
+                PlainDword::new(0),
+                PlainDword::new(0x5C2AFC),
+                PlainDword::new(0x801),
+                PlainDword::new(0x5C27FC),
+                PlainDword::new(0),
+                PlainDword::new(0x5C2ABC),
+                PlainDword::new(0x901),
+                PlainDword::new(0x5C280C),
+                PlainDword::new(0),
+                PlainDword::new(0x5C2A9C),
+                PlainDword::new(0xA01),
+                PlainDword::new(0x5C281C),
+                PlainDword::new(0),
+                PlainDword::new(0x5C2A7C),
+                PlainDword::new(0xB01),
+                PlainDword::new(0x5C282C),
+                PlainDword::new(0),
+                PlainDword::new(0x5C2A5C),
+                PlainDword::new(0xC01),
+                PlainDword::new(0x5C283C),
+                PlainDword::new(0),
+                PlainDword::new(0x5C2A3C),
+                PlainDword::new(0xD01),
+                PlainDword::new(0x5C284C),
+                PlainDword::new(0),
+                PlainDword::new(0x5C2B0C),
+                PlainDword::new(0xE01),
+                PlainDword::new(0x5C285C),
+                PlainDword::new(0),
+                PlainDword::new(0x5C2C70),
+                PlainDword::new(0xF01),
+                PlainDword::new(0x5C286C),
+                PlainDword::new(0),
+                PlainDword::new(0x5C2C78),
+                PlainDword::new(0x1001),
+                PlainDword::new(0x5C287C),
+                PlainDword::new(0),
+                PlainDword::new(0x5C2C88),
+                PlainDword::new(0x1101),
+                PlainDword::new(0x5C288C),
+                PlainDword::new(0),
+                PlainDword::new(0x5C2BAC),
+                PlainDword::new(0x1201),
+                PlainDword::new(0x5C289C),
+                PlainDword::new(0),
+                PlainDword::new(0x5C2BBC),
+                PlainDword::new(0x1301),
+                PlainDword::new(0x5C28AC),
+                PlainDword::new(0),
+                PlainDword::new(0x5C2BCC),
+                PlainDword::new(0x1401),
+                PlainDword::new(0x5C28BC),
+                PlainDword::new(0),
+                PlainDword::new(0x5C2BDC),
+                PlainDword::new(0x1501),
+                PlainDword::new(0x5C28CC),
+                PlainDword::new(0),
+                PlainDword::new(0x5C2B2C),
+                PlainDword::new(0x1601),
+                PlainDword::new(0x5C28DC),
+                PlainDword::new(0),
+                PlainDword::new(0x5C2BEC),
+                PlainDword::new(0x1701),
+                PlainDword::new(0x5C28EC),
+                PlainDword::new(0),
+                PlainDword::new(0x5C2BFC),
+                PlainDword::new(0x1801),
+                PlainDword::new(0x5C28FC),
+                PlainDword::new(0),
+                PlainDword::new(0x5C2C70),
+                PlainDword::new(0x1901),
+                PlainDword::new(0x5C290C),
+                PlainDword::new(0),
+                PlainDword::new(0x5C2C1C),
+            ],
+            ..ZeroCells::ZERO
+        }
     }
 }
 
 /// The viewer list's key table and place rectangles (IDA 0x5C2714 .. 0x5C291C, untyped), with
 /// the image's first values: the list's names point into them, and nothing writes them.
-pub static RECTANGLES: crate::session::Bytes<0x208> = crate::session::Bytes::new(
-    crate::race::store::first_values::<0x208>(ReplayViewBlock::RECTANGLES.start),
-);
+pub static RECTANGLES: crate::session::Bytes<0x208> = crate::session::Bytes::new([
+    0xFF, 0x0D, 0xFF, 1, 0xFF, 0x0E, 0, 2, 0xFF, 0x0F, 1, 3, 0xFF, 0x10, 2, 4, 0xFF, 0x11, 3, 5,
+    0xFF, 0x12, 4, 6, 0xFF, 0x13, 5, 7, 0xFF, 0x14, 6, 8, 0xFF, 0x15, 7, 9, 0xFF, 0x16, 8, 0x0A,
+    0xFF, 0x17, 9, 0x0B, 0xFF, 0x18, 0x0A, 0x0C, 0xFF, 0x19, 0x0B, 0xFF, 0, 0xFF, 0xFF, 0x0E, 1,
+    0xFF, 0x0D, 0x0F, 2, 0xFF, 0x0E, 0x10, 3, 0xFF, 0x0F, 0x11, 4, 0xFF, 0x10, 0x12, 5, 0xFF, 0x11,
+    0x13, 6, 0xFF, 0x12, 0x14, 7, 0xFF, 0x13, 0x15, 8, 0xFF, 0x14, 0x16, 9, 0xFF, 0x15, 0x17, 0x0A,
+    0xFF, 0x16, 0x18, 0x0B, 0xFF, 0x17, 0x19, 0x0C, 0xFF, 0x18, 0xFF, 0x0A, 0, 0, 0, 0x39, 0, 0, 0,
+    0x30, 0, 0, 0, 0x30, 0, 0, 0, 0x47, 0, 0, 0, 0x39, 0, 0, 0, 0x30, 0, 0, 0, 0x30, 0, 0, 0, 0x84,
+    0, 0, 0, 0x39, 0, 0, 0, 0x30, 0, 0, 0, 0x30, 0, 0, 0, 0xC1, 0, 0, 0, 0x39, 0, 0, 0, 0x30, 0, 0,
+    0, 0x30, 0, 0, 0, 0xFE, 0, 0, 0, 0x39, 0, 0, 0, 0x30, 0, 0, 0, 0x30, 0, 0, 0, 0x3B, 1, 0, 0,
+    0x39, 0, 0, 0, 0x30, 0, 0, 0, 0x30, 0, 0, 0, 0x78, 1, 0, 0, 0x39, 0, 0, 0, 0x30, 0, 0, 0, 0x30,
+    0, 0, 0, 0xB5, 1, 0, 0, 0x39, 0, 0, 0, 0x30, 0, 0, 0, 0x30, 0, 0, 0, 0xF2, 1, 0, 0, 0x39, 0, 0,
+    0, 0x30, 0, 0, 0, 0x30, 0, 0, 0, 0x2F, 2, 0, 0, 0x39, 0, 0, 0, 0x30, 0, 0, 0, 0x30, 0, 0, 0,
+    0x6C, 2, 0, 0, 0x39, 0, 0, 0, 0x30, 0, 0, 0, 0x30, 0, 0, 0, 0xA9, 2, 0, 0, 0x39, 0, 0, 0, 0x30,
+    0, 0, 0, 0x30, 0, 0, 0, 0xE6, 2, 0, 0, 0x39, 0, 0, 0, 0x30, 0, 0, 0, 0x30, 0, 0, 0, 0x0A, 0, 0,
+    0, 0x76, 0, 0, 0, 0x30, 0, 0, 0, 0x30, 0, 0, 0, 0x47, 0, 0, 0, 0x76, 0, 0, 0, 0x30, 0, 0, 0,
+    0x30, 0, 0, 0, 0x84, 0, 0, 0, 0x76, 0, 0, 0, 0x30, 0, 0, 0, 0x30, 0, 0, 0, 0xC1, 0, 0, 0, 0x76,
+    0, 0, 0, 0x30, 0, 0, 0, 0x30, 0, 0, 0, 0xFE, 0, 0, 0, 0x76, 0, 0, 0, 0x30, 0, 0, 0, 0x30, 0, 0,
+    0, 0x3B, 1, 0, 0, 0x76, 0, 0, 0, 0x30, 0, 0, 0, 0x30, 0, 0, 0, 0x78, 1, 0, 0, 0x76, 0, 0, 0,
+    0x30, 0, 0, 0, 0x30, 0, 0, 0, 0xB5, 1, 0, 0, 0x76, 0, 0, 0, 0x30, 0, 0, 0, 0x30, 0, 0, 0, 0xF2,
+    1, 0, 0, 0x76, 0, 0, 0, 0x30, 0, 0, 0, 0x30, 0, 0, 0, 0x2F, 2, 0, 0, 0x76, 0, 0, 0, 0x30, 0, 0,
+    0, 0x30, 0, 0, 0, 0x6C, 2, 0, 0, 0x76, 0, 0, 0, 0x30, 0, 0, 0, 0x30, 0, 0, 0, 0xA9, 2, 0, 0,
+    0x76, 0, 0, 0, 0x30, 0, 0, 0, 0x30, 0, 0, 0, 0xE6, 2, 0, 0, 0x76, 0, 0, 0, 0x30, 0, 0, 0, 0x30,
+    0, 0, 0,
+]);
 
 /// What a viewer item shows: a texture rectangle, or the picture a camera byte picks from one
 /// of the three switch tables (0 `ViewerAndKinds.viewer_panel.switch_pictures_a[0]`, 1 `ViewerAndKinds.viewer_panel.switch_pictures_b[0]`, 2 `ViewerAndKinds.viewer_panel.switch_pictures_c[0]`; the original

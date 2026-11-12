@@ -1,11 +1,13 @@
 //! The scratch point, work vector and kept frame (IDA 0x5C5F48 .. 0x5C5FB8; phase 7, typed): the tangent scratch, the scratch point's three floats, the work vector and its squares (`math::normalise_vector`), and the locked surface's kept pitch and pixels. `#[repr(C)]` with the image's layout, over the race block's bytes. Names are readings unless IDA's.
 
+use crate::cells::ZeroCells;
+
 #[cfg(test)]
 use crate::race::owner::race;
 use crate::session::{PlainDword, PlainFloat};
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct FrameScratch {
     /// +0x0 (0x5C5F48): `dword_5C5F48`: the tangent's doubled number (`scene::fill_engine_tables`).
     pub tangent_scratch: PlainDword,
@@ -42,7 +44,16 @@ pub struct FrameScratch {
 /// The piece, with the image's first values.
 impl FrameScratch {
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        Self {
+            unused_58: [
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(0x320),
+                PlainDword::new(0x258),
+            ],
+            frame_pitch: PlainDword::new(0x640),
+            ..ZeroCells::ZERO
+        }
     }
 }
 

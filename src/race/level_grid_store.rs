@@ -68,13 +68,6 @@ impl LevelGrid {
     }
 }
 
-/// The image's first values of the `N` bytes at `offset` in the piece, as cells of another
-/// record: a view's own copy of a field the views no longer share (`race::view_grid`,
-/// `race::view_course`, `race::lamp_work`).
-pub const fn first_of<T: crate::cells::Cells, const N: usize>(offset: usize) -> T {
-    crate::cells::cells_of_bytes(crate::race::store::first_values::<N>(START + offset))
-}
-
 /// IDA 0x63DC5C, the first byte of the piece.
 pub const START: usize = 0x63DC5C;
 /// IDA 0x63F58C, the end of the piece.

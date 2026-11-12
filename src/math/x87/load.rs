@@ -26,8 +26,8 @@ pub fn abs_to_int(a: u32) -> i32 {
 /// `sqrt(a a + b b)` as a float (`fld a; fmul st, st; fld b; fmul st, st; faddp; fsqrt;
 /// fstp`): the length of two floats at right angles.
 pub fn float_hypot(a: impl Flt, b: impl Flt) -> f32 {
-    let a = a.bits();
-    let b = b.bits();
+    let a = a.value();
+    let b = b.value();
     let a2 = ld(a) * ld(a);
     let b2 = ld(b) * ld(b);
     out((a2 + b2).sqrt())
@@ -35,18 +35,18 @@ pub fn float_hypot(a: impl Flt, b: impl Flt) -> f32 {
 
 /// C0 of `fld a; fcomp b; fnstsw ax` (`shr ah, 1; jb`): a below b, or one is no number.
 pub fn below_or_unordered(a: impl Flt, b: impl Flt) -> bool {
-    let a = a.bits();
-    let b = b.bits();
+    let a = a.value();
+    let b = b.value();
     compare(ld(a), ld(b)) & 0x0100 != 0
 }
 
 /// C0 of `fld a; fmul h; fabs; fsub k; fcomp b`: |a h| - k below b (kept at the x87's
 /// precision), or one is no number.
 pub fn scaled_abs_less_below(a: impl Flt, h: impl Flt, k: impl Flt, b: impl Flt) -> bool {
-    let a = a.bits();
-    let h = h.bits();
-    let k = k.bits();
-    let b = b.bits();
+    let a = a.value();
+    let h = h.value();
+    let k = k.value();
+    let b = b.value();
     let x = (ld(a) * ld(h)).abs() - ld(k);
     compare(x, ld(b)) & 0x0100 != 0
 }
@@ -81,8 +81,8 @@ pub fn int_square_sum(a: i32, b: i32) -> f32 {
 
 /// `a a + b b` of two floats (`fld a; fmul st, st; fld b; fmul st, st; faddp; fstp`).
 pub fn float_square_sum(a: impl Flt, b: impl Flt) -> f32 {
-    let a = a.bits();
-    let b = b.bits();
+    let a = a.value();
+    let b = b.value();
     let a2 = ld(a) * ld(a);
     let b2 = ld(b) * ld(b);
     out(a2 + b2)
@@ -91,15 +91,15 @@ pub fn float_square_sum(a: impl Flt, b: impl Flt) -> f32 {
 /// `(a + b) c`, a whole number plus a float, times a float (`fild a; fadd b; fmul c;
 /// fstp`).
 pub fn int_plus_times(a: i32, b: impl Flt, c: impl Flt) -> f32 {
-    let b = b.bits();
-    let c = c.bits();
+    let b = b.value();
+    let c = c.value();
     out((int(a) + ld(b)) * ld(c))
 }
 
 /// C0 of `fld a; fabs; fcomp k`: |a| below k, or one is no number.
 pub fn abs_below_or_unordered(a: impl Flt, k: impl Flt) -> bool {
-    let a = a.bits();
-    let k = k.bits();
+    let a = a.value();
+    let k = k.value();
     compare(ld(a).abs(), ld(k)) & 0x0100 != 0
 }
 
@@ -112,7 +112,7 @@ pub fn rotate_rounding(point: [i32; 3], matrix: &[u32]) -> [u32; 3] {
 /// `(a a + b b) k` (`times` = 1) or `(a a + b b) k k` (`times` = 2) as a whole number
 /// (`fild a; fmul st, st; fild b; fmul st, st; faddp; fmul k; [fmul k;] fistp`).
 pub fn int_square_sum_scaled_to_int(a: i32, b: i32, k: impl Flt, times: u32) -> u32 {
-    let k = k.bits();
+    let k = k.value();
     let (a, b) = (int(a), int(b));
     let mut x = (a * a + b * b) * ld(k);
     if times == 2 {
@@ -132,12 +132,12 @@ pub fn eased_roll(
     m: impl Flt,
     h: impl Flt,
 ) -> f32 {
-    let a = a.bits();
-    let b = b.bits();
-    let v = v.bits();
-    let c = c.bits();
-    let m = m.bits();
-    let h = h.bits();
+    let a = a.value();
+    let b = b.value();
+    let v = v.value();
+    let c = c.value();
+    let m = m.value();
+    let h = h.value();
     let mut x = int(i);
     x /= ld(a);
     x /= ld(a);
@@ -153,9 +153,9 @@ pub fn eased_roll(
 /// The sun's direction in `race::draw_sky`: with `p = (k - a) s` and `q = b s`, cos p cos q,
 /// sin q and sin p cos q, each times `m` and stored as a float.
 pub fn sun_direction(a: i32, k: impl Flt, s: impl Flt, b: i32, m: impl Flt) -> [u32; 3] {
-    let k = k.bits();
-    let s = s.bits();
-    let m = m.bits();
+    let k = k.value();
+    let s = s.value();
+    let m = m.value();
     let p = (-int(a) + ld(k)) * ld(s);
     let q = int(b) * ld(s);
     let (sin_p, cos_p) = p.sin_cos();
@@ -167,7 +167,7 @@ pub fn sun_direction(a: i32, k: impl Flt, s: impl Flt, b: i32, m: impl Flt) -> [
 
 /// A float as the x87's 80 bits (`fld dword; fstp tbyte`).
 pub fn to_tbyte(a: impl Flt) -> [u8; 10] {
-    let a = a.bits();
+    let a = a.value();
     f80(ld(a))
 }
 
@@ -188,8 +188,8 @@ pub fn sun_on_screen(
     flat: bool,
     scratch: &impl crate::session::Cell32,
 ) -> ([f32; 2], [i32; 2]) {
-    let scale = scale.bits();
-    let [cy, cx] = centre.map(|c| c.bits());
+    let scale = scale.value();
+    let [cy, cx] = centre.map(|c| c.value());
     let (x, y, z) = (int(point[0]), int(point[1]), int(point[2]));
     let ratio = if flat {
         scratch.set_bits(st(z));
@@ -212,12 +212,12 @@ pub fn sun_size(
     h: impl Flt,
     k: impl Flt,
 ) -> u32 {
-    let x = x.bits();
-    let cx = cx.bits();
-    let y = y.bits();
-    let cy = cy.bits();
-    let h = h.bits();
-    let k = k.bits();
+    let x = x.value();
+    let cx = cx.value();
+    let y = y.value();
+    let cy = cy.value();
+    let h = h.value();
+    let k = k.value();
     let dx = ld(x) - ld(cx);
     let dx2 = dx * dx;
     let dy = ld(y) - ld(cy);

@@ -1,11 +1,13 @@
 //! The replay viewer's screen (IDA 0x5C291C .. 0x5C2FE4; phase 7, typed): the cameras' text ids, the bar, buttons, marks and place rectangles (scratch ones written each frame), the quad scale floats, the picture switches, the replay patch switches kept, the frame-picture recording state (three dwords at odd addresses), the NET and display text strings between 0x5C2CF7 and 0x5C2F81 (left as unknown bytes), the view marks' state and the listener place and turn. Names are readings unless IDA's.
 
+use crate::cells::ZeroCells;
+use crate::race::first_cells::{dwords, dwords_of_text};
 #[cfg(test)]
 use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ViewerPanelBlock {
     /// +0x0 (0x5C291C): `ViewerAndKinds.viewer_panel.camera_name_ids[0]` / `g_cameraNameIds`: 16-bit text ids of the camera names, read and written by `race::draw_viewer_panel`, `next_camera`, `previous_camera`; the port reaches them through another path, not by this field.
     pub camera_name_ids: [Dword; 24],
@@ -77,6 +79,13 @@ pub struct ViewerPanelBlock {
     pub picture_name: [Dword; 3],
     /// +0x3cc (0x5C2CE8): the untyped tail: the viewer's texts and unaligned values, reached through `text` and the unaligned readers below.
     pub untyped_tail: [Dword; 167],
+}
+
+impl ViewerPanelBlock {
+    /// The viewer panel as the game starts: its rectangles, camera names, picture numbers and the texts it keeps after them.
+    pub const fn new() -> Self {
+        ViewerPanelBlock { camera_name_ids: dwords([0x1CA01D1, 0x1C901D0, 0x1B801B6, 0x1C201C1, 0x1AA01A9, 0x1D201AB, 0x1D401D3, 0x1A601D5, 0x1A801A7, 0x1AD01AC, 0x1AF01AE, 0x1B101B0, 0x1B301B2, 0x1B501B4, 0x1B901B7, 0x1BB01BA, 0x1BD01BC, 0x1BF01BE, 0x1C301C0, 0x1C501C4, 0x1C701C6, 0x1CB01C8, 0x1CD01CC, 0x1CE]), bar_frame_rect: dwords([0, 0, 0x320, 0x20]), button_rect_a: dwords([0, 0x1F, 0x10, 0x10]), button_rect_b: dwords([0xF, 0x1F, 0x182, 0x10]), button_rect_c: dwords([0x190, 0x1F, 0x10, 0x10]), button_rect_d: dwords([0x19F, 0x1F, 0x181, 0x10]), bar_rect: dwords([0x6C, 3, 0x248, 0x1A]), mark_rect: dwords([0, 2, 7, 0x1C]), place_rect: dwords([0, 4, 0x18, 0x18]), viewer_item_rects_a: dwords([0, 0, 0x30, 0x30, 0x30, 0, 0xFFFFFFD0, 0x30, 0x30, 0, 0x30, 0x30, 0x60, 0, 0xFFFFFFD0, 0x30, 0x60, 0, 0x30, 0x30, 0x90, 0, 0xFFFFFFD0, 0x30, 0x91, 0, 0x2F, 0x30, 0xBF, 0, 0xFFFFFFD1, 0x30, 0xC1, 0, 0x30, 0x30, 0xF0, 0, 0xFFFFFFD0, 0x30]), mark_picture_rect: dwords([0xF9, 0, 7, 0x1D]), viewer_item_rect_b: dwords([0, 0x30, 0x30, 0x30]), place_picture_rect: [const { Dword::new(0x30) }; 4], viewer_item_rects_c: dwords([0x60, 0x30, 0x30, 0x30, 0x90, 0x30, 0x30, 0x30, 0xC0, 0x30, 0x14, 0x30, 0xD9, 0x30, 0x22, 0x30, 0, 0x60, 0x30, 0x30, 0x30, 0x60, 0x30, 0x30, 0x60, 0x60, 0x30, 0x30, 0x90, 0x60, 0x30, 0x30, 0xC0, 0x60, 0x30, 0x30, 0, 0x90, 0x30, 0x30, 0x30, 0x90, 0x30, 0x30, 0x60, 0x90, 0x30, 0x30, 0x90, 0x90, 0x30, 0x30, 0xC0, 0x90, 0x30, 0x30, 0, 0xC0, 0x30, 0x30, 0x30, 0xC0, 0x30, 0x30, 0x60, 0xC0, 0x30, 0x30, 0x90, 0xC0, 0x30, 0x30, 0xC0, 0xC0, 0x30, 0x30]), button_picture_rect: dwords([0, 0xF0, 0x10, 0x10]), button_body_rect: dwords([0xF, 0xF0, 0xF1, 0x10]), frame_picture_rect: dwords([1, 0xF1, 0xE, 0xE, 0x3F000000]), one: Float::new(1.0), texel_scale: Float::new(0.00390625), reciprocal_width_800: Float::new(0.00125), reciprocal_height_600: Float::new(0.0016666667), switch_pictures_a: dwords([0x5C2C0C, 0x5C2B1C]), switch_pictures_b: dwords([0x5C2B3C, 0x5C2B4C, 0x5C2B5C, 0x5C2B6C]), switch_pictures_c: dwords([0x5C2B7C, 0x5C2B8C, 0x5C2B9C]), picture_folder: Dword::new(0x6C7072), picture_name: dwords_of_text::<3>(b"rpl\\000000.p"), untyped_tail: dwords_of_text::<167>(b"cx\0\x01\0\0\0d\0\0\0\n\0\0\0Finding 3d hardware\0 dd:\0=\0:\x003d:\0primary card\0secondary card\0VID: Mode for game=\0VID: Mode for main=\0VID: Open ddraw\0VID: Close ddraw\0Getting available video modes\0SVM:\0SVM: OK\0SVM: FAIL\0SDM:\0 SDM return=\0SVM: Release video screens\0SVM: Release all textures\0OpenWindow\0NET: Starting link\0NET: Stopping link\0NET: Lets rally\0NET: Create dplay\0NET: Destroy dplay\0NET: Find connections\0NET: Found\0NET: Init connection index\0NET: Init\0NET: Destroy connection\0NET: DPCA\0NET: Find sessions\0NET: Host\0NET: Open\0NET: Host complete\0NET: Join session\0NET: Join complete\0NET: Disable new players\0NET: Lobby launch detected\0NET: Create dplobby\0NET: Create player"), ..ZeroCells::ZERO }
+    }
 }
 
 /// The piece: a field of `VIEWER_AND_KINDS` since 2026-10-29 (it left the race

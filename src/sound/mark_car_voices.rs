@@ -17,7 +17,7 @@ fn pairs<'a>(
     sound: &'a crate::sound::owner::Sound,
     race: &Race,
 ) -> Result<Vec<(&'a SoundObject, usize)>, BadInput> {
-    let count = sound.race.sounds.count.get();
+    let count = sound.race.shared.count.get();
     if count == 0 || count > 8 {
         return Err(BadInput("a sound object count of 0 or over 8"));
     }
@@ -35,7 +35,7 @@ fn pairs<'a>(
 
 /// Converted: `rc2k_core::sound::cars::voice_mark`.
 pub fn mark_car_voices(sound: &crate::sound::owner::Sound, race: &Race) -> Result<(), Refused> {
-    if sound.race.sounds.mark_car_voices.get() != 1 {
+    if sound.race.sounds.get().mark_car_voices.get() != 1 {
         return Ok(());
     }
     for (n, (o, car)) in pairs(sound, race)?.into_iter().enumerate() {

@@ -182,7 +182,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "logfile.start_log.FREE_SPACE_KB",
-            &crate::logfile::start_log::FREE_SPACE_KB,
+            on_game(crate::logfile::start_log::FREE_SPACE_KB.get()),
         ),
         listed!("math.next_random.STATE", &crate::math::next_random::STATE),
         listed!(
@@ -233,7 +233,10 @@ fn listed_stores() -> Vec<Listed> {
         listed!("memory.state.MOST_HELD", &crate::memory::state::MOST_HELD),
         listed!("memory.state.HELD", &crate::memory::state::HELD),
         listed!("memory.state.TURNOVER", &crate::memory::state::TURNOVER),
-        listed!("memory.state.OWN_HEAP", &crate::memory::state::OWN_HEAP),
+        listed!(
+            "memory.state.OWN_HEAP",
+            on_game(crate::memory::state::OWN_HEAP.get())
+        ),
         listed!(
             "memory.state.OWN_HEAP_KB",
             on_game(crate::memory::state::OWN_HEAP_KB.get()),
@@ -481,7 +484,7 @@ fn listed_stores() -> Vec<Listed> {
             "gfx.owner.GFX.card.texture_tables",
             &crate::gfx::owner::TEXTURE_TABLES,
         ),
-        listed!("film.NO_FMV", &crate::film::NO_FMV),
+        listed!("film.NO_FMV", on_game(crate::film::NO_FMV.get())),
         listed!(
             "gfx.owner.GFX.fonts.game_fonts_memory",
             on_game(&crate::gfx::owner::GFX.get().fonts.game_fonts_memory),
@@ -544,8 +547,12 @@ fn listed_stores() -> Vec<Listed> {
             on_game(crate::race::owner::RACE.replay.seal_key()),
         ),
         listed!(
+            "sound.owner.SOUND.race.shared",
+            &crate::sound::owner::SOUND.race.shared,
+        ),
+        listed!(
             "sound.owner.SOUND.race.sounds",
-            &crate::sound::owner::SOUND.race.sounds,
+            on_game(crate::sound::owner::SOUND.race.sounds.get()),
         ),
         listed!(
             "sound.owner.SOUND.race.clock",
@@ -837,6 +844,14 @@ fn listed_stores() -> Vec<Listed> {
         listed!(
             "race.owner.RACE.shared.buffers",
             &crate::race::owner::RACE.shared.buffers,
+        ),
+        listed!(
+            "race.owner.RACE.shared.viewer",
+            on_game(crate::race::owner::RACE.shared.viewer_buffers()),
+        ),
+        listed!(
+            "race.owner.RACE.shared.text",
+            on_game(crate::race::owner::RACE.shared.text_buffers()),
         ),
         listed!(
             "race.viewer_state_store.RECTANGLES",

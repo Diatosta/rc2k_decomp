@@ -10,7 +10,7 @@
 use crate::errors::Refused;
 use crate::owners::Owners;
 use crate::race::owner::Race;
-use crate::session::Dword;
+use crate::session::DwordLike;
 use core::sync::atomic::{AtomicU32, Ordering::Relaxed};
 
 /// The settings' numbers.
@@ -92,7 +92,7 @@ fn set_up_race(race: &Race) -> Result<(), Refused> {
     // (the neutral gear's wear too, which the network race's clearing leaves).
     for block in &race.car_blocks().cars[..2] {
         crate::net::clear_car_state::clear_car_state(block)?;
-        block.gear_wear[1].set_bits(0);
+        block.gear_wear[1].set(0.0);
     }
     Ok(())
 }
@@ -110,7 +110,7 @@ fn round_a_race(
     let s = &SETTINGS;
     let car = s.car.load(Relaxed);
     let settings = &shared.state.settings;
-    let menus: [(&Dword, u32); 6] = [
+    let menus: [(&dyn DwordLike, u32); 6] = [
         (&settings.car_kind_current, car),
         (&settings.car_kind_first, (car + 1) % 0x17),
         (&settings.run_kind, s.mode.load(Relaxed)),
@@ -165,7 +165,7 @@ fn test_course(o: Owners<'static>) -> Result<(), Refused> {
         // yet, that is nowhere, and the first search ends the game.
         let course = SETTINGS.course.load(Relaxed);
         crate::debug::screens::place_free_play(
-            !crate::debug::screens::raced() || race.shared.vars.get().stage_number.bits() != course,
+            !crate::debug::screens::raced() || race.shared.vars.get().stage_number.get() != course,
         );
         // The player's settings, as a race from the menus; then this tab's.
         crate::race::settings_copy::copy_settings_in(race, o.gfx)?;

@@ -36,7 +36,7 @@ pub struct Shadow<'a> {
     /// The quad is lifted along it.
     pub up: &'a PlainFloat,
     /// The settings' field the angle comes from.
-    pub field: fn(&EffectsSettings) -> &crate::session::Float,
+    pub field: fn(&EffectsSettings) -> &PlainFloat,
 }
 
 /// `draw_shadow`'s.

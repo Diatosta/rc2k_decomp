@@ -9,10 +9,9 @@
 //! shared one held while that view drew. The views' last one (`last_drawn`) is the one the
 //! sound spots read.
 
+use crate::cells::ZeroCells;
 use crate::errors::BadInput;
-use crate::race::level_grid_store::{LevelGrid, first_of};
 use crate::session::Dword;
-use core::mem::offset_of;
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -31,14 +30,14 @@ pub struct ViewGrid {
 }
 
 impl ViewGrid {
-    /// With the image's first values.
+    /// The grid as the game starts it: every record 0, the corner 0.
     pub const fn new() -> Self {
         Self {
-            cells: first_of::<_, 0x1000>(offset_of!(LevelGrid, course_grid)),
-            half: first_of::<_, 4>(offset_of!(LevelGrid, grid_half)),
-            span: first_of::<_, 4>(offset_of!(LevelGrid, grid_span)),
-            x: first_of::<_, 4>(offset_of!(LevelGrid, grid_x)),
-            z: first_of::<_, 4>(offset_of!(LevelGrid, grid_z)),
+            cells: ZeroCells::ZERO,
+            half: Dword::ZERO,
+            span: Dword::ZERO,
+            x: Dword::ZERO,
+            z: Dword::ZERO,
         }
     }
 

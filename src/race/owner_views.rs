@@ -29,7 +29,7 @@ impl Race {
 
     /// The viewer's buffers.
     pub fn viewer_buffers(&self) -> &ViewerBuffers {
-        &self.shared.buffers.viewer
+        self.shared.viewer_buffers()
     }
 
     /// The gear figures.
@@ -64,7 +64,7 @@ impl Race {
 
     /// The screens' text buffers.
     pub fn text_buffers(&self) -> &TextBuffers {
-        &self.shared.buffers.text
+        self.shared.text_buffers()
     }
 
     /// The light records.

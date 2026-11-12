@@ -67,26 +67,6 @@ pub const fn block_ref(ida: u32) -> u32 {
     BLOCK_TAG | (off / IDA_BLOCK_LEN) as u32
 }
 
-/// `bytes` (a store's first values) with the dwords at `at` .. made `block_ref`s.
-pub const fn with_block_refs<const N: usize>(
-    mut bytes: [u8; N],
-    at: usize,
-    count: usize,
-) -> [u8; N] {
-    let mut k = 0;
-    while k < count {
-        let o = at + 4 * k;
-        let v = u32::from_le_bytes([bytes[o], bytes[o + 1], bytes[o + 2], bytes[o + 3]]);
-        let h = block_ref(v).to_le_bytes();
-        bytes[o] = h[0];
-        bytes[o + 1] = h[1];
-        bytes[o + 2] = h[2];
-        bytes[o + 3] = h[3];
-        k += 1;
-    }
-    bytes
-}
-
 /// The number of the block a handle names, none for 0. A value that is no handle ends the
 /// program.
 pub fn block_number(handle: u32) -> Option<usize> {
@@ -107,10 +87,6 @@ pub fn known_block(handle: u32) -> Option<usize> {
     let n = (handle ^ BLOCK_TAG) as usize;
     (n < BLOCK_COUNT).then_some(n)
 }
-
-/// IDA's `g_viewBlocks` (two) and `g_carBlocks` (eight): their places hold handles.
-pub const VIEW_BLOCKS_IDA: usize = 0x63DBB0;
-pub const CAR_BLOCKS_IDA: usize = 0x71B3B8;
 
 /// The number of the block a handle names; refused for 0 (the address version found no car
 /// block's place there) and the end of the program for a value naming none (as

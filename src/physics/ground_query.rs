@@ -7,39 +7,39 @@
 use crate::physics::ground_probe_store::GroundProbe;
 use crate::physics::ground_store::GroundWork;
 use crate::race::course_store::CourseWork;
-use crate::session::{Dword, Float, PlainDword};
+use crate::session::{PlainDword, PlainFloat};
 
 /// The search's fields (the physics' names in brackets).
 #[derive(Clone, Copy)]
 pub struct GroundQuery<'a> {
     /// The place asked for (`ground_x`, `ground_z`).
-    pub x: &'a Dword,
-    pub z: &'a Dword,
+    pub x: &'a PlainDword,
+    pub z: &'a PlainDword,
     /// The ground's height under it (`ground_height`), 1 when a face was found
     /// (`ground_found`), 1 once `face_under_point` found one (`face_under_point_done`).
-    pub height: &'a Dword,
-    pub found: &'a Dword,
-    pub done: &'a Dword,
+    pub height: &'a PlainDword,
+    pub found: &'a PlainDword,
+    pub done: &'a PlainDword,
     /// The face's three corner point numbers (`face_corner_numbers`), their places
     /// (`face_corners`), the point copied (`face_point_x`, `face_point_z`) and the
     /// differences (`corner_x_differences`, `corner_y_differences`, `corner_z_differences`).
-    pub corner_numbers: &'a [Dword; 3],
-    pub corners: &'a [Dword; 9],
-    pub point_x: &'a Dword,
-    pub point_z: &'a Dword,
-    pub x_differences: &'a [Dword; 3],
-    pub y_differences: &'a [Dword; 2],
-    pub z_differences: &'a [Dword; 3],
+    pub corner_numbers: &'a [PlainDword; 3],
+    pub corners: &'a [PlainDword; 9],
+    pub point_x: &'a PlainDword,
+    pub point_z: &'a PlainDword,
+    pub x_differences: &'a [PlainDword; 3],
+    pub y_differences: &'a [PlainDword; 2],
+    pub z_differences: &'a [PlainDword; 3],
     /// `physics::face_shares`' outputs (`face_share_a` .. `face_share_scale`, `plane_f`,
     /// `plane_g`, `share_s`, `share_t`).
-    pub share_a: &'a Float,
-    pub share_b: &'a Float,
-    pub share_c: &'a Float,
-    pub share_scale: &'a Float,
-    pub plane_f: &'a Float,
-    pub plane_g: &'a Float,
-    pub share_s: &'a Dword,
-    pub share_t: &'a Dword,
+    pub share_a: &'a PlainFloat,
+    pub share_b: &'a PlainFloat,
+    pub share_c: &'a PlainFloat,
+    pub share_scale: &'a PlainFloat,
+    pub plane_f: &'a PlainFloat,
+    pub plane_g: &'a PlainFloat,
+    pub share_s: &'a PlainDword,
+    pub share_t: &'a PlainDword,
     /// The edge test's 64-bit product (`GroundProbe.product`) and the caller's mark
     /// (`GroundProbe.settle_mark`, 0x40 or 0x80).
     pub product: &'a [PlainDword; 2],
@@ -97,26 +97,26 @@ impl<'a> GroundQuery<'a> {
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct GroundCells {
-    x: Dword,
-    z: Dword,
-    height: Dword,
-    found: Dword,
-    done: Dword,
-    corner_numbers: [Dword; 3],
-    corners: [Dword; 9],
-    point_x: Dword,
-    point_z: Dword,
-    x_differences: [Dword; 3],
-    y_differences: [Dword; 2],
-    z_differences: [Dword; 3],
-    share_a: Float,
-    share_b: Float,
-    share_c: Float,
-    share_scale: Float,
-    plane_f: Float,
-    plane_g: Float,
-    share_s: Dword,
-    share_t: Dword,
+    x: PlainDword,
+    z: PlainDword,
+    height: PlainDword,
+    found: PlainDword,
+    done: PlainDword,
+    corner_numbers: [PlainDword; 3],
+    corners: [PlainDword; 9],
+    point_x: PlainDword,
+    point_z: PlainDword,
+    x_differences: [PlainDword; 3],
+    y_differences: [PlainDword; 2],
+    z_differences: [PlainDword; 3],
+    share_a: PlainFloat,
+    share_b: PlainFloat,
+    share_c: PlainFloat,
+    share_scale: PlainFloat,
+    plane_f: PlainFloat,
+    plane_g: PlainFloat,
+    share_s: PlainDword,
+    share_t: PlainDword,
     product: [PlainDword; 2],
     settle_mark: PlainDword,
     number: PlainDword,
@@ -128,8 +128,8 @@ pub struct GroundCells {
 
 impl GroundCells {
     pub fn new() -> Self {
-        let d = || Dword::new(0);
-        let f = || Float::new(0.0);
+        let d = || PlainDword::new(0);
+        let f = || PlainFloat::new(0.0);
         GroundCells {
             x: d(),
             z: d(),
@@ -204,7 +204,7 @@ impl GroundCells {
     }
 
     /// The share kept in `plane_f` (`GroundQuery::plane_f`).
-    pub fn plane_f(&self) -> &Float {
+    pub fn plane_f(&self) -> &PlainFloat {
         &self.plane_f
     }
 }

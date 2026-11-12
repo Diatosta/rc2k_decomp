@@ -22,7 +22,7 @@ pub fn cue_car_sound_last(
     let failed = std::cell::Cell::new(None);
     let found = cue_object(
         which,
-        |which| sound.race.sounds.player_cars[which as usize].get(),
+        |which| sound.race.sounds.get().player_cars[which as usize].get(),
         |car| car,
         |car| match SoundObject::of(sound, car) {
             Ok(o) => o.in_use.get(),

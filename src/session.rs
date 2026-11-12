@@ -962,10 +962,20 @@ pub(crate) fn assert_game_thread() {
 /// (`set_game_thread`). Anything a second thread must see stays in atomic cells, outside.
 /// One exception, argued where it is made: a `DrawShared` store is held in a `GameThread`
 /// and lent, read only, to the drawing threads for one drawing scope (`PhaseRead`).
+#[repr(transparent)]
 pub struct GameThread<T>(T);
 
 // SAFETY: reached only from the game's thread (above); `get` asserts it in debug builds.
 unsafe impl<T> Sync for GameThread<T> {}
+
+/// A record of the game's thread held among records of shared cells reads through the
+/// wrapper as through `get` (`state.results.finished`).
+impl<T> core::ops::Deref for GameThread<T> {
+    type Target = T;
+    fn deref(&self) -> &T {
+        self.get()
+    }
+}
 
 impl<T> GameThread<T> {
     pub const fn new(value: T) -> Self {

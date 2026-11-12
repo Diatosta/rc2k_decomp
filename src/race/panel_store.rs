@@ -5,11 +5,12 @@
 //! unless IDA's.
 //! Most of its dwords lie at addresses that are not a multiple of 4 (the piece starts at 0x6D13FE): they are `Loose32` cells and the piece needs no alignment.
 
+use crate::cells::ZeroCells;
 use crate::session::{Bytes, PlainBytes, PlainLoose};
 
 /// A dword at an address that is not a multiple of 4: plain unaligned volatile loads and stores, as the image's were.
 #[repr(transparent)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct Loose32(Bytes<4>);
 
 impl Loose32 {
@@ -28,7 +29,7 @@ impl Loose32 {
 
 /// The first view's values for the panel (0x30 bytes from 0x6D140E; `race::panel_values`, `race::panel_motion`).
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ViewA {
     /// The speed shown, rounded (`flt_6D140E`; the car's +0x718).
     pub whole: PlainLoose,
@@ -54,7 +55,7 @@ pub struct ViewA {
 
 /// The second view's values for the panel (0x28 bytes from 0x6D143E).
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ViewB {
     pub whole: PlainLoose,
     pub speed: PlainLoose,
@@ -71,7 +72,7 @@ pub struct ViewB {
 
 /// One view's start lights (0x10 bytes from 0x6D1482 and 0x6D1492; `race::countdown_lights`, `drive::countdown_beep`).
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct Lights {
     /// The lit count (`unk_6D1482`; -1 before the race: no extra texture).
     pub lit: PlainLoose,
@@ -85,7 +86,7 @@ pub struct Lights {
 
 /// One view's marks (0x14 bytes from 0x6D14A2 and 0x6D14B6; `race::panel_marks`).
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct Marks {
     /// The first (at most 4) marks, each + 1.
     pub marks: [PlainLoose; 4],
@@ -94,7 +95,7 @@ pub struct Marks {
 }
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct Panel {
     /// +0x0 (0x6D13FE): `g_hudRecord`: the HUD record's first dword (the first car's split gap 6,
     /// `race::panel_values`).
@@ -139,9 +140,27 @@ pub struct Panel {
     pub texture_changes: PlainLoose,
 }
 
-/// IDA 0x6D13FE, the first byte of the piece.
-pub const START: usize = 0x6D13FE;
-/// IDA 0x6D150C, the end of the piece.
-pub const END: usize = 0x6D150C;
-
-const _: () = assert!(END - START == core::mem::size_of::<Panel>());
+impl Panel {
+    /// The hud's panel as the game starts.
+    pub const fn new() -> Self {
+        Panel {
+            overlay_miles: PlainLoose::new(0x42700000),
+            distance: [const { PlainLoose::new(0x40A00000) }; 2],
+            overlay_parts: PlainLoose::new(6),
+            unused_78: PlainBytes::new([
+                0xC, 0x15, 0x6D, 0, 0xC, 0x16, 0x6D, 0, 0xC, 0x17, 0x6D, 0,
+            ]),
+            lights: [const {
+                Lights {
+                    lit: PlainLoose::new(0xFFFFFFFF),
+                    ..ZeroCells::ZERO
+                }
+            }; 2],
+            unused_d4: PlainBytes::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xA0, 0x40, 0, 0, 0xA0, 0x40, 0, 0, 0xA0, 0x40, 0, 0,
+                0xA0, 0x40, 0, 0, 0xA0, 0x40, 0, 0, 0xA0, 0x40,
+            ]),
+            ..ZeroCells::ZERO
+        }
+    }
+}

@@ -131,7 +131,7 @@ fn image(physics: &Physics) -> Vec<u8> {
 /// The image put back in the fields it was read from.
 fn put_image(physics: &Physics, image: &[u8]) {
     let pace = physics.pace();
-    let (dwords, text) = image.split_at(IMAGE_LEN - pace.text.atomics().len());
+    let (dwords, text) = image.split_at(IMAGE_LEN - pace.text.cells().len());
     let mut words = dwords
         .as_chunks::<4>()
         .0
@@ -151,7 +151,9 @@ fn put_image(physics: &Physics, image: &[u8]) {
 }
 
 /// The six dword tables in the image's order.
-fn tables(pace: &crate::physics::pace_store::PaceNotes) -> [&[crate::session::Dword; 1024]; 6] {
+fn tables(
+    pace: &crate::physics::pace_store::PaceNotes,
+) -> [&[crate::session::PlainDword; 1024]; 6] {
     [
         &pace.note_starts,
         &pace.note_ends,

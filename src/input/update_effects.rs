@@ -25,7 +25,7 @@ use crate::system::owner::System;
 /// The variables it reads (the game's or a test's).
 #[derive(Clone, Copy)]
 pub struct Vars<'a> {
-    pub cars: &'a [Dword; 2],
+    pub cars: &'a [crate::session::PlainDword; 2],
     pub one_player: &'a Dword,
     pub count: &'a Dword,
     pub devices: &'a [Dword; 2],
@@ -40,12 +40,12 @@ impl<'a> Vars<'a> {
     pub fn game(input: &'a Input, sound: &'a Sound, race: &'a Race) -> Self {
         Self {
             // g_playerCarA, g_playerCarB, g_onePlayer, g_raceSoundObjectCount.
-            cars: &sound.race.sounds.player_cars,
-            one_player: &sound.race.sounds.one_player,
-            count: &sound.race.sounds.count,
+            cars: &sound.race.sounds.get().player_cars,
+            one_player: &sound.race.shared.one_player,
+            count: &sound.race.shared.count,
             devices: &input.devices.input_devices,
             views: &race.shared.view.get().view_blocks,
-            objects: &sound.race.sounds.objects,
+            objects: &sound.race.sounds.get().objects,
             two_devices: &input.devices.two_devices_one_player,
             car_blocks: race.car_blocks(),
         }
@@ -60,7 +60,7 @@ pub fn update_effects_with(input: &Input, system: &System, v: &Vars<'_>) -> Resu
         return Ok(());
     }
     let p = Players {
-        cars: v.cars.each_ref().map(super::super::session::Dword::get),
+        cars: v.cars.each_ref().map(crate::session::PlainDword::get),
         one_player: v.one_player.get() == 1,
         // the devices by handle: the core only asks whether one is none (0)
         devices: v.devices.each_ref().map(crate::session::Dword::get),

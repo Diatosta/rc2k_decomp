@@ -39,7 +39,8 @@ use crate::system::owner::System;
 use std::ffi::CStr;
 
 /// `g_noFmv` (`dword_5BE870`, `nofmv`, a `var\ral.cfg` setting): 1 = no films.
-pub static NO_FMV: crate::session::Dword = crate::session::Dword::new(0);
+pub static NO_FMV: crate::session::GameThread<crate::session::PlainDword> =
+    crate::session::GameThread::new(crate::session::PlainDword::new(0));
 
 // ---- the AVI ----
 
@@ -578,7 +579,7 @@ pub fn play_film_now(
     o: crate::owners::Owners<'static>,
     path: &dyn crate::session::TextPlace,
 ) -> bool {
-    if NO_FMV.get() != 0 {
+    if NO_FMV.get().get() != 0 {
         return false;
     }
     play_film(o, path)

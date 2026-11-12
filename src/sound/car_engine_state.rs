@@ -76,8 +76,8 @@ fn load(o: &crate::sound::store::SoundObject) -> Engine {
 /// The dwords `now` has changed from `before` put back in the object (the others are left
 /// alone, as the original never wrote them).
 fn store(o: &crate::sound::store::SoundObject, before: &Engine, now: &Engine) {
-    use crate::session::Dword;
-    let put = |cell: &Dword, was: u32, is: u32| {
+    use crate::session::PlainDword;
+    let put = |cell: &PlainDword, was: u32, is: u32| {
         if was != is {
             cell.set(is);
         }
@@ -172,6 +172,7 @@ pub fn car_engine_state(
     so.volume_factor.set(0.0);
     ease_pitch_factor(so, sound.race.clock.get(), sound.race.surface.get());
     so.volume_factor.set(1.0);
+    // The float's bit pattern compared as a signed integer: 1.0f32 is 0x3F80_0000.
     if so.distance.bits() as i32 > 0x3F80_0000 {
         volume_factor_by_distance(so);
     }

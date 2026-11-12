@@ -26,7 +26,7 @@ pub fn seal_time(
     let value = sealed_value(
         time,
         menus.play.cheats.cheats.get(),
-        race.shared.work.get().patch_switch().bits(),
+        race.shared.work.get().patch_switch().get(),
     );
     let bytes = block(value, bytes);
     let [b0, b1, b2, b3, b4, b5, b6, b7] = bytes;

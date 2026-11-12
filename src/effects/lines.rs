@@ -13,7 +13,7 @@ use crate::race::effects_settings_store::{CarEffects, EffectsSettings};
 use crate::race::owner_course::Course;
 use crate::scene::objects::FACES;
 use crate::scene::owner::Scene;
-use crate::session::{Dword, PlainDword, PlainFloat};
+use crate::session::{PlainDword, PlainFloat};
 use rc2k_core::effects::lines as core;
 
 /// A settings block is a car record's part (`core::BLOCKS_AT` from the settings).
@@ -21,7 +21,13 @@ const _: () = assert!(crate::race::effects_settings_store::CAR_BLOCK + 0x60 == c
 
 /// The lines of two faces (`from`, `to`): for each of `from`'s points (+0x10, 0x10 apart)
 /// the length to `to`'s, added to the whole number at `sum`.
-fn lines(course: &Course, paths: &Paths, from: u32, to: u32, sum: &Dword) -> Result<(), Refused> {
+fn lines(
+    course: &Course,
+    paths: &Paths,
+    from: u32,
+    to: u32,
+    sum: &PlainDword,
+) -> Result<(), Refused> {
     lines_with(course, paths, from, to, sum, x87_length)?;
     Ok(())
 }
@@ -37,7 +43,7 @@ fn lines_with(
     paths: &Paths,
     from: u32,
     to: u32,
-    sum: &Dword,
+    sum: &PlainDword,
     length: fn([i32; 3], i32) -> i32,
 ) -> Result<(), Refused> {
     {
@@ -254,7 +260,7 @@ pub fn measure_lines(
             }
             if paths.lines_work.shares.get() == 1 {
                 let hundred = effects.setup.floats.hundred.get();
-                let share = |at: &Dword, of: &Dword| {
+                let share = |at: &PlainDword, of: &PlainDword| {
                     at.set(
                         x87::share_left_to_int(at.get() as i32, of.get() as i32, hundred) as u32,
                     );

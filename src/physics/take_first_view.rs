@@ -16,7 +16,7 @@ use crate::physics::camera_view::record;
 use crate::physics::car_store::Car;
 use crate::race::groups_store::ViewAndRecords;
 use crate::race::view_vars_store::ViewRecord;
-use crate::session::{Dword, Float};
+use crate::session::{PlainDword, PlainFloat};
 
 /// The exact version, for `physics::update_camera`: `s` the view's record.
 pub fn take_first_view(
@@ -49,7 +49,7 @@ pub fn take_first_view(
 
 /// The record's +0x10 .. +0x38 into a view: three vectors of floats (held in the record's
 /// dwords), then two dwords.
-pub fn take_figures(s: &ViewRecord, floats: [&[Float; 3]; 3], dwords: [&Dword; 2]) {
+pub fn take_figures(s: &ViewRecord, floats: [&[PlainFloat; 3]; 3], dwords: [&PlainDword; 2]) {
     let v = s.taken();
     for (n, cell) in floats.into_iter().flatten().enumerate() {
         cell.set(f32::from_bits(v[n]));

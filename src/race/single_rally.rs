@@ -14,9 +14,11 @@ use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::owner::Menus;
 use crate::race::owner::Race;
 use crate::race::state_store::{RaceCar, RaceResult};
+use crate::session::Bytes;
+#[cfg(test)]
+use crate::session::Dword;
 use crate::session::DwordLike;
 use crate::session::PlainDword;
-use crate::session::{Bytes, Dword};
 #[cfg(test)]
 use crate::system::owner::system;
 use rc2k_core::menu::player::{Player, TAKES_PART};
@@ -73,13 +75,21 @@ fn switch() -> &'static PlainDword {
     &crate::menu::owner::MENUS.get().play.arcade.scene_let_go
 }
 #[cfg(test)]
-const STAGE: &Dword = &crate::race::owner::RACE.shared.state.settings.stage;
+fn stage() -> &'static PlainDword {
+    &crate::race::owner::RACE.shared.state.settings.stage
+}
 #[cfg(test)]
-const RACE_KEPT: &Dword = &crate::race::owner::RACE.shared.state.settings.kept;
+fn race_kept() -> &'static PlainDword {
+    &crate::race::owner::RACE.shared.state.settings.kept
+}
 #[cfg(test)]
-const RESULT: &Dword = &crate::race::owner::RACE.shared.state.results.results[0].result;
+fn result() -> &'static PlainDword {
+    &crate::race::owner::RACE.shared.state.results.results[0].result
+}
 #[cfg(test)]
-const RESULT_2: &Dword = &crate::race::owner::RACE.shared.state.results.results[1].result;
+fn result_2() -> &'static PlainDword {
+    &crate::race::owner::RACE.shared.state.results.results[1].result
+}
 /// One player's side of the race variables: the car's settings and the results it
 /// leaves. `first_side` is player 1's, `current_side` the current player's.
 struct Side<'a> {
@@ -139,9 +149,13 @@ const TIMES_CURRENT: [&Dword; 4] = [
 #[cfg(test)]
 const EXTRA_CURRENT: &Dword = &crate::race::owner::RACE.shared.state.settings.cars[0].wear[14];
 #[cfg(test)]
-const OUTCOME_FIRST: &RaceResult = &crate::race::owner::RACE.shared.state.results.results[1];
+fn outcome_first() -> &'static RaceResult {
+    &crate::race::owner::RACE.shared.state.results.results[1]
+}
 #[cfg(test)]
-const OUTCOME_CURRENT: &RaceResult = &crate::race::owner::RACE.shared.state.results.results[0];
+fn outcome_current() -> &'static RaceResult {
+    &crate::race::owner::RACE.shared.state.results.results[0]
+}
 
 /// The fatal error of a track number not in the list.
 const UNKNOWN_TRACK: FatalError = FatalError {
@@ -150,7 +164,7 @@ const UNKNOWN_TRACK: FatalError = FatalError {
 };
 
 /// Five settings words copied to the race variables (from, to).
-fn settings_to_race<'a>(menus: &'a Menus, race: &'a Race) -> [(&'a PlainDword, &'a Dword); 5] {
+fn settings_to_race<'a>(menus: &'a Menus, race: &'a Race) -> [(&'a PlainDword, &'a PlainDword); 5] {
     let (from, to) = (&menus.screens.option_work, &race.shared.state.settings);
     [
         (&from.lens_flare, &to.lens_flare),
@@ -921,11 +935,11 @@ mod vector_tests {
             }
             match place {
                 1 => summary().set(self.rng.next()),
-                3 => STAGE.set(c.stage),
+                3 => stage().set(c.stage),
                 4 => after_loading().set(self.rng.next()),
                 7 => {
                     // The race changes everything the results are copied from.
-                    let (kept, kept_2) = (RESULT.get(), RESULT_2.get());
+                    let (kept, kept_2) = (result().get(), result_2().get());
                     let state = store("race.owner.RACE.shared.state");
                     for at in (0x34..0x430).step_by(4) {
                         state.store(at, &self.rng.next().to_le_bytes()).unwrap();
@@ -945,17 +959,17 @@ mod vector_tests {
                         }
                         extra.set(e);
                     }
-                    RESULT.set(c.result.unwrap_or(kept));
-                    RESULT_2.set(c.result_2.unwrap_or(kept_2));
-                    OUTCOME_CURRENT.secs.set(f32::from_bits(c.secs));
-                    OUTCOME_FIRST.secs.set(f32::from_bits(c.secs_2));
+                    result().set(c.result.unwrap_or(kept));
+                    result_2().set(c.result_2.unwrap_or(kept_2));
+                    outcome_current().secs.set(f32::from_bits(c.secs));
+                    outcome_first().secs.set(f32::from_bits(c.secs_2));
                 }
                 9 => {
                     if let Some(s) = c.switch_after {
                         switch().set(s);
                     }
                 }
-                13 => RACE_KEPT.set(self.rng.next()),
+                13 => race_kept().set(self.rng.next()),
                 _ => {}
             }
             Ok(())

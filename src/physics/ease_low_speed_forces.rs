@@ -8,7 +8,6 @@
 use crate::effects::cell_x87::CellX87;
 use crate::math::x87;
 use crate::math::x87::abs_compare;
-use crate::math::x87_float as bh;
 use crate::physics::car_store::Car;
 use crate::physics::tables_store::PhysicsTables;
 
@@ -23,10 +22,9 @@ pub fn ease_low_speed_forces(car: &Car, tables: &PhysicsTables) {
         return;
     }
     // The product is rounded to a float where it is stored (`fstp`).
-    factor.set_bits(bh::st(
-        (bh::ld(speed.bits()).abs() / bh::ld(limit.bits()) + tables.low_speed_add.ld())
-            * tables.low_speed_scale.ld(),
-    ));
+    factor
+        .st((speed.ld().abs() / limit.ld() + tables.low_speed_add.ld())
+            * tables.low_speed_scale.ld());
     for f in &tables.drive_forces {
         f.set(x87::mul(f, factor));
     }

@@ -3,7 +3,7 @@
 //! race recorded and the same race played back must go through the same states. Every
 //! 1000 ticks of car 0's clock (and at its first tick) `rc2k.log` gets one line: the mode
 //! (recording or playing), the clock, and for each car a hash of the state the replay
-//! keeps (the first `CAR_DWORDS` dwords of its block), its speed and its gear. Two runs
+//! keeps (the first `CAR_DWORDS` dwords of its replay frame, gathered field by field), its speed and its gear. Two runs
 //! compare by their lines: the first that differs is where the physics went apart.
 //!
 //! A replay also keeps the cars' whole state at each of its frames (100 steps): playing
@@ -20,7 +20,7 @@ use crate::drive::replay_state::{
 };
 use crate::errors::BadInput;
 use crate::race::owner::Race;
-use rc2k_core::drive::replay_frames::{CAR_DWORDS, PLAYING, RECORDING};
+use rc2k_core::drive::replay_frames::{PLAYING, RECORDING};
 use rc2k_core::drive::replay_frames::{StartPiece, start_layout};
 use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
 
@@ -75,18 +75,12 @@ pub fn note(race: &Race) -> Result<(), BadInput> {
         return Ok(());
     }
     let mut line = format!("replay check: {mode}, clock {clock}:");
+    // The cars' state as the replay file keeps it, field by field at the file's offsets, so
+    // the hash does not depend on how the live record lies in memory.
+    let kept = crate::drive::replay_state::gather(&race.car_blocks().cars, race.shared.work.get());
     for car in 0..race.shared.view.get().race_cars.get().min(4) as usize {
-        // g_carBlockStore: four blocks of 0xFE0.
         let block = &race.car_blocks().cars[car];
-        let mut bytes = vec![0u8; 4 * CAR_DWORDS];
-        crate::cells::Store::load(block, 0, &mut bytes)?;
-        let h = hash(
-            bytes
-                .as_chunks::<4>()
-                .0
-                .iter()
-                .map(|w| u32::from_le_bytes(*w)),
-        );
+        let h = hash(kept.cars[car].iter().copied());
         let speed = block.local_velocity[2].get(); // g_carSpeed's place in the block
         let gear = block.gear.get() as i32; // g_carGear's
         line += &format!(" car {car} {h:08x} speed {speed:.3} gear {gear};");

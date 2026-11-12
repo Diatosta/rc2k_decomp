@@ -688,6 +688,31 @@ unsafe impl<T: Cells, const N: usize> Cells for [T; N] {
     }
 }
 
+// SAFETY: one `T` (`repr(transparent)`), whose cells are handed out only on the game's thread
+// (`GameThread::get` asserts it in debug builds).
+unsafe impl<T: Cells> Cells for crate::session::GameThread<T> {
+    fn copy_from(&self, other: &Self) {
+        self.get().copy_from(other.get());
+    }
+
+    fn merge_changes(&self, now: &Self, start: &Self) {
+        self.get().merge_changes(now.get(), start.get());
+    }
+
+    #[cfg(any(test, feature = "remote"))]
+    fn field_path(&self, offset: usize, path: &mut String) -> &'static str {
+        self.get().field_path(offset, path)
+    }
+
+    fn cell_run(&self, offset: usize) -> (usize, CellRun<'_>) {
+        self.get().cell_run(offset)
+    }
+}
+
+impl<T: ZeroCells> ZeroCells for crate::session::GameThread<T> {
+    const ZERO: Self = crate::session::GameThread::new(T::ZERO);
+}
+
 /// A cell or record of cells whose every byte is zero, as a constant: `#[derive(ZeroCells)]`
 /// makes it for a record whose fields all have one, so a store's `new()` can name only the
 /// fields that start non-zero (`Record { count: Dword::new(3), ..ZeroCells::ZERO }`).

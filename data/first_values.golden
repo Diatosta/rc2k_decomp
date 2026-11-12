@@ -342,8 +342,8 @@ store:race.owner.RACE.replay.seal_key 4 ea0926acd178a713
 store:race.owner.RACE.replay.seal_work 152 a4e55694431cc7e4
 store:race.owner.RACE.replay.snapshot 26 95884f1f90d02c3b
 store:race.owner.RACE.replay.staging 10256 b4b23a370e5a49c2
-store:race.owner.RACE.replay.viewer_and_kinds 13252 8968eb31b270d587
-store:race.owner.RACE.shared.buffers 1157600 82fcf3a124000c4f
+store:race.owner.RACE.replay.viewer_and_kinds 13224 a8c0fc0a11086d56
+store:race.owner.RACE.shared.buffers 1072708 55de2ac38305a1b0
 store:race.owner.RACE.shared.car 3977 a2566bb6c9115188
 store:race.owner.RACE.shared.physics_tables 5392 3c650126eb223cc9
 store:race.owner.RACE.shared.replay_file 14496 ab5e1cae151d55eb
@@ -351,9 +351,11 @@ store:race.owner.RACE.shared.replays 4272 b27ece664afd2105
 store:race.owner.RACE.shared.state 1088 64196dc7b6ea4ceb
 store:race.owner.RACE.shared.switches 1072 ec8e1a9f4174d088
 store:race.owner.RACE.shared.tables 3120 e1a9c61c24ba82e3
+store:race.owner.RACE.shared.text 1580 33ace74306c356a7
 store:race.owner.RACE.shared.tyre_change 368 3d901d05986e183b
 store:race.owner.RACE.shared.vars 2456 0784a55b4d5ee07e
 store:race.owner.RACE.shared.view 676 9772bb0c6fafaab8
+store:race.owner.RACE.shared.viewer 83312 8757defaa39bbe7e
 store:race.owner.RACE.shared.work 5060 06e59f0deab41203
 store:race.viewer_state_store.RECTANGLES 520 83201dff82440c97
 store:saves.owner.SAVES.best_times 96 62b2ea7209ed5957
@@ -389,7 +391,8 @@ store:sound.owner.SOUND.race.clock 36 352f61de96d6d2df
 store:sound.owner.SOUND.race.cue_lists 1288 3a36d7ad43e898f0
 store:sound.owner.SOUND.race.kinds 5064 3a3f5ea226cfa14d
 store:sound.owner.SOUND.race.sets 2516 f8cd28f61304e2c3
-store:sound.owner.SOUND.race.sounds 9248 a38f7a4fe31ae068
+store:sound.owner.SOUND.race.shared 8 6c44a033aeb4f6c3
+store:sound.owner.SOUND.race.sounds 9240 374ada1c3465e9a5
 store:sound.owner.SOUND.race.sounds_on 4 4a0e7aa47b42ea82
 store:sound.owner.SOUND.race.spot_picks 284 24082926a6f86519
 store:sound.owner.SOUND.race.spot_voices 5760 61958b436d2fe218

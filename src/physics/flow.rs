@@ -76,6 +76,17 @@ pub fn p(x: &impl crate::session::Cell32, v: u32) {
     x.set_bits(v);
 }
 
+/// The whole number held in the cell `x` (what `fild` loads from a float variable that holds a
+/// count).
+pub fn whole(x: &impl crate::session::Cell32) -> i32 {
+    x.bits() as i32
+}
+
+/// Stores the whole number `v` into the cell `x` (`fistp`).
+pub fn set_whole(x: &impl crate::session::Cell32, v: i32) {
+    x.set_bits(v as u32);
+}
+
 /// `fld a; fcomp b`: C0, a below b or unordered.
 pub fn c0(a: impl x87::Flt, b: impl x87::Flt) -> bool {
     compare_full(a.bits(), b.bits()) & 0x100 != 0

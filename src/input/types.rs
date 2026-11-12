@@ -18,7 +18,7 @@ pub type Guid = [u8; 16];
 
 /// `g_controllers` (16 of them): a listed joystick (`input::joystick_found`).
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct Controller {
     /// +0: DIDEVCAPS' flags: 1 attached, 0x100 force feedback.
     pub caps_flags: Dword,
@@ -42,44 +42,16 @@ pub struct Controller {
     pub name: Bytes<32>,
 }
 
-impl Controller {
-    /// An entry from its 0x50 bytes.
-    pub const fn from_le_bytes(b: &[u8; 0x50]) -> Self {
-        let mut instance = [0u8; 16];
-        let mut name = [0u8; 32];
-        let mut k = 0;
-        while k < 16 {
-            instance[k] = b[0x20 + k];
-            k += 1;
-        }
-        k = 0;
-        while k < 32 {
-            name[k] = b[0x30 + k];
-            k += 1;
-        }
-        Self {
-            caps_flags: dword_of(b, 0),
-            dev_type: dword_of(b, 4),
-            axes: dword_of(b, 8),
-            buttons: dword_of(b, 0xC),
-            hats: dword_of(b, 0x10),
-            axis_bits: dword_of(b, 0x14),
-            attached: dword_of(b, 0x18),
-            force_feedback: dword_of(b, 0x1C),
-            instance: Bytes::new(instance),
-            name: Bytes::new(name),
-        }
-    }
-}
-
 // ---- the device records: cells in the store, built from the image's bytes ----
 
 /// The little-endian dword of `b` at `at`.
+#[cfg(test)]
 const fn dword_of(b: &[u8], at: usize) -> Dword {
     Dword::new(u32::from_le_bytes([b[at], b[at + 1], b[at + 2], b[at + 3]]))
 }
 
 /// `N` dwords of `b` from `at`.
+#[cfg(test)]
 const fn dwords_of<const N: usize>(b: &[u8], at: usize) -> [Dword; N] {
     let mut out = [const { Dword::new(0) }; N];
     let mut k = 0;
@@ -99,7 +71,7 @@ fn put_dwords<'a>(out: &mut [u8], at: usize, ds: impl IntoIterator<Item = &'a Dw
 
 /// DirectInput's `DIENVELOPE`.
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct DiEnvelope {
     pub size: Dword,
     pub attack_level: Dword,
@@ -109,6 +81,7 @@ pub struct DiEnvelope {
 }
 
 impl DiEnvelope {
+    #[cfg(test)]
     const fn at(b: &[u8], at: usize) -> Self {
         Self {
             size: dword_of(b, at),
@@ -141,7 +114,7 @@ impl DiEnvelope {
 /// DirectInput stand-in is given the parts (`effect_objects::parameters_of`) and takes only
 /// whether each pointer is set.
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct DiEffect {
     pub size: Dword,
     pub flags: Dword,
@@ -159,6 +132,7 @@ pub struct DiEffect {
 }
 
 impl DiEffect {
+    #[cfg(test)]
     const fn at(b: &[u8], at: usize) -> Self {
         Self {
             size: dword_of(b, at),
@@ -218,7 +192,7 @@ impl DiEffect {
 
 /// One of a device record's six force-feedback effects (`input::make_effect`).
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ForceEffect {
     /// +0: its function (`input::effect_N_change`, a game address), called with a change.
     pub change: Dword,
@@ -251,6 +225,7 @@ pub struct ForceEffect {
 }
 
 impl ForceEffect {
+    #[cfg(test)]
     const fn at(b: &[u8], at: usize) -> Self {
         let mut guid = [0u8; 16];
         let mut k = 0;
@@ -308,7 +283,7 @@ impl ForceEffect {
 
 /// A control's binding: its key, the axis's place in the record, its sign, a button's bit.
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct Binding {
     pub key: Dword,
     /// The axis's place in the record (0x2C, 0x30, 0x34; 0 none).
@@ -318,6 +293,7 @@ pub struct Binding {
 }
 
 impl Binding {
+    #[cfg(test)]
     const fn at(b: &[u8], at: usize) -> Self {
         Self {
             key: dword_of(b, at),
@@ -335,7 +311,7 @@ impl Binding {
 
 /// `g_inputRecord1` / `2`: a player's input device (`input/devices.rs`).
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct InputDevice {
     /// +0: the controller's number in `g_controllers`.
     pub controller: Dword,
@@ -385,6 +361,7 @@ pub struct InputDevice {
 
 impl InputDevice {
     /// A record from the image's `RECORD_LEN` bytes.
+    #[cfg(test)]
     pub const fn from_bytes(b: &[u8; 0x4F8]) -> Self {
         let mut effects = [const { ForceEffect::at(&[0; 0xA4], 0) }; 6];
         let mut k = 0;

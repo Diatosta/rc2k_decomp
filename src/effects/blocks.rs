@@ -158,9 +158,7 @@ pub fn reset_settings_blocks(effects: &crate::effects::owner::Effects) -> Result
             {
                 cell.set(x87::loaded(v));
             }
-            let last = car.steps[0]
-                .each_ref()
-                .map(super::super::session::Float::get);
+            let last = car.steps[0].each_ref().map(PlainFloat::get);
             for steps in &car.steps[1..] {
                 for (cell, v) in steps.iter().zip(last) {
                     cell.set(v);

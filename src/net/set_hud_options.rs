@@ -12,7 +12,7 @@ use crate::gfx::owner::Gfx;
 use crate::net::store::NetVars;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
-use crate::session::Dword;
+use crate::session::{Dword, PlainDword};
 use rc2k_core::net::cars;
 
 /// The switches, in the original's order (their bits: `rc2k_core::net::cars::HUD_SWITCH_BITS`).
@@ -30,7 +30,7 @@ fn switches(race: &Race) -> [&Dword; 9] {
     ]
 }
 /// The settings words copied to the race's variables (`crate::race::owner::race().shared.vars.settings_words`).
-fn copied_words(race: &Race) -> [&Dword; 5] {
+fn copied_words(race: &Race) -> [&PlainDword; 5] {
     [
         &race.shared.state.settings.lens_flare,
         &race.shared.state.settings.reflections,

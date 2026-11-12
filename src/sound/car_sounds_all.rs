@@ -26,7 +26,7 @@ pub fn car_sounds_all(
     system: &crate::system::owner::System,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
-    let count = sound.race.sounds.count.get();
+    let count = sound.race.shared.count.get();
     if count == 0 {
         return Ok(());
     }
@@ -45,18 +45,18 @@ pub fn car_sounds_all(
             crate::sound::car_sounds::car_sounds(n, sound, race, system, audio)?;
             continue;
         }
-        x87_1(o, &sound.race.sounds.nearest_distance);
-        nearest.consider(n, sound.race.sounds.nearest_distance.bits());
+        x87_1(o, &sound.race.sounds.get().nearest_distance);
+        nearest.consider(n, sound.race.sounds.get().nearest_distance.bits());
     }
     let (first, second) = nearest.kept(
-        sound.race.sounds.nearest.get(),
-        sound.race.sounds.next.get(),
+        sound.race.sounds.get().nearest.get(),
+        sound.race.sounds.get().next.get(),
     );
-    sound.race.sounds.nearest.set(first);
-    sound.race.sounds.next.set(second);
+    sound.race.sounds.get().nearest.set(first);
+    sound.race.sounds.get().next.set(second);
     for (which, mark) in [
-        (&sound.race.sounds.nearest, NEAREST_MARK),
-        (&sound.race.sounds.next, NEXT_MARK),
+        (&sound.race.sounds.get().nearest, NEAREST_MARK),
+        (&sound.race.sounds.get().next, NEXT_MARK),
     ] {
         let n = which.get();
         if (n as i32) < 0 {

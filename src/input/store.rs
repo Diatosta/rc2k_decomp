@@ -24,59 +24,11 @@
 //! Threads: the input thread polls and the game's thread reads, as the image's bytes were
 //! shared (atomic cells and volatile bytes).
 
+use crate::cells::ZeroCells;
 use crate::errors::BadInput;
 use crate::input::guids::EffectGuid;
-use crate::input::types::{Controller, InputDevice};
+use crate::input::types::{Controller, ForceEffect, InputDevice};
 use crate::session::{Byte, Bytes, Dword, Float, PlainBytes, PlainDword};
-
-// ---- first values, from the image (`store_data.rs`) ----
-
-type Runs = &'static [(usize, &'static [u8])];
-
-/// The image's byte at `at` of a block whose non-zero bytes are `runs`.
-const fn byte_at(runs: Runs, at: usize) -> u8 {
-    let mut r = 0;
-    while r < runs.len() {
-        let (offset, run) = runs[r];
-        if at >= offset && at < offset + run.len() {
-            return run[at - offset];
-        }
-        r += 1;
-    }
-    0
-}
-
-const fn init<const N: usize>(runs: Runs, at: usize) -> [u8; N] {
-    let mut out = [0u8; N];
-    let mut k = 0;
-    while k < N {
-        out[k] = byte_at(runs, at + k);
-        k += 1;
-    }
-    out
-}
-
-const fn dword(runs: Runs, at: usize) -> Dword {
-    Dword::new(u32::from_le_bytes(init::<4>(runs, at)))
-}
-
-const fn dwords<const N: usize>(runs: Runs, at: usize) -> [Dword; N] {
-    let mut out = [const { Dword::new(0) }; N];
-    let mut k = 0;
-    while k < N {
-        out[k] = dword(runs, at + 4 * k);
-        k += 1;
-    }
-    out
-}
-
-const fn bytes<const N: usize>(runs: Runs, at: usize) -> Bytes<N> {
-    Bytes::new(init::<N>(runs, at))
-}
-
-const fn byte(runs: Runs, at: usize) -> Byte {
-    Byte::new(byte_at(runs, at))
-}
 
 // ---- the devices: 0x4F68D8 .. 0x4F7E18 ----
 
@@ -84,12 +36,10 @@ const fn byte(runs: Runs, at: usize) -> Byte {
 pub const KEYS: usize = 0x80;
 /// A device record's size (`types::InputDevice`).
 pub const RECORD_LEN: usize = 0x4F8;
-/// A controller's entry (`types::Controller`).
-pub const CONTROLLER_LEN: usize = 0x50;
 
 /// The input thread's and the settings' variables.
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct Devices {
     /// `dword_4F68D8`: the input thread's last tick (ms).
     pub last_tick: Dword,
@@ -168,59 +118,81 @@ pub struct Devices {
     pub guids: Bytes<0x30>,
 }
 
-const fn records(runs: Runs, at: usize) -> [InputDevice; 2] {
-    [
-        InputDevice::from_bytes(&with_wanted(init::<RECORD_LEN>(runs, at))),
-        InputDevice::from_bytes(&with_wanted(init::<RECORD_LEN>(runs, at + RECORD_LEN))),
-    ]
-}
+/// A record's force-feedback effects.
+const EFFECTS: usize = 6;
 
-/// Where the six effects' `wanted` (+8 of each `types::ForceEffect`, 0xA4 apart from +0x3C of
-/// a record) is in a record's bytes.
-pub const WANTED_AT: usize = 0x44;
-pub const EFFECT_LEN: usize = 0xA4;
-pub const EFFECTS: usize = 6;
-
-/// The GUIDs the six effects of each record want at first.
-const WANTED: [EffectGuid; EFFECTS] = [
-    EffectGuid::Spring,
-    EffectGuid::Sine,
-    EffectGuid::Sine,
-    EffectGuid::ConstantForce,
-    EffectGuid::Damper,
-    EffectGuid::ConstantForce,
+/// The six effects of a record, in order: the function that changes it (an IDA address of
+/// `input::effect_N_change`), the kind wanted (1 constant, 3 periodic, 4 condition) and the
+/// GUID wanted.
+const EFFECT_KINDS: [(u32, u32, EffectGuid); EFFECTS] = [
+    (0x409708, 4, EffectGuid::Spring),
+    (0x4097FA, 3, EffectGuid::Sine),
+    (0x409754, 3, EffectGuid::Sine),
+    (0x4097B4, 1, EffectGuid::ConstantForce),
+    (0x409871, 4, EffectGuid::Damper),
+    (0x4098BF, 1, EffectGuid::ConstantForce),
 ];
 
-/// The record with its effects' `wanted` set to `WANTED`'s handles.
-const fn with_wanted(mut record: [u8; RECORD_LEN]) -> [u8; RECORD_LEN] {
+/// A device record as the game starts it: the force feedback at 75 with the dead and end zones
+/// at 10, the axes in the state's fifth, third and second dwords (`axis_code` 0x02011000), the
+/// second axis pick, sensitivity 2, and its six effects set up by `EFFECT_KINDS`.
+const fn record(controller: u32) -> InputDevice {
+    let mut effects = [const { ForceEffect::ZERO }; EFFECTS];
     let mut k = 0;
     while k < EFFECTS {
-        let o = WANTED_AT + EFFECT_LEN * k;
-        let h = WANTED[k].handle().to_le_bytes();
-        record[o] = h[0];
-        record[o + 1] = h[1];
-        record[o + 2] = h[2];
-        record[o + 3] = h[3];
+        let (change, kind, wanted) = EFFECT_KINDS[k];
+        effects[k] = ForceEffect {
+            change: Dword::new(change),
+            kind: Dword::new(kind),
+            wanted: Dword::new(wanted.handle()),
+            ..ForceEffect::ZERO
+        };
         k += 1;
     }
-    record
-}
-
-const fn controllers(runs: Runs, at: usize) -> [Controller; 16] {
-    let mut out = [const { Controller::from_le_bytes(&[0; CONTROLLER_LEN]) }; 16];
-    let mut k = 0;
-    while k < 16 {
-        out[k] = Controller::from_le_bytes(&init::<CONTROLLER_LEN>(runs, at + CONTROLLER_LEN * k));
-        k += 1;
+    InputDevice {
+        controller: Dword::new(controller),
+        strength: Dword::new(75),
+        dead_zone: Dword::new(10),
+        end_zone: Dword::new(10),
+        axis_code: Dword::new(0x0201_1000),
+        axis_pick: Dword::new(1),
+        sensitivity: Dword::new(2),
+        effects,
+        ..InputDevice::ZERO
     }
-    out
 }
 
-const fn rows(runs: Runs, at: usize) -> [[Dword; 4]; 14] {
-    let mut out = [const { [const { Dword::new(0) }; 4] }; 14];
+/// The three interface identifiers the device set-up passes to DirectInput (`IDirectInputA`,
+/// `IDirectInput2A`, `IDirectInputDevice2A`), 16 bytes each.
+const INTERFACE_GUIDS: [u8; 0x30] = *b"\x60\x13\x52\x89\x8a\xaa\xcf\x11\xbf\xc7\x44\x45\x53\x54\x00\x00\x62\xe6\x44\x59\x8a\xaa\xcf\x11\xbf\xc7\x44\x45\x53\x54\x00\x00\x80\xe6\x44\x59\x2e\xc9\xcf\x11\xbf\xc7\x44\x45\x53\x54\x00\x00";
+
+/// The force-feedback effects' parameter rows at start (16 bytes each).
+const EFFECT_ROWS: [[u32; 4]; 14] = [
+    [0x30, 0x64, 0x0, 0x226],
+    [0x10, 0x32, 0x20, 0x14A],
+    [0x1E, 0x64, 0x96, 0xC8],
+    [0x20, 0x50, 0x80, 0xB4],
+    [0x32, 0x4B, 0x64, 0x96],
+    [0x23, 0x64, 0x80, 0xC8],
+    [0xA, 0x64, 0x20, 0x12C],
+    [0x28, 0x5A, 0x8C, 0x10E],
+    [0x0, 0x190, 0x0, 0x320],
+    [0x64, 0x50, 0xC8, 0x50],
+    [0x7D, 0x14, 0xFA, 0xFA],
+    [0x21, 0x64, 0x8C, 0xFA],
+    [0x64, 0x64, 0xFA, 0xC8],
+    [0x20, 0x32, 0x96, 0x50],
+];
+
+const fn effect_rows() -> [[Dword; 4]; 14] {
+    let mut out: [[Dword; 4]; 14] = ZeroCells::ZERO;
     let mut k = 0;
     while k < 14 {
-        out[k] = dwords(runs, at + 16 * k);
+        let mut j = 0;
+        while j < 4 {
+            out[k][j] = Dword::new(EFFECT_ROWS[k][j]);
+            j += 1;
+        }
         k += 1;
     }
     out
@@ -228,46 +200,18 @@ const fn rows(runs: Runs, at: usize) -> [[Dword; 4]; 14] {
 
 impl Devices {
     pub const fn new() -> Self {
-        {
-            use crate::input::store_data::DEVICES_RUNS as R;
-            Devices {
-                last_tick: dword(R, 0x0),
-                no_joysticks: dword(R, 0x4),
-                joy_mode: dword(R, 0x8),
-                joy_code: dword(R, 0xC),
-                joy_dead_zone: dword(R, 0x10),
-                joy_end_zone: dword(R, 0x14),
-                alt_axes_code: dword(R, 0x18),
-                no_force_feedback: dword(R, 0x1C),
-                ff_gain: dword(R, 0x20),
-                two_devices_one_player: dword(R, 0x24),
-                nonlinear_steering: dword(R, 0x28),
-                direct_input: dword(R, 0x2C),
-                _unused_6908: dwords(R, 0x30),
-                new_joystick: dword(R, 0x38),
-                new_joystick2: dword(R, 0x3C),
-                device_state: dwords(R, 0x150),
-                joystick_caps: bytes(R, 0x1A0),
-                dword_property: bytes(R, 0x1CC),
-                range_property: bytes(R, 0x1E0),
-                dead_key: byte(R, 0x1F8),
-                _gap_6ad1: bytes(R, 0x1F9),
-                keys_down: bytes(R, 0x204),
-                keys_now: bytes(R, 0x284),
-                keys_before: bytes(R, 0x304),
-                keys_pressed: bytes(R, 0x404),
-                key_repeat: bytes(R, 0x484),
-                _unused_6ddc: dwords(R, 0x504),
-                mouse_word: dword(R, 0x518),
-                _unused_6df4: dwords(R, 0x51C),
-                effect_rows: rows(R, 0x530),
-                input_devices: [Dword::new(DEVICE_TAG), Dword::new(DEVICE_TAG | 1)],
-                records: records(R, 0x618),
-                controller_count: dword(R, 0x1008),
-                controllers: controllers(R, 0x100C),
-                input_command: dword(R, 0x150C),
-                guids: bytes(R, 0x1510),
-            }
+        Devices {
+            // -1: none picked (the configuration's axes, zones and strength).
+            joy_code: Dword::new(u32::MAX),
+            joy_dead_zone: Dword::new(u32::MAX),
+            joy_end_zone: Dword::new(u32::MAX),
+            alt_axes_code: Dword::new(u32::MAX),
+            ff_gain: Dword::new(u32::MAX),
+            effect_rows: effect_rows(),
+            input_devices: [Dword::new(DEVICE_TAG), Dword::new(DEVICE_TAG | 1)],
+            records: [record(0), record(1)],
+            guids: Bytes::new(INTERFACE_GUIDS),
+            ..ZeroCells::ZERO
         }
     }
 }

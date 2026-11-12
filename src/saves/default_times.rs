@@ -70,7 +70,7 @@ impl rc2k_core::saves::defaults::Source for GameSource<'_> {
     }
 
     fn checkpoint_count(&mut self, stage: u32) -> u32 {
-        self.race.shared.work.get().checkpoint_counts[stage as usize].bits()
+        self.race.shared.work.get().checkpoint_counts[stage as usize].get()
     }
 
     fn log(&mut self, piece: rc2k_core::saves::defaults::Piece) {

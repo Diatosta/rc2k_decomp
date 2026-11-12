@@ -157,7 +157,7 @@ fn copy_header_settings_of(
     strings: &crate::strings::owner::Strings,
     sealed: &[PlainDword; 64],
 ) -> Result<(), BadInput> {
-    use crate::race::state_store::{RaceCar, RaceSettings, RaceState};
+    use crate::race::state_store::{RaceCar, RaceSettings, RaceState, SettingsHead};
     use core::mem::offset_of;
     // The cells of the race's settings as the front end keeps them, by IDA's address.
     const SETTINGS: usize = offset_of!(RaceState, settings);
@@ -166,10 +166,24 @@ fn copy_header_settings_of(
         ida - 0x75ACCC
     }
     const _: () = {
-        assert!(SETTINGS + offset_of!(RaceSettings, stage) == setting(0x75ACD4));
-        assert!(SETTINGS + offset_of!(RaceSettings, run_kind) == setting(0x75ACD8));
-        assert!(SETTINGS + offset_of!(RaceSettings, car_kind_current) == setting(0x75ACE8));
-        assert!(SETTINGS + offset_of!(RaceSettings, direction) == setting(0x75ACF0));
+        assert!(
+            SETTINGS + offset_of!(RaceSettings, inline) + offset_of!(SettingsHead, stage)
+                == setting(0x75ACD4)
+        );
+        assert!(
+            SETTINGS + offset_of!(RaceSettings, inline) + offset_of!(SettingsHead, run_kind)
+                == setting(0x75ACD8)
+        );
+        assert!(
+            SETTINGS
+                + offset_of!(RaceSettings, inline)
+                + offset_of!(SettingsHead, car_kind_current)
+                == setting(0x75ACE8)
+        );
+        assert!(
+            SETTINGS + offset_of!(RaceSettings, inline) + offset_of!(SettingsHead, direction)
+                == setting(0x75ACF0)
+        );
         assert!(CARS + offset_of!(RaceCar, tyre) == setting(0x75AD1C));
         assert!(CARS + offset_of!(RaceCar, brake_balance) == setting(0x75AD20));
         assert!(CARS + offset_of!(RaceCar, ride_height) == setting(0x75AD24));
@@ -428,7 +442,7 @@ pub fn open_replay(race: &Race, o: crate::owners::Owners<'static>) -> Result<(),
     }
     let w = race.replay_work();
     w.header_one_player
-        .set(o.sound.race.sounds.one_player.get());
+        .set(o.sound.race.shared.one_player.get());
     w.header_codriver_sex_0
         .set(shared.state.settings.cars[0].codriver_sex.get());
     w.header_codriver_sex_1

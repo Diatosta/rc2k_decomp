@@ -145,7 +145,9 @@ mod tests {
         let o = ObjectPlace::new();
         let work = crate::scene::object_store::ObjectWork::new();
         let ground = crate::physics::ground_store::GroundWork::new();
-        let bits = |c: &[Dword]| c.iter().map(Dword::get).collect::<Vec<_>>();
+        fn bits<D: crate::session::DwordLike>(c: &[D]) -> Vec<u32> {
+            c.iter().map(D::get).collect()
+        }
         assert_eq!(bits(&o.position), bits(&work.object_position));
         assert_eq!(o.face_depth.get(), work.face_depth.get());
         assert_eq!(o.car_switches.get(), work.car_switches.get());

@@ -1,9 +1,11 @@
 //! The overlay and countdown part of the race block: the stage-bar parts (distances, two colour tables), the start lights, the countdown sounds and the position labels with their kept copies. Names are readings unless IDA's.
 
+use crate::cells::ZeroCells;
+use crate::race::first_cells::{plain_dwords, plain_dwords_of_text};
 use crate::session::{PlainDword, PlainFloat};
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct OverlayBlock {
     /// +0x0 (0x6D150C): `g_overlayPartMiles`: the overlay parts' distances (`race::init_overlay`, `hud::draw_stage_bar`).
     pub overlay_part_miles: [PlainFloat; 64],
@@ -41,9 +43,18 @@ pub struct OverlayBlock {
     pub unused_358: [PlainDword; 3],
 }
 
-/// IDA 0x6D150C, the first byte of the piece.
-pub const START: usize = 0x6D150C;
-/// IDA 0x6D1870, the end of the piece.
-pub const END: usize = 0x6D1870;
-
-const _: () = assert!(END - START == core::mem::size_of::<OverlayBlock>());
+impl OverlayBlock {
+    /// The race overlay as the game starts: the stage bar's scale, the countdown and the position labels.
+    pub const fn new() -> Self {
+        OverlayBlock {
+            w_factor: PlainFloat::new(0.01),
+            countdown_start: PlainDword::new(0x12C),
+            countdown_sounds: plain_dwords([0xF5, 0xF3, 0xF1, 0xEF, 0xED, 0xF7]),
+            label_behind: plain_dwords_of_text::<2>(b"car 64  "),
+            label_ahead: plain_dwords_of_text::<2>(b"car 32  "),
+            kept_behind: plain_dwords_of_text::<2>(b"car 64  "),
+            kept_ahead: plain_dwords_of_text::<2>(b"car 32  "),
+            ..ZeroCells::ZERO
+        }
+    }
+}

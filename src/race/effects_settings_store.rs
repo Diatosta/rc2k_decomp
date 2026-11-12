@@ -6,12 +6,13 @@
 //! panel and the kind tables (`VIEWER_AND_KINDS`); typed here as one
 //! (2026-11-02) after the stores had split it in three. Names are readings unless IDA's.
 
+use crate::cells::ZeroCells;
 use crate::errors::BadInput;
 use crate::race::blocks_store::CarBlocks;
+use crate::race::first_cells::plain_dwords;
 #[cfg(test)]
 use crate::race::owner::race;
-use crate::session::PlainFloat;
-use crate::session::{Dword, Float};
+use crate::session::{PlainDword, PlainFloat};
 
 /// A car's record in the settings (0x4C8 bytes; `effects::blocks`, `effects::cars_particles`,
 /// `effects::morph_object_points`, `effects::tidy_marks` work on it). Names are readings from
@@ -19,132 +20,132 @@ use crate::session::{Dword, Float};
 /// The five wheel and body records (0x48 bytes each) are `MarkRecord`s; the tail from +0x23C
 /// is the lines' and the point morphs' part (`CAR_BLOCK`).
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct CarEffects {
     /// +0x0: whether the streaks are drawn (the first car's is the one `effects::run_ribbons` asks).
-    pub streaks_on: Dword,
+    pub streaks_on: PlainDword,
     /// +0x4: the car's model (`effects::cars_particles` refuses 34 or more); the light
     /// record's number.
-    pub model: Dword,
+    pub model: PlainDword,
     /// +0x8: the engine speed (a float), the strength of the kind 13 particles.
-    pub engine_speed: Float,
+    pub engine_speed: PlainFloat,
     /// +0xc: the four axles' whole numbers (the light record's `axles`).
-    pub axles: [Dword; 4],
+    pub axles: [PlainDword; 4],
     /// +0x1c: the car's tag (the light colour; 24 bits of it go on the ring entries).
-    pub tag: Dword,
+    pub tag: PlainDword,
     /// +0x20: not read.
-    pub unread_20: Dword,
+    pub unread_20: PlainDword,
     /// +0x24: the car block (handle) whose whole matrix is used; 0 for none.
-    pub whole_block: Dword,
+    pub whole_block: PlainDword,
     /// +0x28: the car block (handle) whose part matrices are used; 0 for none.
-    pub parts_block: Dword,
+    pub parts_block: PlainDword,
     /// +0x2c: the gear notice (copied from the sound object).
-    pub gear_notice: Dword,
+    pub gear_notice: PlainDword,
     /// +0x30: the countdown after a reset (the emitters wait it out; 8 at the start).
-    pub reset_wait: Dword,
+    pub reset_wait: PlainDword,
     /// +0x34: not read.
-    pub unread_34: [Dword; 3],
+    pub unread_34: [PlainDword; 3],
     /// +0x40: the car's place (the whole matrix's translation, as of the last frame).
-    pub last_place: [Float; 3],
+    pub last_place: [PlainFloat; 3],
     /// +0x4c: the car's motion (the mean of the four steps).
-    pub motion: [Float; 3],
+    pub motion: [PlainFloat; 3],
     /// +0x58: the last four steps (this frame's first), three floats each.
-    pub steps: [[Float; 3]; 4],
+    pub steps: [[PlainFloat; 3]; 4],
     /// +0x88: the car's pace (a whole number after `cars_particles`).
-    pub pace: Dword,
+    pub pace: PlainDword,
     /// +0x8c: not read.
-    pub unread_8c: Dword,
+    pub unread_8c: PlainDword,
     /// +0x90: the rate the emitters' gates add (after `cars_particles`); the body's size.
-    pub rate: Dword,
+    pub rate: PlainDword,
     /// +0x94: the car's inverse matrix (`adjugate_matrix` of the whole one: the turn at
     /// +0x94 .. +0xb4, the translation at +0xc4 .. +0xcc).
-    pub matrix: [Float; 15],
+    pub matrix: [PlainFloat; 15],
     /// +0xd0: not read.
-    pub unread_d0: Dword,
+    pub unread_d0: PlainDword,
     /// +0xd4: the four wheels' records, then the body's (+0x1f4).
     pub records: [MarkRecord; RECORDS],
     /// +0x23c: the object the lines and morphs work on.
-    pub object: Dword,
+    pub object: PlainDword,
     /// +0x240: the second object (the morphs' other end).
-    pub second_object: Dword,
+    pub second_object: PlainDword,
     /// +0x244: the morph's start (zeroed by `drive::share_car_state`).
-    pub morph_start: Dword,
+    pub morph_start: PlainDword,
     /// +0x248: the morph's kept figure (`effects::morph_object_points`).
-    pub morph_kept: Dword,
+    pub morph_kept: PlainDword,
     /// +0x24c: three floats `drive::share_car_state` zeroes.
-    pub morph_floats: [Float; 3],
+    pub morph_floats: [PlainFloat; 3],
     /// +0x258: the face sums of the kinds 1 to 6 (`effects::lines`); the car block's wake counts.
-    pub face_sums: [Dword; 6],
+    pub face_sums: [PlainDword; 6],
     /// +0x270: the shares made from them.
-    pub face_shares: [Dword; 6],
+    pub face_shares: [PlainDword; 6],
     /// +0x288: the list (16 bytes: a `MemoryList`) the block's point table is counted on
     /// (`effects::lines::BLOCK_POINTS`).
-    pub points_list: [Dword; 4],
+    pub points_list: [PlainDword; 4],
     /// +0x298: not read.
-    pub unread_298: [Dword; 12],
+    pub unread_298: [PlainDword; 12],
     /// +0x2c8: the number of the table taken for the block's points (1 + the car's).
-    pub point_block: Dword,
+    pub point_block: PlainDword,
     /// +0x2cc: the eight factors of the morph (`g_marksBlockStart`; the car block's octant marks).
-    pub factors: [Float; 8],
+    pub factors: [PlainFloat; 8],
     /// +0x2ec: the factors kept by the morph.
-    pub kept_factors: [Float; 8],
+    pub kept_factors: [PlainFloat; 8],
     /// +0x30c: the eight slots' kinds (the low byte).
-    pub slot_kinds: [Dword; 8],
+    pub slot_kinds: [PlainDword; 8],
     /// +0x32c: the slots' line sums.
-    pub slot_sums: [Dword; 8],
+    pub slot_sums: [PlainDword; 8],
     /// +0x34c: the slots' shares.
-    pub slot_shares: [Dword; 8],
+    pub slot_shares: [PlainDword; 8],
     /// +0x36c: the 0x11 kinds (the low byte).
-    pub kinds: [Dword; 0x11],
+    pub kinds: [PlainDword; 0x11],
     /// +0x3b0: not read.
-    pub unread_3b0: [Dword; 0x11],
+    pub unread_3b0: [PlainDword; 0x11],
     /// +0x3f4: the kinds' line sums.
-    pub kind_sums: [Dword; 0x11],
+    pub kind_sums: [PlainDword; 0x11],
     /// +0x438: the kinds' shares.
-    pub kind_shares: [Dword; 0x11],
+    pub kind_shares: [PlainDword; 0x11],
     /// +0x47c: the kinds' point counts.
-    pub kind_counts: [Dword; 0x11],
+    pub kind_counts: [PlainDword; 0x11],
     /// +0x4c0: the two levels `drive::share_car_state` keeps.
-    pub levels: [Dword; 2],
+    pub levels: [PlainDword; 2],
 }
 
 /// A wheel's or the body's record inside a car's (0x48 bytes): what the emitters keep per
 /// wheel. Names are readings.
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct MarkRecord {
     /// +0x0: a flag the body's emitter flips each time (bit 0 the side).
-    pub flip: Dword,
+    pub flip: PlainDword,
     /// +0x4: the pace counter the emitters' rate gates keep (an integer count, or a float
     /// remainder after `emit_rolling_particles`).
-    pub pace: Dword,
+    pub pace: PlainDword,
     /// +0x8: read and written by no code.
-    pub unused_8: Dword,
+    pub unused_8: PlainDword,
     /// +0xc: the driven wheels' speed (the block's `drive_speed_a` / `_b` for the front / rear pair of wheel records; `emit_rolling_particles`, the bursts, kind 6, kind 21); the body's is cleared.
-    pub driven_speed: Float,
+    pub driven_speed: PlainFloat,
     /// +0x10: the car's local velocity x, sideways (the body's: `velocity[0]`), copied by `drive::share_car_state`; the emitters' gates test it for 0.
-    pub local_velocity_x: Float,
+    pub local_velocity_x: PlainFloat,
     /// +0x14: the local velocity y, always written 0 by `drive::share_car_state`; read by nothing.
-    pub local_velocity_y: Dword,
+    pub local_velocity_y: PlainDword,
     /// +0x18: the car's local velocity z, forward (the body's: `velocity[2]`), copied by `drive::share_car_state`; the emitters' gates test it for 0.
-    pub local_velocity_z: Float,
+    pub local_velocity_z: PlainFloat,
     /// +0x1c: the surface kind the emitters go by (copied from +0x28).
-    pub kind: Dword,
+    pub kind: PlainDword,
     /// +0x20: the surface flags (copied from +0x2c); bits 6 and up count entries.
-    pub flags: Dword,
+    pub flags: PlainDword,
     /// +0x24: the second flags word (copied from +0x30); bits 6 and up count entries.
-    pub flags2: Dword,
+    pub flags2: PlainDword,
     /// +0x28: the kind of the surface under the wheel.
-    pub under_kind: Dword,
-    pub under_flags: Dword,
+    pub under_kind: PlainDword,
+    pub under_flags: PlainDword,
     /// +0x30: the second flags of the surface under the wheel.
-    pub under_flags2: Dword,
+    pub under_flags2: PlainDword,
     /// +0x34: the chance (a float) the surface under the wheel becomes the current one.
-    pub chance: Float,
+    pub chance: PlainFloat,
     /// +0x38: the body's size figure (`emit_body_contact_particles`).
-    pub size: Float,
+    pub size: PlainFloat,
     /// +0x3c: the wheel's place (three floats, turned by `emit_car_particles`).
-    pub place: [Float; 3],
+    pub place: [PlainFloat; 3],
 }
 
 /// A wheel's or body's record length.
@@ -204,6 +205,17 @@ const _: () = {
     assert!(at!(CarEffects, levels) == 0x4C0);
 };
 
+/// The floats' cells.
+const fn plain_floats<const N: usize>(values: [f32; N]) -> [PlainFloat; N] {
+    let mut out: [PlainFloat; N] = [const { PlainFloat::new(0.0) }; N];
+    let mut k = 0;
+    while k < N {
+        out[k] = PlainFloat::new(values[k]);
+        k += 1;
+    }
+    out
+}
+
 impl MarkRecord {
     /// The surface under the wheel becomes the current one (+0x28 .. +0x30 to +0x1C .. +0x24).
     pub fn take_surface(&self) {
@@ -219,94 +231,117 @@ pub const CAR_LEN: usize = 0x4C8;
 pub const CARS: usize = 8;
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct EffectsSettings {
     /// +0x0 (0x5C2F84): `asc_5C2F84`: a 2-byte tab text, a pointer taken in place by `effects::init_mark_step` (probably the settings' text path start).
-    pub settings_text: Dword,
+    pub settings_text: PlainDword,
     /// +0x4 (0x5C2F88): `dword_5C2F88`: set by `drive::finish_timing` when the race ends, cleared twice by `drive::finish_race`; also read by `effects::run_particles`.
-    pub race_done: Dword,
+    pub race_done: PlainDword,
     /// +0x8 (0x5C2F8C): `dword_5C2F8C`: the view's marks layout (`race::frame_views`).
-    pub marks_layout: Dword,
+    pub marks_layout: PlainDword,
     /// +0xc (0x5C2F90): `dword_5C2F90`: this view's marks show (`race::frame_views`).
-    pub own_marks_shown: Dword,
+    pub own_marks_shown: PlainDword,
     /// +0x10 (0x5C2F94): `dword_5C2F94`: the other view's marks show; `drive::race_init` sets it (`race::frame_views`).
-    pub other_marks_shown: Dword,
+    pub other_marks_shown: PlainDword,
     /// +0x14 (0x5C2F98): [0] read and written by no code; [1] (+0x18, 0x5C2F9C) the marks were just set up: `effects::init_marks` sets it to 1, `effects::frame_marks` copies it into the clock's `settings_copies[0]` and clears it after the frame's view step.
-    pub fresh_marks_flags: [Dword; 2],
+    pub fresh_marks_flags: [PlainDword; 2],
     /// +0x1c (0x5C2FA0): `dword_5C2FA0` ..: the view's place negated, three whole numbers (`drive::set_listener`).
-    pub listener_place: [Dword; 3],
+    pub listener_place: [PlainDword; 3],
     /// +0x28 (0x5C2FAC): `dword_5C2FAC` ..: the view's turn matrix, nine floats, popped from the x87 (image value identity) (`drive::set_listener`).
-    pub listener_turn: [Float; 9],
+    pub listener_turn: [PlainFloat; 9],
     /// +0x4c (0x5C2FD0): `dword_5C2FD0`: `dword_7558DC` copied after the loading picture (`race::single_rally`).
-    pub after_loading_copy: Dword,
+    pub after_loading_copy: PlainDword,
     /// +0x50 (0x5C2FD4): `dword_5C2FD4`: the viewed car's +0xABC >= 0x10; image value 1 (`drive::set_listener`).
-    pub listener_near: Dword,
+    pub listener_near: PlainDword,
     /// +0x54 (0x5C2FD8): [0] read and written by no code; [1] (+0x58, 0x5C2FDC) copied into the snow light's `kept` word by `effects::run_snow` (never written by ported code: the image's value).
-    pub snow_light_words: [Dword; 2],
+    pub snow_light_words: [PlainDword; 2],
     /// +0x5c (0x5C2FE0): `dword_5C2FE0`: a copy of the race's cars (`effects::init_mark_step`).
-    pub cars_copy: Dword,
+    pub cars_copy: PlainDword,
     /// +0x60 (0x5C2FE4): the cars' records.
     pub cars: [CarEffects; CARS],
     /// +0x26a0 (0x5C5624): `flt_5C5624`: the viewed car's `engine_speed` (float), copied by `drive::set_listener`.
-    pub engine_speed_copy: Float,
+    pub engine_speed_copy: PlainFloat,
     /// +0x26a4 (0x5C5628): `flt_5C5628`: the viewed car's `engine_speed_scaled` (float), copied by `drive::set_listener`.
-    pub engine_speed_scaled_copy: Float,
+    pub engine_speed_scaled_copy: PlainFloat,
     /// +0x26a8 (0x5C562C): `dword_5C562C`: the work car's file number (`effects::init_mark_step`). The effects' marks kind (`effects::init_marks` refuses 0x22 or more).
-    pub mark_car_file_number: Dword,
+    pub mark_car_file_number: PlainDword,
     /// +0x26ac (0x5C5630): `flt_5C5630` ..: the viewed car's three whole numbers +0x134 .. +0x13C as floats (`drive::set_listener`).
-    pub listener_car_place: [Float; 3],
+    pub listener_car_place: [PlainFloat; 3],
     /// +0x26b8 (0x5C563C): `dword_5C563C`: the count of the settings' objects (1 in the mark set-up, `effects::init_mark_step`; the effects' splines and shapes read that many from +0x26BC, on through the fields after it for a count past 1).
-    pub object_count: Dword,
+    pub object_count: PlainDword,
     /// +0x26bc (0x5C5640): `dword_5C5640`: the settings' first object (0x50 in the mark set-up, `effects::init_mark_step`).
-    pub first_object: Dword,
+    pub first_object: PlainDword,
     /// +0x26c0 (0x5C5644): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unused_20: [Dword; 7],
+    pub unused_20: [PlainDword; 7],
     /// +0x26dc (0x5C5660): `flt_5C5660`: the car's visual steering angle / 2^29 plus the listener camera's value (`drive::set_listener`). The effects: the splines' size (`effects::place_spline`).
-    pub listener_scale: Float,
+    pub listener_scale: PlainFloat,
     /// +0x26e0 (0x5C5664): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unused_40: [Dword; 7],
+    pub unused_40: [PlainDword; 7],
     /// +0x26fc (0x5C5680): `dword_5C5680`: the car's `gear_changed_2` kept when set (the car's copy is cleared), 0 while the replay still frame is shown (`drive::set_listener`). The effects: a spline switch cleared when used (`effects::run_splines`).
-    pub spline_gear_changed: Dword,
+    pub spline_gear_changed: PlainDword,
     /// +0x2700 (0x5C5684): `dword_5C5684`: 1 while the car's handbrake is on, 0 while the replay still frame is shown (`drive::set_listener`). The effects: a spline switch (`effects::run_splines`).
-    pub spline_handbrake: Dword,
+    pub spline_handbrake: PlainDword,
     /// +0x2704 (0x5C5688): `dword_5C5688`: 1 after the race sound objects are shared, else 0 (`drive::share_all_cars`). The effects: the mask switch (`effects::swap_mask`).
-    pub sound_objects_shown: Dword,
+    pub sound_objects_shown: PlainDword,
     /// +0x2708 (0x5C568C): `dword_5C568C` ..: the first light point turned, x negated, as whole numbers (`drive::set_listener`). Written with the next three groups as 12 dwords.
-    pub light_point_a_negated: [Dword; 3],
+    pub light_point_a_negated: [PlainDword; 3],
     /// +0x2714 (0x5C5698): `dword_5C5698` ..: the first light point turned (`drive::set_listener`).
-    pub light_point_a: [Dword; 3],
+    pub light_point_a: [PlainDword; 3],
     /// +0x2720 (0x5C56A4): `dword_5C56A4` ..: the second light point turned, x negated (`drive::set_listener`).
-    pub light_point_b_negated: [Dword; 3],
+    pub light_point_b_negated: [PlainDword; 3],
     /// +0x272c (0x5C56B0): `dword_5C56B0` ..: the second light point turned (`drive::set_listener`).
-    pub light_point_b: [Dword; 3],
+    pub light_point_b: [PlainDword; 3],
     /// +0x2738 (0x5C56BC): `dword_5C56BC`: surface noise a << 2 while the mirror is wanted, else 0 (`drive::set_listener`); the windscreen drops' rate factor (`effects::windscreen_drops_top`).
-    pub windscreen_drops_rate_factor: Dword,
+    pub windscreen_drops_rate_factor: PlainDword,
     /// +0x273c (0x5C56C0): `dword_5C56C0`: twice the car's surface noise a (`drive::set_listener`). The effects: the windscreen drops wanted (`effects::windscreen_drops_frame`).
-    pub windscreen_drops_wanted: Dword,
+    pub windscreen_drops_wanted: PlainDword,
     /// +0x2740 (0x5C56C4): `dword_5C56C4`: surface noise b >> 3 while the mirror is wanted, else 0 (`drive::set_listener`); the windscreen flakes' rate factor (`effects::windscreen_flakes_frame`, `effects::draw_plane`).
-    pub windscreen_flakes_rate_factor: Dword,
+    pub windscreen_flakes_rate_factor: PlainDword,
     /// +0x2744 (0x5C56C8): `dword_5C56C8`: always 1 (`drive::set_listener`). The effects: the windscreen drops and flakes on (`effects::windscreen_drops_top`, `effects::windscreen_flakes_frame`).
-    pub windscreen_wet: Dword,
+    pub windscreen_wet: PlainDword,
     /// +0x2748 (0x5C56CC): `dword_5C56CC`: always 0 (`drive::set_listener`); the mask number `effects::run_shapes` picks with.
-    pub mask_number: Dword,
+    pub mask_number: PlainDword,
     /// +0x274c (0x5C56D0): `dword_5C56D0`: 0 while a surface noise sounds and the mirror is wanted, else 1 (`drive::set_listener`); `effects::run_shapes` tests it for 1.
-    pub mask_rate_switch: Dword,
+    pub mask_rate_switch: PlainDword,
     /// +0x2750 (0x5C56D4): an unnamed setting; the effects: a number `effects::scale_setting` scales.
-    pub setting_to_scale: Dword,
+    pub setting_to_scale: PlainDword,
     /// +0x2754 (0x5C56D8): `dword_5C56D8` ..: the first figure and `dword_6415D0`, `dword_6415D4` (`drive::set_listener`). The effects: the lens flare's strength, then its place on the screen (`effects::draw_lens_flare`).
-    pub listener_figures: [Dword; 3],
+    pub listener_figures: [PlainDword; 3],
     /// +0x2760 (0x5C56E4): `dword_5C56E4`: the car's surface noise b times 8 (`drive::set_listener`), the snow flakes' count. The effects: the snow's flakes (`effects::run_snow`).
-    pub snow_flakes: Dword,
+    pub snow_flakes: PlainDword,
     /// +0x2764 (0x5C56E8): `dword_5C56E8`: twice the car's surface noise a (`drive::set_listener`), the rain drops' count. The effects: the rain's drops (`effects::run_rain`).
-    pub rain_drops: Dword,
+    pub rain_drops: PlainDword,
 }
 
-/// IDA 0x5C2F84, the record's first byte.
-pub const START: usize = 0x5C2F84;
-/// IDA 0x5C56EC, its end.
-pub const END: usize = 0x5C56EC;
-
-const _: () = assert!(END - START == core::mem::size_of::<EffectsSettings>());
+impl EffectsSettings {
+    /// The marks' settings as the game starts: the listener's figures, the cars' streak switches and the windscreen defaults.
+    pub const fn new() -> Self {
+        EffectsSettings {
+            settings_text: PlainDword::new(9),
+            listener_turn: plain_floats([1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]),
+            listener_near: PlainDword::new(1),
+            snow_light_words: [const { PlainDword::new(1) }; 2],
+            cars_copy: PlainDword::new(1),
+            cars: [const {
+                CarEffects {
+                    streaks_on: PlainDword::new(1),
+                    ..ZeroCells::ZERO
+                }
+            }; 8],
+            light_point_a_negated: plain_dwords([0xFFFF0000, 0x8000, 0x20000]),
+            light_point_a: plain_dwords([0x10000, 0x8000, 0x20000]),
+            light_point_b_negated: plain_dwords([0x10000, 0xFFFF8000, 0x20000]),
+            light_point_b: plain_dwords([0xFFFF0000, 0xFFFF8000, 0x20000]),
+            windscreen_drops_rate_factor: PlainDword::new(0x3C),
+            windscreen_drops_wanted: PlainDword::new(0x64),
+            windscreen_wet: PlainDword::new(1),
+            mask_number: PlainDword::new(4),
+            setting_to_scale: PlainDword::new(1),
+            listener_figures: [const { PlainDword::new(1) }; 3],
+            ..ZeroCells::ZERO
+        }
+    }
+}
 
 /// The record: a field of `VIEWER_AND_KINDS`.
 #[cfg(test)]

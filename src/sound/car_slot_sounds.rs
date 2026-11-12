@@ -23,7 +23,7 @@ pub fn car_slot_sounds(
     if computers(so.sound_offset.get()) {
         return Ok(());
     }
-    let place = |from: &[crate::session::Float; 3]| {
+    let place = |from: &[crate::session::PlainFloat; 3]| {
         for (cell, f) in request.place.iter().zip(from) {
             cell.set(f.get());
         }

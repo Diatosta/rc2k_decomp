@@ -3,12 +3,14 @@
 //! dwords after them. `#[repr(C)]` with the image's layout, over the race block's bytes
 //! (`ERROR_LIST`). Names are readings unless IDA's.
 
+use crate::cells::ZeroCells;
+
 #[cfg(test)]
 use crate::race::owner::race;
 use crate::session::{PlainBytes, PlainDword};
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ErrorList {
     /// +0x0 (0x637660): `unk_637660`: the error list read from the file named at 0x60AE02 (`race::load_error_list`).
     pub list: PlainBytes<0x2000>,
@@ -22,7 +24,7 @@ pub struct ErrorList {
 /// The piece, with the image's first values.
 impl ErrorList {
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        Self::ZERO
     }
 }
 

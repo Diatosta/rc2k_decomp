@@ -42,7 +42,6 @@ pub mod step_effects_clock;
 pub mod stop_device_effects;
 pub mod stop_effects;
 pub mod store;
-pub mod store_data;
 pub mod take_key;
 pub mod types;
 pub mod update_car_effects;

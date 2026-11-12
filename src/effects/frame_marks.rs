@@ -22,7 +22,7 @@ use crate::session::PlainDword;
 fn copies<'a>(
     effects: &'a Effects,
     marks: &'a EffectsSettings,
-) -> [(&'a crate::session::Dword, &'a PlainDword); 3] {
+) -> [(&'a PlainDword, &'a PlainDword); 3] {
     let setup = &effects.setup;
     [
         (&marks.listener_near, &setup.kind_floats.fading),

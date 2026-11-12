@@ -17,11 +17,11 @@
 use crate::errors::Refused;
 use crate::owners::Owners;
 use crate::race::owner::Race;
-use crate::session::Dword;
+use crate::session::DwordLike;
 
 const DOOR_TEXT: &std::ffi::CStr = c"doornr="; // "doornr="
 /// (to, from): the header's settings.
-fn settings(race: &Race) -> [(&Dword, &crate::session::PlainDword); 5] {
+fn settings(race: &Race) -> [(&dyn DwordLike, &crate::session::PlainDword); 5] {
     let shared = &race.shared;
     let work = race.replay_work();
     [
@@ -59,7 +59,7 @@ pub fn viewer_load_stage(race: &'static Race, o: Owners<'static>) -> Result<(), 
         // g_onePlayer (the sound module's) takes the header's setting too.
         sound
             .race
-            .sounds
+            .shared
             .one_player
             .set(race.replay_work().header_one_player.get());
         shared.state.settings.cars[0].controller.set(0);
@@ -68,7 +68,7 @@ pub fn viewer_load_stage(race: &'static Race, o: Owners<'static>) -> Result<(), 
             .state
             .settings
             .race_mode
-            .set(sound.race.sounds.one_player.get());
+            .set(sound.race.shared.one_player.get());
         // byte_719C8C: the low byte of the first dword of `unknown_7d0`.
         let door = race.replay_work().unknown_7d0[0].get() & 0xFF;
         shared.state.settings.cars[0].race_number.set(door);

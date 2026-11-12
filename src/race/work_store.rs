@@ -6,6 +6,7 @@
 //! `#[repr(C)]` with the image's order of fields (the unused runs at either end and in the
 //! middle left out).
 
+use crate::cells::ZeroCells;
 use crate::errors::BadInput;
 #[cfg(test)]
 use crate::race::owner::race;
@@ -13,7 +14,7 @@ use crate::session::{PlainDword, PlainFlag, PlainFloat};
 
 /// A loose part flying off a car (0x78 bytes, `physics::fill_race_slot`; readings).
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct RaceSlot {
     /// +0x0: the part (0 the slot empty).
     pub part: PlainDword,
@@ -38,7 +39,7 @@ pub struct RaceSlot {
 const _: () = assert!(core::mem::size_of::<RaceSlot>() == 0x78);
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct RaceWork {
     /// +0x400 (0x71B3B8): `g_carBlocks`: the eight cars' blocks (`CarBlock`, by handle:
     /// `blocks_store::block_ref`).
@@ -296,47 +297,187 @@ pub const CAR_RECORDS_LEN: usize = 8 * 0x4C8;
 // them): any bit pattern is a valid value.
 
 impl RaceWork {
-    /// The piece, with the image's first values of each run of fields (the image's unused
-    /// words before the car blocks, after `current_car`, between the driver's fields and at the
-    /// end are not kept).
+    /// The piece as the game starts it: the car blocks named, the computer driver's tables,
+    /// the credits' race, the `patch*` settings at their defaults and the stages' checkpoint
+    /// counts; the rest is zero.
     pub const fn new() -> Self {
-        use crate::race::store::first_values;
-        const SIZE: usize = core::mem::size_of::<RaceWork>();
-        const FIRST: usize = crate::race::blocks_store::CAR_BLOCKS_IDA;
-        // Up to `current_car`, then from `stage_direction` to the end of the driver's work (in
-        // five runs, round the driver's unused words), then from the stage times' scales to the
-        // end of the fields.
-        const A: usize = 0x71B3FC - FIRST;
-        const B1: usize = 0x71C004 - 0x71B400;
-        const B2: usize = 0x71C0B0 - 0x71C008;
-        const B3: usize = 0x71C248 - 0x71C0BC;
-        const B4: usize = 0x71C288 - 0x71C258;
-        const B5: usize = 0x71C384 - 0x71C298;
-        const C: usize = 0x71C804 - 0x71C3D8;
-        const _: () = assert!(A + B1 + B2 + B3 + B4 + B5 + C == SIZE);
-        let mut bytes = [0u8; SIZE];
-        let parts: [(usize, &[u8]); 7] = [
-            (0, &first_values::<A>(FIRST)),
-            (A, &first_values::<B1>(0x71B400)),
-            (A + B1, &first_values::<B2>(0x71C008)),
-            (A + B1 + B2, &first_values::<B3>(0x71C0BC)),
-            (A + B1 + B2 + B3, &first_values::<B4>(0x71C258)),
-            (A + B1 + B2 + B3 + B4, &first_values::<B5>(0x71C298)),
-            (A + B1 + B2 + B3 + B4 + B5, &first_values::<C>(0x71C3D8)),
-        ];
-        let mut p = 0;
-        while p < parts.len() {
-            let (at, part) = parts[p];
-            let mut k = 0;
-            while k < part.len() {
-                bytes[at + k] = part[k];
-                k += 1;
-            }
-            p += 1;
+        RaceWork {
+            car_blocks: block_handles(),
+            // The eight car records, one after the other.
+            car_records: car_record_names(),
+            number_texture_names: number_texture_names(),
+            number_tens_textures: dwords([0, 6, 3, 1, 5, 2, 4]),
+            part_break_limits: dwords([0x28, 0x3c, 0x3c, 0x14, 0x14, 0x4b, 0x3c]),
+            // The matrices a part takes lying still and lying flat.
+            part_matrix_still: dwords([
+                0,
+                F32_MINUS_ONE,
+                0,
+                0,
+                F32_ONE,
+                0,
+                0,
+                0,
+                0,
+                0,
+                F32_ONE,
+                0,
+                0,
+                0,
+                0,
+                0,
+            ]),
+            part_matrix_flat: dwords([
+                F32_ONE, 0, 0, 0, 0, F32_ONE, 0, 0, 0, 0, F32_ONE, 0, 0, 0, 0, 0,
+            ]),
+            part_fling: PlainFloat::new(6e-05),
+            // The computer driver's speed by bend: a triangle from -1 up to 1 and back.
+            bend_speeds: floats([
+                -1.0, -0.9, -0.8, -0.7, -0.5, -0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.5, 0.7, 0.8,
+                0.9, 1.0, 0.9, 0.8, 0.7, 0.5, 0.3, 0.2, 0.1, 0.0, -0.1, -0.2, -0.3, -0.5, -0.7,
+                -0.8, -0.9,
+            ]),
+            // Three tables of seven speeds (four to a word, as the game packs them).
+            wanted_speeds: dwords([
+                0xfafafafa, 0xfafafafa, 0xc8fafafa, 0x5a646496, 0x46464646, 0x323c3c3c, 0x1e283232,
+                0xfafafafa, 0xfafafafa, 0xfafafafa, 0x323c4664, 0x32323232, 0x28282832, 0x1414141e,
+                0xfafafafa, 0xfafafafa, 0x506efafa, 0x323c4646, 0x32323232, 0x1e1e2828, 0x1414141e,
+            ]),
+            driver_tilt_limit: PlainFloat::new(0.2),
+            driver_vector: floats([0.0, 1.0, 0.0, 0.0]),
+            replay_extra: PlainDword::new(1),
+            credit_stages: dwords([
+                0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1f, 0x20, 0x21, 0x22, 0x23, 0x24, 0x29, 0x2a,
+                0x2b, 0x2c, 0x2d, 0x2e, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x3d, 0x3e, 0x3f, 0x40,
+                0x41, 0x42, 0x47, 0x48, 0x49, 0x4a, 0x4b, 0x4c,
+            ]),
+            credit_car_kinds: credit_car_kinds(),
+            patches: dwords([
+                0, 0xc, 0, 0x64, 0x64, 0x64, 0x64, 0x64, 0x64, 0x64, 0x64, 0x64, 0x64,
+            ]),
+            patch_factors: floats([1.0; 10]),
+            checkpoint_counts: dwords([
+                9, 0xb, 0xc, 8, 0xc, 0xd, 0xb, 8, 9, 0xa, 0xe, 0xe, 0xb, 0xb, 0xd, 0xe, 0xd, 0xc,
+                0xc, 0xc, 0xc, 0xb, 0xa, 0xb, 0x10, 0xe, 0xe, 0xf, 0xa, 0xe, 8, 9, 9, 9, 4, 0xa,
+            ]),
+            ..ZeroCells::ZERO
         }
-        crate::cells::cells_of_bytes(crate::race::blocks_store::with_block_refs(bytes, 0, 8))
     }
 }
+
+/// `g_carBlocks` at the start: the eight cars' blocks, by handle.
+const fn block_handles() -> [PlainDword; 8] {
+    let mut out = [const { PlainDword::new(0) }; 8];
+    let mut k = 0;
+    while k < 8 {
+        out[k] = PlainDword::new(crate::race::blocks_store::BLOCK_TAG | k as u32);
+        k += 1;
+    }
+    out
+}
+
+/// `g_carRecords` at the start: the names of the eight car records, which follow each other.
+const fn car_record_names() -> [PlainDword; 8] {
+    let mut out = [const { PlainDword::new(0) }; 8];
+    let mut k = 0;
+    while k < 8 {
+        out[k] = PlainDword::new(
+            (CAR_RECORDS_IDA + k * crate::race::effects_settings_store::CAR_LEN) as u32,
+        );
+        k += 1;
+    }
+    out
+}
+
+/// The credits' race drives every car kind once, in order.
+const fn credit_car_kinds() -> [PlainDword; 23] {
+    let mut out = [const { PlainDword::new(0) }; 23];
+    let mut k = 0;
+    while k < 23 {
+        out[k] = PlainDword::new(k as u32);
+        k += 1;
+    }
+    out
+}
+
+/// The names of the number textures, 48 characters for each of the 32 car kinds.
+const NUMBER_NAMES: [&[u8; 48]; 32] = [
+    b"00000000000011112222333344445566789abcdddddddddd",
+    b"00001111222233334444555566778899aabbbbbbbbbbdddd",
+    b"0000000000112222333344445555667789abcddddddddddd",
+    b"0000000011112222333344445555667789abcdeeeeeeeeee",
+    b"0000000000000011223344556789abcdeeeeeeeeeeeeeeee",
+    b"00000000000011112222333344445566789abcdddddddddd",
+    b"000000000000000000000000000000000000000000000000",
+    b"000000000000000000000000000000000000000000000000",
+    b"00001111222233334444555566778899aabbcccccccccccc",
+    b"000011112222333344445555789a8899aabbbbbbbbbbbbbb",
+    b"000000000000000000000000000000000000000000000000",
+    b"000000000000000000000000000000000000000000000000",
+    b"000000000000000000000000000000000000000000000000",
+    b"00001111222233334444555566778899abbbbbbbbbbbbbbb",
+    b"00000000000011112222333344445566789abcdddddddddd",
+    b"000000000000000000000000000000000000000000000000",
+    b"0000000011112222333344445566667789abcdeeeeeeeeee",
+    b"00000000000011112222333344445566789abcdddddddddd",
+    b"000000000000000000000000000000000000000000000000",
+    b"000000000000000000000000000000000000000000000000",
+    b"00000000000011112222333344445566789abcdddddddddd",
+    b"000000000000000000000000000000000000000000000000",
+    b"000000000000000000000000000000000000000000000000",
+    b"00000000000011112222333344445566789abcdddddddddd",
+    b"00000000000011112222333344445566789abcdddddddddd",
+    b"00000000000011112222333344445566789abcdddddddddd",
+    b"00000000000011112222333344445566789abcdddddddddd",
+    b"00000000000011112222333344445566789abcdddddddddd",
+    b"00000000000011112222333344445566789abcdddddddddd",
+    b"00000000000011112222333344445566789abcdddddddddd",
+    b"00000000000011112222333344445566789abcdddddddddd",
+    b"00000000000011112222333344445566789abcdddddddddd",
+];
+
+const fn number_texture_names() -> [PlainDword; 384] {
+    let mut out = [const { PlainDword::new(0) }; 384];
+    let mut name = 0;
+    while name < 32 {
+        let text = NUMBER_NAMES[name];
+        let mut word = 0;
+        while word < 12 {
+            out[name * 12 + word] = PlainDword::new(u32::from_le_bytes([
+                text[4 * word],
+                text[4 * word + 1],
+                text[4 * word + 2],
+                text[4 * word + 3],
+            ]));
+            word += 1;
+        }
+        name += 1;
+    }
+    out
+}
+
+const fn dwords<const N: usize>(values: [u32; N]) -> [PlainDword; N] {
+    let mut out = [const { PlainDword::new(0) }; N];
+    let mut k = 0;
+    while k < N {
+        out[k] = PlainDword::new(values[k]);
+        k += 1;
+    }
+    out
+}
+
+const fn floats<const N: usize>(values: [f32; N]) -> [PlainFloat; N] {
+    let mut out = [const { PlainFloat::new(0.0) }; N];
+    let mut k = 0;
+    while k < N {
+        out[k] = PlainFloat::new(values[k]);
+        k += 1;
+    }
+    out
+}
+
+const F32_ONE: u32 = 1.0f32.to_bits();
+const F32_MINUS_ONE: u32 = (-1.0f32).to_bits();
 
 /// A byte offset in the 1999 layout of the race work (from `g_carBlocks`) as it is in `RaceWork`
 /// now: the driver's unused words were taken out. For the tests whose recorded vectors name the

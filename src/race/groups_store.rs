@@ -29,7 +29,7 @@ use crate::race::owner::race;
 use crate::race::panel_store::Panel;
 use crate::race::view_vars_store::{ViewRecord, ViewVars};
 use crate::race::viewer_screen_store::ViewerPanelBlock;
-use crate::session::{PlainBytes, PlainDword};
+use crate::session::{GameThread, PlainBytes, PlainCells, PlainDword};
 use core::mem::{offset_of, size_of};
 
 /// IDA 0x5C291C .. 0x5C5CE0.
@@ -39,8 +39,8 @@ pub struct ViewerAndKinds {
     /// +0x0 (0x5C291C): `race::viewer_screen_store`.
     pub viewer_panel: ViewerPanelBlock,
     /// +0x668 (0x5C2F84): `race::effects_settings_store`.
-    pub marks_settings: EffectsSettings,
-    /// +0x2DD0 (0x5C56EC): `race::kind_store`.
+    pub marks_settings: GameThread<EffectsSettings>,
+    /// +0x2DD0 (0x5C5708): `race::kind_store`.
     pub kind_tables: KindTables,
 }
 
@@ -80,91 +80,66 @@ pub struct ViewAndRecords {
     pub records: [ViewRecord; 52],
 }
 
-/// The groups' IDA ranges, in order.
-pub const VIEWER_AND_KINDS_RANGE: (usize, usize) = (0x5C291C, 0x5C5CE0);
-pub const LIGHTS_AND_GEAR_RANGE: (usize, usize) = (0x5C906C, 0x5CC198);
-pub const PANEL_AND_OVERLAY_RANGE: (usize, usize) = (0x6D13FE, 0x6D1870);
-pub const VIEW_AND_RECORDS_RANGE: (usize, usize) = (0x60626C, 0x6077B0);
-
 const _: () = {
-    use crate::{physics, race};
-    assert!(size_of::<ViewerAndKinds>() == VIEWER_AND_KINDS_RANGE.1 - VIEWER_AND_KINDS_RANGE.0);
-    assert!(
-        offset_of!(ViewerAndKinds, marks_settings)
-            == race::effects_settings_store::START - race::viewer_screen_store::START
-    );
-    assert!(race::viewer_screen_store::END == race::effects_settings_store::START);
-    assert!(race::effects_settings_store::END == race::kind_store::START);
+    // The pieces follow each other as the original's do: the effects read the marks' settings
+    // on into the kinds' tables, the drawing reads a kind's record on into the gear figures
+    // (past the one dword between), the hud reads its records on from the panel to the overlay.
+    assert!(offset_of!(ViewerAndKinds, marks_settings) == size_of::<ViewerPanelBlock>());
     assert!(
         offset_of!(ViewerAndKinds, kind_tables)
-            == race::kind_store::START - race::viewer_screen_store::START
+            == size_of::<ViewerPanelBlock>() + size_of::<EffectsSettings>()
     );
-    assert!(race::viewer_screen_store::START == VIEWER_AND_KINDS_RANGE.0);
-    assert!(race::kind_store::END == VIEWER_AND_KINDS_RANGE.1);
-    assert!(size_of::<LightsAndGear>() == LIGHTS_AND_GEAR_RANGE.1 - LIGHTS_AND_GEAR_RANGE.0);
-    assert!(
-        offset_of!(LightsAndGear, gear)
-            == physics::gear_store::START - race::light_records_store::START
-    );
-    assert!(race::light_records_store::START == LIGHTS_AND_GEAR_RANGE.0);
-    assert!(physics::gear_store::END == LIGHTS_AND_GEAR_RANGE.1);
-    assert!(
-        size_of::<PanelAndOverlay>() == 2 + PANEL_AND_OVERLAY_RANGE.1 - PANEL_AND_OVERLAY_RANGE.0
-    );
+    assert!(offset_of!(LightsAndGear, gear) == size_of::<LightRecords>() + 4);
     assert!(offset_of!(PanelAndOverlay, panel) == 2);
-    assert!(
-        offset_of!(PanelAndOverlay, overlay)
-            == 2 + race::overlay_store::START - race::panel_store::START
-    );
-    assert!(race::panel_store::START == PANEL_AND_OVERLAY_RANGE.0);
-    assert!(race::overlay_store::END == PANEL_AND_OVERLAY_RANGE.1);
-    assert!(size_of::<ViewAndRecords>() == VIEW_AND_RECORDS_RANGE.1 - VIEW_AND_RECORDS_RANGE.0);
-    assert!(
-        offset_of!(ViewAndRecords, records)
-            == race::view_vars_store::END - race::view_vars_store::START
-    );
-    assert!(race::view_vars_store::START == VIEW_AND_RECORDS_RANGE.0);
+    assert!(offset_of!(PanelAndOverlay, overlay) == 2 + size_of::<Panel>());
+    // The 52 records follow the view variables with no gap.
+    assert!(offset_of!(ViewAndRecords, records) == size_of::<ViewVars>());
+    assert!(size_of::<ViewAndRecords>() == size_of::<ViewVars>() + 52 * size_of::<ViewRecord>());
 };
 
 // SAFETY (the groups): every field is a cell over a plain integer (`session`'s cells and
 // records of them): any bit pattern is a valid value.
 
-/// The viewer's panel .. the kinds' tables, with the image's first values.
+/// The viewer's panel, the marks' settings and the kinds' tables as the game starts.
 impl ViewerAndKinds {
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::store::first_values::<
-            { VIEWER_AND_KINDS_RANGE.1 - VIEWER_AND_KINDS_RANGE.0 },
-        >(VIEWER_AND_KINDS_RANGE.0))
+        ViewerAndKinds {
+            viewer_panel: ViewerPanelBlock::new(),
+            marks_settings: GameThread::new(EffectsSettings::new()),
+            kind_tables: KindTables::new(),
+        }
     }
 }
-/// The light records and the gear figures, with the image's first values.
+
+/// The light records and the gear figures as the game starts.
 impl LightsAndGear {
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::store::first_values::<
-            { LIGHTS_AND_GEAR_RANGE.1 - LIGHTS_AND_GEAR_RANGE.0 },
-        >(LIGHTS_AND_GEAR_RANGE.0))
+        LightsAndGear {
+            light_records: LightRecords::new(),
+            between: PlainDword::new(0),
+            gear: GearFigures::new(),
+        }
     }
 }
 
-/// The hud's panel and the race's overlay, with the image's first values (the two lead
-/// bytes the block's before the panel).
+/// The hud's panel and the race's overlay as the game starts.
 impl PanelAndOverlay {
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::store::first_values::<
-            { 2 + PANEL_AND_OVERLAY_RANGE.1 - PANEL_AND_OVERLAY_RANGE.0 },
-        >(PANEL_AND_OVERLAY_RANGE.0 - 2))
+        PanelAndOverlay {
+            lead: PlainBytes::new([0; 2]),
+            panel: Panel::new(),
+            overlay: OverlayBlock::new(),
+        }
     }
 }
 
-/// The view variables and the view records, with the image's first values.
+/// The view variables and the 52 view records as the game starts.
 impl ViewAndRecords {
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::view_vars_store::with_view_refs(
-            crate::race::store::first_values::<
-                { VIEW_AND_RECORDS_RANGE.1 - VIEW_AND_RECORDS_RANGE.0 },
-            >(VIEW_AND_RECORDS_RANGE.0),
-            VIEW_AND_RECORDS_RANGE.0,
-        ))
+        ViewAndRecords {
+            view_vars: ViewVars::<PlainCells>::new(),
+            records: ViewRecord::first_records(),
+        }
     }
 }
 

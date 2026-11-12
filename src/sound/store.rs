@@ -19,7 +19,7 @@
 //! The sound commands go to the audio thread through `audio::store`'s queue; these are the
 //! game thread's.
 
-use crate::session::{Dword, Float, GameThread, PlainDword, PlainFloat, PlainWord};
+use crate::session::{Dword, GameThread, PlainDword, PlainFloat, PlainWord};
 
 /// `g_wheelSurfaceA`, `g_wheelSurfaceB` (IDA 0x4F66F1, 0x4F66F5): the surfaces of the wheels
 /// the first and the second of a car's two sounds follow (`sound::surface_sounds`). Kept apart
@@ -33,11 +33,11 @@ pub static WHEEL_SURFACES: GameThread<[PlainDword; 2]> =
 #[derive(rc2k_derive::Cells)]
 pub struct CueEntry {
     /// The cue's first sound.
-    pub first: Dword,
+    pub first: PlainDword,
     /// Its sounds.
-    pub count: Dword,
+    pub count: PlainDword,
     /// The sounds.
-    pub sounds: [Dword; 6],
+    pub sounds: [PlainDword; 6],
 }
 
 /// A car's queue of spoken cues, 0x210 bytes.
@@ -45,13 +45,13 @@ pub struct CueEntry {
 #[derive(rc2k_derive::Cells)]
 pub struct CueQueue {
     /// The first cue queued.
-    pub first: Dword,
+    pub first: PlainDword,
     /// The place in the first cue (-1: none begun).
-    pub place: Dword,
+    pub place: PlainDword,
     /// When the next sound is due.
-    pub due: Dword,
+    pub due: PlainDword,
     /// The cues queued.
-    pub count: Dword,
+    pub count: PlainDword,
     /// The cues.
     pub cues: [CueEntry; 16],
 }
@@ -61,13 +61,13 @@ pub struct CueQueue {
 #[derive(rc2k_derive::Cells)]
 pub struct EngineVoice {
     /// A share the physics sets (`physics::car_sound_state`: +0x294 of the work car, or 0); the first wheel sum (`sum_a`) scales these by 0.4.
-    pub share_a: Float,
+    pub share_a: PlainFloat,
     /// 1.0, or the share +0x28C (`sound::surface_sounds` reads these: front less back and left less right, and their sum x 64).
-    pub share_b: Float,
+    pub share_b: PlainFloat,
     /// The share x 256.
-    pub share_c: Float,
+    pub share_c: PlainFloat,
     /// The surface the wheel runs on (`g_car` +0x930).
-    pub surface: Dword,
+    pub surface: PlainDword,
 }
 
 /// A race sound object (0x4A8 bytes in the image): a car's sound state (the revs, the throttle, the place, the timed sound slots) as `sound::car_sounds` and the physics keep it.
@@ -75,135 +75,135 @@ pub struct EngineVoice {
 #[derive(rc2k_derive::Cells)]
 pub struct SoundObject {
     /// Added to a sound set's first sound to pick the car's sound; negative for a computer's car (the sets are picked in `sound::revs_sound` and `surface_sound`).
-    pub sound_offset: Dword,
+    pub sound_offset: PlainDword,
     /// The car's sound kind, an index into `SoundKinds.kinds[0]` (36 of 0x88 bytes).
-    pub kind: Dword,
+    pub kind: PlainDword,
     /// 1 when the object is in use (`sound::car_sounds_all`).
-    pub in_use: Dword,
+    pub in_use: PlainDword,
     /// `g_car` +0x6F0 xor 1; the engine, throttle and speed sounds' volume is scaled by a constant when it is 0 (`sound::revs_sound`, `throttle_sound`, `car_slot_sounds`: 1 is the view of the car itself, which gets the surface's gain instead).
-    pub view_flag: Dword,
+    pub view_flag: PlainDword,
     /// 1 when a new revs reading (`revs`) came (`sound::car_engine_state`).
-    pub new_revs: Dword,
+    pub new_revs: PlainDword,
     /// The revs (extrapolated between the physics' readings).
-    pub revs: Dword,
+    pub revs: PlainDword,
     /// The throttle, 0 ..= 0x100.
-    pub throttle: Dword,
+    pub throttle: PlainDword,
     /// The car's speed.
-    pub speed: Float,
+    pub speed: PlainFloat,
     /// Set by the physics when the gear changed (cleared by `sound::car_engine_state`).
-    pub gear_event: Dword,
+    pub gear_event: PlainDword,
     /// 1 when the car is in neutral (gear 0, or the gear cue's random bits 0: `sound::car_engine_state`); 1 from the set-up.
-    pub no_gear: Dword,
+    pub no_gear: PlainDword,
     /// The car's place less the listener's, turned by the view and scaled (`physics::car_sound_state`).
-    pub place: [Float; 3],
+    pub place: [PlainFloat; 3],
     /// The car's motion, turned by the view.
-    pub motion: [Float; 3],
+    pub motion: [PlainFloat; 3],
     /// Four records of five dwords (one per wheel).
     pub voices: [EngineVoice; 4],
     /// The times of the last two revs readings.
-    pub reading_times: [Dword; 2],
+    pub reading_times: [PlainDword; 2],
     /// The revs of the last two readings.
-    pub reading_revs: [Dword; 2],
+    pub reading_revs: [PlainDword; 2],
     /// Two dwords cleared by the set-up (`race::set_up_race_sound_objects`); nothing else reads or writes them.
-    pub unused_a4: [Dword; 2],
+    pub unused_a4: [PlainDword; 2],
     /// Set by the physics (`g_car` +0x248 and +0x24C); the speed sound stops when it is not 0.
-    pub flag_ac: Dword,
+    pub flag_ac: PlainDword,
     /// The force feedback's inputs (`input::update_car_effects`; of the view block +0x1A4 the sideways speed, +0x1AC the forward speed, +0x1B8 the driven wheels' speed): +0x1A4 x 10, (+0x1B8 - +0x1AC) x 10, +0x1A4 x 10, +0x1AC x 10 of the view block.
-    pub effect_in: [Dword; 4],
+    pub effect_in: [PlainDword; 4],
     /// The knock's force (`input::update_car_effects`); cleared by the set-up.
-    pub knock: Dword,
+    pub knock: PlainDword,
     /// The knock's inputs (cleared after each use; `knock_in[2]` and `knock_in[0]` give the angle, `knock_in[3]` the weight).
-    pub knock_in: [Dword; 4],
+    pub knock_in: [PlainDword; 4],
     /// A copy of the car's steering trim (`g_car` `steer_trim`) made by `physics::share_engine_sound`; nothing reads it.
-    pub steer_trim_copy: Dword,
+    pub steer_trim_copy: PlainDword,
     /// The `b` number of the Fourth, Steering and Landing force-feedback requests (`input::update_car_effects`: the request word's bits 20 ..); never written, so 0 (read only by that function).
-    pub effect_request_b: Dword,
+    pub effect_request_b: PlainDword,
     /// Counts the knocks to 4 before the next effect 3.
-    pub knock_count: Dword,
+    pub knock_count: PlainDword,
     /// The gear.
-    pub gear: Dword,
+    pub gear: PlainDword,
     /// The gear when it last changed.
-    pub last_gear: Dword,
+    pub last_gear: PlainDword,
     /// Set with a gear change.
-    pub gear_notice: Dword,
+    pub gear_notice: PlainDword,
     /// Counts down to 0; the speed sound waits for it.
-    pub countdown: Dword,
+    pub countdown: PlainDword,
     /// 1 once the throttle-drop sound has been triggered in this downward run of the throttle (set when the throttle falls more than 0x14 below its follower, cleared when it rises; `rc2k_core::sound::engine`), so it plays once per lift; 1 from the set-up.
-    pub drop_latched: Dword,
+    pub drop_latched: PlainDword,
     /// The last direction of the revs.
-    pub last_direction: Dword,
+    pub last_direction: PlainDword,
     /// The revs sound's input, (`revs` less the kind's `revs_low`) x its `revs_scale`.
-    pub revs_input: Float,
+    pub revs_input: PlainFloat,
     /// The throttle sound's input, `throttle` over 256.
-    pub throttle_input: Float,
+    pub throttle_input: PlainFloat,
     /// The speed sound's input, |`speed`| x `SurfaceSounds.speed_scale`.
-    pub speed_input: Float,
+    pub speed_input: PlainFloat,
     /// 0 (no revs), 1 (up to 1000), 2, or 3 when `gear_event` was set.
-    pub state: Dword,
+    pub state: PlainDword,
     /// The last state.
-    pub last_state: Dword,
+    pub last_state: PlainDword,
     /// Follows `throttle`.
-    pub smooth_throttle: Dword,
+    pub smooth_throttle: PlainDword,
     /// The throttle's lead over its follower, `throttle` - `smooth_throttle` (negative on a lift; a gear cue needs 0x32 or more, the drop sound -0x14 or less).
-    pub throttle_lead: Dword,
+    pub throttle_lead: PlainDword,
     /// The turns going up.
-    pub turns_up: Dword,
+    pub turns_up: PlainDword,
     /// 0, 1 up, 2 down.
-    pub direction: Dword,
+    pub direction: PlainDword,
     /// The turns going down.
-    pub turns_down: Dword,
+    pub turns_down: PlainDword,
     /// The listener's distance (the root of the squares of `place`).
-    pub distance: Float,
+    pub distance: PlainFloat,
     /// Its change x the turns a second.
-    pub approach: Float,
+    pub approach: PlainFloat,
     /// The Doppler-like pitch factor, eased.
-    pub pitch_factor: Float,
+    pub pitch_factor: PlainFloat,
     /// 1, or 1 / the distance when that is over 1.
-    pub volume_factor: Float,
+    pub volume_factor: PlainFloat,
     /// The sound playing from the surface sets of eight (-2: none; `sound::surface_sound`).
-    pub eights_sound: Dword,
+    pub eights_sound: PlainDword,
     /// The sound playing from the surface sets of four (-2: none).
-    pub fours_sound: Dword,
+    pub fours_sound: PlainDword,
     /// Seven timed sound slots of 0x18 bytes (`sound::car_slot_sounds` the first five, `sound::car_gear_sounds` the last two: the sixth armed by `sound::car_engine_state` when the throttle drops at high revs, the seventh by its countdown at low throttle).
     pub slots: [SoundSlot; 7],
     /// Counts down (back-fires).
-    pub backfire_wait: Dword,
+    pub backfire_wait: PlainDword,
     /// The gear change's slot (pitch `gear_pitch`).
     pub gear_slot: SoundSlot,
     /// The gear change sound's pitch factor.
-    pub gear_pitch: Float,
+    pub gear_pitch: PlainFloat,
     /// The place of `slot_b`.
-    pub place_b: [Float; 3],
+    pub place_b: [PlainFloat; 3],
     /// A timed slot.
     pub slot_b: SoundSlot,
     /// The hit sound to send once (-2: none), set by the physics.
-    pub hit_sound: Dword,
+    pub hit_sound: PlainDword,
     /// Its volume.
-    pub hit_volume: Dword,
+    pub hit_volume: PlainDword,
     /// Its place.
-    pub hit_place: [Float; 3],
+    pub hit_place: [PlainFloat; 3],
     /// The second one-off sound (-2: none), set by the physics' cues.
-    pub cue_sound: Dword,
+    pub cue_sound: PlainDword,
     /// Its volume.
-    pub cue_volume: Dword,
+    pub cue_volume: PlainDword,
     /// Its place.
-    pub cue_place: [Float; 3],
+    pub cue_place: [PlainFloat; 3],
     /// A timed slot.
     pub slot_c: SoundSlot,
     /// 1 after a landing's effects (`input::update_car_effects`).
-    pub landed: Dword,
+    pub landed: PlainDword,
     /// The last forward speed x 10 (`effect_in[3]`), kept for the next turn's speed-change effect (effect 5, `input::update_car_effects`); cleared by the set-up.
-    pub last_forward_speed: Dword,
+    pub last_forward_speed: PlainDword,
     /// Cleared by the set-up; nothing else reads or writes it.
-    pub unused_280: Dword,
+    pub unused_280: PlainDword,
     /// The first wheel sum x 0.4 (a whole number).
-    pub sum_a: Dword,
+    pub sum_a: PlainDword,
     /// The second wheel sum x 64 (a whole number).
-    pub sum_b: Dword,
+    pub sum_b: PlainDword,
     /// The other wheels' sum x 64 (a whole number).
-    pub sum_c: Dword,
+    pub sum_c: PlainDword,
     /// The surface the first wheel runs on.
-    pub surface: Dword,
+    pub surface: PlainDword,
     /// The queue of spoken cues (`sound::play_cue_queue`; `physics::queue_sound_cue` fills it), 0x210 bytes.
     pub cue_queue: CueQueue,
 }
@@ -213,7 +213,7 @@ pub fn current_object<'a>(
     sound: &'a crate::sound::owner::Sound,
     work: &crate::race::work_store::RaceWork,
 ) -> &'a SoundObject {
-    &sound.race.sounds.objects[(work.current_car.get() & 7) as usize]
+    &sound.race.sounds.get().objects[(work.current_car.get() & 7) as usize]
 }
 
 impl SoundObject {
@@ -226,6 +226,7 @@ impl SoundObject {
         sound
             .race
             .sounds
+            .get()
             .objects
             .get(n as usize)
             .ok_or(crate::errors::BadInput(
@@ -256,166 +257,186 @@ impl SoundObject {
 /// kind 0x11 at the start).
 pub(crate) const fn initial_object(sound_offset: u32) -> SoundObject {
     SoundObject {
-        sound_offset: Dword::new(sound_offset),
-        kind: Dword::new(0x11),
-        in_use: Dword::new(0),
-        view_flag: Dword::new(0),
-        new_revs: Dword::new(0),
-        revs: Dword::new(0x3E8),
-        throttle: Dword::new(0),
-        speed: Float::new(0.0),
-        gear_event: Dword::new(0),
-        no_gear: Dword::new(0),
-        place: [Float::new(0.0), Float::new(0.0), Float::new(0.0)],
-        motion: [Float::new(0.0), Float::new(0.0), Float::new(0.0)],
+        sound_offset: PlainDword::new(sound_offset),
+        kind: PlainDword::new(0x11),
+        in_use: PlainDword::new(0),
+        view_flag: PlainDword::new(0),
+        new_revs: PlainDword::new(0),
+        revs: PlainDword::new(0x3E8),
+        throttle: PlainDword::new(0),
+        speed: PlainFloat::new(0.0),
+        gear_event: PlainDword::new(0),
+        no_gear: PlainDword::new(0),
+        place: [
+            PlainFloat::new(0.0),
+            PlainFloat::new(0.0),
+            PlainFloat::new(0.0),
+        ],
+        motion: [
+            PlainFloat::new(0.0),
+            PlainFloat::new(0.0),
+            PlainFloat::new(0.0),
+        ],
         voices: [const {
             EngineVoice {
-                share_a: Float::new(0.0),
-                share_b: Float::new(0.0),
-                share_c: Float::new(0.0),
-                surface: Dword::new(0),
+                share_a: PlainFloat::new(0.0),
+                share_b: PlainFloat::new(0.0),
+                share_c: PlainFloat::new(0.0),
+                surface: PlainDword::new(0),
             }
         }; 4],
-        reading_times: [Dword::new(0), Dword::new(0)],
-        reading_revs: [Dword::new(0), Dword::new(0)],
-        unused_a4: [Dword::new(0), Dword::new(0)],
-        flag_ac: Dword::new(0),
-        effect_in: [const { Dword::new(0) }; 4],
-        knock: Dword::new(0),
-        knock_in: [const { Dword::new(0) }; 4],
-        steer_trim_copy: Dword::new(0),
-        effect_request_b: Dword::new(0),
-        knock_count: Dword::new(0),
-        gear: Dword::new(0),
-        last_gear: Dword::new(0),
-        gear_notice: Dword::new(0),
-        countdown: Dword::new(0),
-        drop_latched: Dword::new(1),
-        last_direction: Dword::new(0),
-        revs_input: Float::new(0.0),
-        throttle_input: Float::new(0.0),
-        speed_input: Float::new(0.0),
-        state: Dword::new(0),
-        last_state: Dword::new(0),
-        smooth_throttle: Dword::new(0),
-        throttle_lead: Dword::new(0),
-        turns_up: Dword::new(0),
-        direction: Dword::new(0),
-        turns_down: Dword::new(0),
-        distance: Float::new(0.0),
-        approach: Float::new(0.0),
-        pitch_factor: Float::new(1.0),
-        volume_factor: Float::new(0.0),
-        eights_sound: Dword::new(0xFFFFFFFE),
-        fours_sound: Dword::new(0xFFFFFFFE),
+        reading_times: [PlainDword::new(0), PlainDword::new(0)],
+        reading_revs: [PlainDword::new(0), PlainDword::new(0)],
+        unused_a4: [PlainDword::new(0), PlainDword::new(0)],
+        flag_ac: PlainDword::new(0),
+        effect_in: [const { PlainDword::new(0) }; 4],
+        knock: PlainDword::new(0),
+        knock_in: [const { PlainDword::new(0) }; 4],
+        steer_trim_copy: PlainDword::new(0),
+        effect_request_b: PlainDword::new(0),
+        knock_count: PlainDword::new(0),
+        gear: PlainDword::new(0),
+        last_gear: PlainDword::new(0),
+        gear_notice: PlainDword::new(0),
+        countdown: PlainDword::new(0),
+        drop_latched: PlainDword::new(1),
+        last_direction: PlainDword::new(0),
+        revs_input: PlainFloat::new(0.0),
+        throttle_input: PlainFloat::new(0.0),
+        speed_input: PlainFloat::new(0.0),
+        state: PlainDword::new(0),
+        last_state: PlainDword::new(0),
+        smooth_throttle: PlainDword::new(0),
+        throttle_lead: PlainDword::new(0),
+        turns_up: PlainDword::new(0),
+        direction: PlainDword::new(0),
+        turns_down: PlainDword::new(0),
+        distance: PlainFloat::new(0.0),
+        approach: PlainFloat::new(0.0),
+        pitch_factor: PlainFloat::new(1.0),
+        volume_factor: PlainFloat::new(0.0),
+        eights_sound: PlainDword::new(0xFFFFFFFE),
+        fours_sound: PlainDword::new(0xFFFFFFFE),
         slots: [
             SoundSlot {
-                sound: Dword::new(0xD6),
-                start: Dword::new(0),
-                playing: Dword::new(0),
-                ends: Dword::new(0),
-                volume: Dword::new(0xFFFFFF91),
-                rate: Dword::new(0xFFFFFF91),
+                sound: PlainDword::new(0xD6),
+                start: PlainDword::new(0),
+                playing: PlainDword::new(0),
+                ends: PlainDword::new(0),
+                volume: PlainDword::new(0xFFFFFF91),
+                rate: PlainDword::new(0xFFFFFF91),
             },
             SoundSlot {
-                sound: Dword::new(0xD5),
-                start: Dword::new(0),
-                playing: Dword::new(0),
-                ends: Dword::new(0),
-                volume: Dword::new(0xFFFFFF91),
-                rate: Dword::new(0xFFFFFF91),
+                sound: PlainDword::new(0xD5),
+                start: PlainDword::new(0),
+                playing: PlainDword::new(0),
+                ends: PlainDword::new(0),
+                volume: PlainDword::new(0xFFFFFF91),
+                rate: PlainDword::new(0xFFFFFF91),
             },
             SoundSlot {
-                sound: Dword::new(0xD3),
-                start: Dword::new(0),
-                playing: Dword::new(0),
-                ends: Dword::new(0),
-                volume: Dword::new(0xFFFFFF91),
-                rate: Dword::new(0xFFFFFF91),
+                sound: PlainDword::new(0xD3),
+                start: PlainDword::new(0),
+                playing: PlainDword::new(0),
+                ends: PlainDword::new(0),
+                volume: PlainDword::new(0xFFFFFF91),
+                rate: PlainDword::new(0xFFFFFF91),
             },
             SoundSlot {
-                sound: Dword::new(0xD4),
-                start: Dword::new(0),
-                playing: Dword::new(0),
-                ends: Dword::new(0),
-                volume: Dword::new(0xFFFFFF91),
-                rate: Dword::new(0xFFFFFF91),
+                sound: PlainDword::new(0xD4),
+                start: PlainDword::new(0),
+                playing: PlainDword::new(0),
+                ends: PlainDword::new(0),
+                volume: PlainDword::new(0xFFFFFF91),
+                rate: PlainDword::new(0xFFFFFF91),
             },
             SoundSlot {
-                sound: Dword::new(0xD2),
-                start: Dword::new(0),
-                playing: Dword::new(0),
-                ends: Dword::new(0),
-                volume: Dword::new(0xFFFFFF91),
-                rate: Dword::new(0xFFFFFF91),
+                sound: PlainDword::new(0xD2),
+                start: PlainDword::new(0),
+                playing: PlainDword::new(0),
+                ends: PlainDword::new(0),
+                volume: PlainDword::new(0xFFFFFF91),
+                rate: PlainDword::new(0xFFFFFF91),
             },
             SoundSlot {
-                sound: Dword::new(0xEB),
-                start: Dword::new(0),
-                playing: Dword::new(0),
-                ends: Dword::new(0),
-                volume: Dword::new(0xFFFFFF91),
-                rate: Dword::new(0xFFFFFF91),
+                sound: PlainDword::new(0xEB),
+                start: PlainDword::new(0),
+                playing: PlainDword::new(0),
+                ends: PlainDword::new(0),
+                volume: PlainDword::new(0xFFFFFF91),
+                rate: PlainDword::new(0xFFFFFF91),
             },
             SoundSlot {
-                sound: Dword::new(0xE9),
-                start: Dword::new(0),
-                playing: Dword::new(0),
-                ends: Dword::new(0),
-                volume: Dword::new(0xFFFFFF91),
-                rate: Dword::new(0xFFFFFF91),
+                sound: PlainDword::new(0xE9),
+                start: PlainDword::new(0),
+                playing: PlainDword::new(0),
+                ends: PlainDword::new(0),
+                volume: PlainDword::new(0xFFFFFF91),
+                rate: PlainDword::new(0xFFFFFF91),
             },
         ],
-        backfire_wait: Dword::new(0),
+        backfire_wait: PlainDword::new(0),
         gear_slot: SoundSlot {
-            sound: Dword::new(0xE8),
-            start: Dword::new(0),
-            playing: Dword::new(0),
-            ends: Dword::new(0),
-            volume: Dword::new(0xFFFFFF91),
-            rate: Dword::new(0xFFFFFF91),
+            sound: PlainDword::new(0xE8),
+            start: PlainDword::new(0),
+            playing: PlainDword::new(0),
+            ends: PlainDword::new(0),
+            volume: PlainDword::new(0xFFFFFF91),
+            rate: PlainDword::new(0xFFFFFF91),
         },
-        gear_pitch: Float::new(1.0),
-        place_b: [Float::new(0.0), Float::new(0.0), Float::new(0.0)],
+        gear_pitch: PlainFloat::new(1.0),
+        place_b: [
+            PlainFloat::new(0.0),
+            PlainFloat::new(0.0),
+            PlainFloat::new(0.0),
+        ],
         slot_b: SoundSlot {
-            sound: Dword::new(0xE3),
-            start: Dword::new(0),
-            playing: Dword::new(0),
-            ends: Dword::new(0),
-            volume: Dword::new(0xFFFFFF91),
-            rate: Dword::new(0xFFFFFF91),
+            sound: PlainDword::new(0xE3),
+            start: PlainDword::new(0),
+            playing: PlainDword::new(0),
+            ends: PlainDword::new(0),
+            volume: PlainDword::new(0xFFFFFF91),
+            rate: PlainDword::new(0xFFFFFF91),
         },
-        hit_sound: Dword::new(0xFFFFFFFE),
-        hit_volume: Dword::new(0),
-        hit_place: [Float::new(0.0), Float::new(0.0), Float::new(0.0)],
-        cue_sound: Dword::new(0xFFFFFFFE),
-        cue_volume: Dword::new(0),
-        cue_place: [Float::new(0.0), Float::new(0.0), Float::new(0.0)],
+        hit_sound: PlainDword::new(0xFFFFFFFE),
+        hit_volume: PlainDword::new(0),
+        hit_place: [
+            PlainFloat::new(0.0),
+            PlainFloat::new(0.0),
+            PlainFloat::new(0.0),
+        ],
+        cue_sound: PlainDword::new(0xFFFFFFFE),
+        cue_volume: PlainDword::new(0),
+        cue_place: [
+            PlainFloat::new(0.0),
+            PlainFloat::new(0.0),
+            PlainFloat::new(0.0),
+        ],
         slot_c: SoundSlot {
-            sound: Dword::new(0xE4),
-            start: Dword::new(0),
-            playing: Dword::new(0),
-            ends: Dword::new(0),
-            volume: Dword::new(0xFFFFFF91),
-            rate: Dword::new(0xFFFFFF91),
+            sound: PlainDword::new(0xE4),
+            start: PlainDword::new(0),
+            playing: PlainDword::new(0),
+            ends: PlainDword::new(0),
+            volume: PlainDword::new(0xFFFFFF91),
+            rate: PlainDword::new(0xFFFFFF91),
         },
-        landed: Dword::new(0),
-        last_forward_speed: Dword::new(0),
-        unused_280: Dword::new(0),
-        sum_a: Dword::new(0),
-        sum_b: Dword::new(0),
-        sum_c: Dword::new(0),
-        surface: Dword::new(0),
+        landed: PlainDword::new(0),
+        last_forward_speed: PlainDword::new(0),
+        unused_280: PlainDword::new(0),
+        sum_a: PlainDword::new(0),
+        sum_b: PlainDword::new(0),
+        sum_c: PlainDword::new(0),
+        surface: PlainDword::new(0),
         cue_queue: CueQueue {
-            first: Dword::new(0),
-            place: Dword::new(0xFFFFFFFF),
-            due: Dword::new(0),
-            count: Dword::new(0),
+            first: PlainDword::new(0),
+            place: PlainDword::new(0xFFFFFFFF),
+            due: PlainDword::new(0),
+            count: PlainDword::new(0),
             cues: [const {
                 CueEntry {
-                    first: Dword::new(0),
-                    count: Dword::new(0),
-                    sounds: [const { Dword::new(0) }; 6],
+                    first: PlainDword::new(0),
+                    count: PlainDword::new(0),
+                    sounds: [const { PlainDword::new(0) }; 6],
                 }
             }; 16],
         },
@@ -427,23 +448,40 @@ pub(crate) const fn initial_object(sound_offset: u32) -> SoundObject {
 #[derive(rc2k_derive::Cells)]
 pub struct RaceSounds {
     /// `g_raceSoundObjects`: the eight objects' addresses as the image names them (IDA's); read by nothing, the objects are reached by number (`objects`).
-    pub table: [Dword; 8],
+    pub table: [PlainDword; 8],
     /// The eight objects (`RaceSounds.objects[0].sound_offset` ..).
     pub objects: [SoundObject; 8],
     /// `g_playerCarA`, `g_playerCarB`: the object numbers of the first and second player's cars.
-    pub player_cars: [Dword; 2],
+    pub player_cars: [PlainDword; 2],
+    /// `g_nearestComputerCar`: the nearest computer car (an object number, -1 for none).
+    pub nearest: PlainDword,
+    /// `g_nextComputerCar`: the next nearest.
+    pub next: PlainDword,
+    /// `g_computerCarDistance`: the squared distance `sound::car_sounds_all` works out.
+    pub nearest_distance: PlainFloat,
+    /// `g_markCarVoices`: 1 when the cars' voices are marked (`sound::mark_car_voices`).
+    pub mark_car_voices: PlainDword,
+}
+
+/// The two race sound values the input thread reads (its force-feedback effects follow the
+/// objects in use and the player count); the game's thread writes them, the rest of the race
+/// sounds stays with it alone (`RaceSounds`).
+#[repr(C)]
+#[derive(rc2k_derive::Cells)]
+pub struct SoundShared {
     /// `g_onePlayer`: 1 when one player races.
     pub one_player: Dword,
     /// `g_raceSoundObjectCount`: the objects in use.
     pub count: Dword,
-    /// `g_nearestComputerCar`: the nearest computer car (an object number, -1 for none).
-    pub nearest: Dword,
-    /// `g_nextComputerCar`: the next nearest.
-    pub next: Dword,
-    /// `g_computerCarDistance`: the squared distance `sound::car_sounds_all` works out.
-    pub nearest_distance: Float,
-    /// `g_markCarVoices`: 1 when the cars' voices are marked (`sound::mark_car_voices`).
-    pub mark_car_voices: Dword,
+}
+
+impl SoundShared {
+    pub const fn new() -> Self {
+        SoundShared {
+            one_player: Dword::new(1),
+            count: Dword::new(1),
+        }
+    }
 }
 
 /// The race sounds' objects (`RaceSounds`); first values the image's.
@@ -451,14 +489,14 @@ impl RaceSounds {
     pub const fn new() -> Self {
         RaceSounds {
             table: [
-                Dword::new(0x512A30),
-                Dword::new(0x512ED8),
-                Dword::new(0x513380),
-                Dword::new(0x513828),
-                Dword::new(0x513CD0),
-                Dword::new(0x514178),
-                Dword::new(0x514620),
-                Dword::new(0x514AC8),
+                PlainDword::new(0x512A30),
+                PlainDword::new(0x512ED8),
+                PlainDword::new(0x513380),
+                PlainDword::new(0x513828),
+                PlainDword::new(0x513CD0),
+                PlainDword::new(0x514178),
+                PlainDword::new(0x514620),
+                PlainDword::new(0x514AC8),
             ],
             objects: [
                 initial_object(0),
@@ -470,13 +508,11 @@ impl RaceSounds {
                 initial_object(0xFFFFFFFA),
                 initial_object(0xFFFFFFF9),
             ],
-            player_cars: [Dword::new(0), Dword::new(1)],
-            one_player: Dword::new(1),
-            count: Dword::new(1),
-            nearest: Dword::new(0),
-            next: Dword::new(0),
-            nearest_distance: Float::new(0.0),
-            mark_car_voices: Dword::new(0),
+            player_cars: [PlainDword::new(0), PlainDword::new(1)],
+            nearest: PlainDword::new(0),
+            next: PlainDword::new(0),
+            nearest_distance: PlainFloat::new(0.0),
+            mark_car_voices: PlainDword::new(0),
         }
     }
 }
@@ -592,30 +628,11 @@ impl SurfaceSounds {
     }
 }
 
-/// A timed sound's slot: six dwords (`sound::play_timed_slot`).
+/// A timed sound's slot: six dwords (`sound::play_timed_slot`); a car's seven, its gear change's and two more, and the stage's own.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SoundSlot {
     /// The sound (a sample number); +0 of the slot `sound::play_timed_slot` takes.
-    pub sound: Dword,
-    /// 1 = start it (cleared by the slot's turn).
-    pub start: Dword,
-    /// 1 = playing.
-    pub playing: Dword,
-    /// When it ends (the sound clock, ms).
-    pub ends: Dword,
-    /// The volume (-0x6F: the sample's own).
-    pub volume: Dword,
-    /// The rate (-0x6F: the sample's own).
-    pub rate: Dword,
-}
-
-/// The stage's timed sound slot: `SoundSlot`'s six dwords, plain (the game thread's alone; the
-/// race sound objects' slots sit among atomic cells).
-#[repr(C)]
-#[derive(rc2k_derive::Cells)]
-pub struct StageSlot {
-    /// The sound (a sample number).
     pub sound: PlainDword,
     /// 1 = start it (cleared by the slot's turn).
     pub start: PlainDword,
@@ -629,34 +646,13 @@ pub struct StageSlot {
     pub rate: PlainDword,
 }
 
-/// A timed slot's six dwords, whichever kind of cells hold them (`sound::play_timed_slot`).
+/// A timed slot's six dwords (`sound::play_timed_slot`).
 pub trait TimedCells {
     fn load(&self) -> rc2k_core::sound::cars::TimedSlot;
     fn store(&self, slot: &rc2k_core::sound::cars::TimedSlot);
 }
 
 impl TimedCells for SoundSlot {
-    fn load(&self) -> rc2k_core::sound::cars::TimedSlot {
-        rc2k_core::sound::cars::TimedSlot {
-            sound: self.sound.get(),
-            start: self.start.get(),
-            playing: self.playing.get(),
-            ends: self.ends.get(),
-            volume: self.volume.get(),
-            rate: self.rate.get(),
-        }
-    }
-    fn store(&self, s: &rc2k_core::sound::cars::TimedSlot) {
-        self.sound.set(s.sound);
-        self.start.set(s.start);
-        self.playing.set(s.playing);
-        self.ends.set(s.ends);
-        self.volume.set(s.volume);
-        self.rate.set(s.rate);
-    }
-}
-
-impl TimedCells for StageSlot {
     fn load(&self) -> rc2k_core::sound::cars::TimedSlot {
         rc2k_core::sound::cars::TimedSlot {
             sound: self.sound.get(),
@@ -726,7 +722,7 @@ pub struct StageSounds {
     /// `g_stageTimedWaiting`: 1 while it waits to be due.
     pub timed_waiting: PlainDword,
     /// `g_stageTimedSlot` (`StageSounds.timed_slot.sound`): the timed sound's slot (sound 0x1C4).
-    pub timed_slot: StageSlot,
+    pub timed_slot: SoundSlot,
     /// `g_stageRandomSound1`, `g_stageRandomSound2`: at 1 a sound (0x1AE, 0x1AF) at a random pitch and place is played once.
     pub random: [PlainDword; 2],
     /// `g_sharedSoundSpotCount`: the spots the race frame shared this frame (`race::share_sound_spots`).
@@ -769,7 +765,7 @@ impl StageSounds {
             loop_volume_b: PlainDword::new(0),
             timed_due: PlainDword::new(0),
             timed_waiting: PlainDword::new(0),
-            timed_slot: StageSlot {
+            timed_slot: SoundSlot {
                 sound: PlainDword::new(0x1C4),
                 start: PlainDword::new(0),
                 playing: PlainDword::new(0),

@@ -5,12 +5,14 @@
 //! colours and vertices. `#[repr(C)]` with the image's layout, over the race block's bytes
 //! (`RACE_VARS`), as `CAR`. Names are readings unless IDA's.
 
+use crate::cells::ZeroCells;
+
 #[cfg(test)]
 use crate::race::owner::race;
 use crate::session::{PlainDword, PlainFloat};
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct RaceVars {
     /// +0x0 (0x6235E8): a scene switch (`race::show_replay_still`; read by `physics::car_lighting`, `race::skid_laying`).
     pub scene_switch: PlainDword,
@@ -183,7 +185,87 @@ pub struct RaceVars {
 impl RaceVars {
     /// The piece, with the image's first values.
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        Self {
+            kept_scale: PlainFloat::new(384.0),
+            bar_span: [PlainDword::new(0), PlainDword::new(0x64)],
+            unused_120: {
+                let mut a: [PlainDword; 82] = ZeroCells::ZERO;
+                a[22] = PlainDword::new(0xA);
+                a[23] = PlainDword::new(0xA);
+                a[24] = PlainDword::new(0xA);
+                a[25] = PlainDword::new(0xA);
+                a[26] = PlainDword::new(0xA);
+                a[27] = PlainDword::new(0xA);
+                a[32] = PlainDword::new(0xA);
+                a[33] = PlainDword::new(0xA);
+                a[34] = PlainDword::new(0xA);
+                a[35] = PlainDword::new(0xA);
+                a[36] = PlainDword::new(0xA);
+                a[37] = PlainDword::new(0xA);
+                a[42] = PlainDword::new(0xA);
+                a[43] = PlainDword::new(0xA);
+                a[44] = PlainDword::new(0xA);
+                a[45] = PlainDword::new(0xA);
+                a[46] = PlainDword::new(0xA);
+                a[47] = PlainDword::new(0xA);
+                a[52] = PlainDword::new(0xA);
+                a[53] = PlainDword::new(0xA);
+                a[54] = PlainDword::new(0xA);
+                a[55] = PlainDword::new(0xA);
+                a[56] = PlainDword::new(0xA);
+                a[57] = PlainDword::new(0xA);
+                a[62] = PlainDword::new(0xA);
+                a[63] = PlainDword::new(0xA);
+                a[64] = PlainDword::new(0xA);
+                a[65] = PlainDword::new(0xA);
+                a[66] = PlainDword::new(0xA);
+                a[67] = PlainDword::new(0xA);
+                a[72] = PlainDword::new(0xA);
+                a[73] = PlainDword::new(0xA);
+                a[74] = PlainDword::new(0xA);
+                a[75] = PlainDword::new(0xA);
+                a[76] = PlainDword::new(0xA);
+                a[77] = PlainDword::new(0xA);
+                a
+            },
+            race_car_kinds: [
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+            ],
+            settings_words: [
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(0),
+                PlainDword::new(0),
+            ],
+            start_numbers: [
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+            ],
+            mud_path: crate::session::PlainBytes::new([
+                0x66, 0x69, 0x6C, 0x65, 0x73, 0x5C, 0x62, 0x5C, 0x6D, 0x75, 0x64, 0x66, 0x69, 0x6C,
+                0x65, 0x2E, 0x30, 0x78, 0x78, 0,
+            ]),
+            mud_scale_b: [PlainFloat::new(0.075), PlainFloat::new(0.008)],
+            fade_uv: [PlainDword::new(0x3F780000), PlainDword::new(0x3D000000)],
+            unused_7dc: [PlainDword::new(0xF80000), PlainDword::new(0x700000)],
+            scale_factor: PlainFloat::new(6.1035157e-06),
+            move_by: PlainDword::new(0xC),
+            ..ZeroCells::ZERO
+        }
     }
 }
 

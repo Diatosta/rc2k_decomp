@@ -77,7 +77,7 @@ fn idle(entry: &Entry) -> Result<Flow, Refused> {
         .loop_flags
         .idle_frames
         .set(menus.screens.loop_flags.idle_frames.get().wrapping_add(1));
-    if crate::film::NO_FMV.get() == 1 {
+    if crate::film::NO_FMV.get().get() == 1 {
         return Ok(Flow::On);
     }
     log("menu::main_menu_loop: idle, `menu::play_films` is called");

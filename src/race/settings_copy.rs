@@ -19,8 +19,6 @@ use crate::race::state_store::RaceCar;
 use crate::session::Dword;
 use crate::session::DwordLike;
 #[cfg(test)]
-use crate::session::Float;
-
 #[cfg(test)]
 mod old_machine;
 
@@ -31,9 +29,12 @@ pub enum StepOperand {
     /// A cell of the physics block (the reference machine's tables).
     #[cfg(test)]
     Cell(&'static Dword),
-    /// A float of the physics block, by its bits (the reference machine's tables).
+    /// A car's result float (`results[n].secs`), by its bits.
     #[cfg(test)]
-    Bits(&'static Float),
+    ResultSecs(usize),
+    /// A car's result impact mark (`results[n].impact_marks[k]`).
+    #[cfg(test)]
+    ResultMark(usize, usize),
     /// A dword of car block n (`CAR_BLOCKS.cars[n]`), by field (`car!`).
     CarCell(usize, fn(&Car) -> &PlainDword),
     /// A float of car block n, by its bits (`car_bits!`).
@@ -49,9 +50,9 @@ pub enum StepOperand {
 use crate::session::{PlainDword, PlainFloat};
 #[cfg(test)]
 use StepOperand::Var;
-#[cfg(test)]
-use StepOperand::{Bits, Cell};
 use StepOperand::{CarBits, CarCell, Owned, RaceVar};
+#[cfg(test)]
+use StepOperand::{Cell, ResultMark, ResultSecs};
 
 impl StepOperand {
     /// Its dword (a float's bits), in the game's owners (the tests').
@@ -72,7 +73,9 @@ impl StepOperand {
             #[cfg(test)]
             Cell(cell) => cell.get(),
             #[cfg(test)]
-            Bits(cell) => cell.bits(),
+            ResultSecs(n) => o.race.shared.state.results.results[n].secs.bits(),
+            #[cfg(test)]
+            ResultMark(n, k) => o.race.shared.state.results.results[n].impact_marks[k].get(),
             CarCell(n, f) => f(&o.race.car_blocks().cars[n]).get(),
             CarBits(n, f) => f(&o.race.car_blocks().cars[n]).bits(),
             #[cfg(test)]
@@ -88,7 +91,9 @@ impl StepOperand {
             #[cfg(test)]
             Cell(cell) => cell.set(v),
             #[cfg(test)]
-            Bits(cell) => cell.set_bits(v),
+            ResultSecs(n) => o.race.shared.state.results.results[n].secs.set_bits(v),
+            #[cfg(test)]
+            ResultMark(n, k) => o.race.shared.state.results.results[n].impact_marks[k].set(v),
             CarCell(n, f) => f(&o.race.car_blocks().cars[n]).set(v),
             CarBits(n, f) => f(&o.race.car_blocks().cars[n]).set_bits(v),
             #[cfg(test)]
@@ -470,7 +475,7 @@ fn copy_out(race: &Race, fx: &mut impl Effects) -> Result<(), Refused> {
 }
 
 /// Car `car`'s eight impact marks in the results record (`results[car].impact_marks`).
-fn result_marks(shared: &RaceShared, car: usize) -> &[Dword; 8] {
+fn result_marks(shared: &RaceShared, car: usize) -> &[PlainDword; 8] {
     &shared.state.results.results[car].impact_marks
 }
 

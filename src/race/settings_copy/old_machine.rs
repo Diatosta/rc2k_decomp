@@ -453,16 +453,16 @@ pub fn graham_to_shaun() -> Vec<Step<StepOperand>> {
         b.push(Store(CarCell(car, |c| &c.camera_blend_view)));
     }
     let hud_bits = [
-        &shared.state.results.hud_bits_current,
-        &shared.state.results.hud_bits_first,
+        var!(@race shared.state.results.hud_bits_current),
+        var!(@race shared.state.results.hud_bits_first),
     ];
     b.push(Text(c"[onerace.car1overbits]", false));
-    b.push(Value(Cell(hud_bits[0]), Kind::Int));
+    b.push(Value(hud_bits[0], Kind::Int));
     b.push(Text(c"[onerace.car2overbits]", false));
-    b.push(Value(Cell(hud_bits[1]), Kind::Int));
+    b.push(Value(hud_bits[1], Kind::Int));
     // The option bits: from the player's HUD settings, or -1 (all) as the race's override.
     for car in 0..2 {
-        b.push(Load(Cell(hud_bits[car])));
+        b.push(Load(hud_bits[car]));
         let jump = b.here();
         b.push(JumpIfEaxNot(0xFFFF_FFFF, 0));
         b.push(LoadImm(0));
@@ -480,8 +480,8 @@ pub fn graham_to_shaun() -> Vec<Step<StepOperand>> {
                 Cell(setting(&shared.state.settings.cars[car])),
             ));
         }
-        for (mark, cell) in IMPACT_MARKS.into_iter().zip(result_marks(shared, car)) {
-            b.push(Copy(CarBits(car, mark), Cell(cell)));
+        for (k, mark) in IMPACT_MARKS.into_iter().enumerate() {
+            b.push(Copy(CarBits(car, mark), ResultMark(car, k)));
         }
     }
     for step in FLAGS_IN {
@@ -498,60 +498,48 @@ pub fn graham_to_shaun() -> Vec<Step<StepOperand>> {
 static HEAD_IN: [Step<StepOperand>; 21] = [
     Copy(
         var!(crate::race::owner::RACE.shared.vars.get().no_replay),
-        Cell(&crate::race::owner::RACE.shared.state.settings.no_replay),
+        var!(@race shared.state.settings.no_replay),
     ),
     Copy(
         var!(crate::race::owner::RACE.shared.vars.get().rivals),
-        Cell(&crate::race::owner::RACE.shared.state.settings.rivals),
+        var!(@race shared.state.settings.rivals),
     ),
     Copy(
         var!(crate::race::owner::RACE.shared.vars.get().race_car_kinds[0]),
-        Cell(
-            &crate::race::owner::RACE
-                .shared
-                .state
-                .settings
-                .car_kind_current,
-        ),
+        var!(@race shared.state.settings.car_kind_current),
     ),
     Copy(
         var!(crate::race::owner::RACE.shared.vars.get().race_car_kinds[1]),
-        Cell(
-            &crate::race::owner::RACE
-                .shared
-                .state
-                .settings
-                .car_kind_first,
-        ),
+        var!(@race shared.state.settings.car_kind_first),
     ),
     Copy(
         var!(crate::race::owner::RACE.shared.view.get().players),
-        Cell(&crate::race::owner::RACE.shared.state.settings.race_mode),
+        var!(@race shared.state.settings.race_mode),
     ),
     Copy(
         var!(crate::race::owner::RACE.shared.vars.get().split),
-        Cell(&crate::race::owner::RACE.shared.state.settings.kept),
+        var!(@race shared.state.settings.kept),
     ),
     Copy(
         var!(crate::race::owner::RACE.shared.vars.get().stage_number),
-        Cell(&crate::race::owner::RACE.shared.state.settings.stage),
+        var!(@race shared.state.settings.stage),
     ),
     Copy(
         var!(crate::race::owner::RACE.shared.vars.get().direction),
-        Cell(&crate::race::owner::RACE.shared.state.settings.direction),
+        var!(@race shared.state.settings.direction),
     ),
     Copy(
         var!(crate::race::owner::RACE.shared.vars.get().race_level),
-        Cell(&crate::race::owner::RACE.shared.state.results.race_level),
+        var!(@race shared.state.results.race_level),
     ),
     Copy(
         var!(crate::race::owner::RACE.shared.vars.get().race_stage),
-        Cell(&crate::race::owner::RACE.shared.state.results.race_stage),
+        var!(@race shared.state.results.race_stage),
     ),
     Dec(var!(crate::race::owner::RACE.shared.vars.get().race_stage)),
     Copy(
         var!(crate::race::owner::RACE.shared.vars.get().run_kind),
-        Cell(&crate::race::owner::RACE.shared.state.settings.run_kind),
+        var!(@race shared.state.settings.run_kind),
     ),
     Copy(
         var!(crate::race::owner::RACE.shared.view.get().race_cars),
@@ -571,23 +559,23 @@ static HEAD_IN: [Step<StepOperand>; 21] = [
     ),
     Copy(
         var!(crate::race::owner::RACE.shared.vars.get().settings_words[0]),
-        Cell(&crate::race::owner::RACE.shared.state.settings.lens_flare),
+        var!(@race shared.state.settings.lens_flare),
     ),
     Copy(
         var!(crate::race::owner::RACE.shared.vars.get().settings_words[1]),
-        Cell(&crate::race::owner::RACE.shared.state.settings.reflections),
+        var!(@race shared.state.settings.reflections),
     ),
     Copy(
         var!(crate::race::owner::RACE.shared.vars.get().settings_words[2]),
-        Cell(&crate::race::owner::RACE.shared.state.settings.car_shadows),
+        var!(@race shared.state.settings.car_shadows),
     ),
     Copy(
         var!(crate::race::owner::RACE.shared.vars.get().settings_words[3]),
-        Cell(&crate::race::owner::RACE.shared.state.settings.car_detail),
+        var!(@race shared.state.settings.car_detail),
     ),
     Copy(
         var!(crate::race::owner::RACE.shared.vars.get().settings_words[4]),
-        Cell(&crate::race::owner::RACE.shared.state.settings.headlights),
+        var!(@race shared.state.settings.headlights),
     ),
 ];
 
@@ -595,19 +583,19 @@ static HEAD_IN: [Step<StepOperand>; 21] = [
 static FLAGS_IN: [Step<StepOperand>; 4] = [
     Copy(
         car!(0, parts_present),
-        Cell(&crate::race::owner::RACE.shared.state.results.flags_current),
+        var!(@race shared.state.results.flags_current),
     ),
     Copy(
         car!(1, parts_present),
-        Cell(&crate::race::owner::RACE.shared.state.results.flags_first),
+        var!(@race shared.state.results.flags_first),
     ),
     Copy(
         var!(crate::race::owner::RACE.shared.tables().start_place),
-        Cell(&crate::race::owner::RACE.shared.state.results.figure_000),
+        var!(@race shared.state.results.figure_000),
     ),
     Copy(
         car!(0, mode2_place),
-        Cell(&crate::race::owner::RACE.shared.state.results.figure_000),
+        var!(@race shared.state.results.figure_000),
     ),
 ];
 
@@ -615,13 +603,9 @@ static FLAGS_IN: [Step<StepOperand>; 4] = [
 /// states, the arcade positions logged, the league table copied.
 static TAIL_IN: [Step<StepOperand>; 15] = [
     Call(routine(Routine::ClearPlayerAbsences)),
-    Load(Cell(
-        &crate::race::owner::RACE.shared.state.results.results[0].result,
-    )),
+    Load(var!(@race shared.state.results.results[0].result)),
     Store(car!(0, stop_state)),
-    Load(Cell(
-        &crate::race::owner::RACE.shared.state.results.results[1].result,
-    )),
+    Load(var!(@race shared.state.results.results[1].result)),
     Store(car!(1, stop_state)),
     Text(c"[arcadestartposition]", false),
     Value(
@@ -631,10 +615,7 @@ static TAIL_IN: [Step<StepOperand>; 15] = [
     Text(c"[car1.arcadeposition]", false),
     Value(car!(0, mode2_place), Kind::Int),
     Text(c"[onerace.car1arcadeposition]", false),
-    Value(
-        Cell(&crate::race::owner::RACE.shared.state.results.figure_000),
-        Kind::Int,
-    ),
+    Value(var!(@race shared.state.results.figure_000), Kind::Int),
     Call(routine(Routine::CopyLeagueTable)),
     Text(c"COPY GRAHAM TO SHAUN", true),
     Text(c"-------------------------------------", true),
@@ -651,10 +632,7 @@ static TAIL_OUT: [Step<StepOperand>; 6] = [
     Text(c"[car1.arcadeposition]", false),
     Value(car!(0, mode2_place), Kind::Int),
     Text(c"[onerace.car1arcadeposition]", false),
-    Value(
-        Cell(&crate::race::owner::RACE.shared.state.results.figure_000),
-        Kind::Int,
-    ),
+    Value(var!(@race shared.state.results.figure_000), Kind::Int),
 ];
 
 /// The steps of `copy_settings_out` (the race's settings back to the front end's), in the
@@ -671,11 +649,11 @@ pub fn shaun_to_graham() -> Vec<Step<StepOperand>> {
         0,
     ));
     b.push(Copy(
-        Cell(&shared.state.results.hud_bits_current),
+        var!(@race shared.state.results.hud_bits_current),
         CarCell(0, |c| &c.option_bits),
     ));
     b.push(Copy(
-        Cell(&shared.state.results.hud_bits_first),
+        var!(@race shared.state.results.hud_bits_first),
         CarCell(1, |c| &c.option_bits),
     ));
     for car in 0..2 {
@@ -685,29 +663,28 @@ pub fn shaun_to_graham() -> Vec<Step<StepOperand>> {
                 CarBits(car, field),
             ));
         }
-        for (mark, cell) in IMPACT_MARKS.into_iter().zip(result_marks(shared, car)) {
-            b.push(Copy(Cell(cell), CarBits(car, mark)));
+        for (k, mark) in IMPACT_MARKS.into_iter().enumerate() {
+            b.push(Copy(ResultMark(car, k), CarBits(car, mark)));
         }
     }
     b.push(Call(routine(Routine::StoreResultsByMode)));
     for car in 0..2 {
         b.push(Load(CarCell(car, |c| &c.stop_state)));
-        b.push(Store(Cell(
-            &crate::race::owner::RACE.shared.state.results.results[car].result,
-        )));
+        b.push(Store(if car == 0 {
+            var!(@race shared.state.results.results[0].result)
+        } else {
+            var!(@race shared.state.results.results[1].result)
+        }));
     }
     for car in 0..2 {
-        b.push(FloatCopy(
-            Bits(&crate::race::owner::RACE.shared.state.results.results[car].secs),
-            CarBits(car, |c| &c.top_speed),
-        ));
+        b.push(FloatCopy(ResultSecs(car), CarBits(car, |c| &c.top_speed)));
     }
     b.push(Copy(
-        Cell(&crate::race::owner::RACE.shared.state.results.flags_current),
+        var!(@race shared.state.results.flags_current),
         CarCell(0, |c| &c.parts_present),
     ));
     b.push(Copy(
-        Cell(&crate::race::owner::RACE.shared.state.results.flags_first),
+        var!(@race shared.state.results.flags_first),
         CarCell(1, |c| &c.parts_present),
     ));
     b.car_logs();

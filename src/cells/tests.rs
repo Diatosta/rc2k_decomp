@@ -157,6 +157,8 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
         *race.physics.split_tables(),
         *race.shared.physics_tables.get(),
         race.shared.buffers,
+        *race.shared.viewer_buffers(),
+        *race.shared.text_buffers(),
         *race.physics.car_specs(),
         *race.frame.clock_ticks(),
         *race.course.lists.get(),

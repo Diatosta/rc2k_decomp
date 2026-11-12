@@ -33,7 +33,7 @@ fn cars(
 > {
     let records = shared.car_records()?;
     Ok(std::array::from_fn(|n| {
-        (n, records[n], &sound.race.sounds.objects[n])
+        (n, records[n], &sound.race.sounds.get().objects[n])
     }))
 }
 

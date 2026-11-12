@@ -8,10 +8,8 @@
 //! (`PUBLISHED`). The original also counted the lamps' depth entries (`g_lampEntryCount`,
 //! 0x641590), which nothing read.
 
-use crate::race::level_grid_store::{LevelGrid, first_of};
-use crate::race::view_store::RaceView;
+use crate::cells::ZeroCells;
 use crate::session::Dword;
-use core::mem::offset_of;
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -32,26 +30,16 @@ pub struct LampWork {
     pub flare_count: Dword,
 }
 
-/// The image's first value of the race view's dword at `at`: what the view's lamps start from.
-const fn first_dword(at: usize) -> Dword {
-    Dword::new(u32::from_le_bytes(crate::race::store::first_values::<4>(
-        crate::race::view_store::START + at,
-    )))
-}
-
 impl LampWork {
-    /// With the image's first values.
+    /// A view's lamps as the game starts them: none gathered or wanted, no flares.
     pub const fn new() -> Self {
-        let lamps_wanted = first_dword(offset_of!(RaceView, lamps_wanted));
-        let lamp_count = first_dword(offset_of!(RaceView, lamp_count));
-        let flare_count = Dword::new(0);
         Self {
-            lamps: first_of::<_, 0x100>(offset_of!(LevelGrid, lamps)),
-            flare_place_x: first_of::<_, 0x400>(offset_of!(LevelGrid, flare_place_x)),
+            lamps: ZeroCells::ZERO,
+            flare_place_x: ZeroCells::ZERO,
             flares: crate::race::flares_store::FlareTables::new(),
-            lamps_wanted,
-            lamp_count,
-            flare_count,
+            lamps_wanted: Dword::ZERO,
+            lamp_count: Dword::ZERO,
+            flare_count: Dword::ZERO,
         }
     }
 }

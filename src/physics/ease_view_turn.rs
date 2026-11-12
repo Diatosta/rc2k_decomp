@@ -29,7 +29,7 @@ pub fn ease_view_turn(
             &camera.view_share_heading,
             &camera.view_share_roll,
         ] {
-            share.set_bits(0x3F80_0000);
+            share.set(1.0);
         }
     }
     for (target, turn, share) in [

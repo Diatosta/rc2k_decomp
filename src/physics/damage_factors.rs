@@ -1052,8 +1052,8 @@ mod plain_matches_x87 {
             for load in &s.damage.wheel_loads {
                 load.set(0.0);
             }
-            s.damage.quarter.set_bits(0x3E80_0000);
-            s.damage.half.set_bits(0x3F00_0000);
+            s.damage.quarter.set(0.25);
+            s.damage.half.set(0.5);
         };
         prove(
             "blend_wheel_loads at rest",

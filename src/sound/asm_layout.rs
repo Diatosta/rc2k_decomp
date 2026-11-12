@@ -196,7 +196,7 @@ mod tests {
     fn the_engine_words_sit_where_the_offsets_were() {
         let o = SoundObject::of(crate::sound::owner::sound(), 0).unwrap();
         let base = core::ptr::from_ref(o).addr();
-        let at = |cell: &crate::session::Dword| {
+        let at = |cell: &crate::session::PlainDword| {
             image_offset::<SoundObject>(core::ptr::from_ref(cell).addr() - base)
         };
         assert_eq!(

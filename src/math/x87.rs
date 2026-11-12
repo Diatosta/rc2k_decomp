@@ -47,6 +47,11 @@ unsafe fn load(p: *const u32, index: usize) -> bh::X {
 /// helper starts, as the helper's `ld`).
 pub trait Flt {
     fn bits(&self) -> u32;
+
+    /// The float itself.
+    fn value(&self) -> f32 {
+        f32::from_bits(self.bits())
+    }
 }
 
 /// A float slot a stored result goes to: a float, or its bits.
@@ -77,6 +82,10 @@ impl Flt for f32 {
     fn bits(&self) -> u32 {
         self.to_bits()
     }
+
+    fn value(&self) -> f32 {
+        *self
+    }
 }
 
 impl<C: crate::session::Cell32 + ?Sized> Flt for C {
@@ -87,15 +96,15 @@ impl<C: crate::session::Cell32 + ?Sized> Flt for C {
 
 /// `a + b`.
 pub fn add(a: impl Flt, b: impl Flt) -> f32 {
-    let a = a.bits();
-    let b = b.bits();
+    let a = a.value();
+    let b = b.value();
     out(bh::ld(a) + bh::ld(b))
 }
 
 /// `a - b`.
 pub fn sub(a: impl Flt, b: impl Flt) -> f32 {
-    let a = a.bits();
-    let b = b.bits();
+    let a = a.value();
+    let b = b.value();
     out(bh::ld(a) - bh::ld(b))
 }
 
@@ -106,42 +115,42 @@ pub fn from_int(a: i32) -> f32 {
 
 /// `a * b`.
 pub fn mul(a: impl Flt, b: impl Flt) -> f32 {
-    let a = a.bits();
-    let b = b.bits();
+    let a = a.value();
+    let b = b.value();
     out(bh::ld(a) * bh::ld(b))
 }
 
 /// `1 / a * b`.
 pub fn reciprocal_times(a: impl Flt, b: impl Flt) -> f32 {
-    let a = a.bits();
-    let b = b.bits();
+    let a = a.value();
+    let b = b.value();
     out(bh::ONE / bh::ld(a) * bh::ld(b))
 }
 
 /// `x` mirrored about a + b: `-(x - a - b) + b + a`.
 pub fn mirrored(x: impl Flt, a: impl Flt, b: impl Flt) -> f32 {
-    let x = x.bits();
-    let a = a.bits();
-    let b = b.bits();
+    let x = x.value();
+    let a = a.value();
+    let b = b.value();
     out(-(bh::ld(x) - bh::ld(a) - bh::ld(b)) + bh::ld(b) + bh::ld(a))
 }
 
 /// A float as it comes back from a register.
 pub fn loaded(a: impl Flt) -> f32 {
-    let a = a.bits();
+    let a = a.value();
     out(bh::ld(a))
 }
 
 /// The whole number `a` rounds to, as the control word says.
 pub fn to_int(a: impl Flt) -> i32 {
-    let a = a.bits();
+    let a = a.value();
     bh::to_int(bh::ld(a))
 }
 
 /// The product as a whole number.
 pub fn mul_to_int(a: impl Flt, b: impl Flt) -> i32 {
-    let a = a.bits();
-    let b = b.bits();
+    let a = a.value();
+    let b = b.value();
     bh::to_int(bh::ld(a) * bh::ld(b))
 }
 
@@ -159,7 +168,7 @@ pub fn one_less_int_ratio(a: i32, b: i32) -> u32 {
 /// `rcpss xmm0, a; mulss xmm0, b` (`rcpss` an SSE approximation, from the tables of
 /// `arch::rcpss`: the processors' own results differ).
 pub fn rcpss_times(a: impl Flt, b: impl Flt) -> f32 {
-    crate::arch::rcpss(f32::from_bits(a.bits())) * f32::from_bits(b.bits())
+    crate::arch::rcpss(a.value()) * b.value()
 }
 
 /// A row of one matrix times a column of another: `a[0] b[0] + (a[1] b[4] + a[2] b[8])`,
@@ -193,17 +202,17 @@ pub fn int_hypot(a: i32, b: i32) -> i32 {
 
 /// `a / b`.
 pub fn div(a: impl Flt, b: impl Flt) -> f32 {
-    let a = a.bits();
-    let b = b.bits();
+    let a = a.value();
+    let b = b.value();
     out(bh::ld(a) / bh::ld(b))
 }
 
 /// `a * b - c * d`.
 pub fn product_difference(a: impl Flt, b: impl Flt, c: impl Flt, d: impl Flt) -> f32 {
-    let a = a.bits();
-    let b = b.bits();
-    let c = c.bits();
-    let d = d.bits();
+    let a = a.value();
+    let b = b.value();
+    let c = c.value();
+    let d = d.value();
     out(bh::ld(a) * bh::ld(b) - bh::ld(c) * bh::ld(d))
 }
 
@@ -222,16 +231,16 @@ pub fn length(v: *const u32) -> u32 {
 
 /// Whether the two compare as equal, which they also do when one is no number.
 pub fn equal_or_unordered(a: impl Flt, b: impl Flt) -> bool {
-    let a = a.bits();
-    let b = b.bits();
+    let a = a.value();
+    let b = b.value();
     let (a, b) = (bh::ld(a), bh::ld(b));
     matches!(a.partial_cmp(&b), None | Some(std::cmp::Ordering::Equal))
 }
 
 /// The sine and the cosine of a whole number divided three times: `angle / a / a / b`.
 pub fn sine_cosine(angle: i32, a: impl Flt, b: impl Flt) -> (u32, u32) {
-    let a = a.bits();
-    let b = b.bits();
+    let a = a.value();
+    let b = b.value();
     let x = bh::int(angle) / bh::ld(a) / bh::ld(a) / bh::ld(b);
     let (sin, cos) = x.sin_cos();
     (bh::st(sin), bh::st(cos))
@@ -245,7 +254,7 @@ pub fn int_over_root(a: i32, d: u32) -> u32 {
 
 /// `sqrt(a)`.
 pub fn sqrt(a: impl Flt) -> f32 {
-    let a = a.bits();
+    let a = a.value();
     out(bh::ld(a).sqrt())
 }
 
@@ -264,33 +273,33 @@ pub fn ratio_scaled_to_int(a: u32, b: u32, m: i32, n: i32) -> i32 {
 /// The angle of (x, y) over pi, times two floats, as a whole number:
 /// `atan2(y, x) / pi * a * b`.
 pub fn angle_scaled_to_int(y: i32, x: i32, a: impl Flt, b: impl Flt) -> i32 {
-    let a = a.bits();
-    let b = b.bits();
+    let a = a.value();
+    let b = b.value();
     let angle = bh::int(y).atan2_over_pi(bh::int(x));
     bh::to_int(angle * bh::ld(a) * bh::ld(b))
 }
 
 /// A whole number times a float.
 pub fn int_times(a: i32, b: impl Flt) -> f32 {
-    let b = b.bits();
+    let b = b.value();
     out(bh::int(a) * bh::ld(b))
 }
 
 /// A whole number over a float.
 pub fn int_over(a: i32, b: impl Flt) -> f32 {
-    let b = b.bits();
+    let b = b.value();
     out(bh::int(a) / bh::ld(b))
 }
 
 /// A whole number less a float.
 pub fn int_less(a: i32, b: impl Flt) -> f32 {
-    let b = b.bits();
+    let b = b.value();
     out(bh::int(a) - bh::ld(b))
 }
 
 /// `1 / a`.
 pub fn reciprocal(a: impl Flt) -> f32 {
-    let a = a.bits();
+    let a = a.value();
     out(bh::ONE / bh::ld(a))
 }
 
@@ -302,10 +311,10 @@ pub fn int_float_int_float(a: i32, b: u32, c: i32, d: u32) -> u32 {
 
 /// `a * b / c / d` as a whole number.
 pub fn mul_div_div_to_int(a: impl Flt, b: impl Flt, c: impl Flt, d: impl Flt) -> i32 {
-    let a = a.bits();
-    let b = b.bits();
-    let c = c.bits();
-    let d = d.bits();
+    let a = a.value();
+    let b = b.value();
+    let c = c.value();
+    let d = d.value();
     bh::to_int(bh::ld(a) * bh::ld(b) / bh::ld(c) / bh::ld(d))
 }
 
@@ -314,7 +323,7 @@ pub fn mul_div_div_to_int(a: impl Flt, b: impl Flt, c: impl Flt, d: impl Flt) ->
 /// root (not rounded to a float first) and stored back; then the root is stored. Returns
 /// the root's bits and whether it compared equal.
 pub fn normalise_in_place(v: &mut [u32; 3], zero: impl Flt) -> (f32, bool) {
-    let zero = zero.bits();
+    let zero = zero.value();
     let [x, y, z] = v.map(bh::ld);
     let root = (x * x + (y * y + z * z)).sqrt();
     let zero = bh::ld(zero);
@@ -335,8 +344,8 @@ pub fn int_product_difference(a: i32, b: i32, c: i32, d: i32) -> f32 {
 
 /// A whole number over two floats, doubled, rounded once: `a / b / c` added to itself.
 pub fn int_div_div_doubled(a: i32, b: impl Flt, c: impl Flt) -> f32 {
-    let b = b.bits();
-    let c = c.bits();
+    let b = b.value();
+    let c = c.value();
     let q = bh::int(a) / bh::ld(b) / bh::ld(c);
     out(q + q)
 }
@@ -344,8 +353,8 @@ pub fn int_div_div_doubled(a: i32, b: impl Flt, c: impl Flt) -> f32 {
 /// `math::rotate_scratch_about_y`'s turn: x' = x cos + z sin, z' = z cos - x sin, each rounded
 /// once, written back over x and z.
 pub fn turn_in_place(sine: impl Flt, cosine: impl Flt, x: &mut u32, z: &mut u32) {
-    let sine = sine.bits();
-    let cosine = cosine.bits();
+    let sine = sine.value();
+    let cosine = cosine.value();
     let (s, c) = (bh::ld(sine), bh::ld(cosine));
     let (xv, zv) = (bh::ld(*x), bh::ld(*z));
     let new_x = xv * c + zv * s;
@@ -362,17 +371,17 @@ pub fn surface_share(a: i32, b: u32, c: u32, d: i32, e: u32, f: u32) -> u32 {
 
 /// `atan2(y, x) / pi * a * b * c`, as a whole number.
 pub fn angle_scaled3_to_int(y: i32, x: i32, a: impl Flt, b: impl Flt, c: impl Flt) -> i32 {
-    let a = a.bits();
-    let b = b.bits();
-    let c = c.bits();
+    let a = a.value();
+    let b = b.value();
+    let c = c.value();
     let angle = bh::int(y).atan2_over_pi(bh::int(x));
     bh::to_int(angle * bh::ld(a) * bh::ld(b) * bh::ld(c))
 }
 
 /// `atan2(y, x) / pi * a * a * a * b * b`, as a whole number.
 pub fn angle_scaled5_to_int(y: i32, x: i32, a: impl Flt, b: impl Flt) -> i32 {
-    let a = a.bits();
-    let b = b.bits();
+    let a = a.value();
+    let b = b.value();
     let angle = bh::int(y).atan2_over_pi(bh::int(x));
     bh::to_int(angle * bh::ld(a) * bh::ld(a) * bh::ld(a) * bh::ld(b) * bh::ld(b))
 }
@@ -387,7 +396,7 @@ pub fn hypot_ratio(a: i32, b: i32, c: i32, d: i32) -> f32 {
 
 /// A whole number times a float, as a whole number.
 pub fn int_times_to_int(a: i32, b: impl Flt) -> i32 {
-    let b = b.bits();
+    let b = b.value();
     bh::to_int(bh::int(a) * bh::ld(b))
 }
 
@@ -400,7 +409,7 @@ pub fn int_div_less(a: i32, b: u32, c: u32) -> u32 {
 /// `out.len()` sines of an angle that starts at 0 and grows by `step` each time (the angle
 /// kept as a double, never rounded to a float), one dword each.
 pub fn sine_table(step: impl Flt, out: &mut [impl Slot]) {
-    let step = step.bits();
+    let step = step.value();
     let step = bh::ld(step);
     let mut angle = bh::X(0.0);
     for o in out {
@@ -411,16 +420,16 @@ pub fn sine_table(step: impl Flt, out: &mut [impl Slot]) {
 
 /// `1 / a` stored, and that (unrounded) times a float stored.
 pub fn reciprocal_int_and_times(a: i32, b: impl Flt) -> (f32, f32) {
-    let b = b.bits();
+    let b = b.value();
     let r = bh::ONE / bh::int(a);
     (out(r), out(r * bh::ld(b)))
 }
 
 /// `a * b` stored, and that (unrounded) over `c` stored.
 pub fn mul_and_div(a: impl Flt, b: impl Flt, c: impl Flt) -> (f32, f32) {
-    let a = a.bits();
-    let b = b.bits();
-    let c = c.bits();
+    let a = a.value();
+    let b = b.value();
+    let c = c.value();
     let p = bh::ld(a) * bh::ld(b);
     (out(p), out(p / bh::ld(c)))
 }
@@ -445,13 +454,13 @@ pub fn lerp_scaled_less(
     n: impl Flt,
     less: Option<impl Flt>,
 ) -> f32 {
-    let a = a.bits();
-    let b = b.bits();
-    let m = m.bits();
-    let n = n.bits();
+    let a = a.value();
+    let b = b.value();
+    let m = m.value();
+    let n = n.value();
     let scaled = ((bh::ld(a) - bh::ld(b)) * bh::ld(m) + bh::ld(b)) * bh::ld(n);
     match less {
-        Some(less) => out(scaled - bh::ld(less.bits())),
+        Some(less) => out(scaled - bh::ld(less.value())),
         None => out(scaled),
     }
 }
@@ -464,9 +473,9 @@ pub fn negated_sub(a: u32, b: u32) -> u32 {
 
 /// `a x + (b y + c z)`, whole numbers in, a whole number out.
 pub fn weighted3_to_int(a: i32, b: i32, c: i32, x: impl Flt, y: impl Flt, z: impl Flt) -> i32 {
-    let x = x.bits();
-    let y = y.bits();
-    let z = z.bits();
+    let x = x.value();
+    let y = y.value();
+    let z = z.value();
     let first = bh::int(a) * bh::ld(x);
     let second = bh::int(b) * bh::ld(y);
     let third = bh::int(c) * bh::ld(z);
@@ -475,8 +484,8 @@ pub fn weighted3_to_int(a: i32, b: i32, c: i32, x: impl Flt, y: impl Flt, z: imp
 
 /// `a * b + c`.
 pub fn int_times_plus(a: i32, b: impl Flt, c: impl Flt) -> f32 {
-    let b = b.bits();
-    let c = c.bits();
+    let b = b.value();
+    let c = c.value();
     out(bh::int(a) * bh::ld(b) + bh::ld(c))
 }
 
@@ -506,9 +515,9 @@ pub fn int_less_int_over(a: i32, b: i32, c: u32) -> u32 {
 
 /// `(a - b) / c`.
 pub fn sub_div(a: impl Flt, b: impl Flt, c: impl Flt) -> f32 {
-    let a = a.bits();
-    let b = b.bits();
-    let c = c.bits();
+    let a = a.value();
+    let b = b.value();
+    let c = c.value();
     out((bh::ld(a) - bh::ld(b)) / bh::ld(c))
 }
 
@@ -520,9 +529,9 @@ pub fn sine_times_plus_to_int(a: u32, b: u32, c: u32) -> i32 {
 
 /// `c - a a b`, as a whole number: `-(a a) b + c`.
 pub fn negated_square_times_plus_to_int(a: impl Flt, b: impl Flt, c: impl Flt) -> i32 {
-    let a = a.bits();
-    let b = b.bits();
-    let c = c.bits();
+    let a = a.value();
+    let b = b.value();
+    let c = c.value();
     let a = bh::ld(a);
     bh::to_int(-(a * a) * bh::ld(b) + bh::ld(c))
 }
@@ -535,7 +544,7 @@ pub fn length_plus_int(x: i32, y: i32, z: i32, sum: i32) -> i32 {
 
 /// `c - a / b * c`, a whole number: c less a / b of c.
 pub fn share_left_to_int(a: i32, b: i32, c: impl Flt) -> i32 {
-    let c = c.bits();
+    let c = c.value();
     let c = bh::ld(c);
     bh::to_int(c - bh::int(a) / bh::int(b) * c)
 }
@@ -625,16 +634,16 @@ pub fn set_control_word(w: u16) {
 
 /// `a * b * c`.
 pub fn mul2(a: impl Flt, b: impl Flt, c: impl Flt) -> f32 {
-    let a = a.bits();
-    let b = b.bits();
-    let c = c.bits();
+    let a = a.value();
+    let b = b.value();
+    let c = c.value();
     out(bh::ld(a) * bh::ld(b) * bh::ld(c))
 }
 
 /// 1 - sqrt(1 - ((i - a) b)^2), a quarter circle's curve, negated when `negate`.
 pub fn circle_curve(i: i32, a: impl Flt, b: impl Flt, negate: bool) -> f32 {
-    let a = a.bits();
-    let b = b.bits();
+    let a = a.value();
+    let b = b.value();
     let t = (bh::int(i) - bh::ld(a)) * bh::ld(b);
     let curve = bh::ONE - (bh::ONE - t * t).sqrt();
     out(if negate { -curve } else { curve })
@@ -646,8 +655,8 @@ pub fn circle_curve(i: i32, a: impl Flt, b: impl Flt, negate: bool) -> f32 {
 /// times on 0; here nothing is done).
 /// (`out` holds at least `3 (count - 1) + 2` dwords: the slice's index check.)
 pub fn circle_points(r: impl Flt, out: &mut [impl Slot], count: u32, c: i32, d: impl Flt) {
-    let r = r.bits();
-    let d = d.bits();
+    let r = r.value();
+    let d = d.value();
     let mut angle = bh::X(0.0);
     for i in 0..count as usize {
         let (sin, cos) = angle.sin_cos();
@@ -659,22 +668,22 @@ pub fn circle_points(r: impl Flt, out: &mut [impl Slot], count: u32, c: i32, d: 
 
 /// `-a`.
 pub fn negated(a: impl Flt) -> f32 {
-    let a = a.bits();
+    let a = a.value();
     out(-bh::ld(a))
 }
 
 /// `(b - a) k`.
 pub fn sub_mul(b: impl Flt, a: impl Flt, k: impl Flt) -> f32 {
-    let b = b.bits();
-    let a = a.bits();
-    let k = k.bits();
+    let b = b.value();
+    let a = a.value();
+    let k = k.value();
     out((bh::ld(b) - bh::ld(a)) * bh::ld(k))
 }
 
 /// `a + t - t cos(pi m / c)`: `(-cos(pi / c * m)) t + a + t`.
 pub fn cosine_step(c: i32, m: i32, t: impl Flt, a: impl Flt) -> f32 {
-    let t = t.bits();
-    let a = a.bits();
+    let t = t.value();
+    let a = a.value();
     let angle = bh::int(c).pi_over() * bh::int(m);
     out(-angle.cos() * bh::ld(t) + bh::ld(a) + bh::ld(t))
 }
@@ -683,8 +692,8 @@ pub fn cosine_step(c: i32, m: i32, t: impl Flt, a: impl Flt) -> f32 {
 /// `x x + (y y + z z)`, `c / root`, then each times that, rounded once and stored in turn.
 /// (On a copy of the three floats.)
 pub fn scale_row(row: [impl Flt; 3], c: impl Flt) -> [f32; 3] {
-    let c = c.bits();
-    let [x, y, z] = row.map(|v| bh::ld(v.bits()));
+    let c = c.value();
+    let [x, y, z] = row.map(|v| bh::ld(v.value()));
     let k = bh::ld(c) / (x * x + (y * y + z * z)).sqrt();
     [out(k * x), out(k * y), out(k * z)]
 }
@@ -692,10 +701,10 @@ pub fn scale_row(row: [impl Flt; 3], c: impl Flt) -> [f32; 3] {
 /// `x + (k - (y - n)) s`, n the whole number y rounds to (as the control word says),
 /// which is given back too.
 pub fn frac_step(y: impl Flt, k: impl Flt, s: impl Flt, x: impl Flt) -> (i32, f32) {
-    let y = y.bits();
-    let k = k.bits();
-    let s = s.bits();
-    let x = x.bits();
+    let y = y.value();
+    let k = k.value();
+    let s = s.value();
+    let x = x.value();
     let y = bh::ld(y);
     let n = bh::to_int(y);
     (
@@ -706,15 +715,15 @@ pub fn frac_step(y: impl Flt, k: impl Flt, s: impl Flt, x: impl Flt) -> (i32, f3
 
 /// `a` rounded to a whole number, kept a float (as the control word says).
 pub fn round_float(a: impl Flt) -> f32 {
-    let a = a.bits();
+    let a = a.value();
     out(bh::ld(a).rint())
 }
 
 /// `a` compared with `b`: the status word's C0 .. C2 (0x700), so 0x100 when `a` is less,
 /// 0x500 when either is no number, 0 otherwise (equal sets only C3, which is masked off).
 pub fn compare_status(a: impl Flt, b: impl Flt) -> u16 {
-    let a = a.bits();
-    let b = b.bits();
+    let a = a.value();
+    let b = b.value();
     bh::compare(bh::ld(a), bh::ld(b)) & 0x700
 }
 
@@ -726,11 +735,11 @@ pub fn float_less_int_to_int(a: u32, n: i32) -> i32 {
 
 /// x0 + ((1 / (c - a)) (b - a)) (x2 - x0), where the long edge is at b.
 pub fn split_x(a: impl Flt, b: impl Flt, c: impl Flt, x0: impl Flt, x2: impl Flt) -> f32 {
-    let a = a.bits();
-    let b = b.bits();
-    let c = c.bits();
-    let x0 = x0.bits();
-    let x2 = x2.bits();
+    let a = a.value();
+    let b = b.value();
+    let c = c.value();
+    let x0 = x0.value();
+    let x2 = x2.value();
     let ratio = bh::ONE / (bh::ld(c) - bh::ld(a));
     let part = ratio * (bh::ld(b) - bh::ld(a));
     out(part * (bh::ld(x2) - bh::ld(x0)) + bh::ld(x0))
@@ -738,9 +747,9 @@ pub fn split_x(a: impl Flt, b: impl Flt, c: impl Flt, x0: impl Flt, x2: impl Flt
 
 /// The half (b - a) k as a float, and a plus it unrounded, then as a float.
 pub fn half_and_middle(b: impl Flt, a: impl Flt, k: impl Flt) -> (f32, f32) {
-    let b = b.bits();
-    let a = a.bits();
-    let k = k.bits();
+    let b = b.value();
+    let a = a.value();
+    let k = k.value();
     let half = (bh::ld(b) - bh::ld(a)) * bh::ld(k);
     (out(half), out(half + bh::ld(a)))
 }
@@ -753,11 +762,11 @@ pub fn pi_over(n: i32) -> u32 {
 
 /// m - h cos(a [+ s]): `-cos(a [+ s]) h + m`.
 pub fn less_cosine(a: impl Flt, s: Option<impl Flt>, h: impl Flt, m: impl Flt) -> f32 {
-    let a = a.bits();
-    let h = h.bits();
-    let m = m.bits();
+    let a = a.value();
+    let h = h.value();
+    let m = m.value();
     let angle = match s {
-        Some(s) => bh::ld(a) + bh::ld(s.bits()),
+        Some(s) => bh::ld(a) + bh::ld(s.value()),
         None => bh::ld(a),
     };
     out(-angle.cos() * bh::ld(h) + bh::ld(m))
@@ -765,22 +774,22 @@ pub fn less_cosine(a: impl Flt, s: Option<impl Flt>, h: impl Flt, m: impl Flt) -
 
 /// `sin(a)`.
 pub fn sine(a: impl Flt) -> f32 {
-    let a = a.bits();
+    let a = a.value();
     out(bh::ld(a).sin())
 }
 
 /// `cos(a)`, negated with `negate`.
 pub fn cosine(a: impl Flt, negate: bool) -> f32 {
-    let a = a.bits();
+    let a = a.value();
     let cos = bh::ld(a).cos();
     out(if negate { -cos } else { cos })
 }
 
 /// `a * b + c`.
 pub fn mul_add(a: impl Flt, b: impl Flt, c: impl Flt) -> f32 {
-    let a = a.bits();
-    let b = b.bits();
-    let c = c.bits();
+    let a = a.value();
+    let b = b.value();
+    let c = c.value();
     out(bh::ld(a) * bh::ld(b) + bh::ld(c))
 }
 
@@ -807,21 +816,21 @@ pub fn compare_squares(x0: i32, y0: i32, x1: i32, y1: i32) -> u16 {
 
 /// `a - b`, kept as an 80-bit value.
 pub fn sub_80(a: impl Flt, b: impl Flt) -> [u8; 10] {
-    let a = a.bits();
-    let b = b.bits();
+    let a = a.value();
+    let b = b.value();
     bh::f80(bh::ld(a) - bh::ld(b))
 }
 
 /// `a - b` (a whole number), kept as an 80-bit value.
 pub fn int_sub_80(a: i32, b: impl Flt) -> [u8; 10] {
-    let b = b.bits();
+    let b = b.value();
     bh::f80(bh::int(a) - bh::ld(b))
 }
 
 /// `a + b`, as a whole number.
 pub fn add_to_int(a: impl Flt, b: impl Flt) -> i32 {
-    let a = a.bits();
-    let b = b.bits();
+    let a = a.value();
+    let b = b.value();
     bh::to_int(bh::ld(a) + bh::ld(b))
 }
 
@@ -847,9 +856,9 @@ pub fn round_f64(x: f64) -> f64 {
 
 /// `fld a; fsub b; [fchs;] fcomp c; fstsw`: the status word's C0 .. C2.
 pub fn sub_compare(a: impl Flt, b: impl Flt, negate: bool, c: impl Flt) -> u16 {
-    let a = a.bits();
-    let b = b.bits();
-    let c = c.bits();
+    let a = a.value();
+    let b = b.value();
+    let c = c.value();
     let mut d = bh::ld(a) - bh::ld(b);
     if negate {
         d = -d;
@@ -859,7 +868,7 @@ pub fn sub_compare(a: impl Flt, b: impl Flt, negate: bool, c: impl Flt) -> u16 {
 
 /// (r m + c) ((a - b) s + e) k with `v` [m, c, a, b, s, e, k], the factors unrounded.
 pub fn random_step(r: i32, v: [impl Flt; 7]) -> f32 {
-    let v = v.map(|f| f.bits());
+    let v = v.map(|f| f.value());
     let first = bh::int(r) * bh::ld(v[0]) + bh::ld(v[1]);
     let second = ((bh::ld(v[2]) - bh::ld(v[3])) * bh::ld(v[4]) + bh::ld(v[5])) * bh::ld(v[6]);
     out(first * second)
@@ -867,8 +876,8 @@ pub fn random_step(r: i32, v: [impl Flt; 7]) -> f32 {
 
 /// `((y + a) - b)` squared.
 pub fn int_plus_less_squared(y: i32, a: impl Flt, b: impl Flt) -> f32 {
-    let a = a.bits();
-    let b = b.bits();
+    let a = a.value();
+    let b = b.value();
     let d = bh::int(y) + bh::ld(a) - bh::ld(b);
     out(d * d)
 }
@@ -878,8 +887,8 @@ pub fn int_plus_less_squared(y: i32, a: impl Flt, b: impl Flt) -> f32 {
 /// place.
 /// (On a copy of the record's twelve floats' bits.)
 pub fn scale_record_bits(mut r: [u32; 12], a: impl Flt, b: impl Flt) -> [u32; 12] {
-    let a = a.bits();
-    let b = b.bits();
+    let a = a.value();
+    let b = b.value();
     for i in [3, 9] {
         r[i] = bh::st(-bh::ld(r[i]));
     }
@@ -889,18 +898,18 @@ pub fn scale_record_bits(mut r: [u32; 12], a: impl Flt, b: impl Flt) -> [u32; 12
 
 /// `a m + c` stored (the first), then `(a m + c) + d - e` stored (the second).
 pub fn int_times_plus_on(a: i32, m: impl Flt, c: impl Flt, d: impl Flt, e: impl Flt) -> (f32, f32) {
-    let m = m.bits();
-    let c = c.bits();
-    let d = d.bits();
-    let e = e.bits();
+    let m = m.value();
+    let c = c.value();
+    let d = d.value();
+    let e = e.value();
     let t = bh::int(a) * bh::ld(m) + bh::ld(c);
     (out(t), out(t + bh::ld(d) - bh::ld(e)))
 }
 
 /// `a - b - b - b`.
 pub fn sub_thrice(a: impl Flt, b: impl Flt) -> f32 {
-    let a = a.bits();
-    let b = b.bits();
+    let a = a.value();
+    let b = b.value();
     out(bh::ld(a) - bh::ld(b) - bh::ld(b) - bh::ld(b))
 }
 
@@ -912,9 +921,9 @@ pub fn int_plus(a: i32, b: u32) -> u32 {
 
 /// `(t - c) k + c`: c eased toward t by k.
 pub fn ease(t: impl Flt, c: impl Flt, k: impl Flt) -> f32 {
-    let t = t.bits();
-    let c = c.bits();
-    let k = k.bits();
+    let t = t.value();
+    let c = c.value();
+    let k = k.value();
     out((bh::ld(t) - bh::ld(c)) * bh::ld(k) + bh::ld(c))
 }
 
@@ -961,7 +970,7 @@ pub fn int_times_plus_times(a: i32, m: u32, c: u32, k: u32) -> u32 {
 
 /// `a / n`.
 pub fn over_int(a: impl Flt, n: i32) -> f32 {
-    let a = a.bits();
+    let a = a.value();
     out(bh::ld(a) / bh::int(n))
 }
 
@@ -973,10 +982,10 @@ pub fn zero_times_plus_times(
     k: impl Flt,
     negative: bool,
 ) -> f32 {
-    let a = a.bits();
-    let b = b.bits();
-    let c = c.bits();
-    let k = k.bits();
+    let a = a.value();
+    let b = b.value();
+    let c = c.value();
+    let k = k.value();
     let zero = bh::X(if negative { -0.0 } else { 0.0 });
     out((zero * bh::ld(b) + bh::ld(a) * bh::ld(c)) * bh::ld(k))
 }
@@ -986,15 +995,15 @@ pub fn zero_times_plus_times(
 /// stopped short, so for a `m` below 2^-33 (exponents 64 or more apart) its result is a
 /// partial remainder that this does not reproduce: this is the complete remainder.
 pub fn prem_plus(r: i32, m: impl Flt, v: impl Flt) -> f32 {
-    let m = m.bits();
-    let v = v.bits();
+    let m = m.value();
+    let v = v.value();
     out(bh::int(r).fprem(bh::ld(m)) + bh::ld(v))
 }
 
 /// `v` grown by `v a r k`: `v + (r k) (v a)`.
 pub fn grown(r: i32, k: u64, v: impl Flt, a: impl Flt) -> f32 {
-    let v = v.bits();
-    let a = a.bits();
+    let v = v.value();
+    let a = a.value();
     let rk = bh::int(r) * bh::X(f64::from_bits(k));
     out(rk * (bh::ld(v) * bh::ld(a)) + bh::ld(v))
 }
@@ -1009,35 +1018,35 @@ pub fn rate_to_int(
     one: impl Flt,
     k4: impl Flt,
 ) -> i32 {
-    let a = a.bits();
-    let b = b.bits();
-    let k1 = k1.bits();
-    let k2 = k2.bits();
-    let k3 = k3.bits();
-    let one = one.bits();
-    let k4 = k4.bits();
+    let a = a.value();
+    let b = b.value();
+    let k1 = k1.value();
+    let k2 = k2.value();
+    let k3 = k3.value();
+    let one = one.value();
+    let k4 = k4.value();
     let d = (bh::ld(a) - bh::ld(b)).abs() * bh::ld(k1) * bh::ld(k2) + bh::ld(k3);
     bh::to_int((bh::ld(one) - bh::ld(one) / d) * bh::ld(k4))
 }
 
 /// `a m1 + b m2 + d`, kept as 80 bits.
 pub fn pair_sum_80(a: i32, m1: impl Flt, b: i32, m2: impl Flt, d: impl Flt) -> [u8; 10] {
-    let m1 = m1.bits();
-    let m2 = m2.bits();
-    let d = d.bits();
+    let m1 = m1.value();
+    let m2 = m2.value();
+    let d = d.value();
     let s = bh::int(a) * bh::ld(m1) + bh::int(b) * bh::ld(m2);
     bh::f80(s + bh::ld(d))
 }
 
 /// `e - f` (e in 80 bits) as a float.
 pub fn ext_less(e: [u8; 10], f: impl Flt) -> f32 {
-    let f = f.bits();
+    let f = f.value();
     out(bh::from_f80(e) - bh::ld(f))
 }
 
 /// Three products of three, each multiplied in order, summed in order: (p0 + p1) + p2.
 fn three_sum<F: Flt>(p: [[F; 3]; 3]) -> bh::X {
-    let prod = |q: &[F; 3]| bh::ld(q[0].bits()) * bh::ld(q[1].bits()) * bh::ld(q[2].bits());
+    let prod = |q: &[F; 3]| bh::ld(q[0].value()) * bh::ld(q[1].value()) * bh::ld(q[2].value());
     prod(&p[0]) + prod(&p[1]) + prod(&p[2])
 }
 
@@ -1048,9 +1057,9 @@ pub fn three_products(p: [[impl Flt; 3]; 3]) -> f32 {
 
 /// `a b` stored (the first), `|a b| c` as a whole number (the second).
 pub fn times_kept_abs_to_int(a: impl Flt, b: impl Flt, c: impl Flt) -> (f32, i32) {
-    let a = a.bits();
-    let b = b.bits();
-    let c = c.bits();
+    let a = a.value();
+    let b = b.value();
+    let c = c.value();
     let t = bh::ld(a) * bh::ld(b);
     (out(t), bh::to_int(t.abs() * bh::ld(c)))
 }
@@ -1063,32 +1072,32 @@ pub fn blend_kept_abs_to_int(
     k2: impl Flt,
     c: impl Flt,
 ) -> (f32, i32) {
-    let a = a.bits();
-    let b = b.bits();
-    let k1 = k1.bits();
-    let k2 = k2.bits();
-    let c = c.bits();
+    let a = a.value();
+    let b = b.value();
+    let k1 = k1.value();
+    let k2 = k2.value();
+    let c = c.value();
     let t = (bh::ld(a) - bh::ld(b)) * bh::ld(k1) + bh::ld(b) * bh::ld(k2);
     (out(t), bh::to_int(t.abs() * bh::ld(c)))
 }
 
 /// `(f s - |s| [m]) k`.
 pub fn times_less_abs_times(f: impl Flt, s: impl Flt, m: Option<impl Flt>, k: impl Flt) -> f32 {
-    let f = f.bits();
-    let s = s.bits();
-    let k = k.bits();
+    let f = f.value();
+    let s = s.value();
+    let k = k.value();
     let mut abs = bh::ld(s).abs();
     if let Some(m) = m {
-        abs *= bh::ld(m.bits());
+        abs *= bh::ld(m.value());
     }
     out((bh::ld(f) * bh::ld(s) - abs) * bh::ld(k))
 }
 
 /// `d - m + f i`.
 pub fn less_plus_int_times(d: impl Flt, m: impl Flt, f: impl Flt, i: i32) -> f32 {
-    let d = d.bits();
-    let m = m.bits();
-    let f = f.bits();
+    let d = d.value();
+    let m = m.value();
+    let f = f.value();
     out(bh::ld(d) - bh::ld(m) + bh::ld(f) * bh::int(i))
 }
 
@@ -1100,38 +1109,38 @@ pub fn times_int_plus_times_80(
     c: Option<impl Flt>,
     s: impl Flt,
 ) -> [u8; 10] {
-    let a = a.bits();
-    let b = b.bits();
-    let s = s.bits();
+    let a = a.value();
+    let b = b.value();
+    let s = s.value();
     let mut x = bh::ld(a) * bh::ld(b) * bh::int(i);
     if let Some(c) = c {
-        x += bh::ld(c.bits());
+        x += bh::ld(c.value());
     }
     bh::f80(x * bh::ld(s))
 }
 
 /// `a m1 + b m2 + d - e`.
 pub fn pair_sum_less(a: i32, m1: impl Flt, b: i32, m2: impl Flt, d: impl Flt, e: impl Flt) -> f32 {
-    let m1 = m1.bits();
-    let m2 = m2.bits();
-    let d = d.bits();
-    let e = e.bits();
+    let m1 = m1.value();
+    let m2 = m2.value();
+    let d = d.value();
+    let e = e.value();
     let s = bh::int(a) * bh::ld(m1) + bh::int(b) * bh::ld(m2);
     out(s + bh::ld(d) - bh::ld(e))
 }
 
 /// `d + a b c`.
 pub fn product_plus(a: impl Flt, b: impl Flt, c: impl Flt, d: impl Flt) -> f32 {
-    let a = a.bits();
-    let b = b.bits();
-    let c = c.bits();
-    let d = d.bits();
+    let a = a.value();
+    let b = b.value();
+    let c = c.value();
+    let d = d.value();
     out(bh::ld(d) + bh::ld(a) * bh::ld(b) * bh::ld(c))
 }
 
 /// `f i` as a whole number.
 pub fn float_times_int_to_int(f: impl Flt, i: i32) -> i32 {
-    let f = f.bits();
+    let f = f.value();
     bh::to_int(bh::ld(f) * bh::int(i))
 }
 
@@ -1144,22 +1153,22 @@ pub fn speed_rate_to_int(
     one: impl Flt,
     k4: impl Flt,
 ) -> i32 {
-    let a = a.bits();
-    let k1 = k1.bits();
-    let k2 = k2.bits();
-    let k3 = k3.bits();
-    let one = one.bits();
-    let k4 = k4.bits();
+    let a = a.value();
+    let k1 = k1.value();
+    let k2 = k2.value();
+    let k3 = k3.value();
+    let one = one.value();
+    let k4 = k4.value();
     let d = bh::ld(a) * bh::ld(k1) * bh::ld(k2) + bh::ld(k3);
     bh::to_int((bh::ld(one) - bh::ld(one) / d) * bh::ld(k4))
 }
 
 /// `|a| + |b| + |a - c| + d` as a whole number (the first) and as a float (the second).
 pub fn abs_sum_to_int_kept(a: impl Flt, b: impl Flt, c: impl Flt, d: impl Flt) -> (i32, f32) {
-    let a = a.bits();
-    let b = b.bits();
-    let c = c.bits();
-    let d = d.bits();
+    let a = a.value();
+    let b = b.value();
+    let c = c.value();
+    let d = d.value();
     let s = bh::ld(a).abs() + bh::ld(b).abs() + (bh::ld(a) - bh::ld(c)).abs() + bh::ld(d);
     (bh::to_int(s), out(s))
 }
@@ -1174,28 +1183,28 @@ pub fn abs_blend_compare(
     k2: impl Flt,
     k3: impl Flt,
 ) -> (u32, u16) {
-    let a = a.bits();
-    let k1 = k1.bits();
-    let b = b.bits();
-    let c = c.bits();
-    let k2 = k2.bits();
-    let k3 = k3.bits();
+    let a = a.value();
+    let k1 = k1.value();
+    let b = b.value();
+    let c = c.value();
+    let k2 = k2.value();
+    let k3 = k3.value();
     let t = (bh::ld(a).abs() * bh::ld(k1) + (bh::ld(b) - bh::ld(c)).abs()) * bh::ld(k2);
     (bh::st(t), bh::compare(t, bh::ld(k3)))
 }
 
 /// `v a + b` as a whole number.
 pub fn times_plus_to_int(v: impl Flt, a: impl Flt, b: impl Flt) -> i32 {
-    let v = v.bits();
-    let a = a.bits();
-    let b = b.bits();
+    let v = v.value();
+    let a = a.value();
+    let b = b.value();
     bh::to_int(bh::ld(v) * bh::ld(a) + bh::ld(b))
 }
 
 /// `d + f i`, kept as 80 bits.
 pub fn plus_int_times_80(d: impl Flt, f: impl Flt, i: i32) -> [u8; 10] {
-    let d = d.bits();
-    let f = f.bits();
+    let d = d.value();
+    let f = f.value();
     bh::f80(bh::ld(d) + bh::ld(f) * bh::int(i))
 }
 
@@ -1206,9 +1215,9 @@ pub fn three_products_80(p: [[impl Flt; 3]; 3]) -> [u8; 10] {
 
 /// `a k` against c: the status word's C3, C2 and C0.
 pub fn times_compare(a: impl Flt, k: impl Flt, c: impl Flt) -> u16 {
-    let a = a.bits();
-    let k = k.bits();
-    let c = c.bits();
+    let a = a.value();
+    let k = k.value();
+    let c = c.value();
     bh::compare(bh::ld(a) * bh::ld(k), bh::ld(c))
 }
 
@@ -1220,8 +1229,8 @@ pub fn times_int_to_int(a: u32, k: u32, n: i32) -> i32 {
 
 /// `a b + c` stored (the first) and negated (the second).
 pub fn int_times_plus_and_negated(a: i32, b: impl Flt, c: impl Flt) -> (f32, f32) {
-    let b = b.bits();
-    let c = c.bits();
+    let b = b.value();
+    let c = c.value();
     let t = bh::int(a) * bh::ld(b) + bh::ld(c);
     (out(t), out(-t))
 }
@@ -1269,9 +1278,9 @@ pub fn turned_place_less_f32(
     lift: impl Flt,
     m: &(impl crate::math::cells::Cells + ?Sized),
 ) -> [f32; 4] {
-    let k = k.bits();
-    let d = d.bits();
-    let lift = lift.bits();
+    let k = k.value();
+    let d = d.value();
+    let lift = lift.value();
     let kf = bh::ld(k);
     let a = -bh::ld(t[0]) * kf;
     let b = (bh::ld(t[1]) - bh::ld(d)) * kf;
@@ -1301,7 +1310,7 @@ pub fn turned_place_less(
 
 /// `r k` kept; then for each of three: `((p r k) ticks) + at`.
 pub fn drifted(r: i32, k: impl Flt, p: [u32; 3], ticks: i32, at: [u32; 3]) -> [f32; 3] {
-    let k = k.bits();
+    let k = k.value();
     let rk = bh::int(r) * bh::ld(k);
     let one = |i: usize| out(bh::ld(p[i]) * rk * bh::int(ticks) + bh::ld(at[i]));
     [one(0), one(1), one(2)]
@@ -1309,9 +1318,9 @@ pub fn drifted(r: i32, k: impl Flt, p: [u32; 3], ticks: i32, at: [u32; 3]) -> [f
 
 /// `1 - 1 / (a k + 1)`.
 pub fn one_less_inverse(a: impl Flt, k: impl Flt, one: impl Flt) -> f32 {
-    let a = a.bits();
-    let k = k.bits();
-    let one = one.bits();
+    let a = a.value();
+    let k = k.value();
+    let one = one.value();
     let d = bh::ld(a) * bh::ld(k) + bh::ld(one);
     out(bh::ld(one) - bh::ld(one) / d)
 }
@@ -1324,8 +1333,8 @@ pub fn times_over_int(a: u32, k: u32, n: i32) -> u32 {
 
 /// `a b`, kept as 80 bits.
 pub fn mul_80(a: impl Flt, b: impl Flt) -> [u8; 10] {
-    let a = a.bits();
-    let b = b.bits();
+    let a = a.value();
+    let b = b.value();
     bh::f80(bh::ld(a) * bh::ld(b))
 }
 
@@ -1336,7 +1345,7 @@ pub fn turned_place_f32(
     lift: impl Flt,
     m: &(impl crate::math::cells::Cells + ?Sized),
 ) -> [f32; 4] {
-    let lift = lift.bits();
+    let lift = lift.value();
     let [x, y, z] = matrix_turn(
         &matrix_at(m),
         bh::ld(p[0]),
@@ -1365,20 +1374,20 @@ pub fn int_times_int_to_int(a: i32, b: i32) -> i32 {
 
 /// `(a + b + c + d) k`.
 pub fn sum4_times(a: impl Flt, b: impl Flt, c: impl Flt, d: impl Flt, k: impl Flt) -> f32 {
-    let a = a.bits();
-    let b = b.bits();
-    let c = c.bits();
-    let d = d.bits();
-    let k = k.bits();
+    let a = a.value();
+    let b = b.value();
+    let c = c.value();
+    let d = d.value();
+    let k = k.value();
     out((bh::ld(a) + bh::ld(b) + bh::ld(c) + bh::ld(d)) * bh::ld(k))
 }
 
 /// The length of (p0, p1, p2): sqrt(p0 p0 + (p1 p1 + p2 p2)), unrounded.
 fn length3(p: [impl Flt; 3]) -> bh::X {
     let (x, y, z) = (
-        bh::ld(p[0].bits()),
-        bh::ld(p[1].bits()),
-        bh::ld(p[2].bits()),
+        bh::ld(p[0].value()),
+        bh::ld(p[1].value()),
+        bh::ld(p[2].value()),
     );
     (x * x + (y * y + z * z)).sqrt()
 }
@@ -1392,10 +1401,10 @@ pub fn length_and_rate(
     one: impl Flt,
     k3: impl Flt,
 ) -> (i32, i32) {
-    let k1 = k1.bits();
-    let k2 = k2.bits();
-    let one = one.bits();
-    let k3 = k3.bits();
+    let k1 = k1.value();
+    let k2 = k2.value();
+    let one = one.value();
+    let k3 = k3.value();
     let length = length3(p);
     let d = length * bh::ld(k1) + bh::ld(k2);
     (
@@ -1406,7 +1415,7 @@ pub fn length_and_rate(
 
 /// (a, b, c) by one over its length, the factor kept unrounded.
 pub fn normalised3(p: [u32; 3], one: impl Flt) -> [f32; 3] {
-    let one = one.bits();
+    let one = one.value();
     let inverse = bh::ld(one) / length3(p);
     [0, 1, 2].map(|i| out(bh::ld(p[i]) * inverse))
 }
@@ -1445,24 +1454,24 @@ pub fn negated_less_plus_plus(a: u32, b: u32, c: u32, d: u32) -> u32 {
 
 /// The sine (the first) and cosine (the second) of `t`.
 pub fn sine_and_cosine(t: impl Flt) -> (f32, f32) {
-    let t = t.bits();
+    let t = t.value();
     let t = bh::ld(t);
     (out(t.sin()), out(t.cos()))
 }
 
 /// `effects::tilt_shape`'s turn of (y, z) by the stored sine and cosine: z s + y c and z c - y s.
 pub fn turn_yz(y: impl Flt, z: impl Flt, s: impl Flt, c: impl Flt) -> (f32, f32) {
-    let y = y.bits();
-    let z = z.bits();
-    let s = s.bits();
-    let c = c.bits();
+    let y = y.value();
+    let z = z.value();
+    let s = s.value();
+    let c = c.value();
     let (y, z, s, c) = (bh::ld(y), bh::ld(z), bh::ld(s), bh::ld(c));
     (out(z * s + y * c), out(z * c - y * s))
 }
 
 /// `a k + b` as a whole number.
 pub fn int_times_plus_int_to_int(a: i32, k: impl Flt, b: i32) -> i32 {
-    let k = k.bits();
+    let k = k.value();
     bh::to_int(bh::int(a) * bh::ld(k) + bh::int(b))
 }
 
@@ -1476,32 +1485,32 @@ pub fn blend3_80(a: i32, b: i32, c: i32, k: [u32; 3]) -> [u8; 10] {
 
 /// `a + (v / kd) km` stored (the first), its sine times ks stored (the second).
 pub fn angle_and_wave(a: impl Flt, v: i32, kd: impl Flt, km: impl Flt, ks: impl Flt) -> (f32, f32) {
-    let a = a.bits();
-    let kd = kd.bits();
-    let km = km.bits();
-    let ks = ks.bits();
+    let a = a.value();
+    let kd = kd.value();
+    let km = km.value();
+    let ks = ks.value();
     let angle = bh::ld(a) + bh::int(v) / bh::ld(kd) * bh::ld(km);
     (out(angle), out(angle.sin() * bh::ld(ks)))
 }
 
 /// `b + (a - b) f`, as a whole number.
 pub fn int_lerp_to_int(a: i32, b: i32, f: impl Flt) -> i32 {
-    let f = f.bits();
+    let f = f.value();
     bh::to_int((bh::int(a) - bh::int(b)) * bh::ld(f) + bh::int(b))
 }
 
 /// `a / b k`.
 pub fn int_over_int_times(a: i32, b: i32, k: impl Flt) -> f32 {
-    let k = k.bits();
+    let k = k.value();
     out(bh::int(a) / bh::int(b) * bh::ld(k))
 }
 
 /// `effects::clip_quad`'s crossing: t = (m - fc) / (fs - fc), then for each (s, c) pair
 /// (s - c) t + c, t kept unrounded.
 pub fn clip_lerp3(m: impl Flt, fc: impl Flt, fs: impl Flt, pairs: [[u32; 2]; 3]) -> [f32; 3] {
-    let m = m.bits();
-    let fc = fc.bits();
-    let fs = fs.bits();
+    let m = m.value();
+    let fc = fc.value();
+    let fs = fs.value();
     let t = (bh::ld(m) - bh::ld(fc)) / (bh::ld(fs) - bh::ld(fc));
     pairs.map(|[s, c]| out((bh::ld(s) - bh::ld(c)) * t + bh::ld(c)))
 }
@@ -1517,13 +1526,13 @@ pub fn slot_project(
     cy: impl Flt,
     k: impl Flt,
 ) -> [u32; 3] {
-    let focal = focal.bits();
-    let z = z.bits();
-    let x = x.bits();
-    let cx = cx.bits();
-    let y = y.bits();
-    let cy = cy.bits();
-    let k = k.bits();
+    let focal = focal.value();
+    let z = z.value();
+    let x = x.value();
+    let cx = cx.value();
+    let y = y.value();
+    let cy = cy.value();
+    let k = k.value();
     let q = bh::ld(focal) / bh::ld(z);
     [
         bh::st(q * bh::ld(x) + bh::ld(cx)),
@@ -1540,9 +1549,9 @@ pub fn int_times_times(i: i32, a: u32, b: u32) -> u32 {
 
 /// `a + (b - a) r`.
 pub fn toward(a: impl Flt, b: impl Flt, r: impl Flt) -> f32 {
-    let a = a.bits();
-    let b = b.bits();
-    let r = r.bits();
+    let a = a.value();
+    let b = b.value();
+    let r = r.value();
     out(bh::ld(a) + (bh::ld(b) - bh::ld(a)) * bh::ld(r))
 }
 
@@ -1571,9 +1580,9 @@ pub fn column_turn(p: &[[u8; 10]; 3], m: &(impl crate::math::cells::Cells + ?Siz
 /// and X = q a + cx kept unrounded, the corners Y - s, Y - s, Y + s, Y + s and X - s, X + s,
 /// X + s, X - s (s as stored). Out: [s, z', y0 .. y3, x0 .. x3].
 pub fn particle_square(a: impl Flt, b: impl Flt, c: impl Flt, k: [u32; 4], size: i32) -> [f32; 10] {
-    let a = a.bits();
-    let b = b.bits();
-    let c = c.bits();
+    let a = a.value();
+    let b = b.value();
+    let c = c.value();
     // k: focal, cx, cy, zk
     let q = bh::ld(k[0]) / bh::ld(c);
     let zp = out(bh::ld(c) * bh::ld(k[3]));
@@ -1597,8 +1606,8 @@ pub fn particle_square(a: impl Flt, b: impl Flt, c: impl Flt, k: [u32; 4], size:
 
 /// `a + v t`.
 pub fn plus_times_int(a: impl Flt, v: impl Flt, t: i32) -> f32 {
-    let a = a.bits();
-    let v = v.bits();
+    let a = a.value();
+    let v = v.value();
     out(bh::ld(v) * bh::int(t) + bh::ld(a))
 }
 
@@ -1610,8 +1619,8 @@ pub fn plus_sum_times_int(a: u32, v: u32, w: u32, t: i32) -> u32 {
 
 /// `a - a k`.
 pub fn less_own_times(a: impl Flt, k: impl Flt) -> f32 {
-    let a = a.bits();
-    let k = k.bits();
+    let a = a.value();
+    let k = k.value();
     out(bh::ld(a) - bh::ld(a) * bh::ld(k))
 }
 
@@ -1628,9 +1637,9 @@ pub fn int_times3_wave_plus(
     a: impl Flt,
     cosine: bool,
 ) -> f32 {
-    let m = m.bits();
-    let a = a.bits();
-    let k = k.map(|f| f.bits());
+    let m = m.value();
+    let a = a.value();
+    let k = k.map(|f| f.value());
     let x = bh::int(r) * bh::ld(k[0]) * bh::ld(k[1]) * bh::ld(k[2]);
     let wave = if cosine { x.cos() } else { x.sin() };
     out(wave * bh::ld(m) + bh::ld(a))
@@ -1656,11 +1665,11 @@ pub fn turned_sprite(
     sin: impl Flt,
     cos: impl Flt,
 ) -> [u32; 14] {
-    let sin = sin.bits();
-    let cos = cos.bits();
-    let a = a.bits();
-    let b = b.bits();
-    let c = c.bits();
+    let sin = sin.value();
+    let cos = cos.value();
+    let a = a.value();
+    let b = b.value();
+    let c = c.value();
     // k: focal, cx, cy, zk
     let q = bh::ld(k[0]) / bh::ld(c);
     let zp = bh::st(bh::ld(c) * bh::ld(k[3]));
@@ -1695,8 +1704,8 @@ pub fn turned_sprite(
 
 /// `a + b`, left in 80 bits.
 pub fn add_80(a: impl Flt, b: impl Flt) -> [u8; 10] {
-    let a = a.bits();
-    let b = b.bits();
+    let a = a.value();
+    let b = b.value();
     bh::f80(bh::ld(a) + bh::ld(b))
 }
 
@@ -1710,11 +1719,11 @@ pub fn turn_about(
     cx: impl Flt,
     cy: impl Flt,
 ) -> [f32; 2] {
-    let (x, y) = (x.bits(), y.bits());
-    let sin = sin.bits();
-    let cos = cos.bits();
-    let cx = cx.bits();
-    let cy = cy.bits();
+    let (x, y) = (x.value(), y.value());
+    let sin = sin.value();
+    let cos = cos.value();
+    let cx = cx.value();
+    let cy = cy.value();
     let (x, y, sn, cs) = (bh::ld(x), bh::ld(y), bh::ld(sin), bh::ld(cos));
     [
         out(x * cs + y * sn + bh::ld(cx)),
@@ -1730,9 +1739,9 @@ pub fn times_subr_to_int(v: u32, k: u32, c: u32) -> i32 {
 
 /// `[-]a b + c`, left in 80 bits.
 pub fn times_plus_80(a: impl Flt, b: impl Flt, c: impl Flt, negated: bool) -> [u8; 10] {
-    let a = a.bits();
-    let b = b.bits();
-    let c = c.bits();
+    let a = a.value();
+    let b = b.value();
+    let c = c.value();
     let mut x = bh::ld(a);
     if negated {
         x = -x;
@@ -1754,8 +1763,8 @@ pub fn damp(v: u32, k: u32, t: i32) -> u32 {
 
 /// `v + (i - v) k t`, as a whole number and as a float.
 pub fn approach(i: i32, v: impl Flt, k: impl Flt, t: i32) -> (i32, f32) {
-    let v = v.bits();
-    let k = k.bits();
+    let v = v.value();
+    let k = k.value();
     let x = (bh::int(i) - bh::ld(v)) * bh::ld(k) * bh::int(t) + bh::ld(v);
     (bh::to_int(x), out(x))
 }
@@ -1780,18 +1789,18 @@ pub fn int_times_times_to_int(i: i32, a: u32, b: u32) -> i32 {
 
 /// `-(a k + c)`, left in 80 bits.
 pub fn times_plus_negated_80(a: impl Flt, k: impl Flt, c: impl Flt) -> [u8; 10] {
-    let a = a.bits();
-    let k = k.bits();
-    let c = c.bits();
+    let a = a.value();
+    let k = k.value();
+    let c = c.value();
     bh::f80(-(bh::ld(a) * bh::ld(k) + bh::ld(c)))
 }
 
 /// `-((a - b) k + c)`, left in 80 bits.
 pub fn less_times_plus_negated_80(a: impl Flt, b: impl Flt, k: impl Flt, c: impl Flt) -> [u8; 10] {
-    let a = a.bits();
-    let b = b.bits();
-    let k = k.bits();
-    let c = c.bits();
+    let a = a.value();
+    let b = b.value();
+    let k = k.value();
+    let c = c.value();
     bh::f80(-((bh::ld(a) - bh::ld(b)) * bh::ld(k) + bh::ld(c)))
 }
 
@@ -1810,8 +1819,8 @@ pub fn set_control(cw: u16) {
 /// `v` rounded to a whole number (as the rounding is set), its fraction times k, as a
 /// whole number.
 pub fn fraction_times_to_int(v: impl Flt, k: impl Flt) -> i32 {
-    let v = v.bits();
-    let k = k.bits();
+    let v = v.value();
+    let k = k.value();
     let i = bh::to_int(bh::ld(v));
     bh::to_int((bh::ld(v) - bh::int(i)) * bh::ld(k))
 }

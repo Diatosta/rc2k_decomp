@@ -22,7 +22,7 @@
 use crate::audio::names_store::{NameList, SampleNames};
 use crate::errors::BadInput;
 use crate::race::owner::Race;
-use crate::session::Dword;
+use crate::session::PlainDword;
 use crate::sound::sets_store::RaceSoundSets;
 use core::mem::offset_of;
 use rc2k_core::audio::commands::{Command, SoundList};
@@ -62,8 +62,8 @@ pub fn load_race_sounds(
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), BadInput> {
-    let r = &sound.race.sounds;
-    let object = |number: &Dword| -> Result<u32, BadInput> {
+    let r = sound.race.sounds.get();
+    let object = |number: &PlainDword| -> Result<u32, BadInput> {
         let number = number.get();
         if number >= OBJECTS {
             return Err(BadInput("a car's number past the sound objects"));
@@ -79,7 +79,10 @@ pub fn load_race_sounds(
         _ => Err(BadInput("a car's kind past the table of sound sets")),
     };
     let replay = race.shared.state.results.finished.is_set();
-    let (count, other_count) = (r.one_player.get(), r.count.get());
+    let (count, other_count) = (
+        sound.race.shared.one_player.get(),
+        sound.race.shared.count.get(),
+    );
     let kinds = if replay {
         None
     } else {

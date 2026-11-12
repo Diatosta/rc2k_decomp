@@ -11,14 +11,14 @@
 //! not check).
 
 use crate::errors::{BadInput, Refused};
-use crate::session::Dword;
+use crate::session::PlainDword;
 use crate::sound::store::{CueQueue, SoundObject};
 use rc2k_core::physics::sound_queue::{CuePlacement, ENTRY_DWORDS, check_cue, place, sounds};
 
 /// Dword `i` of the queue, counted as the original walks it: the four header dwords, then
 /// the entries' eight each (the first cue's place at -1 reads the entry's count: a run-on
 /// kept). One past the sixteen entries is refused.
-fn dword(q: &CueQueue, i: u32) -> Result<&Dword, BadInput> {
+fn dword(q: &CueQueue, i: u32) -> Result<&PlainDword, BadInput> {
     Ok(match i {
         0 => &q.first,
         1 => &q.place,

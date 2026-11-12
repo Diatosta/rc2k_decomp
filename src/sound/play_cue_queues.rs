@@ -13,14 +13,14 @@ pub fn play_cue_queues(
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
-    if sound.race.sounds.count.get() == 0 {
+    if sound.race.shared.count.get() == 0 {
         return Ok(());
     }
     // Converted: `rc2k_core::sound::turn::cue_cars`.
     let cars = rc2k_core::sound::turn::cue_cars(
-        sound.race.sounds.player_cars[0].get(),
-        || sound.race.sounds.player_cars[1].get(),
-        sound.race.sounds.one_player.get(),
+        sound.race.sounds.get().player_cars[0].get(),
+        || sound.race.sounds.get().player_cars[1].get(),
+        sound.race.shared.one_player.get(),
     );
     if cars.iter().any(|&n| n > 7) {
         return Err(BadInput("a player's car past 7").into());

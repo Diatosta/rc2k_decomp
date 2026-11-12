@@ -114,20 +114,16 @@ pub fn note_view(frame: &Frame) {
             .view_scale
             .get(),
         [
-            f32::from_bits(
-                crate::race::view_scratch::main_view(0)
-                    .polygon
-                    .window
-                    .view_centre[0]
-                    .bits(),
-            ),
-            f32::from_bits(
-                crate::race::view_scratch::main_view(0)
-                    .polygon
-                    .window
-                    .view_centre[1]
-                    .bits(),
-            ),
+            crate::race::view_scratch::main_view(0)
+                .polygon
+                .window
+                .view_centre[0]
+                .get(),
+            crate::race::view_scratch::main_view(0)
+                .polygon
+                .window
+                .view_centre[1]
+                .get(),
         ],
     );
     *VIEW
@@ -689,7 +685,7 @@ fn profiler(o: &Owners<'static>, ui: &Ui) {
             ("Ticks a frame", format!("{:.1}", t.ticks)),
             (
                 "Cars in the race",
-                format!("{}", shared.view.get().race_cars.bits()),
+                format!("{}", shared.view.get().race_cars.get()),
             ),
         ],
     );

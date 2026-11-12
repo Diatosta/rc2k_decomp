@@ -30,27 +30,25 @@ use crate::physics::car_store::Car;
 use crate::race::effects_settings_store::CarEffects;
 use crate::race::mud::car_file_number;
 use crate::race::owner::Race;
-use crate::session::Dword;
 use crate::sound::store::SoundObject;
 use rc2k_core::drive::sharing;
 
 use crate::race::light_records_store::LightRecord;
-use crate::session::Float;
 use crate::session::{PlainDword, PlainFloat};
 
 /// A whole-number field of the effects' car record.
-type RecordWord = fn(&CarEffects) -> &Dword;
+type RecordWord = fn(&CarEffects) -> &PlainDword;
 /// A float field of a car block.
 type BlockFloat = fn(&Car) -> &PlainFloat;
 /// A field of a light record.
-type LightField = fn(&LightRecord) -> &crate::session::PlainDword;
+type LightField = fn(&LightRecord) -> &PlainDword;
 
 /// A field of a car block moved into the same kind of field of the effects' record: a whole
 /// number (a surface kind, flags) or a float.
 #[derive(Clone, Copy)]
 enum Move {
     Word(RecordWord, fn(&Car) -> &PlainDword),
-    Float(fn(&CarEffects) -> &Float, BlockFloat),
+    Float(fn(&CarEffects) -> &PlainFloat, BlockFloat),
 }
 
 impl Move {
@@ -162,7 +160,7 @@ pub fn share_car_state_at(
     car: &'static Car,
     o: &CarEffects,
     p: &SoundObject,
-    scratch: &Dword,
+    scratch: &PlainDword,
 ) -> Result<(), Refused> {
     let n = light_record(race, car)?;
     if let Some(count) = sharing::count_down(car.reset_marker.get()) {
@@ -243,7 +241,7 @@ pub fn share_car_state_at(
     for (cell, mark) in o.factors.iter().zip(&car.impact_octant_marks) {
         cell.set(mark.get());
     }
-    let kept_from = o.face_sums.each_ref().map(Dword::get);
+    let kept_from = o.face_sums.each_ref().map(PlainDword::get);
     let mut kept = kept_from;
     sharing::fill_holes(&mut kept);
     for (cell, v) in car.part_wake_counts.iter().zip(kept) {
@@ -271,7 +269,7 @@ pub fn share_car_state(
         record,
         sound,
         // The original's spill to `g_scratch` (0x62400C), which nothing read: a local.
-        &Dword::new(0),
+        &PlainDword::new(0),
     )
 }
 
@@ -391,10 +389,10 @@ mod tests {
             assert_eq!(blk_off(car, first), bo);
             for (wheel, base) in records.into_iter().zip([offsets[0], offsets[0] + 0x48]) {
                 let w = &o.records[wheel];
-                let at = |f: &Dword| core::ptr::from_ref(f).addr() - core::ptr::from_ref(o).addr();
-                let atf = |f: &crate::session::Float| {
-                    core::ptr::from_ref(f).addr() - core::ptr::from_ref(o).addr()
-                };
+                let at =
+                    |f: &PlainDword| core::ptr::from_ref(f).addr() - core::ptr::from_ref(o).addr();
+                let atf =
+                    |f: &PlainFloat| core::ptr::from_ref(f).addr() - core::ptr::from_ref(o).addr();
                 assert_eq!(atf(&w.driven_speed), base);
                 assert_eq!(atf(&w.local_velocity_x), base + 4);
                 assert_eq!(at(&w.local_velocity_y), base + 8);

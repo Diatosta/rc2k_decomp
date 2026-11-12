@@ -15,7 +15,9 @@ use crate::race::tables_store::RaceTables;
 use crate::race::tyre_store::TyreChange;
 use crate::race::vars_store::RaceVars;
 use crate::race::view_store::RaceView;
+use crate::race::viewer_buffers_store::ViewerBuffers;
 use crate::race::work_store::RaceWork;
+use crate::screens::text_buffers_store::TextBuffers;
 use crate::session::{DrawShared, GameThread};
 
 /// The race's stores the menus, the network and the audio side read too.
@@ -46,7 +48,7 @@ pub struct RaceShared {
     /// (`car_blocks`).
     car_blocks: &'static DrawShared<CarBlocks>,
     /// The effects' settings with the cars' records (`Race::replay`'s), as `car_blocks`.
-    pub effects_settings: &'static EffectsSettings,
+    pub effects_settings: &'static GameThread<EffectsSettings>,
     /// `TEMPLATES` (`race`): the replay files' names.
     pub replay_templates: Templates,
     main: GameThread<SharedMain>,
@@ -59,6 +61,10 @@ struct SharedMain {
     tyre_change: TyreChange,
     replay_file: ReplayFileBlock,
     replays: Replays,
+    /// `race::viewer_buffers_store`: the replay viewer's buffers.
+    viewer: ViewerBuffers,
+    /// `screens::text_buffers_store`: the screens' text buffers.
+    text: TextBuffers,
 }
 
 impl RaceShared {
@@ -66,7 +72,7 @@ impl RaceShared {
     /// `effects_settings`.
     pub const fn new(
         car_blocks: &'static DrawShared<CarBlocks>,
-        effects_settings: &'static EffectsSettings,
+        effects_settings: &'static GameThread<EffectsSettings>,
     ) -> Self {
         RaceShared {
             work: DrawShared::new(RaceWork::new()),
@@ -85,6 +91,8 @@ impl RaceShared {
                 tyre_change: TyreChange::new(),
                 replay_file: ReplayFileBlock::new(),
                 replays: Replays::new(),
+                viewer: ViewerBuffers::new(),
+                text: TextBuffers::new(),
             }),
         }
     }
@@ -114,6 +122,14 @@ impl RaceShared {
 
     pub fn replays(&self) -> &Replays {
         &self.main.get().replays
+    }
+
+    pub fn viewer_buffers(&self) -> &ViewerBuffers {
+        &self.main.get().viewer
+    }
+
+    pub fn text_buffers(&self) -> &TextBuffers {
+        &self.main.get().text
     }
 
     /// Car `n`'s block (`g_carBlocks[n]`), refused for a value that names no block (see

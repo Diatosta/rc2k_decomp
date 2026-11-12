@@ -140,7 +140,7 @@ pub struct ObjectVars<'a> {
 impl<'a> ObjectVars<'a> {
     pub fn of(sound: &'a crate::sound::owner::Sound) -> Self {
         Self {
-            objects: &sound.race.sounds.objects,
+            objects: &sound.race.sounds.get().objects,
         }
     }
 }
@@ -213,33 +213,35 @@ pub fn set_up_race_sound_objects(
         use rc2k_core::race::sound_objects::{object_mark, sound_objects, sound_players};
         prepare_sound_tables_plain(&TableVars::of(sound, system))?;
         let players = sound_players(shared.state.settings.race_mode.get());
-        sound.race.sounds.one_player.set(players);
+        sound.race.shared.one_player.set(players);
         let (count, arcade) = sound_objects(players, shared.state.settings.run_kind.get());
         if arcade {
-            sound.race.sounds.mark_car_voices.set(1);
+            sound.race.sounds.get().mark_car_voices.set(1);
         }
-        sound.race.sounds.count.set(count);
-        sound.race.sounds.player_cars[0].set(0);
-        sound.race.sounds.player_cars[1].set(1);
+        sound.race.shared.count.set(count);
+        sound.race.sounds.get().player_cars[0].set(0);
+        sound.race.sounds.get().player_cars[1].set(1);
         if one {
-            sound.race.sounds.player_cars[0].set(vars.player.get());
-            sound.race.sounds.count.set(vars.players.get());
+            sound.race.sounds.get().player_cars[0].set(vars.player.get());
+            sound.race.shared.count.set(vars.players.get());
         }
         for (n, o) in v.objects.iter().enumerate() {
             o.sound_offset.set(object_mark(n as u32));
         }
-        let first =
-            crate::sound::store::SoundObject::of(sound, sound.race.sounds.player_cars[0].get())?;
+        let first = crate::sound::store::SoundObject::of(
+            sound,
+            sound.race.sounds.get().player_cars[0].get(),
+        )?;
         first.sound_offset.set(0);
         first.kind.set(shared.state.settings.car_kind_current.get());
         first
             .cue_queue
             .first
             .set(shared.state.settings.cars[0].codriver_sex.get());
-        if sound.race.sounds.one_player.get() != 1 {
+        if sound.race.shared.one_player.get() != 1 {
             let second = crate::sound::store::SoundObject::of(
                 sound,
-                sound.race.sounds.player_cars[1].get(),
+                sound.race.sounds.get().player_cars[1].get(),
             )?;
             second.sound_offset.set(1);
             second.kind.set(shared.state.settings.car_kind_first.get());
@@ -265,9 +267,8 @@ pub fn clear_race_sound_objects(
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     silence_race_sounds(sound, audio, system)?;
-    let sounds = &sound.race.sounds;
-    for d in [&sounds.one_player, &sounds.count, &sounds.mark_car_voices] {
-        d.set(0);
-    }
+    sound.race.shared.one_player.set(0);
+    sound.race.shared.count.set(0);
+    sound.race.sounds.get().mark_car_voices.set(0);
     Ok(())
 }

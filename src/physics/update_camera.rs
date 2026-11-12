@@ -41,7 +41,7 @@ use crate::race::view_vars_store::ViewVars;
 use crate::scene::matrix3::rounded_value;
 
 use crate::session::DwordLike;
-use crate::session::Float;
+use crate::session::PlainFloat;
 use rc2k_core::physics::camera_view;
 
 /// The fixed camera (the second chunk, 0x4380E9 ..): `second` the second tables.
@@ -212,7 +212,7 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
     x87_6(c.camera, c.car);
     // The offsets and turns: (to, from b, from a) each a + (b - a) x share, x 65536.
     let (work, offset_turns) = (&c.camera, &c.car.camera_offset_turns);
-    let rows: [(&dyn DwordLike, &Float, &Float); 9] = [
+    let rows: [(&dyn DwordLike, &PlainFloat, &PlainFloat); 9] = [
         (
             &work.camera_offset_x,
             &work.view_b_offset[0],
@@ -453,7 +453,7 @@ fn x87_6(camera: &CameraWork, car: &Car) {
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [t + 0] = ((([x + 0] - [y + 0]) * [camera_switch_share]) + [y + 0]) * [k65536]`
-fn x87_7(car: &Car, numbers: &Numbers, x: &Float, y: &Float, t: &dyn DwordLike) {
+fn x87_7(car: &Car, numbers: &Numbers, x: &PlainFloat, y: &PlainFloat, t: &dyn DwordLike) {
     let t0 = x.ld();
     let t1 = y.ld();
     let t2 = t0 - t1;

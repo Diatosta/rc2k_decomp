@@ -34,8 +34,8 @@ pub fn sum_times_over(a: u32, b: u32, h: u32, d: u32) -> u32 {
 
 /// `c + (a - c) f + (b - c) g` as a whole number, summed as `(a - c) f + (c + (b - c) g)`.
 pub fn plane_height(a: i32, b: i32, c: i32, f: impl Flt, g: impl Flt) -> i32 {
-    let f = f.bits();
-    let g = g.bits();
+    let f = f.value();
+    let g = g.value();
     let (a, b, c) = (int(a), int(b), int(c));
     let p = (a - c) * ld(f);
     let q = (b - c) * ld(g);
@@ -134,13 +134,13 @@ pub fn less_plus_less_product_80(
     d: impl Flt,
     e: impl Flt,
 ) -> [u8; 10] {
-    let a = a.bits();
-    let b = b.bits();
-    let d = d.bits();
-    let e = e.bits();
+    let a = a.value();
+    let b = b.value();
+    let d = d.value();
+    let e = e.value();
     let mut x = ld(a) - ld(b);
     if let Some(c) = c {
-        x += ld(c.bits());
+        x += ld(c.value());
     }
     f80(x - ld(d) * ld(e))
 }
@@ -153,18 +153,18 @@ pub fn int_times_times_over_to_int(i: i32, a: u32, b: u32, c: u32) -> i32 {
 
 /// `(a a k + c) g` and its negative, each rounded to a float.
 pub fn square_times_plus_times(a: impl Flt, k: impl Flt, c: impl Flt, g: impl Flt) -> (f32, f32) {
-    let a = a.bits();
-    let k = k.bits();
-    let c = c.bits();
-    let g = g.bits();
+    let a = a.value();
+    let k = k.value();
+    let c = c.value();
+    let g = g.value();
     let x = (ld(a) * ld(a) * ld(k) + ld(c)) * ld(g);
     (out(x), out(-x))
 }
 
 /// The compare of `a` with `b`: the status word's C0 .. C3 (0x4700).
 pub fn compare_full(a: impl Flt, b: impl Flt) -> u16 {
-    let a = a.bits();
-    let b = b.bits();
+    let a = a.value();
+    let b = b.value();
     compare(ld(a), ld(b)) & 0x4700
 }
 
@@ -173,14 +173,14 @@ pub fn compare_full(a: impl Flt, b: impl Flt) -> u16 {
 pub fn one_less_products<T: Flt>(terms: &[[T; 3]]) -> [u8; 10] {
     let mut acc = ONE;
     for t in terms {
-        acc -= ld(t[0].bits()) * ld(t[1].bits()) * ld(t[2].bits());
+        acc -= ld(t[0].value()) * ld(t[1].value()) * ld(t[2].value());
     }
     f80(acc)
 }
 
 /// The 80-bit `e` times `k`, unrounded.
 pub fn ext_times(e: [u8; 10], k: impl Flt) -> [u8; 10] {
-    let k = k.bits();
+    let k = k.value();
     f80(from_f80(e) * ld(k))
 }
 
@@ -188,9 +188,9 @@ pub fn ext_times(e: [u8; 10], k: impl Flt) -> [u8; 10] {
 /// t1; not below t2, t3; t2 - t0 equal to `zero` (or no number), t1; else
 /// `(x - t0) / (t2 - t0) (t3 - t1) + t1`. Rounded to a float (the `fstp`).
 pub fn ramp<T: Flt>(x: impl Flt, t: [T; 4], zero: impl Flt) -> f32 {
-    let t = t.map(|v| v.bits());
-    let x = x.bits();
-    let zero = zero.bits();
+    let t = t.map(|v| v.value());
+    let x = x.value();
+    let zero = zero.value();
     if compare_full(x, t[0]) & 0x100 != 0 {
         return crate::math::x87::loaded(t[1]);
     }
@@ -212,9 +212,9 @@ pub fn mul3(a: u32, b: u32, c: u32, d: u32) -> u32 {
 
 /// `lo + (i / d) (hi - lo)`, the products in that order.
 pub fn int_lerp(i: i32, d: impl Flt, hi: impl Flt, lo: impl Flt) -> f32 {
-    let d = d.bits();
-    let hi = hi.bits();
-    let lo = lo.bits();
+    let d = d.value();
+    let hi = hi.value();
+    let lo = lo.value();
     out(int(i) / ld(d) * (ld(hi) - ld(lo)) + ld(lo))
 }
 
@@ -244,22 +244,22 @@ pub fn int_over_int_plus(a: i32, b: i32, c: u32) -> u32 {
 /// (sine, cosine) of the float `a`, rounded to floats (`fsincos`: libm's `sin` / `cos`
 /// within an ulp of the instruction's).
 pub fn sine_cosine_of(a: impl Flt) -> (u32, u32) {
-    let a = a.bits();
+    let a = a.value();
     let (s, c) = ld(a).sin_cos();
     (st(s), st(c))
 }
 
 /// `1 - a`.
 pub fn one_less(a: impl Flt) -> f32 {
-    let a = a.bits();
+    let a = a.value();
     out(ONE - ld(a))
 }
 
 /// `sqrt(|x|) t + c`.
 pub fn abs_sqrt_times_plus(x: impl Flt, t: impl Flt, c: impl Flt) -> f32 {
-    let x = x.bits();
-    let t = t.bits();
-    let c = c.bits();
+    let x = x.value();
+    let t = t.value();
+    let c = c.value();
     out(ld(x).abs().sqrt() * ld(t) + ld(c))
 }
 
@@ -271,9 +271,9 @@ pub fn add3(a: u32, b: u32, c: u32) -> u32 {
 
 /// `(a b) c` as a whole number.
 pub fn mul2_to_int(a: impl Flt, b: impl Flt, c: impl Flt) -> i32 {
-    let a = a.bits();
-    let b = b.bits();
-    let c = c.bits();
+    let a = a.value();
+    let b = b.value();
+    let c = c.value();
     to_int(ld(a) * ld(b) * ld(c))
 }
 
@@ -291,82 +291,82 @@ pub fn neg_mul(a: u32, b: u32) -> u32 {
 
 /// The compare of `|a|` with `b`: C0 .. C3 (0x4700).
 pub fn abs_compare(a: impl Flt, b: impl Flt) -> u16 {
-    let a = a.bits();
-    let b = b.bits();
+    let a = a.value();
+    let b = b.value();
     compare(ld(a).abs(), ld(b)) & 0x4700
 }
 
 /// `|a|`, as a float.
 pub fn abs_of(a: impl Flt) -> f32 {
-    let a = a.bits();
+    let a = a.value();
     out(ld(a).abs())
 }
 
 /// The length of two floats at right angles, as a whole number.
 pub fn float_hypot_to_int(a: impl Flt, b: impl Flt) -> i32 {
-    let a = a.bits();
-    let b = b.bits();
+    let a = a.value();
+    let b = b.value();
     to_int((ld(a) * ld(a) + ld(b) * ld(b)).sqrt())
 }
 
 /// `a + (i - a) k` as a whole number.
 pub fn int_toward_to_int(i: i32, a: impl Flt, k: impl Flt) -> i32 {
-    let a = a.bits();
-    let k = k.bits();
+    let a = a.value();
+    let k = k.value();
     to_int((int(i) - ld(a)) * ld(k) + ld(a))
 }
 
 /// The product `a k` as a whole number (`fist`), and the compare's C0 .. C3 (0x4700) of
 /// the product (unrounded) against z.
 pub fn times_fist_compare(a: impl Flt, k: impl Flt, z: impl Flt) -> (i32, u16) {
-    let a = a.bits();
-    let k = k.bits();
-    let z = z.bits();
+    let a = a.value();
+    let k = k.value();
+    let z = z.value();
     let p = ld(a) * ld(k);
     (to_int(p), compare(p, ld(z)) & 0x4700)
 }
 
 /// `((((a / b) c) d) e)` as a whole number.
 pub fn div_mul3_to_int(a: impl Flt, b: impl Flt, c: impl Flt, d: impl Flt, e: impl Flt) -> i32 {
-    let a = a.bits();
-    let b = b.bits();
-    let c = c.bits();
-    let d = d.bits();
-    let e = e.bits();
+    let a = a.value();
+    let b = b.value();
+    let c = c.value();
+    let d = d.value();
+    let e = e.value();
     to_int(ld(a) / ld(b) * ld(c) * ld(d) * ld(e))
 }
 
 /// The 80-bit `e` over `a` over `b`, as a float.
 pub fn ext_div2(e: [u8; 10], a: impl Flt, b: impl Flt) -> f32 {
-    let a = a.bits();
-    let b = b.bits();
+    let a = a.value();
+    let b = b.value();
     out(from_f80(e) / ld(a) / ld(b))
 }
 
 /// The terms' sum over the divisors: `t0 + t1 + ..`, then `/ d0 / d1 ..`, as a float.
 pub fn sum_over<T: Flt, D: Flt>(terms: &[T], divisors: &[D]) -> f32 {
-    let mut acc = ld(terms[0].bits());
+    let mut acc = ld(terms[0].value());
     for t in &terms[1..] {
-        acc += ld(t.bits());
+        acc += ld(t.value());
     }
     for d in divisors {
-        acc /= ld(d.bits());
+        acc /= ld(d.value());
     }
     out(acc)
 }
 
 /// `(x x k) / d`.
 pub fn square_times_over(x: impl Flt, k: impl Flt, d: impl Flt) -> f32 {
-    let x = x.bits();
-    let k = k.bits();
-    let d = d.bits();
+    let x = x.value();
+    let k = k.value();
+    let d = d.value();
     out(ld(x) * ld(x) * ld(k) / ld(d))
 }
 
 /// `a + (1 - a) b`.
 pub fn toward_one(a: impl Flt, b: impl Flt) -> f32 {
-    let a = a.bits();
-    let b = b.bits();
+    let a = a.value();
+    let b = b.value();
     out((ONE - ld(a)) * ld(b) + ld(a))
 }
 
@@ -379,19 +379,19 @@ pub fn lerp_int_over2(
     d: impl Flt,
     w: impl Flt,
 ) -> f32 {
-    let a = a.bits();
-    let b = b.bits();
-    let k = k.bits();
-    let d = d.bits();
-    let w = w.bits();
+    let a = a.value();
+    let b = b.value();
+    let k = k.value();
+    let d = d.value();
+    let w = w.value();
     out(((ld(a) - ld(b)) * ld(k) * int(i) + ld(b)) / ld(d) / ld(w))
 }
 
 /// The step between gears, `(top - low) / (n - one)`, unrounded.
 pub fn gear_step_80(top: impl Flt, low: impl Flt, n: i32, one: impl Flt) -> [u8; 10] {
-    let top = top.bits();
-    let low = low.bits();
-    let one = one.bits();
+    let top = top.value();
+    let low = low.value();
+    let one = one.value();
     f80((ld(top) - ld(low)) / (int(n) - ld(one)))
 }
 
@@ -403,21 +403,21 @@ pub fn ext_add(a: [u8; 10], b: [u8; 10]) -> [u8; 10] {
 /// `-((((v - one) a) + one) g m) a`... in the original's order: `(v - one) a + one`, times
 /// `g`, times `m`, negated, times `a`.
 pub fn weight_force(v: impl Flt, one: impl Flt, a: impl Flt, g: impl Flt, m: impl Flt) -> f32 {
-    let v = v.bits();
-    let one = one.bits();
-    let a = a.bits();
-    let g = g.bits();
-    let m = m.bits();
+    let v = v.value();
+    let one = one.value();
+    let a = a.value();
+    let g = g.value();
+    let m = m.value();
     let x = ((ld(v) - ld(one)) * ld(a) + ld(one)) * ld(g) * ld(m);
     out(-x * ld(a))
 }
 
 /// `d` less `a b c`.
 pub fn neg_product2_plus(a: impl Flt, b: impl Flt, c: impl Flt, d: impl Flt) -> f32 {
-    let a = a.bits();
-    let b = b.bits();
-    let c = c.bits();
-    let d = d.bits();
+    let a = a.value();
+    let b = b.value();
+    let c = c.value();
+    let d = d.value();
     out(-(ld(a) * ld(b) * ld(c)) + ld(d))
 }
 
@@ -448,24 +448,24 @@ pub fn clamped_asin_80(x: [u8; 10], s: &mut u32, l: &mut u32) -> [u8; 10] {
 /// The angle of (x, y), `atan2(y, x)`, as a float (`fpatan`: within an ulp of the
 /// instruction's).
 pub fn patan(y: impl Flt, x: impl Flt) -> f32 {
-    let y = y.bits();
-    let x = x.bits();
+    let y = y.value();
+    let x = x.value();
     out(ld(y).atan2(ld(x)))
 }
 
 /// `a / cos b`, unrounded (`fcos`: libm's `cos`, the quotient within 2 ulp).
 pub fn over_cos_80(a: impl Flt, b: impl Flt) -> [u8; 10] {
-    let a = a.bits();
-    let b = b.bits();
+    let a = a.value();
+    let b = b.value();
     f80(ld(a) / ld(b).cos())
 }
 
 /// `((a b) c) d` as a whole number.
 pub fn mul3_to_int(a: impl Flt, b: impl Flt, c: impl Flt, d: impl Flt) -> i32 {
-    let a = a.bits();
-    let b = b.bits();
-    let c = c.bits();
-    let d = d.bits();
+    let a = a.value();
+    let b = b.value();
+    let c = c.value();
+    let d = d.value();
     to_int(ld(a) * ld(b) * ld(c) * ld(d))
 }
 
@@ -484,11 +484,11 @@ pub fn lever_share(
     c: impl Flt,
     zero: impl Flt,
 ) -> (f32, bool) {
-    let a = a.bits();
-    let d = d.bits();
-    let b = b.bits();
-    let c = c.bits();
-    let zero = zero.bits();
+    let a = a.value();
+    let d = d.value();
+    let b = b.value();
+    let c = c.value();
+    let zero = zero.value();
     let big_a = ld(a).abs() + ld(d).abs();
     let big_b = ld(b).abs() + ld(c).abs();
     let sum = big_b + big_a;
@@ -507,7 +507,7 @@ pub fn neg_mul2(a: u32, b: u32, c: u32) -> u32 {
 
 /// `(((a - b) + c) + (x - d) e) f` as a whole number (`v` = a, b, c, x, d, e, f).
 pub fn wheel_int<T: Flt>(v: [T; 7]) -> i32 {
-    let v = v.map(|x| x.bits());
+    let v = v.map(|x| x.value());
     let p = ld(v[0]) - ld(v[1]) + ld(v[2]);
     let q = (ld(v[3]) - ld(v[4])) * ld(v[5]);
     to_int((p + q) * ld(v[6]))
@@ -521,19 +521,19 @@ pub fn abs_div_add_mul(x: u32, a: u32, b: u32, c: u32) -> u32 {
 
 /// `(a b) c + d`.
 pub fn mul2_plus(a: impl Flt, b: impl Flt, c: impl Flt, d: impl Flt) -> f32 {
-    let a = a.bits();
-    let b = b.bits();
-    let c = c.bits();
-    let d = d.bits();
+    let a = a.value();
+    let b = b.value();
+    let c = c.value();
+    let d = d.value();
     out(ld(a) * ld(b) * ld(c) + ld(d))
 }
 
 /// `a / (|s| + b) - c`.
 pub fn over_abs_plus_minus(a: impl Flt, s: impl Flt, b: impl Flt, c: impl Flt) -> f32 {
-    let a = a.bits();
-    let s = s.bits();
-    let b = b.bits();
-    let c = c.bits();
+    let a = a.value();
+    let s = s.value();
+    let b = b.value();
+    let c = c.value();
     out(ld(a) / (ld(s).abs() + ld(b)) - ld(c))
 }
 
@@ -550,35 +550,35 @@ pub fn abs_fidiv(x: u32, n: i32) -> u32 {
 
 /// `(a - b) c + d`.
 pub fn sub_mul_add(a: impl Flt, b: impl Flt, c: impl Flt, d: impl Flt) -> f32 {
-    let a = a.bits();
-    let b = b.bits();
-    let c = c.bits();
-    let d = d.bits();
+    let a = a.value();
+    let b = b.value();
+    let c = c.value();
+    let d = d.value();
     out((ld(a) - ld(b)) * ld(c) + ld(d))
 }
 
 /// The compare of `(a b) / c` with `k`: C0 .. C3 (0x4700).
 pub fn mul_div_status(a: impl Flt, b: impl Flt, c: impl Flt, k: impl Flt) -> u16 {
-    let a = a.bits();
-    let b = b.bits();
-    let c = c.bits();
-    let k = k.bits();
+    let a = a.value();
+    let b = b.value();
+    let c = c.value();
+    let k = k.value();
     compare(ld(a) * ld(b) / ld(c), ld(k)) & 0x4700
 }
 
 /// The compare of `a b` with `c`: C0 .. C3 (0x4700).
 pub fn mul_status(a: impl Flt, b: impl Flt, c: impl Flt) -> u16 {
-    let a = a.bits();
-    let b = b.bits();
-    let c = c.bits();
+    let a = a.value();
+    let b = b.value();
+    let c = c.value();
     compare(ld(a) * ld(b), ld(c)) & 0x4700
 }
 
 /// `a b` as a whole number with the rounding set to chop (the control word put back
 /// after), the precision as it was.
 pub fn trunc_mul_to_int(a: impl Flt, b: impl Flt) -> i32 {
-    let a = a.bits();
-    let b = b.bits();
+    let a = a.value();
+    let b = b.value();
     let old = set_chop();
     let out = to_int(ld(a) * ld(b));
     set_control(old);
@@ -588,11 +588,11 @@ pub fn trunc_mul_to_int(a: impl Flt, b: impl Flt) -> i32 {
 /// The table line between (a0, c0) and (a1, c1) at s: `(s - a0) / (a1 - a0) (c1 - c0) +
 /// c0`.
 pub fn lerp_table(s: impl Flt, a0: impl Flt, a1: impl Flt, c0: impl Flt, c1: impl Flt) -> f32 {
-    let s = s.bits();
-    let a0 = a0.bits();
-    let a1 = a1.bits();
-    let c0 = c0.bits();
-    let c1 = c1.bits();
+    let s = s.value();
+    let a0 = a0.value();
+    let a1 = a1.value();
+    let c0 = c0.value();
+    let c1 = c1.value();
     out((ld(s) - ld(a0)) / (ld(a1) - ld(a0)) * (ld(c1) - ld(c0)) + ld(c0))
 }
 
@@ -604,25 +604,25 @@ pub fn div_then_mul(a: u32, b: u32, c: u32) -> u32 {
 
 /// `((a + b) n) / k - b`.
 pub fn sum_times_int_over_minus(a: impl Flt, b: impl Flt, n: i32, k: impl Flt) -> f32 {
-    let a = a.bits();
-    let b = b.bits();
-    let k = k.bits();
+    let a = a.value();
+    let b = b.value();
+    let k = k.value();
     out((ld(a) + ld(b)) * int(n) / ld(k) - ld(b))
 }
 
 /// `((a b) / c) / d`.
 pub fn mul_div2(a: impl Flt, b: impl Flt, c: impl Flt, d: impl Flt) -> f32 {
-    let a = a.bits();
-    let b = b.bits();
-    let c = c.bits();
-    let d = d.bits();
+    let a = a.value();
+    let b = b.value();
+    let c = c.value();
+    let d = d.value();
     out(ld(a) * ld(b) / ld(c) / ld(d))
 }
 
 /// `i k + a [+ b]`.
 pub fn int_mul_add(i: i32, k: impl Flt, a: impl Flt, b: Option<u32>) -> f32 {
-    let k = k.bits();
-    let a = a.bits();
+    let k = k.value();
+    let a = a.value();
     let mut x = int(i) * ld(k) + ld(a);
     if let Some(b) = b {
         x += ld(b);
@@ -632,13 +632,13 @@ pub fn int_mul_add(i: i32, k: impl Flt, a: impl Flt, b: Option<u32>) -> f32 {
 
 /// `a / b` as an 80-bit value.
 pub fn div_80(a: impl Flt, b: impl Flt) -> [u8; 10] {
-    let a = a.bits();
-    let b = b.bits();
+    let a = a.value();
+    let b = b.value();
     f80(ld(a) / ld(b))
 }
 
 /// The compare of the 80-bit `e` with a float: C0 .. C3 (0x4700).
 pub fn compare_80(e: [u8; 10], b: impl Flt) -> u16 {
-    let b = b.bits();
+    let b = b.value();
     compare(from_f80(e), ld(b)) & 0x4700
 }

@@ -140,11 +140,24 @@ fn save(race: &Race, system: &System, slot: u32) -> Result<bool, Refused> {
 
 /// The undo's block place `n` (`g_undoPlaces`, 0x3840 bytes: a number past it is the undo's
 /// cameras', as the original's).
-fn undo_place(buffers: &ViewerBuffers, n: usize) -> &crate::session::Dword {
-    crate::race::checkpoints_store::cell_in(
-        &buffers.undo_places,
-        buffers,
-        core::mem::offset_of!(ViewerBuffers, undo_places),
-        n,
-    )
+fn undo_place(buffers: &ViewerBuffers, n: usize) -> &crate::session::PlainDword {
+    use crate::cells::{CellRun, Cells};
+    buffers.undo_places.get(n).unwrap_or_else(|| {
+        let field = core::mem::offset_of!(ViewerBuffers, undo_places);
+        let offset = field.wrapping_add(((n as u32).wrapping_mul(4)) as usize);
+        let cell = (offset < core::mem::size_of::<ViewerBuffers>())
+            .then(|| buffers.cell_run(offset))
+            .and_then(|(start, run)| match run {
+                CellRun::PlainDword(cells) if (offset - start).is_multiple_of(4) => {
+                    cells.get((offset - start) / 4)
+                }
+                _ => None,
+            });
+        cell.unwrap_or_else(|| {
+            crate::fatal::raise::end(
+                "a cell past a table",
+                crate::errors::BadInput("a cell past the tables of its record"),
+            )
+        })
+    })
 }

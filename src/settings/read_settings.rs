@@ -110,7 +110,7 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"altmemenable",
         0x4E0584,
-        dword!(_o => crate::memory::state::OWN_HEAP),
+        dword!(_o => *crate::memory::state::OWN_HEAP.get()),
     ),
     (
         b"altmemheapsize",
@@ -287,7 +287,7 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
         0x4E0098,
         dword!(_o => crate::logfile::write_line::state::LEVEL),
     ),
-    (b"nofmv", 0x5BE870, dword!(_o => crate::film::NO_FMV)),
+    (b"nofmv", 0x5BE870, dword!(_o => *crate::film::NO_FMV.get())),
     (
         b"key",
         0x4E052C,

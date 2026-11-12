@@ -18,7 +18,7 @@ pub fn polygon(
     poly: &crate::scene::polygon_work::PolygonWork,
     buffer: &PolygonVertices,
 ) -> smallvec::SmallVec<[Vertex; 6]> {
-    let count = poly.polygon_vertex_count.bits() as usize;
+    let count = poly.polygon_vertex_count.get() as usize;
     let vertices = &buffer.vertices;
     if count > vertices.len() {
         crate::framework::log(&format!(

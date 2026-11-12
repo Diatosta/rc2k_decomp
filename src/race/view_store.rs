@@ -5,10 +5,11 @@
 //! counts. `#[repr(C)]` with the image's layout, over the race block's bytes (`RACE_VIEW`), as
 //! `CAR`. Names are readings unless IDA's.
 
+use crate::cells::ZeroCells;
 use crate::session::{PlainDword, PlainFloat};
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct RaceView {
     /// +0x0 (0x63D9B8): `g_reflectionsKept` (`scene::cached_reflection_coordinates`); now each view's (`race::face_work::FaceWork`); unused.
     pub reflections_kept: PlainDword,
@@ -124,11 +125,77 @@ pub struct RaceView {
 impl RaceView {
     /// The piece, with the image's first values.
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::blocks_store::with_block_refs(
-            crate::race::store::first_values::<{ END - START }>(START),
-            crate::race::blocks_store::VIEW_BLOCKS_IDA - START,
-            2,
-        ))
+        Self {
+            surface_kinds: [
+                PlainDword::new(3),
+                PlainDword::new(5),
+                PlainDword::new(4),
+                PlainDword::new(0),
+            ],
+            slope: PlainFloat::new(1.2),
+            near: PlainFloat::new(1048576.0),
+            unused_bc: [PlainDword::new(0x3020100), PlainDword::new(0x7060504)],
+            turned_corner_order: [
+                PlainDword::new(0x2030001),
+                PlainDword::new(0x5040706),
+                PlainDword::new(0x1000302),
+                PlainDword::new(0x6070405),
+                PlainDword::new(0x3020100),
+                PlainDword::new(0x7060504),
+                PlainDword::new(0x7060504),
+                PlainDword::new(0x10203),
+                PlainDword::new(0x3020100),
+                PlainDword::new(0x7060504),
+                PlainDword::new(0x3020100),
+                PlainDword::new(0x7060504),
+                PlainDword::new(0x3020100),
+                PlainDword::new(0x7060504),
+            ],
+            corner_uv_offsets: [
+                PlainDword::new(0),
+                PlainDword::new(4),
+                PlainDword::new(8),
+                PlainDword::new(0xC),
+                PlainDword::new(4),
+                PlainDword::new(0),
+                PlainDword::new(0xC),
+                PlainDword::new(8),
+                PlainDword::new(8),
+                PlainDword::new(0xC),
+                PlainDword::new(0),
+                PlainDword::new(4),
+                PlainDword::new(0xC),
+                PlainDword::new(8),
+                PlainDword::new(4),
+                PlainDword::new(0),
+                PlainDword::new(8),
+                PlainDword::new(0),
+                PlainDword::new(0xC),
+                PlainDword::new(4),
+                PlainDword::new(0xC),
+                PlainDword::new(4),
+                PlainDword::new(8),
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(8),
+                PlainDword::new(4),
+                PlainDword::new(0xC),
+                PlainDword::new(4),
+                PlainDword::new(0xC),
+                PlainDword::new(0),
+                PlainDword::new(8),
+            ],
+            level_from: PlainFloat::new(75.0),
+            unused_1a8: [PlainDword::new(1), PlainDword::new(0), PlainDword::new(0)],
+            players: PlainDword::new(1),
+            view_cars: [PlainDword::new(0), PlainDword::new(1)],
+            view_blocks: [
+                PlainDword::new(crate::race::blocks_store::block_ref(0x70F3EC)),
+                PlainDword::new(crate::race::blocks_store::block_ref(0x7103CC)),
+            ],
+            view_depth: [PlainDword::new(0xC0), PlainDword::new(0xC0)],
+            ..ZeroCells::ZERO
+        }
     }
 }
 

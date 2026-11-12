@@ -109,11 +109,12 @@ impl BytePlace {
         Ok(u32::from_le_bytes(self.read_array::<4>(what)?))
     }
 
-    /// `n` bytes on.
+    /// `n` bytes on, in the original's 32-bit arithmetic for both kinds (a "negative" `n`
+    /// goes back), so 32- and 64-bit builds reach the same byte.
     pub fn add(self, n: u32) -> BytePlace {
         match self {
             BytePlace::Store(s, at) => BytePlace::Store(s, (at as u32).wrapping_add(n) as usize),
-            BytePlace::In(b, at) => BytePlace::In(b, at.wrapping_add(n as usize)),
+            BytePlace::In(b, at) => BytePlace::In(b, (at as u32).wrapping_add(n) as usize),
         }
     }
 

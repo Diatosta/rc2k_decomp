@@ -225,15 +225,15 @@ fn x87_2(contact: &ContactWork, car: &Car, numbers: &Numbers) {
     let t9 = numbers.k65536.ld();
     let t10 = t8 * t9;
     contact.face_speed.set(to_int(t10) as u32);
-    let t11 = int(contact.contact_point[0].bits() as i32);
+    let t11 = int(crate::physics::flow::whole(&contact.contact_point[0]));
     let t12 = numbers.k65536.ld();
     let t13 = t11 / t12;
     contact.object_point_turned[0].st(t13);
-    let t14 = int(contact.contact_point[1].bits() as i32);
+    let t14 = int(crate::physics::flow::whole(&contact.contact_point[1]));
     let t15 = numbers.k65536.ld();
     let t16 = t14 / t15;
     contact.object_point_turned[1].st(t16);
-    let t17 = int(contact.contact_point[2].bits() as i32);
+    let t17 = int(crate::physics::flow::whole(&contact.contact_point[2]));
     let t18 = numbers.k65536.ld();
     let t19 = t17 / t18;
     contact.object_point_turned[2].st(t19);

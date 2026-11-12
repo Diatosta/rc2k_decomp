@@ -3,12 +3,14 @@
 //! switches and the co-driver's door kept in the header, and the replay cameras' wishes and last
 //! draw frames. `#[repr(C)]` with the image's layout, over the race block's bytes. Names are readings unless IDA's.
 
+use crate::cells::ZeroCells;
+
 #[cfg(test)]
 use crate::race::owner::race;
 use crate::session::PlainDword;
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ReplayWork {
     /// +0x0 (0x719AFC): only pointed to by data offsets in the table at 0x5ECBC6 .. (a pointer table nothing ported reads).
     pub unknown_640: [PlainDword; 6],
@@ -68,7 +70,66 @@ const _: () = assert!(END - START == core::mem::size_of::<ReplayWork>());
 impl ReplayWork {
     /// The work with the image's first values.
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        Self {
+            unknown_640: [
+                PlainDword::new(0x3C0),
+                PlainDword::new(0x1A10),
+                PlainDword::new(0x640),
+                PlainDword::new(0x400),
+                PlainDword::new(0x2810),
+                PlainDword::new(0x2810),
+            ],
+            replay_camera_wishes: [
+                PlainDword::new(8),
+                PlainDword::new(0xA),
+                PlainDword::new(7),
+                PlainDword::new(9),
+                PlainDword::new(0),
+                PlainDword::new(1),
+                PlainDword::new(2),
+                PlainDword::new(3),
+                PlainDword::new(4),
+                PlainDword::new(5),
+                PlainDword::new(6),
+                PlainDword::new(0x2E),
+                PlainDword::new(0x2F),
+                PlainDword::new(0x30),
+                PlainDword::new(0x31),
+                PlainDword::new(0x23),
+                PlainDword::new(0x24),
+                PlainDword::new(0x25),
+                PlainDword::new(0x10),
+                PlainDword::new(0x11),
+                PlainDword::new(0x12),
+                PlainDword::new(0x13),
+                PlainDword::new(0x14),
+                PlainDword::new(0x15),
+                PlainDword::new(0x16),
+                PlainDword::new(0x17),
+                PlainDword::new(0x18),
+                PlainDword::new(0x19),
+                PlainDword::new(0x1A),
+                PlainDword::new(0x1B),
+                PlainDword::new(0x1C),
+                PlainDword::new(0x1D),
+                PlainDword::new(0x1E),
+                PlainDword::new(0x1F),
+                PlainDword::new(0x20),
+                PlainDword::new(0x21),
+                PlainDword::new(0x22),
+                PlainDword::new(0x32),
+                PlainDword::new(0x33),
+                PlainDword::new(0x26),
+                PlainDword::new(0x27),
+                PlainDword::new(0x28),
+                PlainDword::new(0x29),
+                PlainDword::new(0x2A),
+                PlainDword::new(0x2B),
+                PlainDword::new(0x2C),
+                PlainDword::new(0x2D),
+            ],
+            ..ZeroCells::ZERO
+        }
     }
 }
 

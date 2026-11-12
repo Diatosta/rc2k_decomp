@@ -28,8 +28,12 @@ pub fn car_gear_sounds(
     // precision: one rounding each).
     use rc2k_core::sound::engine::{gear_pitch, place_behind};
     let place = place_behind(
-        so.place.each_ref().map(super::super::session::Float::get),
-        so.motion.each_ref().map(super::super::session::Float::get),
+        so.place
+            .each_ref()
+            .map(super::super::session::PlainFloat::get),
+        so.motion
+            .each_ref()
+            .map(super::super::session::PlainFloat::get),
     );
     for (cell, v) in request.place.iter().zip(place) {
         cell.set(v);

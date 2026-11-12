@@ -8,18 +8,18 @@ use crate::sound::sets_store::{
     CueLists, MenuSounds, RaceSoundSets, SoundKinds, SpotVoices, SurfaceSets,
 };
 use crate::sound::store::{
-    CarStream, CdAudio, RaceClock, RaceSounds, SettingsApplied, SoundOptions, SpotPicks,
-    StageSounds, SurfaceSounds,
+    CarStream, CdAudio, RaceClock, RaceSounds, SettingsApplied, SoundOptions, SoundShared,
+    SpotPicks, StageSounds, SurfaceSounds,
 };
 
 /// The race's sounds: the objects, the clock, the surface and stage constants, the sets and
 /// kinds, the spot voices and the car stream.
 ///
-/// `sounds` (the input thread's force-feedback effects read the objects and the player
-/// counts) and `sets` (the audio thread loads its lists) stay atomic; the rest is the game
+/// `shared` (the input thread's force-feedback effects read the player counts) and `sets` (the audio thread loads its lists) stay atomic; the rest is the game
 /// thread's.
 pub struct RaceSoundState {
-    pub sounds: RaceSounds,
+    pub shared: SoundShared,
+    pub sounds: GameThread<RaceSounds>,
     pub clock: GameThread<RaceClock>,
     pub surface: GameThread<SurfaceSounds>,
     pub stage: GameThread<StageSounds>,
@@ -37,7 +37,8 @@ pub struct RaceSoundState {
 impl RaceSoundState {
     pub const fn new() -> Self {
         RaceSoundState {
-            sounds: RaceSounds::new(),
+            shared: SoundShared::new(),
+            sounds: GameThread::new(RaceSounds::new()),
             clock: GameThread::new(RaceClock::new()),
             surface: GameThread::new(SurfaceSounds::new()),
             stage: GameThread::new(StageSounds::new()),

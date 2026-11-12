@@ -8,7 +8,7 @@
 
 use crate::errors::Refused;
 use crate::math::x87_float::{X, ld, st, stf};
-use crate::session::{Float, PlainDword, PlainFloat};
+use crate::session::{PlainDword, PlainFloat};
 use crate::sound::sets_store::{SoundRequest, SoundSet};
 use crate::sound::store::{SoundObject, SurfaceSounds};
 use rc2k_core::sound::engine::{computers, revs_sound_number, revs_stopped};
@@ -57,7 +57,7 @@ pub enum EnginePlace {
 pub fn send_engine_sound(
     so: &SoundObject,
     set: &SoundSet,
-    volume_input: &Float,
+    volume_input: &PlainFloat,
     side: EnginePlace,
     request: &SoundRequest,
     sound: &crate::sound::owner::Sound,
@@ -81,7 +81,7 @@ pub fn send_engine_sound(
 pub(super) fn fill_request(
     so: &SoundObject,
     set: &SoundSet,
-    volume_input: &Float,
+    volume_input: &PlainFloat,
     side: EnginePlace,
     surface: &SurfaceSounds,
     request: &SoundRequest,
@@ -111,8 +111,8 @@ pub(super) fn fill_request(
 pub fn fill_pitch_and_volume(
     so: &SoundObject,
     set: &SoundSet,
-    pitch_input: &Float,
-    volume_input: &Float,
+    pitch_input: &PlainFloat,
+    volume_input: &PlainFloat,
     gain: &PlainFloat,
     request: &SoundRequest,
 ) {
@@ -129,7 +129,7 @@ pub fn fill_pitch_and_volume(
 }
 
 /// `input * slope + start`, left on the x87 stack unrounded.
-fn linear(input: &Float, slope: &PlainDword, start: &PlainDword) -> X {
+fn linear(input: &PlainFloat, slope: &PlainDword, start: &PlainDword) -> X {
     ld(input.get()) * ld(slope.get()) + ld(start.get())
 }
 

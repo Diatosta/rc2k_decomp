@@ -4,12 +4,14 @@
 //! ("RCIB", the seal, the block and frame counts, the (offset, size) per block). `#[repr(C)]` with
 //! the image's layout, over the race block's bytes. Names are readings unless IDA's.
 
+use crate::cells::ZeroCells;
+
 #[cfg(test)]
 use crate::race::owner::race;
 use crate::session::{PlainDword, PlainFlag};
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ReplayFileBlock {
     /// +0x0 (0x5BEC78): `dword_5BEC78`: 1 = replays are recorded (`race::open_replay`, `race::replay`).
     pub replays_on: PlainDword,
@@ -69,7 +71,14 @@ pub struct ReplayFileBlock {
 impl ReplayFileBlock {
     /// The piece, with the image's first values.
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        Self {
+            replays_on: PlainDword::new(1),
+            viewer_slot: PlainDword::new(0xFFFFFFFF),
+            viewer_panel_texture: PlainDword::new(1),
+            viewer_device_texture: PlainDword::new(1),
+            index_magic: PlainDword::new(0x42494352),
+            ..ZeroCells::ZERO
+        }
     }
 }
 

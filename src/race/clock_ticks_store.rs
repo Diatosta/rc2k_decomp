@@ -3,12 +3,14 @@
 //! sounds. Stops before the kind tables (`race::kind_records_store`).
 //! Names are readings unless IDA's.
 
+use crate::cells::ZeroCells;
+
 #[cfg(test)]
 use crate::race::owner::race;
 use crate::session::PlainDword;
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ClockTicks {
     /// +0x0 (0x5CC198): `aDemofBuild` ("demof\\build", 12 bytes) and the bytes after it up to 0x5CC1B0: not read by the game's code.
     pub unused_text: [PlainDword; 6],
@@ -32,7 +34,17 @@ pub struct ClockTicks {
 /// The piece, with the image's first values.
 impl ClockTicks {
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        Self {
+            unused_text: [
+                PlainDword::new(0x6F6D6564),
+                PlainDword::new(0x75625C66),
+                PlainDword::new(0x646C69),
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(0),
+            ],
+            ..ZeroCells::ZERO
+        }
     }
 }
 

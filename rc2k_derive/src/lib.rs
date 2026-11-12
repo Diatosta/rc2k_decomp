@@ -3,7 +3,8 @@
 //! so the promise the trait asks for rests on the primitive cells alone. The derived
 //! `cell_run` finds a byte's field by its offset and asks the field's type, down to a run of
 //! primitive cells. The derived `copy_from` copies field by field, in the fields' order, and `merge_changes`
-//! merges field by field.
+//! merges field by field. A field named `inline` adds nothing to the debug pages' field paths:
+//! its own fields read as the record's (a part held in a `GameThread` among shared cells).
 
 use proc_macro::TokenStream;
 use quote::quote;
@@ -61,7 +62,16 @@ pub fn derive_cells(input: TokenStream) -> TokenStream {
     };
     // `field_path` (tests only): the path of the primitive cell holding a byte, from the record's
     // field names, for the debug pages' tables.
-    let path_names: Vec<_> = names.iter().map(|n| format!(".{n}")).collect();
+    let path_names: Vec<_> = names
+        .iter()
+        .map(|n| {
+            if n.to_string() == "inline" {
+                String::new()
+            } else {
+                format!(".{n}")
+            }
+        })
+        .collect();
     // The checks: at compile time for a record with no generics; for a generic one (a record
     // kept in two kinds of cells, `session::CellKind`) every field bound to `Cells` on the
     // impl and the padding asserted per kind, where the impl is first used.

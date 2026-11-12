@@ -1393,8 +1393,8 @@ piece 88: marks=! kind=! text=! item=! x=! y=! width=! height=!
 piece 89: marks=! kind=! text=! item=! x=! y=! width=! height=!
 piece 4294967295: marks=! kind=! text=! item=! x=! y=! width=! height=!
 piece 268435456: marks=0 kind=0 text=0 item=ListItem(pages +0x0) x=0 y=0 width=0 height=0
-piece 89478485: marks=! kind=! text=! item=! x=! y=! width=! height=!
-sweep pieces: 103 probes, 17 with a refusal, hash 02fb32d0ebae9dca
+piece 89478485: marks=! kind=! text=! item=! x=! y=0 width=0 height=0
+sweep pieces: 103 probes, 17 with a refusal, hash 6d49bf72cd29ca3f
 choice item 0x1000000: first=2 count=10 text=173 box=0 target=0 data=16777216 least=0 most=0 text_byte=! value=! choices=[(0, 0), (1280, 5), (0, 0)] edit=! pages_offset=Ok(6192)
   choice 0x0 = (0, 0)
   choice 0x1 = (1280, 5)

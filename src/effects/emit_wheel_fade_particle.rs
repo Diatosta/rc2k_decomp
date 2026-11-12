@@ -30,7 +30,7 @@ use crate::session::{PlainDword, PlainFloat};
 /// The motion: per axis (x, y, z) the three (factor, wheel speed) pairs; the scales are
 /// `KIND6_SET.motion_k[3 * axis + n]`.
 /// A wheel record's speed figure.
-type Speed = fn(&MarkRecord) -> &crate::session::Float;
+type Speed = fn(&MarkRecord) -> &PlainFloat;
 
 fn motion_factors(effects: &Effects) -> [[(&PlainFloat, Speed); 3]; 3] {
     [

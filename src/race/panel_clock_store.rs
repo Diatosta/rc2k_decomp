@@ -3,12 +3,14 @@
 //! code of the game writes it). `#[repr(C)]` with the image's layout, over the race block's
 //! bytes (`PANEL_CLOCK`). Names are readings unless IDA's.
 
+use crate::cells::ZeroCells;
+
 #[cfg(test)]
 use crate::race::owner::race;
 use crate::session::PlainDword;
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct PanelClock {
     /// +0x0 (0x62290C): `dword_62290C`: the scene clock the panel's motion shows from (`race::panel_motion`).
     pub shown_since: PlainDword,
@@ -20,7 +22,7 @@ pub struct PanelClock {
 /// The piece, with the image's first values.
 impl PanelClock {
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        Self::ZERO
     }
 }
 

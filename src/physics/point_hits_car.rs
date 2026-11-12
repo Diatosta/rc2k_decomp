@@ -124,15 +124,15 @@ fn x87_2(contact: &ContactWork, numbers: &Numbers) {
     let t0 = contact.object_point_turned[0].ld();
     let t1 = numbers.k65536.ld();
     let t2 = t0 * t1;
-    contact.contact_point[0].set_bits(to_int(t2) as u32);
+    crate::physics::flow::set_whole(&contact.contact_point[0], to_int(t2));
     let t3 = contact.object_point_turned[1].ld();
     let t4 = numbers.k65536.ld();
     let t5 = t3 * t4;
-    contact.contact_point[1].set_bits(to_int(t5) as u32);
+    crate::physics::flow::set_whole(&contact.contact_point[1], to_int(t5));
     let t6 = contact.object_point_turned[2].ld();
     let t7 = numbers.k65536.ld();
     let t8 = t6 * t7;
-    contact.contact_point[2].set_bits(to_int(t8) as u32);
+    crate::physics::flow::set_whole(&contact.contact_point[2], to_int(t8));
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -141,13 +141,13 @@ fn x87_2(contact: &ContactWork, numbers: &Numbers) {
 /// `[rc + 0x31A200] = 0`
 /// `[rc + 0x31A204] = int [rc + 0x2D3098] / [k65536]`
 fn x87_3(contact: &ContactWork, numbers: &Numbers, car: &Car) {
-    let t0 = int(contact.contact_point[0].bits() as i32);
+    let t0 = int(crate::physics::flow::whole(&contact.contact_point[0]));
     let t1 = numbers.k65536.ld();
     let t2 = t0 / t1;
     car.contact_point[0].st(t2);
     let t3 = X(0.0);
     car.contact_point[1].st(t3);
-    let t4 = int(contact.contact_point[2].bits() as i32);
+    let t4 = int(crate::physics::flow::whole(&contact.contact_point[2]));
     let t5 = numbers.k65536.ld();
     let t6 = t4 / t5;
     car.contact_point[2].st(t6);

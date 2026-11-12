@@ -20,7 +20,7 @@ const CAPTION_LEN: usize = 0x100;
 pub fn put_string(
     o: StringOwners<'_>,
     id: u32,
-    buffer: &crate::session::Bytes<0x100>,
+    buffer: &crate::session::PlainBytes<0x100>,
     room: usize,
 ) -> Result<(), Refused> {
     let mut text = Vec::new();

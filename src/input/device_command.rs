@@ -45,7 +45,7 @@ pub fn device_command(
             command as u8,
             (command >> 8) as u8,
             input.devices.two_devices_one_player.get(),
-            sound.race.sounds.one_player.get(),
+            sound.race.shared.one_player.get(),
         )?;
         for step in steps {
             match step {
