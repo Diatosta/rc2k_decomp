@@ -8,10 +8,63 @@
 # `deploy_standalone.sh x64` deploys the 64-bit build instead (into an x64 folder), and
 # `deploy_standalone.sh linux` the native Linux one (into a linux folder), and
 # `deploy_standalone.sh anbernic` the handheld's (over SSH); `anbernic pgo` profile-guided, with
-# the profile of tools/anbernic/pgo.sh.
+# the profile of tools/anbernic/pgo.sh. `deploy_standalone.sh mac` the macOS one, built on a
+# Mac (over SSH from elsewhere) as `Rally Championship.app` in the game's folder there.
 set -euo pipefail
 
 cd "$(dirname "$0")"
+
+if [ "${1:-}" = mac ]; then
+    # macOS: Intel and Apple silicon built on the Mac (the second crossed) and joined by lipo
+    # into one program (`mac x64` / `mac a64`: that one alone), SDL and FFmpeg's decoders
+    # linked in (build.rs), in `Rally Championship.app` (tools/mac/Info.plist), signed ad hoc
+    # (`codesign -s -`; not notarised). The bundle goes into MAC_GAME_DIR (default ~/rally),
+    # the folder holding the game's `files/` and `var/`: the program runs in the folder that
+    # holds its bundle. Needs the Command Line Tools, rustup's two apple-darwin targets,
+    # cmake, and gnupg (for FFmpeg's signature): MacPorts on an Intel Mac (Homebrew has left
+    # those), Homebrew or MacPorts on Apple silicon.
+    if [ "$(uname)" != Darwin ]; then
+        # From another machine: the source copied to the Mac (MAC_HOST, user@address, in
+        # deploy.local; MAC_KEY, MAC_PORT, MAC_SRC its folder there) and built there.
+        [ -f deploy.local ] && source deploy.local
+        : "${MAC_HOST:?Set MAC_HOST in deploy.local (user@address)}"
+        SSH="ssh -i ${MAC_KEY:-$HOME/.ssh/rc2k_mac} -p ${MAC_PORT:-22} -o BatchMode=yes"
+        MAC_SRC="${MAC_SRC:-rc2k_src}"
+        rsync -a --delete -e "$SSH" --exclude=/target/ --exclude=/ida_db/ --exclude=/.git/ \
+            --exclude=/third_party --exclude=/fuzz/target/ --exclude=/deploy.local \
+            ./ "$MAC_HOST:$MAC_SRC/"
+        $SSH "$MAC_HOST" "cd $MAC_SRC && MAC_GAME_DIR='${MAC_GAME_DIR:-}' \
+            RC2K_FEATURES='${RC2K_FEATURES:-}' ./deploy_standalone.sh mac ${2:-}"
+        exit 0
+    fi
+    export PATH="$HOME/.cargo/bin:/opt/local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+    export MACOSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET:-11.0}"
+    case "${2:-}" in
+        x64) TARGETS=(x86_64-apple-darwin) ;;
+        a64) TARGETS=(aarch64-apple-darwin) ;;
+        "") TARGETS=(x86_64-apple-darwin aarch64-apple-darwin) ;;
+        *) echo "usage: deploy_standalone.sh mac [x64|a64]" >&2; exit 1 ;;
+    esac
+    tools/build_ffmpeg.sh mac
+    BINS=()
+    for TARGET in "${TARGETS[@]}"; do
+        CARGO_TARGET_DIR=target/mac cargo build --release --target "$TARGET" --bin rc2k \
+            ${RC2K_FEATURES:+--features "$RC2K_FEATURES"}
+        BINS+=("target/mac/$TARGET/release/rc2k")
+    done
+    APP="target/mac/Rally Championship.app"
+    rm -rf "$APP"
+    mkdir -p "$APP/Contents/MacOS"
+    lipo -create -output "$APP/Contents/MacOS/rc2k" "${BINS[@]}"
+    cp tools/mac/Info.plist "$APP/Contents/"
+    codesign --force --sign - "$APP"
+    DEST="${MAC_GAME_DIR:-$HOME/rally}"
+    mkdir -p "$DEST"
+    rm -rf "$DEST/Rally Championship.app"
+    cp -R "$APP" "$DEST/"
+    echo "deployed Rally Championship.app ($(lipo -archs "$APP/Contents/MacOS/rc2k")) to $DEST"
+    exit 0
+fi
 
 [ -f deploy.local ] && source deploy.local
 : "${GAME_DIR:?Set GAME_DIR, e.g. in deploy.local}"

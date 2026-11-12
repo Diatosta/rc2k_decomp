@@ -1,5 +1,5 @@
 #![allow(unsafe_code)]
-//! SDL3's GPU API (`SDL_GPU*`; Vulkan on the PC), the only place that calls it. The objects are
+//! SDL3's GPU API (`SDL_GPU*`; Vulkan on the PC, Metal on macOS), the only place that calls it. The objects are
 //! small `Copy` handles (a raw pointer kept private, `NONE` for "not made yet"); making and
 //! releasing them is explicit, on `Device`, and the caller releases each once and stops using
 //! it, as it would the SDL calls. Nothing here keeps a count or checks a handle against the
@@ -11,6 +11,7 @@
 //! Send` on each, for that reason. The wrappers on the per-draw path are `#[inline]`.
 
 use sdl3_sys::everything::*;
+use std::ffi::CStr;
 use std::ptr::{null, null_mut};
 
 /// SDL's last error text, copied.
@@ -109,13 +110,48 @@ pub struct PipelineSpec<'a> {
     pub depth: Option<(SDL_GPUDepthStencilState, SDL_GPUTextureFormat)>,
 }
 
+/// A shader's code in each format a device may take: SPIR-V (Vulkan), and on macOS also
+/// Metal's source (MSL, made from the SPIR-V by `tools/compile_shaders.sh`).
+#[derive(Clone, Copy)]
+pub struct ShaderCode {
+    pub spirv: &'static [u8],
+    #[cfg(target_os = "macos")]
+    pub msl: &'static [u8],
+}
+
+/// The shader formats a device is asked for: SPIR-V, and on macOS Metal's too (SDL takes the
+/// first backend that takes one of them: Metal there, Vulkan elsewhere).
+#[cfg(not(target_os = "macos"))]
+const SHADER_FORMATS: SDL_GPUShaderFormat = SDL_GPU_SHADERFORMAT_SPIRV;
+#[cfg(target_os = "macos")]
+const SHADER_FORMATS: SDL_GPUShaderFormat =
+    SDL_GPUShaderFormat(SDL_GPU_SHADERFORMAT_SPIRV.0 | SDL_GPU_SHADERFORMAT_MSL.0);
+
 impl Device {
-    /// A device that takes SPIR-V shaders; none (SDL's error is `error()`) when the system has
-    /// no such.
-    pub fn create_spirv() -> Option<Device> {
+    /// A device that takes our shaders (SPIR-V; on macOS SPIR-V or MSL); none (SDL's error is
+    /// `error()`) when the system has no such.
+    pub fn create() -> Option<Device> {
         // SAFETY: no pointers but SDL's error text.
-        let device = unsafe { SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, false, null()) };
+        let device = unsafe { SDL_CreateGPUDevice(SHADER_FORMATS, false, null()) };
         (!device.is_null()).then_some(Device(device))
+    }
+
+    /// The format the device's shaders are made from, of the ones asked for (SPIR-V where it
+    /// takes it), its code in `code`, and the code's entry point (spirv-cross names MSL's
+    /// `main0`).
+    fn shader_format(
+        self,
+        code: ShaderCode,
+    ) -> (SDL_GPUShaderFormat, &'static [u8], &'static CStr) {
+        #[cfg(target_os = "macos")]
+        {
+            // SAFETY: no pointers.
+            let formats = unsafe { SDL_GetGPUShaderFormats(self.0) };
+            if formats & SDL_GPU_SHADERFORMAT_SPIRV == 0 {
+                return (SDL_GPU_SHADERFORMAT_MSL, code.msl, c"main0");
+            }
+        }
+        (SDL_GPU_SHADERFORMAT_SPIRV, code.spirv, c"main")
     }
 
     /// The name of the driver the device runs on.
@@ -126,19 +162,20 @@ impl Device {
             .into_owned()
     }
 
-    /// A SPIR-V shader (entry point `main`).
+    /// A shader from its code in the device's format.
     pub fn create_shader(
         self,
-        code: &[u8],
+        code: ShaderCode,
         stage: SDL_GPUShaderStage,
         samplers: u32,
         uniforms: u32,
     ) -> Result<Shader, String> {
+        let (format, code, entry) = self.shader_format(code);
         let info = SDL_GPUShaderCreateInfo {
             code_size: code.len(),
             code: code.as_ptr(),
-            entrypoint: c"main".as_ptr(),
-            format: SDL_GPU_SHADERFORMAT_SPIRV,
+            entrypoint: entry.as_ptr(),
+            format,
             stage,
             num_samplers: samplers,
             num_uniform_buffers: uniforms,

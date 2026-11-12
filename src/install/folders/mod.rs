@@ -7,8 +7,9 @@
 //! - `unix`: native paths (`/home/me/.local/share/rally-championship/`, shown whole, `~` may
 //!   be typed for the home folder), no drive page, the room of the folder's file system.
 //!
-//! A new system (macOS: `~/Library/Application Support/..`) is one more implementation and
-//! its line in `Native`. Texts are the game's (Windows-1252 bytes, no NUL unless said).
+//! macOS takes the `unix` rules with its own first folder (`~/Library/Application
+//! Support/Rally Championship`). A new system is one more implementation and its line in
+//! `Native`. Texts are the game's (Windows-1252 bytes, no NUL unless said).
 
 use crate::errors::{BadInput, Refused};
 

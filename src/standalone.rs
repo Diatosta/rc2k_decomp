@@ -540,10 +540,30 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
     crate::platform::FRAMES_TO_SHOW.store(frames, Ordering::SeqCst);
     crate::platform_timing::start_threads();
     crate::platform_input::SdlBackend::start();
+    // Before any path is read: a program in a macOS bundle runs in the bundle's folder.
+    #[cfg(target_os = "macos")]
+    let bundle_folder = crate::os::enter_bundle_folder();
     // Absolute: the installer changes the current folder (`install::make_folders`).
     let log_file = &std::path::absolute(log_file).unwrap_or_else(|_| log_file.to_path_buf());
     let _ = std::fs::File::create(log_file);
     let _ = LOG_PATH.set(log_file.to_path_buf());
+    #[cfg(target_os = "macos")]
+    match bundle_folder {
+        Ok(Some(folder)) => log(&format!(
+            "standalone: started from a bundle: running in {}",
+            folder.display()
+        )),
+        Ok(None) => {}
+        Err(e) => {
+            log(&format!("standalone: the bundle's folder: {e}"));
+            crate::fatal::raise::end(
+                "standalone::run",
+                crate::errors::BadInput(
+                    "the folder holding the program's bundle cannot be entered",
+                ),
+            )
+        }
+    }
     // A panic ends the program at once (it cannot unwind out of an `extern "C"` function):
     // say where first.
     std::panic::set_hook(Box::new(|info| {
