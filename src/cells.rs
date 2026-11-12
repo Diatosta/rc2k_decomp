@@ -24,7 +24,7 @@ pub unsafe trait Cells {
 
     /// The path of the field holding byte `offset` (`.a.b[2]`) added to `path`, and the type of
     /// the primitive cell it ends in: the debug pages' rows are named by it.
-    #[cfg(any(test, feature = "write_watch"))]
+    #[cfg(any(test, feature = "write_watch", feature = "remote"))]
     #[cfg_attr(not(debug_ui), allow(dead_code))] // only the debug pages' tests and the audit use it
     fn field_path(&self, _offset: usize, _path: &mut String) -> &'static str
     where
@@ -688,7 +688,7 @@ unsafe impl<T: Cells, const N: usize> Cells for [T; N] {
         }
     }
 
-    #[cfg(any(test, feature = "write_watch"))]
+    #[cfg(any(test, feature = "write_watch", feature = "remote"))]
     fn field_path(&self, offset: usize, path: &mut String) -> &'static str {
         let size = size_of::<T>();
         path.push_str(&format!("[{}]", offset / size));
@@ -826,7 +826,7 @@ pub unsafe trait Store {
         None
     }
     /// `Cells::field_path` of the record behind the store, and the record's type.
-    #[cfg(any(test, feature = "write_watch"))]
+    #[cfg(any(test, feature = "write_watch", feature = "remote"))]
     #[cfg_attr(not(debug_ui), allow(dead_code))] // only the debug pages' tests and the audit use it
     fn field_path_at(&self, _offset: usize, _path: &mut String) -> Option<&'static str> {
         None
@@ -850,7 +850,7 @@ unsafe impl<T: Cells> Store for T {
         Some(Cells::cell_run(self, offset))
     }
 
-    #[cfg(any(test, feature = "write_watch"))]
+    #[cfg(any(test, feature = "write_watch", feature = "remote"))]
     fn field_path_at(&self, offset: usize, path: &mut String) -> Option<&'static str> {
         Some(Cells::field_path(self, offset, path))
     }

@@ -73,6 +73,8 @@ pub mod set_camera_view;
 pub mod set_listener;
 pub mod share_all_cars;
 pub mod share_car_state;
+#[cfg(any(test, feature = "remote", feature = "write_watch"))]
+pub mod sim_hash;
 pub mod simple_car_step;
 pub mod start_blend;
 pub mod start_car_on_line;
