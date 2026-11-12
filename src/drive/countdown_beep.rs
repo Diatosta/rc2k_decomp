@@ -11,7 +11,7 @@
 use crate::errors::Refused;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
-use crate::race::panel_store::Loose32;
+use crate::session::PlainLoose;
 use rc2k_core::drive::countdown::{self, Beep};
 
 /// The car block `block`, the second into `to`.
@@ -19,17 +19,21 @@ use rc2k_core::drive::countdown::{self, Beep};
 pub fn countdown_beep(
     race: &Race,
     block: &Car,
-    to: &Loose32,
+    to: &PlainLoose,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     let beep = countdown::countdown_beep(
         block.false_start_count.get(),
         block.driver_kind.get(),
         || {
-            block
-                .run_ticks
-                .get()
-                .wrapping_sub(race.frame.panel_and_overlay.overlay.countdown_start.get())
+            block.run_ticks.get().wrapping_sub(
+                race.frame
+                    .panel_and_overlay
+                    .get()
+                    .overlay
+                    .countdown_start
+                    .get(),
+            )
         },
     );
     let (second, cue) = match beep {
@@ -38,7 +42,8 @@ pub fn countdown_beep(
     };
     to.set(second);
     if cue {
-        let sound = race.frame.panel_and_overlay.overlay.countdown_sounds[second as usize].get(); // dword_6D1818, the cue is only for 0 .. SECONDS
+        let sound =
+            race.frame.panel_and_overlay.get().overlay.countdown_sounds[second as usize].get(); // dword_6D1818, the cue is only for 0 .. SECONDS
         race.shared.physics_tables.countdown_sound.set(sound);
         crate::drive::countdown_cue::countdown_cue(race, sound, audio)?;
     }

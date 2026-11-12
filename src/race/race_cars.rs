@@ -13,7 +13,8 @@ use crate::physics::car_store::Car;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
-use crate::session::{Dword, Float};
+use crate::session::Dword;
+use crate::session::{PlainDword, PlainFloat};
 
 /// The eight car blocks (fixed; `g_carBlocks` lists them), 0xFE0 apart.
 /// Player n's (0, 1) kind, tyre and colours word: `car_kinds[n]`, `car_tyres[n]`,
@@ -28,8 +29,8 @@ pub const TEXT_LEN: usize = 0x708;
 /// A selector of one 32-bit field of a car block: a whole number or a float.
 #[derive(Clone, Copy)]
 enum Field {
-    Word(fn(&Car) -> &Dword),
-    Float(fn(&Car) -> &Float),
+    Word(fn(&Car) -> &PlainDword),
+    Float(fn(&Car) -> &PlainFloat),
 }
 
 impl Field {
@@ -428,7 +429,7 @@ pub fn set_car_times(race: &Race, scene: &crate::scene::owner::Scene) -> Result<
         )?;
         text(w(2), false);
         number(percentage, false);
-        scene.drawing.scene.scratch.set(percentage);
+        scene.drawing.scene.get().scratch.set(percentage);
         let total: i32 = race.physics.split_tables().stage_car_total.get() as i32;
         let extra = bh::to_int(
             bh::int(percentage as i32) * bh::int(total) / race.course.numbers.hundred.ld(),

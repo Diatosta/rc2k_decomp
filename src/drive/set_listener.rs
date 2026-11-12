@@ -27,7 +27,8 @@ use crate::race::mud::car_file_number;
 use crate::race::owner::Race;
 use crate::scene::matrix::multiply_matrices;
 use crate::scene::rotate_point::rotate_point;
-use crate::session::{Dword, Float};
+use crate::session::DwordLike;
+use crate::session::Float;
 use rc2k_core::drive::listener;
 
 /// The car file's six figures times 65536 over 1000, or the refusal (before anything).
@@ -53,7 +54,7 @@ pub struct ListenerView<'a> {
     pub drawn_view: u32,
     pub view_matrix: &'a [Float; 16],
     pub view_turn_matrix: &'a [Float; 16],
-    pub view_place: &'a [Dword; 3],
+    pub view_place: [&'a dyn DwordLike; 3],
     /// The view's sun (its place and the view's value, `ViewSun`).
     pub sun: &'a crate::scene::polygon_work::ViewSun,
 }
@@ -65,7 +66,11 @@ impl<'a> ListenerView<'a> {
             drawn_view: view.drawn_view(race),
             view_matrix: &view.matrices.view_matrix,
             view_turn_matrix: &view.matrices.view_turn_matrix,
-            view_place: &view.state.view_place,
+            view_place: view
+                .state
+                .view_place
+                .each_ref()
+                .map(|c| c as &dyn DwordLike),
             sun: &view.polygon.sun,
         }
     }
@@ -79,7 +84,13 @@ impl<'a> ListenerView<'a> {
             drawn_view: race.shared.view.drawn_view.get(),
             view_matrix: &frame.matrices.view_matrix,
             view_turn_matrix: &frame.matrices.view_turn_matrix,
-            view_place: &frame.view_and_records.view_vars.view_place,
+            view_place: frame
+                .view_and_records
+                .get()
+                .view_vars
+                .view_place
+                .each_ref()
+                .map(|c| c as &dyn DwordLike),
             sun: &crate::race::view_scratch::main_view(0).polygon.sun,
         }
     }
@@ -159,7 +170,7 @@ pub fn set_listener(
         }
     }
     let switches = listener::switches(
-        race.frame.frame_work.mirror_wanted.get() != 0,
+        race.frame.frame_work.get().mirror_wanted.get() != 0,
         car.surface_noise_a.get(),
         car.surface_noise_b.get(),
     );

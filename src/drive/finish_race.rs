@@ -21,18 +21,18 @@ fn log_number(v: u32) {
     crate::logfile::log_int::log_int(v as i32, true, 1);
 }
 
-/// A variable's place: a cell of the race's shared state, or of the finish routine's own
-/// variables (a drawing store's plain cells).
+/// A variable's place: a cell of the race's shared state, or a drawing store's plain cell (the
+/// finish routine's own variables, the view records).
 enum Place<'a> {
     Shared(&'a Dword),
-    Finish(&'a crate::session::PlainDword),
+    Plain(&'a crate::session::PlainDword),
 }
 
 impl Place<'_> {
     fn set(&self, value: u32) {
         match self {
             Place::Shared(cell) => cell.set(value),
-            Place::Finish(cell) => cell.set(value),
+            Place::Plain(cell) => cell.set(value),
         }
     }
 }
@@ -56,11 +56,15 @@ fn var(race: &Race, v: Var) -> Place<'_> {
         Var::D621890 => &race.shared.switches.view_marks_on,
         Var::D6238CC => &race.shared.vars.race_level,
         Var::D6238D0 => &race.shared.vars.race_stage,
-        Var::D64BB18 => return Place::Finish(&race.replay.finish.get().no_place),
+        Var::D64BB18 => return Place::Plain(&race.replay.finish.get().no_place),
         Var::D5C2F88 => &race.effects_settings().race_done,
         // View record 6's first two angles (the finish camera's).
-        Var::D606744 => &race.frame.view_and_records.records[6].angles[0],
-        Var::D606748 => &race.frame.view_and_records.records[6].angles[1],
+        Var::D606744 => {
+            return Place::Plain(&race.frame.view_and_records.get().records[6].angles[0]);
+        }
+        Var::D606748 => {
+            return Place::Plain(&race.frame.view_and_records.get().records[6].angles[1]);
+        }
         Var::D63DB84 => &race.shared.view.after_credits,
     })
 }

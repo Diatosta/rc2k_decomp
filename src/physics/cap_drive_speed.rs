@@ -23,7 +23,7 @@ fn below(a: f32, b: f32) -> bool {
 pub fn cap_drive_speed(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner::Scene) {
     let allowance = &tables.drive_speed_figure;
     let speed = &car.local_velocity[2];
-    let scratch = &scene.drawing.scene.scratch;
+    let scratch = &scene.drawing.scene.get().scratch;
     let drive_speed = &car.drive_speed_a;
     let zero = f32::from_bits(ZERO);
     allowance.set(over_abs_plus_minus(

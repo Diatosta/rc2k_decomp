@@ -39,6 +39,7 @@ pub fn overlay_pass(
     use crate::scene::depth_buffer_on::depth_buffer;
     race.frame
         .panel_and_overlay
+        .get()
         .panel
         .players
         .set(shown_layout(&race.shared));
@@ -46,15 +47,17 @@ pub fn overlay_pass(
     depth_buffer(part, false);
     crate::hud::overlay_states::overlay_states(part);
     let kept: [u32; 2] = [
-        race.frame.panel_and_overlay.panel.hud_flags[0].get(),
-        race.frame.panel_and_overlay.panel.hud_flags[1].get(),
+        race.frame.panel_and_overlay.get().panel.hud_flags[0].get(),
+        race.frame.panel_and_overlay.get().panel.hud_flags[1].get(),
     ];
     if race.shared.view.views.get() == 2 {
         for n in 0..2 {
             if crate::race::frame_view::car(n)?.view_covered.get() != 0 {
-                race.frame.panel_and_overlay.panel.hud_flags[n]
-                    .set(race.frame.panel_and_overlay.panel.hud_flags[n].get() & 0x40);
-                race.frame.panel_and_overlay.panel.lights[n].width.set(0);
+                race.frame.panel_and_overlay.get().panel.hud_flags[n]
+                    .set(race.frame.panel_and_overlay.get().panel.hud_flags[n].get() & 0x40);
+                race.frame.panel_and_overlay.get().panel.lights[n]
+                    .width
+                    .set(0);
             }
         }
     }
@@ -69,8 +72,8 @@ pub fn overlay_pass(
         engine_tables: race.engine_tables(),
     };
     let done = crate::hud::draw_hud::draw_hud(&race.frame, hud, pen);
-    race.frame.panel_and_overlay.panel.hud_flags[1].set(kept[1]);
-    race.frame.panel_and_overlay.panel.hud_flags[0].set(kept[0]);
+    race.frame.panel_and_overlay.get().panel.hud_flags[1].set(kept[1]);
+    race.frame.panel_and_overlay.get().panel.hud_flags[0].set(kept[0]);
     done?;
     depth_buffer(part, true);
     crate::scene::full_view_window::full_view_window(race, scene, system);

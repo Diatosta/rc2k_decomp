@@ -14,18 +14,19 @@ use crate::math::x87_float as bh;
 use crate::physics::car_store::Car;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
-use crate::session::{Dword, Float};
+use crate::session::Float;
+use crate::session::{PlainDword, PlainFloat};
 
 /// The variables: the car's work copy's and the ratio table (gear -1 first).
 #[derive(Clone, Copy)]
 pub struct GearPlaces<'a> {
-    pub gear: &'a Dword,
-    pub engine_speed: &'a Float,
-    pub drive_speed: &'a Float,
-    pub drive_speed_b: &'a Float,
-    pub drive_kind: &'a Dword,
+    pub gear: &'a PlainDword,
+    pub engine_speed: &'a PlainFloat,
+    pub drive_speed: &'a PlainFloat,
+    pub drive_speed_b: &'a PlainFloat,
+    pub drive_kind: &'a PlainDword,
     pub ratios: &'a [Float; 9],
-    pub speed: &'a Float,
+    pub speed: &'a PlainFloat,
 }
 
 impl<'a> GearPlaces<'a> {

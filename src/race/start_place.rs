@@ -95,7 +95,7 @@ pub fn distance_to_checkpoint(
     // Converted: `rc2k_core::race::checkpoints::on_line`; the distance the x87's.
     let count: u32 = vars.checkpoint_count.get();
     if !rc2k_core::race::checkpoints::on_line(c, count) {
-        drawing.scene.scratch.set(u32::MAX);
+        drawing.scene.get().scratch.set(u32::MAX);
         return Ok(());
     }
     if c >= MOST_CHECKS {
@@ -105,7 +105,11 @@ pub fn distance_to_checkpoint(
         let (_, point) = check_point(checkpoints, course, c)?;
         let dx = get(course, point, 0)?.wrapping_sub(physics.ground().ground_x.get()) as i32;
         let dz = get(course, point, 2)?.wrapping_sub(physics.ground().ground_z.get()) as i32;
-        drawing.scene.scratch.set(x87::int_hypot(dx, dz) as u32);
+        drawing
+            .scene
+            .get()
+            .scratch
+            .set(x87::int_hypot(dx, dz) as u32);
     }
     Ok(())
 }
@@ -156,7 +160,7 @@ pub fn nearest_checkpoint_in(
                 c,
                 scene,
             )?;
-            nearest.consider(c, scene.drawing.scene.scratch.get());
+            nearest.consider(c, scene.drawing.scene.get().scratch.get());
             c = c.wrapping_add(1);
         }
         if c >= to {
@@ -264,6 +268,7 @@ fn measure_held(
         scene
             .drawing
             .scene
+            .get()
             .scratch
             .set(x87::int_hypot(dx, dz) as u32);
     }
@@ -294,7 +299,7 @@ pub fn nearest_checkpoint(
             return Ok(0);
         }
         let near = nearest_checkpoint_in(physics, course, shared, 0, count, scene)?;
-        scene.drawing.scene.scratch.set(near.distance);
+        scene.drawing.scene.get().scratch.set(near.distance);
         // Converted: `rc2k_core::race::checkpoints::distance_units`.
         let units = rc2k_core::race::checkpoints::distance_units(
             near.distance,
@@ -309,5 +314,5 @@ pub fn invert_car_matrix(course: &Course, car: &Car, scene: &crate::scene::owner
     let length =
         crate::scene::view_matrix::invert_turn(course, &car.crash_matrix, &car.car_inverse_matrix);
     // `scene::square_matrix` left its last length in `g_scratch`.
-    scene.drawing.scene.scratch.set(length);
+    scene.drawing.scene.get().scratch.set(length);
 }

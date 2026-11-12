@@ -14,7 +14,7 @@ pub fn row(frame: &Frame, y: u32) -> u32 {
 
 /// The row: `y`, or `lift` higher with `Panel::flat` 0.
 pub fn row_by(frame: &Frame, y: u32, lift: u32) -> u32 {
-    rc2k_core::hud::signs::row(y, lift, frame.panel_and_overlay.panel.flat.get())
+    rc2k_core::hud::signs::row(y, lift, frame.panel_and_overlay.get().panel.flat.get())
 }
 
 /// Where one player's signs are: whose marks they are and where they are drawn.
@@ -69,7 +69,7 @@ pub static LAYOUT_2B: SignStyle = SignStyle {
 // Converted: `rc2k_core::hud::signs::{sign, place, row}`
 pub fn draw_signs(frame: &Frame, hud: &Hud, pen: Pen, style: &SignStyle) -> Result<(), Refused> {
     use rc2k_core::hud::signs;
-    let marks = &frame.panel_and_overlay.panel.marks[style.view];
+    let marks = &frame.panel_and_overlay.get().panel.marks[style.view];
     let places = marks.base.get().wrapping_add(style.shift);
     for (n, mark) in (0..signs::SIGNS as u32).zip(&marks.marks) {
         let v = mark.get();

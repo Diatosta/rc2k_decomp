@@ -39,7 +39,7 @@ pub fn lever_push(
     for factor in [&tables.lever_share_left, &tables.lever_share] {
         let f = extended(factor.get());
         scale_vector(&tables.lever_push_turned, f);
-        scene.drawing.scene.scratch.set(rounded(f));
+        scene.drawing.scene.get().scratch.set(rounded(f));
     }
     for (from, int, place) in [
         (

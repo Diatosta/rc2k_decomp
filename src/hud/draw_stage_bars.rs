@@ -21,8 +21,8 @@ pub fn draw_stage_bars(frame: &Frame, hud: &Hud, pen: Pen, dy: u32) -> Result<()
         hud,
         pen,
         &[
-            &frame.panel_and_overlay.overlay.overlay_part_kinds_a,
-            &frame.panel_and_overlay.overlay.overlay_part_kinds_b,
+            &frame.panel_and_overlay.get().overlay.overlay_part_kinds_a,
+            &frame.panel_and_overlay.get().overlay.overlay_part_kinds_b,
         ],
         &[&hud.block.bar_colours[0], &hud.block.bar_colours[1]],
         dy,

@@ -225,7 +225,7 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"v3driverfix",
         0x624238,
-        dword!(o => o.scene.drawing.scene.v3_driver_fix),
+        dword!(o => o.scene.drawing.scene.get().v3_driver_fix),
     ),
     (b"nopngdecode", 0x51B97C, dword!(o => o.gfx.png.setting)),
     (

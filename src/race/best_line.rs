@@ -291,7 +291,7 @@ pub fn checkpoint_angles(race: &Race, scene: &crate::scene::owner::Scene) -> Res
                 };
                 let dx = w(q, 0).wrapping_sub(w(p, 0)) as i32;
                 let dz = w(q, 2).wrapping_sub(w(p, 2)) as i32;
-                scene.drawing.scene.scratch.set(dz as u32);
+                scene.drawing.scene.get().scratch.set(dz as u32);
                 x87::angle_scaled3_to_int(dx, dz, half, scale, scale) as u32
             },
             || trap.keep_read(read_n(&race.checkpoints().angles, 2)),
@@ -358,7 +358,7 @@ pub fn checkpoint_distances(
             let d = [w(a, 0).wrapping_sub(w(b, 0)), w(a, 2).wrapping_sub(w(b, 2))];
             crate::session::write_bits(&shared.vars.line_from, d);
             let length = x87::int_hypot(d[0] as i32, d[1] as i32) as u32;
-            scene.drawing.scene.scratch.set(length);
+            scene.drawing.scene.get().scratch.set(length);
             length
         });
         for (k, &sum) in sums[..last as usize].iter().enumerate() {
@@ -442,7 +442,7 @@ pub fn replay_cameras(
                 };
                 let dz = w(q, 2).wrapping_sub(from[1]);
                 let d = x87::int_hypot(w(q, 0).wrapping_sub(from[0]) as i32, dz as i32) as u32;
-                scene.drawing.scene.scratch.set(d);
+                scene.drawing.scene.get().scratch.set(d);
                 d
             });
             trap.finish()?;
@@ -635,7 +635,7 @@ pub fn map_segment(race: &Race, scene: &crate::scene::owner::Scene) -> Result<()
             };
             let x = x87::int_times_to_int(x as i32, scale);
             let z = x87::int_times_to_int(z as i32, scale);
-            scene.drawing.scene.scratch.set(z as u32);
+            scene.drawing.scene.get().scratch.set(z as u32);
             let [x, _, z, _] =
                 rotate_point_about_y(race.engine_tables(), x, number as i32, z, map_angle);
             write_n(&race.checkpoints().map_x, e, x.wrapping_add(place_a[0]))?;

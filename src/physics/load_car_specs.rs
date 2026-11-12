@@ -103,7 +103,12 @@ pub fn load_car_specs(
         .set(physics_tables.spec_default_ba8.get());
     // 0x421794 .. 0x4217B2
     scale_record_grips(physics_tables, spec);
-    scene.drawing.scene.scratch.set(spec.scratch_value.get());
+    scene
+        .drawing
+        .scene
+        .get()
+        .scratch
+        .set(spec.scratch_value.get());
     physics_tables.downforce_spec.set(spec.downforce.get());
     // 0x4217CA .. 0x4217E3
     set_rev_limits(physics_tables, &course.numbers, drive as usize);

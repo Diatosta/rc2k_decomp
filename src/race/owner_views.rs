@@ -19,7 +19,7 @@ use crate::screens::text_buffers_store::TextBuffers;
 impl Race {
     /// The ten cars' blocks.
     pub fn car_blocks(&self) -> &CarBlocks {
-        &self.replay.cars_and_replay.car_blocks
+        &self.replay.cars_and_replay.get().car_blocks
     }
 
     /// The viewer's panel.
@@ -39,7 +39,7 @@ impl Race {
 
     /// The replay's work area.
     pub fn replay_work(&self) -> &ReplayWork {
-        &self.replay.cars_and_replay.replay_work
+        &self.replay.cars_and_replay.get().replay_work
     }
 
     /// The effects' settings.

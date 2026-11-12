@@ -15,10 +15,10 @@ use crate::physics::damage_model::{store, value};
 use crate::physics::flow::{below_or_unordered, c0};
 use crate::physics::store::DamageModel;
 use crate::race::work_store::RaceWork;
-use crate::session::Float;
+use crate::session::PlainFloat;
 
 /// `Car.gear_wear[1][gear]` (the gear -1 .. 7 as the original indexes it, `gear_wear` by gear + 1).
-fn gear_gauge(car: &Car, gear: i32) -> &Float {
+fn gear_gauge(car: &Car, gear: i32) -> &PlainFloat {
     car.gear_wear
         .get(gear.wrapping_add(1) as usize)
         .unwrap_or_else(|| {
@@ -27,7 +27,7 @@ fn gear_gauge(car: &Car, gear: i32) -> &Float {
 }
 
 /// The gauge at `at` held 0 ..= `DamageModel.gauge_top` (the two `fcompp` holds).
-fn hold_at(damage: &DamageModel, at: &Float) {
+fn hold_at(damage: &DamageModel, at: &PlainFloat) {
     if c0(at, &damage.gauge_low) {
         store(at, value(&damage.gauge_low));
     }
@@ -124,7 +124,7 @@ pub fn steps(car: &Car, damage: &DamageModel, work: &RaceWork) {
     }
     part_hit_figures(damage);
     let part = damage.drive_kind.bits();
-    fn kind(table: &[Float; 2], part: u32) -> &Float {
+    fn kind(table: &[PlainFloat; 2], part: u32) -> &PlainFloat {
         table.get(part as usize).unwrap_or_else(|| {
             crate::fatal::raise::end("a kind table", BadInput("the kind is not 0 or 1"))
         })
@@ -339,7 +339,7 @@ fn side_hit_wear(car: &Car, damage: &DamageModel, work: &RaceWork) {
     scale_hit_size(work, damage);
     let hit = damage.hit_side.get();
     let side = (1..=4).contains(&hit).then(|| hit as usize - 1);
-    let wear = |gauge: &Float, figure: usize| {
+    let wear = |gauge: &PlainFloat, figure: usize| {
         raise(damage, gauge, |g| {
             add_product(&damage.hit_size, &damage.figures[figure], g, g);
         });
@@ -376,7 +376,7 @@ fn side_hit_wear(car: &Car, damage: &DamageModel, work: &RaceWork) {
 }
 
 /// Applies `step` to the gauge, then holds it 0 ..= `gauge_top`.
-pub(super) fn raise(damage: &DamageModel, gauge: &Float, step: impl FnOnce(&Float)) {
+pub(super) fn raise(damage: &DamageModel, gauge: &PlainFloat, step: impl FnOnce(&PlainFloat)) {
     step(gauge);
     hold_at(damage, gauge);
 }
@@ -384,18 +384,18 @@ pub(super) fn raise(damage: &DamageModel, gauge: &Float, step: impl FnOnce(&Floa
 // ---- the arithmetic ----
 
 /// `to = rate * step + from`.
-fn add_product(rate: &Float, step: &Float, from: &Float, to: &Float) {
+fn add_product(rate: &PlainFloat, step: &PlainFloat, from: &PlainFloat, to: &PlainFloat) {
     store(to, value(rate) * value(step) + value(from));
 }
 
 /// `to = rate * a * b * gauge_step + from`.
 fn add_scaled_triple(
     m: &DamageModel,
-    rate: &Float,
-    a: &Float,
-    b: &Float,
-    from: &Float,
-    to: &Float,
+    rate: &PlainFloat,
+    a: &PlainFloat,
+    b: &PlainFloat,
+    from: &PlainFloat,
+    to: &PlainFloat,
 ) {
     store(
         to,
@@ -405,7 +405,7 @@ fn add_scaled_triple(
 
 /// The gear's gauge raised by the engine's speed share times the wear rate, a hundredth
 /// and the gear's factor.
-fn gear_wear_from_speed(m: &DamageModel, factor: &Float, gauge: &Float) {
+fn gear_wear_from_speed(m: &DamageModel, factor: &PlainFloat, gauge: &PlainFloat) {
     store(
         gauge,
         value(&m.engine_speed_share)
@@ -434,7 +434,13 @@ fn brake_wear_step(car: &Car, m: &DamageModel) {
 }
 
 /// `to = rate * a * b + from`.
-fn add_triple_product(rate: &Float, a: &Float, b: &Float, from: &Float, to: &Float) {
+fn add_triple_product(
+    rate: &PlainFloat,
+    a: &PlainFloat,
+    b: &PlainFloat,
+    from: &PlainFloat,
+    to: &PlainFloat,
+) {
     store(to, value(rate) * value(a) * value(b) + value(from));
 }
 
@@ -449,7 +455,7 @@ fn part_hit_figures(m: &DamageModel) {
 }
 
 /// The two tyre wear rates times the given factors.
-fn scale_part_hit_figures(m: &DamageModel, front: &Float, rear: &Float) {
+fn scale_part_hit_figures(m: &DamageModel, front: &PlainFloat, rear: &PlainFloat) {
     store(
         &m.front_tyre_wear_rate,
         value(&m.front_tyre_wear_rate) * value(front),
@@ -470,12 +476,12 @@ fn engine_damage_carry(car: &Car, m: &DamageModel) {
 }
 
 /// The clutch's damage plus a rate.
-fn add_rate_to_clutch(car: &Car, rate: &Float) {
+fn add_rate_to_clutch(car: &Car, rate: &PlainFloat) {
     store(&car.clutch_damage, value(&car.clutch_damage) + value(rate));
 }
 
 /// A gauge plus a rate.
-fn add_rate_to_gauge(gauge: &Float, rate: &Float) {
+fn add_rate_to_gauge(gauge: &PlainFloat, rate: &PlainFloat) {
     store(gauge, value(gauge) + value(rate));
 }
 
@@ -483,12 +489,12 @@ fn add_rate_to_gauge(gauge: &Float, rate: &Float) {
 fn scale_hit_size(work: &RaceWork, m: &DamageModel) {
     store(
         &m.hit_size,
-        value(&m.hit_size) * value(&work.patch_factors[1]),
+        value(&m.hit_size) * f64::from(work.patch_factors[1].get()),
     );
 }
 
 /// The gear's gauge plus the size of the hit times the gear's hit figure.
-fn add_hit_to_gear_gauge(m: &DamageModel, gauge: &Float) {
+fn add_hit_to_gear_gauge(m: &DamageModel, gauge: &PlainFloat) {
     store(
         gauge,
         value(&m.hit_size) * value(&m.figures[21]) + value(gauge),
@@ -990,7 +996,11 @@ mod reference_vectors {
                 ],
                 ulps: 0,
                 plain: |a| {
-                    gear_wear_from_speed(dm(a[0]), view::<Float>(a[1], 0), view::<Float>(a[2], 0));
+                    gear_wear_from_speed(
+                        dm(a[0]),
+                        view::<PlainFloat>(a[1], 0),
+                        view::<PlainFloat>(a[2], 0),
+                    );
                 },
             },
             Block {
@@ -1238,8 +1248,8 @@ mod reference_vectors {
                 plain: |a| {
                     scale_part_hit_figures(
                         dm(a[0]),
-                        view::<Float>(a[1], 0),
-                        view::<Float>(a[2], 0),
+                        view::<PlainFloat>(a[1], 0),
+                        view::<PlainFloat>(a[2], 0),
                     );
                 },
             },
@@ -1462,7 +1472,9 @@ mod reference_vectors {
                     },
                 ],
                 ulps: 0,
-                plain: |a| add_rate_to_gauge(view::<Float>(a[0], 0), &dm(a[1]).gauge_rates[18]),
+                plain: |a| {
+                    add_rate_to_gauge(view::<PlainFloat>(a[0], 0), &dm(a[1]).gauge_rates[18]);
+                },
             },
             Block {
                 name: "damage_gauges line 486",
@@ -1477,7 +1489,9 @@ mod reference_vectors {
                     },
                 ],
                 ulps: 0,
-                plain: |a| add_rate_to_gauge(view::<Float>(a[0], 0), &dm(a[1]).gauge_rates[19]),
+                plain: |a| {
+                    add_rate_to_gauge(view::<PlainFloat>(a[0], 0), &dm(a[1]).gauge_rates[19]);
+                },
             },
             Block {
                 name: "damage_gauges line 493",
@@ -2496,7 +2510,7 @@ mod reference_vectors {
                     },
                 ],
                 ulps: 0,
-                plain: |a| add_hit_to_gear_gauge(dm(a[0]), view::<Float>(a[1], 0)),
+                plain: |a| add_hit_to_gear_gauge(dm(a[0]), view::<PlainFloat>(a[1], 0)),
             },
             Block {
                 name: "damage_gauges line 991",

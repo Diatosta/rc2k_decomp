@@ -159,7 +159,7 @@ pub fn set_view_matrices(
         crate::session::read_bits(&frame.matrices.identity_matrix),
     );
     let angles: [u32; 3] =
-        crate::session::read_first(&frame.view_and_records.view_vars.view_angles);
+        crate::session::read_first(&frame.view_and_records.get().view_vars.view_angles);
     set_fine_turn(course, scratch, Axis::Y, angles[0].wrapping_neg());
     set_fine_turn(course, scratch, Axis::X, angles[1].wrapping_neg());
     set_fine_turn(course, scratch, Axis::Z, angles[2].wrapping_neg());
@@ -173,8 +173,9 @@ pub fn set_view_matrices(
         &scratch.turn_z_matrix,
         &frame.matrices.view_turn_matrix,
     );
-    let place = crate::session::read_bits::<_, 3>(&frame.view_and_records.view_vars.view_place)
-        .map(u32::wrapping_neg);
+    let place =
+        crate::session::read_bits::<_, 3>(&frame.view_and_records.get().view_vars.view_place)
+            .map(u32::wrapping_neg);
     matrix::set_place(&scratch.placed_matrix, place);
     crate::session::write_bits(
         &frame.matrices.view_place_matrix,

@@ -39,6 +39,7 @@ use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::switches_store::FrameSwitches;
 use crate::scene::matrix3::rounded_value;
+use crate::session::DwordLike;
 
 /// The motion: moved, spun, levered, the inverse matrix, the angles.
 fn motion(
@@ -98,13 +99,14 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
         .physics_tables
         .vertical_speed
         .set(loaded(&race.shared.car().velocity[1]));
-    for cell in [
+    let cleared: [&dyn DwordLike; 5] = [
         &race.shared.physics_tables.clear_place_mark,
         &race.shared.car().contact_flag,
         &race.shared.physics_tables.scene_point_hits,
         &race.shared.physics_tables.object_hits,
         &race.shared.physics_tables.point_hits,
-    ] {
+    ];
+    for cell in cleared {
         cell.set(0);
     }
     for figure in race
@@ -338,8 +340,8 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
     // A car number past 7 (refused further down) reads past the field.
     let car = race.shared.work.current_car.get() as usize;
     let listed = crate::session::read_on_in(
-        &race.frame.frame_work,
-        &race.frame.frame_work.listed_car_sounds,
+        race.frame.frame_work.get(),
+        &race.frame.frame_work.get().listed_car_sounds,
         car,
         "a listed car sound",
     )?;

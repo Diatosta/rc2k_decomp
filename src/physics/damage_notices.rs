@@ -14,13 +14,13 @@ use crate::math::x87::from_int;
 use crate::physics::car_store::Car;
 use crate::physics::queue_notice::queue_notice;
 use crate::physics::store::DamageModel;
-use crate::session::Float;
+use crate::session::PlainFloat;
 use rc2k_core::physics::damage_notices::{LEVELS, damage_notices as damage_notices_core};
 
 /// `brake_heat` .. `tyre_wear`: the gauges, 47 dwords in a row in the car's record.
 fn gauge(car: &Car, mut k: usize) -> u32 {
     use std::slice::from_ref as one;
-    let groups: [&[Float]; 24] = [
+    let groups: [&[PlainFloat]; 24] = [
         &car.brake_heat,
         one(&car.engine_heat),
         one(&car.engine_damage),

@@ -215,6 +215,7 @@ pub(super) fn car_light_on_point(
 pub(super) fn car_lights_on_point(
     race: &Race,
     light_tables: &crate::scene::light_tables_store::LightTables,
+    blocks: &crate::race::blocks_store::CarBlocks,
     object_light: &crate::scene::object_light::ObjectLight,
     drawn_view: u32,
     mmx: bool,
@@ -247,7 +248,7 @@ pub(super) fn car_lights_on_point(
             car_light_on_point(
                 course,
                 crate::race::frame_view::car(n as usize)?,
-                shared.race_car(n as usize)?.marks_count.get(),
+                shared.race_car_in(blocks, n as usize)?.marks_count.get(),
                 light_tables,
                 object_light,
                 mmx,
@@ -314,9 +315,10 @@ pub fn check_light_colour(
 /// `race::light_colour_at` (0x4537CE): `g_lightColour` 0, then the cars' headlights (0x44F601) and
 /// the lamps (0x44F863) on the lit place (`g_litPlace`, `LIGHT_STATE.lit_place[1]`,
 /// `LIGHT_STATE.lit_place[2]`), added up. Refuses as `check_light_colour`.
+/// `reads`: the drawing's light tables and cars' blocks.
 pub fn light_colour_at(
     race: &Race,
-    light_tables: &crate::scene::light_tables_store::LightTables,
+    reads: crate::workers::DrawReads<'_>,
     points: &crate::race::scene_points::OwnPoints,
     lamps: &crate::race::lamp_work::LampWork,
     object_light: &crate::scene::object_light::ObjectLight,
@@ -328,7 +330,14 @@ pub fn light_colour_at(
     // spreads and the lamps' distances the x87's and the scene's).
     check_light_colour(&race.shared, lamps)?;
     object_light.light_colour.set(0u32);
-    car_lights_on_point(race, light_tables, object_light, drawn_view, mmx)?;
+    car_lights_on_point(
+        race,
+        reads.light_tables,
+        &reads.cars_and_replay.car_blocks,
+        object_light,
+        drawn_view,
+        mmx,
+    )?;
     lamp_lights_on_point(&race.course, points, lamps, object_light, mmx)?;
     Ok(())
 }
@@ -350,7 +359,7 @@ pub fn view_light(ctx: &DrawCtx<'_>, mmx: bool) -> Result<(), Refused> {
     );
     light_colour_at(
         race,
-        ctx.reads.light_tables,
+        ctx.reads,
         &ctx.part.points,
         lamps,
         object_light,

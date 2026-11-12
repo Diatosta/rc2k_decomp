@@ -285,7 +285,7 @@ pub fn add_object_shape(
         }
         crate::scene::object_points::set_point(to, point)?;
         let reach = x87::int_hypot(point[0] as i32, point[2] as i32) as u32;
-        scene.drawing.scene.scratch.set(reach);
+        scene.drawing.scene.get().scratch.set(reach);
         if (reach.wrapping_sub(radius) as i32) >= 0 {
             radius = reach;
         }

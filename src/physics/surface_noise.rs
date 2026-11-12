@@ -51,7 +51,7 @@ pub fn surface_noise(
         );
         shared.car().surface_noise_second.set(second);
         let floor = rough_floor(second, stage_prefs.surface_floor.get());
-        scene.drawing.scene.scratch.set(floor);
+        scene.drawing.scene.get().scratch.set(floor);
         shared.car().surface_blend.set(ext_div2(
             int_80(floor as i32, false),
             &numbers.k256,

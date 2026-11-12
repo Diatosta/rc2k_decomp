@@ -5,12 +5,12 @@ use crate::race::frame_view::car as car_view;
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
 use crate::race::owner_shared::RaceShared;
-use crate::session::{Dword, PlainDword};
+use crate::session::PlainDword;
 
 /// `race::car_label` (0x45B1B7): the panel's seven-byte label " CAR nn" for the neighbouring car,
 /// `car_number`'s two digits (tens and units, each + '0' as a byte), or seven spaces when
 /// `neighbour` is -1 (no car there). The label's eighth byte is kept.
-pub fn car_label(label_at: &[Dword; 2], car_number: u32, neighbour: u32) {
+pub fn car_label(label_at: &[PlainDword; 2], car_number: u32, neighbour: u32) {
     // Converted: `rc2k_core::race::start::car_label`.
     let label = rc2k_core::race::start::car_label(car_number, neighbour == u32::MAX);
     let kept = label_at[1].get().to_le_bytes()[3];
@@ -24,7 +24,7 @@ pub fn car_label(label_at: &[Dword; 2], car_number: u32, neighbour: u32) {
 /// sign of the difference), else 4. Refuses (before anything) a count past the buffer's 0x40
 /// dwords, and more splits passed than the block's 16 times (the original reads on into the block's
 /// next fields).
-pub fn split_colours(car: usize, colours: &[Dword; 64], count: u32) -> Result<(), Refused> {
+pub fn split_colours(car: usize, colours: &[PlainDword; 64], count: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::frame::{check_split_colours, split_colours}`.
     use rc2k_core::race::frame::{SPLIT_UNREACHED, check_split_colours, split_colours};
     let block = car_view(car)?;
@@ -67,13 +67,37 @@ pub fn panel_players(race: &Race) -> Result<(), BadInput> {
         if step == PanelPlayers::Kept {
             return Ok(());
         }
-        frame.panel_and_overlay.panel.view_a.place.set(u32::MAX);
-        frame.panel_and_overlay.panel.view_b.place.set(u32::MAX);
+        frame
+            .panel_and_overlay
+            .get()
+            .panel
+            .view_a
+            .place
+            .set(u32::MAX);
+        frame
+            .panel_and_overlay
+            .get()
+            .panel
+            .view_b
+            .place
+            .set(u32::MAX);
         if step == PanelPlayers::One {
             return Ok(());
         }
-        frame.panel_and_overlay.panel.view_a.back.set(u32::MAX);
-        frame.panel_and_overlay.panel.view_a.front.set(u32::MAX);
+        frame
+            .panel_and_overlay
+            .get()
+            .panel
+            .view_a
+            .back
+            .set(u32::MAX);
+        frame
+            .panel_and_overlay
+            .get()
+            .panel
+            .view_a
+            .front
+            .set(u32::MAX);
         // Each view block's +0xFA4.
         let field = |n: usize| -> Result<u32, BadInput> {
             Ok(shared
@@ -82,8 +106,20 @@ pub fn panel_players(race: &Race) -> Result<(), BadInput> {
                 .two_car_place
                 .get())
         };
-        frame.panel_and_overlay.panel.view_a.place.set(field(0)?);
-        frame.panel_and_overlay.panel.view_b.place.set(field(1)?);
+        frame
+            .panel_and_overlay
+            .get()
+            .panel
+            .view_a
+            .place
+            .set(field(0)?);
+        frame
+            .panel_and_overlay
+            .get()
+            .panel
+            .view_b
+            .place
+            .set(field(1)?);
     }
     Ok(())
 }
@@ -255,7 +291,7 @@ pub fn object_bytes(
 /// the two last ones).
 pub(super) fn panel_half(race: &Race, car: usize, first: bool) -> Result<(), BadInput> {
     use rc2k_core::race::panel::{distance_shown, shown_whole, travelled};
-    let panel = &race.frame.panel_and_overlay.panel;
+    let panel = &race.frame.panel_and_overlay.get().panel;
     // The two views' records have the same fields in two types.
     macro_rules! shown_cells {
         ($v:expr) => {
@@ -330,7 +366,7 @@ pub fn wake_part_sounds(race: &Race) -> Result<(), Refused> {
     }
     let current: u32 = shared.work.current_car.get();
     // The plan: (block slot to set, whether to wake the object) by car.
-    let mut plan = Vec::new();
+    let mut plan: Vec<&dyn crate::session::DwordLike> = Vec::new();
     for car in 0..cars {
         let object = crate::sound::store::SoundObject::number(car & 7)?;
         let mut wake = false;
@@ -355,7 +391,7 @@ pub fn wake_part_sounds(race: &Race) -> Result<(), Refused> {
             if current > 7 {
                 return Err(BadInput("g_currentCar past the eight").into());
             }
-            let view: u32 = race.frame.frame_work.listed_car_sounds[current as usize].get();
+            let view: u32 = race.frame.frame_work.get().listed_car_sounds[current as usize].get();
             if view != u32::MAX {
                 wake = true;
             }
@@ -414,9 +450,10 @@ pub fn panel_neighbours(race: &Race) -> Result<(), Refused> {
         place.wrapping_add(1),
     )?)?;
     let ahead = block_of(on(&shared.tables().computer_ease_speed, place)?)?;
-    frame.panel_and_overlay.panel.view_a.place.set(place);
+    frame.panel_and_overlay.get().panel.view_a.place.set(place);
     frame
         .panel_and_overlay
+        .get()
         .panel
         .view_a
         .time
@@ -426,27 +463,29 @@ pub fn panel_neighbours(race: &Race) -> Result<(), Refused> {
     use rc2k_core::race::frame::neighbour_number;
     let number = behind.car_kind.get();
     let back = neighbour_number(place == shared.tables().arcade_cars.get(), number);
-    frame.panel_and_overlay.panel.view_a.back.set(back);
+    frame.panel_and_overlay.get().panel.view_a.back.set(back);
     car_label(
-        &frame.panel_and_overlay.overlay.label_behind,
+        &frame.panel_and_overlay.get().overlay.label_behind,
         on(&shared.tables().arcade_car_numbers[0], place)?,
         back,
     );
     frame
         .panel_and_overlay
+        .get()
         .panel
         .view_a
         .split2
         .set(a.pace_gaps_eased[1].get());
     let front = neighbour_number(place == 1, ahead.car_kind.get());
-    frame.panel_and_overlay.panel.view_a.front.set(front);
+    frame.panel_and_overlay.get().panel.view_a.front.set(front);
     car_label(
-        &frame.panel_and_overlay.overlay.label_ahead,
+        &frame.panel_and_overlay.get().overlay.label_ahead,
         on(&shared.tables().number_before_first, place)?,
         front,
     );
     frame
         .panel_and_overlay
+        .get()
         .panel
         .view_a
         .negated
@@ -471,8 +510,8 @@ pub fn panel_motion_plain(race: &Race) -> Result<(), BadInput> {
             race.course.numbers.k65536.get(),
         );
         for (view, out) in [
-            (0, &race.frame.panel_and_overlay.panel.view_a.motion),
-            (1, &race.frame.panel_and_overlay.panel.view_b.motion),
+            (0, &race.frame.panel_and_overlay.get().panel.view_a.motion),
+            (1, &race.frame.panel_and_overlay.get().panel.view_b.motion),
         ] {
             let b = race.shared.view.view_number(view)?;
             let car = &race.car_blocks().cars[b];
@@ -493,12 +532,12 @@ pub fn panel_marks(race: &Race) -> Result<(), BadInput> {
     let frame = &race.frame;
     // Converted: `rc2k_core::race::frame::view_marks`.
     {
-        for view in &frame.panel_and_overlay.panel.marks {
+        for view in &frame.panel_and_overlay.get().panel.marks {
             for mark in &view.marks {
                 mark.set(0);
             }
         }
-        for (view, shown) in frame.panel_and_overlay.panel.marks.iter().enumerate() {
+        for (view, shown) in frame.panel_and_overlay.get().panel.marks.iter().enumerate() {
             let b = race.shared.view.view_number(view)?;
             let offset = car_view(b)?.car_event_position.get();
             let count = car_view(b)?.car_event_count.get();
@@ -533,7 +572,7 @@ pub fn countdown_lights(
     frame: &Frame,
     view: &crate::race::panel_store::Lights,
     block: usize,
-    flag: &Dword,
+    flag: &PlainDword,
 ) -> Result<(), BadInput> {
     {
         let (lit, width, alpha, drop) = (&view.lit, &view.width, &view.alpha, &view.drop);
@@ -549,12 +588,13 @@ pub fn countdown_lights(
             car_view(block)?
                 .run_ticks
                 .get()
-                .wrapping_sub(frame.panel_and_overlay.overlay.countdown_start.get()),
+                .wrapping_sub(frame.panel_and_overlay.get().overlay.countdown_start.get()),
         ) else {
             return Ok(());
         };
         frame
             .panel_and_overlay
+            .get()
             .overlay
             .start_lights_lit
             .set(l.shown);
@@ -575,12 +615,12 @@ pub fn both_countdown_lights(race: &Race) -> Result<(), BadInput> {
     let frame = &race.frame;
     {
         for (view, flag) in [
-            (0, &frame.panel_and_overlay.overlay.forget_flag_0),
-            (1, &frame.panel_and_overlay.overlay.forget_flag_1),
+            (0, &frame.panel_and_overlay.get().overlay.forget_flag_0),
+            (1, &frame.panel_and_overlay.get().overlay.forget_flag_1),
         ] {
             countdown_lights(
                 frame,
-                &frame.panel_and_overlay.panel.lights[view],
+                &frame.panel_and_overlay.get().panel.lights[view],
                 race.shared.view.view_number(view)?,
                 flag,
             )?;
@@ -592,10 +632,10 @@ pub fn both_countdown_lights(race: &Race) -> Result<(), BadInput> {
 /// The two views' colour buffers for `split_colours`:
 /// `race().frame.panel_and_overlay.overlay.overlay_part_kinds_a`,
 /// `race().frame.panel_and_overlay.overlay.overlay_part_kinds_b`.
-pub fn colour_buffers(frame: &Frame) -> [&'_ [Dword; 64]; 2] {
+pub fn colour_buffers(frame: &Frame) -> [&'_ [PlainDword; 64]; 2] {
     [
-        &frame.panel_and_overlay.overlay.overlay_part_kinds_a,
-        &frame.panel_and_overlay.overlay.overlay_part_kinds_b,
+        &frame.panel_and_overlay.get().overlay.overlay_part_kinds_a,
+        &frame.panel_and_overlay.get().overlay.overlay_part_kinds_b,
     ]
 }
 

@@ -36,6 +36,7 @@ fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(),
         scene
             .drawing
             .scene
+            .get()
             .scratch
             .set(crate::math::next_random::next_random());
         x87_2(c.numbers, scene);
@@ -70,7 +71,7 @@ fn x87_1(shared: &RaceShared, scene: &crate::scene::owner::Scene) {
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[camera_shake_listener] = (((int [scratch] / [k65536]) / [k4096]) * [three]) * [camera_shake_y]`
 fn x87_2(numbers: &Numbers, scene: &crate::scene::owner::Scene) {
-    let t0 = int(scene.drawing.scene.scratch.get() as i32);
+    let t0 = int(scene.drawing.scene.get().scratch.get() as i32);
     let t1 = numbers.k65536.ld();
     let t2 = t0 / t1;
     let t3 = numbers.k4096.ld();

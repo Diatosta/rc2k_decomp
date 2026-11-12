@@ -89,7 +89,7 @@ pub fn contact_force(
         .to_bits(),
     );
     x87_2(contact, numbers, scene);
-    hold_low(&contact.contact_depth, &drawing.scene.scratch);
+    hold_low(&contact.contact_depth, &drawing.scene.get().scratch);
     // 0x45F222: the push the turn would give.
     cross_product(
         &contact.contact_point,
@@ -121,11 +121,11 @@ pub fn contact_force(
     copy3(&contact.contact_normal_push, &contact.contact_normal);
     let factor = extended(contact.contact_factor.get());
     scale_vector(&contact.contact_normal_push, factor);
-    drawing.scene.scratch.set(rounded(factor));
+    drawing.scene.get().scratch.set(rounded(factor));
     let along = { dot_product(&contact.contact_point_speed, &contact.contact_normal) };
     copy3(&contact.contact_normal_speed, &contact.contact_normal);
     scale_vector(&contact.contact_normal_speed, along);
-    drawing.scene.scratch.set(rounded(along));
+    drawing.scene.get().scratch.set(rounded(along));
     copy3(&contact.contact_side_speed, &contact.contact_point_speed);
     x87_4(contact);
     contact
@@ -140,7 +140,7 @@ pub fn contact_force(
         copy3(&contact.contact_extra, &contact.contact_normal);
         let part = x87_5(contact, physics_tables);
         scale_vector(&contact.contact_extra, part);
-        drawing.scene.scratch.set(rounded(part));
+        drawing.scene.get().scratch.set(rounded(part));
     }
     x87_1(
         &contact.contact_normal_push,
@@ -197,7 +197,7 @@ fn x87_2(contact: &ContactWork, numbers: &Numbers, scene: &crate::scene::owner::
     let t3 = t0 - t2;
     let t4 = numbers.hundredth_a.ld();
     let t5 = t3 + t4;
-    scene.drawing.scene.scratch.st(t5);
+    scene.drawing.scene.get().scratch.st(t5);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -263,7 +263,7 @@ fn x87_6(contact: &ContactWork, scene: &crate::scene::owner::Scene) -> u16 {
     let t6 = t3 + t5;
     let t7 = t1 + t6;
     let t8 = t7.sqrt();
-    scene.drawing.scene.scratch.st(t8);
+    scene.drawing.scene.get().scratch.st(t8);
     let t9 = contact.contact_slide_limit_held.ld();
     compare(t8, t9)
 }
@@ -277,7 +277,7 @@ fn x87_6(contact: &ContactWork, scene: &crate::scene::owner::Scene) -> u16 {
 fn x87_7(contact: &ContactWork, scene: &crate::scene::owner::Scene) {
     let drawing = &scene.drawing;
     let t0 = contact.contact_slide_limit_held.ld();
-    let t1 = drawing.scene.scratch.ld();
+    let t1 = drawing.scene.get().scratch.ld();
     let t2 = t0 / t1;
     let t3 = contact.contact_slide[0].ld();
     let t4 = t3 * t2;
@@ -288,7 +288,7 @@ fn x87_7(contact: &ContactWork, scene: &crate::scene::owner::Scene) {
     let t7 = contact.contact_slide[2].ld();
     let t8 = t7 * t2;
     contact.contact_slide[2].st(t8);
-    drawing.scene.scratch.st(t2);
+    drawing.scene.get().scratch.st(t2);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables

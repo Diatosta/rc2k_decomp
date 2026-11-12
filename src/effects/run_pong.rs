@@ -34,7 +34,8 @@ pub fn run_pong(
     let p = &pong.state;
     {
         // `FrameWork.lead_kept[7]`: pong shown.
-        if menus().play.cheats.cheats.get() & CHEAT == 0 || frame.frame_work.lead_kept[7].get() == 0
+        if menus().play.cheats.cheats.get() & CHEAT == 0
+            || frame.frame_work.get().lead_kept[7].get() == 0
         {
             return Ok(());
         }

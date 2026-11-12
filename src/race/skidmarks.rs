@@ -121,7 +121,7 @@ fn turn_skid_point(
 /// black in mode 3 without the depth test. Refuses what the scene's functions refuse (mid-way; not
 /// met with four vertices).
 pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
-    let (race, scene) = (ctx.race, ctx.scene);
+    let race = ctx.race;
     let mut views = u32::MAX;
     let mode: u32 = race.shared.vars.run_kind.get();
     if mode != 0 && mode != 2 {
@@ -231,7 +231,6 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
                 ctx.part,
                 race,
                 &ctx.view.face,
-                scene,
                 ctx.reads,
                 &ctx.system.session.screen,
             )?;
@@ -246,8 +245,7 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
 
 /// `race::draw_skidmarks_if_on` (0x4585E3): `draw_skidmarks` unless `drawing` is set.
 pub fn draw_skidmarks_if_on(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
-    let race = ctx.race;
-    if race.frame.frame_work.drawing.get() != 0 {
+    if ctx.reads.frame_work.drawing.get() != 0 {
         return Ok(());
     }
     draw_skidmarks(ctx)
@@ -323,15 +321,15 @@ mod vector_tests {
                 course.course.flat_depth.set(r.int() as u32);
                 // The original read the scene's window; this code the window it is given.
                 for (old, own) in [
-                    (&drawing.scene.view_scale, &win.view_scale),
-                    (&drawing.scene.view_centre[1], &win.view_centre[1]),
-                    (&drawing.scene.view_centre[0], &win.view_centre[0]),
+                    (&drawing.scene.get().view_scale, &win.view_scale),
+                    (&drawing.scene.get().view_centre[1], &win.view_centre[1]),
+                    (&drawing.scene.get().view_centre[0], &win.view_centre[0]),
                 ] {
                     let value = f32::from_bits(r.float());
                     old.set(value);
                     own.set(value);
                 }
-                drawing.scene.scratch.set(0xAAAA_AAAAu32);
+                drawing.scene.get().scratch.set(0xAAAA_AAAAu32);
                 let mut a = [0xAAAA_AAAAu32; 8];
                 for q in a.iter_mut().skip(4).take(3) {
                     *q = r.float();

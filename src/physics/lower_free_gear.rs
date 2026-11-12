@@ -11,11 +11,11 @@
 use crate::errors::Refused;
 use crate::physics::car_store::Car;
 use crate::physics::gear_bit::bits_at;
-use crate::session::Dword;
+use crate::session::PlainDword;
 
 /// On the bits at `bits`: the free lower gear (None when neutral is reached first: CF).
 // Converted: `rc2k_core::physics::gearbox::GearBits::lower_free`.
-pub fn lower_free_gear_at(bits: &Dword, gear: u32) -> Result<Option<u32>, Refused> {
+pub fn lower_free_gear_at(bits: &PlainDword, gear: u32) -> Result<Option<u32>, Refused> {
     let s = { bits_at(bits) }.lower_free(gear, 0)?;
     Ok(s.found.then_some(s.gear))
 }

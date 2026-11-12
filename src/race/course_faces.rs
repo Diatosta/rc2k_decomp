@@ -78,7 +78,14 @@ fn face_turned_to_view(race: &Race, face: &[u32], half: u32) -> Result<u32, BadI
         &crate::race::scene_points::NO_OWN,
         &Face(bytes),
         (half / 4) as usize,
-        &race.frame.view_and_records.view_vars.view_place_f,
+        &race
+            .frame
+            .view_and_records
+            .get()
+            .view_vars
+            .view_place_f
+            .each_ref()
+            .map(|c| Float::from_bits(c.bits())),
     )
 }
 
@@ -199,7 +206,7 @@ pub fn face_materials(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), BadInput> {
 /// the drawing (`scene::draw_polygon`; the original through `scene::draw_marked_polygon`, whose
 /// mark nothing reads: dropped), `g_polygonDrawn` 1.
 pub fn draw_marked_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
-    let (race, scene) = (ctx.race, ctx.scene);
+    let race = ctx.race;
     crate::scene::scale_texture_coordinates::scale_texture_coordinates(
         ctx.part.polygon,
         &ctx.view.polygon,
@@ -210,7 +217,6 @@ pub fn draw_marked_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         ctx.part,
         race,
         &ctx.view.face,
-        scene,
         ctx.reads,
         &ctx.system.session.screen,
     )?;
@@ -243,7 +249,7 @@ fn point_light(ctx: &DrawCtx<'_>, n: u32) -> Result<u32, Refused> {
     ctx.view.light.lit_place[2].set(z);
     crate::race::frame_draw::light_colour_at(
         race,
-        ctx.reads.light_tables,
+        ctx.reads,
         &ctx.part.points,
         &ctx.view.lamps,
         &ctx.view.light,
@@ -289,7 +295,7 @@ pub fn face_lights(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
 /// outside, `g_polygonOutsideCount`) and to the screen, and with three vertices or more drawn
 /// (`scene::draw_polygon_in_game`), `g_polygonDrawn` 1.
 pub fn clip_and_draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
-    let (race, scene) = (ctx.race, ctx.scene);
+    let race = ctx.race;
     // Converted: `rc2k_core::race::face_drawing::draws_polygon`.
     use rc2k_core::race::face_drawing::draws_polygon;
     if ctx.view.polygon.polygon_outside_count.get() != 0 {
@@ -318,7 +324,6 @@ pub fn clip_and_draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         ctx.part,
         race,
         &ctx.view.face,
-        scene,
         ctx.reads,
         &ctx.system.session.screen,
     )?;
@@ -934,7 +939,7 @@ pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         );
         crate::race::frame_draw::light_colour_at(
             race,
-            ctx.reads.light_tables,
+            ctx.reads,
             &ctx.part.points,
             &ctx.view.lamps,
             &ctx.view.light,
@@ -1192,7 +1197,7 @@ mod vector_tests {
         let mut r = Rng(11);
         let mut points = [0u32; 12];
         let mut face = [0u32; 0x20];
-        let place = &race.frame.view_and_records.view_vars.view_place_f;
+        let place = &race.frame.view_and_records.get().view_vars.view_place_f;
         at_each_control_word(|| {
             for _ in 0..20000 {
                 race.shared.switches.scene_set_up.set(r.below(8));
@@ -1245,9 +1250,9 @@ mod vector_tests {
                 course.course.flat_depth.set(r.int() as u32);
                 // The original read the scene's window; this code the window it is given.
                 for (old, own) in [
-                    (&drawing.scene.view_scale, &win.view_scale),
-                    (&drawing.scene.view_centre[1], &win.view_centre[1]),
-                    (&drawing.scene.view_centre[0], &win.view_centre[0]),
+                    (&drawing.scene.get().view_scale, &win.view_scale),
+                    (&drawing.scene.get().view_centre[1], &win.view_centre[1]),
+                    (&drawing.scene.get().view_centre[0], &win.view_centre[0]),
                 ] {
                     let value = f32::from_bits(r.float());
                     old.set(value);

@@ -90,10 +90,10 @@ fn places<'a>(shared: &'a RaceShared, scene: &'a Scene) -> [&'a dyn Cell32; 15] 
         &shared.physics_tables.engine_force,
         &shared.physics_tables.engine_torque,
         &shared.physics_tables.torque_share,
-        &drawing.scene.scratch,
-        &drawing.scene.work_dword,
-        &drawing.scene.work_float_a,
-        &drawing.scene.work_float_b,
+        &drawing.scene.get().scratch,
+        &drawing.scene.get().work_dword,
+        &drawing.scene.get().work_float_a,
+        &drawing.scene.get().work_float_b,
     ]
 }
 

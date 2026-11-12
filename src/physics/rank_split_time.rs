@@ -17,7 +17,7 @@ use crate::physics::fill_rival_table::fill_rival_table;
 use crate::physics::split_tables_store::SplitTables;
 use crate::race::groups_store::PanelAndOverlay;
 use crate::race::owner_shared::RaceShared;
-use crate::session::Dword;
+use crate::session::PlainDword;
 use crate::strings::append_string_by_id::append_string_by_id;
 use rc2k_core::physics::splits::{RIVALS, gap, rank, scaled_time, split_scale};
 
@@ -25,7 +25,7 @@ use rc2k_core::physics::splits::{RIVALS, gap, rank, scaled_time, split_scale};
 fn name(
     o: crate::owners::Owners<'static>,
     id: u32,
-    to: &[Dword; 2],
+    to: &[PlainDword; 2],
 ) -> Result<(), crate::errors::BadInput> {
     let strings = o.strings;
     let text = &strings.text.buffer.text;

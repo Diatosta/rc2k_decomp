@@ -163,7 +163,12 @@ pub fn ease_zero(v: &impl FloatView, step: &impl FloatView) {
 /// `t` is (x0, y0, x1, y1); the value at `x` below x0 (or unordered) gives y0, below x1
 /// gives y0 + (x - x0) / (x1 - x0) x (y1 - y0) (y0 when x1 - x0, unrounded, equals the
 /// value at `zero`), else y1; into `out` (`fstp`).
-pub fn table_lerp(x: &impl FloatView, t: &[Float; 4], zero: &impl FloatView, out: &impl FloatView) {
+pub fn table_lerp(
+    x: &impl FloatView,
+    t: &[PlainFloat; 4],
+    zero: &impl FloatView,
+    out: &impl FloatView,
+) {
     if c0(x.float(), &t[0]) {
         out.set_float(x87::loaded(&t[1]));
         return;
@@ -184,7 +189,7 @@ pub fn table_lerp(x: &impl FloatView, t: &[Float; 4], zero: &impl FloatView, out
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `status [s + 0] = status`
-fn x87_1(t: &[Float; 4], z: f32) -> u16 {
+fn x87_1(t: &[PlainFloat; 4], z: f32) -> u16 {
     let t0 = t[2].ld();
     let t1 = t[0].ld();
     let t2 = t0 - t1;
@@ -195,7 +200,7 @@ fn x87_1(t: &[Float; 4], z: f32) -> u16 {
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[o + 0] = ((([x + 0] - [t + 0]) / ([t + 8] - [t + 0])) * ([t + 0xC] - [t + 4])) + [t + 4]`
-fn x87_2(x: f32, t: &[Float; 4]) -> f32 {
+fn x87_2(x: f32, t: &[PlainFloat; 4]) -> f32 {
     let t0 = ld(x);
     let t1 = t[0].ld();
     let t2 = t0 - t1;

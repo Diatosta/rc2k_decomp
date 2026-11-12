@@ -12,15 +12,15 @@ use crate::errors::Refused;
 use crate::physics::car_store::Car;
 use crate::physics::gear_bit::bits_at;
 use crate::race::numbers_store::Numbers;
-use crate::session::{Dword, Float};
+use crate::session::{PlainDword, PlainFloat};
 
 /// On the word +0x2B8, the word +0x3F4 and the gear bits at these places.
 // Converted: `rc2k_core::physics::gearbox::allowed_gear`.
 pub fn allowed_gear_at(
     numbers: &Numbers,
-    locked: &Float,
-    open: &Float,
-    bits: &Dword,
+    locked: &PlainFloat,
+    open: &PlainFloat,
+    bits: &PlainDword,
     eax: u32,
 ) -> Result<u32, Refused> {
     // The game compares the words: the engine damage is exactly 100.0's bits, not a float compare.

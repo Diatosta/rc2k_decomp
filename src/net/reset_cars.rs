@@ -7,11 +7,11 @@
 use crate::net::clear_car_state::clear_car_state;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
-use crate::session::Dword;
+use crate::session::PlainDword;
 use rc2k_core::net::cars;
 
 /// A field of a car's block and the value it is set to.
-type Reset = (fn(&Car) -> &Dword, u32);
+type Reset = (fn(&Car) -> &PlainDword, u32);
 
 /// A car's block's dwords set before it is cleared, in order: the car's number + 1 in
 /// +0xAA8, +0x684 4, +0x28 2, +0x34, +0x30, +0x20, +0x3C 0x80.

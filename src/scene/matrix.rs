@@ -24,10 +24,15 @@ fn sine_cosine(tables: &EngineTables, angle: u32) -> (f32, f32) {
 }
 
 /// `scene::set_turn_x` (0x426FE1): `turn_x` the matrix, `work` its sine and cosine.
-pub fn set_turn_x(tables: &EngineTables, turn_x: &[Float; 16], work: &[Float; 2], angle: u32) {
+pub fn set_turn_x(
+    tables: &EngineTables,
+    turn_x: &[Float; 16],
+    work: &[impl crate::session::Cell32; 2],
+    angle: u32,
+) {
     let (sine, cosine) = sine_cosine(tables, angle);
-    work[0].set(sine);
-    work[1].set(cosine);
+    work[0].set_bits(sine.to_bits());
+    work[1].set_bits(cosine.to_bits());
     turn_x[5].set(cosine);
     turn_x[6].set(sine);
     turn_x[9].set(-sine);
@@ -35,10 +40,15 @@ pub fn set_turn_x(tables: &EngineTables, turn_x: &[Float; 16], work: &[Float; 2]
 }
 
 /// `scene::set_turn_y` (0x42702A).
-pub fn set_turn_y(tables: &EngineTables, turn_y: &[Float; 16], work: &[Float; 2], angle: u32) {
+pub fn set_turn_y(
+    tables: &EngineTables,
+    turn_y: &[Float; 16],
+    work: &[impl crate::session::Cell32; 2],
+    angle: u32,
+) {
     let (sine, cosine) = sine_cosine(tables, angle);
-    work[0].set(sine);
-    work[1].set(cosine);
+    work[0].set_bits(sine.to_bits());
+    work[1].set_bits(cosine.to_bits());
     turn_y[0].set(cosine);
     turn_y[2].set(-sine);
     turn_y[8].set(sine);
@@ -47,10 +57,15 @@ pub fn set_turn_y(tables: &EngineTables, turn_y: &[Float; 16], work: &[Float; 2]
 
 /// `scene::set_turn_z_16` (0x427072): as `set_turn_x`, about the z axis (the matrix and
 /// the work of `scene::set_turn_z`, whose angle is 32 bits a turn).
-pub fn set_turn_z_16(tables: &EngineTables, turn_z: &[Float; 16], work: &[Float; 2], angle: u32) {
+pub fn set_turn_z_16(
+    tables: &EngineTables,
+    turn_z: &[Float; 16],
+    work: &[impl crate::session::Cell32; 2],
+    angle: u32,
+) {
     let (sine, cosine) = sine_cosine(tables, angle);
-    work[0].set(sine);
-    work[1].set(cosine);
+    work[0].set_bits(sine.to_bits());
+    work[1].set_bits(cosine.to_bits());
     turn_z[0].set(cosine);
     turn_z[1].set(sine);
     turn_z[4].set(-sine);

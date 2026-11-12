@@ -16,22 +16,22 @@ use crate::math::x87;
 use crate::math::x87::compare_full;
 use crate::math::x87_float as bh;
 use crate::race::owner::Race;
-use crate::session::{Dword, Float};
+use crate::session::{PlainDword, PlainFloat};
 
 /// The cells the blend reads and writes.
 pub struct BlendCells<'a> {
     /// The work car's checkpoint.
-    pub checkpoint: &'a Dword,
+    pub checkpoint: &'a PlainDword,
     /// The lead car's checkpoint.
-    pub lead_checkpoint: &'a Dword,
+    pub lead_checkpoint: &'a PlainDword,
     /// The held count (the original's `scratch`).
-    pub scratch: &'a Dword,
+    pub scratch: &'a crate::session::PlainDword,
     /// `start_blend_share`: the count times `start_blend_step`.
-    pub step_share: &'a Float,
-    pub start_share: &'a Float,
-    pub pace_push: &'a Float,
+    pub step_share: &'a PlainFloat,
+    pub start_share: &'a PlainFloat,
+    pub pace_push: &'a PlainFloat,
     /// `start_blend`: the result.
-    pub blend: &'a Float,
+    pub blend: &'a PlainFloat,
 }
 
 /// The Rust core on the variables `v`: the held count.
@@ -69,7 +69,7 @@ fn game<'a>(race: &'a Race, scene: &'a crate::scene::owner::Scene) -> BlendCells
     BlendCells {
         checkpoint: &shared.car().checkpoint,
         lead_checkpoint: &race.car_blocks().cars[0].checkpoint,
-        scratch: &scene.drawing.scene.scratch,
+        scratch: &scene.drawing.scene.get().scratch,
         step_share: &shared.car().start_blend_share,
         start_share: &shared.car().start_share,
         pace_push: &shared.car().pace_push,

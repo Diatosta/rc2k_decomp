@@ -10,11 +10,11 @@
 
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
-use crate::session::Dword;
+use crate::session::DwordLike;
 use rc2k_core::drive::controls::{BRAKE_KEY, THROTTLE_KEY, handbrake, pedal};
 
 /// One pedal: by the keys' `bit`, stepped from `input`, or set to it.
-fn step_pedal(shared: &RaceShared, bit: u32, input: &Dword, at: &Dword) {
+fn step_pedal(shared: &RaceShared, bit: u32, input: &impl DwordLike, at: &impl DwordLike) {
     at.set(pedal(
         shared.car().input_keys.get() & bit != 0,
         input.get(),

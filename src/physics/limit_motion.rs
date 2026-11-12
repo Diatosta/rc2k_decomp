@@ -71,7 +71,7 @@ pub fn limit_motion(car: &Car, tables: &PhysicsTables, scene: &crate::scene::own
         hold(&car.velocity[k], &tables.velocity_limit);
     }
     let length = rounded_value(vector_length(&car.velocity));
-    drawing.scene.motion_length.set(length);
+    drawing.scene.get().motion_length.set(length);
     let top = tables.top_speed.get();
     let past =
         matches!(top.partial_cmp(&length), Some(Ordering::Less)) || top.is_nan() || length.is_nan();
@@ -79,7 +79,7 @@ pub fn limit_motion(car: &Car, tables: &PhysicsTables, scene: &crate::scene::own
         let factor = crate::math::x87::div_80(top, length);
         scale_vector(&car.velocity, factor);
         scale_vector(&car.local_velocity, factor);
-        drawing.scene.scratch.set(rounded(factor));
+        drawing.scene.get().scratch.set(rounded(factor));
     }
 }
 

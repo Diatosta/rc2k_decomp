@@ -3644,7 +3644,10 @@ pub static GROUPS: &[Group] = &[
                 "amtu",
                 Shown::Whole,
                 0x6D1508,
-                indexed_cell!(|o| o.race.frame.panel_and_overlay.panel, texture_changes),
+                indexed_cell!(
+                    |o| o.race.frame.panel_and_overlay.get().panel,
+                    texture_changes
+                ),
                 false,
                 (468, 328),
             ),

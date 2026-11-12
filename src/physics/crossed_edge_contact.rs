@@ -21,11 +21,11 @@ use crate::physics::contact_store::ContactWork;
 use crate::physics::ground_probe_store::GroundProbe;
 use crate::physics::step_families::ContactInputs;
 use crate::physics::wall_edge_contact::edge_normal;
-use crate::session::Float;
+use crate::session::FloatLike;
 use rc2k_core::physics::walls;
 
 /// Three floats copied as bits, in order.
-fn copy3(to: &[Float], from: &[Float]) {
+fn copy3(to: &[impl FloatLike], from: &[impl FloatLike]) {
     for k in 0..3 {
         to[k].set(from[k].get());
     }

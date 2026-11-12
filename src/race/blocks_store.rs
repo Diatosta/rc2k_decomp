@@ -9,7 +9,7 @@
 use crate::physics::car_store::Car;
 #[cfg(test)]
 use crate::race::owner::race;
-use crate::session::Dword;
+use crate::session::PlainDword;
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -17,7 +17,7 @@ pub struct CarBlocks {
     /// +0x0 (0x70F3EC): the blocks, 0xFE0 apart.
     pub cars: [Car; 10],
     /// +0x9ec0 (0x7192AC): no code reads or writes it by name (no IDA xref to any of its bytes, 2026-11-10); it is carried in the replay's starting state (`REPLAY_STATE_DWORDS`), which runs over it.
-    pub unused_tail: [Dword; 0x84],
+    pub unused_tail: [PlainDword; 0x84],
 }
 
 const _: () = assert!(core::mem::size_of::<CarBlocks>() == 0xA0D0);
@@ -34,7 +34,7 @@ impl core::ops::Deref for InGroup {
     type Target = CarBlocks;
     #[inline]
     fn deref(&self) -> &CarBlocks {
-        &race().replay.cars_and_replay.car_blocks
+        &race().replay.cars_and_replay.get().car_blocks
     }
 }
 
@@ -131,7 +131,7 @@ const _: () = assert!(
     REPLAY_STATE_OFFSET + 4 * REPLAY_STATE_DWORDS
         == core::mem::offset_of!(crate::race::groups_store::CarsAndReplay, replay_work)
             + core::mem::offset_of!(crate::race::replay_work_store::ReplayWork, replay_tape)
-            + core::mem::size_of::<[Dword; 400]>()
+            + core::mem::size_of::<[PlainDword; 400]>()
 );
 
 impl CarBlocks {

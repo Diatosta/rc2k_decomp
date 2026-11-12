@@ -12,12 +12,12 @@
 
 use crate::errors::BadInput;
 use crate::physics::car_store::Car;
-use crate::session::Dword;
+use crate::session::PlainDword;
 use rc2k_core::drive::camera_views::CameraView;
 
 /// On the block `car`, the step count `step`.
 // Converted: `rc2k_core::drive::camera_views::CameraView::take_wanted`.
-pub fn set_view_at(car: &Car, step: &Dword) -> Result<(), BadInput> {
+pub fn set_view_at(car: &Car, step: &PlainDword) -> Result<(), BadInput> {
     let mut v = CameraView {
         wanted: car.camera_blend_view.get(),
         ..CameraView::default()

@@ -27,13 +27,13 @@ use crate::math::x87_float as bh;
 use crate::physics::car_store::Car;
 use crate::physics::store::DamageModel;
 use crate::scene::matrix3::rounded_value;
-use crate::session::{Dword, Float};
+use crate::session::{PlainDword, PlainFloat};
 
 /// The ramps in order: (destination, figure, table).
 fn ramps_a<'a>(
     car: &'a Car,
     damage: &'a DamageModel,
-) -> [(&'a Float, &'a Float, &'a [Float; 4]); 2] {
+) -> [(&'a PlainFloat, &'a PlainFloat, &'a [PlainFloat; 4]); 2] {
     [
         (
             &car.drive_efficiency[0],
@@ -51,7 +51,7 @@ fn ramps_a<'a>(
 fn ramps_c<'a>(
     car: &'a Car,
     damage: &'a DamageModel,
-) -> [(&'a Float, &'a Float, &'a [Float; 4]); 18] {
+) -> [(&'a PlainFloat, &'a PlainFloat, &'a [PlainFloat; 4]); 18] {
     [
         (
             &damage.clutch_block_chance,
@@ -149,7 +149,7 @@ fn ramps_c<'a>(
 fn failures<'a>(
     car: &'a Car,
     damage: &'a DamageModel,
-) -> [(&'a Dword, &'a Float, &'a Float, u32); 7] {
+) -> [(&'a PlainDword, &'a PlainFloat, &'a PlainFloat, u32); 7] {
     [
         (
             &car.electrical_failures[0],
@@ -200,8 +200,8 @@ fn failures<'a>(
 pub fn rate_damage(car: &Car, damage: &DamageModel) {
     let d = &damage;
     let c = &car;
-    let less = |a: &Float, b: &Float| compare_full(a, b) & 0x100 != 0;
-    let hold = |v: &Float| {
+    let less = |a: &PlainFloat, b: &PlainFloat| compare_full(a, b) & 0x100 != 0;
+    let hold = |v: &PlainFloat| {
         if less(v, &d.gauge_low) {
             v.set(x87::loaded(&d.gauge_low));
         }
@@ -232,7 +232,7 @@ pub fn rate_damage(car: &Car, damage: &DamageModel) {
         out.set(rounded_value(e));
         hold(out);
     }
-    let table_of = |t: &[Float; 4]| [t[0].get(), t[1].get(), t[2].get(), t[3].get()];
+    let table_of = |t: &[PlainFloat; 4]| [t[0].get(), t[1].get(), t[2].get(), t[3].get()];
     for (out, x, t) in ramps_a(car, damage) {
         out.set(ramp(x.get(), table_of(t), d.gauge_low.get()));
     }
@@ -255,7 +255,7 @@ pub fn rate_damage(car: &Car, damage: &DamageModel) {
         out.set(ramp(x, table_of(t), &d.gauge_low));
     }
     // Chance: the figure times `DamageModel.chance_scale` against the random's low word turned.
-    let chance = |figure: &Float, turn: u32| {
+    let chance = |figure: &PlainFloat, turn: u32| {
         let t = x87::mul_to_int(figure, &d.chance_scale) as u32;
         d.scratch.set_bits(t);
         let r = d.clock.get().rotate_right(turn) & 0xFFFF;

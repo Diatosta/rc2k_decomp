@@ -65,7 +65,7 @@ fn entry_car(
         .ok_or_else(|| BadInput("a ring entry without its car").into())
 }
 
-fn box_(ring: &Ring, e: u32, whole: &[crate::session::Float; 16], car: &CarEffects) {
+fn box_(ring: &Ring, e: u32, whole: &[crate::session::PlainFloat; 16], car: &CarEffects) {
     box_x87(ring, &ring.work, e, whole, car);
 }
 
@@ -73,7 +73,7 @@ fn box_(ring: &Ring, e: u32, whole: &[crate::session::Float; 16], car: &CarEffec
 fn whole_of(
     car: &CarEffects,
     effects: &crate::effects::owner::Effects,
-) -> Result<&'static [crate::session::Float; 16], BadInput> {
+) -> Result<&'static [crate::session::PlainFloat; 16], BadInput> {
     effects
         .car_blocks()
         .ok()
@@ -88,7 +88,12 @@ fn facing(ring: &Ring, car: &CarEffects, effects: &crate::effects::owner::Effect
 }
 
 /// The original's 0x4CEF8A .. 0x4CEFDA: the place less the object's into `RingWork.away[0]` .., its length (kept, 80 bits, at `l`) less `flt_93A526` into `RingWork.near`.
-fn pull_length(ring: &Ring, e: u32, whole: &[crate::session::Float; 16], length: &mut [u8; 10]) {
+fn pull_length(
+    ring: &Ring,
+    e: u32,
+    whole: &[crate::session::PlainFloat; 16],
+    length: &mut [u8; 10],
+) {
     pull_length_x87(ring, e, whole, length, &ring.work, &ring.kinds);
 }
 
@@ -911,7 +916,7 @@ fn box_x87(
     ring: &Ring,
     w: &RingWork,
     e: u32,
-    whole: &[crate::session::Float; 16],
+    whole: &[impl crate::session::Cell32; 16],
     car: &CarEffects,
 ) {
     let t0 = ld(ring, e, |en| en.place[0]);
@@ -993,7 +998,7 @@ fn facing_x87(car: &CarEffects, f: &MarksFloats, w: &RingWork) {
 fn pull_length_x87(
     ring: &Ring,
     e: u32,
-    whole: &[crate::session::Float; 16],
+    whole: &[impl crate::session::Cell32; 16],
     l: &mut [u8; 10],
     w: &RingWork,
     rk: &RingKinds,

@@ -23,7 +23,7 @@ pub fn drive_torque_share(
     numbers: &Numbers,
     scene: &crate::scene::owner::Scene,
 ) -> u32 {
-    let drawing = &scene.drawing.scene;
+    let drawing = scene.drawing.scene.get();
     let (count, speed_share, gears_share) = (
         &drawing.scratch,
         &drawing.work_float_a,

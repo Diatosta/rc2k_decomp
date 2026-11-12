@@ -22,7 +22,7 @@ pub fn probe_and_keep_at(
         scene.draw_switches.get(),
         &crate::physics::ground_query::GroundQuery::of_physics(c.ground, c.probe, &c.course.course),
         c.contact,
-        &scene.drawing.scene.scratch,
+        &scene.drawing.scene.get().scratch,
     )?;
     for k in 0..64 {
         contact.saved_probe_x[k].set(contact.probe_x[k].get());

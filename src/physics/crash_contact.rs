@@ -34,11 +34,11 @@ use crate::race::numbers_store::Numbers;
 use crate::race::owner_course::Course;
 use crate::scene::matrix3::{extended, rounded_value};
 use crate::scene::rotate_point::rotate_point;
-use crate::session::Float;
+use crate::session::FloatLike;
 use rc2k_core::physics::contacts;
 
 /// Three floats copied as bits, in order.
-fn copy3(to: &[Float], from: &[Float]) {
+fn copy3(to: &[impl FloatLike], from: &[impl FloatLike]) {
     for k in 0..3 {
         to[k].set(from[k].get());
     }

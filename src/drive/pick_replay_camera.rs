@@ -17,7 +17,7 @@ use rc2k_core::drive::replay_views::{MODES as MODE_COUNT, draw, fits, kept_mode,
 fn kind_of(race: &Race, reading: &crate::scene::reading::Reading, mode: u32) -> u32 {
     // `view_records`
     reading.keep(
-        ViewVars::record_of(&race.frame.view_and_records, mode as usize)
+        ViewVars::record_of(race.frame.view_and_records.get(), mode as usize)
             .map(|record| record.kind.get()),
     )
 }

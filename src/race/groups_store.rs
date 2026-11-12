@@ -34,7 +34,7 @@ use crate::race::panel_store::Panel;
 use crate::race::replay_work_store::ReplayWork;
 use crate::race::view_vars_store::{ViewRecord, ViewVars};
 use crate::race::viewer_screen_store::ViewerPanelBlock;
-use crate::session::{Bytes, PlainDword};
+use crate::session::{PlainBytes, PlainDword};
 use core::mem::{offset_of, size_of};
 
 /// IDA 0x70F3EC .. 0x719FD8.
@@ -78,7 +78,7 @@ pub struct LightsAndGear {
 #[derive(rc2k_derive::Cells)]
 pub struct PanelAndOverlay {
     /// Two lead bytes (not the game's) aligning the overlay.
-    pub lead: Bytes<2>,
+    pub lead: PlainBytes<2>,
     /// +0x0 (0x6D13FE): `race::panel_store`.
     pub panel: Panel,
     /// +0x10E (0x6D150C): `race::overlay_store`.
@@ -209,11 +209,11 @@ mod tests {
             assert_block_starts_as_the_games, assert_store_starts_as_the_games,
         };
         let race = race();
-        assert_block_starts_as_the_games(&race.replay.cars_and_replay);
+        assert_block_starts_as_the_games(race.replay.cars_and_replay.get());
         assert_block_starts_as_the_games(&race.replay.viewer_and_kinds);
         assert_block_starts_as_the_games(race.frame.lights_and_gear.get());
         crate::test_support::first_values::assert_block_starts_as_the_games_but(
-            &race.frame.view_and_records,
+            race.frame.view_and_records.get(),
             &[(
                 offset_of!(ViewAndRecords, view_vars) + offset_of!(ViewVars, view_records),
                 "race.owner.RACE.frame.view_and_records.view_vars.view_records[0]/208",
@@ -227,11 +227,11 @@ mod tests {
     fn groups_have_their_homes() {
         let race = race();
         for home in [
-            core::ptr::from_ref(&race.replay.cars_and_replay).addr(),
+            core::ptr::from_ref(race.replay.cars_and_replay.get()).addr(),
             core::ptr::from_ref(&race.replay.viewer_and_kinds).addr(),
             core::ptr::from_ref(race.frame.lights_and_gear.get()).addr(),
-            core::ptr::from_ref(&race.frame.panel_and_overlay.panel).addr() + 2,
-            core::ptr::from_ref(&race.frame.view_and_records).addr(),
+            core::ptr::from_ref(&race.frame.panel_and_overlay.get().panel).addr() + 2,
+            core::ptr::from_ref(race.frame.view_and_records.get()).addr(),
         ] {
             assert_eq!(home % 4, 0);
         }

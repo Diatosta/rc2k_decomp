@@ -21,7 +21,7 @@ use crate::session::Dword;
 
 const DOOR_TEXT: &std::ffi::CStr = c"doornr="; // "doornr="
 /// (to, from): the header's settings.
-fn settings(race: &Race) -> [(&Dword, &Dword); 5] {
+fn settings(race: &Race) -> [(&Dword, &crate::session::PlainDword); 5] {
     let shared = &race.shared;
     let work = race.replay_work();
     [

@@ -40,6 +40,7 @@ use crate::physics::ground_query::GroundQuery;
 use crate::physics::step_families::GroundInputs;
 use crate::scene::matrix3::{extended, rounded_value};
 use crate::scene::rotate_point::rotate_point;
+use crate::session::{CellKind, DwordLike, FloatLike};
 use rc2k_core::physics::ground;
 
 pub const MOST_POINTS: u32 = 0x40;
@@ -71,11 +72,11 @@ impl<'a> ProbeInputs<'a> {
 /// `scratch` is the dword the original spills its work values to (`g_scratch`).
 pub fn probe_ground_at(
     c: &ProbeInputs<'_>,
-    car: &Car,
+    car: &Car<impl CellKind>,
     switches: &crate::scene::draw_switches_store::DrawSwitches,
     q: &GroundQuery<'_>,
     contact: &ContactWork,
-    scratch: &crate::session::Dword,
+    scratch: &crate::session::PlainDword,
 ) -> Result<(), Refused> {
     let n = car.probe_count.get();
     if n < 1 {
@@ -90,12 +91,12 @@ pub fn probe_ground_at(
 
 fn probe_points(
     c: &ProbeInputs<'_>,
-    car: &Car,
+    car: &Car<impl CellKind>,
     n: u32,
     switches: &crate::scene::draw_switches_store::DrawSwitches,
     q: &GroundQuery<'_>,
     contact: &ContactWork,
-    scratch: &crate::session::Dword,
+    scratch: &crate::session::PlainDword,
 ) -> Result<(), Refused> {
     let k65536 = c.numbers.k65536.get();
     contact.crossed_probe.set(u32::MAX);
@@ -204,7 +205,8 @@ fn probe_points(
     Ok(())
 }
 
-/// `car` is the work car in the race's ticks, the view's car in the drawing.
+/// `car` is the work car in the race's ticks (the view's copy of its car in the drawing,
+/// `probe_ground_in_view`).
 pub fn probe_ground(
     c: &GroundInputs<'_>,
     car: &Car,
@@ -216,7 +218,7 @@ pub fn probe_ground(
         scene.draw_switches.get(),
         &GroundQuery::of_physics(c.ground, c.probe, &c.course.course),
         c.contact,
-        &scene.drawing.scene.scratch,
+        &scene.drawing.scene.get().scratch,
     )
 }
 
@@ -225,7 +227,7 @@ pub fn probe_ground(
 /// drawing does reads them after), the scene points through the drawing part's `points`.
 pub fn probe_ground_in_view(
     c: &ProbeInputs<'_>,
-    car: &Car,
+    car: &Car<impl CellKind>,
     switches: &crate::scene::draw_switches_store::DrawSwitches,
     points: &crate::race::scene_points::OwnPoints,
 ) -> Result<(), Refused> {
@@ -236,6 +238,6 @@ pub fn probe_ground_in_view(
         switches,
         &ground.query(points),
         &ContactWork::new(),
-        &crate::session::Dword::new(0),
+        &crate::session::PlainDword::new(0),
     )
 }

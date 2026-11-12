@@ -99,11 +99,16 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
     race.frame.clock_ticks().sound_ticks.set(0);
     race.shared.physics_tables.race_clock_now.set(clock);
     race.shared.physics_tables.race_clock_base.set(clock);
-    race.frame.panel_and_overlay.overlay.start_lights_lit.set(0);
-    race.frame.panel_and_overlay.panel.lights[0]
+    race.frame
+        .panel_and_overlay
+        .get()
+        .overlay
+        .start_lights_lit
+        .set(0);
+    race.frame.panel_and_overlay.get().panel.lights[0]
         .lit
         .set(u32::MAX);
-    race.frame.panel_and_overlay.panel.lights[1]
+    race.frame.panel_and_overlay.get().panel.lights[1]
         .lit
         .set(u32::MAX);
     for car in &race.car_blocks().cars[..8] {

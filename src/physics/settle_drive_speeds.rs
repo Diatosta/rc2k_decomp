@@ -17,19 +17,19 @@ use crate::physics::gearing::{GearPlaces, revs_from_wheels_at};
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
-use crate::session::Dword;
+use crate::session::PlainDword;
 
 /// The switches and the scratch: the game's or a test's.
 #[derive(Clone, Copy)]
 pub struct SettlePlaces<'a> {
     /// `front_wheels_off`: settle the first driven speed (in neutral).
-    pub first: &'a Dword,
+    pub first: &'a PlainDword,
     /// `rear_wheels_off`: settle the second.
-    pub second: &'a Dword,
+    pub second: &'a PlainDword,
     /// `brake`: the big step.
-    pub fast: &'a Dword,
+    pub fast: &'a PlainDword,
     /// `scratch`: the step is stored there (a dword holding the float's bits).
-    pub scratch: &'a Dword,
+    pub scratch: &'a crate::session::PlainDword,
 }
 
 impl<'a> SettlePlaces<'a> {
@@ -38,7 +38,7 @@ impl<'a> SettlePlaces<'a> {
             first: &shared.car().front_wheels_off,
             second: &shared.car().rear_wheels_off,
             fast: &shared.car().brake,
-            scratch: &scene.drawing.scene.scratch,
+            scratch: &scene.drawing.scene.get().scratch,
         }
     }
 }

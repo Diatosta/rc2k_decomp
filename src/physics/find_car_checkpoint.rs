@@ -37,7 +37,7 @@ pub fn find_car_checkpoint(
     let (from, to) = progress::near_window(shared.car().checkpoint.get());
     let near =
         crate::race::start_place::nearest_checkpoint_in(physics, course, shared, from, to, scene)?;
-    scene.drawing.scene.scratch.set(near.distance);
+    scene.drawing.scene.get().scratch.set(near.distance);
     // g_nearestCheckpointDistance
     shared.physics_tables.nearest_checkpoint_distance.set_bits(
         ext_div2(

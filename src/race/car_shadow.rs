@@ -596,7 +596,7 @@ pub fn shadow_on_face(
     work: &ShadowWork,
     car: &Car,
 ) -> Result<(), Refused> {
-    let (race, scene) = (ctx.race, ctx.scene);
+    let race = ctx.race;
     let count: u32 = work.list_count.get();
     if count > 0x40 {
         return Err(BadInput("a shadow list past 0x40").into());
@@ -695,7 +695,6 @@ pub fn shadow_on_face(
         ctx.part,
         race,
         &ctx.view.face,
-        scene,
         ctx.reads,
         &ctx.system.session.screen,
     )?;
@@ -951,7 +950,11 @@ pub fn cast_car_shadows(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
         // Each car's shadow from its own block (the original loaded it into the work car,
         // `drive::load_car`, and left the last one there for the rest of the view:
         // `notes/bugs.md`).
-        let car = race.shared.race_car_or(n as usize, "a car's block")?;
+        let car = race.shared.race_car_or_in(
+            &ctx.reads.cars_and_replay.car_blocks,
+            n as usize,
+            "a car's block",
+        )?;
         if !casts_shadow(
             ctx.view
                 .cars

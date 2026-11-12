@@ -21,7 +21,7 @@ use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use crate::race::view_vars_store::{ViewRecord, ViewVars};
 use crate::scene::owner::Scene;
-use crate::session::Dword;
+use crate::session::PlainDword;
 use dear_imgui_rs::{TreeNodeFlags, Ui};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering::Relaxed};
@@ -110,7 +110,7 @@ const LIGHT_NAMES: [&str; 12] = [
 
 /// The camera record's figures, as 0x43B177: name, offset; the last is whole.
 /// The record's figures the page edits, by the developers' labels.
-fn camera_figures(r: &ViewRecord) -> [(&'static str, &Dword); 12] {
+fn camera_figures(r: &ViewRecord) -> [(&'static str, &PlainDword); 12] {
     [
         ("xfoc", &r.focus[0]),
         ("yfoc", &r.focus[1]),
@@ -254,7 +254,7 @@ fn camera(race: &Race, ui: &Ui) {
     let view = (first_car(race).camera_view.get() as i32).clamp(0, 0x33) as usize;
     ui.text(format!("View {view}: {}", VIEW_NAMES[view]));
     ui.text_disabled("Changes the view's record until the stage is loaded again");
-    let Ok(record) = ViewVars::record_of(&race.frame.view_and_records, view) else {
+    let Ok(record) = ViewVars::record_of(race.frame.view_and_records.get(), view) else {
         ui.text("This view's record is not readable");
         return;
     };
@@ -354,7 +354,7 @@ fn lights(race: &Race, ui: &Ui) {
             table.set_u32(at, v as u32);
         }
         // The original's key loop leaves the place where `car_light_flares` reads it.
-        frame.frame_work.part_place[k].set(if readable { table.get_u32(at) } else { 0 });
+        frame.frame_work.get().part_place[k].set(if readable { table.get_u32(at) } else { 0 });
     }
 }
 

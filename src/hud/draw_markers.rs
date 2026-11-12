@@ -37,12 +37,19 @@ pub fn taken_off(v: [u8; 10]) -> u32 {
 pub fn draw_markers(frame: &Frame, hud: &Hud, pen: Pen, rows: [u32; 2]) -> Result<(), Refused> {
     {
         let k = hud.block.uv_scale_x.get();
-        for (n, distance) in frame.panel_and_overlay.panel.distance.iter().enumerate() {
+        for (n, distance) in frame
+            .panel_and_overlay
+            .get()
+            .panel
+            .distance
+            .iter()
+            .enumerate()
+        {
             hud.block.quad.colour.set(hud.block.marker_colours[n].get());
             let f = f32::from_bits;
             let x = quads::marker_x(
                 f(distance.get()),
-                f(frame.panel_and_overlay.panel.overlay_miles.get()),
+                f(frame.panel_and_overlay.get().panel.overlay_miles.get()),
                 hud.block.marker_k[0].get(),
                 hud.block.marker_k[1].get(),
             );

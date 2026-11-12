@@ -935,11 +935,11 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.replay.cars_and_replay",
-            &crate::race::owner::RACE.replay.cars_and_replay,
+            on_game(crate::race::owner::RACE.replay.cars_and_replay.get()),
         ),
         listed!(
             "race.groups_store.PANEL_TAIL",
-            record_tail(&crate::race::owner::RACE.frame.panel_and_overlay, 2),
+            on_game_tail(crate::race::owner::RACE.frame.panel_and_overlay.get(), 2),
         ),
         listed!(
             "race.owner.RACE.physics.split_tables",
@@ -1039,7 +1039,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.frame.view_and_records",
-            &crate::race::owner::RACE.frame.view_and_records,
+            on_game(crate::race::owner::RACE.frame.view_and_records.get()),
         ),
         listed!(
             "race.owner.RACE.physics.camera",
@@ -1063,7 +1063,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "scene.owner.SCENE.drawing.scene",
-            &crate::scene::owner::SCENE.drawing.scene,
+            on_game(crate::scene::owner::SCENE.drawing.scene.get()),
         ),
         listed!(
             "scene.owner.SCENE.lights.state",
@@ -1079,7 +1079,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.frame.frame_work",
-            &crate::race::owner::RACE.frame.frame_work,
+            on_game(crate::race::owner::RACE.frame.frame_work.get()),
         ),
         listed!(
             "race.owner.RACE.frame.sound_spots",

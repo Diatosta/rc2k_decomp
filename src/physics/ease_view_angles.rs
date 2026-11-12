@@ -30,7 +30,7 @@ pub fn ease_view_angles(
         x87_1(numbers, shared.tables(), rate.get(), scene);
         to.set(
             to.get()
-                .wrapping_add(scene.drawing.scene.scratch.get() << 16),
+                .wrapping_add(scene.drawing.scene.get().scratch.get() << 16),
         );
     }
     Ok(())
@@ -48,7 +48,7 @@ fn x87_1(numbers: &Numbers, tables: &RaceTables, rate: u32, scene: &crate::scene
     let t2 = t0 * t1;
     let t3 = numbers.k65536.ld();
     let t4 = t2 * t3;
-    scene.drawing.scene.scratch.set(to_int(t4) as u32);
+    scene.drawing.scene.get().scratch.set(to_int(t4) as u32);
 }
 
 #[cfg(test)]

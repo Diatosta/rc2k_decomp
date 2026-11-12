@@ -24,7 +24,7 @@ use crate::session::Dword;
 
 fn view_bit(shared: &RaceShared, view: &Dword) -> Result<bool, BadInput> {
     let car = shared
-        .car_blocks
+        .car_blocks()
         .of(view.get())
         .ok_or(BadInput("a view's block"))?;
     Ok(car.input_keys.get() & 0x40 != 0)
@@ -41,7 +41,7 @@ fn net_player_car(
         .get(net.vars.player.get() as usize)
         .ok_or(BadInput("the network player's car"))?;
     shared
-        .car_blocks
+        .car_blocks()
         .of(handle.get())
         .ok_or(BadInput("the network player's car"))
 }

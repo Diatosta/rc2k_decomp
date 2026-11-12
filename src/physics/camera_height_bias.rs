@@ -27,13 +27,13 @@ pub fn camera_height_bias(
         return Ok(());
     }
     x87_1(view_records, scene);
-    hold_low_bits(&drawing.scene.scratch, ZERO);
-    hold_high(&drawing.scene.scratch, &numbers.one);
+    hold_low_bits(&drawing.scene.get().scratch, ZERO);
+    hold_high(&drawing.scene.get().scratch, &numbers.one);
     if (esi.height_bias.get() as i32) < 0 {
         x87_2(scene);
     }
     x87_3(numbers, view_records, scene);
-    let eax = drawing.scene.scratch.get();
+    let eax = drawing.scene.get().scratch.get();
     view_records.view_vars.camera_height_bias.set(eax);
     car.camera_position[1].set(car.camera_position[1].get().wrapping_add(eax));
     Ok(())
@@ -48,7 +48,7 @@ fn x87_1(view_records: &ViewAndRecords, scene: &crate::scene::owner::Scene) {
     let t0 = view_records.view_vars.camera_distance.ld();
     let t1 = view_records.view_vars.camera_bias_limit.ld();
     let t2 = t0 / t1;
-    scene.drawing.scene.scratch.st(t2);
+    scene.drawing.scene.get().scratch.st(t2);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -57,9 +57,9 @@ fn x87_1(view_records: &ViewAndRecords, scene: &crate::scene::owner::Scene) {
 fn x87_2(scene: &crate::scene::owner::Scene) {
     let drawing = &scene.drawing;
     let t0 = X(1.0);
-    let t1 = drawing.scene.scratch.ld();
+    let t1 = drawing.scene.get().scratch.ld();
     let t2 = t0 - t1;
-    drawing.scene.scratch.st(t2);
+    drawing.scene.get().scratch.st(t2);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -67,12 +67,12 @@ fn x87_2(scene: &crate::scene::owner::Scene) {
 /// `int [scratch] = ([scratch] * [k65536]) * [camera_bias_scale]`
 fn x87_3(numbers: &Numbers, view_and_records: &ViewAndRecords, scene: &crate::scene::owner::Scene) {
     let drawing = &scene.drawing;
-    let t0 = drawing.scene.scratch.ld();
+    let t0 = drawing.scene.get().scratch.ld();
     let t1 = numbers.k65536.ld();
     let t2 = t0 * t1;
     let t3 = view_and_records.view_vars.camera_bias_scale.ld();
     let t4 = t2 * t3;
-    drawing.scene.scratch.set(to_int(t4) as u32);
+    drawing.scene.get().scratch.set(to_int(t4) as u32);
 }
 
 #[cfg(test)]
@@ -91,7 +91,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     x87_1(
-                        &crate::race::owner::race().frame.view_and_records,
+                        crate::race::owner::race().frame.view_and_records.get(),
                         crate::scene::owner::scene(),
                     );
                 },
@@ -115,7 +115,7 @@ mod reference_vectors {
                 plain: |_| {
                     x87_3(
                         &crate::race::owner::race().course.numbers,
-                        &crate::race::owner::race().frame.view_and_records,
+                        crate::race::owner::race().frame.view_and_records.get(),
                         crate::scene::owner::scene(),
                     );
                 },

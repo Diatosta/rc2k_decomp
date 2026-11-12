@@ -123,7 +123,7 @@ fn place_with(
     shared.car().camera_position[2].set(z);
     // 0x438F14: the second offset, turned with the car.
     let whole = second();
-    scene.drawing.scene.scratch.set(whole[2] as u32);
+    scene.drawing.scene.get().scratch.set(whole[2] as u32);
     let car = [
         frame_work.camera_car[0].get(),
         frame_work.camera_car[1].get(),

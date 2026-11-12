@@ -120,7 +120,7 @@ pub static GROUPS: &[Group] = &[
                 0x6416BC,
                 store_cell!(
                     crate::race::frame_store::START,
-                    |o| o.race.frame.frame_work,
+                    |o| o.race.frame.frame_work.get(),
                     crate::race::frame_store::FrameWork,
                     0x6416bc,
                     replay_still_on
@@ -135,7 +135,7 @@ pub static GROUPS: &[Group] = &[
                 0x6416B8,
                 store_cell!(
                     crate::race::frame_store::START,
-                    |o| o.race.frame.frame_work,
+                    |o| o.race.frame.frame_work.get(),
                     crate::race::frame_store::FrameWork,
                     0x6416b8,
                     drawing
@@ -3225,7 +3225,7 @@ pub static GROUPS: &[Group] = &[
                 0x60631C,
                 store_cell!(
                     crate::race::groups_store::VIEW_AND_RECORDS_RANGE.0,
-                    |o| o.race.frame.view_and_records,
+                    |o| o.race.frame.view_and_records.get(),
                     crate::race::groups_store::ViewAndRecords,
                     0x60631c,
                     view_vars.camera_distance
@@ -3300,7 +3300,7 @@ pub static GROUPS: &[Group] = &[
                 0x606288,
                 store_cell!(
                     crate::race::groups_store::VIEW_AND_RECORDS_RANGE.0,
-                    |o| o.race.frame.view_and_records,
+                    |o| o.race.frame.view_and_records.get(),
                     crate::race::groups_store::ViewAndRecords,
                     0x606288,
                     view_vars.camera_height_bias
@@ -3428,7 +3428,7 @@ pub static GROUPS: &[Group] = &[
                 0x6415D8,
                 store_cell!(
                     crate::race::frame_store::START,
-                    |o| o.race.frame.frame_work,
+                    |o| o.race.frame.frame_work.get(),
                     crate::race::frame_store::FrameWork,
                     0x6415d8,
                     view_out
@@ -3443,7 +3443,7 @@ pub static GROUPS: &[Group] = &[
                 0x6415DC,
                 store_cell!(
                     crate::race::frame_store::START,
-                    |o| o.race.frame.frame_work,
+                    |o| o.race.frame.frame_work.get(),
                     crate::race::frame_store::FrameWork,
                     0x6415dc,
                     sun_size
@@ -3456,7 +3456,7 @@ pub static GROUPS: &[Group] = &[
                 "sunxscn",
                 Shown::Whole,
                 0x6415C8,
-                indexed_cell!(|o| o.race.frame.frame_work, sun_hit[0]),
+                indexed_cell!(|o| o.race.frame.frame_work.get(), sun_hit[0]),
                 false,
                 (0, 0),
             ),
@@ -3465,7 +3465,7 @@ pub static GROUPS: &[Group] = &[
                 "sunyscn",
                 Shown::Whole,
                 0x6415CC,
-                indexed_cell!(|o| o.race.frame.frame_work, sun_hit[1]),
+                indexed_cell!(|o| o.race.frame.frame_work.get(), sun_hit[1]),
                 false,
                 (0, 0),
             ),
@@ -3586,7 +3586,7 @@ pub static GROUPS: &[Group] = &[
                 0x6415F8,
                 store_cell!(
                     crate::race::frame_store::START,
-                    |o| o.race.frame.frame_work,
+                    |o| o.race.frame.frame_work.get(),
                     crate::race::frame_store::FrameWork,
                     0x6415f8,
                     kind_textures_done
@@ -3601,7 +3601,7 @@ pub static GROUPS: &[Group] = &[
                 0x6415F4,
                 store_cell!(
                     crate::race::frame_store::START,
-                    |o| o.race.frame.frame_work,
+                    |o| o.race.frame.frame_work.get(),
                     crate::race::frame_store::FrameWork,
                     0x6415f4,
                     view_textures_forgotten
@@ -3619,7 +3619,7 @@ pub static GROUPS: &[Group] = &[
                 "olvimode",
                 Shown::Whole,
                 0x6D14F2,
-                indexed_cell!(|o| o.race.frame.panel_and_overlay.panel, players),
+                indexed_cell!(|o| o.race.frame.panel_and_overlay.get().panel, players),
                 false,
                 (0, 0),
             ),
@@ -3628,7 +3628,7 @@ pub static GROUPS: &[Group] = &[
                 "olayp1ps",
                 Shown::Whole,
                 0x6D141A,
-                indexed_cell!(|o| o.race.frame.panel_and_overlay.panel, view_a.place),
+                indexed_cell!(|o| o.race.frame.panel_and_overlay.get().panel, view_a.place),
                 false,
                 (0, 0),
             ),
@@ -3637,7 +3637,7 @@ pub static GROUPS: &[Group] = &[
                 "olayp2ps",
                 Shown::Whole,
                 0x6D144A,
-                indexed_cell!(|o| o.race.frame.panel_and_overlay.panel, view_b.place),
+                indexed_cell!(|o| o.race.frame.panel_and_overlay.get().panel, view_b.place),
                 false,
                 (0, 0),
             ),
@@ -3646,7 +3646,7 @@ pub static GROUPS: &[Group] = &[
                 "olayfcd1",
                 Shown::Float,
                 0x6D146A,
-                indexed_cell!(|o| o.race.frame.panel_and_overlay.panel, distance[0]),
+                indexed_cell!(|o| o.race.frame.panel_and_overlay.get().panel, distance[0]),
                 false,
                 (0, 0),
             ),
@@ -3655,7 +3655,10 @@ pub static GROUPS: &[Group] = &[
                 "olayfdis",
                 Shown::Float,
                 0x6D1466,
-                indexed_cell!(|o| o.race.frame.panel_and_overlay.panel, overlay_miles),
+                indexed_cell!(
+                    |o| o.race.frame.panel_and_overlay.get().panel,
+                    overlay_miles
+                ),
                 false,
                 (0, 0),
             ),
@@ -4008,7 +4011,7 @@ pub static GROUPS: &[Group] = &[
                 Shown::Whole,
                 0x719AFC,
                 indexed_cell!(
-                    |o| o.race.replay.cars_and_replay,
+                    |o| o.race.replay.cars_and_replay.get(),
                     replay_work.unknown_640[0]
                 ),
                 false,
@@ -4020,7 +4023,7 @@ pub static GROUPS: &[Group] = &[
                 Shown::Whole,
                 0x719B00,
                 indexed_cell!(
-                    |o| o.race.replay.cars_and_replay,
+                    |o| o.race.replay.cars_and_replay.get(),
                     replay_work.unknown_640[1]
                 ),
                 false,
@@ -4032,7 +4035,7 @@ pub static GROUPS: &[Group] = &[
                 Shown::Whole,
                 0x719B04,
                 indexed_cell!(
-                    |o| o.race.replay.cars_and_replay,
+                    |o| o.race.replay.cars_and_replay.get(),
                     replay_work.unknown_640[2]
                 ),
                 false,
@@ -4044,7 +4047,7 @@ pub static GROUPS: &[Group] = &[
                 Shown::Whole,
                 0x719B08,
                 indexed_cell!(
-                    |o| o.race.replay.cars_and_replay,
+                    |o| o.race.replay.cars_and_replay.get(),
                     replay_work.unknown_640[3]
                 ),
                 false,
@@ -4056,7 +4059,7 @@ pub static GROUPS: &[Group] = &[
                 Shown::Whole,
                 0x719B0C,
                 indexed_cell!(
-                    |o| o.race.replay.cars_and_replay,
+                    |o| o.race.replay.cars_and_replay.get(),
                     replay_work.unknown_640[4]
                 ),
                 false,
@@ -4068,7 +4071,7 @@ pub static GROUPS: &[Group] = &[
                 Shown::Whole,
                 0x719B10,
                 indexed_cell!(
-                    |o| o.race.replay.cars_and_replay,
+                    |o| o.race.replay.cars_and_replay.get(),
                     replay_work.unknown_640[5]
                 ),
                 false,

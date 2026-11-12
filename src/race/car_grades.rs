@@ -5,11 +5,15 @@
 use crate::errors::BadInput;
 use crate::physics::car_store::Car;
 use crate::race::owner_shared::RaceShared;
-use crate::session::{Dword, Float};
+use crate::session::{PlainDword, PlainFloat};
 
 /// A car's grade: the block's value (a float), where its grade goes, the thresholds, in the
 /// original's order (`race::grade_car_values`).
-pub type Grade = (fn(&Car) -> &Float, fn(&Car) -> &Dword, &'static [u32]);
+pub type Grade = (
+    fn(&Car) -> &PlainFloat,
+    fn(&Car) -> &PlainDword,
+    &'static [u32],
+);
 
 /// The grades `race::grade_car_values` works out.
 pub const GRADES: [Grade; 34] = [
@@ -115,7 +119,7 @@ pub fn grade_car_values(car: &Car, scene: &crate::scene::owner::Scene) -> Result
     for &(from, to, thresholds) in &GRADES {
         let x = from(car).get();
         let (grade, tried) = rc2k_core::race::cars::grade(x, thresholds);
-        scene.drawing.scene.scratch.set(tried);
+        scene.drawing.scene.get().scratch.set(tried);
         to(car).set(grade);
     }
     Ok(())

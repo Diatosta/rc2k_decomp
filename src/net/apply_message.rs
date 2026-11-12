@@ -21,29 +21,29 @@ use crate::net::send_inputs::fields;
 use crate::net::store::NetVars;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
-use crate::session::Dword;
+use crate::session::PlainDword;
 use rc2k_core::net::race::{self, Arrival, Kind};
 
 /// g_carBlocks: the eight cars' blocks.
 const TEXT: &std::ffi::CStr = c"rcvd fm plyr"; // "rcvd fm plyr"
 
 /// A car's place (+0x134 .. +0x13C).
-pub fn place(car: &Car) -> &[Dword; 3] {
+pub fn place(car: &Car) -> &[PlainDword; 3] {
     &car.position
 }
 
 /// Where a place received goes, to be glided to (+0xFC0 .. +0xFC8; then the glide's 32nd).
-pub fn wanted(car: &Car) -> &[Dword] {
+pub fn wanted(car: &Car) -> &[PlainDword] {
     &car.glide_target
 }
 
 /// The glide's steps left (+0xFCC).
-pub fn glide_steps(car: &Car) -> &Dword {
+pub fn glide_steps(car: &Car) -> &PlainDword {
     &car.glide_steps_left
 }
 
 /// The three dwords' values.
-pub fn three(cells: &[Dword]) -> [u32; 3] {
+pub fn three(cells: &[PlainDword]) -> [u32; 3] {
     [cells[0].get(), cells[1].get(), cells[2].get()]
 }
 
@@ -138,7 +138,7 @@ mod tests {
     fn the_places_sit_where_the_offsets_were() {
         let car = race().shared.car();
         let base = core::ptr::from_ref(car).addr();
-        let at = |cell: &Dword| (core::ptr::from_ref(cell).addr() - base) as u32;
+        let at = |cell: &PlainDword| (core::ptr::from_ref(cell).addr() - base) as u32;
         assert_eq!(at(&place(car)[0]), 0x134);
         assert_eq!(at(&wanted(car)[0]), 0xFC0);
         assert_eq!(at(glide_steps(car)), 0xFCC);

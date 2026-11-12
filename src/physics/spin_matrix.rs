@@ -47,5 +47,5 @@ pub fn spin_matrix(
     // `scene::square_matrix` left its last length in `g_scratch` (the ones before are
     // written over by it).
     let length = square_matrix(course, &car.crash_matrix);
-    scene.drawing.scene.scratch.set(length);
+    scene.drawing.scene.get().scratch.set(length);
 }

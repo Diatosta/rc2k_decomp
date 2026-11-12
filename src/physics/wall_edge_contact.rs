@@ -65,9 +65,10 @@ pub fn edge_normal(
     x87_1(&course.numbers, d, scene);
     drawing
         .scene
+        .get()
         .scratch
-        .set(drawing.scene.scratch.get() & 0xFFFF);
-    let heading = (drawing.scene.scratch.get() << 16).wrapping_add(0x4000_0000);
+        .set(drawing.scene.get().scratch.get() & 0xFFFF);
+    let heading = (drawing.scene.get().scratch.get() << 16).wrapping_add(0x4000_0000);
     physics_tables.wall_heading.set(heading);
     let (out, _) =
         rotate_float_point_about_y(engine_tables, 0.0, 0.0, course.numbers.one.get(), heading);
@@ -133,7 +134,7 @@ fn x87_1(numbers: &Numbers, d: [u32; 2], scene: &crate::scene::owner::Scene) {
     let t4 = t2 * t3;
     let t5 = numbers.k65536.ld();
     let t6 = t4 * t5;
-    scene.drawing.scene.scratch.set(to_int(t6) as u32);
+    scene.drawing.scene.get().scratch.set(to_int(t6) as u32);
 }
 
 #[cfg(test)]

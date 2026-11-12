@@ -10,6 +10,7 @@
 
 use crate::errors::Refused;
 use crate::physics::step_families::CameraGroundInputs;
+use crate::session::PlainDword;
 
 /// One probe at (x, z) from the face kept at `slot`; true when found (the face found
 /// kept there).
@@ -17,7 +18,7 @@ pub fn probe_at(
     c: &CameraGroundInputs<'_>,
     x: u32,
     z: u32,
-    slot: &crate::session::Dword,
+    slot: &PlainDword,
     scene: &crate::scene::owner::Scene,
 ) -> Result<bool, Refused> {
     c.course.course.ground_face_last.set(slot.get());

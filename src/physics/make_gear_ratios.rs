@@ -76,6 +76,7 @@ pub fn make_gear_ratios(
     scene
         .drawing
         .scene
+        .get()
         .scratch
         .set(rounded_value(step).to_bits());
     ratio(-1).set(x87::negated(ratio(1).get()));

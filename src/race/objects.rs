@@ -131,7 +131,7 @@ pub fn set_up_car_points(
                 for (k, list) in lists.into_iter().enumerate() {
                     // The original goes through `scratch` for each `fild`.
                     let c = crate::scene::object_points::word(p + 4 * k as u32)?;
-                    scene.drawing.scene.scratch.set(c);
+                    scene.drawing.scene.get().scratch.set(c);
                     list[n as usize].set(rc2k_core::race::cars::point_float(c, scale));
                 }
             }

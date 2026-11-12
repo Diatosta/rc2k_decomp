@@ -9,7 +9,7 @@
 
 use crate::physics::car_store::Car;
 use crate::race::numbers_store::Numbers;
-use crate::session::Dword;
+use crate::session::PlainDword;
 use rc2k_core::physics::motion::stop_timers;
 
 /// The stand timers and the finish flag counted on while the car stands (a compare of
@@ -22,7 +22,7 @@ pub fn count_stop_timers(car: &Car, numbers: &Numbers) {
         &car.go_stand_timer,
         &car.finish_flag,
     ];
-    let mut counters = cells.map(Dword::get);
+    let mut counters = cells.map(PlainDword::get);
     let result = stop_timers(&mut counters, car.speed.get(), one);
     for (cell, c) in cells.iter().zip(counters) {
         if c != cell.get() {

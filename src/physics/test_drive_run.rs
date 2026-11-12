@@ -144,7 +144,7 @@ fn x87_2(car: &Car, tables: &PhysicsTables, numbers: &Numbers, scene: &crate::sc
     let t6 = tables.rolling_drag.ld();
     let t7 = t5 + t6;
     let t8 = -t7;
-    scene.drawing.scene.scratch.st(t8);
+    scene.drawing.scene.get().scratch.st(t8);
     let t9 = tables.drive_torque.ld();
     let t10 = t8 + t9;
     let t11 = tables.step_time.ld();

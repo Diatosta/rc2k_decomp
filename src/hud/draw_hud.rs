@@ -18,7 +18,7 @@ pub fn draw_hud(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
         hud.block.vertex_count.set(0);
         hud.block.index_count.set(0);
         tenths::tenths(frame, hud);
-        match batch::Layout::of(frame.panel_and_overlay.panel.players.get()) {
+        match batch::Layout::of(frame.panel_and_overlay.get().panel.players.get()) {
             batch::Layout::Single => layout_0::layout_0(frame, hud, pen)?,
             batch::Layout::One => layout_1::layout_1(frame, hud, pen)?,
             batch::Layout::Two => layout_2::layout_2(frame, hud, pen)?,

@@ -61,17 +61,18 @@ pub fn view_car(shared: &RaceShared, n: usize) -> &crate::session::Dword {
 }
 
 /// `race::load_car_a` / `_b` / `_c` (0x45422F, 0x454241, 0x454277): the view car `n`'s
-/// block copied into `view`'s car (`ViewScratch::car`). Refuses a null block (the original's
-/// copy faults) before anything.
+/// block (of `blocks`: the game thread's, or a drawing part's reads) copied into `view`'s car
+/// (`ViewScratch::car`). Refuses a null block (the original's copy faults) before anything.
 pub fn load_view_car(
     shared: &RaceShared,
+    blocks: &crate::race::blocks_store::CarBlocks,
     n: usize,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
     use rc2k_core::drive::work_car::{car_block, car_slot};
     let slot = car_slot(view_car(shared, n).get());
     car_block(u32::from(shared.work.has_car_block(slot as usize)))?;
-    crate::drive::car::copy_car(shared.race_car(slot as usize)?, &view.car);
+    crate::cells::copy_whole(shared.race_car_in(blocks, slot as usize)?, &view.car);
     Ok(())
 }
 

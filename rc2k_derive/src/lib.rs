@@ -62,22 +62,54 @@ pub fn derive_cells(input: TokenStream) -> TokenStream {
     // `field_path` (tests only): the path of the primitive cell holding a byte, from the record's
     // field names, for the debug pages' tables.
     let path_names: Vec<_> = names.iter().map(|n| format!(".{n}")).collect();
-    quote! {
-        const _: () = {
-            const fn is_cells<T: crate::cells::Cells + ?Sized>() {}
-            #( is_cells::<#types>(); )*
-            assert!(
-                ::core::mem::size_of::<#name #of>() == 0 #( + ::core::mem::size_of::<#types>() )*,
-                "Cells: padding between the fields",
-            );
+    // The checks: at compile time for a record with no generics; for a generic one (a record
+    // kept in two kinds of cells, `session::CellKind`) every field bound to `Cells` on the
+    // impl and the padding asserted per kind, where the impl is first used.
+    let generic = !input.generics.params.is_empty();
+    let (checks, clause, checked) = if generic {
+        let mut clause = clause.cloned().unwrap_or_else(|| syn::parse_quote!(where));
+        for ty in &types {
+            clause
+                .predicates
+                .push(syn::parse_quote!(#ty: crate::cells::Cells));
+        }
+        let checks = quote! {
+            impl #with #name #of #clause {
+                const CELLS_NO_PADDING: () = assert!(
+                    ::core::mem::size_of::<Self>() == 0 #( + ::core::mem::size_of::<#types>() )*,
+                    "Cells: padding between the fields",
+                );
+            }
         };
+        (
+            checks,
+            Some(clause),
+            quote! { let () = Self::CELLS_NO_PADDING; },
+        )
+    } else {
+        let checks = quote! {
+            const _: () = {
+                const fn is_cells<T: crate::cells::Cells + ?Sized>() {}
+                #( is_cells::<#types>(); )*
+                assert!(
+                    ::core::mem::size_of::<#name #of>() == 0 #( + ::core::mem::size_of::<#types>() )*,
+                    "Cells: padding between the fields",
+                );
+            };
+        };
+        (checks, clause.cloned(), quote! {})
+    };
+    quote! {
+        #checks
         // SAFETY: every field is `Cells` and no byte lies outside them (checked above).
         unsafe impl #with crate::cells::Cells for #name #of #clause {
             fn copy_from(&self, other: &Self) {
+                #checked
                 #( crate::cells::Cells::copy_from(&self.#names, &other.#names); )*
             }
 
             fn merge_changes(&self, now: &Self, start: &Self) {
+                #checked
                 #( crate::cells::Cells::merge_changes(&self.#names, &now.#names, &start.#names); )*
             }
 
@@ -95,6 +127,7 @@ pub fn derive_cells(input: TokenStream) -> TokenStream {
             }
 
             fn cell_run(&self, offset: usize) -> (usize, crate::cells::CellRun<'_>) {
+                #checked
                 #starts
                 let field = starts.partition_point(|&start| start <= offset).wrapping_sub(1);
                 match field {

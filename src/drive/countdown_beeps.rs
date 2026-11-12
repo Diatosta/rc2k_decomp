@@ -9,8 +9,8 @@ use crate::race::owner::Race;
 
 pub fn countdown_beeps(race: &Race, audio: &crate::audio::owner::Audio) -> Result<(), Refused> {
     for (car, to) in [
-        (0u32, &race.frame.panel_and_overlay.panel.lights[0]),
-        (1, &race.frame.panel_and_overlay.panel.lights[1]),
+        (0u32, &race.frame.panel_and_overlay.get().panel.lights[0]),
+        (1, &race.frame.panel_and_overlay.get().panel.lights[1]),
     ] {
         race.shared.work.current_car.set(car);
         crate::drive::countdown_beep::countdown_beep(

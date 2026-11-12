@@ -11,7 +11,7 @@ use crate::system::owner::System;
 
 pub fn flush_replay(race: &Race, system: &System) -> Result<(), Refused> {
     copy_cells(
-        (&race.replay.cars_and_replay, REPLAY_STATE_OFFSET),
+        (race.replay.cars_and_replay.get(), REPLAY_STATE_OFFSET),
         (&race.viewer_buffers().block, 0),
         REPLAY_STATE_DWORDS * 4,
     );

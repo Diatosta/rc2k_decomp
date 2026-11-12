@@ -8,14 +8,14 @@
 use crate::errors::Refused;
 use crate::race::frame_store::FrameWork;
 use crate::race::work_store::RaceWork;
-use crate::session::Dword;
+use crate::session::{Dword, PlainDword};
 use crate::sound::store::SoundObject;
 use rc2k_core::physics::listed_cars::{CUE_E5, cue_e5_object};
 
 /// The core: the car number and the listed table; the object is the car's number
 /// (`g_raceSoundObjects[car & 7]`).
 // Converted: `rc2k_core::physics::listed_cars::{cue_e5_object, CUE_E5}`.
-pub fn sound_cue_e5_at(current: &Dword, listed: &[Dword; 8]) -> Result<(), Refused> {
+pub fn sound_cue_e5_at(current: &Dword, listed: &[PlainDword; 8]) -> Result<(), Refused> {
     // `cue_e5_object` refuses a car past 7 before it asks for its entry.
     let object = cue_e5_object(current.get(), |car| listed[car as usize].get())?;
     if let Some(number) = object {

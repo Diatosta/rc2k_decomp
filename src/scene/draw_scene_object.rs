@@ -45,10 +45,12 @@ fn texture_set(
             race.course.numbers.in_race.is_set(),
             |object| reads.object_tables.object_kind(object),
             |car| {
-                shared
-                    .work
-                    .has_car_block(car as usize)
-                    .then(|| shared.race_car_or_end(car as usize).car_kind.get())
+                shared.work.has_car_block(car as usize).then(|| {
+                    shared
+                        .race_car_or_end_in(&reads.cars_and_replay.car_blocks, car as usize)
+                        .car_kind
+                        .get()
+                })
             },
         )
         .map_err(|e| -> Refused {

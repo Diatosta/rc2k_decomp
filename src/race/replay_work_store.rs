@@ -6,59 +6,59 @@
 
 #[cfg(test)]
 use crate::race::owner::race;
-use crate::session::Dword;
+use crate::session::PlainDword;
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ReplayWork {
     /// +0x0 (0x7194BC): `dword_7194BC` / `dword_7194C0`: the replay's input tape, 16 bytes a tenth, 8 a car for cars 0 and 1, 100 tenths (`drive::record_inputs`, `drive::play_inputs`); extent to `unk_719AFC`.
-    pub replay_tape: [Dword; 400],
+    pub replay_tape: [PlainDword; 400],
     /// +0x640 (0x719AFC): only pointed to by data offsets in the table at 0x5ECBC6 .. (a pointer table nothing ported reads).
-    pub unknown_640: [Dword; 6],
+    pub unknown_640: [PlainDword; 6],
     /// +0x658 (0x719B14): `dword_719B14`: the car header's stage setting, header offset 0 (`race::replay`, `race::race_end`, `race::viewer`).
-    pub header_stage: Dword,
+    pub header_stage: PlainDword,
     /// +0x65c (0x719B18): `dword_719B18`: the header's mode, offset 4; the viewer copies it to the run kind (`race::viewer_load_stage`).
-    pub header_mode: Dword,
+    pub header_mode: PlainDword,
     /// +0x660 (0x719B1C): `dword_719B1C`: the header's players, offset 8 (`race::race_end`).
-    pub header_players: Dword,
+    pub header_players: PlainDword,
     /// +0x664 (0x719B20): `dword_719B20`: the header's cars setting, offset 0xC (`race::race_end`).
-    pub header_cars: Dword,
+    pub header_cars: PlainDword,
     /// +0x668 (0x719B24): `dword_719B24`: the header's car kind 0 (the first car's, limits 0x16 .. 0x21 checked), offset 0x10 (`race::viewer`, `race::race_end`).
-    pub header_kind_0: Dword,
+    pub header_kind_0: PlainDword,
     /// +0x66c (0x719B28): `dword_719B28`: the header's car kind 1, offset 0x14 (`race::viewer_load_stage`).
-    pub header_kind_1: Dword,
+    pub header_kind_1: PlainDword,
     /// +0x670 (0x719B2C): `dword_719B2C`: the header's car kind 2, offset 0x18 (`race::race_end`).
-    pub header_kind_2: Dword,
+    pub header_kind_2: PlainDword,
     /// +0x674 (0x719B30): `dword_719B30`: the header's car kind 3, offset 0x1C (`race::race_end`).
-    pub header_kind_3: Dword,
+    pub header_kind_3: PlainDword,
     /// +0x678 (0x719B34): `dword_719B34`: one player (1) or two, set by `race::record_replay_header`; read by `drive::write_replay_frames`, the viewer (`race::viewer`).
-    pub header_one_player: Dword,
+    pub header_one_player: PlainDword,
     /// +0x67c (0x719B38): `dword_719B38`: the first car's co-driver sex (`race::replay`, `race::viewer_load_stage`).
-    pub header_codriver_sex_0: Dword,
+    pub header_codriver_sex_0: PlainDword,
     /// +0x680 (0x719B3C): `dword_719B3C`: the second car's co-driver sex (`race::replay`, `race::viewer_load_stage`).
-    pub header_codriver_sex_1: Dword,
+    pub header_codriver_sex_1: PlainDword,
     /// +0x684 (0x719B40): `dword_719B40`: the header's start place, offset 0x2C (`race::race_end`).
-    pub header_start_place: Dword,
+    pub header_start_place: PlainDword,
     /// +0x688 (0x719B44): `dword_719B44`: the header's arcade cars, offset 0x30 (`race::race_end`).
-    pub header_arcade_cars: Dword,
+    pub header_arcade_cars: PlainDword,
     /// +0x68c (0x719B48): `dword_719B48`: the header's random seed, offset 0x34 (`race::race_end`).
-    pub header_seed: Dword,
+    pub header_seed: PlainDword,
     /// +0x690 (0x719B4C): `dword_719B4C`: the header's game-over flag of car 0, offset 0x38 (`race::race_end`).
-    pub header_game_over_0: Dword,
+    pub header_game_over_0: PlainDword,
     /// +0x694 (0x719B50): `dword_719B50`: the header's game-over flag of car 1, offset 0x3C (`race::race_end`).
-    pub header_game_over_1: Dword,
+    pub header_game_over_1: PlainDword,
     /// +0x698 (0x719B54): `dword_719B54`: the replay's sealed header part, 0x100 bytes: checksum dword, version byte at +4, copied settings (some unaligned, `race::replay::copy_header_settings`), the player name at +0xD (0x20 bytes), sealed in blocks of 8 (`race::seal_replay_header`, `race::replay`).
-    pub sealed_header: [Dword; 64],
+    pub sealed_header: [PlainDword; 64],
     /// +0x798 (0x719C54): `dword_719C54`: set to 6 when the header holds the patch switches (`race::replay_patches`, `race::replay`).
-    pub patches_in_header: Dword,
+    pub patches_in_header: PlainDword,
     /// +0x79c (0x719C58): `unk_719C58`: the 13 patch switches copied into the header (0x34 bytes, `race::replay_patches`, `race::replay`).
-    pub header_patches: [Dword; 13],
+    pub header_patches: [PlainDword; 13],
     /// +0x7d0 (0x719C8C): `byte_719C8C`: the low byte of the first dword is the first car's door (race) number the viewer reads (`race::viewer_load_stage`); the rest is read by no code.
-    pub unknown_7d0: [Dword; 162],
+    pub unknown_7d0: [PlainDword; 162],
     /// +0xa58 (0x719F14): `dword_719F14`: the wished camera per head byte, indexed by a byte of the frame head (`drive::replay_cameras`).
-    pub replay_camera_wishes: [Dword; 47],
+    pub replay_camera_wishes: [PlainDword; 47],
     /// +0xb14 (0x719FD0): `dword_719FD0` / `dword_719FD4`: the frame of the last camera draw for cars 0 and 1; cleared at stage load (`drive::replay_cameras`, `race::loadlevel`).
-    pub camera_last_frame: [Dword; 2],
+    pub camera_last_frame: [PlainDword; 2],
 }
 
 /// IDA 0x7194BC, the first byte of the piece.
@@ -71,7 +71,7 @@ const _: () = assert!(END - START == core::mem::size_of::<ReplayWork>());
 /// The piece's host address (the alignment checks).
 #[cfg(test)]
 pub fn piece_addr() -> usize {
-    core::ptr::from_ref(&race().replay.cars_and_replay.replay_work).addr()
+    core::ptr::from_ref(&race().replay.cars_and_replay.get().replay_work).addr()
 }
 
 #[cfg(test)]

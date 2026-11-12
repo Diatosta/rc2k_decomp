@@ -28,10 +28,10 @@ pub fn full_view_window(
     window.view_zoom.set(0x100);
     crate::scene::set_view_window::set_view_window(
         race,
-        scene,
+        scene.drawing.scene.get(),
         system,
         window,
-        &race.frame.view_and_records.view_vars,
+        &race.frame.view_and_records.get().view_vars,
     );
     // The original stores 0 in `g_drawMode` here for the frame's first view: never anything
     // else anywhere (it starts at 0; modes 1 and 2 are only read), so not kept (the drawing
@@ -52,11 +52,12 @@ const MIRROR_REACH: u32 = 2;
 /// fog, polygon work, car and view variables).
 pub fn mirror_view_window(
     race: &Race,
-    scene: &crate::scene::owner::Scene,
     system: &crate::system::owner::System,
     view: &crate::race::view_scratch::ViewScratch,
     part: &crate::workers::PartScratch,
+    reads: crate::workers::DrawReads<'_>,
 ) -> Result<(), Refused> {
+    let draw = reads.scene_draw;
     let (fog, poly, car, vars) = (&view.fog, &view.polygon, &view.car, &view.vars);
     let drawn_view = view.drawn_view(race);
     let session = &system.session;
@@ -65,13 +66,13 @@ pub fn mirror_view_window(
     let n = mirror_entry(
         race.shared.vars.split.get(),
         drawn_view,
-        race.frame.panel_and_overlay.panel.flat.get() == 0,
+        reads.panel_and_overlay.panel.flat.get() == 0,
     );
     // g_mirrorPlaces: 12 entries of two dwords. The entry is the split (0 for one player,
     // 1 or 2 for two: `race_shell::set_start_states` holds it there and the split key turns
     // 1 and 2 round) plus 3 for the second view (0 or 1) plus 6 for the second set: at most
     // 11.
-    let places = &race.frame.frame_work.mirror_places;
+    let places = &reads.frame_work.mirror_places;
     let trap = Trap::new();
     let at = |word: usize| {
         let k = (n as usize).wrapping_mul(2).wrapping_add(word);
@@ -80,7 +81,7 @@ pub fn mirror_view_window(
                 trap.keep(BadInput("a mirror place past the twelve"));
                 0
             },
-            super::super::session::Dword::get,
+            super::super::session::PlainDword::get,
         )
     };
     let Some(MirrorRect {
@@ -108,7 +109,7 @@ pub fn mirror_view_window(
     poly.window.view_zoom.set(0x100);
     crate::scene::set_view_window::set_view_window_reaching(
         race,
-        scene,
+        draw,
         system,
         &poly.window,
         vars,
@@ -217,7 +218,7 @@ pub fn copy_mirror_picture(
     use crate::d3d::{lock_texture::lock_texture_in, unlock_texture::unlock_texture};
     use rc2k_core::race::view_steps::{PictureCopy, copy_picture};
     let (from, to) = (
-        scene.drawing.scene.mirror_picture.get(),
+        scene.drawing.scene.get().mirror_picture.get(),
         scene.textures.kinds.get().kind_first_textures[200].get(),
     );
     if lock_texture_in(gfx, from)?.carry {
@@ -225,11 +226,11 @@ pub fn copy_mirror_picture(
     }
     // The surfaces' pixels by handle (kept, never read back).
     let from_pixels = crate::gfx::surface::handle(gfx)?;
-    frame.frame_work.view_kept[0].set(from_pixels);
+    frame.frame_work.get().view_kept[0].set(from_pixels);
     let ebp = gfx_drawing.draw_surface.pitch.get();
     if !lock_texture_in(gfx, to)?.carry {
         let to_pixels = crate::gfx::surface::handle(gfx)?;
-        frame.frame_work.view_kept[1].set(to_pixels);
+        frame.frame_work.get().view_kept[1].set(to_pixels);
         let format = gfx_drawing.draw_surface.format.get();
         if format == 0 {
             return Err(BadInput("a surface without its format").into());
@@ -339,16 +340,16 @@ pub fn forget_view_textures(
         ),
         Forget::Extra(n) => (
             [
-                &frame.panel_and_overlay.overlay.forget_flag_0,
-                &frame.panel_and_overlay.overlay.forget_flag_1,
+                &frame.panel_and_overlay.get().overlay.forget_flag_0,
+                &frame.panel_and_overlay.get().overlay.forget_flag_1,
             ][n]
                 .get(),
             slot_of(220 + n),
         ),
     };
     let mirror = mirror_on(
-        frame.frame_work.mirror_wanted.get(),
-        frame.frame_work.mirror_switch.get(),
+        frame.frame_work.get().mirror_wanted.get(),
+        frame.frame_work.get().mirror_switch.get(),
     );
     let uploaded = input.devices.keys_now.get(0x18) != 0; // Devices.keys_now
     let mut slots: Vec<u32> = FORGET_ORDER
@@ -362,16 +363,17 @@ pub fn forget_view_textures(
     }
     trap.finish()?;
     check_slots(&slots)?;
-    frame.frame_work.view_textures_forgotten.set(0);
+    frame.frame_work.get().view_textures_forgotten.set(0);
     for (f, bit) in FORGET_ORDER {
         let (switch, slot) = source(f);
         if !forgets(switch) {
             continue;
         }
         forget_slot_texture(slot.get(), scene)?;
-        frame.panel_and_overlay.panel.texture_changes.set(
+        frame.panel_and_overlay.get().panel.texture_changes.set(
             frame
                 .panel_and_overlay
+                .get()
                 .panel
                 .texture_changes
                 .get()
@@ -379,8 +381,9 @@ pub fn forget_view_textures(
         );
         frame
             .frame_work
+            .get()
             .view_textures_forgotten
-            .set(frame.frame_work.view_textures_forgotten.get() | bit);
+            .set(frame.frame_work.get().view_textures_forgotten.get() | bit);
         if let Forget::Counted(v) = f {
             let counter = &race.car_blocks().cars[blocks[v]].notice_counter;
             counter.set(counter.get().wrapping_sub(1));
@@ -391,8 +394,9 @@ pub fn forget_view_textures(
     }
     frame
         .frame_work
+        .get()
         .view_textures_forgotten
-        .set(frame.frame_work.view_textures_forgotten.get() | MIRROR_BIT);
+        .set(frame.frame_work.get().view_textures_forgotten.get() | MIRROR_BIT);
     if !uploaded {
         copy_mirror_picture(frame, scene, system, gfx)?;
         forget_slot_texture(textures.kinds.get().kind_first_textures[200].get(), scene)?;
@@ -401,9 +405,10 @@ pub fn forget_view_textures(
         // and the slot.
         crate::standalone::not_ported(0x44E828, "race::frame_views");
     }
-    frame.panel_and_overlay.panel.texture_changes.set(
+    frame.panel_and_overlay.get().panel.texture_changes.set(
         frame
             .panel_and_overlay
+            .get()
             .panel
             .texture_changes
             .get()
@@ -453,7 +458,7 @@ pub fn draw_screen_tint(
         ));
         done = crate::scene::draw_tinted_quad::draw_tinted_quad(ctx);
     }
-    race.frame.frame_work.sun_on_screen.set(sun);
+    race.frame.frame_work.get().sun_on_screen.set(sun);
     done
 }
 
@@ -474,7 +479,7 @@ pub fn clear_view_depth(
     poly.cleared_rectangle[1].set(0);
     poly.cleared_rectangle[2].set(session.screen.width.get());
     poly.cleared_rectangle[3].set(session.screen.height.get());
-    clear_viewport_unless_held(scene, part, &poly.cleared_rectangle);
+    clear_viewport_unless_held(scene.drawing.scene.get(), part, &poly.cleared_rectangle);
 }
 
 /// `race::draw_own_car` (0x455AD3): in a race, when the drawn view's car (`g_drawnCar`) is
@@ -583,10 +588,11 @@ pub fn run_view_marks(
     race.effects_settings().other_marks_shown.set(other);
     race.effects_settings().own_marks_shown.set(own);
     let layout_at = layout_index(view, race.shared.vars.split.get());
-    let layout = race.frame.frame_work.view_layouts[layout_at as usize].get();
+    let layout = race.frame.frame_work.get().view_layouts[layout_at as usize].get();
     race.effects_settings().marks_layout.set(layout);
     crate::math::cells::copy_cells(
-        &race.car_blocks().cars[race.shared.view.view_number(view as usize)?].whole_matrix,
+        &ctx.reads.cars_and_replay.car_blocks.cars[race.shared.view.view_number(view as usize)?]
+            .whole_matrix,
         &race.frame.matrices.view_place,
         16,
     );
@@ -606,20 +612,20 @@ pub fn run_view_marks(
         ctx.view.polygon.window.view_centre[0].get(),
         ctx.view.polygon.window.view_centre[1].get(),
     );
-    let n = race.frame.frame_work.view_layouts[layout_at as usize].get() as usize;
+    let n = race.frame.frame_work.get().view_layouts[layout_at as usize].get() as usize;
     ctx.view.polygon.window.view_centre[0].set(int_over_times(
         session.screen.width.get(),
         race.course.numbers.k800.get(),
-        race.frame.frame_work.view_scale_x[n].get(),
+        race.frame.frame_work.get().view_scale_x[n].get(),
     ));
     ctx.view.polygon.window.view_centre[1].set(int_over_times(
         session.screen.height.get(),
         race.course.numbers.k600.get(),
-        race.frame.frame_work.view_scale_y[n].get(),
+        race.frame.frame_work.get().view_scale_y[n].get(),
     ));
     // Neither reads a register nor leaves one read after it (0x456464, 0x456472).
     let done = crate::effects::frame_marks::frame_marks(race, scene, effects).and_then(|_| {
-        if race.frame.frame_work.drawing.get() == 0 {
+        if race.frame.frame_work.get().drawing.get() == 0 {
             crate::effects::run_frame::run_frame(
                 ctx.part.vertices,
                 race,
@@ -641,11 +647,11 @@ pub fn run_view_marks(
 /// `d3d::clear_viewport_unless_held` (0x44E9EE): `d3d::clear_viewport` (0x44E9D9, the same `Clear` of
 /// `cleared_rectangle` with flag 2) unless `v3_driver_fix` is not 0.
 pub fn clear_viewport_unless_held(
-    scene: &crate::scene::owner::Scene,
+    draw: &crate::scene::draw_store::SceneDraw,
     part: &crate::workers::PartScratch,
     own: &[crate::session::Dword; 4],
 ) {
-    if scene.drawing.scene.v3_driver_fix.get() == 0 {
+    if draw.v3_driver_fix.get() == 0 {
         crate::platform_3d::clear_viewport(part, own);
     }
 }

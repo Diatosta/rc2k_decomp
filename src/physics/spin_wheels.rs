@@ -26,7 +26,7 @@ pub fn spin_wheels(
         &numbers.k65536,
         &numbers.one_over_pi,
     );
-    let scratch = &scene.drawing.scene.scratch;
+    let scratch = &scene.drawing.scene.get().scratch;
     let mut last = 0;
     for (speed, turn) in [
         (&car.drive_speed_a, &car.driven_wheel_turns[0]),

@@ -2,164 +2,167 @@
 //! depths (`scene::set_view_window`), the polygon being drawn and its clipping (`scene::clip`,
 //! `scene::draw_polygon`), the turns' sines, the light, and the x87 code's shared work dword
 //! (`scratch`, 0x62400C). `#[repr(C)]` with the image's layout, over the race block's bytes
-//! (`DRAW`), as `CAR`. Names are readings unless IDA's.
+//! (`scene::owner::Drawing::scene`). Plain cells: a drawing store (`session::DrawShared`),
+//! written on the game's thread between frames (mostly the physics' work dwords) and read by
+//! the drawing parts through their `workers::DrawReads` (the polygons' alpha, the fade and
+//! clip factors, `v3_driver_fix`). Names are readings unless IDA's.
 
-use crate::session::{Dword, Float};
+use crate::session::{PlainDword, PlainFloat};
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SceneDraw {
     /// +0x0 (0x623F80): `scene::clip`'s work (`flt_623F80` ..); `race::car_shadow` keeps a vertex's pieces in [2], [4], [10], [11]; now each view's (`scene::polygon_work`); unused.
-    pub clip_work: [Float; 12],
+    pub clip_work: [PlainFloat; 12],
     /// +0x30 (0x623FB0): the view window's offsets x, y (`scene::set_view_window`; the menus and `race::frame_views` set them); now each view's (`scene::view_window`); unused.
-    pub view_offset: [Dword; 2],
+    pub view_offset: [PlainDword; 2],
     /// +0x38 (0x623FB8): a work dword (`physics::engine_torque`, `physics::wheel_springs`); `race::find_present_courses`' four-byte probe.
-    pub work_dword: Dword,
+    pub work_dword: PlainDword,
     /// +0x3c (0x623FBC): the motion's length (`physics::limit_motion`).
-    pub motion_length: Float,
+    pub motion_length: PlainFloat,
     /// +0x40 (0x623FC0): five dwords; the original's only reference is the debug wear-bar code at 0x429936 (`sub_4298BD`, now `debug::`), the scene's code has none (a gap).
-    pub unknown_40: [Dword; 5],
+    pub unknown_40: [PlainDword; 5],
     /// +0x54 (0x623FD4): the camera's heading, saved round a step (`physics::camera_avoid_ground`).
-    pub camera_heading_saved: Dword,
+    pub camera_heading_saved: PlainDword,
     /// +0x58 (0x623FD8): the camera's heading kept from step to step (`physics::camera_avoid_ground`).
-    pub camera_heading_kept: Dword,
+    pub camera_heading_kept: PlainDword,
     /// +0x5c (0x623FDC): five words kept from 0x71AEC8 (`physics::camera_avoid_ground`).
-    pub camera_saved: [Dword; 5],
+    pub camera_saved: [PlainDword; 5],
     /// +0x70 (0x623FF0): four dwords; no code references them (a gap).
-    pub unknown_70: [Dword; 4],
+    pub unknown_70: [PlainDword; 4],
     /// +0x80 (0x624000): `g_fogColour` (`race::frame_draw`); now each view's (`scene::fog::Fog`); unused.
-    pub fog_colour: Dword,
+    pub fog_colour: PlainDword,
     /// +0x84 (0x624004): one dword between the fog colour and the clip's kept mask; no code references it (a gap).
-    pub unknown_84: Dword,
+    pub unknown_84: PlainDword,
     /// +0x88 (0x624008): the clip's kept mask (`scene::clip`); now each view's (`scene::polygon_work`); unused.
-    pub clip_kept_mask: Dword,
+    pub clip_kept_mask: PlainDword,
     /// +0x8c (0x62400C): the x87 code's shared work dword (IDA `g_scratch`): every converted helper that stored to it still does.
-    pub scratch: Dword,
+    pub scratch: PlainDword,
     /// +0x90 (0x624010): three dwords after `scratch`; no code references them (a gap).
-    pub unknown_90: [Dword; 3],
+    pub unknown_90: [PlainDword; 3],
     /// +0x9c (0x62401C): a work float (`physics::drive_torque_share`, `physics::drive_grip_forces`, `physics::drive_wheels_step`).
-    pub work_float_a: Float,
+    pub work_float_a: PlainFloat,
     /// +0xa0 (0x624020): a work float (the same); `race::frame_draw`'s far limit (`dword_63F17C` as a float).
-    pub work_float_b: Float,
+    pub work_float_b: PlainFloat,
     /// +0xa4 (0x624024): seven dwords; the original's only reference is the debug wear bars (`debug::draw_wear_bars` at 0x62403C), the scene's code has none (a gap).
-    pub unknown_a4: [Dword; 7],
+    pub unknown_a4: [PlainDword; 7],
     /// +0xc0 (0x624040): a wheel's surface point: x, then y and z less x (`physics::wheel_surfaces`).
-    pub surface_point: [Dword; 3],
+    pub surface_point: [PlainDword; 3],
     /// +0xcc (0x62404C): 12 dwords after the wheel's surface point; no code references them (a gap).
-    pub unknown_cc: [Dword; 12],
+    pub unknown_cc: [PlainDword; 12],
     /// +0xfc (0x62407C): `g_faceSortKey` (`scene::face_sort_key`); now each view's (`scene::polygon_work`); unused.
-    pub face_sort_key: Dword,
+    pub face_sort_key: PlainDword,
     /// +0x100 (0x624080): the view's zoom, a whole number (0x100; the menus set it), in the scale; now each view's (`scene::view_window`); unused.
-    pub view_zoom: Dword,
+    pub view_zoom: PlainDword,
     /// +0x104 (0x624084): one dword between the zoom and the scale; no code of the original or the port references it (a gap); the view's copy (`scene::view_window`) is never read either.
-    pub unknown_104: Dword,
+    pub unknown_104: PlainDword,
     /// +0x108 (0x624088): the view's scale (`scene::set_view_window`, `scene::project_point`); now each view's (`scene::view_window`); unused.
-    pub view_scale: Float,
+    pub view_scale: PlainFloat,
     /// +0x10c (0x62408C): the view window's width and height; now each view's (`scene::view_window`); unused.
-    pub view_size: [Dword; 2],
+    pub view_size: [PlainDword; 2],
     /// +0x114 (0x624094): the window's middle, x and y (half of each, unsigned); now each view's (`scene::view_window`); unused.
-    pub view_middle: [Dword; 2],
+    pub view_middle: [PlainDword; 2],
     /// +0x11c (0x62409C): the middle as floats (`scene::project_point`'s centre; `draw_polygon`'s mirror); now each view's (`scene::view_window`); unused.
-    pub view_centre: [Float; 2],
+    pub view_centre: [PlainFloat; 2],
     /// +0x124 (0x6240A4): `g_polygonNextRecord`; now each view's (`scene::polygon_work`); unused.
-    pub polygon_next_record: Dword,
+    pub polygon_next_record: PlainDword,
     /// +0x128 (0x6240A8): `g_lightDirection`; now each view's (`scene::object_light`), this
     /// one not used.
-    pub light_direction: [Float; 3],
+    pub light_direction: [PlainFloat; 3],
     /// +0x134 (0x6240B4): two dwords after the light direction; no code references them (a gap).
-    pub unknown_134: [Dword; 2],
+    pub unknown_134: [PlainDword; 2],
     /// +0x13c (0x6240BC): the polygon's two texture words (`scene::draw_polygon`); now each view's (`scene::polygon_work`); unused.
-    pub polygon_textures: [Dword; 2],
+    pub polygon_textures: [PlainDword; 2],
     /// +0x144 (0x6240C4): the texture page ("tpage"; `scene::look_up_texture`; the loading bar's switch); now each view's (`scene::polygon_work`); unused.
-    pub texture_page: Dword,
+    pub texture_page: PlainDword,
     /// +0x148 (0x6240C8): one dword between the texture page and the polygon colour; no code references it (a gap).
-    pub unknown_148: Dword,
+    pub unknown_148: PlainDword,
     /// +0x14c (0x6240CC): `g_polygonColour`; now each view's (`scene::polygon_work`); unused.
-    pub polygon_colour: Dword,
+    pub polygon_colour: PlainDword,
     /// +0x150 (0x6240D0): `g_polygonAlpha` (set by `hud::draw_view_strip` only, read by every view).
-    pub polygon_alpha: Dword,
+    pub polygon_alpha: PlainDword,
     /// +0x154 (0x6240D4): `g_polygonTexture`; now each view's (`scene::polygon_work`); unused.
-    pub polygon_texture: Dword,
+    pub polygon_texture: PlainDword,
     /// +0x158 (0x6240D8): `g_faceShine` (`scene::draw_object_face`); now each view's (`scene::polygon_work`); unused.
-    pub face_shine: Dword,
+    pub face_shine: PlainDword,
     /// +0x15c (0x6240DC): a face's word (`scene::draw_object_face`); now each view's (`scene::polygon_work`); unused.
-    pub face_word: Dword,
+    pub face_word: PlainDword,
     /// +0x160 (0x6240E0): the polygon's two side switches (`scene::draw_polygon`, the quads); now each view's (`scene::polygon_work`); unused.
-    pub polygon_sides: [Dword; 2],
+    pub polygon_sides: [PlainDword; 2],
     /// +0x168 (0x6240E8): kept by `scene::draw_polygon`; now each view's (`scene::polygon_work`); unused.
-    pub polygon_kept: [Dword; 3],
+    pub polygon_kept: [PlainDword; 3],
     /// +0x174 (0x6240F4): `g_polygonOutsideCount`; now each view's (`scene::polygon_work`); unused.
-    pub polygon_outside_count: Dword,
+    pub polygon_outside_count: PlainDword,
     /// +0x178 (0x6240F8): `g_polygonVertexCount`; now each view's (`scene::polygon_work`); unused.
-    pub polygon_vertex_count: Dword,
+    pub polygon_vertex_count: PlainDword,
     /// +0x17c (0x6240FC): six dwords before the next entry; no code references them (a gap).
-    pub unknown_17c: [Dword; 6],
+    pub unknown_17c: [PlainDword; 6],
     /// +0x194 (0x624114): `g_polygonNextEntry`; now each view's (`scene::polygon_work`); unused.
-    pub polygon_next_entry: Dword,
+    pub polygon_next_entry: PlainDword,
     /// +0x198 (0x624118): `g_polygonClipMask` ("cuttest"); now each view's (`scene::polygon_work`); unused.
-    pub polygon_clip_mask: Dword,
+    pub polygon_clip_mask: PlainDword,
     /// +0x19c (0x62411C): the clip's plane (`scene::clip`); now each view's (`scene::polygon_work`); unused.
-    pub clip_plane: Dword,
+    pub clip_plane: PlainDword,
     /// +0x1a0 (0x624120): clipped by the screen ("donesuth"); now each view's (`scene::polygon_work`); unused.
-    pub screen_clipped: Dword,
+    pub screen_clipped: PlainDword,
     /// +0x1a4 (0x624124): clipped by depth ("donezcut"); now each view's (`scene::polygon_work`); unused.
-    pub depth_clipped: Dword,
+    pub depth_clipped: PlainDword,
     /// +0x1a8 (0x624128): two dwords after the depth-clipped flag; no code references them (a gap).
-    pub unknown_1a8: [Dword; 2],
+    pub unknown_1a8: [PlainDword; 2],
     /// +0x1b0 (0x624130): a list entry's third word (`scene::list_object_face`); now each view's (`scene::polygon_work`); unused.
-    pub entry_third: Dword,
+    pub entry_third: PlainDword,
     /// +0x1b4 (0x624134): `g_polygonDrawn`; now each view's (`scene::polygon_work`); unused.
-    pub polygon_drawn: Dword,
+    pub polygon_drawn: PlainDword,
     /// +0x1b8 (0x624138): the rectangle to clear: left, top, right, bottom (`race::frame_views`); now each view's (`scene::polygon_work::PolygonWork`); unused.
-    pub cleared_rectangle: [Dword; 4],
+    pub cleared_rectangle: [PlainDword; 4],
     /// +0x1c8 (0x624148): sine and cosine of the x turn (`scene::matrix`).
-    pub turn_x_work: [Float; 2],
+    pub turn_x_work: [PlainFloat; 2],
     /// +0x1d0 (0x624150): the same, y.
-    pub turn_y_work: [Float; 2],
+    pub turn_y_work: [PlainFloat; 2],
     /// +0x1d8 (0x624158): the same, z (`scene::view_matrix`).
-    pub turn_z_work: [Float; 2],
+    pub turn_z_work: [PlainFloat; 2],
     /// +0x1e0 (0x624160): 15 dwords after the turns' sines; no code references them (a gap).
-    pub unknown_1e0: [Dword; 15],
+    pub unknown_1e0: [PlainDword; 15],
     /// +0x21c (0x62419C): the amount (alpha) byte, +0x21, of the vertex a clip crossing makes: the two ends' bytes blended by the crossing's share (`race::car_shadow`); now each view's (`scene::polygon_work::PolygonWork`); unused.
-    pub crossing_amount: Dword,
+    pub crossing_amount: PlainDword,
     /// +0x220 (0x6241A0): three dwords after the vertex byte; no code references them (a gap).
-    pub unknown_220: [Dword; 3],
+    pub unknown_220: [PlainDword; 3],
     /// +0x22c (0x6241AC): `scene::clip`'s second output run (five words written back from its work); `race::car_shadow` keeps the new crossing vertex's fog byte (+0x20, blended like the amount) in [0]; now each view's (`scene::polygon_work`); unused.
-    pub clip_out_words: [Dword; 5],
+    pub clip_out_words: [PlainDword; 5],
     /// +0x240 (0x6241C0): two dwords before the farthest depth; no code references them (a gap).
-    pub unknown_240: [Dword; 2],
+    pub unknown_240: [PlainDword; 2],
     /// +0x248 (0x6241C8): the farthest depth (`scene::set_view_window`); now each view's (`scene::view_window`); unused.
-    pub farthest: Float,
+    pub farthest: PlainFloat,
     /// +0x24c (0x6241CC): 1 over it; now each view's (`scene::view_window`); unused.
-    pub one_over_farthest: Float,
+    pub one_over_farthest: PlainFloat,
     /// +0x250 (0x6241D0): it times `fade_a` over `fade_b` over 65536; now each view's (`scene::view_window`); unused.
-    pub farthest_scaled: Dword,
+    pub farthest_scaled: PlainDword,
     /// +0x254 (0x6241D4): the clip rectangle as whole numbers: top, bottom, left, right; now each view's (`scene::view_window`); unused.
-    pub clip_edges: [Dword; 4],
+    pub clip_edges: [PlainDword; 4],
     /// +0x264 (0x6241E4): the same as floats (`g_clipScreenTop` .. `Right`); now each view's (`scene::view_window`); unused.
-    pub clip_screen: [Float; 4],
+    pub clip_screen: [PlainFloat; 4],
     /// +0x274 (0x6241F4): `view_offset` as floats; now each view's (`scene::view_window`); unused.
-    pub view_offset_float: [Float; 2],
+    pub view_offset_float: [PlainFloat; 2],
     /// +0x27c (0x6241FC): two dwords after the offsets as floats; no code references them (a gap).
-    pub unknown_27c: [Dword; 2],
+    pub unknown_27c: [PlainDword; 2],
     /// +0x284 (0x624204): (`scene::draw_object_faces`); now each view's (`scene::view_window`); unused.
-    pub faces_done: Dword,
+    pub faces_done: PlainDword,
     /// +0x288 (0x624208): six dwords before `fade_b`; no code references them (a gap).
-    pub unknown_288: [Dword; 6],
+    pub unknown_288: [PlainDword; 6],
     /// +0x2a0 (0x624220): (`scene::set_view_window`).
-    pub fade_b: Float,
+    pub fade_b: PlainFloat,
     /// +0x2a4 (0x624224): (100 less `dword_60AC80`, held) times `flt_5C5CFC`; now each view's (`scene::view_window`); unused.
-    pub depth_divisor: Float,
+    pub depth_divisor: PlainFloat,
     /// +0x2a8 (0x624228): (`scene::set_view_window`).
-    pub fade_a: Float,
+    pub fade_a: PlainFloat,
     /// +0x2ac (0x62422C): `clip_farthest` is the farthest times it.
-    pub clip_factor: Float,
+    pub clip_factor: PlainFloat,
     /// +0x2b0 (0x624230): `g_clipFarthest`, rounded; now each view's (`scene::view_window`); unused.
-    pub clip_farthest: Dword,
+    pub clip_farthest: PlainDword,
     /// +0x2b4 (0x624234): `g_mirrorPicture`: the mirror picture's texture.
-    pub mirror_picture: Dword,
+    pub mirror_picture: PlainDword,
     /// +0x2b8 (0x624238): the `v3driverfix` setting.
-    pub v3_driver_fix: Dword,
+    pub v3_driver_fix: PlainDword,
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
@@ -187,7 +190,9 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(&scene().drawing.scene);
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            scene().drawing.scene.get(),
+        );
     }
 
     #[test]

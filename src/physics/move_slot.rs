@@ -107,7 +107,7 @@ pub fn move_slot(
     }
     for k in [1, 0, 2] {
         let d = mul2_to_int(&s.motion[k], dt, k65536) as u32;
-        drawing.scene.scratch.set(d);
+        drawing.scene.get().scratch.set(d);
         s.place[k].set(s.place[k].get().wrapping_add(d));
     }
     s.motion[1].st(-(c.tables.gravity.ld() * bh::ld(dt)) + s.motion[1].ld());
@@ -145,6 +145,10 @@ pub fn move_slot(
             return Ok(());
         }
     }
-    drawing.scene.scratch.set(abs_of(&s.motion[1]).to_bits());
+    drawing
+        .scene
+        .get()
+        .scratch
+        .set(abs_of(&s.motion[1]).to_bits());
     Ok(())
 }

@@ -76,18 +76,20 @@ pub fn engine_sound(
     run(shared.car(), numbers);
     drawing
         .scene
+        .get()
         .scratch
         .set(x87::loaded(&shared.car().engine_speed).to_bits());
     let floor = shared.physics_tables.idle_engine_speed.get();
-    let held = hold_low(f32::from_bits(drawing.scene.scratch.get()), floor);
-    drawing.scene.scratch.set(held.to_bits());
+    let held = hold_low(f32::from_bits(drawing.scene.get().scratch.get()), floor);
+    drawing.scene.get().scratch.set(held.to_bits());
     drawing
         .scene
+        .get()
         .scratch
-        .set(ext_to_int(extended(drawing.scene.scratch.get())) as u32);
+        .set(ext_to_int(extended(drawing.scene.get().scratch.get())) as u32);
     let (revs, _) = ease_revs(
         shared.car().engine_sound_revs.get(),
-        drawing.scene.scratch.get(),
+        drawing.scene.get().scratch.get(),
     );
     shared.car().engine_sound_revs.set(revs);
     { car_sound_state(numbers, matrices, shared) }?;

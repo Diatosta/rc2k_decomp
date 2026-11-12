@@ -86,7 +86,7 @@ fn quad(
     if let Some(t) = texture {
         polygon.polygon_textures[0].set(t);
     }
-    scene.drawing.scene.polygon_alpha.set(0xFF);
+    scene.drawing.scene.get().polygon_alpha.set(0xFF);
     quad_input(shared, scratch, 0).set(0xFFFF_FFFF);
     polygon.polygon_sides[0].set(1);
     polygon.polygon_sides[1].set(0);
@@ -96,8 +96,7 @@ fn quad(
         race,
         &scratch.face,
         course,
-        scene,
-        crate::workers::DrawReads::on_game_thread(scene),
+        crate::workers::DrawReads::on_game_thread(crate::workers::LentOwners { race, scene }),
         screen,
         scratch,
     )
@@ -114,7 +113,7 @@ pub fn overlay_tail(overlay: &Overlay) -> Result<(), Refused> {
     } = *overlay;
     let frame = &race.frame;
     let (shown, players) = (
-        frame.panel_and_overlay.panel.hud_flags[0].get(),
+        frame.panel_and_overlay.get().panel.hud_flags[0].get(),
         crate::hud::overlay_pass::shown_layout(&race.shared),
     );
     if !strips::tail_shown(shown, players) {
@@ -142,7 +141,7 @@ pub fn draw_view_strip(overlay: &Overlay, view: u32) -> Result<(), Refused> {
         return Err(BadInput("a view past the overlay's tables").into());
     }
     {
-        let top = strips::top_entry(view, frame.panel_and_overlay.panel.flat.get());
+        let top = strips::top_entry(view, frame.panel_and_overlay.get().panel.flat.get());
         let top: u32 = strips.tops[top as usize].get();
         let left: u32 = strips.lefts[view as usize].get();
         sizes(system, strips, [top, strips::HEIGHT, left, strips::WIDTH]);

@@ -80,8 +80,10 @@ fn number_name_byte(work: &RaceWork, offset: u32) -> Result<u8, BadInput> {
 /// `car_decal_places`[]` names (marks 0xA .. 0x1B; one past the marks is refused).
 pub fn car_number_textures(
     race: &Race,
+    blocks: &crate::race::blocks_store::CarBlocks,
     car: usize,
     marks: &crate::scene::car_marks::CarMarks,
+    frame_work: &crate::race::frame_store::FrameWork,
 ) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::car_marks` (the rounding of +0x718 the x87's, under the
     // game's control word).
@@ -91,7 +93,7 @@ pub fn car_number_textures(
     let block = car_view(car)?;
     let float = |c: &crate::session::Float| c.get();
     {
-        let limit = race.frame.frame_work.decal_limit.get();
+        let limit = frame_work.decal_limit.get();
         let side = lamp_side(float(&block.drive_speed_a), limit);
         marks.mark(1).set(side);
         marks.mark(4).set(side);
@@ -99,7 +101,7 @@ pub fn car_number_textures(
         marks.mark(2).set(side);
         marks.mark(3).set(side);
         let name = car_view(car)?.car_kind.get().wrapping_mul(0x30);
-        let n = crate::math::x87::to_int(&race.car_blocks().cars[car].shown_engine_speed);
+        let n = crate::math::x87::to_int(&blocks.cars[car].shown_engine_speed);
         let (place, _) = letter_place(n);
         let letter = letter_number(number_name_byte(
             &race.shared.work,
@@ -119,8 +121,8 @@ pub fn car_number_textures(
             race.course.numbers.hundred.get(),
         ) {
             for k in 0..0x11u32 {
-                let byte = race.car_blocks().cars[car].part_switches.get(k as usize) as u32;
-                let to = race.frame.frame_work.car_decal_places[k as usize].get() as usize;
+                let byte = blocks.cars[car].part_switches.get(k as usize) as u32;
+                let to = frame_work.car_decal_places[k as usize].get() as usize;
                 if to >= crate::scene::car_marks::MARKS {
                     return Err(BadInput("a decal place past the car's marks"));
                 }
@@ -241,13 +243,19 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
     // The car's marks, its own while it is drawn (the original's, cleared after it by
     // `race::clear_car_marks`: `scene::car_marks`).
     let marks = crate::scene::car_marks::CarMarks::new();
-    car_number_textures(race, car, &marks)?;
+    car_number_textures(
+        race,
+        &ctx.reads.cars_and_replay.car_blocks,
+        car,
+        &marks,
+        ctx.reads.frame_work,
+    )?;
     let ctx = &crate::race::view_scratch::DrawCtx {
         marks: &marks,
         ..*ctx
     };
     let [p0, p1, p2, p3] = part_matrices(&ctx.view.cars);
-    let c = &race.car_blocks().cars[car];
+    let c = &ctx.reads.cars_and_replay.car_blocks.cars[car];
     let kept = &c.part_matrices;
     for (from, to) in [
         &kept[..16],
@@ -271,7 +279,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
     ctx.view
         .cars
         .groups_which
-        .set(race.car_blocks().cars[car].mode_on.get());
+        .set(ctx.reads.cars_and_replay.car_blocks.cars[car].mode_on.get());
     let model = car_view(car)?.car_kind.get();
     ctx.view.matrices.known_object.set(model);
     set_group_masks(
@@ -321,7 +329,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
     if !below(stage, 0x33) {
         stage = 0x33;
     }
-    let record = ViewVars::record_of(&race.frame.view_and_records, stage as usize)?;
+    let record = ViewVars::record_of(ctx.reads.view_and_records, stage as usize)?;
     if record.fixed_zoom.get() != 0 {
         ctx.view.cars.car_depth.set(0x5_0000);
     }
@@ -499,14 +507,13 @@ pub fn draw_car_shined(
 /// `race::draw_car_entry` (0x455105): car `entry` & 7 (into `drawn_car`; `view_light_base` its
 /// +0x240): its place turned by `g_viewMatrix` (`scene::rotate_point`) into `car_kept` ..
 /// `car_depth`; drawn (`race::draw_car_shined`, counted in `cars_drawn`) unless behind
-/// (depth + 0x40000 below 0) or aside (|x| - 0x80000 not below the depth), counted in
-/// `cars_culled`. Refuses (before anything) a car without its block.
+/// (depth + 0x40000 below 0) or aside (|x| - 0x80000 not below the depth), those not counted
+/// (the original counted them in a variable nothing read). Refuses (before anything) a car without its block.
 pub fn draw_car_entry(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     entry: u32,
 ) -> Result<(), Refused> {
     let race = ctx.race;
-    let frame = &race.frame;
     use crate::math::x87::tbyte_to_int;
     use crate::race::skidmarks::int_80;
     let n = entry & 7;
@@ -535,10 +542,6 @@ pub fn draw_car_entry(
     let depth = place[2];
     let mut x = place[0];
     if below(depth, 0xFFFC_0000) {
-        frame
-            .frame_work
-            .cars_culled
-            .set(frame.frame_work.cars_culled.get().wrapping_add(1));
         return Ok(());
     }
     if (x as i32) < 0 {
@@ -546,10 +549,6 @@ pub fn draw_car_entry(
     }
     x = x.wrapping_sub(0x8_0000);
     if !below(x, depth) {
-        frame
-            .frame_work
-            .cars_culled
-            .set(frame.frame_work.cars_culled.get().wrapping_add(1));
         return Ok(());
     }
     ctx.view
@@ -584,7 +583,7 @@ mod vector_tests {
     fn state() -> [u32; 5] {
         let race = race();
         [
-            race.frame.frame_work.car_depth.get(),
+            race.frame.frame_work.get().car_depth.get(),
             race.shared.work.car_nearness.get().to_bits(),
             race.course.course.shine.get(),
             race.course.numbers.zero.get().to_bits(),
@@ -594,10 +593,11 @@ mod vector_tests {
 
     fn fill(r: &mut Rng) {
         let race = race();
-        scene().drawing.scene.scratch.set(0xAAAA_AAAAu32);
+        scene().drawing.scene.get().scratch.set(0xAAAA_AAAAu32);
         // the depth is a whole number around the view's reach
         race.frame
             .frame_work
+            .get()
             .car_depth
             .set((r.int() as u32) & 0x3F_FFFF);
         race.shared.work.car_nearness.set(f32::from_bits(r.float()));
@@ -618,7 +618,8 @@ mod vector_tests {
     fn plain() -> Vec<u32> {
         let race = race();
         let cars = CarDrawState::new();
-        cars.car_depth.set(race.frame.frame_work.car_depth.get());
+        cars.car_depth
+            .set(race.frame.frame_work.get().car_depth.get());
         let mine = crate::race::view_course::ViewCourse::new();
         mine.shine.set(race.course.course.shine.get());
         nearness(race, &cars, &mine);

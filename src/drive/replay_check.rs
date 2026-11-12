@@ -102,7 +102,7 @@ pub fn compare_frame(race: &Race) -> Result<(), BadInput> {
             return Err(BadInput("a dword past the replay's starting state"));
         }
         crate::cells::load_value::<u32>(
-            &race.replay.cars_and_replay,
+            race.replay.cars_and_replay.get(),
             REPLAY_STATE_OFFSET + 4 * dword,
         )
     };

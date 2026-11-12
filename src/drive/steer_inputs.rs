@@ -17,10 +17,10 @@ use crate::math::x87_float::to_int;
 use crate::physics::flow::c0;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
-use crate::session::Dword;
+use crate::session::{DwordLike, FloatLike};
 
 /// `fild dword [from]; fmul dword [by]; fistp dword [to]`.
-fn scale(from: &Dword, by: &crate::session::Float, to: &Dword) {
+fn scale(from: &impl DwordLike, by: &impl FloatLike, to: &impl DwordLike) {
     to.set(to_int(int(from.get() as i32) * by.ld()) as u32);
 }
 
@@ -34,17 +34,17 @@ fn sign(v: u32) -> bool {
 /// The key step: 0xA00000 x `PhysicsTables.handling[8]`, through `scratch`.
 fn key_step(shared: &RaceShared, scene: &crate::scene::owner::Scene) -> u32 {
     let drawing = &scene.drawing;
-    drawing.scene.scratch.set(0xA0_0000);
+    drawing.scene.get().scratch.set(0xA0_0000);
     scale(
-        &drawing.scene.scratch,
+        &drawing.scene.get().scratch,
         &shared.physics_tables.handling[8],
-        &drawing.scene.scratch,
+        &drawing.scene.get().scratch,
     );
-    drawing.scene.scratch.get()
+    drawing.scene.get().scratch.get()
 }
 
 /// One steering value moved by the key step (0x439DFA .. / 0x439E95 ..).
-fn steer(shared: &RaceShared, cell: &Dword, step: u32) {
+fn steer(shared: &RaceShared, cell: &impl DwordLike, step: u32) {
     let word = shared.physics_tables.input_steer.get();
     let v = cell.get();
     if word != 0 {
@@ -99,33 +99,33 @@ pub fn steer_inputs(race: &Race, scene: &crate::scene::owner::Scene) {
         race_owner.shared.car().steering.set(0);
         let product = i64::from(race_owner.shared.physics_tables.input_steer.get() as i32)
             * i64::from(RIGHT as i32);
-        drawing.scene.scratch.set((product >> 8) as u32);
+        drawing.scene.get().scratch.set((product >> 8) as u32);
         scale(
-            &drawing.scene.scratch,
+            &drawing.scene.get().scratch,
             &race_owner.shared.physics_tables.handling[7],
-            &drawing.scene.scratch,
+            &drawing.scene.get().scratch,
         );
-        if sign(drawing.scene.scratch.get().wrapping_sub(LEFT)) {
-            drawing.scene.scratch.set(LEFT);
+        if sign(drawing.scene.get().scratch.get().wrapping_sub(LEFT)) {
+            drawing.scene.get().scratch.set(LEFT);
         }
-        if !sign(drawing.scene.scratch.get().wrapping_sub(RIGHT)) {
-            drawing.scene.scratch.set(RIGHT);
+        if !sign(drawing.scene.get().scratch.get().wrapping_sub(RIGHT)) {
+            drawing.scene.get().scratch.set(RIGHT);
         }
         race_owner
             .shared
             .car()
             .steering_raw
-            .set(drawing.scene.scratch.get());
+            .set(drawing.scene.get().scratch.get());
         race_owner
             .shared
             .car()
             .steering
-            .set(drawing.scene.scratch.get());
+            .set(drawing.scene.get().scratch.get());
     }
     // 0x439F7D: the trim.
-    drawing.scene.scratch.set(RIGHT);
+    drawing.scene.get().scratch.set(RIGHT);
     scale(
-        &drawing.scene.scratch,
+        &drawing.scene.get().scratch,
         &race_owner.shared.car().steering_efficiency,
         &race_owner.shared.car().steer_trim,
     );
@@ -178,9 +178,9 @@ mod reference_vectors {
                 plain: |_| {
                     let drawing = &scene().drawing;
                     scale(
-                        &drawing.scene.scratch,
+                        &drawing.scene.get().scratch,
                         &race().shared.physics_tables.handling[8],
-                        &drawing.scene.scratch,
+                        &drawing.scene.get().scratch,
                     );
                 },
             },
@@ -194,9 +194,9 @@ mod reference_vectors {
                 plain: |_| {
                     let drawing = &scene().drawing;
                     scale(
-                        &drawing.scene.scratch,
+                        &drawing.scene.get().scratch,
                         &race().shared.physics_tables.handling[7],
-                        &drawing.scene.scratch,
+                        &drawing.scene.get().scratch,
                     );
                 },
             },
@@ -210,7 +210,7 @@ mod reference_vectors {
                 plain: |_| {
                     let drawing = &scene().drawing;
                     scale(
-                        &drawing.scene.scratch,
+                        &drawing.scene.get().scratch,
                         &race().shared.car().steering_efficiency,
                         &race().shared.car().steer_trim,
                     );

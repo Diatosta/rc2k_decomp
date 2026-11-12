@@ -8,7 +8,6 @@
 //! (`PUBLISHED`). The original also counted the lamps' depth entries (`g_lampEntryCount`,
 //! 0x641590), which nothing read.
 
-use crate::race::frame_store::FrameWork;
 use crate::race::level_grid_store::{LevelGrid, first_of};
 use crate::race::view_store::RaceView;
 use crate::session::Dword;
@@ -41,7 +40,7 @@ impl LampWork {
             lamp_count,
             ..
         } = RaceView::new();
-        let FrameWork { flare_count, .. } = FrameWork::new();
+        let flare_count = Dword::new(0);
         Self {
             lamps: first_of::<_, 0x100>(offset_of!(LevelGrid, lamps)),
             flare_place_x: first_of::<_, 0x400>(offset_of!(LevelGrid, flare_place_x)),

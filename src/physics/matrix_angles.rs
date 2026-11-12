@@ -38,12 +38,12 @@ pub fn matrix_angles(
     turn_unit(m, &turned, [0.0, 0.0, 1.0]);
     let pitch = clamped_asin_at(
         extended(l.turned_y.get()),
-        &drawing.scene.scratch,
+        &drawing.scene.get().scratch,
         &course.numbers.one,
     );
     l.car_pitch.set(neg_rounded(pitch));
     turn_unit(m, &turned, [1.0, 0.0, 0.0]);
     let sine = over_cos_80(&l.turned_y, &l.car_pitch);
-    let roll = clamped_asin_at(sine, &drawing.scene.scratch, &course.numbers.one);
+    let roll = clamped_asin_at(sine, &drawing.scene.get().scratch, &course.numbers.one);
     l.car_roll.set(rounded_value(roll));
 }

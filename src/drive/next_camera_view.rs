@@ -13,6 +13,7 @@ use crate::physics::car_store::Car;
 use crate::race::kind_store::KindTables;
 use crate::race::owner::Race;
 use crate::session::Dword;
+use crate::session::PlainDword;
 use rc2k_core::drive::camera_views::next_view;
 
 /// On block `car`, the players `players`, the step count `step`.
@@ -21,7 +22,7 @@ pub fn next_view_at(
     kinds: &KindTables,
     car: &Car,
     players: &Dword,
-    step: &Dword,
+    step: &PlainDword,
 ) -> Result<(), BadInput> {
     if car.camera_switch_active.get() != 0 {
         return Ok(());

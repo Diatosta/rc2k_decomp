@@ -17,7 +17,7 @@ pub fn load_replay_frame(race: &Race, system: &System) -> Result<(), Refused> {
     crate::drive::replay_frame_marks::replay_frame_marks(race)?;
     copy_cells(
         (&race.viewer_buffers().block, 0),
-        (&replay.cars_and_replay, REPLAY_STATE_OFFSET),
+        (replay.cars_and_replay.get(), REPLAY_STATE_OFFSET),
         REPLAY_STATE_DWORDS * 4,
     );
     Ok(())

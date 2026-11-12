@@ -27,7 +27,7 @@ pub fn normalise_work_vector(
     for (cell, &bits) in scratch.work_vector[..3].iter().zip(&v) {
         cell.set(bits);
     }
-    scene.drawing.scene.scratch.set(length.to_bits());
+    scene.drawing.scene.get().scratch.set(length.to_bits());
     for part in &scratch.work_vector[..3] {
         if zero || part.get() == 0x8000_0000 {
             part.set(0u32);

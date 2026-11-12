@@ -7,7 +7,7 @@ use crate::errors::{BadInput, Refused};
 use crate::math::cells::copy_cells;
 use crate::race::owner::Race;
 use crate::scene::matrix::{multiply_matrices, set_place, set_turn_x, set_turn_y};
-use crate::session::Float;
+use crate::session::PlainFloat;
 
 /// The five axle values (`rc2k_core::race::car_parts::axles`) from the model's record
 /// (`LightsAndGear.light_records.records[0].axles[0]` .. of its 0x134-byte record) and the lift.
@@ -101,12 +101,12 @@ pub fn car_part_matrices(
     );
     crate::math::cells::copy_cells(
         &race.frame.matrices.placed_matrix,
-        &race.frame.frame_work.placed_matrices,
+        &race.frame.frame_work.get().placed_matrices,
         16,
     );
     // (x, z, the x turn, the height, the matrix): the four wheels.
     let (c, o) = (race.physics.camera(), scene.object_work());
-    let parts = |n: usize| &race.frame.frame_work.part_matrices[n..n + 16];
+    let parts = |n: usize| &race.frame.frame_work.get().part_matrices[n..n + 16];
     for (n, (x, z, spin, lift, out)) in [
         (
             &c.axle_front_neg,
@@ -154,7 +154,7 @@ pub fn car_part_matrices(
         set_turn_x(
             race.engine_tables(),
             &race.frame.matrices.turn_x_matrix,
-            &scene.drawing.scene.turn_x_work,
+            &scene.drawing.scene.get().turn_x_work,
             spin.get(),
         );
         let placed = &race.frame.matrices.placed_matrix;
@@ -164,7 +164,7 @@ pub fn car_part_matrices(
         set_turn_y(
             race.engine_tables(),
             &race.frame.matrices.turn_y_matrix,
-            &scene.drawing.scene.turn_y_work,
+            &scene.drawing.scene.get().turn_y_work,
             scene.object_work().part_values[2].get(),
         );
         multiply_matrices(turned, &race.frame.matrices.turn_y_matrix, lit);
@@ -199,7 +199,7 @@ pub fn ready_car_parts(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
         if parts_shown(view.driver_kind.get()) {
             car_part_matrices(race, car, scene)?;
             let wheels = &block.part_matrices;
-            let kept: [&[Float]; KEPT_MATRICES as usize] = [
+            let kept: [&[PlainFloat]; KEPT_MATRICES as usize] = [
                 &wheels[..16],
                 &wheels[16..32],
                 &wheels[32..48],
@@ -207,21 +207,19 @@ pub fn ready_car_parts(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
                 &block.body_matrix,
                 &block.place_matrix,
             ];
-            let parts = &frame.frame_work.part_matrices;
-            let from: [&[Float]; KEPT_MATRICES as usize] = [
-                &parts[..16],
-                &parts[16..32],
-                &parts[32..48],
-                &parts[48..],
-                &frame.matrices.body_turn_matrix,
-                &frame.frame_work.placed_matrices[..16],
-            ];
-            for (from, to) in from.into_iter().zip(kept) {
+            let work = frame.frame_work.get();
+            let parts = &work.part_matrices;
+            for (from, to) in [&parts[..16], &parts[16..32], &parts[32..48], &parts[48..]]
+                .into_iter()
+                .zip(&kept)
+            {
                 copy_cells(from, to, 16);
             }
+            copy_cells(&frame.matrices.body_turn_matrix, kept[4], 16);
+            copy_cells(&work.placed_matrices[..16], kept[5], 16);
             multiply_matrices(
                 &frame.matrices.body_turn_matrix,
-                &frame.frame_work.placed_matrices,
+                &frame.frame_work.get().placed_matrices,
                 &frame.matrices.view_place,
             );
             copy_cells(&frame.matrices.view_place, &block.whole_matrix, 16);

@@ -62,8 +62,9 @@ impl Scene {
 /// The drawing state: the draw variables and the scene objects' work.
 pub struct Drawing {
     /// The scene's draw variables (`DRAW`).
-    /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
-    pub scene: SceneDraw,
+    /// Written between frames (mostly the physics' work dwords), read by the drawing parts
+    /// through their reads (`workers::DrawReads`).
+    pub scene: DrawShared<SceneDraw>,
 }
 
 /// The light state and the lights' work variables.
@@ -101,7 +102,7 @@ pub static SCENE: Scene = Scene {
     draw_switches: DrawShared::new(DrawSwitches::new()),
     light_tables: DrawShared::new(LightTables::new()),
     drawing: Drawing {
-        scene: SceneDraw::new(),
+        scene: DrawShared::new(SceneDraw::new()),
     },
     lights: Lights {
         state: DrawShared::new(LightState::new()),

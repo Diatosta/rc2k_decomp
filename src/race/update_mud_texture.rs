@@ -71,9 +71,10 @@ pub fn update_mud_texture(
             .wrapping_add(n),
         scene,
     )?;
-    frame.panel_and_overlay.panel.texture_changes.set(
+    frame.panel_and_overlay.get().panel.texture_changes.set(
         frame
             .panel_and_overlay
+            .get()
             .panel
             .texture_changes
             .get()

@@ -56,7 +56,7 @@ pub fn pace_notes_step(
         &numbers.eight,
         ONE_F32,
     );
-    scene.drawing.scene.scratch.set(ahead as u32);
+    scene.drawing.scene.get().scratch.set(ahead as u32);
     let target = call_target(
         car.reset_checkpoint.get(),
         ahead,

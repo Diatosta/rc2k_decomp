@@ -23,7 +23,7 @@ pub fn set_wheel_weights(
     numbers: &Numbers,
     scene: &crate::scene::owner::Scene,
 ) {
-    let scratch = &scene.drawing.scene.scratch;
+    let scratch = &scene.drawing.scene.get().scratch;
     let one = numbers.one.get();
     let high = numbers.five.get();
     let k = numbers.quarter.get();

@@ -20,8 +20,8 @@ pub fn draw_marker(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     {
         let f = f32::from_bits;
         let x = marker_x(
-            f(frame.panel_and_overlay.panel.distance[0].get()),
-            f(frame.panel_and_overlay.panel.overlay_miles.get()),
+            f(frame.panel_and_overlay.get().panel.distance[0].get()),
+            f(frame.panel_and_overlay.get().panel.overlay_miles.get()),
             hud.block.marker_k[0].get(),
             hud.block.marker_k[1].get(),
         );

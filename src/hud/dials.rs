@@ -10,8 +10,9 @@ use crate::errors::Refused;
 use crate::hud::owner::{Hud, Pen};
 use crate::hud::store::HudBlock;
 use crate::race::owner_frame::Frame;
-use crate::race::panel_store::{Loose32, Panel};
+use crate::race::panel_store::Panel;
 use crate::session::PlainFloat;
+use crate::session::PlainLoose;
 
 /// A layout's own variables of a dial, in the order its set-up copies them.
 type Vars = fn(&HudBlock) -> &[PlainFloat];
@@ -19,7 +20,7 @@ type Vars = fn(&HudBlock) -> &[PlainFloat];
 /// How one disc is set up.
 pub struct DiscStyle {
     /// The texture shift (two dwords) and turn: a view's `motion`.
-    shift: fn(&Panel) -> &[Loose32; 3],
+    shift: fn(&Panel) -> &[PlainLoose; 3],
     /// The layout's variables: size, texture scale, centre x, centre y; then, when
     /// `lifted_centre`, a second centre y.
     vars: Vars,
@@ -30,7 +31,7 @@ pub struct DiscStyle {
 /// How one needle is set up.
 pub struct NeedleStyle {
     /// The needle's value: a view's `whole`.
-    value: fn(&Panel) -> &Loose32,
+    value: fn(&Panel) -> &PlainLoose,
     /// The layout's variables: centre x, centre y; then, when `lifted_centre`, a second
     /// centre y; then the size.
     vars: Vars,
@@ -98,7 +99,7 @@ fn copy(from: &PlainFloat, to: &PlainFloat) {
 /// The disc's set-up: the shape's variables filled from the panel and the style.
 fn set_up_disc(frame: &Frame, hud: &Hud, style: &DiscStyle) {
     let own = (style.vars)(&hud.block);
-    let [u, v, turn] = (style.shift)(&frame.panel_and_overlay.panel);
+    let [u, v, turn] = (style.shift)(&frame.panel_and_overlay.get().panel);
     hud.block.disc_texture_shift[0].set(f32::from_bits(u.get()));
     hud.block.disc_texture_shift[1].set(f32::from_bits(v.get()));
     hud.block.disc_turn.set(f32::from_bits(turn.get()));
@@ -106,7 +107,7 @@ fn set_up_disc(frame: &Frame, hud: &Hud, style: &DiscStyle) {
     copy(&own[1], &hud.block.disc_texture_scale);
     copy(&own[2], &hud.block.disc_centre[0]);
     copy(&own[3], &hud.block.disc_centre[1]);
-    if style.lifted_centre && frame.panel_and_overlay.panel.flat.get() == 0 {
+    if style.lifted_centre && frame.panel_and_overlay.get().panel.flat.get() == 0 {
         copy(&own[4], &hud.block.disc_centre[1]);
     }
 }
@@ -114,12 +115,12 @@ fn set_up_disc(frame: &Frame, hud: &Hud, style: &DiscStyle) {
 /// The needle's set-up: the shape's variables filled from the panel and the style.
 fn set_up_needle(frame: &Frame, hud: &Hud, style: &NeedleStyle) {
     let own = (style.vars)(&hud.block);
-    let value = (style.value)(&frame.panel_and_overlay.panel);
+    let value = (style.value)(&frame.panel_and_overlay.get().panel);
     hud.block.needle_value.set(value.get());
     copy(&own[0], &hud.block.needle_centre[0]);
     copy(&own[1], &hud.block.needle_centre[1]);
     let size = if style.lifted_centre {
-        if frame.panel_and_overlay.panel.flat.get() == 0 {
+        if frame.panel_and_overlay.get().panel.flat.get() == 0 {
             copy(&own[2], &hud.block.needle_centre[1]);
         }
         3

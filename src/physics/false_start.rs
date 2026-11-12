@@ -10,7 +10,7 @@
 
 use crate::errors::Refused;
 use crate::physics::step_families::ResetInputs;
-use crate::session::Dword;
+use crate::session::PlainDword;
 use rc2k_core::physics::notices::Notice;
 use rc2k_core::physics::start::CarStart;
 
@@ -39,7 +39,7 @@ pub fn false_start(
     };
     let (mut car, mut notice) = (was, notice_was);
     let done = car.false_start(c.gear.get(), &mut notice);
-    let changes: [(&Dword, u32, u32); 10] = [
+    let changes: [(&PlainDword, u32, u32); 10] = [
         (&c.start_in_gear, was.held, car.held),
         (&c.false_start_count, was.count, car.count),
         (&c.stage_time, was.time, car.time),

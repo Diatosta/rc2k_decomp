@@ -27,7 +27,7 @@ pub static RACE: Race = Race {
     frame: Frame::new(),
     replay: Replay::new(),
     shared: RaceShared::new(
-        &RACE.replay.cars_and_replay.car_blocks,
+        &RACE.replay.cars_and_replay,
         &RACE.replay.viewer_and_kinds.marks_settings,
     ),
 };

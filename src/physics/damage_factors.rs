@@ -16,7 +16,7 @@ use crate::physics::flow::{
     abs_below_or_unordered, below_or_unordered, equal_or_unordered, hold_high, hold_low, table_lerp,
 };
 use crate::physics::store::DamageModel;
-use crate::session::Float;
+use crate::session::PlainFloat;
 use core::cmp::Ordering;
 
 /// The damage model's figures for this step.
@@ -143,7 +143,7 @@ fn scale_car_figures(car: &Car, m: &DamageModel) {
 
 /// A wheel's stiffness: the stiffness share times the top of the gauge, less the lerp of its
 /// suspension damage.
-fn wheel_stiffness_from_share(m: &DamageModel, lerp: &Float, stiffness: &Float) {
+fn wheel_stiffness_from_share(m: &DamageModel, lerp: &PlainFloat, stiffness: &PlainFloat) {
     store(
         stiffness,
         value(&m.stiffness_share) * value(&m.gauge_top) - value(lerp),
@@ -151,7 +151,7 @@ fn wheel_stiffness_from_share(m: &DamageModel, lerp: &Float, stiffness: &Float) 
 }
 
 /// A wheel's ride height: the ride height share times the top of the gauge.
-fn wheel_ride_height_from_share(m: &DamageModel, ride_height: &Float) {
+fn wheel_ride_height_from_share(m: &DamageModel, ride_height: &PlainFloat) {
     store(
         ride_height,
         value(&m.ride_height_share) * value(&m.gauge_top),
@@ -159,7 +159,7 @@ fn wheel_ride_height_from_share(m: &DamageModel, ride_height: &Float) {
 }
 
 /// A worn-out wheel: full stiffness, no ride height.
-fn fail_wheel(m: &DamageModel, stiffness: &Float, ride_height: &Float) {
+fn fail_wheel(m: &DamageModel, stiffness: &PlainFloat, ride_height: &PlainFloat) {
     store(stiffness, value(&m.gauge_top));
     store(ride_height, value(&m.gauge_low));
 }
@@ -228,9 +228,9 @@ fn drive_a_slip_step(car: &Car, m: &DamageModel) {
 fn drive_extrapolation_step(
     car: &Car,
     m: &DamageModel,
-    share: &Float,
-    drive_speed: &Float,
-    carried: &Float,
+    share: &PlainFloat,
+    drive_speed: &PlainFloat,
+    carried: &PlainFloat,
 ) {
     store(share, value(&m.scratch) / value(&m.speed_range));
     store(

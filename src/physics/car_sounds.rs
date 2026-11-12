@@ -19,6 +19,7 @@ use crate::race::matrices_store::SceneMatrices;
 use crate::race::numbers_store::Numbers;
 use crate::scene::matrix3::rounded_value;
 use crate::scene::rotate_point::rotate_point;
+use crate::session::PlainDword;
 use crate::session::{Dword, Float};
 use crate::sound::store::SoundObject;
 use rc2k_core::physics::sound_places::{FIRST, PLAY, SECOND, Slot};
@@ -75,7 +76,7 @@ pub fn place_plain(
     into: &[Float; 3],
     offset: Option<[u32; 3]>,
 ) {
-    let whole = |x: &[Dword; 3]| [0, 1, 2].map(|k| x[k].get() as i32);
+    let whole = |x: &[PlainDword; 3]| [0, 1, 2].map(|k| x[k].get() as i32);
     let p = rc2k_core::physics::sound_places::place(
         whole(&car.position),
         whole(&car.camera_position),

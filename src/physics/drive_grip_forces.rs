@@ -38,6 +38,7 @@ use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 use crate::scene::engine_tables_store::EngineTables;
 use crate::session::Float;
+use crate::session::PlainFloat;
 
 /// The steer angle's table index (the angle >> 20).
 fn steer_index(car: &Car) -> u32 {
@@ -59,7 +60,7 @@ pub fn drive_grip_forces(
     let drawing = &scene.drawing;
     let kind = car.drive_kind.get();
     // 0x43CD79: the share of +0x1F4 out of 50, from 1, held 0 ..= 1.
-    drawing.scene.scratch.set(0x32);
+    drawing.scene.get().scratch.set(0x32);
     lever_share_from_timer(car, tables, numbers, scene);
     hold_low_bits(&tables.lever_share, ZERO);
     hold_high(&tables.lever_share, &numbers.one);
@@ -77,23 +78,27 @@ pub fn drive_grip_forces(
             &tables.grip_factor[0]
         };
         grip_limit_for(car, tables, factor);
-        drawing.scene.scratch.set_float(car.grip_forces[0].get());
+        drawing
+            .scene
+            .get()
+            .scratch
+            .set_float(car.grip_forces[0].get());
         // +0x210 held to ±the limit (the value negated in place between).
         hold_high(&car.grip_forces[0], &tables.grip_limit);
         negate(&car.grip_forces[0]);
         hold_high(&car.grip_forces[0], &tables.grip_limit);
         negate(&car.grip_forces[0]);
-        let slow = |v: &Float| abs_below_or_unordered(v, &tables.grip_slow_speed);
+        let slow = |v: &PlainFloat| abs_below_or_unordered(v, &tables.grip_slow_speed);
         if !slow(&car.local_velocity[2]) && slow(&car.drive_speed_a) {
             car.grip_forces[0].set(0.0);
         }
         if car.input_keys.get() & 0x1000 != 0 {
-            if drawing.scene.scratch.get() == 0 {
+            if drawing.scene.get().scratch.get() == 0 {
                 car.steering.set(0);
             } else {
-                divide_into_scratch(&car.grip_forces[0], &drawing.scene.scratch, scene);
-                hold_high(&drawing.scene.scratch, &numbers.one);
-                hold_low_bits(&drawing.scene.scratch, ZERO);
+                divide_into_scratch(&car.grip_forces[0], &drawing.scene.get().scratch, scene);
+                hold_high(&drawing.scene.get().scratch, &numbers.one);
+                hold_low_bits(&drawing.scene.get().scratch, ZERO);
                 scale_steering(car, scene);
             }
         }
@@ -110,7 +115,7 @@ pub fn drive_grip_forces(
     car.grip_forces[3].set(0.0);
     if kind == 0 {
         ground_speed_into_scratch(car, scene);
-        hold_high(&drawing.scene.scratch, &tables.grip_ramp);
+        hold_high(&drawing.scene.get().scratch, &tables.grip_ramp);
         lean_force(
             car,
             tables,
@@ -125,13 +130,13 @@ pub fn drive_grip_forces(
         braking_count_geared(car, tables, numbers, scene);
         ((car.brake.get().wrapping_sub(car.throttle.get()) as i32 >> 1) as u32)
             .wrapping_add(0x80)
-            .wrapping_add(drawing.scene.scratch.get())
+            .wrapping_add(drawing.scene.get().scratch.get())
             .wrapping_add(car.handbrake.get())
     } else {
         braking_count_neutral(car, tables, scene);
         0x100u32
             .wrapping_sub(car.throttle.get())
-            .wrapping_add(drawing.scene.scratch.get())
+            .wrapping_add(drawing.scene.get().scratch.get())
             .wrapping_add(car.handbrake.get())
     };
     tables.grip_drive_word.set(braking_word);
@@ -150,18 +155,23 @@ pub fn drive_grip_forces(
     car.grip_forces[2].set(0.0);
     if kind == 1 {
         abs_speed_into_work(car, scene);
-        hold_high(&drawing.scene.work_float_a, &tables.grip_slip_limit);
+        hold_high(&drawing.scene.get().work_float_a, &tables.grip_slip_limit);
         yaw_share_from_limit(tables, scene);
         drawing
             .scene
+            .get()
             .scratch
             .set(x87::loaded(&car.drive_slip_speed).to_bits());
         // Held to ±`grip_force_limit`, the limit negated in place between and put back.
-        hold_high(&drawing.scene.scratch, &tables.grip_force_limit);
+        hold_high(&drawing.scene.get().scratch, &tables.grip_force_limit);
         negate(&tables.grip_force_limit);
-        hold_low(&drawing.scene.scratch, &tables.grip_force_limit);
+        hold_low(&drawing.scene.get().scratch, &tables.grip_force_limit);
         negate(&tables.grip_force_limit);
-        divide_into_scratch(&drawing.scene.scratch, &tables.grip_force_limit, scene);
+        divide_into_scratch(
+            &drawing.scene.get().scratch,
+            &tables.grip_force_limit,
+            scene,
+        );
         yaw_force(
             car,
             tables,
@@ -209,7 +219,7 @@ fn lever_share_from_timer(
     scene: &crate::scene::owner::Scene,
 ) {
     let t0 = int(car.wall_hit_timer.get() as i32);
-    let t1 = int(scene.drawing.scene.scratch.get() as i32);
+    let t1 = int(scene.drawing.scene.get().scratch.get() as i32);
     let t2 = t0 / t1;
     let t3 = numbers.one.ld();
     let t4 = t2 - t3;
@@ -245,14 +255,14 @@ fn divide_into_scratch(
     let t0 = crate::math::x87_float::ld(o0.float());
     let t1 = crate::math::x87_float::ld(o1.float());
     let t2 = t0 / t1;
-    scene.drawing.scene.scratch.st(t2);
+    scene.drawing.scene.get().scratch.st(t2);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [steering] = [scratch] * int [steering]`
 fn scale_steering(car: &Car, scene: &crate::scene::owner::Scene) {
-    let t0 = scene.drawing.scene.scratch.ld();
+    let t0 = scene.drawing.scene.get().scratch.ld();
     let t1 = int(car.steering.get() as i32);
     let t2 = t0 * t1;
     car.steering.set(to_int(t2) as u32);
@@ -268,7 +278,7 @@ fn ground_speed_into_scratch(car: &Car, scene: &crate::scene::owner::Scene) {
     let t3 = t2 * t2;
     let t4 = t1 + t3;
     let t5 = t4.sqrt();
-    scene.drawing.scene.scratch.st(t5);
+    scene.drawing.scene.get().scratch.st(t5);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -283,7 +293,7 @@ fn lean_force(
     scene: &crate::scene::owner::Scene,
 ) {
     let t0 = tables.grip_ramp.ld();
-    let t1 = scene.drawing.scene.scratch.ld();
+    let t1 = scene.drawing.scene.get().scratch.ld();
     let t2 = t0 - t1;
     let t3 = tables.grip_ramp.ld();
     let t4 = t2 / t3;
@@ -318,7 +328,7 @@ fn braking_count_geared(
     let t2 = t0 * t1;
     let t3 = numbers.one_and_a_half.ld();
     let t4 = t2 * t3;
-    scene.drawing.scene.scratch.set(to_int(t4) as u32);
+    scene.drawing.scene.get().scratch.set(to_int(t4) as u32);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -329,7 +339,7 @@ fn braking_count_neutral(car: &Car, tables: &PhysicsTables, scene: &crate::scene
     let t1 = int(car.brake.get() as i32);
     let t2 = t0 * t1;
     let t3 = t2 + t2;
-    scene.drawing.scene.scratch.set(to_int(t3) as u32);
+    scene.drawing.scene.get().scratch.set(to_int(t3) as u32);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -355,7 +365,7 @@ fn engine_braking_force(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
 fn abs_speed_into_work(car: &Car, scene: &crate::scene::owner::Scene) {
     let t0 = car.local_velocity[2].ld();
     let t1 = t0.abs();
-    scene.drawing.scene.work_float_a.st(t1);
+    scene.drawing.scene.get().work_float_a.st(t1);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -364,11 +374,11 @@ fn abs_speed_into_work(car: &Car, scene: &crate::scene::owner::Scene) {
 fn yaw_share_from_limit(tables: &PhysicsTables, scene: &crate::scene::owner::Scene) {
     let drawing = &scene.drawing;
     let t0 = tables.grip_slip_limit.ld();
-    let t1 = drawing.scene.work_float_a.ld();
+    let t1 = drawing.scene.get().work_float_a.ld();
     let t2 = t0 - t1;
     let t3 = tables.grip_slip_limit.ld();
     let t4 = t2 / t3;
-    drawing.scene.work_float_a.st(t4);
+    drawing.scene.get().work_float_a.st(t4);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -390,9 +400,9 @@ fn yaw_force(
     let t4 = t2 * t3;
     let t5 = numbers.k256.ld();
     let t6 = t4 / t5;
-    let t7 = drawing.scene.scratch.ld();
+    let t7 = drawing.scene.get().scratch.ld();
     let t8 = t6 * t7;
-    let t9 = drawing.scene.work_float_a.ld();
+    let t9 = drawing.scene.get().work_float_a.ld();
     let t10 = t8 * t9;
     let t11 = tables.grip_slide_scale.ld();
     let t12 = t10 * t11;
@@ -441,8 +451,8 @@ fn ease_yaw_twist(
     let t4 = car.eased_yaw_spin.ld();
     let t5 = t3 - t4;
     let t6 = -t5;
-    drawing.scene.scratch.st(t6);
-    let t7 = drawing.scene.scratch.ld();
+    drawing.scene.get().scratch.st(t6);
+    let t7 = drawing.scene.get().scratch.ld();
     let t8 = tables.step_time.ld();
     let t9 = t7 / t8;
     let t10 = numbers.half.ld();
@@ -608,7 +618,7 @@ mod reference_vectors {
                 plain: |_| {
                     divide_into_scratch(
                         &crate::race::owner::race().shared.car().grip_forces[0],
-                        &scene().drawing.scene.scratch,
+                        &scene().drawing.scene.get().scratch,
                         crate::scene::owner::scene(),
                     );
                 },
@@ -816,7 +826,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     divide_into_scratch(
-                        &scene().drawing.scene.scratch,
+                        &scene().drawing.scene.get().scratch,
                         &crate::race::owner::race()
                             .shared
                             .physics_tables

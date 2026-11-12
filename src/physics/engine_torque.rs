@@ -34,10 +34,10 @@ pub fn engine_torque(course: &Course, shared: &RaceShared, scene: &crate::scene:
         &shared_store.car().engine_speed,
         &shared_store.car().engine_speed_limit,
     );
-    drawing.scene.scratch.set_float(s);
+    drawing.scene.get().scratch.set_float(s);
     if below(s, course.numbers.one.get()) && !below(s, ZERO) {
         let i = trunc_mul_to_int(s, course.numbers.eight.get()) as u32;
-        drawing.scene.work_dword.set(i);
+        drawing.scene.get().work_dword.set(i);
         let k = i as usize;
         shared_store.physics_tables.engine_force.set(lerp_table(
             s,

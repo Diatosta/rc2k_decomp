@@ -40,7 +40,8 @@ use crate::race::numbers_store::Numbers;
 use crate::race::view_vars_store::ViewVars;
 use crate::scene::matrix3::rounded_value;
 
-use crate::session::{Dword, Float};
+use crate::session::DwordLike;
+use crate::session::Float;
 use rc2k_core::physics::camera_view;
 
 /// The fixed camera (the second chunk, 0x4380E9 ..): `second` the second tables.
@@ -105,7 +106,7 @@ fn fixed_camera(
         .set((c.car.camera_pitch.get() << 4).wrapping_neg());
     let w = [dx, dy, dz];
     x87_2(c.numbers, c.view_records, w);
-    scene.drawing.scene.scratch.set(dz);
+    scene.drawing.scene.get().scratch.set(dz);
     c.view_records.view_vars.camera_distance.set(rounded_value({
         crate::physics::vector_length::vector_length(&c.view_records.view_vars.camera_vector)
     }));
@@ -207,7 +208,7 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
     x87_6(c.camera, c.car);
     // The offsets and turns: (to, from b, from a) each a + (b - a) x share, x 65536.
     let (work, offset_turns) = (&c.camera, &c.car.camera_offset_turns);
-    let rows: [(&Dword, &Float, &Float); 9] = [
+    let rows: [(&dyn DwordLike, &Float, &Float); 9] = [
         (
             &work.camera_offset_x,
             &work.view_b_offset[0],
@@ -447,7 +448,7 @@ fn x87_6(camera: &CameraWork, car: &Car) {
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [t + 0] = ((([x + 0] - [y + 0]) * [camera_switch_share]) + [y + 0]) * [k65536]`
-fn x87_7(car: &Car, numbers: &Numbers, x: &Float, y: &Float, t: &Dword) {
+fn x87_7(car: &Car, numbers: &Numbers, x: &Float, y: &Float, t: &dyn DwordLike) {
     let t0 = x.ld();
     let t1 = y.ld();
     let t2 = t0 - t1;
@@ -524,7 +525,7 @@ mod reference_vectors {
                 plain: |a| {
                     x87_2(
                         &crate::race::owner::race().course.numbers,
-                        &crate::race::owner::race().frame.view_and_records,
+                        crate::race::owner::race().frame.view_and_records.get(),
                         *view(a[0], 0),
                     );
                 },
@@ -542,7 +543,7 @@ mod reference_vectors {
                     x87_3(
                         car,
                         &crate::race::owner::race().course.numbers,
-                        &crate::race::owner::race().frame.view_and_records,
+                        crate::race::owner::race().frame.view_and_records.get(),
                         car.camera_zoom.get().to_bits() as i32,
                     );
                 },
@@ -582,7 +583,7 @@ mod reference_vectors {
                     x87_4(
                         &race().shared.physics_tables,
                         &race().course.numbers,
-                        &race().frame.view_and_records,
+                        race().frame.view_and_records.get(),
                         &core::array::from_fn(|k| {
                             if k < 10 {
                                 crate::scene::x87_mem::Base::dword(a[0], 4 * k)
@@ -646,7 +647,7 @@ mod reference_vectors {
                         &race().course.numbers,
                         view(a[0], 0),
                         view(a[1], 0),
-                        view(a[3], 0),
+                        view::<crate::session::Dword>(a[3], 0),
                     );
                 },
             },

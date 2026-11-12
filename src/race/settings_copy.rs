@@ -16,8 +16,10 @@ use crate::physics::car_store::Car;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use crate::race::state_store::RaceCar;
+use crate::session::Dword;
 use crate::session::DwordLike;
-use crate::session::{Dword, Float};
+#[cfg(test)]
+use crate::session::Float;
 
 #[cfg(test)]
 mod old_machine;
@@ -33,9 +35,9 @@ pub enum StepOperand {
     #[cfg(test)]
     Bits(&'static Float),
     /// A dword of car block n (`CAR_BLOCKS.cars[n]`), by field (`car!`).
-    CarCell(usize, fn(&Car) -> &Dword),
+    CarCell(usize, fn(&Car) -> &PlainDword),
     /// A float of car block n, by its bits (`car_bits!`).
-    CarBits(usize, fn(&Car) -> &Float),
+    CarBits(usize, fn(&Car) -> &PlainFloat),
     /// A dword of an overlay store on the race block (`var!`: `RACE_VARS.stage_number`).
     #[cfg(test)]
     Var(fn() -> &'static dyn DwordLike),
@@ -44,6 +46,7 @@ pub enum StepOperand {
     /// A dword of the race's (`var!(@race shared.vars.direction)`).
     RaceVar(fn(&Race) -> &dyn DwordLike),
 }
+use crate::session::{PlainDword, PlainFloat};
 #[cfg(test)]
 use StepOperand::Var;
 #[cfg(test)]
@@ -101,7 +104,7 @@ impl StepOperand {
 macro_rules! car {
     ($n:literal, $($f:tt)+) => {
         $crate::race::settings_copy::StepOperand::CarCell($n, {
-            fn f(c: &$crate::physics::car_store::Car) -> &$crate::session::Dword {
+            fn f(c: &$crate::physics::car_store::Car) -> &$crate::session::PlainDword {
                 &c.$($f)+
             }
             f
@@ -113,7 +116,7 @@ macro_rules! car {
 macro_rules! car_bits {
     ($n:literal, $($f:tt)+) => {
         $crate::race::settings_copy::StepOperand::CarBits($n, {
-            fn f(c: &$crate::physics::car_store::Car) -> &$crate::session::Float {
+            fn f(c: &$crate::physics::car_store::Car) -> &$crate::session::PlainFloat {
                 &c.$($f)+
             }
             f
@@ -471,9 +474,9 @@ fn result_marks(shared: &RaceShared, car: usize) -> &[Dword; 8] {
 }
 
 /// A float of a car block, picked by field.
-type CarFloat = fn(&Car) -> &Float;
+type CarFloat = fn(&Car) -> &PlainFloat;
 /// A dword of a car block, picked by field.
-type CarWord = fn(&Car) -> &Dword;
+type CarWord = fn(&Car) -> &PlainDword;
 /// A word of a player's settings record in the race's variables, picked by field.
 type SettingWord = fn(&RaceCar) -> &Dword;
 

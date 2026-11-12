@@ -24,7 +24,6 @@ use crate::physics::contact_store::ContactWork;
 use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::physics::step_families::ContactInputs;
 use crate::race::numbers_store::Numbers;
-use crate::session::{Dword, Float};
 
 use crate::math::x87::loaded;
 use crate::math::x87_float::int;
@@ -32,6 +31,7 @@ use crate::physics::scale_vector::scale_vector;
 use crate::physics::vector_length::vector_length;
 use crate::scene::matrix3::{extended, rounded, rounded_value};
 use crate::scene::rotate_point::rotate_point;
+use crate::session::{DwordLike, FloatLike};
 
 /// The block's speed (+0x198 ..) turned by its matrix (+0x9CC) into +0x1A4 ...
 fn turn_speed(block: &Car) {
@@ -81,7 +81,7 @@ fn steps(
     push_apart(c.car, c.contact, c.numbers, &other_car.position);
     let factor = extended(c.numbers.three.get());
     scale_vector(&c.contact.bump_push, factor);
-    scene.drawing.scene.scratch.set(rounded(factor));
+    scene.drawing.scene.get().scratch.set(rounded(factor));
     add_push(c.car, c.contact, &other_car.velocity);
     turn_speed(other_car);
     turn_speed(c.car);
@@ -106,7 +106,7 @@ pub fn bump_cars(
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// the work car's speed less `d` (the other car's), on each axis, into the relative speed.
-fn relative_speed(car: &Car, contact: &ContactWork, d: &[Float; 3]) {
+fn relative_speed(car: &Car, contact: &ContactWork, d: &[impl FloatLike; 3]) {
     for (k, other) in d.iter().enumerate() {
         let t0 = car.velocity[k].ld();
         let t1 = other.ld();
@@ -119,7 +119,7 @@ fn relative_speed(car: &Car, contact: &ContactWork, d: &[Float; 3]) {
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// the two cars' speeds shared out on each axis, with a the work car's speed and b the
 /// other's (`s`): `a' = a x share_a + b x share_b`, `b' = a x share_b + b x share_a`.
-fn share_out_speeds(car: &Car, contact: &ContactWork, s: &[Float; 3]) {
+fn share_out_speeds(car: &Car, contact: &ContactWork, s: &[impl FloatLike; 3]) {
     for (k, other) in s.iter().enumerate() {
         let t0 = car.velocity[k].ld();
         let t1 = contact.bump_share_b.ld();
@@ -144,7 +144,7 @@ fn share_out_speeds(car: &Car, contact: &ContactWork, s: &[Float; 3]) {
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// the push on each axis: the places' difference (the work car's less `d`'s) over 65536
 /// times the push scale.
-fn push_apart(car: &Car, contact: &ContactWork, numbers: &Numbers, d: &[Dword; 3]) {
+fn push_apart(car: &Car, contact: &ContactWork, numbers: &Numbers, d: &[impl DwordLike; 3]) {
     for (k, other) in d.iter().enumerate() {
         let t0 = int(car.position[k].get() as i32);
         let t1 = int(other.get() as i32);
@@ -160,7 +160,7 @@ fn push_apart(car: &Car, contact: &ContactWork, numbers: &Numbers, d: &[Dword; 3
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// the push added to the work car's speed on each axis, then taken from `d`'s.
-fn add_push(car: &Car, contact: &ContactWork, d: &[Float; 3]) {
+fn add_push(car: &Car, contact: &ContactWork, d: &[impl FloatLike; 3]) {
     for k in 0..3 {
         let t0 = car.velocity[k].ld();
         let t1 = contact.bump_push[k].ld();
@@ -201,7 +201,7 @@ mod reference_vectors {
                     relative_speed(
                         race().shared.car(),
                         &race().physics.contact,
-                        view(a[1], 0x198),
+                        view::<[crate::session::Float; 3]>(a[1], 0x198),
                     );
                 },
             },
@@ -228,7 +228,7 @@ mod reference_vectors {
                     share_out_speeds(
                         race().shared.car(),
                         &race().physics.contact,
-                        view(a[1], 0x198),
+                        view::<[crate::session::Float; 3]>(a[1], 0x198),
                     );
                 },
             },
@@ -256,7 +256,7 @@ mod reference_vectors {
                         crate::race::owner::race().shared.car(),
                         &crate::race::owner::race().physics.contact,
                         &crate::race::owner::race().course.numbers,
-                        view(a[1], 0x134),
+                        view::<[crate::session::Dword; 3]>(a[1], 0x134),
                     );
                 },
             },
@@ -284,7 +284,7 @@ mod reference_vectors {
                     add_push(
                         race().shared.car(),
                         &race().physics.contact,
-                        view(a[1], 0x198),
+                        view::<[crate::session::Float; 3]>(a[1], 0x198),
                     );
                 },
             },

@@ -15,7 +15,7 @@
 use crate::errors::Refused;
 use crate::hud::owner::{Hud, Pen};
 use crate::race::owner_frame::Frame;
-use crate::session::{Dword, PlainDword};
+use crate::session::PlainDword;
 
 pub fn set(hud: &Hud, n: usize, v: u32) {
     hud.block.quad.word(n).set(v);
@@ -45,12 +45,12 @@ pub fn bars(
     frame: &Frame,
     hud: &Hud,
     pen: Pen,
-    kinds: &[&[Dword]],
+    kinds: &[&[PlainDword]],
     colour_vars: &[&PlainDword],
     dy: u32,
 ) -> Result<(), Refused> {
     use rc2k_core::hud::stage_bars as sb;
-    let count = frame.panel_and_overlay.panel.overlay_parts.get();
+    let count = frame.panel_and_overlay.get().panel.overlay_parts.get();
     sb::check(count, kinds.len() as u32, |p, n| {
         kinds[p as usize][n as usize].get()
     })?;
@@ -64,7 +64,7 @@ pub fn bars(
     hud.block.bar_width.set(sb::WIDTH);
     hud.block.ends[0].set(0.0);
     hud.block.ends[1].set(0.0);
-    let total = f32::from_bits(frame.panel_and_overlay.panel.overlay_miles.get());
+    let total = f32::from_bits(frame.panel_and_overlay.get().panel.overlay_miles.get());
     for n in 0..count {
         let left = count - n;
         // `kind` is a byte offset into the colours (the original's, unchecked).
@@ -79,7 +79,7 @@ pub fn bars(
             to.set(c);
         }
         let end = sb::part_end(
-            frame.panel_and_overlay.overlay.overlay_part_miles[n as usize].get(),
+            frame.panel_and_overlay.get().overlay.overlay_part_miles[n as usize].get(),
             hud.block.ends[1].get(),
             left == 1,
             total,
@@ -106,7 +106,7 @@ pub fn draw_stage_bar(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused>
         frame,
         hud,
         pen,
-        &[&frame.panel_and_overlay.overlay.overlay_part_kinds_a],
+        &[&frame.panel_and_overlay.get().overlay.overlay_part_kinds_a],
         &[&hud.block.bar_colour],
         0,
     )

@@ -18,7 +18,7 @@ use crate::math::x87;
 use crate::session::Dword;
 
 pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
-    let (race, scene) = (ctx.race, ctx.scene);
+    let race = ctx.race;
     let shared = &race.shared;
     ctx.view.polygon.polygon_drawn.set(0);
     for n in 0..4 {
@@ -92,7 +92,6 @@ pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
             ctx.part,
             race,
             &ctx.view.face,
-            scene,
             ctx.reads,
             &ctx.system.session.screen,
         )?;

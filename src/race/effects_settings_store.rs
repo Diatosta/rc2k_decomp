@@ -10,6 +10,7 @@ use crate::errors::BadInput;
 use crate::race::blocks_store::CarBlocks;
 #[cfg(test)]
 use crate::race::owner::race;
+use crate::session::PlainFloat;
 use crate::session::{Dword, Float};
 
 /// A car's record in the settings (0x4C8 bytes; `effects::blocks`, `effects::cars_particles`,
@@ -368,7 +369,7 @@ impl CarEffects {
     /// The car's whole matrix (the block's +0x8C0, the original's +0x24; the original kept
     /// the matrix's address, a block handle here, set by `drive::share_car_state`); refused
     /// when no block is set (the original reads from address 0).
-    pub fn whole<'a>(&self, blocks: &'a CarBlocks) -> Result<&'a [Float; 16], BadInput> {
+    pub fn whole<'a>(&self, blocks: &'a CarBlocks) -> Result<&'a [PlainFloat; 16], BadInput> {
         blocks
             .of(self.whole_block.get())
             .map(|b| &b.whole_matrix)
@@ -377,7 +378,7 @@ impl CarEffects {
 
     /// The car's four part matrices (the block's +0x740, the original's +0x28); refused when no
     /// block is set.
-    pub fn parts<'a>(&self, blocks: &'a CarBlocks) -> Result<&'a [Float; 64], BadInput> {
+    pub fn parts<'a>(&self, blocks: &'a CarBlocks) -> Result<&'a [PlainFloat; 64], BadInput> {
         blocks
             .of(self.parts_block.get())
             .map(|b| &b.part_matrices)

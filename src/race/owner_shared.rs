@@ -6,6 +6,7 @@ use crate::physics::tables_store::PhysicsTables;
 use crate::race::blocks_store::CarBlocks;
 use crate::race::buffers_store::Buffers;
 use crate::race::effects_settings_store::{CarEffects, EffectsSettings};
+use crate::race::groups_store::CarsAndReplay;
 use crate::race::replay::Replays;
 use crate::race::replay_file_store::ReplayFileBlock;
 use crate::race::replay_path::Templates;
@@ -16,7 +17,7 @@ use crate::race::tyre_store::TyreChange;
 use crate::race::vars_store::RaceVars;
 use crate::race::view_store::RaceView;
 use crate::race::work_store::RaceWork;
-use crate::session::GameThread;
+use crate::session::{DrawShared, GameThread};
 
 /// The race's stores the menus, the network and the audio side read too.
 pub struct RaceShared {
@@ -42,8 +43,9 @@ pub struct RaceShared {
     /// `CAR` (`physics`): the work car. One copy: the drawing no longer reads it (frame plan
     /// F3), so the drawing threads need none of their own.
     car: GameThread<Car>,
-    /// The ten cars' blocks (`Race::replay`'s), for the code that holds only this group.
-    pub car_blocks: &'static CarBlocks,
+    /// The ten cars' blocks with the replay's work (`Race::replay`'s), for the code that
+    /// holds only this group (`car_blocks`).
+    cars_and_replay: &'static DrawShared<CarsAndReplay>,
     /// The effects' settings with the cars' records (`Race::replay`'s), as `car_blocks`.
     pub effects_settings: &'static EffectsSettings,
     /// `TEMPLATES` (`race`): the replay files' names.
@@ -61,10 +63,10 @@ struct SharedMain {
 }
 
 impl RaceShared {
-    /// The group, reaching the cars' blocks and the effects' settings at `car_blocks` and
+    /// The group, reaching the cars' blocks and the effects' settings at `cars_and_replay` and
     /// `effects_settings`.
     pub const fn new(
-        car_blocks: &'static CarBlocks,
+        cars_and_replay: &'static DrawShared<CarsAndReplay>,
         effects_settings: &'static EffectsSettings,
     ) -> Self {
         RaceShared {
@@ -76,7 +78,7 @@ impl RaceShared {
             switches: FrameSwitches::new(),
             physics_tables: PhysicsTables::new(),
             car: GameThread::new(Car::new()),
-            car_blocks,
+            cars_and_replay,
             effects_settings,
             replay_templates: Templates::new(),
             main: GameThread::new(SharedMain {
@@ -88,9 +90,15 @@ impl RaceShared {
         }
     }
 
-    /// The work car (`CAR`): the game thread's; the cars' blocks stay atomic, the drawing parts read them.
+    /// The work car (`CAR`): the game thread's.
     pub fn car(&self) -> &Car {
         self.car.get()
+    }
+
+    /// The ten cars' blocks, on the game's thread outside a drawing scope (a drawing part
+    /// reads them through its `workers::DrawReads`).
+    pub fn car_blocks(&self) -> &'static CarBlocks {
+        &self.cars_and_replay.get().car_blocks
     }
 
     pub fn tables(&self) -> &RaceTables {
@@ -112,32 +120,52 @@ impl RaceShared {
     /// Car `n`'s block (`g_carBlocks[n]`), refused for a value that names no block (see
     /// `RaceWork::car_block` for the read past the eight).
     pub fn race_car(&self, n: usize) -> Result<&'static Car, BadInput> {
+        self.race_car_in(self.car_blocks(), n)
+    }
+
+    /// `race_car` in the blocks `blocks` (a drawing part's, `workers::DrawReads`).
+    pub fn race_car_in<'b>(&self, blocks: &'b CarBlocks, n: usize) -> Result<&'b Car, BadInput> {
         use crate::race::blocks_store::{BLOCK_COUNT, BLOCK_TAG};
         if let Some(cell) = self.work.car_blocks.get(n) {
             let k = (cell.get() ^ BLOCK_TAG) as usize;
             if k < BLOCK_COUNT {
-                return Ok(&self.car_blocks.cars[k]);
+                return Ok(&blocks.cars[k]);
             }
         }
-        self.car_blocks.named(self.work.car_block(n))
+        blocks.named(self.work.car_block(n))
     }
 
     /// Car `n`'s block, or the refusal `what` for none (the original's read at a small offset
     /// from 0 fails). A handle that names no block ends the program, as `RaceWork::car_block`.
     pub fn race_car_or(&self, n: usize, what: &'static str) -> Result<&'static Car, BadInput> {
+        self.race_car_or_in(self.car_blocks(), n, what)
+    }
+
+    /// `race_car_or` in the blocks `blocks` (a drawing part's, `workers::DrawReads`).
+    pub fn race_car_or_in<'b>(
+        &self,
+        blocks: &'b CarBlocks,
+        n: usize,
+        what: &'static str,
+    ) -> Result<&'b Car, BadInput> {
         match self.work.car_blocks.get(n) {
             Some(cell) if cell.get() == 0 => Err(BadInput(what)),
-            Some(_) => self.race_car(n),
-            None => self.car_blocks.at(self.work.car_block(n), what),
+            Some(_) => self.race_car_in(blocks, n),
+            None => blocks.at(self.work.car_block(n), what),
         }
     }
 
     /// Car `n`'s block; a null block or one that is none of the ten ends the program.
     pub fn race_car_or_end(&self, n: usize) -> &'static Car {
+        self.race_car_or_end_in(self.car_blocks(), n)
+    }
+
+    /// `race_car_or_end` in the blocks `blocks` (a drawing part's, `workers::DrawReads`).
+    pub fn race_car_or_end_in<'b>(&self, blocks: &'b CarBlocks, n: usize) -> &'b Car {
         let block = self.work.car_block(n);
         match self.work.car_blocks.get(n) {
-            Some(_) if block != 0 => self.race_car(n),
-            _ => self.car_blocks.named(block),
+            Some(_) if block != 0 => self.race_car_in(blocks, n),
+            _ => blocks.named(block),
         }
         .unwrap_or_else(|e| crate::fatal::raise::end("physics::Car::at", e))
     }
@@ -163,7 +191,7 @@ impl RaceShared {
 
     /// View `n`'s car block (None for none).
     pub fn view_car(&self, n: usize) -> Option<&'static Car> {
-        self.car_blocks.of(self.view.view_blocks[n].get())
+        self.car_blocks().of(self.view.view_blocks[n].get())
     }
 
     /// View `n`'s car block, or the end of the program for none (as `Car::at` on its address).
@@ -191,6 +219,6 @@ impl RaceShared {
 
     /// `own_car_number`'s block.
     pub fn own_car(&self, session: u32) -> &'static Car {
-        &self.car_blocks.cars[self.own_car_number(session)]
+        &self.car_blocks().cars[self.own_car_number(session)]
     }
 }

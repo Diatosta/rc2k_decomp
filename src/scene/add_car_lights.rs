@@ -60,6 +60,7 @@ impl rc2k_core::scene::lamps::CarLights for GameCars<'_> {
 /// `drawn`: the car whose lights are skipped, or -1 (`ObjectLight::drawn_car_light`).
 pub fn add_car_lights(
     race: &Race,
+    blocks: &crate::race::blocks_store::CarBlocks,
     net: &Net,
     drawn: u32,
     view: u32,
@@ -85,7 +86,7 @@ pub fn add_car_lights(
                 // The car as the drawing sees it, and its marks count (the drawing's own, in
                 // the block: `race::car_parts`).
                 let marks = shared
-                    .race_car_or(car as usize, "no car")?
+                    .race_car_or_in(blocks, car as usize, "no car")?
                     .marks_count
                     .get();
                 add(

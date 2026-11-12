@@ -132,7 +132,7 @@ pub fn steps(
         .wrapping_add(face_dword(0x38)?)
         .wrapping_sub(c.car.position[2].get());
         let distance = int_hypot(dx as i32, dz as i32) as u32;
-        scene.drawing.scene.scratch.set(distance);
+        scene.drawing.scene.get().scratch.set(distance);
         let (reach, _) = contacts::reach(
             scene.objects.slots.get().radii[c.contact.face_object.get() as usize].get(),
             scene.object_work().size.get(),

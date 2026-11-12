@@ -31,7 +31,10 @@ use crate::race::numbers_store::Numbers;
 use crate::race::owner_course::Course;
 use crate::race::vars_store::RaceVars;
 use crate::scene::matrix3::extended;
+use crate::session::Cell32;
 use crate::session::Float;
+use crate::session::FloatLike;
+use crate::session::PlainFloat;
 
 /// |a| below |b|, or one of them not a number (`fld b; fabs; fld a; fabs; fcompp`, C0).
 fn abs_below(x: impl x87::Flt, y: impl x87::Flt) -> bool {
@@ -46,7 +49,7 @@ fn store_loaded(to: &Float, from: &Float) {
 /// The cells one wheel's slip step works on (`settle_slip`).
 #[derive(Clone, Copy)]
 struct SlipCells<'a> {
-    drive: &'a Float,
+    drive: &'a PlainFloat,
     slip: &'a Float,
     ratio: &'a Float,
     f1: &'a Float,
@@ -80,7 +83,7 @@ fn settle_slip(car: &Car, tables: &PhysicsTables, numbers: &Numbers, cells: &Sli
 fn slip_limit(
     car: &Car,
     tables: &PhysicsTables,
-    drive: &Float,
+    drive: &PlainFloat,
     ratio: &Float,
     force: &Float,
     slip: &Float,
@@ -144,10 +147,14 @@ fn steps(
         drive_forces_from_grips(car, physics_tables, grips);
         drawing
             .scene
+            .get()
             .scratch
             .set(car.throttle.get().wrapping_add(0x100));
         throttle_drive_limit(car, physics_tables, &course.numbers, scene);
-        hold_high(&physics_tables.drive_limits[1], &drawing.scene.scratch);
+        hold_high(
+            &physics_tables.drive_limits[1],
+            &drawing.scene.get().scratch,
+        );
         let pick = if abs_below(
             &physics_tables.drive_limits[1],
             &physics_tables.drive_limits[0],
@@ -242,8 +249,15 @@ fn steps(
             },
         );
         // 0x43E707: the car-frame side speed eased by the side grip.
-        drawing.scene.scratch.set_float(car.local_velocity[0].get());
-        ease_zero(&drawing.scene.scratch, &physics_tables.drive_limits[2]);
+        drawing
+            .scene
+            .get()
+            .scratch
+            .set_float(car.local_velocity[0].get());
+        ease_zero(
+            &drawing.scene.get().scratch,
+            &physics_tables.drive_limits[2],
+        );
         side_slip_forces(car, physics_tables, &course.numbers, scene);
         store_loaded(&physics_tables.slip_limit, &physics_tables.drive_limits[0]);
         store_loaded(
@@ -272,9 +286,9 @@ fn steps(
     }
     // 0x43E957: the wheels' slip figures.
     slip_figure_a(car, physics_tables, scene);
-    hold_low_bits(&drawing.scene.work_float_a, ZERO);
+    hold_low_bits(&drawing.scene.get().work_float_a, ZERO);
     slip_figure_b(car, physics_tables, scene);
-    hold_low_bits(&drawing.scene.work_float_b, ZERO);
+    hold_low_bits(&drawing.scene.get().work_float_b, ZERO);
     slip_lengths(car, scene);
     Ok(())
 }
@@ -304,7 +318,7 @@ pub fn drive_wheels_step(
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[t + 0] = -(|[v + 0]| - [one])`
-fn one_less_abs(course: &Course, v: &Float, t: &Float) {
+fn one_less_abs(course: &Course, v: &impl FloatLike, t: &impl FloatLike) {
     let t0 = v.ld();
     let t1 = t0.abs();
     let t2 = course.numbers.one.ld();
@@ -327,7 +341,7 @@ fn abs_status(v: [u32; 2]) -> u16 {
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[r + 0] = ([d + 0] - [rc + 0x31A184]) / [spec_wheel]`
-fn slip_ratio(car: &Car, tables: &PhysicsTables, d: &Float, r: &Float) {
+fn slip_ratio(car: &Car, tables: &PhysicsTables, d: &impl Cell32, r: &Float) {
     let t0 = d.ld();
     let t1 = car.local_velocity[2].ld();
     let t2 = t0 - t1;
@@ -344,7 +358,7 @@ fn slip_ratio(car: &Car, tables: &PhysicsTables, d: &Float, r: &Float) {
 fn apply_slip_to_drive(
     tables: &PhysicsTables,
     numbers: &Numbers,
-    d: &Float,
+    d: &impl Cell32,
     s: &Float,
     f1: &Float,
     f2: &Float,
@@ -369,7 +383,7 @@ fn apply_slip_to_drive(
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[r + 0] = |(([d + 0] - [rc + 0x31A184]) / [spec_wheel])|`
-fn slip_ratio_size(car: &Car, tables: &PhysicsTables, d: &Float, r: &Float) {
+fn slip_ratio_size(car: &Car, tables: &PhysicsTables, d: &impl Cell32, r: &Float) {
     let t0 = d.ld();
     let t1 = car.local_velocity[2].ld();
     let t2 = t0 - t1;
@@ -454,7 +468,7 @@ fn throttle_drive_limit(
     scene: &crate::scene::owner::Scene,
 ) {
     let drawing = &scene.drawing;
-    let t0 = int(drawing.scene.scratch.get() as i32);
+    let t0 = int(drawing.scene.get().scratch.get() as i32);
     let t1 = numbers.k256.ld();
     let t2 = t0 / t1;
     let t3 = car.local_velocity[0].ld();
@@ -468,7 +482,7 @@ fn throttle_drive_limit(
     let t10 = tables.drive_limits[0].ld();
     let t11 = tables.drive_speed_scale.ld();
     let t12 = t10 * t11;
-    drawing.scene.scratch.st(t12);
+    drawing.scene.get().scratch.st(t12);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -634,7 +648,7 @@ fn side_slip_forces(
     numbers: &Numbers,
     scene: &crate::scene::owner::Scene,
 ) {
-    let t0 = scene.drawing.scene.scratch.ld();
+    let t0 = scene.drawing.scene.get().scratch.ld();
     let t1 = car.local_velocity[0].ld();
     let t2 = t0 - t1;
     tables.drive_slip[0].st(t2);
@@ -692,7 +706,7 @@ fn speed_over_ground(car: &Car, tables: &PhysicsTables, scene: &crate::scene::ow
     let t3 = t2 * t2;
     let t4 = t1 + t3;
     let t5 = t4.sqrt();
-    scene.drawing.scene.scratch.st(t5);
+    scene.drawing.scene.get().scratch.st(t5);
     let t6 = tables.wheel_drag[1].ld();
     compare(t5, t6)
 }
@@ -704,14 +718,14 @@ fn speed_over_ground(car: &Car, tables: &PhysicsTables, scene: &crate::scene::ow
 fn rolling_drag_forces(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner::Scene) {
     let drawing = &scene.drawing;
     let t0 = tables.wheel_drag[0].ld();
-    let t1 = drawing.scene.scratch.ld();
+    let t1 = drawing.scene.get().scratch.ld();
     let t2 = t0 / t1;
     let t3 = car.local_velocity[0].ld();
     let t4 = t2 * t3;
     let t5 = -t4;
     tables.forces[10].force[0].st(t5);
     let t6 = tables.wheel_drag[0].ld();
-    let t7 = drawing.scene.scratch.ld();
+    let t7 = drawing.scene.get().scratch.ld();
     let t8 = t6 / t7;
     let t9 = car.local_velocity[2].ld();
     let t10 = t8 * t9;
@@ -764,7 +778,7 @@ fn slip_figure_a(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner:
     let t3 = t2.abs();
     let t4 = tables.wheel_speed_gap.ld();
     let t5 = t3 - t4;
-    scene.drawing.scene.work_float_a.st(t5);
+    scene.drawing.scene.get().work_float_a.st(t5);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -775,7 +789,7 @@ fn slip_figure_b(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner:
     let t1 = t0.abs();
     let t2 = tables.wheel_speed_margin.ld();
     let t3 = t1 - t2;
-    scene.drawing.scene.work_float_b.st(t3);
+    scene.drawing.scene.get().work_float_b.st(t3);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -788,24 +802,24 @@ fn slip_figure_b(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner:
 /// `[rc + 0x31AF1C] = sqrt((([work_float_a] * [work_float_a]) + ([work_float_b] * [work_float_b])))`
 fn slip_lengths(car: &Car, scene: &crate::scene::owner::Scene) {
     let drawing = &scene.drawing;
-    let t0 = drawing.scene.work_float_a.ld();
+    let t0 = drawing.scene.get().work_float_a.ld();
     let t1 = t0 * t0;
-    let t2 = drawing.scene.work_float_b.ld();
+    let t2 = drawing.scene.get().work_float_b.ld();
     let t3 = t2 * t2;
     let t4 = t1 + t3;
     let t5 = t4.sqrt();
     car.slip_speed.st(t5);
     let t6 = car.local_velocity[0].ld();
     let t7 = t6.abs();
-    drawing.scene.work_float_b.st(t7);
+    drawing.scene.get().work_float_b.st(t7);
     let t8 = car.drive_speed_a.ld();
     let t9 = car.local_velocity[2].ld();
     let t10 = t8 - t9;
     let t11 = t10.abs();
-    drawing.scene.work_float_a.st(t11);
-    let t12 = drawing.scene.work_float_a.ld();
+    drawing.scene.get().work_float_a.st(t11);
+    let t12 = drawing.scene.get().work_float_a.ld();
     let t13 = t12 * t12;
-    let t14 = drawing.scene.work_float_b.ld();
+    let t14 = drawing.scene.get().work_float_b.ld();
     let t15 = t14 * t14;
     let t16 = t13 + t15;
     let t17 = t16.sqrt();
@@ -814,10 +828,10 @@ fn slip_lengths(car: &Car, scene: &crate::scene::owner::Scene) {
     let t19 = car.local_velocity[2].ld();
     let t20 = t18 - t19;
     let t21 = t20.abs();
-    drawing.scene.work_float_a.st(t21);
-    let t22 = drawing.scene.work_float_a.ld();
+    drawing.scene.get().work_float_a.st(t21);
+    let t22 = drawing.scene.get().work_float_a.ld();
     let t23 = t22 * t22;
-    let t24 = drawing.scene.work_float_b.ld();
+    let t24 = drawing.scene.get().work_float_b.ld();
     let t25 = t24 * t24;
     let t26 = t23 + t25;
     let t27 = t26.sqrt();

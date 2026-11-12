@@ -36,11 +36,12 @@ use rc2k_core::drive::sharing;
 
 use crate::race::light_records_store::LightRecord;
 use crate::session::Float;
+use crate::session::{PlainDword, PlainFloat};
 
 /// A whole-number field of the effects' car record.
 type RecordWord = fn(&CarEffects) -> &Dword;
 /// A float field of a car block.
-type BlockFloat = fn(&Car) -> &Float;
+type BlockFloat = fn(&Car) -> &PlainFloat;
 /// A field of a light record.
 type LightField = fn(&LightRecord) -> &crate::session::PlainDword;
 
@@ -48,7 +49,7 @@ type LightField = fn(&LightRecord) -> &crate::session::PlainDword;
 /// number (a surface kind, flags) or a float.
 #[derive(Clone, Copy)]
 enum Move {
-    Word(RecordWord, fn(&Car) -> &Dword),
+    Word(RecordWord, fn(&Car) -> &PlainDword),
     Float(fn(&CarEffects) -> &Float, BlockFloat),
 }
 
@@ -182,7 +183,7 @@ pub fn share_car_state_at(
     for (r, l) in LIGHT_MOVES {
         r(o).set(l(light).get());
     }
-    o.set_block(race.shared.car_blocks.handle_of(car));
+    o.set_block(race.shared.car_blocks().handle_of(car));
     o.engine_speed.set(x87::loaded(&car.engine_speed));
     o.model.set(n);
     for m in MOVES_A {

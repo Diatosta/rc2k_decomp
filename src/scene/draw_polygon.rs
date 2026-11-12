@@ -284,7 +284,7 @@ fn place(
                 race.course.numbers.k65536.get(),
             )
         } else {
-            x87::reciprocal_times(depth, race.frame.panel_and_overlay.overlay.w_factor.get())
+            x87::reciprocal_times(depth, reads.panel_and_overlay.overlay.w_factor.get())
         });
         if mirrored && entries.len() > 2 {
             x = x87::mirrored(x, mirror_at, x_offset);
@@ -360,7 +360,7 @@ fn clear_a_switch(
 
 fn shade(
     poly: &crate::scene::polygon_work::PolygonWork,
-    scene: &crate::scene::owner::Scene,
+    draw: &crate::scene::draw_store::SceneDraw,
     entries: &[Listed],
     how: Shade,
 ) {
@@ -375,7 +375,7 @@ fn shade(
                 continue;
             }
             Shade::WithAlpha => {
-                put(0x24, scene.drawing.scene.polygon_alpha.get() << 24 | colour);
+                put(0x24, draw.polygon_alpha.get() << 24 | colour);
                 put(0x28, 0);
                 continue;
             }
@@ -398,17 +398,12 @@ fn shade(
     }
 }
 
-#[allow(
-    clippy::too_many_arguments,
-    reason = "the polygon's work, the part's scratch, the owners and the part's reads"
-)]
 pub fn draw_polygon(
     poly: &crate::scene::polygon_work::PolygonWork,
     part: &crate::workers::PartScratch,
     race: &crate::race::owner::Race,
     face: &crate::race::face_work::FaceWork,
     outside: &mut dyn Outside,
-    scene: &crate::scene::owner::Scene,
     reads: crate::workers::DrawReads<'_>,
     screen: &crate::session::Screen,
 ) -> Result<(), BadInput> {
@@ -500,7 +495,7 @@ pub fn draw_polygon(
         }
     }
     if let Some((how, passes)) = passes(mode) {
-        shade(poly, scene, &entries, how);
+        shade(poly, reads.scene_draw, &entries, how);
         for pass in passes {
             let (texture, smooth) = match pass.set {
                 Set::A => (&poly.polygon_textures[0], &poly.plain_first),
@@ -583,18 +578,8 @@ pub fn draw_polygon_in_game(
     part: &crate::workers::PartScratch,
     race: &Race,
     face: &crate::race::face_work::FaceWork,
-    scene: &crate::scene::owner::Scene,
     reads: crate::workers::DrawReads<'_>,
     screen: &crate::session::Screen,
 ) -> Result<(), BadInput> {
-    draw_polygon(
-        poly,
-        part,
-        race,
-        face,
-        &mut Game(part),
-        scene,
-        reads,
-        screen,
-    )
+    draw_polygon(poly, part, race, face, &mut Game(part), reads, screen)
 }

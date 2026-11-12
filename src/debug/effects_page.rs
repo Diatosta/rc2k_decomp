@@ -68,12 +68,12 @@ const GROUPS: &[(&str, &[Figure])] = &[
             ),
             (
                 "fsizefp",
-                Cell(|o| o.scene.drawing.scene.view_scale.bits()),
+                Cell(|o| o.scene.drawing.scene.get().view_scale.bits()),
                 true,
             ),
             (
                 "maxzspacefp",
-                Cell(|o| o.scene.drawing.scene.farthest.bits()),
+                Cell(|o| o.scene.drawing.scene.get().farthest.bits()),
                 true,
             ),
         ],

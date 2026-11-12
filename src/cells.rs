@@ -107,6 +107,48 @@ pub fn copy_cells<F: Cells, T: Cells>(from: (&F, usize), to: (&T, usize), len: u
     }
 }
 
+/// The whole of one record copied into another of the same layout in other cells (a store's
+/// plain record into an atomic copy of it, `session::CellKind`), cell by cell (a float by its
+/// bits).
+///
+/// # Panics
+/// When the two differ in size.
+pub fn copy_whole<F: Cells, T: Cells>(from: &F, to: &T) {
+    assert_eq!(size_of::<F>(), size_of::<T>(), "two records of one layout");
+    copy_cells((from, 0), (to, 0), size_of::<F>());
+}
+
+/// The cells of `now` that differ from the same cells of `start` set into `to`, the others
+/// left as they are: `Cells::merge_changes` between records of the same layout in other cells
+/// (`now` and `start` an atomic copy of the plain `to`, `session::CellKind`). Each cell is
+/// compared and taken whole, as the derived merge does.
+///
+/// # Panics
+/// When the records differ in size, or their cells do not line up.
+pub fn merge_cell_changes<T: Cells, F: Cells>(to: &T, now: &F, start: &F) {
+    let size = size_of::<T>();
+    assert_eq!(size, size_of::<F>(), "two records of one layout");
+    let mut at = 0;
+    while at < size {
+        let (to_start, to_run) = to.cell_run(at);
+        let (now_start, now_run) = now.cell_run(at);
+        let (_, start_run) = start.cell_run(at);
+        let w = to_run.width();
+        assert!(
+            w == now_run.width() && to_start == at && now_start == at,
+            "the records' cells line up"
+        );
+        let n = to_run.len().min(now_run.len());
+        for k in 0..n / w {
+            let a = cell_bytes(now_run.cell(k));
+            if a != cell_bytes(start_run.cell(k)) {
+                set_cell_bytes(to_run.cell(k), 0, &a[..w]);
+            }
+        }
+        at += n;
+    }
+}
+
 /// `n` bytes from byte `a_off` of one run to byte `b_off` of another.
 fn copy_run_bytes(from: CellRun, a_off: usize, to: CellRun, b_off: usize, n: usize) {
     let w = from.width();

@@ -46,7 +46,7 @@ pub fn measure_frame_rate(
     let now = whole as u32;
     shared.switches.frame_now.set(now);
     if let Some(cycles) = cycles_since(whole, LAST.swap(whole, Relaxed)) {
-        scene.drawing.scene.scratch.set(cycles as u32);
+        scene.drawing.scene.get().scratch.set(cycles as u32);
         frame_rate_plain(race, cycles, system);
     }
     shared.switches.frame_last.set(now);

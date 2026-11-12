@@ -34,7 +34,7 @@ use crate::math::x87;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
-use crate::session::Dword;
+use crate::session::PlainDword;
 use rc2k_core::drive::pace_cars::{
     ahead_of_lead, ease_jump, ease_step, first_starts, gap_start, gaps, passed, push_apart,
     wanted_gap,
@@ -80,8 +80,8 @@ fn refusal(race: &Race) -> Result<Option<&'static str>, BadInput> {
 fn put_car(
     race: &Race,
     start: u32,
-    slot: &Dword,
-    number: &Dword,
+    slot: &PlainDword,
+    number: &PlainDword,
     dist: u32,
     speed: f32,
     scene: &crate::scene::owner::Scene,
@@ -266,7 +266,7 @@ pub fn start_cars_behind(race: &Race, scene: &crate::scene::owner::Scene) -> Res
             };
         }
         lead.mode2_place.set(behind);
-        let gap = |other: &Dword| {
+        let gap = |other: &PlainDword| {
             wanted_gap(
                 race.shared.tables().pace_gap_sum.get(),
                 other.get(),

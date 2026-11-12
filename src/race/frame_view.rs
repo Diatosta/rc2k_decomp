@@ -18,7 +18,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 macro_rules! car_view {
     ($($(#[$doc:meta])* $field:ident: $t:ty,)*) => {
-        /// One car's physics-owned fields (named and typed as in `physics::car_store::Car`).
+        /// One car's physics-owned fields (named as in `physics::car_store::Car`, on atomics:
+        /// the drawing parts read them).
         #[repr(C)]
         #[derive(rc2k_derive::Cells)]
         pub struct CarView {
@@ -33,7 +34,7 @@ macro_rules! car_view {
 
             /// Every field from `car`.
             fn take(&self, car: &Car) {
-                $(self.$field.copy_from(&car.$field);)*
+                $(crate::cells::copy_whole(&car.$field, &self.$field);)*
             }
 
             /// The fields that differ from `car`'s.
@@ -101,9 +102,12 @@ car_view! {
     surface_noise_b: Dword,
 }
 
-/// Two cells (or arrays of them) with the same bits.
-fn same<T: Cells>(a: &T, b: &T) -> bool {
-    let n = core::mem::size_of::<T>();
+/// Two cells (or arrays of them, of either kind) with the same bits.
+fn same<A: Cells, B: Cells>(a: &A, b: &B) -> bool {
+    let n = core::mem::size_of::<A>();
+    if n != core::mem::size_of::<B>() {
+        return false;
+    }
     let (mut x, mut y) = (vec![0; n], vec![0; n]);
     crate::cells::load_cells(a, 0, &mut x).is_ok()
         && crate::cells::load_cells(b, 0, &mut y).is_ok()

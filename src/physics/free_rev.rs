@@ -48,7 +48,7 @@ pub fn free_rev(
     );
     let (e, drag) = (
         shared.car().engine_speed.get(),
-        scene.drawing.scene.scratch.get(),
+        scene.drawing.scene.get().scratch.get(),
     );
     if e == 0.0 || e.is_nan() {
         return;
@@ -107,7 +107,7 @@ fn x87_1(
     let t20 = t18 * t19;
     let t21 = physics_tables.free_rev_add.ld();
     let t22 = t20 + t21;
-    scene.drawing.scene.scratch.st(t22);
+    scene.drawing.scene.get().scratch.st(t22);
 }
 
 #[cfg(test)]

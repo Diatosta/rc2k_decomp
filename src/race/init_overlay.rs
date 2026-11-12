@@ -29,11 +29,21 @@ pub fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
             race.physics.split_tables().split_colour_count.get()
         })?;
         if let Some(count) = found {
-            race.frame.panel_and_overlay.panel.overlay_parts.set(count);
+            race.frame
+                .panel_and_overlay
+                .get()
+                .panel
+                .overlay_parts
+                .set(count);
         }
         match parts {
             Some(count) => {
-                race.frame.panel_and_overlay.panel.overlay_miles.set(0);
+                race.frame
+                    .panel_and_overlay
+                    .get()
+                    .panel
+                    .overlay_miles
+                    .set(0);
                 let (scale, mile) = (
                     race.course.numbers.k65536.get(),
                     race.course.numbers.metres_in_mile.get(),
@@ -61,36 +71,76 @@ pub fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
                     let end = distance(n as usize + 1)?;
                     let start = distance(n as usize)?;
                     let half = half_length(end, start);
-                    scene.drawing.scene.scratch.set(half);
+                    scene.drawing.scene.get().scratch.set(half);
                     let miles = x87::int_div_div_doubled(half as i32, scale, mile);
-                    race.frame.panel_and_overlay.overlay.overlay_part_miles[n as usize].set(miles); // g_overlayPartMiles
-                    race.frame.panel_and_overlay.panel.overlay_miles.set(
+                    race.frame
+                        .panel_and_overlay
+                        .get()
+                        .overlay
+                        .overlay_part_miles[n as usize]
+                        .set(miles); // g_overlayPartMiles
+                    race.frame.panel_and_overlay.get().panel.overlay_miles.set(
                         x87::add(
                             miles,
-                            race.frame.panel_and_overlay.panel.overlay_miles.get(),
+                            race.frame.panel_and_overlay.get().panel.overlay_miles.get(),
                         )
                         .to_bits(),
                     );
-                    race.frame.panel_and_overlay.overlay.overlay_part_kinds_a[n as usize].set(0); // dword_6D160C
-                    race.frame.panel_and_overlay.overlay.overlay_part_kinds_b[n as usize].set(0); // dword_6D170C
+                    race.frame
+                        .panel_and_overlay
+                        .get()
+                        .overlay
+                        .overlay_part_kinds_a[n as usize]
+                        .set(0); // dword_6D160C
+                    race.frame
+                        .panel_and_overlay
+                        .get()
+                        .overlay
+                        .overlay_part_kinds_b[n as usize]
+                        .set(0); // dword_6D170C
                 }
             }
             None => {
-                race.frame.panel_and_overlay.panel.overlay_parts.set(1);
-                race.frame.panel_and_overlay.overlay.overlay_part_miles[0].set(1.0);
-                race.frame.panel_and_overlay.panel.overlay_miles.set(ONE);
-                race.frame.panel_and_overlay.overlay.overlay_part_kinds_a[0].set(0);
-                race.frame.panel_and_overlay.overlay.overlay_part_kinds_b[0].set(0);
+                race.frame
+                    .panel_and_overlay
+                    .get()
+                    .panel
+                    .overlay_parts
+                    .set(1);
+                race.frame
+                    .panel_and_overlay
+                    .get()
+                    .overlay
+                    .overlay_part_miles[0]
+                    .set(1.0);
+                race.frame
+                    .panel_and_overlay
+                    .get()
+                    .panel
+                    .overlay_miles
+                    .set(ONE);
+                race.frame
+                    .panel_and_overlay
+                    .get()
+                    .overlay
+                    .overlay_part_kinds_a[0]
+                    .set(0);
+                race.frame
+                    .panel_and_overlay
+                    .get()
+                    .overlay
+                    .overlay_part_kinds_b[0]
+                    .set(0);
             }
         }
         // The sizes (`rc2k_core::race::panel::OVERLAY_SIZES`): dword_6D1486 .. dword_6D149E.
         let sizes = [
-            &race.frame.panel_and_overlay.panel.lights[0].width,
-            &race.frame.panel_and_overlay.panel.lights[0].alpha,
-            &race.frame.panel_and_overlay.panel.lights[0].drop,
-            &race.frame.panel_and_overlay.panel.lights[1].width,
-            &race.frame.panel_and_overlay.panel.lights[1].alpha,
-            &race.frame.panel_and_overlay.panel.lights[1].drop,
+            &race.frame.panel_and_overlay.get().panel.lights[0].width,
+            &race.frame.panel_and_overlay.get().panel.lights[0].alpha,
+            &race.frame.panel_and_overlay.get().panel.lights[0].drop,
+            &race.frame.panel_and_overlay.get().panel.lights[1].width,
+            &race.frame.panel_and_overlay.get().panel.lights[1].alpha,
+            &race.frame.panel_and_overlay.get().panel.lights[1].drop,
         ];
         for (cell, value) in sizes.into_iter().zip(OVERLAY_SIZES) {
             cell.set(value);
@@ -100,7 +150,7 @@ pub fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
                 crate::race::race_init::state_cell(race.shared.race_car(car)?, off)?.set(0);
             }
         }
-        for distance in &race.frame.panel_and_overlay.panel.distance {
+        for distance in &race.frame.panel_and_overlay.get().panel.distance {
             distance.set(0);
         }
     }

@@ -32,7 +32,7 @@ pub fn apply_force(
     }
     let dt = extended(tables.step_time.get());
     scale_vector(work, dt);
-    scene.drawing.scene.scratch.set(rounded(dt));
+    scene.drawing.scene.get().scratch.set(rounded(dt));
     // The work car's matrix (`g_crashMatrix`), whichever block it is: the original's.
     turn_by_car_matrix(car, work);
     for (v, w) in car.velocity.iter().zip(work) {

@@ -19,7 +19,7 @@ pub fn blend_wheel_load(
     scene: &crate::scene::owner::Scene,
 ) {
     let depth = &car.contact_depth;
-    let share = &scene.drawing.scene.scratch;
+    let share = &scene.drawing.scene.get().scratch;
     let less = |a: f32, b: f32| compare_full(a, b) & 0x100 != 0;
     if less(depth.get(), tables.wheel_load_limit.get()) {
         return;

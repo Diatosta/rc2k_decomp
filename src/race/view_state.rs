@@ -3,7 +3,6 @@
 //! (`race::view_scratch::ViewScratch::state`). The shared fields are still written beside
 //! them for what reads them outside the drawing (the effects, the front end).
 
-use crate::race::groups_store::ViewAndRecords;
 use crate::session::Dword;
 
 #[repr(C)]
@@ -24,18 +23,14 @@ pub struct ViewState {
 impl ViewState {
     /// With the stores' first values.
     pub const fn new() -> Self {
-        let ViewAndRecords {
-            view_vars:
-                crate::race::view_vars_store::ViewVars {
-                    drawn_car,
-                    view_car_flag_a,
-                    view_car_stage,
-                    view_place,
-                    view_angles,
-                    ..
-                },
+        let crate::race::view_vars_store::ViewVars {
+            drawn_car,
+            view_car_flag_a,
+            view_car_stage,
+            view_place,
+            view_angles,
             ..
-        } = ViewAndRecords::new();
+        } = crate::race::view_vars_store::ViewVarsCopy::new();
         Self {
             drawn_car,
             view_car_flag_a,

@@ -11,7 +11,7 @@ use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
 use crate::race::trap::Trap;
-use crate::session::Dword;
+use crate::session::PlainDword;
 
 /// The car blocks `g_carBlocks` lists (all eight, whatever the race's count).
 pub const BLOCKS: u32 = 8;
@@ -22,7 +22,7 @@ pub fn block(shared: &RaceShared, n: u32) -> Result<&'static Car, BadInput> {
 
 /// The car block's dword at `off`, for the offsets the race state and the overlay's clearing
 /// name (`rc2k_core::race::cars::RACE_STATE`, `rc2k_core::race::panel::OVERLAY_CLEARED`).
-pub fn state_cell(car: &Car, off: u32) -> Result<&Dword, BadInput> {
+pub fn state_cell(car: &Car, off: u32) -> Result<&PlainDword, BadInput> {
     Ok(match off {
         0x8 => &car.step_clock,
         0x71C => &car.notice_id,
@@ -94,19 +94,19 @@ pub fn reset_car_race_state(race: &Race) -> Result<(), BadInput> {
     }
     // `label_behind`, a64, `label_ahead`, a32: four dwords of spaces.
     for cell in [
-        &frame.panel_and_overlay.overlay.label_behind[0],
-        &frame.panel_and_overlay.overlay.label_behind[1],
-        &frame.panel_and_overlay.overlay.label_ahead[0],
-        &frame.panel_and_overlay.overlay.label_ahead[1],
+        &frame.panel_and_overlay.get().overlay.label_behind[0],
+        &frame.panel_and_overlay.get().overlay.label_behind[1],
+        &frame.panel_and_overlay.get().overlay.label_ahead[0],
+        &frame.panel_and_overlay.get().overlay.label_ahead[1],
     ] {
         cell.set(BLANK_TEXT);
     }
     // `kept_behind`, a64_0, `kept_ahead`, a32_0: four dwords of -1.
     for cell in [
-        &frame.panel_and_overlay.overlay.kept_behind[0],
-        &frame.panel_and_overlay.overlay.kept_behind[1],
-        &frame.panel_and_overlay.overlay.kept_ahead[0],
-        &frame.panel_and_overlay.overlay.kept_ahead[1],
+        &frame.panel_and_overlay.get().overlay.kept_behind[0],
+        &frame.panel_and_overlay.get().overlay.kept_behind[1],
+        &frame.panel_and_overlay.get().overlay.kept_ahead[0],
+        &frame.panel_and_overlay.get().overlay.kept_ahead[1],
     ] {
         cell.set(UNSET_TEXT);
     }

@@ -21,7 +21,7 @@ pub fn move_car(
 ) -> u32 {
     let k65536 = numbers.k65536.get();
     let dt = tables.step_time.get();
-    let scratch = &scene.drawing.scene.scratch;
+    let scratch = &scene.drawing.scene.get().scratch;
     let mut last = 0;
     // x, then z, then y.
     for k in [0, 2, 1] {

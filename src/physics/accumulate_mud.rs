@@ -35,19 +35,20 @@ fn add_mud(
     scene: &crate::scene::owner::Scene,
 ) {
     let drawing = &scene.drawing;
-    drawing.scene.scratch.set(0);
+    drawing.scene.get().scratch.set(0);
     if let Some(s) = speed {
-        drawing.scene.scratch.set(s);
-        if below(drawing.scene.scratch.get(), ZERO) {
-            drawing.scene.scratch.set(x87::loaded(ZERO).to_bits());
+        drawing.scene.get().scratch.set(s);
+        if below(drawing.scene.get().scratch.get(), ZERO) {
+            drawing.scene.get().scratch.set(x87::loaded(ZERO).to_bits());
         }
     }
     drawing
         .scene
+        .get()
         .scratch
-        .set(x87::mul2(drawing.scene.scratch.get(), f1, f2).to_bits());
+        .set(x87::mul2(drawing.scene.get().scratch.get(), f1, f2).to_bits());
     for cell in to {
-        cell.set(x87::add(cell, drawing.scene.scratch.get()));
+        cell.set(x87::add(cell, drawing.scene.get().scratch.get()));
     }
 }
 

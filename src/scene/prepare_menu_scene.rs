@@ -19,18 +19,21 @@ pub fn prepare_menu_scene(
     scratch: &ViewScratch,
 ) {
     let frame = &race.frame;
-    crate::session::write_bits(&race.frame.view_and_records.view_vars.view_place, [0u32; 3]);
+    crate::session::write_bits(
+        &race.frame.view_and_records.get().view_vars.view_place,
+        [0u32; 3],
+    );
     crate::session::write_first(
-        &race.frame.view_and_records.view_vars.view_angles,
+        &race.frame.view_and_records.get().view_vars.view_angles,
         &[0u32; 3],
     );
     crate::session::write_bits(&scratch.polygon.window.view_size, [0x320u32, 0x258]);
     set_view_window(
         race,
-        scene,
+        scene.drawing.scene.get(),
         system,
         &scratch.polygon.window,
-        &race.frame.view_and_records.view_vars,
+        &race.frame.view_and_records.get().view_vars,
     );
     let light = &scratch.light;
     light.light_lowest.set(0x50);

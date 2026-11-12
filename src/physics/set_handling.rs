@@ -21,13 +21,13 @@ use crate::physics::store::DamageModel;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
-use crate::session::{Dword, Float};
+use crate::session::{Float, PlainDword};
 
 /// (out, setting, hi, lo) in the original's order, but the drive kind's.
 fn before<'a>(
     car: &'a Car,
     tables: &'a PhysicsTables,
-) -> [(&'a Float, &'a Dword, &'a Float, &'a Float); 4] {
+) -> [(&'a Float, &'a PlainDword, &'a Float, &'a Float); 4] {
     [
         (
             &tables.handling[8],
@@ -58,7 +58,7 @@ fn before<'a>(
 fn after<'a>(
     car: &'a Car,
     tables: &'a PhysicsTables,
-) -> [(&'a Float, &'a Dword, &'a Float, &'a Float); 4] {
+) -> [(&'a Float, &'a PlainDword, &'a Float, &'a Float); 4] {
     [
         (
             &tables.handling[0],
@@ -99,7 +99,7 @@ pub fn set_handling(
     }
     grade_or_reset(damage, numbers, shared);
     let k256 = numbers.k256.get();
-    let lerp = |(out, n, hi, lo): (&Float, &Dword, &Float, &Float)| {
+    let lerp = |(out, n, hi, lo): (&Float, &PlainDword, &Float, &Float)| {
         out.set(int_lerp(n.get() as i32, k256, hi, lo));
     };
     for v in before(shared.car(), &shared.physics_tables) {

@@ -22,7 +22,7 @@ use crate::race::owner_frame::Frame;
 // `rc2k_core::hud::quads::int_over` (the sprites' scales)
 pub fn layout_1(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     use crate::hud::*;
-    let panel = &frame.panel_and_overlay.panel;
+    let panel = &frame.panel_and_overlay.get().panel;
     let [f1, f2] = [panel.hud_flags[0].get(), panel.hud_flags[1].get()];
     begin_dials(hud);
     if f1 & 0x10 != 0 {
@@ -45,7 +45,7 @@ pub fn layout_1(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
             frame,
             hud,
             pen,
-            gear_rect(frame.panel_and_overlay.panel.view_a.gear.get()),
+            gear_rect(frame.panel_and_overlay.get().panel.view_a.gear.get()),
             0xD,
             0x22A,
         )?;
@@ -56,7 +56,7 @@ pub fn layout_1(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
             frame,
             hud,
             pen,
-            gear_rect(frame.panel_and_overlay.panel.view_b.gear.get()),
+            gear_rect(frame.panel_and_overlay.get().panel.view_b.gear.get()),
             0x19E,
             0x22A,
         )?;

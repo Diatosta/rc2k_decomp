@@ -892,6 +892,59 @@ impl FlagLike for PlainFlag {
     }
 }
 
+/// A float cell read and written as a number, shared (`Float`) or the game thread's
+/// (`PlainFloat`); its bits through `Cell32`.
+pub trait FloatLike: Cell32 {
+    fn get(&self) -> f32;
+    fn set(&self, value: f32);
+}
+
+impl FloatLike for Float {
+    fn get(&self) -> f32 {
+        Float::get(self)
+    }
+    fn set(&self, value: f32) {
+        Float::set(self, value);
+    }
+}
+
+impl FloatLike for PlainFloat {
+    fn get(&self) -> f32 {
+        PlainFloat::get(self)
+    }
+    fn set(&self, value: f32) {
+        PlainFloat::set(self, value);
+    }
+}
+
+/// The kind of cells a record is made of, for a record kept in both kinds: the game thread's
+/// plain cells (`PlainCells`, the stores) or atomics (`SharedCells`, a copy other threads
+/// reach, such as a view's copy of its car). The two kinds of one record have the same
+/// layout and first values, and copy into each other cell by cell (`cells::copy_cells`).
+pub trait CellKind {
+    type Dword: crate::cells::Cells + DwordLike + Cell32;
+    type Float: crate::cells::Cells + FloatLike;
+    type Bytes<const N: usize>: crate::cells::Cells;
+}
+
+/// The game thread's cells (`PlainDword`, `PlainFloat`, `PlainBytes`).
+pub struct PlainCells;
+
+impl CellKind for PlainCells {
+    type Dword = PlainDword;
+    type Float = PlainFloat;
+    type Bytes<const N: usize> = PlainBytes<N>;
+}
+
+/// Atomic cells (`Dword`, `Float`, `Bytes`).
+pub struct SharedCells;
+
+impl CellKind for SharedCells {
+    type Dword = Dword;
+    type Float = Float;
+    type Bytes<const N: usize> = Bytes<N>;
+}
+
 static GAME_THREAD: std::sync::OnceLock<std::thread::ThreadId> = std::sync::OnceLock::new();
 
 /// Names the calling thread as the game's thread: from now on a debug build checks that a

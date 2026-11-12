@@ -43,7 +43,7 @@ fn tangent(race: &crate::race::owner::Race, scene: &Scene, angle: u32) -> u32 {
         let frame = &race.frame;
         let tables = race.engine_tables();
         let place = (angle >> 4) as usize;
-        scene.drawing.scene.scratch.set(0x8000u32);
+        scene.drawing.scene.get().scratch.set(0x8000u32);
         let tangent = (bh::to_int(
             bh::ld(tables.sines[place].get()) / bh::ld(tables.sines[place + 0x400].get())
                 * bh::int(0x1_0000)
@@ -120,5 +120,5 @@ pub fn fill_engine_tables(race: &crate::race::owner::Race, scene: &Scene) {
         angle = angle_of(&race.course, place, 0x100);
     }
     // `scene::angle_between` leaves the last angle in the shared work dword `scratch`.
-    scene.drawing.scene.scratch.set(angle);
+    scene.drawing.scene.get().scratch.set(angle);
 }

@@ -19,9 +19,12 @@ use crate::race::owner_replay::Replay;
 
 /// `time` = the clock less the start (`scratch`) over `thousand`.
 fn time(race: &Race, scene: &crate::scene::owner::Scene) {
-    race.replay.finish.get().time.set(stf(
-        int(scene.drawing.scene.scratch.get() as i32) / ld(race.course.numbers.thousand.get())
-    ));
+    race.replay
+        .finish
+        .get()
+        .time
+        .set(stf(int(scene.drawing.scene.get().scratch.get() as i32)
+            / ld(race.course.numbers.thousand.get())));
 }
 
 /// The eased time between the two limits: t less ((t - a) / (b - a))^2 x ((b - a) x half).
@@ -56,7 +59,7 @@ fn share(replay: &Replay) {
 pub fn timing_from(race: &Race, now: u32, scene: &crate::scene::owner::Scene) {
     let finish = race.replay.finish.get();
     let since = now.wrapping_sub(finish.start_clock.get());
-    scene.drawing.scene.scratch.set(since);
+    scene.drawing.scene.get().scratch.set(since);
     time(race, scene);
     if c0(finish.time.get(), finish.limit_a.get()) {
         finish.eased.set(loaded(&finish.time));

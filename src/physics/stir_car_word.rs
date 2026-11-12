@@ -7,9 +7,10 @@
 
 use crate::physics::car_store::Car;
 use crate::scene::next_noise::noise_step;
+use crate::session::PlainDword;
 
 /// On the word at `at`: the new word.
-pub fn stir_word_at(at: &crate::session::Dword) -> u32 {
+pub fn stir_word_at(at: &PlainDword) -> u32 {
     let w = noise_step(at.get());
     at.set(w);
     w

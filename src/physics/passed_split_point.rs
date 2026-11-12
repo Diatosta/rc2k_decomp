@@ -45,10 +45,10 @@ fn distance(
     let drawing = &scene.drawing;
     let word = |k: usize| point[k] as i32;
     let dx = word(0).wrapping_sub(ground.ground_x.get() as i32);
-    drawing.scene.scratch.set(dx as u32);
+    drawing.scene.get().scratch.set(dx as u32);
     let first = int(dx);
     let dz = word(2).wrapping_sub(ground.ground_z.get() as i32);
-    drawing.scene.scratch.set(dz as u32);
+    drawing.scene.get().scratch.set(dz as u32);
     let second = int(dz);
     tables
         .split_point_distance
@@ -67,15 +67,15 @@ fn angle(
     let drawing = &scene.drawing;
     let word = |k: usize| point[k] as i32;
     let dx = (ground.ground_x.get() as i32).wrapping_sub(word(0));
-    drawing.scene.scratch.set(dx as u32);
+    drawing.scene.get().scratch.set(dx as u32);
     let y = int(dx);
     let dz = (ground.ground_z.get() as i32).wrapping_sub(word(2));
-    drawing.scene.scratch.set(dz as u32);
+    drawing.scene.get().scratch.set(dz as u32);
     let x = int(dz);
     let turns = y.atan2_over_pi(x) * numbers.half.ld() * numbers.k65536.ld();
     let turns = to_int(turns) as u32;
-    drawing.scene.scratch.set(turns);
-    drawing.scene.scratch.set(turns & 0xFFFF);
+    drawing.scene.get().scratch.set(turns);
+    drawing.scene.get().scratch.set(turns & 0xFFFF);
 }
 
 /// The split's checkpoint and its face's first point's number, refused or fatal as said.
@@ -132,7 +132,7 @@ pub fn passed_split_point(
         return Ok(false);
     }
     angle(c.numbers, c.physics.ground(), pt, scene);
-    let car_angle = scene.drawing.scene.scratch.get() << 16;
+    let car_angle = scene.drawing.scene.get().scratch.get() << 16;
     c.tables.split_word.set(car_angle);
     let heading = crate::race::checkpoints_store::angle(c.checkpoints, cp as usize).get();
     c.tables.split_heading.set(heading);

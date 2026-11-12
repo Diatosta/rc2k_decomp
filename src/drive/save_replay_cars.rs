@@ -31,7 +31,7 @@ pub fn piece_place(race: &Race, piece: StartPiece) -> (&dyn crate::cells::Store,
 pub fn copy_piece(race: &Race, piece: StartPiece, offset: usize, n: usize, save: bool) {
     let shared = &race.shared;
     let state = (
-        &race.replay.cars_and_replay,
+        race.replay.cars_and_replay.get(),
         REPLAY_STATE_OFFSET + 4 * offset,
     );
     let len = 4 * n;

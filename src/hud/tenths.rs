@@ -10,8 +10,8 @@ use crate::race::owner_frame::Frame;
 pub fn tenths(frame: &Frame, hud: &Hud) {
     // Converted: `rc2k_core::hud::tenths::tenths`.
     let (a, b) = (
-        &frame.panel_and_overlay.panel.view_a,
-        &frame.panel_and_overlay.panel.view_b,
+        &frame.panel_and_overlay.get().panel.view_a,
+        &frame.panel_and_overlay.get().panel.view_b,
     );
     let times = [
         &a.split2, &a.negated, &a.time, &b.split2, &b.negated, &b.time,

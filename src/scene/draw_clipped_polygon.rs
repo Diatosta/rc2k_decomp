@@ -87,7 +87,7 @@ pub fn draw_clipped_polygon(
 pub fn draw_clipped_polygon_in_game(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
 ) -> Result<(), Refused> {
-    let (race, scene) = (ctx.race, ctx.scene);
+    let race = ctx.race;
     // The list stays as it is from the projection to the fog: listed once for the three.
     let mut entries = None;
     let poly = &ctx.view.polygon;
@@ -123,7 +123,6 @@ pub fn draw_clipped_polygon_in_game(
                     race,
                     &ctx.view.face,
                     &mut Game(ctx.part),
-                    scene,
                     ctx.reads,
                     &ctx.system.session.screen,
                 )?;

@@ -25,7 +25,7 @@ use rc2k_core::hud::panels;
 // stage panel and the needle's sign)
 pub fn layout_0(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     use crate::hud::*;
-    let panel = &frame.panel_and_overlay.panel;
+    let panel = &frame.panel_and_overlay.get().panel;
     let flags = panel.hud_flags[0].get();
     begin_dials(hud);
     if flags & 0x10 != 0 {
@@ -44,7 +44,7 @@ pub fn layout_0(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
             frame,
             hud,
             pen,
-            gear_rect(frame.panel_and_overlay.panel.view_a.gear.get()),
+            gear_rect(frame.panel_and_overlay.get().panel.view_a.gear.get()),
             0x11,
             0x21D,
         )?;

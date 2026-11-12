@@ -32,7 +32,7 @@ use crate::race::lights_store::LightsData;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
-use crate::session::Dword;
+use crate::session::PlainDword;
 use rc2k_core::physics::camera_ground;
 
 fn place(
@@ -78,13 +78,13 @@ fn face_checkpoint(
     let second = shared.car().position[2].get().wrapping_sub(coordinate(2));
     let angle = crate::scene::angle_between::angle_of(course, first, second);
     // `scene::angle_between` left the angle in `g_scratch`.
-    scene.drawing.scene.scratch.set(angle);
+    scene.drawing.scene.get().scratch.set(angle);
     shared.car().camera_heading.set(angle << 16);
     true
 }
 
 /// The five ground faces from 0x71AEC8 the loop below saves.
-fn ground_faces(car: &Car) -> [&Dword; 5] {
+fn ground_faces(car: &Car) -> [&PlainDword; 5] {
     let f = &car.camera_ground_faces;
     [&f[0], &f[1], &f[2], &f[3], &f[4]]
 }
@@ -98,14 +98,15 @@ fn turn_back(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
     loop {
         drawing
             .scene
+            .get()
             .camera_heading_saved
             .set(c.car.camera_heading.get());
         for k in 0..5 {
-            drawing.scene.camera_saved[k].set(ground_faces(c.car)[k].get());
+            drawing.scene.get().camera_saved[k].set(ground_faces(c.car)[k].get());
         }
         let mut stepped_back = false;
         if let Some(step) = camera_ground::turn_step(
-            drawing.scene.camera_heading_kept.get(),
+            drawing.scene.get().camera_heading_kept.get(),
             c.car.camera_heading.get(),
             c.race_tables.camera_turn_step.get(),
         ) {
@@ -129,9 +130,9 @@ fn turn_back(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
         if stepped_back {
             c.car
                 .camera_heading
-                .set(drawing.scene.camera_heading_saved.get());
+                .set(drawing.scene.get().camera_heading_saved.get());
             for k in 0..5 {
-                ground_faces(c.car)[k].set(drawing.scene.camera_saved[k].get());
+                ground_faces(c.car)[k].set(drawing.scene.get().camera_saved[k].get());
             }
         }
         let (next, last) = camera_ground::next_turn_step(c.race_tables.camera_turn_step.get());
@@ -152,6 +153,7 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
     c.race_tables.camera_turn_step.set(u32::MAX);
     drawing
         .scene
+        .get()
         .camera_heading_kept
         .set(c.car.camera_heading.get());
     place(
@@ -191,7 +193,7 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
         } else {
             c.car
                 .camera_heading
-                .set(drawing.scene.camera_heading_kept.get());
+                .set(drawing.scene.get().camera_heading_kept.get());
         }
     }
     // 0x4392A3: clear of the ground by the pitch.

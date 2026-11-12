@@ -31,10 +31,14 @@ pub fn load_slot_texture(
         return Ok(());
     };
     load(wanted, slot);
-    frame
-        .frame_work
-        .kind_textures_done
-        .set(frame.frame_work.kind_textures_done.get().wrapping_add(1));
+    frame.frame_work.get().kind_textures_done.set(
+        frame
+            .frame_work
+            .get()
+            .kind_textures_done
+            .get()
+            .wrapping_add(1),
+    );
     textures.places.get().slot_loaded[slot as usize].set(wanted);
     Ok(())
 }

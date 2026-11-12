@@ -123,7 +123,7 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                 0,
             )?
             .wrapping_sub(race.car_blocks().cars[0].position[0].get());
-            scene.drawing.scene.scratch.set(dx);
+            scene.drawing.scene.get().scratch.set(dx);
             let dz = crate::race::scene_points::point_word(
                 &race.course,
                 &crate::race::scene_points::NO_OWN,
@@ -131,7 +131,7 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                 2,
             )?
             .wrapping_sub(race.car_blocks().cars[0].position[2].get());
-            scene.drawing.scene.scratch.set(dz);
+            scene.drawing.scene.get().scratch.set(dz);
             let d = crate::math::x87::int_hypot(dx as i32, dz as i32) as u32;
             race.physics.contact.lit_face_distance.set(d);
             let step = pace(d);

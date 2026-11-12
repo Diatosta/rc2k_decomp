@@ -13,16 +13,17 @@ use crate::race::matrices_store::SceneMatrices;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
-use crate::session::Dword;
+use crate::session::DwordLike;
+use crate::session::PlainDword;
 
 /// The most cars `g_carBlocks` has.
 pub const MOST_CARS: u32 = 8;
 
-fn add(cell: &Dword, by: u32) {
+fn add(cell: &impl DwordLike, by: u32) {
     cell.set(cell.get().wrapping_add(by));
 }
 
-fn zero(cells: &[&Dword]) {
+fn zero(cells: &[&PlainDword]) {
     for cell in cells {
         cell.set(0);
     }
@@ -34,7 +35,7 @@ fn wheels(contact: &ContactWork) -> [u32; 4] {
 
 /// One bisection step of `settle_car`: `angle` moved by `step` towards the higher pair
 /// (down when `low` - `high` is negative), the step halved (`shr`).
-fn settle_step(low: u32, high: u32, angle: &Dword, step: &Dword) {
+fn settle_step(low: u32, high: u32, angle: &impl DwordLike, step: &impl DwordLike) {
     let s = step.get();
     if (low.wrapping_sub(high) as i32) < 0 {
         angle.set(angle.get().wrapping_sub(s));

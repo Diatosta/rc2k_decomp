@@ -167,6 +167,24 @@ impl Drop for DrawScope {
     }
 }
 
+/// The owners whose class D stores a drawing reads: lent to the parts of a drawing scope
+/// (`draw_parts`), or read from on the game's thread (`DrawReads::on_game_thread`).
+#[derive(Clone, Copy)]
+pub struct LentOwners<'a> {
+    pub race: &'a crate::race::owner::Race,
+    pub scene: &'a crate::scene::owner::Scene,
+}
+
+impl<'a> LentOwners<'a> {
+    /// The race's and the scene's owners of `o`.
+    pub fn of(o: crate::owners::Owners<'a>) -> Self {
+        Self {
+            race: o.race,
+            scene: o.scene,
+        }
+    }
+}
+
 /// The class D stores (`notes/m3_census.md`, section 2b) lent to the parts of one drawing
 /// scope: what every part reads and none writes. Shared by reference with every part's run;
 /// a part reads them through `reads`.
@@ -182,18 +200,26 @@ pub struct Lent<'s> {
     texture_places:
         crate::session::PhaseRead<'s, crate::scene::texture_places_store::TexturePlaces>,
     light_state: crate::session::PhaseRead<'s, crate::scene::light_store::LightState>,
+    // The scene's draw variables.
+    scene_draw: crate::session::PhaseRead<'s, crate::scene::draw_store::SceneDraw>,
     // The race's stores.
     level_grid: crate::session::PhaseRead<'s, crate::race::level_grid_store::LevelGrid>,
     ground_probe: crate::session::PhaseRead<'s, crate::physics::ground_probe_store::GroundProbe>,
     shadow_skids: crate::session::PhaseRead<'s, crate::race::shadow_skids_store::ShadowSkids>,
     lights_and_gear: crate::session::PhaseRead<'s, crate::race::groups_store::LightsAndGear>,
     finish: crate::session::PhaseRead<'s, crate::drive::finish_store::Finish>,
+    // The frame's work and the panel and overlay.
+    frame_work: crate::session::PhaseRead<'s, crate::race::frame_store::FrameWork>,
+    panel_and_overlay: crate::session::PhaseRead<'s, crate::race::groups_store::PanelAndOverlay>,
+    // The cars' blocks and the view variables.
+    cars_and_replay: crate::session::PhaseRead<'s, crate::race::groups_store::CarsAndReplay>,
+    view_and_records: crate::session::PhaseRead<'s, crate::race::groups_store::ViewAndRecords>,
 }
 
 impl<'s> Lent<'s> {
-    fn new(scope: &'s DrawScope, scene: &'s crate::scene::owner::Scene) -> Self {
+    fn new(scope: &'s DrawScope, owners: LentOwners<'s>) -> Self {
         use crate::session::PhaseRead;
-        let race = crate::race::owner::race();
+        let LentOwners { race, scene } = owners;
         Self {
             light_tables: PhaseRead::lend(&scene.light_tables, scope),
             // The scene's other drawing stores.
@@ -204,12 +230,20 @@ impl<'s> Lent<'s> {
             kind_textures: PhaseRead::lend(&scene.textures.kinds, scope),
             texture_places: PhaseRead::lend(&scene.textures.places, scope),
             light_state: PhaseRead::lend(&scene.lights.state, scope),
+            // The scene's draw variables.
+            scene_draw: PhaseRead::lend(&scene.drawing.scene, scope),
             // The race's stores.
             level_grid: PhaseRead::lend(&race.course.level_grid, scope),
             ground_probe: PhaseRead::lend(&race.physics.ground_probe, scope),
             shadow_skids: PhaseRead::lend(&race.frame.shadow_skids, scope),
             lights_and_gear: PhaseRead::lend(&race.frame.lights_and_gear, scope),
             finish: PhaseRead::lend(&race.replay.finish, scope),
+            // The frame's work and the panel and overlay.
+            frame_work: PhaseRead::lend(&race.frame.frame_work, scope),
+            panel_and_overlay: PhaseRead::lend(&race.frame.panel_and_overlay, scope),
+            // The cars' blocks and the view variables.
+            cars_and_replay: PhaseRead::lend(&race.replay.cars_and_replay, scope),
+            view_and_records: PhaseRead::lend(&race.frame.view_and_records, scope),
         }
     }
 
@@ -225,12 +259,20 @@ impl<'s> Lent<'s> {
             kind_textures: &self.kind_textures,
             texture_places: &self.texture_places,
             light_state: &self.light_state,
+            // The scene's draw variables.
+            scene_draw: &self.scene_draw,
             // The race's stores.
             level_grid: &self.level_grid,
             ground_probe: &self.ground_probe,
             shadow_skids: &self.shadow_skids,
             lights_and_gear: &self.lights_and_gear,
             finish: &self.finish,
+            // The frame's work and the panel and overlay.
+            frame_work: &self.frame_work,
+            panel_and_overlay: &self.panel_and_overlay,
+            // The cars' blocks and the view variables.
+            cars_and_replay: &self.cars_and_replay,
+            view_and_records: &self.view_and_records,
         }
     }
 }
@@ -257,6 +299,10 @@ pub struct DrawReads<'a> {
     pub texture_places: &'a crate::scene::texture_places_store::TexturePlaces,
     /// The light state (`scene::owner::Lights::state`).
     pub light_state: &'a crate::scene::light_store::LightState,
+    // The scene's draw variables.
+    /// The scene's draw variables (`scene::owner::Drawing::scene`): the polygons' alpha, the
+    /// fade and clip factors, the mirror picture's texture, the `v3driverfix` setting.
+    pub scene_draw: &'a crate::scene::draw_store::SceneDraw,
     // The race's stores (`race::owner::Race`).
     /// The level grid's depth shift (`race::owner_course::Course::level_grid`).
     pub level_grid: &'a crate::race::level_grid_store::LevelGrid,
@@ -269,13 +315,24 @@ pub struct DrawReads<'a> {
     pub lights_and_gear: &'a crate::race::groups_store::LightsAndGear,
     /// The finish routine's variables (`race::owner_replay::Replay::finish`).
     pub finish: &'a crate::drive::finish_store::Finish,
+    // The frame's work and the panel and overlay.
+    /// The frame's draw work (`race::owner_frame::Frame::frame_work`).
+    pub frame_work: &'a crate::race::frame_store::FrameWork,
+    /// The hud's panel and the race's overlay (`race::owner_frame::Frame::panel_and_overlay`).
+    pub panel_and_overlay: &'a crate::race::groups_store::PanelAndOverlay,
+    // The cars' blocks and the view variables.
+    /// The cars' blocks and the replay's work (`race::owner_replay::Replay::cars_and_replay`).
+    pub cars_and_replay: &'a crate::race::groups_store::CarsAndReplay,
+    /// The shared view variables and the view records
+    /// (`race::owner_frame::Frame::view_and_records`).
+    pub view_and_records: &'a crate::race::groups_store::ViewAndRecords,
 }
 
 impl<'a> DrawReads<'a> {
     /// The stores from their owners: on the game's thread, outside a drawing scope (the
     /// views drawn one after another, the overlays, the menus' objects).
-    pub fn on_game_thread(scene: &'a crate::scene::owner::Scene) -> Self {
-        let race = crate::race::owner::race();
+    pub fn on_game_thread(owners: LentOwners<'a>) -> Self {
+        let LentOwners { race, scene } = owners;
         Self {
             light_tables: scene.light_tables.get(),
             // The scene's other drawing stores.
@@ -286,12 +343,20 @@ impl<'a> DrawReads<'a> {
             kind_textures: scene.textures.kinds.get(),
             texture_places: scene.textures.places.get(),
             light_state: scene.lights.state.get(),
+            // The scene's draw variables.
+            scene_draw: scene.drawing.scene.get(),
             // The race's stores.
             level_grid: race.course.level_grid.get(),
             ground_probe: race.physics.ground_probe.get(),
             shadow_skids: race.frame.shadow_skids.get(),
             lights_and_gear: race.frame.lights_and_gear.get(),
             finish: race.replay.finish.get(),
+            // The frame's work and the panel and overlay.
+            frame_work: race.frame.frame_work.get(),
+            panel_and_overlay: race.frame.panel_and_overlay.get(),
+            // The cars' blocks and the view variables.
+            cars_and_replay: race.replay.cars_and_replay.get(),
+            view_and_records: race.frame.view_and_records.get(),
         }
     }
 }
@@ -386,7 +451,7 @@ pub fn wait_for_earlier_runs() {
 /// however many threads draw.
 pub fn draw_beside(
     matrices: &crate::race::matrices_store::SceneMatrices,
-    scene: &crate::scene::owner::Scene,
+    owners: LentOwners<'_>,
     first: impl Fn(&PartScratch, DrawReads<'_>) -> Result<(), Refused> + Sync,
     second: impl Fn(&PartScratch, DrawReads<'_>) -> Result<(), Refused> + Sync,
     mut then: impl FnMut() -> Result<(), Refused>,
@@ -394,7 +459,7 @@ pub fn draw_beside(
 ) -> Result<(), Refused> {
     draw_side_by_side(
         matrices,
-        scene,
+        owners,
         2,
         |n, scratch, reads| {
             if n == 0 {
@@ -408,7 +473,7 @@ pub fn draw_beside(
 }
 
 /// Parts 0 .. `k` (`part(n, scratch, reads)`, at most `COUNT`, each on its own scratch, reading
-/// the class D stores of `scene` through `reads`) drawn beside
+/// the class D stores of `owners` through `reads`) drawn beside
 /// each other as `draw_beside` draws two: the first on the game's thread, each other on a drawing thread, each from the working
 /// state as it is now; their drawing put together and their changes put back in their order.
 /// `after(n)` runs on the game's thread once part `n` is put back (part 0: once every part
@@ -417,7 +482,7 @@ pub fn draw_beside(
 /// has no copy per part, the cars' crumpled points, no part reads while it changes).
 pub fn draw_side_by_side(
     matrices: &crate::race::matrices_store::SceneMatrices,
-    scene: &crate::scene::owner::Scene,
+    owners: LentOwners<'_>,
     k: usize,
     part: impl Fn(usize, &PartScratch, DrawReads<'_>) -> Result<(), Refused> + Sync,
     after: impl FnMut(usize) -> Result<(), Refused>,
@@ -427,7 +492,7 @@ pub fn draw_side_by_side(
     }
     let pool = pool();
     BESIDE.store(true, std::sync::atomic::Ordering::Relaxed);
-    let drawn = draw_parts(matrices, scene, pool, k, part, after);
+    let drawn = draw_parts(matrices, owners, pool, k, part, after);
     BESIDE.store(false, std::sync::atomic::Ordering::Relaxed);
     drawn
 }
@@ -452,7 +517,7 @@ pub fn players_beside() -> bool {
 /// only for its call.
 fn draw_parts(
     matrices: &crate::race::matrices_store::SceneMatrices,
-    scene: &crate::scene::owner::Scene,
+    owners: LentOwners<'_>,
     pool: Option<&rayon::ThreadPool>,
     k: usize,
     part: impl Fn(usize, &PartScratch, DrawReads<'_>) -> Result<(), Refused> + Sync,
@@ -465,11 +530,7 @@ fn draw_parts(
     let cache_start = crate::d3d::render_cache::current(cards);
     // The held matrix columns likewise (`scene::view_matrices::Held`), in the race's
     // matrices `matrices`.
-    let point_count = crate::race::owner::race()
-        .course
-        .course
-        .scene_point_count
-        .get();
+    let point_count = owners.race.course.course.scene_point_count.get();
     let columns_start = crate::scene::view_matrices::columns(matrices);
     *ENDED
         .lock()
@@ -477,7 +538,7 @@ fn draw_parts(
     let control = crate::math::x87::control_word();
     // The parts are drawn from here until every one has ended: the class D stores lent.
     let scope = DrawScope::open();
-    let lent = Lent::new(&scope, scene);
+    let lent = Lent::new(&scope, owners);
     let lent = &lent;
     // Run `n` of the others, on the thread it is called on, with its own noted drawing.
     let other = |n: usize| {

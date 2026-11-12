@@ -12,7 +12,7 @@ use crate::menu::owner::Menus;
 use crate::menu::owner::menus;
 use crate::race::owner::Race;
 use crate::race::owner_replay::Replay;
-use crate::session::{Dword, PlainBytes, PlainDword};
+use crate::session::{PlainBytes, PlainDword};
 use crate::system::owner::System;
 
 /// The race record's seal key (the replay header's checksum, `race::seal_replay_header`;
@@ -125,7 +125,7 @@ pub fn seal_replay_header(
 
 /// `bytes` written into the sealed header from byte `at` (the file's bytes: the dwords hold
 /// them little-endian, whatever the alignment).
-fn put_header(sealed: &[Dword; 64], at: usize, bytes: &[u8]) -> Result<(), BadInput> {
+fn put_header(sealed: &[PlainDword; 64], at: usize, bytes: &[u8]) -> Result<(), BadInput> {
     if at + bytes.len() > sealed.len() * 4 {
         return Err(BadInput("past the replay's sealed header"));
     }
@@ -141,7 +141,7 @@ fn put_header(sealed: &[Dword; 64], at: usize, bytes: &[u8]) -> Result<(), BadIn
 /// each setting go to `at` (an offset from the header's first byte, 0x138 and more past the
 /// end of its 0x100 bytes are the first dword of `unknown_7d0`: the original's slip).
 #[cfg(test)]
-fn copy_header_settings(sealed: &[Dword; 64]) -> Result<(), BadInput> {
+fn copy_header_settings(sealed: &[PlainDword; 64]) -> Result<(), BadInput> {
     copy_header_settings_of(
         crate::race::owner::race(),
         menus(),
@@ -155,7 +155,7 @@ fn copy_header_settings_of(
     race: &Race,
     menus: &Menus,
     strings: &crate::strings::owner::Strings,
-    sealed: &[Dword; 64],
+    sealed: &[PlainDword; 64],
 ) -> Result<(), BadInput> {
     use crate::race::state_store::{RaceCar, RaceSettings, RaceState};
     use core::mem::offset_of;
@@ -636,7 +636,7 @@ mod header_tests {
         let kept_cells: Vec<u32> = cells.iter().map(|c| c.get()).collect();
         let kept_locale = locale.get(8);
         let kept_header: Vec<u8> = (0..16).map(|i| header.get(i)).collect();
-        let kept_sealed: Vec<u32> = sealed.iter().map(Dword::get).collect();
+        let kept_sealed: Vec<u32> = sealed.iter().map(PlainDword::get).collect();
         let kept_door = door.get();
         for seed in 1..=8u64 {
             let mut state = seed;
@@ -657,7 +657,7 @@ mod header_tests {
                 } else {
                     old_copy().unwrap();
                 }
-                let mut out: Vec<u32> = sealed.iter().map(Dword::get).collect();
+                let mut out: Vec<u32> = sealed.iter().map(PlainDword::get).collect();
                 out.push(door.get());
                 out
             };

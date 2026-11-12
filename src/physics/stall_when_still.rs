@@ -20,7 +20,7 @@ pub fn stall_when_still(car: &Car, tables: &PhysicsTables, scene: &crate::scene:
     let kept = &tables.kept_motion;
     // The length goes through the scene's scratch dword (a float's bits).
     let length = rounded_value(vector_length(kept));
-    scene.drawing.scene.scratch.set(length.to_bits());
+    scene.drawing.scene.get().scratch.set(length.to_bits());
     if compare_full(length, ZERO) & 0x4000 == 0 {
         tables.stall_figure.set(ext_div2(
             dot_product(&car.local_velocity, kept),

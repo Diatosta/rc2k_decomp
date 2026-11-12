@@ -114,16 +114,16 @@ pub struct ViewScratch {
     /// read (`race::frame::load_view_car`). The original loaded it into the work car `g_car`,
     /// the physics' own, and set `g_currentCar`; neither is touched now. (The drawing's
     /// headers name its fields as the original's `g_car` +offsets.)
-    pub car: crate::physics::car_store::Car,
+    pub car: crate::physics::car_store::ViewCar,
     /// What the view's scene left its overlays (`race::scene_hand_off`).
     pub hand_off: crate::race::scene_hand_off::SceneHandOff,
     /// The view variables as the view's drawing has them (`race().frame.view_and_records.
     /// view_vars`, the original's, shared by every view in turn): taken from the shared ones
     /// as the view's drawing begins (`take_vars`), what it changed handed back on the game's
     /// thread in the views' order (`hand_on_vars`; frame plan F7).
-    pub vars: crate::race::view_vars_store::ViewVars,
+    pub vars: crate::race::view_vars_store::ViewVarsCopy,
     /// `vars` as taken.
-    vars_taken: crate::race::view_vars_store::ViewVars,
+    vars_taken: crate::race::view_vars_store::ViewVarsCopy,
 }
 
 impl ViewScratch {
@@ -142,29 +142,29 @@ impl ViewScratch {
             quad: crate::race::quad_work::QuadWork::new(),
             lamps: crate::race::lamp_work::LampWork::new(),
             state: crate::race::view_state::ViewState::new(),
-            car: crate::physics::car_store::Car::new(),
+            car: crate::physics::car_store::ViewCar::new(),
             hand_off: crate::race::scene_hand_off::SceneHandOff::new(),
-            vars: first_vars(),
-            vars_taken: first_vars(),
+            vars: crate::race::view_vars_store::ViewVarsCopy::new(),
+            vars_taken: crate::race::view_vars_store::ViewVarsCopy::new(),
         }
     }
 
-    /// The shared view variables into the view's (`vars`), as its drawing begins.
-    pub fn take_vars(&self, race: &crate::race::owner::Race) {
-        use crate::cells::Cells;
-        let shared = &race.frame.view_and_records.view_vars;
-        self.vars.copy_from(shared);
-        self.vars_taken.copy_from(shared);
+    /// The shared view variables (`reads.view_and_records`) into the view's (`vars`), as its
+    /// drawing begins.
+    pub fn take_vars(&self, reads: crate::workers::DrawReads<'_>) {
+        let shared = &reads.view_and_records.view_vars;
+        crate::cells::copy_whole(shared, &self.vars);
+        crate::cells::copy_whole(shared, &self.vars_taken);
     }
 
     /// What the view's drawing changed in its view variables into the shared ones (the game's
     /// thread, once it is drawn).
     pub fn hand_on_vars(&self, race: &crate::race::owner::Race) {
-        use crate::cells::Cells;
-        race.frame
-            .view_and_records
-            .view_vars
-            .merge_changes(&self.vars, &self.vars_taken);
+        crate::cells::merge_cell_changes(
+            &race.frame.view_and_records.get().view_vars,
+            &self.vars,
+            &self.vars_taken,
+        );
     }
 
     /// Every part but the sort lists (their counts are set at each view's start,
@@ -215,13 +215,6 @@ impl ViewScratch {
             n => (n % 2) as u32,
         }
     }
-}
-
-/// The view variables' first values.
-const fn first_vars() -> crate::race::view_vars_store::ViewVars {
-    let crate::race::groups_store::ViewAndRecords { view_vars, .. } =
-        crate::race::groups_store::ViewAndRecords::new();
-    view_vars
 }
 
 /// The view slots: the two players' views, then their mirrors, then the front end's 3D (the

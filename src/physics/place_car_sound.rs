@@ -14,7 +14,7 @@ use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
 use crate::scene::matrix3::rounded_value;
 use crate::scene::rotate_point::rotate_point;
-use crate::session::Dword;
+use crate::session::PlainDword;
 
 /// The exact x87 version (for `physics::sound_on_bit`).
 pub fn place_car_sound(
@@ -24,7 +24,7 @@ pub fn place_car_sound(
 ) -> Result<(), Refused> {
     let so = crate::sound::store::current_object();
     so.slot_b.start.set(1);
-    let d = |a: &Dword, b: &Dword| ints_diff_80(a.get() as i32, b.get() as i32);
+    let d = |a: &PlainDword, b: &PlainDword| ints_diff_80(a.get() as i32, b.get() as i32);
     let p = [
         d(&shared.car().position[0], &shared.car().camera_position[0]),
         d(&shared.car().position[1], &shared.car().camera_position[1]),

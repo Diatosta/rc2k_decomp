@@ -12,6 +12,7 @@
 //! runs it over every car before `race::grade_all_cars`.
 
 use crate::race::numbers_store::Numbers;
+use crate::session::PlainDword;
 use rc2k_core::physics::grades::{percentage, reset_writes};
 
 fn put(b: &dyn crate::cells::Store, offset: u32, v: u32) {
@@ -24,8 +25,8 @@ fn put(b: &dyn crate::cells::Store, offset: u32, v: u32) {
 pub fn reset_grades_at(
     numbers: &Numbers,
     b: &dyn crate::cells::Store,
-    s0c: &crate::session::Dword,
-    s08: &crate::session::Dword,
+    s0c: &PlainDword,
+    s08: &PlainDword,
 ) {
     let (k256, k100) = (numbers.k256.get(), numbers.hundred.get());
     let a = percentage(s0c.get() as i32, k256, k100);

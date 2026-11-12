@@ -35,7 +35,7 @@ pub fn set_object_light(
     light: &crate::scene::object_light::ObjectLight,
     object: &crate::scene::object_place::ObjectPlace,
     system: &crate::system::owner::System,
-    vars: &crate::race::view_vars_store::ViewVars,
+    vars: &crate::race::view_vars_store::ViewVarsCopy,
 ) -> Result<(), Refused> {
     use rc2k_core::scene::lamps::{ObjectLight, WHITE, object_light};
     light.light_added.set(0u32);
@@ -83,6 +83,7 @@ pub fn set_object_light_in_game(
         &mut || {
             add_car_lights(
                 race,
+                &ctx.reads.cars_and_replay.car_blocks,
                 ctx.net,
                 ctx.view.light.drawn_car_light.get(),
                 ctx.view.drawn_view(race),

@@ -20,18 +20,21 @@ use crate::session::{DrawShared, GameThread};
 /// variables, the panel and the overlay are fields of `view_and_records` and
 /// `panel_and_overlay` (`view_vars_store`, `panel_store`, `overlay_store` read them there).
 pub struct Frame {
-    /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
-    pub frame_work: FrameWork,
+    /// One copy, lent to the drawing parts (`workers::DrawReads`): no part writes it (the two
+    /// counters nobody reads stay atomic).
+    pub frame_work: DrawShared<FrameWork>,
     /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7;
     /// the held columns are each part's own, `scene::view_matrices::Held`).
     pub matrices: SceneMatrices,
     /// One copy, lent to the drawing parts (`workers::DrawReads`): the drawing only reads it
     /// (frame plan F4).
     pub shadow_skids: DrawShared<ShadowSkids>,
-    pub panel_and_overlay: PanelAndOverlay,
-    /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
-    /// Each view draws on its own view variables (`ViewScratch::vars`).
-    pub view_and_records: ViewAndRecords,
+    /// One copy, lent to the drawing parts (`workers::DrawReads`): the mirror's window and the
+    /// polygon drawing read it; the hud and the race write it on the game's thread.
+    pub panel_and_overlay: DrawShared<PanelAndOverlay>,
+    /// One copy, lent to the drawing parts (`workers::DrawReads`): no part writes it. Each
+    /// view draws on its own view variables (`ViewScratch::vars`).
+    pub view_and_records: DrawShared<ViewAndRecords>,
     /// One copy, lent to the drawing parts (`workers::DrawReads`): no part writes it.
     pub lights_and_gear: DrawShared<LightsAndGear>,
     main: GameThread<FrameMain>,
@@ -54,11 +57,11 @@ struct FrameMain {
 impl Frame {
     pub const fn new() -> Self {
         Frame {
-            frame_work: FrameWork::new(),
+            frame_work: DrawShared::new(FrameWork::new()),
             matrices: SceneMatrices::new(),
             shadow_skids: DrawShared::new(ShadowSkids::new()),
-            panel_and_overlay: PanelAndOverlay::new(),
-            view_and_records: ViewAndRecords::new(),
+            panel_and_overlay: DrawShared::new(PanelAndOverlay::new()),
+            view_and_records: DrawShared::new(ViewAndRecords::new()),
             lights_and_gear: DrawShared::new(LightsAndGear::new()),
             main: GameThread::new(FrameMain {
                 scratch: FrameScratch::new(),

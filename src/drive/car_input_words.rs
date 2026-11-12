@@ -22,7 +22,7 @@ pub fn car_input_words(
     use rc2k_core::drive::inputs::{NO_DEVICE, ReplayWords, check_car, device_words, replay_words};
     let car = race_owner.shared.work.current_car.get();
     check_car(car)?;
-    let device = frame.frame_work.listed_car_sounds[car as usize].get();
+    let device = frame.frame_work.get().listed_car_sounds[car as usize].get();
     let readings = if device != NO_DEVICE {
         Some(crate::drive::device_axes::device_axes(device, input)?)
     } else {

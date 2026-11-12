@@ -10,21 +10,21 @@
 //!
 //! This file: the regions and the shared test.
 
-use crate::session::{Dword, Float};
+use crate::session::{PlainDword, PlainFloat};
 
 /// The value of a float cell as the model's arithmetic holds it: the game's code loads a
 /// float and works at double precision.
-pub fn value(cell: &Float) -> f64 {
+pub fn value(cell: &PlainFloat) -> f64 {
     f64::from(cell.get())
 }
 
 /// A result of that arithmetic stored into a float cell, rounded to a float.
-pub fn store(cell: &Float, result: f64) {
+pub fn store(cell: &PlainFloat, result: f64) {
     cell.set(result as f32);
 }
 
 /// The same figure for a whole number held in a cell (`fild`).
-pub fn whole(cell: &Dword) -> f64 {
+pub fn whole(cell: &PlainDword) -> f64 {
     f64::from(cell.get() as i32)
 }
 

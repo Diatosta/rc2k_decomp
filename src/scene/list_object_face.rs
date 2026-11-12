@@ -50,8 +50,8 @@ struct GameFace<'a>(
     &'a crate::scene::car_marks::CarMarks,
     &'a crate::scene::object_place::ObjectPlace,
     &'a crate::race::car_draw_state::CarDrawState,
-    &'a crate::physics::car_store::Car,
-    &'a crate::race::view_vars_store::ViewVars,
+    &'a crate::physics::car_store::ViewCar,
+    &'a crate::race::view_vars_store::ViewVarsCopy,
     crate::workers::DrawReads<'a>,
 );
 
@@ -137,10 +137,10 @@ impl FaceWorld for GameFace<'_> {
             // The core asks for 1 ..= 6: the six parts' wake counts, after `state_bits`.
             self.0
                 .shared
-                .race_car_or_end(which as usize)
+                .race_car_or_end_in(&self.7.cars_and_replay.car_blocks, which as usize)
                 .part_wake_counts
                 .get((extra as usize).wrapping_sub(1))
-                .map(crate::session::Dword::get)
+                .map(crate::session::PlainDword::get)
                 .ok_or(rc2k_core::Invalid("a wake count past the six"))
         }
     }

@@ -40,7 +40,7 @@ fn hash_if_asked(race: &Race) {
     if !*ON.get_or_init(|| std::env::var_os("RC2K_SIM_HASH").is_some()) {
         return;
     }
-    let blocks = &race.replay.cars_and_replay.car_blocks;
+    let blocks = &race.replay.cars_and_replay.get().car_blocks;
     let mut bytes = vec![0u8; core::mem::size_of_val(blocks)];
     let _ = crate::cells::Store::load(blocks, 0, &mut bytes);
     let mut hasher = std::collections::hash_map::DefaultHasher::new();

@@ -29,7 +29,10 @@ pub fn read_whole_file_store(
 
 /// `read_whole_file` into `cells` (a typed store's dwords, their bytes in order: `4 *
 /// cells.len()` bytes at most; what the file does not reach is kept).
-pub fn read_whole_file_cells(path: &[u8], cells: &[crate::session::Dword]) -> Result<(), BadInput> {
+pub fn read_whole_file_cells<C: crate::session::DwordLike>(
+    path: &[u8],
+    cells: &[C],
+) -> Result<(), BadInput> {
     let mut into: Vec<u8> = cells.iter().flat_map(|c| c.get().to_le_bytes()).collect();
     read_whole_file_into(path, &mut into)?;
     for (c, b) in cells.iter().zip(into.as_chunks::<4>().0) {

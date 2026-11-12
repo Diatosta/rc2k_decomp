@@ -14,7 +14,7 @@ use crate::physics::damage_gauges::raise;
 use crate::physics::damage_model::{store, value};
 use crate::physics::flow::{hold_low, table_lerp};
 use crate::physics::store::DamageModel;
-use crate::session::Float;
+use crate::session::PlainFloat;
 use core::mem::offset_of;
 
 /// The wear of this step: the gauges raised or lowered by their rates times the shares,
@@ -141,7 +141,13 @@ pub fn steps(car: &Car, damage: &DamageModel) {
 // ---- the arithmetic ----
 
 /// `to = rate * share * wear_step + from`.
-fn add_wear(m: &DamageModel, rate: &Float, share: &Float, from: &Float, to: &Float) {
+fn add_wear(
+    m: &DamageModel,
+    rate: &PlainFloat,
+    share: &PlainFloat,
+    from: &PlainFloat,
+    to: &PlainFloat,
+) {
     store(
         to,
         value(rate) * value(share) * value(&m.wear_step) + value(from),
@@ -149,12 +155,18 @@ fn add_wear(m: &DamageModel, rate: &Float, share: &Float, from: &Float, to: &Flo
 }
 
 /// `to = from - rate * wear_step`.
-fn subtract_rate(m: &DamageModel, rate: &Float, from: &Float, to: &Float) {
+fn subtract_rate(m: &DamageModel, rate: &PlainFloat, from: &PlainFloat, to: &PlainFloat) {
     store(to, -(value(rate) * value(&m.wear_step)) + value(from));
 }
 
 /// `to = from - rate * share * wear_step`.
-fn subtract_wear(m: &DamageModel, rate: &Float, share: &Float, from: &Float, to: &Float) {
+fn subtract_wear(
+    m: &DamageModel,
+    rate: &PlainFloat,
+    share: &PlainFloat,
+    from: &PlainFloat,
+    to: &PlainFloat,
+) {
     store(
         to,
         -(value(rate) * value(share) * value(&m.wear_step)) + value(from),
@@ -170,7 +182,7 @@ fn lerp_gap(m: &DamageModel) {
 }
 
 /// `to = from * from`.
-fn square_into(from: &Float, to: &Float) {
+fn square_into(from: &PlainFloat, to: &PlainFloat) {
     let x = value(from);
     store(to, x * x);
 }

@@ -13,6 +13,7 @@ use crate::physics::gearing::{GearPlaces, revs_from_wheels_at, wheels_from_revs_
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
 use crate::session::Dword;
+use crate::session::PlainDword;
 use rc2k_core::physics::gear_shifts::Change;
 
 /// The other places: the asked gear, the gear bits, the two words set.
@@ -20,9 +21,9 @@ use rc2k_core::physics::gear_shifts::Change;
 pub struct ChangePlaces<'a> {
     pub wanted: &'a Dword,
     /// By address: `bt` on memory, its bit number past the first dword.
-    pub bits: &'a Dword,
-    pub changed: &'a Dword,
-    pub pending: &'a Dword,
+    pub bits: &'a PlainDword,
+    pub changed: &'a PlainDword,
+    pub pending: &'a PlainDword,
 }
 
 impl<'a> ChangePlaces<'a> {

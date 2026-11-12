@@ -6,7 +6,7 @@
 
 use crate::owners::Owners;
 use crate::physics::car_store::Car;
-use crate::session::Dword;
+use crate::session::PlainDword;
 use dear_imgui_rs::{TableFlags, Ui};
 
 /// 0x471412's labels and offsets, in its order.
@@ -65,7 +65,7 @@ const PLAYER_ROWS: [(&str, usize); 51] = [
 ];
 
 /// A car block's cell.
-type CarField = fn(&Car) -> &Dword;
+type CarField = fn(&Car) -> &PlainDword;
 
 /// 0x449AA3's labels and fields (it shows `racefinished` twice).
 const CAR_ROWS: [(&str, CarField); 7] = [

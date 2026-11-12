@@ -50,10 +50,11 @@ pub fn draw_distance_settings(course: &Course) {
 /// `LIGHT_STATE.noise_samples`, read by nothing else).
 pub fn sample_noise(
     tables: &crate::scene::engine_tables_store::EngineTables,
-    car: &crate::physics::car_store::Car,
+    car: &crate::physics::car_store::Car<impl crate::session::CellKind>,
     map: usize,
 ) -> Result<u32, BadInput> {
     // Converted: `rc2k_core::race::view::sample_noise`.
+    use crate::session::DwordLike;
     let (px, pz) = (car.camera_position[0].get(), car.camera_position[2].get());
     let refused = std::cell::Cell::new(None);
     let noise = &tables.noise_bytes;
@@ -87,7 +88,7 @@ pub fn sample_noise(
 pub fn fog_table(
     race: &Race,
     fog: &crate::scene::fog::Fog,
-    car: &crate::physics::car_store::Car,
+    car: &crate::physics::car_store::ViewCar,
     sun: &crate::scene::polygon_work::ViewSun,
     window: &crate::scene::view_window::ViewWindow,
 ) -> Result<(), Refused> {
@@ -128,7 +129,7 @@ pub fn set_up_fog(
     race: &Race,
     fog: &crate::scene::fog::Fog,
     poly: &crate::scene::polygon_work::PolygonWork,
-    car: &crate::physics::car_store::Car,
+    car: &crate::physics::car_store::ViewCar,
     part: &crate::workers::PartScratch,
 ) -> Result<(), Refused> {
     let course = &race.course;
@@ -315,7 +316,7 @@ fn view_own_matrices(
     race: &Race,
     m: &ViewMatrices,
     state: &ViewState,
-    car: &crate::physics::car_store::Car,
+    car: &crate::physics::car_store::ViewCar,
     mirrored: bool,
 ) -> Result<(), BadInput> {
     use crate::scene::matrix::multiply_matrices;
@@ -369,7 +370,7 @@ fn view_own_matrices(
 }
 
 /// The angle views 1 and 2 roll by: the car's speed and steering eased into the camera roll.
-fn rolled_angle(race: &Race, car: &crate::physics::car_store::Car) -> u32 {
+fn rolled_angle(race: &Race, car: &crate::physics::car_store::ViewCar) -> u32 {
     use crate::math::x87::{below_or_unordered, eased_roll};
     let mut v = crate::math::x87::div(&car.local_velocity[2], &race.course.numbers.ten);
     if below_or_unordered(v, &race.course.numbers.zero) {
@@ -407,7 +408,7 @@ fn rolled_angle(race: &Race, car: &crate::physics::car_store::Car) -> u32 {
 /// `view_matrices`.
 pub fn camera_view(
     race: &Race,
-    scene: &crate::scene::owner::Scene,
+    draw: &crate::scene::draw_store::SceneDraw,
     system: &crate::system::owner::System,
     m: &ViewMatrices,
     view: &crate::race::view_scratch::ViewScratch,
@@ -475,7 +476,7 @@ pub fn camera_view(
     view.vars.view_place_f[2].set(from_int(place[2] as i32));
     crate::scene::set_view_window::set_view_window(
         race,
-        scene,
+        draw,
         system,
         &view.polygon.window,
         &view.vars,
@@ -564,7 +565,7 @@ fn place_sun(
     let dir = sun_direction(
         angle as i32,
         &race.course.numbers.sixty_four,
-        &race.frame.frame_work.sun_depth,
+        &ctx.reads.frame_work.sun_depth,
         race.course.stage_prefs.sun_height.get() as i32,
         &race.course.numbers.k98304,
     );

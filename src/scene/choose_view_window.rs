@@ -36,9 +36,9 @@ pub fn choose_view_window(
     window.view_zoom.set(chosen.scale);
     crate::scene::set_view_window::set_view_window(
         race,
-        scene,
+        scene.drawing.scene.get(),
         system,
         window,
-        &race.frame.view_and_records.view_vars,
+        &race.frame.view_and_records.get().view_vars,
     );
 }

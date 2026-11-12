@@ -109,7 +109,7 @@ pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refus
         o.input,
         scratch,
         crate::workers::game_scratch(),
-        crate::workers::DrawReads::on_game_thread(scene),
+        crate::workers::DrawReads::on_game_thread(crate::workers::LentOwners { race, scene }),
     );
     let _held = ctx.view.matrices.hold(&race.frame.matrices, ctx.part);
     draw_shown_car(

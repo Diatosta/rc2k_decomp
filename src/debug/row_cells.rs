@@ -34,7 +34,7 @@ impl Raw for PlainFloat {
     }
 }
 
-impl Raw for crate::race::panel_store::Loose32 {
+impl Raw for crate::session::PlainLoose {
     fn raw(&self) -> u32 {
         self.get()
     }

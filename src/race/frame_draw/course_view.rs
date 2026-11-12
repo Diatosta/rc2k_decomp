@@ -37,7 +37,7 @@ pub fn add_sort_entry(lists: &SortLists, kind: u32, face: u32) -> Result<(), Ref
 /// are read unchecked, as the original.
 pub fn checkpoint_colours(
     race: &Race,
-    car: &crate::physics::car_store::Car,
+    car: &crate::physics::car_store::ViewCar,
 ) -> Result<u32, BadInput> {
     // Converted: `rc2k_core::race::frame::checkpoint_colours`.
     {
@@ -91,12 +91,9 @@ pub fn face_hidden(
     // race().frame.view_and_records.view_vars.view_hides[]: by camera view. Its 34 entries cover views 0 .. 0x21; the views up
     // to 0x33 (the viewer's cameras) read on into the variables after it, as the original
     // (notes/bugs.md); 0x33 is still inside `race().frame.view_and_records.view_vars`.
-    let shows: u32 = crate::session::read_on_in(
-        &race.frame.view_and_records.view_vars,
-        &race.frame.view_and_records.view_vars.view_hides,
-        view as usize,
-        "the view hides",
-    )?;
+    let shared = &ctx.reads.view_and_records.view_vars;
+    let shows: u32 =
+        crate::session::read_on_in(shared, &shared.view_hides, view as usize, "the view hides")?;
     let hiding = if shows == 0 {
         race.shared.switches.scene_set_up.get()
     } else {
@@ -207,7 +204,7 @@ pub fn add_depth_entry(ctx: &DrawCtx, face: u32) -> Result<(), Refused> {
 pub fn course_grid(
     race: &Race,
     view: &crate::race::view_grid::ViewGrid,
-    vars: &crate::race::view_vars_store::ViewVars,
+    vars: &crate::race::view_vars_store::ViewVarsCopy,
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::frame::{hold_to_limit, grid_corner, record_cell,
     // grid_cell}`.

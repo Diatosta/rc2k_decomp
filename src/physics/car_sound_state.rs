@@ -25,7 +25,7 @@ use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
 use crate::scene::matrix3::{extended, rounded_value};
 use crate::scene::rotate_point::rotate_point;
-use crate::session::Dword;
+use crate::session::PlainDword;
 
 /// 0x45CB02 .. 0x45CB88 (the shares into the voices), the integer steps between in Rust.
 fn shares(numbers: &Numbers, shared: &RaceShared, so: &crate::sound::store::SoundObject) {
@@ -42,7 +42,7 @@ fn shares(numbers: &Numbers, shared: &RaceShared, so: &crate::sound::store::Soun
 /// block), else the work car.
 fn listener(shared: &RaceShared) -> Option<&crate::physics::car_store::Car> {
     if shared.view.players.get() == 1 {
-        shared.car_blocks.of(shared.view.view_blocks[0].get())
+        shared.car_blocks().of(shared.view.view_blocks[0].get())
     } else {
         Some(shared.car())
     }
@@ -76,7 +76,7 @@ pub fn car_sound_state(
         .set(shared.car().front_wheels_off.get() & shared.car().rear_wheels_off.get());
     so.view_flag
         .set(shared.car().camera_mode_is_2_or_3.get() ^ 1);
-    let d = |c: &Dword, other: &Dword| ints_diff_80(c.get() as i32, other.get() as i32);
+    let d = |c: &PlainDword, other: &PlainDword| ints_diff_80(c.get() as i32, other.get() as i32);
     let place = [
         d(&shared.car().position[0], &l.camera_position[0]),
         d(&shared.car().position[1], &l.camera_position[1]),

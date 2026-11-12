@@ -7,63 +7,66 @@
 use crate::race::groups_store::ViewAndRecords;
 #[cfg(test)]
 use crate::race::owner::race;
-use crate::session::{Dword, Float};
+use crate::session::{CellKind, PlainCells, PlainDword, SharedCells};
 
+/// The view variables, on the cells of kind `K`: plain for the shared ones
+/// (`ViewAndRecords::view_vars`, which only the game's thread writes), atomic for a view's copy
+/// (`ViewVarsCopy`), which the view's drawing part writes.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
-pub struct ViewVars {
+pub struct ViewVars<K: CellKind = PlainCells> {
     /// +0x0 (0x60626C): the car block's +0x69C copied at the frame start (`race::frame_draw`); `race::car_draw` tests it against the drawn car, so it marks which car the view follows.
-    pub view_car_flag_a: Dword,
+    pub view_car_flag_a: K::Dword,
     /// +0x4 (0x606270): the car block's +0x684 copied at the frame start; the car's index into the stage records (`race::car_draw`, `race::frame_draw`).
-    pub view_car_stage: Dword,
+    pub view_car_stage: K::Dword,
     /// +0x8 (0x606274): the car block's +0x6F0 copied at the frame start (`race::frame_draw`); IDA: read by `camera_view` (0x43832A) and written by `race::car_light_modes` (0x455C44).
-    pub view_car_flag_b: Dword,
+    pub view_car_flag_b: K::Dword,
     /// +0xc (0x606278): `dword_606278`: copied to `view_scale` by `race::frame_draw` (the view's size scale).
-    pub view_scale_kept: Float,
+    pub view_scale_kept: K::Float,
     /// +0x10 (0x60627C): `g_drawnCar`: the car being drawn (`race::car_draw`, `scene::set_object_light`, `scene::list_object_face`).
-    pub drawn_car: Dword,
+    pub drawn_car: K::Dword,
     /// +0x14 (0x606280): `g_groupMask`: face group mask for the drawn car; the drawing's is the
     /// view's (`race::car_draw_state`), this one not used.
-    pub group_mask: Dword,
+    pub group_mask: K::Dword,
     /// +0x18 (0x606284): `dword_606284`: the car's fade alpha, now the view's (`race::face_work`):
     /// this place is no longer reached.
-    pub fade_alpha_moved: Dword,
+    pub fade_alpha_moved: K::Dword,
     /// +0x1c (0x606288): `dword_606288`: camera height bias (`physics::camera_height_bias`).
-    pub camera_height_bias: Dword,
+    pub camera_height_bias: K::Dword,
     /// +0x20 (0x60628C): `flt_60628C` (`physics::camera_height_bias`).
-    pub camera_bias_scale: Float,
+    pub camera_bias_scale: K::Float,
     /// +0x24 (0x606290): `flt_606290`: held to 0 ..= 1 (`physics::camera_height_bias`).
-    pub camera_bias_limit: Float,
+    pub camera_bias_limit: K::Float,
     /// +0x28 (0x606294): `dword_606294`: a float, the far/scale (`scene::set_view_window`, `race::draw_mirror_view`, `race::race_end`).
-    pub view_scale: Float,
+    pub view_scale: K::Float,
     /// +0x2c (0x606298): `g_viewPlace`, `dword_60629C`, `dword_6062A0`: the view place x, y, z (`scene::view_matrix`, `race::frame_draw`, `drive::set_listener`). The original writes the run at once.
-    pub view_place: [Dword; 3],
+    pub view_place: [K::Dword; 3],
     /// +0x38 (0x6062A4): `flt_6062A4` ..: the place as floats (`race::course_faces`, `race::frame_draw`).
-    pub view_place_f: [Float; 3],
+    pub view_place_f: [K::Float; 3],
     /// +0x44 (0x6062B0): `dword_6062B0`: view x (`race::frame_draw`).
-    pub view_x: Dword,
+    pub view_x: K::Dword,
     /// +0x48 (0x6062B4): `dword_6062B4`: view z (`race::frame_draw`).
-    pub view_z: Dword,
+    pub view_z: K::Dword,
     /// +0x4c (0x6062B8): `g_viewAngles` y, x, z then a second triple at `dword_6062C4` ..; (`scene::view_matrix`, `race::frame_draw`).
-    pub view_angles: [Dword; 6],
+    pub view_angles: [K::Dword; 6],
     /// +0x64 (0x6062D0): `flt_6062D0` (`physics::update_camera`).
-    pub camera_zoom_hold: Float,
+    pub camera_zoom_hold: K::Float,
     /// +0x68 (0x6062D4): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unused_68: Dword,
+    pub unused_68: K::Dword,
     /// +0x6c (0x6062D8): `flt_6062D8` ..: the camera vector (three floats) whose length `physics::update_camera` takes.
-    pub camera_vector: [Float; 3],
+    pub camera_vector: [K::Float; 3],
     /// +0x78 (0x6062E4): used only by the unported `sub_427DB4` and `sub_43B177` (0x6062E4: compared with 0 and cleared); the port never reaches it.
-    pub unknown_78: [Dword; 14],
+    pub unknown_78: [K::Dword; 14],
     /// +0xb0 (0x60631C): `flt_60631C`: held to 0 ..= 1 (`physics::camera_height_bias`, `physics::update_camera`).
-    pub camera_distance: Float,
+    pub camera_distance: K::Float,
     /// +0xb4 (0x606320): `off_606320`: 0x34 pointers to view records (`physics::camera_view`, `drive::pick_replay_camera`, `effects::stage_record`, `race::car_draw`).
-    pub view_records: [Dword; 52],
+    pub view_records: [K::Dword; 52],
     /// +0x184 (0x6063F0): `dword_6063F0`: the view kind, the camera mode number (`drive::set_camera_view`; `race::frame_draw::scene_objects` and `car_draw` branch on it).
-    pub view_kind: Dword,
+    pub view_kind: K::Dword,
     /// +0x188 (0x6063F4): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unused_188: [Dword; 33],
+    pub unused_188: [K::Dword; 33],
     /// +0x20c (0x606478): `dword_606478[]`: by camera view (`race::frame_draw`).
-    pub view_hides: [Dword; 34],
+    pub view_hides: [K::Dword; 34],
 }
 
 /// A view record (0x5C bytes; 52 of them at 0x606500, named by `ViewAndRecords.view_vars.view_records[0]`): one camera
@@ -74,34 +77,34 @@ pub struct ViewVars {
 #[derive(rc2k_derive::Cells)]
 pub struct ViewRecord {
     /// +0x0: the mode's kind (what a replay camera wish stops at: `drive::pick_replay_camera`).
-    pub kind: Dword,
+    pub kind: PlainDword,
     /// +0x4: `xoff`, `yoff`, `zoff`: the camera's offset (floats; `take_first_view` / `take_second_view` add the
     /// camera frame to it).
-    pub offset: [Dword; 3],
+    pub offset: [PlainDword; 3],
     /// +0x10: `xfoc`, `yfoc`, `zfoc`: the focus (floats). +0x10 .. +0x38 are the eleven
     /// figures the views take whole (`take_first_view` / `take_second_view`).
-    pub focus: [Dword; 3],
+    pub focus: [PlainDword; 3],
     /// +0x1C: `xang`, `yang`, `zang`: the angles.
-    pub angles: [Dword; 3],
+    pub angles: [PlainDword; 3],
     /// +0x28: `mspx`, `mspy`, `mspz` (floats; the views' shares).
-    pub speeds: [Dword; 3],
+    pub speeds: [PlainDword; 3],
     /// +0x34: the camera mode record's dword before `fish`; copied with the rest of the record and named nowhere else (the code shows no use).
-    pub unknown_34: Dword,
+    pub unknown_34: PlainDword,
     /// +0x38: `fish` (a whole number).
-    pub fish: Dword,
+    pub fish: PlainDword,
     /// +0x3C: how long a change into this mode takes (ticks; `physics::camera_view::share_done`).
-    pub change_time: Dword,
+    pub change_time: PlainDword,
     /// +0x40: the three turn figures eased in over a change (floats; `ease_view_angles`).
-    pub turn_rates: [Dword; 3],
+    pub turn_rates: [PlainDword; 3],
     /// +0x4C: nonzero: the car's pitch and roll halved and the camera kept off the ground
     /// (`take_first_view`, `camera_avoid_ground`).
-    pub halve_tilt: Dword,
+    pub halve_tilt: PlainDword,
     /// +0x50: nonzero: the zoom held at 0x180 (`physics::update_camera`).
-    pub fixed_zoom: Dword,
+    pub fixed_zoom: PlainDword,
     /// +0x54: the height bias's figure (`camera_height_bias`; sign read).
-    pub height_bias: Dword,
+    pub height_bias: PlainDword,
     /// +0x58: the blend's figure (`ease_view_blend`; sign read).
-    pub blend: Dword,
+    pub blend: PlainDword,
 }
 
 const _: () = assert!(core::mem::size_of::<ViewRecord>() == ViewVars::RECORD_SIZE);
@@ -109,14 +112,14 @@ const _: () = assert!(core::mem::size_of::<ViewRecord>() == ViewVars::RECORD_SIZ
 impl ViewRecord {
     /// The offset's three dwords (+0x4 .. +0xC).
     pub fn offset_bits(&self) -> [u32; 3] {
-        self.offset.each_ref().map(Dword::get)
+        self.offset.each_ref().map(PlainDword::get)
     }
 
     /// The eleven dwords the views take whole (+0x10 .. +0x38): focus, angles, speeds,
     /// +0x34, fish.
     pub fn taken(&self) -> [u32; 11] {
         let [f, a, s] =
-            [&self.focus, &self.angles, &self.speeds].map(|t| t.each_ref().map(Dword::get));
+            [&self.focus, &self.angles, &self.speeds].map(|t| t.each_ref().map(PlainDword::get));
         [
             f[0],
             f[1],
@@ -175,6 +178,25 @@ impl ViewVars {
 
 /// A view record by handle (phase 13): `VIEW_TAG | k` for the record `k` of the 52, in
 /// place of the record's address in `ViewAndRecords.view_vars.view_records[0]` (0xC3 of the tags 0xC3 .. 0xC6 given).
+/// A view's copy of the view variables (`race::view_scratch::ViewScratch::vars`): the same
+/// record on atomics, which the view's drawing part writes.
+pub type ViewVarsCopy = ViewVars<SharedCells>;
+
+const _: () = assert!(core::mem::size_of::<ViewVarsCopy>() == END - START);
+
+impl<K: CellKind> ViewVars<K>
+where
+    Self: crate::cells::Cells,
+{
+    /// The view variables' first values (the image's, the records' names as handles).
+    pub const fn new() -> Self {
+        crate::cells::cells_of_bytes(with_view_refs(
+            crate::race::store::first_values::<{ END - START }>(START),
+            START,
+        ))
+    }
+}
+
 pub const VIEW_TAG: u32 = 0xC300_0000;
 
 /// The handle for IDA's `ida` (a view record's address; anything else fails to compile).
@@ -213,7 +235,7 @@ const _: () = assert!(END - START == core::mem::size_of::<ViewVars>());
 /// The piece's host address (the alignment checks).
 #[cfg(test)]
 pub fn piece_addr() -> usize {
-    core::ptr::from_ref(&race().frame.view_and_records.view_vars).addr()
+    core::ptr::from_ref(&race().frame.view_and_records.get().view_vars).addr()
 }
 
 #[cfg(test)]
@@ -230,16 +252,16 @@ mod tests {
             );
             // A handle in place of the image's address, naming the same record.
             assert_eq!(
-                race().frame.view_and_records.view_vars.view_records[n].get(),
+                race().frame.view_and_records.get().view_vars.view_records[n].get(),
                 view_ref(image)
             );
             assert_eq!(image as usize, ViewVars::RECORDS + 0x5C * n);
             assert!(core::ptr::eq(
-                ViewVars::record_of(&race().frame.view_and_records, n).unwrap(),
-                ViewVars::record(&race().frame.view_and_records, n)
+                ViewVars::record_of(race().frame.view_and_records.get(), n).unwrap(),
+                ViewVars::record(race().frame.view_and_records.get(), n)
             ));
         }
-        assert!(ViewVars::record_of(&race().frame.view_and_records, 52).is_err());
+        assert!(ViewVars::record_of(race().frame.view_and_records.get(), 52).is_err());
     }
 
     #[test]

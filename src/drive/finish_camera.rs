@@ -69,7 +69,7 @@ mod reference_vectors {
                     writes: &[(0x206748, Out::F), (0x206730, Out::F), (0x206734, Out::F)],
                 }],
                 ulps: 0,
-                plain: |_| lines(&race().frame.view_and_records, &race().replay),
+                plain: |_| lines(race().frame.view_and_records.get(), &race().replay),
             },
             Block {
                 name: "finish_camera last line",
@@ -78,7 +78,7 @@ mod reference_vectors {
                     writes: &[(0x206744, Out::F)],
                 }],
                 ulps: 0,
-                plain: |_| last_line(&race().frame.view_and_records, &race().replay),
+                plain: |_| last_line(race().frame.view_and_records.get(), &race().replay),
             },
         ]
     }

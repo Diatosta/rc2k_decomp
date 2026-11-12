@@ -28,7 +28,10 @@ pub fn setting_cell(
 }
 
 /// Where a header setting lives in the replay's car header (`header_stage` ..).
-pub fn header_cell(race: &Race, s: rc2k_core::race::replay::Setting) -> &crate::session::Dword {
+pub fn header_cell(
+    race: &Race,
+    s: rc2k_core::race::replay::Setting,
+) -> &crate::session::PlainDword {
     let work = race.replay_work();
     use rc2k_core::race::replay::Setting::*;
     match s {
@@ -276,6 +279,7 @@ pub fn tidy_stage(
     race.course.numbers.in_race.set(false);
     race.frame
         .view_and_records
+        .get()
         .view_vars
         .view_scale
         .set(race.shared.vars.kept_scale.get());

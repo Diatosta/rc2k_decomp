@@ -70,7 +70,7 @@ fn tests(
     let gear = car.gear.get();
     let kept = car.engine_speed.get();
     revs_speed(car, tables)?;
-    drawing.scene.scratch.set(over_top(car).to_bits());
+    drawing.scene.get().scratch.set(over_top(car).to_bits());
     car.engine_speed.set(kept);
     shifts::auto_tests(
         gear,
@@ -78,7 +78,7 @@ fn tests(
         || car.brake.get() != 0,
         || {
             !below(
-                drawing.scene.scratch.get(),
+                drawing.scene.get().scratch.get(),
                 gear_figures.shift_up_point.get(),
             )
         },
@@ -89,13 +89,13 @@ fn tests(
             )
         },
         || {
-            drawing.scene.scratch.set(over_top(car).to_bits());
+            drawing.scene.get().scratch.set(over_top(car).to_bits());
             if !shifts::above_first(gear) {
                 return Ok(false);
             }
             let (rb, rl) = (ratio(tables, gear)?, ratio(tables, gear.wrapping_sub(1))?);
             if mul_div_status(
-                drawing.scene.scratch.get(),
+                drawing.scene.get().scratch.get(),
                 rb,
                 rl,
                 &gear_figures.shift_ratio_figure,
@@ -109,7 +109,7 @@ fn tests(
             } else {
                 gear_figures.shift_down_point.get()
             };
-            Ok(below(drawing.scene.scratch.get(), point))
+            Ok(below(drawing.scene.get().scratch.get(), point))
         },
         || below(car.local_velocity[2].get(), tables.auto_gear_speed_up.get()),
     )

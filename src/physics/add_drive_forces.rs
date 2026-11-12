@@ -16,7 +16,12 @@ use crate::physics::tables_store::PhysicsTables;
 pub fn add_drive_forces(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner::Scene) {
     let mut factor = tables.drive_force_factor[0].get();
     if car.drive_kind.get() != 0 {
-        scene.drawing.scene.scratch.set_float(x87::loaded(factor));
+        scene
+            .drawing
+            .scene
+            .get()
+            .scratch
+            .set_float(x87::loaded(factor));
         factor = tables.drive_force_factor[1].get();
     }
     let loads = &tables.wheel_loads;

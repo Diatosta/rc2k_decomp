@@ -4,7 +4,6 @@ use crate::race::owner::Race;
 use crate::race::owner_physics::Physics;
 use crate::race::owner_shared::RaceShared;
 use crate::race::trap::Trap;
-use crate::session::Dword;
 
 pub const KIND_ORDER_LEN: u32 = rc2k_core::race::cars::KIND_ORDER_LEN;
 
@@ -54,6 +53,7 @@ pub fn set_race_screen_mode(gfx: &crate::gfx::owner::Gfx, system: &crate::system
 // ---- batch 12 ----
 
 use crate::errors::{BadInput, Refused};
+use crate::session::PlainDword;
 
 /// `race::release_stage_textures` (0x44E79F): `gfx::release_all_textures` (the platform's; a `call`
 /// and a `retn`).
@@ -128,7 +128,7 @@ fn flagged(race: &Race, kind: u32) -> bool {
 }
 
 /// A block's camera view (+0x684) of 2 or 3 made 4.
-fn settle_state(view: &Dword) {
+fn settle_state(view: &PlainDword) {
     if let Some(v) = rc2k_core::race::cars::settled_state(view.get()) {
         view.set(v);
     }
@@ -159,9 +159,9 @@ pub fn set_start_states(race: &Race, vars: &NetVars) -> Result<(), Refused> {
             shared.vars.race_car_kinds[0].get()
         };
         let v = start_value(physics, first_kind);
-        frame.panel_and_overlay.panel.start_values[0].set(v);
+        frame.panel_and_overlay.get().panel.start_values[0].set(v);
         let v = start_value(physics, shared.vars.race_car_kinds[1].get());
-        frame.panel_and_overlay.panel.start_values[1].set(v);
+        frame.panel_and_overlay.get().panel.start_values[1].set(v);
         if one {
             shared.vars.split.set(0u32);
             let block = shared.race_car(chosen as usize)?;

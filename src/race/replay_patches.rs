@@ -11,6 +11,7 @@ use crate::errors::Refused;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use crate::session::Dword;
+use crate::session::DwordLike;
 
 /// `g_patchSwitch` and the twelve settings after it (13 dwords from 0x71C6D0).
 pub fn switches(shared: &RaceShared) -> impl Iterator<Item = &Dword> {
@@ -18,7 +19,10 @@ pub fn switches(shared: &RaceShared) -> impl Iterator<Item = &Dword> {
 }
 
 /// `rep movsd` of the dwords, forwards.
-fn move_dwords<'a>(to: impl Iterator<Item = &'a Dword>, from: impl Iterator<Item = &'a Dword>) {
+fn move_dwords<'a, T: DwordLike + 'a, F: DwordLike + 'a>(
+    to: impl Iterator<Item = &'a T>,
+    from: impl Iterator<Item = &'a F>,
+) {
     for (to, from) in to.zip(from) {
         to.set(from.get());
     }

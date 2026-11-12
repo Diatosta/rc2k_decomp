@@ -44,7 +44,7 @@ pub fn draw_slot_object(
     let mode: u32 = race.shared.vars.run_kind.get();
     if race.shared.view.players.get() != 1 && mode != 0 && mode != 2 {
         let n = object.wrapping_sub(0x50);
-        if race.frame.frame_work.listed_car_sounds[((n / 0x14) & 7) as usize].get()
+        if ctx.reads.frame_work.listed_car_sounds[((n / 0x14) & 7) as usize].get()
             != ctx.view.drawn_view(race)
         {
             return Ok(());
@@ -142,16 +142,11 @@ pub fn draw_race_slots(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(
 /// or more drawn with the depth buffer off (`g_polygonMode` 0, switches -1, 1, 0; `g_polygonDrawn`
 /// 1); the colour back to 0xFFFFFF. Refuses what the clip refuses (after the entries are set: never
 /// seen with four vertices).
-#[allow(
-    clippy::too_many_arguments,
-    reason = "the polygon's work, the part's scratch, the owners and the part's reads"
-)]
 pub fn draw_screen_quad(
     poly: &crate::scene::polygon_work::PolygonWork,
     part: &crate::workers::PartScratch,
     race: &Race,
     face: &crate::race::face_work::FaceWork,
-    scene: &crate::scene::owner::Scene,
     reads: crate::workers::DrawReads<'_>,
     screen: &crate::session::Screen,
     view: &crate::race::view_scratch::ViewScratch,
@@ -199,9 +194,7 @@ pub fn draw_screen_quad(
         face.polygon_mode.set(0u32);
         poly.polygon_sides[0].set(1u32);
         poly.polygon_sides[1].set(0u32);
-        crate::scene::draw_polygon::draw_polygon_in_game(
-            poly, part, race, face, scene, reads, screen,
-        )?;
+        crate::scene::draw_polygon::draw_polygon_in_game(poly, part, race, face, reads, screen)?;
         face.polygon_mode.set(0u32);
         poly.polygon_drawn.set(1u32);
         crate::scene::depth_buffer_on::depth_buffer(part, true);
@@ -213,16 +206,11 @@ pub fn draw_screen_quad(
 /// `race::draw_view_tint` (0x456092): the whole view (0 .. `DRAW.view_size`, 0 ..
 /// `DRAW.view_size[1]`) as a screen quad in 0x204080 (`RACE_VARS.quad_colour`), switches -1, 1, 0,
 /// by `draw_screen_quad`.
-#[allow(
-    clippy::too_many_arguments,
-    reason = "the polygon's work, the part's scratch, the owners and the part's reads"
-)]
 pub fn draw_view_tint(
     poly: &crate::scene::polygon_work::PolygonWork,
     part: &crate::workers::PartScratch,
     race: &Race,
     face: &crate::race::face_work::FaceWork,
-    scene: &crate::scene::owner::Scene,
     reads: crate::workers::DrawReads<'_>,
     screen: &crate::session::Screen,
     view: &crate::race::view_scratch::ViewScratch,
@@ -236,7 +224,7 @@ pub fn draw_view_tint(
     poly.polygon_textures[0].set(u32::MAX);
     poly.polygon_sides[0].set(1u32);
     poly.polygon_sides[1].set(0u32);
-    draw_screen_quad(poly, part, race, face, scene, reads, screen, view)
+    draw_screen_quad(poly, part, race, face, reads, screen, view)
 }
 
 /// `race::add_car_depth_entry` (0x4574A0): the place (+0x134 .., into `OBJECT_WORK.place` ..) of
@@ -357,10 +345,10 @@ pub(super) fn light_pair(
 ) -> Result<(), BadInput> {
     let race = ctx.race;
     // The bytes are the block's part switches (+0xAC0 ..).
-    let switches = &race.car_blocks().cars[car].part_switches;
+    let switches = &ctx.reads.cars_and_replay.car_blocks.cars[car].part_switches;
     let byte = |o: u32| -> Result<u32, BadInput> {
         let n = o.wrapping_sub(PART_SWITCHES) as usize;
-        if n >= switches.atomics().len() {
+        if n >= switches.read().len() {
             return Err(BadInput("a light byte past the part switches"));
         }
         Ok(u32::from(switches.get(n)))
@@ -398,11 +386,11 @@ pub fn car_light_flares(ctx: &DrawCtx, car: usize) -> Result<(), Refused> {
     if race.shared.switches.mask_kind.get() == 8 {
         ctx.view.object.size.set(2u32);
         let point = [
-            race.frame.frame_work.part_place[0].get(),
-            race.frame.frame_work.part_place[1]
+            ctx.reads.frame_work.part_place[0].get(),
+            ctx.reads.frame_work.part_place[1]
                 .get()
                 .wrapping_sub(race.shared.physics_tables.ground_drop.get()),
-            race.frame.frame_work.part_place[2].get(),
+            ctx.reads.frame_work.part_place[2].get(),
         ];
         ctx.view.light.other_light.set(0x00F0_F0F0u32);
         place_flare(ctx, car, point)?;

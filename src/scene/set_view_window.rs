@@ -24,22 +24,25 @@ use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::race::owner::Race;
 use crate::race::view_vars_store::ViewVars;
+use crate::scene::draw_store::SceneDraw;
 use crate::scene::view_window::ViewWindow;
+use crate::session::{CellKind, FloatLike};
 
 // ---- Rust version ----
 
 /// `vars`: the view variables the window's scale is read from (`view_scale`: a view's own,
-/// `ViewScratch::vars`, or the shared ones).
+/// `ViewScratch::vars`, or the shared ones); `draw`: the scene's draw variables (the fade and
+/// clip factors), a drawing part's from its reads.
 pub fn set_view_window(
     race: &Race,
-    scene: &crate::scene::owner::Scene,
+    draw: &SceneDraw,
     system: &crate::system::owner::System,
     window: &ViewWindow,
-    vars: &ViewVars,
+    vars: &ViewVars<impl CellKind>,
 ) {
     set_view_window_reaching(
         race,
-        scene,
+        draw,
         system,
         window,
         vars,
@@ -51,13 +54,12 @@ pub fn set_view_window(
 /// window is made with a reach of 2).
 pub fn set_view_window_reaching(
     race: &Race,
-    scene: &crate::scene::owner::Scene,
+    draw: &SceneDraw,
     system: &crate::system::owner::System,
     window: &ViewWindow,
-    vars: &ViewVars,
+    vars: &ViewVars<impl CellKind>,
     reach: u32,
 ) {
-    let drawing = &scene.drawing;
     let depth = reach.wrapping_mul(0x20);
     crate::session::write_bits(&window.view_depth, [depth, depth]);
     let [width, height]: [u32; 2] = crate::session::read_bits(&window.view_size);
@@ -99,13 +101,13 @@ pub fn set_view_window_reaching(
     window.one_over_farthest.set(x87::reciprocal(farthest));
     window.farthest_scaled.set(x87::mul_div_div_to_int(
         farthest,
-        drawing.scene.fade_a.get(),
-        drawing.scene.fade_b.get(),
+        draw.fade_a.get(),
+        draw.fade_b.get(),
         race.course.numbers.k65536.get(),
     ) as u32);
     window
         .clip_farthest
-        .set(x87::mul_to_int(farthest, &drawing.scene.clip_factor) as u32);
+        .set(x87::mul_to_int(farthest, &draw.clip_factor) as u32);
     let float = |value: u32| x87::from_int(value as i32);
     crate::session::write_bits(
         &window.view_offset_float,
@@ -121,12 +123,11 @@ pub fn set_view_window_reaching(
 // Converted: `rc2k_core::scene::view_window::window_settings`
 pub fn set_view_window_plain(
     race: &Race,
-    scene: &crate::scene::owner::Scene,
+    draw: &SceneDraw,
     system: &crate::system::owner::System,
     window: &ViewWindow,
-    vars: &ViewVars,
+    vars: &ViewVars<impl CellKind>,
 ) {
-    let drawing = &scene.drawing;
     use rc2k_core::scene::view_window::{WindowInputs, window_settings};
     let i = WindowInputs {
         reach: race.course.stage_prefs.grid_reach.get(),
@@ -141,9 +142,9 @@ pub fn set_view_window_plain(
         ),
         nearer: race.course.stage_prefs.nearer.get(),
         nearer_factor: race.course.numbers.hundredth_a.get(),
-        fade: [drawing.scene.fade_a.get(), drawing.scene.fade_b.get()],
+        fade: [draw.fade_a.get(), draw.fade_b.get()],
         turn: race.course.numbers.k65536.get(),
-        clip_factor: drawing.scene.clip_factor.get(),
+        clip_factor: draw.clip_factor.get(),
         one: race.course.numbers.one.get(),
     };
     let w = window_settings(&i);

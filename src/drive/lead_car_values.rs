@@ -2,12 +2,12 @@
 //! (block field, keeping place) pairs, in the original's order.
 use crate::physics::car_store::Car;
 use crate::race::owner_frame::Frame;
-use crate::session::Dword;
+use crate::session::PlainDword;
 
 /// (the lead car's field, its keeping place): the camera's view, place and turns, and the
 /// 2-or-3 mode flag. `lead` is the car this machine plays (`RaceShared::own_car`).
-pub fn pairs<'a>(lead: &'a Car, frame: &'a Frame) -> [(&'a Dword, &'a Dword); 8] {
-    let kept = &frame.frame_work.lead_kept;
+pub fn pairs<'a>(lead: &'a Car, frame: &'a Frame) -> [(&'a PlainDword, &'a PlainDword); 8] {
+    let kept = &frame.frame_work.get().lead_kept;
     [
         (&lead.camera_view, &kept[0]),
         (&lead.camera_position[0], &kept[1]),

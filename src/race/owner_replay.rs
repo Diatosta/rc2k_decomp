@@ -15,8 +15,10 @@ pub struct Replay {
     pub finish: DrawShared<Finish>,
     /// `aVarTmprpl`: the last race's replay file's name (`race::replay_path`).
     pub last_race: [u8; LAST_RACE_LEN],
-    /// The cars' blocks and the replay's work (`race::groups_store`).
-    pub cars_and_replay: CarsAndReplay,
+    /// The cars' blocks and the replay's work (`race::groups_store`); lent to the drawing
+    /// parts (`workers::DrawReads`): no part writes them (each view draws its own copy of its
+    /// car, `ViewScratch::car`).
+    pub cars_and_replay: DrawShared<CarsAndReplay>,
     /// The viewer's panel .. the kinds' tables (`race::groups_store`).
     pub viewer_and_kinds: ViewerAndKinds,
     main: GameThread<ReplayMain>,
@@ -36,7 +38,7 @@ impl Replay {
         Replay {
             finish: DrawShared::new(Finish::new()),
             last_race: with_runs(&[(0, b"var\\tmprpl\0")]),
-            cars_and_replay: CarsAndReplay::new(),
+            cars_and_replay: DrawShared::new(CarsAndReplay::new()),
             viewer_and_kinds: ViewerAndKinds::new(),
             main: GameThread::new(ReplayMain {
                 replay_frames: ReplayFrames::new(),

@@ -79,7 +79,6 @@ pub fn draw_view_scene(
             part,
             race,
             &view.face,
-            scene,
             reads,
             &system.session.screen,
             view,
@@ -98,7 +97,7 @@ pub fn draw_view_scene(
     )?;
     clear_point_records(reads, part)?;
     set_up_fog(race, &view.fog, &view.polygon, &view.car, part)?;
-    camera_view(race, scene, system, &view.matrices, view)?;
+    camera_view(race, reads.scene_draw, system, &view.matrices, view)?;
     draw_sky(&ctx)?;
     view_light(&ctx, crate::race::frame_draw::has_mmx(system))?;
     reset_lamps(&ctx)?;

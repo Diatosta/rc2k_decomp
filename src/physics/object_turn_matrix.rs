@@ -29,7 +29,7 @@ pub fn object_turn_matrix(
     set_turn_y(
         engine_tables,
         &matrices.turn_y_matrix,
-        &scene.drawing.scene.turn_y_work,
+        &scene.drawing.scene.get().turn_y_work,
         work.angles[0].get().wrapping_neg(),
     );
     let (out, turn_y, turn_x) = (
@@ -45,29 +45,29 @@ pub fn object_turn_matrix(
         set_turn_y(
             engine_tables,
             &matrices.turn_y_matrix,
-            &scene.drawing.scene.turn_y_work,
+            &scene.drawing.scene.get().turn_y_work,
             work.angles[2].get().wrapping_neg(),
         );
         multiply_matrices(&out, &turn_y, &lit);
         set_turn_x(
             engine_tables,
             &matrices.turn_x_matrix,
-            &scene.drawing.scene.turn_x_work,
+            &scene.drawing.scene.get().turn_x_work,
             work.angles[1].get().wrapping_neg(),
         );
         multiply_matrices(&lit, &turn_x, &turned);
         set_turn_y(
             engine_tables,
             &matrices.turn_y_matrix,
-            &scene.drawing.scene.turn_y_work,
+            &scene.drawing.scene.get().turn_y_work,
             work.angles[2].get(),
         );
         multiply_matrices(&turned, &turn_y, &out);
     }
     let figure = work.size.get();
-    drawing.scene.scratch.set(figure);
+    drawing.scene.get().scratch.set(figure);
     let share = ext_div2(int_80(figure as i32, false), 16.0f32, 1.0f32);
-    drawing.scene.scratch.set(share.to_bits());
+    drawing.scene.get().scratch.set(share.to_bits());
     for cell in out {
         cell.set(x87::mul(cell, share));
     }

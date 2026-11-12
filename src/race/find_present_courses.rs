@@ -41,7 +41,7 @@ pub fn find_present_courses(
             debug_assert_eq!(PROBE_BYTES, 4);
             read_whole_file_cells(
                 &crate::files::cstring(path, "a course file's path")?,
-                std::slice::from_ref(&scene.drawing.scene.work_dword),
+                std::slice::from_ref(&scene.drawing.scene.get().work_dword),
             )?;
             Ok::<u32, Refused>(BYTES_READ.get())
         })?;
