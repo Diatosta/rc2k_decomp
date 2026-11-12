@@ -267,7 +267,7 @@ pub fn add_object_shape(
     scene.objects.slots.get().first_face[slot].set(first_face);
     let kind: u32 = scene.object_work().loading_kind.get();
     let turned = (0x190..0x258).contains(&kind);
-    let drop: u32 = race.shared.physics_tables.ground_drop.get();
+    let drop: u32 = race.shared.physics_tables.get().ground_drop.get();
     let mut radius = 0u32;
     let mut count = first_point;
     let mut to = room.points.wrapping_add(count.wrapping_mul(12));

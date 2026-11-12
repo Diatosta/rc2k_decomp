@@ -34,7 +34,7 @@ use rc2k_core::drive::listener;
 /// The car file's six figures times 65536 over 1000, or the refusal (before anything).
 fn figures(race: &Race, session: u32, viewed: u32) -> Result<[i32; 6], Refused> {
     let shared = &race.shared;
-    listener::check_viewed(viewed, || shared.work.has_car_block(viewed as usize))?;
+    listener::check_viewed(viewed, || shared.work.get().has_car_block(viewed as usize))?;
     let n = car_file_number(race.kind_tables(), shared.own_car(session).car_kind.get());
     rc2k_core::drive::sharing::check_light_record(n)?;
     let mut out = [0i32; 6];
@@ -81,7 +81,7 @@ impl<'a> ListenerView<'a> {
     pub fn before_any_view(race: &'a Race) -> Self {
         let frame = &race.frame;
         Self {
-            drawn_view: race.shared.view.drawn_view.get(),
+            drawn_view: race.shared.view.get().drawn_view.get(),
             view_matrix: &frame.matrices.view_matrix,
             view_turn_matrix: &frame.matrices.view_turn_matrix,
             view_place: frame
@@ -126,12 +126,12 @@ pub fn set_listener(
         race.effects_settings().listener_turn[k].set(view.view_turn_matrix[o as usize / 4].get());
     }
     race.effects_settings().listener_figures[0].set(listener::first_figure(
-        race.shared.vars.settings_words[0].get(),
+        race.shared.vars.get().settings_words[0].get(),
         || view.sun.view_out.get(),
     ));
     race.effects_settings().listener_figures[1].set(view.sun.place[0].get());
     race.effects_settings().listener_figures[2].set(view.sun.place[1].get());
-    let f = listener::listener_points(f, race.shared.physics_tables.ground_drop.get());
+    let f = listener::listener_points(f, race.shared.physics_tables.get().ground_drop.get());
     for (k, &v) in f.iter().enumerate() {
         physics.camera().listener_points[k].set(v as u32);
     }

@@ -23,14 +23,12 @@
 use crate::errors::{BadInput, Refused};
 
 // ---- game data ----
-use crate::race::owner::Race;
 use rc2k_core::scene::shown::OBJECTS;
 
 // ---- Rust version ----
 
 /// The game's variables for the race's tests.
 struct Game<'a>(
-    &'a Race,
     &'a crate::race::car_draw_state::CarDrawState,
     &'a crate::scene::object_place::ObjectPlace,
     crate::workers::DrawReads<'a>,
@@ -38,38 +36,37 @@ struct Game<'a>(
 
 impl rc2k_core::scene::shown::RaceObject for Game<'_> {
     fn object(&self) -> u32 {
-        self.1.object_number.get()
+        self.0.object_number.get()
     }
     fn kind_switch(&self) -> bool {
-        self.0.shared.work.in_credits.is_set()
+        self.2.work.in_credits.is_set()
     }
     fn kind_mode(&self) -> u32 {
-        self.0.shared.vars.run_kind.get()
+        self.2.vars.run_kind.get()
     }
     fn kind(&self, object: u32) -> u32 {
-        self.3.object_tables.object_kind(object)
+        self.2.object_tables.object_kind(object)
     }
     fn other_way(&self) -> u32 {
-        self.0.shared.switches.scene_set_up.get()
+        self.2.switches.scene_set_up.get()
     }
     fn shown(&self) -> u32 {
-        self.3.stage_prefs.shown.get()
+        self.2.stage_prefs.shown.get()
     }
     fn which(&self) -> u32 {
-        self.0.shared.work.stage_direction.get()
+        self.2.work.stage_direction.get()
     }
     fn only(&self) -> u32 {
-        self.2.only_object.get()
+        self.1.only_object.get()
     }
     fn faces(&self, object: u32) -> u32 {
-        self.3.object_slots.face_counts[object as usize].get()
+        self.2.object_slots.face_counts[object as usize].get()
     }
 }
 
 /// `draw` stands for `scene::draw_object`.
 // Converted: `rc2k_core::scene::shown::race_shown`
 pub fn draw_shown_object(
-    race: &Race,
     reads: crate::workers::DrawReads<'_>,
     draw: &mut dyn FnMut() -> Result<(), Refused>,
     cars: &crate::race::car_draw_state::CarDrawState,
@@ -81,7 +78,7 @@ pub fn draw_shown_object(
     }
     object.drawing_object.set(1u32);
     let show = if in_race {
-        rc2k_core::scene::shown::race_shown(&Game(race, cars, object, reads))
+        rc2k_core::scene::shown::race_shown(&Game(cars, object, reads))
     } else {
         // The original set the 0x100 kind dwords here (`scene::clear_kind_bytes`): the
         // caller's context has the menus' marks (`scene::car_marks`).

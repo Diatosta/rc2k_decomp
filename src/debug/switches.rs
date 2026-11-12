@@ -6,7 +6,6 @@
 //! stage's load may put them back.
 
 use crate::owners::Owners;
-use crate::session::Dword;
 use dear_imgui_rs::Ui;
 use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
 
@@ -15,10 +14,10 @@ use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
 pub static EXTENSIONS: AtomicU32 = AtomicU32::new(1);
 
 /// A tick box over a switch of 0 and 1, with the key it had and what it does.
-fn tick(ui: &Ui, key: u32, name: &str, cell: &Dword, about: &str) {
-    let mut on = cell.get() != 0;
+fn tick(ui: &Ui, key: u32, name: &str, cell: &impl crate::session::Cell32, about: &str) {
+    let mut on = cell.bits() != 0;
     if ui.checkbox(format!("{key}: {name}"), &mut on) {
-        cell.set(u32::from(on));
+        cell.set_bits(u32::from(on));
     }
     ui.same_line();
     ui.text_disabled(about);
@@ -28,13 +27,13 @@ fn tick(ui: &Ui, key: u32, name: &str, cell: &Dword, about: &str) {
 pub fn tab(o: &Owners<'static>, ui: &Ui) {
     let session = &o.system.session;
     let shared = &o.race.shared;
-    let words = &shared.vars.settings_words;
+    let words = &shared.vars.get().settings_words;
     ui.text_disabled("Numbered by the keypad key each had");
     tick(
         ui,
         1,
         "Mipmaps' setting",
-        &shared.vars.mip_setting,
+        &shared.vars.get().mip_setting,
         "the original's mipmaps; our rasteriser filters alike either way: no change",
     );
     ui.text_disabled("2: dword_6218E0: nothing reads it");
@@ -100,7 +99,7 @@ pub fn tab(o: &Owners<'static>, ui: &Ui) {
         ui,
         9,
         "View marks",
-        &shared.switches.view_marks_on,
+        &shared.switches.get().view_marks_on,
         "the effects on the view (race::frame_views); a stage's load sets it on",
     );
 }

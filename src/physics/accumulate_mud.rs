@@ -15,7 +15,7 @@ use crate::physics::car_store::Car;
 use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::race::kind_store::KindTables;
 use crate::race::vars_store::RaceVars;
-use crate::session::Float;
+use crate::session::PlainFloat;
 use std::cmp::Ordering;
 
 /// `fld zero; fld s; fcompp`, C0: s below zero or unordered.
@@ -29,9 +29,9 @@ fn below(s: u32, zero: u32) -> bool {
 /// One half: `speed` (None with the switch set) held, scaled, added to the four at `to`.
 fn add_mud(
     speed: Option<u32>,
-    f1: &Float,
-    f2: &Float,
-    to: &[Float; 4],
+    f1: &PlainFloat,
+    f2: &PlainFloat,
+    to: &[PlainFloat; 4],
     scene: &crate::scene::owner::Scene,
 ) {
     let drawing = &scene.drawing;

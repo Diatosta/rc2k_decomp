@@ -19,8 +19,8 @@ pub fn choose_view_window(
     // Converted: `rc2k_core::scene::view_window::choose`.
     use rc2k_core::scene::view_window::{ViewSettings, choose};
     let settings = ViewSettings {
-        framed: shared.switches.editor_mode.get() != 0,
-        wide: shared.switches.scene_set_up.get() != 0,
+        framed: shared.switches.get().editor_mode.get() != 0,
+        wide: shared.switches.get().scene_set_up.get() != 0,
         mode: scene.light_tables.get().view_mode.get(),
     };
     // The front end's window: the menus, the loading bar and the HUD's full view.
@@ -38,11 +38,11 @@ pub fn choose_view_window(
     window.view_offset[1].set(chosen.offset[1]);
     window.view_zoom.set(chosen.scale);
     crate::scene::set_view_window::set_view_window(
-        race,
         race.course.reads(),
         scene.drawing.scene.get(),
         system.session.screen.get(),
         window,
         &race.frame.view_and_records.get().view_vars,
+        &race.shared.vars.get().scale_factor,
     );
 }

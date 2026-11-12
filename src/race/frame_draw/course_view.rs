@@ -86,7 +86,6 @@ pub fn face_hidden(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     face: &rc2k_core::race::faces::Face,
 ) -> Result<bool, Refused> {
-    let race = ctx.race;
     // Converted: `rc2k_core::race::faces::{hidden_by_switches, hidden_by_depth}`; the
     // depths' roundings the x87's.
     use rc2k_core::race::faces::{hidden_by_depth, hidden_by_switches};
@@ -98,7 +97,7 @@ pub fn face_hidden(
     let shows: u32 =
         crate::session::read_on_in(shared, &shared.view_hides, view as usize, "the view hides")?;
     let hiding = if shows == 0 {
-        race.shared.switches.scene_set_up.get()
+        ctx.reads.switches.scene_set_up.get()
     } else {
         0
     };
@@ -204,15 +203,15 @@ pub fn add_depth_entry(ctx: &DrawCtx, face: u32) -> Result<(), Refused> {
 /// records when the grid is to be made (the original's loop would run on: it tests `jnz` after the
 /// first). `vars`: the view's variables (its place, `ViewScratch::vars`).
 pub fn course_grid(
-    race: &Race,
     course: CourseReads<'_>,
+    work: &crate::race::work_store::RaceWork,
     view: &crate::race::view_grid::ViewGrid,
     vars: &crate::race::view_vars_store::ViewVarsCopy,
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::frame::{hold_to_limit, grid_corner, record_cell,
     // grid_cell}`.
     use rc2k_core::race::frame::{GRID_EMPTY, GRID_SIDE, grid_cell, grid_corner, record_cell};
-    let half = hold_to_limit(&race.shared, course.stage_prefs.grid_reach.get());
+    let half = hold_to_limit(work, course.stage_prefs.grid_reach.get());
     let span = half.wrapping_add(half);
     let (gx, gz) = grid_corner(vars.view_x.get(), vars.view_z.get(), half);
     let unchanged = gx == view.x.get() && gz == view.z.get();
@@ -331,7 +330,7 @@ pub fn face_hide_mask(
     crate::physics::probe_ground::probe_ground_in_view(
         &crate::physics::probe_ground::ProbeInputs {
             numbers: reads.numbers,
-            tables: &race.shared.physics_tables,
+            tables: reads.physics_tables,
             course: reads.course(),
             engine_tables: &race.shared.buffers.engine_tables,
         },
@@ -414,11 +413,11 @@ pub fn prepare_course_view(
 ) -> Result<(), Refused> {
     check_course_grid(reads.course())?;
     face_hide_mask(race, reads, view, part)?;
-    course_grid(race, reads.course(), &view.grid, &view.vars)?;
-    if race.shared.switches.scene_set_up.get() == 0 {
+    course_grid(reads.course(), reads.work, &view.grid, &view.vars)?;
+    if reads.switches.scene_set_up.get() == 0 {
         return Ok(());
     }
-    let limit = if race.shared.vars.checkpoint_count.get() >= 2 {
+    let limit = if reads.vars.checkpoint_count.get() >= 2 {
         checkpoint_colours(race, reads.course(), &view.car)?
     } else {
         0x10

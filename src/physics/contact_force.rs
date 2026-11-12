@@ -43,7 +43,7 @@ use crate::physics::vector_length::vector_length;
 use crate::race::numbers_store::Numbers;
 use crate::scene::matrix3::{extended, rounded, rounded_value};
 use crate::scene::view_matrix::cross_product;
-use crate::session::Float;
+use crate::session::{Float, PlainFloat};
 
 /// Three floats copied as bits, in order.
 fn copy3(to: &[Float], from: &[Float]) {
@@ -296,7 +296,7 @@ fn x87_7(contact: &ContactWork, scene: &crate::scene::owner::Scene) {
 /// `[d + 0] = [contact_total] / [step_time]`
 /// `[d + 4] = [rc + 0x2D3154] / [step_time]`
 /// `[d + 8] = [rc + 0x2D3158] / [step_time]`
-fn x87_8(contact: &ContactWork, tables: &PhysicsTables, d: &[Float; 3]) {
+fn x87_8(contact: &ContactWork, tables: &PhysicsTables, d: &[PlainFloat; 3]) {
     let t0 = contact.contact_total[0].ld();
     let t1 = tables.step_time.ld();
     let t2 = t0 / t1;
@@ -415,7 +415,7 @@ mod reference_vectors {
                 plain: |a| {
                     a[1].set_tbyte(
                         0,
-                        x87_5(&race().physics.contact, &race().shared.physics_tables),
+                        x87_5(&race().physics.contact, race().shared.physics_tables.get()),
                     );
                 },
             },
@@ -546,7 +546,7 @@ mod reference_vectors {
                 plain: |a| {
                     x87_8(
                         &race().physics.contact,
-                        &race().shared.physics_tables,
+                        race().shared.physics_tables.get(),
                         view(a[1], 0),
                     );
                 },

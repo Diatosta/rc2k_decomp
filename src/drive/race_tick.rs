@@ -20,16 +20,17 @@ pub fn race_tick(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), R
         }
         .into());
     }
-    if race.shared.switches.levers_on.get() == 0 {
+    if race.shared.switches.get().levers_on.get() == 0 {
         return crate::drive::simple_car_step::simple_car_step(race, o.input, o.scene, o.net);
     }
     race.shared
         .vars
+        .get()
         .race_ticks
-        .set(race.shared.vars.race_ticks.get().wrapping_add(1));
+        .set(race.shared.vars.get().race_ticks.get().wrapping_add(1));
     if !rc2k_core::drive::race_ticks::tick_runs(
-        race.shared.vars.race_ticks.get(),
-        race.shared.view.after_credits.get(),
+        race.shared.vars.get().race_ticks.get(),
+        race.shared.view.get().after_credits.get(),
     ) {
         return Ok(());
     }

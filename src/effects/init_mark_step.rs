@@ -28,17 +28,17 @@ pub fn init_mark_step(
         // In a network race `g_players` is 1 but this machine's car may be any: every car's
         // record is needed, or a joined machine's own has no marks (the original's slip).
         let count: u32 = if net.vars.session.get() == 1 {
-            race.shared.view.race_cars.get()
+            race.shared.view.get().race_cars.get()
         } else {
-            race.shared.view.players.get()
+            race.shared.view.get().players.get()
         };
         let records = race.shared.car_records()?;
         // `check_cars` holds the count to 8 before `record` is asked.
         let record = |n: u32| records[n as usize];
-        race::check_cars(count, |n| race.shared.work.has_car_block(n as usize))?;
+        race::check_cars(count, |n| race.shared.work.get().has_car_block(n as usize))?;
         race.effects_settings()
             .cars_copy
-            .set(race.shared.view.race_cars.get());
+            .set(race.shared.view.get().race_cars.get());
         // The one object the effects' shapes are made from: the player's car (the original's
         // fixed 0x50 is the first car, not a joined machine's).
         let own = race.shared.own_car_number(net.vars.session.get()) as u32;

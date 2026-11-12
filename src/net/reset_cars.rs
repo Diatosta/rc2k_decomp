@@ -34,8 +34,8 @@ pub fn reset_cars(race: &Race) -> Result<(), crate::errors::BadInput> {
         }
         clear_car_state(block)?;
     }
-    race.shared.vars.race_level.set(0);
-    race.shared.vars.race_stage.set(0);
+    race.shared.vars.get().race_level.set(0);
+    race.shared.vars.get().race_stage.set(0);
     Ok(())
 }
 

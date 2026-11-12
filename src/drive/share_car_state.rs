@@ -168,7 +168,7 @@ pub fn share_car_state_at(
     }
     o.gear_notice.set(p.gear_notice.get());
     p.gear_notice.set(0);
-    let from = race.shared.view.level_from.get();
+    let from = race.shared.view.get().level_from.get();
     let step = race.course.numbers.get().four.get();
     for (level, field) in o.levels.iter().zip([0x2B4, 0x2B8]) {
         level.set(0);

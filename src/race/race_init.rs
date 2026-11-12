@@ -43,7 +43,7 @@ pub fn state_cell(car: &Car, off: u32) -> Result<&PlainDword, BadInput> {
 
 /// `race::clear_race_slots` (0x4621CD): the eight `g_raceSlots` records' first dword 0.
 pub fn clear_race_slots(shared: &RaceShared) {
-    for slot in &shared.work.race_slots {
+    for slot in &shared.work.get().race_slots {
         slot.part.set(0);
     }
 }
@@ -52,7 +52,7 @@ pub fn clear_race_slots(shared: &RaceShared) {
 /// is set), +0x18 and +0x1C 0.
 pub fn reset_car_starts(shared: &RaceShared) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::cars::start_value`.
-    let value = rc2k_core::race::cars::start_value(shared.work.in_credits.is_set());
+    let value = rc2k_core::race::cars::start_value(shared.work.get().in_credits.is_set());
     for n in 0..BLOCKS {
         {
             block(shared, n)?.run_ticks.set(value);
@@ -119,8 +119,8 @@ pub fn reset_car_race_state(race: &Race) -> Result<(), BadInput> {
 /// one: `g_lastCheckpoint` 0 or 1).
 pub fn first_check_checkpoint(course: &Course, shared: &RaceShared) -> Result<u32, Refused> {
     // Converted: `rc2k_core::race::checkpoints::first_check_checkpoint`.
-    let count: u32 = shared.vars.checkpoint_count.get();
-    let last = || shared.vars.last_checkpoint.get();
+    let count: u32 = shared.vars.get().checkpoint_count.get();
+    let last = || shared.vars.get().last_checkpoint.get();
     let trap = Trap::new();
     let look = rc2k_core::race::checkpoints::first_check_checkpoint(count, last, |n| {
         let face: u32 =

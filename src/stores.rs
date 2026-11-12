@@ -1055,11 +1055,11 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.shared.physics_tables",
-            &crate::race::owner::RACE.shared.physics_tables,
+            on_game(crate::race::owner::RACE.shared.physics_tables.get()),
         ),
         listed!(
             "race.owner.RACE.shared.vars",
-            &crate::race::owner::RACE.shared.vars,
+            on_game(crate::race::owner::RACE.shared.vars.get()),
         ),
         listed!(
             "scene.owner.SCENE.drawing.scene",
@@ -1071,7 +1071,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.shared.view",
-            &crate::race::owner::RACE.shared.view,
+            on_game(crate::race::owner::RACE.shared.view.get()),
         ),
         listed!(
             "race.owner.RACE.course.level_grid",
@@ -1099,7 +1099,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.shared.work",
-            &crate::race::owner::RACE.shared.work,
+            on_game(crate::race::owner::RACE.shared.work.get()),
         ),
         listed!(
             "race.owner.RACE.frame.text_state",
@@ -1123,7 +1123,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.shared.switches",
-            &crate::race::owner::RACE.shared.switches,
+            on_game(crate::race::owner::RACE.shared.switches.get()),
         ),
         listed!(
             "scene.owner.SCENE.draw_switches",

@@ -82,8 +82,8 @@ impl Steps<'_> {
     fn progress(&mut self, mark: u32) -> Result<(), Refused> {
         let race = self.race;
         let shared = &race.shared;
-        shared.vars.bar_share.set(mark);
-        if shared.vars.bar_function.get() != self.v.bar {
+        shared.vars.get().bar_share.set(mark);
+        if shared.vars.get().bar_function.get() != self.v.bar {
             return Err(BadInput("the loading bar's callback is not the loading bar").into());
         }
         crate::race::loading_bar_frame::loading_bar_frame(
@@ -143,14 +143,14 @@ pub fn loadlevel_init(
     race.frame
         .map()
         .packed_unless_editor
-        .set((race.shared.switches.editor_mode.get() == 0) as u32);
-    let mut direction: u32 = race.shared.vars.direction.get();
-    if [0x1F, 0x22, 0x51].contains(&race.shared.vars.stage_number.get()) {
+        .set((race.shared.switches.get().editor_mode.get() == 0) as u32);
+    let mut direction: u32 = race.shared.vars.get().direction.get();
+    if [0x1F, 0x22, 0x51].contains(&race.shared.vars.get().stage_number.get()) {
         direction ^= 1;
     }
-    race.shared.work.stage_direction.set(direction);
+    race.shared.work.get().stage_direction.set(direction);
     race.course.numbers.get().in_race.set(true);
-    race.shared.vars.bar_function.set(v.bar);
+    race.shared.vars.get().bar_function.set(v.bar);
     s.progress(0)?;
     s.indent(-3);
     s.step(
@@ -173,7 +173,7 @@ pub fn loadlevel_init(
     s.log();
     s.indent(3);
     level::load_texture_info(&race.course, scene)?;
-    level::set_course_number(race.shared.vars.stage_number.get(), race, scene)?;
+    level::set_course_number(race.shared.vars.get().stage_number.get(), race, scene)?;
     s.progress(6)?;
     s.indent(-3);
     s.step(&mut || stage_prefs::load_prefs(race), Some(7))?;
@@ -203,8 +203,8 @@ pub fn loadlevel_init(
     s.indent(3);
     crate::race::objects::reload_objects(race, scene)?;
     s.progress(0x1E)?;
-    race.shared.vars.bar_span[0].set(0x1E); // RaceVars.bar_span[0]
-    race.shared.vars.bar_span[1].set(0x50); // RaceVars.bar_span[1]
+    race.shared.vars.get().bar_span[0].set(0x1E); // RaceVars.bar_span[0]
+    race.shared.vars.get().bar_span[1].set(0x50); // RaceVars.bar_span[1]
     s.indent(-3);
     s.step(
         &mut || crate::race::set_all_plates::set_all_plates(race, system, gfx, o.d3d, o.net, scene),
@@ -281,7 +281,7 @@ pub fn loadlevel_init(
     crate::race::mud::init_mud(race, scene, gfx, o.net, system)?;
     s.progress(0x64)?;
     s.progress(0x64)?;
-    race.shared.vars.bar_function.set(BAR_DONE);
+    race.shared.vars.get().bar_function.set(BAR_DONE);
     s.indent(-3);
     s.step(
         &mut || {
@@ -316,10 +316,10 @@ pub fn loadlevel_init(
     }
     use crate::scene::find_object_of_kind::find_object_of_kind;
     let mut marker = find_object_of_kind(0x7A, scene);
-    race.shared.switches.marker_object.set(marker);
+    race.shared.switches.get().marker_object.set(marker);
     if marker == 0 {
         marker = find_object_of_kind(0x79, scene);
-        race.shared.switches.marker_object.set(marker);
+        race.shared.switches.get().marker_object.set(marker);
     }
     // `camera_last_frame` / D4.
     for cell in &race.replay_work().camera_last_frame {

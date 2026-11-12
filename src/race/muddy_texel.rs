@@ -26,7 +26,7 @@ pub fn shuffled_place(race: &Race, n: u32) -> (u32, u32) {
 
 /// The texture worked on, or the refusal (also without the mud).
 pub fn texture_and_mud(shared: &RaceShared) -> Result<u32, Refused> {
-    let n: u32 = shared.vars.mud_texture.get();
+    let n: u32 = shared.vars.get().mud_texture.get();
     if n > rc2k_core::race::mud::MOST_TEXTURE {
         return Err(BadInput("a mud texture past 3 (the map would be read past its end)").into());
     }

@@ -592,7 +592,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     x87_4(
-                        &race().shared.physics_tables,
+                        race().shared.physics_tables.get(),
                         race().course.numbers.get(),
                         race().frame.view_and_records.get(),
                         &core::array::from_fn(|k| {

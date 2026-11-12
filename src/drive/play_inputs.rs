@@ -13,7 +13,7 @@ use rc2k_core::drive::replay_frames::{on_tape, tape_offset};
 pub fn play_inputs(race: &Race) -> Result<(), BadInput> {
     let shared = &race.shared;
     let replay = &race.replay;
-    let car = shared.work.current_car.get();
+    let car = shared.work.get().current_car.get();
     if !on_tape(car) {
         return Ok(());
     }
@@ -26,7 +26,7 @@ pub fn play_inputs(race: &Race) -> Result<(), BadInput> {
     let second = u32::from_le_bytes([words[4], words[5], words[6], words[7]]);
     let [eax, ecx, edx] = crate::drive::unpack_inputs::unpack_inputs(second);
     for (k, v) in [eax, ebx, ecx, edx].iter().enumerate() {
-        shared.physics_tables.input_words[k].set(*v);
+        shared.physics_tables.get().input_words[k].set(*v);
     }
     Ok(())
 }

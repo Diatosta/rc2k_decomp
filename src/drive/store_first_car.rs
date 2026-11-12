@@ -8,7 +8,7 @@ use crate::race::owner_shared::RaceShared;
 
 /// Makes car 0 the current car.
 pub fn store_first_car(shared: &RaceShared) -> Result<(), Refused> {
-    shared.work.current_car.set(0);
+    shared.work.get().current_car.set(0);
 
     crate::drive::store_car::store_car(shared)?;
     Ok(())

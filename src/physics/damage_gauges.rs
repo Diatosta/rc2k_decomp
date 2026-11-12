@@ -2011,7 +2011,7 @@ mod reference_vectors {
                     },
                 ],
                 ulps: 0,
-                plain: |a| scale_hit_size(&race().shared.work, dm(a[0])),
+                plain: |a| scale_hit_size(race().shared.work.get(), dm(a[0])),
             },
             Block {
                 name: "damage_gauges line 745",

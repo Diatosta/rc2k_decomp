@@ -237,6 +237,12 @@ pub struct Lent<'s> {
     course_work: crate::session::PhaseRead<'s, crate::race::course_store::CourseWork>,
     kind_records: crate::session::PhaseRead<'s, crate::race::kind_records_store::KindRecords>,
     numbers: crate::session::PhaseRead<'s, crate::race::numbers_store::Numbers>,
+    // The race owner's shared group (lane r41shared).
+    switches: crate::session::PhaseRead<'s, crate::race::switches_store::FrameSwitches>,
+    vars: crate::session::PhaseRead<'s, crate::race::vars_store::RaceVars>,
+    view: crate::session::PhaseRead<'s, crate::race::view_store::RaceView>,
+    work: crate::session::PhaseRead<'s, crate::race::work_store::RaceWork>,
+    physics_tables: crate::session::PhaseRead<'s, crate::physics::tables_store::PhysicsTables>,
 }
 
 /// Whether the processor has MMX and the game uses it: fixed at start-up, so one value for
@@ -286,6 +292,12 @@ impl<'s> Lent<'s> {
             course_work: PhaseRead::lend(&race.course.course, scope),
             kind_records: PhaseRead::lend(race.course.kind_records_store(), scope),
             numbers: PhaseRead::lend(&race.course.numbers, scope),
+            // The race owner's shared group (lane r41shared).
+            switches: PhaseRead::lend(&race.shared.switches, scope),
+            vars: PhaseRead::lend(&race.shared.vars, scope),
+            view: PhaseRead::lend(&race.shared.view, scope),
+            work: PhaseRead::lend(&race.shared.work, scope),
+            physics_tables: PhaseRead::lend(&race.shared.physics_tables, scope),
         }
     }
 
@@ -324,6 +336,12 @@ impl<'s> Lent<'s> {
             course_work: &self.course_work,
             kind_records: &self.kind_records,
             numbers: &self.numbers,
+            // The race owner's shared group (lane r41shared).
+            switches: &self.switches,
+            vars: &self.vars,
+            view: &self.view,
+            work: &self.work,
+            physics_tables: &self.physics_tables,
         }
     }
 }
@@ -398,6 +416,22 @@ pub struct DrawReads<'a> {
     /// The game's numbers: its float constants, the replay's mode, `in_race`, the grip change
     /// (`race::owner_course::Course::numbers`).
     pub numbers: &'a crate::race::numbers_store::Numbers,
+    // The race owner's shared group (lane r41shared).
+    /// The frame switches (`race::owner_shared::RaceShared::switches`): the scene set-up flag,
+    /// the mask kind, the marker object.
+    pub switches: &'a crate::race::switches_store::FrameSwitches,
+    /// The race's variables (`race::owner_shared::RaceShared::vars`): the settings the drawing
+    /// reads (run kind, split, the settings words), the mud texture's state, the fade figures.
+    pub vars: &'a crate::race::vars_store::RaceVars,
+    /// The race's view and face work (`race::owner_shared::RaceShared::view`): the players
+    /// and views, their cars, the face tables.
+    pub view: &'a crate::race::view_store::RaceView,
+    /// The race's work variables (`race::owner_shared::RaceShared::work`): the cars' block
+    /// handles, the number textures, the loose parts' slots, the credits flag.
+    pub work: &'a crate::race::work_store::RaceWork,
+    /// The physics' tables and work variables (`race::owner_shared::RaceShared::physics_tables`):
+    /// the ground kinds, the scene's clock, the drops the models are placed by.
+    pub physics_tables: &'a crate::physics::tables_store::PhysicsTables,
 }
 
 impl<'a> DrawReads<'a> {
@@ -455,6 +489,12 @@ impl<'a> DrawReads<'a> {
             course_work: race.course.course.get(),
             kind_records: race.course.kind_records(),
             numbers: race.course.numbers.get(),
+            // The race owner's shared group (lane r41shared).
+            switches: race.shared.switches.get(),
+            vars: race.shared.vars.get(),
+            view: race.shared.view.get(),
+            work: race.shared.work.get(),
+            physics_tables: race.shared.physics_tables.get(),
         }
     }
 }

@@ -29,7 +29,7 @@ pub static GROUPS: &[Group] = &[
                 "usesteer",
                 Shown::Float,
                 0x614C08,
-                indexed_cell!(|o| o.race.shared.physics_tables, handling[7]),
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), handling[7]),
                 false,
                 (0, 0),
             ),
@@ -90,7 +90,7 @@ pub static GROUPS: &[Group] = &[
                 0x6238A4,
                 store_cell!(
                     crate::race::vars_store::START,
-                    |o| o.race.shared.vars,
+                    |o| o.race.shared.vars.get(),
                     crate::race::vars_store::RaceVars,
                     0x6238a4,
                     split
@@ -105,7 +105,7 @@ pub static GROUPS: &[Group] = &[
                 0x63DB94,
                 store_cell!(
                     crate::race::view_store::START,
-                    |o| o.race.shared.view,
+                    |o| o.race.shared.view.get(),
                     crate::race::view_store::RaceView,
                     0x63db94,
                     players
@@ -165,7 +165,7 @@ pub static GROUPS: &[Group] = &[
                 0x6235E8,
                 store_cell!(
                     crate::race::vars_store::START,
-                    |o| o.race.shared.vars,
+                    |o| o.race.shared.vars.get(),
                     crate::race::vars_store::RaceVars,
                     0x6235e8,
                     scene_switch
@@ -210,7 +210,7 @@ pub static GROUPS: &[Group] = &[
                 0x63DB90,
                 store_cell!(
                     crate::race::view_store::START,
-                    |o| o.race.shared.view,
+                    |o| o.race.shared.view.get(),
                     crate::race::view_store::RaceView,
                     0x63db90,
                     race_cars
@@ -225,7 +225,7 @@ pub static GROUPS: &[Group] = &[
                 0x6235F8,
                 store_cell!(
                     crate::race::vars_store::START,
-                    |o| o.race.shared.vars,
+                    |o| o.race.shared.vars.get(),
                     crate::race::vars_store::RaceVars,
                     0x6235f8,
                     race_ticks
@@ -240,7 +240,7 @@ pub static GROUPS: &[Group] = &[
                 0x63DB84,
                 store_cell!(
                     crate::race::view_store::START,
-                    |o| o.race.shared.view,
+                    |o| o.race.shared.view.get(),
                     crate::race::view_store::RaceView,
                     0x63db84,
                     after_credits
@@ -255,7 +255,7 @@ pub static GROUPS: &[Group] = &[
                 0x63DB88,
                 store_cell!(
                     crate::race::view_store::START,
-                    |o| o.race.shared.view,
+                    |o| o.race.shared.view.get(),
                     crate::race::view_store::RaceView,
                     0x63db88,
                     view_switch
@@ -268,7 +268,7 @@ pub static GROUPS: &[Group] = &[
                 "shaunp1o",
                 Shown::Whole,
                 0x63DB74,
-                indexed_cell!(|o| o.race.shared.view, view_on[0]),
+                indexed_cell!(|o| o.race.shared.view.get(), view_on[0]),
                 false,
                 (0, 0),
             ),
@@ -277,7 +277,7 @@ pub static GROUPS: &[Group] = &[
                 "shaunp2o",
                 Shown::Whole,
                 0x63DB78,
-                indexed_cell!(|o| o.race.shared.view, view_on[1]),
+                indexed_cell!(|o| o.race.shared.view.get(), view_on[1]),
                 false,
                 (0, 0),
             ),
@@ -308,7 +308,7 @@ pub static GROUPS: &[Group] = &[
                 0x614D04,
                 store_cell!(
                     crate::physics::tables_store::START,
-                    |o| o.race.shared.physics_tables,
+                    |o| o.race.shared.physics_tables.get(),
                     crate::physics::tables_store::PhysicsTables,
                     0x614d04,
                     split_point_distance
@@ -338,7 +338,7 @@ pub static GROUPS: &[Group] = &[
                 0x623640,
                 store_cell!(
                     crate::race::vars_store::START,
-                    |o| o.race.shared.vars,
+                    |o| o.race.shared.vars.get(),
                     crate::race::vars_store::RaceVars,
                     0x623640,
                     checkpoint_count
@@ -2404,7 +2404,7 @@ pub static GROUPS: &[Group] = &[
                 "car fzsi",
                 Shown::Whole,
                 0x614BC0,
-                indexed_cell!(|o| o.race.shared.physics_tables, spec_ints[0]),
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), spec_ints[0]),
                 false,
                 (0, 0),
             ),
@@ -2413,7 +2413,7 @@ pub static GROUPS: &[Group] = &[
                 "car rzsi",
                 Shown::Whole,
                 0x614BC4,
-                indexed_cell!(|o| o.race.shared.physics_tables, spec_ints[1]),
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), spec_ints[1]),
                 false,
                 (0, 0),
             ),
@@ -2422,7 +2422,7 @@ pub static GROUPS: &[Group] = &[
                 "car sisi",
                 Shown::Whole,
                 0x614BC8,
-                indexed_cell!(|o| o.race.shared.physics_tables, spec_ints[2]),
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), spec_ints[2]),
                 false,
                 (0, 0),
             ),
@@ -2436,7 +2436,10 @@ pub static GROUPS: &[Group] = &[
                 "s1.sgrip",
                 Shown::Float,
                 0x6139AC,
-                indexed_cell!(|o| o.race.shared.physics_tables, surfaces[1].slide_grip),
+                indexed_cell!(
+                    |o| o.race.shared.physics_tables.get(),
+                    surfaces[1].slide_grip
+                ),
                 false,
                 (0, 0),
             ),
@@ -2445,7 +2448,10 @@ pub static GROUPS: &[Group] = &[
                 "s1.agrip",
                 Shown::Float,
                 0x6139B0,
-                indexed_cell!(|o| o.race.shared.physics_tables, surfaces[1].accel_grip),
+                indexed_cell!(
+                    |o| o.race.shared.physics_tables.get(),
+                    surfaces[1].accel_grip
+                ),
                 false,
                 (0, 0),
             ),
@@ -2454,7 +2460,10 @@ pub static GROUPS: &[Group] = &[
                 "s1.bgrip",
                 Shown::Float,
                 0x6139B4,
-                indexed_cell!(|o| o.race.shared.physics_tables, surfaces[1].brake_grip),
+                indexed_cell!(
+                    |o| o.race.shared.physics_tables.get(),
+                    surfaces[1].brake_grip
+                ),
                 false,
                 (0, 0),
             ),
@@ -2463,7 +2472,10 @@ pub static GROUPS: &[Group] = &[
                 "s2.sgrip",
                 Shown::Float,
                 0x6139DC,
-                indexed_cell!(|o| o.race.shared.physics_tables, surfaces[2].slide_grip),
+                indexed_cell!(
+                    |o| o.race.shared.physics_tables.get(),
+                    surfaces[2].slide_grip
+                ),
                 false,
                 (0, 0),
             ),
@@ -2472,7 +2484,10 @@ pub static GROUPS: &[Group] = &[
                 "s2.agrip",
                 Shown::Float,
                 0x6139E0,
-                indexed_cell!(|o| o.race.shared.physics_tables, surfaces[2].accel_grip),
+                indexed_cell!(
+                    |o| o.race.shared.physics_tables.get(),
+                    surfaces[2].accel_grip
+                ),
                 false,
                 (0, 0),
             ),
@@ -2481,7 +2496,10 @@ pub static GROUPS: &[Group] = &[
                 "s2.bgrip",
                 Shown::Float,
                 0x6139E4,
-                indexed_cell!(|o| o.race.shared.physics_tables, surfaces[2].brake_grip),
+                indexed_cell!(
+                    |o| o.race.shared.physics_tables.get(),
+                    surfaces[2].brake_grip
+                ),
                 false,
                 (0, 0),
             ),
@@ -2490,7 +2508,10 @@ pub static GROUPS: &[Group] = &[
                 "s3.sgrip",
                 Shown::Float,
                 0x613A0C,
-                indexed_cell!(|o| o.race.shared.physics_tables, surfaces[3].slide_grip),
+                indexed_cell!(
+                    |o| o.race.shared.physics_tables.get(),
+                    surfaces[3].slide_grip
+                ),
                 false,
                 (0, 0),
             ),
@@ -2499,7 +2520,10 @@ pub static GROUPS: &[Group] = &[
                 "s3.agrip",
                 Shown::Float,
                 0x613A10,
-                indexed_cell!(|o| o.race.shared.physics_tables, surfaces[3].accel_grip),
+                indexed_cell!(
+                    |o| o.race.shared.physics_tables.get(),
+                    surfaces[3].accel_grip
+                ),
                 false,
                 (0, 0),
             ),
@@ -2508,7 +2532,10 @@ pub static GROUPS: &[Group] = &[
                 "s3.bgrip",
                 Shown::Float,
                 0x613A14,
-                indexed_cell!(|o| o.race.shared.physics_tables, surfaces[3].brake_grip),
+                indexed_cell!(
+                    |o| o.race.shared.physics_tables.get(),
+                    surfaces[3].brake_grip
+                ),
                 false,
                 (0, 0),
             ),
@@ -2517,7 +2544,10 @@ pub static GROUPS: &[Group] = &[
                 "s4.sgrip",
                 Shown::Float,
                 0x613A3C,
-                indexed_cell!(|o| o.race.shared.physics_tables, surfaces[4].slide_grip),
+                indexed_cell!(
+                    |o| o.race.shared.physics_tables.get(),
+                    surfaces[4].slide_grip
+                ),
                 false,
                 (0, 0),
             ),
@@ -2526,7 +2556,10 @@ pub static GROUPS: &[Group] = &[
                 "s4.agrip",
                 Shown::Float,
                 0x613A40,
-                indexed_cell!(|o| o.race.shared.physics_tables, surfaces[4].accel_grip),
+                indexed_cell!(
+                    |o| o.race.shared.physics_tables.get(),
+                    surfaces[4].accel_grip
+                ),
                 false,
                 (0, 0),
             ),
@@ -2535,7 +2568,10 @@ pub static GROUPS: &[Group] = &[
                 "s4.bgrip",
                 Shown::Float,
                 0x613A44,
-                indexed_cell!(|o| o.race.shared.physics_tables, surfaces[4].brake_grip),
+                indexed_cell!(
+                    |o| o.race.shared.physics_tables.get(),
+                    surfaces[4].brake_grip
+                ),
                 false,
                 (0, 0),
             ),
@@ -2544,7 +2580,10 @@ pub static GROUPS: &[Group] = &[
                 "s5.sgrip",
                 Shown::Float,
                 0x613A6C,
-                indexed_cell!(|o| o.race.shared.physics_tables, surfaces[5].slide_grip),
+                indexed_cell!(
+                    |o| o.race.shared.physics_tables.get(),
+                    surfaces[5].slide_grip
+                ),
                 false,
                 (0, 0),
             ),
@@ -2553,7 +2592,10 @@ pub static GROUPS: &[Group] = &[
                 "s5.agrip",
                 Shown::Float,
                 0x613A70,
-                indexed_cell!(|o| o.race.shared.physics_tables, surfaces[5].accel_grip),
+                indexed_cell!(
+                    |o| o.race.shared.physics_tables.get(),
+                    surfaces[5].accel_grip
+                ),
                 false,
                 (0, 0),
             ),
@@ -2562,7 +2604,10 @@ pub static GROUPS: &[Group] = &[
                 "s5.bgrip",
                 Shown::Float,
                 0x613A74,
-                indexed_cell!(|o| o.race.shared.physics_tables, surfaces[5].brake_grip),
+                indexed_cell!(
+                    |o| o.race.shared.physics_tables.get(),
+                    surfaces[5].brake_grip
+                ),
                 false,
                 (0, 0),
             ),
@@ -2571,7 +2616,10 @@ pub static GROUPS: &[Group] = &[
                 "s6.sgrip",
                 Shown::Float,
                 0x613A9C,
-                indexed_cell!(|o| o.race.shared.physics_tables, surfaces[6].slide_grip),
+                indexed_cell!(
+                    |o| o.race.shared.physics_tables.get(),
+                    surfaces[6].slide_grip
+                ),
                 false,
                 (0, 0),
             ),
@@ -2580,7 +2628,10 @@ pub static GROUPS: &[Group] = &[
                 "s6.agrip",
                 Shown::Float,
                 0x613AA0,
-                indexed_cell!(|o| o.race.shared.physics_tables, surfaces[6].accel_grip),
+                indexed_cell!(
+                    |o| o.race.shared.physics_tables.get(),
+                    surfaces[6].accel_grip
+                ),
                 false,
                 (0, 0),
             ),
@@ -2589,7 +2640,10 @@ pub static GROUPS: &[Group] = &[
                 "s6.bgrip",
                 Shown::Float,
                 0x613AA4,
-                indexed_cell!(|o| o.race.shared.physics_tables, surfaces[6].brake_grip),
+                indexed_cell!(
+                    |o| o.race.shared.physics_tables.get(),
+                    surfaces[6].brake_grip
+                ),
                 false,
                 (0, 0),
             ),
@@ -2598,7 +2652,10 @@ pub static GROUPS: &[Group] = &[
                 "s7.sgrip",
                 Shown::Float,
                 0x613ACC,
-                indexed_cell!(|o| o.race.shared.physics_tables, surfaces[7].slide_grip),
+                indexed_cell!(
+                    |o| o.race.shared.physics_tables.get(),
+                    surfaces[7].slide_grip
+                ),
                 false,
                 (0, 0),
             ),
@@ -2607,7 +2664,10 @@ pub static GROUPS: &[Group] = &[
                 "s7.agrip",
                 Shown::Float,
                 0x613AD0,
-                indexed_cell!(|o| o.race.shared.physics_tables, surfaces[7].accel_grip),
+                indexed_cell!(
+                    |o| o.race.shared.physics_tables.get(),
+                    surfaces[7].accel_grip
+                ),
                 false,
                 (0, 0),
             ),
@@ -2616,7 +2676,10 @@ pub static GROUPS: &[Group] = &[
                 "s7.bgrip",
                 Shown::Float,
                 0x613AD4,
-                indexed_cell!(|o| o.race.shared.physics_tables, surfaces[7].brake_grip),
+                indexed_cell!(
+                    |o| o.race.shared.physics_tables.get(),
+                    surfaces[7].brake_grip
+                ),
                 false,
                 (0, 0),
             ),
@@ -2625,7 +2688,10 @@ pub static GROUPS: &[Group] = &[
                 "s8.sgrip",
                 Shown::Float,
                 0x613AFC,
-                indexed_cell!(|o| o.race.shared.physics_tables, surfaces[8].slide_grip),
+                indexed_cell!(
+                    |o| o.race.shared.physics_tables.get(),
+                    surfaces[8].slide_grip
+                ),
                 false,
                 (0, 0),
             ),
@@ -2634,7 +2700,10 @@ pub static GROUPS: &[Group] = &[
                 "s8.agrip",
                 Shown::Float,
                 0x613B00,
-                indexed_cell!(|o| o.race.shared.physics_tables, surfaces[8].accel_grip),
+                indexed_cell!(
+                    |o| o.race.shared.physics_tables.get(),
+                    surfaces[8].accel_grip
+                ),
                 false,
                 (0, 0),
             ),
@@ -2643,7 +2712,10 @@ pub static GROUPS: &[Group] = &[
                 "s8.bgrip",
                 Shown::Float,
                 0x613B04,
-                indexed_cell!(|o| o.race.shared.physics_tables, surfaces[8].brake_grip),
+                indexed_cell!(
+                    |o| o.race.shared.physics_tables.get(),
+                    surfaces[8].brake_grip
+                ),
                 false,
                 (0, 0),
             ),
@@ -2652,7 +2724,10 @@ pub static GROUPS: &[Group] = &[
                 "s9.sgrip",
                 Shown::Float,
                 0x613B2C,
-                indexed_cell!(|o| o.race.shared.physics_tables, surfaces[9].slide_grip),
+                indexed_cell!(
+                    |o| o.race.shared.physics_tables.get(),
+                    surfaces[9].slide_grip
+                ),
                 false,
                 (0, 0),
             ),
@@ -2661,7 +2736,10 @@ pub static GROUPS: &[Group] = &[
                 "s9.agrip",
                 Shown::Float,
                 0x613B30,
-                indexed_cell!(|o| o.race.shared.physics_tables, surfaces[9].accel_grip),
+                indexed_cell!(
+                    |o| o.race.shared.physics_tables.get(),
+                    surfaces[9].accel_grip
+                ),
                 false,
                 (0, 0),
             ),
@@ -2670,7 +2748,10 @@ pub static GROUPS: &[Group] = &[
                 "s9.bgrip",
                 Shown::Float,
                 0x613B34,
-                indexed_cell!(|o| o.race.shared.physics_tables, surfaces[9].brake_grip),
+                indexed_cell!(
+                    |o| o.race.shared.physics_tables.get(),
+                    surfaces[9].brake_grip
+                ),
                 false,
                 (0, 0),
             ),
@@ -2679,7 +2760,10 @@ pub static GROUPS: &[Group] = &[
                 "sa.bgrip",
                 Shown::Float,
                 0x613B64,
-                indexed_cell!(|o| o.race.shared.physics_tables, surfaces[10].brake_grip),
+                indexed_cell!(
+                    |o| o.race.shared.physics_tables.get(),
+                    surfaces[10].brake_grip
+                ),
                 false,
                 (0, 0),
             ),
@@ -2688,7 +2772,10 @@ pub static GROUPS: &[Group] = &[
                 "sb.bgrip",
                 Shown::Float,
                 0x613B94,
-                indexed_cell!(|o| o.race.shared.physics_tables, surfaces[11].brake_grip),
+                indexed_cell!(
+                    |o| o.race.shared.physics_tables.get(),
+                    surfaces[11].brake_grip
+                ),
                 false,
                 (0, 0),
             ),
@@ -2697,7 +2784,10 @@ pub static GROUPS: &[Group] = &[
                 "sc.bgrip",
                 Shown::Float,
                 0x613BC4,
-                indexed_cell!(|o| o.race.shared.physics_tables, surfaces[12].brake_grip),
+                indexed_cell!(
+                    |o| o.race.shared.physics_tables.get(),
+                    surfaces[12].brake_grip
+                ),
                 false,
                 (0, 0),
             ),
@@ -3009,7 +3099,7 @@ pub static GROUPS: &[Group] = &[
                 "btoadd a",
                 Shown::Float,
                 0x623D70,
-                indexed_cell!(|o| o.race.shared.vars, mud_splashes_in[0]),
+                indexed_cell!(|o| o.race.shared.vars.get(), mud_splashes_in[0]),
                 false,
                 (0, 0),
             ),
@@ -3018,7 +3108,7 @@ pub static GROUPS: &[Group] = &[
                 "btoadd b",
                 Shown::Float,
                 0x623D74,
-                indexed_cell!(|o| o.race.shared.vars, mud_splashes_in[1]),
+                indexed_cell!(|o| o.race.shared.vars.get(), mud_splashes_in[1]),
                 false,
                 (0, 0),
             ),
@@ -3027,7 +3117,7 @@ pub static GROUPS: &[Group] = &[
                 "btoadd c",
                 Shown::Float,
                 0x623D78,
-                indexed_cell!(|o| o.race.shared.vars, mud_splashes_in[2]),
+                indexed_cell!(|o| o.race.shared.vars.get(), mud_splashes_in[2]),
                 false,
                 (0, 0),
             ),
@@ -3036,7 +3126,7 @@ pub static GROUPS: &[Group] = &[
                 "btoadd d",
                 Shown::Float,
                 0x623D7C,
-                indexed_cell!(|o| o.race.shared.vars, mud_splashes_in[3]),
+                indexed_cell!(|o| o.race.shared.vars.get(), mud_splashes_in[3]),
                 false,
                 (0, 0),
             ),
@@ -3045,7 +3135,7 @@ pub static GROUPS: &[Group] = &[
                 "boncar a",
                 Shown::Whole,
                 0x623D90,
-                indexed_cell!(|o| o.race.shared.vars, mud_splash_counts[0]),
+                indexed_cell!(|o| o.race.shared.vars.get(), mud_splash_counts[0]),
                 false,
                 (0, 0),
             ),
@@ -3054,7 +3144,7 @@ pub static GROUPS: &[Group] = &[
                 "boncar b",
                 Shown::Whole,
                 0x623D94,
-                indexed_cell!(|o| o.race.shared.vars, mud_splash_counts[1]),
+                indexed_cell!(|o| o.race.shared.vars.get(), mud_splash_counts[1]),
                 false,
                 (0, 0),
             ),
@@ -3063,7 +3153,7 @@ pub static GROUPS: &[Group] = &[
                 "boncar c",
                 Shown::Whole,
                 0x623D98,
-                indexed_cell!(|o| o.race.shared.vars, mud_splash_counts[2]),
+                indexed_cell!(|o| o.race.shared.vars.get(), mud_splash_counts[2]),
                 false,
                 (0, 0),
             ),
@@ -3072,7 +3162,7 @@ pub static GROUPS: &[Group] = &[
                 "boncar d",
                 Shown::Whole,
                 0x623D9C,
-                indexed_cell!(|o| o.race.shared.vars, mud_splash_counts[3]),
+                indexed_cell!(|o| o.race.shared.vars.get(), mud_splash_counts[3]),
                 false,
                 (0, 0),
             ),
@@ -3081,7 +3171,7 @@ pub static GROUPS: &[Group] = &[
                 "mtoadd a",
                 Shown::Float,
                 0x623D60,
-                indexed_cell!(|o| o.race.shared.vars, mud_thrown_in[0]),
+                indexed_cell!(|o| o.race.shared.vars.get(), mud_thrown_in[0]),
                 false,
                 (0, 0),
             ),
@@ -3090,7 +3180,7 @@ pub static GROUPS: &[Group] = &[
                 "mtoadd b",
                 Shown::Float,
                 0x623D64,
-                indexed_cell!(|o| o.race.shared.vars, mud_thrown_in[1]),
+                indexed_cell!(|o| o.race.shared.vars.get(), mud_thrown_in[1]),
                 false,
                 (0, 0),
             ),
@@ -3099,7 +3189,7 @@ pub static GROUPS: &[Group] = &[
                 "mtoadd c",
                 Shown::Float,
                 0x623D68,
-                indexed_cell!(|o| o.race.shared.vars, mud_thrown_in[2]),
+                indexed_cell!(|o| o.race.shared.vars.get(), mud_thrown_in[2]),
                 false,
                 (0, 0),
             ),
@@ -3108,7 +3198,7 @@ pub static GROUPS: &[Group] = &[
                 "mtoadd d",
                 Shown::Float,
                 0x623D6C,
-                indexed_cell!(|o| o.race.shared.vars, mud_thrown_in[3]),
+                indexed_cell!(|o| o.race.shared.vars.get(), mud_thrown_in[3]),
                 false,
                 (0, 0),
             ),
@@ -3117,7 +3207,7 @@ pub static GROUPS: &[Group] = &[
                 "moncar a",
                 Shown::Whole,
                 0x623D80,
-                indexed_cell!(|o| o.race.shared.vars, mud_thrown_counts[0]),
+                indexed_cell!(|o| o.race.shared.vars.get(), mud_thrown_counts[0]),
                 false,
                 (0, 0),
             ),
@@ -3126,7 +3216,7 @@ pub static GROUPS: &[Group] = &[
                 "moncar b",
                 Shown::Whole,
                 0x623D84,
-                indexed_cell!(|o| o.race.shared.vars, mud_thrown_counts[1]),
+                indexed_cell!(|o| o.race.shared.vars.get(), mud_thrown_counts[1]),
                 false,
                 (0, 0),
             ),
@@ -3135,7 +3225,7 @@ pub static GROUPS: &[Group] = &[
                 "moncar c",
                 Shown::Whole,
                 0x623D88,
-                indexed_cell!(|o| o.race.shared.vars, mud_thrown_counts[2]),
+                indexed_cell!(|o| o.race.shared.vars.get(), mud_thrown_counts[2]),
                 false,
                 (0, 0),
             ),
@@ -3144,7 +3234,7 @@ pub static GROUPS: &[Group] = &[
                 "moncar d",
                 Shown::Whole,
                 0x623D8C,
-                indexed_cell!(|o| o.race.shared.vars, mud_thrown_counts[3]),
+                indexed_cell!(|o| o.race.shared.vars.get(), mud_thrown_counts[3]),
                 false,
                 (0, 0),
             ),
@@ -3335,7 +3425,7 @@ pub static GROUPS: &[Group] = &[
                 0x63DB58,
                 store_cell!(
                     crate::race::view_store::START,
-                    |o| o.race.shared.view,
+                    |o| o.race.shared.view.get(),
                     crate::race::view_store::RaceView,
                     0x63db58,
                     lamps_wanted
@@ -3541,7 +3631,7 @@ pub static GROUPS: &[Group] = &[
                 0x71BE88,
                 store_cell!(
                     crate::race::work_store::START,
-                    |o| o.race.shared.work,
+                    |o| o.race.shared.work.get(),
                     crate::race::work_store::RaceWork,
                     0x71be88,
                     slot_count
@@ -3571,7 +3661,7 @@ pub static GROUPS: &[Group] = &[
                 0x62150C,
                 store_cell!(
                     crate::race::switches_store::START,
-                    |o| o.race.shared.switches,
+                    |o| o.race.shared.switches.get(),
                     crate::race::switches_store::FrameSwitches,
                     0x62150c,
                     group_mask

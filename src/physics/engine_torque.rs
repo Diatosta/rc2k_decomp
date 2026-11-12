@@ -39,27 +39,36 @@ pub fn engine_torque(course: &Course, shared: &RaceShared, scene: &crate::scene:
         let i = trunc_mul_to_int(s, course.numbers.get().eight.get()) as u32;
         drawing.scene.get().work_dword.set(i);
         let k = i as usize;
-        shared_store.physics_tables.engine_force.set(lerp_table(
-            s,
-            &shared_store.physics_tables.torque_curve[k],
-            &shared_store.physics_tables.torque_curve[k + 1],
-            shared_store.physics_tables.spec_torque[k].get(),
-            shared_store.physics_tables.spec_torque[k + 1].get(),
-        ));
+        shared_store
+            .physics_tables
+            .get()
+            .engine_force
+            .set(lerp_table(
+                s,
+                &shared_store.physics_tables.get().torque_curve[k],
+                &shared_store.physics_tables.get().torque_curve[k + 1],
+                shared_store.physics_tables.get().spec_torque[k].get(),
+                shared_store.physics_tables.get().spec_torque[k + 1].get(),
+            ));
     } else {
-        shared_store.physics_tables.engine_force.set(x87::loaded(
-            shared_store.physics_tables.spec_torque[0].get(),
-        ));
+        shared_store
+            .physics_tables
+            .get()
+            .engine_force
+            .set(x87::loaded(
+                shared_store.physics_tables.get().spec_torque[0].get(),
+            ));
     }
     shared_store
         .physics_tables
+        .get()
         .engine_torque
         .st(
             shared_store.car().engine_speed.ld() / shared_store.car().engine_speed_limit.ld()
-                * shared_store.physics_tables.torque_ease.ld(),
+                * shared_store.physics_tables.get().torque_ease.ld(),
         );
-    shared_store.physics_tables.engine_force.set(x87::mul(
-        &shared_store.physics_tables.engine_force,
+    shared_store.physics_tables.get().engine_force.set(x87::mul(
+        &shared_store.physics_tables.get().engine_force,
         &shared_store.car().engine_power_factor,
     ));
 }

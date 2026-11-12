@@ -21,13 +21,18 @@ use crate::physics::store::DamageModel;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
-use crate::session::{Float, PlainDword};
+use crate::session::{PlainDword, PlainFloat};
 
 /// (out, setting, hi, lo) in the original's order, but the drive kind's.
 fn before<'a>(
     car: &'a Car,
     tables: &'a PhysicsTables,
-) -> [(&'a Float, &'a PlainDword, &'a Float, &'a Float); 4] {
+) -> [(
+    &'a PlainFloat,
+    &'a PlainDword,
+    &'a PlainFloat,
+    &'a PlainFloat,
+); 4] {
     [
         (
             &tables.handling[8],
@@ -58,7 +63,12 @@ fn before<'a>(
 fn after<'a>(
     car: &'a Car,
     tables: &'a PhysicsTables,
-) -> [(&'a Float, &'a PlainDword, &'a Float, &'a Float); 4] {
+) -> [(
+    &'a PlainFloat,
+    &'a PlainDword,
+    &'a PlainFloat,
+    &'a PlainFloat,
+); 4] {
     [
         (
             &tables.handling[0],
@@ -99,24 +109,24 @@ pub fn set_handling(
     }
     grade_or_reset(damage, numbers, shared);
     let k256 = numbers.k256.get();
-    let lerp = |(out, n, hi, lo): (&Float, &PlainDword, &Float, &Float)| {
+    let lerp = |(out, n, hi, lo): (&PlainFloat, &PlainDword, &PlainFloat, &PlainFloat)| {
         out.set(int_lerp(n.get() as i32, k256, hi, lo));
     };
-    for v in before(shared.car(), &shared.physics_tables) {
+    for v in before(shared.car(), shared.physics_tables.get()) {
         lerp(v);
     }
-    let r = &shared.physics_tables.handling_ranges_b;
+    let r = &shared.physics_tables.get().handling_ranges_b;
     lerp((
-        &shared.physics_tables.handling[4],
+        &shared.physics_tables.get().handling[4],
         &shared.car().ride_height,
         &r[4 + kind],
         &r[2 + kind],
     ));
-    shared.physics_tables.handling[4].set(x87::mul(
-        &shared.physics_tables.handling[4],
-        shared.physics_tables.ride_height_handling_scale.get(),
+    shared.physics_tables.get().handling[4].set(x87::mul(
+        &shared.physics_tables.get().handling[4],
+        shared.physics_tables.get().ride_height_handling_scale.get(),
     ));
-    for v in after(shared.car(), &shared.physics_tables) {
+    for v in after(shared.car(), shared.physics_tables.get()) {
         lerp(v);
     }
     Ok(())

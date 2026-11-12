@@ -39,7 +39,7 @@ use crate::physics::tables_store::Surface;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
-use crate::session::{Dword, Float};
+use crate::session::{Float, PlainDword};
 use std::cmp::Ordering;
 
 /// Byte `offset` of texture info `n`.
@@ -288,7 +288,7 @@ fn x87_3(shared: &RaceShared, s: &Surface, d: &Surface, c: usize) {
     let t3 = shared.car().wheel_surface_blend[c].ld();
     let t4 = t2 * t3;
     let t5 = t0 + t4;
-    shared.physics_tables.point_grips[c].st(t5);
+    shared.physics_tables.get().point_grips[c].st(t5);
     let t6 = s.wear_factor.ld();
     let t7 = d.wear_factor.ld();
     let t8 = t7 - t6;
@@ -302,7 +302,7 @@ fn x87_3(shared: &RaceShared, s: &Surface, d: &Surface, c: usize) {
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[surface_scales] = (int [s + k * 4 + 4] + ((int [s + k * 4 + 0x1C] - int [s + k * 4 + 4]) * [surface_blend])) * [hundredth_a]`
 /// `[rc + 0x214120] = (int [d + k * 4 + 4] + ((int [d + k * 4 + 0x1C] - int [d + k * 4 + 4]) * [surface_blend])) * [hundredth_a]`
-fn x87_4(shared: &RaceShared, numbers: &Numbers, s: &[Dword], d: &[Dword], k: usize) {
+fn x87_4(shared: &RaceShared, numbers: &Numbers, s: &[PlainDword], d: &[PlainDword], k: usize) {
     let t6 = int(s[k + 1].get() as i32);
     let t7 = int(s[k + 7].get() as i32);
     let t8 = t7 - t6;
@@ -311,7 +311,7 @@ fn x87_4(shared: &RaceShared, numbers: &Numbers, s: &[Dword], d: &[Dword], k: us
     let t11 = t6 + t10;
     let t12 = numbers.hundredth_a.ld();
     let t13 = t11 * t12;
-    shared.physics_tables.surface_scales[0].st(t13);
+    shared.physics_tables.get().surface_scales[0].st(t13);
     let t14 = int(d[k + 1].get() as i32);
     let t15 = int(d[k + 7].get() as i32);
     let t16 = t15 - t14;
@@ -320,7 +320,7 @@ fn x87_4(shared: &RaceShared, numbers: &Numbers, s: &[Dword], d: &[Dword], k: us
     let t19 = t14 + t18;
     let t20 = numbers.hundredth_a.ld();
     let t21 = t19 * t20;
-    shared.physics_tables.surface_scales[1].st(t21);
+    shared.physics_tables.get().surface_scales[1].st(t21);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -341,44 +341,44 @@ fn x87_5(shared: &RaceShared, s: &Surface, d: &Surface, c: usize) {
 /// `x87_5`'s first three blends (the point's three grip figures), needed for every point.
 fn x87_5_grips(shared: &RaceShared, s: &Surface, d: &Surface, c: usize) {
     let t0 = s.slide_grip.ld();
-    let t1 = shared.physics_tables.surface_scales[0].ld();
+    let t1 = shared.physics_tables.get().surface_scales[0].ld();
     let t2 = t0 * t1;
     let t3 = d.slide_grip.ld();
-    let t4 = shared.physics_tables.surface_scales[1].ld();
+    let t4 = shared.physics_tables.get().surface_scales[1].ld();
     let t5 = t3 * t4;
     let t6 = t5 - t2;
     let t7 = shared.car().wheel_surface_blend[c].ld();
     let t8 = t6 * t7;
     let t9 = t2 + t8;
-    let t10 = shared.physics_tables.spec_surface[2].ld();
+    let t10 = shared.physics_tables.get().spec_surface[2].ld();
     let t11 = t9 * t10;
-    shared.physics_tables.wheel_loads[c].st(t11);
+    shared.physics_tables.get().wheel_loads[c].st(t11);
     let t12 = s.accel_grip.ld();
-    let t13 = shared.physics_tables.surface_scales[0].ld();
+    let t13 = shared.physics_tables.get().surface_scales[0].ld();
     let t14 = t12 * t13;
     let t15 = d.accel_grip.ld();
-    let t16 = shared.physics_tables.surface_scales[1].ld();
+    let t16 = shared.physics_tables.get().surface_scales[1].ld();
     let t17 = t15 * t16;
     let t18 = t17 - t14;
     let t19 = shared.car().wheel_surface_blend[c].ld();
     let t20 = t18 * t19;
     let t21 = t14 + t20;
-    let t22 = shared.physics_tables.spec_surface[0].ld();
+    let t22 = shared.physics_tables.get().spec_surface[0].ld();
     let t23 = t21 * t22;
-    shared.physics_tables.wheel_grips[c].st(t23);
+    shared.physics_tables.get().wheel_grips[c].st(t23);
     let t24 = s.brake_grip.ld();
-    let t25 = shared.physics_tables.surface_scales[0].ld();
+    let t25 = shared.physics_tables.get().surface_scales[0].ld();
     let t26 = t24 * t25;
     let t27 = d.brake_grip.ld();
-    let t28 = shared.physics_tables.surface_scales[1].ld();
+    let t28 = shared.physics_tables.get().surface_scales[1].ld();
     let t29 = t27 * t28;
     let t30 = t29 - t26;
     let t31 = shared.car().wheel_surface_blend[c].ld();
     let t32 = t30 * t31;
     let t33 = t26 + t32;
-    let t34 = shared.physics_tables.spec_surface[1].ld();
+    let t34 = shared.physics_tables.get().spec_surface[1].ld();
     let t35 = t33 * t34;
-    shared.physics_tables.wheel_grips_b[c].st(t35);
+    shared.physics_tables.get().wheel_grips_b[c].st(t35);
 }
 
 /// `x87_5`'s last four blends (`surface_blends`: drag, minimum speed, two mud rates), read only
@@ -390,44 +390,44 @@ fn x87_5_blends(shared: &RaceShared, s: &Surface, d: &Surface, c: usize) {
     let t39 = shared.car().wheel_surface_blend[c].ld();
     let t40 = t38 * t39;
     let t41 = t36 + t40;
-    shared.physics_tables.surface_blends[c].st(t41);
+    shared.physics_tables.get().surface_blends[c].st(t41);
     let t42 = s.rolling_drag_min_speed.ld();
     let t43 = d.rolling_drag_min_speed.ld();
     let t44 = t43 - t42;
     let t45 = shared.car().wheel_surface_blend[c].ld();
     let t46 = t44 * t45;
     let t47 = t42 + t46;
-    shared.physics_tables.surface_blends[5 + c].st(t47);
+    shared.physics_tables.get().surface_blends[5 + c].st(t47);
     let t48 = s.mud_rates[1].ld();
     let t49 = d.mud_rates[1].ld();
     let t50 = t49 - t48;
     let t51 = shared.car().wheel_surface_blend[c].ld();
     let t52 = t50 * t51;
     let t53 = t48 + t52;
-    shared.physics_tables.surface_blends[10 + c].st(t53);
+    shared.physics_tables.get().surface_blends[10 + c].st(t53);
     let t54 = s.mud_rates[0].ld();
     let t55 = d.mud_rates[0].ld();
     let t56 = t55 - t54;
     let t57 = shared.car().wheel_surface_blend[c].ld();
     let t58 = t56 * t57;
     let t59 = t54 + t58;
-    shared.physics_tables.surface_blends[15 + c].st(t59);
+    shared.physics_tables.get().surface_blends[15 + c].st(t59);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[wheel_load] = ((([wheel_loads] + [rc + 0x214288]) + [rc + 0x21428C]) + [rc + 0x214290]) * [wheel_load_scale]`
 fn x87_6(shared: &RaceShared) {
-    let t0 = shared.physics_tables.wheel_loads[0].ld();
-    let t1 = shared.physics_tables.wheel_loads[1].ld();
+    let t0 = shared.physics_tables.get().wheel_loads[0].ld();
+    let t1 = shared.physics_tables.get().wheel_loads[1].ld();
     let t2 = t0 + t1;
-    let t3 = shared.physics_tables.wheel_loads[2].ld();
+    let t3 = shared.physics_tables.get().wheel_loads[2].ld();
     let t4 = t2 + t3;
-    let t5 = shared.physics_tables.wheel_loads[3].ld();
+    let t5 = shared.physics_tables.get().wheel_loads[3].ld();
     let t6 = t4 + t5;
-    let t7 = shared.physics_tables.wheel_load_scale.ld();
+    let t7 = shared.physics_tables.get().wheel_load_scale.ld();
     let t8 = t6 * t7;
-    shared.physics_tables.wheel_load.st(t8);
+    shared.physics_tables.get().wheel_load.st(t8);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -490,12 +490,12 @@ mod reference_vectors {
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     /// The dwords of a test buffer a run with index `k` reads (`k + 8` of them).
-    fn table(base: usize, k: usize) -> &'static [Dword] {
+    fn table(base: usize, k: usize) -> &'static [PlainDword] {
         // SAFETY: the buffer holds the offsets up to `k * 4 + 0x1C` and 16 bytes more,
         // lent for the run and aligned for its cells.
         unsafe {
             std::slice::from_raw_parts(
-                crate::test_support::vectors::block_vectors::at(base) as *const Dword,
+                crate::test_support::vectors::block_vectors::at(base) as *const PlainDword,
                 k + 8,
             )
         }

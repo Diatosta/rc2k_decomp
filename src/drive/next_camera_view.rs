@@ -12,7 +12,6 @@ use crate::errors::BadInput;
 use crate::physics::car_store::Car;
 use crate::race::kind_store::KindTables;
 use crate::race::owner::Race;
-use crate::session::Dword;
 use crate::session::PlainDword;
 use rc2k_core::drive::camera_views::next_view;
 
@@ -21,7 +20,7 @@ use rc2k_core::drive::camera_views::next_view;
 pub fn next_view_at(
     kinds: &KindTables,
     car: &Car,
-    players: &Dword,
+    players: &PlainDword,
     step: &PlainDword,
 ) -> Result<(), BadInput> {
     if car.camera_switch_active.get() != 0 {
@@ -43,7 +42,7 @@ pub fn next_camera_view(race: &Race, car: &Car) -> Result<(), BadInput> {
     next_view_at(
         race.kind_tables(),
         car,
-        &shared.view.players,
+        &shared.view.get().players,
         &shared.car().step_clock,
     )
 }

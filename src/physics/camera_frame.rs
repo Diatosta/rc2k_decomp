@@ -62,7 +62,7 @@ pub fn camera_frame(
 /// `[camera_shake_y] = [vertical_speed_change] * [camera_frame_scale]`
 fn x87_1(shared: &RaceShared, scene: &crate::scene::owner::Scene) {
     let t0 = shared.car().vertical_speed_change.ld();
-    let t1 = shared.physics_tables.camera_frame_scale.ld();
+    let t1 = shared.physics_tables.get().camera_frame_scale.ld();
     let t2 = t0 * t1;
     scene.lights.state.get().camera_shake_y.st(t2);
 }

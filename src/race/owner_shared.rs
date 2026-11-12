@@ -23,23 +23,23 @@ use crate::session::{DrawShared, GameThread};
 pub struct RaceShared {
     /// `RACE_WORK` (`race`).
     /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
-    pub work: RaceWork,
+    pub work: DrawShared<RaceWork>,
     /// `RACE_STATE` (`race`).
     pub state: RaceState,
     /// `BUFFERS` (`race`).
     pub buffers: Buffers,
     /// `RACE_VARS` (`race`).
     /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
-    pub vars: RaceVars,
+    pub vars: DrawShared<RaceVars>,
     /// `RACE_VIEW` (`race`).
     /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
-    pub view: RaceView,
+    pub view: DrawShared<RaceView>,
     /// `FRAME_SWITCHES` (`race`).
     /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
-    pub switches: FrameSwitches,
+    pub switches: DrawShared<FrameSwitches>,
     /// `PHYSICS` (`physics`).
     /// One copy: the drawing only reads it (frame plan F4).
-    pub physics_tables: PhysicsTables,
+    pub physics_tables: DrawShared<PhysicsTables>,
     /// `CAR` (`physics`): the work car. One copy: the drawing no longer reads it (frame plan
     /// F3), so the drawing threads need none of their own.
     car: GameThread<Car>,
@@ -70,13 +70,13 @@ impl RaceShared {
         effects_settings: &'static EffectsSettings,
     ) -> Self {
         RaceShared {
-            work: RaceWork::new(),
+            work: DrawShared::new(RaceWork::new()),
             state: RaceState::new(),
             buffers: Buffers::new(),
-            vars: RaceVars::new(),
-            view: RaceView::new(),
-            switches: FrameSwitches::new(),
-            physics_tables: PhysicsTables::new(),
+            vars: DrawShared::new(RaceVars::new()),
+            view: DrawShared::new(RaceView::new()),
+            switches: DrawShared::new(FrameSwitches::new()),
+            physics_tables: DrawShared::new(PhysicsTables::new()),
             car: GameThread::new(Car::new()),
             cars_and_replay,
             effects_settings,
@@ -120,51 +120,55 @@ impl RaceShared {
     /// Car `n`'s block (`g_carBlocks[n]`), refused for a value that names no block (see
     /// `RaceWork::car_block` for the read past the eight).
     pub fn race_car(&self, n: usize) -> Result<&'static Car, BadInput> {
-        self.race_car_in(self.car_blocks(), n)
+        Self::race_car_in(self.work.get(), self.car_blocks(), n)
     }
 
     /// `race_car` in the blocks `blocks` (a drawing part's, `workers::DrawReads`).
-    pub fn race_car_in<'b>(&self, blocks: &'b CarBlocks, n: usize) -> Result<&'b Car, BadInput> {
+    pub fn race_car_in<'b>(
+        work: &RaceWork,
+        blocks: &'b CarBlocks,
+        n: usize,
+    ) -> Result<&'b Car, BadInput> {
         use crate::race::blocks_store::{BLOCK_COUNT, BLOCK_TAG};
-        if let Some(cell) = self.work.car_blocks.get(n) {
+        if let Some(cell) = work.car_blocks.get(n) {
             let k = (cell.get() ^ BLOCK_TAG) as usize;
             if k < BLOCK_COUNT {
                 return Ok(&blocks.cars[k]);
             }
         }
-        blocks.named(self.work.car_block(n))
+        blocks.named(work.car_block(n))
     }
 
     /// Car `n`'s block, or the refusal `what` for none (the original's read at a small offset
     /// from 0 fails). A handle that names no block ends the program, as `RaceWork::car_block`.
     pub fn race_car_or(&self, n: usize, what: &'static str) -> Result<&'static Car, BadInput> {
-        self.race_car_or_in(self.car_blocks(), n, what)
+        Self::race_car_or_in(self.work.get(), self.car_blocks(), n, what)
     }
 
     /// `race_car_or` in the blocks `blocks` (a drawing part's, `workers::DrawReads`).
     pub fn race_car_or_in<'b>(
-        &self,
+        work: &RaceWork,
         blocks: &'b CarBlocks,
         n: usize,
         what: &'static str,
     ) -> Result<&'b Car, BadInput> {
-        match self.work.car_blocks.get(n) {
+        match work.car_blocks.get(n) {
             Some(cell) if cell.get() == 0 => Err(BadInput(what)),
-            Some(_) => self.race_car_in(blocks, n),
-            None => blocks.at(self.work.car_block(n), what),
+            Some(_) => Self::race_car_in(work, blocks, n),
+            None => blocks.at(work.car_block(n), what),
         }
     }
 
     /// Car `n`'s block; a null block or one that is none of the ten ends the program.
     pub fn race_car_or_end(&self, n: usize) -> &'static Car {
-        self.race_car_or_end_in(self.car_blocks(), n)
+        Self::race_car_or_end_in(self.work.get(), self.car_blocks(), n)
     }
 
     /// `race_car_or_end` in the blocks `blocks` (a drawing part's, `workers::DrawReads`).
-    pub fn race_car_or_end_in<'b>(&self, blocks: &'b CarBlocks, n: usize) -> &'b Car {
-        let block = self.work.car_block(n);
-        match self.work.car_blocks.get(n) {
-            Some(_) if block != 0 => self.race_car_in(blocks, n),
+    pub fn race_car_or_end_in<'b>(work: &RaceWork, blocks: &'b CarBlocks, n: usize) -> &'b Car {
+        let block = work.car_block(n);
+        match work.car_blocks.get(n) {
+            Some(_) if block != 0 => Self::race_car_in(work, blocks, n),
             _ => blocks.named(block),
         }
         .unwrap_or_else(|e| crate::fatal::raise::end("physics::Car::at", e))
@@ -175,6 +179,7 @@ impl RaceShared {
     /// that is not a record's start.
     pub fn car_record(&self, n: usize) -> Result<&'static CarEffects, BadInput> {
         self.work
+            .get()
             .car_record_number(n)
             .map(|k| &self.effects_settings.cars[k])
     }
@@ -191,7 +196,7 @@ impl RaceShared {
 
     /// View `n`'s car block (None for none).
     pub fn view_car(&self, n: usize) -> Option<&'static Car> {
-        self.car_blocks().of(self.view.view_blocks[n].get())
+        self.car_blocks().of(self.view.get().view_blocks[n].get())
     }
 
     /// View `n`'s car block, or the end of the program for none (as `Car::at` on its address).
@@ -210,7 +215,7 @@ impl RaceShared {
     /// car.
     pub fn own_car_number(&self, session: u32) -> usize {
         if session == 1 {
-            let local = self.view.local_car.get() as usize;
+            let local = self.view.get().local_car.get() as usize;
             if local < 8 { local } else { 0 }
         } else {
             0

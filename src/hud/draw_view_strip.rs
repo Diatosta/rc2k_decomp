@@ -15,7 +15,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::gfx::strips::Strips;
 use crate::race::owner::Race;
-use crate::race::owner_shared::RaceShared;
 use crate::race::view_scratch::ViewScratch;
 use crate::scene::owner::Scene;
 use crate::system::owner::System;
@@ -23,13 +22,9 @@ use rc2k_core::hud::strips;
 
 /// The quad's input at byte offset `o` from `quad_colour`: its colour and see-through,
 /// texture coordinates, then corners (three consecutive fields).
-fn quad_input<'a>(
-    shared: &'a RaceShared,
-    scratch: &'a ViewScratch,
-    o: usize,
-) -> &'a crate::session::Dword {
+fn quad_input(scratch: &ViewScratch, o: usize) -> &crate::session::Dword {
     match o {
-        0..0x8 => &shared.vars.quad_colour[o / 4],
+        0..0x8 => &scratch.quad.colour[o / 4],
         0x8..0x28 => &scratch.quad.uv[(o - 8) / 4],
         _ => &scratch.quad.corners[(o - 0x28) / 4],
     }
@@ -77,17 +72,16 @@ fn quad(
     } = *overlay;
     let screen = system.session.screen.get();
     let polygon = &scratch.polygon;
-    let shared = &race.shared;
     let course = &race.course;
     let sizes: [u32; 4] = std::array::from_fn(|n| strips_store.sizes[n].get());
     for (o, v) in strips::quad_inputs(left, width, &sizes, rows) {
-        quad_input(shared, scratch, o).set(v);
+        quad_input(scratch, o).set(v);
     }
     if let Some(t) = texture {
         polygon.polygon_textures[0].set(t);
     }
     scene.drawing.scene.get().polygon_alpha.set(0xFF);
-    quad_input(shared, scratch, 0).set(0xFFFF_FFFF);
+    quad_input(scratch, 0).set(0xFFFF_FFFF);
     polygon.polygon_sides[0].set(1);
     polygon.polygon_sides[1].set(0);
     crate::scene::draw_flat_quad::draw_flat_quad(

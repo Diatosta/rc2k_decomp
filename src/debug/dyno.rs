@@ -85,11 +85,11 @@ fn places<'a>(shared: &'a RaceShared, scene: &'a Scene) -> [&'a dyn Cell32; 15] 
         &shared.car().local_velocity[2],
         &shared.car().drive_speed_a,
         &shared.car().drive_speed_b,
-        &shared.physics_tables.drive_torque,
-        &shared.physics_tables.drive_ratio,
-        &shared.physics_tables.engine_force,
-        &shared.physics_tables.engine_torque,
-        &shared.physics_tables.torque_share,
+        &shared.physics_tables.get().drive_torque,
+        &shared.physics_tables.get().drive_ratio,
+        &shared.physics_tables.get().engine_force,
+        &shared.physics_tables.get().engine_torque,
+        &shared.physics_tables.get().torque_share,
         &drawing.scene.get().scratch,
         &drawing.scene.get().work_dword,
         &drawing.scene.get().work_float_a,
@@ -113,31 +113,31 @@ fn torque(race: &Race, scene: &Scene) {
     let shared = &race.shared;
     let course = &race.course;
     engine_torque(&race.course, &race.shared, scene);
-    shared.physics_tables.drive_ratio.set_bits(
+    shared.physics_tables.get().drive_ratio.set_bits(
         sum_times_int_over_minus(
-            shared.physics_tables.engine_force.bits(),
-            shared.physics_tables.engine_torque.bits(),
+            shared.physics_tables.get().engine_force.bits(),
+            shared.physics_tables.get().engine_torque.bits(),
             shared.car().throttle.get() as i32,
             course.numbers.get().k256.bits(),
         )
         .to_bits(),
     );
     let gear = shared.car().gear.get() as i32;
-    shared.physics_tables.drive_torque.set_bits(
+    shared.physics_tables.get().drive_torque.set_bits(
         mul_div2(
-            shared.physics_tables.drive_ratio.bits(),
+            shared.physics_tables.get().drive_ratio.bits(),
             race.gear().drive_torque_figure.bits(),
-            shared.physics_tables.gear_ratios[(gear + 1) as usize].bits(),
+            shared.physics_tables.get().gear_ratios[(gear + 1) as usize].bits(),
             course.numbers.get().k10000.bits(),
         )
         .to_bits(),
     );
     if shared.car().drive_cut_steps.get() != 0 {
-        shared.physics_tables.drive_torque.set_bits(0);
+        shared.physics_tables.get().drive_torque.set_bits(0);
     }
     drive_torque_share(
         race.shared.car(),
-        &race.shared.physics_tables,
+        race.shared.physics_tables.get(),
         race.course.numbers.get(),
         scene,
     );
@@ -152,7 +152,7 @@ fn drive_at(race: &Race, scene: &Scene, speed: f32) -> Option<(f32, f32)> {
     shared.car().local_velocity[2].set(speed);
     revs_from_wheels(
         race.shared.car(),
-        &race.shared.physics_tables,
+        race.shared.physics_tables.get(),
         race.course.numbers.get(),
     )
     .ok()?;
@@ -163,7 +163,7 @@ fn drive_at(race: &Race, scene: &Scene, speed: f32) -> Option<(f32, f32)> {
     }
     shared.car().throttle.set(0x100);
     torque(race, scene);
-    Some((shared.physics_tables.drive_torque.get(), revs / limit))
+    Some((shared.physics_tables.get().drive_torque.get(), revs / limit))
 }
 
 /// 0x428F42, without its drawing.
@@ -171,16 +171,16 @@ fn measure(race: &Race, scene: &Scene) -> Option<Measured> {
     let shared = &race.shared;
     let course = &race.course;
     let limit = shared.car().engine_speed_limit.get();
-    let count = shared.physics_tables.gear_count.get().min(7) as usize;
+    let count = shared.physics_tables.get().gear_count.get().min(7) as usize;
     if limit.is_nan() || limit <= 0.0 || count == 0 {
         return None;
     }
-    let figure = |f: &crate::session::Float| f.get();
+    let figure = |f: &dyn crate::session::FloatLike| f.get();
     let up = figure(&race.gear().shift_up_point);
     let clutch = figure(&race.gear().shift_down_clutch_point);
     let down = figure(&race.gear().shift_down_point);
-    let air = figure(&shared.physics_tables.air_drag);
-    let rolling = figure(&shared.physics_tables.rolling_drag);
+    let air = figure(&shared.physics_tables.get().air_drag);
+    let rolling = figure(&shared.physics_tables.get().rolling_drag);
     let k = course.numbers.get().k10000.get();
     Some(kept(shared, scene, || {
         let mut gears = Vec::new();
@@ -352,11 +352,11 @@ mod tests {
         let shared = &race().shared;
         let _lock = crate::test_support::test_lock();
         let was_limit = shared.car().engine_speed_limit.bits();
-        let was_count = shared.physics_tables.gear_count.get();
-        let was_ratio = shared.physics_tables.gear_ratios[2].bits();
+        let was_count = shared.physics_tables.get().gear_count.get();
+        let was_ratio = shared.physics_tables.get().gear_ratios[2].bits();
         shared.car().engine_speed_limit.set(7000.0_f32);
-        shared.physics_tables.gear_count.set(1);
-        shared.physics_tables.gear_ratios[2].set(0.01_f32);
+        shared.physics_tables.get().gear_count.set(1);
+        shared.physics_tables.get().gear_ratios[2].set(0.01_f32);
         let before = places(shared, scene()).map(crate::session::Cell32::bits);
         let m = measure(race(), scene()).expect("a car");
         assert_eq!(
@@ -366,8 +366,8 @@ mod tests {
         assert_eq!(m.gears.len(), 1);
         assert!(!m.gears[0].is_empty());
         shared.car().engine_speed_limit.set_bits(was_limit);
-        shared.physics_tables.gear_count.set(was_count);
-        shared.physics_tables.gear_ratios[2].set_bits(was_ratio);
+        shared.physics_tables.get().gear_count.set(was_count);
+        shared.physics_tables.get().gear_ratios[2].set_bits(was_ratio);
     }
 
     #[test]

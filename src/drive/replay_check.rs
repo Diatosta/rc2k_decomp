@@ -67,7 +67,7 @@ pub fn note(race: &Race) -> Result<(), BadInput> {
         return Ok(());
     }
     let mut line = format!("replay check: {mode}, clock {clock}:");
-    for car in 0..race.shared.view.race_cars.get().min(4) as usize {
+    for car in 0..race.shared.view.get().race_cars.get().min(4) as usize {
         // g_carBlockStore: four blocks of 0xFE0.
         let block = &race.car_blocks().cars[car];
         let mut bytes = vec![0u8; 4 * CAR_DWORDS];

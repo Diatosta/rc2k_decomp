@@ -44,10 +44,10 @@ pub fn wake_car_sounds(
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     let shared = &race.shared;
-    if shared.work.in_credits.is_set() {
+    if shared.work.get().in_credits.is_set() {
         return Ok(());
     }
-    let cars: u32 = shared.view.race_cars.get();
+    let cars: u32 = shared.view.get().race_cars.get();
     if cars >= MOST_CARS {
         return Err(BadInput("0x10000 cars or more").into());
     }

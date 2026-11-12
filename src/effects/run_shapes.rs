@@ -34,13 +34,13 @@ pub fn run_shapes(
     {
         pick_shapes(masks, drops)?;
         turn_all_shapes(masks, drops, effects)?;
-        let clock: u32 = shared.physics_tables.scene_clock.get();
+        let clock: u32 = shared.physics_tables.get().scene_clock.get();
         if clock as i32 >= drops.picks.next.get() as i32 {
             let r = next_c5(&setup.mask_constants.time_random);
             drops
                 .picks
                 .next
-                .set((r & 0xFF).wrapping_add(shared.physics_tables.scene_clock.get()));
+                .set((r & 0xFF).wrapping_add(shared.physics_tables.get().scene_clock.get()));
             let mask = marks.mask_number.get();
             if mask >= MASK_COUNT {
                 return Err(BadInput("a mask number past dword_844E34's 9").into());

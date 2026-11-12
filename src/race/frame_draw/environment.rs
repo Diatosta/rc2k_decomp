@@ -2,7 +2,6 @@
 
 use super::*;
 use crate::errors::BadInput;
-use crate::race::owner::Race;
 use crate::race::owner_course::CourseReads;
 
 /// The game's table root of a float (`sqrt` by `g_rootTable` x `g_exponentRootTable`),
@@ -101,8 +100,8 @@ pub fn eax_face_weight(
 /// original summed straight into `g_eaxEnvironment`, which the audio thread reads at its own pace
 /// (`audio::update_voices`): it could take a sum half made (`notes/bugs.md`).
 pub fn eax_environment(
-    race: &Race,
     course: CourseReads<'_>,
+    work: &crate::race::work_store::RaceWork,
     points: &crate::race::scene_points::OwnPoints,
     view: &crate::race::view_grid::ViewGrid,
 ) -> Result<u32, BadInput> {
@@ -111,7 +110,7 @@ pub fn eax_environment(
         // Converted: `rc2k_core::race::view::{cells_from, record_faces}`.
         use rc2k_core::race::view::{NO_RECORD, cells_from, record_faces};
         for cell in cells_from(
-            hold_to_limit(&race.shared, course.stage_prefs.grid_reach.get()).wrapping_sub(1),
+            hold_to_limit(work, course.stage_prefs.grid_reach.get()).wrapping_sub(1),
             3,
         ) {
             // 0x45C84C.

@@ -12,14 +12,13 @@ use crate::physics::gear_bit::gear_bit_at;
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at, wheels_from_revs_at};
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
-use crate::session::Dword;
 use crate::session::PlainDword;
 use rc2k_core::physics::gear_shifts::Change;
 
 /// The other places: the asked gear, the gear bits, the two words set.
 #[derive(Clone, Copy)]
 pub struct ChangePlaces<'a> {
-    pub wanted: &'a Dword,
+    pub wanted: &'a PlainDword,
     /// By address: `bt` on memory, its bit number past the first dword.
     pub bits: &'a PlainDword,
     pub changed: &'a PlainDword,
@@ -29,7 +28,7 @@ pub struct ChangePlaces<'a> {
 impl<'a> ChangePlaces<'a> {
     pub fn game(shared: &'a RaceShared) -> Self {
         Self {
-            wanted: &shared.physics_tables.gear_asked,
+            wanted: &shared.physics_tables.get().gear_asked,
             bits: &shared.car().lost_gear_bits,
             changed: &shared.car().gear_changed,
             pending: &shared.car().gear_change_pending,
@@ -93,7 +92,7 @@ pub fn change_gear_at(
 pub fn change_gear(numbers: &Numbers, shared: &RaceShared) -> Result<(), Refused> {
     change_gear_at(
         numbers,
-        &GearPlaces::game(shared.car(), &shared.physics_tables),
+        &GearPlaces::game(shared.car(), shared.physics_tables.get()),
         &ChangePlaces::game(shared),
     )
 }

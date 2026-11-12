@@ -5,7 +5,6 @@
 use crate::errors::Refused;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
-use crate::race::owner_shared::RaceShared;
 
 /// `race::players_all_out` (0x445506): carry when every player is out (+0xB0 not 0): the chosen
 /// car's with `session` 1, else each of the `players` players'. Refuses, before anything,
@@ -23,7 +22,7 @@ pub fn players_all_out(race: &Race, net: &crate::net::owner::Net) -> Result<bool
         let players = if vars.session.get() == 1 {
             Players::Chosen(vars.player.get())
         } else {
-            Players::First(shared.view.players.get())
+            Players::First(shared.view.get().players.get())
         };
         let all = players_all_out(players, out)?;
         trap.finish()?;
@@ -51,11 +50,11 @@ pub fn set_both_counters(race: &Race, value: u32) {
 }
 
 /// The view car `n`'s number: `view_cars`, `RaceView.view_cars[1]`, `local_car`.
-pub fn view_car(shared: &RaceShared, n: usize) -> &crate::session::Dword {
+pub fn view_car(view: &crate::race::view_store::RaceView, n: usize) -> &crate::session::PlainDword {
     match n {
-        0 => &shared.view.view_cars[0],
-        1 => &shared.view.view_cars[1],
-        2 => &shared.view.local_car,
+        0 => &view.view_cars[0],
+        1 => &view.view_cars[1],
+        2 => &view.local_car,
         _ => panic!("a view car past the third"),
     }
 }
@@ -64,15 +63,19 @@ pub fn view_car(shared: &RaceShared, n: usize) -> &crate::session::Dword {
 /// block (of `blocks`: the game thread's, or a drawing part's reads) copied into `view`'s car
 /// (`ViewScratch::car`). Refuses a null block (the original's copy faults) before anything.
 pub fn load_view_car(
-    shared: &RaceShared,
+    work: &crate::race::work_store::RaceWork,
     blocks: &crate::race::blocks_store::CarBlocks,
+    race_view: &crate::race::view_store::RaceView,
     n: usize,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
     use rc2k_core::drive::work_car::{car_block, car_slot};
-    let slot = car_slot(view_car(shared, n).get());
-    car_block(u32::from(shared.work.has_car_block(slot as usize)))?;
-    crate::cells::copy_whole(shared.race_car_in(blocks, slot as usize)?, &view.car);
+    let slot = car_slot(view_car(race_view, n).get());
+    car_block(u32::from(work.has_car_block(slot as usize)))?;
+    crate::cells::copy_whole(
+        crate::race::owner_shared::RaceShared::race_car_in(work, blocks, slot as usize)?,
+        &view.car,
+    );
     Ok(())
 }
 
@@ -133,16 +136,16 @@ pub fn race_keys(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
             if camera < COUNTED_VIEWS {
                 set_car_counter(
                     view,
-                    shared.physics_tables.view_counters[camera as usize].get(),
+                    shared.physics_tables.get().view_counters[camera as usize].get(),
                 );
             }
         }
         Some(Key::Split) => {
-            if shared.view.players.get() == 1 {
+            if shared.view.get().players.get() == 1 {
                 return Ok(());
             }
-            let (split, counter) = split_flip(shared.vars.split.get());
-            shared.vars.split.set(split);
+            let (split, counter) = split_flip(shared.vars.get().split.get());
+            shared.vars.get().split.set(split);
             set_both_counters(race, counter);
         }
         Some(k @ (Key::VolumeDown | Key::VolumeUp)) => {

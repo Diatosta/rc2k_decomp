@@ -24,18 +24,19 @@ fn car_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refuse
     crate::drive::car_input_words::car_input_words(race, input, net)?;
     crate::drive::record_inputs_if::record_inputs_if(race)?;
     crate::drive::play_inputs_if::play_inputs_if(race)?;
-    let slot = race_steps::block_slot(race.shared.work.current_car.get());
+    let slot = race_steps::block_slot(race.shared.work.get().current_car.get());
     race.shared
         .work
+        .get()
         .work_block
-        .set(race.shared.work.car_block(slot as usize));
+        .set(race.shared.work.get().car_block(slot as usize));
     crate::drive::load_car::load_car(&race.shared)?;
     if race.shared.car().driver_kind.get() != 0 {
         crate::drive::read_car_controls::read_car_controls(race, net, scene)?;
         crate::physics::gear_input_rules::gear_input_rules(
             race.shared.car(),
-            &race.shared.physics_tables,
-            &race.shared.vars,
+            race.shared.physics_tables.get(),
+            race.shared.vars.get(),
         );
         crate::drive::steer_inputs::steer_inputs(race, scene);
         crate::drive::pedal_inputs::pedal_inputs(race);
@@ -60,7 +61,7 @@ fn car_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refuse
 pub fn replay_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
     let (sound, scene, net) = (o.sound, o.scene, o.net);
     let shared = &race.shared;
-    race_steps::check_cars(shared.view.race_cars.get())?;
+    race_steps::check_cars(shared.view.get().race_cars.get())?;
     crate::drive::choose_shown_cars::choose_shown_cars_in(race, net)?;
     crate::drive::keep_replay_frame::keep_replay_frame(race)?;
     crate::drive::play_replay_frame::play_replay_frame(race, o.system)?;
@@ -74,9 +75,9 @@ pub fn replay_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(),
         .previous_step_clock
         .set(race.car_blocks().cars[0].step_clock.get());
     race_steps::each_car(
-        || shared.work.current_car.get(),
-        || shared.view.race_cars.get(),
-        |n| shared.work.current_car.set(n),
+        || shared.work.get().current_car.get(),
+        || shared.view.get().race_cars.get(),
+        |n| shared.work.get().current_car.set(n),
         || car_step(o, race),
     )?;
     crate::drive::replay_check::note(race)?;

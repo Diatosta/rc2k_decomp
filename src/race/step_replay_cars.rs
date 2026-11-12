@@ -21,16 +21,17 @@ pub fn step_replay_cars(o: crate::owners::Owners<'static>, race: &Race) -> Resul
     use rc2k_core::race::viewer_flow::{
         RUN_STEPS, RunStep, car_block, car_runs, check_replay_cars, next_car,
     };
-    check_replay_cars(shared.view.race_cars.get())?;
+    check_replay_cars(shared.view.get().race_cars.get())?;
     choose_shown_cars::choose_shown_cars_in(race, net)?;
-    shared.work.current_car.set(0);
+    shared.work.get().current_car.set(0);
     loop {
         car_input_words::car_input_words(race, input, net)?;
         play_inputs::play_inputs(race)?;
-        shared.work.work_block.set(
+        shared.work.get().work_block.set(
             shared
                 .work
-                .car_block(car_block(shared.work.current_car.get()) as usize),
+                .get()
+                .car_block(car_block(shared.work.get().current_car.get()) as usize),
         );
         load_car::load_car(shared)?;
         if car_runs(shared.car().driver_kind.get()) {
@@ -39,8 +40,8 @@ pub fn step_replay_cars(o: crate::owners::Owners<'static>, race: &Race) -> Resul
                     RunStep::Controls => read_car_controls::read_car_controls(race, net, scene)?,
                     RunStep::GearRules => crate::physics::gear_input_rules::gear_input_rules(
                         race.shared.car(),
-                        &race.shared.physics_tables,
-                        &race.shared.vars,
+                        race.shared.physics_tables.get(),
+                        race.shared.vars.get(),
                     ),
                     RunStep::Steering => steer_inputs::steer_inputs(race, scene),
                     RunStep::Pedals => pedal_inputs::pedal_inputs(race),
@@ -57,8 +58,11 @@ pub fn step_replay_cars(o: crate::owners::Owners<'static>, race: &Race) -> Resul
             }
         }
         store_car::store_car(shared)?;
-        let (next, done) = next_car(shared.work.current_car.get(), shared.view.race_cars.get());
-        shared.work.current_car.set(next);
+        let (next, done) = next_car(
+            shared.work.get().current_car.get(),
+            shared.view.get().race_cars.get(),
+        );
+        shared.work.get().current_car.set(next);
         if done {
             break;
         }

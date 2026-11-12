@@ -62,19 +62,20 @@ pub fn choose_at(v: &[&dyn DwordLike], listed: &[PlainDword]) -> Result<(), Refu
 /// The variables, in the order the core uses them (`listed_car_sounds` apart).
 fn game<'a>(race: &'a Race, net: &'a crate::net::owner::Net) -> Vec<&'a dyn DwordLike> {
     let shared = &race.shared;
-    vec![
-        &shared.view.view_cars[0],
-        &shared.view.view_cars[1],
-        &shared.view.players,
-        &shared.view.views,
+    let cells: [&dyn DwordLike; 11] = [
+        &shared.view.get().view_cars[0],
+        &shared.view.get().view_cars[1],
+        &shared.view.get().players,
+        &shared.view.get().views,
         &race.course.numbers.get().replay_mode,
-        &shared.view.view_switch,
-        &shared.vars.split,
+        &shared.view.get().view_switch,
+        &shared.vars.get().split,
         &net.vars.session, // NetVars.session: in the network's variables
-        &shared.view.local_car,
-        &shared.view.view_blocks[0],
-        &shared.view.view_blocks[1],
-    ]
+        &shared.view.get().local_car,
+        &shared.view.get().view_blocks[0],
+        &shared.view.get().view_blocks[1],
+    ];
+    cells.to_vec()
 }
 
 /// `choose_shown_cars` with the network's owner given.

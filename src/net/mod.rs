@@ -137,5 +137,5 @@ pub fn log_send(race: &Race, vars: &NetVars, text: &std::ffi::CStr) {
     use crate::logfile::log_int::log_int;
     crate::logfile::log_write::log_nul(&text, false, 1);
     log_int(vars.player.get() as i32, false, 1);
-    log_int(race.shared.view.local_car.get() as i32, true, 1);
+    log_int(race.shared.view.get().local_car.get() as i32, true, 1);
 }

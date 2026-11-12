@@ -34,7 +34,7 @@ pub fn take_split_counted(
 ) -> Result<(), Refused> {
     let sound = o.sound;
     let physics_store = physics;
-    if shared.work.current_car.get() != 0 {
+    if shared.work.get().current_car.get() != 0 {
         return Ok(());
     }
     if !split_due(
@@ -44,7 +44,7 @@ pub fn take_split_counted(
         return Ok(());
     }
     { keep_split_time(shared.car(), physics.split_tables()) }?;
-    { flag_current_car_listed(frame_work, &shared.work, sound) }?;
+    { flag_current_car_listed(frame_work, shared.work.get(), sound) }?;
     split_by_mode(
         o,
         physics.split_tables(),

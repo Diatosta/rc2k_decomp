@@ -22,7 +22,6 @@
 
 use crate::math::x87;
 use crate::math::x87_float as bh;
-use crate::race::owner::Race;
 use crate::race::view_vars_store::ViewVars;
 use crate::scene::draw_store::SceneDraw;
 use crate::scene::view_window::ViewWindow;
@@ -35,20 +34,20 @@ use crate::session::{CellKind, FloatLike};
 /// clip factors), a drawing part's from its reads; `screen`: the screen's figures (the part's
 /// from its reads likewise).
 pub fn set_view_window(
-    race: &Race,
     course: crate::race::owner_course::CourseReads<'_>,
     draw: &SceneDraw,
     screen: &crate::session::Screen,
     window: &ViewWindow,
     vars: &ViewVars<impl CellKind>,
+    scale_factor: &crate::session::PlainFloat,
 ) {
     set_view_window_reaching(
-        race,
         course,
         draw,
         screen,
         window,
         vars,
+        scale_factor,
         course.stage_prefs.grid_reach.get(),
     );
 }
@@ -56,12 +55,12 @@ pub fn set_view_window(
 /// `set_view_window` with the grid's reach `reach` in place of the stage's (the mirror's
 /// window is made with a reach of 2).
 pub fn set_view_window_reaching(
-    race: &Race,
     course: crate::race::owner_course::CourseReads<'_>,
     draw: &SceneDraw,
     screen: &crate::session::Screen,
     window: &ViewWindow,
     vars: &ViewVars<impl CellKind>,
+    scale_factor: &crate::session::PlainFloat,
     reach: u32,
 ) {
     let depth = reach.wrapping_mul(0x20);
@@ -86,7 +85,7 @@ pub fn set_view_window_reaching(
         bh::int(screen.width.get() as i32)
             * bh::ld(vars.view_scale.get())
             * bh::int(window.view_zoom.get() as i32)
-            * bh::ld(race.shared.vars.scale_factor.get()),
+            * bh::ld(scale_factor.get()),
     ));
     // Held to 90 ..= 100, compared by the signs of the differences as the game does.
     let mut nearer = 100u32.wrapping_sub(course.stage_prefs.nearer.get());
@@ -126,12 +125,12 @@ pub fn set_view_window_reaching(
 /// have not been converted (race, `choose_view_window`, `prepare_menu_scene`).
 // Converted: `rc2k_core::scene::view_window::window_settings`
 pub fn set_view_window_plain(
-    race: &Race,
     course: crate::race::owner_course::CourseReads<'_>,
     draw: &SceneDraw,
     screen: &crate::session::Screen,
     window: &ViewWindow,
     vars: &ViewVars<impl CellKind>,
+    scale_factor: &crate::session::PlainFloat,
 ) {
     use rc2k_core::scene::view_window::{WindowInputs, window_settings};
     let i = WindowInputs {
@@ -143,7 +142,7 @@ pub fn set_view_window_plain(
         scale: (
             vars.view_scale.get(),
             window.view_zoom.get(),
-            race.shared.vars.scale_factor.get(),
+            scale_factor.get(),
         ),
         nearer: course.stage_prefs.nearer.get(),
         nearer_factor: course.numbers.hundredth_a.get(),

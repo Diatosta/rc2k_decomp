@@ -16,9 +16,9 @@ pub fn fill_scene_light_tables(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), crate::errors::BadInput> {
     let shared = &race.shared;
-    let kept: u32 = shared.switches.scene_set_up.get();
-    shared.switches.scene_set_up.set(1u32);
+    let kept: u32 = shared.switches.get().scene_set_up.get();
+    shared.switches.get().scene_set_up.set(1u32);
     let done = fill_light_tables(scene, race);
-    shared.switches.scene_set_up.set(kept);
+    shared.switches.get().scene_set_up.set(kept);
     done
 }

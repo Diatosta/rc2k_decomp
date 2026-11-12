@@ -44,7 +44,7 @@ pub fn countdown_beep(
     if cue {
         let sound =
             race.frame.panel_and_overlay.get().overlay.countdown_sounds[second as usize].get(); // dword_6D1818, the cue is only for 0 .. SECONDS
-        race.shared.physics_tables.countdown_sound.set(sound);
+        race.shared.physics_tables.get().countdown_sound.set(sound);
         crate::drive::countdown_cue::countdown_cue(race, sound, audio)?;
     }
     Ok(())

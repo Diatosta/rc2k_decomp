@@ -39,8 +39,9 @@ pub fn play_movie_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result
     race_parts::restart_clock(race);
     race.shared
         .physics_tables
+        .get()
         .race_clock_base
-        .set(race.shared.physics_tables.scene_clock.get());
+        .set(race.shared.physics_tables.get().scene_clock.get());
     loop {
         race_parts::input_update(o);
         if input.devices.keys_pressed.get(1) != 0 {

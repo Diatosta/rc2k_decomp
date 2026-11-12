@@ -176,7 +176,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     distance(
-                        &crate::race::owner::race().shared.physics_tables,
+                        crate::race::owner::race().shared.physics_tables.get(),
                         crate::race::owner::race().course.numbers.get(),
                         crate::race::owner::race().physics.ground(),
                         point_at(a[1]),

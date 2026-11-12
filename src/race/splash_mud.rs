@@ -33,7 +33,7 @@ pub fn splash_mud(
     };
     let n = texture_and_mud(shared)?;
     // `mud_splash_counts`: each texture's count (the texture is 0 .. 3).
-    let count_cell = &shared.vars.mud_splash_counts[n as usize];
+    let count_cell = &shared.vars.get().mud_splash_counts[n as usize];
     count_cell.set(count_cell.get().wrapping_add(1));
     let (mut x, mut y) = splash_place(next_drawing_random());
     let strength = strength_at(n, x, y)?;
@@ -44,9 +44,9 @@ pub fn splash_mud(
     // when they skip a place.
     let mut eax = splash_pattern(next_drawing_random());
     let mut colours = (eax >> 2) as usize; // the pattern's place: whole dwords
-    shared.vars.mud_row.set(0u32);
+    shared.vars.get().mud_row.set(0u32);
     for row in 0..SPLASH_SIDE {
-        shared.vars.mud_column.set(0u32);
+        shared.vars.get().mud_column.set(0u32);
         for column in 0..SPLASH_SIDE {
             eax = mud_texel(eax, x, y, scene, gfx, system)?;
             if muddy(eax) {
@@ -54,6 +54,7 @@ pub fn splash_mud(
                 // at most 0xFF, inside the 256 colours.
                 let colour = shared
                     .vars
+                    .get()
                     .mud_colours
                     .get(colours)
                     .ok_or(BadInput("a mud colour past the 256"))?
@@ -63,11 +64,11 @@ pub fn splash_mud(
             }
             colours += 1;
             x = x.wrapping_add(1);
-            shared.vars.mud_column.set(column + 1);
+            shared.vars.get().mud_column.set(column + 1);
         }
         x = x.wrapping_sub(4);
         y = y.wrapping_add(1);
-        shared.vars.mud_row.set(row + 1);
+        shared.vars.get().mud_row.set(row + 1);
     }
     Ok(())
 }

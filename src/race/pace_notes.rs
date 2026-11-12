@@ -47,7 +47,7 @@ pub fn game_course(race: &Race) -> Course {
     Course {
         faces: 0,
         window: (0, len),
-        count: shared.vars.checkpoint_count.get(),
+        count: shared.vars.get().checkpoint_count.get(),
     }
 }
 
@@ -68,7 +68,7 @@ impl Stage for GameStage<'_> {
         crate::race::checkpoints_store::angle(self.0.checkpoints(), k as usize).get()
     }
     fn slot_offset(&self, slot: u32) -> u32 {
-        self.0.shared.physics_tables.pace_slot_offsets[slot as usize].get() // PhysicsTables.pace_slot_offsets[0]: each slot's byte in the face
+        self.0.shared.physics_tables.get().pace_slot_offsets[slot as usize].get() // PhysicsTables.pace_slot_offsets[0]: each slot's byte in the face
     }
     fn word(&self, tens: u32) -> u8 {
         self.0.physics.pace().distance_words.get(tens as usize)
@@ -169,7 +169,7 @@ impl<'a> Machine<'a> {
             *held = None;
         }
         Ok(Self(Notes::new(
-            race.shared.physics_tables.pace_slot.get(),
+            race.shared.physics_tables.get().pace_slot.get(),
             image(physics),
             course,
             stage,
@@ -179,7 +179,7 @@ impl<'a> Machine<'a> {
     /// The slot and the tables written back.
     pub fn commit(&self, race: &Race) -> Result<(), BadInput> {
         let physics = &race.physics;
-        race.shared.physics_tables.pace_slot.set(self.slot);
+        race.shared.physics_tables.get().pace_slot.set(self.slot);
         put_image(physics, &self.image);
         Ok(())
     }

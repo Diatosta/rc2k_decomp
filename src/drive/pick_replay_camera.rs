@@ -46,7 +46,7 @@ pub fn pick_replay_camera(race: &Race, wish: u32) -> Result<Option<u32>, Refused
     let edx = kept_mode(
         edx,
         || race.car_blocks().cars[0].car_kind.get(),
-        || race.shared.view.players.get() != 1,
+        || race.shared.view.get().players.get() != 1,
         || race.car_blocks().cars[1].car_kind.get(),
     );
     Ok(Some(edx))

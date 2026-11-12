@@ -25,14 +25,14 @@ pub fn quit_question(race: &Race, o: crate::owners::Owners<'static>) -> Result<u
     stop_race_sounds(o.sound, o.audio, o.system)?;
     // A button from before the question answers nothing.
     crate::input::menu_pad::take_answer();
-    shared.vars.scene_switch.set(1);
+    shared.vars.get().scene_switch.set(1);
     // The carried value: the best frame, then each key's answer, then what the frame leaves; it goes
     // into `input::yes_no_key` (the key given, when one is).
     let (mut eax, _) = race_ticks::best_frame(race.car_blocks().cars[0].step_clock.get());
     if race_ticks::keeps_frame(eax, replay.replay_frames().last_kept.get()) {
         replay.replay_frames().last_kept.set(eax);
     }
-    let kind = race_ticks::quit_notice(shared.vars.no_replay.get() != 0);
+    let kind = race_ticks::quit_notice(shared.vars.get().no_replay.get() != 0);
     for c in 0..8 {
         race.car_blocks().cars[c as usize].notice_id.set(kind);
     }
@@ -57,8 +57,8 @@ pub fn quit_question(race: &Race, o: crate::owners::Owners<'static>) -> Result<u
         };
         match race_ticks::quit_answer(
             eax,
-            shared.vars.run_kind.get(),
-            shared.vars.no_replay.get() != 0,
+            shared.vars.get().run_kind.get(),
+            shared.vars.get().no_replay.get() != 0,
         ) {
             Some(answer) => break answer,
             None => eax = crate::drive::race_frame::race_frame(race, o, eax)?,
@@ -70,7 +70,7 @@ pub fn quit_question(race: &Race, o: crate::owners::Owners<'static>) -> Result<u
             cell.set(0);
         }
     }
-    shared.vars.scene_switch.set(0);
+    shared.vars.get().scene_switch.set(0);
     wake_car_sounds(race, o.sound, o.audio)?;
     for c in 0..8 {
         race.car_blocks().cars[c as usize].input_keys.set(0);

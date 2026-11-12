@@ -29,5 +29,5 @@ pub fn engine_torque_or_cut(
         engine_torque(course, shared, scene);
         return;
     }
-    shared.physics_tables.engine_force.set(0.0);
+    shared.physics_tables.get().engine_force.set(0.0);
 }

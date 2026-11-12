@@ -3,9 +3,7 @@
 use super::*;
 use crate::errors::{BadInput, Refused};
 use crate::net::owner::net;
-use crate::race::owner::Race;
 use crate::race::owner_course::CourseReads;
-use crate::race::owner_shared::RaceShared;
 use crate::race::trap::Trap;
 use crate::race::view_scratch::DrawCtx;
 use crate::session::Dword;
@@ -22,22 +20,22 @@ use crate::session::Dword;
 /// shown car's own (`camera_mode_is_2_or_3`, +0x684 `camera_view`), where the original read what
 /// the view drawn before had set from them: one frame late after a camera change (`notes/bugs.md`).
 pub fn car_light_modes(
-    race: &Race,
     states: &crate::race::car_draw_state::CarDrawState,
+    work: &crate::race::work_store::RaceWork,
+    vars: &crate::race::vars_store::RaceVars,
+    race_view: &crate::race::view_store::RaceView,
     mirrored: bool,
     view: u32,
 ) -> Result<(), Refused> {
-    let block = |n: u32| race.shared.work.block_number(n as usize);
-    let cars: u32 = race.shared.view.race_cars.get();
-    if (0..8).any(|n| !race.shared.work.has_car_block(n as usize)) {
+    let block = |n: u32| work.block_number(n as usize);
+    let cars: u32 = race_view.race_cars.get();
+    if (0..8).any(|n| !work.has_car_block(n as usize)) {
         return Err(BadInput("a null car block").into());
     }
     if cars > 8 {
         return Err(BadInput("more than eight race cars").into());
     }
-    let shown = race
-        .shared
-        .view
+    let shown = race_view
         .view_cars
         .get(view as usize)
         .ok_or(BadInput("a drawn view past the two"))?
@@ -48,7 +46,7 @@ pub fn car_light_modes(
     }
     // Converted: `rc2k_core::race::lights::{lights_drawn, light_word}`.
     use rc2k_core::race::lights::{light_word, lights_drawn};
-    let mode: u32 = race.shared.vars.run_kind.get();
+    let mode: u32 = vars.run_kind.get();
     for n in 0..cars {
         // The state bits are the view's own; what decides them, the physics'.
         let this_car = crate::race::frame_view::car(block(n)?)?;
@@ -70,7 +68,7 @@ pub fn car_light_modes(
             me,
             || this_car.camera_mode_is_2_or_3.get() != 0,
             || this_car.camera_view.get(),
-            race.shared.vars.settings_words[3].get(),
+            vars.settings_words[3].get(),
         );
         at.set(word);
     }
@@ -208,8 +206,11 @@ pub(super) fn car_light_on_point(
 /// the chosen car
 /// (`crate::net::owner::net().vars.player`) or all with `crate::race::owner::race().shared.vars.settings_words[4]` 1; else the players' cars (all with
 /// `crate::race::owner::race().shared.vars.settings_words[4]` 1), only the drawn view's car outside one player and modes 0 and 2.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the drawing's stores the part reads, as they are lent"
+)]
 pub(super) fn car_lights_on_point(
-    race: &Race,
     reads: crate::workers::DrawReads<'_>,
     object_light: &crate::scene::object_light::ObjectLight,
     drawn_view: u32,
@@ -217,10 +218,10 @@ pub(super) fn car_lights_on_point(
 ) -> Result<(), BadInput> {
     let light_tables = reads.light_tables;
     let blocks = &reads.cars_and_replay.car_blocks;
+    let (race_work, race_vars, race_view) = (reads.work, reads.vars, reads.view);
     let vars = &net().vars;
-    let shared = &race.shared;
-    let cars: u32 = shared.view.race_cars.get();
-    let all = shared.vars.settings_words[4].get() == 1;
+    let cars: u32 = race_view.race_cars.get();
+    let all = race_vars.settings_words[4].get() == 1;
     let one = vars.session.get() != 0;
     for n in 0..cars {
         let trap = Trap::new();
@@ -229,10 +230,10 @@ pub(super) fn car_lights_on_point(
             one,
             || vars.player.get(),
             all,
-            || shared.view.players.get(),
-            || shared.vars.run_kind.get(),
+            || race_view.players.get(),
+            || race_vars.run_kind.get(),
             || {
-                shared.view.drawn_view_car(drawn_view).unwrap_or_else(|e| {
+                race_view.drawn_view_car(drawn_view).unwrap_or_else(|e| {
                     trap.keep(e);
                     0
                 })
@@ -244,7 +245,9 @@ pub(super) fn car_lights_on_point(
             car_light_on_point(
                 reads.course(),
                 crate::race::frame_view::car(n as usize)?,
-                shared.race_car_in(blocks, n as usize)?.marks_count.get(),
+                crate::race::owner_shared::RaceShared::race_car_in(race_work, blocks, n as usize)?
+                    .marks_count
+                    .get(),
                 light_tables,
                 object_light,
                 mmx,
@@ -297,13 +300,14 @@ pub(super) fn lamp_lights_on_point(
 /// What `light_colour_at` refuses, before anything: no cars (its loop tests at the end),
 /// more than eight, a null block it would read, more than 16 lamps.
 pub fn check_light_colour(
-    shared: &RaceShared,
+    work: &crate::race::work_store::RaceWork,
+    race_view: &crate::race::view_store::RaceView,
     lamps: &crate::race::lamp_work::LampWork,
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::lights::check_light_colour`.
     Ok(rc2k_core::race::lights::check_light_colour(
-        shared.view.race_cars.get(),
-        |n| u32::from(shared.work.has_car_block(n as usize)),
+        race_view.race_cars.get(),
+        |n| u32::from(work.has_car_block(n as usize)),
         || lamps.lamp_count.get(),
     )?)
 }
@@ -313,7 +317,6 @@ pub fn check_light_colour(
 /// `LIGHT_STATE.lit_place[2]`), added up. Refuses as `check_light_colour`.
 /// `reads`: the drawing's light tables and cars' blocks.
 pub fn light_colour_at(
-    race: &Race,
     reads: crate::workers::DrawReads<'_>,
     points: &crate::race::scene_points::OwnPoints,
     lamps: &crate::race::lamp_work::LampWork,
@@ -324,9 +327,9 @@ pub fn light_colour_at(
     // Converted: `rc2k_core::race::lights::{check_light_colour, headlights_light,
     // headlight_index, lamp_grey, add_colours, multiply_colours}` (the turned place, the
     // spreads and the lamps' distances the x87's and the scene's).
-    check_light_colour(&race.shared, lamps)?;
+    check_light_colour(reads.work, reads.view, lamps)?;
     object_light.light_colour.set(0u32);
-    car_lights_on_point(race, reads, object_light, drawn_view, mmx)?;
+    car_lights_on_point(reads, object_light, drawn_view, mmx)?;
     lamp_lights_on_point(reads.course(), points, lamps, object_light, mmx)?;
     Ok(())
 }
@@ -341,13 +344,12 @@ pub fn view_light(ctx: &DrawCtx<'_>, mmx: bool) -> Result<(), Refused> {
     let (lamps, object_light, car) = (&view.lamps, &view.light, &view.car);
     let drawn_view = view.drawn_view(race);
     // Converted: `rc2k_core::race::lights::add_colours` (through `light_colour_at`'s).
-    check_light_colour(&race.shared, lamps)?;
+    check_light_colour(ctx.reads.work, ctx.reads.view, lamps)?;
     crate::session::write_bits(
         &object_light.lit_place,
         crate::session::read_bits(&car.position),
     );
     light_colour_at(
-        race,
         ctx.reads,
         &ctx.part.points,
         lamps,

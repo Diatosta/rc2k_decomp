@@ -16,8 +16,9 @@ pub fn play_movie(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), 
     crate::drive::race_parts::restart_clock(race);
     race.shared
         .physics_tables
+        .get()
         .race_clock_base
-        .set(race.shared.physics_tables.scene_clock.get());
+        .set(race.shared.physics_tables.get().scene_clock.get());
     crate::race::play_movie_loop::play_movie_loop(race, o)?;
     crate::logfile::log_write::log_nul(&OUT_TEXT, true, 1);
     Ok(())

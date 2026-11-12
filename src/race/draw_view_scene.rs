@@ -87,8 +87,10 @@ pub fn draw_view_scene(
         cell.set(0);
     }
     car_light_modes(
-        race,
         &view.cars,
+        reads.work,
+        reads.vars,
+        reads.view,
         view.polygon.view_mirrored.get() != 0,
         view.drawn_view(race),
     )?;
@@ -108,9 +110,9 @@ pub fn draw_view_scene(
     // (The original's 0 into `g_viewLamps`, 0x63DB6C: read by nothing.)
     prepare_course_view(race, reads, view, part)?;
     gather_visible_faces(&ctx)?;
-    let environment = eax_environment(race, reads.course(), &part.points, &view.grid)?;
+    let environment = eax_environment(reads.course(), reads.work, &part.points, &view.grid)?;
     gather_lamps(&ctx)?;
-    lamps_wanted(&race.shared, &view.lamps)?;
+    lamps_wanted(reads.work, reads.view, &view.lamps)?;
     sort_entries(&lists.sort_entry_count, lists.sort_entries())?;
     let begun = crate::debug::timing::start();
     draw_entries(&ctx, &lists.sort_entry_count, |n| lists.sort_from(n))?;
@@ -123,7 +125,7 @@ pub fn draw_view_scene(
     let begun = crate::debug::timing::start();
     draw_entries(&ctx, &lists.depth_entry_count, |n| lists.depth_from(n))?;
     crate::debug::timing::stop(crate::debug::timing::Stage::DepthEntries, begun);
-    let view_value = view_value(race, &view.polygon.sun, view.drawn_view(race))?;
+    let view_value = view_value(reads.view, &view.polygon.sun, view.drawn_view(race))?;
     // The lamps the next view starts from (`race::lamp_work::PUBLISHED`).
     {
         use crate::cells::Cells;

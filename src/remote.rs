@@ -149,7 +149,9 @@ pub fn note_open(path: &[u8]) {
 /// The car `state` reports: the viewed car's block in a race. With several cars the work car
 /// holds whichever was stepped last between frames.
 fn driven_car<'a>(race: &'a Race, course: &Course) -> &'a crate::physics::car_store::Car {
-    let viewed = race.car_blocks().of(race.shared.view.view_blocks[0].get());
+    let viewed = race
+        .car_blocks()
+        .of(race.shared.view.get().view_blocks[0].get());
     match viewed {
         Some(car) if course.numbers.get().in_race.is_set() => car,
         _ => race.shared.car(),
@@ -179,7 +181,7 @@ fn state(o: &Owners<'static>, course: &Course) -> String {
         CAR.splits_passed.get(),
         CAR.finish_flag.get(),
         CAR.stuck_count.get(),
-        race.shared.vars.checkpoint_count.get(),
+        race.shared.vars.get().checkpoint_count.get(),
         at,
         CAR.map_place[0].get() as i32,
         CAR.map_place[1].get() as i32,
@@ -193,12 +195,12 @@ fn state(o: &Owners<'static>, course: &Course) -> String {
         CAR.gear.get() as i32,
         CAR.gearbox_kind.get(),
         CAR.driver_kind.get(),
-        race.shared.physics_tables.input_steer.get() as i32,
-        race.shared.physics_tables.input_throttle.get(),
-        race.shared.physics_tables.input_brake.get(),
-        race.shared.physics_tables.input_handbrake.get(),
-        race.shared.physics_tables.input_gear_up.get(),
-        race.shared.physics_tables.input_gear_down.get(),
+        race.shared.physics_tables.get().input_steer.get() as i32,
+        race.shared.physics_tables.get().input_throttle.get(),
+        race.shared.physics_tables.get().input_brake.get(),
+        race.shared.physics_tables.get().input_handbrake.get(),
+        race.shared.physics_tables.get().input_gear_up.get(),
+        race.shared.physics_tables.get().input_gear_down.get(),
         CAR.crash_matrix[..12]
             .iter()
             .map(|cell| format!("{:.2}", cell.get()))
@@ -456,7 +458,7 @@ pub fn shots_loading(race: &Race, effects: &crate::effects::owner::Effects) {
     reseed(effects);
     // The scene's clock as the menus left it (their time on screen) is the snow's first
     // step's start: the held clock's from here.
-    race.shared.physics_tables.scene_clock.set(0x10000u32);
+    race.shared.physics_tables.get().scene_clock.set(0x10000u32);
     // The frame rate's text measures the host: not drawn.
     race.frame.counter().show.set(0);
 }

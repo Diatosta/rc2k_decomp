@@ -35,24 +35,24 @@ use crate::race::work_store::{RaceSlot, RaceWork};
 use crate::scene::matrix::multiply_matrices;
 use crate::scene::matrix3::rounded_value;
 use crate::scene::view_matrix::{square_matrix, unit_vector};
-use crate::session::{Dword, Float};
+use crate::session::{FloatLike, PlainDword, PlainFloat};
 
 /// A place (three whole numbers) copied.
-fn copy_place(from: &[Dword; 3], to: &[Dword; 3]) {
+fn copy_place(from: &[PlainDword; 3], to: &[PlainDword; 3]) {
     for (t, f) in to.iter().zip(from) {
         t.set(f.get());
     }
 }
 
 /// A matrix's floats copied.
-fn copy_matrix(from: &[Float; 16], to: &[Float; 16]) {
+fn copy_matrix(from: &[impl FloatLike; 16], to: &[impl FloatLike; 16]) {
     for (t, f) in to.iter().zip(from) {
         t.set(f.get());
     }
 }
 
 /// The first rows of one of the race work's matrices (floats held in dwords) into a matrix.
-fn copy_held_matrix(from: &[Dword], to: &[Float; 16]) {
+fn copy_held_matrix(from: &[PlainDword], to: &[PlainFloat; 16]) {
     for (t, f) in to.iter().zip(from) {
         t.set(f32::from_bits(f.get()));
     }

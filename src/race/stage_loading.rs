@@ -44,7 +44,7 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
     log();
     log();
     indent(3);
-    if !race.shared.work.in_credits.is_set()
+    if !race.shared.work.get().in_credits.is_set()
     /* dword_71C3E0 */
     {
         // As `menu::show_loading_picture`.
@@ -94,11 +94,11 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
         &race.shared,
         crate::system::tick_count::tick_count(),
     );
-    let clock: u32 = race.shared.physics_tables.scene_clock.get();
+    let clock: u32 = race.shared.physics_tables.get().scene_clock.get();
     race.frame.clock_ticks().clock_b.set(clock);
     race.frame.clock_ticks().sound_ticks.set(0);
-    race.shared.physics_tables.race_clock_now.set(clock);
-    race.shared.physics_tables.race_clock_base.set(clock);
+    race.shared.physics_tables.get().race_clock_now.set(clock);
+    race.shared.physics_tables.get().race_clock_base.set(clock);
     race.frame
         .panel_and_overlay
         .get()
@@ -117,11 +117,11 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
     for car in &race.car_blocks().cars[..8] {
         car.value_jump_steps.set(8);
     }
-    race.shared.switches.scene_set_up.set(1);
-    race.shared.switches.view_marks_on.set(1);
+    race.shared.switches.get().scene_set_up.set(1);
+    race.shared.switches.get().view_marks_on.set(1);
     race.physics.ground().stage_loading.set(0);
-    race.shared.view.view_on[0].set(1);
-    race.shared.view.view_on[1].set(1);
+    race.shared.view.get().view_on[0].set(1);
+    race.shared.view.get().view_on[1].set(1);
     indent(-3);
     log();
     log();

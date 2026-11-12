@@ -30,7 +30,7 @@ use crate::physics::tables_store::PhysicsTables;
 use crate::physics::tables_store::Surface;
 use crate::race::numbers_store::Numbers;
 use crate::race::work_store::RaceWork;
-use crate::session::Float;
+use crate::session::PlainFloat;
 use rc2k_core::physics::patches::{Patches, apply_patches as apply_patches_core};
 
 /// The twelve ground records patched: `PHYSICS.surfaces[1 ..= 12]`.
@@ -39,12 +39,12 @@ fn records(tables: &PhysicsTables) -> &[Surface] {
 }
 
 /// A record's three grips: slide, acceleration, brake.
-fn grips(r: &Surface) -> [&Float; 3] {
+fn grips(r: &Surface) -> [&PlainFloat; 3] {
     [&r.slide_grip, &r.accel_grip, &r.brake_grip]
 }
 
 /// The two drags (10.0) the sticky grass setting keeps: grass, records 7 and 8.
-fn tens(tables: &PhysicsTables) -> [&Float; 2] {
+fn tens(tables: &PhysicsTables) -> [&PlainFloat; 2] {
     [&tables.surfaces[7].drag, &tables.surfaces[8].drag]
 }
 
@@ -57,8 +57,8 @@ fn load(tables: &PhysicsTables, work: &RaceWork) -> Patches {
         factors: std::array::from_fn(|n| w.patch_factors[n].bits()),
         applied: w.patches_applied.get(),
         gravity: tables.gravity.bits(),
-        records: std::array::from_fn(|r| grips(&records(tables)[r]).map(Float::bits)),
-        tens: tens(tables).map(Float::bits),
+        records: std::array::from_fn(|r| grips(&records(tables)[r]).map(PlainFloat::bits)),
+        tens: tens(tables).map(PlainFloat::bits),
     }
 }
 
@@ -74,7 +74,7 @@ fn store(tables: &PhysicsTables, work: &RaceWork, before: &Patches, after: &Patc
             w.patch_settings[n].set(after.settings[n]);
         }
     }
-    let put = |f: &Float, old: u32, new: u32| {
+    let put = |f: &dyn crate::session::Cell32, old: u32, new: u32| {
         if old != new {
             f.set_bits(new);
         }

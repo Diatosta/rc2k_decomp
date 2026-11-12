@@ -29,7 +29,7 @@ pub struct Vars<'a> {
     pub one_player: &'a Dword,
     pub count: &'a Dword,
     pub devices: &'a [Dword; 2],
-    pub views: &'a [Dword; 2],
+    pub views: &'a [crate::session::PlainDword; 2],
     pub objects: &'a [crate::sound::store::SoundObject; 8],
     pub two_devices: &'a Dword,
     /// The car blocks the view blocks name.
@@ -44,7 +44,7 @@ impl<'a> Vars<'a> {
             one_player: &sound.race.sounds.one_player,
             count: &sound.race.sounds.count,
             devices: &input.devices.input_devices,
-            views: &race.shared.view.view_blocks,
+            views: &race.shared.view.get().view_blocks,
             objects: &sound.race.sounds.objects,
             two_devices: &input.devices.two_devices_one_player,
             car_blocks: race.car_blocks(),
@@ -65,7 +65,7 @@ pub fn update_effects_with(input: &Input, system: &System, v: &Vars<'_>) -> Resu
         // the devices by handle: the core only asks whether one is none (0)
         devices: v.devices.each_ref().map(crate::session::Dword::get),
         // The view blocks by handle (the core only passes them on).
-        views: v.views.each_ref().map(crate::session::Dword::get),
+        views: v.views.each_ref().map(crate::session::PlainDword::get),
         one_players_devices: v.two_devices.is_set(),
     };
     let loaded = loads(&p, |device| {

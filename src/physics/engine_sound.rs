@@ -70,7 +70,7 @@ pub fn engine_sound(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let drawing = &scene.drawing;
-    if shared.view.players.get() == 1 && shared.view_car(0).is_none() {
+    if shared.view.get().players.get() == 1 && shared.view_car(0).is_none() {
         return Err(crate::errors::BadInput("a null view block").into());
     }
     run(shared.car(), numbers);
@@ -79,7 +79,7 @@ pub fn engine_sound(
         .get()
         .scratch
         .set(x87::loaded(&shared.car().engine_speed).to_bits());
-    let floor = shared.physics_tables.idle_engine_speed.get();
+    let floor = shared.physics_tables.get().idle_engine_speed.get();
     let held = hold_low(f32::from_bits(drawing.scene.get().scratch.get()), floor);
     drawing.scene.get().scratch.set(held.to_bits());
     drawing

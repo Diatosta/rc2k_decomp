@@ -20,7 +20,7 @@ pub fn car_input_words(
     let race_owner = race;
     let frame = &race.frame;
     use rc2k_core::drive::inputs::{NO_DEVICE, ReplayWords, check_car, device_words, replay_words};
-    let car = race_owner.shared.work.current_car.get();
+    let car = race_owner.shared.work.get().current_car.get();
     check_car(car)?;
     let device = frame.frame_work.get().listed_car_sounds[car as usize].get();
     let readings = if device != NO_DEVICE {
@@ -30,7 +30,7 @@ pub fn car_input_words(
     };
     let words = device_words(readings);
     for (k, v) in words.iter().enumerate() {
-        race_owner.shared.physics_tables.input_words[k].set(*v);
+        race_owner.shared.physics_tables.get().input_words[k].set(*v);
     }
     if vars.session.get() != 0 {
         let block = race_owner
@@ -46,10 +46,10 @@ pub fn car_input_words(
         for (k, at) in kept.into_iter().enumerate() {
             match replay_words(car, vars.player.get()) {
                 ReplayWords::FromBlock => {
-                    race_owner.shared.physics_tables.input_words[k].set(at.get());
+                    race_owner.shared.physics_tables.get().input_words[k].set(at.get());
                 }
                 ReplayWords::IntoBlock => {
-                    at.set(race_owner.shared.physics_tables.input_words[k].get());
+                    at.set(race_owner.shared.physics_tables.get().input_words[k].get());
                 }
             }
         }

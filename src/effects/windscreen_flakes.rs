@@ -58,7 +58,7 @@ pub fn spawn_windscreen_flake(
         &fl.state.tile_offset_k[1],
     ));
     e.texture_v.set(x87::loaded(&fl.state.tile_offset_k[2]));
-    e.born.set(shared.physics_tables.scene_clock.get());
+    e.born.set(shared.physics_tables.get().scene_clock.get());
     e.age.set(0);
     Ok(k)
 }

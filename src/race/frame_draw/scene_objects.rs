@@ -4,7 +4,6 @@ use super::*;
 use crate::errors::{BadInput, Refused};
 use crate::race::frame_view::car as car_view;
 use crate::race::owner::Race;
-use crate::race::owner_shared::RaceShared;
 use crate::race::view_scratch::DrawCtx;
 use crate::scene::draw_described_object::Description;
 
@@ -38,11 +37,11 @@ pub fn draw_slot_object(
 ) -> Result<(), Refused> {
     let race = ctx.race;
     use crate::scene::matrix;
-    check_slot_object(&race.shared, slot)?;
+    check_slot_object(ctx.reads.work, slot)?;
     let object = slot.part.get();
     ctx.view.cars.object_number.set(object);
-    let mode: u32 = race.shared.vars.run_kind.get();
-    if race.shared.view.players.get() != 1 && mode != 0 && mode != 2 {
+    let mode: u32 = ctx.reads.vars.run_kind.get();
+    if ctx.reads.view.players.get() != 1 && mode != 0 && mode != 2 {
         let n = object.wrapping_sub(0x50);
         if ctx.reads.frame_work.listed_car_sounds[((n / 0x14) & 7) as usize].get()
             != ctx.view.drawn_view(race)
@@ -105,11 +104,11 @@ pub fn draw_slot_object(
 /// What `scene::draw_scene_object` would refuse for slot `at`'s object, before anything:
 /// a car's object (0x50 .. 0xEF) without its block.
 pub fn check_slot_object(
-    shared: &RaceShared,
+    work: &crate::race::work_store::RaceWork,
     slot: &crate::race::work_store::RaceSlot,
 ) -> Result<(), Refused> {
     let n = slot.part.get().wrapping_sub(0x50);
-    if n < 0xA0 && !shared.work.has_car_block((n / 0x14) as usize) {
+    if n < 0xA0 && !work.has_car_block((n / 0x14) as usize) {
         return Err(BadInput("a slot's car without its block").into());
     }
     Ok(())
@@ -119,11 +118,10 @@ pub fn check_slot_object(
 /// bytes at `g_raceSlots`) whose +0 is not 0. Refuses (before anything) as `check_slot_object` for
 /// any.
 pub fn draw_race_slots(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
-    let race = ctx.race;
-    let slots = &race.shared.work.race_slots;
+    let slots = &ctx.reads.work.race_slots;
     for slot in slots {
         if slot.part.get() != 0 {
-            check_slot_object(&race.shared, slot)?;
+            check_slot_object(ctx.reads.work, slot)?;
         }
     }
     for slot in slots {
@@ -151,7 +149,6 @@ pub fn draw_screen_quad(
     screen: &crate::session::Screen,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
-    let shared = &race.shared;
     poly.polygon_drawn.set(0u32);
     let entries = &part.polygon.entries[..4];
     for (k, e) in (0u32..).zip(entries) {
@@ -177,7 +174,7 @@ pub fn draw_screen_quad(
         e.point.set(u32::MAX);
         e.light.set(0u32);
     }
-    poly.polygon_colour.set(shared.vars.quad_colour[0].get());
+    poly.polygon_colour.set(view.quad.colour[0].get());
     poly.polygon_vertex_count.set(4u32);
     poly.polygon_next_record
         .set(crate::scene::polygon::pool_start());
@@ -214,12 +211,11 @@ pub fn draw_view_tint(
     screen: &crate::session::Screen,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
-    let shared = &race.shared;
     view.quad.corners[0].set(0u32);
     view.quad.corners[1].set(view.polygon.window.view_size[0].get());
     view.quad.corners[4].set(0u32);
     view.quad.corners[5].set(view.polygon.window.view_size[1].get());
-    shared.vars.quad_colour[0].set(0x20_4080u32);
+    view.quad.colour[0].set(0x20_4080u32);
     poly.polygon_textures[0].set(u32::MAX);
     poly.polygon_sides[0].set(1u32);
     poly.polygon_sides[1].set(0u32);
@@ -342,7 +338,6 @@ pub(super) fn light_pair(
     left: u32,
     right: u32,
 ) -> Result<(), BadInput> {
-    let race = ctx.race;
     // The bytes are the block's part switches (+0xAC0 ..).
     let switches = &ctx.reads.cars_and_replay.car_blocks.cars[car].part_switches;
     let byte = |o: u32| -> Result<u32, BadInput> {
@@ -365,7 +360,7 @@ pub(super) fn light_pair(
     if x | y | z == 0 {
         return Ok(());
     }
-    let y = y.wrapping_sub(race.shared.physics_tables.ground_drop.get());
+    let y = y.wrapping_sub(ctx.reads.physics_tables.ground_drop.get());
     if ctx.view.cars.light_right.get() != 0 {
         place_flare(ctx, car, [x, y, z])?;
     }
@@ -382,13 +377,13 @@ pub fn car_light_flares(ctx: &DrawCtx, car: usize) -> Result<(), Refused> {
     if view.lists.depth_entry_count.get() > SORT_MAX - 24 {
         return Err(BadInput("the depth list has no room for a car's flares").into());
     }
-    if race.shared.switches.mask_kind.get() == 8 {
+    if ctx.reads.switches.mask_kind.get() == 8 {
         ctx.view.object.size.set(2u32);
         let point = [
             ctx.reads.frame_work.part_place[0].get(),
             ctx.reads.frame_work.part_place[1]
                 .get()
-                .wrapping_sub(race.shared.physics_tables.ground_drop.get()),
+                .wrapping_sub(ctx.reads.physics_tables.ground_drop.get()),
             ctx.reads.frame_work.part_place[2].get(),
         ];
         ctx.view.light.other_light.set(0x00F0_F0F0u32);
@@ -399,7 +394,7 @@ pub fn car_light_flares(ctx: &DrawCtx, car: usize) -> Result<(), Refused> {
         }
         return Ok(());
     }
-    if race.shared.switches.scene_set_up.get() == 0 {
+    if ctx.reads.switches.scene_set_up.get() == 0 {
         return Ok(());
     }
     let kind = car_view(car)?.car_kind.get();
@@ -460,21 +455,20 @@ pub fn car_light_flares(ctx: &DrawCtx, car: usize) -> Result<(), Refused> {
 /// `car_light_flares`. Refuses (before anything) no cars (the loop tests at its end) or more than
 /// eight, a null block, or a depth list without room for every car's entries.
 pub fn car_lights(ctx: &DrawCtx) -> Result<(), Refused> {
-    let race = ctx.race;
-    if race.shared.switches.scene_set_up.get() == 0 {
+    if ctx.reads.switches.scene_set_up.get() == 0 {
         return Ok(());
     }
     // Converted: `rc2k_core::race::lights::{check_car_lights, lights_on}` (the null
     // block's refusal between its two, as before).
     use rc2k_core::race::lights::{check_car_lights, lights_on};
-    let cars: u32 = race.shared.view.race_cars.get();
+    let cars: u32 = ctx.reads.view.race_cars.get();
     check_car_lights(cars, 0, SORT_MAX)?;
-    if (0..cars).any(|n| !race.shared.work.has_car_block(n as usize)) {
+    if (0..cars).any(|n| !ctx.reads.work.has_car_block(n as usize)) {
         return Err(BadInput("a null car block").into());
     }
     check_car_lights(cars, ctx.view.lists.depth_entry_count.get(), SORT_MAX)?;
     for n in 0..cars {
-        let b = race.shared.work.block_number(n as usize)?;
+        let b = ctx.reads.work.block_number(n as usize)?;
         // Both only with the lights on: the `jz` skips to the `popa`.
         if lights_on(ctx.view.cars.state_of(b)?.get()) {
             add_car_depth_entry(ctx, b, n)?;
@@ -734,7 +728,6 @@ pub fn draw_lamp_flare(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     lamp: u32,
 ) -> Result<(), Refused> {
-    let race = ctx.race;
     let edi = lights::own_lamp(&ctx.view.lamps, lamp)?;
     let [x, y, z] = crate::race::scene_points::point_number(
         ctx.reads.course(),
@@ -749,7 +742,7 @@ pub fn draw_lamp_flare(
     ctx.view
         .cars
         .object_number
-        .set(race.shared.switches.marker_object.get());
+        .set(ctx.reads.switches.marker_object.get());
     ctx.view.light.view_kind.set(2u32);
     place_object_matrix(ctx)?;
     ctx.view.light.light_kind.set(0u32);

@@ -213,7 +213,7 @@ pub fn tab(o: &Owners<'static>, ui: &Ui) {
 
 /// The value of `g_maskKind` itself: only 5 and 8 change what the game draws.
 fn mode_choice(shared: &RaceShared, ui: &Ui) {
-    let now = shared.switches.mask_kind.get();
+    let now = shared.switches.get().mask_kind.get();
     ui.text("The game's own mode:");
     for (name, mode) in [
         ("Off", 0),
@@ -222,7 +222,7 @@ fn mode_choice(shared: &RaceShared, ui: &Ui) {
     ] {
         ui.same_line();
         if ui.radio_button_bool(name, now == mode) {
-            shared.switches.mask_kind.set(mode);
+            shared.switches.get().mask_kind.set(mode);
         }
     }
 }
@@ -373,7 +373,7 @@ fn checkpoint_place(race: &Race, n: usize) -> Option<[i32; 3]> {
 
 /// Mode 0xC: 25 checkpoints around the car's, heights less its own.
 fn heights(race: &Race, ui: &Ui) {
-    let count = race.shared.vars.checkpoint_count.get() as usize;
+    let count = race.shared.vars.get().checkpoint_count.get() as usize;
     let here = first_car(race).checkpoint.get() as usize;
     let Some(own) = checkpoint_place(race, here).map(|p| p[1]) else {
         ui.text("No checkpoints");
@@ -393,7 +393,7 @@ fn heights(race: &Race, ui: &Ui) {
 
 /// Mode 0x12: the checkpoints' line from above and the car on it.
 fn course_map(race: &Race, ui: &Ui) {
-    let count = race.shared.vars.checkpoint_count.get() as usize;
+    let count = race.shared.vars.get().checkpoint_count.get() as usize;
     let places: Vec<[i32; 3]> = (0..count)
         .step_by((count / 2000).max(1))
         .filter_map(|n| checkpoint_place(race, n))

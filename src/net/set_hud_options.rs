@@ -64,11 +64,13 @@ pub fn set_hud_options(
         .set(race.shared.state.settings.cars[0].view.get());
     race.shared
         .vars
+        .get()
         .mip_setting
         .set(gfx.display.choices.mipmapping.get());
     for (to, from) in race
         .shared
         .vars
+        .get()
         .settings_words
         .iter()
         .zip(copied_words(race))

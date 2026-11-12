@@ -154,27 +154,27 @@ pub fn set_start_states(race: &Race, vars: &NetVars) -> Result<(), Refused> {
             return Err(BadInput("a chosen car past the eight").into());
         }
         let first_kind: u32 = if one {
-            shared.vars.race_car_kinds[chosen as usize].get()
+            shared.vars.get().race_car_kinds[chosen as usize].get()
         } else {
-            shared.vars.race_car_kinds[0].get()
+            shared.vars.get().race_car_kinds[0].get()
         };
         let v = start_value(physics, first_kind);
         frame.panel_and_overlay.get().panel.start_values[0].set(v);
-        let v = start_value(physics, shared.vars.race_car_kinds[1].get());
+        let v = start_value(physics, shared.vars.get().race_car_kinds[1].get());
         frame.panel_and_overlay.get().panel.start_values[1].set(v);
         if one {
-            shared.vars.split.set(0u32);
+            shared.vars.get().split.set(0u32);
             let block = shared.race_car(chosen as usize)?;
             if !flagged(race, block.car_kind.get()) {
                 settle_state(&block.camera_view);
             }
             return Ok(());
         }
-        let two = shared.view.players.get() == 2;
-        let held = rc2k_core::race::cars::held_split(two, shared.vars.split.get() as i32);
-        shared.vars.split.set(held as u32);
+        let two = shared.view.get().players.get() == 2;
+        let held = rc2k_core::race::cars::held_split(two, shared.vars.get().split.get() as i32);
+        shared.vars.get().split.set(held as u32);
         let kind_0: u32 = race.car_blocks().cars[0].car_kind.get();
-        if !flagged(race, kind_0) || shared.view.players.get() >= 2 {
+        if !flagged(race, kind_0) || shared.view.get().players.get() >= 2 {
             settle_state(&race.car_blocks().cars[0].camera_view);
             settle_state(&race.car_blocks().cars[1].camera_view);
         }
@@ -192,7 +192,7 @@ pub fn store_results_by_mode(race: &Race) {
     let shared = &race.shared;
     // Converted: `rc2k_core::race::cars::margin`.
     use rc2k_core::race::cars::margin;
-    match shared.vars.run_kind.get() {
+    match shared.vars.get().run_kind.get() {
         2 => {
             shared
                 .state

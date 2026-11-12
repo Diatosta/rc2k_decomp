@@ -71,7 +71,7 @@ pub fn apply_message(
     message: &[u8],
 ) -> Result<(), BadInput> {
     log_int(vars.player.get() as i32, false, 1);
-    log_int(race.shared.view.local_car.get() as i32, false, 1);
+    log_int(race.shared.view.get().local_car.get() as i32, false, 1);
     log_int(
         *message.first().ok_or(BadInput("a received message"))? as i32,
         false,

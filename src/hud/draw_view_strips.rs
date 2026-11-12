@@ -32,12 +32,12 @@ pub fn draw_view_strips(overlay: &Overlay) -> Result<(), Refused> {
     use rc2k_core::hud::strips::{SECOND_VIEW, TEXTURES};
     {
         if race.shared.replay_file().hold_car_revs.get() == 0 {
-            if flashing(&race.shared, race.shared.view.view_blocks[0].get())? {
+            if flashing(&race.shared, race.shared.view.get().view_blocks[0].get())? {
                 scratch.polygon.polygon_textures[0].set(TEXTURES[0]);
                 draw_view_strip(overlay, shown_layout(&race.shared))?;
             }
             if shown_layout(&race.shared) != 0
-                && flashing(&race.shared, race.shared.view.view_blocks[1].get())?
+                && flashing(&race.shared, race.shared.view.get().view_blocks[1].get())?
             {
                 scratch.polygon.polygon_textures[0].set(TEXTURES[1]);
                 draw_view_strip(

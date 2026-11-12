@@ -118,7 +118,15 @@ pub fn end_frame(race: &Race, shots_on: u32, check: Screenshot) {
     let left = rc2k_core::input::frame::end_frame(shots_on, check);
     // Not the original's 0s once the debug overlay's keys are used (`debug::overlay`).
     let kept = crate::debug::overlay::words();
-    for ((cell, value), kept) in race.shared.physics_tables.debug.iter().zip(left).zip(kept) {
+    for ((cell, value), kept) in race
+        .shared
+        .physics_tables
+        .get()
+        .debug
+        .iter()
+        .zip(left)
+        .zip(kept)
+    {
         cell.set(value | kept);
     }
 }

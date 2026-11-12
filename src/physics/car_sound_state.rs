@@ -41,8 +41,10 @@ fn shares(numbers: &Numbers, shared: &RaceShared, so: &crate::sound::store::Soun
 /// The car the sound is heard from: view 0's block with one player (none if it has no
 /// block), else the work car.
 fn listener(shared: &RaceShared) -> Option<&crate::physics::car_store::Car> {
-    if shared.view.players.get() == 1 {
-        shared.car_blocks().of(shared.view.view_blocks[0].get())
+    if shared.view.get().players.get() == 1 {
+        shared
+            .car_blocks()
+            .of(shared.view.get().view_blocks[0].get())
     } else {
         Some(shared.car())
     }
@@ -110,7 +112,7 @@ pub fn car_sound_state(
 /// `[sound_level] = 1`
 fn x87_1(shared: &RaceShared) {
     let t0 = shared.car().slip_speed.ld();
-    let t1 = shared.physics_tables.sound_speed_scale.ld();
+    let t1 = shared.physics_tables.get().sound_speed_scale.ld();
     let t2 = t0 / t1;
     shared.car().sound_slip_share.st(t2);
     let t3 = X(1.0);

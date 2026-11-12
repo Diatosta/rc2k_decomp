@@ -80,7 +80,7 @@ pub const MUD: Freeing = Freeing {
     list: |race| &race.course.lists.get().mud_list,
     counted: true,
     // g_mud
-    cleared: &[|race| race.shared.vars.mud.set(0)],
+    cleared: &[|race| race.shared.vars.get().mud.set(0)],
     given_back: || crate::race::mud::MUD.give_back(),
 };
 

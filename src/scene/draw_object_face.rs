@@ -51,7 +51,6 @@ pub fn draw_object_face(
     face: usize,
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    let race = ctx.race;
     let (work, light, object) = (&ctx.view.face, &ctx.view.light, &ctx.view.object);
     if ctx.reads.light_state.draw_mode.get() != 0 {
         return Ok(());
@@ -79,13 +78,13 @@ pub fn draw_object_face(
     let face_shine = words[9] as u32;
     ctx.view.polygon.face_shine.set(face_shine);
     let reflects = shine != 0
-        && race.shared.vars.settings_words[1].get() != 0
+        && ctx.reads.vars.settings_words[1].get() != 0
         && view_kind != 4
         && face_shine != 0;
     ctx.view.face.reflects.set(reflects as u32);
     ctx.view.polygon.polygon_vertex_count.set(count);
 
-    if race.shared.switches.scene_set_up.get() != 0 && ctx.view.cars.other_way_kind.get() == 2 {
+    if ctx.reads.switches.scene_set_up.get() != 0 && ctx.view.cars.other_way_kind.get() == 2 {
         for (entry, vertex) in vertices {
             entry.point.set(fw(vertex).wrapping_neg());
             entry.u2.set(fw(vertex + 4));
@@ -116,7 +115,6 @@ pub fn draw_object_face(
         entry.v.set(fw(vertex + 8));
         let light = if lit {
             vertex_light(
-                race,
                 ctx.part,
                 fw(vertex + 0xC),
                 ctx.reads,

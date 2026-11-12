@@ -37,7 +37,6 @@ use crate::physics::flow::{
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 use crate::scene::engine_tables_store::EngineTables;
-use crate::session::Float;
 use crate::session::PlainFloat;
 
 /// The steer angle's table index (the angle >> 20).
@@ -230,7 +229,7 @@ fn lever_share_from_timer(
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[grip_limit] = |(((([rc + 0x2142A8] * [gravity]) * [f + 0]) * [grip_scale]) / [rc + 0x31A184])|`
-fn grip_limit_for(car: &Car, tables: &PhysicsTables, f: &Float) {
+fn grip_limit_for(car: &Car, tables: &PhysicsTables, f: &PlainFloat) {
     let t0 = tables.wheel_grips[4].ld();
     let t1 = tables.gravity.ld();
     let t2 = t0 * t1;
@@ -514,7 +513,7 @@ mod reference_vectors {
                 plain: |a| {
                     steer_sine_force(
                         race().shared.car(),
-                        &race().shared.physics_tables,
+                        race().shared.physics_tables.get(),
                         race().engine_tables(),
                         a[1],
                     );
@@ -537,7 +536,7 @@ mod reference_vectors {
                 plain: |a| {
                     steer_sine_force(
                         race().shared.car(),
-                        &race().shared.physics_tables,
+                        race().shared.physics_tables.get(),
                         race().engine_tables(),
                         a[1],
                     );
@@ -560,7 +559,7 @@ mod reference_vectors {
                 plain: |a| {
                     steer_sine_force(
                         race().shared.car(),
-                        &race().shared.physics_tables,
+                        race().shared.physics_tables.get(),
                         race().engine_tables(),
                         a[1],
                     );
@@ -576,7 +575,7 @@ mod reference_vectors {
                 plain: |_| {
                     lever_share_from_timer(
                         race().shared.car(),
-                        &race().shared.physics_tables,
+                        race().shared.physics_tables.get(),
                         race().course.numbers.get(),
                         crate::scene::owner::scene(),
                     );
@@ -603,7 +602,7 @@ mod reference_vectors {
                 plain: |a| {
                     grip_limit_for(
                         race().shared.car(),
-                        &race().shared.physics_tables,
+                        race().shared.physics_tables.get(),
                         view(a[1], 0),
                     );
                 },
@@ -668,7 +667,7 @@ mod reference_vectors {
                 plain: |a| {
                     lean_force(
                         race().shared.car(),
-                        &race().shared.physics_tables,
+                        race().shared.physics_tables.get(),
                         race().course.numbers.get(),
                         race().engine_tables(),
                         a[2],
@@ -701,7 +700,7 @@ mod reference_vectors {
                 plain: |a| {
                     lean_force(
                         race().shared.car(),
-                        &race().shared.physics_tables,
+                        race().shared.physics_tables.get(),
                         race().course.numbers.get(),
                         race().engine_tables(),
                         a[2],
@@ -734,7 +733,7 @@ mod reference_vectors {
                 plain: |a| {
                     lean_force(
                         race().shared.car(),
-                        &race().shared.physics_tables,
+                        race().shared.physics_tables.get(),
                         race().course.numbers.get(),
                         race().engine_tables(),
                         a[2],
@@ -752,7 +751,7 @@ mod reference_vectors {
                 plain: |_| {
                     braking_count_geared(
                         race().shared.car(),
-                        &race().shared.physics_tables,
+                        race().shared.physics_tables.get(),
                         race().course.numbers.get(),
                         crate::scene::owner::scene(),
                     );
@@ -768,7 +767,7 @@ mod reference_vectors {
                 plain: |_| {
                     braking_count_neutral(
                         race().shared.car(),
-                        &race().shared.physics_tables,
+                        race().shared.physics_tables.get(),
                         crate::scene::owner::scene(),
                     );
                 },
@@ -789,7 +788,7 @@ mod reference_vectors {
                 plain: |_| {
                     engine_braking_force(
                         race().shared.car(),
-                        &race().shared.physics_tables,
+                        race().shared.physics_tables.get(),
                         race().course.numbers.get(),
                     );
                 },
@@ -812,7 +811,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     yaw_share_from_limit(
-                        &race().shared.physics_tables,
+                        race().shared.physics_tables.get(),
                         crate::scene::owner::scene(),
                     );
                 },
@@ -830,6 +829,7 @@ mod reference_vectors {
                         &crate::race::owner::race()
                             .shared
                             .physics_tables
+                            .get()
                             .grip_force_limit,
                         crate::scene::owner::scene(),
                     );
@@ -859,7 +859,7 @@ mod reference_vectors {
                 plain: |a| {
                     yaw_force(
                         race().shared.car(),
-                        &race().shared.physics_tables,
+                        race().shared.physics_tables.get(),
                         race().course.numbers.get(),
                         race().engine_tables(),
                         a[1],
@@ -891,7 +891,7 @@ mod reference_vectors {
                 plain: |a| {
                     yaw_force(
                         race().shared.car(),
-                        &race().shared.physics_tables,
+                        race().shared.physics_tables.get(),
                         race().course.numbers.get(),
                         race().engine_tables(),
                         a[1],
@@ -923,7 +923,7 @@ mod reference_vectors {
                 plain: |a| {
                     yaw_force(
                         race().shared.car(),
-                        &race().shared.physics_tables,
+                        race().shared.physics_tables.get(),
                         race().course.numbers.get(),
                         race().engine_tables(),
                         a[1],
@@ -982,7 +982,7 @@ mod reference_vectors {
                 plain: |a| {
                     ease_yaw_twist(
                         race().shared.car(),
-                        &race().shared.physics_tables,
+                        race().shared.physics_tables.get(),
                         race().course.numbers.get(),
                         HostCell(a[1]).bits(),
                         crate::scene::owner::scene(),

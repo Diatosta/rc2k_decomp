@@ -28,25 +28,29 @@ fn any_ending_key(input: &crate::input::owner::Input) -> u32 {
 pub fn pause_until_key(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (input, system) = (o.input, o.system);
     let shared = &race.shared;
-    shared.vars.hold_count.set(0x19);
+    shared.vars.get().hold_count.set(0x19);
     for _ in 0..5 {
         take_key();
     }
     stop_race_sounds(o.sound, o.audio, o.system)?;
-    shared.vars.scene_switch.set(1);
+    shared.vars.get().scene_switch.set(1);
     for c in 0..2 {
         race.car_blocks().cars[c as usize].notice_id.set(0xCB);
         race.car_blocks().cars[c as usize].notice_time_b.set(0);
         race.car_blocks().cars[c as usize].notice_time.set(u32::MAX);
     }
-    shared.vars.pause_wait.set(0x1E);
+    shared.vars.get().pause_wait.set(0x1E);
     // From 0x4453EE (the wait held) or 0x445401 (a turn).
     let mut hold = true;
     loop {
         if hold {
-            let wait = shared.vars.pause_wait.get();
+            let wait = shared.vars.get().pause_wait.get();
             if race_ticks::held_wait(wait) != wait {
-                shared.vars.pause_wait.set(race_ticks::held_wait(wait));
+                shared
+                    .vars
+                    .get()
+                    .pause_wait
+                    .set(race_ticks::held_wait(wait));
             }
         }
         take_key();
@@ -57,8 +61,12 @@ pub fn pause_until_key(race: &Race, o: crate::owners::Owners<'static>) -> Result
         }
         hold = false;
         input_update(o);
-        if shared.vars.pause_wait.get() != 0 {
-            shared.vars.pause_wait.set(shared.vars.pause_wait.get() - 1);
+        if shared.vars.get().pause_wait.get() != 0 {
+            shared
+                .vars
+                .get()
+                .pause_wait
+                .set(shared.vars.get().pause_wait.get() - 1);
             continue;
         }
         race_keys(race, o)?;
@@ -71,7 +79,7 @@ pub fn pause_until_key(race: &Race, o: crate::owners::Owners<'static>) -> Result
         race.car_blocks().cars[c as usize].notice_id.set(0);
         race.car_blocks().cars[c as usize].notice_last.set(0);
     }
-    shared.vars.scene_switch.set(0);
+    shared.vars.get().scene_switch.set(0);
     wake_car_sounds(race, o.sound, o.audio)?;
     take_key();
     race.car_blocks().cars[0].input_keys.set(0);

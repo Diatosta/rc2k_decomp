@@ -83,8 +83,6 @@ pub struct FaceWork {
 
 impl FaceWork {
     pub const fn new() -> Self {
-        let crate::race::switches_store::FrameSwitches { face_any_shine, .. } =
-            crate::race::switches_store::FrameSwitches::new();
         Self {
             turned: [const { Dword::new(0) }; 2],
             corners: [const { Dword::new(0) }; 4],
@@ -114,7 +112,7 @@ impl FaceWork {
             reflects: Dword::new(0),
             no_far_clip: Dword::new(0),
             face_hide_mask: Dword::new(0),
-            face_any_shine,
+            face_any_shine: Dword::new(0),
             depth_test: Dword::new(0),
         }
     }
@@ -134,7 +132,7 @@ pub fn note_face_drawn(slot: usize) {
 /// image's first value.
 pub fn last_fourth_corner(shared: &crate::race::owner_shared::RaceShared) -> u32 {
     match LAST_FACE_VIEW.load(Ordering::Relaxed) {
-        usize::MAX => shared.view.corners[3].get(),
+        usize::MAX => shared.view.get().corners[3].get(),
         slot => crate::race::view_scratch::slot(slot).face.corners[3].get(),
     }
 }

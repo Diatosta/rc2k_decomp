@@ -22,7 +22,7 @@ const NOTHING: u32 = 0x4467C6; // nullsub_8
 // ---- Rust version ----
 
 fn ends(shared: &RaceShared) -> rc2k_core::scene::loading::BarEnds {
-    let [low, high] = crate::session::read_bits(&shared.vars.bar_span);
+    let [low, high] = crate::session::read_bits(&shared.vars.get().bar_span);
     rc2k_core::scene::loading::BarEnds { low, high }
 }
 
@@ -44,12 +44,12 @@ pub fn step_loading_bar(
     done: u32,
 ) -> Result<(), Refused> {
     let shared = &race.shared;
-    let show: u32 = shared.vars.bar_function.get();
+    let show: u32 = shared.vars.get().bar_function.get();
     if show == 0 {
         return Err(BadInput("no function to show the loading with").into());
     }
     if let Some(progress) = progress(shared, scene, done) {
-        shared.vars.bar_share.set(progress);
+        shared.vars.get().bar_share.set(progress);
     }
     if show == BAR {
         crate::race::loading_bar_frame::loading_bar_frame(race, system, scene, gfx, d3d)

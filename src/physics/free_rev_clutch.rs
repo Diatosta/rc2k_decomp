@@ -25,6 +25,6 @@ pub fn free_rev_clutch(
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
     free_rev(course, shared, figures, scene);
-    wheels_from_revs_at(&GearPlaces::game(shared.car(), &shared.physics_tables))?;
+    wheels_from_revs_at(&GearPlaces::game(shared.car(), shared.physics_tables.get()))?;
     Ok(())
 }

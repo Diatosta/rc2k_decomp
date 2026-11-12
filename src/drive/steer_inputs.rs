@@ -37,7 +37,7 @@ fn key_step(shared: &RaceShared, scene: &crate::scene::owner::Scene) -> u32 {
     drawing.scene.get().scratch.set(0xA0_0000);
     scale(
         &drawing.scene.get().scratch,
-        &shared.physics_tables.handling[8],
+        &shared.physics_tables.get().handling[8],
         &drawing.scene.get().scratch,
     );
     drawing.scene.get().scratch.get()
@@ -45,7 +45,7 @@ fn key_step(shared: &RaceShared, scene: &crate::scene::owner::Scene) -> u32 {
 
 /// One steering value moved by the key step (0x439DFA .. / 0x439E95 ..).
 fn steer(shared: &RaceShared, cell: &impl DwordLike, step: u32) {
-    let word = shared.physics_tables.input_steer.get();
+    let word = shared.physics_tables.get().input_steer.get();
     let v = cell.get();
     if word != 0 {
         if sign(word) {
@@ -80,7 +80,7 @@ pub fn steer_inputs(race: &Race, scene: &crate::scene::owner::Scene) {
     let race_owner = race;
     let drawing = &scene.drawing;
     let course = &race_owner.course;
-    let mut keys = race_owner.shared.physics_tables.input_steer.get() == 0;
+    let mut keys = race_owner.shared.physics_tables.get().input_steer.get() == 0;
     if !keys && race_owner.shared.car().driver_kind.get() != 2 {
         keys = race_owner.shared.car().input_keys.get() & 0x1000 != 0;
     }
@@ -97,12 +97,12 @@ pub fn steer_inputs(race: &Race, scene: &crate::scene::owner::Scene) {
         );
     } else {
         race_owner.shared.car().steering.set(0);
-        let product = i64::from(race_owner.shared.physics_tables.input_steer.get() as i32)
+        let product = i64::from(race_owner.shared.physics_tables.get().input_steer.get() as i32)
             * i64::from(RIGHT as i32);
         drawing.scene.get().scratch.set((product >> 8) as u32);
         scale(
             &drawing.scene.get().scratch,
-            &race_owner.shared.physics_tables.handling[7],
+            &race_owner.shared.physics_tables.get().handling[7],
             &drawing.scene.get().scratch,
         );
         if sign(drawing.scene.get().scratch.get().wrapping_sub(LEFT)) {
@@ -179,7 +179,7 @@ mod reference_vectors {
                     let drawing = &scene().drawing;
                     scale(
                         &drawing.scene.get().scratch,
-                        &race().shared.physics_tables.handling[8],
+                        &race().shared.physics_tables.get().handling[8],
                         &drawing.scene.get().scratch,
                     );
                 },
@@ -195,7 +195,7 @@ mod reference_vectors {
                     let drawing = &scene().drawing;
                     scale(
                         &drawing.scene.get().scratch,
-                        &race().shared.physics_tables.handling[7],
+                        &race().shared.physics_tables.get().handling[7],
                         &drawing.scene.get().scratch,
                     );
                 },

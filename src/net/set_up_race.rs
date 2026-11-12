@@ -52,11 +52,11 @@ pub fn set_up_race(
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::net::record` (`race_players`, `seat`).
     let players = record::race_players(vars.players.get())?;
-    race.shared.view.local_car.set(vars.player.get());
+    race.shared.view.get().local_car.set(vars.player.get());
     for n in 0..players {
         let record = &vars.player_block(n).record;
         let seat = record::seat(|n| record.head.get(n));
-        let v = &race.shared.vars;
+        let v = race.shared.vars.get();
         v.race_car_kinds[n as usize].set(seat.car);
         v.car_colours[n as usize].set(seat.colours);
         v.start_numbers[n as usize].set(seat.race_number);
@@ -65,23 +65,23 @@ pub fn set_up_race(
             v.direction.set(direction);
         }
     }
-    race.shared.vars.run_kind.set(0);
-    race.shared.view.race_cars.set(players);
-    race.shared.view.players.set(1);
-    race.shared.switches.editor_mode.set(0);
+    race.shared.vars.get().run_kind.set(0);
+    race.shared.view.get().race_cars.set(players);
+    race.shared.view.get().players.set(1);
+    race.shared.switches.get().editor_mode.set(0);
     crate::net::reset_cars::reset_cars(race)?;
     crate::race::race_cars::set_up_arcade_cars(race)?;
     crate::race::race_shell::set_start_states(race, vars)?;
     // Each stored block's gearbox kind and start slot value, from the race's tables.
     for (car, colours) in race.car_blocks().cars[..8]
         .iter()
-        .zip(&race.shared.vars.car_colours)
+        .zip(&race.shared.vars.get().car_colours)
     {
         car.gearbox_kind.set(colours.get());
     }
     for (car, number) in race.car_blocks().cars[..8]
         .iter()
-        .zip(&race.shared.vars.start_numbers)
+        .zip(&race.shared.vars.get().start_numbers)
     {
         car.start_slot_value.set(number.get());
     }
@@ -90,10 +90,10 @@ pub fn set_up_race(
     for (label, value) in COUNTS {
         log_bytes(label.to_bytes(), false, 1);
         let value = match value {
-            Count::RaceCars => race.shared.view.race_cars.get(),
-            Count::Players => race.shared.view.players.get(),
+            Count::RaceCars => race.shared.view.get().race_cars.get(),
+            Count::Players => race.shared.view.get().players.get(),
             Count::LocalPlayer => vars.player.get(),
-            Count::Kind(n) => race.shared.vars.race_car_kinds[n].get(),
+            Count::Kind(n) => race.shared.vars.get().race_car_kinds[n].get(),
         };
         log_int_nl(value, 1);
     }

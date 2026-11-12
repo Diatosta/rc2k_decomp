@@ -31,7 +31,7 @@ pub fn set_all_plates(
     use rc2k_core::race::stage_objects::{
         CAR_PICTURE_KINDS, FIXED_PICTURES, PREF_PIECES, car_pictures, check_picture_cars,
     };
-    let cars: u32 = shared.view.race_cars.get();
+    let cars: u32 = shared.view.get().race_cars.get();
     check_picture_cars(cars)?;
     let pictures = &scene.textures.places.get().kind_pictures;
     let prefs = course.stage_prefs.get();
@@ -54,7 +54,7 @@ pub fn set_all_plates(
     for car in 0..cars {
         let first = crate::scene::known_kind_picture::known_kind_picture(
             race.kind_tables(),
-            shared.vars.race_car_kinds[car as usize].get(), // g_raceCarKinds
+            shared.vars.get().race_car_kinds[car as usize].get(), // g_raceCarKinds
         );
         for picture in car_pictures(first) {
             pictures[at].set(picture);

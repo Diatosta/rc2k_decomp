@@ -20,5 +20,5 @@ pub fn tyre_change_screen(
         return Ok(());
     }
     let shared = &race.shared;
-    crate::drive::tyre_screen::tyre_screen(race, shared.vars.split.get(), 0, input, system)
+    crate::drive::tyre_screen::tyre_screen(race, shared.vars.get().split.get(), 0, input, system)
 }

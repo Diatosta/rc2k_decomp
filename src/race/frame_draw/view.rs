@@ -443,7 +443,7 @@ pub fn camera_view(
         .view_car_flag_a
         .set(view.car.camera_switch_share.bits());
     view.vars.view_car_stage.set(view.car.camera_view.get());
-    if race.shared.switches.scene_set_up.get() == 0 {
+    if reads.switches.scene_set_up.get() == 0 {
         place_view(race, reads.course(), view)?;
         view_matrices(race, reads.course(), m, view)?;
         return Ok(());
@@ -489,12 +489,12 @@ pub fn camera_view(
     view.vars.view_place_f[1].set(from_int(place[1] as i32));
     view.vars.view_place_f[2].set(from_int(place[2] as i32));
     crate::scene::set_view_window::set_view_window(
-        race,
         reads.course(),
         reads.scene_draw,
         reads.screen,
         &view.polygon.window,
         &view.vars,
+        &reads.vars.scale_factor,
     );
     view_matrices(race, reads.course(), m, view)?;
     Ok(())
@@ -512,7 +512,11 @@ pub fn camera_view(
 /// less half its distance from the centre, at least 0).
 pub fn draw_sky(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
     let race = ctx.race;
-    fetch_view_value(race, &ctx.view.polygon.sun, ctx.view.drawn_view(race))?;
+    fetch_view_value(
+        ctx.reads.view,
+        &ctx.view.polygon.sun,
+        ctx.view.drawn_view(race),
+    )?;
     // Not left from the previous view's last object (the original's slip, fixed:
     // `wiki/Fixed-bugs.md`).
     ctx.view.light.other_light.set(0);

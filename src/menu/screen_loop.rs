@@ -846,7 +846,13 @@ impl ScreenHost for MenuHost<'_> {
     fn note_set_up_time(&mut self) {
         let clocks = &self.entry.system.session.clocks;
         clocks.setup_time.set(clocks.frame.get());
-        self.entry.race.shared.physics_tables.scene_clock.set(0u32);
+        self.entry
+            .race
+            .shared
+            .physics_tables
+            .get()
+            .scene_clock
+            .set(0u32);
     }
 
     fn put_frame_lists(&mut self, first: bool) {
@@ -897,6 +903,7 @@ impl ScreenHost for MenuHost<'_> {
             .race
             .shared
             .physics_tables
+            .get()
             .scene_clock
             .set(clocks.frame.get().wrapping_sub(clocks.setup_time.get()));
     }
@@ -908,7 +915,13 @@ impl ScreenHost for MenuHost<'_> {
         // that a screen's steps do not change before it reads it).
         handle_keys(
             self.entry.owners,
-            self.entry.race.shared.physics_tables.scene_clock.get(),
+            self.entry
+                .race
+                .shared
+                .physics_tables
+                .get()
+                .scene_clock
+                .get(),
         )
     }
 

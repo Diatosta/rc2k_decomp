@@ -79,7 +79,7 @@ pub fn simple_car_step(
             .ground()
             .ground_height
             .get()
-            .wrapping_add(race.shared.physics_tables.ground_drop.get());
+            .wrapping_add(race.shared.physics_tables.get().ground_drop.get());
         race.course.course.get().place_y.set(y);
         race.car_blocks().cars[0].position[1].set(y);
     }

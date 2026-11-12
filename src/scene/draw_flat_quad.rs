@@ -35,7 +35,6 @@ pub fn draw_flat_quad(
     screen: &crate::session::Screen,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
-    let shared = &race.shared;
     poly.polygon_drawn.set(0);
     for n in 0..4 {
         let rec = &part.polygon.entries[n];
@@ -72,7 +71,7 @@ pub fn draw_flat_quad(
         part.polygon.entries[n].point.set(0xFFFF_FFFF);
     }
     poly.polygon_colour
-        .set(shared.vars.quad_colour[0].get() & 0xFF_FFFF);
+        .set(view.quad.colour[0].get() & 0xFF_FFFF);
     for n in 0..4 {
         part.polygon.entries[n].light.set(0);
     }

@@ -32,7 +32,7 @@ fn load_frame(race: &Race) {
 pub fn show_replay_still(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let scene = o.scene;
     use crate::drive::*;
-    if !(1..=8).contains(&race.shared.view.race_cars.get()) {
+    if !(1..=8).contains(&race.shared.view.get().race_cars.get()) {
         return Err(BadInput("a cars' count of 0 or past 8").into());
     }
     race.physics.split_tables().still.set(1);
@@ -55,7 +55,7 @@ pub fn show_replay_still(race: &Race, o: crate::owners::Owners<'static>) -> Resu
         load_frame(race);
         load_replay_cars::load_replay_cars(race);
     }
-    race.shared.work.current_car.set(0);
+    race.shared.work.get().current_car.set(0);
     loop {
         load_car::load_car(&race.shared)?;
         if !matches!(race.shared.car().driver_kind.get(), 0 | 2) {
@@ -69,20 +69,21 @@ pub fn show_replay_still(race: &Race, o: crate::owners::Owners<'static>) -> Resu
         store_car::store_car(&race.shared)?;
         race.shared
             .work
+            .get()
             .current_car
-            .set(race.shared.work.current_car.get().wrapping_add(1));
-        if race.shared.work.current_car.get() == race.shared.view.race_cars.get() {
+            .set(race.shared.work.get().current_car.get().wrapping_add(1));
+        if race.shared.work.get().current_car.get() == race.shared.view.get().race_cars.get() {
             break;
         }
     }
-    race.shared.view.view_on[0].set(0);
-    race.shared.view.view_on[1].set(0);
+    race.shared.view.get().view_on[0].set(0);
+    race.shared.view.get().view_on[1].set(0);
     race.frame.frame_work.get().drawing.set(1);
-    let kept = race.shared.vars.scene_switch.get();
-    race.shared.vars.scene_switch.set(1);
+    let kept = race.shared.vars.get().scene_switch.get();
+    race.shared.vars.get().scene_switch.set(1);
     // The scene (it reads no register).
     crate::race::draw_race_scene::draw_race_scene(race, o)?;
-    race.shared.vars.scene_switch.set(kept);
+    race.shared.vars.get().scene_switch.set(kept);
     race.frame.frame_work.get().drawing.set(0);
     race.frame.frame_work.get().replay_still_on.set(0);
     race.physics.split_tables().still.set(0);

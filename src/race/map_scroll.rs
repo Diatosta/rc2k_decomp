@@ -41,7 +41,7 @@ pub fn map_tiles(
 /// What `scroll_map` reads through the course: refused before anything.
 fn scroll_refuses(race: &Race) -> Result<(), Refused> {
     let course = &race.course;
-    if race.shared.vars.checkpoint_count.get() >= 2
+    if race.shared.vars.get().checkpoint_count.get() >= 2
         && (course.course.get().course_faces.get() == 0
             || course.course.get().scene_points.get() == 0)
     {
@@ -69,7 +69,7 @@ pub fn scroll_map(
     use rc2k_core::race::map::{centred_corner, on_map, picture_place, pixel, well_inside};
     scroll_refuses(race)?;
     car.map_redrawn.set(0);
-    if race.shared.vars.checkpoint_count.get() < 2 {
+    if race.shared.vars.get().checkpoint_count.get() < 2 {
         return Ok(());
     }
     let [corner_x, corner_y] = &car.map_corner;
@@ -135,18 +135,18 @@ pub fn scroll_maps(
         if third_only {
             0
         } else {
-            race.shared.view.views.get()
+            race.shared.view.get().views.get()
         },
     );
     for &v in views {
-        let car = view_car(&race.shared, v).get() & 7;
-        if !race.shared.work.has_car_block(car as usize) {
+        let car = view_car(race.shared.view.get(), v).get() & 7;
+        if !race.shared.work.get().has_car_block(car as usize) {
             return Err(BadInput("a view car without its block").into());
         }
     }
     scroll_refuses(race)?;
     for &v in views {
-        let n = view_car(&race.shared, v).get();
+        let n = view_car(race.shared.view.get(), v).get();
         let car = race
             .shared
             .race_car_or((n & 7) as usize, "a view car's block")?;

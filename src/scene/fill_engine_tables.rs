@@ -69,7 +69,7 @@ pub fn fill_engine_tables(race: &crate::race::owner::Race, scene: &Scene) {
         course.lists.get().exponent_root_table[n].set(x87::sqrt((n as u32) << 23));
     }
     // The shuffled words.
-    race.shared.physics_tables.noise_state.set(SEED);
+    race.shared.physics_tables.get().noise_state.set(SEED);
     let word = |n: usize| &tables.shuffled_words[n];
     for n in 0..0x1_0000usize {
         word(n).set(n as u16);
@@ -81,7 +81,7 @@ pub fn fill_engine_tables(race: &crate::race::owner::Race, scene: &Scene) {
         word(other).set(here);
     }
     // The noise bytes.
-    race.shared.physics_tables.noise_state.set(SEED);
+    race.shared.physics_tables.get().noise_state.set(SEED);
     for n in 0..NOISE_LEN {
         tables
             .noise_bytes

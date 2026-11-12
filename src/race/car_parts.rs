@@ -21,7 +21,7 @@ fn axles(race: &Race, model: u32) -> Result<Option<[u32; 5]>, BadInput> {
     let record: [u32; 5] = std::array::from_fn(|k| axles[k].get());
     Ok(rc2k_core::race::car_parts::axles(
         record,
-        race.shared.physics_tables.ground_drop.get(),
+        race.shared.physics_tables.get().ground_drop.get(),
     ))
 }
 
@@ -47,14 +47,17 @@ pub fn car_part_matrices(
     // `c` the block (what the drawing keeps there: the shown speed and steering, the switches,
     // the marks), `p` the car as the drawing sees it (`race::frame_view`).
     let c = race.shared.race_car(car)?;
-    let p = crate::race::frame_view::car(race.shared.work.block_number(car)?)?;
+    let p = crate::race::frame_view::car(race.shared.work.get().block_number(car)?)?;
     let Some(ax) = axles(race, p.car_kind.get())? else {
         return Err(BadInput("a car model whose axle scaling would fault").into());
     };
     let shown = &c.shown_engine_speed;
     shown.set(loaded(&p.engine_speed));
-    if below_or_unordered(shown, race.shared.physics_tables.idle_engine_speed.get()) {
-        shown.set(loaded(&race.shared.physics_tables.idle_engine_speed));
+    if below_or_unordered(
+        shown,
+        race.shared.physics_tables.get().idle_engine_speed.get(),
+    ) {
+        shown.set(loaded(&race.shared.physics_tables.get().idle_engine_speed));
     }
     let on = p.lights_on.get();
     let s = mark_switches(&PartState {
@@ -189,16 +192,16 @@ pub fn ready_car_parts(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
     // Converted: `rc2k_core::race::car_parts::{check_part_cars, parts_shown,
     // KEPT_MATRICES}`.
     use rc2k_core::race::car_parts::{KEPT_MATRICES, check_part_cars, parts_shown};
-    let count = race.shared.view.race_cars.get();
+    let count = race.shared.view.get().race_cars.get();
     check_part_cars(count, |n| {
-        u32::from(race.shared.work.has_car_block(n as usize))
+        u32::from(race.shared.work.get().has_car_block(n as usize))
     })?;
     // The loop's test is at its end: no cars still looks at car 0.
     let mut c = 0u32;
     loop {
         let car = c as usize;
         let block = race.shared.race_car(car)?;
-        let view = crate::race::frame_view::car(race.shared.work.block_number(car)?)?;
+        let view = crate::race::frame_view::car(race.shared.work.get().block_number(car)?)?;
         if parts_shown(view.driver_kind.get()) {
             car_part_matrices(race, car, scene)?;
             let wheels = &block.part_matrices;

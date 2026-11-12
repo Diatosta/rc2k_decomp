@@ -6,7 +6,6 @@
 use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
 use crate::race::face_work::FaceWork;
-use crate::race::owner::Race;
 use crate::race::owner_course::CourseReads;
 use crate::race::owner_shared::RaceShared;
 use crate::race::trap::Trap;
@@ -68,14 +67,18 @@ pub fn face_corners(view: &crate::race::view_scratch::ViewScratch, face: &Face) 
 /// (its point +8 less the view's place, `view_place_f` .., dotted with its normal +0x18,
 /// +0x30, +0x38 above 0, or not a number; the original's x87 run), 0 outside a race.
 #[cfg(test)]
-fn face_turned_to_view(race: &Race, face: &[u32], half: u32) -> Result<u32, BadInput> {
+fn face_turned_to_view(
+    race: &crate::race::owner::Race,
+    face: &[u32],
+    half: u32,
+) -> Result<u32, BadInput> {
     let mut bytes = [0u8; 64];
     for (b, w) in bytes.as_chunks_mut::<4>().0.iter_mut().zip(face) {
         b.copy_from_slice(&w.to_le_bytes());
     }
     turned_to_view(
-        race,
         race.course.reads(),
+        race.shared.switches.get(),
         &crate::race::scene_points::NO_OWN,
         &Face(bytes),
         (half / 4) as usize,
@@ -93,8 +96,8 @@ fn face_turned_to_view(race: &Race, face: &[u32], half: u32) -> Result<u32, BadI
 /// 0x4525F8 on a read face, its triangle 0 or 1.
 /// `place`: the view's place as floats (`ViewScratch::vars`).
 fn turned_to_view(
-    race: &Race,
     course: CourseReads<'_>,
+    switches: &crate::race::switches_store::FrameSwitches,
     points: &crate::race::scene_points::OwnPoints,
     f: &Face,
     triangle: usize,
@@ -102,7 +105,7 @@ fn turned_to_view(
 ) -> Result<u32, BadInput> {
     use crate::math::x87_float::{X, compare, int, ld};
     {
-        if race.shared.switches.scene_set_up.get() == 0 {
+        if switches.scene_set_up.get() == 0 {
             return Ok(0);
         }
         let p = f.point(1 + triangle);
@@ -124,11 +127,11 @@ fn turned_to_view(
 /// the first's (0x4525F8), `face_turned[1]` 1, or the second's when it has one (`corners[3]` not
 /// -1).
 pub fn face_sides(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), BadInput> {
-    let (race, work) = (ctx.race, &ctx.view.face);
+    let work = &ctx.view.face;
     {
         work.turned[0].set(turned_to_view(
-            race,
             ctx.reads.course(),
+            ctx.reads.switches,
             &ctx.part.points,
             face,
             0,
@@ -137,8 +140,8 @@ pub fn face_sides(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), BadInput> {
         work.turned[1].set(1u32);
         if work.corners[3].get() != u32::MAX {
             work.turned[1].set(turned_to_view(
-                race,
                 ctx.reads.course(),
+                ctx.reads.switches,
                 &ctx.part.points,
                 face,
                 1,
@@ -163,16 +166,15 @@ fn frame_of(
 /// `race::face_materials` (0x45265C): face `face`'s two triangles' textures: for each, its object
 /// (+1, +0x21) animated when `face_speeds` gives it a speed (car 0's +8 clock times
 /// `g_faceKeyFactors[speed]`, `ten`, `quarter`, rounded, & 7 picks the frame of
-/// `face_places`; the first's frame also to `face_frame`), into `texture_a` / `texture_b`;
+/// `face_places`), into `texture_a` / `texture_b`;
 /// the kind's low three bits and bit 3 (+0, +0x20) into `order_a` / `back_a` and
 /// `order_b` / `back_b`.
 pub fn face_materials(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), BadInput> {
-    let (race, work) = (ctx.race, &ctx.view.face);
-    let shared = &race.shared;
+    let work = &ctx.view.face;
     {
         let clock: u32 = crate::race::frame_view::car(0)?.step_clock.get();
         let (k1, k2) = (ctx.reads.numbers.ten.get(), ctx.reads.numbers.quarter.get());
-        let texture = |object: u32, first: bool| -> Result<u32, BadInput> {
+        let texture = |object: u32| -> Result<u32, BadInput> {
             let speed = table_byte(
                 &ctx.reads.stage_prefs.face_speeds,
                 object,
@@ -187,21 +189,17 @@ pub fn face_materials(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), BadInput> {
                 k1,
                 k2,
             );
-            let (frame, place) = rc2k_core::race::faces::frame_place(object, n);
-            if first {
-                shared.view.face_frame.set(frame);
-            }
+            let (_, place) = rc2k_core::race::faces::frame_place(object, n);
             table_byte(&ctx.reads.stage_prefs.face_places, place, "the face places")
         };
         // Converted: `rc2k_core::race::faces::{frame_place, material_bits}` (the frame's
         // rounding the x87's).
         use rc2k_core::race::faces::material_bits;
-        work.texture_a.set(texture(face.object() as u32, true)?);
+        work.texture_a.set(texture(face.object() as u32)?);
         let (order, back) = material_bits(face.kind());
         work.order_a.set(order);
         work.back_a.set(back);
-        work.texture_b
-            .set(texture(face.second_object() as u32, false)?);
+        work.texture_b.set(texture(face.second_object() as u32)?);
         let (order, back) = material_bits(face.second_kind());
         work.order_b.set(order);
         work.back_b.set(back);
@@ -256,7 +254,6 @@ fn point_light(ctx: &DrawCtx<'_>, n: u32) -> Result<u32, Refused> {
     ctx.view.light.lit_place[1].set(y);
     ctx.view.light.lit_place[2].set(z);
     crate::race::frame_draw::light_colour_at(
-        race,
         ctx.reads,
         &ctx.part.points,
         &ctx.view.lamps,
@@ -273,7 +270,6 @@ fn point_light(ctx: &DrawCtx<'_>, n: u32) -> Result<u32, Refused> {
 /// not a plain mode-4 one; all 0 otherwise. Refuses (before anything) what `light_colour_at`
 /// refuses.
 pub fn face_lights(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
-    let race = ctx.race;
     // Converted: `rc2k_core::race::faces::corners_lit`.
     let wanted: u32 = ctx.view.lamps.lamps_wanted.get();
     let lit = wanted != 0
@@ -283,7 +279,11 @@ pub fn face_lights(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
             ctx.view.face.polygon_mode.get(),
         );
     if lit {
-        crate::race::frame_draw::check_light_colour(&race.shared, &ctx.view.lamps)?;
+        crate::race::frame_draw::check_light_colour(
+            ctx.reads.work,
+            ctx.reads.view,
+            &ctx.view.lamps,
+        )?;
     }
     for k in 0..4 {
         ctx.view.face.corner_lights[k].set(0u32);
@@ -345,13 +345,11 @@ pub fn clip_and_draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
 /// `scratch` is not kept) or |x| times `slope` is below the depth. The records are made
 /// when not there (as 0x44CF33). Refuses (before anything) no point records or points.
 pub fn face_out_of_view(ctx: &DrawCtx<'_>) -> Result<bool, Refused> {
-    let race = ctx.race;
-    let shared = &race.shared;
     // Converted: `rc2k_core::race::face_drawing::corner_in_sight` (exact in `f64`).
     use rc2k_core::race::face_drawing::{InSight, corner_in_sight};
     crate::race::frame_draw::points_there(ctx)?;
-    let near = shared.view.near.get();
-    let slope = shared.view.slope.get();
+    let near = ctx.reads.view.near.get();
+    let slope = ctx.reads.view.slope.get();
     for k in 0..4 {
         let n: u32 = ctx.view.face.corners[k].get();
         if k == 3 && n == u32::MAX {
@@ -491,6 +489,7 @@ pub fn face_texture_coordinates(
     course: CourseReads<'_>,
     points: &crate::race::scene_points::OwnPoints,
     shared: &RaceShared,
+    race_view: &crate::race::view_store::RaceView,
     work: &FaceWork,
     set: &TextureSet<'_>,
 ) -> Result<(), BadInput> {
@@ -505,7 +504,7 @@ pub fn face_texture_coordinates(
         let order: u32 = set.order.get();
         let mut pairs = [(0u16, 0u16); 4];
         for (k, pair_out) in pairs.iter_mut().enumerate() {
-            let table = shared.view.corner_uv_offsets[(order << 2) as usize + k].get();
+            let table = race_view.corner_uv_offsets[(order << 2) as usize + k].get();
             *pair_out = (
                 u16::from_le_bytes(info_bytes(&shared.buffers.polygon_tables, texture, table)?),
                 u16::from_le_bytes(info_bytes(
@@ -705,9 +704,8 @@ pub fn draw_face_triangles(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
 /// (`face_turned` + `face_turned[1]` 0) the face as one quad, else as triangles
 /// (`race::draw_face_triangles`).
 pub fn draw_face_polygons(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
-    let race = ctx.race;
     // Converted: `rc2k_core::race::face_drawing::tries_quad`.
-    let in_race: u32 = race.shared.switches.scene_set_up.get();
+    let in_race: u32 = ctx.reads.switches.scene_set_up.get();
     if in_race != 0
         && rc2k_core::race::face_drawing::tries_quad(
             in_race,
@@ -737,7 +735,7 @@ pub fn draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         // The record's kind byte picks one of the four surface kinds: 0 .. 3 in every
         // texture info file the game ships; a byte past them is refused.
         let pick = trap.keep_read(info_bytes::<1>(race.polygon_tables(), second, 0x2C))[0] as usize;
-        match race.shared.view.surface_kinds.get(pick) {
+        match ctx.reads.view.surface_kinds.get(pick) {
             Some(kind) => kind.get(),
             None => {
                 trap.keep(BadInput("a texture's surface kind past the four kinds"));
@@ -751,7 +749,11 @@ pub fn draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     if wanted != 0
         && rc2k_core::race::faces::corners_lit(wanted, ctx.view.face.texture_a.get(), mode)
     {
-        crate::race::frame_draw::check_light_colour(&race.shared, &ctx.view.lamps)?;
+        crate::race::frame_draw::check_light_colour(
+            ctx.reads.work,
+            ctx.reads.view,
+            &ctx.view.lamps,
+        )?;
     }
     face_switches(&ctx.view.polygon, &ctx.view.face);
     if ctx.view.face.texture_a.get() != 0 {
@@ -759,6 +761,7 @@ pub fn draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
             ctx.reads.course(),
             &ctx.part.points,
             &race.shared,
+            ctx.reads.view,
             &ctx.view.face,
             &first_set(ctx),
         )?;
@@ -771,6 +774,7 @@ pub fn draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
             ctx.reads.course(),
             &ctx.part.points,
             &race.shared,
+            ctx.reads.view,
             &ctx.view.face,
             &second_set(ctx),
         )?;
@@ -876,7 +880,7 @@ pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         return crate::scene::draw_clipped_polygon::draw_clipped_polygon_in_game(ctx);
     }
     crate::race::frame_draw::points_there(ctx)?;
-    crate::race::frame_draw::check_light_colour(&race.shared, &ctx.view.lamps)?;
+    crate::race::frame_draw::check_light_colour(ctx.reads.work, ctx.reads.view, &ctx.view.lamps)?;
     ctx.view.polygon.polygon_drawn.set(0u32);
     ctx.view
         .polygon
@@ -946,7 +950,6 @@ pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
             to,
         );
         crate::race::frame_draw::light_colour_at(
-            race,
             ctx.reads,
             &ctx.part.points,
             &ctx.view.lamps,
@@ -1011,7 +1014,7 @@ pub fn face_colours(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), Refused> {
 /// The corners turned over (0 with 1, and 2 with 3 when there is a fourth) and the first
 /// texture's order by `turned_corner_order` (its bit 3 kept): `race::draw_back_face`'s step, done twice.
 fn turn_over(ctx: &DrawCtx<'_>) -> Result<(), BadInput> {
-    let (shared, work) = (&ctx.race.shared, &ctx.view.face);
+    let work = &ctx.view.face;
     {
         let swap = |a: usize, b: usize| {
             let (x, y) = (work.corners[a].get(), work.corners[b].get());
@@ -1028,7 +1031,7 @@ fn turn_over(ctx: &DrawCtx<'_>) -> Result<(), BadInput> {
         let trap = Trap::new();
         let turned = turned_order(order, |n| {
             // `turned_order` asks 0 ..= 7.
-            byte_of(&shared.view.turned_corner_order, n as usize).unwrap_or_else(|| {
+            byte_of(&ctx.reads.view.turned_corner_order, n as usize).unwrap_or_else(|| {
                 trap.keep(BadInput("past the turned corner order"));
                 0
             })
@@ -1067,11 +1070,10 @@ pub fn draw_back_face(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), Refused> {
 /// unless both face away, then the facings flipped and its back unless both (now) face away. Each
 /// after `race::face_materials`. `face` is the face drawn.
 pub fn draw_face_sides(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), Refused> {
-    let race = ctx.race;
     // Converted: `rc2k_core::race::face_drawing::{has_objects, two_sided, side_drawn,
     // flipped}`.
     use rc2k_core::race::face_drawing::{flipped, has_objects, side_drawn, two_sided};
-    if race.shared.switches.scene_set_up.get() == 0 {
+    if ctx.reads.switches.scene_set_up.get() == 0 {
         face_materials(ctx, face)?;
         ctx.view.face.turned[0].set(0u32);
         ctx.view.face.turned[1].set(0u32);
@@ -1205,7 +1207,7 @@ mod vector_tests {
         let place = &race.frame.view_and_records.get().view_vars.view_place_f;
         at_each_control_word(|| {
             for _ in 0..20000 {
-                race.shared.switches.scene_set_up.set(r.below(8));
+                race.shared.switches.get().scene_set_up.set(r.below(8));
                 for cell in place {
                     cell.set(f32::from_bits(r.float()));
                 }

@@ -92,7 +92,7 @@ impl FaceWorld for GameFace<'_> {
         self.4.shown_groups.get()
     }
     fn mask_kind(&self) -> u32 {
-        self.0.shared.switches.mask_kind.get()
+        self.7.switches.mask_kind.get()
     }
     fn group_table(&self, group: u32) -> u32 {
         let draw_switches = self.7.draw_switches;
@@ -131,17 +131,19 @@ impl FaceWorld for GameFace<'_> {
     fn line_value(&self, extra: u32) -> Result<u32, rc2k_core::Invalid> {
         {
             let which: u32 = self.6.drawn_car.get();
-            if which >= BLOCKS || !self.0.shared.work.has_car_block(which as usize) {
+            if which >= BLOCKS || !self.7.work.has_car_block(which as usize) {
                 return Err(rc2k_core::Invalid("no block for a face of kind 0x1C"));
             }
             // The core asks for 1 ..= 6: the six parts' wake counts, after `state_bits`.
-            self.0
-                .shared
-                .race_car_or_end_in(&self.7.cars_and_replay.car_blocks, which as usize)
-                .part_wake_counts
-                .get((extra as usize).wrapping_sub(1))
-                .map(crate::session::PlainDword::get)
-                .ok_or(rc2k_core::Invalid("a wake count past the six"))
+            crate::race::owner_shared::RaceShared::race_car_or_end_in(
+                self.7.work,
+                &self.7.cars_and_replay.car_blocks,
+                which as usize,
+            )
+            .part_wake_counts
+            .get((extra as usize).wrapping_sub(1))
+            .map(crate::session::PlainDword::get)
+            .ok_or(rc2k_core::Invalid("a wake count past the six"))
         }
     }
     fn kind_byte(&self, kind: u32) -> u32 {

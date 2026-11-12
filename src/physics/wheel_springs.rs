@@ -41,7 +41,7 @@ pub fn wheel_springs(
     scene: &crate::scene::owner::Scene,
 ) {
     let drawing = &scene.drawing;
-    let (c, ph) = (shared.car(), &shared.physics_tables);
+    let (c, ph) = (shared.car(), shared.physics_tables.get());
     for k in 0..4 {
         let q = &c.wheel_squeeze[k];
         let (force, damping) = (&ph.spring_forces[k], &ph.spring_damping[k]);

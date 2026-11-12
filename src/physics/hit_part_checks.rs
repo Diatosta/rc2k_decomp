@@ -26,6 +26,6 @@ pub fn hit_part_checks(
     if left != 0 || shared.car().tyre_change_state.get() != 0 {
         return Ok(());
     }
-    drop_hit_parts(numbers, &shared.work, shared.car(), scene)?;
+    drop_hit_parts(numbers, shared.work.get(), shared.car(), scene)?;
     sound_hit_parts(numbers, matrices, shared, kind_tables)
 }

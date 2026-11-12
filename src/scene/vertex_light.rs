@@ -148,8 +148,11 @@ fn blend(
     light.light_colour.set(colour);
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the drawing's stores the part reads, as they are lent"
+)]
 pub fn vertex_light(
-    race: &crate::race::owner::Race,
     part: &crate::workers::PartScratch,
     number: u32,
     reads: crate::workers::DrawReads<'_>,
@@ -162,8 +165,7 @@ pub fn vertex_light(
         // The lit colour added to nothing: it only makes the bytes the right ones.
         return Ok(plus(0, lit(reads, part, number, mmx, light, object)?, mmx));
     }
-    let lit_at_all =
-        race.shared.switches.scene_set_up.get() != 0 || reads.stage_prefs.lit_b.get() != 0;
+    let lit_at_all = reads.switches.scene_set_up.get() != 0 || reads.stage_prefs.lit_b.get() != 0;
     if !lit_at_all || kind == 0 {
         return Ok(0x00FF_FFFF);
     }

@@ -19,7 +19,6 @@ use crate::session::Dword;
 
 pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
     let race = ctx.race;
-    let shared = &race.shared;
     ctx.view.polygon.polygon_drawn.set(0);
     for n in 0..4 {
         let rec = &ctx.part.polygon.entries[n];
@@ -52,11 +51,11 @@ pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
     for n in 0..4 {
         v(n, 0x18, depth);
     }
-    let see = shared.vars.quad_colour[1].get() as u8;
+    let see = ctx.view.quad.colour[1].get() as u8;
     ctx.view
         .polygon
         .polygon_colour
-        .set(shared.vars.quad_colour[0].get());
+        .set(ctx.view.quad.colour[0].get());
     for n in 0..4 {
         let rec = &ctx.part.polygon.entries[n];
         rec.point.set(0xFFFF_FFFF);

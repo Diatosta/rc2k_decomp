@@ -247,7 +247,7 @@ fn log_cars(race: &Race, fx: &mut impl Effects) {
             fx.float(mark.get());
         }
         // The original jumps over car 2's lines unless the race has exactly two players.
-        if car == 0 && shared.view.players.get() != 2 {
+        if car == 0 && shared.view.get().players.get() != 2 {
             break;
         }
     }
@@ -279,8 +279,8 @@ fn copy_in(race: &Race, gfx: &Gfx, fx: &mut impl Effects) -> Result<(), Refused>
     let (settings, results, vars, view) = (
         &shared.state.settings,
         &shared.state.results,
-        &shared.vars,
-        &shared.view,
+        shared.vars.get(),
+        shared.view.get(),
     );
     fx.text(RULE, true);
     fx.text("COPY GRAHAM TO SHAUN", true);
@@ -309,7 +309,7 @@ fn copy_in(race: &Race, gfx: &Gfx, fx: &mut impl Effects) -> Result<(), Refused>
     vars.settings_words[3].set(settings.car_detail.get());
     vars.settings_words[4].set(settings.headlights.get());
 
-    for (label, cell) in [
+    let cells: [(&str, &dyn crate::session::DwordLike); 14] = [
         ("[shaunnumplayers]", &view.players),
         ("[shaunsplitmode]", &vars.split),
         ("[shauntracknum]", &vars.stage_number),
@@ -324,7 +324,8 @@ fn copy_in(race: &Race, gfx: &Gfx, fx: &mut impl Effects) -> Result<(), Refused>
         ("[shauncarshadow]", &vars.settings_words[2]),
         ("[shauncardetail]", &vars.settings_words[3]),
         ("[shaunheadlights]", &vars.settings_words[4]),
-    ] {
+    ];
+    for (label, cell) in cells {
         logged_int(fx, label, cell.get());
     }
 
@@ -723,7 +724,7 @@ mod tests {
                 }
                 scale.set(scales[round % scales.len()]);
                 let start = snapshot(&cells);
-                branches[0] += u32::from(race.shared.view.players.get() == 2);
+                branches[0] += u32::from(race.shared.view.get().players.get() == 2);
                 branches[1] += u32::from(race.shared.replay_file().hold_car_revs.get() != 0);
 
                 let mut old_log = Capture::default();

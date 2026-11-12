@@ -78,16 +78,16 @@ fn steps(race: &Race) -> Result<(), Refused> {
     }
     race.car_blocks().cars[0]
         .option_bits
-        .set(shared.view.player_options[0].get());
+        .set(shared.view.get().player_options[0].get());
     race.car_blocks().cars[1]
         .option_bits
-        .set(shared.view.player_options[1].get());
+        .set(shared.view.get().player_options[1].get());
     // The head's bytes 2 .. 5 into `view_on`, `63DB78`, `63DB84`, `63DB88`.
     for (k, to) in [
-        &shared.view.view_on[0],
-        &shared.view.view_on[1],
-        &shared.view.after_credits,
-        &shared.view.view_switch,
+        &shared.view.get().view_on[0],
+        &shared.view.get().view_on[1],
+        &shared.view.get().after_credits,
+        &shared.view.get().view_switch,
     ]
     .into_iter()
     .enumerate()

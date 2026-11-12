@@ -248,9 +248,9 @@ fn in_game(o: Owners<'static>, call: Call) -> Result<u32, Refused> {
             crate::settings::read_driver_names::path(),
         )?,
         Call::ApplyPatches => crate::physics::apply_patches::apply_patches(
-            &race.shared.physics_tables,
+            race.shared.physics_tables.get(),
             race.course.numbers.get(),
-            &race.shared.work,
+            race.shared.work.get(),
         ),
         Call::RemoveSecretCars => crate::menu::remove_secret_cars::remove_secret_cars(menus)?,
         Call::ApplyCheats => crate::menu::apply_cheats::apply_cheats(

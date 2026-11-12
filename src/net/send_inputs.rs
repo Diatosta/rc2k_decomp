@@ -112,7 +112,7 @@ const EXTRA_FIELDS: [Field; 9] = [
 pub fn send_fields(race: &Race, net: &Net, m: &Message) -> Result<(), Refused> {
     let shared = &race.shared;
     let car = shared.car();
-    let message = &shared.work.net_message;
+    let message = &shared.work.get().net_message;
     log_send(race, &net.vars, m.text);
     // The tag, then the kind's fields' bits.
     let mut dwords = vec![m.kind.tag()];

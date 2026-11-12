@@ -115,12 +115,12 @@ pub fn add_skid_point(race: &Race, slot: &PlainDword) -> Result<(), Refused> {
 
 /// What `lay_skidmarks` reads: the cars' blocks.
 fn cars_refuse(shared: &RaceShared) -> Result<(), Refused> {
-    for n in 0..shared.view.race_cars.get().min(8) {
-        if !shared.work.has_car_block(n as usize) {
+    for n in 0..shared.view.get().race_cars.get().min(8) {
+        if !shared.work.get().has_car_block(n as usize) {
             return Err(BadInput("a race car without its block").into());
         }
     }
-    if shared.view.race_cars.get() > 8 {
+    if shared.view.get().race_cars.get() > 8 {
         return Err(BadInput("more than eight race cars").into());
     }
     Ok(())
@@ -137,7 +137,7 @@ pub fn lay_skidmarks(race: &Race) -> Result<(), Refused> {
     let shared = &race.shared;
     use crate::race::skidmarks::int_80;
     cars_refuse(&race.shared)?;
-    let count = shared.view.race_cars.get();
+    let count = shared.view.get().race_cars.get();
     if count == 0 {
         return Ok(());
     }
@@ -147,7 +147,7 @@ pub fn lay_skidmarks(race: &Race) -> Result<(), Refused> {
         skids.skid_cars.set(1 << (c & 31));
         // The skid slots are the drawing's own (in the block); the wheels, the physics'.
         let slots = &shared.race_car(c as usize)?.skid_slots;
-        let car = crate::race::frame_view::car(shared.work.block_number(c as usize)?)?;
+        let car = crate::race::frame_view::car(shared.work.get().block_number(c as usize)?)?;
         for wheel in 0..4usize {
             let slot = &slots[wheel];
             let on = car.wheel_squeeze[wheel].bits() != 0
@@ -188,7 +188,8 @@ pub fn lay_skidmarks(race: &Race) -> Result<(), Refused> {
 /// is set.
 pub fn lay_skidmarks_if_on(race: &Race) -> Result<(), Refused> {
     let frame = &race.frame;
-    if race.shared.vars.scene_switch.get() != 0 || frame.frame_work.get().replay_still_on.get() != 0
+    if race.shared.vars.get().scene_switch.get() != 0
+        || frame.frame_work.get().replay_still_on.get() != 0
     {
         return Ok(());
     }

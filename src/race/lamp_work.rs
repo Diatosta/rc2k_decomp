@@ -32,14 +32,18 @@ pub struct LampWork {
     pub flare_count: Dword,
 }
 
+/// The image's first value of the race view's dword at `at`: what the view's lamps start from.
+const fn first_dword(at: usize) -> Dword {
+    Dword::new(u32::from_le_bytes(crate::race::store::first_values::<4>(
+        crate::race::view_store::START + at,
+    )))
+}
+
 impl LampWork {
     /// With the image's first values.
     pub const fn new() -> Self {
-        let RaceView {
-            lamps_wanted,
-            lamp_count,
-            ..
-        } = RaceView::new();
+        let lamps_wanted = first_dword(offset_of!(RaceView, lamps_wanted));
+        let lamp_count = first_dword(offset_of!(RaceView, lamp_count));
         let flare_count = Dword::new(0);
         Self {
             lamps: first_of::<_, 0x100>(offset_of!(LevelGrid, lamps)),

@@ -22,8 +22,8 @@ pub fn two_car_order(race: &Race) -> Result<(), crate::errors::BadInput> {
         }
     };
     let order = places::two_car_order(
-        race.shared.vars.run_kind.get(),
-        race.shared.view.players.get(),
+        race.shared.vars.get().run_kind.get(),
+        race.shared.view.get().players.get(),
         figure,
         0,
     );

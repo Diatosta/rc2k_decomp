@@ -41,7 +41,7 @@ fn cars(
 fn refusal(race: &Race, sound: &'static Sound) -> Result<Option<&'static str>, BadInput> {
     let shared = &race.shared;
     for (block, _, _) in cars(shared, sound)? {
-        if !shared.work.has_car_block(block) {
+        if !shared.work.get().has_car_block(block) {
             return Ok(Some("a null car block or record"));
         }
         let n = car_file_number(
@@ -71,7 +71,7 @@ pub fn share_all_cars(
     set_listener(race, scene, net, view)?;
     keep_lead_car_values(race.shared.own_car(net.vars.session.get()), &race.frame);
     for (n, (block, record, sound)) in cars(&race.shared, sound)?.into_iter().enumerate() {
-        race.shared.work.current_car.set(n as u32);
+        race.shared.work.get().current_car.set(n as u32);
         share_car_state(race, race.shared.race_car_or_end(block), record, sound)?;
     }
     let first_record = race

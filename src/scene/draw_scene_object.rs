@@ -32,11 +32,9 @@ pub use rc2k_core::scene::shown::Way;
 /// The texture set for `g_objectNumber`; the object's number.
 // Converted: `rc2k_core::scene::shown::texture_set`
 fn texture_set(
-    race: &crate::race::owner::Race,
     reads: crate::workers::DrawReads<'_>,
     cars: &crate::race::car_draw_state::CarDrawState,
 ) -> Result<(u32, u32), Refused> {
-    let shared = &race.shared;
     use rc2k_core::scene::shown::SetError;
     {
         let object: u32 = cars.object_number.get();
@@ -45,11 +43,14 @@ fn texture_set(
             reads.numbers.in_race.is_set(),
             |object| reads.object_tables.object_kind(object),
             |car| {
-                shared.work.has_car_block(car as usize).then(|| {
-                    shared
-                        .race_car_or_end_in(&reads.cars_and_replay.car_blocks, car as usize)
-                        .car_kind
-                        .get()
+                reads.work.has_car_block(car as usize).then(|| {
+                    crate::race::owner_shared::RaceShared::race_car_or_end_in(
+                        reads.work,
+                        &reads.cars_and_replay.car_blocks,
+                        car as usize,
+                    )
+                    .car_kind
+                    .get()
                 })
             },
         )
@@ -66,13 +67,12 @@ fn texture_set(
 /// `draw` stands for the two calls.
 // Converted: `rc2k_core::scene::shown::way`
 pub fn draw_scene_object(
-    race: &crate::race::owner::Race,
     draw: &mut dyn FnMut(Way) -> Result<(), Refused>,
     reads: crate::workers::DrawReads<'_>,
     cars: &crate::race::car_draw_state::CarDrawState,
     place: &crate::scene::object_place::ObjectPlace,
 ) -> Result<(), Refused> {
-    let (set, object) = texture_set(race, reads, cars)?;
+    let (set, object) = texture_set(reads, cars)?;
     place.texture_set.set(set);
     let faces: u32 = reads.object_slots.face_counts[object as usize].get();
     match rc2k_core::scene::shown::way(faces, reads.light_state.draw_mode.get()) {
@@ -89,9 +89,7 @@ pub fn draw_scene_object_in_game(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     description: Option<crate::scene::draw_described_object::Description<'_>>,
 ) -> Result<(), Refused> {
-    let race = ctx.race;
     draw_scene_object(
-        race,
         &mut |way| match way {
             Way::Shown => {
                 // Outside a race the faces pick the menus' marks (the original's
@@ -105,7 +103,6 @@ pub fn draw_scene_object_in_game(
                     }
                 };
                 draw_shown_object(
-                    race,
                     ctx.reads,
                     &mut || draw_object_in_game(ctx),
                     &ctx.view.cars,

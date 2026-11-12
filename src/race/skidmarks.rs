@@ -127,7 +127,7 @@ fn turn_skid_point(
 pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
     let race = ctx.race;
     let mut views = u32::MAX;
-    let mode: u32 = race.shared.vars.run_kind.get();
+    let mode: u32 = ctx.reads.vars.run_kind.get();
     if mode != 0 && mode != 2 {
         views = 1u32.wrapping_shl(ctx.view.drawn_view(race) & 0x1F);
     }
@@ -138,8 +138,8 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
         e.lamp_light.set(0);
     }
     let (u, w) = (
-        race.shared.vars.fade_uv[0].get(),
-        race.shared.vars.fade_uv[1].get(),
+        ctx.reads.vars.fade_uv[0].get(),
+        ctx.reads.vars.fade_uv[1].get(),
     );
     for e in entries {
         e.u.set(u);

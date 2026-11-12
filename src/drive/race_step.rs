@@ -13,9 +13,9 @@ pub fn race_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), R
     let net = o.net;
     let _step = crate::write_watch::step("physics");
     crate::drive::race_clock_tick::race_clock_tick(&race.shared);
-    if race.shared.physics_tables.debug[1].get() == 0 {
+    if race.shared.physics_tables.get().debug[1].get() == 0 {
         rc2k_core::drive::race_ticks::run_ticks(
-            race.shared.physics_tables.race_tenths.get(),
+            race.shared.physics_tables.get().race_tenths.get(),
             |ecx| {
                 crate::debug::timing::note_tick();
                 { crate::drive::race_tick::race_tick(o, race) }?;

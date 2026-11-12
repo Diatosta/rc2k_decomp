@@ -155,7 +155,7 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
         *race.physics.ground(),
         *race.physics.pace(),
         *race.physics.split_tables(),
-        race.shared.physics_tables,
+        *race.shared.physics_tables.get(),
         race.shared.buffers,
         *race.physics.car_specs(),
         *race.frame.clock_ticks(),
@@ -184,13 +184,13 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
         *race.frame.scratch(),
         *race.frame.shadow_skids.get(),
         *race.frame.sound_spots(),
-        race.shared.switches,
+        *race.shared.switches.get(),
         *race.shared.tables(),
         *race.frame.text_state(),
-        race.shared.vars,
-        race.shared.view,
+        *race.shared.vars.get(),
+        *race.shared.view.get(),
         *race.replay.replay_view(),
-        race.shared.work,
+        *race.shared.work.get(),
         *scene.drawing.scene.get(),
         *crate::scene::owner::SCENE.draw_switches.get(),
         *scene.file_numbers(),
@@ -246,14 +246,14 @@ fn a_byte_written_into_a_dword_keeps_its_other_bytes() {
 #[ignore = "a timing, run by hand in release"]
 fn timing_of_a_deep_read() {
     let race = race();
-    let field = &race.shared.work.no_precipitation;
+    let field = &race.shared.work.get().no_precipitation;
     let n = 2_000_000;
     let t = std::time::Instant::now();
     let mut sum = 0u32;
     for _ in 0..n {
         let mut b = [0; 4];
         load_cells(
-            &race.shared.work,
+            race.shared.work.get(),
             std::mem::offset_of!(crate::race::work_store::RaceWork, no_precipitation),
             &mut b,
         )

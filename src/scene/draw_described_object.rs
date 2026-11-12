@@ -17,15 +17,12 @@ use crate::errors::{BadInput, Refused};
 /// What `scene::draw_scene_object` would refuse for `object`: in a race (`g_inRace`) a car
 /// (0x50 ..) without its block.
 fn check_object(
-    race: &crate::race::owner::Race,
     numbers: &crate::race::numbers_store::Numbers,
+    work: &crate::race::work_store::RaceWork,
     object: u32,
 ) -> Result<(), Refused> {
     let car = object.wrapping_sub(0x50);
-    if numbers.in_race.is_set()
-        && car < 0xA0
-        && !race.shared.work.has_car_block((car / 0x14) as usize)
-    {
+    if numbers.in_race.is_set() && car < 0xA0 && !work.has_car_block((car / 0x14) as usize) {
         return Err(BadInput("a car without its block").into());
     }
     Ok(())
@@ -111,15 +108,14 @@ fn draw_description(
     read: &dyn Fn(usize) -> Result<Vec<u8>, BadInput>,
 ) -> Result<(), Refused> {
     let race = ctx.race;
-    let shared = &race.shared;
     let head = read(8)?;
     let object = head[1] as u32;
     let place = u32::from_le_bytes([head[4], head[5], head[6], head[7]]);
     let shown = object <= 0x64
         && place < ctx.reads.course_work.scene_point_count.get()
-        && !(shared.switches.scene_set_up.get() != 0 && object == 0x3F);
+        && !(ctx.reads.switches.scene_set_up.get() != 0 && object == 0x3F);
     if shown {
-        check_object(race, ctx.reads.numbers, object)?;
+        check_object(ctx.reads.numbers, ctx.reads.work, object)?;
     }
     ctx.view.cars.object_number.set(object);
     let end = || {

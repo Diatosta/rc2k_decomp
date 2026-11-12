@@ -17,7 +17,7 @@ fn targets(race: &Race, s: Setting) -> Vec<&dyn DwordLike> {
     match s {
         Setting::Kind(n) => vec![
             setting_cell(race, s),
-            &race.shared.vars.race_car_kinds[n as usize],
+            &race.shared.vars.get().race_car_kinds[n as usize],
         ],
         _ => vec![setting_cell(race, s)],
     }

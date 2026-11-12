@@ -626,7 +626,7 @@ fn profiler(o: &Owners<'static>, ui: &Ui) {
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     take_readings(&mut t);
-    let fps = shared.switches.frame_rate.get();
+    let fps = shared.switches.get().frame_rate.get();
     ui.text(format!("Frame rate (the game's, over 16 frames): {fps:.1}"));
     ui.same_line();
     ui.checkbox("Each part in the graph", &mut t.each);
@@ -725,7 +725,7 @@ fn profiler(o: &Owners<'static>, ui: &Ui) {
             ("Ticks a frame", format!("{:.1}", t.ticks)),
             (
                 "Cars in the race",
-                format!("{}", shared.view.race_cars.bits()),
+                format!("{}", shared.view.get().race_cars.bits()),
             ),
         ],
     );

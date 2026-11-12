@@ -14,8 +14,8 @@ use crate::race::settings_copy::{car, car_bits, var};
 
 /// The stores after the two draws, in order (the place, the value).
 pub const WRITES: [(StepOperand, u32); 74] = [
-    (var!(@race shared.vars.direction), 0),
-    (var!(@race shared.vars.run_kind), 3),
+    (var!(@race shared.vars.get().direction), 0),
+    (var!(@race shared.vars.get().run_kind), 3),
     (car!(0, start_slot_value), 1),
     (car!(0, camera_view), 8),
     (car!(0, gear_ratio_setting), 2),
@@ -23,19 +23,19 @@ pub const WRITES: [(StepOperand, u32); 74] = [
     (car!(0, ride_height), 0x80),
     (car!(0, brake_balance), 0x80),
     (car!(0, steering_sensitivity), 0x80),
-    (var!(@race shared.vars.car_tyres[0]), 3),
-    (var!(@race shared.vars.car_colours[0]), 1),
-    (var!(@race shared.vars.mip_setting), 0),
-    (var!(@race shared.view.race_cars), 1),
-    (var!(@race shared.view.players), 1),
-    (var!(@race shared.vars.settings_words[0]), 1),
-    (var!(@race shared.vars.settings_words[1]), 1),
-    (var!(@race shared.vars.settings_words[2]), 1),
-    (var!(@race shared.vars.settings_words[3]), 0),
-    (var!(@race shared.vars.settings_words[4]), 1),
-    (var!(@race shared.switches.view_marks_on), 1),
-    (var!(@race shared.vars.race_level), 0),
-    (var!(@race shared.vars.race_stage), 0),
+    (var!(@race shared.vars.get().car_tyres[0]), 3),
+    (var!(@race shared.vars.get().car_colours[0]), 1),
+    (var!(@race shared.vars.get().mip_setting), 0),
+    (var!(@race shared.view.get().race_cars), 1),
+    (var!(@race shared.view.get().players), 1),
+    (var!(@race shared.vars.get().settings_words[0]), 1),
+    (var!(@race shared.vars.get().settings_words[1]), 1),
+    (var!(@race shared.vars.get().settings_words[2]), 1),
+    (var!(@race shared.vars.get().settings_words[3]), 0),
+    (var!(@race shared.vars.get().settings_words[4]), 1),
+    (var!(@race shared.switches.get().view_marks_on), 1),
+    (var!(@race shared.vars.get().race_level), 0),
+    (var!(@race shared.vars.get().race_stage), 0),
     (car_bits!(0, engine_damage), 0),
     (car_bits!(0, exhaust_damage), 0),
     (car_bits!(0, electrics_damage), 0),
@@ -102,10 +102,12 @@ pub fn set_up_credits_race(race: &Race, o: &crate::owners::Owners<'static>) -> R
     let stage = drawn_index(RACE_STAGES);
     shared
         .vars
+        .get()
         .stage_number
-        .set(shared.work.credit_stages[stage as usize].get()); // g_stageNumber
+        .set(shared.work.get().credit_stages[stage as usize].get()); // g_stageNumber
     let kind = drawn_index(RACE_KINDS);
-    shared.vars.race_car_kinds[0].set(shared.work.credit_car_kinds[kind as usize].get()); // g_raceCarKinds
+    shared.vars.get().race_car_kinds[0]
+        .set(shared.work.get().credit_car_kinds[kind as usize].get()); // g_raceCarKinds
     for (at, v) in WRITES {
         at.set_with(o, v);
     }

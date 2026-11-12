@@ -183,7 +183,7 @@ fn copy_header_settings_of(
     let shared = &race.shared;
     let settings = &shared.state.settings;
     let car = &settings.cars[0];
-    let patches = &shared.work.patch_settings;
+    let patches = &shared.work.get().patch_settings;
     let cells: [(usize, usize, u32); 31] = [
         (
             1,
@@ -218,7 +218,7 @@ fn copy_header_settings_of(
         (1, 0x719B98, car.steering_sensitivity.get()),
         (1, 0x719B99, car.ride_height.get()),
         (1, 0x719B9A, car.suspension_stiffness.get()),
-        (1, 0x719B9B, shared.work.patch_switch.get()),
+        (1, 0x719B9B, shared.work.get().patch_switch.get()),
         (1, 0x719B9C, patches[0].get()),
         (1, 0x719B9D, patches[1].get()),
         (2, 0x719B9E, patches[2].get()),
@@ -620,11 +620,12 @@ mod header_tests {
             &car.suspension_stiffness,
             &shared.replay_file().season_code,
             &menus().play.cheats.cheats,
-            &shared.work.patch_switch,
+            &shared.work.get().patch_switch,
         ];
         cells.extend(
             shared
                 .work
+                .get()
                 .patch_settings
                 .iter()
                 .map(|c| c as &dyn DwordLike),

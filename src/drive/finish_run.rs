@@ -34,11 +34,11 @@ pub fn finish_run(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), 
     race.frame
         .clock_ticks()
         .clock_a
-        .set(race.shared.physics_tables.scene_clock.get());
+        .set(race.shared.physics_tables.get().scene_clock.get());
     race.frame
         .clock_ticks()
         .sound_tick_last
-        .set(race.shared.physics_tables.scene_clock.get());
+        .set(race.shared.physics_tables.get().scene_clock.get());
     for mark in &race.frame.clock_ticks().marks {
         mark.set(u32::MAX);
     }
@@ -48,7 +48,7 @@ pub fn finish_run(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), 
         .finish
         .get()
         .start_clock
-        .set(race.shared.physics_tables.scene_clock.get());
+        .set(race.shared.physics_tables.get().scene_clock.get());
     loop {
         sound.race.sounds.objects[0].revs.set(0);
         input_update(o);

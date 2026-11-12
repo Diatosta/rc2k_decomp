@@ -342,7 +342,7 @@ mod reference_vectors {
                 plain: |a| {
                     load_figures_and_shift_points(
                         race().shared.car(),
-                        &race().shared.physics_tables,
+                        race().shared.physics_tables.get(),
                         race().course.numbers.get(),
                         race().gear(),
                         &spec_at(a[0], 0x64, 0xB0),
@@ -364,7 +364,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     scale_record_ratios(
-                        &race().shared.physics_tables,
+                        race().shared.physics_tables.get(),
                         race().course.numbers.get(),
                         &spec_at(a[0], 0x40, 0x4C),
                     );
@@ -385,7 +385,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     scale_default_ratios(
-                        &race().shared.physics_tables,
+                        race().shared.physics_tables.get(),
                         race().course.numbers.get(),
                     );
                 },
@@ -404,7 +404,10 @@ mod reference_vectors {
                 ],
                 ulps: 0,
                 plain: |a| {
-                    scale_record_grips(&race().shared.physics_tables, &spec_at(a[0], 0x38, 0x40));
+                    scale_record_grips(
+                        race().shared.physics_tables.get(),
+                        &spec_at(a[0], 0x38, 0x40),
+                    );
                 },
             },
             Block {
@@ -419,7 +422,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     set_rev_limits(
-                        &race().shared.physics_tables,
+                        race().shared.physics_tables.get(),
                         race().course.numbers.get(),
                         a[1],
                     );
@@ -437,7 +440,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     set_rev_limits(
-                        &race().shared.physics_tables,
+                        race().shared.physics_tables.get(),
                         race().course.numbers.get(),
                         a[1],
                     );
@@ -455,7 +458,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     set_rev_limits(
-                        &race().shared.physics_tables,
+                        race().shared.physics_tables.get(),
                         race().course.numbers.get(),
                         a[1],
                     );

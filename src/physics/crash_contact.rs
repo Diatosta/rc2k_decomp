@@ -207,7 +207,7 @@ mod reference_vectors {
                 plain: |_| {
                     x87_1(
                         &crate::race::owner::race().physics.contact,
-                        &crate::race::owner::race().shared.physics_tables,
+                        crate::race::owner::race().shared.physics_tables.get(),
                         crate::race::owner::race().course.numbers.get(),
                     );
                 },

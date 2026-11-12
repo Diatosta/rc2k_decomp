@@ -49,7 +49,7 @@ pub fn draw_highlighted(
     if own.is_some_and(|own| own >= OWN) {
         return Err(BadInput("a kind past the records of the kinds' own places").into());
     }
-    let clock: u32 = shared.physics_tables.scene_clock.get();
+    let clock: u32 = shared.physics_tables.get().scene_clock.get();
     object_place.angles[1].set((clock << 3) & 0xFFFF);
     object_place.place[2].set(screens.state.carousel.z.get());
     object_place.place[0].set(0u32);

@@ -34,7 +34,7 @@ pub fn find_present_courses(
     for n in 0..COURSES {
         set_course_number(n, race, scene)?;
         set_cdat_number(course, 0);
-        shared.switches.course_present[n as usize].set(0); // FrameSwitches.course_present[0], 100 flags
+        shared.switches.get().course_present[n as usize].set(0); // FrameSwitches.course_present[0], 100 flags
         let present = course_present(paths(course).len() as u32, |file| {
             BYTES_READ.set(0);
             let path = paths(course)[file as usize];
@@ -46,7 +46,7 @@ pub fn find_present_courses(
             Ok::<u32, Refused>(BYTES_READ.get())
         })?;
         if present {
-            shared.switches.course_present[n as usize].set(1);
+            shared.switches.get().course_present[n as usize].set(1);
         }
     }
     Ok(())

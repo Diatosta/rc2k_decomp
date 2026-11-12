@@ -276,12 +276,12 @@ pub fn init_checkpoints(race: &Race) -> Result<(), Refused> {
     let shared = &race.shared;
     // Converted: `rc2k_core::race::checkpoints::listed_checkpoints`.
     {
-        let kinds = shared.vars.checkpoint_count.get();
+        let kinds = shared.vars.get().checkpoint_count.get();
         if (kinds.wrapping_sub(2) as i32) < 0 {
             physics.split_tables().split_colour_count.set(0);
             return Ok(());
         }
-        let end = shared.vars.last_checkpoint.get();
+        let end = shared.vars.get().last_checkpoint.get();
         let table = &race.checkpoints().checkpoint_faces;
         let trap = Trap::new();
         let listed = rc2k_core::race::checkpoints::listed_checkpoints(end, |n| {

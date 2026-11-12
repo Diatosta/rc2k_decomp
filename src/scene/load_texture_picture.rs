@@ -99,7 +99,7 @@ pub fn load_texture_picture(
             number,
             texture,
             || scene.textures.kinds.get().kind_first_textures[0x100].get(), // KindTextureTables.kind_first_textures[256],
-            || shared.view.race_cars.get(),
+            || shared.view.get().race_cars.get(),
         );
         if let Some(car) = car {
             call(Call::Text(b"carnum".to_vec()));
@@ -107,9 +107,9 @@ pub fn load_texture_picture(
             call(Call::Text(b"grav".to_vec()));
             // Eight cars' gravel switches; a car past them (the race's cars are at most
             // eight) reads on, as the original.
-            let tyres = &shared.vars.car_tyres;
+            let tyres = &shared.vars.get().car_tyres;
             let gravel = crate::session::read_on_in(
-                &shared.vars,
+                shared.vars.get(),
                 tyres,
                 car as usize,
                 "a car's tyre switch",

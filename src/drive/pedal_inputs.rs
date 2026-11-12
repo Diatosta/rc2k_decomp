@@ -27,16 +27,16 @@ pub fn pedal_inputs(race: &Race) {
     step_pedal(
         &race.shared,
         THROTTLE_KEY,
-        &race.shared.physics_tables.input_throttle,
+        &race.shared.physics_tables.get().input_throttle,
         &race.shared.car().throttle,
     );
     step_pedal(
         &race.shared,
         BRAKE_KEY,
-        &race.shared.physics_tables.input_brake,
+        &race.shared.physics_tables.get().input_brake,
         &race.shared.car().brake,
     );
-    let hand = race.shared.physics_tables.input_handbrake.get();
+    let hand = race.shared.physics_tables.get().input_handbrake.get();
     race.shared
         .car()
         .handbrake

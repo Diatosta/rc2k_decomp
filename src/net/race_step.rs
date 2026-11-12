@@ -16,7 +16,7 @@ pub fn race_step(race: &Race, net: &Net) -> Result<(), Refused> {
     if vars.session.get() == 0 {
         return Ok(());
     }
-    if race.shared.work.current_car.get() == vars.player.get() {
+    if race.shared.work.get().current_car.get() == vars.player.get() {
         send_turn::send_turn(race, net)?;
         apply_received::apply_received(race, vars)
     } else {

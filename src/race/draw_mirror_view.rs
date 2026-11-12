@@ -40,8 +40,8 @@ pub fn draw_mirror_view(
 ) -> Result<Option<crate::race::draw_view_scene::ViewOutput>, Refused> {
     view.take_vars(reads);
     if reads.finish.no_place.get() != 0
-        || race.shared.work.in_credits.is_set()
-        || (race.shared.switches.scene_set_up.get() == 0 && !always())
+        || reads.work.in_credits.is_set()
+        || (reads.switches.scene_set_up.get() == 0 && !always())
     {
         return Ok(None);
     }

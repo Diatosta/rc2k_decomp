@@ -12,13 +12,13 @@ use rc2k_core::drive::clocks::RaceClock;
 // Converted: `rc2k_core::drive::clocks::RaceClock::tick`.
 pub fn tick_from(shared: &RaceShared, now: u32) {
     let mut c = RaceClock {
-        counted: shared.physics_tables.race_clock_base.get(),
+        counted: shared.physics_tables.get().race_clock_base.get(),
         ..RaceClock::default()
     };
     c.tick(now);
-    shared.physics_tables.race_clock_now.set(c.now);
-    shared.physics_tables.race_tenths.set(c.tenths);
-    shared.physics_tables.race_clock_base.set(c.counted);
+    shared.physics_tables.get().race_clock_now.set(c.now);
+    shared.physics_tables.get().race_tenths.set(c.tenths);
+    shared.physics_tables.get().race_clock_base.set(c.counted);
 }
 
 pub fn race_clock_tick(shared: &RaceShared) {

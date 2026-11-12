@@ -28,12 +28,14 @@ use rc2k_core::drive::controls::{FLIP_BIT, VIEW_BIT, computer_drives, flipped, r
 fn computer(shared: &RaceShared) -> bool {
     // A test's switch (`tools/remote.py pilot`): the computer at a player's wheel.
     #[cfg(feature = "remote")]
-    if crate::remote::autodrive() && shared.work.current_car.get() < shared.view.players.get() {
+    if crate::remote::autodrive()
+        && shared.work.get().current_car.get() < shared.view.get().players.get()
+    {
         return true;
     }
     computer_drives(
-        shared.work.in_credits.is_set(),
-        || shared.vars.run_kind.get(),
+        shared.work.get().in_credits.is_set(),
+        || shared.vars.get().run_kind.get(),
         || shared.car().driver_kind.get(),
     )
 }
@@ -49,13 +51,13 @@ pub fn read_car_controls(
 
     let course = &race.course;
     if computer(&race_owner.shared)
-        && race_owner.shared.vars.checkpoint_count.get() == 0
+        && race_owner.shared.vars.get().checkpoint_count.get() == 0
         && race_owner.shared.car().run_ticks.get() >= 0x320
     {
         // `drive_computer_car`'s refusal, before anything here is written.
         let reaches = crate::math::x87::compare_full(
             &race_owner.shared.car().crash_matrix[5],
-            &race_owner.shared.work.driver_tilt_limit,
+            &race_owner.shared.work.get().driver_tilt_limit,
         ) & 0x100
             == 0;
         if reaches {
@@ -78,7 +80,7 @@ pub fn read_car_controls(
     ];
     for (to, from) in words
         .into_iter()
-        .zip(&race_owner.shared.physics_tables.input_words)
+        .zip(&race_owner.shared.physics_tables.get().input_words)
     {
         to.set(from.get());
     }
@@ -86,7 +88,8 @@ pub fn read_car_controls(
     // menus (the test's Return) would reach the car at a tick that depends on the timing.
     #[cfg(feature = "remote")]
     if crate::remote::held_race()
-        && race_owner.shared.work.current_car.get() < race_owner.shared.view.players.get()
+        && race_owner.shared.work.get().current_car.get()
+            < race_owner.shared.view.get().players.get()
     {
         race_owner.shared.car().input_keys.set(0);
     }
@@ -99,31 +102,44 @@ pub fn read_car_controls(
     race_owner
         .shared
         .physics_tables
+        .get()
         .input_throttle
         .set(race_owner.shared.car().input_throttle.get());
     race_owner
         .shared
         .physics_tables
+        .get()
         .input_steer
         .set(race_owner.shared.car().input_steering.get());
     race_owner
         .shared
         .physics_tables
+        .get()
         .input_brake
         .set(race_owner.shared.car().input_brake.get());
     race_owner
         .shared
         .physics_tables
+        .get()
         .input_handbrake
         .set(keys.hand);
-    race_owner.shared.physics_tables.input_gear_up.set(keys.up);
     race_owner
         .shared
         .physics_tables
+        .get()
+        .input_gear_up
+        .set(keys.up);
+    race_owner
+        .shared
+        .physics_tables
+        .get()
         .input_gear_down
         .set(keys.down);
     let replay = net.vars.session.get() != 0;
-    if replay || race_owner.shared.work.current_car.get() < race_owner.shared.view.players.get() {
+    if replay
+        || race_owner.shared.work.get().current_car.get()
+            < race_owner.shared.view.get().players.get()
+    {
         if pressed & FLIP_BIT != 0 {
             race_owner
                 .shared
@@ -135,7 +151,7 @@ pub fn read_car_controls(
             next_view_at(
                 race_owner.kind_tables(),
                 race_owner.shared.car(),
-                &race_owner.shared.view.players,
+                &race_owner.shared.view.get().players,
                 &race_owner.shared.car().step_clock,
             )?;
         }
@@ -146,24 +162,30 @@ pub fn read_car_controls(
     race_owner
         .shared
         .work
+        .get()
         .driver_slot
-        .set(race_owner.shared.work.current_car.get());
+        .set(race_owner.shared.work.get().current_car.get());
     start_blend(race, scene);
     race_owner
         .shared
         .work
+        .get()
         .driver_start_blend
         .set(x87::loaded(&race_owner.shared.car().start_blend));
     // A test's switch (`tools/remote.py pilot`): a player's car has no computer's skill
     // (its blend near 0 holds the wanted speed down), so it drives at the full blend.
     #[cfg(feature = "remote")]
     if crate::remote::autodrive()
-        && race_owner.shared.work.current_car.get() < race_owner.shared.view.players.get()
+        && race_owner.shared.work.get().current_car.get()
+            < race_owner.shared.view.get().players.get()
     {
-        race_owner.shared.work.driver_start_blend.set(1.0f32);
+        race_owner.shared.work.get().driver_start_blend.set(1.0f32);
     }
     drive_computer_car(race, scene)?;
-    let (ph, w) = (&race_owner.shared.physics_tables, &race_owner.shared.work);
+    let (ph, w) = (
+        race_owner.shared.physics_tables.get(),
+        race_owner.shared.work.get(),
+    );
     for (to, from) in [
         (&ph.input_steer, &w.driver_steer),
         (&ph.input_throttle, &w.driver_throttle),
@@ -178,16 +200,22 @@ pub fn read_car_controls(
     // with the reset key.
     #[cfg(feature = "remote")]
     if crate::remote::autodrive()
-        && race_owner.shared.work.current_car.get() < race_owner.shared.view.players.get()
+        && race_owner.shared.work.get().current_car.get()
+            < race_owner.shared.view.get().players.get()
     {
         let keys =
             crate::remote::autodrive_keys(race_owner, race_owner.shared.car().checkpoint.get());
         if keys != 0 {
             // Off the throttle and on the brake while the key is held, as a player would:
             // the reset needs the car slow throughout.
-            race_owner.shared.physics_tables.input_throttle.set(0);
-            race_owner.shared.physics_tables.input_brake.set(0x100);
-            race_owner.shared.physics_tables.input_steer.set(0);
+            race_owner.shared.physics_tables.get().input_throttle.set(0);
+            race_owner
+                .shared
+                .physics_tables
+                .get()
+                .input_brake
+                .set(0x100);
+            race_owner.shared.physics_tables.get().input_steer.set(0);
         }
         race_owner
             .shared

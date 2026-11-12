@@ -155,7 +155,7 @@ pub fn tick_clock(
     let setup = &effects.setup;
     let c = &setup.clock;
     {
-        let clock: u32 = shared.physics_tables.scene_clock.get();
+        let clock: u32 = shared.physics_tables.get().scene_clock.get();
         if c.started.get() == 0 {
             c.started.set(1);
             for r in [&c.last, &c.now, &c.before] {

@@ -31,7 +31,7 @@ pub fn find_car_checkpoint(
         .ground()
         .ground_z
         .set(shared.car().position[2].get());
-    if shared.vars.checkpoint_count.get() == 0 {
+    if shared.vars.get().checkpoint_count.get() == 0 {
         return Ok(0);
     }
     let (from, to) = progress::near_window(shared.car().checkpoint.get());
@@ -39,14 +39,18 @@ pub fn find_car_checkpoint(
         crate::race::start_place::nearest_checkpoint_in(physics, course, shared, from, to, scene)?;
     scene.drawing.scene.get().scratch.set(near.distance);
     // g_nearestCheckpointDistance
-    shared.physics_tables.nearest_checkpoint_distance.set_bits(
-        ext_div2(
-            int_80(near.distance as i32, false),
-            &course.numbers.get().k65536,
-            0x3F80_0000,
-        )
-        .to_bits(),
-    );
+    shared
+        .physics_tables
+        .get()
+        .nearest_checkpoint_distance
+        .set_bits(
+            ext_div2(
+                int_80(near.distance as i32, false),
+                &course.numbers.get().k65536,
+                0x3F80_0000,
+            )
+            .to_bits(),
+        );
     if progress::search_all(near.distance) {
         return crate::race::start_place::nearest_checkpoint(physics, course, shared, scene);
     }

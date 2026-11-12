@@ -103,6 +103,7 @@ pub fn run_snow(
             let ticks = race
                 .shared
                 .physics_tables
+                .get()
                 .scene_clock
                 .get()
                 .wrapping_sub(s.last_clock.get());
@@ -111,7 +112,7 @@ pub fn run_snow(
         }
         s.fall.set(s.fall.get() & 0x0FFF_FFFF);
         s.last_clock
-            .set(race.shared.physics_tables.scene_clock.get());
+            .set(race.shared.physics_tables.get().scene_clock.get());
         for (n, v) in s.matrix_copy.iter().enumerate() {
             for m in 0..4 {
                 s.wide_turn[n][m].set(v.get());

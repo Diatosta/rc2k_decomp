@@ -91,7 +91,7 @@ pub fn set_up_front_end_scene_in(o: crate::owners::Owners<'static>) -> Result<()
     let shared = &race.shared;
     let frame = &race.frame;
     let course = &race.course;
-    crate::session::write_bits(&shared.vars.bar_span, [0u32, 100]);
+    crate::session::write_bits(&shared.vars.get().bar_span, [0u32, 100]);
     crate::menu::show_loading_picture::show_loading_picture_in(o)?;
     reset_texture_tables(scene);
     for (count, first, levels, tag) in NEEDS {
@@ -116,7 +116,7 @@ pub fn set_up_front_end_scene_in(o: crate::owners::Owners<'static>) -> Result<()
     course.stage_prefs.get().fog_start.set(0u32);
     course.stage_prefs.get().fog_end.set(0u32);
     crate::race::view_scratch::front_end().fog.clear();
-    shared.switches.scene_set_up.set(1u32);
+    shared.switches.get().scene_set_up.set(1u32);
     fill_light_tables(scene, race)?;
 
     scene.objects.tables.get().slot_kinds[0].set(1);
@@ -144,7 +144,7 @@ pub fn set_up_front_end_scene_in(o: crate::owners::Owners<'static>) -> Result<()
             picture = picture.wrapping_add(1);
         }
     }
-    shared.vars.bar_function.set(SHOW_BAR);
+    shared.vars.get().bar_function.set(SHOW_BAR);
     crate::scene::reload_system_textures::reload_system_textures(
         race, o.system, o.gfx, o.d3d, o.net, scene,
     )?;
@@ -158,8 +158,8 @@ pub fn set_up_front_end_scene_in(o: crate::owners::Owners<'static>) -> Result<()
     );
     reload_slot_textures(frame, scene)?;
     colours(course, 0x7F);
-    shared.switches.scene_set_up.set(1u32);
+    shared.switches.get().scene_set_up.set(1u32);
     fill_light_tables(scene, race)?;
-    shared.vars.settings_words[1].set(1u32);
+    shared.vars.get().settings_words[1].set(1u32);
     Ok(())
 }

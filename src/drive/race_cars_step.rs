@@ -18,21 +18,22 @@ use rc2k_core::drive::race_steps;
 /// One car's step (0x4608CA ..).
 fn car_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
     let (scene, net) = (o.scene, o.net);
-    for word in &race.shared.physics_tables.input_words {
+    for word in &race.shared.physics_tables.get().input_words {
         word.set(0);
     }
-    let slot = race_steps::block_slot(race.shared.work.current_car.get());
+    let slot = race_steps::block_slot(race.shared.work.get().current_car.get());
     race.shared
         .work
+        .get()
         .work_block
-        .set(race.shared.work.car_block(slot));
+        .set(race.shared.work.get().car_block(slot));
     crate::drive::load_car::load_car(&race.shared)?;
     if race.shared.car().driver_kind.get() != 0 {
         crate::drive::read_car_controls::read_car_controls(race, net, scene)?;
         crate::physics::gear_input_rules::gear_input_rules(
             race.shared.car(),
-            &race.shared.physics_tables,
-            &race.shared.vars,
+            race.shared.physics_tables.get(),
+            race.shared.vars.get(),
         );
         crate::physics::car_physics_step::car_physics_step(o, race)?;
     }
@@ -44,12 +45,12 @@ fn car_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refuse
 pub fn race_cars_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
     let (scene, net) = (o.scene, o.net);
     let shared = &race.shared;
-    race_steps::check_cars(shared.view.race_cars.get())?;
+    race_steps::check_cars(shared.view.get().race_cars.get())?;
     crate::drive::choose_shown_cars::choose_shown_cars_in(race, net)?;
     race_steps::each_car(
-        || shared.work.current_car.get(),
-        || shared.view.race_cars.get(),
-        |n| shared.work.current_car.set(n),
+        || shared.work.get().current_car.get(),
+        || shared.view.get().race_cars.get(),
+        |n| shared.work.get().current_car.set(n),
         || car_step(o, race),
     )?;
     crate::drive::animate_stage::animate_stage(race, scene)?;

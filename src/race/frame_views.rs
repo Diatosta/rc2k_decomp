@@ -27,12 +27,12 @@ pub fn full_view_window(
     window.view_offset[1].set(0);
     window.view_zoom.set(0x100);
     crate::scene::set_view_window::set_view_window(
-        race,
         race.course.reads(),
         scene.drawing.scene.get(),
         session.screen.get(),
         window,
         &race.frame.view_and_records.get().view_vars,
+        &race.shared.vars.get().scale_factor,
     );
     // The original stores 0 in `g_drawMode` here for the frame's first view: never anything
     // else anywhere (it starts at 0; modes 1 and 2 are only read), so not kept (the drawing
@@ -63,7 +63,7 @@ pub fn mirror_view_window(
     // Converted: `rc2k_core::race::view::{mirror_entry, mirror_window}`.
     use rc2k_core::race::view::{MirrorRect, mirror_entry, mirror_window};
     let n = mirror_entry(
-        race.shared.vars.split.get(),
+        reads.vars.split.get(),
         drawn_view,
         reads.panel_and_overlay.panel.flat.get() == 0,
     );
@@ -107,12 +107,12 @@ pub fn mirror_view_window(
     poly.cleared_rectangle[3].set(y.wrapping_add(sy));
     poly.window.view_zoom.set(0x100);
     crate::scene::set_view_window::set_view_window_reaching(
-        race,
         reads.course(),
         draw,
         reads.screen,
         &poly.window,
         vars,
+        &reads.vars.scale_factor,
         MIRROR_REACH,
     );
     crate::race::frame_draw::set_up_fog(race, reads.stage_prefs, fog, poly, car, part)?;
@@ -191,10 +191,10 @@ pub fn draw_marks_overlays(
 /// `race::draw_race_scene` and `drive::finish_run`, read no register it leaves.) Refuses
 /// (before anything) car 0 without its block.
 pub fn load_first_car(shared: &RaceShared) -> Result<(), Refused> {
-    if !shared.work.has_car_block(0) {
+    if !shared.work.get().has_car_block(0) {
         return Err(BadInput("car 0 without its block").into());
     }
-    shared.work.current_car.set(0);
+    shared.work.get().current_car.set(0);
     crate::drive::load_car::load_car(shared)?;
     Ok(())
 }
@@ -321,7 +321,10 @@ pub fn forget_view_textures(
     use rc2k_core::race::view_steps::{
         FORGET_COST, FORGET_ORDER, Forget, MIRROR_BIT, MIRROR_COST, check_slots, forgets, mirror_on,
     };
-    let (Ok(first), Ok(second)) = (shared.view.view_number(0), shared.view.view_number(1)) else {
+    let (Ok(first), Ok(second)) = (
+        shared.view.get().view_number(0),
+        shared.view.get().view_number(1),
+    ) else {
         return Err(BadInput("a view without its car block").into());
     };
     let blocks = [first, second];
@@ -437,21 +440,21 @@ pub fn draw_screen_tint(
     // Converted: `rc2k_core::race::view_steps::{NIGHT_ALPHA, NIGHT_COLOUR, glare_alpha,
     // glare_colour}`.
     use rc2k_core::race::view_steps::{NIGHT_ALPHA, NIGHT_COLOUR, glare_alpha, glare_colour};
-    if race.shared.work.in_credits.is_set() {
-        race.shared.vars.quad_colour[1].set(NIGHT_ALPHA);
+    if ctx.reads.work.in_credits.is_set() {
+        ctx.view.quad.colour[1].set(NIGHT_ALPHA);
         window_corners(ctx.view);
-        race.shared.vars.quad_colour[0].set(NIGHT_COLOUR);
+        ctx.view.quad.colour[0].set(NIGHT_COLOUR);
         return crate::scene::draw_tinted_quad::draw_tinted_quad(ctx);
     }
     let sun = ctx.view.polygon.sun.on_screen.get();
     let a = glare_alpha(fog.far.get());
-    race.shared.vars.quad_colour[1].set(a);
+    ctx.view.quad.colour[1].set(a);
     let mut done = Ok(());
     if a != 0 {
         window_corners(ctx.view);
         // The two glare bytes (`glare_bytes`, StagePrefs.glare_bytes[1]): the low bytes of two dwords.
         let byte = |k: usize| ctx.reads.stage_prefs.glare_bytes[k].get() as u8;
-        race.shared.vars.quad_colour[0].set(glare_colour(
+        ctx.view.quad.colour[0].set(glare_colour(
             ctx.reads.stage_prefs.lamp_table_c.get(),
             byte(0),
             byte(1),
@@ -498,14 +501,14 @@ pub fn draw_own_car(
     let (race, scene) = (ctx.race, ctx.scene);
     // Converted: `rc2k_core::race::view_steps::{car_number, seen_inside, clears_depth}`.
     use rc2k_core::race::view_steps::{car_number, clears_depth, seen_inside};
-    if race.shared.switches.scene_set_up.get() == 0 {
+    if ctx.reads.switches.scene_set_up.get() == 0 {
         return Ok(());
     }
-    let number = race.shared.view.view_cars[ctx.view.drawn_view(race) as usize].get();
-    if !race.shared.work.has_car_block(car_number(number) as usize) {
+    let number = ctx.reads.view.view_cars[ctx.view.drawn_view(race) as usize].get();
+    if !ctx.reads.work.has_car_block(car_number(number) as usize) {
         return Err(BadInput("the drawn car without its block").into());
     }
-    let car = race.shared.work.block_number(car_number(number) as usize)?;
+    let car = ctx.reads.work.block_number(car_number(number) as usize)?;
     ctx.view.vars.drawn_car.set(number);
     ctx.view.state.drawn_car.set(number);
     // The state bits are the view's own; the rest, the car as seen.
@@ -570,7 +573,7 @@ pub fn run_view_marks(
     use rc2k_core::race::view_steps::{
         CAR_RECORDS, check_view_marks, first_word, layout_index, marks_shown,
     };
-    if race.shared.switches.view_marks_on.get() == 0 {
+    if ctx.reads.switches.view_marks_on.get() == 0 {
         return Ok(());
     }
     let view = ctx.view.drawn_view(race);
@@ -582,16 +585,16 @@ pub fn run_view_marks(
     )?;
     let (other, own) = marks_shown(
         view,
-        race.shared.vars.scene_switch.get(),
+        ctx.reads.vars.scene_switch.get(),
         race.physics.split_tables().still.get(),
     );
     race.effects_settings().other_marks_shown.set(other);
     race.effects_settings().own_marks_shown.set(own);
-    let layout_at = layout_index(view, race.shared.vars.split.get());
+    let layout_at = layout_index(view, ctx.reads.vars.split.get());
     let layout = race.frame.frame_work.get().view_layouts[layout_at as usize].get();
     race.effects_settings().marks_layout.set(layout);
     crate::math::cells::copy_cells(
-        &ctx.reads.cars_and_replay.car_blocks.cars[race.shared.view.view_number(view as usize)?]
+        &ctx.reads.cars_and_replay.car_blocks.cars[ctx.reads.view.view_number(view as usize)?]
             .whole_matrix,
         &race.frame.matrices.view_place,
         16,
@@ -603,7 +606,7 @@ pub fn run_view_marks(
         ctx.net,
         crate::drive::set_listener::ListenerView::of(ctx.view, race),
     )?;
-    let first = first_word(race.shared.vars.run_kind.get());
+    let first = first_word(ctx.reads.vars.run_kind.get());
     for b in 0..CAR_RECORDS {
         race.shared.car_record(b as usize)?.streaks_on.set(first);
     }

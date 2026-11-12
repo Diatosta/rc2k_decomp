@@ -69,8 +69,8 @@ pub fn settle_car(c: &ResetInputs<'_>, scene: &crate::scene::owner::Scene) -> Re
     crate::physics::set_handling::set_handling(c.physics.damage(), c.numbers, c.shared)?;
     shared.car().car_pitch.set(0);
     shared.car().car_roll.set(0);
-    shared.physics_tables.settle_steps[0].set(0x2000_0000u32);
-    shared.physics_tables.settle_steps[1].set(0x2000_0000u32);
+    shared.physics_tables.get().settle_steps[0].set(0x2000_0000u32);
+    shared.physics_tables.get().settle_steps[1].set(0x2000_0000u32);
     physics.ground_probe.get().settle_mark.set(0x80);
     for _ in 0..8 {
         let w = matrix_and_wheels(&shared.buffers.engine_tables, &c.ground, c.matrices, scene)?;
@@ -78,13 +78,13 @@ pub fn settle_car(c: &ResetInputs<'_>, scene: &crate::scene::owner::Scene) -> Re
             w[0].wrapping_add(w[2]),
             w[1].wrapping_add(w[3]),
             &shared.car().car_roll,
-            &shared.physics_tables.settle_steps[1],
+            &shared.physics_tables.get().settle_steps[1],
         );
         settle_step(
             w[0].wrapping_add(w[1]),
             w[2].wrapping_add(w[3]),
             &shared.car().car_pitch,
-            &shared.physics_tables.settle_steps[0],
+            &shared.physics_tables.get().settle_steps[0],
         );
     }
     let w = matrix_and_wheels(&shared.buffers.engine_tables, &c.ground, c.matrices, scene)?;
@@ -260,12 +260,12 @@ pub fn start_cars(
     net: &crate::net::owner::Net,
 ) -> Result<(), Refused> {
     let shared = &race.shared;
-    let cars: u32 = shared.view.race_cars.get();
+    let cars: u32 = shared.view.get().race_cars.get();
     if cars == 0 || cars > MOST_CARS {
         return Err(BadInput("no cars or more than eight").into());
     }
     for n in 0..cars {
-        shared.work.current_car.set(n);
+        shared.work.get().current_car.set(n);
         crate::drive::load_car::load_car(shared)?;
         start_car(
             &crate::physics::step_inputs::StepInputs::of(race).reset(),

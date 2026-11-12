@@ -42,7 +42,7 @@ fn place_with(
     second: &dyn Fn() -> [i32; 3],
     scene: &crate::scene::owner::Scene,
 ) {
-    let figures = if shared.vars.split.get() == SECOND_RECORD_MODE {
+    let figures = if shared.vars.get().split.get() == SECOND_RECORD_MODE {
         &lights_data.place_second
     } else {
         &lights_data.place_usual

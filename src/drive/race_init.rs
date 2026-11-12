@@ -52,8 +52,8 @@ pub fn race_init(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), R
     log(c"RACEINIT : setbestline");
     indent_by(race_steps::LOG_INDENT);
     crate::race::best_line::build_best_line(race, scene)?;
-    if race_steps::no_best_line(race_owner.shared.vars.checkpoint_count.get()) {
-        if race_owner.shared.switches.editor_mode.get() != 0 {
+    if race_steps::no_best_line(race_owner.shared.vars.get().checkpoint_count.get()) {
+        if race_owner.shared.switches.get().editor_mode.get() != 0 {
             return Ok(());
         }
         return Err(FatalError {

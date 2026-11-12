@@ -447,7 +447,7 @@ pub fn draw_polygon(
         let (mode, texture): (u32, u32) = (face.polygon_mode.get(), poly.texture_page.get());
         // The faded first pass: each vertex fades by its own fog byte.
         let (from, alpha): (u32, u32) = (poly.fade_from.get(), face.fade_alpha.get());
-        let uv = crate::session::read_bits(&race.shared.vars.fade_uv);
+        let uv = crate::session::read_bits(&reads.vars.fade_uv);
         for (n, &(_, entry)) in entries.iter().enumerate() {
             let out = out(buffer, n);
             let by = entry.fog.get() as u32;

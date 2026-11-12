@@ -7,117 +7,117 @@
 
 #[cfg(test)]
 use crate::race::owner::race;
-use crate::session::{Dword, Float};
+use crate::session::{PlainDword, PlainFloat};
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct RaceView {
     /// +0x0 (0x63D9B8): `g_reflectionsKept` (`scene::cached_reflection_coordinates`); now each view's (`race::face_work::FaceWork`); unused.
-    pub reflections_kept: Dword,
+    pub reflections_kept: PlainDword,
     /// +0x4 (0x63D9BC): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unused_4: [Dword; 5],
+    pub unused_4: [PlainDword; 5],
     /// +0x18 (0x63D9D0): the face's surface kinds (`race::course_faces`, `physics::wheel_surfaces`, `race::best_line`).
-    pub surface_kinds: [Dword; 4],
+    pub surface_kinds: [PlainDword; 4],
     /// +0x28 (0x63D9E0): `g_depthTest` (`race::course_faces`); now each view's (`FaceWork::depth_test`); unused.
-    pub depth_test: Dword,
+    pub depth_test: PlainDword,
     /// +0x2c (0x63D9E4): the face's halves turned to the view (`race::course_faces`); now each view's (`race::face_work::FaceWork`); unused.
-    pub face_turned: [Dword; 2],
+    pub face_turned: [PlainDword; 2],
     /// +0x34 (0x63D9EC): the face's corners ([3] -1 for faces of three points, `race::norms`); now each view's (`race::face_work::FaceWork`); here only the image's first values, which
     /// `race::norms` reads before any face was drawn (`face_work::last_fourth_corner`).
-    pub corners: [Dword; 4],
+    pub corners: [PlainDword; 4],
     /// +0x44 (0x63D9FC): (`race::course_faces`).
-    pub slope: Float,
+    pub slope: PlainFloat,
     /// +0x48 (0x63DA00): (`race::course_faces`).
-    pub near: Float,
+    pub near: PlainFloat,
     /// +0x4c (0x63DA04): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unused_4c: Dword,
-    /// +0x50 (0x63DA08): the frame the face was drawn in (`race::course_faces`).
-    pub face_frame: Dword,
+    pub unused_4c: PlainDword,
+    /// +0x50 (0x63DA08): the frame the face was drawn in (`race::face_materials` wrote it; nothing read it, so it is no longer written); unused.
+    pub face_frame: PlainDword,
     /// +0x54 (0x63DA0C): the first texture's coordinates by corner, x then y; now each view's (`race::face_work::FaceWork`); unused.
-    pub corner_uv: [Dword; 8],
+    pub corner_uv: [PlainDword; 8],
     /// +0x74 (0x63DA2C): the first texture (`race::course_faces`); now each view's (`race::face_work::FaceWork`); unused.
-    pub texture_a: Dword,
+    pub texture_a: PlainDword,
     /// +0x78 (0x63DA30): its corner order; now each view's (`race::face_work::FaceWork`); unused.
-    pub order_a: Dword,
+    pub order_a: PlainDword,
     /// +0x7c (0x63DA34): its back; now each view's (`race::face_work::FaceWork`); unused.
-    pub back_a: Dword,
+    pub back_a: PlainDword,
     /// +0x80 (0x63DA38): the second texture (`scene::draw_polygon`'s material); now each view's (`race::face_work::FaceWork`); unused.
-    pub texture_b: Dword,
+    pub texture_b: PlainDword,
     /// +0x84 (0x63DA3C): its corner order; now each view's (`race::face_work::FaceWork`); unused.
-    pub order_b: Dword,
+    pub order_b: PlainDword,
     /// +0x88 (0x63DA40): its back; now each view's (`race::face_work::FaceWork`); unused.
-    pub back_b: Dword,
+    pub back_b: PlainDword,
     /// +0x8c (0x63DA44): the colour by corner; now each view's (`race::face_work::FaceWork`); unused.
-    pub corner_colours: [Dword; 4],
+    pub corner_colours: [PlainDword; 4],
     /// +0x9c (0x63DA54): the light by corner; now each view's (`race::face_work::FaceWork`); unused.
-    pub corner_lights: [Dword; 4],
+    pub corner_lights: [PlainDword; 4],
     /// +0xac (0x63DA64): the see-through by corner (a byte); now each view's (`race::face_work::FaceWork`); unused.
-    pub corner_alphas: [Dword; 4],
+    pub corner_alphas: [PlainDword; 4],
     /// +0xbc (0x63DA74): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unused_bc: [Dword; 2],
+    pub unused_bc: [PlainDword; 2],
     /// +0xc4 (0x63DA7C): `g_turnedCornerOrder`: the turned orders, a byte table read in place (`race::course_faces`).
-    pub turned_corner_order: [Dword; 14],
+    pub turned_corner_order: [PlainDword; 14],
     /// +0xfc (0x63DAB4): `g_polygonMode`; now each view's (`race::face_work::FaceWork`); unused.
-    pub polygon_mode: Dword,
+    pub polygon_mode: PlainDword,
     /// +0x100 (0x63DAB8): the second texture's coordinates by corner, x then y; now each view's (`race::face_work::FaceWork`); unused.
-    pub corner_uv_b: [Dword; 8],
+    pub corner_uv_b: [PlainDword; 8],
     /// +0x120 (0x63DAD8): `g_cornerUvOffsets`: by order, four.
-    pub corner_uv_offsets: [Dword; 32],
+    pub corner_uv_offsets: [PlainDword; 32],
     /// +0x1a0 (0x63DB58): `g_lampsWanted`; now each view's (`race::lamp_work::LampWork`); unused.
-    pub lamps_wanted: Dword,
+    pub lamps_wanted: PlainDword,
     /// +0x1a4 (0x63DB5C): (`drive::share_car_state`).
-    pub level_from: Float,
+    pub level_from: PlainFloat,
     /// +0x1a8 (0x63DB60): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unused_1a8: [Dword; 3],
+    pub unused_1a8: [PlainDword; 3],
     /// +0x1b4 (0x63DB6C): `g_viewLamps`: 0 from `race::draw_view_scene`, read by nothing; no longer written.
-    pub view_lamps: Dword,
+    pub view_lamps: PlainDword,
     /// +0x1b8 (0x63DB70): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unused_1b8: Dword,
+    pub unused_1b8: PlainDword,
     /// +0x1bc (0x63DB74): each view on (`race::draw_race_scene`, `race::show_replay_still`).
-    pub view_on: [Dword; 2],
+    pub view_on: [PlainDword; 2],
     /// +0x1c4 (0x63DB7C): the two players' option bits (`drive::replay_cameras`, `race::settings_copy`).
-    pub player_options: [Dword; 2],
+    pub player_options: [PlainDword; 2],
     /// +0x1cc (0x63DB84): the race's ticks run while below it (`drive::race_tick`; `race::credits_race`).
-    pub after_credits: Dword,
+    pub after_credits: PlainDword,
     /// +0x1d0 (0x63DB88): (`drive::choose_shown_cars`, `drive::replay_cameras`).
-    pub view_switch: Dword,
+    pub view_switch: PlainDword,
     /// +0x1d4 (0x63DB8C): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unused_1d4: Dword,
+    pub unused_1d4: PlainDword,
     /// +0x1d8 (0x63DB90): `g_raceCars`: the race's cars.
-    pub race_cars: Dword,
+    pub race_cars: PlainDword,
     /// +0x1dc (0x63DB94): the players (`settings.race_mode`; `[shaunnumplayers]`).
-    pub players: Dword,
+    pub players: PlainDword,
     /// +0x1e0 (0x63DB98): the views shown (`race::draw_race_scene`'s one view; the second player's).
-    pub views: Dword,
+    pub views: PlainDword,
     /// +0x1e4 (0x63DB9C): `g_drawnView`.
-    pub drawn_view: Dword,
+    pub drawn_view: PlainDword,
     /// +0x1e8 (0x63DBA0): this machine's car (`net::lets_race`).
-    pub local_car: Dword,
+    pub local_car: PlainDword,
     /// +0x1ec (0x63DBA4): `g_shownCar`: the drawn view's car, read only by `race::car_light_modes`, which keeps it itself; no longer written.
-    pub shown_car: Dword,
+    pub shown_car: PlainDword,
     /// +0x1f0 (0x63DBA8): each view's car.
-    pub view_cars: [Dword; 2],
+    pub view_cars: [PlainDword; 2],
     /// +0x1f8 (0x63DBB0): `g_viewBlocks`: each view's car block (by handle:
     /// `blocks_store::block_ref`; read through `view_block`).
-    pub view_blocks: [Dword; 2],
+    pub view_blocks: [PlainDword; 2],
     /// +0x200 (0x63DBB8): cleared by `race::draw_race_scene`.
-    pub view_cleared: [Dword; 32],
+    pub view_cleared: [PlainDword; 32],
     /// +0x280 (0x63DC38): (`race::show_frame`).
-    pub clock_base: Dword,
+    pub clock_base: PlainDword,
     /// +0x284 (0x63DC3C): (`race::show_frame`).
-    pub frame_time: Dword,
+    pub frame_time: PlainDword,
     /// +0x288 (0x63DC40): `g_faceDepthKey`; now each view's (`race::face_work::FaceWork`); unused.
-    pub face_depth_key: Dword,
+    pub face_depth_key: PlainDword,
     /// +0x28c (0x63DC44): (`race::frame_draw`); written only, by nothing now (a dead store); unused.
-    pub face_side: Dword,
+    pub face_side: PlainDword,
     /// +0x290 (0x63DC48): `g_lampCount`; now each view's (`race::lamp_work::LampWork`); unused.
-    pub lamp_count: Dword,
+    pub lamp_count: PlainDword,
     /// +0x294 (0x63DC4C): `g_depthEntryCount`.
-    pub depth_entry_count: Dword,
+    pub depth_entry_count: PlainDword,
     /// +0x298 (0x63DC50): `g_sortEntryCount`.
-    pub sort_entry_count: Dword,
+    pub sort_entry_count: PlainDword,
     /// +0x29c (0x63DC54): how far is seen times 0x20, twice (`scene::set_view_window`); now each view's (`scene::view_window`); unused.
-    pub view_depth: [Dword; 2],
+    pub view_depth: [PlainDword; 2],
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
@@ -147,7 +147,7 @@ impl RaceView {
     pub fn drawn_view_car(&self, drawn: u32) -> Result<u32, crate::errors::BadInput> {
         self.view_cars
             .get(drawn as usize)
-            .map(Dword::get)
+            .map(PlainDword::get)
             .ok_or(crate::errors::BadInput("a drawn view past the two"))
     }
 }
@@ -162,7 +162,7 @@ const _: () = assert!(END - START == core::mem::size_of::<RaceView>());
 /// The piece's host address (the alignment checks).
 #[cfg(test)]
 pub fn piece_addr() -> usize {
-    core::ptr::from_ref(&race().shared.view).addr()
+    core::ptr::from_ref(race().shared.view.get()).addr()
 }
 
 #[cfg(test)]

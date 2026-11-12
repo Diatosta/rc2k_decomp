@@ -50,7 +50,7 @@ pub fn loading_bar_frame(
         let mut last = LAST_FRAME
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if race.shared.vars.bar_share.get() < 100
+        if race.shared.vars.get().bar_share.get() < 100
             && last.is_some_and(|last| begun.duration_since(last) < BAR_FRAME)
         {
             return Ok(());
@@ -75,7 +75,8 @@ fn frame(
     // Converted: `rc2k_core::race::loading::{FRAME_MARK, frame_tried}`.
     use crate::scene::*;
     use rc2k_core::race::loading::{FRAME_MARK, frame_tried};
-    if !shared.work.in_credits.is_set() && !STAGE_LOADING.load(std::sync::atomic::Ordering::Relaxed)
+    if !shared.work.get().in_credits.is_set()
+        && !STAGE_LOADING.load(std::sync::atomic::Ordering::Relaxed)
     {
         return Ok(());
     }
@@ -89,10 +90,10 @@ fn frame(
             break 'frame false;
         }
         begin_scene::begin_scene(race, d3d, crate::workers::game_scratch());
-        let framed: u32 = shared.switches.editor_mode.get();
-        shared.switches.editor_mode.set(0u32);
+        let framed: u32 = shared.switches.get().editor_mode.get();
+        shared.switches.get().editor_mode.set(0u32);
         choose_view_window::choose_view_window(race, scene, system);
-        shared.switches.editor_mode.set(framed);
+        shared.switches.get().editor_mode.set(framed);
         crate::race::loading_bar_quad::loading_bar_quad(race, system, scene)?;
         end_scene::end_scene(d3d);
         if lock_frame::lock_frame(race, gfx, system).0 < 1 {

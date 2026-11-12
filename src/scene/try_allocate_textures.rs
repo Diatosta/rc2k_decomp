@@ -66,7 +66,7 @@ impl rc2k_core::scene::textures::TextureMemory for GameMemory<'_> {
         level_size(self.scene.objects.tables.get(), level as usize)
     }
     fn mips(&self) -> u32 {
-        self.shared.vars.mip_setting.get()
+        self.shared.vars.get().mip_setting.get()
     }
     fn level_mips(&self, level: u32) -> u32 {
         self.scene.objects.tables.get().level_mips[level as usize].get()

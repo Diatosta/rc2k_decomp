@@ -80,8 +80,7 @@ pub fn set_object_light_in_game(
     set_object_light(
         &mut || {
             add_car_lights(
-                race,
-                &ctx.reads.cars_and_replay.car_blocks,
+                ctx.reads,
                 ctx.net,
                 ctx.view.light.drawn_car_light.get(),
                 ctx.view.drawn_view(race),

@@ -21,12 +21,12 @@ pub fn loading_bar_quad(
         session.screen.get().width.get(),
         session.screen.get().height.get(),
     ];
-    let bar = loading_bar(w, h, shared.vars.bar_share.get());
+    let bar = loading_bar(w, h, shared.vars.get().bar_share.get());
     let scratch = crate::race::view_scratch::front_end();
     let polygon = &scratch.polygon;
     // The quad's colour (0x623DE8); x at +0x28 / +0x2C, y at +0x38 / +0x3C.
     scratch.quad.corners[0].set(bar.left);
-    shared.vars.quad_colour[0].set(BAR_COLOUR);
+    scratch.quad.colour[0].set(BAR_COLOUR);
     scratch.quad.corners[4].set(bar.top);
     scratch.quad.corners[5].set(bar.bottom);
     scratch.quad.corners[1].set(bar.right);

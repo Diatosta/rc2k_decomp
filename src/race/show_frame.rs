@@ -27,7 +27,7 @@ pub fn show_frame(race: &Race, o: crate::owners::Owners<'static>) -> Result<Show
             eax: kept,
         });
     }
-    if race.shared.work.in_credits.is_set() {
+    if race.shared.work.get().in_credits.is_set() {
         crate::race::frame_text::roll_credits(
             crate::strings::append_string_by_id::StringOwners::of(o),
             frame,
@@ -55,8 +55,8 @@ pub fn show_frame(race: &Race, o: crate::owners::Owners<'static>) -> Result<Show
         &race.shared,
         crate::system::tick_count::tick_count(),
     );
-    let time = clock.wrapping_sub(race.shared.view.clock_base.get());
-    race.shared.view.frame_time.set(time);
+    let time = clock.wrapping_sub(race.shared.view.get().clock_base.get());
+    race.shared.view.get().frame_time.set(time);
     // The measuring leaves the counter's low half as the leftover value on the 16th call, else as it was.
     let eax = { crate::race::measure_frame_rate::measure_frame_rate(race, scene, system) }
         .unwrap_or(time);

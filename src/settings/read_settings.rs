@@ -316,7 +316,7 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"noprecipitation",
         0x71C800,
-        dword!(o => o.race.shared.work.no_precipitation),
+        dword!(o => o.race.shared.work.get().no_precipitation),
     ),
     (
         b"seasoncode",
@@ -326,7 +326,7 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"noautoneutral",
         0x61416C,
-        dword!(o => o.race.shared.physics_tables.no_auto_neutral),
+        dword!(o => o.race.shared.physics_tables.get().no_auto_neutral),
     ),
     (
         b"nonlinearsteering",
@@ -351,67 +351,67 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"fizpatch",
         0x71C6D0,
-        dword!(o => o.race.shared.work.patch_switch),
+        dword!(o => o.race.shared.work.get().patch_switch),
     ),
     (
         b"patchmaxdrawdistance",
         0x71C6D4,
-        dword!(o => o.race.shared.work.patch_settings[0]),
+        dword!(o => o.race.shared.work.get().patch_settings[0]),
     ),
     (
         b"patchstickygrass",
         0x71C6D8,
-        dword!(o => o.race.shared.work.patch_settings[1]),
+        dword!(o => o.race.shared.work.get().patch_settings[1]),
     ),
     (
         b"patchgravity",
         0x71C6DC,
-        dword!(o => o.race.shared.work.patch_settings[2]),
+        dword!(o => o.race.shared.work.get().patch_settings[2]),
     ),
     (
         b"patchdamages",
         0x71C6E0,
-        dword!(o => o.race.shared.work.patch_settings[3]),
+        dword!(o => o.race.shared.work.get().patch_settings[3]),
     ),
     (
         b"patchbrakegrip",
         0x71C6E4,
-        dword!(o => o.race.shared.work.patch_settings[4]),
+        dword!(o => o.race.shared.work.get().patch_settings[4]),
     ),
     (
         b"patchaccelgrip",
         0x71C6E8,
-        dword!(o => o.race.shared.work.patch_settings[5]),
+        dword!(o => o.race.shared.work.get().patch_settings[5]),
     ),
     (
         b"patchslidegrip",
         0x71C6EC,
-        dword!(o => o.race.shared.work.patch_settings[6]),
+        dword!(o => o.race.shared.work.get().patch_settings[6]),
     ),
     (
         b"patchgripgrass",
         0x71C6F0,
-        dword!(o => o.race.shared.work.patch_settings[7]),
+        dword!(o => o.race.shared.work.get().patch_settings[7]),
     ),
     (
         b"patchgriptarmac",
         0x71C6F4,
-        dword!(o => o.race.shared.work.patch_settings[8]),
+        dword!(o => o.race.shared.work.get().patch_settings[8]),
     ),
     (
         b"patchgripsnow",
         0x71C6F8,
-        dword!(o => o.race.shared.work.patch_settings[9]),
+        dword!(o => o.race.shared.work.get().patch_settings[9]),
     ),
     (
         b"patchgripmud",
         0x71C6FC,
-        dword!(o => o.race.shared.work.patch_settings[10]),
+        dword!(o => o.race.shared.work.get().patch_settings[10]),
     ),
     (
         b"patchgripgravel",
         0x71C700,
-        dword!(o => o.race.shared.work.patch_settings[11]),
+        dword!(o => o.race.shared.work.get().patch_settings[11]),
     ),
     (
         b"lexcontrol",

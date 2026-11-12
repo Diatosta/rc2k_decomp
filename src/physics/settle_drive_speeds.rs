@@ -105,9 +105,9 @@ pub fn settle_drive_speeds(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     settle_drive_speeds_at(
-        &shared.physics_tables,
+        shared.physics_tables.get(),
         numbers,
-        &GearPlaces::game(shared.car(), &shared.physics_tables),
+        &GearPlaces::game(shared.car(), shared.physics_tables.get()),
         &SettlePlaces::game(shared, scene),
     )
 }

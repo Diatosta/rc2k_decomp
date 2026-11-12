@@ -13,7 +13,6 @@ use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::Car;
 use crate::physics::ground_probe_store::GroundProbe;
 use crate::physics::ground_query::{GroundCells, GroundQuery};
-use crate::race::owner::Race;
 use crate::race::owner_course::CourseReads;
 use crate::race::scene_points::{OwnPoints, point_word, point_xz, put_point_word};
 use crate::race::shadow_skids_store::ShadowPoint;
@@ -801,8 +800,11 @@ fn angle_of(at: &ShadowPoint) -> u32 {
 /// farthest kept (`work.farthest_length`, `work.farthest`), as whole numbers (x 65536) plus the
 /// car's place. Refuses what `find_ground` refuses (before anything), and no corners or more than
 /// 0x40.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the drawing's stores the part reads, as they are lent"
+)]
 pub fn shadow_points(
-    race: &Race,
     reads: crate::workers::DrawReads<'_>,
     points: &OwnPoints,
     work: &ShadowWork,
@@ -832,7 +834,7 @@ pub fn shadow_points(
         .wrapping_sub(0x40);
     sun_slant(work, sun, turn);
     let (sx, sz) = (work.slant_x.get(), work.slant_z.get());
-    let lift = race.shared.physics_tables.camera_drop.get();
+    let lift = reads.physics_tables.camera_drop.get();
     let unit = reads.numbers.k65536.get();
     for k in 0..count {
         let at = point_at(work, k)?;
@@ -885,14 +887,13 @@ pub fn cast_car_shadow(
     car: &Car,
     sun: u32,
 ) -> Result<(), Refused> {
-    let race = ctx.race;
     // Converted: `rc2k_core::race::shadow::{casts, hull_drawn, hull_list,
     // SHADOW_TEXTURE}`.
     use rc2k_core::race::shadow::{SHADOW_TEXTURE, casts, hull_drawn, hull_list};
     if !casts(work.point_count.get()) {
         return Ok(());
     }
-    shadow_points(race, ctx.reads, &ctx.part.points, work, car, sun)?;
+    shadow_points(ctx.reads, &ctx.part.points, work, car, sun)?;
     shadow_angles(ctx.reads.numbers, work)?;
     shadow_hull(work)?;
     if !hull_drawn(work.hull_count.get()) {
@@ -919,15 +920,14 @@ pub fn cast_car_shadow(
 /// `stage_prefs.sun_height` to it and put it back after: an argument here); the depth test on.
 /// Refuses (before anything) no cars or more than eight, or a null block.
 pub fn cast_car_shadows(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
-    let race = ctx.race;
     // Converted: `rc2k_core::race::shadow::{check_shadow_cars, casts_shadow, first_pass,
     // SHADOW_STRENGTH, SUN_PASS}`.
     use rc2k_core::race::shadow::{
         SHADOW_STRENGTH, SUN_PASS, casts_shadow, check_shadow_cars, first_pass,
     };
-    let cars: u32 = race.shared.view.race_cars.get();
+    let cars: u32 = ctx.reads.view.race_cars.get();
     check_shadow_cars(cars, |n| {
-        u32::from(race.shared.work.has_car_block(n as usize))
+        u32::from(ctx.reads.work.has_car_block(n as usize))
     })?;
     let work = ShadowWork::new();
     crate::scene::depth_test_off::depth_test_off(ctx.part);
@@ -936,7 +936,8 @@ pub fn cast_car_shadows(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
         // Each car's shadow from its own block (the original loaded it into the work car,
         // `drive::load_car`, and left the last one there for the rest of the view:
         // `notes/bugs.md`).
-        let car = race.shared.race_car_or_in(
+        let car = crate::race::owner_shared::RaceShared::race_car_or_in(
+            ctx.reads.work,
             &ctx.reads.cars_and_replay.car_blocks,
             n as usize,
             "a car's block",
@@ -944,13 +945,13 @@ pub fn cast_car_shadows(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
         if !casts_shadow(
             ctx.view
                 .cars
-                .state_of(race.shared.work.block_number(n as usize)?)?
+                .state_of(ctx.reads.work.block_number(n as usize)?)?
                 .get(),
         ) {
             continue;
         }
         work.point_count.set(car.probe_count.get());
-        if first_pass(race.shared.vars.settings_words[2].get()) {
+        if first_pass(ctx.reads.vars.settings_words[2].get()) {
             let sun: u32 = ctx.reads.stage_prefs.sun_height.get();
             cast_car_shadow(ctx, &work, car, sun)?;
         }

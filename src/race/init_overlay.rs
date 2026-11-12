@@ -25,7 +25,7 @@ pub fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
         // Converted: `rc2k_core::race::panel::{overlay_parts, half_length, OVERLAY_SIZES,
         // OVERLAY_CLEARED}`; the miles the x87's.
         use rc2k_core::race::panel::{OVERLAY_CLEARED, OVERLAY_SIZES, half_length, overlay_parts};
-        let (found, parts) = overlay_parts(race.shared.vars.checkpoint_count.get(), || {
+        let (found, parts) = overlay_parts(race.shared.vars.get().checkpoint_count.get(), || {
             race.physics.split_tables().split_colour_count.get()
         })?;
         if let Some(count) = found {
@@ -145,7 +145,7 @@ pub fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
         for (cell, value) in sizes.into_iter().zip(OVERLAY_SIZES) {
             cell.set(value);
         }
-        for car in 0..race.shared.work.car_blocks.len() {
+        for car in 0..race.shared.work.get().car_blocks.len() {
             for off in OVERLAY_CLEARED {
                 crate::race::race_init::state_cell(race.shared.race_car(car)?, off)?.set(0);
             }

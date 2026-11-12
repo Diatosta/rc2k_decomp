@@ -25,15 +25,15 @@ pub fn throw_mud_texel(
     // Converted: `rc2k_core::race::mud::{LAST_THROWN, extra_throw}`.
     let n = texture_and_mud(&race.shared)?;
     // `mud_thrown_counts`: each texture's count (the texture is 0 .. 3).
-    let count_cell = &shared.vars.mud_thrown_counts[n as usize];
+    let count_cell = &shared.vars.get().mud_thrown_counts[n as usize];
     let count: u32 = count_cell.get();
     if count >= LAST_THROWN {
         return Ok(());
     }
     count_cell.set(count + 1);
     muddy_texel(race, count, scene, gfx, system)?;
-    let (sum, carried) = rc2k_core::race::mud::extra_throw(shared.vars.mud_extra_sum.get());
-    shared.vars.mud_extra_sum.set(sum);
+    let (sum, carried) = rc2k_core::race::mud::extra_throw(shared.vars.get().mud_extra_sum.get());
+    shared.vars.get().mud_extra_sum.set(sum);
     if !carried {
         return Ok(());
     }

@@ -24,14 +24,14 @@ pub fn test_drive(
     crate::physics::load_car_specs::load_car_specs(
         car_specs,
         course,
-        &shared.physics_tables,
+        shared.physics_tables.get(),
         shared.car(),
         gear,
         scene,
     )?;
     crate::physics::make_gear_ratios::make_gear_ratios(
         shared.car(),
-        &shared.physics_tables,
+        shared.physics_tables.get(),
         course.numbers.get(),
         gear,
         scene,

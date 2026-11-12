@@ -211,7 +211,7 @@ impl ViewScratch {
     /// game thread writes (the race's views set it before each is drawn, frame plan F7).
     pub fn drawn_view(&self, race: &crate::race::owner::Race) -> u32 {
         match self.number() {
-            4 => race.shared.view.drawn_view.get(),
+            4 => race.shared.view.get().drawn_view.get(),
             n => (n % 2) as u32,
         }
     }
@@ -318,7 +318,7 @@ impl<'a> DrawCtx<'a> {
             net,
             input,
             view,
-            clock: race.shared.physics_tables.scene_clock.get(),
+            clock: reads.physics_tables.scene_clock.get(),
             far_clip: true,
             marks: &crate::scene::car_marks::NONE,
             part,

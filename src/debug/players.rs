@@ -114,7 +114,7 @@ fn write_log(o: &Owners<'static>) {
     }
     log(&format!(
         "shaungmode: {}",
-        figure(o.race.shared.vars.run_kind.get())
+        figure(o.race.shared.vars.get().run_kind.get())
     ));
     for car in 0..10 {
         log(&format!("car {}", car + 1));
@@ -162,7 +162,7 @@ pub fn tab(o: &Owners<'static>, ui: &Ui) {
     ui.same_line();
     ui.text(format!(
         "shaungmode (run kind): {}",
-        figure(o.race.shared.vars.run_kind.get())
+        figure(o.race.shared.vars.get().run_kind.get())
     ));
     if ui.collapsing_header(
         "Cars (the race dump)",

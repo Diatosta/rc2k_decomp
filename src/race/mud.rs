@@ -82,10 +82,10 @@ pub fn load_mud(kinds: &KindTables, shared: &RaceShared, session: u32) -> Result
         kinds,
         shared.own_car(session).car_kind.get(),
     ));
-    shared.vars.mud_path.set(0x11, tens as u8);
-    shared.vars.mud_path.set(0x12, units as u8);
+    shared.vars.get().mud_path.set(0x11, tens as u8);
+    shared.vars.get().mud_path.set(0x12, units as u8);
     MUD.with(|mud| {
-        crate::files::read_whole_file::read_whole_file_into(&shared.vars.mud_path.text(), mud)
+        crate::files::read_whole_file::read_whole_file_into(&shared.vars.get().mud_path.text(), mud)
     })??;
     Ok(())
 }
@@ -93,7 +93,7 @@ pub fn load_mud(kinds: &KindTables, shared: &RaceShared, session: u32) -> Result
 /// `race::clear_mud_state` (0x449E01): the 18 dwords at 0x623D58 and the two more 0.
 pub fn clear_mud_state(shared: &RaceShared) {
     // The 18 dwords from `mud_frames` to the end of `mud_splash_counts`.
-    let v = &shared.vars;
+    let v = shared.vars.get();
     v.mud_frames.set(0);
     v.mud_texture.set(0);
     for k in 0..4 {
@@ -124,7 +124,7 @@ pub fn sample_mud_colours(
     // Converted: `rc2k_core::race::mud::sample_place`.
     for n in 0..rc2k_core::race::mud::SAMPLES {
         let (x, y) = rc2k_core::race::mud::sample_place(n);
-        shared.vars.mud_colours[n as usize].set(mud_pixel(x, y, gfx, system)?);
+        shared.vars.get().mud_colours[n as usize].set(mud_pixel(x, y, gfx, system)?);
     }
     crate::d3d::unlock_texture::unlock_texture(
         textures.kinds.get().kind_first_textures[193].get(),

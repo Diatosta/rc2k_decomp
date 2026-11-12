@@ -32,7 +32,6 @@ use crate::race::owner_course::Course;
 use crate::race::vars_store::RaceVars;
 use crate::scene::matrix3::extended;
 use crate::session::Cell32;
-use crate::session::Float;
 use crate::session::FloatLike;
 use crate::session::PlainFloat;
 
@@ -42,7 +41,7 @@ fn abs_below(x: impl x87::Flt, y: impl x87::Flt) -> bool {
 }
 
 /// `fld from; fstp to`.
-fn store_loaded(to: &Float, from: &Float) {
+fn store_loaded(to: &PlainFloat, from: &PlainFloat) {
     to.set(x87::loaded(from));
 }
 
@@ -50,10 +49,10 @@ fn store_loaded(to: &Float, from: &Float) {
 #[derive(Clone, Copy)]
 struct SlipCells<'a> {
     drive: &'a PlainFloat,
-    slip: &'a Float,
-    ratio: &'a Float,
-    f1: &'a Float,
-    f2: &'a Float,
+    slip: &'a PlainFloat,
+    ratio: &'a PlainFloat,
+    f1: &'a PlainFloat,
+    f2: &'a PlainFloat,
 }
 
 /// 0x43E5CF .. 0x43E643 (and the second wheel's at 0x43E68D): the slip `s` (at `slip`)
@@ -84,9 +83,9 @@ fn slip_limit(
     car: &Car,
     tables: &PhysicsTables,
     drive: &PlainFloat,
-    ratio: &Float,
-    force: &Float,
-    slip: &Float,
+    ratio: &PlainFloat,
+    force: &PlainFloat,
+    slip: &PlainFloat,
 ) {
     slip_ratio_size(car, tables, drive, ratio);
     let pick = if c0(ratio, force) { ratio } else { force };
@@ -344,7 +343,7 @@ fn abs_status(v: [u32; 2]) -> u16 {
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[r + 0] = ([d + 0] - [rc + 0x31A184]) / [spec_wheel]`
-fn slip_ratio(car: &Car, tables: &PhysicsTables, d: &impl Cell32, r: &Float) {
+fn slip_ratio(car: &Car, tables: &PhysicsTables, d: &impl Cell32, r: &PlainFloat) {
     let t0 = d.ld();
     let t1 = car.local_velocity[2].ld();
     let t2 = t0 - t1;
@@ -362,9 +361,9 @@ fn apply_slip_to_drive(
     tables: &PhysicsTables,
     numbers: &Numbers,
     d: &impl Cell32,
-    s: &Float,
-    f1: &Float,
-    f2: &Float,
+    s: &PlainFloat,
+    f1: &PlainFloat,
+    f2: &PlainFloat,
 ) {
     let t0 = d.ld();
     let t1 = tables.spec_wheel.ld();
@@ -386,7 +385,7 @@ fn apply_slip_to_drive(
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[r + 0] = |(([d + 0] - [rc + 0x31A184]) / [spec_wheel])|`
-fn slip_ratio_size(car: &Car, tables: &PhysicsTables, d: &impl Cell32, r: &Float) {
+fn slip_ratio_size(car: &Car, tables: &PhysicsTables, d: &impl Cell32, r: &PlainFloat) {
     let t0 = d.ld();
     let t1 = car.local_velocity[2].ld();
     let t2 = t0 - t1;
@@ -412,7 +411,7 @@ fn signed_share(tables: &PhysicsTables, numbers: &Numbers) {
 /// (a long formula: checked by the tests' `reference_vectors`)
 /// (a long formula: checked by the tests' `reference_vectors`)
 /// (a long formula: checked by the tests' `reference_vectors`)
-fn drive_forces_from_grips(car: &Car, tables: &PhysicsTables, grips: &[Float; 5]) {
+fn drive_forces_from_grips(car: &Car, tables: &PhysicsTables, grips: &[PlainFloat; 5]) {
     let t0 = grips[0].ld();
     let t1 = tables.forces[0].force[1].ld();
     let t2 = t0 * t1;
@@ -870,8 +869,8 @@ mod reference_vectors {
                 plain: |a| {
                     one_less_abs(
                         &crate::race::owner::race().course,
-                        view::<Float>(a[0], 0),
-                        view::<Float>(a[2], 0),
+                        view::<PlainFloat>(a[0], 0),
+                        view::<PlainFloat>(a[2], 0),
                     );
                 },
             },
@@ -910,9 +909,9 @@ mod reference_vectors {
                 plain: |a| {
                     slip_ratio(
                         race().shared.car(),
-                        &race().shared.physics_tables,
-                        view::<Float>(a[0], 0),
-                        view::<Float>(a[2], 0),
+                        race().shared.physics_tables.get(),
+                        view::<PlainFloat>(a[0], 0),
+                        view::<PlainFloat>(a[2], 0),
                     );
                 },
             },
@@ -948,12 +947,12 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     apply_slip_to_drive(
-                        &race().shared.physics_tables,
+                        race().shared.physics_tables.get(),
                         race().course.numbers.get(),
-                        view::<Float>(a[0], 0),
-                        view::<Float>(a[2], 0),
-                        view::<Float>(a[3], 0),
-                        view::<Float>(a[4], 0),
+                        view::<PlainFloat>(a[0], 0),
+                        view::<PlainFloat>(a[2], 0),
+                        view::<PlainFloat>(a[3], 0),
+                        view::<PlainFloat>(a[4], 0),
                     );
                 },
             },
@@ -977,9 +976,9 @@ mod reference_vectors {
                 plain: |a| {
                     slip_ratio_size(
                         race().shared.car(),
-                        &race().shared.physics_tables,
-                        view::<Float>(a[0], 0),
-                        view::<Float>(a[2], 0),
+                        race().shared.physics_tables.get(),
+                        view::<PlainFloat>(a[0], 0),
+                        view::<PlainFloat>(a[2], 0),
                     );
                 },
             },
@@ -991,7 +990,10 @@ mod reference_vectors {
                 }],
                 ulps: 0,
                 plain: |_| {
-                    signed_share(&race().shared.physics_tables, race().course.numbers.get());
+                    signed_share(
+                        race().shared.physics_tables.get(),
+                        race().course.numbers.get(),
+                    );
                 },
             },
             Block {
@@ -1024,13 +1026,18 @@ mod reference_vectors {
                 plain: |a| {
                     drive_forces_from_grips(
                         race().shared.car(),
-                        &race().shared.physics_tables,
+                        race().shared.physics_tables.get(),
                         if a[1] == 0 {
-                            &crate::race::owner::race().shared.physics_tables.wheel_grips
+                            &crate::race::owner::race()
+                                .shared
+                                .physics_tables
+                                .get()
+                                .wheel_grips
                         } else {
                             &crate::race::owner::race()
                                 .shared
                                 .physics_tables
+                                .get()
                                 .wheel_grips_b
                         },
                     );
@@ -1066,13 +1073,18 @@ mod reference_vectors {
                 plain: |a| {
                     drive_forces_from_grips(
                         race().shared.car(),
-                        &race().shared.physics_tables,
+                        race().shared.physics_tables.get(),
                         if a[1] == 0 {
-                            &crate::race::owner::race().shared.physics_tables.wheel_grips
+                            &crate::race::owner::race()
+                                .shared
+                                .physics_tables
+                                .get()
+                                .wheel_grips
                         } else {
                             &crate::race::owner::race()
                                 .shared
                                 .physics_tables
+                                .get()
                                 .wheel_grips_b
                         },
                     );
@@ -1096,7 +1108,7 @@ mod reference_vectors {
                 plain: |_| {
                     throttle_drive_limit(
                         race().shared.car(),
-                        &race().shared.physics_tables,
+                        race().shared.physics_tables.get(),
                         race().course.numbers.get(),
                         crate::scene::owner::scene(),
                     );
@@ -1119,7 +1131,7 @@ mod reference_vectors {
                 plain: |_| {
                     push_both_drive_speeds(
                         race().shared.car(),
-                        &race().shared.physics_tables,
+                        race().shared.physics_tables.get(),
                         race().course.numbers.get(),
                     );
                 },
@@ -1136,7 +1148,9 @@ mod reference_vectors {
                     writes: &[(0x31A190, Out::F)],
                 }],
                 ulps: 0,
-                plain: |_| push_drive_speed_a(race().shared.car(), &race().shared.physics_tables),
+                plain: |_| {
+                    push_drive_speed_a(race().shared.car(), race().shared.physics_tables.get());
+                },
             },
             Block {
                 name: "drive_wheels_step line 231",
@@ -1156,7 +1170,7 @@ mod reference_vectors {
                 plain: |_| {
                     brake_step_for_a(
                         race().shared.car(),
-                        &race().shared.physics_tables,
+                        race().shared.physics_tables.get(),
                         race().course.numbers.get(),
                     );
                 },
@@ -1179,7 +1193,7 @@ mod reference_vectors {
                 plain: |_| {
                     brake_step_for_b(
                         race().shared.car(),
-                        &race().shared.physics_tables,
+                        race().shared.physics_tables.get(),
                         race().course.numbers.get(),
                     );
                 },
@@ -1201,7 +1215,7 @@ mod reference_vectors {
                 plain: |_| {
                     handbrake_step_for_b(
                         race().shared.car(),
-                        &race().shared.physics_tables,
+                        race().shared.physics_tables.get(),
                         race().course.numbers.get(),
                     );
                 },
@@ -1231,7 +1245,7 @@ mod reference_vectors {
                     writes: &[(0x214234, Out::F), (0x214238, Out::F)],
                 }],
                 ulps: 0,
-                plain: |_| slip_gaps(race().shared.car(), &race().shared.physics_tables),
+                plain: |_| slip_gaps(race().shared.car(), race().shared.physics_tables.get()),
             },
             Block {
                 name: "drive_wheels_step line 308",
@@ -1246,7 +1260,7 @@ mod reference_vectors {
                     writes: &[(0x214244, Out::F), (0x214248, Out::F), (0x21424C, Out::F)],
                 }],
                 ulps: 0,
-                plain: |_| scale_axle_forces(&race().shared.physics_tables),
+                plain: |_| scale_axle_forces(race().shared.physics_tables.get()),
             },
             Block {
                 name: "drive_wheels_step line 331",
@@ -1269,7 +1283,7 @@ mod reference_vectors {
                 plain: |_| {
                     side_slip_forces(
                         race().shared.car(),
-                        &race().shared.physics_tables,
+                        race().shared.physics_tables.get(),
                         race().course.numbers.get(),
                         crate::scene::owner::scene(),
                     );
@@ -1288,7 +1302,7 @@ mod reference_vectors {
                     writes: &[(0x2141D4, Out::F), (0x214254, Out::F)],
                 }],
                 ulps: 0,
-                plain: |_| slip_side_share(&race().shared.physics_tables),
+                plain: |_| slip_side_share(race().shared.physics_tables.get()),
             },
             Block {
                 name: "drive_wheels_step line 362",
@@ -1297,7 +1311,7 @@ mod reference_vectors {
                     writes: &[(0x2141D8, Out::F)],
                 }],
                 ulps: 0,
-                plain: |_| spin_push_b(&race().shared.physics_tables),
+                plain: |_| spin_push_b(race().shared.physics_tables.get()),
             },
             Block {
                 name: "drive_wheels_step line 372",
@@ -1317,7 +1331,7 @@ mod reference_vectors {
                         0,
                         speed_over_ground(
                             race().shared.car(),
-                            &race().shared.physics_tables,
+                            race().shared.physics_tables.get(),
                             crate::scene::owner::scene(),
                         ),
                     );
@@ -1338,7 +1352,7 @@ mod reference_vectors {
                 plain: |_| {
                     rolling_drag_forces(
                         race().shared.car(),
-                        &race().shared.physics_tables,
+                        race().shared.physics_tables.get(),
                         crate::scene::owner::scene(),
                     );
                 },
@@ -1364,7 +1378,10 @@ mod reference_vectors {
                 }],
                 ulps: 0,
                 plain: |_| {
-                    share_wheel_forces(&race().shared.physics_tables, race().course.numbers.get());
+                    share_wheel_forces(
+                        race().shared.physics_tables.get(),
+                        race().course.numbers.get(),
+                    );
                 },
             },
             Block {
@@ -1377,7 +1394,7 @@ mod reference_vectors {
                 plain: |_| {
                     slip_figure_a(
                         race().shared.car(),
-                        &race().shared.physics_tables,
+                        race().shared.physics_tables.get(),
                         crate::scene::owner::scene(),
                     );
                 },
@@ -1392,7 +1409,7 @@ mod reference_vectors {
                 plain: |_| {
                     slip_figure_b(
                         race().shared.car(),
-                        &race().shared.physics_tables,
+                        race().shared.physics_tables.get(),
                         crate::scene::owner::scene(),
                     );
                 },

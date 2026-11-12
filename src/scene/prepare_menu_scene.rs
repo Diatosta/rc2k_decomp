@@ -29,12 +29,12 @@ pub fn prepare_menu_scene(
     );
     crate::session::write_bits(&scratch.polygon.window.view_size, [0x320u32, 0x258]);
     set_view_window(
-        race,
         race.course.reads(),
         scene.drawing.scene.get(),
         system.session.screen.get(),
         &scratch.polygon.window,
         &race.frame.view_and_records.get().view_vars,
+        &race.shared.vars.get().scale_factor,
     );
     let light = &scratch.light;
     light.light_lowest.set(0x50);

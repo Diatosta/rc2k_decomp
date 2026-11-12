@@ -29,7 +29,7 @@ pub fn gearbox_step(
     use rc2k_core::physics::gearbox::{GearboxTurn, gearbox_turn};
     let turn = gearbox_turn(
         shared.car().finish_flag.get(),
-        || shared.vars.run_kind.get(),
+        || shared.vars.get().run_kind.get(),
         || shared.car().run_ticks.get(),
         || shared.car().driver_kind.get(),
         || shared.car().input_keys.get(),
@@ -39,7 +39,7 @@ pub fn gearbox_step(
         GearboxTurn::Idle => {}
         GearboxTurn::Manual => manual_gearbox(
             shared.car(),
-            &shared.physics_tables,
+            shared.physics_tables.get(),
             numbers,
             gear_figures,
             scene,
@@ -50,7 +50,7 @@ pub fn gearbox_step(
         }
         GearboxTurn::Auto => auto_gearbox(
             shared.car(),
-            &shared.physics_tables,
+            shared.physics_tables.get(),
             numbers,
             gear_figures,
             scene,
@@ -59,8 +59,8 @@ pub fn gearbox_step(
     if shared.car().gear_changed.get() == 1 {
         shared.car().engine_speed.set(x87::mul(
             &shared.car().engine_speed,
-            &shared.physics_tables.engine_ease,
+            &shared.physics_tables.get().engine_ease,
         ));
     }
-    wheels(shared.car(), &shared.physics_tables)
+    wheels(shared.car(), shared.physics_tables.get())
 }
