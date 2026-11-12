@@ -11,9 +11,9 @@
 //!
 //! Caller: `race::viewer_frame`. Refuses (before anything) a cars' count of 0 or past 8.
 
+use crate::cells::copy_cells;
 use crate::errors::{BadInput, Refused};
 use crate::physics::flow::g;
-use crate::pointers::copy_cells;
 use crate::race::blocks_store::REPLAY_STATE_OFFSET;
 use crate::race::owner::Race;
 

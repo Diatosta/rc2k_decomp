@@ -4,7 +4,7 @@
 //! store another test is writing undoes that test's work.
 
 /// The bytes of some stores of the registry.
-pub struct Snapshot(Vec<(&'static (dyn crate::pointers::Store + Sync), Vec<u8>)>);
+pub struct Snapshot(Vec<(&'static (dyn crate::cells::Store + Sync), Vec<u8>)>);
 
 impl Snapshot {
     /// The stores named `names` (registry names, the first of each).
@@ -32,7 +32,7 @@ impl Snapshot {
 
 /// The registry's store named `name` (the first of that name): what a test reads or
 /// writes by offset (`Store::load`, `Store::store`) where it named an address.
-pub fn store(name: &str) -> &'static (dyn crate::pointers::Store + Sync) {
+pub fn store(name: &str) -> &'static (dyn crate::cells::Store + Sync) {
     crate::stores::all()
         .iter()
         .find(|e| e.name == name)

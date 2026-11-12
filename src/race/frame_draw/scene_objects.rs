@@ -361,7 +361,7 @@ pub(super) fn light_pair(
     if right != u32::MAX {
         ctx.view.cars.light_right.set(byte(right)?);
     }
-    let [x, y, z]: [u32; 3] = crate::pointers::load_value(
+    let [x, y, z]: [u32; 3] = crate::cells::load_value(
         &race.frame.lights_and_gear,
         record.wrapping_add(at) as usize,
     )?;

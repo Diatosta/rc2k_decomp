@@ -12,9 +12,9 @@
 //! +0x124, so that the saved copy carries them.
 //! Refuses, before anything is written: a missing player or a car without that pointer.
 
+use crate::cells::Store;
 use crate::errors::BadInput;
 use crate::menu::owner::{Menus, Play};
-use crate::pointers::Store;
 use crate::session::DwordLike;
 
 // ---- game data ----

@@ -84,10 +84,7 @@ pub fn begin_glyph_tables(
 
 /// A new table starts where the list stands, after the padding that brings the table
 /// before it to whole dwords.
-pub fn begin_glyph_table(
-    vars: &SheetVars,
-    list: &dyn crate::pointers::Store,
-) -> Result<(), BadInput> {
+pub fn begin_glyph_table(vars: &SheetVars, list: &dyn crate::cells::Store) -> Result<(), BadInput> {
     let padding = vars.table_size.get().wrapping_neg() & 3;
     take_from_list(list, padding)?;
     take_from_list(list, 0)?;

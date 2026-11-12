@@ -1,4 +1,4 @@
-//! `#[derive(Cells)]` for `rc2k_decomp::pointers::Cells`: a `#[repr(C)]` or `#[repr(transparent)]` record is made of cells
+//! `#[derive(Cells)]` for `rc2k_decomp::cells::Cells`: a `#[repr(C)]` or `#[repr(transparent)]` record is made of cells
 //! when each field is, and no byte lies outside its fields. Both are checked at compile time,
 //! so the promise the trait asks for rests on the primitive cells alone. The derived
 //! `cell_run` finds a byte's field by its offset and asks the field's type, down to a run of
@@ -64,7 +64,7 @@ pub fn derive_cells(input: TokenStream) -> TokenStream {
     let path_names: Vec<_> = names.iter().map(|n| format!(".{n}")).collect();
     quote! {
         const _: () = {
-            const fn is_cells<T: crate::pointers::Cells + ?Sized>() {}
+            const fn is_cells<T: crate::cells::Cells + ?Sized>() {}
             #( is_cells::<#types>(); )*
             assert!(
                 ::core::mem::size_of::<#name #of>() == 0 #( + ::core::mem::size_of::<#types>() )*,
@@ -72,13 +72,13 @@ pub fn derive_cells(input: TokenStream) -> TokenStream {
             );
         };
         // SAFETY: every field is `Cells` and no byte lies outside them (checked above).
-        unsafe impl #with crate::pointers::Cells for #name #of #clause {
+        unsafe impl #with crate::cells::Cells for #name #of #clause {
             fn copy_from(&self, other: &Self) {
-                #( crate::pointers::Cells::copy_from(&self.#names, &other.#names); )*
+                #( crate::cells::Cells::copy_from(&self.#names, &other.#names); )*
             }
 
             fn merge_changes(&self, now: &Self, start: &Self) {
-                #( crate::pointers::Cells::merge_changes(&self.#names, &now.#names, &start.#names); )*
+                #( crate::cells::Cells::merge_changes(&self.#names, &now.#names, &start.#names); )*
             }
 
             #[cfg(any(test, feature = "write_watch"))]
@@ -88,18 +88,18 @@ pub fn derive_cells(input: TokenStream) -> TokenStream {
                 match field {
                     #( #indices => {
                         path.push_str(#path_names);
-                        crate::pointers::Cells::field_path(&self.#names, offset - starts[#indices], path)
+                        crate::cells::Cells::field_path(&self.#names, offset - starts[#indices], path)
                     } )*
                     _ => panic!("Cells: byte {offset} outside the record"),
                 }
             }
 
-            fn cell_run(&self, offset: usize) -> (usize, crate::pointers::CellRun<'_>) {
+            fn cell_run(&self, offset: usize) -> (usize, crate::cells::CellRun<'_>) {
                 #starts
                 let field = starts.partition_point(|&start| start <= offset).wrapping_sub(1);
                 match field {
                     #( #indices => {
-                        let (start, run) = crate::pointers::Cells::cell_run(
+                        let (start, run) = crate::cells::Cells::cell_run(
                             &self.#names,
                             offset - starts[#indices],
                         );

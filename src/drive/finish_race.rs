@@ -56,7 +56,7 @@ fn set_up(race: &Race) -> Result<(), BadInput> {
             Set::Var(x) => var(race, x).set(v),
             // Car block 0 (0x70F3EC) + o.
             Set::Lead(o) => {
-                crate::pointers::Store::store(
+                crate::cells::Store::store(
                     &race.car_blocks().cars[0],
                     o as usize,
                     &v.to_le_bytes(),

@@ -57,7 +57,7 @@ pub struct SplitTables {
 /// `race::store::LEFT`), with the image's first values.
 impl SplitTables {
     pub const fn new() -> Self {
-        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
 }
 

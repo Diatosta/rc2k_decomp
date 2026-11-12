@@ -6,8 +6,8 @@
 //!
 //! Caller: `drive::replay_step`.
 
+use crate::cells::copy_cells;
 use crate::errors::BadInput;
-use crate::pointers::copy_cells;
 use crate::race::owner::Race;
 use rc2k_core::drive::replay_frames::{
     PLAYING, RECORDING, SLOT_SIZE, frame_and_tenth, slot_offset,

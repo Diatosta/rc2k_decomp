@@ -74,7 +74,7 @@ impl Modes {
         count: u32,
     ) -> impl Iterator<Item = rc2k_core::system::tables::Entry> + '_ {
         (0..count as usize).map(move |n| {
-            crate::pointers::load_value(self, table.wrapping_add(8 * n))
+            crate::cells::load_value(self, table.wrapping_add(8 * n))
                 .unwrap_or_else(|e| crate::system::checked_reads::refuse(e))
         })
     }
@@ -84,7 +84,7 @@ impl Modes {
     pub fn value_of(&self, key: u32, table: usize, count: u32) -> Option<u32> {
         let n = rc2k_core::system::tables::by_key(self.entries(table, count), key)?;
         Some(
-            crate::pointers::load_value(self, table + 8 * n + 4)
+            crate::cells::load_value(self, table + 8 * n + 4)
                 .unwrap_or_else(|e| crate::fatal::raise::end("a screen mode table", e)),
         )
     }

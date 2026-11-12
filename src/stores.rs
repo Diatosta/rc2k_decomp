@@ -5,7 +5,7 @@
 //! The stores are those of `moved::MOVED`, in its order; `NAMES` gives each the path of its
 //! owner (the static the store is a field of).
 
-use crate::pointers::Store;
+use crate::cells::Store;
 
 /// The name of each entry of `moved::MOVED`, in the same order (`names_match_the_table`).
 const NAMES: [&str; 401] = [

@@ -7,16 +7,16 @@
 //! and so is a step that reaches the same value again inside its own step (it would wait
 //! for itself). Another thread's step is waited for.
 
+use crate::cells::{load_value, store_value};
 use crate::errors::{BadInput, Refused};
 use crate::memory::{MemoryList, with_figures};
-use crate::pointers::{load_value, store_value};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 
 /// `bytes` counted on `list` as `memory::allocate` counts a block (the list's total, the
 /// memory figures). Refuses what `allocate` refuses: a size that with
 /// the header wraps.
-pub fn count_on(list: &dyn crate::pointers::Store, bytes: u32) -> Result<(), Refused> {
+pub fn count_on(list: &dyn crate::cells::Store, bytes: u32) -> Result<(), Refused> {
     check_count(bytes)?;
     let mut l = load_value::<MemoryList>(list, 0)?;
     l.total = l.total.wrapping_add(bytes);
@@ -37,7 +37,7 @@ fn check_count(bytes: u32) -> Result<(), Refused> {
 /// only while one function runs. Sized as the game's block was (whole pages less its
 /// header), so a read just past `bytes` gives zeros as it did. Refuses what `count_on`
 /// refuses.
-pub fn counted(list: &dyn crate::pointers::Store, bytes: u32) -> Result<Vec<u8>, Refused> {
+pub fn counted(list: &dyn crate::cells::Store, bytes: u32) -> Result<Vec<u8>, Refused> {
     count_on(list, bytes)?;
     Ok(vec![0; block_len(bytes)])
 }
@@ -95,7 +95,7 @@ impl<T> Owned<T> {
     /// `value` taken, `bytes` (the game's block size) counted on `list`.
     pub fn take(
         &self,
-        list: &dyn crate::pointers::Store,
+        list: &dyn crate::cells::Store,
         bytes: u32,
         value: T,
     ) -> Result<(), Refused> {

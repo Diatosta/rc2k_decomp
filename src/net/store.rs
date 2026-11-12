@@ -15,7 +15,7 @@
 //!
 //! The receiving thread shares these: plain loads and stores (`Relaxed`), as the original's.
 
-use crate::pointers::Store;
+use crate::cells::Store;
 use crate::session::{Byte, Bytes, Dword, PlainBytes, PlainDword, Word, with_runs};
 
 const fn zeros<const N: usize>() -> [Dword; N] {
@@ -137,13 +137,13 @@ impl PlayerBlock {
     /// inbox `rc2k_core::net::inbox` works on, which runs on past `messages`).
     pub fn read_inbox(&self, len: usize) -> Result<Vec<u8>, crate::errors::BadInput> {
         let mut bytes = vec![0; len];
-        crate::pointers::Store::load(self, INBOX_AT, &mut bytes)?;
+        crate::cells::Store::load(self, INBOX_AT, &mut bytes)?;
         Ok(bytes)
     }
 
     /// `bytes` written from the inbox's start.
     pub fn write_inbox(&self, bytes: &[u8]) -> Result<(), crate::errors::BadInput> {
-        crate::pointers::Store::store(self, INBOX_AT, bytes)
+        crate::cells::Store::store(self, INBOX_AT, bytes)
     }
 }
 

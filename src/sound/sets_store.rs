@@ -848,7 +848,7 @@ impl RaceSoundSets {
             return Err(crate::errors::BadInput("a sound list off the race's sets"));
         }
         let at = (offset as usize).checked_add(4 * n);
-        Ok(at.and_then(|at| crate::pointers::load_value::<u32>(sets, at).ok()))
+        Ok(at.and_then(|at| crate::cells::load_value::<u32>(sets, at).ok()))
     }
 
     /// 0x512360: `off_512360`, 36 kinds of car, two sets each.

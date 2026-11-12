@@ -10,11 +10,11 @@
 //! held decides. One caller, `system::load_game_data`. `saves::save_options` writes the file, the
 //! same pieces the other way.
 
+use crate::cells::{Cells, Store, load_cells, store_cells};
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::read_file::read_file_to_store;
 use crate::menu::option_work_store::OptionWork;
 use crate::owners::Owners;
-use crate::pointers::{Cells, Store, load_cells, store_cells};
 use crate::saves::rebuild_car_lists::rebuild_car_lists;
 use crate::settings::TEXT_ROOM;
 use std::mem::offset_of;

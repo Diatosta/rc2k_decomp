@@ -14,8 +14,8 @@
 //! Caller: `scene::show_bad_polygon` (0x443AEC). Refuses (before anything) more than 64
 //! vertices (the original's loop would run through memory).
 
+use crate::cells::Store;
 use crate::errors::BadInput;
-use crate::pointers::Store;
 
 const HEX8: u32 = 1;
 /// The value column: what the line shows.

@@ -73,7 +73,7 @@ impl ModeList {
         if let Some(m) = self.modes.get(place as usize) {
             return Ok([&m.width, &m.height, &m.figure, &m.mode][index].get());
         }
-        crate::pointers::load_value(self, (16 * place + 4 * index as u32) as usize)
+        crate::cells::load_value(self, (16 * place + 4 * index as u32) as usize)
             .inspect_err(|_| crate::framework::log(&format!("choices: {what}: past the table")))
     }
 }

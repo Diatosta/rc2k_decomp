@@ -8,10 +8,10 @@
 //! the standalone program the rasteriser draws it (`platform_3d::draw_strip`) and the
 //! result is 0.
 
+use crate::cells::Store;
 use crate::d3d::recorder::{Call, note};
 use crate::d3d::{VERTEX_LEN, Vertex};
 use crate::errors::BadInput;
-use crate::pointers::Store;
 
 /// Direct3D takes at most this many vertices in one primitive.
 const MOST: u32 = 0x400;

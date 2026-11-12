@@ -23,7 +23,7 @@ pub fn read_words(
     q: &crate::sound::store::CueQueue,
 ) -> Result<[u32; 0x84], crate::errors::BadInput> {
     let mut bytes = [0u8; 0x84 * 4];
-    crate::pointers::load_cells(q, 0, &mut bytes)?;
+    crate::cells::load_cells(q, 0, &mut bytes)?;
     Ok(std::array::from_fn(|n| {
         u32::from_le_bytes(bytes[4 * n..4 * n + 4].try_into().unwrap())
     }))
@@ -35,5 +35,5 @@ pub fn write_words(
     words: [u32; 0x84],
 ) -> Result<(), crate::errors::BadInput> {
     let bytes: Vec<u8> = words.iter().flat_map(|w| w.to_le_bytes()).collect();
-    crate::pointers::store_cells(q, 0, &bytes)
+    crate::cells::store_cells(q, 0, &bytes)
 }

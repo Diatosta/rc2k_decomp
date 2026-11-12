@@ -17,7 +17,7 @@ use crate::files::state::BYTES_READ;
 /// read's own count).
 pub fn read_whole_file_store(
     path: &[u8],
-    to: &dyn crate::pointers::Store,
+    to: &dyn crate::cells::Store,
     offset: usize,
     count: usize,
 ) -> Result<(), BadInput> {

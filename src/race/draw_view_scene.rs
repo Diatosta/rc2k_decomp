@@ -117,7 +117,7 @@ pub fn draw_view_scene(
     let view_value = view_value(race, &view.polygon.sun, view.drawn_view(race))?;
     // The lamps the next view starts from (`race::lamp_work::PUBLISHED`).
     {
-        use crate::pointers::Cells;
+        use crate::cells::Cells;
         crate::race::lamp_work::PUBLISHED.copy_from(&view.lamps);
     }
     Ok(ViewOutput {

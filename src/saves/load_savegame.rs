@@ -28,11 +28,11 @@
 //! a missing player or a car without its name pointer; later, what its Rust callees refuse
 //! (the event loops when their callees refuse).
 
+use crate::cells::Store;
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::go_back;
 use crate::menu::owner::Menus;
 use crate::owners::Owners;
-use crate::pointers::Store;
 use crate::saves::gather_savegame::{CAR_LEN, RECORDS_LEN, cars, head};
 use crate::saves::read_savegame_slot::read_savegame_slot_in;
 use crate::saves::write_savegame_slot::SLOTS;

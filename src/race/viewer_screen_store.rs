@@ -194,7 +194,7 @@ impl ViewerPanelBlock {
     /// check the number).
     pub fn camera_name(&self, camera: usize) -> u16 {
         // The names are the block's first bytes; a number past them reads on in the block.
-        crate::pointers::load_value::<u16>(self, 2 * camera)
+        crate::cells::load_value::<u16>(self, 2 * camera)
             .unwrap_or_else(|e| crate::fatal::raise::end("a camera's name", e))
     }
 
@@ -238,7 +238,7 @@ impl ViewerPanelBlock {
                 "a switch picture's name off the panel",
             ));
         }
-        crate::pointers::load_value(self, ida - START)
+        crate::cells::load_value(self, ida - START)
     }
 
     /// The dword at IDA's `ida` in the tail: unaligned, so made of the two cells it spans.

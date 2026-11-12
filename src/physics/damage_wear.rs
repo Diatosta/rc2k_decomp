@@ -126,7 +126,7 @@ pub fn steps(car: &Car, damage: &DamageModel) {
     // The original runs on through the store, whatever the columns hold.
     let at = |field: usize, n: u32| (field as u32).wrapping_add(n);
     let read = |at: u32| {
-        crate::pointers::load_value::<u32>(damage, at as usize)
+        crate::cells::load_value::<u32>(damage, at as usize)
             .unwrap_or_else(|e| crate::fatal::raise::end("a car block's field", e))
     };
     let wear = offset_of!(DamageModel, wear_table);

@@ -57,7 +57,7 @@ pub fn material_run(
     let at = (core::mem::offset_of!(PolygonTables, object_materials) as u32)
         .wrapping_add(kind.wrapping_mul(0x80))
         .wrapping_add(offset);
-    crate::pointers::load_cells(tables, at as usize, bytes)
+    crate::cells::load_cells(tables, at as usize, bytes)
 }
 
 /// The byte at `offset` of object kind `kind`'s material record (as `material_run`).
@@ -98,7 +98,7 @@ fn field_byte(
         return Err(BadInput(what));
     }
     let mut byte = [0u8];
-    crate::pointers::load_cells(tables, field + offset, &mut byte)?;
+    crate::cells::load_cells(tables, field + offset, &mut byte)?;
     Ok(byte[0])
 }
 

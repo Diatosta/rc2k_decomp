@@ -138,7 +138,7 @@ pub fn write_cells(file: u32, cells: &[crate::session::Dword]) -> (u32, bool) {
 /// `read_to` into a store's field from its first byte (no address between).
 pub fn read_into_store(
     file: u32,
-    to: &dyn crate::pointers::Store,
+    to: &dyn crate::cells::Store,
     count: u32,
 ) -> Result<(u32, bool), BadInput> {
     let mut bytes = vec![0u8; count as usize];
@@ -150,7 +150,7 @@ pub fn read_into_store(
 /// `write_from` the first `count` bytes of a store's field.
 pub fn write_from_store(
     file: u32,
-    from: &dyn crate::pointers::Store,
+    from: &dyn crate::cells::Store,
     count: u32,
 ) -> Result<(u32, bool), BadInput> {
     let mut bytes = vec![0u8; count as usize];

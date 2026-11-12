@@ -33,7 +33,7 @@ pub struct ObjectFileNumbers {
 impl ObjectFileNumbers {
     /// The piece with the image's first values (the owner `scene::owner::Scene` holds it).
     pub const fn new() -> Self {
-        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
 }
 
@@ -88,7 +88,7 @@ impl ObjectFileNumbers {
 impl crate::session::TextPlace for PathText<'_> {
     fn text(&self, _what: &str) -> Result<Vec<u8>, crate::errors::BadInput> {
         let mut rest = vec![0; TEXTS_LEN - self.from];
-        crate::pointers::load_cells(self.numbers, TEXTS_AT + self.from, &mut rest)?;
+        crate::cells::load_cells(self.numbers, TEXTS_AT + self.from, &mut rest)?;
         match rest.iter().position(|&c| c == 0) {
             Some(n) => Ok(rest[..n].to_vec()),
             None => Err(crate::errors::BadInput("a text with no end in its buffer")),
@@ -105,7 +105,7 @@ impl crate::session::TextPlace for PathText<'_> {
         if from.saturating_add(bytes.len()) > TEXTS_LEN {
             return Err(crate::errors::BadInput("a write past the path texts"));
         }
-        crate::pointers::store_cells(self.numbers, TEXTS_AT + from, bytes)
+        crate::cells::store_cells(self.numbers, TEXTS_AT + from, bytes)
     }
 }
 

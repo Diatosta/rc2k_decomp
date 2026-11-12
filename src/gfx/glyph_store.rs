@@ -93,7 +93,7 @@ fn slot(s: &mut Store, place: u32) -> Option<(&mut Arc<Vec<u8>>, usize)> {
 
 /// A new palette, zeroed, counted on nothing (the caller has carved its bytes off `list`):
 /// its place. Refused when all fifteen are held.
-pub fn new_palette(list: &dyn crate::pointers::Store) -> Result<u32, BadInput> {
+pub fn new_palette(list: &dyn crate::cells::Store) -> Result<u32, BadInput> {
     let mut s = store();
     let id = (1..FIRST_FIXED_PALETTE)
         .find(|&id| s.palettes[id].is_none())
@@ -106,7 +106,7 @@ pub fn new_palette(list: &dyn crate::pointers::Store) -> Result<u32, BadInput> {
 }
 
 /// A new glyph table, empty: its place. Refused past the places there are.
-pub fn new_table(list: &dyn crate::pointers::Store) -> Result<u32, BadInput> {
+pub fn new_table(list: &dyn crate::cells::Store) -> Result<u32, BadInput> {
     let mut s = store();
     let held = Some(Held {
         list: Some(key(list)),
@@ -131,7 +131,7 @@ pub fn new_table(list: &dyn crate::pointers::Store) -> Result<u32, BadInput> {
 }
 
 /// What names a list: where its store is.
-pub fn key(list: &dyn crate::pointers::Store) -> usize {
+pub fn key(list: &dyn crate::cells::Store) -> usize {
     list.first().addr()
 }
 

@@ -116,12 +116,12 @@ pub const fn first_values<const N: usize>(start: usize) -> [u8; N] {
 /// A part of a record of cells, from byte `offset` to its end: a moved range that starts
 /// inside a store (`SealWork`'s fields past its alignment lead, the panel past its two lead
 /// bytes). Reads and writes go through the whole record's cells.
-pub struct RecordTail<T: crate::pointers::Cells + Sync + 'static> {
+pub struct RecordTail<T: crate::cells::Cells + Sync + 'static> {
     whole: &'static T,
     offset: usize,
 }
 
-impl<T: crate::pointers::Cells + Sync + 'static> RecordTail<T> {
+impl<T: crate::cells::Cells + Sync + 'static> RecordTail<T> {
     pub const fn new(whole: &'static T, offset: usize) -> Self {
         Self { whole, offset }
     }
@@ -132,7 +132,7 @@ impl<T: crate::pointers::Cells + Sync + 'static> RecordTail<T> {
     unsafe_code,
     reason = "Store's promise: the window's bytes are the record's"
 )]
-unsafe impl<T: crate::pointers::Cells + Sync + 'static> crate::pointers::Store for RecordTail<T> {
+unsafe impl<T: crate::cells::Cells + Sync + 'static> crate::cells::Store for RecordTail<T> {
     fn size(&self) -> usize {
         size_of::<T>() - self.offset
     }
@@ -143,10 +143,10 @@ unsafe impl<T: crate::pointers::Cells + Sync + 'static> crate::pointers::Store f
             .wrapping_add(self.offset)
     }
 
-    fn cell_run_at(&self, offset: usize) -> Option<(usize, crate::pointers::CellRun<'_>)> {
+    fn cell_run_at(&self, offset: usize) -> Option<(usize, crate::cells::CellRun<'_>)> {
         // A run that begins before the window is taken from the window's first byte, when a
         // cell begins there.
-        let (start, run) = crate::pointers::Cells::cell_run(self.whole, self.offset + offset);
+        let (start, run) = crate::cells::Cells::cell_run(self.whole, self.offset + offset);
         match start.checked_sub(self.offset) {
             Some(start) => Some((start, run)),
             None => Some((0, run.skip(self.offset - start)?)),
@@ -154,11 +154,11 @@ unsafe impl<T: crate::pointers::Cells + Sync + 'static> crate::pointers::Store f
     }
 
     fn load(&self, offset: usize, to: &mut [u8]) -> Result<(), crate::errors::BadInput> {
-        crate::pointers::load_cells(self.whole, self.offset + offset, to)
+        crate::cells::load_cells(self.whole, self.offset + offset, to)
     }
 
     fn store(&self, offset: usize, from: &[u8]) -> Result<(), crate::errors::BadInput> {
-        crate::pointers::store_cells(self.whole, self.offset + offset, from)
+        crate::cells::store_cells(self.whole, self.offset + offset, from)
     }
 }
 
@@ -178,7 +178,7 @@ pub static OWN_RANGES: [crate::store::BlockRange; OWN.len()] = {
 /// field holds); none outside `OWN` or when it runs past the end of its range.
 #[cfg(debug_ui)]
 pub fn block_dword(ida: usize) -> Option<u32> {
-    use crate::pointers::Store;
+    use crate::cells::Store;
     let i = OWN
         .iter()
         .position(|&(start, end)| (start..end).contains(&ida))?;

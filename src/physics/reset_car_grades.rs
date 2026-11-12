@@ -14,8 +14,8 @@
 use crate::race::numbers_store::Numbers;
 use rc2k_core::physics::grades::{percentage, reset_writes};
 
-fn put(b: &dyn crate::pointers::Store, offset: u32, v: u32) {
-    crate::pointers::store_value::<u32>(b, offset as usize, v)
+fn put(b: &dyn crate::cells::Store, offset: u32, v: u32) {
+    crate::cells::store_value::<u32>(b, offset as usize, v)
         .unwrap_or_else(|e| crate::fatal::raise::end("physics::reset_car_grades", e));
 }
 
@@ -23,7 +23,7 @@ fn put(b: &dyn crate::pointers::Store, offset: u32, v: u32) {
 // Converted: `rc2k_core::physics::grades::{percentage, reset_writes}`.
 pub fn reset_grades_at(
     numbers: &Numbers,
-    b: &dyn crate::pointers::Store,
+    b: &dyn crate::cells::Store,
     s0c: &crate::session::Dword,
     s08: &crate::session::Dword,
 ) {

@@ -20,7 +20,7 @@ pub fn next_record_kind(menus: &Menus, system: &System) -> Result<u32, Refused> 
     // bounded by the whole store.
     let tables = &system.records.stage_tables;
     let table = rc2k_core::strings::bytes::Offset {
-        bytes: &crate::pointers::StoreBytes(tables),
+        bytes: &crate::cells::StoreBytes(tables),
         start: std::mem::offset_of!(crate::records::stages_store::StageTables, championship),
     };
     // The logic is in `rc2k_core::menu::record_kinds::next_record_kind`.

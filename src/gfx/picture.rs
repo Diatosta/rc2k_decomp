@@ -46,7 +46,7 @@ fn owned(handle: u32) -> Result<&'static Owned<Vec<u8>>, BadInput> {
 
 /// Buffer `which` taken, zeroed, `bytes` counted on `list` (sized as the game's block was:
 /// whole pages less its header). Its number.
-pub fn take(which: Buffer, list: &dyn crate::pointers::Store, bytes: u32) -> Result<u32, Refused> {
+pub fn take(which: Buffer, list: &dyn crate::cells::Store, bytes: u32) -> Result<u32, Refused> {
     let memory = vec![0u8; crate::memory::owned::block_len(bytes)];
     BUFFERS[which as usize - 1].take(list, bytes, memory)?;
     Ok(which as u32)

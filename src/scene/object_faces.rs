@@ -22,7 +22,7 @@ pub static FACES: crate::memory::shared_table::SharedTable =
 /// `bytes` of faces, zeroed, counted on `list`.
 pub fn take(
     course: &crate::race::owner_course::Course,
-    list: &dyn crate::pointers::Store,
+    list: &dyn crate::cells::Store,
     bytes: u32,
 ) -> Result<(), Refused> {
     crate::memory::owned::count_on(list, bytes)?;

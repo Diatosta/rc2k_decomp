@@ -136,7 +136,7 @@ pub fn apply(
                     Ok::<_, BadInput>(())
                 })??,
                 Target::Rally(table) => {
-                    use crate::pointers::{load_cells, store_cells};
+                    use crate::cells::{load_cells, store_cells};
                     let mut bytes = vec![0; size_of_val(table)];
                     load_cells(table, 0, &mut bytes)?;
                     block.write(&mut bytes);

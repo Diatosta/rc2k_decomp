@@ -597,7 +597,7 @@ impl RectAt {
     pub fn read(self, hud: &crate::hud::owner::Hud) -> Result<[u32; 4], crate::errors::Refused> {
         let at = self.0 as usize;
         crate::effects::try_from_fn(|n| {
-            Ok(crate::pointers::load_value::<u32>(&hud.block, at + 4 * n)?)
+            Ok(crate::cells::load_value::<u32>(&hud.block, at + 4 * n)?)
         })
     }
 }

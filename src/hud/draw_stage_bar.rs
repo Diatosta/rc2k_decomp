@@ -72,7 +72,7 @@ pub fn bars(
             .iter()
             .map(|&k| {
                 let kind: u32 = k[n as usize].get();
-                crate::pointers::load_value(&hud.block.stage_colours, kind as usize)
+                crate::cells::load_value(&hud.block.stage_colours, kind as usize)
             })
             .collect::<Result<_, _>>()?;
         for (to, &c) in colour_vars.iter().zip(&colours) {

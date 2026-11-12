@@ -16,6 +16,7 @@
 //! A refusal from one of the steps leaves the work half done; none can come with the
 //! game's own files.
 
+use crate::cells::Store;
 use crate::errors::{FatalError, Refused};
 use crate::gfx::build_glyphs::build_glyphs;
 use crate::gfx::glyph_builder::RUN_LENGTHS;
@@ -24,7 +25,6 @@ use crate::gfx::glyph_tables::{
 };
 use crate::gfx::owner::Gfx;
 use crate::memory::take_from_list::{rewind_list, take_from_list};
-use crate::pointers::Store;
 use crate::session::PlainDword;
 use crate::strings::owner::Strings;
 use crate::system::owner::System;
@@ -248,7 +248,7 @@ fn tables(gfx: &Gfx, system: &System, strings: &Strings) -> Result<(), Refused> 
 
 /// 0x400 bytes carved off `list` for a palette: its place in `gfx::glyph_store`, or 0
 /// when the list has no room (the original's cursor would have been none).
-pub fn palette_place(list: &dyn crate::pointers::Store) -> Result<u32, Refused> {
+pub fn palette_place(list: &dyn crate::cells::Store) -> Result<u32, Refused> {
     Ok(match take_from_list(list, 0x400)? {
         Some(_) => crate::gfx::glyph_store::new_palette(list)?,
         None => 0,

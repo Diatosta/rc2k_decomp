@@ -9,12 +9,12 @@
 //! blocks removed 2026-11-07): a list holding one is refused.
 //! 38 callers.
 
+use crate::cells::{load_value, store_value};
 use crate::errors::BadInput;
 use crate::memory::{MemoryList, with_figures};
-use crate::pointers::{load_value, store_value};
 
 /// The list's blocks given back, the list a store (or a field of one).
-pub fn free_list(list: &dyn crate::pointers::Store) -> Result<(), BadInput> {
+pub fn free_list(list: &dyn crate::cells::Store) -> Result<(), BadInput> {
     // Rust's own tables counted on it (`memory::owned`) are given back by their owners
     // (`saves::free_best_times`); its total counts them like the others.
     // The palettes and glyph tables carved off it (`gfx::glyph_store`) go with it.

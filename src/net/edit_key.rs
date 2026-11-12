@@ -12,10 +12,10 @@
 //! it reads).
 //! Callers: `net::setting_key`, `net::chat_key`.
 
+use crate::cells::{StoreBytes, copy_between, store_value};
 use crate::errors::Refused;
 use crate::install::owner::Install;
 use crate::net::owner::Net;
-use crate::pointers::{StoreBytes, copy_between, store_value};
 use crate::text::draw_text::GameCanvas;
 use crate::text::measure_text::measure_text_at;
 use rc2k_core::net::editing::{self, EditKey};

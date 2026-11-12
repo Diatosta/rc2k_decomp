@@ -56,16 +56,16 @@ pub(crate) struct Moved {
 impl Moved {
     /// The store that holds the range now.
     #[cfg(any(test, feature = "write_watch"))]
-    pub(crate) fn store(&self) -> &'static (dyn crate::pointers::Store + Sync) {
+    pub(crate) fn store(&self) -> &'static (dyn crate::cells::Store + Sync) {
         let Home::Store(store) = &self.home;
         *store
     }
 }
 
 /// Where a moved range lives: a store of cells, read and written by offset
-/// (`pointers::Store`).
+/// (`cells::Store`).
 pub(crate) enum Home {
-    Store(&'static (dyn crate::pointers::Store + Sync)),
+    Store(&'static (dyn crate::cells::Store + Sync)),
 }
 
 impl Home {
@@ -2780,8 +2780,8 @@ fn sorted() -> &'static [(usize, usize, usize)] {
 /// The store whose moved range holds the game address `addr`, and the offset of `addr` in it
 /// (`pointers::GamePtr`'s reads and writes); `None` for a range not yet a store and anything
 /// outside the moved ranges.
-pub fn store_of(addr: usize) -> Option<(&'static (dyn crate::pointers::Store + Sync), usize)> {
-    type Entry = (usize, usize, &'static (dyn crate::pointers::Store + Sync));
+pub fn store_of(addr: usize) -> Option<(&'static (dyn crate::cells::Store + Sync), usize)> {
+    type Entry = (usize, usize, &'static (dyn crate::cells::Store + Sync));
     static BY_HOME: std::sync::OnceLock<Vec<Entry>> = std::sync::OnceLock::new();
     thread_local! {
         // The last range found: most reads follow one another in one store.

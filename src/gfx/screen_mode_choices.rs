@@ -49,7 +49,7 @@ fn entry_or_past(modes: &Modes, key: u32, table: usize, count: u32) -> Result<us
 }
 
 fn read(modes: &Modes, at: usize) -> Result<u32, BadInput> {
-    crate::pointers::load_value(modes, at)
+    crate::cells::load_value(modes, at)
         .inspect_err(|_| crate::framework::log("a screen mode table's dword: past the block"))
 }
 
@@ -62,7 +62,7 @@ fn list_mode(display: &Display, place: u32) -> Result<u32, BadInput> {
 }
 
 fn read_word(modes: &Modes, at: usize) -> Result<u32, BadInput> {
-    Ok(crate::pointers::load_value::<u16>(modes, at)
+    Ok(crate::cells::load_value::<u16>(modes, at)
         .inspect_err(|_| crate::framework::log("a screen mode table's word: past the block"))?
         as u32)
 }

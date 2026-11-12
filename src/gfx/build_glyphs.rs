@@ -286,7 +286,7 @@ fn read_alpha_sheet(
 pub fn build_glyphs(
     vars: &SheetVars,
     template: &[u8],
-    list: &dyn crate::pointers::Store,
+    list: &dyn crate::cells::Store,
     gfx: &crate::gfx::owner::Gfx,
     strings: &crate::strings::owner::Strings,
 ) -> Result<(), Refused> {

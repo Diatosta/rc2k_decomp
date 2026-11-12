@@ -31,7 +31,7 @@ const HEAD_LEN: u32 = 0x10;
 const READ: [usize; 6] = [1, 2, 3, 4, 7, 8];
 
 /// Reads exactly `count` bytes into `to`, or closes the file and says false.
-fn read_or_close(file: u32, to: &dyn crate::pointers::Store, count: u32) -> Result<bool, BadInput> {
+fn read_or_close(file: u32, to: &dyn crate::cells::Store, count: u32) -> Result<bool, BadInput> {
     let (got, ok) = crate::files::handle::read_into_store(file, to, count)?;
     if !ok || got != count {
         close(file);

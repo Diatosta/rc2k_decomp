@@ -49,7 +49,7 @@ pub fn set_stage_choice_titles(
     tables.menus.select_stage.id().items()[0]
         .string
         .set(group_title);
-    crate::pointers::store_value::<u32>(&tables.menus.labels, item_1, s.table.title()?)?;
+    crate::cells::store_value::<u32>(&tables.menus.labels, item_1, s.table.title()?)?;
 
     Ok(())
 }

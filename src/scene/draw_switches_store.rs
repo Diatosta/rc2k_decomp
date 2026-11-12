@@ -35,7 +35,7 @@ pub struct DrawSwitches {
 impl DrawSwitches {
     /// The piece with the image's first values (the owner `scene::owner::Scene` holds it).
     pub const fn new() -> Self {
-        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
 }
 

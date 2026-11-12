@@ -114,7 +114,7 @@ fn view_rest(
     let view = crate::race::view_scratch::main_view(car);
     // The overlays (the effects, the HUD's quads) draw in the front end's window: the view's.
     {
-        use crate::pointers::Cells;
+        use crate::cells::Cells;
         crate::scene::polygon_work::front_end()
             .window
             .copy_from(&view.polygon.window);

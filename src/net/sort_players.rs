@@ -7,10 +7,10 @@
 //! would sort past the copy: refused (DirectPlay's listing keeps eight at most). Caller:
 //! `net::lobby_frame`.
 
+use crate::cells::Store;
 use crate::errors::{BadInput, Refused};
 use crate::net::store::NetVars;
 use crate::net::store::PlayerBlock;
-use crate::pointers::Store;
 use rc2k_core::net::players::{self, Standing};
 
 const BLOCK: u32 = std::mem::size_of::<PlayerBlock>() as u32;

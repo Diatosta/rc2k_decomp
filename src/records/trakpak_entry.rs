@@ -68,7 +68,7 @@ pub enum Track {
 /// The dword at byte `at` of the stage tables, past the pack.
 pub fn run_on(at: usize) -> Result<u32, BadInput> {
     let mut bytes = [0; 4];
-    crate::pointers::load_cells(&system().records.stage_tables, at, &mut bytes)?;
+    crate::cells::load_cells(&system().records.stage_tables, at, &mut bytes)?;
     Ok(u32::from_le_bytes(bytes))
 }
 

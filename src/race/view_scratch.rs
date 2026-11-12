@@ -151,7 +151,7 @@ impl ViewScratch {
 
     /// The shared view variables into the view's (`vars`), as its drawing begins.
     pub fn take_vars(&self, race: &crate::race::owner::Race) {
-        use crate::pointers::Cells;
+        use crate::cells::Cells;
         let shared = &race.frame.view_and_records.view_vars;
         self.vars.copy_from(shared);
         self.vars_taken.copy_from(shared);
@@ -160,7 +160,7 @@ impl ViewScratch {
     /// What the view's drawing changed in its view variables into the shared ones (the game's
     /// thread, once it is drawn).
     pub fn hand_on_vars(&self, race: &crate::race::owner::Race) {
-        use crate::pointers::Cells;
+        use crate::cells::Cells;
         race.frame
             .view_and_records
             .view_vars
@@ -172,7 +172,7 @@ impl ViewScratch {
     /// nothing a frame or another view before it left (frame plan F7; with the parts reset at
     /// every race view, held races draw and sound the same as when each kept its last).
     pub fn begin(&self) {
-        use crate::pointers::Cells;
+        use crate::cells::Cells;
         self.fog.copy_from(&FRESH.fog);
         self.object.copy_from(&FRESH.object);
         self.light.copy_from(&FRESH.light);

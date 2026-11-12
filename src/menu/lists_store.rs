@@ -214,7 +214,7 @@ impl MenuLists {
     /// a list on to its end mark, and a list of one shown twice (menu 0xE) is read on past
     /// its field into the next.
     pub fn car_entry(&self, list: CarList, n: u32) -> Result<u32, crate::errors::BadInput> {
-        crate::pointers::load_value(self, self.car_entry_offset(list, n))
+        crate::cells::load_value(self, self.car_entry_offset(list, n))
     }
 
     /// Entry `n` of a list of cars, written.
@@ -224,7 +224,7 @@ impl MenuLists {
         n: u32,
         value: u32,
     ) -> Result<(), crate::errors::BadInput> {
-        crate::pointers::store_value(self, self.car_entry_offset(list, n), value)
+        crate::cells::store_value(self, self.car_entry_offset(list, n), value)
     }
 
     /// Where entry `n` of a list of cars is, in these lists.

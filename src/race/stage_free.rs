@@ -10,7 +10,7 @@ use crate::race::owner::Race;
 /// One of the freeing functions: its list (where it is, found when it runs: the statics
 /// deref at run time), whether it counts, the pointers it clears.
 pub struct Freeing {
-    pub list: fn(&Race) -> &dyn crate::pointers::Store,
+    pub list: fn(&Race) -> &dyn crate::cells::Store,
     pub counted: bool,
     /// Each sets one of the pointers to 0.
     pub cleared: &'static [fn(&Race)],
@@ -87,7 +87,7 @@ pub const MUD: Freeing = Freeing {
 /// `race::free_game_fonts` (0x41B2BC; `pusha` / `popa`, not counted).
 pub fn free_game_fonts(gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
     let l = &gfx.fonts.game_fonts_memory.memory; // g_gameFontMemory
-    let list = crate::pointers::load_value::<MemoryList>(l, 0)?;
+    let list = crate::cells::load_value::<MemoryList>(l, 0)?;
     if list.head != 0 {
         return Err(BadInput("a memory list holding a block").into());
     }
@@ -102,7 +102,7 @@ pub fn free_game_fonts(gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
 pub fn free(race: &Race, f: &Freeing) -> Result<(), Refused> {
     let course = &race.course;
     let l = (f.list)(race);
-    let list = crate::pointers::load_value::<MemoryList>(l, 0)?;
+    let list = crate::cells::load_value::<MemoryList>(l, 0)?;
     if list.head != 0 {
         return Err(BadInput("a memory list holding a block").into());
     }

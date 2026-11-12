@@ -56,7 +56,7 @@ pub static CHECKPOINTS: InBuffers = InBuffers;
 /// and a cell past a field's end is the next field's first (as in the image): the cell is
 /// found in `record` by its offset. A cell past the record ends the program.
 #[inline]
-pub fn cell_in<'a, T: crate::pointers::Cells>(
+pub fn cell_in<'a, T: crate::cells::Cells>(
     table: &'a [Dword],
     record: &'a T,
     field: usize,
@@ -66,8 +66,8 @@ pub fn cell_in<'a, T: crate::pointers::Cells>(
 }
 
 /// The dword `n` places on from byte `field` of `record`, across the fields after it.
-pub fn run_on<T: crate::pointers::Cells>(record: &T, field: usize, n: usize) -> &Dword {
-    use crate::pointers::CellRun;
+pub fn run_on<T: crate::cells::Cells>(record: &T, field: usize, n: usize) -> &Dword {
+    use crate::cells::CellRun;
     let offset = field.wrapping_add(((n as u32).wrapping_mul(4)) as usize);
     let cell = (offset < core::mem::size_of::<T>())
         .then(|| record.cell_run(offset))

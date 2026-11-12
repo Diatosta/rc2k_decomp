@@ -17,7 +17,7 @@ use rc2k_core::drive::replay_views::{WishStep, wish_step};
 
 /// Byte `k` of the frame's head (the first car block's start, `g_carBlockStore`).
 fn head_byte(race: &Race, k: usize) -> Result<u32, BadInput> {
-    crate::pointers::load_value::<u8>(&race.car_blocks().cars[0].frame_head, k).map(u32::from)
+    crate::cells::load_value::<u8>(&race.car_blocks().cars[0].frame_head, k).map(u32::from)
 }
 
 /// `replay_camera_wishes`[head byte]`: the table holds 47; a larger byte reads on into the

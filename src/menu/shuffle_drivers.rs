@@ -7,9 +7,9 @@
 //!
 //! Callers: one of the game's. The random numbers are `math::random_below`'s.
 //! Refuses a count of 0 (the original's `div` traps, its loop runs on), before anything.
+use crate::cells::Store;
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
-use crate::pointers::Store;
 use crate::session::PlainDword;
 
 const DRIVER_LEN: usize = 0x94;

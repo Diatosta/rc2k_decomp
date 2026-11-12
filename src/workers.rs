@@ -125,7 +125,7 @@ pub fn game_scratch() -> &'static PartScratch {
 
 /// The scratch stores' copies by part (0 the game's own), as stores.
 #[cfg(test)]
-fn scratch_stores(n: usize) -> [&'static (dyn crate::pointers::Store + Sync); 3] {
+fn scratch_stores(n: usize) -> [&'static (dyn crate::cells::Store + Sync); 3] {
     let p = &PARTS[n];
     [p.records, p.vertices, p.polygon]
 }

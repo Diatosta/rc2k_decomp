@@ -4,7 +4,7 @@
 //!
 //! Caller: `drive::keep_replay_frame`.
 
-use crate::pointers::{Cells, copy_cells};
+use crate::cells::{Cells, copy_cells};
 use crate::race::blocks_store::REPLAY_STATE_OFFSET;
 use crate::race::groups_store::CarsAndReplay;
 use crate::race::owner::Race;
@@ -14,7 +14,7 @@ use rc2k_core::drive::replay_frames::{StartPiece, start_layout};
 /// Where a piece of the starting state is now: a car's block, the race slots (`g_raceSlots`) or
 /// `replay_extra` (its 0x400 bytes run on through the computer driver's fields: bounded to
 /// the race work). For the replay check, which reads it dword by dword.
-pub fn piece_place(race: &Race, piece: StartPiece) -> (&dyn crate::pointers::Store, usize) {
+pub fn piece_place(race: &Race, piece: StartPiece) -> (&dyn crate::cells::Store, usize) {
     let shared = &race.shared;
     match piece {
         StartPiece::Car(k) => (&race.car_blocks().cars[k as usize], 0),

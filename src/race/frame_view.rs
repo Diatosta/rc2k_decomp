@@ -8,9 +8,9 @@
 //! With `RC2K_FRAME_VIEW_CHECK` the snapshot is compared with the blocks at the end of the
 //! drawing: a field the drawing changed is logged (it would not belong here).
 
+use crate::cells::Cells;
 use crate::errors::BadInput;
 use crate::physics::car_store::Car;
-use crate::pointers::Cells;
 use crate::race::blocks_store::BLOCK_COUNT;
 use crate::race::owner::Race;
 use crate::session::{Dword, Float};
@@ -28,7 +28,7 @@ macro_rules! car_view {
         impl CarView {
             const fn new() -> Self {
                 // Every field a cell or an array of cells: zero bits.
-                crate::pointers::cells_of_bytes([0u8; core::mem::size_of::<CarView>()])
+                crate::cells::cells_of_bytes([0u8; core::mem::size_of::<CarView>()])
             }
 
             /// Every field from `car`.
@@ -105,8 +105,8 @@ car_view! {
 fn same<T: Cells>(a: &T, b: &T) -> bool {
     let n = core::mem::size_of::<T>();
     let (mut x, mut y) = (vec![0; n], vec![0; n]);
-    crate::pointers::load_cells(a, 0, &mut x).is_ok()
-        && crate::pointers::load_cells(b, 0, &mut y).is_ok()
+    crate::cells::load_cells(a, 0, &mut x).is_ok()
+        && crate::cells::load_cells(b, 0, &mut y).is_ok()
         && x == y
 }
 

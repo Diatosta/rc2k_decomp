@@ -1,7 +1,6 @@
 //! The cells the game's data lives in: `Cells` (a record of atomics and cells whose runs are
 //! found by byte offset), its runs and references, `Plain` values, `Store` (what a byte offset
-//! resolves to), and the copies between them. Re-exported by `pointers` (the address layer
-//! the conversion removes), so callers keep their paths until they are rewritten.
+//! resolves to), and the copies between them.
 
 #![allow(unsafe_code)]
 

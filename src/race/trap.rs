@@ -19,12 +19,12 @@ impl Trap {
     /// The `T` at byte `offset` of a store, or its zero when the read is refused (kept for
     /// `finish`).
     #[track_caller]
-    pub fn load_at<T: crate::pointers::Plain + Default>(
+    pub fn load_at<T: crate::cells::Plain + Default>(
         &self,
-        store: &dyn crate::pointers::Store,
+        store: &dyn crate::cells::Store,
         offset: usize,
     ) -> T {
-        self.keep_read(crate::pointers::load_value(store, offset))
+        self.keep_read(crate::cells::load_value(store, offset))
     }
 
     /// A checked read's answer, or its zero when refused (kept for `finish`).

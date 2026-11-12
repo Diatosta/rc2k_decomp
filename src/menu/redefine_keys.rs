@@ -15,11 +15,11 @@
 //!                 (0x3E7), the copy goes to the player and the redefining ends.
 //! The place 8 has no item on the pages (it is not drawn either).
 
+use crate::cells::Store;
 use crate::errors::{BadInput, Refused};
 use crate::input::take_key::take_key;
 use crate::menu::owner::Keys;
 use crate::menu::owner::Menus;
-use crate::pointers::Store;
 
 pub use rc2k_core::menu::player::{KEYS, Redefined};
 pub const NO_PLACE: u32 = 999;

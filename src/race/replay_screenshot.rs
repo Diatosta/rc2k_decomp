@@ -10,8 +10,8 @@
 //!
 //! Caller: `drive::race_frame` (each frame drawn).
 
+use crate::cells::Store;
 use crate::errors::Refused;
-use crate::pointers::Store;
 
 pub fn replay_screenshot(
     race: &crate::race::owner::Race,

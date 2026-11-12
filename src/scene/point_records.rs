@@ -39,7 +39,7 @@ static TAKEN: AtomicBool = AtomicBool::new(false);
 /// The records made, zeroed, counted on `list`.
 pub fn take(
     course: &crate::race::owner_course::Course,
-    list: &dyn crate::pointers::Store,
+    list: &dyn crate::cells::Store,
 ) -> Result<(), Refused> {
     crate::memory::owned::count_on(list, BYTES)?;
     RECORDS

@@ -127,7 +127,7 @@ pub fn make_profiles(
             return Err(BadInput("no course info (g_courseInfo 0)").into());
         }
         let corners = crate::race::course_places::info_bytes(COURSE_CORNERS, CORNERS_LEN)?;
-        crate::pointers::Store::store(&effects.blocks.corners, 0, &corners)?;
+        crate::cells::Store::store(&effects.blocks.corners, 0, &corners)?;
         crate::effects::blocks::allocate_links(effects)?;
         crate::effects::blocks::reset_settings_blocks(effects)?;
     }

@@ -70,7 +70,7 @@ pub fn cstring_in(bytes: &[u8]) -> Result<Vec<u8>, crate::errors::BadInput> {
 
 /// The text at byte `offset` of the store, read within its next `len` bytes.
 pub fn cstring_from(
-    store: &dyn crate::pointers::Store,
+    store: &dyn crate::cells::Store,
     offset: usize,
     len: usize,
 ) -> Result<Vec<u8>, crate::errors::BadInput> {
@@ -81,7 +81,7 @@ pub fn cstring_from(
 
 /// The text in the store up to its NUL, within the store.
 pub fn cstring(
-    at: &dyn crate::pointers::Store,
+    at: &dyn crate::cells::Store,
     _what: &str,
 ) -> Result<Vec<u8>, crate::errors::BadInput> {
     cstring_from(at, 0, at.size())

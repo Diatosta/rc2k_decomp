@@ -189,13 +189,13 @@ pub fn shadow_hull(work: &ShadowWork) -> Result<(), Refused> {
     let at = |n: usize| point_at(work, n as u32);
     let mut records: Vec<Record> = Vec::new();
     for n in 0..hull_records(count) {
-        records.push(crate::pointers::load_value::<Record>(at(n)?, 0)?);
+        records.push(crate::cells::load_value::<Record>(at(n)?, 0)?);
     }
     let before = records.clone();
     let h = hull(&mut records, count)?;
     for (n, (now, was)) in records.iter().zip(&before).enumerate() {
         if now != was {
-            crate::pointers::store_value(at(n)?, 0, *now)?;
+            crate::cells::store_value(at(n)?, 0, *now)?;
         }
     }
     work.search.product()[0].set(h.product as u32);
@@ -1028,7 +1028,7 @@ mod reference_vectors {
                         .collect::<Vec<u8>>(),
                 );
                 let entry = super::vector_tests::entry_of([0xAAAA_AAAA; 17]);
-                let cells = crate::pointers::dwords_in::<_, 17>(&entry, 0);
+                let cells = crate::cells::dwords_in::<_, 17>(&entry, 0);
                 // The original writes the entry's dwords 4 and 5 only.
                 let a: [u32; 2] = words(&mut file);
                 circle_place(&entry, k, n, radius, unit);
@@ -1065,7 +1065,7 @@ mod vector_tests {
         for (b, w) in bytes.as_chunks_mut::<4>().0.iter_mut().zip(words) {
             b.copy_from_slice(&w.to_le_bytes());
         }
-        crate::pointers::cells_of_bytes(bytes)
+        crate::cells::cells_of_bytes(bytes)
     }
 
     #[test]

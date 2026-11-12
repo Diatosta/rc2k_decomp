@@ -37,7 +37,7 @@ pub struct PolygonVertices {
 /// The other drawing parts' buffers (`workers::PartScratch`; part 0's is a field of
 /// `crate::race::owner::race().shared.buffers`).
 pub(crate) static OTHER_COPIES: [PolygonVertices; crate::workers::COUNT - 1] =
-    [const { crate::pointers::cells_of_bytes([0u8; core::mem::size_of::<PolygonVertices>()]) };
+    [const { crate::cells::cells_of_bytes([0u8; core::mem::size_of::<PolygonVertices>()]) };
         crate::workers::COUNT - 1];
 
 /// The tests' way to the game's thread's buffer (part 0's, `workers::game_scratch`).

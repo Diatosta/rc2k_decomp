@@ -155,7 +155,7 @@ pub struct PolygonTables {
 
 /// The other drawing parts' copies of the work (`workers::PartScratch`).
 pub(crate) static OTHER_COPIES: [PolygonWork; crate::workers::COUNT - 1] =
-    [const { crate::pointers::cells_of_bytes([0u8; WORK_LEN]) }; crate::workers::COUNT - 1];
+    [const { crate::cells::cells_of_bytes([0u8; WORK_LEN]) }; crate::workers::COUNT - 1];
 
 /// The work's bytes.
 const WORK_LEN: usize = core::mem::size_of::<PolygonWork>();

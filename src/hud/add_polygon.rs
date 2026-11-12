@@ -52,7 +52,7 @@ pub fn add_polygon(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
             crate::hud::set_batch_texture::set_batch_texture(pen.part, frame, pen.scene)?;
         }
         let vc = hud.block.vertex_count.get();
-        crate::pointers::copy_between(
+        crate::cells::copy_between(
             &pen.vertices.vertices,
             0,
             &hud.block.vertices,

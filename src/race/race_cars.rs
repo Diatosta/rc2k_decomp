@@ -125,8 +125,8 @@ pub fn set_player_car_kinds(race: &Race) {
 
 /// The cars' data text from its start, as the original reads it (past the buffer's end
 /// too).
-fn text_data(shared: &RaceShared) -> crate::pointers::StoreBytes<'_> {
-    crate::pointers::StoreBytes(&shared.tables.car_data_text)
+fn text_data(shared: &RaceShared) -> crate::cells::StoreBytes<'_> {
+    crate::cells::StoreBytes(&shared.tables.car_data_text)
 }
 
 /// `race::set_up_race_cars` (0x4364AD): `reset_car_blocks`, `drop_absent_player`,

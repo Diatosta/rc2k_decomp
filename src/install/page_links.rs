@@ -258,7 +258,7 @@ impl PageLink {
     /// original's does, but not out of them).
     pub fn pages_dword(at: usize) -> Result<u32, BadInput> {
         let mut bytes = [0; 4];
-        crate::pointers::load_cells(&crate::install::owner::install().pages, at, &mut bytes)?;
+        crate::cells::load_cells(&crate::install::owner::install().pages, at, &mut bytes)?;
         Ok(u32::from_le_bytes(bytes))
     }
 

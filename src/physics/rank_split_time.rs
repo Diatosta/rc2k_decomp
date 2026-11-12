@@ -34,7 +34,7 @@ fn name(
     let mut written = 0u32;
     let mut refused = None;
     append_string_by_id_in(o, id, &mut |bytes| {
-        if let Err(e) = crate::pointers::Store::store(text, written as usize, bytes) {
+        if let Err(e) = crate::cells::Store::store(text, written as usize, bytes) {
             refused.get_or_insert(e);
         }
         written += bytes.len() as u32;

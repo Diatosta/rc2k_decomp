@@ -127,7 +127,7 @@ impl RaceView {
     /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
     /// `race::store::LEFT`), with the image's first values.
     pub const fn new() -> Self {
-        crate::pointers::cells_of_bytes(crate::race::blocks_store::with_block_refs(
+        crate::cells::cells_of_bytes(crate::race::blocks_store::with_block_refs(
             crate::race::store::first_values::<{ END - START }>(START),
             crate::race::blocks_store::VIEW_BLOCKS_IDA - START,
             2,

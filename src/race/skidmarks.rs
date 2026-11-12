@@ -162,7 +162,7 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
                 Ok(u16::from_le_bytes([table.get(at), table.get(at + 1)]))
             } else {
                 // past the table, by address, as the original reads on
-                crate::pointers::load_value::<u16>(table, at)
+                crate::cells::load_value::<u16>(table, at)
             }
         };
         let before = link(8 * n)? as i16 as i32 as u32;

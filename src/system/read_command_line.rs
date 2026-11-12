@@ -41,7 +41,7 @@ pub fn show_version_and_leave(start: &Start) -> ! {
     let caption = &crate::fatal::state::CAPTION;
     // The `:` of the caption text is cut (the title is "Rally" alone).
     caption.set(5, 0);
-    let c_text = |at: &dyn crate::pointers::Store, what| {
+    let c_text = |at: &dyn crate::cells::Store, what| {
         crate::files::cstring(at, what).unwrap_or_else(|e| leave(e))
     };
     // The text from its seventh byte up to its NUL.

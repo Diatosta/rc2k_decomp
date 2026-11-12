@@ -66,7 +66,7 @@ pub struct Segment {
     unsafe_code,
     reason = "Store's promise: a segment is bytes of the block's one run"
 )]
-unsafe impl crate::pointers::Store for Segment {
+unsafe impl crate::cells::Store for Segment {
     fn size(&self) -> usize {
         self.len
     }
@@ -77,12 +77,12 @@ unsafe impl crate::pointers::Store for Segment {
 
     fn load(&self, offset: usize, to: &mut [u8]) -> Result<(), BadInput> {
         self.check(offset, to.len())?;
-        crate::pointers::load_cells(STORE.get(), self.from + offset, to)
+        crate::cells::load_cells(STORE.get(), self.from + offset, to)
     }
 
     fn store(&self, offset: usize, from: &[u8]) -> Result<(), BadInput> {
         self.check(offset, from.len())?;
-        crate::pointers::store_cells(STORE.get(), self.from + offset, from)
+        crate::cells::store_cells(STORE.get(), self.from + offset, from)
     }
 }
 

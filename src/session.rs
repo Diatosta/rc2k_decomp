@@ -160,7 +160,7 @@ impl Float {
 /// Cell `n` of `cells`, or the dword the original reads there: past the table's end it reads what
 /// follows only inside `holder`, the store or record holding the table. The original reads
 /// on anywhere; here the next thing in memory is another static, so that is refused.
-pub fn read_on_in<H: crate::pointers::Cells, C: Cell32>(
+pub fn read_on_in<H: crate::cells::Cells, C: Cell32>(
     holder: &H,
     cells: &[C],
     n: usize,
@@ -171,7 +171,7 @@ pub fn read_on_in<H: crate::pointers::Cells, C: Cell32>(
         None => {
             let mut bytes = [0; 4];
             on_in(holder, cells, n, what, |at| {
-                crate::pointers::load_cells(holder, at, &mut bytes)
+                crate::cells::load_cells(holder, at, &mut bytes)
             })?;
             Ok(u32::from_le_bytes(bytes))
         }
@@ -179,7 +179,7 @@ pub fn read_on_in<H: crate::pointers::Cells, C: Cell32>(
 }
 
 /// `read_on_in`'s write.
-pub fn write_on_in<H: crate::pointers::Cells, C: Cell32>(
+pub fn write_on_in<H: crate::cells::Cells, C: Cell32>(
     holder: &H,
     cells: &[C],
     n: usize,
@@ -192,7 +192,7 @@ pub fn write_on_in<H: crate::pointers::Cells, C: Cell32>(
             Ok(())
         }
         None => on_in(holder, cells, n, what, |at| {
-            crate::pointers::store_cells(holder, at, &v.to_le_bytes())
+            crate::cells::store_cells(holder, at, &v.to_le_bytes())
         }),
     }
 }
@@ -219,7 +219,7 @@ fn on_in<H, C>(
 
 /// `n` cells from `from` into `to`, one at a time forwards (a `rep movsd`: an overlap reads
 /// what it has just written), each past its table's end only inside its holder.
-pub fn copy_on_in<F: crate::pointers::Cells, T: crate::pointers::Cells, A: Cell32, B: Cell32>(
+pub fn copy_on_in<F: crate::cells::Cells, T: crate::cells::Cells, A: Cell32, B: Cell32>(
     (from_holder, from): (&F, &[A]),
     (to_holder, to): (&T, &[B]),
     n: usize,
@@ -1024,8 +1024,8 @@ impl<T: Copy> Shared<T> {
     /// The run of cells holding byte `offset`, at the width `WORDS` picks, and the byte it
     /// starts at: a 4-aligned record's whole dwords, or the bytes past them; a packed
     /// record's bytes.
-    pub fn cell_run(&self, offset: usize) -> (usize, crate::pointers::CellRun<'_>) {
-        use crate::pointers::CellRun;
+    pub fn cell_run(&self, offset: usize) -> (usize, crate::cells::CellRun<'_>) {
+        use crate::cells::CellRun;
         let size = size_of::<T>();
         let words = if Self::WORDS { size & !3 } else { 0 };
         let base = self.0.get().cast::<u8>();
@@ -1477,13 +1477,13 @@ impl<'a, S> Window<'a, S> {
 
 // SAFETY: as `OnGameThread`'s, without the thread check: `first` is the record's byte at the
 // window's offset and `size` the window's length.
-unsafe impl<S: crate::pointers::Cells> crate::pointers::Store for Window<'_, S> {
+unsafe impl<S: crate::cells::Cells> crate::cells::Store for Window<'_, S> {
     fn size(&self) -> usize {
         self.len
     }
 
-    fn cell_run_at(&self, offset: usize) -> Option<(usize, crate::pointers::CellRun<'_>)> {
-        let (start, run) = crate::pointers::Cells::cell_run(self.whole, self.offset + offset);
+    fn cell_run_at(&self, offset: usize) -> Option<(usize, crate::cells::CellRun<'_>)> {
+        let (start, run) = crate::cells::Cells::cell_run(self.whole, self.offset + offset);
         match start.checked_sub(self.offset) {
             Some(start) => Some((start, run)),
             None => Some((0, run.skip(self.offset - start)?)),
@@ -1492,7 +1492,7 @@ unsafe impl<S: crate::pointers::Cells> crate::pointers::Store for Window<'_, S> 
 
     #[cfg(any(test, feature = "write_watch"))]
     fn field_path_at(&self, offset: usize, path: &mut String) -> Option<&'static str> {
-        Some(crate::pointers::Cells::field_path(
+        Some(crate::cells::Cells::field_path(
             self.whole,
             self.offset + offset,
             path,
@@ -1511,11 +1511,11 @@ unsafe impl<S: crate::pointers::Cells> crate::pointers::Store for Window<'_, S> 
     }
 
     fn load(&self, offset: usize, to: &mut [u8]) -> Result<(), crate::errors::BadInput> {
-        crate::pointers::load_cells(self.whole, self.offset + offset, to)
+        crate::cells::load_cells(self.whole, self.offset + offset, to)
     }
 
     fn store(&self, offset: usize, from: &[u8]) -> Result<(), crate::errors::BadInput> {
-        crate::pointers::store_cells(self.whole, self.offset + offset, from)
+        crate::cells::store_cells(self.whole, self.offset + offset, from)
     }
 }
 

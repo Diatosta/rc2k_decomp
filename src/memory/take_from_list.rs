@@ -7,22 +7,19 @@
 //! compiler and the sprite and font builder cut their work memory this way.
 //! The name is a reading.
 
+use crate::cells::{load_value, store_value};
 use crate::errors::BadInput;
 use crate::memory::MemoryList;
-use crate::pointers::{load_value, store_value};
 
 /// The address of the bytes, or None if the list has not that many left.
-pub fn take_from_list(
-    list: &dyn crate::pointers::Store,
-    bytes: u32,
-) -> Result<Option<u32>, BadInput> {
+pub fn take_from_list(list: &dyn crate::cells::Store, bytes: u32) -> Result<Option<u32>, BadInput> {
     let mut l = load_value::<MemoryList>(list, 0)?;
     let taken = l.take(bytes);
     store_value(list, 0, l)?;
     Ok(taken)
 }
 
-pub fn rewind_list(list: &dyn crate::pointers::Store) -> Result<(), BadInput> {
+pub fn rewind_list(list: &dyn crate::cells::Store) -> Result<(), BadInput> {
     let mut l = load_value::<MemoryList>(list, 0)?;
     l.rewind();
     store_value(list, 0, l)

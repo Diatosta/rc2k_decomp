@@ -10,7 +10,7 @@
 use crate::errors::Refused;
 
 // Converted: `rc2k_core::physics::pushes::{record_count, CLEARED_DWORDS}`.
-pub fn clear_records(at: &dyn crate::pointers::Store, count: u32) -> Result<(), Refused> {
+pub fn clear_records(at: &dyn crate::cells::Store, count: u32) -> Result<(), Refused> {
     use rc2k_core::physics::pushes::{CLEARED_DWORDS, record_count};
     let count = record_count(count, "a record count of 0 or above 0x100")?;
     for k in 0..count {

@@ -71,7 +71,7 @@ const _: () = {
 impl Buffers {
     /// The bytes, zero as in the image.
     pub const fn new() -> Self {
-        crate::pointers::cells_of_bytes([0u8; END - START])
+        crate::cells::cells_of_bytes([0u8; END - START])
     }
 }
 

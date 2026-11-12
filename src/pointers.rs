@@ -31,10 +31,9 @@ pub mod pool;
 
 pub use pool::PoolBytes;
 
-pub use crate::cells::{
-    CellRun, Cells, Plain, Store, StoreBytes, cells_of_bytes, copy_between, copy_cells, dwords_in,
-    load_cells, load_value, store_cells, store_value,
-};
+use crate::cells::{CellRun, Store};
+#[cfg(test)]
+use crate::cells::{Cells, Plain};
 // Private helpers of the cells, used by the address layer and `pool`.
 use crate::cells::{bytes_mut, bytes_of, zeroed};
 

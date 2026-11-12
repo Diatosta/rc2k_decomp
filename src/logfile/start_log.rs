@@ -57,7 +57,7 @@ pub fn start_log(system: &System) -> Result<(), BadInput> {
     // Converted: `rc2k_core::files::log::head`; the values gathered (the date text,
     // the memory and the drive's numbers left in game memory as the original leaves
     // them), then each message logged as the original's call.
-    use crate::pointers::Store;
+    use crate::cells::Store;
     use rc2k_core::files::log::{Machine, Message, head};
     let machine = &system.session.machine;
     let machine_text = |offset: usize, len: usize| crate::files::cstring_from(machine, offset, len);

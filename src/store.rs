@@ -21,7 +21,7 @@ pub trait Block: Copy {
     fn base() -> usize;
 }
 
-/// A range of a block's plain shared bytes as a store (`pointers::Store`): `len` bytes from
+/// A range of a block's plain shared bytes as a store (`cells::Store`): `len` bytes from
 /// `offset` in the block, whose first IDA byte `first` names. Read and written through
 /// `shared_memory`, the discipline of every `Bytes`.
 pub struct BlockRange {
@@ -48,7 +48,7 @@ impl BlockRange {
 }
 
 // SAFETY: `first` and `size` name a range of the block's plain shared bytes.
-unsafe impl crate::pointers::Store for BlockRange {
+unsafe impl crate::cells::Store for BlockRange {
     fn size(&self) -> usize {
         self.len
     }

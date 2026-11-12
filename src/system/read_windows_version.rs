@@ -12,7 +12,7 @@ const VERSION_INFO_LEN: usize = 0x94;
 pub fn read_windows_version(system: &crate::system::owner::System) {
     let record = crate::os::version_record();
     debug_assert_eq!(record.len(), VERSION_INFO_LEN);
-    use crate::pointers::Store as _;
+    use crate::cells::Store as _;
     system
         .session
         .machine

@@ -139,14 +139,14 @@ pub struct StagePrefs {
 /// `race::store::LEFT`), with the image's first values.
 impl StagePrefs {
     pub const fn new() -> Self {
-        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
 }
 
 impl StagePrefs {
     /// The piece as its dwords in order: the stage's `localdat` read in place.
     pub fn dwords(&self) -> &[Dword; (END - START) / 4] {
-        crate::pointers::dwords_in(self, 0)
+        crate::cells::dwords_in(self, 0)
     }
 }
 

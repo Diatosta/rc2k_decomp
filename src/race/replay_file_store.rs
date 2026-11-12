@@ -70,7 +70,7 @@ impl ReplayFileBlock {
     /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
     /// `race::store::LEFT`), with the image's first values.
     pub const fn new() -> Self {
-        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
 }
 
@@ -81,7 +81,7 @@ impl ReplayFileBlock {
     /// The replay index ("RCIB", the seal, the counts, the places) as its dwords in order,
     /// read and written in place.
     pub fn index(&self) -> &[Dword; INDEX_DWORDS] {
-        crate::pointers::dwords_in(self, core::mem::offset_of!(Self, index_magic))
+        crate::cells::dwords_in(self, core::mem::offset_of!(Self, index_magic))
     }
 }
 

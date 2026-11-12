@@ -2,10 +2,10 @@
 //! `localdat`, 0x206C bytes at 0x608CB4, which hold `g_textureKinds` at +0x100 and the
 //! lists below), "skidmarks init", "render3d loadlightsdat" and "getmatcrash".
 
+use crate::cells::Store;
 use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::physics::car_store::Car;
-use crate::pointers::Store;
 use crate::race::matrices_store::SceneMatrices;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;

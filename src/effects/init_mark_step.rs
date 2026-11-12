@@ -59,7 +59,7 @@ pub fn init_mark_step(
             let bad = crate::effects::Sticky::default();
             // Each field is a dword at a byte offset of the row, a run-on as the original.
             let fields = race::car_fields(n, |offset| {
-                bad.take(crate::pointers::load_value::<u32>(
+                bad.take(crate::cells::load_value::<u32>(
                     &race.light_records().records,
                     row + offset,
                 ))

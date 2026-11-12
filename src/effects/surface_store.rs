@@ -196,7 +196,7 @@ impl SurfaceTables {
     pub fn word(&self, at: usize) -> u32 {
         assert!(at + 4 <= Self::LEN);
         let mut word = [0u8; 4];
-        crate::pointers::load_cells(self, at, &mut word)
+        crate::cells::load_cells(self, at, &mut word)
             .unwrap_or_else(|e| crate::fatal::raise::end("a surface word", e));
         u32::from_le_bytes(word)
     }

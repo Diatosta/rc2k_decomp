@@ -151,6 +151,6 @@ pub fn stage_choice_texts(o: Owners<'static>) -> Result<(), Refused> {
         )?,
     )?;
     let (base, record) = stage_record(stages, a, b, menus.screens.event.stage_number.get())?;
-    crate::pointers::store_value::<u32>(&menus.tables.menus.labels, item_1, base.title()?)?;
+    crate::cells::store_value::<u32>(&menus.tables.menus.labels, item_1, base.title()?)?;
     stage_line(text, 0x482, record)
 }

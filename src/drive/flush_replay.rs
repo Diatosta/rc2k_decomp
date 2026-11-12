@@ -3,8 +3,8 @@
 //!
 //! Caller: `drive::flush_replay_if`. Refuses what `write_replay_frames` refuses.
 
+use crate::cells::copy_cells;
 use crate::errors::Refused;
-use crate::pointers::copy_cells;
 use crate::race::blocks_store::REPLAY_STATE_OFFSET;
 use crate::race::owner::Race;
 use crate::system::owner::System;

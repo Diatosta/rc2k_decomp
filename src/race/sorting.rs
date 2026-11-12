@@ -2,8 +2,8 @@
 //! points, the shadow's points) through `rc2k_core::race::quick_sort`: the records from
 //! the first to the last (both included) read, sorted, the changed ones written back.
 
+use crate::cells::Store;
 use crate::errors::Refused;
-use crate::pointers::Store;
 use rc2k_core::race::quick_sort::{Order, quick_sort};
 
 /// The `count` records of `N` dwords from `first` (a store) sorted by dword `key` in `order`

@@ -4,8 +4,8 @@
 //!
 //! Caller: `drive::record_inputs_if`.
 
+use crate::cells::Store;
 use crate::errors::BadInput;
-use crate::pointers::Store;
 use crate::race::owner::Race;
 use rc2k_core::drive::replay_frames::{on_tape, tape_offset};
 

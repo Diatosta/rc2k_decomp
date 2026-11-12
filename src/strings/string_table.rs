@@ -68,14 +68,14 @@ pub fn made_text(
 
 /// The bytes of `holder` from `offset` to the first NUL (left out); the original reads on
 /// past the field the text starts in, so the whole variable is the limit.
-fn text_in<T: crate::pointers::Cells>(holder: &T, offset: usize) -> Result<Vec<u8>, BadInput> {
+fn text_in<T: crate::cells::Cells>(holder: &T, offset: usize) -> Result<Vec<u8>, BadInput> {
     const CHUNK: usize = 16;
     let mut text = Vec::new();
     let mut at = offset;
     while at < size_of::<T>() {
         let mut chunk = [0u8; CHUNK];
         let len = CHUNK.min(size_of::<T>() - at);
-        crate::pointers::load_cells(holder, at, &mut chunk[..len])?;
+        crate::cells::load_cells(holder, at, &mut chunk[..len])?;
         if let Some(end) = chunk[..len].iter().position(|&b| b == 0) {
             text.extend_from_slice(&chunk[..end]);
             return Ok(text);

@@ -11,9 +11,9 @@
 
 #![allow(unsafe_code)]
 
+use crate::cells::Plain;
 use crate::errors::BadInput;
 use crate::framework::log;
-use crate::pointers::Plain;
 use std::cell::UnsafeCell;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
@@ -53,7 +53,7 @@ impl PoolBlock {
 
 // SAFETY: `first` and `size` are the block's own pages; every read and write takes `load` and
 // `store`, which reach them inside its length.
-unsafe impl crate::pointers::Store for PoolBlock {
+unsafe impl crate::cells::Store for PoolBlock {
     fn size(&self) -> usize {
         self.len()
     }
@@ -103,7 +103,7 @@ pub fn take(len: usize) -> &'static PoolBlock {
     if let Some((block, zeroed)) = reused {
         if !zeroed {
             for at in (0..block.len()).step_by(PAGE) {
-                let _ = crate::pointers::Store::store(block, at, &[0; PAGE]);
+                let _ = crate::cells::Store::store(block, at, &[0; PAGE]);
             }
         }
         return block;
@@ -148,7 +148,7 @@ pub struct PoolBytes {
 impl PoolBytes {
     pub fn from_vec(bytes: Vec<u8>) -> Self {
         let block = take(bytes.len());
-        crate::pointers::Store::store(block, 0, &bytes)
+        crate::cells::Store::store(block, 0, &bytes)
             .unwrap_or_else(|e| crate::fatal::raise::end("pointers::PoolBytes", e));
         Self {
             block,
@@ -173,7 +173,7 @@ impl PoolBytes {
             return Err(BadInput("past the end of a field"));
         }
         let mut bytes = vec![0; len];
-        crate::pointers::Store::load(self.block, offset as usize, &mut bytes)?;
+        crate::cells::Store::load(self.block, offset as usize, &mut bytes)?;
         Ok(bytes)
     }
 
@@ -190,21 +190,21 @@ impl PoolBytes {
             ));
             return Err(BadInput("past the end of a field"));
         }
-        crate::pointers::Store::store(self.block, offset as usize, data)
+        crate::cells::Store::store(self.block, offset as usize, data)
     }
 
     /// The `T` at byte `offset`; a read past the bytes' end is refused.
     pub fn read_value<T: Plain>(&self, offset: u32, what: &str) -> Result<T, BadInput> {
         self.within(offset, size_of::<T>(), what)?;
         let mut value = super::zeroed::<T>();
-        crate::pointers::Store::load(self.block, offset as usize, super::bytes_mut(&mut value))?;
+        crate::cells::Store::load(self.block, offset as usize, super::bytes_mut(&mut value))?;
         Ok(value)
     }
 
     /// `value` written at byte `offset`; a write past the bytes' end is refused.
     pub fn write_value<T: Plain>(&self, offset: u32, value: T, what: &str) -> Result<(), BadInput> {
         self.within(offset, size_of::<T>(), what)?;
-        crate::pointers::Store::store(self.block, offset as usize, super::bytes_of(&value))
+        crate::cells::Store::store(self.block, offset as usize, super::bytes_of(&value))
     }
 
     /// Whether `len` bytes from `offset` lie inside the bytes.
@@ -225,7 +225,7 @@ impl PoolBytes {
     /// A copy of the bytes.
     pub fn to_vec(&self) -> Vec<u8> {
         let mut bytes = vec![0; self.len];
-        crate::pointers::Store::load(self.block, 0, &mut bytes)
+        crate::cells::Store::load(self.block, 0, &mut bytes)
             .unwrap_or_else(|e| crate::fatal::raise::end("pointers::PoolBytes", e));
         bytes
     }
@@ -254,7 +254,7 @@ impl Drop for PoolBytes {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pointers::Store;
+    use crate::cells::Store;
 
     #[test]
     fn blocks_are_zeroed_reused_and_bounded() {

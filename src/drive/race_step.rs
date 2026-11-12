@@ -42,7 +42,7 @@ fn hash_if_asked(race: &Race) {
     }
     let blocks = &race.replay.cars_and_replay.car_blocks;
     let mut bytes = vec![0u8; core::mem::size_of_val(blocks)];
-    let _ = crate::pointers::Store::load(blocks, 0, &mut bytes);
+    let _ = crate::cells::Store::load(blocks, 0, &mut bytes);
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     bytes.hash(&mut hasher);
     let tick = TICKS.fetch_add(1, Relaxed);

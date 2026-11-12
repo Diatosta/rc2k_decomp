@@ -6,8 +6,8 @@
 //! the top byte is 0. Entry 255 is done first. Four callers, the picture readers.
 //! A palette or dwords field too short is refused. The name is a reading.
 
+use crate::cells::Store;
 use crate::errors::BadInput;
-use crate::pointers::Store;
 
 pub const ENTRIES: usize = 256;
 

@@ -9,8 +9,9 @@
 //! Bytes that are gone (the screen of an earlier mode, a level let go) are refused as
 //! those of an address outside every allocation were.
 
+use crate::cells::Plain;
 use crate::errors::BadInput;
-use crate::pointers::{Plain, PoolBytes};
+use crate::pointers::PoolBytes;
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, Weak};
 

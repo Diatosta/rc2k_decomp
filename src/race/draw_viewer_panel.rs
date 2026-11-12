@@ -66,7 +66,7 @@ pub fn draw_viewer_panel(
         let mut copy = font.get();
         crate::text::draw_text_keep_regs::draw_text_keep_regs(
             &mut copy,
-            &crate::pointers::StoreBytes(&text_stores.buffer.text),
+            &crate::cells::StoreBytes(&text_stores.buffer.text),
             x,
             y,
             &mut GameCanvas::new(gfx),

@@ -4,8 +4,9 @@
 //! typed buffer goes in as itself (`&INSTALLER_PATHS.installed`, `&TEXT_BUFFER.text`) and
 //! a pointer read from the game's data as its number.
 
+use crate::cells::Store;
 use crate::errors::BadInput;
-use crate::pointers::{GamePtr, Store};
+use crate::pointers::GamePtr;
 use crate::session::{Bytes, PlainBytes};
 
 /// A run of bytes read and written in place.

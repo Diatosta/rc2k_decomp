@@ -3,8 +3,8 @@
 //! `g_courseInfo` (0x5C6FA0) its last 0x400000 bytes, where the texture and mark info
 //! files are read.
 
+use crate::cells::Store;
 use crate::errors::{BadInput, Refused};
-use crate::pointers::Store;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::owner_frame::Frame;
@@ -71,7 +71,7 @@ pub const COURSE_TAG: u32 = 0xCF00_0000;
 /// `bytes` of course memory counted on `list`, the first `kept` of them held: their handle
 /// (`COURSE_TAG`).
 fn take_course_memory(
-    list: &dyn crate::pointers::Store,
+    list: &dyn crate::cells::Store,
     bytes: u32,
     kept: u32,
 ) -> Result<u32, Refused> {

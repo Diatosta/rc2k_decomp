@@ -23,14 +23,14 @@ pub fn current_block(shared: &RaceShared) -> Result<&'static Car, Refused> {
 /// Copies `CAR_LEN` bytes, dword by dword upwards as `rep movsd` does (the two never
 /// overlap in the game; the order is kept anyway).
 pub fn copy_car(from: &Car, to: &Car) {
-    use crate::pointers::Cells;
+    use crate::cells::Cells;
     to.copy_from(from);
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pointers::{Cells, cells_of_bytes};
+    use crate::cells::{Cells, cells_of_bytes};
 
     /// A record's bytes, read through its runs.
     fn bytes(car: &Car) -> Vec<u8> {
@@ -62,7 +62,7 @@ mod tests {
                 Box::new(cells_of_bytes(random())),
                 Box::new(cells_of_bytes(random())),
             );
-            crate::pointers::copy_cells((&*from, 0), (&*walked, 0), CAR_LEN);
+            crate::cells::copy_cells((&*from, 0), (&*walked, 0), CAR_LEN);
             copy_car(&from, &typed);
             assert_eq!(bytes(&walked), bytes(&typed));
             assert_eq!(bytes(&from), bytes(&typed));

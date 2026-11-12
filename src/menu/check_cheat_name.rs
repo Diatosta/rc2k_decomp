@@ -9,9 +9,9 @@
 //! missing fourth player or name, a list without its end in 64 entries, a bit past 31 (the
 //! original's `bts` would reach past `g_cheats`), and what the coding refuses.
 
+use crate::cells::Store;
 use crate::errors::Refused;
 use crate::menu::owner::Play;
-use crate::pointers::Store;
 use crate::strings::rot13_into_text::rot13_into_text;
 
 const HIDDEN_NAME: u32 = 0x18F;

@@ -153,7 +153,7 @@ const _: () = {
 /// The cars' blocks and the replay's work, with the image's first values.
 impl CarsAndReplay {
     pub const fn new() -> Self {
-        crate::pointers::cells_of_bytes(crate::race::store::first_values::<
+        crate::cells::cells_of_bytes(crate::race::store::first_values::<
             { CARS_AND_REPLAY_RANGE.1 - CARS_AND_REPLAY_RANGE.0 },
         >(CARS_AND_REPLAY_RANGE.0))
     }
@@ -161,7 +161,7 @@ impl CarsAndReplay {
 /// The viewer's panel .. the kinds' tables, with the image's first values.
 impl ViewerAndKinds {
     pub const fn new() -> Self {
-        crate::pointers::cells_of_bytes(crate::race::store::first_values::<
+        crate::cells::cells_of_bytes(crate::race::store::first_values::<
             { VIEWER_AND_KINDS_RANGE.1 - VIEWER_AND_KINDS_RANGE.0 },
         >(VIEWER_AND_KINDS_RANGE.0))
     }
@@ -169,7 +169,7 @@ impl ViewerAndKinds {
 /// The light records and the gear figures, with the image's first values.
 impl LightsAndGear {
     pub const fn new() -> Self {
-        crate::pointers::cells_of_bytes(crate::race::store::first_values::<
+        crate::cells::cells_of_bytes(crate::race::store::first_values::<
             { LIGHTS_AND_GEAR_RANGE.1 - LIGHTS_AND_GEAR_RANGE.0 },
         >(LIGHTS_AND_GEAR_RANGE.0))
     }
@@ -179,7 +179,7 @@ impl LightsAndGear {
 /// bytes the block's before the panel).
 impl PanelAndOverlay {
     pub const fn new() -> Self {
-        crate::pointers::cells_of_bytes(crate::race::store::first_values::<
+        crate::cells::cells_of_bytes(crate::race::store::first_values::<
             { 2 + PANEL_AND_OVERLAY_RANGE.1 - PANEL_AND_OVERLAY_RANGE.0 },
         >(PANEL_AND_OVERLAY_RANGE.0 - 2))
     }
@@ -188,7 +188,7 @@ impl PanelAndOverlay {
 /// The view variables and the view records, with the image's first values.
 impl ViewAndRecords {
     pub const fn new() -> Self {
-        crate::pointers::cells_of_bytes(crate::race::view_vars_store::with_view_refs(
+        crate::cells::cells_of_bytes(crate::race::view_vars_store::with_view_refs(
             crate::race::store::first_values::<
                 { VIEW_AND_RECORDS_RANGE.1 - VIEW_AND_RECORDS_RANGE.0 },
             >(VIEW_AND_RECORDS_RANGE.0),

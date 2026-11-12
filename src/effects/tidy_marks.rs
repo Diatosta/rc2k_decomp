@@ -12,11 +12,11 @@
 //! until it meets the count), and a list that holds a block (`free_list`'s refusal; no block
 //! is put on a list any more).
 
+use crate::cells::{Store, load_value};
 use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};
 use crate::memory::MemoryList;
 use crate::memory::free_list::free_list;
-use crate::pointers::{Store, load_value};
 
 // The cars' loop starts from the settings' +0x29C (car 0).
 const MOST_CARS: i32 = 8;

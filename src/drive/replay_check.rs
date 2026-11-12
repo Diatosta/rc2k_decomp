@@ -71,7 +71,7 @@ pub fn note(race: &Race) -> Result<(), BadInput> {
         // g_carBlockStore: four blocks of 0xFE0.
         let block = &race.car_blocks().cars[car];
         let mut bytes = vec![0u8; 4 * CAR_DWORDS];
-        crate::pointers::Store::load(block, 0, &mut bytes)?;
+        crate::cells::Store::load(block, 0, &mut bytes)?;
         let h = hash(
             bytes
                 .as_chunks::<4>()
@@ -101,7 +101,7 @@ pub fn compare_frame(race: &Race) -> Result<(), BadInput> {
         if dword >= REPLAY_STATE_DWORDS {
             return Err(BadInput("a dword past the replay's starting state"));
         }
-        crate::pointers::load_value::<u32>(
+        crate::cells::load_value::<u32>(
             &race.replay.cars_and_replay,
             REPLAY_STATE_OFFSET + 4 * dword,
         )
@@ -116,7 +116,7 @@ pub fn compare_frame(race: &Race) -> Result<(), BadInput> {
         let (ours, ours_at) = crate::drive::save_replay_cars::piece_place(race, piece);
         for k in 0..n as u32 {
             let (now, kept) = (
-                crate::pointers::load_value::<u32>(ours, ours_at + 4 * k as usize)?,
+                crate::cells::load_value::<u32>(ours, ours_at + 4 * k as usize)?,
                 saved(offset + k as usize)?,
             );
             if now == kept

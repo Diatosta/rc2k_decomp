@@ -4,8 +4,8 @@
 //!
 //! Caller: `drive::play_replay_frame`. Refuses what `read_replay_frame` refuses.
 
+use crate::cells::copy_cells;
 use crate::errors::Refused;
-use crate::pointers::copy_cells;
 use crate::race::blocks_store::REPLAY_STATE_OFFSET;
 use crate::race::owner::Race;
 use crate::system::owner::System;

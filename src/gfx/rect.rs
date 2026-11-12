@@ -39,7 +39,7 @@ pub enum Palette<'a> {
     /// A font's palette as the game's data keeps it: a place of `gfx::glyph_store`.
     Held(u32),
     /// A palette of Rust's game state: a store, bounded by it.
-    Of(&'a dyn crate::pointers::Store),
+    Of(&'a dyn crate::cells::Store),
 }
 
 impl Palette<'_> {

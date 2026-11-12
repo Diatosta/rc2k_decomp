@@ -83,7 +83,7 @@ pub fn dump_fields() {
 /// every one by its call site (`calls`).
 #[inline(always)]
 #[cfg_attr(feature = "write_watch", track_caller)]
-pub fn by_address(_store: &dyn crate::pointers::Store, _at: usize, _len: usize, _write: bool) {
+pub fn by_address(_store: &dyn crate::cells::Store, _at: usize, _len: usize, _write: bool) {
     #[cfg(feature = "write_watch")]
     {
         leaves::note(_store, _at, _len, _write);
@@ -452,7 +452,7 @@ mod fields {
 /// `module,site,store,start_field,reached,rw,len,bytes_past,count`.
 #[cfg(feature = "write_watch")]
 mod leaves {
-    use crate::pointers::Store;
+    use crate::cells::Store;
     use std::cell::RefCell;
     use std::collections::{BTreeMap, HashMap};
     use std::sync::{Arc, Mutex, OnceLock};
@@ -720,7 +720,7 @@ mod leaves {
 /// its type.
 #[cfg(feature = "write_watch")]
 mod calls {
-    use crate::pointers::Store;
+    use crate::cells::Store;
     use std::cell::RefCell;
     use std::collections::{BTreeMap, HashMap};
     use std::panic::Location;
