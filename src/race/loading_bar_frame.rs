@@ -78,14 +78,14 @@ fn frame(race: &Race) -> Result<(), Refused> {
         if active == 0 || !frame_tried(active, session.flags.lost.get()) {
             break 'frame false;
         }
-        begin_scene::begin_scene();
+        begin_scene::begin_scene(race);
         let framed: u32 = shared.switches.editor_mode.get();
         shared.switches.editor_mode.set(0u32);
         choose_view_window::choose_view_window(race, scene, system);
         shared.switches.editor_mode.set(framed);
         crate::race::loading_bar_quad::loading_bar_quad(race, system, scene)?;
         end_scene::end_scene();
-        if lock_frame::lock_frame(race).0 < 1 {
+        if lock_frame::lock_frame(race, crate::gfx::owner::gfx()).0 < 1 {
             break 'frame false;
         }
         unlock_frame::unlock_frame(&race.frame);

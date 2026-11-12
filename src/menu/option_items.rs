@@ -86,15 +86,15 @@ pub struct Item {
 
 /// The items name their variables by a `StepOperand`: a typed cell, or an IDA address
 /// (`moved::place` answers where each lives now) for what is not typed yet.
-fn get(o: &Owners<'_>, x: StepOperand) -> i32 {
+fn get(o: &Owners<'static>, x: StepOperand) -> i32 {
     x.get_with(o) as i32
 }
 
-fn set(o: &Owners<'_>, x: StepOperand, v: i32) {
+fn set(o: &Owners<'static>, x: StepOperand, v: i32) {
     x.set_with(o, v as u32);
 }
 
-pub fn option_item(o: Owners<'_>, item: Item) -> Result<(), Refused> {
+pub fn option_item(o: Owners<'static>, item: Item) -> Result<(), Refused> {
     let audio = o.audio;
     // The logic is in `rc2k_core::menu::steps` (`flip`, `quality`, `volume`, `counter`,
     // `previous_mode`).
@@ -115,7 +115,7 @@ pub fn option_item(o: Owners<'_>, item: Item) -> Result<(), Refused> {
             set(&o, v, steps::flip(get(&o, v) as u32) as i32);
             set(&o, other, steps::flip(get(&o, other) as u32) as i32);
             // `gfx::screen_mode_choices` with eax 0; its flags are read by no caller.
-            crate::gfx::screen_mode_choices::screen_mode_choices_in(&o.gfx.display, o.d3d, false)?;
+            crate::gfx::screen_mode_choices::screen_mode_choices_in(o.gfx, o.d3d, false)?;
         }
         Kind::SwitchAudio => {
             set(&o, v, steps::flip(get(&o, v) as u32) as i32);
@@ -129,9 +129,11 @@ pub fn option_item(o: Owners<'_>, item: Item) -> Result<(), Refused> {
             let value = steps::volume(get(&o, v), up);
             set(&o, v, value);
             match then {
-                Then::Send => crate::sound::send_command_8::send_command_8(value as u32),
+                Then::Send => crate::sound::send_command_8::send_command_8(o.audio, value as u32),
                 Then::Store(other) => set(&o, other, value),
-                Then::Sound(sound) => crate::sound::play_menu_sound::play_menu_sound_in_game(sound),
+                Then::Sound(sound) => {
+                    crate::sound::play_menu_sound::play_menu_sound_in_game(o, sound);
+                }
             }
         }
         Kind::Counter { up, low, high } => {
@@ -153,7 +155,7 @@ macro_rules! option_item {
             const ITEM: Item = $item;
 
             /// Run by the typed tables (`menu::table_calls`).
-            pub fn run(o: Owners<'_>) -> Result<(), crate::errors::Refused> {
+            pub fn run(o: Owners<'static>) -> Result<(), crate::errors::Refused> {
                 option_item(o, ITEM)
             }
         }
@@ -174,7 +176,7 @@ fn volume_item(var: StepOperand, up: bool, then: Then) -> Item {
 /// `ItemFn::Volume { which, up }`: the volume `which` one step up or down on the sound
 /// pages (the first four on the sound page, the owner's names: general, race music, race
 /// effects, menu effects; the others on the volume page).
-pub fn volume(o: Owners<'_>, which: VolumeKind, up: bool) -> Result<(), Refused> {
+pub fn volume(o: Owners<'static>, which: VolumeKind, up: bool) -> Result<(), Refused> {
     use crate::menu::option_steps::{Then as StepThen, Volume, volume_step};
     let work = &o.menus.screens.option_work;
     let item = match which {
@@ -247,7 +249,7 @@ pub fn volume(o: Owners<'_>, which: VolumeKind, up: bool) -> Result<(), Refused>
 
 /// `ItemFn::OptionSwitch(which)`: the switch flipped; the visual ones also flip or copy
 /// the setting the game reads, the audio ones apply the audio choices.
-pub fn switch(o: Owners<'_>, which: OptionSwitch) -> Result<(), Refused> {
+pub fn switch(o: Owners<'static>, which: OptionSwitch) -> Result<(), Refused> {
     let copy = |other: StepOperand| Kind::SwitchCopy { other, flip: false };
     let flip = |other: StepOperand| Kind::SwitchCopy { other, flip: true };
     let (var, kind) = match which {
@@ -302,7 +304,7 @@ pub fn switch(o: Owners<'_>, which: OptionSwitch) -> Result<(), Refused> {
 
 /// `ItemFn::StageCounter { which, up }`: the stage group (0 .. 5) or the stage in its group
 /// (1 .. 6) shown by the stage pages, one less or one more, past an end the other end.
-pub fn stage_counter(o: Owners<'_>, which: StageCounter, up: bool) -> Result<(), Refused> {
+pub fn stage_counter(o: Owners<'static>, which: StageCounter, up: bool) -> Result<(), Refused> {
     let (var, low, high) = match which {
         StageCounter::Group => (var!(@o menus.tables.captions.shown_group), 0, 5),
         StageCounter::InGroup => (var!(@o menus.tables.captions.shown_stage), 1, 6),

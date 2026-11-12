@@ -15,8 +15,7 @@ use crate::race::owner_frame::Frame;
 // g_sceneClock, ClockTicks.sound_tick_last the last tick, ClockTicks.sound_ticks the ticks counted.
 
 /// Plays the race sounds once the sound clock says a tick is due.
-pub fn race_sound_tick(frame: &Frame) -> Result<(), Refused> {
-    let o = crate::owners::boundary();
+pub fn race_sound_tick(frame: &Frame, o: crate::owners::Owners<'_>) -> Result<(), Refused> {
     let race = o.race;
     // Converted: `rc2k_core::sound::turn::tick_due`.
     if !rc2k_core::sound::turn::tick_due(

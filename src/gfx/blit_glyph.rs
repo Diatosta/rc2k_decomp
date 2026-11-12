@@ -249,13 +249,30 @@ impl BlitCall {
 
     /// Sprite `glyph` of the sprite table (`g_spriteTable`), made now.
     pub fn sprite(glyph: u32, x: i32, y: i32) -> Self {
+        Self::sprite_in(
+            crate::gfx::owner::gfx(),
+            crate::menu::owner::menus(),
+            glyph,
+            x,
+            y,
+        )
+    }
+
+    /// `sprite` for a caller that holds the owners.
+    pub fn sprite_in(
+        gfx: &crate::gfx::owner::Gfx,
+        menus: &crate::menu::owner::Menus,
+        glyph: u32,
+        x: i32,
+        y: i32,
+    ) -> Self {
         Self {
             glyph,
             x,
             y,
             palette: None,
-            table: crate::gfx::blit_marker_pair::sprite_table(),
-            clip_right: clip().right,
+            table: crate::gfx::blit_marker_pair::sprite_table(menus),
+            clip_right: crate::gfx::surface::clip_in(gfx).right,
         }
     }
 }

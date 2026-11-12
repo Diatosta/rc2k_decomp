@@ -95,8 +95,7 @@ pub const PIECE: u32 = rc2k_core::install::layout::PIECE;
 impl Piece {
     /// Piece `n` (wrapping as the original's sum); a piece outside the layout is refused
     /// when it is read or written.
-    pub fn nth(n: u32) -> Self {
-        let install = crate::install::owner::install();
+    pub fn nth(install: &'static crate::install::owner::Install, n: u32) -> Self {
         Self(BytePlace::from(&install.pages.layout).add(4 + PIECE.wrapping_mul(n)))
     }
 

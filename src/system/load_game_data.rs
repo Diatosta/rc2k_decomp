@@ -220,10 +220,10 @@ fn in_game(o: Owners<'static>, call: Call) -> Result<u32, Refused> {
     let menus = o.menus;
     match call {
         Call::LoadOptions => {
-            crate::saves::load_options::load_game_options(menus)?;
+            crate::saves::load_options::load_game_options(o)?;
         }
         Call::LoadBestTimes => {
-            crate::saves::load_best_times::load_game_best_times(o.saves)?;
+            crate::saves::load_best_times::load_game_best_times(o.saves, o.system)?;
         }
         Call::ReadSettings => crate::settings::read_settings::read_settings(o)?,
         Call::ReadSku => {
@@ -268,7 +268,7 @@ fn in_game(o: Owners<'static>, call: Call) -> Result<u32, Refused> {
         }
         Call::RandomBelow(limit) => return Ok(crate::math::random_below::random_below(limit)?),
         Call::ReadSavegameSlot(slot) => {
-            crate::saves::read_savegame_slot::read_savegame_slot(slot)?;
+            crate::saves::read_savegame_slot::read_savegame_slot_in(o.saves, slot)?;
         }
         Call::ReadReplaySlot(slot) => {
             crate::saves::read_replay_slot::read_replay_slot(slot, race)?;

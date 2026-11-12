@@ -6,12 +6,10 @@
 use crate::errors::{BadInput, Refused};
 use crate::pointers::Store;
 use crate::race::owner::Race;
-use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::race::owner_frame::Frame;
 use crate::race::trap::Trap;
 use crate::scene::file_numbers_store::texts;
-use crate::scene::owner::scene;
 use crate::session::TextPlace;
 
 const FIRST_PART: u32 = 0xF0_0000;
@@ -153,8 +151,11 @@ pub fn copy_texture_info_tail() -> Result<(), BadInput> {
 /// `race::load_texture_info` (0x4398FA): `files\a\textinfo` (0x1F4000 bytes at most) into the
 /// course info, `files\m\markinfo` (0x8000) at +0x1C2000, `files\b\textinfo` (0x1F4000) at
 /// +0x1F4000; three line feeds at +0x5BD21; `copy_texture_info_tail`. Refuses no course info.
-pub fn load_texture_info(course: &Course) -> Result<(), Refused> {
-    let file_numbers = &scene().file_numbers;
+pub fn load_texture_info(
+    course: &Course,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    let file_numbers = &scene.file_numbers;
     let info = course.lists.course_info.get();
     if info == 0 {
         return Err(BadInput("no course memory: the original reads into 0").into());
@@ -176,7 +177,7 @@ pub fn load_texture_info(course: &Course) -> Result<(), Refused> {
 pub fn set_course_number(eax: u32, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::stage::two_digits`.
     let [tens, units] = rc2k_core::race::stage::two_digits(eax as u8);
-    for place in number_places(&race().course.level_paths) {
+    for place in number_places(&crate::race::owner::race().course.level_paths) {
         place.write(&[tens, units], "a path's course number")?;
     }
     for text in [
@@ -195,9 +196,9 @@ pub fn set_course_number(eax: u32, scene: &crate::scene::owner::Scene) -> Result
 
 /// `race::load_error_list` (0x439A92): the file named at 0x60AE02, 0x2000 bytes at most, to
 /// 0x637660.
-pub fn load_error_list(frame: &Frame) -> Result<(), Refused> {
+pub fn load_error_list(frame: &Frame, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     crate::files::read_whole_file::read_whole_file_bytes(
-        &scene()
+        &scene
             .file_numbers
             .text_at(texts::ERROR_LIST_PATH)
             .text("the error list's path")?,
@@ -211,7 +212,8 @@ pub fn load_error_list(frame: &Frame) -> Result<(), Refused> {
 /// 0x979F30: +0x24 k & 0xF, +0x20 k >> 4, +0x28 that | 0x80000000, +0x10/+0x14/+0x18 the record's
 /// +0x20/+0x10/+0x14, +0x1C its byte +0x18, +0x2C..+0x2E its bytes +0x24..+0x26, +0 .. +0xC its
 /// first four. Refuses a kind whose record lies past the info.
-pub fn build_texture_infos(course: &Course) -> Result<(), Refused> {
+pub fn build_texture_infos(race: &Race) -> Result<(), Refused> {
+    let course = &race.course;
     {
         let info = course.lists.course_info.get();
         if info == 0 {
@@ -224,7 +226,7 @@ pub fn build_texture_infos(course: &Course) -> Result<(), Refused> {
         }
         // Converted: `rc2k_core::race::stage::texture_info`.
         for n in 0..TEXTURES {
-            let out = &crate::scene::polygon_store::POLYGON_TABLES.texture_infos[n as usize].words;
+            let out = &race.polygon_tables().texture_infos[n as usize].words;
             let kind = course.stage_prefs.texture_kinds[n as usize].get();
             let rec = kind * 0x80;
             let trap = Trap::new();

@@ -550,31 +550,33 @@ pub fn step(call: Call) -> Result<(), Refused> {
     let (sound, race) = (o.sound, o.race);
     match call {
         Call::CopyRallyTimes => crate::race::rally::copy_rally_times(o.system, o.menus)?,
-        Call::StopMusic => crate::sound::stop_music::stop_music(),
+        Call::StopMusic => crate::sound::stop_music::stop_music(o.audio, o.system),
         Call::SetRaceScreenMode => crate::race::race_shell::set_race_screen_mode(),
         Call::ShowLoadingPicture => {
-            crate::menu::show_loading_picture::show_loading_picture(o.menus)?;
+            crate::menu::show_loading_picture::show_loading_picture_in(o.menus, o.gfx, o.system)?;
         }
         Call::SetUpRaceSoundObjects => crate::race::sound_tables::set_up_race_sound_objects(
             race,
-            &crate::race::sound_tables::ObjectVars::game(),
+            &crate::race::sound_tables::ObjectVars::of(sound),
             sound,
+            o.net,
+            o.system,
         )?,
-        Call::SetUpRaceSounds => crate::sound::set_up_race_sounds::set_up_race_sounds(sound)?,
+        Call::SetUpRaceSounds => crate::sound::set_up_race_sounds::set_up_race_sounds(o)?,
         Call::RaceFromMenu => crate::race::race_end::race_from_menu(o)?,
         Call::SetMenuScreenMode => {
             crate::platform::set_menu_mode_now();
         }
         Call::ClearRaceSoundObjects => crate::race::sound_tables::clear_race_sound_objects(sound)?,
-        Call::ApplySettings => crate::sound::apply_settings::apply_settings()?,
-        Call::SetUpEngine => crate::scene::set_up_engine::set_up_engine()?,
+        Call::ApplySettings => crate::sound::apply_settings::apply_settings(o)?,
+        Call::SetUpEngine => crate::scene::set_up_engine::set_up_engine_in(race, o.scene)?,
         Call::SetUpFrontEndScene => {
-            crate::scene::set_up_front_end_scene::set_up_front_end_scene()?;
+            crate::scene::set_up_front_end_scene::set_up_front_end_scene_in(o)?;
         }
         Call::TakeKey => {
             crate::input::take_key::take_key();
         }
-        Call::PlayTune3 => crate::sound::play_tune_3::play_tune_3(),
+        Call::PlayTune3 => crate::sound::play_tune_3::play_tune_3(o.sound, o.audio, o.system),
     }
     Ok(())
 }

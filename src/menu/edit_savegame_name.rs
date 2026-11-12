@@ -22,6 +22,7 @@ use crate::menu::name_lists::{NAME_LEN, savegame_name};
 use crate::menu::owner::Menus;
 use crate::menu::restore_text::restore_text;
 use crate::menu::text_entry::{length, set_length};
+use crate::saves::owner::Saves;
 use crate::saves::write_savegame_slot::write_savegame_slot;
 use crate::service::state::menu_item;
 use crate::strings::append_string_by_id::push_string;
@@ -33,8 +34,9 @@ use crate::text::measure_text::measure_text_at;
 const CURSOR_STRING: u32 = 4;
 const MEASURING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::MEASURE;
 
-fn end_name(name: crate::place::BytePlace) -> Result<(), BadInput> {
-    name.add(length() as u32).write(&[0], "a saved game's name")
+fn end_name(menus: &Menus, name: crate::place::BytePlace) -> Result<(), BadInput> {
+    name.add(length(menus) as u32)
+        .write(&[0], "a saved game's name")
 }
 
 /// The slot of the highlighted saved game: `page * 10 + item - 1`.
@@ -51,8 +53,8 @@ fn highlighted_slot(menus: &Menus) -> u32 {
 
 /// Saves the game in `slot`. Whether it worked is not looked at, as in the original. A slot
 /// or a state the Rust writer refuses ends the program with the reason.
-pub fn save_game(slot: u32) {
-    if let Err(why) = write_savegame_slot(crate::menu::owner::menus(), slot) {
+pub fn save_game(menus: &Menus, slot: u32) {
+    if let Err(why) = write_savegame_slot(menus, slot) {
         crate::framework::log(&format!("saves::write_savegame_slot: slot {slot}"));
         crate::fatal::raise::end("saves::write_savegame_slot", why);
     }
@@ -61,13 +63,14 @@ pub fn save_game(slot: u32) {
 /// `save` is called with the slot when Enter ends the entry.
 pub fn edit_savegame_name(
     menus: &Menus,
+    saves: &'static Saves,
     canvas: &mut dyn Canvas,
     save: &mut dyn FnMut(u32),
 ) -> Result<(), Refused> {
     let screens = &menus.screens;
     // Everything that could be refused, before the key is taken.
-    let name = savegame_name(menus)?;
-    if !(0..NAME_LEN as i32).contains(&length()) {
+    let name = savegame_name(menus, saves)?;
+    if !(0..NAME_LEN as i32).contains(&length(menus)) {
         return Err(BadInput("text length outside the name").into());
     }
     if !has_layout() {
@@ -80,27 +83,27 @@ pub fn edit_savegame_name(
     match entry::key(key) {
         Key::None => {}
         Key::Escape => {
-            restore_text(name)?;
+            restore_text(menus, name)?;
             screens.option_work.typing.set(false);
             return Ok(());
         }
         Key::Enter => {
-            if length() == 0 {
-                restore_text(name)?;
+            if length(menus) == 0 {
+                restore_text(menus, name)?;
                 add_text_length(menus, name)?;
             }
             screens.option_work.typing.set(false);
-            end_name(name)?;
+            end_name(menus, name)?;
             save(highlighted_slot(menus));
-            end_name(name)?;
+            end_name(menus, name)?;
             screens.option_work.typing.set(false);
             return Ok(());
         }
         Key::Clear => clear_text(menus, name)?,
-        Key::Backspace => backspace_savegame_name(menus)?,
+        Key::Backspace => backspace_savegame_name(menus, saves)?,
         Key::Other(key) => {
             let c = key_to_char(key as u32)? as u8;
-            let len = length();
+            let len = length(menus);
             if entry::appends(c, len, screens.loop_flags.text_max.get() as i32) {
                 name.add(len as u32).write(&[c], "a saved game's name")?;
                 set_length(menus, len.wrapping_add(1));
@@ -111,7 +114,7 @@ pub fn edit_savegame_name(
                     canvas,
                 )?;
                 if entry::too_wide(measured.width as i32) {
-                    backspace_savegame_name(menus)?;
+                    backspace_savegame_name(menus, saves)?;
                 }
             }
         }
@@ -121,7 +124,7 @@ pub fn edit_savegame_name(
         push_string(&mut tail, CURSOR_STRING)?;
     }
     tail.push(0);
-    name.add(length() as u32)
+    name.add(length(menus) as u32)
         .write(&tail, "a saved game's name")?;
     Ok(())
 }

@@ -91,6 +91,7 @@ fn save(race: &Race, slot: u32) -> Result<bool, Refused> {
             0,
         );
         crate::drive::read_packed::read_packed(
+            race,
             race.viewer_buffers().from_file.get(),
             crate::race::replay::block_place(race, 2 * block as usize + 1)?,
         )?;

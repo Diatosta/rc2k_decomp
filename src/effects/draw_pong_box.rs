@@ -41,6 +41,7 @@ pub fn draw_pong_box(
     pong: &Pong,
     fl: &WindscreenFlakes,
     v: [[u8; 10]; 4],
+    scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
 ) {
     sides(pong, fl, &v, effects);
@@ -64,7 +65,7 @@ pub fn draw_pong_box(
     for n in 0..4 {
         VERTICES.vertices[n].colour.set(0xFFFF_FFFFu32);
     }
-    crate::effects::clip_quad::draw_fan();
+    crate::effects::clip_quad::draw_fan(scene);
 }
 
 use crate::effects::plain::st_cell;

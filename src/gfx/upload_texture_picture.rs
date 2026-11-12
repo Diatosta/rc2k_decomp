@@ -25,7 +25,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::components_to_pixel::components_to_pixel;
-use crate::gfx::owner::gfx;
+use crate::gfx::owner::Gfx;
 use crate::gfx::texture_pixels::{halvable, halve_texture};
 use crate::gfx::texture_upload::{Record, fatal, halvings_apart, ready_picture};
 use rc2k_core::gfx::uploads::{self};
@@ -40,11 +40,11 @@ pub trait Surfaces {
 }
 
 /// The game's: DirectDraw's own calls, the description being the game's.
-pub struct GameSurfaces;
+pub struct GameSurfaces<'a>(pub &'a Gfx);
 
-impl Surfaces for GameSurfaces {
+impl Surfaces for GameSurfaces<'_> {
     fn lock(&mut self, surface: u32) -> Result<(u32, u32), i32> {
-        let card = &gfx().card;
+        let card = &self.0.card;
         match crate::platform_3d::lock_surface(surface, &card.upload.description) {
             0 => Ok((
                 card.upload.description.pixels.get(),
@@ -87,6 +87,7 @@ pub fn upload_texture_picture(
     let levels = uploads::levels(record.get().levels).map_err(BadInput::from)?;
     ready_picture(&record, pixels, width, height, gfx)?;
     let apart = halvings_apart(
+        gfx,
         &record,
         width,
         height,

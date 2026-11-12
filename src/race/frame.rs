@@ -157,12 +157,12 @@ pub fn race_keys(race: &Race, o: crate::owners::Owners<'_>) -> Result<(), Refuse
                 };
                 let volume = volume_step(from, step);
                 sound.menu.options.race_music_volume.set(volume);
-                crate::sound::set_music_volume::set_music_volume(volume, audio);
+                crate::sound::set_music_volume::set_music_volume(volume, audio, o.system);
             } else {
                 let volume = volume_step(state.master_volume.get(), step);
                 state.master_volume.set(volume);
                 // The sound command 8 with the volume.
-                crate::sound::send_command_8::send_command_8(volume);
+                crate::sound::send_command_8::send_command_8(audio, volume);
             }
         }
         Some(Key::Bit(n)) => {
@@ -183,12 +183,8 @@ pub fn race_keys(race: &Race, o: crate::owners::Owners<'_>) -> Result<(), Refuse
 /// `CarsAndReplay.car_blocks.cars[0].stopped_steps`, +0x26C the change's state `CarsAndReplay.car_blocks.cars[0].tyre_change_state`, +0x298 the tyre bits `CarsAndReplay.car_blocks.cars[0].parts_present`,
 /// +0x88 the time `CarsAndReplay.car_blocks.cars[0].stage_time`, +0x354 .. +0x360 `CarsAndReplay.car_blocks.cars[0].tyre_wears[0]` .. `CarsAndReplay.car_blocks.cars[0].tyre_wears[3]`, one per bit 1
 /// .. 4) `race::tyre_change_gauge` started, then run, its time when done added.
-pub fn tyre_change(
-    race: &Race,
-    input: &'static crate::input::owner::Input,
-    system: &crate::system::owner::System,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), Refused> {
+pub fn tyre_change(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    let (race, scene) = (o.race, o.scene);
     let shared = &race.shared;
     let textures = &scene.textures;
     use crate::race::tyre_change_gauge::tyre_change_gauge;
@@ -205,13 +201,13 @@ pub fn tyre_change(
         && car.tyre_change_state.get() == 0
         && car.stopped_steps.get() >= 0x12C
     {
-        tyre_change_gauge(race, true, 0, input, system)?;
+        tyre_change_gauge(o, true, 0)?;
         car.tyre_change_state.set(1);
     }
     if car.tyre_change_state.get() != 1 {
         return Ok(());
     }
-    let time = tyre_change_gauge(race, false, 0, input, system)?;
+    let time = tyre_change_gauge(o, false, 0)?;
     if time == 0 {
         return Ok(());
     }

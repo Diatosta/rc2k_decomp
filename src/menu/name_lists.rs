@@ -6,8 +6,8 @@
 use crate::errors::BadInput;
 use crate::menu::owner::Menus;
 use crate::place::BytePlace;
-use crate::race::owner::race;
-use crate::saves::owner::saves;
+use crate::race::owner::Race;
+use crate::saves::owner::Saves;
 use crate::service::state::menu_item;
 use crate::session::PlainDword;
 
@@ -36,20 +36,20 @@ fn highlighted(
 }
 
 /// The name of the highlighted saved game.
-pub fn savegame_name(menus: &Menus) -> Result<BytePlace, BadInput> {
+pub fn savegame_name(menus: &Menus, saves: &'static Saves) -> Result<BytePlace, BadInput> {
     highlighted(
         menus,
-        &saves().save_games.names,
+        &saves.save_games.names,
         &menus.tables.pages.save_page,
         SAVEGAMES_PER_PAGE,
     )
 }
 
 /// The name of the highlighted replay.
-pub fn replay_name(menus: &Menus) -> Result<BytePlace, BadInput> {
+pub fn replay_name(menus: &Menus, race: &'static Race) -> Result<BytePlace, BadInput> {
     highlighted(
         menus,
-        &race().shared.replays.names,
+        &race.shared.replays.names,
         &menus.tables.pages.replay_page,
         REPLAYS_PER_PAGE,
     )

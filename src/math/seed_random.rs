@@ -7,10 +7,10 @@
 
 // ---- game data ----
 
-pub fn seed_random() {
+pub fn seed_random(system: &crate::system::owner::System) {
     crate::math::next_random::wait_for_random();
     // `byte_51839F`, `dword_5183A0`, `dword_5183A4` (`system::keep_start_time`).
-    let kept = crate::system::keep_start_time::start_time();
+    let kept = crate::system::keep_start_time::start_time(system);
     let clock = rc2k_core::math::random::StartClock {
         time: u32::from_le_bytes([kept[5], kept[6], kept[7], kept[8]]),
         date: u32::from_le_bytes([kept[1], kept[2], kept[3], kept[4]]),

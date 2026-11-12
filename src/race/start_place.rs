@@ -285,13 +285,9 @@ pub fn nearest_checkpoint(
     }
 }
 
-pub fn invert_car_matrix(course: &Course, car: &Car) {
+pub fn invert_car_matrix(course: &Course, car: &Car, scene: &crate::scene::owner::Scene) {
     let length =
         crate::scene::view_matrix::invert_turn(course, &car.crash_matrix, &car.car_inverse_matrix);
     // `scene::square_matrix` left its last length in `g_scratch`.
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .scratch
-        .set(length);
+    scene.drawing.scene.scratch.set(length);
 }

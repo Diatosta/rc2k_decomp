@@ -17,7 +17,11 @@ use rc2k_core::menu::starters::{self, Championship, Seats};
 use rc2k_core::menu::tables::EventStart;
 
 /// Begins `event` for the players `seats` stand for.
-pub fn start_event_item(o: Owners<'_>, event: EventStart, seats: Seats) -> Result<(), Refused> {
+pub fn start_event_item(
+    o: Owners<'static>,
+    event: EventStart,
+    seats: Seats,
+) -> Result<(), Refused> {
     match event {
         EventStart::SingleRally => match seats {
             Seats::One => Game::new(o).run(rounds::single_rally),
@@ -38,7 +42,11 @@ pub fn start_event_item(o: Owners<'_>, event: EventStart, seats: Seats) -> Resul
     }
 }
 
-fn championship(o: Owners<'_>, championship: Championship, seats: Seats) -> Result<(), Refused> {
+fn championship(
+    o: Owners<'static>,
+    championship: Championship,
+    seats: Seats,
+) -> Result<(), Refused> {
     start_event(
         o,
         &Starter {

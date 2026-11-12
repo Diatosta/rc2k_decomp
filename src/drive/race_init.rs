@@ -70,11 +70,11 @@ pub fn race_init(
     }
     indent_by(race_steps::LOG_INDENT.wrapping_neg());
     log(c"RACEINIT : initcarpositions");
-    indented(&mut || crate::race::car_starts::start_cars(race))?;
+    indented(&mut || crate::race::car_starts::start_cars(race, scene, net))?;
     log(c"RACEINIT : initobjectsoncourse");
     indented(&mut || crate::race::course_data::reset_face_lights(race))?;
     log(c"RACEINIT : gamemodestuff_init");
-    indented(&mut || { crate::race::race_cars::set_up_cars(race, scene) }.map(drop))?;
+    indented(&mut || { crate::race::race_cars::set_up_cars(race, scene, net) }.map(drop))?;
     log(c"RACEINIT : messagesystem_init");
     indented(&mut || {
         crate::race::race_init::reset_car_race_state(race)?;

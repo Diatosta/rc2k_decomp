@@ -7,10 +7,19 @@
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
+use crate::owners::Owners;
 use crate::screens::service_boxes::quad;
 
+/// `draw_fade_overlay_in` for the fades' frame, which holds no owners.
 pub fn draw_fade_overlay(menus: &Menus) -> Result<(), Refused> {
+    let o = crate::owners::boundary();
+    debug_assert!(std::ptr::eq(menus, o.menus));
+    draw_fade_overlay_in(o)
+}
+
+pub fn draw_fade_overlay_in(o: Owners<'_>) -> Result<(), Refused> {
+    let menus = o.menus;
     // The logic is in `rc2k_core::screens::panels::fade_overlay`.
     let a = rc2k_core::screens::panels::fade_overlay(menus.screens.state.menus.fade_see.get());
-    quad(a.x, a.y, a.w, a.h, a.colour, a.see)
+    quad(o, a.x, a.y, a.w, a.h, a.colour, a.see)
 }

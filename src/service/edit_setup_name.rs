@@ -59,12 +59,12 @@ fn end_name(screens: &Screens, name: crate::place::BytePlace) -> Result<(), BadI
 
 pub fn edit_setup_name(
     menus: &Menus,
-    service: &Service,
+    service: &'static Service,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
     let screens = &menus.screens;
     // Everything that could be refused, before the key is taken.
-    let (name, _) = entry(menus)?;
+    let (name, _) = entry(menus, service)?;
     let slot = highlighted_slot(menus);
     if current_player(menus).is_none() {
         return Err(BadInput("no current player object").into());
@@ -79,13 +79,13 @@ pub fn edit_setup_name(
     match entry::key(key) {
         Key::None => {}
         Key::Escape => {
-            restore_text(name)?;
+            restore_text(menus, name)?;
             screens.option_work.typing.set(false);
             return Ok(());
         }
         Key::Enter => {
             if (screens.loop_flags.text_length.get() as i32) == 0 {
-                restore_text(name)?;
+                restore_text(menus, name)?;
                 add_text_length(menus, name)?;
             }
             screens.option_work.typing.set(false);
@@ -96,7 +96,7 @@ pub fn edit_setup_name(
             return Ok(());
         }
         Key::Clear => clear_text(menus, name)?,
-        Key::Backspace => backspace_setup_name(menus)?,
+        Key::Backspace => backspace_setup_name(menus, service)?,
         Key::Other(key) => {
             let c = key_to_char(key as u32)? as u8;
             let len = screens.loop_flags.text_length.get() as i32;
@@ -107,7 +107,7 @@ pub fn edit_setup_name(
                 let measured =
                     measure_text_at(MEASURING_FONT, &name.bytes("a setup's name")?, len, canvas)?;
                 if entry::too_wide(measured.width as i32) {
-                    backspace_setup_name(menus)?;
+                    backspace_setup_name(menus, service)?;
                 }
             }
         }

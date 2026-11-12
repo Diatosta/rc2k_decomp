@@ -12,8 +12,7 @@
 pub const KEPT_LEN: usize = 9;
 
 /// The start's moment as kept (all 0 before `keep_start_time`).
-pub fn start_time() -> [u8; KEPT_LEN] {
-    let system = crate::system::owner::system();
+pub fn start_time(system: &crate::system::owner::System) -> [u8; KEPT_LEN] {
     system.start.kept.read()
 }
 

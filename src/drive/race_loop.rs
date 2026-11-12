@@ -156,7 +156,7 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
             let begun = crate::debug::timing::start();
             { crate::drive::race_step::race_step(race, scene, input, sound, system, net) }?;
             crate::debug::timing::stop(crate::debug::timing::Stage::Physics, begun);
-            tyre_change(race, input, system, scene)?;
+            tyre_change(o)?;
             if players_all_out(race, net)? {
                 if race.shared.work.in_credits.is_set() {
                     crate::framework::log(&format!(

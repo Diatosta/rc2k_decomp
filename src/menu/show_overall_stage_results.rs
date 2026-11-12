@@ -19,7 +19,7 @@ pub fn show_overall_stage_results(menus: &Menus, entry: &Entry) -> Result<(), Re
     let count = held_figure(Page::OverallStage, found.figure);
     menus.play.champ_view.count.set(count);
     crate::menu::first_page_stage::first_page_stage(play);
-    crate::menu::stage_range_caption::stage_range_caption(play)?;
+    crate::menu::stage_range_caption::stage_range_caption(play, entry.race)?;
     run_screen(&crate::menu::overall_stage_results_loop::SCREEN, entry)?;
     Ok(())
 }

@@ -26,6 +26,7 @@ pub fn draw_turned_sprite(
     colour: u32,
     size: u32,
     place: [[u8; 10]; 3],
+    scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     if angle >= ANGLES {
@@ -73,7 +74,7 @@ pub fn draw_turned_sprite(
         if clip_quad(effects)? {
             return Ok(());
         }
-        draw_fan();
+        draw_fan(scene);
         crate::scene::polygon_work::front_end()
             .polygon_vertex_count
             .set_bits(4u32);

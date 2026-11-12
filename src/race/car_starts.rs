@@ -6,7 +6,6 @@
 //! `physics::probe_ground`.
 
 use crate::errors::{BadInput, Refused};
-use crate::net::owner::net;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::step_families::{GroundInputs, ResetInputs};
 use crate::race::best_line::MOST_CHECKS;
@@ -49,9 +48,10 @@ fn settle_step(low: u32, high: u32, angle: &Dword, step: &Dword) {
 fn matrix_and_wheels(
     ground: &GroundInputs<'_>,
     matrices: &SceneMatrices,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<[u32; 4], Refused> {
-    crate::race::stage_prefs::get_mat_crash(matrices, ground.car);
-    crate::physics::probe_ground::probe_ground(ground, ground.car, crate::scene::owner::scene())?;
+    crate::race::stage_prefs::get_mat_crash(matrices, ground.car, scene);
+    crate::physics::probe_ground::probe_ground(ground, ground.car, scene)?;
     Ok(wheels(ground.contact))
 }
 
@@ -61,7 +61,7 @@ fn matrix_and_wheels(
 /// wheels 0 + 2 against 1 + 3, the pitch towards 0 + 1 against 2 + 3, each step halved; once more
 /// the matrix and the wheels, then the car's y, the four wheels and the four at 0x6D1F14 lowered by
 /// the lowest wheel (from 0x640000).
-pub fn settle_car(c: &ResetInputs<'_>) -> Result<(), Refused> {
+pub fn settle_car(c: &ResetInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let physics = c.physics;
     let shared = c.shared;
     crate::physics::set_handling::set_handling(&c.physics.damage, c.numbers, c.shared)?;
@@ -71,7 +71,7 @@ pub fn settle_car(c: &ResetInputs<'_>) -> Result<(), Refused> {
     shared.physics_tables.settle_steps[1].set(0x2000_0000u32);
     physics.ground_probe.settle_mark.set(0x80);
     for _ in 0..8 {
-        let w = matrix_and_wheels(&c.ground, c.matrices)?;
+        let w = matrix_and_wheels(&c.ground, c.matrices, scene)?;
         settle_step(
             w[0].wrapping_add(w[2]),
             w[1].wrapping_add(w[3]),
@@ -85,7 +85,7 @@ pub fn settle_car(c: &ResetInputs<'_>) -> Result<(), Refused> {
             &shared.physics_tables.settle_steps[0],
         );
     }
-    let w = matrix_and_wheels(&c.ground, c.matrices)?;
+    let w = matrix_and_wheels(&c.ground, c.matrices, scene)?;
     let mut lowest = 0x64_0000u32;
     for &h in &w {
         if (h.wrapping_sub(lowest) as i32) < 0 {
@@ -109,11 +109,14 @@ pub fn settle_car(c: &ResetInputs<'_>) -> Result<(), Refused> {
 /// roll copied to `start_heading` / `58` / `54` and +0x6B0 / +0x6B8 / +0x6B4; +0x1E8,
 /// `g_carDriveSpeed`, `g_carDriveSpeed2`, `g_carGear`, +0x200, +0x204, +0x1C4, +0x1F4 0; with
 /// +0x68C not 0, +0x688 and +0x684 it less one and +0x68C 0.
-pub fn reset_car_motion(c: &ResetInputs<'_>) -> Result<(), Refused> {
+pub fn reset_car_motion(
+    c: &ResetInputs<'_>,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let shared = c.shared;
     let physics = c.physics;
-    settle_car(c)?;
-    crate::race::start_place::invert_car_matrix(c.course, c.car);
+    settle_car(c, scene)?;
+    crate::race::start_place::invert_car_matrix(c.course, c.car, scene);
     for v in &shared.car.velocity {
         v.set_bits(0);
     }
@@ -171,8 +174,11 @@ fn move_turned(course: &Course, shared: &RaceShared, x: u32, z: u32) {
 /// bit). Then `nearest_checkpoint` into +0x98, +0x94, +0x9C; its check count less one held to 0 ..
 /// 100 into +0x90 and +0xAC; `reset_car_motion`; +0x264 .. +0x26C 0. Refuses a nearest checkpoint
 /// past the lists (when met).
-pub fn start_car(c: &ResetInputs<'_>) -> Result<(), Refused> {
-    let scene = crate::scene::owner::scene();
+pub fn start_car(
+    c: &ResetInputs<'_>,
+    scene: &crate::scene::owner::Scene,
+    net: &crate::net::owner::Net,
+) -> Result<(), Refused> {
     let lights = &scene.lights;
     let course = &c.course;
     c.car.notice_count.set(0);
@@ -206,7 +212,7 @@ pub fn start_car(c: &ResetInputs<'_>) -> Result<(), Refused> {
         if c.finish.no_place.get() == 0 {
             move_turned(c.course, c.shared, 0, 0xFFFE_0000);
             let side = starts_aside(
-                net().vars.session.get(),
+                net.vars.session.get(),
                 || c.vars.run_kind.get(),
                 || c.view.players.get(),
             );
@@ -228,7 +234,7 @@ pub fn start_car(c: &ResetInputs<'_>) -> Result<(), Refused> {
     );
     c.car.splits_passed.set(checks);
     c.car.splits_recorded.set(checks);
-    reset_car_motion(c)?;
+    reset_car_motion(c, scene)?;
     zero(&[
         &c.car.reset_key_count,
         &c.car.stopped_steps,
@@ -241,7 +247,11 @@ pub fn start_car(c: &ResetInputs<'_>) -> Result<(), Refused> {
 /// `drive::load_car`, `start_car`, the work car's +0xA3C (8 dwords) and +0xA5C (0x11) 0,
 /// `drive::store_car`; Refuses no cars (the original's `jnz` runs on) or more than 8, before
 /// anything.
-pub fn start_cars(race: &Race) -> Result<(), Refused> {
+pub fn start_cars(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    net: &crate::net::owner::Net,
+) -> Result<(), Refused> {
     let shared = &race.shared;
     let cars: u32 = shared.view.race_cars.get();
     if cars == 0 || cars > MOST_CARS {
@@ -250,7 +260,11 @@ pub fn start_cars(race: &Race) -> Result<(), Refused> {
     for n in 0..cars {
         shared.work.current_car.set(n);
         crate::drive::load_car::load_car(shared)?;
-        start_car(&crate::physics::step_inputs::StepInputs::of(race).reset())?;
+        start_car(
+            &crate::physics::step_inputs::StepInputs::of(race).reset(),
+            scene,
+            net,
+        )?;
         // +0xA3C (8 dwords) and +0xA5C (0x11) 0.
         for cell in shared
             .car

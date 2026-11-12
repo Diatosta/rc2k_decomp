@@ -140,10 +140,12 @@ impl finish::Finish for Game<'_> {
         match s {
             Step::RaceSoundObjects => crate::race::sound_tables::set_up_race_sound_objects(
                 race,
-                &crate::race::sound_tables::ObjectVars::game(),
+                &crate::race::sound_tables::ObjectVars::of(sound),
                 sound,
+                self.owners.net,
+                self.owners.system,
             )?,
-            Step::RaceSounds => crate::sound::set_up_race_sounds::set_up_race_sounds(sound)?,
+            Step::RaceSounds => crate::sound::set_up_race_sounds::set_up_race_sounds(self.owners)?,
             Step::LoadingPicture => {
                 crate::menu::show_loading_picture::show_loading_picture_in(
                     self.menus,
@@ -161,7 +163,9 @@ impl finish::Finish for Game<'_> {
             Step::FinishRace => {
                 crate::drive::finish_race_0::finish_race_0(race)?;
             }
-            Step::StopMusic => crate::sound::stop_music::stop_music(),
+            Step::StopMusic => {
+                crate::sound::stop_music::stop_music(self.owners.audio, self.owners.system);
+            }
             Step::MenuScreenMode => {
                 crate::platform::set_menu_mode_now();
             }
@@ -171,7 +175,11 @@ impl finish::Finish for Game<'_> {
             Step::FrontEndScene => {
                 crate::scene::set_up_front_end_scene::set_up_front_end_scene_in(self.owners)?;
             }
-            Step::Tune3 => crate::sound::play_tune_3::play_tune_3(),
+            Step::Tune3 => crate::sound::play_tune_3::play_tune_3(
+                self.owners.sound,
+                self.owners.audio,
+                self.owners.system,
+            ),
             Step::TakeKey => {
                 crate::input::take_key::take_key();
             }

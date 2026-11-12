@@ -127,8 +127,8 @@ pub fn command(command: Command) {
 
 /// `sound::wait_for_commands`: the queue run out (its ends of turn read no register).
 pub fn wait_for_commands() {
-    use crate::sound::wait_for_commands::{Game, wait_for_commands};
-    wait_for_commands(&mut Game);
+    let o = crate::owners::boundary();
+    crate::sound::wait_for_commands::wait_in_game(o.audio, o.system);
 }
 
 /// `race::reset_race_sounds` (0x40D378): the sound commands waited for, command 7 (with its end of
@@ -333,7 +333,7 @@ pub fn run_race(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     }
     race.shared.switches.editor_mode.set(0u32);
     race.course.numbers.replay_mode.set(1u32);
-    crate::race::settings_copy::copy_settings_in(race)?;
+    crate::race::settings_copy::copy_settings_in(race, o.gfx)?;
     crate::race::race_cars::set_up_arcade_cars(race)?;
     race.shared.vars.settings_words[1].set(1u32);
     crate::race::race_shell::set_start_states(race)?;

@@ -9,12 +9,6 @@ use crate::menu::owner::Menus;
 // ---- game data ----
 
 /// The picture shown.
-pub fn show_loading_picture(menus: &Menus) -> Result<(), crate::errors::Refused> {
-    let o = crate::owners::boundary();
-    show_loading_picture_in(menus, o.gfx, o.system)
-}
-
-/// `show_loading_picture` for a caller that holds the owners.
 pub fn show_loading_picture_in(
     menus: &Menus,
     gfx: &crate::gfx::owner::Gfx,

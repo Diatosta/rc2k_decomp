@@ -38,12 +38,12 @@ const TIMES: &StageTable = &crate::saves::best_times::TIME_TRIAL_TIMES;
 pub fn draw_time_trial_stage_select(
     menus: &Menus,
     system: &crate::system::owner::System,
+    gfx: &crate::gfx::owner::Gfx,
     race: &crate::race::owner::Race,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
     let play = &menus.play;
     let screens = &menus.screens;
-    let tables = &menus.tables;
     let (Some(sel), Some((group_title, table_title))) = (
         selection_in(menus, system)?,
         menu_titles(menus, system, play)?,
@@ -63,10 +63,10 @@ pub fn draw_time_trial_stage_select(
     if !table.is_taken() {
         return Err(BadInput("no time trial best-times table: the original reads near 0").into());
     }
-    build_second_heading(sel.record)?;
-    draw_stage_body(tables, sel.record, true, canvas)?;
+    build_second_heading(race, sel.record)?;
+    draw_stage_body(menus, gfx, sel.record, true, canvas)?;
     let best = crate::screens::stage_panel::best_of(table, sel.record.record()?.event_slot())?;
-    draw_records_rows(menus, &best, &TIME_TRIAL_ROWS, canvas)
+    draw_records_rows(menus, system, &best, &TIME_TRIAL_ROWS, canvas)
 }
 
 //

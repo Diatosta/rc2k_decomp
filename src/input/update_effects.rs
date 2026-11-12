@@ -17,8 +17,10 @@
 use crate::errors::{BadInput, Refused};
 use crate::input::owner::Input;
 use crate::input::store::device_of;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::session::Dword;
+use crate::sound::owner::Sound;
+use crate::system::owner::System;
 
 /// The variables it reads (the game's or a test's).
 #[derive(Clone, Copy)]
@@ -33,15 +35,14 @@ pub struct Vars<'a> {
 }
 
 impl<'a> Vars<'a> {
-    pub fn game(input: &'a Input) -> Self {
-        let sound = crate::sound::owner::sound();
+    pub fn game(input: &'a Input, sound: &'a Sound, race: &'a Race) -> Self {
         Self {
             // g_playerCarA, g_playerCarB, g_onePlayer, g_raceSoundObjectCount.
             cars: &sound.race.sounds.player_cars,
             one_player: &sound.race.sounds.one_player,
             count: &sound.race.sounds.count,
             devices: &input.devices.input_devices,
-            views: &race().shared.view.view_blocks,
+            views: &race.shared.view.view_blocks,
             objects: &sound.race.sounds.objects,
             two_devices: &input.devices.two_devices_one_player,
         }
@@ -50,7 +51,7 @@ impl<'a> Vars<'a> {
 
 /// On the variables in `v`. Converted: `rc2k_core::input::effects::loads` (the way worked out
 /// before any call: nothing a call changes decides it).
-pub fn update_effects_with(input: &Input, v: &Vars<'_>) -> Result<(), Refused> {
+pub fn update_effects_with(input: &Input, system: &System, v: &Vars<'_>) -> Result<(), Refused> {
     use rc2k_core::input::effects::{Players, loads};
     if v.count.get() == 0 {
         return Ok(());
@@ -82,6 +83,7 @@ pub fn update_effects_with(input: &Input, v: &Vars<'_>) -> Result<(), Refused> {
                 view,
                 object,
                 device,
+                system,
             )?;
         }
     }
@@ -89,6 +91,11 @@ pub fn update_effects_with(input: &Input, v: &Vars<'_>) -> Result<(), Refused> {
 }
 
 /// The race's force feedback brought up to date.
-pub fn update_effects(input: &Input) -> Result<(), Refused> {
-    update_effects_with(input, &Vars::game(input))
+pub fn update_effects(
+    input: &Input,
+    sound: &Sound,
+    race: &Race,
+    system: &System,
+) -> Result<(), Refused> {
+    update_effects_with(input, system, &Vars::game(input, sound, race))
 }

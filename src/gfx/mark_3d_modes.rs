@@ -18,15 +18,21 @@
 //! fits.
 //! Callers: `gfx::list_primary_modes`, `gfx::list_secondary_modes`.
 
+use crate::d3d::owner::D3d;
 use crate::errors::{BadInput, Refused};
 use crate::gfx::owner::Display;
-use crate::system::owner::system;
+use crate::system::owner::System;
 
 pub use rc2k_core::gfx::screen_modes::MODES_ROOM;
 
 /// Marks the modes listed for card `kind` (see the header).
-pub fn mark_3d_modes(display: &Display, kind: u32) -> Result<(), Refused> {
-    if system().session.machine.has_fpu.get() != 1 {
+pub fn mark_3d_modes(
+    display: &Display,
+    system: &System,
+    d3d: &D3d,
+    kind: u32,
+) -> Result<(), Refused> {
+    if system.session.machine.has_fpu.get() != 1 {
         return Ok(());
     }
     let count: u32 = display.modes.count.get();
@@ -37,7 +43,7 @@ pub fn mark_3d_modes(display: &Display, kind: u32) -> Result<(), Refused> {
     display.mode.depth_bits.set(0xA00);
     display.mode.depth_extra.set(0xA00);
     // Every capability switch is on.
-    let cards = &crate::d3d::owner::D3D.cards;
+    let cards = &d3d.cards;
     for cell in cards.mode_switches.iter().chain(&cards.mode_switches_end) {
         cell.set(1);
     }

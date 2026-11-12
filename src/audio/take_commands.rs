@@ -11,7 +11,7 @@
 use crate::audio::owner::Audio;
 use crate::errors::Refused;
 
-pub fn take_commands(audio: &Audio) -> Result<(), Refused> {
+pub fn take_commands(audio: &Audio, system: &crate::system::owner::System) -> Result<(), Refused> {
     use crate::audio::stream_commands::{music_command, stream_command};
     use rc2k_core::audio::commands::{Command, SoundList};
     loop {
@@ -28,14 +28,14 @@ pub fn take_commands(audio: &Audio) -> Result<(), Refused> {
                     .state
                     .sound_list_loaded
                     .set(list.map_or(0, SoundList::word));
-                crate::audio::load_sounds::load_sounds(audio, list)?;
+                crate::audio::load_sounds::load_sounds(audio, system, list)?;
             }
             Command::Free => {
                 crate::audio::free_voices::free_voices(audio)?;
                 audio.state.sound_list_loaded.set(0);
             }
             Command::Mode(mode) => {
-                crate::audio::set_mode::set_mode(audio, mode)?;
+                crate::audio::set_mode::set_mode(audio, system, mode)?;
             }
             Command::StopAll => crate::audio::stop_all_voices::stop_all_voices(audio)?,
             Command::Volume(volume) => {

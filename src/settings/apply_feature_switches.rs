@@ -8,13 +8,13 @@
 //! read.
 
 use crate::session::Dword;
+use crate::system::owner::System;
 
 // ---- game data ----
 
 /// (used, ignore setting, the processor has it): `has_mmx`, `ignore_mmx`, `found_mmx`;
 /// `has_sse`, `ignore_katmai`, `found_sse`; `has_3dnow`, `ignore_3dnow`, `found_3dnow`.
-fn features() -> [(&'static Dword, &'static Dword, &'static Dword); 3] {
-    let system = crate::system::owner::system();
+fn features(system: &System) -> [(&Dword, &Dword, &Dword); 3] {
     let m = &system.session.machine;
     [
         (&m.has_mmx, &m.ignore_mmx, &m.found_mmx),
@@ -23,13 +23,13 @@ fn features() -> [(&'static Dword, &'static Dword, &'static Dword); 3] {
     ]
 }
 
-pub fn apply_feature_switches() {
+pub fn apply_feature_switches(system: &System) {
     // Converted: `rc2k_core::files::settings::feature_switches`.
     {
-        let has = features().map(|(_, _, has)| has.get());
-        let ignore = features().map(|(_, ignore, _)| ignore.get());
+        let has = features(system).map(|(_, _, has)| has.get());
+        let ignore = features(system).map(|(_, ignore, _)| ignore.get());
         let used = rc2k_core::files::settings::feature_switches(has, ignore);
-        for ((at, _, _), v) in features().into_iter().zip(used) {
+        for ((at, _, _), v) in features(system).into_iter().zip(used) {
             at.set(v);
         }
     }

@@ -28,7 +28,7 @@ pub struct Starter {
 /// list the car choice was shown.
 struct Game<'a> {
     menus: &'a crate::menu::owner::Menus,
-    owners: crate::owners::Owners<'a>,
+    owners: crate::owners::Owners<'static>,
     cars: Option<CarList>,
 }
 
@@ -100,7 +100,7 @@ fn var(menus: &crate::menu::owner::Menus, v: starters::Var) -> &PlainDword {
 }
 
 /// Starts the event of a starter.
-pub fn start_event(o: crate::owners::Owners<'_>, s: &Starter) -> Result<(), Refused> {
+pub fn start_event(o: crate::owners::Owners<'static>, s: &Starter) -> Result<(), Refused> {
     let menus = o.menus;
     // The logic is in `rc2k_core::menu::starters::start`. The players' own settings come back
     // afterwards (`menu::own_settings`; not the original's).

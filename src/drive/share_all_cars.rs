@@ -40,12 +40,16 @@ fn cars(
 }
 
 /// The refusals, worked out before anything is written.
-fn refusal(shared: &RaceShared) -> Result<Option<&'static str>, BadInput> {
+fn refusal(race: &Race) -> Result<Option<&'static str>, BadInput> {
+    let shared = &race.shared;
     for (block, _, _) in cars(shared)? {
         if !shared.work.has_car_block(block) {
             return Ok(Some("a null car block or record"));
         }
-        let n = car_file_number(shared.work.car_or_end(block).car_kind.get());
+        let n = car_file_number(
+            race.kind_tables(),
+            shared.work.car_or_end(block).car_kind.get(),
+        );
         if let Err(e) = sharing::check_light_record(n) {
             return Ok(Some(e.0));
         }
@@ -59,7 +63,7 @@ pub fn share_all_cars(
     scene: &crate::scene::owner::Scene,
     view: crate::drive::set_listener::ListenerView<'_>,
 ) -> Result<(), Refused> {
-    if let Some(why) = refusal(&race.shared)? {
+    if let Some(why) = refusal(race)? {
         return Err(BadInput(why).into());
     }
     // `set_listener` refuses before writing; nothing is written before it but the

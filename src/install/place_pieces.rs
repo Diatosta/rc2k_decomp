@@ -12,12 +12,12 @@ use crate::install::place_row::place_row;
 pub fn place_pieces(install: &'static crate::install::owner::Install) -> Result<(), Refused> {
     // Converted: `rc2k_core::install::layout::rows` (each piece's box read through its item).
     let rows = rc2k_core::install::layout::rows(piece_count(install), |k| {
-        Piece::nth(k).item().box_link().raw()
+        Piece::nth(install, k).item().box_link().raw()
     })?;
     for (first, n, the_box) in rows {
         let link = PageLink::from_raw(the_box);
         let title = link.is_none() || link == title_box_link();
-        place_row(first, n, BoxRecord::linked(link), title)?;
+        place_row(install, first, n, BoxRecord::linked(link), title)?;
     }
     Ok(())
 }

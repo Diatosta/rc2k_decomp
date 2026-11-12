@@ -3,7 +3,7 @@
 //! screen is entered as from a menu item.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::owners::Owners;
 #[cfg(debug_ui)]
 use crate::saves::owner::Saves;
 use core::sync::atomic::{AtomicBool, AtomicU32, Ordering};
@@ -61,8 +61,8 @@ pub fn section_has_times(saves: &Saves, section: usize) -> bool {
 
 /// A menu's frame: runs what was asked for; true if a screen was run (the menu sets
 /// itself up again, its background having been replaced).
-pub fn serve() -> Result<bool, Refused> {
-    let screens = &menus().screens;
+pub fn serve(o: Owners<'static>) -> Result<bool, Refused> {
+    let screens = &o.menus.screens;
     #[cfg(debug_ui)]
     if crate::debug::dev_front_end::serve()? {
         return Ok(true);
@@ -72,7 +72,8 @@ pub fn serve() -> Result<bool, Refused> {
         return Ok(false);
     }
     if wanted == CSPECS {
-        crate::menu::screen_loop::screen_entry_outside(
+        crate::menu::screen_loop::screen_entry(
+            o,
             "menu::cspecs_loop",
             &crate::menu::cspecs_loop::SCREEN,
         )?;
@@ -80,7 +81,8 @@ pub fn serve() -> Result<bool, Refused> {
     }
     let section = screens.event.section.get();
     screens.event.section.set(wanted - 1);
-    let result = crate::menu::screen_loop::screen_entry_outside(
+    let result = crate::menu::screen_loop::screen_entry(
+        o,
         "menu::section_times_loop",
         &crate::menu::section_times_loop::SCREEN,
     );

@@ -23,7 +23,7 @@ use crate::input::store::ForceFeedback;
 use crate::input::types::InputDevice;
 use crate::math::x87::mul_to_int;
 use crate::math::x87_float::{ld, st, to_int};
-use crate::system::owner::system;
+use crate::system::owner::System;
 
 /// The force feedback effects of a device's record (its six slots).
 #[derive(Clone, Copy)]
@@ -211,13 +211,14 @@ pub fn update_car_effects(
     view: &crate::physics::car_store::Car,
     object: &crate::sound::store::SoundObject,
     device: &InputDevice,
+    system: &System,
 ) -> Result<(), Refused> {
     update_car_effects_with(
         effects,
         view,
         object,
         device,
-        &system().session.machine.scratch,
+        &system.session.machine.scratch,
     )
 }
 

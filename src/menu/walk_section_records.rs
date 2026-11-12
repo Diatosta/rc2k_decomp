@@ -31,7 +31,7 @@ fn record_at(
 /// The records the walk visits from `index`, with their steps, checked.
 fn walk(menus: &Menus, system: &System, race: &Race) -> Result<Vec<(u32, Step)>, Refused> {
     let screens = &menus.screens;
-    current_event(screens)?;
+    current_event(screens, system)?;
     counted_players(menus)?;
     drivers(menus)?;
     let index: u32 = menus.screens.event.index.get();

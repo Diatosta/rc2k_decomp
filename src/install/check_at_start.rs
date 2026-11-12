@@ -43,6 +43,7 @@ pub fn set_script_entry(install: &'static crate::install::owner::Install, text_i
 pub fn check_at_start(
     install: &'static crate::install::owner::Install,
     system: &System,
+    race: &crate::race::owner::Race,
     outside: &mut dyn Outside,
     no_audio: &Dword,
 ) -> Result<(), Refused> {
@@ -85,7 +86,7 @@ pub fn check_at_start(
                 .ok_or(BadInput("a version text without a ("))?
                 - 1;
             let text = [b"patch6: ", &version[from..], b"\n\0"].concat();
-            crate::screens::text_buffers_store::TEXT_BUFFERS
+            race.text_buffers()
                 .number_text
                 .write_at(0, &text, "the number text")?;
             set_script_entry(install, 0x1006);

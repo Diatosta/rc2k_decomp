@@ -140,8 +140,7 @@ pub fn load_lights_data(race: &Race) -> Result<(), Refused> {
 /// `race::get_mat_crash` (0x43D43E): the three angles (`car_pitch`, `car_heading`,
 /// `car_roll`, each >> 16) kept at `angles` .., the x, y and z turns made of them, Z x X
 /// into the lit matrix, that x Y into `crash_matrix`.
-pub fn get_mat_crash(matrices: &SceneMatrices, car: &Car) {
-    let scene = crate::scene::owner::scene();
+pub fn get_mat_crash(matrices: &SceneMatrices, car: &Car, scene: &crate::scene::owner::Scene) {
     use crate::scene::matrix;
     // Converted: `rc2k_core::race::stage_objects::crash_turns` (the matrices the
     // scene's).

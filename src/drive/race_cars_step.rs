@@ -39,7 +39,7 @@ fn car_step(
             &race.shared.physics_tables,
             &race.shared.vars,
         );
-        crate::physics::car_physics_step::car_physics_step(race, system, sound, scene)?;
+        crate::physics::car_physics_step::car_physics_step(race, system, sound, scene, net)?;
     }
     crate::drive::store_car::store_car(&race.shared)?;
     Ok(())

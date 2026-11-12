@@ -22,7 +22,11 @@ use crate::system::packed_local_time::packed_local_time;
 // ---- Rust version ----
 
 /// True if the file was written.
-pub fn write_setup_slot(menus: &Menus, service: &Service, slot: u32) -> Result<bool, Refused> {
+pub fn write_setup_slot(
+    menus: &Menus,
+    service: &'static Service,
+    slot: u32,
+) -> Result<bool, Refused> {
     if slot >= SLOT_COUNT {
         return Err(BadInput("slot past the name table").into());
     }
@@ -35,7 +39,7 @@ pub fn write_setup_slot(menus: &Menus, service: &Service, slot: u32) -> Result<b
         let in_car = |field: rc2k_core::menu::player::SetupField| field.get(player.get());
         let bytes = rc2k_core::saves::kept::setup_file(
             packed_local_time(),
-            &slot_name(slot).read_array::<NAME_LEN>("a setup's name")?,
+            &slot_name(service, slot).read_array::<NAME_LEN>("a setup's name")?,
             [
                 TYRE.change.chosen(menus).get(),
                 in_car(BRAKE_BALANCE.in_car),

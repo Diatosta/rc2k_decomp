@@ -22,12 +22,10 @@
 //! a text longer than the text buffer, and what its calls refuse.
 
 use crate::errors::{BadInput, Refused};
-use crate::gfx::owner::gfx;
 use crate::input::types::InputDevice;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use crate::session::PlainDword;
-use crate::strings::owner::strings;
 
 fn clip(edge: &PlainDword) -> u32 {
     edge.get()
@@ -118,16 +116,17 @@ pub fn draw_tyre_change(
     race: &'static Race,
     shared: &RaceShared,
     device: &InputDevice,
+    gfx: &'static crate::gfx::owner::Gfx,
+    strings: &'static crate::strings::owner::Strings,
 ) -> Result<(), Refused> {
-    let gfx = gfx();
-    let strings = strings();
     let clips = (
         clip(&gfx.drawing.blit.clip.left),
         clip(&gfx.drawing.blit.clip.right),
     );
     let done = (|| -> Result<(), Refused> {
         let failed =
-            { crate::d3d::lock_texture::lock_texture(shared.tyre_change.texture.get()) }?.carry;
+            { crate::d3d::lock_texture::lock_texture_in(gfx, shared.tyre_change.texture.get()) }?
+                .carry;
         if !failed && shared.tyre_change.drawn.get() != 1 {
             let mut y = 0u32;
             for (n, (id, font, x)) in [

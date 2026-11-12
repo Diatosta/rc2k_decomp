@@ -5,9 +5,10 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::blit_marker_pair::{marker_calls, set_marker_position};
+use crate::gfx::owner::Gfx;
 use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
-use crate::menu::owner::Tables;
+use crate::race::owner::Race;
 use crate::records::stages_store::RecordRef;
 use crate::records::trakpak_entry::record_entry;
 use crate::screens::draw_stage_heading::heading_text;
@@ -52,9 +53,9 @@ pub fn label(
 /// Builds the second heading ("<string 0x482> n/6: name") in its own buffer. Three of the
 /// four panels build it; only `draw_time_trial_stage_info` also draws it (the text it
 /// returns, with its NUL).
-pub fn build_second_heading(record: RecordRef) -> Result<Vec<u8>, Refused> {
+pub fn build_second_heading(race: &Race, record: RecordRef) -> Result<Vec<u8>, Refused> {
     let bytes = heading_text(record, SECOND_HEADING_STRING)?;
-    crate::screens::text_buffers_store::TEXT_BUFFERS
+    race.text_buffers()
         .stage_heading
         .write_at(0, &bytes, "the second stage heading")?;
     Ok(bytes)
@@ -71,19 +72,21 @@ pub fn build_second_heading(record: RecordRef) -> Result<Vec<u8>, Refused> {
 /// +0x24/+0x28/+0x2C/+0x30 surface percentages, +0x38 a number and +0x3C which of two labels
 /// goes with it. The record gives +0x10, the start time as hours * 100 + minutes.
 pub fn draw_stage_body(
-    tables: &Tables,
+    menus: &Menus,
+    gfx: &Gfx,
     record: RecordRef,
     keep_entry_34: bool,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    draw_stage_body_in(tables, record, keep_entry_34, HEADING_FONT, canvas)
+    draw_stage_body_in(menus, gfx, record, keep_entry_34, HEADING_FONT, canvas)
 }
 
 /// `draw_stage_body` with the two headings (surface, weather) in `heading_font`: the rally
 /// stage page (`screens::draw_rally_stage_info`) uses `FontObjects.objects[14].first_char`, the others
 /// `FontObjects.objects[17].first_char`.
 pub fn draw_stage_body_in(
-    tables: &Tables,
+    menus: &Menus,
+    gfx: &Gfx,
     record: RecordRef,
     keep_entry_34: bool,
     heading_font: crate::gfx::typefaces::FontId,
@@ -92,8 +95,8 @@ pub fn draw_stage_body_in(
     // The logic is in `rc2k_core::screens::stage_panel::body`.
     use rc2k_core::screens::stage_panel::{Entry, Font};
     // The two markers on the map.
-    for call in marker_calls(record.record()?) {
-        set_marker_position(&call);
+    for call in marker_calls(gfx, menus, record.record()?) {
+        set_marker_position(menus, &call);
         canvas.blit_glyph(call)?;
     }
     let entry = || -> Result<Entry, Refused> {
@@ -105,7 +108,8 @@ pub fn draw_stage_body_in(
         let made = Entry {
             // `MENU_LISTS.durations` (the stage durations) has 37 entries; the original's index
             // has no bound (fixed: refused).
-            duration: tables
+            duration: menus
+                .tables
                 .lists
                 .durations
                 .get(f(8) as usize)
@@ -167,12 +171,13 @@ pub fn best_of(
 /// `table`. Returns the carry flag.
 pub fn draw_records_from(
     menus: &Menus,
+    system: &crate::system::owner::System,
     table: &crate::menu::event_flow::StageTable,
     record: RecordRef,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
     let best = best_of(table, record.record()?.event_slot())?;
-    draw_stage_records(menus, &best, canvas)
+    draw_stage_records(menus, system, &best, canvas)
 }
 
 /// The record rows as the two "selected stage" panels draw them: from the group 1 table when
@@ -180,6 +185,7 @@ pub fn draw_records_from(
 /// table or the chosen one is missing. Returns the carry flag (clear when nothing is drawn).
 pub fn draw_records_for_group(
     menus: &Menus,
+    system: &crate::system::owner::System,
     group: u32,
     record: RecordRef,
     canvas: &mut dyn Canvas,
@@ -196,7 +202,7 @@ pub fn draw_records_for_group(
     if !table.is_taken() {
         return Ok(false);
     }
-    draw_records_from(menus, table, record, canvas)
+    draw_records_from(menus, system, table, record, canvas)
 }
 
 // ---- support ----

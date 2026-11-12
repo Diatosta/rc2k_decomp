@@ -23,7 +23,7 @@ pub fn cue_car_sound(
         which,
         |which| sound.race.sounds.player_cars[which as usize].get(),
         |car| car,
-        |car| match SoundObject::number(car) {
+        |car| match SoundObject::of(sound, car) {
             Ok(o) => o.in_use.get(),
             Err(e) => {
                 failed.set(Some(e));
@@ -37,5 +37,5 @@ pub fn cue_car_sound(
     let Some(car) = found else {
         return Ok(());
     };
-    crate::physics::queue_sound_cue::queue_sound_cue(true, cue, SoundObject::number(car)?)
+    crate::physics::queue_sound_cue::queue_sound_cue(true, cue, SoundObject::of(sound, car)?)
 }

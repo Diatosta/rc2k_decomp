@@ -38,5 +38,5 @@ pub fn race_turn(
         spot_sounds::spot_sounds(sound, audio, system)?;
         send_end_of_turn::send_end_of_turn(audio);
     }
-    crate::input::step_effects_clock::step_effects_clock(input)
+    crate::input::step_effects_clock::step_effects_clock(input, sound, race, system)
 }

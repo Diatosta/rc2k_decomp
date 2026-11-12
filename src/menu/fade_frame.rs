@@ -16,11 +16,11 @@ pub fn fade_frame(menus: &Menus) -> Result<bool, Refused> {
     }
     {
         crate::gfx::copy_picture_to_surface::copy_picture_to_surface(
-            &mut crate::gfx::copy_picture_to_surface::GameSurface,
+            &mut crate::gfx::copy_picture_to_surface::GameSurface(crate::gfx::owner::gfx()),
         )
     }?;
     crate::platform::unlock_surface();
-    crate::scene::begin_scene::begin_scene();
+    crate::scene::begin_scene::begin_scene_outside();
     crate::screens::draw_fade_overlay::draw_fade_overlay(menus)?;
     crate::scene::end_scene::end_scene();
     Ok(crate::platform::show_frame_now())

@@ -18,7 +18,10 @@ const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1,
 pub fn begin_quads(effects: &crate::effects::owner::Effects, scene: &crate::scene::owner::Scene) {
     let frame = &effects.frame;
     {
-        crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[202].get());
+        crate::scene::set_texture::set_texture(
+            scene,
+            scene.textures.kinds.kind_first_slots[202].get(),
+        );
         crate::scene::depth_buffer_on::depth_buffer(true);
         crate::scene::depth_test_off::depth_test_off();
         for (value, state) in STATES {

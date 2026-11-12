@@ -63,8 +63,11 @@ fn cosine(a: impl Base, b: impl Base, s: impl Base) {
 /// is found by 16 halvings from pi / 2 by pi / 4 (floats each step; out when the compare
 /// is unordered); the last compare's C0 .. C2 in the shared FPU status cell.
 /// Returns the angle (a float, loaded).
-pub fn angle_between_vectors(a: &(impl Cells + ?Sized), b: &(impl Cells + ?Sized)) -> [u8; 10] {
-    let work = &crate::effects::owner::effects().setup.work;
+pub fn angle_between_vectors(
+    a: &(impl Cells + ?Sized),
+    b: &(impl Cells + ?Sized),
+    work: &crate::effects::work_store::MarksWork,
+) -> [u8; 10] {
     let mut angle = crate::math::x87::loaded(work.cosine_start.get());
     let mut step = crate::math::x87::loaded(work.cosine_step.get());
     normalise(b);

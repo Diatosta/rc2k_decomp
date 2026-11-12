@@ -18,7 +18,7 @@ pub use rc2k_core::menu::screen_loop::ActionResult;
 /// the action the screen loop's other registers too, which no action reads; what the
 /// action leaves is nobody's.)
 pub fn run_item_action(
-    o: Owners<'_>,
+    o: Owners<'static>,
     menu: MenuId,
 ) -> Result<ActionResult, crate::errors::Refused> {
     let menus = o.menus;

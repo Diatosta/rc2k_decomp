@@ -23,7 +23,7 @@ pub fn show_class_championship_standings(
     let count = held_figure(Page::ClassChampionship, found.figure);
     menus.play.champ_view.count.set(count);
     crate::menu::first_page_stage::first_page_stage(&menus.play);
-    crate::menu::stage_range_caption::stage_range_caption(&menus.play)?;
+    crate::menu::stage_range_caption::stage_range_caption(&menus.play, entry.race)?;
     run_screen(
         &crate::menu::class_championship_standings_loop::SCREEN,
         entry,

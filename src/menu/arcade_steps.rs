@@ -115,7 +115,7 @@ pub fn keep_arcade_stage_best(menus: &Menus, record: RecordRef) -> Result<(), Re
     let figure = player.get().figure;
     if bests::takes_record(figure, record.record()?.holder(Holder::Fastest).speed) {
         name_player(&player.get())?;
-        let (row, name) = crate::menu::standings::as_holder(&player.get())?;
+        let (row, name) = crate::menu::standings::as_holder(menus, &player.get())?;
         record.record()?.set_holder(Holder::Fastest, &row, &name);
     }
     Ok(())
@@ -149,6 +149,7 @@ pub fn check_arcade_stage_time(menus: &Menus, system: &System) -> Result<(), Ref
 /// The player's new entry (player 1): +0x1C, +8, +0xC, +0x10 and the name from its
 /// record.
 fn new_best(
+    menus: &Menus,
     player: crate::menu::standings::PlayerCell,
     key: u32,
     seal: Option<bests::Seal>,
@@ -162,14 +163,18 @@ fn new_best(
         name_at,
         car: player.get().car_number,
         group: player.get().class,
-        name: name_of(&player.get())?,
+        name: name_of(menus, &player.get())?,
         entered: None,
         seal,
         line,
     })
 }
 
-pub fn enter_arcade_stage_time(menus: &Menus, system: &System) -> Result<(), Refused> {
+pub fn enter_arcade_stage_time(
+    menus: &Menus,
+    system: &System,
+    race: &crate::race::owner::Race,
+) -> Result<(), Refused> {
     let record = stage_record(&menus.play, system)?;
     with_course_times(&menus.play, system, |_| ())?;
     let (_, player) = current(menus)?;
@@ -177,10 +182,11 @@ pub fn enter_arcade_stage_time(menus: &Menus, system: &System) -> Result<(), Ref
     let course = record.record()?.event_slot();
     menus.screens.draw_work.figure.set(course);
     let cheats = menus.play.cheats.cheats.get();
-    let sealed = crate::menu::sealed_player_time::sealed_player_time(menus, course)?;
+    let sealed = crate::menu::sealed_player_time::sealed_player_time(menus, race, course)?;
     // The logic is in `rc2k_core::saves::entries` (`BestTime::enter`, `sort_arcade_times`).
     let seal = bests::Seal { cheats, sealed };
     let best = new_best(
+        menus,
         player,
         player.get().time,
         Some(seal),
@@ -201,7 +207,7 @@ pub fn enter_arcade_level_score(menus: &Menus) -> Result<(), Refused> {
     name_player(&player.get())?;
     // The logic is in `rc2k_core::saves::entries` (`Entry::enter`, `sort_level_scores`).
     let score = menus.play.results.totals[usize::from(n == 1)].get();
-    let best = new_best(player, score, None, None)?;
+    let best = new_best(menus, player, score, None, None)?;
     with_level_scores(&menus.play, |ten| {
         ten[9].enter(&best);
         with_kept_name(&menus.play, |kept| {

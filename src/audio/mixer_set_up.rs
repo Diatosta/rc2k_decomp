@@ -4,7 +4,7 @@
 
 use crate::audio::owner::Audio;
 use crate::errors::Refused;
-use crate::system::owner::system;
+use crate::system::owner::System;
 
 pub const MODE_MIXER: u32 = 0x4_0000;
 /// `SetCooperativeLevel`: write the primary buffer.
@@ -17,19 +17,19 @@ const WRITE_PRIMARY: u32 = 4;
 /// align, 40 ms), the shift (block / 2), the cursors; `GetCaps` (+0xC) of the primary into
 /// `g_primaryCaps`, whose bytes are `g_primarySize`; `clear_channels`. A failure:
 /// `close_primary_mixer` and false (the carry).
-pub fn set_up_primary_mixer(audio: &Audio) -> Result<bool, Refused> {
+pub fn set_up_primary_mixer(audio: &Audio, system: &System) -> Result<bool, Refused> {
     if audio.state.sound_mode.get() & MODE_MIXER == 0 {
         return Ok(true);
     }
-    let failed = || crate::audio::restore::close_primary_mixer(audio).map(|_| false);
+    let failed = || crate::audio::restore::close_primary_mixer(audio, system).map(|_| false);
     crate::audio::sound_device::release_primary(&audio.state);
     let ds = audio.state.direct_sound.get();
     if crate::platform_sound::set_cooperative_level(
         ds,
-        system().session.machine.window.get(),
+        system.session.machine.window.get(),
         WRITE_PRIMARY,
     ) != 0
-        || crate::audio::primary::make_primary(audio).map(|made| !made)?
+        || crate::audio::primary::make_primary(audio, system).map(|made| !made)?
     {
         return failed();
     }
@@ -78,7 +78,7 @@ pub fn set_up_primary_mixer(audio: &Audio) -> Result<bool, Refused> {
 
 /// `audio::open_way`: the voices' own buffers: `clear_channels`; the mixer:
 /// `set_up_primary_mixer`; neither: the carry. Returns the carry.
-pub fn open_way(audio: &Audio, mode: u32) -> Result<bool, Refused> {
+pub fn open_way(audio: &Audio, system: &System, mode: u32) -> Result<bool, Refused> {
     // Converted: `rc2k_core::audio::device::way`.
     use rc2k_core::audio::device::{Way, way};
     match way(mode) {
@@ -87,13 +87,13 @@ pub fn open_way(audio: &Audio, mode: u32) -> Result<bool, Refused> {
             crate::audio::clear_channels::clear_channels(audio);
             Ok(false)
         }
-        Some(Way::Mixer) => Ok(!set_up_primary_mixer(audio)?),
+        Some(Way::Mixer) => Ok(!set_up_primary_mixer(audio, system)?),
         None => Ok(true),
     }
 }
 
 /// `audio::close_way`: as `open_way`, with `close_primary_mixer` for the mixer.
-pub fn close_way(audio: &Audio, mode: u32) -> Result<bool, Refused> {
+pub fn close_way(audio: &Audio, system: &System, mode: u32) -> Result<bool, Refused> {
     // Converted: `rc2k_core::audio::device::way`.
     use rc2k_core::audio::device::{Way, way};
     match way(mode) {
@@ -102,7 +102,7 @@ pub fn close_way(audio: &Audio, mode: u32) -> Result<bool, Refused> {
             crate::audio::clear_channels::clear_channels(audio);
             Ok(false)
         }
-        Some(Way::Mixer) => crate::audio::restore::close_primary_mixer(audio),
+        Some(Way::Mixer) => crate::audio::restore::close_primary_mixer(audio, system),
         None => Ok(true),
     }
 }

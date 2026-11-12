@@ -31,8 +31,8 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     Ok(())
 }
 
-fn after_first_frame(_: &Entry) -> Result<Flow, Refused> {
-    if quitting() as u32 == 0x1 {
+fn after_first_frame(entry: &Entry) -> Result<Flow, Refused> {
+    if quitting(entry.system) as u32 == 0x1 {
         return Ok(Flow::Leave);
     }
     Ok(Flow::On)

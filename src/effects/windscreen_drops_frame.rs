@@ -61,8 +61,14 @@ fn sprite_corners(drops: &WindscreenDrops, c: u32) -> bh::X {
 }
 
 /// The original's 0x4BBB24 .. 0x4BBE28: the centre and corners projected into the buffer at e (six vertices), drawn in by `WindscreenDropVars.scale[2]` / `E`, their depth.
-fn sprite_project(drops: &WindscreenDrops, e: u32, inverse_depth: bh::X) {
-    sprite_project_x87(drops, e as usize, inverse_depth);
+fn sprite_project(
+    drops: &WindscreenDrops,
+    gfx: &crate::gfx::owner::Gfx,
+    effects: &crate::effects::owner::Effects,
+    e: u32,
+    inverse_depth: bh::X,
+) {
+    sprite_project_x87(drops, gfx, effects, e as usize, inverse_depth);
 }
 
 /// Why it refuses, if it does.
@@ -84,8 +90,8 @@ fn refusal(
 }
 
 /// The batch's draw (`d3d::draw_marks_windscreen_drops`; its result unread).
-pub fn draw_batch() -> Result<(), Refused> {
-    crate::d3d::draw_marks_windscreen_drops::draw_marks_windscreen_drops();
+pub fn draw_batch(gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
+    crate::d3d::draw_marks_windscreen_drops::draw_marks_windscreen_drops(gfx);
     Ok(())
 }
 
@@ -138,14 +144,14 @@ pub fn windscreen_drops_frame(
                 continue;
             }
             let inverse_depth = sprite_corners(drops, shape.wrapping_mul(0x48));
-            sprite_project(drops, drops.hex.buffer.get(), inverse_depth);
+            sprite_project(drops, gfx, effects, drops.hex.buffer.get(), inverse_depth);
             let next = drops.hex.buffer.get().wrapping_add(0xC0);
             drops.hex.buffer.set(next);
             if next as usize == BUFFER_BYTES {
                 drops.hex.buffer.set(0);
                 gfx.card.windscreen_drop_batch.index_count.set(0x300);
                 gfx.card.windscreen_drop_batch.vertex_count.set(0x180);
-                draw_batch()?;
+                draw_batch(gfx)?;
             }
         }
         let marks = effects.settings()?;
@@ -159,7 +165,6 @@ pub fn windscreen_drops_frame(
     Ok(())
 }
 
-use crate::effects::owner::effects;
 use crate::effects::plain::{ld_at, ld_cell, st_at};
 use crate::math::x87_float as bh;
 
@@ -245,8 +250,13 @@ fn sprite_corners_x87(drops: &WindscreenDrops, c: usize) -> bh::X {
 /// `sprite_project`: the centre and the six corners projected to the screen into the six
 /// vertices at `e` of the batch's records (0x20 bytes each; the depth at +8), `inverse_depth`
 /// being `view_scale / depth`. Same order and rounding as the original's x87 block.
-fn sprite_project_x87(drops: &WindscreenDrops, e: usize, inverse_depth: bh::X) {
-    let gfx = crate::gfx::owner::gfx();
+fn sprite_project_x87(
+    drops: &WindscreenDrops,
+    gfx: &crate::gfx::owner::Gfx,
+    effects: &crate::effects::owner::Effects,
+    e: usize,
+    inverse_depth: bh::X,
+) {
     let work = &drops.work;
     let records = &gfx.card.windscreen_drop_batch.records;
     let centre =
@@ -285,7 +295,7 @@ fn sprite_project_x87(drops: &WindscreenDrops, e: usize, inverse_depth: bh::X) {
     }
     // Every vertex's depth.
     let depth =
-        (drops.state.depth.ld() + effects().setup.kind_floats.kind_float.ld()) * work.inverse.ld();
+        (drops.state.depth.ld() + effects.setup.kind_floats.kind_float.ld()) * work.inverse.ld();
     for v in 0..6 {
         st_at(records, e + 0x20 * v + 0x8, depth);
     }
@@ -1079,6 +1089,8 @@ mod asm_differential {
                                     || {
                                         super::sprite_project_x87(
                                             &crate::effects::owner::effects().windscreen_drops,
+                                            crate::gfx::owner::gfx(),
+                                            crate::effects::owner::effects(),
                                             0,
                                             super::bh::ld(b[3] as u32),
                                         );

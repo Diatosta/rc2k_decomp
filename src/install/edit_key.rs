@@ -27,11 +27,12 @@ use rc2k_core::install::edits::{self, EDITING, EditKey};
 
 /// The font of an edit record's kind.
 pub fn edit_font(
+    install: &crate::install::owner::Install,
     record: EditField,
 ) -> Result<crate::gfx::typefaces::FontId, crate::errors::BadInput> {
     let kind = record.font_kind() as u32;
-    let font = InstallerPages::kind_font(5 + 8 * kind) as u32;
-    crate::install::vars::InstallerPages::font_of(font)
+    let font = InstallerPages::kind_font(install, 5 + 8 * kind) as u32;
+    crate::install::vars::InstallerPages::font_of(install, font)
 }
 
 /// How many bytes the text takes with its NUL (the offset past the NUL).
@@ -158,7 +159,7 @@ pub fn edit_key(
     wb(text.add(end), 0);
     // The measure takes the text's last place as its limit.
     let (width, _) = measure_text(
-        edit_font(record)?,
+        edit_font(install, record)?,
         &text_with_nul(text),
         most.wrapping_add(measure_limit(text)?).wrapping_add(1),
     )?;

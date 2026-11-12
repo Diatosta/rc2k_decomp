@@ -44,7 +44,7 @@ impl Direction {
 
 /// The click is 0x40F059 with sound 1 (`sound::play_menu_sound`); the callback gets
 /// the item (edi in the original, the only register its callbacks read).
-pub fn move_highlight(o: Owners<'_>, direction: Direction) -> Result<(), Refused> {
+pub fn move_highlight(o: Owners<'static>, direction: Direction) -> Result<(), Refused> {
     let menus = o.menus;
     let screens = &menus.screens;
     // The logic is in `rc2k_core::menu::navigation` (`turn`, `link`, `walk`), everything worked
@@ -82,7 +82,7 @@ pub fn move_highlight(o: Owners<'_>, direction: Direction) -> Result<(), Refused
             return Ok(());
         }
         if !sideways || screens.flow.quiet.get() != 1 {
-            crate::sound::play_menu_sound::play_menu_sound_in_game(1);
+            crate::sound::play_menu_sound::play_menu_sound_in_game(o, 1);
         }
         match to {
             Some(n) => screens.loop_flags.item.set(n),

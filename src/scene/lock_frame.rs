@@ -6,13 +6,13 @@
 //! The registers above are the original's; a call by address goes through `routes.rs`, which
 //! maps them.
 
-use crate::gfx::owner::gfx;
+use crate::gfx::owner::Gfx;
 use crate::race::owner::Race;
 
 /// The back surface locked; its pixels and a second value kept for the drawing. Returns the
 /// locked flag after the lock (1 when locked; otherwise the frame is lost) and that value.
-pub fn lock_frame(race: &Race) -> (u32, u32) {
-    let drawing = &gfx().drawing;
+pub fn lock_frame(race: &Race, gfx: &Gfx) -> (u32, u32) {
+    let drawing = &gfx.drawing;
     let locked = crate::platform::lock_surface();
     {
         race.frame

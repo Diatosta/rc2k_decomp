@@ -3,7 +3,7 @@
 //! halvings apart the two are.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::gfx::owner::gfx;
+use crate::gfx::owner::Gfx;
 use crate::gfx::pixel_format::PixelFormat;
 use crate::gfx::read_texture_picture::read_texture_picture;
 use crate::gfx::texture_pixels::{
@@ -466,8 +466,8 @@ pub fn ready_picture(
 }
 
 /// The number of halvings from 256 a size is, by the game's table.
-fn halvings(size: u32) -> Option<u32> {
-    let card = &gfx().card;
+fn halvings(gfx: &Gfx, size: u32) -> Option<u32> {
+    let card = &gfx.card;
     (0..5).find_map(|n| {
         let (number, of) = (
             card.texture_tables.sizes[2 * n].get(),
@@ -481,16 +481,22 @@ fn halvings(size: u32) -> Option<u32> {
 /// fatal error of the five `codes` (the picture's width, the texture's, the picture's
 /// height, the texture's, the two not the same).
 pub fn halvings_apart(
+    gfx: &Gfx,
     record: &Record,
     width: u32,
     height: u32,
     codes: [u32; 5],
 ) -> Result<u32, Refused> {
     // Converted: `rc2k_core::gfx::uploads::halvings_apart`.
-    rc2k_core::gfx::uploads::halvings_apart(halvings, width, height, || {
-        let r = record.get();
-        (r.width, r.height)
-    })
+    rc2k_core::gfx::uploads::halvings_apart(
+        |size| halvings(gfx, size),
+        width,
+        height,
+        || {
+            let r = record.get();
+            (r.width, r.height)
+        },
+    )
     .map_err(|which| fatal(codes[which as usize]))
 }
 
@@ -551,7 +557,7 @@ mod block_tests {
 
     #[test]
     fn moved_knows_the_block() {
-        let card = &gfx().card;
+        let card = &crate::gfx::owner::gfx().card;
         assert_eq!(offset_of!(Textures, sizes), 0x5ABA98 - START);
         assert_eq!(offset_of!(Textures, kinds), 0x5ABAC0 - START);
         assert_eq!(offset_of!(Textures, descriptions), 0x5ABAD4 - START);

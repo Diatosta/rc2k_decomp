@@ -14,7 +14,6 @@ use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Asking, Callee, Entry, Flow, Frames, List, MenuSound, Screen, Step,
 };
-use crate::net::owner::net;
 
 fn after_first_frame(entry: &Entry) -> Result<Flow, Refused> {
     let tables = &entry.menus.tables;
@@ -54,7 +53,7 @@ pub const SCREEN: Screen = Screen {
     after_first_frame: &[Step::DoFlow(after_first_frame)],
     after: &[Step::Sound(MenuSound::None)],
     asking: Some(Asking {
-        unless: Some(|_| net().vars.session.get()),
+        unless: Some(|entry| entry.owners.net.vars.session.get()),
         unasked_skips_save: true,
         ..Asking::DEFAULT
     }),

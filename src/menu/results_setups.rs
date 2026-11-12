@@ -25,7 +25,7 @@ use crate::menu::captions_store::CaptionTables;
 use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
 use crate::menu::owner::Tables;
-use crate::system::owner::system;
+use crate::system::owner::System;
 
 const POSITION_LIMIT: u32 = 16;
 
@@ -73,8 +73,8 @@ pub fn rank(menus: &Menus, by_totals: bool) -> Result<(), Refused> {
 }
 
 /// The stage record's +0x34, the time the bonus is counted from.
-fn stage_time(screens: &Screens) -> Result<u32, Refused> {
-    let records = system().records.stage_tables.group_event_table(
+fn stage_time(screens: &Screens, system: &System) -> Result<u32, Refused> {
+    let records = system.records.stage_tables.group_event_table(
         screens.event.stage_group.get(),
         screens.event.stage_sub.get(),
     )?;
@@ -93,9 +93,9 @@ fn points(tables: &Tables, position: u32) -> Result<u32, Refused> {
 }
 
 /// `menu::score_four_players` (`n` 4) or `score_two_players` (`n` 2).
-pub fn score(menus: &Menus, n: usize) -> Result<(), Refused> {
+pub fn score(menus: &Menus, system: &System, n: usize) -> Result<(), Refused> {
     let records = players(menus, n as u32)?;
-    let target = stage_time(&menus.screens)?;
+    let target = stage_time(&menus.screens, system)?;
     let times: Vec<u32> = records.iter().map(|&r| r.get().time).collect();
     let positions: Vec<u32> = if n == 2 {
         rc2k_core::menu::results::two_places([times[0], times[1]]).to_vec()
@@ -142,10 +142,10 @@ pub fn rank_totals(menus: &Menus) -> Result<(), Refused> {
     rank(menus, true)
 }
 
-pub fn score_four_players(menus: &Menus) -> Result<(), Refused> {
-    score(menus, 4)
+pub fn score_four_players(menus: &Menus, system: &System) -> Result<(), Refused> {
+    score(menus, system, 4)
 }
 
-pub fn score_two_players(menus: &Menus) -> Result<(), Refused> {
-    score(menus, 2)
+pub fn score_two_players(menus: &Menus, system: &System) -> Result<(), Refused> {
+    score(menus, system, 2)
 }

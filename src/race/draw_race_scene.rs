@@ -380,11 +380,11 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     // moves only here before (`restart_clock` above and in `show_frame` after the present),
     // so only this one ever found it due. It hears the previous frame's sound spots.
     let begun = crate::debug::timing::start();
-    race_sound_tick(frame)?;
+    race_sound_tick(frame, o)?;
     crate::debug::timing::stop(crate::debug::timing::Stage::SoundTick, begun);
     // `g_shine` from `shine_from`: each view's from it now (`race::draw_view_scene`).
     // pusha; pushf .. popf; popa
-    crate::scene::set_filters::set_filters();
+    crate::scene::set_filters::set_filters(race);
     for (value, state) in [(4, 0x15), (1, 0x1C), (5, 0x13), (6, 0x14), (1, 0x1B)] {
         set_render_state(value, state);
     }
@@ -412,10 +412,10 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     // mirrors only read them (the original set them again at each view's fog).
     crate::race::frame_draw::draw_distance_settings(&race.course);
     crate::race::car_parts::ready_car_parts(race, scene)?;
-    crate::race::map_scroll::scroll_maps(race, scene, o.net)?;
+    crate::race::map_scroll::scroll_maps(race, scene, o.net, o.gfx)?;
     race.frame.panel_and_overlay.panel.texture_changes.set(0);
     crate::race::frame_views::forget_view_textures(race, scene, input, system)?;
-    crate::race::mud_frame::mud_frame(race, scene)?;
+    crate::race::mud_frame::mud_frame(race, scene, o.gfx)?;
     race.frame.frame_work.kind_textures_done.set(0);
     crate::scene::assign_kind_textures::assign_kind_textures(scene)?;
     for (k, extra) in race
@@ -507,7 +507,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         set_render_state(2, state);
     }
     if !race.shared.work.in_credits.is_set() && race.replay.finish.no_place.get() == 0 {
-        crate::hud::overlay_pass::overlay_pass(o.hud, race)?;
+        crate::hud::overlay_pass::overlay_pass(o.hud, race, o.system, o.scene, o.gfx)?;
     }
     crate::race::skid_laying::lay_skidmarks_if_on(race)?;
     crate::race::name_plates::update_name_plates(race, scene, o.gfx, o.strings)?;

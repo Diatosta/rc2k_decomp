@@ -34,7 +34,10 @@ use rc2k_core::drive::listener;
 fn figures(race: &Race, viewed: u32) -> Result<[i32; 6], Refused> {
     let shared = &race.shared;
     listener::check_viewed(viewed, || shared.work.has_car_block(viewed as usize))?;
-    let n = car_file_number(crate::race::blocks_store::own_car().car_kind.get());
+    let n = car_file_number(
+        race.kind_tables(),
+        crate::race::blocks_store::own_car().car_kind.get(),
+    );
     rc2k_core::drive::sharing::check_light_record(n)?;
     let mut out = [0i32; 6];
     for (k, o) in out.iter_mut().enumerate() {

@@ -9,13 +9,14 @@ use crate::errors::BadInput;
 use crate::menu::name_lists::{NAME_LEN, savegame_name};
 use crate::menu::owner::Menus;
 use crate::menu::text_entry::{entry as text_entry, length, put_entry};
+use crate::saves::owner::Saves;
 
-pub fn backspace_savegame_name(menus: &Menus) -> Result<(), BadInput> {
+pub fn backspace_savegame_name(menus: &Menus, saves: &'static Saves) -> Result<(), BadInput> {
     // The logic is in `rc2k_core::menu::text_entry::Entry::backspace`.
-    if length() == 0 {
+    if length(menus) == 0 {
         return Ok(());
     }
-    let name = savegame_name(menus)?;
+    let name = savegame_name(menus, saves)?;
     let mut e = text_entry(menus);
     if let Some(at) = e.backspace(NAME_LEN)? {
         put_entry(menus, &e);

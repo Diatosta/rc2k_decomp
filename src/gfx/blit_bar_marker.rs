@@ -6,10 +6,12 @@
 
 use crate::errors::Refused;
 use crate::gfx::blit_bar::Blit;
+use crate::gfx::owner::Gfx;
+use crate::menu::owner::Menus;
 
 /// The marker of the bar the bar globals describe.
-pub fn blit_bar_marker(blit: Blit) -> Result<(), Refused> {
+pub fn blit_bar_marker(gfx: &Gfx, menus: &Menus, blit: Blit) -> Result<(), Refused> {
     // Converted: `rc2k_core::gfx::bars::marker`.
     use crate::gfx::blit_bar::{Bar, GameBar};
-    rc2k_core::gfx::bars::marker(&mut GameBar(blit), &Bar::read().core())
+    rc2k_core::gfx::bars::marker(&mut GameBar { blit, gfx, menus }, &Bar::read(gfx).core())
 }

@@ -18,7 +18,7 @@ pub struct Game<'a> {
     /// The menus' owner.
     menus: &'a Menus,
     /// The game's owners, for the screens the flows enter.
-    owners: crate::owners::Owners<'a>,
+    owners: crate::owners::Owners<'static>,
     /// The record `Call::FindRecord` found (the original's edi), read through `Var::Record`.
     record: Option<RecordRef>,
     /// The car list the next car choice shows (`Game::hand_cars`, `Call::CheatCarList`).
@@ -28,7 +28,7 @@ pub struct Game<'a> {
 }
 
 impl<'a> Game<'a> {
-    pub fn new(o: crate::owners::Owners<'a>) -> Self {
+    pub fn new(o: crate::owners::Owners<'static>) -> Self {
         Self {
             menus: o.menus,
             owners: o,
@@ -248,7 +248,11 @@ impl flow::Game for Game<'_> {
                 m::show_overall_stage_results::show_overall_stage_results(menus, entry)?;
             }
             C::KeepRecordBest => m::keep_record_best::keep_record_best(menus, self.owners.system)?,
-            C::RecordEntriesPass => m::record_entries_pass::record_entries_pass(menus)?,
+            C::RecordEntriesPass => m::record_entries_pass::record_entries_pass(
+                menus,
+                self.owners.system,
+                self.owners.race,
+            )?,
             C::BestTimesLoop => self.screen(&m::best_times_loop::SCREEN)?,
             C::InspectionPass => m::inspection_pass::inspection_pass(menus, entry)?,
             C::ChampionshipServiceReview => {
@@ -299,7 +303,11 @@ impl flow::Game for Game<'_> {
                 m::clear_time_trial_marks::clear_time_trial_marks(menus, self.owners.system)?;
             }
             C::EnterTimeTrialBest => {
-                m::enter_time_trial_best::enter_time_trial_best(menus, self.owners.system)?;
+                m::enter_time_trial_best::enter_time_trial_best(
+                    self.owners.race,
+                    menus,
+                    self.owners.system,
+                )?;
             }
             C::TimeTrialBestTimesLoop => self.screen(&m::time_trial_best_times_loop::SCREEN)?,
             C::SingleRallyReview => self.screen(&m::single_rally_review_loop::SCREEN)?,
@@ -307,10 +315,22 @@ impl flow::Game for Game<'_> {
                 // ";3files\%speech\rally\rally0.wav"
                 use crate::audio::names_store::SampleNames;
                 let name = core::mem::offset_of!(SampleNames, rally_speech) as u32;
-                crate::sound::start_stream::start_stream(name, channel);
+                crate::sound::start_stream::start_stream(
+                    self.owners.audio,
+                    self.owners.system,
+                    name,
+                    channel,
+                );
             }
-            C::WaitForCommands => crate::sound::wait_for_commands::wait_in_game(),
-            C::StopStream => crate::sound::stop_stream::stop_stream(),
+            C::WaitForCommands => {
+                crate::sound::wait_for_commands::wait_in_game(
+                    self.owners.audio,
+                    self.owners.system,
+                );
+            }
+            C::StopStream => {
+                crate::sound::stop_stream::stop_stream(self.owners.audio, self.owners.system);
+            }
             C::ConvertPicture => {
                 // Whether it worked is not looked at.
                 crate::gfx::convert_picture::convert_picture_now_in(
@@ -336,7 +356,7 @@ impl flow::Game for Game<'_> {
 
     fn next_record_kind(&mut self) -> Result<u32, Refused> {
         self.fault.check()?;
-        crate::menu::next_record_kind::next_record_kind(self.menus)
+        crate::menu::next_record_kind::next_record_kind(self.menus, self.owners.system)
     }
 
     fn load_picture(&mut self, p: Picture) -> Result<bool, Refused> {
@@ -371,7 +391,7 @@ impl flow::Game for Game<'_> {
         // The welcome polls this until a key comes: the window goes on meanwhile.
         crate::system::sleep::sleep(10);
         crate::platform::pump_messages_now();
-        let (playing, _) = crate::sound::stream_playing::stream_playing();
+        let (playing, _) = crate::sound::stream_playing::stream_playing(self.owners.audio);
         Ok(playing)
     }
 

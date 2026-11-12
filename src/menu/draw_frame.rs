@@ -11,10 +11,13 @@ use crate::menu::frame_callback::{copy_picture, draw_menu, lock_failed};
 use crate::owners::Owners;
 
 /// `menu` is edi at entry.
-pub fn draw_frame(o: Owners<'_>, menu: crate::menu::menus_store::MenuId) -> Result<(), Refused> {
+pub fn draw_frame(
+    o: Owners<'static>,
+    menu: crate::menu::menus_store::MenuId,
+) -> Result<(), Refused> {
     let menus = o.menus;
     menus.screens.loop_flags.menu.set(menu);
-    if crate::menu::screen_loop::quitting() {
+    if crate::menu::screen_loop::quitting(o.system) {
         return Ok(());
     }
     copy_picture()?;

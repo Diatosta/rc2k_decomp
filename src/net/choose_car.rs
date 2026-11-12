@@ -15,7 +15,7 @@ use crate::owners::Owners;
 /// The car screen is handed the list of cars; the
 /// car it starts from its set-up finds itself (the current player's record,
 /// `menu::car_choice::find_player_car`).
-pub fn choose_car(o: Owners<'_>, vars: &NetVars) -> Result<(), Refused> {
+pub fn choose_car(o: Owners<'static>, vars: &NetVars) -> Result<(), Refused> {
     let menus = o.menus;
     let play = &menus.play;
     // The current player of the event, and whether the screen was left with Escape.

@@ -17,7 +17,7 @@ use crate::audio::owner::Audio;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
 use crate::sound::sets_store::RaceSoundSets;
-use crate::system::owner::system;
+use crate::system::owner::System;
 use rc2k_core::audio::commands::SoundList;
 
 /// The core's loader: each step is one of the original's callees, given what it reads (the
@@ -25,6 +25,7 @@ use rc2k_core::audio::commands::SoundList;
 /// holder value its EAX set-up reads through).
 struct GameLoader<'a> {
     audio: &'a Audio,
+    system: &'a System,
 }
 
 impl<'a> GameLoader<'a> {
@@ -98,7 +99,7 @@ impl rc2k_core::audio::load::Loader for GameLoader<'_> {
         update_voice(&self.audio.state, voice, |v| v.flags |= LOADED);
     }
     fn quitting(&mut self) -> bool {
-        system().session.flags.quitting.is_set()
+        self.system.session.flags.quitting.is_set()
     }
 }
 
@@ -120,7 +121,7 @@ fn list_entries(list: SoundList) -> Result<Box<dyn Fn(usize) -> Option<u32>>, Ba
 }
 
 /// Converted: `rc2k_core::audio::load` (`entries`, `load`).
-pub fn load_sounds(audio: &Audio, list: Option<SoundList>) -> Result<(), Refused> {
+pub fn load_sounds(audio: &Audio, system: &System, list: Option<SoundList>) -> Result<(), Refused> {
     let Some(list) = list else {
         return Ok(());
     };
@@ -140,7 +141,7 @@ pub fn load_sounds(audio: &Audio, list: Option<SoundList>) -> Result<(), Refused
     if let Some(e) = refusal.get() {
         return Err(e.into());
     }
-    let mut l = GameLoader { audio };
+    let mut l = GameLoader { audio, system };
     rc2k_core::audio::load::load(&mut l, &entries)
 }
 

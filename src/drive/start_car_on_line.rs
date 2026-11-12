@@ -73,6 +73,7 @@ pub fn start_car_on_line(
     crate::race::start_place::place_car_on_line(&race.shared, &race.course, scene)?;
     crate::race::car_starts::reset_car_motion(
         &crate::physics::step_inputs::StepInputs::of(race).reset(),
+        scene,
     )?;
     race.shared.car.local_velocity[0].set(0.0);
     race.shared.car.local_velocity[1].set(0.0);

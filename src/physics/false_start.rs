@@ -16,7 +16,11 @@ use rc2k_core::physics::start::CarStart;
 
 /// The false start check, then `race::start_car`.
 // Converted: `rc2k_core::physics::start::CarStart::false_start`.
-pub fn false_start(inputs: &ResetInputs<'_>) -> Result<(), Refused> {
+pub fn false_start(
+    inputs: &ResetInputs<'_>,
+    scene: &crate::scene::owner::Scene,
+    net: &crate::net::owner::Net,
+) -> Result<(), Refused> {
     let c = inputs.car;
     let was = CarStart {
         timer: c.run_ticks.get(),
@@ -53,7 +57,7 @@ pub fn false_start(inputs: &ResetInputs<'_>) -> Result<(), Refused> {
         }
     }
     if done.put_back {
-        { crate::race::car_starts::start_car(inputs) }?;
+        { crate::race::car_starts::start_car(inputs, scene, net) }?;
     }
     Ok(())
 }

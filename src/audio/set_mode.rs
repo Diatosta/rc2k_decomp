@@ -18,7 +18,11 @@ const OK_TEXT: &std::ffi::CStr = c"SAM: OK"; // "SAM: OK"
 const FAIL_TEXT: &std::ffi::CStr = c"SAM: FAIL"; // "SAM: FAIL"
 
 /// True for no carry.
-pub fn set_mode(audio: &Audio, mode: u32) -> Result<bool, Refused> {
+pub fn set_mode(
+    audio: &Audio,
+    system: &crate::system::owner::System,
+    mode: u32,
+) -> Result<bool, Refused> {
     use crate::audio::mixer_set_up::{close_way, open_way};
     use crate::audio::sound_device as sd;
     let caps = &audio.state.sound_caps;
@@ -29,7 +33,7 @@ pub fn set_mode(audio: &Audio, mode: u32) -> Result<bool, Refused> {
     // outlived the DirectSound it played on.
     crate::audio::stop_streams::stop_streams(audio)?;
     crate::audio::free_voices::free_voices(audio)?;
-    close_way(audio, audio.state.sound_mode.get())?;
+    close_way(audio, system, audio.state.sound_mode.get())?;
     sd::release_primary(&audio.state);
     audio.state.sound_mode.set(mode);
     // Converted: `rc2k_core::audio::modes::channels`. `g_soundCaps`: free hardware buffers
@@ -40,9 +44,10 @@ pub fn set_mode(audio: &Audio, mode: u32) -> Result<bool, Refused> {
         [caps.get_u32(0x3C), caps.get_u32(0x40)],
     );
     audio.state.channel_count.set(channels);
-    let ok = !sd::reopen_sound(&audio.state)? && crate::audio::primary::make_primary(audio)?;
+    let ok = !sd::reopen_sound(&audio.state, system)?
+        && crate::audio::primary::make_primary(audio, system)?;
     if ok {
-        open_way(audio, audio.state.sound_mode.get())?;
+        open_way(audio, system, audio.state.sound_mode.get())?;
         crate::system::sleep::sleep(1000);
         crate::audio::thread_parts::play_primary(&audio.state);
         audio

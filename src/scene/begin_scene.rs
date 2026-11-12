@@ -13,10 +13,15 @@ use crate::scene::set_render_state::set_render_state;
 /// The states after the filters: (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (1, 0x1C), (5, 0x13), (6, 0x14), (1, 0x1B)];
 
+/// `begin_scene` for a caller that holds no owners (the inspection's fades).
+pub fn begin_scene_outside() {
+    begin_scene(crate::race::owner::race());
+}
+
 /// The 3D part of a frame begun. The layer's beginning cannot fail.
-pub fn begin_scene() {
+pub fn begin_scene(race: &crate::race::owner::Race) {
     crate::platform_3d::begin_layer();
-    set_filters();
+    set_filters(race);
     for (value, state) in STATES {
         set_render_state(value, state);
     }

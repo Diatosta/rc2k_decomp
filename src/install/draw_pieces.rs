@@ -18,12 +18,15 @@ use crate::install::vars::InstallerPages;
 use crate::strings::owner::Strings;
 use rc2k_core::install::pieces::{self, Way};
 
-fn font(index: u32) -> Result<crate::gfx::typefaces::FontId, BadInput> {
-    crate::install::vars::InstallerPages::font_of(index)
+fn font(
+    install: &crate::install::owner::Install,
+    index: u32,
+) -> Result<crate::gfx::typefaces::FontId, BadInput> {
+    crate::install::vars::InstallerPages::font_of(install, index)
 }
 
-fn colour(marks: u8, kind: u32) -> u32 {
-    InstallerPages::kind_font(pieces::colour_at(marks, kind)) as u32
+fn colour(install: &crate::install::owner::Install, marks: u8, kind: u32) -> u32 {
+    InstallerPages::kind_font(install, pieces::colour_at(marks, kind)) as u32
 }
 
 pub fn draw_pieces(
@@ -35,7 +38,7 @@ pub fn draw_pieces(
         return Err(BadInput("a page of no pieces").into());
     }
     for k in 0..count {
-        let piece = Piece::nth(k);
+        let piece = Piece::nth(install, k);
         let first = piece.marks();
         let (x, y) = (piece.x(), piece.y());
         // Converted: `rc2k_core::install::pieces` (`Way`, `colour_at`, `caret`).
@@ -43,7 +46,7 @@ pub fn draw_pieces(
             Way::String { font_kind } => {
                 draw_string(
                     piece.text_id() as u32,
-                    font(colour(first, font_kind))?,
+                    font(install, colour(install, first, font_kind))?,
                     x,
                     y,
                 )?;
@@ -51,7 +54,7 @@ pub fn draw_pieces(
             Way::Edit => {
                 let item = piece.item();
                 let record = item.edit_field();
-                let edit_font = font(colour(first, record.font_kind() as u32))?;
+                let edit_font = font(install, colour(install, first, record.font_kind() as u32))?;
                 let mut text = text_at(item.text());
                 // The drawer reads to the NUL.
                 if !pieces::caret(first, record.flags()) {
@@ -75,7 +78,12 @@ pub fn draw_pieces(
                 }
                 text.push(0);
                 store_text(&strings.text.buffer.text, &text);
-                draw_text(font(colour(first, item.font_kind() as u32))?, &text, x, y)?;
+                draw_text(
+                    font(install, colour(install, first, item.font_kind() as u32))?,
+                    &text,
+                    x,
+                    y,
+                )?;
             }
             Way::Action => draw_action(piece.item().data())?,
             Way::Other => {}

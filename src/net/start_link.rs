@@ -121,7 +121,7 @@ pub fn start_link_in(o: crate::owners::Owners<'static>, mode: u32) -> Result<(),
             loop {
                 vars.all_raced.set(0);
                 vars.race_over.set(0);
-                crate::sound::play_tune_4::play_tune_4();
+                crate::sound::play_tune_4::play_tune_4(o.sound, o.audio, o.system);
                 if (lobby_loop::lobby_loop(o)? as i32) < 0 {
                     break;
                 }
@@ -134,6 +134,6 @@ pub fn start_link_in(o: crate::owners::Owners<'static>, mode: u32) -> Result<(),
     }
     log_bytes(&race.viewer_panel().text(texts::NET_STOPPING_LINK), true, 2);
     stopping::stopping(&net.vars, o.system, o.gfx)?;
-    crate::sound::play_tune_3::play_tune_3();
+    crate::sound::play_tune_3::play_tune_3(o.sound, o.audio, o.system);
     Ok(())
 }

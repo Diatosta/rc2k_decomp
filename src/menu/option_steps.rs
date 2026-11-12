@@ -45,7 +45,7 @@ pub struct Volume<'a> {
 }
 
 /// One volume step.
-pub fn volume_step(o: Owners<'_>, v: Volume<'_>) {
+pub fn volume_step(o: Owners<'static>, v: Volume<'_>) {
     let (screens, audio) = (&o.menus.screens, o.audio);
     // The logic is in `rc2k_core::menu::steps::volume`.
     let value = rc2k_core::menu::steps::volume(v.value.get() as i32, v.up);
@@ -53,15 +53,17 @@ pub fn volume_step(o: Owners<'_>, v: Volume<'_>) {
     match v.then {
         Then::Music => {
             o.sound.menu.options.music_volume.set(value as u32);
-            crate::sound::set_music_volume::set_music_volume(value as u32, audio);
+            crate::sound::set_music_volume::set_music_volume(value as u32, audio, o.system);
         }
         Then::Speech => crate::sound::start_stream::start_stream(
+            audio,
+            o.system,
             core::mem::offset_of!(SampleNames, menu_speech_st1) as u32,
             value as u32,
         ),
         Then::Sound(sound) => {
             screens.flow.menu_sounds_volume.set(value as u32);
-            crate::sound::play_menu_sound::play_menu_sound_in_game(sound);
+            crate::sound::play_menu_sound::play_menu_sound_in_game(o, sound);
         }
     }
 }
@@ -156,7 +158,7 @@ pub fn apply_audio_choices(
     }
     // `audio::choose_modes` with the game's log (the original's eax there, the last
     // value copied, is read by none of it).
-    crate::audio::choose_modes::in_game(&mut crate::audio::choose_modes::real_log)?;
+    crate::audio::choose_modes::in_game(audio, &mut crate::audio::choose_modes::real_log)?;
     for (work, n) in choices(menus) {
         work.set(audio.state.audio_options.get().applied[n]);
     }

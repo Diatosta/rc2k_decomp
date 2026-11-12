@@ -14,12 +14,11 @@
 
 use crate::errors::Refused;
 use crate::framework::CarryZeroFlags;
-use crate::gfx::owner::Display;
-use crate::gfx::owner::gfx;
+use crate::gfx::owner::Gfx;
 
 /// Tries `mode`: the flags it leaves (carry: it does not work).
-pub fn try_screen_mode(display: &Display, mode: u32) -> Result<CarryZeroFlags, Refused> {
-    let gfx = gfx();
+pub fn try_screen_mode(gfx: &Gfx, mode: u32) -> Result<CarryZeroFlags, Refused> {
+    let display = &gfx.display;
     let reports: u32 = gfx.reports.on.get();
     gfx.reports.on.set(0);
     gfx.card.upload.trying.set(1);

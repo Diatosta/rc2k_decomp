@@ -11,7 +11,7 @@ use crate::menu::table_routes::screen_fn;
 use crate::owners::Owners;
 
 /// Runs the functions of `list` in order.
-pub fn run_list(o: Owners<'_>, list: FnList) -> Result<(), Refused> {
+pub fn run_list(o: Owners<'static>, list: FnList) -> Result<(), Refused> {
     for f in list.functions() {
         screen_fn(o, *f)?;
     }

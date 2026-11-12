@@ -11,7 +11,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_bytes;
 use crate::files::read_file::read_file_into;
-use crate::service::owner::{Service, service};
+use crate::service::owner::Service;
 use crate::session::{Bytes, PlainDword};
 
 // ---- game data ----
@@ -57,8 +57,8 @@ pub const fn template() -> Bytes<27> {
 }
 
 // "CRSU"
-pub fn slot_name(slot: u32) -> crate::place::BytePlace {
-    crate::place::BytePlace::In(&service().set_ups.names, slot as usize * NAME_LEN)
+pub fn slot_name(service: &'static Service, slot: u32) -> crate::place::BytePlace {
+    crate::place::BytePlace::In(&service.set_ups.names, slot as usize * NAME_LEN)
 }
 
 // ---- Rust version ----

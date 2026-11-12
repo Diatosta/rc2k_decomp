@@ -11,10 +11,15 @@ use crate::errors::BadInput;
 use crate::menu::name_lists::replay_name;
 use crate::menu::owner::Menus;
 use crate::menu::text_entry::begin_logged;
+use crate::race::owner::Race;
 
 /// `log` = false leaves the log lines out.
-pub fn begin_replay_name(menus: &Menus, log: bool) -> Result<(), BadInput> {
-    let name = replay_name(menus)?;
+pub fn begin_replay_name(
+    menus: &'static Menus,
+    race: &'static Race,
+    log: bool,
+) -> Result<(), BadInput> {
+    let name = replay_name(menus, race)?;
     if log {
         // aGetrepsaveslot
         crate::logfile::log_write::log_nul(c"getrepsaveslotname result=", false, 1);

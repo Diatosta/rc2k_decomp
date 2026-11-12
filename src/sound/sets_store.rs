@@ -817,12 +817,19 @@ impl RaceSoundSets {
 
 impl RaceSoundSets {
     /// The sets of the kind-table entry `n` (two a kind of car), as a handle.
+    #[cfg(test)]
     pub fn kind_list_of(
         n: usize,
     ) -> Result<rc2k_core::audio::commands::SoundList, crate::errors::BadInput> {
-        let handle = crate::sound::owner::sound()
-            .race
-            .sets
+        crate::sound::owner::sound().race.sets.kind_list(n)
+    }
+
+    /// The sets of the kind-table entry `n` (two a kind of car), as a handle.
+    pub fn kind_list(
+        &self,
+        n: usize,
+    ) -> Result<rc2k_core::audio::commands::SoundList, crate::errors::BadInput> {
+        let handle = self
             .kinds
             .get(n)
             .filter(|_| n < Self::KIND_ENTRIES)

@@ -57,11 +57,11 @@ fn highlighted_slot(menus: &Menus) -> u32 {
 
 /// The players' own records and names come back when
 /// the loaded championship is over or left (`menu::own_settings`; not the original's).
-pub fn load_savegame(o: Owners<'_>) -> Result<(), Refused> {
+pub fn load_savegame(o: Owners<'static>) -> Result<(), Refused> {
     crate::menu::own_settings::around_championship(o.menus, || load_and_run(o))
 }
 
-fn load_and_run(o: Owners<'_>) -> Result<(), Refused> {
+fn load_and_run(o: Owners<'static>) -> Result<(), Refused> {
     let (menus, saves) = (o.menus, o.saves);
     let slot = highlighted_slot(menus);
     if slot >= SLOTS {
@@ -74,7 +74,7 @@ fn load_and_run(o: Owners<'_>) -> Result<(), Refused> {
     menus.tables.pages.reset_times.set(0u32);
     menus.screens.event.event_out.set(0u32);
     if !read_savegame_slot_in(saves, slot)? {
-        crate::sound::play_menu_sound::play_menu_sound_in_game(UNREADABLE_SOUND);
+        crate::sound::play_menu_sound::play_menu_sound_in_game(o, UNREADABLE_SOUND);
         go_back::go_back(menus);
         return Ok(());
     }
@@ -121,7 +121,9 @@ fn load_and_run(o: Owners<'_>) -> Result<(), Refused> {
         .start_section_a8
         .set(cars[0].get().saved_start_section_a8);
 
-    match resume(crate::menu::next_record_kind::next_record_kind(menus)?) {
+    match resume(crate::menu::next_record_kind::next_record_kind(
+        menus, o.system,
+    )?) {
         Resume::NextSection => {
             menus
                 .screens

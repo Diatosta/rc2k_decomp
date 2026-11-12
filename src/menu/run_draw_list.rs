@@ -10,6 +10,6 @@ use crate::owners::Owners;
 
 // ---- game data ----
 
-pub fn run_draw_list(o: Owners<'_>) -> Result<(), Refused> {
+pub fn run_draw_list(o: Owners<'static>) -> Result<(), Refused> {
     run_list(o, o.menus.screens.flow.draw_list.get()?)
 }

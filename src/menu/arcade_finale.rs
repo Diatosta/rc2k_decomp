@@ -14,7 +14,7 @@
 use crate::errors::Refused;
 use crate::owners::Owners;
 
-pub fn arcade_finale(o: Owners<'_>) -> Result<(), Refused> {
+pub fn arcade_finale(o: Owners<'static>) -> Result<(), Refused> {
     let (menus, sound, race) = (o.menus, o.sound, o.race);
     let play = &menus.play;
     let first = play.players.players[0].get();
@@ -40,24 +40,26 @@ pub fn arcade_finale(o: Owners<'_>) -> Result<(), Refused> {
     race.shared.state.results.finished.set(0);
     crate::race::sound_tables::set_up_race_sound_objects(
         race,
-        &crate::race::sound_tables::ObjectVars::game(),
+        &crate::race::sound_tables::ObjectVars::of(sound),
         sound,
+        o.net,
+        o.system,
     )?;
-    crate::sound::set_up_race_sounds::set_up_race_sounds(sound)?;
+    crate::sound::set_up_race_sounds::set_up_race_sounds(o)?;
     crate::menu::show_loading_picture::show_loading_picture_in(menus, o.gfx, o.system)?;
     crate::race::stage_free::render3d_tidy(race)?;
     crate::race::stage_free::objects_tidy(race)?;
     // `nullsub_6`.
     crate::race::race_end::release_textures();
     crate::drive::finish_race_0::finish_race_0(race)?;
-    crate::sound::stop_music::stop_music();
+    crate::sound::stop_music::stop_music(o.audio, o.system);
     crate::platform::set_menu_mode_now();
     crate::menu::show_loading_picture::show_loading_picture_in(menus, o.gfx, o.system)?;
     crate::scene::set_up_engine::set_up_engine_in(race, o.scene)?;
     crate::scene::set_up_front_end_scene::set_up_front_end_scene_in(o)?;
     crate::scene::set_up_engine::set_up_engine_in(race, o.scene)?;
-    crate::sound::stop_music::stop_music();
-    crate::sound::play_tune_3::play_tune_3();
+    crate::sound::stop_music::stop_music(o.audio, o.system);
+    crate::sound::play_tune_3::play_tune_3(o.sound, o.audio, o.system);
     // The pending key taken (eax 0).
     crate::input::take_key::take_key();
     Ok(())

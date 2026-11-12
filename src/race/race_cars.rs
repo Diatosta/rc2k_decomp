@@ -8,7 +8,6 @@
 use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_float as bh;
-use crate::net::owner::net;
 use crate::physics::car_store::Car;
 #[cfg(test)]
 use crate::race::blocks_store::CAR_BLOCKS;
@@ -270,11 +269,11 @@ fn brake_value(race: &Race, n: usize) -> u32 {
 /// from `RaceState.settings.cars[0].steering_sensitivity` / `RaceState.settings.cars[1].steering_sensitivity` (`brake_value`); else `auto_set_up_car` of every car of the
 /// race (`pusha` / `popa` round each), then `set_player_car_kinds`. Refuses, with `session`
 /// set, no cars or more than 8 (the original's `jnz` runs on), before anything.
-pub fn set_up_mode_0_cars(race: &Race) -> Result<(), Refused> {
+pub fn set_up_mode_0_cars(race: &Race, net: &crate::net::owner::Net) -> Result<(), Refused> {
     {
         // Converted: `rc2k_core::race::cars::{every_car_set_up, held_brake}`.
         let cars: u32 = race.shared.view.race_cars.get();
-        let all = rc2k_core::race::cars::every_car_set_up(net().vars.session.get() != 0, cars)?;
+        let all = rc2k_core::race::cars::every_car_set_up(net.vars.session.get() != 0, cars)?;
         reset_car_blocks(race)?;
         if !all {
             drop_absent_player(race);
@@ -605,7 +604,11 @@ const PLAYER_RESETS: [(Field, u32); 6] = [
 /// players' +0x5FC 0 and +0xA0C .. +0xA1C -1; then by the mode: 2 the numbers, the times, the
 /// arcade set-up, `kept_times` (0x40 dwords) 0; 1, 3, 0 (with the numbers first), 4 their
 /// set-ups; others nothing.
-pub fn set_up_cars(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn set_up_cars(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    net: &crate::net::owner::Net,
+) -> Result<(), Refused> {
     text(c"gamemode", false);
     number(race.shared.vars.run_kind.get(), true);
     // Converted: `rc2k_core::race::cars::cars_steps`.
@@ -619,7 +622,7 @@ pub fn set_up_cars(race: &Race, scene: &crate::scene::owner::Scene) -> Result<()
         match step {
             CarsStep::Numbers => read_stage_car_numbers(race)?,
             CarsStep::Times => set_car_times(race, scene)?,
-            CarsStep::SetUp(0) => set_up_mode_0_cars(race)?,
+            CarsStep::SetUp(0) => set_up_mode_0_cars(race, net)?,
             CarsStep::SetUp(1) => set_up_mode_1_cars(race)?,
             CarsStep::SetUp(2) => set_up_mode_2_cars(race)?,
             CarsStep::SetUp(3) => set_up_race_cars(race)?,

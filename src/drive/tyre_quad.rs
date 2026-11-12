@@ -10,29 +10,48 @@
 use crate::d3d::vertices_store::VERTICES;
 use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
+use crate::race::viewer_screen_store::ViewerPanelBlock;
 use crate::session::{Dword, read_all};
 use rc2k_core::drive::tyre_screen::quad_corners;
 
 /// The texture rectangle at `uv`, the screen rectangle `rect`, the colour `colour`; For the
 /// viewer's items, whose picture is a kept address (a rectangle or a switch table's entry).
-pub fn tyre_quad(uv: [u32; 4], rect: &[Dword; 4], colour: u32) -> Result<(), Refused> {
+pub fn tyre_quad(
+    uv: [u32; 4],
+    rect: &[Dword; 4],
+    colour: u32,
+    panel: &ViewerPanelBlock,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     let rect = read_all(rect);
-    quad_of(uv, rect, colour)
+    quad_of(uv, rect, colour, panel, system)
 }
 
 /// `tyre_quad` on rectangles held as cells.
 // Converted: `rc2k_core::drive::tyre_screen::quad_corners` (the shared tail stays x87).
-pub fn tyre_quad_cells(uv: &[Dword; 4], rect: &[Dword; 4], colour: u32) -> Result<(), Refused> {
-    quad_of(read_all(uv), read_all(rect), colour)
+pub fn tyre_quad_cells(
+    uv: &[Dword; 4],
+    rect: &[Dword; 4],
+    colour: u32,
+    panel: &ViewerPanelBlock,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
+    quad_of(read_all(uv), read_all(rect), colour, panel, system)
 }
 
-fn quad_of(uv: [u32; 4], rect: [u32; 4], colour: u32) -> Result<(), Refused> {
+fn quad_of(
+    uv: [u32; 4],
+    rect: [u32; 4],
+    colour: u32,
+    panel: &ViewerPanelBlock,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     let corners = quad_corners(rect);
     for (k, [x, y]) in corners.into_iter().enumerate() {
         VERTICES.vertices[k].x.set(x);
         VERTICES.vertices[k].y.set(y);
     }
     quad_words(colour);
-    quad_tail(uv);
+    quad_tail(uv, panel, system);
     draw()
 }

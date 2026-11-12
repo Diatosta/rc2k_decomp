@@ -96,7 +96,12 @@ pub fn surface() -> Surface {
 }
 
 pub fn clip() -> Clip {
-    let drawing = &gfx().drawing;
+    clip_in(gfx())
+}
+
+/// `clip` for a caller that holds the owner.
+pub fn clip_in(gfx: &crate::gfx::owner::Gfx) -> Clip {
+    let drawing = &gfx.drawing;
     Clip {
         left: drawing.blit.clip.left.get() as i32,
         right: drawing.blit.clip.right.get() as i32,

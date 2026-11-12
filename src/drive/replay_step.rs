@@ -46,8 +46,8 @@ fn car_step(
         crate::drive::steer_inputs::steer_inputs(race, scene);
         crate::drive::pedal_inputs::pedal_inputs(race);
         crate::drive::reset_request::reset_request(race, scene)?;
-        crate::physics::car_physics_step::car_physics_step(race, system, sound, scene)?;
-        crate::net::race_step::race_step(race)?;
+        crate::physics::car_physics_step::car_physics_step(race, system, sound, scene, net)?;
+        crate::net::race_step::race_step(race, net)?;
     }
     race.shared
         .car

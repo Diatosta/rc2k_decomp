@@ -37,15 +37,18 @@ pub fn ring_frame(
         for (value, state) in STATES {
             set_render_state(value, state);
         }
-        crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[211].get());
+        crate::scene::set_texture::set_texture(
+            scene,
+            scene.textures.kinds.kind_first_slots[211].get(),
+        );
         crate::scene::depth_test_off::depth_test_off();
         // SurfaceTables.lives_by_level[8]: the ninth of `lives_by_level`.
         // The settings' +0x7C: the first car record's +0x1C.
         masks.surface.lives_by_level[8].set(marks.cars[0].tag.get() & 0xFF_FFFF);
         particles.kind1_choice.choice.set(weather.rain.drops.get());
-        crate::effects::run_ring::run_ring(masks, ring, effects, view)?;
+        crate::effects::run_ring::run_ring(masks, ring, scene, effects, view)?;
         set_render_state(2, 0x14);
-        crate::effects::run_ribbons::run_ribbons(ring, effects, view)?;
+        crate::effects::run_ribbons::run_ribbons(ring, scene, effects, view)?;
     }
     Ok(())
 }

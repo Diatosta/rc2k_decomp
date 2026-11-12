@@ -36,6 +36,7 @@ pub fn draw_ribbon(
     alpha: u32,
     width: u32,
     colour: u32,
+    scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     if cell >= CELLS {
@@ -72,7 +73,7 @@ pub fn draw_ribbon(
         if clip_quad(effects)? {
             return Ok(());
         }
-        draw_fan();
+        draw_fan(scene);
         crate::scene::polygon_work::front_end()
             .polygon_vertex_count
             .set_bits(4u32);

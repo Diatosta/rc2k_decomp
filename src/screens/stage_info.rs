@@ -9,15 +9,9 @@ use crate::menu::owner::Menus;
 use crate::menu::owner::Play;
 use crate::records::stages_store::{Holder as RecordHolder, RecordRef};
 use crate::screens::game_screen::{Held, HeldText};
-use crate::system::owner::system;
 use crate::text::draw_text::Canvas;
 
-/// The page's stage record.
-pub fn stage_record(play: &Play) -> Result<RecordRef, BadInput> {
-    stage_record_in(system(), play)
-}
-
-/// `stage_record` on the system's tables.
+/// The page's stage record, on the system's tables.
 pub fn stage_record_in(
     system: &crate::system::owner::System,
     play: &Play,
@@ -36,12 +30,13 @@ pub fn stage_record_in(
 /// it). The speed is formatted before anything is drawn (its refusals first).
 pub fn draw_stage_best_and_fastest(
     play: &Play,
+    system: &crate::system::owner::System,
     times: &rc2k_core::saves::entries::BestTime,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
     use rc2k_core::screens::stage_panel::{CarRow, Holder};
     {
-        let record = stage_record(play)?;
+        let record = stage_record_in(system, play)?;
         let units = crate::strings::units::units();
         crate::strings::append_speed::append_speed(
             record.record()?.holder(RecordHolder::Fastest).speed,
@@ -87,10 +82,10 @@ pub fn draw_stage_best_and_fastest(
 pub fn draw_rally_stage_info(
     menus: &Menus,
     system: &crate::system::owner::System,
+    gfx: &crate::gfx::owner::Gfx,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
     let play = &menus.play;
-    let tables = &menus.tables;
     use crate::screens::best_scores::{RALLY_STAGE_TIMES, draw_times_heading};
     let record = stage_record_in(system, play)?;
     let course_times = &crate::saves::best_times::COURSE_TIMES;
@@ -100,12 +95,13 @@ pub fn draw_rally_stage_info(
     draw_times_heading(menus, system, &RALLY_STAGE_TIMES, canvas)?;
     // the two headings in `FontObjects.objects[14].first_char` here (the other stage pages: `FontObjects.objects[17].first_char`)
     crate::screens::stage_panel::draw_stage_body_in(
-        tables,
+        menus,
+        gfx,
         record,
         true,
         crate::gfx::typefaces::fonts::TIME,
         canvas,
     )?;
     let times = crate::screens::stage_panel::best_of(course_times, record.record()?.event_slot())?;
-    draw_stage_best_and_fastest(play, &times, canvas)
+    draw_stage_best_and_fastest(play, system, &times, canvas)
 }

@@ -8,9 +8,9 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
-pub fn beat_target_time(menus: &Menus) -> Result<(), Refused> {
+pub fn beat_target_time(menus: &Menus, system: &System) -> Result<(), Refused> {
     let screens = &menus.screens;
-    let event = current_event(screens)?;
+    let event = current_event(screens, system)?;
     let n: u32 = screens.event.current_player.get();
     if n >= 4 {
         return Err(BadInput("a current player past 3 or missing").into());

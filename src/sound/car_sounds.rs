@@ -22,7 +22,7 @@ pub fn car_sounds(
     if n > 7 {
         return Err(BadInput("a car's sound object past 7").into());
     }
-    let so = crate::sound::store::SoundObject::number(n)?;
+    let so = crate::sound::store::SoundObject::of(sound, n)?;
     let request = crate::sound::turn_parts::request(sound);
     let kind = crate::sound::car_engine_state::car_engine_state(so, sound, race, system)?;
     request.pitch_factor.set(so.pitch_factor.get());

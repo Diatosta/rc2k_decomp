@@ -9,18 +9,23 @@
 
 use crate::errors::BadInput;
 use crate::race::mud::mud_pixel;
-use crate::scene::owner::scene;
 
 /// The texel's place on the texture, or None when it is skipped (an odd place halved).
-pub fn texel_place(x: u32, y: u32) -> Option<(u32, u32)> {
+pub fn texel_place(x: u32, y: u32, scene: &crate::scene::owner::Scene) -> Option<(u32, u32)> {
     // Converted: `rc2k_core::race::mud::texel_place`.
-    rc2k_core::race::mud::texel_place(x, y, scene().objects.tables.system_levels[256].get())
+    rc2k_core::race::mud::texel_place(x, y, scene.objects.tables.system_levels[256].get())
 }
 
 /// Eax as it leaves it.
-pub fn mud_texel(eax: u32, x: u32, y: u32) -> Result<u32, BadInput> {
-    match texel_place(x, y) {
-        Some((x, y)) => mud_pixel(x, y),
+pub fn mud_texel(
+    eax: u32,
+    x: u32,
+    y: u32,
+    scene: &crate::scene::owner::Scene,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<u32, BadInput> {
+    match texel_place(x, y, scene) {
+        Some((x, y)) => mud_pixel(x, y, gfx),
         None => Ok(eax),
     }
 }

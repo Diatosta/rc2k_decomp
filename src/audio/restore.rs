@@ -6,7 +6,7 @@
 use crate::audio::owner::Audio;
 use crate::audio::store::AudioState;
 use crate::errors::{BadInput, Refused};
-use crate::system::owner::system;
+use crate::system::owner::System;
 
 /// `restore_buffer` of the buffer `buffer`: true when it failed (the carry).
 fn restore_failed(state: &AudioState, buffer: u32) -> Result<bool, Refused> {
@@ -19,8 +19,8 @@ fn refill_failed(state: &AudioState, n: usize) -> Result<bool, Refused> {
 }
 
 /// `audio::make_primary` on the game's variables: true when it failed (the carry).
-pub fn make_primary_failed(audio: &Audio) -> Result<bool, Refused> {
-    Ok(!crate::audio::primary::make_primary(audio)?)
+pub fn make_primary_failed(audio: &Audio, system: &System) -> Result<bool, Refused> {
+    Ok(!crate::audio::primary::make_primary(audio, system)?)
 }
 
 /// What `restore_buffer` leaves: the carry, and the status and the `Restore` result where it changes them.
@@ -88,13 +88,13 @@ pub fn replay_looping(audio: &Audio) -> Result<(), Refused> {
 /// `audio::restore_lost`: a second's wait; with the window active: the flag cleared, the
 /// primary buffer and each voice's buffer restored (and the voice's refilled), the primary
 /// played, the looping voices replayed. A failure ends it. Refuses A3D (0x40CB0A).
-pub fn restore_lost(audio: &Audio) -> Result<(), Refused> {
+pub fn restore_lost(audio: &Audio, system: &System) -> Result<(), Refused> {
     let state = &audio.state;
     if crate::audio::buffer_settings::a3d(state) {
         return Err(BadInput("A3D (0x40CB0A)").into());
     }
     crate::system::sleep::sleep(1000);
-    if system().session.flags.window_active.get() == 0 {
+    if system.session.flags.window_active.get() == 0 {
         return Ok(());
     }
     state.sound_buffer_lost.set(0);
@@ -113,7 +113,7 @@ pub fn restore_lost(audio: &Audio) -> Result<(), Refused> {
 /// `audio::close_primary_mixer` on the game's variables: the channels cleared; in the
 /// mixer's mode with a DirectSound: `release_primary`, cooperative level 3, `make_primary`.
 /// The carry it leaves: `make_primary`'s, when that ran.
-pub fn close_primary_mixer(audio: &Audio) -> Result<bool, Refused> {
+pub fn close_primary_mixer(audio: &Audio, system: &System) -> Result<bool, Refused> {
     let state = &audio.state;
     crate::audio::clear_channels::clear_channels(audio);
     // Converted: `rc2k_core::audio::buffers::remakes_primary`.
@@ -124,6 +124,6 @@ pub fn close_primary_mixer(audio: &Audio) -> Result<bool, Refused> {
     }
     crate::audio::sound_device::release_primary(state);
     let ds = state.direct_sound.get();
-    crate::platform_sound::set_cooperative_level(ds, system().session.machine.window.get(), 3);
-    make_primary_failed(audio)
+    crate::platform_sound::set_cooperative_level(ds, system.session.machine.window.get(), 3);
+    make_primary_failed(audio, system)
 }

@@ -132,7 +132,7 @@ pub fn draw_plane(
     for state in [0x11, 0x12] {
         set_render_state(2, state);
     }
-    crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[202].get());
+    crate::scene::set_texture::set_texture(scene, scene.textures.kinds.kind_first_slots[202].get());
     plane_corners(fl, effects);
     let entry = &effects.blocks.corners.corners[corner as usize];
     let word = |off: u32| u32::from(entry.words[off as usize / 2].get());
@@ -179,7 +179,7 @@ pub fn draw_plane(
             .rhw
             .set(x87::reciprocal_times(depth, PLANE_TUNING.rhw_k[n]));
     }
-    crate::effects::clip_quad::draw_fan();
+    crate::effects::clip_quad::draw_fan(scene);
     crate::scene::depth_test_on::depth_test_on();
     Ok(())
 }

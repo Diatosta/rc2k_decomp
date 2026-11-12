@@ -70,9 +70,9 @@ pub fn main_loop(o: Owners<'static>) -> Result<(), Refused> {
         }
     }
     crate::platform::set_menu_mode_now();
-    crate::sound::apply_settings::apply_settings_in(sound, o.audio)?;
+    crate::sound::apply_settings::apply_settings(o)?;
     crate::gfx::load_jade::load_jade_in_game(gfx)?;
-    crate::menu::build_notice::build_notice(menus);
+    crate::menu::build_notice::build_notice(menus, o.strings);
     // The standalone in the download folder installs from it (`install::portable`); and
     // with `-u` (`run.updating`) it uninstalls where it is: its record is in the installed
     // folder, so the uninstall runs from there (the original's ran from the CD, through the
@@ -100,16 +100,16 @@ pub fn main_loop(o: Owners<'static>) -> Result<(), Refused> {
     // Its answer is not read (this build's nine `nop`s).
     crate::files::is_cd_drive::is_cd_drive(base_drive());
     crate::menu::run_front_end::run_front_end(o)?;
-    crate::sound::stop_music::stop_music();
+    crate::sound::stop_music::stop_music(o.audio, o.system);
     if session.flags.quitting.is_set() {
         // The original leaves here without saving: the window closed (or any quit by the
         // switch) lost the options and best times changed since the last save (section 16);
         // here they are saved.
-        crate::saves::save_game_data::save_in_game(saves)?;
+        crate::saves::save_game_data::save_in_game_in(o, saves)?;
         log_line(c"Leaving main loop...");
         return Ok(());
     }
-    crate::saves::save_game_data::save_in_game(saves)?;
+    crate::saves::save_game_data::save_in_game_in(o, saves)?;
     crate::saves::free_best_times::free_in_game(saves)?;
     quit_and_leave(o.system)
 }

@@ -33,12 +33,12 @@ fn find(play: &Play, coded: &[u8]) -> Result<Option<(u32, u32)>, Refused> {
     Ok(found.map(|f| (f.at as u32, f.bit as u32)))
 }
 
-pub fn check_cheat_name(menus: &Menus, race: &Race) -> Result<(), Refused> {
+pub fn check_cheat_name(menus: &'static Menus, race: &Race) -> Result<(), Refused> {
     let play = &menus.play;
     let name = crate::menu::player_names::NameAt::of(crate::menu::player_names::name_of(
         &crate::menu::standings::player(menus, 3).get(),
     )?);
-    let coded = rot13_into_text(&name.tail())?;
+    let coded = rot13_into_text(&name.tail(menus))?;
     let Some((_found, bit)) = find(play, &coded)? else {
         return Ok(());
     };
@@ -47,7 +47,7 @@ pub fn check_cheat_name(menus: &Menus, race: &Race) -> Result<(), Refused> {
     play.cheats.cheats.set(cheats);
     // The original's registers at the calls: eax 8, ebx the entry, ecx the bit, edi
     // the record.
-    crate::sound::play_menu_sound::play_menu_sound_in_game(8);
+    crate::sound::play_menu_sound::play_menu_sound_at_boundary(8);
     crate::menu::apply_cheats::apply_cheats(
         menus,
         &mut |line| {
@@ -58,6 +58,6 @@ pub fn check_cheat_name(menus: &Menus, race: &Race) -> Result<(), Refused> {
     let mut hidden = Vec::new();
     crate::strings::append_string_by_id::push_string(&mut hidden, HIDDEN_NAME)?;
     hidden.push(0);
-    crate::place::BytePlace::from(name).write(&hidden, "a player\'s name")?;
+    name.place(menus).write(&hidden, "a player\'s name")?;
     Ok(())
 }

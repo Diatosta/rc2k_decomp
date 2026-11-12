@@ -20,7 +20,9 @@ fn players_by_group(menus: &Menus, firsts: [usize; 4]) -> Result<(), Refused> {
     let groups: Vec<u32> = players.iter().map(|p| p.get().class).collect();
     // The logic is in `rc2k_core::menu::standings::by_group`.
     for (n, e) in rc2k_core::menu::standings::by_group(&groups, firsts) {
-        { crate::menu::player_to_standing_b::player_to_standing_b(e, players[n], n as u32) }?;
+        {
+            crate::menu::player_to_standing_b::player_to_standing_b(menus, e, players[n], n as u32)
+        }?;
     }
     Ok(())
 }

@@ -152,6 +152,6 @@ pub fn clip_quad(effects: &crate::effects::owner::Effects) -> Result<bool, Refus
 }
 
 /// `scene::draw_fan` (0x44EB32) of `g_polygonVertices` .
-pub fn draw_fan() {
-    crate::scene::draw_fan::draw_fan(crate::scene::polygon_work::front_end());
+pub fn draw_fan(scene: &crate::scene::owner::Scene) {
+    crate::scene::draw_fan::draw_fan(scene, crate::scene::polygon_work::front_end());
 }

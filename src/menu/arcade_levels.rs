@@ -8,7 +8,7 @@ use crate::errors::Refused;
 use crate::owners::Owners;
 
 /// Arcade level `level` (1 .. 5).
-pub fn arcade_level(o: Owners<'_>, level: u32) -> Result<(), Refused> {
+pub fn arcade_level(o: Owners<'static>, level: u32) -> Result<(), Refused> {
     let (menus, play) = (o.menus, &o.menus.play);
     // The logic is in `rc2k_core::menu::arcade::level_open`.
     use rc2k_core::menu::arcade::{CLOSED_SOUND, level_open};
@@ -16,7 +16,7 @@ pub fn arcade_level(o: Owners<'_>, level: u32) -> Result<(), Refused> {
         play.arcade.levels_won.get(level as usize - 1)
     });
     if !open {
-        crate::sound::play_menu_sound::play_menu_sound_in_game(CLOSED_SOUND);
+        crate::sound::play_menu_sound::play_menu_sound_in_game(o, CLOSED_SOUND);
         return Ok(());
     }
     play.arcade.level.set(level);

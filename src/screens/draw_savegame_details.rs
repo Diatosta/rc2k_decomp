@@ -33,9 +33,9 @@ use crate::errors::Refused;
 use crate::menu::owner::Tables;
 use crate::records::find_record::find_record_in;
 use crate::saves::gather_savegame::CAR_LEN;
-use crate::saves::owner::saves;
+use crate::saves::owner::Saves;
 use crate::screens::stage_panel::table_dword_at;
-use crate::system::owner::system;
+use crate::system::owner::System;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -43,8 +43,12 @@ use crate::text::draw_text::Canvas;
 const PAYLOAD_OFFSET: usize = 0x30; // 0x51EBE4
 
 /// Returns the carry flag of the last text drawn.
-pub fn draw_savegame_details(tables: &Tables, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
-    let saves = saves();
+pub fn draw_savegame_details(
+    tables: &Tables,
+    saves: &Saves,
+    system: &System,
+    canvas: &mut dyn Canvas,
+) -> Result<bool, Refused> {
     // The logic is in `rc2k_core::screens::savegame_preview::details`; the saved game's dwords copied
     // into the preview's variables first (the original after the frame, which reads none).
     use rc2k_core::screens::savegame_preview::{Car, Title, details};
@@ -63,7 +67,7 @@ pub fn draw_savegame_details(tables: &Tables, canvas: &mut dyn Canvas) -> Result
         let index = saves.savegame_preview.saved[2].get() as i32;
         let section = saves.savegame_preview.saved[3].get();
         let a8_mode = saves.savegame_preview.saved[5].get() == 0x13;
-        let table = system().records.stage_tables.championship();
+        let table = system.records.stage_tables.championship();
         let title = Title {
             a8_mode,
             section: if a8_mode {

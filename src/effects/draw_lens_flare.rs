@@ -22,6 +22,7 @@ const PARTS: u32 = 0x11;
 
 pub fn draw_lens_flare(
     paths: &Paths,
+    scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     let settings: u32 = effects.setup.settings.is_set.get();
@@ -71,6 +72,7 @@ pub fn draw_lens_flare(
             x87::int_times_to_int(effects.frame.flare_parts.size[k].get() as i32, size_k) as u32,
             0xFF_FFFF,
             [x, y],
+            scene,
             effects,
         )?;
     }

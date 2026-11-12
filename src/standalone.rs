@@ -285,7 +285,7 @@ fn seed_clock_and_random(o: Owners<'static>) {
     rust("system::keep_start_time");
     crate::system::keep_start_time::keep_start_time(system);
     rust("math::seed_random");
-    crate::math::seed_random::seed_random();
+    crate::math::seed_random::seed_random(o.system);
     rust("system::read_volume_serial");
     crate::system::read_volume_serial::read_volume_serial(system);
     // eax: what `system::read_volume_serial` leaves there, `start`'s esi at entry (its
@@ -321,9 +321,9 @@ fn read_settings_and_start_log(o: Owners<'static>, r: &Context) {
         finish(&format!("settings::read_settings refused: {}", why.0), 1);
     }
     rust("settings::apply_feature_switches");
-    crate::settings::apply_feature_switches::apply_feature_switches();
+    crate::settings::apply_feature_switches::apply_feature_switches(o.system);
     rust("logfile::start_log");
-    if let Err(why) = crate::logfile::start_log::start_log() {
+    if let Err(why) = crate::logfile::start_log::start_log(o.system) {
         refused("logfile::start_log", why.into(), r);
     }
 }
@@ -378,9 +378,13 @@ fn read_command_line_and_install_state(o: Owners<'static>, r: &Context) {
     }
     rust("install::check_at_start");
     let no_audio = &o.audio.state.no_audio;
-    if let Err(e) =
-        crate::install::check_at_start::check_at_start(o.install, system, &mut outside, no_audio)
-    {
+    if let Err(e) = crate::install::check_at_start::check_at_start(
+        o.install,
+        system,
+        o.race,
+        &mut outside,
+        no_audio,
+    ) {
         refused("install::check_at_start", e, r);
     }
     rust("system::check_developer_machine");
@@ -427,13 +431,17 @@ fn load_language_and_game_data(o: Owners<'static>, r: &Context) {
 fn probe_display(o: Owners<'static>, r: &Context) {
     let gfx = o.gfx;
     rust("gfx::find_3d_cards");
-    crate::gfx::find_3d_cards::find_3d_cards(&gfx.display);
+    crate::gfx::find_3d_cards::find_3d_cards(&gfx.display, o.d3d);
     rust("gfx::list_primary_modes");
-    if let Err(e) = crate::gfx::list_primary_modes::list_primary_modes(&gfx.display) {
+    if let Err(e) =
+        crate::gfx::list_primary_modes::list_primary_modes(&gfx.display, o.system, o.d3d)
+    {
         refused("gfx::list_primary_modes", e, r);
     }
     rust("gfx::list_secondary_modes");
-    if let Err(e) = crate::gfx::list_secondary_modes::list_secondary_modes(&gfx.display) {
+    if let Err(e) =
+        crate::gfx::list_secondary_modes::list_secondary_modes(&gfx.display, o.system, o.d3d)
+    {
         refused("gfx::list_secondary_modes", e, r);
     }
 }
@@ -451,7 +459,7 @@ fn start_workers(o: Owners<'static>, r: &Context) {
         refused("threading::start_threads", e, r);
     }
     rust("sound::wait_for_commands");
-    crate::sound::wait_for_commands::wait_in_game();
+    crate::sound::wait_for_commands::wait_in_game(o.audio, o.system);
     rust("system::sleep");
     crate::system::sleep::sleep(1000);
 }

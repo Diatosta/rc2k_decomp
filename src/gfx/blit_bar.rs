@@ -8,9 +8,9 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::gfx::blit_glyph::BlitCall;
-use crate::gfx::owner::gfx;
-use crate::gfx::surface::clip;
-use crate::menu::owner::menus;
+use crate::gfx::owner::{Gfx, gfx};
+use crate::gfx::surface::clip_in;
+use crate::menu::owner::{Menus, menus};
 
 // ---- game data ----
 
@@ -28,8 +28,8 @@ pub struct Bar {
 }
 
 impl Bar {
-    pub fn read() -> Self {
-        let drawing = &gfx().drawing;
+    pub fn read(gfx: &Gfx) -> Self {
+        let drawing = &gfx.drawing;
         Self {
             x: drawing.bar.x.get() as i32,
             y: drawing.bar.y.get() as i32,
@@ -41,7 +41,12 @@ impl Bar {
     }
 
     pub fn write(&self) {
-        let drawing = &gfx().drawing;
+        self.write_in(gfx());
+    }
+
+    /// Puts the bar in the bar globals.
+    pub fn write_in(&self, gfx: &Gfx) {
+        let drawing = &gfx.drawing;
         drawing.bar.x.set(self.x as u32);
         drawing.bar.y.set(self.y as u32);
         drawing.bar.width.set(self.width as u32);
@@ -57,32 +62,32 @@ pub const BAR_HAS_NO_LENGTH: FatalError = FatalError {
     message: "",
 };
 
-pub fn set_bar_x(x: i32) {
-    gfx().drawing.bar.x.set(x as u32);
-}
-
 /// Where a blitter call goes: the game's surface, or a list.
 pub type Blit<'a> = &'a mut dyn FnMut(BlitCall) -> Result<(), Refused>;
 
 /// The game's side of a bar: the blits through `blit`, the clip and the bar's globals.
-pub struct GameBar<'a>(pub Blit<'a>);
+pub struct GameBar<'a> {
+    pub blit: Blit<'a>,
+    pub gfx: &'a Gfx,
+    pub menus: &'a Menus,
+}
 
 impl rc2k_core::gfx::bars::BarCanvas for GameBar<'_> {
     type Error = Refused;
     fn sprite(&mut self, glyph: u32, x: i32, y: i32) -> Result<(), Refused> {
-        (self.0)(BlitCall::sprite(glyph, x, y))
+        (self.blit)(BlitCall::sprite_in(self.gfx, self.menus, glyph, x, y))
     }
     fn clip_right(&mut self) -> i32 {
-        clip().right
+        clip_in(self.gfx).right
     }
     fn set_clip_right(&mut self, x: i32) {
-        gfx().drawing.blit.clip.right.set(x as u32);
+        self.gfx.drawing.blit.clip.right.set(x as u32);
     }
     fn keep_fill_end(&mut self, x: i32) {
-        menus().screens.draw_work.seconds.set(x as u32);
+        self.menus.screens.draw_work.seconds.set(x as u32);
     }
     fn set_bar_x(&mut self, x: i32) {
-        set_bar_x(x);
+        self.gfx.drawing.bar.x.set(x as u32);
     }
     fn no_length(&mut self) -> Refused {
         BAR_HAS_NO_LENGTH.into()
@@ -105,5 +110,10 @@ impl Bar {
 
 /// The bar described by the bar globals. Converted: `rc2k_core::gfx::bars::bar`.
 pub fn blit_bar(blit: Blit) -> Result<(), Refused> {
-    rc2k_core::gfx::bars::bar(&mut GameBar(blit), &Bar::read().core())
+    blit_bar_in(gfx(), menus(), blit)
+}
+
+/// `blit_bar` for a caller that holds the owners.
+pub fn blit_bar_in(gfx: &Gfx, menus: &Menus, blit: Blit) -> Result<(), Refused> {
+    rc2k_core::gfx::bars::bar(&mut GameBar { blit, gfx, menus }, &Bar::read(gfx).core())
 }

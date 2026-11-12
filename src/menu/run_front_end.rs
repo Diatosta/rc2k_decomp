@@ -18,7 +18,7 @@ use crate::owners::Owners;
 const STARTING_RVA: &std::ffi::CStr = c"BEV: Starting GB_Front"; // "BEV: Starting GB_Front"
 const FINISHED_RVA: &std::ffi::CStr = c"BEV: Finished GB_Front"; // "BEV: Finished GB_Front"
 
-pub fn run_front_end(o: Owners<'_>) -> Result<(), Refused> {
+pub fn run_front_end(o: Owners<'static>) -> Result<(), Refused> {
     let menus = o.menus;
     let audio = o.audio;
     let gfx = o.gfx;

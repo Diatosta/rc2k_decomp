@@ -28,6 +28,7 @@ pub fn draw_viewer_item(
     install: &Install,
     item: &[Dword; 4],
     index: u32,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let replay = &race.replay;
     let panel = race.viewer_panel();
@@ -64,5 +65,5 @@ pub fn draw_viewer_item(
                 .wrapping_sub(install.pages.move_clock.get())
         },
     );
-    crate::drive::tyre_quad::tyre_quad(uv, &panel.item_place, colour)
+    crate::drive::tyre_quad::tyre_quad(uv, &panel.item_place, colour, panel, system)
 }

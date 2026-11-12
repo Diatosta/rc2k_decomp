@@ -33,13 +33,8 @@ pub fn race_keys(race: &Race, o: crate::owners::Owners<'_>) -> Result<(), Refuse
 }
 
 /// `race::tyre_change`.
-pub fn tyre_change(
-    race: &Race,
-    input: &'static crate::input::owner::Input,
-    system: &crate::system::owner::System,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), Refused> {
-    crate::race::frame::tyre_change(race, input, system, scene)?;
+pub fn tyre_change(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    crate::race::frame::tyre_change(o)?;
     Ok(())
 }
 

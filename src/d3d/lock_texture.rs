@@ -13,12 +13,19 @@
 use crate::d3d::texture_lock::*;
 use crate::errors::{BadInput, Refused};
 use crate::framework::CarryZeroFlags;
-use crate::gfx::owner::gfx;
 use crate::gfx::texture_upload::RecordCell;
+
+/// `lock_texture_in` for a caller that holds no owners.
+pub fn lock_texture(texture: u32) -> Result<CarryZeroFlags, Refused> {
+    lock_texture_in(crate::gfx::owner::gfx(), texture)
+}
 
 /// Texture `texture` locked; the flags it leaves
 /// (every register is kept).
-pub fn lock_texture(texture: u32) -> Result<CarryZeroFlags, Refused> {
+pub fn lock_texture_in(
+    gfx: &crate::gfx::owner::Gfx,
+    texture: u32,
+) -> Result<CarryZeroFlags, Refused> {
     use rc2k_core::d3d::textures::{LOCK_FAILED, LOCKED_TWICE, Lock, lock};
     // Converted: `rc2k_core::d3d::textures::lock`.
     let r = record(texture);
@@ -27,7 +34,6 @@ pub fn lock_texture(texture: u32) -> Result<CarryZeroFlags, Refused> {
         Lock::Nothing => {}
         Lock::Twice => return Err(fatal(LOCKED_TWICE).into()),
         Lock::Lock => {
-            let gfx = gfx();
             if crate::platform_3d::lock_surface(surface, &gfx.card.upload.description) != 0 {
                 return Err(fatal(LOCK_FAILED).into());
             }

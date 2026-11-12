@@ -91,7 +91,7 @@ fn run(
                 extended(item.place[0].get()),
             ];
             crate::effects::draw_windscreen_flake::draw_windscreen_flake(
-                fl, item, colour, values, effects,
+                fl, item, colour, values, scene, effects,
             );
         }
         crate::scene::depth_buffer_on::depth_buffer(true);

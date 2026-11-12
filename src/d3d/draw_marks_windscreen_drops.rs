@@ -10,9 +10,8 @@
 //! each triangle (`platform_3d::draw_triangles`) and the result is 0.
 
 /// The windscreen drops drawn: Direct3D's result, always 0 here.
-use crate::gfx::owner::gfx;
-pub fn draw_marks_windscreen_drops() -> u32 {
-    let card = &gfx().card;
+pub fn draw_marks_windscreen_drops(gfx: &crate::gfx::owner::Gfx) -> u32 {
+    let card = &gfx.card;
     use crate::gfx::windscreen_drop_batch::{FANS_LEN, RECORDS_LEN};
     crate::platform_3d::draw_indexed_bytes(
         &card.windscreen_drop_batch.records,

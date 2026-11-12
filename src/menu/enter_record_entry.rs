@@ -12,8 +12,12 @@ use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
 // hhmm
-pub fn enter_record_entry(menus: &Menus) -> Result<(), Refused> {
-    let event = current_event(&menus.screens)?;
+pub fn enter_record_entry(
+    menus: &Menus,
+    system: &System,
+    race: &crate::race::owner::Race,
+) -> Result<(), Refused> {
+    let event = current_event(&menus.screens, system)?;
     let n: u32 = menus.screens.event.current_player.get();
     if n >= 4 || player(menus, n).get().name_player().is_none() {
         return Err(BadInput("a current player past 3, missing or without a name").into());
@@ -23,7 +27,7 @@ pub fn enter_record_entry(menus: &Menus) -> Result<(), Refused> {
     let slot = event as u32;
     menus.screens.draw_work.figure.set(slot);
     let cheats = menus.play.cheats.cheats.get();
-    let sealed = crate::menu::sealed_player_time::sealed_player_time(menus, slot)?;
+    let sealed = crate::menu::sealed_player_time::sealed_player_time(menus, race, slot)?;
     // The logic is in `rc2k_core::saves::entries::BestTime::enter`, then `rank_entries`.
     use rc2k_core::menu::bests;
     let name_at = name_address_of(&p.get())?;
@@ -34,7 +38,7 @@ pub fn enter_record_entry(menus: &Menus) -> Result<(), Refused> {
         name_at,
         car: p.get().car_number,
         group: p.get().class,
-        name: name_of(&p.get())?,
+        name: name_of(menus, &p.get())?,
         entered: Some(p.get().entry),
         seal: Some(bests::Seal { cheats, sealed }),
         line: None,

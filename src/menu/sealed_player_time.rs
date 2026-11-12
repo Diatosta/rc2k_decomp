@@ -7,11 +7,11 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
 use crate::menu::standings::*;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 
 /// `byte` the original's eax (its low byte sealed);
 /// the sealed block's two dwords (its eax, ebx) out.
-pub fn sealed_player_time(menus: &Menus, byte: u32) -> Result<[u32; 2], Refused> {
+pub fn sealed_player_time(menus: &Menus, race: &Race, byte: u32) -> Result<[u32; 2], Refused> {
     let screens = &menus.screens;
     let n: u32 = screens.event.current_player.get();
     if n >= 4 {
@@ -21,11 +21,11 @@ pub fn sealed_player_time(menus: &Menus, byte: u32) -> Result<[u32; 2], Refused>
     let sealed = {
         crate::records::seal_time::seal_time(
             menus,
-            race(),
+            race,
             p.get().time,
             [
                 p.get().car_number as u8,
-                race().shared.state.settings.run_kind.get() as u8,
+                race.shared.state.settings.run_kind.get() as u8,
                 byte as u8,
             ],
         )

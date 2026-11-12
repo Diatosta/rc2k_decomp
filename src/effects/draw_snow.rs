@@ -103,6 +103,7 @@ fn refusal(weather: &Weather, effects: &crate::effects::owner::Effects) -> Optio
 
 pub fn draw_snow(
     weather: &Weather,
+    scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     let (snow, snow_light) = (&weather.snow, &weather.snow_light);
@@ -148,7 +149,7 @@ pub fn draw_snow(
                         .set_bits(if n < 2 { top } else { bottom });
                 }
                 if !clip_quad(effects)? {
-                    draw_fan();
+                    draw_fan(scene);
                     snow.drawn.set(snow.drawn.get().wrapping_add(1));
                     crate::scene::polygon_work::front_end()
                         .polygon_vertex_count

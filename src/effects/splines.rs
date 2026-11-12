@@ -522,7 +522,11 @@ pub fn order_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
 /// (`scene::angle_between_vectors`, both normalised) into +0x20. Refuses more than 0x80
 /// points. Converted: `rc2k_core::effects::splines::bounds` (the floats, the sizes made
 /// floats and the angle, stay the x87's: the first round as its control word says).
-pub fn bound_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
+pub fn bound_spline_points(
+    paths: &Paths,
+    work: &crate::effects::work_store::MarksWork,
+    s: Spline,
+) -> Result<(), Refused> {
     let n = s.count(paths)?;
     let b = rc2k_core::effects::splines::bounds(&s.triples(paths, COORDS, n)?);
     let size = b.size;
@@ -532,7 +536,7 @@ pub fn bound_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
     for (c, &m) in b.middle.iter().enumerate() {
         s.put(paths, CENTRE + 4 * c as u32, m as u32)?;
     }
-    let angle = crate::scene::vector3::angle_between_vectors(up, size_at);
+    let angle = crate::scene::vector3::angle_between_vectors(up, size_at, work);
     s.put(paths, 0x20, crate::scene::matrix3::rounded(angle))?;
     Ok(())
 }
@@ -570,6 +574,7 @@ fn spline_checks(
 pub fn make_spline(
     course: &Course,
     paths: &Paths,
+    work: &crate::effects::work_store::MarksWork,
     object: u32,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
@@ -595,7 +600,7 @@ pub fn make_spline(
                 paths.spline_kinds.chosen[1 + t].bits(),
                 scene,
             )?;
-            bound_spline_points(paths, record)?;
+            bound_spline_points(paths, work, record)?;
             if t == 1 || t == 2 {
                 for o in [CENTRE, CENTRE + 4, CENTRE + 8, 0x20] {
                     Spline::record(t, 0).put(paths, o, Spline::record(0, 0).get(paths, o)?)?;
@@ -682,7 +687,7 @@ pub fn load_splines(
     }
     paths.spline_work.place.set_bits(0u32);
     for o in objects {
-        make_spline(course, paths, o, scene)?;
+        make_spline(course, paths, &effects.setup.work, o, scene)?;
     }
     paths.spline_head.made.set_bits(0u32);
     Ok(())

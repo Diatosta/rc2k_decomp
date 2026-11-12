@@ -45,11 +45,17 @@ pub fn lets_rally(o: Owners<'static>) -> Result<bool, Refused> {
         return Ok(true);
     };
     net.vars.first_host.set(first);
-    crate::sound::stop_music::stop_music();
+    crate::sound::stop_music::stop_music(o.audio, o.system);
     crate::race::race_shell::set_race_screen_mode();
-    crate::menu::show_loading_picture::show_loading_picture(o.menus)?;
-    sound_tables::set_up_race_sound_objects(race, &sound_tables::ObjectVars::game(), sound)?;
-    crate::sound::set_up_race_sounds::set_up_race_sounds(sound)?;
+    crate::menu::show_loading_picture::show_loading_picture_in(o.menus, o.gfx, o.system)?;
+    sound_tables::set_up_race_sound_objects(
+        race,
+        &sound_tables::ObjectVars::of(sound),
+        sound,
+        net,
+        o.system,
+    )?;
+    crate::sound::set_up_race_sounds::set_up_race_sounds(o)?;
     crate::net::set_up_race::set_up_race(race, &net.vars, o)?;
     let tick = crate::system::tick_count::tick_count();
     net.edit().clock_a.set(tick);
@@ -70,14 +76,14 @@ pub fn lets_rally(o: Owners<'static>) -> Result<bool, Refused> {
         }
     };
     crate::race::race_end::tidy_everything_in(race, o)?;
-    crate::sound::stop_music::stop_music();
+    crate::sound::stop_music::stop_music(o.audio, o.system);
     crate::platform::set_menu_mode_now();
-    crate::menu::show_loading_picture::show_loading_picture(o.menus)?;
+    crate::menu::show_loading_picture::show_loading_picture_in(o.menus, o.gfx, o.system)?;
     sound_tables::clear_race_sound_objects(sound)?;
-    crate::sound::apply_settings::apply_settings()?;
-    crate::scene::set_up_engine::set_up_engine()?;
-    crate::scene::set_up_front_end_scene::set_up_front_end_scene()?;
-    crate::scene::set_up_engine::set_up_engine()?;
+    crate::sound::apply_settings::apply_settings(o)?;
+    crate::scene::set_up_engine::set_up_engine_in(race, o.scene)?;
+    crate::scene::set_up_front_end_scene::set_up_front_end_scene_in(o)?;
+    crate::scene::set_up_engine::set_up_engine_in(race, o.scene)?;
     if not_finished != 0 {
         return Ok(true);
     }

@@ -102,8 +102,10 @@ const NOT_8BIT: FatalError = FatalError {
 };
 
 /// Entry 3 of the pixel kinds: (bytes a pixel, the format), into the map's variables.
-fn take_format(frame: &Frame) -> Result<(u32, PixelFormat), BadInput> {
-    let gfx = crate::gfx::owner::gfx();
+fn take_format(
+    frame: &Frame,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(u32, PixelFormat), BadInput> {
     let card = &gfx.card;
     let kind = card
         .texture_tables
@@ -216,10 +218,11 @@ pub fn load_packed_game_map(
     frame: &Frame,
     path: &[u8],
     system: &crate::system::owner::System,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     let work = &system.work;
     use crate::files::handle::{close, open_by_mode};
-    let (bytes, format) = take_format(frame)?;
+    let (bytes, format) = take_format(frame, gfx)?;
     frame
         .map
         .black
@@ -306,8 +309,8 @@ pub fn load_game_map(
     picture: &dyn crate::session::TextPlace,
     key_path: &dyn crate::session::TextPlace,
     system: &crate::system::owner::System,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
-    let gfx = crate::gfx::owner::gfx();
     let pictures = &gfx.pictures;
     if frame.map.use_packed.get() == 1
         && !crate::files::file_exists::file_exists(&picture.text("a map picture's path")?)?
@@ -331,11 +334,12 @@ pub fn load_game_map(
             frame,
             &crate::files::cstring(path, "the packed map's path")?,
             system,
+            gfx,
         )?;
         return Ok(());
     }
     frame.map.tile_count.set(0u32);
-    let (bytes, format) = take_format(frame)?;
+    let (bytes, format) = take_format(frame, gfx)?;
     take_tiles(frame)?;
     // The key sheet is a picture buffer (Rust's, `gfx::picture`), counted on
     // its list as the game's block was; `key_pixels` holds its number.

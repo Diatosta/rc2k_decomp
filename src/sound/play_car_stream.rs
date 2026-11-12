@@ -8,7 +8,7 @@
 
 use crate::errors::Refused;
 use crate::menu::load_car_background::shown_car;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 
 // ---- game data ----
 
@@ -17,9 +17,9 @@ use crate::menu::owner::menus;
 /// `start` is `sound::start_stream` (the file, the volume).
 pub fn play_car_stream(
     start: &mut dyn FnMut(u32, u32),
+    menus: &Menus,
     sound: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {
-    let menus = menus();
     // Converted: `rc2k_core::sound::set_up::car_stream`.
     let car = shown_car(menus)?;
     let failed = std::cell::Cell::new(None);

@@ -11,7 +11,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
-use crate::menu::owner::menus;
 use crate::menu::player_names::NameAt;
 use crate::menu::player_settings::current;
 use crate::menu::text_entry::{TEXT_LEN, length, set_length};
@@ -23,8 +22,8 @@ pub fn name_place(menus: &Menus) -> Result<NameAt, Refused> {
     Ok(NameAt::of(name(menus)?))
 }
 
-pub fn kept() -> BytePlace {
-    BytePlace::from(&menus().play.names.kept_name)
+pub fn kept(menus: &'static Menus) -> BytePlace {
+    BytePlace::from(&menus.play.names.kept_name)
 }
 
 /// Whose name the current player has.
@@ -32,17 +31,16 @@ pub fn name(menus: &Menus) -> Result<usize, Refused> {
     Ok(crate::menu::player_names::name_of(&current(menus)?.get())?)
 }
 
-pub fn bring_back_name(name: impl Into<BytePlace>) -> Result<(), BadInput> {
-    let kept = kept().read(TEXT_LEN, "the kept name")?;
-    name.into().write(&kept, "a player's name")
+pub fn bring_back_name(menus: &'static Menus, name: BytePlace) -> Result<(), BadInput> {
+    let kept = kept(menus).read(TEXT_LEN, "the kept name")?;
+    name.write(&kept, "a player's name")
 }
 
-pub fn backspace_name(menus: &Menus, name: impl Into<BytePlace>) -> Result<(), BadInput> {
-    let length = length();
+pub fn backspace_name(menus: &Menus, name: BytePlace) -> Result<(), BadInput> {
+    let length = length(menus);
     if length != 0 {
         set_length(menus, length.wrapping_sub(1));
-        name.into()
-            .add(length.wrapping_sub(1) as u32)
+        name.add(length.wrapping_sub(1) as u32)
             .write(&[0], "a player's name")?;
     }
     Ok(())

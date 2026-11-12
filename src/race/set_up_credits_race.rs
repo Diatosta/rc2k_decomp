@@ -95,7 +95,7 @@ fn drawn_index(n: u32) -> u32 {
     rc2k_core::race::credits::drawn_place(next_random(), n)
 }
 
-pub fn set_up_credits_race(race: &Race) -> Result<(), Refused> {
+pub fn set_up_credits_race(race: &Race, o: &crate::owners::Owners<'_>) -> Result<(), Refused> {
     let shared = &race.shared;
     // Converted: `rc2k_core::race::credits::drawn_place`.
     use rc2k_core::race::credits::{RACE_KINDS, RACE_STAGES};
@@ -107,7 +107,7 @@ pub fn set_up_credits_race(race: &Race) -> Result<(), Refused> {
     let kind = drawn_index(RACE_KINDS);
     shared.vars.race_car_kinds[0].set(shared.work.credit_car_kinds[kind as usize].get()); // g_raceCarKinds
     for (at, v) in WRITES {
-        at.set_in(race, v);
+        at.set_with(o, v);
     }
     Ok(())
 }

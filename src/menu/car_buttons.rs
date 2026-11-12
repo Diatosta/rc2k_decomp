@@ -42,7 +42,7 @@ pub fn press(
 }
 
 /// The game's: each call goes to the Rust function.
-pub fn call_in_game(o: Owners<'_>, call: Call) -> Result<(), Refused> {
+pub fn call_in_game(o: Owners<'static>, call: Call) -> Result<(), Refused> {
     match call {
         Call::Background => load_car_background(o.menus, &mut |path| {
             crate::menu::load_background::load_background_in(
@@ -53,7 +53,13 @@ pub fn call_in_game(o: Owners<'_>, call: Call) -> Result<(), Refused> {
             )?;
             Ok(false)
         }),
-        Call::Stream => play_car_stream(&mut crate::sound::start_stream::start_stream, o.sound),
+        Call::Stream => play_car_stream(
+            &mut |name, volume| {
+                crate::sound::start_stream::start_stream(o.audio, o.system, name, volume);
+            },
+            o.menus,
+            o.sound,
+        ),
         Call::Picture(way) => load_slideshow_picture_in(o, way),
     }
 }

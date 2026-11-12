@@ -3,8 +3,13 @@
 //! Its twin `sound::hold_sounds_back` (0x409B6B) sets it to 1; `sound::play_sound` plays
 //! nothing while it is 1. Five callers (`race::start_race_sounds` and four more).
 
-use crate::audio::owner::audio;
+use crate::audio::owner::{Audio, audio};
 
+pub fn let_sounds_play_in(audio: &Audio) {
+    audio.state.sounds_held_back.set(0);
+}
+
+/// `let_sounds_play_in` for the callers that hold no owners.
 pub fn let_sounds_play() {
-    audio().state.sounds_held_back.set(0);
+    let_sounds_play_in(audio());
 }

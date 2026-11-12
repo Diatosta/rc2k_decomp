@@ -3,12 +3,11 @@
 //! of the text as it was before, which Escape brings back.
 
 use crate::menu::owner::Menus;
-use crate::menu::owner::menus;
 
 pub use rc2k_core::menu::text_entry::{Entry, TEXT_LEN, Text};
 
-pub fn length() -> i32 {
-    menus().screens.loop_flags.text_length.get() as i32
+pub fn length(menus: &Menus) -> i32 {
+    menus.screens.loop_flags.text_length.get() as i32
 }
 
 pub fn set_length(menus: &Menus, length: i32) {
@@ -16,8 +15,8 @@ pub fn set_length(menus: &Menus, length: i32) {
 }
 
 /// Where the backup copy of the text is.
-pub fn backup() -> crate::place::BytePlace {
-    crate::place::BytePlace::from(&menus().play.names.text_backup)
+pub fn backup(menus: &'static Menus) -> crate::place::BytePlace {
+    crate::place::BytePlace::from(&menus.play.names.text_backup)
 }
 
 /// The entry's state, as the game holds it.
@@ -65,7 +64,7 @@ const BACKED_UP_RVA: &std::ffi::CStr = c"Backed up name="; // aBackedUpName: "Ba
 /// the text is copied to the backup, "Backed up name=<backup>" goes to the log if `log` is
 /// set, the field is cleared, the length is 0 and an entry is going on.
 pub fn begin_logged(
-    menus: &Menus,
+    menus: &'static Menus,
     at: impl Into<crate::place::BytePlace>,
     log: bool,
 ) -> Result<(), crate::errors::BadInput> {
@@ -76,7 +75,7 @@ pub fn begin_logged(
     put_field(at, &text)?;
     if log {
         crate::logfile::log_write::log_nul(BACKED_UP_RVA, false, 1);
-        crate::logfile::log_write::log_at(backup(), true, 1);
+        crate::logfile::log_write::log_at(backup(menus), true, 1);
     }
     Ok(())
 }

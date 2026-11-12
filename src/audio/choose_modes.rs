@@ -16,7 +16,7 @@
 //! both logged. Callers: `audio::start`, the advanced audio screen (`menu::apply_audio_choices`,
 //! 0x4707A3). Refuses a quality past `g_qualityModes` (the original reads past it).
 
-use crate::audio::owner::audio;
+use crate::audio::owner::Audio;
 use crate::audio::store::AudioState;
 use crate::errors::Refused;
 
@@ -57,8 +57,8 @@ pub fn choose_modes(
 }
 
 /// On the game's variables, logging with `log`.
-pub fn in_game(log: Log) -> Result<(), Refused> {
-    let state = &audio().state;
+pub fn in_game(audio: &Audio, log: Log) -> Result<(), Refused> {
+    let state = &audio.state;
     // The options and the two modes are worked on in place, as the original does.
     let mut o = state.audio_options.get();
     let (mut race, mut menu) = (state.race_sound_mode.get(), state.menu_sound_mode.get());

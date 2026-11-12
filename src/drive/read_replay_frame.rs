@@ -52,6 +52,7 @@ pub fn read_replay_frame(race: &Race, frame: u32, tenth: u32) -> Result<bool, Re
     let count = crate::race::replay::block_place(race_owner, 2 * frame as usize + 1)?;
     let (_, carry, _) = {
         crate::drive::read_packed::read_packed(
+            race_owner,
             race_owner.shared.replay_file.replay_handle.get(),
             count,
         )

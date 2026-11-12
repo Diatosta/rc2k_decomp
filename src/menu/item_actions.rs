@@ -24,7 +24,7 @@ use crate::owners::Owners;
 // ---- the functions ----
 
 /// `menu::show_intro`: the films (idle mode), then back.
-pub fn show_intro(o: Owners<'_>) -> Result<(), Refused> {
+pub fn show_intro(o: Owners<'static>) -> Result<(), Refused> {
     crate::menu::play_films::play_films(o, true)?;
     crate::menu::go_back::go_back(o.menus);
     Ok(())
@@ -65,7 +65,7 @@ pub fn view_stage_details(screens: &Screens, entry: &Entry) -> Result<(), Refuse
 }
 
 /// `menu::new_simulation_if_unlocked` (it reads no register).
-pub fn new_simulation_if_unlocked(o: crate::owners::Owners<'_>) -> Result<(), Refused> {
+pub fn new_simulation_if_unlocked(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     // The logic is in `rc2k_core::menu::stage_screens::simulation_unlocked`.
     use rc2k_core::menu::stage_screens::{REFUSED_SLEEP, REFUSED_SOUND, simulation_unlocked};
     if simulation_unlocked(o.race.shared.state.settings.a8_game.get()) {
@@ -73,7 +73,7 @@ pub fn new_simulation_if_unlocked(o: crate::owners::Owners<'_>) -> Result<(), Re
         // items do.)
         crate::menu::new_simulation_loop::run(o)?;
     } else {
-        crate::sound::play_menu_sound::play_menu_sound_in_game(REFUSED_SOUND);
+        crate::sound::play_menu_sound::play_menu_sound_in_game(o, REFUSED_SOUND);
         crate::system::sleep::sleep(REFUSED_SLEEP);
     }
     Ok(())
@@ -81,7 +81,7 @@ pub fn new_simulation_if_unlocked(o: crate::owners::Owners<'_>) -> Result<(), Re
 
 /// `menu::start_arcade`: the arcade's level and stage 0, the first player's units taken
 /// and the arcade event run.
-pub fn start_arcade(o: crate::owners::Owners<'_>) -> Result<(), Refused> {
+pub fn start_arcade(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (menus, play) = (o.menus, &o.menus.play);
     play.arcade.level.set(0);
     play.arcade.stage.set(0);

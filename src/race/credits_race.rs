@@ -26,7 +26,7 @@ pub fn credits_race(race: &Race) -> Result<(), Refused> {
     race.shared.tables.noise_seed.set(0x1234_5678);
     race.physics.split_tables.arcade_kind.set(2);
     race.shared.switches.editor_mode.set(0);
-    crate::race::set_up_credits_race::set_up_credits_race(race)?;
+    crate::race::set_up_credits_race::set_up_credits_race(race, &o)?;
     crate::race::race_cars::set_up_arcade_cars(race)?;
     crate::race::race_shell::set_start_states(race)?;
     race.shared.work.in_credits.set(true);
@@ -40,7 +40,7 @@ pub fn credits_race(race: &Race) -> Result<(), Refused> {
         frame,
         0,
         &mut crate::text::draw_text::GameCanvas,
-        &mut crate::race::frame_text::credits_tune,
+        &mut || crate::race::frame_text::credits_tune(o),
         o.system,
         o.audio,
     )?;

@@ -29,16 +29,21 @@ pub fn service_area_frame(o: Owners<'_>) -> Result<CarryZeroFlags, Refused> {
         return Ok(FAILED);
     }
     crate::gfx::copy_picture_to_surface::copy_picture_to_surface(
-        &mut crate::gfx::copy_picture_to_surface::GameSurface,
+        &mut crate::gfx::copy_picture_to_surface::GameSurface(o.gfx),
     )?;
     unlock_surface();
-    crate::scene::begin_scene::begin_scene();
-    draw_service_boxes::draw_service_boxes(menus)?;
+    crate::scene::begin_scene::begin_scene(o.race);
+    draw_service_boxes::draw_service_boxes(o)?;
     crate::scene::end_scene::end_scene();
     if lock_surface() < 1 {
         return Ok(FAILED);
     }
-    draw_service_area::draw_service_area(menus, o.race, &mut crate::text::draw_text::GameCanvas)?;
+    draw_service_area::draw_service_area(
+        menus,
+        o.gfx,
+        o.race,
+        &mut crate::text::draw_text::GameCanvas,
+    )?;
     unlock_surface();
     if !show_frame_now() {
         return Ok(FAILED);

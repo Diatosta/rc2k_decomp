@@ -8,7 +8,7 @@
 //! frame on four screens (the car specification, the slideshow, two stage screens).
 
 use crate::errors::BadInput;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 
 // ---- game data ----
 
@@ -19,9 +19,9 @@ use crate::menu::owner::menus;
 pub fn step_car_stream(
     playing: &mut dyn FnMut() -> bool,
     start: &mut dyn FnMut(u32, u32),
+    menus: &Menus,
     sound: &crate::sound::owner::Sound,
 ) -> Result<(), BadInput> {
-    let menus = menus();
     // Converted: `rc2k_core::sound::race::stream_step`.
     use rc2k_core::sound::race::{StreamStep, stream_step};
     let list: u32 = sound.race.car_stream.get().stream.get();
@@ -57,12 +57,17 @@ pub fn step_car_stream(
 
 /// With the game's stream flag and `sound::start_stream`.
 pub fn step_car_stream_in_game(
+    menus: &Menus,
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
+    system: &crate::system::owner::System,
 ) -> Result<(), BadInput> {
     step_car_stream(
         &mut || audio.state.sound_stream.get().playing == 1,
-        &mut crate::sound::start_stream::start_stream,
+        &mut |name, volume| {
+            crate::sound::start_stream::start_stream(audio, system, name, volume);
+        },
+        menus,
         sound,
     )
 }

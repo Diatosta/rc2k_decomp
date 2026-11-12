@@ -13,10 +13,14 @@ use crate::gfx::mark_3d_modes::mark_3d_modes;
 use crate::gfx::owner::Display;
 
 pub const SECONDARY: u32 = 0x2000;
-pub fn list_secondary_modes(display: &Display) -> Result<(), Refused> {
+pub fn list_secondary_modes(
+    display: &Display,
+    system: &crate::system::owner::System,
+    d3d: &crate::d3d::owner::D3d,
+) -> Result<(), Refused> {
     if display.cards.secondary.get() == 1 {
         standalone_modes(display, SECONDARY)?;
-        mark_3d_modes(display, SECONDARY)?;
+        mark_3d_modes(display, system, d3d, SECONDARY)?;
     }
     Ok(())
 }

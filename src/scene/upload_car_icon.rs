@@ -129,6 +129,7 @@ pub fn upload_car_icon(
     let (pixels, width, height, _) = read_texture_picture(Some(&icon.sheet))?;
     ready_picture(&record, pixels, width, height, gfx)?;
     let across = halvings_apart(
+        gfx,
         &record,
         width,
         height,

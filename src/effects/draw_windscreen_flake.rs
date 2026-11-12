@@ -39,6 +39,7 @@ pub fn draw_windscreen_flake(
     item: &WindscreenFlakeItem,
     colour: u32,
     shares: [[u8; 10]; 2],
+    scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
 ) {
     let [a, pb, c, d]: [u32; 4] = read_bits(&fl.state.places);
@@ -55,7 +56,7 @@ pub fn draw_windscreen_flake(
     for n in 0..4 {
         VERTICES.vertices[n].colour.set(colour);
     }
-    crate::effects::clip_quad::draw_fan();
+    crate::effects::clip_quad::draw_fan(scene);
 }
 
 use crate::effects::plain::{ld_cell, st_cell};

@@ -1,6 +1,5 @@
 //! Front-end pages' "unread" steps that copy settings into the page's work variables.
 
-use crate::audio::owner::audio;
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
 use crate::owners::Owners;
@@ -25,9 +24,9 @@ pub fn pick_player(menus: &Menus, n: u32) -> Result<(), Refused> {
 
 /// `screens::load_audio_settings` (0x4707E6): the audio options (`g_audioOptions`: quality,
 /// channels, Dolby, A3D, EAX, DS3D) into the sound page's work variables (`option_work`).
-pub fn load_audio_settings(menus: &Menus) {
+pub fn load_audio_settings(menus: &Menus, audio: &crate::audio::owner::Audio) {
     // The logic is in `rc2k_core::screens::page_values::audio_page`.
-    let options: rc2k_core::audio::modes::AudioOptions = audio().state.audio_options.get();
+    let options: rc2k_core::audio::modes::AudioOptions = audio.state.audio_options.get();
     menus
         .screens
         .option_work

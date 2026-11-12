@@ -13,8 +13,14 @@ use rc2k_core::install::layout::{self, Area, Piece};
 /// `first` the first piece, `count` the pieces, `the_box` the box.
 ///
 /// `title`: the box is the title's (`InstallerPages.title_box`).
-pub fn place_row(first: u32, count: u32, the_box: BoxRecord, title: bool) -> Result<(), Refused> {
-    let at = |k: u32| LaidPiece::nth(first.wrapping_add(k));
+pub fn place_row(
+    install: &'static crate::install::owner::Install,
+    first: u32,
+    count: u32,
+    the_box: BoxRecord,
+    title: bool,
+) -> Result<(), Refused> {
+    let at = |k: u32| LaidPiece::nth(install, first.wrapping_add(k));
     // Converted: `rc2k_core::install::layout::place_row`, on the pieces' fields it reads;
     // their x and y written back.
     let mut pieces: Vec<Piece> = (0..count)

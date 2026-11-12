@@ -27,7 +27,7 @@ pub fn play_cue_queues(
     }
     for n in cars {
         crate::sound::play_cue_queue::play_cue_queue(
-            crate::sound::store::SoundObject::number(n)?,
+            crate::sound::store::SoundObject::of(sound, n)?,
             sound,
             audio,
         )?;

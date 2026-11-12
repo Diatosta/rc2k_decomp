@@ -43,9 +43,9 @@ pub fn run_pong(
         for _ in 0..steps.max(0) {
             move_pong_ball(pong, effects);
         }
-        draw_pong_box(pong, fl, box_values(&p.ball, &p.ball_size), effects);
-        draw_pong_box(pong, fl, box_values(&p.bat, &p.bat_size), effects);
-        crate::effects::pong_score::pong_score(pong, fl, effects)?;
+        draw_pong_box(pong, fl, box_values(&p.ball, &p.ball_size), scene, effects);
+        draw_pong_box(pong, fl, box_values(&p.bat, &p.bat_size), scene, effects);
+        crate::effects::pong_score::pong_score(pong, fl, scene, effects)?;
     }
     Ok(())
 }

@@ -219,8 +219,8 @@ pub fn roll_credits(
 }
 
 /// `roll_credits`' tune in the game: `sound::play_tune_2`'s command, sent and waited for.
-pub fn credits_tune() {
-    crate::sound::play_tune_2::play_tune_2();
+pub fn credits_tune(o: crate::owners::Owners<'_>) {
+    crate::sound::play_tune_2::play_tune_2(o.sound, o.audio, o.system);
 }
 
 #[cfg(test)]

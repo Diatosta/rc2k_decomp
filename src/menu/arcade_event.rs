@@ -13,7 +13,7 @@ use rc2k_core::menu::leaving::Switch;
 /// steps and the car list the car choice was shown.
 struct Game<'a> {
     menus: &'a Menus,
-    owners: crate::owners::Owners<'a>,
+    owners: crate::owners::Owners<'static>,
     cars: Option<CarList>,
     player0: crate::menu::standings::PlayerCell<'a>,
 }
@@ -125,7 +125,9 @@ impl arcade::Arcade for Game<'_> {
             }
             Step::CheckStageTime => a::check_arcade_stage_time(menus, self.owners.system)?,
             Step::ClearTimeMarks => a::clear_arcade_time_marks(play, self.owners.system)?,
-            Step::EnterStageTime => a::enter_arcade_stage_time(menus, self.owners.system)?,
+            Step::EnterStageTime => {
+                a::enter_arcade_stage_time(menus, self.owners.system, self.owners.race)?;
+            }
             Step::BestTimesLoop => self.screen(&m::arcade_best_times_loop::SCREEN)?,
             Step::CheckLevelScore => a::check_arcade_level_score(menus)?,
             Step::ClearScoreMarks => a::clear_arcade_score_marks(play)?,
@@ -151,7 +153,7 @@ impl Game<'_> {
     }
 }
 
-pub fn arcade_event(o: crate::owners::Owners<'_>) -> Result<(), Refused> {
+pub fn arcade_event(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let menus = o.menus;
     let player0 = crate::menu::standings::player(menus, 0);
     let mut game = Game {

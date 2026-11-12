@@ -17,8 +17,11 @@ use crate::install::vars::InstallerPages;
 use crate::strings::owner::Strings;
 use rc2k_core::install::pieces::{self, Way};
 
-fn font_of(index: u32) -> Result<crate::gfx::typefaces::FontId, BadInput> {
-    crate::install::vars::InstallerPages::font_of(index)
+fn font_of(
+    install: &crate::install::owner::Install,
+    index: u32,
+) -> Result<crate::gfx::typefaces::FontId, BadInput> {
+    crate::install::vars::InstallerPages::font_of(install, index)
 }
 
 pub fn measure_pieces(
@@ -34,7 +37,7 @@ pub fn measure_pieces(
     let mut height = None;
     for k in 0..count {
         let left = count - k;
-        let piece = Piece::nth(k);
+        let piece = Piece::nth(install, k);
         // Converted: `rc2k_core::install::pieces` (`measured_kind`, `Way`,
         // `measure_colour_at`).
         let marks = piece.marks();
@@ -43,14 +46,15 @@ pub fn measure_pieces(
         }
         let (width, high) = match Way::of(marks, piece.kind()) {
             Way::String { font_kind } => {
-                let font = InstallerPages::kind_font(pieces::measure_colour_at(font_kind)) as u32;
-                measure_string(piece.text_id() as u32, font_of(font)?, left)?
+                let font =
+                    InstallerPages::kind_font(install, pieces::measure_colour_at(font_kind)) as u32;
+                measure_string(piece.text_id() as u32, font_of(install, font)?, left)?
             }
             Way::Edit => {
                 let item = piece.item();
                 let record = item.edit_field();
                 let font_height =
-                    InstallerPages::kind_font(7 + 8 * record.font_kind() as u32) as u32;
+                    InstallerPages::kind_font(install, 7 + 8 * record.font_kind() as u32) as u32;
                 let width =
                     crate::install::folders::field_width(install, item.text(), record.width());
                 (width as u32, font_height)
@@ -66,8 +70,9 @@ pub fn measure_pieces(
                 text.push(0);
                 store_text(&strings.text.buffer.text, &text);
                 let kind = item.font_kind() as u32;
-                let font = InstallerPages::kind_font(pieces::measure_colour_at(kind)) as u32;
-                measure_text(font_of(font)?, &text, left)?
+                let font =
+                    InstallerPages::kind_font(install, pieces::measure_colour_at(kind)) as u32;
+                measure_text(font_of(install, font)?, &text, left)?
             }
             Way::Action => {
                 let the_box = BoxRecord::linked(piece.item().box_link());

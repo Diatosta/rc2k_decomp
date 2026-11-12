@@ -23,7 +23,7 @@ const NOTICE_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts:
 
 /// Runs the functions of the list `list` points at (the original keeps the registers
 /// around each of the scene list's; its functions take none either way).
-pub fn run_listed(o: Owners<'_>, list: &ListCell) -> Result<(), Refused> {
+pub fn run_listed(o: Owners<'static>, list: &ListCell) -> Result<(), Refused> {
     crate::menu::run_list::run_list(o, list.get()?)
 }
 
@@ -36,7 +36,7 @@ pub fn lock_failed() -> bool {
 pub fn copy_picture() -> Result<(), Refused> {
     {
         crate::gfx::copy_picture_to_surface::copy_picture_to_surface(
-            &mut crate::gfx::copy_picture_to_surface::GameSurface,
+            &mut crate::gfx::copy_picture_to_surface::GameSurface(crate::gfx::owner::gfx()),
         )
     }?;
     Ok(())
@@ -50,7 +50,7 @@ pub fn draw_menu(menus: &Menus, menu: crate::menu::menus_store::MenuId) -> Resul
 /// `menu` is edi at entry. Returns whether the
 /// frame was made (the original's clear carry).
 pub fn frame_callback(
-    o: Owners<'_>,
+    o: Owners<'static>,
     menu: crate::menu::menus_store::MenuId,
 ) -> Result<bool, Refused> {
     let menus = o.menus;
@@ -63,7 +63,7 @@ pub fn frame_callback(
     run_listed(o, &o.menus.screens.flow.draw_list)?;
     unlock_surface();
     o.scene.lights.state.scene_state.set_bits(4u32);
-    crate::scene::begin_scene::begin_scene();
+    crate::scene::begin_scene::begin_scene(o.race);
     run_listed(o, &o.menus.screens.flow.scene_list)?;
     crate::scene::end_scene::end_scene();
     if lock_failed() {
@@ -71,9 +71,10 @@ pub fn frame_callback(
     }
     run_listed(o, &o.menus.screens.flow.overlay_list)?;
     // The logic is in `rc2k_core::menu::notice::drawn_now`.
-    if notice::drawn_now(crate::strings::load_language::notice_kind(), || {
-        play.cheats.notice_due.get()
-    }) {
+    if notice::drawn_now(
+        crate::strings::load_language::notice_kind_in(o.strings),
+        || play.cheats.notice_due.get(),
+    ) {
         play.cheats.notice_due.set(0u32);
         crate::text::draw_string_by_id::draw_string_by_id_at(
             notice::STRING,

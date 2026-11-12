@@ -436,6 +436,7 @@ struct Sprite {
 fn draw(
     masks: &Masks,
     ring: &Ring,
+    scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
     place: u32,
     sprite: Sprite,
@@ -453,10 +454,10 @@ fn draw(
     {
         match place {
             3 => draw_subcell_sprite::draw_subcell_sprite(
-                masks, ring, effects, cell, size, e, p, view,
+                masks, ring, scene, effects, cell, size, e, p, view,
             ),
             _ => draw_cell_sprite::draw_cell_sprite(
-                masks, ring, effects, cell, angle, alpha, size, e, p, view,
+                masks, ring, scene, effects, cell, angle, alpha, size, e, p, view,
             ),
         }
     }
@@ -473,6 +474,7 @@ fn drift_kind(
     e: u32,
     place: u32,
     ks: [&f32; 3],
+    scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
     view: crate::effects::run_frame::EffectsView<'_>,
 ) -> Result<bool, Refused> {
@@ -491,6 +493,7 @@ fn drift_kind(
             draw(
                 masks,
                 ring,
+                scene,
                 effects,
                 place,
                 Sprite {
@@ -534,6 +537,7 @@ fn fading_kind(
     e: u32,
     kind: u32,
     c: &Kind<'_>,
+    scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
     view: crate::effects::run_frame::EffectsView<'_>,
 ) -> Result<bool, Refused> {
@@ -564,6 +568,7 @@ fn fading_kind(
             draw(
                 masks,
                 ring,
+                scene,
                 effects,
                 1,
                 Sprite {
@@ -652,6 +657,7 @@ fn boxed_kind(
     e: u32,
     gain: &f32,
     both: bool,
+    scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
     view: crate::effects::run_frame::EffectsView<'_>,
 ) -> Result<bool, Refused> {
@@ -673,6 +679,7 @@ fn boxed_kind(
         draw(
             masks,
             ring,
+            scene,
             effects,
             3,
             Sprite {
@@ -700,6 +707,7 @@ fn boxed_kind(
 pub fn run_ring(
     masks: &Masks,
     ring: &Ring,
+    scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
     view: crate::effects::run_frame::EffectsView<'_>,
 ) -> Result<(), Refused> {
@@ -726,6 +734,7 @@ pub fn run_ring(
                         &ring.kinds.drift5[1],
                         &ring.kinds.drift5[2],
                     ],
+                    scene,
                     effects,
                     view,
                 )?,
@@ -739,17 +748,63 @@ pub fn run_ring(
                         &ring.kinds.drift_b[1],
                         &ring.kinds.drift_b[2],
                     ],
+                    scene,
                     effects,
                     view,
                 )?,
-                6 => fading_kind(masks, ring, e, 6, &k6(&ring.kinds), effects, view)?,
-                0x15 => fading_kind(masks, ring, e, 0x15, &k15(&ring.kinds), effects, view)?,
-                1 => fading_kind(masks, ring, e, 1, &k1(&ring.kinds), effects, view)?,
-                0xD => fading_kind(masks, ring, e, 0xD, &kd(&ring.kinds), effects, view)?,
-                0x13 => fading_kind(masks, ring, e, 0x13, &k13(&ring.kinds), effects, view)?,
-                0x16 => fading_kind(masks, ring, e, 0x16, &k16(&ring.kinds), effects, view)?,
-                0x10 => boxed_kind(masks, ring, e, &ring.kinds.k10_gain, true, effects, view)?,
-                0x11 => boxed_kind(masks, ring, e, &ring.kinds.k11_gain, false, effects, view)?,
+                6 => fading_kind(masks, ring, e, 6, &k6(&ring.kinds), scene, effects, view)?,
+                0x15 => fading_kind(
+                    masks,
+                    ring,
+                    e,
+                    0x15,
+                    &k15(&ring.kinds),
+                    scene,
+                    effects,
+                    view,
+                )?,
+                1 => fading_kind(masks, ring, e, 1, &k1(&ring.kinds), scene, effects, view)?,
+                0xD => fading_kind(masks, ring, e, 0xD, &kd(&ring.kinds), scene, effects, view)?,
+                0x13 => fading_kind(
+                    masks,
+                    ring,
+                    e,
+                    0x13,
+                    &k13(&ring.kinds),
+                    scene,
+                    effects,
+                    view,
+                )?,
+                0x16 => fading_kind(
+                    masks,
+                    ring,
+                    e,
+                    0x16,
+                    &k16(&ring.kinds),
+                    scene,
+                    effects,
+                    view,
+                )?,
+                0x10 => boxed_kind(
+                    masks,
+                    ring,
+                    e,
+                    &ring.kinds.k10_gain,
+                    true,
+                    scene,
+                    effects,
+                    view,
+                )?,
+                0x11 => boxed_kind(
+                    masks,
+                    ring,
+                    e,
+                    &ring.kinds.k11_gain,
+                    false,
+                    scene,
+                    effects,
+                    view,
+                )?,
                 _ => false,
             };
             if dies {

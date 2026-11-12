@@ -29,7 +29,13 @@ pub fn shown_layout(shared: &RaceShared) -> u32 {
     }
 }
 
-pub fn overlay_pass(hud: &Hud, race: &Race) -> Result<(), Refused> {
+pub fn overlay_pass(
+    hud: &Hud,
+    race: &Race,
+    system: &crate::system::owner::System,
+    scene: &crate::scene::owner::Scene,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), Refused> {
     use crate::scene::depth_buffer_on::depth_buffer;
     race.frame
         .panel_and_overlay
@@ -51,8 +57,6 @@ pub fn overlay_pass(hud: &Hud, race: &Race) -> Result<(), Refused> {
             }
         }
     }
-    let o = crate::owners::boundary();
-    let (system, scene) = (o.system, o.scene);
     let scratch = crate::race::view_scratch::front_end();
     let polygons = &scratch.polygon;
     let pen = Pen {
@@ -75,9 +79,9 @@ pub fn overlay_pass(hud: &Hud, race: &Race) -> Result<(), Refused> {
         scratch,
         system,
         scene,
-        strips: &o.gfx.strips,
+        strips: &gfx.strips,
     })?;
     depth_buffer(false);
-    crate::scene::set_filters::set_filters();
+    crate::scene::set_filters::set_filters(race);
     Ok(())
 }

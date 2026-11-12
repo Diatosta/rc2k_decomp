@@ -10,7 +10,11 @@ use crate::race::muddy_texel::texture_and_mud;
 use crate::race::owner::Race;
 use crate::race::tint_to_mud_colour::mud_colour;
 
-pub fn mud_texture_turn(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn mud_texture_turn(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), Refused> {
     texture_and_mud(&race.shared)?;
     let [red, green, blue] = mud_colour(&race.course);
     // Converted: `rc2k_core::race::mud::packed_colour`.
@@ -22,5 +26,5 @@ pub fn mud_texture_turn(race: &Race, scene: &crate::scene::owner::Scene) -> Resu
         turn[1].set(turn[0].get());
         turn[0].set(0);
     }
-    crate::race::update_mud_texture::update_mud_texture(race, scene)
+    crate::race::update_mud_texture::update_mud_texture(race, scene, gfx)
 }

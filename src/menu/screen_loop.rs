@@ -64,7 +64,7 @@ use crate::race::owner::Race;
 use crate::scene::owner::Scene;
 use crate::session::{Cell32, DwordLike, FlagLike};
 use crate::sound::owner::Sound;
-use crate::system::owner::{System, system};
+use crate::system::owner::System;
 pub use rc2k_core::menu::keys::MenuSound;
 use rc2k_core::menu::keys::Pressed;
 pub use rc2k_core::menu::screen_loop::{ActionResult, Exit};
@@ -153,7 +153,7 @@ pub struct Asking {
     pub also_if: Option<FlagCell>,
     /// A variable that, when it is 1, keeps the question from being put although
     /// `captions.left_by_key` is set.
-    pub unless: Option<fn(&Menus) -> u32>,
+    pub unless: Option<fn(&Entry) -> u32>,
     /// The question is put whenever the screen is left, and after a "yes" the loop returns
     /// at once: the highlight is not saved.
     pub always: bool,
@@ -340,23 +340,23 @@ impl Screen {
 /// (`scene::set_up_carousel` reads it for menus 0xD and 0xE).
 /// It also carries the menus' owner, which the steps read.
 #[derive(Clone, Copy)]
-pub struct Entry<'a> {
-    pub menus: &'a Menus,
+pub struct Entry {
+    pub menus: &'static Menus,
     pub cars: Option<CarList>,
     /// The other owners the steps and the loop use (fetched once, where the entry is made).
-    pub scene: &'a Scene,
+    pub scene: &'static Scene,
     /// The front end's slot of polygon work (its window is the screens' view).
-    pub front_end: &'a crate::scene::polygon_work::PolygonWork,
-    pub system: &'a System,
-    pub race: &'a Race,
-    pub sound: &'a Sound,
-    pub input: &'a Input,
-    pub audio: &'a Audio,
+    pub front_end: &'static crate::scene::polygon_work::PolygonWork,
+    pub system: &'static System,
+    pub race: &'static Race,
+    pub sound: &'static Sound,
+    pub input: &'static Input,
+    pub audio: &'static Audio,
     /// Every owner, for the flows the screens' items start.
-    pub owners: Owners<'a>,
+    pub owners: Owners<'static>,
 }
 
-impl<'a> Entry<'a> {
+impl Entry {
     /// The view's offset and zoom a front-end screen draws with.
     pub fn set_view(&self, x: i32, y: i32, zoom: u32) {
         let window = &self.front_end.window;
@@ -375,7 +375,7 @@ impl<'a> Entry<'a> {
     }
 
     /// Entered with nothing carried in.
-    pub fn new(o: Owners<'a>) -> Self {
+    pub fn new(o: Owners<'static>) -> Self {
         Entry::with_cars(o, None)
     }
     /// The same entry, carrying the list of cars the carousel shows.
@@ -394,7 +394,7 @@ impl<'a> Entry<'a> {
         }
     }
     /// Entered with the list of cars the carousel shows.
-    pub fn with_cars(o: Owners<'a>, cars: Option<CarList>) -> Self {
+    pub fn with_cars(o: Owners<'static>, cars: Option<CarList>) -> Self {
         Entry {
             menus: o.menus,
             cars,
@@ -411,8 +411,8 @@ impl<'a> Entry<'a> {
 }
 
 /// Whether the game is quitting.
-pub fn quitting() -> bool {
-    system().session.flags.quitting.is_set()
+pub fn quitting(system: &System) -> bool {
+    system.session.flags.quitting.is_set()
 }
 
 /// `scene::prepare_menu_scene` (0x46F7FD). (It leaves esi the view's turn matrix: a screen
@@ -547,15 +547,27 @@ impl Callee {
             Self::ApplyController => ci::apply_controller(menus, input)?,
             Self::ReleaseController => ci::release_controller(input),
             Self::DrawStageMap => crate::menu::stage_choice::draw_stage_map(entry.owners)?,
-            Self::StopStream => crate::sound::stop_stream::stop_stream(),
-            Self::PlayTune4 => crate::sound::play_tune_4::play_tune_4(),
-            Self::PlayTune9 => crate::sound::play_tune_9::play_tune_9(),
-            Self::StopMusic => crate::sound::stop_music::stop_music(),
+            Self::StopStream => crate::sound::stop_stream::stop_stream(audio, entry.system),
+            Self::PlayTune4 => {
+                crate::sound::play_tune_4::play_tune_4(sound, audio, entry.system);
+            }
+            Self::PlayTune9 => {
+                crate::sound::play_tune_9::play_tune_9(sound, audio, entry.system);
+            }
+            Self::StopMusic => crate::sound::stop_music::stop_music(audio, entry.system),
             Self::StepCarStream => {
-                crate::sound::step_car_stream::step_car_stream_in_game(sound, audio)?;
+                crate::sound::step_car_stream::step_car_stream_in_game(
+                    menus,
+                    sound,
+                    audio,
+                    entry.system,
+                )?;
             }
             Self::PlayCarStream => crate::sound::play_car_stream::play_car_stream(
-                &mut crate::sound::start_stream::start_stream,
+                &mut |name, volume| {
+                    crate::sound::start_stream::start_stream(audio, entry.system, name, volume);
+                },
+                menus,
                 sound,
             )?,
             Self::AxisMoved(axis) => {
@@ -563,13 +575,13 @@ impl Callee {
             }
             Self::RankStageTimes => rs::rank_stage_times(menus)?,
             Self::RankTotals => rs::rank_totals(menus)?,
-            Self::ScoreFourPlayers => rs::score_four_players(menus)?,
-            Self::ScoreTwoPlayers => rs::score_two_players(menus)?,
+            Self::ScoreFourPlayers => rs::score_four_players(menus, entry.system)?,
+            Self::ScoreTwoPlayers => rs::score_two_players(menus, entry.system)?,
             Self::StyleStageItem => v::style_stage_item(screens, false)?,
             Self::StyleChosenStageItem => v::style_stage_item(screens, true)?,
-            Self::CountStagePages => v::count_stage_pages(screens)?,
-            Self::PlayStageSpeech => v::play_stage_speech(menus, sound)?,
-            Self::PlayRallySpeech => v::play_rally_speech(menus)?,
+            Self::CountStagePages => v::count_stage_pages(screens, entry.system)?,
+            Self::PlayStageSpeech => v::play_stage_speech(menus, sound, audio, entry.system)?,
+            Self::PlayRallySpeech => v::play_rally_speech(menus, audio, entry.system)?,
             Self::LoadWelcomePicture => v::load_welcome_picture(entry.owners)?,
             Self::LoadServiceBackground => crate::service::load_background::load_background_in(
                 menus,
@@ -590,11 +602,17 @@ impl Callee {
             }
             Self::EditSavegameName => crate::menu::edit_savegame_name::edit_savegame_name(
                 menus,
+                entry.owners.saves,
                 &mut GameCanvas,
-                &mut crate::menu::edit_savegame_name::save_game,
+                &mut |slot| crate::menu::edit_savegame_name::save_game(menus, slot),
             )?,
             Self::EditReplayName => {
-                return crate::menu::edit_replay_name::edit_replay_name(menus, &mut GameCanvas);
+                return crate::menu::edit_replay_name::edit_replay_name(
+                    menus,
+                    entry.owners.saves,
+                    entry.owners.race,
+                    &mut GameCanvas,
+                );
             }
             Self::CheckCheatName => {
                 crate::menu::check_cheat_name::check_cheat_name(menus, entry.owners.race)?;
@@ -707,7 +725,7 @@ fn set_lists(menus: &Menus, screens: &Screens, screen: &Screen, lists: &[List]) 
 /// (unless quitting) the frame, with the menu and the carried palette and x. Neither
 /// changes a carried value (the callbacks keep every register; the carry they leave is
 /// read by nothing).
-fn run_frame(o: Owners<'_>, callback: FrameRoutine, menu: MenuId) -> Result<(), Refused> {
+fn run_frame(o: Owners<'static>, callback: FrameRoutine, menu: MenuId) -> Result<(), Refused> {
     let frame = || match callback {
         FrameRoutine::Menu => crate::menu::frame_callback::frame_callback(o, menu),
         FrameRoutine::Inspection => crate::menu::inspection_frame::inspection_frame(o, menu),
@@ -722,7 +740,7 @@ fn run_frame(o: Owners<'_>, callback: FrameRoutine, menu: MenuId) -> Result<(), 
 /// screen's menus.
 struct MenuHost<'a> {
     screen: &'a Screen,
-    entry: &'a Entry<'a>,
+    entry: &'a Entry,
     menu: MenuId,
     keys_menu: MenuId,
     action_menu: MenuId,
@@ -843,7 +861,7 @@ impl ScreenHost for MenuHost<'_> {
     }
 
     fn quitting(&self) -> bool {
-        quitting()
+        quitting(self.entry.system)
     }
 
     fn leave_on_close(&mut self) -> ! {
@@ -853,7 +871,7 @@ impl ScreenHost for MenuHost<'_> {
     }
 
     fn debug_serve(&mut self) -> Result<bool, Refused> {
-        crate::debug::screens::serve()
+        crate::debug::screens::serve(self.entry.owners)
     }
 
     fn note_frame_time(&mut self) {
@@ -927,12 +945,12 @@ impl ScreenHost for MenuHost<'_> {
     }
 
     fn ask_suppressed(&self) -> bool {
-        let menus = self.entry.menus;
+        let entry = self.entry;
         self.screen
             .asking
             .as_ref()
             .and_then(|asking| asking.unless)
-            .is_some_and(|flag| flag(menus) == 1)
+            .is_some_and(|flag| flag(entry) == 1)
     }
 
     fn ask_also(&self) -> bool {
@@ -980,7 +998,7 @@ pub fn screen_loop(_screens: &Screens, screen: &Screen, entry: &Entry) -> Result
 
 /// `menu::confirm_leaving` (0x46FA90): the question's screen (`menu::leave_question_loop`),
 /// which reads nothing it is entered with; every register comes back as it was.
-pub fn confirm_leaving(o: Owners<'_>) -> Result<u32, Refused> {
+pub fn confirm_leaving(o: Owners<'static>) -> Result<u32, Refused> {
     let mut asked = Ok(());
     let answer = {
         crate::menu::confirm_leaving::confirm_leaving(o.menus, &mut || {
@@ -1002,17 +1020,12 @@ pub fn confirm_leaving(o: Owners<'_>) -> Result<u32, Refused> {
 
 /// Runs a screen from the menus' tables, starting with nothing carried in. Rust callers use
 /// `run_screen`.
-pub fn screen_entry(o: Owners<'_>, name: &str, screen: &Screen) -> Result<(), Refused> {
+pub fn screen_entry(o: Owners<'static>, name: &str, screen: &Screen) -> Result<(), Refused> {
     let screens = &o.menus.screens;
     log(&format!("{name}: runs"));
     let exit = screen_loop(screens, screen, &Entry::new(o))?;
     log(&format!("{name}: has left the screen ({exit})"));
     Ok(())
-}
-
-/// `screen_entry` for the callers outside the menus.
-pub fn screen_entry_outside(name: &str, screen: &Screen) -> Result<(), Refused> {
-    screen_entry(crate::owners::boundary(), name, screen)
 }
 
 /// A screen loop run from Rust (the event flows, `confirm_leaving`), entered with what the

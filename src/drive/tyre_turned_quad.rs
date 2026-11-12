@@ -56,6 +56,7 @@ pub fn tyre_turned_quad(
     colour: u32,
     device: &InputDevice,
     system: &crate::system::owner::System,
+    panel: &crate::race::viewer_screen_store::ViewerPanelBlock,
 ) -> Result<(), Refused> {
     system.session.machine.scratch.set(0x40C9_0FDB);
     turn(
@@ -66,7 +67,7 @@ pub fn tyre_turned_quad(
         &system.session.machine.scratch,
     );
     quad_words(colour);
-    quad_tail(uv);
+    quad_tail(uv, panel, system);
     draw()
 }
 

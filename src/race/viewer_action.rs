@@ -260,7 +260,7 @@ fn another_replay(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
     }
     crate::race::viewer_tidy_stage::viewer_tidy_stage(race, o)?;
     loop {
-        let slot = crate::menu::replay_slot_loop::replay_slot_loop(false)?;
+        let slot = crate::menu::replay_slot_loop::replay_slot_loop(o, false)?;
         if slot == u32::MAX {
             if shared.replay_file.replay_open.is_set() {
                 return crate::race::viewer_load_stage::viewer_load_stage(race, o);

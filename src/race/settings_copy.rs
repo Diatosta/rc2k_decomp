@@ -9,7 +9,7 @@
 //! the cells written and the log text.
 
 use crate::errors::Refused;
-use crate::gfx::owner::gfx;
+use crate::gfx::owner::Gfx;
 use crate::math::x87;
 use crate::owners::Owners;
 use crate::physics::car_store::Car;
@@ -39,8 +39,7 @@ pub enum StepOperand {
     /// A dword of an overlay store on the race block (`var!`: `RACE_VARS.stage_number`).
     #[cfg(test)]
     Var(fn() -> &'static dyn DwordLike),
-    /// A dword of one of the owners (`var!(@o menus.screens.option_work.eax)`); only
-    /// `get_with` / `set_with` read it.
+    /// A dword of one of the owners (`var!(@o menus.screens.option_work.eax)`).
     Owned(for<'a> fn(&'a Owners<'a>) -> &'a dyn DwordLike),
     /// A dword of the race's (`var!(@race shared.vars.direction)`).
     RaceVar(fn(&Race) -> &dyn DwordLike),
@@ -52,63 +51,47 @@ use StepOperand::{Bits, Cell};
 use StepOperand::{CarBits, CarCell, Owned, RaceVar};
 
 impl StepOperand {
-    /// Its dword (a float's bits), in the game's race (the tests').
+    /// Its dword (a float's bits), in the game's owners (the tests').
     #[cfg(test)]
     pub fn get(self) -> u32 {
-        self.get_in(crate::race::owner::race())
+        self.get_with(&Owners::the())
     }
 
-    /// Its dword set (a float's bits), in the game's race (the tests').
+    /// Its dword set (a float's bits), in the game's owners (the tests').
     #[cfg(test)]
     pub fn set(self, v: u32) {
-        self.set_in(crate::race::owner::race(), v);
+        self.set_with(&Owners::the(), v);
     }
 
     /// Its dword (a float's bits), the owners' being `o`'s.
     pub fn get_with(self, o: &Owners<'_>) -> u32 {
         match self {
+            #[cfg(test)]
+            Cell(cell) => cell.get(),
+            #[cfg(test)]
+            Bits(cell) => cell.bits(),
+            CarCell(n, f) => f(&o.race.car_blocks().cars[n]).get(),
+            CarBits(n, f) => f(&o.race.car_blocks().cars[n]).bits(),
+            #[cfg(test)]
+            Var(f) => f().get(),
             Owned(f) => f(o).get(),
-            _ => self.get_in(o.race),
+            RaceVar(f) => f(o.race).get(),
         }
     }
 
     /// Its dword set (a float's bits), the owners' being `o`'s.
     pub fn set_with(self, o: &Owners<'_>, v: u32) {
         match self {
-            Owned(f) => f(o).set(v),
-            _ => self.set_in(o.race, v),
-        }
-    }
-
-    /// Its dword (a float's bits), the car blocks and race variables `race`'s.
-    pub fn get_in(self, race: &Race) -> u32 {
-        match self {
-            #[cfg(test)]
-            Cell(cell) => cell.get(),
-            #[cfg(test)]
-            Bits(cell) => cell.bits(),
-            CarCell(n, f) => f(&race.car_blocks().cars[n]).get(),
-            CarBits(n, f) => f(&race.car_blocks().cars[n]).bits(),
-            #[cfg(test)]
-            Var(f) => f().get(),
-            Owned(_) => unreachable!("an operand of the owners read with the race alone"),
-            RaceVar(f) => f(race).get(),
-        }
-    }
-
-    /// Its dword set (a float's bits), the car blocks and race variables `race`'s.
-    pub fn set_in(self, race: &Race, v: u32) {
-        match self {
             #[cfg(test)]
             Cell(cell) => cell.set(v),
             #[cfg(test)]
             Bits(cell) => cell.set_bits(v),
-            CarCell(n, f) => f(&race.car_blocks().cars[n]).set(v),
-            CarBits(n, f) => f(&race.car_blocks().cars[n]).set_bits(v),
+            CarCell(n, f) => f(&o.race.car_blocks().cars[n]).set(v),
+            CarBits(n, f) => f(&o.race.car_blocks().cars[n]).set_bits(v),
             #[cfg(test)]
             Var(f) => f().set(v),
-            Owned(_) => unreachable!("an operand of the owners set with the race alone"),
-            RaceVar(f) => f(race).set(v),
+            Owned(f) => f(o).set(v),
+            RaceVar(f) => f(o.race).set(v),
         }
     }
 }
@@ -158,9 +141,9 @@ macro_rules! var {
         })
     };
     (@gfx $($f:tt)+) => {
-        $crate::race::settings_copy::StepOperand::Var({
-            fn f() -> &'static dyn $crate::session::DwordLike {
-                &$crate::gfx::owner::gfx().$($f)+
+        $crate::race::settings_copy::StepOperand::Owned({
+            fn f<'a>(o: &'a $crate::owners::Owners<'a>) -> &'a dyn $crate::session::DwordLike {
+                &o.gfx.$($f)+
             }
             f
         })
@@ -223,8 +206,8 @@ impl Effects for GameEffects {
 }
 
 /// `race::copy_settings_in` (0x446EBE): "COPY GRAHAM TO SHAUN".
-pub fn copy_settings_in(race: &Race) -> Result<(), Refused> {
-    copy_in(race, &mut GameEffects)
+pub fn copy_settings_in(race: &Race, gfx: &Gfx) -> Result<(), Refused> {
+    copy_in(race, gfx, &mut GameEffects)
 }
 
 /// `race::copy_settings_out` (0x4486FB): "COPY SHAUN TO GRAHAM"; skipped (and logged so)
@@ -284,7 +267,7 @@ fn log_arcade_positions(race: &Race, fx: &mut impl Effects) {
 }
 
 /// The front end's settings into the race's (`copy_settings_in`), in the original's order.
-fn copy_in(race: &Race, fx: &mut impl Effects) -> Result<(), Refused> {
+fn copy_in(race: &Race, gfx: &Gfx, fx: &mut impl Effects) -> Result<(), Refused> {
     let shared = &race.shared;
     let (settings, results, vars, view) = (
         &shared.state.settings,
@@ -312,7 +295,7 @@ fn copy_in(race: &Race, fx: &mut impl Effects) -> Result<(), Refused> {
     view.race_cars.set(view.players.get());
     vars.car_tyres[0].set(settings.cars[0].tyre.get());
     vars.car_tyres[1].set(settings.cars[1].tyre.get());
-    vars.mip_setting.set(gfx().display.choices.mipmapping.get());
+    vars.mip_setting.set(gfx.display.choices.mipmapping.get());
     vars.settings_words[0].set(settings.lens_flare.get());
     vars.settings_words[1].set(settings.reflections.get());
     vars.settings_words[2].set(settings.car_shadows.get());
@@ -748,7 +731,7 @@ mod tests {
                 restore(&cells, &start);
                 let mut new_log = Capture::default();
                 let new_result = if copy_in {
-                    super::copy_in(race, &mut new_log)
+                    super::copy_in(race, crate::gfx::owner::gfx(), &mut new_log)
                 } else {
                     super::copy_out(race, &mut new_log)
                 };

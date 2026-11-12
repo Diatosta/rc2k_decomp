@@ -48,7 +48,7 @@ pub fn viewer_frame() -> Result<bool, Refused> {
 
 /// The list, the bar and the panel (stopped).
 fn stopped(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
-    let install = o.install;
+    let (install, system) = (o.install, o.system);
     let replay = &race.replay;
     let shared = &race.shared;
     // Converted: `rc2k_core::race::viewer_flow::{LIST_STATES, bar_places, mark_x, place_x}`.
@@ -70,14 +70,14 @@ fn stopped(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
             .get(first..)
             .and_then(|rest| rest.first_chunk::<4>())
             .ok_or(BadInput("a viewer item past the 26"))?;
-        crate::race::draw_viewer_item::draw_viewer_item(race, install, item, index)?;
+        crate::race::draw_viewer_item::draw_viewer_item(race, install, item, index, system)?;
     }
     let quad = |uv: &[Dword], rect: &[Dword; 4], colour: u32| {
         // The texture rectangle's first four dwords (the frame's picture holds five).
         let uv = uv
             .first_chunk::<4>()
             .ok_or(BadInput("a texture rectangle of fewer than four"))?;
-        crate::drive::tyre_quad::tyre_quad_cells(uv, rect, colour)
+        crate::drive::tyre_quad::tyre_quad_cells(uv, rect, colour, race.viewer_panel(), system)
     };
     let v = race.viewer_panel();
     quad(&v.frame_picture_rect, &v.bar_frame_rect, 0xFF_FFFF)?;
@@ -108,7 +108,7 @@ fn stopped(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
         quad(&v.button_picture_rect, &v.button_rect_c, 0xFF_FFFF)?;
         quad(&v.button_body_rect, &v.button_rect_b, 0xFF_FFFF)?;
         quad(&v.button_body_rect, &v.button_rect_d, 0xFF_FFFF)?;
-        crate::race::draw_viewer_panel::draw_viewer_panel(race, o.gfx, o.strings)?;
+        crate::race::draw_viewer_panel::draw_viewer_panel(race, o.gfx, o.strings, o.system)?;
     }
     Ok(())
 }

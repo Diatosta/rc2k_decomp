@@ -260,12 +260,7 @@ fn hung_value(gfx: &Gfx, variable: Source, plus: u32) -> u32 {
     variable.cell(gfx).get().wrapping_add(plus)
 }
 
-pub fn build_fonts(gfx: &Gfx) -> Result<(), Refused> {
-    let o = crate::owners::boundary();
-    build_fonts_in(gfx, o.system, o.strings)
-}
-
-/// `build_fonts` for a caller that holds the owners.
+/// Builds the fonts the caller's owners hold.
 pub fn build_fonts_in(gfx: &Gfx, system: &System, strings: &Strings) -> Result<(), Refused> {
     if gfx.fonts.font_block.palettes.is_set() {
         return Err(FatalError {

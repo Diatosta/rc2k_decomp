@@ -62,7 +62,7 @@ pub fn lay_out_pieces(
         }
     };
     for (n, new) in made.iter().enumerate() {
-        let piece = Piece::nth(n as u32);
+        let piece = Piece::nth(install, n as u32);
         if let Some(text) = new.text {
             piece.set_text_id(text);
         }

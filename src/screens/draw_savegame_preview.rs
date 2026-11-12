@@ -14,7 +14,7 @@
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
-use crate::saves::read_savegame_slot::read_savegame_slot;
+use crate::saves::read_savegame_slot::read_savegame_slot_in;
 use crate::screens::draw_empty_savegame::draw_empty_savegame;
 use crate::screens::draw_savegame_details::draw_savegame_details;
 use crate::text::draw_text::Canvas;
@@ -25,6 +25,7 @@ use crate::text::draw_text::Canvas;
 pub fn draw_savegame_preview(
     menus: &Menus,
     saves: &crate::saves::owner::Saves,
+    system: &crate::system::owner::System,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
     let savegame_preview = &saves.savegame_preview;
@@ -45,7 +46,7 @@ pub fn draw_savegame_preview(
         }
         Preview::Slot { slot, read: true } => {
             // Refused before anything is written: a slot past the list.
-            let found = read_savegame_slot(slot)?;
+            let found = read_savegame_slot_in(saves, slot)?;
             savegame_preview.shown_slot.set(slot);
             savegame_preview.nothing_to_show.set(!found as u32);
         }
@@ -54,6 +55,6 @@ pub fn draw_savegame_preview(
     if savegame_preview.nothing_to_show.get() == 1 {
         draw_empty_savegame(canvas)
     } else {
-        draw_savegame_details(tables, canvas)
+        draw_savegame_details(tables, saves, system, canvas)
     }
 }

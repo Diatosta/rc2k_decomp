@@ -11,18 +11,19 @@ use crate::menu::clear_text::clear_text;
 use crate::menu::owner::Menus;
 use crate::menu::text_entry::set_length;
 use crate::service::load_setup_slot::highlighted_slot;
+use crate::service::owner::Service;
 use crate::service::read_setup_slot::{SLOT_COUNT, slot_name};
 
 // ---- Rust version ----
 
-pub fn begin_setup_name(menus: &Menus) -> Result<(), BadInput> {
+pub fn begin_setup_name(menus: &Menus, service: &'static Service) -> Result<(), BadInput> {
     let slot = highlighted_slot(menus);
     if slot >= SLOT_COUNT {
         return Err(BadInput("slot past the name table"));
     }
     {
-        backup_text(menus, slot_name(slot))?;
-        clear_text(menus, slot_name(slot))?;
+        backup_text(menus, slot_name(service, slot))?;
+        clear_text(menus, slot_name(service, slot))?;
         menus.screens.option_work.typing.set(true);
     }
     set_length(menus, 0);

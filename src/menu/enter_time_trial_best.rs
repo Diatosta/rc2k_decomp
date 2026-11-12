@@ -18,6 +18,7 @@ use crate::menu::standings::name_address_of;
 
 // hhmm
 pub fn enter_time_trial_best(
+    race: &crate::race::owner::Race,
     menus: &Menus,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
@@ -29,7 +30,7 @@ pub fn enter_time_trial_best(
     let slot = record.record()?.event_slot();
     set(&menus.screens.draw_work.figure, slot);
     let cheats = menus.play.cheats.cheats.get();
-    let sealed = crate::menu::sealed_player_time::sealed_player_time(menus, slot)?;
+    let sealed = crate::menu::sealed_player_time::sealed_player_time(menus, race, slot)?;
     // The logic is in `rc2k_core::saves::entries::BestTime::enter`, then `rank_time_trial_best`.
     use crate::menu::standings::name_of;
     let best = bests::NewBest {
@@ -39,7 +40,7 @@ pub fn enter_time_trial_best(
         name_at: name,
         car: p.get().car_number,
         group: p.get().class,
-        name: name_of(&p.get())?,
+        name: name_of(menus, &p.get())?,
         entered: None,
         seal: Some(bests::Seal { cheats, sealed }),
         line: Some(p.get().best_line),

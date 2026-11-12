@@ -38,7 +38,7 @@ use rc2k_core::menu::event_races::{self as races, PICKED, Step, Var};
 /// steps, the race and the front end.
 struct Game<'a> {
     menus: &'a Menus,
-    owners: Owners<'a>,
+    owners: Owners<'static>,
     /// The walked drivers.
     drivers: &'a [Driver],
     /// The stage's track pack entry.
@@ -169,7 +169,7 @@ impl races::EventRaces for Game<'_> {
     }
 }
 
-pub fn run_event_races(o: Owners<'_>) -> Result<(), Refused> {
+pub fn run_event_races(o: Owners<'static>) -> Result<(), Refused> {
     let menus = o.menus;
     let screens = &menus.screens;
     let drivers = drivers(menus)?;

@@ -11,7 +11,6 @@
 
 use crate::errors::BadInput;
 use crate::errors::Refused;
-use crate::gfx::owner::gfx;
 use crate::race::game_map::{GAME_MAP, Tile};
 use crate::race::owner_frame::Frame;
 use rc2k_core::race::map::TILE;
@@ -21,8 +20,9 @@ pub fn blit_map_tiles(
     texture: u32,
     first_x: u32,
     first_y: u32,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
-    let drawing = &gfx().drawing;
+    let drawing = &gfx.drawing;
     use crate::d3d::{lock_texture::lock_texture, unlock_texture::unlock_texture};
     // Converted: `rc2k_core::race::map::{any_inside, check_tiles, row_gap, tile_row,
     // tile_index, pixel_width}`.

@@ -15,6 +15,7 @@
 use crate::errors::Refused;
 use crate::gfx::blit_bar::Bar;
 use crate::gfx::blit_bar_marker::blit_bar_marker;
+use crate::gfx::owner::Gfx;
 use crate::menu::owner::Menus;
 use crate::service::state::{blink_on, edit_mode, repair_flag};
 use crate::session::PlainDword;
@@ -63,6 +64,8 @@ pub enum Marker {
 
 /// Puts the bar in the bar globals and draws the marker.
 fn place(
+    gfx: &Gfx,
+    menus: &Menus,
     canvas: &mut dyn Canvas,
     (x, y, glyph): (i32, i32, u32),
     percent: i32,
@@ -73,10 +76,10 @@ fn place(
         width: BAR_WIDTH,
         fill_glyph: glyph,
         percent,
-        ..Bar::read()
+        ..Bar::read(gfx)
     }
-    .write();
-    { blit_bar_marker(&mut |call| canvas.blit_glyph(call)) }?;
+    .write_in(gfx);
+    blit_bar_marker(gfx, menus, &mut |call| canvas.blit_glyph(call))?;
     Ok(())
 }
 
@@ -84,6 +87,7 @@ fn place(
 /// leaves in eax and esi its one caller, `screens::draw_service_area`, does not read.
 pub fn draw_marker(
     menus: &Menus,
+    gfx: &Gfx,
     marker: Marker,
     player: crate::menu::standings::PlayerCell,
     canvas: &mut dyn Canvas,
@@ -123,6 +127,6 @@ pub fn draw_marker(
             y,
             glyph,
             percent,
-        } => place(canvas, (x, y, glyph), percent),
+        } => place(gfx, menus, canvas, (x, y, glyph), percent),
     }
 }

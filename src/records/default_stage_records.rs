@@ -11,6 +11,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::random_below::random_below;
+use crate::menu::owner::Menus;
 use crate::records::stages_store::{HOLDER_NAME_LEN, Holder, HolderRow, RecordTable};
 use crate::saves::drivers::Driver;
 
@@ -30,16 +31,16 @@ fn records(table: RecordTable) -> Result<usize, BadInput> {
 }
 
 /// A made-up record holder: a random driver's nationality, car and name.
-fn holder(driver: Driver, speed: u32) -> Result<(HolderRow, Vec<u8>), Refused> {
+fn holder(menus: &Menus, driver: Driver, speed: u32) -> Result<(HolderRow, Vec<u8>), Refused> {
     let row = HolderRow {
         nation: driver.nation(),
         car: driver.car(),
         speed,
     };
-    Ok((row, driver.name(crate::menu::owner::menus())?.1))
+    Ok((row, driver.name(menus)?.1))
 }
 
-pub fn default_stage_records(table: RecordTable) -> Result<(), Refused> {
+pub fn default_stage_records(menus: &Menus, table: RecordTable) -> Result<(), Refused> {
     if table.row(0)?.record()?.holder_name(Holder::Fastest)[0] != 0 {
         return Ok(());
     }
@@ -49,11 +50,11 @@ pub fn default_stage_records(table: RecordTable) -> Result<(), Refused> {
         if record.tag() != 0 {
             continue;
         }
-        let first = Driver::number(random_below(0xAA)?)?;
+        let first = Driver::of(menus, random_below(0xAA)?)?;
         let time = random_below(0xAA)?.wrapping_add(1000);
-        let second = Driver::number(random_below(0xAA)?)?;
+        let second = Driver::of(menus, random_below(0xAA)?)?;
         let speed = random_below(0xAA)?.wrapping_add(1000);
-        let both = [holder(first, time)?, holder(second, speed)?];
+        let both = [holder(menus, first, time)?, holder(menus, second, speed)?];
         if both.iter().any(|(_, name)| name.len() > HOLDER_NAME_LEN) {
             return Err(BadInput("a driver's name past a record holder's 0x20 bytes").into());
         }

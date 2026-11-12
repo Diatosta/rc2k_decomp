@@ -119,14 +119,14 @@ pub fn windscreen_drops_top(
                 .windscreen_drop_batch
                 .vertex_count
                 .set(quads.wrapping_mul(6));
-            crate::effects::windscreen_drops_frame::draw_batch()?;
+            crate::effects::windscreen_drops_frame::draw_batch(gfx)?;
         }
         let marks = effects.settings()?;
         if marks.windscreen_wet.get() != 0 && effects.setup.kind_floats.running.get() != 0 {
             crate::effects::windscreen_drops::windscreen_drops_step(masks, drops)?;
         }
     }
-    crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[202].get());
+    crate::scene::set_texture::set_texture(scene, scene.textures.kinds.kind_first_slots[202].get());
     crate::scene::polygon_work::front_end()
         .polygon_vertex_count
         .set_bits(4u32);

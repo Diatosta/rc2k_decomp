@@ -14,7 +14,7 @@
 //! name is a reading.
 
 use crate::errors::BadInput;
-use crate::gfx::owner::{Pictures, gfx};
+use crate::gfx::owner::Pictures;
 use crate::gfx::picture::{has_picture, with_picture};
 
 // ---- game data ----
@@ -37,11 +37,11 @@ pub trait PictureSurface {
 }
 
 /// The game's own.
-pub struct GameSurface;
+pub struct GameSurface<'a>(pub &'a crate::gfx::owner::Gfx);
 
-impl PictureSurface for GameSurface {
+impl PictureSurface for GameSurface<'_> {
     fn locked(&self) -> bool {
-        gfx().locked.surface.is_set()
+        self.0.locked.surface.is_set()
     }
     fn lock(&mut self) -> bool {
         // `cmp g_surfaceLocked, 1`'s carry clear: locked.
@@ -55,16 +55,16 @@ impl PictureSurface for GameSurface {
             .unwrap_or_else(|e| crate::fatal::raise::end("gfx::copy_picture_to_surface", e))
     }
     fn rows(&self) -> u32 {
-        gfx().drawing.draw_surface.height.get()
+        self.0.drawing.draw_surface.height.get()
     }
     fn row_dwords(&self) -> u32 {
-        gfx().drawing.draw_surface.row_dwords.get()
+        self.0.drawing.draw_surface.row_dwords.get()
     }
     fn row_gap(&self) -> u32 {
-        gfx().drawing.draw_surface.row_gap.get()
+        self.0.drawing.draw_surface.row_gap.get()
     }
     fn pictures(&self) -> &Pictures {
-        &gfx().pictures
+        &self.0.pictures
     }
 }
 

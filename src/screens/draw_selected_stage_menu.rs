@@ -44,12 +44,12 @@ pub fn menu_titles(
 pub fn draw_selected_stage_menu(
     menus: &Menus,
     system: &crate::system::owner::System,
+    gfx: &crate::gfx::owner::Gfx,
     race: &crate::race::owner::Race,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
     let play = &menus.play;
     let screens = &menus.screens;
-    let tables = &menus.tables;
     let (Some(sel), Some((group_title, table_title))) = (
         selection_in(menus, system)?,
         menu_titles(menus, system, play)?,
@@ -65,9 +65,9 @@ pub fn draw_selected_stage_menu(
     race.shared.state.settings.direction.set(sel.group);
     item_1.set(table_title);
 
-    build_second_heading(sel.record)?;
-    draw_stage_body(tables, sel.record, true, canvas)?;
-    draw_records_for_group(menus, sel.group, sel.record, canvas)
+    build_second_heading(race, sel.record)?;
+    draw_stage_body(menus, gfx, sel.record, true, canvas)?;
+    draw_records_for_group(menus, system, sel.group, sel.record, canvas)
 }
 
 //

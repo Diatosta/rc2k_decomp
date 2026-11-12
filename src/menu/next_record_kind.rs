@@ -8,17 +8,17 @@
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
-use crate::system::owner::system;
+use crate::system::owner::System;
 
 /// The kind (eax in the original), also kept in
 /// `DrawWork.figure`.
-pub fn next_record_kind(menus: &Menus) -> Result<u32, Refused> {
+pub fn next_record_kind(menus: &Menus, system: &System) -> Result<u32, Refused> {
     let screens = &menus.screens;
     let section: u32 = screens.event.section.get();
     let index: u32 = screens.event.index.get();
     // The scan may run on past the 66 records (to `championship_end` and the event tables):
     // bounded by the whole store.
-    let tables = &system().records.stage_tables;
+    let tables = &system.records.stage_tables;
     let table = rc2k_core::strings::bytes::Offset {
         bytes: &crate::pointers::StoreBytes(tables),
         start: std::mem::offset_of!(crate::records::stages_store::StageTables, championship),

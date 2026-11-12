@@ -126,8 +126,8 @@ fn put(car: &Car, offset: u32, v: u32) -> Result<(), BadInput> {
 }
 
 /// The light record's number for the block, or the refusal.
-fn light_record(car: &Car) -> Result<u32, Refused> {
-    let n = car_file_number(car.car_kind.get());
+fn light_record(race: &Race, car: &Car) -> Result<u32, Refused> {
+    let n = car_file_number(race.kind_tables(), car.car_kind.get());
     sharing::check_light_record(n)?;
     Ok(n)
 }
@@ -142,7 +142,7 @@ pub fn share_car_state_at(
     p: &SoundObject,
     scratch: &Dword,
 ) -> Result<(), Refused> {
-    let n = light_record(car)?;
+    let n = light_record(race, car)?;
     if let Some(count) = sharing::count_down(car.reset_marker.get()) {
         o.reset_wait.set(1);
         car.reset_marker.set(count);

@@ -52,7 +52,7 @@ pub fn viewer_load_stage(race: &Race, o: Owners<'static>) -> Result<(), Refused>
         race_end::release_textures();
         race_shell::set_race_screen_mode();
 
-        crate::menu::show_loading_picture::show_loading_picture(o.menus)?;
+        crate::menu::show_loading_picture::show_loading_picture_in(o.menus, o.gfx, o.system)?;
         for (to, from) in settings(race) {
             to.set(from.get());
         }
@@ -76,10 +76,16 @@ pub fn viewer_load_stage(race: &Race, o: Owners<'static>) -> Result<(), Refused>
         crate::logfile::log_write::log_nul(&DOOR_TEXT, false, 1);
         crate::logfile::log_int::log_int(door as i32, true, 1);
 
-        sound_tables::set_up_race_sound_objects(race, &sound_tables::ObjectVars::game(), sound)?;
-        crate::sound::set_up_race_sounds::set_up_race_sounds(sound)?;
+        sound_tables::set_up_race_sound_objects(
+            race,
+            &sound_tables::ObjectVars::of(sound),
+            sound,
+            o.net,
+            o.system,
+        )?;
+        crate::sound::set_up_race_sounds::set_up_race_sounds(o)?;
         if gfx.fonts.font_block.palettes.get() == 0 {
-            { crate::gfx::build_fonts::build_fonts(gfx) }?;
+            crate::gfx::build_fonts::build_fonts_in(gfx, o.system, o.strings)?;
             shared.replay_file.viewer_fonts_built.set(1);
         }
         crate::race::read_replay_header::read_replay_header(race);

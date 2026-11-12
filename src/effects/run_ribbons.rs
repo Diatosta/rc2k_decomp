@@ -166,6 +166,7 @@ fn streak(
     view_matrix: &[crate::session::Float; 16],
     ring: &Ring,
     e: u32,
+    scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
     fog: &crate::scene::fog::Fog,
 ) -> Result<bool, Refused> {
@@ -210,6 +211,7 @@ fn streak(
         i as u32,
         0x800,
         colour,
+        scene,
         effects,
     )?;
     Ok(false)
@@ -221,6 +223,7 @@ fn move_on(ring: &Ring, e: u32, effects: &crate::effects::owner::Effects) {
 
 pub fn run_ribbons(
     ring: &Ring,
+    scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
     view: crate::effects::run_frame::EffectsView<'_>,
 ) -> Result<(), Refused> {
@@ -240,7 +243,7 @@ pub fn run_ribbons(
             // The settings' +0x60: the first car record's first word.
             if effects.settings()?.cars[0].streaks_on.get() != 0
                 && entry(ring, e)?.kind == STREAK
-                && streak(view_matrix, ring, e, effects, fog)?
+                && streak(view_matrix, ring, e, scene, effects, fog)?
             {
                 ring.work.count.set(ring.work.count.get().wrapping_sub(1));
                 if e == ring.work.cursor.get() {

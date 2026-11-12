@@ -13,10 +13,15 @@ use crate::gfx::put_surface_pixel::put_surface_pixel;
 use crate::race::mud_texel::texel_place;
 
 /// Eax as it leaves it.
-pub fn put_mud_texel(components: u32, x: u32, y: u32) -> Result<u32, Refused> {
-    let gfx = crate::gfx::owner::gfx();
+pub fn put_mud_texel(
+    components: u32,
+    x: u32,
+    y: u32,
+    scene: &crate::scene::owner::Scene,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<u32, Refused> {
     let drawing = &gfx.drawing;
-    let Some((x, y)) = texel_place(x, y) else {
+    let Some((x, y)) = texel_place(x, y, scene) else {
         return Ok(components);
     };
     // Converted: `rc2k_core::race::mud::inside` (the place by `texel_place`).

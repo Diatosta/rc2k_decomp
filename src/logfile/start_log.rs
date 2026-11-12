@@ -14,7 +14,7 @@ use crate::logfile::date_text::write_date_text;
 use crate::logfile::log_hex8::log_hex8;
 use crate::logfile::log_int::log_int;
 use crate::logfile::write_line::{LOG_PATH, level};
-use crate::system::owner::system;
+use crate::system::owner::System;
 
 // ---- game data ----
 
@@ -48,12 +48,11 @@ fn text(text: &[u8], newline: bool) {
 
 /// The Rust version (see the header). Refuses, before doing anything, a start date the
 /// date's text refuses.
-pub fn start_log() -> Result<(), BadInput> {
-    let system = system();
+pub fn start_log(system: &System) -> Result<(), BadInput> {
     if level() == 0 {
         return Ok(());
     }
-    crate::logfile::date_text::date_text()?;
+    crate::logfile::date_text::date_text(system)?;
     let _ = std::fs::remove_file(crate::files::host_path(&LOG_PATH[..LOG_PATH.len() - 1]));
     // Converted: `rc2k_core::files::log::head`; the values gathered (the date text,
     // the memory and the drive's numbers left in game memory as the original leaves
@@ -66,7 +65,7 @@ pub fn start_log() -> Result<(), BadInput> {
     let version_at = core::mem::offset_of!(crate::session::Machine, version);
     // The date in the numbers' scratch buffer, as the original makes it (the log's
     // lock is not held: no thread logs yet).
-    let date = write_date_text(&system.work.numbers)?;
+    let date = write_date_text(system, &system.work.numbers)?;
     // `Buffer` (0x4E0558), written and read here only: a local.
     let memory = crate::os::memory();
     let free = free_space_kb();

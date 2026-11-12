@@ -41,7 +41,7 @@ pub fn keep_record_best(menus: &Menus, system: &System) -> Result<(), Refused> {
         if !bests::takes_record(p.figure, record.holder(Holder::Fastest).speed) {
             break;
         }
-        let (row, name) = as_holder(&p)?;
+        let (row, name) = as_holder(menus, &p)?;
         record.set_holder(Holder::Fastest, &row, &name);
     }
     Ok(())

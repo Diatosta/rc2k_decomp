@@ -28,7 +28,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::input::types::InputDevice;
-use crate::menu::owner::menus;
+use crate::owners::Owners;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
@@ -68,12 +68,13 @@ pub fn press_time(shared: &RaceShared, s: i32) -> i32 {
 
 /// The gauge's dealings with the game: the device's state written into it before each
 /// drawing.
-struct GameIo<'a> {
-    race: &'a Race,
+struct GameIo {
+    o: Owners<'static>,
+    race: &'static Race,
     device: &'static InputDevice,
 }
 
-impl GameIo<'_> {
+impl GameIo {
     fn store(&self, g: &Gauge) {
         self.device.gauge.set(g.gauge);
         self.device.stage.set(g.stage);
@@ -81,7 +82,7 @@ impl GameIo<'_> {
     }
 }
 
-impl Io for GameIo<'_> {
+impl Io for GameIo {
     type Error = Refused;
     fn tick(&mut self) -> Result<u32, Refused> {
         Ok(crate::system::tick_count::tick_count())
@@ -91,12 +92,17 @@ impl Io for GameIo<'_> {
         Ok(self.device.bits.get() & 0xFF != 0)
     }
     fn draw(&mut self, g: &Gauge) -> Result<(), Refused> {
-        // `draw_tyre_change` wants the `'static` owner.
-        let race = crate::race::owner::race();
+        let race = self.race;
         let shared = &race.shared;
         self.store(g);
         // The drawing takes the device by address (its x87 turn reads the gauge).
-        crate::race::draw_tyre_change::draw_tyre_change(race, shared, self.device)
+        crate::race::draw_tyre_change::draw_tyre_change(
+            race,
+            shared,
+            self.device,
+            self.o.gfx,
+            self.o.strings,
+        )
     }
     fn press_time(&mut self, s: u32) -> u32 {
         let shared = &self.race.shared;
@@ -117,19 +123,14 @@ impl Io for GameIo<'_> {
             shared
                 .tyre_change
                 .record_name
-                .set(n, menus().play.names.player_names.get(from + n));
+                .set(n, self.o.menus.play.names.player_names.get(from + n));
         }
     }
 }
 
 /// `start` starts the gauge, else runs it, for player `player`; gives the result.
-pub fn tyre_change_gauge(
-    race: &Race,
-    start: bool,
-    player: u32,
-    input: &'static crate::input::owner::Input,
-    system: &crate::system::owner::System,
-) -> Result<u32, Refused> {
+pub fn tyre_change_gauge(o: Owners<'static>, start: bool, player: u32) -> Result<u32, Refused> {
+    let (race, input, system) = (o.race, o.input, o.system);
     // Converted: `rc2k_core::race::tyre_change::turn`.
     if player > 7 {
         return Err(BadInput("a tyre change player past 7").into());
@@ -138,7 +139,7 @@ pub fn tyre_change_gauge(
         return Err(BadInput("a tyre change player without a device").into());
     };
     race.shared.tyre_change.player.set(player);
-    let mut io = GameIo { race, device: d };
+    let mut io = GameIo { o, race, device: d };
     let mut gauge = Gauge {
         gauge: d.gauge.get(),
         stage: d.stage.get(),

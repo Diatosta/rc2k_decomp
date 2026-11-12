@@ -26,7 +26,10 @@ pub fn draw_glow(
         for (value, state) in STATES {
             crate::scene::set_render_state::set_render_state(value, state);
         }
-        crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[211].get());
+        crate::scene::set_texture::set_texture(
+            scene,
+            scene.textures.kinds.kind_first_slots[211].get(),
+        );
         let place = [
             x87::add_80(&clipping.glow.place[2], &clipping.glow.offset[0]),
             x87::add_80(&clipping.glow.place[1], &clipping.glow.offset[1]),
@@ -37,6 +40,7 @@ pub fn draw_glow(
             0xFFFF_FFFF,
             0x1_0000,
             place,
+            scene,
             effects,
         )?;
     }

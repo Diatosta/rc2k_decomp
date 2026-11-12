@@ -48,16 +48,18 @@ fn run(
             crate::platform::set_menu_mode_now();
         }
         TidyStep::LoadingPicture => {
-            crate::menu::show_loading_picture::show_loading_picture(o.menus)?;
+            crate::menu::show_loading_picture::show_loading_picture_in(o.menus, o.gfx, o.system)?;
         }
         TidyStep::ClearRaceSounds => sound_tables::clear_race_sound_objects(o.sound)?,
-        TidyStep::SoundSettings => crate::sound::apply_settings::apply_settings()?,
+        TidyStep::SoundSettings => crate::sound::apply_settings::apply_settings(o)?,
         TidyStep::FreeFonts => crate::gfx::free_fonts::free_fonts(
             &fonts.glyph_tables.memory,
             &fonts.font_block.palettes,
         )?,
-        TidyStep::SetUpEngine => crate::scene::set_up_engine::set_up_engine()?,
-        TidyStep::SetUpFrontEnd => crate::scene::set_up_front_end_scene::set_up_front_end_scene()?,
+        TidyStep::SetUpEngine => crate::scene::set_up_engine::set_up_engine_in(race, o.scene)?,
+        TidyStep::SetUpFrontEnd => {
+            crate::scene::set_up_front_end_scene::set_up_front_end_scene_in(o)?;
+        }
         TidyStep::TakeKey => {
             crate::input::take_key::take_key();
         }

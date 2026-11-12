@@ -157,12 +157,12 @@ pub fn loadlevel_init(race: &Race, o: crate::owners::Owners<'_>) -> Result<(), R
     // load texture info and the course number.
     s.log();
     s.indent(3);
-    level::load_texture_info(&race.course)?;
+    level::load_texture_info(&race.course, scene)?;
     level::set_course_number(race.shared.vars.stage_number.get(), scene)?;
     s.progress(6)?;
     s.indent(-3);
     s.step(&mut || stage_prefs::load_prefs(race), Some(7))?;
-    s.step(&mut || level::load_error_list(&race.frame), Some(8))?;
+    s.step(&mut || level::load_error_list(&race.frame, scene), Some(8))?;
     s.step(
         &mut || crate::scene::texture_levels::init_texture_levels(race, scene),
         Some(0xA),
@@ -171,7 +171,7 @@ pub fn loadlevel_init(race: &Race, o: crate::owners::Owners<'_>) -> Result<(), R
         &mut || crate::scene::set_up_textures::set_up_textures(&race.shared, scene, o.gfx),
         Some(0xE),
     )?;
-    s.step(&mut || level::build_texture_infos(&race.course), Some(0xF))?;
+    s.step(&mut || level::build_texture_infos(race), Some(0xF))?;
     s.step(
         &mut || crate::race::course_data::locate_current_course(race, scene),
         Some(0x13),
@@ -203,6 +203,7 @@ pub fn loadlevel_init(race: &Race, o: crate::owners::Owners<'_>) -> Result<(), R
         &scene.file_numbers.text_at(texts::MAP_PATH),
         &scene.file_numbers.text_at(texts::MAP_KEY),
         system,
+        gfx,
     )?;
     s.progress(0x5A)?;
     s.indent(-3);
@@ -261,14 +262,14 @@ pub fn loadlevel_init(race: &Race, o: crate::owners::Owners<'_>) -> Result<(), R
     // initmud: mark 0x64 twice, then the callback put away.
     s.log();
     s.indent(3);
-    crate::race::mud::init_mud(race, scene)?;
+    crate::race::mud::init_mud(race, scene, gfx)?;
     s.progress(0x64)?;
     s.progress(0x64)?;
     race.shared.vars.bar_function.set(BAR_DONE);
     s.indent(-3);
     s.step(
         &mut || {
-            stage_prefs::get_mat_crash(&race.frame.matrices, &race.shared.car);
+            stage_prefs::get_mat_crash(&race.frame.matrices, &race.shared.car, scene);
             Ok(())
         },
         None,

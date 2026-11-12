@@ -126,7 +126,7 @@ pub fn mirror_view_window(
 /// `race::draw_flat_triangle` (0x455912): three vertices at (1, 1, 0) with texture 0, 0,
 /// colour 0 (the original's `fld1` / `fldz` stores), `g_polygonVertexCount` 3, drawn
 /// (`scene::draw_fan`). Every register kept.
-pub fn draw_flat_triangle() {
+pub fn draw_flat_triangle(scene: &crate::scene::owner::Scene) {
     // 1.0 at x, y of each of the three vertices; 0.0 at the rest of their floats (z, rhw,
     // u, v) and the specular.
     for vertex in &crate::d3d::vertices_store::VERTICES.vertices[..3] {
@@ -141,7 +141,7 @@ pub fn draw_flat_triangle() {
     crate::scene::polygon_work::front_end()
         .polygon_vertex_count
         .set(3);
-    crate::scene::draw_fan::draw_fan(crate::scene::polygon_work::front_end());
+    crate::scene::draw_fan::draw_fan(scene, crate::scene::polygon_work::front_end());
 }
 
 /// The marks' shadow refusals (`effects::draw_shadow`'s first and second shadows), checked
@@ -516,7 +516,7 @@ pub fn draw_own_car(
     // `race::draw_car_shined` reads only the car's block.
     crate::race::car_draw::draw_car_shined(ctx, car)?;
     ctx.view.cars.group_mask.set(u32::MAX);
-    crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[202].get());
+    crate::scene::set_texture::set_texture(scene, scene.textures.kinds.kind_first_slots[202].get());
     crate::scene::set_render_state::set_render_state(2, 0x14);
     crate::scene::polygon_work::front_end()
         .polygon_vertex_count

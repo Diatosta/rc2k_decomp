@@ -6,7 +6,7 @@
 use crate::audio::a3d::{open_a3d, open_a3d2};
 use crate::audio::store::AudioState;
 use crate::errors::{BadInput, Refused};
-use crate::system::owner::system;
+use crate::system::owner::System;
 
 const CAPS_TEXT: &std::ffi::CStr = c"AUD: sound caps: flgs/pri/min/max:\t"; // "AUD: sound caps: flgs/pri/min/max:\t"
 const MAX_HW_TEXT: &std::ffi::CStr = c" maxhw: all/static/stream (free)\t"; // " maxhw: all/static/stream (free)\t"
@@ -51,13 +51,13 @@ pub fn set_primary_format(state: &AudioState, mode: u32) -> Result<bool, Refused
 }
 
 /// The 3D listener opened: false when it failed (the carry).
-pub fn open_listener(state: &AudioState) -> Result<bool, Refused> {
-    crate::audio::primary::open_listener(state, system().session.machine.has_fpu.get())
+pub fn open_listener(state: &AudioState, system: &System) -> Result<bool, Refused> {
+    crate::audio::primary::open_listener(state, system.session.machine.has_fpu.get())
 }
 
 /// DirectSound opened (GUID `guid`) with the game's variables: false when it failed.
-pub fn open_sound_in_game(state: &AudioState, guid: u32) -> Result<bool, Refused> {
-    open_sound(state, guid, &mut game_direct_sound_create)
+pub fn open_sound_in_game(state: &AudioState, system: &System, guid: u32) -> Result<bool, Refused> {
+    open_sound(state, system, guid, &mut game_direct_sound_create)
 }
 
 /// `audio::release_primary`: unless A3D or no primary buffer: stopped, its kept volume put
@@ -138,7 +138,7 @@ pub fn release_a3d(state: &AudioState) {
 
 /// `audio::close_sound`: DirectSound's cooperative level 1 (normal), released, forgotten,
 /// then `release_a3d`. Refuses A3D (0x40CAD9).
-pub fn close_sound(state: &AudioState) -> Result<(), Refused> {
+pub fn close_sound(state: &AudioState, system: &System) -> Result<(), Refused> {
     if crate::audio::buffer_settings::a3d(state) {
         return Err(BadInput("A3D (0x40CAD9)").into());
     }
@@ -148,7 +148,7 @@ pub fn close_sound(state: &AudioState) -> Result<(), Refused> {
             log_text(CLOSE_TEXT, true);
             crate::platform_sound::set_cooperative_level(
                 ds,
-                system().session.machine.window.get(),
+                system.session.machine.window.get(),
                 1,
             );
             crate::platform_sound::release(state.direct_sound.get());
@@ -175,6 +175,7 @@ pub fn game_direct_sound_create(_guid: u32) -> Result<u32, i32> {
 /// does, the logs, the platform's DirectSound.
 struct Open<'a> {
     state: &'a AudioState,
+    system: &'a System,
     create: CreateSound<'a>,
 }
 
@@ -215,7 +216,11 @@ impl rc2k_core::audio::device::Opening for Open<'_> {
     }
     fn cooperate(&mut self) -> i32 {
         let ds = self.state.direct_sound.get();
-        crate::platform_sound::set_cooperative_level(ds, system().session.machine.window.get(), 3)
+        crate::platform_sound::set_cooperative_level(
+            ds,
+            self.system.session.machine.window.get(),
+            3,
+        )
     }
 }
 
@@ -224,15 +229,27 @@ impl rc2k_core::audio::device::Opening for Open<'_> {
 /// with bit 0x1000: `open_a3d`, failing which `DirectSoundCreate`; cooperative level 3.
 /// A failure (or no bit 0x1000) logs "AUD: open failed rc=" and a code (the GUID, or the
 /// call's result) and gives false (the carry).
-pub fn open_sound(state: &AudioState, guid: u32, create: CreateSound) -> Result<bool, Refused> {
+pub fn open_sound(
+    state: &AudioState,
+    system: &System,
+    guid: u32,
+    create: CreateSound,
+) -> Result<bool, Refused> {
     // Converted: `rc2k_core::audio::device::open_sound`.
-    rc2k_core::audio::device::open_sound(guid, &mut Open { state, create })
+    rc2k_core::audio::device::open_sound(
+        guid,
+        &mut Open {
+            state,
+            system,
+            create,
+        },
+    )
 }
 
 /// `audio::reopen_sound`: when the mode's 0xF000 bits differ from those DirectSound was
 /// opened with: `close_sound` and `open_sound` (GUID 0). Returns the carry (that
 /// of `open_sound`, when it ran).
-pub fn reopen_sound(state: &AudioState) -> Result<bool, Refused> {
+pub fn reopen_sound(state: &AudioState, system: &System) -> Result<bool, Refused> {
     // Converted: `rc2k_core::audio::device::needs_reopen`.
     if !rc2k_core::audio::device::needs_reopen(
         state.sound_mode.get(),
@@ -240,6 +257,6 @@ pub fn reopen_sound(state: &AudioState) -> Result<bool, Refused> {
     ) {
         return Ok(false);
     }
-    close_sound(state)?;
-    Ok(!open_sound_in_game(state, 0)?)
+    close_sound(state, system)?;
+    Ok(!open_sound_in_game(state, system, 0)?)
 }

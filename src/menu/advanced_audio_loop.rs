@@ -43,6 +43,6 @@ pub const SCREEN: Screen = Screen {
 };
 
 /// Runs the screen (a refusal is the caller's).
-pub fn run(o: crate::owners::Owners<'_>) -> Result<(), crate::errors::Refused> {
+pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
     screen_entry(o, "menu::advanced_audio_loop", &SCREEN)
 }

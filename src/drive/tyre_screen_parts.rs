@@ -18,7 +18,10 @@ fn set(cells: &[Dword; 4], v: [u32; 4]) {
 
 /// Its quads (`drive::tyre_quad`).
 // Converted: `rc2k_core::drive::tyre_screen::fixed_parts`.
-pub fn tyre_screen_parts(race: &Race) -> Result<(), Refused> {
+pub fn tyre_screen_parts(
+    race: &Race,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     let shared = &race.shared;
     let parts = std::array::from_fn(|k| shared.tyre_change.parts[k].get());
     let wheel = std::array::from_fn(|k| shared.tyre_change.wheel[k].get());
@@ -30,6 +33,8 @@ pub fn tyre_screen_parts(race: &Race) -> Result<(), Refused> {
                 &race.viewer_panel().texture_rect,
                 &race.viewer_panel().screen_rect,
                 0xFF_FFFF,
+                race.viewer_panel(),
+                system,
             )
         }?;
     }

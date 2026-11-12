@@ -11,11 +11,10 @@
 //! is the one card, a 3D primary one (unless `ignoreprimary`), as the callback would set
 //! it. One caller, `start`, which calls it directly.
 
-use crate::d3d::owner::d3d;
+use crate::d3d::owner::D3d;
 use crate::gfx::owner::Display;
 use crate::logfile::log_write::log_newline_l1;
-pub fn find_3d_cards(display: &Display) {
-    let d3d = d3d();
+pub fn find_3d_cards(display: &Display, d3d: &D3d) {
     display.cards.primary.set(0);
     display.cards.secondary.set(0);
     if d3d.cards.no_search.get() == 0 {

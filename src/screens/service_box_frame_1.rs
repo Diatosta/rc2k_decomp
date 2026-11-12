@@ -4,13 +4,14 @@
 //! Part of `screens::draw_service_boxes`.
 
 use crate::errors::Refused;
-use crate::menu::owner::Screens;
+use crate::owners::Owners;
 use crate::screens::service_boxes::{ORANGE, cell_frame};
 
-pub fn service_box_frame_1(screens: &Screens) -> Result<(), Refused> {
+pub fn service_box_frame_1(o: Owners<'_>) -> Result<(), Refused> {
+    let screens = &o.menus.screens;
     let installed = screens.state.driver_stats.setups[0].installed.get();
     if installed < 5 {
-        cell_frame(0x44, 0x42, installed, ORANGE)?;
+        cell_frame(o, 0x44, 0x42, installed, ORANGE)?;
     }
     Ok(())
 }

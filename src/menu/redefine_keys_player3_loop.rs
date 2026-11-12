@@ -30,8 +30,8 @@ fn before(entry: &Entry) -> Result<(), Refused> {
     Ok(())
 }
 
-fn after_first_frame(_: &Entry) -> Result<Flow, Refused> {
-    if quitting() as u32 == 0x1 {
+fn after_first_frame(entry: &Entry) -> Result<Flow, Refused> {
+    if quitting(entry.system) as u32 == 0x1 {
         return Ok(Flow::Leave);
     }
     Ok(Flow::On)
@@ -96,6 +96,6 @@ pub const SCREEN: Screen = Screen {
 };
 
 /// Runs the screen (a refusal is the caller's).
-pub fn run(o: crate::owners::Owners<'_>) -> Result<(), crate::errors::Refused> {
+pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
     screen_entry(o, "menu::redefine_keys_player3_loop", &SCREEN)
 }

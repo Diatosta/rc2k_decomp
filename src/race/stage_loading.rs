@@ -83,9 +83,9 @@ pub fn load_stage_in(race: &Race, o: crate::owners::Owners<'static>) -> Result<(
     log();
     indent(3);
     if race.replay.finish.no_place.get() != 0 {
-        crate::race::music::game_music(&race.shared);
+        crate::race::music::game_music(&race.shared, o);
     } else {
-        crate::race::music::game_music_8();
+        crate::race::music::game_music_8(o);
     }
     indent(-3);
     log();

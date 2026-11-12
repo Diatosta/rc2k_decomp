@@ -6,7 +6,8 @@
 //! the second one.
 
 use crate::gfx::blit_glyph::BlitCall;
-use crate::menu::owner::menus;
+use crate::gfx::owner::Gfx;
+use crate::menu::owner::Menus;
 use crate::records::stages_store::Record;
 
 // ---- game data ----
@@ -14,22 +15,22 @@ use crate::records::stages_store::Record;
 const FIRST_GLYPH: u32 = 0x9C;
 const SECOND_GLYPH: u32 = 0x9D;
 
-pub fn sprite_table() -> u32 {
-    menus().screens.loop_flags.sprite_table.get()
+pub fn sprite_table(menus: &Menus) -> u32 {
+    menus.screens.loop_flags.sprite_table.get()
 }
 
 /// The two blitter calls the original makes for `record`.
-pub fn marker_calls(record: &Record) -> [BlitCall; 2] {
+pub fn marker_calls(gfx: &Gfx, menus: &Menus, record: &Record) -> [BlitCall; 2] {
     let [(x0, y0), (x1, y1)] = record.markers();
     [
-        BlitCall::sprite(FIRST_GLYPH, x0, y0),
-        BlitCall::sprite(SECOND_GLYPH, x1, y1),
+        BlitCall::sprite_in(gfx, menus, FIRST_GLYPH, x0, y0),
+        BlitCall::sprite_in(gfx, menus, SECOND_GLYPH, x1, y1),
     ]
 }
 
 /// Stores a marker's position in the two globals, as the original does before each blit.
-pub fn set_marker_position(call: &BlitCall) {
-    let screens = &menus().screens;
+pub fn set_marker_position(menus: &Menus, call: &BlitCall) {
+    let screens = &menus.screens;
     screens.draw_work.marker_x.set(call.x as u32);
     screens.draw_work.marker_y.set(call.y as u32);
 }

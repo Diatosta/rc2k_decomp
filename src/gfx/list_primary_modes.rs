@@ -14,10 +14,14 @@ use crate::gfx::mark_3d_modes::mark_3d_modes;
 use crate::gfx::owner::Display;
 
 pub const PRIMARY: u32 = 0x1000;
-pub fn list_primary_modes(display: &Display) -> Result<(), Refused> {
+pub fn list_primary_modes(
+    display: &Display,
+    system: &crate::system::owner::System,
+    d3d: &crate::d3d::owner::D3d,
+) -> Result<(), Refused> {
     standalone_modes(display, PRIMARY)?;
     if display.cards.primary.get() == 1 {
-        mark_3d_modes(display, PRIMARY)?;
+        mark_3d_modes(display, system, d3d, PRIMARY)?;
     }
     Ok(())
 }

@@ -30,7 +30,10 @@ pub fn setup_with(fl: &WindscreenFlakes, places: [u32; 4], scene: &crate::scene:
     use crate::scene::set_render_state::set_render_state;
     {
         crate::scene::depth_buffer_on::depth_buffer(true);
-        crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[202].get());
+        crate::scene::set_texture::set_texture(
+            scene,
+            scene.textures.kinds.kind_first_slots[202].get(),
+        );
         for (value, state) in STATES {
             set_render_state(value, state);
         }

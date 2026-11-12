@@ -32,6 +32,7 @@ fn project(weather: &Weather) {
 pub fn draw_rain_streak(
     weather: &Weather,
     place: [[u8; 10]; 3],
+    scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     let rain = &weather.rain;
@@ -50,7 +51,7 @@ pub fn draw_rain_streak(
         if clip_quad(effects)? {
             return Ok(());
         }
-        draw_fan();
+        draw_fan(scene);
         crate::scene::polygon_work::front_end()
             .polygon_vertex_count
             .set_bits(4u32);

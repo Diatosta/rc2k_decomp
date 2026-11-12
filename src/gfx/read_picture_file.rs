@@ -27,7 +27,15 @@ pub fn read_picture_file(
     path: &dyn crate::session::TextPlace,
     gfx: &crate::gfx::owner::Gfx,
 ) -> Result<bool, Refused> {
-    let system = crate::system::owner::system();
+    read_picture_file_in(path, gfx, crate::system::owner::system())
+}
+
+/// `read_picture_file` for a caller that holds the system.
+pub fn read_picture_file_in(
+    path: &dyn crate::session::TextPlace,
+    gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
+) -> Result<bool, Refused> {
     use rc2k_core::gfx::loading::{Reader, ending, reader};
     let png = &gfx.png;
     let text = path.text("a picture's path")?;

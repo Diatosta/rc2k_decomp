@@ -2,7 +2,7 @@
 //! quads (`scene::draw_tinted_quad`), and the outlines and frames built from them.
 
 use crate::errors::Refused;
-use crate::menu::owner::Screens;
+use crate::owners::Owners;
 use crate::session::DwordLike;
 
 /// A variable of the game.
@@ -15,8 +15,15 @@ pub fn set(a: &dyn DwordLike, v: u32) {
 }
 
 /// One quad: x .. x + w, y .. y + h, the colour and see-through, then `draw_tinted_quad`.
-pub fn quad(x: u32, y: u32, w: u32, h: u32, colour: u32, see: u32) -> Result<(), Refused> {
-    let o = crate::owners::boundary();
+pub fn quad(
+    o: Owners<'_>,
+    x: u32,
+    y: u32,
+    w: u32,
+    h: u32,
+    colour: u32,
+    see: u32,
+) -> Result<(), Refused> {
     let q = &o.race.shared.vars;
     let scratch = crate::race::view_scratch::front_end();
     scratch.quad.corners[0].set(x);
@@ -74,7 +81,7 @@ impl Outline {
     }
 
     /// Top, left, right and bottom edges, solid.
-    pub fn draw(self, colour: u32) -> Result<(), Refused> {
+    pub fn draw(self, o: Owners<'_>, colour: u32) -> Result<(), Refused> {
         let Outline {
             x,
             y,
@@ -82,32 +89,38 @@ impl Outline {
             left,
             right,
         } = self;
-        quad(x, y, w, 1, colour, SOLID)?;
-        quad(x, y, 1, left, colour, SOLID)?;
-        quad(x + w, y, 1, right, colour, SOLID)?;
-        quad(x, y + left, w, 1, colour, SOLID)
+        quad(o, x, y, w, 1, colour, SOLID)?;
+        quad(o, x, y, 1, left, colour, SOLID)?;
+        quad(o, x + w, y, 1, right, colour, SOLID)?;
+        quad(o, x, y + left, w, 1, colour, SOLID)
     }
 
     /// The cursor's highlight: the outline and the one round it, yellow.
-    pub fn draw_highlighted(self) -> Result<(), Refused> {
-        self.draw(YELLOW)?;
-        self.grown().draw(YELLOW)
+    pub fn draw_highlighted(self, o: Owners<'_>) -> Result<(), Refused> {
+        self.draw(o, YELLOW)?;
+        self.grown().draw(o, YELLOW)
     }
 }
 
 /// A frame of two nested outlines round cell `index` of a row of cells `step` apart, the first
 /// one at `first_x`.
-pub fn cell_frame(first_x: u32, step: u32, index: u32, colour: u32) -> Result<(), Refused> {
+pub fn cell_frame(
+    o: Owners<'_>,
+    first_x: u32,
+    step: u32,
+    index: u32,
+    colour: u32,
+) -> Result<(), Refused> {
     let x = first_x + step * index;
-    Outline::around(x, 0x12B, step, 0x28).draw(colour)?;
-    Outline::around(x + 1, 0x12C, step - 2, 0x26).draw(colour)
+    Outline::around(x, 0x12B, step, 0x28).draw(o, colour)?;
+    Outline::around(x + 1, 0x12C, step - 2, 0x26).draw(o, colour)
 }
 
 /// The yellow frame round the chosen part of a row of `cells` cells, drawn while the row's
 /// service box is turned over and the cursor is on it (when it blinks on), or else when the
 /// chosen part differs from the installed one or the row's inspection flag is set.
 pub fn chosen_frame(
-    screens: &Screens,
+    o: Owners<'_>,
     item: u32,
     setup: &crate::menu::state_store::SetupItem,
     flag: &dyn DwordLike,
@@ -115,6 +128,7 @@ pub fn chosen_frame(
     step: u32,
     cells: u32,
 ) -> Result<(), Refused> {
+    let screens = &o.menus.screens;
     let blinking = screens.draw_work.blink.is_set();
     let wanted =
         if screens.state.service_ui.box_shown.is_set() && screens.loop_flags.item.get() == item {
@@ -124,7 +138,7 @@ pub fn chosen_frame(
         };
     let chosen = setup.chosen.get();
     if wanted && chosen < cells {
-        cell_frame(first_x, step, chosen, YELLOW)?;
+        cell_frame(o, first_x, step, chosen, YELLOW)?;
     }
     Ok(())
 }

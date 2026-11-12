@@ -230,7 +230,15 @@ impl SoundObject {
     /// Race sound object `n` (the original kept its address in `g_raceSoundObjects`),
     /// refused past the eight.
     pub fn number(n: u32) -> Result<&'static SoundObject, crate::errors::BadInput> {
-        crate::sound::owner::sound()
+        Self::of(crate::sound::owner::sound(), n)
+    }
+
+    /// `number` for a caller that holds the sound owner.
+    pub fn of(
+        sound: &crate::sound::owner::Sound,
+        n: u32,
+    ) -> Result<&SoundObject, crate::errors::BadInput> {
+        sound
             .race
             .sounds
             .objects

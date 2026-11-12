@@ -10,7 +10,7 @@ use crate::menu::owner::Menus;
 use crate::menu::owner::Play;
 use crate::menu::owner::Screens;
 use crate::session::PlainDword;
-use crate::system::owner::system;
+pub use crate::system::owner::System;
 use rc2k_core::menu::standings::{self, NAME_LEN};
 
 pub use crate::saves::best_times::{CHAMP_HISTORY as TABLE_B, RANKED_TIMES as TABLE_A};
@@ -147,6 +147,7 @@ pub fn walked_drivers(menus: &Menus) -> Result<Vec<rc2k_core::saves::rankings::D
 /// A player as a stage record's holder: the figure (+0x94), nationality, car and the name's
 /// 0x20 bytes (as the original copies them, past the NUL too).
 pub fn as_holder(
+    menus: &Menus,
     p: &rc2k_core::menu::player::Player,
 ) -> Result<
     (
@@ -160,13 +161,16 @@ pub fn as_holder(
         car: p.car_number,
         speed: p.figure,
     };
-    Ok((row, name_of(p)?))
+    Ok((row, name_of(menus, p)?))
 }
 
 /// The player's name, `N` bytes from its start (bounded by the names' store: the original
 /// runs on past a name that lacks its end).
-pub fn name_of<const N: usize>(p: &rc2k_core::menu::player::Player) -> Result<[u8; N], BadInput> {
-    let bytes = crate::menu::player_names::NameAt::of(name_player(p)?).tail();
+pub fn name_of<const N: usize>(
+    menus: &Menus,
+    p: &rc2k_core::menu::player::Player,
+) -> Result<[u8; N], BadInput> {
+    let bytes = crate::menu::player_names::NameAt::of(name_player(p)?).tail(menus);
     bytes
         .get(..N)
         .map(|b| std::array::from_fn(|i| b[i]))
@@ -205,8 +209,8 @@ pub fn counted_players(menus: &Menus) -> Result<Vec<PlayerCell<'_>>, BadInput> {
 /// The current record's event (`g_recordTable`, `section`, `index`; its +0x3C): its place
 /// in the stages' best times (`saves::best_times::STAGE_TIMES`); refused past the table's
 /// sections, with no table, or past it.
-pub fn current_event(screens: &Screens) -> Result<usize, BadInput> {
-    let table = system().records.stage_tables.championship();
+pub fn current_event(screens: &Screens, system: &System) -> Result<usize, BadInput> {
+    let table = system.records.stage_tables.championship();
     let section: u32 = screens.event.section.get();
     let index: u32 = screens.event.index.get();
     if section >= 64
@@ -295,7 +299,7 @@ pub fn enter_best(
         car: p.get().car_number,
         group: p.get().class,
         name_ref,
-        name: name_of(&p.get())?,
+        name: name_of(menus, &p.get())?,
     };
     scores.with(|t| {
         with_kept_name(play, |kept| {

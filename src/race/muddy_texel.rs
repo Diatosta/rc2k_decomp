@@ -46,7 +46,12 @@ pub fn strength_at(n: u32, x: u32, y: u32) -> Result<u32, BadInput> {
 }
 
 /// The texel of place number `number` (its low 16 bits) muddied.
-pub fn muddy_texel(race: &Race, number: u32) -> Result<(), Refused> {
+pub fn muddy_texel(
+    race: &Race,
+    number: u32,
+    scene: &crate::scene::owner::Scene,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), Refused> {
     let course = &race.course;
     // Converted: `rc2k_core::race::mud::{shuffled_place, strength_index, muddy,
     // tint_amount}`.
@@ -54,11 +59,11 @@ pub fn muddy_texel(race: &Race, number: u32) -> Result<(), Refused> {
     let n = texture_and_mud(&race.shared)?;
     let (x, y) = shuffled_place(race, number);
     let strength = strength_at(n, x, y)?;
-    let texel = { mud_texel(strength_row(y), x, y) }?;
+    let texel = { mud_texel(strength_row(y), x, y, scene, gfx) }?;
     if !muddy(texel) {
         return Ok(());
     }
     let tinted = tint_to_mud_colour(course, texel, tint_amount(strength));
-    put_mud_texel(tinted | MUD_TOP, x, y)?;
+    put_mud_texel(tinted | MUD_TOP, x, y, scene, gfx)?;
     Ok(())
 }

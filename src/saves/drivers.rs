@@ -14,12 +14,6 @@ pub const NAME_ROOM: usize = 0x20;
 /// A driver's record, by number.
 pub struct Driver<'a>(&'a crate::menu::drivers_store::Driver);
 
-impl Driver<'static> {
-    pub fn number(number: u32) -> Result<Self, BadInput> {
-        Self::of(crate::owners::boundary().menus, number)
-    }
-}
-
 impl<'a> Driver<'a> {
     /// The record of driver `number` among `menus`' drivers.
     pub fn of(menus: &'a Menus, number: u32) -> Result<Self, BadInput> {

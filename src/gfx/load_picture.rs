@@ -14,7 +14,7 @@ use crate::errors::Refused;
 use crate::gfx::clear_picture::clear_picture;
 use crate::gfx::picture::has_picture;
 use crate::gfx::picture::set_size;
-use crate::gfx::read_picture_file::read_picture_file;
+use crate::gfx::read_picture_file::read_picture_file_in;
 use crate::gfx::rescale_picture::rescale_picture;
 use rc2k_core::gfx::picture_size as sizes;
 
@@ -40,7 +40,7 @@ pub fn load_picture_with(
     // Converted: `rc2k_core::gfx::picture_size` (`READ`, `screen`, `rescaled`).
     set_size(pictures, sizes::READ);
     clear_picture(pictures)?;
-    let read = read_picture_file(path, gfx);
+    let read = read_picture_file_in(path, gfx, system);
     let screen_width: u32 = system.session.screen.width.get();
     set_size(
         pictures,

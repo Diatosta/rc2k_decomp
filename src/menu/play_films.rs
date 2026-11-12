@@ -86,7 +86,7 @@ impl Game<'_> {
         let panels = &o.menus.panels;
         let mut flags = StepAnswer::default();
         match s {
-            Step::StopMusic => crate::sound::stop_music::stop_music(),
+            Step::StopMusic => crate::sound::stop_music::stop_music(o.audio, o.system),
             Step::Step4059F4 => crate::gfx::clear_front_surface::clear_front_surface()?,
             Step::TakeKey => {
                 flags.zero = crate::input::take_key::take_key() == 0;
@@ -122,12 +122,12 @@ impl Game<'_> {
                 crate::race::race_shell::clear_player_absences();
                 crate::race::credits_race::credits_race(race)?;
             }
-            Step::Step409B76 => crate::sound::let_sounds_play::let_sounds_play(),
+            Step::Step409B76 => crate::sound::let_sounds_play::let_sounds_play_in(o.audio),
             Step::SetUpEngine => crate::scene::set_up_engine::set_up_engine_in(race, scene)?,
             Step::FrontEndScene => {
                 crate::scene::set_up_front_end_scene::set_up_front_end_scene_in(o)?;
             }
-            Step::Tune3 => crate::sound::play_tune_3::play_tune_3(),
+            Step::Tune3 => crate::sound::play_tune_3::play_tune_3(o.sound, o.audio, o.system),
         }
 
         Ok(flags)
@@ -165,7 +165,7 @@ impl films::Films for Game<'_> {
 }
 
 /// `idle`: from the main menu when it has stood idle, else the game's start.
-pub fn play_films(o: Owners<'_>, idle: bool) -> Result<(), Refused> {
+pub fn play_films(o: Owners<'static>, idle: bool) -> Result<(), Refused> {
     log(&format!(
         "menu::play_films: runs (mode {})",
         u32::from(idle)

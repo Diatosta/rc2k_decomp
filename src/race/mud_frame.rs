@@ -7,7 +7,11 @@
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-pub fn mud_frame(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn mud_frame(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::mud::{count_frame, texture_turn, next_texture}`.
     use crate::race::mud_texture_turn::mud_texture_turn;
     use rc2k_core::race::mud::{count_frame, next_texture, texture_turn};
@@ -20,7 +24,7 @@ pub fn mud_frame(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
         .vars
         .mud_texture
         .set(texture_turn(race.shared.vars.mud_texture.get()));
-    mud_texture_turn(race, scene)?;
+    mud_texture_turn(race, scene, gfx)?;
     race.shared
         .vars
         .mud_texture

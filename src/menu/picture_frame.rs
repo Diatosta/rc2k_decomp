@@ -14,7 +14,7 @@ pub fn picture_frame() -> Result<bool, Refused> {
     }
     {
         crate::gfx::copy_picture_to_surface::copy_picture_to_surface(
-            &mut crate::gfx::copy_picture_to_surface::GameSurface,
+            &mut crate::gfx::copy_picture_to_surface::GameSurface(crate::gfx::owner::gfx()),
         )
     }?;
     crate::platform::unlock_surface();

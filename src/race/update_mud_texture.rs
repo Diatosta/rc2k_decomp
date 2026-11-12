@@ -54,7 +54,11 @@ fn take_units(at: &Float, units: &Dword) {
     subtract_units(at, units);
 }
 
-pub fn update_mud_texture(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn update_mud_texture(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), Refused> {
     let textures = &scene.textures;
     let frame = &race.frame;
     let n = texture_and_mud(&race.shared)?;
@@ -105,7 +109,7 @@ pub fn update_mud_texture(race: &Race, scene: &crate::scene::owner::Scene) -> Re
         if throws > 0 {
             let mut done = 0u32;
             loop {
-                throw_mud_texel(race)?;
+                throw_mud_texel(race, scene, gfx)?;
                 done = done.wrapping_add(1);
                 if done == race.shared.vars.mud_throws.get() {
                     break;
@@ -131,7 +135,7 @@ pub fn update_mud_texture(race: &Race, scene: &crate::scene::owner::Scene) -> Re
                 if race.shared.vars.mud_splash_counts[k].get() >= LAST_SPLASHED {
                     break;
                 }
-                splash_mud(&race.shared)?;
+                splash_mud(&race.shared, scene, gfx)?;
                 done = done.wrapping_add(1);
                 if done == race.shared.vars.mud_splashes.get() {
                     break;

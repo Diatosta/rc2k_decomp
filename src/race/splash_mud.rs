@@ -21,7 +21,11 @@ use crate::race::put_mud_texel::put_mud_texel;
 
 pub const LAST_SPLASHED: u32 = 0x1000;
 
-pub fn splash_mud(shared: &RaceShared) -> Result<(), Refused> {
+pub fn splash_mud(
+    shared: &RaceShared,
+    scene: &crate::scene::owner::Scene,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::mud::{splash_place, splash_lands, splash_pattern}`.
     use rc2k_core::race::mud::{
         MUD_TOP, SPLASH_SIDE, muddy, splash_lands, splash_pattern, splash_place,
@@ -43,7 +47,7 @@ pub fn splash_mud(shared: &RaceShared) -> Result<(), Refused> {
     for row in 0..SPLASH_SIDE {
         shared.vars.mud_column.set(0u32);
         for column in 0..SPLASH_SIDE {
-            eax = mud_texel(eax, x, y)?;
+            eax = mud_texel(eax, x, y, scene, gfx)?;
             if muddy(eax) {
                 let colour = crate::session::read_on_in(
                     &shared.vars,
@@ -52,7 +56,7 @@ pub fn splash_mud(shared: &RaceShared) -> Result<(), Refused> {
                     "the mud colours",
                 )?;
                 let faded = fade_colour(eax, colour, colour >> 24);
-                eax = put_mud_texel(faded | MUD_TOP, x, y)?;
+                eax = put_mud_texel(faded | MUD_TOP, x, y, scene, gfx)?;
             }
             colours += 1;
             x = x.wrapping_add(1);

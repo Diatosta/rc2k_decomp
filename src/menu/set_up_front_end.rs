@@ -42,7 +42,7 @@ fn record_tables(system: &System) -> [crate::records::stages_store::RecordTable;
 /// `fit_player_names` as its x. Neither is looked at: the stage only while `DrawWork.scratch_0c` is
 /// 1, which it is only for `default_checkpoint_times`, which does not read it; the x is
 /// where a measuring starts, which a width does not depend on. The stage passed is 0.
-pub fn set_up_front_end(o: crate::owners::Owners<'_>) -> Result<(), Refused> {
+pub fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (menus, sound, system, gfx) = (o.menus, o.sound, o.system, o.gfx);
     let (race, saves) = (o.race, o.saves);
     let best_times = &saves.best_times;
@@ -58,7 +58,7 @@ pub fn set_up_front_end(o: crate::owners::Owners<'_>) -> Result<(), Refused> {
     crate::menu::link_player_names::link_player_names(menus)?;
     crate::menu::show_loading_picture::show_loading_picture_in(menus, gfx, system)?;
     crate::gfx::build_menu_sprites::build_menu_sprites_in_game(gfx, system, menus, o.strings)?;
-    crate::menu::fit_player_names::fit_player_names()?;
+    crate::menu::fit_player_names::fit_player_names(menus)?;
     // The two dwords: the music volumes, then the tables' copies.
     sound
         .menu
@@ -117,7 +117,7 @@ pub fn set_up_front_end(o: crate::owners::Owners<'_>) -> Result<(), Refused> {
     }
     if !menus.screens.loop_flags.options_loaded.is_set() {
         for table in record_tables(system) {
-            crate::records::default_stage_records::default_stage_records(table)?;
+            crate::records::default_stage_records::default_stage_records(menus, table)?;
         }
     }
     Ok(())

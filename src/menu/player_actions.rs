@@ -26,6 +26,7 @@ use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
 use crate::menu::owner::Tables;
 use crate::menu::screen_loop::Entry;
+use crate::race::owner::Race;
 use rc2k_core::menu::player::Player;
 use rc2k_core::menu::steps;
 
@@ -110,14 +111,14 @@ pub fn next_replay_range(menus: &Menus, tables: &Tables) -> Result<(), BadInput>
 }
 
 /// `menu::toggle_caption_choice`: the choice flipped and its caption written.
-pub fn toggle_caption_choice(screens: &Screens) -> Result<(), BadInput> {
+pub fn toggle_caption_choice(screens: &Screens, race: &Race) -> Result<(), BadInput> {
     let choice = steps::flip(screens.state.menus.caption_choice.get());
     screens.state.menus.caption_choice.set(choice);
     let caption = rc2k_core::screens::page_values::stage_options_caption(choice);
     let mut text = Vec::new();
     crate::strings::append_string_by_id::push_string(&mut text, caption)?;
     text.push(0);
-    crate::screens::text_buffers_store::TEXT_BUFFERS
+    race.text_buffers()
         .caption
         .write_at(0, &text, "the caption")
 }

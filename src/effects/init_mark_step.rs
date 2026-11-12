@@ -46,8 +46,10 @@ pub fn init_mark_step(
             .first_object
             .set_bits(0x50 + 0x14 * own);
         race.effects_settings().object_count.set_bits(1u32);
-        let file =
-            crate::race::mud::car_file_number(crate::race::blocks_store::own_car().car_kind.bits());
+        let file = crate::race::mud::car_file_number(
+            race.kind_tables(),
+            crate::race::blocks_store::own_car().car_kind.bits(),
+        );
         race.effects_settings().mark_car_file_number.set_bits(file);
         for n in 0..count {
             let kind = race.shared.work.car_or_end(n as usize).car_kind.get() as i32;

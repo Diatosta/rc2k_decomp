@@ -116,7 +116,7 @@ fn view(race: &Race, o: Owners<'static>, mode: Mode) -> Result<(), Refused> {
         Mode::LastRace => LAST_RACE,
         Mode::Saved | Mode::SaveLast => {
             let saving = mode == Mode::SaveLast;
-            let slot = crate::menu::replay_slot_loop::replay_slot_loop(saving)?;
+            let slot = crate::menu::replay_slot_loop::replay_slot_loop(o, saving)?;
             if slot == u32::MAX {
                 return Ok(());
             }
@@ -213,7 +213,7 @@ fn view(race: &Race, o: Owners<'static>, mode: Mode) -> Result<(), Refused> {
         // The menu sound asked for (0x41D41C).
         let sound = race.shared.replay_file.viewer_sound.get();
         race.shared.replay_file.viewer_sound.set(0);
-        crate::sound::play_menu_sound::play_menu_sound_in_game(sound);
+        crate::sound::play_menu_sound::play_menu_sound_in_game(o, sound);
         if install.pages.list_leave.get() == 1 {
             return Ok(());
         }

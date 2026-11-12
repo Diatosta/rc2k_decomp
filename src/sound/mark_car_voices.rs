@@ -13,16 +13,16 @@ use crate::race::owner::Race;
 use crate::sound::store::SoundObject;
 
 /// The (object, car) pairs in use, or a refusal.
-fn pairs(
-    sound: &crate::sound::owner::Sound,
+fn pairs<'a>(
+    sound: &'a crate::sound::owner::Sound,
     race: &Race,
-) -> Result<Vec<(&'static SoundObject, usize)>, BadInput> {
+) -> Result<Vec<(&'a SoundObject, usize)>, BadInput> {
     let count = sound.race.sounds.count.get();
     if count == 0 || count > 8 {
         return Err(BadInput("a sound object count of 0 or over 8"));
     }
     let pairs = (0..count as usize)
-        .map(|n| Ok((SoundObject::number(n as u32)?, n)))
+        .map(|n| Ok((SoundObject::of(sound, n as u32)?, n)))
         .collect::<Result<Vec<_>, BadInput>>()?;
     if pairs
         .iter()

@@ -122,6 +122,7 @@ pub fn run_frame(
             &race.frame,
             particles,
             ring,
+            scene,
             effects,
             crate::sound::owner::sound(),
             view,

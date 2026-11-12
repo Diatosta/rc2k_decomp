@@ -3,8 +3,11 @@
 
 use crate::menu::text_entry::{TEXT_LEN, entry as text_entry};
 
-pub fn restore_text(at: impl Into<crate::place::BytePlace>) -> Result<(), crate::errors::BadInput> {
+pub fn restore_text(
+    menus: &crate::menu::owner::Menus,
+    at: impl Into<crate::place::BytePlace>,
+) -> Result<(), crate::errors::BadInput> {
     // The logic is in `rc2k_core::menu::text_entry::Entry::restored`.
-    let text: [u8; TEXT_LEN + 1] = text_entry(crate::menu::owner::menus()).restored();
+    let text: [u8; TEXT_LEN + 1] = text_entry(menus).restored();
     at.into().write(&text, "a text field")
 }

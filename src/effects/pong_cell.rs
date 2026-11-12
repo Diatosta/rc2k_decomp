@@ -24,6 +24,7 @@ pub fn pong_cell(
     pattern: u8,
     column: u32,
     row: u32,
+    scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     {
@@ -41,7 +42,7 @@ pub fn pong_cell(
                 from_f64(y),
                 from_f64(x),
             ];
-            crate::effects::draw_pong_box::draw_pong_box(pong, fl, values, effects);
+            crate::effects::draw_pong_box::draw_pong_box(pong, fl, values, scene, effects);
         }
     }
     Ok(())

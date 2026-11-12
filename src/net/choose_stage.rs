@@ -13,7 +13,7 @@ use crate::owners::Owners;
 
 /// The stage screen; the lobby loop's leftovers it carries (see `net::choose_car`) are all 0
 /// here.
-pub fn choose_stage(o: Owners<'_>, vars: &NetVars) -> Result<(), Refused> {
+pub fn choose_stage(o: Owners<'static>, vars: &NetVars) -> Result<(), Refused> {
     let race = o.race;
     let escape_pressed = &o.menus.screens.draw_work.escape_pressed;
     escape_pressed.set(false);

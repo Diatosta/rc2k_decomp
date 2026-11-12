@@ -24,6 +24,7 @@ pub fn view_heading(frame: &Frame, effects: &crate::effects::owner::Effects) {
     let mut heading = rounded(angle_between_vectors(
         &effects_frame.draw_frame.level,
         &effects_frame.draw_frame.other,
+        &effects.setup.work,
     ));
     if !effects_frame.draw_frame.level[0].get().is_sign_negative() {
         heading = x87::two_pi_less(heading).to_bits();

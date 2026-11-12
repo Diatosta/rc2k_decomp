@@ -4,12 +4,13 @@
 //! Part of `screens::draw_service_boxes`.
 
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
+use crate::owners::Owners;
 use crate::screens::service_boxes::chosen_frame;
 
-pub fn service_box_frame_4(menus: &Menus) -> Result<(), Refused> {
+pub fn service_box_frame_4(o: Owners<'_>) -> Result<(), Refused> {
+    let menus = o.menus;
     chosen_frame(
-        &menus.screens,
+        o,
         0xF,
         &menus.screens.state.driver_stats.setups[1],
         &menus.tables.lists.inspection_flags_a[0xF],

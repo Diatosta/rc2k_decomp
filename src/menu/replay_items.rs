@@ -15,7 +15,7 @@ pub fn replay_item_a(race: &crate::race::owner::Race) -> Result<(), Refused> {
         return crate::race::replay_mode::replay_mode(race, Mode::LastRace);
     }
     crate::system::sleep::sleep(500);
-    crate::sound::play_menu_sound::play_menu_sound_in_game(8);
+    crate::sound::play_menu_sound::play_menu_sound_at_boundary(8);
     Ok(())
 }
 

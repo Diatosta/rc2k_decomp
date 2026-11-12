@@ -56,6 +56,7 @@ fn square(k: u32, angle: u32, effects: &crate::effects::owner::Effects) -> u32 {
 pub fn draw_cell_sprite(
     masks: &Masks,
     ring: &Ring,
+    scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
     cell: u32,
     angle: u32,
@@ -105,7 +106,7 @@ pub fn draw_cell_sprite(
     if clip_quad(effects)? {
         return Ok(());
     }
-    draw_fan();
+    draw_fan(scene);
     crate::scene::polygon_work::front_end()
         .polygon_vertex_count
         .set_bits(4u32);

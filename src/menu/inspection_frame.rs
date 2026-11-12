@@ -17,7 +17,7 @@ use crate::platform::{show_frame_now, unlock_surface};
 
 /// Whether the frame of `menu` was made.
 pub fn inspection_frame(
-    o: Owners<'_>,
+    o: Owners<'static>,
     menu: crate::menu::menus_store::MenuId,
 ) -> Result<bool, Refused> {
     if lock_failed() {
@@ -27,7 +27,7 @@ pub fn inspection_frame(
     run_listed(o, &o.menus.screens.flow.draw_list)?;
     unlock_surface();
     o.scene.lights.state.scene_state.set_bits(4u32);
-    crate::scene::begin_scene::begin_scene();
+    crate::scene::begin_scene::begin_scene(o.race);
     run_listed(o, &o.menus.screens.flow.scene_list)?;
     crate::scene::end_scene::end_scene();
     if lock_failed() {

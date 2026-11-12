@@ -20,7 +20,7 @@ pub struct Shown {
 pub fn show_frame(race: &Race, o: crate::owners::Owners<'static>) -> Result<Shown, Refused> {
     let (system, scene) = (o.system, o.scene);
     let frame = &race.frame;
-    let (locked, kept) = crate::scene::lock_frame::lock_frame(race);
+    let (locked, kept) = crate::scene::lock_frame::lock_frame(race, o.gfx);
     if locked < 1 {
         return Ok(Shown {
             lost: true,
@@ -32,7 +32,7 @@ pub fn show_frame(race: &Race, o: crate::owners::Owners<'static>) -> Result<Show
             frame,
             1,
             &mut crate::text::draw_text::GameCanvas,
-            &mut crate::race::frame_text::credits_tune,
+            &mut || crate::race::frame_text::credits_tune(o),
             system,
             o.audio,
         )?;

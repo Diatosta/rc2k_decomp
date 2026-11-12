@@ -4,10 +4,11 @@
 //!
 //! 21 callers, none reading flags. `d3d::set_texture` is the platform's.
 
+use crate::scene::owner::Scene;
+
 /// `d3d::set_texture` with the texture, unless the switch is 0.
-use crate::scene::owner::scene;
-pub fn set_texture(texture: u32) {
-    if scene().objects.tables.d3d_drawing_on.get() != 0 {
+pub fn set_texture(scene: &Scene, texture: u32) {
+    if scene.objects.tables.d3d_drawing_on.get() != 0 {
         crate::d3d::set_texture::set_texture(texture);
     }
 }

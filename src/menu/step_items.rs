@@ -28,7 +28,7 @@ pub fn colour(tables: &Tables, colour: StartPick<'_>, forward: bool) -> Result<(
 }
 
 /// A button of the car specification (the car, its page, the slideshow's car or picture).
-pub fn car_button(o: Owners<'_>, button: Which) -> Result<(), Refused> {
+pub fn car_button(o: Owners<'static>, button: Which) -> Result<(), Refused> {
     press(o.menus, button, &mut |call| call_in_game(o, call))
 }
 

@@ -21,7 +21,7 @@ const NO_MAP: FatalError = FatalError {
 /// `MenuLists.map_overlays[0][+0x3C]`; `ukmap.png` loaded with it (the carry: fatal error 0x80712345),
 /// converted, `g_pictureFlags` = `g_screenModeFlags` & 0xFFF, made the surface, sprite 0xA0
 /// at (0, 0). Refuses a choice without its tables (the original reads through null).
-pub fn draw_stage_map(o: Owners<'_>) -> Result<(), Refused> {
+pub fn draw_stage_map(o: Owners<'static>) -> Result<(), Refused> {
     let (menus, system, gfx) = (o.menus, o.system, o.gfx);
     use crate::gfx::blit_glyph::blit_glyph_on_surface;
     use crate::gfx::convert_picture::convert_picture_now_in;

@@ -22,6 +22,8 @@ const QUIT_TEXT: &std::ffi::CStr = c"AUDIOTDB:QUIT"; // "AUDIOTDB:QUIT"
 /// Runs to the `ExitThread`, which does not come back. Its slot's flag
 /// (`threading::thread_slot::AUDIO`) says it runs.
 pub fn audio_thread(audio: &crate::audio::owner::Audio) -> Result<(), Refused> {
+    // The thread's root takes the system it works with.
+    let system = system();
     use crate::audio::*;
     use crate::system::tick_count::tick_count;
     use crate::threading::set_priority::set_priority;
@@ -35,11 +37,11 @@ pub fn audio_thread(audio: &crate::audio::owner::Audio) -> Result<(), Refused> {
         }
         && {
             thread_parts::take_sample_buffer(&audio.state);
-            start::start(audio)?
+            start::start(audio, system)?
         };
     if started {
         a3d::splash(&audio.state)?;
-        set_mode::set_mode(audio, audio.state.menu_sound_mode.get())?;
+        set_mode::set_mode(audio, system, audio.state.menu_sound_mode.get())?;
         set_priority(0xF);
         audio.state.audio_turn_tick.set(tick_count());
         loop {
@@ -52,7 +54,7 @@ pub fn audio_thread(audio: &crate::audio::owner::Audio) -> Result<(), Refused> {
             // The turn's feeds (action 1, which reads nothing else).
             stream_commands::stream_command(audio, 0, 0, 1)?;
             stream_commands::music_command(&audio.state, 0, 0, 0, 1)?;
-            take_commands::take_commands(audio)?;
+            take_commands::take_commands(audio, system)?;
             update_voices::update_voices(audio)?;
             stray_voices::check(&audio.state);
             if begun.is_some() {
@@ -60,15 +62,15 @@ pub fn audio_thread(audio: &crate::audio::owner::Audio) -> Result<(), Refused> {
             }
             crate::debug::timing::stop(crate::debug::timing::Stage::AudioTurn, begun);
             if audio.state.sound_buffer_lost.is_set() {
-                restore::restore_lost(audio)?;
+                restore::restore_lost(audio, system)?;
             }
-            if system().session.flags.quitting.is_set() {
+            if system.session.flags.quitting.is_set() {
                 break;
             }
         }
     }
     audio.state.no_audio.set(1);
-    close_all::close_all(audio)?;
+    close_all::close_all(audio, system)?;
     thread_parts::free_sample_buffer(&audio.state)?;
     a3d::splash(&audio.state)?;
     sound_device::log_text(QUIT_TEXT, true);

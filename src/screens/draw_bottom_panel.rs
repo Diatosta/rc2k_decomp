@@ -7,15 +7,16 @@
 //! (`menu::table_calls`).
 
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
+use crate::owners::Owners;
 use crate::screens::service_boxes::quad;
 
-pub fn draw_bottom_panel(menus: &Menus) -> Result<(), Refused> {
+pub fn draw_bottom_panel(o: Owners<'_>) -> Result<(), Refused> {
+    let menus = o.menus;
     // The logic is in `rc2k_core::screens::panels::bottom_panel`.
     for a in
         rc2k_core::screens::panels::bottom_panel(menus.screens.state.service_ui.fade_full.get())
     {
-        quad(a.x, a.y, a.w, a.h, a.colour, a.see)?;
+        quad(o, a.x, a.y, a.w, a.h, a.colour, a.see)?;
     }
     Ok(())
 }

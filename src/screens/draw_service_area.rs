@@ -26,8 +26,9 @@
 //! (`menu::table_calls`).
 
 use crate::errors::{BadInput, Refused};
-use crate::gfx::blit_bar::{Bar, blit_bar};
+use crate::gfx::blit_bar::{Bar, blit_bar_in};
 use crate::gfx::blit_glyph::BlitCall;
+use crate::gfx::owner::Gfx;
 use crate::menu::owner::Menus;
 use crate::screens::draw_inspection_status::draw_inspection_status;
 use crate::screens::draw_repair_times::draw_repair_times;
@@ -67,6 +68,7 @@ fn font_of(font: AreaFont) -> crate::gfx::typefaces::FontId {
 /// that does not fit the text buffer.
 pub fn draw_service_area(
     menus: &Menus,
+    gfx: &Gfx,
     race: &crate::race::owner::Race,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
@@ -119,11 +121,11 @@ pub fn draw_service_area(
                     end_glyph,
                     percent: car.damage[part] as i32,
                 }
-                .write();
-                blit_bar(&mut |call| canvas.blit_glyph(call))?;
+                .write_in(gfx);
+                blit_bar_in(gfx, menus, &mut |call| canvas.blit_glyph(call))?;
             }
             AreaStep::Sprite(glyph, x, y) => {
-                canvas.blit_glyph(BlitCall::sprite(glyph, x, y))?;
+                canvas.blit_glyph(BlitCall::sprite_in(gfx, menus, glyph, x, y))?;
             }
         }
     }
@@ -146,7 +148,7 @@ pub fn draw_service_area(
         draw_ride_height_marker::MARKER,
         draw_suspension_stiffness_marker::MARKER,
     ] {
-        draw_marker(menus, marker, player, canvas)?;
+        draw_marker(menus, gfx, marker, player, canvas)?;
     }
     draw_inspection_status(menus, screens, canvas)
 }

@@ -1,9 +1,9 @@
-use crate::scene::owner::scene;
+use crate::scene::owner::Scene;
 const DRAWTRI_RVA: &std::ffi::CStr = c"drawtri"; // aDrawtri_0
 
 /// The device's result and the flags the original leaves are read by none of its callers.
-pub fn draw_fan(poly: &crate::scene::polygon_work::PolygonWork) {
-    if scene().objects.tables.d3d_drawing_on.get() == 0 {
+pub fn draw_fan(scene: &Scene, poly: &crate::scene::polygon_work::PolygonWork) {
+    if scene.objects.tables.d3d_drawing_on.get() == 0 {
         return;
     }
     let result = crate::d3d::draw_fan::draw_fan(poly);

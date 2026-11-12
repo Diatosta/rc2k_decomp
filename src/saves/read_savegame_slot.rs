@@ -14,15 +14,10 @@ use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_bytes;
 use crate::files::read_file::read_file_into;
 use crate::menu::name_lists::NAME_LEN;
-use crate::saves::owner::{Saves, saves};
+use crate::saves::owner::Saves;
 use crate::saves::write_savegame_slot::{FILE_LEN, SLOTS};
 
 /// True if the slot's file was read and accepted.
-pub fn read_savegame_slot(slot: u32) -> Result<bool, Refused> {
-    read_savegame_slot_in(saves(), slot)
-}
-
-/// `read_savegame_slot` on the given saved games.
 pub fn read_savegame_slot_in(saves: &Saves, slot: u32) -> Result<bool, Refused> {
     if slot >= SLOTS {
         return Err(BadInput("slot past the name list").into());

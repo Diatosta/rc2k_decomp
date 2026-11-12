@@ -17,6 +17,7 @@ pub fn draw_particle(
     place: [[u8; 10]; 3],
     colour: u32,
     size: u32,
+    scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
 ) {
     let effects_frame = &effects.frame;
@@ -47,5 +48,5 @@ pub fn draw_particle(
     }
     effects_frame.draw_work.half[0].set(sq[0]);
     effects_frame.draw_work.half[1].set(sq[0]);
-    crate::effects::clip_quad::draw_fan();
+    crate::effects::clip_quad::draw_fan(scene);
 }

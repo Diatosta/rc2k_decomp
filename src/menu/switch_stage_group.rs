@@ -6,6 +6,6 @@
 use crate::errors::Refused;
 use crate::menu::stage_choice::{draw_stage_map, switch_stage_group};
 
-pub fn run(o: crate::owners::Owners<'_>) -> Result<(), Refused> {
+pub fn run(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     switch_stage_group(o.menus, &mut || draw_stage_map(o))
 }

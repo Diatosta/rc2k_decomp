@@ -54,7 +54,7 @@ pub fn step_replay_cars(
                         reset_request::reset_request(race, scene)?;
                     }
                     RunStep::Physics => crate::physics::car_physics_step::car_physics_step(
-                        race, system, sound, scene,
+                        race, system, sound, scene, net,
                     )?,
                 }
             }

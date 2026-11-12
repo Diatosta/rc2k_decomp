@@ -9,26 +9,30 @@ use crate::errors::BadInput;
 use crate::menu::owner::Menus;
 use crate::menu::text_entry::{length, set_length};
 use crate::service::load_setup_slot::highlighted_slot;
+use crate::service::owner::Service;
 use crate::service::read_setup_slot::{NAME_LEN, SLOT_COUNT, slot_name};
 
 // ---- Rust version ----
 
 /// The name of the highlighted slot, and the text entry's length if it is usable.
-pub fn entry(menus: &Menus) -> Result<(crate::place::BytePlace, usize), BadInput> {
+pub fn entry(
+    menus: &Menus,
+    service: &'static Service,
+) -> Result<(crate::place::BytePlace, usize), BadInput> {
     let slot = highlighted_slot(menus);
     if slot >= SLOT_COUNT {
         return Err(BadInput("slot past the name table"));
     }
-    let len = length();
+    let len = length(menus);
     if !(0..NAME_LEN as i32).contains(&len) {
         return Err(BadInput("text length outside the name"));
     }
-    Ok((slot_name(slot), len as usize))
+    Ok((slot_name(service, slot), len as usize))
 }
 
-pub fn backspace_setup_name(menus: &Menus) -> Result<(), BadInput> {
+pub fn backspace_setup_name(menus: &Menus, service: &'static Service) -> Result<(), BadInput> {
     // Converted: `rc2k_core::service::setups::backspace`.
-    let (name, len) = entry(menus)?;
+    let (name, len) = entry(menus, service)?;
     if len != 0 {
         let at = name;
         let mut bytes = at.read(NAME_LEN, "a setup name")?;

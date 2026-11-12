@@ -22,13 +22,21 @@ pub fn arcade_level_end(
     // The logic is in `rc2k_core::menu::arcade` (`won`, `won_level`, `first_win`).
     use rc2k_core::menu::arcade::{first_win, won, won_level};
     if !won(play.results.positions[0].get()) {
-        crate::sound::play_tune_7::play_tune_7();
+        crate::sound::play_tune_7::play_tune_7(
+            entry.owners.sound,
+            entry.owners.audio,
+            entry.owners.system,
+        );
         run_screen(&crate::menu::arcade_level_end_results_loop::SCREEN, entry)?;
         play.arcade.retry.set(1u32);
         return Ok(());
     }
     let level = won_level(play.arcade.level.get())?;
-    crate::sound::play_tune_6::play_tune_6();
+    crate::sound::play_tune_6::play_tune_6(
+        entry.owners.sound,
+        entry.owners.audio,
+        entry.owners.system,
+    );
     crate::menu::arcade_finale::arcade_finale(entry.owners)?;
     if first_win(play.arcade.levels_won.get(level as usize)) {
         play.arcade.levels_won.set(level as usize, 1);

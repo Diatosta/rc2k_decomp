@@ -65,10 +65,10 @@ pub fn event_title(menus: &Menus, system: &System) -> Result<u32, crate::errors:
 pub fn draw_stage_info(
     menus: &Menus,
     system: &crate::system::owner::System,
+    gfx: &crate::gfx::owner::Gfx,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
     let screens = &menus.screens;
-    let tables = &menus.tables;
     label(
         canvas,
         event_title(menus, system)?,
@@ -78,9 +78,10 @@ pub fn draw_stage_info(
     )?;
     let (record, _) = event_stage(screens, system)?;
     draw_stage_heading(record, canvas)?;
-    draw_stage_body(tables, record, false, canvas)?;
+    draw_stage_body(menus, gfx, record, false, canvas)?;
     draw_records_from(
         menus,
+        system,
         &crate::saves::best_times::STAGE_TIMES,
         record,
         canvas,

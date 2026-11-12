@@ -28,10 +28,11 @@ use crate::text::draw_text::Canvas;
 pub fn draw_service_stage_info(
     menus: &Menus,
     system: &crate::system::owner::System,
+    gfx: &crate::gfx::owner::Gfx,
+    race: &crate::race::owner::Race,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
     let screens = &menus.screens;
-    let tables = &menus.tables;
     label(
         canvas,
         event_title(menus, system)?,
@@ -43,10 +44,11 @@ pub fn draw_service_stage_info(
     if menus.play.champ_view.event_mode.get() == 2 && menus.screens.event.stage_pages.get() == 0 {
         draw_stage_heading(record, canvas)?;
     }
-    build_second_heading(record)?;
-    draw_stage_body(tables, record, false, canvas)?;
+    build_second_heading(race, record)?;
+    draw_stage_body(menus, gfx, record, false, canvas)?;
     draw_records_from(
         menus,
+        system,
         &crate::saves::best_times::STAGE_TIMES,
         record,
         canvas,

@@ -11,7 +11,7 @@ use crate::d3d::vertices_store::{VERTICES, Vertex};
 use crate::errors::Refused;
 
 use crate::math::x87_float::{int, ld, st, stf};
-use crate::race::viewer_screen_store::VIEWER_PANEL;
+use crate::race::viewer_screen_store::ViewerPanelBlock;
 use crate::session::Dword;
 
 /// `d3d::set_texture` (0x41ACF5).
@@ -40,10 +40,10 @@ pub fn quad_words(colour: u32) {
 /// (x, y, w, h, whole numbers) times the panel's texel scale, and the corners scaled to
 /// the screen (width and height times the panel's two smaller scales, through the
 /// machine's scratch float).
-pub fn quad_tail(uv: [u32; 4]) {
-    let system = crate::system::owner::system();
+pub fn quad_tail(uv: [u32; 4], panel: &ViewerPanelBlock, system: &crate::system::owner::System) {
     let session = &system.session;
-    quad_tail_math(
+    quad_tail_math_in(
+        panel,
         uv,
         &VERTICES.vertices[..4],
         [session.screen.width.get(), session.screen.height.get()],
@@ -55,9 +55,15 @@ pub fn quad_tail(uv: [u32; 4]) {
 /// numbers), `vertices` the four corners (left top, right top, left bottom, right bottom),
 /// `screen` the screen size (whole numbers), `scratch` the float the screen scales pass
 /// through (stored as a single, as the original does).
-fn quad_tail_math(rect: [u32; 4], vertices: &[Vertex], screen: [u32; 2], scratch: &Dword) {
+fn quad_tail_math_in(
+    panel: &ViewerPanelBlock,
+    rect: [u32; 4],
+    vertices: &[Vertex],
+    screen: [u32; 2],
+    scratch: &Dword,
+) {
     let [x, y, width, height] = rect.map(|n| int(n as i32));
-    let texel = ld(VIEWER_PANEL.texel_scale.get());
+    let texel = ld(panel.texel_scale.get());
     let (left, right) = (x * texel, (x + width) * texel);
     let (top, bottom) = (y * texel, (y + height) * texel);
     for (corner, vertex) in vertices[..4].iter().enumerate() {
@@ -67,17 +73,29 @@ fn quad_tail_math(rect: [u32; 4], vertices: &[Vertex], screen: [u32; 2], scratch
         vertex.v.set(stf(if at_bottom { bottom } else { top }));
     }
     scratch.set(st(
-        int(screen[0] as i32) * ld(VIEWER_PANEL.reciprocal_width_800.get())
+        int(screen[0] as i32) * ld(panel.reciprocal_width_800.get())
     ));
     for vertex in &vertices[..4] {
         vertex.x.set(stf(ld(vertex.x.get()) * ld(scratch.get())));
     }
     scratch.set(st(
-        int(screen[1] as i32) * ld(VIEWER_PANEL.reciprocal_height_600.get())
+        int(screen[1] as i32) * ld(panel.reciprocal_height_600.get())
     ));
     for vertex in &vertices[..4] {
         vertex.y.set(stf(ld(vertex.y.get()) * ld(scratch.get())));
     }
+}
+
+/// The tail's arithmetic on the game's panel (the tests').
+#[cfg(all(test, target_arch = "x86"))]
+fn quad_tail_math(rect: [u32; 4], vertices: &[Vertex], screen: [u32; 2], scratch: &Dword) {
+    quad_tail_math_in(
+        crate::race::owner::race().viewer_panel(),
+        rect,
+        vertices,
+        screen,
+        scratch,
+    );
 }
 
 /// The draw (`d3d::draw_vertex_strip`, 0x41ADE1) of 4 vertices at `g_polygonVertices`.

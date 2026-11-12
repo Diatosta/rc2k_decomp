@@ -16,7 +16,7 @@ use crate::errors::{BadInput, Refused};
 use crate::files::handle::{close, open_by_mode};
 use crate::saves::allocate_best_times::allocate_best_times;
 use crate::saves::owner::Saves;
-use crate::system::owner::system;
+use crate::system::owner::System;
 
 // ---- game data ----
 
@@ -45,8 +45,7 @@ fn read_or_close(file: u32, to: &dyn crate::pointers::Store, count: u32) -> Resu
 }
 
 /// `saves::load_best_times` on the game's own file and tables: true if the file was loaded.
-pub fn load_game_best_times(saves: &Saves) -> Result<bool, Refused> {
-    let system = system();
+pub fn load_game_best_times(saves: &Saves, system: &System) -> Result<bool, Refused> {
     let best_times = &saves.best_times;
     allocate_best_times(
         best_times,

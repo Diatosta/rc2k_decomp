@@ -21,7 +21,7 @@ use crate::screens::game_screen::{Held, HeldText};
 use crate::screens::stage_panel::PanelScreen;
 use crate::strings::append_time::show_hours;
 use crate::strings::units::units;
-use crate::system::owner::system;
+use crate::system::owner::System;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -43,15 +43,7 @@ pub struct Selection {
 }
 
 /// None while the tables are not there; the original then reads through a null pointer.
-pub fn selection(menus: &Menus) -> Result<Option<Selection>, BadInput> {
-    selection_in(menus, system())
-}
-
-/// `selection` on the given system tables.
-pub fn selection_in(
-    menus: &Menus,
-    system: &crate::system::owner::System,
-) -> Result<Option<Selection>, BadInput> {
+pub fn selection_in(menus: &Menus, system: &System) -> Result<Option<Selection>, BadInput> {
     let screens = &menus.screens;
     let group: u32 = screens.event.stage_group.get();
     let index: u32 = screens.event.stage_number.get();
@@ -65,8 +57,8 @@ pub fn selection_in(
     }))
 }
 
-fn selected_record(menus: &Menus) -> Result<Option<(RecordRef, u32)>, BadInput> {
-    Ok(selection(menus)?.map(|s| (s.record, s.sub)))
+fn selected_record(menus: &Menus, system: &System) -> Result<Option<(RecordRef, u32)>, BadInput> {
+    Ok(selection_in(menus, system)?.map(|s| (s.record, s.sub)))
 }
 
 /// Where the top-speed row's values are in the selected record, and the y its car's sprite
@@ -92,16 +84,18 @@ pub const TIME_TRIAL_ROWS: Rows = Rows {
 /// the speed formatter refuses; the fatal errors are the blitter's.
 pub fn draw_stage_records(
     menus: &Menus,
+    system: &System,
     entry: &rc2k_core::saves::entries::BestTime,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
-    draw_records_rows(menus, entry, &STAGE_ROWS, canvas)
+    draw_records_rows(menus, system, entry, &STAGE_ROWS, canvas)
 }
 
 /// `draw_stage_records` with the top-speed row's places given. The logic is in
 /// `rc2k_core::screens::stage_panel::records`.
 pub fn draw_records_rows(
     menus: &Menus,
+    system: &System,
     entry: &rc2k_core::saves::entries::BestTime,
     rows: &Rows,
     canvas: &mut dyn Canvas,
@@ -109,7 +103,7 @@ pub fn draw_records_rows(
     use rc2k_core::screens::stage_panel::{CarRow, Holder};
     {
         // Without it the original reads through a null pointer after drawing the first row.
-        let Some((record, _)) = selected_record(menus)? else {
+        let Some((record, _)) = selected_record(menus, system)? else {
             return Err(
                 BadInput("no record table is selected: the original reads through null").into(),
             );

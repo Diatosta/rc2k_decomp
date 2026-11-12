@@ -5,13 +5,14 @@
 //! the minus and the NUL written in place. The menus and draw lists run its `entry`
 //! (`menu::table_calls`).
 use crate::menu::owner::Play;
+use crate::race::owner::Race;
 
-pub fn stage_range_caption(play: &Play) -> Result<(), crate::errors::BadInput> {
+pub fn stage_range_caption(play: &Play, race: &Race) -> Result<(), crate::errors::BadInput> {
     let first: u32 = play.champ_view.first_row.get();
     // The logic is in `rc2k_core::menu::event::stage_range`.
     let mut text = rc2k_core::menu::event::stage_range(first);
     text.push(0);
-    crate::screens::text_buffers_store::TEXT_BUFFERS
+    race.text_buffers()
         .caption
         .write_at(0, &text, "the caption")
 }

@@ -338,7 +338,7 @@ pub fn build(o: &Owners<'_>, ui: &Ui) {
                     body(ui, || crate::debug::effects_page::tab(o, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Dyno") {
-                    body(ui, || crate::debug::dyno::tab(race, ui));
+                    body(ui, || crate::debug::dyno::tab(race, o.scene, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Players") {
                     body(ui, || crate::debug::players::tab(o, ui));

@@ -45,7 +45,7 @@ pub fn show_picture_file(
     // `rescaled`).
     crate::gfx::picture::set_size(&gfx.pictures, sizes::READ);
     // A refused picture is not read, as `read_picture_file`'s callers by address see it.
-    let read = match crate::gfx::read_picture_file::read_picture_file(path, gfx) {
+    let read = match crate::gfx::read_picture_file::read_picture_file_in(path, gfx, system) {
         Ok(read) => read,
         Err(Refused::BadInput(_)) => false,
         Err(e) => return Err(e),
@@ -91,7 +91,7 @@ pub fn show_picture_file(
     }
     crate::gfx::convert_picture::convert_picture_now_in(gfx, system)?;
     for _ in 0..pages {
-        copy_picture_to_surface(&mut GameSurface)?;
+        copy_picture_to_surface(&mut GameSurface(gfx))?;
         show_frame_now();
     }
     Ok(())

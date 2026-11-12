@@ -105,7 +105,7 @@ pub fn choose_screen_modes(gfx: &crate::gfx::owner::Gfx) -> Result<(), crate::er
     // The graphics options' choices made, as the original ends (`loc_4045CA`): the list
     // the options page shows its resolution from (not made yet at the start, so made
     // whatever the caller holds).
-    let made = crate::gfx::screen_mode_choices::screen_mode_choices(gfx_display, false);
+    let made = crate::gfx::screen_mode_choices::screen_mode_choices(gfx, false);
     if let Err(e) = made {
         log(&format!(
             "platform: the screen mode choices are not made: {e:?}"

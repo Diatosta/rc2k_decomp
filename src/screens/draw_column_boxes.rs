@@ -9,10 +9,11 @@
 //! Caller: `screens::draw_two_column_panel`.
 
 use crate::errors::Refused;
-use crate::menu::owner::Screens;
+use crate::owners::Owners;
 use crate::screens::service_boxes::{quad, rd, set};
 
-pub fn draw_column_boxes(screens: &Screens) -> Result<(), Refused> {
+pub fn draw_column_boxes(o: Owners<'_>) -> Result<(), Refused> {
+    let screens = &o.menus.screens;
     // The logic is in `rc2k_core::screens::panels::row_box`; the row and marker variables
     // are left as the original leaves them.
     use rc2k_core::screens::panels::{BOXES_Y, COLUMNS, ROW_STEP, ROWS, row_box};
@@ -32,7 +33,7 @@ pub fn draw_column_boxes(screens: &Screens) -> Result<(), Refused> {
                 screens.state.service_ui.box_colour_a.get(),
                 chosen,
             ) {
-                quad(a.x, a.y, a.w, a.h, a.colour, a.see)?;
+                quad(o, a.x, a.y, a.w, a.h, a.colour, a.see)?;
             }
             set(marker_y, rd(marker_y).wrapping_add(ROW_STEP));
             set(row, rd(row).wrapping_add(1));

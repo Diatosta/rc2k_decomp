@@ -17,7 +17,7 @@ use crate::errors::Refused;
 use crate::menu::flow_game::Game;
 use rc2k_core::menu::welcome::{self};
 
-pub fn championship_welcome(o: crate::owners::Owners<'_>) -> Result<(), Refused> {
+pub fn championship_welcome(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     // The logic is in `rc2k_core::menu::welcome::championship_welcome`.
     Game::new(o).run(welcome::championship_welcome)
 }

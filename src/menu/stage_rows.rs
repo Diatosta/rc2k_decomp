@@ -13,7 +13,12 @@ use crate::menu::owner::Menus;
 // g_captionText
 
 /// `of_90` the fixed count, `on` the direction.
-pub fn step_rows(menus: &Menus, of_90: bool, on: bool) -> Result<(), Refused> {
+pub fn step_rows(
+    menus: &Menus,
+    race: &crate::race::owner::Race,
+    of_90: bool,
+    on: bool,
+) -> Result<(), Refused> {
     let count = if of_90 {
         0x5A
     } else {
@@ -24,6 +29,6 @@ pub fn step_rows(menus: &Menus, of_90: bool, on: bool) -> Result<(), Refused> {
     // The logic is in `rc2k_core::menu::steps::rows`.
     let row = rc2k_core::menu::steps::rows(row, count, on);
     menus.play.champ_view.first_row.set(row);
-    crate::menu::stage_range_caption::stage_range_caption(&menus.play)?;
+    crate::menu::stage_range_caption::stage_range_caption(&menus.play, race)?;
     Ok(())
 }

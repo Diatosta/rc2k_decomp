@@ -19,7 +19,6 @@ use crate::pointers::{Cells, Store, load_cells, store_cells};
 use crate::saves::owner::saves;
 use crate::saves::rebuild_car_lists::rebuild_car_lists;
 use crate::settings::TEXT_ROOM;
-use crate::system::owner::system;
 use std::mem::offset_of;
 
 // ---- game data ----
@@ -262,11 +261,13 @@ pub fn pieces_of(o: Owners<'_>) -> [Piece<'_>; 69] {
 /// The pieces on the game's own places.
 #[cfg(test)]
 pub fn pieces() -> [Piece<'static>; 69] {
-    pieces_of(crate::owners::boundary())
+    pieces_of(Owners::the())
 }
 
 /// Where the function works: the game's own places, or a test's.
 pub struct Places<'a> {
+    /// The buffer the file is read into.
+    pub file: &'a crate::session::Bytes<65536>,
     pub loaded: &'a dyn crate::session::FlagLike,
     pub pieces: &'a [Piece<'a>],
     pub rebuild_car_lists: &'a mut dyn FnMut() -> Result<(), BadInput>,
@@ -275,7 +276,7 @@ pub struct Places<'a> {
 /// `saves::load_options` (see the header).
 pub fn load_options(path: &dyn Store, places: &mut Places) -> Result<bool, Refused> {
     places.loaded.set(false);
-    let file = &system().work.files.buffer;
+    let file = places.file;
     let read = read_file_to_store(
         &crate::files::cstring(path, "the options file's path")?,
         file,
@@ -304,12 +305,13 @@ pub fn load_options(path: &dyn Store, places: &mut Places) -> Result<bool, Refus
     Ok(true)
 }
 
-pub fn load_game_options(menus: &crate::menu::owner::Menus) -> Result<bool, Refused> {
-    let o = crate::owners::boundary();
+pub fn load_game_options(o: Owners<'_>) -> Result<bool, Refused> {
+    let menus = o.menus;
     let pieces = pieces_of(o);
     load_options(
         &o.saves.files.options_path,
         &mut Places {
+            file: &o.system.work.files.buffer,
             loaded: &menus.screens.loop_flags.options_loaded,
             pieces: &pieces,
             rebuild_car_lists: &mut || rebuild_car_lists(menus),

@@ -58,7 +58,12 @@ pub const LOCALE_INIT: [u8; LOCALE_LEN] = [
 /// `g_noticeKind` (the `.loc` file's byte +8, 0x4E07A0 in the image): which notice the
 /// language shows (2: the builds' notice; 7: Japan).
 pub fn notice_kind() -> u8 {
-    strings().language.locale.get(8)
+    notice_kind_in(strings())
+}
+
+/// `notice_kind` for a caller that holds the strings.
+pub fn notice_kind_in(strings: &crate::strings::owner::Strings) -> u8 {
+    strings.language.locale.get(8)
 }
 
 /// `g_plainLetters` (0x4F0CC8 in IDA): `g_lowerCase` with the

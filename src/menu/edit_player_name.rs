@@ -20,7 +20,6 @@ use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
 use crate::menu::player_name::{backspace_name, bring_back_name, name_place};
 use crate::menu::text_entry::{TEXT_LEN, set_length};
-use crate::place::BytePlace;
 use crate::text::draw_text::Canvas;
 use crate::text::measure_text::measure_text_at;
 
@@ -29,12 +28,13 @@ use crate::text::measure_text::measure_text_at;
 const MEASURING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::MEASURE;
 
 pub fn edit_player_name(
-    menus: &Menus,
+    menus: &'static Menus,
     screens: &Screens,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
     // Everything that could be refused, before the key is taken.
-    let name = name_place(menus)?;
+    let at = name_place(menus)?;
+    let name = at.place(menus);
     let len = { screens.loop_flags.text_length.get() } as i32;
     if !(0..TEXT_LEN as i32).contains(&len) {
         return Err(BadInput("an entry length outside 0 .. 0x1F").into());
@@ -49,12 +49,12 @@ pub fn edit_player_name(
     match entry::key(key) {
         Key::None => {}
         Key::Escape => {
-            bring_back_name(name)?;
+            bring_back_name(menus, name)?;
             screens.option_work.typing.set(false);
         }
         Key::Enter => {
             if len == 0 {
-                bring_back_name(name)?;
+                bring_back_name(menus, name)?;
             }
             screens.option_work.typing.set(false);
         }
@@ -63,9 +63,9 @@ pub fn edit_player_name(
         Key::Other(key) => {
             let c = key_to_char(key as u32)? as u8;
             if entry::appends(c, len, screens.loop_flags.text_max.get() as i32) {
-                BytePlace::from(name.add(len as u32)).write(&[c], "a player's name")?;
+                name.add(len as u32).write(&[c], "a player's name")?;
                 set_length(menus, len.wrapping_add(1));
-                let measured = measure_text_at(MEASURING_FONT, &name.tail(), len, canvas)?;
+                let measured = measure_text_at(MEASURING_FONT, &at.tail(menus), len, canvas)?;
                 if entry::too_wide(measured.width as i32) {
                     backspace_name(menus, name)?;
                 }

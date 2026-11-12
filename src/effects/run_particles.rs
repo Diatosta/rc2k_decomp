@@ -111,12 +111,17 @@ fn refusal(
 }
 
 /// The step of the kind at e (see the header): whether the entry dies.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the effects' groups and the owners"
+)]
 fn step(
     frame: &Frame,
     view_matrix: &[crate::session::Float; 16],
     particles: &Particles,
     ring: &Ring,
     e: u32,
+    scene: &crate::scene::owner::Scene,
     effects: &Effects,
     sound: &Sound,
 ) -> Result<bool, Refused> {
@@ -239,6 +244,7 @@ fn step(
                     place()?,
                     colour,
                     particle(particles, e, 0x38)?,
+                    scene,
                     effects,
                 );
                 keep_last()?;
@@ -299,7 +305,7 @@ fn step(
                         size = size.wrapping_add(BIGGER);
                     }
                 }
-                draw_particle::draw_particle(view_matrix, place()?, colour, size, effects);
+                draw_particle::draw_particle(view_matrix, place()?, colour, size, scene, effects);
             }
         }
     }
@@ -310,6 +316,7 @@ pub fn run_particles(
     frame: &Frame,
     particles: &Particles,
     ring: &Ring,
+    scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
     sound: &Sound,
     view: crate::effects::run_frame::EffectsView<'_>,
@@ -343,7 +350,16 @@ pub fn run_particles(
                 effects.setup.work.fpu_status.set(s as u32);
                 dies = s == 0x100;
                 if !dies {
-                    dies = step(frame, view.view_matrix, particles, ring, e, effects, sound)?;
+                    dies = step(
+                        frame,
+                        view.view_matrix,
+                        particles,
+                        ring,
+                        e,
+                        scene,
+                        effects,
+                        sound,
+                    )?;
                 }
             }
             if dies {

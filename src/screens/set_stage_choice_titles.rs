@@ -31,6 +31,7 @@ fn item_1_place(tables: &Tables) -> Result<Option<usize>, BadInput> {
 pub fn set_stage_choice_titles(
     menus: &Menus,
     system: &crate::system::owner::System,
+    race: &crate::race::owner::Race,
 ) -> Result<(), Refused> {
     let tables = &menus.tables;
     let s = selection_in(menus, system)?.ok_or(BadInput(
@@ -39,7 +40,7 @@ pub fn set_stage_choice_titles(
     let Some(item_1) = item_1_place(tables)? else {
         return Err(BadInput("the menu's first dword is no pointer").into());
     };
-    build_second_heading(s.record)?;
+    build_second_heading(race, s.record)?;
     let group_title = table_dword_at(
         &menus.play.results,
         &menus.play.results.group_titles,

@@ -25,6 +25,7 @@ pub fn draw_viewer_panel(
     race: &Race,
     gfx: &crate::gfx::owner::Gfx,
     strings: &crate::strings::owner::Strings,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let replay = &race.replay;
     let text_stores = &strings.text;
@@ -32,7 +33,11 @@ pub fn draw_viewer_panel(
     // Converted: `rc2k_core::race::viewer_flow::{shown_time, replay_length, camera_name,
     // switch_lights}`.
     use rc2k_core::race::viewer_flow::{camera_name, replay_length, shown_time, switch_lights};
-    if crate::d3d::lock_texture::lock_texture(shared.replay_file.viewer_panel_texture.get())?.carry
+    if crate::d3d::lock_texture::lock_texture_in(
+        gfx,
+        shared.replay_file.viewer_panel_texture.get(),
+    )?
+    .carry
     {
         return Ok(());
     }
@@ -130,6 +135,8 @@ pub fn draw_viewer_panel(
             &race.viewer_panel().texture_rect,
             &race.viewer_panel().screen_rect,
             colour,
+            race.viewer_panel(),
+            system,
         )
     };
     // `texture_rect`: the texture's rectangle; `screen_rect`: the screen's.

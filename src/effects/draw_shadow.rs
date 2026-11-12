@@ -194,7 +194,7 @@ pub fn draw_shadow_with(
         let depth = x87::sub_mul(&q.corners[n][2], sh.consts.lifts[n], z_k);
         vertex.z.set(depth);
     }
-    crate::effects::clip_quad::draw_fan();
+    crate::effects::clip_quad::draw_fan(ctx.scene);
     Ok(())
 }
 

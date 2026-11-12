@@ -72,7 +72,7 @@ pub fn flush_batch(frame: &Frame, b: &Batch, textured: bool) -> Result<(), Refus
     let scene = scene();
     use crate::scene::{set_render_state::set_render_state, set_texture::set_texture};
     if !textured {
-        set_texture(scene.textures.kinds.kind_first_slots[135].get());
+        set_texture(scene, scene.textures.kinds.kind_first_slots[135].get());
     }
     for (value, state) in STATES {
         set_render_state(if state == 0x14 { b.blend } else { value }, state);
@@ -87,6 +87,7 @@ pub fn flush_batch(frame: &Frame, b: &Batch, textured: bool) -> Result<(), Refus
                 scene,
             );
             set_texture(
+                scene,
                 crate::scene::polygon_work::front_end()
                     .polygon_texture
                     .get(),
@@ -177,7 +178,7 @@ pub fn draw_view_backdrop(
     // mirror's backdrop is drawn on the mirror's part, frame plan F7).
     view.polygon.polygon_vertex_count.set(4);
     crate::scene::glow_render_states::glow_render_states();
-    crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[192].get());
+    crate::scene::set_texture::set_texture(scene, scene.textures.kinds.kind_first_slots[192].get());
     crate::d3d::draw_fan_unclipped::draw_fan_unclipped(&view.polygon);
     crate::scene::depth_buffer_on::depth_buffer(true);
 }

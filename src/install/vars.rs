@@ -565,8 +565,7 @@ const _: () = {
 impl InstallerPages {
     /// The byte `index` of `kind_fonts` (8 bytes a font kind); an index past the table ends
     /// the program as every checked installer read does.
-    pub fn kind_font(index: u32) -> u8 {
-        let install = crate::install::owner::install();
+    pub fn kind_font(install: &crate::install::owner::Install, index: u32) -> u8 {
         if index >= 108 {
             crate::install::installer::refuse(crate::errors::BadInput(
                 "a font kind past the installer's table",
@@ -578,8 +577,10 @@ impl InstallerPages {
     /// Where font `index` of the page's fonts is (the table keeps IDA's addresses as
     /// names). A slot that names no font
     /// object (the unused slot 0, an index off the table) is refused.
-    pub fn font_of(index: u32) -> Result<crate::gfx::typefaces::FontId, crate::errors::BadInput> {
-        let install = crate::install::owner::install();
+    pub fn font_of(
+        install: &crate::install::owner::Install,
+        index: u32,
+    ) -> Result<crate::gfx::typefaces::FontId, crate::errors::BadInput> {
         let cell = install
             .pages
             .fonts
@@ -744,14 +745,17 @@ mod tests {
     #[test]
     fn installer_page_fonts_resolve_as_the_images_do() {
         // Slot 0 is no font; the others name font objects, as the image's dwords do.
-        assert!(InstallerPages::font_of(0).is_err());
-        assert!(InstallerPages::font_of(25).is_err());
+        assert!(InstallerPages::font_of(crate::install::owner::install(), 0).is_err());
+        assert!(InstallerPages::font_of(crate::install::owner::install(), 25).is_err());
         for n in 1..25 {
             let image = crate::moved::image_bytes(0x51D4C4 + 4 * n, 4);
             let ida = u32::from_le_bytes(image[..4].try_into().unwrap()) as usize;
             let font = crate::gfx::typefaces::FontId::try_at(ida).unwrap();
             assert_eq!(font.ida(), ida);
-            assert_eq!(InstallerPages::font_of(n as u32).unwrap(), font);
+            assert_eq!(
+                InstallerPages::font_of(crate::install::owner::install(), n as u32).unwrap(),
+                font
+            );
         }
     }
 

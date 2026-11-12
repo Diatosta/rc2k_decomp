@@ -21,8 +21,8 @@ pub fn draw_name_plate(
 ) -> Result<(), Refused> {
     let fonts = &gfx.fonts;
     let text = text.into();
-    use crate::d3d::{lock_texture::lock_texture, unlock_texture::unlock_texture};
-    if lock_texture(slot)?.carry {
+    use crate::d3d::{lock_texture::lock_texture_in, unlock_texture::unlock_texture};
+    if lock_texture_in(gfx, slot)?.carry {
         return Ok(());
     }
     // Converted: `rc2k_core::race::plates::{name_rows, NAME_BOX, name_places}`.
@@ -62,8 +62,8 @@ pub fn draw_plate_by_id(
 /// at `label_behind` and `label_ahead` in the time font (box 0x80 wide) at x 4, y three and four
 /// lines.
 pub fn draw_time_plate(frame: &Frame, slot: u32, gfx: &Gfx) -> Result<(), Refused> {
-    use crate::d3d::{lock_texture::lock_texture, unlock_texture::unlock_texture};
-    if lock_texture(slot)?.carry {
+    use crate::d3d::{lock_texture::lock_texture_in, unlock_texture::unlock_texture};
+    if lock_texture_in(gfx, slot)?.carry {
         return Ok(());
     }
     // Converted: `rc2k_core::race::plates::{time_start, time_rows, TIME_BOX,

@@ -11,8 +11,8 @@
 //! Refuses a name that would be cut to before its start, and what the measuring refuses.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::owner::Menus;
 use crate::menu::player_names::{NameAt, PLAYERS};
-use crate::place::BytePlace;
 use crate::text::draw_text::GameCanvas;
 use crate::text::measure_string_by_id::MEASURING_FONT;
 use crate::text::measure_text::measure_text_at;
@@ -24,24 +24,24 @@ use rc2k_core::menu::text_entry;
 const LONGEST: usize = 0x1000;
 
 /// `menu::fit_name` (0x411474). Returns the width of the name as it is left.
-pub fn fit_name(player: usize) -> Result<u32, Refused> {
+pub fn fit_name(menus: &'static Menus, player: usize) -> Result<u32, Refused> {
     let at = NameAt::of(player);
-    let mut name = at.tail();
+    let mut name = at.tail(menus);
     let Some(len) = (0..LONGEST).find(|&n| name.get(n) == Some(&0)) else {
         return Err(BadInput("a name without its end").into());
     };
     // The logic is in `rc2k_core::menu::text_entry::fit_name`.
     let font = crate::text::measure_text::only_measures(MEASURING_FONT)?;
     text_entry::fit_name(len, |len| -> Result<u32, Refused> {
-        BytePlace::from(at.add(len as u32)).write(&[0], "a name")?;
+        at.add(len as u32).place(menus).write(&[0], "a name")?;
         name[len] = 0;
         Ok({ measure_text_at(font, &name, 0, &mut GameCanvas) }?.width)
     })
 }
 
-pub fn fit_player_names() -> Result<(), Refused> {
+pub fn fit_player_names(menus: &'static Menus) -> Result<(), Refused> {
     for player in 0..PLAYERS {
-        fit_name(player)?;
+        fit_name(menus, player)?;
     }
     Ok(())
 }

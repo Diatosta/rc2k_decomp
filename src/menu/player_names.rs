@@ -49,17 +49,18 @@ impl NameAt {
     }
 
     /// The bytes from here to the end of the area (none past it).
-    pub fn tail(self) -> Vec<u8> {
-        let names = &crate::menu::owner::menus().play.names;
+    pub fn tail(self, menus: &Menus) -> Vec<u8> {
+        let names = &menus.play.names;
         (self.0..crate::place::Run::len(names))
             .map(|n| crate::place::Run::get(names, n))
             .collect()
     }
 }
 
-impl From<NameAt> for crate::place::BytePlace {
-    fn from(at: NameAt) -> Self {
-        crate::place::BytePlace::In(&crate::menu::owner::menus().play.names, at.0)
+impl NameAt {
+    /// The place in `menus`' names' area.
+    pub fn place(self, menus: &'static Menus) -> crate::place::BytePlace {
+        crate::place::BytePlace::In(&menus.play.names, self.0)
     }
 }
 

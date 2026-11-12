@@ -69,7 +69,7 @@ pub fn draw_mark_slots(
             effects,
         );
     }
-    crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[202].get());
+    crate::scene::set_texture::set_texture(scene, scene.textures.kinds.kind_first_slots[202].get());
     for s in effects.blocks.slots.slots.iter().rev() {
         if (s.life.get() as i32) <= 0 {
             continue;
@@ -159,7 +159,7 @@ pub fn draw_mark_slots(
             vertex.z.set(depth);
             vertex.rhw.set(rhw);
         }
-        crate::effects::clip_quad::draw_fan();
+        crate::effects::clip_quad::draw_fan(scene);
     }
     Ok(())
 }

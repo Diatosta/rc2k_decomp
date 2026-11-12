@@ -39,7 +39,7 @@ pub fn load_picture_to_texture_in_game(
         second,
         texture,
         &mut |texture, pixels, width, height| {
-            upload_texture_picture(texture, pixels, width, height, &mut GameSurfaces, gfx)
+            upload_texture_picture(texture, pixels, width, height, &mut GameSurfaces(gfx), gfx)
         },
     )
 }

@@ -21,7 +21,7 @@
 
 use crate::audio::names_store::SampleNames;
 use crate::errors::BadInput;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::session::Dword;
 use crate::sound::sets_store::RaceSoundSets;
 use core::mem::offset_of;
@@ -58,6 +58,7 @@ fn lengths(names: &SampleNames, first: u32) -> Result<Vec<u32>, BadInput> {
 /// objects; RaceState.results.finished the replay switch.
 pub fn load_race_sounds(
     send: &mut dyn FnMut(SoundList),
+    race: &Race,
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), BadInput> {
@@ -70,11 +71,14 @@ pub fn load_race_sounds(
         Ok(number)
     };
     let (first, second) = (object(&r.player_cars[0])?, object(&r.player_cars[1])?);
-    let kind = |object: u32| match crate::sound::store::SoundObject::number(object)?.kind.get() {
+    let kind = |object: u32| match crate::sound::store::SoundObject::of(sound, object)?
+        .kind
+        .get()
+    {
         kind if kind < KINDS => Ok(kind as usize),
         _ => Err(BadInput("a car's kind past the table of sound sets")),
     };
-    let replay = race().shared.state.results.finished.is_set();
+    let replay = race.shared.state.results.finished.is_set();
     let (count, other_count) = (r.one_player.get(), r.count.get());
     let kinds = if replay {
         None
@@ -96,11 +100,11 @@ pub fn load_race_sounds(
         }) as u32
     };
     let (a, b) = voices(
-        crate::sound::store::SoundObject::number(first)?
+        crate::sound::store::SoundObject::of(sound, first)?
             .cue_queue
             .first
             .get(),
-        crate::sound::store::SoundObject::number(second)?
+        crate::sound::store::SoundObject::of(sound, second)?
             .cue_queue
             .first
             .get(),
@@ -131,7 +135,7 @@ pub fn load_race_sounds(
         };
         send(match set {
             Set::Replay => list(offset_of!(RaceSoundSets, replay_set)),
-            Set::FirstKind(k) => RaceSoundSets::kind_list_of(2 * k as usize)?,
+            Set::FirstKind(k) => sound.race.sets.kind_list(2 * k as usize)?,
             Set::First(n) => list(
                 [
                     offset_of!(RaceSoundSets, first_set_a),
@@ -139,7 +143,7 @@ pub fn load_race_sounds(
                     offset_of!(RaceSoundSets, first_set_c),
                 ][n],
             ),
-            Set::SecondKind(k) => RaceSoundSets::kind_list_of(2 * k as usize + 1)?,
+            Set::SecondKind(k) => sound.race.sets.kind_list(2 * k as usize + 1)?,
             Set::Second(n) => list(
                 [
                     offset_of!(RaceSoundSets, second_set_a),
@@ -154,11 +158,13 @@ pub fn load_race_sounds(
 
 /// In the game: each list sent as command 3.
 pub fn load_race_sounds_in_game(
+    race: &Race,
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), BadInput> {
     load_race_sounds(
-        &mut |list| crate::sound::senders::send(Command::Load(Some(list))),
+        &mut |list| crate::sound::senders::send(audio, Command::Load(Some(list))),
+        race,
         sound,
         audio,
     )

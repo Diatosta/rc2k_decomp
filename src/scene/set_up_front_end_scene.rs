@@ -85,11 +85,7 @@ fn colours(course: &crate::race::owner_course::Course, dark_third: u32) {
     }
 }
 
-pub fn set_up_front_end_scene() -> Result<(), Refused> {
-    set_up_front_end_scene_in(crate::owners::boundary())
-}
-
-/// `set_up_front_end_scene` for a caller that holds the owners.
+/// The front end's scene set up.
 pub fn set_up_front_end_scene_in(o: crate::owners::Owners<'_>) -> Result<(), Refused> {
     let (race, scene) = (o.race, o.scene);
     let shared = &race.shared;

@@ -154,6 +154,6 @@ pub fn apply_repairs(menus: &Menus, driver: &mut dyn Driver) -> Result<(), Refus
 
 /// For Rust callers: the repairs with the game's clock, frames and sleep. A refusal is the
 /// caller's.
-pub fn apply_repairs_in_game_in(o: Owners<'_>) -> Result<(), Refused> {
+pub fn apply_repairs_in_game_in(o: Owners<'static>) -> Result<(), Refused> {
     apply_repairs(o.menus, &mut GameDriver { o })
 }

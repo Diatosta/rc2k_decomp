@@ -16,7 +16,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
 use crate::screens::game_screen::ControlsScreen;
-use crate::screens::owner::screens;
+use crate::screens::owner::ScreensOwner;
 use crate::text::draw_text::Canvas;
 
 /// The directions' names (`word_755200`, `ControlsScreen.stick_names[0]`).
@@ -55,8 +55,12 @@ pub fn binding_text(
 }
 
 /// Returns the carry.
-pub fn draw_control_bindings(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
-    let controls = &screens().controls;
+pub fn draw_control_bindings(
+    menus: &Menus,
+    screens: &ScreensOwner,
+    canvas: &mut dyn Canvas,
+) -> Result<bool, Refused> {
+    let controls = &screens.controls;
     let Some(player) = crate::menu::player::player(menus, menus.screens.event.current_player.get())
     else {
         return Err(BadInput("no current player").into());

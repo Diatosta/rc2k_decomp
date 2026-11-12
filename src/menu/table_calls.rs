@@ -19,7 +19,7 @@ use rc2k_core::menu::tables::ItemFn;
 /// tables name as key callbacks only `RaiseControllerSensitivity` reads a register: edi,
 /// which is the item here; the rest get none (`tables_data.rs`' `on_key`
 /// against `item_fn`'s reads).
-pub fn call_key(o: Owners<'_>, function: ItemFn, item: &MenuItem) -> Result<(), Refused> {
+pub fn call_key(o: Owners<'static>, function: ItemFn, item: &MenuItem) -> Result<(), Refused> {
     match function {
         // edi the item: its +0x2C, the left link.
         ItemFn::RaiseControllerSensitivity => {
@@ -44,7 +44,7 @@ pub struct ItemCall {
 
 /// A menu item's action (`menu::run_item_action`): the item's function with the value
 /// and the menu. A refusal ends the program here.
-pub fn call_action(o: Owners<'_>, function: ItemFn, value: u32, menu: MenuId) {
+pub fn call_action(o: Owners<'static>, function: ItemFn, value: u32, menu: MenuId) {
     let given = ItemCall {
         value,
         menu: Some(menu),
