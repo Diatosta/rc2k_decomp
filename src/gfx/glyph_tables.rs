@@ -94,7 +94,11 @@ pub fn end_glyph_tables(strings: &crate::strings::owner::Strings) -> Result<(), 
 
 /// The last sheet's palette as 256 pixels of the builder's layout at `to`; nothing if `to`
 /// is 0 or the last sheet was one of components.
-pub fn palette_to_pixels(to: u32, gfx: &crate::gfx::owner::Gfx) -> Result<(), BadInput> {
+pub fn palette_to_pixels(
+    to: u32,
+    gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
+) -> Result<(), BadInput> {
     let pictures = &gfx.pictures;
     if to == 0 || pictures.decoder.builder_flags.get() & DIRECT_COLOUR != 0 {
         return Ok(());
@@ -103,7 +107,7 @@ pub fn palette_to_pixels(to: u32, gfx: &crate::gfx::owner::Gfx) -> Result<(), Ba
     if format == 0 {
         return Err(BadInput("no pixel layout for the palette"));
     }
-    let format = crate::gfx::pixel_format::layout(format)?;
+    let format = crate::gfx::pixel_format::layout(system, gfx, format)?;
     let mut pixels = Vec::with_capacity(256 * 4);
     for entry in 0..256 {
         let components: u32 = pictures.decoder.palette[entry].get();

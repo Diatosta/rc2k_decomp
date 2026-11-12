@@ -1,12 +1,12 @@
 //! The eight fields of car block 0 that `drive::share_all_cars` keeps around its work:
 //! (block field, keeping place) pairs, in the original's order.
+use crate::physics::car_store::Car;
 use crate::race::owner_frame::Frame;
 use crate::session::Dword;
 
-/// (car block 0's field, its keeping place): the camera's view, place and
-/// turns, and the 2-or-3 mode flag.
-pub fn pairs(frame: &Frame) -> [(&Dword, &Dword); 8] {
-    let lead = crate::race::blocks_store::own_car();
+/// (the lead car's field, its keeping place): the camera's view, place and turns, and the
+/// 2-or-3 mode flag. `lead` is the car this machine plays (`RaceShared::own_car`).
+pub fn pairs<'a>(lead: &'a Car, frame: &'a Frame) -> [(&'a Dword, &'a Dword); 8] {
     let kept = &frame.frame_work.lead_kept;
     [
         (&lead.camera_view, &kept[0]),

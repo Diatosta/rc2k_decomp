@@ -277,7 +277,7 @@ pub fn loadlevel_init(
     // initmud: mark 0x64 twice, then the callback put away.
     s.log();
     s.indent(3);
-    crate::race::mud::init_mud(race, scene, gfx)?;
+    crate::race::mud::init_mud(race, scene, gfx, o.net, system)?;
     s.progress(0x64)?;
     s.progress(0x64)?;
     race.shared.vars.bar_function.set(BAR_DONE);

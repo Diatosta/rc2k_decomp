@@ -63,13 +63,15 @@ pub fn event_title(menus: &Menus, system: &System) -> Result<u32, crate::errors:
 /// Returns the carry flag of `draw_stage_records`. The errors are those of the functions it
 /// uses: the track pack lookup, the blitter, the formatters and the record rows.
 pub fn draw_stage_info(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     system: &crate::system::owner::System,
     gfx: &crate::gfx::owner::Gfx,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
+    let menus = o.menus;
     let screens = &menus.screens;
     label(
+        crate::strings::append_string_by_id::StringOwners::of(o),
         canvas,
         event_title(menus, system)?,
         TITLE_FONT,
@@ -77,10 +79,10 @@ pub fn draw_stage_info(
         TITLE_Y,
     )?;
     let (record, _) = event_stage(screens, system)?;
-    draw_stage_heading(record, canvas)?;
-    draw_stage_body(menus, gfx, record, false, canvas)?;
+    draw_stage_heading(o, record, canvas)?;
+    draw_stage_body(o, gfx, record, false, canvas)?;
     draw_records_from(
-        menus,
+        o,
         system,
         &crate::saves::best_times::STAGE_TIMES,
         record,

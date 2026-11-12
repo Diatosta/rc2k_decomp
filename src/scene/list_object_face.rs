@@ -137,8 +137,7 @@ impl FaceWorld for GameFace<'_> {
             // The core asks for 1 ..= 6: the six parts' wake counts, after `state_bits`.
             self.0
                 .shared
-                .work
-                .car_or_end(which as usize)
+                .race_car_or_end(which as usize)
                 .part_wake_counts
                 .get((extra as usize).wrapping_sub(1))
                 .map(crate::session::Dword::get)

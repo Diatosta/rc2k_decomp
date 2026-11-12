@@ -35,8 +35,7 @@ pub fn car_input_words(
     if vars.session.get() != 0 {
         let block = race_owner
             .shared
-            .work
-            .block_car(car as usize, "a car's block")?;
+            .race_car_or(car as usize, "a car's block")?;
         // +0xFD0 .. +0xFDC: the kept throttle, key bits, steering and brake words.
         let kept = [
             &block.kept_throttle_word,

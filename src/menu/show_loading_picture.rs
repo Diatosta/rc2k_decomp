@@ -4,15 +4,17 @@
 //! Fifteen callers, `menu::set_up_front_end` among them.
 
 use crate::gfx::show_picture_file::show_picture_file;
-use crate::menu::owner::Menus;
 
 // ---- game data ----
 
 /// The picture shown.
 pub fn show_loading_picture_in(
-    menus: &Menus,
-    gfx: &crate::gfx::owner::Gfx,
-    system: &crate::system::owner::System,
+    o: crate::owners::Owners<'static>,
 ) -> Result<(), crate::errors::Refused> {
-    show_picture_file(&menus.tables.texts.loading_pcx, gfx, system)
+    show_picture_file(
+        crate::strings::append_string_by_id::StringOwners::of(o),
+        &o.menus.tables.texts.loading_pcx,
+        o.gfx,
+        o.system,
+    )
 }

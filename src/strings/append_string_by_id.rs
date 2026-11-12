@@ -14,14 +14,31 @@ use rc2k_core::strings::table::Source;
 /// past the table does the same, nothing being appended for it.
 pub const AFTER_VARIABLE_TEXT: u32 = 0x8000_0000;
 
-/// `emit` receives each run of bytes to append. Returns the value the original leaves in its result register.
-pub fn append_string_by_id(id: u32, emit: &mut impl FnMut(&[u8])) -> Result<u32, BadInput> {
-    append_string_by_id_in(crate::owners::boundary(), id, emit)
+/// The owners the text of a string id can come from: the made texts live in the race's text
+/// buffers, the menus' notice, and the installer's rows, names and variables; the driver names
+/// in the strings.
+#[derive(Clone, Copy)]
+pub struct StringOwners<'a> {
+    pub strings: &'a crate::strings::owner::Strings,
+    pub race: &'a crate::race::owner::Race,
+    pub menus: &'a crate::menu::owner::Menus,
+    pub install: &'a crate::install::owner::Install,
 }
 
-/// `append_string_by_id` for a caller that holds the owners.
-pub fn append_string_by_id_in(
-    o: crate::owners::Owners<'static>,
+impl<'a> StringOwners<'a> {
+    pub fn of(o: crate::owners::Owners<'a>) -> Self {
+        Self {
+            strings: o.strings,
+            race: o.race,
+            menus: o.menus,
+            install: o.install,
+        }
+    }
+}
+
+/// `emit` receives each run of bytes to append. Returns the value the original leaves in its result register.
+pub fn append_string_by_id(
+    o: StringOwners<'_>,
     id: u32,
     emit: &mut impl FnMut(&[u8]),
 ) -> Result<u32, BadInput> {
@@ -50,17 +67,7 @@ pub fn append_string_by_id_in(
 }
 
 /// Appends the text of string `id` to `out`.
-pub fn push_string(out: &mut Vec<u8>, id: u32) -> Result<(), BadInput> {
-    append_string_by_id(id, &mut |bytes| out.extend_from_slice(bytes))?;
-    Ok(())
-}
-
-/// `push_string` for a caller that holds the owners.
-pub fn push_string_in(
-    o: crate::owners::Owners<'static>,
-    out: &mut Vec<u8>,
-    id: u32,
-) -> Result<(), BadInput> {
-    append_string_by_id_in(o, id, &mut |bytes| out.extend_from_slice(bytes))?;
+pub fn push_string(o: StringOwners<'_>, out: &mut Vec<u8>, id: u32) -> Result<(), BadInput> {
+    append_string_by_id(o, id, &mut |bytes| out.extend_from_slice(bytes))?;
     Ok(())
 }

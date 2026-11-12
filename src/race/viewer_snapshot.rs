@@ -35,6 +35,7 @@ pub fn viewer_snapshot(
             &gfx.shots,
             Some(&replay.snapshot.text()),
             gfx,
+            system,
         )?;
         crate::platform::unlock_surface(gfx);
     }

@@ -14,6 +14,7 @@ use crate::text::draw_text::{Canvas, draw_text_at};
 /// drawn at (0x190, 4) in the font at 0x51DE90 as "fps: n" (its size; built in the text buffer).
 pub fn draw_frame_rate(
     race: &Race,
+    strings: &'static crate::strings::owner::Strings,
     canvas: &mut dyn Canvas,
     gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
@@ -25,7 +26,7 @@ pub fn draw_frame_rate(
     if rate == 0 || frame.counter.show.get() == 0 {
         return Ok(());
     }
-    let t = crate::strings::text_from_ids::text_at();
+    let t = crate::strings::text_from_ids::text_at(strings);
     let bytes = fps_text(rate);
     t.write_at(0, &bytes, "the frame rate's text")?;
     draw_text_at(
@@ -41,6 +42,7 @@ pub fn draw_frame_rate(
 /// `race::credit_line`: string `id` in `font` at (x, y), unless y is at or above the screen's
 /// bottom (`g_screenHeight`) or at or below -0x1B.
 fn credit_line(
+    so: crate::strings::append_string_by_id::StringOwners<'static>,
     id: u32,
     font: crate::gfx::typefaces::FontId,
     x: i32,
@@ -52,7 +54,7 @@ fn credit_line(
     if !rc2k_core::race::credits::shown(y, system.session.screen.height.get()) {
         return Ok(());
     }
-    draw_string_by_id_at(id, font, x, y, canvas)?;
+    draw_string_by_id_at(so, id, font, x, y, canvas)?;
     Ok(())
 }
 
@@ -150,6 +152,7 @@ impl Credits {
 /// the end) from the top down, moves the top up a pixel for each 0x12 ms passed, and when the last
 /// line is above -0xAF and the music has stopped, `Credits.done` 1.
 pub fn roll_credits(
+    so: crate::strings::append_string_by_id::StringOwners<'static>,
     frame: &Frame,
     eax: u32,
     canvas: &mut dyn Canvas,
@@ -198,7 +201,15 @@ pub fn roll_credits(
     );
     trap.finish()?;
     for line in lines {
-        credit_line(line.id, font_of(line.font), line.x, line.y, canvas, system)?;
+        credit_line(
+            so,
+            line.id,
+            font_of(line.font),
+            line.x,
+            line.y,
+            canvas,
+            system,
+        )?;
     }
     let (top, clock, _) = catch_up(
         frame.credits.top.get(),

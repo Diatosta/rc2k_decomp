@@ -85,8 +85,7 @@ pub fn add_car_lights(
                 // The car as the drawing sees it, and its marks count (the drawing's own, in
                 // the block: `race::car_parts`).
                 let marks = shared
-                    .work
-                    .block_car(car as usize, "no car")?
+                    .race_car_or(car as usize, "no car")?
                     .marks_count
                     .get();
                 add(

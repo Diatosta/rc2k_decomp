@@ -124,7 +124,7 @@ pub fn set_up_car_points(
             }
             // Converted: `rc2k_core::race::cars::{point_float, open_two_points}`.
             let scale = race.course.numbers.k65536.get();
-            let car = race.shared.work.car(car_number)?;
+            let car = race.shared.race_car(car_number)?;
             let lists = [&car.probe_point_x, &car.probe_point_y, &car.probe_point_z];
             for n in 0..count {
                 let p = points + n * 12;
@@ -144,12 +144,11 @@ pub fn set_up_car_points(
             race.physics.contact.car_point_count.set(count + 2);
         }
         log(c"carnum", false);
-        log_number(race.shared.work.car(car_number)?.car_kind.get(), false);
+        log_number(race.shared.race_car(car_number)?.car_kind.get(), false);
         log(c"numcollpts", false);
         log_number(race.physics.contact.car_point_count.get(), true);
         race.shared
-            .work
-            .car(car_number)?
+            .race_car(car_number)?
             .probe_count
             .set(race.physics.contact.car_point_count.get());
     }
@@ -192,7 +191,7 @@ pub fn set_object_kinds(race: &Race, scene: &crate::scene::owner::Scene) -> Resu
     let mut slots = car_slot(0);
     for n in 0..cars {
         for (kind, slot) in CAR_KINDS {
-            let car = race.shared.work.car(n as usize)?.car_kind.get();
+            let car = race.shared.race_car(n as usize)?.car_kind.get();
             let k = match kind {
                 CarKind::Known => crate::scene::known_kind::known_kind(race.kind_tables(), car),
                 CarKind::Table11 => car_table(&race.kind_tables().kind_11_table, car),

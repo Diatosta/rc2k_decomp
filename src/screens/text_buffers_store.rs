@@ -3,7 +3,6 @@
 //! the cells, the stage line, the caption, the title and the number text (0x100 bytes each),
 //! the stage result's value and the ten page-number texts. Names are readings unless IDA's.
 
-use crate::race::owner::race;
 use crate::session::{Bytes, Dword};
 
 #[repr(C)]
@@ -26,18 +25,6 @@ pub struct TextBuffers {
     /// +0x604 (0xA8C158): `byte_A8C158`: ten texts of four bytes, the page numbers (`screens::savegame_page_numbers`).
     pub page_numbers: Bytes<40>,
 }
-
-/// The piece, a field of `crate::race::owner::race().shared.buffers`.
-pub struct InBuffers;
-
-impl core::ops::Deref for InBuffers {
-    type Target = TextBuffers;
-    fn deref(&self) -> &TextBuffers {
-        &race().shared.buffers.text
-    }
-}
-
-pub static TEXT_BUFFERS: InBuffers = InBuffers;
 
 /// IDA 0xA8BB54, the first byte of the piece.
 pub const START: usize = 0xA8BB54;

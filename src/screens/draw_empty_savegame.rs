@@ -10,9 +10,12 @@ use crate::errors::Refused;
 use crate::text::draw_text::Canvas;
 
 /// Returns the carry flag of the last text drawn.
-pub fn draw_empty_savegame(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+pub fn draw_empty_savegame(
+    o: crate::owners::Owners<'static>,
+    canvas: &mut dyn Canvas,
+) -> Result<bool, Refused> {
     // The logic is in `rc2k_core::screens::savegame_preview::empty`.
     rc2k_core::screens::savegame_preview::empty(
-        &mut crate::screens::game_screen::PreviewScreen::new(canvas),
+        &mut crate::screens::game_screen::PreviewScreen::new(canvas, o),
     )
 }

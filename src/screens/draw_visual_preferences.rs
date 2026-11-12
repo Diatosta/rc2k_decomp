@@ -10,7 +10,6 @@
 //! refuses. The menus and draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
 use crate::menu::player::Player;
 use crate::menu::player_settings::current;
 use crate::text::draw_text::Canvas;
@@ -37,12 +36,16 @@ fn rows(p: &Player) -> [(u32, u32); 9] {
 }
 
 /// Returns the carry.
-pub fn draw_visual_preferences(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+pub fn draw_visual_preferences(
+    o: crate::owners::Owners<'static>,
+    canvas: &mut dyn Canvas,
+) -> Result<bool, Refused> {
+    let menus = o.menus;
     // The logic is in `rc2k_core::screens::settings_pages::visual_preferences`.
     let player = current(menus)?.get();
     let ids = rows(&player).map(|(value, first)| value.wrapping_add(first));
     rc2k_core::screens::settings_pages::visual_preferences(
-        &mut crate::screens::game_screen::SettingsScreen::new(canvas),
+        &mut crate::screens::game_screen::SettingsScreen::new(canvas, o),
         ids,
     )
 }

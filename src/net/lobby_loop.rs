@@ -112,7 +112,12 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
     let (install, net, system) = (o.install, o.net, o.system);
     net.vars.players.set(0);
     net.vars.racing.set(0);
-    crate::net::show_background::show_background(o.gfx, o.system, &net.vars)?;
+    crate::net::show_background::show_background(
+        crate::strings::append_string_by_id::StringOwners::of(o),
+        o.gfx,
+        o.system,
+        &net.vars,
+    )?;
     let now = system.session.clocks.key_ticks.get();
     install.pages.move_clock.set(now);
     install.pages.key_clock.set(now);
@@ -148,7 +153,7 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
         let key = list_key(install)?;
         let mut moved = false;
         if net.edit().edited.get() != u32::MAX {
-            crate::net::chat_key::chat_key(net, install, key, o.gfx)?;
+            crate::net::chat_key::chat_key(o.input, net, install, key, o.gfx)?;
         } else {
             let ready = net.vars.own.state() & 1 != 0;
             if !ready && key == 0x69 {

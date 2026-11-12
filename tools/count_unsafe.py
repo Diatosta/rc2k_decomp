@@ -15,10 +15,24 @@ def strip_tests(s):
         if not m:
             return out + s[i:]
         out += s[i:m.start()]
-        k = s.find('{', m.end())
-        e = s.find(';', m.end())
-        if k < 0 or 0 <= e < k:
-            i = e + 1
+        # the item ends at its first `;` or `{` outside parentheses and brackets (a `;`
+        # inside `[u32; 4]` in a signature does not end it)
+        k = e = -1
+        depth = 0
+        for q in range(m.end(), len(s)):
+            c = s[q]
+            if c in '([':
+                depth += 1
+            elif c in ')]':
+                depth -= 1
+            elif depth <= 0 and c == '{':
+                k = q
+                break
+            elif depth <= 0 and c == ';':
+                e = q
+                break
+        if k < 0:
+            i = (e if e >= 0 else len(s) - 1) + 1
             continue
         d = 0
         p = k
@@ -36,9 +50,7 @@ def strip_tests(s):
 PATTERNS = {
     'unsafe {': r'\bunsafe\s*\{',
     'unsafe fn': r'\bunsafe\s+(?:extern\s+"[^"]*"\s+)?fn\b',
-    'GamePtr::new': r'GamePtr::new',
     '.addr()': r'\.addr\(\)',
-    'pointers::host': r'pointers::host',
 }
 
 

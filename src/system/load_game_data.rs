@@ -27,7 +27,7 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::name_lists::NAME_LEN;
 use crate::owners::Owners;
 use crate::session::Dword;
-use crate::strings::append_string_by_id::push_string_in;
+use crate::strings::append_string_by_id::push_string;
 use crate::strings::copy_printable::printable_from;
 
 // ---- game data ----
@@ -79,7 +79,11 @@ fn default_name(
     after: &[u8],
 ) -> Result<(), BadInput> {
     let mut string = Vec::new();
-    push_string_in(o, &mut string, id)?;
+    push_string(
+        crate::strings::append_string_by_id::StringOwners::of(o),
+        &mut string,
+        id,
+    )?;
     let name = rc2k_core::system::game_data::default_name(&string, after, room)
         .ok_or(BadInput("a default name longer than its place"))?;
     to.write_bytes_at(at, &name, "a default name")?;
@@ -96,7 +100,11 @@ fn number_empty_names(
         let name = slot as usize * NAME_LEN;
         if names.get_byte(name) == 0 {
             let mut string = Vec::new();
-            push_string_in(o, &mut string, id)?;
+            push_string(
+                crate::strings::append_string_by_id::StringOwners::of(o),
+                &mut string,
+                id,
+            )?;
             let bytes = rc2k_core::system::game_data::slot_name(&string, slot, NAME_LEN)
                 .ok_or(BadInput("a default name longer than its place"))?;
             // The name bytes at their slot in the names buffer.
@@ -177,7 +185,11 @@ pub fn load_game_data(o: Owners<'static>, outside: Outside) -> Result<(), Refuse
         let end = loop {
             let drawn = outside(Call::RandomBelow(DRIVER_NAME_IDS.1))?;
             let mut name = Vec::new();
-            push_string_in(o, &mut name, DRIVER_NAME_IDS.0.wrapping_add(drawn))?;
+            push_string(
+                crate::strings::append_string_by_id::StringOwners::of(o),
+                &mut name,
+                DRIVER_NAME_IDS.0.wrapping_add(drawn),
+            )?;
             if name.len() >= NAME_LEN {
                 return Err(BadInput("a driver's name longer than its place").into());
             }

@@ -24,9 +24,9 @@ const NO_MUTEX: FatalError = FatalError {
     code: 0x8016_8502,
     message: "",
 };
-pub fn set_up(net: &Net) -> Result<(), Refused> {
+pub fn set_up(net: &Net, strings: &crate::strings::owner::Strings) -> Result<(), Refused> {
     let vars = &net.vars;
-    if notice_kind() == 2 && net.setup().most_players.get() as i32 > 4 {
+    if notice_kind(strings) == 2 && net.setup().most_players.get() as i32 > 4 {
         net.setup().most_players.set(4);
     }
     let event = create_event(0, 0);

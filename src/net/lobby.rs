@@ -48,7 +48,11 @@ pub fn push_id(
     text: &mut Vec<u8>,
     id: u32,
 ) -> Result<(), Refused> {
-    crate::strings::append_string_by_id::push_string_in(o, text, id)?;
+    crate::strings::append_string_by_id::push_string(
+        crate::strings::append_string_by_id::StringOwners::of(o),
+        text,
+        id,
+    )?;
     Ok(())
 }
 
@@ -167,6 +171,7 @@ pub fn copy_picture(
 
 /// `text::draw_string_by_id` with the font at the IDA address `font`.
 pub fn draw_string(
+    so: crate::strings::append_string_by_id::StringOwners<'static>,
     id: u32,
     font: crate::gfx::typefaces::FontId,
     x: u32,
@@ -174,6 +179,7 @@ pub fn draw_string(
     gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     crate::text::draw_string_by_id::draw_string_by_id_at(
+        so,
         id,
         font,
         x as i32,

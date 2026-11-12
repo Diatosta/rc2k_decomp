@@ -87,6 +87,7 @@ fn remove_whole(folder: &std::path::Path) {
 }
 
 pub fn uninstall(
+    so: crate::strings::append_string_by_id::StringOwners<'static>,
     install: &'static crate::install::owner::Install,
     system: &crate::system::owner::System,
     gfx: &crate::gfx::owner::Gfx,
@@ -101,7 +102,13 @@ pub fn uninstall(
     run_frame(system, None)?;
     if lock(gfx, system) {
         copy_picture(gfx, system)?;
-        i::draw_string_list::draw_string_list(&install.pages.remove_strings.each_ref(), 0, 0, gfx)?;
+        i::draw_string_list::draw_string_list(
+            so,
+            &install.pages.remove_strings.each_ref(),
+            0,
+            0,
+            gfx,
+        )?;
         unlock(gfx);
         show();
     }

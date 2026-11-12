@@ -38,7 +38,7 @@ pub fn check_cheat_name(o: crate::owners::Owners<'static>) -> Result<(), Refused
     let name = crate::menu::player_names::NameAt::of(crate::menu::player_names::name_of(
         &crate::menu::standings::player(menus, 3).get(),
     )?);
-    let coded = rot13_into_text(&name.tail(menus))?;
+    let coded = rot13_into_text(o.strings, &name.tail(menus))?;
     let Some((_found, bit)) = find(play, &coded)? else {
         return Ok(());
     };
@@ -56,7 +56,11 @@ pub fn check_cheat_name(o: crate::owners::Owners<'static>) -> Result<(), Refused
         race,
     )?;
     let mut hidden = Vec::new();
-    crate::strings::append_string_by_id::push_string_in(o, &mut hidden, HIDDEN_NAME)?;
+    crate::strings::append_string_by_id::push_string(
+        crate::strings::append_string_by_id::StringOwners::of(o),
+        &mut hidden,
+        HIDDEN_NAME,
+    )?;
     hidden.push(0);
     name.place(menus).write(&hidden, "a player\'s name")?;
     Ok(())

@@ -32,7 +32,7 @@ use crate::effects::setup::MarksClock;
 use crate::effects::tuning::MarksFloats;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::race::effects_settings_store::{CarEffects, EffectsSettings, car_or_none};
+use crate::race::effects_settings_store::{CarEffects, EffectsSettings};
 use crate::scene::matrix3::extended;
 
 /// The settings' flag for a ring entry's tag (its +8, a car's number times the car record's
@@ -55,8 +55,14 @@ fn k(cell: &f32) -> u32 {
 
 /// The original's 0x4CE9AF .. 0x4CEA40 (and 0x4CEC77 ..): the place less the object's (`[p + 0x30]` ..) into `RingWork.away[0]` .., turned by the object's matrix (`m`), |x| and |z| `fistp`ed into `RingWork.extent[0]` / `RingWork.extent[1]`.
 /// The car a ring entry is on (its +0x68, a `effects_settings_store::car_handle`).
-fn entry_car(ring: &Ring, e: u32) -> Result<&'static CarEffects, Refused> {
-    car_or_none(entry(ring, e)?.car).ok_or_else(|| BadInput("a ring entry without its car").into())
+fn entry_car(
+    ring: &Ring,
+    e: u32,
+    effects: &crate::effects::owner::Effects,
+) -> Result<&'static CarEffects, Refused> {
+    effects
+        .car_record(entry(ring, e)?.car)
+        .ok_or_else(|| BadInput("a ring entry without its car").into())
 }
 
 fn box_(ring: &Ring, e: u32, whole: &[crate::session::Float; 16], car: &CarEffects) {
@@ -64,8 +70,14 @@ fn box_(ring: &Ring, e: u32, whole: &[crate::session::Float; 16], car: &CarEffec
 }
 
 /// The car's whole matrix (its block's), refused where the original would read address 0.
-fn whole_of(car: &CarEffects) -> Result<&'static [crate::session::Float; 16], BadInput> {
-    crate::race::blocks_store::car_of(car.whole_block.get())
+fn whole_of(
+    car: &CarEffects,
+    effects: &crate::effects::owner::Effects,
+) -> Result<&'static [crate::session::Float; 16], BadInput> {
+    effects
+        .car_blocks()
+        .ok()
+        .and_then(|blocks| blocks.of(car.whole_block.get()))
         .map(|b| &b.whole_matrix)
         .ok_or(BadInput("a ring entry without its object"))
 }
@@ -195,10 +207,10 @@ fn refusal(
             }
             let kind = entry(ring, e)?.kind;
             if [5, 0xB, 6, 0x15, 1, 0xD, 0x13, 0x16, 0x10, 0x11].contains(&kind) {
-                let obj = car_or_none(entry(ring, e)?.car);
+                let obj = effects.car_record(entry(ring, e)?.car);
                 let needs = matches!(kind, 6 | 0x15 | 1 | 0x10 | 0x11)
                     || entry_flag(marks, entry(ring, e)?.emitter_tag)? != 0;
-                if needs && !obj.is_some_and(CarEffects::has_whole) {
+                if needs && !obj.is_some_and(|car| effects.has_whole(car)) {
                     return Ok(Some("a ring entry without its object"));
                 }
                 // The draws' own refusals, for an entry that may be drawn.
@@ -241,9 +253,13 @@ fn aged(
 }
 
 /// The place on the object's (unrounded sums), st(0) first.
-fn on_object(ring: &Ring, e: u32) -> Result<[[u8; 10]; 3], Refused> {
+fn on_object(
+    ring: &Ring,
+    e: u32,
+    effects: &crate::effects::owner::Effects,
+) -> Result<[[u8; 10]; 3], Refused> {
     Ok({
-        let m = entry_car(ring, e)?.whole()?;
+        let m = entry_car(ring, e, effects)?.whole(effects.car_blocks()?)?;
         [
             x87::add_80(entry(ring, e)?.place[0], matrix_cell(m, 0x30)?),
             x87::add_80(entry(ring, e)?.place[1], matrix_cell(m, 0x34)?),
@@ -407,8 +423,8 @@ fn outside_and_away(
     effects: &crate::effects::owner::Effects,
 ) -> Result<bool, Refused> {
     Ok({
-        let car = entry_car(ring, e)?;
-        box_(ring, e, whole_of(car)?, car);
+        let car = entry_car(ring, e, effects)?;
+        box_(ring, e, whole_of(car, effects)?, car);
         let outside = (entry(ring, e)?.box_limit[0] as i32) < (ring.work.extent[0].get() as i32)
             || (entry(ring, e)?.box_limit[1] as i32) < (ring.work.extent[1].get() as i32);
         if !outside {
@@ -485,7 +501,7 @@ fn drift_kind(
             return Ok(true);
         }
         if shown(effects, ring, e)? {
-            let p = on_object(ring, e)?;
+            let p = on_object(ring, e, effects)?;
             let [cell, angle, alpha, size] = [
                 entry(ring, e)?.cell,
                 entry(ring, e)?.angle,
@@ -554,7 +570,7 @@ fn fading_kind(
         }
         if shown(effects, ring, e)? {
             let p = if kind == 0xD {
-                on_object(ring, e)?
+                on_object(ring, e, effects)?
             } else {
                 at_place(ring, e)?
             };
@@ -631,9 +647,9 @@ fn pull_toward(
 ) -> Result<(), Refused> {
     let setup = &effects.setup;
     {
-        let car = entry_car(ring, e)?;
+        let car = entry_car(ring, e, effects)?;
         let mut length = [0u8; 10];
-        pull_length(ring, e, whole_of(car)?, &mut length);
+        pull_length(ring, e, whole_of(car, effects)?, &mut length);
         if ring.work.near.get().is_sign_negative() {
             return Ok(());
         }
@@ -673,7 +689,7 @@ fn boxed_kind(
     spin_and_move(ring, e, false, effects)?;
     gain_y(ring, e, gain, effects)?;
     if shown(effects, ring, e)? {
-        let p = on_object(ring, e)?;
+        let p = on_object(ring, e, effects)?;
         let size = entry(ring, e)?.size;
         let f = bh::to_int(
             bh::int(entry(ring, e)?.life as i32)
@@ -700,7 +716,7 @@ fn boxed_kind(
             view,
         )?;
     }
-    box_place(ring, e, entry_car(ring, e)?);
+    box_place(ring, e, entry_car(ring, e, effects)?);
     let mut outside = (entry(ring, e)?.box_limit[0] as i32) < (ring.work.extent[0].get() as i32);
     if !outside && both {
         outside = (entry(ring, e)?.box_limit[1] as i32) < (ring.work.extent[1].get() as i32);

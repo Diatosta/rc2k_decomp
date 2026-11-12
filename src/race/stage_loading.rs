@@ -49,6 +49,7 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
     {
         // As `menu::show_loading_picture`.
         crate::gfx::show_picture_file::show_picture_file(
+            crate::strings::append_string_by_id::StringOwners::of(o),
             &o.menus.tables.texts.loading_pcx,
             gfx,
             system,

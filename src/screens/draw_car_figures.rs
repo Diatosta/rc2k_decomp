@@ -29,7 +29,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::car_description::{read, shown_description};
-use crate::menu::owner::Menus;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -39,27 +38,36 @@ use crate::text::draw_text::Canvas;
 const PAGES: u32 = 4;
 
 /// Returns the carry of the last text drawn.
-pub fn draw_car_figures(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+pub fn draw_car_figures(
+    o: crate::owners::Owners<'static>,
+    canvas: &mut dyn Canvas,
+) -> Result<bool, Refused> {
+    let menus = o.menus;
     let page: u32 = menus.screens.event.car_page.get();
     if page >= PAGES {
         return Err(BadInput("a page past the four").into());
     }
-    draw_car_page(page, shown_description(menus)?, canvas)
+    draw_car_page(o, page, shown_description(menus)?, canvas)
 }
 
 /// One page (0x469C40, 0x469F12, 0x46A193, 0x469CA0 for 0 .. 3) of the
 /// record at `record`: the carry of the last text drawn. The logic is in
 /// `rc2k_core::screens::car_pages::page` (the record written back when it changed it: the Clio's
 /// strings).
-pub fn draw_car_page(page: u32, record: u32, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+pub fn draw_car_page(
+    o: crate::owners::Owners<'static>,
+    page: u32,
+    record: u32,
+    canvas: &mut dyn Canvas,
+) -> Result<bool, Refused> {
     use crate::screens::game_screen::GameScreen;
     use rc2k_core::screens::car_pages::{Font, Work};
     {
         let before = read(record)?;
         let mut d = before;
-        let notice = crate::strings::load_language::notice_kind(); // g_noticeKind
+        let notice = crate::strings::load_language::notice_kind(o.strings); // g_noticeKind
         let carry = rc2k_core::screens::car_pages::page(
-            &mut GameScreen::<Font, Work>::new(canvas),
+            &mut GameScreen::<Font, Work>::new(canvas, o),
             page,
             &mut d,
             notice,

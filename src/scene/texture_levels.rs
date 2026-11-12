@@ -127,7 +127,7 @@ pub fn init_texture_levels(race: &Race, o: crate::owners::Owners<'static>) -> Re
                 other(scene),
                 |car| {
                     let kinds = &shared.vars.race_car_kinds;
-                    let own = crate::race::blocks_store::own_car_number();
+                    let own = shared.own_car_number(o.net.vars.session.get());
                     car as usize == own || kinds[car as usize].get() == kinds[own].get()
                 },
             )

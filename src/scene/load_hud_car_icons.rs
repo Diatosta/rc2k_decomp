@@ -51,8 +51,7 @@ pub fn load_hud_car_icons(
     let player = if vars.session.get() != 0 {
         let car = car_icons::one_car(vars.player.get())?;
         shared
-            .work
-            .block_car(car, "a car without its block")?
+            .race_car_or(car, "a car without its block")?
             .car_kind
             .get()
     } else {

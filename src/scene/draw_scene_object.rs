@@ -48,7 +48,7 @@ fn texture_set(
                 shared
                     .work
                     .has_car_block(car as usize)
-                    .then(|| shared.work.car_or_end(car as usize).car_kind.get())
+                    .then(|| shared.race_car_or_end(car as usize).car_kind.get())
             },
         )
         .map_err(|e| -> Refused {

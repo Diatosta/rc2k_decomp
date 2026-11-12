@@ -47,13 +47,14 @@ fn line(gfx: &crate::gfx::owner::Gfx) -> u32 {
 
 /// The text buffer: string `id`, then (with `time`) a time, then a NUL.
 fn build_text(
+    so: crate::strings::append_string_by_id::StringOwners<'_>,
     strings: &crate::strings::owner::Strings,
     id: u32,
     time: Option<u32>,
 ) -> Result<(), Refused> {
     use crate::strings::append_time::{append_time, show_hours};
     let mut t = Vec::new();
-    crate::strings::append_string_by_id::push_string(&mut t, id)?;
+    crate::strings::append_string_by_id::push_string(so, &mut t, id)?;
     if let Some(h) = time {
         t.extend(append_time(h, show_hours()));
     }
@@ -122,6 +123,7 @@ fn three_times(
 
 /// For the device `device`.
 pub fn draw_tyre_change(
+    so: crate::strings::append_string_by_id::StringOwners<'static>,
     race: &'static Race,
     shared: &RaceShared,
     device: &InputDevice,
@@ -155,6 +157,7 @@ pub fn draw_tyre_change(
                     _ => y = y.wrapping_add(line(gfx)),
                 }
                 crate::text::draw_string_by_id::draw_string_by_id_at(
+                    so,
                     id,
                     font,
                     x as i32,
@@ -168,7 +171,7 @@ pub fn draw_tyre_change(
         }
         set_clip(&gfx.drawing.blit.clip.left, 0x80);
         fill(race, 0x80, 0x32, 0x80, 0x4B, gfx)?;
-        { build_text(strings, 0x12E, Some(shared.tyre_change.record.get())) }?;
+        { build_text(so, strings, 0x12E, Some(shared.tyre_change.record.get())) }?;
         three_times(gfx, strings, 0x84, 0x32)?;
         set_clip(&gfx.drawing.blit.clip.left, 0);
         fill(race, 0, 0x99, 0x100, 0x19, gfx)?;
@@ -190,9 +193,9 @@ pub fn draw_tyre_change(
         fill(race, x, 0xB2, 0x80, 0x4B, gfx)?;
         if device.stage.get() == 1 {
             let time = device.clock.get();
-            { build_text(strings, 0x12D, Some(time)) }?;
+            { build_text(so, strings, 0x12D, Some(time)) }?;
         } else {
-            { build_text(strings, 0x12C, None) }?;
+            { build_text(so, strings, 0x12C, None) }?;
         }
         three_times(gfx, strings, x.wrapping_add(4), 0xB2)?;
         { crate::d3d::unlock_texture::unlock_texture(shared.tyre_change.texture.get()) }?;

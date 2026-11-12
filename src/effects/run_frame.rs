@@ -88,6 +88,7 @@ pub fn run_frame(
     race: &Race,
     scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
+    system: &crate::system::owner::System,
     sound: &crate::sound::owner::Sound,
     view: EffectsView<'_>,
 ) -> Result<(), Refused> {
@@ -98,7 +99,7 @@ pub fn run_frame(
     let (weather, particles, ring) = (&effects.weather, &effects.particles, &effects.ring);
     let paths = &effects.paths;
     {
-        swap_mask::swap_mask(&effects.masks, scene, gfx, effects)?;
+        swap_mask::swap_mask(&effects.masks, scene, gfx, system, effects)?;
         setup::tick_clock(&race.shared, effects)?;
         let whole = rdtsc();
         for (value, state) in STATES {

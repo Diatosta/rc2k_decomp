@@ -36,7 +36,6 @@
 //! line buffer, and what the look-ups refuse.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::Menus;
 use crate::menu::ranked_lookups::{find_ranked_entry, find_ranked_position, first_overall_time};
 use crate::screens::best_scores::{record_at, section_there};
 use crate::screens::game_screen::{HeldText, held_name};
@@ -102,11 +101,12 @@ pub const OVERALL_STAGE: Page = Page {
 
 /// Draws one page.
 pub fn draw_results_page(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     system: &crate::system::owner::System,
     page: &Page,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
+    let menus = o.menus;
     let class = menus.screens.event.class.get();
     if !section_there(menus, system)? {
         return Err(BadInput("a section past the record table").into());
@@ -157,7 +157,7 @@ pub fn draw_results_page(
                 },
             },
             Heading::Record => {
-                crate::screens::best_scores::draw_record_heading(menus, system, canvas)?;
+                crate::screens::best_scores::draw_record_heading(o, system, canvas)?;
                 Drawn::Drawn
             }
         };
@@ -187,7 +187,7 @@ pub fn draw_results_page(
             })
             .collect::<Result<_, BadInput>>()?;
         results_page(
-            &mut crate::screens::game_screen::GameScreen::<_, _, HeldText>::new(canvas),
+            &mut crate::screens::game_screen::GameScreen::<_, _, HeldText>::new(canvas, o),
             heading,
             first,
             first_row,
@@ -206,12 +206,12 @@ macro_rules! results_page_entry {
             use super::*;
             /// Run by the typed tables (`menu::table_calls`).
             pub fn draw(
-                menus: &crate::menu::owner::Menus,
+                o: crate::owners::Owners<'static>,
                 system: &crate::system::owner::System,
                 gfx: &crate::gfx::owner::Gfx,
             ) -> Result<(), Refused> {
                 draw_results_page(
-                    menus,
+                    o,
                     system,
                     &$page,
                     &mut crate::text::draw_text::GameCanvas::new(gfx),

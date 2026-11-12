@@ -201,7 +201,10 @@ impl flow::Game for Game<'_> {
             C::RallyStagesLoop => self.screen(&m::rally_stages_loop::SCREEN)?,
             C::NextStageLoop => self.screen(&m::next_stage_loop::SCREEN)?,
             C::ServicePass => m::service_pass::service_pass(menus, entry)?,
-            C::StandingsBFromAll => m::standings_b_from_all::standings_b_from_all(menus)?,
+            C::StandingsBFromAll => m::standings_b_from_all::standings_b_from_all(
+                crate::strings::append_string_by_id::StringOwners::of(entry.owners),
+                menus,
+            )?,
             C::SortBByFigure => m::sort_standings_b_by_figure::sort_standings_b_by_figure(menus)?,
             C::AwardStagePoints => m::award_stage_points::award_stage_points(menus)?,
             C::SortBByPoints => m::sort_standings_b_by_points::sort_standings_b_by_points(menus)?,
@@ -228,7 +231,10 @@ impl flow::Game for Game<'_> {
                 self.owners.system,
                 self.owners.race,
             )?,
-            C::StandingsAFromAll => m::standings_a_from_all::standings_a_from_all(menus)?,
+            C::StandingsAFromAll => m::standings_a_from_all::standings_a_from_all(
+                crate::strings::append_string_by_id::StringOwners::of(entry.owners),
+                menus,
+            )?,
             C::ClassRallyResultsPass => {
                 m::class_rally_results_pass::class_rally_results_pass(menus, entry)?;
             }

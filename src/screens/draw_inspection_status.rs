@@ -50,10 +50,11 @@ pub fn inspection_status(
 /// the text (too wide): what the one caller, `screens::draw_service_area`, reads of what
 /// the original leaves.
 pub fn draw_inspection_status(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     screens: &Screens,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
+    let menus = o.menus;
     let Some(player) = current_player(menus) else {
         return Err(BadInput("no current player object: the original reads through null").into());
     };
@@ -63,7 +64,7 @@ pub fn draw_inspection_status(
         &mut crate::screens::game_screen::GameScreen::<
             rc2k_core::screens::inspection::Font,
             rc2k_core::screens::inspection::Work,
-        >::new(canvas),
+        >::new(canvas, o),
         condition,
     )?;
     Ok(out.too_wide)

@@ -49,6 +49,8 @@ fn end_name(menus: &Menus, name: crate::place::BytePlace) -> Result<(), BadInput
 
 /// Returns the carry flag.
 pub fn edit_replay_name(
+    input: &crate::input::owner::Input,
+    so: crate::strings::append_string_by_id::StringOwners<'_>,
     menus: &Menus,
     saves: &'static Saves,
     race: &'static Race,
@@ -88,7 +90,7 @@ pub fn edit_replay_name(
         Key::Clear => clear_text(menus, other_name)?,
         Key::Backspace => backspace_savegame_name(menus, saves)?,
         Key::Other(key) => {
-            let c = key_to_char(key as u32)? as u8;
+            let c = key_to_char(input, key as u32)? as u8;
             let len = length(menus);
             if entry::appends(c, len, menus.screens.loop_flags.text_max.get() as i32) {
                 name.add(len as u32).write(&[c], "a replay's name")?;
@@ -104,7 +106,7 @@ pub fn edit_replay_name(
     let cursor_on = menus.screens.draw_work.cursor_on.is_set();
     let mut tail = Vec::new();
     if cursor_on {
-        push_string(&mut tail, CURSOR_STRING)?;
+        push_string(so, &mut tail, CURSOR_STRING)?;
     }
     tail.push(0);
     name.add(length(menus) as u32)

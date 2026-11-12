@@ -12,13 +12,14 @@ use crate::net::owner::Net;
 /// The key `key` for the chat message being typed; once it ends the
 /// editing, a message typed is sent and the input cleared.
 pub fn chat_key(
+    input: &crate::input::owner::Input,
     net: &Net,
     install: &Install,
     key: u8,
     gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     let vars = &net.vars;
-    if !crate::net::edit_key::edit_key(net, install, key, gfx)? {
+    if !crate::net::edit_key::edit_key(input, net, install, key, gfx)? {
         return Ok(());
     }
     if net.edit().chat_input.get(0) != 0 {

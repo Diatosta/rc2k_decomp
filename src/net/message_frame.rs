@@ -13,6 +13,7 @@ const FONT_B: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::CAPT
 /// A frame with one string: locked, the background, the string, unlocked, shown; nothing if
 /// the lock fails.
 pub fn string_frame(
+    so: crate::strings::append_string_by_id::StringOwners<'static>,
     id: u32,
     font: crate::gfx::typefaces::FontId,
     x: u32,
@@ -23,11 +24,12 @@ pub fn string_frame(
     if !lock_surface(gfx, system) {
         return Ok(());
     }
-    string_frame_locked(id, font, x, y, gfx, system)
+    string_frame_locked(so, id, font, x, y, gfx, system)
 }
 
 /// `string_frame` after the lock.
 pub fn string_frame_locked(
+    so: crate::strings::append_string_by_id::StringOwners<'static>,
     id: u32,
     font: crate::gfx::typefaces::FontId,
     x: u32,
@@ -36,15 +38,16 @@ pub fn string_frame_locked(
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     copy_picture(gfx, system)?;
-    draw_string(id, font, x, y, gfx)?;
+    draw_string(so, id, font, x, y, gfx)?;
     crate::platform::unlock_surface(gfx);
     crate::platform::show_frame_now();
     Ok(())
 }
 pub fn message_frame(
+    so: crate::strings::append_string_by_id::StringOwners<'static>,
     message: u32,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
-    string_frame(message, FONT_B, 0x190, 0x12C, gfx, system)
+    string_frame(so, message, FONT_B, 0x190, 0x12C, gfx, system)
 }

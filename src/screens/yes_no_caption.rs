@@ -18,12 +18,13 @@ const FIRST: u32 = 0x56B;
 
 /// Puts the answer's caption in the caption buffer.
 pub fn yes_no_caption(
+    so: crate::strings::append_string_by_id::StringOwners<'_>,
     tables: &Tables,
     buffers: &crate::screens::text_buffers_store::TextBuffers,
 ) -> Result<(), Refused> {
     let id = tables.pages.yes_no_answer.get().wrapping_add(FIRST);
     let mut text = Vec::new();
-    append_string_by_id(id, &mut |bytes| text.extend_from_slice(bytes))?;
+    append_string_by_id(so, id, &mut |bytes| text.extend_from_slice(bytes))?;
     // The logic is in `rc2k_core::screens::captions::fit`.
     let text = rc2k_core::screens::captions::fit(text, CAPTION_LEN)?;
     buffers.caption.write_at(0, &text, "the caption")?;
@@ -31,10 +32,11 @@ pub fn yes_no_caption(
 }
 
 pub fn run(
+    so: crate::strings::append_string_by_id::StringOwners<'_>,
     menus: &crate::menu::owner::Menus,
     buffers: &crate::screens::text_buffers_store::TextBuffers,
 ) -> Result<(), Refused> {
     let tables = &menus.tables;
-    yes_no_caption(tables, buffers)?;
+    yes_no_caption(so, tables, buffers)?;
     Ok(())
 }

@@ -48,7 +48,7 @@ pub fn car_collisions(
             physics.other_car_number.set(car);
             physics.other_car_block.set(work.car_handle(car as usize));
             // A `g_carBlocks` entry of the eight, not null (both checked above).
-            let block = work.car_or_end(car as usize);
+            let block = c.contact.shared.race_car_or_end(car as usize);
             if block.driver_kind.bits() == 0 {
                 continue;
             }

@@ -29,7 +29,8 @@ pub fn connection_found(
     let vars = &net().vars;
     log_bytes(&panel.text(texts::NET_FOUND), false, 2);
     log_bytes(short, true, 2);
-    if crate::strings::load_language::notice_kind() == lists::LEAVES_OUT_PROVIDERS
+    if crate::strings::load_language::notice_kind(crate::strings::owner::strings())
+        == lists::LEAVES_OUT_PROVIDERS
         && [&vars.sp_serial, &vars.sp_modem]
             .into_iter()
             .any(|left_out| left_out.read() == *guid)

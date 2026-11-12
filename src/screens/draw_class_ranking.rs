@@ -55,7 +55,11 @@ fn rows(menus: &Menus) -> Result<Rows, Refused> {
     })?
 }
 
-pub fn draw_class_ranking(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_class_ranking(
+    o: crate::owners::Owners<'static>,
+    canvas: &mut dyn Canvas,
+) -> Result<(), Refused> {
+    let menus = o.menus;
     let (rows, last_place) = rows(menus)?;
     let first_time = find_class_time(menus.screens.event.class.get(), true)?;
     // The logic is in `rc2k_core::screens::results_pages::class_ranking` (the rows found here).
@@ -81,7 +85,7 @@ pub fn draw_class_ranking(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), 
         })
         .collect::<Result<_, BadInput>>()?;
     class_ranking(
-        &mut crate::screens::game_screen::GameScreen::<_, _, crate::screens::game_screen::HeldText>::new(canvas),
+        &mut crate::screens::game_screen::GameScreen::<_, _, crate::screens::game_screen::HeldText>::new(canvas, o),
         first_time,
         crate::strings::append_time::show_hours(),
         &rows,

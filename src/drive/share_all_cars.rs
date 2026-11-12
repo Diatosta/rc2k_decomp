@@ -31,7 +31,7 @@ fn cars(
     ); 8],
     BadInput,
 > {
-    let records = shared.work.car_records_resolved()?;
+    let records = shared.car_records()?;
     Ok(std::array::from_fn(|n| {
         (n, records[n], &sound.race.sounds.objects[n])
     }))
@@ -46,7 +46,7 @@ fn refusal(race: &Race, sound: &'static Sound) -> Result<Option<&'static str>, B
         }
         let n = car_file_number(
             race.kind_tables(),
-            shared.work.car_or_end(block).car_kind.get(),
+            shared.race_car_or_end(block).car_kind.get(),
         );
         if let Err(e) = sharing::check_light_record(n) {
             return Ok(Some(e.0));
@@ -60,6 +60,7 @@ pub fn share_all_cars(
     race: &Race,
     sound: &'static Sound,
     scene: &crate::scene::owner::Scene,
+    net: &crate::net::owner::Net,
     view: crate::drive::set_listener::ListenerView<'_>,
 ) -> Result<(), Refused> {
     if let Some(why) = refusal(race, sound)? {
@@ -67,26 +68,25 @@ pub fn share_all_cars(
     }
     // `set_listener` refuses before writing; nothing is written before it but the
     // lead car's values, which are kept again by the original.
-    set_listener(race, scene, view)?;
-    keep_lead_car_values(&race.frame);
+    set_listener(race, scene, net, view)?;
+    keep_lead_car_values(race.shared.own_car(net.vars.session.get()), &race.frame);
     for (n, (block, record, sound)) in cars(&race.shared, sound)?.into_iter().enumerate() {
         race.shared.work.current_car.set(n as u32);
-        share_car_state(race, race.shared.work.car_or_end(block), record, sound)?;
+        share_car_state(race, race.shared.race_car_or_end(block), record, sound)?;
     }
     let first_record = race
         .shared
-        .work
-        .car_record(crate::race::blocks_store::own_car_number())?;
+        .car_record(race.shared.own_car_number(net.vars.session.get()))?;
     race.effects_settings().sound_objects_shown.set(0u32);
     let reading = crate::scene::reading::Reading::new();
-    let (shown, _) =
-        sharing::cars_shown(crate::race::blocks_store::own_car().car_kind.get(), || {
-            reading.keep(Ok(first_record.face_sums[0].get()))
-        });
+    let (shown, _) = sharing::cars_shown(
+        race.shared.own_car(net.vars.session.get()).car_kind.get(),
+        || reading.keep(Ok(first_record.face_sums[0].get())),
+    );
     reading.finish()?;
     if shown {
         race.effects_settings().sound_objects_shown.set(1u32);
     }
-    put_back_lead_car_values(&race.frame);
+    put_back_lead_car_values(race.shared.own_car(net.vars.session.get()), &race.frame);
     Ok(())
 }

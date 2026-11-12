@@ -18,6 +18,7 @@ pub fn put_surface_pixel(
     x: u32,
     y: u32,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<u32, Refused> {
     let drawing = &gfx.drawing;
     // `g_surface`'s format pointer.
@@ -31,7 +32,11 @@ pub fn put_surface_pixel(
     let pixel = if components == 0 {
         0
     } else {
-        components_to_pixel(&crate::gfx::pixel_format::layout(format)?, components, gfx)
+        components_to_pixel(
+            &crate::gfx::pixel_format::layout(system, gfx, format)?,
+            components,
+            gfx,
+        )
     };
     // Converted: `rc2k_core::gfx::picture_size::pixel_place` (row y at y x the pitch).
     let (at, wide) =

@@ -19,7 +19,6 @@ use crate::platform::{lock_surface, show_frame_now, unlock_surface};
 /// (quitting) the zero flag was what the call's way back left, nothing meaningful: clear
 /// here. On the way through, the show's eax is the 0 the scene's begin left: zero set.
 pub fn service_area_frame(o: Owners<'static>) -> Result<CarryZeroFlags, Refused> {
-    let menus = o.menus;
     use crate::screens::{draw_service_area, draw_service_boxes};
     const FAILED: CarryZeroFlags = CarryZeroFlags {
         carry: true,
@@ -39,7 +38,7 @@ pub fn service_area_frame(o: Owners<'static>) -> Result<CarryZeroFlags, Refused>
         return Ok(FAILED);
     }
     draw_service_area::draw_service_area(
-        menus,
+        o,
         o.gfx,
         o.race,
         &mut crate::text::draw_text::GameCanvas::new(o.gfx),

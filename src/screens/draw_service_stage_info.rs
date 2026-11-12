@@ -14,7 +14,6 @@
 //! run its `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
 use crate::screens::draw_stage_heading::draw_stage_heading;
 use crate::screens::draw_stage_info::{TITLE_X, TITLE_Y, event_stage, event_title};
 use crate::screens::stage_panel::{
@@ -26,14 +25,16 @@ use crate::text::draw_text::Canvas;
 
 /// Returns the carry flag of `draw_stage_records`.
 pub fn draw_service_stage_info(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     system: &crate::system::owner::System,
     gfx: &crate::gfx::owner::Gfx,
     race: &crate::race::owner::Race,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
+    let menus = o.menus;
     let screens = &menus.screens;
     label(
+        crate::strings::append_string_by_id::StringOwners::of(o),
         canvas,
         event_title(menus, system)?,
         TITLE_FONT,
@@ -42,12 +43,16 @@ pub fn draw_service_stage_info(
     )?;
     let (record, _) = event_stage(screens, system)?;
     if menus.play.champ_view.event_mode.get() == 2 && menus.screens.event.stage_pages.get() == 0 {
-        draw_stage_heading(record, canvas)?;
+        draw_stage_heading(o, record, canvas)?;
     }
-    build_second_heading(race, record)?;
-    draw_stage_body(menus, gfx, record, false, canvas)?;
+    build_second_heading(
+        crate::strings::append_string_by_id::StringOwners::of(o),
+        race,
+        record,
+    )?;
+    draw_stage_body(o, gfx, record, false, canvas)?;
     draw_records_from(
-        menus,
+        o,
         system,
         &crate::saves::best_times::STAGE_TIMES,
         record,

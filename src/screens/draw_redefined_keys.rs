@@ -12,7 +12,6 @@
 
 use crate::errors::Refused;
 use crate::input::append_key_name::append_key_name;
-use crate::menu::owner::Menus;
 use crate::menu::player_settings::current;
 use crate::text::draw_text::Canvas;
 
@@ -22,7 +21,11 @@ use crate::text::draw_text::Canvas;
 // up to the stage heading buffer
 
 /// Returns the carry.
-pub fn draw_redefined_keys(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+pub fn draw_redefined_keys(
+    o: crate::owners::Owners<'static>,
+    canvas: &mut dyn Canvas,
+) -> Result<bool, Refused> {
+    let menus = o.menus;
     let screens = &menus.screens;
     let keys = current(menus)?.get().keys;
     let redefined: u32 = screens.option_work.redefined_key_place.get();
@@ -33,11 +36,15 @@ pub fn draw_redefined_keys(menus: &Menus, canvas: &mut dyn Canvas) -> Result<boo
     let mut names: [Vec<u8>; 11] = Default::default();
     for (n, name) in names.iter_mut().enumerate() {
         if row != Some(n) {
-            *name = append_key_name(keys[KEY_PLACES[n]] as u32)?.0;
+            *name = append_key_name(
+                crate::strings::append_string_by_id::StringOwners::of(o),
+                keys[KEY_PLACES[n]] as u32,
+            )?
+            .0;
         }
     }
     rc2k_core::screens::controls::redefined_keys(
-        &mut crate::screens::game_screen::ControlsScreen::new(canvas),
+        &mut crate::screens::game_screen::ControlsScreen::new(canvas, o),
         &names,
         row,
         screens.draw_work.cursor_on.is_set(),

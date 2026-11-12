@@ -83,23 +83,24 @@ pub const TIME_TRIAL_ROWS: Rows = Rows {
 /// Returns the carry flag of the last `draw_text`. Refuses a missing record table and what
 /// the speed formatter refuses; the fatal errors are the blitter's.
 pub fn draw_stage_records(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     system: &System,
     entry: &rc2k_core::saves::entries::BestTime,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
-    draw_records_rows(menus, system, entry, &STAGE_ROWS, canvas)
+    draw_records_rows(o, system, entry, &STAGE_ROWS, canvas)
 }
 
 /// `draw_stage_records` with the top-speed row's places given. The logic is in
 /// `rc2k_core::screens::stage_panel::records`.
 pub fn draw_records_rows(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     system: &System,
     entry: &rc2k_core::saves::entries::BestTime,
     rows: &Rows,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
+    let menus = o.menus;
     use rc2k_core::screens::stage_panel::{CarRow, Holder};
     {
         // Without it the original reads through a null pointer after drawing the first row.
@@ -132,7 +133,7 @@ pub fn draw_records_rows(
             CarRow::Second
         };
         rc2k_core::screens::stage_panel::records(
-            &mut PanelScreen::new(canvas),
+            &mut PanelScreen::new(canvas, o),
             best,
             top,
             car_row,

@@ -62,6 +62,8 @@ pub fn save_game(menus: &Menus, saves: &'static Saves, slot: u32) {
 
 /// `save` is called with the slot when Enter ends the entry.
 pub fn edit_savegame_name(
+    input: &crate::input::owner::Input,
+    so: crate::strings::append_string_by_id::StringOwners<'_>,
     menus: &Menus,
     saves: &'static Saves,
     canvas: &mut dyn Canvas,
@@ -102,7 +104,7 @@ pub fn edit_savegame_name(
         Key::Clear => clear_text(menus, name)?,
         Key::Backspace => backspace_savegame_name(menus, saves)?,
         Key::Other(key) => {
-            let c = key_to_char(key as u32)? as u8;
+            let c = key_to_char(input, key as u32)? as u8;
             let len = length(menus);
             if entry::appends(c, len, screens.loop_flags.text_max.get() as i32) {
                 name.add(len as u32).write(&[c], "a saved game's name")?;
@@ -121,7 +123,7 @@ pub fn edit_savegame_name(
     }
     let mut tail = Vec::new();
     if screens.draw_work.cursor_on.is_set() {
-        push_string(&mut tail, CURSOR_STRING)?;
+        push_string(so, &mut tail, CURSOR_STRING)?;
     }
     tail.push(0);
     name.add(length(menus) as u32)

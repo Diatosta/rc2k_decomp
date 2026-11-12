@@ -19,6 +19,7 @@ pub fn throw_mud_texel(
     race: &Race,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let shared = &race.shared;
     // Converted: `rc2k_core::race::mud::{LAST_THROWN, extra_throw}`.
@@ -30,11 +31,11 @@ pub fn throw_mud_texel(
         return Ok(());
     }
     count_cell.set(count + 1);
-    muddy_texel(race, count, scene, gfx)?;
+    muddy_texel(race, count, scene, gfx, system)?;
     let (sum, carried) = rc2k_core::race::mud::extra_throw(shared.vars.mud_extra_sum.get());
     shared.vars.mud_extra_sum.set(sum);
     if !carried {
         return Ok(());
     }
-    muddy_texel(race, next_drawing_random(), scene, gfx)
+    muddy_texel(race, next_drawing_random(), scene, gfx, system)
 }

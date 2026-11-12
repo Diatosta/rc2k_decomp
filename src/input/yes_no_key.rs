@@ -12,7 +12,7 @@
 use crate::errors::BadInput;
 use crate::input::key_to_char::{has_layout, key_to_char_for_text};
 use crate::input::take_key::take_key;
-use crate::strings::append_string_by_id::push_string;
+use crate::strings::append_string_by_id::{StringOwners, push_string};
 use crate::strings::text_from_ids::TEXT_LEN;
 
 // ---- game data ----
@@ -25,18 +25,22 @@ pub const THIRD: u32 = 2;
 
 /// The answer a key gives. `eax` is the key word: the key in its low
 /// byte, and 0 as a whole means no key.
-pub fn answer_for_key(eax: u32) -> Result<u32, BadInput> {
+pub fn answer_for_key(
+    so: StringOwners<'_>,
+    input: &crate::input::owner::Input,
+    eax: u32,
+) -> Result<u32, BadInput> {
     if eax == 0 {
         return Ok(0);
     }
-    let character = key_to_char_for_text(eax);
+    let character = key_to_char_for_text(input, eax);
     let lower = crate::strings::same_text::lower(character? as u8); // g_lowerCase
     // Converted: `rc2k_core::input::keyboard::answer`; each string built at the text
     // buffer's start without a NUL, as the original does (their lengths checked first).
     let mut strings = Vec::new();
     for (id, _) in ANSWERS {
         let mut string = Vec::new();
-        push_string(&mut string, id)?;
+        push_string(so, &mut string, id)?;
         strings.push(string);
     }
     if strings.iter().any(|s| s.len() > TEXT_LEN) {
@@ -44,7 +48,7 @@ pub fn answer_for_key(eax: u32) -> Result<u32, BadInput> {
     }
     Ok(rc2k_core::input::keyboard::answer(lower, |id| {
         let n = ANSWERS.iter().position(|&(i, _)| i == id).unwrap_or(0);
-        let buffer = &crate::strings::owner::strings().text.buffer.text;
+        let buffer = &so.strings.text.buffer.text;
         for (k, &b) in strings[n].iter().enumerate() {
             buffer.set(k, b);
         }
@@ -52,7 +56,11 @@ pub fn answer_for_key(eax: u32) -> Result<u32, BadInput> {
     }))
 }
 
-pub fn yes_no_key(given: u32, input: &crate::input::owner::Input) -> Result<u32, BadInput> {
+pub fn yes_no_key(
+    so: StringOwners<'_>,
+    given: u32,
+    input: &crate::input::owner::Input,
+) -> Result<u32, BadInput> {
     if !has_layout() {
         return Err(BadInput("no keyboard layout"));
     }
@@ -61,5 +69,5 @@ pub fn yes_no_key(given: u32, input: &crate::input::owner::Input) -> Result<u32,
     } else {
         take_key() as u32
     };
-    answer_for_key(eax)
+    answer_for_key(so, input, eax)
 }

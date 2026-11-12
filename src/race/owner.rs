@@ -26,7 +26,10 @@ pub static RACE: Race = Race {
     course: Course::new(),
     frame: Frame::new(),
     replay: Replay::new(),
-    shared: RaceShared::new(),
+    shared: RaceShared::new(
+        &RACE.replay.cars_and_replay.car_blocks,
+        &RACE.replay.viewer_and_kinds.marks_settings,
+    ),
 };
 
 /// The race's state, for a caller that does not take it as a parameter yet.

@@ -36,6 +36,7 @@ pub fn credits_race(race: &'static Race, o: crate::owners::Owners<'static>) -> R
     log_int(race.shared.vars.race_car_kinds[0].get() as i32, true, 1);
     crate::race::stage_loading::load_stage(race, o)?;
     crate::race::frame_text::roll_credits(
+        crate::strings::append_string_by_id::StringOwners::of(o),
         frame,
         0,
         &mut crate::text::draw_text::GameCanvas::new(o.gfx),

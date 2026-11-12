@@ -74,6 +74,8 @@ pub struct EditOutcome {
 
 /// `key`: the key and its bits (see above).
 pub fn edit_key(
+    so: crate::strings::append_string_by_id::StringOwners<'static>,
+    input: &crate::input::owner::Input,
     install: &'static crate::install::owner::Install,
     key: u32,
     item: ListItem,
@@ -122,7 +124,7 @@ pub fn edit_key(
                         }
                         _ => {
                             let mut default = Vec::new();
-                            push_string_by_id(&mut default, record.default_text() as u32);
+                            push_string_by_id(so, &mut default, record.default_text() as u32);
                             store_text(text, &default);
                         }
                     }
@@ -139,7 +141,7 @@ pub fn edit_key(
             }
             EditKey::Arrow => return Ok(plain(key)),
             EditKey::Other => {
-                let out = crate::input::key_to_char::key_to_char_for_text(key);
+                let out = crate::input::key_to_char::key_to_char_for_text(input, key);
                 out? as u8
             }
         }

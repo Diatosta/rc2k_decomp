@@ -230,16 +230,16 @@ fn tables(gfx: &Gfx, system: &System, strings: &Strings) -> Result<(), Refused> 
     gfx.pictures.decoder.builder_flags.set(RUN_LENGTHS);
     palettes.set(palette_place(list)?);
     begin_glyph_table(vars, list)?;
-    build_glyphs(vars, &crate::gfx::texts::PAL_00, list, gfx, strings)?;
+    build_glyphs(vars, &crate::gfx::texts::PAL_00, list, gfx, system, strings)?;
     gfx.fonts.font_block.font27_glyphs.set(vars.table.get());
-    palette_to_pixels(palettes.get(), gfx)?;
+    palette_to_pixels(palettes.get(), gfx, system)?;
     // The palette sheet is a copy of the decoder's palette (256 dwords).
     let mut palette = [0u8; PALETTE_BYTES];
     gfx.pictures.decoder.palette.load(0, &mut palette)?;
     gfx.fonts.font_block.palette_sheet.store(0, &palette)?;
     for (sheet, kept) in font_sheets(gfx) {
         begin_glyph_table(vars, list)?;
-        build_glyphs(vars, sheet, list, gfx, strings)?;
+        build_glyphs(vars, sheet, list, gfx, system, strings)?;
         kept.set(vars.table.get());
     }
     end_glyph_tables(strings)?;

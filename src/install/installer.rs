@@ -157,8 +157,12 @@ pub fn store_text(at: impl Into<BytePlace>, bytes: &[u8]) {
 }
 
 /// `strings::append_string_by_id`: string `id` appended to `out`.
-pub fn push_string_by_id(out: &mut Vec<u8>, id: u32) {
-    let pushed = crate::strings::append_string_by_id::push_string(out, id);
+pub fn push_string_by_id(
+    o: crate::strings::append_string_by_id::StringOwners<'static>,
+    out: &mut Vec<u8>,
+    id: u32,
+) {
+    let pushed = crate::strings::append_string_by_id::push_string(o, out, id);
     crate::menu::event_flow::refuse_here(pushed, "install::installer: a string");
 }
 
@@ -295,6 +299,7 @@ pub fn copy_picture(
 
 /// `text::draw_string_by_id` (0x40234A): string `id` in `font` at (x, y).
 pub fn draw_string(
+    so: crate::strings::append_string_by_id::StringOwners<'static>,
     id: u32,
     font: crate::gfx::typefaces::FontId,
     x: u32,
@@ -303,6 +308,7 @@ pub fn draw_string(
 ) -> Result<(), Refused> {
     use crate::text::draw_text::GameCanvas;
     crate::text::draw_string_by_id::draw_string_by_id_at(
+        so,
         id,
         font,
         x as i32,
@@ -353,6 +359,7 @@ pub fn measure_text(
 
 /// `text::measure_string_by_id` (0x40232C), at `x`: (the widest line, the last line's y).
 pub fn measure_string(
+    so: crate::strings::append_string_by_id::StringOwners<'static>,
     id: u32,
     font: crate::gfx::typefaces::FontId,
     x: u32,
@@ -361,6 +368,7 @@ pub fn measure_string(
     use crate::text::draw_text::GameCanvas;
     let m = {
         crate::text::measure_string_by_id::measure_string_by_id_at(
+            so,
             id,
             font,
             x as i32,
@@ -376,10 +384,9 @@ pub fn components_to_pixels(
     from: &[crate::session::PlainDword; 256],
     to: &[crate::session::PlainDword; 256],
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) {
-    let what = "a pixel format";
-    let format = crate::gfx::pixel_format::surface_format()
-        .unwrap_or_else(|e| crate::fatal::raise::end(what, e));
+    let format = crate::gfx::pixel_format::surface_format(system);
     for (from, to) in from.iter().zip(to) {
         to.set(crate::gfx::components_to_pixel::components_to_pixel(
             &format,
@@ -457,11 +464,21 @@ pub fn page_action(
         0x4130CD => logged("install", i::install_files::install_files(install, o))?,
         0x4134DF => logged(
             "uninstall",
-            i::uninstall::uninstall(install, o.system, o.gfx),
+            i::uninstall::uninstall(
+                crate::strings::append_string_by_id::StringOwners::of(o),
+                install,
+                o.system,
+                o.gfx,
+            ),
         )?,
         0x413629 => i::open_installed::open_installed(install)?,
         0x413650 => i::ask_registration::ask_registration(install),
-        0x41675B => i::install_clio::install_clio(install, o.system, o.gfx)?,
+        0x41675B => i::install_clio::install_clio(
+            crate::strings::append_string_by_id::StringOwners::of(o),
+            install,
+            o.system,
+            o.gfx,
+        )?,
         _ => return Err(BadInput("a list action that is not one of the installer's").into()),
     }
     Ok(())

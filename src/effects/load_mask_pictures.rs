@@ -59,8 +59,9 @@ pub fn put_pixel(
     x: u32,
     y: u32,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
-    crate::gfx::put_surface_pixel::put_surface_pixel(components, x, y, gfx)?;
+    crate::gfx::put_surface_pixel::put_surface_pixel(components, x, y, gfx, system)?;
     Ok(())
 }
 
@@ -109,7 +110,7 @@ fn mask(
                 let mask = u32::from_le_bytes(copy[n..n + 4].try_into().expect("four bytes"));
                 let pixel = (mask << 8) & 0xFF00_0000 | 0xFF_FFFF;
                 to.pixels(masks).with(|p| p[n / 4] = pixel)?;
-                put_pixel(pixel, x, y + 0x80, gfx)?;
+                put_pixel(pixel, x, y + 0x80, gfx, system)?;
             }
         }
     }

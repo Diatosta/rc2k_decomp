@@ -40,6 +40,7 @@ pub fn draw_name_plate(
 /// `race::draw_plate_by_id` (0x41B2D4): string id `id` into the text buffer (`text`, with its NUL)
 /// and drawn on slot `slot`'s plate (`draw_name_plate`).
 pub fn draw_plate_by_id(
+    so: crate::strings::append_string_by_id::StringOwners<'static>,
     slot: u32,
     id: u32,
     gfx: &Gfx,
@@ -47,7 +48,7 @@ pub fn draw_plate_by_id(
 ) -> Result<(), Refused> {
     let text = &strings.text;
     let mut cursor = 0usize;
-    crate::strings::append_string_by_id::append_string_by_id(id, &mut |bytes| {
+    crate::strings::append_string_by_id::append_string_by_id(so, id, &mut |bytes| {
         for (k, &b) in bytes.iter().enumerate() {
             text.buffer.text.set(cursor + k, b);
         }
@@ -103,6 +104,7 @@ pub fn draw_time_plate(frame: &Frame, slot: u32, gfx: &Gfx) -> Result<(), Refuse
 /// 0x10000 up (the original's text pointer for `race::draw_name_plate`), which no writer of
 /// +0x71C gives.
 pub fn update_name_plates(
+    so: crate::strings::append_string_by_id::StringOwners<'static>,
     race: &Race,
     scene: &crate::scene::owner::Scene,
     gfx: &Gfx,
@@ -111,7 +113,7 @@ pub fn update_name_plates(
     let frame = &race.frame;
     let shared = &race.shared;
     let textures = &scene.textures;
-    let (Some(a), Some(b)) = (shared.view.view_car(0), shared.view.view_car(1)) else {
+    let (Some(a), Some(b)) = (shared.view_car(0), shared.view_car(1)) else {
         return Err(crate::errors::BadInput("a view without its car block").into());
     };
     // Their notice fields: +0x71C asked, +0x720 the plate flag, +0x724 the last, +0x728 shown.
@@ -162,6 +164,7 @@ pub fn update_name_plates(
             NameAsk::Nothing => continue,
             NameAsk::Id(_) => {
                 draw_plate_by_id(
+                    so,
                     textures.kinds.kind_first_textures[slot].get(),
                     asked,
                     gfx,

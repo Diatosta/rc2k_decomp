@@ -22,8 +22,11 @@ use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use crate::session::Dword;
 
-fn view_bit(view: &Dword) -> Result<bool, BadInput> {
-    let car = crate::race::blocks_store::car_of(view.get()).ok_or(BadInput("a view's block"))?;
+fn view_bit(shared: &RaceShared, view: &Dword) -> Result<bool, BadInput> {
+    let car = shared
+        .car_blocks
+        .of(view.get())
+        .ok_or(BadInput("a view's block"))?;
     Ok(car.input_keys.get() & 0x40 != 0)
 }
 
@@ -37,7 +40,10 @@ fn net_player_car(
         .car_blocks
         .get(net.vars.player.get() as usize)
         .ok_or(BadInput("the network player's car"))?;
-    crate::race::blocks_store::car_of(handle.get()).ok_or(BadInput("the network player's car"))
+    shared
+        .car_blocks
+        .of(handle.get())
+        .ok_or(BadInput("the network player's car"))
 }
 
 /// The quit answer `answer` put into the cars (0x444EB5 ..).
@@ -141,10 +147,11 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
                 return Ok(());
             }
             if race.shared.vars.hold_count.get() == 0 {
-                if view_bit(&race.shared.view.view_blocks[0])? {
+                if view_bit(&race.shared, &race.shared.view.view_blocks[0])? {
                     break true;
                 }
-                if race.shared.view.views.get() != 1 && view_bit(&race.shared.view.view_blocks[1])?
+                if race.shared.view.views.get() != 1
+                    && view_bit(&race.shared, &race.shared.view.view_blocks[1])?
                 {
                     break true;
                 }

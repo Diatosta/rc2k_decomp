@@ -23,7 +23,6 @@ use crate::physics::car_store::Car;
 use crate::race::matrices_store::SceneMatrices;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
-use crate::race::view_store::RaceView;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::session::Dword;
@@ -41,11 +40,11 @@ fn shares(numbers: &Numbers, shared: &RaceShared, so: &crate::sound::store::Soun
 
 /// The car the sound is heard from: view 0's block with one player (none if it has no
 /// block), else the work car.
-fn listener<'a>(car: &'a Car, view: &'a RaceView) -> Option<&'a crate::physics::car_store::Car> {
-    if view.players.get() == 1 {
-        crate::race::blocks_store::car_of(view.view_blocks[0].get())
+fn listener(shared: &RaceShared) -> Option<&crate::physics::car_store::Car> {
+    if shared.view.players.get() == 1 {
+        shared.car_blocks.of(shared.view.view_blocks[0].get())
     } else {
-        Some(car)
+        Some(&shared.car)
     }
 }
 
@@ -58,7 +57,7 @@ pub fn car_sound_state(
     matrices: &SceneMatrices,
     shared: &RaceShared,
 ) -> Result<(), Refused> {
-    let Some(l) = listener(&shared.car, &shared.view) else {
+    let Some(l) = listener(shared) else {
         return Err(BadInput("a null view block").into());
     };
     let so = crate::sound::store::current_object();

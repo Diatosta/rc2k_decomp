@@ -16,6 +16,7 @@ use crate::net::store::NetVars;
 
 pub const TITLE_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEAD;
 pub fn show_background(
+    so: crate::strings::append_string_by_id::StringOwners<'static>,
     gfx: &Gfx,
     system: &crate::system::owner::System,
     vars: &NetVars,
@@ -36,7 +37,7 @@ pub fn show_background(
             _ => 0x14C,
         }
     };
-    draw_string(title, TITLE_FONT, 0x316, 0x2F, gfx)?;
+    draw_string(so, title, TITLE_FONT, 0x316, 0x2F, gfx)?;
     copy_picture(gfx, system)?;
     crate::platform::show_frame_now();
     Ok(())

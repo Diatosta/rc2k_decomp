@@ -15,6 +15,7 @@ const TITLE_LEN: usize = 0x100;
 const PAGES: u32 = 4;
 
 pub fn car_page_title(
+    so: crate::strings::append_string_by_id::StringOwners<'_>,
     menus: &Menus,
     text: &crate::screens::text_buffers_store::TextBuffers,
 ) -> Result<(), Refused> {
@@ -23,6 +24,7 @@ pub fn car_page_title(
         return Err(BadInput("a page past the four").into());
     }
     put_string(
+        so,
         menus.tables.lists.car_page_titles[page as usize].get(),
         &text.title,
         TITLE_LEN,

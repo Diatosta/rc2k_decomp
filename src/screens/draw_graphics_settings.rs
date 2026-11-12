@@ -48,10 +48,11 @@ const NAMES: [Name; 8] = [
 ];
 
 pub fn draw_graphics_settings(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     gfx: &crate::gfx::owner::Gfx,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
+    let menus = o.menus;
     let display = &gfx.display;
     // The logic is in `rc2k_core::screens::settings_pages::{graphics_item, graphics}`.
     use crate::screens::game_screen::SettingsScreen;
@@ -68,7 +69,7 @@ pub fn draw_graphics_settings(
         let v = |i: usize| display.choices.list.dword(place, i, "a screen mode");
         let ids = NAMES.map(|(setting, first, _)| setting(menus, gfx).wrapping_add(first));
         rc2k_core::screens::settings_pages::graphics(
-            &mut SettingsScreen::new(canvas),
+            &mut SettingsScreen::new(canvas, o),
             ids,
             [v(0)?, v(1)?, v(2)?],
         )?;

@@ -76,7 +76,7 @@ pub fn reset_car_blocks(race: &Race) -> Result<(), BadInput> {
     {
         let cars: u32 = shared.view.race_cars.get();
         for n in 0..BLOCK_COUNT {
-            let car = shared.work.car(n as usize)?;
+            let car = shared.race_car(n as usize)?;
             for (field, v) in reset_block(n, cars, physics.split_tables.stage_numbers[0].get()) {
                 field(car).set_bits(v);
             }
@@ -288,7 +288,7 @@ pub fn set_up_mode_0_cars(race: &Race, net: &crate::net::owner::Net) -> Result<(
             }
         } else {
             for n in 0..cars {
-                auto_set_up_car(race, race.shared.work.car(n as usize)?)?;
+                auto_set_up_car(race, race.shared.race_car(n as usize)?)?;
             }
             set_player_car_kinds(race);
         }
@@ -615,7 +615,7 @@ pub fn set_up_cars(
     use rc2k_core::race::cars::{CarsStep, cars_steps};
     for n in 0..2 {
         for (field, v) in PLAYER_RESETS {
-            field(race.shared.work.car(n as usize)?).set_bits(v);
+            field(race.shared.race_car(n as usize)?).set_bits(v);
         }
     }
     for &step in cars_steps(race.shared.vars.run_kind.get()) {

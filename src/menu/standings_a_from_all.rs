@@ -22,12 +22,15 @@ fn players_by_group(menus: &Menus, firsts: [usize; 4]) -> Result<(), Refused> {
     Ok(())
 }
 
-pub fn standings_a_from_all(menus: &Menus) -> Result<(), Refused> {
+pub fn standings_a_from_all(
+    so: crate::strings::append_string_by_id::StringOwners<'_>,
+    menus: &Menus,
+) -> Result<(), Refused> {
     let players = counted_players(menus)?;
     if any_unnamed(&players)? {
         return Err(BadInput("a player without a name").into());
     }
-    crate::menu::standings_from_drivers::standings_from_drivers(menus)?;
+    crate::menu::standings_from_drivers::standings_from_drivers(so, menus)?;
     use rc2k_core::menu::standings::A_GROUP_FIRSTS;
     players_by_group(menus, A_GROUP_FIRSTS)?;
     Ok(())

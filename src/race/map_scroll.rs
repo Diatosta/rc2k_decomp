@@ -148,8 +148,7 @@ pub fn scroll_maps(
         let n = view_car(&race.shared, v).get();
         let car = race
             .shared
-            .work
-            .block_car((n & 7) as usize, "a view car's block")?;
+            .race_car_or((n & 7) as usize, "a view car's block")?;
         scroll_map(race, car, n, scene, net, gfx)?;
     }
     Ok(())

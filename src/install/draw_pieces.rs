@@ -30,6 +30,7 @@ fn colour(install: &crate::install::owner::Install, marks: u8, kind: u32) -> u32
 }
 
 pub fn draw_pieces(
+    so: crate::strings::append_string_by_id::StringOwners<'static>,
     install: &'static crate::install::owner::Install,
     strings: &'static Strings,
     gfx: &crate::gfx::owner::Gfx,
@@ -46,6 +47,7 @@ pub fn draw_pieces(
         match Way::of(first, piece.kind()) {
             Way::String { font_kind } => {
                 draw_string(
+                    so,
                     piece.text_id() as u32,
                     font(install, colour(install, first, font_kind))?,
                     x,
@@ -64,7 +66,7 @@ pub fn draw_pieces(
                 } else {
                     // The text and the caret, kept in the text buffer (anything reads it
                     // afterwards only after another page text overwrote it).
-                    push_string_by_id(&mut text, 4);
+                    push_string_by_id(so, &mut text, 4);
                     text.push(0);
                     store_text(&strings.text.buffer.text, &text);
                 }
@@ -73,7 +75,7 @@ pub fn draw_pieces(
             Way::Text => {
                 let item = piece.item();
                 let mut text = Vec::new();
-                push_string_by_id(&mut text, piece.text_id() as u32);
+                push_string_by_id(so, &mut text, piece.text_id() as u32);
                 let action = item.data();
                 if action != 0 {
                     text_action(action, &mut text)?;

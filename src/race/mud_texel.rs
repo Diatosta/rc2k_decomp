@@ -23,9 +23,10 @@ pub fn mud_texel(
     y: u32,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<u32, BadInput> {
     match texel_place(x, y, scene) {
-        Some((x, y)) => mud_pixel(x, y, gfx),
+        Some((x, y)) => mud_pixel(x, y, gfx, system),
         None => Ok(eax),
     }
 }

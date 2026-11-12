@@ -58,6 +58,7 @@ pub fn update_mud_texture(
     race: &Race,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let textures = &scene.textures;
     let frame = &race.frame;
@@ -109,7 +110,7 @@ pub fn update_mud_texture(
         if throws > 0 {
             let mut done = 0u32;
             loop {
-                throw_mud_texel(race, scene, gfx)?;
+                throw_mud_texel(race, scene, gfx, system)?;
                 done = done.wrapping_add(1);
                 if done == race.shared.vars.mud_throws.get() {
                     break;
@@ -135,7 +136,7 @@ pub fn update_mud_texture(
                 if race.shared.vars.mud_splash_counts[k].get() >= LAST_SPLASHED {
                     break;
                 }
-                splash_mud(&race.shared, scene, gfx)?;
+                splash_mud(&race.shared, scene, gfx, system)?;
                 done = done.wrapping_add(1);
                 if done == race.shared.vars.mud_splashes.get() {
                     break;

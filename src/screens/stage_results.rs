@@ -120,12 +120,17 @@ pub fn draw_stage_results(o: Owners<'static>, canvas: &mut dyn Canvas) -> Result
         Holder::Fastest
     };
     let mut speed = crate::strings::append_speed::append_speed(
+        crate::strings::append_string_by_id::StringOwners::of(o),
         fastest.record()?.holder(holder).speed,
         true,
         crate::strings::units::units(),
     )?;
     speed.push(0);
-    let stage = crate::screens::page_settings::stage_line_bytes(0x481, record)?;
+    let stage = crate::screens::page_settings::stage_line_bytes(
+        crate::strings::append_string_by_id::StringOwners::of(o),
+        0x481,
+        record,
+    )?;
     if stage.len() > 0x100 {
         return Err(BadInput("a stage line past its buffer").into());
     }
@@ -207,7 +212,7 @@ pub fn draw_stage_results(o: Owners<'static>, canvas: &mut dyn Canvas) -> Result
             .ok(crate::strings::text_length::nul_at(&text).map(|len| text[..len as usize].to_vec()))
     };
     let drawn = stage_results(
-        &mut crate::screens::game_screen::GameScreen::<_, _, HeldText>::new(canvas),
+        &mut crate::screens::game_screen::GameScreen::<_, _, HeldText>::new(canvas, o),
         menus.screens.state.menus.caption_choice.get() == 1,
         crate::strings::append_time::show_hours(),
         &rows,

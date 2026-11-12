@@ -15,12 +15,14 @@ use rc2k_core::net::chat;
 
 /// The key `key` for the setting being edited.
 pub fn setting_key(
+    input: &crate::input::owner::Input,
+    strings: &crate::strings::owner::Strings,
     install: &'static Install,
     net: &'static Net,
     key: u8,
     gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
-    if !crate::net::edit_key::edit_key(net, install, key, gfx)? {
+    if !crate::net::edit_key::edit_key(input, net, install, key, gfx)? {
         return Ok(());
     }
     // Converted: `rc2k_core::net::chat` (`NAME`, `MOST_PLAYERS`, `most_players`).
@@ -35,7 +37,7 @@ pub fn setting_key(
                 { crate::settings::parse_number::parse_number(&install.paths.path_a.read()) };
             net.setup().most_players.set(chat::most_players(
                 number,
-                crate::strings::load_language::notice_kind(),
+                crate::strings::load_language::notice_kind(strings),
             ));
         }
         _ => {}

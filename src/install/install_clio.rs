@@ -111,13 +111,14 @@ fn work(
 }
 
 pub fn install_clio(
+    so: crate::strings::append_string_by_id::StringOwners<'static>,
     install: &'static crate::install::owner::Install,
     system: &crate::system::owner::System,
     gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     if lock(gfx, system) {
         copy_picture(gfx, system)?;
-        draw_string(0xBE, FONT_BE, 0x1A9, 0x113, gfx)?;
+        draw_string(so, 0xBE, FONT_BE, 0x1A9, 0x113, gfx)?;
         unlock(gfx);
         show();
         sleep(1000);

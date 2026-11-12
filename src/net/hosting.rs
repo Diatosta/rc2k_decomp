@@ -7,11 +7,12 @@
 use crate::errors::Refused;
 use crate::net::owner::Net;
 pub fn hosting(
+    so: crate::strings::append_string_by_id::StringOwners<'static>,
     net: &Net,
     system: &crate::system::owner::System,
     panel: &crate::race::viewer_screen_store::ViewerPanelBlock,
     gfx: &crate::gfx::owner::Gfx,
 ) -> Result<bool, Refused> {
-    crate::net::connecting::status(0x151, gfx, system)?;
+    crate::net::connecting::status(so, 0x151, gfx, system)?;
     crate::net::host_session::host_session(net, system, panel)
 }

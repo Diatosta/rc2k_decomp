@@ -19,6 +19,7 @@ use rc2k_core::screens::message_box::{FILL, FRAME, STRING, layout};
 pub static BOX: [crate::session::Dword; 4] = [const { crate::session::Dword::new(0) }; 4];
 
 pub fn draw_message_box(
+    o: crate::owners::Owners<'static>,
     x: i32,
     canvas: &mut dyn Canvas,
     gfx: &crate::gfx::owner::Gfx,
@@ -31,7 +32,13 @@ pub fn draw_message_box(
         return Err(BadInput("a message box on a surface of neither 16 nor 32 bits").into());
     }
     // The logic is in `rc2k_core::screens::message_box::layout`.
-    let m = measure_string_by_id_at(STRING, crate::gfx::typefaces::fonts::MEASURE, x, canvas)?;
+    let m = measure_string_by_id_at(
+        crate::strings::append_string_by_id::StringOwners::of(o),
+        STRING,
+        crate::gfx::typefaces::fonts::MEASURE,
+        x,
+        canvas,
+    )?;
     let (sw, sh) = (
         gfx.drawing.draw_surface.width.get(),
         gfx.drawing.draw_surface.height.get(),
@@ -55,7 +62,14 @@ pub fn draw_message_box(
     let palettes = Palette::Held(gfx.fonts.font_block.palettes.get());
     fill_rect(rect, FILL, palettes, gfx)?;
     frame_rect(rect, 0, 0, FRAME, palettes, gfx);
-    draw_string_by_id_at(STRING, font, b.text_x, b.text_y, canvas)?;
+    draw_string_by_id_at(
+        crate::strings::append_string_by_id::StringOwners::of(o),
+        STRING,
+        font,
+        b.text_x,
+        b.text_y,
+        canvas,
+    )?;
     Ok(())
 }
 

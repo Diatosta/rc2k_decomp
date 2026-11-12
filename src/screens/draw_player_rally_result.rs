@@ -11,22 +11,23 @@
 //! `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
 use crate::screens::best_scores::{RALLY_STAGE_TIMES, draw_times_heading};
 use crate::text::draw_text::Canvas;
 
 /// (id, x, y, font) of the labels.
 pub fn draw_player_rally_result(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     system: &crate::system::owner::System,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
+    let menus = o.menus;
     let play = &menus.play;
     let player = crate::menu::player_settings::current(menus)?.get();
     let name = crate::screens::game_screen::player_name_of(crate::menu::player_name::name(menus)?);
     (RALLY_STAGE_TIMES.records)(menus, system)?;
     let top_speed = player.figure;
     let speed = crate::strings::append_speed::append_speed(
+        crate::strings::append_string_by_id::StringOwners::of(o),
         top_speed,
         true,
         crate::strings::units::units(),
@@ -53,9 +54,9 @@ pub fn draw_player_rally_result(
         ],
     };
     rc2k_core::screens::player_result::rally_result(
-        &mut PlayerResultScreen::new(canvas),
+        &mut PlayerResultScreen::new(canvas, o),
         &mut |s: &mut PlayerResultScreen| {
-            draw_times_heading(menus, system, &RALLY_STAGE_TIMES, s.canvas)
+            draw_times_heading(o, system, &RALLY_STAGE_TIMES, s.canvas)
         },
         &p,
         &figures,

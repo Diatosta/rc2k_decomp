@@ -22,7 +22,11 @@ use rc2k_core::saves::defaults::best_scores;
 
 // ---- game data ----
 
-pub fn default_best_scores(menus: &Menus, race: &Race) -> Result<(), Refused> {
+pub fn default_best_scores(
+    so: crate::strings::append_string_by_id::StringOwners<'_>,
+    menus: &Menus,
+    race: &Race,
+) -> Result<(), Refused> {
     let screens = &menus.screens;
     if !SCORES.is_taken() {
         return Err(crate::errors::BadInput("no table of best scores").into());
@@ -32,6 +36,7 @@ pub fn default_best_scores(menus: &Menus, race: &Race) -> Result<(), Refused> {
     let entries = best_scores(
         &mut GameSource {
             log: &mut to_nowhere,
+            so,
             menus,
             race,
         },

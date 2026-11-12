@@ -61,8 +61,8 @@ pub fn list_drives(
         let free = drives::free(drives[slot + 1].get());
         let mut unit = Vec::new();
         crate::menu::event_flow::refuse_here(
-            crate::strings::append_string_by_id::append_string_by_id_in(
-                o,
+            crate::strings::append_string_by_id::append_string_by_id(
+                crate::strings::append_string_by_id::StringOwners::of(o),
                 free.unit,
                 &mut |bytes| {
                     unit.extend_from_slice(bytes);

@@ -44,6 +44,7 @@ const PAYLOAD_OFFSET: usize = 0x30; // 0x51EBE4
 
 /// Returns the carry flag of the last text drawn.
 pub fn draw_savegame_details(
+    o: crate::owners::Owners<'static>,
     tables: &Tables,
     saves: &Saves,
     system: &System,
@@ -100,7 +101,7 @@ pub fn draw_savegame_details(
         };
         let cars = [car(0)?, car(1)?, car(2)?, car(3)?];
         details(
-            &mut crate::screens::game_screen::PreviewScreen::new(canvas),
+            &mut crate::screens::game_screen::PreviewScreen::new(canvas, o),
             title,
             players,
             &cars,

@@ -25,6 +25,7 @@ use rc2k_core::saves::defaults::{Championship, RALLIES, championship_times};
 // ---- game data ----
 
 pub fn default_championship_times(
+    so: crate::strings::append_string_by_id::StringOwners<'_>,
     menus: &Menus,
     race: &Race,
     system: &System,
@@ -52,7 +53,12 @@ pub fn default_championship_times(
             tables.push(Target::Rally(saves.rally_times.table(rally)?));
         }
         let filled = championship_times(
-            &mut GameSource { log, menus, race },
+            &mut GameSource {
+                log,
+                so,
+                menus,
+                race,
+            },
             &records,
             Championship::Times { stage: ebp },
             present,

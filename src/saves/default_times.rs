@@ -49,6 +49,7 @@ pub fn to_nowhere(_: Piece) {}
 /// numbers, its drivers, its checkpoint counts and its log (or none).
 pub struct GameSource<'a> {
     pub log: Log<'a>,
+    pub so: crate::strings::append_string_by_id::StringOwners<'a>,
     pub menus: &'a Menus,
     pub race: &'a Race,
 }
@@ -60,7 +61,7 @@ impl rc2k_core::saves::defaults::Source for GameSource<'_> {
 
     fn driver(&mut self, number: u32) -> Result<rc2k_core::saves::defaults::Driver, Invalid> {
         let driver = Driver::of(self.menus, number).map_err(|e| Invalid(e.0))?;
-        let (name_id, name) = driver.name(self.menus).map_err(|e| Invalid(e.0))?;
+        let (name_id, name) = driver.name(self.so, self.menus).map_err(|e| Invalid(e.0))?;
         Ok(rc2k_core::saves::defaults::Driver {
             fields: [driver.class(), driver.nation(), driver.car()],
             name_id,

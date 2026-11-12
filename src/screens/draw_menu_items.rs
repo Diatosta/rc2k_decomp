@@ -91,7 +91,7 @@ pub fn draw_menu_items(
             .get()
             .wrapping_sub(menus.play.champ_view.last_key_time.get())
     };
-    let mut screen = MenuScreen::with_owners(canvas, o);
+    let mut screen = MenuScreen::new(canvas, o);
     screen.menu_items = all;
     let line = &o.race.text_buffers().line;
     rc2k_core::screens::menus::items(

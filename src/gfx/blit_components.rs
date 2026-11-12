@@ -54,12 +54,18 @@ fn something(p: &Piece, to: &Target) -> bool {
     width != 0 && height != 0
 }
 
-pub fn blit_components(formats: &Formats, p: &Piece, to: &Target) -> Result<(), Refused> {
+pub fn blit_components(
+    formats: &Formats,
+    p: &Piece,
+    to: &Target,
+    gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     if !something(p, to) {
         return Err(BadInput("a piece of nothing, or no surface, format, piece or picture").into());
     }
     let [x, y, width, height] = p.rectangle;
-    let format = crate::gfx::pixel_format::layout(to.format)?;
+    let format = crate::gfx::pixel_format::layout(system, gfx, to.format)?;
     // The picture's bytes from its buffer (`gfx::picture`; `pixels` names it).
     let mut source = (y.wrapping_mul(p.row_bytes) as usize).wrapping_add(x as usize * 4);
     // Converted: `rc2k_core::gfx::pixels::pack_row`, a row at a time (every byte of the

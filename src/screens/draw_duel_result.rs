@@ -16,7 +16,6 @@
 //! -1 ends or past them). The menus and draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
 use crate::menu::owner::Tables;
 use crate::records::stages_store::{RecordRef, RecordTable};
@@ -47,10 +46,11 @@ fn label(tables: &Tables, v: u32) -> Result<u32, Refused> {
 }
 
 pub fn draw_duel_result(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     system: &crate::system::owner::System,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
+    let menus = o.menus;
     let play = &menus.play;
     let screens = &menus.screens;
     let tables = &menus.tables;
@@ -62,7 +62,11 @@ pub fn draw_duel_result(
         return Err(BadInput("player 1 or 2 without a name").into());
     }
     let (base, record) = records(screens, &system.records.stage_tables)?;
-    let stage = crate::screens::page_settings::stage_line_bytes(0x482, record)?;
+    let stage = crate::screens::page_settings::stage_line_bytes(
+        crate::strings::append_string_by_id::StringOwners::of(o),
+        0x482,
+        record,
+    )?;
     if stage.len() > 0x100 {
         return Err(BadInput("a stage line past the line buffer").into());
     }
@@ -80,7 +84,7 @@ pub fn draw_duel_result(
             nation: p.nationality,
             car: p.car_number,
             time: p.time,
-            speed: crate::strings::append_speed::append_speed(p.figure, true, units)?,
+            speed: crate::strings::append_speed::append_speed(crate::strings::append_string_by_id::StringOwners::of(o), p.figure, true, units)?,
         })
     };
     let players = [player(p1)?, player(p2)?];
@@ -102,7 +106,7 @@ pub fn draw_duel_result(
         }),
     };
     rc2k_core::screens::duel_result::duel_result(
-        &mut crate::screens::game_screen::GameScreen::<_, _, crate::screens::game_screen::HeldText>::new(canvas),
+        &mut crate::screens::game_screen::GameScreen::<_, _, crate::screens::game_screen::HeldText>::new(canvas, o),
         &players,
         base.title()?,
         &stage,

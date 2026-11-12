@@ -18,7 +18,12 @@ pub fn settings_loop(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (install, net, system) = (o.install, o.net, o.system);
     let vars = &net.vars;
     vars.mode.set(0);
-    crate::net::show_background::show_background(o.gfx, o.system, &net.vars)?;
+    crate::net::show_background::show_background(
+        crate::strings::append_string_by_id::StringOwners::of(o),
+        o.gfx,
+        o.system,
+        &net.vars,
+    )?;
     crate::net::settings_done::settings_done(net, system, o.race.viewer_panel())?;
     let now = system.session.clocks.key_ticks.get();
     install.pages.move_clock.set(now);
@@ -34,7 +39,7 @@ pub fn settings_loop(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
         let key = list_key(install)?;
         let mut moved = false;
         if net.edit().edited.get() != u32::MAX {
-            crate::net::setting_key::setting_key(install, net, key, o.gfx)?;
+            crate::net::setting_key::setting_key(o.input, o.strings, install, net, key, o.gfx)?;
         } else {
             match key {
                 0x66 => {

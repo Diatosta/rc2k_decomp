@@ -55,6 +55,7 @@ pub fn item_font(
     reason = "the button's string, flags, place and item, and the owners"
 )]
 pub fn draw_button(
+    so: crate::strings::append_string_by_id::StringOwners<'static>,
     net: &Net,
     install: &Install,
     string: u32,
@@ -72,6 +73,7 @@ pub fn draw_button(
     net.button.get().y.set(y);
     net.button.get().item.set(item);
     let measured = crate::text::measure_string_by_id::measure_string_by_id_at(
+        so,
         string,
         PALETTE,
         x as i32,
@@ -125,6 +127,7 @@ pub fn draw_button(
         ButtonFont::Dim => FONT_DIM,
     };
     crate::text::draw_string_by_id::draw_string_by_id_at(
+        so,
         net.button.get().text.get(),
         font,
         net.button.get().x.get() as i32,

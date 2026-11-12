@@ -23,10 +23,13 @@ pub fn setting(units: u32) -> Result<Units, BadInput> {
 }
 
 /// A core `Figure` as the bytes the game appends: the text, then the label's string.
-pub fn figure_bytes(figure: Figure) -> Result<Vec<u8>, BadInput> {
+pub fn figure_bytes(
+    o: crate::strings::append_string_by_id::StringOwners<'_>,
+    figure: Figure,
+) -> Result<Vec<u8>, BadInput> {
     let mut out = figure.text;
     if let Some(id) = figure.label {
-        crate::strings::append_string_by_id::push_string(&mut out, id as u32)?;
+        crate::strings::append_string_by_id::push_string(o, &mut out, id as u32)?;
     }
     Ok(out)
 }

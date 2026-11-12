@@ -20,6 +20,7 @@ const CELLS_LEN: usize = 0x100;
 /// The `digits`, the column of the last character at `x` + 0x32.
 pub fn draw_spaced_number(
     screens: &Screens,
+    buffers: &crate::screens::text_buffers_store::TextBuffers,
     font: impl Into<crate::gfx::typefaces::FontRef>,
     digits: &[u8],
     x: i32,
@@ -35,9 +36,7 @@ pub fn draw_spaced_number(
     for &digit in digits {
         spaced.extend([digit, 0]);
     }
-    crate::screens::text_buffers_store::TEXT_BUFFERS
-        .cells
-        .write_at(0, &spaced, "the spaced digits")?;
+    buffers.cells.write_at(0, &spaced, "the spaced digits")?;
     for (i, x) in places {
         // The cells from character `i` on: a pair each, the whole run ending in the last NUL.
         draw_text_at(font, &spaced[2 * i..], x, y, canvas)?;

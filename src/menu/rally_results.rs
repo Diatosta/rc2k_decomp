@@ -16,7 +16,10 @@ use crate::menu::standings_steps::{clear_standings, number_all};
 
 pub fn rally_results(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
     menus.screens.state.menus.which_title.set(true);
-    crate::menu::standings_a_from_all::standings_a_from_all(menus)?;
+    crate::menu::standings_a_from_all::standings_a_from_all(
+        crate::strings::append_string_by_id::StringOwners::of(entry.owners),
+        menus,
+    )?;
     // The logic is in `rc2k_core::menu::results_pages::class_pages_only`.
     if !rc2k_core::menu::results_pages::class_pages_only(menus.play.champ_view.event_mode.get()) {
         crate::menu::sort_standings_by_total::sort_standings_by_total(menus)?;

@@ -116,7 +116,12 @@ pub type ScoresScreen<'a> = GameScreen<
 /// the last one's y (`draw_text` leaves it), the next row 0x19 below; the sprites' palette
 /// the line buffer past its NUL (ebx after the rank's `draw_text`).
 /// Refuses (before anything) no table.
-pub fn draw_scores(menus: &Menus, t: &Table, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_scores(
+    o: crate::owners::Owners<'static>,
+    t: &Table,
+    canvas: &mut dyn Canvas,
+) -> Result<(), Refused> {
+    let menus = o.menus;
     let tables = &menus.tables;
     // The logic is in `rc2k_core::screens::best_scores::scores`.
     {
@@ -155,7 +160,7 @@ pub fn draw_scores(menus: &Menus, t: &Table, canvas: &mut dyn Canvas) -> Result<
                     ends: e.first == u32::MAX,
                 }),
         };
-        draw_held_rows(t, &ten, canvas)
+        draw_held_rows(o, t, &ten, canvas)
     }
 }
 
@@ -191,7 +196,12 @@ fn held_row(fault: &Fault, e: &HeldRow, highlight: bool) -> Row<HeldText> {
 }
 
 /// `draw_scores` on ten rows of a typed table.
-fn draw_held_rows(t: &Table, ten: &[HeldRow; 10], canvas: &mut dyn Canvas) -> Result<(), Refused> {
+fn draw_held_rows(
+    o: crate::owners::Owners<'static>,
+    t: &Table,
+    ten: &[HeldRow; 10],
+    canvas: &mut dyn Canvas,
+) -> Result<(), Refused> {
     let fault = Fault::default();
     let row = |n: u32| held_row(&fault, &ten[n as usize], t.highlight);
     let ends = |n: u32| ten[n as usize].ends;
@@ -199,7 +209,7 @@ fn draw_held_rows(t: &Table, ten: &[HeldRow; 10], canvas: &mut dyn Canvas) -> Re
         row: &row,
         ends_at: &ends,
     };
-    let mut screen = ScoresScreen::new(canvas);
+    let mut screen = ScoresScreen::new(canvas, o);
     let drawn = rc2k_core::screens::best_scores::scores(&mut screen, &rows, t.keeps_y, t.sprite_dy);
     fault.check()?;
     drawn
@@ -207,17 +217,22 @@ fn draw_held_rows(t: &Table, ten: &[HeldRow; 10], canvas: &mut dyn Canvas) -> Re
 
 /// `screens::draw_best_scores_page` (0x46D149): the best scores for pages up to 4, else
 /// the class times.
-pub fn draw_best_scores_page(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_best_scores_page(
+    o: crate::owners::Owners<'static>,
+    canvas: &mut dyn Canvas,
+) -> Result<(), Refused> {
+    let menus = o.menus;
     if (scores_page(menus).get() as i32) <= 4 {
-        draw_scores(menus, &BEST_SCORES, canvas)
+        draw_scores(o, &BEST_SCORES, canvas)
     } else {
-        draw_scores(menus, &CLASS_TIMES, canvas)
+        draw_scores(o, &CLASS_TIMES, canvas)
     }
 }
 
 /// `screens::best_scores_caption` (0x46D128): the caption (`g_captionText`) string
 /// from the page's entry of the caption list and its NUL.
 pub fn best_scores_caption(
+    so: crate::strings::append_string_by_id::StringOwners<'_>,
     menus: &Menus,
     text: &crate::screens::text_buffers_store::TextBuffers,
 ) -> Result<(), Refused> {
@@ -230,17 +245,12 @@ pub fn best_scores_caption(
         scores_page(menus).get() as usize,
         "best scores: a game value",
     )?;
-    crate::screens::car_caption::put_string(id, &text.caption, 0x100)
+    crate::screens::car_caption::put_string(so, id, &text.caption, 0x100)
 }
 
 /// `screens::replay_range_caption` (0x470501): the caption "n-m", n = `pages.replay_page` x 20,
 /// m = n + 19 (`strings::append_u32`, `append_minus`).
-pub fn replay_range_caption(menus: &Menus) -> Result<(), BadInput> {
-    replay_range_caption_in(menus, crate::race::owner::race().text_buffers())
-}
-
-/// `replay_range_caption` into the given text buffers.
-pub fn replay_range_caption_in(
+pub fn replay_range_caption(
     menus: &Menus,
     text: &crate::screens::text_buffers_store::TextBuffers,
 ) -> Result<(), BadInput> {
@@ -311,25 +321,36 @@ pub const RALLY_STAGE_TIMES: StageTimes = StageTimes {
 /// line (string 0x482 ..., built in the line buffer) at (0x2EB, 0x91), in the heading font.
 /// Refuses (before anything) no stage records.
 pub fn draw_times_heading(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     system: &System,
     p: &StageTimes,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
+    let menus = o.menus;
     // The logic is in `rc2k_core::screens::best_scores::heading`.
     {
         let base = (p.records)(menus, system)?;
         let id = base.title()?;
         let record = base.row((p.record)(menus).get())?;
-        let line = || -> Result<Vec<u8>, Refused> { stage_line_without_nul(0x482, record) };
-        rc2k_core::screens::best_scores::heading(&mut ScoresScreen::new(canvas), id, Some(&line))
+        let line = || -> Result<Vec<u8>, Refused> {
+            stage_line_without_nul(
+                crate::strings::append_string_by_id::StringOwners::of(o),
+                0x482,
+                record,
+            )
+        };
+        rc2k_core::screens::best_scores::heading(&mut ScoresScreen::new(canvas, o), id, Some(&line))
     }
 }
 
 /// The stage line (`page_settings::stage_line_bytes`) without its NUL; refused past the
 /// line buffer, as the originals' callers check it.
-fn stage_line_without_nul(id: u32, record: RecordRef) -> Result<Vec<u8>, Refused> {
-    let mut line = crate::screens::page_settings::stage_line_bytes(id, record)?;
+fn stage_line_without_nul(
+    so: crate::strings::append_string_by_id::StringOwners<'_>,
+    id: u32,
+    record: RecordRef,
+) -> Result<Vec<u8>, Refused> {
+    let mut line = crate::screens::page_settings::stage_line_bytes(so, id, record)?;
     if line.len() > 0x100 {
         return Err(BadInput("a stage line past the line buffer").into());
     }
@@ -344,20 +365,21 @@ fn stage_line_without_nul(id: u32, record: RecordRef) -> Result<Vec<u8>, Refused
 /// apart from the last text's y. Refuses (before anything) no stage
 /// records or no times table.
 pub fn draw_stage_times(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     system: &System,
     p: &StageTimes,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
+    let menus = o.menus;
     let base = (p.records)(menus, system)?;
     let table = (p.table)(menus);
     if !table.is_taken() {
         return Err(BadInput("no times table").into());
     }
-    draw_times_heading(menus, system, p, canvas)?;
+    draw_times_heading(o, system, p, canvas)?;
     let group = base.row((p.record)(menus).get())?.record()?.event_slot();
     let keep = if p.rally { Keep::Below4 } else { Keep::Nothing };
-    draw_time_rows(table, group as usize, keep, canvas)?;
+    draw_time_rows(o, table, group as usize, keep, canvas)?;
     Ok(())
 }
 
@@ -369,6 +391,7 @@ pub use rc2k_core::screens::best_scores::Keep;
 /// it). Refuses a stage past the table, and an entry after the ten past the block.
 /// The logic is in `rc2k_core::screens::best_scores::time_rows`.
 pub fn draw_time_rows(
+    o: crate::owners::Owners<'static>,
     table: &StageTable,
     stage: usize,
     keep: Keep,
@@ -404,7 +427,7 @@ pub fn draw_time_rows(
     };
     let show_hours = crate::strings::append_time::show_hours();
     let drawn = rc2k_core::screens::best_scores::time_rows(
-        &mut ScoresScreen::new(canvas),
+        &mut ScoresScreen::new(canvas, o),
         &rows,
         keep,
         show_hours,
@@ -441,10 +464,11 @@ pub fn section_there(menus: &Menus, system: &System) -> Result<bool, crate::erro
 /// buffer at (0x2EB, 0x91). Refuses (before anything) a section the
 /// table has not.
 pub fn draw_record_heading(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     system: &System,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
+    let menus = o.menus;
     // The logic is in `rc2k_core::screens::best_scores::heading`.
     {
         if !section_there(menus, system)? {
@@ -462,8 +486,14 @@ pub fn draw_record_heading(
             first.record()?.name()
         };
         let record = record_at(menus, system, menus.screens.event.index.get())?;
-        let line = || -> Result<Vec<u8>, Refused> { stage_line_without_nul(0x481, record) };
-        rc2k_core::screens::best_scores::heading(&mut ScoresScreen::new(canvas), id, Some(&line))
+        let line = || -> Result<Vec<u8>, Refused> {
+            stage_line_without_nul(
+                crate::strings::append_string_by_id::StringOwners::of(o),
+                0x481,
+                record,
+            )
+        };
+        rc2k_core::screens::best_scores::heading(&mut ScoresScreen::new(canvas, o), id, Some(&line))
     }
 }
 
@@ -474,10 +504,11 @@ pub fn draw_record_heading(
 /// leaves it out: `notes/bugs.md`). Refuses (before anything) a section
 /// the table has not, no times table, and what `strings::append_speed` refuses.
 pub fn draw_record_times(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     system: &System,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
+    let menus = o.menus;
     let times = &crate::saves::best_times::STAGE_TIMES;
     let (true, true) = (section_there(menus, system)?, times.is_taken()) else {
         return Err(BadInput("a section past the record table, or no times table").into());
@@ -492,16 +523,17 @@ pub fn draw_record_times(
         fastest.car,
     );
     let speed = crate::strings::append_speed::append_speed(
+        crate::strings::append_string_by_id::StringOwners::of(o),
         top_speed,
         true,
         crate::strings::units::units(),
     )?;
-    draw_record_heading(menus, system, canvas)?;
-    if !draw_time_rows(times, times_at as usize, Keep::Y, canvas)? {
+    draw_record_heading(o, system, canvas)?;
+    if !draw_time_rows(o, times, times_at as usize, Keep::Y, canvas)? {
         return Ok(());
     }
     rc2k_core::screens::best_scores::fastest(
-        &mut ScoresScreen::new(canvas),
+        &mut ScoresScreen::new(canvas, o),
         nation,
         HeldText::Held(record.holder_text(Holder::Fastest)?),
         car,
@@ -531,11 +563,12 @@ pub const OVERALL_BEST_SCORES: Table = Table {
 /// `records::find_record` and do not use it: left out.) Refuses
 /// (before anything) no table.
 pub fn draw_scores_with_heading(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     t: &Table,
     event: bool,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
+    let menus = o.menus;
     t.at.need("no best scores table")?;
     // The logic is in `rc2k_core::screens::best_scores::scores_heading`, `heading`.
     let section = (menus.play.champ_view.event_mode.get() == 0x13)
@@ -548,12 +581,12 @@ pub fn draw_scores_with_heading(
             )
         })
         .transpose()?;
-    let mut screen = ScoresScreen::new(canvas);
+    let mut screen = ScoresScreen::new(canvas, o);
     let id = rc2k_core::screens::best_scores::scores_heading(
         &mut screen,
         section,
         event.then(|| menus.screens.event.class.get()),
     );
     rc2k_core::screens::best_scores::heading(&mut screen, id, None)?;
-    draw_scores(menus, t, screen.canvas)
+    draw_scores(o, t, screen.canvas)
 }

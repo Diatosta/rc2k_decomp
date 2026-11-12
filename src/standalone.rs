@@ -448,7 +448,7 @@ fn probe_display(o: Owners<'static>, r: &Context) {
 /// The network's set-up, the game's threads and the audio thread's commands.
 fn start_workers(o: Owners<'static>, r: &Context) {
     rust("net::set_up");
-    if let Err(e) = crate::net::set_up::set_up(o.net) {
+    if let Err(e) = crate::net::set_up::set_up(o.net, o.strings) {
         refused("net::set_up", e, r);
     }
     rust("system::set_priority_class");

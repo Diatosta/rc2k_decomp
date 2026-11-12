@@ -46,7 +46,7 @@ pub struct RaceWork {
     /// `blocks_store::block_ref`).
     pub car_blocks: [Dword; 8],
     /// +0x420 (0x71B3D8): `g_carRecords`: a word for each car's view marks (`race::frame_views`),
-    /// kept as IDA's addresses, as names (phase 13; `RaceWork::car_record` makes one real).
+    /// kept as IDA's addresses, as names (phase 13; `RaceShared::car_record` makes one real).
     pub car_records: [Dword; 8],
     /// +0x440 (0x71B3F8): `g_currentCar`: the car being stepped.
     pub current_car: Dword,
@@ -220,49 +220,12 @@ impl RaceWork {
             .unwrap_or_else(|e| crate::fatal::raise::end(what, e))
     }
 
-    /// Car `n`'s block as a car: `blocks_store::car_named(self.car_block(n))`, refused for a
-    /// value that names no block.
-    pub fn car(&self, n: usize) -> Result<&'static crate::physics::car_store::Car, BadInput> {
-        use crate::race::blocks_store::{BLOCK_COUNT, BLOCK_TAG};
-        if let Some(cell) = self.car_blocks.get(n) {
-            let k = (cell.get() ^ BLOCK_TAG) as usize;
-            if k < BLOCK_COUNT {
-                return Ok(&crate::race::owner::race().car_blocks().cars[k]);
-            }
-        }
-        crate::race::blocks_store::car_named(self.car_block(n))
-    }
-
     /// Car `n`'s block as `g_carBlocks[n]` keeps it: its handle (0 for none), the value other
     /// places keep for "that car" (`block_ref`).
     pub fn car_handle(&self, n: usize) -> u32 {
         self.car_blocks
             .get(n)
             .map_or_else(|| self.car_block(n), Dword::get)
-    }
-
-    /// Car `n`'s block as a car, or the refusal `what` for none (the original's read at a small
-    /// offset from 0 fails). A handle that names no block ends the program, as `car_block`.
-    pub fn block_car(
-        &self,
-        n: usize,
-        what: &'static str,
-    ) -> Result<&'static crate::physics::car_store::Car, BadInput> {
-        match self.car_blocks.get(n) {
-            Some(cell) if cell.get() == 0 => Err(BadInput(what)),
-            Some(_) => self.car(n),
-            None => crate::race::blocks_store::block_at(self.car_block(n), what),
-        }
-    }
-
-    /// Car `n`'s block as a car; a null block or one that is none of the ten ends the program.
-    pub fn car_or_end(&self, n: usize) -> &'static crate::physics::car_store::Car {
-        let block = self.car_block(n);
-        match self.car_blocks.get(n) {
-            Some(_) if block != 0 => self.car(n),
-            _ => crate::race::blocks_store::car_named(block),
-        }
-        .unwrap_or_else(|e| crate::fatal::raise::end("physics::Car::at", e))
     }
 
     /// The number of the block car `n` has, refused for none (as `frame_view::car_at` on its
@@ -290,13 +253,11 @@ impl RaceWork {
         }
     }
 
-    /// Car record `n` (`g_carRecords[n]`, the name of one of the marks' car records,
-    /// `race::effects_settings_store`). Refused past the eight (the original reads on into
-    /// the next variables) and for a name that is not a record's start.
-    pub fn car_record(
-        &self,
-        n: usize,
-    ) -> Result<&'static crate::race::effects_settings_store::CarEffects, BadInput> {
+    /// The number of car record `n` (`g_carRecords[n]`, the name of one of the effects' car
+    /// records, `race::effects_settings_store`; `RaceShared::car_record`). Refused past the
+    /// eight (the original reads on into the next variables) and for a name that is not a
+    /// record's start.
+    pub fn car_record_number(&self, n: usize) -> Result<usize, BadInput> {
         let name = self
             .car_records
             .get(n)
@@ -308,20 +269,7 @@ impl RaceWork {
         {
             return Err(BadInput("a car record off the view marks' records"));
         }
-        Ok(&crate::race::owner::race().effects_settings().cars
-            [off / crate::race::effects_settings_store::CAR_LEN])
-    }
-
-    /// The eight car records.
-    pub fn car_records_resolved(
-        &self,
-    ) -> Result<[&'static crate::race::effects_settings_store::CarEffects; 8], BadInput> {
-        let first = self.car_record(0)?;
-        let mut out = [first; 8];
-        for (n, record) in out.iter_mut().enumerate() {
-            *record = self.car_record(n)?;
-        }
-        Ok(out)
+        Ok(off / crate::race::effects_settings_store::CAR_LEN)
     }
 }
 
@@ -378,11 +326,11 @@ mod tests {
             );
             assert_eq!(name as usize, CAR_RECORDS_IDA + 0x4C8 * k);
             assert!(std::ptr::eq(
-                shared.work.car_records_resolved().unwrap()[k],
-                shared.work.car_record(k).unwrap()
+                shared.car_records().unwrap()[k],
+                shared.car_record(k).unwrap()
             ));
         }
-        assert!(shared.work.car_record(8).is_err());
+        assert!(shared.car_record(8).is_err());
     }
 
     #[test]

@@ -38,9 +38,13 @@ const MEASURING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fon
 // ---- Rust version ----
 
 /// Writes the cursor and a NUL after the name's `len` characters.
-fn put_cursor(screens: &Screens, name: crate::place::BytePlace) -> Result<(), BadInput> {
+fn put_cursor(
+    so: crate::strings::append_string_by_id::StringOwners<'_>,
+    screens: &Screens,
+    name: crate::place::BytePlace,
+) -> Result<(), BadInput> {
     let mut tail = Vec::new();
-    push_string(&mut tail, CURSOR_STRING)?;
+    push_string(so, &mut tail, CURSOR_STRING)?;
     tail.push(0);
     let len = screens.loop_flags.text_length.get() as i32;
     name.add(len as u32).write(&tail, "the setup name")?;
@@ -58,6 +62,8 @@ fn end_name(screens: &Screens, name: crate::place::BytePlace) -> Result<(), BadI
 }
 
 pub fn edit_setup_name(
+    input: &crate::input::owner::Input,
+    so: crate::strings::append_string_by_id::StringOwners<'_>,
     menus: &Menus,
     service: &'static Service,
     canvas: &mut dyn Canvas,
@@ -98,7 +104,7 @@ pub fn edit_setup_name(
         Key::Clear => clear_text(menus, name)?,
         Key::Backspace => backspace_setup_name(menus, service)?,
         Key::Other(key) => {
-            let c = key_to_char(key as u32)? as u8;
+            let c = key_to_char(input, key as u32)? as u8;
             let len = screens.loop_flags.text_length.get() as i32;
             if entry::appends(c, len, screens.loop_flags.text_max.get() as i32) {
                 put_char(name, len, c)?;
@@ -112,6 +118,6 @@ pub fn edit_setup_name(
             }
         }
     }
-    put_cursor(screens, name)?;
+    put_cursor(so, screens, name)?;
     Ok(())
 }

@@ -572,6 +572,7 @@ impl Callee {
                 },
                 menus,
                 sound,
+                &audio.sample_names,
             )?,
             Self::AxisMoved(axis) => {
                 crate::input::axes::axis_moved(axis, input)?;
@@ -595,6 +596,7 @@ impl Callee {
             Self::MarkStageChoice => crate::menu::mark_stage_choice::mark_stage_choice(play),
             Self::EditPlayerName => {
                 crate::menu::edit_player_name::edit_player_name(
+                    entry.owners.input,
                     menus,
                     screens,
                     &mut GameCanvas::new(entry.owners.gfx),
@@ -602,12 +604,16 @@ impl Callee {
             }
             Self::EditSetupName => {
                 crate::service::edit_setup_name::edit_setup_name(
+                    entry.owners.input,
+                    crate::strings::append_string_by_id::StringOwners::of(entry.owners),
                     menus,
                     entry.owners.service,
                     &mut GameCanvas::new(entry.owners.gfx),
                 )?;
             }
             Self::EditSavegameName => crate::menu::edit_savegame_name::edit_savegame_name(
+                entry.owners.input,
+                crate::strings::append_string_by_id::StringOwners::of(entry.owners),
                 menus,
                 entry.owners.saves,
                 &mut GameCanvas::new(entry.owners.gfx),
@@ -617,6 +623,8 @@ impl Callee {
             )?,
             Self::EditReplayName => {
                 return crate::menu::edit_replay_name::edit_replay_name(
+                    entry.owners.input,
+                    crate::strings::append_string_by_id::StringOwners::of(entry.owners),
                     menus,
                     entry.owners.saves,
                     entry.owners.race,

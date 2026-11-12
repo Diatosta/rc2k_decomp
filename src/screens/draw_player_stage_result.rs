@@ -12,19 +12,20 @@
 //! `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
 use crate::screens::best_scores::{STAGE_TIMES, draw_times_heading};
 use crate::text::draw_text::Canvas;
 
 pub fn draw_player_stage_result(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     system: &crate::system::owner::System,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
+    let menus = o.menus;
     let player = crate::menu::player_settings::current(menus)?.get();
     let name = crate::screens::game_screen::player_name_of(crate::menu::player_name::name(menus)?);
     let top_speed = player.figure;
     let mut speed = crate::strings::append_speed::append_speed(
+        crate::strings::append_string_by_id::StringOwners::of(o),
         top_speed,
         true,
         crate::strings::units::units(),
@@ -42,8 +43,8 @@ pub fn draw_player_stage_result(
         speed,
     };
     rc2k_core::screens::player_result::stage_result(
-        &mut PlayerResultScreen::new(canvas),
-        &mut |s: &mut PlayerResultScreen| draw_times_heading(menus, system, &STAGE_TIMES, s.canvas),
+        &mut PlayerResultScreen::new(canvas, o),
+        &mut |s: &mut PlayerResultScreen| draw_times_heading(o, system, &STAGE_TIMES, s.canvas),
         &p,
         crate::strings::append_time::show_hours(),
     )?;

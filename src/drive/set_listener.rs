@@ -31,13 +31,10 @@ use crate::session::{Dword, Float};
 use rc2k_core::drive::listener;
 
 /// The car file's six figures times 65536 over 1000, or the refusal (before anything).
-fn figures(race: &Race, viewed: u32) -> Result<[i32; 6], Refused> {
+fn figures(race: &Race, session: u32, viewed: u32) -> Result<[i32; 6], Refused> {
     let shared = &race.shared;
     listener::check_viewed(viewed, || shared.work.has_car_block(viewed as usize))?;
-    let n = car_file_number(
-        race.kind_tables(),
-        crate::race::blocks_store::own_car().car_kind.get(),
-    );
+    let n = car_file_number(race.kind_tables(), shared.own_car(session).car_kind.get());
     rc2k_core::drive::sharing::check_light_record(n)?;
     let mut out = [0i32; 6];
     for (k, o) in out.iter_mut().enumerate() {
@@ -93,15 +90,16 @@ impl<'a> ListenerView<'a> {
 pub fn set_listener(
     race: &Race,
     scene: &crate::scene::owner::Scene,
+    net: &crate::net::owner::Net,
     view: ListenerView<'_>,
 ) -> Result<(), Refused> {
     let physics = &race.physics;
-    let f = figures(race, view.drawn_view)?;
-    let car = crate::race::blocks_store::own_car();
+    let session = net.vars.session.get();
+    let f = figures(race, session, view.drawn_view)?;
+    let car = race.shared.own_car(session);
     let s = race
         .shared
-        .work
-        .block_car(view.drawn_view as usize, "a car's block")?;
+        .race_car_or(view.drawn_view as usize, "a car's block")?;
     let place: [u32; 3] = crate::session::read_all(&s.position);
     let strength: u32 = s.marks_count.get();
     race.effects_settings().listener_car_place[2].set(x87::from_int(place[2] as i32));

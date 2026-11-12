@@ -14,17 +14,17 @@
 //! draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::Menus;
 use crate::strings::append_time::show_hours;
 use crate::text::draw_text::Canvas;
 
 const SECTIONS: u32 = 6;
 
 pub fn draw_section_best_times(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     saves: &crate::saves::owner::Saves,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
+    let menus = o.menus;
     let section: u32 = menus.screens.event.section.get();
     if section >= SECTIONS {
         return Err(BadInput("a section past the six best-times tables").into());
@@ -53,7 +53,7 @@ pub fn draw_section_best_times(
         }
     });
     rc2k_core::screens::best_scores::section_best_times(
-        &mut crate::screens::best_scores::ScoresScreen::new(canvas),
+        &mut crate::screens::best_scores::ScoresScreen::new(canvas, o),
         &rows,
         show_hours(),
     )?;

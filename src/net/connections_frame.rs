@@ -21,6 +21,7 @@ const LIT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BUTTON_
 /// name (`name`) of an item below the count, the highlighted one blinking. Shared with
 /// `net::sessions_frame`.
 pub fn list_frame(
+    so: crate::strings::append_string_by_id::StringOwners<'static>,
     install: &Install,
     title: u32,
     count: &crate::session::Dword,
@@ -32,7 +33,7 @@ pub fn list_frame(
         return Ok(());
     }
     copy_picture(gfx, system)?;
-    draw_string(title, STATUS_FONT, 0x316, 0x6F, gfx)?;
+    draw_string(so, title, STATUS_FONT, 0x316, 0x6F, gfx)?;
     let mut y: u32 = 0x6F + 0x2C;
     // Converted: `rc2k_core::net::screens` (`LIST_ROWS`, `listed`, `blink_lit`).
     let pages = &install.pages;
@@ -64,12 +65,14 @@ pub fn list_frame(
     Ok(())
 }
 pub fn connections_frame(
+    so: crate::strings::append_string_by_id::StringOwners<'static>,
     net: &Net,
     install: &Install,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     list_frame(
+        so,
         install,
         screens::CONNECTIONS_TITLE,
         &net.vars.connections,

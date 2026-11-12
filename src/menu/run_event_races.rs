@@ -102,7 +102,10 @@ impl races::EventRaces for Game<'_> {
                 crate::menu::reset_player_times::reset_player_times(menus)?;
             }
             Step::StandingsFromDrivers => {
-                crate::menu::standings_from_drivers::standings_from_drivers(menus)?;
+                crate::menu::standings_from_drivers::standings_from_drivers(
+                    crate::strings::append_string_by_id::StringOwners::of(self.owners),
+                    menus,
+                )?;
             }
             Step::SortByTime => {
                 crate::menu::sort_standings_by_time::sort_standings_by_time(menus)?;

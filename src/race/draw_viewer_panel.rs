@@ -22,6 +22,7 @@ const FONT_D: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::PANE
 const FONT_E: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::PANEL_E;
 
 pub fn draw_viewer_panel(
+    so: crate::strings::append_string_by_id::StringOwners<'static>,
     race: &Race,
     gfx: &crate::gfx::owner::Gfx,
     strings: &crate::strings::owner::Strings,
@@ -52,6 +53,7 @@ pub fn draw_viewer_panel(
     let string =
         |id: u32, font: crate::gfx::typefaces::FontId, x: i32, y: i32| -> Result<(), Refused> {
             crate::text::draw_string_by_id::draw_string_by_id_at(
+                so,
                 id,
                 font,
                 x,
@@ -105,12 +107,16 @@ pub fn draw_viewer_panel(
         )?);
         let id = race.viewer_panel().camera_name(camera as usize);
         let mut out = 0usize;
-        crate::strings::append_string_by_id::append_string_by_id(u32::from(id), &mut |bytes| {
-            for (k, &b) in bytes.iter().enumerate() {
-                text_stores.buffer.text.set(out + k, b);
-            }
-            out += bytes.len();
-        })?;
+        crate::strings::append_string_by_id::append_string_by_id(
+            so,
+            u32::from(id),
+            &mut |bytes| {
+                for (k, &b) in bytes.iter().enumerate() {
+                    text_stores.buffer.text.set(out + k, b);
+                }
+                out += bytes.len();
+            },
+        )?;
         text_stores.buffer.text.set(out, 0);
         if byte == 1 {
             y += 0xD;

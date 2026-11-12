@@ -204,16 +204,23 @@ pub fn draw_item_button(
 /// width does not depend on it, so it is measured from 0. Refused: a measuring font that
 /// does not only measure (it would draw the text at that x).
 pub fn draw_text_button(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     kind: &Kind,
     align: u32,
     item: &crate::menu::menus_store::MenuItem,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
+    let menus = o.menus;
     let font = crate::text::measure_text::only_measures(crate::gfx::typefaces::FontId::at(
         item.fixed().measuring_font.ral() as usize,
     ))?;
-    let measured = measure_string_by_id_at(item.string.get(), font, 0, canvas)?;
+    let measured = measure_string_by_id_at(
+        crate::strings::append_string_by_id::StringOwners::of(o),
+        item.string.get(),
+        font,
+        0,
+        canvas,
+    )?;
     draw_button(
         menus,
         kind,

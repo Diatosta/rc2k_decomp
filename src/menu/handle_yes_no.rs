@@ -12,7 +12,12 @@ use crate::input::yes_no_key::{NO, YES};
 use crate::menu::leaving::{question, with_question};
 use crate::menu::owner::Menus;
 
-pub fn handle_yes_no(menus: &Menus, eax: u32) -> Result<(), BadInput> {
+pub fn handle_yes_no(
+    so: crate::strings::append_string_by_id::StringOwners<'_>,
+    input: &crate::input::owner::Input,
+    menus: &Menus,
+    eax: u32,
+) -> Result<(), BadInput> {
     // The logic is in `rc2k_core::menu::leaving::Question::answer_key`.
     // A gamepad's button (not the original's), taken with the key it sent. Only Back answers:
     // this screen does not leave on Escape. Enter is a key like the keyboard's, and chooses
@@ -23,7 +28,7 @@ pub fn handle_yes_no(menus: &Menus, eax: u32) -> Result<(), BadInput> {
     }
     let answer = match pad {
         Some(NO) => NO,
-        _ => yes_no_for_key(eax)?,
+        _ => yes_no_for_key(so, input, eax)?,
     };
     let said = match answer {
         YES => Some(true),

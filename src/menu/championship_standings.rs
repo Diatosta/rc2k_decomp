@@ -18,7 +18,10 @@ pub fn championship_standings(menus: &Menus, entry: &Entry) -> Result<(), Refuse
     use crate::menu::{sort_standings_b_by_figure as fig, sort_standings_b_by_points as pts};
     // The logic is in `rc2k_core::menu::results_pages` (`class_pages_only`, `standings_sorts`).
     use rc2k_core::menu::results_pages::{Sort, class_pages_only, standings_sorts};
-    crate::menu::standings_b_from_all::standings_b_from_all(menus)?;
+    crate::menu::standings_b_from_all::standings_b_from_all(
+        crate::strings::append_string_by_id::StringOwners::of(entry.owners),
+        menus,
+    )?;
     let a8 = class_pages_only(menus.play.champ_view.event_mode.get());
     for sort in standings_sorts(a8) {
         match sort {

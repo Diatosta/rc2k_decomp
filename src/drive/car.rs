@@ -17,7 +17,7 @@ pub fn current_block(shared: &RaceShared) -> Result<&'static Car, Refused> {
     let slot = car_slot(shared.work.current_car.get());
     car_block(u32::from(shared.work.has_car_block(slot as usize)))?;
 
-    Ok(shared.work.car(slot as usize)?)
+    Ok(shared.race_car(slot as usize)?)
 }
 
 /// Copies `CAR_LEN` bytes, dword by dword upwards as `rep movsd` does (the two never

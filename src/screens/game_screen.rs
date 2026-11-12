@@ -204,7 +204,7 @@ impl HeldText {
                 let (table, len) = names.table(o);
                 text_in(table, (slot as usize).wrapping_mul(len))
             }
-            HeldText::Buffer(buffer) => match buffer_at(o.race, buffer) {
+            HeldText::Buffer(buffer) => match buffer_at(o.race, o.strings, buffer) {
                 TextBuf::Text(b) => text_in(b, 0),
                 TextBuf::Line(b) => text_in(b, 0),
             },
@@ -297,12 +297,8 @@ pub struct GameScreen<'a, F, W, T = HeldText> {
 }
 
 impl<'a, F, W, T> GameScreen<'a, F, W, T> {
-    pub fn new(canvas: &'a mut dyn Canvas) -> Self {
-        Self::with_owners(canvas, crate::owners::boundary())
-    }
-
     /// A screen drawing on `canvas`, the game's state being `o`'s.
-    pub fn with_owners(canvas: &'a mut dyn Canvas, o: Owners<'static>) -> Self {
+    pub fn new(canvas: &'a mut dyn Canvas, o: Owners<'static>) -> Self {
         Self {
             canvas,
             menu_items: &[],
@@ -333,18 +329,27 @@ fn clip_edge_cell(
 }
 
 /// Where a shared buffer is.
-pub fn buffer_at(race: &'static Race, buffer: Buffer) -> TextBuf {
+pub fn buffer_at(
+    race: &'static Race,
+    strings: &'static crate::strings::owner::Strings,
+    buffer: Buffer,
+) -> TextBuf {
     let text_buffers = race.text_buffers();
     match buffer {
         Buffer::Line => TextBuf::Line(&text_buffers.line),
-        Buffer::Text => crate::strings::text_from_ids::text_at(),
+        Buffer::Text => crate::strings::text_from_ids::text_at(strings),
         Buffer::Cells => TextBuf::Line(&text_buffers.cells),
     }
 }
 
 /// `bytes` (with their NUL) into a shared buffer; refused past its end (the line buffer
 /// 0x100 bytes: `byte_A8BC54` follows).
-pub fn store_in(race: &'static Race, buffer: Buffer, bytes: &[u8]) -> Result<(), Refused> {
+pub fn store_in(
+    race: &'static Race,
+    strings: &'static crate::strings::owner::Strings,
+    buffer: Buffer,
+    bytes: &[u8],
+) -> Result<(), Refused> {
     let room = match buffer {
         Buffer::Line => 0x100,
         Buffer::Text => crate::strings::text_from_ids::TEXT_LEN,
@@ -353,7 +358,7 @@ pub fn store_in(race: &'static Race, buffer: Buffer, bytes: &[u8]) -> Result<(),
     if bytes.len() > room {
         return Err(BadInput("a text past its buffer").into());
     }
-    buffer_at(race, buffer).write_at(0, bytes, "a shared text buffer")?;
+    buffer_at(race, strings, buffer).write_at(0, bytes, "a shared text buffer")?;
     Ok(())
 }
 
@@ -368,7 +373,7 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
     }
 
     fn store(&mut self, buffer: Buffer, bytes: &[u8]) -> Result<(), Refused> {
-        store_in(self.owners.race, buffer, bytes)
+        store_in(self.owners.race, self.owners.strings, buffer, bytes)
     }
 
     fn draw(&mut self, font: F, buffer: Buffer, x: i32, y: i32) -> Result<Drawn, Refused> {
@@ -379,7 +384,7 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
         use crate::text::draw_time_fixed_pitch::draw_time_fixed_pitch_at;
         draw_time_fixed_pitch_at(
             font_of(font),
-            buffer_at(self.owners.race, buffer),
+            buffer_at(self.owners.race, self.owners.strings, buffer),
             right,
             y,
             self.canvas,
@@ -391,7 +396,7 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
         use crate::text::draw_clock_fixed_pitch::draw_clock_fixed_pitch_at;
         draw_clock_fixed_pitch_at(
             font_of(font),
-            buffer_at(self.owners.race, buffer),
+            buffer_at(self.owners.race, self.owners.strings, buffer),
             right,
             y,
             self.canvas,
@@ -401,7 +406,16 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
 
     fn string(&mut self, font: F, id: u32, x: i32, y: i32) -> Result<Drawn, Refused> {
         use crate::text::draw_string_by_id::draw_string_by_id_at;
-        let out = { draw_string_by_id_at(id, font_of(font), x, y, self.canvas) }?;
+        let out = {
+            draw_string_by_id_at(
+                crate::strings::append_string_by_id::StringOwners::of(self.owners),
+                id,
+                font_of(font),
+                x,
+                y,
+                self.canvas,
+            )
+        }?;
         Ok(Drawn {
             y: out.y,
             too_wide: out.too_wide,
@@ -411,14 +425,22 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
     fn string_bytes(&mut self, id: u32) -> Vec<u8> {
         let mut out = Vec::new();
         crate::menu::event_flow::refuse_here(
-            crate::strings::append_string_by_id::push_string(&mut out, id),
+            crate::strings::append_string_by_id::push_string(
+                crate::strings::append_string_by_id::StringOwners::of(self.owners),
+                &mut out,
+                id,
+            ),
             "screens::game_screen: a string",
         );
         out
     }
 
     fn strings(&mut self, first: u32, count: u32) -> Result<Vec<u8>, Refused> {
-        Ok(crate::strings::text_from_ids::text_from_ids(first, count)?)
+        Ok(crate::strings::text_from_ids::text_from_ids(
+            crate::strings::append_string_by_id::StringOwners::of(self.owners),
+            first,
+            count,
+        )?)
     }
 
     fn sprite(&mut self, glyph: u32, x: i32, y: i32) -> Result<(), Refused> {
@@ -447,6 +469,7 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
         crate::text::blend_font::blend_font(
             self.owners.strings,
             self.owners.gfx,
+            self.owners.system,
             since_key,
             0x100,
             font_of(a),
@@ -479,6 +502,7 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
     fn measure_string(&mut self, font: F, id: u32, x: i32) -> Result<u32, Refused> {
         let m = {
             crate::text::measure_string_by_id::measure_string_by_id_at(
+                crate::strings::append_string_by_id::StringOwners::of(self.owners),
                 id,
                 font_of(font),
                 x,
@@ -496,9 +520,10 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
         let screens = &self.menus.screens;
         let mut text = bytes.to_vec();
         text.push(0);
-        store_in(self.owners.race, Buffer::Line, &text)?;
+        store_in(self.owners.race, self.owners.strings, Buffer::Line, &text)?;
         crate::screens::draw_spaced_number::draw_spaced_number(
             screens,
+            self.owners.race.text_buffers(),
             font_of(font),
             bytes,
             x,
@@ -859,12 +884,13 @@ impl GameWork for rc2k_core::screens::notes::Work {
 
 /// A one-string screen drawn: what it leaves in the registers.
 pub fn draw_note(
+    o: crate::owners::Owners<'static>,
     canvas: &mut dyn Canvas,
     note: &rc2k_core::screens::notes::Note,
 ) -> Result<rc2k_core::screens::screen::Drawn, Refused> {
     rc2k_core::screens::notes::note(
         &mut GameScreen::<rc2k_core::screens::notes::Font, rc2k_core::screens::notes::Work>::new(
-            canvas,
+            canvas, o,
         ),
         note,
     )
@@ -931,7 +957,7 @@ impl rc2k_core::screens::menus::MenuScreen for MenuScreen<'_> {
             TextButton::HighlightedCentred => (&HIGHLIGHTED, ALIGN_CENTRE),
         };
         crate::screens::buttons::draw_text_button(
-            self.menus,
+            self.owners,
             kind,
             align,
             self.menu_item(n)?,
@@ -943,6 +969,7 @@ impl rc2k_core::screens::menus::MenuScreen for MenuScreen<'_> {
         blend_font(
             self.owners.strings,
             self.owners.gfx,
+            self.owners.system,
             since_key,
             0x100,
             a.pointer(),

@@ -11,11 +11,14 @@
 //! (`menu::table_calls`).
 
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
 use crate::text::draw_text::Canvas;
 
 /// (id, x, y, font) of the page's lines.
-pub fn draw_options_checklist(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_options_checklist(
+    o: crate::owners::Owners<'static>,
+    canvas: &mut dyn Canvas,
+) -> Result<(), Refused> {
+    let menus = o.menus;
     // The logic is in `rc2k_core::screens::settings_pages::options_checklist`.
     {
         let mut ticks = Vec::new();
@@ -32,7 +35,7 @@ pub fn draw_options_checklist(menus: &Menus, canvas: &mut dyn Canvas) -> Result<
             ticks.push(tick);
         }
         rc2k_core::screens::settings_pages::options_checklist(
-            &mut crate::screens::game_screen::SettingsScreen::new(canvas),
+            &mut crate::screens::game_screen::SettingsScreen::new(canvas, o),
             menus.screens.event.current_player.get(),
             menus.screens.state.driver_stats.score.get() as i32,
             &ticks,

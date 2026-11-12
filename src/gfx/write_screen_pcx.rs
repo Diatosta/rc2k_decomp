@@ -49,6 +49,7 @@ pub fn write_screen_pcx(
     shots: &Shots,
     name: Option<&[u8]>,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<bool, Refused> {
     let header_bytes = header(
         gfx.drawing.draw_surface.width.get(),
@@ -66,7 +67,7 @@ pub fn write_screen_pcx(
         if !crate::files::open_stream::open_stream(stream, &path, 1)? {
             return Ok(false);
         }
-        let mut ok = write_stream_all(stream, &header_bytes)? && rows(stream, gfx)?;
+        let mut ok = write_stream_all(stream, &header_bytes)? && rows(stream, gfx, system)?;
         let closed = crate::files::close_stream::close_stream(stream)?;
         ok = ok && closed;
         Ok(ok)
@@ -75,14 +76,19 @@ pub fn write_screen_pcx(
 
 /// The rows; false when a write failed. Converted: `rc2k_core::gfx::pcx::screen_planes` and
 /// `encode_line`; the planes are left in the game's buffer, as the original leaves them.
-fn rows(stream: &mut Stream, gfx: &crate::gfx::owner::Gfx) -> Result<bool, Refused> {
+fn rows(
+    stream: &mut Stream,
+    gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
+) -> Result<bool, Refused> {
     let rows = crate::gfx::rows::Rows::surface(gfx)?;
     // The block's byte count after the header (0x80), as the original's register has it.
     let mut eax: u32 = 0x80;
     let width = gfx.drawing.draw_surface.width.get();
     let mut y = 0u32;
     loop {
-        let format = crate::gfx::pixel_format::layout(gfx.drawing.draw_surface.format.get())?;
+        let format =
+            crate::gfx::pixel_format::layout(system, gfx, gfx.drawing.draw_surface.format.get())?;
         // The row's pixels, as the original reads them (none for other sizes).
         let bits = gfx.drawing.draw_surface.bits_per_pixel.get();
         let pixels = match bits {

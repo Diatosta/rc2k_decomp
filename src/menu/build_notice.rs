@@ -21,7 +21,7 @@ use rc2k_core::menu::notice::{
 pub fn build_notice(menus: &Menus, strings: &Strings) {
     let panels = &menus.panels;
     // The logic is in `rc2k_core::menu::notice::notice`.
-    if crate::strings::load_language::notice_kind_in(strings) != BUILDS {
+    if crate::strings::load_language::notice_kind(strings) != BUILDS {
         return;
     }
     let first: [u8; FIRST_READ] =

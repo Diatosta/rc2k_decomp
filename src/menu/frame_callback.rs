@@ -77,11 +77,12 @@ pub fn frame_callback(
     run_listed(o, &o.menus.screens.flow.overlay_list)?;
     // The logic is in `rc2k_core::menu::notice::drawn_now`.
     if notice::drawn_now(
-        crate::strings::load_language::notice_kind_in(o.strings),
+        crate::strings::load_language::notice_kind(o.strings),
         || play.cheats.notice_due.get(),
     ) {
         play.cheats.notice_due.set(0u32);
         crate::text::draw_string_by_id::draw_string_by_id_at(
+            crate::strings::append_string_by_id::StringOwners::of(o),
             notice::STRING,
             NOTICE_FONT,
             notice::AT.0 as i32,

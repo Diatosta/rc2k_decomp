@@ -25,7 +25,6 @@
 //! switches it first). The menus and draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::Menus;
 use crate::menu::player::Player;
 use crate::text::draw_text::Canvas;
 
@@ -62,11 +61,12 @@ fn string(table: &[impl crate::session::Cell32], index: u32, count: u32) -> Resu
 }
 
 pub fn draw_player_page(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     input: &crate::input::owner::Input,
     layout: Layout,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
+    let menus = o.menus;
     let screens = &menus.screens;
     let Some(cell) = crate::menu::player::player(menus, screens.event.current_player.get()) else {
         return Err(BadInput("a player past the four").into());
@@ -114,7 +114,7 @@ pub fn draw_player_page(
         sensitivity: player.controller_sensitivity,
     };
     rc2k_core::screens::player_details::player_details(
-        &mut crate::screens::game_screen::DetailsScreen::new(canvas),
+        &mut crate::screens::game_screen::DetailsScreen::new(canvas, o),
         &details,
     )?;
 

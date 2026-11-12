@@ -71,7 +71,7 @@ pub fn main_loop(o: Owners<'static>) -> Result<(), Refused> {
     }
     crate::platform::set_menu_mode_now(gfx, o.system);
     crate::sound::apply_settings::apply_settings(o)?;
-    crate::gfx::load_jade::load_jade_in_game(gfx)?;
+    crate::gfx::load_jade::load_jade_in_game(gfx, o.system)?;
     crate::menu::build_notice::build_notice(menus, o.strings);
     // The standalone in the download folder installs from it (`install::portable`); and
     // with `-u` (`run.updating`) it uninstalls where it is: its record is in the installed

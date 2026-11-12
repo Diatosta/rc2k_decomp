@@ -21,7 +21,6 @@
 //! The menus and draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::Menus;
 use crate::menu::ranked_lookups::find_champ_position;
 use crate::screens::best_scores::section_there;
 use crate::screens::game_screen::{HeldText, held_name};
@@ -30,10 +29,11 @@ use crate::text::draw_text::Canvas;
 // g_champRow
 // g_champRowEnd
 pub fn draw_championship_standings(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     system: &crate::system::owner::System,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
+    let menus = o.menus;
     let play = &menus.play;
     if !section_there(menus, system)? {
         return Err(BadInput("a section past the record table").into());
@@ -65,7 +65,7 @@ pub fn draw_championship_standings(
         })
         .collect::<Result<_, BadInput>>()?;
     championship_standings(
-        &mut crate::screens::game_screen::GameScreen::<_, _, HeldText>::new(canvas),
+        &mut crate::screens::game_screen::GameScreen::<_, _, HeldText>::new(canvas, o),
         first_row,
         play.champ_view.event_mode.get() == 0x13,
         &rows,

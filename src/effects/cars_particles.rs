@@ -68,7 +68,7 @@ fn refusal(
         }
         for n in cars(effects)? {
             let car = &marks.cars[n];
-            if !car.has_whole() || !car.has_parts() {
+            if !effects.has_whole(car) || !effects.has_parts(car) {
                 return Ok(Some("a car's null matrix or vector"));
             }
             if car.model.get() >= MODELS {
@@ -93,7 +93,7 @@ pub fn cars_particles(effects: &Effects) -> Result<(), Refused> {
         ) as u32);
         let car = &effects.settings()?.cars[n as usize];
         effects.kinds.emitter.car.set(car_handle(n as usize));
-        let whole = car.whole()?;
+        let whole = car.whole(effects.car_blocks()?)?;
         adjugate_matrix(whole, &car.matrix);
         for (to, from) in [(3, 2), (2, 1), (1, 0)] {
             for k in 0..3 {
@@ -140,7 +140,7 @@ pub fn cars_particles(effects: &Effects) -> Result<(), Refused> {
             }
             car.pace.set(0);
         }
-        let parts = car.parts()?;
+        let parts = car.parts(effects.car_blocks()?)?;
         let up = read_bits(&effects.kinds.emitter.up);
         let across = [
             x87::product_difference(up[1], matrix_cell(parts, 8)?, up[2], matrix_cell(parts, 4)?),
@@ -150,7 +150,11 @@ pub fn cars_particles(effects: &Effects) -> Result<(), Refused> {
         let across = x87::normalised3(across.map(f32::to_bits), one);
         let across = across.map(f32::to_bits);
         write_bits(&effects.kinds.emitter.across, across);
-        let b = x87::crossed_turned(across, car.parts()?, car.whole()?);
+        let b = x87::crossed_turned(
+            across,
+            car.parts(effects.car_blocks()?)?,
+            car.whole(effects.car_blocks()?)?,
+        );
         write_bits(&effects.kinds.emitter.side_b, b);
         let a = [
             x87::product_difference(b[1], across[2], b[2], across[1]),

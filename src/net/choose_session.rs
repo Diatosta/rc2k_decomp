@@ -86,7 +86,13 @@ pub fn choose_session(
         .set(crate::system::tick_count::tick_count());
     loop {
         run_frame(o.system, || {
-            crate::net::sessions_frame::sessions_frame(net, install, o.gfx, o.system)
+            crate::net::sessions_frame::sessions_frame(
+                crate::strings::append_string_by_id::StringOwners::of(o),
+                net,
+                install,
+                o.gfx,
+                o.system,
+            )
         })?;
         let tick = crate::system::tick_count::tick_count();
         if (tick

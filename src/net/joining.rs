@@ -7,12 +7,13 @@
 use crate::errors::Refused;
 use crate::net::owner::Net;
 pub fn joining(
+    so: crate::strings::append_string_by_id::StringOwners<'static>,
     net: &Net,
     system: &crate::system::owner::System,
     panel: &crate::race::viewer_screen_store::ViewerPanelBlock,
     session: u32,
     gfx: &crate::gfx::owner::Gfx,
 ) -> Result<bool, Refused> {
-    crate::net::connecting::status(0x153, gfx, system)?;
+    crate::net::connecting::status(so, 0x153, gfx, system)?;
     crate::net::join_session::join_session(net, system, panel, session)
 }

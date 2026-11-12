@@ -73,7 +73,11 @@ mod block_tests {
 /// options copied (`copy_header_settings`), a checksum (from dword 1: add, `rol` 5) into dword 0 and
 /// `dword_4F66F9`; then its 32 blocks of 8 chained through `race::seal_block` with the key
 /// "halfmoon" (the game's key put back after).
-pub fn seal_replay_header(race: &Race, menus: &Menus) -> Result<(), Refused> {
+pub fn seal_replay_header(
+    race: &Race,
+    menus: &Menus,
+    strings: &crate::strings::owner::Strings,
+) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::replay::{seal_checksum, chained, SEAL_KEY}`.
     use rc2k_core::race::replay::{SEAL_KEY, SEAL_VERSION, chained, seal_checksum};
     // The sealed header is the file's bytes: the version byte and the name sit inside its
@@ -86,7 +90,7 @@ pub fn seal_replay_header(race: &Race, menus: &Menus) -> Result<(), Refused> {
         .expect("0x20 bytes");
     let printable = crate::strings::copy_printable::printable(&name, 0x20)?;
     put_header(sealed, 0x719B61 - 0x719B54, &printable)?;
-    copy_header_settings_of(race, menus, sealed)?;
+    copy_header_settings_of(race, menus, strings, sealed)?;
     let sealed_dwords = &race.replay_work().sealed_header;
     let dwords: Vec<u32> = (1..0x40).map(|n| sealed_dwords[n].get()).collect();
     let sum = seal_checksum(&dwords);
@@ -136,13 +140,19 @@ fn put_header(sealed: &[Dword; 64], at: usize, bytes: &[u8]) -> Result<(), BadIn
 /// end of its 0x100 bytes are the first dword of `unknown_7d0`: the original's slip).
 #[cfg(test)]
 fn copy_header_settings(sealed: &[Dword; 64]) -> Result<(), BadInput> {
-    copy_header_settings_of(crate::race::owner::race(), menus(), sealed)
+    copy_header_settings_of(
+        crate::race::owner::race(),
+        menus(),
+        crate::strings::owner::strings(),
+        sealed,
+    )
 }
 
 /// `copy_header_settings` from the race's and the front end's variables.
 fn copy_header_settings_of(
     race: &Race,
     menus: &Menus,
+    strings: &crate::strings::owner::Strings,
     sealed: &[Dword; 64],
 ) -> Result<(), BadInput> {
     use crate::race::state_store::{RaceCar, RaceSettings, RaceState};
@@ -176,7 +186,7 @@ fn copy_header_settings_of(
         (
             1,
             0x719B81,
-            u32::from(crate::strings::load_language::notice_kind()),
+            u32::from(crate::strings::load_language::notice_kind(strings)),
         ),
         (
             4,
@@ -429,7 +439,7 @@ pub fn open_replay(race: &Race, o: crate::owners::Owners<'static>) -> Result<(),
     {
         to.set(from.get());
     }
-    seal_replay_header(race, o.menus)?;
+    seal_replay_header(race, o.menus, o.strings)?;
     // The car header (0x400 bytes from the stage setting on through the sealed part, the
     // patch switches and the door: all the dwords of the stretch) copied into the file's
     // header at +0x30.

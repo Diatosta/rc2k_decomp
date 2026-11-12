@@ -2208,7 +2208,11 @@ pub const SPEECH_END: u32 = 0xFFFF_FFFF;
 
 /// The entry at `place` of the speech row `row` (its `text_key`): the sample name's key
 /// (`audio::store::name_key`), or `SPEECH_END`.
-pub fn speech_entry(row: u32, place: u32) -> Result<u32, crate::errors::BadInput> {
+pub fn speech_entry(
+    names: &crate::audio::names_store::SampleNames,
+    row: u32,
+    place: u32,
+) -> Result<u32, crate::errors::BadInput> {
     let entry = text_at(row)?
         .add(place.wrapping_mul(4))
         .read_dword("a speech row")?;
@@ -2216,7 +2220,7 @@ pub fn speech_entry(row: u32, place: u32) -> Result<u32, crate::errors::BadInput
     if entry == SPEECH_END || entry == 0 {
         return Ok(entry);
     }
-    crate::audio::store::name_at(entry)?;
+    crate::audio::store::name_in(names, entry)?;
     Ok(entry)
 }
 
@@ -2264,13 +2268,22 @@ mod tests {
         for at in (CAR_SPEECH..SPEECH_TABLES_END).step_by(4) {
             let o = at - START;
             let wanted = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
-            let found = speech_entry(text_key(at as u32), 0).unwrap();
+            let found = speech_entry(
+                &crate::audio::owner::audio().sample_names,
+                text_key(at as u32),
+                0,
+            )
+            .unwrap();
             if wanted == SPEECH_END || wanted == 0 {
                 assert_eq!(found, wanted);
                 continue;
             }
             names += 1;
-            assert!(crate::audio::store::name_at(found).is_ok(), "{at:#x}");
+            assert!(
+                crate::audio::store::name_in(&crate::audio::owner::audio().sample_names, found)
+                    .is_ok(),
+                "{at:#x}"
+            );
         }
         assert_eq!(names, 156);
     }

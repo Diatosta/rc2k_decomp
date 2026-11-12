@@ -191,9 +191,23 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Resu
         ItemFn::StartEvent(event, seats) => start_events::start_event_item(o, event, seats),
         ItemFn::FlipCodriver => flip_codriver::flip_codriver(menus).map(|_| ()),
         ItemFn::BeginPlayerName => begin_player_name::begin_player_name(menus).map(|_| ()),
-        ItemFn::FlipGearing => Ok(flip_gearing::flip_gearing(&menus.screens, o.race)?),
-        ItemFn::NextGearing => gearing_text::step_gearing(menus, o.race.text_buffers(), true),
-        ItemFn::PreviousGearing => gearing_text::step_gearing(menus, o.race.text_buffers(), false),
+        ItemFn::FlipGearing => Ok(flip_gearing::flip_gearing(
+            crate::strings::append_string_by_id::StringOwners::of(o),
+            &menus.screens,
+            o.race,
+        )?),
+        ItemFn::NextGearing => gearing_text::step_gearing(
+            crate::strings::append_string_by_id::StringOwners::of(o),
+            menus,
+            o.race.text_buffers(),
+            true,
+        ),
+        ItemFn::PreviousGearing => gearing_text::step_gearing(
+            crate::strings::append_string_by_id::StringOwners::of(o),
+            menus,
+            o.race.text_buffers(),
+            false,
+        ),
         ItemFn::PreviousCar => step_items::car_button(o, Which::PreviousCar),
         ItemFn::NextCar => step_items::car_button(o, Which::NextCar),
         ItemFn::PreviousSlideshowCar => step_items::car_button(o, Which::PreviousSlideshowCar),
@@ -257,10 +271,12 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Resu
             Ok(())
         }
         ItemFn::PreviousReplayRange => {
-            player_actions::previous_replay_range(menus, &menus.tables).map_err(Into::into)
+            player_actions::previous_replay_range(menus, &menus.tables, o.race.text_buffers())
+                .map_err(Into::into)
         }
         ItemFn::NextReplayRange => {
-            player_actions::next_replay_range(menus, &menus.tables).map_err(Into::into)
+            player_actions::next_replay_range(menus, &menus.tables, o.race.text_buffers())
+                .map_err(Into::into)
         }
         ItemFn::BeginSavegameName => Ok(begin_savegame_name::begin_savegame_name(
             menus, o.saves, true,
@@ -306,9 +322,12 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Resu
         ItemFn::ReplayItemC => replay_items::replay_item_c(race, o),
         ItemFn::ReplayItemB => replay_items::replay_item_b(race, o),
         ItemFn::ReplayItemA => replay_items::replay_item_a(race, o),
-        ItemFn::ToggleCaptionChoice => {
-            player_actions::toggle_caption_choice(&menus.screens, o.race).map_err(Into::into)
-        }
+        ItemFn::ToggleCaptionChoice => player_actions::toggle_caption_choice(
+            crate::strings::append_string_by_id::StringOwners::of(o),
+            &menus.screens,
+            o.race,
+        )
+        .map_err(Into::into),
         ItemFn::ShowIntro => item_actions::show_intro(o),
         ItemFn::RaiseSensitivity => raise_sensitivity::raise_sensitivity(menus).map(|_| ()),
         ItemFn::LowerSensitivity => lower_sensitivity::lower_sensitivity(menus).map(|_| ()),
@@ -412,26 +431,26 @@ pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
     let race = o.race;
     match f {
         ScreenFn::DrawSectionBestTimes => draw_section_best_times::draw_section_best_times(
-            menus,
+            o,
             o.saves,
             &mut GameCanvas::new(o.gfx),
         )
         .map(|_| ()),
         ScreenFn::DrawPlayer2Details => draw_player_details::draw_player_page(
-            menus,
+            o,
             o.input,
             draw_player_details::FULL,
             &mut GameCanvas::new(o.gfx),
         ),
         ScreenFn::DrawPlayer34Details => draw_player_details::draw_player_page(
-            menus,
+            o,
             o.input,
             draw_player_details::SHORT,
             &mut GameCanvas::new(o.gfx),
         ),
         ScreenFn::StageOptionsTexts => page_settings::stage_options_texts(o).map(|_| ()),
         ScreenFn::SetStageChoiceTitles => {
-            set_stage_choice_titles::set_stage_choice_titles(menus, o.system, o.race).map(|_| ())
+            set_stage_choice_titles::set_stage_choice_titles(o, o.system, o.race).map(|_| ())
         }
         ScreenFn::StageChoiceTexts => page_settings::stage_choice_texts(o).map(|_| ()),
         ScreenFn::DrawHighlightedCaption => {
@@ -440,30 +459,50 @@ pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
             draw_highlighted_caption::draw_highlighted_caption(o, 0, &mut GameCanvas::new(o.gfx))?;
             Ok(())
         }
-        ScreenFn::CarCaption2 => car_caption::car_caption(menus, o.race.text_buffers()).map(|_| ()),
+        ScreenFn::CarCaption2 => car_caption::car_caption(
+            crate::strings::append_string_by_id::StringOwners::of(o),
+            menus,
+            o.race.text_buffers(),
+        )
+        .map(|_| ()),
         ScreenFn::StepCarousel => Ok(step_carousel::step_carousel(&menus.screens, o.race)?),
         ScreenFn::DrawBackgroundBand => {
-            draw_background_band::draw_background_band(menus, &mut GameCanvas::new(o.gfx))
+            draw_background_band::draw_background_band(o, &mut GameCanvas::new(o.gfx))
         }
-        ScreenFn::GearingText => {
-            gearing_text::gearing_text(menus, o.race.text_buffers()).map(|_| ())
-        }
-        ScreenFn::CarCaption => car_caption::car_caption(menus, o.race.text_buffers()).map(|_| ()),
-        ScreenFn::CarPageTitle => {
-            car_page_title::car_page_title(menus, o.race.text_buffers()).map(|_| ())
-        }
-        ScreenFn::SlideshowTitle => {
-            slideshow_title::slideshow_title(o.race.text_buffers()).map(|_| ())
-        }
-        ScreenFn::PlayerNumberText => {
-            player_number_text::player_number_text(menus, o.race.text_buffers()).map(|_| ())
-        }
+        ScreenFn::GearingText => gearing_text::gearing_text(
+            crate::strings::append_string_by_id::StringOwners::of(o),
+            menus,
+            o.race.text_buffers(),
+        )
+        .map(|_| ()),
+        ScreenFn::CarCaption => car_caption::car_caption(
+            crate::strings::append_string_by_id::StringOwners::of(o),
+            menus,
+            o.race.text_buffers(),
+        )
+        .map(|_| ()),
+        ScreenFn::CarPageTitle => car_page_title::car_page_title(
+            crate::strings::append_string_by_id::StringOwners::of(o),
+            menus,
+            o.race.text_buffers(),
+        )
+        .map(|_| ()),
+        ScreenFn::SlideshowTitle => slideshow_title::slideshow_title(
+            crate::strings::append_string_by_id::StringOwners::of(o),
+            o.race.text_buffers(),
+        )
+        .map(|_| ()),
+        ScreenFn::PlayerNumberText => player_number_text::player_number_text(
+            crate::strings::append_string_by_id::StringOwners::of(o),
+            menus,
+            o.race.text_buffers(),
+        )
+        .map(|_| ()),
         ScreenFn::DrawControllerPage => {
-            controller::draw_controller_page(menus, o.input, &mut GameCanvas::new(o.gfx))
-                .map(|_| ())
+            controller::draw_controller_page(o, o.input, &mut GameCanvas::new(o.gfx)).map(|_| ())
         }
         ScreenFn::DrawControlBindings => draw_control_bindings::draw_control_bindings(
-            menus,
+            o,
             o.screens,
             &mut GameCanvas::new(o.gfx),
             o.gfx,
@@ -473,58 +512,61 @@ pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
         ScreenFn::PickPlayer2 => page_settings::pick_player(menus, 1).map(|_| ()),
         ScreenFn::PickPlayer3 => page_settings::pick_player(menus, 2).map(|_| ()),
         ScreenFn::PickPlayer4 => page_settings::pick_player(menus, 3).map(|_| ()),
-        ScreenFn::LearnAxis => controller::learn_axis(menus, o.input, o.gfx),
+        ScreenFn::LearnAxis => controller::learn_axis(o, o.input, o.gfx),
         ScreenFn::HandleEditKeys => handle_edit_keys::handle_edit_keys(menus, o.system).map(|_| ()),
-        ScreenFn::BestScoresCaption => {
-            best_scores::best_scores_caption(menus, o.race.text_buffers()).map(|_| ())
-        }
+        ScreenFn::BestScoresCaption => best_scores::best_scores_caption(
+            crate::strings::append_string_by_id::StringOwners::of(o),
+            menus,
+            o.race.text_buffers(),
+        )
+        .map(|_| ()),
         ScreenFn::DrawBestScoresPage => {
-            best_scores::draw_best_scores_page(menus, &mut GameCanvas::new(o.gfx)).map(|_| ())
+            best_scores::draw_best_scores_page(o, &mut GameCanvas::new(o.gfx)).map(|_| ())
         }
         ScreenFn::SavegamePageNumbers => {
             savegame_page_numbers::savegame_page_numbers(menus, o.race.text_buffers()).map(|_| ())
         }
         ScreenFn::DrawSavegameNames => {
-            draw_savegame_names::draw_savegame_names(menus, &mut GameCanvas::new(o.gfx)).map(|_| ())
+            draw_savegame_names::draw_savegame_names(o, &mut GameCanvas::new(o.gfx)).map(|_| ())
         }
         ScreenFn::DrawSavegamePreview => draw_savegame_preview::draw_savegame_preview(
-            menus,
+            o,
             o.saves,
             o.system,
             &mut GameCanvas::new(o.gfx),
         )
         .map(|_| ()),
         ScreenFn::DrawSaveSetupList => {
-            draw_save_setup_list::draw_save_setup_list(menus, &mut GameCanvas::new(o.gfx))
-                .map(|_| ())
+            draw_save_setup_list::draw_save_setup_list(o, &mut GameCanvas::new(o.gfx)).map(|_| ())
         }
         ScreenFn::DrawLoadSetupList => {
-            draw_load_setup_list::draw_load_setup_list(menus, &mut GameCanvas::new(o.gfx))
-                .map(|_| ())
+            draw_load_setup_list::draw_load_setup_list(o, &mut GameCanvas::new(o.gfx)).map(|_| ())
         }
         ScreenFn::DrawReplaySlotNames => {
-            draw_replay_slot_names::draw_replay_slot_names(menus, &mut GameCanvas::new(o.gfx))
+            draw_replay_slot_names::draw_replay_slot_names(o, &mut GameCanvas::new(o.gfx))
                 .map(|_| ())
         }
         ScreenFn::DrawPlayerDetails => draw_player_details::draw_player_page(
-            menus,
+            o,
             o.input,
             draw_player_details::FULL,
             &mut GameCanvas::new(o.gfx),
         ),
-        ScreenFn::YesNoCaption => yes_no_caption::run(menus, o.race.text_buffers()),
-        ScreenFn::DrawLeaveQuestion => {
-            draw_leave_question::draw_leave_question(&mut GameCanvas::new(o.gfx))
-        }
-        ScreenFn::DrawGraphicsSettings => draw_graphics_settings::draw_graphics_settings(
+        ScreenFn::YesNoCaption => yes_no_caption::run(
+            crate::strings::append_string_by_id::StringOwners::of(o),
             menus,
-            o.gfx,
-            &mut GameCanvas::new(o.gfx),
+            o.race.text_buffers(),
         ),
-        ScreenFn::DrawSoundSettings => {
-            draw_sound_settings::draw_sound_settings(menus, o.audio, &mut GameCanvas::new(o.gfx))
+        ScreenFn::DrawLeaveQuestion => {
+            draw_leave_question::draw_leave_question(o, &mut GameCanvas::new(o.gfx))
         }
-        ScreenFn::ReplayRangeCaption => Ok(best_scores::replay_range_caption_in(
+        ScreenFn::DrawGraphicsSettings => {
+            draw_graphics_settings::draw_graphics_settings(o, o.gfx, &mut GameCanvas::new(o.gfx))
+        }
+        ScreenFn::DrawSoundSettings => {
+            draw_sound_settings::draw_sound_settings(o, o.audio, &mut GameCanvas::new(o.gfx))
+        }
+        ScreenFn::ReplayRangeCaption => Ok(best_scores::replay_range_caption(
             menus,
             race.text_buffers(),
         )?),
@@ -534,27 +576,27 @@ pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
             Ok(())
         }
         ScreenFn::DrawItinerary => {
-            itinerary::draw_itinerary(menus, o.system, &mut GameCanvas::new(o.gfx)).map(|_| ())
+            itinerary::draw_itinerary(o, o.system, &mut GameCanvas::new(o.gfx)).map(|_| ())
         }
         ScreenFn::DrawStageInfo => {
-            draw_stage_info::draw_stage_info(menus, o.system, o.gfx, &mut GameCanvas::new(o.gfx))
+            { draw_stage_info::draw_stage_info(o, o.system, o.gfx, &mut GameCanvas::new(o.gfx)) }
+                .map(|_| ())
         }
-        .map(|_| ()),
         ScreenFn::DrawVolumeSettings => {
             draw_volume_settings::draw_volume_settings(o, &mut GameCanvas::new(o.gfx)).map(|_| ())
         }
         ScreenFn::DrawVisualPreferences => {
-            draw_visual_preferences::draw_visual_preferences(menus, &mut GameCanvas::new(o.gfx))
+            draw_visual_preferences::draw_visual_preferences(o, &mut GameCanvas::new(o.gfx))
                 .map(|_| ())
         }
         ScreenFn::DrawClassRanking => {
-            draw_class_ranking::draw_class_ranking(menus, &mut GameCanvas::new(o.gfx)).map(|_| ())
+            draw_class_ranking::draw_class_ranking(o, &mut GameCanvas::new(o.gfx)).map(|_| ())
         }
         ScreenFn::DrawCarFigures => {
-            draw_car_figures::draw_car_figures(menus, &mut GameCanvas::new(o.gfx)).map(|_| ())
+            draw_car_figures::draw_car_figures(o, &mut GameCanvas::new(o.gfx)).map(|_| ())
         }
         ScreenFn::DrawRedefinedKeys => {
-            draw_redefined_keys::draw_redefined_keys(menus, &mut GameCanvas::new(o.gfx)).map(|_| ())
+            draw_redefined_keys::draw_redefined_keys(o, &mut GameCanvas::new(o.gfx)).map(|_| ())
         }
         ScreenFn::RedefinePlayer1Key => {
             redefine_keys::redefine_key(menus, player::player(menus, 0))
@@ -563,12 +605,12 @@ pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
             redefine_keys::redefine_key(menus, player_settings::current(menus).ok())
         }
         ScreenFn::DrawOptionsChecklist => {
-            draw_options_checklist::draw_options_checklist(menus, &mut GameCanvas::new(o.gfx))
+            draw_options_checklist::draw_options_checklist(o, &mut GameCanvas::new(o.gfx))
                 .map(|_| ())
         }
         ScreenFn::DrawServiceStageInfo => {
             draw_service_stage_info::draw_service_stage_info(
-                menus,
+                o,
                 o.system,
                 o.gfx,
                 o.race,
@@ -578,7 +620,7 @@ pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
         .map(|_| ()),
         ScreenFn::DrawSelectedStageMenu => {
             draw_selected_stage_menu::draw_selected_stage_menu(
-                menus,
+                o,
                 o.system,
                 o.gfx,
                 o.race,
@@ -587,26 +629,25 @@ pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
         }
         .map(|_| ()),
         ScreenFn::DrawPlayersResultsPoints => {
-            draw_players_results_points::draw(menus, o.system, &mut GameCanvas::new(o.gfx))
+            draw_players_results_points::draw(o, o.system, &mut GameCanvas::new(o.gfx))
         }
         ScreenFn::DrawPlayersStandings => {
-            draw_players_standings::draw_players_standings(menus, &mut GameCanvas::new(o.gfx))
+            draw_players_standings::draw_players_standings(o, &mut GameCanvas::new(o.gfx))
                 .map(|_| ())
         }
         ScreenFn::EmptyDrawStep => Ok(()),
         ScreenFn::DrawPlayerStageResult => draw_player_stage_result::draw_player_stage_result(
-            menus,
+            o,
             o.system,
             &mut GameCanvas::new(o.gfx),
         )
         .map(|_| ()),
         ScreenFn::DrawDuelResult => {
-            draw_duel_result::draw_duel_result(menus, o.system, &mut GameCanvas::new(o.gfx))
-                .map(|_| ())
+            draw_duel_result::draw_duel_result(o, o.system, &mut GameCanvas::new(o.gfx)).map(|_| ())
         }
         ScreenFn::DrawTimeTrialStageInfo => {
             draw_time_trial_stage_info::draw_time_trial_stage_info(
-                menus,
+                o,
                 o.system,
                 o.gfx,
                 o.race,
@@ -614,30 +655,30 @@ pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
             )
         }
         .map(|_| ()),
-        ScreenFn::DrawNote1fd => draw_note_1fd::draw_note_1fd(&mut GameCanvas::new(o.gfx)),
+        ScreenFn::DrawNote1fd => draw_note_1fd::draw_note_1fd(o, &mut GameCanvas::new(o.gfx)),
         ScreenFn::DrawArcadeStageTitle => {
-            draw_arcade_stage_title::draw_arcade_stage_title(&mut GameCanvas::new(o.gfx))
+            draw_arcade_stage_title::draw_arcade_stage_title(o, &mut GameCanvas::new(o.gfx))
         }
         ScreenFn::DrawPlayerRallyResult => draw_player_rally_result::draw_player_rally_result(
-            menus,
+            o,
             o.system,
             &mut GameCanvas::new(o.gfx),
         )
         .map(|_| ()),
         ScreenFn::DrawRallyStageInfo => {
-            stage_info::draw_rally_stage_info(menus, o.system, o.gfx, &mut GameCanvas::new(o.gfx))
+            stage_info::draw_rally_stage_info(o, o.system, o.gfx, &mut GameCanvas::new(o.gfx))
                 .map(|_| ())
         }
         ScreenFn::DrawRallyStageTimes => {
-            draw_rally_stage_times::draw(menus, o.system, &mut GameCanvas::new(o.gfx))
+            draw_rally_stage_times::draw(o, o.system, &mut GameCanvas::new(o.gfx))
         }
         ScreenFn::DrawClassTimesMarked => {
-            draw_class_times_marked::draw(menus, &mut GameCanvas::new(o.gfx))
+            draw_class_times_marked::draw(o, &mut GameCanvas::new(o.gfx))
         }
-        ScreenFn::NoteLockedStage => locked_notes::note_locked_stage(menus, o.gfx),
+        ScreenFn::NoteLockedStage => locked_notes::note_locked_stage(o),
         ScreenFn::DrawTimeTrialStageSelect => {
             draw_time_trial_stage_select::draw_time_trial_stage_select(
-                menus,
+                o,
                 o.system,
                 o.gfx,
                 o.race,
@@ -646,10 +687,10 @@ pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
         }
         .map(|_| ()),
         ScreenFn::DrawStageTimes => {
-            draw_stage_times::draw(menus, o.system, &mut GameCanvas::new(o.gfx))
+            draw_stage_times::draw(o, o.system, &mut GameCanvas::new(o.gfx))
         }
         ScreenFn::DrawPlayersResults => {
-            draw_players_results::draw(menus, o.system, &mut GameCanvas::new(o.gfx))
+            draw_players_results::draw(o, o.system, &mut GameCanvas::new(o.gfx))
         }
         ScreenFn::DrawStageResults => {
             stage_results::draw_stage_results(o, &mut GameCanvas::new(o.gfx)).map(|_| ())
@@ -665,36 +706,35 @@ pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
             &menus.play,
             o.race,
         )?),
-        ScreenFn::DrawClassStageResults => class_stage::draw(menus, o.system, o.gfx),
-        ScreenFn::DrawOverallStageResults => overall_stage::draw(menus, o.system, o.gfx),
-        ScreenFn::DrawClassRallyResults => class_rally::draw(menus, o.system, o.gfx),
-        ScreenFn::DrawOverallRallyResults => overall_rally::draw(menus, o.system, o.gfx),
+        ScreenFn::DrawClassStageResults => class_stage::draw(o, o.system, o.gfx),
+        ScreenFn::DrawOverallStageResults => overall_stage::draw(o, o.system, o.gfx),
+        ScreenFn::DrawClassRallyResults => class_rally::draw(o, o.system, o.gfx),
+        ScreenFn::DrawOverallRallyResults => overall_rally::draw(o, o.system, o.gfx),
         ScreenFn::DrawRecordTimes => {
-            best_scores::draw_record_times(menus, o.system, &mut GameCanvas::new(o.gfx)).map(|_| ())
+            best_scores::draw_record_times(o, o.system, &mut GameCanvas::new(o.gfx)).map(|_| ())
         }
         ScreenFn::DrawChampionshipTable => {
-            championship_table::draw_championship_table(menus, &mut GameCanvas::new(o.gfx))
-                .map(|_| ())
+            championship_table::draw_championship_table(o, &mut GameCanvas::new(o.gfx)).map(|_| ())
         }
         ScreenFn::DrawChampionshipStandings => {
             draw_championship_standings::draw_championship_standings(
-                menus,
+                o,
                 o.system,
                 &mut GameCanvas::new(o.gfx),
             )
             .map(|_| ())
         }
         ScreenFn::DrawServiceArea => {
-            draw_service_area::draw_service_area(menus, o.gfx, o.race, &mut GameCanvas::new(o.gfx))
+            draw_service_area::draw_service_area(o, o.gfx, o.race, &mut GameCanvas::new(o.gfx))
                 .map(|_| ())
         }
         ScreenFn::DrawEventBestScores => {
-            draw_event_best_scores::draw(menus, &mut GameCanvas::new(o.gfx))
+            draw_event_best_scores::draw(o, &mut GameCanvas::new(o.gfx))
         }
         ScreenFn::DrawOverallBestScores => {
-            draw_overall_best_scores::draw(menus, &mut GameCanvas::new(o.gfx))
+            draw_overall_best_scores::draw(o, &mut GameCanvas::new(o.gfx))
         }
         ScreenFn::Nothing => Ok(()),
-        ScreenFn::NoteLockedItem3 => locked_notes::note_locked_item_3(menus, race, o.gfx),
+        ScreenFn::NoteLockedItem3 => locked_notes::note_locked_item_3(o),
     }
 }

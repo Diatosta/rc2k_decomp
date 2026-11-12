@@ -7,16 +7,19 @@
 //! run its `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-pub fn draw_background_band(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_background_band(
+    o: crate::owners::Owners<'static>,
+    canvas: &mut dyn Canvas,
+) -> Result<(), Refused> {
+    let menus = o.menus;
     // The logic is in `rc2k_core::screens::controller_page::background_band`.
     use rc2k_core::screens::controller_page::{Font, Work, background_band};
     background_band(
-        &mut crate::screens::game_screen::GameScreen::<Font, Work>::new(canvas),
+        &mut crate::screens::game_screen::GameScreen::<Font, Work>::new(canvas, o),
         { menus.screens.flow.left_service.get() } == 1,
     )
 }

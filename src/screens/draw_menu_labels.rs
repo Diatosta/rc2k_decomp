@@ -59,5 +59,5 @@ pub fn draw_menu_labels(
             break;
         }
     }
-    rc2k_core::screens::menus::labels(&mut MenuScreen::with_owners(canvas, o), &list)
+    rc2k_core::screens::menus::labels(&mut MenuScreen::new(canvas, o), &list)
 }

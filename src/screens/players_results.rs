@@ -76,6 +76,7 @@ struct Prepared<'a> {
 /// What the page needs, checked before anything is written: the rows' players (and points),
 /// the stage line, the speeds (3 .. 0x80 characters for `draw_spaced_number`).
 fn prepare<'a>(
+    o: crate::owners::Owners<'static>,
     menus: &'a Menus,
     layout: &Layout,
     stages: &crate::records::stages_store::StageTables,
@@ -90,14 +91,23 @@ fn prepare<'a>(
         }
     }
     let (base, record) = records(&menus.screens, stages)?;
-    let stage = crate::screens::page_settings::stage_line_bytes(0x482, record)?;
+    let stage = crate::screens::page_settings::stage_line_bytes(
+        crate::strings::append_string_by_id::StringOwners::of(o),
+        0x482,
+        record,
+    )?;
     if stage.len() > 0x100 {
         return Err(BadInput("a stage line past the line buffer").into());
     }
     let units = crate::strings::units::units();
     let mut speeds = Vec::new();
     for p in &players {
-        let s = crate::strings::append_speed::append_speed(p.get().figure, false, units)?;
+        let s = crate::strings::append_speed::append_speed(
+            crate::strings::append_string_by_id::StringOwners::of(o),
+            p.get().figure,
+            false,
+            units,
+        )?;
         if !(3..=0x80).contains(&s.len()) {
             return Err(BadInput("a speed draw_spaced_number refuses").into());
         }
@@ -114,11 +124,12 @@ fn prepare<'a>(
 /// The page. The logic is in `rc2k_core::screens::players_results` (what it needs read and checked
 /// first, before anything is drawn).
 pub fn draw_players_results(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     system: &crate::system::owner::System,
     layout: &Layout,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
+    let menus = o.menus;
     use rc2k_core::screens::players_results::{Page, Row, players_results};
     {
         let Prepared {
@@ -126,7 +137,7 @@ pub fn draw_players_results(
             base,
             stage,
             speeds,
-        } = prepare(menus, layout, &system.records.stage_tables)?;
+        } = prepare(o, menus, layout, &system.records.stage_tables)?;
         let mut rows = Vec::new();
         for (row, (p, speed)) in players.iter().zip(speeds).enumerate() {
             rows.push(Row {
@@ -156,7 +167,7 @@ pub fn draw_players_results(
                 _,
                 _,
                 crate::screens::game_screen::HeldText,
-            >::new(canvas),
+            >::new(canvas, o),
             layout,
             &page,
             &rows,

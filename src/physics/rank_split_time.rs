@@ -18,7 +18,7 @@ use crate::physics::split_tables_store::SplitTables;
 use crate::race::groups_store::PanelAndOverlay;
 use crate::race::owner_shared::RaceShared;
 use crate::session::Dword;
-use crate::strings::append_string_by_id::append_string_by_id_in;
+use crate::strings::append_string_by_id::append_string_by_id;
 use rc2k_core::physics::splits::{RIVALS, gap, rank, scaled_time, split_scale};
 
 /// A name into `text` (eight blanks first), its first eight bytes into `to`.
@@ -33,12 +33,16 @@ fn name(
     strings.text.buffer.text.set_u32(4, 0x2020_2020);
     let mut written = 0u32;
     let mut refused = None;
-    append_string_by_id_in(o, id, &mut |bytes| {
-        if let Err(e) = crate::cells::Store::store(text, written as usize, bytes) {
-            refused.get_or_insert(e);
-        }
-        written += bytes.len() as u32;
-    })?;
+    append_string_by_id(
+        crate::strings::append_string_by_id::StringOwners::of(o),
+        id,
+        &mut |bytes| {
+            if let Err(e) = crate::cells::Store::store(text, written as usize, bytes) {
+                refused.get_or_insert(e);
+            }
+            written += bytes.len() as u32;
+        },
+    )?;
     to[0].set(strings.text.buffer.text.get_u32(0));
     to[1].set(strings.text.buffer.text.get_u32(4));
     Ok(())

@@ -45,7 +45,7 @@ pub fn own_block(
     shared: &RaceShared,
     vars: &NetVars,
 ) -> Result<&'static crate::physics::car_store::Car, crate::errors::BadInput> {
-    shared.work.car(vars.player.get() as usize)
+    shared.race_car(vars.player.get() as usize)
 }
 pub fn set_hud_options(
     race: &Race,

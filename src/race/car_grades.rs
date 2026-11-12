@@ -127,7 +127,7 @@ pub fn grade_all_cars(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
     for n in 0..8usize {
-        grade_car_values(shared.work.car(n)?, scene)?;
+        grade_car_values(shared.race_car(n)?, scene)?;
     }
     Ok(())
 }

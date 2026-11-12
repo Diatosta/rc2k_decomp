@@ -20,6 +20,7 @@ use crate::text::draw_text::GameCanvas;
 use crate::text::measure_text::measure_text_at;
 use rc2k_core::net::editing::{self, EditKey};
 pub fn edit_key(
+    input: &crate::input::owner::Input,
     net: &Net,
     install: &Install,
     key: u8,
@@ -50,7 +51,7 @@ pub fn edit_key(
                 }
             }
             EditKey::Other => {
-                let typed = crate::input::key_to_char::key_to_char(key as u32)? as u8;
+                let typed = crate::input::key_to_char::key_to_char(input, key as u32)? as u8;
                 if editing::takes(typed)
                     && let Some(at) = editing::end_for_char(&words)?
                 {

@@ -150,7 +150,7 @@ pub fn lay_skidmarks(race: &Race) -> Result<(), Refused> {
     for c in 0..count {
         frame.shadow_skids.skid_cars.set(1 << (c & 31));
         // The skid slots are the drawing's own (in the block); the wheels, the physics'.
-        let slots = &shared.work.car(c as usize)?.skid_slots;
+        let slots = &shared.race_car(c as usize)?.skid_slots;
         let car = crate::race::frame_view::car(shared.work.block_number(c as usize)?)?;
         for wheel in 0..4usize {
             let slot = &slots[wheel];

@@ -19,7 +19,6 @@
 //! shared (relaxed loads and stores). The commands the game sends the audio thread wait in
 //! a locked queue (`sound::queue`).
 
-use crate::audio::owner::audio;
 use crate::session::{Bytes, Dword, Float, Loose, Shared};
 use rc2k_core::audio::modes::AudioOptions;
 use rc2k_core::audio::streams::AudioStream;
@@ -795,12 +794,6 @@ pub const fn name_key(ida: u32) -> u32 {
 
 /// The bytes `SampleNames` has before IDA's `START` (its `_lead`).
 const NAMES_LEAD: usize = 12;
-
-/// The name of `key` (`name_key`): its text up to the NUL. Entry point: the menus and the
-/// sound commands ask without the owner.
-pub fn name_at(key: u32) -> Result<Vec<u8>, crate::errors::BadInput> {
-    name_in(&audio().sample_names, key)
-}
 
 /// The name of `key` in `names`, read to its NUL inside the field that holds it: the last name
 /// of every field ends in a NUL, so a name never runs on into the next field.
@@ -2386,7 +2379,7 @@ mod tests {
 
     #[test]
     fn the_sample_records_start_as_the_games() {
-        let audio = audio();
+        let audio = crate::audio::owner::audio();
         assert_eq!(size_of::<SampleRecords>(), SAMPLES_END - SAMPLES_IDA);
         // The name keys and volume levels are handles: compared by IDA's addresses.
         let mut mine = bytes_of(&audio.sample_records, size_of::<SampleRecords>());

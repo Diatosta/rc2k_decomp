@@ -28,6 +28,7 @@ use crate::text::measure_text::measure_text_at;
 const MEASURING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::MEASURE;
 
 pub fn edit_player_name(
+    input: &crate::input::owner::Input,
     menus: &'static Menus,
     screens: &Screens,
     canvas: &mut dyn Canvas,
@@ -61,7 +62,7 @@ pub fn edit_player_name(
         Key::Clear => clear_text(menus, name)?,
         Key::Backspace => backspace_name(menus, name)?,
         Key::Other(key) => {
-            let c = key_to_char(key as u32)? as u8;
+            let c = key_to_char(input, key as u32)? as u8;
             if entry::appends(c, len, screens.loop_flags.text_max.get() as i32) {
                 name.add(len as u32).write(&[c], "a player's name")?;
                 set_length(menus, len.wrapping_add(1));

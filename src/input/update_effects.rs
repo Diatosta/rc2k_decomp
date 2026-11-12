@@ -32,6 +32,8 @@ pub struct Vars<'a> {
     pub views: &'a [Dword; 2],
     pub objects: &'a [crate::sound::store::SoundObject; 8],
     pub two_devices: &'a Dword,
+    /// The car blocks the view blocks name.
+    pub car_blocks: &'a crate::race::blocks_store::CarBlocks,
 }
 
 impl<'a> Vars<'a> {
@@ -45,6 +47,7 @@ impl<'a> Vars<'a> {
             views: &race.shared.view.view_blocks,
             objects: &sound.race.sounds.objects,
             two_devices: &input.devices.two_devices_one_player,
+            car_blocks: race.car_blocks(),
         }
     }
 }
@@ -76,7 +79,9 @@ pub fn update_effects_with(input: &Input, system: &System, v: &Vars<'_>) -> Resu
                 .ok_or(BadInput("a car past the sound objects' table"))?;
             let device = device_of(&input.devices, load.device)
                 .ok_or(BadInput("a load on a null device"))?;
-            let view = crate::race::blocks_store::car_of(load.view)
+            let view = v
+                .car_blocks
+                .of(load.view)
                 .ok_or(BadInput("a load on no view block"))?;
             crate::input::update_car_effects::update_car_effects(
                 &input.force_feedback,

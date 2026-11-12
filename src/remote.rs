@@ -149,7 +149,7 @@ pub fn note_open(path: &[u8]) {
 /// The car `state` reports: the viewed car's block in a race. With several cars the work car
 /// holds whichever was stepped last between frames.
 fn driven_car<'a>(race: &'a Race, course: &Course) -> &'a crate::physics::car_store::Car {
-    let viewed = crate::race::blocks_store::car_of(race.shared.view.view_blocks[0].get());
+    let viewed = race.car_blocks().of(race.shared.view.view_blocks[0].get());
     match viewed {
         Some(car) if course.numbers.in_race.is_set() => car,
         _ => &race.shared.car,

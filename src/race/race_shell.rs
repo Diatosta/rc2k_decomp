@@ -164,7 +164,7 @@ pub fn set_start_states(race: &Race, vars: &NetVars) -> Result<(), Refused> {
         frame.panel_and_overlay.panel.start_values[1].set(v);
         if one {
             shared.vars.split.set(0u32);
-            let block = shared.work.car(chosen as usize)?;
+            let block = shared.race_car(chosen as usize)?;
             if !flagged(race, block.car_kind.get()) {
                 settle_state(&block.camera_view);
             }

@@ -16,7 +16,6 @@
 //! (`menu::table_calls`).
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::Menus;
 use crate::screens::draw_stage_records::selection_in;
 use crate::screens::stage_panel::{
     TITLE_FONT, build_second_heading, draw_records_for_group, draw_stage_body, label,
@@ -33,18 +32,20 @@ const HEADING_Y: i32 = 0xB1;
 
 /// Returns the carry flag. Refuses a missing selection: the original reads through null.
 pub fn draw_time_trial_stage_info(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     system: &crate::system::owner::System,
     gfx: &crate::gfx::owner::Gfx,
     race: &crate::race::owner::Race,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
+    let menus = o.menus;
     let Some(sel) = selection_in(menus, system)? else {
         return Err(
             BadInput("no record table is selected: the original reads through null").into(),
         );
     };
     label(
+        crate::strings::append_string_by_id::StringOwners::of(o),
         canvas,
         table_dword_at(
             &menus.play.results,
@@ -57,6 +58,7 @@ pub fn draw_time_trial_stage_info(
     )?;
     race.shared.state.settings.direction.set(sel.group);
     label(
+        crate::strings::append_string_by_id::StringOwners::of(o),
         canvas,
         sel.table.title()?,
         TITLE_FONT,
@@ -64,9 +66,13 @@ pub fn draw_time_trial_stage_info(
         TABLE_TITLE_Y,
     )?;
 
-    let heading = build_second_heading(race, sel.record)?;
+    let heading = build_second_heading(
+        crate::strings::append_string_by_id::StringOwners::of(o),
+        race,
+        sel.record,
+    )?;
     draw_text_at(TITLE_FONT, &heading, TITLE_X, HEADING_Y, canvas)?;
     // ebx, the markers' palette, is what draw_text left there: a pointer into the heading.
-    draw_stage_body(menus, gfx, sel.record, true, canvas)?;
-    draw_records_for_group(menus, system, sel.group, sel.record, canvas)
+    draw_stage_body(o, gfx, sel.record, true, canvas)?;
+    draw_records_for_group(o, system, sel.group, sel.record, canvas)
 }

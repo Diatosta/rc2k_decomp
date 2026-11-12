@@ -25,7 +25,12 @@ pub fn car_file_number(kinds: &KindTables, car: u32) -> u32 {
 /// address's upper half over the pixel; the conversion looks only at the bits its format's
 /// masks name, which for a 16-bit surface are all in the low half, so the pixel alone is
 /// handed here.
-pub fn read_pixel(x: u32, y: u32, gfx: &crate::gfx::owner::Gfx) -> Result<u32, BadInput> {
+pub fn read_pixel(
+    x: u32,
+    y: u32,
+    gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
+) -> Result<u32, BadInput> {
     let drawing = &gfx.drawing;
     let rows = crate::gfx::rows::Rows::new(
         drawing.draw_surface.pixels.get(),
@@ -43,14 +48,19 @@ pub fn read_pixel(x: u32, y: u32, gfx: &crate::gfx::owner::Gfx) -> Result<u32, B
         row.offset(x.wrapping_mul(4))
             .read::<u32>("the surface's pixel")?
     };
-    let format = crate::gfx::pixel_format::layout(drawing.draw_surface.format.get())?;
+    let format = crate::gfx::pixel_format::layout(system, gfx, drawing.draw_surface.format.get())?;
     Ok(crate::gfx::pixel_to_components::pixel_to_components(
         &format, pixel,
     ))
 }
 
 /// `race::mud_pixel` (0x44A58A): `read_pixel` inside the surface (unsigned), else 0.
-pub fn mud_pixel(x: u32, y: u32, gfx: &crate::gfx::owner::Gfx) -> Result<u32, BadInput> {
+pub fn mud_pixel(
+    x: u32,
+    y: u32,
+    gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
+) -> Result<u32, BadInput> {
     let drawing = &gfx.drawing;
     // Converted: `rc2k_core::race::mud::inside`.
     if !rc2k_core::race::mud::inside(
@@ -61,16 +71,16 @@ pub fn mud_pixel(x: u32, y: u32, gfx: &crate::gfx::owner::Gfx) -> Result<u32, Ba
     ) {
         return Ok(0);
     }
-    read_pixel(x, y, gfx)
+    read_pixel(x, y, gfx, system)
 }
 
 /// `race::load_mud` (0x449D95): the car's file number's two digits (`div 10`, each + '0', as bytes)
 /// into the path, the file (0x10000 bytes at most) into the mud.
-pub fn load_mud(kinds: &KindTables, shared: &RaceShared) -> Result<(), Refused> {
+pub fn load_mud(kinds: &KindTables, shared: &RaceShared, session: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::mud::file_digits`.
     let (tens, units) = rc2k_core::race::mud::file_digits(car_file_number(
         kinds,
-        crate::race::blocks_store::own_car().car_kind.get(),
+        shared.own_car(session).car_kind.get(),
     ));
     shared.vars.mud_path.set(0x11, tens as u8);
     shared.vars.mud_path.set(0x12, units as u8);
@@ -103,6 +113,7 @@ pub fn sample_mud_colours(
     shared: &RaceShared,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let textures = &scene.textures;
     // KindTextureTables.kind_first_textures[193] (`g_kindFirstTextures` + 0x304): the surface sampled.
@@ -110,7 +121,7 @@ pub fn sample_mud_colours(
     // Converted: `rc2k_core::race::mud::sample_place`.
     for n in 0..rc2k_core::race::mud::SAMPLES {
         let (x, y) = rc2k_core::race::mud::sample_place(n);
-        shared.vars.mud_colours[n as usize].set(mud_pixel(x, y, gfx)?);
+        shared.vars.mud_colours[n as usize].set(mud_pixel(x, y, gfx, system)?);
     }
     crate::d3d::unlock_texture::unlock_texture(textures.kinds.kind_first_textures[193].get())?;
     Ok(())
@@ -126,6 +137,8 @@ pub fn init_mud(
     race: &Race,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
+    net: &crate::net::owner::Net,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let course = &race.course;
     course
@@ -133,7 +146,7 @@ pub fn init_mud(
         .course_bytes_total
         .set(course.lists.course_bytes_total.get().wrapping_add(MUD_LEN));
     MUD.take(&course.lists.mud_list, MUD_LEN, vec![0; MUD_LEN as usize])?;
-    load_mud(race.kind_tables(), &race.shared)?;
+    load_mud(race.kind_tables(), &race.shared, net.vars.session.get())?;
     clear_mud_state(&race.shared);
-    sample_mud_colours(&race.shared, scene, gfx)
+    sample_mud_colours(&race.shared, scene, gfx, system)
 }

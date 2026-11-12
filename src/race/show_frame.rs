@@ -29,6 +29,7 @@ pub fn show_frame(race: &Race, o: crate::owners::Owners<'static>) -> Result<Show
     }
     if race.shared.work.in_credits.is_set() {
         crate::race::frame_text::roll_credits(
+            crate::strings::append_string_by_id::StringOwners::of(o),
             frame,
             1,
             &mut crate::text::draw_text::GameCanvas::new(o.gfx),
@@ -40,6 +41,7 @@ pub fn show_frame(race: &Race, o: crate::owners::Owners<'static>) -> Result<Show
     {
         crate::race::frame_text::draw_frame_rate(
             race,
+            o.strings,
             &mut crate::text::draw_text::GameCanvas::new(o.gfx),
             o.gfx,
         )

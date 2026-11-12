@@ -26,7 +26,7 @@ pub fn build_menu_sprites(
     begin_glyph_tables(vars, gfx, system, strings)?;
     gfx.pictures.decoder.builder_flags.set(RUN_LENGTHS);
     begin_glyph_table(vars, list)?;
-    build_glyphs(vars, &crate::gfx::texts::MBUTS, list, gfx, strings)?;
+    build_glyphs(vars, &crate::gfx::texts::MBUTS, list, gfx, system, strings)?;
     sprite_table.set(vars.table.get());
     end_glyph_tables(strings)?;
     all_direct_colour(vars.table.get(), gfx)

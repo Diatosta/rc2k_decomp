@@ -16,23 +16,24 @@ const LIT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::CENTRED
 /// The string `string` for item `item` at (`x`, `y`) in the item's font;
 /// returns the next y (y plus the font's line height).
 pub fn draw_centred_item(
+    o: crate::owners::Owners<'static>,
     net: &crate::net::owner::Net,
     install: &crate::install::owner::Install,
     string: u32,
     item: u32,
     x: u32,
     y: u32,
-    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<u32, Refused> {
     // Converted: `rc2k_core::net::screens::item_lit` (in `item_font`).
     let font = item_font(net, install, item, PLAIN, LIT);
     let next = y.wrapping_add(font.object().line_height.get());
     crate::text::draw_string_by_id::draw_string_by_id_at(
+        crate::strings::append_string_by_id::StringOwners::of(o),
         string,
         font,
         x as i32,
         y as i32,
-        &mut GameCanvas::new(gfx),
+        &mut GameCanvas::new(o.gfx),
     )?;
     Ok(next)
 }

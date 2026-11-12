@@ -6,8 +6,8 @@
 //! back. `#[repr(C)]` with the image's layout, over the race block's bytes (`CAR_BLOCKS`),
 //! as `CAR`.
 
-use crate::net::owner::net;
 use crate::physics::car_store::Car;
+#[cfg(test)]
 use crate::race::owner::race;
 use crate::session::Dword;
 
@@ -109,71 +109,15 @@ pub fn known_block(handle: u32) -> Option<usize> {
     (n < BLOCK_COUNT).then_some(n)
 }
 
-/// The block a handle names (a `g_carBlocks` entry, a view's block, or a dword the original
-/// reads on to past the eight); any other value is refused.
-pub fn car_named(handle: u32) -> Result<&'static Car, crate::errors::BadInput> {
-    match known_block(handle) {
-        Some(n) => Ok(&race().car_blocks().cars[n]),
-        None => {
-            crate::framework::log(&format!("trap: {handle:#x} is no car block's place"));
-            Err(crate::errors::BadInput("a car block at no car's place"))
-        }
-    }
-}
-
-/// The handle of the block `car`; a car that is none of the blocks ends the program.
-pub fn handle_of_car(car: &Car) -> u32 {
-    match race()
-        .car_blocks()
-        .cars
-        .iter()
-        .position(|c| core::ptr::eq(c, car))
-    {
-        Some(n) => BLOCK_TAG | n as u32,
-        None => crate::fatal::raise::end(
-            "race::blocks_store::handle_of_car",
-            crate::errors::BadInput("a car that is none of the blocks"),
-        ),
-    }
-}
-
 /// IDA's `g_viewBlocks` (two) and `g_carBlocks` (eight): their places hold handles.
 pub const VIEW_BLOCKS_IDA: usize = 0x63DBB0;
 pub const CAR_BLOCKS_IDA: usize = 0x71B3B8;
-
-/// The car this machine plays: the first, but in a network race its own. The original has
-/// the first block's address wherever it means the player's car, so on a joined machine the
-/// cockpit's effects, the mud and the listener followed the host's car.
-pub fn own_car_number() -> usize {
-    if net().vars.session.get() == 1 {
-        let local = race().shared.view.local_car.get() as usize;
-        if local < 8 { local } else { 0 }
-    } else {
-        0
-    }
-}
-
-/// The block a handle names, none for 0; a value naming no block ends the program (as
-/// `block_number`).
-pub fn car_of(handle: u32) -> Option<&'static Car> {
-    block_number(handle).map(|n| &race().car_blocks().cars[n])
-}
 
 /// The number of the block a handle names; refused for 0 (the address version found no car
 /// block's place there) and the end of the program for a value naming none (as
 /// `block_number`).
 pub fn number_of(handle: u32) -> Result<usize, crate::errors::BadInput> {
     block_number(handle).ok_or(crate::errors::BadInput("a car block at no car's place"))
-}
-
-/// The block a handle names (what `RaceWork::car_block` gave), or the refusal `what` for 0
-/// (the original's read at a small offset from 0 fails); a value naming no block ends the
-/// program.
-pub fn block_at(handle: u32, what: &'static str) -> Result<&'static Car, crate::errors::BadInput> {
-    if handle == 0 {
-        return Err(crate::errors::BadInput(what));
-    }
-    Ok(car_named(handle).unwrap_or_else(|e| crate::fatal::raise::end("physics::Car::at", e)))
 }
 
 /// The replay's starting state (`CarsAndReplay.car_blocks.cars[8].frame_head[0]`): its dwords, from car block 8 on.
@@ -185,9 +129,47 @@ const _: () = assert!(
         <= core::mem::size_of::<crate::race::groups_store::CarsAndReplay>()
 );
 
-/// `own_car_number`'s block.
-pub fn own_car() -> &'static Car {
-    &race().car_blocks().cars[own_car_number()]
+impl CarBlocks {
+    /// The block a handle names (a `g_carBlocks` entry, a view's block, or a dword the
+    /// original reads on to past the eight); any other value is refused.
+    pub fn named(&self, handle: u32) -> Result<&Car, crate::errors::BadInput> {
+        match known_block(handle) {
+            Some(n) => Ok(&self.cars[n]),
+            None => {
+                crate::framework::log(&format!("trap: {handle:#x} is no car block's place"));
+                Err(crate::errors::BadInput("a car block at no car's place"))
+            }
+        }
+    }
+
+    /// The handle of the block `car`; a car that is none of the blocks ends the program.
+    pub fn handle_of(&self, car: &Car) -> u32 {
+        match self.cars.iter().position(|c| core::ptr::eq(c, car)) {
+            Some(n) => BLOCK_TAG | n as u32,
+            None => crate::fatal::raise::end(
+                "race::blocks_store::handle_of_car",
+                crate::errors::BadInput("a car that is none of the blocks"),
+            ),
+        }
+    }
+
+    /// The block a handle names, none for 0; a value naming no block ends the program (as
+    /// `block_number`).
+    pub fn of(&self, handle: u32) -> Option<&Car> {
+        block_number(handle).map(|n| &self.cars[n])
+    }
+
+    /// The block a handle names (what `RaceWork::car_block` gave), or the refusal `what` for
+    /// 0 (the original's read at a small offset from 0 fails); a value naming no block ends
+    /// the program.
+    pub fn at(&self, handle: u32, what: &'static str) -> Result<&Car, crate::errors::BadInput> {
+        if handle == 0 {
+            return Err(crate::errors::BadInput(what));
+        }
+        Ok(self
+            .named(handle)
+            .unwrap_or_else(|e| crate::fatal::raise::end("physics::Car::at", e)))
+    }
 }
 
 #[cfg(test)]
@@ -203,7 +185,7 @@ mod tests {
         for n in 0..BLOCK_COUNT {
             assert_eq!(known_block(BLOCK_TAG | n as u32), Some(n));
             assert!(core::ptr::eq(
-                car_named(BLOCK_TAG | n as u32).unwrap(),
+                race().car_blocks().named(BLOCK_TAG | n as u32).unwrap(),
                 &raw const race().car_blocks().cars[n]
             ));
         }

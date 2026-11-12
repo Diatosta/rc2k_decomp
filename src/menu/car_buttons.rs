@@ -60,6 +60,7 @@ pub fn call_in_game(o: Owners<'static>, call: Call) -> Result<(), Refused> {
             },
             o.menus,
             o.sound,
+            &o.audio.sample_names,
         ),
         Call::Picture(way) => load_slideshow_picture_in(o, way),
     }

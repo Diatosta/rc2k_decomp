@@ -326,7 +326,7 @@ pub fn build(o: &Owners<'static>, ui: &Ui) {
                     body(ui, || crate::debug::switches::tab(o, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Rivals") {
-                    body(ui, || rivals(&race.physics, ui));
+                    body(ui, || rivals(crate::strings::append_string_by_id::StringOwners::of(*o), &race.physics, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Effects") {
                     body(ui, || crate::debug::effects_page::tab(o, ui));
@@ -912,7 +912,7 @@ fn time(t: u32) -> String {
 }
 
 /// The "Rivals" tab.
-fn rivals(physics: &Physics, ui: &Ui) {
+fn rivals(so: crate::strings::append_string_by_id::StringOwners<'_>, physics: &Physics, ui: &Ui) {
     let flags = TableFlags::BORDERS | TableFlags::ROW_BG | TableFlags::SCROLL_Y;
     let Some(_table) = ui.begin_table_with_flags("rivals", 4, flags) else {
         return;
@@ -930,6 +930,7 @@ fn rivals(physics: &Physics, ui: &Ui) {
         ui.table_next_column();
         let mut name = Vec::new();
         let _ = crate::strings::append_string_by_id::append_string_by_id(
+            so,
             physics.split_tables.rival_names[n].get(),
             &mut |run| name.extend_from_slice(run),
         );

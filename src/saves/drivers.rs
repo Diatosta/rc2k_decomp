@@ -49,10 +49,14 @@ impl<'a> Driver<'a> {
     }
 
     /// The name's bytes, without a NUL, as `strings::append_string_by_id` writes them.
-    pub fn name(&self, menus: &Menus) -> Result<(u32, Vec<u8>), BadInput> {
+    pub fn name(
+        &self,
+        so: crate::strings::append_string_by_id::StringOwners<'_>,
+        menus: &Menus,
+    ) -> Result<(u32, Vec<u8>), BadInput> {
         let id = self.name_id(menus)?;
         let mut name = Vec::new();
-        push_string(&mut name, id)?;
+        push_string(so, &mut name, id)?;
         if name.len() > NAME_ROOM {
             return Err(BadInput("a driver's name longer than its place"));
         }

@@ -94,6 +94,7 @@ pub fn progress_frame(
 
 /// The copying frame: its carry (the last lock's or show's).
 pub fn copying_frame(
+    so: crate::strings::append_string_by_id::StringOwners<'static>,
     install: &'static crate::install::owner::Install,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
@@ -106,6 +107,7 @@ pub fn copying_frame(
         }
         copy_picture(gfx, system)?;
         crate::install::draw_string_list::draw_string_list(
+            so,
             &install.pages.texts.each_ref(),
             0,
             0,

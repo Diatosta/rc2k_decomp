@@ -21,6 +21,7 @@ pub fn viewer_palettes(
     shared: &RaceShared,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<(), BadInput> {
     let textures = &scene.textures;
     // The textures and slots kept: (to, from).
@@ -50,8 +51,10 @@ pub fn viewer_palettes(
             .set(crate::gfx::glyph_store::VIEWER_PALETTE);
     }
     {
-        let screen = crate::gfx::pixel_format::surface_format()?;
+        let screen = crate::gfx::pixel_format::surface_format(system);
         let texture = crate::gfx::pixel_format::layout(
+            system,
+            gfx,
             crate::gfx::pixel_format::texture_kind_format(3, gfx),
         )?;
         // Converted: `rc2k_core::race::viewer_flow::{font_colour, FONT_COLOURS}` (colour

@@ -48,7 +48,7 @@ fn run(
             crate::platform::set_menu_mode_now(o.gfx, o.system);
         }
         TidyStep::LoadingPicture => {
-            crate::menu::show_loading_picture::show_loading_picture_in(o.menus, o.gfx, o.system)?;
+            crate::menu::show_loading_picture::show_loading_picture_in(o)?;
         }
         TidyStep::ClearRaceSounds => {
             sound_tables::clear_race_sound_objects(o.sound, o.audio, o.system)?;

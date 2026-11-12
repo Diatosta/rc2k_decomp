@@ -13,10 +13,13 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::captions_store::CaptionTables;
-use crate::menu::owner::Menus;
 use crate::text::draw_text::Canvas;
 
-pub fn draw_players_standings(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_players_standings(
+    o: crate::owners::Owners<'static>,
+    canvas: &mut dyn Canvas,
+) -> Result<(), Refused> {
+    let menus = o.menus;
     let rows = if menus.screens.event.player_count.get() == 3 {
         3
     } else {
@@ -50,7 +53,7 @@ pub fn draw_players_standings(menus: &Menus, canvas: &mut dyn Canvas) -> Result<
         })
         .collect::<Result<_, BadInput>>()?;
     rc2k_core::screens::players_results::standings(
-        &mut crate::screens::game_screen::GameScreen::<_, _, crate::screens::game_screen::HeldText>::new(canvas),
+        &mut crate::screens::game_screen::GameScreen::<_, _, crate::screens::game_screen::HeldText>::new(canvas, o),
         &rows,
     )?;
     Ok(())

@@ -36,6 +36,11 @@ pub fn choose_car(o: Owners<'static>, vars: &NetVars) -> Result<(), Refused> {
             play.players.players[0].get().gearing as u8,
         );
     }
-    crate::net::show_background::show_background(o.gfx, o.system, vars)?;
+    crate::net::show_background::show_background(
+        crate::strings::append_string_by_id::StringOwners::of(o),
+        o.gfx,
+        o.system,
+        vars,
+    )?;
     Ok(())
 }

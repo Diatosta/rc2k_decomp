@@ -8,14 +8,13 @@
 //! (`menu::table_calls`).
 
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
 use crate::screens::players_results::{WITH_POINTS, draw_players_results};
 use crate::text::draw_text::Canvas;
 
 pub fn draw(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     system: &crate::system::owner::System,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    draw_players_results(menus, system, &WITH_POINTS, canvas)
+    draw_players_results(o, system, &WITH_POINTS, canvas)
 }

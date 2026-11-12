@@ -11,7 +11,8 @@ const TITLE_LEN: usize = 0x100;
 const TITLE: u32 = 0x33D;
 
 pub fn slideshow_title(
+    so: crate::strings::append_string_by_id::StringOwners<'_>,
     text: &crate::screens::text_buffers_store::TextBuffers,
 ) -> Result<(), Refused> {
-    put_string(TITLE, &text.title, TITLE_LEN)
+    put_string(so, TITLE, &text.title, TITLE_LEN)
 }

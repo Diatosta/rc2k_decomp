@@ -6,7 +6,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::gfx::blit_marker_pair::{marker_calls, set_marker_position};
 use crate::gfx::owner::Gfx;
-use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
 use crate::race::owner::Race;
 use crate::records::stages_store::RecordRef;
@@ -41,20 +40,25 @@ pub fn table_dword_at<H: crate::cells::Cells>(
 
 /// Draws a string id with one of the game's font objects.
 pub fn label(
+    so: crate::strings::append_string_by_id::StringOwners<'static>,
     canvas: &mut dyn Canvas,
     id: u32,
     font: crate::gfx::typefaces::FontId,
     x: i32,
     y: i32,
 ) -> Result<(), Refused> {
-    { draw_string_by_id_at(id, font, x, y, canvas) }.map(|_| ())
+    { draw_string_by_id_at(so, id, font, x, y, canvas) }.map(|_| ())
 }
 
 /// Builds the second heading ("<string 0x482> n/6: name") in its own buffer. Three of the
 /// four panels build it; only `draw_time_trial_stage_info` also draws it (the text it
 /// returns, with its NUL).
-pub fn build_second_heading(race: &Race, record: RecordRef) -> Result<Vec<u8>, Refused> {
-    let bytes = heading_text(record, SECOND_HEADING_STRING)?;
+pub fn build_second_heading(
+    so: crate::strings::append_string_by_id::StringOwners<'_>,
+    race: &Race,
+    record: RecordRef,
+) -> Result<Vec<u8>, Refused> {
+    let bytes = heading_text(so, record, SECOND_HEADING_STRING)?;
     race.text_buffers()
         .stage_heading
         .write_at(0, &bytes, "the second stage heading")?;
@@ -72,26 +76,27 @@ pub fn build_second_heading(race: &Race, record: RecordRef) -> Result<Vec<u8>, R
 /// +0x24/+0x28/+0x2C/+0x30 surface percentages, +0x38 a number and +0x3C which of two labels
 /// goes with it. The record gives +0x10, the start time as hours * 100 + minutes.
 pub fn draw_stage_body(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     gfx: &Gfx,
     record: RecordRef,
     keep_entry_34: bool,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    draw_stage_body_in(menus, gfx, record, keep_entry_34, HEADING_FONT, canvas)
+    draw_stage_body_in(o, gfx, record, keep_entry_34, HEADING_FONT, canvas)
 }
 
 /// `draw_stage_body` with the two headings (surface, weather) in `heading_font`: the rally
 /// stage page (`screens::draw_rally_stage_info`) uses `FontObjects.objects[14].first_char`, the others
 /// `FontObjects.objects[17].first_char`.
 pub fn draw_stage_body_in(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     gfx: &Gfx,
     record: RecordRef,
     keep_entry_34: bool,
     heading_font: crate::gfx::typefaces::FontId,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
+    let menus = o.menus;
     // The logic is in `rc2k_core::screens::stage_panel::body`.
     use rc2k_core::screens::stage_panel::{Entry, Font};
     // The two markers on the map.
@@ -133,7 +138,7 @@ pub fn draw_stage_body_in(
     } else {
         Font::RallyHeading
     };
-    let mut screen = PanelScreen::new(canvas);
+    let mut screen = PanelScreen::new(canvas, o);
     rc2k_core::screens::stage_panel::body(
         &mut screen,
         record.record()?.hhmm(),
@@ -170,21 +175,21 @@ pub fn best_of(
 /// The record rows, with the stage's best time (the record's +0x3C its stage) from
 /// `table`. Returns the carry flag.
 pub fn draw_records_from(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     system: &crate::system::owner::System,
     table: &crate::menu::event_flow::StageTable,
     record: RecordRef,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
     let best = best_of(table, record.record()?.event_slot())?;
-    draw_stage_records(menus, system, &best, canvas)
+    draw_stage_records(o, system, &best, canvas)
 }
 
 /// The record rows as the two "selected stage" panels draw them: from the group 1 table when
 /// group 1 is selected, else from the usual one, and not at all while either the group 1
 /// table or the chosen one is missing. Returns the carry flag (clear when nothing is drawn).
 pub fn draw_records_for_group(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     system: &crate::system::owner::System,
     group: u32,
     record: RecordRef,
@@ -202,7 +207,7 @@ pub fn draw_records_for_group(
     if !table.is_taken() {
         return Ok(false);
     }
-    draw_records_from(menus, system, table, record, canvas)
+    draw_records_from(o, system, table, record, canvas)
 }
 
 // ---- support ----

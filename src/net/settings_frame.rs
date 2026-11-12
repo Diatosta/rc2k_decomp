@@ -42,7 +42,7 @@ pub fn settings_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> 
     .enumerate()
     {
         let item = item as u32;
-        y = setting_label(net, install, label, item, y, o.gfx, o.menus)?;
+        y = setting_label(o, net, install, label, item, y)?;
         y = match value {
             Value::Number(n) => draw_number_value(o, n, item, y)?,
             Value::Text(text) => {
@@ -55,6 +55,7 @@ pub fn settings_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> 
     // value above, 0x190).
     let measured = {
         crate::text::measure_string_by_id::measure_string_by_id_at(
+            crate::strings::append_string_by_id::StringOwners::of(o),
             0x16F,
             PALETTE,
             0x190,
@@ -80,7 +81,7 @@ pub fn settings_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> 
         }
     }
     piece(screens::LEFT_END, screens::END_WIDTH)?;
-    draw_centred_item(net, install, 0x16F, 4, text_x, 0x21D, o.gfx)?;
+    draw_centred_item(o, net, install, 0x16F, 4, text_x, 0x21D)?;
     crate::platform::unlock_surface(o.gfx);
     crate::platform::show_frame_now();
     Ok(())

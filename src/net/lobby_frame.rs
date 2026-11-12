@@ -55,6 +55,7 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let mut y = 0x6F;
     for (id, x) in [(0x15F, 0x21A), (0x160, 0x2C0)] {
         crate::text::draw_string_by_id::draw_string_by_id_at(
+            crate::strings::append_string_by_id::StringOwners::of(o),
             id,
             HEADING_FONT,
             x,
@@ -175,7 +176,15 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     {
         if shown {
             x = crate::net::lobby_button::lobby_button(
-                net, install, id, item, x, 0x223, o.gfx, o.menus,
+                crate::strings::append_string_by_id::StringOwners::of(o),
+                net,
+                install,
+                id,
+                item,
+                x,
+                0x223,
+                o.gfx,
+                o.menus,
             )?;
         }
         if n != 3 {

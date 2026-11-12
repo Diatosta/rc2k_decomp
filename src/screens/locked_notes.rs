@@ -3,20 +3,20 @@
 
 use crate::errors::Refused;
 use crate::menu::arcade_store::Arcade;
-use crate::menu::owner::Menus;
 
 /// A note's box put up (converted: `rc2k_core::screens::locked`). The original's x for the
 /// box only reaches the measuring of the text, in a font in measure mode: it changes
 /// nothing, so 0.
 fn show(
-    gfx: &crate::gfx::owner::Gfx,
+    o: crate::owners::Owners<'static>,
     note: rc2k_core::screens::locked::Note,
 ) -> Result<(), Refused> {
     if note.show {
         crate::screens::draw_message_box::draw_message_box(
+            o,
             0,
-            &mut crate::text::draw_text::GameCanvas::new(gfx),
-            gfx,
+            &mut crate::text::draw_text::GameCanvas::new(o.gfx),
+            o.gfx,
         )?;
     }
     Ok(())
@@ -24,27 +24,21 @@ fn show(
 
 /// `screens::note_locked_item_3` (0x4AAAB8): unless cheat 0x11 is on, with item 3 chosen
 /// (`LoopFlags.item`) and `RaceState.settings.a8_game` not 1, the message box.
-pub fn note_locked_item_3(
-    menus: &Menus,
-    race: &crate::race::owner::Race,
-    gfx: &crate::gfx::owner::Gfx,
-) -> Result<(), Refused> {
+pub fn note_locked_item_3(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     show(
-        gfx,
+        o,
         rc2k_core::screens::locked::item_3(
-            menus.play.cheats.cheats.get(),
-            menus.screens.loop_flags.item.get(),
-            race.shared.state.settings.a8_game.get(),
+            o.menus.play.cheats.cheats.get(),
+            o.menus.screens.loop_flags.item.get(),
+            o.race.shared.state.settings.a8_game.get(),
         ),
     )
 }
 
 /// `screens::note_locked_stage` (0x48ADCE): unless cheat 0 is on, with an item chosen other
 /// than 1 and 7 whose stage (`Arcade.levels_won[item - 2]`) is not open (1), the message box.
-pub fn note_locked_stage(
-    menus: &'static Menus,
-    gfx: &crate::gfx::owner::Gfx,
-) -> Result<(), Refused> {
+pub fn note_locked_stage(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    let menus = o.menus;
     let fault = crate::menu::event_flow::Fault::default();
     let note = rc2k_core::screens::locked::stage(
         menus.play.cheats.cheats.get(),
@@ -58,5 +52,5 @@ pub fn note_locked_stage(
         },
     );
     fault.check()?;
-    show(gfx, note)
+    show(o, note)
 }

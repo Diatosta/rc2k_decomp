@@ -13,7 +13,10 @@ use crate::strings::append_string_by_id::append_string_by_id;
 use crate::strings::hex_append::hex_append;
 
 /// The name's bytes and the value the original leaves in its result register.
-pub fn append_key_name(key: u32) -> Result<(Vec<u8>, u32), Refused> {
+pub fn append_key_name(
+    so: crate::strings::append_string_by_id::StringOwners<'_>,
+    key: u32,
+) -> Result<(Vec<u8>, u32), Refused> {
     let key = key & 0x7F;
     // Converted: `rc2k_core::input::keyboard::key_name` (asks for the one entry).
     let id = {
@@ -27,7 +30,7 @@ pub fn append_key_name(key: u32) -> Result<(Vec<u8>, u32), Refused> {
     let mut out = Vec::new();
     match name {
         rc2k_core::input::keyboard::KeyName::String(id) => {
-            let eax = append_string_by_id(id, &mut |bytes| out.extend_from_slice(bytes))?;
+            let eax = append_string_by_id(so, id, &mut |bytes| out.extend_from_slice(bytes))?;
             Ok((out, eax))
         }
         rc2k_core::input::keyboard::KeyName::Hex(key) => {

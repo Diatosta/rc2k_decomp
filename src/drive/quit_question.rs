@@ -47,7 +47,13 @@ pub fn quit_question(race: &Race, o: crate::owners::Owners<'static>) -> Result<u
         // items on screen to choose from.
         eax = match crate::input::menu_pad::take_answer() {
             Some(answer) => answer,
-            None => { crate::input::yes_no_key::yes_no_key(eax, input) }?,
+            None => {
+                crate::input::yes_no_key::yes_no_key(
+                    crate::strings::append_string_by_id::StringOwners::of(o),
+                    eax,
+                    input,
+                )
+            }?,
         };
         match race_ticks::quit_answer(
             eax,

@@ -14,7 +14,7 @@
 
 use crate::errors::BadInput;
 use crate::input::layouts::{Current, layouts};
-use crate::input::owner::{Input, input};
+use crate::input::owner::Input;
 use crate::input::store::Devices;
 
 // ---- game data ----
@@ -36,15 +36,15 @@ pub fn has_layout() -> bool {
 }
 
 /// The character is the low byte of the result.
-pub fn key_to_char(eax: u32) -> Result<u32, BadInput> {
-    typed(input(), eax, false)
+pub fn key_to_char(input: &Input, eax: u32) -> Result<u32, BadInput> {
+    typed(input, eax, false)
 }
 
 /// The same for the name editors and the yes/no question, which in layout mode 2 always use
 /// the keyboard file's first layout and leave the current one as it was (the original put
 /// that layout in place for the call and the old one back after).
-pub fn key_to_char_for_text(eax: u32) -> Result<u32, BadInput> {
-    typed(input(), eax, true)
+pub fn key_to_char_for_text(input: &Input, eax: u32) -> Result<u32, BadInput> {
+    typed(input, eax, true)
 }
 
 fn typed(input: &Input, eax: u32, for_text: bool) -> Result<u32, BadInput> {

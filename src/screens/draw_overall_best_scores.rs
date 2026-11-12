@@ -7,10 +7,9 @@
 //! lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
 use crate::screens::best_scores::*;
 use crate::text::draw_text::Canvas;
 
-pub fn draw(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    draw_scores_with_heading(menus, &OVERALL_BEST_SCORES, false, canvas)
+pub fn draw(o: crate::owners::Owners<'static>, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    draw_scores_with_heading(o, &OVERALL_BEST_SCORES, false, canvas)
 }

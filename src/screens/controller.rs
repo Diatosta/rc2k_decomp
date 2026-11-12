@@ -9,7 +9,6 @@ use crate::input::owner::Input;
 use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
 use crate::screens::controls_store::ControlsScreen;
-use crate::screens::owner::screens as screens_owner;
 
 /// `screens::classify_controller` (0x46B27A): from the controller's four values (ecx x, edx
 /// y, eax z, ebx the buttons): the button (its number + 1, when exactly one is down), and
@@ -47,11 +46,12 @@ pub fn classify_controller(
 /// nothing; anything found goes to the player's +0x50 + 4 x (control - 1). The original keeps
 /// every register. Refuses (before anything) a player without its record.
 pub fn learn_axis(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     input: &Input,
     gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
-    let controls = &screens_owner().controls;
+    let menus = o.menus;
+    let controls = &o.screens.controls;
     let screens = &menus.screens;
     if controls.learning.get() != 1 {
         return Ok(());
@@ -77,6 +77,7 @@ pub fn learn_axis(
             .get()?
             .item(screens.loop_flags.item.get())?;
         crate::text::draw_string_by_id::draw_string_by_id_at(
+            crate::strings::append_string_by_id::StringOwners::of(o),
             0x3BE,
             crate::gfx::typefaces::fonts::LIST,
             0x1B8,
@@ -146,10 +147,11 @@ pub fn controller_page_refuses<'m>(
 /// device for a player that has one; an x whose x 100 is 0 is the original's fatal error
 /// 0x80701010.
 pub fn draw_controller_page(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     input: &Input,
     canvas: &mut dyn crate::text::draw_text::Canvas,
 ) -> Result<(), Refused> {
+    let menus = o.menus;
     // The logic is in `rc2k_core::screens::controller_page::controller_page`.
     use rc2k_core::screens::controller_page::{Controller, Font, Work, controller_page};
     {
@@ -158,7 +160,7 @@ pub fn draw_controller_page(
         let device = p.controller;
         use crate::screens::game_screen::HeldText;
         let mut screen =
-            crate::screens::game_screen::GameScreen::<Font, Work, HeldText>::new(canvas);
+            crate::screens::game_screen::GameScreen::<Font, Work, HeldText>::new(canvas, o);
         if device == 0 {
             return controller_page(&mut screen, None);
         }

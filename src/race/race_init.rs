@@ -17,7 +17,7 @@ use crate::session::Dword;
 pub const BLOCKS: u32 = 8;
 /// Car block n (`g_carBlocks`[n]).
 pub fn block(shared: &RaceShared, n: u32) -> Result<&'static Car, BadInput> {
-    shared.work.car(n as usize)
+    shared.race_car(n as usize)
 }
 
 /// The car block's dword at `off`, for the offsets the race state and the overlay's clearing

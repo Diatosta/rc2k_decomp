@@ -132,7 +132,7 @@ pub fn emit_slip_spray_with(
         kinds.emitter.sign.set(sign as u32);
         kinds.emitter.strength.set(strength);
         let car = emitting_car(effects)?;
-        let m = car.whole()?;
+        let m = car.whole(effects.car_blocks()?)?;
         let r = next_c5(set.place_random);
         let (a, b) = (((r & 0x3FFF) as i32) - 0x2000, (r & 0x3FFF) as i32);
         kinds.emitter.sides[0].set(a as u32);

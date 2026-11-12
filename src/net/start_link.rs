@@ -59,18 +59,33 @@ fn link(o: Owners<'static>) -> Result<Way, Refused> {
         }
     };
     keep_connection::keep_connection(net, connection)?;
-    if !connecting::connecting(net, panel, connection, o.gfx, o.system)? {
+    if !connecting::connecting(
+        crate::strings::append_string_by_id::StringOwners::of(o),
+        net,
+        panel,
+        connection,
+        o.gfx,
+        o.system,
+    )? {
         return Ok(Way::Message(NO_CONNECTION));
     }
     if vars.mode.get() == 1 {
         vars.own
             .head
             .set(PlayerRecord::STATE, vars.own.state() | 0x10);
-        return Ok(if hosting::hosting(net, o.system, panel, o.gfx)? {
-            Way::On
-        } else {
-            Way::Message(NO_SESSION)
-        });
+        return Ok(
+            if hosting::hosting(
+                crate::strings::append_string_by_id::StringOwners::of(o),
+                net,
+                o.system,
+                panel,
+                o.gfx,
+            )? {
+                Way::On
+            } else {
+                Way::Message(NO_SESSION)
+            },
+        );
     }
     if !find_sessions::find_sessions(net, o.system, panel)? {
         return Ok(Way::Message(NO_SESSION));
@@ -81,11 +96,20 @@ fn link(o: Owners<'static>) -> Result<Way, Refused> {
     if (session as i32) < 0 {
         return Ok(Way::Message(NO_SESSION));
     }
-    Ok(if joining::joining(net, o.system, panel, session, o.gfx)? {
-        Way::On
-    } else {
-        Way::Message(NO_SESSION)
-    })
+    Ok(
+        if joining::joining(
+            crate::strings::append_string_by_id::StringOwners::of(o),
+            net,
+            o.system,
+            panel,
+            session,
+            o.gfx,
+        )? {
+            Way::On
+        } else {
+            Way::Message(NO_SESSION)
+        },
+    )
 }
 
 /// A network game in `mode` (1 host, 2 join).
@@ -98,9 +122,19 @@ pub fn start_link(o: crate::owners::Owners<'static>, mode: u32) -> Result<(), Re
     take_player_settings::take_player_settings(race, o.menus);
     let menus = o.menus;
     fill_own_player::fill_own_player(race, net, menus, &menus.play.names.player_names.read())?;
-    show_background::show_background(o.gfx, o.system, &net.vars)?;
+    show_background::show_background(
+        crate::strings::append_string_by_id::StringOwners::of(o),
+        o.gfx,
+        o.system,
+        &net.vars,
+    )?;
     match link(o)? {
-        Way::Message(n) => show_message::show_message(n, o.gfx, o.system)?,
+        Way::Message(n) => show_message::show_message(
+            crate::strings::append_string_by_id::StringOwners::of(o),
+            n,
+            o.gfx,
+            o.system,
+        )?,
         Way::End => {}
         Way::On => {
             vars.session.set(1);
@@ -128,7 +162,13 @@ pub fn start_link(o: crate::owners::Owners<'static>, mode: u32) -> Result<(), Re
         }
     }
     log_bytes(&race.viewer_panel().text(texts::NET_STOPPING_LINK), true, 2);
-    stopping::stopping(&net.vars, o.system, o.gfx, race.viewer_panel())?;
+    stopping::stopping(
+        crate::strings::append_string_by_id::StringOwners::of(o),
+        &net.vars,
+        o.system,
+        o.gfx,
+        race.viewer_panel(),
+    )?;
     crate::sound::play_tune_3::play_tune_3(o.sound, o.audio, o.system);
     Ok(())
 }

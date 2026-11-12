@@ -5,7 +5,6 @@
 //! services in `draw_work.scratch_0c`.
 
 use crate::errors::{FatalError, Refused};
-use crate::menu::owner::Menus;
 use crate::records::stages_store::RecordRef;
 use crate::screens::best_scores::{record_at, section_there};
 use crate::screens::game_screen::GameScreen;
@@ -26,10 +25,11 @@ const INVALID_STAGE: FatalError = FatalError {
 /// "Invalid Stage ID". Refuses (before anything) a section past the
 /// table.
 pub fn draw_itinerary(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     system: &crate::system::owner::System,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
+    let menus = o.menus;
     // The logic is in `rc2k_core::screens::itinerary`.
     use rc2k_core::screens::itinerary::Row;
     {
@@ -73,7 +73,7 @@ pub fn draw_itinerary(
             &mut GameScreen::<
                 rc2k_core::screens::itinerary::Font,
                 rc2k_core::screens::itinerary::Work,
-            >::new(canvas),
+            >::new(canvas, o),
             heading,
             &row,
             &ends_at,

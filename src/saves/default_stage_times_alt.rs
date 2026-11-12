@@ -21,6 +21,7 @@ const TABLES: usize = 6;
 
 /// The first argument is not used: the stage comes from the record.
 pub fn default_stage_times_alt(
+    so: crate::strings::append_string_by_id::StringOwners<'_>,
     menus: &Menus,
     race: &Race,
     system: &System,
@@ -46,7 +47,12 @@ pub fn default_stage_times_alt(
             );
         }
         let filled = stage_times(
-            &mut GameSource { log, menus, race },
+            &mut GameSource {
+                log,
+                so,
+                menus,
+                race,
+            },
             &tables,
             None,
             with_checkpoints(screens),

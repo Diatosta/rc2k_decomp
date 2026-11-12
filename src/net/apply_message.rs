@@ -96,7 +96,7 @@ pub fn apply_message(
         note_unbelievable(player);
         return Ok(());
     }
-    let car = race.shared.work.car(player as usize)?;
+    let car = race.shared.race_car(player as usize)?;
     for (n, (&(field, _), &value)) in table.iter().zip(&values).enumerate() {
         // The place received goes where the car is to be.
         if kind == Kind::Position && n < 3 {

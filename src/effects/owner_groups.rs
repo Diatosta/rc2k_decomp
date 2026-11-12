@@ -119,6 +119,9 @@ pub struct Setup {
     /// The race's settings record `init_marks` was handed, what `Effects::settings` gives.
     pub marks:
         core::cell::Cell<Option<&'static crate::race::effects_settings_store::EffectsSettings>>,
+    /// The race's car blocks, handed with `marks`: the cars' records name their blocks by
+    /// handle (`CarEffects::whole`).
+    pub car_blocks: core::cell::Cell<Option<&'static crate::race::blocks_store::CarBlocks>>,
     pub frame: MarksFrame,
     pub floats: MarksFloats,
     pub kind_floats: MarksKindFloats,
@@ -133,6 +136,7 @@ impl Setup {
             clock_k: ClockK::new(),
             settings: SettingsPointer::new(),
             marks: core::cell::Cell::new(None),
+            car_blocks: core::cell::Cell::new(None),
             frame: MarksFrame::new(),
             floats: MarksFloats::new(),
             kind_floats: MarksKindFloats::new(),

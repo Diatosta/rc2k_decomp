@@ -27,7 +27,10 @@ fn players_by_group(menus: &Menus, firsts: [usize; 4]) -> Result<(), Refused> {
     Ok(())
 }
 
-pub fn standings_b_from_all(menus: &Menus) -> Result<(), Refused> {
+pub fn standings_b_from_all(
+    so: crate::strings::append_string_by_id::StringOwners<'_>,
+    menus: &Menus,
+) -> Result<(), Refused> {
     let drivers = walked_drivers(menus)?;
     if drivers.len() > 200 {
         return Err(BadInput("more drivers than the standings table holds").into());
@@ -40,7 +43,7 @@ pub fn standings_b_from_all(menus: &Menus) -> Result<(), Refused> {
     for d in &drivers {
         let id: u32 = crate::menu::drivers_store::name_string(menus, d.number)?;
         let mut text = Vec::new();
-        crate::strings::append_string_by_id::push_string(&mut text, id)?;
+        crate::strings::append_string_by_id::push_string(so, &mut text, id)?;
         text.push(0);
         if text.len() > rc2k_core::saves::rankings::HISTORY_LEN - 0x14 {
             return Err(BadInput("a driver's name past its entry").into());

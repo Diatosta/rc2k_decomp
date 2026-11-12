@@ -82,14 +82,15 @@ pub fn matrix_cell<C: crate::session::Cell32>(matrix: &[C], offset: u32) -> Resu
 pub fn emitting_car(
     effects: &crate::effects::owner::Effects,
 ) -> Result<&'static CarEffects, BadInput> {
-    crate::race::effects_settings_store::car_or_none(effects.kinds.emitter.car.get())
+    effects
+        .car_record(effects.kinds.emitter.car.get())
         .ok_or(BadInput("no car for the emitters"))
 }
 
 /// Whether the emitters are on a car whose matrix is set (the emitters' refusal).
 pub fn car_with_matrix(effects: &Effects) -> Result<bool, Refused> {
-    match crate::race::effects_settings_store::car_or_none(effects.kinds.emitter.car.get()) {
-        Some(car) => Ok(car.has_whole()),
+    match effects.car_record(effects.kinds.emitter.car.get()) {
+        Some(car) => Ok(effects.has_whole(car)),
         None => Ok(false),
     }
 }

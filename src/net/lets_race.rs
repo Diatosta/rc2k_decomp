@@ -25,8 +25,7 @@ pub fn lets_race(o: Owners<'static>, vars: &NetVars) -> Result<(u32, u32), Refus
     crate::net::keep_hud_options::keep_hud_options(&race.shared, vars)?;
     let block = race
         .shared
-        .work
-        .car(race.shared.view.local_car.get() as usize)?;
+        .race_car(race.shared.view.local_car.get() as usize)?;
     // Converted: `rc2k_core::net::record::not_finished`.
     Ok((
         block.stage_time.get(),

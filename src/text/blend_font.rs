@@ -45,6 +45,7 @@ const PALETTE_ENTRIES: u32 = 15;
 pub fn blend_font(
     strings: &Strings,
     gfx: &Gfx,
+    system: &crate::system::owner::System,
     time: u32,
     half_pulse: u32,
     a: impl Into<FontRef>,
@@ -77,7 +78,7 @@ pub fn blend_font(
         crate::gfx::glyph_store::BLENDED_PLACE,
         PALETTE_ENTRIES,
         t,
-        &surface_format()?,
+        &surface_format(system),
     )?;
     BLENDED_FONT
         .get()

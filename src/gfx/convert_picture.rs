@@ -90,7 +90,7 @@ pub fn convert_picture(
         }
     } else {
         // Converted: `rc2k_core::gfx::pixels::convert_in_place`.
-        let format: PixelFormat = crate::gfx::pixel_format::surface_format()?;
+        let format: PixelFormat = crate::gfx::pixel_format::surface_format(system);
         let pixels = width as usize * height as usize;
         let converted = with_picture(pictures, |buffer| -> Result<_, BadInput> {
             let bytes = buffer

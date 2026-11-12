@@ -23,11 +23,12 @@ pub fn current(menus: &Menus) -> Result<&'_ crate::session::Shared<Player>, Refu
 }
 
 pub fn gearing_text(
+    so: crate::strings::append_string_by_id::StringOwners<'_>,
     menus: &Menus,
     text: &crate::screens::text_buffers_store::TextBuffers,
 ) -> Result<(), Refused> {
     let value = current(menus)?.get().gearing;
-    put_string(FIRST_STRING.wrapping_add(value), &text.title, TEXT_LEN)?;
+    put_string(so, FIRST_STRING.wrapping_add(value), &text.title, TEXT_LEN)?;
     menus.screens.flow.shown_gearing.set(value);
     Ok(())
 }
@@ -35,6 +36,7 @@ pub fn gearing_text(
 /// `menu::next_gearing` / `menu::previous_gearing`: `ScreenFlow.shown_gearing` on (past 2 to 0) or back
 /// (below 0 to 2, both signed), the current player's `gearing` it, and its text.
 pub fn step_gearing(
+    so: crate::strings::append_string_by_id::StringOwners<'_>,
     menus: &Menus,
     text: &crate::screens::text_buffers_store::TextBuffers,
     on: bool,
@@ -44,7 +46,7 @@ pub fn step_gearing(
     let kept = screens.flow.shown_gearing.get() as i32;
     // The logic is in `rc2k_core::screens::captions::step_gearing`.
     let value = rc2k_core::screens::captions::step_gearing(kept, on);
-    put_string(FIRST_STRING.wrapping_add(value), &text.title, TEXT_LEN)?;
+    put_string(so, FIRST_STRING.wrapping_add(value), &text.title, TEXT_LEN)?;
     screens.flow.shown_gearing.set(value);
     p.update(|p| p.gearing = value);
     Ok(())

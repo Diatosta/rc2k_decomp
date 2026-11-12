@@ -32,6 +32,7 @@ const LOADING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts
 
 /// Shows the picture at `path`.
 pub fn show_picture_file(
+    so: crate::strings::append_string_by_id::StringOwners<'static>,
     path: &dyn crate::session::TextPlace,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
@@ -62,6 +63,7 @@ pub fn show_picture_file(
             gfx.pictures.picture.flags.set(0x802u32);
             crate::gfx::picture_as_surface::picture_as_surface(gfx)?;
             crate::text::draw_string_by_id::draw_string_by_id_at(
+                so,
                 0xC0,
                 LOADING_FONT,
                 0x316,
@@ -79,6 +81,7 @@ pub fn show_picture_file(
                     &gfx.rescale,
                     gfx.drawing.draw_surface,
                     gfx,
+                    system,
                 )?;
                 unlock_surface(gfx);
                 show_frame_now();

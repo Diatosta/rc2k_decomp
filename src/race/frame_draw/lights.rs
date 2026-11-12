@@ -249,7 +249,7 @@ pub(super) fn car_lights_on_point(
             car_light_on_point(
                 course,
                 crate::race::frame_view::car(n as usize)?,
-                shared.work.car(n as usize)?.marks_count.get(),
+                shared.race_car(n as usize)?.marks_count.get(),
                 scene,
                 object_light,
                 mmx,

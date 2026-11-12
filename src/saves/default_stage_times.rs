@@ -20,6 +20,7 @@ use rc2k_core::saves::defaults::stage_times;
 const TABLES: usize = 6;
 
 pub fn default_stage_times(
+    so: crate::strings::append_string_by_id::StringOwners<'_>,
     menus: &Menus,
     race: &Race,
     system: &System,
@@ -45,7 +46,12 @@ pub fn default_stage_times(
             );
         }
         let filled = stage_times(
-            &mut GameSource { log, menus, race },
+            &mut GameSource {
+                log,
+                so,
+                menus,
+                race,
+            },
             &tables,
             Some(ebp),
             with_checkpoints(screens),

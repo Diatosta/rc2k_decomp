@@ -87,6 +87,7 @@ impl Io for GameIo {
         self.store(g);
         // The drawing takes the device by address (its x87 turn reads the gauge).
         crate::race::draw_tyre_change::draw_tyre_change(
+            crate::strings::append_string_by_id::StringOwners::of(self.o),
             race,
             shared,
             self.device,

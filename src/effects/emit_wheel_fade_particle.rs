@@ -125,7 +125,7 @@ pub fn emit_wheel_fade_particle(
         let e = take_entry(ring, effects, object.tag.get() & 0xFF_FFFF, 6)?;
         let slot = crate::effects::ring_entries::Slot::new(ring, e);
         let car = emitting_car(effects)?;
-        let m = car.whole()?;
+        let m = car.whole(effects.car_blocks()?)?;
         let r = next_c5(&particles.kind6_set.side_random);
         let (a, b) = ((r & 1) as i32 - 1, (r & 1) as i32);
         effects.kinds.emitter.sides[0].set(a as u32);

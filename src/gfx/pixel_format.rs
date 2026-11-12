@@ -34,11 +34,15 @@ pub fn texture_description_format(description: u32, gfx: &crate::gfx::owner::Gfx
 
 /// The layout `handle` names (not 0: the callers test that first, with their own
 /// messages); one that names none is refused as the original's read of it would fail.
-pub fn layout(handle: u32) -> Result<PixelFormat, BadInput> {
+pub fn layout(
+    system: &crate::system::owner::System,
+    gfx: &crate::gfx::owner::Gfx,
+    handle: u32,
+) -> Result<PixelFormat, BadInput> {
     if handle == SCREEN_FORMAT {
-        return surface_format();
+        return Ok(surface_format(system));
     }
-    let descriptions = &crate::gfx::owner::textures().descriptions;
+    let descriptions = &gfx.card.texture_tables.descriptions;
     match handle.checked_sub(TEXTURE_FORMAT) {
         Some(k) if (k as usize) < descriptions.len() => Ok(descriptions[k as usize].get().format),
         _ => Err(BadInput("a pixel layout's handle that names none")),
@@ -48,11 +52,10 @@ pub fn layout(handle: u32) -> Result<PixelFormat, BadInput> {
 /// Converted: `rc2k_core::gfx::pixels::PixelFormat`.
 pub use rc2k_core::gfx::pixels::PixelFormat;
 
-pub fn surface_format() -> Result<PixelFormat, BadInput> {
-    let system = crate::system::owner::system();
+pub fn surface_format(system: &crate::system::owner::System) -> PixelFormat {
     let format = &system.session.screen.format;
-    Ok(PixelFormat {
+    PixelFormat {
         layout: format[0].get(),
         masks: std::array::from_fn(|n| format[1 + n].get()),
-    })
+    }
 }

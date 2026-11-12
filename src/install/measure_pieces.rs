@@ -25,6 +25,7 @@ fn font_of(
 }
 
 pub fn measure_pieces(
+    so: crate::strings::append_string_by_id::StringOwners<'static>,
     install: &'static crate::install::owner::Install,
     strings: &'static Strings,
     gfx: &crate::gfx::owner::Gfx,
@@ -49,7 +50,13 @@ pub fn measure_pieces(
             Way::String { font_kind } => {
                 let font =
                     InstallerPages::kind_font(install, pieces::measure_colour_at(font_kind)) as u32;
-                measure_string(piece.text_id() as u32, font_of(install, font)?, left, gfx)?
+                measure_string(
+                    so,
+                    piece.text_id() as u32,
+                    font_of(install, font)?,
+                    left,
+                    gfx,
+                )?
             }
             Way::Edit => {
                 let item = piece.item();
@@ -63,7 +70,7 @@ pub fn measure_pieces(
             Way::Text => {
                 let item = piece.item();
                 let mut text = Vec::new();
-                push_string_by_id(&mut text, piece.text_id() as u32);
+                push_string_by_id(so, &mut text, piece.text_id() as u32);
                 let action = item.data();
                 if action != 0 {
                     text_action(action, &mut text)?;

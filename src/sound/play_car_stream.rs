@@ -19,6 +19,7 @@ pub fn play_car_stream(
     start: &mut dyn FnMut(u32, u32),
     menus: &Menus,
     sound: &crate::sound::owner::Sound,
+    names: &crate::audio::names_store::SampleNames,
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::sound::set_up::car_stream`.
     let car = shown_car(menus)?;
@@ -33,7 +34,7 @@ pub fn play_car_stream(
             "a car's stream",
         )?,
         |list| {
-            crate::menu::texts_store::speech_entry(list, 0).unwrap_or_else(|e| {
+            crate::menu::texts_store::speech_entry(names, list, 0).unwrap_or_else(|e| {
                 failed.set(Some(e));
                 0
             })

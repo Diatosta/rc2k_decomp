@@ -9,13 +9,17 @@ use crate::menu::owner::Screens;
 use crate::race::owner::Race;
 use crate::strings::append_string_by_id::push_string;
 
-pub fn flip_gearing(screens: &Screens, race: &Race) -> Result<(), crate::errors::BadInput> {
+pub fn flip_gearing(
+    so: crate::strings::append_string_by_id::StringOwners<'_>,
+    screens: &Screens,
+    race: &Race,
+) -> Result<(), crate::errors::BadInput> {
     // The logic is in `rc2k_core::menu::steps` (`flip`, `gearing_switch_text`).
     use rc2k_core::menu::steps::{flip, gearing_switch_text};
     let kept = flip(screens.flow.shown_gearing.get());
     screens.flow.shown_gearing.set(kept);
     let mut text = Vec::new();
-    push_string(&mut text, gearing_switch_text(kept))?;
+    push_string(so, &mut text, gearing_switch_text(kept))?;
     text.push(0);
     race.text_buffers().title.write_at(0, &text, "the title")
 }

@@ -23,6 +23,7 @@ use rc2k_core::saves::defaults::{Championship, RALLIES, championship_times};
 
 /// The first argument is not used: the stage comes from the record.
 pub fn default_checkpoint_times(
+    so: crate::strings::append_string_by_id::StringOwners<'_>,
     menus: &Menus,
     race: &Race,
     system: &System,
@@ -44,7 +45,12 @@ pub fn default_checkpoint_times(
             .collect::<Result<_, _>>()?;
         let tables = [Target::Stages(table)];
         let filled = championship_times(
-            &mut GameSource { log, menus, race },
+            &mut GameSource {
+                log,
+                so,
+                menus,
+                race,
+            },
             &records,
             Championship::Checkpoints,
             [false; RALLIES],

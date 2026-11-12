@@ -56,7 +56,7 @@ pub fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused
         crate::menu::add_clio_car::add_clio_car(menus)?;
     }
     crate::menu::link_player_names::link_player_names(menus)?;
-    crate::menu::show_loading_picture::show_loading_picture_in(menus, gfx, system)?;
+    crate::menu::show_loading_picture::show_loading_picture_in(o)?;
     crate::gfx::build_menu_sprites::build_menu_sprites_in_game(gfx, system, menus, o.strings)?;
     crate::menu::fit_player_names::fit_player_names(menus, o.gfx)?;
     // The two dwords: the music volumes, then the tables' copies.
@@ -83,9 +83,14 @@ pub fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused
         .set(u32::from(crate::saves::best_times::SUMMARY.is_taken()));
     if best_times.loaded.get() != 1 {
         menus.screens.draw_work.scratch_0c.set(0u32);
-        default_best_scores::default_best_scores(menus, race)?;
+        default_best_scores::default_best_scores(
+            crate::strings::append_string_by_id::StringOwners::of(o),
+            menus,
+            race,
+        )?;
         menus.screens.draw_work.scratch_0c.set(0u32);
         default_championship_times::default_championship_times(
+            crate::strings::append_string_by_id::StringOwners::of(o),
             menus,
             race,
             system,
@@ -95,6 +100,7 @@ pub fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused
         )?;
         menus.screens.draw_work.scratch_0c.set(1u32);
         default_checkpoint_times::default_checkpoint_times(
+            crate::strings::append_string_by_id::StringOwners::of(o),
             menus,
             race,
             system,
@@ -102,11 +108,23 @@ pub fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused
             &mut to_the_log,
         )?;
         menus.screens.draw_work.scratch_0c.set(0u32);
-        default_class_times::default_class_times(menus, race)?;
+        default_class_times::default_class_times(
+            crate::strings::append_string_by_id::StringOwners::of(o),
+            menus,
+            race,
+        )?;
         menus.screens.draw_work.scratch_0c.set(0u32);
-        default_stage_times::default_stage_times(menus, race, system, stage, &mut to_the_log)?;
+        default_stage_times::default_stage_times(
+            crate::strings::append_string_by_id::StringOwners::of(o),
+            menus,
+            race,
+            system,
+            stage,
+            &mut to_the_log,
+        )?;
         menus.screens.draw_work.scratch_0c.set(0u32);
         default_stage_times_alt::default_stage_times_alt(
+            crate::strings::append_string_by_id::StringOwners::of(o),
             menus,
             race,
             system,
@@ -117,7 +135,11 @@ pub fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused
     }
     if !menus.screens.loop_flags.options_loaded.is_set() {
         for table in record_tables(system) {
-            crate::records::default_stage_records::default_stage_records(menus, table)?;
+            crate::records::default_stage_records::default_stage_records(
+                crate::strings::append_string_by_id::StringOwners::of(o),
+                menus,
+                table,
+            )?;
         }
     }
     Ok(())

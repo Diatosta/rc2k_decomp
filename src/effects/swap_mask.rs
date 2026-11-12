@@ -20,6 +20,7 @@ pub fn swap_mask(
     masks: &Masks,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     use crate::effects::load_mask_pictures::{lock, put_pixel};
@@ -72,7 +73,7 @@ pub fn swap_mask(
         return Err(BadInput("a mask pixel past its block").into());
     };
     for (row, col, pixel) in pixels {
-        put_pixel(pixel, col, row + masks::TEXTURE_ROW_AT, gfx)?;
+        put_pixel(pixel, col, row + masks::TEXTURE_ROW_AT, gfx, system)?;
     }
     lock(
         gfx,

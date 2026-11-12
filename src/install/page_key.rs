@@ -17,14 +17,14 @@ use rc2k_core::install::items::{self, ItemKey, PageKey};
 /// as the callees leave it (`install::edit_key` changes it) and whether the key did
 /// something.
 pub fn page_key(
+    o: crate::owners::Owners<'static>,
     install: &'static crate::install::owner::Install,
-    gfx: &crate::gfx::owner::Gfx,
-    system: &crate::system::owner::System,
     key: u32,
     item: ListItem,
     list: ListMenu,
 ) -> Result<(u32, bool), Refused> {
     use crate::install as i;
+    let (gfx, system) = (o.gfx, o.system);
     // Converted: `rc2k_core::install::items` (`page_key`, `takes_every_key`, `STAYS`,
     // `SCREENSHOT_KEY`).
     let Some(way) = items::page_key(key as u8) else {
@@ -34,7 +34,14 @@ pub fn page_key(
     let kind = item.kind();
     let edited = items::takes_every_key(kind, || item.edit_field().flags() & 1 != 0);
     let (key, plain_edit) = if edited {
-        let outcome = i::edit_key::edit_key(install, key, item, gfx)?;
+        let outcome = i::edit_key::edit_key(
+            crate::strings::append_string_by_id::StringOwners::of(o),
+            o.input,
+            install,
+            key,
+            item,
+            gfx,
+        )?;
         (outcome.key_word, outcome.plain_edit)
     } else {
         let taken = match way {

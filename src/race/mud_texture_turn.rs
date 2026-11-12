@@ -14,6 +14,7 @@ pub fn mud_texture_turn(
     race: &Race,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     texture_and_mud(&race.shared)?;
     let [red, green, blue] = mud_colour(&race.course);
@@ -26,5 +27,5 @@ pub fn mud_texture_turn(
         turn[1].set(turn[0].get());
         turn[0].set(0);
     }
-    crate::race::update_mud_texture::update_mud_texture(race, scene, gfx)
+    crate::race::update_mud_texture::update_mud_texture(race, scene, gfx, system)
 }

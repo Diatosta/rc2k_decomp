@@ -12,7 +12,6 @@
 //! its `entry` (`menu::table_calls`).
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::Menus;
 use crate::menu::owner::Tables;
 use crate::screens::draw_stage_records::selection_in;
 use crate::screens::stage_panel::{build_second_heading, table_dword_at};
@@ -29,10 +28,11 @@ fn item_1_place(tables: &Tables) -> Result<Option<usize>, BadInput> {
 }
 
 pub fn set_stage_choice_titles(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     system: &crate::system::owner::System,
     race: &crate::race::owner::Race,
 ) -> Result<(), Refused> {
+    let menus = o.menus;
     let tables = &menus.tables;
     let s = selection_in(menus, system)?.ok_or(BadInput(
         "no stage tables for the choice: the original reads through null",
@@ -40,7 +40,11 @@ pub fn set_stage_choice_titles(
     let Some(item_1) = item_1_place(tables)? else {
         return Err(BadInput("the menu's first dword is no pointer").into());
     };
-    build_second_heading(race, s.record)?;
+    build_second_heading(
+        crate::strings::append_string_by_id::StringOwners::of(o),
+        race,
+        s.record,
+    )?;
     let group_title = table_dword_at(
         &menus.play.results,
         &menus.play.results.group_titles,

@@ -22,6 +22,7 @@ pub fn rescale_to_surface(
     rescaler: &Rescaler,
     surface: &crate::gfx::screen_state::DrawSurface,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let pictures = &gfx.pictures;
     let (from_width, from_height): (u32, u32) =
@@ -42,7 +43,7 @@ pub fn rescale_to_surface(
     let _ = fill_row_table(0, pictures.decoder.stride.get(), from_height, gfx);
     // Converted: `rc2k_core::gfx::picture::rescale`; each pixel's parts through the
     // components variable, the last left there with its fourth byte as it was.
-    let format = crate::gfx::pixel_format::layout(surface.format.get())?;
+    let format = crate::gfx::pixel_format::layout(system, gfx, surface.format.get())?;
     let words = surface.bits_per_pixel.get() == 0x10;
     // Where the next pixel goes.
     let mut out = crate::gfx::locked_pixels::Place::start(surface.pixels.get());

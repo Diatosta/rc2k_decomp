@@ -18,7 +18,7 @@ pub fn players_all_out(race: &Race, net: &crate::net::owner::Net) -> Result<bool
     {
         let trap = crate::race::trap::Trap::new();
         let out = |n: u32| {
-            trap.keep_read(shared.work.car(n as usize).map(|car| car.stop_state.get())) != 0
+            trap.keep_read(shared.race_car(n as usize).map(|car| car.stop_state.get())) != 0
         };
         let players = if vars.session.get() == 1 {
             Players::Chosen(vars.player.get())
@@ -71,7 +71,7 @@ pub fn load_view_car(
     use rc2k_core::drive::work_car::{car_block, car_slot};
     let slot = car_slot(view_car(shared, n).get());
     car_block(u32::from(shared.work.has_car_block(slot as usize)))?;
-    crate::drive::car::copy_car(shared.work.car(slot as usize)?, &view.car);
+    crate::drive::car::copy_car(shared.race_car(slot as usize)?, &view.car);
     Ok(())
 }
 
@@ -99,7 +99,7 @@ pub fn race_keys(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
     let shared = &race.shared;
     crate::drive::choose_shown_cars::choose_shown_cars_in(race, o.net)?;
     let second = devices.keys_now.get(VIEW_MODE_KEY) != 0;
-    let view = shared.view.view_car_or_end(usize::from(second));
+    let view = shared.view_car_or_end(usize::from(second));
     // Converted: `rc2k_core::race::keys::{first_key, split_flip, volume_key,
     // volume_step, flip_bit}`.
     use rc2k_core::race::keys::{
@@ -170,7 +170,7 @@ pub fn race_keys(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
             set_car_counter(view, counter);
         }
         Some(Key::Shared) => {
-            let counter = flip(shared.view.view_car_or_end(0), SHARED_BIT);
+            let counter = flip(shared.view_car_or_end(0), SHARED_BIT);
             set_both_counters(race, counter);
         }
         None => {}

@@ -50,7 +50,7 @@ pub fn run_page(
     list: ListMenu,
 ) -> Result<u32, Refused> {
     use crate::install as i;
-    let (strings, system, gfx) = (o.strings, o.system, o.gfx);
+    let (strings, system) = (o.strings, o.system);
     install.pages.list_answer.set(1);
     install.pages.list_leave.set(0);
     install
@@ -90,12 +90,22 @@ pub fn run_page(
         i::show_backdrop::show_backdrop(system, o.gfx)?;
         loop {
             i::lay_out_pieces::lay_out_pieces(install, list)?;
-            i::measure_pieces::measure_pieces(install, strings, o.gfx)?;
+            i::measure_pieces::measure_pieces(
+                crate::strings::append_string_by_id::StringOwners::of(o),
+                install,
+                strings,
+                o.gfx,
+            )?;
             i::place_pieces::place_pieces(install)?;
             run_frame(system, None)?;
             if lock(o.gfx, system) {
                 copy_picture(o.gfx, system)?;
-                i::draw_pieces::draw_pieces(install, strings, o.gfx)?;
+                i::draw_pieces::draw_pieces(
+                    crate::strings::append_string_by_id::StringOwners::of(o),
+                    install,
+                    strings,
+                    o.gfx,
+                )?;
                 unlock(o.gfx);
                 show();
             }
@@ -113,8 +123,7 @@ pub fn run_page(
                 let mut again = 0;
                 loop {
                     let item = list.item(install.pages.choice.get());
-                    let (left, mut took) =
-                        i::page_key::page_key(install, gfx, system, key, item, list)?;
+                    let (left, mut took) = i::page_key::page_key(o, install, key, item, list)?;
                     key = left;
                     if !took {
                         let keys = list.key_action();

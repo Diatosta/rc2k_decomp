@@ -41,6 +41,7 @@ pub fn init_marks(
             return Err(BadInput("a marks kind of 0x22 or more").into());
         }
         effects.setup.marks.set(Some(marks));
+        effects.setup.car_blocks.set(Some(race.car_blocks()));
         effects.setup.settings.is_set.set(1);
         effects.setup.work.seed.set(seed);
         effects.setup.clock.started.set(0);

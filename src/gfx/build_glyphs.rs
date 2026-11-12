@@ -283,6 +283,7 @@ pub fn build_glyphs(
     template: &[u8],
     list: &dyn crate::cells::Store,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
     strings: &crate::strings::owner::Strings,
 ) -> Result<(), Refused> {
     let pictures = &gfx.pictures;
@@ -319,7 +320,7 @@ pub fn build_glyphs(
             if layout == 0 {
                 return Err(BadInput("no pixel layout for a sheet of components").into());
             }
-            let layout = crate::gfx::pixel_format::layout(layout)?;
+            let layout = crate::gfx::pixel_format::layout(system, gfx, layout)?;
             pixel_size = direct_pixel_size(&layout);
             format = Some(layout);
         }

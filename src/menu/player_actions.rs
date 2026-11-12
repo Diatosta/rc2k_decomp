@@ -94,29 +94,41 @@ pub fn previous_scores_page(tables: &Tables) {
         .set(steps::scores_page(tables.pages.scores_page.get(), false));
 }
 
-pub fn previous_replay_range(menus: &Menus, tables: &Tables) -> Result<(), BadInput> {
+pub fn previous_replay_range(
+    menus: &Menus,
+    tables: &Tables,
+    text: &crate::screens::text_buffers_store::TextBuffers,
+) -> Result<(), BadInput> {
     tables
         .pages
         .replay_page
         .set(steps::replay_range(tables.pages.replay_page.get(), false));
-    crate::screens::best_scores::replay_range_caption(menus)
+    crate::screens::best_scores::replay_range_caption(menus, text)
 }
 
-pub fn next_replay_range(menus: &Menus, tables: &Tables) -> Result<(), BadInput> {
+pub fn next_replay_range(
+    menus: &Menus,
+    tables: &Tables,
+    text: &crate::screens::text_buffers_store::TextBuffers,
+) -> Result<(), BadInput> {
     tables
         .pages
         .replay_page
         .set(steps::replay_range(tables.pages.replay_page.get(), true));
-    crate::screens::best_scores::replay_range_caption(menus)
+    crate::screens::best_scores::replay_range_caption(menus, text)
 }
 
 /// `menu::toggle_caption_choice`: the choice flipped and its caption written.
-pub fn toggle_caption_choice(screens: &Screens, race: &Race) -> Result<(), BadInput> {
+pub fn toggle_caption_choice(
+    so: crate::strings::append_string_by_id::StringOwners<'_>,
+    screens: &Screens,
+    race: &Race,
+) -> Result<(), BadInput> {
     let choice = steps::flip(screens.state.menus.caption_choice.get());
     screens.state.menus.caption_choice.set(choice);
     let caption = rc2k_core::screens::page_values::stage_options_caption(choice);
     let mut text = Vec::new();
-    crate::strings::append_string_by_id::push_string(&mut text, caption)?;
+    crate::strings::append_string_by_id::push_string(so, &mut text, caption)?;
     text.push(0);
     race.text_buffers()
         .caption

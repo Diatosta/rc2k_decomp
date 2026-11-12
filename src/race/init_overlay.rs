@@ -100,7 +100,7 @@ pub fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
         }
         for car in 0..race.shared.work.car_blocks.len() {
             for off in OVERLAY_CLEARED {
-                crate::race::race_init::state_cell(race.shared.work.car(car)?, off)?.set(0);
+                crate::race::race_init::state_cell(race.shared.race_car(car)?, off)?.set(0);
             }
         }
         for distance in &race.frame.panel_and_overlay.panel.distance {

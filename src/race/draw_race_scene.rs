@@ -458,7 +458,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     crate::race::map_scroll::scroll_maps(race, scene, o.net, o.gfx)?;
     race.frame.panel_and_overlay.panel.texture_changes.set(0);
     crate::race::frame_views::forget_view_textures(race, scene, input, system, o.gfx)?;
-    crate::race::mud_frame::mud_frame(race, scene, o.gfx)?;
+    crate::race::mud_frame::mud_frame(race, scene, o.gfx, o.system)?;
     race.frame.frame_work.kind_textures_done.set(0);
     crate::scene::assign_kind_textures::assign_kind_textures(scene)?;
     for (k, extra) in race
@@ -560,7 +560,13 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         crate::hud::overlay_pass::overlay_pass(o.hud, race, o.system, o.scene, o.gfx)?;
     }
     crate::race::skid_laying::lay_skidmarks_if_on(race)?;
-    crate::race::name_plates::update_name_plates(race, scene, o.gfx, o.strings)?;
+    crate::race::name_plates::update_name_plates(
+        crate::strings::append_string_by_id::StringOwners::of(o),
+        race,
+        scene,
+        o.gfx,
+        o.strings,
+    )?;
     if race.course.numbers.replay_mode.get() != 2 {
         crate::drive::tyre_change_screen::tyre_change_screen(race, input, system)?;
     }

@@ -44,6 +44,35 @@ impl Effects {
             _ => Err(BadInput("no marks settings")),
         }
     }
+
+    /// The car blocks the race handed `init_marks` with its settings record; refused before
+    /// the first (no car record names a block then).
+    pub fn car_blocks(&self) -> Result<&'static crate::race::blocks_store::CarBlocks, BadInput> {
+        self.setup
+            .car_blocks
+            .get()
+            .ok_or(BadInput("a car record without its block"))
+    }
+
+    /// The car record a handle names (`effects_settings_store::car_handle`), none for 0; a
+    /// value that names no record ends the program. None before the race's record is handed
+    /// over (no handle is set then).
+    pub fn car_record(
+        &self,
+        handle: u32,
+    ) -> Option<&'static crate::race::effects_settings_store::CarEffects> {
+        self.setup.marks.get().and_then(|m| m.car_or_none(handle))
+    }
+
+    /// Whether `car`'s whole matrix's block is set.
+    pub fn has_whole(&self, car: &crate::race::effects_settings_store::CarEffects) -> bool {
+        self.car_blocks().is_ok_and(|b| car.has_whole(b))
+    }
+
+    /// Whether `car`'s part matrices' block is set.
+    pub fn has_parts(&self, car: &crate::race::effects_settings_store::CarEffects) -> bool {
+        self.car_blocks().is_ok_and(|b| car.has_parts(b))
+    }
 }
 
 /// The one instance. Reached through `effects()`; `moved` registers its stores' places.

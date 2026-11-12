@@ -25,6 +25,7 @@ pub fn splash_mud(
     shared: &RaceShared,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::mud::{splash_place, splash_lands, splash_pattern}`.
     use rc2k_core::race::mud::{
@@ -47,7 +48,7 @@ pub fn splash_mud(
     for row in 0..SPLASH_SIDE {
         shared.vars.mud_column.set(0u32);
         for column in 0..SPLASH_SIDE {
-            eax = mud_texel(eax, x, y, scene, gfx)?;
+            eax = mud_texel(eax, x, y, scene, gfx, system)?;
             if muddy(eax) {
                 let colour = crate::session::read_on_in(
                     &shared.vars,
@@ -56,7 +57,7 @@ pub fn splash_mud(
                     "the mud colours",
                 )?;
                 let faded = fade_colour(eax, colour, colour >> 24);
-                eax = put_mud_texel(faded | MUD_TOP, x, y, scene, gfx)?;
+                eax = put_mud_texel(faded | MUD_TOP, x, y, scene, gfx, system)?;
             }
             colours += 1;
             x = x.wrapping_add(1);

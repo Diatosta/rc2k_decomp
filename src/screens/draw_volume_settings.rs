@@ -33,7 +33,7 @@ pub fn draw_volume_settings(o: Owners<'static>, canvas: &mut dyn Canvas) -> Resu
         levels.sounds_b.get(),
     ];
     rc2k_core::screens::settings_pages::volume(
-        &mut crate::screens::game_screen::SettingsScreen::new(canvas),
+        &mut crate::screens::game_screen::SettingsScreen::new(canvas, o),
         id,
         volumes,
     )

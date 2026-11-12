@@ -77,7 +77,6 @@ pub fn panel_players(race: &Race) -> Result<(), BadInput> {
         // Each view block's +0xFA4.
         let field = |n: usize| -> Result<u32, BadInput> {
             Ok(shared
-                .view
                 .view_car(n)
                 .ok_or(BadInput("a view without its car block"))?
                 .two_car_place
@@ -336,7 +335,7 @@ pub fn wake_part_sounds(race: &Race) -> Result<(), Refused> {
     for car in 0..cars {
         let object = crate::sound::store::SoundObject::number(car & 7)?;
         let mut wake = false;
-        let block = shared.work.block_car(car as usize, "a null car block")?;
+        let block = shared.race_car_or(car as usize, "a null car block")?;
         // Every flag set: each slot is `Left` whatever its count, nothing to plan (the flags only
         // go 0 -> 1, `part_woken` has no other writer).
         if block.part_woken.iter().all(|flag| flag.get() != 0) {

@@ -34,8 +34,8 @@ use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::read_first_match::read_first_match;
 use crate::input::layouts::layouts;
 use crate::session::Bytes;
-use crate::strings::append_string_by_id::push_string_in;
-use crate::strings::owner::{Text, strings};
+use crate::strings::append_string_by_id::push_string;
+use crate::strings::owner::Text;
 use crate::strings::same_text::set_case_table;
 use rc2k_core::strings::case::CaseTable;
 use rc2k_core::strings::language::Locale;
@@ -57,12 +57,7 @@ pub const LOCALE_INIT: [u8; LOCALE_LEN] = [
 
 /// `g_noticeKind` (the `.loc` file's byte +8, 0x4E07A0 in the image): which notice the
 /// language shows (2: the builds' notice; 7: Japan).
-pub fn notice_kind() -> u8 {
-    notice_kind_in(strings())
-}
-
-/// `notice_kind` for a caller that holds the strings.
-pub fn notice_kind_in(strings: &crate::strings::owner::Strings) -> u8 {
+pub fn notice_kind(strings: &crate::strings::owner::Strings) -> u8 {
     strings.language.locale.get(8)
 }
 
@@ -105,7 +100,11 @@ fn built(
     with_nul: bool,
 ) -> Result<Vec<u8>, BadInput> {
     let mut bytes = Vec::new();
-    push_string_in(o, &mut bytes, id)?;
+    push_string(
+        crate::strings::append_string_by_id::StringOwners::of(o),
+        &mut bytes,
+        id,
+    )?;
     if bytes.len() >= 0x100 {
         return Err(BadInput(
             "a string of the language's set-up longer than expected",

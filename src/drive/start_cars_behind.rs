@@ -42,7 +42,7 @@ use rc2k_core::drive::pace_cars::{
 
 /// The block of the car in start slot `slot`, or the refusal for none.
 fn car(shared: &RaceShared, slot: u32) -> Result<&'static Car, BadInput> {
-    shared.work.block_car(slot as usize, "a car's block")
+    shared.race_car_or(slot as usize, "a car's block")
 }
 
 /// `arcade_car_kinds`[k]: the car of each start. The table holds 89; the refusal below reads

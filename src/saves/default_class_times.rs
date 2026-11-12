@@ -20,12 +20,17 @@ use rc2k_core::saves::defaults::class_times;
 
 // ---- game data ----
 
-pub fn default_class_times(menus: &Menus, race: &Race) -> Result<(), Refused> {
+pub fn default_class_times(
+    so: crate::strings::append_string_by_id::StringOwners<'_>,
+    menus: &Menus,
+    race: &Race,
+) -> Result<(), Refused> {
     if !LEVEL_SCORES.is_taken() {
         return Err(crate::errors::BadInput("no table").into());
     }
     let entries = class_times(&mut GameSource {
         log: &mut to_nowhere,
+        so,
         menus,
         race,
     })?;

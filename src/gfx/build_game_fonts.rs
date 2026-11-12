@@ -100,14 +100,18 @@ pub fn build_game_fonts(
     let palette_b = crate::gfx::build_fonts::palette_place(list)?;
     gfx.fonts.font_block.game_fonts[3].update(|f| f.palette = palette_b);
     begin_glyph_table(vars, list)?;
-    build_glyphs(vars, &crate::gfx::texts::FNT22, list, gfx, strings)?;
+    build_glyphs(vars, &crate::gfx::texts::FNT22, list, gfx, system, strings)?;
     let table = vars.table.get();
     gfx.fonts.font_block.game_fonts[0].update(|f| f.glyph_table = table);
     if vars.table_size.get() == 0 {
         return Err(fatal(0x80E4_8062));
     }
     alpha_palette(gfx);
-    palette_to_pixels(gfx.fonts.font_block.game_fonts[0].get().palette, gfx)?;
+    palette_to_pixels(
+        gfx.fonts.font_block.game_fonts[0].get().palette,
+        gfx,
+        system,
+    )?;
     end_glyph_tables(strings)?;
 
     let (glyphs, palette_a): (u32, u32) = (
@@ -127,7 +131,7 @@ pub fn build_game_fonts(
     if to == 0 || layout == 0 {
         return Err(BadInput("no place for the second palette, or no pixel layout").into());
     }
-    let layout = crate::gfx::pixel_format::layout(layout)?;
+    let layout = crate::gfx::pixel_format::layout(system, gfx, layout)?;
     let mut pixels = Vec::with_capacity(256 * 4);
     for n in 0..256usize {
         // Converted: `rc2k_core::gfx::pixels::brighter`.

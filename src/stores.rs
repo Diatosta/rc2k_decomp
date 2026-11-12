@@ -678,7 +678,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "screens.owner.SCREENS_OWNER.controls",
-            &crate::screens::owner::SCREENS_OWNER.controls,
+            on_game(&crate::screens::owner::SCREENS_OWNER.get().controls),
         ),
         listed!(
             "menu.owner.MENUS.play.players",

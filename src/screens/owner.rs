@@ -3,6 +3,7 @@
 //! `menu::owner::Screens`, the menu's own group.)
 
 use crate::screens::controls_store::ControlsScreen;
+use crate::session::GameThread;
 
 /// The screens' state.
 pub struct ScreensOwner {
@@ -18,10 +19,11 @@ impl ScreensOwner {
     }
 }
 
-/// The one instance. Reached through `screens()`; `moved` registers its stores' places.
-pub static SCREENS_OWNER: ScreensOwner = ScreensOwner::new();
+/// The one instance, the game's thread's alone (the controls page runs in the menus).
+/// Reached through `screens()`.
+pub static SCREENS_OWNER: GameThread<ScreensOwner> = GameThread::new(ScreensOwner::new());
 
 /// The screens' state, for a caller that does not take it as a parameter yet.
 pub fn screens() -> &'static ScreensOwner {
-    &SCREENS_OWNER
+    SCREENS_OWNER.get()
 }

@@ -155,7 +155,7 @@ pub fn upload_car_icon(
             pixels,
             row_bytes: height.wrapping_mul(4),
         };
-        let blitted = blit_components(&gfx.pixel.formats, &piece, &game_target(gfx)?);
+        let blitted = blit_components(&gfx.pixel.formats, &piece, &game_target(gfx)?, gfx, system);
         crate::d3d::unlock_texture::unlock_texture(texture)?;
         blitted?;
     }

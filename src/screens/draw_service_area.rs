@@ -29,7 +29,6 @@ use crate::errors::{BadInput, Refused};
 use crate::gfx::blit_bar::{Bar, blit_bar_in};
 use crate::gfx::blit_glyph::BlitCall;
 use crate::gfx::owner::Gfx;
-use crate::menu::owner::Menus;
 use crate::screens::draw_inspection_status::draw_inspection_status;
 use crate::screens::draw_repair_times::draw_repair_times;
 use crate::screens::draw_service_time::draw_service_time;
@@ -67,11 +66,12 @@ fn font_of(font: AreaFont) -> crate::gfx::typefaces::FontId {
 /// Returns the carry flag of the last text drawn. Refuses a missing player and a title
 /// that does not fit the text buffer.
 pub fn draw_service_area(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     gfx: &Gfx,
     race: &crate::race::owner::Race,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
+    let menus = o.menus;
     let screens = &menus.screens;
     race.shared.switches.service_cleared.set_bits(0u32);
 
@@ -79,7 +79,11 @@ pub fn draw_service_area(
     let fault = crate::menu::event_flow::Fault::default();
     let string = |id: u32| {
         let mut bytes = Vec::new();
-        fault.ok(push_string(&mut bytes, id));
+        fault.ok(push_string(
+            crate::strings::append_string_by_id::StringOwners::of(o),
+            &mut bytes,
+            id,
+        ));
         bytes
     };
     let title = area_title(
@@ -91,11 +95,11 @@ pub fn draw_service_area(
     if title.len() > TEXT_LEN {
         return Err(BadInput("the title is longer than the text buffer").into());
     }
-    text_at().write_at(0, &title, "the title")?;
+    text_at(o.strings).write_at(0, &title, "the title")?;
     let (x, y) = AREA_TITLE_AT;
     draw_text_at(font_of(AreaFont::Title), &title, x, y, canvas)?;
 
-    draw_service_time(screens, canvas)?;
+    draw_service_time(o, canvas)?;
 
     let Some(player) = current_player(menus) else {
         return Err(BadInput("no current player object: the original reads through null").into());
@@ -105,11 +109,25 @@ pub fn draw_service_area(
     for step in AREA_STEPS {
         match step {
             AreaStep::Label(id, font, x, y) => {
-                draw_string_by_id_at(id, font_of(font), x, y, canvas)?;
+                draw_string_by_id_at(
+                    crate::strings::append_string_by_id::StringOwners::of(o),
+                    id,
+                    font_of(font),
+                    x,
+                    y,
+                    canvas,
+                )?;
             }
             AreaStep::LabelIfClass(id, font, x, y) => {
                 if car.class != 0 {
-                    draw_string_by_id_at(id, font_of(font), x, y, canvas)?;
+                    draw_string_by_id_at(
+                        crate::strings::append_string_by_id::StringOwners::of(o),
+                        id,
+                        font_of(font),
+                        x,
+                        y,
+                        canvas,
+                    )?;
                 }
             }
             AreaStep::DamageBar(x, y, part) => {
@@ -142,10 +160,17 @@ pub fn draw_service_area(
         .wrapping_add(SETTING_FIRST_STRING);
     screens.draw_work.figure.set(setting);
     let (x, y) = TYRE_AT;
-    draw_string_by_id_at(setting, font_of(AreaFont::Small), x, y, canvas)?;
+    draw_string_by_id_at(
+        crate::strings::append_string_by_id::StringOwners::of(o),
+        setting,
+        font_of(AreaFont::Small),
+        x,
+        y,
+        canvas,
+    )?;
 
     // The markers get the car in edi.
-    draw_repair_times(screens, canvas)?;
+    draw_repair_times(o, canvas)?;
     for marker in [
         draw_brake_balance_marker::MARKER,
         draw_steering_sensitivity_marker::MARKER,
@@ -156,5 +181,5 @@ pub fn draw_service_area(
     ] {
         draw_marker(menus, gfx, marker, player, canvas)?;
     }
-    draw_inspection_status(menus, screens, canvas)
+    draw_inspection_status(o, screens, canvas)
 }

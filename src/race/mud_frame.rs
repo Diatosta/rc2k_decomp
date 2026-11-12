@@ -11,6 +11,7 @@ pub fn mud_frame(
     race: &Race,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::mud::{count_frame, texture_turn, next_texture}`.
     use crate::race::mud_texture_turn::mud_texture_turn;
@@ -24,7 +25,7 @@ pub fn mud_frame(
         .vars
         .mud_texture
         .set(texture_turn(race.shared.vars.mud_texture.get()));
-    mud_texture_turn(race, scene, gfx)?;
+    mud_texture_turn(race, scene, gfx, system)?;
     race.shared
         .vars
         .mud_texture

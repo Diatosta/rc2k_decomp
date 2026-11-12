@@ -7,8 +7,7 @@
 //! refused, as is a text longer than the buffer (the callers pass the refusal on).
 
 use crate::errors::BadInput;
-use crate::strings::append_string_by_id::append_string_by_id;
-use crate::strings::owner::strings;
+use crate::strings::append_string_by_id::{StringOwners, append_string_by_id};
 
 // ---- game data ----
 
@@ -16,13 +15,15 @@ use crate::strings::owner::strings;
 pub const TEXT_LEN: usize = 0x400;
 
 /// The game's text buffer.
-pub fn text_at() -> crate::strings::text_buffer::TextBuf {
-    crate::strings::text_buffer::TextBuf::Text(&strings().text.buffer.text)
+pub fn text_at(
+    strings: &'static crate::strings::owner::Strings,
+) -> crate::strings::text_buffer::TextBuf {
+    crate::strings::text_buffer::TextBuf::Text(&strings.text.buffer.text)
 }
 
 /// The bytes the original leaves in the text buffer, including the NUL (converted:
 /// `rc2k_core::strings::table::text_from_ids`).
-pub fn text_from_ids(first_id: u32, count: u32) -> Result<Vec<u8>, BadInput> {
+pub fn text_from_ids(o: StringOwners<'_>, first_id: u32, count: u32) -> Result<Vec<u8>, BadInput> {
     if count == 0 {
         return Err(BadInput(
             "count 0: the original's counter wraps and it never ends",
@@ -30,7 +31,7 @@ pub fn text_from_ids(first_id: u32, count: u32) -> Result<Vec<u8>, BadInput> {
     }
     let fault = crate::menu::event_flow::Fault::default();
     let text = rc2k_core::strings::table::text_from_ids(first_id, count, TEXT_LEN, |id, out| {
-        fault.ok(append_string_by_id(id, &mut |bytes| {
+        fault.ok(append_string_by_id(o, id, &mut |bytes| {
             out.extend_from_slice(bytes);
         }))
     });

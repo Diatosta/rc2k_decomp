@@ -148,11 +148,7 @@ impl finish::Finish for Game<'_> {
             )?,
             Step::RaceSounds => crate::sound::set_up_race_sounds::set_up_race_sounds(self.owners)?,
             Step::LoadingPicture => {
-                crate::menu::show_loading_picture::show_loading_picture_in(
-                    self.menus,
-                    self.owners.gfx,
-                    self.owners.system,
-                )?;
+                crate::menu::show_loading_picture::show_loading_picture_in(self.owners)?;
             }
             Step::Render3dTidy => {
                 crate::race::stage_free::render3d_tidy(race)?;

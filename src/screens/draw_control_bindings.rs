@@ -14,7 +14,6 @@
 //! (`menu::table_calls`).
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::Menus;
 use crate::screens::game_screen::ControlsScreen;
 use crate::screens::owner::ScreensOwner;
 use crate::text::draw_text::Canvas;
@@ -31,6 +30,7 @@ fn direction_names(
 
 /// Row n's text (without its NUL). The logic is in `rc2k_core::screens::controls::binding_text`.
 pub fn binding_text(
+    o: crate::owners::Owners<'static>,
     controls: &crate::screens::controls_store::ControlsScreen,
     player: crate::menu::standings::PlayerCell,
     n: u32,
@@ -46,7 +46,7 @@ pub fn binding_text(
         },
     };
     let mut canvas = crate::text::draw_text::GameCanvas::new(gfx);
-    let mut s = ControlsScreen::new(&mut canvas);
+    let mut s = ControlsScreen::new(&mut canvas, o);
     Ok(rc2k_core::screens::controls::binding_text(
         &mut s,
         &b,
@@ -57,11 +57,12 @@ pub fn binding_text(
 
 /// Returns the carry.
 pub fn draw_control_bindings(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     screens: &ScreensOwner,
     canvas: &mut dyn Canvas,
     gfx: &crate::gfx::owner::Gfx,
 ) -> Result<bool, Refused> {
+    let menus = o.menus;
     let controls = &screens.controls;
     let Some(player) = crate::menu::player::player(menus, menus.screens.event.current_player.get())
     else {
@@ -71,9 +72,13 @@ pub fn draw_control_bindings(
     let row: u32 = controls.learned.get();
     let mut texts: [Vec<u8>; 10] = Default::default();
     for (n, text) in texts.iter_mut().enumerate() {
-        *text = binding_text(controls, player, n as u32, gfx)?;
+        *text = binding_text(o, controls, player, n as u32, gfx)?;
     }
     // The logic is in `rc2k_core::screens::controls::control_bindings`.
     let learnt = (learning == 1 && (1..=10).contains(&row)).then(|| row as usize - 1);
-    rc2k_core::screens::controls::control_bindings(&mut ControlsScreen::new(canvas), &texts, learnt)
+    rc2k_core::screens::controls::control_bindings(
+        &mut ControlsScreen::new(canvas, o),
+        &texts,
+        learnt,
+    )
 }

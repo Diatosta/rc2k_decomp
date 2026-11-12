@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from count_unsafe import strip_tests  # noqa: E402
 
 ROOT = os.path.join(os.path.dirname(__file__), '..', 'src')
-LAYER = {'moved.rs', 'pointers.rs', 'session.rs', 'store.rs', 'shared_memory.rs', 'address_map.rs'}
+LAYER = {'session.rs', 'shared_memory.rs', 'cells.rs', 'pool.rs', 'stores.rs'}
 
 # How a place is made.
 PLACES = {

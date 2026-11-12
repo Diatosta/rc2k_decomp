@@ -5,14 +5,13 @@
 //! table. The menus and draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
 use crate::screens::best_scores::*;
 use crate::text::draw_text::Canvas;
 
 pub fn draw(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     system: &crate::system::owner::System,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    draw_stage_times(menus, system, &STAGE_TIMES, canvas)
+    draw_stage_times(o, system, &STAGE_TIMES, canvas)
 }

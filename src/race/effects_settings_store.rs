@@ -6,6 +6,9 @@
 //! panel and the kind tables (`VIEWER_AND_KINDS`); typed here as one
 //! (2026-11-02) after the stores had split it in three. Names are readings unless IDA's.
 
+use crate::errors::BadInput;
+use crate::race::blocks_store::CarBlocks;
+#[cfg(test)]
 use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
@@ -334,22 +337,24 @@ pub const fn car_handle(n: usize) -> u32 {
     CAR_TAG | n as u32
 }
 
-/// The car a handle names. A value that names no car ends the program (as an address off
-/// the records would have read elsewhere in the original).
-pub fn car(handle: u32) -> &'static CarEffects {
-    let n = (handle ^ CAR_TAG) as usize;
-    match race().effects_settings().cars.get(n) {
-        Some(car) if handle & !0xFF == CAR_TAG => car,
-        _ => crate::fatal::raise::end(
-            "race::effects_settings_store::car",
-            crate::errors::BadInput("a car record's handle that names none"),
-        ),
+impl EffectsSettings {
+    /// The car a handle names. A value that names no car ends the program (as an address off
+    /// the records would have read elsewhere in the original).
+    pub fn car(&self, handle: u32) -> &CarEffects {
+        let n = (handle ^ CAR_TAG) as usize;
+        match self.cars.get(n) {
+            Some(car) if handle & !0xFF == CAR_TAG => car,
+            _ => crate::fatal::raise::end(
+                "race::effects_settings_store::car",
+                crate::errors::BadInput("a car record's handle that names none"),
+            ),
+        }
     }
-}
 
-/// The car a handle names, none for 0 (see `car`).
-pub fn car_or_none(handle: u32) -> Option<&'static CarEffects> {
-    (handle != 0).then(|| car(handle))
+    /// The car a handle names, none for 0 (see `car`).
+    pub fn car_or_none(&self, handle: u32) -> Option<&CarEffects> {
+        (handle != 0).then(|| self.car(handle))
+    }
 }
 
 impl CarEffects {
@@ -360,37 +365,33 @@ impl CarEffects {
         unsafe { std::mem::zeroed() }
     }
 
-    /// The car block a handle names (the original kept the block's whole matrix's and first
-    /// part matrix's addresses; a block handle here, set by `drive::share_car_state`), none
-    /// when 0.
-    fn block_of(handle: &Dword) -> Option<&'static crate::physics::car_store::Car> {
-        crate::race::blocks_store::car_of(handle.get())
-    }
-
-    /// The car's whole matrix (the block's +0x8C0, the original's +0x24); refused when no
-    /// block is set (the original reads from address 0).
-    pub fn whole(&self) -> Result<&'static [crate::session::Float; 16], crate::errors::BadInput> {
-        Self::block_of(&self.whole_block)
+    /// The car's whole matrix (the block's +0x8C0, the original's +0x24; the original kept
+    /// the matrix's address, a block handle here, set by `drive::share_car_state`); refused
+    /// when no block is set (the original reads from address 0).
+    pub fn whole<'a>(&self, blocks: &'a CarBlocks) -> Result<&'a [Float; 16], BadInput> {
+        blocks
+            .of(self.whole_block.get())
             .map(|b| &b.whole_matrix)
-            .ok_or(crate::errors::BadInput("a car record without its block"))
+            .ok_or(BadInput("a car record without its block"))
     }
 
     /// The car's four part matrices (the block's +0x740, the original's +0x28); refused when no
     /// block is set.
-    pub fn parts(&self) -> Result<&'static [crate::session::Float; 64], crate::errors::BadInput> {
-        Self::block_of(&self.parts_block)
+    pub fn parts<'a>(&self, blocks: &'a CarBlocks) -> Result<&'a [Float; 64], BadInput> {
+        blocks
+            .of(self.parts_block.get())
             .map(|b| &b.part_matrices)
-            .ok_or(crate::errors::BadInput("a car record without its block"))
+            .ok_or(BadInput("a car record without its block"))
     }
 
     /// Whether the whole matrix's block is set.
-    pub fn has_whole(&self) -> bool {
-        Self::block_of(&self.whole_block).is_some()
+    pub fn has_whole(&self, blocks: &CarBlocks) -> bool {
+        blocks.of(self.whole_block.get()).is_some()
     }
 
     /// Whether the part matrices' block is set.
-    pub fn has_parts(&self) -> bool {
-        Self::block_of(&self.parts_block).is_some()
+    pub fn has_parts(&self, blocks: &CarBlocks) -> bool {
+        blocks.of(self.parts_block.get()).is_some()
     }
 
     /// Names block `handle` for `whole` and `parts`.

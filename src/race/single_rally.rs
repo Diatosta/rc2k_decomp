@@ -535,7 +535,7 @@ pub fn step(o: crate::owners::Owners<'static>, call: Call) -> Result<(), Refused
         Call::StopMusic => crate::sound::stop_music::stop_music(o.audio, o.system),
         Call::SetRaceScreenMode => crate::race::race_shell::set_race_screen_mode(o.gfx, o.system),
         Call::ShowLoadingPicture => {
-            crate::menu::show_loading_picture::show_loading_picture_in(o.menus, o.gfx, o.system)?;
+            crate::menu::show_loading_picture::show_loading_picture_in(o)?;
         }
         Call::SetUpRaceSoundObjects => crate::race::sound_tables::set_up_race_sound_objects(
             race,

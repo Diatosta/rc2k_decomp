@@ -38,6 +38,7 @@ fn read<const N: usize>(
 }
 
 pub fn open_installer(
+    so: crate::strings::append_string_by_id::StringOwners<'static>,
     install: &'static crate::install::owner::Install,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
@@ -78,6 +79,7 @@ pub fn open_installer(
         crate::text::blend_font::BLENDED_PALETTE.get(),
         crate::text::blend_font::BLENDED_PALETTE.get(),
         gfx,
+        system,
     );
     // gfx::load_picture: its carry is not read.
     crate::gfx::load_picture::load_picture_with(&install.names.backdrop, gfx, system)?;
@@ -87,9 +89,9 @@ pub fn open_installer(
         .flags
         .set(gfx.display.mode.mode_flags.get() & 0xFFF);
     crate::gfx::picture_as_surface::picture_as_surface(gfx)?;
-    draw_string(0x94, FONT_94, 0x316, 0x2F, gfx)?;
-    draw_string(0x1000, FONT_1000, 0x320, 0x24B, gfx)?;
-    draw_string(0x1002, FONT_1002, 0, 0x24B, gfx)?;
+    draw_string(so, 0x94, FONT_94, 0x316, 0x2F, gfx)?;
+    draw_string(so, 0x1000, FONT_1000, 0x320, 0x24B, gfx)?;
+    draw_string(so, 0x1002, FONT_1002, 0, 0x24B, gfx)?;
     copy_picture(gfx, system)?;
     show();
     Ok(())

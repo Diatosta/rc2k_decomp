@@ -19,6 +19,7 @@ pub fn put_mud_texel(
     y: u32,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<u32, Refused> {
     let drawing = &gfx.drawing;
     let Some((x, y)) = texel_place(x, y, scene) else {
@@ -33,5 +34,5 @@ pub fn put_mud_texel(
     ) {
         return Ok(components);
     }
-    put_surface_pixel(components, x, y, gfx)
+    put_surface_pixel(components, x, y, gfx, system)
 }

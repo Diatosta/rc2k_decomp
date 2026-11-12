@@ -92,7 +92,7 @@ pub fn set_up_front_end_scene_in(o: crate::owners::Owners<'static>) -> Result<()
     let frame = &race.frame;
     let course = &race.course;
     crate::session::write_bits(&shared.vars.bar_span, [0u32, 100]);
-    crate::menu::show_loading_picture::show_loading_picture_in(o.menus, o.gfx, o.system)?;
+    crate::menu::show_loading_picture::show_loading_picture_in(o)?;
     reset_texture_tables(scene);
     for (count, first, levels, tag) in NEEDS {
         for texture in first..first + count {

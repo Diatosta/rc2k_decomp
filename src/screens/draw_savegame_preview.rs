@@ -13,7 +13,6 @@
 //! (`menu::table_calls`).
 
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
 use crate::saves::read_savegame_slot::read_savegame_slot_in;
 use crate::screens::draw_empty_savegame::draw_empty_savegame;
 use crate::screens::draw_savegame_details::draw_savegame_details;
@@ -23,11 +22,12 @@ use crate::text::draw_text::Canvas;
 
 /// Returns the carry flag of the panel drawn.
 pub fn draw_savegame_preview(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     saves: &crate::saves::owner::Saves,
     system: &crate::system::owner::System,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
+    let menus = o.menus;
     let savegame_preview = &saves.savegame_preview;
     let tables = &menus.tables;
     // The logic is in `rc2k_core::screens::savegame_preview::preview` (the slot); the panels
@@ -42,7 +42,7 @@ pub fn draw_savegame_preview(
         Preview::NoSlot => {
             savegame_preview.nothing_to_show.set(1u32);
             savegame_preview.shown_slot.set(NO_SLOT);
-            return draw_empty_savegame(canvas);
+            return draw_empty_savegame(o, canvas);
         }
         Preview::Slot { slot, read: true } => {
             // Refused before anything is written: a slot past the list.
@@ -53,8 +53,8 @@ pub fn draw_savegame_preview(
         Preview::Slot { .. } => {}
     }
     if savegame_preview.nothing_to_show.get() == 1 {
-        draw_empty_savegame(canvas)
+        draw_empty_savegame(o, canvas)
     } else {
-        draw_savegame_details(tables, saves, system, canvas)
+        draw_savegame_details(o, tables, saves, system, canvas)
     }
 }

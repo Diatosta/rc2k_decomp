@@ -13,6 +13,7 @@ use rc2k_core::install::layout;
 
 /// The records of `table` drawn at (x, y) on. An empty table is refused.
 pub fn draw_string_list(
+    so: crate::strings::append_string_by_id::StringOwners<'static>,
     table: &[&StringRecord],
     x: u32,
     y: u32,
@@ -24,7 +25,7 @@ pub fn draw_string_list(
         let font = PageLink::from_raw(record.font.get())
             .font()
             .unwrap_or_else(|e| crate::install::installer::refuse(e));
-        draw_string(record.string.get(), font, x, y, gfx)?;
+        draw_string(so, record.string.get(), font, x, y, gfx)?;
     }
     Ok(())
 }

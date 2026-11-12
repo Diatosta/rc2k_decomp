@@ -931,7 +931,7 @@ pub fn cast_car_shadows(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
         // Each car's shadow from its own block (the original loaded it into the work car,
         // `drive::load_car`, and left the last one there for the rest of the view:
         // `notes/bugs.md`).
-        let car = race.shared.work.block_car(n as usize, "a car's block")?;
+        let car = race.shared.race_car_or(n as usize, "a car's block")?;
         if !casts_shadow(
             ctx.view
                 .cars

@@ -164,7 +164,7 @@ pub fn share_car_state_at(
     for (r, l) in LIGHT_MOVES {
         r(o).set_bits(l(light).get());
     }
-    o.set_block(crate::race::blocks_store::handle_of_car(car));
+    o.set_block(race.shared.car_blocks.handle_of(car));
     o.engine_speed.set(x87::loaded(&car.engine_speed));
     o.model.set(n);
     for (r, b) in MOVES_A {
@@ -256,7 +256,6 @@ pub fn share_car_state(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::race::blocks_store::own_car;
     use crate::race::effects_settings_store::EFFECTS_SETTINGS;
     use crate::race::light_records_store::LIGHT_RECORDS;
 
@@ -271,7 +270,7 @@ mod tests {
     #[test]
     fn the_tables_sit_where_the_original_moved_them() {
         let o = &EFFECTS_SETTINGS.cars[0];
-        let car = own_car();
+        let car = &crate::race::owner::race().car_blocks().cars[0];
         let light = &LIGHT_RECORDS.records[0];
         let lbase = core::ptr::from_ref(light).addr();
         let lights = [(0x14, 0x34), (0x18, 0x38), (0xC, 0x2C), (0x10, 0x30)];

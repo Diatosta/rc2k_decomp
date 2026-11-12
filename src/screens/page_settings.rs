@@ -34,20 +34,33 @@ pub fn load_audio_settings(menus: &Menus, audio: &crate::audio::owner::Audio) {
 }
 
 /// `strings::append_string_by_id` into `out`.
-fn push_id(out: &mut Vec<u8>, id: u32) -> Result<(), BadInput> {
-    crate::strings::append_string_by_id::push_string(out, id)
+fn push_id(
+    so: crate::strings::append_string_by_id::StringOwners<'_>,
+    out: &mut Vec<u8>,
+    id: u32,
+) -> Result<(), BadInput> {
+    crate::strings::append_string_by_id::push_string(so, out, id)
 }
 
 /// The stage line string `id`, " ", the record's +0x40 as a fraction of 6
 /// (`strings::append_fraction`), ": ", the name of its track-pack entry
 /// (`records::trakpak_entry`'s first dword, a string id), and its NUL.
-pub fn stage_line_bytes(id: u32, record: RecordRef) -> Result<Vec<u8>, Refused> {
-    crate::screens::draw_stage_heading::heading_text(record, id)
+pub fn stage_line_bytes(
+    so: crate::strings::append_string_by_id::StringOwners<'_>,
+    id: u32,
+    record: RecordRef,
+) -> Result<Vec<u8>, Refused> {
+    crate::screens::draw_stage_heading::heading_text(so, record, id)
 }
 
 /// The stage line both stage pages build in the line buffer.
-fn stage_line(text: &TextBuffers, id: u32, record: RecordRef) -> Result<(), Refused> {
-    let line = stage_line_bytes(id, record)?;
+fn stage_line(
+    so: crate::strings::append_string_by_id::StringOwners<'_>,
+    text: &TextBuffers,
+    id: u32,
+    record: RecordRef,
+) -> Result<(), Refused> {
+    let line = stage_line_bytes(so, id, record)?;
     if line.len() > rc2k_core::screens::page_values::STAGE_LINE_ROOM {
         return Err(BadInput("a stage line past its buffer").into());
     }
@@ -108,9 +121,15 @@ pub fn stage_options_texts(o: Owners<'static>) -> Result<(), Refused> {
     set_item(items, 2, second)?;
     let (base, record) = stage_record(stages, a, b, menus.tables.captions.shown_stage.get())?;
     set_item(items, 3, base.title()?)?;
-    stage_line(text, 0x481, record)?;
+    stage_line(
+        crate::strings::append_string_by_id::StringOwners::of(o),
+        text,
+        0x481,
+        record,
+    )?;
     let mut caption = Vec::new();
     push_id(
+        crate::strings::append_string_by_id::StringOwners::of(o),
         &mut caption,
         stage_options_caption(menus.screens.state.menus.caption_choice.get()),
     )?;
@@ -152,5 +171,10 @@ pub fn stage_choice_texts(o: Owners<'static>) -> Result<(), Refused> {
     )?;
     let (base, record) = stage_record(stages, a, b, menus.screens.event.stage_number.get())?;
     crate::cells::store_value::<u32>(&menus.tables.menus.labels, item_1, base.title()?)?;
-    stage_line(text, 0x482, record)
+    stage_line(
+        crate::strings::append_string_by_id::StringOwners::of(o),
+        text,
+        0x482,
+        record,
+    )
 }

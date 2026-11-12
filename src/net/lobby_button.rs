@@ -20,6 +20,7 @@ use rc2k_core::net::screens;
     reason = "the button's string, item and place, and the owners"
 )]
 pub fn lobby_button(
+    so: crate::strings::append_string_by_id::StringOwners<'static>,
     net: &Net,
     install: &Install,
     string: u32,
@@ -31,6 +32,6 @@ pub fn lobby_button(
 ) -> Result<u32, Refused> {
     // Converted: `rc2k_core::net::screens` (`lobby_button_flags`, `next_button_x`).
     let flags = screens::lobby_button_flags(net.vars.own.state(), item, net.vars.after_race.get());
-    draw_button(net, install, string, flags, x, y, item, gfx, menus)?;
+    draw_button(so, net, install, string, flags, x, y, item, gfx, menus)?;
     Ok(screens::next_button_x(x, net.button.get().width.get()))
 }

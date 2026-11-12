@@ -98,7 +98,7 @@ pub fn set_up_surface(
         let data = u32::from_le_bytes(picture[at..at + 4].try_into().expect("four bytes"));
         let mask = u32::from_le_bytes(mask[at..at + 4].try_into().expect("four bytes"));
         let alpha = ((mask << 8) & 0xFF00_0000) ^ 0xFF00_0000;
-        put_pixel((data & 0xFF_FFFF) | alpha, n & 0xFF, n >> 8, gfx)?;
+        put_pixel((data & 0xFF_FFFF) | alpha, n & 0xFF, n >> 8, gfx, system)?;
     }
     lock(
         gfx,

@@ -51,6 +51,7 @@ pub fn muddy_texel(
     number: u32,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let course = &race.course;
     // Converted: `rc2k_core::race::mud::{shuffled_place, strength_index, muddy,
@@ -59,11 +60,11 @@ pub fn muddy_texel(
     let n = texture_and_mud(&race.shared)?;
     let (x, y) = shuffled_place(race, number);
     let strength = strength_at(n, x, y)?;
-    let texel = { mud_texel(strength_row(y), x, y, scene, gfx) }?;
+    let texel = { mud_texel(strength_row(y), x, y, scene, gfx, system) }?;
     if !muddy(texel) {
         return Ok(());
     }
     let tinted = tint_to_mud_colour(course, texel, tint_amount(strength));
-    put_mud_texel(tinted | MUD_TOP, x, y, scene, gfx)?;
+    put_mud_texel(tinted | MUD_TOP, x, y, scene, gfx, system)?;
     Ok(())
 }

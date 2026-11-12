@@ -26,10 +26,11 @@ fn names(menus: &Menus) -> [(&dyn DwordLike, u32); 6] {
 }
 
 pub fn draw_sound_settings(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     audio: &crate::audio::owner::Audio,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
+    let menus = o.menus;
     // The logic is in `rc2k_core::screens::settings_pages::{sound_items, sound}`.
     use crate::screens::game_screen::SettingsScreen;
     // The switches, by their items 4, 5 and 6: 3D, EAX and A3D2 there.
@@ -43,6 +44,6 @@ pub fn draw_sound_settings(
         }
     }
     let ids = names(menus).map(|(setting, first)| setting.get().wrapping_add(first));
-    rc2k_core::screens::settings_pages::sound(&mut SettingsScreen::new(canvas), ids)?;
+    rc2k_core::screens::settings_pages::sound(&mut SettingsScreen::new(canvas, o), ids)?;
     Ok(())
 }

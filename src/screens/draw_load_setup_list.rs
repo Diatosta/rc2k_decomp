@@ -7,16 +7,19 @@
 //! and draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-pub fn draw_load_setup_list(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_load_setup_list(
+    o: crate::owners::Owners<'static>,
+    canvas: &mut dyn Canvas,
+) -> Result<(), Refused> {
+    let menus = o.menus;
     // The logic is in `rc2k_core::screens::slot_lists::setup_page`.
     let page: u32 = menus.tables.pages.setup_slot_page.get();
     rc2k_core::screens::slot_lists::setup_page(
-        &mut crate::screens::game_screen::SlotScreen::new(canvas),
+        &mut crate::screens::game_screen::SlotScreen::new(canvas, o),
         rc2k_core::screens::slot_lists::LOAD_SETUP_TITLE,
         page,
         |slot| {

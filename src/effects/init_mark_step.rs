@@ -32,7 +32,7 @@ pub fn init_mark_step(
         } else {
             race.shared.view.players.bits()
         };
-        let records = race.shared.work.car_records_resolved()?;
+        let records = race.shared.car_records()?;
         // `check_cars` holds the count to 8 before `record` is asked.
         let record = |n: u32| records[n as usize];
         race::check_cars(count, |n| race.shared.work.has_car_block(n as usize))?;
@@ -41,18 +41,18 @@ pub fn init_mark_step(
             .set(race.shared.view.race_cars.get());
         // The one object the effects' shapes are made from: the player's car (the original's
         // fixed 0x50 is the first car, not a joined machine's).
-        let own = crate::race::blocks_store::own_car_number() as u32;
+        let own = race.shared.own_car_number(net.vars.session.get()) as u32;
         race.effects_settings()
             .first_object
             .set_bits(0x50 + 0x14 * own);
         race.effects_settings().object_count.set_bits(1u32);
         let file = crate::race::mud::car_file_number(
             race.kind_tables(),
-            crate::race::blocks_store::own_car().car_kind.bits(),
+            race.shared.own_car(net.vars.session.get()).car_kind.bits(),
         );
         race.effects_settings().mark_car_file_number.set_bits(file);
         for n in 0..count {
-            let kind = race.shared.work.car_or_end(n as usize).car_kind.get() as i32;
+            let kind = race.shared.race_car_or_end(n as usize).car_kind.get() as i32;
             // Rows of 0x134 bytes, from the sixth group of the kind's light record on, run on
             // past it as the original does.
             let row = (0x6C + race::kind_row(kind)) as u32 as usize;

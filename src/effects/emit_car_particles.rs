@@ -28,7 +28,7 @@ use crate::session::{read_bits, write_bits};
 
 /// `o` is the car's object.
 pub fn emit_car_particles(effects: &Effects, o: &'static CarEffects) -> Result<(), Refused> {
-    o.whole()?;
+    o.whole(effects.car_blocks()?)?;
     let k = read_bits(&effects.kinds.emitter.place_k);
     let place = |wheel: usize, axis: usize| &o.records[wheel].place[axis];
     let z1 = x87::int_times(o.axles[0].get() as i32, k[0]);
@@ -52,7 +52,7 @@ pub fn emit_car_particles(effects: &Effects, o: &'static CarEffects) -> Result<(
         (bh::ld(o.records[0].place[2].get()).abs() + bh::ld(o.records[2].place[2].get()).abs())
             * bh::ld(effects.setup.floats.half.get()),
     ) as u32);
-    let m = o.whole()?;
+    let m = o.whole(effects.car_blocks()?)?;
     for wheel in [0, 1, 2, 3] {
         let at = &o.records[wheel].place;
         let turned = rotate_point(

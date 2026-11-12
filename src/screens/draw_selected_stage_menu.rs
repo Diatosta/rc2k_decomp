@@ -42,12 +42,13 @@ pub fn menu_titles(
 /// Returns the carry flag. Refuses a missing selection or menu: the original reads or writes
 /// through null.
 pub fn draw_selected_stage_menu(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
     system: &crate::system::owner::System,
     gfx: &crate::gfx::owner::Gfx,
     race: &crate::race::owner::Race,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
+    let menus = o.menus;
     let play = &menus.play;
     let screens = &menus.screens;
     let (Some(sel), Some((group_title, table_title))) = (
@@ -65,9 +66,13 @@ pub fn draw_selected_stage_menu(
     race.shared.state.settings.direction.set(sel.group);
     item_1.set(table_title);
 
-    build_second_heading(race, sel.record)?;
-    draw_stage_body(menus, gfx, sel.record, true, canvas)?;
-    draw_records_for_group(menus, system, sel.group, sel.record, canvas)
+    build_second_heading(
+        crate::strings::append_string_by_id::StringOwners::of(o),
+        race,
+        sel.record,
+    )?;
+    draw_stage_body(o, gfx, sel.record, true, canvas)?;
+    draw_records_for_group(o, system, sel.group, sel.record, canvas)
 }
 
 //

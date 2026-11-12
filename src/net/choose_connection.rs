@@ -42,7 +42,13 @@ pub fn choose_connection(o: crate::owners::Owners<'static>) -> Result<u32, Refus
     install.pages.choice.set(0);
     loop {
         run_frame(o.system, || {
-            crate::net::connections_frame::connections_frame(net, install, o.gfx, o.system)
+            crate::net::connections_frame::connections_frame(
+                crate::strings::append_string_by_id::StringOwners::of(o),
+                net,
+                install,
+                o.gfx,
+                o.system,
+            )
         })?;
         install
             .pages

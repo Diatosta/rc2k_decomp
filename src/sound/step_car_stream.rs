@@ -21,6 +21,7 @@ pub fn step_car_stream(
     start: &mut dyn FnMut(u32, u32),
     menus: &Menus,
     sound: &crate::sound::owner::Sound,
+    names: &crate::audio::names_store::SampleNames,
 ) -> Result<(), BadInput> {
     // Converted: `rc2k_core::sound::race::stream_step`.
     use rc2k_core::sound::race::{StreamStep, stream_step};
@@ -32,7 +33,7 @@ pub fn step_car_stream(
         playing,
         sound.race.car_stream.get().place.get(),
         |place| {
-            crate::menu::texts_store::speech_entry(list, place).unwrap_or_else(|e| {
+            crate::menu::texts_store::speech_entry(names, list, place).unwrap_or_else(|e| {
                 failed.set(Some(e));
                 0
             })
@@ -69,5 +70,6 @@ pub fn step_car_stream_in_game(
         },
         menus,
         sound,
+        &audio.sample_names,
     )
 }

@@ -11,8 +11,11 @@ use crate::hud::draw_view_strip::Overlay;
 use crate::hud::overlay_pass::shown_layout;
 
 /// Whether the strip of the view block `handle` names is shown (see the header).
-fn flashing(handle: u32) -> Result<bool, BadInput> {
-    let car = crate::race::blocks_store::car_of(handle).ok_or(BadInput("a view's block"))?;
+fn flashing(shared: &crate::race::owner_shared::RaceShared, handle: u32) -> Result<bool, BadInput> {
+    let car = shared
+        .car_blocks
+        .of(handle)
+        .ok_or(BadInput("a view's block"))?;
     Ok(rc2k_core::hud::strips::strip(
         car.view_covered.get(),
         car.notice_shown.get(),
@@ -29,11 +32,13 @@ pub fn draw_view_strips(overlay: &Overlay) -> Result<(), Refused> {
     use rc2k_core::hud::strips::{SECOND_VIEW, TEXTURES};
     {
         if race.shared.replay_file.hold_car_revs.get() == 0 {
-            if flashing(race.shared.view.view_blocks[0].get())? {
+            if flashing(&race.shared, race.shared.view.view_blocks[0].get())? {
                 scratch.polygon.polygon_textures[0].set(TEXTURES[0]);
                 draw_view_strip(overlay, shown_layout(&race.shared))?;
             }
-            if shown_layout(&race.shared) != 0 && flashing(race.shared.view.view_blocks[1].get())? {
+            if shown_layout(&race.shared) != 0
+                && flashing(&race.shared, race.shared.view.view_blocks[1].get())?
+            {
                 scratch.polygon.polygon_textures[0].set(TEXTURES[1]);
                 draw_view_strip(
                     overlay,

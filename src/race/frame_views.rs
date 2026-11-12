@@ -236,9 +236,9 @@ pub fn copy_mirror_picture(
         if format == 0 {
             return Err(BadInput("a surface without its format").into());
         }
-        let format = crate::gfx::pixel_format::layout(format)?;
+        let format = crate::gfx::pixel_format::layout(system, gfx, format)?;
         let format = &format;
-        let screen = crate::gfx::pixel_format::surface_format()?;
+        let screen = crate::gfx::pixel_format::surface_format(system);
         let copy = PictureCopy {
             width: gfx_drawing.draw_surface.width.get(),
             height: gfx_drawing.draw_surface.height.get(),
@@ -571,9 +571,9 @@ pub fn run_view_marks(
         return Ok(());
     }
     let view = ctx.view.drawn_view(race);
-    let records = race.shared.work.car_records_resolved()?;
+    let records = race.shared.car_records()?;
     check_view_marks(
-        u32::from(race.shared.view.view_car(view as usize).is_some()),
+        u32::from(race.shared.view_car(view as usize).is_some()),
         |b| u32::from(records.get(b as usize).is_some()),
         || effects.setup.settings.is_set.get(),
     )?;
@@ -596,21 +596,14 @@ pub fn run_view_marks(
         race,
         sound,
         scene,
+        ctx.net,
         crate::drive::set_listener::ListenerView::of(ctx.view, race),
     )?;
     let first = first_word(race.shared.vars.run_kind.get());
     for b in 0..CAR_RECORDS {
-        race.shared
-            .work
-            .car_record(b as usize)?
-            .streaks_on
-            .set(first);
+        race.shared.car_record(b as usize)?.streaks_on.set(first);
     }
-    race.shared
-        .work
-        .car_record(view as usize)?
-        .streaks_on
-        .set(1);
+    race.shared.car_record(view as usize)?.streaks_on.set(1);
     let centre = (
         ctx.view.polygon.window.view_centre[0].bits(),
         ctx.view.polygon.window.view_centre[1].bits(),
@@ -634,6 +627,7 @@ pub fn run_view_marks(
                 race,
                 scene,
                 effects,
+                system,
                 sound,
                 crate::effects::run_frame::EffectsView::of(ctx.race, ctx.view),
             )
