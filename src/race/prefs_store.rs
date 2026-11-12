@@ -3,10 +3,11 @@
 //! frames and read by the drawing parts through their `workers::DrawReads`. Names are readings
 //! unless IDA's.
 
+use crate::cells::ZeroCells;
 use crate::session::PlainDword;
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct StagePrefs {
     /// +0x0 (0x608CB4): the first 0x100 bytes of `g_stagePrefs`, the stage's `localdat` (0x206C bytes read in place; `race::stage_prefs`); not used by name.
     pub prefs_head: [PlainDword; 64],
@@ -140,7 +141,40 @@ pub struct StagePrefs {
 /// The piece (a field of `race::owner::Race::course`), with the image's first values.
 impl StagePrefs {
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        Self {
+            lit_colour: [
+                PlainDword::new(0xFF),
+                PlainDword::new(0xFF),
+                PlainDword::new(0xFF),
+            ],
+            unused_624: {
+                let mut a: [PlainDword; 3] = ZeroCells::ZERO;
+                a[2] = PlainDword::new(1);
+                a
+            },
+            unused_638: {
+                let mut a: [PlainDword; 5] = ZeroCells::ZERO;
+                a[0] = PlainDword::new(1);
+                a
+            },
+            scene_size_a: PlainDword::new(0x100),
+            scene_size_b: PlainDword::new(0x100),
+            car_light_table: {
+                let mut a: [PlainDword; 3] = ZeroCells::ZERO;
+                a[0] = PlainDword::new(0xFF);
+                a
+            },
+            lamp_table_c: PlainDword::new(0xFF),
+            glare_bytes: [PlainDword::new(0xFF), PlainDword::new(0xFF)],
+            grid_reach: PlainDword::new(6),
+            mud_colour: [
+                PlainDword::new(0x80),
+                PlainDword::new(0x40),
+                PlainDword::new(0x20),
+            ],
+            shine_scale: PlainDword::new(0x200),
+            ..ZeroCells::ZERO
+        }
     }
 }
 

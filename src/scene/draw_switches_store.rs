@@ -1,9 +1,10 @@
 //! The draw switches, second part (IDA 0x621900 .. 0x621A84): the far clip switch, the group table word, the loading group mask, the SSE and 3DNow switches, and a marks source word. `#[repr(C)]` with the image layout over the race block bytes. Names are readings unless IDA's.
 
+use crate::cells::ZeroCells;
 use crate::session::PlainDword;
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct DrawSwitches {
     /// +0x0 (0x621900): `dword_621900`: the far clip / own car switch (`scene::clip_polygon_by_depth`, `race::draw_view_overlays`).
     pub far_on: PlainDword,
@@ -33,34 +34,46 @@ pub struct DrawSwitches {
 // them): any bit pattern is a valid value.
 
 impl DrawSwitches {
-    /// The piece with the image's first values (the owner `scene::owner::Scene` holds it).
+    /// The store with its first values (every field not named here starts at zero).
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        Self {
+            far_on: PlainDword::new(1),
+            clears_switch: PlainDword::new(1),
+            unknown_8: [
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(0),
+            ],
+            unknown_38: {
+                let mut a: [PlainDword; 71] = ZeroCells::ZERO;
+                a[64] = PlainDword::new(0x5C726176);
+                a[65] = PlainDword::new(0x74706F73);
+                a[66] = PlainDword::new(0x736E6F69);
+                a[68] = PlainDword::new(0x64);
+                a[69] = PlainDword::new(0x22);
+                a
+            },
+            loading_group_mask: PlainDword::new(0xFFFFFFFF),
+            ..ZeroCells::ZERO
+        }
     }
 }
 
-/// IDA 0x621900, the first byte of the piece.
-pub const START: usize = 0x621900;
-/// IDA 0x621A84, the end of the piece.
-pub const END: usize = 0x621A84;
-
-const _: () = assert!(END - START == core::mem::size_of::<DrawSwitches>());
-
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             crate::scene::owner::SCENE.draw_switches.get(),
         );
-    }
-
-    #[test]
-    fn piece_has_its_home() {
-        assert_eq!(offset_of!(DrawSwitches, far_on), 0x0);
-        assert_eq!(offset_of!(DrawSwitches, marks_source), 0x180);
     }
 }

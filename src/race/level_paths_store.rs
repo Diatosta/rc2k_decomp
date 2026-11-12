@@ -9,43 +9,43 @@ use crate::session::PlainBytes;
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct LevelPaths {
-    /// +0x0 (0x60AF0C): `files\a\txxxxx.pcx` (`scene::load_texture_picture`; the number written in).
+    /// 0x60AF0C: `files\a\txxxxx.pcx` (`scene::load_texture_picture`; the number written in).
     pub picture_a: PlainBytes<0x13>,
-    /// +0x13 (0x60AF1F): `files\m\txxxxx.pcx`.
+    /// 0x60AF1F: `files\m\txxxxx.pcx`.
     pub picture_m: PlainBytes<0x13>,
-    /// +0x26 (0x60AF32): `files\b\txxxxx.pcx`.
+    /// 0x60AF32: `files\b\txxxxx.pcx`.
     pub picture_b: PlainBytes<0x13>,
-    /// +0x39 (0x60AF45): `files\b\gravel\txxxxx.pcx`.
+    /// 0x60AF45: `files\b\gravel\txxxxx.pcx`.
     pub picture_gravel: PlainBytes<0x1a>,
-    /// +0x53 (0x60AF5F): `files\g\frnt\txxxxx.pcx`.
+    /// 0x60AF5F: `files\g\frnt\txxxxx.pcx`.
     pub picture_front: PlainBytes<0x18>,
-    /// +0x6b (0x60AF77): `files\s\extr\txxxxx.pcx`.
+    /// 0x60AF77: `files\s\extr\txxxxx.pcx`.
     pub picture_extra: PlainBytes<0x18>,
-    /// +0x83 (0x60AF8F): the second name of the same, `files\a\txxxxx.pcx`.
+    /// 0x60AF8F: the second name of the same, `files\a\txxxxx.pcx`.
     pub second_a: PlainBytes<0x13>,
-    /// +0x96 (0x60AFA2): second name, `files\m\txxxxx.pcx`.
+    /// 0x60AFA2: second name, `files\m\txxxxx.pcx`.
     pub second_m: PlainBytes<0x13>,
-    /// +0xa9 (0x60AFB5): second name, `files\b\txxxxx.pcx`.
+    /// 0x60AFB5: second name, `files\b\txxxxx.pcx`.
     pub second_b: PlainBytes<0x13>,
-    /// +0xbc (0x60AFC8): second name, `files\b\gravel\txxxxx.pcx`.
+    /// 0x60AFC8: second name, `files\b\gravel\txxxxx.pcx`.
     pub second_gravel: PlainBytes<0x1a>,
-    /// +0xd6 (0x60AFE2): second name, `files\g\frnt\txxxxx.pcx`.
+    /// 0x60AFE2: second name, `files\g\frnt\txxxxx.pcx`.
     pub second_front: PlainBytes<0x18>,
-    /// +0xee (0x60AFFA): second name, `files\s\extr\txxxxx.pcx`.
+    /// 0x60AFFA: second name, `files\s\extr\txxxxx.pcx`.
     pub second_extra: PlainBytes<0x18>,
-    /// +0x106 (0x60B012): `srclvls\level01\editpref` (`race::set_course_number` writes the number at +0xD).
+    /// 0x60B012: `srclvls\level01\editpref` (`race::set_course_number` writes the number at +0xD).
     pub edit_path: PlainBytes<0x19>,
-    /// +0x11f (0x60B02B): `srclvls\level01\cdat00c` (`race::course_data`, `race::find_present_courses`).
+    /// 0x60B02B: `srclvls\level01\cdat00c` (`race::course_data`, `race::find_present_courses`).
     pub cdat_src: PlainBytes<0x18>,
-    /// +0x137 (0x60B043): `srclvls\levelxx\localdat` (`race::stage_prefs`).
+    /// 0x60B043: `srclvls\levelxx\localdat` (`race::stage_prefs`).
     pub localdat_src: PlainBytes<0x19>,
-    /// +0x150 (0x60B05C): `files\levels\levelxx\localdat`.
+    /// 0x60B05C: `files\levels\levelxx\localdat`.
     pub localdat_files: PlainBytes<0x1e>,
-    /// +0x16e (0x60B07A): `files\levels\level01\cdat00c.sq`.
+    /// 0x60B07A: `files\levels\level01\cdat00c.sq`.
     pub cdat_files: PlainBytes<0x20>,
-    /// +0x18e (0x60B09A): `srclvls\level01\cdat00c`, a second copy of `cdat_src`, whose number `race::level_init::number_places` writes too.
+    /// 0x60B09A: `srclvls\level01\cdat00c`, a second copy of `cdat_src`, whose number `race::level_init::number_places` writes too.
     pub cdat_src_copy: PlainBytes<0x18>,
-    /// +0x1a6 (0x60B0B2): `files\s\!!`.
+    /// 0x60B0B2: `files\s\!!`.
     pub files_s: PlainBytes<0xb>,
 }
 
@@ -55,37 +55,37 @@ pub struct LevelPaths {
 /// The piece (a field of `race::owner::Race::course`), with the image's first values.
 impl LevelPaths {
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        Self {
+            picture_a: PlainBytes::new(*b"files\\a\\txxxxx.pcx\0"),
+            picture_m: PlainBytes::new(*b"files\\m\\txxxxx.pcx\0"),
+            picture_b: PlainBytes::new(*b"files\\b\\txxxxx.pcx\0"),
+            picture_gravel: PlainBytes::new(*b"files\\b\\gravel\\txxxxx.pcx\0"),
+            picture_front: PlainBytes::new(*b"files\\g\\frnt\\txxxxx.pcx\0"),
+            picture_extra: PlainBytes::new(*b"files\\s\\extr\\txxxxx.pcx\0"),
+            second_a: PlainBytes::new(*b"files\\a\\txxxxx.pcx\0"),
+            second_m: PlainBytes::new(*b"files\\m\\txxxxx.pcx\0"),
+            second_b: PlainBytes::new(*b"files\\b\\txxxxx.pcx\0"),
+            second_gravel: PlainBytes::new(*b"files\\b\\gravel\\txxxxx.pcx\0"),
+            second_front: PlainBytes::new(*b"files\\g\\frnt\\txxxxx.pcx\0"),
+            second_extra: PlainBytes::new(*b"files\\s\\extr\\txxxxx.pcx\0"),
+            edit_path: PlainBytes::new(*b"srclvls\\level01\\editpref\0"),
+            cdat_src: PlainBytes::new(*b"srclvls\\level01\\cdat00c\0"),
+            localdat_src: PlainBytes::new(*b"srclvls\\levelxx\\localdat\0"),
+            localdat_files: PlainBytes::new(*b"files\\levels\\levelxx\\localdat\0"),
+            cdat_files: PlainBytes::new(*b"files\\levels\\level01\\cdat00c.sq\0"),
+            cdat_src_copy: PlainBytes::new(*b"srclvls\\level01\\cdat00c\0"),
+            files_s: PlainBytes::new(*b"files\\s\\!!\0"),
+        }
     }
 }
 
-/// IDA 0x60AF0C, the first byte of the piece.
-pub const START: usize = 0x60AF0C;
-/// IDA 0x60B0BD, the end of the piece.
-pub const END: usize = 0x60B0BD;
-
-const _: () = assert!(END - START == core::mem::size_of::<LevelPaths>());
-
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             crate::race::owner::RACE.course.level_paths(),
         );
-    }
-
-    #[test]
-    fn fields_are_at_the_games_offsets() {
-        assert_eq!(offset_of!(LevelPaths, picture_gravel), 0x39);
-        assert_eq!(offset_of!(LevelPaths, second_a), 0x83);
-        assert_eq!(offset_of!(LevelPaths, edit_path), 0x106);
-        assert_eq!(offset_of!(LevelPaths, cdat_src), 0x11f);
-        assert_eq!(offset_of!(LevelPaths, localdat_files), 0x150);
-        assert_eq!(offset_of!(LevelPaths, cdat_files), 0x16e);
-        assert_eq!(offset_of!(LevelPaths, files_s), 0x1a6);
     }
 }

@@ -3055,13 +3055,7 @@ pub static GROUPS: &[Group] = &[
                 "torqu",
                 Shown::Float,
                 0x614750,
-                store_cell!(
-                    crate::physics::tables_store::START,
-                    |o| o.race.shared.physics_tables.get(),
-                    crate::physics::tables_store::PhysicsTables,
-                    0x614750,
-                    drive_torque
-                ),
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), drive_torque),
                 false,
                 (468, 424),
             ),
@@ -3070,13 +3064,7 @@ pub static GROUPS: &[Group] = &[
                 "inputst",
                 Shown::Hex,
                 0x613890,
-                store_cell!(
-                    crate::physics::tables_store::START,
-                    |o| o.race.shared.physics_tables.get(),
-                    crate::physics::tables_store::PhysicsTables,
-                    0x613890,
-                    input_steer
-                ),
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), input_steer),
                 false,
                 (468, 430),
             ),
@@ -3171,13 +3159,7 @@ pub static GROUPS: &[Group] = &[
                 "gripf",
                 Shown::Float,
                 0x614230,
-                store_cell!(
-                    crate::physics::tables_store::START,
-                    |o| o.race.shared.physics_tables.get(),
-                    crate::physics::tables_store::PhysicsTables,
-                    0x614230,
-                    surface_softness
-                ),
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), surface_softness),
                 false,
                 (468, 88),
             ),
@@ -3213,13 +3195,7 @@ pub static GROUPS: &[Group] = &[
                 "bodg fac",
                 Shown::Whole,
                 0x614148,
-                store_cell!(
-                    crate::physics::tables_store::START,
-                    |o| o.race.shared.physics_tables.get(),
-                    crate::physics::tables_store::PhysicsTables,
-                    0x614148,
-                    contact_step
-                ),
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), contact_step),
                 false,
                 (468, 112),
             ),
@@ -3255,13 +3231,7 @@ pub static GROUPS: &[Group] = &[
                 "hitbody",
                 Shown::Whole,
                 0x6D3028,
-                store_cell!(
-                    crate::physics::contact_store::START,
-                    |o| o.race.physics.contact,
-                    crate::physics::contact_store::ContactWork,
-                    0x6d3028,
-                    ground_contact_started
-                ),
+                indexed_cell!(|o| o.race.physics.contact, ground_contact_started),
                 false,
                 (468, 136),
             ),
@@ -3270,13 +3240,7 @@ pub static GROUPS: &[Group] = &[
                 "deepbody",
                 Shown::Float,
                 0x6D3070,
-                store_cell!(
-                    crate::physics::contact_store::START,
-                    |o| o.race.physics.contact,
-                    crate::physics::contact_store::ContactWork,
-                    0x6d3070,
-                    wheel_share
-                ),
+                indexed_cell!(|o| o.race.physics.contact, wheel_share),
                 false,
                 (468, 142),
             ),
@@ -3321,13 +3285,7 @@ pub static GROUPS: &[Group] = &[
                 "maxugrpx",
                 Shown::Float,
                 0x614264,
-                store_cell!(
-                    crate::physics::tables_store::START,
-                    |o| o.race.shared.physics_tables.get(),
-                    crate::physics::tables_store::PhysicsTables,
-                    0x614264,
-                    slip_limit
-                ),
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), slip_limit),
                 false,
                 (468, 172),
             ),
@@ -3395,13 +3353,7 @@ pub static GROUPS: &[Group] = &[
                 "tracspd",
                 Shown::Float,
                 0x614168,
-                store_cell!(
-                    crate::physics::tables_store::START,
-                    |o| o.race.shared.physics_tables.get(),
-                    crate::physics::tables_store::PhysicsTables,
-                    0x614168,
-                    drive_speed_figure
-                ),
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), drive_speed_figure),
                 false,
                 (468, 214),
             ),
@@ -3473,13 +3425,7 @@ pub static GROUPS: &[Group] = &[
                 "grip t",
                 Shown::Float,
                 0x614260,
-                store_cell!(
-                    crate::physics::tables_store::START,
-                    |o| o.race.shared.physics_tables.get(),
-                    crate::physics::tables_store::PhysicsTables,
-                    0x614260,
-                    grip_limit
-                ),
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), grip_limit),
                 false,
                 (468, 262),
             ),

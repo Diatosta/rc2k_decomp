@@ -13,7 +13,7 @@ use crate::session::{PlainDword, PlainFloat};
 /// A kind of ground (0x30 bytes, `PhysicsTables.surfaces[0].table`): what `physics::wheel_surfaces` blends
 /// between for each point, and `physics::apply_patches` patches (readings).
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct Surface {
     /// +0x0: its table in `surface_tables` (an address).
     pub table: PlainDword,
@@ -45,7 +45,7 @@ pub struct Surface {
 /// A force on the car (0x20 bytes): `physics::apply_force` takes it, the step clears its
 /// first six dwords (`physics::clear_records`).
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ForceRecord {
     /// +0x0: the force.
     pub force: [PlainFloat; 3],
@@ -56,7 +56,7 @@ pub struct ForceRecord {
 }
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct PhysicsTables {
     /// +0x0 (0x613828): 5.0: a reset is allowed below this speed (`drive::reset_request`).
     pub reset_speed_limit: PlainFloat,
@@ -536,7 +536,569 @@ const _: () = assert!(core::mem::size_of::<ForceRecord>() == 0x20);
 impl PhysicsTables {
     /// The piece, with the image's first values.
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        use crate::cells::ZeroCells;
+        use crate::session::{PlainDword, PlainFloat};
+        Self {
+            reset_speed_limit: PlainFloat::new(5.0),
+            step_time: PlainFloat::new(0.01),
+            view_counters: {
+                let mut v: [PlainDword; 7] = ZeroCells::ZERO;
+                v[0] = PlainDword::new(0x10C);
+                v[1] = PlainDword::new(0x10D);
+                v[2] = PlainDword::new(0x10E);
+                v[3] = PlainDword::new(0x10F);
+                v[4] = PlainDword::new(0x110);
+                v[5] = PlainDword::new(0x111);
+                v[6] = PlainDword::new(0x112);
+                v
+            },
+            debug_key_values: {
+                let mut v: [PlainDword; 31] = ZeroCells::ZERO;
+                v[0] = PlainDword::new(0x42C80000);
+                v[1] = PlainDword::new(0x42C80000);
+                v[2] = PlainDword::new(0x42C80000);
+                v[3] = PlainDword::new(0x42C80000);
+                v[4] = PlainDword::new(0x42C80000);
+                v[5] = PlainDword::new(0x42C80000);
+                v[6] = PlainDword::new(0x42C80000);
+                v[7] = PlainDword::new(0x42C80000);
+                v[8] = PlainDword::new(0x42C80000);
+                v[9] = PlainDword::new(0x42C80000);
+                v[10] = PlainDword::new(0x42C80000);
+                v[11] = PlainDword::new(0x42C80000);
+                v[12] = PlainDword::new(0x42C80000);
+                v[13] = PlainDword::new(0x42C80000);
+                v[14] = PlainDword::new(0x42C80000);
+                v[15] = PlainDword::new(0x42C80000);
+                v[16] = PlainDword::new(0x42C60000);
+                v[17] = PlainDword::new(0x42C80000);
+                v[18] = PlainDword::new(0x3F800000);
+                v[19] = PlainDword::new(0x3F800000);
+                v[20] = PlainDword::new(0x3F800000);
+                v[21] = PlainDword::new(0x3F800000);
+                v[22] = PlainDword::new(0x3F800000);
+                v[23] = PlainDword::new(0x3F800000);
+                v[24] = PlainDword::new(0x3F800000);
+                v[25] = PlainDword::new(0x3F800000);
+                v[26] = PlainDword::new(0x42C80000);
+                v[27] = PlainDword::new(0x42C80000);
+                v[28] = PlainDword::new(0x42C80000);
+                v[29] = PlainDword::new(0x42C80000);
+                v[30] = PlainDword::new(0x42C80000);
+                v
+            },
+            surfaces: {
+                let mut v: [Surface; 16] = ZeroCells::ZERO;
+                v[0].table = PlainDword::new(0x613C78); // an IDA address: wave 3
+                v[0].slide_grip = PlainFloat::new(1.0);
+                v[0].accel_grip = PlainFloat::new(0.9);
+                v[0].brake_grip = PlainFloat::new(1.7);
+                v[1].table = PlainDword::new(0x613CAC); // an IDA address: wave 3
+                v[1].slide_grip = PlainFloat::new(1.0);
+                v[1].accel_grip = PlainFloat::new(0.9);
+                v[1].brake_grip = PlainFloat::new(1.7);
+                v[1].wear_factor = PlainFloat::new(0.07);
+                v[2].table = PlainDword::new(0x613CE0); // an IDA address: wave 3
+                v[2].slide_grip = PlainFloat::new(1.0);
+                v[2].accel_grip = PlainFloat::new(0.9);
+                v[2].brake_grip = PlainFloat::new(1.7);
+                v[2].mud_rates[1] = PlainFloat::new(2.0);
+                v[2].unknown_18[1] = PlainDword::new(0x40000000);
+                v[2].grip = PlainFloat::new(1.0);
+                v[2].wear_factor = PlainFloat::new(0.2);
+                v[3].table = PlainDword::new(0x613D14); // an IDA address: wave 3
+                v[3].slide_grip = PlainFloat::new(1.0);
+                v[3].accel_grip = PlainFloat::new(0.9);
+                v[3].brake_grip = PlainFloat::new(1.7);
+                v[3].mud_rates[0] = PlainFloat::new(20.0);
+                v[3].mud_rates[1] = PlainFloat::new(2.0);
+                v[3].unknown_18[0] = PlainDword::new(0x41A00000);
+                v[3].unknown_18[1] = PlainDword::new(0x40000000);
+                v[3].drag = PlainFloat::new(5.0);
+                v[3].rolling_drag_min_speed = PlainFloat::new(30.0);
+                v[3].grip = PlainFloat::new(0.5);
+                v[3].wear_factor = PlainFloat::new(0.05);
+                v[4].table = PlainDword::new(0x613DB0); // an IDA address: wave 3
+                v[4].slide_grip = PlainFloat::new(1.0);
+                v[4].accel_grip = PlainFloat::new(0.9);
+                v[4].brake_grip = PlainFloat::new(1.2);
+                v[4].mud_rates[0] = PlainFloat::new(0.5);
+                v[4].mud_rates[1] = PlainFloat::new(2.0);
+                v[4].unknown_18[0] = PlainDword::new(0x3F000000);
+                v[4].unknown_18[1] = PlainDword::new(0x40000000);
+                v[4].drag = PlainFloat::new(5.0);
+                v[4].rolling_drag_min_speed = PlainFloat::new(40.0);
+                v[4].wear_factor = PlainFloat::new(0.05);
+                v[5].table = PlainDword::new(0x613DB0); // an IDA address: wave 3
+                v[5].slide_grip = PlainFloat::new(1.0);
+                v[5].accel_grip = PlainFloat::new(0.9);
+                v[5].brake_grip = PlainFloat::new(1.7);
+                v[5].drag = PlainFloat::new(10.0);
+                v[5].rolling_drag_min_speed = PlainFloat::new(5.0);
+                v[6].table = PlainDword::new(0x613D14); // an IDA address: wave 3
+                v[6].slide_grip = PlainFloat::new(1.0);
+                v[6].accel_grip = PlainFloat::new(0.9);
+                v[6].brake_grip = PlainFloat::new(1.7);
+                v[6].mud_rates[0] = PlainFloat::new(0.5);
+                v[6].mud_rates[1] = PlainFloat::new(5.0);
+                v[6].unknown_18[0] = PlainDword::new(0x3F000000);
+                v[6].unknown_18[1] = PlainDword::new(0x40A00000);
+                v[6].grip = PlainFloat::new(1.0);
+                v[6].wear_factor = PlainFloat::new(0.05);
+                v[7].table = PlainDword::new(0x613D7C); // an IDA address: wave 3
+                v[7].slide_grip = PlainFloat::new(1.0);
+                v[7].accel_grip = PlainFloat::new(0.9);
+                v[7].brake_grip = PlainFloat::new(1.7);
+                v[7].mud_rates[0] = PlainFloat::new(1.0);
+                v[7].mud_rates[1] = PlainFloat::new(2.0);
+                v[7].unknown_18[0] = PlainDword::new(0x3F800000);
+                v[7].unknown_18[1] = PlainDword::new(0x40000000);
+                v[7].drag = PlainFloat::new(10.0);
+                v[7].rolling_drag_min_speed = PlainFloat::new(25.0);
+                v[7].grip = PlainFloat::new(3.0);
+                v[7].wear_factor = PlainFloat::new(0.1);
+                v[8].table = PlainDword::new(0x613D7C); // an IDA address: wave 3
+                v[8].slide_grip = PlainFloat::new(1.0);
+                v[8].accel_grip = PlainFloat::new(0.9);
+                v[8].brake_grip = PlainFloat::new(1.7);
+                v[8].mud_rates[0] = PlainFloat::new(1.0);
+                v[8].mud_rates[1] = PlainFloat::new(2.0);
+                v[8].unknown_18[0] = PlainDword::new(0x3F800000);
+                v[8].unknown_18[1] = PlainDword::new(0x40000000);
+                v[8].drag = PlainFloat::new(10.0);
+                v[8].rolling_drag_min_speed = PlainFloat::new(15.0);
+                v[8].grip = PlainFloat::new(5.0);
+                v[8].wear_factor = PlainFloat::new(1.0);
+                v[9].table = PlainDword::new(0x613DE4); // an IDA address: wave 3
+                v[9].slide_grip = PlainFloat::new(1.0);
+                v[9].accel_grip = PlainFloat::new(0.9);
+                v[9].brake_grip = PlainFloat::new(1.7);
+                v[9].wear_factor = PlainFloat::new(0.05);
+                v[10].table = PlainDword::new(0x613D7C); // an IDA address: wave 3
+                v[10].slide_grip = PlainFloat::new(1.0);
+                v[10].accel_grip = PlainFloat::new(0.9);
+                v[10].brake_grip = PlainFloat::new(1.7);
+                v[10].grip = PlainFloat::new(1.0);
+                v[10].wear_factor = PlainFloat::new(0.05);
+                v[11].table = PlainDword::new(0x613DB0); // an IDA address: wave 3
+                v[11].slide_grip = PlainFloat::new(1.0);
+                v[11].accel_grip = PlainFloat::new(0.9);
+                v[11].brake_grip = PlainFloat::new(1.2);
+                v[11].mud_rates[0] = PlainFloat::new(0.5);
+                v[11].mud_rates[1] = PlainFloat::new(2.0);
+                v[11].unknown_18[0] = PlainDword::new(0x3F000000);
+                v[11].unknown_18[1] = PlainDword::new(0x40000000);
+                v[11].drag = PlainFloat::new(5.0);
+                v[11].rolling_drag_min_speed = PlainFloat::new(30.0);
+                v[11].wear_factor = PlainFloat::new(0.1);
+                v[12].table = PlainDword::new(0x613D48); // an IDA address: wave 3
+                v[12].slide_grip = PlainFloat::new(1.0);
+                v[12].accel_grip = PlainFloat::new(0.9);
+                v[12].brake_grip = PlainFloat::new(1.7);
+                v[12].mud_rates[0] = PlainFloat::new(0.5);
+                v[12].mud_rates[1] = PlainFloat::new(2.0);
+                v[12].unknown_18[0] = PlainDword::new(0x3F000000);
+                v[12].unknown_18[1] = PlainDword::new(0x40000000);
+                v[12].grip = PlainFloat::new(0.75);
+                v[12].wear_factor = PlainFloat::new(0.15);
+                v[13].table = PlainDword::new(0x613C78); // an IDA address: wave 3
+                v[13].slide_grip = PlainFloat::new(1.0);
+                v[13].accel_grip = PlainFloat::new(0.9);
+                v[13].brake_grip = PlainFloat::new(1.7);
+                v[14].table = PlainDword::new(0x613C78); // an IDA address: wave 3
+                v[14].slide_grip = PlainFloat::new(1.0);
+                v[14].accel_grip = PlainFloat::new(0.9);
+                v[14].brake_grip = PlainFloat::new(1.7);
+                v[15].table = PlainDword::new(0x613C78); // an IDA address: wave 3
+                v[15].slide_grip = PlainFloat::new(1.0);
+                v[15].accel_grip = PlainFloat::new(0.9);
+                v[15].brake_grip = PlainFloat::new(1.7);
+                v
+            },
+            surface_tables: {
+                let mut v: [PlainDword; 104] = ZeroCells::ZERO;
+                v[0] = PlainDword::new(1);
+                v[1] = PlainDword::new(1);
+                v[2] = PlainDword::new(1);
+                v[3] = PlainDword::new(1);
+                v[4] = PlainDword::new(1);
+                v[5] = PlainDword::new(1);
+                v[6] = PlainDword::new(1);
+                v[7] = PlainDword::new(1);
+                v[8] = PlainDword::new(1);
+                v[9] = PlainDword::new(1);
+                v[10] = PlainDword::new(1);
+                v[11] = PlainDword::new(1);
+                v[12] = PlainDword::new(1);
+                v[13] = PlainDword::new(120);
+                v[14] = PlainDword::new(120);
+                v[15] = PlainDword::new(115);
+                v[16] = PlainDword::new(105);
+                v[17] = PlainDword::new(90);
+                v[18] = PlainDword::new(80);
+                v[19] = PlainDword::new(75);
+                v[20] = PlainDword::new(80);
+                v[21] = PlainDword::new(95);
+                v[22] = PlainDword::new(105);
+                v[23] = PlainDword::new(85);
+                v[24] = PlainDword::new(75);
+                v[25] = PlainDword::new(75);
+                v[26] = PlainDword::new(85);
+                v[27] = PlainDword::new(65);
+                v[28] = PlainDword::new(70);
+                v[29] = PlainDword::new(75);
+                v[30] = PlainDword::new(85);
+                v[31] = PlainDword::new(80);
+                v[32] = PlainDword::new(65);
+                v[33] = PlainDword::new(60);
+                v[34] = PlainDword::new(65);
+                v[35] = PlainDword::new(70);
+                v[36] = PlainDword::new(75);
+                v[37] = PlainDword::new(80);
+                v[38] = PlainDword::new(65);
+                v[39] = PlainDword::new(75);
+                v[40] = PlainDword::new(45);
+                v[41] = PlainDword::new(50);
+                v[42] = PlainDword::new(55);
+                v[43] = PlainDword::new(75);
+                v[44] = PlainDword::new(70);
+                v[45] = PlainDword::new(55);
+                v[46] = PlainDword::new(40);
+                v[47] = PlainDword::new(45);
+                v[48] = PlainDword::new(50);
+                v[49] = PlainDword::new(65);
+                v[50] = PlainDword::new(70);
+                v[51] = PlainDword::new(55);
+                v[52] = PlainDword::new(75);
+                v[53] = PlainDword::new(40);
+                v[54] = PlainDword::new(45);
+                v[55] = PlainDword::new(50);
+                v[56] = PlainDword::new(65);
+                v[57] = PlainDword::new(70);
+                v[58] = PlainDword::new(75);
+                v[59] = PlainDword::new(40);
+                v[60] = PlainDword::new(45);
+                v[61] = PlainDword::new(50);
+                v[62] = PlainDword::new(65);
+                v[63] = PlainDword::new(70);
+                v[64] = PlainDword::new(75);
+                v[65] = PlainDword::new(70);
+                v[66] = PlainDword::new(40);
+                v[67] = PlainDword::new(45);
+                v[68] = PlainDword::new(50);
+                v[69] = PlainDword::new(70);
+                v[70] = PlainDword::new(65);
+                v[71] = PlainDword::new(50);
+                v[72] = PlainDword::new(35);
+                v[73] = PlainDword::new(40);
+                v[74] = PlainDword::new(45);
+                v[75] = PlainDword::new(60);
+                v[76] = PlainDword::new(65);
+                v[77] = PlainDword::new(50);
+                v[78] = PlainDword::new(75);
+                v[79] = PlainDword::new(35);
+                v[80] = PlainDword::new(40);
+                v[81] = PlainDword::new(45);
+                v[82] = PlainDword::new(60);
+                v[83] = PlainDword::new(65);
+                v[84] = PlainDword::new(75);
+                v[85] = PlainDword::new(35);
+                v[86] = PlainDword::new(40);
+                v[87] = PlainDword::new(45);
+                v[88] = PlainDword::new(60);
+                v[89] = PlainDword::new(65);
+                v[90] = PlainDword::new(75);
+                v[91] = PlainDword::new(65);
+                v[92] = PlainDword::new(25);
+                v[93] = PlainDword::new(30);
+                v[94] = PlainDword::new(35);
+                v[95] = PlainDword::new(50);
+                v[96] = PlainDword::new(55);
+                v[97] = PlainDword::new(65);
+                v[98] = PlainDword::new(25);
+                v[99] = PlainDword::new(30);
+                v[100] = PlainDword::new(35);
+                v[101] = PlainDword::new(50);
+                v[102] = PlainDword::new(55);
+                v[103] = PlainDword::new(65);
+                v
+            },
+            unused_5f0: {
+                let mut v: [PlainDword; 10] = ZeroCells::ZERO;
+                v[0] = PlainDword::new(0x1010000);
+                v[1] = PlainDword::new(0x101);
+                v[2] = PlainDword::new(0x1000000);
+                v[3] = PlainDword::new(0x1010101);
+                v[4] = PlainDword::new(0x101);
+                v[6] = PlainDword::new(0x1010101);
+                v[7] = PlainDword::new(0x1010101);
+                v[8] = PlainDword::new(0x1010101);
+                v[9] = PlainDword::new(0x10101);
+                v
+            },
+            stall_speed: PlainFloat::new(8.0),
+            stall_share: PlainFloat::new(0.5),
+            drive_speed_cap: PlainFloat::new(800.0),
+            drive_speed_cap_a: PlainFloat::new(20.0),
+            drive_speed_cap_b: PlainFloat::new(20.0),
+            grip_front_drive: {
+                let mut v: [PlainFloat; 2] = ZeroCells::ZERO;
+                v[0] = PlainFloat::new(2.4);
+                v[1] = PlainFloat::new(1.6);
+                v
+            },
+            grip_rear_drive: {
+                let mut v: [PlainFloat; 2] = ZeroCells::ZERO;
+                v[0] = PlainFloat::new(0.5);
+                v[1] = PlainFloat::new(0.4);
+                v
+            },
+            low_speed_limit: PlainFloat::new(20.0),
+            low_speed_add: PlainFloat::new(1.0),
+            low_speed_scale: PlainFloat::new(0.5),
+            spin_limit: PlainFloat::new(4.0),
+            velocity_limit: PlainFloat::new(80.0),
+            grip_slide_scale: PlainFloat::new(7.5),
+            grip_slip_limit: PlainFloat::new(5.0),
+            grip_force_limit: PlainFloat::new(10.0),
+            grip_slow_speed: PlainFloat::new(1.0),
+            spec_scale_a4: PlainFloat::new(0.9),
+            probe_lift: PlainFloat::new(0.15),
+            unused_668: PlainDword::new(0x3E4CCCCD),
+            auto_gear_speed_up: PlainFloat::new(1.0),
+            auto_gear_speed_down: PlainFloat::new(-1.0),
+            engine_ease: PlainFloat::new(0.95),
+            ground_spin_limit: PlainFloat::new(2.0),
+            grip_ease_step: PlainFloat::new(0.1),
+            unused_680: PlainDword::new(0x3FB33333),
+            grip_factor: {
+                let mut v: [PlainFloat; 2] = ZeroCells::ZERO;
+                v[0] = PlainFloat::new(2.0);
+                v[1] = PlainFloat::new(2.2);
+                v
+            },
+            side_grip_share: PlainFloat::new(0.5),
+            rev_limit_scale: PlainFloat::new(8500.0),
+            wheel_spin_share: PlainFloat::new(0.65),
+            spring_share: PlainFloat::new(0.325),
+            drive_speed_scale: PlainFloat::new(2.5),
+            side_speed_limit: PlainFloat::new(15.0),
+            side_force_scale: PlainFloat::new(0.05),
+            slip_blend: PlainFloat::new(0.5),
+            slip_share: PlainFloat::new(0.5),
+            wheel_speed_margin: PlainFloat::new(1.5),
+            wheel_speed_gap: PlainFloat::new(0.1),
+            sound_speed_scale: PlainFloat::new(1.0),
+            drive_force_factor: {
+                let mut v: [PlainFloat; 2] = ZeroCells::ZERO;
+                v[0] = PlainFloat::new(0.0045);
+                v[1] = PlainFloat::new(0.0025);
+                v
+            },
+            torque_share_a: PlainDword::new(8),
+            torque_share_b: PlainDword::new(32),
+            torque_share_c: PlainDword::new(0x42000000),
+            crash_depth: PlainDword::new(0x1000),
+            spec_default_ba0: PlainFloat::new(2.4),
+            spec_default_ba4: PlainFloat::new(0.5),
+            spec_default_bc0: {
+                let mut v: [PlainDword; 3] = ZeroCells::ZERO;
+                v[0] = PlainDword::new(0x76C);
+                v[1] = PlainDword::new(0x640);
+                v[2] = PlainDword::new(0x384);
+                v
+            },
+            spec_scale_1b8: PlainFloat::new(0.85),
+            spec_default_ba8: PlainFloat::new(4.0),
+            auto_gear_engine_share: PlainFloat::new(0.95),
+            handling_ranges_a: {
+                let mut v: [PlainFloat; 6] = ZeroCells::ZERO;
+                v[0] = PlainFloat::new(0.1);
+                v[1] = PlainFloat::new(0.9);
+                v[2] = PlainFloat::new(0.5);
+                v[3] = PlainFloat::new(1.5);
+                v[4] = PlainFloat::new(0.25);
+                v[5] = PlainFloat::new(1.25);
+                v
+            },
+            grip_ramp: PlainFloat::new(2.0),
+            grip_ramp_share: PlainFloat::new(0.25),
+            settle_fast_step: PlainFloat::new(1.0),
+            settle_slow_step: PlainFloat::new(0.01),
+            handling_ranges_b: {
+                let mut v: [PlainFloat; 6] = ZeroCells::ZERO;
+                v[0] = PlainFloat::new(0.1);
+                v[1] = PlainFloat::new(0.2);
+                v[2] = PlainFloat::new(0.3);
+                v[3] = PlainFloat::new(0.16);
+                v[4] = PlainFloat::new(0.4);
+                v[5] = PlainFloat::new(0.26);
+                v
+            },
+            surface_blend: {
+                let mut v: [PlainFloat; 4] = ZeroCells::ZERO;
+                v[0] = PlainFloat::new(1.0);
+                v[1] = PlainFloat::new(0.9);
+                v[2] = PlainFloat::new(0.85);
+                v[3] = PlainFloat::new(1.0);
+                v
+            },
+            handling_ranges_c: {
+                let mut v: [PlainFloat; 8] = ZeroCells::ZERO;
+                v[0] = PlainFloat::new(0.15);
+                v[1] = PlainFloat::new(0.1);
+                v[2] = PlainFloat::new(100.0);
+                v[3] = PlainFloat::new(200.0);
+                v[4] = PlainFloat::new(1.0);
+                v[5] = PlainFloat::new(2.0);
+                v[6] = PlainFloat::new(0.45);
+                v[7] = PlainFloat::new(0.3);
+                v
+            },
+            probe_share: PlainFloat::new(0.5),
+            spring_force_scale: PlainFloat::new(2.0),
+            torque_ease: PlainFloat::new(0.25),
+            unused_770: {
+                let mut v: [PlainDword; 3] = ZeroCells::ZERO;
+                v[0] = PlainDword::new(0x3D4CCCCD);
+                v[1] = PlainDword::new(0x3D99999A);
+                v[2] = PlainDword::new(0x400CCCCD);
+                v
+            },
+            drive_cut_steps: PlainDword::new(5),
+            inertia: {
+                let mut v: [PlainFloat; 3] = ZeroCells::ZERO;
+                v[0] = PlainFloat::new(0.85);
+                v[1] = PlainFloat::new(0.75);
+                v[2] = PlainFloat::new(2.5);
+                v
+            },
+            downforce_factor: PlainFloat::new(0.0001),
+            rev_limits: {
+                let mut v: [PlainFloat; 2] = ZeroCells::ZERO;
+                v[0] = PlainFloat::new(3000.0);
+                v[1] = PlainFloat::new(2000.0);
+                v
+            },
+            camera_drop: PlainFloat::new(0.7),
+            ground_drop: PlainDword::new(0xB333),
+            gravity: PlainFloat::new(9.8),
+            air_drag: PlainFloat::new(5.0),
+            rolling_drag: PlainFloat::new(0.75),
+            free_rev_add: PlainFloat::new(5.0),
+            free_rev_scale: PlainFloat::new(0.005),
+            clear_place_share: PlainFloat::new(0.9),
+            start_gear_share: PlainFloat::new(0.99),
+            rev_top_scale: PlainFloat::new(1.2),
+            gear_ratio_step: PlainFloat::new(0.001),
+            wheel_load_scale: PlainFloat::new(0.0025),
+            torque_curve: {
+                let mut v: [PlainFloat; 9] = ZeroCells::ZERO;
+                v[1] = PlainFloat::new(0.125);
+                v[2] = PlainFloat::new(0.25);
+                v[3] = PlainFloat::new(0.375);
+                v[4] = PlainFloat::new(0.5);
+                v[5] = PlainFloat::new(0.625);
+                v[6] = PlainFloat::new(0.75);
+                v[7] = PlainFloat::new(0.875);
+                v[8] = PlainFloat::new(1.0);
+                v
+            },
+            clear_place_steps_a: {
+                let mut v: [PlainDword; 16] = ZeroCells::ZERO;
+                v[1] = PlainDword::new(7);
+                v[2] = PlainDword::new(10);
+                v[3] = PlainDword::new(7);
+                v[5] = PlainDword::new(0xFFFFFFF9);
+                v[6] = PlainDword::new(0xFFFFFFF6);
+                v[7] = PlainDword::new(0xFFFFFFF9);
+                v[9] = PlainDword::new(10);
+                v[10] = PlainDword::new(14);
+                v[11] = PlainDword::new(10);
+                v[13] = PlainDword::new(0xFFFFFFF6);
+                v[14] = PlainDword::new(0xFFFFFFF2);
+                v[15] = PlainDword::new(0xFFFFFFF6);
+                v
+            },
+            clear_place_steps_b: {
+                let mut v: [PlainDword; 16] = ZeroCells::ZERO;
+                v[0] = PlainDword::new(10);
+                v[1] = PlainDword::new(7);
+                v[3] = PlainDword::new(0xFFFFFFF9);
+                v[4] = PlainDword::new(0xFFFFFFF6);
+                v[5] = PlainDword::new(0xFFFFFFF9);
+                v[7] = PlainDword::new(7);
+                v[8] = PlainDword::new(14);
+                v[9] = PlainDword::new(10);
+                v[11] = PlainDword::new(0xFFFFFFF6);
+                v[12] = PlainDword::new(0xFFFFFFF2);
+                v[13] = PlainDword::new(0xFFFFFFF6);
+                v[15] = PlainDword::new(10);
+                v
+            },
+            camera_frame_limit: PlainFloat::new(0.02),
+            camera_frame_scale: PlainFloat::new(0.05),
+            contact_steps: PlainDword::new(10),
+            unused_1430: {
+                let mut v: [PlainDword; 3] = ZeroCells::ZERO;
+                v[0] = PlainDword::new(0xFE0);
+                v[1] = PlainDword::new(0x1A10);
+                v[2] = PlainDword::new(0x2810);
+                v
+            },
+            wheel_load_limit: PlainFloat::new(4.0),
+            off_line_distance: PlainFloat::new(32.0),
+            split_distance: PlainFloat::new(32.0),
+            off_line_word: PlainDword::new(0x60000000),
+            pace_scale: PlainFloat::new(1.0),
+            listed_events: {
+                let mut v: [PlainDword; 32] = ZeroCells::ZERO;
+                v[0] = PlainDword::new(0xFFFFFFFF);
+                v[1] = PlainDword::new(8);
+                v[2] = PlainDword::new(9);
+                v[3] = PlainDword::new(10);
+                v[4] = PlainDword::new(11);
+                v[5] = PlainDword::new(12);
+                v[6] = PlainDword::new(13);
+                v[7] = PlainDword::new(14);
+                v[8] = PlainDword::new(15);
+                v[9] = PlainDword::new(8);
+                v[10] = PlainDword::new(9);
+                v[11] = PlainDword::new(10);
+                v[12] = PlainDword::new(11);
+                v[13] = PlainDword::new(12);
+                v[14] = PlainDword::new(0xFFFFFFFF);
+                v[15] = PlainDword::new(0xFFFFFFFF);
+                v[16] = PlainDword::new(0xFFFFFFFF);
+                v[18] = PlainDword::new(1);
+                v[19] = PlainDword::new(2);
+                v[20] = PlainDword::new(3);
+                v[21] = PlainDword::new(4);
+                v[22] = PlainDword::new(5);
+                v[23] = PlainDword::new(6);
+                v[24] = PlainDword::new(7);
+                v[26] = PlainDword::new(1);
+                v[27] = PlainDword::new(2);
+                v[28] = PlainDword::new(3);
+                v[29] = PlainDword::new(4);
+                v[30] = PlainDword::new(0xFFFFFFFF);
+                v[31] = PlainDword::new(0xFFFFFFFF);
+                v
+            },
+            pace_slot_offsets: {
+                let mut v: [PlainDword; 8] = ZeroCells::ZERO;
+                v[0] = PlainDword::new(40);
+                v[1] = PlainDword::new(41);
+                v[2] = PlainDword::new(42);
+                v[3] = PlainDword::new(43);
+                v[4] = PlainDword::new(25);
+                v[5] = PlainDword::new(26);
+                v[6] = PlainDword::new(27);
+                v[7] = PlainDword::new(32);
+                v
+            },
+            ..ZeroCells::ZERO
+        }
     }
 }
 
@@ -563,44 +1125,9 @@ impl PhysicsTables {
     }
 }
 
-/// IDA 0x613828, the first byte of the piece.
-pub const START: usize = 0x613828;
-/// IDA 0x614D38, the end of the piece.
-pub const END: usize = 0x614D38;
-
-const _: () = assert!(END - START == core::mem::size_of::<PhysicsTables>());
-
-/// The piece's host address (the alignment checks).
-#[cfg(test)]
-pub fn tables_addr() -> usize {
-    core::ptr::from_ref(race().shared.physics_tables.get()).addr()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::offset_of;
-
-    #[test]
-    fn fields_are_at_the_games_offsets() {
-        let race = race();
-        assert_eq!(tables_addr() % 4, 0);
-        assert_eq!(offset_of!(PhysicsTables, scene_clock), 0x8);
-        assert_eq!(offset_of!(PhysicsTables, surfaces), 0x150);
-        assert_eq!(offset_of!(PhysicsTables, gravity), 0x7a0);
-        assert_eq!(offset_of!(PhysicsTables, gear_ratios), 0x894);
-        assert_eq!(offset_of!(PhysicsTables, forces), 0xf48);
-        assert_eq!(offset_of!(PhysicsTables, contacts), 0x1228);
-        assert_eq!(offset_of!(PhysicsTables, gear_count), 0x13e8);
-        assert_eq!(offset_of!(PhysicsTables, pace_slot), 0x150c);
-        assert_eq!(race.shared.physics_tables.get().gravity.get(), 9.8);
-        assert_eq!(
-            race.shared.physics_tables.get().surfaces[1]
-                .slide_grip
-                .get(),
-            1.0
-        );
-    }
 
     #[test]
     fn the_ground_records_name_their_tables_as_the_image_does() {

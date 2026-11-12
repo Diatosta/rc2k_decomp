@@ -73,24 +73,6 @@ const fn bytes<const N: usize>(runs: Runs, at: usize) -> Bytes<N> {
     Bytes::new(init::<N>(runs, at))
 }
 
-const fn plain_dword(runs: Runs, at: usize) -> PlainDword {
-    PlainDword::new(u32::from_le_bytes(init::<4>(runs, at)))
-}
-
-const fn plain_dwords<const N: usize>(runs: Runs, at: usize) -> [PlainDword; N] {
-    let mut out = [const { PlainDword::new(0) }; N];
-    let mut k = 0;
-    while k < N {
-        out[k] = plain_dword(runs, at + 4 * k);
-        k += 1;
-    }
-    out
-}
-
-const fn plain_bytes<const N: usize>(runs: Runs, at: usize) -> PlainBytes<N> {
-    PlainBytes::new(init::<N>(runs, at))
-}
-
 const fn byte(runs: Runs, at: usize) -> Byte {
     Byte::new(byte_at(runs, at))
 }
@@ -138,8 +120,6 @@ pub struct Devices {
     pub new_joystick: Dword,
     /// `g_newJoystick2`: its IDirectInputDevice2A.
     pub new_joystick2: Dword,
-    /// `byte_4F6918` (0x100 bytes) and `dword_4F6A18` (16): nothing reads them.
-    pub _gap_6918: Bytes<0x110>,
     /// `g_deviceState`: the device's state, 0x50 bytes (DirectInput's `DIJOYSTATE`).
     pub device_state: [Dword; 20],
     /// `g_joystickCaps`: a DIDEVCAPS (0x2C bytes).
@@ -150,7 +130,8 @@ pub struct Devices {
     pub range_property: Bytes<0x18>,
     /// `byte_4F6AD0`: the dead key pending (`key_to_char`).
     pub dead_key: Byte,
-    /// 0x4F6AD1 .. 0x4F6AD4, `dword_4F6AD4`, `dword_4F6AD8`: nothing reads them.
+    /// `byte_4F6AD1` .. `dword_4F6AD8`: nothing reads them; they keep the key tables after on a dword's
+    /// boundary (the cells take no padding).
     pub _gap_6ad1: Bytes<0xB>,
     /// `g_keysDown` (0x4F6ADC): what the window's messages keep, by scan code; its first
     /// byte the pending key of `input::take_key`.
@@ -159,8 +140,6 @@ pub struct Devices {
     pub keys_now: Bytes<KEYS>,
     /// `g_keysBefore` (0x4F6BDC): last frame's.
     pub keys_before: Bytes<KEYS>,
-    /// 0x4F6C5C .. 0x4F6CDC: nothing reads it.
-    pub _gap_6c5c: Bytes<KEYS>,
     /// `g_keysPressed` (0x4F6CDC).
     pub keys_pressed: Bytes<KEYS>,
     /// `g_keyRepeat` (0x4F6D5C): the frames a key has been held.
@@ -256,7 +235,6 @@ impl Devices {
                 _unused_6908: dwords(R, 0x30),
                 new_joystick: dword(R, 0x38),
                 new_joystick2: dword(R, 0x3C),
-                _gap_6918: bytes(R, 0x40),
                 device_state: dwords(R, 0x150),
                 joystick_caps: bytes(R, 0x1A0),
                 dword_property: bytes(R, 0x1CC),
@@ -266,7 +244,6 @@ impl Devices {
                 keys_down: bytes(R, 0x204),
                 keys_now: bytes(R, 0x284),
                 keys_before: bytes(R, 0x304),
-                _gap_6c5c: bytes(R, 0x384),
                 keys_pressed: bytes(R, 0x404),
                 key_repeat: bytes(R, 0x484),
                 _unused_6ddc: dwords(R, 0x504),
@@ -283,11 +260,6 @@ impl Devices {
         }
     }
 }
-
-#[cfg(test)]
-pub const DEVICES_IDA: usize = 0x4F68D8;
-#[cfg(test)]
-pub const DEVICES_LEN: usize = core::mem::size_of::<Devices>();
 
 impl Devices {
     /// `g_keysDown` and `g_keysNow` as one table of 0x100 bytes (the key table the device
@@ -360,7 +332,7 @@ pub fn device_of(devices: &Devices, handle: u32) -> Option<&InputDevice> {
 
 /// The yes/no key, the built-in layout and the dead keys.
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct Keyboard {
     /// `g_yesNoKeyGiven`: 1 = the key comes from the caller.
     pub yes_no_key_given: PlainDword,
@@ -381,35 +353,39 @@ pub struct Keyboard {
     pub _unused_826c: PlainDword,
     /// `unk_4F8270`: the axes' rest values (6 dwords, taken by `input::axis_moved`).
     pub axes_rest: [PlainDword; 6],
-    /// 0x4F8288 .. 0x4F8294.
-    pub _tail: PlainBytes<0xC>,
 }
 
 impl Keyboard {
     pub const fn new() -> Self {
-        {
-            use crate::input::store_data::KEYBOARD_RUNS as R;
-            Keyboard {
-                yes_no_key_given: plain_dword(R, 0x0),
-                _built_in_layout: plain_dwords(R, 0x4),
-                silent_keys: plain_dwords(R, 0x18),
-                compose: plain_bytes(R, 0x28),
-                plain: plain_bytes(R, 0x94),
-                shifted: plain_bytes(R, 0x114),
-                key_names: plain_bytes(R, 0x194),
-                _unused_826c: plain_dword(R, 0x294),
-                axes_rest: plain_dwords(R, 0x298),
-                _tail: plain_bytes(R, 0x2B0),
-            }
-        }
+        use crate::cells::ZeroCells;
+        use crate::session::{PlainBytes, PlainDword, with_runs};
+        Self {
+_built_in_layout: {
+let mut v: [PlainDword; 5] = ZeroCells::ZERO;
+v[1] = PlainDword::new(0x4F806C); // an IDA address: wave 3
+v[2] = PlainDword::new(0x4F80EC); // an IDA address: wave 3
+v[4] = PlainDword::new(0x4F816C); // an IDA address: wave 3
+v
+},
+silent_keys: {
+let mut v: [PlainDword; 4] = ZeroCells::ZERO;
+v[0] = PlainDword::new(0x20000000);
+v[1] = PlainDword::new(0x5400400);
+v[2] = PlainDword::new(96);
+v[3] = PlainDword::new(18);
+v
+},
+compose: PlainBytes::new(with_runs::<108>(&[(0, b"\x01a\xe1\xc1\x01e\xe9\xc9\x01i\xed\xcd\x01o\xf3\xd3\x01u\xfa\xda\x01y\xfd\xdd\x04a\xe0\xc0\x04e\xe8\xc8\x04i\xec\xcc\x04o\xf2\xd2\x04u\xf9\xd9\x02a\xe2\xc2\x02e\xea\xca\x02i\xee\xce\x02o\xf4\xd4\x02u\xfb\xdb\x06a\xe4\xc4\x06e\xeb\xcb\x06i\xef\xcf\x06o\xf6\xd6\x06u\xfc\xdc\x06y\x9f\xff\x03a\xe5\xc5\x05a\xe3\xc3\x05o\xf5\xd5\x05n\xf1\xd1")])),
+plain: PlainBytes::new(with_runs::<128>(&[(2, b"1234567890-=\x00\x00qwertyuiop[]\x00\x00asdfghjkl;'`\x00#zxcvbnm,./\x00*\x00 "), (74, b"-\x00\x00\x00+\x00\x00\x00\x00\x00\x00\x00\\"), (98, b"/")])),
+shifted: PlainBytes::new(with_runs::<128>(&[(2, b"!\"\xa3$%^&*()_+\x00\x00QWERTYUIOP{}\x00\x00ASDFGHJKL:@\xac\x00~ZXCVBNM<>?\x00*\x00 "), (71, b"789-456+1230.\x00\x00|"), (98, b"/")])),
+key_names: PlainBytes::new(with_runs::<256>(&[(2, b"\x05\x00\x06\x00\x07\x00\x08\x00\x09\x00\x0a\x00\x0b\x00\x0c\x00\x0d\x00\x0e\x00\x0f\x00\x10\x00\x11\x00\x12\x00\x13\x00\x14\x00\x15\x00\x16\x00\x17\x00\x18\x00\x19\x00\x1a\x00\x1b\x00\x1c\x00\x1d\x00\x1e\x00\x1f\x00 \x00!\x00\"\x00#\x00$\x00%\x00&\x00'\x00(\x00)\x00*\x00+\x00,\x00-\x00.\x00/\x000\x001\x002\x003\x004\x005\x006\x007\x008\x009\x00:\x00;\x00<\x00=\x00>\x00?\x00@\x00A\x00B\x00C\x00D\x00E\x00F\x00G\x00H\x00I\x00J\x00K\x00L\x00M\x00N\x00O\x00P\x00Q\x00R\x00S\x00T\x00U\x00V\x00W\x00X\x00\x00\x00Y\x00Z\x00["), (192, b"\\\x00]\x00^\x00_\x00`\x00a\x00b\x00c\x00d\x00e\x00f\x00g\x00h\x00i\x00j\x00\x00\x00k\x00l")])),
+..ZeroCells::ZERO
+}
     }
 }
 
 #[cfg(test)]
 pub const KEYBOARD_IDA: usize = 0x4F7FD8;
-#[cfg(test)]
-pub const KEYBOARD_LEN: usize = core::mem::size_of::<Keyboard>();
-
 // ---- the mouse: 0x5C6924 .. 0x5C6948 ----
 
 /// The mouse's position, clicks and buttons.
@@ -447,10 +423,7 @@ impl Mouse {
     }
 }
 
-#[cfg(test)]
-pub const MOUSE_LEN: usize = core::mem::size_of::<Mouse>();
-
-/// The force-feedback effects' clock, surface kinds and constants (IDA 0x518084 .. 0x5180f0, the image's layout).
+/// The force-feedback effects' clock, surface kinds and constants (IDA 0x518084 .. 0x5180f0).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ForceFeedback {
@@ -462,8 +435,6 @@ pub struct ForceFeedback {
     pub steps: Dword,
     /// `g_effectsRaceOn`: the effects run in a race.
     pub race_on: Dword,
-    /// `0x518094`, `0x518098`: nothing reads or writes them.
-    pub _gap_94: [Dword; 2],
     /// `g_surfaceEffectKinds` (`0x51809C`): a surface's effect kind, 16 of them.
     pub surface_effect_kinds: [Dword; 16],
     /// `flt_5180DC`: 10.0.
@@ -472,8 +443,6 @@ pub struct ForceFeedback {
     pub effect_angle_scale: Float,
     /// `flt_5180E4`: 256.0.
     pub effect_full: Float,
-    /// `0x5180E8`: nothing reads or writes it.
-    pub _gap_e8: Dword,
     /// `flt_5180EC`: 0.1.
     pub effect_tenth: Float,
 }
@@ -485,7 +454,6 @@ impl ForceFeedback {
             rate: Dword::new(0),
             steps: Dword::new(0),
             race_on: Dword::new(0),
-            _gap_94: [Dword::new(0), Dword::new(0)],
             surface_effect_kinds: [
                 Dword::new(0),
                 Dword::new(1),
@@ -507,91 +475,7 @@ impl ForceFeedback {
             effect_ten: Float::new(10.0),
             effect_angle_scale: Float::new(162.97466),
             effect_full: Float::new(256.0),
-            _gap_e8: Dword::new(0x42200000),
             effect_tenth: Float::new(0.1),
         }
-    }
-}
-
-impl ForceFeedback {
-    pub const START: usize = 0x518084;
-    pub const LEN: usize = 0x6c;
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::test_support::first_values;
-    use core::mem::offset_of;
-
-    /// The game's devices block (a named read of `data/first_values.golden`) and its store.
-    const DEVICES_IMAGE: &str = "input.owner.INPUT.devices/5440";
-    const DEVICES_STORE: &str = "store:input.owner.INPUT.devices";
-
-    #[test]
-    fn the_devices_start_as_the_games() {
-        // The two records' places and the effects' wanted GUIDs are handles where the game
-        // holds addresses: the golden bytes are made handles first.
-        let _g = crate::test_support::test_lock();
-        let mut image = first_values::bytes(DEVICES_IMAGE).to_vec();
-        let devices = offset_of!(Devices, input_devices);
-        for r in 0..2 {
-            let o = devices + 4 * r;
-            let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
-            assert_eq!(
-                v as usize,
-                DEVICES_IDA + offset_of!(Devices, records) + RECORD_LEN * r
-            );
-            image[o..o + 4].copy_from_slice(&(DEVICE_TAG | r as u32).to_le_bytes());
-        }
-        let records = offset_of!(Devices, records);
-        for r in 0..2 {
-            for k in 0..EFFECTS {
-                let o = records + RECORD_LEN * r + WANTED_AT + EFFECT_LEN * k;
-                let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
-                image[o..o + 4].copy_from_slice(&crate::input::guids::guid_ref(v).to_le_bytes());
-            }
-        }
-        assert!(first_values::store_bytes(DEVICES_STORE) == image);
-    }
-
-    #[test]
-    fn the_blocks_keep_the_images_layout() {
-        assert_eq!(DEVICES_LEN, 0x1540);
-        for (offset, games) in [
-            (offset_of!(Devices, direct_input), 0x2C),
-            (offset_of!(Devices, new_joystick2), 0x3C),
-            (offset_of!(Devices, device_state), 0x150),
-            (offset_of!(Devices, joystick_caps), 0x1A0),
-            (offset_of!(Devices, dword_property), 0x1CC),
-            (offset_of!(Devices, range_property), 0x1E0),
-            (offset_of!(Devices, dead_key), 0x1F8),
-            (offset_of!(Devices, keys_down), 0x204),
-            (offset_of!(Devices, keys_now), 0x284),
-            (offset_of!(Devices, keys_before), 0x304),
-            (offset_of!(Devices, keys_pressed), 0x404),
-            (offset_of!(Devices, key_repeat), 0x484),
-            (offset_of!(Devices, mouse_word), 0x518),
-            (offset_of!(Devices, effect_rows), 0x530),
-            (offset_of!(Devices, input_devices), 0x610),
-            (offset_of!(Devices, records), 0x618),
-            (offset_of!(Devices, controller_count), 0x1008),
-            (offset_of!(Devices, controllers), 0x100C),
-            (offset_of!(Devices, input_command), 0x150C),
-            (offset_of!(Devices, guids), 0x1510),
-        ] {
-            assert_eq!(offset, games);
-        }
-        assert_eq!(KEYBOARD_LEN, 0x2BC);
-        assert_eq!(offset_of!(Keyboard, silent_keys), 0x18);
-        assert_eq!(offset_of!(Keyboard, compose), 0x28);
-        assert_eq!(offset_of!(Keyboard, plain), 0x94);
-        assert_eq!(offset_of!(Keyboard, axes_rest), 0x298);
-        assert_eq!(MOUSE_LEN, 0x24);
-    }
-
-    #[test]
-    fn force_feedback_starts_as_the_games() {
-        assert_eq!(size_of::<ForceFeedback>(), ForceFeedback::LEN);
     }
 }

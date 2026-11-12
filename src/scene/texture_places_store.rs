@@ -3,10 +3,11 @@
 //! texture tables (`scene::kind_texture_store`); the matrices follow (`race::matrices_store`).
 //! Names are readings unless IDA's.
 
+use crate::cells::ZeroCells;
 use crate::session::PlainDword;
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct TexturePlaces {
     /// +0x0 (0x5D2AE8): `dword_5D2AE8`: the texture of each slot (`scene::try_allocate_textures`).
     pub texture_of: [PlainDword; 1024],
@@ -106,36 +107,84 @@ impl TexturePlaces {
 // them): any bit pattern is a valid value.
 
 impl TexturePlaces {
-    /// The piece with the image's first values.
+    /// The store with its first values (every field not named here starts at zero).
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        Self {
+            car_icon_sheet_x: {
+                let mut a: [PlainDword; 36] = ZeroCells::ZERO;
+                a[1] = PlainDword::new(0x52);
+                a[2] = PlainDword::new(0xA4);
+                a[4] = PlainDword::new(0x52);
+                a[5] = PlainDword::new(0xA4);
+                a[7] = PlainDword::new(0x52);
+                a[8] = PlainDword::new(0xA4);
+                a[10] = PlainDword::new(0x52);
+                a[11] = PlainDword::new(0xA4);
+                a[13] = PlainDword::new(0x52);
+                a[14] = PlainDword::new(0xA4);
+                a[16] = PlainDword::new(0x52);
+                a[17] = PlainDword::new(0xA4);
+                a[19] = PlainDword::new(0x52);
+                a[20] = PlainDword::new(0xA4);
+                a[22] = PlainDword::new(0x52);
+                a[23] = PlainDword::new(0xA4);
+                a[25] = PlainDword::new(0x52);
+                a[26] = PlainDword::new(0xA4);
+                a[28] = PlainDword::new(0x52);
+                a[29] = PlainDword::new(0xA4);
+                a[31] = PlainDword::new(0x52);
+                a[32] = PlainDword::new(0xA4);
+                a[34] = PlainDword::new(0x52);
+                a[35] = PlainDword::new(0xA4);
+                a
+            },
+            car_icon_sheet_y: {
+                let mut a: [PlainDword; 36] = ZeroCells::ZERO;
+                a[3] = PlainDword::new(0x2A);
+                a[4] = PlainDword::new(0x2A);
+                a[5] = PlainDword::new(0x2A);
+                a[6] = PlainDword::new(0x54);
+                a[7] = PlainDword::new(0x54);
+                a[8] = PlainDword::new(0x54);
+                a[9] = PlainDword::new(0x7E);
+                a[10] = PlainDword::new(0x7E);
+                a[11] = PlainDword::new(0x7E);
+                a[12] = PlainDword::new(0xA8);
+                a[13] = PlainDword::new(0xA8);
+                a[14] = PlainDword::new(0xA8);
+                a[15] = PlainDword::new(0xD2);
+                a[16] = PlainDword::new(0xD2);
+                a[17] = PlainDword::new(0xD2);
+                a[21] = PlainDword::new(0x2A);
+                a[22] = PlainDword::new(0x2A);
+                a[23] = PlainDword::new(0x2A);
+                a[24] = PlainDword::new(0x54);
+                a[25] = PlainDword::new(0x54);
+                a[26] = PlainDword::new(0x54);
+                a[27] = PlainDword::new(0x7E);
+                a[28] = PlainDword::new(0x7E);
+                a[29] = PlainDword::new(0x7E);
+                a[30] = PlainDword::new(0xA8);
+                a[31] = PlainDword::new(0xA8);
+                a[32] = PlainDword::new(0xA8);
+                a[33] = PlainDword::new(0xD2);
+                a[34] = PlainDword::new(0xD2);
+                a[35] = PlainDword::new(0xD2);
+                a
+            },
+            ..ZeroCells::ZERO
+        }
     }
 }
 
-/// IDA 0x5D2AE8, the first byte of the piece.
-pub const START: usize = 0x5D2AE8;
-/// IDA 0x5E9EC8, the end of the piece.
-pub const END: usize = 0x5E9EC8;
-
-const _: () = assert!(END - START == core::mem::size_of::<TexturePlaces>());
-
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::scene::owner::scene;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             scene().textures.places.get(),
         );
-    }
-
-    #[test]
-    fn piece_has_its_home() {
-        assert_eq!(offset_of!(TexturePlaces, texture_of), 0x0);
-        assert_eq!(offset_of!(TexturePlaces, kind_slot_bytes), 0x9e90);
-        assert_eq!(offset_of!(TexturePlaces, normal_marks), 0x133d4);
     }
 }

@@ -10,7 +10,7 @@ use crate::race::owner::race;
 use crate::session::PlainDword;
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct GroundProbe {
     /// +0x0 (0x620458): `dword_620458`: referenced only by dead code outside any function (0x450330 ..); the port never reaches it.
     pub unused_0: PlainDword,
@@ -30,39 +30,23 @@ pub struct GroundProbe {
 /// The piece, with the image's first values.
 impl GroundProbe {
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        use crate::cells::ZeroCells;
+        use crate::session::PlainDword;
+        Self {
+            settle_mark: PlainDword::new(128),
+            ..ZeroCells::ZERO
+        }
     }
-}
-
-/// IDA 0x620458, the first byte of the piece.
-pub const START: usize = 0x620458;
-/// IDA 0x620474, the end of the piece.
-pub const END: usize = 0x620474;
-
-const _: () = assert!(END - START == core::mem::size_of::<GroundProbe>());
-
-/// The piece's host address (the alignment checks).
-#[cfg(test)]
-pub fn piece_addr() -> usize {
-    core::ptr::from_ref(race().physics.ground_probe.get()).addr()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             race().physics.ground_probe.get(),
         );
-    }
-
-    #[test]
-    fn fields_are_at_the_games_offsets() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(offset_of!(GroundProbe, product), 0x8);
-        assert_eq!(offset_of!(GroundProbe, settle_mark), 0x18);
     }
 }

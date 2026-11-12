@@ -6,10 +6,11 @@
 //! frames and read by the drawing parts through their `workers::DrawReads`. Names are readings
 //! unless IDA's.
 
+use crate::cells::ZeroCells;
 use crate::session::{PlainBytes, PlainDword, PlainFloat};
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct LevelGrid {
     /// +0x0 (0x63DC5C): the first of four 256-byte tables `object_bytes` fills (`race::frame_draw` `FACE_TABLES`); used in place (`byte_63DC5C`); now each view's (`race::view_course::ViewCourse`); unused.
     pub face_table_a: PlainBytes<256>,
@@ -60,7 +61,10 @@ pub struct LevelGrid {
 /// The piece (a field of `race::owner::Race::course`), with the image's first values.
 impl LevelGrid {
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        Self {
+            depth_shift: PlainFloat::new(3000000.0),
+            ..ZeroCells::ZERO
+        }
     }
 }
 

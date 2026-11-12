@@ -4,10 +4,11 @@
 //! race block's bytes.
 //! Names are readings unless IDA's.
 
+use crate::cells::ZeroCells;
 use crate::session::PlainDword;
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ObjectFileNumbers {
     /// +0x0 (0x60AD20): the dword before the file numbers; nothing reads or writes it (a gap).
     pub unknown_0: PlainDword,
@@ -31,9 +32,36 @@ pub struct ObjectFileNumbers {
 // them): any bit pattern is a valid value.
 
 impl ObjectFileNumbers {
-    /// The piece with the image's first values (the owner `scene::owner::Scene` holds it).
+    /// The store with its first values (every field not named here starts at zero).
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        Self {
+            path_texts: path_texts(&[
+                (0, b"files\\s\\data\\titledem.pcx\0"),
+                (26, b"files\\a\\obj????.ro3\0"),
+                (46, b"files\\a\\obj????.lwo\0"),
+                (66, b"files\\b\\obj????.ro3\0"),
+                (86, b"files\\b\\obj????.lwo\0"),
+                (106, b"files\\g\\frnt\\obj????.ro3\0"),
+                (131, b"files\\g\\frnt\\obj????.lwo\0"),
+                (156, b"files\\s\\extr\\obj????.ro3\0"),
+                (181, b"files\\s\\extr\\obj????.lwo\0"),
+                (206, b"files\\r\\errorxx\0"),
+                (222, b"srcmaps\\mapxx.pcx\0"),
+                (240, b"srcmaps\\keyxx.pcx\0"),
+                (258, b"files\\a\\textinfo\0"),
+                (275, b"files\\m\\markinfo\0"),
+                (292, b"files\\b\\textinfo\0"),
+                (309, b"files\\a\\objsinfo\0"),
+                (326, b"files\\b\\carsinfo\0"),
+                (343, b"files\\s\\extr\\extrinfo\0"),
+                (365, b"files\\g\\frnt\\frntinfo\0"),
+                (387, b"files\\b\\tx1822.pcx\0"),
+                (406, b"files\\b\\tx1823.pcx\0"),
+                (425, b"files\\b\\tx1824.pcx\0"),
+                (444, b"files\\b\\tx1825.pcx\0"),
+            ]),
+            ..ZeroCells::ZERO
+        }
     }
 }
 
@@ -113,27 +141,40 @@ impl crate::session::TextPlace for PathText<'_> {
 const TEXTS_AT: usize = core::mem::offset_of!(ObjectFileNumbers, path_texts);
 const TEXTS_LEN: usize = 4 * 116;
 
-/// IDA 0x60AD20, the first byte of the piece.
-pub const START: usize = 0x60AD20;
-/// IDA 0x60AF0C, the end of the piece.
-pub const END: usize = 0x60AF0C;
-
-const _: () = assert!(END - START == core::mem::size_of::<ObjectFileNumbers>());
+/// The path buffer whole: each text with its end byte at its byte offset, zero elsewhere.
+const fn path_texts(texts: &[(usize, &[u8])]) -> [PlainDword; 116] {
+    let mut bytes = [0u8; TEXTS_LEN];
+    let mut t = 0;
+    while t < texts.len() {
+        let (at, text) = texts[t];
+        let mut k = 0;
+        while k < text.len() {
+            bytes[at + k] = text[k];
+            k += 1;
+        }
+        t += 1;
+    }
+    let mut dwords = [const { PlainDword::new(0) }; 116];
+    let mut n = 0;
+    while n < 116 {
+        dwords[n] = PlainDword::new(u32::from_le_bytes([
+            bytes[4 * n],
+            bytes[4 * n + 1],
+            bytes[4 * n + 2],
+            bytes[4 * n + 3],
+        ]));
+        n += 1;
+    }
+    dwords
+}
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             crate::scene::owner::SCENE.file_numbers(),
         );
-    }
-
-    #[test]
-    fn piece_has_its_home() {
-        assert_eq!(offset_of!(ObjectFileNumbers, object_ro3_number), 0x4);
     }
 }

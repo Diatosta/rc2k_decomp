@@ -6,10 +6,11 @@
 //! between frames and read by the drawing parts through their `workers::DrawReads`. Names are
 //! readings unless IDA's.
 
+use crate::cells::ZeroCells;
 use crate::session::PlainDword;
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct CourseWork {
     /// +0x0 (0x5CCBF0): a course record's x and z (`race::frame_draw`, `race::car_shadow`); written only, by nothing now (a dead store); unused.
     pub record_place: [PlainDword; 2],
@@ -115,7 +116,13 @@ pub struct CourseWork {
 /// The piece (a field of `race::owner::Race::course`), with the image's first values.
 impl CourseWork {
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        Self {
+            course_header: PlainDword::new(0x74756F73),
+            camera_first: PlainDword::new(0x4000),
+            shine: PlainDword::new(0x100),
+            shine_whole: PlainDword::new(0x100),
+            ..ZeroCells::ZERO
+        }
     }
 }
 

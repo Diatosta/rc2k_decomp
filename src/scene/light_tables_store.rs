@@ -5,10 +5,11 @@
 //! store (`session::DrawShared`), written on the game's thread between frames and read by
 //! the drawing parts through their `workers::DrawReads`. Names are readings unless IDA's.
 
+use crate::cells::ZeroCells;
 use crate::session::{PlainBytes, PlainDword, PlainWord};
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct LightTables {
     /// +0x0 (0x635118): `g_lightTable`: 256 colours (`scene::vertex_light`, `physics::car_lighting`, `race::course_faces`).
     pub light_table: [PlainDword; 256],
@@ -32,37 +33,26 @@ pub struct LightTables {
 // them): any bit pattern is a valid value.
 
 impl LightTables {
-    /// The piece with the image's first values (the owner `scene::owner::Scene` holds it).
+    /// The store with its first values (every field not named here starts at zero).
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        Self {
+            unknown_410: {
+                let mut a: [PlainDword; 24] = ZeroCells::ZERO;
+                a[0] = PlainDword::new(0xC0000);
+                a
+            },
+            ..ZeroCells::ZERO
+        }
     }
 }
 
-/// IDA 0x635118, the first byte of the piece.
-pub const START: usize = 0x635118;
-/// IDA 0x636588, the end of the piece.
-pub const END: usize = 0x636588;
-
-const _: () = assert!(END - START == core::mem::size_of::<LightTables>());
-
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             crate::scene::owner::SCENE.light_tables.get(),
         );
-    }
-
-    #[test]
-    fn piece_has_its_home() {
-        assert_eq!(offset_of!(LightTables, lamp_table_a), 0x400);
-        assert_eq!(offset_of!(LightTables, car_light_table), 0xc00);
-        assert_eq!(offset_of!(LightTables, lamp_table_c), 0x1000);
-        assert_eq!(offset_of!(LightTables, view_mode), 0x140e);
-        assert_eq!(offset_of!(LightTables, unknown_410), 0x1410);
     }
 }

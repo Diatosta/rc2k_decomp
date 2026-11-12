@@ -2,12 +2,13 @@
 //! (`race::draw_frame_rate`; `settings::read_settings` names it by address, by design).
 //! Names are readings unless IDA's.
 
+use crate::cells::ZeroCells;
 #[cfg(test)]
 use crate::race::owner::race;
 use crate::session::PlainDword;
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct FrameCounter {
     /// +0x0 (0x5EB100): `dword_5EB100`: the `framecounter` setting (`race::draw_frame_rate`).
     pub show: PlainDword,
@@ -19,7 +20,7 @@ pub struct FrameCounter {
 /// The piece, with the image's first values.
 impl FrameCounter {
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        ZeroCells::ZERO
     }
 }
 

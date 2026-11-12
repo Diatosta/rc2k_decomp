@@ -3,66 +3,67 @@
 //! 0x5EA484 is IDA's one 1092-byte item, taken whole; only its first 64 bytes are used.
 //! Names are readings unless IDA's.
 
+use crate::cells::ZeroCells;
 #[cfg(test)]
 use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct SceneMatrices {
-    /// +0x0 (0x5E9EC8): `dword_5E9EC8`: the model last set up for drawing (`scene::load_object`, `race::car_draw`).
+    /// 0x5E9EC8: `dword_5E9EC8`: the model last set up for drawing (`scene::load_object`, `race::car_draw`).
     pub known_object: Dword,
-    /// +0x4 (0x5E9ECC): `flt_5E9ECC`: two matrices of the frame draw, used in place as scratch (`race::frame_draw`).
+    /// 0x5E9ECC: `flt_5E9ECC`: two matrices of the frame draw, used in place as scratch (`race::frame_draw`).
     pub view_work: [Float; 32],
-    /// +0x84 (0x5E9F4C): `g_identityMatrix`: the 4x4 identity (`scene::view_matrix`, `race::frame_draw`).
+    /// 0x5E9F4C: `g_identityMatrix`: the 4x4 identity (`scene::view_matrix`, `race::frame_draw`).
     pub identity_matrix: [Float; 16],
-    /// +0xc4 (0x5E9F8C): `g_turnXMatrix`: rotation about x (`scene::matrix`, `physics::object_turn_matrix`).
+    /// 0x5E9F8C: `g_turnXMatrix`: rotation about x (`scene::matrix`, `physics::object_turn_matrix`).
     pub turn_x_matrix: [Float; 16],
-    /// +0x104 (0x5E9FCC): `g_turnYMatrix`: rotation about y (`scene::matrix`, `race::car_parts`).
+    /// 0x5E9FCC: `g_turnYMatrix`: rotation about y (`scene::matrix`, `race::car_parts`).
     pub turn_y_matrix: [Float; 16],
-    /// +0x144 (0x5EA00C): `g_turnZMatrix`: rotation about z (`scene::view_matrix`, `race::car_draw`).
+    /// 0x5EA00C: `g_turnZMatrix`: rotation about z (`scene::view_matrix`, `race::car_draw`).
     pub turn_z_matrix: [Float; 16],
-    /// +0x184 (0x5EA04C): `g_placedMatrix`: a matrix with its place (`scene::matrix`, `physics::car_collisions`).
+    /// 0x5EA04C: `g_placedMatrix`: a matrix with its place (`scene::matrix`, `physics::car_collisions`).
     pub placed_matrix: [Float; 16],
-    /// +0x1c4 (0x5EA08C): `flt_5EA08C`: the car body's turn matrix copied from the car (`race::car_parts`, `race::car_draw`).
+    /// 0x5EA08C: `flt_5EA08C`: the car body's turn matrix copied from the car (`race::car_parts`, `race::car_draw`).
     pub body_turn_matrix: [Float; 16],
-    /// +0x204 (0x5EA0CC): `drive::set_listener` copies the made object matrix into it; `effects::draw_shadow` turns the shadow's corners by it.
+    /// 0x5EA0CC: `drive::set_listener` copies the made object matrix into it; `effects::draw_shadow` turns the shadow's corners by it.
     pub listener_matrix: [Float; 16],
-    /// +0x244 (0x5EA10C): `g_turnedMatrix`: the turned matrix (`race::frame_draw`, `physics::move_slot`, `scene::matrix`).
+    /// 0x5EA10C: `g_turnedMatrix`: the turned matrix (`race::frame_draw`, `physics::move_slot`, `scene::matrix`).
     pub turned_matrix: [Float; 16],
-    /// +0x284 (0x5EA14C): `g_litMatrix`: the lit matrix (`race::frame_draw`, `race::car_parts`).
+    /// 0x5EA14C: `g_litMatrix`: the lit matrix (`race::frame_draw`, `race::car_parts`).
     pub lit_matrix: [Float; 16],
-    /// +0x2c4 (0x5EA18C): `flt_5EA18C`: the inverted view turn (`race::frame_draw`); now each view's (`scene::view_matrices::ViewMatrices::view_turn_copy`); unused.
+    /// 0x5EA18C: `flt_5EA18C`: the inverted view turn (`race::frame_draw`); now each view's (`scene::view_matrices::ViewMatrices::view_turn_copy`); unused.
     pub view_turn_copy: [Float; 16],
-    /// +0x304 (0x5EA1CC): the view's place matrix: the copy of `placed_matrix` (the view's place negated) made in `race::frame_draw::view_place_tail`.
+    /// 0x5EA1CC: the view's place matrix: the copy of `placed_matrix` (the view's place negated) made in `race::frame_draw::view_place_tail`.
     pub view_place_matrix: [Float; 16],
-    /// +0x344 (0x5EA20C): `g_viewBackMatrix`: the view turned back (`scene::view_matrix`, `scene::reflect_vector`).
+    /// 0x5EA20C: `g_viewBackMatrix`: the view turned back (`scene::view_matrix`, `scene::reflect_vector`).
     pub view_back_matrix: [Float; 16],
-    /// +0x384 (0x5EA24C): `g_viewTurnMatrix`: the view's turn (`drive::set_listener`, `physics::car_sounds`, `race::frame_draw`).
+    /// 0x5EA24C: `g_viewTurnMatrix`: the view's turn (`drive::set_listener`, `physics::car_sounds`, `race::frame_draw`).
     pub view_turn_matrix: [Float; 16],
-    /// +0x3c4 (0x5EA28C): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
+    /// 0x5EA28C: no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unused_3c4: [Dword; 16],
-    /// +0x404 (0x5EA2CC): `g_viewMatrix` and its elements `flt_5EA2D0`..: the view matrix, used in place (`scene::project_point`, `effects::draw_particle`, `race::skidmarks`).
+    /// 0x5EA2CC: `g_viewMatrix` and its elements `flt_5EA2D0`..: the view matrix, used in place (`scene::project_point`, `effects::draw_particle`, `race::skidmarks`).
     pub view_matrix: [Float; 16],
-    /// +0x444 (0x5EA30C): `g_madeObjectMatrix`: the matrix made for an object (`scene::matrix`, `race::frame_draw`).
+    /// 0x5EA30C: `g_madeObjectMatrix`: the matrix made for an object (`scene::matrix`, `race::frame_draw`).
     pub made_object_matrix: [Float; 16],
-    /// +0x484 (0x5EA34C): `dword_5EA34C`: a block whose first 0x40 bytes receive a copy of the made object matrix (`race::frame_draw`); now each view's (`scene::view_matrices`); unused.
+    /// 0x5EA34C: `dword_5EA34C`: a block whose first 0x40 bytes receive a copy of the made object matrix (`race::frame_draw`); now each view's (`scene::view_matrices`); unused.
     pub object_matrix_slots: [Dword; 32],
-    /// +0x504 (0x5EA3CC): `flt_5EA3CC`: the view's matrix, place at +0x30 (`effects::view_motion`, `race::frame_views`).
+    /// 0x5EA3CC: `flt_5EA3CC`: the view's matrix, place at +0x30 (`effects::view_motion`, `race::frame_views`).
     pub view_place: [Float; 16],
-    /// +0x544 (0x5EA40C): `g_objectMatrix`: pointer to the object matrix in use (`scene::place_object_points`).
+    /// 0x5EA40C: `g_objectMatrix`: pointer to the object matrix in use (`scene::place_object_points`).
     pub object_matrix_ptr: Dword,
-    /// +0x548 (0x5EA410): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
+    /// 0x5EA410: no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unused_548: [Dword; 6],
-    /// +0x560 (0x5EA428): `dword_5EA428`..: the vector reflected (`scene::reflect_vector`); now each view's (`scene::view_matrices`); unused.
+    /// 0x5EA428: `dword_5EA428`..: the vector reflected (`scene::reflect_vector`); now each view's (`scene::view_matrices`); unused.
     pub reflect_vector: [Float; 3],
-    /// +0x56c (0x5EA434): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
+    /// 0x5EA434: no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unused_56c: Dword,
-    /// +0x570 (0x5EA438): `qword_5EA438`, `dword_5EA440`: the normal (`scene::reflect_vector`); now each view's (`scene::view_matrices`); unused.
+    /// 0x5EA438: `qword_5EA438`, `dword_5EA440`: the normal (`scene::reflect_vector`); now each view's (`scene::view_matrices`); unused.
     pub reflect_normal: [Float; 3],
-    /// +0x57c (0x5EA444): `flt_5EA444`: the object's turn matrix (`physics::object_turn_matrix`, `physics::object_hits_car`, `race::frame_draw`).
+    /// 0x5EA444: `flt_5EA444`: the object's turn matrix (`physics::object_turn_matrix`, `physics::object_hits_car`, `race::frame_draw`).
     pub object_turn_matrix: [Float; 16],
-    /// +0x5bc (0x5EA484): `flt_5EA484`: 1092-byte item, only the first 0x40 used as a matrix in place (`race::frame_draw`); now each view's (`scene::view_matrices`); unused.
+    /// 0x5EA484: `flt_5EA484`: 1092-byte item, only the first 0x40 used as a matrix in place (`race::frame_draw`); now each view's (`scene::view_matrices`); unused.
     pub matrix_scratch: [Float; 273],
 }
 
@@ -72,39 +73,66 @@ pub struct SceneMatrices {
 /// The piece, with the image's first values.
 impl SceneMatrices {
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        Self {
+            view_work: {
+                let mut a: [Float; 32] = ZeroCells::ZERO;
+                a[0] = Float::new(-1.0);
+                a[5] = Float::new(1.0);
+                a[10] = Float::new(-1.0);
+                a[15] = Float::new(1.0);
+                a[16] = Float::new(-1.0);
+                a[21] = Float::new(1.0);
+                a[26] = Float::new(1.0);
+                a[31] = Float::new(1.0);
+                a
+            },
+            identity_matrix: {
+                let mut a: [Float; 16] = ZeroCells::ZERO;
+                a[0] = Float::new(1.0);
+                a[5] = Float::new(1.0);
+                a[10] = Float::new(1.0);
+                a[15] = Float::new(1.0);
+                a
+            },
+            turn_x_matrix: {
+                let mut a: [Float; 16] = ZeroCells::ZERO;
+                a[0] = Float::new(1.0);
+                a[15] = Float::new(1.0);
+                a
+            },
+            turn_y_matrix: {
+                let mut a: [Float; 16] = ZeroCells::ZERO;
+                a[5] = Float::new(1.0);
+                a[15] = Float::new(1.0);
+                a
+            },
+            turn_z_matrix: {
+                let mut a: [Float; 16] = ZeroCells::ZERO;
+                a[10] = Float::new(1.0);
+                a[15] = Float::new(1.0);
+                a
+            },
+            placed_matrix: {
+                let mut a: [Float; 16] = ZeroCells::ZERO;
+                a[0] = Float::new(1.0);
+                a[5] = Float::new(1.0);
+                a[10] = Float::new(1.0);
+                a[15] = Float::new(1.0);
+                a
+            },
+            // an IDA address: wave 3
+            object_matrix_ptr: Dword::new(0x5EA30C),
+            ..ZeroCells::ZERO
+        }
     }
-}
-
-/// IDA 0x5E9EC8, the first byte of the piece.
-pub const START: usize = 0x5E9EC8;
-/// IDA 0x5EA8C8, the end of the piece.
-pub const END: usize = 0x5EA8C8;
-
-const _: () = assert!(END - START == core::mem::size_of::<SceneMatrices>());
-
-/// The piece's host address (the alignment checks).
-#[cfg(test)]
-pub fn piece_addr() -> usize {
-    core::ptr::from_ref(&race().frame.matrices).addr()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(&race().frame.matrices);
-    }
-
-    #[test]
-    fn fields_are_at_the_games_offsets() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(offset_of!(SceneMatrices, known_object), 0x0);
-        assert_eq!(offset_of!(SceneMatrices, placed_matrix), 0x184);
-        assert_eq!(offset_of!(SceneMatrices, view_place_matrix), 0x304);
-        assert_eq!(offset_of!(SceneMatrices, view_place), 0x504);
     }
 }

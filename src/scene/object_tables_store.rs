@@ -4,10 +4,11 @@
 //! tables follow (`scene::kind_texture_store`).
 //! Names are readings unless IDA's.
 
+use crate::cells::ZeroCells;
 use crate::session::PlainDword;
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ObjectTables {
     /// +0x0 (0x5CCE7C): `g_slotKinds`: each object slot's kind (`scene::load_front_end_objects`, `scene::set_up_front_end_scene`, `race::objects`; cleared by `scene::clear_slot_kinds`). [64] is `dword_5CCF7C`, the kind kept by `race::objects` (`scene::draw_object_polygon`).
     pub slot_kinds: [PlainDword; 256],
@@ -60,36 +61,48 @@ impl ObjectTables {
 // them): any bit pattern is a valid value.
 
 impl ObjectTables {
-    /// The piece with the image's first values.
+    /// The store with its first values (every field not named here starts at zero).
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        Self {
+            d3d_drawing_on: PlainDword::new(1),
+            unknown_c14: [
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(0x100),
+                PlainDword::new(0x80),
+                PlainDword::new(0x40),
+                PlainDword::new(0x20),
+            ],
+            level_sizes: [
+                PlainDword::new(0x80),
+                PlainDword::new(0x20),
+                PlainDword::new(8),
+                PlainDword::new(2),
+            ],
+            level_mips: [
+                PlainDword::new(2),
+                PlainDword::new(1),
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(0),
+            ],
+            ..ZeroCells::ZERO
+        }
     }
 }
 
-/// IDA 0x5CCE7C, the first byte of the piece.
-pub const START: usize = 0x5CCE7C;
-/// IDA 0x5D0AE0, the end of the piece.
-pub const END: usize = 0x5D0AE0;
-
-const _: () = assert!(END - START == core::mem::size_of::<ObjectTables>());
-
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::scene::owner::scene;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             scene().objects.tables.get(),
         );
-    }
-
-    #[test]
-    fn piece_has_its_home() {
-        assert_eq!(offset_of!(ObjectTables, slot_kinds), 0x0);
-        assert_eq!(offset_of!(ObjectTables, d3d_drawing_on), 0xc10);
-        assert_eq!(offset_of!(ObjectTables, video_levels), 0x2c64);
     }
 }

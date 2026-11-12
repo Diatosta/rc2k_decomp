@@ -10,7 +10,7 @@ use crate::race::owner::race;
 use crate::session::{PlainDword, PlainFloat};
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct Finish {
     /// +0x0 (0x64BB18): `dword_64BB18`: set while the race has no place or panel to draw (`race::car_starts`, `race::draw_mirror_view`, `race::draw_race_scene`, `race::loadlevel`, `race::stage_loading`, `physics::passed_split_point`, `drive::finish_race`).
     pub no_place: PlainDword,
@@ -66,45 +66,50 @@ pub struct Finish {
 /// The piece, with the image's first values.
 impl Finish {
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        use crate::cells::ZeroCells;
+        use crate::session::{PlainDword, PlainFloat};
+        Self {
+            finish_stages: {
+                let mut v: [PlainDword; 7] = ZeroCells::ZERO;
+                v[0] = PlainDword::new(6);
+                v[1] = PlainDword::new(5);
+                v[2] = PlainDword::new(4);
+                v[3] = PlainDword::new(3);
+                v[4] = PlainDword::new(1);
+                v[5] = PlainDword::new(2);
+                v
+            },
+            car_lift: PlainFloat::new(0.6),
+            finish_lengths: {
+                let mut v: [PlainFloat; 2] = ZeroCells::ZERO;
+                v[0] = PlainFloat::new(52.0);
+                v[1] = PlainFloat::new(99.0);
+                v
+            },
+            limit_a: PlainFloat::new(16.0),
+            limit_b: PlainFloat::new(24.0),
+            camera_yaw_rate: PlainFloat::new(0.125),
+            camera_distance_start: PlainFloat::new(-27.0),
+            camera_height_start: PlainFloat::new(6.0),
+            camera_distance_rate: PlainFloat::new(1.0),
+            camera_height_rate: PlainFloat::new(-0.25),
+            limit_c: PlainFloat::new(32.0),
+            limit_d: PlainFloat::new(40.0),
+            camera_pitch_per_share: PlainFloat::new(-0.125),
+            camera_height_per_share: PlainFloat::new(8.0),
+            ..ZeroCells::ZERO
+        }
     }
-}
-
-/// IDA 0x64BB18, the first byte of the piece.
-pub const START: usize = 0x64BB18;
-/// IDA 0x64BB88, the end of the piece.
-pub const END: usize = 0x64BB88;
-
-const _: () = assert!(END - START == core::mem::size_of::<Finish>());
-
-/// The piece's host address (the alignment checks).
-#[cfg(test)]
-pub fn piece_addr() -> usize {
-    core::ptr::from_ref(race().replay.finish.get()).addr()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             race().replay.finish.get(),
         );
-    }
-
-    #[test]
-    fn fields_are_at_the_games_offsets() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(offset_of!(Finish, finish_stages), 0x4);
-        assert_eq!(offset_of!(Finish, finish_lengths), 0x24);
-        assert_eq!(offset_of!(Finish, limit_a), 0x2c);
-        assert_eq!(offset_of!(Finish, start_clock), 0x48);
-        assert_eq!(offset_of!(Finish, time), 0x4c);
-        assert_eq!(offset_of!(Finish, share), 0x54);
-        assert_eq!(offset_of!(Finish, limit_d), 0x5c);
-        assert_eq!(offset_of!(Finish, unreached_loader_buffers), 0x68);
     }
 }

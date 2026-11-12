@@ -178,13 +178,7 @@ pub static GROUPS: &[Group] = &[
                 "f timer",
                 Shown::Float,
                 0x64BB64,
-                store_cell!(
-                    crate::drive::finish_store::START,
-                    |o| o.race.replay.finish.get(),
-                    crate::drive::finish_store::Finish,
-                    0x64bb64,
-                    time
-                ),
+                indexed_cell!(|o| o.race.replay.finish.get(), time),
                 false,
                 (0, 0),
             ),
@@ -193,13 +187,7 @@ pub static GROUPS: &[Group] = &[
                 "f timeru",
                 Shown::Float,
                 0x64BB68,
-                store_cell!(
-                    crate::drive::finish_store::START,
-                    |o| o.race.replay.finish.get(),
-                    crate::drive::finish_store::Finish,
-                    0x64bb68,
-                    eased
-                ),
+                indexed_cell!(|o| o.race.replay.finish.get(), eased),
                 false,
                 (0, 0),
             ),
@@ -306,13 +294,7 @@ pub static GROUPS: &[Group] = &[
                 "bloffst3",
                 Shown::Float,
                 0x614D04,
-                store_cell!(
-                    crate::physics::tables_store::START,
-                    |o| o.race.shared.physics_tables.get(),
-                    crate::physics::tables_store::PhysicsTables,
-                    0x614d04,
-                    split_point_distance
-                ),
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), split_point_distance),
                 false,
                 (0, 0),
             ),
@@ -321,13 +303,7 @@ pub static GROUPS: &[Group] = &[
                 "numcheck",
                 Shown::Whole,
                 0x601830,
-                store_cell!(
-                    crate::physics::split_tables_store::START,
-                    |o| o.race.physics.split_tables(),
-                    crate::physics::split_tables_store::SplitTables,
-                    0x601830,
-                    split_colour_count
-                ),
+                indexed_cell!(|o| o.race.physics.split_tables(), split_colour_count),
                 false,
                 (0, 0),
             ),
@@ -351,13 +327,7 @@ pub static GROUPS: &[Group] = &[
                 "totatime",
                 Shown::Whole,
                 0x601C4C,
-                store_cell!(
-                    crate::physics::split_tables_store::START,
-                    |o| o.race.physics.split_tables(),
-                    crate::physics::split_tables_store::SplitTables,
-                    0x601c4c,
-                    stage_car_total
-                ),
+                indexed_cell!(|o| o.race.physics.split_tables(), stage_car_total),
                 false,
                 (0, 0),
             ),
@@ -3328,13 +3298,7 @@ pub static GROUPS: &[Group] = &[
                 "car1offx",
                 Shown::Whole,
                 0x608B30,
-                store_cell!(
-                    crate::physics::camera_store::START,
-                    |o| o.race.physics.camera(),
-                    crate::physics::camera_store::CameraWork,
-                    0x608b30,
-                    camera_offset_x
-                ),
+                indexed_cell!(|o| o.race.physics.camera(), camera_offset_x),
                 false,
                 (0, 0),
             ),
@@ -3343,13 +3307,7 @@ pub static GROUPS: &[Group] = &[
                 "car1offy",
                 Shown::Whole,
                 0x608B34,
-                store_cell!(
-                    crate::physics::camera_store::START,
-                    |o| o.race.physics.camera(),
-                    crate::physics::camera_store::CameraWork,
-                    0x608b34,
-                    camera_offset_y
-                ),
+                indexed_cell!(|o| o.race.physics.camera(), camera_offset_y),
                 false,
                 (0, 0),
             ),
@@ -3358,13 +3316,7 @@ pub static GROUPS: &[Group] = &[
                 "car1offz",
                 Shown::Whole,
                 0x608B38,
-                store_cell!(
-                    crate::physics::camera_store::START,
-                    |o| o.race.physics.camera(),
-                    crate::physics::camera_store::CameraWork,
-                    0x608b38,
-                    camera_offset_z
-                ),
+                indexed_cell!(|o| o.race.physics.camera(), camera_offset_z),
                 false,
                 (0, 0),
             ),
@@ -3403,13 +3355,7 @@ pub static GROUPS: &[Group] = &[
                 "crotywan",
                 Shown::Whole,
                 0x608B50,
-                store_cell!(
-                    crate::physics::camera_store::START,
-                    |o| o.race.physics.camera(),
-                    crate::physics::camera_store::CameraWork,
-                    0x608b50,
-                    start_heading
-                ),
+                indexed_cell!(|o| o.race.physics.camera(), start_heading),
                 false,
                 (0, 0),
             ),
@@ -3614,13 +3560,7 @@ pub static GROUPS: &[Group] = &[
                 "courseps",
                 Shown::Whole,
                 0x6365E4,
-                store_cell!(
-                    crate::scene::light_store::START,
-                    |o| o.scene.lights.state.get(),
-                    crate::scene::light_store::LightState,
-                    0x6365e4,
-                    line_place
-                ),
+                indexed_cell!(|o| o.scene.lights.state.get(), line_place),
                 false,
                 (0, 0),
             ),
@@ -4187,13 +4127,7 @@ pub static GROUPS: &[Group] = &[
                 "pbsecon",
                 Shown::Whole,
                 0x6EF7E0,
-                store_cell!(
-                    crate::drive::replay_frames_store::START,
-                    |o| o.race.replay.replay_frames(),
-                    crate::drive::replay_frames_store::ReplayFrames,
-                    0x6ef7e0,
-                    step_block
-                ),
+                indexed_cell!(|o| o.race.replay.replay_frames(), step_block),
                 false,
                 (0, 0),
             ),
@@ -4217,13 +4151,7 @@ pub static GROUPS: &[Group] = &[
                 "pbticks",
                 Shown::Whole,
                 0x6EF7E4,
-                store_cell!(
-                    crate::drive::replay_frames_store::START,
-                    |o| o.race.replay.replay_frames(),
-                    crate::drive::replay_frames_store::ReplayFrames,
-                    0x6ef7e4,
-                    step_frame
-                ),
+                indexed_cell!(|o| o.race.replay.replay_frames(), step_frame),
                 false,
                 (0, 0),
             ),
@@ -4232,13 +4160,7 @@ pub static GROUPS: &[Group] = &[
                 "rpcams",
                 Shown::Whole,
                 0x6EF7D0,
-                store_cell!(
-                    crate::drive::replay_frames_store::START,
-                    |o| o.race.replay.replay_frames(),
-                    crate::drive::replay_frames_store::ReplayFrames,
-                    0x6ef7d0,
-                    camera_word_0
-                ),
+                indexed_cell!(|o| o.race.replay.replay_frames(), camera_word_0),
                 false,
                 (0, 0),
             ),
@@ -4247,13 +4169,7 @@ pub static GROUPS: &[Group] = &[
                 "rpcams",
                 Shown::Whole,
                 0x6EF7D4,
-                store_cell!(
-                    crate::drive::replay_frames_store::START,
-                    |o| o.race.replay.replay_frames(),
-                    crate::drive::replay_frames_store::ReplayFrames,
-                    0x6ef7d4,
-                    camera_word_1
-                ),
+                indexed_cell!(|o| o.race.replay.replay_frames(), camera_word_1),
                 false,
                 (0, 0),
             ),

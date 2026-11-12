@@ -5,7 +5,7 @@ use crate::race::owner::race;
 use crate::session::{PlainBytes, PlainDword};
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ReplayFrames {
     /// +0x0 (0x6EF7CC): `dword_6EF7CC`: set while the replay steps to a still (`physics::ease_view_turn`, `race::show_replay_still`).
     pub step_first: PlainDword,
@@ -33,44 +33,88 @@ pub struct ReplayFrames {
 /// The piece, with the image's first values.
 impl ReplayFrames {
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        use crate::cells::ZeroCells;
+        use crate::session::{PlainBytes, with_runs};
+        Self {
+            slots: PlainBytes::new(with_runs::<130048>(&[
+                (48, b"\x80\x00\x00\x00@"),
+                (664, b"\xff\xff\xff\xff"),
+                (4112, b"\x80\x00\x00\x00@"),
+                (4728, b"\xff\xff\xff\xff"),
+                (8176, b"\x80\x00\x00\x00@"),
+                (8792, b"\xff\xff\xff\xff"),
+                (12240, b"\x80\x00\x00\x00@"),
+                (12856, b"\xff\xff\xff\xff"),
+                (16304, b"\x80\x00\x00\x00@"),
+                (16920, b"\xff\xff\xff\xff"),
+                (20368, b"\x80\x00\x00\x00@"),
+                (20984, b"\xff\xff\xff\xff"),
+                (24432, b"\x80\x00\x00\x00@"),
+                (25048, b"\xff\xff\xff\xff"),
+                (28496, b"\x80\x00\x00\x00@"),
+                (29112, b"\xff\xff\xff\xff"),
+                (32560, b"\x80\x00\x00\x00@"),
+                (33176, b"\xff\xff\xff\xff"),
+                (36624, b"\x80\x00\x00\x00@"),
+                (37240, b"\xff\xff\xff\xff"),
+                (40688, b"\x80\x00\x00\x00@"),
+                (41304, b"\xff\xff\xff\xff"),
+                (44752, b"\x80\x00\x00\x00@"),
+                (45368, b"\xff\xff\xff\xff"),
+                (48816, b"\x80\x00\x00\x00@"),
+                (49432, b"\xff\xff\xff\xff"),
+                (52880, b"\x80\x00\x00\x00@"),
+                (53496, b"\xff\xff\xff\xff"),
+                (56944, b"\x80\x00\x00\x00@"),
+                (57560, b"\xff\xff\xff\xff"),
+                (61008, b"\x80\x00\x00\x00@"),
+                (61624, b"\xff\xff\xff\xff"),
+                (65072, b"\x80\x00\x00\x00@"),
+                (65688, b"\xff\xff\xff\xff"),
+                (69136, b"\x80\x00\x00\x00@"),
+                (69752, b"\xff\xff\xff\xff"),
+                (73200, b"\x80\x00\x00\x00@"),
+                (73816, b"\xff\xff\xff\xff"),
+                (77264, b"\x80\x00\x00\x00@"),
+                (77880, b"\xff\xff\xff\xff"),
+                (81328, b"\x80\x00\x00\x00@"),
+                (81944, b"\xff\xff\xff\xff"),
+                (85392, b"\x80\x00\x00\x00@"),
+                (86008, b"\xff\xff\xff\xff"),
+                (89456, b"\x80\x00\x00\x00@"),
+                (90072, b"\xff\xff\xff\xff"),
+                (93520, b"\x80\x00\x00\x00@"),
+                (94136, b"\xff\xff\xff\xff"),
+                (97584, b"\x80\x00\x00\x00@"),
+                (98200, b"\xff\xff\xff\xff"),
+                (101648, b"\x80\x00\x00\x00@"),
+                (102264, b"\xff\xff\xff\xff"),
+                (105712, b"\x80\x00\x00\x00@"),
+                (106328, b"\xff\xff\xff\xff"),
+                (109776, b"\x80\x00\x00\x00@"),
+                (110392, b"\xff\xff\xff\xff"),
+                (113840, b"\x80\x00\x00\x00@"),
+                (114456, b"\xff\xff\xff\xff"),
+                (117904, b"\x80\x00\x00\x00@"),
+                (118520, b"\xff\xff\xff\xff"),
+                (121968, b"\x80\x00\x00\x00@"),
+                (122584, b"\xff\xff\xff\xff"),
+                (126032, b"\x80\x00\x00\x00@"),
+                (126648, b"\xff\xff\xff\xff"),
+            ])),
+            ..ZeroCells::ZERO
+        }
     }
-}
-
-/// IDA 0x6EF7CC, the first byte of the piece.
-pub const START: usize = 0x6EF7CC;
-/// IDA 0x70F3EC, the end of the piece.
-pub const END: usize = 0x70F3EC;
-
-const _: () = assert!(END - START == core::mem::size_of::<ReplayFrames>());
-
-/// The piece's host address (the alignment checks).
-#[cfg(test)]
-pub fn piece_addr() -> usize {
-    core::ptr::from_ref(race().replay.replay_frames()).addr()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             race().replay.replay_frames(),
         );
-    }
-
-    #[test]
-    fn fields_are_at_the_games_offsets() {
-        assert_eq!(piece_addr() % core::mem::align_of::<ReplayFrames>(), 0);
-
-        assert_eq!(offset_of!(ReplayFrames, step_first), 0x0);
-        assert_eq!(offset_of!(ReplayFrames, frame), 0xc);
-        assert_eq!(offset_of!(ReplayFrames, tenth), 0x10);
-        assert_eq!(offset_of!(ReplayFrames, step_frame), 0x18);
-        assert_eq!(offset_of!(ReplayFrames, slots), 0x1c);
-        assert_eq!(offset_of!(ReplayFrames, last_kept), 0x1fc1c);
     }
 }

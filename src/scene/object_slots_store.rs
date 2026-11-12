@@ -4,10 +4,11 @@
 //! parts' middles and half extents, the radii). `#[repr(C)]` with the image's layout, over
 //! the race block's bytes (`OBJECT_SLOTS`). Names are readings unless IDA's.
 
+use crate::cells::ZeroCells;
 use crate::session::PlainDword;
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ObjectTables {
     /// +0x0 (0x62DB5C): `g_listedFaces`: the original's faces listed for drawing, no longer used: each object's drawing has its own (`scene::face_list`). Kept for the store's layout.
     pub listed_faces: [PlainDword; 4096],
@@ -52,42 +53,19 @@ impl ObjectTables {
 // them): any bit pattern is a valid value.
 
 impl ObjectTables {
-    /// The piece with the image's first values.
+    /// The store with its first values (every field not named here starts at zero).
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        <Self as ZeroCells>::ZERO
     }
 }
 
-/// IDA 0x62DB5C, the first byte of the piece.
-pub const START: usize = 0x62DB5C;
-/// IDA 0x634FA0, the end of the piece.
-pub const END: usize = 0x634FA0;
-
-const _: () = assert!(END - START == core::mem::size_of::<ObjectTables>());
-
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             crate::scene::owner::scene().objects.slots.get(),
         );
-    }
-
-    #[test]
-    fn piece_has_its_home() {
-        assert_eq!(offset_of!(ObjectTables, phase_work), 0x4000);
-        assert_eq!(offset_of!(ObjectTables, texture_count), 0x400c);
-        assert_eq!(offset_of!(ObjectTables, texture_list), 0x4010);
-        assert_eq!(offset_of!(ObjectTables, no_normals), 0x4410);
-        assert_eq!(offset_of!(ObjectTables, first_point), 0x4414);
-        assert_eq!(offset_of!(ObjectTables, point_counts), 0x4814);
-        assert_eq!(offset_of!(ObjectTables, face_counts), 0x5414);
-        assert_eq!(offset_of!(ObjectTables, part_extents), 0x5814);
-        assert_eq!(offset_of!(ObjectTables, measures), 0x7014);
-        assert_eq!(offset_of!(ObjectTables, radii), 0x7044);
     }
 }

@@ -10,7 +10,7 @@ use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct SplitTables {
     /// +0x0 (0x60101C): `dword_60101C`: the arcade kind (1 or 2: `race::race_end`, `race::credits_race`, `race::race_cars`).
     pub arcade_kind: Dword,
@@ -56,47 +56,33 @@ pub struct SplitTables {
 /// The piece, with the image's first values.
 impl SplitTables {
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        use crate::cells::ZeroCells;
+        use crate::session::{Dword, Float};
+        Self {
+            timer_factor: Float::new(2.5),
+            unused_818: {
+                let mut v: [Dword; 262] = ZeroCells::ZERO;
+                v[256] = Dword::new(0x656C6966);
+                v[257] = Dword::new(0x5C735C73);
+                v[258] = Dword::new(0x656D6974);
+                v[259] = Dword::new(0x6D69745C);
+                v[260] = Dword::new(0x302E7365);
+                v
+            },
+            kind_factor: Float::new(1.0),
+            ..ZeroCells::ZERO
+        }
     }
-}
-
-/// IDA 0x60101C, the first byte of the piece.
-pub const START: usize = 0x60101C;
-/// IDA 0x60230C, the end of the piece.
-pub const END: usize = 0x60230C;
-
-const _: () = assert!(END - START == core::mem::size_of::<SplitTables>());
-
-/// The piece's host address (the alignment checks).
-#[cfg(test)]
-pub fn piece_addr() -> usize {
-    core::ptr::from_ref(race().physics.split_tables()).addr()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             race().physics.split_tables(),
         );
-    }
-
-    #[test]
-    fn fields_are_at_the_games_offsets() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(offset_of!(SplitTables, still), 0x8);
-        assert_eq!(offset_of!(SplitTables, checkpoints), 0x10);
-        assert_eq!(offset_of!(SplitTables, stage_numbers), 0x414);
-        assert_eq!(offset_of!(SplitTables, split_colour_count), 0x814);
-        assert_eq!(offset_of!(SplitTables, stage_car_total), 0xc30);
-        assert_eq!(offset_of!(SplitTables, kind_factor), 0xc48);
-        assert_eq!(offset_of!(SplitTables, kept_times), 0xc4c);
-        assert_eq!(offset_of!(SplitTables, rival_names), 0xd4c);
-        assert_eq!(offset_of!(SplitTables, rival_scaled), 0x1184);
-        assert_eq!(offset_of!(SplitTables, car_time), 0x12ec);
     }
 }

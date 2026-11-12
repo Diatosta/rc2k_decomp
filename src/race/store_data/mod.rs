@@ -8,8 +8,6 @@ pub struct Piece {
     pub runs: &'static [(usize, &'static [u8])],
 }
 
-mod drive_finish;
-mod drive_replay_frames;
 mod effects_work;
 mod gap_5c291c;
 mod gap_5c906c;
@@ -31,47 +29,21 @@ mod own_621a84;
 mod own_622910;
 mod own_64bb88;
 mod own_71ca60;
-mod physics_camera;
 mod physics_car;
-mod physics_contact;
-mod physics_ground;
-mod physics_ground_probe;
-mod physics_pace;
-mod physics_split_tables;
-mod physics_tables;
 mod race_car_specs;
 mod race_clock_ticks;
 mod race_course;
-mod race_course_lists;
-mod race_frame;
-mod race_kind_records;
-mod race_league;
 mod race_level_grid;
-mod race_level_paths;
-mod race_lights;
-mod race_matrices;
-mod race_numbers;
-mod race_prefs;
 mod race_replay_file;
 mod race_scratch;
 mod race_shadow_skids;
 mod race_sound_spots;
 mod race_switches;
-mod race_tables;
 mod race_vars;
 mod race_view;
 mod race_view_vars;
 mod race_viewer_state;
 mod race_work;
-mod scene_draw;
-mod scene_draw_switches;
-mod scene_file_numbers;
-mod scene_light;
-mod scene_light_tables;
-mod scene_light_work;
-mod scene_object;
-mod scene_object_tables;
-mod scene_texture_places;
 
 /// In address order, apart.
 pub const PIECES: &[Piece] = &[
@@ -92,10 +64,6 @@ pub const PIECES: &[Piece] = &[
         runs: gap_5c291c::RUNS,
     },
     Piece {
-        start: 0x5C5CE0,
-        runs: race_numbers::RUNS,
-    },
-    Piece {
         start: 0x5C5E50,
         runs: own_5c5e50::RUNS,
     },
@@ -112,10 +80,6 @@ pub const PIECES: &[Piece] = &[
         runs: own_5c6610::RUNS,
     },
     Piece {
-        start: 0x5C694C,
-        runs: race_course_lists::RUNS,
-    },
-    Piece {
         start: 0x5C790C,
         runs: race_car_specs::RUNS,
     },
@@ -128,40 +92,12 @@ pub const PIECES: &[Piece] = &[
         runs: race_clock_ticks::RUNS,
     },
     Piece {
-        start: 0x5CC3C0,
-        runs: race_kind_records::RUNS,
-    },
-    Piece {
         start: 0x5CCBF0,
         runs: race_course::RUNS,
     },
     Piece {
-        start: 0x5CCE7C,
-        runs: scene_object_tables::RUNS,
-    },
-    Piece {
-        start: 0x5D2AE8,
-        runs: scene_texture_places::RUNS,
-    },
-    Piece {
-        start: 0x5E9EC8,
-        runs: race_matrices::RUNS,
-    },
-    Piece {
         start: 0x5EB104,
         runs: own_5eb104::RUNS,
-    },
-    Piece {
-        start: 0x60101C,
-        runs: physics_split_tables::RUNS,
-    },
-    Piece {
-        start: 0x60410C,
-        runs: race_league::RUNS,
-    },
-    Piece {
-        start: 0x60463C,
-        runs: race_tables::RUNS,
     },
     Piece {
         start: 0x60626C,
@@ -172,44 +108,12 @@ pub const PIECES: &[Piece] = &[
         runs: gap_606500::RUNS,
     },
     Piece {
-        start: 0x6077B0,
-        runs: race_lights::RUNS,
-    },
-    Piece {
-        start: 0x608B08,
-        runs: physics_camera::RUNS,
-    },
-    Piece {
-        start: 0x608CB4,
-        runs: race_prefs::RUNS,
-    },
-    Piece {
-        start: 0x60AD20,
-        runs: scene_file_numbers::RUNS,
-    },
-    Piece {
-        start: 0x60AF0C,
-        runs: race_level_paths::RUNS,
-    },
-    Piece {
         start: 0x60B2D0,
         runs: own_60b2d0::RUNS,
     },
     Piece {
-        start: 0x613828,
-        runs: physics_tables::RUNS,
-    },
-    Piece {
-        start: 0x614D38,
-        runs: physics_pace::RUNS,
-    },
-    Piece {
         start: 0x61FE18,
         runs: own_61fe18::RUNS,
-    },
-    Piece {
-        start: 0x620458,
-        runs: physics_ground_probe::RUNS,
     },
     Piece {
         start: 0x621480,
@@ -228,10 +132,6 @@ pub const PIECES: &[Piece] = &[
         runs: own_6218f4::RUNS,
     },
     Piece {
-        start: 0x621900,
-        runs: scene_draw_switches::RUNS,
-    },
-    Piece {
         start: 0x621A84,
         runs: own_621a84::RUNS,
     },
@@ -244,30 +144,6 @@ pub const PIECES: &[Piece] = &[
         runs: race_vars::RUNS,
     },
     Piece {
-        start: 0x623F80,
-        runs: scene_draw::RUNS,
-    },
-    Piece {
-        start: 0x62DA44,
-        runs: scene_light_work::RUNS,
-    },
-    Piece {
-        start: 0x634FA0,
-        runs: scene_object::RUNS,
-    },
-    Piece {
-        start: 0x635118,
-        runs: scene_light_tables::RUNS,
-    },
-    Piece {
-        start: 0x636588,
-        runs: scene_light::RUNS,
-    },
-    Piece {
-        start: 0x63967C,
-        runs: physics_ground::RUNS,
-    },
-    Piece {
         start: 0x63D9B8,
         runs: race_view::RUNS,
     },
@@ -276,16 +152,8 @@ pub const PIECES: &[Piece] = &[
         runs: race_level_grid::RUNS,
     },
     Piece {
-        start: 0x64158C,
-        runs: race_frame::RUNS,
-    },
-    Piece {
         start: 0x641AA4,
         runs: race_shadow_skids::RUNS,
-    },
-    Piece {
-        start: 0x64BB18,
-        runs: drive_finish::RUNS,
     },
     Piece {
         start: 0x64BB88,
@@ -298,14 +166,6 @@ pub const PIECES: &[Piece] = &[
     Piece {
         start: 0x6D18C8,
         runs: race_sound_spots::RUNS,
-    },
-    Piece {
-        start: 0x6D1DD8,
-        runs: physics_contact::RUNS,
-    },
-    Piece {
-        start: 0x6EF7CC,
-        runs: drive_replay_frames::RUNS,
     },
     Piece {
         start: 0x70F3EC,

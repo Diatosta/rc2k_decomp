@@ -4,12 +4,13 @@
 //! matrices and decal places, and the car shadow's work. `#[repr(C)]` with the image's
 //! layout, over the race block's bytes (`FRAME_WORK`), as `CAR`. Names are readings unless IDA's.
 
+use crate::cells::ZeroCells;
 #[cfg(test)]
 use crate::race::owner::race;
 use crate::session::{PlainDword, PlainFloat};
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct FrameWork {
     /// +0x0 (0x64158C): `g_flareCount`: the flares this frame; now each view's (`race::lamp_work::LampWork`); unused.
     pub flare_count: PlainDword,
@@ -130,7 +131,85 @@ pub struct FrameWork {
 /// The piece, with the image's first values.
 impl FrameWork {
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        Self {
+            sun_depth: PlainFloat::new(0.024543693),
+            mirror_places: [
+                PlainDword::new(0x25D),
+                PlainDword::new(0x30),
+                PlainDword::new(0xD6),
+                PlainDword::new(0x24),
+                PlainDword::new(0x25D),
+                PlainDword::new(4),
+                PlainDword::new(0x25D),
+                PlainDword::new(0x30),
+                PlainDword::new(0x268),
+                PlainDword::new(0x24),
+                PlainDword::new(0x25D),
+                PlainDword::new(0x141),
+                PlainDword::new(0x25D),
+                PlainDword::new(0x10),
+                PlainDword::new(0xD6),
+                PlainDword::new(4),
+                PlainDword::new(0x25D),
+                PlainDword::new(4),
+                PlainDword::new(0x25D),
+                PlainDword::new(0x10),
+                PlainDword::new(0x268),
+                PlainDword::new(4),
+                PlainDword::new(0x25D),
+                PlainDword::new(0x131),
+            ],
+            view_layouts: [
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(3),
+                PlainDword::new(4),
+                PlainDword::new(1),
+                PlainDword::new(2),
+            ],
+            view_scale_x: [
+                PlainFloat::new(400.0),
+                PlainFloat::new(400.0),
+                PlainFloat::new(400.0),
+                PlainFloat::new(200.0),
+                PlainFloat::new(600.0),
+            ],
+            view_scale_y: [
+                PlainFloat::new(300.0),
+                PlainFloat::new(150.0),
+                PlainFloat::new(450.0),
+                PlainFloat::new(300.0),
+                PlainFloat::new(300.0),
+            ],
+            car_decal_places: [
+                PlainDword::new(0xA),
+                PlainDword::new(0xB),
+                PlainDword::new(0x18),
+                PlainDword::new(0x19),
+                PlainDword::new(0xC),
+                PlainDword::new(0xD),
+                PlainDword::new(0x16),
+                PlainDword::new(0x17),
+                PlainDword::new(0x1A),
+                PlainDword::new(0x1B),
+                PlainDword::new(0xE),
+                PlainDword::new(0xF),
+                PlainDword::new(0x10),
+                PlainDword::new(0x11),
+                PlainDword::new(0x13),
+                PlainDword::new(0x14),
+                PlainDword::new(0x12),
+                PlainDword::new(0),
+            ],
+            decal_limit: PlainFloat::new(5.0),
+            part_place: [
+                PlainDword::new(0xFFFFA000),
+                PlainDword::new(0xC000),
+                PlainDword::new(0x20000),
+            ],
+            shadow_circle: [PlainFloat::new(8388608.0), PlainFloat::new(16777216.0)],
+            ..ZeroCells::ZERO
+        }
     }
 }
 

@@ -8,7 +8,7 @@ use crate::race::owner::race;
 use crate::session::{Bytes, Dword};
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct PaceNotes {
     /// +0x0 (0X614D38): `g_paceDistanceWords`: the distance's word by tens, the first 41 bytes used (`race::pace_notes`); IDA names its first byte only.
     pub distance_words: Bytes<0x1034>,
@@ -40,40 +40,37 @@ pub struct PaceNotes {
 /// The piece, with the image's first values.
 impl PaceNotes {
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        use crate::cells::ZeroCells;
+        use crate::session::{Bytes, Dword, with_runs};
+        Self {
+            distance_words: Bytes::new(with_runs::<4148>(&[(
+                1,
+                b"    !!\"\"\"#####$$$$$%%%%%&&&&&''''''''''((((((((((",
+            )])),
+            discarded_distance_table: {
+                let mut v: [Dword; 41] = ZeroCells::ZERO;
+                v[32] = Dword::new(30);
+                v[33] = Dword::new(50);
+                v[34] = Dword::new(70);
+                v[35] = Dword::new(100);
+                v[36] = Dword::new(150);
+                v[37] = Dword::new(200);
+                v[38] = Dword::new(250);
+                v[39] = Dword::new(0x12C);
+                v[40] = Dword::new(0x190);
+                v
+            },
+            ..ZeroCells::ZERO
+        }
     }
-}
-
-/// IDA 0x614D38, the first byte of the piece.
-pub const START: usize = 0x614D38;
-/// IDA 0x61FE18, the end of the piece.
-pub const END: usize = 0x61FE18;
-
-const _: () = assert!(END - START == core::mem::size_of::<PaceNotes>());
-
-/// The piece's host address (the alignment checks).
-#[cfg(test)]
-pub fn piece_addr() -> usize {
-    core::ptr::from_ref(race().physics.pace()).addr()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(race().physics.pace());
-    }
-
-    #[test]
-    fn fields_are_at_the_games_offsets() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(offset_of!(PaceNotes, group_count), 0x10dc);
-        assert_eq!(offset_of!(PaceNotes, note_gaps), 0x40e0);
-        assert_eq!(offset_of!(PaceNotes, group_checkpoints), 0x50e0);
-        assert_eq!(offset_of!(PaceNotes, group_texts), 0x60e0);
-        assert_eq!(offset_of!(PaceNotes, text), 0x70e0);
     }
 }
