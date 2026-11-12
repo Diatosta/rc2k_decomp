@@ -439,7 +439,7 @@ const fn initial_object(sound_offset: u32) -> SoundObject {
     }
 }
 
-/// The race sounds' objects and the cars they follow (IDA 0x512A10 .. 0x514F90, the image's layout).
+/// The race sounds' objects and the cars they follow (IDA 0x512A10 .. 0x514F90).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct RaceSounds {
@@ -499,7 +499,7 @@ impl RaceSounds {
 }
 
 /// The race sounds' clock and the constants of the placed and moving sounds (IDA 0x5124E4
-/// .. 0x512508, the image's layout).
+/// .. 0x512508).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct RaceClock {
@@ -544,7 +544,7 @@ impl RaceClock {
     }
 }
 
-/// The surface sounds' constants and work (IDA 0x516358 .. 0x51639C, the image's layout):
+/// The surface sounds' constants and work (IDA 0x516358 .. 0x51639C):
 /// the factors the engine, speed, revs and throttle sounds and the
 /// wheel sounds scale by, and what `sound::surface_sounds` works out.
 #[repr(C)]
@@ -723,7 +723,7 @@ pub struct KindRepeats {
     pub most_delay: PlainWord,
 }
 
-/// The stage sounds' state and the shared sound spots (IDA 0x51655C .. 0x5168C0, the image's layout).
+/// The stage sounds' state and the shared sound spots (IDA 0x51655C .. 0x5168C0).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct StageSounds {
@@ -814,7 +814,7 @@ impl StageSounds {
     }
 }
 
-/// The spot voices' pickers' work and the sound kinds per spot (IDA 0x517f40 .. 0x518080, the image's layout).
+/// The spot voices' pickers' work and the sound kinds per spot (IDA 0x517f40 .. 0x518080).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SpotPicks {
@@ -836,8 +836,6 @@ pub struct SpotPicks {
     pub spot_work_a: PlainDword,
     /// `dword_518058`: read by the original at 0x40EC8E; no ported code reads or writes it (0 in the image).
     pub spot_work_b: PlainDword,
-    /// `0x51805C`: nine dwords nothing ported reads or writes (1, 2, 3, 4, 5, 6, 9, 7, 8 at start).
-    pub _gap_5c: [PlainDword; 9],
 }
 
 impl SpotPicks {
@@ -1002,27 +1000,11 @@ impl SpotPicks {
             ],
             spot_work_a: PlainDword::new(0),
             spot_work_b: PlainDword::new(0),
-            _gap_5c: [
-                PlainDword::new(1),
-                PlainDword::new(2),
-                PlainDword::new(3),
-                PlainDword::new(4),
-                PlainDword::new(5),
-                PlainDword::new(6),
-                PlainDword::new(9),
-                PlainDword::new(7),
-                PlainDword::new(8),
-            ],
         }
     }
 }
 
-impl SpotPicks {
-    pub const START: usize = 0x517f40;
-    pub const LEN: usize = 0x140;
-}
-
-/// Set once the kept sound settings are applied (IDA 0x518080 .. 0x518084, the image's layout).
+/// Set once the kept sound settings are applied (IDA 0x518080 .. 0x518084).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SettingsApplied {
@@ -1038,12 +1020,7 @@ impl SettingsApplied {
     }
 }
 
-impl SettingsApplied {
-    pub const START: usize = 0x518080;
-    pub const LEN: usize = 0x4;
-}
-
-/// The kept sound options (IDA 0x5180f0 .. 0x518104, the image's layout).
+/// The kept sound options (IDA 0x5180f0 .. 0x518104).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SoundOptions {
@@ -1071,12 +1048,7 @@ impl SoundOptions {
     }
 }
 
-impl SoundOptions {
-    pub const START: usize = 0x5180f0;
-    pub const LEN: usize = 0x14;
-}
-
-/// The CD audio's state (IDA 0x518104 .. 0x518120, the image's layout).
+/// The CD audio's state (IDA 0x518104 .. 0x518120).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct CdAudio {
@@ -1084,8 +1056,6 @@ pub struct CdAudio {
     pub no_cd_audio: PlainDword,
     /// `g_cdAudioOpen`: the CD audio is open.
     pub open: PlainDword,
-    /// `0x51810C`: nothing reads or writes it.
-    pub _gap_10c: PlainDword,
     /// `g_cdTrack`.
     pub track: PlainDword,
     /// `dword_518114`: no code reads or writes it.
@@ -1101,18 +1071,12 @@ impl CdAudio {
         CdAudio {
             no_cd_audio: PlainDword::new(1),
             open: PlainDword::new(0),
-            _gap_10c: PlainDword::new(0),
             track: PlainDword::new(0),
             work_114: PlainDword::new(0),
             mci_id: PlainDword::new(0),
             work_11c: PlainDword::new(0),
         }
     }
-}
-
-impl CdAudio {
-    pub const START: usize = 0x518104;
-    pub const LEN: usize = 0x1c;
 }
 
 // ---- single variables the game's thread keeps ----
@@ -1209,22 +1173,30 @@ mod tests {
 
     #[test]
     fn spot_picks_starts_as_the_games() {
-        assert_eq!(size_of::<SpotPicks>(), SpotPicks::LEN);
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            crate::sound::owner::SOUND.race.spot_picks.get(),
+        );
     }
 
     #[test]
     fn settings_applied_starts_as_the_games() {
-        assert_eq!(size_of::<SettingsApplied>(), SettingsApplied::LEN);
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            crate::sound::owner::SOUND.menu.settings_applied.get(),
+        );
     }
 
     #[test]
     fn sound_options_starts_as_the_games() {
-        assert_eq!(size_of::<SoundOptions>(), SoundOptions::LEN);
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &crate::sound::owner::SOUND.menu.options,
+        );
     }
 
     #[test]
     fn cd_audio_starts_as_the_games() {
-        assert_eq!(size_of::<CdAudio>(), CdAudio::LEN);
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            crate::sound::owner::SOUND.menu.cd_audio.get(),
+        );
     }
 
     #[test]

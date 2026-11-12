@@ -22,7 +22,7 @@ use crate::race::effects_settings_store::CarEffects;
 use crate::race::owner_course::Course;
 use crate::scene::objects::SLOTS;
 use crate::scene::owner::Scene;
-use crate::session::{PlainBytes, PlainDword, PlainFloat};
+use crate::session::{PlainDword, PlainFloat};
 
 const MOST_CARS: i32 = 8;
 
@@ -163,8 +163,6 @@ pub fn morph_object_points(
 pub struct MorphWork {
     /// 0x93C6CC: `g_marksTaken`: the block last taken for a settings block's points (`lines::set_up_blocks`)
     pub taken: PlainDword,
-    /// 0x93C6D0: Not named: 4 bytes (a gap, or unreferenced data)
-    pub _gap_93c6d0: PlainBytes<4>,
     /// 0x93C6D4: `dword_93C6D4` .. `dword_93C6F0`: the factors kept
     pub kept: [PlainFloat; 8],
 }
@@ -174,7 +172,6 @@ impl MorphWork {
     pub const fn new() -> Self {
         MorphWork {
             taken: PlainDword::new(0x0),
-            _gap_93c6d0: PlainBytes::new([0; 4]),
             kept: [
                 PlainFloat::new(0.0),
                 PlainFloat::new(0.0),
@@ -186,34 +183,5 @@ impl MorphWork {
                 PlainFloat::new(0.0),
             ],
         }
-    }
-    pub const START: usize = 0x93C6CC;
-    pub const LEN: usize = 0x28;
-}
-
-#[cfg(test)]
-mod morph_work_tests {
-    use super::*;
-    use core::mem::offset_of;
-
-    fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
-        (0..size_of::<T>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect()
-    }
-
-    #[test]
-    fn morph_work_starts_as_the_games() {
-        assert_eq!(size_of::<MorphWork>(), MorphWork::LEN);
-        assert!(
-            bytes(&crate::effects::owner::effects().paths.morph_work)
-                == crate::test_support::first_values::bytes(
-                    "effects.owner.EFFECTS.paths.morph_work/40"
-                ),
-            "MORPH_WORK starts differently from the image"
-        );
-        assert_eq!(offset_of!(MorphWork, taken), 0x0);
-        assert_eq!(offset_of!(MorphWork, kept), 0x8);
     }
 }

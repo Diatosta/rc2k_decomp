@@ -39,8 +39,6 @@ pub struct SurfaceDesc {
 pub struct Upload {
     /// `Upload.description.size`: the description a `Lock` fills.
     pub description: SurfaceDesc,
-    /// `dword_5ABA84`: nothing reads or writes it (a gap).
-    pub _gap_6c: PlainDword,
     /// `dword_5ABA88`: 1 while a screen mode is tried (`try_screen_mode`).
     pub trying: PlainDword,
 }
@@ -65,7 +63,6 @@ impl Upload {
                 pixel_format: zeros(),
                 caps: PlainDword::new(0),
             },
-            _gap_6c: PlainDword::new(0),
             trying: PlainDword::new(0),
         }
     }
@@ -75,18 +72,11 @@ impl Upload {
 mod tests {
     use super::*;
     use crate::gfx::owner::gfx;
-    use core::mem::{offset_of, size_of};
+    use core::mem::size_of;
 
     #[test]
     fn first_values_are_the_games() {
         assert_eq!(size_of::<SurfaceDesc>(), 0x6C);
         crate::test_support::first_values::assert_block_starts_as_the_games(&gfx().card.upload);
-    }
-
-    #[test]
-    fn moved_knows_the_block() {
-        assert_eq!(offset_of!(SurfaceDesc, pitch), 0x10);
-        assert_eq!(offset_of!(SurfaceDesc, pixels), 0x24);
-        assert_eq!(offset_of!(Upload, trying), 0x70);
     }
 }

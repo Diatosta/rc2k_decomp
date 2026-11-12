@@ -2,9 +2,7 @@
 //! `ClipScreen` (IDA 0x7687E4 .. 0x7688B4) and `GlowState` (0x93CC70 .. 0x93CCB0).
 
 use crate::d3d::vertices_store::Vertex;
-#[cfg(test)]
-use crate::effects::owner::effects;
-use crate::session::{Dword, Float, PlainBytes, PlainDword, PlainFloat};
+use crate::session::{Dword, Float, PlainDword, PlainFloat};
 
 /// The clip's screen edges and work vertices (IDA 0x7687E4 .. 0x7688B4).
 #[repr(C)]
@@ -43,11 +41,6 @@ impl ClipScreen {
     }
 }
 
-impl ClipScreen {
-    pub const START: usize = 0x7687E4;
-    pub const LEN: usize = 0xD0;
-}
-
 /// The glow's variables (and the clip's count) (IDA 0x93CC70 .. 0x93CCB0).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -56,12 +49,8 @@ pub struct GlowState {
     pub off: PlainDword,
     /// 0x93CC74: `flt_93CC74`, `flt_93CC78`, `flt_93CC7C`: the glow's place (as the sprite's x, y, z are taken: z, y, x).
     pub place: [PlainFloat; 3],
-    /// 0x93CC80: Not named: 20 bytes (a gap, or unreferenced data).
-    pub _gap_93cc80: PlainBytes<20>,
     /// 0x93CC94: `dword_93CC94`: the vertex count `effects::clip_quad` leaves (nothing ported reads it; it sits in the glow's block).
     pub clip_count: PlainDword,
-    /// 0x93CC98: Not named: 12 bytes (a gap, or unreferenced data).
-    pub _gap_93cc98: PlainBytes<12>,
     /// 0x93CCA4: `dword_93CCA4`: the glow sprite's angle.
     pub angle: PlainDword,
     /// 0x93CCA8: `flt_93CCA8`, `flt_93CCAC`: added to the place's z and y.
@@ -77,51 +66,9 @@ impl GlowState {
                 PlainFloat::new(-65536.0),
                 PlainFloat::new(-65536.0),
             ],
-            _gap_93cc80: PlainBytes::new([0; 20]),
             clip_count: PlainDword::new(0x0),
-            _gap_93cc98: PlainBytes::new([0; 12]),
             angle: PlainDword::new(0x0),
             offset: [PlainFloat::new(0.0), PlainFloat::new(0.0)],
         }
-    }
-}
-
-impl GlowState {
-    pub const START: usize = 0x93CC70;
-    pub const LEN: usize = 0x40;
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
-        (0..size_of::<T>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect()
-    }
-
-    #[test]
-    fn the_variables_start_as_the_games() {
-        let clipping = &effects().clipping;
-        assert_eq!(size_of::<ClipScreen>(), ClipScreen::LEN);
-        assert_eq!(size_of::<GlowState>(), GlowState::LEN);
-        assert!(
-            bytes(&clipping.clip)
-                == crate::test_support::first_values::bytes(
-                    "effects.owner.EFFECTS.clipping.clip/208"
-                ),
-            "CLIP starts differently from the image"
-        );
-        assert!(
-            bytes(&clipping.glow)
-                == crate::test_support::first_values::bytes(
-                    "effects.owner.EFFECTS.clipping.glow/64"
-                ),
-            "GLOW starts differently from the image"
-        );
-        assert_eq!(core::mem::offset_of!(ClipScreen, vertices), 0x10);
-        assert_eq!(core::mem::offset_of!(GlowState, angle), 0x34);
     }
 }

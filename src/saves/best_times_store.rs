@@ -1,10 +1,10 @@
-//! The best times, kept with the image's layout: the six rallies' tables (IDA
+//! The best times: the six rallies' tables (IDA
 //! 0x742C98 .. 0x7475D0, `RallyTimes`), then the memory the nine other tables are taken
 //! on, the two switches and where each table is (0x7475D0 .. 0x747660, `BestTimes`:
 //! `saves::allocate_best_times`, `load_best_times`, `free_best_times`). The
 //! nine tables are typed and Rust's own (`saves::best_times`): each pair keeps only the
 //! size.
-//! `#[repr(C)]`, the image's layout (all zero in it).
+//! `#[repr(C)]` (all zero in the image).
 //! `allocate_best_times` walks the switches and the pairs as one run of dwords from
 //! `allocated` (`vars()`).
 
@@ -33,8 +33,6 @@ impl TablePlace {
 pub struct BestTimes {
     /// `g_bestTimesMemory` (0x7475D0): the memory list (a `MemoryList`).
     pub memory: PlainBytes<16>,
-    /// 0x7475E0 .. 0x747610: nothing reads or writes them (a gap).
-    pub _gap_10: PlainBytes<0x30>,
     /// `g_bestTimesAllocated` (0x747610): 1 once the memory is taken.
     pub allocated: PlainDword,
     /// `g_bestTimesLoaded` (0x747614): 1 once the tables hold times (the file's or made up).
@@ -48,7 +46,6 @@ impl BestTimes {
     pub const fn new() -> Self {
         BestTimes {
             memory: PlainBytes::new([0; 16]),
-            _gap_10: PlainBytes::new([0; 0x30]),
             allocated: PlainDword::new(0),
             loaded: PlainDword::new(0),
             tables: [const { TablePlace::new() }; 9],
@@ -1285,13 +1282,6 @@ impl RallyTimes {
     pub const END: usize = 0x7475D0;
 }
 
-/// IDA 0x7475D0, the first byte of the piece.
-#[cfg(test)]
-pub const START: usize = 0x7475D0;
-/// IDA 0x747660, the end of the piece.
-#[cfg(test)]
-pub const END: usize = 0x747660;
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1300,9 +1290,6 @@ mod tests {
 
     #[test]
     fn best_times_start_as_the_games() {
-        assert_eq!(size_of::<BestTimes>(), END - START);
-        assert_eq!(offset_of!(BestTimes, allocated), 0x40);
-        assert_eq!(offset_of!(BestTimes, tables), 0x48);
         crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::saves::owner::SAVES.get().best_times,
         );

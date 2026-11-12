@@ -86,9 +86,6 @@ pub fn write_savegame_slot(
 
 #[cfg(test)]
 mod block_tests {
-    use super::*;
-    use core::mem::offset_of;
-
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
@@ -97,13 +94,5 @@ mod block_tests {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::saves::owner::SAVES.get().files.savegame_template,
         );
-    }
-
-    #[test]
-    fn moved_knows_the_block() {
-        assert_eq!(offset_of!(SaveGames, kept_a), 0);
-        assert_eq!(offset_of!(SaveGames, file), 0x4);
-        assert_eq!(offset_of!(SaveGames, names), 0x8004);
-        assert_eq!(offset_of!(SaveGames, kept_b), 0x8c84);
     }
 }

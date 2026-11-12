@@ -253,37 +253,6 @@ impl RollingChoice {
     }
 }
 
-impl RollingChoice {
-    pub const START: usize = 0x93A1D6;
-    pub const LEN: usize = 0x4;
-}
-
-#[cfg(test)]
-mod kind1_choice_tests {
-    use super::*;
-    use core::mem::offset_of;
-
-    fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
-        (0..size_of::<T>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect()
-    }
-
-    #[test]
-    fn kind1_choice_starts_as_the_games() {
-        assert_eq!(size_of::<RollingChoice>(), RollingChoice::LEN);
-        assert!(
-            bytes(&crate::effects::owner::effects().particles.kind1_choice)
-                == crate::test_support::first_values::bytes(
-                    "effects.owner.EFFECTS.particles.kind1_choice/4"
-                ),
-            "KIND1_CHOICE starts differently from the image"
-        );
-        assert_eq!(offset_of!(RollingChoice, choice), 0x0);
-    }
-}
-
 /// Kind 1's emitter variables (`emit_particle_1`) (IDA 0x93A39A .. 0x93A3D2).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -323,41 +292,5 @@ impl RollingSet {
             spin_random: PlainDword::new(0x0),
             size_k: PlainFloat::new(0.2),
         }
-    }
-}
-
-impl RollingSet {
-    pub const START: usize = 0x93A39A;
-    pub const LEN: usize = 0x38;
-}
-
-#[cfg(test)]
-mod kind1_set_tests {
-    use super::*;
-    use core::mem::offset_of;
-
-    fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
-        (0..size_of::<T>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect()
-    }
-
-    #[test]
-    fn kind1_set_starts_as_the_games() {
-        assert_eq!(size_of::<RollingSet>(), RollingSet::LEN);
-        assert!(
-            bytes(&crate::effects::owner::effects().particles.kind1_set)
-                == crate::test_support::first_values::bytes(
-                    "effects.owner.EFFECTS.particles.kind1_set/56"
-                ),
-            "KIND1_SET starts differently from the image"
-        );
-        assert_eq!(offset_of!(RollingSet, side_random), 0x0);
-        assert_eq!(offset_of!(RollingSet, motion_k), 0x4);
-        assert_eq!(offset_of!(RollingSet, spread), 0x28);
-        assert_eq!(offset_of!(RollingSet, lift), 0x2c);
-        assert_eq!(offset_of!(RollingSet, spin_random), 0x30);
-        assert_eq!(offset_of!(RollingSet, size_k), 0x34);
     }
 }

@@ -22,8 +22,6 @@ pub struct MaskPicks {
     pub table_in_use: PlainDword,
     /// 0x844E1C: `dword_844E1C`: the corner table `map_shapes` was given (its shape's number; the original kept its address)
     pub corners: PlainDword,
-    /// 0x844E20: Not named: 12 bytes (a gap, or unreferenced data).
-    pub _gap_844e20: PlainBytes<12>,
     /// 0x844E2C: `dword_844E2C`: the shapes move
     pub moving: PlainDword,
     /// 0x844E30: `dword_844E30`: the clock at which to choose again
@@ -34,8 +32,6 @@ pub struct MaskPicks {
     pub pixel_table_a: PlainBytes<131072>,
     /// 0x864E58: `g_marksPixelTableB`
     pub pixel_table_b: PlainBytes<131072>,
-    /// 0x884E58: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_884e58: PlainBytes<4>,
 }
 
 impl MaskPicks {
@@ -563,7 +559,6 @@ impl MaskPicks {
             mask: PlainDword::new(0x0),
             table_in_use: PlainDword::new(0x0),
             corners: PlainDword::new(0x0),
-            _gap_844e20: PlainBytes::new([0; 12]),
             moving: PlainDword::new(0x1),
             next: PlainDword::new(0x0),
             masks: [
@@ -579,48 +574,6 @@ impl MaskPicks {
             ],
             pixel_table_a: PlainBytes::new([0; 131072]),
             pixel_table_b: PlainBytes::new([0; 131072]),
-            _gap_884e58: PlainBytes::new([0; 4]),
         }
-    }
-}
-
-impl MaskPicks {
-    pub const START: usize = 0x844604;
-    pub const LEN: usize = 0x40858;
-}
-
-#[cfg(test)]
-mod tests_picks {
-    use super::*;
-    use core::mem::{offset_of, size_of};
-
-    #[test]
-    fn picks_starts_as_the_games() {
-        assert_eq!(size_of::<MaskPicks>(), MaskPicks::LEN);
-        assert_eq!(offset_of!(MaskPicks, flags), 0x0);
-        assert_eq!(offset_of!(MaskPicks, index), 0x8);
-        assert_eq!(offset_of!(MaskPicks, table), 0xc);
-        assert_eq!(offset_of!(MaskPicks, values), 0x40c);
-        assert_eq!(offset_of!(MaskPicks, shapes), 0x80c);
-        assert_eq!(offset_of!(MaskPicks, mask), 0x810);
-        assert_eq!(offset_of!(MaskPicks, table_in_use), 0x814);
-        assert_eq!(offset_of!(MaskPicks, corners), 0x818);
-        assert_eq!(offset_of!(MaskPicks, moving), 0x828);
-        assert_eq!(offset_of!(MaskPicks, next), 0x82c);
-        assert_eq!(offset_of!(MaskPicks, masks), 0x830);
-        assert_eq!(offset_of!(MaskPicks, pixel_table_a), 0x854);
-        assert_eq!(offset_of!(MaskPicks, pixel_table_b), 0x20854);
-        let p = core::ptr::addr_of!(crate::effects::owner::effects().windscreen_drops.picks)
-            .cast::<u8>();
-        let now: Vec<u8> = (0..MaskPicks::LEN)
-            .map(|i| unsafe { p.add(i).read() })
-            .collect();
-        assert!(
-            crate::test_support::first_values::holds(
-                "effects.owner.EFFECTS.windscreen_drops.picks/264280",
-                &now
-            ),
-            "PICKS starts differently from the image"
-        );
     }
 }

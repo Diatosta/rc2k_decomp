@@ -912,38 +912,6 @@ impl SplineHead {
             file: PlainBytes::new([0; 3072]),
         }
     }
-    pub const START: usize = 0x769312;
-    pub const LEN: usize = 0xEC0;
-}
-
-#[cfg(test)]
-mod spline_head_tests {
-    use super::*;
-
-    #[test]
-    fn spline_head_starts_as_the_games() {
-        use core::mem::offset_of;
-        assert_eq!(size_of::<SplineHead>(), SplineHead::LEN);
-        let p = (&raw const crate::effects::owner::effects().paths.spline_head).cast::<u8>();
-        let ours: Vec<u8> = (0..size_of::<SplineHead>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect();
-        assert!(
-            ours == crate::test_support::first_values::bytes(
-                "effects.owner.EFFECTS.paths.spline_head/3776"
-            ),
-            "SPLINE_HEAD starts differently from the image"
-        );
-        assert_eq!(offset_of!(SplineHead, points), 0x0);
-        assert_eq!(offset_of!(SplineHead, looks), 0x198);
-        assert_eq!(offset_of!(SplineHead, found), 0x2a0);
-        assert_eq!(offset_of!(SplineHead, angle), 0x2a4);
-        assert_eq!(offset_of!(SplineHead, wave), 0x2a8);
-        assert_eq!(offset_of!(SplineHead, shift), 0x2ac);
-        assert_eq!(offset_of!(SplineHead, switch), 0x2b8);
-        assert_eq!(offset_of!(SplineHead, made), 0x2bc);
-        assert_eq!(offset_of!(SplineHead, file), 0x2c0);
-    }
 }
 
 /// The splines' work places (`effects::bend_points`, `effects::splines`, `effects::place_spline`) (IDA 0x76A1D2 .. 0x76B9B2).
@@ -958,8 +926,6 @@ pub struct SplineWork {
     pub place: PlainDword,
     /// 0x76A20A: `g_marksSplineOffset`: the place times 0xE90.
     pub offset: PlainDword,
-    /// 0x76A20E: Not named: 8 bytes (a gap, or unreferenced data).
-    pub _gap_76a20e: PlainBytes<8>,
     /// 0x76A216: `g_marksSplineUp`: the vector the angle is measured from.
     pub up: [PlainFloat; 3],
     /// 0x76A222: `g_marksSplineSize`: the points' size, as floats.
@@ -978,8 +944,6 @@ pub struct SplineWork {
     pub ordered_ids: [PlainDword; 128],
     /// 0x76A51E: `g_marksOrderedCoords`: the ordered points, three whole numbers each.
     pub ordered_coords: [PlainDword; 384],
-    /// 0x76AB1E: Not named: 3732 bytes (a gap, or unreferenced data).
-    pub _gap_76ab1e: PlainBytes<3732>,
 }
 
 impl SplineWork {
@@ -990,7 +954,6 @@ impl SplineWork {
             object: PlainDword::new(0x0),
             place: PlainDword::new(0x0),
             offset: PlainDword::new(0x0),
-            _gap_76a20e: PlainBytes::new([0; 8]),
             up: [
                 PlainFloat::new(0.0),
                 PlainFloat::new(0.0),
@@ -1008,50 +971,7 @@ impl SplineWork {
             turn_z: [const { PlainFloat::new(0.0) }; 12],
             ordered_ids: [const { PlainDword::new(0x0) }; 128],
             ordered_coords: [const { PlainDword::new(0x0) }; 384],
-            _gap_76ab1e: PlainBytes::new(crate::session::with_runs::<3732>(&[(
-                0x3C,
-                &[
-                    0xC0, 0xE0, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xE0,
-                    0x2E, 0x00, 0x00, 0x00, 0x80, 0xFF, 0xFF,
-                ],
-            )])),
         }
-    }
-    pub const START: usize = 0x76A1D2;
-    pub const LEN: usize = 0x17E0;
-}
-
-#[cfg(test)]
-mod spline_work_tests {
-    use super::*;
-
-    #[test]
-    fn spline_work_starts_as_the_games() {
-        use core::mem::offset_of;
-        assert_eq!(size_of::<SplineWork>(), SplineWork::LEN);
-        let p = (&raw const crate::effects::owner::effects().paths.spline_work).cast::<u8>();
-        let ours: Vec<u8> = (0..size_of::<SplineWork>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect();
-        assert!(
-            ours == crate::test_support::first_values::bytes(
-                "effects.owner.EFFECTS.paths.spline_work/6112"
-            ),
-            "SPLINE_WORK starts differently from the image"
-        );
-        assert_eq!(offset_of!(SplineWork, bend), 0x0);
-        assert_eq!(offset_of!(SplineWork, object), 0x30);
-        assert_eq!(offset_of!(SplineWork, place), 0x34);
-        assert_eq!(offset_of!(SplineWork, offset), 0x38);
-        assert_eq!(offset_of!(SplineWork, up), 0x44);
-        assert_eq!(offset_of!(SplineWork, size), 0x50);
-        assert_eq!(offset_of!(SplineWork, turn_xy), 0x5c);
-        assert_eq!(offset_of!(SplineWork, turn), 0x8c);
-        assert_eq!(offset_of!(SplineWork, turn_x), 0xbc);
-        assert_eq!(offset_of!(SplineWork, turn_y), 0xec);
-        assert_eq!(offset_of!(SplineWork, turn_z), 0x11c);
-        assert_eq!(offset_of!(SplineWork, ordered_ids), 0x14c);
-        assert_eq!(offset_of!(SplineWork, ordered_coords), 0x34c);
     }
 }
 
@@ -1307,34 +1227,6 @@ impl SplineTables {
             ])),
         }
     }
-    pub const START: usize = 0x76B9B2;
-    pub const LEN: usize = 0x1D200;
-}
-
-#[cfg(test)]
-mod spline_tables_tests {
-    use super::*;
-
-    #[test]
-    fn spline_tables_starts_as_the_games() {
-        use core::mem::offset_of;
-        assert_eq!(size_of::<SplineTables>(), SplineTables::LEN);
-        let p = (&raw const crate::effects::owner::effects().paths.spline_tables).cast::<u8>();
-        let ours: Vec<u8> = (0..size_of::<SplineTables>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect();
-        assert!(
-            crate::test_support::first_values::holds(
-                "effects.owner.EFFECTS.paths.spline_tables/119296",
-                &ours
-            ),
-            "SPLINE_TABLES starts differently from the image"
-        );
-        assert_eq!(offset_of!(SplineTables, a), 0x0);
-        assert_eq!(offset_of!(SplineTables, b), 0x7480);
-        assert_eq!(offset_of!(SplineTables, c), 0xe900);
-        assert_eq!(offset_of!(SplineTables, d), 0x15d80);
-    }
 }
 
 /// The splines' values by kind (`effects::splines`) (IDA 0x788BB2 .. 0x788EFA).
@@ -1345,8 +1237,6 @@ pub struct SplineKinds {
     pub chosen: [PlainDword; 5],
     /// 0x788BC6: `dword_788BC6` .. `dword_788DE6`: five tables of 0x22 values by kind.
     pub by_kind: [PlainDword; 170],
-    /// 0x788E6E: Not named: 136 bytes (a gap, or unreferenced data).
-    pub _gap_788e6e: PlainBytes<136>,
     /// 0x788EF6: `g_marksSplinesLoaded`: 0, or where to go on.
     pub loaded: PlainDword,
 }
@@ -1534,46 +1424,8 @@ impl SplineKinds {
                 PlainDword::new(0xFFFFFFFF),
                 PlainDword::new(0x1C),
             ],
-            _gap_788e6e: PlainBytes::new([
-                0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC,
-                0x4C, 0x3F, 0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC, 0x4C, 0x3F,
-                0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC,
-                0x4C, 0x3F, 0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC, 0x4C, 0x3F,
-                0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC,
-                0x4C, 0x3F, 0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC, 0x4C, 0x3F,
-                0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC, 0x4C, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xCD, 0xCC, 0x4C, 0x3F,
-            ]),
             loaded: PlainDword::new(0x0),
         }
-    }
-    pub const START: usize = 0x788BB2;
-    pub const LEN: usize = 0x348;
-}
-
-#[cfg(test)]
-mod spline_kinds_tests {
-    use super::*;
-
-    #[test]
-    fn spline_kinds_starts_as_the_games() {
-        use core::mem::offset_of;
-        assert_eq!(size_of::<SplineKinds>(), SplineKinds::LEN);
-        let p = (&raw const crate::effects::owner::effects().paths.spline_kinds).cast::<u8>();
-        let ours: Vec<u8> = (0..size_of::<SplineKinds>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect();
-        assert!(
-            ours == crate::test_support::first_values::bytes(
-                "effects.owner.EFFECTS.paths.spline_kinds/840"
-            ),
-            "SPLINE_KINDS starts differently from the image"
-        );
-        assert_eq!(offset_of!(SplineKinds, chosen), 0x0);
-        assert_eq!(offset_of!(SplineKinds, by_kind), 0x14);
-        assert_eq!(offset_of!(SplineKinds, loaded), 0x344);
     }
 }
 
@@ -1594,30 +1446,6 @@ impl SplinePath {
                 0x2E, 0x64, 0x61, 0x74, 0x00,
             ]),
         }
-    }
-    pub const START: usize = 0x788EFA;
-    pub const LEN: usize = 0x13;
-}
-
-#[cfg(test)]
-mod spline_path_tests {
-    use super::*;
-
-    #[test]
-    fn spline_path_starts_as_the_games() {
-        use core::mem::offset_of;
-        assert_eq!(size_of::<SplinePath>(), SplinePath::LEN);
-        let p = (&raw const crate::effects::owner::effects().paths.spline_path).cast::<u8>();
-        let ours: Vec<u8> = (0..size_of::<SplinePath>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect();
-        assert!(
-            ours == crate::test_support::first_values::bytes(
-                "effects.owner.EFFECTS.paths.spline_path/19"
-            ),
-            "SPLINE_PATH starts differently from the image"
-        );
-        assert_eq!(offset_of!(SplinePath, path), 0x0);
     }
 }
 
@@ -1654,32 +1482,6 @@ impl SplineConstants {
             ],
             angles: [const { PlainFloat::new(0.0) }; 12],
         }
-    }
-    pub const START: usize = 0x788F0D;
-    pub const LEN: usize = 0x5C;
-}
-
-#[cfg(test)]
-mod spline_constants_tests {
-    use super::*;
-
-    #[test]
-    fn spline_constants_starts_as_the_games() {
-        use core::mem::offset_of;
-        assert_eq!(size_of::<SplineConstants>(), SplineConstants::LEN);
-        let p = (&raw const crate::effects::owner::effects().paths.spline_constants).cast::<u8>();
-        let ours: Vec<u8> = (0..size_of::<SplineConstants>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect();
-        assert!(
-            ours == crate::test_support::first_values::bytes(
-                "effects.owner.EFFECTS.paths.spline_constants/92"
-            ),
-            "SPLINE_CONSTANTS starts differently from the image"
-        );
-        assert_eq!(offset_of!(SplineConstants, wave_k), 0x0);
-        assert_eq!(offset_of!(SplineConstants, place_k), 0xc);
-        assert_eq!(offset_of!(SplineConstants, angles), 0x2c);
     }
 }
 

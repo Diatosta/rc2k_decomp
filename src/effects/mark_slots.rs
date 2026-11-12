@@ -3,10 +3,8 @@
 //! (0x9353A6 .. 0x935412: constants and randoms; on an address 2 more than a multiple of 4
 //! in the image).
 
-#[cfg(test)]
-use crate::effects::owner::effects;
 use crate::race::owner_frame::Frame;
-use crate::session::{PlainBytes, PlainDword, PlainFloat};
+use crate::session::{PlainDword, PlainFloat};
 
 /// One mark slot (IDA `g_markSlots`, 0x14 bytes): a sprite that lives a number of ticks.
 #[repr(C)]
@@ -49,8 +47,6 @@ pub fn slot_matrix(
 pub struct MarkSlots {
     /// 0x934F7C: `g_markSlots`: 0x20 slots of 0x14 bytes.
     pub slots: [MarkSlot; 32],
-    /// 0x9351FC: Not named: 248 bytes (a gap, or unreferenced data).
-    pub _gap_9351fc: PlainBytes<248>,
     /// 0x9352F4: `dword_9352F4` ..: the slot's point turned, then its projected place (z, y, x; then x, y).
     pub work: [PlainFloat; 3],
 }
@@ -67,26 +63,6 @@ impl MarkSlots {
                     size: PlainFloat::new(16384.0),
                 }
             }; 32],
-            _gap_9351fc: PlainBytes::new([
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x30, 0xF5, 0x47, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0xBF, 0x00, 0x00,
-                0x80, 0xBF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x80, 0xBF, 0x00, 0x00, 0x80, 0xBF, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x47, 0x00, 0x00, 0x80, 0x47, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            ]),
             work: [
                 PlainFloat::new(0.0),
                 PlainFloat::new(0.0),
@@ -96,19 +72,12 @@ impl MarkSlots {
     }
 }
 
-impl MarkSlots {
-    pub const START: usize = 0x934F7C;
-    pub const LEN: usize = 0x384;
-}
-
 /// The mark slots' constants and randoms (IDA 0x9353A6 .. 0x935412).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SlotTuning {
     /// 0x9353A6: `flt_9353A6`: half the slot square's size on the screen.
     pub half: PlainFloat,
-    /// 0x9353AA: Not named: 68 bytes (a gap, or unreferenced data).
-    pub _gap_9353aa: PlainBytes<68>,
     /// 0x9353EE: `flt_9353EE`, `flt_9353F2`, `flt_9353F6`, `flt_9353FA`: what a slot's point is scaled by: z times the first, y less the second times the third, x times the fourth.
     pub place_k: [PlainFloat; 4],
     /// 0x9353FE: `dword_9353FE`: `effects::draw_mark_slots`' random (times 0xC5 plus 0x5D) choosing a corner picture.
@@ -127,7 +96,6 @@ impl SlotTuning {
     pub const fn new() -> Self {
         Self {
             half: PlainFloat::new(0.0),
-            _gap_9353aa: PlainBytes::new([0; 68]),
             place_k: [
                 PlainFloat::new(65.536),
                 PlainFloat::new(700.0),
@@ -140,48 +108,5 @@ impl SlotTuning {
             slot_random: PlainDword::new(0x0),
             base: PlainFloat::new(16384.0),
         }
-    }
-}
-
-impl SlotTuning {
-    pub const START: usize = 0x9353A6;
-    pub const LEN: usize = 0x6C;
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
-        (0..size_of::<T>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect()
-    }
-
-    #[test]
-    fn the_slots_start_as_the_games() {
-        let blocks = &effects().blocks;
-        assert_eq!(size_of::<MarkSlot>(), 0x14);
-        assert_eq!(size_of::<MarkSlots>(), MarkSlots::LEN);
-        assert_eq!(size_of::<SlotTuning>(), SlotTuning::LEN);
-        assert!(
-            bytes(&blocks.slots)
-                == crate::test_support::first_values::bytes(
-                    "effects.owner.EFFECTS.blocks.slots/900"
-                ),
-            "SLOTS starts differently from the image"
-        );
-        assert!(
-            bytes(&blocks.slot_tuning)
-                == crate::test_support::first_values::bytes(
-                    "effects.owner.EFFECTS.blocks.slot_tuning/108"
-                ),
-            "TUNING starts differently from the image"
-        );
-        use core::mem::offset_of;
-        assert_eq!(offset_of!(MarkSlots, work), 0x378);
-        assert_eq!(offset_of!(SlotTuning, place_k), 0x48);
-        assert_eq!(offset_of!(SlotTuning, slot_random), 0x64);
     }
 }

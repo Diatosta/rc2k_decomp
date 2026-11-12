@@ -2963,13 +2963,7 @@ pub static GROUPS: &[Group] = &[
                 "numlocpl",
                 Shown::Hex,
                 0x514F78,
-                store_cell!(
-                    0x512A10,
-                    |o| o.sound.race.sounds,
-                    crate::sound::store::RaceSounds,
-                    0x514f78,
-                    one_player
-                ),
+                indexed_cell!(|o| o.sound.race.sounds, one_player),
                 false,
                 (468, 10),
             ),

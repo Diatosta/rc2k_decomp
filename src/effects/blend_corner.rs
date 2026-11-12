@@ -4,8 +4,6 @@
 //!
 //! Caller: `effects::morph_object_points`.
 
-#[cfg(test)]
-use crate::effects::owner::effects;
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::race::effects_settings_store::CarEffects;
@@ -49,36 +47,5 @@ impl BlendWork {
         Self {
             factor: PlainFloat::new(0.0),
         }
-    }
-}
-
-impl BlendWork {
-    pub const START: usize = 0x93C6C8;
-    pub const LEN: usize = 0x4;
-}
-
-#[cfg(test)]
-mod blend_work_tests {
-    use super::*;
-    use core::mem::offset_of;
-
-    fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
-        (0..size_of::<T>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect()
-    }
-
-    #[test]
-    fn blend_work_starts_as_the_games() {
-        assert_eq!(size_of::<BlendWork>(), BlendWork::LEN);
-        assert!(
-            bytes(&effects().clipping.blend_work)
-                == crate::test_support::first_values::bytes(
-                    "effects.owner.EFFECTS.clipping.blend_work/4"
-                ),
-            "BLEND_WORK starts differently from the image"
-        );
-        assert_eq!(offset_of!(BlendWork, factor), 0x0);
     }
 }

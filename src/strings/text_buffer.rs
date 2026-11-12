@@ -50,19 +50,3 @@ impl TextBuffer {
         }
     }
 }
-
-impl TextBuffer {
-    pub const START: usize = 0x93E430;
-    pub const LEN: usize = 0x400;
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn textbuffer_starts_as_the_games() {
-        let size = size_of::<TextBuffer>();
-        assert!(TextBuffer::LEN <= size && size <= (TextBuffer::LEN).next_multiple_of(16));
-    }
-}

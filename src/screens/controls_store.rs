@@ -1,20 +1,14 @@
 //! The controller screen's variables, out of RAL.EXE's image (IDA 0x755170 .. 0x755224): the history of the polls the direction learner keeps, the binding being
-//! learnt, and the names the bindings are drawn with. A `#[repr(C)]` struct of plain cells
-//! with the image's layout, one static. (It starts with the unreferenced
-//! bytes after the savegame preview's figures, `saves::preview_store`.)
+//! learnt, and the names the bindings are drawn with. A `#[repr(C)]` struct of plain cells, one static.
 
-use crate::session::{PlainBytes, PlainDword, PlainWord};
+use crate::session::{PlainDword, PlainWord};
 
 /// The controller screen's variables (IDA 0x755170 .. 0x755224).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ControlsScreen {
-    /// Unreferenced bytes (IDA 0X755170 .. 0X755178).
-    pub _gap_755170: PlainBytes<8>,
     /// Unreferenced (IDA 0X755178): 1 .. 12 and a -1.
     pub _table_755178: [PlainDword; 13],
-    /// Unreferenced bytes (IDA 0X7551AC .. 0X7551E0).
-    pub _gap_7551ac: PlainBytes<52>,
     /// Unreferenced (IDA 0X7551E0): -1.
     pub _unused_7551e0: PlainDword,
     /// `dword_7551E4` .. `dword_7551F0`: the left, right, y and z directions' histories of the
@@ -48,7 +42,6 @@ impl ControlsScreen {
 impl ControlsScreen {
     pub const fn new() -> Self {
         ControlsScreen {
-            _gap_755170: PlainBytes::new([0; 8]),
             _table_755178: [
                 PlainDword::new(1),
                 PlainDword::new(2),
@@ -64,7 +57,6 @@ impl ControlsScreen {
                 PlainDword::new(12),
                 PlainDword::new(0xFFFF_FFFF),
             ],
-            _gap_7551ac: PlainBytes::new([0; 52]),
             _unused_7551e0: PlainDword::new(0xFFFF_FFFF),
             history: [const { PlainDword::new(0xFFFF_FFFF) }; 4],
             learning: PlainDword::new(0),
@@ -96,29 +88,12 @@ impl ControlsScreen {
     }
 }
 
-/// IDA 0X755170, the first byte of the piece.
-#[cfg(test)]
-pub const START: usize = 0x755170;
-/// IDA 0X755224, the end of the piece.
-#[cfg(test)]
-pub const END: usize = 0x755224;
-
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use core::mem::{offset_of, size_of};
-
     #[test]
     fn controls_screen_starts_as_the_games() {
-        assert!(END - START <= size_of::<ControlsScreen>());
-        assert!(size_of::<ControlsScreen>() <= (END - START).next_multiple_of(4));
         crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::screens::owner::SCREENS_OWNER.get().controls,
         );
-        assert_eq!(offset_of!(ControlsScreen, _table_755178), 0x8);
-        assert_eq!(offset_of!(ControlsScreen, history), 0x74);
-        assert_eq!(offset_of!(ControlsScreen, learning), 0x84);
-        assert_eq!(offset_of!(ControlsScreen, pad_names), 0x90);
-        assert_eq!(offset_of!(ControlsScreen, stick_names), 0xa2);
     }
 }

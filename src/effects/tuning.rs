@@ -51,42 +51,6 @@ impl MarksFrame {
     }
 }
 
-impl MarksFrame {
-    pub const START: usize = 0x765110;
-    pub const LEN: usize = 0x30;
-}
-
-#[cfg(test)]
-mod marks_frame_tests {
-    use super::*;
-
-    #[test]
-    fn marks_frame_starts_as_the_games() {
-        use core::mem::offset_of;
-        assert_eq!(size_of::<MarksFrame>(), MarksFrame::LEN);
-        let p = (&raw const effects().setup.frame).cast::<u8>();
-        let ours: Vec<u8> = (0..size_of::<MarksFrame>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect();
-        assert!(
-            ours == crate::test_support::first_values::bytes(
-                "effects.owner.EFFECTS.setup.frame/48"
-            ),
-            "MARKS_FRAME starts differently from the image"
-        );
-        assert_eq!(offset_of!(MarksFrame, last_count), 0x0);
-        assert_eq!(offset_of!(MarksFrame, frame_cycles), 0x4);
-        assert_eq!(offset_of!(MarksFrame, empty_share), 0x8);
-        assert_eq!(offset_of!(MarksFrame, ring_share), 0xc);
-        assert_eq!(offset_of!(MarksFrame, whole_share), 0x10);
-        assert_eq!(offset_of!(MarksFrame, quads_share), 0x14);
-        assert_eq!(offset_of!(MarksFrame, step_share), 0x18);
-        assert_eq!(offset_of!(MarksFrame, draw_share), 0x24);
-        assert_eq!(offset_of!(MarksFrame, emit_side), 0x28);
-        assert_eq!(offset_of!(MarksFrame, steps), 0x2c);
-    }
-}
-
 /// The marks' constants (a pool of integers and floats the effects' code multiplies by) (IDA 0x765140 .. 0x765238).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]

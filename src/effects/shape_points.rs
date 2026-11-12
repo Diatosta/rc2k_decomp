@@ -488,12 +488,8 @@ pub fn make_shape_sets(
 pub struct ShapeInputs {
     /// 0x764F40: `dword_764F40`: the angle in hand while a turn matrix is made (`turn_shape_points`, `smooth_steps`; a scratch, nothing reads it back).
     pub scratch: PlainDword,
-    /// 0x764F44: Not named: 28 bytes (a gap, or unreferenced data).
-    pub _gap_764f44: PlainBytes<28>,
     /// 0x764F60: `g_marksShapeInputs`, `dword_764F64`: the tilts a shape set is made with (`make_shape_set`: copied into the working block; `make_shape_sets` writes both).
     pub tilts: [PlainDword; 2],
-    /// 0x764F68: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_764f68: PlainBytes<4>,
     /// 0x764F6C: `flt_764F6C` .. `flt_764F78`: the set's four ends (`make_shape_sets` writes them, `make_shape_set` scales them into the working block).
     pub ends: [PlainFloat; 4],
 }
@@ -502,9 +498,7 @@ impl ShapeInputs {
     pub const fn new() -> Self {
         ShapeInputs {
             scratch: PlainDword::new(0x0),
-            _gap_764f44: PlainBytes::new([0; 28]),
             tilts: [PlainDword::new(0x0), PlainDword::new(0x0)],
-            _gap_764f68: PlainBytes::new([0; 4]),
             ends: [
                 PlainFloat::new(0.0),
                 PlainFloat::new(0.0),
@@ -512,35 +506,6 @@ impl ShapeInputs {
                 PlainFloat::new(0.0),
             ],
         }
-    }
-}
-
-impl ShapeInputs {
-    pub const START: usize = 0x764F40;
-    pub const LEN: usize = 0x3C;
-}
-
-#[cfg(test)]
-mod shape_inputs_tests {
-    use super::*;
-
-    #[test]
-    fn shape_inputs_starts_as_the_games() {
-        use core::mem::offset_of;
-        assert_eq!(size_of::<ShapeInputs>(), ShapeInputs::LEN);
-        let p = (&raw const crate::effects::owner::effects().windscreen_drops.inputs).cast::<u8>();
-        let ours: Vec<u8> = (0..size_of::<ShapeInputs>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect();
-        assert!(
-            ours == crate::test_support::first_values::bytes(
-                "effects.owner.EFFECTS.windscreen_drops.inputs/60"
-            ),
-            "SHAPE_INPUTS starts differently from the image"
-        );
-        assert_eq!(offset_of!(ShapeInputs, scratch), 0x0);
-        assert_eq!(offset_of!(ShapeInputs, tilts), 0x20);
-        assert_eq!(offset_of!(ShapeInputs, ends), 0x2c);
     }
 }
 
@@ -740,39 +705,5 @@ impl ShapeSetTuning {
                 PlainFloat::new(0.017453292),
             ],
         }
-    }
-}
-
-impl ShapeSetTuning {
-    pub const START: usize = 0x89C724;
-    pub const LEN: usize = 0x270;
-}
-
-#[cfg(test)]
-mod typed_tests {
-    use super::*;
-    use core::mem::{offset_of, size_of};
-
-    #[test]
-    fn shape_set_tuning_starts_as_the_games() {
-        assert_eq!(size_of::<ShapeSetTuning>(), ShapeSetTuning::LEN);
-        let image = crate::test_support::first_values::bytes(
-            "effects.owner.EFFECTS.windscreen_drops.tuning/624",
-        );
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                (&raw const crate::effects::owner::effects().windscreen_drops.tuning).cast::<u8>(),
-                ShapeSetTuning::LEN,
-            )
-        };
-        assert!(
-            mine == image,
-            "SHAPE_SET_TUNING starts differently from the image"
-        );
-        assert_eq!(offset_of!(ShapeSetTuning, first_face_kind), 0x8);
-        assert_eq!(offset_of!(ShapeSetTuning, end_a), 0x1a0);
-        assert_eq!(offset_of!(ShapeSetTuning, set_ends), 0x248);
-        assert_eq!(offset_of!(ShapeSetTuning, turn_angles), 0x250);
-        assert_eq!(offset_of!(ShapeSetTuning, step_scales), 0x260);
     }
 }

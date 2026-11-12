@@ -19,8 +19,6 @@ impl MarksSines {
             table: [const { PlainFloat::new(0.0) }; 320],
         }
     }
-    pub const START: usize = 0x92001E;
-    pub const LEN: usize = 0x500;
 }
 
 /// The wave levels (IDA 0x9205F6 .. 0x92063A).
@@ -56,8 +54,6 @@ impl WaveLevels {
             ],
         }
     }
-    pub const START: usize = 0x9205F6;
-    pub const LEN: usize = 0x44;
 }
 
 /// The wave tables' flag and constants (IDA 0x9206C2 .. 0x9206D2).
@@ -83,45 +79,5 @@ impl WaveState {
             less: PlainFloat::new(1.0),
             sine_step: PlainFloat::new(0.024543693),
         }
-    }
-    pub const START: usize = 0x9206C2;
-    pub const LEN: usize = 0x10;
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
-        (0..size_of::<T>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect()
-    }
-
-    #[test]
-    fn the_tables_start_as_the_games() {
-        assert_eq!(size_of::<MarksSines>(), MarksSines::LEN);
-        assert_eq!(size_of::<WaveLevels>(), WaveLevels::LEN);
-        assert_eq!(size_of::<WaveState>(), WaveState::LEN);
-        assert!(
-            bytes(&crate::effects::owner::effects().paths.sines)
-                == crate::test_support::first_values::bytes(
-                    "effects.owner.EFFECTS.paths.sines/1280"
-                ),
-            "SINES starts differently from the image"
-        );
-        assert!(
-            bytes(&crate::effects::owner::effects().paths.wave_levels)
-                == crate::test_support::first_values::bytes(
-                    "effects.owner.EFFECTS.paths.wave_levels/68"
-                ),
-            "WAVE_LEVELS starts differently from the image"
-        );
-        assert!(
-            bytes(&crate::effects::owner::effects().paths.wave)
-                == crate::test_support::first_values::bytes("effects.owner.EFFECTS.paths.wave/16"),
-            "WAVE starts differently from the image"
-        );
     }
 }

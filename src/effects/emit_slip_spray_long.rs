@@ -12,7 +12,7 @@ use crate::effects::emit_slip_spray::{JitterSet, emit_slip_spray_with};
 use crate::effects::owner::Effects;
 use crate::errors::Refused;
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
-use crate::session::{PlainBytes, PlainDword, PlainFloat};
+use crate::session::{PlainDword, PlainFloat};
 
 /// Kind 0xB's variables.
 pub fn eleventh(effects: &Effects) -> JitterSet<'_> {
@@ -65,8 +65,6 @@ pub struct SlipSprayLongSet {
     pub roll_k: [PlainFloat; 3],
     /// 0x93A286: `flt_93A286`: the spin's factor
     pub spin: PlainFloat,
-    /// 0x93A28A: `flt_93A28E` .. `dword_93A30A`: read only by code at 0x4CC56C .. 0x4CC9BB, which is in no function (no ported code reads them)
-    pub _gap_93a28a: PlainBytes<136>,
 }
 
 impl SlipSprayLongSet {
@@ -85,56 +83,6 @@ impl SlipSprayLongSet {
                 PlainFloat::new(-12.0),
             ],
             spin: PlainFloat::new(-64.0),
-            _gap_93a28a: PlainBytes::new([
-                0x08, 0xAC, 0x82, 0x42, 0x0A, 0xD7, 0xA3, 0x3C, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00,
-                0x40, 0x48, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x47, 0xA6, 0x9B, 0x44, 0x42,
-                0xA6, 0x9B, 0x44, 0x42, 0xA6, 0x9B, 0x44, 0xC2, 0xA6, 0x9B, 0x44, 0x42, 0xA6, 0x9B,
-                0x44, 0x42, 0xA6, 0x9B, 0x44, 0xC2, 0xA6, 0x9B, 0x44, 0x42, 0xA6, 0x9B, 0x44, 0x42,
-                0xA6, 0x9B, 0x44, 0xC2, 0x00, 0x00, 0x00, 0x00, 0xCD, 0xCC, 0x4C, 0x3E, 0x08, 0xAC,
-                0x82, 0x42, 0xAC, 0xC5, 0xA7, 0x37, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x40, 0x48,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x47, 0xA6, 0x9B, 0x44, 0x42, 0xA6, 0x9B,
-                0x44, 0x42, 0xA6, 0x9B, 0x44, 0xC2, 0xA6, 0x9B, 0x44, 0x42, 0xA6, 0x9B, 0x44, 0x42,
-                0xA6, 0x9B, 0x44, 0xC2, 0xA6, 0x9B, 0x44, 0x42, 0xA6, 0x9B, 0x44, 0x42, 0xA6, 0x9B,
-                0x44, 0xC2, 0x00, 0x00, 0x00, 0x00, 0xCD, 0xCC, 0x4C, 0x3E,
-            ]),
         }
-    }
-}
-
-impl SlipSprayLongSet {
-    pub const START: usize = 0x93A262;
-    pub const LEN: usize = 0xB0;
-}
-
-#[cfg(test)]
-mod kind11_set_tests {
-    use super::*;
-    use core::mem::offset_of;
-
-    fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
-        (0..size_of::<T>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect()
-    }
-
-    #[test]
-    fn kind11_set_starts_as_the_games() {
-        assert_eq!(size_of::<SlipSprayLongSet>(), SlipSprayLongSet::LEN);
-        assert!(
-            bytes(&crate::effects::owner::effects().particles.kind11_set)
-                == crate::test_support::first_values::bytes(
-                    "effects.owner.EFFECTS.particles.kind11_set/176"
-                ),
-            "KIND11_SET starts differently from the image"
-        );
-        assert_eq!(offset_of!(SlipSprayLongSet, place_random), 0x0);
-        assert_eq!(offset_of!(SlipSprayLongSet, motion_x), 0x4);
-        assert_eq!(offset_of!(SlipSprayLongSet, motion_y), 0x8);
-        assert_eq!(offset_of!(SlipSprayLongSet, lift), 0xc);
-        assert_eq!(offset_of!(SlipSprayLongSet, motion_z), 0x10);
-        assert_eq!(offset_of!(SlipSprayLongSet, spread), 0x14);
-        assert_eq!(offset_of!(SlipSprayLongSet, roll_k), 0x18);
-        assert_eq!(offset_of!(SlipSprayLongSet, spin), 0x24);
     }
 }

@@ -2,8 +2,6 @@
 //! of the marks' block (phase 7, typed state): the spans' and rings' constants, the eased
 //! steps', the corners', the pixels' and the rows'.
 
-#[cfg(test)]
-use crate::effects::owner::effects;
 use crate::session::{PlainDword, PlainFloat};
 
 /// The constants and randoms of `make_masks` and the shapes' runs (IDA 0x89C994 .. 0x89CA30).
@@ -91,45 +89,5 @@ impl MaskConstants {
                 PlainFloat::new(1.0),
             ],
         }
-    }
-}
-
-impl MaskConstants {
-    pub const START: usize = 0x89C994;
-    pub const LEN: usize = 0x9C;
-}
-
-#[cfg(test)]
-mod typed_tests {
-    use super::*;
-    use core::mem::{offset_of, size_of};
-
-    #[test]
-    fn mask_constants_starts_as_the_games() {
-        assert_eq!(size_of::<MaskConstants>(), MaskConstants::LEN);
-        let image = crate::test_support::first_values::bytes(
-            "effects.owner.EFFECTS.setup.mask_constants/156",
-        );
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                (&raw const effects().setup.mask_constants).cast::<u8>(),
-                MaskConstants::LEN,
-            )
-        };
-        assert!(
-            mine == image,
-            "MASK_CONSTANTS starts differently from the image"
-        );
-        assert_eq!(offset_of!(MaskConstants, rates), 0x8);
-        assert_eq!(offset_of!(MaskConstants, ones), 0x10);
-        assert_eq!(offset_of!(MaskConstants, ring_scales), 0x1c);
-        assert_eq!(offset_of!(MaskConstants, row_add), 0x28);
-        assert_eq!(offset_of!(MaskConstants, steps), 0x30);
-        assert_eq!(offset_of!(MaskConstants, corner_angles), 0x38);
-        assert_eq!(offset_of!(MaskConstants, divisors), 0x58);
-        assert_eq!(offset_of!(MaskConstants, flips), 0x60);
-        assert_eq!(offset_of!(MaskConstants, pair_scales), 0x68);
-        assert_eq!(offset_of!(MaskConstants, pixel_constants), 0x78);
-        assert_eq!(offset_of!(MaskConstants, row_lengths), 0x90);
     }
 }

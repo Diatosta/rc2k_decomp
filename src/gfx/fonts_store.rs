@@ -5,17 +5,17 @@
 //! describes, held in a `Shared` cell. Placed in a file of its own beside the graphics
 //! module's stores.
 //!
-//! `#[repr(C)]` structs with the image's layout, first values the image's (`tests`), but for
+//! `#[repr(C)]` structs, first values the image's (`tests`), but for
 //! the four menu fonts' palette and glyph table: the image holds the addresses of the jade
 //! font's block there, and here they are its places in `gfx::glyph_store` (`JADE_COLOUR`,
 //! `JADE`), converted once when the block is built.
 
 use crate::gfx::typefaces::FontObject;
-use crate::session::{PlainBytes, PlainDword};
+use crate::session::PlainDword;
 use rc2k_core::text::Font;
 
-/// The fonts, their palettes and glyph tables (IDA 0x51DE30 .. 0x51E384, the image's layout).
-#[repr(C, align(16))]
+/// The fonts, their palettes and glyph tables (IDA 0x51DE30 .. 0x51E384).
+#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct FontBlock {
     /// 0x51DE30: `stru_51DE50` ..: the four fonts the menus and the race's text use (the third is the race's, `race::frame_text`).
@@ -34,8 +34,6 @@ pub struct FontBlock {
     pub palette_sheet: [PlainDword; 256],
     /// 0x51E2C4: `unk_51E2C4` ..: the game's six fonts (`gfx::build_game_fonts`): the tyre change's and the name plates' texts.
     pub game_fonts: [FontObject; 6],
-    /// Not in the image: the bytes that fill the record to its 16-byte alignment.
-    pub _tail: PlainBytes<12>,
 }
 
 impl FontBlock {
@@ -182,14 +180,8 @@ impl FontBlock {
                     box_width: 0x0,
                 }),
             ],
-            _tail: PlainBytes::new([0; 12]),
         }
     }
-}
-
-impl FontBlock {
-    pub const START: usize = 0x51DE30;
-    pub const LEN: usize = 0x554;
 }
 
 #[cfg(test)]

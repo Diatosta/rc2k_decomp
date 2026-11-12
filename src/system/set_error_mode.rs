@@ -36,19 +36,3 @@ impl ErrorMode {
         }
     }
 }
-
-impl ErrorMode {
-    pub const START: usize = 0x4E059C;
-    pub const LEN: usize = 0x8;
-}
-
-#[cfg(test)]
-mod error_mode_tests {
-    use super::*;
-
-    #[test]
-    fn errormode_starts_as_the_games() {
-        let size = size_of::<ErrorMode>();
-        assert!(ErrorMode::LEN <= size && size <= (ErrorMode::LEN).next_multiple_of(4));
-    }
-}

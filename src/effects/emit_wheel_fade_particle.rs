@@ -256,39 +256,3 @@ impl WheelFadeSet {
         }
     }
 }
-
-impl WheelFadeSet {
-    pub const START: usize = 0x93A41A;
-    pub const LEN: usize = 0x48;
-}
-
-#[cfg(test)]
-mod kind6_set_tests {
-    use super::*;
-    use core::mem::offset_of;
-
-    fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
-        (0..size_of::<T>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect()
-    }
-
-    #[test]
-    fn kind6_set_starts_as_the_games() {
-        assert_eq!(size_of::<WheelFadeSet>(), WheelFadeSet::LEN);
-        assert!(
-            bytes(&crate::effects::owner::effects().particles.kind6_set)
-                == crate::test_support::first_values::bytes(
-                    "effects.owner.EFFECTS.particles.kind6_set/72"
-                ),
-            "KIND6_SET starts differently from the image"
-        );
-        assert_eq!(offset_of!(WheelFadeSet, rate_k), 0x0);
-        assert_eq!(offset_of!(WheelFadeSet, side_random), 0x10);
-        assert_eq!(offset_of!(WheelFadeSet, lift), 0x14);
-        assert_eq!(offset_of!(WheelFadeSet, motion_k), 0x18);
-        assert_eq!(offset_of!(WheelFadeSet, spin_random), 0x3c);
-        assert_eq!(offset_of!(WheelFadeSet, size_k), 0x40);
-    }
-}

@@ -61,14 +61,10 @@ pub struct SheetVars {
     pub table: PlainDword,
     /// `g_builtTableSize` (`dword_5195A8`): its size so far.
     pub table_size: PlainDword,
-    /// `0x5195AC`: nothing reads or writes it (a gap).
-    pub _gap_14: PlainDword,
     /// `g_sheetGlyphCount` (`dword_5195B0`): the sheet's glyphs, and
     pub glyph_count: PlainDword,
     /// `g_sheetGlyphBytes` (`dword_5195B4`): their records' bytes.
     pub glyph_bytes: PlainDword,
-    /// `dword_5195B8` .. `dword_5195C8`: nothing reads or writes them (a gap).
-    pub _gap_20: [PlainDword; 5],
     /// `g_glyphPixelSize` (`dword_5195CC`).
     pub pixel_size: PlainDword,
     /// `g_alphaSheetLoaded` (`dword_5195D0`): 1 = the sheet read last was an alpha sheet,
@@ -85,10 +81,8 @@ impl SheetVars {
             table_list: PlainDword::new(0),
             table: PlainDword::new(0),
             table_size: PlainDword::new(0),
-            _gap_14: PlainDword::new(0),
             glyph_count: PlainDword::new(0),
             glyph_bytes: PlainDword::new(0),
-            _gap_20: [const { PlainDword::new(0) }; 5],
             pixel_size: PlainDword::new(0),
             alpha_loaded: PlainDword::new(0),
         }
@@ -453,20 +447,10 @@ pub fn build_glyphs(
 
 #[cfg(test)]
 mod block_tests {
-    use super::*;
-    use core::mem::offset_of;
-
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::gfx::owner::GFX.get().sheet,
         );
-    }
-
-    #[test]
-    fn moved_knows_the_block() {
-        assert_eq!(offset_of!(SheetVars, table), 0xc);
-        assert_eq!(offset_of!(SheetVars, glyph_count), 0x18);
-        assert_eq!(offset_of!(SheetVars, pixel_size), 0x34);
     }
 }

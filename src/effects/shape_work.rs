@@ -12,8 +12,6 @@ pub struct MarkShapes {
     pub farthest_b: [PlainDword; 2],
     /// 0x10: `dword_884FC4` .. `dword_884FE0`: a, b, c, d scaled, two zeros, the two tilts
     pub steps: [PlainDword; 8],
-    /// 0x30: Not named: 8 bytes (a gap, or unreferenced data).
-    pub _gap_30: PlainBytes<8>,
     /// 0x38: `g_marksPointsACount`
     pub count_a: PlainDword,
     /// 0x3C: `g_marksPointsBCount`
@@ -36,12 +34,8 @@ pub struct MarkShapes {
     pub low_b: [PlainDword; 3],
     /// 0xA58: list A's 3 x 3 turn (X times Z)
     pub matrix_a: [PlainFloat; 9],
-    /// 0xA7C: Not named: 12 bytes (a gap, or unreferenced data).
-    pub _gap_a7c: PlainBytes<12>,
     /// 0xA88: list B's 3 x 3 turn
     pub matrix_b: [PlainFloat; 9],
-    /// 0xAAC: Not named: 12 bytes (a gap, or unreferenced data).
-    pub _gap_aac: PlainBytes<12>,
 }
 
 /// The shape sets' work (IDA 0x884E5C .. 0x89BCA4).
@@ -58,7 +52,6 @@ impl MarkShapes {
         cells(&self.farthest_a, &other.farthest_a);
         cells(&self.farthest_b, &other.farthest_b);
         cells(&self.steps, &other.steps);
-        self._gap_30.write(&other._gap_30.read());
         cells(
             core::slice::from_ref(&self.count_a),
             core::slice::from_ref(&other.count_a),
@@ -76,9 +69,7 @@ impl MarkShapes {
         cells(&self.low_a, &other.low_a);
         cells(&self.low_b, &other.low_b);
         cells(&self.matrix_a, &other.matrix_a);
-        self._gap_a7c.write(&other._gap_a7c.read());
         cells(&self.matrix_b, &other.matrix_b);
-        self._gap_aac.write(&other._gap_aac.read());
     }
 }
 
@@ -89,24 +80,16 @@ pub struct ShapeWork {
     pub first_point: PlainDword,
     /// 0x884E60: `g_marksShapeTurnX`: the turn about X (3 x 3)
     pub turn_x: [PlainFloat; 9],
-    /// 0x884E84: Not named: 204 bytes (a gap, or unreferenced data).
-    pub _gap_884e84: PlainBytes<204>,
     /// 0x884F50: `g_marksShapeTurnA`: the turn about Z by list A's angle
     pub turn_a: [PlainFloat; 9],
-    /// 0x884F74: Not named: 12 bytes (a gap, or unreferenced data).
-    pub _gap_884f74: PlainBytes<12>,
     /// 0x884F80: `g_marksShapeTurnB`
     pub turn_b: [PlainFloat; 9],
-    /// 0x884FA4: Not named: 12 bytes (a gap, or unreferenced data).
-    pub _gap_884fa4: PlainBytes<12>,
     /// 0x884FB0: `g_marksShapeSets`: how many sets are made
     pub sets_made: PlainDword,
     /// 0x884FB4: the working block a set is made in (`g_marksFarthestA` ..)
     pub work: MarkShapes,
     /// 0x885A6C: `g_marksShapeSet`: the made sets (the game makes at most 19; the nominal 0x22nd would run past 0x89C000)
     pub sets: [MarkShapes; 33],
-    /// 0x89BC24: Not named: 128 bytes (a gap, or unreferenced data).
-    pub _gap_89bc24: PlainBytes<128>,
 }
 
 impl ShapeWork {
@@ -114,17 +97,13 @@ impl ShapeWork {
         ShapeWork {
             first_point: PlainDword::new(0x0),
             turn_x: [const { PlainFloat::new(0.0) }; 9],
-            _gap_884e84: PlainBytes::new([0; 204]),
             turn_a: [const { PlainFloat::new(0.0) }; 9],
-            _gap_884f74: PlainBytes::new([0; 12]),
             turn_b: [const { PlainFloat::new(0.0) }; 9],
-            _gap_884fa4: PlainBytes::new([0; 12]),
             sets_made: PlainDword::new(0x0),
             work: MarkShapes {
                 farthest_a: [const { PlainDword::new(0x0) }; 2],
                 farthest_b: [const { PlainDword::new(0x0) }; 2],
                 steps: [const { PlainDword::new(0x0) }; 8],
-                _gap_30: PlainBytes::new([0; 8]),
                 count_a: PlainDword::new(0x0),
                 count_b: PlainDword::new(0x0),
                 ids_a: [const { PlainDword::new(0x0) }; 64],
@@ -136,16 +115,13 @@ impl ShapeWork {
                 low_a: [const { PlainDword::new(0x0) }; 3],
                 low_b: [const { PlainDword::new(0x0) }; 3],
                 matrix_a: [const { PlainFloat::new(0.0) }; 9],
-                _gap_a7c: PlainBytes::new([0; 12]),
                 matrix_b: [const { PlainFloat::new(0.0) }; 9],
-                _gap_aac: PlainBytes::new([0; 12]),
             },
             sets: [const {
                 MarkShapes {
                     farthest_a: [const { PlainDword::new(0x0) }; 2],
                     farthest_b: [const { PlainDword::new(0x0) }; 2],
                     steps: [const { PlainDword::new(0x0) }; 8],
-                    _gap_30: PlainBytes::new([0; 8]),
                     count_a: PlainDword::new(0x0),
                     count_b: PlainDword::new(0x0),
                     ids_a: [const { PlainDword::new(0x0) }; 64],
@@ -157,47 +133,9 @@ impl ShapeWork {
                     low_a: [const { PlainDword::new(0x0) }; 3],
                     low_b: [const { PlainDword::new(0x0) }; 3],
                     matrix_a: [const { PlainFloat::new(0.0) }; 9],
-                    _gap_a7c: PlainBytes::new([0; 12]),
                     matrix_b: [const { PlainFloat::new(0.0) }; 9],
-                    _gap_aac: PlainBytes::new([0; 12]),
                 }
             }; 33],
-            _gap_89bc24: PlainBytes::new([0; 128]),
         }
-    }
-}
-
-impl ShapeWork {
-    pub const START: usize = 0x884E5C;
-    pub const LEN: usize = 0x16E48;
-}
-
-#[cfg(test)]
-mod tests_shape_work {
-    use super::*;
-    use core::mem::{offset_of, size_of};
-
-    #[test]
-    fn shape_work_starts_as_the_games() {
-        assert_eq!(size_of::<ShapeWork>(), ShapeWork::LEN);
-        assert_eq!(offset_of!(ShapeWork, first_point), 0x0);
-        assert_eq!(offset_of!(ShapeWork, turn_x), 0x4);
-        assert_eq!(offset_of!(ShapeWork, turn_a), 0xf4);
-        assert_eq!(offset_of!(ShapeWork, turn_b), 0x124);
-        assert_eq!(offset_of!(ShapeWork, sets_made), 0x154);
-        assert_eq!(offset_of!(ShapeWork, work), 0x158);
-        assert_eq!(offset_of!(ShapeWork, sets), 0xc10);
-        let p = core::ptr::addr_of!(crate::effects::owner::effects().windscreen_drops.shape_work)
-            .cast::<u8>();
-        let now: Vec<u8> = (0..ShapeWork::LEN)
-            .map(|i| unsafe { p.add(i).read() })
-            .collect();
-        assert!(
-            crate::test_support::first_values::holds(
-                "effects.owner.EFFECTS.windscreen_drops.shape_work/93768",
-                &now
-            ),
-            "SHAPE_WORK starts differently from the image"
-        );
     }
 }

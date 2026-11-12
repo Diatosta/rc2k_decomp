@@ -180,8 +180,6 @@ pub fn reset_settings_blocks(effects: &crate::effects::owner::Effects) -> Result
 pub struct PlacesBlock {
     /// 0x8DB570: `stru_8DB570` (`g_marksPlacesList`): the list the places' block is taken on (16 bytes).
     pub list: [PlainDword; 4],
-    /// 0x8DB580: Not named: 48 bytes (a gap, or unreferenced data).
-    pub _gap_8db580: PlainBytes<48>,
     /// 0x8DB5B0: `g_marksPlaces`: the places' block (0x7024 bytes; 0 since phase 12: only
     /// counted, `allocate_places`).
     pub places: PlainDword,
@@ -198,7 +196,6 @@ impl PlacesBlock {
                 PlainDword::new(0x0),
                 PlainDword::new(0x0),
             ],
-            _gap_8db580: PlainBytes::new([0; 48]),
             places: PlainDword::new(0x0),
             start: [
                 PlainFloat::new(0.0),
@@ -209,19 +206,12 @@ impl PlacesBlock {
     }
 }
 
-impl PlacesBlock {
-    pub const START: usize = 0x8DB570;
-    pub const LEN: usize = 0x50;
-}
-
 /// The links' list and block (IDA 0x9206F0 .. 0x920734).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MarkLinks {
     /// 0x9206F0: `stru_9206F0` (`g_marksLinksList`): the list the links' block is taken on (16 bytes).
     pub list: [PlainDword; 4],
-    /// 0x920700: Not named: 48 bytes (a gap, or unreferenced data).
-    pub _gap_920700: PlainBytes<48>,
     /// 0x920730: `g_marksLinks`: the links' block (0x71020 bytes; 0 since phase 12: only
     /// counted, `allocate_links`).
     pub links: PlainDword,
@@ -236,15 +226,9 @@ impl MarkLinks {
                 PlainDword::new(0x0),
                 PlainDword::new(0x0),
             ],
-            _gap_920700: PlainBytes::new([0; 48]),
             links: PlainDword::new(0x0),
         }
     }
-}
-
-impl MarkLinks {
-    pub const START: usize = 0x9206F0;
-    pub const LEN: usize = 0x44;
 }
 
 /// A corner's slope record (0x24 bytes): the slope of its sides and its eight scaled values
@@ -300,8 +284,6 @@ pub struct Corner {
 }
 
 impl Corner {
-    #[cfg(test)]
-    pub const LEN: usize = 0x80;
     pub const fn new() -> Self {
         Corner {
             words: [const { PlainWord::new(0) }; 0x40],
@@ -325,23 +307,14 @@ impl MarkCorners {
     }
 }
 
-impl MarkCorners {
-    pub const START: usize = 0x8EB971;
-    pub const LEN: usize = 0x8000;
-}
-
 /// The particle ring's pool and the burst code's scratch (IDA 0x93A580 .. 0x93A5F0).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct RingPool {
     /// 0x93A580: `stru_93A580` (`g_marksRingList`): a `memory::List` (head, total, cursor, remaining)
     pub list: [PlainDword; 4],
-    /// 0x93A590: Not named: 48 bytes (a gap, or unreferenced data)
-    pub _gap_93a590: PlainBytes<48>,
     /// 0x93A5C0: `g_marksRingFree`: the first entry of the ring in use
     pub free: PlainDword,
-    /// 0x93A5C4: Not named: 4 bytes (a gap, or unreferenced data)
-    pub _gap_93a5c4: PlainBytes<4>,
     /// 0x93A5C8: `g_marksRing`: the block taken for the ring
     pub ring: PlainDword,
     /// 0x93A5CC: Not named: 4 bytes (a gap, or unreferenced data)
@@ -350,8 +323,6 @@ pub struct RingPool {
     pub nine: PlainDword,
     /// 0x93A5D4: `dword_93A5D4`: a burst particle's kind times 0x400
     pub kind: PlainDword,
-    /// 0x93A5D8: Not named: 12 bytes (a gap, or unreferenced data)
-    pub _gap_93a5d8: PlainBytes<12>,
     /// 0x93A5E4: `g_marksBurstRadius`: the burst's radius (`flt_93A5E4`)
     pub burst_radius: PlainFloat,
     /// 0x93A5E8: `dword_93A5E8`: the colour index of the particle being drawn
@@ -370,16 +341,11 @@ impl RingPool {
                 PlainDword::new(0x0),
                 PlainDword::new(0x0),
             ],
-            _gap_93a590: PlainBytes::new([0; 48]),
             free: PlainDword::new(0x0),
-            _gap_93a5c4: PlainBytes::new([0; 4]),
             ring: PlainDword::new(0x0),
             _gap_93a5cc: PlainBytes::new([0; 4]),
             nine: PlainDword::new(0x0),
             kind: PlainDword::new(0x0),
-            _gap_93a5d8: PlainBytes::new([
-                0x0D, 0x00, 0x80, 0x39, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            ]),
             burst_radius: PlainFloat::new(0.0),
             index: PlainDword::new(0x0),
             used: PlainDword::new(0x0),
@@ -387,52 +353,10 @@ impl RingPool {
     }
 }
 
-impl RingPool {
-    pub const START: usize = 0x93A580;
-    pub const LEN: usize = 0x70;
-}
-
 #[cfg(test)]
 mod typed_tests {
     use super::*;
-    use core::mem::{offset_of, size_of};
-
-    #[test]
-    fn places_block_starts_as_the_games() {
-        assert_eq!(size_of::<PlacesBlock>(), PlacesBlock::LEN);
-        let image =
-            crate::test_support::first_values::bytes("effects.owner.EFFECTS.blocks.places/80");
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                (&raw const effects().blocks.places).cast::<u8>(),
-                PlacesBlock::LEN,
-            )
-        };
-        assert!(
-            mine == image,
-            "PLACES_BLOCK starts differently from the image"
-        );
-        assert_eq!(offset_of!(PlacesBlock, places), 0x40);
-        assert_eq!(offset_of!(PlacesBlock, start), 0x44);
-    }
-
-    #[test]
-    fn mark_links_starts_as_the_games() {
-        assert_eq!(size_of::<MarkLinks>(), MarkLinks::LEN);
-        let image =
-            crate::test_support::first_values::bytes("effects.owner.EFFECTS.blocks.links/68");
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                (&raw const effects().blocks.links).cast::<u8>(),
-                MarkLinks::LEN,
-            )
-        };
-        assert!(
-            mine == image,
-            "MARK_LINKS starts differently from the image"
-        );
-        assert_eq!(offset_of!(MarkLinks, links), 0x40);
-    }
+    use core::mem::size_of;
 
     #[test]
     fn corner_slopes_starts_as_the_games() {
@@ -451,55 +375,5 @@ mod typed_tests {
             "CORNER_SLOPES starts differently from the image"
         );
         assert_eq!(size_of::<Slope>(), Slope::LEN);
-    }
-
-    #[test]
-    fn mark_corners_starts_as_the_games() {
-        assert_eq!(size_of::<MarkCorners>(), MarkCorners::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                (&raw const effects().blocks.corners).cast::<u8>(),
-                MarkCorners::LEN,
-            )
-        };
-        assert!(
-            crate::test_support::first_values::holds(
-                "effects.owner.EFFECTS.blocks.corners/32768",
-                mine
-            ),
-            "MARK_CORNERS starts differently from the image"
-        );
-        assert_eq!(size_of::<Corner>(), Corner::LEN);
-    }
-}
-
-#[cfg(test)]
-mod ring_pool_tests {
-    use super::*;
-    use core::mem::offset_of;
-
-    fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
-        (0..size_of::<T>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect()
-    }
-
-    #[test]
-    fn ring_pool_starts_as_the_games() {
-        assert_eq!(size_of::<RingPool>(), RingPool::LEN);
-        assert!(
-            bytes(&effects().ring.pool)
-                == crate::test_support::first_values::bytes("effects.owner.EFFECTS.ring.pool/112"),
-            "RING_POOL starts differently from the image"
-        );
-        assert_eq!(offset_of!(RingPool, list), 0x0);
-        assert_eq!(offset_of!(RingPool, free), 0x40);
-        assert_eq!(offset_of!(RingPool, ring), 0x48);
-        assert_eq!(offset_of!(RingPool, nine), 0x50);
-        assert_eq!(offset_of!(RingPool, kind), 0x54);
-        assert_eq!(offset_of!(RingPool, burst_radius), 0x64);
-        assert_eq!(offset_of!(RingPool, index), 0x68);
-        assert_eq!(offset_of!(RingPool, used), 0x6c);
     }
 }

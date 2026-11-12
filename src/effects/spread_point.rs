@@ -54,29 +54,4 @@ impl SpreadRandom {
             random: PlainDword::new(0x0),
         }
     }
-    pub const START: usize = 0x923004;
-    pub const LEN: usize = 0x4;
-}
-
-#[cfg(test)]
-mod typed_tests {
-    use super::*;
-    use core::mem::size_of;
-
-    #[test]
-    fn spread_random_starts_as_the_games() {
-        assert_eq!(size_of::<SpreadRandom>(), SpreadRandom::LEN);
-        let image =
-            crate::test_support::first_values::bytes("effects.owner.EFFECTS.paths.spread_random/4");
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                (&raw const crate::effects::owner::effects().paths.spread_random).cast::<u8>(),
-                SpreadRandom::LEN,
-            )
-        };
-        assert!(
-            mine == image,
-            "SPREAD_RANDOM starts differently from the image"
-        );
-    }
 }

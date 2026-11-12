@@ -34,8 +34,6 @@ use crate::session::{PlainBytes, PlainDword};
 pub struct Rescaler {
     /// `Rescaler.copy_memory.head`: the list the copy's memory is on (16 bytes).
     pub copy_memory: crate::memory::ListCells,
-    /// `0x4F506C` .. `0x4F509C`: nothing reads or writes them (a gap).
-    pub _gap_10: [PlainDword; 12],
     /// `dword_4F509C`: whole pixels a step across.
     pub step_x: PlainDword,
     /// `dword_4F50A0`: the step's fraction.
@@ -66,7 +64,6 @@ impl Rescaler {
                 cursor: 0,
                 remaining: 0,
             }),
-            _gap_10: [const { PlainDword::new(0) }; 12],
             step_x: PlainDword::new(0),
             step_x_fraction: PlainDword::new(0),
             step_y: PlainDword::new(0),
@@ -155,20 +152,11 @@ pub fn rescale_picture(rescaler: &Rescaler, gfx: &crate::gfx::owner::Gfx) -> Res
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::gfx::owner::GFX.get().rescale,
         );
-    }
-
-    #[test]
-    fn moved_knows_the_block() {
-        assert_eq!(offset_of!(Rescaler, step_x), 0x40);
-        assert_eq!(offset_of!(Rescaler, rows_left), 0x5c);
-        assert_eq!(offset_of!(Rescaler, components), 0x60);
     }
 }

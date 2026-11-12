@@ -722,7 +722,6 @@ fn listed_stores() -> Vec<Listed> {
         listed!(
             "menu.owner.MENUS.screens.flow",
             on_game(&crate::menu::owner::MENUS.get().screens.flow),
-            0x65,
         ),
         listed!(
             "menu.owner.MENUS.screens.loop_flags",
@@ -808,7 +807,6 @@ fn listed_stores() -> Vec<Listed> {
         listed!(
             "system.owner.SYSTEM.start.texts",
             on_game(&crate::system::owner::SYSTEM.start().texts),
-            0x94,
         ),
         listed!(
             "input.owner.INPUT.guids",
@@ -885,23 +883,19 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "gfx.owner.GFX.display.mode",
-            on_game_tail(&crate::gfx::owner::GFX.get().display.mode, 12),
-            0x20,
+            on_game(&crate::gfx::owner::GFX.get().display.mode),
         ),
         listed!(
             "gfx.owner.GFX.drawing.draw_surface",
-            on_game_tail(&crate::gfx::owner::DRAW_SURFACE, 4),
-            0x44,
+            on_game(&crate::gfx::owner::DRAW_SURFACE),
         ),
         listed!(
             "d3d.owner.D3D.cards",
-            on_game_tail(crate::d3d::owner::D3D.cards.get(), 4),
-            0x564,
+            on_game(crate::d3d::owner::D3D.cards.get()),
         ),
         listed!(
             "gfx.owner.GFX.fonts.font_block",
             on_game(&crate::gfx::owner::GFX.get().fonts.font_block),
-            0x554,
         ),
         listed!(
             "audio.owner.AUDIO_OWNER.sample_names",
@@ -1316,7 +1310,6 @@ fn listed_stores() -> Vec<Listed> {
         listed!(
             "effects.owner.EFFECTS.masks.edge_settings",
             on_game(&crate::effects::owner::EFFECTS.get().masks.edge_settings),
-            0x5f,
         ),
         listed!(
             "effects.owner.EFFECTS.weather.rain",

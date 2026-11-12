@@ -1,10 +1,10 @@
 //! The screens' flow variables, out of RAL.EXE's image (IDA 0x7554C0 .. 0x755525): the
 //! sections an event starts at, the yes / no screens' switches, the lists a screen puts in place
 //! (`g_unreadList`, `g_drawList`, `g_overlayList`, `g_sceneList`) and a few switches of the item
-//! keys. A `#[repr(C)]` struct with the image's layout, one static. The list pointers hold the lists by handle (`menu::fn_list`).
+//! keys. A `#[repr(C)]` struct, one static. The list pointers hold the lists by handle (`menu::fn_list`).
 
 use crate::menu::fn_list::ListCell;
-use crate::session::{PlainBytes, PlainDword, PlainFlag, with_runs};
+use crate::session::{PlainDword, PlainFlag};
 
 /// The screens' flow variables (IDA 0x7554C0 .. 0x755525).
 #[repr(C)]
@@ -24,8 +24,6 @@ pub struct ScreenFlow {
     pub enter_skips_name_entry: PlainDword,
     /// `dword_7554D8`: 1 picks the first list of cars (`menu::event_flow`).
     pub car_list_kind: PlainDword,
-    /// Unreferenced bytes (IDA 0x7554DC .. 0x7554E4).
-    pub _gap_7554dc: PlainBytes<8>,
     /// `dword_7554E4`: 0 on the service area's screen, 1 after it (`draw_background_band`).
     pub left_service: PlainDword,
     /// `dword_7554E8`: The menu sounds' second volume (`sound::play_menu_sound`).
@@ -44,8 +42,6 @@ pub struct ScreenFlow {
     pub setup_list: ListCell,
     /// `g_sceneList`: The screen's 3D list.
     pub scene_list: ListCell,
-    /// Unreferenced bytes (IDA 0x755508 .. 0x755525).
-    pub _gap_755508: PlainBytes<32>,
 }
 
 impl ScreenFlow {
@@ -59,7 +55,6 @@ impl ScreenFlow {
             quiet: PlainDword::new(0x0),
             enter_skips_name_entry: PlainDword::new(0x0),
             car_list_kind: PlainDword::new(0x0),
-            _gap_7554dc: PlainBytes::new([0; 8]),
             left_service: PlainDword::new(0x1),
             menu_sounds_volume: PlainDword::new(0x0),
             turning: PlainDword::new(0x1),
@@ -69,36 +64,17 @@ impl ScreenFlow {
             overlay_list: ListCell::new(),
             setup_list: ListCell::new(),
             scene_list: ListCell::new(),
-            _gap_755508: PlainBytes::new(with_runs::<32>(&[(0x0, &[0xff, 0xff, 0xff, 0xff])])),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn screen_flow_starts_as_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::menu::owner::menus().screens.flow,
         );
-        assert_eq!(offset_of!(ScreenFlow, start_section), 0x0);
-        assert_eq!(offset_of!(ScreenFlow, start_section_a8), 0x4);
-        assert_eq!(offset_of!(ScreenFlow, kept), 0x8);
-        assert_eq!(offset_of!(ScreenFlow, asking), 0xc);
-        assert_eq!(offset_of!(ScreenFlow, quiet), 0x10);
-        assert_eq!(offset_of!(ScreenFlow, enter_skips_name_entry), 0x14);
-        assert_eq!(offset_of!(ScreenFlow, car_list_kind), 0x18);
-        assert_eq!(offset_of!(ScreenFlow, left_service), 0x24);
-        assert_eq!(offset_of!(ScreenFlow, menu_sounds_volume), 0x28);
-        assert_eq!(offset_of!(ScreenFlow, turning), 0x2c);
-        assert_eq!(offset_of!(ScreenFlow, shown_gearing), 0x30);
-        assert_eq!(offset_of!(ScreenFlow, unread_list), 0x34);
-        assert_eq!(offset_of!(ScreenFlow, draw_list), 0x38);
-        assert_eq!(offset_of!(ScreenFlow, overlay_list), 0x3c);
-        assert_eq!(offset_of!(ScreenFlow, setup_list), 0x40);
-        assert_eq!(offset_of!(ScreenFlow, scene_list), 0x44);
     }
 }

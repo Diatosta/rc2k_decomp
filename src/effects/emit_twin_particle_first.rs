@@ -25,7 +25,7 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::effects_settings_store::CarEffects;
 use crate::scene::matrix3::{extended, rounded_value};
-use crate::session::{PlainBytes, PlainDword, PlainFloat};
+use crate::session::{PlainDword, PlainFloat};
 
 const LEVELS: u32 = 9;
 
@@ -183,8 +183,6 @@ pub struct TwinState {
     pub motion: [PlainDword; 3],
     /// 0x93A1CE: `dword_93A1CE`: the car's level (its +0x4C0 or +0x4C4)
     pub level: PlainDword,
-    /// 0x93A1D2: Not named: 4 bytes (a gap, or unreferenced data)
-    pub _gap_93a1d2: PlainBytes<4>,
 }
 
 impl TwinState {
@@ -202,41 +200,7 @@ impl TwinState {
                 PlainDword::new(0x0),
             ],
             level: PlainDword::new(0x0),
-            _gap_93a1d2: PlainBytes::new([0x0A, 0xD7, 0xA3, 0x3B]),
         }
-    }
-}
-
-impl TwinState {
-    pub const START: usize = 0x93A1B6;
-    pub const LEN: usize = 0x20;
-}
-
-#[cfg(test)]
-mod twin_state_tests {
-    use super::*;
-    use core::mem::offset_of;
-
-    fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
-        (0..size_of::<T>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect()
-    }
-
-    #[test]
-    fn twin_state_starts_as_the_games() {
-        assert_eq!(size_of::<TwinState>(), TwinState::LEN);
-        assert!(
-            bytes(&crate::effects::owner::effects().particles.twin_state)
-                == crate::test_support::first_values::bytes(
-                    "effects.owner.EFFECTS.particles.twin_state/32"
-                ),
-            "TWIN_STATE starts differently from the image"
-        );
-        assert_eq!(offset_of!(TwinState, point), 0x0);
-        assert_eq!(offset_of!(TwinState, motion), 0xc);
-        assert_eq!(offset_of!(TwinState, level), 0x18);
     }
 }
 
@@ -277,40 +241,5 @@ impl TwinTuning {
             ],
             spin_random: PlainDword::new(0x0),
         }
-    }
-}
-
-impl TwinTuning {
-    pub const LEN: usize = 0x28;
-}
-
-#[cfg(test)]
-mod nineteenth_tuning_tests {
-    use super::*;
-    use core::mem::offset_of;
-
-    fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
-        (0..size_of::<T>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect()
-    }
-
-    #[test]
-    fn nineteenth_tuning_starts_as_the_games() {
-        assert_eq!(size_of::<TwinTuning>(), TwinTuning::LEN);
-        assert!(
-            bytes(&crate::effects::owner::effects().particles.nineteenth_tuning)
-                == crate::test_support::first_values::bytes(
-                    "effects.owner.EFFECTS.particles.nineteenth_tuning/40"
-                ),
-            "NINETEENTH_TUNING starts differently from the image"
-        );
-        assert_eq!(offset_of!(TwinTuning, chance_random), 0x0);
-        assert_eq!(offset_of!(TwinTuning, lift), 0x4);
-        assert_eq!(offset_of!(TwinTuning, row_k), 0x8);
-        assert_eq!(offset_of!(TwinTuning, spread), 0x14);
-        assert_eq!(offset_of!(TwinTuning, motion_k), 0x18);
-        assert_eq!(offset_of!(TwinTuning, spin_random), 0x24);
     }
 }

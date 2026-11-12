@@ -25,8 +25,6 @@ pub struct GlyphTables {
     /// `g_glyphTablesMemory` (`GlyphTables.memory.head`): the list the fonts' and the sprites' tables
     /// lie on (16 bytes).
     pub memory: crate::memory::ListCells,
-    /// `0x51B994` .. `0x51B9C4`: nothing reads or writes them (a gap).
-    pub _gap_14: [PlainDword; 12],
 }
 
 impl GlyphTables {
@@ -40,7 +38,6 @@ impl GlyphTables {
                 cursor: 0,
                 remaining: 0,
             }),
-            _gap_14: [const { PlainDword::new(0) }; 12],
         }
     }
 }

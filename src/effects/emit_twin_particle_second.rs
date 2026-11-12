@@ -52,30 +52,3 @@ impl TwinTuning {
         }
     }
 }
-
-#[cfg(test)]
-mod twenty_second_tuning_tests {
-    use super::*;
-
-    fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
-        (0..size_of::<T>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect()
-    }
-
-    #[test]
-    fn twenty_second_tuning_starts_as_the_games() {
-        assert_eq!(size_of::<TwinTuning>(), TwinTuning::LEN);
-        assert!(
-            bytes(
-                &crate::effects::owner::effects()
-                    .particles
-                    .twenty_second_tuning
-            ) == crate::test_support::first_values::bytes(
-                "effects.owner.EFFECTS.particles.twenty_second_tuning/40"
-            ),
-            "TWENTY_SECOND_TUNING starts differently from the image"
-        );
-    }
-}

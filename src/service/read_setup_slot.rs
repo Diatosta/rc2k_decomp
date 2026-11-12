@@ -83,9 +83,6 @@ pub fn read_setup_slot(service: &Service, slot: u32) -> Result<bool, Refused> {
 
 #[cfg(test)]
 mod block_tests {
-    use super::*;
-    use core::mem::offset_of;
-
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
@@ -94,11 +91,5 @@ mod block_tests {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::service::owner::SERVICE.get().template,
         );
-    }
-
-    #[test]
-    fn moved_knows_the_block() {
-        assert_eq!(offset_of!(SetUps, names), 0x48);
-        assert_eq!(offset_of!(SetUps, kept), 0xcc8);
     }
 }

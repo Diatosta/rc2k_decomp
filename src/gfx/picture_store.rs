@@ -29,8 +29,6 @@ pub struct Picture {
     pub size: PlainDword,
     /// `Picture.list.head`: the list the buffer's memory is on (16 bytes).
     pub list: crate::memory::ListCells,
-    /// `0x4F49F4` .. `0x4F4A24`: nothing reads or writes them (a gap).
-    pub _gap_2c: [PlainDword; 12],
 }
 
 impl Picture {
@@ -50,28 +48,18 @@ impl Picture {
                 cursor: 0,
                 remaining: 0,
             }),
-            _gap_2c: [const { PlainDword::new(0) }; 12],
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::gfx::owner::gfx;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             &gfx().pictures.picture,
         );
-    }
-
-    #[test]
-    fn moved_knows_the_block() {
-        assert_eq!(offset_of!(Picture, flags), 0x4);
-        assert_eq!(offset_of!(Picture, buffer), 0x14);
-        assert_eq!(offset_of!(Picture, list), 0x1c);
     }
 }

@@ -321,36 +321,3 @@ impl BurstTuning {
         }
     }
 }
-
-impl BurstTuning {
-    pub const LEN: usize = 0x24;
-}
-
-#[cfg(test)]
-mod first_tuning_tests {
-    use super::*;
-    use core::mem::offset_of;
-
-    fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
-        (0..size_of::<T>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect()
-    }
-
-    #[test]
-    fn first_tuning_starts_as_the_games() {
-        assert_eq!(size_of::<BurstTuning>(), BurstTuning::LEN);
-        assert!(
-            bytes(&crate::effects::owner::effects().particles.first_tuning)
-                == crate::test_support::first_values::bytes(
-                    "effects.owner.EFFECTS.particles.first_tuning/36"
-                ),
-            "FIRST_TUNING starts differently from the image"
-        );
-        assert_eq!(offset_of!(BurstTuning, strength_k), 0x0);
-        assert_eq!(offset_of!(BurstTuning, first), 0x4);
-        assert_eq!(offset_of!(BurstTuning, blend_k), 0x10);
-        assert_eq!(offset_of!(BurstTuning, second), 0x18);
-    }
-}

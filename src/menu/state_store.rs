@@ -1,9 +1,9 @@
 //! The menus' working variables, out of RAL.EXE's image (IDA 0x75A658 .. 0x75ACCC): the carousel, the service area's boxes, the standings' and class figures, the
 //! fade, the inspection's figures and the four setup items. `#[repr(C)]` structs of atomic
-//! cells with the image's layout, one static.
+//! cells, one static.
 
 use crate::menu::lists_store::CarList;
-use crate::session::{PlainBytes, PlainDword, PlainFlag, PlainFloat};
+use crate::session::{PlainDword, PlainFlag, PlainFloat};
 
 /// One of the service area's four setup items (gear ratio, tyre, ride height, suspension
 /// stiffness; IDA 0x75AC90 on, 12 bytes each).
@@ -171,8 +171,6 @@ pub struct DriverStats {
     pub score: PlainDword,
     /// `MenuState.driver_stats.total`: the high ends' total but part 4's.
     pub total: PlainDword,
-    /// Unreferenced bytes (IDA 0X75AC88 .. 0X75AC8C).
-    pub _gap_75ac88: PlainBytes<4>,
     /// `MenuState.driver_stats.repair_time`: the time of the chosen repairs.
     pub repair_time: PlainDword,
     /// `MenuState.driver_stats.setups[0].chosen` ..: the four setup items: [0] gear ratio, [1] tyre (0 .. 5, its name is string
@@ -279,7 +277,6 @@ impl MenuState {
                 penalties: [const { PlainDword::new(0) }; 14],
                 score: PlainDword::new(0x64),
                 total: PlainDword::new(0),
-                _gap_75ac88: PlainBytes::new([0; 4]),
                 repair_time: PlainDword::new(0),
                 setups: [
                     SetupItem {
@@ -313,18 +310,11 @@ impl MenuState {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn menu_state_starts_as_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::menu::owner::menus().screens.state,
         );
-        assert_eq!(offset_of!(MenuState, carousel), 0);
-        assert_eq!(offset_of!(MenuState, service_ui), 0x438);
-        assert_eq!(offset_of!(MenuState, carousel_pictures), 0x450);
-        assert_eq!(offset_of!(MenuState, menus), 0x480);
-        assert_eq!(offset_of!(MenuState, driver_stats), 0x500);
     }
 }

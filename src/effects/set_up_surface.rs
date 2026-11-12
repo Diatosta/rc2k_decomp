@@ -10,8 +10,6 @@
 
 use crate::effects::load_mask_pictures::{lock, put_pixel};
 use crate::effects::mask_store::Masks;
-#[cfg(test)]
-use crate::effects::owner::effects;
 use crate::effects::ring_store::Ring;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -190,8 +188,6 @@ pub fn set_up_surface(
 pub struct MaskList {
     /// 0x93A1DA: `stru_93A1DA`: a `memory::List` (head, total, cursor, remaining)
     pub list: [PlainDword; 4],
-    /// 0x93A1EA: Not named: 48 bytes (a gap, or unreferenced data)
-    pub _gap_93a1ea: PlainBytes<48>,
 }
 
 /// MaskList's first values.
@@ -204,36 +200,6 @@ impl MaskList {
                 PlainDword::new(0x0),
                 PlainDword::new(0x0),
             ],
-            _gap_93a1ea: PlainBytes::new([0; 48]),
         }
-    }
-}
-
-impl MaskList {
-    pub const START: usize = 0x93A1DA;
-    pub const LEN: usize = 0x40;
-}
-
-#[cfg(test)]
-mod mask_list_tests {
-    use super::*;
-    use core::mem::offset_of;
-
-    fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
-        (0..size_of::<T>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect()
-    }
-
-    #[test]
-    fn mask_list_starts_as_the_games() {
-        assert_eq!(size_of::<MaskList>(), MaskList::LEN);
-        assert!(
-            bytes(&effects().masks.list)
-                == crate::test_support::first_values::bytes("effects.owner.EFFECTS.masks.list/64"),
-            "MASK_LIST starts differently from the image"
-        );
-        assert_eq!(offset_of!(MaskList, list), 0x0);
     }
 }

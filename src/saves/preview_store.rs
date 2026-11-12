@@ -39,27 +39,12 @@ impl SavegamePreview {
     }
 }
 
-/// IDA 0X755144, the first byte of the piece.
-#[cfg(test)]
-pub const START: usize = 0x755144;
-/// IDA 0X755170, the end of the piece.
-#[cfg(test)]
-pub const END: usize = 0x755170;
-
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use core::mem::{offset_of, size_of};
-
     #[test]
     fn savegame_preview_starts_as_the_games() {
-        assert!(END - START <= size_of::<SavegamePreview>());
-        assert!(size_of::<SavegamePreview>() <= (END - START).next_multiple_of(4));
         crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::saves::owner::SAVES.get().savegame_preview,
         );
-        assert_eq!(offset_of!(SavegamePreview, shown_slot), 0x4);
-        assert_eq!(offset_of!(SavegamePreview, saved), 0xc);
-        assert_eq!(offset_of!(SavegamePreview, saved_cars), 0x28);
     }
 }

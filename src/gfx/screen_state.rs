@@ -2,17 +2,15 @@
 //! of the mode chosen, `platform` presents, the race's drawing code writes pixels through), out
 //! of RAL.EXE's image. Placed in a file of its own beside the graphics module's stores.
 //!
-//! `#[repr(C)]` structs of atomic cells with the image's layout, first values the image's
+//! `#[repr(C)]` structs of atomic cells, first values the image's
 //! (`tests`).
 
-use crate::session::{Bytes, Dword, PlainBytes, PlainDword};
+use crate::session::{Dword, PlainDword};
 
-/// The screen mode chosen (IDA 0x4F492C .. 0x4F494C, the image's layout).
-#[repr(C, align(16))]
+/// The screen mode chosen (IDA 0x4F492C .. 0x4F494C).
+#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ScreenMode {
-    /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
-    pub _lead: PlainBytes<12>,
     /// 0x4F492C: `g_depthFormatBits`: the depth formats' bits (`gfx::mark_3d_modes`).
     pub depth_bits: PlainDword,
     /// 0x4F4930: `g_depthExtraFlags`: the extra flags.
@@ -21,43 +19,29 @@ pub struct ScreenMode {
     pub mode_flags: PlainDword,
     /// 0x4F4938: `g_screenModeSet`: the mode set (`platform`).
     pub mode_set: PlainDword,
-    /// 0x4F493C: Not named: 8 bytes (a gap, or data nothing reads here).
-    pub _gap_4f493c: PlainBytes<8>,
     /// 0x4F4944: `g_menuScreenMode`: the menus' screen mode.
     pub menu_mode: PlainDword,
     /// 0x4F4948: `g_raceScreenMode`: the race's screen mode.
     pub race_mode: PlainDword,
-    /// Up to the record's alignment (no byte of a record of cells outside a field).
-    pub _tail: PlainBytes<4>,
 }
 
 impl ScreenMode {
     pub const fn new() -> Self {
         ScreenMode {
-            _lead: PlainBytes::new([0; 12]),
             depth_bits: PlainDword::new(0x0),
             depth_extra: PlainDword::new(0x0),
             mode_flags: PlainDword::new(0x0),
             mode_set: PlainDword::new(0x0),
-            _gap_4f493c: PlainBytes::new([0; 8]),
             menu_mode: PlainDword::new(0x0),
             race_mode: PlainDword::new(0x0),
-            _tail: PlainBytes::new([0; 4]),
         }
     }
 }
 
-impl ScreenMode {
-    pub const START: usize = 0x4F492C;
-    pub const LEN: usize = 0x20;
-}
-
-/// The surface the screen is drawn on (IDA 0x4F4984 .. 0x4F49C8, the image's layout).
-#[repr(C, align(16))]
+/// The surface the screen is drawn on (IDA 0x4F4984 .. 0x4F49C8).
+#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct DrawSurface {
-    /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
-    pub _lead: Bytes<4>,
     /// 0x4F4984: `dword_4F4984`: the presented picture's row pitch (`platform`).
     pub present_pitch: Dword,
     /// 0x4F4988: `dword_4F4988`: the presented picture's pixels.
@@ -93,15 +77,12 @@ pub struct DrawSurface {
     pub pixels: Dword,
     /// 0x4F49C4: `g_surface.row_gap`: the bytes after a row's pixels.
     pub row_gap: Dword,
-    /// Up to the record's alignment (no byte of a record of cells outside a field).
-    pub _tail: Bytes<8>,
 }
 
 impl DrawSurface {
     /// The first values are the image's.
     pub const fn new() -> Self {
         DrawSurface {
-            _lead: Bytes::new([0; 4]),
             present_pitch: Dword::new(0x0),
             present_pixels: Dword::new(0x0),
             present_gap: Dword::new(0x0),
@@ -119,14 +100,8 @@ impl DrawSurface {
             pitch: Dword::new(0x0),
             pixels: Dword::new(0x0),
             row_gap: Dword::new(0x0),
-            _tail: Bytes::new([0; 8]),
         }
     }
-}
-
-impl DrawSurface {
-    pub const START: usize = 0x4F4984;
-    pub const LEN: usize = 0x44;
 }
 
 #[cfg(test)]

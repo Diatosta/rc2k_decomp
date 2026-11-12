@@ -580,9 +580,9 @@ mod vector_tests {
     /// bytes), in the order of the original's addresses.
     const RANGES: [(&str, usize, usize); 247] = [
         ("menu.owner.MENUS.screens.event", 0x18, 0x4),
+        ("menu.owner.MENUS.screens.event", 0xBC, 0x4),
         ("menu.owner.MENUS.screens.event", 0xC0, 0x4),
         ("menu.owner.MENUS.screens.event", 0xC4, 0x4),
-        ("menu.owner.MENUS.screens.event", 0xC8, 0x4),
         ("menu.owner.MENUS.screens.flow", 0x8, 0x4),
         ("menu.owner.MENUS.screens.option_work", 0x10, 0x4),
         ("menu.owner.MENUS.screens.option_work", 0x1C, 0x4),

@@ -29,11 +29,6 @@ use crate::audio::describe_wave_format::WaveFormat;
 use crate::audio::make_buffer::BufferDescription;
 use crate::audio::samples::SampleFile;
 
-#[cfg(test)]
-pub const STATE_IDA: usize = 0x4F8294;
-#[cfg(test)]
-pub const STATE_END: usize = 0x506E6C;
-
 /// One of `g_eaxRooms`' ten reverb settings (EAX's `EAX_REVERBPROPERTIES`, 16 bytes).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -45,14 +40,12 @@ pub struct EaxRoom {
     pub damping: Float,
 }
 
-/// The audio thread's variables (IDA 0x4F8294 .. 0x506E6C, the image's layout).
+/// The audio thread's variables (IDA 0x4F8294 ..).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct AudioState {
     /// `g_qualityModes`: the sound mode of each quality (0x212, 0x222, 0x221, 0x220), the advanced page's first choice picks one. (IDA 0x4F8294)
     pub quality_modes: [Dword; 4],
-    /// 16 bytes the code never names (0x4F82A4 ..). (IDA 0x4F82A4)
-    pub _gap_82a4: Bytes<16>,
     /// `g_noAudio`: 1 = no sound (the `noaudio` / `nosound` settings; the audio thread sets it when it ends). (IDA 0x4F82B4)
     pub no_audio: Dword,
     /// `g_audioTurnTick`: the clock reading of the audio thread's last turn. (IDA 0x4F82B8)
@@ -81,8 +74,6 @@ pub struct AudioState {
     pub sample_channel_flags: [Dword; 4],
     /// `g_sampleMemory`: the samples' memory (a `MemoryList`). (IDA 0x4F8300)
     pub sample_memory: Shared<List>,
-    /// 48 bytes the code never names (0x4F8310 ..). (IDA 0x4F8310)
-    pub _gap_8310: Bytes<48>,
     /// `g_playingVoices`: the first voice on the playing list (an address; 0: none). (IDA 0x4F8340)
     pub playing_voices: Dword,
     /// `g_stoppingVoices`: the first voice on the stopping list. (IDA 0x4F8344)
@@ -113,8 +104,6 @@ pub struct AudioState {
     pub sample_buffer_kb: Dword,
     /// `g_sampleBufferMemory`: the work buffer's memory (a `MemoryList`). (IDA 0x5068F0)
     pub sample_buffer_memory: Shared<List>,
-    /// 48 bytes the code never names (0x506900 ..). (IDA 0x506900)
-    pub _gap_6900: Bytes<48>,
     /// `g_sampleBuffer`: the work buffer for reading samples (an address). (IDA 0x506930)
     pub sample_buffer: Dword,
     /// `g_sampleBufferSize`: its bytes. (IDA 0x506934)
@@ -139,19 +128,12 @@ pub struct AudioState {
     pub stream_header: Dword,
     /// `g_streamHeaderMemory`: the header's memory (a `MemoryList`). (IDA 0x5069DC)
     pub stream_header_memory: Shared<List>,
-    /// 60 bytes the code never names (0x5069EC ..): the original's command counters sat in
-    /// the last twelve. (IDA 0x5069EC)
-    pub _gap_69ec: Bytes<60>,
     /// `riid`: A3D's interface id. (IDA 0x506A28)
     pub a3d_iid: Bytes<16>,
-    /// 16 bytes the code never names (0x506A38 ..). (IDA 0x506A38)
-    pub _gap_6a38: Bytes<16>,
     /// `g_iidListener3d`: the 3D listener's interface id. (IDA 0x506A48)
     pub iid_listener: Bytes<16>,
     /// `g_iidSound3dBuffer`: the 3D buffer's interface id. (IDA 0x506A58)
     pub iid_sound_3d_buffer: Bytes<16>,
-    /// 16 bytes the code never names (0x506A68 ..). (IDA 0x506A68)
-    pub _gap_6a68: Bytes<16>,
     /// `g_iidKsPropertySet`: the property set's interface id. (IDA 0x506A78)
     pub iid_property_set: Bytes<16>,
     /// `g_directSound`: the IDirectSound object (an address; 0: none). (IDA 0x506A88)
@@ -160,8 +142,6 @@ pub struct AudioState {
     pub primary_buffer: Dword,
     /// `g_soundListener`: the 3D listener. (IDA 0x506A90)
     pub sound_listener: Dword,
-    /// 4 bytes the code never names (0x506A94 ..). (IDA 0x506A94)
-    pub _gap_6a94: Bytes<4>,
     /// `g_lockedParts`: what `Lock` gives: two pointers and their sizes. (IDA 0x506A98)
     pub locked_parts: [Dword; 4],
     /// `g_soundCaps`: DirectSound's `DSCAPS` (flags at +4, free hardware buffers at +0x14, free 3D ones at +0x3C). (IDA 0x506AA8)
@@ -176,7 +156,7 @@ pub struct AudioState {
     pub no_listener: Loose,
     /// `g_has3d` (an unaligned dword): 3D is there. (IDA 0x506B46)
     pub has_3d: Loose,
-    /// 2 bytes the code never names (0x506B4A ..). (IDA 0x506B4A)
+    /// Two bytes that keep `volume_table` aligned after the two unaligned dwords before it.
     pub _gap_6b4a: Bytes<2>,
     /// `g_volumeTable`: 65 volumes, -10000 .. 0 (signed). (IDA 0x506B4C)
     pub volume_table: [Dword; 65],
@@ -214,28 +194,18 @@ pub struct AudioState {
     pub voice_manager_set: Bytes<16>,
     /// `rclsid`: A3D's class id. (IDA 0x506CD8)
     pub a3d_clsid: Bytes<16>,
-    /// 112 bytes the code never names (0x506CE8 ..). (IDA 0x506CE8)
-    pub _gap_6ce8: Bytes<112>,
     /// `g_a3d2Interface`. (IDA 0x506D58)
     pub a3d2_interface: Dword,
     /// `g_hasA3d2`. (IDA 0x506D5C)
     pub has_a3d2: Dword,
     /// `g_useA3d`: 1 = A3D is the sound. (IDA 0x506D60)
     pub use_a3d: Dword,
-    /// 8 bytes the code never names (0x506D64 ..). (IDA 0x506D64)
-    pub _gap_6d64: Bytes<8>,
     /// A3D2's class id. (IDA 0x506D6C)
     pub a3d2_clsid: Bytes<16>,
-    /// 16 bytes the code never names (0x506D7C ..). (IDA 0x506D7C)
-    pub _gap_6d7c: Bytes<16>,
     /// A3D2's interface id. (IDA 0x506D8C)
     pub a3d2_iid: Bytes<16>,
-    /// 16 bytes the code never names (0x506D9C ..). (IDA 0x506D9C)
-    pub _gap_6d9c: Bytes<16>,
     /// `g_eaxReverbSet`: EAX's reverb property set id. (IDA 0x506DAC)
     pub eax_reverb_set: Bytes<16>,
-    /// 16 bytes the code never names (0x506DBC ..). (IDA 0x506DBC)
-    pub _gap_6dbc: Bytes<16>,
     /// `g_eaxRooms`: the ten rooms' reverb settings. (IDA 0x506DCC)
     pub eax_rooms: [EaxRoom; 10],
 }
@@ -297,7 +267,6 @@ impl AudioState {
                 Dword::new(0x221),
                 Dword::new(0x220),
             ],
-            _gap_82a4: Bytes::new([0, 0, 0, 0, 0, 0, 0x30, 0, 0, 0, 0x30, 0x1, 0, 0, 0, 0x2]),
             no_audio: Dword::new(0),
             audio_turn_tick: Dword::new(0),
             sound_mode: Dword::new(0),
@@ -327,7 +296,6 @@ impl AudioState {
                 cursor: 0x0,
                 remaining: 0x0,
             }),
-            _gap_8310: Bytes::new([0; 48]),
             playing_voices: Dword::new(0),
             stopping_voices: Dword::new(0),
             voice_count: Dword::new(0),
@@ -348,7 +316,6 @@ impl AudioState {
                 cursor: 0x0,
                 remaining: 0x0,
             }),
-            _gap_6900: Bytes::new([0; 48]),
             sample_buffer: Dword::new(0),
             sample_buffer_size: Dword::new(0),
             sample_file: Shared::new(SampleFile {
@@ -402,13 +369,8 @@ impl AudioState {
                 cursor: 0x0,
                 remaining: 0x0,
             }),
-            _gap_69ec: Bytes::new([0; 60]),
             a3d_iid: Bytes::new([
                 0x83, 0xfa, 0x9a, 0x27, 0x81, 0x49, 0xce, 0x11, 0xa5, 0x21, 0, 0x20, 0xaf, 0xb,
-                0xe5, 0x60,
-            ]),
-            _gap_6a38: Bytes::new([
-                0x85, 0xfa, 0x9a, 0x27, 0x81, 0x49, 0xce, 0x11, 0xa5, 0x21, 0, 0x20, 0xaf, 0xb,
                 0xe5, 0x60,
             ]),
             iid_listener: Bytes::new([
@@ -419,10 +381,6 @@ impl AudioState {
                 0x86, 0xfa, 0x9a, 0x27, 0x81, 0x49, 0xce, 0x11, 0xa5, 0x21, 0, 0x20, 0xaf, 0xb,
                 0xe5, 0x60,
             ]),
-            _gap_6a68: Bytes::new([
-                0x83, 0x7, 0x21, 0xb0, 0xcd, 0x89, 0xd0, 0x11, 0xaf, 0x8, 0, 0xa0, 0xc9, 0x25,
-                0xcd, 0x16,
-            ]),
             iid_property_set: Bytes::new([
                 0x30, 0xac, 0xef, 0x31, 0x5c, 0x51, 0xd0, 0x11, 0xa9, 0xaa, 0, 0xaa, 0, 0x61, 0xbe,
                 0x93,
@@ -430,7 +388,6 @@ impl AudioState {
             direct_sound: Dword::new(0),
             primary_buffer: Dword::new(0),
             sound_listener: Dword::new(0),
-            _gap_6a94: Bytes::new([0; 4]),
             locked_parts: [const { Dword::new(0) }; 4],
             sound_caps: Bytes::new([0; 96]),
             primary_caps: Bytes::new([0; 20]),
@@ -550,41 +507,19 @@ impl AudioState {
                 0xe0, 0xee, 0xf1, 0xd8, 0x34, 0xf6, 0xcf, 0x11, 0x87, 0, 0, 0xa0, 0x24, 0x5d, 0x91,
                 0x8b,
             ]),
-            _gap_6ce8: Bytes::new([
-                0xe1, 0xee, 0xf1, 0xd8, 0x34, 0xf6, 0xcf, 0x11, 0x87, 0, 0, 0xa0, 0x24, 0x5d, 0x91,
-                0x8b, 0xe0, 0xd1, 0x80, 0xfb, 0xd3, 0x98, 0xd1, 0x11, 0x90, 0xfb, 0, 0x60, 0x8,
-                0xa1, 0xf4, 0x41, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x4, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x53, 0x4f, 0x46, 0x54, 0x57, 0x41, 0x52, 0x45,
-                0x5c, 0x41, 0x75, 0x72, 0x65, 0x61, 0x6c, 0x5c, 0x41, 0x33, 0x44, 0, 0x53, 0x70,
-                0x6c, 0x61, 0x73, 0x68, 0x53, 0x63, 0x72, 0x65, 0x65, 0x6e, 0, 0x53, 0x70, 0x6c,
-                0x61, 0x73, 0x68, 0x41, 0x75, 0x64, 0x69, 0x6f, 0, 0, 0, 0,
-            ]),
             a3d2_interface: Dword::new(0),
             has_a3d2: Dword::new(0),
             use_a3d: Dword::new(0),
-            _gap_6d64: Bytes::new([0, 0, 0, 0, 0, 0, 0x80, 0x3c]),
             a3d2_clsid: Bytes::new([
                 0x24, 0x2c, 0xfa, 0x92, 0x3c, 0x25, 0xd2, 0x11, 0x90, 0xfb, 0, 0x60, 0x8, 0xa1,
-                0xf4, 0x41,
-            ]),
-            _gap_6d7c: Bytes::new([
-                0x60, 0xe5, 0x98, 0xc3, 0xb, 0xd9, 0xd1, 0x11, 0x90, 0xfb, 0, 0x60, 0x8, 0xa1,
                 0xf4, 0x41,
             ]),
             a3d2_iid: Bytes::new([
                 0x80, 0x2, 0xc4, 0xe4, 0xba, 0xcc, 0xd2, 0x11, 0x9d, 0xcf, 0, 0x50, 0x4, 0x11,
                 0x58, 0x2f,
             ]),
-            _gap_6d9c: Bytes::new([
-                0x63, 0xe5, 0x98, 0xc3, 0xb, 0xd9, 0xd1, 0x11, 0x90, 0xfb, 0, 0x60, 0x8, 0xa1,
-                0xf4, 0x41,
-            ]),
             eax_reverb_set: Bytes::new([
                 0xc1, 0x6f, 0x4e, 0x4a, 0x41, 0xc3, 0xd1, 0x11, 0xb7, 0x3a, 0x44, 0x45, 0x53, 0x54,
-                0, 0,
-            ]),
-            _gap_6dbc: Bytes::new([
-                0xc0, 0x6f, 0x4e, 0x4a, 0x41, 0xc3, 0xd1, 0x11, 0xb7, 0x3a, 0x44, 0x45, 0x53, 0x54,
                 0, 0,
             ]),
             eax_rooms: [
@@ -652,119 +587,6 @@ impl AudioState {
         }
     }
 }
-
-/// (offset of the field, the offset the game's layout has) of every named field, for the layout test.
-#[cfg(test)]
-const LAYOUT: &[(usize, usize)] = &[
-    (core::mem::offset_of!(AudioState, quality_modes), 0x0),
-    (core::mem::offset_of!(AudioState, no_audio), 0x20),
-    (core::mem::offset_of!(AudioState, audio_turn_tick), 0x24),
-    (core::mem::offset_of!(AudioState, sound_mode), 0x28),
-    (core::mem::offset_of!(AudioState, opened_sound_mode), 0x2C),
-    (core::mem::offset_of!(AudioState, menu_sound_mode), 0x30),
-    (core::mem::offset_of!(AudioState, race_sound_mode), 0x34),
-    (core::mem::offset_of!(AudioState, sound_buffer_lost), 0x38),
-    (core::mem::offset_of!(AudioState, commit_3d), 0x3C),
-    (core::mem::offset_of!(AudioState, mix_rate_setting), 0x40),
-    (core::mem::offset_of!(AudioState, master_volume), 0x44),
-    (core::mem::offset_of!(AudioState, primary_volume_kept), 0x48),
-    (core::mem::offset_of!(AudioState, sample_bits_flags), 0x4C),
-    (
-        core::mem::offset_of!(AudioState, sample_channel_flags),
-        0x5C,
-    ),
-    (core::mem::offset_of!(AudioState, sample_memory), 0x6C),
-    (core::mem::offset_of!(AudioState, playing_voices), 0xAC),
-    (core::mem::offset_of!(AudioState, stopping_voices), 0xB0),
-    (core::mem::offset_of!(AudioState, voice_count), 0xB4),
-    (core::mem::offset_of!(AudioState, voices), 0xB8),
-    (core::mem::offset_of!(AudioState, channel_count), 0xE0B8),
-    (core::mem::offset_of!(AudioState, channels_used), 0xE0BC),
-    (core::mem::offset_of!(AudioState, channels), 0xE0C0),
-    (core::mem::offset_of!(AudioState, mix_rate), 0xE640),
-    (core::mem::offset_of!(AudioState, primary_size), 0xE644),
-    (core::mem::offset_of!(AudioState, mix_most), 0xE648),
-    (core::mem::offset_of!(AudioState, mix_shift), 0xE64C),
-    (core::mem::offset_of!(AudioState, play_cursor), 0xE650),
-    (core::mem::offset_of!(AudioState, write_cursor), 0xE654),
-    (core::mem::offset_of!(AudioState, sample_buffer_kb), 0xE658),
-    (
-        core::mem::offset_of!(AudioState, sample_buffer_memory),
-        0xE65C,
-    ),
-    (core::mem::offset_of!(AudioState, sample_buffer), 0xE69C),
-    (
-        core::mem::offset_of!(AudioState, sample_buffer_size),
-        0xE6A0,
-    ),
-    (core::mem::offset_of!(AudioState, sample_file), 0xE6A4),
-    (
-        core::mem::offset_of!(AudioState, unit_volume_factor),
-        0xE6C4,
-    ),
-    (core::mem::offset_of!(AudioState, sound_list_loaded), 0xE6C8),
-    (core::mem::offset_of!(AudioState, sound_stream), 0xE6CC),
-    (core::mem::offset_of!(AudioState, next_tune), 0xE6F8),
-    (core::mem::offset_of!(AudioState, music_stream), 0xE6FC),
-    (core::mem::offset_of!(AudioState, no_music), 0xE728),
-    (core::mem::offset_of!(AudioState, music_path), 0xE72C),
-    (core::mem::offset_of!(AudioState, stream_header), 0xE744),
-    (
-        core::mem::offset_of!(AudioState, stream_header_memory),
-        0xE748,
-    ),
-    (core::mem::offset_of!(AudioState, a3d_iid), 0xE794),
-    (core::mem::offset_of!(AudioState, iid_listener), 0xE7B4),
-    (
-        core::mem::offset_of!(AudioState, iid_sound_3d_buffer),
-        0xE7C4,
-    ),
-    (core::mem::offset_of!(AudioState, iid_property_set), 0xE7E4),
-    (core::mem::offset_of!(AudioState, direct_sound), 0xE7F4),
-    (core::mem::offset_of!(AudioState, primary_buffer), 0xE7F8),
-    (core::mem::offset_of!(AudioState, sound_listener), 0xE7FC),
-    (core::mem::offset_of!(AudioState, locked_parts), 0xE804),
-    (core::mem::offset_of!(AudioState, sound_caps), 0xE814),
-    (core::mem::offset_of!(AudioState, primary_caps), 0xE874),
-    (
-        core::mem::offset_of!(AudioState, buffer_description),
-        0xE888,
-    ),
-    (core::mem::offset_of!(AudioState, wave_format), 0xE89C),
-    (core::mem::offset_of!(AudioState, no_listener), 0xE8AE),
-    (core::mem::offset_of!(AudioState, has_3d), 0xE8B2),
-    (core::mem::offset_of!(AudioState, volume_table), 0xE8B8),
-    (
-        core::mem::offset_of!(AudioState, ignore_dsv_setting),
-        0xE9BC,
-    ),
-    (core::mem::offset_of!(AudioState, voice_manager_on), 0xE9C0),
-    (core::mem::offset_of!(AudioState, voice_manager), 0xE9C4),
-    (core::mem::offset_of!(AudioState, no_a3d_setting), 0xE9C8),
-    (core::mem::offset_of!(AudioState, a3d_splash_kept), 0xE9CC),
-    (core::mem::offset_of!(AudioState, a3d_ready), 0xE9D0),
-    (core::mem::offset_of!(AudioState, a3d_object), 0xE9D4),
-    (
-        core::mem::offset_of!(AudioState, ignore_eax_setting),
-        0xE9D8,
-    ),
-    (core::mem::offset_of!(AudioState, has_eax), 0xE9DC),
-    (core::mem::offset_of!(AudioState, eax_properties), 0xE9E0),
-    (core::mem::offset_of!(AudioState, eax_room), 0xE9E4),
-    (core::mem::offset_of!(AudioState, eax_room_set), 0xE9E8),
-    (core::mem::offset_of!(AudioState, environment_kept), 0xE9EC),
-    (core::mem::offset_of!(AudioState, sounds_held_back), 0xE9F0),
-    (core::mem::offset_of!(AudioState, audio_options), 0xE9F4),
-    (core::mem::offset_of!(AudioState, voice_manager_set), 0xEA34),
-    (core::mem::offset_of!(AudioState, a3d_clsid), 0xEA44),
-    (core::mem::offset_of!(AudioState, a3d2_interface), 0xEAC4),
-    (core::mem::offset_of!(AudioState, has_a3d2), 0xEAC8),
-    (core::mem::offset_of!(AudioState, use_a3d), 0xEACC),
-    (core::mem::offset_of!(AudioState, a3d2_clsid), 0xEAD8),
-    (core::mem::offset_of!(AudioState, a3d2_iid), 0xEAF8),
-    (core::mem::offset_of!(AudioState, eax_reverb_set), 0xEB18),
-    (core::mem::offset_of!(AudioState, eax_rooms), 0xEB38),
-];
 
 #[cfg(test)]
 pub const SAMPLES_IDA: usize = 0x50A7A4;
@@ -2363,15 +2185,7 @@ mod tests {
     }
 
     #[test]
-    fn the_state_starts_as_the_games() {
-        assert_eq!(size_of::<AudioState>(), STATE_END - STATE_IDA);
-    }
-
-    #[test]
-    fn the_state_keeps_the_images_layout() {
-        for &(offset, games) in LAYOUT {
-            assert_eq!(offset, games, "{games:#X}");
-        }
+    fn the_records_have_the_games_sizes() {
         assert_eq!(size_of::<Voice>(), 0x70);
         assert_eq!(size_of::<MixerChannel>(), 0x58);
         assert_eq!(size_of::<EaxRoom>(), 0x10);

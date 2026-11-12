@@ -5,8 +5,6 @@
 
 use crate::effects::kind_store::{CONSTS_1, CONSTS_2, KindConsts, QuadWork, TABLES_1, TABLES_2};
 use crate::effects::owner::Effects;
-#[cfg(test)]
-use crate::effects::owner::effects;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_float as bh;
@@ -146,32 +144,5 @@ impl MarksKind {
         Self {
             kind: PlainDword::new(0x0),
         }
-    }
-}
-
-impl MarksKind {
-    pub const START: usize = 0x769232;
-    pub const LEN: usize = 0x4;
-}
-
-#[cfg(test)]
-mod marks_kind_tests {
-    use super::*;
-
-    #[test]
-    fn marks_kind_starts_as_the_games() {
-        use core::mem::offset_of;
-        assert_eq!(size_of::<MarksKind>(), MarksKind::LEN);
-        let p = (&raw const effects().kinds.marks_kind).cast::<u8>();
-        let ours: Vec<u8> = (0..size_of::<MarksKind>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect();
-        assert!(
-            ours == crate::test_support::first_values::bytes(
-                "effects.owner.EFFECTS.kinds.marks_kind/4"
-            ),
-            "MARKS_KIND starts differently from the image"
-        );
-        assert_eq!(offset_of!(MarksKind, kind), 0x0);
     }
 }

@@ -37,8 +37,6 @@ pub struct GameFontsMemory {
     pub units: crate::session::PlainDword,
     /// `g_gameFontMemory` (`GameFontsMemory.memory.head`): the list the fonts' tables lie on (16 bytes).
     pub memory: crate::memory::ListCells,
-    /// `0x5BE8A8` .. `0x5BE8D8`: nothing reads or writes them (a gap).
-    pub _gap_14: [crate::session::PlainDword; 12],
 }
 
 impl GameFontsMemory {
@@ -52,7 +50,6 @@ impl GameFontsMemory {
                 cursor: 0,
                 remaining: 0,
             }),
-            _gap_14: [const { crate::session::PlainDword::new(0) }; 12],
         }
     }
 }

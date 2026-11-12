@@ -6,13 +6,11 @@
 //! (section 16).
 
 use crate::effects::owner::Effects;
-#[cfg(test)]
-use crate::effects::owner::effects;
 use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
-use crate::session::{PlainBytes, PlainDword, PlainFloat};
+use crate::session::{PlainDword, PlainFloat};
 
 pub use crate::effects::ring_store::Ring;
 
@@ -172,8 +170,6 @@ pub fn gate_with(
 pub struct EmitterVars {
     /// 0x935416: `g_marksRecordNumber` (`dword_935416`): which wheel record the emitters are on (0 .. 3, 2 or 3 for the body); bit 0 the side.
     pub record: PlainDword,
-    /// 0x93541A: Not named: 24 bytes (a gap, or unreferenced data).
-    pub _gap_93541a: PlainBytes<24>,
     /// 0x935432: `g_marksSign`: -1 or 1 (`effects::emit_slip_spray`).
     pub sign: PlainDword,
     /// 0x935436: `g_marksCar`: the car object being done (a `effects_settings_store::car_handle`, 0 for none).
@@ -192,8 +188,6 @@ pub struct EmitterVars {
     pub looks: [PlainDword; 2],
     /// 0x93547E: `g_marksTag` (`dword_93547E`): the car's number times `tag_k`; each ring entry's +8.
     pub tag: PlainDword,
-    /// 0x935482: Not named: 68 bytes (a gap, or unreferenced data).
-    pub _gap_935482: PlainBytes<68>,
     /// 0x9354C6: `flt_9354C6` .. `flt_9354DA`: the six floats `effects::reset_settings_blocks` puts in each settings block's +0x4C ..
     pub settings_start: [PlainFloat; 6],
     /// 0x9354DE: `dword_9354DE`: what a car's number is multiplied by for `tag` (an integer).
@@ -208,12 +202,8 @@ pub struct EmitterVars {
     pub wheel_random: PlainDword,
     /// 0x935526: `dword_935526`: `effects::emit_body_particles`' random for the surface copy.
     pub body_random: PlainDword,
-    /// 0x93552A: Not named: 32 bytes (a gap, or unreferenced data).
-    pub _gap_93552a: PlainBytes<32>,
     /// 0x93554A: `dword_93554A`, `dword_93554E`: a random side (integers) the emitters' places are shifted by.
     pub sides: [PlainDword; 2],
-    /// 0x935552: Not named: 12 bytes (a gap, or unreferenced data).
-    pub _gap_935552: PlainBytes<12>,
     /// 0x93555E: `g_marksStrength` (`flt_93555E`): `effects::emit_slip_spray`'s strength.
     pub strength: PlainFloat,
 }
@@ -222,10 +212,6 @@ impl EmitterVars {
     pub const fn new() -> Self {
         Self {
             record: PlainDword::new(0x0),
-            _gap_93541a: PlainBytes::new([
-                0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x80, 0xBF, 0x00, 0x00,
-                0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            ]),
             sign: PlainDword::new(0x0),
             car: PlainDword::new(0x0),
             side_b: [const { PlainFloat::new(0.0) }; 3],
@@ -239,7 +225,6 @@ impl EmitterVars {
             motion: [const { PlainFloat::new(0.0) }; 3],
             looks: [const { PlainDword::new(0x0) }; 2],
             tag: PlainDword::new(0x0),
-            _gap_935482: PlainBytes::new([0; 68]),
             settings_start: [const { PlainFloat::new(0.0) }; 6],
             tag_k: PlainDword::new(0x4C8),
             rate_k: [
@@ -266,60 +251,8 @@ impl EmitterVars {
             ],
             wheel_random: PlainDword::new(0x0),
             body_random: PlainDword::new(0x0),
-            _gap_93552a: PlainBytes::new([
-                0x00, 0x00, 0x00, 0x43, 0x00, 0x00, 0x80, 0x42, 0x00, 0x00, 0x00, 0x43, 0x00, 0x00,
-                0x80, 0xC1, 0x00, 0x00, 0x80, 0xC1, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00,
-            ]),
             sides: [const { PlainDword::new(0x0) }; 2],
-            _gap_935552: PlainBytes::new([0; 12]),
             strength: PlainFloat::new(0.0),
         }
-    }
-}
-
-impl EmitterVars {
-    pub const START: usize = 0x935416;
-    pub const LEN: usize = 0x14C;
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use core::mem::offset_of;
-
-    #[test]
-    fn the_emitters_vars_starts_as_the_games() {
-        assert_eq!(size_of::<EmitterVars>(), EmitterVars::LEN);
-        let p = (&raw const effects().kinds.emitter).cast::<u8>();
-        let bytes: Vec<u8> = (0..size_of::<EmitterVars>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect();
-        assert!(
-            bytes
-                == crate::test_support::first_values::bytes(
-                    "effects.owner.EFFECTS.kinds.emitter/332"
-                ),
-            "EMITTER starts differently from the image"
-        );
-        assert_eq!(offset_of!(EmitterVars, record), 0x0);
-        assert_eq!(offset_of!(EmitterVars, sign), 0x1c);
-        assert_eq!(offset_of!(EmitterVars, car), 0x20);
-        assert_eq!(offset_of!(EmitterVars, side_b), 0x24);
-        assert_eq!(offset_of!(EmitterVars, up), 0x30);
-        assert_eq!(offset_of!(EmitterVars, across), 0x3c);
-        assert_eq!(offset_of!(EmitterVars, side_a), 0x48);
-        assert_eq!(offset_of!(EmitterVars, motion), 0x54);
-        assert_eq!(offset_of!(EmitterVars, looks), 0x60);
-        assert_eq!(offset_of!(EmitterVars, tag), 0x68);
-        assert_eq!(offset_of!(EmitterVars, settings_start), 0xb0);
-        assert_eq!(offset_of!(EmitterVars, tag_k), 0xc8);
-        assert_eq!(offset_of!(EmitterVars, rate_k), 0xcc);
-        assert_eq!(offset_of!(EmitterVars, place_k), 0xd8);
-        assert_eq!(offset_of!(EmitterVars, body_k), 0xf4);
-        assert_eq!(offset_of!(EmitterVars, wheel_random), 0x10c);
-        assert_eq!(offset_of!(EmitterVars, body_random), 0x110);
-        assert_eq!(offset_of!(EmitterVars, sides), 0x134);
-        assert_eq!(offset_of!(EmitterVars, strength), 0x148);
     }
 }

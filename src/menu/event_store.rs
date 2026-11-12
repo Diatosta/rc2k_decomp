@@ -1,9 +1,8 @@
 //! The event's state, out of RAL.EXE's image (IDA 0x7558C4 .. 0x7559A4): the stage
 //! chosen, the classes, the times and flags of the event's players, the service, the event's
-//! type, kind and sections, the current player and the car shown. A `#[repr(C)]` struct with the
-//! image's layout, one static.
+//! type, kind and sections, the current player and the car shown. A `#[repr(C)]` struct, one static.
 
-use crate::session::{PlainBytes, PlainDword, PlainFlag, with_runs};
+use crate::session::{PlainDword, PlainFlag};
 
 /// The event's state (IDA 0x7558C4 .. 0x7559A4).
 #[repr(C)]
@@ -71,11 +70,11 @@ pub struct Event {
     pub service_due: PlainDword,
     /// `g_serviceMinutes`: The service time left.
     pub service_minutes: PlainDword,
-    /// +0x7C (0x755940) `dword_755940`: the +0xC word of the service record the championship has reached (`menu::run_championship`); written there, read by no code.
+    /// (0x755940) `dword_755940`: the +0xC word of the service record the championship has reached (`menu::run_championship`); written there, read by no code.
     pub service_record_c: PlainDword,
-    /// +0x80 (0x755944) `dword_755944`: 1 when the next computer drivers' times start a batch (set by a service record and the condition-reset step), 0 once `menu::calc_cpu_times` has drawn the first spread: with `cpu_spread_step` the state of `rc2k_core::menu::event::Spread`.
+    /// (0x755944) `dword_755944`: 1 when the next computer drivers' times start a batch (set by a service record and the condition-reset step), 0 once `menu::calc_cpu_times` has drawn the first spread: with `cpu_spread_step` the state of `rc2k_core::menu::event::Spread`.
     pub cpu_spread_first: PlainDword,
-    /// +0x84 (0x755948) `dword_755948`: how many spreads of the batch `menu::calc_cpu_times` has drawn after the first: the multiplier of its second random number (under 1000); 0 while the batch starts.
+    /// (0x755948) `dword_755948`: how many spreads of the batch `menu::calc_cpu_times` has drawn after the first: the multiplier of its second random number (under 1000); 0 while the batch starts.
     pub cpu_spread_step: PlainDword,
     /// `dword_75594C`: The next service.
     pub service_next: PlainDword,
@@ -89,7 +88,7 @@ pub struct Event {
     pub section: PlainDword,
     /// `dword_755960`: The first stage of the page shown.
     pub first_page_stage: PlainDword,
-    /// +0xA0 (0x755964) `dword_755964`: the section of the stage list being viewed (a copy of `section` made by `menu::view_stage_loop`); read by no code.
+    /// (0x755964) `dword_755964`: the section of the stage list being viewed (a copy of `section` made by `menu::view_stage_loop`); read by no code.
     pub viewed_section: PlainDword,
     /// `g_stagePages`: The stage pages.
     pub stage_pages: PlainDword,
@@ -97,8 +96,6 @@ pub struct Event {
     pub stage_page: PlainDword,
     /// `g_continuingSave`: 1 when a saved game goes on.
     pub continuing_save: PlainDword,
-    /// Unreferenced bytes (IDA 0x755974 .. 0x755978).
-    pub _gap_755974: PlainBytes<4>,
     /// `dword_755978`: 1 when the player is out of the event.
     pub event_out: PlainDword,
     /// `dword_75597C`: The count of the standings (`menu::number_all_a`).
@@ -117,8 +114,6 @@ pub struct Event {
     pub picture: PlainDword,
     /// `dword_755998`: The car page shown.
     pub car_page: PlainDword,
-    /// Unreferenced bytes (IDA 0x75599C .. 0x7559A4).
-    pub _gap_75599c: PlainBytes<8>,
 }
 
 impl Event {
@@ -169,7 +164,6 @@ impl Event {
             stage_pages: PlainDword::new(0x0),
             stage_page: PlainDword::new(0x0),
             continuing_save: PlainDword::new(0x0),
-            _gap_755974: PlainBytes::new(with_runs::<4>(&[(0x0, &[0x05])])),
             event_out: PlainDword::new(0x0),
             count_a: PlainDword::new(0x0),
             event_over: PlainFlag::new(false),
@@ -179,73 +173,17 @@ impl Event {
             shown_car: PlainDword::new(0x0),
             picture: PlainDword::new(0x0),
             car_page: PlainDword::new(0x0),
-            _gap_75599c: PlainBytes::new([0; 8]),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn event_state_starts_as_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::menu::owner::menus().screens.event,
         );
-        assert_eq!(offset_of!(Event, picked_controller), 0x0);
-        assert_eq!(offset_of!(Event, stage_group), 0x4);
-        assert_eq!(offset_of!(Event, stage_number), 0x8);
-        assert_eq!(offset_of!(Event, stage_sub), 0xc);
-        assert_eq!(offset_of!(Event, dword_7558d4), 0x10);
-        assert_eq!(offset_of!(Event, clears_escape_flag), 0x14);
-        assert_eq!(offset_of!(Event, sparks_mode), 0x18);
-        assert_eq!(offset_of!(Event, dword_7558e0), 0x1c);
-        assert_eq!(offset_of!(Event, dword_7558e4), 0x20);
-        assert_eq!(offset_of!(Event, dword_7558e8), 0x24);
-        assert_eq!(offset_of!(Event, dword_7558ec), 0x28);
-        assert_eq!(offset_of!(Event, dword_7558f0), 0x2c);
-        assert_eq!(offset_of!(Event, class), 0x30);
-        assert_eq!(offset_of!(Event, classes), 0x34);
-        assert_eq!(offset_of!(Event, dword_7558fc), 0x38);
-        assert_eq!(offset_of!(Event, dword_755900), 0x3c);
-        assert_eq!(offset_of!(Event, dword_755904), 0x40);
-        assert_eq!(offset_of!(Event, dword_755908), 0x44);
-        assert_eq!(offset_of!(Event, dword_75590c), 0x48);
-        assert_eq!(offset_of!(Event, dword_755910), 0x4c);
-        assert_eq!(offset_of!(Event, player_time), 0x50);
-        assert_eq!(offset_of!(Event, time_qualifies), 0x54);
-        assert_eq!(offset_of!(Event, dword_75591c), 0x58);
-        assert_eq!(offset_of!(Event, any_time_qualified), 0x5c);
-        assert_eq!(offset_of!(Event, welcome_figure), 0x60);
-        assert_eq!(offset_of!(Event, championship_end), 0x64);
-        assert_eq!(offset_of!(Event, event_goes_on), 0x68);
-        assert_eq!(offset_of!(Event, dword_755930), 0x6c);
-        assert_eq!(offset_of!(Event, welcomed), 0x70);
-        assert_eq!(offset_of!(Event, service_due), 0x74);
-        assert_eq!(offset_of!(Event, service_minutes), 0x78);
-        assert_eq!(offset_of!(Event, service_record_c), 0x7c);
-        assert_eq!(offset_of!(Event, cpu_spread_first), 0x80);
-        assert_eq!(offset_of!(Event, cpu_spread_step), 0x84);
-        assert_eq!(offset_of!(Event, service_next), 0x88);
-        assert_eq!(offset_of!(Event, stages_done), 0x8c);
-        assert_eq!(offset_of!(Event, event_type), 0x90);
-        assert_eq!(offset_of!(Event, index), 0x94);
-        assert_eq!(offset_of!(Event, section), 0x98);
-        assert_eq!(offset_of!(Event, first_page_stage), 0x9c);
-        assert_eq!(offset_of!(Event, viewed_section), 0xa0);
-        assert_eq!(offset_of!(Event, stage_pages), 0xa4);
-        assert_eq!(offset_of!(Event, stage_page), 0xa8);
-        assert_eq!(offset_of!(Event, continuing_save), 0xac);
-        assert_eq!(offset_of!(Event, event_out), 0xb4);
-        assert_eq!(offset_of!(Event, count_a), 0xb8);
-        assert_eq!(offset_of!(Event, event_over), 0xbc);
-        assert_eq!(offset_of!(Event, player_count), 0xc0);
-        assert_eq!(offset_of!(Event, event_kind), 0xc4);
-        assert_eq!(offset_of!(Event, current_player), 0xc8);
-        assert_eq!(offset_of!(Event, shown_car), 0xcc);
-        assert_eq!(offset_of!(Event, picture), 0xd0);
-        assert_eq!(offset_of!(Event, car_page), 0xd4);
     }
 }

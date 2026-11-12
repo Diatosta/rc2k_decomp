@@ -34,8 +34,6 @@ use crate::effects::emit_slip_spray_long::SlipSprayLongSet;
 use crate::effects::emit_twin_particle_first::{TwinState, TwinTuning};
 use crate::effects::emit_wheel_fade_particle::WheelFadeSet;
 use crate::effects::owner::Effects;
-#[cfg(test)]
-use crate::effects::owner::effects;
 use crate::effects::ring_store::Ring;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -496,17 +494,10 @@ pub static TRAIL_PALETTE: TrailColours = TrailColours {
     ],
 };
 
-#[cfg(test)]
-impl TrailColours {
-    pub const LEN: usize = 0x4A8;
-}
-
 /// The puff's work values (IDA 0x93A5F0 .. 0x93A618).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct PuffWork {
-    /// 0x93A5F0: Not named: 16 bytes (a gap, or unreferenced data)
-    pub _gap_93a5f0: PlainBytes<16>,
     /// 0x93A600: `flt_93A600` .. `flt_93A614`: the puff's place, size and motion
     pub puff: [PlainFloat; 6],
 }
@@ -515,10 +506,6 @@ impl PuffWork {
     /// The values the game starts with (the image's bytes).
     pub const fn new() -> Self {
         PuffWork {
-            _gap_93a5f0: PlainBytes::new([
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0xC5, 0x00, 0x00,
-                0x00, 0x00,
-            ]),
             puff: [
                 PlainFloat::new(0.0),
                 PlainFloat::new(0.0),
@@ -529,11 +516,6 @@ impl PuffWork {
             ],
         }
     }
-}
-
-impl PuffWork {
-    pub const START: usize = 0x93A5F0;
-    pub const LEN: usize = 0x28;
 }
 
 /// The particles' state, one part of the effects' owner (`effects::owner::Effects`): the
@@ -577,52 +559,6 @@ impl Particles {
     }
 }
 
-#[cfg(test)]
-mod typed_tests {
-    use super::*;
-    use core::mem::size_of;
-
-    #[test]
-    fn trail_colours_starts_as_the_games() {
-        assert_eq!(size_of::<TrailColours>(), TrailColours::LEN);
-        let image = crate::test_support::first_values::bytes("effects.run_particles.TRAIL_PALETTE");
-        let p = std::ptr::from_ref(&TRAIL_PALETTE).cast::<u8>();
-        let mine: Vec<u8> = (0..TrailColours::LEN)
-            .map(|i| unsafe { p.add(i).read() })
-            .collect();
-        assert!(
-            mine == image,
-            "TRAIL_PALETTE starts differently from the image"
-        );
-    }
-}
-
-#[cfg(test)]
-mod puff_work_tests {
-    use super::*;
-    use core::mem::offset_of;
-
-    fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
-        (0..size_of::<T>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect()
-    }
-
-    #[test]
-    fn puff_work_starts_as_the_games() {
-        assert_eq!(size_of::<PuffWork>(), PuffWork::LEN);
-        assert!(
-            bytes(&crate::effects::owner::effects().particles.puff_work)
-                == crate::test_support::first_values::bytes(
-                    "effects.owner.EFFECTS.particles.puff_work/40"
-                ),
-            "PUFF_WORK starts differently from the image"
-        );
-        assert_eq!(offset_of!(PuffWork, puff), 0x10);
-    }
-}
-
 /// The ramps' multipliers: ramp `r` holds `step * RAMPS[r]` for the steps 0 .. 255 (the burst particle colours).
 const fn burst_colours() -> [u8; 0x2000] {
     const RAMPS: [u32; 8] = [0x10000, 0x10100, 0x100, 0x101, 1, 0x10001, 0x10101, 0x10101];
@@ -654,37 +590,6 @@ impl BurstColours {
         Self {
             table: PlainBytes::new(burst_colours()),
         }
-    }
-}
-
-impl BurstColours {
-    pub const START: usize = 0x93A618;
-    pub const LEN: usize = 0x2000;
-}
-
-#[cfg(test)]
-mod burst_colours_tests {
-    use super::*;
-    use core::mem::offset_of;
-
-    fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
-        (0..size_of::<T>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect()
-    }
-
-    #[test]
-    fn burst_colours_starts_as_the_games() {
-        assert_eq!(size_of::<BurstColours>(), BurstColours::LEN);
-        assert!(
-            bytes(&effects().kinds.burst_colours)
-                == crate::test_support::first_values::bytes(
-                    "effects.owner.EFFECTS.kinds.burst_colours/8192"
-                ),
-            "BURST_COLOURS starts differently from the image"
-        );
-        assert_eq!(offset_of!(BurstColours, table), 0x0);
     }
 }
 
@@ -724,8 +629,6 @@ pub struct ParticleTuning {
     pub burst8: [PlainFloat; 5],
     /// 0x93C6A8: `flt_93C6A8` .. `dword_93C6B8`: kind 9's, the same
     pub burst9: [PlainFloat; 5],
-    /// 0x93C6BC: Not named: 12 bytes (a gap, or unreferenced data)
-    pub _gap_93c6bc: PlainBytes<12>,
 }
 
 impl ParticleTuning {
@@ -783,53 +686,25 @@ impl ParticleTuning {
                 PlainFloat::new(0.1),
                 PlainFloat::new(f32::NEG_INFINITY),
             ],
-            _gap_93c6bc: PlainBytes::new([0; 12]),
         }
     }
 }
 
-impl ParticleTuning {
-    pub const START: usize = 0x93C618;
-    pub const LEN: usize = 0xB0;
-}
-
 #[cfg(test)]
-mod particle_tuning_tests {
+mod typed_tests {
     use super::*;
-    use core::mem::offset_of;
-
-    fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
-        (0..size_of::<T>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect()
-    }
 
     #[test]
-    fn particle_tuning_starts_as_the_games() {
-        assert_eq!(size_of::<ParticleTuning>(), ParticleTuning::LEN);
+    fn trail_palette_starts_as_the_games() {
+        let image = crate::test_support::first_values::bytes("effects.run_particles.TRAIL_PALETTE");
+        assert_eq!(size_of::<TrailColours>(), image.len());
+        let p = std::ptr::from_ref(&TRAIL_PALETTE).cast::<u8>();
+        let mine: Vec<u8> = (0..image.len())
+            .map(|i| unsafe { p.add(i).read() })
+            .collect();
         assert!(
-            bytes(&effects().kinds.particle_tuning)
-                == crate::test_support::first_values::bytes(
-                    "effects.owner.EFFECTS.kinds.particle_tuning/176"
-                ),
-            "PARTICLE_TUNING starts differently from the image"
+            mine == image,
+            "TRAIL_PALETTE starts differently from the image"
         );
-        assert_eq!(offset_of!(ParticleTuning, puff_x), 0x0);
-        assert_eq!(offset_of!(ParticleTuning, puff_z), 0xc);
-        assert_eq!(offset_of!(ParticleTuning, puff_y), 0x18);
-        assert_eq!(offset_of!(ParticleTuning, puff_m), 0x24);
-        assert_eq!(offset_of!(ParticleTuning, drift_lower), 0x2c);
-        assert_eq!(offset_of!(ParticleTuning, trail_random_k), 0x30);
-        assert_eq!(offset_of!(ParticleTuning, trail_axes), 0x34);
-        assert_eq!(offset_of!(ParticleTuning, trail_spread), 0x4c);
-        assert_eq!(offset_of!(ParticleTuning, trail_size_k), 0x50);
-        assert_eq!(offset_of!(ParticleTuning, trail_life_k), 0x58);
-        assert_eq!(offset_of!(ParticleTuning, burst_scale), 0x5c);
-        assert_eq!(offset_of!(ParticleTuning, burst_life), 0x64);
-        assert_eq!(offset_of!(ParticleTuning, dust), 0x68);
-        assert_eq!(offset_of!(ParticleTuning, trail), 0x74);
-        assert_eq!(offset_of!(ParticleTuning, burst8), 0x7c);
-        assert_eq!(offset_of!(ParticleTuning, burst9), 0x90);
     }
 }

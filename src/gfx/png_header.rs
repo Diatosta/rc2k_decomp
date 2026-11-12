@@ -11,12 +11,10 @@ pub struct PngHeader {
     pub width: PlainDword,
     /// `dword_A8C194`: the picture's height.
     pub height: PlainDword,
-    /// `0xA8C198`, `0xA8C199`: nothing reads or writes them (a gap).
-    pub _gap_8: PlainBytes<2>,
     /// `byte_A8C19A`: the header's byte after the colour type (the compression method).
     pub compression: PlainByte,
-    /// `0xA8C19B` .. `0xA8C19F`: nothing reads or writes them (a gap).
-    pub _gap_b: PlainBytes<5>,
+    /// Pads the byte to the next dword (Rust's alignment).
+    pub _pad_align: PlainBytes<3>,
     /// `dword_A8C1A0`: the colour type.
     pub colour_type: PlainDword,
 }
@@ -27,9 +25,8 @@ impl PngHeader {
         PngHeader {
             width: PlainDword::new(0),
             height: PlainDword::new(0),
-            _gap_8: PlainBytes::new([0; 2]),
             compression: PlainByte::new(0),
-            _gap_b: PlainBytes::new([0; 5]),
+            _pad_align: PlainBytes::new([0; 3]),
             colour_type: PlainDword::new(0),
         }
     }
@@ -37,19 +34,11 @@ impl PngHeader {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::gfx::owner::GFX.get().png.header,
         );
-    }
-
-    #[test]
-    fn moved_knows_the_block() {
-        assert_eq!(offset_of!(PngHeader, compression), 0xa);
-        assert_eq!(offset_of!(PngHeader, colour_type), 0x10);
     }
 }

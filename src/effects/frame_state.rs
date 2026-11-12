@@ -180,14 +180,10 @@ pub struct DrawFrame {
     pub points: [[PlainFloat; 3]; 3],
     /// 0x91FF6E: `dword_91FF6E`: `dword_621A80` as of the last frame.
     pub last_source: PlainDword,
-    /// 0x91FF72: Not named: 12 bytes (a gap, or unreferenced data).
-    pub _gap_91ff72: PlainBytes<12>,
     /// 0x91FF7E: `flt_91FF7E` ..: the view's forward level part (`effects::view_heading`).
     pub level: [PlainFloat; 3],
     /// 0x91FF8A: `flt_91FF8A` ..: the direction the heading is taken against (`effects::view_heading`).
     pub other: [PlainFloat; 3],
-    /// 0x91FF96: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_91ff96: PlainBytes<4>,
     /// 0x91FF9A: `flt_91FF9A`, `flt_91FF9E`: two time marks kept from `flt_765124` / `flt_765118` (`effects::draw_frame`).
     pub times: [PlainFloat; 2],
     /// 0x91FFA2: `dword_91FFA2`: Not named: 4 bytes (a gap, or unreferenced data).
@@ -200,8 +196,6 @@ pub struct DrawFrame {
     pub cleared: PlainDword,
     /// 0x91FFBE: `flt_91FFBE` ..: the view's place at the last frame (`effects::view_motion`).
     pub last: [PlainFloat; 3],
-    /// 0x91FFCA: Not named: 12 bytes (a gap, or unreferenced data).
-    pub _gap_91ffca: PlainBytes<12>,
     /// 0x91FFD6: `flt_91FFD6`: the lens flare's length (`effects::draw_lens_flare`).
     pub flare_length: PlainFloat,
     /// 0x91FFDA: `flt_91FFDA`, `flt_91FFDE`: the lens flare's way.
@@ -231,9 +225,6 @@ impl DrawFrame {
                 ],
             ],
             last_source: PlainDword::new(0x0),
-            _gap_91ff72: PlainBytes::new([
-                0x00, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00,
-            ]),
             level: [
                 PlainFloat::new(0.0),
                 PlainFloat::new(0.0),
@@ -244,7 +235,6 @@ impl DrawFrame {
                 PlainFloat::new(0.0),
                 PlainFloat::new(1.0),
             ],
-            _gap_91ff96: PlainBytes::new([0; 4]),
             times: [PlainFloat::new(100.0), PlainFloat::new(100.0)],
             _gap_91ffa2: PlainBytes::new([0; 4]),
             rhw: PlainFloat::new(256.0),
@@ -260,18 +250,10 @@ impl DrawFrame {
                 PlainFloat::new(0.0),
                 PlainFloat::new(0.0),
             ],
-            _gap_91ffca: PlainBytes::new([
-                0x00, 0x00, 0x00, 0x00, 0xCD, 0xCC, 0xA0, 0x41, 0x1A, 0x00, 0x48, 0x42,
-            ]),
             flare_length: PlainFloat::new(0.0),
             flare_way: [PlainFloat::new(0.0), PlainFloat::new(0.0)],
         }
     }
-}
-
-impl DrawFrame {
-    pub const START: usize = 0x91FF3E;
-    pub const LEN: usize = 0xA4;
 }
 
 /// The lens flare's unit way and its parts' cells and sizes (IDA 0x92051E .. 0x9205F6).
@@ -357,11 +339,6 @@ impl FlareParts {
     }
 }
 
-impl FlareParts {
-    pub const START: usize = 0x92051E;
-    pub const LEN: usize = 0xD8;
-}
-
 /// The lens flare's constants (IDA 0x9206D2 .. 0x9206E6).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -382,11 +359,6 @@ impl FlareScales {
             scale: [PlainFloat::new(0.5), PlainFloat::new(0.5)],
         }
     }
-}
-
-impl FlareScales {
-    pub const START: usize = 0x9206D2;
-    pub const LEN: usize = 0x14;
 }
 
 #[cfg(test)]
@@ -439,73 +411,5 @@ mod typed_tests {
         assert_eq!(offset_of!(ViewVars, first_end_half_width), 0x1c);
         assert_eq!(offset_of!(ViewVars, second_end_half_width), 0x28);
         assert_eq!(offset_of!(ViewVars, turned_points), 0x34);
-    }
-
-    #[test]
-    fn marks_frame_starts_as_the_games() {
-        assert_eq!(size_of::<DrawFrame>(), DrawFrame::LEN);
-        let image =
-            crate::test_support::first_values::bytes("effects.owner.EFFECTS.frame.draw_frame/164");
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                (&raw const effects().frame.draw_frame).cast::<u8>(),
-                DrawFrame::LEN,
-            )
-        };
-        assert!(
-            mine == image,
-            "DRAW_FRAME starts differently from the image"
-        );
-        assert_eq!(offset_of!(DrawFrame, profile_steps), 0x4);
-        assert_eq!(offset_of!(DrawFrame, points), 0xc);
-        assert_eq!(offset_of!(DrawFrame, last_source), 0x30);
-        assert_eq!(offset_of!(DrawFrame, level), 0x40);
-        assert_eq!(offset_of!(DrawFrame, other), 0x4c);
-        assert_eq!(offset_of!(DrawFrame, times), 0x5c);
-        assert_eq!(offset_of!(DrawFrame, rhw), 0x68);
-        assert_eq!(offset_of!(DrawFrame, places), 0x6c);
-        assert_eq!(offset_of!(DrawFrame, cleared), 0x7c);
-        assert_eq!(offset_of!(DrawFrame, last), 0x80);
-        assert_eq!(offset_of!(DrawFrame, flare_length), 0x98);
-        assert_eq!(offset_of!(DrawFrame, flare_way), 0x9c);
-    }
-
-    #[test]
-    fn flare_parts_starts_as_the_games() {
-        assert_eq!(size_of::<FlareParts>(), FlareParts::LEN);
-        let image =
-            crate::test_support::first_values::bytes("effects.owner.EFFECTS.frame.flare_parts/216");
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                (&raw const effects().frame.flare_parts).cast::<u8>(),
-                FlareParts::LEN,
-            )
-        };
-        assert!(
-            mine == image,
-            "FLARE_PARTS starts differently from the image"
-        );
-        assert_eq!(offset_of!(FlareParts, corner), 0xc);
-        assert_eq!(offset_of!(FlareParts, unread), 0x50);
-        assert_eq!(offset_of!(FlareParts, size), 0x94);
-    }
-
-    #[test]
-    fn flare_scales_starts_as_the_games() {
-        assert_eq!(size_of::<FlareScales>(), FlareScales::LEN);
-        let image =
-            crate::test_support::first_values::bytes("effects.owner.EFFECTS.frame.flare_scales/20");
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                (&raw const effects().frame.flare_scales).cast::<u8>(),
-                FlareScales::LEN,
-            )
-        };
-        assert!(
-            mine == image,
-            "FLARE_SCALES starts differently from the image"
-        );
-        assert_eq!(offset_of!(FlareScales, size_k), 0x8);
-        assert_eq!(offset_of!(FlareScales, scale), 0xc);
     }
 }

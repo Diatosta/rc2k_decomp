@@ -54,8 +54,6 @@ pub struct LexiconMemory {
     pub kilobytes: PlainDword,
     /// `g_lexiconMemory` (`LexiconMemory.memory.head`): the list the memory is taken from (16 bytes).
     pub memory: crate::memory::ListCells,
-    /// `0x519568` .. `0x519598`: nothing reads or writes them (a gap).
-    pub _gap_14: [PlainDword; 12],
 }
 
 impl LexiconMemory {
@@ -69,7 +67,6 @@ impl LexiconMemory {
                 cursor: 0,
                 remaining: 0,
             }),
-            _gap_14: [const { PlainDword::new(0) }; 12],
         }
     }
 }

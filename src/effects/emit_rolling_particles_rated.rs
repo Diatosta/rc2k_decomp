@@ -23,7 +23,7 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
 use crate::scene::matrix3::rounded_value;
-use crate::session::{PlainBytes, PlainDword, PlainFloat};
+use crate::session::{PlainDword, PlainFloat};
 
 const LOOK: u32 = 0x34;
 const LIFE: u32 = 0x3E8;
@@ -184,8 +184,6 @@ pub struct RollingRatedSet {
     pub spin_random: PlainDword,
     /// 0x93A352: `flt_93A352`: the size's factor
     pub size_k: PlainFloat,
-    /// 0x93A356: `flt_93A35E` .. `flt_93A396`: read only by code in no function
-    pub _gap_93a356: PlainBytes<68>,
 }
 
 impl RollingRatedSet {
@@ -213,49 +211,6 @@ impl RollingRatedSet {
             ],
             spin_random: PlainDword::new(0x0),
             size_k: PlainFloat::new(0.2),
-            _gap_93a356: PlainBytes::new([
-                0x0A, 0xD7, 0x23, 0x45, 0x17, 0xB7, 0x51, 0x39, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00,
-                0x40, 0x48, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x47, 0x6F, 0x12, 0x83, 0x42,
-                0xA6, 0x9B, 0x44, 0x42, 0x4C, 0x37, 0x99, 0xC1, 0x6F, 0x12, 0x83, 0x42, 0xA6, 0x9B,
-                0x44, 0x42, 0x4C, 0x37, 0x99, 0xC1, 0x6F, 0x12, 0x83, 0x42, 0xA6, 0x9B, 0x44, 0x42,
-                0x4C, 0x37, 0x99, 0xC1, 0x00, 0x00, 0x00, 0x00, 0xCD, 0xCC, 0x4C, 0x3E,
-            ]),
         }
-    }
-}
-
-impl RollingRatedSet {
-    pub const START: usize = 0x93A312;
-    pub const LEN: usize = 0x88;
-}
-
-#[cfg(test)]
-mod kind21_set_tests {
-    use super::*;
-    use core::mem::offset_of;
-
-    fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
-        (0..size_of::<T>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect()
-    }
-
-    #[test]
-    fn kind21_set_starts_as_the_games() {
-        assert_eq!(size_of::<RollingRatedSet>(), RollingRatedSet::LEN);
-        assert!(
-            bytes(&crate::effects::owner::effects().particles.kind21_set)
-                == crate::test_support::first_values::bytes(
-                    "effects.owner.EFFECTS.particles.kind21_set/136"
-                ),
-            "KIND21_SET starts differently from the image"
-        );
-        assert_eq!(offset_of!(RollingRatedSet, rate_k), 0x0);
-        assert_eq!(offset_of!(RollingRatedSet, side_random), 0x10);
-        assert_eq!(offset_of!(RollingRatedSet, lift), 0x14);
-        assert_eq!(offset_of!(RollingRatedSet, motion_k), 0x18);
-        assert_eq!(offset_of!(RollingRatedSet, spin_random), 0x3c);
-        assert_eq!(offset_of!(RollingRatedSet, size_k), 0x40);
     }
 }

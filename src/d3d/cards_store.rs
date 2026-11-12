@@ -1,25 +1,18 @@
 //! The 3D cards' and the Direct3D device's state (`gfx::find_3d_cards`, `platform_3d`,
 //! `d3d::set_render_state`, `d3d::set_texture`, the 3D switches of `var\ral.cfg`).
-//! `#[repr(C)]` struct of plain cells (the game's thread alone reaches it: `D3d::cards`) with
-//! the image's layout, first values the image's (`tests`); the settings table names the
-//! switches by IDA address.
+//! `#[repr(C)]` struct of plain cells (the game's thread alone reaches it: `D3d::cards`),
+//! first values the image's (`tests`); the settings table names the switches by IDA address.
 
-use crate::session::{PlainBytes, PlainDword, with_runs};
+use crate::session::{PlainBytes, PlainDword};
 
-/// The 3D cards, the device's render states and the 3D switches (IDA 0x5AB4B4 .. 0x5ABA18).
-#[repr(C, align(16))]
+/// The 3D cards, the device's render states and the 3D switches (IDA 0x5AB4B4 ..).
+#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Cards3d {
-    /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
-    pub _lead: PlainBytes<4>,
     /// 0x5AB4B4: `g_secondaryCardGuid`: the secondary card's GUID.
     pub secondary_card_guid: PlainBytes<16>,
-    /// 0x5AB4C4: Not named: 436 bytes (a gap, or data nothing reads here).
-    pub _gap_5ab4c4: PlainBytes<436>,
     /// 0x5AB678: `g_d3dDevice`: the Direct3D device (a pointer).
     pub d3d_device: PlainDword,
-    /// 0x5AB67C: Not named: 64 bytes (a gap, or data nothing reads here).
-    pub _gap_5ab67c: PlainBytes<64>,
     /// 0x5AB6BC: `dword_5AB6BC`: each render state's last value (`d3d::set_render_state`); the
     /// drawing parts keep it in their own caches now (`d3d::render_cache`), this is the image's
     /// place for it.
@@ -27,8 +20,6 @@ pub struct Cards3d {
     /// 0x5AB93C: `g_currentTexture`: the texture set last (`d3d::set_texture`); in
     /// `d3d::render_cache` likewise.
     pub _current_texture: PlainDword,
-    /// 0x5AB940: Not named: 12 bytes (a gap, or data nothing reads here).
-    pub _gap_5ab940: PlainBytes<12>,
     /// 0x5AB94C: `g_no3dSearch`: not 0, no search for 3D cards (`forceno3dcard`).
     pub no_search: PlainDword,
     /// 0x5AB950: `dword_5AB950`: no 3D primary card (`ignoreprimary`).
@@ -43,8 +34,6 @@ pub struct Cards3d {
     pub in_scene: PlainDword,
     /// 0x5AB964: `dword_5AB964`: the fade's start (`scene::draw_polygon`); now each view's (`scene::polygon_work::PolygonWork`); unused.
     pub fade_from: PlainDword,
-    /// 0x5AB968: Not named: 20 bytes (a gap, or data nothing reads here).
-    pub _gap_5ab968: PlainBytes<20>,
     /// 0x5AB97C: `dword_5AB97C`: `force3dtrans`.
     pub force_trans: PlainDword,
     /// 0x5AB980: `dword_5AB980`: `force3dshadow`.
@@ -61,26 +50,15 @@ pub struct Cards3d {
     pub mips: PlainDword,
     /// 0x5AB9A8: `dword_5AB9A8`, `dword_5AB9AC`: the last two switches `gfx::mark_3d_modes` sets.
     pub mode_switches_end: [PlainDword; 2],
-    /// 0x5AB9B0: Not named: 104 bytes (a gap, or data nothing reads here).
-    pub _gap_5ab9b0: PlainBytes<104>,
-    /// Up to the record's alignment (no byte of a record of cells outside a field).
-    pub _tail: PlainBytes<8>,
 }
 
 impl Cards3d {
     pub const fn new() -> Self {
         Cards3d {
-            _lead: PlainBytes::new([0; 4]),
             secondary_card_guid: PlainBytes::new([0; 16]),
-            _gap_5ab4c4: PlainBytes::new(with_runs::<436>(&[(428, b"\x01")])),
             d3d_device: PlainDword::new(0x0),
-            _gap_5ab67c: PlainBytes::new([0; 64]),
             _kept_states: [const { PlainDword::new(0xfffffc43) }; 160],
             _current_texture: PlainDword::new(0xfffffc43),
-            _gap_5ab940: PlainBytes::new(with_runs::<12>(&[(
-                0,
-                b"C\xfc\xff\xffC\xfc\xff\xffC\xfc\xff\xff",
-            )])),
             no_search: PlainDword::new(0x0),
             not_primary: PlainDword::new(0x0),
             ignore_secondary: PlainDword::new(0x0),
@@ -88,7 +66,6 @@ impl Cards3d {
             agp_mode: PlainDword::new(0x0),
             in_scene: PlainDword::new(0x0),
             fade_from: PlainDword::new(0x0),
-            _gap_5ab968: PlainBytes::new([0; 20]),
             force_trans: PlainDword::new(0xffffffff),
             force_shadow: PlainDword::new(0xffffffff),
             force_alpha: PlainDword::new(0xffffffff),
@@ -103,15 +80,8 @@ impl Cards3d {
             fog_state: PlainDword::new(0x0),
             mips: PlainDword::new(0x0),
             mode_switches_end: [const { PlainDword::new(0x0) }; 2],
-            _gap_5ab9b0: PlainBytes::new(with_runs::<104>(&[(4, b"\x01")])),
-            _tail: PlainBytes::new([0; 8]),
         }
     }
-}
-
-impl Cards3d {
-    pub const START: usize = 0x5AB4B4;
-    pub const LEN: usize = 0x564;
 }
 
 #[cfg(test)]

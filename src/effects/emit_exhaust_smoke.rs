@@ -174,39 +174,3 @@ impl ExhaustSet {
         }
     }
 }
-
-impl ExhaustSet {
-    pub const START: usize = 0x93A462;
-    pub const LEN: usize = 0x28;
-}
-
-#[cfg(test)]
-mod kind13_set_tests {
-    use super::*;
-    use core::mem::offset_of;
-
-    fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
-        (0..size_of::<T>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect()
-    }
-
-    #[test]
-    fn kind13_set_starts_as_the_games() {
-        assert_eq!(size_of::<ExhaustSet>(), ExhaustSet::LEN);
-        assert!(
-            bytes(&crate::effects::owner::effects().particles.kind13_set)
-                == crate::test_support::first_values::bytes(
-                    "effects.owner.EFFECTS.particles.kind13_set/40"
-                ),
-            "KIND13_SET starts differently from the image"
-        );
-        assert_eq!(offset_of!(ExhaustSet, lift), 0x0);
-        assert_eq!(offset_of!(ExhaustSet, strength_k), 0x4);
-        assert_eq!(offset_of!(ExhaustSet, motion_k), 0x8);
-        assert_eq!(offset_of!(ExhaustSet, drift_random), 0x14);
-        assert_eq!(offset_of!(ExhaustSet, spin_random), 0x18);
-        assert_eq!(offset_of!(ExhaustSet, size_k), 0x1c);
-    }
-}

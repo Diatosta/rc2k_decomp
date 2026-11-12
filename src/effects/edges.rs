@@ -164,34 +164,6 @@ impl EdgeMask {
     }
 }
 
-impl EdgeMask {
-    pub const START: usize = 0x809BC3;
-    pub const LEN: usize = 0x8000;
-}
-
-#[cfg(test)]
-mod edge_mask_tests {
-    use super::*;
-
-    #[test]
-    fn edge_mask_starts_as_the_games() {
-        use core::mem::offset_of;
-        assert_eq!(size_of::<EdgeMask>(), EdgeMask::LEN);
-        let p = (&raw const crate::effects::owner::effects().masks.edge_mask).cast::<u8>();
-        let ours: Vec<u8> = (0..size_of::<EdgeMask>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect();
-        assert!(
-            crate::test_support::first_values::holds(
-                "effects.owner.EFFECTS.masks.edge_mask/32768",
-                &ours
-            ),
-            "masks.edge_mask starts differently from the image"
-        );
-        assert_eq!(offset_of!(EdgeMask, mask), 0x0);
-    }
-}
-
 /// The kinds' boxes and floats (`effects::edges`, `effects::corners`) (IDA 0x811BEB .. 0x8122D3).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -389,42 +361,12 @@ impl KindBoxes {
     }
 }
 
-impl KindBoxes {
-    pub const START: usize = 0x811BEB;
-    pub const LEN: usize = 0x6E8;
-}
-
-#[cfg(test)]
-mod kind_boxes_tests {
-    use super::*;
-
-    #[test]
-    fn kind_boxes_starts_as_the_games() {
-        use core::mem::offset_of;
-        assert_eq!(size_of::<KindBoxes>(), KindBoxes::LEN);
-        let p = (&raw const crate::effects::owner::effects().masks.kind_boxes).cast::<u8>();
-        let ours: Vec<u8> = (0..size_of::<KindBoxes>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect();
-        assert!(
-            ours == crate::test_support::first_values::bytes(
-                "effects.owner.EFFECTS.masks.kind_boxes/1768"
-            ),
-            "masks.kind_boxes starts differently from the image"
-        );
-        assert_eq!(offset_of!(KindBoxes, boxes), 0x0);
-        assert_eq!(offset_of!(KindBoxes, kind_floats), 0x660);
-    }
-}
-
 /// The edges' scales, once-only mark and picture path (IDA 0x8BC39E .. 0x8BC3FD).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct EdgeSettings {
     /// 0x8BC39E: `flt_8BC39E`: what the settings' +0x2750 is multiplied by (`effects::scale_setting`; 1.0).
     pub factor: PlainFloat,
-    /// 0x8BC3A2: `flt_8BC3A2`: Not named: 52 bytes (a gap, or unreferenced data).
-    pub _gap_8bc3a2: PlainBytes<52>,
     /// 0x8BC3D6: `g_marksEdgesDone`: 0, or where `effects::load_edges` goes on.
     pub done: PlainDword,
     /// 0x8BC3DA: `flt_8BC3DA`, `flt_8BC3DE`, `flt_8BC3E2`: 65536.0, 1000.0, 90.0: the kinds' records are scaled by the first over the second, and their floats taken from the third.
@@ -433,7 +375,7 @@ pub struct EdgeSettings {
     pub path: PlainBytes<19>,
     /// 0x8BC3F9: `flt_8BC3F9`: 0.0175 (degrees to radians), the shape tilt's scale (a float at an address that is 1 more than a multiple of 4).
     pub tilt_scale: Loose32,
-    /// 0x8BC3FD: tail padding of the record (outside its range; zero).
+    /// Fills the record's alignment (a cell may not leave padding; zero).
     pub _tail: PlainBytes<1>,
 }
 
@@ -441,12 +383,6 @@ impl EdgeSettings {
     pub const fn new() -> Self {
         EdgeSettings {
             factor: PlainFloat::new(1.0),
-            _gap_8bc3a2: PlainBytes::new([
-                0xCD, 0xCC, 0xCC, 0x3D, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x47, 0x0D, 0x00,
-                0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0xCD, 0xCC, 0xCC, 0x3D, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x80, 0x47, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x80, 0x3D, 0x00, 0x00, 0x00, 0x3B, 0x00, 0x00, 0x80, 0x3D,
-            ]),
             done: PlainDword::new(0x0),
             scale: [
                 PlainFloat::new(65536.0),
@@ -460,42 +396,5 @@ impl EdgeSettings {
             tilt_scale: Loose32::new(0x3C8EFA35),
             _tail: PlainBytes::new([0]),
         }
-    }
-}
-
-impl EdgeSettings {
-    pub const START: usize = 0x8BC39E;
-    pub const LEN: usize = 0x5F;
-}
-
-#[cfg(test)]
-mod typed_tests {
-    use super::*;
-    use core::mem::{offset_of, size_of};
-
-    #[test]
-    fn edge_settings_starts_as_the_games() {
-        // The last cell (a dword 1 past a multiple of 4) leaves the struct up to 3 bytes of tail padding.
-        assert!(
-            (EdgeSettings::LEN..=EdgeSettings::LEN.next_multiple_of(4))
-                .contains(&size_of::<EdgeSettings>())
-        );
-        let image = crate::test_support::first_values::bytes(
-            "effects.owner.EFFECTS.masks.edge_settings/95",
-        );
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                (&raw const crate::effects::owner::effects().masks.edge_settings).cast::<u8>(),
-                EdgeSettings::LEN,
-            )
-        };
-        assert!(
-            mine == image,
-            "masks.edge_settings starts differently from the image"
-        );
-        assert_eq!(offset_of!(EdgeSettings, done), 0x38);
-        assert_eq!(offset_of!(EdgeSettings, scale), 0x3c);
-        assert_eq!(offset_of!(EdgeSettings, path), 0x48);
-        assert_eq!(offset_of!(EdgeSettings, tilt_scale), 0x5b);
     }
 }

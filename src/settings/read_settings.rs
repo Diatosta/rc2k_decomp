@@ -471,6 +471,9 @@ pub fn read_settings(o: Owners<'static>) -> Result<(), BadInput> {
 #[cfg(test)]
 mod tests {
     use super::{ENTRIES, Owners, Target};
+    use crate::audio::store::AudioState;
+    use crate::d3d::cards_store::Cards3d;
+    use core::mem::offset_of;
 
     /// Where each setting's variable is: its store (a registry name) and the byte offset in
     /// it. The game's table holds the variables' addresses; these are the places of them.
@@ -482,16 +485,52 @@ mod tests {
         ("ignoreamdk3d", "system.owner.SYSTEM.session.machine", 0x14),
         ("altmemenable", "memory.state.OWN_HEAP", 0x0),
         ("altmemheapsize", "memory.state.OWN_HEAP_KB", 0x0),
-        ("noaudio", "audio.owner.AUDIO_OWNER.state", 0x20),
-        ("nosound", "audio.owner.AUDIO_OWNER.state", 0x20),
+        (
+            "noaudio",
+            "audio.owner.AUDIO_OWNER.state",
+            offset_of!(AudioState, no_audio),
+        ),
+        (
+            "nosound",
+            "audio.owner.AUDIO_OWNER.state",
+            offset_of!(AudioState, no_audio),
+        ),
         ("nocdaudio", "sound.owner.SOUND.menu.cd_audio", 0x0),
-        ("nomusic", "audio.owner.AUDIO_OWNER.state", 0xe728),
-        ("audiobasefreq", "audio.owner.AUDIO_OWNER.state", 0x40),
-        ("ignoreds3d", "audio.owner.AUDIO_OWNER.state", 0xe8ae),
-        ("ignoredsv", "audio.owner.AUDIO_OWNER.state", 0xe9bc),
-        ("ignoreeax", "audio.owner.AUDIO_OWNER.state", 0xe9d8),
-        ("ignorea3d", "audio.owner.AUDIO_OWNER.state", 0xe9c8),
-        ("wavheapsize", "audio.owner.AUDIO_OWNER.state", 0xe658),
+        (
+            "nomusic",
+            "audio.owner.AUDIO_OWNER.state",
+            offset_of!(AudioState, no_music),
+        ),
+        (
+            "audiobasefreq",
+            "audio.owner.AUDIO_OWNER.state",
+            offset_of!(AudioState, mix_rate_setting),
+        ),
+        (
+            "ignoreds3d",
+            "audio.owner.AUDIO_OWNER.state",
+            offset_of!(AudioState, no_listener),
+        ),
+        (
+            "ignoredsv",
+            "audio.owner.AUDIO_OWNER.state",
+            offset_of!(AudioState, ignore_dsv_setting),
+        ),
+        (
+            "ignoreeax",
+            "audio.owner.AUDIO_OWNER.state",
+            offset_of!(AudioState, ignore_eax_setting),
+        ),
+        (
+            "ignorea3d",
+            "audio.owner.AUDIO_OWNER.state",
+            offset_of!(AudioState, no_a3d_setting),
+        ),
+        (
+            "wavheapsize",
+            "audio.owner.AUDIO_OWNER.state",
+            offset_of!(AudioState, sample_buffer_kb),
+        ),
         ("bundleheapsize", "gfx.owner.GFX.fonts.glyph_tables", 0x0),
         ("imageheapsize", "strings.owner.STRINGS.lexicon.memory", 0x0),
         (
@@ -499,22 +538,58 @@ mod tests {
             "gfx.owner.GFX.fonts.game_fonts_memory",
             0x0,
         ),
-        ("forcedx5", "d3d.owner.D3D.cards", 0x4a4),
-        ("forceno3dcard", "d3d.owner.D3D.cards", 0x498),
-        ("ignoreprimary", "d3d.owner.D3D.cards", 0x49c),
-        ("ignoresecondary", "d3d.owner.D3D.cards", 0x4a0),
-        ("agpmode", "d3d.owner.D3D.cards", 0x4a8),
-        ("force3dtrans", "d3d.owner.D3D.cards", 0x4c8),
-        ("force3dalpha", "d3d.owner.D3D.cards", 0x4d0),
-        ("force3dshadow", "d3d.owner.D3D.cards", 0x4cc),
-        ("force3dfogging", "d3d.owner.D3D.cards", 0x4d4),
+        (
+            "forcedx5",
+            "d3d.owner.D3D.cards",
+            offset_of!(Cards3d, force_dx5),
+        ),
+        (
+            "forceno3dcard",
+            "d3d.owner.D3D.cards",
+            offset_of!(Cards3d, no_search),
+        ),
+        (
+            "ignoreprimary",
+            "d3d.owner.D3D.cards",
+            offset_of!(Cards3d, not_primary),
+        ),
+        (
+            "ignoresecondary",
+            "d3d.owner.D3D.cards",
+            offset_of!(Cards3d, ignore_secondary),
+        ),
+        (
+            "agpmode",
+            "d3d.owner.D3D.cards",
+            offset_of!(Cards3d, agp_mode),
+        ),
+        (
+            "force3dtrans",
+            "d3d.owner.D3D.cards",
+            offset_of!(Cards3d, force_trans),
+        ),
+        (
+            "force3dalpha",
+            "d3d.owner.D3D.cards",
+            offset_of!(Cards3d, force_alpha),
+        ),
+        (
+            "force3dshadow",
+            "d3d.owner.D3D.cards",
+            offset_of!(Cards3d, force_shadow),
+        ),
+        (
+            "force3dfogging",
+            "d3d.owner.D3D.cards",
+            offset_of!(Cards3d, force_fogging),
+        ),
         (
             "textflashmode",
             "strings.owner.STRINGS.text.blend_mode",
             0x0,
         ),
-        ("videomodemain", "gfx.owner.GFX.display.mode", 0x18),
-        ("videomodegame", "gfx.owner.GFX.display.mode", 0x1c),
+        ("videomodemain", "gfx.owner.GFX.display.mode", 0x10),
+        ("videomodegame", "gfx.owner.GFX.display.mode", 0x14),
         ("v3driverfix", "scene.owner.SCENE.drawing.scene", 0x2b8),
         ("nopngdecode", "gfx.owner.GFX.png.setting", 0x0),
         ("nojoy", "input.owner.INPUT.devices", 0x4),

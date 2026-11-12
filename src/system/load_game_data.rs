@@ -312,19 +312,3 @@ impl RunCount {
         }
     }
 }
-
-impl RunCount {
-    pub const START: usize = 0x518BB0;
-    pub const LEN: usize = 0x4;
-}
-
-#[cfg(test)]
-mod run_count_tests {
-    use super::*;
-
-    #[test]
-    fn runcount_starts_as_the_games() {
-        let size = size_of::<RunCount>();
-        assert!(RunCount::LEN <= size && size <= (RunCount::LEN).next_multiple_of(4));
-    }
-}
