@@ -29,7 +29,7 @@ pub fn camera_over_ground(
         return Ok(false);
     }
     for (side, slot) in SIDES.into_iter().zip(&c.car.camera_ground_faces[1..]) {
-        c.course.course.ground_face_last.set(slot.get());
+        c.course.course.get().ground_face_last.set(slot.get());
         // The y (a leftover value in the original) only goes through the scratch point,
         // which nothing reads after: 0 here.
         let [x, _, z, _] =

@@ -133,7 +133,7 @@ static SMALL: Mutex<SmallBuffers> = Mutex::new(SmallBuffers {
 pub fn draws_small() -> bool {
     static FULL: OnceLock<bool> = OnceLock::new();
     !*FULL.get_or_init(|| std::env::var_os("RC2K_FULL_RESOLUTION").is_some())
-        && race().course.numbers.in_race.is_set()
+        && race().course.numbers.get().in_race.is_set()
 }
 
 /// A small frame while it is drawn: its buffers held until it is enlarged.

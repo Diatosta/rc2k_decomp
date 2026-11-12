@@ -103,10 +103,10 @@ pub fn read_command_line(
         install.run.given_language.set(i.digits[1]);
     }
     if sw.ignore_secondary {
-        d3d.cards.ignore_secondary.set(1u32);
+        d3d.cards.get().ignore_secondary.set(1u32);
     }
     if sw.ignore_primary {
-        d3d.cards.not_primary.set(1u32);
+        d3d.cards.get().not_primary.set(1u32);
     }
     Ok(if sw.version {
         Asked::Version

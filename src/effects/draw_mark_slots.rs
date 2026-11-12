@@ -131,7 +131,7 @@ pub fn draw_mark_slots(
         for n in 0..4 {
             buffer.vertices[n].colour.set(0xFFFF_FFFFu32);
         }
-        if x87::bits_at_or_below(x, race.course.numbers.k4096_a.get()) {
+        if x87::bits_at_or_below(x, race.course.numbers.get().k4096_a.get()) {
             continue;
         }
         let [px, py, half] = x87::slot_project(

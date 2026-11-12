@@ -1264,29 +1264,29 @@ const fn zeros<const N: usize>() -> [Dword; N] {
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Screen {
-    pub width: Dword,       // g_screenWidth
-    pub height: Dword,      // g_screenHeight
-    pub bits: Dword,        // g_screenBits
-    pub bytes: Dword,       // g_screenBytesPerPixel
-    pub row_bytes: Dword,   // g_screenRowBytes
-    pub row_dwords: Dword,  // g_screenRowDwords
-    pub depth_bits: Dword,  // Screen.depth_bits
-    pub kind: Dword,        // Screen.kind
-    pub format: [Dword; 6], // g_surfaceFormat (a pixel format record, 24 bytes)
+    pub width: PlainDword,       // g_screenWidth
+    pub height: PlainDword,      // g_screenHeight
+    pub bits: PlainDword,        // g_screenBits
+    pub bytes: PlainDword,       // g_screenBytesPerPixel
+    pub row_bytes: PlainDword,   // g_screenRowBytes
+    pub row_dwords: PlainDword,  // g_screenRowDwords
+    pub depth_bits: PlainDword,  // Screen.depth_bits
+    pub kind: PlainDword,        // Screen.kind
+    pub format: [PlainDword; 6], // g_surfaceFormat (a pixel format record, 24 bytes)
 }
 
 impl Screen {
     pub const fn new() -> Self {
         Screen {
-            width: Dword::new(0),
-            height: Dword::new(0),
-            bits: Dword::new(0),
-            bytes: Dword::new(0),
-            row_bytes: Dword::new(0),
-            row_dwords: Dword::new(0),
-            depth_bits: Dword::new(0),
-            kind: Dword::new(0),
-            format: zeros(),
+            width: PlainDword::new(0),
+            height: PlainDword::new(0),
+            bits: PlainDword::new(0),
+            bytes: PlainDword::new(0),
+            row_bytes: PlainDword::new(0),
+            row_dwords: PlainDword::new(0),
+            depth_bits: PlainDword::new(0),
+            kind: PlainDword::new(0),
+            format: [const { PlainDword::new(0) }; 6],
         }
     }
 }
@@ -1630,7 +1630,7 @@ mod tests {
     #[test]
     fn the_blocks_start_as_the_games() {
         let system = system();
-        assert_block_starts_as_the_games(&system.session.screen);
+        assert_block_starts_as_the_games(system.session.screen.get());
         assert_block_starts_as_the_games(&system.session.flags);
         assert_block_starts_as_the_games(&system.session.machine);
         assert_block_starts_as_the_games(&system.session.clocks);

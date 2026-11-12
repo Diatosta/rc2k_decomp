@@ -322,8 +322,8 @@ pub(super) fn panel_half(race: &Race, car: usize, first: bool) -> Result<(), Bad
     let from: u32 = race.physics.split_tables().checkpoints[0].get();
     let d = travelled(at(car.checkpoint.get()), at(from));
     let (unit, miles) = (
-        race.course.numbers.k65536.get(),
-        race.course.numbers.metres_in_mile.get(),
+        race.course.numbers.get().k65536.get(),
+        race.course.numbers.get().metres_in_mile.get(),
     );
     let shown = distance_shown(d as i32, unit, miles).to_bits();
     distance.set(shown);
@@ -505,9 +505,9 @@ pub fn panel_motion_plain(race: &Race) -> Result<(), BadInput> {
     {
         // NUMBERS.half (0.5), NUMBERS.one_over_65536, NUMBERS.k65536 (65536.0)
         let (half, small, big) = (
-            race.course.numbers.half.get(),
-            race.course.numbers.one_over_65536.get(),
-            race.course.numbers.k65536.get(),
+            race.course.numbers.get().half.get(),
+            race.course.numbers.get().one_over_65536.get(),
+            race.course.numbers.get().k65536.get(),
         );
         for (view, out) in [
             (0, &race.frame.panel_and_overlay.get().panel.view_a.motion),

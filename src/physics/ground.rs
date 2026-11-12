@@ -14,11 +14,11 @@ use crate::physics::edge_side::edge_side;
 use crate::physics::find_course_record::find_course_record;
 use crate::physics::ground_query::GroundQuery;
 use crate::physics::plane_height::plane_height;
-use crate::race::owner_course::Course;
+use crate::race::owner_course::CourseReads;
 use rc2k_core::physics::ground_search::{self, FaceTest};
 
 /// The first and last faces (+8, +0xC) of course record `record`.
-fn record_faces(course: &Course, record: u32) -> Result<(u32, u32), BadInput> {
+fn record_faces(course: CourseReads<'_>, record: u32) -> Result<(u32, u32), BadInput> {
     let face = |offset| crate::race::course_places::record_field::<u32>(course, record, offset);
     Ok((face(8)?, face(0xC)?))
 }
@@ -27,7 +27,7 @@ fn record_faces(course: &Course, record: u32) -> Result<(u32, u32), BadInput> {
 /// (0x639708 ..), the point (0x6396FC, 0x639704), the differences, and the shares by the x87
 /// (`math::x87::face_shares`; the `rcpss` way with the SSE switch).
 pub fn face_shares_at(
-    course: &Course,
+    course: CourseReads<'_>,
     q: &GroundQuery<'_>,
     switches: &crate::scene::draw_switches_store::DrawSwitches,
 ) -> Result<(), Refused> {
@@ -77,7 +77,7 @@ pub fn face_shares_at(
 }
 
 /// `face_under_point`'s refusal, worked out without writing.
-pub fn face_refusal(course: &Course, face: u32) -> Option<&'static str> {
+pub fn face_refusal(course: CourseReads<'_>, face: u32) -> Option<&'static str> {
     ground_search::check_face(face, course.course.course_face_count.get())
         .err()
         .map(|e| e.0)
@@ -87,7 +87,7 @@ pub fn face_refusal(course: &Course, face: u32) -> Option<&'static str> {
 /// `physics/face_under_point.rs`): the carry.
 // Converted: `rc2k_core::physics::ground_search::face_under_point`.
 pub fn face_under_point_at(
-    course: &Course,
+    course: CourseReads<'_>,
     q: &GroundQuery<'_>,
     number: u32,
     switches: &crate::scene::draw_switches_store::DrawSwitches,
@@ -138,7 +138,7 @@ pub fn face_under_point_at(
 }
 
 /// `search_record_faces`' refusal, worked out without writing.
-pub fn record_refusal(course: &Course, record: u32) -> Option<&'static str> {
+pub fn record_refusal(course: CourseReads<'_>, record: u32) -> Option<&'static str> {
     let course_store = course;
     {
         if let Err(e) =
@@ -159,7 +159,7 @@ pub fn record_refusal(course: &Course, record: u32) -> Option<&'static str> {
 /// `record`, each by `face_under_point`; the carry when one has the point.
 // Converted: `rc2k_core::physics::ground_search::search_faces`.
 pub fn search_record_faces_at(
-    course: &Course,
+    course: CourseReads<'_>,
     q: &GroundQuery<'_>,
     record: u32,
     switches: &crate::scene::draw_switches_store::DrawSwitches,
@@ -179,7 +179,7 @@ pub fn search_record_faces_at(
 /// found.
 // Converted: `rc2k_core::physics::ground_search::cell_key`.
 pub fn search_cell_at(
-    course: &Course,
+    course: CourseReads<'_>,
     q: &GroundQuery<'_>,
     x: u32,
     z: u32,
@@ -196,7 +196,7 @@ pub fn search_cell_at(
 /// below the count) `face_under_point` on it. The carry when found.
 // Converted: `rc2k_core::physics::ground_search::last_face`.
 pub fn try_last_face_at(
-    course: &Course,
+    course: CourseReads<'_>,
     q: &GroundQuery<'_>,
     switches: &crate::scene::draw_switches_store::DrawSwitches,
 ) -> Result<bool, Refused> {
@@ -212,7 +212,7 @@ pub fn try_last_face_at(
 /// finds it. `g_groundFound` 1 when found, else 0. Registers kept; the carry the found.
 // Converted: `rc2k_core::physics::ground_search::ground_search`.
 pub fn ground_search_at(
-    course: &Course,
+    course: CourseReads<'_>,
     q: &GroundQuery<'_>,
     switches: &crate::scene::draw_switches_store::DrawSwitches,
 ) -> Result<bool, Refused> {

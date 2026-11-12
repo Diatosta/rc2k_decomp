@@ -53,16 +53,16 @@ fn held(
 
 /// A checkpoint face's first point: (x, z).
 fn face_point(course: &Course, face: u32) -> Result<(u32, u32), BadInput> {
-    let point = crate::race::course_places::face_field::<u32>(course, face, 4)?;
+    let point = crate::race::course_places::face_field::<u32>(course.reads(), face, 4)?;
     Ok((
         crate::race::scene_points::point_word(
-            course,
+            course.reads(),
             &crate::race::scene_points::NO_OWN,
             point,
             0,
         )?,
         crate::race::scene_points::point_word(
-            course,
+            course.reads(),
             &crate::race::scene_points::NO_OWN,
             point,
             2,
@@ -87,7 +87,7 @@ fn normalised(race: &Race, scene: &crate::scene::owner::Scene, from: &[Float], t
     for k in 0..3 {
         w[k].set(from[k].get().to_bits());
     }
-    normalise_work_vector(&race.course.numbers, race.frame.scratch(), scene);
+    normalise_work_vector(race.course.numbers.get(), race.frame.scratch(), scene);
     for k in 0..3 {
         to[k].set(f32::from_bits(w[k].get()));
     }
@@ -142,7 +142,7 @@ pub fn drive_computer_car(race: &Race, scene: &crate::scene::owner::Scene) -> Re
     race.shared.work.driver_point_then.set(slot << 4);
     let n = race.shared.car().checkpoint.get();
     let f = held(&race.shared, crate::race::checkpoints_store::face, n, 2);
-    let (b1, b2) = crate::race::course_places::face_number(&race.course, f)?.bends();
+    let (b1, b2) = crate::race::course_places::face_number(race.course.reads(), f)?.bends();
     let (b1, b2) = (u32::from(b1), u32::from(b2));
     race.shared.work.driver_bend_a.set(b1);
     race.shared.work.driver_bend_b.set(b2);
@@ -286,7 +286,7 @@ pub fn drive_computer_car(race: &Race, scene: &crate::scene::owner::Scene) -> Re
     );
     let (k1, k2) = (
         race.shared.work.driver_speed_scale.get(),
-        course.numbers.k65536.get(),
+        course.numbers.get().k65536.get(),
     );
     race.shared
         .work
@@ -331,8 +331,8 @@ pub fn drive_computer_car(race: &Race, scene: &crate::scene::owner::Scene) -> Re
     );
     let (i, status) = times_fist_compare(
         race.shared.work.driver_work[1].get(),
-        course.numbers.k256.get(),
-        course.numbers.zero.get(),
+        course.numbers.get().k256.get(),
+        course.numbers.get().zero.get(),
     );
     race.shared.work.driver_bend_index.set(i as u32);
     let steer = driver::steering(

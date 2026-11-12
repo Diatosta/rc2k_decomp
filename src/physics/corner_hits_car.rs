@@ -88,7 +88,7 @@ mod reference_vectors {
             ulps: 0,
             plain: |a| {
                 x87_1(
-                    &crate::race::owner::race().course.numbers,
+                    crate::race::owner::race().course.numbers.get(),
                     view(a[0], 0),
                     &HostCell(a[2]),
                 );

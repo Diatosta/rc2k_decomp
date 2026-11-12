@@ -22,7 +22,7 @@ use crate::race::owner::Race;
 /// race block at `rc`.
 fn lift_car(race: &Race) {
     race.car_blocks().cars[0].position[1].set(to_int(
-        ld(race.replay.finish.get().car_lift.get()) * ld(race.course.numbers.k65536.get())
+        ld(race.replay.finish.get().car_lift.get()) * ld(race.course.numbers.get().k65536.get())
             + int(race.car_blocks().cars[0].position[1].get() as i32),
     ) as u32);
 }

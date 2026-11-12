@@ -16,14 +16,14 @@ const GRID_DWORDS: u32 = 0x1084 / 4;
 
 /// Field `offset` of course record `record`.
 fn record_field(course: &Course, record: u32, offset: u32) -> Result<u32, BadInput> {
-    crate::race::course_places::record_field(course, record, offset)
+    crate::race::course_places::record_field(course.reads(), record, offset)
 }
 
 /// The 25 cells' numbers, in the original's order (five across, then on by 0x1C after
 /// the fifth: rows 0x20 apart, from reach - 2 on the diagonal).
 fn cells(course: &Course) -> Vec<u32> {
     // Converted: `rc2k_core::race::view::cells_from`.
-    rc2k_core::race::view::cells_from(course.stage_prefs.grid_reach.get().wrapping_sub(2), 5)
+    rc2k_core::race::view::cells_from(course.stage_prefs.get().grid_reach.get().wrapping_sub(2), 5)
 }
 
 /// What the original would read through a null or past the grid: refused before anything.
@@ -41,9 +41,9 @@ fn check(course: &Course, grid: &ViewGrid) -> Result<(), Refused> {
         if record >= 0x0FFF_FFFF {
             continue;
         }
-        if course.course.course_records.get() == 0
-            || course.course.course_faces.get() == 0
-            || course.course.scene_points.get() == 0
+        if course.course.get().course_records.get() == 0
+            || course.course.get().course_faces.get() == 0
+            || course.course.get().scene_points.get() == 0
         {
             return Err(BadInput("no course records, faces or points").into());
         }
@@ -67,7 +67,7 @@ pub fn face_sound_spot(race: &Race, view: &ViewMatrices, face_number: u32) -> Re
         // Converted: `rc2k_core::race::view::{sound_object, takes_spot, spot_place}`
         // (the turn and scale stay the x87's: the callers compare exactly).
         use rc2k_core::race::view::{MOST_SPOTS, sound_object, spot_place, takes_spot};
-        let f = crate::race::course_places::face_number(&race.course, face_number)?;
+        let f = crate::race::course_places::face_number(race.course.reads(), face_number)?;
         let kind = f.kind();
         if kind != 0xFF || !sound_object(kind, f.object()) {
             return Ok(());
@@ -97,14 +97,14 @@ pub fn face_sound_spot(race: &Race, view: &ViewMatrices, face_number: u32) -> Re
         put(0, point)?;
         let place = spot_place(
             crate::race::scene_points::point_number(
-                &race.course,
+                race.course.reads(),
                 &crate::race::scene_points::NO_OWN,
                 point,
             )?,
             [f.dword_at(0x30), f.dword_at(0x34), f.dword_at(0x38)],
         );
         let t = { crate::scene::rotate_point::rotate_point(&view.view_matrix, place.map(int_80)) };
-        let k = race.course.numbers.one_over_65536.get();
+        let k = race.course.numbers.get().one_over_65536.get();
         for (i, v) in t.into_iter().enumerate() {
             put(4 + 4 * i as u32, scaled(v, k))?;
         }

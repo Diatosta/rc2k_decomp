@@ -43,7 +43,7 @@ pub fn mark_3d_modes(
     display.mode.depth_bits.set(0xA00);
     display.mode.depth_extra.set(0xA00);
     // Every capability switch is on.
-    let cards = &d3d.cards;
+    let cards = d3d.cards.get();
     for cell in cards.mode_switches.iter().chain(&cards.mode_switches_end) {
         cell.set(1);
     }

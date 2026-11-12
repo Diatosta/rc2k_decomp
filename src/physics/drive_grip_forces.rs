@@ -577,7 +577,7 @@ mod reference_vectors {
                     lever_share_from_timer(
                         race().shared.car(),
                         &race().shared.physics_tables,
-                        &race().course.numbers,
+                        race().course.numbers.get(),
                         crate::scene::owner::scene(),
                     );
                 },
@@ -669,7 +669,7 @@ mod reference_vectors {
                     lean_force(
                         race().shared.car(),
                         &race().shared.physics_tables,
-                        &race().course.numbers,
+                        race().course.numbers.get(),
                         race().engine_tables(),
                         a[2],
                         crate::scene::owner::scene(),
@@ -702,7 +702,7 @@ mod reference_vectors {
                     lean_force(
                         race().shared.car(),
                         &race().shared.physics_tables,
-                        &race().course.numbers,
+                        race().course.numbers.get(),
                         race().engine_tables(),
                         a[2],
                         crate::scene::owner::scene(),
@@ -735,7 +735,7 @@ mod reference_vectors {
                     lean_force(
                         race().shared.car(),
                         &race().shared.physics_tables,
-                        &race().course.numbers,
+                        race().course.numbers.get(),
                         race().engine_tables(),
                         a[2],
                         crate::scene::owner::scene(),
@@ -753,7 +753,7 @@ mod reference_vectors {
                     braking_count_geared(
                         race().shared.car(),
                         &race().shared.physics_tables,
-                        &race().course.numbers,
+                        race().course.numbers.get(),
                         crate::scene::owner::scene(),
                     );
                 },
@@ -790,7 +790,7 @@ mod reference_vectors {
                     engine_braking_force(
                         race().shared.car(),
                         &race().shared.physics_tables,
-                        &race().course.numbers,
+                        race().course.numbers.get(),
                     );
                 },
             },
@@ -860,7 +860,7 @@ mod reference_vectors {
                     yaw_force(
                         race().shared.car(),
                         &race().shared.physics_tables,
-                        &race().course.numbers,
+                        race().course.numbers.get(),
                         race().engine_tables(),
                         a[1],
                         crate::scene::owner::scene(),
@@ -892,7 +892,7 @@ mod reference_vectors {
                     yaw_force(
                         race().shared.car(),
                         &race().shared.physics_tables,
-                        &race().course.numbers,
+                        race().course.numbers.get(),
                         race().engine_tables(),
                         a[1],
                         crate::scene::owner::scene(),
@@ -924,7 +924,7 @@ mod reference_vectors {
                     yaw_force(
                         race().shared.car(),
                         &race().shared.physics_tables,
-                        &race().course.numbers,
+                        race().course.numbers.get(),
                         race().engine_tables(),
                         a[1],
                         crate::scene::owner::scene(),
@@ -983,7 +983,7 @@ mod reference_vectors {
                     ease_yaw_twist(
                         race().shared.car(),
                         &race().shared.physics_tables,
-                        &race().course.numbers,
+                        race().course.numbers.get(),
                         HostCell(a[1]).bits(),
                         crate::scene::owner::scene(),
                     );

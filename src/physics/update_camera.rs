@@ -73,12 +73,12 @@ fn fixed_camera(
         .get(camera as usize)
         .ok_or(crate::errors::BadInput("a camera past the replay cameras"))?
         .get();
-    let point = crate::race::course_places::face_field::<u32>(c.course, face, 4)
+    let point = crate::race::course_places::face_field::<u32>(c.course.reads(), face, 4)
         .unwrap_or_else(|e| crate::fatal::raise::end("a checkpoint face", e));
     for k in 0..3 {
         c.car.camera_position[k as usize].set(
             crate::race::scene_points::point_word(
-                c.course,
+                c.course.reads(),
                 &crate::race::scene_points::NO_OWN,
                 point,
                 k,
@@ -158,9 +158,9 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
     }
     // 0x437BE4: the camera at the car, the views blended.
     for (k, copy) in [
-        &c.course.course.place_x,
-        &c.course.course.place_y,
-        &c.course.course.place_z,
+        &c.course.course.get().place_x,
+        &c.course.course.get().place_y,
+        &c.course.course.get().place_z,
     ]
     .into_iter()
     .enumerate()
@@ -169,7 +169,11 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
         copy.set(v);
         c.car.camera_position[k].set(v);
     }
-    c.course.course.place_heading.set(c.car.car_heading.get());
+    c.course
+        .course
+        .get()
+        .place_heading
+        .set(c.car.car_heading.get());
     if c.car.camera_switch_active.get() != 0 {
         if camera_view::switch_over(
             c.car.step_clock.get(),
@@ -280,9 +284,10 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
     crate::physics::ease_view_angles::ease_view_angles(c.numbers, c.shared, c.view_records, scene)?;
     crate::physics::ease_view_blend::ease_view_blend(c, scene)?;
     crate::physics::camera_avoid_ground::steps(c, scene)?;
-    x87_9(c.camera, &c.course.course);
+    x87_9(c.camera, c.course.course.get());
     c.course
         .course
+        .get()
         .camera_first
         .set(c.view_records.view_vars.view_angles[1].get());
     Ok(())
@@ -507,7 +512,13 @@ mod reference_vectors {
                     },
                 ],
                 ulps: 0,
-                plain: |a| x87_1(race().shared.car(), &race().course.numbers, *view(a[0], 0)),
+                plain: |a| {
+                    x87_1(
+                        race().shared.car(),
+                        race().course.numbers.get(),
+                        *view(a[0], 0),
+                    );
+                },
             },
             Block {
                 name: "update_camera line 89",
@@ -524,7 +535,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     x87_2(
-                        &crate::race::owner::race().course.numbers,
+                        crate::race::owner::race().course.numbers.get(),
                         crate::race::owner::race().frame.view_and_records.get(),
                         *view(a[0], 0),
                     );
@@ -542,7 +553,7 @@ mod reference_vectors {
                     // The block reads the zoom as a whole number (the 384 the step puts there).
                     x87_3(
                         car,
-                        &crate::race::owner::race().course.numbers,
+                        crate::race::owner::race().course.numbers.get(),
                         crate::race::owner::race().frame.view_and_records.get(),
                         car.camera_zoom.get().to_bits() as i32,
                     );
@@ -582,7 +593,7 @@ mod reference_vectors {
                 plain: |a| {
                     x87_4(
                         &race().shared.physics_tables,
-                        &race().course.numbers,
+                        race().course.numbers.get(),
                         race().frame.view_and_records.get(),
                         &core::array::from_fn(|k| {
                             if k < 10 {
@@ -644,7 +655,7 @@ mod reference_vectors {
                 plain: |a| {
                     x87_7(
                         race().shared.car(),
-                        &race().course.numbers,
+                        race().course.numbers.get(),
                         view(a[0], 0),
                         view(a[1], 0),
                         view::<crate::session::Dword>(a[3], 0),
@@ -670,7 +681,7 @@ mod reference_vectors {
                 plain: |_| {
                     x87_9(
                         crate::race::owner::race().physics.camera(),
-                        &crate::race::owner::race().course.course,
+                        crate::race::owner::race().course.course.get(),
                     );
                 },
             },

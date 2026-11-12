@@ -48,7 +48,7 @@ pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
         v(n, 0xC, x);
         v(n, 0x1C, y);
     }
-    let depth = race.course.numbers.k4096_b.get();
+    let depth = ctx.reads.numbers.k4096_b.get();
     for n in 0..4 {
         v(n, 0x18, depth);
     }
@@ -78,7 +78,7 @@ pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
     crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(
         ctx.part,
         &ctx.view.polygon,
-        race,
+        ctx.reads.course(),
     )?;
     if ctx.view.polygon.polygon_vertex_count.get() >= 3 {
         crate::scene::depth_buffer_on::depth_buffer(ctx.part, false);
@@ -93,7 +93,7 @@ pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
             race,
             &ctx.view.face,
             ctx.reads,
-            &ctx.system.session.screen,
+            ctx.reads.screen,
         )?;
         ctx.view.face.polygon_mode.set(0);
         ctx.view.polygon.polygon_drawn.set(1);

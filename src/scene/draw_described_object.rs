@@ -16,9 +16,13 @@ use crate::errors::{BadInput, Refused};
 
 /// What `scene::draw_scene_object` would refuse for `object`: in a race (`g_inRace`) a car
 /// (0x50 ..) without its block.
-fn check_object(race: &crate::race::owner::Race, object: u32) -> Result<(), Refused> {
+fn check_object(
+    race: &crate::race::owner::Race,
+    numbers: &crate::race::numbers_store::Numbers,
+    object: u32,
+) -> Result<(), Refused> {
     let car = object.wrapping_sub(0x50);
-    if race.course.numbers.in_race.is_set()
+    if numbers.in_race.is_set()
         && car < 0xA0
         && !race.shared.work.has_car_block((car / 0x14) as usize)
     {
@@ -95,7 +99,8 @@ pub fn draw_described_face(
     face: u32,
 ) -> Result<(), Refused> {
     draw_description(ctx, &|len| {
-        let bytes: [u8; 0x40] = crate::race::course_places::face_field(&ctx.race.course, face, 0)?;
+        let bytes: [u8; 0x40] =
+            crate::race::course_places::face_field(ctx.reads.course(), face, 0)?;
         Ok(bytes[..len].to_vec())
     })
 }
@@ -106,16 +111,15 @@ fn draw_description(
     read: &dyn Fn(usize) -> Result<Vec<u8>, BadInput>,
 ) -> Result<(), Refused> {
     let race = ctx.race;
-    let course = &race.course;
     let shared = &race.shared;
     let head = read(8)?;
     let object = head[1] as u32;
     let place = u32::from_le_bytes([head[4], head[5], head[6], head[7]]);
     let shown = object <= 0x64
-        && place < course.course.scene_point_count.get()
+        && place < ctx.reads.course_work.scene_point_count.get()
         && !(shared.switches.scene_set_up.get() != 0 && object == 0x3F);
     if shown {
-        check_object(race, object)?;
+        check_object(race, ctx.reads.numbers, object)?;
     }
     ctx.view.cars.object_number.set(object);
     let end = || {
@@ -126,7 +130,7 @@ fn draw_description(
         end();
         return Ok(());
     }
-    if place >= course.course.scene_point_count.get() {
+    if place >= ctx.reads.course_work.scene_point_count.get() {
         end();
         return Ok(());
     }
@@ -140,7 +144,7 @@ fn draw_description(
     let byte = |o: u32| desc[o as usize] as u32;
     let get = |o: usize| u32::from_le_bytes(desc[o..o + 4].try_into().unwrap());
     let at: [u32; 3] =
-        crate::race::scene_points::point_number(&race.course, &ctx.part.points, place)?;
+        crate::race::scene_points::point_number(ctx.reads.course(), &ctx.part.points, place)?;
     ctx.view.object.place[0].set(at[0].wrapping_add(get(0x30)));
     ctx.view.object.place[1].set(at[1].wrapping_add(get(0x34)));
     ctx.view.object.place[2].set(at[2].wrapping_add(get(0x38)));
@@ -184,16 +188,16 @@ fn draw_description(
         ctx.view.light.light_turns[0].set(byte(0x22));
         ctx.view.light.light_turns[1].set(byte(0x23));
         if byte(0x24) != 0 {
-            ctx.view.light.light_turns[0].set(course.stage_prefs.sun_turn.get().wrapping_neg());
-            ctx.view.light.light_turns[1].set(course.stage_prefs.sun_height.get());
+            ctx.view.light.light_turns[0].set(ctx.reads.stage_prefs.sun_turn.get().wrapping_neg());
+            ctx.view.light.light_turns[1].set(ctx.reads.stage_prefs.sun_height.get());
             ctx.view
                 .light
                 .light_level
-                .set(course.stage_prefs.light_level.get());
+                .set(ctx.reads.stage_prefs.light_level.get());
             ctx.view
                 .object
                 .light_strength
-                .set(course.stage_prefs.light_strength_kept.get());
+                .set(ctx.reads.stage_prefs.light_strength_kept.get());
             ctx.view.light.light_lowest.set(0u32);
             ctx.view.light.light_highest.set(0xFFu32);
         }

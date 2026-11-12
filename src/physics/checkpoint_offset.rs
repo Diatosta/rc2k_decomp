@@ -31,16 +31,18 @@ pub fn checkpoint_offset(
         car.checkpoint_offset[1].set(0);
         return Ok(());
     }
-    if course_store.course.course_faces.get() == 0 || course_store.course.scene_points.get() == 0 {
+    if course_store.course.get().course_faces.get() == 0
+        || course_store.course.get().scene_points.get() == 0
+    {
         return Err(BadInput("no course faces or points").into());
     }
     let angle = crate::race::checkpoints_store::angle(checkpoints, c as usize).get();
     let face = crate::race::checkpoints_store::face(checkpoints, c as usize).get();
-    let point = crate::race::course_places::face_field::<u32>(course, face, 4)?;
+    let point = crate::race::course_places::face_field::<u32>(course.reads(), face, 4)?;
     let x = car.position[0]
         .get()
         .wrapping_sub(crate::race::scene_points::point_word(
-            course,
+            course.reads(),
             &crate::race::scene_points::NO_OWN,
             point,
             0,
@@ -48,7 +50,7 @@ pub fn checkpoint_offset(
     let z = car.position[2]
         .get()
         .wrapping_sub(crate::race::scene_points::point_word(
-            course,
+            course.reads(),
             &crate::race::scene_points::NO_OWN,
             point,
             2,

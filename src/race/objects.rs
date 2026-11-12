@@ -96,7 +96,7 @@ pub fn set_up_car_points(
             let first = scene.objects.slots.get().first_point[slot].get();
             let points = first
                 .wrapping_mul(12)
-                .wrapping_add(race.course.lists.object_points.get());
+                .wrapping_add(race.course.lists.get().object_points.get());
             let held = (count as i32).clamp(0, MOST_SORTED as i32) as u32;
             race.physics.contact.car_point_count.set(held);
             for n in 0..held {
@@ -123,7 +123,7 @@ pub fn set_up_car_points(
                 crate::scene::object_points::write(y, &lifted.to_le_bytes())?;
             }
             // Converted: `rc2k_core::race::cars::{point_float, open_two_points}`.
-            let scale = race.course.numbers.k65536.get();
+            let scale = race.course.numbers.get().k65536.get();
             let car = race.shared.race_car(car_number)?;
             let lists = [&car.probe_point_x, &car.probe_point_y, &car.probe_point_z];
             for n in 0..count {
@@ -170,14 +170,14 @@ pub fn set_object_kinds(race: &Race, scene: &crate::scene::owner::Scene) -> Resu
         check_object_cars,
     };
     crate::scene::clear_slot_kinds::clear_slot_kinds(scene);
-    crate::session::write_bits(&course.stage_prefs.fixed_kinds, FIXED_KINDS);
+    crate::session::write_bits(&course.stage_prefs.get().fixed_kinds, FIXED_KINDS);
     for n in DEFAULT_SLOTS {
         // Slots 56 .. 62 take `fixed_kinds`, just set above: the original's table runs on
         // into it (a slip kept).
-        let n_defaults = course.stage_prefs.slot_kind_defaults.len();
-        let default = match course.stage_prefs.slot_kind_defaults.get(n as usize) {
+        let n_defaults = course.stage_prefs.get().slot_kind_defaults.len();
+        let default = match course.stage_prefs.get().slot_kind_defaults.get(n as usize) {
             Some(cell) => cell.get(),
-            None => course.stage_prefs.fixed_kinds[n as usize - n_defaults].get(),
+            None => course.stage_prefs.get().fixed_kinds[n as usize - n_defaults].get(),
         };
         scene.objects.tables.get().slot_kinds[n as usize].set(default);
     }

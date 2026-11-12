@@ -65,9 +65,12 @@ pub fn init_marks(
         setup::tick_clock(&race.shared, effects)?;
         effects.setup.frame.steps.set(0);
         let less = effects.setup.floats.one.get();
-        for (n, side) in [&system.session.screen.width, &system.session.screen.height]
-            .into_iter()
-            .enumerate()
+        for (n, side) in [
+            &system.session.screen.get().width,
+            &system.session.screen.get().height,
+        ]
+        .into_iter()
+        .enumerate()
         {
             let half = side.get() >> 1;
             // The screen's middle x, it less `MarksFloats.one`, the same for y.

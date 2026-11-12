@@ -200,7 +200,7 @@ mod reference_vectors {
                 ],
                 ulps: 0,
                 plain: |a| {
-                    x87_2(&race().course.numbers, race().shared.car(), unsafe {
+                    x87_2(race().course.numbers.get(), race().shared.car(), unsafe {
                         &*(crate::test_support::vectors::block_vectors::at(a[1])
                             as *const crate::sound::store::SoundObject)
                     });

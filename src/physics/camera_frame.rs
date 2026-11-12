@@ -115,7 +115,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     x87_2(
-                        &crate::race::owner::race().course.numbers,
+                        crate::race::owner::race().course.numbers.get(),
                         crate::scene::owner::scene(),
                     );
                 },

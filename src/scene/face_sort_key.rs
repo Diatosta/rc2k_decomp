@@ -21,13 +21,13 @@ const FACTORS: u32 = 0x100;
 pub fn face_sort_key(
     poly: &crate::scene::polygon_work::PolygonWork,
     part: &crate::workers::PartScratch,
-    course: &crate::race::owner_course::Course,
+    lists: &crate::race::course_lists_store::CourseLists,
     face: usize,
     count: u32,
 ) -> Result<(), Refused> {
     let vertices: u32 = poly.polygon_vertex_count.get();
     if face == 0
-        || !crate::scene::point_records::held(course)
+        || !crate::scene::point_records::held(lists)
         || count == 0
         || count > 0x1000
         || vertices >= FACTORS
@@ -41,7 +41,7 @@ pub fn face_sort_key(
         );
         sum = x87::add(crate::scene::point_records::field(part, record, 0x18)?, sum).to_bits();
     }
-    let factor = course.lists.face_key_factors[vertices as usize].get();
+    let factor = lists.face_key_factors[vertices as usize].get();
     poly.face_sort_key.set(x87::mul_to_int(sum, factor) as u32);
     Ok(())
 }

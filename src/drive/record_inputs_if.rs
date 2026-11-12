@@ -9,7 +9,7 @@ use crate::race::owner::Race;
 pub fn record_inputs_if(race: &Race) -> Result<(), crate::errors::BadInput> {
     let shared = &race.shared;
     let records = rc2k_core::drive::replay_frames::records_inputs(
-        race.course.numbers.replay_mode.get(),
+        race.course.numbers.get().replay_mode.get(),
         shared.work.current_car.get(),
         || shared.view.players.get(),
     );

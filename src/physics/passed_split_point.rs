@@ -89,17 +89,17 @@ fn point(
     let cp =
         progress::check_split_point(split, || split_tables.checkpoints[1 + split as usize].get())?;
     let face = crate::race::checkpoints_store::face(checkpoints, cp as usize).get();
-    if !progress::face_known(face, course.course.course_face_count.get()) {
+    if !progress::face_known(face, course.course.get().course_face_count.get()) {
         return Err(FatalError {
             code: progress::SEGMENT_FATAL,
             message: "\u{1}",
         }
         .into());
     }
-    if course.course.course_faces.get() == 0 || course.course.scene_points.get() == 0 {
+    if course.course.get().course_faces.get() == 0 || course.course.get().scene_points.get() == 0 {
         return Err(BadInput("no course faces or points").into());
     }
-    let index = crate::race::course_places::face_field::<u32>(course, face, 4)
+    let index = crate::race::course_places::face_field::<u32>(course.reads(), face, 4)
         .unwrap_or_else(|e| crate::fatal::raise::end("physics::passed_split_point's operand", e));
     Ok((cp, index))
 }
@@ -116,8 +116,11 @@ pub fn passed_split_point(
     }
     let (cp, pt) = point(c.physics.split_tables(), c.course, c.checkpoints, c.car)?;
     // The point read from `race::scene_points`; the x87 runs read a copy.
-    let pt =
-        crate::race::scene_points::point_number(c.course, &crate::race::scene_points::NO_OWN, pt)?;
+    let pt = crate::race::scene_points::point_number(
+        c.course.reads(),
+        &crate::race::scene_points::NO_OWN,
+        pt,
+    )?;
     c.physics.ground().ground_x.set(c.car.position[0].get());
     c.physics.ground().ground_z.set(c.car.position[2].get());
     distance(c.tables, c.numbers, c.physics.ground(), pt, scene);
@@ -174,7 +177,7 @@ mod reference_vectors {
                 plain: |a| {
                     distance(
                         &crate::race::owner::race().shared.physics_tables,
-                        &crate::race::owner::race().course.numbers,
+                        crate::race::owner::race().course.numbers.get(),
                         crate::race::owner::race().physics.ground(),
                         point_at(a[1]),
                         crate::scene::owner::scene(),
@@ -201,7 +204,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     angle(
-                        &crate::race::owner::race().course.numbers,
+                        crate::race::owner::race().course.numbers.get(),
                         crate::race::owner::race().physics.ground(),
                         point_at(a[1]),
                         crate::scene::owner::scene(),

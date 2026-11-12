@@ -53,7 +53,7 @@ impl rc2k_core::scene::shown::RaceObject for Game<'_> {
         self.0.shared.switches.scene_set_up.get()
     }
     fn shown(&self) -> u32 {
-        self.0.course.stage_prefs.shown.get()
+        self.3.stage_prefs.shown.get()
     }
     fn which(&self) -> u32 {
         self.0.shared.work.stage_direction.get()
@@ -75,7 +75,7 @@ pub fn draw_shown_object(
     cars: &crate::race::car_draw_state::CarDrawState,
     object: &crate::scene::object_place::ObjectPlace,
 ) -> Result<bool, Refused> {
-    let in_race = race.course.numbers.in_race.is_set();
+    let in_race = reads.numbers.in_race.is_set();
     if in_race && cars.object_number.get() >= OBJECTS {
         return Err(BadInput("an object's number past the tables").into());
     }

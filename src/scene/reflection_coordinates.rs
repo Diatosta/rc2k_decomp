@@ -57,21 +57,20 @@ fn negated_at(a: impl Base, o: impl Base) {
 }
 
 pub fn reflection_coordinates(
-    race: &crate::race::owner::Race,
     part: &crate::workers::PartScratch,
-    switches: &crate::scene::draw_switches_store::DrawSwitches,
+    reads: crate::workers::DrawReads<'_>,
     object: &crate::scene::object_place::ObjectPlace,
     m: &crate::scene::view_matrices::ViewMatrices,
 ) -> Result<(), BadInput> {
-    if !crate::scene::point_records::held(&race.course) {
+    if !crate::scene::point_records::held(reads.course_lists) {
         return Err(BadInput("no records for the points"));
     }
-    let table = crate::scene::reading::PointRecords::new(&race.course, part)?;
+    let table = crate::scene::reading::PointRecords::new(reads.course_lists, part)?;
     let normal = table.place(object.reflection_normal_number.get())?;
     let point = table.place(object.reflection_point_number.get().wrapping_neg())?;
     crate::session::write_bits(&m.reflect_vector, normal);
     crate::session::write_first(&m.work_vector, &point.map(negated));
-    normalise_vector(race, switches, &m.work_vector)?;
+    normalise_vector(reads.course_lists, reads.draw_switches, &m.work_vector)?;
     let to_eye: [u32; 3] = crate::session::read_first(&m.work_vector);
     crate::session::write_bits(&m.reflect_normal, to_eye);
     reflect_vector(m, &m.view_back_matrix);
@@ -80,17 +79,14 @@ pub fn reflection_coordinates(
         &m.work_vector,
         &[
             x87::loaded(mirrored[0]).to_bits(),
-            x87::add(mirrored[1], &race.course.numbers.one).to_bits(),
+            x87::add(mirrored[1], &reads.numbers.one).to_bits(),
             x87::loaded(mirrored[2]).to_bits(),
         ],
     );
-    normalise_vector(race, switches, &m.work_vector)?;
+    normalise_vector(reads.course_lists, reads.draw_switches, &m.work_vector)?;
     let looks: [u32; 3] = crate::session::read_first(&m.work_vector);
-    let half = race.course.numbers.half.get();
-    let scales = [
-        race.course.numbers.k65536.get(),
-        race.course.numbers.k256.get(),
-    ];
+    let half = reads.numbers.half.get();
+    let scales = [reads.numbers.k65536.get(), reads.numbers.k256.get()];
     crate::session::write_bits(
         &object.reflection_coordinates,
         [

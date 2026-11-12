@@ -30,15 +30,15 @@ pub fn spin_matrix(
     car.spin_length.set(rounded_value(vector_length(&car.spin)));
     // Tested as a dword: any bit set (a NaN too) means a spin.
     if car.spin_length.get().to_bits() != 0 {
-        let lists = &course.lists;
+        let lists = course.lists.get();
         let turn = &lists.turn_matrix;
         let turned = &matrices.turned_matrix;
-        unit_vector(course, &car.spin, &lists.spin_axis);
+        unit_vector(course.reads(), &car.spin, &lists.spin_axis);
         lists
             .spin_angle
             .set(x87::mul(&car.spin_length, &physics_tables.step_time));
         axis_turn_matrix(course, turn);
-        square_matrix(course, turn);
+        square_matrix(course.reads(), turn);
         multiply_matrices(&car.crash_matrix, turn, turned);
         for k in 0..16 {
             car.crash_matrix[k].set(matrices.turned_matrix[k].get());
@@ -46,6 +46,6 @@ pub fn spin_matrix(
     }
     // `scene::square_matrix` left its last length in `g_scratch` (the ones before are
     // written over by it).
-    let length = square_matrix(course, &car.crash_matrix);
+    let length = square_matrix(course.reads(), &car.crash_matrix);
     scene.drawing.scene.get().scratch.set(length);
 }

@@ -125,8 +125,11 @@ pub fn first_check_checkpoint(course: &Course, shared: &RaceShared) -> Result<u3
     let look = rc2k_core::race::checkpoints::first_check_checkpoint(count, last, |n| {
         let face: u32 =
             crate::race::checkpoints_store::face(&shared.buffers.checkpoints, n as usize).get();
-        trap.keep_read(crate::race::course_places::face_number(course, face))
-            .check()
+        trap.keep_read(crate::race::course_places::face_number(
+            course.reads(),
+            face,
+        ))
+        .check()
     })?;
     trap.finish()?;
     Ok(look.and_then(|l| l.found).unwrap_or(0))

@@ -48,6 +48,20 @@ fn entry_or_past(modes: &Modes, key: u32, table: usize, count: u32) -> Result<us
     Ok(table + 8 * count as usize)
 }
 
+/// `entry_or_past` for a key that must be listed: the table of modes (`standalone_modes`, the only
+/// writer, with `mark_3d_modes` setting only high bits) holds a size and a pixel kind taken from
+/// `sizes` and `pixel_kinds`, which nothing writes, so a mode's size key and pixel kind key are
+/// always among their entries.
+fn entry_of(modes: &Modes, key: u32, table: usize, count: u32) -> Result<usize, BadInput> {
+    let at = entry_or_past(modes, key, table, count)?;
+    if at == table + 8 * count as usize {
+        return Err(BadInput(
+            "a listed mode's size or pixel kind key is not in its table",
+        ));
+    }
+    Ok(at)
+}
+
 fn read(modes: &Modes, at: usize) -> Result<u32, BadInput> {
     crate::cells::load_value(modes, at)
         .inspect_err(|_| crate::framework::log("a screen mode table's dword: past the block"))
@@ -161,8 +175,8 @@ pub fn screen_mode_choices(
                 display.modes.third_bits[third as usize].get(),
             );
             let tried = crate::gfx::try_screen_mode::try_screen_mode(gfx, system, d3d, mode)?;
-            let worked =
-                !tried.carry && mc::kept(display.choices.mipmapping.get(), d3d.cards.mips.get());
+            let worked = !tried.carry
+                && mc::kept(display.choices.mipmapping.get(), d3d.cards.get().mips.get());
             if worked {
                 crate::gfx::keep_race_screen_mode::keep_race_screen_mode(gfx, system, d3d, mode)?;
             }
@@ -206,9 +220,9 @@ fn rebuild(
     for (n, &at) in modes.iter().enumerate() {
         let mode = read(&display.modes, at)?;
         let (size_key, kind_key) = mc::keys(mode);
-        let size = entry_or_past(&display.modes, size_key, offset_of!(Modes, sizes), 8)?;
-        let kind = entry_or_past(&display.modes, kind_key, offset_of!(Modes, pixel_kinds), 2)?;
-        // The entries' fields by offset: the place may be the one past the table, as the original.
+        let size = entry_of(&display.modes, size_key, offset_of!(Modes, sizes), 8)?;
+        let kind = entry_of(&display.modes, kind_key, offset_of!(Modes, pixel_kinds), 2)?;
+        // The entries' fields by offset (+4 the size's two halves, the kind's figure).
         let l = mc::Listed {
             width: read_word(&display.modes, size + 4)?,
             height: read_word(&display.modes, size + 6)?,
@@ -227,7 +241,7 @@ fn rebuild(
             .set(display.choices.resolutions.get() + 1);
         listed.push(l.mode);
     }
-    display.choices.mip_limit.set(d3d.cards.mips.get());
+    display.choices.mip_limit.set(d3d.cards.get().mips.get());
     display.choices.listed.set(1);
     display
         .choices
@@ -242,7 +256,8 @@ fn rebuild(
             offset_of!(Modes, kinds),
             3,
         )
-        // (a third's entry, the place past the table possible, as above)
+        // (a third's entry: the race mode's key may be none of the three, then the place past
+        // `kinds` is `other_tables`' first entry, as the original)
         .and_then(|e| read(&display.modes, e + 4))
         .unwrap_or_else(|e| {
             failed.set(Some(e));

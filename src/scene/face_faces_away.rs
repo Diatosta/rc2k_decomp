@@ -79,7 +79,7 @@ pub fn face_faces_away(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     face: usize,
 ) -> Result<bool, Refused> {
-    if face == 0 || !crate::scene::point_records::held(&ctx.race.course) {
+    if face == 0 || !crate::scene::point_records::held(ctx.reads.course_lists) {
         return Err(BadInput("no face or no records").into());
     }
     let count: u32 = crate::scene::object_faces::word(face as u32)?;
@@ -97,7 +97,7 @@ pub fn face_faces_away(
         .ok_or(BadInput("a face of too many vertices"))?;
     crate::scene::object_faces::array::<0x10>(last)?;
     let point = |n: u32| crate::scene::object_faces::word(face as u32 + 0x10 + n * 0x10);
-    let table = crate::scene::reading::PointRecords::new(&ctx.race.course, ctx.part)?;
+    let table = crate::scene::reading::PointRecords::new(ctx.reads.course_lists, ctx.part)?;
     for n in 2..count {
         // The original looks at each triangle's numbers as it comes to it.
         let points = [point(0)?, point(n - 1)?, point(n)?];

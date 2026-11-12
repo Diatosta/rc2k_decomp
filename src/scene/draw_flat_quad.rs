@@ -18,7 +18,7 @@
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::race::owner::Race;
-use crate::race::owner_course::Course;
+use crate::race::owner_course::CourseReads;
 use crate::session::Dword;
 
 #[allow(
@@ -30,7 +30,7 @@ pub fn draw_flat_quad(
     part: &crate::workers::PartScratch,
     race: &Race,
     face: &crate::race::face_work::FaceWork,
-    course: &Course,
+    course: CourseReads<'_>,
     reads: crate::workers::DrawReads<'_>,
     screen: &crate::session::Screen,
     view: &crate::race::view_scratch::ViewScratch,
@@ -85,7 +85,7 @@ pub fn draw_flat_quad(
     crate::scene::polygon::list_cell(part.polygon, 4).set(0);
     poly.polygon_next_entry.set(4);
     crate::scene::scale_texture_coordinates::scale_texture_coordinates(part.polygon, poly)?;
-    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(part, poly, race)?;
+    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(part, poly, course)?;
     if poly.polygon_vertex_count.get() >= 3 {
         face.polygon_mode.set(6);
         poly.polygon_sides[0].set(1);

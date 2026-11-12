@@ -54,12 +54,16 @@ pub fn steps(
     let face = number;
     let face_byte = |offset| -> Result<u32, Refused> {
         Ok(u32::from(crate::race::course_places::face_field::<u8>(
-            c.course, face, offset,
+            c.course.reads(),
+            face,
+            offset,
         )?))
     };
     let face_dword = |offset| -> Result<u32, Refused> {
         Ok(crate::race::course_places::face_field::<u32>(
-            c.course, face, offset,
+            c.course.reads(),
+            face,
+            offset,
         )?)
     };
     if crate::scene::kind_hidden_at::kind_hidden_at(c.course, c.shared, face, scene)? {
@@ -116,7 +120,7 @@ pub fn steps(
             return Ok(());
         }
         let dx = crate::race::scene_points::point_word(
-            c.course,
+            c.course.reads(),
             &crate::race::scene_points::NO_OWN,
             point,
             0,
@@ -124,7 +128,7 @@ pub fn steps(
         .wrapping_add(face_dword(0x30)?)
         .wrapping_sub(c.car.position[0].get());
         let dz = crate::race::scene_points::point_word(
-            c.course,
+            c.course.reads(),
             &crate::race::scene_points::NO_OWN,
             point,
             2,
@@ -257,7 +261,7 @@ mod reference_vectors {
                 plain: |_| {
                     x87_1(
                         &crate::race::owner::race().physics.contact,
-                        &crate::race::owner::race().course.numbers,
+                        crate::race::owner::race().course.numbers.get(),
                     );
                 },
             },
@@ -285,7 +289,7 @@ mod reference_vectors {
                     x87_2(
                         &crate::race::owner::race().physics.contact,
                         crate::race::owner::race().shared.car(),
-                        &crate::race::owner::race().course.numbers,
+                        crate::race::owner::race().course.numbers.get(),
                     );
                 },
             },

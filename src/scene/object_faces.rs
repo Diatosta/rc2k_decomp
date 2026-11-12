@@ -27,7 +27,7 @@ pub fn take(
 ) -> Result<(), Refused> {
     crate::memory::owned::count_on(list, bytes)?;
     FACES.set(&vec![0; bytes as usize])?;
-    course.lists.face_memory.set(BASE);
+    course.lists.get().face_memory.set(BASE);
     Ok(())
 }
 
@@ -92,15 +92,15 @@ mod tests {
         let course = &race().course;
         let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
-        let kept = course.lists.face_memory.get();
+        let kept = course.lists.get().face_memory.get();
         let memory = crate::memory::ListCells::empty();
         take(course, &memory, 0x40).unwrap();
-        let face = course.lists.face_memory.get() + 0x10;
+        let face = course.lists.get().face_memory.get() + 0x10;
         write(face, &[3, 0, 0, 0, 9, 9, 0x1C, 5]).unwrap();
         assert_eq!((word(face).unwrap(), byte(face + 6).unwrap()), (3, 0x1C));
         assert!(bytes(BASE + 0x3E, 4).is_err() && bytes(0, 1).is_err());
         give_back();
-        course.lists.face_memory.set(kept);
+        course.lists.get().face_memory.set(kept);
         crate::memory::with_figures(|f| *f = figures);
     }
 }

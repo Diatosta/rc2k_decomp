@@ -4,7 +4,7 @@ use super::*;
 use crate::errors::{BadInput, Refused};
 use crate::net::owner::net;
 use crate::race::owner::Race;
-use crate::race::owner_course::Course;
+use crate::race::owner_course::CourseReads;
 use crate::race::owner_shared::RaceShared;
 use crate::race::trap::Trap;
 use crate::race::view_scratch::DrawCtx;
@@ -98,7 +98,8 @@ pub(super) fn own_lamp(
 pub(super) fn add_lamp_entry(ctx: &DrawCtx, lamp: u32) -> Result<(), BadInput> {
     let DrawCtx { view, .. } = *ctx;
     let point = own_lamp(&view.lamps, lamp)?[0].get();
-    let place = crate::race::scene_points::point_number(&ctx.race.course, &ctx.part.points, point)?;
+    let place =
+        crate::race::scene_points::point_number(ctx.reads.course(), &ctx.part.points, point)?;
     let turned = &view.object.place;
     for (cell, &v) in turned.iter().zip(&place) {
         cell.set(v);
@@ -137,7 +138,7 @@ pub fn gather_lamps(ctx: &DrawCtx) -> Result<(), Refused> {
     for k in 0..count {
         let face = physics.contact.lit_faces[k as usize].get();
         // Converted: `rc2k_core::race::faces::takes_lamp`.
-        let object = face_field::<u8>(&race.course, face, 1)? as u32;
+        let object = face_field::<u8>(ctx.reads.course(), face, 1)? as u32;
         if object != rc2k_core::race::faces::LAMP_OBJECT {
             continue;
         }
@@ -146,18 +147,13 @@ pub fn gather_lamps(ctx: &DrawCtx) -> Result<(), Refused> {
             continue;
         }
         let at = own_lamp(&ctx.view.lamps, lamp)?;
-        at[0].set(face_field(&race.course, face, 4)?);
-        at[1].set(crate::race::course_places::face_number(&race.course, face)?.mark() as u32);
+        at[0].set(face_field(ctx.reads.course(), face, 4)?);
+        at[1].set(crate::race::course_places::face_number(ctx.reads.course(), face)?.mark() as u32);
         at[2].set(rc2k_core::race::faces::LAMP_COLOUR);
         add_lamp_entry(ctx, lamp)?;
         ctx.view.lamps.lamp_count.set(lamp + 1);
     }
     Ok(())
-}
-
-/// Whether the game uses MMX (`g_hasMmx`).
-pub fn has_mmx(system: &crate::system::owner::System) -> bool {
-    system.session.machine.has_mmx.get() != 0
 }
 
 /// Two colours added byte by byte (`rc2k_core::race::lights::add_colours`), MMX (`mmx`) or
@@ -169,7 +165,7 @@ pub fn add_colours(a: u32, b: u32, mmx: bool) -> u32 {
 /// 0x44F691: a car's headlights on the lit place, added to `g_lightColour` (see
 /// `light_colour_at`). Called.
 pub(super) fn car_light_on_point(
-    course: &Course,
+    course: CourseReads<'_>,
     car: &crate::race::frame_view::CarView,
     marks_count: u32,
     light_tables: &crate::scene::light_tables_store::LightTables,
@@ -214,13 +210,13 @@ pub(super) fn car_light_on_point(
 /// `crate::race::owner::race().shared.vars.settings_words[4]` 1), only the drawn view's car outside one player and modes 0 and 2.
 pub(super) fn car_lights_on_point(
     race: &Race,
-    light_tables: &crate::scene::light_tables_store::LightTables,
-    blocks: &crate::race::blocks_store::CarBlocks,
+    reads: crate::workers::DrawReads<'_>,
     object_light: &crate::scene::object_light::ObjectLight,
     drawn_view: u32,
     mmx: bool,
 ) -> Result<(), BadInput> {
-    let course = &race.course;
+    let light_tables = reads.light_tables;
+    let blocks = &reads.cars_and_replay.car_blocks;
     let vars = &net().vars;
     let shared = &race.shared;
     let cars: u32 = shared.view.race_cars.get();
@@ -246,7 +242,7 @@ pub(super) fn car_lights_on_point(
         if lit {
             // The marks count is the drawing's own (`race::car_parts`), in the block.
             car_light_on_point(
-                course,
+                reads.course(),
                 crate::race::frame_view::car(n as usize)?,
                 shared.race_car_in(blocks, n as usize)?.marks_count.get(),
                 light_tables,
@@ -262,7 +258,7 @@ pub(super) fn car_lights_on_point(
 /// 0 .. 0xFF) as a grey, times its colour (+8, `LIGHT_WORK.lamp_tint`) byte by byte, added to
 /// `g_lightColour`.
 pub(super) fn lamp_lights_on_point(
-    course: &Course,
+    course: CourseReads<'_>,
     points: &crate::race::scene_points::OwnPoints,
     lamps: &crate::race::lamp_work::LampWork,
     object_light: &crate::scene::object_light::ObjectLight,
@@ -330,15 +326,8 @@ pub fn light_colour_at(
     // spreads and the lamps' distances the x87's and the scene's).
     check_light_colour(&race.shared, lamps)?;
     object_light.light_colour.set(0u32);
-    car_lights_on_point(
-        race,
-        reads.light_tables,
-        &reads.cars_and_replay.car_blocks,
-        object_light,
-        drawn_view,
-        mmx,
-    )?;
-    lamp_lights_on_point(&race.course, points, lamps, object_light, mmx)?;
+    car_lights_on_point(race, reads, object_light, drawn_view, mmx)?;
+    lamp_lights_on_point(reads.course(), points, lamps, object_light, mmx)?;
     Ok(())
 }
 

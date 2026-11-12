@@ -51,7 +51,7 @@ fn credit_line(
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::credits::shown`.
-    if !rc2k_core::race::credits::shown(y, system.session.screen.height.get()) {
+    if !rc2k_core::race::credits::shown(y, system.session.screen.get().height.get()) {
         return Ok(());
     }
     draw_string_by_id_at(so, id, font, x, y, canvas)?;
@@ -164,8 +164,8 @@ pub fn roll_credits(
     // Converted: `rc2k_core::race::credits::{start_top, lay_out, catch_up, rolled_off}`.
     use crate::system::tick_count::tick_count;
     use rc2k_core::race::credits::{Font, catch_up, lay_out, rolled_off, start_top};
-    let width = session.screen.width.get() as i32;
-    let height: u32 = session.screen.height.get();
+    let width = session.screen.get().width.get() as i32;
+    let height: u32 = session.screen.get().height.get();
     if eax == 0 {
         frame.credits().clock.set(tick_count());
         let top = start_top(height);

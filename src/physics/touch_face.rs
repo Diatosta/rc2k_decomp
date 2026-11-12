@@ -45,7 +45,7 @@ pub fn touch_face(
 ) -> Result<(), Refused> {
     let number = c.contact.face_number.get();
     let face = number;
-    if crate::race::course_places::face_number(c.course, face)?.mark() != 0 {
+    if crate::race::course_places::face_number(c.course.reads(), face)?.mark() != 0 {
         return Ok(());
     }
     let count = c.contact.lit_face_count.get();

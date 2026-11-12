@@ -24,7 +24,8 @@ use crate::scene::rotate_point::rotate_point;
 use rc2k_core::drive::start_places;
 
 /// `arcade_car_numbers`[start]: each car's number. The table holds 90; a start past it (the
-/// check lets up to 0x400 through) reads on into the variables after it, as the original.
+/// check lets up to 0x400 through; the start is `put_car`'s, dynamic, or `gap_start`'s, held to the
+/// count) reads on into the variables after it, as the original (kept, the starts not proven).
 pub fn car_number(shared: &RaceShared, start: usize) -> Result<u32, BadInput> {
     crate::session::read_on_in(
         shared.tables(),
@@ -67,7 +68,7 @@ pub fn start_car_on_line(
     let share = start_places::start_share(
         start as i32,
         race.shared.tables().arcade_cars.get() as i32,
-        race.course.numbers.one.get(),
+        race.course.numbers.get().one.get(),
         race.shared.tables().start_share_first.get(),
         race.shared.tables().start_share_last.get(),
     );

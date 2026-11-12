@@ -6,7 +6,6 @@
 use crate::effects::cell_x87::CellX87;
 use crate::errors::BadInput;
 use crate::errors::Refused;
-use crate::race::owner_course::Course;
 
 /// `fild i; fadd f; fstp tbyte`: a whole number plus a float in the x87's 80 bits.
 #[cfg(test)]
@@ -32,15 +31,16 @@ fn float_of_80(t: [u8; 10]) -> u32 {
 /// x times that scale plus `view_centre`, y is `SceneDraw.view_centre[1]` less y times it. When flat,
 /// the original also stored the depth at `scratch`; nothing read it, so it is not kept.
 pub(crate) fn project_record(
-    course: &Course,
+    prefs: &crate::race::prefs_store::StagePrefs,
+    work: &crate::race::course_store::CourseWork,
     v: &mut crate::scene::point_records::Record,
     window: &crate::scene::view_window::ViewWindow,
 ) {
     use crate::math::x87_float::{ONE, int, ld, st};
     let (x, y, z) = (ld(v[4]), ld(v[5]), ld(v[6]));
     let reach = window.view_scale.ld();
-    let scale = if course.stage_prefs.flat_depth.get() != 0 {
-        reach / (int(course.course.flat_depth.get() as i32) + ONE)
+    let scale = if prefs.flat_depth.get() != 0 {
+        reach / (int(work.flat_depth.get() as i32) + ONE)
     } else {
         reach / z
     };
@@ -86,7 +86,6 @@ fn turn_skid_point(
     matrix: &[u32; 15],
     n: u32,
 ) -> Result<Turned, BadInput> {
-    let race = ctx.race;
     {
         let points = &ctx.reads.shadow_skids.skid_points;
         let at = n as usize * 0xC;
@@ -104,8 +103,13 @@ fn turn_skid_point(
         // Only +0xC .. +0x20 are written; the projection reads +0x10 .. +0x18.
         let mut made = [0u32; 8];
         made[4..7].copy_from_slice(&t.map(st));
-        if !crate::math::x87::below_or_unordered(made[6], &race.course.numbers.k4096_a) {
-            project_record(&race.course, &mut made, &ctx.view.polygon.window);
+        if !crate::math::x87::below_or_unordered(made[6], &ctx.reads.numbers.k4096_a) {
+            project_record(
+                ctx.reads.stage_prefs,
+                ctx.reads.course_work,
+                &mut made,
+                &ctx.view.polygon.window,
+            );
         }
         Ok(Turned {
             words: made[3..8].try_into().expect("5 dwords"),
@@ -206,7 +210,7 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
         crate::scene::clip_polygon_by_depth::clip_polygon_by_depth(
             ctx.part,
             &ctx.view.polygon,
-            race,
+            ctx.reads.course(),
             ctx.reads.draw_switches,
             ctx.far_clip,
             ctx.view,
@@ -218,7 +222,7 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
         crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(
             ctx.part,
             &ctx.view.polygon,
-            race,
+            ctx.reads.course(),
         )?;
         if ctx.view.polygon.polygon_vertex_count.get() >= 3 {
             ctx.view.polygon.polygon_colour.set(0u32);
@@ -232,7 +236,7 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
                 race,
                 &ctx.view.face,
                 ctx.reads,
-                &ctx.system.session.screen,
+                ctx.reads.screen,
             )?;
             ctx.view.face.polygon_mode.set(0u32);
             ctx.view.polygon.polygon_drawn.set(1u32);
@@ -317,8 +321,8 @@ mod vector_tests {
         at_each_control_word(|| {
             for n in 0..20000 {
                 let flat = n % 2 == 0;
-                course.stage_prefs.flat_depth.set(flat as u32);
-                course.course.flat_depth.set(r.int() as u32);
+                course.stage_prefs.get().flat_depth.set(flat as u32);
+                course.course.get().flat_depth.set(r.int() as u32);
                 // The original read the scene's window; this code the window it is given.
                 for (old, own) in [
                     (&drawing.scene.get().view_scale, &win.view_scale),
@@ -335,7 +339,7 @@ mod vector_tests {
                     *q = r.float();
                 }
                 let from = a;
-                project_record(course, &mut a, &win);
+                project_record(course.stage_prefs.get(), course.course.get(), &mut a, &win);
                 vectors.check(&a, same, || format!("flat {flat} from {from:x?}"));
             }
         });

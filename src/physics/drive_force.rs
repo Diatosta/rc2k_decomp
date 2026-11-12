@@ -31,7 +31,7 @@ pub fn drive_force(
             &shared.physics_tables.engine_force,
             &shared.physics_tables.engine_torque,
             shared.car().throttle.get() as i32,
-            &course.numbers.k256,
+            &course.numbers.get().k256,
         )
         .to_bits(),
     );
@@ -40,13 +40,18 @@ pub fn drive_force(
             &shared.physics_tables.drive_ratio,
             &gear_figures.drive_torque_figure,
             &shared.physics_tables.gear_ratios[(gear as i32 + 1) as usize],
-            &course.numbers.k10000,
+            &course.numbers.get().k10000,
         )
         .to_bits(),
     );
     if shared.car().drive_cut_steps.get() != 0 {
         shared.physics_tables.drive_torque.set(0.0);
     }
-    drive_torque_share(shared.car(), &shared.physics_tables, &course.numbers, scene);
+    drive_torque_share(
+        shared.car(),
+        &shared.physics_tables,
+        course.numbers.get(),
+        scene,
+    );
     Ok(())
 }

@@ -22,8 +22,8 @@ fn frame_rate_plain(race: &Race, cycles: u64, system: &crate::system::owner::Sys
     let course = &race.course;
     let rate = rc2k_core::race::frame_rate::frame_rate(
         system.session.machine.cpu_mhz.get() as i32,
-        course.numbers.thousand.get(),
-        course.numbers.sixteen.get(),
+        course.numbers.get().thousand.get(),
+        course.numbers.get().sixteen.get(),
         cycles,
     );
     race.shared.switches.frame_rate.set(rate);

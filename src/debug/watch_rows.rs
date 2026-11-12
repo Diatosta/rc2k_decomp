@@ -45,7 +45,7 @@ pub static GROUPS: &[Group] = &[
                 0x5C5CE0,
                 store_cell!(
                     crate::race::numbers_store::START,
-                    |o| o.race.course.numbers,
+                    |o| o.race.course.numbers.get(),
                     crate::race::numbers_store::Numbers,
                     0x5c5ce0,
                     replay_mode
@@ -3210,7 +3210,7 @@ pub static GROUPS: &[Group] = &[
                 0x60A87C,
                 store_cell!(
                     crate::race::prefs_store::START,
-                    |o| o.race.course.stage_prefs,
+                    |o| o.race.course.stage_prefs.get(),
                     crate::race::prefs_store::StagePrefs,
                     0x60a87c,
                     grid_reach

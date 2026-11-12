@@ -16,9 +16,13 @@ use crate::scene::point_records::{self, BYTES};
 /// The records taken (Rust's since phase 13, `scene::point_records`): counted on the
 /// list, `g_pointRecords` set to `point_records::HELD`.
 pub fn allocate_point_records_in_game(course: &Course) -> Result<(), Refused> {
-    course
-        .lists
-        .course_bytes_total
-        .set(course.lists.course_bytes_total.get().wrapping_add(BYTES));
-    point_records::take(course, &course.lists.point_records_list)
+    course.lists.get().course_bytes_total.set(
+        course
+            .lists
+            .get()
+            .course_bytes_total
+            .get()
+            .wrapping_add(BYTES),
+    );
+    point_records::take(course, &course.lists.get().point_records_list)
 }

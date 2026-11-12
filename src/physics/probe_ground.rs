@@ -51,7 +51,7 @@ pub const MOST_POINTS: u32 = 0x40;
 pub struct ProbeInputs<'a> {
     pub numbers: &'a crate::race::numbers_store::Numbers,
     pub tables: &'a crate::physics::tables_store::PhysicsTables,
-    pub course: &'a crate::race::owner_course::Course,
+    pub course: crate::race::owner_course::CourseReads<'a>,
     pub engine_tables: &'a crate::scene::engine_tables_store::EngineTables,
 }
 
@@ -60,7 +60,7 @@ impl<'a> ProbeInputs<'a> {
         ProbeInputs {
             numbers: c.numbers,
             tables: c.tables,
-            course: c.course,
+            course: c.course.reads(),
             engine_tables: c.engine_tables,
         }
     }
@@ -216,7 +216,7 @@ pub fn probe_ground(
         &ProbeInputs::of_ground(c),
         car,
         scene.draw_switches.get(),
-        &GroundQuery::of_physics(c.ground, c.probe, &c.course.course),
+        &GroundQuery::of_physics(c.ground, c.probe, c.course.course.get()),
         c.contact,
         &scene.drawing.scene.get().scratch,
     )

@@ -56,13 +56,13 @@ pub fn draw_slot_object(
     ctx.view
         .light
         .light_level
-        .set(race.course.stage_prefs.light_level.get());
+        .set(ctx.reads.stage_prefs.light_level.get());
     ctx.view
         .object
         .light_strength
-        .set(race.course.stage_prefs.light_strength.get());
-    ctx.view.light.light_turns[0].set(race.course.stage_prefs.sun_turn.get().wrapping_neg());
-    ctx.view.light.light_turns[1].set(race.course.stage_prefs.sun_height.get());
+        .set(ctx.reads.stage_prefs.light_strength.get());
+    ctx.view.light.light_turns[0].set(ctx.reads.stage_prefs.sun_turn.get().wrapping_neg());
+    ctx.view.light.light_turns[1].set(ctx.reads.stage_prefs.sun_height.get());
     ctx.view.light.view_kind.set(1);
     ctx.view.light.light_kind.set(2);
     crate::math::cells::copy_cells(&slot.matrix, &ctx.view.matrices.object_turn_matrix, 16);
@@ -151,7 +151,6 @@ pub fn draw_screen_quad(
     screen: &crate::session::Screen,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
-    let course = &race.course;
     let shared = &race.shared;
     poly.polygon_drawn.set(0u32);
     let entries = &part.polygon.entries[..4];
@@ -172,7 +171,7 @@ pub fn draw_screen_quad(
         let v = &poly.quad_vertices[8 * k..8 * k + 8];
         v[3].set(x.to_bits());
         v[7].set(y.to_bits());
-        v[6].set(course.numbers.k4096_b.get().to_bits());
+        v[6].set(reads.numbers.k4096_b.get().to_bits());
     }
     for e in entries {
         e.point.set(u32::MAX);
@@ -187,7 +186,7 @@ pub fn draw_screen_quad(
     }
     part.polygon.list[4].set(0u32);
     poly.polygon_next_entry.set(4u32);
-    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(part, poly, race)?;
+    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(part, poly, reads.course())?;
     if poly.polygon_vertex_count.get() >= 3 {
         crate::scene::depth_buffer_on::depth_buffer(part, false);
         poly.polygon_textures[0].set(u32::MAX);
@@ -408,7 +407,7 @@ pub fn car_light_flares(ctx: &DrawCtx, car: usize) -> Result<(), Refused> {
     if valid {
         if !crate::math::x87::below_or_unordered(
             car_view(car)?.electrics_damage.get(),
-            race.course.numbers.hundred.get(),
+            ctx.reads.numbers.hundred.get(),
         ) {
             return Ok(());
         }
@@ -607,14 +606,14 @@ pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
         5 => {
             crate::math::cells::copy_cells(&frame.matrices.identity_matrix, &object, 16);
             set_fine_turn(
-                &race.course,
+                ctx.reads.course(),
                 &ctx.view.matrices,
                 Axis::Y,
                 ctx.view.state.view_angles[3].get(),
             );
             multiply_matrices(object, turn_y, turned);
             set_fine_turn(
-                &race.course,
+                ctx.reads.course(),
                 &ctx.view.matrices,
                 Axis::Y,
                 ctx.view.state.view_angles[0].get(),
@@ -737,8 +736,11 @@ pub fn draw_lamp_flare(
 ) -> Result<(), Refused> {
     let race = ctx.race;
     let edi = lights::own_lamp(&ctx.view.lamps, lamp)?;
-    let [x, y, z] =
-        crate::race::scene_points::point_number(&race.course, &ctx.part.points, edi[0].get())?;
+    let [x, y, z] = crate::race::scene_points::point_number(
+        ctx.reads.course(),
+        &ctx.part.points,
+        edi[0].get(),
+    )?;
     ctx.view.object.place[0].set(x);
     ctx.view.object.place[1].set(y);
     ctx.view.object.place[2].set(z);
@@ -780,7 +782,7 @@ pub fn draw_list_entry(
         0 => {
             ctx.view.face.course_face.set(word);
             let face = word;
-            let kind = crate::race::course_places::face_field::<u8>(&ctx.race.course, face, 0)?;
+            let kind = crate::race::course_places::face_field::<u8>(ctx.reads.course(), face, 0)?;
             if kind == 0xFF || kind < 0x10 {
                 ctx.view.polygon.smooth.set(1);
                 ctx.view.polygon.plain_first.set(1);

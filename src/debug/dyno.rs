@@ -118,7 +118,7 @@ fn torque(race: &Race, scene: &Scene) {
             shared.physics_tables.engine_force.bits(),
             shared.physics_tables.engine_torque.bits(),
             shared.car().throttle.get() as i32,
-            course.numbers.k256.bits(),
+            course.numbers.get().k256.bits(),
         )
         .to_bits(),
     );
@@ -128,7 +128,7 @@ fn torque(race: &Race, scene: &Scene) {
             shared.physics_tables.drive_ratio.bits(),
             race.gear().drive_torque_figure.bits(),
             shared.physics_tables.gear_ratios[(gear + 1) as usize].bits(),
-            course.numbers.k10000.bits(),
+            course.numbers.get().k10000.bits(),
         )
         .to_bits(),
     );
@@ -138,7 +138,7 @@ fn torque(race: &Race, scene: &Scene) {
     drive_torque_share(
         race.shared.car(),
         &race.shared.physics_tables,
-        &race.course.numbers,
+        race.course.numbers.get(),
         scene,
     );
 }
@@ -153,7 +153,7 @@ fn drive_at(race: &Race, scene: &Scene, speed: f32) -> Option<(f32, f32)> {
     revs_from_wheels(
         race.shared.car(),
         &race.shared.physics_tables,
-        &race.course.numbers,
+        race.course.numbers.get(),
     )
     .ok()?;
     let revs = shared.car().engine_speed.get();
@@ -181,7 +181,7 @@ fn measure(race: &Race, scene: &Scene) -> Option<Measured> {
     let down = figure(&race.gear().shift_down_point);
     let air = figure(&shared.physics_tables.air_drag);
     let rolling = figure(&shared.physics_tables.rolling_drag);
-    let k = course.numbers.k10000.get();
+    let k = course.numbers.get().k10000.get();
     Some(kept(shared, scene, || {
         let mut gears = Vec::new();
         let mut best = [f32::MIN; POINTS];

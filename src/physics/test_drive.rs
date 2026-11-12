@@ -32,7 +32,7 @@ pub fn test_drive(
     crate::physics::make_gear_ratios::make_gear_ratios(
         shared.car(),
         &shared.physics_tables,
-        &course.numbers,
+        course.numbers.get(),
         gear,
         scene,
     )?;

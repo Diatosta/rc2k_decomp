@@ -180,7 +180,10 @@ pub fn draw_shadow_with(
         buffer.vertices[n].colour.set(c);
     }
     for n in 0..4 {
-        if x87::bits_at_or_below(q.corners[n][2].get(), race.course.numbers.k4096_a.get()) {
+        if x87::bits_at_or_below(
+            q.corners[n][2].get(),
+            race.course.numbers.get().k4096_a.get(),
+        ) {
             return Ok(());
         }
     }

@@ -94,13 +94,17 @@ pub fn move_slot(
             + core::mem::offset_of!(RaceSlot, spin_length);
         let past = |k: usize| crate::race::checkpoints_store::run_on(c.work, first, k).get();
         let axis = SpinAxis([s.spin_length.get().to_bits(), past(1), past(2)]);
-        unit_vector(c.course, &axis, &c.course.lists.spin_axis);
-        c.course.lists.spin_angle.set(x87::mul(&s.spin_length, dt));
-        axis_turn_matrix(c.course, &c.course.lists.turn_matrix);
-        square_matrix(c.course, &c.course.lists.turn_matrix);
+        unit_vector(c.course.reads(), &axis, &c.course.lists.get().spin_axis);
+        c.course
+            .lists
+            .get()
+            .spin_angle
+            .set(x87::mul(&s.spin_length, dt));
+        axis_turn_matrix(c.course, &c.course.lists.get().turn_matrix);
+        square_matrix(c.course.reads(), &c.course.lists.get().turn_matrix);
         multiply_matrices(
             &s.matrix,
-            &c.course.lists.turn_matrix,
+            &c.course.lists.get().turn_matrix,
             &c.matrices.turned_matrix,
         );
         copy_matrix(&c.matrices.turned_matrix, &s.matrix);
@@ -113,10 +117,10 @@ pub fn move_slot(
     s.motion[1].st(-(c.tables.gravity.ld() * bh::ld(dt)) + s.motion[1].ld());
     c.ground.ground_x.set(s.place[0].get());
     c.ground.ground_z.set(s.place[2].get());
-    c.course.course.ground_face_last.set(s.car_word.get());
+    c.course.course.get().ground_face_last.set(s.car_word.get());
     c.probe.settle_mark.set(0x80);
     crate::physics::find_ground::find_ground(c.probe, c.ground, c.course, scene)?;
-    let face: u32 = c.course.course.ground_slot.get();
+    let face: u32 = c.course.course.get().ground_slot.get();
     if face == u32::MAX {
         copy_place(&c.work.slot_place, &s.place);
         for cell in s.motion.iter().chain(&s.spin) {

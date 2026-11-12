@@ -84,7 +84,7 @@ fn put_bytes(w: &mut Work, at: usize, bytes: &[u8]) {
 fn cut(
     part: &crate::workers::PartScratch,
     poly: &crate::scene::polygon_work::PolygonWork,
-    course: &crate::race::owner_course::Course,
+    course: crate::race::owner_course::CourseReads<'_>,
     edge: Edge,
     a: &PolygonEntry,
     b: &PolygonEntry,
@@ -183,7 +183,7 @@ fn cut(
 pub fn clip_pass(
     part: &crate::workers::PartScratch,
     poly: &crate::scene::polygon_work::PolygonWork,
-    course: &crate::race::owner_course::Course,
+    course: crate::race::owner_course::CourseReads<'_>,
     listed: Option<crate::scene::polygon::Listed>,
     edge: Edge,
     inside_past: bool,

@@ -39,7 +39,7 @@ impl<'a> StepInputs<'a> {
         StepInputs {
             physics: &race.physics,
             course: &race.course,
-            numbers: &race.course.numbers,
+            numbers: race.course.numbers.get(),
             frame: &race.frame,
             car: race.shared.car(),
             tables: &race.shared.physics_tables,

@@ -47,7 +47,7 @@ pub fn feel_ground(
     c.tables
         .feel_word
         .set(u32::from(crate::race::course_places::face_field::<u16>(
-            c.course,
+            c.course.reads(),
             c.car.probe_point_face[4].get(),
             0x26,
         )?));

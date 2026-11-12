@@ -11,8 +11,10 @@
 //! `scene::rotate_point`) and onto the screen as `scene::project_point` does it (not if it
 //! is nearer than 4096). With the object's `move_by` not 0 the point is first moved towards
 //! the one that many bytes further on in the table, by `move_fraction` of the way, rounded
-//! to whole numbers in `point_moved` (the original's store of that fraction to its shared
-//! work dword is not kept). A normal goes through the matrix without its fourth row.
+//! to whole numbers (the original stored them to the course work's `point_moved` and the two
+//! group masks after it, read back at once and written again before any other reader; here
+//! they are the drawing's own values, and its store of the fraction to its shared work dword
+//! is not kept). A normal goes through the matrix without its fourth row.
 //! One caller, `scene::place_object_points_any`, which takes this way unless the 3DNow or
 //! the SSE switch is set: `place_object_points_sse` is the SSE way; the 3DNow way is not
 //! ported. Refuses an object's number of 0x100 or more, no records, no points' table, no
@@ -32,26 +34,16 @@ const OBJECTS: u32 = 0x100;
 
 // ---- Rust version ----
 
-/// The point at `from` moved towards the one `by` bytes on, into `point_moved` and the
-/// next two cells.
-fn moved(
-    race: &crate::race::owner::Race,
-    from: usize,
-    by: u32,
-    fraction: f32,
-) -> Result<(), BadInput> {
-    let course = &race.course;
+/// The point at `from` moved towards the one `by` bytes on, as whole numbers.
+fn moved(from: usize, by: u32, fraction: f32) -> Result<[u32; 3], BadInput> {
     let other = from.wrapping_add(by as usize);
     let read = |at: usize| crate::scene::object_points::point(at as u32);
     let (a, b) = (read(from)?, read(other)?);
     let whole = |p: [u32; 3]| p.map(|v| v as i32);
     let ([x, y, z], _) = moved_at(fraction, whole(a), whole(b));
     // The original stores the three from `point_moved` on: y and z land over the first two
-    // group masks (`notes/bugs.md`).
-    course.course.point_moved.set(x as u32);
-    course.course.group_masks[0].set(y as u32);
-    course.course.group_masks[1].set(z as u32);
-    Ok(())
+    // group masks (`notes/bugs.md`), which `scene::load_object` writes before it reads them.
+    Ok([x as u32, y as u32, z as u32])
 }
 
 /// The block of `moved`: the two points' whole numbers, each `a + (b - a) fraction` rounded
@@ -92,7 +84,7 @@ struct Object {
 }
 
 fn object(
-    race: &crate::race::owner::Race,
+    lists: &crate::race::course_lists_store::CourseLists,
     object_slots: &crate::scene::object_slots_store::ObjectTables,
     cars: &crate::race::car_draw_state::CarDrawState,
 ) -> Result<Object, BadInput> {
@@ -104,12 +96,12 @@ fn object(
         first: object_slots.first_point[number as usize].get(),
         points: object_slots.point_counts[number as usize].get() as i32,
         normals: object_slots.normal_counts[number as usize].get() as i32,
-        table: race.course.lists.object_points.get(),
+        table: lists.object_points.get(),
     };
     if object.points <= 0 && object.normals > 0 {
         return Err(BadInput("an object of normals and no points"));
     }
-    if object.points > 0 && (object.table == 0 || !point_records::held(&race.course)) {
+    if object.points > 0 && (object.table == 0 || !point_records::held(lists)) {
         return Err(BadInput("no points' table or no records"));
     }
     Ok(object)
@@ -118,8 +110,11 @@ fn object(
 /// The object's points placed and projected, its normals turned. What the original
 /// leaves in the registers its one caller's callers never read (`draw_object`).
 pub fn place_object_points(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
-    let race = ctx.race;
-    let object = object(race, ctx.reads.object_slots, &ctx.view.cars)?;
+    let object = object(
+        ctx.reads.course_lists,
+        ctx.reads.object_slots,
+        &ctx.view.cars,
+    )?;
     if object.points <= 0 {
         return Ok(());
     }
@@ -136,13 +131,7 @@ pub fn place_object_points(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
         let mut r = point_records::get(ctx.part, record)?;
         r[0] = number;
         let point = if move_by != 0 {
-            moved(race, from as usize, move_by, fraction)?;
-            // x, y, z read on into `group_masks[0]`, `[1]`, as stored.
-            [
-                race.course.course.point_moved.get(),
-                race.course.course.group_masks[0].get(),
-                race.course.course.group_masks[1].get(),
-            ]
+            moved(from as usize, move_by, fraction)?
         } else {
             crate::scene::object_points::point(from)?
         };
@@ -150,11 +139,11 @@ pub fn place_object_points(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
         r[3] = 0;
         r[7] = 0;
         if f32::from_bits(r[6]) >= NEAR {
-            let flat = race.course.stage_prefs.flat_depth.get() != 0;
+            let flat = ctx.reads.stage_prefs.flat_depth.get() != 0;
             to_screen(
                 &mut r,
                 &ctx.view.polygon.window,
-                race.course.course.flat_depth.get(),
+                ctx.reads.course_work.flat_depth.get(),
                 flat,
                 &crate::session::Dword::new(0),
             );
@@ -192,8 +181,11 @@ fn sse_lanes(p: [f32; 3], m: &[f32; 16], place: bool) -> [u32; 4] {
 pub fn place_object_points_sse(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
 ) -> Result<(), Refused> {
-    let race = ctx.race;
-    let object = object(race, ctx.reads.object_slots, &ctx.view.cars)?;
+    let object = object(
+        ctx.reads.course_lists,
+        ctx.reads.object_slots,
+        &ctx.view.cars,
+    )?;
     let m: [f32; 16] = std::array::from_fn(|n| ctx.view.matrices.made_object_matrix[n].get());
     let mut number = object.first;
     let mut from = object.table.wrapping_add(object.first.wrapping_mul(12));
@@ -209,11 +201,11 @@ pub fn place_object_points_sse(
         r[3] = 0;
         r[7] = 0;
         if f32::from_bits(r[6]) >= NEAR {
-            let flat = race.course.stage_prefs.flat_depth.get() != 0;
+            let flat = ctx.reads.stage_prefs.flat_depth.get() != 0;
             to_screen(
                 &mut r,
                 &ctx.view.polygon.window,
-                race.course.course.flat_depth.get(),
+                ctx.reads.course_work.flat_depth.get(),
                 flat,
                 &crate::session::Dword::new(0),
             );

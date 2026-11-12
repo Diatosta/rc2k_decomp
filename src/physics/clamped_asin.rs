@@ -7,7 +7,7 @@
 //! Callers: `physics::matrix_angles` (twice), unowned code at 0x42119E.
 
 use crate::math::x87::clamped_asin_80;
-use crate::session::Float;
+use crate::session::PlainFloat;
 
 // `scratch`
 // `one`, 1.0
@@ -17,7 +17,7 @@ use crate::session::Float;
 pub fn clamped_asin_at(
     x: [u8; 10],
     scratch: &crate::session::PlainDword,
-    limit: &Float,
+    limit: &PlainFloat,
 ) -> [u8; 10] {
     let mut s = scratch.get();
     let mut l = limit.get().to_bits();

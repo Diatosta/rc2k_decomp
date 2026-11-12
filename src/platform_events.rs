@@ -231,7 +231,7 @@ fn pad_button(
         SDL_GAMEPAD_BUTTON_START => B::Start,
         _ => return,
     };
-    let in_race = course.numbers.in_race.is_set();
+    let in_race = course.numbers.get().in_race.is_set();
     let now = u64::from(crate::os::ticks());
     if let Some(action) = lock_menu_pad().button(button, down, in_race, now) {
         menu_action(input, action);

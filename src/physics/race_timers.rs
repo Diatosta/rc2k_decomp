@@ -21,7 +21,11 @@ use crate::race::owner::Race;
 // Converted: `rc2k_core::physics::splits::{timer_rate, timer_run}`.
 pub fn race_timers(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
     let sound = o.sound;
-    let (physics, numbers, league) = (&race.physics, &race.course.numbers, race.course.league());
+    let (physics, numbers, league) = (
+        &race.physics,
+        race.course.numbers.get(),
+        race.course.league(),
+    );
     let (frame_work, panel_and_overlay) = (
         &race.frame.frame_work.get(),
         &race.frame.panel_and_overlay.get(),

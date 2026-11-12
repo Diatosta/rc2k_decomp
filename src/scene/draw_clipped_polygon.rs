@@ -95,7 +95,7 @@ pub fn draw_clipped_polygon_in_game(
         match step {
             Step::Project => {
                 let listed = entries.insert(crate::scene::polygon::listed(ctx.part.polygon, poly)?);
-                project_entries(ctx.part, poly, race, listed, ctx.reads, ctx.view)?;
+                project_entries(ctx.part, poly, listed, ctx.reads, ctx.view)?;
             }
             Step::ScaleTextureCoordinates => match &entries {
                 Some(listed) if !listed.is_empty() => scale_entries(poly, listed)?,
@@ -109,13 +109,13 @@ pub fn draw_clipped_polygon_in_game(
                 clip_polygon_by_depth(
                     ctx.part,
                     poly,
-                    race,
+                    ctx.reads.course(),
                     ctx.reads.draw_switches,
                     ctx.far_clip,
                     ctx.view,
                 )?;
             }
-            Step::ClipToScreen => clip_polygon_to_screen(ctx.part, poly, race)?,
+            Step::ClipToScreen => clip_polygon_to_screen(ctx.part, poly, ctx.reads.course())?,
             Step::Draw => {
                 draw_polygon(
                     poly,
@@ -124,7 +124,7 @@ pub fn draw_clipped_polygon_in_game(
                     &ctx.view.face,
                     &mut Game(ctx.part),
                     ctx.reads,
-                    &ctx.system.session.screen,
+                    ctx.reads.screen,
                 )?;
             }
         }

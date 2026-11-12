@@ -48,7 +48,7 @@ pub fn face_normal(
     {
         let point = |n: u32| -> Result<[i32; 3], BadInput> {
             Ok(crate::race::scene_points::point_number(
-                &race.course,
+                race.course.reads(),
                 &crate::race::scene_points::NO_OWN,
                 n,
             )?
@@ -77,7 +77,7 @@ pub fn face_normal(
         ]
         .map(f32::to_bits);
         crate::session::write_first(&race.frame.scratch().work_vector, &normal);
-        normalise_work_vector(&race.course.numbers, race.frame.scratch(), scene);
+        normalise_work_vector(race.course.numbers.get(), race.frame.scratch(), scene);
     }
     Ok(())
 }
@@ -99,7 +99,7 @@ pub fn store_face_normal(
             NORMAL_TRIANGLES, normal_made, repeated_points, takes_normals, with_repeated,
         };
         let face = face_number;
-        let f = crate::race::course_places::face_number(&race.course, face)?;
+        let f = crate::race::course_places::face_number(race.course.reads(), face)?;
         if !takes_normals(f.kind()) {
             return Ok(());
         }
@@ -111,7 +111,7 @@ pub fn store_face_normal(
         crate::race::course_places::update_face_number(&race.course, face, |f| {
             f.set_switches(with_repeated(f.switches(), repeated));
         })?;
-        let count: u32 = race.course.course.scene_point_count.get();
+        let count: u32 = race.course.course.get().scene_point_count.get();
         for (points, places) in NORMAL_TRIANGLES {
             let [a, b, c] = points.map(|k| corners[k]);
             if normal_made([a, b, c], count) {
@@ -119,7 +119,12 @@ pub fn store_face_normal(
             }
             let work: [u32; 3] = crate::session::read_first(&race.frame.scratch().work_vector);
             for (place, value) in places.into_iter().zip(work) {
-                crate::race::course_places::write_face_field(&race.course, face, place, value)?;
+                crate::race::course_places::write_face_field(
+                    race.course.reads(),
+                    face,
+                    place,
+                    value,
+                )?;
             }
         }
     }
@@ -134,13 +139,13 @@ pub fn lay_out_course(course: &Course) {
     {
         // Converted: `rc2k_core::race::faces::CourseLayout`.
         let layout = rc2k_core::race::faces::CourseLayout::of(
-            course.lists.course_memory.get(),
-            course.course.course_record_count.get(),
-            course.course.course_face_count.get(),
-            course.course.scene_point_count.get(),
+            course.lists.get().course_memory.get(),
+            course.course.get().course_record_count.get(),
+            course.course.get().course_face_count.get(),
+            course.course.get().scene_point_count.get(),
         );
         let [records, faces, points, after, after_offset] = layout.dwords();
-        let c = &course.course;
+        let c = course.course.get();
         // The faces and records are Rust's too (`race::course_places`).
         if crate::race::course_places::held() {
             c.course_records
@@ -171,7 +176,7 @@ pub fn store_norms(
 ) -> Result<(), Refused> {
     {
         // Converted: `rc2k_core::race::faces::check_face_count`.
-        let count: u32 = race.course.course.course_face_count.get();
+        let count: u32 = race.course.course.get().course_face_count.get();
         rc2k_core::race::faces::check_face_count(count)?;
         lay_out_course(&race.course);
         for face in 0..count {

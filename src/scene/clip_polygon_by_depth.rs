@@ -9,7 +9,6 @@
 //! //! Seven callers. Refuses as `scene::clip_polygon_to_screen`.
 
 use crate::errors::BadInput;
-use crate::race::owner::Race;
 use crate::scene::clip::{Edge, clip_pass, listed_with_records, or_undone};
 
 // ---- game data ----
@@ -21,13 +20,12 @@ const NEAREST: i32 = 0x1000;
 pub fn clip_polygon_by_depth(
     part: &crate::workers::PartScratch,
     poly: &crate::scene::polygon_work::PolygonWork,
-    race: &Race,
+    course: crate::race::owner_course::CourseReads<'_>,
     switches: &crate::scene::draw_switches_store::DrawSwitches,
     far_clip: bool,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), BadInput> {
     let polygon_work = part.polygon;
-    let course = &race.course;
     let entries = listed_with_records(polygon_work, poly)?;
     or_undone(|| {
         poly.depth_clipped.set(1u32);

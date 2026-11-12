@@ -21,7 +21,7 @@ pub fn probe_at(
     slot: &PlainDword,
     scene: &crate::scene::owner::Scene,
 ) -> Result<bool, Refused> {
-    c.course.course.ground_face_last.set(slot.get());
+    c.course.course.get().ground_face_last.set(slot.get());
     c.ground.ground_x.set(x);
     c.ground.ground_z.set(z);
     {
@@ -32,6 +32,6 @@ pub fn probe_at(
     if c.ground.ground_found.get() == 0 {
         return Ok(false);
     }
-    slot.set(c.course.course.ground_slot.get());
+    slot.set(c.course.course.get().ground_slot.get());
     Ok(true)
 }

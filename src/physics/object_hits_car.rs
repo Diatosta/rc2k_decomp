@@ -46,7 +46,7 @@ pub fn object_hits_car(
     let points = if count == 0 {
         0
     } else {
-        c.course.lists.object_points.get()
+        c.course.lists.get().object_points.get()
     };
     let refused = std::cell::Cell::new(None::<Refused>);
     let walk = contacts::walk_points(
@@ -76,7 +76,7 @@ pub fn object_hits_car(
             }
             // `point` is the scene point's number (from `face_contact`).
             let place = match crate::race::scene_points::point_number(
-                c.course,
+                c.course.reads(),
                 &crate::race::scene_points::NO_OWN,
                 point,
             ) {

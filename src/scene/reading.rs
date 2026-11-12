@@ -46,10 +46,10 @@ pub struct PointRecords<'a> {
 impl<'a> PointRecords<'a> {
     /// `part`'s records; refused when the records are not taken.
     pub fn new(
-        course: &crate::race::owner_course::Course,
+        lists: &crate::race::course_lists_store::CourseLists,
         part: &'a crate::workers::PartScratch,
     ) -> Result<Self, BadInput> {
-        if !crate::scene::point_records::held(course) {
+        if !crate::scene::point_records::held(lists) {
             return Err(BadInput("no records for the points"));
         }
         Ok(Self { part })

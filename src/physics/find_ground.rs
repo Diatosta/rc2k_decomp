@@ -26,7 +26,7 @@ pub fn find_ground(
 
 /// The same on the fields of `q` (a drawing's own: `race::car_shadow`).
 pub fn find_ground_with(
-    course: &Course,
+    course: crate::race::owner_course::CourseReads<'_>,
     q: &crate::physics::ground_query::GroundQuery<'_>,
     switches: &crate::scene::draw_switches_store::DrawSwitches,
 ) -> Result<bool, Refused> {

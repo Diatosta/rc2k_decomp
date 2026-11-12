@@ -2,7 +2,7 @@
 //! not platform. The panel's fields at 0x6D14xx are the HUD record the frame fills for the HUD drawers (`g_hudRecord`, `race::panel_store`).
 
 use crate::errors::BadInput;
-use crate::race::owner_course::Course;
+use crate::race::owner_course::CourseReads;
 
 mod course_view;
 mod environment;
@@ -20,7 +20,7 @@ pub use view::*;
 
 /// Field `offset` of course face `face`.
 fn face_field<T: crate::race::course_places::Whole>(
-    course: &Course,
+    course: CourseReads<'_>,
     face: u32,
     offset: u32,
 ) -> Result<T, BadInput> {
@@ -28,6 +28,6 @@ fn face_field<T: crate::race::course_places::Whole>(
 }
 
 /// Field `offset` of course record `record`.
-fn record_field(course: &Course, record: u32, offset: u32) -> Result<u32, BadInput> {
+fn record_field(course: CourseReads<'_>, record: u32, offset: u32) -> Result<u32, BadInput> {
     crate::race::course_places::record_field(course, record, offset)
 }

@@ -73,7 +73,7 @@ mod reference_vectors {
             ulps: 0,
             plain: |a| {
                 x87_1(
-                    &race().course.numbers,
+                    race().course.numbers.get(),
                     race().shared.tables(),
                     crate::scene::x87_mem::Base::dword(a[0], 0),
                     crate::scene::owner::scene(),

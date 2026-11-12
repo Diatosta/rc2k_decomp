@@ -34,7 +34,8 @@ use rc2k_core::physics::contacts;
 // steps stay).
 pub fn point_hits_car(c: &ContactInputs<'_>, point: [u32; 3], face: u32) -> Result<bool, Refused> {
     let contact = c.contact;
-    let rd = |offset: u32| crate::race::course_places::face_field::<u32>(c.course, face, offset);
+    let rd =
+        |offset: u32| crate::race::course_places::face_field::<u32>(c.course.reads(), face, offset);
     c.tables
         .point_hits
         .set(c.tables.point_hits.get().wrapping_add(1));
@@ -174,7 +175,7 @@ mod reference_vectors {
                 plain: |_| {
                     x87_1(
                         &crate::race::owner::race().physics.contact,
-                        &crate::race::owner::race().course.numbers,
+                        crate::race::owner::race().course.numbers.get(),
                     );
                 },
             },
@@ -193,7 +194,7 @@ mod reference_vectors {
                 plain: |_| {
                     x87_2(
                         &crate::race::owner::race().physics.contact,
-                        &crate::race::owner::race().course.numbers,
+                        crate::race::owner::race().course.numbers.get(),
                     );
                 },
             },
@@ -207,7 +208,7 @@ mod reference_vectors {
                 plain: |_| {
                     x87_3(
                         &crate::race::owner::race().physics.contact,
-                        &crate::race::owner::race().course.numbers,
+                        crate::race::owner::race().course.numbers.get(),
                         crate::race::owner::race().shared.car(),
                     );
                 },

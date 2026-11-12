@@ -42,7 +42,7 @@ fn texture_set(
         let object: u32 = cars.object_number.get();
         let t = rc2k_core::scene::shown::texture_set(
             object,
-            race.course.numbers.in_race.is_set(),
+            reads.numbers.in_race.is_set(),
             |object| reads.object_tables.object_kind(object),
             |car| {
                 shared.work.has_car_block(car as usize).then(|| {
@@ -89,14 +89,14 @@ pub fn draw_scene_object_in_game(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     description: Option<crate::scene::draw_described_object::Description<'_>>,
 ) -> Result<(), Refused> {
-    let (race, system) = (ctx.race, ctx.system);
+    let race = ctx.race;
     draw_scene_object(
         race,
         &mut |way| match way {
             Way::Shown => {
                 // Outside a race the faces pick the menus' marks (the original's
                 // `draw_shown_object` set them before every object: `scene::car_marks`).
-                let ctx = &if race.course.numbers.in_race.is_set() {
+                let ctx = &if ctx.reads.numbers.in_race.is_set() {
                     *ctx
                 } else {
                     crate::race::view_scratch::DrawCtx {
@@ -107,7 +107,7 @@ pub fn draw_scene_object_in_game(
                 draw_shown_object(
                     race,
                     ctx.reads,
-                    &mut || draw_object_in_game(ctx, system),
+                    &mut || draw_object_in_game(ctx),
                     &ctx.view.cars,
                     &ctx.view.object,
                 )

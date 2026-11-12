@@ -583,7 +583,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "system.owner.SYSTEM.session.screen",
-            &crate::system::owner::SYSTEM.session.screen,
+            on_game(crate::system::owner::SYSTEM.session.screen.get()),
         ),
         listed!(
             "system.owner.SYSTEM.session.flags",
@@ -895,7 +895,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "d3d.owner.D3D.cards",
-            record_tail(&crate::d3d::owner::D3D.cards, 4),
+            on_game_tail(crate::d3d::owner::D3D.cards.get(), 4),
             0x564,
         ),
         listed!(
@@ -1003,7 +1003,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.course.numbers",
-            &crate::race::owner::RACE.course.numbers,
+            on_game(crate::race::owner::RACE.course.numbers.get()),
         ),
         listed!(
             "race.owner.RACE.frame.scratch",
@@ -1011,7 +1011,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.course.lists",
-            &crate::race::owner::RACE.course.lists,
+            on_game(crate::race::owner::RACE.course.lists.get()),
         ),
         listed!(
             "race.owner.RACE.physics.car_specs",
@@ -1019,7 +1019,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.course.course",
-            &crate::race::owner::RACE.course.course,
+            on_game(crate::race::owner::RACE.course.course.get()),
         ),
         listed!(
             "scene.owner.SCENE.objects.tables",
@@ -1047,7 +1047,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.course.stage_prefs",
-            &crate::race::owner::RACE.course.stage_prefs,
+            on_game(crate::race::owner::RACE.course.stage_prefs.get()),
         ),
         listed!(
             "scene.owner.SCENE.file_numbers",

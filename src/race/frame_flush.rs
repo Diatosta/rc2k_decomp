@@ -3,8 +3,7 @@
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
-use crate::race::owner::Race;
-use crate::race::owner_course::Course;
+use crate::race::owner_course::CourseReads;
 use crate::race::owner_frame::Frame;
 use crate::session::PlainDword;
 
@@ -116,7 +115,7 @@ pub fn flush_batch(
 }
 
 /// `fild i; fadd/fsub one; fstp`.
-fn int_and_one(course: &Course, i: u32, add: bool) -> f32 {
+fn int_and_one(course: CourseReads<'_>, i: u32, add: bool) -> f32 {
     use crate::math::x87_float::{int, stf};
     let one = course.numbers.one.ld();
     let i = int(i as i32);
@@ -140,13 +139,11 @@ fn int_over_two(
 /// states (0x44E44D), texture `KindTextureTables.kind_first_slots[192]` (`scene::set_texture`), the device's unclipped fan
 /// (`d3d::draw_fan_unclipped`), then the depth buffer on.
 pub fn draw_view_backdrop(
-    race: &Race,
     reads: crate::workers::DrawReads<'_>,
     view: &crate::race::view_scratch::ViewScratch,
     part: &crate::workers::PartScratch,
 ) {
     let buffer = part.vertices;
-    let course = &race.course;
     view.quad.uv[0].set(0xF8_0000);
     view.quad.uv[4].set(0x8_0000);
     let left = view.polygon.window.view_offset[0].get();
@@ -156,19 +153,19 @@ pub fn draw_view_backdrop(
     view.quad.corners[4].set(top);
     view.quad.corners[5].set(top.wrapping_add(view.polygon.window.view_size[1].get()));
     let v = &buffer.vertices;
-    let x0 = int_and_one(course, view.quad.corners[0].get(), false);
+    let x0 = int_and_one(reads.course(), view.quad.corners[0].get(), false);
     v[0].x.set(x0);
     v[3].x.set(x0);
-    let x1 = int_and_one(course, view.quad.corners[1].get(), true);
+    let x1 = int_and_one(reads.course(), view.quad.corners[1].get(), true);
     v[1].x.set(x1);
     v[2].x.set(x1);
-    let y0 = int_and_one(course, view.quad.corners[4].get(), false);
+    let y0 = int_and_one(reads.course(), view.quad.corners[4].get(), false);
     v[0].y.set(y0);
     v[1].y.set(y0);
-    let y1 = int_and_one(course, view.quad.corners[5].get(), true);
+    let y1 = int_and_one(reads.course(), view.quad.corners[5].get(), true);
     v[2].y.set(y1);
     v[3].y.set(y1);
-    let (a, b) = (course.numbers.k256.get(), course.numbers.k65536.get());
+    let (a, b) = (reads.numbers.k256.get(), reads.numbers.k65536.get());
     for vertex in &v[..4] {
         vertex.u.set(int_over_two(view.quad.uv[0].get(), a, b));
     }
@@ -212,7 +209,7 @@ mod reference_vectors {
 
     impl Drop for KeptOne {
         fn drop(&mut self) {
-            race().course.numbers.one.set(self.0);
+            race().course.numbers.get().one.set(self.0);
         }
     }
 
@@ -222,23 +219,28 @@ mod reference_vectors {
     fn int_blocks_match() {
         let course = &race().course;
         let _l = lock();
-        let _kept = KeptOne(race().course.numbers.one.get());
+        let _kept = KeptOne(race().course.numbers.get().one.get());
         let mut r = Rng(5);
         let mut file = Recorder::replay("race.frame_flush.int_blocks");
         at_each_control_word(|| {
             for _ in 0..20000 {
-                race().course.numbers.one.set(f32::from_bits(r.float()));
+                race()
+                    .course
+                    .numbers
+                    .get()
+                    .one
+                    .set(f32::from_bits(r.float()));
                 let (i, a, b) = (r.int() as u32, r.float(), r.float());
                 for add in [false, true] {
                     file.input(
                         &[
                             i.to_le_bytes(),
-                            race().course.numbers.one.get().to_le_bytes(),
+                            race().course.numbers.get().one.get().to_le_bytes(),
                         ]
                         .concat(),
                     );
                     let want = word(&mut file);
-                    let got = int_and_one(course, i, add).to_bits();
+                    let got = int_and_one(course.reads(), i, add).to_bits();
                     assert!(same(want, got), "{i} {add}: {want:#x} {got:#x}");
                 }
                 for w in [i, a, b] {

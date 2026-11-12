@@ -36,7 +36,7 @@ fn step(
 ) -> Result<(), Refused> {
     shared.car().local_velocity[2].set(crate::math::x87::loaded(&shared.car().drive_speed_a));
     crate::physics::count_down_timers::count_down_timers(shared.car(), &shared.vars);
-    crate::physics::gearbox_step::gearbox_step(&course.numbers, shared, figures, scene)?;
+    crate::physics::gearbox_step::gearbox_step(course.numbers.get(), shared, figures, scene)?;
     crate::physics::engine_torque::engine_torque(course, shared, scene);
     let gear = shared.car().gear.get();
     if !(-1..=7).contains(&(gear as i32)) {
@@ -45,21 +45,26 @@ fn step(
     x87_1(
         &shared.physics_tables,
         figures,
-        &course.numbers,
+        course.numbers.get(),
         &shared.physics_tables.gear_ratios[gear.wrapping_add(1) as usize],
     );
     crate::physics::drive_torque_share::drive_torque_share(
         shared.car(),
         &shared.physics_tables,
-        &course.numbers,
+        course.numbers.get(),
         scene,
     );
-    x87_2(shared.car(), &shared.physics_tables, &course.numbers, scene);
+    x87_2(
+        shared.car(),
+        &shared.physics_tables,
+        course.numbers.get(),
+        scene,
+    );
     {
         crate::physics::revs_from_wheels::revs_from_wheels(
             shared.car(),
             &shared.physics_tables,
-            &course.numbers,
+            course.numbers.get(),
         )
     }?;
     Ok(())
@@ -95,12 +100,12 @@ fn steps(
             let slot = (n / 20) as usize;
             figures.test_speeds[slot].set(crate::math::x87::mul(
                 &shared.car().drive_speed_a,
-                &course.numbers.two_and_a_quarter,
+                &course.numbers.get().two_and_a_quarter,
             ));
             figures.test_gears[slot].set(shared.car().gear.get());
         }
     }
-    x87_3(shared.car(), figures, &course.numbers);
+    x87_3(shared.car(), figures, course.numbers.get());
     Ok(())
 }
 
@@ -201,7 +206,7 @@ mod reference_vectors {
                     x87_1(
                         &race().shared.physics_tables,
                         race().gear(),
-                        &race().course.numbers,
+                        race().course.numbers.get(),
                         view(a[1], 0),
                     );
                 },
@@ -224,7 +229,7 @@ mod reference_vectors {
                     x87_2(
                         race().shared.car(),
                         &race().shared.physics_tables,
-                        &race().course.numbers,
+                        race().course.numbers.get(),
                         crate::scene::owner::scene(),
                     );
                 },
@@ -242,7 +247,13 @@ mod reference_vectors {
                     writes: &[(0x1CB97C, Out::F), (0x1CB980, Out::F), (0x1CB984, Out::F)],
                 }],
                 ulps: 0,
-                plain: |_| x87_3(race().shared.car(), race().gear(), &race().course.numbers),
+                plain: |_| {
+                    x87_3(
+                        race().shared.car(),
+                        race().gear(),
+                        race().course.numbers.get(),
+                    );
+                },
             },
         ]
     }

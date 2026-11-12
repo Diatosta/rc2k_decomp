@@ -34,7 +34,7 @@ pub fn set_object_light(
     input: &crate::input::owner::Input,
     light: &crate::scene::object_light::ObjectLight,
     object: &crate::scene::object_place::ObjectPlace,
-    system: &crate::system::owner::System,
+    mmx: bool,
     vars: &crate::race::view_vars_store::ViewVarsCopy,
 ) -> Result<(), Refused> {
     use rc2k_core::scene::lamps::{ObjectLight, WHITE, object_light};
@@ -67,7 +67,6 @@ pub fn set_object_light(
     if own_car {
         light.drawn_car_light.set(u32::MAX);
     }
-    let mmx = system.session.machine.has_mmx.get() != 0;
     light
         .light_added
         .set(plus(light.light_colour.get(), light.other_light.get(), mmx));
@@ -76,7 +75,6 @@ pub fn set_object_light(
 
 pub fn set_object_light_in_game(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
-    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let race = ctx.race;
     set_object_light(
@@ -89,23 +87,23 @@ pub fn set_object_light_in_game(
                 ctx.view.drawn_view(race),
                 &mut |car, marks| {
                     add_car_light(
-                        &race.course,
+                        ctx.reads.course(),
                         car,
                         marks,
                         ctx.reads.light_tables,
                         &ctx.view.light,
-                        system,
+                        ctx.reads.has_mmx,
                     );
                     Ok(())
                 },
             )?;
-            add_point_lights(ctx, system)?;
+            add_point_lights(ctx)?;
             Ok(())
         },
         ctx.input,
         &ctx.view.light,
         &ctx.view.object,
-        system,
+        ctx.reads.has_mmx,
         &ctx.view.vars,
     )
 }

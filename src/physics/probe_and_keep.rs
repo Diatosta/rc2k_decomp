@@ -20,7 +20,11 @@ pub fn probe_and_keep_at(
         &crate::physics::probe_ground::ProbeInputs::of_ground(c),
         c.car,
         scene.draw_switches.get(),
-        &crate::physics::ground_query::GroundQuery::of_physics(c.ground, c.probe, &c.course.course),
+        &crate::physics::ground_query::GroundQuery::of_physics(
+            c.ground,
+            c.probe,
+            c.course.course.get(),
+        ),
         c.contact,
         &scene.drawing.scene.get().scratch,
     )?;

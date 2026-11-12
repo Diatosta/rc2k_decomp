@@ -60,11 +60,11 @@ pub fn simple_car_step(
     race.physics
         .ground()
         .ground_x
-        .set(race.course.course.place_x.get());
+        .set(race.course.course.get().place_x.get());
     race.physics
         .ground()
         .ground_z
-        .set(race.course.course.place_z.get());
+        .set(race.course.course.get().place_z.get());
     {
         crate::physics::find_ground::find_ground(
             race.physics.ground_probe.get(),
@@ -73,14 +73,14 @@ pub fn simple_car_step(
             scene,
         )
     }?;
-    if race.course.course.ground_slot.get() != u32::MAX {
+    if race.course.course.get().ground_slot.get() != u32::MAX {
         let y = race
             .physics
             .ground()
             .ground_height
             .get()
             .wrapping_add(race.shared.physics_tables.ground_drop.get());
-        race.course.course.place_y.set(y);
+        race.course.course.get().place_y.set(y);
         race.car_blocks().cars[0].position[1].set(y);
     }
     race.car_blocks().cars[0].car_pitch.set(0);

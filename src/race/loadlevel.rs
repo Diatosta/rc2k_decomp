@@ -149,7 +149,7 @@ pub fn loadlevel_init(
         direction ^= 1;
     }
     race.shared.work.stage_direction.set(direction);
-    race.course.numbers.in_race.set(true);
+    race.course.numbers.get().in_race.set(true);
     race.shared.vars.bar_function.set(v.bar);
     s.progress(0)?;
     s.indent(-3);
@@ -165,7 +165,7 @@ pub fn loadlevel_init(
     s.log();
     s.indent(3);
     // CourseLists.course_memory_list[0]: the course's MemoryList.
-    level::allocate_course_memory(&race.course, &race.course.lists.course_memory_list)?;
+    level::allocate_course_memory(&race.course, &race.course.lists.get().course_memory_list)?;
     s.progress(2)?;
     s.progress(4)?;
     s.indent(-3);
@@ -240,7 +240,7 @@ pub fn loadlevel_init(
     s.log();
     s.indent(3);
     level::reset_refresh();
-    let flags: u32 = race.course.stage_prefs.refresh_flags_a.get();
+    let flags: u32 = race.course.stage_prefs.get().refresh_flags_a.get();
     scene.lights.work.get().marks_mask.set((flags & 2) >> 1);
     for car in &race.car_blocks().cars[..8] {
         car.lights_on.set(flags & 1);
@@ -250,7 +250,7 @@ pub fn loadlevel_init(
         .work
         .get()
         .lamps_mask
-        .set(race.course.stage_prefs.refresh_flags_b.get() & 1);
+        .set(race.course.stage_prefs.get().refresh_flags_b.get() & 1);
     s.indent(-3);
     s.step(
         &mut || {

@@ -43,7 +43,7 @@ fn subtract_units(a: &Float, u: &Dword) {
 /// bits compared as a float).
 fn whole_units(course: &Course, from: &Float, to: &Dword) -> i32 {
     round_units(from, to);
-    let zero = course.numbers.zero.get();
+    let zero = course.numbers.get().zero.get();
     if c0(to.get(), zero) {
         to.set(zero.to_bits());
     }

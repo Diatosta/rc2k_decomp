@@ -49,8 +49,8 @@ pub fn show_picture_file(
         Err(e) => return Err(e),
     };
     let (width, height): (u32, u32) = (
-        system.session.screen.width.get(),
-        system.session.screen.height.get(),
+        system.session.screen.get().width.get(),
+        system.session.screen.get().height.get(),
     );
     crate::gfx::picture::set_size(&gfx.pictures, sizes::screen(width, height));
     let pages = sizes::pages(gfx.display.mode.mode_flags.get());

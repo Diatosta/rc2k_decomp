@@ -31,7 +31,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
-use crate::race::view_vars_store::ViewVars;
 const SLOTS: u32 = 0x400;
 
 /// The two view blocks, or the refusal.
@@ -59,6 +58,7 @@ impl<'a> Owners<'a> {
         crate::workers::LentOwners {
             race: self.race,
             scene: self.scene,
+            system: self.system,
         }
     }
 }
@@ -104,7 +104,7 @@ fn view_scene(
     let view = crate::race::view_scratch::main_view(car);
     view.take_vars(reads);
     let output = crate::race::draw_view_scene::draw_view_scene(
-        o.race, o.scene, o.system, o.net, o.input, view, part, reads,
+        o.race, o.scene, o.net, o.input, view, part, reads,
     )?;
     view.hand_off.keep_output(output);
     view.hand_off.keep(o.race, part);
@@ -142,7 +142,6 @@ fn view_rest(
     let ctx = crate::race::view_scratch::DrawCtx::new(
         o.race,
         o.scene,
-        o.system,
         o.net,
         o.input,
         view,
@@ -174,7 +173,7 @@ fn view_mirror(
     )?;
     let begun = crate::debug::timing::start();
     let output = crate::race::draw_mirror_view::draw_mirror_view(
-        o.race, o.scene, o.system, o.net, o.input, mirror, part, reads,
+        o.race, o.scene, o.net, o.input, mirror, part, reads,
     )?;
     mirror.hand_off.keep_mirror_drawn(output.is_some());
     mirror.hand_off.keep_output(output.unwrap_or_default());
@@ -281,22 +280,18 @@ enum Piece {
 /// points). So every view's scene starts from the frame's
 /// state, not from what the views before it left (the wake counts, the cars' crumpling and the
 /// sun the overlays work out reach the other views a frame later than in the original),
-/// A view's window inputs as its caller reads them: the scene's draw variables and the
-/// shared view variables.
-type ViewWindowReads<'r> = Option<(&'r crate::scene::draw_store::SceneDraw, &'r ViewVars)>;
-
 /// however many threads draw.
 fn draw_players_beside(
     o: Owners<'_>,
     gfx: &crate::gfx::owner::Gfx,
     effects: &crate::effects::owner::Effects,
     players: usize,
-    player: &(dyn Fn(u32, ViewWindowReads<'_>) + Sync),
+    player: &(dyn Fn(u32, Option<crate::workers::DrawReads<'_>>) + Sync),
 ) -> Result<(), Refused> {
     for p in 0..players {
         load_car(o, p)?;
     }
-    let own = |p: usize, mirror: bool, window: ViewWindowReads<'_>| {
+    let own = |p: usize, mirror: bool, window: Option<crate::workers::DrawReads<'_>>| {
         player(p as u32, window);
         fetch_value(o, p, mirror)
     };
@@ -313,11 +308,7 @@ fn draw_players_beside(
      -> Result<(), Refused> {
         match pieces[n] {
             Piece::Scene(p) => {
-                own(
-                    p,
-                    false,
-                    Some((reads.scene_draw, &reads.view_and_records.view_vars)),
-                )?;
+                own(p, false, Some(reads))?;
                 view_scene(o, p, part, reads)
             }
             Piece::Mirror(p) => {
@@ -343,7 +334,6 @@ fn draw_players_beside(
 /// Draws the race frame (see the header).
 pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (input, system, scene) = (o.input, o.system, o.scene);
-    let session = &system.session;
     let owners = Owners {
         race,
         scene,
@@ -434,13 +424,13 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         .work
         .get()
         .marks_mask
-        .set((race.course.stage_prefs.refresh_flags_a.get() & 2) >> 1);
+        .set((race.course.stage_prefs.get().refresh_flags_a.get() & 2) >> 1);
     scene
         .lights
         .work
         .get()
         .lamps_mask
-        .set(race.course.stage_prefs.refresh_flags_b.get() & 1);
+        .set(race.course.stage_prefs.get().refresh_flags_b.get() & 1);
     race.frame
         .panel_and_overlay
         .get()
@@ -448,7 +438,8 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         .flat
         .set(race.frame.panel_and_overlay.get().panel.hud_flags[0].get() & 0x40);
     race.frame.frame_work.get().mirror_wanted.set(0); // FrameWork.mirror_wanted
-    if race.course.stage_prefs.blit_cleared[0].get() | race.course.stage_prefs.blit_cleared[1].get()
+    if race.course.stage_prefs.get().blit_cleared[0].get()
+        | race.course.stage_prefs.get().blit_cleared[1].get()
         != 0
     {
         race.frame.frame_work.get().mirror_wanted.set(
@@ -544,19 +535,18 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         // A player's half of the screen.
         // (The store's drawn view is set on the game thread only: the parts read their
         // slot's, `ViewScratch::drawn_view`.)
-        // With `window` (the scene's draw variables and the shared view variables, as the
-        // caller reads them: a drawing part's reads inside a drawing scope) the view's window
-        // set; without, nothing.
-        let player = |view: u32, window: ViewWindowReads<'_>| {
+        // With `reads` (the drawing stores as the caller reads them) the view's window set;
+        // without, nothing.
+        let player = |view: u32, reads: Option<crate::workers::DrawReads<'_>>| {
             // Only the view's own scene sets its window: its mirror and its overlays only
             // read it.
-            let Some((draw, vars)) = window else {
+            let Some(reads) = reads else {
                 return;
             };
             let own = &crate::race::view_scratch::main_view(view as usize)
                 .polygon
                 .window;
-            let (w, h) = (session.screen.width.get(), session.screen.height.get());
+            let (w, h) = (reads.screen.width.get(), reads.screen.height.get());
             // (width, x, height, y).
             if side_by_side {
                 own.view_size[0].set(w >> 1);
@@ -570,7 +560,14 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
                 own.view_offset[1].set(if view == 0 { 0 } else { h >> 1 });
             }
             own.view_zoom.set(0x100);
-            crate::scene::set_view_window::set_view_window_plain(race, draw, system, own, vars);
+            crate::scene::set_view_window::set_view_window_plain(
+                race,
+                reads.course(),
+                reads.scene_draw,
+                reads.screen,
+                own,
+                &reads.view_and_records.view_vars,
+            );
         };
         if crate::workers::players_beside() {
             draw_players_beside(owners, o.gfx, o.effects, 2, &player)?;
@@ -579,10 +576,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
                 race.shared.view.drawn_view.set(view);
                 player(
                     view,
-                    Some((
-                        scene.drawing.scene.get(),
-                        &race.frame.view_and_records.get().view_vars,
-                    )),
+                    Some(crate::workers::DrawReads::on_game_thread(owners.lent())),
                 );
                 draw_view(
                     owners,
@@ -616,7 +610,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         o.gfx,
         o.strings,
     )?;
-    if race.course.numbers.replay_mode.get() != 2 {
+    if race.course.numbers.get().replay_mode.get() != 2 {
         crate::drive::tyre_change_screen::tyre_change_screen(race, input, system)?;
     }
     Ok(())

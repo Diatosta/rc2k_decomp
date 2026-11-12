@@ -275,7 +275,7 @@ fn brake_value(race: &Race, n: usize) -> u32 {
         race.shared.state.settings.cars[n]
             .steering_sensitivity
             .get() as i32,
-        |v| crate::math::x87::int_times_to_int(v, &course.numbers.brake_scale) as u32,
+        |v| crate::math::x87::int_times_to_int(v, &course.numbers.get().brake_scale) as u32,
     )
 }
 
@@ -432,7 +432,7 @@ pub fn set_car_times(race: &Race, scene: &crate::scene::owner::Scene) -> Result<
         scene.drawing.scene.get().scratch.set(percentage);
         let total: i32 = race.physics.split_tables().stage_car_total.get() as i32;
         let extra = bh::to_int(
-            bh::int(percentage as i32) * bh::int(total) / race.course.numbers.hundred.ld(),
+            bh::int(percentage as i32) * bh::int(total) / race.course.numbers.get().hundred.ld(),
         );
         race.physics.split_tables().extra_time.set(extra as u32);
         text(w(3), false);

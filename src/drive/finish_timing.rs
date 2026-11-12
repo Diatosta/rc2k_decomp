@@ -24,7 +24,7 @@ fn time(race: &Race, scene: &crate::scene::owner::Scene) {
         .get()
         .time
         .set(stf(int(scene.drawing.scene.get().scratch.get() as i32)
-            / ld(race.course.numbers.thousand.get())));
+            / ld(race.course.numbers.get().thousand.get())));
 }
 
 /// The eased time between the two limits: t less ((t - a) / (b - a))^2 x ((b - a) x half).
@@ -33,8 +33,8 @@ fn eased_middle(race: &Race) {
     let q = (ld(finish.time.get()) - ld(finish.limit_a.get()))
         / (ld(finish.limit_b.get()) - ld(finish.limit_a.get()));
     let square = q * q;
-    let span =
-        (ld(finish.limit_b.get()) - ld(finish.limit_a.get())) * ld(race.course.numbers.half.get());
+    let span = (ld(finish.limit_b.get()) - ld(finish.limit_a.get()))
+        * ld(race.course.numbers.get().half.get());
     let product = square * span;
     finish.eased.set(stf(-product + ld(finish.time.get())));
 }
@@ -42,8 +42,8 @@ fn eased_middle(race: &Race) {
 /// The eased time past the second limit: a + (b - a) x half.
 fn eased_end(race: &Race) {
     let finish = race.replay.finish.get();
-    let span =
-        (ld(finish.limit_b.get()) - ld(finish.limit_a.get())) * ld(race.course.numbers.half.get());
+    let span = (ld(finish.limit_b.get()) - ld(finish.limit_a.get()))
+        * ld(race.course.numbers.get().half.get());
     finish.eased.set(stf(span + ld(finish.limit_a.get())));
 }
 

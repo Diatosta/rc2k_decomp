@@ -4,7 +4,7 @@ use super::*;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_float as bh;
 use crate::race::owner::Race;
-use crate::race::owner_course::Course;
+use crate::race::owner_course::CourseReads;
 use crate::race::trap::Trap;
 use crate::race::view_scratch::{DrawCtx, SortLists};
 
@@ -37,13 +37,14 @@ pub fn add_sort_entry(lists: &SortLists, kind: u32, face: u32) -> Result<(), Ref
 /// are read unchecked, as the original.
 pub fn checkpoint_colours(
     race: &Race,
+    course: CourseReads<'_>,
     car: &crate::physics::car_store::ViewCar,
 ) -> Result<u32, BadInput> {
     // Converted: `rc2k_core::race::frame::checkpoint_colours`.
     {
         let n: u32 = car.checkpoint.get();
         let face = crate::race::checkpoints_store::face(race.checkpoints(), n as usize).get();
-        let byte: u8 = face_field(&race.course, face, 0x10)?;
+        let byte: u8 = face_field(course, face, 0x10)?;
         let along = crate::race::checkpoints_store::angle(race.checkpoints(), n as usize).get();
         let c = rc2k_core::race::frame::checkpoint_colours(byte, along, car.car_heading.get());
         Ok(c.level)
@@ -60,15 +61,17 @@ pub fn point_record(
     let record = crate::scene::point_records::of_scene_point(point);
     if crate::scene::point_records::field(ctx.part, record, 0)? != point {
         crate::scene::project_point::make_scene_record(
-            ctx.race, ctx.part, point, record, ctx.reads, ctx.view,
+            ctx.part, point, record, ctx.reads, ctx.view,
         )?;
     }
     Ok(record)
 }
 
 /// What `point_record` needs to make a record: the records and the points.
-pub fn points_there(course: &Course) -> Result<(), Refused> {
-    if !crate::scene::point_records::held(course) || course.course.scene_points.get() == 0 {
+pub fn points_there(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
+    if !crate::scene::point_records::held(ctx.reads.course_lists)
+        || ctx.reads.course_work.scene_points.get() == 0
+    {
         return Err(BadInput("no point records or no points").into());
     }
     Ok(())
@@ -105,7 +108,7 @@ pub fn face_hidden(
     if hidden {
         return Ok(true);
     }
-    points_there(&race.course)?;
+    points_there(ctx)?;
     let record = point_record(ctx, face.point(0))?;
     let x = bh::to_int(bh::ld(crate::scene::point_records::field(ctx.part, record, 0x10)?).abs());
     ctx.view.object.position[0].set(x as u32);
@@ -125,20 +128,19 @@ pub fn face_hidden(
 /// point records or points.
 pub fn face_depth(ctx: &crate::race::view_scratch::DrawCtx<'_>, face: u32) -> Result<(), Refused> {
     let race = ctx.race;
-    let course = &race.course;
     use crate::math::x87::{add, to_int};
-    points_there(course)?;
+    points_there(ctx)?;
     let depth = |k: u32| -> Result<u32, Refused> {
-        let record = point_record(ctx, face_field(&ctx.race.course, face, 4 + 4 * k)?)?;
+        let record = point_record(ctx, face_field(ctx.reads.course(), face, 4 + 4 * k)?)?;
         Ok(crate::scene::point_records::field(ctx.part, record, 0x18)?)
     };
     // Converted: `rc2k_core::race::faces::{depth_by, deeper, average_key, depth_key}`;
     // the roundings and the sum the x87's.
     use rc2k_core::race::faces::{DepthBy, average_key, deeper, depth_by};
-    let kind: u8 = face_field(&ctx.race.course, face, 0)?;
+    let kind: u8 = face_field(ctx.reads.course(), face, 0)?;
     let trap = Trap::new();
     let by = depth_by(kind, || {
-        let object = trap.keep_read(face_field::<u8>(&ctx.race.course, face, 1)) as u32;
+        let object = trap.keep_read(face_field::<u8>(ctx.reads.course(), face, 1)) as u32;
         // +0x2E of the object's 0x40-byte info (`object` a byte: inside the 0x100).
         race.polygon_tables().texture_infos[object as usize].words[11]
             .get()
@@ -147,7 +149,7 @@ pub fn face_depth(ctx: &crate::race::view_scratch::DrawCtx<'_>, face: u32) -> Re
     trap.finish()?;
     let key = match by {
         DepthBy::First => {
-            let record = point_record(ctx, face_field(&ctx.race.course, face, 4)?)?;
+            let record = point_record(ctx, face_field(ctx.reads.course(), face, 4)?)?;
             to_int(crate::scene::point_records::field(ctx.part, record, 0x18)?) as u32
         }
         DepthBy::Deepest => {
@@ -203,17 +205,18 @@ pub fn add_depth_entry(ctx: &DrawCtx, face: u32) -> Result<(), Refused> {
 /// first). `vars`: the view's variables (its place, `ViewScratch::vars`).
 pub fn course_grid(
     race: &Race,
+    course: CourseReads<'_>,
     view: &crate::race::view_grid::ViewGrid,
     vars: &crate::race::view_vars_store::ViewVarsCopy,
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::frame::{hold_to_limit, grid_corner, record_cell,
     // grid_cell}`.
     use rc2k_core::race::frame::{GRID_EMPTY, GRID_SIDE, grid_cell, grid_corner, record_cell};
-    let half = hold_to_limit(&race.shared, race.course.stage_prefs.grid_reach.get());
+    let half = hold_to_limit(&race.shared, course.stage_prefs.grid_reach.get());
     let span = half.wrapping_add(half);
     let (gx, gz) = grid_corner(vars.view_x.get(), vars.view_z.get(), half);
     let unchanged = gx == view.x.get() && gz == view.z.get();
-    let count: u32 = race.course.course.course_record_count.get();
+    let count: u32 = course.course.course_record_count.get();
     if !unchanged && count == 0 {
         return Err(BadInput("no course records (the loop would not end)?").into());
     }
@@ -229,7 +232,7 @@ pub fn course_grid(
         grid[k as usize].set(GRID_EMPTY);
     }
     for n in 0..count {
-        let Some((cx, cz)) = record_cell(record_field(&race.course, n, 0)?) else {
+        let Some((cx, cz)) = record_cell(record_field(course, n, 0)?) else {
             continue;
         };
         if let Some(cell) = grid_cell(cx, cz, (gx, gz), span) {
@@ -254,7 +257,10 @@ pub(super) fn byte_at(
 }
 
 /// A course record's faces (+8 first, +0xC last; -1 none), or None.
-pub(super) fn record_faces(course: &Course, record: u32) -> Result<Option<(u32, u32)>, BadInput> {
+pub(super) fn record_faces(
+    course: CourseReads<'_>,
+    record: u32,
+) -> Result<Option<(u32, u32)>, BadInput> {
     let (first, last) = (
         record_field(course, record, 8)?,
         record_field(course, record, 0xC)?,
@@ -271,7 +277,7 @@ pub(super) fn record_faces(course: &Course, record: u32) -> Result<Option<(u32, 
 /// missing points are refused where they are met.
 pub fn gather_record_faces(ctx: &DrawCtx, record: u32) -> Result<(), Refused> {
     let DrawCtx { view, .. } = *ctx;
-    let Some((first, last)) = record_faces(&ctx.race.course, record)? else {
+    let Some((first, last)) = record_faces(ctx.reads.course(), record)? else {
         return Ok(());
     };
     if last == u32::MAX {
@@ -281,7 +287,7 @@ pub fn gather_record_faces(ctx: &DrawCtx, record: u32) -> Result<(), Refused> {
     loop {
         ctx.view.face.course_face.set(face);
         // The face read once for its kind, objects, switches and first point.
-        let read = crate::race::course_places::face_number(&ctx.race.course, face)?;
+        let read = crate::race::course_places::face_number(ctx.reads.course(), face)?;
         let kind = read.kind();
         // Converted: `rc2k_core::race::faces::{gathered, face_object}`.
         use rc2k_core::race::faces::{Gathered, face_object, gathered};
@@ -296,7 +302,7 @@ pub fn gather_record_faces(ctx: &DrawCtx, record: u32) -> Result<(), Refused> {
             }
         }
         face = face.wrapping_add(1);
-        if face > record_field(&ctx.race.course, record, 0xC)? {
+        if face > record_field(ctx.reads.course(), record, 0xC)? {
             break;
         }
     }
@@ -306,8 +312,7 @@ pub fn gather_record_faces(ctx: &DrawCtx, record: u32) -> Result<(), Refused> {
 /// `race::gather_visible_faces` (0x454B71): `gather_record_faces` of each record in `g_courseGrid`
 /// (numbers below 0x0FFFFFFF), then of the last record once more. Refuses as `gather_record_faces`.
 pub fn gather_visible_faces(ctx: &DrawCtx) -> Result<(), Refused> {
-    let course = &ctx.race.course;
-    let todo = visible_records(course, &ctx.view.grid)?;
+    let todo = visible_records(ctx.reads.course(), &ctx.view.grid)?;
     for &record in &todo {
         gather_record_faces(ctx, record)?;
     }
@@ -325,9 +330,9 @@ pub fn face_hide_mask(
 ) -> Result<(), Refused> {
     crate::physics::probe_ground::probe_ground_in_view(
         &crate::physics::probe_ground::ProbeInputs {
-            numbers: &race.course.numbers,
+            numbers: reads.numbers,
             tables: &race.shared.physics_tables,
-            course: &race.course,
+            course: reads.course(),
             engine_tables: &race.shared.buffers.engine_tables,
         },
         &view.car,
@@ -339,7 +344,7 @@ pub fn face_hide_mask(
         return Ok(());
     }
     // Converted: `rc2k_core::race::faces::hide_mask`.
-    let word: u16 = face_field(&race.course, ground, 2)?;
+    let word: u16 = face_field(reads.course(), ground, 2)?;
     view.face
         .face_hide_mask
         .set(rc2k_core::race::faces::hide_mask(word));
@@ -354,7 +359,7 @@ pub fn face_hide_mask(
 /// `LEVEL_GRID.far_cell_limit` and stored the turned x and z (`LEVEL_GRID.turned_x` / `turned_z`)
 /// and the limit as a float (`DRAW.work_float_b`), which nothing read after.
 pub fn mark_far_cells(
-    race: &Race,
+    numbers: &crate::race::numbers_store::Numbers,
     scratch: &crate::race::view_scratch::ViewScratch,
     limit: u32,
 ) -> Result<(), BadInput> {
@@ -371,9 +376,9 @@ pub fn mark_far_cells(
         .view_turn_matrix
         .each_ref()
         .map(crate::session::Float::get);
-    let two = race.course.numbers.two.get();
-    let zero = race.course.numbers.zero.get();
-    let point_five = race.course.numbers.half.get();
+    let two = numbers.two.get();
+    let zero = numbers.zero.get();
+    let point_five = numbers.half.get();
     let mut out = [0u32; 8];
     for cell in 0..0x400u32 {
         let x = (cell & 0x1F).wrapping_sub(half);
@@ -407,24 +412,23 @@ pub fn prepare_course_view(
     view: &crate::race::view_scratch::ViewScratch,
     part: &crate::workers::PartScratch,
 ) -> Result<(), Refused> {
-    let course = &race.course;
-    check_course_grid(course)?;
+    check_course_grid(reads.course())?;
     face_hide_mask(race, reads, view, part)?;
-    course_grid(race, &view.grid, &view.vars)?;
+    course_grid(race, reads.course(), &view.grid, &view.vars)?;
     if race.shared.switches.scene_set_up.get() == 0 {
         return Ok(());
     }
     let limit = if race.shared.vars.checkpoint_count.get() >= 2 {
-        checkpoint_colours(race, &view.car)?
+        checkpoint_colours(race, reads.course(), &view.car)?
     } else {
         0x10
     };
-    mark_far_cells(race, view, limit)?;
+    mark_far_cells(reads.numbers, view, limit)?;
     Ok(())
 }
 
 /// `course_grid`'s refusal, before anything.
-pub(super) fn check_course_grid(course: &Course) -> Result<(), Refused> {
+pub(super) fn check_course_grid(course: CourseReads<'_>) -> Result<(), Refused> {
     if course.course.course_record_count.get() == 0 {
         return Err(BadInput("no course records").into());
     }
@@ -433,7 +437,7 @@ pub(super) fn check_course_grid(course: &Course) -> Result<(), Refused> {
 
 /// The records `gather_visible_faces` gathers, as it would.
 pub fn visible_records(
-    course: &Course,
+    course: CourseReads<'_>,
     view: &crate::race::view_grid::ViewGrid,
 ) -> Result<Vec<u32>, BadInput> {
     // Converted: `rc2k_core::race::view::visible_records`.

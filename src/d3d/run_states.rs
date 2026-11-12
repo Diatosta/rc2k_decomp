@@ -120,28 +120,28 @@ pub fn patch(noted: &mut [Command], run: &RunStates, carried: &[u32; STATES]) {
     }
 }
 
-/// The states a run set, as it left them, into the store `cards`, and its texture if it
+/// The states a run set, as it left them, into the first part's cache `first`, and its texture if it
 /// changed from `start`'s.
 pub fn carry(
-    cards: &crate::d3d::cards_store::Cards3d,
+    first: &crate::d3d::render_cache::OwnCache,
     run: &RunStates,
     start: &crate::d3d::render_cache::Cache,
 ) {
     for (i, &f) in run.first_set.iter().enumerate() {
         if f != usize::MAX {
             crate::d3d::render_cache::put_kept(
-                cards,
+                first,
                 i,
                 crate::d3d::render_cache::left_kept(&run.left, i),
             );
         }
     }
-    crate::d3d::render_cache::merge_texture(cards, &run.left, start);
+    crate::d3d::render_cache::merge_texture(first, &run.left, start);
 }
 
-/// The store's (`cards`) states now: what the runs merged so far left.
-pub fn carried(cards: &crate::d3d::cards_store::Cards3d) -> [u32; STATES] {
-    crate::d3d::render_cache::stored_kept(cards)
+/// The first part's (`first`) states now: what the runs merged so far left.
+pub fn carried(first: &crate::d3d::render_cache::OwnCache) -> [u32; STATES] {
+    crate::d3d::render_cache::stored_kept(first)
 }
 
 #[cfg(test)]
@@ -167,7 +167,7 @@ mod tests {
         first_set[14] = 2; // set before the third fan
         let run = RunStates {
             first_set,
-            left: crate::d3d::render_cache::current(&crate::d3d::owner::D3D.cards),
+            left: crate::d3d::render_cache::current(&crate::workers::part_scratch(0).cache),
         };
         let mut carried = [1; STATES];
         carried[14] = 0;

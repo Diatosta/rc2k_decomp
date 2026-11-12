@@ -17,8 +17,8 @@ pub fn reset_objects(
 ) -> Result<(), BadInput> {
     {
         let (memory, room): (u32, u32) = (
-            course.lists.object_points.get(),
-            course.lists.object_points_room.get(),
+            course.lists.get().object_points.get(),
+            course.lists.get().object_points_room.get(),
         );
         if memory == 0 && room >= 4 {
             return Err(BadInput("room for the objects' points without memory"));

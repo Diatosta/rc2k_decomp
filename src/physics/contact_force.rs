@@ -358,7 +358,7 @@ mod reference_vectors {
                 plain: |_| {
                     x87_2(
                         &crate::race::owner::race().physics.contact,
-                        &crate::race::owner::race().course.numbers,
+                        crate::race::owner::race().course.numbers.get(),
                         crate::scene::owner::scene(),
                     );
                 },
@@ -379,7 +379,7 @@ mod reference_vectors {
                 plain: |_| {
                     x87_3(
                         &crate::race::owner::race().physics.contact,
-                        &crate::race::owner::race().course.numbers,
+                        crate::race::owner::race().course.numbers.get(),
                     );
                 },
             },

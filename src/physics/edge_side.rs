@@ -9,12 +9,12 @@
 
 use crate::physics::flag_result::FlagResult;
 use crate::physics::ground_query::GroundQuery;
-use crate::race::owner_course::Course;
+use crate::race::owner_course::CourseReads;
 use rc2k_core::physics::faces;
 
 /// The ground point's side of the edge from scene point `from` to `to` (their numbers).
 pub fn edge_side(
-    course: &Course,
+    course: CourseReads<'_>,
     q: &GroundQuery<'_>,
     from: u32,
     to: u32,

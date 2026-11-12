@@ -67,7 +67,7 @@ pub fn begin_glyph_tables(
         .kilobytes
         .get()
         .wrapping_mul(0x400)
-        .wrapping_mul(system.session.screen.bytes.get());
+        .wrapping_mul(system.session.screen.get().bytes.get());
     // (The original's fatal error 0x80E48021 for no memory cannot come: the allocator
     // reports its own.) Only counted: the work memory holds nothing Rust reads back
     // (`build_glyphs` keeps the sheet's table in its own bytes).

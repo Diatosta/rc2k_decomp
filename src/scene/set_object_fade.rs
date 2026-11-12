@@ -24,8 +24,8 @@ const OBJECTS: u32 = 0x100;
 
 // ---- Rust version ----
 
-fn record_at(course: &crate::race::owner_course::Course, place: u32) -> Option<u32> {
-    crate::scene::point_records::held(course)
+fn record_at(lists: &crate::race::course_lists_store::CourseLists, place: u32) -> Option<u32> {
+    crate::scene::point_records::held(lists)
         .then(|| crate::scene::point_records::of_scene_point(place))
 }
 
@@ -60,11 +60,12 @@ pub fn set_object_fade(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(
         return Err(BadInput("an object's number past the tables"));
     };
     // What can refuse is asked before anything is written.
-    let record = match (needs_record, record_at(&race.course, place)) {
+    let record = match (needs_record, record_at(ctx.reads.course_lists, place)) {
         (false, _) => 0,
         (true, None) => return Err(BadInput("no records for the points")),
         (true, Some(record)) => {
-            if field(ctx.part, record, 0)? != place && race.course.course.scene_points.get() == 0 {
+            if field(ctx.part, record, 0)? != place && ctx.reads.course_work.scene_points.get() == 0
+            {
                 return Err(BadInput("no points"));
             }
             record
@@ -79,7 +80,7 @@ pub fn set_object_fade(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(
         return Ok(());
     }
     if field(ctx.part, record, 0)? != place {
-        make_scene_record(ctx.race, ctx.part, place, record, ctx.reads, ctx.view)?;
+        make_scene_record(ctx.part, place, record, ctx.reads, ctx.view)?;
     }
     ctx.view.object.position[0].set(x87::to_int(field(ctx.part, record, 0x10)?) as u32);
     let depth = x87::to_int(field(ctx.part, record, 0x18)?);

@@ -53,7 +53,7 @@ fn hash(words: impl Iterator<Item = u32>) -> u32 {
 
 /// After the cars' step of a tick.
 pub fn note(race: &Race) -> Result<(), BadInput> {
-    let mode = match race.course.numbers.replay_mode.get() {
+    let mode = match race.course.numbers.get().replay_mode.get() {
         RECORDING => "recording",
         PLAYING => "playing",
         _ => return Ok(()),

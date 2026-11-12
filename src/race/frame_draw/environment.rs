@@ -3,11 +3,11 @@
 use super::*;
 use crate::errors::BadInput;
 use crate::race::owner::Race;
-use crate::race::owner_course::Course;
+use crate::race::owner_course::CourseReads;
 
 /// The game's table root of a float (`sqrt` by `g_rootTable` x `g_exponentRootTable`),
 /// times 1/65536 (`race().course.numbers.one_over_65536`), as stored.
-pub(super) fn table_root(course: &Course, v: f32) -> f32 {
+pub(super) fn table_root(course: CourseReads<'_>, v: f32) -> f32 {
     let v = v.to_bits();
     // g_rootTable: 256 floats by mantissa bits; g_exponentRootTable: by exponent
     let root = &course.lists.root_table[((v >> 15) & 0xFF) as usize];
@@ -19,7 +19,7 @@ pub(super) fn table_root(course: &Course, v: f32) -> f32 {
 /// original also kept x and z in `CONTACT_WORK.eax_point_x` / `eax_point_z`, which nothing
 /// read: locals here.)
 pub(super) fn point_from_car(
-    course: &Course,
+    course: CourseReads<'_>,
     points: &crate::race::scene_points::OwnPoints,
     point: u32,
 ) -> Result<(u32, u32, u32), BadInput> {
@@ -32,8 +32,8 @@ pub(super) fn point_from_car(
 /// The weight's end: `v` held to 16.0 (`race().course.numbers.sixteen`; kept when below or
 /// not a number), added to `sum` (the original's `g_eaxEnvironment`; it also counted the
 /// faces in `g_eaxFaceCount`, which nothing read).
-pub(super) fn add_eax_weight(race: &Race, sum: &mut u32, v: f32) {
-    let sixteen = race.course.numbers.sixteen.get();
+pub(super) fn add_eax_weight(course: CourseReads<'_>, sum: &mut u32, v: f32) {
+    let sixteen = course.numbers.sixteen.get();
     let w = if crate::math::x87::below_or_unordered(v, sixteen) {
         v
     } else {
@@ -50,7 +50,7 @@ pub(super) fn add_eax_weight(race: &Race, sum: &mut u32, v: f32) {
 /// distance in `CONTACT_WORK.eax_mid_x` / `eax_mid_z` / `eax_distance`, which nothing read: locals
 /// here.)
 pub fn eax_face_weight(
-    race: &Race,
+    course: CourseReads<'_>,
     points: &crate::race::scene_points::OwnPoints,
     sum: &mut u32,
     face: u32,
@@ -61,37 +61,35 @@ pub fn eax_face_weight(
     use crate::math::x87::{div, from_int, int_over};
     {
         // The face read once for its kind, objects, switches and first point.
-        let read = crate::race::course_places::face_number(&race.course, face)?;
+        let read = crate::race::course_places::face_number(course, face)?;
         let kind = read.kind();
         if kind == 0xFF {
-            if face_field::<u8>(&race.course, face, 1)? >= 0x38 {
+            if face_field::<u8>(course, face, 1)? >= 0x38 {
                 return Ok(());
             }
-            let (x, _, z) =
-                point_from_car(&race.course, points, face_field(&race.course, face, 4)?)?;
-            let distance = table_root(&race.course, int_square_sum(x as i32, z as i32));
-            let strength = face_field::<u8>(&race.course, face, 0x18)? as u32;
-            add_eax_weight(race, sum, int_over(strength as i32, distance));
+            let (x, _, z) = point_from_car(course, points, face_field(course, face, 4)?)?;
+            let distance = table_root(course, int_square_sum(x as i32, z as i32));
+            let strength = face_field::<u8>(course, face, 0x18)? as u32;
+            add_eax_weight(course, sum, int_over(strength as i32, distance));
             return Ok(());
         }
         if kind >= 0x10 {
             return Ok(());
         }
         if !abs_below_or_unordered(
-            face_field::<u32>(&race.course, face, 0x30)?,
-            race.course.numbers.quarter.get(),
+            face_field::<u32>(course, face, 0x30)?,
+            course.numbers.quarter.get(),
         ) {
             return Ok(());
         }
-        let (x1, _, z1) = point_from_car(&race.course, points, face_field(&race.course, face, 8)?)?;
+        let (x1, _, z1) = point_from_car(course, points, face_field(course, face, 8)?)?;
         let (mx, mz) = (from_int(x1 as i32), from_int(z1 as i32));
-        let (x2, _, z2) =
-            point_from_car(&race.course, points, face_field(&race.course, face, 0xC)?)?;
-        let half = race.course.numbers.half.get();
+        let (x2, _, z2) = point_from_car(course, points, face_field(course, face, 0xC)?)?;
+        let half = course.numbers.half.get();
         let mx = int_plus_times(x2 as i32, mx, half);
         let mz = int_plus_times(z2 as i32, mz, half);
-        let distance = table_root(&race.course, float_square_sum(mx, mz));
-        add_eax_weight(race, sum, div(&race.course.numbers.three, distance));
+        let distance = table_root(course, float_square_sum(mx, mz));
+        add_eax_weight(course, sum, div(&course.numbers.three, distance));
     }
     Ok(())
 }
@@ -104,6 +102,7 @@ pub fn eax_face_weight(
 /// (`audio::update_voices`): it could take a sum half made (`notes/bugs.md`).
 pub fn eax_environment(
     race: &Race,
+    course: CourseReads<'_>,
     points: &crate::race::scene_points::OwnPoints,
     view: &crate::race::view_grid::ViewGrid,
 ) -> Result<u32, BadInput> {
@@ -112,7 +111,7 @@ pub fn eax_environment(
         // Converted: `rc2k_core::race::view::{cells_from, record_faces}`.
         use rc2k_core::race::view::{NO_RECORD, cells_from, record_faces};
         for cell in cells_from(
-            hold_to_limit(&race.shared, race.course.stage_prefs.grid_reach.get()).wrapping_sub(1),
+            hold_to_limit(&race.shared, course.stage_prefs.grid_reach.get()).wrapping_sub(1),
             3,
         ) {
             // 0x45C84C.
@@ -120,14 +119,14 @@ pub fn eax_environment(
             if record >= NO_RECORD {
                 continue;
             }
-            let mut face = record_field(&race.course, record, 8)?;
-            if record_faces(face, record_field(&race.course, record, 0xC)?).is_none() {
+            let mut face = record_field(course, record, 8)?;
+            if record_faces(face, record_field(course, record, 0xC)?).is_none() {
                 continue;
             }
             loop {
-                eax_face_weight(race, points, &mut sum, face)?;
+                eax_face_weight(course, points, &mut sum, face)?;
                 face = face.wrapping_add(1);
-                if face > record_field(&race.course, record, 0xC)? {
+                if face > record_field(course, record, 0xC)? {
                     break;
                 }
             }

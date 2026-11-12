@@ -130,7 +130,7 @@ pub fn finish_frame(
     if !GPU_HOLDS_FRAME.load(Relaxed) {
         return None;
     }
-    if !course.numbers.in_race.is_set() {
+    if !course.numbers.get().in_race.is_set() {
         give_frame_back(target);
         return None;
     }
@@ -154,7 +154,7 @@ pub fn show_on_panel(
     height: usize,
 ) -> bool {
     gpu::start_if_wanted();
-    if GPU_HOLDS_FRAME.load(Relaxed) && !course.numbers.in_race.is_set() {
+    if GPU_HOLDS_FRAME.load(Relaxed) && !course.numbers.get().in_race.is_set() {
         give_frame_back(target);
     }
     let mut gpu = gpu::GPU.lock().unwrap();

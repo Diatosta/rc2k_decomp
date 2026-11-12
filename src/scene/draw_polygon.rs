@@ -248,7 +248,6 @@ fn hit_test(
 fn place(
     part: &crate::workers::PartScratch,
     quad: &[crate::session::Dword; 32],
-    race: &crate::race::owner::Race,
     reads: crate::workers::DrawReads<'_>,
     entries: &[Listed],
     mirrored: bool,
@@ -281,7 +280,7 @@ fn place(
         out.rhw.set(if sse {
             x87::rcpss_times(
                 crate::scene::point_records::vertex(part, quad, vertex, 0x18),
-                race.course.numbers.k65536.get(),
+                reads.numbers.k65536.get(),
             )
         } else {
             x87::reciprocal_times(depth, reads.panel_and_overlay.overlay.w_factor.get())
@@ -438,7 +437,6 @@ pub fn draw_polygon(
     place(
         part,
         &poly.quad_vertices,
-        race,
         reads,
         &entries,
         mirrored,

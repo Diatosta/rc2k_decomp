@@ -32,21 +32,24 @@ use crate::session::{CellKind, FloatLike};
 
 /// `vars`: the view variables the window's scale is read from (`view_scale`: a view's own,
 /// `ViewScratch::vars`, or the shared ones); `draw`: the scene's draw variables (the fade and
-/// clip factors), a drawing part's from its reads.
+/// clip factors), a drawing part's from its reads; `screen`: the screen's figures (the part's
+/// from its reads likewise).
 pub fn set_view_window(
     race: &Race,
+    course: crate::race::owner_course::CourseReads<'_>,
     draw: &SceneDraw,
-    system: &crate::system::owner::System,
+    screen: &crate::session::Screen,
     window: &ViewWindow,
     vars: &ViewVars<impl CellKind>,
 ) {
     set_view_window_reaching(
         race,
+        course,
         draw,
-        system,
+        screen,
         window,
         vars,
-        race.course.stage_prefs.grid_reach.get(),
+        course.stage_prefs.grid_reach.get(),
     );
 }
 
@@ -54,8 +57,9 @@ pub fn set_view_window(
 /// window is made with a reach of 2).
 pub fn set_view_window_reaching(
     race: &Race,
+    course: crate::race::owner_course::CourseReads<'_>,
     draw: &SceneDraw,
-    system: &crate::system::owner::System,
+    screen: &crate::session::Screen,
     window: &ViewWindow,
     vars: &ViewVars<impl CellKind>,
     reach: u32,
@@ -67,7 +71,7 @@ pub fn set_view_window_reaching(
     crate::session::write_bits(&window.view_middle, middle);
     let offsets: [u32; 2] = crate::session::read_bits(&window.view_offset);
     // top, bottom, left, right
-    let edges = if race.course.numbers.in_race.is_set() {
+    let edges = if course.numbers.in_race.is_set() {
         [0, height, 0, width]
     } else {
         [
@@ -79,20 +83,20 @@ pub fn set_view_window_reaching(
     };
     crate::session::write_bits(&window.clip_edges, edges);
     window.view_scale.set(bh::stf(
-        bh::int(system.session.screen.width.get() as i32)
+        bh::int(screen.width.get() as i32)
             * bh::ld(vars.view_scale.get())
             * bh::int(window.view_zoom.get() as i32)
             * bh::ld(race.shared.vars.scale_factor.get()),
     ));
     // Held to 90 ..= 100, compared by the signs of the differences as the game does.
-    let mut nearer = 100u32.wrapping_sub(race.course.stage_prefs.nearer.get());
+    let mut nearer = 100u32.wrapping_sub(course.stage_prefs.nearer.get());
     if (nearer.wrapping_sub(0x5A) as i32) < 0 {
         nearer = 0x5A;
     }
     if (nearer.wrapping_sub(0x64) as i32) >= 0 {
         nearer = 0x64;
     }
-    let divisor = x87::int_times(nearer as i32, &race.course.numbers.hundredth_a);
+    let divisor = x87::int_times(nearer as i32, &course.numbers.hundredth_a);
     window.depth_divisor.set(divisor);
     let product = depth as u64 * 0x1_0000;
     let low = product as u32;
@@ -103,7 +107,7 @@ pub fn set_view_window_reaching(
         farthest,
         draw.fade_a.get(),
         draw.fade_b.get(),
-        race.course.numbers.k65536.get(),
+        course.numbers.k65536.get(),
     ) as u32);
     window
         .clip_farthest
@@ -123,29 +127,30 @@ pub fn set_view_window_reaching(
 // Converted: `rc2k_core::scene::view_window::window_settings`
 pub fn set_view_window_plain(
     race: &Race,
+    course: crate::race::owner_course::CourseReads<'_>,
     draw: &SceneDraw,
-    system: &crate::system::owner::System,
+    screen: &crate::session::Screen,
     window: &ViewWindow,
     vars: &ViewVars<impl CellKind>,
 ) {
     use rc2k_core::scene::view_window::{WindowInputs, window_settings};
     let i = WindowInputs {
-        reach: race.course.stage_prefs.grid_reach.get(),
+        reach: course.stage_prefs.grid_reach.get(),
         size: crate::session::read_bits(&window.view_size),
         offsets: crate::session::read_bits(&window.view_offset),
-        in_race: race.course.numbers.in_race.is_set(),
-        screen_width: system.session.screen.width.get(),
+        in_race: course.numbers.in_race.is_set(),
+        screen_width: screen.width.get(),
         scale: (
             vars.view_scale.get(),
             window.view_zoom.get(),
             race.shared.vars.scale_factor.get(),
         ),
-        nearer: race.course.stage_prefs.nearer.get(),
-        nearer_factor: race.course.numbers.hundredth_a.get(),
+        nearer: course.stage_prefs.nearer.get(),
+        nearer_factor: course.numbers.hundredth_a.get(),
         fade: [draw.fade_a.get(), draw.fade_b.get()],
-        turn: race.course.numbers.k65536.get(),
+        turn: course.numbers.k65536.get(),
         clip_factor: draw.clip_factor.get(),
-        one: race.course.numbers.one.get(),
+        one: course.numbers.one.get(),
     };
     let w = window_settings(&i);
     crate::session::write_bits(&window.view_depth, [w.depth, w.depth]);

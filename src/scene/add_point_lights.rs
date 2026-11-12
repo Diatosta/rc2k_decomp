@@ -19,22 +19,18 @@ const MOST: u32 = 0x100;
 // ---- Rust version ----
 
 // Converted: `rc2k_core::scene::lamps::add_point_lights`
-pub fn add_point_lights(
-    ctx: &crate::race::view_scratch::DrawCtx<'_>,
-    system: &crate::system::owner::System,
-) -> Result<(), Refused> {
-    let race = ctx.race;
+pub fn add_point_lights(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
     use rc2k_core::scene::lamps::{self, Lamp};
 
     let lamps: u32 = ctx.view.lamps.lamp_count.get();
     if lamps == 0 {
         return Ok(());
     }
-    let points: u32 = race.course.course.scene_points.get();
+    let points: u32 = ctx.reads.course_work.scene_points.get();
     if lamps > MOST || points == 0 {
         return Err(BadInput("more lamps than the list holds, or no points").into());
     }
-    let mmx = system.session.machine.has_mmx.get() != 0;
+    let mmx = ctx.reads.has_mmx;
     let place: [u32; 3] = crate::session::read_bits(&ctx.view.light.lit_place);
     let reading = crate::scene::reading::Reading::new();
     let list = (0..lamps as usize).map(|n| {
@@ -55,7 +51,7 @@ pub fn add_point_lights(
     });
     let at = |point: u32| {
         reading.keep(crate::race::scene_points::point_number(
-            &race.course,
+            ctx.reads.course(),
             &ctx.part.points,
             point,
         ))

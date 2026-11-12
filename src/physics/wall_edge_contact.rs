@@ -29,7 +29,8 @@ use rc2k_core::physics::walls;
 
 /// The four corners (scene point numbers) of face `face`.
 fn corners(course: &Course, face: u32) -> Result<[u32; 4], Refused> {
-    let corner = |k: u32| crate::race::course_places::face_field::<u32>(course, face, 4 + 4 * k);
+    let corner =
+        |k: u32| crate::race::course_places::face_field::<u32>(course.reads(), face, 4 + 4 * k);
     Ok([corner(0)?, corner(1)?, corner(2)?, corner(3)?])
 }
 
@@ -49,7 +50,12 @@ pub fn edge_normal(
 ) -> Result<(), Refused> {
     let drawing = &scene.drawing;
     let rd = |n: u32, k: u32| {
-        crate::race::scene_points::point_word(course, &crate::race::scene_points::NO_OWN, n, k)
+        crate::race::scene_points::point_word(
+            course.reads(),
+            &crate::race::scene_points::NO_OWN,
+            n,
+            k,
+        )
     };
     physics_tables.edge_points[0].set(rd(first, 0)?);
     physics_tables.edge_points[1].set(rd(first, 2)?);
@@ -62,7 +68,7 @@ pub fn edge_normal(
         .get()
         .wrapping_sub(physics_tables.edge_points[1].get());
     let d = [dx, dz];
-    x87_1(&course.numbers, d, scene);
+    x87_1(course.numbers.get(), d, scene);
     drawing
         .scene
         .get()
@@ -70,8 +76,13 @@ pub fn edge_normal(
         .set(drawing.scene.get().scratch.get() & 0xFFFF);
     let heading = (drawing.scene.get().scratch.get() << 16).wrapping_add(0x4000_0000);
     physics_tables.wall_heading.set(heading);
-    let (out, _) =
-        rotate_float_point_about_y(engine_tables, 0.0, 0.0, course.numbers.one.get(), heading);
+    let (out, _) = rotate_float_point_about_y(
+        engine_tables,
+        0.0,
+        0.0,
+        course.numbers.get().one.get(),
+        heading,
+    );
     contact.contact_normal[0].set(out[0]);
     contact.contact_normal[1].set(out[1]);
     contact.contact_normal[2].set(out[2]);
@@ -160,7 +171,7 @@ mod reference_vectors {
             ulps: 0,
             plain: |a| {
                 x87_1(
-                    &race().course.numbers,
+                    race().course.numbers.get(),
                     *view(a[0], 0),
                     crate::scene::owner::scene(),
                 );

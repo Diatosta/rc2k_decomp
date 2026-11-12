@@ -51,7 +51,6 @@ impl ViewOutput {
 pub fn draw_view_scene(
     race: &Race,
     scene: &crate::scene::owner::Scene,
-    system: &crate::system::owner::System,
     net: &crate::net::owner::Net,
     input: &crate::input::owner::Input,
     view: &ViewScratch,
@@ -60,13 +59,11 @@ pub fn draw_view_scene(
 ) -> Result<ViewOutput, Refused> {
     use crate::race::frame_draw::*;
     view.begin();
-    let ctx = DrawCtx::new(race, scene, system, net, input, view, part, reads);
+    let ctx = DrawCtx::new(race, scene, net, input, view, part, reads);
     let _held = view.matrices.hold(&race.frame.matrices, part);
     // The shine from the stage's, as the frame's first view has it: the original left each
     // later view the previous one's last car's (a slip fixed: `wiki/Fixed-bugs.md`).
-    view.course
-        .shine
-        .set(race.course.stage_prefs.shine_from.get());
+    view.course.shine.set(reads.stage_prefs.shine_from.get());
     let input = crate::race::view_scratch::filter_input(view);
     view.light.car_light.set(view.car.light_colour.get());
     view.polygon.smooth.set(input[0]);
@@ -80,7 +77,7 @@ pub fn draw_view_scene(
             race,
             &view.face,
             reads,
-            &system.session.screen,
+            reads.screen,
             view,
         )?;
         return Ok(ViewOutput::default());
@@ -96,15 +93,22 @@ pub fn draw_view_scene(
         view.drawn_view(race),
     )?;
     clear_point_records(reads, part)?;
-    set_up_fog(race, &view.fog, &view.polygon, &view.car, part)?;
-    camera_view(race, reads.scene_draw, system, &view.matrices, view)?;
+    set_up_fog(
+        race,
+        reads.stage_prefs,
+        &view.fog,
+        &view.polygon,
+        &view.car,
+        part,
+    )?;
+    camera_view(race, reads, &view.matrices, view)?;
     draw_sky(&ctx)?;
-    view_light(&ctx, crate::race::frame_draw::has_mmx(system))?;
+    view_light(&ctx, reads.has_mmx)?;
     reset_lamps(&ctx)?;
     // (The original's 0 into `g_viewLamps`, 0x63DB6C: read by nothing.)
     prepare_course_view(race, reads, view, part)?;
     gather_visible_faces(&ctx)?;
-    let environment = eax_environment(race, &part.points, &view.grid)?;
+    let environment = eax_environment(race, reads.course(), &part.points, &view.grid)?;
     gather_lamps(&ctx)?;
     lamps_wanted(&race.shared, &view.lamps)?;
     sort_entries(&lists.sort_entry_count, lists.sort_entries())?;

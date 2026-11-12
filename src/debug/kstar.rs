@@ -361,9 +361,9 @@ fn lights(race: &Race, ui: &Ui) {
 /// A checkpoint's place: the first point of its face (0x42985B).
 fn checkpoint_place(race: &Race, n: usize) -> Option<[i32; 3]> {
     let face = race.checkpoints().checkpoint_faces.get(n)?.get();
-    let point = crate::race::course_places::face_field::<u32>(&race.course, face, 4).ok()?;
+    let point = crate::race::course_places::face_field::<u32>(race.course.reads(), face, 4).ok()?;
     let place = crate::race::scene_points::point_number(
-        &race.course,
+        race.course.reads(),
         &crate::race::scene_points::NO_OWN,
         point,
     )

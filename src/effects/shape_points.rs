@@ -359,7 +359,7 @@ pub fn make_shape_set(
     }
     let lists = [PointList::a(drops), PointList::b(drops)];
     let counts = [listed(lists[0].count)?, listed(lists[1].count)?];
-    let points: u32 = course.lists.object_points.get();
+    let points: u32 = course.lists.get().object_points.get();
     for (list, n) in lists.into_iter().zip(counts) {
         for id in list.ids[..n as usize].iter().rev() {
             id.set(id.get().wrapping_mul(12).wrapping_add(points));

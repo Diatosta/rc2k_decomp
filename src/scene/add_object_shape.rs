@@ -197,9 +197,9 @@ fn room(
 ) -> Result<Room, BadInput> {
     let room = Room {
         slot: scene.object_work().loading_slot.get(),
-        points: course.lists.object_points.get(),
+        points: course.lists.get().object_points.get(),
         point_count: scene.objects.tables.get().point_count.get(),
-        face_memory: course.lists.face_memory.get(),
+        face_memory: course.lists.get().face_memory.get(),
         face_cursor: scene.object_work().face_cursor.get(),
         face_count: scene.objects.tables.get().face_count.get(),
     };
@@ -210,8 +210,9 @@ fn room(
     }
     let [points, normals, faces, face_bytes] = shape.added;
     let fits = (room.point_count as usize + points + normals) * 12
-        <= course.lists.object_points_room.get() as usize
-        && room.face_cursor as usize + face_bytes <= course.lists.face_memory_room.get() as usize
+        <= course.lists.get().object_points_room.get() as usize
+        && room.face_cursor as usize + face_bytes
+            <= course.lists.get().face_memory_room.get() as usize
         && room.face_count as usize + faces <= FACES as usize;
     if !fits {
         return Err(BadInput("a shape that does not fit the objects' memory"));
@@ -292,7 +293,7 @@ pub fn add_object_shape(
         count += 1;
         to = to.wrapping_add(12);
     }
-    course.course.shape_radius.set(radius);
+    course.course.get().shape_radius.set(radius);
     scene.objects.slots.get().radii[slot].set(radius);
     scene.objects.slots.get().point_counts[slot].set(count - first_point);
     let first_normal = count;

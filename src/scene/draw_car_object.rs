@@ -104,12 +104,15 @@ pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refus
     let ctx = crate::race::view_scratch::DrawCtx::new(
         race,
         scene,
-        system,
         o.net,
         o.input,
         scratch,
         crate::workers::game_scratch(),
-        crate::workers::DrawReads::on_game_thread(crate::workers::LentOwners { race, scene }),
+        crate::workers::DrawReads::on_game_thread(crate::workers::LentOwners {
+            race,
+            scene,
+            system,
+        }),
     );
     let _held = ctx.view.matrices.hold(&race.frame.matrices, ctx.part);
     draw_shown_car(

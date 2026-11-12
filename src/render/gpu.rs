@@ -721,8 +721,9 @@ mod comparison {
         };
         let commands = read_commands(&mut Reader(r.0));
 
-        system.session.screen.width.set(width as u32);
-        system.session.screen.height.set(height as u32);
+        system.session.screen.get().width.set(width as u32);
+        system.session.screen.get().height.set(height as u32);
+        crate::platform_3d::set_target_size(width as u32, height as u32, bits);
         let soft_held =
             std::sync::Arc::new(crate::pool::PoolBytes::from_vec(vec![
                 0u8;

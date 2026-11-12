@@ -158,7 +158,7 @@ pub fn draw_plane(
     for n in 0..4 {
         if x87::bits_at_or_below(
             effects.kinds.plane_quad.corners[n][2].get(),
-            race.course.numbers.k4096_a.get(),
+            race.course.numbers.get().k4096_a.get(),
         ) {
             return Ok(());
         }

@@ -75,22 +75,31 @@ pub fn load_car_specs(
     let drive = check_drive(spec.drive_kind.get())?;
     car.drive_kind.set(drive);
     // 0x4214A7 .. 0x421543
-    load_figures_and_shift_points(car, physics_tables, &course.numbers, gear_figures, spec);
-    if below(car.engine_speed_limit.get(), course.numbers.thousand.get()) {
+    load_figures_and_shift_points(
+        car,
+        physics_tables,
+        course.numbers.get(),
+        gear_figures,
+        spec,
+    );
+    if below(
+        car.engine_speed_limit.get(),
+        course.numbers.get().thousand.get(),
+    ) {
         car.engine_speed_limit
-            .set(x87::loaded(&course.numbers.thousand));
+            .set(x87::loaded(&course.numbers.get().thousand));
     }
     for figure in &gear_figures.figures {
-        if below(figure.get(), course.numbers.eight.get()) {
-            figure.set(x87::loaded(&course.numbers.eight));
+        if below(figure.get(), course.numbers.get().eight.get()) {
+            figure.set(x87::loaded(&course.numbers.get().eight));
         }
     }
     words(physics_tables, spec);
     // 0x4216C5 .. 0x421704
-    scale_record_ratios(physics_tables, &course.numbers, spec);
+    scale_record_ratios(physics_tables, course.numbers.get(), spec);
     if kind < OWN_FIGURES_FROM {
         // 0x42170D .. 0x421755
-        scale_default_ratios(physics_tables, &course.numbers);
+        scale_default_ratios(physics_tables, course.numbers.get());
     }
     physics_tables
         .spec_grip
@@ -111,7 +120,7 @@ pub fn load_car_specs(
         .set(spec.scratch_value.get());
     physics_tables.downforce_spec.set(spec.downforce.get());
     // 0x4217CA .. 0x4217E3
-    set_rev_limits(physics_tables, &course.numbers, drive as usize);
+    set_rev_limits(physics_tables, course.numbers.get(), drive as usize);
     Ok(())
 }
 
@@ -334,7 +343,7 @@ mod reference_vectors {
                     load_figures_and_shift_points(
                         race().shared.car(),
                         &race().shared.physics_tables,
-                        &race().course.numbers,
+                        race().course.numbers.get(),
                         race().gear(),
                         &spec_at(a[0], 0x64, 0xB0),
                     );
@@ -356,7 +365,7 @@ mod reference_vectors {
                 plain: |a| {
                     scale_record_ratios(
                         &race().shared.physics_tables,
-                        &race().course.numbers,
+                        race().course.numbers.get(),
                         &spec_at(a[0], 0x40, 0x4C),
                     );
                 },
@@ -375,7 +384,10 @@ mod reference_vectors {
                 }],
                 ulps: 0,
                 plain: |_| {
-                    scale_default_ratios(&race().shared.physics_tables, &race().course.numbers);
+                    scale_default_ratios(
+                        &race().shared.physics_tables,
+                        race().course.numbers.get(),
+                    );
                 },
             },
             Block {
@@ -406,7 +418,11 @@ mod reference_vectors {
                 ],
                 ulps: 0,
                 plain: |a| {
-                    set_rev_limits(&race().shared.physics_tables, &race().course.numbers, a[1]);
+                    set_rev_limits(
+                        &race().shared.physics_tables,
+                        race().course.numbers.get(),
+                        a[1],
+                    );
                 },
             },
             Block {
@@ -420,7 +436,11 @@ mod reference_vectors {
                 ],
                 ulps: 0,
                 plain: |a| {
-                    set_rev_limits(&race().shared.physics_tables, &race().course.numbers, a[1]);
+                    set_rev_limits(
+                        &race().shared.physics_tables,
+                        race().course.numbers.get(),
+                        a[1],
+                    );
                 },
             },
             Block {
@@ -434,7 +454,11 @@ mod reference_vectors {
                 ],
                 ulps: 0,
                 plain: |a| {
-                    set_rev_limits(&race().shared.physics_tables, &race().course.numbers, a[1]);
+                    set_rev_limits(
+                        &race().shared.physics_tables,
+                        race().course.numbers.get(),
+                        a[1],
+                    );
                 },
             },
         ]

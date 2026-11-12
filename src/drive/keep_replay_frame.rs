@@ -19,7 +19,7 @@ const SIZE: usize = SLOT_SIZE as usize;
 pub fn keep_replay_frame(race: &Race) -> Result<(), BadInput> {
     race.replay.replay_frames().frame.set(0);
     race.replay.replay_frames().tenth.set(0);
-    if race.course.numbers.replay_mode.get() != PLAYING {
+    if race.course.numbers.get().replay_mode.get() != PLAYING {
         let (frame, tenth) = frame_and_tenth(race.car_blocks().cars[0].step_clock.get());
         race.replay.replay_frames().frame.set(frame);
         race.replay.replay_frames().tenth.set(tenth);
@@ -32,7 +32,7 @@ pub fn keep_replay_frame(race: &Race) -> Result<(), BadInput> {
             (&race.replay.replay_frames().slots, offset as usize),
             SIZE,
         );
-        if race.course.numbers.replay_mode.get() == RECORDING {
+        if race.course.numbers.get().replay_mode.get() == RECORDING {
             crate::drive::save_replay_cars::save_replay_cars(race);
         }
     }

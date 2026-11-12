@@ -22,11 +22,11 @@ pub fn ground_search(
     scene: &crate::scene::owner::Scene,
 ) -> Result<bool, Refused> {
     ground_search_at(
-        course,
+        course.reads(),
         &crate::physics::ground_query::GroundQuery::of_physics(
             ground,
             ground_probe,
-            &course.course,
+            course.course.get(),
         ),
         scene.draw_switches.get(),
     )

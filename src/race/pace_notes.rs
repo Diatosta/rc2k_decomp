@@ -76,8 +76,11 @@ impl Stage for GameStage<'_> {
     fn face_byte(&self, at: u32) -> u8 {
         // The core asks only inside the course's window; a refusal here is kept for
         // `Machine::init` (the core's trait answers a byte).
-        let read =
-            crate::race::course_places::face_field::<u8>(&self.0.course, at / 0x40, at % 0x40);
+        let read = crate::race::course_places::face_field::<u8>(
+            self.0.course.reads(),
+            at / 0x40,
+            at % 0x40,
+        );
         match read {
             Ok(b) => b,
             Err(e) => {

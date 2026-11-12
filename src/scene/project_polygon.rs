@@ -12,7 +12,6 @@
 //! version stays for the Rust callers in unconverted code).
 
 use crate::errors::{BadInput, Refused};
-use crate::race::owner::Race;
 use crate::scene::polygon::{Listed, listed};
 use crate::scene::project_point::{NEAR, project_point};
 
@@ -23,39 +22,36 @@ use crate::scene::project_point::{NEAR, project_point};
 pub fn project_polygon(
     part: &crate::workers::PartScratch,
     poly: &crate::scene::polygon_work::PolygonWork,
-    race: &Race,
     reads: crate::workers::DrawReads<'_>,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
     let polygon_work = part.polygon;
-    project_entries(part, poly, race, &listed(polygon_work, poly)?, reads, view)
+    project_entries(part, poly, &listed(polygon_work, poly)?, reads, view)
 }
 
 /// `project_polygon` on the polygon's entries as listed.
 pub fn project_entries(
     part: &crate::workers::PartScratch,
     poly: &crate::scene::polygon_work::PolygonWork,
-    race: &Race,
     entries: &Listed,
     reads: crate::workers::DrawReads<'_>,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
-    let course = &race.course;
     if entries.is_empty() {
         return Err(BadInput("a polygon of no vertices").into());
     }
     // The scene's points are only needed for a scene's point: the menus have none,
     // and their objects' points (negative) only need the records.
     let scene_point = entries.iter().any(|entry| entry.point.get() as i32 >= 0);
-    if !crate::scene::point_records::held(course)
-        || (scene_point && course.course.scene_points.get() == 0)
+    if !crate::scene::point_records::held(reads.course_lists)
+        || (scene_point && reads.course_work.scene_points.get() == 0)
     {
         return Err(BadInput("no points or no records for them").into());
     }
     let far = view.polygon.window.farthest.get();
     let mut outside = 0u32;
     for entry in entries {
-        let point = project_point(race, part, entry.point.get(), reads, view)?;
+        let point = project_point(part, entry.point.get(), reads, view)?;
         entry.record.set(point.record);
         let depth = f32::from_bits(crate::scene::point_records::field(
             part,

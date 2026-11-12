@@ -46,18 +46,18 @@ pub struct PartScratch {
     /// The scene points past the count while the part is drawn in a run
     /// (`race::scene_points::OwnPoints`).
     pub points: crate::race::scene_points::OwnPoints,
-    /// The render states' and the current texture's cache while a part other than the first
-    /// is drawn (`d3d::render_cache::OwnCache`; part 0's is never begun: the store's own).
+    /// The render states' and the current texture's cache (`d3d::render_cache::OwnCache`):
+    /// part 0's is always in use, the others' while their run is drawn.
     pub cache: crate::d3d::render_cache::OwnCache,
     /// Where such a part first set each state (`d3d::run_states::OwnRun`).
     pub run: crate::d3d::run_states::OwnRun,
     /// The drawing it has noted (`platform_3d::Noted`): the first part's what the game's
     /// thread flushes, the others' put after it at their runs' ends.
     pub noted: crate::platform_3d::Noted,
-    /// The screen's figures (`system::owner::Session::screen`), what a noted fan is drawn into.
-    pub screen: &'static crate::session::Screen,
-    /// Whether a race is on (`race::numbers_store::Numbers::in_race`): the GPU draws only then.
-    pub in_race: &'static crate::session::Flag,
+    /// Whether a race is on (`race::numbers_store::Numbers::in_race`) as the parts of a
+    /// drawing scope read it, set from the store before the scope opens (`draw_parts`): the
+    /// GPU draws only then. Read through `in_race`.
+    pub in_race: crate::session::Flag,
 }
 
 /// The parts' scratch, part 0's in the stores' places in the race's buffers (the image's
@@ -67,8 +67,6 @@ static PARTS: [PartScratch; COUNT] = {
     use crate::scene::point_records::RECORDS as R;
     use crate::scene::polygon_store::OTHER_COPIES as P;
     let buffers = &crate::race::owner::RACE.shared.buffers;
-    // The render states' and the texture's store every part's cache is over.
-    let cards = &crate::d3d::owner::D3D.cards;
     [
         PartScratch {
             vertices: &buffers.vertices,
@@ -76,11 +74,10 @@ static PARTS: [PartScratch; COUNT] = {
             records: &R[0],
             columns: crate::scene::view_matrices::OwnColumns::new(),
             points: crate::race::scene_points::OwnPoints::new(),
-            cache: crate::d3d::render_cache::OwnCache::new(cards),
+            cache: crate::d3d::render_cache::OwnCache::first(),
             run: crate::d3d::run_states::OwnRun::new(),
             noted: crate::platform_3d::Noted::new(),
-            screen: &crate::system::owner::SYSTEM.session.screen,
-            in_race: &crate::race::owner::RACE.course.numbers.in_race,
+            in_race: crate::session::Flag::new(false),
         },
         PartScratch {
             vertices: &V[0],
@@ -88,11 +85,10 @@ static PARTS: [PartScratch; COUNT] = {
             records: &R[1],
             columns: crate::scene::view_matrices::OwnColumns::new(),
             points: crate::race::scene_points::OwnPoints::new(),
-            cache: crate::d3d::render_cache::OwnCache::new(cards),
+            cache: crate::d3d::render_cache::OwnCache::new(),
             run: crate::d3d::run_states::OwnRun::new(),
             noted: crate::platform_3d::Noted::new(),
-            screen: &crate::system::owner::SYSTEM.session.screen,
-            in_race: &crate::race::owner::RACE.course.numbers.in_race,
+            in_race: crate::session::Flag::new(false),
         },
         PartScratch {
             vertices: &V[1],
@@ -100,11 +96,10 @@ static PARTS: [PartScratch; COUNT] = {
             records: &R[2],
             columns: crate::scene::view_matrices::OwnColumns::new(),
             points: crate::race::scene_points::OwnPoints::new(),
-            cache: crate::d3d::render_cache::OwnCache::new(cards),
+            cache: crate::d3d::render_cache::OwnCache::new(),
             run: crate::d3d::run_states::OwnRun::new(),
             noted: crate::platform_3d::Noted::new(),
-            screen: &crate::system::owner::SYSTEM.session.screen,
-            in_race: &crate::race::owner::RACE.course.numbers.in_race,
+            in_race: crate::session::Flag::new(false),
         },
         PartScratch {
             vertices: &V[2],
@@ -112,11 +107,10 @@ static PARTS: [PartScratch; COUNT] = {
             records: &R[3],
             columns: crate::scene::view_matrices::OwnColumns::new(),
             points: crate::race::scene_points::OwnPoints::new(),
-            cache: crate::d3d::render_cache::OwnCache::new(cards),
+            cache: crate::d3d::render_cache::OwnCache::new(),
             run: crate::d3d::run_states::OwnRun::new(),
             noted: crate::platform_3d::Noted::new(),
-            screen: &crate::system::owner::SYSTEM.session.screen,
-            in_race: &crate::race::owner::RACE.course.numbers.in_race,
+            in_race: crate::session::Flag::new(false),
         },
     ]
 };
@@ -143,6 +137,24 @@ static IN_SCOPE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::
 pub fn in_scope() -> bool {
     IN_SCOPE.load(std::sync::atomic::Ordering::Relaxed)
 }
+
+// r40course
+/// Whether a race is on (`race::numbers_store::Numbers::in_race`), as part `part`'s drawing
+/// reads it: inside a drawing scope its copy taken when the scope opened, outside one the
+/// store (on the game's thread).
+pub fn in_race(part: &PartScratch) -> bool {
+    if in_scope() {
+        part.in_race.is_set()
+    } else {
+        crate::race::owner::RACE
+            .course
+            .numbers
+            .get()
+            .in_race
+            .is_set()
+    }
+}
+// end r40course
 
 /// The parts of one drawing being drawn (`draw_parts`): opened on the game's thread before
 /// the first part starts, ended once every part has ended. The stores lent to the parts
@@ -173,6 +185,7 @@ impl Drop for DrawScope {
 pub struct LentOwners<'a> {
     pub race: &'a crate::race::owner::Race,
     pub scene: &'a crate::scene::owner::Scene,
+    pub system: &'a crate::system::owner::System,
 }
 
 impl<'a> LentOwners<'a> {
@@ -181,6 +194,7 @@ impl<'a> LentOwners<'a> {
         Self {
             race: o.race,
             scene: o.scene,
+            system: o.system,
         }
     }
 }
@@ -214,12 +228,31 @@ pub struct Lent<'s> {
     // The cars' blocks and the view variables.
     cars_and_replay: crate::session::PhaseRead<'s, crate::race::groups_store::CarsAndReplay>,
     view_and_records: crate::session::PhaseRead<'s, crate::race::groups_store::ViewAndRecords>,
+    // The system's screen and the processor's MMX flag.
+    screen: crate::session::PhaseRead<'s, crate::session::Screen>,
+    has_mmx: bool,
+    // The course's groups.
+    course_lists: crate::session::PhaseRead<'s, crate::race::course_lists_store::CourseLists>,
+    stage_prefs: crate::session::PhaseRead<'s, crate::race::prefs_store::StagePrefs>,
+    course_work: crate::session::PhaseRead<'s, crate::race::course_store::CourseWork>,
+    kind_records: crate::session::PhaseRead<'s, crate::race::kind_records_store::KindRecords>,
+    numbers: crate::session::PhaseRead<'s, crate::race::numbers_store::Numbers>,
+}
+
+/// Whether the processor has MMX and the game uses it: fixed at start-up, so one value for
+/// every part of a drawing.
+fn has_mmx(system: &crate::system::owner::System) -> bool {
+    system.session.machine.has_mmx.get() != 0
 }
 
 impl<'s> Lent<'s> {
     fn new(scope: &'s DrawScope, owners: LentOwners<'s>) -> Self {
         use crate::session::PhaseRead;
-        let LentOwners { race, scene } = owners;
+        let LentOwners {
+            race,
+            scene,
+            system,
+        } = owners;
         Self {
             light_tables: PhaseRead::lend(&scene.light_tables, scope),
             // The scene's other drawing stores.
@@ -244,6 +277,15 @@ impl<'s> Lent<'s> {
             // The cars' blocks and the view variables.
             cars_and_replay: PhaseRead::lend(&race.replay.cars_and_replay, scope),
             view_and_records: PhaseRead::lend(&race.frame.view_and_records, scope),
+            // The system's screen and the processor's MMX flag.
+            screen: PhaseRead::lend(&system.session.screen, scope),
+            has_mmx: has_mmx(system),
+            // The course's groups.
+            course_lists: PhaseRead::lend(&race.course.lists, scope),
+            stage_prefs: PhaseRead::lend(&race.course.stage_prefs, scope),
+            course_work: PhaseRead::lend(&race.course.course, scope),
+            kind_records: PhaseRead::lend(race.course.kind_records_store(), scope),
+            numbers: PhaseRead::lend(&race.course.numbers, scope),
         }
     }
 
@@ -273,6 +315,15 @@ impl<'s> Lent<'s> {
             // The cars' blocks and the view variables.
             cars_and_replay: &self.cars_and_replay,
             view_and_records: &self.view_and_records,
+            // The system's screen and the processor's MMX flag.
+            screen: &self.screen,
+            has_mmx: self.has_mmx,
+            // The course's groups.
+            course_lists: &self.course_lists,
+            stage_prefs: &self.stage_prefs,
+            course_work: &self.course_work,
+            kind_records: &self.kind_records,
+            numbers: &self.numbers,
         }
     }
 }
@@ -326,13 +377,51 @@ pub struct DrawReads<'a> {
     /// The shared view variables and the view records
     /// (`race::owner_frame::Frame::view_and_records`).
     pub view_and_records: &'a crate::race::groups_store::ViewAndRecords,
+    // The system's screen and the processor's MMX flag.
+    /// The screen's figures (`system::owner::Session::screen`).
+    pub screen: &'a crate::session::Screen,
+    /// Whether the processor has MMX and the game uses it (`Machine::has_mmx`, set once at
+    /// start-up before any drawing): the lighting's colour paths.
+    pub has_mmx: bool,
+    // The course's groups.
+    /// The course's lists and work tables: the face-key factors, the root tables, the object
+    /// points and point records (`race::owner_course::Course::lists`).
+    pub course_lists: &'a crate::race::course_lists_store::CourseLists,
+    /// The stage's prefs and scene settings: colours, fog, sun and sky, the face tables
+    /// (`race::owner_course::Course::stage_prefs`).
+    pub stage_prefs: &'a crate::race::prefs_store::StagePrefs,
+    /// The course's data and the scene's state: the records, faces and scene points and their
+    /// counts, the flat depth (`race::owner_course::Course::course`).
+    pub course_work: &'a crate::race::course_store::CourseWork,
+    /// The course kinds' first and last records (`race::owner_course::Course::kind_records`).
+    pub kind_records: &'a crate::race::kind_records_store::KindRecords,
+    /// The game's numbers: its float constants, the replay's mode, `in_race`, the grip change
+    /// (`race::owner_course::Course::numbers`).
+    pub numbers: &'a crate::race::numbers_store::Numbers,
 }
 
 impl<'a> DrawReads<'a> {
+    // r40course
+    /// The course's drawing stores as one value (`race::owner_course::CourseReads`).
+    pub fn course(&self) -> crate::race::owner_course::CourseReads<'a> {
+        crate::race::owner_course::CourseReads {
+            course: self.course_work,
+            lists: self.course_lists,
+            stage_prefs: self.stage_prefs,
+            numbers: self.numbers,
+            kind_records: self.kind_records,
+        }
+    }
+    // end r40course
+
     /// The stores from their owners: on the game's thread, outside a drawing scope (the
     /// views drawn one after another, the overlays, the menus' objects).
     pub fn on_game_thread(owners: LentOwners<'a>) -> Self {
-        let LentOwners { race, scene } = owners;
+        let LentOwners {
+            race,
+            scene,
+            system,
+        } = owners;
         Self {
             light_tables: scene.light_tables.get(),
             // The scene's other drawing stores.
@@ -357,6 +446,15 @@ impl<'a> DrawReads<'a> {
             // The cars' blocks and the view variables.
             cars_and_replay: race.replay.cars_and_replay.get(),
             view_and_records: race.frame.view_and_records.get(),
+            // The system's screen and the processor's MMX flag.
+            screen: system.session.screen.get(),
+            has_mmx: has_mmx(system),
+            // The course's groups.
+            course_lists: race.course.lists.get(),
+            stage_prefs: race.course.stage_prefs.get(),
+            course_work: race.course.course.get(),
+            kind_records: race.course.kind_records(),
+            numbers: race.course.numbers.get(),
         }
     }
 }
@@ -526,16 +624,23 @@ fn draw_parts(
     // One after another on the game's thread without a pool or with `RC2K_DRAW_SERIAL`.
     let pool = pool.filter(|_| !serial());
     // The render states' cache as the list began, what each other part starts from.
-    let cards = part_scratch(0).cache.store();
-    let cache_start = crate::d3d::render_cache::current(cards);
+    let first_cache = &part_scratch(0).cache;
+    let cache_start = crate::d3d::render_cache::current(first_cache);
     // The held matrix columns likewise (`scene::view_matrices::Held`), in the race's
     // matrices `matrices`.
-    let point_count = owners.race.course.course.scene_point_count.get();
+    let point_count = owners.race.course.course.get().scene_point_count.get();
     let columns_start = crate::scene::view_matrices::columns(matrices);
     *ENDED
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner) = [false; COUNT];
     let control = crate::math::x87::control_word();
+    // r40course
+    // Whether a race is on, as the parts' noted drawing reads it inside the scope (`in_race`).
+    let racing = owners.race.course.numbers.get().in_race.is_set();
+    for scratch in &PARTS {
+        scratch.in_race.set(racing);
+    }
+    // end r40course
     // The parts are drawn from here until every one has ended: the class D stores lent.
     let scope = DrawScope::open();
     let lent = Lent::new(&scope, owners);
@@ -638,10 +743,10 @@ fn draw_parts(
     for (n, mut run) in others.into_iter().enumerate() {
         result = result.and(run.result);
         // Its fans before it set a state draw with what the earlier runs left.
-        let carried = crate::d3d::run_states::carried(cards);
+        let carried = crate::d3d::run_states::carried(first_cache);
         crate::d3d::run_states::patch(&mut run.noted, &run.states, &carried);
         crate::platform_3d::put_noted(run.noted);
-        crate::d3d::run_states::carry(cards, &run.states, &cache_start);
+        crate::d3d::run_states::carry(first_cache, &run.states, &cache_start);
         crate::scene::view_matrices::merge_columns(matrices, &columns_start, &run.columns);
         if result.is_ok() {
             // What it draws takes the merged states.

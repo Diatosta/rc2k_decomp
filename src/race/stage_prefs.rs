@@ -20,12 +20,12 @@ pub const LIGHT_RECORDS: u32 = rc2k_core::race::stage_objects::LIGHT_RECORDS as 
 
 /// `g_textureKinds`.
 fn kind(race: &Race, n: u32) -> u32 {
-    race.course.stage_prefs.texture_kinds[n as usize].get()
+    race.course.stage_prefs.get().texture_kinds[n as usize].get()
 }
 
 /// `picture_lists_b`: 0x40 kinds (>> 4) swapped in.
 fn swapped(race: &Race, n: u32) -> u32 {
-    race.course.stage_prefs.picture_lists_b[n as usize].get()
+    race.course.stage_prefs.get().picture_lists_b[n as usize].get()
 }
 
 /// `race::swap_stage_texture` (0x439B03): for the stages of the core's `TEXTURE_SWAPS`, the first
@@ -42,11 +42,11 @@ pub fn swap_stage_texture(race: &Race) {
         Swap::NotThisStage | Swap::NotFound => return,
         Swap::Listed { kind, .. } | Swap::Full { kind } => kind,
         Swap::Added { kind, at } => {
-            course.stage_prefs.picture_lists_b[at as usize].set(new >> 4);
+            course.stage_prefs.get().picture_lists_b[at as usize].set(new >> 4);
             kind
         }
     };
-    course.stage_prefs.texture_kinds[swapped_kind as usize].set(new);
+    course.stage_prefs.get().texture_kinds[swapped_kind as usize].set(new);
 }
 
 /// `race::tweak_stage` (0x439AAB): for the stages 0x15, 0x3E and 0x36, `car_light_table` ..
@@ -56,7 +56,7 @@ pub fn tweak_stage(race: &Race) {
     {
         // Converted: `rc2k_core::race::stage::stage_tweaked`.
         if rc2k_core::race::stage::stage_tweaked(race.shared.vars.stage_number.get()) {
-            crate::session::write_bits(&course.stage_prefs.car_light_table, [0xFFu32; 3]);
+            crate::session::write_bits(&course.stage_prefs.get().car_light_table, [0xFFu32; 3]);
         }
     }
 }
@@ -66,7 +66,7 @@ pub fn clear_prefs_qword(race: &Race) {
     let course = &race.course;
     {
         if race.shared.work.no_precipitation.get() != 0 {
-            crate::session::write_bits(&course.stage_prefs.blit_cleared, [0u32; 2]);
+            crate::session::write_bits(&course.stage_prefs.get().blit_cleared, [0u32; 2]);
         }
     }
 }
@@ -79,7 +79,7 @@ pub fn load_prefs(race: &Race) -> Result<(), Refused> {
     for path in prefs_paths(course) {
         crate::files::read_whole_file::read_whole_file_cells(
             &crate::files::cstring(path, "a prefs path")?,
-            course.stage_prefs.dwords(),
+            course.stage_prefs.get().dwords(),
         )?;
     }
     swap_stage_texture(race);

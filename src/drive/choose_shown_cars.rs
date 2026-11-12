@@ -16,20 +16,20 @@
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
-use crate::session::{Dword, PlainDword};
+use crate::session::{DwordLike, PlainDword};
 use rc2k_core::drive::shown_cars::{ShownCars, ShownSetup};
 
-fn get(v: &[&Dword], k: usize) -> u32 {
+fn get(v: &[&dyn DwordLike], k: usize) -> u32 {
     v[k].get()
 }
 
-fn put(v: &[&Dword], k: usize, x: u32) {
+fn put(v: &[&dyn DwordLike], k: usize, x: u32) {
     v[k].set(x);
 }
 
 /// On the variables at `v` (`game`'s order).
 // Converted: `rc2k_core::drive::shown_cars::ShownCars::choose`.
-pub fn choose_at(v: &[&Dword], listed: &[PlainDword]) -> Result<(), Refused> {
+pub fn choose_at(v: &[&dyn DwordLike], listed: &[PlainDword]) -> Result<(), Refused> {
     let setup = ShownSetup {
         players: get(v, 2),
         replay_mode: get(v, 4),
@@ -60,14 +60,14 @@ pub fn choose_at(v: &[&Dword], listed: &[PlainDword]) -> Result<(), Refused> {
 }
 
 /// The variables, in the order the core uses them (`listed_car_sounds` apart).
-fn game<'a>(race: &'a Race, net: &'a crate::net::owner::Net) -> Vec<&'a Dword> {
+fn game<'a>(race: &'a Race, net: &'a crate::net::owner::Net) -> Vec<&'a dyn DwordLike> {
     let shared = &race.shared;
     vec![
         &shared.view.view_cars[0],
         &shared.view.view_cars[1],
         &shared.view.players,
         &shared.view.views,
-        &race.course.numbers.replay_mode,
+        &race.course.numbers.get().replay_mode,
         &shared.view.view_switch,
         &shared.vars.split,
         &net.vars.session, // NetVars.session: in the network's variables

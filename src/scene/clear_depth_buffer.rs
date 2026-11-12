@@ -21,7 +21,10 @@ pub fn clear_depth_buffer(
     if scene.objects.tables.get().d3d_drawing_on.get() == 0 {
         return;
     }
-    let (width, height): (u32, u32) = (session.screen.width.get(), session.screen.height.get());
+    let (width, height): (u32, u32) = (
+        session.screen.get().width.get(),
+        session.screen.get().height.get(),
+    );
     let own = &polygons.cleared_rectangle;
     crate::session::write_bits(own, [0, 0, width, height]);
     crate::platform_3d::clear_viewport(part, own);

@@ -194,8 +194,8 @@ pub fn report_timing(system: &System) {
         crate::render::PIXELS.load(Relaxed),
     );
     // The screen's places, for the pixels a frame in screens.
-    let screen = (system.session.screen.width.get().max(1)
-        * system.session.screen.height.get().max(1)) as f64;
+    let screen = (system.session.screen.get().width.get().max(1)
+        * system.session.screen.get().height.get().max(1)) as f64;
     let Ok(mut last) = LAST.lock() else {
         return;
     };

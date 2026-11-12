@@ -136,15 +136,21 @@ fn set_screen_mode(
     // As the original: every texture given back before the screen changes;
     // the game loads again what it needs (a trial's 0x40 more found the pool full).
     crate::platform_3d::release_all_textures(gfx);
-    system.session.screen.width.set(width);
-    system.session.screen.height.set(height);
-    system.session.screen.bits.set(bits);
-    system.session.screen.bytes.set(bytes);
-    system.session.screen.row_bytes.set(bytes * width);
-    system.session.screen.row_dwords.set((bytes * width) >> 2);
-    system.session.screen.kind.set(kind);
+    system.session.screen.get().width.set(width);
+    system.session.screen.get().height.set(height);
+    system.session.screen.get().bits.set(bits);
+    system.session.screen.get().bytes.set(bytes);
+    system.session.screen.get().row_bytes.set(bytes * width);
+    system
+        .session
+        .screen
+        .get()
+        .row_dwords
+        .set((bytes * width) >> 2);
+    system.session.screen.get().kind.set(kind);
+    crate::platform_3d::set_target_size(width, height, bits);
     // The z-buffer's depth, which the original picks by the 3D device: none here.
-    system.session.screen.depth_bits.set(0x10u32);
+    system.session.screen.get().depth_bits.set(0x10u32);
 
     // The surface's pixel format, as DirectDraw would report it: +4 blue, +8 green,
     // +0xC red, +0x10 no alpha.
@@ -153,7 +159,7 @@ fn set_screen_mode(
     } else {
         [0x001F, 0x07E0, 0xF800]
     };
-    let format = &system.session.screen.format;
+    let format = &system.session.screen.get().format;
     for (n, mask) in masks.into_iter().enumerate() {
         format[1 + n].set(mask);
     }
@@ -310,15 +316,17 @@ pub fn lock_surface(gfx: &crate::gfx::owner::Gfx, system: &crate::system::owner:
         // The surface the blitters draw on, and the clip rectangle.
         let s = &gfx.drawing.draw_surface;
         let (row_bytes, pitch): (u32, u32) = (
-            system.session.screen.row_bytes.get(),
+            system.session.screen.get().row_bytes.get(),
             gfx.drawing.draw_surface.present_pitch.get(),
         );
-        s.width.set(system.session.screen.width.get());
-        s.height.set(system.session.screen.height.get());
-        s.bits_per_pixel.set(system.session.screen.bits.get());
-        s.bytes_per_pixel.set(system.session.screen.bytes.get());
+        s.width.set(system.session.screen.get().width.get());
+        s.height.set(system.session.screen.get().height.get());
+        s.bits_per_pixel.set(system.session.screen.get().bits.get());
+        s.bytes_per_pixel
+            .set(system.session.screen.get().bytes.get());
         s.row_bytes.set(row_bytes);
-        s.row_dwords.set(system.session.screen.row_dwords.get());
+        s.row_dwords
+            .set(system.session.screen.get().row_dwords.get());
         s.format.set(crate::gfx::pixel_format::SCREEN_FORMAT);
         s.pitch.set(pitch);
         s.pixels.set(gfx.drawing.draw_surface.present_pixels.get());
@@ -401,7 +409,7 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
     {
         // The framebuffer's mode first, its memory then the GPU's or ours.
         crate::handheld::open_screen()?;
-        if let Some(target) = crate::platform_3d::screen(crate::workers::game_scratch())
+        if let Some(target) = crate::platform_3d::screen()
             && crate::render::show_on_panel(
                 &race.course,
                 &target,
@@ -418,7 +426,7 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
     {
         let renderer = screen.renderer;
         // A race on the GPU: its picture, the canvas's written pixels over it.
-        let gpu_view = crate::platform_3d::screen(crate::workers::game_scratch())
+        let gpu_view = crate::platform_3d::screen()
             .and_then(|target| crate::render::finish_frame(&race.course, &target))
             .map(|colour| make_view(renderer, colour, screen.width, screen.height))
             .is_some();
@@ -461,8 +469,8 @@ pub fn frame_counters() -> [u64; 5] {
 pub fn screen_size() -> (u32, u32) {
     let system = crate::system::owner::system();
     (
-        system.session.screen.width.get(),
-        system.session.screen.height.get(),
+        system.session.screen.get().width.get(),
+        system.session.screen.get().height.get(),
     )
 }
 
@@ -470,7 +478,8 @@ pub fn screen_size() -> (u32, u32) {
 #[cfg(debug_ui)]
 pub fn screen_pixels() -> u64 {
     let system = crate::system::owner::system();
-    u64::from(system.session.screen.width.get()) * u64::from(system.session.screen.height.get())
+    u64::from(system.session.screen.get().width.get())
+        * u64::from(system.session.screen.get().height.get())
 }
 
 /// `gfx::show_frame`: the frame drawn shown (at most some sixty a second); false while
@@ -486,7 +495,7 @@ pub fn show_frame_now() -> bool {
         }
         #[cfg(feature = "remote")]
         if crate::remote::shot_wanted()
-            && let Some(target) = crate::platform_3d::screen(crate::workers::game_scratch())
+            && let Some(target) = crate::platform_3d::screen()
         {
             crate::render::bring_back(&target);
         }
@@ -521,7 +530,7 @@ pub fn show_frame_now() -> bool {
             let shown = SHOWN.fetch_add(1, Ordering::SeqCst) + 1;
             let wanted = FRAMES_TO_SHOW.load(Ordering::SeqCst);
             if wanted != 0 && shown == wanted {
-                if let Some(target) = crate::platform_3d::screen(crate::workers::game_scratch()) {
+                if let Some(target) = crate::platform_3d::screen() {
                     crate::render::bring_back(&target);
                 }
                 let _ = std::fs::write("rc2k_frame.raw", screen.pixels.to_vec());

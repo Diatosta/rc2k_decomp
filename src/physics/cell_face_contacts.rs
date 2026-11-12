@@ -20,7 +20,7 @@ pub fn steps(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let (key, _) = rc2k_core::physics::ground_search::cell_key(x, z);
-    let Some(record) = find_course_record(c.course, key)? else {
+    let Some(record) = find_course_record(c.course.reads(), key)? else {
         return Ok(());
     };
     crate::physics::record_face_contacts::steps(c, record, scene)

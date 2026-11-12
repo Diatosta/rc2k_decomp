@@ -16,7 +16,7 @@ use rc2k_core::physics::ground_search;
 
 /// The record's (first, last) faces.
 pub fn record_faces(course: &Course, n: u32) -> Result<(u32, u32), Refused> {
-    let rd = |offset| crate::race::course_places::record_field::<u32>(course, n, offset);
+    let rd = |offset| crate::race::course_places::record_field::<u32>(course.reads(), n, offset);
     Ok((rd(8)?, rd(0xC)?))
 }
 
@@ -31,7 +31,7 @@ pub fn steps(
     ground_search::each_face(
         first,
         last,
-        c.course.course.course_face_count.get(),
+        c.course.course.get().course_face_count.get(),
         |number| face_contact::steps(c, number, scene),
     )?;
     Ok(())

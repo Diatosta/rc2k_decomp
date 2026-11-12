@@ -22,7 +22,9 @@ use rc2k_core::physics::walls;
 
 fn word(course: &Course, face: u32) -> Result<u32, Refused> {
     Ok(u32::from(crate::race::course_places::face_field::<u16>(
-        course, face, 2,
+        course.reads(),
+        face,
+        2,
     )?))
 }
 

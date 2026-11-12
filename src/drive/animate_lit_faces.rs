@@ -39,19 +39,19 @@ const MOST: u32 = 0x100;
 
 /// Field `o` of course face `f` (by number), and its writes.
 fn at(course: &Course, f: u32, o: u32) -> Result<u32, BadInput> {
-    crate::race::course_places::face_field(course, f, o)
+    crate::race::course_places::face_field(course.reads(), f, o)
 }
 
 fn put(course: &Course, f: u32, o: u32, v: u32) -> Result<(), BadInput> {
-    crate::race::course_places::write_face_field(course, f, o, v)
+    crate::race::course_places::write_face_field(course.reads(), f, o, v)
 }
 
 fn byte(course: &Course, f: u32, o: u32) -> Result<u8, BadInput> {
-    crate::race::course_places::face_field(course, f, o)
+    crate::race::course_places::face_field(course.reads(), f, o)
 }
 
 fn set_byte(course: &Course, f: u32, o: u32, v: u8) -> Result<(), BadInput> {
-    crate::race::course_places::write_face_field(course, f, o, v)
+    crate::race::course_places::write_face_field(course.reads(), f, o, v)
 }
 
 /// The face's animated bytes.
@@ -83,7 +83,7 @@ fn refusal(race: &Race) -> Option<&'static str> {
     if count > MOST {
         return Some("more than 0x100 lit faces (past g_litFaces)");
     }
-    let faces: u32 = race.course.course.course_face_count.get();
+    let faces: u32 = race.course.course.get().course_face_count.get();
     for k in 0..count {
         if list(&race.physics, k).get() >= faces {
             return Some("a lit face past g_courseFaceCount");
@@ -117,7 +117,7 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
             }
             let point_number = at(&race.course, f, 4)?;
             let dx = crate::race::scene_points::point_word(
-                &race.course,
+                race.course.reads(),
                 &crate::race::scene_points::NO_OWN,
                 point_number,
                 0,
@@ -125,7 +125,7 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
             .wrapping_sub(race.car_blocks().cars[0].position[0].get());
             scene.drawing.scene.get().scratch.set(dx);
             let dz = crate::race::scene_points::point_word(
-                &race.course,
+                race.course.reads(),
                 &crate::race::scene_points::NO_OWN,
                 point_number,
                 2,
@@ -190,7 +190,7 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                     let p = at(&race.course, f, 4)?;
                     race.physics.ground().ground_x.set(
                         crate::race::scene_points::point_word(
-                            &race.course,
+                            race.course.reads(),
                             &crate::race::scene_points::NO_OWN,
                             p,
                             0,
@@ -199,7 +199,7 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                     );
                     race.physics.ground().ground_z.set(
                         crate::race::scene_points::point_word(
-                            &race.course,
+                            race.course.reads(),
                             &crate::race::scene_points::NO_OWN,
                             p,
                             2,
@@ -208,6 +208,7 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                     );
                     race.course
                         .course
+                        .get()
                         .ground_face_last
                         .set(race.car_blocks().cars[0].probe_point_face[4].get());
                     crate::physics::find_ground::find_ground(
@@ -222,14 +223,14 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                         0x34,
                         race.physics.ground().ground_height.get().wrapping_sub(
                             crate::race::scene_points::point_word(
-                                &race.course,
+                                race.course.reads(),
                                 &crate::race::scene_points::NO_OWN,
                                 p,
                                 1,
                             )?,
                         ),
                     )?;
-                    if race.course.course.ground_slot.get() == u32::MAX {
+                    if race.course.course.get().ground_slot.get() == u32::MAX {
                         put(
                             &race.course,
                             f,

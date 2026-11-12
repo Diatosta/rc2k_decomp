@@ -35,7 +35,6 @@ pub fn quad(
     crate::scene::draw_tinted_quad::draw_tinted_quad(&crate::race::view_scratch::DrawCtx::new(
         o.race,
         o.scene,
-        o.system,
         o.net,
         o.input,
         scratch,

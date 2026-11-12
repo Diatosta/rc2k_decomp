@@ -17,9 +17,9 @@ use crate::logfile::log_write::log_newline_l1;
 pub fn find_3d_cards(display: &Display, d3d: &D3d) {
     display.cards.primary.set(0);
     display.cards.secondary.set(0);
-    if d3d.cards.no_search.get() == 0 {
+    if d3d.cards.get().no_search.get() == 0 {
         crate::logfile::log_write::log_nul(&crate::gfx::texts::FINDING_3D, true, 1);
-        if d3d.cards.not_primary.get() == 0 {
+        if d3d.cards.get().not_primary.get() == 0 {
             display.cards.primary.set(1);
         }
     }

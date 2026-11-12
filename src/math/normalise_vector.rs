@@ -20,7 +20,7 @@
 
 use crate::errors::BadInput;
 use crate::math::x87_float::{ONE, compare, ld, st};
-use crate::race::owner::Race;
+use crate::race::course_lists_store::CourseLists;
 use crate::scene::draw_switches_store::DrawSwitches;
 use crate::session::Dword;
 
@@ -59,11 +59,11 @@ pub(crate) fn scaled_by_inverse(v: [u32; 3], root: u32, exponent_root: u32) -> (
 
 /// Returns what the function leaves in eax, if it changes it.
 pub fn normalise_vector(
-    race: &Race,
+    lists: &CourseLists,
     switches: &DrawSwitches,
     work: &[Dword; 4],
 ) -> Result<Option<u32>, BadInput> {
-    normalise(race, work, switches.use_sse.bits() != 0)
+    normalise(lists, work, switches.use_sse.bits() != 0)
 }
 
 /// The original's SSE path: each component times the approximate reciprocal root of the
@@ -77,16 +77,19 @@ fn sse_normalise(v: [u32; 4]) -> [u32; 4] {
 
 /// Exactly as the original (the x87 at its precision, the SSE instructions): what the
 /// Rust callers in modules not yet converted use.
-pub fn normalise(race: &Race, work: &[Dword; 4], sse: bool) -> Result<Option<u32>, BadInput> {
+pub fn normalise(
+    lists: &CourseLists,
+    work: &[Dword; 4],
+    sse: bool,
+) -> Result<Option<u32>, BadInput> {
     let v: [u32; 4] = crate::session::read_bits(work);
     if sse {
         crate::session::write_bits(work, sse_normalise(v));
         return Ok(None);
     }
     let sum = squares_sum([v[0], v[1], v[2]]);
-    let root: u32 = race.course.lists.root_table[((sum >> 15) & 0xFF) as usize].bits();
-    let exponent_root: u32 =
-        race.course.lists.exponent_root_table[((sum & 0x7F80_0000) >> 23) as usize].bits();
+    let root: u32 = lists.root_table[((sum >> 15) & 0xFF) as usize].bits();
+    let exponent_root: u32 = lists.exponent_root_table[((sum & 0x7F80_0000) >> 23) as usize].bits();
     // The product of two floats is exact in a double, as it is in the x87.
     let length = ld(root) * ld(exponent_root);
     if compare(length, ld(NOTHING)) & 0x4000 != 0 {

@@ -21,8 +21,8 @@ pub fn angle_of(course: &Course, first: u32, second: u32) -> u32 {
     x87::angle_scaled_to_int(
         first as i32,
         second as i32,
-        course.numbers.half.get(),
-        course.numbers.k65536.get(),
+        course.numbers.get().half.get(),
+        course.numbers.get().k65536.get(),
     ) as u32
         & 0xFFFF
 }

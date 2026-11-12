@@ -47,11 +47,11 @@ pub struct GroundQuery<'a> {
     /// The course work's search fields: the face tested (`ground_number`), the face found
     /// (`ground_slot`), its half (`ground_half`) and corners (`ground_corners`), the face
     /// tried first (`ground_face_last`).
-    pub number: &'a Dword,
-    pub slot: &'a Dword,
-    pub half: &'a Dword,
-    pub face_corners: &'a [Dword; 3],
-    pub last: &'a Dword,
+    pub number: &'a PlainDword,
+    pub slot: &'a PlainDword,
+    pub half: &'a PlainDword,
+    pub face_corners: &'a [PlainDword; 3],
+    pub last: &'a PlainDword,
     /// The scene points the search reads the faces' corners through: a drawing part's own
     /// past the count in the drawing (`race::scene_points::OwnPoints`).
     pub points: &'a crate::race::scene_points::OwnPoints,
@@ -119,11 +119,11 @@ pub struct GroundCells {
     share_t: Dword,
     product: [PlainDword; 2],
     settle_mark: PlainDword,
-    number: Dword,
-    slot: Dword,
-    half: Dword,
-    face_corners: [Dword; 3],
-    last: Dword,
+    number: PlainDword,
+    slot: PlainDword,
+    half: PlainDword,
+    face_corners: [PlainDword; 3],
+    last: PlainDword,
 }
 
 impl GroundCells {
@@ -153,11 +153,11 @@ impl GroundCells {
             share_t: d(),
             product: std::array::from_fn(|_| PlainDword::new(0)),
             settle_mark: PlainDword::new(0),
-            number: d(),
-            slot: d(),
-            half: d(),
-            face_corners: std::array::from_fn(|_| d()),
-            last: d(),
+            number: PlainDword::new(0),
+            slot: PlainDword::new(0),
+            half: PlainDword::new(0),
+            face_corners: std::array::from_fn(|_| PlainDword::new(0)),
+            last: PlainDword::new(0),
         }
     }
 

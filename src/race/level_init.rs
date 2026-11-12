@@ -34,12 +34,13 @@ const TEXTURES: u32 = 0x100;
 /// list `list`).
 pub fn allocate_course_memory(
     course: &Course,
-    list: &[crate::session::Dword; 4],
+    list: &[crate::session::PlainDword; 4],
 ) -> Result<(), Refused> {
-    course.lists.first_part.set(FIRST_PART);
-    course.lists.course_bytes_total.set(
+    course.lists.get().first_part.set(FIRST_PART);
+    course.lists.get().course_bytes_total.set(
         course
             .lists
+            .get()
             .course_bytes_total
             .get()
             .wrapping_add(FIRST_PART + INFO_PART),
@@ -47,9 +48,10 @@ pub fn allocate_course_memory(
     // Counted whole, as the original's one block; the info part is Rust's own store
     // (`race::course_places::INFO`), named by its place.
     let memory = take_course_memory(list, FIRST_PART + INFO_PART, FIRST_PART)?;
-    course.lists.course_memory.set(memory);
+    course.lists.get().course_memory.set(memory);
     course
         .lists
+        .get()
         .course_info
         .set(crate::race::course_places::take_info(INFO_PART)?);
     Ok(())
@@ -156,7 +158,7 @@ pub fn load_texture_info(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let file_numbers = &scene.file_numbers();
-    let info = course.lists.course_info.get();
+    let info = course.lists.get().course_info.get();
     if info == 0 {
         return Err(BadInput("no course memory: the original reads into 0").into());
     }
@@ -219,19 +221,19 @@ pub fn load_error_list(frame: &Frame, scene: &crate::scene::owner::Scene) -> Res
 pub fn build_texture_infos(race: &Race) -> Result<(), Refused> {
     let course = &race.course;
     {
-        let info = course.lists.course_info.get();
+        let info = course.lists.get().course_info.get();
         if info == 0 {
             return Ok(());
         }
         for n in 0..TEXTURES {
-            if course.stage_prefs.texture_kinds[n as usize].get() >= INFO_PART / 0x80 {
+            if course.stage_prefs.get().texture_kinds[n as usize].get() >= INFO_PART / 0x80 {
                 return Err(BadInput("a texture kind past the course info").into());
             }
         }
         // Converted: `rc2k_core::race::stage::texture_info`.
         for n in 0..TEXTURES {
             let out = &race.polygon_tables().texture_infos[n as usize].words;
-            let kind = course.stage_prefs.texture_kinds[n as usize].get();
+            let kind = course.stage_prefs.get().texture_kinds[n as usize].get();
             let rec = kind * 0x80;
             let trap = Trap::new();
             use crate::race::course_places::info_field as field;
@@ -292,7 +294,7 @@ pub fn init_checkpoints(race: &Race) -> Result<(), Refused> {
                     .ok_or(BadInput("a checkpoint past the checkpoint table")),
             );
             trap.keep_read(crate::race::course_places::face_field::<u8>(
-                &race.course,
+                race.course.reads(),
                 face,
                 0x26,
             )) != 0

@@ -33,8 +33,8 @@ pub fn add_polygon(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
         };
         batch::check_polygon(count, vertices, hud.block.index_count.get(), flushes)?;
         let [w, h]: [u32; 2] = [
-            system.session.screen.width.get(),
-            system.session.screen.height.get(),
+            system.session.screen.get().width.get(),
+            system.session.screen.get().height.get(),
         ];
         let [kx, ky] = [
             hud.block.virtual_screen[0].get(),

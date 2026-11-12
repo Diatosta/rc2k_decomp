@@ -47,7 +47,7 @@ pub fn apply_replay_patches(race: &Race) -> Result<(), Refused> {
         shared.work.patches_applied.set(0);
         crate::physics::apply_patches::apply_patches(
             &race.shared.physics_tables,
-            &race.course.numbers,
+            race.course.numbers.get(),
             &race.shared.work,
         );
     }
@@ -72,7 +72,7 @@ pub fn restore_replay_patches(race: &Race) -> Result<(), Refused> {
         shared.work.patches_applied.set(0);
         crate::physics::apply_patches::apply_patches(
             &race.shared.physics_tables,
-            &race.course.numbers,
+            race.course.numbers.get(),
             &race.shared.work,
         );
     }

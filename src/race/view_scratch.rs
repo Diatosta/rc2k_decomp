@@ -268,14 +268,12 @@ pub fn front_end() -> &'static ViewScratch {
     &SLOTS[4]
 }
 
-/// What a view's drawing works with: the race, the scene, the system's facts (the screen's
-/// size, the machine's processor), the network session and the keys (read only, by the
+/// What a view's drawing works with: the race, the scene, the network session and the keys (read only, by the
 /// lamps' choice), the view's own state, and whether polygons are cut at the far depth.
 #[derive(Clone, Copy)]
 pub struct DrawCtx<'a> {
     pub race: &'a crate::race::owner::Race,
     pub scene: &'a crate::scene::owner::Scene,
-    pub system: &'a crate::system::owner::System,
     /// Read only: the session and the network player (`scene::add_car_lights`).
     pub net: &'a crate::net::owner::Net,
     /// Read only: the keys held (`scene::set_object_light`).
@@ -308,7 +306,6 @@ impl<'a> DrawCtx<'a> {
     pub fn new(
         race: &'a crate::race::owner::Race,
         scene: &'a crate::scene::owner::Scene,
-        system: &'a crate::system::owner::System,
         net: &'a crate::net::owner::Net,
         input: &'a crate::input::owner::Input,
         view: &'a ViewScratch,
@@ -318,7 +315,6 @@ impl<'a> DrawCtx<'a> {
         Self {
             race,
             scene,
-            system,
             net,
             input,
             view,

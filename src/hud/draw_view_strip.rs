@@ -50,8 +50,8 @@ pub struct Overlay<'a> {
 fn sizes(system: &System, strips: &Strips, v: [u32; 4]) {
     let (sizes, _) = strips::sizes(
         v,
-        system.session.screen.width.get(),
-        system.session.screen.height.get(),
+        system.session.screen.get().width.get(),
+        system.session.screen.get().height.get(),
     );
     for (n, x) in sizes.into_iter().enumerate() {
         strips.sizes[n].set(x);
@@ -75,7 +75,7 @@ fn quad(
         scene,
         strips: strips_store,
     } = *overlay;
-    let screen = &system.session.screen;
+    let screen = system.session.screen.get();
     let polygon = &scratch.polygon;
     let shared = &race.shared;
     let course = &race.course;
@@ -95,8 +95,12 @@ fn quad(
         part,
         race,
         &scratch.face,
-        course,
-        crate::workers::DrawReads::on_game_thread(crate::workers::LentOwners { race, scene }),
+        course.reads(),
+        crate::workers::DrawReads::on_game_thread(crate::workers::LentOwners {
+            race,
+            scene,
+            system,
+        }),
         screen,
         scratch,
     )

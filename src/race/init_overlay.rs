@@ -45,8 +45,8 @@ pub fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
                     .overlay_miles
                     .set(0);
                 let (scale, mile) = (
-                    race.course.numbers.k65536.get(),
-                    race.course.numbers.metres_in_mile.get(),
+                    race.course.numbers.get().k65536.get(),
+                    race.course.numbers.get().metres_in_mile.get(),
                 );
                 // The list's entries 0 .. count (at most 0x40, `overlay_parts`) are the ones
                 // `race::init_checkpoints` wrote (`split_colour_count` is their count - 1),

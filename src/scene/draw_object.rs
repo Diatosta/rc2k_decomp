@@ -69,16 +69,13 @@ fn place_object_points_any(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
 }
 
 /// With the steps' Rust versions.
-pub fn draw_object_in_game(
-    ctx: &crate::race::view_scratch::DrawCtx<'_>,
-    system: &crate::system::owner::System,
-) -> Result<(), Refused> {
+pub fn draw_object_in_game(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
     // The object's listed faces: filled, sorted and drawn here alone (the original's
     // `g_listedFaces`, one for every drawing).
     let mut faces = crate::scene::face_list::FaceList::new();
     draw_object(&mut |step| {
         match step {
-            Step::Light => set_object_light_in_game(ctx, system)?,
+            Step::Light => set_object_light_in_game(ctx)?,
             Step::Material => set_object_material(ctx)?,
             Step::Fade => set_object_fade(ctx)?,
             Step::Points => place_object_points_any(ctx)?,
@@ -99,7 +96,7 @@ pub fn draw_object_in_game(
                     &ctx.view.object,
                     &ctx.view.face,
                     &faces,
-                    &mut |face| draw_object_face_in_game(ctx, face, system),
+                    &mut |face| draw_object_face_in_game(ctx, face),
                 )?;
             }
         }

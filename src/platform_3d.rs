@@ -283,12 +283,10 @@ fn draw_noted(part: &crate::workers::PartScratch, pending: &mut Pending) {
         crate::framework::log("platform: a drawing part's noted drawing drawn (out of order)");
     }
     crate::render::dump::dump_if_asked(&commands, &target);
-    crate::render::dump::hash_if_asked(&commands);
-    let screen = (
-        part.screen.width.get() as usize,
-        part.screen.height.get() as usize,
-    );
-    crate::render::draw(part.in_race.is_set(), screen, &target, commands);
+    crate::render::dump::hash_if_asked(&commands, crate::workers::in_race(part));
+    let (width, height, _) = target_size();
+    let screen = (width as usize, height as usize);
+    crate::render::draw(crate::workers::in_race(part), screen, &target, commands);
 }
 
 /// A drawing part's drawing noted since the last flush (`workers::PartScratch`): the
@@ -325,26 +323,48 @@ fn reads_texture(pixels: TextureId) -> bool {
     game_part().noted.lock().textures.contains(&pixels)
 }
 
+/// The screen's width, height and bits per pixel as the noted drawing is made for it: set
+/// where the game sets the screen mode (`set_target_size`, game thread, outside a drawing
+/// scope), read by every drawing part. Atomic: the screen's own store is lent to the parts
+/// only as the game's figures (`workers::DrawReads::screen`), and a noted fan needs these
+/// from `PartScratch` alone.
+static TARGET_SIZE: [std::sync::atomic::AtomicU32; 3] =
+    [const { std::sync::atomic::AtomicU32::new(0) }; 3];
+
+/// The screen mode has been set: the noted drawing is for a screen of `width` x `height`
+/// pixels of `bits` bits.
+pub fn set_target_size(width: u32, height: u32, bits: u32) {
+    for (cell, v) in TARGET_SIZE.iter().zip([width, height, bits]) {
+        cell.store(v, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
+fn target_size() -> (u32, u32, u32) {
+    let [w, h, b] =
+        std::array::from_fn(|n| TARGET_SIZE[n].load(std::sync::atomic::Ordering::Relaxed));
+    (w, h, b)
+}
+
 /// The screen as the game has it now.
-pub fn screen(part: &crate::workers::PartScratch) -> Option<Target> {
+pub fn screen() -> Option<Target> {
     let surface = crate::gfx::owner::draw_surface();
     // The renderers draw on the bytes where they lie.
     let pixels = surface.present_pixels.get();
     crate::gfx::locked_pixels::bytes_of(pixels)?;
-    let screen = part.screen;
+    let (width, height, bits) = target_size();
     Some(Target {
         pixels,
         pitch: surface.present_pitch.get() as usize,
-        width: screen.width.get() as usize,
-        height: screen.height.get() as usize,
-        bits: screen.bits.get(),
+        width: width as usize,
+        height: height as usize,
+        bits,
     })
 }
 
 /// Notes `what` in part `part`'s drawing for the screen as it is now (the noted so far
 /// drawn first when that is another).
 fn note(part: &crate::workers::PartScratch, what: impl FnOnce(&mut Pending) -> Command) {
-    let Some(into) = screen(part) else {
+    let Some(into) = screen() else {
         return;
     };
     {
@@ -544,13 +564,13 @@ fn format_at(format: u32) -> TextureFormat {
 /// `d3d::copy_screen_to_texture` (the mirror's picture).
 pub fn copy_screen_to_system_texture(number: u32) {
     flush();
-    if let Some(screen) = screen(game_part()) {
+    if let Some(screen) = screen() {
         crate::render::bring_back(&screen);
     }
     if number >= MOST {
         return;
     }
-    let Some(screen) = screen(game_part()) else {
+    let Some(screen) = screen() else {
         return;
     };
     let record = record_at(0, number).get();
@@ -777,7 +797,12 @@ fn allocate_textures(
     };
     let description: u32 = card.texture_tables.kind_entry(kind as usize & 0xFF);
     card.texture_tables.alpha_kind.set((kind == 3) as u32);
-    let levels = if d3d.cards.mips.get() == 1 { mips } else { 0 }.wrapping_add(1);
+    let levels = if d3d.cards.get().mips.get() == 1 {
+        mips
+    } else {
+        0
+    }
+    .wrapping_add(1);
     if levels > LEVELS {
         return Err(fatal(0x80A1_8643));
     }
@@ -952,10 +977,10 @@ const BEGIN_STATES: [(u32, u32); 12] = [
 /// `d3d::begin_scene` for Rust callers: the layer's states at a scene's beginning, no
 /// texture set (in drawing part `part`'s cache). It cannot fail.
 pub fn begin_layer(d3d: &crate::d3d::owner::D3d, part: &crate::workers::PartScratch) {
-    d3d.cards.in_scene.set(1u32);
+    d3d.cards.get().in_scene.set(1u32);
     for (value, state) in BEGIN_STATES
         .into_iter()
-        .chain([(d3d.cards.fog_state.get(), 0x1A)])
+        .chain([(d3d.cards.get().fog_state.get(), 0x1A)])
     {
         crate::d3d::set_render_state::set_render_state(part, value, state);
     }
@@ -968,8 +993,8 @@ pub fn begin_layer(d3d: &crate::d3d::owner::D3d, part: &crate::workers::PartScra
 pub fn end_layer(d3d: &crate::d3d::owner::D3d) -> bool {
     flush();
     {
-        if d3d.cards.in_scene.get() == 1 {
-            d3d.cards.in_scene.set(0u32);
+        if d3d.cards.get().in_scene.get() == 1 {
+            d3d.cards.get().in_scene.set(0u32);
             return true;
         }
     }

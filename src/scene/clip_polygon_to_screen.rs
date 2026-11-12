@@ -11,7 +11,6 @@
 //! (what it had written is put back first).
 
 use crate::errors::BadInput;
-use crate::race::owner::Race;
 use crate::scene::clip::{Edge, below, clip_pass, listed_with_records, or_undone};
 use crate::session::Float;
 
@@ -65,9 +64,8 @@ fn outside_mask(
 pub fn clip_polygon_to_screen(
     part: &crate::workers::PartScratch,
     poly: &crate::scene::polygon_work::PolygonWork,
-    race: &Race,
+    course: crate::race::owner_course::CourseReads<'_>,
 ) -> Result<(), BadInput> {
-    let course = &race.course;
     let (entries, mask) = outside_mask(part, poly)?;
     poly.screen_clipped.set(1u32);
     if mask == 0 {

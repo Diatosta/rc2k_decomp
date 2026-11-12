@@ -42,7 +42,7 @@ const LENGTHS: [u32; 9] = [200, 400, 200, 400, 400, 400, 400, 400, 0];
 /// when an object of two shapes came before the view's first face; no kind in the game's
 /// files has that material, so it never comes into play.)
 fn state(
-    course: &crate::race::owner_course::Course,
+    course: crate::race::owner_course::CourseReads<'_>,
     face: &crate::race::face_work::FaceWork,
 ) -> Option<u32> {
     (course.course.course_faces.get() != 0).then(|| face.course_face.get())
@@ -54,7 +54,7 @@ const STATE: u32 = 0x30;
 /// The fraction of the way between the two shapes, on the state of face `face`.
 /// The fraction into `fraction_out` (the view's `ObjectPlace::move_fraction`).
 fn step_shape(
-    course: &crate::race::owner_course::Course,
+    course: crate::race::owner_course::CourseReads<'_>,
     clock: u32,
     face: u32,
     fraction_out: &crate::session::Float,
@@ -109,7 +109,7 @@ pub fn set_object_material(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
         kind,
         0x20,
     )?);
-    let state = state(&race.course, &ctx.view.face);
+    let state = state(ctx.reads.course(), &ctx.view.face);
     if way == 4 && state.is_none() {
         return Err(BadInput("a moving object without its state"));
     }
@@ -126,7 +126,7 @@ pub fn set_object_material(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
             .move_by
             .set(points[1].wrapping_sub(points[0]).wrapping_mul(12));
         step_shape(
-            &race.course,
+            ctx.reads.course(),
             ctx.clock,
             state,
             &ctx.view.object.move_fraction,

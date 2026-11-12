@@ -27,7 +27,10 @@ pub fn choose_view_window(
     let view = crate::scene::polygon_work::front_end();
     let window = &view.window;
     let chosen = choose(settings, || {
-        [session.screen.width.get(), session.screen.height.get()]
+        [
+            session.screen.get().width.get(),
+            session.screen.get().height.get(),
+        ]
     });
     window.view_size[0].set(chosen.size[0]);
     window.view_size[1].set(chosen.size[1]);
@@ -36,8 +39,9 @@ pub fn choose_view_window(
     window.view_zoom.set(chosen.scale);
     crate::scene::set_view_window::set_view_window(
         race,
+        race.course.reads(),
         scene.drawing.scene.get(),
-        system,
+        system.session.screen.get(),
         window,
         &race.frame.view_and_records.get().view_vars,
     );

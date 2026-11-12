@@ -775,7 +775,7 @@ fn profiler(o: &Owners<'static>, ui: &Ui) {
         &[
             (
                 "Course memory",
-                format!("{} KiB", course.lists.course_bytes_total.get() >> 10),
+                format!("{} KiB", course.lists.get().course_bytes_total.get() >> 10),
             ),
             (
                 "Processor has",

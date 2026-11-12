@@ -52,8 +52,8 @@ pub fn blend_at(race: &Race, v: &BlendCells<'_>) -> u32 {
         bh::ld(v.start_share.get()) + bh::ld(v.step_share.get()) + bh::ld(v.pace_push.get()),
     ));
     let (low, high) = (
-        race.course.numbers.zero.get(),
-        race.course.numbers.one.get(),
+        race.course.numbers.get().zero.get(),
+        race.course.numbers.get().one.get(),
     );
     if compare_full(v.blend.get(), low) & 0x100 != 0 {
         v.blend.set(x87::loaded(low));

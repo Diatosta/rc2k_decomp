@@ -967,6 +967,7 @@ pub const fn cells_of_bytes<T: Cells, const N: usize>(bytes: [u8; N]) -> T {
 }
 
 /// `N` dwords of a record of cells from byte `at` on, for a record read as a run of dwords.
+#[cfg(test)]
 pub fn dwords_in<T: Cells, const N: usize>(cells: &T, at: usize) -> &[crate::session::Dword; N] {
     dwords_as(cells, at)
 }

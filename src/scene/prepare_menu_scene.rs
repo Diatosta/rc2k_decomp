@@ -30,8 +30,9 @@ pub fn prepare_menu_scene(
     crate::session::write_bits(&scratch.polygon.window.view_size, [0x320u32, 0x258]);
     set_view_window(
         race,
+        race.course.reads(),
         scene.drawing.scene.get(),
-        system,
+        system.session.screen.get(),
         &scratch.polygon.window,
         &race.frame.view_and_records.get().view_vars,
     );
@@ -41,5 +42,5 @@ pub fn prepare_menu_scene(
     light.light_level.set(0xB4);
     scratch.object.light_strength.set(0xB4);
     crate::session::write_bits(&light.light_turns, [0x6Eu32, 0x1E]);
-    set_view_matrices(&race.course, frame, &scratch.matrices);
+    set_view_matrices(race.course.reads(), frame, &scratch.matrices);
 }

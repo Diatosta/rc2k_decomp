@@ -46,14 +46,15 @@ fn car(shared: &RaceShared, slot: u32) -> Result<&'static Car, BadInput> {
 }
 
 /// `arcade_car_kinds`[k]: the car of each start. The table holds 89; the refusal below reads
-/// one past it (the start count's 0x58 + 1), the next variable, as the original.
+/// one past it (the start count's 0x58 + 1), the next variable `number_before_first`, as the
+/// original. A start further on (`put_car`'s is dynamic) reads on through the holder.
 fn car_by_start(shared: &RaceShared, k: u32) -> Result<u32, BadInput> {
-    crate::session::read_on_in(
-        shared.tables(),
-        &shared.tables().arcade_car_kinds,
-        k as usize,
-        "the start tables",
-    )
+    let tables = shared.tables();
+    match k as usize {
+        n if n < tables.arcade_car_kinds.len() => Ok(tables.arcade_car_kinds[n].get()),
+        n if n == tables.arcade_car_kinds.len() => Ok(tables.number_before_first.get()),
+        n => crate::session::read_on_in(tables, &tables.arcade_car_kinds, n, "the start tables"),
+    }
 }
 
 /// The refusals worked out before anything.
@@ -182,7 +183,7 @@ pub fn start_cars_behind(race: &Race, scene: &crate::scene::owner::Scene) -> Res
                     &lead.pace_cars[1],
                     &lead.pace_starts[1],
                     race.shared.tables().pace_back_gap.get().wrapping_neg(),
-                    course.numbers.twenty.get(),
+                    course.numbers.get().twenty.get(),
                     scene,
                 )?;
                 lead.mode2_behind
@@ -234,7 +235,7 @@ pub fn start_cars_behind(race: &Race, scene: &crate::scene::owner::Scene) -> Res
             &lead.pace_cars[0],
             &lead.pace_starts[0],
             race.shared.tables().pace_back_gap.get(),
-            course.numbers.twenty.get(),
+            course.numbers.get().twenty.get(),
             scene,
         )?;
         lead.mode2_behind

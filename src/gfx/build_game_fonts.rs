@@ -82,7 +82,7 @@ pub fn build_game_fonts(
         .units
         .get()
         .wrapping_mul(0x400)
-        .wrapping_mul(system.session.screen.bytes.get());
+        .wrapping_mul(system.session.screen.get().bytes.get());
     crate::memory::owned::count_on(list, bytes)?;
     rewind_list(list)?;
     begin_glyph_tables(vars, gfx, system, strings)?;

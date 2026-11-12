@@ -11,8 +11,9 @@ use crate::system::owner::System;
 
 // Converted: `rc2k_core::drive::race_steps::play_frame`.
 pub fn play_replay_frame(race: &Race, system: &System) -> Result<(), Refused> {
-    let Some(whole) =
-        rc2k_core::drive::race_steps::play_frame(race.course.numbers.replay_mode.get(), || {
+    let Some(whole) = rc2k_core::drive::race_steps::play_frame(
+        race.course.numbers.get().replay_mode.get(),
+        || {
             race.replay
                 .replay_frames()
                 .step_block
@@ -22,8 +23,8 @@ pub fn play_replay_frame(race: &Race, system: &System) -> Result<(), Refused> {
                 .step_frame
                 .set(race.replay.replay_view().replay_frame.get());
             race.replay.replay_frames().step_frame.get()
-        })
-    else {
+        },
+    ) else {
         return Ok(());
     };
     if whole {

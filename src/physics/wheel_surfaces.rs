@@ -61,7 +61,7 @@ fn share_bit(course: &Course, v: &[Float; 64], c: u32, scene: &crate::scene::own
 
 /// Everything the function reads that the checks need, refused as said.
 fn check(course: &Course, car: &Car) -> Result<(), Refused> {
-    let faces = course.course.course_faces.get();
+    let faces = course.course.get().course_faces.get();
     if faces == 0 {
         return Err(BadInput("no course faces").into());
     }
@@ -82,7 +82,9 @@ fn steps(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), 
         let f = c.car.probe_point_face[cc].get();
         let face_byte = |offset| -> Result<u32, Refused> {
             Ok(u32::from(crate::race::course_places::face_field::<u8>(
-                c.course, f, offset,
+                c.course.reads(),
+                f,
+                offset,
             )?))
         };
         let t1 = face_byte(1)?;
@@ -156,7 +158,9 @@ fn steps(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), 
                 drawing.scene.get().surface_point[2].set(z.wrapping_sub(x));
                 x87_2(contact, c.numbers, c.car, cc, scene);
             }
-            if crate::race::course_places::face_number(c.course, f)?.switches() & 0x1000 != 0 {
+            if crate::race::course_places::face_number(c.course.reads(), f)?.switches() & 0x1000
+                != 0
+            {
                 c.car.wheel_surface_a[cc].set(5);
                 c.car.wheel_surface_b[cc].set(5);
                 c.car.wheel_cell_a_byte18[cc].set(0x3C);
@@ -243,7 +247,7 @@ pub fn wheel_surfaces(
 /// `int [scratch] = [t + c * 4] * [k65536]`
 fn x87_1(course: &Course, t: &[Float; 64], c: usize, scene: &crate::scene::owner::Scene) {
     let t0 = t[c].ld();
-    let t1 = course.numbers.k65536.ld();
+    let t1 = course.numbers.get().k65536.ld();
     let t2 = t0 * t1;
     scene.drawing.scene.get().scratch.set(to_int(t2) as u32);
 }
@@ -588,7 +592,7 @@ mod reference_vectors {
                 plain: |a| {
                     x87_2(
                         &crate::race::owner::race().physics.contact,
-                        &crate::race::owner::race().course.numbers,
+                        crate::race::owner::race().course.numbers.get(),
                         crate::race::owner::race().shared.car(),
                         a[1],
                         crate::scene::owner::scene(),
@@ -615,7 +619,7 @@ mod reference_vectors {
                 plain: |a| {
                     x87_2(
                         &crate::race::owner::race().physics.contact,
-                        &crate::race::owner::race().course.numbers,
+                        crate::race::owner::race().course.numbers.get(),
                         crate::race::owner::race().shared.car(),
                         a[1],
                         crate::scene::owner::scene(),
@@ -642,7 +646,7 @@ mod reference_vectors {
                 plain: |a| {
                     x87_2(
                         &crate::race::owner::race().physics.contact,
-                        &crate::race::owner::race().course.numbers,
+                        crate::race::owner::race().course.numbers.get(),
                         crate::race::owner::race().shared.car(),
                         a[1],
                         crate::scene::owner::scene(),
@@ -730,7 +734,7 @@ mod reference_vectors {
                 plain: |a| {
                     x87_4(
                         &race().shared,
-                        &race().course.numbers,
+                        race().course.numbers.get(),
                         table(a[0], a[3]),
                         table(a[2], a[3]),
                         a[3],
@@ -758,7 +762,7 @@ mod reference_vectors {
                 plain: |a| {
                     x87_4(
                         &race().shared,
-                        &race().course.numbers,
+                        race().course.numbers.get(),
                         table(a[0], a[3]),
                         table(a[2], a[3]),
                         a[3],
@@ -786,7 +790,7 @@ mod reference_vectors {
                 plain: |a| {
                     x87_4(
                         &race().shared,
-                        &race().course.numbers,
+                        race().course.numbers.get(),
                         table(a[0], a[3]),
                         table(a[2], a[3]),
                         a[3],

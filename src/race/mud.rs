@@ -146,11 +146,19 @@ pub fn init_mud(
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let course = &race.course;
-    course
-        .lists
-        .course_bytes_total
-        .set(course.lists.course_bytes_total.get().wrapping_add(MUD_LEN));
-    MUD.take(&course.lists.mud_list, MUD_LEN, vec![0; MUD_LEN as usize])?;
+    course.lists.get().course_bytes_total.set(
+        course
+            .lists
+            .get()
+            .course_bytes_total
+            .get()
+            .wrapping_add(MUD_LEN),
+    );
+    MUD.take(
+        &course.lists.get().mud_list,
+        MUD_LEN,
+        vec![0; MUD_LEN as usize],
+    )?;
     load_mud(race.kind_tables(), &race.shared, net.vars.session.get())?;
     clear_mud_state(&race.shared);
     sample_mud_colours(&race.shared, scene, gfx, system)

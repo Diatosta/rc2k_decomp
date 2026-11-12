@@ -53,7 +53,7 @@ pub fn layout(
 pub use rc2k_core::gfx::pixels::PixelFormat;
 
 pub fn surface_format(system: &crate::system::owner::System) -> PixelFormat {
-    let format = &system.session.screen.format;
+    let format = &system.session.screen.get().format;
     PixelFormat {
         layout: format[0].get(),
         masks: std::array::from_fn(|n| format[1 + n].get()),

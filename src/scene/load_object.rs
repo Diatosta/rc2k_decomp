@@ -142,7 +142,7 @@ fn find_object_kind(race: &crate::race::owner::Race, kind: u32) -> u32 {
 }
 
 fn mask(course: &crate::race::owner_course::Course, at: usize) -> u32 {
-    course.course.group_masks[at / 4].get()
+    course.course.get().group_masks[at / 4].get()
 }
 
 pub fn load_object(
@@ -210,12 +210,12 @@ pub fn load_object(
                 };
             }
         }
-        course.course.group_masks[part.mask / 4].set(bits);
+        course.course.get().group_masks[part.mask / 4].set(bits);
     }
     let rest = FIRST_FIVE[1..]
         .iter()
         .fold(u32::MAX, |rest, &at| rest.wrapping_sub(mask(course, at)));
-    course.course.group_masks[REST / 4].set(rest);
+    course.course.get().group_masks[REST / 4].set(rest);
     let (car, part) = ((slot - 0x50) / 0x14, (slot - 0x50) % 0x14);
     let first = car * 0x14 + 0x50;
     crate::session::write_all(&scene.object_work().loading_car, [car, part, first]);
@@ -261,7 +261,7 @@ fn check(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let course = &race.course;
-    if scene.object_work().face_cursor.get() > course.lists.face_memory_room.get() {
+    if scene.object_work().face_cursor.get() > course.lists.get().face_memory_room.get() {
         return Err(NO_FACE_MEMORY.into());
     }
     if scene
@@ -271,7 +271,7 @@ fn check(
         .point_count
         .get()
         .wrapping_mul(12)
-        > course.lists.object_points_room.get()
+        > course.lists.get().object_points_room.get()
     {
         return Err(NO_POINT_MEMORY.into());
     }

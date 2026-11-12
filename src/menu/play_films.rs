@@ -137,7 +137,7 @@ impl films::Films for Game {
     }
 
     fn screen_bits(&mut self) -> u32 {
-        self.owners.system.session.screen.bits.get()
+        self.owners.system.session.screen.get().bits.get()
     }
 
     fn step(&mut self, s: Step) -> StepAnswer {

@@ -152,7 +152,7 @@ pub fn steer_inputs(race: &Race, scene: &crate::scene::owner::Scene) {
     );
     if !c0(
         race_owner.shared.car().steering_damage.get(),
-        course.numbers.hundred.get(),
+        course.numbers.get().hundred.get(),
     ) {
         race_owner.shared.car().steer_angle.set(0);
         race_owner.shared.car().steer_angle_visual.set(0);

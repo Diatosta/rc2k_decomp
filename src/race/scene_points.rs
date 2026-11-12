@@ -16,7 +16,7 @@
 use crate::errors::BadInput;
 #[cfg(test)]
 use crate::race::owner::race;
-use crate::race::owner_course::Course;
+use crate::race::owner_course::CourseReads;
 
 /// `COURSE.scene_points` while the points are held: point 0's place.
 pub fn base() -> u32 {
@@ -258,26 +258,39 @@ fn point(points: &OwnPoints, at: u32) -> Result<[u32; 3], BadInput> {
 }
 
 /// Point `n`'s place.
-fn place(course: &Course, n: u32) -> u32 {
+fn place(course: CourseReads<'_>, n: u32) -> u32 {
     n.wrapping_mul(12)
         .wrapping_add(course.course.scene_points.get())
 }
 
 /// Point `n`'s x, y and z (point -1 as `bytes` reads it), through `points`.
 #[track_caller]
-pub fn point_number(course: &Course, points: &OwnPoints, n: u32) -> Result<[u32; 3], BadInput> {
+pub fn point_number(
+    course: CourseReads<'_>,
+    points: &OwnPoints,
+    n: u32,
+) -> Result<[u32; 3], BadInput> {
     point(points, place(course, n))
 }
 
 /// Point `n`'s x and z, read as one point.
 #[track_caller]
-pub fn point_xz(course: &Course, points: &OwnPoints, n: u32) -> Result<(u32, u32), BadInput> {
+pub fn point_xz(
+    course: CourseReads<'_>,
+    points: &OwnPoints,
+    n: u32,
+) -> Result<(u32, u32), BadInput> {
     point_number(course, points, n).map(|[x, _, z]| (x, z))
 }
 
 /// Point `from` copied over point `to` (as `bytes` reads `from`).
 #[track_caller]
-pub fn copy_point(course: &Course, points: &OwnPoints, from: u32, to: u32) -> Result<(), BadInput> {
+pub fn copy_point(
+    course: CourseReads<'_>,
+    points: &OwnPoints,
+    from: u32,
+    to: u32,
+) -> Result<(), BadInput> {
     write(
         course,
         points,
@@ -288,14 +301,19 @@ pub fn copy_point(course: &Course, points: &OwnPoints, from: u32, to: u32) -> Re
 
 /// Coordinate `k` (0 x, 1 y, 2 z) of point `n`.
 #[track_caller]
-pub fn point_word(course: &Course, points: &OwnPoints, n: u32, k: u32) -> Result<u32, BadInput> {
+pub fn point_word(
+    course: CourseReads<'_>,
+    points: &OwnPoints,
+    n: u32,
+    k: u32,
+) -> Result<u32, BadInput> {
     word(points, place(course, n).wrapping_add(4 * k))
 }
 
 /// Coordinate `k` (0 x, 1 y, 2 z) of point `n` set to `v`.
 #[track_caller]
 pub fn put_point_word(
-    course: &Course,
+    course: CourseReads<'_>,
     points: &OwnPoints,
     n: u32,
     k: u32,
@@ -306,7 +324,12 @@ pub fn put_point_word(
 
 /// `data` written at place `at`; refused outside the points.
 #[track_caller]
-fn write(course: &Course, points: &OwnPoints, at: u32, data: &[u8]) -> Result<(), BadInput> {
+fn write(
+    course: CourseReads<'_>,
+    points: &OwnPoints,
+    at: u32,
+    data: &[u8],
+) -> Result<(), BadInput> {
     let caller = std::panic::Location::caller();
     // The points below the count are the course's own (the ones past it are copies made
     // while drawing): a change to them is noted.
@@ -324,7 +347,7 @@ fn write(course: &Course, points: &OwnPoints, at: u32, data: &[u8]) -> Result<()
 
 /// The dword at place `at` set to `v`.
 #[track_caller]
-fn put(course: &Course, points: &OwnPoints, at: u32, v: u32) -> Result<(), BadInput> {
+fn put(course: CourseReads<'_>, points: &OwnPoints, at: u32, v: u32) -> Result<(), BadInput> {
     write(course, points, at, &v.to_le_bytes())
 }
 
@@ -335,7 +358,7 @@ fn put(course: &Course, points: &OwnPoints, at: u32, v: u32) -> Result<(), BadIn
 pub fn with_test_points<R>(words: &[u32], f: impl FnOnce() -> R) -> R {
     let course = &race().course;
     let kept = POINTS.all().ok();
-    let kept_at = course.course.scene_points.get();
+    let kept_at = course.course.get().scene_points.get();
     POINTS
         .set(
             &words
@@ -345,13 +368,13 @@ pub fn with_test_points<R>(words: &[u32], f: impl FnOnce() -> R) -> R {
         )
         .expect("test points in their room");
     crate::race::course_places::first_points_changed();
-    course.course.scene_points.set(base());
+    course.course.get().scene_points.set(base());
     let out = f();
     match kept {
         Some(p) => POINTS.set(&p).expect("the points as they were"),
         None => POINTS.give_back(),
     }
     crate::race::course_places::first_points_changed();
-    course.course.scene_points.set(kept_at);
+    course.course.get().scene_points.set(kept_at);
     out
 }

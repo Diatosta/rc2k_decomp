@@ -255,7 +255,7 @@ mod reference_vectors {
                     push_apart(
                         crate::race::owner::race().shared.car(),
                         &crate::race::owner::race().physics.contact,
-                        &crate::race::owner::race().course.numbers,
+                        crate::race::owner::race().course.numbers.get(),
                         view::<[crate::session::Dword; 3]>(a[1], 0x134),
                     );
                 },

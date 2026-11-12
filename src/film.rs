@@ -341,7 +341,7 @@ fn blit(p: &Picture, gfx: &Gfx, system: &System) {
     let pitch = s.pitch.get();
     let pixels = s.pixels.get();
     // masks: blue, green, red, alpha
-    let mask = |n: u32| system.session.screen.format[1 + n as usize].get();
+    let mask = |n: u32| system.session.screen.get().format[1 + n as usize].get();
     let (mb, mg, mr) = (mask(0), mask(1), mask(2));
     if pixels == 0 || sw == 0 || sh == 0 || w == 0 || h == 0 || !matches!(bytes, 2 | 4) {
         return;

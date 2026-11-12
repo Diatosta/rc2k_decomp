@@ -42,7 +42,8 @@ pub fn map_tiles(
 fn scroll_refuses(race: &Race) -> Result<(), Refused> {
     let course = &race.course;
     if race.shared.vars.checkpoint_count.get() >= 2
-        && (course.course.course_faces.get() == 0 || course.course.scene_points.get() == 0)
+        && (course.course.get().course_faces.get() == 0
+            || course.course.get().scene_points.get() == 0)
     {
         return Err(BadInput("no course faces or points").into());
     }
@@ -77,15 +78,15 @@ pub fn scroll_map(
     map_x.set(crate::race::checkpoints_store::map_x(race.checkpoints(), n as usize).get());
     map_y.set(crate::race::checkpoints_store::map_y(race.checkpoints(), n as usize).get());
     let face = crate::race::checkpoints_store::face(race.checkpoints(), n as usize).get();
-    let point = crate::race::course_places::face_number(&race.course, face)?.point(0);
+    let point = crate::race::course_places::face_number(race.course.reads(), face)?.point(0);
     let px = crate::race::scene_points::point_word(
-        &race.course,
+        race.course.reads(),
         &crate::race::scene_points::NO_OWN,
         point,
         0,
     )?;
     let pz = crate::race::scene_points::point_word(
-        &race.course,
+        race.course.reads(),
         &crate::race::scene_points::NO_OWN,
         point,
         2,

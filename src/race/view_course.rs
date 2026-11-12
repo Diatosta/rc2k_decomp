@@ -28,14 +28,15 @@ pub struct ViewCourse {
 impl ViewCourse {
     /// With the image's first values.
     pub const fn new() -> Self {
-        let CourseWork { shine, .. } = CourseWork::new();
         Self {
             face_table_a: first_of::<_, 0x100>(offset_of!(LevelGrid, face_table_a)),
             face_table_b: first_of::<_, 0x100>(offset_of!(LevelGrid, face_table_b)),
             face_table_c: first_of::<_, 0x100>(offset_of!(LevelGrid, face_table_c)),
             face_table_d: first_of::<_, 0x100>(offset_of!(LevelGrid, face_table_d)),
             view_value_kept: first_of::<_, 4>(offset_of!(LevelGrid, view_value_kept)),
-            shine,
+            shine: crate::cells::cells_of_bytes(crate::race::store::first_values::<4>(
+                crate::race::course_store::START + offset_of!(CourseWork, shine),
+            )),
         }
     }
 

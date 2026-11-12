@@ -55,15 +55,15 @@ fn held(value: i32, low: i32, high: i32) -> i32 {
 
 /// The normal's place in the view to the light's work variables, the colour set to 0.
 fn set_normal(
-    course: &crate::race::owner_course::Course,
+    lists: &crate::race::course_lists_store::CourseLists,
     part: &crate::workers::PartScratch,
     number: u32,
     light: &crate::scene::object_light::ObjectLight,
 ) -> Result<(), BadInput> {
-    if !crate::scene::point_records::held(course) {
+    if !crate::scene::point_records::held(lists) {
         return Err(BadInput("no records for the points"));
     }
-    let place = crate::scene::reading::PointRecords::new(course, part)?.place(number)?;
+    let place = crate::scene::reading::PointRecords::new(lists, part)?.place(number)?;
     light.light_colour.set(0u32);
     crate::session::write_bits(&light.light_dot_point, place);
     Ok(())
@@ -104,19 +104,19 @@ fn table_place(
 
 /// The lit colour, also left in `light_colour`.
 fn lit(
-    course: &crate::race::owner_course::Course,
+    reads: crate::workers::DrawReads<'_>,
     part: &crate::workers::PartScratch,
-    light_tables: &crate::scene::light_tables_store::LightTables,
     number: u32,
     mmx: bool,
     light: &crate::scene::object_light::ObjectLight,
     object: &crate::scene::object_place::ObjectPlace,
 ) -> Result<u32, BadInput> {
     // The checks first, on a copy of what they would write.
-    let place = set_normal(course, part, number, light).and_then(|()| table_place(light, object));
+    let place = set_normal(reads.course_lists, part, number, light)
+        .and_then(|()| table_place(light, object));
     let place = place?;
     let colour = plus(
-        light_tables.light_table[place].get(),
+        reads.light_tables.light_table[place].get(),
         light.light_colour.get(),
         mmx,
     );
@@ -126,7 +126,7 @@ fn lit(
 
 /// The colour in `light_colour` blended by the light.
 fn blend(
-    course: &crate::race::owner_course::Course,
+    course: crate::race::owner_course::CourseReads<'_>,
     light: &crate::scene::object_light::ObjectLight,
     object: &crate::scene::object_place::ObjectPlace,
 ) {
@@ -152,35 +152,25 @@ pub fn vertex_light(
     race: &crate::race::owner::Race,
     part: &crate::workers::PartScratch,
     number: u32,
-    light_tables: &crate::scene::light_tables_store::LightTables,
+    reads: crate::workers::DrawReads<'_>,
     light: &crate::scene::object_light::ObjectLight,
     object: &crate::scene::object_place::ObjectPlace,
-    system: &crate::system::owner::System,
+    mmx: bool,
 ) -> Result<u32, BadInput> {
-    let course = &race.course;
     let kind: u32 = light.light_kind.get();
-    let mmx = system.session.machine.has_mmx.get() != 0;
     if kind == 4 {
         // The lit colour added to nothing: it only makes the bytes the right ones.
-        return Ok(plus(
-            0,
-            lit(course, part, light_tables, number, mmx, light, object)?,
-            mmx,
-        ));
+        return Ok(plus(0, lit(reads, part, number, mmx, light, object)?, mmx));
     }
     let lit_at_all =
-        race.shared.switches.scene_set_up.get() != 0 || course.stage_prefs.lit_b.get() != 0;
+        race.shared.switches.scene_set_up.get() != 0 || reads.stage_prefs.lit_b.get() != 0;
     if !lit_at_all || kind == 0 {
         return Ok(0x00FF_FFFF);
     }
     let added: u32 = light.light_added.get();
     match kind {
         2 | 5 => Ok(plus(
-            plus(
-                0,
-                lit(course, part, light_tables, number, mmx, light, object)?,
-                mmx,
-            ),
+            plus(0, lit(reads, part, number, mmx, light, object)?, mmx),
             added,
             mmx,
         )),
@@ -190,17 +180,17 @@ pub fn vertex_light(
                 return Err(BadInput("a place outside the light table"));
             }
             Ok(plus(
-                light_tables.light_table[level as usize].get(),
+                reads.light_tables.light_table[level as usize].get(),
                 added,
                 mmx,
             ))
         }
         3 => {
-            set_normal(course, part, number, light)?;
+            set_normal(reads.course_lists, part, number, light)?;
             // `set_normal` has just set the colour to 0.
             let colour = plus(plus(light.car_light.get(), 0, mmx), added, mmx);
             light.light_colour.set(colour);
-            blend(course, light, object);
+            blend(reads.course(), light, object);
             Ok(light.light_colour.get())
         }
         _ => Ok(number),

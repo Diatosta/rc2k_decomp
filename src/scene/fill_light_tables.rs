@@ -17,7 +17,7 @@ fn prefs_dwords<const N: usize>(
     course: &crate::race::owner_course::Course,
     offset: usize,
 ) -> [u32; N] {
-    let d = course.stage_prefs.dwords();
+    let d = course.stage_prefs.get().dwords();
     std::array::from_fn(|k| d[offset / 4 + k].get())
 }
 
@@ -31,7 +31,7 @@ pub fn fill_light_tables(
     use core::mem::offset_of;
     let plain =
         rc2k_core::scene::lamps::plain_light(race.shared.switches.scene_set_up.get(), || {
-            course.stage_prefs.lit_b.get()
+            course.stage_prefs.get().lit_b.get()
         });
     // The plain colours are two (the light and the dark); the stage's are two (the dark one
     // and the lit).

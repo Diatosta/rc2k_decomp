@@ -35,10 +35,10 @@ pub fn load_picture_with(
     set_size(pictures, sizes::READ);
     clear_picture(pictures)?;
     let read = read_picture_file(path, gfx, system);
-    let screen_width: u32 = system.session.screen.width.get();
+    let screen_width: u32 = system.session.screen.get().width.get();
     set_size(
         pictures,
-        sizes::screen(screen_width, system.session.screen.height.get()),
+        sizes::screen(screen_width, system.session.screen.get().height.get()),
     );
     if !read? {
         return Ok(false);

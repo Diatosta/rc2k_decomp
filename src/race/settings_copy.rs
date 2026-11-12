@@ -330,7 +330,7 @@ fn copy_in(race: &Race, gfx: &Gfx, fx: &mut impl Effects) -> Result<(), Refused>
 
     // The car blocks' settings. The brake-like settings are percentages: below 0 is 0,
     // 100 or more is 0x100 (full), else the setting x 2.56 (the x87's product, rounded).
-    let brake_scale = race.course.numbers.brake_scale.get();
+    let brake_scale = race.course.numbers.get().brake_scale.get();
     for car in 0..2 {
         let c = &race.car_blocks().cars[car];
         let s = &settings.cars[car];
@@ -708,7 +708,7 @@ mod tests {
         let _lock = crate::test_support::test_lock();
         let race = race();
         let mut rng = Rng(0x9E37_79B9_7F4A_7C15);
-        let scale = &race.course.numbers.brake_scale;
+        let scale = &race.course.numbers.get().brake_scale;
         let scale_kept = scale.get();
         let scales = [scale_kept, 2.56, 1.0, 3.7];
         let in_steps = old_machine::graham_to_shaun();

@@ -64,15 +64,16 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
     figures[4].set(c.contact.saved_probe_faces[k].get());
     let face = c.contact.crossed_figures[4].get();
     for j in 0..4u32 {
-        let point = crate::race::course_places::face_field::<u32>(c.course, face, 4 + 4 * j)?;
+        let point =
+            crate::race::course_places::face_field::<u32>(c.course.reads(), face, 4 + 4 * j)?;
         c.contact.crossed_corners[2 * j as usize].set(crate::race::scene_points::point_word(
-            c.course,
+            c.course.reads(),
             &crate::race::scene_points::NO_OWN,
             point,
             0,
         )?);
         c.contact.crossed_corners[2 * j as usize + 1].set(crate::race::scene_points::point_word(
-            c.course,
+            c.course.reads(),
             &crate::race::scene_points::NO_OWN,
             point,
             2,
@@ -89,7 +90,8 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
         let (x, z) = corner(j);
         side(c.contact, c.ground.probe, x, z)
     });
-    let corner_point = |at| crate::race::course_places::face_field::<u32>(c.course, face, at);
+    let corner_point =
+        |at| crate::race::course_places::face_field::<u32>(c.course.reads(), face, at);
     let (from, to) = (corner_point(first)?, corner_point(second)?);
     c.tables.crossed_edge[0].set(from);
     c.tables.crossed_edge[1].set(to);

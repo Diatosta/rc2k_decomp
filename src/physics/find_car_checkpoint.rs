@@ -42,7 +42,7 @@ pub fn find_car_checkpoint(
     shared.physics_tables.nearest_checkpoint_distance.set_bits(
         ext_div2(
             int_80(near.distance as i32, false),
-            &course.numbers.k65536,
+            &course.numbers.get().k65536,
             0x3F80_0000,
         )
         .to_bits(),

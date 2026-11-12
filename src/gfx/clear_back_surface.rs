@@ -16,7 +16,7 @@ pub fn clear_back_surface(
     if drawing.surfaces.front.get() == 0 {
         return Ok(());
     }
-    if system.session.screen.height.get() == 0 {
+    if system.session.screen.get().height.get() == 0 {
         return Err(BadInput("a screen of no rows: the original goes round 2^32 times").into());
     }
     // `cmp g_surfaceLocked, 1`'s carry: not locked.
@@ -24,11 +24,11 @@ pub fn clear_back_surface(
         return Ok(());
     }
     // Each row's dwords, then the gap to the next (the original's step).
-    let dwords = system.session.screen.row_dwords.get();
+    let dwords = system.session.screen.get().row_dwords.get();
     let rows = crate::gfx::rows::Rows::new(
         drawing.draw_surface.present_pixels.get(),
         (4 * dwords).wrapping_add(drawing.draw_surface.present_gap.get()),
-        system.session.screen.height.get(),
+        system.session.screen.get().height.get(),
     );
     for y in 0..rows.count() {
         rows.fill(y, 0, 0, 4 * dwords as usize, "the back surface")?;

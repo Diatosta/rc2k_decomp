@@ -50,7 +50,6 @@ pub fn draw_object_face(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     face: usize,
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
-    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let race = ctx.race;
     let (work, light, object) = (&ctx.view.face, &ctx.view.light, &ctx.view.object);
@@ -61,7 +60,7 @@ pub fn draw_object_face(
         return Err(BadInput("no face").into());
     }
     let count: u32 = crate::scene::object_faces::word(face as u32)?;
-    if count == 0 || count > MOST || !crate::scene::point_records::held(&race.course) {
+    if count == 0 || count > MOST || !crate::scene::point_records::held(ctx.reads.course_lists) {
         return Err(BadInput("a face of no vertices or more than 64, or no records").into());
     }
     // The whole face in one read: at most `MOST` vertices.
@@ -108,7 +107,7 @@ pub fn draw_object_face(
     let (face_kind, face_unlit): (u32, u32) = (work.face_kind.get(), work.face_unlit.get());
     let lit = view_kind != 4
         && (face_kind == 0x1C || (face_kind != 5 && (face_kind < 0xA || face_unlit == 0)));
-    let table = crate::scene::reading::PointRecords::new(&race.course, ctx.part)?;
+    let table = crate::scene::reading::PointRecords::new(ctx.reads.course_lists, ctx.part)?;
     for (entry, vertex) in vertices.clone() {
         let point = fw(vertex);
         entry.point.set(point.wrapping_neg());
@@ -120,10 +119,10 @@ pub fn draw_object_face(
                 race,
                 ctx.part,
                 fw(vertex + 0xC),
-                ctx.reads.light_tables,
+                ctx.reads,
                 light,
                 object,
-                system,
+                ctx.reads.has_mmx,
             )?
         } else {
             0x00FF_FFFF
@@ -138,9 +137,8 @@ pub fn draw_object_face(
                 .reflection_point_number
                 .set(fw(vertex).wrapping_neg());
             cached_reflection_coordinates(
-                race,
                 ctx.part,
-                ctx.reads.draw_switches,
+                ctx.reads,
                 object,
                 &ctx.view.matrices,
                 ctx.view,
@@ -188,34 +186,27 @@ pub fn draw_object_face(
 pub fn draw_object_face_in_game(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     face: usize,
-    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
-    let race = ctx.race;
-    draw_object_face(
-        ctx,
-        face,
-        &mut |step| match step {
-            Step::Draw => draw_object_polygon(
-                ctx.part,
-                &ctx.view.polygon,
-                race,
-                &ctx.view.object,
-                &mut |step| match step {
-                    draw_object_polygon::Step::Project => {
-                        project_polygon(ctx.part, &ctx.view.polygon, race, ctx.reads, ctx.view)
-                    }
-                    draw_object_polygon::Step::Draw => draw_clipped_polygon_in_game(ctx),
-                },
-            ),
-            Step::DepthTestOff => {
-                Game(ctx.part).state(0xE, 0);
-                Ok(())
-            }
-            Step::DepthTestOn => {
-                Game(ctx.part).state(0xE, 1);
-                Ok(())
-            }
-        },
-        system,
-    )
+    draw_object_face(ctx, face, &mut |step| match step {
+        Step::Draw => draw_object_polygon(
+            ctx.part,
+            &ctx.view.polygon,
+            ctx.reads.course(),
+            &ctx.view.object,
+            &mut |step| match step {
+                draw_object_polygon::Step::Project => {
+                    project_polygon(ctx.part, &ctx.view.polygon, ctx.reads, ctx.view)
+                }
+                draw_object_polygon::Step::Draw => draw_clipped_polygon_in_game(ctx),
+            },
+        ),
+        Step::DepthTestOff => {
+            Game(ctx.part).state(0xE, 0);
+            Ok(())
+        }
+        Step::DepthTestOn => {
+            Game(ctx.part).state(0xE, 1);
+            Ok(())
+        }
+    })
 }

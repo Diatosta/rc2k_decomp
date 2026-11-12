@@ -13,7 +13,7 @@
 //!
 //! The random numbers are `math::random_below`'s. Fatal error 0x80701010 as the original's checks (a hundredfold of 0, a
 //! half time of 0: the original tests the dividend), before anything; refuses a record past the
-//! table, a class count of 0 or past 0x100, a class's driver count of 0 (the original's `div`
+//! table, a class count of 0 or past 4 (`event.classes` is only ever 4), a class's driver count of 0 (the original's `div`
 //! traps), a drivers table without its end, before anything.
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::drivers_store::{Driver, IN_EVENT};
@@ -27,25 +27,21 @@ use crate::menu::scale_stage_times::{held_section, scaled};
 
 const TEXTS_RVA: [&std::ffi::CStr; 2] = [c"CALCCPUTIMES:STARTED", c"CALCCPUTIMES:FINISHED"]; // aCalccputimesSt, aCalccputimesFi
 
-/// The class time `c` as the original reads it, the class's entry of `class_times`: with no bound, so that a
-/// class past the four reads on into the variables that follow.
+/// The class time `c`, the class's entry of `class_times`. `event.classes` is only ever the 4 of
+/// `Event::new` (no other writer, no saved copy), so a class is one of the four.
 fn class_time_at(screens: &Screens, c: u32) -> Result<u32, BadInput> {
-    crate::session::read_on_in(
-        &screens.state,
-        &screens.state.menus.class_times,
-        c as usize,
-        "a class time",
-    )
+    match screens.state.menus.class_times.get(c as usize) {
+        Some(time) => Ok(time.get()),
+        None => Err(BadInput("a class past the four (class_times)")),
+    }
 }
 
-/// The drivers of class `c`, `class_counts`[c], read the same way.
+/// The drivers of class `c`, `class_counts`[c], the same way.
 fn class_count_at(screens: &Screens, c: u32) -> Result<u32, BadInput> {
-    crate::session::read_on_in(
-        &screens.state,
-        &screens.state.menus.class_counts,
-        c as usize,
-        "a class driver count",
-    )
+    match screens.state.menus.class_counts.get(c as usize) {
+        Some(count) => Ok(count.get()),
+        None => Err(BadInput("a class past the four (class_counts)")),
+    }
 }
 
 const DIVIDE_BY_ZERO: FatalError = FatalError {
@@ -74,8 +70,8 @@ pub fn check<'a>(
 ) -> Result<(u32, &'a [Driver], u32), Refused> {
     let screens = &menus.screens;
     let classes: u32 = screens.event.classes.get();
-    if classes == 0 || classes > 0x100 {
-        return Err(BadInput("a class count of 0 or past 0x100").into());
+    if classes == 0 || classes > 4 {
+        return Err(BadInput("a class count of 0 or past the four").into());
     }
     let drivers = drivers(menus)?;
     let times = rec.record()?.class_times();
@@ -84,14 +80,10 @@ pub fn check<'a>(
     if length.wrapping_mul(100) == 0 {
         return Err(DIVIDE_BY_ZERO.into());
     }
-    // The class's time as the loop reads it: `class_times`[c], past the four times
-    // `track_length` as written just before.
     let class_time = |c: u32| -> Result<u32, BadInput> {
-        match c {
-            0..4 => Ok(times[c as usize]),
-            4 => Ok(length),
-            5 => Ok(length.wrapping_mul(100) / 0x96A),
-            _ => class_time_at(screens, c),
+        match times.get(c as usize) {
+            Some(&time) => Ok(time),
+            None => Err(BadInput("a class past the four (class_times)")),
         }
     };
     for c in 0..classes {

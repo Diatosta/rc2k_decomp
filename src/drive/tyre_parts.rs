@@ -51,7 +51,10 @@ pub fn quad_tail(
         panel,
         uv,
         &buffer.vertices[..4],
-        [session.screen.width.get(), session.screen.height.get()],
+        [
+            session.screen.get().width.get(),
+            session.screen.get().height.get(),
+        ],
         &session.machine.scratch,
     );
 }

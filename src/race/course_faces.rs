@@ -7,7 +7,7 @@ use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
 use crate::race::face_work::FaceWork;
 use crate::race::owner::Race;
-use crate::race::owner_course::Course;
+use crate::race::owner_course::CourseReads;
 use crate::race::owner_shared::RaceShared;
 use crate::race::trap::Trap;
 use crate::race::view_scratch::DrawCtx;
@@ -18,7 +18,7 @@ use rc2k_core::race::faces::Face;
 
 /// The byte `n` of a byte table held as dwords; past it refused.
 fn table_byte(
-    cells: &[crate::session::Dword],
+    cells: &[crate::session::PlainDword],
     n: u32,
     what: &'static str,
 ) -> Result<u32, BadInput> {
@@ -75,6 +75,7 @@ fn face_turned_to_view(race: &Race, face: &[u32], half: u32) -> Result<u32, BadI
     }
     turned_to_view(
         race,
+        race.course.reads(),
         &crate::race::scene_points::NO_OWN,
         &Face(bytes),
         (half / 4) as usize,
@@ -93,6 +94,7 @@ fn face_turned_to_view(race: &Race, face: &[u32], half: u32) -> Result<u32, BadI
 /// `place`: the view's place as floats (`ViewScratch::vars`).
 fn turned_to_view(
     race: &Race,
+    course: CourseReads<'_>,
     points: &crate::race::scene_points::OwnPoints,
     f: &Face,
     triangle: usize,
@@ -105,7 +107,7 @@ fn turned_to_view(
         }
         let p = f.point(1 + triangle);
         let normal = f.normal(triangle);
-        let at = crate::race::scene_points::point_number(&race.course, points, p)?;
+        let at = crate::race::scene_points::point_number(course, points, p)?;
         let along = |k: usize, view_at: &Float, normal: u32| -> Result<_, BadInput> {
             Ok((int(at[k] as i32) - view_at.ld()) * ld(normal))
         };
@@ -126,6 +128,7 @@ pub fn face_sides(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), BadInput> {
     {
         work.turned[0].set(turned_to_view(
             race,
+            ctx.reads.course(),
             &ctx.part.points,
             face,
             0,
@@ -135,6 +138,7 @@ pub fn face_sides(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), BadInput> {
         if work.corners[3].get() != u32::MAX {
             work.turned[1].set(turned_to_view(
                 race,
+                ctx.reads.course(),
                 &ctx.part.points,
                 face,
                 1,
@@ -164,19 +168,22 @@ fn frame_of(
 /// `order_b` / `back_b`.
 pub fn face_materials(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), BadInput> {
     let (race, work) = (ctx.race, &ctx.view.face);
-    let course = &race.course;
     let shared = &race.shared;
     {
         let clock: u32 = crate::race::frame_view::car(0)?.step_clock.get();
-        let (k1, k2) = (course.numbers.ten.get(), course.numbers.quarter.get());
+        let (k1, k2) = (ctx.reads.numbers.ten.get(), ctx.reads.numbers.quarter.get());
         let texture = |object: u32, first: bool| -> Result<u32, BadInput> {
-            let speed = table_byte(&course.stage_prefs.face_speeds, object, "the face speeds")?;
+            let speed = table_byte(
+                &ctx.reads.stage_prefs.face_speeds,
+                object,
+                "the face speeds",
+            )?;
             if speed == 0 {
                 return Ok(object);
             }
             let n = frame_of(
                 clock,
-                course.lists.face_key_factors[speed as usize].get(),
+                ctx.reads.course_lists.face_key_factors[speed as usize].get(),
                 k1,
                 k2,
             );
@@ -184,7 +191,7 @@ pub fn face_materials(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), BadInput> {
             if first {
                 shared.view.face_frame.set(frame);
             }
-            table_byte(&course.stage_prefs.face_places, place, "the face places")
+            table_byte(&ctx.reads.stage_prefs.face_places, place, "the face places")
         };
         // Converted: `rc2k_core::race::faces::{frame_place, material_bits}` (the frame's
         // rounding the x87's).
@@ -218,7 +225,7 @@ pub fn draw_marked_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         race,
         &ctx.view.face,
         ctx.reads,
-        &ctx.system.session.screen,
+        ctx.reads.screen,
     )?;
     ctx.view.polygon.polygon_drawn.set(1u32);
     Ok(())
@@ -243,7 +250,8 @@ fn point_light(ctx: &DrawCtx<'_>, n: u32) -> Result<u32, Refused> {
     if n == u32::MAX {
         return Ok(0);
     }
-    let [x, y, z] = crate::race::scene_points::point_number(&race.course, &ctx.part.points, n)?;
+    let [x, y, z] =
+        crate::race::scene_points::point_number(ctx.reads.course(), &ctx.part.points, n)?;
     ctx.view.light.lit_place[0].set(x);
     ctx.view.light.lit_place[1].set(y);
     ctx.view.light.lit_place[2].set(z);
@@ -254,7 +262,7 @@ fn point_light(ctx: &DrawCtx<'_>, n: u32) -> Result<u32, Refused> {
         &ctx.view.lamps,
         &ctx.view.light,
         ctx.view.drawn_view(race),
-        crate::race::frame_draw::has_mmx(ctx.system),
+        ctx.reads.has_mmx,
     )?;
     let light: u32 = ctx.view.light.light_colour.get();
     Ok(light)
@@ -302,7 +310,7 @@ pub fn clip_and_draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         crate::scene::clip_polygon_by_depth::clip_polygon_by_depth(
             ctx.part,
             &ctx.view.polygon,
-            race,
+            ctx.reads.course(),
             ctx.reads.draw_switches,
             ctx.far_clip,
             ctx.view,
@@ -314,7 +322,7 @@ pub fn clip_and_draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(
         ctx.part,
         &ctx.view.polygon,
-        race,
+        ctx.reads.course(),
     )?;
     if !draws_polygon(ctx.view.polygon.polygon_vertex_count.get()) {
         return Ok(());
@@ -325,7 +333,7 @@ pub fn clip_and_draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         race,
         &ctx.view.face,
         ctx.reads,
-        &ctx.system.session.screen,
+        ctx.reads.screen,
     )?;
     ctx.view.polygon.polygon_drawn.set(1u32);
     Ok(())
@@ -338,11 +346,10 @@ pub fn clip_and_draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
 /// when not there (as 0x44CF33). Refuses (before anything) no point records or points.
 pub fn face_out_of_view(ctx: &DrawCtx<'_>) -> Result<bool, Refused> {
     let race = ctx.race;
-    let course = &race.course;
     let shared = &race.shared;
     // Converted: `rc2k_core::race::face_drawing::corner_in_sight` (exact in `f64`).
     use rc2k_core::race::face_drawing::{InSight, corner_in_sight};
-    crate::race::frame_draw::points_there(course)?;
+    crate::race::frame_draw::points_there(ctx)?;
     let near = shared.view.near.get();
     let slope = shared.view.slope.get();
     for k in 0..4 {
@@ -481,7 +488,7 @@ fn info_bytes<const N: usize>(
 /// scene x and z shifted by (mapping & 3) + 2 instead, less the first corner's top byte (the fourth
 /// corner read even when it is -1: `notes/bugs.md`).
 pub fn face_texture_coordinates(
-    course: &Course,
+    course: CourseReads<'_>,
     points: &crate::race::scene_points::OwnPoints,
     shared: &RaceShared,
     work: &FaceWork,
@@ -530,12 +537,11 @@ pub fn face_texture_coordinates(
 /// corners then naming the copies (the fourth only when there is one); the count is left. Refuses
 /// (before anything) no point records or points.
 pub fn face_corners_to_new_points(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
-    let (race, work) = (ctx.race, &ctx.view.face);
-    let course = &race.course;
+    let work = &ctx.view.face;
     // Converted: `rc2k_core::race::faces::new_points`.
     {
-        crate::race::frame_draw::points_there(course)?;
-        let count: u32 = course.course.scene_point_count.get();
+        crate::race::frame_draw::points_there(ctx)?;
+        let count: u32 = ctx.reads.course_work.scene_point_count.get();
         let corners: [u32; 4] = crate::session::read_bits(&work.corners);
         let (marked, copies) = rc2k_core::race::faces::new_points(count, corners);
         for n in marked {
@@ -547,7 +553,7 @@ pub fn face_corners_to_new_points(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
             )?;
         }
         for (k, (from, to)) in copies.into_iter().enumerate() {
-            crate::race::scene_points::copy_point(course, &ctx.part.points, from, to)?;
+            crate::race::scene_points::copy_point(ctx.reads.course(), &ctx.part.points, from, to)?;
             work.corners[k].set(to);
         }
         Ok(())
@@ -618,7 +624,6 @@ fn plain_list(
 /// `clip_edges` .. less one; each vertex's x and y rounded, compared by the sign of the
 /// difference); nothing when all are outside; else the quad drawn (`race::draw_marked_face`).
 pub fn draw_whole_quad(ctx: &DrawCtx<'_>) -> Result<bool, Refused> {
-    let race = ctx.race;
     // Converted: `rc2k_core::race::face_drawing::{QUAD_ENTRIES, quad_by_outside,
     // screen_inside, inside}` (the roundings the x87's).
     use rc2k_core::race::face_drawing::{QUAD_ENTRIES, quad_by_outside, screen_inside};
@@ -634,7 +639,6 @@ pub fn draw_whole_quad(ctx: &DrawCtx<'_>) -> Result<bool, Refused> {
     crate::scene::project_polygon::project_polygon(
         ctx.part,
         &ctx.view.polygon,
-        race,
         ctx.reads,
         ctx.view,
     )?;
@@ -752,7 +756,7 @@ pub fn draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     face_switches(&ctx.view.polygon, &ctx.view.face);
     if ctx.view.face.texture_a.get() != 0 {
         face_texture_coordinates(
-            &race.course,
+            ctx.reads.course(),
             &ctx.part.points,
             &race.shared,
             &ctx.view.face,
@@ -764,7 +768,7 @@ pub fn draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         ctx.view.face.polygon_mode.set(face_mode(second, picked));
         trap.finish()?;
         face_texture_coordinates(
-            &race.course,
+            ctx.reads.course(),
             &ctx.part.points,
             &race.shared,
             &ctx.view.face,
@@ -784,7 +788,7 @@ pub fn draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
 /// `view_scale` over the depth, or over `flat_depth` + 1 when `flat_depth` is set,
 /// the original's store of the depth to `scratch` is not kept; centre `view_centre`, the next).
 fn halfway_vertex(
-    course: &Course,
+    course: CourseReads<'_>,
     part: &crate::workers::PartScratch,
     quad: &[crate::session::Dword; 32],
     a: u32,
@@ -807,7 +811,7 @@ fn halfway_vertex(
 
 /// `halfway_vertex` on the records themselves (`a`, `b` point records of any kind).
 fn halfway_record(
-    course: &Course,
+    course: CourseReads<'_>,
     a: &crate::scene::point_records::Record,
     b: &crate::scene::point_records::Record,
     v: &mut crate::scene::point_records::Record,
@@ -824,13 +828,18 @@ fn halfway_record(
     if below_or_unordered(v[6], course.numbers.k4096_a.get()) {
         return;
     }
-    crate::race::skidmarks::project_record(course, v, window);
+    crate::race::skidmarks::project_record(course.stage_prefs, course.course, v, window);
 }
 
 /// `race::draw_lit_triangle`'s new entry between entries `first` and `second` into `to`: the
 /// texture floats (+8 .. +0x14) (second + first) x `half`, the bytes +0x20, +0x21, +0x18 ..
 /// +0x1A the halves of their sums (+0x1B left).
-fn halfway_entry(course: &Course, first: &PolygonEntry, second: &PolygonEntry, to: &PolygonEntry) {
+fn halfway_entry(
+    course: CourseReads<'_>,
+    first: &PolygonEntry,
+    second: &PolygonEntry,
+    to: &PolygonEntry,
+) {
     use crate::math::x87_float::{ld, st};
     let half = course.numbers.half.ld();
     for o in [8, 0xC, 0x10, 0x14] {
@@ -855,7 +864,7 @@ fn halfway_entry(course: &Course, first: &PolygonEntry, second: &PolygonEntry, t
 pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     let race = ctx.race;
     use crate::race::frame_draw::add_colours;
-    let mmx = crate::race::frame_draw::has_mmx(ctx.system);
+    let mmx = ctx.reads.has_mmx;
     let mut lit = false;
     for s in 0..3 {
         if lamp_byte(ctx.part.polygon, s)? != 0 {
@@ -866,7 +875,7 @@ pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     if !lit {
         return crate::scene::draw_clipped_polygon::draw_clipped_polygon_in_game(ctx);
     }
-    crate::race::frame_draw::points_there(&race.course)?;
+    crate::race::frame_draw::points_there(ctx)?;
     crate::race::frame_draw::check_light_colour(&race.shared, &ctx.view.lamps)?;
     ctx.view.polygon.polygon_drawn.set(0u32);
     ctx.view
@@ -882,7 +891,6 @@ pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     crate::scene::project_polygon::project_polygon(
         ctx.part,
         &ctx.view.polygon,
-        race,
         ctx.reads,
         ctx.view,
     )?;
@@ -904,8 +912,8 @@ pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         let pa = entry(ctx.part.polygon, first).point.get();
         let pb = entry(ctx.part.polygon, second).point.get();
         let (at_a, at_b) = (
-            crate::race::scene_points::point_number(&race.course, &ctx.part.points, pa)?,
-            crate::race::scene_points::point_number(&race.course, &ctx.part.points, pb)?,
+            crate::race::scene_points::point_number(ctx.reads.course(), &ctx.part.points, pa)?,
+            crate::race::scene_points::point_number(ctx.reads.course(), &ctx.part.points, pb)?,
         );
         for (n, lit) in ctx.view.light.lit_place.iter().enumerate() {
             let o = 4 * n as u32;
@@ -922,7 +930,7 @@ pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
             lit.set(m);
         }
         halfway_vertex(
-            &race.course,
+            ctx.reads.course(),
             ctx.part,
             &ctx.view.polygon.quad_vertices,
             entry(ctx.part.polygon, first).record.get(),
@@ -932,7 +940,7 @@ pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         )?;
         let to = entry(ctx.part.polygon, 3 + k as u32);
         halfway_entry(
-            &race.course,
+            ctx.reads.course(),
             entry(ctx.part.polygon, first),
             entry(ctx.part.polygon, second),
             to,
@@ -990,7 +998,7 @@ pub fn face_colours(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), Refused> {
                 let b = light_tables.lamp_table_b[b as usize].get();
                 (a, b)
             };
-            let c = corner_colour(c, lit, extra, crate::race::frame_draw::has_mmx(ctx.system));
+            let c = corner_colour(c, lit, extra, ctx.reads.has_mmx);
             ctx.view.face.corner_colours[k].set(c);
         }
     }
@@ -1104,11 +1112,10 @@ pub fn draw_face_sides(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), Refused> {
 /// could be drawn without writing depth; each side's own `race::draw_face` does it with its own
 /// (`wiki/Fixed-bugs.md`).
 pub fn draw_course_face(ctx: &DrawCtx<'_>, face: u32) -> Result<(), Refused> {
-    let race = ctx.race;
-    crate::race::frame_draw::points_there(&race.course)?;
+    crate::race::frame_draw::points_there(ctx)?;
     // The face read once for its corners, normals, kinds, objects and colours: drawing it
     // writes no face.
-    let face = crate::race::course_places::face_number(&race.course, face)?;
+    let face = crate::race::course_places::face_number(ctx.reads.course(), face)?;
     face_corners(ctx.view, &face);
     if face.switches() & rc2k_core::race::faces::REPEATED != 0 {
         face_corners_to_new_points(ctx)?;
@@ -1125,19 +1132,17 @@ pub fn draw_course_face(ctx: &DrawCtx<'_>, face: u32) -> Result<(), Refused> {
 /// when not 0; byte by byte (a x b) >> 8, all four with MMX, the low three without), the colour put
 /// back after.
 pub fn draw_tinted_face(ctx: &DrawCtx<'_>, face: u32) -> Result<(), Refused> {
-    let race = ctx.race;
     // Converted: `rc2k_core::race::face_drawing::{tints, tinted}`.
     use rc2k_core::race::face_drawing::{tinted, tints};
     let colour: u32 = ctx.view.polygon.polygon_colour.get();
-    let object = crate::race::course_places::face_field::<u8>(&race.course, face, 1)? as u32;
+    let object = crate::race::course_places::face_field::<u8>(ctx.reads.course(), face, 1)? as u32;
     // `object` is a byte: inside the 256 tints.
-    let tint = race.course.stage_prefs.object_tints[object as usize].get();
+    let tint = ctx.reads.stage_prefs.object_tints[object as usize].get();
     if tints(tint) {
-        ctx.view.polygon.polygon_colour.set(tinted(
-            tint,
-            colour,
-            crate::race::frame_draw::has_mmx(ctx.system),
-        ));
+        ctx.view
+            .polygon
+            .polygon_colour
+            .set(tinted(tint, colour, ctx.reads.has_mmx));
     }
     let done = draw_course_face(ctx, face);
     ctx.view.polygon.polygon_colour.set(colour);
@@ -1246,8 +1251,8 @@ mod vector_tests {
         let win = crate::scene::view_window::ViewWindow::new();
         at_each_control_word(|| {
             for n in 0..20000 {
-                course.stage_prefs.flat_depth.set((n % 2) as u32);
-                course.course.flat_depth.set(r.int() as u32);
+                course.stage_prefs.get().flat_depth.set((n % 2) as u32);
+                course.course.get().flat_depth.set(r.int() as u32);
                 // The original read the scene's window; this code the window it is given.
                 for (old, own) in [
                     (&drawing.scene.get().view_scale, &win.view_scale),
@@ -1258,13 +1263,13 @@ mod vector_tests {
                     old.set(value);
                     own.set(value);
                 }
-                course.numbers.half.set(if r.below(2) == 0 {
+                course.numbers.get().half.set(if r.below(2) == 0 {
                     0.5
                 } else {
                     f32::from_bits(r.float())
                 });
                 // mostly a depth the projection takes
-                course.numbers.k4096_a.set(if r.below(4) == 0 {
+                course.numbers.get().k4096_a.set(if r.below(4) == 0 {
                     f32::from_bits(r.float())
                 } else {
                     4096.0
@@ -1272,7 +1277,7 @@ mod vector_tests {
                 let (a, b) = (vertex(&mut r), vertex(&mut r));
                 let from = vertex(&mut r);
                 let mut got = from;
-                halfway_record(course, &a, &b, &mut got, &win);
+                halfway_record(course.reads(), &a, &b, &mut got, &win);
                 // The original's depth store to the scene's scratch is not kept.
                 vectors.check(&got, same, || format!("{a:x?} {b:x?} {from:x?}"));
             }
@@ -1290,7 +1295,7 @@ mod vector_tests {
         let mut r = Rng(14);
         at_each_control_word(|| {
             for _ in 0..20000 {
-                course.numbers.half.set(if r.below(2) == 0 {
+                course.numbers.get().half.set(if r.below(2) == 0 {
                     0.5
                 } else {
                     f32::from_bits(r.float())
@@ -1314,7 +1319,7 @@ mod vector_tests {
                 for k in 0..10 {
                     to.set_word(4 * k, 0xAAAA_AAAA);
                 }
-                halfway_entry(course, &f, &s, &to);
+                halfway_entry(course.reads(), &f, &s, &to);
                 let got: [u32; 10] = std::array::from_fn(|k| to.word(4 * k));
                 // The floats (words 2 .. 6) compare as floats, the bytes as they are.
                 vectors.check(&got, same, String::new);

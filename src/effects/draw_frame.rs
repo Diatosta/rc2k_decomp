@@ -46,7 +46,7 @@ pub fn draw_frame(
     effects: &Effects,
 ) -> Result<(), Refused> {
     use crate::effects::{begin_quads, cars_particles, view_heading, view_motion};
-    let info: u32 = race.course.lists.course_info.get();
+    let info: u32 = race.course.lists.get().course_info.get();
     if info == 0 {
         return Err(BadInput("no course info (g_courseInfo 0)").into());
     }

@@ -31,7 +31,7 @@ pub fn set_cdat_number(course: &Course, number: u32) {
 /// `race::copy_course_header` (0x445736): the course memory's first 0x100 bytes to
 /// `g_courseHeader`.
 pub fn copy_course_header(course: &Course) -> Result<(), BadInput> {
-    let from: u32 = course.lists.course_memory.get();
+    let from: u32 = course.lists.get().course_memory.get();
     let header = crate::race::level_init::read_course_memory(
         from,
         HEADER_LEN,
@@ -39,8 +39,8 @@ pub fn copy_course_header(course: &Course) -> Result<(), BadInput> {
     )?;
     // The header runs over the course store's fields from the header's own to the shape radius's:
     // the counts, the start place and the fields nothing reads, in their order.
-    let c = &course.course;
-    let fields: [&[crate::session::Dword]; 18] = [
+    let c = course.course.get();
+    let fields: [&[crate::session::PlainDword]; 18] = [
         std::slice::from_ref(&c.course_header),
         std::slice::from_ref(&c.course_record_count),
         std::slice::from_ref(&c.course_face_count),
@@ -85,7 +85,7 @@ pub fn reset_face_lights(race: &Race) -> Result<(), Refused> {
     let course = &race.course;
     let physics = &race.physics;
     {
-        let count: u32 = course.course.course_face_count.get();
+        let count: u32 = course.course.get().course_face_count.get();
         rc2k_core::race::faces::check_face_count(count)?;
         // Converted: `rc2k_core::race::faces::reset_lights` (each record inside the
         // faces the original walks; written back only when changed).
@@ -117,11 +117,11 @@ pub fn group_records_by_kind(course: &Course) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::stage::group_by_kind`; the records read whole (every
     // one is swapped into place, so the original reads them all).
     {
-        let count: u32 = course.course.course_record_count.get();
+        let count: u32 = course.course.get().course_record_count.get();
         if count > MOST_RECORDS {
             return Err(BadInput("more records than the course memory holds").into());
         }
-        let bytes = crate::race::course_places::records_table(course, count)?;
+        let bytes = crate::race::course_places::records_table(course.reads(), count)?;
         let mut list: Vec<[u32; 8]> = bytes
             .as_chunks::<32>()
             .0
@@ -163,18 +163,19 @@ fn load_log(n: usize) {
 /// game writes new points into.
 fn take_scene_points(course: &Course) -> Result<(), BadInput> {
     let layout = rc2k_core::race::faces::CourseLayout::of(
-        course.lists.course_memory.get(),
-        course.course.course_record_count.get(),
-        course.course.course_face_count.get(),
-        course.course.scene_point_count.get(),
+        course.lists.get().course_memory.get(),
+        course.course.get().course_record_count.get(),
+        course.course.get().course_face_count.get(),
+        course.course.get().scene_point_count.get(),
     );
     // The course info followed the first part in the original's block; it is a store of
     // its own now (`race::course_places::INFO`): the first part's end.
     let end: u32 = course
         .lists
+        .get()
         .course_memory
         .get()
-        .wrapping_add(course.lists.first_part.get());
+        .wrapping_add(course.lists.get().first_part.get());
     if end <= layout.points {
         return Err(BadInput("scene points past the course info"));
     }
@@ -198,10 +199,10 @@ pub fn load_level(race: &Race) -> Result<(), Refused> {
     crate::files::state::BYTES_READ.set(0);
     load_log(0);
     // The course memory is a region of its own (`level_init::take_course_memory`).
-    let memory = course.lists.course_memory.get();
+    let memory = course.lists.get().course_memory.get();
     let mut data = crate::race::level_init::read_course_memory(
         memory,
-        course.lists.first_part.get() as usize,
+        course.lists.get().first_part.get() as usize,
         "the course data",
     )?;
     let read = read_level_file::read_level_file(&course.level_paths().cdat_src.text(), &mut data);
@@ -237,7 +238,7 @@ pub fn locate_current_course(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let course = &race.course;
-    course.stage_prefs.cdat_number.set(0u32);
+    course.stage_prefs.get().cdat_number.set(0u32);
     load_level(race)?;
     crate::race::norms::lay_out_course(course);
     group_records_by_kind(course)?;

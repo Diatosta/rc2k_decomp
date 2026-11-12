@@ -38,22 +38,27 @@ pub fn car_lighting(
 ) -> Result<(), Refused> {
     c.ground.ground_x.set(c.car.position[0].get());
     c.ground.ground_z.set(c.car.position[2].get());
-    c.course.course.light_kept.set(c.car.light_level.get());
+    c.course
+        .course
+        .get()
+        .light_kept
+        .set(c.car.light_level.get());
     scene.lights.work.get().car_light_colour.set(0);
     scene.lights.work.get().lamp_a_colour.set(0);
     c.course
         .course
+        .get()
         .ground_face_last
         .set(c.car.probe_point_face[4].get());
     { crate::physics::find_ground::find_ground(c.probe, c.ground, c.course, scene) }?;
-    let face = c.course.course.ground_slot.get();
+    let face = c.course.course.get().ground_slot.get();
     if face == u32::MAX {
         return Ok(());
     }
-    if c.course.course.course_faces.get() == 0 {
+    if c.course.course.get().course_faces.get() == 0 {
         return Err(BadInput("no course faces").into());
     }
-    if c.course.course.ground_half.get() == 1 {
+    if c.course.course.get().ground_half.get() == 1 {
         let (s, t) = lighting::half_shares(1, c.ground.share_s.get(), c.ground.share_t.get());
         c.ground.share_s.set(s);
         c.ground.share_t.set(t);
@@ -72,25 +77,27 @@ pub fn car_lighting(
         .set(c.ground.share_t.get());
     let face_byte = |offset| -> Result<u32, BadInput> {
         Ok(u32::from(crate::race::course_places::face_field::<u8>(
-            c.course, face, offset,
+            c.course.reads(),
+            face,
+            offset,
         )?))
     };
     for k in 0..4u32 {
-        c.course.course.face_light_bytes[k as usize].set(face_byte(0x14 + k)?);
+        c.course.course.get().face_light_bytes[k as usize].set(face_byte(0x14 + k)?);
     }
     if crate::scene::polygon::texture_info_byte(c.polygon_tables, face_byte(0x21)?, 0x2C)? == 1 {
         for k in 0..4u32 {
-            let at = &c.course.course.face_light_bytes[k as usize];
+            let at = &c.course.course.get().face_light_bytes[k as usize];
             let (v, _) = lighting::shaded(at.get(), face_byte(0x22 + k)? as u8);
             at.set(v);
         }
     }
-    let light = corners(c.ground, &c.course.course);
+    let light = corners(c.ground, c.course.course.get());
     c.car.light_level.set(light);
     if c.car.light_hold_steps.get() != 0 {
         let held = lighting::hold_change(
             light,
-            c.course.course.light_kept.get(),
+            c.course.course.get().light_kept.get(),
             c.vars.scene_switch.get() != 0,
         );
         c.car.light_level.set(held.light);
@@ -118,9 +125,9 @@ pub fn car_lighting(
         ),
     ] {
         for k in 0..4u32 {
-            c.course.course.face_light_bytes[k as usize].set(face_byte(first + k)?);
+            c.course.course.get().face_light_bytes[k as usize].set(face_byte(first + k)?);
         }
-        let i = corners(c.ground, &c.course.course);
+        let i = corners(c.ground, c.course.course.get());
         if i >= lighting::TABLE {
             return Err(BadInput("a colour index past 0xFF").into());
         }

@@ -21,15 +21,16 @@ pub fn full_view_window(
     window: &crate::scene::view_window::ViewWindow,
 ) {
     let session = &system.session;
-    window.view_size[0].set(session.screen.width.get());
-    window.view_size[1].set(session.screen.height.get());
+    window.view_size[0].set(session.screen.get().width.get());
+    window.view_size[1].set(session.screen.get().height.get());
     window.view_offset[0].set(0);
     window.view_offset[1].set(0);
     window.view_zoom.set(0x100);
     crate::scene::set_view_window::set_view_window(
         race,
+        race.course.reads(),
         scene.drawing.scene.get(),
-        system,
+        session.screen.get(),
         window,
         &race.frame.view_and_records.get().view_vars,
     );
@@ -52,7 +53,6 @@ const MIRROR_REACH: u32 = 2;
 /// fog, polygon work, car and view variables).
 pub fn mirror_view_window(
     race: &Race,
-    system: &crate::system::owner::System,
     view: &crate::race::view_scratch::ViewScratch,
     part: &crate::workers::PartScratch,
     reads: crate::workers::DrawReads<'_>,
@@ -60,7 +60,6 @@ pub fn mirror_view_window(
     let draw = reads.scene_draw;
     let (fog, poly, car, vars) = (&view.fog, &view.polygon, &view.car, &view.vars);
     let drawn_view = view.drawn_view(race);
-    let session = &system.session;
     // Converted: `rc2k_core::race::view::{mirror_entry, mirror_window}`.
     use rc2k_core::race::view::{MirrorRect, mirror_entry, mirror_window};
     let n = mirror_entry(
@@ -91,7 +90,7 @@ pub fn mirror_view_window(
         height: sy,
     }) = mirror_window(
         (at(0), at(1)),
-        (session.screen.width.get(), session.screen.height.get()),
+        (reads.screen.width.get(), reads.screen.height.get()),
     )
     else {
         trap.finish()?;
@@ -109,13 +108,14 @@ pub fn mirror_view_window(
     poly.window.view_zoom.set(0x100);
     crate::scene::set_view_window::set_view_window_reaching(
         race,
+        reads.course(),
         draw,
-        system,
+        reads.screen,
         &poly.window,
         vars,
         MIRROR_REACH,
     );
-    crate::race::frame_draw::set_up_fog(race, fog, poly, car, part)?;
+    crate::race::frame_draw::set_up_fog(race, reads.stage_prefs, fog, poly, car, part)?;
     // (The original's 0 into `g_drawMode`: see `full_view_window`.)
     poly.view_mirrored.set(1);
     Ok(())
@@ -243,7 +243,7 @@ pub fn copy_mirror_picture(
             height: gfx_drawing.draw_surface.height.get(),
             from_pitch: ebp,
             to_pitch: gfx_drawing.draw_surface.pitch.get(),
-            from_16_bit: system.session.screen.bits.get() == 0x10,
+            from_16_bit: system.session.screen.get().bits.get() == 0x10,
             to_16_bit: gfx_drawing.draw_surface.bits_per_pixel.get() == 0x10,
         };
         let mut surfaces = GameSurfaces {
@@ -450,9 +450,9 @@ pub fn draw_screen_tint(
     if a != 0 {
         window_corners(ctx.view);
         // The two glare bytes (`glare_bytes`, StagePrefs.glare_bytes[1]): the low bytes of two dwords.
-        let byte = |k: usize| race.course.stage_prefs.glare_bytes[k].get() as u8;
+        let byte = |k: usize| ctx.reads.stage_prefs.glare_bytes[k].get() as u8;
         race.shared.vars.quad_colour[0].set(glare_colour(
-            race.course.stage_prefs.lamp_table_c.get(),
+            ctx.reads.stage_prefs.lamp_table_c.get(),
             byte(0),
             byte(1),
         ));
@@ -477,8 +477,8 @@ pub fn clear_view_depth(
     }
     poly.cleared_rectangle[0].set(0);
     poly.cleared_rectangle[1].set(0);
-    poly.cleared_rectangle[2].set(session.screen.width.get());
-    poly.cleared_rectangle[3].set(session.screen.height.get());
+    poly.cleared_rectangle[2].set(session.screen.get().width.get());
+    poly.cleared_rectangle[3].set(session.screen.get().height.get());
     clear_viewport_unless_held(scene.drawing.scene.get(), part, &poly.cleared_rectangle);
 }
 
@@ -614,13 +614,13 @@ pub fn run_view_marks(
     );
     let n = race.frame.frame_work.get().view_layouts[layout_at as usize].get() as usize;
     ctx.view.polygon.window.view_centre[0].set(int_over_times(
-        session.screen.width.get(),
-        race.course.numbers.k800.get(),
+        session.screen.get().width.get(),
+        ctx.reads.numbers.k800.get(),
         race.frame.frame_work.get().view_scale_x[n].get(),
     ));
     ctx.view.polygon.window.view_centre[1].set(int_over_times(
-        session.screen.height.get(),
-        race.course.numbers.k600.get(),
+        session.screen.get().height.get(),
+        ctx.reads.numbers.k600.get(),
         race.frame.frame_work.get().view_scale_y[n].get(),
     ));
     // Neither reads a register nor leaves one read after it (0x456464, 0x456472).

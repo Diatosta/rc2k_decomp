@@ -33,7 +33,7 @@ pub enum Step {
 fn needs_clipping(
     part: &crate::workers::PartScratch,
     poly: &crate::scene::polygon_work::PolygonWork,
-    course: &crate::race::owner_course::Course,
+    course: crate::race::owner_course::CourseReads<'_>,
     count: u32,
 ) -> Result<bool, BadInput> {
     let polygon_work = part.polygon;
@@ -71,7 +71,7 @@ fn needs_clipping(
 pub fn draw_object_polygon(
     part: &crate::workers::PartScratch,
     poly: &crate::scene::polygon_work::PolygonWork,
-    race: &crate::race::owner::Race,
+    course: crate::race::owner_course::CourseReads<'_>,
     object: &crate::scene::object_place::ObjectPlace,
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
@@ -88,7 +88,7 @@ pub fn draw_object_polygon(
     }
     poly.polygon_next_entry.set(count);
     step(Step::Project)?;
-    if drawn_whole(count, needs_clipping(part, poly, &race.course, count)?) {
+    if drawn_whole(count, needs_clipping(part, poly, course, count)?) {
         object
             .whole_polygon_count
             .set(object.whole_polygon_count.get().wrapping_add(1));

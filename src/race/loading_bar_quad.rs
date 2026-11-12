@@ -17,7 +17,10 @@ pub fn loading_bar_quad(
     let session = &system.session;
     // Converted: `rc2k_core::race::loading::loading_bar`.
     use rc2k_core::race::loading::{BAR_COLOUR, loading_bar};
-    let [w, h] = [session.screen.width.get(), session.screen.height.get()];
+    let [w, h] = [
+        session.screen.get().width.get(),
+        session.screen.get().height.get(),
+    ];
     let bar = loading_bar(w, h, shared.vars.bar_share.get());
     let scratch = crate::race::view_scratch::front_end();
     let polygon = &scratch.polygon;
@@ -33,8 +36,12 @@ pub fn loading_bar_quad(
         crate::workers::game_scratch(),
         race,
         &scratch.face,
-        crate::workers::DrawReads::on_game_thread(crate::workers::LentOwners { race, scene }),
-        &session.screen,
+        crate::workers::DrawReads::on_game_thread(crate::workers::LentOwners {
+            race,
+            scene,
+            system,
+        }),
+        session.screen.get(),
         scratch,
     )
 }

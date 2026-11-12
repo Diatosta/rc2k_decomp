@@ -64,6 +64,7 @@ pub fn read_car_controls(
     }
     course
         .lists
+        .get()
         .input_keys_mask
         .set(race_owner.shared.car().input_keys.get());
     race_owner.shared.car().input_keys.set(0);
@@ -90,7 +91,7 @@ pub fn read_car_controls(
         race_owner.shared.car().input_keys.set(0);
     }
     let keys = read_keys(
-        course.lists.input_keys_mask.get(),
+        course.lists.get().input_keys_mask.get(),
         race_owner.shared.car().input_keys.get(),
     );
     let pressed = keys.pressed;

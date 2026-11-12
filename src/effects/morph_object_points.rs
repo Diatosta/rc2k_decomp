@@ -50,7 +50,7 @@ fn changed(b: &CarEffects) -> bool {
 /// A block's objects' first points (in `g_objectPoints`) and their count.
 fn points(course: &Course, scene: &Scene, b: &CarEffects) -> Result<(u32, u32, i32), Refused> {
     Ok({
-        let base: u32 = course.lists.object_points.get();
+        let base: u32 = course.lists.get().object_points.get();
         let first = |id: u32| {
             base.wrapping_add(
                 12 * scene
@@ -85,8 +85,8 @@ fn refusal(
         if marks.cars_copy.get() as i32 > MOST_CARS {
             return Ok(Some("more than 8 cars"));
         }
-        let base: u32 = course.lists.object_points.get();
-        let room: u32 = course.lists.object_points_room.get();
+        let base: u32 = course.lists.get().object_points.get();
+        let room: u32 = course.lists.get().object_points_room.get();
         for b in blocks(effects)? {
             if !changed(b) {
                 continue;

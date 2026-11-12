@@ -2,19 +2,20 @@
 //! through `d3d()` by the code that does not take it as a parameter.
 
 use crate::d3d::cards_store::Cards3d;
+use crate::session::GameThread;
 
 /// The d3d module's state.
 pub struct D3d {
-    /// The 3D cards' variables (current texture, render states, modes).
-    /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7);
-    /// the states and texture a part's fans are noted with are `d3d::render_cache`'s.
-    pub cards: Cards3d,
+    /// The 3D cards' variables (the settings, the scene flag, the modes): the game's thread
+    /// alone reaches them. The render states and the texture a part's fans are noted with are
+    /// each part's own (`d3d::render_cache`).
+    pub cards: GameThread<Cards3d>,
 }
 
 impl D3d {
     pub const fn new() -> Self {
         D3d {
-            cards: Cards3d::new(),
+            cards: GameThread::new(Cards3d::new()),
         }
     }
 }

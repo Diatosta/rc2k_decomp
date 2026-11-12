@@ -7,7 +7,7 @@
 use crate::math::cells::{Cells, Off};
 use crate::math::x87;
 use crate::math::x87_float as bh;
-use crate::race::owner_course::Course;
+use crate::race::owner_course::CourseReads;
 use crate::scene::matrix;
 use crate::scene::view_matrices::ViewMatrices;
 use crate::session::Float;
@@ -22,7 +22,7 @@ pub enum Axis {
 
 /// `scene::set_fine_turn_x` (0x4270BA), `scene::set_fine_turn_y` (0x42710C),
 /// `scene::set_turn_z` (0x42715D).
-pub fn set_fine_turn(course: &Course, matrices: &ViewMatrices, axis: Axis, angle: u32) {
+pub fn set_fine_turn(course: CourseReads<'_>, matrices: &ViewMatrices, axis: Axis, angle: u32) {
     let (sine, cosine) = x87::sine_cosine(
         angle as i32,
         course.numbers.k65536.get(),
@@ -57,7 +57,7 @@ pub fn set_fine_turn(course: &Course, matrices: &ViewMatrices, axis: Axis, angle
 /// Returns the length (the original left it in `SceneDraw.scratch`: the physics' callers store it
 /// there, the drawing's never read it).
 pub fn unit_vector(
-    course: &Course,
+    course: CourseReads<'_>,
     from: &(impl Cells + ?Sized),
     out: &(impl Cells + ?Sized),
 ) -> u32 {
@@ -106,7 +106,7 @@ pub fn cross_product(
 /// The original worked in `CourseLists.squared_row_0[0]` .. (16 floats, the last four never made: zeros, as the
 /// image has them, copied back); here a local, so that views drawn beside each other do not
 /// work in each other's rows.
-pub fn square_matrix(course: &Course, at: &(impl Cells + ?Sized)) -> u32 {
+pub fn square_matrix(course: CourseReads<'_>, at: &(impl Cells + ?Sized)) -> u32 {
     let squared = [const { Float::new(0.0) }; 0x10];
     let (first, second, third) = (Off(&squared, 0), Off(&squared, 4), Off(&squared, 8));
     unit_vector(course, &Off(at, 8), &third);
@@ -120,7 +120,7 @@ pub fn square_matrix(course: &Course, at: &(impl Cells + ?Sized)) -> u32 {
 /// `scene::invert_turn` (0x420CC2): the turning at `from` undone, into `out`: its nine
 /// floats' cofactors laid out the other way round, then squared. Returns `square_matrix`'s length.
 pub fn invert_turn(
-    course: &Course,
+    course: CourseReads<'_>,
     from: &(impl Cells + ?Sized),
     out: &(impl Cells + ?Sized),
 ) -> u32 {
@@ -150,7 +150,7 @@ pub fn invert_turn(
 
 /// `scene::set_view_matrices` (0x438FBF), working in `scratch` (the front end's).
 pub fn set_view_matrices(
-    course: &Course,
+    course: CourseReads<'_>,
     frame: &crate::race::owner_frame::Frame,
     scratch: &ViewMatrices,
 ) {

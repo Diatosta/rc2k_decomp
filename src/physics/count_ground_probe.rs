@@ -36,8 +36,8 @@ pub fn count_ground_probe(
     if ground.ground_found.get() != 0 {
         counts.searched(
             true,
-            course.course.ground_face_last.get(),
-            course.course.ground_slot.get(),
+            course.course.get().ground_face_last.get(),
+            course.course.get().ground_slot.get(),
         );
         camera.ground_found.set(counts.found);
         camera.ground_same.set(counts.same);

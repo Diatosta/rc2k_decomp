@@ -8,7 +8,6 @@
 use crate::errors::Refused;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
-use crate::session::Dword;
 
 /// A kind's block: its first-texture variable (an index in `kind_first_textures`; only its place in `g_textureWantedPictures`
 /// is worked out, and not used: section 16), its prefs entries, the first slot, how many,
@@ -23,11 +22,11 @@ enum Prefs {
 }
 
 impl Prefs {
-    fn list(self, course: &Course) -> &[Dword] {
+    fn list(self, course: &Course) -> &[crate::session::PlainDword] {
         match self {
-            Prefs::A => &course.stage_prefs.picture_lists_a,
-            Prefs::B => &course.stage_prefs.picture_lists_b,
-            Prefs::C => &course.stage_prefs.picture_lists_c,
+            Prefs::A => &course.stage_prefs.get().picture_lists_a,
+            Prefs::B => &course.stage_prefs.get().picture_lists_b,
+            Prefs::C => &course.stage_prefs.get().picture_lists_c,
         }
     }
 }

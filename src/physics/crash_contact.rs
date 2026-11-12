@@ -64,7 +64,7 @@ pub fn take_contact(
     let face = car.probe_point_face[n].get();
     let parts = contacts::normal_offsets(contact.probe_face_flip[n].get());
     for (k, &o) in parts.iter().enumerate() {
-        let v = crate::race::course_places::face_field::<u32>(course, face, o)?;
+        let v = crate::race::course_places::face_field::<u32>(course.reads(), face, o)?;
         contact.contact_normal[k].set(loaded(v));
     }
     copy3(&contact.contact_turn_speed, &car.spin);
@@ -208,7 +208,7 @@ mod reference_vectors {
                     x87_1(
                         &crate::race::owner::race().physics.contact,
                         &crate::race::owner::race().shared.physics_tables,
-                        &crate::race::owner::race().course.numbers,
+                        crate::race::owner::race().course.numbers.get(),
                     );
                 },
             },
@@ -223,7 +223,7 @@ mod reference_vectors {
                     x87_2(
                         &crate::race::owner::race().physics.contact,
                         crate::race::owner::race().shared.car(),
-                        &crate::race::owner::race().course.numbers,
+                        crate::race::owner::race().course.numbers.get(),
                     );
                 },
             },

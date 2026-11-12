@@ -235,7 +235,7 @@ impl<E: Effects> Machine<StepOperand> for Game<'_, E> {
         x87::loaded(v).to_bits()
     }
     fn scaled_brake(&mut self, v: i32) -> u32 {
-        x87::int_times_to_int(v, &self.race.course.numbers.brake_scale) as u32
+        x87::int_times_to_int(v, &self.race.course.numbers.get().brake_scale) as u32
     }
     fn text(&mut self, text: &'static std::ffi::CStr, nl: bool) -> Result<(), Refused> {
         self.fx.text(text.to_str().expect("ASCII"), nl);

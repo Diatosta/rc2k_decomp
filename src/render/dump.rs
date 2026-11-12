@@ -104,14 +104,12 @@ pub fn dump_if_asked(noted: &[Command], into: &Target) {
 /// vertices, states and texture, every clear) and logged with the flush's number, so that two
 /// runs of a replay can be compared flush by flush (the check of a change that should draw the
 /// same).
-pub fn hash_if_asked(noted: &[Command]) {
+pub fn hash_if_asked(noted: &[Command], in_race: bool) {
     use std::hash::{Hash, Hasher};
     use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     static FLUSHES: AtomicU32 = AtomicU32::new(0);
-    if !*ON.get_or_init(|| std::env::var_os("RC2K_FAN_HASH").is_some())
-        || !crate::race::owner::race().course.numbers.in_race.is_set()
-    {
+    if !*ON.get_or_init(|| std::env::var_os("RC2K_FAN_HASH").is_some()) || !in_race {
         return;
     }
     let mut h = std::collections::hash_map::DefaultHasher::new();

@@ -14,10 +14,10 @@ use crate::physics::clamped_asin::clamped_asin_at;
 use crate::race::owner_course::Course;
 use crate::scene::matrix3::{extended, rounded_value};
 use crate::scene::rotate_point::rotate_point;
-use crate::session::Float;
+use crate::session::PlainFloat;
 
 /// `rotate_point` of the unit vector `unit` by `m`, stored as floats in the turned vector.
-fn turn_unit(m: &(impl Cells + ?Sized), turned: &[&Float; 3], unit: [f32; 3]) {
+fn turn_unit(m: &(impl Cells + ?Sized), turned: &[&PlainFloat; 3], unit: [f32; 3]) {
     let out = rotate_point(m, unit.map(extended));
     for (cell, e) in turned.iter().zip(out) {
         cell.set(rounded_value(e));
@@ -31,7 +31,7 @@ pub fn matrix_angles(
     scene: &crate::scene::owner::Scene,
 ) {
     let drawing = &scene.drawing;
-    let l = &course.lists;
+    let l = course.lists.get();
     let turned = [&l.turned_x, &l.turned_y, &l.turned_z];
     turn_unit(m, &turned, [0.0, 0.0, 1.0]);
     l.car_heading.set(patan(&l.turned_x, &l.turned_z));
@@ -39,11 +39,15 @@ pub fn matrix_angles(
     let pitch = clamped_asin_at(
         extended(l.turned_y.get()),
         &drawing.scene.get().scratch,
-        &course.numbers.one,
+        &course.numbers.get().one,
     );
     l.car_pitch.set(neg_rounded(pitch));
     turn_unit(m, &turned, [1.0, 0.0, 0.0]);
     let sine = over_cos_80(&l.turned_y, &l.car_pitch);
-    let roll = clamped_asin_at(sine, &drawing.scene.get().scratch, &course.numbers.one);
+    let roll = clamped_asin_at(
+        sine,
+        &drawing.scene.get().scratch,
+        &course.numbers.get().one,
+    );
     l.car_roll.set(rounded_value(roll));
 }

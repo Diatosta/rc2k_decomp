@@ -40,7 +40,7 @@ pub fn free_rev(
 ) {
     engine_torque(course, shared, scene);
     run(
-        &course.numbers,
+        course.numbers.get(),
         &shared.physics_tables,
         shared.car(),
         gear,
@@ -138,7 +138,7 @@ mod reference_vectors {
             ulps: 0,
             plain: |_| {
                 x87_1(
-                    &race().course.numbers,
+                    race().course.numbers.get(),
                     &race().shared.physics_tables,
                     race().shared.car(),
                     race().gear(),

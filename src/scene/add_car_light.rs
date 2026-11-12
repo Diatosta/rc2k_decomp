@@ -119,12 +119,12 @@ fn held(value: i32) -> u32 {
 }
 
 pub fn add_car_light(
-    course: &crate::race::owner_course::Course,
+    course: crate::race::owner_course::CourseReads<'_>,
     car: &crate::race::frame_view::CarView,
     marks_count: u32,
     light_tables: &crate::scene::light_tables_store::LightTables,
     light: &crate::scene::object_light::ObjectLight,
-    system: &crate::system::owner::System,
+    mmx: bool,
 ) {
     if car.lights_on.get() == 0 {
         return;
@@ -147,7 +147,6 @@ pub fn add_car_light(
     let level = held((0x10_0000u32.wrapping_sub(height) as i32) >> 12);
     let amount = (level.wrapping_mul(cone * 2) >> 8).wrapping_mul(marks_count) >> 8;
     let colour: u32 = light_tables.car_light_table[held(amount as i32) as usize].get();
-    let mmx = system.session.machine.has_mmx.get() != 0;
     light
         .light_colour
         .set(plus(colour, light.light_colour.get(), mmx));

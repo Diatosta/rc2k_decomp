@@ -123,7 +123,7 @@ pub fn make_profiles(
             make_tables(paths, effects)?;
             effects.frame.draw_frame.profiles_done.set(resume);
         }
-        if course.lists.course_info.get() == 0 {
+        if course.lists.get().course_info.get() == 0 {
             return Err(BadInput("no course info (g_courseInfo 0)").into());
         }
         let corners = crate::race::course_places::info_bytes(COURSE_CORNERS, CORNERS_LEN)?;

@@ -26,7 +26,6 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::math::x87;
 use crate::math::x87_float::{ONE, int, ld, st, stf};
-use crate::race::owner::Race;
 use crate::scene::point_records;
 use crate::scene::x87_mem::{Base, fstp};
 
@@ -133,16 +132,12 @@ fn screen_plain(view: [f32; 3], s: Screen) -> [u32; 2] {
 
 /// The offset of a point's record, or the fatal error for a number too high.
 // Converted: `rc2k_core::scene::projection::record_offset`
-pub fn record_offset(
-    course: &crate::race::owner_course::Course,
-    point: u32,
-    reads: crate::workers::DrawReads<'_>,
-) -> Result<u32, FatalError> {
+pub fn record_offset(point: u32, reads: crate::workers::DrawReads<'_>) -> Result<u32, FatalError> {
     use rc2k_core::scene::projection::TooHigh;
     rc2k_core::scene::projection::record_offset(
         point,
         reads.object_tables.point_count.get(),
-        course.course.scene_point_count.get(),
+        reads.course_work.scene_point_count.get(),
     )
     .map_err(|e| match e {
         TooHigh::Object => TOO_HIGH_OBJECT,
@@ -159,21 +154,20 @@ pub struct Projected {
 
 /// A scene point's record made anew (the same code as in `project_point`): the point through the view's matrix and onto the screen.
 pub(crate) fn make_scene_record(
-    race: &Race,
     part: &crate::workers::PartScratch,
     point: u32,
     record: u32,
     reads: crate::workers::DrawReads<'_>,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), BadInput> {
-    let points: u32 = race.course.course.scene_points.get();
+    let points: u32 = reads.course_work.scene_points.get();
     if points == 0 {
         return Err(BadInput("no points"));
     }
     // Made on a copy of the record (`scene::point_records`), then stored.
     let mut r = point_records::get(part, record)?;
     r[0] = point;
-    let place = crate::race::scene_points::point_number(&race.course, &part.points, point)?;
+    let place = crate::race::scene_points::point_number(reads.course(), &part.points, point)?;
     rotate(
         &place,
         &view
@@ -186,12 +180,12 @@ pub(crate) fn make_scene_record(
     r[3] = 0;
     r[7] = 0;
     if f32::from_bits(r[6]) >= NEAR {
-        let flat = race.course.stage_prefs.flat_depth.get() != 0;
+        let flat = reads.stage_prefs.flat_depth.get() != 0;
         // The depth it stores is a work value nothing reads.
         to_screen(
             &mut r,
             &view.polygon.window,
-            race.course.course.flat_depth.get(),
+            reads.course_work.flat_depth.get(),
             flat,
             &crate::session::Dword::new(0),
         );
@@ -204,20 +198,18 @@ pub(crate) fn make_scene_record(
 }
 
 pub fn project_point(
-    race: &Race,
     part: &crate::workers::PartScratch,
     point: u32,
     reads: crate::workers::DrawReads<'_>,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<Projected, Refused> {
-    let course = &race.course;
-    let offset = record_offset(course, point, reads)?;
-    if !point_records::held(course) {
+    let offset = record_offset(point, reads)?;
+    if !point_records::held(reads.course_lists) {
         return Err(BadInput("no records for the points").into());
     }
     let record = point_records::at_offset(offset);
     if (point as i32) >= 0 && point_records::field(part, record, 0)? != point {
-        make_scene_record(race, part, point, record, reads, view)?;
+        make_scene_record(part, point, record, reads, view)?;
     }
     Ok(Projected { record })
 }
