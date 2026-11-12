@@ -81,14 +81,13 @@ fn rate_x87(drops: &WindscreenDrops, kv: &KeptView, work: &crate::effects::work_
 
 #[cfg(test)]
 mod reference_vectors {
+    use crate::effects::asm_layout::with_laid;
     use crate::effects::asm_test::Kind::*;
-    use crate::effects::asm_test::with_copy;
+
     use crate::effects::asm_test::{Op, Spec, recorded_writes};
-    use crate::effects::tilt_shape::ShapeTilt;
-    use crate::effects::typed_sync::{overlay, with_overlays};
+
+    use crate::effects::typed_sync::{overlay_laid, with_overlays};
     use crate::effects::view_vectors::KeptView;
-    use crate::effects::windscreen_drop_state::WindscreenDropState;
-    use crate::effects::windscreen_drop_vars::WindscreenDropVars;
 
     #[test]
     fn rate_x87_matches() {
@@ -116,22 +115,13 @@ mod reference_vectors {
             sincos: true,
         };
         recorded_writes("effects.windscreen_drops_spawn.rate_x87", &SPEC, |b| {
-            with_copy(b[1], KeptView::START, |kv| {
+            with_laid::<KeptView, _>(b[1], |kv| {
                 with_overlays(
                     b[1],
                     &[
-                        overlay(
-                            &crate::effects::owner::effects().windscreen_drops.tilt,
-                            ShapeTilt::START,
-                        ),
-                        overlay(
-                            &crate::effects::owner::effects().windscreen_drops.state,
-                            WindscreenDropState::START,
-                        ),
-                        overlay(
-                            &crate::effects::owner::effects().windscreen_drops.hex,
-                            WindscreenDropVars::START,
-                        ),
+                        overlay_laid(&crate::effects::owner::effects().windscreen_drops.tilt),
+                        overlay_laid(&crate::effects::owner::effects().windscreen_drops.state),
+                        overlay_laid(&crate::effects::owner::effects().windscreen_drops.hex),
                     ],
                     || {
                         super::rate_x87(

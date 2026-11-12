@@ -196,9 +196,10 @@ fn ribbon_x87(buffer: &crate::d3d::vertices_store::PolygonVertices, dw: &DrawWor
 
 #[cfg(test)]
 mod reference_vectors {
+    use crate::effects::asm_layout::with_laid;
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::staged_vertices as staged;
-    use crate::effects::asm_test::with_copy;
+
     use crate::effects::asm_test::{Op, Spec, recorded_writes};
     use crate::effects::frame_state::{DrawWork, ViewVars};
 
@@ -269,8 +270,8 @@ mod reference_vectors {
             sincos: false,
         };
         recorded_writes("effects.draw_ribbon.ribbon_x87", &SPEC, |b| {
-            with_copy::<DrawWork, _>(b[2], DrawWork::START, |dw| {
-                with_copy::<ViewVars, _>(b[2], ViewVars::START, |vv| {
+            with_laid::<DrawWork, _>(b[2], |dw| {
+                with_laid::<ViewVars, _>(b[2], |vv| {
                     staged(
                         b[1],
                         &[

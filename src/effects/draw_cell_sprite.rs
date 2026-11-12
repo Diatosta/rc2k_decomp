@@ -271,8 +271,9 @@ fn square_x87(
 
 #[cfg(test)]
 mod reference_vectors {
+    use crate::effects::asm_layout::with_laid;
     use crate::effects::asm_test::Kind::*;
-    use crate::effects::asm_test::{Op, Spec, recorded_writes, with_copy};
+    use crate::effects::asm_test::{Op, Spec, recorded_writes};
     use crate::effects::blocks::CornerSlopes;
     use crate::effects::frame_state::DrawWork;
     use crate::effects::ring_store::RingWork;
@@ -349,8 +350,8 @@ mod reference_vectors {
             sincos: false,
         };
         recorded_writes("effects.draw_cell_sprite.turn_x87", &SPEC, |b| {
-            with_copy(b[1], RingWork::START, |w| {
-                with_copy::<DrawWork, _>(b[1], DrawWork::START, |dw| {
+            with_laid::<RingWork, _>(b[1], |w| {
+                with_laid::<DrawWork, _>(b[1], |dw| {
                     super::turn_x87(
                         &crate::race::owner::race().frame.matrices.view_matrix,
                         &values(b[2]),
@@ -434,8 +435,8 @@ mod reference_vectors {
             sincos: false,
         };
         recorded_writes("effects.draw_cell_sprite.square_x87", &SPEC, |b| {
-            with_copy::<DrawWork, _>(b[2], DrawWork::START, |dw| {
-                with_copy::<CornerSlopes, _>(b[2], CornerSlopes::START, |cs| {
+            with_laid::<DrawWork, _>(b[2], |dw| {
+                with_laid::<CornerSlopes, _>(b[2], |cs| {
                     let vertices: Vec<(
                         &dyn crate::session::Cell32,
                         crate::effects::asm_test::Operand,

@@ -10,12 +10,12 @@
 //! shows them (`menu::screen_loop`'s `Screen::menu`), the ones no screen names by their
 //! handle in `MenuTables`.
 
-use crate::gfx::typefaces::FontCell;
+use crate::gfx::typefaces::{FontCell, FontId, fonts};
 use crate::menu::item_sprites_store::SpriteCell;
 #[cfg(test)]
 use crate::menu::owner::menus;
 use crate::session::PlainDword;
-use rc2k_core::menu::tables::{MENUS, MenuItem as Fixed};
+use rc2k_core::menu::tables::{MENUS, MenuFont, MenuItem as Fixed};
 
 /// A label: x, y, the font, the string id.
 #[repr(C)]
@@ -23,18 +23,18 @@ use rc2k_core::menu::tables::{MENUS, MenuItem as Fixed};
 pub struct MenuLabel {
     pub x: PlainDword,
     pub y: PlainDword,
-    /// The font (the original kept the object's address).
+    /// The font.
     pub font: FontCell,
     pub string: PlainDword,
 }
 
 impl MenuLabel {
-    pub const fn new(v: [u32; 4]) -> Self {
+    pub const fn new(x: u32, y: u32, font: FontId, string: u32) -> Self {
         Self {
-            x: PlainDword::new(v[0]),
-            y: PlainDword::new(v[1]),
-            font: FontCell::at(v[2]),
-            string: PlainDword::new(v[3]),
+            x: PlainDword::new(x),
+            y: PlainDword::new(y),
+            font: FontCell::new(font),
+            string: PlainDword::new(string),
         }
     }
 }
@@ -48,9 +48,9 @@ pub struct LabelList {
 }
 
 impl LabelList {
-    pub const fn new(v: [u32; 4]) -> Self {
+    pub const fn new(x: u32, y: u32, font: FontId, string: u32) -> Self {
         Self {
-            label: MenuLabel::new(v),
+            label: MenuLabel::new(x, y, font, string),
             end: PlainDword::new(0xFFFF_FFFF),
         }
     }
@@ -263,104 +263,104 @@ pub struct LabelTables {
 impl LabelTables {
     pub const fn new() -> Self {
         LabelTables {
-        single_rally_review_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x514]),
-        arcade_review_options_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x514]),
-        arcade_next_level_review_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x514]),
-        arcade_retry_review_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x514]),
-        after_arcade_retry_review_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x0]),
-        stage_result_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x204]),
-        labels_747b50: LabelList::new([0x310, 0x30, 0x51E944, 0x204]),
-        single_rally_two_results_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x204]),
-        after_single_rally_two_results_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x204]),
-        single_rally_three_four_results_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x204]),
-        single_rally_overall_results_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x205]),
-        time_trial_results_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x204]),
-        labels_747bc8: LabelList::new([0x310, 0x30, 0x51E904, 0x94]),
-        main_menu_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x12F]),
-        network_rally_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x147]),
-        start_rally_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x1D7]),
-        championship_new_simulation_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x1EC]),
-        new_simulation_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x1EC]),
-        after_new_simulation_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x1E0]),
-        second_after_new_simulation_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x1E0]),
-        simple_select_players_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x1E5]),
-        time_trial_select_players_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x1E5]),
-        labels_747c90: LabelList::new([0x310, 0x30, 0x51E944, 0x1E5]),
-        arcade_select_level_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x1F5]),
-        service_area_labels: LabelList::new([0x310, 0x1D, 0x51E944, 0x0]),
-        after_service_area_labels: LabelList::new([0x310, 0x1D, 0x51E944, 0x0]),
-        in_game_options_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x521]),
-        after_in_game_options_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x521]),
-        audio_setup_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x53B]),
-        advanced_audio_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x549]),
-        leave_question_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x53A]),
-        car_specification_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x21E]),
-        slideshow_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x33C]),
-        select_car_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x1006]),
-        car_specs_display_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x1006]),
-        menu_74ba3c_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x1006]),
-        inspection_area_labels: LabelList::new([0x190, 0x30, 0x51E904, 0x522]),
-        welcome_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x1E4]),
-        arcade_next_stage_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x357]),
-        arcade_level_end_results_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x0]),
-        arcade_results_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x204]),
-        rally_stages_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x342]),
-        class_stage_results_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x4E8]),
-        overall_stage_results_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x4E9]),
-        class_rally_results_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x0]),
-        overall_rally_results_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x0]),
-        after_overall_rally_results_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x4ED]),
-        second_after_overall_rally_results_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x4EE]),
-        class_championship_standings_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x4F0]),
-        championship_standings_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x4F1]),
-        menu_74fea8_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x4EF]),
-        championship_service_review_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x514]),
-        championship_standings_review_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x514]),
-        championship_races_review_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x514]),
-        championship_end_review_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x514]),
-        select_stage_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x33F]),
-        time_trial_select_stage_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x33F]),
-        next_stage_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x357]),
-        view_stage_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x533]),
-        view_courses_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x343]),
-        labels_747f88: LabelList::new([0x310, 0x30, 0x51E944, 0x343]),
-        player1_controller_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x398]),
-        player1_buttons_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x398]),
-        player2_controller_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x398]),
-        player2_buttons_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x398]),
-        player3_controller_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x398]),
-        player3_buttons_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x398]),
-        player4_controller_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x398]),
-        player4_buttons_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x398]),
-        redefine_keys_player1_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x3C6]),
-        redefine_keys_player2_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x3C6]),
-        redefine_keys_player3_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x3C6]),
-        redefine_keys_player4_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x3C6]),
-        view_best_times_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x35A]),
-        view_best_scores_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x35B]),
-        best_times_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x35A]),
-        arcade_best_times_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x35A]),
-        time_trial_best_times_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x35A]),
-        arcade_best_scores_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x35B]),
-        best_class_scores_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x35C]),
-        best_overall_scores_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x35D]),
-        after_best_overall_scores_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x532]),
-        options_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x13B]),
-        after_options_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x1A3]),
-        player1_details_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x176]),
-        player2_details_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x177]),
-        player3_details_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x178]),
-        player4_details_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x179]),
-        player_details_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x17A]),
-        information_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x195]),
-        load_championship_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x4DA]),
-        save_championship_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x4DB]),
-        load_replay_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x4DF]),
-        save_replay_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x4DE]),
-        labels_748230: LabelList::new([0x310, 0x30, 0x51E944, 0x0]),
-        save_setup_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x0]),
-        visual_preferences_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x369]),
-        visual_options_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x37F]),
+        single_rally_review_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x514),
+        arcade_review_options_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x514),
+        arcade_next_level_review_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x514),
+        arcade_retry_review_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x514),
+        after_arcade_retry_review_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x0),
+        stage_result_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x204),
+        labels_747b50: LabelList::new(0x310, 0x30, fonts::HEAD, 0x204),
+        single_rally_two_results_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x204),
+        after_single_rally_two_results_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x204),
+        single_rally_three_four_results_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x204),
+        single_rally_overall_results_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x205),
+        time_trial_results_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x204),
+        labels_747bc8: LabelList::new(0x310, 0x30, fonts::BOX_TEXT, 0x94),
+        main_menu_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x12F),
+        network_rally_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x147),
+        start_rally_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x1D7),
+        championship_new_simulation_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x1EC),
+        new_simulation_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x1EC),
+        after_new_simulation_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x1E0),
+        second_after_new_simulation_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x1E0),
+        simple_select_players_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x1E5),
+        time_trial_select_players_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x1E5),
+        labels_747c90: LabelList::new(0x310, 0x30, fonts::HEAD, 0x1E5),
+        arcade_select_level_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x1F5),
+        service_area_labels: LabelList::new(0x310, 0x1D, fonts::HEAD, 0x0),
+        after_service_area_labels: LabelList::new(0x310, 0x1D, fonts::HEAD, 0x0),
+        in_game_options_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x521),
+        after_in_game_options_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x521),
+        audio_setup_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x53B),
+        advanced_audio_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x549),
+        leave_question_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x53A),
+        car_specification_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x21E),
+        slideshow_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x33C),
+        select_car_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x1006),
+        car_specs_display_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x1006),
+        menu_74ba3c_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x1006),
+        inspection_area_labels: LabelList::new(0x190, 0x30, fonts::BOX_TEXT, 0x522),
+        welcome_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x1E4),
+        arcade_next_stage_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x357),
+        arcade_level_end_results_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x0),
+        arcade_results_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x204),
+        rally_stages_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x342),
+        class_stage_results_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x4E8),
+        overall_stage_results_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x4E9),
+        class_rally_results_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x0),
+        overall_rally_results_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x0),
+        after_overall_rally_results_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x4ED),
+        second_after_overall_rally_results_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x4EE),
+        class_championship_standings_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x4F0),
+        championship_standings_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x4F1),
+        menu_74fea8_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x4EF),
+        championship_service_review_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x514),
+        championship_standings_review_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x514),
+        championship_races_review_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x514),
+        championship_end_review_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x514),
+        select_stage_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x33F),
+        time_trial_select_stage_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x33F),
+        next_stage_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x357),
+        view_stage_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x533),
+        view_courses_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x343),
+        labels_747f88: LabelList::new(0x310, 0x30, fonts::HEAD, 0x343),
+        player1_controller_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x398),
+        player1_buttons_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x398),
+        player2_controller_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x398),
+        player2_buttons_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x398),
+        player3_controller_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x398),
+        player3_buttons_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x398),
+        player4_controller_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x398),
+        player4_buttons_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x398),
+        redefine_keys_player1_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x3C6),
+        redefine_keys_player2_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x3C6),
+        redefine_keys_player3_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x3C6),
+        redefine_keys_player4_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x3C6),
+        view_best_times_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x35A),
+        view_best_scores_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x35B),
+        best_times_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x35A),
+        arcade_best_times_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x35A),
+        time_trial_best_times_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x35A),
+        arcade_best_scores_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x35B),
+        best_class_scores_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x35C),
+        best_overall_scores_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x35D),
+        after_best_overall_scores_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x532),
+        options_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x13B),
+        after_options_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x1A3),
+        player1_details_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x176),
+        player2_details_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x177),
+        player3_details_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x178),
+        player4_details_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x179),
+        player_details_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x17A),
+        information_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x195),
+        load_championship_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x4DA),
+        save_championship_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x4DB),
+        load_replay_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x4DF),
+        save_replay_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x4DE),
+        labels_748230: LabelList::new(0x310, 0x30, fonts::HEAD, 0x0),
+        save_setup_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x0),
+        visual_preferences_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x369),
+        visual_options_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x37F),
         }
     }
 }
@@ -546,12 +546,30 @@ impl MenuItem {
             menu: menu as u16,
             item: item as u16,
             string: PlainDword::new(fixed.string),
-            font: FontCell::at(fixed.font.ral()),
+            font: FontCell::new(font_of(fixed.font)),
             behind: PlainDword::new(fixed.behind),
             sprites: SpriteCell::at(fixed.sprites),
             skip_mark: PlainDword::new(fixed.skip_mark),
-            highlight_font: FontCell::at(fixed.highlight_font.ral()),
+            highlight_font: FontCell::new(font_of(fixed.highlight_font)),
         }
+    }
+}
+
+/// The font of the block a font the menus' table names is (its IDA address in a comment).
+pub const fn font_of(font: MenuFont) -> FontId {
+    match font {
+        MenuFont::Measure => fonts::MEASURE,    // 0x51E824
+        MenuFont::CaptionB => fonts::CAPTION_B, // 0x51E844
+        MenuFont::ArcadeButtonPulse => fonts::ARCADE_BUTTON_PULSE, // 0x51E864
+        MenuFont::StageItemB => fonts::STAGE_ITEM_B, // 0x51E884
+        MenuFont::Title => fonts::TITLE,        // 0x51E8A4
+        MenuFont::ItemPlain => fonts::ITEM_PLAIN, // 0x51E8E4
+        MenuFont::BoxText => fonts::BOX_TEXT,   // 0x51E904
+        MenuFont::Head => fonts::HEAD,          // 0x51E944
+        MenuFont::CaptionA => fonts::CAPTION_A, // 0x51E964
+        MenuFont::ArcadeButton => fonts::ARCADE_BUTTON, // 0x51E984
+        MenuFont::StageTitle => fonts::STAGE_TITLE, // 0x51E9A4
+        MenuFont::ItemGrey => fonts::ITEM_GREY, // 0x51EA04
     }
 }
 
@@ -887,6 +905,13 @@ impl Default for MenuCell {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_menus_fonts_are_the_fonts_at_the_addresses_the_table_names() {
+        for &f in MenuFont::ALL {
+            assert_eq!(font_of(f).ida() as u32, f.ral(), "{f:?}");
+        }
+    }
 
     #[test]
     fn menu_labels_are_label_lists() {

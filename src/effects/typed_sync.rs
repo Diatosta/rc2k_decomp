@@ -4,6 +4,7 @@
 //! version the statics hold the buffer's bytes, and the bytes it leaves go back to the buffer
 //! (`test_support::test_lock` is held by `differential`).
 
+use crate::effects::asm_layout::{Laid, Run};
 use crate::effects::asm_test::Operand;
 use crate::effects::store::START;
 
@@ -12,6 +13,9 @@ pub struct Overlay {
     home: *mut u8,
     len: usize,
     start: usize,
+    /// The runs of the static's fields that were in the 1999 layout (`Laid`); none for a
+    /// static whose bytes are the buffer's, one for one.
+    runs: &'static [Run],
 }
 
 /// The overlay of `st`, a typed static whose first byte is IDA's address `start`.
@@ -20,30 +24,52 @@ pub fn overlay<T>(st: &'static T, start: usize) -> Overlay {
         home: std::ptr::from_ref::<T>(st) as *mut u8,
         len: size_of::<T>(),
         start,
+        runs: &[],
+    }
+}
+
+/// The overlay of `st`, a typed static with a 1999 layout (`Laid`): its fields hold the
+/// bytes the buffer has at their 1999 places.
+pub fn overlay_laid<T: Laid>(st: &'static T) -> Overlay {
+    Overlay {
+        runs: T::RUNS,
+        ..overlay(st, T::START)
     }
 }
 
 /// Runs `f` with each overlay's static holding the bytes the buffer `mk` has there; what the
 /// statics hold afterwards goes into the buffer, and the statics are put back as they were.
 pub fn with_overlays<R>(mk: Operand, overlays: &[Overlay], f: impl FnOnce() -> R) -> R {
-    let at = |o: &Overlay| mk.at(o.start.wrapping_sub(START), o.len);
-    // Every overlay must fit the buffer before any is touched.
-    for o in overlays {
-        at(o);
-    }
+    // The places in the buffer and in the static of every piece the buffer and the static
+    // share: the whole static, or each run of a static with a 1999 layout.
+    let pieces = |o: &Overlay| -> Vec<(*mut u8, *mut u8, usize)> {
+        if o.runs.is_empty() {
+            vec![(mk.at(o.start.wrapping_sub(START), o.len), o.home, o.len)]
+        } else {
+            o.runs
+                .iter()
+                .map(|r| {
+                    let from = mk.at((o.start + r.at).wrapping_sub(START), r.len);
+                    (from, o.home.wrapping_add(r.to), r.len)
+                })
+                .collect()
+        }
+    };
+    // Every piece must fit the buffer before any is touched.
+    let all: Vec<_> = overlays.iter().map(pieces).collect();
     let saved: Vec<Vec<u8>> = overlays
         .iter()
         .map(|o| unsafe { std::slice::from_raw_parts(o.home, o.len) }.to_vec())
         .collect();
-    for o in overlays {
-        unsafe { std::ptr::copy_nonoverlapping(at(o), o.home, o.len) };
+    for (buffer, home, len) in all.iter().flatten() {
+        unsafe { std::ptr::copy_nonoverlapping(*buffer, *home, *len) };
     }
     let out = f();
-    for (o, bytes) in overlays.iter().zip(&saved) {
-        unsafe {
-            std::ptr::copy_nonoverlapping(o.home, at(o), o.len);
-            std::ptr::copy_nonoverlapping(bytes.as_ptr(), o.home, o.len);
+    for (o, (pieces, bytes)) in overlays.iter().zip(all.iter().zip(&saved)) {
+        for (buffer, home, len) in pieces {
+            unsafe { std::ptr::copy_nonoverlapping(*home, *buffer, *len) };
         }
+        unsafe { std::ptr::copy_nonoverlapping(bytes.as_ptr(), o.home, o.len) };
     }
     out
 }

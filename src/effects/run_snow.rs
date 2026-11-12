@@ -251,8 +251,9 @@ fn turn_light_x87(frame: &Frame, view_matrix: &[crate::session::Float; 16], l: &
 
 #[cfg(test)]
 mod reference_vectors {
+    use crate::effects::asm_layout::with_laid;
     use crate::effects::asm_test::Kind::*;
-    use crate::effects::asm_test::with_copy;
+
     use crate::effects::asm_test::{Op, Spec, recorded_writes};
     use crate::effects::snow::SnowLight;
     use crate::race::owner::race;
@@ -314,7 +315,7 @@ mod reference_vectors {
             sincos: false,
         };
         recorded_writes("effects.run_snow.turn_light_x87", &SPEC, |b| {
-            with_copy(b[1], SnowLight::START, |l| {
+            with_laid::<SnowLight, _>(b[1], |l| {
                 super::turn_light_x87(&race().frame, &race().frame.matrices.view_matrix, l);
             });
         });

@@ -63,7 +63,7 @@ pub fn add_chat_line(net: &Net, player: u32, message: &[u8]) -> Result<(), Refus
     if message.is_empty() {
         return Ok(());
     }
-    let text = said_text(net, &net.vars.player_block(player).name.text(), message);
+    let text = said_text(net, &net.vars.player_block(player)?.name.text(), message);
     net.vars.chat_text.write_at(0, &text, "the chat's text")?;
     let (line, chat, said) = (&net.vars.chat_line, &net.vars.chat, &net.vars.chat_text);
     let mut text = 0usize;

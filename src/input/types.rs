@@ -224,7 +224,7 @@ pub struct ForceEffect {
     pub change: Dword,
     /// +4: the kind wanted: 1 constant, 2 ramp, 3 periodic, 4 condition.
     pub kind: Dword,
-    /// +8: the GUID wanted (by handle: `guids::guid_ref`).
+    /// +8: the GUID wanted (by handle: `guids::EffectGuid`).
     pub wanted: Dword,
     /// +0xC: 1 when the device listed one of its kind (`input::effect_found`).
     pub found: Dword,

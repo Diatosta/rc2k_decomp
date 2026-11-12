@@ -34,7 +34,7 @@ use crate::net::{lock_received::lock_received, unlock_received::unlock_received}
 use rc2k_core::net::messages::{self, Kind};
 
 /// The players the blocks have room for.
-pub const MOST_PLAYERS: u32 = 16;
+pub const MOST_PLAYERS: u32 = rc2k_core::net::players::MOST;
 
 /// Not the original's: whether this machine has joined a session and not yet
 /// heard the host's round. Every machine counts the rounds up as it enters the lobby, so one
@@ -65,7 +65,7 @@ pub fn take_messages(
     panel: &crate::race::viewer_screen_store::ViewerPanelBlock,
 ) -> Result<(), Refused> {
     if net.vars.players.get() > MOST_PLAYERS {
-        return Err(BadInput("take_messages: more than 16 players").into());
+        return Err(BadInput("take_messages: more than 8 players").into());
     }
     while net.vars.dplay.get() != 0 {
         let m = receive_message(net);
@@ -82,7 +82,7 @@ pub fn take_messages(
         // The sender among the players (the first compared even with none).
         let mut player = 0;
         let found = loop {
-            if m.from == net.vars.player_block(player).id.get() {
+            if m.from == net.vars.player_block(player)?.id.get() {
                 break true;
             }
             player += 1;
@@ -93,7 +93,7 @@ pub fn take_messages(
         if !found {
             continue;
         }
-        let block = net.vars.player_block(player);
+        let block = net.vars.player_block(player)?;
         let first = get8(&net.vars, 0)?;
         // Converted: `rc2k_core::net::messages` (`Kind`, `this_round`, `answers_call`,
         // `notes_answer`, `answer`, `race_fits`).
@@ -147,7 +147,7 @@ pub fn take_messages(
                 if !messages::notes_answer(round()?, own_state) {
                     continue;
                 }
-                net.vars.set_synced(player as usize, 1);
+                net.vars.set_synced(player as usize, 1)?;
             }
             Kind::Race => {
                 let length = m.size.wrapping_sub(1);

@@ -117,9 +117,7 @@ fn axes_x87(drops: &WindscreenDrops) {
 mod reference_vectors {
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::{Op, Spec, recorded_writes};
-    use crate::effects::typed_sync::{overlay, with_overlays};
-    use crate::effects::windscreen_drop_state::WindscreenDropWork;
-    use crate::effects::windscreen_drop_vars::WindscreenDropVars;
+    use crate::effects::typed_sync::{overlay_laid, with_overlays};
 
     #[test]
     fn axes_x87_matches() {
@@ -169,14 +167,8 @@ mod reference_vectors {
             with_overlays(
                 b[0],
                 &[
-                    overlay(
-                        &crate::effects::owner::effects().windscreen_drops.work,
-                        WindscreenDropWork::START,
-                    ),
-                    overlay(
-                        &crate::effects::owner::effects().windscreen_drops.hex,
-                        WindscreenDropVars::START,
-                    ),
+                    overlay_laid(&crate::effects::owner::effects().windscreen_drops.work),
+                    overlay_laid(&crate::effects::owner::effects().windscreen_drops.hex),
                 ],
                 || super::axes_x87(&crate::effects::owner::effects().windscreen_drops),
             );

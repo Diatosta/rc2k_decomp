@@ -62,37 +62,3 @@ impl ShapeTilt {
         }
     }
 }
-
-impl ShapeTilt {
-    pub const START: usize = 0x811BC3;
-    pub const LEN: usize = 0x28;
-}
-
-#[cfg(test)]
-mod shape_tilt_tests {
-    use super::*;
-
-    #[test]
-    fn shape_tilt_starts_as_the_games() {
-        use core::mem::offset_of;
-        assert_eq!(size_of::<ShapeTilt>(), ShapeTilt::LEN);
-        // The x87 tests put their buffer's bytes here for a while (`typed_sync::with_overlays`).
-        let _lock = crate::test_support::test_lock();
-        let p = (&raw const crate::effects::owner::effects().windscreen_drops.tilt).cast::<u8>();
-        let ours: Vec<u8> = (0..size_of::<ShapeTilt>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect();
-        assert!(
-            ours == crate::test_support::first_values::bytes(
-                "effects.owner.EFFECTS.windscreen_drops.tilt/40"
-            ),
-            "SHAPE_TILT starts differently from the image"
-        );
-        assert_eq!(offset_of!(ShapeTilt, tilt), 0x0);
-        assert_eq!(offset_of!(ShapeTilt, sine), 0x4);
-        assert_eq!(offset_of!(ShapeTilt, cosine), 0x8);
-        assert_eq!(offset_of!(ShapeTilt, length), 0xc);
-        assert_eq!(offset_of!(ShapeTilt, unit), 0x10);
-        assert_eq!(offset_of!(ShapeTilt, point), 0x1c);
-    }
-}

@@ -247,7 +247,7 @@ pub struct Textures {
     /// `dword_5ABA98`: five pairs of a size's number and the size (256, 128, 64, 32, 1024).
     pub sizes: [Dword; 10],
     /// `off_5ABAC0`: a pixel kind's description (by handle into `descriptions`,
-    /// `format_ref`: the original kept its address; kind 0 none), filled by
+    /// `format_of`: the original kept its address; kind 0 none), filled by
     /// `d3d::find_texture_formats`.
     pub kinds: [Dword; 5],
     /// `Textures.descriptions[0].0[0]`: five descriptions of 0x40 bytes: 555, 1555, 4444, 8888 and the
@@ -296,17 +296,10 @@ const fn pool() -> Pool {
 
 /// A texture format by handle: `FORMAT_TAG | n` for `descriptions[n]`, 0 none.
 pub const FORMAT_TAG: u32 = 0xCC00_0000;
-/// IDA's address of `descriptions`.
-const DESCRIPTIONS_IDA: u32 = 0x5ABAD4;
-/// The handle for IDA's `ida` (a description's address or 0; anything else fails to
-/// compile).
-pub const fn format_ref(ida: u32) -> u32 {
-    if ida == 0 {
-        return 0;
-    }
-    assert!(ida >= DESCRIPTIONS_IDA && (ida - DESCRIPTIONS_IDA).is_multiple_of(0x40));
-    assert!((ida - DESCRIPTIONS_IDA) / 0x40 < 5);
-    FORMAT_TAG | ((ida - DESCRIPTIONS_IDA) / 0x40)
+/// The handle for `descriptions[index]`.
+pub const fn format_of(index: u32) -> u32 {
+    assert!(index < 5);
+    FORMAT_TAG | index
 }
 
 impl Textures {
@@ -318,11 +311,11 @@ impl Textures {
             first_system: Dword::new(0),
             sizes: crate::gfx::dwords([0, 0x100, 1, 0x80, 2, 0x40, 3, 0x20, 4, 0x400]),
             kinds: crate::gfx::dwords([
-                format_ref(0),
-                format_ref(0x5ABAD4),
-                format_ref(0x5ABB14),
-                format_ref(0x5ABB54),
-                format_ref(0x5ABBD4),
+                0,
+                format_of(0), // IDA 0x5ABAD4
+                format_of(1), // IDA 0x5ABB14
+                format_of(2), // IDA 0x5ABB54
+                format_of(4), // IDA 0x5ABBD4
             ]),
             descriptions: [const { FormatCell::new(NO_FORMAT) }; 5],
             video: pool(),

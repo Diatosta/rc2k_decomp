@@ -54,7 +54,7 @@ pub fn set_up_race(
     let players = record::race_players(vars.players.get())?;
     race.shared.view.get().local_car.set(vars.player.get());
     for n in 0..players {
-        let record = &vars.player_block(n).record;
+        let record = &vars.player_block(n)?.record;
         let seat = record::seat(|n| record.head.get(n));
         let v = race.shared.vars.get();
         v.race_car_kinds[n as usize].set(seat.car);

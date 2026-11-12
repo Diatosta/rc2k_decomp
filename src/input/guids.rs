@@ -2,7 +2,7 @@
 //! axes and the force-feedback effects), out of RAL.EXE's image, typed.
 //! `#[repr(C)]` struct of byte buffers with the image's layout, first values the image's
 //! (`tests`). The effect templates
-//! (`input::store::Devices`) name the effects' GUIDs by handle (`guid_ref`; the original kept
+//! (`input::store::Devices`) name the effects' GUIDs by handle (`EffectGuid`; the original kept
 //! their addresses).
 
 use crate::session::{Bytes, with_runs};
@@ -79,44 +79,78 @@ impl InputGuids {
     pub const LEN: usize = 0x1C0;
 }
 
-/// A GUID of these by handle: `GUID_TAG | n`, `n` its place from IDA's `START`.
+/// A GUID of these by handle: `GUID_TAG | n`, `n` the effect's number in `EffectGuid::ALL`.
 pub const GUID_TAG: u32 = 0xCD00_0000;
 
-/// The handle for IDA's `ida` (a GUID's place in the GUIDs, a multiple of 16 from `START`;
-/// anything else fails to compile).
-pub const fn guid_ref(ida: u32) -> u32 {
-    let at = ida as usize;
-    assert!(at >= InputGuids::START && at + 16 <= InputGuids::START + InputGuids::LEN);
-    assert!((at - InputGuids::START).is_multiple_of(16));
-    GUID_TAG | (at - InputGuids::START) as u32
+/// One of the eleven force-feedback effect GUIDs (the image's `GUID_ConstantForce` and so on).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EffectGuid {
+    ConstantForce,
+    RampForce,
+    Square,
+    Sine,
+    Triangle,
+    SawtoothUp,
+    SawtoothDown,
+    Spring,
+    Damper,
+    Inertia,
+    Friction,
+}
+
+impl EffectGuid {
+    pub const ALL: [EffectGuid; 11] = [
+        EffectGuid::ConstantForce, // IDA 0x4F7F18
+        EffectGuid::RampForce,     // IDA 0x4F7F28
+        EffectGuid::Square,        // IDA 0x4F7F38
+        EffectGuid::Sine,          // IDA 0x4F7F48
+        EffectGuid::Triangle,      // IDA 0x4F7F58
+        EffectGuid::SawtoothUp,    // IDA 0x4F7F68
+        EffectGuid::SawtoothDown,  // IDA 0x4F7F78
+        EffectGuid::Spring,        // IDA 0x4F7F88
+        EffectGuid::Damper,        // IDA 0x4F7F98
+        EffectGuid::Inertia,       // IDA 0x4F7FA8
+        EffectGuid::Friction,      // IDA 0x4F7FB8
+    ];
+
+    /// The handle the device records hold.
+    pub const fn handle(self) -> u32 {
+        GUID_TAG | self as u32
+    }
+
+    /// The GUID a handle names, if it is one.
+    pub fn from_handle(handle: u32) -> Option<Self> {
+        let n = handle.checked_sub(GUID_TAG)?;
+        Self::ALL.get(n as usize).copied()
+    }
+
+    fn field(self, guids: &InputGuids) -> &Bytes<16> {
+        match self {
+            EffectGuid::ConstantForce => &guids.constant_force,
+            EffectGuid::RampForce => &guids.ramp_force,
+            EffectGuid::Square => &guids.square,
+            EffectGuid::Sine => &guids.sine,
+            EffectGuid::Triangle => &guids.triangle,
+            EffectGuid::SawtoothUp => &guids.sawtooth_up,
+            EffectGuid::SawtoothDown => &guids.sawtooth_down,
+            EffectGuid::Spring => &guids.spring,
+            EffectGuid::Damper => &guids.damper,
+            EffectGuid::Inertia => &guids.inertia,
+            EffectGuid::Friction => &guids.friction,
+        }
+    }
 }
 
 /// The effect GUID a handle names, read from the field that holds it. The handles are the
-/// device records' `wanted` dwords, which nothing writes: the image's name `GUID_Spring`,
-/// `GUID_Sine`, `GUID_ConstantForce` and `GUID_Damper`, so every read is one of the eleven
-/// effect GUIDs, a field of its own. Refused: what is no handle (the original reads the GUID
-/// at what it holds as an address) and a handle that names no effect GUID.
+/// device records' `wanted` dwords, which nothing writes: `GUID_Spring`, `GUID_Sine`,
+/// `GUID_ConstantForce` and `GUID_Damper`, so every read is one of the eleven effect GUIDs,
+/// a field of its own. Refused: what is no handle (the original reads the GUID at what it
+/// holds as an address) and a handle that names no effect GUID.
 pub fn guid_of(guids: &InputGuids, handle: u32) -> Result<[u8; 16], crate::errors::BadInput> {
-    let at = (handle ^ GUID_TAG) as usize;
-    let none = crate::errors::BadInput("an effect's GUID handle that names none");
-    if at + 16 > InputGuids::LEN || !at.is_multiple_of(16) {
-        return Err(none);
-    }
-    // The effects' GUIDs are the 16-byte places 16 .. 26 from IDA's `START`.
-    let field = match at / 16 {
-        16 => &guids.constant_force,
-        17 => &guids.ramp_force,
-        18 => &guids.square,
-        19 => &guids.sine,
-        20 => &guids.triangle,
-        21 => &guids.sawtooth_up,
-        22 => &guids.sawtooth_down,
-        23 => &guids.spring,
-        24 => &guids.damper,
-        25 => &guids.inertia,
-        26 => &guids.friction,
-        _ => return Err(none),
-    };
+    let effect = EffectGuid::from_handle(handle).ok_or(crate::errors::BadInput(
+        "an effect's GUID handle that names none",
+    ))?;
+    let field = effect.field(guids);
     Ok(std::array::from_fn(|i| field.get(i)))
 }
 

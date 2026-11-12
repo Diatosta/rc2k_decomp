@@ -102,11 +102,13 @@ fn rate_x87(
 #[cfg(test)]
 mod reference_vectors {
 
+    use crate::effects::asm_layout::with_laid;
+
     use crate::effects::asm_test::Kind::*;
-    use crate::effects::asm_test::with_copy;
+
     use crate::effects::asm_test::{Op, Spec, recorded_writes};
-    use crate::effects::tilt_shape::ShapeTilt;
-    use crate::effects::typed_sync::{overlay, with_overlays};
+
+    use crate::effects::typed_sync::{overlay_laid, with_overlays};
     use crate::effects::view_vectors::KeptView;
     use crate::effects::windscreen_flakes_store::{WindscreenFlakeState, WindscreenFlakeTiming};
 
@@ -136,14 +138,13 @@ mod reference_vectors {
             sincos: true,
         };
         recorded_writes("effects.windscreen_flakes_spawn.rate_x87", &SPEC, |b| {
-            with_copy(b[1], KeptView::START, |kv| {
-                with_copy::<WindscreenFlakeTiming, _>(b[1], WindscreenFlakeTiming::START, |sti| {
-                    with_copy::<WindscreenFlakeState, _>(b[1], WindscreenFlakeState::START, |ss| {
+            with_laid::<KeptView, _>(b[1], |kv| {
+                with_laid::<WindscreenFlakeTiming, _>(b[1], |sti| {
+                    with_laid::<WindscreenFlakeState, _>(b[1], |ss| {
                         with_overlays(
                             b[1],
-                            &[overlay(
+                            &[overlay_laid(
                                 &crate::effects::owner::effects().windscreen_drops.tilt,
-                                ShapeTilt::START,
                             )],
                             || {
                                 super::rate_x87(

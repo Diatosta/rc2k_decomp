@@ -246,9 +246,8 @@ mod reference_vectors {
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::with_settings;
     use crate::effects::asm_test::{Op, Spec, recorded_writes};
-    use crate::effects::typed_sync::{overlay, with_overlays};
-    use crate::effects::windscreen_drop_state::{WindscreenDropState, WindscreenDropWork};
-    use crate::effects::windscreen_drop_vars::WindscreenDropVars;
+    use crate::effects::typed_sync::{overlay_laid, with_overlays};
+
     use crate::session::PlainFloat;
 
     #[test]
@@ -300,25 +299,18 @@ mod reference_vectors {
             with_overlays(
                 b[0],
                 &[
-                    overlay(
-                        &crate::effects::owner::effects().windscreen_drops.state,
-                        WindscreenDropState::START,
-                    ),
-                    overlay(
-                        &crate::effects::owner::effects().windscreen_drops.work,
-                        WindscreenDropWork::START,
-                    ),
-                    overlay(
-                        &crate::effects::owner::effects().windscreen_drops.hex,
-                        WindscreenDropVars::START,
-                    ),
+                    overlay_laid(&crate::effects::owner::effects().windscreen_drops.state),
+                    overlay_laid(&crate::effects::owner::effects().windscreen_drops.work),
+                    overlay_laid(&crate::effects::owner::effects().windscreen_drops.hex),
                 ],
                 || {
                     with_settings(b[1], |m| {
                         super::frame_axes_x87(
                             &crate::effects::owner::effects().windscreen_drops,
                             m,
-                            crate::effects::setup::clock_at(b[0]),
+                            crate::effects::asm_layout::copy_of::<crate::effects::setup::MarksClock>(
+                                b[0],
+                            ),
                         );
                     });
                 },
@@ -366,14 +358,8 @@ mod reference_vectors {
             with_overlays(
                 b[0],
                 &[
-                    overlay(
-                        &crate::effects::owner::effects().windscreen_drops.work,
-                        WindscreenDropWork::START,
-                    ),
-                    overlay(
-                        &crate::effects::owner::effects().windscreen_drops.hex,
-                        WindscreenDropVars::START,
-                    ),
+                    overlay_laid(&crate::effects::owner::effects().windscreen_drops.work),
+                    overlay_laid(&crate::effects::owner::effects().windscreen_drops.hex),
                 ],
                 || {
                     with_settings(b[1], |m| {
@@ -406,9 +392,8 @@ mod reference_vectors {
         recorded_writes("effects.windscreen_drops_top.frame_place_x87", &SPEC, |b| {
             with_overlays(
                 b[0],
-                &[overlay(
+                &[overlay_laid(
                     &crate::effects::owner::effects().windscreen_drops.hex,
-                    WindscreenDropVars::START,
                 )],
                 || {
                     with_settings(b[1], |m| {
@@ -447,18 +432,9 @@ mod reference_vectors {
                 with_overlays(
                     b[0],
                     &[
-                        overlay(
-                            &crate::effects::owner::effects().windscreen_drops.state,
-                            WindscreenDropState::START,
-                        ),
-                        overlay(
-                            &crate::effects::owner::effects().windscreen_drops.work,
-                            WindscreenDropWork::START,
-                        ),
-                        overlay(
-                            &crate::effects::owner::effects().windscreen_drops.hex,
-                            WindscreenDropVars::START,
-                        ),
+                        overlay_laid(&crate::effects::owner::effects().windscreen_drops.state),
+                        overlay_laid(&crate::effects::owner::effects().windscreen_drops.work),
+                        overlay_laid(&crate::effects::owner::effects().windscreen_drops.hex),
                     ],
                     || super::frame_facing_x87(&crate::effects::owner::effects().windscreen_drops),
                 );
@@ -498,9 +474,8 @@ mod reference_vectors {
             |b| {
                 with_overlays(
                     b[0],
-                    &[overlay(
+                    &[overlay_laid(
                         &crate::effects::owner::effects().windscreen_drops.work,
-                        WindscreenDropWork::START,
                     )],
                     || {
                         // The point's three floats, as the buffer holds them at b[1].

@@ -191,13 +191,13 @@ fn frame_facing_x87(drops: &WindscreenDrops, sq: &WindscreenFlakeTables) {
 
 #[cfg(test)]
 mod reference_vectors {
+    use crate::effects::asm_layout::with_laid;
     use crate::effects::asm_test::Kind::*;
-    use crate::effects::asm_test::with_copy;
+
     use crate::effects::asm_test::with_settings;
     use crate::effects::asm_test::{Op, Spec, recorded_writes};
-    use crate::effects::typed_sync::{overlay, with_overlays};
-    use crate::effects::windscreen_drop_state::WindscreenDropState;
-    use crate::effects::windscreen_drop_vars::WindscreenDropVars;
+    use crate::effects::typed_sync::{overlay_laid, with_overlays};
+
     use crate::effects::windscreen_flakes_store::{
         WindscreenFlakeState, WindscreenFlakeTables, WindscreenFlakeTiming,
     };
@@ -248,18 +248,12 @@ mod reference_vectors {
             "effects.windscreen_flakes_frame.frame_axes_x87",
             &SPEC,
             |b| {
-                with_copy::<WindscreenFlakeTiming, _>(b[0], WindscreenFlakeTiming::START, |sti| {
-                    with_copy::<WindscreenFlakeTables, _>(
-                        b[0],
-                        WindscreenFlakeTables::START,
-                        |sq| {
-                            with_copy::<WindscreenFlakeState, _>(
-                                b[0],
-                                WindscreenFlakeState::START,
-                                |ss| with_settings(b[1], |m| super::frame_axes_x87(m, sti, sq, ss)),
-                            );
-                        },
-                    );
+                with_laid::<WindscreenFlakeTiming, _>(b[0], |sti| {
+                    with_laid::<WindscreenFlakeTables, _>(b[0], |sq| {
+                        with_laid::<WindscreenFlakeState, _>(b[0], |ss| {
+                            with_settings(b[1], |m| super::frame_axes_x87(m, sti, sq, ss));
+                        });
+                    });
                 });
             },
         );
@@ -302,8 +296,8 @@ mod reference_vectors {
             sincos: false,
         };
         recorded_writes("effects.windscreen_flakes_frame.frame_up_x87", &SPEC, |b| {
-            with_copy::<WindscreenFlakeTables, _>(b[0], WindscreenFlakeTables::START, |sq| {
-                with_copy::<WindscreenFlakeState, _>(b[0], WindscreenFlakeState::START, |ss| {
+            with_laid::<WindscreenFlakeTables, _>(b[0], |sq| {
+                with_laid::<WindscreenFlakeState, _>(b[0], |ss| {
                     with_settings(b[1], |m| super::frame_up_x87(m, sq, ss));
                 });
             });
@@ -335,9 +329,8 @@ mod reference_vectors {
             |b| {
                 with_overlays(
                     b[0],
-                    &[overlay(
+                    &[overlay_laid(
                         &crate::effects::owner::effects().windscreen_drops.hex,
-                        WindscreenDropVars::START,
                     )],
                     || {
                         with_settings(b[1], |m| {
@@ -377,26 +370,16 @@ mod reference_vectors {
                 with_overlays(
                     b[0],
                     &[
-                        overlay(
-                            &crate::effects::owner::effects().windscreen_drops.state,
-                            WindscreenDropState::START,
-                        ),
-                        overlay(
-                            &crate::effects::owner::effects().windscreen_drops.hex,
-                            WindscreenDropVars::START,
-                        ),
+                        overlay_laid(&crate::effects::owner::effects().windscreen_drops.state),
+                        overlay_laid(&crate::effects::owner::effects().windscreen_drops.hex),
                     ],
                     || {
-                        with_copy::<WindscreenFlakeTables, _>(
-                            b[0],
-                            WindscreenFlakeTables::START,
-                            |m| {
-                                super::frame_facing_x87(
-                                    &crate::effects::owner::effects().windscreen_drops,
-                                    m,
-                                );
-                            },
-                        );
+                        with_laid::<WindscreenFlakeTables, _>(b[0], |m| {
+                            super::frame_facing_x87(
+                                &crate::effects::owner::effects().windscreen_drops,
+                                m,
+                            );
+                        });
                     },
                 );
             },

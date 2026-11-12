@@ -2190,6 +2190,7 @@ const LEAD: usize = 2;
 /// The bytes `MenuTexts` has before the speech tables that the image does not.
 const SPEECH_PAD: usize = 2;
 /// IDA 0x734866, the first speech table.
+#[cfg(any(test, feature = "write_watch"))]
 pub const CAR_SPEECH: usize = 0x734866;
 /// Where the first speech table is in `MenuTexts`.
 #[cfg(any(test, feature = "write_watch"))]
@@ -2226,8 +2227,10 @@ pub fn speech_entry(
     Ok(entry)
 }
 
-/// A text's handle: its place in `MENU_TEXTS` (the original kept its address). 0
-/// (none) and -1 (an end mark) stay; another address outside fails to compile.
+/// A text's handle for the address the original kept: its place in `MENU_TEXTS`. 0
+/// (none) and -1 (an end mark) stay. The tables name the fields directly; the tests check the
+/// two agree.
+#[cfg(test)]
 pub const fn text_key(ida: u32) -> u32 {
     if ida == 0 || ida == 0xFFFF_FFFF {
         return ida;

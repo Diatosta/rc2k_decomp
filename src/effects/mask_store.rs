@@ -43,11 +43,6 @@ impl GroundNames {
     }
 }
 
-impl GroundNames {
-    pub const START: usize = 0x934CC8;
-    pub const LEN: usize = 0xA6;
-}
-
 /// The mask blocks' lists and pointers (IDA 0x934D6E .. 0x934E29, on an address 2 more than a multiple of 4 in the image). The offsets are from its start.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -59,15 +54,11 @@ pub struct MaskBlocks {
     pub chosen: PlainDword,
     /// +0x8: `stru_934D76`: the list the first mask block is taken on
     pub list_a: [PlainDword; 4],
-    /// +0x18: Not named: 48 bytes (a gap, or unreferenced data).
-    pub _gap_18: PlainBytes<48>,
     /// +0x48: `g_marksMaskBlock`: the first mask block (0x20000 bytes; the game's
     /// address, unused since the masks are Rust's, `MASK`)
     pub mask: PlainDword,
     /// +0x4C: `g_marksBMaskList`: the list the second mask block is taken on
     pub list_b: [PlainDword; 4],
-    /// +0x5C: Not named: 48 bytes (a gap, or unreferenced data).
-    pub _gap_5c: PlainBytes<48>,
     /// +0x8C: `g_marksBMaskBlock`: the second mask block (0x20000 bytes; the game's
     /// address, unused since the masks are Rust's, `BMASK`)
     pub bmask: PlainDword,
@@ -87,7 +78,6 @@ impl MaskBlocks {
                 PlainDword::new(0x0),
                 PlainDword::new(0x0),
             ],
-            _gap_18: PlainBytes::new([0; 48]),
             mask: PlainDword::new(0x0),
             list_b: [
                 PlainDword::new(0x0),
@@ -95,7 +85,6 @@ impl MaskBlocks {
                 PlainDword::new(0x0),
                 PlainDword::new(0x0),
             ],
-            _gap_5c: PlainBytes::new([0; 48]),
             bmask: PlainDword::new(0x0),
             junk: PlainBytes::new([
                 0x72, 0x73, 0x65, 0x20, 0x72, 0x73, 0x65, 0x20, 0x72, 0x73, 0x65, 0x20, 0x72, 0x73,
@@ -168,19 +157,12 @@ impl Mask {
     }
 }
 
-impl MaskBlocks {
-    pub const START: usize = 0x934D6E;
-    pub const LEN: usize = 0xBB;
-}
-
 /// The picture copy's list and pointer, and the mask paths (IDA 0x934E29 .. 0x934EA8, on an address 1 more than a multiple of 4 in the image). The offsets are from its start.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct PictureCopy {
     /// +0x0: the list the 0x80000-byte picture copy is taken on (its head starts inside `aRseRseRseRseRs`: the image's first values are "se" and zeros)
     pub list: [PlainDword; 4],
-    /// +0x10: Not named: 48 bytes (a gap, or unreferenced data).
-    pub _gap_10: PlainBytes<48>,
     /// +0x40: `g_marksPictureCopy`: the picture copy block (0x80000 bytes; the game's
     /// address, unused since the copy is Rust's, phase 12)
     pub copy: PlainDword,
@@ -198,7 +180,6 @@ impl PictureCopy {
                 PlainDword::new(0x0),
                 PlainDword::new(0x0),
             ],
-            _gap_10: PlainBytes::new([0; 48]),
             copy: PlainDword::new(0x0),
             paths: PlainBytes::new([
                 0x66, 0x69, 0x6C, 0x65, 0x73, 0x5C, 0x6D, 0x5C, 0x6D, 0x61, 0x73, 0x6B, 0x30, 0x30,
@@ -209,11 +190,6 @@ impl PictureCopy {
             ]),
         }
     }
-}
-
-impl PictureCopy {
-    pub const START: usize = 0x934E29;
-    pub const LEN: usize = 0x7F;
 }
 
 /// The picture number of each kind (IDA 0x934EA8 .. 0x934F30). The offsets are from its start.
@@ -231,78 +207,3 @@ pub static KIND_PICTURES: KindPictures = KindPictures {
         0x0,
     ],
 };
-
-#[cfg(test)]
-impl KindPictures {
-    pub const START: usize = 0x934EA8;
-    pub const LEN: usize = 0x88;
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use core::mem::{offset_of, size_of};
-
-    /// The first `len` bytes of `v` (its fields' bytes: the padding past them is never read,
-    /// it holds no value).
-    fn bytes<T>(v: &T, len: usize) -> Vec<u8> {
-        assert!(len <= size_of::<T>());
-        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
-        (0..len).map(|i| unsafe { p.add(i).read() }).collect()
-    }
-
-    #[test]
-    fn the_statics_start_as_the_games() {
-        // The structs end on an odd byte in the image; their sizes round up to 4 (the padding
-        // is past the range and nothing reaches it).
-        assert_eq!(
-            size_of::<GroundNames>(),
-            GroundNames::LEN.next_multiple_of(4)
-        );
-        assert_eq!(size_of::<MaskBlocks>(), MaskBlocks::LEN.next_multiple_of(4));
-        assert_eq!(
-            size_of::<PictureCopy>(),
-            PictureCopy::LEN.next_multiple_of(4)
-        );
-        assert_eq!(size_of::<KindPictures>(), KindPictures::LEN);
-        assert!(
-            bytes(
-                &crate::effects::owner::effects().masks.ground_names,
-                GroundNames::LEN
-            ) == crate::test_support::first_values::bytes(
-                "effects.owner.EFFECTS.masks.ground_names/166"
-            )
-        );
-        assert!(
-            bytes(
-                &crate::effects::owner::effects().masks.blocks,
-                MaskBlocks::LEN
-            ) == crate::test_support::first_values::bytes("effects.owner.EFFECTS.masks.blocks/187")
-        );
-        assert!(
-            bytes(
-                &crate::effects::owner::effects().masks.picture_copy,
-                PictureCopy::LEN
-            ) == crate::test_support::first_values::bytes(
-                "effects.owner.EFFECTS.masks.picture_copy/127"
-            )
-        );
-        assert!(
-            bytes(&KIND_PICTURES, KindPictures::LEN)
-                == crate::test_support::first_values::bytes("effects.mask_store.KIND_PICTURES")
-        );
-    }
-
-    #[test]
-    fn the_fields_are_where_the_game_has_them() {
-        assert_eq!(offset_of!(GroundNames, names), 0x8);
-        assert_eq!(offset_of!(MaskBlocks, list_a), 0x8);
-        assert_eq!(offset_of!(MaskBlocks, mask), 0x48);
-        assert_eq!(offset_of!(MaskBlocks, list_b), 0x4c);
-        assert_eq!(offset_of!(MaskBlocks, bmask), 0x8c);
-        assert_eq!(offset_of!(PictureCopy, copy), 0x40);
-        assert_eq!(offset_of!(PictureCopy, paths), 0x44);
-        assert_eq!(MaskBlocks::START + MaskBlocks::LEN, PictureCopy::START);
-        assert_eq!(PictureCopy::START + PictureCopy::LEN, KindPictures::START);
-    }
-}

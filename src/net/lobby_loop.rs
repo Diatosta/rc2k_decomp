@@ -34,7 +34,7 @@ use crate::owners::Owners;
 /// The players' states and-ed together (those with bit 0x80 left out), starting from
 /// `bits`, as the original's al: over `count` players (at least one turn: `count` > 0).
 pub fn all_states(vars: &NetVars, bits: u8, count: u32) -> u8 {
-    let state = |n: u32| vars.player_block(n).record.state();
+    let state = |n: u32| vars.player_block_or_end(n).record.state();
     // Converted: `rc2k_core::net::players::all_in_state`.
     rc2k_core::net::players::all_in_state(bits, count, state)
 }
@@ -49,7 +49,7 @@ pub fn sync(net: &Net, kind: u8) -> Result<bool, Refused> {
         for n in 0..8 {
             net.vars.synced.set(n, 0);
         }
-        net.vars.set_synced(net.vars.player.get() as usize, 1);
+        net.vars.set_synced(net.vars.player.get() as usize, 1)?;
     }
     let now = crate::system::tick_count::tick_count();
     if (now
@@ -61,8 +61,8 @@ pub fn sync(net: &Net, kind: u8) -> Result<bool, Refused> {
         // Counted up with `jb` at the end: at least one turn.
         let mut n = 0;
         loop {
-            if net.vars.synced(n as usize) != 1 {
-                let id = net.vars.player_block(n).id.get();
+            if net.vars.synced(n as usize)? != 1 {
+                let id = net.vars.player_block(n)?.id.get();
                 net.vars.send_buffer.set(0, kind);
                 net.vars.send_buffer.set(1, net.vars.sync.get());
                 crate::net::dplay_send::dplay_send(
@@ -80,7 +80,7 @@ pub fn sync(net: &Net, kind: u8) -> Result<bool, Refused> {
     // The answers added up in a byte (again at least one turn).
     let (mut n, mut answered) = (0u32, 0u8);
     loop {
-        answered = answered.wrapping_add(net.vars.synced(n as usize));
+        answered = answered.wrapping_add(net.vars.synced(n as usize)?);
         n += 1;
         if n >= net.vars.players.get() {
             break;
@@ -227,7 +227,7 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
         // player who joined since the race never has; now for none to be still racing.
         if net.vars.players.get() >= 1
             && rc2k_core::net::players::none_racing(net.vars.players.get(), |n| {
-                net.vars.player_block(n).record.state()
+                net.vars.player_block_or_end(n).record.state()
             })
         {
             net.vars.after_race.set(0);

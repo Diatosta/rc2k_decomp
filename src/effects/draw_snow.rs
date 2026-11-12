@@ -280,8 +280,9 @@ fn square_x87(vt: impl Base, i: usize, t: &SnowTables, s: &SnowState, l: &SnowLi
 
 #[cfg(test)]
 mod reference_vectors {
+    use crate::effects::asm_layout::with_laid;
     use crate::effects::asm_test::Kind::*;
-    use crate::effects::asm_test::with_copy;
+
     use crate::effects::asm_test::{Op, Spec, recorded_writes};
     use crate::effects::snow::{SnowLight, SnowState, SnowTables};
     use crate::effects::tuning::MarksFloats;
@@ -324,7 +325,7 @@ mod reference_vectors {
             sincos: false,
         };
         recorded_writes("effects.draw_snow.turn_x87", &SPEC, |b| {
-            with_copy(b[0], SnowState::START, |s| super::turn_x87(b[1], s));
+            with_laid::<SnowState, _>(b[0], |s| super::turn_x87(b[1], s));
         });
     }
 
@@ -364,9 +365,9 @@ mod reference_vectors {
             sincos: false,
         };
         recorded_writes("effects.draw_snow.fade_x87", &SPEC, |b| {
-            with_copy(b[0], SnowState::START, |s| {
-                with_copy(b[0], SnowLight::START, |l| {
-                    with_copy(b[0], MarksFloats::START, |f| super::fade_x87(s, l, f));
+            with_laid::<SnowState, _>(b[0], |s| {
+                with_laid::<SnowLight, _>(b[0], |l| {
+                    with_laid::<MarksFloats, _>(b[0], |f| super::fade_x87(s, l, f));
                 });
             });
         });
@@ -427,9 +428,9 @@ mod reference_vectors {
             sincos: false,
         };
         recorded_writes("effects.draw_snow.square_x87", &SPEC, |b| {
-            with_copy(b[2], SnowTables::START, |t| {
-                with_copy(b[2], SnowState::START, |s| {
-                    with_copy(b[2], SnowLight::START, |l| {
+            with_laid::<SnowTables, _>(b[2], |t| {
+                with_laid::<SnowState, _>(b[2], |s| {
+                    with_laid::<SnowLight, _>(b[2], |l| {
                         super::square_x87(b[1], b[3].number(), t, s, l);
                     });
                 });

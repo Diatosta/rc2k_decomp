@@ -212,7 +212,7 @@ pub fn draw_text_button(
 ) -> Result<(), Refused> {
     let menus = o.menus;
     let font = crate::text::measure_text::only_measures(
-        crate::gfx::typefaces::FontId::at(item.fixed().measuring_font.ral() as usize),
+        crate::menu::menus_store::font_of(item.fixed().measuring_font),
         &o.gfx.fonts.typefaces,
     )?;
     let measured = measure_string_by_id_at(

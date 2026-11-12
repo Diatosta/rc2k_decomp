@@ -226,18 +226,17 @@ mod reference_vectors {
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::with_settings;
     use crate::effects::asm_test::{Op, Spec, recorded_writes};
-    use crate::effects::tilt_shape::ShapeTilt;
-    use crate::effects::typed_sync::{overlay, with_overlays};
-    use crate::effects::windscreen_drop_vars::WindscreenDropVars;
+
+    use crate::effects::typed_sync::{overlay_laid, with_overlays};
+
     use crate::session::{PlainBytes, PlainFloat};
 
     /// Runs `f` with `HEX` holding the buffer's bytes (`typed_sync`).
     fn hex<R>(mk: crate::effects::asm_test::Operand, f: impl FnOnce() -> R) -> R {
         with_overlays(
             mk,
-            &[overlay(
+            &[overlay_laid(
                 &crate::effects::owner::effects().windscreen_drops.hex,
-                WindscreenDropVars::START,
             )],
             f,
         )
@@ -323,7 +322,9 @@ mod reference_vectors {
                         super::view_moved_x87(
                             &crate::effects::owner::effects().windscreen_drops,
                             m,
-                            crate::effects::setup::clock_at(b[0]),
+                            crate::effects::asm_layout::copy_of::<crate::effects::setup::MarksClock>(
+                                b[0],
+                            ),
                         );
                     });
                 });
@@ -446,14 +447,8 @@ mod reference_vectors {
                 with_overlays(
                     b[0],
                     &[
-                        overlay(
-                            &crate::effects::owner::effects().windscreen_drops.tilt,
-                            ShapeTilt::START,
-                        ),
-                        overlay(
-                            &crate::effects::owner::effects().windscreen_drops.hex,
-                            WindscreenDropVars::START,
-                        ),
+                        overlay_laid(&crate::effects::owner::effects().windscreen_drops.tilt),
+                        overlay_laid(&crate::effects::owner::effects().windscreen_drops.hex),
                     ],
                     || {
                         let (m, temps, l) = (floats::<9>(b[1]), floats::<2>(b[2]), kept(b[3]));
@@ -495,7 +490,9 @@ mod reference_vectors {
                     super::move_kept_x87(
                         &crate::effects::owner::effects().windscreen_drops,
                         m,
-                        crate::effects::setup::clock_at(b[0]),
+                        crate::effects::asm_layout::copy_of::<crate::effects::setup::MarksClock>(
+                            b[0],
+                        ),
                     );
                 });
             });

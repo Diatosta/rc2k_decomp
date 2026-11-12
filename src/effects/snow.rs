@@ -5,9 +5,7 @@
 //! the walk's variables and the curve records) and `SnowLight` (0x8DB430 .. 0x8DB558: the
 //! light, the fade colours and the constants).
 
-#[cfg(test)]
-use crate::effects::owner::effects;
-use crate::session::{PlainBytes, PlainDword, PlainFloat};
+use crate::session::{PlainDword, PlainFloat};
 
 /// The snow's random tables (0x800 flakes) (IDA 0x8C6000 .. 0x8D2000).
 #[repr(C)]
@@ -31,11 +29,6 @@ impl SnowTables {
     }
 }
 
-impl SnowTables {
-    pub const START: usize = 0x8C6000;
-    pub const LEN: usize = 0xC000;
-}
-
 /// The snow's curve (IDA 0x8D2310 .. 0x8DA310).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -55,17 +48,10 @@ impl SnowCurve {
     }
 }
 
-impl SnowCurve {
-    pub const START: usize = 0x8D2310;
-    pub const LEN: usize = 0x8000;
-}
-
 /// The snow's variables (IDA 0x8D2000 .. 0x8D2310).
-#[repr(C, align(16))]
+#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SnowState {
-    /// 0x8D2000: Not named: 48 bytes (a gap, or unreferenced data).
-    pub _gap_8d2000: PlainBytes<48>,
     /// 0x8D2030: `xmmword_8D2030` .. `xmmword_8D20B0`: the turn's nine floats, each four times (`effects::run_snow`).
     pub wide_turn: [[PlainFloat; 4]; 9],
     /// 0x8D20C0: `dword_8D20C0` .. `dword_8D20DC`: cleared by `effects::place_snow_view`.
@@ -86,52 +72,37 @@ pub struct SnowState {
     pub minus_ones: [PlainFloat; 4],
     /// 0x8D2150: `dword_8D2150`: the scene clock at the last snow frame.
     pub last_clock: PlainDword,
-    /// 0x8D2154: Not named: 8 bytes (a gap, or unreferenced data).
-    pub _gap_8d2154: PlainBytes<8>,
     /// 0x8D215C: `dword_8D215C`: 0 with no flakes (and after `effects::make_noise_curve`).
     pub flag: PlainDword,
     /// 0x8D2160: `dword_8D2160` ..: the settings' +0x1C .. +0x24, the view's place.
     pub view_place: [PlainDword; 3],
     /// 0x8D216C: `dword_8D216C` ..: the settings' +0x28 .. +0x48, the view's 3 x 3 matrix.
     pub view_matrix: [PlainFloat; 9],
-    /// 0x8D2190: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_8d2190: PlainBytes<4>,
     /// 0x8D2194: `dword_8D2194`: how far the flakes have fallen (28 bits).
     pub fall: PlainDword,
-    /// 0x8D2198: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_8d2198: PlainBytes<4>,
     /// 0x8D219C: `dword_8D219C`: the flakes drawn this frame.
     pub drawn: PlainDword,
     /// 0x8D21A0: `dword_8D21A0`: a copy of `flakes`.
     pub count_copy: PlainDword,
     /// 0x8D21A4: `dword_8D21A4`: the flakes (the settings' +0x2760, held to 0x800; initially 0x800).
     pub flakes: PlainDword,
-    /// 0x8D21A8: Not named: 76 bytes (a gap, or unreferenced data).
-    pub _gap_8d21a8: PlainBytes<76>,
     /// 0x8D21F4: `dword_8D21F4`: the flake's depth as a whole number.
     pub depth: PlainDword,
     /// 0x8D21F8: `flt_8D21F8`: one over `flt_6241C8`.
     pub inverse: PlainFloat,
-    /// 0x8D21FC: Not named: 12 bytes (a gap, or unreferenced data).
-    pub _gap_8d21fc: PlainBytes<12>,
     /// 0x8D2208: `dword_8D2208` ..: the point `effects::place_snow_view` turns (whole numbers).
     pub point: [PlainDword; 3],
     /// 0x8D2214: `dword_8D2214` ..: the view's place less the point (`effects::place_snow_view`).
     pub view: [PlainDword; 3],
     /// 0x8D2220: `dword_8D2220` ..: the view matrix copied (`effects::place_snow_view`).
     pub matrix_copy: [PlainFloat; 9],
-    /// 0x8D2244: Not named: 144 bytes (a gap, or unreferenced data).
-    pub _gap_8d2244: PlainBytes<144>,
     /// 0x8D22D4: `flt_8D22D4` ..: the flake's place turned.
     pub turned: [PlainFloat; 3],
-    /// 0x8D22E0: Not named: 48 bytes (a gap, or unreferenced data).
-    pub _gap_8d22e0: PlainBytes<48>,
 }
 
 impl SnowState {
     pub const fn new() -> Self {
         SnowState {
-            _gap_8d2000: PlainBytes::new([0; 48]),
             wide_turn: [const {
                 [
                     PlainFloat::new(0.0),
@@ -184,7 +155,6 @@ impl SnowState {
                 PlainFloat::new(-1.0),
             ],
             last_clock: PlainDword::new(0x0),
-            _gap_8d2154: PlainBytes::new([0; 8]),
             flag: PlainDword::new(0x0),
             view_place: [
                 PlainDword::new(0x0),
@@ -202,25 +172,12 @@ impl SnowState {
                 PlainFloat::new(0.0),
                 PlainFloat::new(1.0),
             ],
-            _gap_8d2190: PlainBytes::new([0; 4]),
             fall: PlainDword::new(0x0),
-            _gap_8d2198: PlainBytes::new([0; 4]),
             drawn: PlainDword::new(0x0),
             count_copy: PlainDword::new(0x0),
             flakes: PlainDword::new(0x800),
-            _gap_8d21a8: PlainBytes::new([
-                0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x41, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x20, 0x41, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            ]),
             depth: PlainDword::new(0x0),
             inverse: PlainFloat::new(0.0),
-            _gap_8d21fc: PlainBytes::new([
-                0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x80, 0x3F,
-            ]),
             point: [
                 PlainDword::new(0x0),
                 PlainDword::new(0x0),
@@ -242,32 +199,13 @@ impl SnowState {
                 PlainFloat::new(0.0),
                 PlainFloat::new(1.0),
             ],
-            _gap_8d2244: PlainBytes::new([
-                0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x80, 0x3F, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x80, 0x31, 0x46,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80,
-                0x31, 0x46, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00,
-            ]),
             turned: [
                 PlainFloat::new(0.0),
                 PlainFloat::new(0.0),
                 PlainFloat::new(0.0),
             ],
-            _gap_8d22e0: PlainBytes::new([0; 48]),
         }
     }
-}
-
-impl SnowState {
-    pub const START: usize = 0x8D2000;
-    pub const LEN: usize = 0x310;
 }
 
 /// The snow curve's walk variables and records (IDA 0x8DA410 .. 0x8DB430).
@@ -278,8 +216,6 @@ pub struct SnowCurveVars {
     pub curve_vars: [PlainDword; 6],
     /// 0x8DA428: `dword_8DA428`: 0, then the flake count (`effects::draw_snow`; nothing reads it).
     pub first: PlainDword,
-    /// 0x8DA42C: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_8da42c: PlainBytes<4>,
     /// 0x8DA430: `g_marksCurveRecords`: 0x20 records of 0x80 bytes (four quarters filled by `effects::make_noise_curve`; nothing ported reads them).
     pub records: [[PlainDword; 32]; 32],
 }
@@ -289,15 +225,9 @@ impl SnowCurveVars {
         SnowCurveVars {
             curve_vars: [const { PlainDword::new(0x0) }; 6],
             first: PlainDword::new(0x0),
-            _gap_8da42c: PlainBytes::new([0; 4]),
             records: [const { [const { PlainDword::new(0x0) }; 32] }; 32],
         }
     }
-}
-
-impl SnowCurveVars {
-    pub const START: usize = 0x8DA410;
-    pub const LEN: usize = 0x1020;
 }
 
 /// The snow's light, fade colours and constants (IDA 0x8DB430 .. 0x8DB558).
@@ -356,8 +286,6 @@ pub struct SnowLight {
     pub fall_k: PlainFloat,
     /// 0x8DB53C: `flt_8DB53C`: the view's height (`effects::place_snow_view`).
     pub height: PlainFloat,
-    /// 0x8DB540: Not named: 8 bytes (a gap, or unreferenced data).
-    pub _gap_8db540: PlainBytes<8>,
     /// 0x8DB548: `flt_8DB548`: a flake's side over its depth.
     pub side: PlainFloat,
     /// 0x8DB54C: `flt_8DB54C`: added to a flake's u.
@@ -442,51 +370,9 @@ impl SnowLight {
             ],
             fall_k: PlainFloat::new(-160.0),
             height: PlainFloat::new(524288.0),
-            _gap_8db540: PlainBytes::new([0x00, 0xC0, 0xC1, 0x45, 0x00, 0x00, 0x00, 0x00]),
             side: PlainFloat::new(6200.0),
             u_offset: PlainFloat::new(0.0625),
             v: [PlainFloat::new(0.001953125), PlainFloat::new(0.064453125)],
         }
-    }
-}
-
-impl SnowLight {
-    pub const START: usize = 0x8DB430;
-    pub const LEN: usize = 0x128;
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn the_tables_start_as_the_games() {
-        let weather = &effects().weather;
-        assert_eq!(size_of::<SnowTables>(), SnowTables::LEN);
-        assert_eq!(size_of::<SnowCurve>(), SnowCurve::LEN);
-        crate::test_support::first_values::assert_block_starts_as_the_games(&weather.snow_tables);
-        crate::test_support::first_values::assert_block_starts_as_the_games(&weather.snow_curve);
-        assert_eq!(size_of::<SnowState>(), SnowState::LEN);
-        assert_eq!(size_of::<SnowCurveVars>(), SnowCurveVars::LEN);
-        assert_eq!(size_of::<SnowLight>(), SnowLight::LEN);
-        crate::test_support::first_values::assert_block_starts_as_the_games(&weather.snow);
-        crate::test_support::first_values::assert_block_starts_as_the_games(&weather.snow_vars);
-        crate::test_support::first_values::assert_block_starts_as_the_games(&weather.snow_light);
-        assert_eq!(
-            core::ptr::from_ref(&weather.snow.wide_turn[0][0]).addr() % 16,
-            0
-        );
-        assert_eq!(offset_of!(SnowState, last_clock), 0x150);
-        assert_eq!(offset_of!(SnowState, fall), 0x194);
-        assert_eq!(offset_of!(SnowState, flakes), 0x1a4);
-        assert_eq!(offset_of!(SnowState, turned), 0x2d4);
-        assert_eq!(offset_of!(SnowCurveVars, records), 0x20);
-        assert_eq!(offset_of!(SnowLight, fade_colours), 0x34);
-        assert_eq!(offset_of!(SnowLight, quad_first), 0xd8);
-        assert_eq!(offset_of!(SnowLight, v), 0x120);
-        use core::mem::offset_of;
-        assert_eq!(offset_of!(SnowTables, remainders), 0x6000);
-        assert_eq!(offset_of!(SnowTables, spreads), 0xa000);
-        assert_eq!(offset_of!(SnowCurve, copy), 0x4000);
     }
 }

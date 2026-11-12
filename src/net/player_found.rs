@@ -16,7 +16,7 @@ pub fn player_found(vars: &NetVars, id: u32, short: &[u8]) -> Result<u32, Refuse
         return Ok(0);
     };
     vars.players.set(count + 1);
-    let player = vars.player_block(count);
+    let player = vars.player_block(count)?;
     player.id.set(id);
     let written = crate::strings::copy_printable::printable_from(short, 0x1F)?;
     player.name.write_at(0, &written, "a player's name")?;

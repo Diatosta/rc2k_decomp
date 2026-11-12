@@ -141,55 +141,6 @@ unsafe impl<S: Cells> Store for OnGame<S> {
     }
 }
 
-/// A stretch of a record of atomic cells, `len` bytes from byte `offset`, as a listed store (a
-/// record whose other stretches are listed apart).
-struct Window<S: 'static> {
-    whole: &'static S,
-    offset: usize,
-    len: usize,
-}
-
-// SAFETY: `first` is the record's byte at the window's offset and `size` the window's length.
-#[allow(
-    unsafe_code,
-    reason = "Store's promise: the window's bytes are the record's"
-)]
-unsafe impl<S: Cells> Store for Window<S> {
-    fn size(&self) -> usize {
-        self.len
-    }
-
-    fn cell_run_at(&self, offset: usize) -> Option<(usize, CellRun<'_>)> {
-        let (start, run) = Cells::cell_run(self.whole, self.offset + offset);
-        match start.checked_sub(self.offset) {
-            Some(start) => Some((start, run)),
-            None => Some((0, run.skip(self.offset - start)?)),
-        }
-    }
-
-    fn field_path_at(&self, offset: usize, path: &mut String) -> Option<&'static str> {
-        Some(Cells::field_path(self.whole, self.offset + offset, path))
-    }
-
-    fn type_name(&self) -> &'static str {
-        std::any::type_name::<S>()
-    }
-
-    fn first(&self) -> *const u8 {
-        std::ptr::from_ref(self.whole)
-            .cast::<u8>()
-            .wrapping_add(self.offset)
-    }
-
-    fn load(&self, offset: usize, to: &mut [u8]) -> Result<(), BadInput> {
-        crate::cells::load_cells(self.whole, self.offset + offset, to)
-    }
-
-    fn store(&self, offset: usize, from: &[u8]) -> Result<(), BadInput> {
-        crate::cells::store_cells(self.whole, self.offset + offset, from)
-    }
-}
-
 /// The whole of a game-thread owner's part as a listed store (lives for the program).
 fn on_game<S: Cells>(whole: &'static S) -> &'static OnGame<S> {
     on_game_tail(whole, 0)
@@ -198,11 +149,6 @@ fn on_game<S: Cells>(whole: &'static S) -> &'static OnGame<S> {
 /// A game-thread owner's part from byte `offset` on as a listed store.
 fn on_game_tail<S: Cells>(whole: &'static S, offset: usize) -> &'static OnGame<S> {
     Box::leak(Box::new(OnGame { whole, offset }))
-}
-
-/// `len` bytes of a record of atomic cells from byte `offset` as a listed store.
-fn window<S: Cells + Sync>(whole: &'static S, offset: usize, len: usize) -> &'static Window<S> {
-    Box::leak(Box::new(Window { whole, offset, len }))
 }
 
 /// A record of atomic cells from byte `offset` on as a listed store.
@@ -462,39 +408,23 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "net.owner.NET_OWNER.vars",
-            window(&crate::net::owner::NET_OWNER.vars, 0x0, 0x4),
+            &crate::net::owner::NET_OWNER.vars,
         ),
         listed!(
             "net.owner.NET_OWNER.main.edit",
             on_game(&crate::net::owner::NET_OWNER.main.get().edit),
         ),
         listed!(
-            "net.owner.NET_OWNER.vars",
-            window(&crate::net::owner::NET_OWNER.vars, 0x58, 0x668),
-        ),
-        listed!(
             "net.owner.NET_OWNER.main.setup",
             on_game(&crate::net::owner::NET_OWNER.main.get().setup),
-        ),
-        listed!(
-            "net.owner.NET_OWNER.vars",
-            window(&crate::net::owner::NET_OWNER.vars, 0x77c, 0x10),
         ),
         listed!(
             "net.owner.NET_OWNER.main.address",
             on_game(&crate::net::owner::NET_OWNER.main.get().address),
         ),
         listed!(
-            "net.owner.NET_OWNER.vars",
-            window(&crate::net::owner::NET_OWNER.vars, 0x834, 0x1C),
-        ),
-        listed!(
             "net.owner.NET_OWNER.main.joined",
             on_game(&crate::net::owner::NET_OWNER.main.get().joined),
-        ),
-        listed!(
-            "net.owner.NET_OWNER.vars",
-            window(&crate::net::owner::NET_OWNER.vars, 0x8b4, 0x806B5),
         ),
         listed!(
             "net.owner.NET_OWNER.button",
@@ -1427,12 +1357,10 @@ fn listed_stores() -> Vec<Listed> {
         listed!(
             "effects.owner.EFFECTS.masks.blocks",
             on_game(&crate::effects::owner::EFFECTS.get().masks.blocks),
-            0xbb,
         ),
         listed!(
             "effects.owner.EFFECTS.masks.picture_copy",
             on_game(&crate::effects::owner::EFFECTS.get().masks.picture_copy),
-            0x7f,
         ),
         listed!(
             "effects.owner.EFFECTS.blocks.slots",

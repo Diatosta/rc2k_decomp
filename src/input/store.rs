@@ -25,6 +25,7 @@
 //! shared (atomic cells and volatile bytes).
 
 use crate::errors::BadInput;
+use crate::input::guids::EffectGuid;
 use crate::input::types::{Controller, InputDevice};
 use crate::session::{Byte, Bytes, Dword, Float, PlainBytes, PlainDword};
 
@@ -169,23 +170,33 @@ pub struct Devices {
 
 const fn records(runs: Runs, at: usize) -> [InputDevice; 2] {
     [
-        InputDevice::from_bytes(&with_guid_refs(init::<RECORD_LEN>(runs, at))),
-        InputDevice::from_bytes(&with_guid_refs(init::<RECORD_LEN>(runs, at + RECORD_LEN))),
+        InputDevice::from_bytes(&with_wanted(init::<RECORD_LEN>(runs, at))),
+        InputDevice::from_bytes(&with_wanted(init::<RECORD_LEN>(runs, at + RECORD_LEN))),
     ]
 }
 
-/// The six effects' `wanted` (+8 of each `types::ForceEffect`, 0xA4 apart from +0x3C of a
-/// record): their GUIDs by handle (`guids::guid_ref`) where the image has their addresses.
+/// Where the six effects' `wanted` (+8 of each `types::ForceEffect`, 0xA4 apart from +0x3C of
+/// a record) is in a record's bytes.
 pub const WANTED_AT: usize = 0x44;
 pub const EFFECT_LEN: usize = 0xA4;
 pub const EFFECTS: usize = 6;
 
-const fn with_guid_refs(mut record: [u8; RECORD_LEN]) -> [u8; RECORD_LEN] {
+/// The GUIDs the six effects of each record want at first.
+const WANTED: [EffectGuid; EFFECTS] = [
+    EffectGuid::Spring,
+    EffectGuid::Sine,
+    EffectGuid::Sine,
+    EffectGuid::ConstantForce,
+    EffectGuid::Damper,
+    EffectGuid::ConstantForce,
+];
+
+/// The record with its effects' `wanted` set to `WANTED`'s handles.
+const fn with_wanted(mut record: [u8; RECORD_LEN]) -> [u8; RECORD_LEN] {
     let mut k = 0;
     while k < EFFECTS {
         let o = WANTED_AT + EFFECT_LEN * k;
-        let v = u32::from_le_bytes([record[o], record[o + 1], record[o + 2], record[o + 3]]);
-        let h = crate::input::guids::guid_ref(v).to_le_bytes();
+        let h = WANTED[k].handle().to_le_bytes();
         record[o] = h[0];
         record[o + 1] = h[1];
         record[o + 2] = h[2];

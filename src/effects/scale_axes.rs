@@ -80,8 +80,9 @@ fn scale_axes_x87(sq: &WindscreenFlakeTables, ss: &WindscreenFlakeState) {
 
 #[cfg(test)]
 mod reference_vectors {
+    use crate::effects::asm_layout::with_laid;
     use crate::effects::asm_test::Kind::*;
-    use crate::effects::asm_test::with_copy;
+
     use crate::effects::asm_test::{Op, Spec, recorded_writes};
     use crate::effects::windscreen_flakes_store::{WindscreenFlakeState, WindscreenFlakeTables};
 
@@ -144,8 +145,8 @@ mod reference_vectors {
             sincos: false,
         };
         recorded_writes("effects.scale_axes.scale_axes_x87", &SPEC, |b| {
-            with_copy::<WindscreenFlakeTables, _>(b[0], WindscreenFlakeTables::START, |sq| {
-                with_copy::<WindscreenFlakeState, _>(b[0], WindscreenFlakeState::START, |ss| {
+            with_laid::<WindscreenFlakeTables, _>(b[0], |sq| {
+                with_laid::<WindscreenFlakeState, _>(b[0], |ss| {
                     super::scale_axes_x87(sq, ss);
                 });
             });

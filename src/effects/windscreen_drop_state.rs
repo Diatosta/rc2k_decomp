@@ -2,7 +2,7 @@
 //! `WindscreenDropState` (IDA 0x814710 .. 0x814770) and `WindscreenDropWork` (0x814772 .. 0x81518A; on an
 //! address 2 more than a multiple of 4 in the image).
 
-use crate::session::{PlainBytes, PlainDword, PlainFloat};
+use crate::session::{PlainDword, PlainFloat};
 
 /// The windscreen drops' and windscreen flakes' frame variables (`effects::windscreen_drops_*`, `effects::squares_*`, `effects::draw_plane`) (IDA 0x814710 .. 0x814770).
 #[repr(C)]
@@ -22,12 +22,8 @@ pub struct WindscreenDropState {
     pub rate: PlainFloat,
     /// 0x81472C: `flt_81472C`: the spawn rate worked out each frame (`effects::windscreen_drops_spawn`).
     pub spawn_rate: PlainFloat,
-    /// 0x814730: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_814730: PlainBytes<4>,
     /// 0x814734: `flt_814734`: the sprite's depth (`effects::windscreen_drops_frame`).
     pub depth: PlainFloat,
-    /// 0x814738: Not named: 56 bytes (a gap, or unreferenced data).
-    pub _gap_814738: PlainBytes<56>,
 }
 
 impl WindscreenDropState {
@@ -40,51 +36,8 @@ impl WindscreenDropState {
             frames: PlainDword::new(0x0),
             rate: PlainFloat::new(0.0),
             spawn_rate: PlainFloat::new(1.125),
-            _gap_814730: PlainBytes::new([0; 4]),
             depth: PlainFloat::new(0.0),
-            _gap_814738: PlainBytes::new([
-                0xC8, 0x00, 0x00, 0x00, 0x40, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x65, 0x3A, 0x5C, 0x72, 0x61, 0x6C, 0x6C, 0x79,
-                0x35, 0x5C, 0x73, 0x72, 0x63, 0x5C, 0x6B, 0x61, 0x6B, 0x00, 0x66, 0x69, 0x6C, 0x65,
-                0x73, 0x5C, 0x6D, 0x5C, 0x62, 0x61, 0x63, 0x6B, 0x62, 0x69, 0x67, 0x2E, 0x70, 0x63,
-            ]),
         }
-    }
-}
-
-impl WindscreenDropState {
-    pub const START: usize = 0x814710;
-    pub const LEN: usize = 0x60;
-}
-
-#[cfg(test)]
-mod windscreen_drop_state_tests {
-    use super::*;
-
-    #[test]
-    fn windscreen_drop_state_starts_as_the_games() {
-        use core::mem::offset_of;
-        assert_eq!(size_of::<WindscreenDropState>(), WindscreenDropState::LEN);
-        // The x87 tests put their buffer's bytes here for a while (`typed_sync::with_overlays`).
-        let _lock = crate::test_support::test_lock();
-        let p = (&raw const crate::effects::owner::effects().windscreen_drops.state).cast::<u8>();
-        let ours: Vec<u8> = (0..size_of::<WindscreenDropState>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect();
-        assert!(
-            ours == crate::test_support::first_values::bytes(
-                "effects.owner.EFFECTS.windscreen_drops.state/96"
-            ),
-            "WINDSCREEN_DROP_STATE starts differently from the image"
-        );
-        assert_eq!(offset_of!(WindscreenDropState, live), 0x0);
-        assert_eq!(offset_of!(WindscreenDropState, clock), 0x4);
-        assert_eq!(offset_of!(WindscreenDropState, facing), 0x8);
-        assert_eq!(offset_of!(WindscreenDropState, cell), 0xc);
-        assert_eq!(offset_of!(WindscreenDropState, frames), 0x14);
-        assert_eq!(offset_of!(WindscreenDropState, rate), 0x18);
-        assert_eq!(offset_of!(WindscreenDropState, spawn_rate), 0x1c);
-        assert_eq!(offset_of!(WindscreenDropState, depth), 0x24);
     }
 }
 
@@ -94,8 +47,6 @@ mod windscreen_drop_state_tests {
 pub struct WindscreenDropWork {
     /// 0x814772: `flt_814772`, `flt_814776`: the drift at the item's cell (`effects::windscreen_drops_frame`).
     pub drift: [PlainFloat; 2],
-    /// 0x81477A: Not named: 72 bytes (a gap, or unreferenced data).
-    pub _gap_81477a: PlainBytes<72>,
     /// 0x8147C2: `g_marksWindscreenDropCurve`: a quarter-circle curve of 0x100 floats (`effects::shapes`).
     pub curve: [PlainFloat; 256],
     /// 0x814BC2: `flt_814BC2` ..: the circles' radii (eight kinds used).
@@ -108,14 +59,10 @@ pub struct WindscreenDropWork {
     pub place: [PlainFloat; 3],
     /// 0x814C1A: `flt_814C1A` ..: the three axes (rows of three).
     pub axes: [PlainFloat; 9],
-    /// 0x814C3E: Not named: 48 bytes (a gap, or unreferenced data).
-    pub _gap_814c3e: PlainBytes<48>,
     /// 0x814C6E: `unk_814C6E`, `unk_814C7A`, `unk_814C86`, `unk_814C92`: the two axes scaled (`effects::windscreen_drops_setup`).
     pub setup_axes: [PlainFloat; 12],
     /// 0x814C9E: `flt_814C9E`, `flt_814CA2`: the sprite's centre on the screen (`effects::windscreen_drops_frame`).
     pub screen: [PlainFloat; 2],
-    /// 0x814CA6: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_814ca6: PlainBytes<4>,
     /// 0x814CAA: `flt_814CAA`, `flt_814CAE`, `flt_814CB2`: the item's place turned, its depth last.
     pub cell: [PlainFloat; 3],
     /// 0x814CB6: `flt_814CB6` ..: the six corners (x, y, z).
@@ -134,14 +81,6 @@ impl WindscreenDropWork {
     pub const fn new() -> Self {
         WindscreenDropWork {
             drift: [PlainFloat::new(0.0), PlainFloat::new(0.0)],
-            _gap_81477a: PlainBytes::new([
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x41, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x80, 0x3F,
-            ]),
             curve: [const { PlainFloat::new(0.0) }; 256],
             radii: [
                 PlainFloat::new(7.0),
@@ -179,7 +118,6 @@ impl WindscreenDropWork {
                 PlainFloat::new(0.0),
                 PlainFloat::new(0.0),
             ],
-            _gap_814c3e: PlainBytes::new([0; 48]),
             setup_axes: [
                 PlainFloat::new(1664.0),
                 PlainFloat::new(0.0),
@@ -195,7 +133,6 @@ impl WindscreenDropWork {
                 PlainFloat::new(1188.0),
             ],
             screen: [PlainFloat::new(0.0), PlainFloat::new(0.0)],
-            _gap_814ca6: PlainBytes::new([0; 4]),
             cell: [
                 PlainFloat::new(0.0),
                 PlainFloat::new(0.0),
@@ -207,48 +144,5 @@ impl WindscreenDropWork {
             cursor: PlainDword::new(0x0),
             whole: [PlainDword::new(0x0), PlainDword::new(0x0)],
         }
-    }
-}
-
-impl WindscreenDropWork {
-    pub const START: usize = 0x814772;
-    pub const LEN: usize = 0xA18;
-}
-
-#[cfg(test)]
-mod windscreen_drop_work_tests {
-    use super::*;
-
-    #[test]
-    fn windscreen_drop_work_starts_as_the_games() {
-        use core::mem::offset_of;
-        assert_eq!(size_of::<WindscreenDropWork>(), WindscreenDropWork::LEN);
-        // The x87 tests put their buffer's bytes here for a while (`typed_sync::with_overlays`).
-        let _lock = crate::test_support::test_lock();
-        let p = (&raw const crate::effects::owner::effects().windscreen_drops.work).cast::<u8>();
-        let ours: Vec<u8> = (0..size_of::<WindscreenDropWork>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect();
-        assert!(
-            ours == crate::test_support::first_values::bytes(
-                "effects.owner.EFFECTS.windscreen_drops.work/2584"
-            ),
-            "WINDSCREEN_DROP_WORK starts differently from the image"
-        );
-        assert_eq!(offset_of!(WindscreenDropWork, drift), 0x0);
-        assert_eq!(offset_of!(WindscreenDropWork, curve), 0x50);
-        assert_eq!(offset_of!(WindscreenDropWork, radii), 0x450);
-        assert_eq!(offset_of!(WindscreenDropWork, inverse), 0x490);
-        assert_eq!(offset_of!(WindscreenDropWork, shares), 0x494);
-        assert_eq!(offset_of!(WindscreenDropWork, place), 0x49c);
-        assert_eq!(offset_of!(WindscreenDropWork, axes), 0x4a8);
-        assert_eq!(offset_of!(WindscreenDropWork, setup_axes), 0x4fc);
-        assert_eq!(offset_of!(WindscreenDropWork, screen), 0x52c);
-        assert_eq!(offset_of!(WindscreenDropWork, cell), 0x538);
-        assert_eq!(offset_of!(WindscreenDropWork, corners), 0x544);
-        assert_eq!(offset_of!(WindscreenDropWork, scaled), 0x58c);
-        assert_eq!(offset_of!(WindscreenDropWork, points), 0x7cc);
-        assert_eq!(offset_of!(WindscreenDropWork, cursor), 0xa0c);
-        assert_eq!(offset_of!(WindscreenDropWork, whole), 0xa10);
     }
 }

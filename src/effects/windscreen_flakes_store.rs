@@ -2,7 +2,7 @@
 //! and rates (`WindscreenFlakeTiming`), curve, circles and frame (`WindscreenFlakeTables`), the 0x800 items
 //! (`WindscreenFlakeItems`), and the once-only mark, constants and randoms (`WindscreenFlakeState`).
 
-use crate::session::{PlainBytes, PlainDword, PlainFloat};
+use crate::session::{PlainDword, PlainFloat};
 
 /// The windscreen flakes' frame count and rates (IDA 0x89CA30 .. 0x89CA3C).
 #[repr(C)]
@@ -25,8 +25,6 @@ impl WindscreenFlakeTiming {
             spawn_rate: PlainFloat::new(0.0),
         }
     }
-    pub const START: usize = 0x89CA30;
-    pub const LEN: usize = 0xC;
 }
 
 /// The windscreen flakes' curve, circles, frame and corners (IDA 0x89CACA .. 0x89D16A).
@@ -43,8 +41,6 @@ pub struct WindscreenFlakeTables {
     pub lengths: [PlainFloat; 2],
     /// 0x89CEF6: `flt_89CEF6` ..: the frame's place (the settings' +0x2720 .., as floats).
     pub place: [PlainFloat; 3],
-    /// 0x89CF02: Not named: 24 bytes (a gap, or unreferenced data).
-    pub _gap_89cf02: PlainBytes<24>,
     /// 0x89CF1A: `flt_89CF1A` ..: the frame's three axes (the first and second made from the settings, the third their cross product), each (x, y, z), made one long.
     pub axes: [[PlainFloat; 3]; 3],
     /// 0x89CF3E: `flt_89CF3E` ..: the first two axes times the first radius (`effects::scale_axes`).
@@ -53,12 +49,8 @@ pub struct WindscreenFlakeTables {
     pub half_axes: [[PlainFloat; 3]; 2],
     /// 0x89CF6E: `flt_89CF6E` ..: the first two axes scaled by the lengths and the per-part factors (`effects::scale_axes`).
     pub scaled_axes: [[PlainFloat; 3]; 2],
-    /// 0x89CF86: Not named: 12 bytes (a gap, or unreferenced data).
-    pub _gap_89cf86: PlainBytes<12>,
     /// 0x89CF92: `flt_89CF92` .. `flt_89CFBE`: the four corners (x, y, depth) of the flake being drawn.
     pub corners: [[PlainFloat; 3]; 4],
-    /// 0x89CFC2: Not named: 36 bytes (a gap, or unreferenced data).
-    pub _gap_89cfc2: PlainBytes<36>,
     /// 0x89CFE6: `g_marksWindscreenFlakePoints`: for each of the eight radii the circle of four points (x, y, and a third float the port does not use).
     pub points: [[[PlainFloat; 3]; 4]; 8],
     /// 0x89D166: `dword_89D166`: an offset into the items, where `effects::spawn_windscreen_flake` looks for a free one.
@@ -87,10 +79,6 @@ impl WindscreenFlakeTables {
                 PlainFloat::new(-29491.2),
                 PlainFloat::new(145536.0),
             ],
-            _gap_89cf02: PlainBytes::new([
-                0x66, 0x66, 0x66, 0xC7, 0x66, 0x66, 0xE6, 0xC6, 0x00, 0x00, 0x80, 0x47, 0x00, 0x00,
-                0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            ]),
             axes: [
                 [
                     PlainFloat::new(1.0),
@@ -147,7 +135,6 @@ impl WindscreenFlakeTables {
                     PlainFloat::new(0.707106),
                 ],
             ],
-            _gap_89cf86: PlainBytes::new([0; 12]),
             corners: [const {
                 [
                     PlainFloat::new(0.0),
@@ -155,7 +142,6 @@ impl WindscreenFlakeTables {
                     PlainFloat::new(0.0),
                 ]
             }; 4],
-            _gap_89cfc2: PlainBytes::new([0; 36]),
             points: [const {
                 [const {
                     [
@@ -168,8 +154,6 @@ impl WindscreenFlakeTables {
             cursor: PlainDword::new(0x0),
         }
     }
-    pub const START: usize = 0x89CACA;
-    pub const LEN: usize = 0x6A0;
 }
 
 /// One windscreen flake item (0x3C bytes; `effects::spawn_windscreen_flake`, `expire_windscreen_flakes`, `run_windscreen_flakes`).
@@ -195,8 +179,6 @@ pub struct WindscreenFlakeItem {
 }
 
 impl WindscreenFlakeItem {
-    #[cfg(test)]
-    pub const LEN: usize = 0x3C;
     pub const fn new() -> Self {
         WindscreenFlakeItem {
             live: PlainDword::new(0),
@@ -226,8 +208,6 @@ impl WindscreenFlakeItems {
             items: [const { WindscreenFlakeItem::new() }; 0x800],
         }
     }
-    pub const START: usize = 0x89E18A;
-    pub const LEN: usize = 0x1E000;
 }
 
 /// The windscreen flakes' once-only mark, constants and randoms (IDA 0x8BC18A .. 0x8BC266).
@@ -278,8 +258,6 @@ pub struct WindscreenFlakeState {
     pub spawn_random: PlainDword,
     /// 0x8BC256: `dword_8BC256`: the random of a flake's place and kind (`effects::pick_windscreen_flake`).
     pub pick_random: PlainDword,
-    /// 0x8BC25A: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_8bc25a: PlainBytes<4>,
     /// 0x8BC25E: `flt_8BC25E`: the settings' +0x2750 times `EdgeSettings::factor` (`effects::scale_setting`).
     pub scaled_setting: PlainFloat,
     /// 0x8BC262: `flt_8BC262`: 50.0 and a bit (the port does not read it).
@@ -348,13 +326,10 @@ impl WindscreenFlakeState {
             share_k: PlainFloat::new(65536.0),
             spawn_random: PlainDword::new(0x0),
             pick_random: PlainDword::new(0x0),
-            _gap_8bc25a: PlainBytes::new([0; 4]),
             scaled_setting: PlainFloat::new(10.0),
             unread_limit: PlainFloat::new(50.0001),
         }
     }
-    pub const START: usize = 0x8BC18A;
-    pub const LEN: usize = 0xDC;
 }
 
 /// The windscreen flakes' state, one part of the effects' owner (`effects::owner::Effects`).
@@ -374,120 +349,5 @@ impl WindscreenFlakes {
             items: WindscreenFlakeItems::new(),
             state: WindscreenFlakeState::new(),
         }
-    }
-}
-
-#[cfg(test)]
-mod typed_tests {
-    use super::*;
-    use core::mem::{offset_of, size_of};
-
-    #[test]
-    fn windscreen_flake_timing_starts_as_the_games() {
-        assert_eq!(
-            size_of::<WindscreenFlakeTiming>(),
-            WindscreenFlakeTiming::LEN
-        );
-        let image = crate::test_support::first_values::bytes(
-            "effects.owner.EFFECTS.windscreen_flakes.timing/12",
-        );
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                (&raw const crate::effects::owner::effects().windscreen_flakes.timing).cast::<u8>(),
-                WindscreenFlakeTiming::LEN,
-            )
-        };
-        assert!(
-            mine == image,
-            "WINDSCREEN_FLAKE_TIMING starts differently from the image"
-        );
-        assert_eq!(offset_of!(WindscreenFlakeTiming, rate), 0x4);
-        assert_eq!(offset_of!(WindscreenFlakeTiming, spawn_rate), 0x8);
-    }
-
-    #[test]
-    fn windscreen_flake_tables_starts_as_the_games() {
-        assert_eq!(
-            size_of::<WindscreenFlakeTables>(),
-            WindscreenFlakeTables::LEN
-        );
-        let image = crate::test_support::first_values::bytes(
-            "effects.owner.EFFECTS.windscreen_flakes.tables/1696",
-        );
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                (&raw const crate::effects::owner::effects().windscreen_flakes.tables).cast::<u8>(),
-                WindscreenFlakeTables::LEN,
-            )
-        };
-        assert!(
-            mine == image,
-            "WINDSCREEN_FLAKE_TABLES starts differently from the image"
-        );
-        assert_eq!(offset_of!(WindscreenFlakeTables, radii), 0x400);
-        assert_eq!(offset_of!(WindscreenFlakeTables, inverse), 0x420);
-        assert_eq!(offset_of!(WindscreenFlakeTables, lengths), 0x424);
-        assert_eq!(offset_of!(WindscreenFlakeTables, place), 0x42c);
-        assert_eq!(offset_of!(WindscreenFlakeTables, axes), 0x450);
-        assert_eq!(offset_of!(WindscreenFlakeTables, scaled_by_radius), 0x474);
-        assert_eq!(offset_of!(WindscreenFlakeTables, half_axes), 0x48c);
-        assert_eq!(offset_of!(WindscreenFlakeTables, scaled_axes), 0x4a4);
-        assert_eq!(offset_of!(WindscreenFlakeTables, corners), 0x4c8);
-        assert_eq!(offset_of!(WindscreenFlakeTables, points), 0x51c);
-        assert_eq!(offset_of!(WindscreenFlakeTables, cursor), 0x69c);
-    }
-
-    #[test]
-    fn windscreen_flake_items_starts_as_the_games() {
-        assert_eq!(size_of::<WindscreenFlakeItems>(), WindscreenFlakeItems::LEN);
-        let key = "effects.owner.EFFECTS.windscreen_flakes.items/122880";
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                (&raw const crate::effects::owner::effects().windscreen_flakes.items).cast::<u8>(),
-                WindscreenFlakeItems::LEN,
-            )
-        };
-        assert!(
-            crate::test_support::first_values::holds(key, mine),
-            "WINDSCREEN_FLAKE_ITEMS starts differently from the image"
-        );
-        assert_eq!(size_of::<WindscreenFlakeItem>(), WindscreenFlakeItem::LEN);
-    }
-
-    #[test]
-    fn windscreen_flake_state_starts_as_the_games() {
-        assert_eq!(size_of::<WindscreenFlakeState>(), WindscreenFlakeState::LEN);
-        let image = crate::test_support::first_values::bytes(
-            "effects.owner.EFFECTS.windscreen_flakes.state/220",
-        );
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                (&raw const crate::effects::owner::effects().windscreen_flakes.state).cast::<u8>(),
-                WindscreenFlakeState::LEN,
-            )
-        };
-        assert!(
-            mine == image,
-            "WINDSCREEN_FLAKE_STATE starts differently from the image"
-        );
-        assert_eq!(offset_of!(WindscreenFlakeState, curve_ends), 0x4);
-        assert_eq!(offset_of!(WindscreenFlakeState, steps), 0xc);
-        assert_eq!(offset_of!(WindscreenFlakeState, rate_share), 0x14);
-        assert_eq!(offset_of!(WindscreenFlakeState, length_divisors), 0x18);
-        assert_eq!(offset_of!(WindscreenFlakeState, share), 0x20);
-        assert_eq!(offset_of!(WindscreenFlakeState, places), 0x24);
-        assert_eq!(offset_of!(WindscreenFlakeState, unread_floats), 0x34);
-        assert_eq!(offset_of!(WindscreenFlakeState, axis_factors), 0x54);
-        assert_eq!(offset_of!(WindscreenFlakeState, halves), 0x6c);
-        assert_eq!(offset_of!(WindscreenFlakeState, setup_places), 0x88);
-        assert_eq!(offset_of!(WindscreenFlakeState, run_places), 0x98);
-        assert_eq!(offset_of!(WindscreenFlakeState, fade), 0xa8);
-        assert_eq!(offset_of!(WindscreenFlakeState, far), 0xac);
-        assert_eq!(offset_of!(WindscreenFlakeState, tile_offset_k), 0xb0);
-        assert_eq!(offset_of!(WindscreenFlakeState, rate_constants), 0xbc);
-        assert_eq!(offset_of!(WindscreenFlakeState, share_k), 0xc4);
-        assert_eq!(offset_of!(WindscreenFlakeState, spawn_random), 0xc8);
-        assert_eq!(offset_of!(WindscreenFlakeState, pick_random), 0xcc);
-        assert_eq!(offset_of!(WindscreenFlakeState, scaled_setting), 0xd4);
     }
 }

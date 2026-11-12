@@ -92,11 +92,6 @@ pub static SPRITE_UV: SpriteUv = SpriteUv {
 };
 
 #[cfg(test)]
-impl SpriteUv {
-    pub const LEN: usize = 0x20;
-}
-
-#[cfg(test)]
 mod sprite_uv_tests {
     use super::*;
     use core::mem::offset_of;
@@ -110,7 +105,6 @@ mod sprite_uv_tests {
 
     #[test]
     fn sprite_uv_starts_as_the_games() {
-        assert_eq!(size_of::<SpriteUv>(), SpriteUv::LEN);
         assert!(
             bytes(&SPRITE_UV)
                 == crate::test_support::first_values::bytes("effects.draw_turned_sprite.SPRITE_UV"),

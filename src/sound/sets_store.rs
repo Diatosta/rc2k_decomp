@@ -3,24 +3,20 @@
 //! them, the cues' lists, the car sound kinds' records, the surface sound sets and the spot
 //! voices), out of RAL.EXE's image, typed. The sets are lists of sound
 //! numbers ending in -1 that the audio thread reads; the tables of pointers name them by
-//! handle (`RACE_LIST_TAG`, `CUE_TAG`, ..: an offset in the table they lie in).
+//! handle: the race's sets by `RACE_LIST_TAG` and an offset in the table they lie in; the cues'
+//! and surface sets' lists by their byte offset in the block of lists after the table, the
+//! kinds' records by their number.
 //!
 //! `#[repr(C)]` structs of atomic cells with the image's layout, first values the image's
 //! (`tests`).
 
 use crate::session::{Bytes, Cell32, Dword, Float, PlainBytes, PlainDword, PlainFloat, with_runs};
 
-/// Handles of the tables of sets: in place of a list's, cue's or record's address
-/// a table holds `TAG | (address - the piece's start)`; 0 does not occur. The resolvers keep
+/// Handle of the race's sets: in place of a list's address the table holds
+/// `TAG | (address - the piece's start)`; 0 does not occur. The resolver keeps
 /// the original's reads: the list runs on in its piece as far as the sounds read.
 /// The race's sets (`RaceSoundSets`, by kind of car).
 pub const RACE_LIST_TAG: u32 = 0xC400_0000;
-/// The cues' lists (`CueLists`).
-pub const CUE_TAG: u32 = 0xC500_0000;
-/// The surface sets (`SurfaceSets`).
-pub const SURFACE_TAG: u32 = 0xC600_0000;
-/// The kinds' records (`SoundKinds`; 0xC3 is the view records', so this one is 0xC380).
-pub const KIND_TAG: u32 = 0xC380_0000;
 
 const fn offset_ref(tag: u32, ida: u32, start: usize, len: usize) -> u32 {
     assert!(ida as usize >= start && (ida as usize) < start + len);
@@ -28,15 +24,6 @@ const fn offset_ref(tag: u32, ida: u32, start: usize, len: usize) -> u32 {
 }
 const fn race_ref(ida: u32) -> u32 {
     offset_ref(RACE_LIST_TAG, ida, 0x511B10, 0x9D4)
-}
-const fn cue_ref(ida: u32) -> u32 {
-    offset_ref(CUE_TAG, ida, 0x512508, 0x508)
-}
-const fn surface_ref(ida: u32) -> u32 {
-    offset_ref(SURFACE_TAG, ida, 0x51639C, 0x1C0)
-}
-const fn kind_ref(ida: u32) -> u32 {
-    offset_ref(KIND_TAG, ida, 0x514F90, 0x13C8)
 }
 
 /// The offset in its piece a table's handle names (None: no handle of `tag`, or past `len`).
@@ -869,7 +856,7 @@ impl RaceSoundSets {
 pub struct CueLists {
     /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
     pub _lead: PlainBytes<8>,
-    /// 0x512508: `off_512508`: a pointer to each cue's list of sounds (`physics::queue_sound_cue`).
+    /// 0x512508: `off_512508`: where each cue's list of sounds starts, as a byte offset in `lists` (`physics::queue_sound_cue`).
     pub table: [PlainDword; 113],
     /// 0x5126CC: `unk_5126CC` ..: the lists.
     pub lists: PlainBytes<836>,
@@ -879,7 +866,7 @@ impl CueLists {
     pub const fn new() -> Self {
         CueLists {
     _lead: PlainBytes::new([0; 8]),
-    table: [PlainDword::new(cue_ref(0x5126cc)), PlainDword::new(cue_ref(0x5126d0)), PlainDword::new(cue_ref(0x5126d8)), PlainDword::new(cue_ref(0x5126e0)), PlainDword::new(cue_ref(0x5126e8)), PlainDword::new(cue_ref(0x5126f0)), PlainDword::new(cue_ref(0x5126f8)), PlainDword::new(cue_ref(0x512700)), PlainDword::new(cue_ref(0x512708)), PlainDword::new(cue_ref(0x512710)), PlainDword::new(cue_ref(0x51271c)), PlainDword::new(cue_ref(0x512728)), PlainDword::new(cue_ref(0x512734)), PlainDword::new(cue_ref(0x512740)), PlainDword::new(cue_ref(0x5126cc)), PlainDword::new(cue_ref(0x5126cc)), PlainDword::new(cue_ref(0x5126cc)), PlainDword::new(cue_ref(0x51274c)), PlainDword::new(cue_ref(0x512754)), PlainDword::new(cue_ref(0x51275c)), PlainDword::new(cue_ref(0x512764)), PlainDword::new(cue_ref(0x51276c)), PlainDword::new(cue_ref(0x512774)), PlainDword::new(cue_ref(0x51277c)), PlainDword::new(cue_ref(0x512784)), PlainDword::new(cue_ref(0x51278c)), PlainDword::new(cue_ref(0x512798)), PlainDword::new(cue_ref(0x5127a4)), PlainDword::new(cue_ref(0x5127b0)), PlainDword::new(cue_ref(0x5127bc)), PlainDword::new(cue_ref(0x5127c8)), PlainDword::new(cue_ref(0x5127d0)), PlainDword::new(cue_ref(0x5127d8)), PlainDword::new(cue_ref(0x5127e0)), PlainDword::new(cue_ref(0x5127e8)), PlainDword::new(cue_ref(0x5127f0)), PlainDword::new(cue_ref(0x5127f8)), PlainDword::new(cue_ref(0x512800)), PlainDword::new(cue_ref(0x512808)), PlainDword::new(cue_ref(0x512810)), PlainDword::new(cue_ref(0x512818)), PlainDword::new(cue_ref(0x512820)), PlainDword::new(cue_ref(0x5126cc)), PlainDword::new(cue_ref(0x5126cc)), PlainDword::new(cue_ref(0x5126cc)), PlainDword::new(cue_ref(0x5126cc)), PlainDword::new(cue_ref(0x5126cc)), PlainDword::new(cue_ref(0x512828)), PlainDword::new(cue_ref(0x512838)), PlainDword::new(cue_ref(0x512840)), PlainDword::new(cue_ref(0x512848)), PlainDword::new(cue_ref(0x512850)), PlainDword::new(cue_ref(0x512858)), PlainDword::new(cue_ref(0x512860)), PlainDword::new(cue_ref(0x512868)), PlainDword::new(cue_ref(0x512870)), PlainDword::new(cue_ref(0x5128c8)), PlainDword::new(cue_ref(0x5128d0)), PlainDword::new(cue_ref(0x5128d8)), PlainDword::new(cue_ref(0x5128e0)), PlainDword::new(cue_ref(0x5128e8)), PlainDword::new(cue_ref(0x5128f0)), PlainDword::new(cue_ref(0x5128f8)), PlainDword::new(cue_ref(0x512900)), PlainDword::new(cue_ref(0x512878)), PlainDword::new(cue_ref(0x512888)), PlainDword::new(cue_ref(0x512880)), PlainDword::new(cue_ref(0x512890)), PlainDword::new(cue_ref(0x512898)), PlainDword::new(cue_ref(0x5128a0)), PlainDword::new(cue_ref(0x5128a8)), PlainDword::new(cue_ref(0x5128b0)), PlainDword::new(cue_ref(0x5128b8)), PlainDword::new(cue_ref(0x5128c0)), PlainDword::new(cue_ref(0x5126cc)), PlainDword::new(cue_ref(0x5126cc)), PlainDword::new(cue_ref(0x5126cc)), PlainDword::new(cue_ref(0x5126cc)), PlainDword::new(cue_ref(0x5126cc)), PlainDword::new(cue_ref(0x5126cc)), PlainDword::new(cue_ref(0x512908)), PlainDword::new(cue_ref(0x512918)), PlainDword::new(cue_ref(0x512910)), PlainDword::new(cue_ref(0x512920)), PlainDword::new(cue_ref(0x512928)), PlainDword::new(cue_ref(0x512930)), PlainDword::new(cue_ref(0x512938)), PlainDword::new(cue_ref(0x512940)), PlainDword::new(cue_ref(0x512948)), PlainDword::new(cue_ref(0x512950)), PlainDword::new(cue_ref(0x512958)), PlainDword::new(cue_ref(0x512960)), PlainDword::new(cue_ref(0x512968)), PlainDword::new(cue_ref(0x512970)), PlainDword::new(cue_ref(0x512978)), PlainDword::new(cue_ref(0x512980)), PlainDword::new(cue_ref(0x512988)), PlainDword::new(cue_ref(0x512990)), PlainDword::new(cue_ref(0x512998)), PlainDword::new(cue_ref(0x5129a0)), PlainDword::new(cue_ref(0x5129a8)), PlainDword::new(cue_ref(0x5129b0)), PlainDword::new(cue_ref(0x5129b8)), PlainDword::new(cue_ref(0x5129c0)), PlainDword::new(cue_ref(0x5129c8)), PlainDword::new(cue_ref(0x5129d0)), PlainDword::new(cue_ref(0x5129d8)), PlainDword::new(cue_ref(0x5129e0)), PlainDword::new(cue_ref(0x5129e8)), PlainDword::new(cue_ref(0x5129f0)), PlainDword::new(cue_ref(0x5129f8)), PlainDword::new(cue_ref(0x512a00)), PlainDword::new(cue_ref(0x512a08))],
+    table: [PlainDword::new(0), PlainDword::new(4), PlainDword::new(12), PlainDword::new(20), PlainDword::new(28), PlainDword::new(36), PlainDword::new(44), PlainDword::new(52), PlainDword::new(60), PlainDword::new(68), PlainDword::new(80), PlainDword::new(92), PlainDword::new(104), PlainDword::new(116), PlainDword::new(0), PlainDword::new(0), PlainDword::new(0), PlainDword::new(128), PlainDword::new(136), PlainDword::new(144), PlainDword::new(152), PlainDword::new(160), PlainDword::new(168), PlainDword::new(176), PlainDword::new(184), PlainDword::new(192), PlainDword::new(204), PlainDword::new(216), PlainDword::new(228), PlainDword::new(240), PlainDword::new(252), PlainDword::new(260), PlainDword::new(268), PlainDword::new(276), PlainDword::new(284), PlainDword::new(292), PlainDword::new(300), PlainDword::new(308), PlainDword::new(316), PlainDword::new(324), PlainDword::new(332), PlainDword::new(340), PlainDword::new(0), PlainDword::new(0), PlainDword::new(0), PlainDword::new(0), PlainDword::new(0), PlainDword::new(348), PlainDword::new(364), PlainDword::new(372), PlainDword::new(380), PlainDword::new(388), PlainDword::new(396), PlainDword::new(404), PlainDword::new(412), PlainDword::new(420), PlainDword::new(508), PlainDword::new(516), PlainDword::new(524), PlainDword::new(532), PlainDword::new(540), PlainDword::new(548), PlainDword::new(556), PlainDword::new(564), PlainDword::new(428), PlainDword::new(444), PlainDword::new(436), PlainDword::new(452), PlainDword::new(460), PlainDword::new(468), PlainDword::new(476), PlainDword::new(484), PlainDword::new(492), PlainDword::new(500), PlainDword::new(0), PlainDword::new(0), PlainDword::new(0), PlainDword::new(0), PlainDword::new(0), PlainDword::new(0), PlainDword::new(572), PlainDword::new(588), PlainDword::new(580), PlainDword::new(596), PlainDword::new(604), PlainDword::new(612), PlainDword::new(620), PlainDword::new(628), PlainDword::new(636), PlainDword::new(644), PlainDword::new(652), PlainDword::new(660), PlainDword::new(668), PlainDword::new(676), PlainDword::new(684), PlainDword::new(692), PlainDword::new(700), PlainDword::new(708), PlainDword::new(716), PlainDword::new(724), PlainDword::new(732), PlainDword::new(740), PlainDword::new(748), PlainDword::new(756), PlainDword::new(764), PlainDword::new(772), PlainDword::new(780), PlainDword::new(788), PlainDword::new(796), PlainDword::new(804), PlainDword::new(812), PlainDword::new(820), PlainDword::new(828)],
     lists: PlainBytes::new(with_runs::<836>(&[(0, b"\xff\xff\xff\xffE\x01\x00\x00\xff\xff\xff\xffG\x01\x00\x00\xff\xff\xff\xffI\x01\x00\x00\xff\xff\xff\xffK\x01\x00\x00\xff\xff\xff\xffM\x01\x00\x00\xff\xff\xff\xffO\x01\x00\x00\xff\xff\xff\xffQ\x01\x00\x00\xff\xff\xff\xffS\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00E\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00G\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00I\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00K\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00M\x01\x00\x00\xff\xff\xff\xffU\x01\x00\x00\xff\xff\xff\xffW\x01\x00\x00\xff\xff\xff\xffY\x01\x00\x00\xff\xff\xff\xff[\x01\x00\x00\xff\xff\xff\xff]\x01\x00\x00\xff\xff\xff\xff_\x01\x00\x00\xff\xff\xff\xffa\x01\x00\x00\xff\xff\xff\xffc\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00U\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00W\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00Y\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00[\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00]\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00\xff\xff\xff\xffg\x01\x00\x00\xff\xff\xff\xff\xf9\x00\x00\x00\xff\xff\xff\xff\xfb\x00\x00\x00\xff\xff\xff\xff\xfd\x00\x00\x00\xff\xff\xff\xff\xff\x00\x00\x00\xff\xff\xff\xff\x01\x01\x00\x00\xff\xff\xff\xff\x03\x01\x00\x00\xff\xff\xff\xff\x05\x01\x00\x00\xff\xff\xff\xff\x07\x01\x00\x00\xff\xff\xff\xff\t\x01\x00\x00\xff\xff\xff\xff\x0b\x01\x00\x00\xff\xff\xff\xff1\x01\x00\x00!\x01\x00\x00?\x01\x00\x00\xff\xff\xff\xff\x11\x01\x00\x00\xff\xff\xff\xff\x0f\x01\x00\x00\xff\xff\xff\xff\x13\x01\x00\x00\xff\xff\xff\xff\r\x01\x00\x00\xff\xff\xff\xff1\x01\x00\x00\xff\xff\xff\xffA\x01\x00\x00\xff\xff\xff\xff=\x01\x00\x00\xff\xff\xff\xff3\x01\x00\x00\xff\xff\xff\xff\x1b\x01\x00\x00\xff\xff\xff\xff)\x01\x00\x00\xff\xff\xff\xff\x1d\x01\x00\x00\xff\xff\xff\xff#\x01\x00\x00\xff\xff\xff\xff+\x01\x00\x00\xff\xff\xff\xffC\x01\x00\x00\xff\xff\xff\xff\x15\x01\x00\x00\xff\xff\xff\xff\x17\x01\x00\x00\xff\xff\xff\xff\x1f\x01\x00\x00\xff\xff\xff\xff%\x01\x00\x00\xff\xff\xff\xff\x19\x01\x00\x00\xff\xff\xff\xff'\x01\x00\x00\xff\xff\xff\xff-\x01\x00\x00\xff\xff\xff\xff/\x01\x00\x00\xff\xff\xff\xff5\x01\x00\x00\xff\xff\xff\xff7\x01\x00\x00\xff\xff\xff\xff9\x01\x00\x00\xff\xff\xff\xff;\x01\x00\x00\xff\xff\xff\xff}\x01\x00\x00\xff\xff\xff\xff\x81\x01\x00\x00\xff\xff\xff\xff\x7f\x01\x00\x00\xff\xff\xff\xffs\x01\x00\x00\xff\xff\xff\xffi\x01\x00\x00\xff\xff\xff\xffk\x01\x00\x00\xff\xff\xff\xffm\x01\x00\x00\xff\xff\xff\xffo\x01\x00\x00\xff\xff\xff\xffq\x01\x00\x00\xff\xff\xff\xffu\x01\x00\x00\xff\xff\xff\xffw\x01\x00\x00\xff\xff\xff\xffy\x01\x00\x00\xff\xff\xff\xff{\x01\x00\x00\xff\xff\xff\xff\x83\x01\x00\x00\xff\xff\xff\xff\x85\x01\x00\x00\xff\xff\xff\xff\x87\x01\x00\x00\xff\xff\xff\xff\x89\x01\x00\x00\xff\xff\xff\xff\x8b\x01\x00\x00\xff\xff\xff\xff\x8d\x01\x00\x00\xff\xff\xff\xff\x8f\x01\x00\x00\xff\xff\xff\xff\x91\x01\x00\x00\xff\xff\xff\xff\x93\x01\x00\x00\xff\xff\xff\xff\x95\x01\x00\x00\xff\xff\xff\xff\x97\x01\x00\x00\xff\xff\xff\xff\x99\x01\x00\x00\xff\xff\xff\xff\x9b\x01\x00\x00\xff\xff\xff\xff\x9d\x01\x00\x00\xff\xff\xff\xff\x9f\x01\x00\x00\xff\xff\xff\xff\xa1\x01\x00\x00\xff\xff\xff\xff\xa3\x01\x00\x00\xff\xff\xff\xff\xa5\x01\x00\x00\xff\xff\xff\xff\xa7\x01\x00\x00\xff\xff\xff\xff\xa9\x01\x00\x00\xff\xff\xff\xff")])),
         }
     }
@@ -917,18 +904,9 @@ impl CueLists {
             .table
             .get(cue as usize)
             .ok_or(crate::errors::BadInput("a sound cue past the table"))?;
-        let at = offset_in(cell.get(), CUE_TAG, Self::LEN).ok_or(crate::errors::BadInput(
-            "a sound table's entry off its piece",
-        ))?;
-        // The piece starts with the table.
-        let from = at
-            .checked_sub(4 * lists.table.len())
-            .ok_or(crate::errors::BadInput(
-                "a sound cue's list inside the table",
-            ))?;
         Ok(ListIn {
             bytes: &lists.lists,
-            from,
+            from: cell.get() as usize,
         })
     }
 }
@@ -1046,7 +1024,7 @@ impl KindRecord {
 #[repr(C, align(16))]
 #[derive(rc2k_derive::Cells)]
 pub struct SoundKinds {
-    /// 0x514F90: `g_carSoundKinds`: a pointer to each sound kind's record (`sound::car_engine_state`).
+    /// 0x514F90: `g_carSoundKinds`: each sound kind's record, by its number (`sound::car_engine_state`).
     pub kinds: [PlainDword; 36],
     /// 0x515020: `unk_515020` ..: the sound kinds' records of 0x88 bytes (`race::sound_tables` works the floats out).
     pub records: [KindRecord; 34],
@@ -1062,42 +1040,42 @@ impl SoundKinds {
     pub const fn new() -> Self {
         SoundKinds {
             kinds: [
-                PlainDword::new(kind_ref(0x515020)),
-                PlainDword::new(kind_ref(0x5150a8)),
-                PlainDword::new(kind_ref(0x515130)),
-                PlainDword::new(kind_ref(0x5151b8)),
-                PlainDword::new(kind_ref(0x515240)),
-                PlainDword::new(kind_ref(0x5152c8)),
-                PlainDword::new(kind_ref(0x515350)),
-                PlainDword::new(kind_ref(0x5153d8)),
-                PlainDword::new(kind_ref(0x515460)),
-                PlainDword::new(kind_ref(0x5154e8)),
-                PlainDword::new(kind_ref(0x515570)),
-                PlainDword::new(kind_ref(0x5155f8)),
-                PlainDword::new(kind_ref(0x515680)),
-                PlainDword::new(kind_ref(0x515708)),
-                PlainDword::new(kind_ref(0x515790)),
-                PlainDword::new(kind_ref(0x515818)),
-                PlainDword::new(kind_ref(0x5158a0)),
-                PlainDword::new(kind_ref(0x515928)),
-                PlainDword::new(kind_ref(0x5159b0)),
-                PlainDword::new(kind_ref(0x515a38)),
-                PlainDword::new(kind_ref(0x515ac0)),
-                PlainDword::new(kind_ref(0x515b48)),
-                PlainDword::new(kind_ref(0x515bd0)),
-                PlainDword::new(kind_ref(0x515c58)),
-                PlainDword::new(kind_ref(0x515ce0)),
-                PlainDword::new(kind_ref(0x515d68)),
-                PlainDword::new(kind_ref(0x515df0)),
-                PlainDword::new(kind_ref(0x515e78)),
-                PlainDword::new(kind_ref(0x515f00)),
-                PlainDword::new(kind_ref(0x515f88)),
-                PlainDword::new(kind_ref(0x516010)),
-                PlainDword::new(kind_ref(0x516098)),
-                PlainDword::new(kind_ref(0x516120)),
-                PlainDword::new(kind_ref(0x5161a8)),
-                PlainDword::new(kind_ref(0x515928)),
-                PlainDword::new(kind_ref(0x515928)),
+                PlainDword::new(0),
+                PlainDword::new(1),
+                PlainDword::new(2),
+                PlainDword::new(3),
+                PlainDword::new(4),
+                PlainDword::new(5),
+                PlainDword::new(6),
+                PlainDword::new(7),
+                PlainDword::new(8),
+                PlainDword::new(9),
+                PlainDword::new(10),
+                PlainDword::new(11),
+                PlainDword::new(12),
+                PlainDword::new(13),
+                PlainDword::new(14),
+                PlainDword::new(15),
+                PlainDword::new(16),
+                PlainDword::new(17),
+                PlainDword::new(18),
+                PlainDword::new(19),
+                PlainDword::new(20),
+                PlainDword::new(21),
+                PlainDword::new(22),
+                PlainDword::new(23),
+                PlainDword::new(24),
+                PlainDword::new(25),
+                PlainDword::new(26),
+                PlainDword::new(27),
+                PlainDword::new(28),
+                PlainDword::new(29),
+                PlainDword::new(30),
+                PlainDword::new(31),
+                PlainDword::new(32),
+                PlainDword::new(33),
+                PlainDword::new(17),
+                PlainDword::new(17),
             ],
             records: [
                 KindRecord::from_runs(&[
@@ -1528,20 +1506,8 @@ impl SoundKinds {
             .kinds
             .get(n as usize)
             .ok_or(crate::errors::BadInput("a sound kind past the table"))?;
-        let at = (cell
-            .get()
-            .checked_sub(KIND_TAG)
-            .ok_or(crate::errors::BadInput(
-                "a sound table's entry off its piece",
-            ))? as usize)
-            .wrapping_sub(36 * 4);
-        if !at.is_multiple_of(KIND_RECORD_LEN) {
-            return Err(crate::errors::BadInput(
-                "a sound table's entry off its piece",
-            ));
-        }
         self.records
-            .get(at / KIND_RECORD_LEN)
+            .get(cell.get() as usize)
             .ok_or(crate::errors::BadInput(
                 "a sound table's entry off its piece",
             ))
@@ -1562,7 +1528,7 @@ impl SoundKinds {
 pub struct SurfaceSets {
     /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
     pub _lead: PlainBytes<12>,
-    /// 0x51639C: `g_surfaceSoundSetsA`: the sets (seven pairs of pointers; `sound::surface_sounds`).
+    /// 0x51639C: `g_surfaceSoundSetsA`: the sets (seven pairs; each is the byte offset in `lists` where its set starts; `sound::surface_sounds`).
     pub sets: [PlainDword; 14],
     /// 0x5163D4: `unk_5163D4` ..: the lists.
     pub lists: PlainBytes<392>,
@@ -1574,7 +1540,7 @@ impl SurfaceSets {
     pub const fn new() -> Self {
         SurfaceSets {
     _lead: PlainBytes::new([0; 12]),
-    sets: [PlainDword::new(surface_ref(0x5163d4)), PlainDword::new(surface_ref(0x5163f8)), PlainDword::new(surface_ref(0x51640c)), PlainDword::new(surface_ref(0x516430)), PlainDword::new(surface_ref(0x516444)), PlainDword::new(surface_ref(0x516468)), PlainDword::new(surface_ref(0x51647c)), PlainDword::new(surface_ref(0x5164a0)), PlainDword::new(surface_ref(0x5164ec)), PlainDword::new(surface_ref(0x516510)), PlainDword::new(surface_ref(0x5164b4)), PlainDword::new(surface_ref(0x5164d8)), PlainDword::new(surface_ref(0x516524)), PlainDword::new(surface_ref(0x516548))],
+    sets: [PlainDword::new(0), PlainDword::new(36), PlainDword::new(56), PlainDword::new(92), PlainDword::new(112), PlainDword::new(148), PlainDword::new(168), PlainDword::new(204), PlainDword::new(280), PlainDword::new(316), PlainDword::new(224), PlainDword::new(260), PlainDword::new(336), PlainDword::new(372)],
     lists: PlainBytes::new(with_runs::<392>(&[(0, b"\x01\x00\x00\x00\x8c\x00\x00\x00\x8d\x00\x00\x00\x90\x00\x00\x00\x91\x00\x00\x00\x8e\x00\x00\x00\x8f\x00\x00\x00\x90\x00\x00\x00\x91\x00\x00\x00\x02\x00\x00\x00\x92\x00\x00\x00\x93\x00\x00\x00\x94\x00\x00\x00\x95\x00\x00\x00\x01\x00\x00\x00\x96\x00\x00\x00\x97\x00\x00\x00\x9a\x00\x00\x00\x9b\x00\x00\x00\x98\x00\x00\x00\x99\x00\x00\x00\x9a\x00\x00\x00\x9b\x00\x00\x00\x02\x00\x00\x00\x9c\x00\x00\x00\x9d\x00\x00\x00\x9e\x00\x00\x00\x9f\x00\x00\x00\x01\x00\x00\x00\xa0\x00\x00\x00\xa1\x00\x00\x00\xa4\x00\x00\x00\xa5\x00\x00\x00\xa2\x00\x00\x00\xa3\x00\x00\x00\xa4\x00\x00\x00\xa5\x00\x00\x00\x02\x00\x00\x00\xa6\x00\x00\x00\xa7\x00\x00\x00\xa8\x00\x00\x00\xa9\x00\x00\x00\x01\x00\x00\x00\xaa\x00\x00\x00\xab\x00\x00\x00\xae\x00\x00\x00\xaf\x00\x00\x00\xac\x00\x00\x00\xad\x00\x00\x00\xae\x00\x00\x00\xaf\x00\x00\x00\x02\x00\x00\x00\xb0\x00\x00\x00\xb1\x00\x00\x00\xb2\x00\x00\x00\xb3\x00\x00\x00\x01\x00\x00\x00\xb4\x00\x00\x00\xb5\x00\x00\x00\xb8\x00\x00\x00\xb9\x00\x00\x00\xb6\x00\x00\x00\xb7\x00\x00\x00\xb8\x00\x00\x00\xb9\x00\x00\x00\x02\x00\x00\x00\xba\x00\x00\x00\xbb\x00\x00\x00\xbc\x00\x00\x00\xbd\x00\x00\x00\x01\x00\x00\x00\xbe\x00\x00\x00\xbf\x00\x00\x00\xc2\x00\x00\x00\xc3\x00\x00\x00\xc0\x00\x00\x00\xc1\x00\x00\x00\xc2\x00\x00\x00\xc3\x00\x00\x00\x02\x00\x00\x00\xc4\x00\x00\x00\xc5\x00\x00\x00\xc6\x00\x00\x00\xc7\x00\x00\x00\x01\x00\x00\x00\xc8\x00\x00\x00\xc9\x00\x00\x00\xcc\x00\x00\x00\xcd\x00\x00\x00\xca\x00\x00\x00\xcb\x00\x00\x00\xcc\x00\x00\x00\xcd\x00\x00\x00\x02\x00\x00\x00\xce\x00\x00\x00\xcf\x00\x00\x00\xd0\x00\x00\x00\xd1")])),
     _tail: PlainBytes::new([0; 4]),
         }
@@ -1589,18 +1555,9 @@ impl SurfaceSets {
         let cell = sets.sets.get(n).ok_or(crate::errors::BadInput(
             "a surface sound set past the table",
         ))?;
-        let at = offset_in(cell.get(), SURFACE_TAG, Self::LEN).ok_or(crate::errors::BadInput(
-            "a sound table's entry off its piece",
-        ))?;
-        // The piece starts with the table of sets.
-        let from = at
-            .checked_sub(4 * sets.sets.len())
-            .ok_or(crate::errors::BadInput(
-                "a surface sound set inside the table",
-            ))?;
         Ok(ListIn {
             bytes: &sets.lists,
-            from,
+            from: cell.get() as usize,
         })
     }
 
@@ -3239,6 +3196,17 @@ mod tests {
         }
     }
 
+    /// The image's `count` address dwords from `at` made `(address - first) / unit`: where the
+    /// list or record they name starts in the block that follows the table.
+    fn indexed(image: &mut [u8], at: usize, count: usize, first: usize, unit: usize) {
+        for k in 0..count {
+            let o = at + 4 * k;
+            let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
+            let v = (v as usize - first) / unit;
+            image[o..o + 4].copy_from_slice(&(v as u32).to_le_bytes());
+        }
+    }
+
     #[test]
     fn menusounds_starts_as_the_games() {
         let size = size_of::<MenuSounds>();
@@ -3306,7 +3274,7 @@ mod tests {
         assert!(8 + CueLists::LEN <= size && size <= (8 + CueLists::LEN).next_multiple_of(16));
         let mut image = first_values::bytes(CUES_IMAGE).to_vec();
         let mine = first_values::store_bytes(CUES_STORE);
-        handled(&mut image, 0, 113, CUE_TAG, CueLists::START);
+        indexed(&mut image, 0, 113, CueLists::START + 4 * 113, 1);
         assert_eq!(mine, image);
     }
 
@@ -3316,7 +3284,13 @@ mod tests {
         assert!(SoundKinds::LEN <= size && size <= (SoundKinds::LEN).next_multiple_of(16));
         let mut image = first_values::bytes(KINDS_IMAGE).to_vec();
         let mine = first_values::store_bytes(KINDS_STORE);
-        handled(&mut image, 0, 36, KIND_TAG, SoundKinds::START);
+        indexed(
+            &mut image,
+            0,
+            36,
+            SoundKinds::START + 4 * 36,
+            KIND_RECORD_LEN,
+        );
         assert_eq!(mine, image);
     }
 
@@ -3353,7 +3327,7 @@ mod tests {
         );
         let mut image = first_values::bytes(SURFACES_IMAGE).to_vec();
         let mine = first_values::store_bytes(SURFACES_STORE);
-        handled(&mut image, 0, 14, SURFACE_TAG, SurfaceSets::START);
+        indexed(&mut image, 0, 14, SurfaceSets::START + 4 * 14, 1);
         assert_eq!(mine, image);
     }
 

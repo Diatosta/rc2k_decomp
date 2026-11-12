@@ -240,10 +240,13 @@ fn projected_x87(buffer: &crate::d3d::vertices_store::PolygonVertices, sq: &Wind
 
 #[cfg(test)]
 mod reference_vectors {
+    use crate::effects::asm_layout::with_laid;
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::staged_vertices as staged;
-    use crate::effects::asm_test::with_copy;
+
     use crate::effects::asm_test::{Op, Spec, recorded_writes};
+    use crate::effects::pong::PongState;
+    use crate::effects::tuning::MarksFloats;
     use crate::effects::windscreen_flakes_store::WindscreenFlakeTables;
 
     /// The four ten-byte values at `at` of the test buffer (0 where the buffer does not
@@ -295,24 +298,13 @@ mod reference_vectors {
             sincos: false,
         };
         recorded_writes("effects.draw_pong_box.sides_x87", &SPEC, |b| {
-            crate::effects::asm_test::with_copy(
-                b[0],
-                crate::effects::tuning::MarksFloats::START,
-                |f| {
-                    with_copy::<WindscreenFlakeTables, _>(
-                        b[0],
-                        WindscreenFlakeTables::START,
-                        |sq| {
-                            super::sides_x87(
-                                &values(b[1]),
-                                crate::effects::pong::state_at(b[0]),
-                                f,
-                                sq,
-                            );
-                        },
-                    );
-                },
-            );
+            with_laid::<MarksFloats, _>(b[0], |f| {
+                with_laid::<WindscreenFlakeTables, _>(b[0], |sq| {
+                    with_laid::<PongState, _>(b[0], |state| {
+                        super::sides_x87(&values(b[1]), state, f, sq);
+                    });
+                });
+            });
         });
     }
 
@@ -370,8 +362,10 @@ mod reference_vectors {
             sincos: false,
         };
         recorded_writes("effects.draw_pong_box.corners_x87", &SPEC, |b| {
-            with_copy::<WindscreenFlakeTables, _>(b[0], WindscreenFlakeTables::START, |sq| {
-                super::corners_x87(&values(b[1]), crate::effects::pong::state_at(b[0]), sq);
+            with_laid::<WindscreenFlakeTables, _>(b[0], |sq| {
+                with_laid::<PongState, _>(b[0], |state| {
+                    super::corners_x87(&values(b[1]), state, sq);
+                });
             });
         });
     }
@@ -427,7 +421,7 @@ mod reference_vectors {
             sincos: false,
         };
         recorded_writes("effects.draw_pong_box.projected_x87", &SPEC, |b| {
-            with_copy::<WindscreenFlakeTables, _>(b[1], WindscreenFlakeTables::START, |sq| {
+            with_laid::<WindscreenFlakeTables, _>(b[1], |sq| {
                 staged(
                     b[2],
                     &[

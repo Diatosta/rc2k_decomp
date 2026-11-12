@@ -1209,11 +1209,6 @@ impl RingKinds {
 }
 
 #[cfg(test)]
-impl RingKinds {
-    pub const LEN: usize = 0x9C;
-}
-
-#[cfg(test)]
 mod ring_kinds_tests {
     use super::*;
     use core::mem::offset_of;
@@ -1227,7 +1222,6 @@ mod ring_kinds_tests {
 
     #[test]
     fn ring_kinds_starts_as_the_games() {
-        assert_eq!(size_of::<RingKinds>(), RingKinds::LEN);
         assert!(
             bytes(&effects().ring.kinds)
                 == crate::test_support::first_values::bytes("effects.run_ring.RING_KINDS"),
@@ -1261,8 +1255,9 @@ mod ring_kinds_tests {
 
 #[cfg(test)]
 mod reference_vectors {
+    use crate::effects::asm_layout::with_laid;
     use crate::effects::asm_test::Kind::*;
-    use crate::effects::asm_test::{Op, Spec, recorded_writes, with_copy};
+    use crate::effects::asm_test::{Op, Spec, recorded_writes};
     use crate::effects::owner::effects;
     use crate::effects::ring_store::RingWork;
     use crate::effects::tuning::MarksFloats;
@@ -1355,7 +1350,7 @@ mod reference_vectors {
             sincos: false,
         };
         recorded_writes("effects.run_ring.box_x87", &SPEC, |b| {
-            with_copy(b[0], RingWork::START, |w| {
+            with_laid::<RingWork, _>(b[0], |w| {
                 crate::effects::ring_entries::with_entry_at(ring, b[1], 0x10, 0x1C, |e| {
                     super::box_x87(ring, w, e, &whole_at(b[2]), &car_matrix(b[3]));
                 });
@@ -1393,8 +1388,8 @@ mod reference_vectors {
             sincos: false,
         };
         recorded_writes("effects.run_ring.facing_x87", &SPEC, |b| {
-            with_copy(b[0], MarksFloats::START, |f| {
-                with_copy(b[0], RingWork::START, |w| {
+            with_laid::<MarksFloats, _>(b[0], |f| {
+                with_laid::<RingWork, _>(b[0], |w| {
                     let car = car_with(b[1], 0, &[0x4C, 0x50, 0x54]);
                     super::facing_x87(&car, f, w);
                 });
@@ -1446,7 +1441,7 @@ mod reference_vectors {
             sincos: false,
         };
         recorded_writes("effects.run_ring.pull_length_x87", &SPEC, |b| {
-            with_copy(b[0], RingWork::START, |w| {
+            with_laid::<RingWork, _>(b[0], |w| {
                 crate::effects::ring_entries::with_entry_at(ring, b[1], 0x10, 0x1C, |e| {
                     let mut length = [0xAA; 10];
                     let kinds = super::RingKinds {
@@ -1504,8 +1499,8 @@ mod reference_vectors {
             sincos: false,
         };
         recorded_writes("effects.run_ring.pull_facing_x87", &SPEC, |b| {
-            with_copy(b[0], MarksFloats::START, |f| {
-                with_copy(b[0], RingWork::START, |w| {
+            with_laid::<MarksFloats, _>(b[0], |f| {
+                with_laid::<RingWork, _>(b[0], |w| {
                     let car = car_with(b[1], 0, &[0x4C, 0x50, 0x54, 0x88]);
                     let length: [u8; 10] =
                         std::array::from_fn(|i| unsafe { (b[2] + i).host().read() });
@@ -1548,8 +1543,8 @@ mod reference_vectors {
             sincos: false,
         };
         recorded_writes("effects.run_ring.pull_strength_x87", &SPEC, |b| {
-            with_copy(b[0], MarksFloats::START, |f| {
-                with_copy(b[0], RingWork::START, |w| {
+            with_laid::<MarksFloats, _>(b[0], |f| {
+                with_laid::<RingWork, _>(b[0], |w| {
                     crate::effects::ring_entries::with_entry_at(ring, b[1], 0x64, 0x68, |e| {
                         let car = car_with(b[2], 0, &[0x88]);
                         let kinds = super::RingKinds {
@@ -1561,7 +1556,9 @@ mod reference_vectors {
                             ring,
                             e,
                             &car,
-                            crate::effects::setup::clock_at(b[0]),
+                            crate::effects::asm_layout::copy_of::<crate::effects::setup::MarksClock>(
+                                b[0],
+                            ),
                             f,
                             w,
                             &kinds,
@@ -1609,7 +1606,7 @@ mod reference_vectors {
             sincos: false,
         };
         recorded_writes("effects.run_ring.box_place_x87", &SPEC, |b| {
-            with_copy(b[0], RingWork::START, |w| {
+            with_laid::<RingWork, _>(b[0], |w| {
                 crate::effects::ring_entries::with_entry_at(ring, b[1], 0x10, 0x1C, |e| {
                     super::box_place_x87(ring, w, e, &car_matrix(b[2]));
                 });

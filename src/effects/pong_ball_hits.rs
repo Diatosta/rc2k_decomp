@@ -98,9 +98,10 @@ fn new_way_x87(p: &PongState, r: &PongRules, length: f32) {
 
 #[cfg(test)]
 mod reference_vectors {
+    use crate::effects::asm_layout::with_laid;
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::{Op, Spec, recorded};
-    use crate::effects::pong::{rules_at, state_at};
+    use crate::effects::pong::{PongRules, PongState};
 
     #[test]
     fn centres_x87_matches() {
@@ -138,7 +139,9 @@ mod reference_vectors {
             sincos: false,
         };
         recorded("effects.pong_ball_hits.centres_x87", &SPEC, |b| {
-            super::centres_x87(state_at(b[0]), &rules_at(b[0]));
+            with_laid::<PongState, _>(b[0], |state| {
+                with_laid::<PongRules, _>(b[0], |rules| super::centres_x87(state, rules));
+            });
         });
     }
 
@@ -162,7 +165,9 @@ mod reference_vectors {
         recorded("effects.pong_ball_hits.new_way_x87", &SPEC, |b| {
             let length =
                 f32::from_bits(unsafe { ((b[0] + 0x22C).host() as *const u32).read_unaligned() });
-            super::new_way_x87(state_at(b[0]), &rules_at(b[0]), length);
+            with_laid::<PongState, _>(b[0], |state| {
+                with_laid::<PongRules, _>(b[0], |rules| super::new_way_x87(state, rules, length));
+            });
         });
     }
 }

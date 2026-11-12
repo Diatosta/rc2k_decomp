@@ -12,6 +12,8 @@ pub mod add_mark_slot;
 pub mod adjugate3;
 pub mod aim_vector;
 #[cfg(test)]
+mod asm_layout;
+#[cfg(test)]
 mod asm_test;
 pub mod begin_quads;
 pub mod bend_points;

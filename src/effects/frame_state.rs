@@ -3,9 +3,7 @@
 //! the frame's turned points, view and quads (`DrawFrame`), and the lens flare's tables
 //! (`FlareParts`, `FlareScales`).
 
-#[cfg(test)]
-use crate::effects::owner::effects;
-use crate::session::{PlainBytes, PlainDword, PlainFloat};
+use crate::session::{PlainDword, PlainFloat};
 
 /// The marks' sprites' and profiles' work places (IDA 0x8EB871 .. 0x8EB971).
 #[repr(C)]
@@ -13,8 +11,6 @@ use crate::session::{PlainBytes, PlainDword, PlainFloat};
 pub struct DrawWork {
     /// 0x8EB871: `flt_8EB871` ..: the profile tables' running values (`effects::make_profiles`; as bits).
     pub profile_work: [PlainFloat; 11],
-    /// 0x8EB89D: `dword_8EB89D`: Not named: 24 bytes (a gap, or unreferenced data).
-    pub _gap_8eb89d: PlainBytes<24>,
     /// 0x8EB8B5: `dword_8EB8B5`, `dword_8EB8B9`: half a sprite's size across and along (whole numbers; `effects::scale_corners` leaves a corner's two sides here).
     pub half: [PlainFloat; 2],
     /// 0x8EB8BD: `dword_8EB8BD` .. `dword_8EB8C9`: a sprite's half sides turned (whole numbers at first, floats once worked on).
@@ -25,20 +21,12 @@ pub struct DrawWork {
     pub turned: [PlainFloat; 3],
     /// 0x8EB8E1: `dword_8EB8E1` ..: a ribbon piece's second place in the view's frame (x, y, depth).
     pub second: [PlainFloat; 3],
-    /// 0x8EB8ED: Not named: 84 bytes (a gap, or unreferenced data).
-    pub _gap_8eb8ed: PlainBytes<84>,
     /// 0x8EB941: `flt_8EB941`, `flt_8EB945`: a flare part's sides (`effects::draw_flare_part`).
     pub sides: [PlainFloat; 2],
-    /// 0x8EB949: Not named: 8 bytes (a gap, or unreferenced data).
-    pub _gap_8eb949: PlainBytes<8>,
     /// 0x8EB951: `flt_8EB951` ..: the view's step since the last frame (`effects::view_motion`).
     pub step: [PlainFloat; 3],
-    /// 0x8EB95D: `dword_8EB95D`: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_8eb95d: PlainBytes<4>,
     /// 0x8EB961: `dword_8EB961`: a depth at or below it (compared as a signed whole number of the float's bits) is not drawn.
     pub near: PlainFloat,
-    /// 0x8EB965: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_8eb965: PlainBytes<4>,
     /// 0x8EB969: `flt_8EB969`: 1 / 65536, what a cell's words are multiplied by to make texture places.
     pub uv_k: PlainFloat,
     /// 0x8EB96D: `flt_8EB96D`: 1 over the view's farthest depth (`effects::begin_quads`), what depths are multiplied by.
@@ -49,7 +37,6 @@ impl DrawWork {
     pub const fn new() -> Self {
         Self {
             profile_work: [const { PlainFloat::new(0.0) }; 11],
-            _gap_8eb89d: PlainBytes::new([0; 24]),
             half: [PlainFloat::new(0.0), PlainFloat::new(0.0)],
             sprite_half: [
                 PlainDword::new(0x0),
@@ -68,24 +55,13 @@ impl DrawWork {
                 PlainFloat::new(0.0),
                 PlainFloat::new(0.0),
             ],
-            _gap_8eb8ed: PlainBytes::new([
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F,
-            ]),
             sides: [PlainFloat::new(0.0), PlainFloat::new(0.0)],
-            _gap_8eb949: PlainBytes::new([0; 8]),
             step: [
                 PlainFloat::new(0.0),
                 PlainFloat::new(0.0),
                 PlainFloat::new(0.0),
             ],
-            _gap_8eb95d: PlainBytes::new([0; 4]),
             near: PlainFloat::new(65536.0),
-            _gap_8eb965: PlainBytes::new([0x00, 0x00, 0x80, 0x3B]),
             uv_k: PlainFloat::new(0.000015258789),
             z_k: PlainFloat::new(0.0),
         }
@@ -106,11 +82,6 @@ impl DrawWork {
     }
 }
 
-impl DrawWork {
-    pub const START: usize = 0x8EB871;
-    pub const LEN: usize = 0x100;
-}
-
 /// The marks' view heading, step and ribbon work (IDA 0x8F3975 .. 0x8F39CD).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -125,16 +96,10 @@ pub struct ViewVars {
     pub cleared: PlainDword,
     /// 0x8F3985: `flt_8F3985`, `flt_8F3989`: a ribbon piece's way turned a quarter (`effects::draw_ribbon`).
     pub ribbon_way: [PlainFloat; 2],
-    /// 0x8F398D: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_8f398d: PlainBytes<4>,
     /// 0x8F3991: `flt_8F3991`, `flt_8F3995`: the ribbon's screen-space half-width offset (x, y) at its first end: the way turned a quarter times the half width times the first end's perspective scale; the quad's corners 0 and 1 are the first end's point less / plus it (`effects::draw_ribbon`).
     pub first_end_half_width: [PlainFloat; 2],
-    /// 0x8F3999: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_8f3999: PlainBytes<4>,
     /// 0x8F399D: `flt_8F399D`, `flt_8F39A1`: the same half-width offset at the second end (its own perspective scale); corners 2 and 3 are the second end's point plus / less it.
     pub second_end_half_width: [PlainFloat; 2],
-    /// 0x8F39A5: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_8f39a5: PlainBytes<4>,
     /// 0x8F39A9: `flt_8F39A9` ..: three points turned by the view matrix (`effects::draw_frame`; x, y, z each).
     pub turned_points: [[PlainFloat; 3]; 3],
 }
@@ -147,11 +112,8 @@ impl ViewVars {
             facing: PlainFloat::new(0.0),
             cleared: PlainDword::new(0x0),
             ribbon_way: [PlainFloat::new(0.0), PlainFloat::new(0.0)],
-            _gap_8f398d: PlainBytes::new([0; 4]),
             first_end_half_width: [PlainFloat::new(0.0), PlainFloat::new(0.0)],
-            _gap_8f3999: PlainBytes::new([0; 4]),
             second_end_half_width: [PlainFloat::new(0.0), PlainFloat::new(0.0)],
-            _gap_8f39a5: PlainBytes::new([0; 4]),
             turned_points: [const {
                 [
                     PlainFloat::new(0.0),
@@ -161,11 +123,6 @@ impl ViewVars {
             }; 3],
         }
     }
-}
-
-impl ViewVars {
-    pub const START: usize = 0x8F3975;
-    pub const LEN: usize = 0x58;
 }
 
 /// The marks' frame: profile mark and steps, turned points, view, quads and flare (IDA 0x91FF3E .. 0x91FFE2).
@@ -186,8 +143,8 @@ pub struct DrawFrame {
     pub other: [PlainFloat; 3],
     /// 0x91FF9A: `flt_91FF9A`, `flt_91FF9E`: two time marks kept from `flt_765124` / `flt_765118` (`effects::draw_frame`).
     pub times: [PlainFloat; 2],
-    /// 0x91FFA2: `dword_91FFA2`: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_91ffa2: PlainBytes<4>,
+    /// 0x91FFA2: `dword_91FFA2`: the draw amount the debug page compares with `cleared` (the original sets it to 0 at each frame's start, `sub_4C4084`, and counts nothing into it; `effects::draw_frame` does not touch it).
+    pub drawn: PlainDword,
     /// 0x91FFA6: `dword_91FFA6`: the quads' vertices' rhw, 256 (`effects::begin_quads`).
     pub rhw: PlainFloat,
     /// 0x91FFAA: `dword_91FFAA` .. `dword_91FFB6`: the quads' texture places (u a, u c, v b, v d).
@@ -236,7 +193,7 @@ impl DrawFrame {
                 PlainFloat::new(1.0),
             ],
             times: [PlainFloat::new(100.0), PlainFloat::new(100.0)],
-            _gap_91ffa2: PlainBytes::new([0; 4]),
+            drawn: PlainDword::new(0x0),
             rhw: PlainFloat::new(256.0),
             places: [
                 PlainFloat::new(0.001953125),
@@ -358,58 +315,5 @@ impl FlareScales {
             size_k: PlainFloat::new(1.5),
             scale: [PlainFloat::new(0.5), PlainFloat::new(0.5)],
         }
-    }
-}
-
-#[cfg(test)]
-mod typed_tests {
-    use super::*;
-    use core::mem::{offset_of, size_of};
-
-    #[test]
-    fn draw_work_starts_as_the_games() {
-        // Other tests write the work: read it while none runs.
-        let _lock = crate::test_support::test_lock();
-        assert_eq!(size_of::<DrawWork>(), DrawWork::LEN);
-        let image =
-            crate::test_support::first_values::bytes("effects.owner.EFFECTS.frame.draw_work/256");
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                (&raw const effects().frame.draw_work).cast::<u8>(),
-                DrawWork::LEN,
-            )
-        };
-        assert!(mine == image, "DRAW_WORK starts differently from the image");
-        assert_eq!(offset_of!(DrawWork, half), 0x44);
-        assert_eq!(offset_of!(DrawWork, sprite_half), 0x4c);
-        assert_eq!(offset_of!(DrawWork, ends_scale), 0x5c);
-        assert_eq!(offset_of!(DrawWork, turned), 0x64);
-        assert_eq!(offset_of!(DrawWork, second), 0x70);
-        assert_eq!(offset_of!(DrawWork, sides), 0xd0);
-        assert_eq!(offset_of!(DrawWork, step), 0xe0);
-        assert_eq!(offset_of!(DrawWork, near), 0xf0);
-        assert_eq!(offset_of!(DrawWork, uv_k), 0xf8);
-        assert_eq!(offset_of!(DrawWork, z_k), 0xfc);
-    }
-
-    #[test]
-    fn view_vars_starts_as_the_games() {
-        assert_eq!(size_of::<ViewVars>(), ViewVars::LEN);
-        let image =
-            crate::test_support::first_values::bytes("effects.owner.EFFECTS.frame.view_vars/88");
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                (&raw const effects().frame.view_vars).cast::<u8>(),
-                ViewVars::LEN,
-            )
-        };
-        assert!(mine == image, "VIEW_VARS starts differently from the image");
-        assert_eq!(offset_of!(ViewVars, step), 0x4);
-        assert_eq!(offset_of!(ViewVars, facing), 0x8);
-        assert_eq!(offset_of!(ViewVars, cleared), 0xc);
-        assert_eq!(offset_of!(ViewVars, ribbon_way), 0x10);
-        assert_eq!(offset_of!(ViewVars, first_end_half_width), 0x1c);
-        assert_eq!(offset_of!(ViewVars, second_end_half_width), 0x28);
-        assert_eq!(offset_of!(ViewVars, turned_points), 0x34);
     }
 }

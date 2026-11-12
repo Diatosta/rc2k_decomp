@@ -63,7 +63,7 @@ const GROUPS: &[(&str, &[Figure])] = &[
             ),
             (
                 "fworks run",
-                Cell(|o| o.effects.ring.pool._gap_93a5cc.get_u32(0)),
+                Cell(|o| o.effects.ring.pool.fireworks_run.get()),
                 false,
             ),
             (
@@ -173,12 +173,12 @@ const GROUPS: &[(&str, &[Figure])] = &[
             ),
             (
                 "clock5",
-                Cell(|o| o.effects.setup.frame._gap_76512c.get_u32(0)),
+                Cell(|o| o.effects.setup.frame.clock5.bits()),
                 true,
             ),
             (
                 "clock6",
-                Cell(|o| o.effects.setup.frame._gap_76512c.get_u32(4)),
+                Cell(|o| o.effects.setup.frame.clock6.bits()),
                 true,
             ),
             (
@@ -227,10 +227,7 @@ fn shown(value: Option<u32>, float: bool) -> String {
 pub fn tab(o: &Owners<'static>, ui: &Ui) {
     // 0x4D2B90: its warning, when the two counts differ.
     let frame = &o.effects.frame.draw_frame;
-    let (drawn, run) = (
-        Some(frame._gap_91ffa2.get_u32(0)),
-        Some(frame.cleared.get()),
-    );
+    let (drawn, run) = (Some(frame.drawn.get()), Some(frame.cleared.get()));
     if drawn != run {
         ui.text_colored(
             [1.0, 0.4, 0.3, 1.0],

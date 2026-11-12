@@ -309,43 +309,30 @@ fn sprite_project_x87(
 #[cfg(test)]
 mod reference_vectors {
     use crate::effects::owner::effects;
-    use crate::effects::tilt_shape::ShapeTilt;
-    use crate::effects::tuning::MarksKindFloats;
-    use crate::effects::typed_sync::{overlay, with_overlays};
-    use crate::effects::windscreen_drop_state::{WindscreenDropState, WindscreenDropWork};
+
+    use crate::effects::typed_sync::{overlay_laid, with_overlays};
 
     /// Runs `f` with the windscreen drops' statics holding the buffer's bytes (`typed_sync`).
     fn windscreen_drops<R>(mk: crate::effects::asm_test::Operand, f: impl FnOnce() -> R) -> R {
         with_overlays(
             mk,
             &[
-                overlay(
-                    &crate::effects::owner::effects().windscreen_drops.tilt,
-                    ShapeTilt::START,
-                ),
-                overlay(
-                    &crate::effects::owner::effects().windscreen_drops.state,
-                    WindscreenDropState::START,
-                ),
-                overlay(
-                    &crate::effects::owner::effects().windscreen_drops.work,
-                    WindscreenDropWork::START,
-                ),
+                overlay_laid(&crate::effects::owner::effects().windscreen_drops.tilt),
+                overlay_laid(&crate::effects::owner::effects().windscreen_drops.state),
+                overlay_laid(&crate::effects::owner::effects().windscreen_drops.work),
             ],
             f,
         )
     }
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::{Op, Spec, canon, recorded_writes};
-    use crate::effects::windscreen_drop_vars::WindscreenDropVars;
 
     /// Runs `f` with `HEX` holding the buffer's bytes (`typed_sync`).
     fn hex<R>(mk: crate::effects::asm_test::Operand, f: impl FnOnce() -> R) -> R {
         with_overlays(
             mk,
-            &[overlay(
+            &[overlay_laid(
                 &crate::effects::owner::effects().windscreen_drops.hex,
-                WindscreenDropVars::START,
             )],
             f,
         )
@@ -746,32 +733,25 @@ mod reference_vectors {
             &SPEC,
             |b| {
                 windscreen_drops(b[1], || {
-                    with_overlays(
-                        b[1],
-                        &[overlay(
-                            &effects().setup.kind_floats,
-                            MarksKindFloats::START,
-                        )],
-                        || {
-                            hex(b[1], || {
-                                staged(
-                                    b[2],
-                                    0,
-                                    0xC0,
-                                    &crate::gfx::owner::gfx().card.windscreen_drop_batch.records,
-                                    || {
-                                        super::sprite_project_x87(
-                                            &crate::effects::owner::effects().windscreen_drops,
-                                            crate::gfx::owner::gfx(),
-                                            crate::effects::owner::effects(),
-                                            0,
-                                            super::bh::ld(b[3].number() as u32),
-                                        );
-                                    },
-                                );
-                            });
-                        },
-                    );
+                    with_overlays(b[1], &[overlay_laid(&effects().setup.kind_floats)], || {
+                        hex(b[1], || {
+                            staged(
+                                b[2],
+                                0,
+                                0xC0,
+                                &crate::gfx::owner::gfx().card.windscreen_drop_batch.records,
+                                || {
+                                    super::sprite_project_x87(
+                                        &crate::effects::owner::effects().windscreen_drops,
+                                        crate::gfx::owner::gfx(),
+                                        crate::effects::owner::effects(),
+                                        0,
+                                        super::bh::ld(b[3].number() as u32),
+                                    );
+                                },
+                            );
+                        });
+                    });
                 });
             },
         );

@@ -12,7 +12,8 @@
 //! (`install::installer`'s `rd`/`rb`), which runs on into the bytes after it as the
 //! original's reads do.
 
-use crate::install::page_links::PageLink;
+use crate::gfx::typefaces::{FontId, fonts};
+use crate::install::page_links::{ListId, PageLink};
 use crate::menu::list_handle::{
     BoxRect, EditRecord, Item, ListData3, ListData4, ListData5, ListData6, ListData10, ListData18,
     ListData26, ListHeader,
@@ -335,7 +336,7 @@ pub struct InstallerPages {
     pub bar: PlainBytes<16>,
     /// 0x51D4B3: `unk_51D4B3`: its frame.
     pub frame: PlainBytes<17>,
-    /// 0x51D4C4: `dword_51D4C4`: the page's fonts (pointers).
+    /// 0x51D4C4: `dword_51D4C4`: the page's fonts (links to the font objects).
     pub fonts: [PlainDword; 25],
     /// 0x51D528: `byte_51D528`: font by mark, 8 bytes a kind (`install::lay_out_pieces`, from +4).
     pub kind_fonts: PlainBytes<108>,
@@ -392,16 +393,42 @@ impl InstallerPages {
     frame_clock: PlainLoose::new(0x0),
     move_clock: PlainLoose::new(0x0),
     _gap_51d427: PlainBytes::new([0; 12]),
-    texts: [StringRecord::new(0x1A9, 0xAF, PageLink::of_ida(0x51E8A4).raw(), 0xAF), StringRecord::new(0x1A9, 0xFA, PageLink::of_ida(0x51E964).raw(), 0xB0)],
-    msg_error: [StringRecord::new(0x1A9, 0x15E, PageLink::of_ida(0x51E8A4).raw(), 0xB1)],
-    msg_cancel: [StringRecord::new(0x1A9, 0x190, PageLink::of_ida(0x51E8A4).raw(), 0xB3)],
-    remove_strings: [StringRecord::new(0x1A9, 0x12C, PageLink::of_ida(0x51E8A4).raw(), 0xBA)],
-    bar_glyphs_list: [GlyphRecord::new(0xE1, 0x12C, 0, PageLink::of_ida(0x4F3B74).raw()), GlyphRecord::new(0x1A9, 0x12C, 1, PageLink::of_ida(0x4F3B74).raw())],
+    texts: [StringRecord::new(0x1A9, 0xAF, PageLink::of_font(fonts::TITLE).raw(), 0xAF), StringRecord::new(0x1A9, 0xFA, PageLink::of_font(fonts::CAPTION_A).raw(), 0xB0)],
+    msg_error: [StringRecord::new(0x1A9, 0x15E, PageLink::of_font(fonts::TITLE).raw(), 0xB1)],
+    msg_cancel: [StringRecord::new(0x1A9, 0x190, PageLink::of_font(fonts::TITLE).raw(), 0xB3)],
+    remove_strings: [StringRecord::new(0x1A9, 0x12C, PageLink::of_font(fonts::TITLE).raw(), 0xBA)],
+    bar_glyphs_list: [GlyphRecord::new(0xE1, 0x12C, 0, PageLink::blended_palette().raw()), GlyphRecord::new(0x1A9, 0x12C, 1, PageLink::blended_palette().raw())],
     bar: PlainBytes::new(with_runs::<16>(&[(0, b"\xe0\x00\x00\x00+\x01\x00\x00\x92\x01\x00\x00\x1f")])),
     frame: PlainBytes::new(with_runs::<17>(&[(0, b"\xdf\x00\x00\x00*\x01\x00\x00\x94\x01\x00\x00!")])),
-    fonts: [PlainDword::new(0x0), PlainDword::new(0x51e624), PlainDword::new(0x51e824), PlainDword::new(0x51e824), PlainDword::new(0x51ea44), PlainDword::new(0x51ea64), PlainDword::new(0x51ea24), PlainDword::new(0x51e9e4), PlainDword::new(0x51ea04), PlainDword::new(0x51e9c4), PlainDword::new(0x51e864), PlainDword::new(0x51e884), PlainDword::new(0x51e844), PlainDword::new(0x51e6c4), PlainDword::new(0x51e6e4), PlainDword::new(0x51e6a4), PlainDword::new(0x51e8c4), PlainDword::new(0x51e8e4), PlainDword::new(0x51e8a4), PlainDword::new(0x51e8c4), PlainDword::new(0x51e8e4), PlainDword::new(0x51e8a4), PlainDword::new(0x51e984), PlainDword::new(0x51e9a4), PlainDword::new(0x51e964)],
+    fonts: [
+        PlainDword::new(0x0),
+        PlainDword::new(PageLink::of_font(fonts::MEASURE_23).raw()), // IDA 0x51E624
+        PlainDword::new(PageLink::of_font(fonts::MEASURE).raw()), // IDA 0x51E824
+        PlainDword::new(PageLink::of_font(fonts::MEASURE).raw()), // IDA 0x51E824
+        PlainDword::new(PageLink::of_font(FontId::numbered(53)).raw()), // IDA 0x51EA44
+        PlainDword::new(PageLink::of_font(FontId::numbered(54)).raw()), // IDA 0x51EA64
+        PlainDword::new(PageLink::of_font(FontId::numbered(52)).raw()), // IDA 0x51EA24
+        PlainDword::new(PageLink::of_font(FontId::numbered(50)).raw()), // IDA 0x51E9E4
+        PlainDword::new(PageLink::of_font(fonts::ITEM_GREY).raw()), // IDA 0x51EA04
+        PlainDword::new(PageLink::of_font(FontId::numbered(49)).raw()), // IDA 0x51E9C4
+        PlainDword::new(PageLink::of_font(fonts::ARCADE_BUTTON_PULSE).raw()), // IDA 0x51E864
+        PlainDword::new(PageLink::of_font(fonts::STAGE_ITEM_B).raw()), // IDA 0x51E884
+        PlainDword::new(PageLink::of_font(fonts::CAPTION_B).raw()), // IDA 0x51E844
+        PlainDword::new(PageLink::of_font(fonts::VALUES).raw()), // IDA 0x51E6C4
+        PlainDword::new(PageLink::of_font(fonts::LABELS).raw()), // IDA 0x51E6E4
+        PlainDword::new(PageLink::of_font(fonts::HEADING_23).raw()), // IDA 0x51E6A4
+        PlainDword::new(PageLink::of_font(fonts::LIST).raw()), // IDA 0x51E8C4
+        PlainDword::new(PageLink::of_font(fonts::ITEM_PLAIN).raw()), // IDA 0x51E8E4
+        PlainDword::new(PageLink::of_font(fonts::TITLE).raw()), // IDA 0x51E8A4
+        PlainDword::new(PageLink::of_font(fonts::LIST).raw()), // IDA 0x51E8C4
+        PlainDword::new(PageLink::of_font(fonts::ITEM_PLAIN).raw()), // IDA 0x51E8E4
+        PlainDword::new(PageLink::of_font(fonts::TITLE).raw()), // IDA 0x51E8A4
+        PlainDword::new(PageLink::of_font(fonts::ARCADE_BUTTON).raw()), // IDA 0x51E984
+        PlainDword::new(PageLink::of_font(fonts::STAGE_TITLE).raw()), // IDA 0x51E9A4
+        PlainDword::new(PageLink::of_font(fonts::CAPTION_A).raw()), // IDA 0x51E964
+    ],
     kind_fonts: PlainBytes::new(with_runs::<108>(&[(0, b"\x12\x00\t\x0c\x00\x02\x00\x1e\x17\x00\x08\x0b\x01\x02\x00\x1e\n\x00\x07\x10\x02\x02\x00\x1e"), (32, b"\x12\x00\t\x0c\x00\x02\x00\x1e"), (64, b"\x0c\x00\t\x12\x00\x02\x00\x1e\x15\x00\x15\x15\x00\x03\x00,\x0c\x00\x0c\x0c\x00\x02\x00\x1e\x12\x00\x12\x12\x00\x02\x00\x1e\x18\x00\x18\x18\x00\x02\x00\x1e\t")])),
-            page_table: [PlainDword::new(PageLink::of_ida(0x51D670).raw()), PlainDword::new(0x0), PlainDword::new(PageLink::of_ida(0x51D5C0).raw()), PlainDword::new(PageLink::of_ida(0x51D5C0).raw()), PlainDword::new(PageLink::of_ida(0x51D5C0).raw()), PlainDword::new(PageLink::of_ida(0x51D5C0).raw()), PlainDword::new(PageLink::of_ida(0x51D5C0).raw()), PlainDword::new(PageLink::of_ida(0x51D5C0).raw()), PlainDword::new(PageLink::of_ida(0x51D5C0).raw()), PlainDword::new(PageLink::of_ida(0x51D5C0).raw()), PlainDword::new(PageLink::of_ida(0x51D5C0).raw()), PlainDword::new(PageLink::of_ida(0x51D728).raw()), PlainDword::new(0x0), PlainDword::new(PageLink::of_ida(0x51D5E4).raw()), PlainDword::new(PageLink::of_ida(0x51D654).raw()), PlainDword::new(PageLink::of_ida(0x51D610).raw()), PlainDword::new(PageLink::of_ida(0x51D660).raw()), PlainDword::new(PageLink::of_ida(0x51DCB8).raw()), PlainDword::new(0x0), PlainDword::new(PageLink::of_ida(0x51D648).raw()), PlainDword::new(PageLink::of_ida(0x51D790).raw()), PlainDword::new(PageLink::of_ida(0x51D5C0).raw()), PlainDword::new(PageLink::of_ida(0x51D5F8).raw()), PlainDword::new(PageLink::of_ida(0x51D5F8).raw()), PlainDword::new(PageLink::of_ida(0x51D5F8).raw()), PlainDword::new(PageLink::of_ida(0x51D7F8).raw()), PlainDword::new(PageLink::of_ida(0x51D5E4).raw()), PlainDword::new(PageLink::of_ida(0x51D604).raw()), PlainDword::new(PageLink::of_ida(0x51DBA0).raw()), PlainDword::new(PageLink::of_ida(0x51D5F8).raw()), PlainDword::new(PageLink::of_ida(0x51D61C).raw()), PlainDword::new(PageLink::of_ida(0x51DCB8).raw()), PlainDword::new(PageLink::of_ida(0x51D5C0).raw()), PlainDword::new(PageLink::of_ida(0x51D648).raw()), PlainDword::new(PageLink::of_ida(0x51DD10).raw()), PlainDword::new(PageLink::of_ida(0x51D604).raw()), PlainDword::new(0x0), PlainDword::new(0x0), PlainDword::new(PageLink::of_ida(0x51D630).raw()), PlainDword::new(PageLink::of_ida(0x51DC18).raw()), PlainDword::new(PageLink::of_ida(0x51D5F8).raw()), PlainDword::new(PageLink::of_ida(0x51D61C).raw()), PlainDword::new(PageLink::of_ida(0x51DC60).raw()), PlainDword::new(0x0), PlainDword::new(0x0), PlainDword::new(PageLink::of_ida(0x51DD28).raw()), PlainDword::new(0x0), PlainDword::new(0x0), PlainDword::new(PageLink::of_ida(0x51DD40).raw()), PlainDword::new(0x0), PlainDword::new(0x0), PlainDword::new(PageLink::of_ida(0x51DD58).raw()), PlainDword::new(0x0), PlainDword::new(0x0), PlainDword::new(0x9)],
+            page_table: [PlainDword::new(PageLink::list(ListId::Language).raw()), PlainDword::new(0x0), PlainDword::new(PageLink::table(11).raw()), PlainDword::new(PageLink::table(11).raw()), PlainDword::new(PageLink::table(11).raw()), PlainDword::new(PageLink::table(11).raw()), PlainDword::new(PageLink::table(11).raw()), PlainDword::new(PageLink::table(11).raw()), PlainDword::new(PageLink::table(11).raw()), PlainDword::new(PageLink::table(11).raw()), PlainDword::new(PageLink::table(11).raw()), PlainDword::new(PageLink::list(ListId::Main).raw()), PlainDword::new(0x0), PlainDword::new(PageLink::table(20).raw()), PlainDword::new(PageLink::table(48).raw()), PlainDword::new(PageLink::table(31).raw()), PlainDword::new(PageLink::table(51).raw()), PlainDword::new(PageLink::list(ListId::Finish).raw()), PlainDword::new(0x0), PlainDword::new(PageLink::table(45).raw()), PlainDword::new(PageLink::list(ListId::Mode).raw()), PlainDword::new(PageLink::table(11).raw()), PlainDword::new(PageLink::table(25).raw()), PlainDword::new(PageLink::table(25).raw()), PlainDword::new(PageLink::table(25).raw()), PlainDword::new(PageLink::list(ListId::Drives8).raw()), PlainDword::new(PageLink::table(20).raw()), PlainDword::new(PageLink::table(28).raw()), PlainDword::new(PageLink::list(ListId::Folder).raw()), PlainDword::new(PageLink::table(25).raw()), PlainDword::new(PageLink::table(34).raw()), PlainDword::new(PageLink::list(ListId::Finish).raw()), PlainDword::new(PageLink::table(11).raw()), PlainDword::new(PageLink::table(45).raw()), PlainDword::new(PageLink::list(ListId::InstallFiles).raw()), PlainDword::new(PageLink::table(28).raw()), PlainDword::new(0x0), PlainDword::new(0x0), PlainDword::new(PageLink::table(39).raw()), PlainDword::new(PageLink::list(ListId::Room).raw()), PlainDword::new(PageLink::table(25).raw()), PlainDword::new(PageLink::table(34).raw()), PlainDword::new(PageLink::list(ListId::Dxsetup).raw()), PlainDword::new(0x0), PlainDword::new(0x0), PlainDword::new(PageLink::list(ListId::Uninstall).raw()), PlainDword::new(0x0), PlainDword::new(0x0), PlainDword::new(PageLink::list(ListId::OpenInstalled).raw()), PlainDword::new(0x0), PlainDword::new(0x0), PlainDword::new(PageLink::list(ListId::AskRegistration).raw()), PlainDword::new(0x0), PlainDword::new(0x0), PlainDword::new(0x9)],
             language_menu: ListData10::new(ListHeader::new(0x00, 0x0A, 0x009B, 0x0, 0x414199, 0x0, 0x0, 0x0), [
                 Item::new(0x01, 0x01, 0x102B, 0x0, 0x0, 0x0),
                 Item::new(0x01, 0x02, 0x102C, 0x0, 0x0, 0x0),
@@ -429,68 +456,68 @@ impl InstallerPages {
                 Item::new(0x01, 0x00, 0x00BF, 0x0, 0x0, 0x0),
             ]),
             drive_menu_8: ListData10::new(ListHeader::new(0x00, 0x0A, 0x009A, 0x2, 0x41425E, 0x0, 0x0, 0x0), [
-                Item::new(0x05, 0x0C, 0x009D, PageLink::of_ida(0x51DDF8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x00, 0x00BF, PageLink::of_ida(0x51DE08).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1011, PageLink::of_ida(0x51DDB8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1012, PageLink::of_ida(0x51DDB8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1013, PageLink::of_ida(0x51DDB8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1014, PageLink::of_ida(0x51DDB8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1015, PageLink::of_ida(0x51DDB8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1016, PageLink::of_ida(0x51DDB8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1017, PageLink::of_ida(0x51DDB8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1018, PageLink::of_ida(0x51DDB8).raw(), 0x0, 0x0),
+                Item::new(0x05, 0x0C, 0x009D, PageLink::box_at(7).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x00, 0x00BF, PageLink::box_at(8).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x1011, PageLink::box_at(3).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x1012, PageLink::box_at(3).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x1013, PageLink::box_at(3).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x1014, PageLink::box_at(3).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x1015, PageLink::box_at(3).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x1016, PageLink::box_at(3).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x1017, PageLink::box_at(3).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x1018, PageLink::box_at(3).raw(), 0x0, 0x0),
             ]),
             drive_menu_16: ListData18::new(ListHeader::new(0x00, 0x12, 0x009A, 0x2, 0x41425E, 0x0, 0x0, 0x0), [
-                Item::new(0x05, 0x0C, 0x009D, PageLink::of_ida(0x51DDF8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x00, 0x00BF, PageLink::of_ida(0x51DE08).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1011, PageLink::of_ida(0x51DDD8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1012, PageLink::of_ida(0x51DDD8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1013, PageLink::of_ida(0x51DDD8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1014, PageLink::of_ida(0x51DDD8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1015, PageLink::of_ida(0x51DDD8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1016, PageLink::of_ida(0x51DDD8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1017, PageLink::of_ida(0x51DDD8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1018, PageLink::of_ida(0x51DDD8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1019, PageLink::of_ida(0x51DDE8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x101A, PageLink::of_ida(0x51DDE8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x101B, PageLink::of_ida(0x51DDE8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x101C, PageLink::of_ida(0x51DDE8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x101D, PageLink::of_ida(0x51DDE8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x101E, PageLink::of_ida(0x51DDE8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x101F, PageLink::of_ida(0x51DDE8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1020, PageLink::of_ida(0x51DDE8).raw(), 0x0, 0x0),
+                Item::new(0x05, 0x0C, 0x009D, PageLink::box_at(7).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x00, 0x00BF, PageLink::box_at(8).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x1011, PageLink::box_at(5).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x1012, PageLink::box_at(5).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x1013, PageLink::box_at(5).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x1014, PageLink::box_at(5).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x1015, PageLink::box_at(5).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x1016, PageLink::box_at(5).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x1017, PageLink::box_at(5).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x1018, PageLink::box_at(5).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x1019, PageLink::box_at(6).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x101A, PageLink::box_at(6).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x101B, PageLink::box_at(6).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x101C, PageLink::box_at(6).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x101D, PageLink::box_at(6).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x101E, PageLink::box_at(6).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x101F, PageLink::box_at(6).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x1020, PageLink::box_at(6).raw(), 0x0, 0x0),
             ]),
             menu_more: ListData26::new(ListHeader::new(0x00, 0x1A, 0x009A, 0x2, 0x41425E, 0x0, 0x0, 0x0), [
-                Item::new(0x05, 0x0C, 0x009D, PageLink::of_ida(0x51DDF8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x00, 0x00BF, PageLink::of_ida(0x51DE08).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1011, PageLink::of_ida(0x51DDA8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1012, PageLink::of_ida(0x51DDA8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1013, PageLink::of_ida(0x51DDA8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1014, PageLink::of_ida(0x51DDA8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1015, PageLink::of_ida(0x51DDA8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1016, PageLink::of_ida(0x51DDA8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1017, PageLink::of_ida(0x51DDA8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1018, PageLink::of_ida(0x51DDA8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1019, PageLink::of_ida(0x51DDB8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x101A, PageLink::of_ida(0x51DDB8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x101B, PageLink::of_ida(0x51DDB8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x101C, PageLink::of_ida(0x51DDB8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x101D, PageLink::of_ida(0x51DDB8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x101E, PageLink::of_ida(0x51DDB8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x101F, PageLink::of_ida(0x51DDB8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1020, PageLink::of_ida(0x51DDB8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1021, PageLink::of_ida(0x51DDC8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1022, PageLink::of_ida(0x51DDC8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1023, PageLink::of_ida(0x51DDC8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1024, PageLink::of_ida(0x51DDC8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1025, PageLink::of_ida(0x51DDC8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1026, PageLink::of_ida(0x51DDC8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1027, PageLink::of_ida(0x51DDC8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1028, PageLink::of_ida(0x51DDC8).raw(), 0x0, 0x0),
+                Item::new(0x05, 0x0C, 0x009D, PageLink::box_at(7).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x00, 0x00BF, PageLink::box_at(8).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x1011, PageLink::box_at(2).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x1012, PageLink::box_at(2).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x1013, PageLink::box_at(2).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x1014, PageLink::box_at(2).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x1015, PageLink::box_at(2).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x1016, PageLink::box_at(2).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x1017, PageLink::box_at(2).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x1018, PageLink::box_at(2).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x1019, PageLink::box_at(3).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x101A, PageLink::box_at(3).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x101B, PageLink::box_at(3).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x101C, PageLink::box_at(3).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x101D, PageLink::box_at(3).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x101E, PageLink::box_at(3).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x101F, PageLink::box_at(3).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x1020, PageLink::box_at(3).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x1021, PageLink::box_at(4).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x1022, PageLink::box_at(4).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x1023, PageLink::box_at(4).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x1024, PageLink::box_at(4).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x1025, PageLink::box_at(4).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x1026, PageLink::box_at(4).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x1027, PageLink::box_at(4).raw(), 0x0, 0x0),
+                Item::new(0x01, 0x01, 0x1028, PageLink::box_at(4).raw(), 0x0, 0x0),
             ]),
             folder_menu: ListData6::new(ListHeader::new(0x00, 0x06, 0x009A, 0x0, 0x4142F5, 0x0, 0x0, 0x41534E), [
                 Item::new(0x05, 0x0C, 0x009E, 0x0, 0x0, 0x0),
-                Item::new(0x24, 0x01, 0x0000, 0x0, PageLink::of_ida(0x95EBFA).raw(), PageLink::of_ida(0x51DD70).raw()),
+                Item::new(0x24, 0x01, 0x0000, 0x0, PageLink::typed(2).raw(), PageLink::folder_edit().raw()),
                 Item::new(0x05, 0x0A, 0x00AA, 0x0, 0x0, 0x0),
                 Item::new(0x05, 0x0A, 0x00AC, 0x0, 0x0, 0x0),
                 Item::new(0x05, 0x0A, 0x00AD, 0x0, 0x0, 0x0),
@@ -515,7 +542,7 @@ impl InstallerPages {
             ]),
             action_pages: [ListHeader::new(0x40, 0, 0, 0, 0x4130CD, 0, 0, 0), ListHeader::new(0x40, 0, 0, 0, 0x4134DF, 0, 0, 0), ListHeader::new(0x40, 0, 0, 0, 0x413629, 0, 0, 0), ListHeader::new(0x40, 0, 0, 0, 0x413650, 0, 0, 0)],
             folder_edit: EditRecord::new(0x02, 0x7C, 0x00A0, 0x0B, 0x00, 0x02E9),
-            title: Item::new(0x05, 0x09, 0x0000, PageLink::of_ida(0x51DD88).raw(), 0x0, 0x0),
+            title: Item::new(0x05, 0x09, 0x0000, PageLink::box_at(0).raw(), 0x0, 0x0),
             boxes: [BoxRect::new(50, 150, 750, 44), BoxRect::new(50, 150, 750, 400), BoxRect::new(125, 150, 200, 400), BoxRect::new(325, 150, 200, 400), BoxRect::new(525, 150, 200, 400), BoxRect::new(225, 150, 200, 400), BoxRect::new(425, 150, 200, 400), BoxRect::new(50, 200, 750, 30), BoxRect::new(50, 495, 750, 30)],
     bad_folder_chars: PlainBytes::new(with_runs::<20>(&[(0, b"\"+*,;=/:<>?\\{}[]|\x7f")])),
     _tail: PlainBytes::new([0; 4]),
@@ -565,8 +592,7 @@ impl InstallerPages {
         install.pages.kind_fonts.get(index as usize)
     }
 
-    /// Where font `index` of the page's fonts is (the table keeps IDA's addresses as
-    /// names). A slot that names no font
+    /// Where font `index` of the page's fonts is (the table keeps links to the font objects). A slot that names no font
     /// object (the unused slot 0, an index off the table) is refused.
     pub fn font_of(
         install: &crate::install::owner::Install,
@@ -577,9 +603,9 @@ impl InstallerPages {
             .fonts
             .get(index as usize)
             .ok_or(crate::errors::BadInput("a page font past the table"))?;
-        crate::gfx::typefaces::FontId::try_at(cell.get() as usize).ok_or(crate::errors::BadInput(
-            "a page font that is no font object",
-        ))
+        PageLink::from_raw(cell.get())
+            .font()
+            .map_err(|_| crate::errors::BadInput("a page font that is no font object"))
     }
 
     /// 0x51D4C4: `dword_51D4C4`, the page fonts' table.
@@ -678,6 +704,7 @@ pub(super) const PAGE_LINKS: [u32; 105] = [
 
 #[cfg(test)]
 mod tests {
+    use crate::install::page_links::image_addresses::{font_at_ida, of_ida};
     /// The game's pages block and names block (named reads of `data/first_values.golden`),
     /// and the pages store's key.
     const PAGES_IMAGE: &str = "install.owner.INSTALL.pages/6693";
@@ -701,7 +728,7 @@ mod tests {
                 crate::cells::load_value::<u32>(&crate::install::owner::install().pages, off + 7)
                     .unwrap(),
             );
-            assert_eq!(link, PageLink::of_ida(ida), "{p:#X}");
+            assert_eq!(link, of_ida(ida), "{p:#X}");
         }
     }
 
@@ -713,9 +740,9 @@ mod tests {
         assert!(InstallerPages::font_of(crate::install::owner::install(), 0).is_err());
         assert!(InstallerPages::font_of(crate::install::owner::install(), 25).is_err());
         for n in 1..25 {
-            let ida = pages_dword(InstallerPages::FONTS_AT + 4 * n) as usize;
-            let font = crate::gfx::typefaces::FontId::try_at(ida).unwrap();
-            assert_eq!(font.ida(), ida);
+            let ida = pages_dword(InstallerPages::FONTS_AT + 4 * n);
+            let font = font_at_ida(ida).unwrap();
+            assert_eq!(font.ida() as u32, ida);
             assert_eq!(
                 InstallerPages::font_of(crate::install::owner::install(), n as u32).unwrap(),
                 font
@@ -767,10 +794,16 @@ mod tests {
         );
         let mut image = crate::test_support::first_values::bytes(PAGES_IMAGE).to_vec();
         // The links are the handles that stand for the image's addresses.
+        let fonts_at = InstallerPages::FONTS_AT - InstallerPages::START;
+        for n in 1..25 {
+            let at = fonts_at + 4 * n;
+            let ida = u32::from_le_bytes(image[at..at + 4].try_into().unwrap());
+            image[at..at + 4].copy_from_slice(&of_ida(ida).raw().to_le_bytes());
+        }
         for &p in &PAGE_LINKS {
             let at = p as usize - InstallerPages::START;
             let ida = u32::from_le_bytes(image[at..at + 4].try_into().unwrap());
-            image[at..at + 4].copy_from_slice(&PageLink::of_ida(ida).raw().to_le_bytes());
+            image[at..at + 4].copy_from_slice(&of_ida(ida).raw().to_le_bytes());
         }
         let mine = crate::test_support::first_values::store_bytes(PAGES_STORE);
         assert_eq!(mine, image);

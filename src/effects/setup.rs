@@ -2,15 +2,13 @@
 //! wave tables (made once), the slots cleared, and the marks' clock (also run each frame by
 //! `effects::run_frame`, 0x4D1549).
 
-#[cfg(test)]
-use crate::effects::owner::effects;
 use crate::effects::paths::Paths;
 use crate::effects::rain::Weather;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::race::owner_shared::RaceShared;
-use crate::session::{PlainBytes, PlainDword, PlainFloat};
+use crate::session::{PlainDword, PlainFloat};
 
 /// The marks' clock (`effects::tick_clock`) (IDA 0x764FC8 .. 0x764FFC).
 #[repr(C)]
@@ -38,8 +36,6 @@ pub struct MarksClock {
     pub before: PlainDword,
     /// 0x764FF0: `dword_764FF0`: a copy of the settings' +0x18 (`effects::frame_marks`), 1 from `init_marks`; `dword_764FF4`: 1 from `init_marks` (nothing ported reads it).
     pub settings_copies: [PlainDword; 2],
-    /// 0x764FF8: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_764ff8: PlainBytes<4>,
 }
 
 impl MarksClock {
@@ -56,34 +52,13 @@ impl MarksClock {
             now: PlainDword::new(0x0),
             before: PlainDword::new(0x0),
             settings_copies: [PlainDword::new(0x0), PlainDword::new(0x0)],
-            _gap_764ff8: PlainBytes::new([0; 4]),
         }
     }
-}
-
-impl MarksClock {
-    pub const START: usize = 0x764FC8;
-    pub const LEN: usize = 0x34;
 }
 
 const WAVE_DONE_TARGET: u32 = 0x4C4EA0; // nullsub_23
 pub const WAVE_LEVELS: u32 = 0x11;
 pub const SINES: u32 = 0x140;
-
-/// The clock in the test buffer `mk` standing for the marks' block: a copy, zero where the
-/// buffer does not reach (the blocks read only the fields they use).
-#[cfg(test)]
-pub fn clock_at(mk: crate::effects::asm_test::Operand) -> &'static MarksClock {
-    let bytes = mk.bytes_or_zero(
-        MarksClock::START.wrapping_sub(crate::effects::store::START),
-        size_of::<MarksClock>(),
-    );
-    unsafe {
-        let mut clock = Box::<MarksClock>::new_zeroed().assume_init();
-        std::ptr::copy_nonoverlapping(bytes.as_ptr(), (&raw mut *clock).cast::<u8>(), bytes.len());
-        Box::leak(clock)
-    }
-}
 
 /// `effects::seed_noise` (0x4C1697): 0x100 steps of `g_marksSeed` (times 0x9D plus 0x47),
 /// each giving entry 0xFF .. 0 of the three noise tables its low 18 bits, its low 18 bits
@@ -356,11 +331,6 @@ pub fn effects_settings(
     effects.settings()
 }
 
-impl SettingsPointer {
-    pub const START: usize = 0x767A28;
-    pub const LEN: usize = 4;
-}
-
 /// The marks' clock constants (IDA 0x93CC10 .. 0x93CC18).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -378,64 +348,5 @@ impl ClockK {
             first_reciprocal: PlainFloat::new(1e-6),
             ticks_scale: PlainFloat::new(0.1),
         }
-    }
-}
-
-impl ClockK {
-    pub const START: usize = 0x93CC10;
-    pub const LEN: usize = 0x8;
-}
-
-#[cfg(test)]
-mod clock_k_tests {
-    use super::*;
-    use core::mem::offset_of;
-
-    fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
-        (0..size_of::<T>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect()
-    }
-
-    #[test]
-    fn clock_k_starts_as_the_games() {
-        assert_eq!(size_of::<ClockK>(), ClockK::LEN);
-        assert!(
-            bytes(&effects().setup.clock_k)
-                == crate::test_support::first_values::bytes(
-                    "effects.owner.EFFECTS.setup.clock_k/8"
-                ),
-            "CLOCK_K starts differently from the image"
-        );
-        assert_eq!(offset_of!(ClockK, first_reciprocal), 0x0);
-        assert_eq!(offset_of!(ClockK, ticks_scale), 0x4);
-    }
-}
-
-#[cfg(test)]
-mod clock_tests {
-    use super::*;
-    use core::mem::offset_of;
-
-    #[test]
-    fn the_clock_starts_as_the_games() {
-        assert_eq!(size_of::<MarksClock>(), MarksClock::LEN);
-        let bytes = unsafe {
-            std::slice::from_raw_parts(
-                (&raw const effects().setup.clock).cast::<u8>(),
-                MarksClock::LEN,
-            )
-        };
-        assert!(
-            bytes
-                == crate::test_support::first_values::bytes("effects.owner.EFFECTS.setup.clock/52"),
-            "the clock starts differently from the image"
-        );
-        assert_eq!(offset_of!(MarksClock, frame_ticks), 0x8);
-        assert_eq!(offset_of!(MarksClock, reciprocal), 0x18);
-        assert_eq!(offset_of!(MarksClock, now), 0x20);
-        assert_eq!(offset_of!(MarksClock, settings_copies), 0x28);
-        assert_eq!(size_of::<SettingsPointer>(), SettingsPointer::LEN);
     }
 }

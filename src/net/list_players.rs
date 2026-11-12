@@ -44,7 +44,7 @@ pub fn list_players(vars: &NetVars) -> Result<bool, Refused> {
     }
     for n in 0..players {
         vars.data_size.set(0x10);
-        let player = vars.player_block(n);
+        let player = vars.player_block(n)?;
         let mut data = [0u8; 0x10];
         let (result, size) =
             crate::net::dp_objects::get_player_data(vars.dplay.get(), player.id.get(), &mut data);
@@ -54,14 +54,14 @@ pub fn list_players(vars: &NetVars) -> Result<bool, Refused> {
         }
     }
     // Converted: `rc2k_core::net::players` (`bubble` by the ids, `find_own`).
-    let id = |n: u32| vars.player_block(n).id.get();
+    let id = |n: u32| vars.player_block_or_end(n).id.get();
     bubble_blocks(
         players,
         |k| id(k) > id(k + 1),
-        |k| swap_blocks(vars.player_block(k), vars.player_block(k + 1)),
+        |k| swap_blocks(vars.player_block(k)?, vars.player_block(k + 1)?),
     )?;
     match players::find_own(vars.player_id.get(), vars.players.get(), |n| {
-        vars.player_block(n).id.get()
+        vars.player_block_or_end(n).id.get()
     }) {
         Ok(n) => {
             vars.player.set(n);

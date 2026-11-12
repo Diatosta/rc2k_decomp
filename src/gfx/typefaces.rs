@@ -12,11 +12,10 @@ use crate::session::{PlainByte, PlainDword};
 use rc2k_core::text::Font;
 
 /// IDA's address of the block's first byte.
+#[cfg(test)]
 pub const START: usize = 0x51E3A4;
 /// The font objects' number.
 pub const COUNT: usize = 63;
-/// The block's length.
-pub const LEN: usize = COUNT * 0x20;
 
 /// A font object (0x20 bytes, `rc2k_core::text::Font`), its fields as cells.
 #[repr(C)]
@@ -208,21 +207,15 @@ impl FontObjects {
 pub struct FontId(usize);
 
 impl FontId {
-    /// The font at IDA's address `ida` of the block (a constant that is not one fails to
-    /// compile).
-    pub const fn at(ida: usize) -> Self {
-        assert!(START <= ida && ida < START + LEN && (ida - START).is_multiple_of(0x20));
-        Self((ida - START) / 0x20)
+    /// Font number `number` of the block (a constant past the block fails to compile).
+    pub const fn numbered(number: usize) -> Self {
+        assert!(number < COUNT);
+        Self(number)
     }
 
-    /// The font at IDA's address `ida`, if it is one of the block's (a table that keeps
-    /// the image's addresses as names resolves them here).
-    pub fn try_at(ida: usize) -> Option<Self> {
-        (START..START + LEN)
-            .contains(&ida)
-            .then(|| ida - START)
-            .filter(|off| off.is_multiple_of(0x20))
-            .map(|off| Self(off / 0x20))
+    /// Font number `number` of the block, if there is one.
+    pub fn try_numbered(number: usize) -> Option<Self> {
+        (number < COUNT).then_some(Self(number))
     }
 
     pub fn object(self, typefaces: &'static FontObjects) -> &'static FontObject {
@@ -291,11 +284,8 @@ impl FontRef {
 pub struct FontCell(crate::session::Dword);
 
 impl FontCell {
-    /// The font at IDA's address `ida` (a constant that is not one fails to compile).
-    pub const fn at(ida: u32) -> Self {
-        Self(crate::session::Dword::new(
-            FontId::at(ida as usize).0 as u32,
-        ))
+    pub const fn new(font: FontId) -> Self {
+        Self(crate::session::Dword::new(font.0 as u32))
     }
 
     pub fn get(&self) -> FontId {
@@ -307,87 +297,91 @@ impl FontCell {
     }
 }
 
-/// The fonts the callers name (`FontObjects.objects[1].first_char` and so on, by IDA's address; the readings of
+/// The fonts the callers name (`FontObjects.objects[1].first_char` and so on, by number, with IDA's address of each; the readings of
 /// what each is for are the callers').
 pub mod fonts {
     use super::FontId;
 
     /// `icon_palette`: the small number font (the volume settings' captions, the service area).
-    pub const SMALL: FontId = FontId::at(0x51E3C4);
+    pub const SMALL: FontId = FontId::numbered(1); // IDA 0x51E3C4
     /// `FontObjects.objects[2].first_char`: labels and descriptions (the service area, the lap time boxes).
-    pub const LABEL: FontId = FontId::at(0x51E3E4);
+    pub const LABEL: FontId = FontId::numbered(2); // IDA 0x51E3E4
     /// `FontObjects.objects[3].first_char`: the wide notice font (the installer's and the front end's notices).
-    pub const NOTICE: FontId = FontId::at(0x51E404);
+    pub const NOTICE: FontId = FontId::numbered(3); // IDA 0x51E404
     /// `FontObjects.objects[4].first_char`: the chat lines.
-    pub const CHAT_LINE: FontId = FontId::at(0x51E424);
+    pub const CHAT_LINE: FontId = FontId::numbered(4); // IDA 0x51E424
     /// `FontObjects.objects[11].first_char`: a marked (the player's) time.
-    pub const MARKED_TIME: FontId = FontId::at(0x51E504);
+    pub const MARKED_TIME: FontId = FontId::numbered(11); // IDA 0x51E504
     /// `FontObjects.objects[12].first_char`: a marked name.
-    pub const MARKED_NAME: FontId = FontId::at(0x51E524);
+    pub const MARKED_NAME: FontId = FontId::numbered(12); // IDA 0x51E524
     /// `FontObjects.objects[13].first_char`: a marked place.
-    pub const MARKED_RANK: FontId = FontId::at(0x51E544);
+    pub const MARKED_RANK: FontId = FontId::numbered(13); // IDA 0x51E544
     /// `FontObjects.objects[14].first_char`: a time; the credits' centred lines.
-    pub const TIME: FontId = FontId::at(0x51E564);
+    pub const TIME: FontId = FontId::numbered(14); // IDA 0x51E564
     /// `FontObjects.objects[15].first_char`: a name, the plain body font; the chat's input line.
-    pub const NAME: FontId = FontId::at(0x51E584);
+    pub const NAME: FontId = FontId::numbered(15); // IDA 0x51E584
     /// `FontObjects.objects[16].first_char`: a place, a label.
-    pub const RANK: FontId = FontId::at(0x51E5A4);
+    pub const RANK: FontId = FontId::numbered(16); // IDA 0x51E5A4
     /// `FontObjects.objects[17].first_char`: the stage panel's heading.
-    pub const HEADING: FontId = FontId::at(0x51E5C4);
+    pub const HEADING: FontId = FontId::numbered(17); // IDA 0x51E5C4
     /// `FontObjects.objects[18].first_char`: the class ranking's title.
-    pub const RANKING_TITLE: FontId = FontId::at(0x51E5E4);
+    pub const RANKING_TITLE: FontId = FontId::numbered(18); // IDA 0x51E5E4
     /// `palette`: the measuring font of the 23-high sheet (the lobby, the stage results).
-    pub const MEASURE_23: FontId = FontId::at(0x51E624);
+    pub const MEASURE_23: FontId = FontId::numbered(20); // IDA 0x51E624
     /// `FontObjects.objects[21].first_char`: the lit button font (the connections).
-    pub const BUTTON_LIT: FontId = FontId::at(0x51E644);
+    pub const BUTTON_LIT: FontId = FontId::numbered(21); // IDA 0x51E644
     /// `FontObjects.objects[23].first_char`: the lit centred item.
-    pub const CENTRED_LIT: FontId = FontId::at(0x51E684);
+    pub const CENTRED_LIT: FontId = FontId::numbered(23); // IDA 0x51E684
     /// `font`: the heading font (the credits' second, the service area's, the lobby's).
-    pub const HEADING_23: FontId = FontId::at(0x51E6A4);
+    pub const HEADING_23: FontId = FontId::numbered(24); // IDA 0x51E6A4
     /// `FontObjects.objects[25].first_char`: values (the credits' fourth, the lobby's names).
-    pub const VALUES: FontId = FontId::at(0x51E6C4);
+    pub const VALUES: FontId = FontId::numbered(25); // IDA 0x51E6C4
     /// `FontObjects.objects[26].first_char`: labels, totals (the credits' third, the fastest time).
-    pub const LABELS: FontId = FontId::at(0x51E6E4);
+    pub const LABELS: FontId = FontId::numbered(26); // IDA 0x51E6E4
     /// `FontObjects.objects[27].first_char`: the plain button font.
-    pub const BUTTON: FontId = FontId::at(0x51E704);
+    pub const BUTTON: FontId = FontId::numbered(27); // IDA 0x51E704
     /// `FontObjects.objects[29].first_char`: the plain centred item.
-    pub const CENTRED_PLAIN: FontId = FontId::at(0x51E744);
+    pub const CENTRED_PLAIN: FontId = FontId::numbered(29); // IDA 0x51E744
     /// `FontObjects.objects[31].first_char`: the ready marks.
-    pub const READY: FontId = FontId::at(0x51E784);
+    pub const READY: FontId = FontId::numbered(31); // IDA 0x51E784
     /// `FontObjects.objects[33].first_char`: the dimmed button font.
-    pub const BUTTON_DIM: FontId = FontId::at(0x51E7C4);
+    pub const BUTTON_DIM: FontId = FontId::numbered(33); // IDA 0x51E7C4
     /// `FontObjects.objects[36].first_char`: the font the name editors measure with.
-    pub const MEASURE: FontId = FontId::at(0x51E824);
+    pub const MEASURE: FontId = FontId::numbered(36); // IDA 0x51E824
     /// `font_b`: the caption font blended towards (`blend_font`).
-    pub const CAPTION_B: FontId = FontId::at(0x51E844);
+    pub const CAPTION_B: FontId = FontId::numbered(37); // IDA 0x51E844
     /// `FontObjects.objects[39].first_char`: the stage choice's second look.
-    pub const STAGE_ITEM_B: FontId = FontId::at(0x51E884);
+    pub const STAGE_ITEM_B: FontId = FontId::numbered(39); // IDA 0x51E884
+    /// `unk_51E864`: the arcade button's pulse font.
+    pub const ARCADE_BUTTON_PULSE: FontId = FontId::numbered(38); // IDA 0x51E864
+    /// `unk_51E984`: the arcade button font.
+    pub const ARCADE_BUTTON: FontId = FontId::numbered(47); // IDA 0x51E984
     /// `FontObjects.objects[40].first_char`: titles (the credits' first, the leave question).
-    pub const TITLE: FontId = FontId::at(0x51E8A4);
+    pub const TITLE: FontId = FontId::numbered(40); // IDA 0x51E8A4
     /// `FontObjects.objects[41].first_char`: the lists (names, settings).
-    pub const LIST: FontId = FontId::at(0x51E8C4);
+    pub const LIST: FontId = FontId::numbered(41); // IDA 0x51E8C4
     /// `FontObjects.objects[42].first_char`: the plain item font (back for `enable_item`).
-    pub const ITEM_PLAIN: FontId = FontId::at(0x51E8E4);
+    pub const ITEM_PLAIN: FontId = FontId::numbered(42); // IDA 0x51E8E4
     /// `FontObjects.objects[43].first_char`: the message box's and installer's text.
-    pub const BOX_TEXT: FontId = FontId::at(0x51E904);
+    pub const BOX_TEXT: FontId = FontId::numbered(43); // IDA 0x51E904
     /// `FontObjects.objects[45].first_char`: the big heading (the installer's, the lobby's title).
-    pub const HEAD: FontId = FontId::at(0x51E944);
+    pub const HEAD: FontId = FontId::numbered(45); // IDA 0x51E944
     /// `FontObjects.objects[46].first_char`: the caption font blended from.
-    pub const CAPTION_A: FontId = FontId::at(0x51E964);
+    pub const CAPTION_A: FontId = FontId::numbered(46); // IDA 0x51E964
     /// `FontObjects.objects[48].first_char`: the stage title.
-    pub const STAGE_TITLE: FontId = FontId::at(0x51E9A4);
+    pub const STAGE_TITLE: FontId = FontId::numbered(48); // IDA 0x51E9A4
     /// `FontObjects.objects[51].first_char`: the grey item font (`disable_item`).
-    pub const ITEM_GREY: FontId = FontId::at(0x51EA04);
+    pub const ITEM_GREY: FontId = FontId::numbered(51); // IDA 0x51EA04
     /// `FontObjects.objects[56].first_char`: the loading font.
-    pub const LOADING: FontId = FontId::at(0x51EAA4);
+    pub const LOADING: FontId = FontId::numbered(56); // IDA 0x51EAA4
     /// `FontObjects.objects[57].first_char` .. `FontObjects.objects[62].first_char`: the replay viewer's panel fonts.
-    pub const PANEL_E: FontId = FontId::at(0x51EAC4);
-    pub const PANEL_A: FontId = FontId::at(0x51EAE4);
-    pub const PANEL_C: FontId = FontId::at(0x51EB04);
+    pub const PANEL_E: FontId = FontId::numbered(57); // IDA 0x51EAC4
+    pub const PANEL_A: FontId = FontId::numbered(58); // IDA 0x51EAE4
+    pub const PANEL_C: FontId = FontId::numbered(59); // IDA 0x51EB04
     /// `FontObjects.objects[60].first_char`: the sixth panel font (only its palette is set).
-    pub const PANEL_F: FontId = FontId::at(0x51EB24);
-    pub const PANEL_B: FontId = FontId::at(0x51EB44);
-    pub const PANEL_D: FontId = FontId::at(0x51EB64);
+    pub const PANEL_F: FontId = FontId::numbered(60); // IDA 0x51EB24
+    pub const PANEL_B: FontId = FontId::numbered(61); // IDA 0x51EB44
+    pub const PANEL_D: FontId = FontId::numbered(62); // IDA 0x51EB64
 }
 
 #[cfg(test)]

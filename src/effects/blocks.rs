@@ -2,14 +2,12 @@
 //! (Rust's since phase 12, counted on their lists), the corner table
 //! scaled, and the eight settings blocks reset.
 
-#[cfg(test)]
-use crate::effects::owner::effects;
 use crate::effects::ring_store::Ring;
 use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::session::write_bits;
-use crate::session::{PlainBytes, PlainDword, PlainFloat, PlainWord};
+use crate::session::{PlainDword, PlainFloat, PlainWord};
 
 pub const PLACES_LEN: u32 = 0x7024;
 pub const RING_LEN: u32 = 0x4C000;
@@ -244,8 +242,6 @@ pub struct Slope {
 }
 
 impl Slope {
-    #[cfg(test)]
-    pub const LEN: usize = 0x24;
     pub const fn new() -> Self {
         Slope {
             slope: PlainFloat::new(0.0),
@@ -268,11 +264,6 @@ impl CornerSlopes {
             slopes: [const { Slope::new() }; 0x100],
         }
     }
-}
-
-impl CornerSlopes {
-    pub const START: usize = 0x920734;
-    pub const LEN: usize = 0x2400;
 }
 
 /// A corner record of `g_marksCorners` (0x80 bytes of 16-bit words: four (u, v) pairs of a
@@ -317,8 +308,8 @@ pub struct RingPool {
     pub free: PlainDword,
     /// 0x93A5C8: `g_marksRing`: the block taken for the ring
     pub ring: PlainDword,
-    /// 0x93A5CC: Not named: 4 bytes (a gap, or unreferenced data)
-    pub _gap_93a5cc: PlainBytes<4>,
+    /// 0x93A5CC: `g_fireworksRun`: a developer's toggle (the original flips it with a key held in the race; the debug page's "fworks run"). Nothing ported reads or writes it.
+    pub fireworks_run: PlainDword,
     /// 0x93A5D0: `dword_93A5D0`: a burst particle's +8 (kind plus 8 bits)
     pub nine: PlainDword,
     /// 0x93A5D4: `dword_93A5D4`: a burst particle's kind times 0x400
@@ -343,37 +334,12 @@ impl RingPool {
             ],
             free: PlainDword::new(0x0),
             ring: PlainDword::new(0x0),
-            _gap_93a5cc: PlainBytes::new([0; 4]),
+            fireworks_run: PlainDword::new(0x0),
             nine: PlainDword::new(0x0),
             kind: PlainDword::new(0x0),
             burst_radius: PlainFloat::new(0.0),
             index: PlainDword::new(0x0),
             used: PlainDword::new(0x0),
         }
-    }
-}
-
-#[cfg(test)]
-mod typed_tests {
-    use super::*;
-    use core::mem::size_of;
-
-    #[test]
-    fn corner_slopes_starts_as_the_games() {
-        assert_eq!(size_of::<CornerSlopes>(), CornerSlopes::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                (&raw const effects().blocks.corner_slopes).cast::<u8>(),
-                CornerSlopes::LEN,
-            )
-        };
-        assert!(
-            crate::test_support::first_values::holds(
-                "effects.owner.EFFECTS.blocks.corner_slopes/9216",
-                mine
-            ),
-            "CORNER_SLOPES starts differently from the image"
-        );
-        assert_eq!(size_of::<Slope>(), Slope::LEN);
     }
 }

@@ -264,9 +264,10 @@ fn projected_x87(
 
 #[cfg(test)]
 mod reference_vectors {
+    use crate::effects::asm_layout::with_laid;
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::staged_vertices as staged;
-    use crate::effects::asm_test::with_copy;
+
     use crate::effects::asm_test::{Op, Spec, recorded_writes};
     use crate::effects::tuning::MarksKindFloats;
     use crate::effects::windscreen_flakes_store::{WindscreenFlakeItem, WindscreenFlakeTables};
@@ -386,7 +387,7 @@ mod reference_vectors {
             sincos: false,
         };
         recorded_writes("effects.draw_windscreen_flake.corners_x87", &SPEC, |b| {
-            with_copy::<WindscreenFlakeTables, _>(b[0], WindscreenFlakeTables::START, |sq| {
+            with_laid::<WindscreenFlakeTables, _>(b[0], |sq| {
                 let v: [[u8; 10]; 2] = std::array::from_fn(|n| {
                     std::array::from_fn(|i| unsafe { (b[1] + 10 * n + i).host().read() })
                 });
@@ -447,8 +448,8 @@ mod reference_vectors {
             sincos: false,
         };
         recorded_writes("effects.draw_windscreen_flake.projected_x87", &SPEC, |b| {
-            with_copy::<MarksKindFloats, _>(b[1], MarksKindFloats::START, |k| {
-                with_copy::<WindscreenFlakeTables, _>(b[1], WindscreenFlakeTables::START, |sq| {
+            with_laid::<MarksKindFloats, _>(b[1], |k| {
+                with_laid::<WindscreenFlakeTables, _>(b[1], |sq| {
                     staged(
                         b[2],
                         &[

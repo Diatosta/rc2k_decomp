@@ -36,7 +36,7 @@ pub fn run_installer(
     install.pages.folder_menu.items[1]
         .target
         // A link to `InstallerPaths::typed` from its first byte.
-        .set(crate::install::page_links::PageLink::of_ida(0x95EBF8).raw());
+        .set(crate::install::page_links::PageLink::typed(0).raw());
 
     crate::files::state::set_directory_byte(0, 0);
     i::read_languages::read_languages(install, system, &install.names.lang_cfg.text()[..])?;

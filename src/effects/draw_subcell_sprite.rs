@@ -192,9 +192,10 @@ fn square_x87(buffer: &crate::d3d::vertices_store::PolygonVertices, dw: &DrawWor
 
 #[cfg(test)]
 mod reference_vectors {
+    use crate::effects::asm_layout::with_laid;
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::staged_vertices as staged;
-    use crate::effects::asm_test::{Op, Spec, recorded_writes, with_copy};
+    use crate::effects::asm_test::{Op, Spec, recorded_writes};
     use crate::effects::frame_state::DrawWork;
     use crate::effects::ring_store::RingWork;
 
@@ -240,8 +241,8 @@ mod reference_vectors {
             sincos: false,
         };
         recorded_writes("effects.draw_subcell_sprite.turn_x87", &SPEC, |b| {
-            with_copy(b[1], RingWork::START, |w| {
-                with_copy::<DrawWork, _>(b[1], DrawWork::START, |dw| {
+            with_laid::<RingWork, _>(b[1], |w| {
+                with_laid::<DrawWork, _>(b[1], |dw| {
                     let place: [[u8; 10]; 3] = std::array::from_fn(|n| unsafe {
                         (b[2] + 10 * n).host().cast::<[u8; 10]>().read_unaligned()
                     });
@@ -300,7 +301,7 @@ mod reference_vectors {
             sincos: false,
         };
         recorded_writes("effects.draw_subcell_sprite.square_x87", &SPEC, |b| {
-            with_copy::<DrawWork, _>(b[2], DrawWork::START, |dw| {
+            with_laid::<DrawWork, _>(b[2], |dw| {
                 staged(
                     b[1],
                     &[

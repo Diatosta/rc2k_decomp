@@ -165,11 +165,6 @@ pub static FRAME_K: FrameK = FrameK {
 };
 
 #[cfg(test)]
-impl FrameK {
-    pub const LEN: usize = 0x10;
-}
-
-#[cfg(test)]
 mod frame_k_tests {
     use super::*;
     use core::mem::offset_of;
@@ -183,7 +178,6 @@ mod frame_k_tests {
 
     #[test]
     fn frame_k_starts_as_the_games() {
-        assert_eq!(size_of::<FrameK>(), FrameK::LEN);
         assert!(
             bytes(&FRAME_K)
                 == crate::test_support::first_values::bytes("effects.run_frame.FRAME_K"),

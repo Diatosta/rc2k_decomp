@@ -56,11 +56,6 @@ impl Colours257 {
     }
 }
 
-#[cfg(test)]
-impl Colours257 {
-    pub const LEN: usize = 0x404;
-}
-
 /// The original's 0x4CF890 .. 0x4CF94D: a new streak's place turned into its last (+0x1C ..), and a first move.
 fn first_frame(
     view_matrix: &[crate::session::Float; 16],
@@ -568,8 +563,9 @@ mod same_as_old {
 
 #[cfg(test)]
 mod reference_vectors {
+    use crate::effects::asm_layout::with_laid;
     use crate::effects::asm_test::Kind::*;
-    use crate::effects::asm_test::with_copy;
+
     use crate::effects::asm_test::{Op, Spec, recorded_writes};
     use crate::effects::frame_state::DrawWork;
     use crate::effects::owner::effects;
@@ -642,7 +638,7 @@ mod reference_vectors {
                     &crate::race::owner::race().frame.matrices.view_matrix,
                     ring,
                     e,
-                    crate::effects::setup::clock_at(b[1]),
+                    crate::effects::asm_layout::copy_of::<crate::effects::setup::MarksClock>(b[1]),
                     f32::from_bits(word(b[3] + 0x94)),
                 );
             });
@@ -687,7 +683,7 @@ mod reference_vectors {
                 super::move_x87(
                     ring,
                     e,
-                    crate::effects::setup::clock_at(b[0]),
+                    crate::effects::asm_layout::copy_of::<crate::effects::setup::MarksClock>(b[0]),
                     f32::from_bits(word(b[2] + 0x98)),
                 );
             });
@@ -732,7 +728,7 @@ mod reference_vectors {
             sincos: false,
         };
         recorded_writes("effects.run_ribbons.turn_place_x87", &SPEC, |b| {
-            with_copy::<DrawWork, _>(b[1], DrawWork::START, |dw| {
+            with_laid::<DrawWork, _>(b[1], |dw| {
                 crate::effects::ring_entries::with_entry_at(ring, b[2], 0x10, 0x1C, |e| {
                     super::turn_place_x87(
                         &crate::race::owner::race().frame.matrices.view_matrix,
@@ -752,9 +748,8 @@ mod colours_tests {
 
     #[test]
     fn colours_start_as_the_games() {
-        assert_eq!(size_of::<Colours257>(), Colours257::LEN);
         let p = (&raw const crate::effects::owner::effects().ring.colours).cast::<u8>();
-        let own: Vec<u8> = (0..Colours257::LEN)
+        let own: Vec<u8> = (0..size_of::<Colours257>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();
         assert!(own == crate::test_support::first_values::bytes("effects.run_ribbons.COLOURS_257"));

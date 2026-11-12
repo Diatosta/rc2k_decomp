@@ -508,7 +508,7 @@ impl ListItem {
         if offset as usize == core::mem::offset_of!(InstallerPages, title) {
             return Ok(Self::of_title());
         }
-        for (list, list_at) in ListId::ALL.map(|(list, _)| (list, list.offset())) {
+        for (list, list_at) in ListId::ALL.map(|list| (list, list.offset())) {
             let (_, items) = list_parts(list);
             let first = list_at + HEADER as usize;
             let past = (offset as usize).wrapping_sub(first);

@@ -28,7 +28,7 @@ pub fn lets_rally(o: Owners<'static>) -> Result<bool, Refused> {
     use crate::race::sound_tables;
     log_bytes(&race.viewer_panel().text(texts::NET_LETS_RALLY), true, 2);
     net.vars.racing.set(1);
-    let own = &net.vars.player_block(net.vars.player.get()).record;
+    let own = &net.vars.player_block(net.vars.player.get())?.record;
     race.shared.state.settings.race_mode.set(1);
     race.shared.state.settings.run_kind.set(0);
     // Converted: `rc2k_core::net::record` (`CAR`, `COLOURS`, `first_not_host`).
@@ -40,7 +40,7 @@ pub fn lets_rally(o: Owners<'static>) -> Result<bool, Refused> {
     race.shared.state.settings.cars[0]
         .gearing
         .set(own.head.get(record::COLOURS) as u32);
-    let state = |n: u32| net.vars.player_block(n).record.state();
+    let state = |n: u32| net.vars.player_block_or_end(n).record.state();
     let Some(first) = record::first_not_host(net.vars.players.get(), state) else {
         return Ok(true);
     };

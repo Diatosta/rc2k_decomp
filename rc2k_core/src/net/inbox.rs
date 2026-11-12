@@ -1,11 +1,10 @@
 //! A player's race messages as the receiving thread keeps them (from
-//! `net::store_received` 0x419677 and `net::send_message` 0x41736D): from the player's
-//! block +0x34, a count, 0x40 records of 0x100 bytes (+0 the sequence byte doubled, +1 the
-//! length, +2 the bytes), at +0x4004 the oldest sequence still wanted, +0x4005 the newest
-//! seen, +0x4008 the time of the last message; kept in sequence order. A race message's
-//! sequence byte has its top bit set. Each race step takes the messages over
-//! (`net::copy_received` 0x4173A0): the inbox's first 0x400C bytes
-//! copied after it for the race, the inbox emptied.
+//! `net::store_received` 0x419677 and `net::send_message` 0x41736D): a count, 0x40 records of
+//! 0x100 bytes (+0 the sequence byte doubled, +1 the length, +2 the bytes), the oldest
+//! sequence still wanted, the newest seen and the time of the last message; kept in sequence
+//! order. A race message's sequence byte has its top bit set. Each race step takes the
+//! messages over (`net::copy_received` 0x4173A0): the count and the records copied for the
+//! race, the inbox emptied.
 
 use crate::Invalid;
 
@@ -15,96 +14,113 @@ pub const RECORDS: u32 = 0x40;
 pub const RECORD: usize = 0x100;
 /// The longest message a record holds.
 pub const LONGEST: u32 = 0xFE;
-/// The inbox's bytes from the count on that a message stored may reach: past the 0x40th
-/// record (see `store`), the longest message's.
-pub const INBOX: usize = 0x4000 + 6 + LONGEST as usize;
 
-const OLDEST: usize = 0x4004;
-const NEWEST: usize = 0x4005;
-const TIME: usize = 0x4008;
+/// The records' bytes.
+pub const RECORDS_LEN: usize = RECORDS as usize * RECORD;
+
+/// A player's inbox.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Inbox {
+    /// The records held.
+    pub count: u32,
+    /// The records, `RECORDS_LEN` bytes.
+    pub records: Vec<u8>,
+    /// The oldest sequence still wanted.
+    pub oldest: u8,
+    /// The newest sequence seen.
+    pub newest: u8,
+    /// The time of the last message.
+    pub time: u32,
+}
+
+/// What a message put into a full inbox writes past the last record (the game's slip, IDA
+/// checked): its sequence byte over the oldest sequence still wanted, its length over the
+/// newest seen, and its bytes on over the two bytes after them, the time of the last message,
+/// the count of the copy for the race and the copy's records.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Spill {
+    pub sequence: u8,
+    pub length: u8,
+    pub bytes: Vec<u8>,
+}
 
 /// True if sequence `a` is older than `b` (`cmp a, b; js`).
 pub fn older(a: u8, b: u8) -> bool {
     (a.wrapping_sub(b) as i8) < 0
 }
 
-fn get(inbox: &[u8], at: usize) -> u32 {
-    u32::from_le_bytes(inbox[at..at + 4].try_into().unwrap())
-}
-
-fn set(inbox: &mut [u8], at: usize, v: u32) {
-    inbox[at..at + 4].copy_from_slice(&v.to_le_bytes());
-}
-
-/// A message received (`sequence` as sent, doubled here) put into the inbox
-/// (`INBOX` bytes) at `time`: one older than the oldest still wanted is dropped; the
-/// newest seen kept; the first goes first; into a full inbox the records move up one
-/// (the oldest gone) and it goes in past the last record, over the oldest and newest
-/// sequences, the time and on (`imul edx, 100h` of 0x40: the game's slip, IDA-checked);
-/// else it goes in after the last record not newer,
-/// those newer moved down one. Moving one leaves the original's count 0: the message then
-/// goes in with length 0 and none of its bytes (the game's slip). Refused, before
-/// anything: a count above 0x40 or a message longer than 0xFE bytes (the original writes
-/// past the block or the record).
-pub fn store(inbox: &mut [u8], sequence: u8, time: u32, message: &[u8]) -> Result<(), Invalid> {
+/// A message received (`sequence` as sent, doubled here) put into the inbox at `time`: one
+/// older than the oldest still wanted is dropped; the newest seen kept; the first goes
+/// first; into a full inbox the records move up one (the oldest gone) and it goes in past
+/// the last record (the `Spill` given back, to write over what follows the records, after
+/// the time was set); else it goes in after the last record not newer, those newer moved
+/// down one. Moving one leaves the original's count 0: the message then goes in with
+/// length 0 and none of its bytes (the game's slip). Refused, before anything: a count above
+/// 0x40 or a message longer than 0xFE bytes (the original writes past the block or the
+/// record).
+pub fn store(
+    inbox: &mut Inbox,
+    sequence: u8,
+    time: u32,
+    message: &[u8],
+) -> Result<Option<Spill>, Invalid> {
     let sequence = sequence.wrapping_add(sequence);
-    let count = get(inbox, 0);
+    let count = inbox.count;
     if count > RECORDS {
         return Err(Invalid("store_received: more than 0x40 records"));
     }
     if message.len() as u32 > LONGEST {
         return Err(Invalid("store_received: a message longer than 0xFE bytes"));
     }
-    set(inbox, TIME, time);
-    if older(sequence, inbox[OLDEST]) {
-        return Ok(());
+    inbox.time = time;
+    if older(sequence, inbox.oldest) {
+        return Ok(None);
     }
-    if !older(sequence, inbox[NEWEST]) {
-        inbox[NEWEST] = sequence;
+    if !older(sequence, inbox.newest) {
+        inbox.newest = sequence;
     }
     let mut length = message.len();
     let at = if count == 0 {
-        set(inbox, 0, 1);
+        inbox.count = 1;
         0
     } else if count == RECORDS {
         // rep movsd forwards: the records 1 .. 0x3F to 0 .. 0x3E.
-        inbox.copy_within(4 + RECORD..4 + RECORDS as usize * RECORD, 4);
-        RECORDS as usize * RECORD
+        inbox.records.copy_within(RECORD.., 0);
+        return Ok(Some(Spill {
+            sequence,
+            length: length as u8,
+            bytes: message.to_vec(),
+        }));
     } else {
         let mut at = count as usize * RECORD;
         loop {
-            if !older(sequence, inbox[at - 0xFC]) {
+            if !older(sequence, inbox.records[at - RECORD]) {
                 break;
             }
-            inbox.copy_within(at - 0xFC..at + 4, at + 4);
+            inbox.records.copy_within(at - RECORD..at, at);
             length = 0;
             at -= RECORD;
             if at == 0 {
                 break;
             }
         }
-        set(inbox, 0, count + 1);
+        inbox.count = count + 1;
         at
     };
-    inbox[at + 4] = sequence;
-    inbox[at + 5] = length as u8;
-    inbox[at + 6..at + 6 + length].copy_from_slice(&message[..length]);
-    Ok(())
+    inbox.records[at] = sequence;
+    inbox.records[at + 1] = length as u8;
+    inbox.records[at + 2..at + 2 + length].copy_from_slice(&message[..length]);
+    Ok(None)
 }
 
-/// The inbox's bytes the race's copy takes (the count, the records, the two sequences and
-/// the time); the copy follows them.
-pub const COPIED: usize = 0x400C;
-
-/// The inbox's messages handed to the race (`inbox` the inbox and its copy, 2 x `COPIED`
-/// bytes from the count on): copied after it, the count made 0, the oldest sequence still
-/// wanted made the newest seen (which it gives back).
-pub fn hand_over(inbox: &mut [u8]) -> u8 {
-    inbox.copy_within(..COPIED, COPIED);
-    set(inbox, 0, 0);
-    let newest = inbox[NEWEST];
-    inbox[OLDEST] = newest;
-    newest
+/// The inbox's messages handed to the race: the count and the records for the race to
+/// apply, the inbox's count made 0 and the oldest sequence still wanted made the newest
+/// seen.
+pub fn hand_over(inbox: &mut Inbox) -> (u32, Vec<u8>) {
+    let handed = (inbox.count, inbox.records.clone());
+    inbox.count = 0;
+    inbox.oldest = inbox.newest;
+    handed
 }
 
 /// A message's room in the send buffer (0x100 bytes, the sequence byte first).
@@ -130,61 +146,70 @@ pub fn outgoing(sequence: u8, bytes: &[u8]) -> Result<Vec<u8>, Invalid> {
 mod tests {
     use super::*;
 
-    fn record(inbox: &[u8], k: usize) -> (u8, u8, &[u8]) {
-        let at = 4 + k * RECORD;
-        (
-            inbox[at],
-            inbox[at + 1],
-            &inbox[at + 2..at + 2 + inbox[at + 1] as usize],
-        )
+    fn empty() -> Inbox {
+        Inbox {
+            count: 0,
+            records: vec![0; RECORDS_LEN],
+            oldest: 0,
+            newest: 0,
+            time: 0,
+        }
+    }
+
+    fn record(inbox: &Inbox, k: usize) -> (u8, u8, &[u8]) {
+        let at = k * RECORD;
+        let r = &inbox.records;
+        (r[at], r[at + 1], &r[at + 2..at + 2 + r[at + 1] as usize])
     }
 
     #[test]
     fn storing() {
-        let mut inbox = vec![0u8; INBOX];
-        store(&mut inbox, 0x81, 7, b"ab").unwrap();
-        assert_eq!(get(&inbox, 0), 1);
+        let mut inbox = empty();
+        assert_eq!(store(&mut inbox, 0x81, 7, b"ab"), Ok(None));
+        assert_eq!(inbox.count, 1);
         assert_eq!(record(&inbox, 0), (2, 2, b"ab".as_slice()));
-        assert_eq!((inbox[NEWEST], get(&inbox, TIME)), (2, 7));
+        assert_eq!((inbox.newest, inbox.time), (2, 7));
         store(&mut inbox, 0x83, 8, b"cd").unwrap();
         assert_eq!(record(&inbox, 1), (6, 2, b"cd".as_slice()));
         // An older one goes in between, with nothing of it (the slip).
         store(&mut inbox, 0x82, 9, b"xy").unwrap();
-        assert_eq!(get(&inbox, 0), 3);
+        assert_eq!(inbox.count, 3);
         assert_eq!(record(&inbox, 1), (4, 0, b"".as_slice()));
         assert_eq!(record(&inbox, 2), (6, 2, b"cd".as_slice()));
-        assert_eq!(inbox[NEWEST], 6);
+        assert_eq!(inbox.newest, 6);
         // Too old.
-        inbox[OLDEST] = 0x10;
+        inbox.oldest = 0x10;
         store(&mut inbox, 0x84, 10, b"z").unwrap();
-        assert_eq!(get(&inbox, 0), 3);
-        assert_eq!(get(&inbox, TIME), 10);
-        // Full.
-        inbox[OLDEST] = 0;
-        set(&mut inbox, 0, RECORDS);
-        store(&mut inbox, 0x10, 11, b"q").unwrap();
+        assert_eq!(inbox.count, 3);
+        assert_eq!(inbox.time, 10);
+        // Full: the records move up and the message spills past them.
+        inbox.oldest = 0;
+        inbox.count = RECORDS;
+        let spill = store(&mut inbox, 0x10, 11, b"q").unwrap();
         assert_eq!(record(&inbox, 0), (4, 0, b"".as_slice()));
-        assert_eq!(record(&inbox, 0x40), (0x20, 1, b"q".as_slice()));
-        assert_eq!(inbox[OLDEST], 0x20);
+        assert_eq!(
+            spill,
+            Some(Spill {
+                sequence: 0x20,
+                length: 1,
+                bytes: b"q".to_vec()
+            })
+        );
         assert!(store(&mut inbox, 0x10, 11, &[0; 0xFF]).is_err());
-        set(&mut inbox, 0, RECORDS + 1);
+        inbox.count = RECORDS + 1;
         assert!(store(&mut inbox, 0x10, 11, b"").is_err());
     }
 
     #[test]
     fn handing_over() {
-        let mut both = vec![0xAAu8; 2 * COPIED];
-        set(&mut both, 0, 2);
-        both[4] = 0x84;
-        both[OLDEST] = 2;
-        both[NEWEST] = 6;
-        assert_eq!(hand_over(&mut both), 6);
-        assert_eq!(get(&both, 0), 0);
-        assert_eq!((both[OLDEST], both[NEWEST]), (6, 6));
-        assert_eq!(get(&both, COPIED), 2);
-        assert_eq!(both[COPIED + 4], 0x84);
-        assert_eq!(both[COPIED + OLDEST], 2);
-        assert_eq!(both[COPIED + COPIED - 1], 0xAA);
+        let mut inbox = empty();
+        inbox.count = 2;
+        inbox.records[0] = 0x84;
+        inbox.oldest = 2;
+        inbox.newest = 6;
+        let (count, records) = hand_over(&mut inbox);
+        assert_eq!((count, records[0]), (2, 0x84));
+        assert_eq!((inbox.count, inbox.oldest, inbox.newest), (0, 6, 6));
     }
 
     #[test]
